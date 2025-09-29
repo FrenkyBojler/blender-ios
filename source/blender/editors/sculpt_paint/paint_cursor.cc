@@ -429,7 +429,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
   int size;
   const bool refresh = !cursor_snap.overlay_texture ||
                        (overlay_flags & PAINT_OVERLAY_INVALID_CURVE) || cursor_snap.zoom != zoom ||
-                       cursor_snap.curve_preset != br->curve_preset;
+                       cursor_snap.curve_preset != br->curve_distance_falloff_preset;
 
   init = (cursor_snap.overlay_texture != nullptr);
 
@@ -463,7 +463,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
     }
     buffer = MEM_malloc_arrayN<uchar>(size * size, "load_tex");
 
-    BKE_curvemapping_init(br->curve);
+    BKE_curvemapping_init(br->curve_distance_falloff);
 
     LoadTexData data{};
     data.br = br;
@@ -500,7 +500,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
     size = cursor_snap.size;
   }
 
-  cursor_snap.curve_preset = br->curve_preset;
+  cursor_snap.curve_preset = br->curve_distance_falloff_preset;
   BKE_paint_reset_overlay_invalid(PAINT_OVERLAY_INVALID_CURVE);
 
   return 1;
@@ -831,8 +831,8 @@ static bool paint_draw_alpha_overlay(
   bool alpha_overlay_active = false;
 
   ePaintOverlayControlFlags flags = BKE_paint_get_overlay_flags();
-  eGPUBlend blend_state = GPU_blend_get();
-  eGPUDepthTest depth_test = GPU_depth_test_get();
+  GPUBlend blend_state = GPU_blend_get();
+  GPUDepthTest depth_test = GPU_depth_test_get();
 
   /* Translate to region. */
   GPU_matrix_push();
@@ -986,8 +986,8 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
 
     float selec_col[4], handle_col[4], pivot_col[4];
     UI_GetThemeColorType4fv(TH_VERTEX_SELECT, SPACE_VIEW3D, selec_col);
-    UI_GetThemeColorType4fv(TH_PAINT_CURVE_HANDLE, SPACE_VIEW3D, handle_col);
-    UI_GetThemeColorType4fv(TH_PAINT_CURVE_PIVOT, SPACE_VIEW3D, pivot_col);
+    UI_GetThemeColorType4fv(TH_GIZMO_PRIMARY, SPACE_VIEW3D, handle_col);
+    UI_GetThemeColorType4fv(TH_GIZMO_SECONDARY, SPACE_VIEW3D, pivot_col);
 
     for (int i = 0; i < pc->tot_points - 1; i++, cp++) {
       int j;
@@ -1209,7 +1209,7 @@ static void sculpt_geometry_preview_lines_draw(const Depsgraph &depsgraph,
   immUniformColor4f(1.0f, 1.0f, 1.0f, 0.6f);
 
   /* Cursor normally draws on top, but for this part we need depth tests. */
-  const eGPUDepthTest depth_test = GPU_depth_test_get();
+  const GPUDepthTest depth_test = GPU_depth_test_get();
   if (!depth_test) {
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   }
@@ -1671,8 +1671,7 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
     }
 
     if ((brush->flag & BRUSH_SMOOTH_STROKE) != 0) {
-      const float scale = 1.0f / 255.0f;
-      color = scale * float3(paint->paint_cursor_col);
+      color = float3(1.0f, 0.4f, 0.4f);
     }
   }
   else if (pcontext.mode == PaintMode::VertexGPencil) {
@@ -2262,8 +2261,8 @@ static void paint_draw_cursor(bContext *C,
 
 void ED_paint_cursor_start(Paint *paint, bool (*poll)(bContext *C))
 {
-  if (paint && !paint->paint_cursor) {
-    paint->paint_cursor = WM_paint_cursor_activate(
+  if (paint && paint->runtime && !paint->runtime->paint_cursor) {
+    paint->runtime->paint_cursor = WM_paint_cursor_activate(
         SPACE_TYPE_ANY, RGN_TYPE_ANY, poll, blender::ed::sculpt_paint::paint_draw_cursor, nullptr);
   }
 

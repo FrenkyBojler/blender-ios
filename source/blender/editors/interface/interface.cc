@@ -264,6 +264,13 @@ void ui_region_to_window(const ARegion *region, int *x, int *y)
   *y += region->winrct.ymin;
 }
 
+void ui_region_to_window(
+    const ARegion *region, int region_x, int region_y, int *r_window_x, int *r_window_y)
+{
+  *r_window_x = region_x + region->winrct.xmin;
+  *r_window_y = region_y + region->winrct.ymin;
+}
+
 int uiBlock::but_index(const uiBut *but) const
 {
   BLI_assert(!buttons.is_empty() && but);
@@ -319,7 +326,7 @@ static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
 
   rcti rect;
   ui_but_to_pixelrect(&rect, region, block, block->buttons.last().get());
-  const float buttons_width = std::ceil(float(rect.xmax) + UI_HEADER_OFFSET);
+  const float buttons_width = std::ceil(float(rect.xmax) + 8.0f * UI_SCALE_FAC);
   const float region_width = float(region->winx);
 
   if (region_width <= buttons_width) {

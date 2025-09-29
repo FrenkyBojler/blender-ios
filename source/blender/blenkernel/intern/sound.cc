@@ -86,7 +86,6 @@ static void sound_copy_data(Main * /*bmain*/,
   BLI_spin_init(static_cast<SpinLock *>(sound_dst->spinlock));
 
   /* Just to be sure, should not have any value actually after reading time. */
-  sound_dst->ipo = nullptr;
   sound_dst->newpackedfile = nullptr;
 
   if (sound_src->packedfile != nullptr) {
@@ -115,16 +114,6 @@ static void sound_free_data(ID *id)
     /* The void cast is needed when building without TBB. */
     MEM_freeN((void *)static_cast<SpinLock *>(sound->spinlock));
     sound->spinlock = nullptr;
-  }
-}
-
-static void sound_foreach_id(ID *id, LibraryForeachIDData *data)
-{
-  bSound *sound = reinterpret_cast<bSound *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, sound->ipo, IDWALK_CB_USER);
   }
 }
 
@@ -219,9 +208,10 @@ IDTypeInfo IDType_ID_SO = {
     /*copy_data*/ sound_copy_data,
     /*free_data*/ sound_free_data,
     /*make_local*/ nullptr,
-    /*foreach_id*/ sound_foreach_id,
+    /*foreach_id*/ nullptr,
     /*foreach_cache*/ sound_foreach_cache,
     /*foreach_path*/ sound_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ sound_blend_write,
@@ -367,6 +357,31 @@ struct GlobalState {
 
   int num_device_users = 0;
   std::chrono::time_point<std::chrono::steady_clock> last_user_disconnect_time_point;
+
+  ~GlobalState()
+  {
+    /* Ensure that we don't end up in a deadlock if the global state is being cleaned up
+     * before BKE_sound_exit_once has been called. (For example if someone called exit()
+     * to quickly close the program without cleaning up)
+     *
+     * If we don't do this, we could end up in a state where this destructor is waiting for
+     * other threads to let go of delayed_close_cv forever. See #146640.
+     */
+    exit_threads();
+  }
+
+  void exit_threads()
+  {
+    {
+      std::unique_lock lock(sound_device_mutex);
+      need_exit = true;
+    }
+
+    if (delayed_close_thread.joinable()) {
+      delayed_close_cv.notify_all();
+      delayed_close_thread.join();
+    }
+  }
 };
 
 GlobalState g_state;
@@ -538,15 +553,7 @@ void BKE_sound_exit()
 
 void BKE_sound_exit_once()
 {
-  {
-    std::unique_lock lock(g_state.sound_device_mutex);
-    g_state.need_exit = true;
-  }
-
-  if (g_state.delayed_close_thread.joinable()) {
-    g_state.delayed_close_cv.notify_one();
-    g_state.delayed_close_thread.join();
-  }
+  g_state.exit_threads();
 
   std::lock_guard lock(g_state.sound_device_mutex);
   sound_device_close_no_lock();

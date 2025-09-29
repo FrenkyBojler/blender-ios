@@ -262,7 +262,7 @@ bool RE_HasSingleLayer(Render *re)
 }
 
 RenderResult *RE_MultilayerConvert(
-    void *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
+    ExrHandle *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
 {
   return render_result_new_from_exr(exrhandle, colorspace, predivide, rectx, recty);
 }
@@ -1366,6 +1366,7 @@ static void do_render_compositor(Render *re)
 
         CLOG_STR_INFO(&LOG, "Executing compositor");
         blender::compositor::RenderContext compositor_render_context;
+        compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           COM_execute(re,
                       &re->r,
@@ -2203,7 +2204,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
   }
 
   ImageFormatData image_format;
-  BKE_image_format_init_for_write(&image_format, scene, nullptr);
+  BKE_image_format_init_for_write(&image_format, scene, nullptr, true);
 
   const bool is_mono = !RE_ResultIsMultiView(rr);
   const float dither = scene->r.dither_intensity;
@@ -2220,6 +2221,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       if (!MOV_write_append(movie_writers[view_id],
                             scene,
                             rd,
+                            &image_format,
                             preview ? scene->r.psfra : scene->r.sfra,
                             scene->r.cfra,
                             ibuf,
@@ -2255,6 +2257,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       if (!MOV_write_append(movie_writers[0],
                             scene,
                             rd,
+                            &image_format,
                             preview ? scene->r.psfra : scene->r.sfra,
                             scene->r.cfra,
                             ibuf_arr[2],
@@ -2370,6 +2373,7 @@ static bool do_write_image_or_movie(
 
 static void get_videos_dimensions(const Render *re,
                                   const RenderData *rd,
+                                  const ImageFormatData *imf,
                                   size_t *r_width,
                                   size_t *r_height)
 {
@@ -2389,7 +2393,7 @@ static void get_videos_dimensions(const Render *re,
     height = re->recty;
   }
 
-  BKE_scene_multiview_videos_dimensions_get(rd, width, height, r_width, r_height);
+  BKE_scene_multiview_videos_dimensions_get(rd, imf, width, height, r_width, r_height);
 }
 
 static void re_movie_free_all(Render *re)
@@ -2441,10 +2445,6 @@ void RE_RenderAnim(Render *re,
   const int cfra_old = rd.cfra;
   const float subframe_old = rd.subframe;
   int nfra, totrendered = 0, totskipped = 0;
-  const int totvideos = BKE_scene_multiview_num_videos_get(&rd);
-  const bool is_movie = BKE_imtype_is_movie(rd.im_format.imtype);
-  const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
-                                  (rd.im_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
   /* do not fully call for each frame, it initializes & pops output window */
   if (!render_init_from_main(re, &rd, bmain, scene, single_layer, camera_override, false, true)) {
@@ -2452,6 +2452,15 @@ void RE_RenderAnim(Render *re,
   }
 
   RenderEngineType *re_type = RE_engines_find(re->r.engine);
+
+  /* Image format for writing. */
+  ImageFormatData image_format;
+  BKE_image_format_init_for_write(&image_format, scene, nullptr, true);
+
+  const int totvideos = BKE_scene_multiview_num_videos_get(&rd, &image_format);
+  const bool is_movie = BKE_imtype_is_movie(image_format.imtype);
+  const bool is_multiview_name = ((rd.scemode & R_MULTIVIEW) != 0 &&
+                                  (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
   /* Only disable file writing if postprocessing is also disabled. */
   const bool do_write_file = !(re_type->flag & RE_USE_NO_IMAGE_SAVE) ||
@@ -2461,15 +2470,15 @@ void RE_RenderAnim(Render *re,
 
   if (is_movie && do_write_file) {
     size_t width, height;
-    get_videos_dimensions(re, &rd, &width, &height);
+    get_videos_dimensions(re, &rd, &image_format, &width, &height);
 
     bool is_error = false;
     re->movie_writers.reserve(totvideos);
     for (int i = 0; i < totvideos; i++) {
       const char *suffix = BKE_scene_multiview_view_id_suffix_get(&re->r, i);
-      MovieWriter *writer = MOV_write_begin(rd.im_format.imtype,
-                                            re->pipeline_scene_eval,
+      MovieWriter *writer = MOV_write_begin(re->pipeline_scene_eval,
                                             &re->r,
+                                            &image_format,
                                             width,
                                             height,
                                             re->reports,
@@ -2484,6 +2493,7 @@ void RE_RenderAnim(Render *re,
 
     if (is_error) {
       re_movie_free_all(re);
+      BKE_image_format_free(&image_format);
       render_pipeline_free(re);
       return;
     }
@@ -2546,7 +2556,7 @@ void RE_RenderAnim(Render *re,
           BKE_main_blendfile_path(bmain),
           &template_variables,
           scene->r.cfra,
-          &rd.im_format,
+          &image_format,
           (rd.scemode & R_EXTENSION) != 0,
           true,
           nullptr);
@@ -2681,6 +2691,8 @@ void RE_RenderAnim(Render *re,
   if (is_movie && do_write_file) {
     re_movie_free_all(re);
   }
+
+  BKE_image_format_free(&image_format);
 
   if (totskipped && totrendered == 0) {
     BKE_report(re->reports, RPT_INFO, "No frames rendered, skipped to not overwrite");
@@ -2901,44 +2913,6 @@ RenderPass *RE_pass_find_by_name(RenderLayer *rl, const char *name, const char *
       }
     }
   }
-  return nullptr;
-}
-
-RenderPass *RE_pass_find_by_type(RenderLayer *rl, int passtype, const char *viewname)
-{
-#define CHECK_PASS(NAME) \
-  if (passtype == SCE_PASS_##NAME) { \
-    return RE_pass_find_by_name(rl, RE_PASSNAME_##NAME, viewname); \
-  } \
-  ((void)0)
-
-  CHECK_PASS(COMBINED);
-  CHECK_PASS(DEPTH);
-  CHECK_PASS(VECTOR);
-  CHECK_PASS(NORMAL);
-  CHECK_PASS(UV);
-  CHECK_PASS(EMIT);
-  CHECK_PASS(SHADOW);
-  CHECK_PASS(AO);
-  CHECK_PASS(ENVIRONMENT);
-  CHECK_PASS(INDEXOB);
-  CHECK_PASS(INDEXMA);
-  CHECK_PASS(MIST);
-  CHECK_PASS(DIFFUSE_DIRECT);
-  CHECK_PASS(DIFFUSE_INDIRECT);
-  CHECK_PASS(DIFFUSE_COLOR);
-  CHECK_PASS(GLOSSY_DIRECT);
-  CHECK_PASS(GLOSSY_INDIRECT);
-  CHECK_PASS(GLOSSY_COLOR);
-  CHECK_PASS(TRANSM_DIRECT);
-  CHECK_PASS(TRANSM_INDIRECT);
-  CHECK_PASS(TRANSM_COLOR);
-  CHECK_PASS(SUBSURFACE_DIRECT);
-  CHECK_PASS(SUBSURFACE_INDIRECT);
-  CHECK_PASS(SUBSURFACE_COLOR);
-
-#undef CHECK_PASS
-
   return nullptr;
 }
 
