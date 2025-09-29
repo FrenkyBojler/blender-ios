@@ -226,22 +226,16 @@ bool BM_mesh_uvselect_clear(BMesh *bm);
 /** \name UV Selection Functions (Shared)
  * \{ */
 
-void BM_loop_vert_uvselect_set_shared(BMesh *bm,
-                                      BMLoop *l,
-                                      bool select,
-                                      const int cd_loop_uv_offset);
-void BM_loop_edge_uvselect_set_shared(BMesh *bm,
-                                      BMLoop *l,
-                                      bool select,
-                                      const int cd_loop_uv_offset);
-void BM_face_uvselect_set_shared(BMesh *bm, BMFace *f, bool select, const int cd_loop_uv_offset);
+void BM_loop_vert_uvselect_set_shared(BMesh *bm, BMLoop *l, bool select, int cd_loop_uv_offset);
+void BM_loop_edge_uvselect_set_shared(BMesh *bm, BMLoop *l, bool select, int cd_loop_uv_offset);
+void BM_face_uvselect_set_shared(BMesh *bm, BMFace *f, bool select, int cd_loop_uv_offset);
 
 void BM_mesh_uvselect_set_elem_shared(BMesh *bm,
                                       bool select,
-                                      const int cd_loop_uv_offset,
-                                      const blender::Span<BMLoop *> loop_verts,
-                                      const blender::Span<BMLoop *> loop_edges,
-                                      const blender::Span<BMFace *> faces);
+                                      int cd_loop_uv_offset,
+                                      blender::Span<BMLoop *> loop_verts,
+                                      blender::Span<BMLoop *> loop_edges,
+                                      blender::Span<BMFace *> faces);
 
 /** \} */
 
@@ -329,7 +323,7 @@ void BM_mesh_uvselect_flush_from_faces_only_deselect(BMesh *bm);
  * afterwards this can be used to select UV's that are connected.
  * This avoids having to use more involved UV connectivity aware logic inline.
  */
-void BM_mesh_uvselect_flush_shared_only_select(BMesh *bm, const int cd_loop_uv_offset);
+void BM_mesh_uvselect_flush_shared_only_select(BMesh *bm, int cd_loop_uv_offset);
 
 /** \} */
 
@@ -379,7 +373,7 @@ void BM_mesh_uvselect_flush_from_faces(BMesh *bm, bool flush_down);
  *
  * \note An equivalent to #BM_mesh_select_flush_from_verts for the UV selection.
  */
-void BM_mesh_uvselect_flush_from_verts(BMesh *bm, const bool select);
+void BM_mesh_uvselect_flush_from_verts(BMesh *bm, bool select);
 
 /** \} */
 
@@ -408,9 +402,9 @@ void BM_mesh_uvselect_mode_flush_only_select(BMesh *bm);
  * The mesh selection flushing must have already run.
  */
 void BM_mesh_uvselect_mode_flush_update(BMesh *bm,
-                                        const short selectmode_old,
-                                        const short selectmode_new,
-                                        const int cd_loop_uv_offset);
+                                        short selectmode_old,
+                                        short selectmode_new,
+                                        int cd_loop_uv_offset);
 
 /**
  * A specialized flushing that fills in selection information after subdividing.
@@ -422,7 +416,7 @@ void BM_mesh_uvselect_mode_flush_update(BMesh *bm,
  * \note Intended to be a generic utility to be used in any situation
  * new geometry is created by splitting existing geometry.
  */
-void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offset);
+void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, int cd_loop_uv_offset);
 
 /** \} */
 
@@ -434,7 +428,7 @@ void BM_mesh_uvselect_flush_post_subdivide(BMesh *bm, const int cd_loop_uv_offse
  *
  * These functions correspond to #ToolSettings::uv_sticky options. */
 
-void BM_mesh_uvselect_sync_from_mesh_sticky_location(BMesh *bm, const int cd_loop_uv_offset);
+void BM_mesh_uvselect_sync_from_mesh_sticky_location(BMesh *bm, int cd_loop_uv_offset);
 void BM_mesh_uvselect_sync_from_mesh_sticky_disabled(BMesh *bm);
 void BM_mesh_uvselect_sync_from_mesh_sticky_vert(BMesh *bm);
 
