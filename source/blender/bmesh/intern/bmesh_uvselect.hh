@@ -462,14 +462,14 @@ void BM_mesh_uvselect_sync_to_mesh(BMesh *bm);
  */
 struct UVSelectValidateInfo_Sync {
   /** When a vertex is unselected none of it's UV's may be selected. */
-  uint count_uv_vert_any_selected_with_vert_unselected = 0;
+  int count_uv_vert_any_selected_with_vert_unselected = 0;
   /** When a vertex is selected at least one UV must be selected. */
-  uint count_uv_vert_none_selected_with_vert_selected = 0;
+  int count_uv_vert_none_selected_with_vert_selected = 0;
 
   /** When a edge is unselected none of it's UV's may be selected. */
-  uint count_uv_edge_any_selected_with_edge_unselected = 0;
+  int count_uv_edge_any_selected_with_edge_unselected = 0;
   /** When a edge is selected at least one UV must be selected. */
-  uint count_uv_edge_none_selected_with_edge_selected = 0;
+  int count_uv_edge_none_selected_with_edge_selected = 0;
 };
 
 /**
@@ -479,19 +479,19 @@ struct UVSelectValidateInfo_Sync {
  */
 struct UVSelectValidateInfo_Flush {
   /** Edges are selected without selected vertices. */
-  uint count_uv_edge_selected_with_any_verts_unselected = 0;
+  int count_uv_edge_selected_with_any_verts_unselected = 0;
   /** Edges are unselected with all selected vertices. */
-  uint count_uv_edge_unselected_with_all_verts_selected = 0;
+  int count_uv_edge_unselected_with_all_verts_selected = 0;
 
   /** Faces are selected without selected vertices. */
-  uint count_uv_face_selected_with_any_verts_unselected = 0;
+  int count_uv_face_selected_with_any_verts_unselected = 0;
   /** Faces  are unselected with all selected vertices. */
-  uint count_uv_face_unselected_with_all_verts_selected = 0;
+  int count_uv_face_unselected_with_all_verts_selected = 0;
 
   /** Faces are selected without selected edges. */
-  uint count_uv_face_selected_with_any_edges_unselected = 0;
+  int count_uv_face_selected_with_any_edges_unselected = 0;
   /** Faces  are unselected with all selected edges. */
-  uint count_uv_face_unselected_with_all_edges_selected = 0;
+  int count_uv_face_unselected_with_all_edges_selected = 0;
 };
 
 /**
@@ -503,9 +503,9 @@ struct UVSelectValidateInfo_Flush {
  */
 struct UVSelectValidateInfo_Contiguous {
   /** When a vertices connected UV's are co-located without matching selection. */
-  uint count_uv_vert_non_contiguous_selected = 0;
+  int count_uv_vert_non_contiguous_selected = 0;
   /** When a edges connected UV's are co-located without matching selection. */
-  uint count_uv_edge_non_contiguous_selected = 0;
+  int count_uv_edge_non_contiguous_selected = 0;
 };
 
 /**
@@ -515,11 +515,11 @@ struct UVSelectValidateInfo_Contiguous {
  */
 struct UVSelectValidateInfo_FlushAndContiguous {
   /** A vertex is selected in edge/face modes without being part of a selected edge/face. */
-  uint count_uv_vert_isolated_in_edge_or_face_mode = 0;
+  int count_uv_vert_isolated_in_edge_or_face_mode = 0;
   /** A vertex is selected in face modes without being part of a selected face. */
-  uint count_uv_vert_isolated_in_face_mode = 0;
+  int count_uv_vert_isolated_in_face_mode = 0;
   /** An edge is selected in face modes without being part of a selected face. */
-  uint count_uv_edge_isolated_in_face_mode = 0;
+  int count_uv_edge_isolated_in_face_mode = 0;
 };
 
 struct UVSelectValidateInfo {

@@ -1908,7 +1908,7 @@ static bool bm_mesh_uvselect_check_viewport_sync(BMesh *bm, UVSelectValidateInfo
 
   /* Vertices. */
   {
-    uint &error_count = info_sub.count_uv_vert_any_selected_with_vert_unselected;
+    int &error_count = info_sub.count_uv_vert_any_selected_with_vert_unselected;
     BLI_assert(error_count == 0);
     BMIter fiter;
     BMFace *f;
@@ -1933,7 +1933,7 @@ static bool bm_mesh_uvselect_check_viewport_sync(BMesh *bm, UVSelectValidateInfo
   }
 
   {
-    uint &error_count = info_sub.count_uv_vert_none_selected_with_vert_selected;
+    int &error_count = info_sub.count_uv_vert_none_selected_with_vert_selected;
     BLI_assert(error_count == 0);
     BMIter viter;
     BMIter liter;
@@ -1969,7 +1969,7 @@ static bool bm_mesh_uvselect_check_viewport_sync(BMesh *bm, UVSelectValidateInfo
 
   /* Edges. */
   {
-    uint &error_count = info_sub.count_uv_edge_any_selected_with_edge_unselected;
+    int &error_count = info_sub.count_uv_edge_any_selected_with_edge_unselected;
     BLI_assert(error_count == 0);
     BMIter fiter;
     BMFace *f;
@@ -1997,7 +1997,7 @@ static bool bm_mesh_uvselect_check_viewport_sync(BMesh *bm, UVSelectValidateInfo
    * that don't form a selected UV edge to form a selected viewport edge.
    * So, it only makes sense to perform this check in edge selection mode. */
   if ((bm->selectmode & SCE_SELECT_VERTEX) == 0) {
-    uint &error_count = info_sub.count_uv_edge_none_selected_with_edge_selected;
+    int &error_count = info_sub.count_uv_edge_none_selected_with_edge_selected;
     BLI_assert(error_count == 0);
     BMIter eiter;
 
@@ -2041,8 +2041,8 @@ static bool bm_mesh_uvselect_check_flush(BMesh *bm, UVSelectValidateInfo_Flush &
 
   /* Vertices are flushed to edges. */
   {
-    uint &error_count_selected = info_sub.count_uv_edge_selected_with_any_verts_unselected;
-    uint &error_count_unselected = info_sub.count_uv_edge_unselected_with_all_verts_selected;
+    int &error_count_selected = info_sub.count_uv_edge_selected_with_any_verts_unselected;
+    int &error_count_unselected = info_sub.count_uv_edge_unselected_with_all_verts_selected;
     BLI_assert(error_count_selected == 0 && error_count_unselected == 0);
     BMIter fiter;
     BMFace *f;
@@ -2077,11 +2077,11 @@ static bool bm_mesh_uvselect_check_flush(BMesh *bm, UVSelectValidateInfo_Flush &
 
   /* Vertices & edges are flushed to faces. */
   {
-    uint &error_count_verts_selected = info_sub.count_uv_face_selected_with_any_verts_unselected;
-    uint &error_count_verts_unselected = info_sub.count_uv_face_unselected_with_all_verts_selected;
+    int &error_count_verts_selected = info_sub.count_uv_face_selected_with_any_verts_unselected;
+    int &error_count_verts_unselected = info_sub.count_uv_face_unselected_with_all_verts_selected;
 
-    uint &error_count_edges_selected = info_sub.count_uv_face_selected_with_any_edges_unselected;
-    uint &error_count_edges_unselected = info_sub.count_uv_face_unselected_with_all_edges_selected;
+    int &error_count_edges_selected = info_sub.count_uv_face_selected_with_any_edges_unselected;
+    int &error_count_edges_unselected = info_sub.count_uv_face_unselected_with_all_edges_selected;
 
     BLI_assert(error_count_verts_selected == 0 && error_count_verts_unselected == 0);
     BLI_assert(error_count_edges_selected == 0 && error_count_edges_unselected == 0);
@@ -2091,8 +2091,8 @@ static bool bm_mesh_uvselect_check_flush(BMesh *bm, UVSelectValidateInfo_Flush &
       if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
         continue;
       }
-      uint uv_vert_select = 0;
-      uint uv_edge_select = 0;
+      int uv_vert_select = 0;
+      int uv_edge_select = 0;
       BMLoop *l_iter, *l_first;
       l_iter = l_first = BM_FACE_FIRST_LOOP(f);
       do {
@@ -2153,7 +2153,7 @@ static bool bm_mesh_uvselect_check_contiguous(BMesh *bm,
 
   /* Handle vertices. */
   {
-    uint &error_count = info_sub.count_uv_vert_non_contiguous_selected;
+    int &error_count = info_sub.count_uv_vert_non_contiguous_selected;
     BLI_assert(error_count == 0);
 
     bm_mesh_loop_clear_tag(bm);
@@ -2209,7 +2209,7 @@ static bool bm_mesh_uvselect_check_contiguous(BMesh *bm,
 
   /* Handle edges. */
   {
-    uint &error_count = info_sub.count_uv_edge_non_contiguous_selected;
+    int &error_count = info_sub.count_uv_edge_non_contiguous_selected;
     BLI_assert(error_count == 0);
     bm_mesh_loop_clear_tag(bm);
 
@@ -2274,7 +2274,7 @@ static bool bm_mesh_uvselect_check_flush_and_contiguous(
 
   /* Check isolated selection. */
   if ((bm->selectmode & SCE_SELECT_EDGE) && (bm->selectmode & SCE_SELECT_VERTEX) == 0) {
-    uint &error_count = info_sub.count_uv_vert_isolated_in_edge_or_face_mode;
+    int &error_count = info_sub.count_uv_vert_isolated_in_edge_or_face_mode;
     BLI_assert(error_count == 0);
 
     if (bm->selectmode & SCE_SELECT_EDGE) {
@@ -2309,8 +2309,8 @@ static bool bm_mesh_uvselect_check_flush_and_contiguous(
   if ((bm->selectmode & SCE_SELECT_FACE) &&
       (bm->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) == 0)
   {
-    uint &error_count_vert = info_sub.count_uv_vert_isolated_in_face_mode;
-    uint &error_count_edge = info_sub.count_uv_edge_isolated_in_face_mode;
+    int &error_count_vert = info_sub.count_uv_vert_isolated_in_face_mode;
+    int &error_count_edge = info_sub.count_uv_edge_isolated_in_face_mode;
     BLI_assert(error_count_vert == 0 && error_count_edge == 0);
 
     /* All selected UV's must have at least one selected edge. */
