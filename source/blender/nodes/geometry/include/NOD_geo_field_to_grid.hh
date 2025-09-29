@@ -11,8 +11,8 @@
 namespace blender::nodes {
 
 /**
- * Makes it possible to use various functions (e.g. the ones in `NOD_socket_items.hh`) for evaluate
- * on grid items.
+ * Makes it possible to use various functions (e.g. the ones in `NOD_socket_items.hh`) for field
+ * to grid items.
  */
 struct FieldToGridItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = FieldToGridItem;
