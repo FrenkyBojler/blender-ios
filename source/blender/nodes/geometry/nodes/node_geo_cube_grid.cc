@@ -38,9 +38,35 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input(data_type, "Value")
-      .description("Value field to evaluate at each grid point")
-      .supports_field();
+
+  /* Set non-zero default values for each data type. */
+  switch (data_type) {
+    case SOCK_FLOAT:
+      b.add_input<decl::Float>("Value")
+          .default_value(1.0f)
+          .description("Value field to evaluate at each grid point")
+          .supports_field();
+      break;
+    case SOCK_BOOLEAN:
+      b.add_input<decl::Bool>("Value")
+          .default_value(true)
+          .description("Value field to evaluate at each grid point")
+          .supports_field();
+      break;
+    case SOCK_INT:
+      b.add_input<decl::Int>("Value")
+          .default_value(1)
+          .description("Value field to evaluate at each grid point")
+          .supports_field();
+      break;
+    case SOCK_VECTOR:
+      b.add_input<decl::Vector>("Value")
+          .default_value(float3(1.0f))
+          .description("Value field to evaluate at each grid point")
+          .supports_field();
+      break;
+  }
+
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input(data_type, "Background")
       .description("Default value for grid voxels outside the filled region");
