@@ -61,8 +61,8 @@ static float3 direction_bisect(const float3 &pos,
     if (norm < 2e-7) {     /* Approximately < sin(1e-5) */
       return other_dir;
     }
-    /* Compute using the cross product as catastrophic cancellation occur in `tangent`
-     * when the sum approach 0 generating significant errors, see #146332.
+    /* Compute using the cross product, as catastrophic cancellation occurs in `tangent` 
+     * when the sum approaches 0, leading to significant numerical errors (see #146332).
      */
     const float3 binormal = math::cross(other_dir, prev_dir);
     const float3 normal = other_dir - prev_dir;
