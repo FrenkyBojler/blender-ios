@@ -353,7 +353,7 @@ TEST_F(VKRenderGraphTestTransfer, copy_buffer_modify_data)
   resources.add_buffer(buffer_dst);
   VKCopyBufferNode::CreateInfo copy_buffer = {buffer_src, buffer_dst, {0, 0, 32}};
   NodeHandle copy_buffer_handle = render_graph->add_node(copy_buffer);
-  VkCopyBufferNode::Data &copy_buffer_data = render_graph->get_node_data(copy_buffer_handle);
+  VKCopyBufferNode::Data &copy_buffer_data = render_graph->get_node_data(copy_buffer_handle);
   copy_buffer_data.region.size = 64;
   submit(render_graph, command_buffer);
 
