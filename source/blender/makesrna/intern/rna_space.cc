@@ -6910,7 +6910,8 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
   prop = RNA_def_property(srna, "overlays", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_struct_type(prop, "SpaceDopeSheetOverlay");
-  RNA_def_property_pointer_funcs(prop, "rna_SpaceDopeSheet_overlay_get", nullptr, nullptr, nullptr);
+  RNA_def_property_pointer_funcs(
+      prop, "rna_SpaceDopeSheet_overlay_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Overlay Settings", "Settings for display of overlays");
 
   rna_def_space_dopesheet_overlays(brna);

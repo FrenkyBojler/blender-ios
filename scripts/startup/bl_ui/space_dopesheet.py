@@ -1084,7 +1084,7 @@ classes = (
     DOPESHEET_PT_grease_pencil_layer_relations,
     DOPESHEET_PT_grease_pencil_layer_display,
     DOPESHEET_PT_ShapeKey,
-    
+
     DOPESHEET_PT_overlay,
     DOPESHEET_PT_dopesheet_overlay,
 )
