@@ -796,6 +796,8 @@ static void do_merge_tile(
 
   copylen = tilex = rrpart->rectx;
   tiley = rrpart->recty;
+  // copylen = tilex = rrpart->tilerect.xmax - rrpart->tilerect.xmin;
+  // tiley = rrpart->tilerect.ymax - rrpart->tilerect.ymin;
 
   ofs = (size_t(rrpart->tilerect.ymin) * rr->rectx + rrpart->tilerect.xmin);
   target += pixsize * ofs;

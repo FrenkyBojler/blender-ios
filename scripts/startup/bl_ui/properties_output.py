@@ -127,7 +127,7 @@ class RENDER_PT_format(RenderOutputButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.active = rd.use_border
         sub.prop(rd, "use_crop_to_border")
-        sub.prop(rd, "use_border_stamp")
+        sub.prop(rd, "use_border_overlay")
 
         col = layout.column(heading="Frame Rate")
         self.draw_framerate(col, rd)

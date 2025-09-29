@@ -312,7 +312,7 @@ class Instance : public DrawEngine {
       rcti render_rect;
       RE_GetViewPlane(render, &view_rect, &render_rect);
 
-      // GPU_matrix_translate_2f(-render_rect.xmin, -render_rect.ymin);
+      GPU_matrix_translate_2f(-render_rect.xmin, -render_rect.ymin);
     }
   }
 

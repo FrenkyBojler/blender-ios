@@ -221,7 +221,7 @@ void RE_GetViewPlane(Render *re, rctf *r_viewplane, rcti *r_disprect)
   *r_viewplane = re->viewplane;
 
   /* make disprect zero when no border render, is needed to detect changes in 3d view render */
-  if (re->r.mode & R_BORDER) {
+  if (re->r.mode & R_BORDER && !(re->r.mode & R_BORDER_OVERLAY)) {
     *r_disprect = re->disprect;
   }
   else {

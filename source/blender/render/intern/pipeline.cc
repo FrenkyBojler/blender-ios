@@ -884,11 +884,7 @@ void RE_InitState(Render *re,
   bool resolution_changed = (re->result != nullptr &&
                              (re->result->rectx != rd->xsch || re->result->recty != rd->ysch));
   bool init_render_result = ((re->result == nullptr) || resolution_changed ||
-                             !(re->r.mode & R_BORDER && re->r.mode & R_BORDER_STAMP));
-  printf("RE_InitState: re->result %p, resolution_changed %d, init_render_result %d\n",
-         re->result,
-         int(resolution_changed),
-         int(init_render_result));
+                             !(re->r.mode & R_BORDER && re->r.mode & R_BORDER_OVERLAY));
   if (re->r.scemode & R_BUTS_PREVIEW) {
     if (had_freestyle || (re->r.mode & R_EDGE_FRS)) {
       /* freestyle manipulates render layers so always have to free */
@@ -1082,57 +1078,6 @@ static void render_result_disprect_to_full_resolution(Render *re)
   re->recty = re->winy;
 }
 
-// static void render_result_uncrop(Render *re)
-// {
-//   /* when using border render with crop disabled, insert render result into
-//    * full size with black pixels outside */
-//   if (re->result && (re->r.mode & R_BORDER)) {
-//     if ((re->r.mode & R_CROP) == 0) {
-//       RenderResult *rres;
-
-//       /* backup */
-//       const rcti orig_disprect = re->disprect;
-//       const int orig_rectx = re->rectx, orig_recty = re->recty;
-
-//       BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-
-//       /* sub-rect for merge call later on */
-//       re->result->tilerect = re->disprect;
-
-//       /* weak is: it chances disprect from border */
-//       render_result_disprect_to_full_resolution(re);
-
-//       rres = render_result_new(re, &re->disprect, RR_ALL_LAYERS, RR_ALL_VIEWS);
-//       rres->stamp_data = BKE_stamp_data_copy(re->result->stamp_data);
-
-//       render_result_clone_passes(re, rres, nullptr);
-//       render_result_passes_allocated_ensure(rres);
-
-//       render_result_merge(rres, re->result);
-//       render_result_free(re->result);
-//       re->result = rres;
-
-//       /* Weak, the display callback wants an active render-layer pointer. */
-//       re->result->renlay = render_get_single_layer(re, re->result);
-
-//       BLI_rw_mutex_unlock(&re->resultmutex);
-
-//       re->display_init(re->result);
-//       re->display_update(re->result, nullptr);
-
-//       /* restore the disprect from border */
-//       re->disprect = orig_disprect;
-//       re->rectx = orig_rectx;
-//       re->recty = orig_recty;
-//     }
-//     else {
-//       /* set offset (again) for use in compositor, disprect was manipulated. */
-//       re->result->xof = 0;
-//       re->result->yof = 0;
-//     }
-//   }
-// }
-
 /* Render scene into render result, with a render engine. */
 static void do_render_engine(Render *re)
 {
@@ -1151,7 +1096,6 @@ static void do_render_engine(Render *re)
   RE_engine_render(re, false);
 
   /* when border render, check if we have to insert it in black */
-  // render_result_uncrop(re);
 }
 
 /* Render scene into render result, within a compositor node tree.
@@ -2802,8 +2746,6 @@ bool RE_ReadRenderResult(Scene *scene, Scene *scenode)
   BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
   success = render_result_exr_file_cache_read(re);
   BLI_rw_mutex_unlock(&re->resultmutex);
-
-  // render_result_uncrop(re);
 
   return success;
 }

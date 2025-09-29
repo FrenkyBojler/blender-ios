@@ -323,9 +323,10 @@ RenderResult *RE_engine_begin_result(
   }
 
   Render *re = engine->re;
-  // if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_STAMP)) {
-  //   return re->result;
-  // }
+  if ((re->result) && (re->r.mode & R_BORDER) && (re->r.mode & R_BORDER_OVERLAY)) {
+    // return re->result;
+  }
+
   RenderResult *result;
   rcti disprect;
 
@@ -461,6 +462,11 @@ void RE_engine_end_result(
   }
 
   /* free */
+  if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_OVERLAY)) {
+    /* In border stamp mode, keep the result for next tile. */
+    // engine->re->result = result;
+    // return;
+  }
   BLI_remlink(&engine->fullresult, result);
   render_result_free(result);
 }
@@ -976,7 +982,7 @@ static RenderResult *engine_render_create_result(Render *re)
 {
   // If in border stamp mode, we need a render result in the size of the full canvas.
   RenderResult *rr = nullptr;
-  if (re->r.mode & R_BORDER_STAMP) {
+  if (re->r.mode & R_BORDER_OVERLAY) {
     rcti disprect = {0, re->winx, 0, re->winy};
     rr = render_result_new(re, &disprect, RR_ALL_LAYERS, RR_ALL_VIEWS);
   }
@@ -1042,7 +1048,7 @@ bool RE_engine_render(Render *re, bool do_all)
    * inversion as this calls python to get the render passes, while python UI
    * code can also hold a lock on the render result. */
   const bool create_new_result = (re->result == nullptr) ||
-                                 !(re->r.mode & R_BORDER && re->r.mode & R_BORDER_STAMP);
+                                 !(re->r.mode & R_BORDER && re->r.mode & R_BORDER_OVERLAY);
   RenderResult *new_result = (create_new_result) ? engine_render_create_result(re) : nullptr;
 
   BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
@@ -1282,7 +1288,7 @@ void RE_engine_tile_highlight_set(
     return;
   }
 
-  if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_STAMP)) {
+  if ((engine->re->r.mode & R_BORDER) && (engine->re->r.mode & R_BORDER_OVERLAY)) {
     /* In border stamp mode, the coordinates are in the full image space, need to convert to
      * border space. */
     x += engine->re->r.border.xmin * engine->re->winx;

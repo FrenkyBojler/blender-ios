@@ -2277,7 +2277,7 @@ enum {
   R_PERSISTENT_DATA = 1 << 26, /* Keep data around for re-render. */
   R_MODE_UNUSED_27 = 1 << 27,  /* cleared */
 
-  R_BORDER_STAMP = 1 << 28, /* Overlay the border on the previous render. */
+  R_BORDER_OVERLAY = 1 << 28, /* Overlay the border on the previous render. */
 };
 
 /** #RenderData::seq_flag */

@@ -7186,11 +7186,10 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       prop, "Crop to Render Region", "Crop the rendered frame to the defined render region size");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  prop = RNA_def_property(srna, "use_border_stamp", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_BORDER_STAMP);
+  prop = RNA_def_property(srna, "use_border_overlay", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_BORDER_OVERLAY);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(
-      prop, "Border Stamp", "Overlay the border on the previous render");
+  RNA_def_property_ui_text(prop, "Border Overlay", "Overlay the border on the previous render");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "use_placeholder", PROP_BOOLEAN, PROP_NONE);
