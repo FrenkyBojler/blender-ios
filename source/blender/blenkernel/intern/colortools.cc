@@ -426,18 +426,18 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       break;
   }
 
-  /* Invert y values to get positive slope. Some presets are neither positive nor negative sloped,
-   * and should not be affected by the setting. */
-  if (slope == CurveMapSlopeType::Positive && !ELEM(preset,
-                                                    CURVE_PRESET_CONSTANT_MEDIAN,
-                                                    CURVE_PRESET_MAX,
-                                                    CURVE_PRESET_MID8,
-                                                    CURVE_PRESET_GAUSS,
-                                                    CURVE_PRESET_BELL))
-  {
-    for (int i = 0; i < cuma->totpoint; i++) {
-      cuma->curve[i].y = 1.0f - cuma->curve[i].y;
+  /* mirror curve in x direction to have positive slope
+   * rather than default negative slope */
+  if (slope == CurveMapSlopeType::Positive) {
+    int i, last = cuma->totpoint - 1;
+    CurveMapPoint *newpoints = static_cast<CurveMapPoint *>(MEM_dupallocN(cuma->curve));
+
+    for (i = 0; i < cuma->totpoint; i++) {
+      newpoints[i].y = cuma->curve[last - i].y;
     }
+
+    MEM_freeN(cuma->curve);
+    cuma->curve = newpoints;
   }
   else if (slope == CurveMapSlopeType::PositiveNegative) {
     const int num_points = cuma->totpoint * 2 - 1;
