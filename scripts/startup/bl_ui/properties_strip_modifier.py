@@ -25,7 +25,7 @@ class StripModButtonsPanel:
 
 class STRIP_PT_modifiers(StripModButtonsPanel, Panel):
     bl_label = "Modifiers"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
@@ -41,8 +41,7 @@ class STRIP_PT_modifiers(StripModButtonsPanel, Panel):
         if sound is None:
             layout.prop(strip, "use_linear_modifiers", text="Linear Modifiers")
 
-        layout.operator_menu_enum("sequencer.strip_modifier_add", "type")
-        layout.operator("sequencer.strip_modifier_copy")
+        layout.operator("wm.call_menu", text="Add Modifier", icon='ADD').name = "SEQUENCER_MT_modifier_add"
 
         layout.template_strip_modifiers()
 

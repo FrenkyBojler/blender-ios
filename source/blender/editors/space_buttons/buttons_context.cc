@@ -40,6 +40,7 @@
 #include "BKE_screen.hh"
 
 #include "SEQ_select.hh"
+#include "SEQ_modifier.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -549,6 +550,22 @@ static bool buttons_context_path_strip(ButsContextPath *path)
   return false;
 }
 
+static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsContextPath *path)
+{
+  if (sequencer_scene && buttons_context_path_strip(path)) {
+    Strip *active_strip = static_cast<Strip *>(path->ptr[path->len - 1].data);
+
+    StripModifierData *smd = blender::seq::modifier_get_active(active_strip);
+    if (smd) {
+      path->ptr[path->len] = RNA_pointer_create_discrete(&sequencer_scene->id, &RNA_StripModifier, smd);
+      path->len++;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 #ifdef WITH_FREESTYLE
 static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *view_layer)
 {
@@ -682,8 +699,10 @@ static bool buttons_context_path(
       found = buttons_context_path_pose_bone(path);
       break;
     case BCONTEXT_STRIP:
-    case BCONTEXT_STRIP_MODIFIER:
       found = buttons_context_path_strip(path);
+      break;
+    case BCONTEXT_STRIP_MODIFIER:
+      found = buttons_context_path_strip_modifier(sequencer_scene, path);
       break;
     default:
       found = false;
@@ -891,6 +910,8 @@ const char *buttons_context_dir[] = {
     "curves",
     "pointcloud",
     "volume",
+    "strip",
+    "strip_modifier",
     nullptr,
 };
 
@@ -1213,6 +1234,14 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     set_pointer_type(path, result, &RNA_GreasePencilv3);
     return CTX_RESULT_OK;
   }
+  if (CTX_data_equals(member, "strip")) {
+    set_pointer_type(path, result, &RNA_Strip);
+    return CTX_RESULT_OK;
+  }
+  if (CTX_data_equals(member, "strip_modifier")) {
+    set_pointer_type(path, result, &RNA_StripModifier);
+    return CTX_RESULT_OK;
+  }
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
 
@@ -1229,7 +1258,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
 
-  if (!path || sbuts->mainb == BCONTEXT_STRIP || sbuts->mainb == BCONTEXT_STRIP_MODIFIER) {
+  if (!path) {
     return;
   }
 
