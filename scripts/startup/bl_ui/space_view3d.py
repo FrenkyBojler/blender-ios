@@ -1481,7 +1481,17 @@ class VIEW3D_MT_view(Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_view_render")
+        layout.operator(
+            "render.opengl",
+            text="Render Viewport Preview",
+            icon='RENDER_STILL',
+        )
+        layout.operator(
+            "render.opengl",
+            text="Render Playblast",
+            icon='RENDER_ANIMATION',
+        ).animation = True
+
         layout.separator()
 
         layout.menu("INFO_MT_area")
@@ -1637,31 +1647,6 @@ class VIEW3D_MT_view_regions(Menu):
         layout.separator()
 
         layout.operator("view3d.clear_render_border")
-
-
-class VIEW3D_MT_view_render(Menu):
-    bl_label = "Render Preview"
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.operator(
-            "render.opengl",
-            text="Render Viewport Image",
-            icon='RENDER_STILL',
-        )
-        layout.operator(
-            "render.opengl",
-            text="Render Viewport Animation",
-            icon='RENDER_ANIMATION',
-        ).animation = True
-
-        layout.separator()
-        props = layout.operator(
-            "render.opengl",
-            text="Render Viewport Keyframes",
-        )
-        props.animation = True
-        props.render_keyed_only = True
 
 
 # ********** Select menus, suffix from context.mode **********
@@ -9011,8 +8996,7 @@ class VIEW3D_PT_curves_sculpt_parameter_falloff(Panel):
         layout.template_curve_mapping(
             brush.curves_sculpt_settings,
             "curve_parameter_falloff",
-            brush=True,
-            use_negative_slope=True)
+            brush=True)
         row = layout.row(align=True)
         row.operator("brush.sculpt_curves_falloff_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
         row.operator("brush.sculpt_curves_falloff_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
@@ -9152,7 +9136,6 @@ classes = (
     VIEW3D_MT_view_align_selected,
     VIEW3D_MT_view_viewpoint,
     VIEW3D_MT_view_regions,
-    VIEW3D_MT_view_render,
     VIEW3D_MT_select_object,
     VIEW3D_MT_select_object_more_less,
     VIEW3D_MT_select_pose,
