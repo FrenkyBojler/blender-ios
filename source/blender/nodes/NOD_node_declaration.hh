@@ -528,6 +528,8 @@ class PanelDeclaration : public ItemDeclaration {
   /** Index in the list of panels on the node. */
   int index = -1;
   PanelDeclaration *parent_panel = nullptr;
+  /** If not empty, the panel is invalid. */
+  std::string invalid_reason;
 
  private:
   friend NodeDeclarationBuilder;
@@ -609,6 +611,7 @@ class PanelDeclarationBuilder : public DeclarationListBuilder {
   Self &description(std::string value = "");
   Self &translation_context(std::optional<std::string> value = std::nullopt);
   Self &default_closed(bool closed);
+  Self &invalid(std::string reason = "");
 };
 
 using PanelDeclarationPtr = std::unique_ptr<PanelDeclaration>;

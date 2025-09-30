@@ -1018,6 +1018,12 @@ PanelDeclarationBuilder &PanelDeclarationBuilder::default_closed(bool closed)
   return *this;
 }
 
+PanelDeclarationBuilder &PanelDeclarationBuilder::invalid(std::string reason)
+{
+  decl_->invalid_reason = std::move(reason);
+  return *this;
+}
+
 namespace implicit_field_inputs {
 
 static void position(const bNode & /*node*/, void *r_value)

@@ -2040,6 +2040,11 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
 
     /* Invisible button covering the entire header for collapsing/expanding. */
     const int header_but_margin = NODE_MARGIN_X / 3;
+
+    const char *description = panel_decl.description.c_str();
+    if (!panel_decl.invalid_reason.empty()) {
+      description = panel_decl.invalid_reason.c_str();
+    }
     uiBut *toggle_action_but = uiDefIconBut(
         &block,
         ButType::ButToggle,
@@ -2052,7 +2057,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
         nullptr,
         0.0f,
         0.0f,
-        panel_decl.description.c_str());
+        description);
     UI_but_func_pushed_state_set(
         toggle_action_but, [&panel_state](const uiBut &) { return panel_state.is_collapsed(); });
     UI_but_func_set(toggle_action_but,
@@ -2064,18 +2069,22 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
     const int but_size = U.widget_unit * 0.8f;
     const int but_padding = NODE_MARGIN_X / 4;
     int offsetx = draw_bounds.xmin + (NODE_MARGIN_X / 3);
-    uiDefIconBut(&block,
-                 ButType::Label,
-                 0,
-                 panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
-                 offsetx,
-                 *panel_runtime.header_center_y - but_size / 2,
-                 but_size,
-                 but_size,
-                 nullptr,
-                 0.0f,
-                 0.0f,
-                 "");
+    uiBut *collapse_but = uiDefIconBut(&block,
+                                       ButType::Label,
+                                       0,
+                                       panel_state.is_collapsed() ? ICON_RIGHTARROW :
+                                                                    ICON_DOWNARROW_HLT,
+                                       offsetx,
+                                       *panel_runtime.header_center_y - but_size / 2,
+                                       but_size,
+                                       but_size,
+                                       nullptr,
+                                       0.0f,
+                                       0.0f,
+                                       "");
+    if (!panel_decl.invalid_reason.empty()) {
+      UI_but_flag_enable(collapse_but, UI_BUT_REDALERT);
+    }
     offsetx += but_size + but_padding;
 
     UI_block_emboss_set(&block, ui::EmbossType::Emboss);
@@ -2133,7 +2142,9 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
         0,
         0,
         "");
-
+    if (!panel_decl.invalid_reason.empty()) {
+      UI_but_flag_enable(label_but, UI_BUT_REDALERT);
+    }
     if (panel_is_inactive) {
       UI_but_flag_enable(label_but, UI_BUT_INACTIVE);
     }

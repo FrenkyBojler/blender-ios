@@ -1203,18 +1203,24 @@ static void get_interface_ui_constraints_recursive(const bNodeTree &ntree,
       case NODE_INTERFACE_PANEL: {
         const bNodeTreeInterfacePanel &panel = get_item_as<bNodeTreeInterfacePanel>(*item);
         bNodeTreeInterfaceUIConstraintsPanel error;
-        error.draw_mode = bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Panel;
         /* Only inline socket panels are allowed to be above sockets.*/
-        if (ntree.tree_interface.get_inline_sockets_if_valid(panel)) {
-          error.draw_mode = bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Aligned;
-        }
-        else {
-          if (last_socket_index > i) {
-            error.valid = false;
-            error.message = TIP_("Panels must be below sockets");
-            error.draw_mode = bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Flat;
+        switch (NodeTreeInterfaceLayoutType(panel.layout_type)) {
+          case NODE_INTERFACE_PANEL_LAYOUT_TYPE_PANEL: {
+            if (last_socket_index > i) {
+              error.valid = false;
+              error.message = TIP_("Panels must be below sockets");
+            }
+            break;
+          }
+          case NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW: {
+            if (!ntree.tree_interface.get_inline_sockets_if_valid(panel)) {
+              error.valid = false;
+              error.message = TIP_("Invalid row content");
+            }
+            break;
           }
         }
+
         r_results.panels.add_new(&panel, error);
         get_interface_ui_constraints_recursive(ntree, panel, r_results);
         break;

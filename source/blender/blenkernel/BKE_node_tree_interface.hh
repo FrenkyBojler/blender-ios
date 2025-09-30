@@ -378,15 +378,8 @@ inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree
 }
 
 struct bNodeTreeInterfaceUIConstraintsPanel {
-  enum class NodeDrawMode {
-    Flat,
-    Panel,
-    Aligned,
-  };
-
   bool valid = true;
   std::string message;
-  NodeDrawMode draw_mode = NodeDrawMode::Panel;
 };
 
 struct bNodeTreeInterfaceUIConstraints {
