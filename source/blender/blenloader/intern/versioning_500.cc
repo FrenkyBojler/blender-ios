@@ -3691,7 +3691,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
           }
           /* The multiplication by 2 assumes that the time control footer has the same size as the
            * header. The header is only shown if there is enough space for both. */
-          const bool show_header = area->winy > HEADERY * 2;
+          const bool show_header = area->winy > (HEADERY * UI_SCALE_FAC) * 2;
           LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
             if (!show_header && region->regiontype == RGN_TYPE_HEADER) {
               region->flag |= RGN_FLAG_HIDDEN;
