@@ -2345,6 +2345,18 @@ static wmOperatorStatus modifier_set_active_invoke(bContext *C,
   return retval;
 }
 
+static bool modifier_set_active_poll(bContext *C)
+{
+  /* Only make this operator work in the Modifiers tab of the Properties editor.
+   * Otherwise it may eat up too many mouse click events. */
+  SpaceProperties *space_properties = CTX_wm_space_properties(C);
+  if (!(space_properties && space_properties->mainb == BCONTEXT_MODIFIER)) {
+    return false;
+  }
+
+  return ED_operator_object_active_only(C);
+}
+
 void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 {
   ot->name = "Set Active Modifier";
@@ -2353,7 +2365,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = ED_operator_object_active_only;
+  ot->poll = modifier_set_active_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
@@ -3510,10 +3522,10 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   }
 
   if (use_attribute->type == IDP_INT) {
-    IDP_Int(use_attribute) = !IDP_Int(use_attribute);
+    IDP_int_set(use_attribute, !IDP_int_get(use_attribute));
   }
   else if (use_attribute->type == IDP_BOOLEAN) {
-    IDP_Bool(use_attribute) = !IDP_Bool(use_attribute);
+    IDP_bool_set(use_attribute, !IDP_bool_get(use_attribute));
   }
   else {
     return OPERATOR_CANCELLED;
@@ -3582,8 +3594,9 @@ static wmOperatorStatus geometry_node_tree_copy_assign_exec(bContext *C, wmOpera
 
 void OBJECT_OT_geometry_node_tree_copy_assign(wmOperatorType *ot)
 {
-  ot->name = "Copy Geometry Node Group";
-  ot->description = "Copy the active geometry node group and assign it to the active modifier";
+  ot->name = "New Geometry Node Group";
+  ot->description =
+      "Duplicate the active geometry node group and assign it to the active modifier";
   ot->idname = "OBJECT_OT_geometry_node_tree_copy_assign";
 
   ot->exec = geometry_node_tree_copy_assign_exec;

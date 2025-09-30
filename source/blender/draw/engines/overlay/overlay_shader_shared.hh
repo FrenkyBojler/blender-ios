@@ -4,7 +4,7 @@
 
 #pragma once
 
-#if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
+#ifndef GPU_SHADER
 #  include "GPU_shader_shared_utils.hh"
 
 #  include "DNA_action_types.h"
@@ -234,7 +234,6 @@ struct ThemeColors {
   float4 nurb_vline;
   float4 nurb_sel_uline;
   float4 nurb_sel_vline;
-  float4 active_spline;
 
   float4 bone_pose;
   float4 bone_pose_active;
@@ -325,7 +324,7 @@ struct ExtraInstanceData {
   float4 color_;
   float4x4 object_to_world;
 
-#if !defined(GPU_SHADER)
+#ifndef GPU_SHADER
   ExtraInstanceData(const float4x4 &object_to_world, const float4 &color, float draw_size)
   {
     this->color_ = color;
