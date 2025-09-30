@@ -62,7 +62,6 @@
 #include "BKE_paint.hh"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
-#include "BKE_screen.hh"
 
 #include "BLT_translation.hh"
 
