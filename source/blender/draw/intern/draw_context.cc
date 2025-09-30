@@ -679,8 +679,18 @@ ObjectRef::ObjectRef(Object &ob, Object *dupli_parent, const VectorList<DupliObj
 
 namespace blender::draw {
 
-static bool supports_handle_ranges(Object *ob)
+static bool supports_handle_ranges(Object *ob, Object *parent)
 {
+  if (!ELEM(
+          ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_POINTCLOUD, OB_GREASE_PENCIL))
+  {
+    return false;
+  }
+
+  if (min(ob->dt, parent->dt) == OB_BOUNDBOX) {
+    return false;
+  }
+
   if (ob->type == OB_MESH) {
     /* Hair drawing doesn't support handle ranges. */
     LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
@@ -693,7 +703,8 @@ static bool supports_handle_ranges(Object *ob)
     /* Smoke drawing doesn't support handle ranges. */
     return !BKE_modifiers_findby_type(ob, eModifierType_Fluid);
   }
-  return ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_POINTCLOUD, OB_GREASE_PENCIL);
+
+  return true;
 }
 
 enum class InstancesFlags : uint8_t {
@@ -838,7 +849,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       }
 #endif
 
-      if (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob)) {
+      if (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob, ob)) {
         /* Sync the dupli as a single object. */
         if (!evil::DEG_iterator_temp_object_from_dupli(
                 ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
