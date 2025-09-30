@@ -178,12 +178,17 @@ class NodePanelViewItem : public BasicTreeViewItem {
   bNodeTree &nodetree_;
   bNodeTreeInterfacePanel &panel_;
   const bNodeTreeInterfaceSocket *toggle_ = nullptr;
+  const node_interface::bNodeTreeInterfaceUIConstraintsPanel &panel_constraints_;
 
  public:
   NodePanelViewItem(bNodeTree &nodetree,
                     bNodeTreeInterface &interface,
-                    bNodeTreeInterfacePanel &panel)
-      : BasicTreeViewItem(panel.name, ICON_NONE), nodetree_(nodetree), panel_(panel)
+                    bNodeTreeInterfacePanel &panel,
+                    const node_interface::bNodeTreeInterfaceUIConstraintsPanel &panel_constraints)
+      : BasicTreeViewItem(panel.name, ICON_NONE),
+        nodetree_(nodetree),
+        panel_(panel),
+        panel_constraints_(panel_constraints)
   {
     set_is_active_fn([interface, &panel]() { return interface.active_item() == &panel.item; });
     set_on_activate_fn([&interface](bContext & /*C*/, BasicTreeViewItem &new_active) {
@@ -199,17 +204,40 @@ class NodePanelViewItem : public BasicTreeViewItem {
     if (ID_IS_LINKED(&nodetree_)) {
       row.enabled_set(false);
     }
+    if (!panel_constraints_.valid) {
+      uiDefIconBut(row.block(),
+                   ButType::But,
+                   0,
+                   ICON_ERROR,
+                   0,
+                   0,
+                   UI_UNIT_X,
+                   UI_UNIT_Y,
+                   nullptr,
+                   0.0,
+                   0.0,
+                   panel_constraints_.message);
+    }
     /* Add boolean socket if panel has a toggle. */
-    if (toggle_ != nullptr) {
+    if (toggle_) {
       uiLayout *toggle_layout = &row.row(true);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(toggle_layout, /*C*/ nullptr, toggle_->socket_color());
+      this->add_label(row);
+      return;
     }
-
+    if (this->is_collapsed()) {
+      if (const std::optional<bNodeTreeInterface::InlineSockets> inline_sockets =
+              nodetree_.tree_interface.get_inline_sockets_if_valid(panel_))
+      {
+        uiLayout &subrow = row.row(true);
+        uiTemplateNodeSocket(&subrow, nullptr, inline_sockets->input->socket_color());
+        this->add_label(row);
+        uiTemplateNodeSocket(&subrow, nullptr, inline_sockets->output->socket_color());
+        return;
+      }
+    }
     this->add_label(row);
-
-    uiLayout *sub = &row.row(true);
-    sub->use_property_decorate_set(false);
   }
 
  protected:
@@ -272,11 +300,13 @@ class NodeTreeInterfaceView : public AbstractTreeView {
  private:
   bNodeTree &nodetree_;
   bNodeTreeInterface &interface_;
+  node_interface::bNodeTreeInterfaceUIConstraints ui_constraints_;
 
  public:
   explicit NodeTreeInterfaceView(bNodeTree &nodetree, bNodeTreeInterface &interface)
       : nodetree_(nodetree), interface_(interface)
   {
+    ui_constraints_ = node_interface::get_interface_ui_constraints(nodetree_);
   }
 
   bNodeTree &nodetree()
@@ -316,8 +346,10 @@ class NodeTreeInterfaceView : public AbstractTreeView {
         case NODE_INTERFACE_PANEL: {
           bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
               item);
+          const node_interface::bNodeTreeInterfaceUIConstraintsPanel &panel_constraints =
+              ui_constraints_.panels.lookup(panel);
           NodePanelViewItem &panel_item = parent_item.add_tree_item<NodePanelViewItem>(
-              nodetree_, interface_, *panel);
+              nodetree_, interface_, *panel, panel_constraints);
           panel_item.uncollapse_by_default();
           /* Skip over sockets which are a panel toggle. */
           const bNodeTreeInterfaceSocket *skip_item = panel->header_toggle_socket();

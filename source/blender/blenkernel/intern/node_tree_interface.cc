@@ -1257,7 +1257,7 @@ static void get_interface_ui_constraints_recursive(const bNodeTree &ntree,
         else {
           if (last_socket_index > i) {
             error.valid = false;
-            error.message = TIP_("Panels must be above sockets");
+            error.message = TIP_("Panels must be below sockets");
             error.draw_mode = bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Flat;
           }
         }
