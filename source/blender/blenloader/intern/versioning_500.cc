@@ -62,6 +62,7 @@
 #include "BKE_paint.hh"
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 
 #include "BLT_translation.hh"
 
@@ -3674,6 +3675,34 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
       float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
       copy_v4_v4(camera->composition_guide_color, default_col);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 96)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (!ELEM(sl->spacetype, SPACE_ACTION)) {
+            continue;
+          }
+          SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
+          if (saction->mode == SACTCONT_TIMELINE) {
+            /* Switching to dopesheet since that is the closest to the timeline view. */
+            saction->mode = SACTCONT_DOPESHEET;
+          }
+          /* The multiplication by 2 assumes that the time control footer has the same size as the
+           * header. The header is only shown if there is enough space for both. */
+          const bool show_header = area->winy > HEADERY * 2;
+          LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+            if (!show_header && region->regiontype == RGN_TYPE_HEADER) {
+              region->flag |= RGN_FLAG_HIDDEN;
+            }
+            if (region->regiontype == RGN_TYPE_FOOTER) {
+              region->flag &= ~RGN_FLAG_HIDDEN;
+            }
+          }
+        }
+      }
     }
   }
 
