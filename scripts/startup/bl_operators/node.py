@@ -1024,10 +1024,14 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             return {'CANCELLED'}
 
         if active_item:
-            # Insert into active panel if possible, otherwise insert after active item.
             if active_item.item_type == 'PANEL' and item.item_type != 'PANEL':
+                # Insert at end of active panel.
                 interface.move_to_parent(item, active_item, len(active_item.interface_items))
+            elif self.item_type == 'PANEL':
+                # Insert new panels at end.
+                interface.move_to_parent(item, active_item.parent, len(active_item.parent.interface_items))
             else:
+                # Insert after the active item.
                 interface.move_to_parent(item, active_item.parent, active_pos + 1)
         interface.active = item
 
