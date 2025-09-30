@@ -3847,6 +3847,7 @@ static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *
   return new_item;
 }
 
+/* The same as #grid_socket_type_items_filter_fn. */
 static const EnumPropertyItem *rna_NodeFieldToGridItem_data_type_itemf(bContext * /*C*/,
                                                                        PointerRNA * /*ptr*/,
                                                                        PropertyRNA * /*prop*/,
