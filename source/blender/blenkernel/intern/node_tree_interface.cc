@@ -852,50 +852,6 @@ bNodeTreeInterfacePanel *bNodeTreeInterfacePanel::find_parent_recursive(
   return nullptr;
 }
 
-int bNodeTreeInterfacePanel::find_valid_insert_position_for_item(
-    const bNodeTreeInterfaceItem &item, const int initial_pos) const
-{
-  const blender::Span<const bNodeTreeInterfaceItem *> items = this->items();
-
-  /* True if item a should be above item b. */
-  auto must_be_before = [](const bNodeTreeInterfaceItem &a,
-                           const bNodeTreeInterfaceItem &b) -> bool {
-    /* Keep outputs above inputs. */
-    if (a.item_type == NODE_INTERFACE_SOCKET && b.item_type == NODE_INTERFACE_SOCKET) {
-      const auto &sa = reinterpret_cast<const bNodeTreeInterfaceSocket &>(a);
-      const auto &sb = reinterpret_cast<const bNodeTreeInterfaceSocket &>(b);
-      const bool is_output_a = sa.flag & NODE_INTERFACE_SOCKET_OUTPUT;
-      const bool is_output_b = sb.flag & NODE_INTERFACE_SOCKET_OUTPUT;
-      if ((sa.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) ||
-          (sb.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE))
-      {
-        /* Panel toggle inputs are allowed to be above outputs. */
-        return false;
-      }
-      if (is_output_a && !is_output_b) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  int min_pos = 0;
-  for (const int i : items.index_range()) {
-    if (must_be_before(*items[i], item)) {
-      min_pos = i + 1;
-    }
-  }
-  int max_pos = items.size();
-  for (const int i : items.index_range()) {
-    if (must_be_before(item, *items[i])) {
-      max_pos = i;
-      break;
-    }
-  }
-  BLI_assert(min_pos <= max_pos);
-  return std::clamp(initial_pos, min_pos, max_pos);
-}
-
 void bNodeTreeInterfacePanel::add_item(bNodeTreeInterfaceItem &item)
 {
   /* Same as inserting at the end. */
@@ -905,7 +861,6 @@ void bNodeTreeInterfacePanel::add_item(bNodeTreeInterfaceItem &item)
 void bNodeTreeInterfacePanel::insert_item(bNodeTreeInterfaceItem &item, int position)
 {
   /* Apply any constraints on the item positions. */
-  position = find_valid_insert_position_for_item(item, position);
   position = std::min(std::max(position, 0), items_num);
 
   blender::MutableSpan<bNodeTreeInterfaceItem *> old_items = this->items();
@@ -964,7 +919,6 @@ bool bNodeTreeInterfacePanel::move_item(bNodeTreeInterfaceItem &item, int new_po
     return true;
   }
 
-  new_position = find_valid_insert_position_for_item(item, new_position);
   new_position = std::min(std::max(new_position, 0), items_num);
 
   if (old_position < new_position) {
