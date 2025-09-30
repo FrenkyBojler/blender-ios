@@ -5860,6 +5860,72 @@ void UV_OT_select_mode(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
+static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const ToolSettings *ts = scene->toolsettings;
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, nullptr);
+
+  const int tile_x = RNA_int_get(op->ptr, "tile_x");
+  const int tile_y = RNA_int_get(op->ptr, "tile_y");
+
+  for (Object *ob : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(ob);
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+
+    float changed = false;
+    BMFace *f;
+    BMIter iter;
+    BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+      BMLoop *l;
+      BMIter liter;
+
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
+
+        if (luv[0] >= tile_x && luv[0] <= tile_x + 1.0f && luv[1] >= tile_y &&
+            luv[1] <= tile_y + 1.0f)
+        {
+          changed = true;
+          uvedit_uv_select_set_with_sticky(scene, em->bm, l, true, offsets);
+        }
+      }
+    }
+    if (changed) {
+      if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+        BM_mesh_select_mode_flush(em->bm);
+      }
+      else {
+        ED_uvedit_selectmode_flush(scene, em->bm);
+      }
+      uv_select_tag_update_for_object(depsgraph, ts, ob);
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void UV_OT_select_tile(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Select Tile";
+  ot->description = "Select UVs in specified tile";
+  ot->idname = "UV_OT_select_tile";
+
+  /* API callbacks. */
+  ot->exec = uv_select_tile_exec;
+  ot->poll = ED_operator_uvedit_space_image;
+
+  RNA_def_int(ot->srna, "tile_x", 0, 0, INT_MAX, "Tile X", "", 0, INT_MAX);
+  RNA_def_int(ot->srna, "tile_y", 0, 0, INT_MAX, "Tile Y", "", 0, INT_MAX);
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 static wmOperatorStatus uv_custom_region_set_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
