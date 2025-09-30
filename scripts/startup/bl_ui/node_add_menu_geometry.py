@@ -684,13 +684,13 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+        self.draw_menu(layout, path="Utilities/Math")
         self.draw_menu(layout, path="Utilities/Text")
         self.draw_menu(layout, path="Utilities/Vector")
         layout.separator()
         self.draw_menu(layout, path="Utilities/Bundle")
         self.draw_menu(layout, path="Utilities/Closure")
         self.draw_menu(layout, path="Utilities/Field")
-        self.draw_menu(layout, path="Utilities/Math")
         if context.preferences.experimental.use_geometry_nodes_lists:
             self.draw_menu(layout, path="Utilities/List")
         self.draw_menu(layout, path="Utilities/Matrix")
