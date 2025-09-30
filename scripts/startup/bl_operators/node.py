@@ -941,9 +941,13 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
 
     def get_items(_self, context):
         items = [
+            ("", "Socket", ""),
             ('INPUT', "Input", ""),
             ('OUTPUT', "Output", ""),
+            ('PANEL_TOGGLE', "Panel Toggle", ""),
+            ("", "Layout", ""),
             ('PANEL', "Panel", ""),
+            ('ROW', "Row", ""),
         ]
 
         if context is None:
@@ -955,8 +959,9 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
 
         active_item = interface.active
         # Panels have the extra option to add a toggle.
-        if active_item and active_item.item_type == 'PANEL':
-            items.append(('PANEL_TOGGLE', "Panel Toggle", ""))
+        allow_panel_toggle = active_item and active_item.item_type == 'PANEL' and active_item.layout_type == 'PANEL'
+        if not allow_panel_toggle:
+            items = list(filter(lambda item: item[0] != 'PANEL_TOGGLE', items))
 
         return items
 
@@ -1012,6 +1017,9 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             interface.move_to_parent(item, active_panel, 0)
             # Return in this case because we don't want to move the item.
             return {'FINISHED'}
+        elif self.item_type == 'ROW':
+            item = interface.new_panel("Row")
+            item.layout_type = 'ROW'
         else:
             return {'CANCELLED'}
 
