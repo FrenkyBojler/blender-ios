@@ -162,7 +162,20 @@ typedef enum NodeTreeInterfacePanelFlag {
 ENUM_OPERATORS(NodeTreeInterfacePanelFlag, NODE_INTERFACE_PANEL_IS_COLLAPSED);
 
 typedef enum NodeTreeInterfaceLayoutType {
+  /**
+   * This interface panel is always drawn as panel everywhere. Such panels are expected to be below
+   * all sockets.
+   */
   NODE_INTERFACE_PANEL_LAYOUT_TYPE_PANEL = 0,
+  /**
+   * This interface panel can be drawn in a single row if its content supports it.
+   *
+   * Currently, only a single kind of row is valid: There is a single input and a single output
+   * socket. In this case, both sockets are drawn inlined in group nodes.
+   *
+   * In the future, this can be extended to support more kinds of rows. For example, a row could
+   * contain buttons to enable X/Y/Z symmetry axes.
+   */
   NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW = 1,
 } NodeTreeInterfaceLayoutType;
 

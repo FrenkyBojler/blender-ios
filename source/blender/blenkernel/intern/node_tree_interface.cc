@@ -1248,20 +1248,20 @@ static void get_interface_ui_constraints_recursive(const bNodeTree &ntree,
     switch (NodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_PANEL: {
         const bNodeTreeInterfacePanel &panel = get_item_as<bNodeTreeInterfacePanel>(*item);
-        bNodeTreeInterfaceUIConstraintsPanel error;
+        bNodeTreeInterfaceUIConstraintsPanel panel_constraint;
         /* Only inline socket panels are allowed to be above sockets.*/
         switch (NodeTreeInterfaceLayoutType(panel.layout_type)) {
           case NODE_INTERFACE_PANEL_LAYOUT_TYPE_PANEL: {
             if (last_socket_index > i) {
-              error.valid = false;
-              error.message = TIP_("By convention, panels should be below sockets.");
+              panel_constraint.valid = false;
+              panel_constraint.message = TIP_("By convention, panels should be below sockets.");
             }
             break;
           }
           case NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW: {
             if (!ntree.tree_interface.get_inline_sockets_if_valid(panel)) {
-              error.valid = false;
-              error.message = TIP_(
+              panel_constraint.valid = false;
+              panel_constraint.message = TIP_(
                   "Invalid row content. A row must have a single input and a single output "
                   "socket.");
             }
@@ -1269,7 +1269,7 @@ static void get_interface_ui_constraints_recursive(const bNodeTree &ntree,
           }
         }
 
-        r_results.panels.add_new(&panel, error);
+        r_results.panels.add_new(&panel, panel_constraint);
         get_interface_ui_constraints_recursive(ntree, panel, r_results);
         break;
       }
