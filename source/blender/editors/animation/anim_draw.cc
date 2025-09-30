@@ -117,11 +117,14 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d, int end_frame_w
     return;
   }
   WorkSpace *workspace = CTX_wm_workspace(C);
-  const Scene *sequencer_scene = workspace->sequencer_scene;
-  if (!workspace || !sequencer_scene) {
+  if (!workspace) {
     return;
   }
   if ((workspace->flags & WORKSPACE_SYNC_SCENE_TIME) == 0) {
+    return;
+  }
+  const Scene *sequencer_scene = workspace->sequencer_scene;
+  if (!sequencer_scene) {
     return;
   }
   const Strip *scene_strip = blender::ed::vse::get_scene_strip_for_time_sync(sequencer_scene);
