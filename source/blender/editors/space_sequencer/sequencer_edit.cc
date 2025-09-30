@@ -407,7 +407,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     WM_window_set_active_scene(bmain, &C, win, sequencer_scene);
     return;
   }
-  
+
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   Object *prev_obact = BKE_view_layer_active_object_get(view_layer);
 
