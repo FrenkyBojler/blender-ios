@@ -154,8 +154,8 @@ typedef enum NodeTreeInterfacePanelFlag {
   NODE_INTERFACE_PANEL_DEFAULT_CLOSED = 1 << 0,
   /* In the past, not all panels allowed child panels. Now all allow them. */
   NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS_LEGACY = 1 << 1,
-  /* Allow adding sockets after panels. */
-  NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS = 1 << 2,
+  /* Not used anymore, but may be set in files. */
+  NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS_LEGACY = 1 << 2,
   /* Whether the panel is collapsed in the node group interface tree view. */
   NODE_INTERFACE_PANEL_IS_COLLAPSED = 1 << 3,
 } NodeTreeInterfacePanelFlag;

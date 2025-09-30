@@ -855,19 +855,11 @@ bNodeTreeInterfacePanel *bNodeTreeInterfacePanel::find_parent_recursive(
 int bNodeTreeInterfacePanel::find_valid_insert_position_for_item(
     const bNodeTreeInterfaceItem &item, const int initial_pos) const
 {
-  const bool sockets_above_panels = !(this->flag &
-                                      NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS);
   const blender::Span<const bNodeTreeInterfaceItem *> items = this->items();
 
   /* True if item a should be above item b. */
-  auto must_be_before = [sockets_above_panels](const bNodeTreeInterfaceItem &a,
-                                               const bNodeTreeInterfaceItem &b) -> bool {
-    /* Keep sockets above panels. */
-    if (sockets_above_panels) {
-      if (a.item_type == NODE_INTERFACE_SOCKET && b.item_type == NODE_INTERFACE_PANEL) {
-        return true;
-      }
-    }
+  auto must_be_before = [](const bNodeTreeInterfaceItem &a,
+                           const bNodeTreeInterfaceItem &b) -> bool {
     /* Keep outputs above inputs. */
     if (a.item_type == NODE_INTERFACE_SOCKET && b.item_type == NODE_INTERFACE_SOCKET) {
       const auto &sa = reinterpret_cast<const bNodeTreeInterfaceSocket &>(a);

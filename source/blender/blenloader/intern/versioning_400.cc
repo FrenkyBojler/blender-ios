@@ -909,7 +909,7 @@ static int version_nodes_find_valid_insert_position_for_item(const bNodeTreeInte
                                                              const int initial_pos)
 {
   const bool sockets_above_panels = !(panel.flag &
-                                      NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS);
+                                      NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS_LEGACY);
   const blender::Span<const bNodeTreeInterfaceItem *> items = {panel.items_array, panel.items_num};
 
   int pos = initial_pos;
