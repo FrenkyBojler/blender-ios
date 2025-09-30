@@ -1317,6 +1317,7 @@ void set_grid_values(openvdb::GridBase &grid_base,
                      const GSpan values,
                      const Span<openvdb::Coord> voxels)
 {
+  BLI_assert(values.size() == voxels.size());
   bke::to_typed_grid(grid_base, [&](auto &grid) {
     using GridT = std::decay_t<decltype(grid)>;
     using ValueType = typename GridT::ValueType;
@@ -1333,6 +1334,7 @@ void set_tile_values(openvdb::GridBase &grid_base,
                      const GSpan values,
                      const Span<openvdb::CoordBBox> tiles)
 {
+  BLI_assert(values.size() == tiles.size());
   bke::to_typed_grid(grid_base, [&](auto &grid) {
     using GridT = typename std::decay_t<decltype(grid)>;
     using TreeT = typename GridT::TreeType;
