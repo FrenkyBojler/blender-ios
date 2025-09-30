@@ -205,18 +205,25 @@ class NodePanelViewItem : public BasicTreeViewItem {
       row.enabled_set(false);
     }
     if (!panel_constraints_.valid) {
-      uiDefIconBut(row.block(),
-                   ButType::But,
-                   0,
-                   ICON_ERROR,
-                   0,
-                   0,
-                   UI_UNIT_X,
-                   UI_UNIT_Y,
-                   nullptr,
-                   0.0,
-                   0.0,
-                   panel_constraints_.message);
+      uiBut *but = uiDefIconBut(row.block(),
+                                ButType::But,
+                                0,
+                                ICON_ERROR,
+                                0,
+                                0,
+                                UI_UNIT_X,
+                                UI_UNIT_Y,
+                                nullptr,
+                                0.0,
+                                0.0,
+                                panel_constraints_.message);
+      UI_but_func_tooltip_set(
+          but,
+          [](bContext * /*C*/, void *argN, blender::StringRef tip) {
+            return std::string(static_cast<const char *>(argN));
+          },
+          BLI_strdup_null(panel_constraints_.message.c_str()),
+          MEM_freeN);
     }
     /* Add boolean socket if panel has a toggle. */
     if (toggle_) {
