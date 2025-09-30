@@ -4347,8 +4347,6 @@ static int ui_do_but_textedit(
   }
   else if (event->type == WM_IME_COMPOSITE_END) {
     changed = true;
-    ui_textedit_ime_end(win, but);
-    ui_textedit_ime_begin(win, but);
   }
 #endif
   if (textbox_but && changed) {
