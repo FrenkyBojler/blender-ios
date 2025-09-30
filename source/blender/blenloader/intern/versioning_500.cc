@@ -3702,7 +3702,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
      * This versioning effectively redoes the step from 4.2 subversion 23.
      */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      UvSculpt& uvsculpt = scene->toolsettings->uvsculpt;
+      UvSculpt &uvsculpt = scene->toolsettings->uvsculpt;
       if (uvsculpt.size == 0 || uvsculpt.curve_distance_falloff == nullptr) {
         uvsculpt.size = 100;
         uvsculpt.strength = 1.0f;
