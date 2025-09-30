@@ -21,6 +21,7 @@
 #include "BLT_translation.hh"
 
 #include "DNA_modifier_types.h"
+#include "DNA_node_tree_interface_types.h"
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -85,6 +86,7 @@ struct DrawGroupInputsContext {
   PointerRNA *properties_ptr;
   PointerRNA *bmain_ptr;
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
+  Array<nodes::socket_usage_inference::SocketUsage> output_usages;
   bool use_name_for_ids = false;
   std::function<PanelOpenProperty(const bNodeTreeInterfacePanel &)> panel_open_property_fn;
   std::function<SocketSearchData(const bNodeTreeInterfaceSocket &)> socket_search_data_fn;
@@ -506,13 +508,10 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
    * the prefix so it appears less verbose. */
   if (parent_name.has_value()) {
     const StringRef prefix_to_remove = *parent_name;
-    int pos = name.find(prefix_to_remove);
-    if (pos == 0 && name != prefix_to_remove) {
-      /* Needs to trim remaining space characters if any. Use the `trim()` from `StringRefNull`
-       * because std::string doesn't have a built-in `trim()` yet. If the property name is the
-       * same as parent panel's name then keep the name, otherwise the name would be an empty
-       * string which messes up the UI. */
-      name = StringRefNull(name.substr(prefix_to_remove.size())).trim();
+    const int prefix_size = prefix_to_remove.size();
+    const int pos = name.find(prefix_to_remove);
+    if (pos == 0 && name.size() > prefix_size && name[prefix_size] == ' ') {
+      name = name.substr(prefix_size + 1);
     }
   }
 
@@ -808,11 +807,16 @@ static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, uiLayout *
   if (!ctx.tree || !ctx.properties) {
     return;
   }
-  for (const bNodeTreeInterfaceSocket *socket : ctx.tree->interface_outputs()) {
-    const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
+  const Span<const bNodeTreeInterfaceSocket *> interface_outputs = ctx.tree->interface_outputs();
+  for (const int i : interface_outputs.index_range()) {
+    const bNodeTreeInterfaceSocket &socket = *interface_outputs[i];
+    const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
     const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+    if (!ctx.output_usages[i].is_visible) {
+      continue;
+    }
     if (nodes::socket_type_has_attribute_toggle(type)) {
-      draw_property_for_output_socket(ctx, layout, *socket);
+      draw_property_for_output_socket(ctx, layout, socket);
     }
   }
 }
@@ -967,8 +971,9 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   if (nmd.node_group != nullptr && nmd.settings.properties != nullptr) {
     nmd.node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd.node_group->interface_inputs().size());
-    nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-        *nmd.node_group, ctx.properties, ctx.input_usages);
+    ctx.output_usages.reinitialize(nmd.node_group->interface_outputs().size());
+    nodes::socket_usage_inference::infer_group_interface_usage(
+        *nmd.node_group, ctx.properties, ctx.input_usages, ctx.output_usages);
     draw_interface_panel_content(ctx, &layout, nmd.node_group->tree_interface.root_panel);
   }
 
@@ -1037,8 +1042,9 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
 
   tree.ensure_interface_cache();
   ctx.input_usages.reinitialize(tree.interface_inputs().size());
-  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      tree, ctx.properties, ctx.input_usages);
+  ctx.output_usages.reinitialize(tree.interface_outputs().size());
+  nodes::socket_usage_inference::infer_group_interface_usage(
+      tree, ctx.properties, ctx.input_usages, ctx.output_usages);
   draw_interface_panel_content(ctx, &layout, tree.tree_interface.root_panel);
 }
 
