@@ -735,6 +735,14 @@ static bool draw_interface_panel_as_row_try(DrawGroupInputsContext &ctx,
                                             uiLayout &layout,
                                             const bNodeTreeInterfacePanel &interface_panel)
 {
+  if (const std::optional<bNodeTreeInterface::InlineSockets> inline_sockets =
+          ctx.tree->tree_interface.get_inline_sockets_if_valid(interface_panel))
+  {
+    /* Only the input socket is drawn here for now. Outputs are handled separately. */
+    draw_property_for_socket(ctx, &layout, *inline_sockets->input);
+    return true;
+  }
+
   return false;
 }
 
