@@ -361,6 +361,14 @@ struct uiButTextBox : public uiBut {
   /** Total number of wrapped lines in the last textbox redraw/event handling. */
   int last_total_lines = 0;
   int visible_lines = 0;
+  struct WrapCache {
+    int width = 0;
+    int font_points = 0;
+    std::string text;
+    blender::Vector<blender::StringRef> wrapped_lines;
+  };
+  /** Wrap cache from last redraw/event handling. */
+  std::unique_ptr<WrapCache> wrap_cache;
   void line_scroll_set(int line_scroll);
 };
 

@@ -2019,6 +2019,24 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *text
   {
     text = textbox->editstr;
   }
+  constexpr int textbox_min_string_size_for_wrap_cache = sizeof(std::string);
+  if (text.size() >= textbox_min_string_size_for_wrap_cache) {
+    if (!textbox->wrap_cache) {
+      textbox->wrap_cache = std::make_unique<uiButTextBox::WrapCache>();
+    }
+    uiButTextBox::WrapCache &cache = *textbox->wrap_cache;
+    if (cache.font_points == fstyle.points && cache.width == width && text == cache.text) {
+      return cache.wrapped_lines;
+    }
+    cache.text = text;
+    text = cache.text;
+    cache.font_points = fstyle.points;
+    cache.width = width;
+  }
+  else {
+    textbox->wrap_cache.reset();
+  }
+
   blender::Vector<StringRef> lines = BLF_string_wrap(
       fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
   if (lines.is_empty()) {
@@ -2033,6 +2051,9 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *text
     lines.last() = lines.last().drop_suffix(1);
   }
   textbox->last_total_lines = lines.size();
+  if (textbox->wrap_cache) {
+    textbox->wrap_cache->wrapped_lines = lines;
+  }
   return lines;
 }
 

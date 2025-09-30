@@ -1118,6 +1118,9 @@ static bool ui_but_update_from_old_block(uiBlock *block,
     uiButTextBox *old_textbox = static_cast<uiButTextBox *>(oldbut);
     textbox->line_scroll = old_textbox->line_scroll;
     textbox->last_total_lines = old_textbox->last_total_lines;
+    if (!(oldbut->active || oldbut->semi_modal_state)) {
+      textbox->wrap_cache = std::move(old_textbox->wrap_cache);
+    }
   }
   if (oldbut->active || oldbut->semi_modal_state) {
     /* Move button over from oldblock to new block. */

@@ -4351,6 +4351,10 @@ static int ui_do_but_textedit(
     ui_textedit_ime_begin(win, but);
   }
 #endif
+  if (textbox_but && changed) {
+    /* Text changed, invalidate cache now. */
+    textbox_but->wrap_cache.reset();
+  }
   if (textbox_but && (changed || orig_pos != but->pos) && data->state != BUTTON_STATE_EXIT) {
     ui_but_textbox_scroll_to_cursor(data->region, textbox_but);
   }
