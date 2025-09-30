@@ -85,6 +85,7 @@ struct DrawGroupInputsContext {
   IDProperty *properties;
   PointerRNA *properties_ptr;
   PointerRNA *bmain_ptr;
+  bke::node_interface::bNodeTreeInterfaceUIConstraints ui_constraints;
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
   Array<nodes::socket_usage_inference::SocketUsage> output_usages;
   bool use_name_for_ids = false;
@@ -662,12 +663,16 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
                                           uiLayout &layout,
                                           const bNodeTreeInterfacePanel &interface_panel)
 {
-  if (!interface_panel_has_socket(ctx, interface_panel)) {
-    return;
-  }
   PanelOpenProperty open_property = ctx.panel_open_property_fn(interface_panel);
   PanelLayout panel_layout;
   bool skip_first = false;
+
+  const bke::node_interface::bNodeTreeInterfaceUIConstraintsPanel &panel_constraints =
+      ctx.ui_constraints.panels.lookup(&interface_panel);
+  if (!panel_constraints.valid) {
+    layout.red_alert_set(true);
+  }
+
   /* Check if the panel should have a toggle in the header. */
   const bNodeTreeInterfaceSocket *toggle_socket = interface_panel.header_toggle_socket();
   const StringRef panel_name = interface_panel.name;
@@ -697,18 +702,40 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
   if (!interface_panel_affects_output(ctx, interface_panel)) {
     panel_layout.header->active_set(false);
   }
-  uiLayoutSetTooltipFunc(
-      panel_layout.header,
-      [](bContext * /*C*/, void *panel_arg, const StringRef /*tip*/) -> std::string {
-        const auto *panel = static_cast<bNodeTreeInterfacePanel *>(panel_arg);
-        return StringRef(panel->description);
-      },
-      const_cast<bNodeTreeInterfacePanel *>(&interface_panel),
-      nullptr,
-      nullptr);
+  if (panel_constraints.valid) {
+    uiLayoutSetTooltipFunc(
+        panel_layout.header,
+        [](bContext * /*C*/, void *panel_arg, const StringRef /*tip*/) -> std::string {
+          const auto *panel = static_cast<bNodeTreeInterfacePanel *>(panel_arg);
+          return StringRef(panel->description);
+        },
+        const_cast<bNodeTreeInterfacePanel *>(&interface_panel),
+        nullptr,
+        nullptr);
+  }
+  else {
+    uiLayoutSetTooltipFunc(
+        panel_layout.header,
+        [](bContext * /*C*/, void *reason_arg, const StringRef /*tip*/) -> std::string {
+          const char *reason = static_cast<const char *>(reason_arg);
+          return StringRefNull(reason);
+        },
+        BLI_strdup_null(panel_constraints.message.c_str()),
+        MEM_dupallocN,
+        MEM_freeN);
+  }
+  layout.red_alert_set(false);
   if (panel_layout.body) {
+    panel_layout.body->red_alert_set(false);
     draw_interface_panel_content(ctx, panel_layout.body, interface_panel, skip_first, panel_name);
   }
+}
+
+static bool draw_interface_panel_as_row_try(DrawGroupInputsContext &ctx,
+                                            uiLayout &layout,
+                                            const bNodeTreeInterfacePanel &interface_panel)
+{
+  return false;
 }
 
 static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
@@ -722,7 +749,21 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
     switch (NodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_PANEL: {
         const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
-        draw_interface_panel_as_panel(ctx, *layout, sub_interface_panel);
+        if (!interface_panel_has_socket(ctx, sub_interface_panel)) {
+          break;
+        }
+        switch (NodeTreeInterfaceLayoutType(sub_interface_panel.layout_type)) {
+          case NODE_INTERFACE_PANEL_LAYOUT_TYPE_PANEL: {
+            draw_interface_panel_as_panel(ctx, *layout, sub_interface_panel);
+            break;
+          }
+          case NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW: {
+            if (!draw_interface_panel_as_row_try(ctx, *layout, sub_interface_panel)) {
+              draw_interface_panel_as_panel(ctx, *layout, sub_interface_panel);
+            }
+            break;
+          }
+        }
         break;
       }
       case NODE_INTERFACE_SOCKET: {
@@ -946,6 +987,10 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
                              modifier_ptr,
                              &bmain_ptr};
 
+  if (nmd.node_group) {
+    ctx.ui_constraints = bke::node_interface::get_interface_ui_constraints(*nmd.node_group);
+  }
+
   ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
     NodesModifierPanel *panel = find_panel_by_id(nmd, io_panel.identifier);
     PointerRNA panel_ptr = RNA_pointer_create_discrete(
@@ -1022,7 +1067,13 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   Main &bmain = *CTX_data_main(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(&bmain);
 
-  DrawGroupInputsContext ctx{C, &tree, tree_log, op.properties, op.ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{C,
+                             &tree,
+                             tree_log,
+                             op.properties,
+                             op.ptr,
+                             &bmain_ptr,
+                             bke::node_interface::get_interface_ui_constraints(tree)};
   ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
     Panel *root_panel = layout.root_panel();
     LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
