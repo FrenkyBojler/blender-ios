@@ -161,8 +161,8 @@ static void apply_sculpt_data_constraints(UvSculptData *sculptdata, float uv[2])
 
 static float calc_strength(const UvSculptData *sculptdata, float p, const float len)
 {
-  float strength = BKE_brush_curve_strength(eBrushCurvePreset(sculptdata->uvsculpt->curve_preset),
-                                            sculptdata->uvsculpt->strength_curve,
+  float strength = BKE_brush_curve_strength(eBrushCurvePreset(sculptdata->uvsculpt->curve_distance_falloff_preset),
+                                            sculptdata->uvsculpt->curve_distance_falloff,
                                             p,
                                             len);
 
@@ -660,7 +660,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
   op->customdata = data;
 
-  BKE_curvemapping_init(ts->uvsculpt.strength_curve);
+  BKE_curvemapping_init(ts->uvsculpt.curve_distance_falloff);
 
   if (!data) {
     return nullptr;
