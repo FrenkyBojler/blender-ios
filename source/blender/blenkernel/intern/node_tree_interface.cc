@@ -1208,14 +1208,16 @@ static void get_interface_ui_constraints_recursive(const bNodeTree &ntree,
           case NODE_INTERFACE_PANEL_LAYOUT_TYPE_PANEL: {
             if (last_socket_index > i) {
               error.valid = false;
-              error.message = TIP_("Panels must be below sockets");
+              error.message = TIP_("By convention, panels should be below sockets.");
             }
             break;
           }
           case NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW: {
             if (!ntree.tree_interface.get_inline_sockets_if_valid(panel)) {
               error.valid = false;
-              error.message = TIP_("Invalid row content");
+              error.message = TIP_(
+                  "Invalid row content. A row must have a single input and a single output "
+                  "socket.");
             }
             break;
           }
