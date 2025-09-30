@@ -909,7 +909,6 @@ int BLI_kdtree_nd_(calc_duplicates_cb)(const KDTree *tree,
     return 0;
   }
 
-  const float effective_range = (range > 0.0f) ? range : FLT_MIN;
   /* Use `index_to_node_index` so coordinates are looked up in order first to last. */
   const uint nodes_len = tree->nodes_len;
   blender::Array<int> index_to_node_index(tree->max_node_index + 1);
@@ -924,8 +923,9 @@ int BLI_kdtree_nd_(calc_duplicates_cb)(const KDTree *tree,
   int found = 0;
   for (uint i = 0; i < nodes_len; i++) {
     const int node_index = tree->nodes[i].index;
-    const bool is_keep_seed = (duplicates[node_index] == node_index);
-    if (((duplicates[node_index] != -1) && !is_keep_seed) || visited[node_index]) {
+    const int dupe_i = duplicates[node_index];
+    bool skip = !ELEM(dupe_i, -1, node_index) || visited[node_index];
+    if (skip) {
       continue;
     }
 
@@ -935,15 +935,17 @@ int BLI_kdtree_nd_(calc_duplicates_cb)(const KDTree *tree,
     auto accumulate_neighbors_fn = [&duplicates, &visited, &cluster](int neighbor_index,
                                                                      const float * /*co*/,
                                                                      float /*dist_sq*/) -> bool {
-      const bool neigh_is_keep = (duplicates[neighbor_index] == neighbor_index);
-      if (!visited[neighbor_index] && (duplicates[neighbor_index] == -1 || neigh_is_keep)) {
+      const int dupe_i = duplicates[neighbor_index];
+      bool skip = !ELEM(dupe_i, -1, neighbor_index) || visited[neighbor_index];
+      if (!skip) {
         cluster.append(neighbor_index);
         visited[neighbor_index].set();
       }
       return true;
     };
 
-    BLI_kdtree_nd_(range_search_cb_cpp)(tree, search_co, effective_range, accumulate_neighbors_fn);
+    BLI_kdtree_nd_(range_search_cb_cpp)(
+        tree, search_co, (range > 0.0f) ? range : 0.0f, accumulate_neighbors_fn);
     if (cluster.is_empty()) {
       continue;
     }
