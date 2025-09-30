@@ -270,6 +270,11 @@ typedef struct bNodeTreeInterfacePanel {
   /** Get the socket that is part of the panel header if available. */
   const bNodeTreeInterfaceSocket *header_toggle_socket() const;
   bNodeTreeInterfaceSocket *header_toggle_socket();
+
+ private:
+  /** Find a valid position for inserting in the items span. */
+  int find_valid_insert_position_for_item(const bNodeTreeInterfaceItem &item,
+                                          int initial_position) const;
 #endif
 } bNodeTreeInterfacePanel;
 
