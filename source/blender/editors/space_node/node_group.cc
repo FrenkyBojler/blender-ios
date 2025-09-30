@@ -253,7 +253,7 @@ static wmOperatorStatus node_group_enter_exit_invoke(bContext *C,
 void NODE_OT_group_enter_exit(wmOperatorType *ot)
 {
   ot->name = "Enter/Exit Group";
-  ot->description = "Enter oder exit node group based on cursor location";
+  ot->description = "Enter or exit node group based on cursor location";
   ot->idname = "NODE_OT_group_enter_exit";
 
   ot->invoke = node_group_enter_exit_invoke;
