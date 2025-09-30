@@ -454,6 +454,7 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Color")
         self.draw_menu(layout, "Displacement")
         self.draw_menu(layout, "Shader")
+        layout.separator()
         self.draw_menu(layout, "Texture")
         self.draw_menu(layout, "Utilities")
         layout.separator()
