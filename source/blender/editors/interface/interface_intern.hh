@@ -363,7 +363,7 @@ struct uiButTextBox : public uiBut {
   int visible_lines = 0;
   struct WrapCache {
     int width = 0;
-    int font_points = 0;
+    float font_size = 0;
     std::string text;
     blender::Vector<blender::StringRef> wrapped_lines;
   };

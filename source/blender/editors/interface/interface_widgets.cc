@@ -2025,12 +2025,13 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *text
       textbox->wrap_cache = std::make_unique<uiButTextBox::WrapCache>();
     }
     uiButTextBox::WrapCache &cache = *textbox->wrap_cache;
-    if (cache.font_points == fstyle.points && cache.width == width && text == cache.text) {
+    const float font_size = (fstyle.points / textbox->block->aspect) * UI_SCALE_FAC;
+    if (cache.font_size == font_size && cache.width == width && text == cache.text) {
       return cache.wrapped_lines;
     }
     cache.text = text;
     text = cache.text;
-    cache.font_points = fstyle.points;
+    cache.font_size = font_size;
     cache.width = width;
   }
   else {
