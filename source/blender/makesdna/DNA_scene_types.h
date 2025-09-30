@@ -1184,6 +1184,7 @@ typedef struct Paint {
 
   /** Enum #ePaintFlags. */
   int flags;
+  int show_low_resolution_threshold;
 
   /**
    * Paint stroke can use up to #PAINT_MAX_INPUT_SAMPLES inputs to smooth the stroke.
@@ -1198,7 +1199,6 @@ typedef struct Paint {
    * See #PaintCurveVisibilityFlags
    */
   int curve_visibility_flags;
-  char _pad[4];
 
   float tile_offset[3];
   struct UnifiedPaintSettings unified_paint_settings;

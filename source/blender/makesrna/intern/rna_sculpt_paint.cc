@@ -694,6 +694,13 @@ static void rna_def_paint(BlenderRNA *brna)
       prop, "Fast Navigate", "For multires, show low resolution while navigating the view");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
+  prop = RNA_def_property(srna, "show_low_resolution_threshold", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, 100'000'000);
+  RNA_def_property_ui_range(prop, 0, 50'000'000, 100'000, -1);
+  RNA_def_property_ui_text(
+      prop, "Fast Navigate Threshold", "For multires, show low resolution while navigating the view if the current vertex count is greater than this value");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
   prop = RNA_def_property(srna, "use_sculpt_delay_updates", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", PAINT_SCULPT_DELAY_UPDATES);
   RNA_def_property_ui_text(

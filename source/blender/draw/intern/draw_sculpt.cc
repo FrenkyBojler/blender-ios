@@ -82,7 +82,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
   /* Fast mode to show low poly multires while navigating. */
   bool fast_mode = false;
   if (paint && (paint->flags & PAINT_FAST_NAVIGATE)) {
-    fast_mode = navigating;
+    fast_mode = navigating && ;
   }
 
   /* Update draw buffers only for visible nodes while painting.

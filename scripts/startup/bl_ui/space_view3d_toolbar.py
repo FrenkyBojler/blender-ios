@@ -1040,6 +1040,19 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         return (context.sculpt_object and context.tool_settings.sculpt)
 
     def draw(self, context):
+        return
+
+
+class VIEW3D_PT_sculpt_options_display(Panel, View3DPaintPanel):
+    bl_context = ".sculpt_mode"  # dot on purpose (access from topbar)
+    bl_parent_id = "VIEW3D_PT_sculpt_options"
+    bl_label = "Display"
+
+    @classmethod
+    def poll(cls, context):
+        return (context.sculpt_object and context.tool_settings.sculpt)
+
+    def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
@@ -1047,10 +1060,11 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         tool_settings = context.tool_settings
         sculpt = tool_settings.sculpt
 
-        col = layout.column(heading="Display", align=True)
-        col.prop(sculpt, "show_low_resolution")
-        col.prop(sculpt, "use_sculpt_delay_updates")
-        col.prop(sculpt, "use_deform_only")
+        row = layout.row()
+        row.prop(sculpt, "show_low_resolution")
+        row.prop(sculpt, "show_low_resolution_threshold")
+        layout.prop(sculpt, "use_sculpt_delay_updates")
+        layout.prop(sculpt, "use_deform_only")
 
 
 class VIEW3D_PT_sculpt_options_gravity(Panel, View3DPaintPanel):
@@ -2390,6 +2404,7 @@ classes = (
     VIEW3D_PT_sculpt_symmetry,
     VIEW3D_PT_sculpt_symmetry_for_topbar,
     VIEW3D_PT_sculpt_options,
+    VIEW3D_PT_sculpt_options_display,
     VIEW3D_PT_sculpt_options_gravity,
 
     VIEW3D_PT_curves_sculpt_symmetry,

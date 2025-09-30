@@ -1840,7 +1840,7 @@ void RNA_def_property_ui_range(
     DefRNA.error = true;
   }
 
-  if (step < 0 || step > 1000) {
+  if (step < 0 || step > 100000) {
     CLOG_ERROR(&LOG, "\"%s.%s\", step outside range.", srna->identifier, prop->identifier);
     DefRNA.error = true;
   }
