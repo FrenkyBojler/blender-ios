@@ -1977,13 +1977,10 @@ static void test_eevee_surfel_list()
     link_prev.append(surfel.prev);
   }
 
-  /* NOTE: All of these are unstable by definition (atomic + multi-thread).
-   * But should be consistent since we only dispatch one thread-group. */
-  /* Expect last added surfel index. It is the list start index before sorting. */
   Vector<int> expect_list_start = {-1, 1, 5, 4};
-  // EXPECT_EQ_SPAN<int>(expect_list_start, list_start_buf);
+  EXPECT_EQ_SPAN<int>(expect_list_start, list_start_buf);
   EXPECT_EQ_SPAN<int>(expect_link_next, link_next);
-  // EXPECT_EQ_SPAN<int>(expect_link_prev, link_prev);
+  EXPECT_EQ_SPAN<int>(expect_link_prev, link_prev);
 
   GPU_shader_unbind();
 

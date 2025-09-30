@@ -40,7 +40,7 @@ void main()
     }
     else if (list_item_distance_buf[i] == ray_distance) {
       /* Resolve the case where 2 items have the same value. */
-      if (list_item_distance_buf[i] < ray_distance) {
+      if (i > item_id) {
         prefix++;
       }
     }
