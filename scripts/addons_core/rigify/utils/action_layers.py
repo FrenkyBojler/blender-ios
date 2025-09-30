@@ -47,12 +47,12 @@ class ActionSlotBase:
     @property
     def keyed_bone_names(self) -> List[str]:
         """Return a list of bone names that have keyframes in the Action of this Slot."""
-        keyed_bones = []
 
         channelbag = anim_utils.action_get_channelbag_for_slot(self.action, self.action_slot)
         if not channelbag:
             return []
 
+        keyed_bones = []
         for fc in channelbag.fcurves:
             # Extracting bone name from fcurve data path
             if fc.data_path.startswith('pose.bones["'):
