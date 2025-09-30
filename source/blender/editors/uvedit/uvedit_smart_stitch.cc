@@ -749,11 +749,12 @@ static void determine_uv_edge_stitchability(const int cd_loop_uv_offset,
         continue;
       }
     }
-    if (!ssc->island_has_selected.is_empty() &&
-        (!ssc->island_has_selected[edge_iter->element->island] ||
-         !ssc->island_has_selected[edge->element->island]))
-    {
-      continue;
+    if (ssc->only_selected_uvs) {
+      if (!ssc->island_has_selected[edge_iter->element->island] ||
+          !ssc->island_has_selected[edge->element->island])
+      {
+        continue;
+      }
     }
     if (stitch_check_edges_stitchable(cd_loop_uv_offset, edge, edge_iter, ssc, state)) {
       island_stitch_data[edge_iter->element->island].stitchableCandidate = 1;
