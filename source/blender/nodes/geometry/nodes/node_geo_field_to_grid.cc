@@ -5,10 +5,6 @@
 #include "NOD_socket_search_link.hh"
 #include "node_geometry_util.hh"
 
-#include "BKE_volume_grid.hh"
-#include "BKE_volume_grid_fields.hh"
-#include "BKE_volume_openvdb.hh"
-
 #include "NOD_geo_field_to_grid.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
@@ -23,7 +19,8 @@
 #include "BLO_read_write.hh"
 
 #ifdef WITH_OPENVDB
-#  include <openvdb/openvdb.h>
+#  include "BKE_volume_grid_fields.hh"
+#  include "BKE_volume_grid_process.hh"
 #endif
 
 namespace blender::nodes::node_geo_field_to_grid_cc {

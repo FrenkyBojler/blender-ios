@@ -11,6 +11,7 @@
 #include "BKE_node_socket_value.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_grid_fields.hh"
+#include "BKE_volume_grid_process.hh"
 #include "BKE_volume_openvdb.hh"
 
 #include <fmt/format.h>

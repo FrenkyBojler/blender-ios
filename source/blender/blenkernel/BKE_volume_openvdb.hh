@@ -15,16 +15,13 @@
 #  include <optional>
 
 #  include "BLI_bounds_types.hh"
-#  include "BLI_function_ref.hh"
-#  include "BLI_generic_pointer.hh"
-#  include "BLI_generic_span.hh"
 #  include "BLI_math_matrix_types.hh"
 #  include "BLI_math_vector_types.hh"
 #  include "BLI_parameter_pack_utils.hh"
 #  include "BLI_string_ref.hh"
 
 #  include "BKE_volume_enums.hh"
-#  include "BKE_volume_grid.hh"
+#  include "BKE_volume_grid_fwd.hh"
 
 #  include "openvdb_fwd.hh"
 
@@ -115,73 +112,5 @@ void BKE_volume_grid_type_to_static_type(const VolumeGridType grid_type, Fn &&fn
 
 openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
     const VolumeGridType grid_type, const openvdb::GridBase &old_grid, float resolution_factor);
-
-namespace blender::bke {
-
-using LeafNodeMask = openvdb::util::NodeMask<3u>;
-using GetVoxelsFn = FunctionRef<void(MutableSpan<openvdb::Coord> r_voxels)>;
-using ProcessLeafFn = FunctionRef<void(const LeafNodeMask &leaf_node_mask,
-                                       const openvdb::CoordBBox &leaf_bbox,
-                                       GetVoxelsFn get_voxels_fn)>;
-using ProcessTilesFn = FunctionRef<void(Span<openvdb::CoordBBox> tiles)>;
-using ProcessVoxelsFn = FunctionRef<void(Span<openvdb::Coord> voxels)>;
-
-void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
-                                  const ProcessLeafFn process_leaf_fn,
-                                  const ProcessVoxelsFn process_voxels_fn,
-                                  const ProcessTilesFn process_tiles_fn);
-
-template<typename GridT>
-constexpr bool is_supported_grid_type = is_same_any_v<GridT,
-                                                      openvdb::FloatGrid,
-                                                      openvdb::Vec3fGrid,
-                                                      openvdb::BoolGrid,
-                                                      openvdb::Int32Grid,
-                                                      openvdb::Vec4fGrid>;
-
-template<typename Fn> inline void to_typed_grid(const openvdb::GridBase &grid_base, Fn &&fn)
-{
-  const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
-  BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
-    using GridT = typename decltype(type_tag)::type;
-    if constexpr (is_supported_grid_type<GridT>) {
-      fn(static_cast<const GridT &>(grid_base));
-    }
-    else {
-      BLI_assert_unreachable();
-    }
-  });
-}
-
-template<typename Fn> inline void to_typed_grid(openvdb::GridBase &grid_base, Fn &&fn)
-{
-  const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
-  BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
-    using GridT = typename decltype(type_tag)::type;
-    if constexpr (is_supported_grid_type<GridT>) {
-      fn(static_cast<GridT &>(grid_base));
-    }
-    else {
-      BLI_assert_unreachable();
-    }
-  });
-}
-
-openvdb::GridBase::Ptr create_grid_with_topology(const openvdb::TreeBase &topology,
-                                                 const openvdb::math::Transform &transform,
-                                                 const VolumeGridType grid_type);
-
-void set_grid_values(openvdb::GridBase &grid_base, GSpan values, Span<openvdb::Coord> voxels);
-
-void set_tile_values(openvdb::GridBase &grid_base, GSpan values, Span<openvdb::CoordBBox> tiles);
-
-void set_mask_leaf_buffer_from_bools(openvdb::BoolGrid &grid,
-                                     Span<bool> values,
-                                     const IndexMask &index_mask,
-                                     Span<openvdb::Coord> voxels);
-
-void set_grid_background(openvdb::GridBase &grid_base, const GPointer value);
-
-}  // namespace blender::bke
 
 #endif
