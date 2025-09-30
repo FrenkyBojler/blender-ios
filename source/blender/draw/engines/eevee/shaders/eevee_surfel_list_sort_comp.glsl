@@ -3,9 +3,14 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * TODO
+ * Sort ranges of surfel inside a list using radix sort.
+ * The previous step flatten the list data into on big arrays, with a specific range of data for
+ * each ray list. This stage operate on these ranges.
  *
- * Dispatched as 1 thread per surfel.
+ * For now the implementation is done in a single pass with brute force.
+ * All elements of a list scan inside the whole list.
+ *
+ * Dispatched as 1 thread per surfel (array elem).
  */
 
 #include "infos/eevee_lightprobe_volume_infos.hh"
