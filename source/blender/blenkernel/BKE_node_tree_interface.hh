@@ -377,6 +377,24 @@ inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree
       ntree, from_node, from_sock, from_sock.typeinfo->idname, from_sock.name);
 }
 
+struct bNodeTreeInterfaceUIConstraintsPanel {
+  enum class NodeDrawMode {
+    Flat,
+    Panel,
+    Aligned,
+  };
+
+  bool valid = true;
+  std::string message;
+  NodeDrawMode draw_mode = NodeDrawMode::Panel;
+};
+
+struct bNodeTreeInterfaceUIConstraints {
+  Map<const bNodeTreeInterfacePanel *, bNodeTreeInterfaceUIConstraintsPanel> panels;
+};
+
+bNodeTreeInterfaceUIConstraints get_interface_ui_constraints(const bNodeTree &ntree);
+
 /**
  * Reference to a node tree's interface item.
  *

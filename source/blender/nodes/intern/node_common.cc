@@ -409,7 +409,8 @@ static void node_group_declare_panel_recursive(
     const bNodeTree &group,
     const Map<const bNodeTreeInterfaceSocket *, StructureType> &structure_type_by_socket,
     const bNodeTreeInterfacePanel &io_parent_panel,
-    const bool is_root)
+    const bool is_root,
+    const bke::node_interface::bNodeTreeInterfaceUIConstraints &ui_constraints)
 {
   bool layout_added = false;
   auto add_layout_if_needed = [&]() {
@@ -435,29 +436,42 @@ static void node_group_declare_panel_recursive(
       case NODE_INTERFACE_PANEL: {
         add_layout_if_needed();
         const auto &io_panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
-        if (const std::optional<bNodeTreeInterface::InlineSockets> inline_sockets =
-                group.tree_interface.get_inline_sockets_if_valid(io_panel))
-        {
-          build_interface_socket_declaration(
-              group,
-              *inline_sockets->input,
-              structure_type_by_socket.lookup_try(inline_sockets->input),
-              SOCK_IN,
-              b);
-          build_interface_socket_declaration(
-              group,
-              *inline_sockets->output,
-              structure_type_by_socket.lookup_try(inline_sockets->output),
-              SOCK_OUT,
-              b)
-              .align_with_previous();
-        }
-        else {
-          auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
-                              .description(StringRef(io_panel.description))
-                              .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
-          node_group_declare_panel_recursive(
-              panel_b, group, structure_type_by_socket, io_panel, false);
+        const bke::node_interface::bNodeTreeInterfaceUIConstraintsPanel &io_panel_error =
+            ui_constraints.panels.lookup(&io_panel);
+        switch (io_panel_error.draw_mode) {
+          case bke::node_interface::bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Flat: {
+            node_group_declare_panel_recursive(
+                b, group, structure_type_by_socket, io_panel, false, ui_constraints);
+            break;
+          }
+          case bke::node_interface::bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Panel: {
+            auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
+                                .description(StringRef(io_panel.description))
+                                .default_closed(io_panel.flag &
+                                                NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
+            node_group_declare_panel_recursive(
+                panel_b, group, structure_type_by_socket, io_panel, false, ui_constraints);
+            break;
+          }
+          case bke::node_interface::bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Aligned: {
+            const bNodeTreeInterface::InlineSockets inline_sockets =
+                *group.tree_interface.get_inline_sockets_if_valid(io_panel);
+            build_interface_socket_declaration(
+                group,
+                *inline_sockets.input,
+                structure_type_by_socket.lookup_try(inline_sockets.input),
+                SOCK_IN,
+                b);
+            build_interface_socket_declaration(
+                group,
+                *inline_sockets.output,
+                structure_type_by_socket.lookup_try(inline_sockets.output),
+                SOCK_OUT,
+                b)
+                .align_with_previous();
+
+            break;
+          }
         }
         break;
       }
@@ -510,8 +524,10 @@ void node_group_declare(NodeDeclarationBuilder &b)
     }
   }
 
+  const bke::node_interface::bNodeTreeInterfaceUIConstraints ui_constraints =
+      bke::node_interface::get_interface_ui_constraints(*group);
   node_group_declare_panel_recursive(
-      b, *group, structure_type_by_socket, group->tree_interface.root_panel, true);
+      b, *group, structure_type_by_socket, group->tree_interface.root_panel, true, ui_constraints);
 
   if (group->type == NTREE_GEOMETRY) {
     group->ensure_interface_cache();

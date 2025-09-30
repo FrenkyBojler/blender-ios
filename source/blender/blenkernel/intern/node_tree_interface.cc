@@ -1231,6 +1231,55 @@ static bNodeTreeInterfacePanel *make_panel(const int uid,
   return new_panel;
 }
 
+static void get_interface_ui_constraints_recursive(const bNodeTree &ntree,
+                                                   const bNodeTreeInterfacePanel &parent_panel,
+                                                   bNodeTreeInterfaceUIConstraints &r_results)
+{
+  int last_socket_index = -1;
+  for (int i = parent_panel.items_num - 1; i >= 0; i--) {
+    const bNodeTreeInterfaceItem *item = parent_panel.items_array[i];
+    if (item->item_type == NODE_INTERFACE_SOCKET) {
+      last_socket_index = i;
+      break;
+    }
+  }
+  for (const int i : IndexRange(parent_panel.items_num)) {
+    const bNodeTreeInterfaceItem *item = parent_panel.items_array[i];
+    switch (NodeTreeInterfaceItemType(item->item_type)) {
+      case NODE_INTERFACE_PANEL: {
+        const bNodeTreeInterfacePanel &panel = get_item_as<bNodeTreeInterfacePanel>(*item);
+        bNodeTreeInterfaceUIConstraintsPanel error;
+        error.draw_mode = bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Panel;
+        /* Only inline socket panels are allowed to be above sockets.*/
+        if (ntree.tree_interface.get_inline_sockets_if_valid(panel)) {
+          error.draw_mode = bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Aligned;
+        }
+        else {
+          if (last_socket_index > i) {
+            error.valid = false;
+            error.message = TIP_("Panels must be above sockets");
+            error.draw_mode = bNodeTreeInterfaceUIConstraintsPanel::NodeDrawMode::Flat;
+          }
+        }
+        r_results.panels.add_new(&panel, error);
+        get_interface_ui_constraints_recursive(ntree, panel, r_results);
+        break;
+      }
+      case NODE_INTERFACE_SOCKET: {
+        break;
+      }
+    }
+  }
+}
+
+bNodeTreeInterfaceUIConstraints get_interface_ui_constraints(const bNodeTree &ntree)
+{
+  bNodeTreeInterfaceUIConstraints results;
+  results.panels.add_new(&ntree.tree_interface.root_panel, {});
+  get_interface_ui_constraints_recursive(ntree, ntree.tree_interface.root_panel, results);
+  return results;
+}
+
 }  // namespace blender::bke::node_interface
 
 void bNodeTreeInterface::init_data()
