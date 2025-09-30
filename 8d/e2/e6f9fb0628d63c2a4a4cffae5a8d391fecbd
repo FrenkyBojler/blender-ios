@@ -1,3 +1,4 @@
 Referenced by issue #147014, Crash when manually typing object dimension
 Referenced by pull request #147017, Fix #147014: Crash when manually typing object dimension
 Referenced by commit 87f0d3c695e965f41427aebf67a8bb22dc7b6bb0, Fix #147014: Crash when manually typing object dimension
+Referenced by issue #147042, Changing Object Dimensions in N-Panel Causes Blender Crash
