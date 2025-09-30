@@ -266,6 +266,28 @@ static uiBlock *curvemap_tools_func(
                                   ButType::ButMenu,
                                   1,
                                   ICON_BLANK1,
+                                  IFACE_("Invert Curve"),
+                                  0,
+                                  yco -= UI_UNIT_Y,
+                                  menuwidth,
+                                  UI_UNIT_Y,
+                                  nullptr,
+                                  "");
+    UI_but_func_set(but, [cumap, cb](bContext &C) {
+      CurveMap *cuma = cumap->cm + cumap->cur;
+      BKE_curvemap_invert(cuma);
+      BKE_curvemapping_changed(cumap, false);
+      rna_update_cb(C, cb);
+      ED_undo_push(&C, "Invert Curve");
+      ED_region_tag_redraw(CTX_wm_region(&C));
+    });
+  }
+
+  {
+    uiBut *but = uiDefIconTextBut(block,
+                                  ButType::ButMenu,
+                                  1,
+                                  ICON_BLANK1,
                                   IFACE_("Reset Curve"),
                                   0,
                                   yco -= UI_UNIT_Y,

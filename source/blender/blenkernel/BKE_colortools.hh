@@ -51,6 +51,8 @@ enum class CurveMapSlopeType : int8_t {
  */
 void BKE_curvemapping_reset_view(CurveMapping *cumap);
 void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapSlopeType slope);
+
+void BKE_curvemap_invert(CurveMap *cuma);
 /**
  * Removes with flag set.
  */

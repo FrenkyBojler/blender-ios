@@ -429,15 +429,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
   /* mirror curve in x direction to have positive slope
    * rather than default negative slope */
   if (slope == CurveMapSlopeType::Positive) {
-    int i, last = cuma->totpoint - 1;
-    CurveMapPoint *newpoints = static_cast<CurveMapPoint *>(MEM_dupallocN(cuma->curve));
-
-    for (i = 0; i < cuma->totpoint; i++) {
-      newpoints[i].y = cuma->curve[last - i].y;
-    }
-
-    MEM_freeN(cuma->curve);
-    cuma->curve = newpoints;
+    BKE_curvemap_invert(cuma);
   }
   else if (slope == CurveMapSlopeType::PositiveNegative) {
     const int num_points = cuma->totpoint * 2 - 1;
@@ -460,6 +452,23 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
     MEM_freeN(cuma->table);
     cuma->table = nullptr;
   }
+}
+
+void BKE_curvemap_invert(CurveMap *cuma)
+{
+  if (!cuma->curve) {
+    return;
+  }
+
+  int i, last = cuma->totpoint - 1;
+  CurveMapPoint *newpoints = static_cast<CurveMapPoint *>(MEM_dupallocN(cuma->curve));
+
+  for (i = 0; i < cuma->totpoint; i++) {
+    newpoints[i].y = cuma->curve[last - i].y;
+  }
+
+  MEM_freeN(cuma->curve);
+  cuma->curve = newpoints;
 }
 
 void BKE_curvemap_handle_set(CurveMap *cuma, int type)
