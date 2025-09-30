@@ -288,8 +288,7 @@ static Material *rna_Main_materials_new(Main *bmain, const char *name)
   Material *material = BKE_material_add(bmain, safe_name);
   id_us_min(&material->id);
 
-  material->nodetree = blender::bke::node_tree_add_tree_embedded(
-      bmain, &material->id, "Material Node Tree", "ShaderNodeTree");
+  ED_node_shader_default(nullptr, bmain, &material->id);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
