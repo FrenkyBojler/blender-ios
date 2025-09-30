@@ -350,13 +350,6 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         layout = self.layout
 
         self.node_operator(layout, "ShaderNodeCombineXYZ")
-        props = self.node_operator(layout, "ShaderNodeMix", label="Mix Vector")
-        ops = props.settings.add()
-        ops.name = "data_type"
-        ops.value = "'VECTOR'"
-        self.node_operator(layout, "ShaderNodeSeparateXYZ")
-        layout.separator()
-        self.node_operator(layout, "ShaderNodeMapping")
         props = self.node_operator(layout, "ShaderNodeMapRange")
         ops = props.settings.add()
         ops.name = "data_type"
@@ -365,6 +358,9 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'VECTOR'"
+        self.node_operator(layout, "ShaderNodeSeparateXYZ")
+        layout.separator()
+        self.node_operator(layout, "ShaderNodeMapping")
         self.node_operator(layout, "ShaderNodeNormal")
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")

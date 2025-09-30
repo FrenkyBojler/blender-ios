@@ -290,6 +290,10 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "ShaderNodeCombineXYZ")
+        props = self.node_operator(layout, "ShaderNodeMapRange")
+        ops = props.settings.add()
+        ops.name = "data_type"
+        ops.value = "'FLOAT_VECTOR'"
         props = self.node_operator(layout, "ShaderNodeMix", label="Mix Vector")
         ops = props.settings.add()
         ops.name = "data_type"
@@ -300,10 +304,6 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeVectorCurve")
 
         self.node_operator(layout, "ShaderNodeVectorRotate")
-        props = self.node_operator(layout, "ShaderNodeMapRange")
-        ops = props.settings.add()
-        ops.name = "data_type"
-        ops.value = "'FLOAT_VECTOR'"
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
