@@ -1238,7 +1238,11 @@ static void get_interface_ui_constraints_recursive(const bNodeTree &ntree,
   int last_socket_index = -1;
   for (int i = parent_panel.items_num - 1; i >= 0; i--) {
     const bNodeTreeInterfaceItem *item = parent_panel.items_array[i];
-    if (item->item_type == NODE_INTERFACE_SOCKET) {
+    const bool is_socket = item->item_type == NODE_INTERFACE_SOCKET;
+    const bool is_row = item->item_type == NODE_INTERFACE_PANEL &&
+                        get_item_as<bNodeTreeInterfacePanel>(*item).layout_type ==
+                            NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW;
+    if (is_socket || is_row) {
       last_socket_index = i;
       break;
     }
