@@ -497,7 +497,13 @@ static float get_factor_from_draw_speed(const bke::CurvesGeometry &curves,
       "delta_time", bke::AttrDomain::Point, 0.0f);
 
   Array<float> delta_times(curves.points_num());
-  array_utils::copy(src_delta_times, delta_times.as_mutable_span());
+
+  if (const std::optional<float> src_delta_time = src_delta_times.get_if_single()) {
+    delta_times.fill(*src_delta_time);
+  }
+  else {
+    array_utils::copy(src_delta_times, delta_times.as_mutable_span());
+  }
 
   /**
    * Make any strokes that completes in zero seconds to instead take
