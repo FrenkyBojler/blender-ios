@@ -2583,7 +2583,10 @@ static PointerRNA rna_SpaceDopeSheet_overlay_get(PointerRNA *ptr)
 static std::optional<std::string> rna_SpaceDopeSheetOverlay_path(const PointerRNA *ptr)
 {
   std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
-  return fmt::format("{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "overlays");
+  if (!editor_path) {
+    return std::nullopt;
+  }
+  return editor_path.value() + ".overlays";
 }
 
 /* Space Node Editor */
