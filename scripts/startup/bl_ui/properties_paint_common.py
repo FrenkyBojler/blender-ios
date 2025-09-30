@@ -572,7 +572,7 @@ class StrokePanel(BrushPanel):
             if settings.show_jitter_curve and self.is_popover is False:
                 subcol = col.column()
                 subcol.active = brush.use_pressure_jitter
-                subcol.template_curve_mapping(brush, "curve_jitter", brush=True)
+                subcol.template_curve_mapping(brush, "curve_jitter", brush=True, show_presets=True)
             col.row().prop(brush, "jitter_unit", expand=True)
 
         col.separator()
@@ -655,16 +655,11 @@ class FalloffPanel(BrushPanel):
             col.prop(brush, "curve_distance_falloff_preset", text="")
 
         if brush.curve_distance_falloff_preset == 'CUSTOM':
-            layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True, use_negative_slope=True)
+            layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True,
+                                          use_negative_slope=True, show_presets=True)
 
             col = layout.column(align=True)
             row = col.row(align=True)
-            row.operator("brush.curve_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
-            row.operator("brush.curve_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
-            row.operator("brush.curve_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
-            row.operator("brush.curve_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
-            row.operator("brush.curve_preset", icon='LINCURVE', text="").shape = 'LINE'
-            row.operator("brush.curve_preset", icon='NOCURVE', text="").shape = 'MAX'
 
         show_falloff_shape = False
         if mode in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT'} and brush.sculpt_brush_type != 'POSE':
@@ -1191,7 +1186,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             if paint.show_size_curve and not popover:
                 subcol = layout.column()
                 subcol.active = brush.use_pressure_size
-                subcol.template_curve_mapping(brush, "curve_size", brush=True)
+                subcol.template_curve_mapping(brush, "curve_size", brush=True, show_presets=True)
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
             layout.separator()
@@ -1213,7 +1208,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             if paint.show_strength_curve and not popover:
                 subcol = layout.column()
                 subcol.active = brush.use_pressure_strength
-                subcol.template_curve_mapping(brush, "curve_strength", brush=True)
+                subcol.template_curve_mapping(brush, "curve_strength", brush=True, show_presets=True)
         layout.separator()
 
     if direction:
@@ -1712,7 +1707,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             if paint.show_size_curve:
                 col = layout.column()
                 col.active = brush.use_pressure_size
-                col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True)
+                col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True, show_presets=True)
 
         row = layout.row(align=True)
         row.prop(brush, "strength", slider=True, text="Strength")
@@ -1728,7 +1723,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             if paint.show_strength_curve:
                 col = layout.column()
                 col.active = brush.use_pressure_strength
-                col.template_curve_mapping(gp_settings, "curve_strength", brush=True)
+                col.template_curve_mapping(gp_settings, "curve_strength", brush=True, show_presets=True)
 
     if props:
         layout.prop(props, "subdivision")
