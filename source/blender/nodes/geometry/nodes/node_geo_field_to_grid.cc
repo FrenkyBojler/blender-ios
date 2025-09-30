@@ -133,6 +133,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   }
 }
 
+#ifdef WITH_OPENVDB
 BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
                                            const openvdb::math::Transform &transform,
                                            const bke::LeafNodeMask &leaf_node_mask,
@@ -273,6 +274,7 @@ BLI_NOINLINE static void process_background(const Span<fn::GField> fields,
     bke::set_grid_background(*output_grids[i], output_values[i]);
   }
 }
+#endif
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
