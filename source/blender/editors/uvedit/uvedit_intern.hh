@@ -20,7 +20,9 @@ struct SpaceImage;
 struct ToolSettings;
 struct wmOperatorType;
 struct View2D;
-
+struct StitchState;
+struct StitchStateInit;
+struct bContext;
 /* find nearest */
 
 struct UvNearestHit {
@@ -162,9 +164,6 @@ void UV_OT_custom_region_set(wmOperatorType *ot);
 /* Used only when UV sync select is disabled. */
 void UV_OT_select_mode(wmOperatorType *ot);
 
-struct StitchState;
-struct StitchStateInit;
-struct bContext;
 enum StitchModes {
   STITCH_VERT,
   STITCH_EDGE,
