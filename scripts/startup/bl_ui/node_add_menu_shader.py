@@ -357,6 +357,10 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
         layout.separator()
         self.node_operator(layout, "ShaderNodeMapping")
+        props = self.node_operator(layout, "ShaderNodeMapRange")
+        ops = props.settings.add()
+        ops.name = "data_type"
+        ops.value = "'FLOAT_VECTOR'"
         props = self.node_operator(layout, "ShaderNodeMix", label="Mix Vector")
         ops = props.settings.add()
         ops.name = "data_type"
@@ -367,10 +371,6 @@ class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeVectorRotate")
         self.node_operator(layout, "ShaderNodeVectorTransform")
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
-        props = self.node_operator(layout, "ShaderNodeMapRange")
-        ops = props.settings.add()
-        ops.name = "data_type"
-        ops.value = "'FLOAT_VECTOR'"
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
