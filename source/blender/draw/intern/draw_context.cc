@@ -806,7 +806,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     bool is_preview_dupli = data_.dupli_parent && data_.dupli_object_current;
     if (is_preview_dupli) {
       /* Don't create duplis from temporary preview objects, object_duplilist_preview already takes
-       * care of everything. */
+       * care of everything. (See #146194, #146211) */
       continue;
     }
 
