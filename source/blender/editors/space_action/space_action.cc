@@ -703,10 +703,8 @@ static void action_listener(const wmSpaceTypeListenerParams *params)
 
 static void action_header_region_listener(const wmRegionListenerParams *params)
 {
-  ScrArea *area = params->area;
   ARegion *region = params->region;
   const wmNotifier *wmn = params->notifier;
-  SpaceAction *saction = (SpaceAction *)area->spacedata.first;
 
   /* context changes */
   switch (wmn->category) {

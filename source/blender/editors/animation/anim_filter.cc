@@ -144,6 +144,9 @@ bAction *ANIM_active_action_from_area(Scene *scene,
         *r_action_user = nullptr;
       }
       return nullptr;
+    case SACTCONT_TIMELINE:
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
