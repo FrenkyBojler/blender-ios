@@ -26,6 +26,11 @@ static const EnumPropertyItem node_tree_interface_socket_in_out_items[] = {
     {NODE_INTERFACE_SOCKET_OUTPUT, "OUTPUT", 0, "Output", "Generate a output node socket"},
     {0, nullptr, 0, nullptr, nullptr}};
 
+static const EnumPropertyItem node_tree_interface_layout_type_items[] = {
+    {NODE_INTERFACE_PANEL_LAYOUT_TYPE_PANEL, "PANEL", 0, "Panel", "Display items in a panel"},
+    {NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW, "ROW", 0, "Row", "Display items in a row"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 const EnumPropertyItem rna_enum_node_socket_structure_type_items[] = {
     {NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO,
      "AUTO",
@@ -1313,6 +1318,12 @@ static void rna_def_node_interface_panel(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Default Closed", "Panel is closed by default on new nodes");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  prop = RNA_def_property(srna, "layout_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, node_tree_interface_layout_type_items);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Layout", "Display mode of the panel in e.g. the modifier UI");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "interface_items", PROP_COLLECTION, PROP_NONE);

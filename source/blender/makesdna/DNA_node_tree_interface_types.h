@@ -159,6 +159,11 @@ typedef enum NodeTreeInterfacePanelFlag {
 } NodeTreeInterfacePanelFlag;
 ENUM_OPERATORS(NodeTreeInterfacePanelFlag, NODE_INTERFACE_PANEL_IS_COLLAPSED);
 
+typedef enum NodeTreeInterfaceLayoutType {
+  NODE_INTERFACE_PANEL_LAYOUT_TYPE_PANEL = 0,
+  NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW = 1,
+} NodeTreeInterfaceLayoutType;
+
 typedef enum NodeDefaultInputType {
   NODE_DEFAULT_INPUT_VALUE = 0,
   NODE_DEFAULT_INPUT_INDEX_FIELD = 1,
@@ -178,7 +183,8 @@ typedef struct bNodeTreeInterfacePanel {
   char *description;
   /* NodeTreeInterfacePanelFlag */
   int flag;
-  char _pad[4];
+  /** #NodeTreeInterfaceLayoutType. */
+  uint32_t layout_type;
 
   bNodeTreeInterfaceItem **items_array;
   int items_num;
