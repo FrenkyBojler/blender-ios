@@ -1,2 +1,3 @@
 Referenced by issue #140403, Artifacts on window edge when dragging and dropping files
 Referenced by issue #144921, Crash when dragging outliner object into status bar
+Referenced by pull request #147059, Fix #144921: Crash when dragging outliner object into status bar
