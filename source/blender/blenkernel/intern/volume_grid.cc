@@ -324,39 +324,44 @@ VolumeGridData &GVolumeGrid::get_for_write()
   return const_cast<VolumeGridData &>(*data_);
 }
 
-VolumeGridType get_type(const openvdb::GridBase &grid)
+VolumeGridType get_type(const openvdb::TreeBase &tree)
 {
-  if (grid.isType<openvdb::FloatGrid>()) {
+  if (tree.isType<openvdb::FloatTree>()) {
     return VOLUME_GRID_FLOAT;
   }
-  if (grid.isType<openvdb::Vec3fGrid>()) {
+  if (tree.isType<openvdb::Vec3fTree>()) {
     return VOLUME_GRID_VECTOR_FLOAT;
   }
-  if (grid.isType<openvdb::BoolGrid>()) {
+  if (tree.isType<openvdb::BoolTree>()) {
     return VOLUME_GRID_BOOLEAN;
   }
-  if (grid.isType<openvdb::DoubleGrid>()) {
+  if (tree.isType<openvdb::DoubleTree>()) {
     return VOLUME_GRID_DOUBLE;
   }
-  if (grid.isType<openvdb::Int32Grid>()) {
+  if (tree.isType<openvdb::Int32Tree>()) {
     return VOLUME_GRID_INT;
   }
-  if (grid.isType<openvdb::Int64Grid>()) {
+  if (tree.isType<openvdb::Int64Tree>()) {
     return VOLUME_GRID_INT64;
   }
-  if (grid.isType<openvdb::Vec3IGrid>()) {
+  if (tree.isType<openvdb::Vec3ITree>()) {
     return VOLUME_GRID_VECTOR_INT;
   }
-  if (grid.isType<openvdb::Vec3dGrid>()) {
+  if (tree.isType<openvdb::Vec3dTree>()) {
     return VOLUME_GRID_VECTOR_DOUBLE;
   }
-  if (grid.isType<openvdb::MaskGrid>()) {
+  if (tree.isType<openvdb::MaskTree>()) {
     return VOLUME_GRID_MASK;
   }
-  if (grid.isType<openvdb::points::PointDataGrid>()) {
+  if (tree.isType<openvdb::points::PointDataTree>()) {
     return VOLUME_GRID_POINTS;
   }
   return VOLUME_GRID_UNKNOWN;
+}
+
+VolumeGridType get_type(const openvdb::GridBase &grid)
+{
+  return get_type(grid.baseTree());
 }
 
 ImplicitSharingPtr<> OpenvdbTreeSharingInfo::make(std::shared_ptr<openvdb::tree::TreeBase> tree)

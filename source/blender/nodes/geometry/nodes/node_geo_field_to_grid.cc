@@ -32,6 +32,8 @@ namespace blender::nodes::node_geo_field_to_grid_cc {
 
 NODE_STORAGE_FUNCS(NodeFieldToGrid)
 
+using ItemsAccessor = FieldToGridItemsAccessor;
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -51,10 +53,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : items.index_range()) {
     const NodeFieldToGridItem &item = items[i];
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(item.data_type);
-    const std::string input_identifier =
-        FieldToGridItemsAccessor::input_socket_identifier_for_item(item);
-    const std::string output_identifier =
-        FieldToGridItemsAccessor::output_socket_identifier_for_item(item);
+    const std::string input_identifier = ItemsAccessor::input_socket_identifier_for_item(item);
+    const std::string output_identifier = ItemsAccessor::output_socket_identifier_for_item(item);
 
     b.add_input(data_type, item.name, input_identifier).supports_field();
     b.add_output(data_type, item.name, output_identifier)
@@ -79,14 +79,12 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
   if (uiLayout *panel = layout->panel(C, "field_to_grid_items", false, IFACE_("Fields"))) {
-    socket_items::ui::draw_items_list_with_operators<FieldToGridItemsAccessor>(
-        C, panel, tree, node);
-    socket_items::ui::draw_active_item_props<FieldToGridItemsAccessor>(
-        tree, node, [&](PointerRNA *item_ptr) {
-          panel->use_property_split_set(true);
-          panel->use_property_decorate_set(false);
-          panel->prop(item_ptr, "data_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        });
+    socket_items::ui::draw_items_list_with_operators<ItemsAccessor>(C, panel, tree, node);
+    socket_items::ui::draw_active_item_props<ItemsAccessor>(tree, node, [&](PointerRNA *item_ptr) {
+      panel->use_property_split_set(true);
+      panel->use_property_decorate_set(false);
+      panel->prop(item_ptr, "data_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    });
   }
 }
 
@@ -118,9 +116,14 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     return;
   }
   if (params.in_out() == SOCK_IN) {
+    params.add_item(IFACE_("Topology"), [data_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeFieldToGrid");
+      node_storage(node).data_type = *data_type;
+      params.update_and_connect_available_socket(node, "Topology");
+    });
     params.add_item(IFACE_("Field"), [data_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeFieldToGrid");
-      socket_items::add_item_with_socket_type_and_name<FieldToGridItemsAccessor>(
+      socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, *data_type, params.socket.name);
       params.update_and_connect_available_socket(node, params.socket.name);
     });
@@ -128,10 +131,149 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   else {
     params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeFieldToGrid");
-      socket_items::add_item_with_socket_type_and_name<FieldToGridItemsAccessor>(
+      socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
           params.node_tree, node, *data_type, params.socket.name);
       params.update_and_connect_available_socket(node, params.socket.name);
     });
+  }
+}
+
+BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
+                                           const openvdb::math::Transform &transform,
+                                           const LeafNodeMask &leaf_node_mask,
+                                           const openvdb::CoordBBox &leaf_bbox,
+                                           const GetVoxelsFn get_voxels_fn,
+                                           const Span<openvdb::GridBase::Ptr> output_grids)
+{
+  AlignedBuffer<8192, 8> allocation_buffer;
+  ResourceScope scope;
+  scope.allocator().provide_buffer(allocation_buffer);
+
+  IndexMaskMemory memory;
+  const IndexMask index_mask = IndexMask::from_predicate(
+      IndexRange(LeafNodeMask::SIZE), GrainSize(LeafNodeMask::SIZE), memory, [&](const int64_t i) {
+        return leaf_node_mask.isOn(i);
+      });
+
+  const openvdb::Coord any_voxel_in_leaf = leaf_bbox.min();
+  MutableSpan<openvdb::Coord> voxels = scope.allocator().allocate_array<openvdb::Coord>(
+      index_mask.min_array_size());
+  get_voxels_fn(voxels);
+
+  bke::VoxelFieldContext field_context{transform, voxels};
+  fn::FieldEvaluator evaluator{field_context, &index_mask};
+
+  Array<MutableSpan<bool>> boolean_outputs(fields.size());
+  for (const int i : fields.index_range()) {
+    const CPPType &type = fields[i].cpp_type();
+    bke::to_typed_grid(*output_grids[i], [&](auto &grid) {
+      using GridT = typename std::decay_t<decltype(grid)>;
+      using ValueT = typename GridT::ValueType;
+
+      auto &tree = grid.tree();
+      auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf);
+      /* Should have been added before. */
+      BLI_assert(leaf_node);
+
+      /* Boolean grids are special because they encode the values as bitmask. */
+      if constexpr (std::is_same_v<ValueT, bool>) {
+        boolean_outputs[i] = scope.allocator().allocate_array<bool>(index_mask.min_array_size());
+        evaluator.add_with_destination(fields[i], boolean_outputs[i]);
+      }
+      else {
+        /* Write directly into the buffer of the output leaf node. */
+        ValueT *buffer = leaf_node->buffer().data();
+        evaluator.add_with_destination(fields[i], GMutableSpan(type, buffer, LeafNodeMask::SIZE));
+      }
+    });
+  }
+
+  evaluator.evaluate();
+
+  for (const int i : fields.index_range()) {
+    if (!boolean_outputs[i].is_empty()) {
+      bke::set_mask_leaf_buffer_from_bools(static_cast<openvdb::BoolGrid &>(*output_grids[i]),
+                                           boolean_outputs[i],
+                                           index_mask,
+                                           voxels);
+    }
+  }
+}
+
+BLI_NOINLINE static void process_voxels(const Span<fn::GField> fields,
+                                        const openvdb::math::Transform &transform,
+                                        const Span<openvdb::Coord> voxels,
+                                        const Span<openvdb::GridBase::Ptr> output_grids)
+{
+  const int64_t voxels_num = voxels.size();
+  AlignedBuffer<8192, 8> allocation_buffer;
+  ResourceScope scope;
+  scope.allocator().provide_buffer(allocation_buffer);
+
+  bke::VoxelFieldContext field_context{transform, voxels};
+  fn::FieldEvaluator evaluator{field_context, voxels_num};
+
+  Array<GMutableSpan> output_values(output_grids.size());
+  for (const int i : fields.index_range()) {
+    const CPPType &type = fields[i].cpp_type();
+    output_values[i] = {type, scope.allocator().allocate_array(type, voxels_num), voxels_num};
+    evaluator.add_with_destination(fields[i], output_values[i]);
+  }
+  evaluator.evaluate();
+
+  for (const int i : fields.index_range()) {
+    bke::set_grid_values(*output_grids[i], output_values[i], voxels);
+  }
+}
+
+BLI_NOINLINE static void process_tiles(const Span<fn::GField> fields,
+                                       const openvdb::math::Transform &transform,
+                                       const Span<openvdb::CoordBBox> tiles,
+                                       const Span<openvdb::GridBase::Ptr> output_grids)
+{
+  const int64_t tiles_num = tiles.size();
+  AlignedBuffer<8192, 8> allocation_buffer;
+  ResourceScope scope;
+  scope.allocator().provide_buffer(allocation_buffer);
+
+  bke::TilesFieldContext field_context{transform, tiles};
+  fn::FieldEvaluator evaluator{field_context, tiles_num};
+
+  Array<GMutableSpan> output_values(output_grids.size());
+  for (const int i : fields.index_range()) {
+    const CPPType &type = fields[i].cpp_type();
+    output_values[i] = {type, scope.allocator().allocate_array(type, tiles_num), tiles_num};
+    evaluator.add_with_destination(fields[i], output_values[i]);
+  }
+  evaluator.evaluate();
+
+  for (const int i : fields.index_range()) {
+    bke::set_tile_values(*output_grids[i], output_values[i], tiles);
+  }
+}
+
+BLI_NOINLINE static void process_background(const Span<fn::GField> fields,
+                                            const openvdb::math::Transform &transform,
+                                            const Span<openvdb::GridBase::Ptr> output_grids)
+{
+  AlignedBuffer<256, 8> allocation_buffer;
+  ResourceScope scope;
+  scope.allocator().provide_buffer(allocation_buffer);
+
+  static const openvdb::CoordBBox background_space = openvdb::CoordBBox::inf();
+  bke::TilesFieldContext field_context(transform, Span<openvdb::CoordBBox>(&background_space, 1));
+  fn::FieldEvaluator evaluator(field_context, 1);
+
+  Array<GMutablePointer> output_values(output_grids.size());
+  for (const int i : fields.index_range()) {
+    const CPPType &type = fields[i].cpp_type();
+    output_values[i] = {type, scope.allocator().allocate(type)};
+    evaluator.add_with_destination(fields[i], GMutableSpan{type, output_values[i].get(), 1});
+  }
+  evaluator.evaluate();
+
+  for (const int i : fields.index_range()) {
+    bke::set_grid_background(*output_grids[i], output_values[i]);
   }
 }
 
@@ -140,7 +282,57 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const NodeFieldToGrid &storage = node_storage(params.node());
   const Span<NodeFieldToGridItem> items(storage.items, storage.items_num);
-  params.set_default_remaining_outputs();
+  bke::GVolumeGrid topology_grid = params.extract_input<bke::GVolumeGrid>("Topology");
+  if (!topology_grid) {
+    params.error_message_add(NodeWarningType::Error, "The topology grid input is required");
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  bke::VolumeTreeAccessToken tree_token;
+  const openvdb::GridBase &topology_base = topology_grid->grid(tree_token);
+  const openvdb::math::Transform &transform = topology_base.transform();
+
+  Array<fn::GField> fields(items.size());
+  for (const int i : items.index_range()) {
+    const std::string identifier = ItemsAccessor::input_socket_identifier_for_item(items[i]);
+    fields[i] = params.extract_input<fn::GField>(identifier);
+  }
+
+  openvdb::MaskTree mask_tree;
+  bke::to_typed_grid(topology_base,
+                     [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
+
+  Array<openvdb::GridBase::Ptr> output_grids(items.size());
+  for (const int i : items.index_range()) {
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(items[i].data_type);
+    const VolumeGridType grid_type = *bke::socket_type_to_grid_type(socket_type);
+    output_grids[i] = bke::create_grid_with_topology(
+        topology_base.baseTree(), transform, grid_type);
+  }
+
+  parallel_grid_topology_tasks(
+      mask_tree,
+      [&](const LeafNodeMask &leaf_node_mask,
+          const openvdb::CoordBBox &leaf_bbox,
+          const GetVoxelsFn get_voxels_fn) {
+        process_leaf_node(
+            fields, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, output_grids);
+      },
+      [&](const Span<openvdb::Coord> voxels) {
+        process_voxels(fields, transform, voxels, output_grids);
+      },
+      [&](const Span<openvdb::CoordBBox> tiles) {
+        process_tiles(fields, transform, tiles, output_grids);
+      });
+
+  process_background(fields, transform, output_grids);
+
+  for (const int i : items.index_range()) {
+    const std::string identifier = ItemsAccessor::output_socket_identifier_for_item(items[i]);
+    params.set_output(identifier, bke::GVolumeGrid(std::move(output_grids[i])));
+  }
+
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -151,13 +343,13 @@ static void node_init(bNodeTree *tree, bNode *node)
   NodeFieldToGrid *data = MEM_callocN<NodeFieldToGrid>(__func__);
   data->data_type = SOCK_FLOAT;
   node->storage = data;
-  socket_items::add_item_with_socket_type_and_name<FieldToGridItemsAccessor>(
+  socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
       *tree, *node, SOCK_FLOAT, "Value");
 }
 
 static void node_free_storage(bNode *node)
 {
-  socket_items::destruct_array<FieldToGridItemsAccessor>(*node);
+  socket_items::destruct_array<ItemsAccessor>(*node);
   MEM_freeN(node->storage);
 }
 
@@ -167,28 +359,28 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
   NodeFieldToGrid *dst_storage = MEM_dupallocN<NodeFieldToGrid>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
-  socket_items::copy_array<FieldToGridItemsAccessor>(*src_node, *dst_node);
+  socket_items::copy_array<ItemsAccessor>(*src_node, *dst_node);
 }
 
 static void node_operators()
 {
-  socket_items::ops::make_common_operators<FieldToGridItemsAccessor>();
+  socket_items::ops::make_common_operators<ItemsAccessor>();
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  return socket_items::try_add_item_via_any_extend_socket<FieldToGridItemsAccessor>(
+  return socket_items::try_add_item_via_any_extend_socket<ItemsAccessor>(
       params.ntree, params.node, params.node, params.link);
 }
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  socket_items::blend_write<FieldToGridItemsAccessor>(&writer, node);
+  socket_items::blend_write<ItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  socket_items::blend_read_data<FieldToGridItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ItemsAccessor>(&reader, node);
 }
 
 static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,

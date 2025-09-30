@@ -1167,4 +1167,116 @@ openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
   return BKE_volume_grid_type_operation(grid_type, op);
 }
 
+namespace blender::bke {
+
+openvdb::GridBase::Ptr create_grid_with_topology(const openvdb::TreeBase &topology,
+                                                 const openvdb::math::Transform &transform,
+                                                 const VolumeGridType grid_type)
+{
+  openvdb::GridBase::Ptr grid;
+  const VolumeGridType topology_tree_type = bke::volume_grid::get_type(topology);
+  BKE_volume_grid_type_to_static_type(topology_tree_type, [&](auto topology_type_tag) {
+    using TopologyGridT = typename decltype(topology_type_tag)::type;
+    using TopologyTreeT = typename TopologyGridT::TreeType;
+    const TopologyTreeT &topology_typed = static_cast<const TopologyTreeT &>(topology);
+    BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
+      using GridT = typename decltype(type_tag)::type;
+      using TreeT = typename GridT::TreeType;
+      using ValueType = typename TreeT::ValueType;
+      const ValueType background{};
+      auto tree = std::make_shared<TreeT>(topology_typed, background, openvdb::TopologyCopy());
+      grid = openvdb::createGrid(std::move(tree));
+      grid->setTransform(transform.copy());
+    });
+  });
+  return grid;
+}
+
+void set_grid_values(openvdb::GridBase &grid_base,
+                     const GSpan values,
+                     const Span<openvdb::Coord> voxels)
+{
+  bke::to_typed_grid(grid_base, [&](auto &grid) {
+    using GridT = std::decay_t<decltype(grid)>;
+    using ValueType = typename GridT::ValueType;
+    const ValueType *data = static_cast<const ValueType *>(values.data());
+
+    auto accessor = grid.getUnsafeAccessor();
+    for (const int64_t i : voxels.index_range()) {
+      accessor.setValue(voxels[i], data[i]);
+    }
+  });
+}
+
+void set_tile_values(openvdb::GridBase &grid_base,
+                     const GSpan values,
+                     const Span<openvdb::CoordBBox> tiles)
+{
+  bke::to_typed_grid(grid_base, [&](auto &grid) {
+    using GridT = typename std::decay_t<decltype(grid)>;
+    using TreeT = typename GridT::TreeType;
+    using ValueType = typename GridT::ValueType;
+    auto &tree = grid.tree();
+
+    const ValueType *computed_values = static_cast<const ValueType *>(values.data());
+
+    const auto set_tile_value = [&](auto &node, const openvdb::Coord &coord_in_tile, auto value) {
+      const openvdb::Index n = node.coordToOffset(coord_in_tile);
+      BLI_assert(node.isChildMaskOff(n));
+      /* TODO: Figure out how to do this without const_cast, although the same is done in
+       * `openvdb_ax/openvdb_ax/compiler/VolumeExecutable.cc` which has a similar purpose.
+       * It seems like OpenVDB generally allows that, but it does not have a proper public
+       * API for this yet. */
+      using UnionType = typename std::decay_t<decltype(node)>::UnionType;
+      auto *table = const_cast<UnionType *>(node.getTable());
+      table[n].setValue(value);
+    };
+
+    for (const int i : tiles.index_range()) {
+      const openvdb::CoordBBox tile = tiles[i];
+      const openvdb::Coord coord_in_tile = tile.min();
+      const auto &computed_value = computed_values[i];
+      using InternalNode1 = typename TreeT::RootNodeType::ChildNodeType;
+      using InternalNode2 = typename InternalNode1::ChildNodeType;
+      /* Find the internal node that contains the tile and update the value in there. */
+      if (auto *node = tree.template probeNode<InternalNode2>(coord_in_tile)) {
+        set_tile_value(*node, coord_in_tile, computed_value);
+      }
+      else if (auto *node = tree.template probeNode<InternalNode1>(coord_in_tile)) {
+        set_tile_value(*node, coord_in_tile, computed_value);
+      }
+      else {
+        BLI_assert_unreachable();
+      }
+    }
+  });
+}
+
+void set_mask_leaf_buffer_from_bools(openvdb::BoolGrid &grid,
+                                     const Span<bool> values,
+                                     const IndexMask &index_mask,
+                                     const Span<openvdb::Coord> voxels)
+{
+  auto accessor = grid.getUnsafeAccessor();
+  /* Could probably use int16_t for the iteration index. Double check this. */
+  index_mask.foreach_index_optimized<int>([&](const int i) {
+    const openvdb::Coord &coord = voxels[i];
+    accessor.setValue(coord, values[i]);
+  });
+}
+
+void set_grid_background(openvdb::GridBase &grid_base, const GPointer value)
+{
+  bke::to_typed_grid(grid_base, [&](auto &grid) {
+    using GridT = std::decay_t<decltype(grid)>;
+    using ValueType = typename GridT::ValueType;
+    auto &tree = grid.tree();
+
+    BLI_assert(value.type().size == sizeof(ValueType));
+    tree.root().setBackground(*static_cast<const ValueType *>(value.get()), true);
+  });
+}
+
+}  // namespace blender::bke
+
 #endif

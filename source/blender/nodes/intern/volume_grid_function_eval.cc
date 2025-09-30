@@ -29,42 +29,6 @@ namespace blender::nodes {
 
 #ifdef WITH_OPENVDB
 
-template<typename GridT>
-static constexpr bool is_supported_grid_type = is_same_any_v<GridT,
-                                                             openvdb::FloatGrid,
-                                                             openvdb::Vec3fGrid,
-                                                             openvdb::BoolGrid,
-                                                             openvdb::Int32Grid,
-                                                             openvdb::Vec4fGrid>;
-
-template<typename Fn> static void to_typed_grid(const openvdb::GridBase &grid_base, Fn &&fn)
-{
-  const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
-  BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
-    using GridT = typename decltype(type_tag)::type;
-    if constexpr (is_supported_grid_type<GridT>) {
-      fn(static_cast<const GridT &>(grid_base));
-    }
-    else {
-      BLI_assert_unreachable();
-    }
-  });
-}
-
-template<typename Fn> static void to_typed_grid(openvdb::GridBase &grid_base, Fn &&fn)
-{
-  const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
-  BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
-    using GridT = typename decltype(type_tag)::type;
-    if constexpr (is_supported_grid_type<GridT>) {
-      fn(static_cast<GridT &>(grid_base));
-    }
-    else {
-      BLI_assert_unreachable();
-    }
-  });
-}
-
 static std::optional<VolumeGridType> cpp_type_to_grid_type(const CPPType &cpp_type)
 {
   const std::optional<eCustomDataType> cd_type = bke::cpp_type_to_custom_data_type(cpp_type);
@@ -74,13 +38,13 @@ static std::optional<VolumeGridType> cpp_type_to_grid_type(const CPPType &cpp_ty
   return bke::custom_data_type_to_volume_grid_type(*cd_type);
 }
 
-using LeafNodeMask = openvdb::util::NodeMask<3u>;
-using GetVoxelsFn = FunctionRef<void(MutableSpan<openvdb::Coord> r_voxels)>;
-using ProcessLeafFn = FunctionRef<void(const LeafNodeMask &leaf_node_mask,
-                                       const openvdb::CoordBBox &leaf_bbox,
-                                       GetVoxelsFn get_voxels_fn)>;
-using ProcessTilesFn = FunctionRef<void(Span<openvdb::CoordBBox> tiles)>;
-using ProcessVoxelsFn = FunctionRef<void(Span<openvdb::Coord> voxels)>;
+// using LeafNodeMask = openvdb::util::NodeMask<3u>;
+// using GetVoxelsFn = FunctionRef<void(MutableSpan<openvdb::Coord> r_voxels)>;
+// using ProcessLeafFn = FunctionRef<void(const LeafNodeMask &leaf_node_mask,
+//                                        const openvdb::CoordBBox &leaf_bbox,
+//                                        GetVoxelsFn get_voxels_fn)>;
+// using ProcessTilesFn = FunctionRef<void(Span<openvdb::CoordBBox> tiles)>;
+// using ProcessVoxelsFn = FunctionRef<void(Span<openvdb::Coord> voxels)>;
 
 /**
  * Call #process_leaf_fn on the leaf node if it has a certain minimum number of active voxels. If
@@ -108,7 +72,7 @@ static void parallel_grid_topology_tasks_leaf_node(const LeafNodeT &node,
     return;
   }
   /* Process entire leaf at once. This is especially beneficial when very many of the voxels in
-   * the leaf are active. In that case, one can work on the openvdb arrays stored in the leafs
+   * the leaf are active. In that case, one can work on the openvdb arrays stored in the leaves
    * directly. */
   const NodeMaskT &value_mask = node.getValueMask();
   const openvdb::CoordBBox bbox = node.getNodeBoundingBox();
@@ -187,10 +151,10 @@ static void parallel_grid_topology_tasks_internal_node(const InternalNodeT &node
 }
 
 /* Call the process functions on all active tiles and voxels in the given tree. */
-static void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
-                                         const ProcessLeafFn process_leaf_fn,
-                                         const ProcessVoxelsFn process_voxels_fn,
-                                         const ProcessTilesFn process_tiles_fn)
+void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
+                                  const ProcessLeafFn process_leaf_fn,
+                                  const ProcessVoxelsFn process_voxels_fn,
+                                  const ProcessTilesFn process_tiles_fn)
 {
   /* Iterate over the root internal nodes. */
   for (auto root_child_iter = mask_tree.cbeginRootChildren(); root_child_iter.test();
@@ -259,7 +223,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       /* The input is a grid, so we can attempt to reference the grid values directly. */
-      to_typed_grid(*grid_base, [&](const auto &grid) {
+      bke::to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = typename std::decay_t<decltype(grid)>;
         using ValueT = typename GridT::ValueType;
         BLI_assert(param_cpp_type.size == sizeof(ValueT));
@@ -338,7 +302,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
     }
 
     openvdb::GridBase &grid_base = *output_grids[output_i];
-    to_typed_grid(grid_base, [&](auto &grid) {
+    bke::to_typed_grid(grid_base, [&](auto &grid) {
       using GridT = typename std::decay_t<decltype(grid)>;
       using ValueT = typename GridT::ValueType;
 
@@ -373,14 +337,10 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
     if (!param_cpp_type.is<bool>()) {
       continue;
     }
-    openvdb::BoolGrid &grid = static_cast<openvdb::BoolGrid &>(*output_grids[output_i]);
-    const Span<bool> values = params.computed_array(param_index).typed<bool>();
-    auto accessor = grid.getUnsafeAccessor();
-    const Span<openvdb::Coord> voxels = ensure_voxel_coords();
-    index_mask.foreach_index([&](const int64_t i) {
-      const openvdb::Coord &coord = voxels[i];
-      accessor.setValue(coord, values[i]);
-    });
+    bke::set_mask_leaf_buffer_from_bools(static_cast<openvdb::BoolGrid &>(*output_grids[output_i]),
+                                         params.computed_array(param_index).typed<bool>(),
+                                         index_mask,
+                                         ensure_voxel_coords());
   }
 }
 
@@ -417,7 +377,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       /* Retrieve all voxel values from the input grid. */
-      to_typed_grid(*grid_base, [&](const auto &grid) {
+      bke::to_typed_grid(*grid_base, [&](const auto &grid) {
         using ValueType = typename std::decay_t<decltype(grid)>::ValueType;
         const auto &tree = grid.tree();
         /* Could try to cache the accessor across batches, but it's not straight forward since its
@@ -435,7 +395,8 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
       });
     }
     else if (value_variant.is_context_dependent_field()) {
-      /* Evaluate the field on all voxels. */
+      /* Evaluate the field on all voxels.
+       * TODO: Collect fields from all inputs to evaluate together. */
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
       bke::VoxelFieldContext field_context{transform, voxels};
@@ -469,21 +430,8 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
     if (!output_grids[output_i]) {
       continue;
     }
-    openvdb::GridBase &grid_base = *output_grids[output_i];
-    to_typed_grid(grid_base, [&](auto &grid) {
-      using GridT = std::decay_t<decltype(grid)>;
-      using ValueType = typename GridT::ValueType;
-      const int param_index = input_values.size() + output_i;
-      const ValueType *computed_values = static_cast<const ValueType *>(
-          params.computed_array(param_index).data());
-
-      auto accessor = grid.getUnsafeAccessor();
-      for (const int64_t i : IndexRange(voxels_num)) {
-        const openvdb::Coord &coord = voxels[i];
-        const ValueType &value = computed_values[i];
-        accessor.setValue(coord, value);
-      }
-    });
+    const int param_index = input_values.size() + output_i;
+    bke::set_grid_values(*output_grids[output_i], params.computed_array(param_index), voxels);
   }
 }
 
@@ -522,7 +470,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       /* Sample the tile values from the input grid. */
-      to_typed_grid(*grid_base, [&](const auto &grid) {
+      bke::to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = std::decay_t<decltype(grid)>;
         using ValueType = typename GridT::ValueType;
         const auto &tree = grid.tree();
@@ -541,7 +489,8 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
       });
     }
     else if (value_variant.is_context_dependent_field()) {
-      /* Evaluate the field on all tiles. */
+      /* Evaluate the field on all tiles.
+       * TODO: Gather fields from all inputs to evaluate together. */
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
       bke::TilesFieldContext field_context{transform, tiles};
@@ -580,47 +529,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
       continue;
     }
     const int param_index = input_values.size() + output_i;
-    openvdb::GridBase &grid_base = *output_grids[output_i];
-    to_typed_grid(grid_base, [&](auto &grid) {
-      using GridT = typename std::decay_t<decltype(grid)>;
-      using TreeT = typename GridT::TreeType;
-      using ValueType = typename GridT::ValueType;
-      auto &tree = grid.tree();
-
-      const ValueType *computed_values = static_cast<const ValueType *>(
-          params.computed_array(param_index).data());
-
-      const auto set_tile_value =
-          [&](auto &node, const openvdb::Coord &coord_in_tile, auto value) {
-            const openvdb::Index n = node.coordToOffset(coord_in_tile);
-            BLI_assert(node.isChildMaskOff(n));
-            /* TODO: Figure out how to do this without const_cast, although the same is done in
-             * `openvdb_ax/openvdb_ax/compiler/VolumeExecutable.cc` which has a similar purpose.
-             * It seems like OpenVDB generally allows that, but it does not have a proper public
-             * API for this yet. */
-            using UnionType = typename std::decay_t<decltype(node)>::UnionType;
-            auto *table = const_cast<UnionType *>(node.getTable());
-            table[n].setValue(value);
-          };
-
-      for (const int i : IndexRange(tiles_num)) {
-        const openvdb::CoordBBox tile = tiles[i];
-        const openvdb::Coord coord_in_tile = tile.min();
-        const auto &computed_value = computed_values[i];
-        using InternalNode1 = typename TreeT::RootNodeType::ChildNodeType;
-        using InternalNode2 = typename InternalNode1::ChildNodeType;
-        /* Find the internal node that contains the tile and update the value in there. */
-        if (auto *node = tree.template probeNode<InternalNode2>(coord_in_tile)) {
-          set_tile_value(*node, coord_in_tile, computed_value);
-        }
-        else if (auto *node = tree.template probeNode<InternalNode1>(coord_in_tile)) {
-          set_tile_value(*node, coord_in_tile, computed_value);
-        }
-        else {
-          BLI_assert_unreachable();
-        }
-      }
-    });
+    bke::set_tile_values(*output_grids[output_i], params.computed_array(param_index), tiles);
   }
 }
 
@@ -644,7 +553,7 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
     const CPPType &param_cpp_type = param_type.data_type().single_type();
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
-      to_typed_grid(*grid_base, [&](const auto &grid) {
+      bke::to_typed_grid(*grid_base, [&](const auto &grid) {
 #  ifndef NDEBUG
         using GridT = std::decay_t<decltype(grid)>;
         using ValueType = typename GridT::ValueType;
@@ -694,16 +603,7 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
     }
     const int param_index = input_values.size() + output_i;
     const GSpan value = params.computed_array(param_index);
-
-    openvdb::GridBase &grid_base = *output_grids[output_i];
-    to_typed_grid(grid_base, [&](auto &grid) {
-      using GridT = std::decay_t<decltype(grid)>;
-      using ValueType = typename GridT::ValueType;
-      auto &tree = grid.tree();
-
-      BLI_assert(value.type().size == sizeof(ValueType));
-      tree.root().setBackground(*static_cast<const ValueType *>(value.data()), true);
-    });
+    bke::set_grid_background(*output_grids[output_i], GPointer(value.type(), value.data()));
   }
 }
 
@@ -756,7 +656,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
     if (!grid) {
       continue;
     }
-    to_typed_grid(*grid, [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
+    bke::to_typed_grid(*grid, [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
   }
 
   Array<openvdb::GridBase::Ptr> output_grids(output_values.size());
@@ -773,18 +673,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
       return false;
     }
 
-    openvdb::GridBase::Ptr grid;
-    BKE_volume_grid_type_to_static_type(*grid_type, [&](auto type_tag) {
-      using GridT = typename decltype(type_tag)::type;
-      using TreeT = typename GridT::TreeType;
-      using ValueType = typename TreeT::ValueType;
-      const ValueType background{};
-      auto tree = std::make_shared<TreeT>(mask_tree, background, openvdb::TopologyCopy());
-      grid = openvdb::createGrid(std::move(tree));
-    });
-
-    grid->setTransform(transform->copy());
-    output_grids[i] = std::move(grid);
+    output_grids[i] = bke::create_grid_with_topology(mask_tree, *transform, *grid_type);
   }
 
   parallel_grid_topology_tasks(

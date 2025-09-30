@@ -371,6 +371,7 @@ template<typename T> class VolumeGrid : public GVolumeGrid {
 /**
  * Get the volume grid type based on the tree type in the grid.
  */
+VolumeGridType get_type(const openvdb::tree::TreeBase &tree);
 VolumeGridType get_type(const openvdb::GridBase &grid);
 
 /* -------------------------------------------------------------------- */
