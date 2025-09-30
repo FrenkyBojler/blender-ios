@@ -73,6 +73,7 @@
 #include "SEQ_modifier.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_utils.hh"
 
 #include "WM_api.hh"
 
@@ -2476,6 +2477,8 @@ static void sequencer_substitute_transform_effects(Scene *scene)
       sh.init(strip);
       GaussianBlurVars *gv = static_cast<GaussianBlurVars *>(strip->effectdata);
       gv->size_x = gv->size_y = 0.0f;
+      blender::seq::edit_strip_name_set(scene, strip, "Transform Placeholder (Migrated)");
+      blender::seq::ensure_unique_name(strip, scene);
     }
     return true;
   });
