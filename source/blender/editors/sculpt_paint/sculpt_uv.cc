@@ -161,10 +161,11 @@ static void apply_sculpt_data_constraints(UvSculptData *sculptdata, float uv[2])
 
 static float calc_strength(const UvSculptData *sculptdata, float p, const float len)
 {
-  float strength = BKE_brush_curve_strength(eBrushCurvePreset(sculptdata->uvsculpt->curve_distance_falloff_preset),
-                                            sculptdata->uvsculpt->curve_distance_falloff,
-                                            p,
-                                            len);
+  float strength = BKE_brush_curve_strength(
+      eBrushCurvePreset(sculptdata->uvsculpt->curve_distance_falloff_preset),
+      sculptdata->uvsculpt->curve_distance_falloff,
+      p,
+      len);
 
   CLAMP(strength, 0.0f, 1.0f);
 

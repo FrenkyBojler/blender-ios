@@ -1629,7 +1629,8 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
     }
   }
   if (toolsettings->uvsculpt.curve_distance_falloff) {
-    ts->uvsculpt.curve_distance_falloff = BKE_curvemapping_copy(toolsettings->uvsculpt.curve_distance_falloff);
+    ts->uvsculpt.curve_distance_falloff = BKE_curvemapping_copy(
+        toolsettings->uvsculpt.curve_distance_falloff);
     BKE_curvemapping_init(ts->uvsculpt.curve_distance_falloff);
   }
   if (toolsettings->gp_paint) {
