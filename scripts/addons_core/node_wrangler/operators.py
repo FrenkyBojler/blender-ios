@@ -2265,17 +2265,18 @@ class NWResetNodes(bpy.types.Operator):
     def is_frame_node(node):
         return node.bl_idname == "NodeFrame"
 
-    @staticmethod
-    def ignore_node(node):
-        group_node_types = ["CompositorNodeGroup", "GeometryNodeGroup", "ShaderNodeGroup"]
-        # TODO All zone nodes are ignored here for now, because replacing one of the input/output pair breaks the zone.
-        # It's possible to handle zones by using the `paired_output` function of an input node
-        # and reconstruct the zone using the `pair_with_output` function.
-        zone_node_types = ["GeometryNodeRepeatInput", "GeometryNodeRepeatOutput", "NodeClosureInput",
-                           "NodeClosureOutput", "GeometryNodeSimulationInput", "GeometryNodeSimulationOutput",
-                           "GeometryNodeForeachGeometryElementInput", "GeometryNodeForeachGeometryElementOutput"]
-        node_ignore = group_node_types + zone_node_types + ["NodeFrame", "NodeReroute"]
-        return node.bl_idname in node_ignore
+    group_node_types = {"CompositorNodeGroup", "GeometryNodeGroup", "ShaderNodeGroup"}
+    # TODO All zone nodes are ignored here for now, because replacing one of the input/output pair breaks the zone.
+    # It's possible to handle zones by using the `paired_output` function of an input node
+    # and reconstruct the zone using the `pair_with_output` function.
+    zone_node_types = {"GeometryNodeRepeatInput", "GeometryNodeRepeatOutput", "NodeClosureInput",
+                        "NodeClosureOutput", "GeometryNodeSimulationInput", "GeometryNodeSimulationOutput",
+                        "GeometryNodeForeachGeometryElementInput", "GeometryNodeForeachGeometryElementOutput"}
+    node_ignore = group_node_types | zone_node_types | {"NodeFrame", "NodeReroute"}
+
+    @classmethod
+    def ignore_node(cls, node):
+        return node.bl_idname in cls.node_ignore
 
     def execute(self, context):
         node_active = context.active_node
