@@ -1050,6 +1050,7 @@ class DOPESHEET_PT_dopesheet_overlay(Panel):
 
         layout.active = overlay_settings.show_overlays
         row = layout.row()
+        row.enabled = context.workspace.use_scene_time_sync
         row.prop(overlay_settings, "show_scene_strip_range")
 
 
