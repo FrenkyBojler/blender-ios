@@ -1486,7 +1486,8 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
     )
     pass_render_time: BoolProperty(
         name="Render Time",
-        description="Pass containing an estimate for how long each pixel took to render",
+        description="Pass containing an estimate for how long each pixel took to render. "
+        "The output is in milliseconds of CPU-time per pixel. This feature works only for CPU rendering devices",
         default=False,
         update=update_render_passes,
     )
