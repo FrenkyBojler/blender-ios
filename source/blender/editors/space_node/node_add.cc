@@ -1783,7 +1783,7 @@ static wmOperatorStatus duplicate_compositing_node_group_exec(bContext *C, wmOpe
 
 void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot)
 {
-  ot->name = "Duplicate Compositing Node Group";
+  ot->name = "New Compositing Node Group";
   ot->idname = "NODE_OT_duplicate_compositing_node_group";
   ot->description = "Duplicate the currently assigned compositing node group.";
 
