@@ -148,20 +148,32 @@ void main()
     Surfel surfel = surfel_buf[surfel_next];
     irradiance_capture_surfel(surfel, P, sh);
     validity_capture_surfel(surfel, P, validity);
+#if 0 /* For debugging the volume rays list. */
+    drw_debug_line(surfel.position, P, float4(0, 1, 0, 1), drw_debug_persistent_lifetime);
+#endif
   }
   else {
     irradiance_capture_world(-sky_L, sh);
     validity_capture_world(-sky_L, validity);
+#if 0 /* For debugging the volume rays list. */
+    drw_debug_line(P - sky_L, P, float4(0, 1, 1, 1), drw_debug_persistent_lifetime);
+#endif
   }
 
   if (surfel_prev > -1) {
     Surfel surfel = surfel_buf[surfel_prev];
     irradiance_capture_surfel(surfel, P, sh);
     validity_capture_surfel(surfel, P, validity);
+#if 0 /* For debugging the volume rays list. */
+    drw_debug_line(surfel.position, P, float4(1, 0, 1, 1), drw_debug_persistent_lifetime);
+#endif
   }
   else {
     irradiance_capture_world(sky_L, sh);
     validity_capture_world(sky_L, validity);
+#if 0 /* For debugging the volume rays list. */
+    drw_debug_line(P + sky_L, P, float4(1, 1, 0, 1), drw_debug_persistent_lifetime);
+#endif
   }
 
   /* Normalize for storage. We accumulated 2 samples. */

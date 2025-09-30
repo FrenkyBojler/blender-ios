@@ -10,7 +10,6 @@
  * Dispatched as 1 thread per list.
  */
 
-#include "draw_debug_draw_lib.glsl"
 #include "infos/eevee_lightprobe_volume_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_surfel_list_build)
