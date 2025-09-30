@@ -165,7 +165,7 @@ struct PChart {
   /* Only used with original_bounds */
   Bounds<float2> orig_bounds;
   PVert *orig_uv_verts[3];
-  float old_angle;
+  float angle;
 
   LinearSolver *context;
   float *abf_alpha;
@@ -2361,6 +2361,258 @@ static void p_chart_simplify(PChart *chart)
 }
 #endif
 
+static int p_compare_geometric_uv(const void *a, const void *b)
+{
+  const PVert *v1 = *(const PVert *const *)a;
+  const PVert *v2 = *(const PVert *const *)b;
+
+  if (v1->uv[0] < v2->uv[0]) {
+    return -1;
+  }
+  if (v1->uv[0] == v2->uv[0]) {
+    if (v1->uv[1] < v2->uv[1]) {
+      return -1;
+    }
+    if (v1->uv[1] == v2->uv[1]) {
+      return 0;
+    }
+    return 1;
+  }
+  return 1;
+}
+
+static float p_rectangle_area(float *p1, float *dir, float *p2, float *p3, float *p4)
+{
+  /* given 4 points on the rectangle edges and the direction of on edge,
+   * compute the area of the rectangle */
+
+  float orthodir[2], corner1[2], corner2[2], corner3[2];
+
+  orthodir[0] = dir[1];
+  orthodir[1] = -dir[0];
+
+  if (!p_intersect_line_2d_dir(p1, dir, p2, orthodir, corner1)) {
+    return 1e10;
+  }
+
+  if (!p_intersect_line_2d_dir(p1, dir, p4, orthodir, corner2)) {
+    return 1e10;
+  }
+
+  if (!p_intersect_line_2d_dir(p3, dir, p4, orthodir, corner3)) {
+    return 1e10;
+  }
+
+  return len_v2v2(corner1, corner2) * len_v2v2(corner2, corner3);
+}
+
+static bool p_chart_convex_hull(PChart *chart, PVert ***r_verts, int *r_nverts, int *r_right)
+{
+  /* Graham algorithm, taken from:
+   * http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/117225 */
+
+  PEdge *be, *e;
+  int npoints = 0, i, ulen, llen;
+  PVert **U, **L, **points, **p;
+
+  p_chart_boundaries(chart, &be);
+
+  if (!be) {
+    return false;
+  }
+
+  e = be;
+  do {
+    npoints++;
+    e = p_boundary_edge_next(e);
+  } while (e != be);
+
+  p = points = MEM_malloc_arrayN<PVert *>(2 * size_t(npoints), "PCHullpoints");
+  U = MEM_malloc_arrayN<PVert *>(size_t(npoints), "PCHullU");
+  L = MEM_malloc_arrayN<PVert *>(size_t(npoints), "PCHullL");
+
+  e = be;
+  do {
+    *p = e->vert;
+    p++;
+    e = p_boundary_edge_next(e);
+  } while (e != be);
+
+  qsort(points, npoints, sizeof(PVert *), p_compare_geometric_uv);
+
+  ulen = llen = 0;
+  for (p = points, i = 0; i < npoints; i++, p++) {
+    while ((ulen > 1) && (p_area_signed(U[ulen - 2]->uv, (*p)->uv, U[ulen - 1]->uv) <= 0)) {
+      ulen--;
+    }
+    while ((llen > 1) && (p_area_signed(L[llen - 2]->uv, (*p)->uv, L[llen - 1]->uv) >= 0)) {
+      llen--;
+    }
+
+    U[ulen] = *p;
+    ulen++;
+    L[llen] = *p;
+    llen++;
+  }
+
+  npoints = 0;
+  for (p = points, i = 0; i < ulen; i++, p++, npoints++) {
+    *p = U[i];
+  }
+
+  /* the first and last point in L are left out, since they are also in U */
+  for (i = llen - 2; i > 0; i--, p++, npoints++) {
+    *p = L[i];
+  }
+
+  *r_verts = points;
+  *r_nverts = npoints;
+  *r_right = ulen - 1;
+
+  MEM_freeN(U);
+  MEM_freeN(L);
+
+  return true;
+}
+
+static float p_chart_minimum_area_angle(PChart *chart)
+{
+  /* minimum area enclosing rectangle with rotating calipers, info:
+   * http://cgm.cs.mcgill.ca/~orm/maer.html */
+
+  float rotated, minarea, minangle, area, len;
+  float *angles, miny, maxy, v[2], a[4], mina;
+  int npoints, right, i_min, i_max, i, idx[4], nextidx;
+  PVert **points, *p1, *p2, *p3, *p4, *p1n;
+
+  /* compute convex hull */
+  if (!p_chart_convex_hull(chart, &points, &npoints, &right)) {
+    return 0.0;
+  }
+
+  /* find left/top/right/bottom points, and compute angle for each point */
+  angles = MEM_malloc_arrayN<float>(size_t(npoints), "PMinAreaAngles");
+
+  i_min = i_max = 0;
+  miny = 1e10;
+  maxy = -1e10;
+
+  for (i = 0; i < npoints; i++) {
+    p1 = (i == 0) ? points[npoints - 1] : points[i - 1];
+    p2 = points[i];
+    p3 = (i == npoints - 1) ? points[0] : points[i + 1];
+
+    angles[i] = float(M_PI) - angle_v2v2v2(p1->uv, p2->uv, p3->uv);
+
+    if (points[i]->uv[1] < miny) {
+      miny = points[i]->uv[1];
+      i_min = i;
+    }
+    if (points[i]->uv[1] > maxy) {
+      maxy = points[i]->uv[1];
+      i_max = i;
+    }
+  }
+
+  /* left, top, right, bottom */
+  idx[0] = 0;
+  idx[1] = i_max;
+  idx[2] = right;
+  idx[3] = i_min;
+
+  v[0] = points[idx[0]]->uv[0];
+  v[1] = points[idx[0]]->uv[1] + 1.0f;
+  a[0] = angle_v2v2v2(points[(idx[0] + 1) % npoints]->uv, points[idx[0]]->uv, v);
+
+  v[0] = points[idx[1]]->uv[0] + 1.0f;
+  v[1] = points[idx[1]]->uv[1];
+  a[1] = angle_v2v2v2(points[(idx[1] + 1) % npoints]->uv, points[idx[1]]->uv, v);
+
+  v[0] = points[idx[2]]->uv[0];
+  v[1] = points[idx[2]]->uv[1] - 1.0f;
+  a[2] = angle_v2v2v2(points[(idx[2] + 1) % npoints]->uv, points[idx[2]]->uv, v);
+
+  v[0] = points[idx[3]]->uv[0] - 1.0f;
+  v[1] = points[idx[3]]->uv[1];
+  a[3] = angle_v2v2v2(points[(idx[3] + 1) % npoints]->uv, points[idx[3]]->uv, v);
+
+  /* 4 rotating calipers */
+
+  rotated = 0.0;
+  minarea = 1e10;
+  minangle = 0.0;
+
+  while (rotated <= float(M_PI_2)) { /* INVESTIGATE: how far to rotate? */
+    /* rotate with the smallest angle */
+    i_min = 0;
+    mina = 1e10;
+
+    for (i = 0; i < 4; i++) {
+      if (a[i] < mina) {
+        mina = a[i];
+        i_min = i;
+      }
+    }
+
+    rotated += mina;
+    nextidx = (idx[i_min] + 1) % npoints;
+
+    a[i_min] = angles[nextidx];
+    a[(i_min + 1) % 4] = a[(i_min + 1) % 4] - mina;
+    a[(i_min + 2) % 4] = a[(i_min + 2) % 4] - mina;
+    a[(i_min + 3) % 4] = a[(i_min + 3) % 4] - mina;
+
+    /* compute area */
+    p1 = points[idx[i_min]];
+    p1n = points[nextidx];
+    p2 = points[idx[(i_min + 1) % 4]];
+    p3 = points[idx[(i_min + 2) % 4]];
+    p4 = points[idx[(i_min + 3) % 4]];
+
+    len = len_v2v2(p1->uv, p1n->uv);
+
+    if (len > 0.0f) {
+      len = 1.0f / len;
+      v[0] = (p1n->uv[0] - p1->uv[0]) * len;
+      v[1] = (p1n->uv[1] - p1->uv[1]) * len;
+
+      area = p_rectangle_area(p1->uv, v, p2->uv, p3->uv, p4->uv);
+
+      /* remember smallest area */
+      if (area < minarea) {
+        minarea = area;
+        minangle = rotated;
+      }
+    }
+
+    idx[i_min] = nextidx;
+  }
+
+  /* try keeping rotation as small as possible */
+  if (minangle > float(M_PI_4)) {
+    minangle -= float(M_PI_2);
+  }
+
+  MEM_freeN(angles);
+  MEM_freeN(points);
+
+  return minangle;
+}
+
+static void p_chart_rotate_minimum_area(PChart *chart)
+{
+  float angle = p_chart_minimum_area_angle(chart);
+  float sine = sinf(angle);
+  float cosine = cosf(angle);
+  PVert *v;
+
+  for (v = chart->verts; v; v = v->nextlink) {
+    float oldu = v->uv[0], oldv = v->uv[1];
+    v->uv[0] = cosine * oldu - sine * oldv;
+    v->uv[1] = sine * oldu + cosine * oldv;
+  }
+}
+
 /* ABF */
 
 #define ABF_MAX_ITER 20
@@ -3082,14 +3334,7 @@ static void p_chart_lscm_begin(PChart *chart, bool live, bool abf, const bool or
   bool deselect = false;
   int npins = 0;
   if (original_bounds) {
-    int idx = 0;
-    for (PVert *v = chart->verts; v && idx < 3; v = v->nextlink, idx++) {
-      chart->orig_uv_verts[idx] = v;
-    }
-    if (idx >= 3) {
-      chart->old_angle = angle_v2v2v2(
-          chart->orig_uv_verts[0]->uv, chart->orig_uv_verts[1]->uv, chart->orig_uv_verts[2]->uv);
-    }
+    chart->angle = p_chart_minimum_area_angle(chart);
     p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
   }
   /* Give vertices matrix indices, count pins and check selections. */
@@ -3486,258 +3731,6 @@ static void p_chart_stretch_minimize(PChart *chart, RNG *rng)
 
 /* Minimum area enclosing rectangle for packing */
 
-static int p_compare_geometric_uv(const void *a, const void *b)
-{
-  const PVert *v1 = *(const PVert *const *)a;
-  const PVert *v2 = *(const PVert *const *)b;
-
-  if (v1->uv[0] < v2->uv[0]) {
-    return -1;
-  }
-  if (v1->uv[0] == v2->uv[0]) {
-    if (v1->uv[1] < v2->uv[1]) {
-      return -1;
-    }
-    if (v1->uv[1] == v2->uv[1]) {
-      return 0;
-    }
-    return 1;
-  }
-  return 1;
-}
-
-static bool p_chart_convex_hull(PChart *chart, PVert ***r_verts, int *r_nverts, int *r_right)
-{
-  /* Graham algorithm, taken from:
-   * http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/117225 */
-
-  PEdge *be, *e;
-  int npoints = 0, i, ulen, llen;
-  PVert **U, **L, **points, **p;
-
-  p_chart_boundaries(chart, &be);
-
-  if (!be) {
-    return false;
-  }
-
-  e = be;
-  do {
-    npoints++;
-    e = p_boundary_edge_next(e);
-  } while (e != be);
-
-  p = points = MEM_malloc_arrayN<PVert *>(2 * size_t(npoints), "PCHullpoints");
-  U = MEM_malloc_arrayN<PVert *>(size_t(npoints), "PCHullU");
-  L = MEM_malloc_arrayN<PVert *>(size_t(npoints), "PCHullL");
-
-  e = be;
-  do {
-    *p = e->vert;
-    p++;
-    e = p_boundary_edge_next(e);
-  } while (e != be);
-
-  qsort(points, npoints, sizeof(PVert *), p_compare_geometric_uv);
-
-  ulen = llen = 0;
-  for (p = points, i = 0; i < npoints; i++, p++) {
-    while ((ulen > 1) && (p_area_signed(U[ulen - 2]->uv, (*p)->uv, U[ulen - 1]->uv) <= 0)) {
-      ulen--;
-    }
-    while ((llen > 1) && (p_area_signed(L[llen - 2]->uv, (*p)->uv, L[llen - 1]->uv) >= 0)) {
-      llen--;
-    }
-
-    U[ulen] = *p;
-    ulen++;
-    L[llen] = *p;
-    llen++;
-  }
-
-  npoints = 0;
-  for (p = points, i = 0; i < ulen; i++, p++, npoints++) {
-    *p = U[i];
-  }
-
-  /* the first and last point in L are left out, since they are also in U */
-  for (i = llen - 2; i > 0; i--, p++, npoints++) {
-    *p = L[i];
-  }
-
-  *r_verts = points;
-  *r_nverts = npoints;
-  *r_right = ulen - 1;
-
-  MEM_freeN(U);
-  MEM_freeN(L);
-
-  return true;
-}
-
-static float p_rectangle_area(float *p1, float *dir, float *p2, float *p3, float *p4)
-{
-  /* given 4 points on the rectangle edges and the direction of on edge,
-   * compute the area of the rectangle */
-
-  float orthodir[2], corner1[2], corner2[2], corner3[2];
-
-  orthodir[0] = dir[1];
-  orthodir[1] = -dir[0];
-
-  if (!p_intersect_line_2d_dir(p1, dir, p2, orthodir, corner1)) {
-    return 1e10;
-  }
-
-  if (!p_intersect_line_2d_dir(p1, dir, p4, orthodir, corner2)) {
-    return 1e10;
-  }
-
-  if (!p_intersect_line_2d_dir(p3, dir, p4, orthodir, corner3)) {
-    return 1e10;
-  }
-
-  return len_v2v2(corner1, corner2) * len_v2v2(corner2, corner3);
-}
-
-static float p_chart_minimum_area_angle(PChart *chart)
-{
-  /* minimum area enclosing rectangle with rotating calipers, info:
-   * http://cgm.cs.mcgill.ca/~orm/maer.html */
-
-  float rotated, minarea, minangle, area, len;
-  float *angles, miny, maxy, v[2], a[4], mina;
-  int npoints, right, i_min, i_max, i, idx[4], nextidx;
-  PVert **points, *p1, *p2, *p3, *p4, *p1n;
-
-  /* compute convex hull */
-  if (!p_chart_convex_hull(chart, &points, &npoints, &right)) {
-    return 0.0;
-  }
-
-  /* find left/top/right/bottom points, and compute angle for each point */
-  angles = MEM_malloc_arrayN<float>(size_t(npoints), "PMinAreaAngles");
-
-  i_min = i_max = 0;
-  miny = 1e10;
-  maxy = -1e10;
-
-  for (i = 0; i < npoints; i++) {
-    p1 = (i == 0) ? points[npoints - 1] : points[i - 1];
-    p2 = points[i];
-    p3 = (i == npoints - 1) ? points[0] : points[i + 1];
-
-    angles[i] = float(M_PI) - angle_v2v2v2(p1->uv, p2->uv, p3->uv);
-
-    if (points[i]->uv[1] < miny) {
-      miny = points[i]->uv[1];
-      i_min = i;
-    }
-    if (points[i]->uv[1] > maxy) {
-      maxy = points[i]->uv[1];
-      i_max = i;
-    }
-  }
-
-  /* left, top, right, bottom */
-  idx[0] = 0;
-  idx[1] = i_max;
-  idx[2] = right;
-  idx[3] = i_min;
-
-  v[0] = points[idx[0]]->uv[0];
-  v[1] = points[idx[0]]->uv[1] + 1.0f;
-  a[0] = angle_v2v2v2(points[(idx[0] + 1) % npoints]->uv, points[idx[0]]->uv, v);
-
-  v[0] = points[idx[1]]->uv[0] + 1.0f;
-  v[1] = points[idx[1]]->uv[1];
-  a[1] = angle_v2v2v2(points[(idx[1] + 1) % npoints]->uv, points[idx[1]]->uv, v);
-
-  v[0] = points[idx[2]]->uv[0];
-  v[1] = points[idx[2]]->uv[1] - 1.0f;
-  a[2] = angle_v2v2v2(points[(idx[2] + 1) % npoints]->uv, points[idx[2]]->uv, v);
-
-  v[0] = points[idx[3]]->uv[0] - 1.0f;
-  v[1] = points[idx[3]]->uv[1];
-  a[3] = angle_v2v2v2(points[(idx[3] + 1) % npoints]->uv, points[idx[3]]->uv, v);
-
-  /* 4 rotating calipers */
-
-  rotated = 0.0;
-  minarea = 1e10;
-  minangle = 0.0;
-
-  while (rotated <= float(M_PI_2)) { /* INVESTIGATE: how far to rotate? */
-    /* rotate with the smallest angle */
-    i_min = 0;
-    mina = 1e10;
-
-    for (i = 0; i < 4; i++) {
-      if (a[i] < mina) {
-        mina = a[i];
-        i_min = i;
-      }
-    }
-
-    rotated += mina;
-    nextidx = (idx[i_min] + 1) % npoints;
-
-    a[i_min] = angles[nextidx];
-    a[(i_min + 1) % 4] = a[(i_min + 1) % 4] - mina;
-    a[(i_min + 2) % 4] = a[(i_min + 2) % 4] - mina;
-    a[(i_min + 3) % 4] = a[(i_min + 3) % 4] - mina;
-
-    /* compute area */
-    p1 = points[idx[i_min]];
-    p1n = points[nextidx];
-    p2 = points[idx[(i_min + 1) % 4]];
-    p3 = points[idx[(i_min + 2) % 4]];
-    p4 = points[idx[(i_min + 3) % 4]];
-
-    len = len_v2v2(p1->uv, p1n->uv);
-
-    if (len > 0.0f) {
-      len = 1.0f / len;
-      v[0] = (p1n->uv[0] - p1->uv[0]) * len;
-      v[1] = (p1n->uv[1] - p1->uv[1]) * len;
-
-      area = p_rectangle_area(p1->uv, v, p2->uv, p3->uv, p4->uv);
-
-      /* remember smallest area */
-      if (area < minarea) {
-        minarea = area;
-        minangle = rotated;
-      }
-    }
-
-    idx[i_min] = nextidx;
-  }
-
-  /* try keeping rotation as small as possible */
-  if (minangle > float(M_PI_4)) {
-    minangle -= float(M_PI_2);
-  }
-
-  MEM_freeN(angles);
-  MEM_freeN(points);
-
-  return minangle;
-}
-
-static void p_chart_rotate_minimum_area(PChart *chart)
-{
-  float angle = p_chart_minimum_area_angle(chart);
-  float sine = sinf(angle);
-  float cosine = cosf(angle);
-  PVert *v;
-
-  for (v = chart->verts; v; v = v->nextlink) {
-    float oldu = v->uv[0], oldv = v->uv[1];
-    v->uv[0] = cosine * oldu - sine * oldv;
-    v->uv[1] = sine * oldu + cosine * oldv;
-  }
-}
-
 static void p_chart_rotate_fit_aabb(PChart *chart)
 {
   Array<float2> points(chart->nverts);
@@ -3887,7 +3880,7 @@ static void p_add_ngon(ParamHandle *handle,
   uint nfilltri = nverts - 2;
   uint(*tris)[3] = static_cast<uint(*)[3]>(
       BLI_memarena_alloc(arena, sizeof(*tris) * size_t(nfilltri)));
-  float (*projverts)[2] = static_cast<float (*)[2]>(
+  float(*projverts)[2] = static_cast<float(*)[2]>(
       BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(nverts)));
 
   /* Calc normal, flipped: to get a positive 2d cross product. */
@@ -4277,9 +4270,8 @@ void uv_parametrizer_original_bounds(ParamHandle *phandle)
     if (!all_verts_selected) {
       continue;
     }
-    float new_angle = angle_v2v2v2(
-        chart->orig_uv_verts[0]->uv, chart->orig_uv_verts[1]->uv, chart->orig_uv_verts[2]->uv);
-    p_chart_uv_rotate(chart, chart->old_angle - new_angle);
+    float new_angle = p_chart_minimum_area_angle(chart);
+    p_chart_uv_rotate(chart, chart->angle - new_angle);
 
     p_chart_uv_bbox(chart, minv, maxv);
     sub_v2_v2v2(new_size, maxv, minv);
@@ -5171,14 +5163,7 @@ static void slim_convert_blender(ParamHandle *phandle,
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
     if (original_bounds) {
-      int idx = 0;
-      for (PVert *v = chart->verts; v && idx < 3; v = v->nextlink, idx++) {
-        chart->orig_uv_verts[idx] = v;
-      }
-      if (idx >= 3) {
-        chart->old_angle = angle_v2v2v2(
-            chart->orig_uv_verts[0]->uv, chart->orig_uv_verts[1]->uv, chart->orig_uv_verts[2]->uv);
-      }
+      chart->angle = p_chart_minimum_area_angle(chart);
       p_chart_uv_bbox(chart, chart->orig_bounds.min, chart->orig_bounds.max);
     }
     slim::MatrixTransferChart *mt_chart = &mt->charts[i];
