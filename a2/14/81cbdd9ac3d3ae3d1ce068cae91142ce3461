@@ -4,3 +4,4 @@ Referenced by issue #138832, Side panel shows a background line in the rigtht ed
 Referenced by issue #141550, Editor outline blurry at normal DPI
 Referenced by issue #143617, Drawing of Panels in UI leaving a tiny space since 4.5
 Referenced by issue #144921, Crash when dragging outliner object into status bar
+Referenced by pull request #147059, Fix #144921: Crash when dragging outliner object into status bar
