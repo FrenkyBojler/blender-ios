@@ -46,15 +46,17 @@ void main()
   const int last_item = list_range.last();
 
   const int sorted_list_first = sorted_surfel_id_buf[first_item];
-  /* Update surfels linked list. */
-  int prev = -1;
-  int curr = sorted_surfel_id_buf[first_item];
-  for (int i = first_item; i <= last_item; i++) {
-    int next = (i == last_item) ? -1 : sorted_surfel_id_buf[i + 1];
-    surfel_buf[curr].next = next;
-    surfel_buf[curr].prev = prev;
-    prev = curr;
-    curr = next;
+  {
+    /* Update surfels linked list. */
+    int prev = -1;
+    int curr = sorted_surfel_id_buf[first_item];
+    for (int i = first_item; i <= last_item; i++) {
+      int next = (i == last_item) ? -1 : sorted_surfel_id_buf[i + 1];
+      surfel_buf[curr].next = next;
+      surfel_buf[curr].prev = prev;
+      prev = curr;
+      curr = next;
+    }
   }
   /* Update list start for irradiance sample capture. */
   list_start_buf[list_id] = sorted_list_first;
@@ -70,13 +72,8 @@ void main()
 
   /* Avoid this step to produce TDR in setup that contains very complex path.
    * This creates overshadowing. */
-  int max_search = 10;
-  if (list_range.size() > 100) {
-    max_search = 5;
-  }
-  if (list_range.size() > 1000) {
-    max_search = 2;
-  }
+  const int max_search = 2000;
+  uint search_count = 0;
 
   /* Mutable `foreach`. */
   for (int i = sorted_list_first, next = -1; i > -1; i = next) {
@@ -86,7 +83,7 @@ void main()
     int valid_prev = surfel_buf[i].prev;
 
     /* Search the list for the first valid next and previous surfel. */
-    for (int j = 0; j < max_search; j++) {
+    while (search_count < max_search) {
       if (valid_next == -1) {
         break;
       }
@@ -94,8 +91,9 @@ void main()
         break;
       }
       valid_next = surfel_buf[valid_next].next;
+      search_count++;
     }
-    for (int j = 0; j < max_search; j++) {
+    while (search_count < max_search) {
       if (valid_prev == -1) {
         break;
       }
@@ -103,6 +101,7 @@ void main()
         break;
       }
       valid_prev = surfel_buf[valid_prev].prev;
+      search_count++;
     }
 
     surfel_buf[i].next = valid_next;

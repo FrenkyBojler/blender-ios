@@ -113,12 +113,18 @@ void main()
   /* Walk the ray to get which surfels the irradiance sample is between. */
   int surfel_prev = -1;
   int surfel_next = list_start_buf[list_index];
-  for (; surfel_next > -1; surfel_next = surfel_buf[surfel_next].next) {
+  /* Avoid spinning for eternity. */
+  for (int i = 0; i < 9999; i++) {
+    if (surfel_next <= -1) {
+      break;
+    }
     /* Reminder: List is sorted with highest value first. */
     if (surfel_buf[surfel_next].ray_distance < irradiance_sample_ray_distance) {
       break;
     }
     surfel_prev = surfel_next;
+    surfel_next = surfel_buf[surfel_next].next;
+    assert(surfel_prev != surfel_next);
   }
 
   float3 sky_L = drw_world_incident_vector(P);
