@@ -116,8 +116,7 @@ void BKE_volume_grid_type_to_static_type(const VolumeGridType grid_type, Fn &&fn
 openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
     const VolumeGridType grid_type, const openvdb::GridBase &old_grid, float resolution_factor);
 
-// TODO: Fix namespace
-namespace blender::nodes {
+namespace blender::bke {
 
 using LeafNodeMask = openvdb::util::NodeMask<3u>;
 using GetVoxelsFn = FunctionRef<void(MutableSpan<openvdb::Coord> r_voxels)>;
@@ -132,17 +131,13 @@ void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
                                   const ProcessVoxelsFn process_voxels_fn,
                                   const ProcessTilesFn process_tiles_fn);
 
-}  // namespace blender::nodes
-
-namespace blender::bke {
-
 template<typename GridT>
-static constexpr bool is_supported_grid_type = is_same_any_v<GridT,
-                                                             openvdb::FloatGrid,
-                                                             openvdb::Vec3fGrid,
-                                                             openvdb::BoolGrid,
-                                                             openvdb::Int32Grid,
-                                                             openvdb::Vec4fGrid>;
+constexpr bool is_supported_grid_type = is_same_any_v<GridT,
+                                                      openvdb::FloatGrid,
+                                                      openvdb::Vec3fGrid,
+                                                      openvdb::BoolGrid,
+                                                      openvdb::Int32Grid,
+                                                      openvdb::Vec4fGrid>;
 
 template<typename Fn> inline void to_typed_grid(const openvdb::GridBase &grid_base, Fn &&fn)
 {

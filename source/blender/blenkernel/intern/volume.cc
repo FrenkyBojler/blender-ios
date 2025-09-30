@@ -1169,6 +1169,126 @@ openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
 
 namespace blender::bke {
 
+/**
+ * Call #process_leaf_fn on the leaf node if it has a certain minimum number of active voxels. If
+ * there are only a few active voxels, gather those in #r_coords for later batch processing.
+ */
+template<typename LeafNodeT>
+static void parallel_grid_topology_tasks_leaf_node(const LeafNodeT &node,
+                                                   const ProcessLeafFn process_leaf_fn,
+                                                   Vector<openvdb::Coord, 1024> &r_coords)
+{
+  using NodeMaskT = typename LeafNodeT::NodeMaskType;
+
+  const int on_count = node.onVoxelCount();
+  /* This number is somewhat arbitrary. 64 is a 1/8th of the number of voxels in a standard leaf
+   * which is 8x8x8. It's a trade-off between benefiting from the better performance of
+   * leaf-processing vs. processing more voxels in a batch. */
+  const int on_count_threshold = 64;
+  if (on_count <= on_count_threshold) {
+    /* The leaf contains only a few active voxels. It's beneficial to process them in a batch with
+     * active voxels from other leafs. So only gather them here for later processing. */
+    for (auto value_iter = node.cbeginValueOn(); value_iter.test(); ++value_iter) {
+      const openvdb::Coord coord = value_iter.getCoord();
+      r_coords.append(coord);
+    }
+    return;
+  }
+  /* Process entire leaf at once. This is especially beneficial when very many of the voxels in
+   * the leaf are active. In that case, one can work on the openvdb arrays stored in the leafs
+   * directly. */
+  const NodeMaskT &value_mask = node.getValueMask();
+  const openvdb::CoordBBox bbox = node.getNodeBoundingBox();
+  process_leaf_fn(value_mask, bbox, [&](MutableSpan<openvdb::Coord> r_voxels) {
+    for (auto value_iter = node.cbeginValueOn(); value_iter.test(); ++value_iter) {
+      r_voxels[value_iter.pos()] = value_iter.getCoord();
+    }
+  });
+}
+
+/**
+ * Calls the process functions on all the active tiles and voxels within the given internal node.
+ */
+template<typename InternalNodeT>
+static void parallel_grid_topology_tasks_internal_node(const InternalNodeT &node,
+                                                       const ProcessLeafFn process_leaf_fn,
+                                                       const ProcessVoxelsFn process_voxels_fn,
+                                                       const ProcessTilesFn process_tiles_fn)
+{
+  using ChildNodeT = typename InternalNodeT::ChildNodeType;
+  using LeafNodeT = typename InternalNodeT::LeafNodeType;
+  using NodeMaskT = typename InternalNodeT::NodeMaskType;
+  using UnionT = typename InternalNodeT::UnionType;
+
+  /* Gather the active sub-nodes first, to be able to parallelize over them more easily. */
+  const NodeMaskT &child_mask = node.getChildMask();
+  const UnionT *table = node.getTable();
+  Vector<int, 512> child_indices;
+  for (auto child_mask_iter = child_mask.beginOn(); child_mask_iter.test(); ++child_mask_iter) {
+    child_indices.append(child_mask_iter.pos());
+  }
+
+  threading::parallel_for(child_indices.index_range(), 8, [&](const IndexRange range) {
+    /* Voxels collected from potentially multiple leaf nodes to be processed in one batch. This
+     * inline buffer size is sufficient to avoid an allocation in all cases (a single standard leaf
+     * has 512 voxels). */
+    Vector<openvdb::Coord, 1024> gathered_voxels;
+    for (const int child_index : child_indices.as_span().slice(range)) {
+      const ChildNodeT &child = *table[child_index].getChild();
+      if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
+        parallel_grid_topology_tasks_leaf_node(child, process_leaf_fn, gathered_voxels);
+        /* If enough voxels have been gathered, process them in one batch. */
+        if (gathered_voxels.size() >= 512) {
+          process_voxels_fn(gathered_voxels);
+          gathered_voxels.clear();
+        }
+      }
+      else {
+        /* Recurse into lower-level internal nodes. */
+        parallel_grid_topology_tasks_internal_node(
+            child, process_leaf_fn, process_voxels_fn, process_tiles_fn);
+      }
+    }
+    /* Process any remaining voxels. */
+    if (!gathered_voxels.is_empty()) {
+      process_voxels_fn(gathered_voxels);
+      gathered_voxels.clear();
+    }
+  });
+
+  /* Process the active tiles within the internal node. Note that these are not processed above
+   * already because there only sub-nodes are handled, but tiles are "inlined" into internal nodes.
+   * All tiles are first gathered and then processed in one batch. */
+  const NodeMaskT &value_mask = node.getValueMask();
+  Vector<openvdb::CoordBBox> tile_bboxes;
+  for (auto value_mask_iter = value_mask.beginOn(); value_mask_iter.test(); ++value_mask_iter) {
+    const openvdb::Index32 index = value_mask_iter.pos();
+    const openvdb::Coord tile_origin = node.offsetToGlobalCoord(index);
+    const openvdb::CoordBBox tile_bbox = openvdb::CoordBBox::createCube(tile_origin,
+                                                                        ChildNodeT::DIM);
+    tile_bboxes.append(tile_bbox);
+  }
+  if (!tile_bboxes.is_empty()) {
+    process_tiles_fn(tile_bboxes);
+  }
+}
+
+/* Call the process functions on all active tiles and voxels in the given tree. */
+void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
+                                  const ProcessLeafFn process_leaf_fn,
+                                  const ProcessVoxelsFn process_voxels_fn,
+                                  const ProcessTilesFn process_tiles_fn)
+{
+  /* Iterate over the root internal nodes. */
+  for (auto root_child_iter = mask_tree.cbeginRootChildren(); root_child_iter.test();
+       ++root_child_iter)
+  {
+    const auto &internal_node = *root_child_iter;
+    parallel_grid_topology_tasks_internal_node(
+        internal_node, process_leaf_fn, process_voxels_fn, process_tiles_fn);
+  }
+}
+
 openvdb::GridBase::Ptr create_grid_with_topology(const openvdb::TreeBase &topology,
                                                  const openvdb::math::Transform &transform,
                                                  const VolumeGridType grid_type)

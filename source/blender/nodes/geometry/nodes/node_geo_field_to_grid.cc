@@ -14,8 +14,6 @@
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 
-#include "../intern/volume_grid_function_eval.hh"
-
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -140,9 +138,9 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 
 BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
                                            const openvdb::math::Transform &transform,
-                                           const LeafNodeMask &leaf_node_mask,
+                                           const bke::LeafNodeMask &leaf_node_mask,
                                            const openvdb::CoordBBox &leaf_bbox,
-                                           const GetVoxelsFn get_voxels_fn,
+                                           const bke::GetVoxelsFn get_voxels_fn,
                                            const Span<openvdb::GridBase::Ptr> output_grids)
 {
   AlignedBuffer<8192, 8> allocation_buffer;
@@ -151,9 +149,10 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
 
   IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
-      IndexRange(LeafNodeMask::SIZE), GrainSize(LeafNodeMask::SIZE), memory, [&](const int64_t i) {
-        return leaf_node_mask.isOn(i);
-      });
+      IndexRange(bke::LeafNodeMask::SIZE),
+      GrainSize(bke::LeafNodeMask::SIZE),
+      memory,
+      [&](const int64_t i) { return leaf_node_mask.isOn(i); });
 
   const openvdb::Coord any_voxel_in_leaf = leaf_bbox.min();
   MutableSpan<openvdb::Coord> voxels = scope.allocator().allocate_array<openvdb::Coord>(
@@ -183,7 +182,8 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
       else {
         /* Write directly into the buffer of the output leaf node. */
         ValueT *buffer = leaf_node->buffer().data();
-        evaluator.add_with_destination(fields[i], GMutableSpan(type, buffer, LeafNodeMask::SIZE));
+        evaluator.add_with_destination(fields[i],
+                                       GMutableSpan(type, buffer, bke::LeafNodeMask::SIZE));
       }
     });
   }
@@ -311,11 +311,11 @@ static void node_geo_exec(GeoNodeExecParams params)
         topology_base.baseTree(), transform, grid_type);
   }
 
-  parallel_grid_topology_tasks(
+  bke::parallel_grid_topology_tasks(
       mask_tree,
-      [&](const LeafNodeMask &leaf_node_mask,
+      [&](const bke::LeafNodeMask &leaf_node_mask,
           const openvdb::CoordBBox &leaf_bbox,
-          const GetVoxelsFn get_voxels_fn) {
+          const bke::GetVoxelsFn get_voxels_fn) {
         process_leaf_node(
             fields, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, output_grids);
       },
