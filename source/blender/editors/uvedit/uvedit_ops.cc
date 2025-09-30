@@ -1165,7 +1165,7 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
 
   /* identifiers */
   ot->name = "Apply Texel Density";
-  ot->description = "Apply the texel density of the active object to the selected islands";
+  ot->description = "Apply texel density of active object or custom value to selected islands";
   ot->idname = "UV_OT_apply_texel_density";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -1180,7 +1180,7 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
 
   RNA_def_float(ot->srna,
                 "density",
-                1024.0f,
+                10.0f,
                 0.0f,
                 FLT_MAX,
                 "Texel Density",
@@ -1189,7 +1189,7 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
                 FLT_MAX);
 
   RNA_def_enum(
-      ot->srna, "unit", unit_items, int(UVTexelUnit::Meter), "Lock Axis", "Lock axis scaling");
+      ot->srna, "unit", unit_items, int(UVTexelUnit::Meter), "Unit", "Custom density unit");
   RNA_def_boolean(ot->srna,
                   "use_selected_faces",
                   false,
