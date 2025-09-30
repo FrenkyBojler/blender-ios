@@ -601,6 +601,13 @@ static bool interface_panel_has_socket(DrawGroupInputsContext &ctx,
       if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER) {
         continue;
       }
+      if (socket.flag & NODE_INTERFACE_SOCKET_INPUT &&
+          ctx.tree->interface_input_index(socket) == 0 &&
+          socket.socket_type == StringRef("NodeSocketGeometry"))
+      {
+        /* The first geometry input is an implicit input. */
+        continue;
+      }
       if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
         if (ctx.input_is_visible(socket)) {
           return true;
