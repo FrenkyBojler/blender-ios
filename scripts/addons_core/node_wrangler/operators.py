@@ -34,7 +34,7 @@ from .utils.paths import match_files_to_socket_names, split_into_components
 from .utils.nodes import (node_mid_pt, autolink, node_at_pos, get_nodes_links,
                           force_update, nw_check,
                           nw_check_not_empty, nw_check_selected, nw_check_active, nw_check_space_type,
-                          nw_check_node_type, nw_check_visible_outputs, nw_check_viewer_node, NWBase,
+                          nw_check_node_type, nw_check_visible_outputs, get_viewer_image, nw_check_viewer_node, NWBase,
                           get_first_enabled_output, is_visible_socket)
 
 
@@ -2242,14 +2242,11 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
         image_settings = context.scene.render.image_settings
         old_media_type = image_settings.media_type
         old_file_format = image_settings.file_format
-        old_tree_type = context.space_data.tree_type
         image_settings.media_type = 'IMAGE'
         image_settings.file_format = formats[self.filename_ext]
-        context.area.type = "IMAGE_EDITOR"
-        context.area.spaces[0].image = bpy.data.images['Viewer Node']
-        context.area.spaces[0].image.save_render(fp)
-        context.area.type = "NODE_EDITOR"
-        context.space_data.tree_type = old_tree_type
+
+        get_viewer_image().save_render(fp)
+
         image_settings.media_type = old_media_type
         image_settings.file_format = old_file_format
         return {'FINISHED'}
