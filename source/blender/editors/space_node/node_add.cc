@@ -1758,6 +1758,43 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 }
 
 /* -------------------------------------------------------------------- */
+/** \name Duplicate Compositing Node Tree Operator
+ * \{ */
+
+static wmOperatorStatus duplicate_compositing_node_group_exec(bContext *C, wmOperator * /*op*/)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  PointerRNA ptr;
+
+  if (scene->compositing_node_group == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bNodeTree *node_tree = bke::node_tree_copy_tree(bmain, *scene->compositing_node_group);
+
+  node_templateID_assign(C, node_tree);
+
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
+  BKE_ntree_update_after_single_tree_change(*bmain, *node_tree);
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot)
+{
+  ot->name = "Duplicate Compositing Node Group";
+  ot->idname = "NODE_OT_duplicate_compositing_node_group";
+  ot->description = "Duplicate the currently assigned compositing node group.";
+
+  ot->exec = duplicate_compositing_node_group_exec;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name New Compositor Sequencer Node Group Operator
  * \{ */
 
@@ -1841,47 +1878,6 @@ void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type)
                  MAX_ID_NAME - 2,
                  "Name",
                  "");
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Copy Compositing Node Tree Operator
- * \{ */
-
-static wmOperatorStatus copy_compositing_node_group_exec(bContext *C, wmOperator *op)
-{
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr;
-  PropertyRNA *prop;
-
-  if (scene->compositing_node_group == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
-
-  bNodeTree *node_tree = bke::node_tree_copy_tree(bmain, *scene->compositing_node_group);
-
-  node_templateID_assign(C, node_tree);
-
-  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
-  BKE_ntree_update_after_single_tree_change(*bmain, *node_tree);
-
-  return OPERATOR_FINISHED;
-}
-
-void NODE_OT_copy_compositing_node_group(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Copy Compositing Node Group";
-  ot->idname = "NODE_OT_copy_compositing_node_group";
-  ot->description = "Copy the currently assigned compositing node group.";
-
-  /* api callbacks */
-  ot->exec = copy_compositing_node_group_exec;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */
