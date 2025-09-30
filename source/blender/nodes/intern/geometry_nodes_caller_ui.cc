@@ -674,12 +674,7 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
     {
       return;
     }
-    char socket_id_esc[MAX_NAME * 2];
-    BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
-
-    char rna_path[sizeof(socket_id_esc) + 4];
-    SNPRINTF_UTF8(rna_path, "[\"%s\"]", socket_id_esc);
-
+    const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(identifier.c_str()));
     panel_layout = layout.panel_prop_with_bool_header(&ctx.C,
                                                       &open_property.ptr,
                                                       open_property.name,
