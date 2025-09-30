@@ -849,7 +849,7 @@ void IrradianceBake::sync()
       sub.bind_ssbo("sorted_surfel_id_buf", &sorted_surfel_id_buf_);
       sub.bind_ssbo("list_info_buf", &list_info_buf_);
       sub.barrier(GPU_BARRIER_SHADER_STORAGE);
-      sub.dispatch(&dispatch_per_surfel_);
+      sub.dispatch(&dispatch_per_list_);
     }
   }
   {
@@ -1330,6 +1330,9 @@ void IrradianceBake::raylists_build()
   sorted_surfel_id_buf_.resize(ceil_to_multiple_u(max_ii(1, capture_info_buf_.surfel_len), 4));
 
   GPU_storagebuf_clear(list_counter_buf_, 0);
+  /* Clear for the case where there are no list or no surfel.
+   * Otherwise the irradiance_capture stage will have broken lists. */
+  GPU_storagebuf_clear(list_start_buf_, -1);
   inst_.manager->submit(surfel_ray_build_ps_, ray_view_);
 }
 
