@@ -3685,10 +3685,11 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
             continue;
           }
           SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
-          if (saction->mode == SACTCONT_TIMELINE) {
-            /* Switching to dopesheet since that is the closest to the timeline view. */
-            saction->mode = SACTCONT_DOPESHEET;
+          if (saction->mode != SACTCONT_TIMELINE) {
+            continue;
           }
+          /* Switching to dopesheet since that is the closest to the timeline view. */
+          saction->mode = SACTCONT_DOPESHEET;
           /* The multiplication by 2 assumes that the time control footer has the same size as the
            * header. The header is only shown if there is enough space for both. */
           const bool show_header = area->winy > (HEADERY * UI_SCALE_FAC) * 2;
