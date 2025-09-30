@@ -695,7 +695,6 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
             self.draw_menu(layout, path="Utilities/List")
         self.draw_menu(layout, path="Utilities/Matrix")
         self.draw_menu(layout, path="Utilities/Rotation")
-        self.draw_menu(layout, path="Utilities/Deprecated")
         layout.separator()
         self.for_each_element_zone(layout, label="For Each Element")
         self.node_operator(layout, "GeometryNodeIndexSwitch")
@@ -703,6 +702,8 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeRandomValue")
         self.repeat_zone(layout, label="Repeat")
         self.node_operator(layout, "GeometryNodeSwitch")
+        layout.separator()
+        self.draw_menu(layout, path="Utilities/Deprecated")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
