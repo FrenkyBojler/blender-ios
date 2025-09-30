@@ -2206,7 +2206,9 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
                ('.dpx', 'DPX', ""),
                ('.exr', 'OPEN_EXR', ""),
                ('.hdr', 'HDR', ""),
-               ('.tif', 'TIFF', "")),
+               ('.tif', 'TIFF', ""),
+               ('.webp', 'WEBP', ""),
+              ),
         default='.png',
     )
 
@@ -2234,7 +2236,9 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
             '.exr': 'OPEN_EXR',
             '.hdr': 'HDR',
             '.tiff': 'TIFF',
-            '.tif': 'TIFF'}
+            '.tif': 'TIFF',
+            '.webp': 'WEBP',
+        }
         image_settings = context.scene.render.image_settings
         old_media_type = image_settings.media_type
         old_file_format = image_settings.file_format
