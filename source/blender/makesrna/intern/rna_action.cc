@@ -1472,7 +1472,6 @@ bool rna_Action_actedit_assign_poll(PointerRNA *ptr, PointerRNA value)
     case SACTCONT_DOPESHEET:
     case SACTCONT_MASK:
     case SACTCONT_CACHEFILE:
-    case SACTCONT_TIMELINE:
       break;
   }
 

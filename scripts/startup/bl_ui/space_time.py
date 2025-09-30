@@ -126,25 +126,6 @@ def playback_controls(layout, context):
             sub.prop(scene, "frame_preview_end", text="End")
 
 
-class TIME_MT_editor_menus(Menu):
-    bl_idname = "TIME_MT_editor_menus"
-    bl_label = ""
-
-    def draw(self, context):
-        layout = self.layout
-        horizontal = (layout.direction == 'VERTICAL')
-        st = context.space_data
-        if horizontal:
-            row = layout.row()
-            sub = row.row(align=True)
-        else:
-            sub = layout
-
-        sub.menu("TIME_MT_view")
-        if st.show_markers:
-            sub.menu("TIME_MT_marker")
-
-
 class TIME_MT_marker(Menu):
     bl_label = "Marker"
 
@@ -357,7 +338,6 @@ class TIME_PT_auto_keyframing(TimelinePanelButtons, Panel):
 ###################################
 
 classes = (
-    TIME_MT_editor_menus,
     TIME_MT_marker,
     TIME_MT_view,
     TIME_PT_playback,
