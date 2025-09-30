@@ -1764,6 +1764,15 @@ static void icon_draw_size(float x,
       UI_GetThemeColor4fv(TH_TEXT, color);
     }
 
+    /* Adjust saturation based on the theme setting. */
+    const float icon_saturation = std::clamp(btheme->tui.icon_saturation - desaturate, 0.0f, 1.0f);
+    if (icon_saturation != 1.0f) {
+      float col_hsv[4];
+      rgb_to_hsv(color[0], color[1], color[2], &col_hsv[0], &col_hsv[1], &col_hsv[2]);
+      col_hsv[1] *= icon_saturation;
+      hsv_to_rgb(col_hsv[0], col_hsv[1], col_hsv[2], &color[0], &color[1], &color[2]);
+    }
+
     color[3] *= alpha;
 
     if (di->type == ICON_TYPE_SVG_COLOR) {
