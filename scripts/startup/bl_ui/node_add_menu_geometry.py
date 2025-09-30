@@ -703,9 +703,10 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         self.repeat_zone(layout, label="Repeat")
         self.node_operator(layout, "GeometryNodeSwitch")
         layout.separator()
+        self.draw_assets_for_catalog(layout, self.bl_label)
+        layout.separator()
         self.draw_menu(layout, path="Utilities/Deprecated")
 
-        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_utilities_deprecated_base(node_add_menu.NodeMenu):
