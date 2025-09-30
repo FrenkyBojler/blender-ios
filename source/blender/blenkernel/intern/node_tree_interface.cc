@@ -1094,6 +1094,44 @@ bNodeTreeInterfaceSocket *bNodeTreeInterfacePanel::header_toggle_socket()
       const_cast<const bNodeTreeInterfacePanel *>(this)->header_toggle_socket());
 }
 
+std::optional<bNodeTreeInterface::InlineSockets> bNodeTreeInterface::get_inline_sockets_if_valid(
+    const bNodeTreeInterfacePanel &panel) const
+{
+  if (panel.layout_type != NODE_INTERFACE_PANEL_LAYOUT_TYPE_ROW) {
+    return std::nullopt;
+  }
+  if (panel.items_num != 2) {
+    return std::nullopt;
+  }
+  if (panel.items_array[0]->item_type != NODE_INTERFACE_SOCKET) {
+    return std::nullopt;
+  }
+  if (panel.items_array[1]->item_type != NODE_INTERFACE_SOCKET) {
+    return std::nullopt;
+  }
+  bNodeTreeInterfaceSocket &socket_a =
+      blender::bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(*panel.items_array[0]);
+  bNodeTreeInterfaceSocket &socket_b =
+      blender::bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(*panel.items_array[1]);
+  InlineSockets inline_sockets;
+  if (socket_a.flag & NODE_INTERFACE_SOCKET_INPUT) {
+    inline_sockets.input = &socket_a;
+  }
+  else {
+    inline_sockets.output = &socket_a;
+  }
+  if (socket_b.flag & NODE_INTERFACE_SOCKET_INPUT) {
+    inline_sockets.input = &socket_b;
+  }
+  else {
+    inline_sockets.output = &socket_b;
+  }
+  if (!inline_sockets.input || !inline_sockets.output) {
+    return std::nullopt;
+  }
+  return inline_sockets;
+}
+
 namespace blender::bke::node_interface {
 
 static bNodeTreeInterfaceSocket *make_socket(const int uid,

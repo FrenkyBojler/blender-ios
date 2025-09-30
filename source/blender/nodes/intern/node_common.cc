@@ -435,11 +435,30 @@ static void node_group_declare_panel_recursive(
       case NODE_INTERFACE_PANEL: {
         add_layout_if_needed();
         const auto &io_panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
-        auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
-                            .description(StringRef(io_panel.description))
-                            .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
-        node_group_declare_panel_recursive(
-            panel_b, group, structure_type_by_socket, io_panel, false);
+        if (const std::optional<bNodeTreeInterface::InlineSockets> inline_sockets =
+                group.tree_interface.get_inline_sockets_if_valid(io_panel))
+        {
+          build_interface_socket_declaration(
+              group,
+              *inline_sockets->input,
+              structure_type_by_socket.lookup_try(inline_sockets->input),
+              SOCK_IN,
+              b);
+          build_interface_socket_declaration(
+              group,
+              *inline_sockets->output,
+              structure_type_by_socket.lookup_try(inline_sockets->output),
+              SOCK_OUT,
+              b)
+              .align_with_previous();
+        }
+        else {
+          auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
+                              .description(StringRef(io_panel.description))
+                              .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
+          node_group_declare_panel_recursive(
+              panel_b, group, structure_type_by_socket, io_panel, false);
+        }
         break;
       }
     }
@@ -450,6 +469,8 @@ static void node_group_declare_panel_recursive(
 
 void node_group_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   const bNode *node = b.node_or_null();
   if (node == nullptr) {
     return;

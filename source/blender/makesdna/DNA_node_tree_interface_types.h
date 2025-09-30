@@ -11,12 +11,14 @@
 #include "BLI_utildefines.h"
 
 #ifdef __cplusplus
+#  include <memory>
+#  include <optional>
+
 #  include "BLI_color_types.hh"
 #  include "BLI_function_ref.hh"
 #  include "BLI_span.hh"
 #  include "BLI_string_ref.hh"
 
-#  include <memory>
 #endif
 
 #ifdef __cplusplus
@@ -473,6 +475,14 @@ typedef struct bNodeTreeInterface {
 
   /** Callback for every ID pointer in the interface data. */
   void foreach_id(LibraryForeachIDData *cb);
+
+  struct InlineSockets {
+    const bNodeTreeInterfaceSocket *input = nullptr;
+    const bNodeTreeInterfaceSocket *output = nullptr;
+  };
+
+  std::optional<InlineSockets> get_inline_sockets_if_valid(
+      const bNodeTreeInterfacePanel &panel) const;
 
   /** True if the items cache is ready to use. */
   bool items_cache_is_available() const;
