@@ -14,6 +14,24 @@
 
 namespace blender::nodes {
 
+bool operator==(const BundleSignature &a, const BundleSignature &b)
+{
+  return a.items.as_span() == b.items.as_span();
+}
+
+bool operator!=(const BundleSignature &a, const BundleSignature &b)
+{
+  return !(a == b);
+}
+
+void BundleSignature::set_auto_structure_types()
+{
+  for (const BundleSignature::Item &item : this->items) {
+    const_cast<BundleSignature::Item &>(item).structure_type =
+        NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+  }
+}
+
 void BundleSignature::add(std::string key, const eNodeSocketDatatype socket_type)
 {
   const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
@@ -31,19 +49,6 @@ bool BundleSignature::matches_exactly(const BundleSignature &other) const
           return item.key == other_item.key;
         }))
     {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool BundleSignature::all_matching_exactly(const Span<BundleSignature> signatures)
-{
-  if (signatures.is_empty()) {
-    return true;
-  }
-  for (const BundleSignature &signature : signatures.drop_front(1)) {
-    if (!signatures[0].matches_exactly(signature)) {
       return false;
     }
   }
@@ -219,29 +224,87 @@ void Bundle::delete_self()
   MEM_delete(this);
 }
 
-BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node)
+NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
+    const bNodeSocket &socket,
+    const NodeSocketInterfaceStructureType stored_structure_type,
+    const bool allow_auto_structure_type)
+{
+  if (stored_structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+    return stored_structure_type;
+  }
+  if (allow_auto_structure_type) {
+    return NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+  }
+  return NodeSocketInterfaceStructureType(socket.runtime->inferred_structure_type);
+}
+
+BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
+                                                          const bool allow_auto_structure_type)
 {
   BLI_assert(node.is_type("NodeCombineBundle"));
   const auto &storage = *static_cast<const NodeCombineBundle *>(node.storage);
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {
     const NodeCombineBundleItem &item = storage.items[i];
+    const bNodeSocket &socket = node.input_socket(i);
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.items.add({item.name, stype});
+      const NodeSocketInterfaceStructureType structure_type =
+          get_structure_type_for_bundle_signature(
+              socket,
+              NodeSocketInterfaceStructureType(item.structure_type),
+              allow_auto_structure_type);
+      signature.items.add({item.name, stype, structure_type});
     }
   }
   return signature;
 }
 
-BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node)
+BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node,
+                                                           const bool allow_auto_structure_type)
 {
   BLI_assert(node.is_type("NodeSeparateBundle"));
   const auto &storage = *static_cast<const NodeSeparateBundle *>(node.storage);
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {
     const NodeSeparateBundleItem &item = storage.items[i];
+    const bNodeSocket &socket = node.output_socket(i);
     if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
-      signature.items.add({item.name, stype});
+      const NodeSocketInterfaceStructureType structure_type =
+          get_structure_type_for_bundle_signature(
+              socket,
+              NodeSocketInterfaceStructureType(item.structure_type),
+              allow_auto_structure_type);
+      signature.items.add({item.name, stype, structure_type});
+    }
+  }
+  return signature;
+}
+
+bool LinkedBundleSignatures::has_type_definition() const
+{
+  for (const Item &item : this->items) {
+    if (item.is_signature_definition) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() const
+{
+  BundleSignature signature;
+  for (const Item &src_signature : this->items) {
+    for (const BundleSignature::Item &item : src_signature.signature.items) {
+      if (!signature.items.add(item)) {
+        const BundleSignature::Item &existing_item = *signature.items.lookup_key_ptr_as(item.key);
+        if (item.type->type != existing_item.type->type) {
+          return std::nullopt;
+        }
+        if (existing_item.structure_type != item.structure_type) {
+          const_cast<BundleSignature::Item &>(existing_item).structure_type =
+              NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
+        }
+      }
     }
   }
   return signature;
