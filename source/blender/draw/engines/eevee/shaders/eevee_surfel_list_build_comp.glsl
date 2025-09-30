@@ -10,6 +10,7 @@
  * Dispatched as 1 thread per list.
  */
 
+#include "draw_debug_draw_lib.glsl"
 #include "infos/eevee_lightprobe_volume_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_surfel_list_build)
@@ -107,4 +108,16 @@ void main()
     surfel_buf[i].next = valid_next;
     surfel_buf[i].prev = valid_prev;
   }
+
+#if 0 /* For debugging the sorted list. */
+  for (int i = sorted_list_first, next = -1; i > -1; i = next) {
+    next = surfel_buf[i].next;
+    if (next != -1) {
+      drw_debug_line(surfel_buf[next].position,
+                     surfel_buf[i].position,
+                     float4(1, 0, 0, 1),
+                     drw_debug_persistent_lifetime);
+    }
+  }
+#endif
 }

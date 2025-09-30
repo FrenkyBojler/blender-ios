@@ -36,6 +36,7 @@
 #include "DNA_particle_types.h"
 
 #include "draw_context_private.hh"
+#include "draw_debug.hh"
 #include "draw_view_data.hh"
 
 namespace blender::eevee {
@@ -886,6 +887,7 @@ void Instance::light_bake_irradiance(
   volume_probes.bake.init(probe);
 
   custom_pipeline_wrapper([&]() {
+    drw_debug_clear();
     this->render_sync();
     while ((materials.queued_shaders_count > 0) || (materials.queued_textures_count > 0)) {
       GPU_pass_cache_wait_for_all();
