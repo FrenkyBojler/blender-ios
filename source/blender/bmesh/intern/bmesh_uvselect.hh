@@ -125,6 +125,21 @@
  * the UV selection causes an edge/face to be selected in mesh space but not UV space.
  *
  * See #BM_mesh_uvselect_is_valid for details.
+ *
+ * Clearing the Valid State
+ * ========================
+ *
+ * As already noted, tools should maintain the synchronized UV selection where possible
+ * however when this information *isn't* needed it should be cleared aggressively
+ * (see #BM_mesh_uvselect_clear), since it adds both computation & memory overhead.
+ *
+ * For actions that overwrite the selection such as selecting or de-selecting all,
+ * it's safe to "clear" the data, other actions such as adding new geometry that replaces
+ * the selection can also safely "clear" the UV selection.
+ *
+ * In practice users modeling in the 3D viewport are likely to clear the UV selection data
+ * since selecting the mesh without extending the selection is effectively a "De-select All".
+ * So the chances this data persists when it's not needed over many editing operations are low.
  */
 
 /* -------------------------------------------------------------------- */

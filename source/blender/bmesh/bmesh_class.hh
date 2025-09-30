@@ -356,7 +356,19 @@ struct BMesh {
 
   bool use_toolflags;
 
-  /** When set ignore, don't use the UV Loop selection flags. */
+  /**
+   * Used when the UV select sync tool-setting is enabled (see: #UV_FLAG_SELECT_SYNC).
+   *
+   * When true, UV selection flags are "valid" (see: #BM_ELEM_SELECT_UV & #BM_ELEM_SELECT_UV_EDGE).
+   * Otherwise UV selection is read from vertex/edge/face selection flags used in the viewport.
+   *
+   * Notes:
+   * - This should be cleared aggressively when there is no need
+   *   to store a separate UV selection to avoid unnecessary overhead.
+   * - Clear using #BM_mesh_uvselect_clear (instead of setting directly).
+   *
+   - See `bmesh_uvselect.hh` for a more comprehensive explanation.
+   */
   bool uv_select_sync_valid;
 
   int toolflag_index;
@@ -509,8 +521,8 @@ enum {
   BM_ELEM_TAG = (1 << 4),
 
   /**
-   * Used for Loop, Edge & Face (but not Vertices),
-   * since there is never a reason to a UV select.
+   * Used for #BMLoop for loop-vertex selection & #BMFace when the face is selected.
+   * The #BMLoop also stores edge selection: #BM_ELEM_SELECT_UV_EDGE.
    */
   BM_ELEM_SELECT_UV = (1 << 5),
 
