@@ -25,8 +25,9 @@ class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
         self.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_gn_color_base(node_add_menu.NodeMenu):
+class NODE_MT_gn_utilities_color_base(node_add_menu.NodeMenu):
     bl_label = "Color"
+    menu_path = "Utilities/Color"
 
     def draw(self, context):
         layout = self.layout
@@ -40,7 +41,7 @@ class NODE_MT_gn_color_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeCombineColor")
         self.node_operator(layout, "FunctionNodeSeparateColor")
 
-        self.draw_assets_for_catalog(layout, self.bl_label)
+        self.draw_assets_for_catalog(layout, self.menu_path)
 
 
 class NODE_MT_gn_curve_base(node_add_menu.NodeMenu):
@@ -684,6 +685,7 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+        self.draw_menu(layout, path="Utilities/Color")
         self.draw_menu(layout, path="Utilities/Math")
         self.draw_menu(layout, path="Utilities/Text")
         self.draw_menu(layout, path="Utilities/Vector")
@@ -981,7 +983,6 @@ class NODE_MT_gn_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Attribute")
         self.draw_menu(layout, "Geometry")
         layout.separator()
-        self.draw_menu(layout, "Color")
         self.draw_menu(layout, "Curve")
         self.draw_menu(layout, "Grease Pencil")
         self.draw_menu(layout, "Instances")
@@ -1046,7 +1047,7 @@ add_menus = {
     "NODE_MT_geometry_node_GEO_MATERIAL": NODE_MT_gn_material_base,
     "NODE_MT_category_GEO_TEXTURE": NODE_MT_gn_texture_base,
     "NODE_MT_category_GEO_UTILITIES": NODE_MT_gn_utilities_base,
-    "NODE_MT_geometry_node_GEO_COLOR": NODE_MT_gn_color_base,
+    "NODE_MT_geometry_node_GEO_COLOR": NODE_MT_gn_utilities_color_base,
     "NODE_MT_category_GEO_TEXT": NODE_MT_gn_utilities_text_base,
     "NODE_MT_category_GEO_VECTOR": NODE_MT_gn_utilities_vector_base,
     "NODE_MT_category_utilities_bundle": NODE_MT_category_utilities_bundle_base,
@@ -1112,7 +1113,7 @@ swap_menus = {
     "NODE_MT_gn_material_swap": NODE_MT_gn_material_base,
     "NODE_MT_gn_texture_swap": NODE_MT_gn_texture_base,
     "NODE_MT_gn_utilities_swap": NODE_MT_gn_utilities_base,
-    "NODE_MT_gn_utilities_color_swap": NODE_MT_gn_color_base,
+    "NODE_MT_gn_utilities_color_swap": NODE_MT_gn_utilities_color_base,
     "NODE_MT_gn_utilities_text_swap": NODE_MT_gn_utilities_text_base,
     "NODE_MT_gn_utilities_vector_swap": NODE_MT_gn_utilities_vector_base,
     "NODE_MT_gn_utilities_bundle_swap": NODE_MT_category_utilities_bundle_base,
