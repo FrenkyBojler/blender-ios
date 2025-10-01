@@ -1691,7 +1691,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
-  if (!USER_VERSION_ATLEAST(500, 97)) {
+  if (!USER_VERSION_ATLEAST(500, 98)) {
     userdef->xr_navigation.vignette_intensity = 50.0f;
     userdef->xr_navigation.turn_amount = DEG2RAD(30);
     userdef->xr_navigation.turn_speed = DEG2RAD(60);
