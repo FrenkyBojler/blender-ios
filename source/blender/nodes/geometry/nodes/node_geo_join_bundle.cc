@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "NOD_geometry_nodes_bundle.hh"
 
 #include "node_geometry_util.hh"
@@ -48,14 +50,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   Bundle &mutable_output_bundle = const_cast<Bundle &>(*output_bundle);
 
+  VectorSet<StringRef> overridden_keys;
   for (; bundle_i < bundles.values.size(); bundle_i++) {
     BundlePtr &bundle = bundles.values[bundle_i];
     if (!bundle) {
       continue;
     }
     for (const Bundle::StoredItem &item : bundle->items()) {
-      mutable_output_bundle.add(item.key, item.value);
+      if (!mutable_output_bundle.add(item.key, item.value)) {
+        overridden_keys.add(item.key);
+      }
     }
+  }
+
+  if (!overridden_keys.is_empty()) {
+    std::string message = fmt::format("{}: {}\n{}",
+                                      TIP_("Duplicate keys"),
+                                      fmt::join(overridden_keys, ", "),
+                                      TIP_("Only the first occurence is used."));
+    params.error_message_add(NodeWarningType::Info, std::move(message));
   }
 
   params.set_output("Bundle", output_bundle);
