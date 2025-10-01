@@ -1045,6 +1045,7 @@ typedef enum eNdof_Flag {
   NDOF_ORBIT_CENTER_AUTO = (1 << 17),
   NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
   NDOF_SHOW_GUIDE_ORBIT_CENTER = (1 << 19),
+  NDOF_DYNAMIC_FLY_SPEED = (1 << 20),
 } eNdof_Flag;
 
 /**

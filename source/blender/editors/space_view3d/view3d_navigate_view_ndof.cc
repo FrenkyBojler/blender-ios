@@ -28,7 +28,7 @@ using blender::float3;
 
 #ifdef WITH_INPUT_NDOF
 static bool ndof_orbit_center_is_valid(const RegionView3D *rv3d, const float3 &center);
-static bool ndof_orbit_center_is_auto(const View3D *v3d, const RegionView3D *rv3d);
+static bool ndof_orbit_center_used(const View3D *v3d, const RegionView3D *rv3d);
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -108,9 +108,7 @@ static float view3d_ndof_pan_speed_calc_from_dist(RegionView3D *rv3d, const floa
 static float view3d_ndof_pan_speed_calc(RegionView3D *rv3d)
 {
   float tvec[3];
-  if (NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) &&
-      (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID))
-  {
+  if (ndof_orbit_center_used(nullptr, nullptr) && (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID)) {
     negate_v3_v3(tvec, rv3d->ndof_ofs);
   }
   else {
@@ -166,8 +164,8 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
 
   if (has_translate) {
 
-      const float speed = view3d_ndof_pan_speed_calc(rv3d);
-      pan_vec *= speed * ndof.time_delta;
+    const float speed = view3d_ndof_pan_speed_calc(rv3d);
+    pan_vec *= speed * ndof.time_delta;
 
     /* transform motion from view to world coordinates */
     float view_inv[4];
@@ -259,7 +257,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
 
   if (apply_dyn_ofs) {
     /* Use NDOF center as a dynamic offset. */
-    if (ndof_orbit_center_is_auto(v3d, rv3d)) {
+    if (ndof_orbit_center_used(v3d, rv3d)) {
       if (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID) {
         if (ndof_orbit_center_is_valid(vod->rv3d, -float3(rv3d->ndof_ofs))) {
           vod->use_dyn_ofs = true;
@@ -398,20 +396,30 @@ void view3d_ndof_fly(const wmNDOFMotionData &ndof,
 /** \name NDOF Orbit Center Calculation
  * \{ */
 
-static bool ndof_orbit_center_is_auto(const View3D *v3d, const RegionView3D *rv3d)
+static bool ndof_orbit_center_used(const View3D *v3d, const RegionView3D *rv3d)
 {
-  if ((U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) == 0) {
-    return false;
+  if (NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U)) {
+    if ((U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) == 0) {
+      return false;
+    }
   }
-  if (v3d->ob_center_cursor || v3d->ob_center) {
-    return false;
+  else {
+    if ((U.ndof_flag & NDOF_DYNAMIC_FLY_SPEED) == 0) {
+      return false;
+    }
   }
 
-  /* Check the caller is not calculating auto-center when there is no reason to do so. */
-  BLI_assert_msg(
-      !((rv3d->persp == RV3D_CAMOB) && (v3d->flag2 & V3D_LOCK_CAMERA) == 0),
-      "This test should not run from a camera view unless the camera is locked to the viewport");
-  UNUSED_VARS_NDEBUG(rv3d);
+  if (v3d && rv3d) {
+    if (v3d->ob_center_cursor || v3d->ob_center) {
+      return false;
+    }
+
+    /* Check the caller is not calculating auto-center when there is no reason to do so. */
+    BLI_assert_msg(
+        !((rv3d->persp == RV3D_CAMOB) && (v3d->flag2 & V3D_LOCK_CAMERA) == 0),
+        "This test should not run from a camera view unless the camera is locked to the viewport");
+    UNUSED_VARS_NDEBUG(rv3d);
+  }
 
   return true;
 }
@@ -496,22 +504,22 @@ static float ndof_read_zbuf(ARegion *region, const int x, const int y)
 }
 
 /*
-Sample view3d region using a view-centered, square, discrete grid and get the closest (depth-wise) point in screen space.
+Sample view3d region using a discrete grid and get the closest (depth-wise) point in screen space.
 Return value:
 x component = screen space x coordinate of the sample
 y component = screen space y coordinate of the sample
 z component = depth of the sample (the lowest value)
 */
-static float3 ndof_get_min_depth_coords(ARegion *region,
-                                        const rcti sample_grid_area,
-                                             const int sample_grid_resolution)
+static float3 ndof_get_min_depth_pt(ARegion *region,
+                                    const rcti sample_grid_area,
+                                    const int sample_grid_resolution)
 {
   const int step_x = (sample_grid_area.xmax - sample_grid_area.xmin) / sample_grid_resolution;
   const int step_y = (sample_grid_area.ymax - sample_grid_area.ymin) / sample_grid_resolution;
   float3 result(FLT_MAX);
 
   for (int x = sample_grid_area.xmin; x <= sample_grid_area.xmax; x += step_x) {
-    for (int y = sample_grid_area.ymin; y <= sample_grid_area.ymax; y += step_x) {
+    for (int y = sample_grid_area.ymin; y <= sample_grid_area.ymax; y += step_y) {
       float depth_near = ndof_read_zbuf(region, x, y);
       if (depth_near < result.z) {
         result.x = x;
@@ -543,7 +551,7 @@ static std::optional<float3> ndof_orbit_center_calc_from_zbuf(Depsgraph *depsgra
     sampling_resolution = 5;
   }
 
-  float3 min_depth_pt = ndof_get_min_depth_coords(region, sample_grid_area, sampling_resolution);
+  float3 min_depth_pt = ndof_get_min_depth_pt(region, sample_grid_area, sampling_resolution);
 
   if (min_depth_pt.z == FLT_MAX) {
     return std::nullopt;
@@ -794,7 +802,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     /* pass */
   }
   else if (ndof.progress == P_STARTING) {
-    if (ndof_orbit_center_is_auto(v3d, rv3d)) {
+    if (ndof_orbit_center_used(v3d, rv3d)) {
       /* If center was recalculated then update the point location for drawing. */
       if (std::optional<float3> center_test = ndof_orbit_center_calc(
               vod->depsgraph, vod->area, vod->region))
