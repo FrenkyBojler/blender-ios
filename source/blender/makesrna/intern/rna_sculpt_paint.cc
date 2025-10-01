@@ -636,7 +636,7 @@ static void rna_def_paint_curve_visibility_flag(StructRNA *srna,
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, prop_name, flag);
+  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", flag);
   RNA_def_property_ui_text(prop, ui_name, nullptr);
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 }
