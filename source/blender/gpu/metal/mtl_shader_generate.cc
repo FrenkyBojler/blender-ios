@@ -1151,6 +1151,62 @@ static std::string generate_fragment_builtins(GeneratedStreams &ss, const Shader
   return decl.str();
 }
 
+static void generate_subpass_inputs(GeneratedStreams &generated, const ShaderCreateInfo &info)
+{
+  constexpr ShaderStage stage = ShaderStage::FRAGMENT;
+  StringRefNull in_class_local = "SubpassInputs";
+  std::string in_class = wrap_type(in_class_local, stage);
+
+  if (info.subpass_inputs_.is_empty()) {
+    return;
+  }
+
+  StringRefNull mem_scope = "thread ";
+
+  {
+    auto &out = generated.wrapper_class_members;
+
+    /* References definition for global access. */
+    for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+      out << "  " << mem_scope << input.type << " &" << input.name << ";\n";
+    }
+
+    /* Main Block Definition. */
+    out << "  struct " << in_class_local << " {\n";
+    for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+      out << "    " << input.type << " " << input.name;
+      out << " [[color(" << input.index << ")]]";
+      if (input.raster_order_group >= 0) {
+        out << " [[raster_order_group(" << input.raster_order_group << ")]]";
+      }
+      out << ";\n";
+    }
+    out << "  };\n";
+  }
+  {
+    /* Constructor parameters. */
+    auto &out = generated.wrapper_constructor_parameters;
+    out << Sep() << mem_scope << in_class_local << " &mtl_subpass_in";
+  }
+  {
+    /* Constructor assignments. */
+    auto &out = generated.wrapper_constructor_assign;
+    for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
+      out << Sep() << input.name << "(mtl_subpass_in." << input.name << ")";
+    }
+  }
+  {
+    /* Constructor arguments. */
+    auto &out = generated.wrapper_instance_init;
+    out << Sep() << "mtl_subpass_in";
+  }
+  {
+    /* Entry point arguments. */
+    auto &out = generated.entry_point_parameters;
+    out << Sep() << in_class << " mtl_subpass_in";
+  }
+}
+
 static void generate_fragment_out(GeneratedStreams &generated, const ShaderCreateInfo &info)
 {
   constexpr ShaderStage stage = ShaderStage::FRAGMENT;
@@ -1218,6 +1274,7 @@ static void generate_vertex_interface(GeneratedStreams &generated, const ShaderC
 
 static void generate_fragment_interface(GeneratedStreams &generated, const ShaderCreateInfo &info)
 {
+  generate_subpass_inputs(generated, info);
   generate_vertex_out(generated, info, ShaderStage::FRAGMENT);
   generate_fragment_out(generated, info);
 }
