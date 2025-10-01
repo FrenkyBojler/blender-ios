@@ -283,6 +283,7 @@ static void lattice_undosys_step_decode(
     Object *obedit = elem->obedit_ref.ptr;
     Lattice *lt = static_cast<Lattice *>(obedit->data);
     if (lt->editlatt == nullptr) {
+      /* Should never fail, may not crash but can give odd behavior. */
       CLOG_ERROR(&LOG,
                  "name='%s', failed to enter edit-mode for object '%s', undo state invalid",
                  us_p->name,
