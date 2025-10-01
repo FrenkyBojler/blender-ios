@@ -728,7 +728,7 @@ void set_grid_background(openvdb::GridBase &grid_base, const GPointer value)
     using ValueType = typename GridT::ValueType;
     auto &tree = grid.tree();
 
-    BLI_assert(value.type().size == sizeof(ValueType));
+    BLI_assert(value.type()->size == sizeof(ValueType));
     tree.root().setBackground(*static_cast<const ValueType *>(value.get()), true);
   });
 }
