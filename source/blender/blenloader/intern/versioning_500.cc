@@ -17,6 +17,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_genfile.h"
 #include "DNA_grease_pencil_types.h"
@@ -71,6 +72,8 @@
 #include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
+
+#include "AS_asset_library.hh"
 
 #include "readfile.hh"
 
@@ -2445,6 +2448,19 @@ static void do_version_bokeh_blur_pixel_size(bNodeTree &node_tree, bNode &node)
   }
 }
 
+static bool window_has_sequence_editor_open(const wmWindow *win)
+{
+  bScreen *screen = WM_window_get_active_screen(win);
+  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+      if (sl->spacetype == SPACE_SEQ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -2536,9 +2552,13 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 63)) {
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-        Scene *scene = WM_window_get_active_scene(win);
-        WorkSpace *workspace = WM_window_get_active_workspace(win);
-        workspace->sequencer_scene = scene;
+        if (window_has_sequence_editor_open(win)) {
+          Scene *scene = WM_window_get_active_scene(win);
+          if (scene->ed != nullptr) {
+            WorkSpace *workspace = WM_window_get_active_workspace(win);
+            workspace->sequencer_scene = scene;
+          }
+        }
       }
     }
   }
@@ -2658,6 +2678,44 @@ static void sequencer_remove_listbase_pointers(Scene &scene)
   blender::seq::meta_stack_set(&scene, last_meta_stack->parent_strip);
 }
 
+static void do_version_adaptive_subdivision(Main *bmain)
+{
+  /* Move cycles properties natively into subdivision surface modifier. */
+  bool experimental_features = false;
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    IDProperty *idprop = version_cycles_properties_from_ID(&scene->id);
+    if (idprop) {
+      experimental_features |= version_cycles_property_boolean(idprop, "feature_set", false);
+    }
+  }
+
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    bool use_adaptive_subdivision = false;
+    float dicing_rate = 1.0f;
+
+    IDProperty *idprop = version_cycles_properties_from_ID(&object->id);
+    if (idprop) {
+      if (experimental_features) {
+        use_adaptive_subdivision = version_cycles_property_boolean(
+            idprop, "use_adaptive_subdivision", false);
+      }
+      dicing_rate = version_cycles_property_float(idprop, "dicing_rate", 1.0f);
+    }
+
+    LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+      if (md->type == eModifierType_Subsurf) {
+        SubsurfModifierData *smd = (SubsurfModifierData *)md;
+        if (use_adaptive_subdivision) {
+          smd->flags |= eSubsurfModifierFlag_UseAdaptiveSubdivision;
+          smd->adaptive_space = SUBSURF_ADAPTIVE_SPACE_PIXEL;
+          smd->adaptive_pixel_size = dicing_rate;
+          smd->adaptive_object_edge_length = 0.01f;
+        }
+      }
+    }
+  }
+}
+
 void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   using namespace blender;
@@ -2691,8 +2749,8 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       ToolSettings *ts = scene->toolsettings;
       if (ts->uv_selectmode & uv_select_island) {
-        ts->uv_selectmode = UV_SELECT_VERTEX;
-        ts->uv_flag |= UV_FLAG_ISLAND_SELECT;
+        ts->uv_selectmode = UV_SELECT_VERT;
+        ts->uv_flag |= UV_FLAG_SELECT_ISLAND;
       }
     }
   }
@@ -3625,6 +3683,17 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 92)) {
+    do_version_adaptive_subdivision(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 95)) {
+    LISTBASE_FOREACH (Camera *, camera, &bmain->cameras) {
+      float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
+      copy_v4_v4(camera->composition_guide_color, default_col);
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -3637,4 +3706,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     bke::mesh_freestyle_marks_to_generic(*mesh);
   }
+
+  /* TODO: Can be moved to subversion bump. */
+  AS_asset_library_import_method_ensure_valid(*bmain);
 }

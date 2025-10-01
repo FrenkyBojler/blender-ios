@@ -8,7 +8,7 @@
 
 #include "gpu_shader_dependency_private.hh"
 #include "mtl_backend.hh"
-#include "mtl_shader_generator_new.hh"
+#include "mtl_shader_generate.hh"
 
 /**
  * In Metal UBO, SSBO and Push Constants all share the same binding space with a maximum of 31
