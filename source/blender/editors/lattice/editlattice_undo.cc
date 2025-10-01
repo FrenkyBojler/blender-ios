@@ -57,13 +57,37 @@ struct UndoLattice {
   size_t undo_size;
 };
 
-static void undolatt_to_editlatt(UndoLattice *ult, EditLatt *editlatt)
+static void undolatt_to_editlatt(UndoLattice *ult, EditLatt *editlatt, Lattice *lt)
 {
   const int len_src = ult->pntsu * ult->pntsv * ult->pntsw;
   const int len_dst = editlatt->latt->pntsu * editlatt->latt->pntsv * editlatt->latt->pntsw;
   if (len_src != len_dst) {
     MEM_freeN(editlatt->latt->def);
     editlatt->latt->def = static_cast<BPoint *>(MEM_dupallocN(ult->def));
+
+    /* Update base lattice controol points. */
+    if (lt && lt->def) {
+      MEM_freeN(lt->def);
+      lt->def = static_cast<BPoint *>(MEM_dupallocN(ult->def));
+    }
+
+    if (editlatt->latt->dvert) {
+      BKE_defvert_array_free(editlatt->latt->dvert, len_dst);
+      editlatt->latt->dvert = nullptr;
+    }
+    if (ult->dvert) {
+      editlatt->latt->dvert = MEM_malloc_arrayN<MDeformVert>(len_src, "Lattice MDeformVert");
+      BKE_defvert_array_copy(editlatt->latt->dvert, ult->dvert, len_src);
+    }
+
+    if (lt && lt->dvert) {
+      BKE_defvert_array_free(lt->dvert, len_dst);
+      lt->dvert = nullptr;
+    }
+    if (lt && ult->dvert) {
+      lt->dvert = MEM_malloc_arrayN<MDeformVert>(len_src, "Lattice MDeformVert");
+      BKE_defvert_array_copy(lt->dvert, ult->dvert, len_src);
+    }
   }
   else {
     memcpy(editlatt->latt->def, ult->def, sizeof(BPoint) * len_src);
@@ -92,6 +116,25 @@ static void undolatt_to_editlatt(UndoLattice *ult, EditLatt *editlatt)
   editlatt->latt->du = ult->du;
   editlatt->latt->dv = ult->dv;
   editlatt->latt->dw = ult->dw;
+
+  /*Sync base lattice properties from undo data. */
+  if (lt) {
+    lt->pntsu = ult->pntsu;
+    lt->pntsv = ult->pntsv;
+    lt->pntsw = ult->pntsw;
+    lt->typeu = ult->typeu;
+    lt->typev = ult->typev;
+    lt->typew = ult->typew;
+    lt->fu = ult->fu;
+    lt->fv = ult->fv;
+    lt->fw = ult->fw;
+    lt->du = ult->du;
+    lt->dv = ult->dv;
+    lt->dw = ult->dw;
+    lt->opntsu = 0;
+    lt->opntsv = 0;
+    lt->opntsw = 0;
+  }
 }
 
 static void *undolatt_from_editlatt(UndoLattice *ult, EditLatt *editlatt)
@@ -240,27 +283,17 @@ static void lattice_undosys_step_decode(
     Object *obedit = elem->obedit_ref.ptr;
     Lattice *lt = static_cast<Lattice *>(obedit->data);
     if (lt->editlatt == nullptr) {
-      /* Should never fail, may not crash but can give odd behavior. */
       CLOG_ERROR(&LOG,
                  "name='%s', failed to enter edit-mode for object '%s', undo state invalid",
                  us_p->name,
                  obedit->id.name);
       continue;
     }
-    undolatt_to_editlatt(&elem->data, lt->editlatt);
+
+    /* Paass base lattice so it gets updated too. */
+    undolatt_to_editlatt(&elem->data, lt->editlatt, lt);
     lt->editlatt->needs_flush_to_id = 1;
     DEG_id_tag_update(&lt->id, ID_RECALC_GEOMETRY);
-
-    Lattice *editlt = lt->editlatt->latt;
-    /* Reset override counts so size updates don't restore pre undo values. */
-    lt->opntsu = lt->opntsv = lt->opntsw = 0;
-
-    /* Keep the ID counts in sync with the edit copy restored by undo. */
-    if ((lt->pntsu != editlt->pntsu) || (lt->pntsv != editlt->pntsv) ||
-        (lt->pntsw != editlt->pntsw))
-    {
-      BKE_lattice_resize(lt, editlt->pntsu, editlt->pntsv, editlt->pntsw, obedit);
-    }
   }
 
   /* The first element is always active */
