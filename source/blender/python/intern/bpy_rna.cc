@@ -3995,6 +3995,72 @@ static PyObject *pyrna_struct_path_resolve(BPy_StructRNA *self, PyObject *args)
 
 PyDoc_STRVAR(
     /* Wrap. */
+    pyrna_struct_full_path_doc,
+    ".. method:: full_path(property=\"\", index=-1, /)\n"
+    "\n"
+    "   Returns the full data path to this struct (string).\n"
+    "\n"
+    "   :arg property: Optional property name to get the full path from\n"
+    "   :type property: str\n"
+    "   :arg index: Optional index of the property.\n"
+    "      \"-1\" means that the property has no indices.\n"
+    "   :type property: int\n"
+    "   :return: The full path to the data.\n"
+    "   :rtype: str\n");
+static PyObject *pyrna_struct_full_path(BPy_StructRNA *self, PyObject *args)
+{
+  const char *name = nullptr;
+  PropertyRNA *prop;
+  int index = -1;
+
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
+  if (!PyArg_ParseTuple(args, "|si:path_from_id", &name, &index)) {
+    return nullptr;
+  }
+
+  std::optional<std::string> path;
+  if (name) {
+    prop = RNA_struct_find_property(&self->ptr.value(), name);
+    if (prop == nullptr) {
+      PyErr_Format(PyExc_AttributeError,
+                   "%.200s.full_path(\"%.200s\") not found",
+                   RNA_struct_identifier(self->ptr->type),
+                   name);
+      return nullptr;
+    }
+    path = RNA_path_full_property_py_ex(&self->ptr.value(), prop, index, true);
+  }
+  else {
+    if (RNA_struct_is_ID(self->ptr->type)) {
+      path = RNA_path_full_ID_py(self->ptr->owner_id);
+    }
+    else {
+      path = RNA_path_full_struct_py(&self->ptr.value());
+    }
+  }
+
+  if (!path) {
+    if (name) {
+      PyErr_Format(PyExc_ValueError,
+                   "%.200s.full_path(\"%s\", %d) found, but does not support path creation",
+                   RNA_struct_identifier(self->ptr->type),
+                   name,
+                   index);
+    }
+    else {
+      PyErr_Format(PyExc_ValueError,
+                   "%.200s.full_path() does not support path creation for this type",
+                   RNA_struct_identifier(self->ptr->type));
+    }
+    return nullptr;
+  }
+
+  return PyC_UnicodeFromStdStr(path.value());
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     pyrna_struct_path_from_id_doc,
     ".. method:: path_from_id(property=\"\", /)\n"
     "\n"
@@ -6205,6 +6271,7 @@ static PyMethodDef pyrna_struct_methods[] = {
      (PyCFunction)pyrna_struct_driver_remove,
      METH_VARARGS,
      pyrna_struct_driver_remove_doc},
+    {"full_path", (PyCFunction)pyrna_struct_full_path, METH_VARARGS, pyrna_struct_full_path_doc},
 
     {"is_property_set",
      (PyCFunction)pyrna_struct_is_property_set,
