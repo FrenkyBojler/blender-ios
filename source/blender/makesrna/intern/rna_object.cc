@@ -2208,12 +2208,12 @@ bool rna_Object_light_linking_override_apply(Main *bmain,
 
   if (ob_dst->light_linking == nullptr && ob_src->light_linking != nullptr) {
     /* Copy light linking data from reference into final local object. */
-    ob_dst->light_linking = MEM_dupallocN<LightLinking>(__func__, *ob_src->light_linking);
+    BKE_light_linking_copy(ob_dst, ob_src, 0);
     return true;
   }
   else if (ob_dst->light_linking != nullptr && ob_src->light_linking == nullptr) {
     /* Override has cleared/removed light linking data from its reference. */
-    MEM_SAFE_FREE(ob_dst->light_linking);
+    BKE_light_linking_delete(ob_dst, 0);
     return true;
   }
   else if (ob_dst->light_linking != nullptr && ob_src->light_linking != nullptr) {
@@ -2234,7 +2234,8 @@ bool rna_Object_light_linking_override_apply(Main *bmain,
       id_us_plus(blender::id_cast<ID *>(ob_dst->light_linking->blocker_collection));
     }
 
-    /* TODO: what about the runtime data? */
+    /* Note: LightLinking runtime data is currently set by depsgraph evaluation, so no need to
+     * handle them here. */
 
     DEG_id_tag_update(&ob_dst->id, ID_RECALC_SHADING);
 
