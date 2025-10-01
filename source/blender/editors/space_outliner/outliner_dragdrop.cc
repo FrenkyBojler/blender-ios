@@ -1354,6 +1354,8 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     TREESTORE(data.te)->flag &= ~TSE_CLOSED;
   }
 
+  CollectionObject *last_inserted_cob = nullptr;
+
   /*  For each dragged item:
    *  If it's an OBJECT (ID_OB),
    *      Hold Ctrl to add it to the target and keep it in its current collection. Otherwise move
@@ -1390,7 +1392,10 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
         if (cob) {
           BLI_remlink(&data.to->gobject, cob);
 
-          if (relative_ob) {
+          if (last_inserted_cob) {
+            BLI_insertlinkafter(&data.to->gobject, last_inserted_cob, cob);
+          }
+          else if (relative_ob) {
             CollectionObject *rel = BKE_collection_object_find_in(data.to, relative_ob);
             if (rel && rel != cob) {
               if (data.insert_type == TE_INSERT_BEFORE) {
@@ -1408,6 +1413,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
             (data.insert_type == TE_INSERT_BEFORE) ? BLI_addhead(&data.to->gobject, cob) :
                                                      BLI_addtail(&data.to->gobject, cob);
           }
+          last_inserted_cob = cob;
         }
       }
     }
