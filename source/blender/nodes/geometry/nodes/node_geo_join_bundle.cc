@@ -15,7 +15,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Bundle").multi_input().description(
-      "Bundles to join together on the top level for each bundle.");
+      "Bundles to join together on the top level for each bundle. When there are duplicates, only "
+      "the first occurence is used");
   b.add_output<decl::Bundle>("Bundle").align_with_previous();
 }
 
@@ -64,10 +65,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (!overridden_keys.is_empty()) {
-    std::string message = fmt::format("{}: {}\n{}",
-                                      TIP_("Duplicate keys"),
-                                      fmt::join(overridden_keys, ", "),
-                                      TIP_("Only the first occurence is used."));
+    std::string message = fmt::format(
+        "{}: {}", TIP_("Duplicate keys"), fmt::join(overridden_keys, ", "));
     params.error_message_add(NodeWarningType::Info, std::move(message));
   }
 
