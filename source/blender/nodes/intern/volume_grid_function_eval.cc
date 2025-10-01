@@ -28,6 +28,8 @@
 
 namespace blender::nodes {
 
+namespace grid = bke::volume_grid;
+
 #ifdef WITH_OPENVDB
 
 static std::optional<VolumeGridType> cpp_type_to_grid_type(const CPPType &cpp_type)
@@ -58,15 +60,15 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
                                            const Span<const openvdb::GridBase *> input_grids,
                                            MutableSpan<openvdb::GridBase::Ptr> output_grids,
                                            const openvdb::math::Transform &transform,
-                                           const bke::LeafNodeMask &leaf_node_mask,
+                                           const grid::LeafNodeMask &leaf_node_mask,
                                            const openvdb::CoordBBox &leaf_bbox,
-                                           const bke::GetVoxelsFn get_voxels_fn)
+                                           const grid::GetVoxelsFn get_voxels_fn)
 {
   /* Create an index mask for all the active voxels in the leaf. */
   IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
-      IndexRange(bke::LeafNodeMask::SIZE),
-      GrainSize(bke::LeafNodeMask::SIZE),
+      IndexRange(grid::LeafNodeMask::SIZE),
+      GrainSize(grid::LeafNodeMask::SIZE),
       memory,
       [&](const int64_t i) { return leaf_node_mask.isOn(i); });
 
@@ -97,7 +99,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       /* The input is a grid, so we can attempt to reference the grid values directly. */
-      bke::to_typed_grid(*grid_base, [&](const auto &grid) {
+      grid::to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = typename std::decay_t<decltype(grid)>;
         using ValueT = typename GridT::ValueType;
         BLI_assert(param_cpp_type.size == sizeof(ValueT));
@@ -117,9 +119,9 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
             params.add_readonly_single_input(values);
           }
           else {
-            const Span<ValueT> values(leaf_node->buffer().data(), bke::LeafNodeMask::SIZE);
-            const bke::LeafNodeMask &input_leaf_mask = leaf_node->valueMask();
-            const bke::LeafNodeMask missing_mask = leaf_node_mask & !input_leaf_mask;
+            const Span<ValueT> values(leaf_node->buffer().data(), grid::LeafNodeMask::SIZE);
+            const grid::LeafNodeMask &input_leaf_mask = leaf_node->valueMask();
+            const grid::LeafNodeMask missing_mask = leaf_node_mask & !input_leaf_mask;
             if (missing_mask.isOff()) {
               /* All values available, so reference the data directly. */
               params.add_readonly_single_input(
@@ -176,7 +178,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
     }
 
     openvdb::GridBase &grid_base = *output_grids[output_i];
-    bke::to_typed_grid(grid_base, [&](auto &grid) {
+    grid::to_typed_grid(grid_base, [&](auto &grid) {
       using GridT = typename std::decay_t<decltype(grid)>;
       using ValueT = typename GridT::ValueType;
 
@@ -195,7 +197,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
         /* Write directly into the buffer of the output leaf node. */
         ValueT *values = leaf_node->buffer().data();
         params.add_uninitialized_single_output(
-            GMutableSpan(param_cpp_type, values, bke::LeafNodeMask::SIZE));
+            GMutableSpan(param_cpp_type, values, grid::LeafNodeMask::SIZE));
       }
     });
   }
@@ -211,10 +213,11 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
     if (!param_cpp_type.is<bool>()) {
       continue;
     }
-    bke::set_mask_leaf_buffer_from_bools(static_cast<openvdb::BoolGrid &>(*output_grids[output_i]),
-                                         params.computed_array(param_index).typed<bool>(),
-                                         index_mask,
-                                         ensure_voxel_coords());
+    grid::set_mask_leaf_buffer_from_bools(
+        static_cast<openvdb::BoolGrid &>(*output_grids[output_i]),
+        params.computed_array(param_index).typed<bool>(),
+        index_mask,
+        ensure_voxel_coords());
   }
 }
 
@@ -251,7 +254,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       /* Retrieve all voxel values from the input grid. */
-      bke::to_typed_grid(*grid_base, [&](const auto &grid) {
+      grid::to_typed_grid(*grid_base, [&](const auto &grid) {
         using ValueType = typename std::decay_t<decltype(grid)>::ValueType;
         const auto &tree = grid.tree();
         /* Could try to cache the accessor across batches, but it's not straight forward since its
@@ -305,7 +308,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
       continue;
     }
     const int param_index = input_values.size() + output_i;
-    bke::set_grid_values(*output_grids[output_i], params.computed_array(param_index), voxels);
+    grid::set_grid_values(*output_grids[output_i], params.computed_array(param_index), voxels);
   }
 }
 
@@ -344,7 +347,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
       /* Sample the tile values from the input grid. */
-      bke::to_typed_grid(*grid_base, [&](const auto &grid) {
+      grid::to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = std::decay_t<decltype(grid)>;
         using ValueType = typename GridT::ValueType;
         const auto &tree = grid.tree();
@@ -403,7 +406,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
       continue;
     }
     const int param_index = input_values.size() + output_i;
-    bke::set_tile_values(*output_grids[output_i], params.computed_array(param_index), tiles);
+    grid::set_tile_values(*output_grids[output_i], params.computed_array(param_index), tiles);
   }
 }
 
@@ -427,7 +430,7 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
     const CPPType &param_cpp_type = param_type.data_type().single_type();
 
     if (const openvdb::GridBase *grid_base = input_grids[input_i]) {
-      bke::to_typed_grid(*grid_base, [&](const auto &grid) {
+      grid::to_typed_grid(*grid_base, [&](const auto &grid) {
 #  ifndef NDEBUG
         using GridT = std::decay_t<decltype(grid)>;
         using ValueType = typename GridT::ValueType;
@@ -477,7 +480,7 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
     }
     const int param_index = input_values.size() + output_i;
     const GSpan value = params.computed_array(param_index);
-    bke::set_grid_background(*output_grids[output_i], GPointer(value.type(), value.data()));
+    grid::set_grid_background(*output_grids[output_i], GPointer(value.type(), value.data()));
   }
 }
 
@@ -530,7 +533,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
     if (!grid) {
       continue;
     }
-    bke::to_typed_grid(*grid, [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
+    grid::to_typed_grid(*grid, [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
   }
 
   Array<openvdb::GridBase::Ptr> output_grids(output_values.size());
@@ -547,14 +550,14 @@ bool execute_multi_function_on_value_variant__volume_grid(
       return false;
     }
 
-    output_grids[i] = bke::create_grid_with_topology(mask_tree, *transform, *grid_type);
+    output_grids[i] = grid::create_grid_with_topology(mask_tree, *transform, *grid_type);
   }
 
-  bke::parallel_grid_topology_tasks(
+  grid::parallel_grid_topology_tasks(
       mask_tree,
-      [&](const bke::LeafNodeMask &leaf_node_mask,
+      [&](const grid::LeafNodeMask &leaf_node_mask,
           const openvdb::CoordBBox &leaf_bbox,
-          const bke::GetVoxelsFn get_voxels_fn) {
+          const grid::GetVoxelsFn get_voxels_fn) {
         process_leaf_node(fn,
                           input_values,
                           input_grids,

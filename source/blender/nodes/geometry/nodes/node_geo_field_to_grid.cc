@@ -26,8 +26,9 @@
 namespace blender::nodes::node_geo_field_to_grid_cc {
 
 NODE_STORAGE_FUNCS(NodeFieldToGrid)
-
 using ItemsAccessor = FieldToGridItemsAccessor;
+
+namespace grid = bke::volume_grid;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -136,9 +137,9 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 #ifdef WITH_OPENVDB
 BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
                                            const openvdb::math::Transform &transform,
-                                           const bke::LeafNodeMask &leaf_node_mask,
+                                           const grid::LeafNodeMask &leaf_node_mask,
                                            const openvdb::CoordBBox &leaf_bbox,
-                                           const bke::GetVoxelsFn get_voxels_fn,
+                                           const grid::GetVoxelsFn get_voxels_fn,
                                            const Span<openvdb::GridBase::Ptr> output_grids)
 {
   AlignedBuffer<8192, 8> allocation_buffer;
@@ -147,8 +148,8 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
 
   IndexMaskMemory memory;
   const IndexMask index_mask = IndexMask::from_predicate(
-      IndexRange(bke::LeafNodeMask::SIZE),
-      GrainSize(bke::LeafNodeMask::SIZE),
+      IndexRange(grid::LeafNodeMask::SIZE),
+      GrainSize(grid::LeafNodeMask::SIZE),
       memory,
       [&](const int64_t i) { return leaf_node_mask.isOn(i); });
 
@@ -163,7 +164,7 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
   Array<MutableSpan<bool>> boolean_outputs(fields.size());
   for (const int i : fields.index_range()) {
     const CPPType &type = fields[i].cpp_type();
-    bke::to_typed_grid(*output_grids[i], [&](auto &grid) {
+    grid::to_typed_grid(*output_grids[i], [&](auto &grid) {
       using GridT = typename std::decay_t<decltype(grid)>;
       using ValueT = typename GridT::ValueType;
 
@@ -181,7 +182,7 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
         /* Write directly into the buffer of the output leaf node. */
         ValueT *buffer = leaf_node->buffer().data();
         evaluator.add_with_destination(fields[i],
-                                       GMutableSpan(type, buffer, bke::LeafNodeMask::SIZE));
+                                       GMutableSpan(type, buffer, grid::LeafNodeMask::SIZE));
       }
     });
   }
@@ -190,10 +191,10 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
 
   for (const int i : fields.index_range()) {
     if (!boolean_outputs[i].is_empty()) {
-      bke::set_mask_leaf_buffer_from_bools(static_cast<openvdb::BoolGrid &>(*output_grids[i]),
-                                           boolean_outputs[i],
-                                           index_mask,
-                                           voxels);
+      grid::set_mask_leaf_buffer_from_bools(static_cast<openvdb::BoolGrid &>(*output_grids[i]),
+                                            boolean_outputs[i],
+                                            index_mask,
+                                            voxels);
     }
   }
 }
@@ -220,7 +221,7 @@ BLI_NOINLINE static void process_voxels(const Span<fn::GField> fields,
   evaluator.evaluate();
 
   for (const int i : fields.index_range()) {
-    bke::set_grid_values(*output_grids[i], output_values[i], voxels);
+    grid::set_grid_values(*output_grids[i], output_values[i], voxels);
   }
 }
 
@@ -246,7 +247,7 @@ BLI_NOINLINE static void process_tiles(const Span<fn::GField> fields,
   evaluator.evaluate();
 
   for (const int i : fields.index_range()) {
-    bke::set_tile_values(*output_grids[i], output_values[i], tiles);
+    grid::set_tile_values(*output_grids[i], output_values[i], tiles);
   }
 }
 
@@ -271,7 +272,7 @@ BLI_NOINLINE static void process_background(const Span<fn::GField> fields,
   evaluator.evaluate();
 
   for (const int i : fields.index_range()) {
-    bke::set_grid_background(*output_grids[i], output_values[i]);
+    grid::set_grid_background(*output_grids[i], output_values[i]);
   }
 }
 #endif
@@ -299,22 +300,22 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   openvdb::MaskTree mask_tree;
-  bke::to_typed_grid(topology_base,
-                     [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
+  grid::to_typed_grid(topology_base,
+                      [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
 
   Array<openvdb::GridBase::Ptr> output_grids(items.size());
   for (const int i : items.index_range()) {
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(items[i].data_type);
     const VolumeGridType grid_type = *bke::socket_type_to_grid_type(socket_type);
-    output_grids[i] = bke::create_grid_with_topology(
+    output_grids[i] = grid::create_grid_with_topology(
         topology_base.baseTree(), transform, grid_type);
   }
 
-  bke::parallel_grid_topology_tasks(
+  grid::parallel_grid_topology_tasks(
       mask_tree,
-      [&](const bke::LeafNodeMask &leaf_node_mask,
+      [&](const grid::LeafNodeMask &leaf_node_mask,
           const openvdb::CoordBBox &leaf_bbox,
-          const bke::GetVoxelsFn get_voxels_fn) {
+          const grid::GetVoxelsFn get_voxels_fn) {
         process_leaf_node(
             fields, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, output_grids);
       },

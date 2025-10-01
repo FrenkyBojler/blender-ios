@@ -20,7 +20,7 @@
 #  include "BLI_generic_span.hh"
 #  include "BLI_index_mask_fwd.hh"
 
-namespace blender::bke {
+namespace blender::bke::volume_grid {
 
 using LeafNodeMask = openvdb::util::NodeMask<3u>;
 
@@ -61,7 +61,7 @@ constexpr bool is_supported_grid_type = is_same_any_v<GridT,
 
 template<typename Fn> inline void to_typed_grid(const openvdb::GridBase &grid_base, Fn &&fn)
 {
-  const VolumeGridType grid_type = volume_grid::get_type(grid_base);
+  const VolumeGridType grid_type = get_type(grid_base);
   BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
     using GridT = typename decltype(type_tag)::type;
     if constexpr (is_supported_grid_type<GridT>) {
@@ -75,7 +75,7 @@ template<typename Fn> inline void to_typed_grid(const openvdb::GridBase &grid_ba
 
 template<typename Fn> inline void to_typed_grid(openvdb::GridBase &grid_base, Fn &&fn)
 {
-  const VolumeGridType grid_type = volume_grid::get_type(grid_base);
+  const VolumeGridType grid_type = get_type(grid_base);
   BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
     using GridT = typename decltype(type_tag)::type;
     if constexpr (is_supported_grid_type<GridT>) {
@@ -112,7 +112,7 @@ void set_mask_leaf_buffer_from_bools(openvdb::BoolGrid &grid,
 
 void set_grid_background(openvdb::GridBase &grid_base, const GPointer value);
 
-}  // namespace blender::bke
+}  // namespace blender::bke::volume_grid
 
 /** \} */
 
