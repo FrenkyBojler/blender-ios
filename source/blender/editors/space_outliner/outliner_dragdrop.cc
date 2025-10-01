@@ -1119,6 +1119,7 @@ static Collection *collection_parent_from_ID(ID *id)
 
   return nullptr;
 }
+
 static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], CollectionDrop *data)
 {
   /* Get collection to drop into. */
@@ -1158,11 +1159,20 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
+  /* Get collection to drag out of. */
+  ID *parent = drag_id->from_parent;
+  Collection *from_collection = collection_parent_from_ID(parent);
+
+  /* Currently this should not be allowed, cannot edit items in an override of a Collection. */
+  if (from_collection != nullptr && ID_IS_OVERRIDE_LIBRARY(from_collection)) {
+    return false;
+  }
+
   /* If dragging an object and custom sort is off, only allow dropping INTO the collection.
    * If dragging a collection, block dropping it onto itself. */
   if (GS(id->name) == ID_OB) {
-    SpaceOutliner *so = CTX_wm_space_outliner(C);
-    if (so->sort_method != SO_SORT_CUSTOM) {
+    SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+    if (space_outliner->sort_method != SO_SORT_CUSTOM) {
       insert_type = TE_INSERT_INTO;
     }
   }
@@ -1172,16 +1182,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     }
   }
 
-  /* Get the item's current parent collection. If it's a override collection (not editable),
-   * don't allow the drop. */
-  ID *parent = drag_id->from_parent;
-  Collection *from_collection = collection_parent_from_ID(parent);
-  if (from_collection && ID_IS_OVERRIDE_LIBRARY(from_collection)) {
-    return false;
-  }
-
-  /* If the drop target collection is a library override, only allow pure reordering
-   * (BEFORE/AFTER). Block INTO drops that would change membership. */
+  /* Currently this should not be allowed, cannot edit items in an override of a Collection. */
   if (ID_IS_OVERRIDE_LIBRARY(to_collection) &&
       !ELEM(insert_type, TE_INSERT_AFTER, TE_INSERT_BEFORE))
   {
@@ -1254,7 +1255,7 @@ static std::string collection_drop_tooltip(bContext *C,
     TreeElement *te = data.te;
 
     const bool target_is_object_row = is_object_element(te);
-    wmDragID *drag_id = (wmDragID *)drag->ids.first;
+    wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
     const bool dragging_object = drag_id && (GS(drag_id->id->name) == ID_OB);
     const bool tooltip_link = (is_link && !same_level);
 
@@ -1334,7 +1335,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  wmDragID *first_id = (wmDragID *)drag->ids.first;
+  wmDragID *first_id = static_cast<wmDragID *>(drag->ids.first);
   const bool dragging_collection = first_id && (GS(first_id->id->name) == ID_GR);
 
   Collection *relative = nullptr;
@@ -1383,14 +1384,14 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
         BKE_collection_object_add(bmain, data.to, object);
       }
 
-      SpaceOutliner *so = CTX_wm_space_outliner(C);
-      if (so->sort_method == SO_SORT_CUSTOM &&
+      SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+      if (space_outliner->sort_method == SO_SORT_CUSTOM &&
           ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER))
       {
         Object *relative_ob = nullptr;
         TreeStoreElem *drop_tselem = TREESTORE(data.te);
         if (drop_tselem && drop_tselem->type == TSE_SOME_ID && data.te->idcode == ID_OB) {
-          relative_ob = (Object *)drop_tselem->id;
+          relative_ob = reinterpret_cast<Object *>(drop_tselem->id);
         }
 
         CollectionObject *cob = BKE_collection_object_find_in(data.to, object);

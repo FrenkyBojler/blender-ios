@@ -1445,7 +1445,6 @@ static bool collection_object_add(Main *bmain,
   if (light_linking) {
     cob->light_linking = *light_linking;
   }
-
   *cob_p = cob;
   BLI_addtail(&collection->gobject, cob);
   BKE_collection_object_cache_free(bmain, collection, id_create_flag);
