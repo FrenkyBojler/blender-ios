@@ -603,6 +603,7 @@ if(WITH_BLENDER)
       mod_particle_instance
       mod_physics
       mod_remesh
+      mod_scatter
       mod_screw
       mod_shrinkwrap
       mod_simpledeform
@@ -617,6 +618,7 @@ if(WITH_BLENDER)
       mod_tint
       mod_tonemap
       mod_triangulate
+      mod_tube
       mod_uvproject
       mod_vertex_weight
       mod_warp
