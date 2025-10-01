@@ -8117,9 +8117,9 @@ static void rna_def_geo_field_to_grid_item(BlenderRNA *brna)
 {
   PropertyRNA *prop;
 
-  StructRNA *srna = RNA_def_struct(brna, "NodeFieldToGridItem", nullptr);
+  StructRNA *srna = RNA_def_struct(brna, "GeometryNodeFieldToGridItem", nullptr);
   RNA_def_struct_ui_text(srna, "Field to Grid Item", "");
-  RNA_def_struct_sdna(srna, "NodeFieldToGridItem");
+  RNA_def_struct_sdna(srna, "GeometryNodeFieldToGridItem");
 
   rna_def_node_item_array_socket_item_common(srna, "FieldToGridItemsAccessor", false);
   prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
@@ -8136,14 +8136,14 @@ static void rna_def_geo_field_to_grid_item(BlenderRNA *brna)
 
 static void rna_def_geo_field_to_grid_items(BlenderRNA *brna)
 {
-  StructRNA *srna = RNA_def_struct(brna, "NodeFieldToGridItems", nullptr);
+  StructRNA *srna = RNA_def_struct(brna, "GeometryNodeFieldToGridItems", nullptr);
   RNA_def_struct_ui_text(srna, "Items", "Collection of field to grid items");
   RNA_def_struct_sdna(srna, "bNode");
 
   rna_def_node_item_array_new_with_socket_and_name(
-      srna, "NodeFieldToGridItem", "FieldToGridItemsAccessor");
+      srna, "GeometryNodeFieldToGridItem", "FieldToGridItemsAccessor");
   rna_def_node_item_array_common_functions(
-      srna, "NodeFieldToGridItem", "FieldToGridItemsAccessor");
+      srna, "GeometryNodeFieldToGridItem", "FieldToGridItemsAccessor");
 }
 
 static void def_geo_field_to_grid(BlenderRNA *brna, StructRNA *srna)
@@ -8153,13 +8153,13 @@ static void def_geo_field_to_grid(BlenderRNA *brna, StructRNA *srna)
   rna_def_geo_field_to_grid_item(brna);
   rna_def_geo_field_to_grid_items(brna);
 
-  RNA_def_struct_sdna_from(srna, "NodeFieldToGrid", "storage");
+  RNA_def_struct_sdna_from(srna, "GeometryNodeFieldToGrid", "storage");
 
   prop = RNA_def_property(srna, "grid_items", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
-  RNA_def_property_struct_type(prop, "NodeFieldToGridItem");
+  RNA_def_property_struct_type(prop, "GeometryNodeFieldToGridItem");
   RNA_def_property_ui_text(prop, "Items", "");
-  RNA_def_property_srna(prop, "NodeFieldToGridItems");
+  RNA_def_property_srna(prop, "GeometryNodeFieldToGridItems");
 
   prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "active_index");

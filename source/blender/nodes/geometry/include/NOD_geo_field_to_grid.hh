@@ -15,7 +15,7 @@ namespace blender::nodes {
  * to grid items.
  */
 struct FieldToGridItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
-  using ItemT = NodeFieldToGridItem;
+  using ItemT = GeometryNodeFieldToGridItem;
   static StructRNA *item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeFieldToGrid";
@@ -35,19 +35,19 @@ struct FieldToGridItemsAccessor : public socket_items::SocketItemsAccessorDefaul
     static constexpr StringRefNull active_index = "active_index";
   };
 
-  static socket_items::SocketItemsRef<NodeFieldToGridItem> get_items_from_node(bNode &node)
+  static socket_items::SocketItemsRef<GeometryNodeFieldToGridItem> get_items_from_node(bNode &node)
   {
-    auto &storage = *static_cast<NodeFieldToGrid *>(node.storage);
+    auto &storage = *static_cast<GeometryNodeFieldToGrid *>(node.storage);
     return {&storage.items, &storage.items_num, &storage.active_index};
   }
 
-  static void copy_item(const NodeFieldToGridItem &src, NodeFieldToGridItem &dst)
+  static void copy_item(const GeometryNodeFieldToGridItem &src, GeometryNodeFieldToGridItem &dst)
   {
     dst = src;
     dst.name = BLI_strdup_null(dst.name);
   }
 
-  static void destruct_item(NodeFieldToGridItem *item)
+  static void destruct_item(GeometryNodeFieldToGridItem *item)
   {
     MEM_SAFE_FREE(item->name);
   }
@@ -65,28 +65,28 @@ struct FieldToGridItemsAccessor : public socket_items::SocketItemsAccessorDefaul
     return socket_type_supports_grids(socket_type);
   }
 
-  static char **get_name(NodeFieldToGridItem &item)
+  static char **get_name(GeometryNodeFieldToGridItem &item)
   {
     return &item.name;
   }
 
   static void init_with_socket_type_and_name(bNode &node,
-                                             NodeFieldToGridItem &item,
+                                             GeometryNodeFieldToGridItem &item,
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeFieldToGrid *>(node.storage);
+    auto *storage = static_cast<GeometryNodeFieldToGrid *>(node.storage);
     item.data_type = socket_type;
     item.identifier = storage->next_identifier++;
     socket_items::set_item_name_and_make_unique<FieldToGridItemsAccessor>(node, item, name);
   }
 
-  static std::string input_socket_identifier_for_item(const NodeFieldToGridItem &item)
+  static std::string input_socket_identifier_for_item(const GeometryNodeFieldToGridItem &item)
   {
     return "Field_" + std::to_string(item.identifier);
   }
 
-  static std::string output_socket_identifier_for_item(const NodeFieldToGridItem &item)
+  static std::string output_socket_identifier_for_item(const GeometryNodeFieldToGridItem &item)
   {
     return "Grid_" + std::to_string(item.identifier);
   }

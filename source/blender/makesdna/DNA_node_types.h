@@ -2408,23 +2408,23 @@ typedef struct NodeIndexSwitch {
 #endif
 } NodeIndexSwitch;
 
-typedef struct NodeFieldToGridItem {
+typedef struct GeometryNodeFieldToGridItem {
   /** #eNodeSocketDatatype. */
   int8_t data_type;
   char _pad[3];
   int identifier;
   char *name;
-} NodeFieldToGridItem;
+} GeometryNodeFieldToGridItem;
 
-typedef struct NodeFieldToGrid {
+typedef struct GeometryNodeFieldToGrid {
   /** #eNodeSocketDatatype. */
   int8_t data_type;
   char _pad[3];
   int next_identifier;
-  NodeFieldToGridItem *items;
+  GeometryNodeFieldToGridItem *items;
   int items_num;
   int active_index;
-} NodeFieldToGrid;
+} GeometryNodeFieldToGrid;
 
 typedef struct NodeGeometryDistributePointsInVolume {
   /** #GeometryNodePointDistributeVolumeMode. */

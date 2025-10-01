@@ -25,7 +25,7 @@
 
 namespace blender::nodes::node_geo_field_to_grid_cc {
 
-NODE_STORAGE_FUNCS(NodeFieldToGrid)
+NODE_STORAGE_FUNCS(GeometryNodeFieldToGrid)
 using ItemsAccessor = FieldToGridItemsAccessor;
 
 namespace grid = bke::volume_grid;
@@ -40,14 +40,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (!node) {
     return;
   }
-  const NodeFieldToGrid &storage = node_storage(*node);
+  const GeometryNodeFieldToGrid &storage = node_storage(*node);
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
 
   b.add_input(data_type, "Topology").structure_type(StructureType::Grid);
 
-  const Span<NodeFieldToGridItem> items(storage.items, storage.items_num);
+  const Span<GeometryNodeFieldToGridItem> items(storage.items, storage.items_num);
   for (const int i : items.index_range()) {
-    const NodeFieldToGridItem &item = items[i];
+    const GeometryNodeFieldToGridItem &item = items[i];
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(item.data_type);
     const std::string input_identifier = ItemsAccessor::input_socket_identifier_for_item(item);
     const std::string output_identifier = ItemsAccessor::output_socket_identifier_for_item(item);
@@ -280,8 +280,8 @@ BLI_NOINLINE static void process_background(const Span<fn::GField> fields,
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  const NodeFieldToGrid &storage = node_storage(params.node());
-  const Span<NodeFieldToGridItem> items(storage.items, storage.items_num);
+  const GeometryNodeFieldToGrid &storage = node_storage(params.node());
+  const Span<GeometryNodeFieldToGridItem> items(storage.items, storage.items_num);
   bke::GVolumeGrid topology_grid = params.extract_input<bke::GVolumeGrid>("Topology");
   if (!topology_grid) {
     params.error_message_add(NodeWarningType::Error, "The topology grid input is required");
@@ -339,7 +339,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_init(bNodeTree *tree, bNode *node)
 {
-  NodeFieldToGrid *data = MEM_callocN<NodeFieldToGrid>(__func__);
+  GeometryNodeFieldToGrid *data = MEM_callocN<GeometryNodeFieldToGrid>(__func__);
   data->data_type = SOCK_FLOAT;
   node->storage = data;
   socket_items::add_item_with_socket_type_and_name<ItemsAccessor>(
@@ -354,8 +354,8 @@ static void node_free_storage(bNode *node)
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
-  const NodeFieldToGrid &src_storage = node_storage(*src_node);
-  NodeFieldToGrid *dst_storage = MEM_dupallocN<NodeFieldToGrid>(__func__, src_storage);
+  const GeometryNodeFieldToGrid &src_storage = node_storage(*src_node);
+  auto *dst_storage = MEM_dupallocN<GeometryNodeFieldToGrid>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<ItemsAccessor>(*src_node, *dst_node);
@@ -400,7 +400,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype, "NodeFieldToGrid", node_free_storage, node_copy_storage);
+  blender::bke::node_type_storage(
+      ntype, "GeometryNodeFieldToGrid", node_free_storage, node_copy_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
