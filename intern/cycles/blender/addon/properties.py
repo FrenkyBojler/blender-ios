@@ -1484,25 +1484,10 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         default=False,
         update=update_render_passes,
     )
-    def get_pass_render_time(self):
-    # Get the render device setting
-        scene = bpy.context.scene
-        if hasattr(scene, 'cycles') and scene.cycles.device == 'GPU':
-            return False  # Force disable when GPU is selected
-        return self.get("pass_render_time", False)
-    def set_pass_render_time(self, value):
-        # Don't allow setting to True when GPU is selected
-        scene = bpy.context.scene
-        if hasattr(scene, 'cycles') and scene.cycles.device == 'GPU':
-            self["pass_render_time"] = False
-        else:
-            self["pass_render_time"] = value
     pass_render_time: BoolProperty(
         name="Render Time",
         description="Reports time per pixel in milliseconds. Supported only on CPU render devices",
         default=False,
-        get=get_pass_render_time,
-        set=set_pass_render_time,
         update=update_render_passes,
     )
     use_pass_volume_direct: BoolProperty(
