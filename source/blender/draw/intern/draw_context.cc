@@ -681,7 +681,7 @@ namespace blender::draw {
 
 static bool supports_handle_ranges(DupliObject *dupli, Object *parent)
 {
-  int ob_type = BKE_object_obdata_to_type(dupli->ob_data);
+  int ob_type = dupli->ob_data ? BKE_object_obdata_to_type(dupli->ob_data) : OB_EMPTY;
   if (!ELEM(ob_type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_POINTCLOUD, OB_GREASE_PENCIL))
   {
     return false;
