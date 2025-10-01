@@ -3765,7 +3765,9 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         uvsculpt.size = 100;
         uvsculpt.strength = 1.0f;
         uvsculpt.curve_distance_falloff_preset = BRUSH_CURVE_SMOOTH;
-        uvsculpt.curve_distance_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+        if (uvsculpt.curve_distance_falloff == nullptr) {
+          uvsculpt.curve_distance_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+        }
       }
     }
   }
