@@ -16,6 +16,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_uv_edges)
 struct VertIn {
   float2 uv;
   uint flag;
+  uint seam;
 };
 
 VertIn input_assembly(uint in_vertex_id)
@@ -26,8 +27,11 @@ VertIn input_assembly(uint in_vertex_id)
   vert_in.uv = gpu_attr_load_float2(au, gpu_attr_0, v_i);
 #ifdef WIREFRAME
   vert_in.flag = 0u;
+  vert_in.seam = 0u;
 #else
   vert_in.flag = gpu_attr_load_uchar4(data, gpu_attr_1, v_i).x;
+  vert_in.seam = gpu_attr_load_uchar4(data, gpu_attr_1, v_i).y;
+
 #endif
   return vert_in;
 }
@@ -37,6 +41,7 @@ struct VertOut {
   float2 stipple_start;
   float2 stipple_pos;
   bool selected;
+  bool seam;
 };
 
 VertOut vertex_main(VertIn v_in)
@@ -53,6 +58,7 @@ VertOut vertex_main(VertIn v_in)
 
   const uint selection_flag = use_edge_select ? uint(EDGE_UV_SELECT) : uint(VERT_UV_SELECT);
   vert_out.selected = flag_test(v_in.flag, selection_flag);
+  vert_out.seam = flag_test(v_in.seam, uint(EDGE_SEAM));
 
   /* Move selected edges to the top so that they occlude unselected edges.
    * - Vertices are between 0.0 and 0.2 depth.
@@ -74,11 +80,13 @@ struct GeomOut {
   float2 stipple_pos;
   float edge_coord;
   bool selected;
+  bool seam;
 };
 
 void export_vertex(GeomOut geom_out)
 {
   selection_fac = float(geom_out.selected);
+  seam_fac = float(geom_out.seam);
   stipple_start = geom_out.stipple_start;
   stipple_pos = geom_out.stipple_pos;
   edge_coord = geom_out.edge_coord;
@@ -129,12 +137,14 @@ void geometry_main(VertOut geom_in[2],
   /* No blending with edge selection. */
   bool select_1 = use_edge_select ? geom_in[0].selected : geom_in[1].selected;
 
+
   GeomOut geom_out;
   geom_out.stipple_start = geom_in[0].stipple_start;
   geom_out.stipple_pos = geom_in[0].stipple_pos;
   geom_out.gpu_position = geom_in[0].hs_P + float4(edge_ofs, 0.0f, 0.0f);
   geom_out.edge_coord = half_size;
   geom_out.selected = select_0;
+  geom_out.seam = geom_in[0].seam;
   strip_EmitVertex(0, out_vertex_id, out_primitive_id, geom_out);
 
   geom_out.gpu_position = geom_in[0].hs_P - float4(edge_ofs, 0.0f, 0.0f);

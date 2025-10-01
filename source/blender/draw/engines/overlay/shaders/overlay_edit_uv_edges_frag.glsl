@@ -10,6 +10,18 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_edit_uv_edges)
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
 
+float4 get_edge_color(float4 base_color) {
+  if (seam_fac != 0.0f && selection_fac != 0.0f) {
+    return mix(theme.colors.edge_seam, theme.colors.edge_select, 0.25f);
+  }
+  else if (seam_fac != 0.0f) {
+    return theme.colors.edge_seam;
+  }
+  else {
+    return mix(base_color, theme.colors.edge_select, selection_fac);
+  }
+}
+
 void main()
 {
   float4 inner_color = float4(float3(0.0f), 1.0f);
@@ -19,30 +31,20 @@ void main()
   float line_distance = distance(stipple_pos, stipple_start) / max(dd.x, dd.y);
 
   if (OVERLAY_UVLineStyle(line_style) == OVERLAY_UV_LINE_STYLE_OUTLINE) {
-    if (use_edge_select) {
-      /* TODO(@ideasman42): The current wire-edit color contrast enough against the selection.
-       * Look into changing the default theme color instead of reducing contrast with edge-select.
-       */
-      inner_color = (selection_fac != 0.0f) ? theme.colors.edge_select :
-                                              (theme.colors.wire_edit * 0.5f);
-    }
-    else {
-      inner_color = mix(theme.colors.wire_edit, theme.colors.edge_select, selection_fac);
-    }
+    float4 base_color = use_edge_select ? (theme.colors.wire_edit * 0.5f) : theme.colors.wire_edit;
+    inner_color = get_edge_color(base_color);
     outer_color = float4(float3(0.0f), 1.0f);
   }
   else if (OVERLAY_UVLineStyle(line_style) == OVERLAY_UV_LINE_STYLE_DASH) {
     if (fract(line_distance / dash_length) < 0.5f) {
-      inner_color = mix(float4(float3(0.35f), 1.0f), theme.colors.edge_select, selection_fac);
+      inner_color = get_edge_color(float4(float3(0.35f), 1.0f));
     }
   }
   else if (OVERLAY_UVLineStyle(line_style) == OVERLAY_UV_LINE_STYLE_BLACK) {
-    float4 base_color = float4(float3(0.0f), 1.0f);
-    inner_color = mix(base_color, theme.colors.edge_select, selection_fac);
+    inner_color = get_edge_color(float4(float3(0.0f), 1.0f));
   }
   else if (OVERLAY_UVLineStyle(line_style) == OVERLAY_UV_LINE_STYLE_WHITE) {
-    float4 base_color = float4(1.0f);
-    inner_color = mix(base_color, theme.colors.edge_select, selection_fac);
+    inner_color = get_edge_color(float4(1.0f));
   }
   else if (OVERLAY_UVLineStyle(line_style) == OVERLAY_UV_LINE_STYLE_SHADOW) {
     inner_color = theme.colors.uv_shadow;

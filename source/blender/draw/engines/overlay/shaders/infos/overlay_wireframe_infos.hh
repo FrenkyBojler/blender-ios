@@ -96,6 +96,7 @@ OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_wireframe_points, overlay_wireframe_poi
 
 GPU_SHADER_INTERFACE_INFO(overlay_edit_uv_iface_wireframe)
 SMOOTH(float, selection_fac)
+SMOOTH(float, seam_fac)
 FLAT(float2, stipple_start)
 NO_PERSPECTIVE(float, edge_coord)
 NO_PERSPECTIVE(float2, stipple_pos)
