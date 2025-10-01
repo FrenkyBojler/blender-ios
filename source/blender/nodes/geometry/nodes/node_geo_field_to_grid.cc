@@ -397,7 +397,7 @@ static void node_register()
   ntype.ui_name = "Field to Grid";
   ntype.ui_description =
       "Create new grids by evaluating new values on an existing volume grid topology";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(ntype, "NodeFieldToGrid", node_free_storage, node_copy_storage);
