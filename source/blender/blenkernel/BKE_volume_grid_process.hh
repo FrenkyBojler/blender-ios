@@ -88,7 +88,7 @@ template<typename Fn> inline void to_typed_grid(openvdb::GridBase &grid_base, Fn
 }
 
 /** Create a grid with the same activated voxels and internal nodes as the given grid. */
-openvdb::GridBase::Ptr create_grid_with_topology(const openvdb::TreeBase &topology,
+openvdb::GridBase::Ptr create_grid_with_topology(const openvdb::MaskTree &topology,
                                                  const openvdb::math::Transform &transform,
                                                  const VolumeGridType grid_type);
 

@@ -307,8 +307,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   for (const int i : items.index_range()) {
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(items[i].data_type);
     const VolumeGridType grid_type = *bke::socket_type_to_grid_type(socket_type);
-    output_grids[i] = grid::create_grid_with_topology(
-        topology_base.baseTree(), transform, grid_type);
+    output_grids[i] = grid::create_grid_with_topology(mask_tree, transform, grid_type);
   }
 
   grid::parallel_grid_topology_tasks(

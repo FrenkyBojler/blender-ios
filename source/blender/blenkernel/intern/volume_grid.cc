@@ -629,25 +629,19 @@ void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
   }
 }
 
-openvdb::GridBase::Ptr create_grid_with_topology(const openvdb::TreeBase &topology,
+openvdb::GridBase::Ptr create_grid_with_topology(const openvdb::MaskTree &topology,
                                                  const openvdb::math::Transform &transform,
                                                  const VolumeGridType grid_type)
 {
   openvdb::GridBase::Ptr grid;
-  const VolumeGridType topology_tree_type = bke::volume_grid::get_type(topology);
-  BKE_volume_grid_type_to_static_type(topology_tree_type, [&](auto topology_type_tag) {
-    using TopologyGridT = typename decltype(topology_type_tag)::type;
-    using TopologyTreeT = typename TopologyGridT::TreeType;
-    const TopologyTreeT &topology_typed = static_cast<const TopologyTreeT &>(topology);
-    BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
-      using GridT = typename decltype(type_tag)::type;
-      using TreeT = typename GridT::TreeType;
-      using ValueType = typename TreeT::ValueType;
-      const ValueType background{};
-      auto tree = std::make_shared<TreeT>(topology_typed, background, openvdb::TopologyCopy());
-      grid = openvdb::createGrid(std::move(tree));
-      grid->setTransform(transform.copy());
-    });
+  BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
+    using GridT = typename decltype(type_tag)::type;
+    using TreeT = typename GridT::TreeType;
+    using ValueType = typename TreeT::ValueType;
+    const ValueType background{};
+    auto tree = std::make_shared<TreeT>(topology, background, openvdb::TopologyCopy());
+    grid = openvdb::createGrid(std::move(tree));
+    grid->setTransform(transform.copy());
   });
   return grid;
 }
