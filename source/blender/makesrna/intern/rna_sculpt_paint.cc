@@ -773,6 +773,31 @@ static void rna_def_paint(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Show Jitter Curve", "Show jitter curve");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
+  prop = RNA_def_property(srna, "show_auto_smooth_curve", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_AUTO_SMOOTH);
+  RNA_def_property_ui_text(prop, "Show Auto Smooth Curve", "Show auto smooth curve");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "show_spacing_curve", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_SPACING);
+  RNA_def_property_ui_text(prop, "Show Spacing Curve", "Show spacing curve");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "show_hardness_curve", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_HARDNESS);
+  RNA_def_property_ui_text(prop, "Show Hardness Curve", "Show hardness curve");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "show_plane_offset_curve", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_PLANE_OFFSET);
+  RNA_def_property_ui_text(prop, "Show Plane Offset Curve", "Show plane offset curve");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "show_area_radius_curve", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_AREA_RADIUS);
+  RNA_def_property_ui_text(prop, "Show Area Radius Curve", "Show area radius curve");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
   /* Unified Paint Settings */
   prop = RNA_def_property(srna, "unified_paint_settings", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
