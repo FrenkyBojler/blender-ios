@@ -95,10 +95,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
   switch (mode) {
-    case Mode::Inactive:
+    case Mode::Inactive: {
       bke::volume_grid::to_typed_grid(
           grid_base, [&](auto &grid) { openvdb::tools::pruneInactive(grid.tree()); });
       break;
+    }
     case Mode::Threshold: {
       const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
       switch (grid_type) {
