@@ -6728,7 +6728,6 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 {
   Object *ob = blender::ed::object::context_active_object(C);
   Scene *scene = CTX_data_scene(C);
-  Main *bmain = CTX_data_main(C);
   Material *ma;
   Image *ima = nullptr;
   CustomDataLayer *layer = nullptr;
