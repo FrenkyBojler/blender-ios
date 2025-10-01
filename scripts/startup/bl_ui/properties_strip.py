@@ -59,8 +59,7 @@ class STRIP_PT_strip(StripButtonsPanel, Panel):
 
         if strip_type in {
                 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER', 'MULTIPLY',
-                'GLOW', 'TRANSFORM', 'SPEED', 'MULTICAM',
-                'GAUSSIAN_BLUR', 'COLORMIX',
+                'GLOW', 'SPEED', 'MULTICAM', 'GAUSSIAN_BLUR', 'COLORMIX',
         }:
             icon_header = 'SHADERFX'
         elif strip_type in {
@@ -142,10 +141,21 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             return False
 
         return strip.type in {
-            'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-            'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR', 'SPEED',
-            'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT', 'COLORMIX',
+            'ADD',
+            'SUBTRACT',
+            'ALPHA_OVER',
+            'ALPHA_UNDER',
+            'CROSS',
+            'GAMMA_CROSS',
+            'MULTIPLY',
+            'WIPE',
+            'GLOW',
+            'COLOR',
+            'SPEED',
+            'MULTICAM',
+            'GAUSSIAN_BLUR',
+            'TEXT',
+            'COLORMIX',
         }
 
     def draw(self, context):
@@ -207,30 +217,6 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             row.enabled = strip.speed_control != 'STRETCH'
             row = layout.row(align=True, heading="Interpolation")
             row.prop(strip, "use_frame_interpolate", text="")
-
-        elif strip_type == 'TRANSFORM':
-            col = layout.column()
-
-            col.prop(strip, "interpolation")
-            col.prop(strip, "translation_unit")
-            col = layout.column(align=True)
-            col.prop(strip, "translate_start_x", text="Position X")
-            col.prop(strip, "translate_start_y", text="Y")
-
-            col.separator()
-
-            colsub = col.column(align=True)
-            colsub.prop(strip, "use_uniform_scale")
-            if strip.use_uniform_scale:
-                colsub = col.column(align=True)
-                colsub.prop(strip, "scale_start_x", text="Scale")
-            else:
-                col.prop(strip, "scale_start_x", text="Scale X")
-                col.prop(strip, "scale_start_y", text="Y")
-
-            col.separator()
-
-            col.prop(strip, "rotation_start", text="Rotation")
 
         elif strip_type == 'MULTICAM':
             col = layout.column(align=True)
@@ -921,8 +907,6 @@ class STRIP_PT_adjust_comp(StripButtonsPanel, Panel):
 class STRIP_PT_adjust_transform(StripButtonsPanel, Panel):
     bl_label = "Transform"
 
-    bl_options = {'DEFAULT_CLOSED'}
-
     @classmethod
     def poll(cls, context):
         strip = context.active_strip
@@ -973,8 +957,7 @@ class STRIP_PT_adjust_video(StripButtonsPanel, Panel):
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
+            'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
         }
 
     def draw(self, context):
@@ -1006,8 +989,7 @@ class STRIP_PT_adjust_color(StripButtonsPanel, Panel):
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
+            'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
         }
 
     def draw(self, context):

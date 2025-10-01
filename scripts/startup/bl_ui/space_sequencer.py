@@ -691,8 +691,7 @@ class SEQUENCER_MT_change(Menu):
         if strip and strip.type in {
             'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
             'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-            'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
-            'GAUSSIAN_BLUR',
+            'SPEED', 'MULTICAM', 'ADJUSTMENT', 'GAUSSIAN_BLUR',
         }:
             layout.menu("SEQUENCER_MT_strip_effect_change")
             layout.operator("sequencer.swap_inputs")
@@ -850,7 +849,6 @@ class SEQUENCER_MT_add_effect(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.effect_strip_add", text="Transform").type = 'TRANSFORM'
         col.operator("sequencer.effect_strip_add", text="Speed Control").type = 'SPEED'
         col.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
         col.operator("sequencer.effect_strip_add", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
@@ -1090,7 +1088,6 @@ class SEQUENCER_MT_strip_effect_change(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.change_effect_type", text="Transform").type = 'TRANSFORM'
         col.operator("sequencer.change_effect_type", text="Speed Control").type = 'SPEED'
         col.operator("sequencer.change_effect_type", text="Glow").type = 'GLOW'
         col.operator("sequencer.change_effect_type", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
@@ -1224,8 +1221,7 @@ class SEQUENCER_MT_strip(Menu):
                 if strip_type in {
                         'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                         'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-                        'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
-                        'GAUSSIAN_BLUR',
+                        'SPEED', 'MULTICAM', 'ADJUSTMENT', 'GAUSSIAN_BLUR',
                 }:
                     layout.separator()
                     layout.menu("SEQUENCER_MT_strip_effect")
@@ -1408,8 +1404,7 @@ class SEQUENCER_MT_context_menu(Menu):
             if strip_type in {
                     'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                     'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-                    'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
-                    'GAUSSIAN_BLUR',
+                    'SPEED', 'MULTICAM', 'ADJUSTMENT', 'GAUSSIAN_BLUR',
             }:
                 layout.separator()
                 layout.menu("SEQUENCER_MT_strip_effect")

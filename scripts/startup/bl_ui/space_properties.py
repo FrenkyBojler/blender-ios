@@ -33,7 +33,7 @@ class PROPERTIES_HT_header(Header):
                 space.show_properties_bone_constraints or
                 space.show_properties_material or
                 space.show_properties_texture or
-                space.show_properties_strip or 
+                space.show_properties_strip or
                 space.show_properties_strip_modifier
                 )
 
