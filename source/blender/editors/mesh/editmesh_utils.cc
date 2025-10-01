@@ -1534,6 +1534,23 @@ bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
     }
   }
 
+  /* In face select mode, also hidde loose edges that aren't part of any visible face.
+   */
+  if (em->selectmode & SCE_SELECT_FACE) {
+    BMEdge *e;
+    BMVert *v;
+
+    /* Hide unselected loose edges. */
+    BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+      if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN) &&
+          (BM_elem_flag_test(e, BM_ELEM_SELECT) ^ hflag_swap) && BM_edge_is_wire(e))
+      {
+        BM_elem_hide_set(em->bm, (BMElem *)e, true);
+        changed = true;
+      }
+    }
+  }
+
   if (changed) {
     EDBM_selectmode_flush(em);
   }
