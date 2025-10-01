@@ -123,7 +123,7 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
 
         ob = context.object
         assert ob
-        layout.template_matrix(ob, "matrix_parent_inverse")
+        layout.template_matrix(ob.matrix_parent_inverse)
 
         props = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform")
         props.type = "CLEAR_INVERSE"

@@ -1704,7 +1704,8 @@ void RNA_api_ui_layout(StructRNA *srna)
       "The UI displays the matrix components - translation, rotation and scale. "
       "The **property** argument must be the identifier of an existing 4x4 float vector "
       "property of subtype 'MATRIX'.");
-  api_ui_item_rna_common(func);
+  parm = RNA_def_float_matrix(func, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "template_any_ID", "rna_uiTemplateAnyID");
   parm = RNA_def_pointer(func, "data", "AnyType", "", "Data from which to take property");
