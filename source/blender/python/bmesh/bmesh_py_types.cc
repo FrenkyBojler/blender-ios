@@ -1723,6 +1723,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
                                    "O&" /* `select` */
                                    "|$" /* Optional keyword only arguments. */
                                    "O"  /* `loop_verts` */
+                                   "O"  /* `loop_edges` */
                                    "O"  /* `faces` */
                                    "O&" /* `sticky_select_mode` */
                                    ":uv_select_foreach_set",
