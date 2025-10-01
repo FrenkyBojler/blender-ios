@@ -91,7 +91,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
      ICON_NODETREE,
      "Node Editor",
      "Editor for node-based shading and compositing tools"},
-    {SPACE_SEQ, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequencer", "Video editing tools"},
+    {SPACE_SEQ,
+     "SEQUENCE_EDITOR",
+     ICON_SEQUENCE,
+     "Video Sequencer",
+     "Non-linear editor for arranging and mixing scenes, video, audio, and effects"},
     {SPACE_CLIP, "CLIP_EDITOR", ICON_TRACKER, "Movie Clip Editor", "Motion tracking tools"},
 
     /* Animation. */
@@ -171,7 +175,11 @@ const EnumPropertyItem rna_enum_space_graph_mode_items[] = {
      ICON_GRAPH,
      "Graph Editor",
      "Edit animation/keyframes displayed as 2D curves"},
-    {SIPO_MODE_DRIVERS, "DRIVERS", ICON_DRIVER, "Drivers", "Edit drivers"},
+    {SIPO_MODE_DRIVERS,
+     "DRIVERS",
+     ICON_DRIVER,
+     "Drivers",
+     "Define and edit drivers that link properties to custom functions or other data"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -187,8 +195,16 @@ const EnumPropertyItem rna_enum_space_sequencer_view_type_items[] = {
 };
 
 const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
-    {FILE_BROWSE_MODE_FILES, "FILES", ICON_FILEBROWSER, "File Browser", ""},
-    {FILE_BROWSE_MODE_ASSETS, "ASSETS", ICON_ASSET_MANAGER, "Asset Browser", ""},
+    {FILE_BROWSE_MODE_FILES,
+     "FILES",
+     ICON_FILEBROWSER,
+     "File Browser",
+     "Built-in file manager for opening, saving, and linking data"},
+    {FILE_BROWSE_MODE_ASSETS,
+     "ASSETS",
+     ICON_ASSET_MANAGER,
+     "Asset Browser",
+     "Manage assets in the current file and access linked asset libraries"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -268,19 +284,19 @@ const EnumPropertyItem rna_enum_space_action_mode_items[] = {
 
 #define SI_ITEM_VIEW(identifier, name, icon) \
   { \
-    SI_MODE_VIEW, identifier, icon, name, "View the image" \
+    SI_MODE_VIEW, identifier, icon, name, "Inspect images or render results" \
   }
 #define SI_ITEM_UV \
   { \
-    SI_MODE_UV, "UV", ICON_UV, "UV Editor", "UV edit in mesh editmode" \
+    SI_MODE_UV, "UV", ICON_UV, "UV Editor", "View and edit UVs" \
   }
 #define SI_ITEM_PAINT \
   { \
-    SI_MODE_PAINT, "PAINT", ICON_TPAINT_HLT, "Paint", "2D image painting mode" \
+    SI_MODE_PAINT, "PAINT", ICON_TPAINT_HLT, "Paint", "Paint images in 2D" \
   }
 #define SI_ITEM_MASK \
   { \
-    SI_MODE_MASK, "MASK", ICON_MOD_MASK, "Mask", "Mask editing" \
+    SI_MODE_MASK, "MASK", ICON_MOD_MASK, "Mask", "View and edit masks" \
   }
 
 const EnumPropertyItem rna_enum_space_image_mode_all_items[] = {
@@ -355,6 +371,40 @@ const EnumPropertyItem rna_enum_fileselect_params_sort_items[] = {
      "Sort the asset list so that assets in the same catalog are kept together. Within a single "
      "catalog, assets are ordered by name. The catalogs are in order of the flattened catalog "
      "hierarchy."},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem rna_enum_asset_import_method_items[] = {
+    {FILE_ASSET_IMPORT_FOLLOW_PREFS,
+     "FOLLOW_PREFS",
+     0,
+     "Follow Preferences",
+     "Use the import method set in the Preferences for this asset library, don't override it "
+     "for this Asset Browser"},
+    {FILE_ASSET_IMPORT_LINK,
+     "LINK",
+     ICON_LINK_BLEND,
+     "Link",
+     "Import the assets as linked data-block"},
+    {FILE_ASSET_IMPORT_APPEND,
+     "APPEND",
+     ICON_APPEND_BLEND,
+     "Append",
+     "Import the asset as copied data-block, with no link to the original asset data-block"},
+    {FILE_ASSET_IMPORT_APPEND_REUSE,
+     "APPEND_REUSE",
+     ICON_APPEND_BLEND,
+     "Append (Reuse Data)",
+     "Import the asset as copied data-block while avoiding multiple copies of nested, "
+     "typically heavy data. For example the textures of a material asset, or the mesh of an "
+     "object asset, don't have to be copied every time this asset is imported. The instances of "
+     "the asset share the data instead"},
+    {FILE_ASSET_IMPORT_PACK,
+     "PACK",
+     ICON_PACKAGE,
+     "Pack",
+     "Import the asset as linked data-block, and pack it in the current file (ensures that it "
+     "remains unchanged in case the library data is modified, is not available anymore, etc.)"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -2553,10 +2603,15 @@ static void rna_SpaceNodeEditor_node_tree_set(PointerRNA *ptr,
   ED_node_tree_start(region, snode, (bNodeTree *)value.data, nullptr, nullptr);
 }
 
-static bool rna_SpaceNodeEditor_selected_node_group_poll(PointerRNA * /*ptr*/,
+static bool rna_SpaceNodeEditor_selected_node_group_poll(PointerRNA *space_node_pointer,
                                                          const PointerRNA value)
 {
+  SpaceNode *space_node = space_node_pointer->data_as<SpaceNode>();
   const bNodeTree &ntree = *static_cast<const bNodeTree *>(value.data);
+  if (ED_node_is_compositor(space_node)) {
+    return ntree.type == NTREE_COMPOSIT;
+  }
+
   if (ntree.type != NTREE_GEOMETRY) {
     return false;
   }
@@ -2614,13 +2669,63 @@ static void rna_SpaceNodeEditor_node_tree_update(const bContext *C, PointerRNA *
   blender::ed::space_node::tree_update(C);
 }
 
+static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
+    bContext * /*context*/,
+    PointerRNA *space_node_pointer,
+    PropertyRNA * /*property*/,
+    bool * /*r_free*/)
+{
+  static const EnumPropertyItem geometry_nodes_sub_type_items[] = {
+      {SNODE_GEOMETRY_MODIFIER,
+       "MODIFIER",
+       ICON_MODIFIER_DATA,
+       "Modifier",
+       "Edit node group from active object's active modifier"},
+      {SNODE_GEOMETRY_TOOL,
+       "TOOL",
+       ICON_TOOL_SETTINGS,
+       "Tool",
+       "Edit any geometry node group for use as an operator"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem compositor_sub_type_items[] = {
+      {SNODE_COMPOSITOR_SCENE,
+       "SCENE",
+       ICON_SCENE_DATA,
+       "Scene",
+       "Edit compositing node group for the current scene"},
+      {SNODE_COMPOSITOR_SEQUENCER,
+       "SEQUENCER",
+       ICON_SEQUENCE,
+       "Sequencer",
+       "Edit compositing node group for Sequencer strip modifiers"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  SpaceNode *space_node = space_node_pointer->data_as<SpaceNode>();
+  if (ED_node_is_geometry(space_node)) {
+    return geometry_nodes_sub_type_items;
+  }
+  else {
+    return compositor_sub_type_items;
+  }
+}
+
 static void rna_SpaceNodeEditor_node_tree_sub_type_update(Main * /*main*/,
                                                           Scene * /*scene*/,
-                                                          PointerRNA *ptr)
+                                                          PointerRNA *space_node_pointer)
 {
-  SpaceNode *snode = static_cast<SpaceNode *>(ptr->data);
-  if (snode->node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
-    snode->flag &= ~SNODE_PIN;
+  SpaceNode *space_node = space_node_pointer->data_as<SpaceNode>();
+  if (ED_node_is_geometry(space_node)) {
+    if (space_node->node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
+      space_node->flag &= ~SNODE_PIN;
+    }
+  }
+  else {
+    if (space_node->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER) {
+      space_node->flag &= ~SNODE_PIN;
+    }
   }
 }
 
@@ -2817,6 +2922,17 @@ static void rna_SpaceClipEditor_zoom_percentage_set(PointerRNA *ptr, const float
 {
   SpaceClip *sc = (SpaceClip *)ptr->data;
   sc->zoom = value / 100.0f;
+}
+
+static PointerRNA rna_SpaceClip_overlay_get(PointerRNA *ptr)
+{
+  return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceClipOverlay, ptr->data);
+}
+
+static std::optional<std::string> rna_SpaceClipOverlay_path(const PointerRNA *ptr)
+{
+  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  return fmt::format("{}{}{}", editor_path.value_or(""), editor_path ? "." : "", "overlay");
 }
 
 /* File browser. */
@@ -3182,9 +3298,9 @@ static void rna_FileBrowser_FSMenu_begin(CollectionPropertyIterator *iter, FSMen
 static PointerRNA rna_FileBrowser_FSMenu_get(CollectionPropertyIterator *iter)
 {
   ListBaseIterator *internal = &iter->internal.listbase;
-  PointerRNA r_ptr = RNA_pointer_create_with_parent(
+  PointerRNA ptr_result = RNA_pointer_create_with_parent(
       iter->parent, &RNA_FileBrowserFSMenuEntry, internal->link);
-  return r_ptr;
+  return ptr_result;
 }
 
 static void rna_FileBrowser_FSMenu_end(CollectionPropertyIterator * /*iter*/) {}
@@ -3602,6 +3718,37 @@ static void rna_FileAssetSelectParams_catalog_id_set(PointerRNA *ptr, const char
 
   params->catalog_id = new_uuid;
   params->asset_catalog_visibility = FILE_SHOW_ASSETS_FROM_CATALOG;
+}
+
+static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
+    bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+{
+  EnumPropertyItem *items = nullptr;
+  int items_num = 0;
+  for (const EnumPropertyItem *item = rna_enum_asset_import_method_items; item->identifier; item++)
+  {
+    switch (eFileAssetImportMethod(item->value)) {
+      case FILE_ASSET_IMPORT_APPEND_REUSE: {
+        if (U.experimental.no_data_block_packing) {
+          RNA_enum_item_add(&items, &items_num, item);
+        }
+        break;
+      }
+      case FILE_ASSET_IMPORT_PACK: {
+        if (!U.experimental.no_data_block_packing) {
+          RNA_enum_item_add(&items, &items_num, item);
+        }
+        break;
+      }
+      default: {
+        RNA_enum_item_add(&items, &items_num, item);
+        break;
+      }
+    }
+  }
+  RNA_enum_item_end(&items, &items_num);
+  *r_free = true;
+  return items;
 }
 
 #else
@@ -7368,30 +7515,6 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem asset_import_method_items[] = {
-      {FILE_ASSET_IMPORT_FOLLOW_PREFS,
-       "FOLLOW_PREFS",
-       0,
-       "Follow Preferences",
-       "Use the import method set in the Preferences for this asset library, don't override it "
-       "for this Asset Browser"},
-      {FILE_ASSET_IMPORT_LINK, "LINK", 0, "Link", "Import the assets as linked data-block"},
-      {FILE_ASSET_IMPORT_APPEND,
-       "APPEND",
-       0,
-       "Append",
-       "Import the assets as copied data-block, with no link to the original asset data-block"},
-      {FILE_ASSET_IMPORT_APPEND_REUSE,
-       "APPEND_REUSE",
-       0,
-       "Append (Reuse Data)",
-       "Import the assets as copied data-block while avoiding multiple copies of nested, "
-       "typically heavy data. For example the textures of a material asset, or the mesh of an "
-       "object asset, don't have to be copied every time this asset is imported. The instances of "
-       "the asset share the data instead"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   srna = RNA_def_struct(brna, "FileAssetSelectParams", "FileSelectParams");
   RNA_def_struct_ui_text(
       srna, "Asset Select Parameters", "Settings for the file selection in Asset Browser mode");
@@ -7420,7 +7543,9 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
                            "Which asset types to show/hide, when browsing an asset library");
 
   prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, asset_import_method_items);
+  RNA_def_property_enum_items(prop, rna_enum_asset_import_method_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, nullptr, "rna_FileAssetSelectParams_import_method_itemf");
   RNA_def_property_ui_text(prop, "Import Method", "Determine how the asset will be imported");
   /* Asset drag info saved by buttons stores the import method, so the space must redraw when
    * import method changes. */
@@ -7708,6 +7833,8 @@ static void rna_def_space_userpref(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "SpaceUserPref");
   RNA_def_struct_ui_text(srna, "Space Preferences", "Blender preferences space data");
 
+  rna_def_space_generic_show_region_toggles(srna, (1 << RGN_TYPE_UI));
+
   prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "filter_type");
   RNA_def_property_enum_items(prop, filter_type_items);
@@ -7886,20 +8013,6 @@ static void rna_def_space_node(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem geometry_nodes_type_items[] = {
-      {SNODE_GEOMETRY_MODIFIER,
-       "MODIFIER",
-       0,
-       "Modifier",
-       "Edit node group from active object's active modifier"},
-      {SNODE_GEOMETRY_TOOL,
-       "TOOL",
-       0,
-       "Tool",
-       "Edit any geometry node group for use as an operator"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem backdrop_channels_items[] = {
       {SNODE_USE_ALPHA,
        "COLOR_ALPHA",
@@ -7953,7 +8066,9 @@ static void rna_def_space_node(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "node_tree_sub_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "node_tree_sub_type");
-  RNA_def_property_enum_items(prop, geometry_nodes_type_items);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_NULL_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, nullptr, "rna_SpaceNodeEditor_node_tree_sub_type_itemf");
   RNA_def_property_ui_text(prop, "Node Tree Sub-Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_update(
@@ -8084,6 +8199,31 @@ static void rna_def_space_node(BlenderRNA *brna)
 
   rna_def_space_node_overlay(brna);
   RNA_api_space_node(srna);
+}
+
+static void rna_def_space_clip_overlay(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "SpaceClipOverlay", nullptr);
+  RNA_def_struct_sdna(srna, "SpaceClip");
+  RNA_def_struct_nested(brna, srna, "SpaceClipEditor");
+  RNA_def_struct_path_func(srna, "rna_SpaceClipOverlay_path");
+  RNA_def_struct_ui_text(
+      srna, "Overlay Settings", "Settings for display of overlays in the Movie Clip editor");
+
+  prop = RNA_def_property(srna, "show_overlays", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SC_SHOW_OVERLAYS);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays like cursor and annotations");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
+
+  prop = RNA_def_property(srna, "show_cursor", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SC_SHOW_CURSOR);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "Show Overlays", "Display 2D cursor");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 }
 
 static void rna_def_space_clip(BlenderRNA *brna)
@@ -8406,6 +8546,16 @@ static void rna_def_space_clip(BlenderRNA *brna)
   RNA_def_property_range(prop, .4f, 80000);
   RNA_def_property_ui_range(prop, 25, 400, 100, 0);
   RNA_def_property_ui_text(prop, "Zoom", "Zoom percentage");
+
+  /* Overlays */
+  prop = RNA_def_property(srna, "overlay", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_struct_type(prop, "SpaceClipOverlay");
+  RNA_def_property_pointer_funcs(prop, "rna_SpaceClip_overlay_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(
+      prop, "Overlay Settings", "Settings for display of overlays in the Movie Clip editor");
+
+  rna_def_space_clip_overlay(brna);
 }
 
 static void rna_def_spreadsheet_column_id(BlenderRNA *brna)
