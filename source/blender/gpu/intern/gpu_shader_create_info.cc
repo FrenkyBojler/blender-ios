@@ -336,6 +336,19 @@ std::string ShaderCreateInfo::check_error() const
     }
   }
 
+  for (const StageInterfaceInfo *interface : this->vertex_out_interfaces_) {
+    for (const StageInterfaceInfo::InOut &inout : interface->inouts) {
+      if (inout.name.is_array()) {
+        error += "Shader " + this->name_ + " : \"" + interface->name + "." + inout.name + "\":";
+        error += " Array types are not allowed in shader stage interfaces.\n";
+      }
+      if (inout.type == Type::float3x3_t || inout.type == Type::float4x4_t) {
+        error += "Shader " + this->name_ + " : \"" + interface->name + "." + inout.name + "\":";
+        error += " Matrix types are not allowed in shader stage interfaces.\n";
+      }
+    }
+  }
+
   if (!this->is_vulkan_compatible()) {
     error += this->name_ +
              " contains a stage interface using an instance name and mixed interpolation modes. "
