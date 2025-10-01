@@ -152,7 +152,10 @@ class NODE_HT_header(Header):
             if snode.node_tree_sub_type == 'SCENE':
                 row = layout.row()
                 row.enabled = not snode.pin
-                row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
+                if scene.compositing_node_group:
+                    row.template_ID(scene, "compositing_node_group", new="node.duplicate_compositing_node_group")
+                else:
+                    row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
             elif snode.node_tree_sub_type == 'SEQUENCER':
                 row = layout.row()
                 sequencer_scene = context.workspace.sequencer_scene
@@ -279,7 +282,6 @@ class NODE_MT_editor_menus(Menu):
         layout.menu("NODE_MT_view")
         layout.menu("NODE_MT_select")
         layout.menu("NODE_MT_add")
-        layout.menu("NODE_MT_swap")
         layout.menu("NODE_MT_node")
 
 
@@ -440,6 +442,7 @@ class NODE_MT_node(Menu):
         layout.separator()
         layout.operator("node.join", text="Join in New Frame")
         layout.operator("node.detach", text="Remove from Frame")
+        layout.operator("node.join_nodes", text="Join Group Inputs")
 
         layout.separator()
         props = layout.operator("wm.call_panel", text="Rename...")
@@ -461,6 +464,7 @@ class NODE_MT_node(Menu):
             layout.operator("node.group_ungroup")
 
         layout.separator()
+        layout.menu("NODE_MT_swap")
         layout.menu("NODE_MT_context_menu_show_hide_menu")
 
         if is_compositor:

@@ -525,7 +525,7 @@ class NodeTreeMainUpdater {
     this->make_node_previews_dirty(ntree);
 
     this->propagate_runtime_flags(ntree);
-    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT, NTREE_SHADER)) {
       if (this->propagate_enum_definitions(ntree)) {
         result.interface_changed = true;
       }
@@ -743,7 +743,9 @@ class NodeTreeMainUpdater {
         if (!output_socket->is_available()) {
           continue;
         }
-        if (output_socket->flag & SOCK_NO_INTERNAL_LINK) {
+        if (output_socket->runtime->declaration &&
+            output_socket->runtime->declaration->no_mute_links)
+        {
           continue;
         }
         const bNodeSocket *input_socket = this->find_internally_linked_input(ntree, output_socket);
@@ -798,7 +800,8 @@ class NodeTreeMainUpdater {
       if (!input_socket->is_available()) {
         continue;
       }
-      if (input_socket->flag & SOCK_NO_INTERNAL_LINK) {
+      if (input_socket->runtime->declaration && input_socket->runtime->declaration->no_mute_links)
+      {
         continue;
       }
       const int priority = get_internal_link_type_priority(input_socket->typeinfo,
@@ -973,6 +976,11 @@ class NodeTreeMainUpdater {
       const bke::bNodeZoneType *closure_zone_type = bke::zone_type_by_node_type(
           NODE_CLOSURE_OUTPUT);
       switch (node->type_legacy) {
+        case NODE_REROUTE: {
+          node->input_socket(0).display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+          node->output_socket(0).display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+          break;
+        }
         case NODE_GROUP_OUTPUT:
         case NODE_GROUP_INPUT: {
           for (bNodeSocket *socket : node->input_sockets()) {
