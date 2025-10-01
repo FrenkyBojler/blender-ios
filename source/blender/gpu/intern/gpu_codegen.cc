@@ -494,7 +494,7 @@ void GPUCodegen::generate_uniform_buffer()
   /* Extract uniform inputs. */
   LISTBASE_FOREACH (GPUNode *, node, &graph.nodes) {
     LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
-      if (input->source == GPU_SOURCE_UNIFORM && !input->link) {
+      if (input->source == GPU_SOURCE_UNIFORM && !input->link && !input->is_duplicate) {
         /* We handle the UBO uniforms separately. */
         BLI_addtail(&ubo_inputs_, BLI_genericNodeN(input));
         uniforms_total_++;
