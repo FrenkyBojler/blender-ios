@@ -1,1 +1,2 @@
 Referenced by issue #147155, 5.0: Crash opening a file created with recent build
+Referenced by commit 60f8d625a4fa4a564dfa603351cd15d06fecdd5b, Fix #147155: Crash opening a blend file
