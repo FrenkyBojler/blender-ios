@@ -34,6 +34,7 @@
 #include "mtl_debug.hh"
 #include "mtl_pso_descriptor_state.hh"
 #include "mtl_shader.hh"
+#include "mtl_shader_generate.hh"
 #include "mtl_shader_generator.hh"
 #include "mtl_shader_interface.hh"
 #include "mtl_shader_log.hh"
@@ -189,6 +190,16 @@ MTLShader::~MTLShader()
 void MTLShader::init(const shader::ShaderCreateInfo & /*info*/, bool is_batch_compilation)
 {
   async_compilation_ = is_batch_compilation;
+}
+
+const shader::ShaderCreateInfo &MTLShader::patch_create_info(
+    const shader::ShaderCreateInfo &original_info)
+{
+  if (!MTLBackend::get_capabilities().supports_texture_atomics) {
+    patch_create_info_atomic_workaround(patched_info_, patched_info_strings_, original_info);
+  }
+
+  return patched_info_ != nullptr ? *patched_info_ : original_info;
 }
 
 /** \} */

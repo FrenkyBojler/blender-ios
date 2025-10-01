@@ -6,6 +6,8 @@
 #include <sstream>
 #include <string>
 
+#include "BLI_math_bits.h"
+
 #include "gpu_shader_dependency_private.hh"
 #include "mtl_backend.hh"
 #include "mtl_shader_generate.hh"
@@ -714,6 +716,8 @@ static void generate_texture(GeneratedStreams &generated,
                              int slot,
                              const ShaderStage stage)
 {
+  const bool supports_native_atomics = MTLBackend::get_capabilities().supports_texture_atomics;
+
   if (ELEM(type, ImageType::FloatBuffer, ImageType::IntBuffer, ImageType::UintBuffer)) {
     /* These cannot be declared with sample access. */
     is_sampler = false;
@@ -745,11 +749,44 @@ static void generate_texture(GeneratedStreams &generated,
   {
     /* Constructor arguments. */
     auto &out = generated.wrapper_instance_init;
+    std::string atomic_args;
+    if (!supports_native_atomics) {
+      std::string prefix;
+      std::string suffix;
+      if (stage == ShaderStage::VERTEX) {
+        /* Keep buffer declaration as const to avoid warning. */
+        prefix = "const_cast<device " + to_component_type(type) + " *>(";
+        suffix = ")";
+      }
+
+      /* Pass the additional buffer and the metadata. */
+      if (ELEM(type,
+               ImageType::AtomicUint2DArray,
+               ImageType::AtomicUint3D,
+               ImageType::AtomicInt2DArray,
+               ImageType::AtomicInt3D))
+      {
+        /* Buffer-backed 2D Array and 3D texture types are not natively supported so texture size
+         * is passed in as uniform metadata for 3D to 2D coordinate remapping. */
+        atomic_args += ", {";
+        atomic_args += prefix + name + "_buf_" + suffix + ", ";
+        atomic_args += "ushort3(mtl_pc->" + name + "_metadata_.xyz), ";
+        atomic_args += "ushort(mtl_pc->" + name + "_metadata_.w)";
+        atomic_args += "}";
+      }
+      else if (ELEM(type, ImageType::AtomicUint2D, ImageType::AtomicInt2D)) {
+        /* Only pass buffer and alignment. */
+        atomic_args += ", {";
+        atomic_args += prefix + name + "_buf_" + suffix + ", ";
+        atomic_args += "ushort(mtl_pc->" + name + "_metadata_.w)";
+        atomic_args += "}";
+      }
+    }
     if (is_sampler) {
-      out << Sep() << wrapper_str << "{&" << name << ", &" << sampler_name << "}";
+      out << Sep() << wrapper_str << "{&" << name << ", &" << sampler_name << atomic_args << "}";
     }
     else {
-      out << Sep() << wrapper_str << "{&" << name << "}";
+      out << Sep() << wrapper_str << "{&" << name << ", nullptr " << atomic_args << "}";
     }
   }
   {
@@ -1372,8 +1409,8 @@ static void generate_builtins(GeneratedStreams &ss,
 }
 
 /* Return available buffer slots for vertex buffer bindings. */
-uint32_t vertex_stage_available_slots(const ShaderCreateInfo &info,
-                                      const bool use_sampler_argument_buffer)
+uint32_t available_buffer_slots(const ShaderCreateInfo &info,
+                                const bool use_sampler_argument_buffer)
 {
   uint32_t free_slots = ~((~0u) << 31u);
 
@@ -1557,4 +1594,65 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
   return out.str();
 }
 
+uint32_t get_and_occupy_next_slot(uint32_t &buffer_mask)
+{
+  uint32_t slot = bitscan_forward_uint(buffer_mask);
+  BLI_assert(slot < 31);
+  buffer_mask &= ~(1 << slot);
+  return slot;
+}
+
+void patch_create_info_atomic_workaround(std::unique_ptr<shader::ShaderCreateInfo> &patched_info,
+                                         shader::ShaderCreateInfoStringCache &patched_names,
+                                         const shader::ShaderCreateInfo &original_info)
+{
+  uint32_t free_slots = 0;
+  auto ensure_atomic_workaround = [&](ImageType type, StringRefNull name) {
+    if (!ELEM(type,
+              ImageType::AtomicUint2D,
+              ImageType::AtomicUint2DArray,
+              ImageType::AtomicUint3D,
+              ImageType::AtomicInt2D,
+              ImageType::AtomicInt2DArray,
+              ImageType::AtomicInt3D))
+    {
+      return;
+    }
+
+    if (patched_info == nullptr) {
+      patched_info = std::make_unique<shader::ShaderCreateInfo>(original_info);
+      free_slots = available_buffer_slots(original_info, false /* Not needed. */);
+    }
+    int slot = get_and_occupy_next_slot(free_slots);
+    patched_names.append(std::make_unique<std::string>(name + "_buf_[]"));
+    patched_info->storage_buf(
+        slot, Qualifier::read_write, to_component_type(type), *patched_names.last());
+    patched_names.append(std::make_unique<std::string>(name + "_metadata_"));
+    patched_info->push_constant(Type::uint4_t, *patched_names.last());
+  };
+
+  auto ensure_atomic_workaround_resource = [&](const ShaderCreateInfo::Resource &res) {
+    switch (res.bind_type) {
+      case ShaderCreateInfo::Resource::BindType::SAMPLER:
+        ensure_atomic_workaround(res.sampler.type, res.sampler.name);
+        break;
+      case ShaderCreateInfo::Resource::BindType::IMAGE:
+        ensure_atomic_workaround(res.image.type, res.image.name);
+        break;
+      case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
+      case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
+        break;
+    }
+  };
+
+  for (const ShaderCreateInfo::Resource &res : original_info.pass_resources_) {
+    ensure_atomic_workaround_resource(res);
+  }
+  for (const ShaderCreateInfo::Resource &res : original_info.batch_resources_) {
+    ensure_atomic_workaround_resource(res);
+  }
+  for (const ShaderCreateInfo::Resource &res : original_info.geometry_resources_) {
+    ensure_atomic_workaround_resource(res);
+  }
+}
 }  // namespace blender::gpu

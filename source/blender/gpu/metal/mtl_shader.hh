@@ -240,6 +240,10 @@ class MTLShader : public Shader {
 
   void init(const shader::ShaderCreateInfo & /*info*/, bool is_batch_compilation) override;
 
+  /* Patch create infos for any additional resources that could be needed. */
+  const shader::ShaderCreateInfo &patch_create_info(
+      const shader::ShaderCreateInfo &original_info) override;
+
   /* Assign GLSL source. */
   void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
   void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
@@ -624,5 +628,7 @@ inline bool mtl_convert_vertex_format(MTLVertexFormat shader_attr_format,
       shader_attr_format, component_type, component_len, fetch_mode);
   return (*r_convertedFormat != MTLVertexFormatInvalid);
 }
+
+uint32_t get_and_occupy_next_slot(uint32_t &buffer_mask);
 
 }  // namespace blender::gpu

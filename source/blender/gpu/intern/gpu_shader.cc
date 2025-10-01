@@ -649,33 +649,37 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 /** \name ShaderCompiler
  * \{ */
 
-Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
+Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
+                                bool is_batch_compilation)
 {
   using Clock = std::chrono::steady_clock;
   using TimePoint = Clock::time_point;
 
   using namespace blender::gpu::shader;
-  const_cast<ShaderCreateInfo &>(info).finalize();
-  BLI_assert(info.do_static_compilation_ || info.is_generated_);
+  const_cast<ShaderCreateInfo &>(orig_info).finalize();
+  BLI_assert(orig_info.do_static_compilation_ || orig_info.is_generated_);
 
   TimePoint start_time;
 
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
     GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
-    GPU_debug_group_begin(info.name_.c_str());
+    GPU_debug_group_begin(orig_info.name_.c_str());
   }
   else if (G.profile_gpu) {
     start_time = Clock::now();
   }
 
-  const std::string error = info.check_error();
+  const std::string error = orig_info.check_error();
   if (!error.empty()) {
     std::cerr << error << "\n";
     BLI_assert(false);
   }
 
-  Shader *shader = GPUBackend::get()->shader_alloc(info.name_.c_str());
+  Shader *shader = GPUBackend::get()->shader_alloc(orig_info.name_.c_str());
+
+  const shader::ShaderCreateInfo &info = shader->patch_create_info(orig_info);
+
   /* Needs to be called before init as GL uses the default specialization constants state to insert
    * default shader inside a map. */
   shader->specialization_constants_init(info);

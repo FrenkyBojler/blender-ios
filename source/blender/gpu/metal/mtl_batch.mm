@@ -98,14 +98,6 @@ bool MTLBatch::MTLVertexDescriptorCache::insert(
   return false;
 }
 
-static uint32_t get_and_occupy_next_slot(uint32_t &buffer_mask)
-{
-  uint32_t slot = bitscan_forward_uint(buffer_mask);
-  BLI_assert(slot < 31);
-  buffer_mask &= ~(1 << slot);
-  return slot;
-}
-
 /* Return index inside the vertex descriptor. */
 VertBufBinding MTLBatch::prepare_vertex_binding(MTLVertBuf *verts,
                                                 MTLRenderPipelineStateDescriptor &desc,

@@ -65,12 +65,21 @@ class Shader {
    * when updating new materials. */
   Shader *parent_shader_ = nullptr;
 
+  /* In some situation, a backend might want to transform the create infos before it is being
+   * parsed. */
+  std::unique_ptr<shader::ShaderCreateInfo> patched_info_ = nullptr;
+  shader::ShaderCreateInfoStringCache patched_info_strings_;
+
  public:
   Shader(const char *name);
   virtual ~Shader();
 
   /* TODO: Remove `is_batch_compilation`. */
   virtual void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) = 0;
+
+  /* Patch create infos for any additional resources that could be needed. */
+  virtual const shader::ShaderCreateInfo &patch_create_info(
+      const shader::ShaderCreateInfo &original_info) = 0;
 
   virtual void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
   virtual void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
