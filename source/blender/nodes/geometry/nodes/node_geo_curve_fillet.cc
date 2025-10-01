@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Curve")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
-      .description("Curves to generated rounded corners on");
+      .description("Curves to generate rounded corners on");
   b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Float>("Radius")
       .min(0.0f)
@@ -47,6 +47,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Limit the maximum value of the radius in order to avoid overlapping fillets");
   b.add_input<decl::Menu>("Mode")
       .static_items(mode_items)
+      .optional_label()
       .description("How to choose number of vertices on fillet");
   b.add_input<decl::Int>("Count")
       .default_value(1)

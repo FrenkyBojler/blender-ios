@@ -115,6 +115,17 @@ static void palette_free_data(ID *id)
   BLI_freelistN(&palette->colors);
 }
 
+static void palette_foreach_working_space_color(ID *id,
+                                                const IDTypeForeachColorFunctionCallback &fn)
+{
+  Palette *palette = (Palette *)id;
+
+  LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
+    fn.single(color->color);
+    BKE_palette_color_sync_legacy(color);
+  }
+}
+
 static void palette_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Palette *palette = (Palette *)id;
@@ -161,6 +172,7 @@ IDTypeInfo IDType_ID_PAL = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ palette_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ palette_blend_write,
@@ -230,6 +242,7 @@ IDTypeInfo IDType_ID_PC = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ paint_curve_blend_write,
@@ -271,7 +284,7 @@ void BKE_paint_invalidate_cursor_overlay(Scene *scene, ViewLayer *view_layer, Cu
   }
 
   Brush *br = BKE_paint_brush(paint);
-  if (br && br->curve == curve) {
+  if (br && br->curve_distance_falloff == curve) {
     overlay_flags |= PAINT_OVERLAY_INVALID_CURVE;
   }
 }
@@ -1672,7 +1685,7 @@ void BKE_paint_cavity_curve_preset(Paint *paint, int preset)
   cumap->preset = preset;
 
   cuma = cumap->cm;
-  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Positive);
   BKE_curvemapping_changed(cumap, false);
 }
 
@@ -1898,6 +1911,38 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   }
 
   dst->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
+  dst->runtime->paint_mode = src->runtime->paint_mode;
+  dst->runtime->ob_mode = src->runtime->ob_mode;
+  dst->runtime->initialized = true;
+}
+
+void BKE_paint_settings_foreach_mode(ToolSettings *ts, blender::FunctionRef<void(Paint *paint)> fn)
+{
+  if (ts->vpaint) {
+    fn(reinterpret_cast<Paint *>(ts->vpaint));
+  }
+  if (ts->wpaint) {
+    fn(reinterpret_cast<Paint *>(ts->wpaint));
+  }
+  if (ts->sculpt) {
+    fn(reinterpret_cast<Paint *>(ts->sculpt));
+  }
+  if (ts->gp_paint) {
+    fn(reinterpret_cast<Paint *>(ts->gp_paint));
+  }
+  if (ts->gp_vertexpaint) {
+    fn(reinterpret_cast<Paint *>(ts->gp_vertexpaint));
+  }
+  if (ts->gp_sculptpaint) {
+    fn(reinterpret_cast<Paint *>(ts->gp_sculptpaint));
+  }
+  if (ts->gp_weightpaint) {
+    fn(reinterpret_cast<Paint *>(ts->gp_weightpaint));
+  }
+  if (ts->curves_sculpt) {
+    fn(reinterpret_cast<Paint *>(ts->curves_sculpt));
+  }
+  fn(reinterpret_cast<Paint *>(&ts->imapaint));
 }
 
 void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3])

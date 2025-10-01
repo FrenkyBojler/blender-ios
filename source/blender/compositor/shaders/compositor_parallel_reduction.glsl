@@ -39,7 +39,7 @@
  * The shader is generic enough to implement many types of reductions. This is done by using macros
  * that the developer should define to implement a certain reduction operation. Those include,
  * TYPE, IDENTITY, INITIALIZE, LOAD, REDUCE, and WRITE. See the implementation below for more
- * information as well as the compositor_parallel_reduction_info.hh for example reductions
+ * information as well as the compositor_parallel_reduction_infos.hh for example reductions
  * operations. */
 
 /* Doing the reduction in shared memory is faster, so create a shared array where the whole data
@@ -48,13 +48,15 @@
  * expected to define the TYPE macro to be a float or a vec4, depending on the type of data being
  * reduced. */
 
-#include "infos/compositor_parallel_reduction_info.hh"
+#include "infos/compositor_parallel_reduction_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(compositor_parallel_reduction_shared)
 COMPUTE_SHADER_CREATE_INFO(compositor_parallel_reduction_output_float4)
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 #define reduction_size (gl_WorkGroupSize.x * gl_WorkGroupSize.y)

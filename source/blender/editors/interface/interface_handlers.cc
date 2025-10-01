@@ -3472,7 +3472,7 @@ const wmIMEData *ui_but_ime_data_get(uiBut *but)
 {
   uiHandleButtonData *data = but->semi_modal_state ? but->semi_modal_state : but->active;
 
-  if (data && data->window) {
+  if (data && data->window && data->window->runtime->ime_data_is_composing) {
     return data->window->runtime->ime_data;
   }
   return nullptr;
@@ -5142,7 +5142,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
   BLI_assert(view_item_but->type == ButType::ViewItem);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
-    if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
+    if (event->type == LEFTMOUSE) {
       switch (event->val) {
         case KM_PRESS:
           /* Extra icons have priority, don't mess with them. */
@@ -5154,9 +5154,6 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
             button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
             data->dragstartx = event->xy[0];
             data->dragstarty = event->xy[1];
-          }
-          else {
-            force_activate_view_item_but(C, data->region, view_item_but);
           }
 
           /* Always continue for drag and drop handling. Also for cases where keymap items are
@@ -9962,7 +9959,7 @@ static int ui_list_get_increment(const uiList *ui_list, const int type, const in
 
   /* Handle column offsets for grid layouts. */
   if (ELEM(type, EVT_UPARROWKEY, EVT_DOWNARROWKEY) &&
-      ELEM(ui_list->layout_type, UILST_LAYOUT_GRID, UILST_LAYOUT_BIG_PREVIEW_GRID))
+      ELEM(ui_list->layout_type, UILST_LAYOUT_BIG_PREVIEW_GRID))
   {
     increment = (type == EVT_UPARROWKEY) ? -columns : columns;
   }
@@ -11558,7 +11555,9 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
         /* handle animation */
         if (!(block->pie_data.flags & UI_PIE_ANIMATION_FINISHED)) {
-          const double final_time = 0.01 * U.pie_animation_timeout;
+          const double final_time = (U.uiflag & USER_REDUCE_MOTION) ?
+                                        0.0f :
+                                        0.01 * U.pie_animation_timeout;
           float fac = duration / final_time;
           const float pie_radius = U.pie_menu_radius * UI_SCALE_FAC;
 

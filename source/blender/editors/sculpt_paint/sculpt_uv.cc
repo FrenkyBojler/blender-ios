@@ -161,10 +161,11 @@ static void apply_sculpt_data_constraints(UvSculptData *sculptdata, float uv[2])
 
 static float calc_strength(const UvSculptData *sculptdata, float p, const float len)
 {
-  float strength = BKE_brush_curve_strength(eBrushCurvePreset(sculptdata->uvsculpt->curve_preset),
-                                            sculptdata->uvsculpt->strength_curve,
-                                            p,
-                                            len);
+  float strength = BKE_brush_curve_strength(
+      eBrushCurvePreset(sculptdata->uvsculpt->curve_distance_falloff_preset),
+      sculptdata->uvsculpt->curve_distance_falloff,
+      p,
+      len);
 
   CLAMP(strength, 0.0f, 1.0f);
 
@@ -660,7 +661,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
   op->customdata = data;
 
-  BKE_curvemapping_init(ts->uvsculpt.strength_curve);
+  BKE_curvemapping_init(ts->uvsculpt.curve_distance_falloff);
 
   if (!data) {
     return nullptr;
@@ -1023,7 +1024,7 @@ void SCULPT_OT_uv_sculpt_relax(wmOperatorType *ot)
   RNA_def_enum(ot->srna,
                "relax_method",
                relax_method_items,
-               CURVE_PRESET_SMOOTH,
+               UV_SCULPT_BRUSH_TYPE_RELAX_LAPLACIAN,
                "Relax Method",
                "Algorithm used for UV relaxation");
 }

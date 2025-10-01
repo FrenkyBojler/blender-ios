@@ -169,8 +169,13 @@ class SocketValueInferencerImpl {
         return;
       }
       case GEO_NODE_MENU_SWITCH: {
-        this->value_task__output__generic_switch(
-            socket, switch_node_inference_utils::is_socket_selected__menu_switch);
+        if (socket->index() == 0) {
+          this->value_task__output__generic_switch(
+              socket, switch_node_inference_utils::is_socket_selected__menu_switch);
+        }
+        else {
+          this->value_task__output__menu_switch_selection(socket);
+        }
         return;
       }
       case SH_NODE_MIX: {
@@ -200,6 +205,10 @@ class SocketValueInferencerImpl {
         return;
       }
       default: {
+        if (node->is_type("NodeEnableOutput")) {
+          this->value_task__output__enable_output(socket);
+          return;
+        }
         if (node->typeinfo->build_multi_function) {
           this->value_task__output__multi_function_node(socket);
           return;
@@ -270,6 +279,26 @@ class SocketValueInferencerImpl {
       return;
     }
     all_socket_values_.add_new(socket, *value);
+  }
+
+  void value_task__output__menu_switch_selection(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const SocketInContext input_socket = node.input_socket(0);
+    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(input_socket);
+    if (!value.has_value()) {
+      this->push_value_task(input_socket);
+      return;
+    }
+    const std::optional<MenuValue> menu_value = value->get_if_primitive<MenuValue>();
+    if (!menu_value.has_value()) {
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
+      return;
+    }
+    const NodeMenuSwitch &storage = *static_cast<const NodeMenuSwitch *>(node->storage);
+    const NodeEnumItem &item = storage.enum_definition.items_array[socket->index() - 1];
+    const bool is_selected = item.identifier == menu_value->value;
+    all_socket_values_.add_new(socket, this->make_primitive_inference_value(is_selected));
   }
 
   void value_task__output__float_math(const SocketInContext &socket)
@@ -470,6 +499,36 @@ class SocketValueInferencerImpl {
         break;
       }
     }
+  }
+
+  void value_task__output__enable_output(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const SocketInContext enable_input_socket = node.input_socket(0);
+    const SocketInContext value_input_socket = node.input_socket(1);
+
+    const std::optional<InferenceValue> keep_value = all_socket_values_.lookup_try(
+        enable_input_socket);
+    if (!keep_value.has_value()) {
+      this->push_value_task(enable_input_socket);
+      return;
+    }
+    if (!keep_value->is_primitive_value()) {
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
+      return;
+    }
+    const bool keep = keep_value->get_primitive<bool>();
+    if (!keep) {
+      const CPPType &type = *socket->typeinfo->base_cpp_type;
+      all_socket_values_.add_new(socket, InferenceValue::from_primitive(type.default_value()));
+      return;
+    }
+    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(value_input_socket);
+    if (!value.has_value()) {
+      this->push_value_task(value_input_socket);
+      return;
+    }
+    all_socket_values_.add_new(socket, *value);
   }
 
   /**
