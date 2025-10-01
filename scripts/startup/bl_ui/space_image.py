@@ -749,35 +749,6 @@ class IMAGE_HT_tool_header(Header):
 
 class _draw_tool_settings_context_mode:
     @staticmethod
-    def UV(context, layout, tool):
-        if tool and tool.use_brushes:
-            if context.mode == 'EDIT_MESH':
-                tool_settings = context.tool_settings
-                uv_sculpt = tool_settings.uv_sculpt
-                brush = uv_sculpt.brush
-                if brush:
-                    UnifiedPaintPanel.prop_unified(
-                        layout,
-                        context,
-                        brush,
-                        "size",
-                        pressure_name="use_pressure_size",
-                        unified_name="use_unified_size",
-                        slider=True,
-                        header=True,
-                    )
-                    UnifiedPaintPanel.prop_unified(
-                        layout,
-                        context,
-                        brush,
-                        "strength",
-                        pressure_name="use_pressure_strength",
-                        unified_name="use_unified_strength",
-                        slider=True,
-                        header=True,
-                    )
-
-    @staticmethod
     def PAINT(context, layout, tool):
         if (tool is None) or (not tool.use_brushes):
             return
