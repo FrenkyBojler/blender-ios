@@ -2,3 +2,4 @@ Referenced by issue #146966, Blender crash while joining 2 objects with CTRL+J (
 Referenced by pull request #146982, Fix #146966: Crash joining mesh objects
 Referenced by commit c58a789673fc8c636424f44267f234aeaa613a3f, Fix #146966: Crash joining mesh objects
 Referenced by pull request #147101, Fix #147097: Prevent crash when joining meshes with different shape keys
+Referenced by commit 63d77f028f6b37db95cc06077855ad2522123aaa, Fix #147097: Prevent crash when joining meshes with different shape keys
