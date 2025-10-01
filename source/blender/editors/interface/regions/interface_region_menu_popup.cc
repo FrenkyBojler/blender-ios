@@ -432,6 +432,7 @@ static uiPopupBlockHandle *ui_popup_menu_create_impl(
     UI_popup_handlers_add(C, &window->modalhandlers, handle, 0);
     WM_event_add_mousemove(window);
   }
+  UI_popup_keymap_handler_add(CTX_wm_manager(C), &window->modalhandlers, handle->region);
 
   return handle;
 }
@@ -879,7 +880,7 @@ void UI_popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
     if (win) {
       const bScreen *screen = WM_window_get_active_screen(win);
 
-      UI_popup_handlers_remove(&win->modalhandlers, block->handle);
+      UI_popup_handlers_remove(C, &win->modalhandlers, block->handle);
       ui_popup_block_free(C, block->handle);
 
       /* In the case we have nested popups,

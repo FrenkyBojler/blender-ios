@@ -2562,7 +2562,7 @@ static AbstractView *get_view_focused(bContext *C)
     return nullptr;
   }
 
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
   if (!region) {
     return nullptr;
   }
@@ -2840,7 +2840,7 @@ static std::pair<AbstractView *, AbstractViewItem *> select_operator_view_and_it
 
 static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
 {
-  ARegion &region = *CTX_wm_region(C);
+  ARegion &region = CTX_wm_region_popup(C) ? *CTX_wm_region_popup(C) : *CTX_wm_region(C);
   auto [view, clicked_item] = select_operator_view_and_item_find_xy(region, *op);
 
   if (!view) {
@@ -2864,7 +2864,7 @@ static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  const ARegion &region = *CTX_wm_region(C);
+  const ARegion &region = CTX_wm_region_popup(C) ? *CTX_wm_region_popup(C) : *CTX_wm_region(C);
   const AbstractViewItem *clicked_item = UI_region_views_find_item_at(region, event->xy);
 
   /* Wait with selecting to see if there's a click or drag event, if requested by the view item. */

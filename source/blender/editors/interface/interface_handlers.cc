@@ -171,6 +171,8 @@ static bool ui_but_find_select_in_enum__cmp(const uiBut *but_a, const uiBut *but
 static void ui_textedit_string_set(uiBut *but, uiTextEdit &text_edit, const char *str);
 static void button_tooltip_timer_reset(bContext *C, uiBut *but);
 
+static void ui_popup_keymap_handler_remove(const wmWindowManager *wm, ListBase *handlers);
+
 static void ui_block_interaction_begin_ensure(bContext *C,
                                               uiBlock *block,
                                               uiHandleButtonData *data,
@@ -4539,6 +4541,7 @@ static void ui_block_open_end(bContext *C, uiBut *but, uiHandleButtonData *data)
   ED_workspace_status_text(C, nullptr);
 
   if (data->menu) {
+    ui_popup_keymap_handler_remove(data->wm, &data->window->modalhandlers);
     ui_popup_block_free(C, data->menu);
     data->menu = nullptr;
   }
@@ -8851,6 +8854,9 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
                                 nullptr,
                                 data,
                                 eWM_EventHandlerFlag(0));
+        if (data->menu) {
+          UI_popup_keymap_handler_add(data->wm, &data->window->modalhandlers, data->menu->region);
+        }
       }
     }
     else {
@@ -12225,7 +12231,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
     }
 
     ui_popup_block_free(C, menu);
-    UI_popup_handlers_remove(&win->modalhandlers, menu);
+    UI_popup_handlers_remove(C, &win->modalhandlers, menu);
     CTX_wm_region_popup_set(C, nullptr);
 
 #ifdef USE_DRAG_TOGGLE
@@ -12305,6 +12311,25 @@ void UI_region_handlers_add(ListBase *handlers)
                           eWM_EventHandlerFlag(0));
 }
 
+void UI_popup_keymap_handler_add(const wmWindowManager *wm,
+                                 ListBase *handlers,
+                                 ARegion *popup_region)
+{
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  wmEventHandler_Keymap *handler = WM_event_add_keymap_handler(handlers, keymap);
+  handler->context.region_popup = popup_region;
+  BLI_remlink(handlers, handler);
+  BLI_addhead(handlers, handler);
+}
+
+static void ui_popup_keymap_handler_remove(const wmWindowManager *wm, ListBase *handlers)
+{
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  WM_event_remove_keymap_handler(handlers, keymap);
+}
+
 void UI_popup_handlers_add(bContext *C,
                            ListBase *handlers,
                            uiPopupBlockHandle *popup,
@@ -12312,9 +12337,10 @@ void UI_popup_handlers_add(bContext *C,
 {
   WM_event_add_ui_handler(
       C, handlers, ui_popup_handler, ui_popup_handler_remove, popup, eWM_EventHandlerFlag(flag));
+  UI_popup_keymap_handler_add(CTX_wm_manager(C), handlers, popup->region);
 }
 
-void UI_popup_handlers_remove(ListBase *handlers, uiPopupBlockHandle *popup)
+void UI_popup_handlers_remove(bContext *C, ListBase *handlers, uiPopupBlockHandle *popup)
 {
   LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
     if (handler_base->type == WM_HANDLER_TYPE_UI) {
@@ -12339,11 +12365,13 @@ void UI_popup_handlers_remove(ListBase *handlers, uiPopupBlockHandle *popup)
   }
 
   WM_event_remove_ui_handler(handlers, ui_popup_handler, ui_popup_handler_remove, popup, false);
+  ui_popup_keymap_handler_remove(CTX_wm_manager(C), handlers);
 }
 
 void UI_popup_handlers_remove_all(bContext *C, ListBase *handlers)
 {
   WM_event_free_ui_handler_all(C, handlers, ui_popup_handler, ui_popup_handler_remove);
+  ui_popup_keymap_handler_remove(CTX_wm_manager(C), handlers);
 }
 
 bool UI_textbutton_activate_rna(const bContext *C,

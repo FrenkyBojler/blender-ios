@@ -1047,7 +1047,7 @@ wmOperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEv
 
 wmOperatorStatus WM_generic_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);

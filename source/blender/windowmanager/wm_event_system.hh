@@ -74,6 +74,15 @@ struct wmEventHandler_Keymap {
   wmEventHandler_KeymapDynamic dynamic;
 
   bToolRef *keymap_tool;
+
+  /** Store context for this handler for derived/modal handlers. */
+  struct {
+    /**
+     * Temporary, floating regions stored in #Screen::regionbase.
+     * Used for menus, popovers & dialogs.
+     */
+    ARegion *region_popup;
+  } context;
 };
 
 /** #WM_HANDLER_TYPE_GIZMO. */

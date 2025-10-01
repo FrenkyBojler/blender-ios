@@ -3089,6 +3089,7 @@ static eHandlerActionFlag wm_handlers_do_keymap_with_keymap_handler(
     wmKeyMap *keymap,
     const bool do_debug_handler)
 {
+  ARegion *region_popup = CTX_wm_region_popup(C);
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
 
   if (keymap == nullptr) {
@@ -3105,6 +3106,10 @@ static eHandlerActionFlag wm_handlers_do_keymap_with_keymap_handler(
       LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
         if (wm_eventmatch(event, kmi)) {
           wmEventHandler_KeymapPost keymap_post = handler->post;
+          if (handler->context.region_popup) {
+            BLI_assert(screen_temp_region_exists(handler->context.region_popup));
+            CTX_wm_region_popup_set(C, handler->context.region_popup);
+          }
 
           action |= wm_handler_operator_call(
               C, handlers, &handler->head, event, kmi->ptr, kmi->idname);
@@ -3130,6 +3135,8 @@ static eHandlerActionFlag wm_handlers_do_keymap_with_keymap_handler(
       PRINT("fail\n");
     }
   }
+  BLI_assert((region_popup == nullptr) || screen_temp_region_exists(region_popup));
+  CTX_wm_region_popup_set(C, region_popup);
 
   return action;
 }
