@@ -4606,7 +4606,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   int data_index = 0;
 
   int face_len_alloc = 3;
-  float(*uv_verts)[2] = static_cast<float(*)[2]>(
+  float (*uv_verts)[2] = static_cast<float (*)[2]>(
       MEM_mallocN(sizeof(*uv_verts) * face_len_alloc, "UvOverlapCoords"));
   uint(*indices)[3] = static_cast<uint(*)[3]>(
       MEM_mallocN(sizeof(*indices) * (face_len_alloc - 2), "UvOverlapTris"));
@@ -4637,7 +4637,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       if (face_len_alloc < face_len) {
         MEM_freeN(uv_verts);
         MEM_freeN(indices);
-        uv_verts = static_cast<float(*)[2]>(
+        uv_verts = static_cast<float (*)[2]>(
             MEM_mallocN(sizeof(*uv_verts) * face_len, "UvOverlapCoords"));
         indices = static_cast<uint(*)[3]>(
             MEM_mallocN(sizeof(*indices) * tri_len, "UvOverlapTris"));
@@ -5876,7 +5876,7 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
-    float changed = false;
+    bool changed = false;
     BMFace *f;
     BMIter iter;
     BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
