@@ -2089,10 +2089,18 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   int line_select_end = 0;
 
   int but_pos = but->pos;
+  int selsta = but->selsta, selend = but->selend;
 #ifdef WITH_INPUT_IME
   /* If is IME compositing, move the cursor. */
   if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
     but_pos += ime_data->cursor_pos;
+    /* Translate selection if the IME composite string is inserted before the selection. */
+    if (selsta != selend) {
+      if (but->pos == selsta) {
+        selsta += ime_data->composite.size();
+        selend += ime_data->composite.size();
+      }
+    }
   }
   int ime_line_start = 0;
   int ime_line_end = 0;
@@ -2113,7 +2121,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
             r_line_end = i;
           }
         };
-    selection_line_bounds_get(but->selsta, but->selend, line_select_start, line_select_end);
+    selection_line_bounds_get(selsta, selend, line_select_start, line_select_end);
 #ifdef WITH_INPUT_IME
     if (ime_data) {
       selection_line_bounds_get(
@@ -2164,7 +2172,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       return selection;
     };
     blender::Vector<LineSelection> lines_selection = lines_selection_get(
-        but->selsta, but->selend, line_select_start, line_select_end);
+        selsta, selend, line_select_start, line_select_end);
     /* Text button selection. */
     for (LineSelection &selection : lines_selection) {
       if (!(scroll <= selection.line && selection.line < visible_lines + scroll)) {

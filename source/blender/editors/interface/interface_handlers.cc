@@ -3221,7 +3221,16 @@ static void ui_but_textbox_textedit_set_cursor_pos(uiBut *but,
   }
   int offset = BLF_str_offset_from_cursor_position(
       fstyle.uifont_id, line.data(), line.size(), int(xy.x - start.x));
-  but->pos = line.begin() - lines[0].data() + offset;
+  int position = line.begin() - lines[0].data() + offset;
+#ifdef WITH_INPUT_IME
+  /* Texbox wrapping includes the IME composition string, fix selection to not include the
+   * composition string. */
+  const wmIMEData *ime_data = ui_but_ime_data_get(textbox);
+  if (ime_data && position > int(but->pos)) {
+    position = std::max<int>(int(but->pos), position - int(ime_data->composite.size()));
+  }
+#endif
+  but->pos = position;
   ui_but_textbox_scroll_to_cursor(region, textbox);
 }
 
