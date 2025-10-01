@@ -27,7 +27,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -44,10 +44,12 @@
 
 #include "ED_armature.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "SEQ_select.hh"
 
+#include "SEQ_transform.hh"
 #include "transform.hh"
 #include "transform_orientations.hh"
 
@@ -77,19 +79,16 @@ static TransformOrientation *findOrientationName(ListBase *lb, const char *name)
       BLI_findstring(lb, name, offsetof(TransformOrientation, name)));
 }
 
-static bool uniqueOrientationNameCheck(void *arg, const char *name)
-{
-  return findOrientationName((ListBase *)arg, name) != nullptr;
-}
-
 static void uniqueOrientationName(ListBase *lb, char *name)
 {
-  BLI_uniquename_cb(uniqueOrientationNameCheck,
-                    lb,
-                    CTX_DATA_(BLT_I18NCONTEXT_ID_SCENE, "Space"),
-                    '.',
-                    name,
-                    sizeof(TransformOrientation::name));
+  BLI_uniquename_cb(
+      [&](const StringRefNull check_name) {
+        return findOrientationName(lb, check_name.c_str()) != nullptr;
+      },
+      CTX_DATA_(BLT_I18NCONTEXT_ID_SCENE, "Space"),
+      '.',
+      name,
+      sizeof(TransformOrientation::name));
 }
 
 static TransformOrientation *createViewSpace(bContext *C,
@@ -517,17 +516,16 @@ TransformOrientation *addMatrixSpace(bContext *C,
     ts = findOrientationName(transform_orientations, name);
   }
   else {
-    STRNCPY(name_unique, name);
+    STRNCPY_UTF8(name_unique, name);
     uniqueOrientationName(transform_orientations, name_unique);
     name = name_unique;
   }
 
   /* If not, create a new one. */
   if (ts == nullptr) {
-    ts = static_cast<TransformOrientation *>(
-        MEM_callocN(sizeof(TransformOrientation), "UserTransSpace from matrix"));
+    ts = MEM_callocN<TransformOrientation>("UserTransSpace from matrix");
     BLI_addtail(transform_orientations, ts);
-    STRNCPY(ts->name, name);
+    STRNCPY_UTF8(ts->name, name);
   }
 
   /* Copy matrix into transform space. */
@@ -568,7 +566,7 @@ int BIF_countTransformOrientation(const bContext *C)
 void applyTransformOrientation(const TransformOrientation *ts, float r_mat[3][3], char r_name[64])
 {
   if (r_name) {
-    BLI_strncpy(r_name, ts->name, MAX_NAME);
+    BLI_strncpy_utf8(r_name, ts->name, MAX_NAME);
   }
   copy_m3_m3(r_mat, ts->mat);
 }
@@ -667,6 +665,7 @@ short calc_orientation_from_type_ex(const Scene *scene,
       if (ob) {
         if (ob->mode & OB_MODE_POSE) {
           const bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
+
           if (pchan && gimbal_axis_pose(ob, pchan, r_mat)) {
             break;
           }
@@ -768,7 +767,9 @@ short transform_orientation_matrix_get(bContext *C,
     Scene *scene = t->scene;
     Strip *strip = seq::select_active_get(scene);
     if (strip && strip->data->transform && orient_index == V3D_ORIENT_LOCAL) {
-      axis_angle_to_mat3_single(r_spacemtx, 'Z', strip->data->transform->rotation);
+      const float2 mirror = seq::image_transform_mirror_factor_get(strip);
+      axis_angle_to_mat3_single(
+          r_spacemtx, 'Z', strip->data->transform->rotation * mirror[0] * mirror[1]);
       return orient_index;
     }
   }
@@ -792,12 +793,12 @@ short transform_orientation_matrix_get(bContext *C,
     }
   }
 
-  short r_orient_index = calc_orientation_from_type_ex(
+  const short orient_index_result = calc_orientation_from_type_ex(
       scene, t->view_layer, v3d, rv3d, ob, obedit, orient_index, t->around, r_spacemtx);
 
   if (rv3d && (t->options & CTX_PAINT_CURVE)) {
     /* Screen space in the 3d region. */
-    if (r_orient_index == V3D_ORIENT_VIEW) {
+    if (orient_index_result == V3D_ORIENT_VIEW) {
       unit_m3(r_spacemtx);
     }
     else {
@@ -806,7 +807,7 @@ short transform_orientation_matrix_get(bContext *C,
     }
   }
 
-  return r_orient_index;
+  return orient_index_result;
 }
 
 const char *transform_orientations_spacename_get(TransInfo *t, const short orient_type)
@@ -842,7 +843,7 @@ void transform_orientations_current_set(TransInfo *t, const short orient_index)
   const short orientation = t->orient[orient_index].type;
   const char *spacename = transform_orientations_spacename_get(t, orientation);
 
-  STRNCPY(t->spacename, spacename);
+  STRNCPY_UTF8(t->spacename, spacename);
   copy_m3_m3(t->spacemtx, t->orient[orient_index].matrix);
   invert_m3_m3_safe_ortho(t->spacemtx_inv, t->spacemtx);
   t->orient_curr = eTOType(orient_index);
@@ -1220,7 +1221,7 @@ int getTransformOrientation_ex(const Scene *scene,
         }
       }
       else {
-        const bool use_handle = v3d->overlay.handle_display != CURVE_HANDLE_NONE;
+        const bool use_handle = v3d ? (v3d->overlay.handle_display != CURVE_HANDLE_NONE) : true;
 
         for (nu = static_cast<Nurb *>(nurbs->first); nu; nu = nu->next) {
           /* Only bezier has a normal. */
@@ -1371,7 +1372,7 @@ int getTransformOrientation_ex(const Scene *scene,
         zero_v3(fallback_plane);
 
         LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-          if (EBONE_VISIBLE(arm, ebone)) {
+          if (blender::animrig::bone_is_visible(arm, ebone)) {
             if (ebone->flag & BONE_SELECTED) {
               ED_armature_ebone_to_mat3(ebone, tmat);
               add_v3_v3(r_normal, tmat[2]);
@@ -1428,8 +1429,11 @@ int getTransformOrientation_ex(const Scene *scene,
     bool ok = false;
 
     if (activeOnly && (pchan = BKE_pose_channel_active_if_bonecoll_visible(ob))) {
-      add_v3_v3(r_normal, pchan->pose_mat[2]);
-      add_v3_v3(r_plane, pchan->pose_mat[1]);
+      float pose_mat[3][3];
+      BKE_pose_channel_transform_orientation(arm, pchan, pose_mat);
+
+      add_v3_v3(r_normal, pose_mat[2]);
+      add_v3_v3(r_plane, pose_mat[1]);
       ok = true;
     }
     else {
@@ -1439,8 +1443,11 @@ int getTransformOrientation_ex(const Scene *scene,
         /* Use channels to get stats. */
         LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
           if (pchan->bone && pchan->bone->flag & BONE_TRANSFORM) {
-            add_v3_v3(r_normal, pchan->pose_mat[2]);
-            add_v3_v3(r_plane, pchan->pose_mat[1]);
+            float pose_mat[3][3];
+            BKE_pose_channel_transform_orientation(arm, pchan, pose_mat);
+
+            add_v3_v3(r_normal, pose_mat[2]);
+            add_v3_v3(r_plane, pose_mat[1]);
           }
         }
         ok = true;

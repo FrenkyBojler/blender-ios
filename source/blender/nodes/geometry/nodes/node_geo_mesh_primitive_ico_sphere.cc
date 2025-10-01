@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_math_constants.h"
+
 #include "DNA_mesh_types.h"
 
 #include "BKE_lib_id.hh"
@@ -94,7 +96,7 @@ static Mesh *create_ico_sphere_mesh(const int subdivisions,
 
   BMeshToMeshParams params{};
   params.calc_object_remap = false;
-  Mesh *mesh = reinterpret_cast<Mesh *>(BKE_id_new_nomain(ID_ME, nullptr));
+  Mesh *mesh = BKE_id_new_nomain<Mesh>(nullptr);
   BKE_id_material_eval_ensure_default_slot(&mesh->id);
   BM_mesh_bm_to_me(nullptr, bm, mesh, &params);
   BM_mesh_free(bm);

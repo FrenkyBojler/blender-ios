@@ -9,7 +9,7 @@ import pathlib
 import bpy
 
 """
-blender -b --factory-startup --python tests/python/bl_animation_action.py -- --testdir tests/data/animation/
+blender -b --factory-startup --python tests/python/bl_animation_action.py -- --testdir tests/files/animation/
 """
 
 
@@ -68,24 +68,36 @@ class ActionSlotCreationTest(unittest.TestCase):
             self.action.slots.new('UNSPECIFIED', "Bob")
 
     def test_long_identifier(self):
-        # Test a 65-character identifier, using a 63-character name. This is the
-        # maximum length allowed (the DNA field is MAX_ID_NAME=66 long, which
+        # Test a 257-character identifier, using a 255-character name. This is the
+        # maximum length allowed (the DNA field is MAX_ID_NAME=258 long, which
         # includes the trailing zero byte).
-        long_but_ok_name = "This name is so long! It might look long, but it is just right!"
+        long_but_ok_name = (
+            "This name is so long! It might look long, but it is just right! "
+            "This name is so long! It might look long, but it is just right! "
+            "This name is so long! It might look long, but it is just right! "
+            "This name is so long! It might look long, but it is just right!"
+        )
+        assert (len(long_but_ok_name) == 255)
         slot_ok = self.action.slots.new('OBJECT', long_but_ok_name)
         self.assertEqual(long_but_ok_name, slot_ok.name_display, "this name should fit")
         self.assertEqual('OB' + long_but_ok_name, slot_ok.identifier, "this identifier should fit")
 
         # Test one character more.
-        too_long_name = "This name is so long! It might look long, and that it is indeed."
-        too_long_name_truncated = too_long_name[:63]
+        too_long_name = (
+            "This name is so long! It might look long, and that it is indeed."
+            "This name is so long! It might look long, and that it is indeed."
+            "This name is so long! It might look long, and that it is indeed."
+            "This name is so long! It might look long, and that it is indeed."
+        )
+        assert (len(too_long_name) == 256)
+        too_long_name_truncated = too_long_name[:255]
         slot_long = self.action.slots.new('OBJECT', too_long_name)
         self.assertEqual(too_long_name_truncated, slot_long.name_display, "this name should be truncated")
         self.assertEqual('OB' + too_long_name_truncated, slot_long.identifier, "this identifier should be truncated")
 
         # Test with different trailing character.
-        other_long_name = "This name is so long! It might look long, and that it is indeed!"
-        truncated_and_unique = other_long_name[:59] + ".001"
+        other_long_name = too_long_name[:-1] + "!"
+        truncated_and_unique = other_long_name[:251] + ".001"
         slot_long2 = self.action.slots.new('OBJECT', too_long_name)
         self.assertEqual(truncated_and_unique, slot_long2.name_display,
                          "this name should be truncated and made unique")
@@ -595,6 +607,21 @@ class ChannelbagsTest(unittest.TestCase):
         self.assertEqual([channelbag], list(self.strip.channelbags))
         self.assertEqual(self.slot, channelbag.slot)
 
+    def test_ensure_fcurve(self):
+        channelbag = self.strip.channelbag(self.slot, ensure=True)
+        self.assertEqual([], channelbag.fcurves[:])
+
+        fcurve_1 = channelbag.fcurves.ensure("location", index=2, group_name="Name")
+        self.assertEqual("location", fcurve_1.data_path)
+        self.assertEqual(2, fcurve_1.array_index)
+        self.assertEqual("Name", fcurve_1.group.name)
+        self.assertIn("Name", channelbag.groups)
+        self.assertEqual([fcurve_1], channelbag.fcurves[:])
+
+        fcurve_2 = channelbag.fcurves.ensure("location", index=2, group_name="Name")
+        self.assertEqual(fcurve_1, fcurve_2)
+        self.assertEqual([fcurve_1], channelbag.fcurves[:])
+
     def test_create_remove_fcurves(self):
         channelbag = self.strip.channelbags.new(self.slot)
 
@@ -975,6 +1002,24 @@ class ConvenienceFunctionsTest(unittest.TestCase):
 
         channelbag = self.action.layers[0].strips[0].channelbags[0]
         self.assertEqual(fcurve, channelbag.fcurves[0])
+
+    def test_fcurve_ensure_for_datablock_group_name(self) -> None:
+        # Assign the Action to the Cube.
+        ob_cube = bpy.data.objects["Cube"]
+        adt = ob_cube.animation_data_create()
+        adt.action = self.action
+
+        with self.assertRaises(IndexError):
+            self.action.layers[0].strips[0].channelbags[0]
+
+        fcurve = self.action.fcurve_ensure_for_datablock(ob_cube, "location", index=2, group_name="grúpa")
+
+        channelbag = self.action.layers[0].strips[0].channelbags[0]
+        self.assertEqual(fcurve, channelbag.fcurves[0])
+
+        # Check that the group was also created correctly.
+        self.assertIn("grúpa", channelbag.groups)
+        self.assertIn(fcurve, channelbag.groups["grúpa"].channels[:])
 
 
 def main():

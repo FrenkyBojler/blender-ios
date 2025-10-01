@@ -75,12 +75,19 @@ class BakeOptions:
     """Bake custom properties."""
 
 
-def action_get_channelbag_for_slot(action: Action, slot: ActionSlot) -> ActionChannelbag | None:
+def action_get_channelbag_for_slot(action: Action | None, slot: ActionSlot | None) -> ActionChannelbag | None:
     """
     Returns the first channelbag found for the slot.
     In case there are multiple layers or strips they are iterated until a
     channelbag for that slot is found. In case no matching channelbag is found, returns None.
     """
+    if not action or not slot:
+        # This is just for convenience so that you can call
+        # action_get_channelbag_for_slot(adt.action, adt.action_slot) and check
+        # the return value for None, without having to also check the action and
+        # the slot for None.
+        return None
+
     for layer in action.layers:
         for strip in layer.strips:
             channelbag = strip.channelbag(slot)
@@ -89,7 +96,9 @@ def action_get_channelbag_for_slot(action: Action, slot: ActionSlot) -> ActionCh
     return None
 
 
-def _ensure_channelbag_exists(action: Action, slot: ActionSlot) -> ActionChannelbag:
+def action_ensure_channelbag_for_slot(action: Action, slot: ActionSlot) -> ActionChannelbag:
+    """Ensure a layer and a keyframe strip exists, then ensure that that strip has a channelbag for the slot."""
+
     try:
         layer = action.layers[0]
     except IndexError:
@@ -393,6 +402,7 @@ def bake_action_iter(
 
     # in case animation data hasn't been created
     atd = obj.animation_data_create()
+    old_slot_name = atd.last_slot_identifier[2:]
     is_new_action = action is None
     if is_new_action:
         action = bpy.data.actions.new("Action")
@@ -406,7 +416,7 @@ def bake_action_iter(
 
     # A slot needs to be assigned.
     if not atd.action_slot:
-        slot = action.slots.new(obj.id_type, obj.name)
+        slot = action.slots.new(obj.id_type, old_slot_name or obj.name)
         atd.action_slot = slot
 
     # Baking the action only makes sense in Replace mode, so force it (#69105)
@@ -724,7 +734,7 @@ class KeyframesCo:
             if fcurve is None:
                 data_path, array_index = fc_key
                 assert action.is_action_layered
-                channelbag = _ensure_channelbag_exists(action, action_slot)
+                channelbag = action_ensure_channelbag_for_slot(action, action_slot)
                 fcurve = channelbag.fcurves.new(data_path, index=array_index)
 
             keyframe_points = fcurve.keyframe_points

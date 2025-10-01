@@ -43,7 +43,6 @@ void VKResourceStateTracker::add_image(VkImage vk_image, uint32_t layer_count, c
   resource.type = VKResourceType::IMAGE;
   resource.image.vk_image = vk_image;
   resource.image.layer_count = layer_count;
-  resource.stamp = 0;
 #ifndef NDEBUG
   resource.name = name;
 #endif
@@ -176,5 +175,15 @@ void VKResourceStateTracker::validate() const
   BLI_assert(resources_.size() == image_resources_.size() + buffer_resources_.size());
 }
 #endif
+
+void VKResourceStateTracker::debug_print() const
+{
+  std::ostream &os = std::cout;
+  os << "VKResourceStateTracker\n";
+  os << " resources=(" << resources_.size() << "/" << resources_.capacity() << ")\n";
+  os << " buffers=(" << buffer_resources_.size() << "/" << buffer_resources_.capacity() << ")\n";
+  os << " images=(" << image_resources_.size() << "/" << image_resources_.capacity() << ")\n";
+  os << " unused=(" << unused_handles_.size() << "/" << unused_handles_.capacity() << ")\n";
+}
 
 }  // namespace blender::gpu::render_graph

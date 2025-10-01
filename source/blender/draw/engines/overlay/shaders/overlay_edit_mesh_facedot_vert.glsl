@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_facedot)
 
@@ -21,7 +21,7 @@ void main()
 
   /* Vertex, Face-dot and Face case. */
   VertOut vert_out = vertex_main(vert_in);
-
+  view_clipping_distances(vert_out.world_position);
   gl_Position = vert_out.gpu_position;
-  finalColor = vert_out.final_color;
+  final_color = vert_out.final_color;
 }

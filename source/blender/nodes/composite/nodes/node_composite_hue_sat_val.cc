@@ -25,34 +25,21 @@ namespace blender::nodes::node_composite_hue_sat_val_cc {
 
 static void cmp_node_huesatval_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_input<decl::Float>("Hue")
-      .default_value(0.5f)
-      .min(0.0f)
-      .max(1.0f)
-      .subtype(PROP_FACTOR)
-      .compositor_domain_priority(1);
+  b.is_function_node();
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Float>("Hue").default_value(0.5f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
   b.add_input<decl::Float>("Saturation")
       .default_value(1.0f)
       .min(0.0f)
       .max(2.0f)
-      .subtype(PROP_FACTOR)
-      .compositor_domain_priority(2);
+      .subtype(PROP_FACTOR);
   b.add_input<decl::Float>("Value")
       .default_value(1.0f)
       .min(0.0f)
       .max(2.0f)
       .subtype(PROP_FACTOR)
-      .translation_context(BLT_I18NCONTEXT_COLOR)
-      .compositor_domain_priority(3);
-  b.add_input<decl::Float>("Fac")
-      .default_value(1.0f)
-      .min(0.0f)
-      .max(1.0f)
-      .subtype(PROP_FACTOR)
-      .compositor_domain_priority(4);
+      .translation_context(BLT_I18NCONTEXT_COLOR);
+  b.add_input<decl::Float>("Fac").default_value(1.0f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
   b.add_output<decl::Color>("Image");
 }
 
@@ -95,7 +82,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_hue_sat_val_cc
 
-void register_node_type_cmp_hue_sat()
+static void register_node_type_cmp_hue_sat()
 {
   namespace file_ns = blender::nodes::node_composite_hue_sat_val_cc;
 
@@ -112,3 +99,4 @@ void register_node_type_cmp_hue_sat()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_hue_sat)

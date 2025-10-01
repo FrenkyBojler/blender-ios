@@ -48,7 +48,7 @@
 #include "wm_xr_intern.hh"
 
 static wmSurface *g_xr_surface = nullptr;
-static CLG_LogRef LOG = {"wm.xr"};
+static CLG_LogRef LOG = {"xr"};
 
 /* -------------------------------------------------------------------- */
 
@@ -222,7 +222,7 @@ wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
     /* Root window is still valid, use it. */
     return runtime_data->session_root_win;
   }
-  /* Otherwise, fallback. */
+  /* Otherwise, fall back. */
   return static_cast<wmWindow *>(wm->windows.first);
 }
 
@@ -1390,26 +1390,32 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
   bool failure = false;
 
   /* Initialize with some unsupported format to check following switch statement. */
-  eGPUTextureFormat format = GPU_R8;
+  blender::gpu::TextureFormat format = blender::gpu::TextureFormat::UNORM_8;
 
   switch (draw_view->swapchain_format) {
     case GHOST_kXrSwapchainFormatRGBA8:
-      format = GPU_RGBA8;
+      format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
       break;
     case GHOST_kXrSwapchainFormatRGBA16:
-      format = GPU_RGBA16;
+      format = blender::gpu::TextureFormat::UNORM_16_16_16_16;
       break;
     case GHOST_kXrSwapchainFormatRGBA16F:
-      format = GPU_RGBA16F;
+      format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
       break;
     case GHOST_kXrSwapchainFormatRGB10_A2:
-      format = GPU_RGB10_A2;
+      format = blender::gpu::TextureFormat::UNORM_10_10_10_2;
       break;
   }
-  BLI_assert(format != GPU_R8);
+  BLI_assert(format != blender::gpu::TextureFormat::UNORM_8);
 
-  offscreen = vp->offscreen = GPU_offscreen_create(
-      draw_view->width, draw_view->height, true, format, GPU_TEXTURE_USAGE_SHADER_READ, err_out);
+  offscreen = vp->offscreen = GPU_offscreen_create(draw_view->width,
+                                                   draw_view->height,
+                                                   true,
+                                                   format,
+                                                   GPU_TEXTURE_USAGE_SHADER_READ |
+                                                       GPU_TEXTURE_USAGE_MEMORY_EXPORT,
+                                                   false,
+                                                   err_out);
   if (offscreen) {
     viewport = vp->viewport = GPU_viewport_create();
     if (!viewport) {

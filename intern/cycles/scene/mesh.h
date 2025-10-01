@@ -135,6 +135,11 @@ class Mesh : public Geometry {
     SUBDIVISION_FVAR_LINEAR_ALL,
   };
 
+  enum SubdivisionAdaptiveSpace {
+    SUBDIVISION_ADAPTIVE_SPACE_PIXEL,
+    SUBDIVISION_ADAPTIVE_SPACE_OBJECT,
+  };
+
   NODE_SOCKET_API(SubdivisionType, subdivision_type)
   NODE_SOCKET_API(SubdivisionBoundaryInterpolation, subdivision_boundary_interpolation)
   NODE_SOCKET_API(SubdivisionFVarInterpolation, subdivision_fvar_interpolation)
@@ -161,15 +166,12 @@ class Mesh : public Geometry {
   NODE_SOCKET_API_ARRAY(array<float>, subd_vert_creases_weight)
 
   /* Subdivisions parameters */
+  NODE_SOCKET_API(SubdivisionAdaptiveSpace, subd_adaptive_space)
   NODE_SOCKET_API(float, subd_dicing_rate)
   NODE_SOCKET_API(int, subd_max_level)
   NODE_SOCKET_API(Transform, subd_objecttoworld)
 
   AttributeSet subd_attributes;
-
-  /* Temporary storage for attribute interpolation, per triangle and per vertex. */
-  array<int> subd_triangle_patch_index;
-  array<float2> subd_corner_patch_uv;
 
   /* BVH */
   size_t vert_offset;
@@ -214,7 +216,9 @@ class Mesh : public Geometry {
   void compute_bounds() override;
   void apply_transform(const Transform &tfm, const bool apply_to_motion) override;
   void add_vertex_normals();
-  void add_undisplaced();
+  void add_undisplaced(Scene *scene);
+  void update_generated(Scene *scene);
+  void update_tangents(Scene *scene, bool undisplaced);
 
   void get_uv_tiles(ustring map, unordered_set<int> &tiles) override;
 
@@ -225,7 +229,7 @@ class Mesh : public Geometry {
   bool has_motion_blur() const override;
   PrimitiveType primitive_type() const override;
 
-  void tessellate(DiagSplit *split);
+  void tessellate(SubdParams &params);
 
   SubdFace get_subd_face(const size_t index) const;
   size_t get_num_subd_faces() const

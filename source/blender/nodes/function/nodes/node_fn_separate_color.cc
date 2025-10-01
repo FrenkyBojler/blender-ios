@@ -4,7 +4,9 @@
 
 #include "node_function_util.hh"
 
-#include "UI_interface.hh"
+#include "BLI_math_color.h"
+
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
@@ -27,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree * /*tree*/, bNode *node)
@@ -217,6 +219,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeSeparateColor", FN_NODE_SEPARATE_COLOR);
   ntype.ui_name = "Separate Color";
+  ntype.ui_description = "Split a color into separate channels, based on a particular color model";
   ntype.enum_name_legacy = "SEPARATE_COLOR";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

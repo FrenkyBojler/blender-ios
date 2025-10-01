@@ -35,8 +35,7 @@
 #include "mtl_shader_interface.hh"
 #include "mtl_texture.hh"
 
-extern char datatoc_mtl_shader_defines_msl[];
-extern char datatoc_mtl_shader_shared_h[];
+extern char datatoc_mtl_shader_shared_hh[];
 
 using namespace blender;
 using namespace blender::gpu;
@@ -51,78 +50,89 @@ char *MSLGeneratorInterface::msl_patch_default = nullptr;
 #define FRAGMENT_OUT_STRUCT_NAME "FragmentOut"
 #define FRAGMENT_TILE_IN_STRUCT_NAME "FragmentTileIn"
 
-#define ATOMIC_DEFINE_STR "#define MTL_SUPPORTS_TEXTURE_ATOMICS 1\n"
-
 /* -------------------------------------------------------------------- */
 /** \name Shader Translation utility functions.
  * \{ */
 
-static eMTLDataType to_mtl_type(Type type)
+static void split_array(StringRefNull input, std::string &r_name, std::string &r_array)
+{
+  size_t array_start = input.find('[');
+  if (array_start != std::string::npos) {
+    r_name = input.substr(0, array_start);
+    r_array = input.substr(array_start);
+  }
+  else {
+    r_name = input;
+    r_array = "";
+  }
+}
+
+static MTLInterfaceDataType to_mtl_type(Type type)
 {
   switch (type) {
-    case Type::FLOAT:
+    case Type::float_t:
       return MTL_DATATYPE_FLOAT;
-    case Type::VEC2:
+    case Type::float2_t:
       return MTL_DATATYPE_FLOAT2;
-    case Type::VEC3:
+    case Type::float3_t:
       return MTL_DATATYPE_FLOAT3;
-    case Type::VEC4:
+    case Type::float4_t:
       return MTL_DATATYPE_FLOAT4;
-    case Type::MAT3:
+    case Type::float3x3_t:
       return MTL_DATATYPE_FLOAT3x3;
-    case Type::MAT4:
+    case Type::float4x4_t:
       return MTL_DATATYPE_FLOAT4x4;
-    case Type::UINT:
+    case Type::uint_t:
       return MTL_DATATYPE_UINT;
-    case Type::UVEC2:
+    case Type::uint2_t:
       return MTL_DATATYPE_UINT2;
-    case Type::UVEC3:
+    case Type::uint3_t:
       return MTL_DATATYPE_UINT3;
-    case Type::UVEC4:
+    case Type::uint4_t:
       return MTL_DATATYPE_UINT4;
-    case Type::INT:
+    case Type::int_t:
       return MTL_DATATYPE_INT;
-    case Type::IVEC2:
+    case Type::int2_t:
       return MTL_DATATYPE_INT2;
-    case Type::IVEC3:
+    case Type::int3_t:
       return MTL_DATATYPE_INT3;
-    case Type::IVEC4:
+    case Type::int4_t:
       return MTL_DATATYPE_INT4;
-    case Type::VEC3_101010I2:
+    case Type::float3_10_10_10_2_t:
       return MTL_DATATYPE_INT1010102_NORM;
-    case Type::BOOL:
+    case Type::bool_t:
       return MTL_DATATYPE_BOOL;
-    case Type::UCHAR:
+    case Type::uchar_t:
       return MTL_DATATYPE_UCHAR;
-    case Type::UCHAR2:
+    case Type::uchar2_t:
       return MTL_DATATYPE_UCHAR2;
-    case Type::UCHAR3:
+    case Type::uchar3_t:
       return MTL_DATATYPE_UCHAR3;
-    case Type::UCHAR4:
+    case Type::uchar4_t:
       return MTL_DATATYPE_UCHAR4;
-    case Type::CHAR:
+    case Type::char_t:
       return MTL_DATATYPE_CHAR;
-    case Type::CHAR2:
+    case Type::char2_t:
       return MTL_DATATYPE_CHAR2;
-    case Type::CHAR3:
+    case Type::char3_t:
       return MTL_DATATYPE_CHAR3;
-    case Type::CHAR4:
+    case Type::char4_t:
       return MTL_DATATYPE_CHAR4;
-    case Type::USHORT:
+    case Type::ushort_t:
       return MTL_DATATYPE_USHORT;
-    case Type::USHORT2:
+    case Type::ushort2_t:
       return MTL_DATATYPE_USHORT2;
-    case Type::USHORT3:
+    case Type::ushort3_t:
       return MTL_DATATYPE_USHORT3;
-    case Type::USHORT4:
+    case Type::ushort4_t:
       return MTL_DATATYPE_USHORT4;
-    case Type::SHORT:
+    case Type::short_t:
       return MTL_DATATYPE_SHORT;
-    case Type::SHORT2:
+    case Type::short2_t:
       return MTL_DATATYPE_SHORT2;
-    case Type::SHORT3:
+    case Type::short3_t:
       return MTL_DATATYPE_SHORT3;
-    case Type::SHORT4:
+    case Type::short4_t:
       return MTL_DATATYPE_SHORT4;
     default: {
       BLI_assert_msg(false, "Unexpected data type");
@@ -206,8 +216,8 @@ static void print_resource(std::ostream &os, const ShaderCreateInfo::Resource &r
     }
     case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER: {
       int64_t array_offset = res.storagebuf.name.find_first_of("[");
-      bool writeable = (res.storagebuf.qualifiers & shader::Qualifier::WRITE) ==
-                       shader::Qualifier::WRITE;
+      bool writeable = (res.storagebuf.qualifiers & shader::Qualifier::write) ==
+                       shader::Qualifier::write;
       const char *memory_scope = ((writeable) ? "device " : "constant ");
       if (array_offset == -1) {
         /* Create local class member as device pointer reference to bound SSBO.
@@ -241,6 +251,12 @@ std::string MTLShader::resources_declare(const ShaderCreateInfo &info) const
    * are generated during class-wrapper construction in `generate_msl_from_glsl`. */
   std::stringstream ss;
 
+  ss << "\n/* Shared Variables. */\n";
+  for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
+    std::string array, name;
+    split_array(sv.name, name, array);
+    ss << "threadgroup " << to_string(sv.type) << " (&" << name << ")" << array << ";\n";
+  }
   /* Generate resource stubs for UBOs and textures. */
   ss << "\n/* Pass Resources. */\n";
   for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
@@ -338,14 +354,61 @@ char *MSLGeneratorInterface::msl_patch_default_get()
   }
 
   std::stringstream ss_patch;
-  ss_patch << datatoc_mtl_shader_defines_msl << std::endl;
-  ss_patch << datatoc_mtl_shader_shared_h << std::endl;
+  ss_patch << datatoc_mtl_shader_shared_hh << std::endl;
   size_t len = strlen(ss_patch.str().c_str()) + 1;
 
   msl_patch_default = (char *)malloc(len * sizeof(char));
   memcpy(msl_patch_default, ss_patch.str().c_str(), len * sizeof(char));
   msl_patch_default_lock.unlock();
   return msl_patch_default;
+}
+
+static void shared_variable_args(const shader::ShaderCreateInfo &info, std::stringstream &ss)
+{
+  bool first = true;
+  for (const shader::ShaderCreateInfo::SharedVariable &var : info.shared_variables_) {
+    std::string array, name;
+    split_array(var.name, name, array);
+    ss << (first ? ' ' : ',') << "threadgroup " << to_string(var.type) << "(&_" << name << ")"
+       << array;
+    first = false;
+  }
+}
+
+static void shared_variable_assign(const shader::ShaderCreateInfo &info, std::stringstream &ss)
+{
+  bool first = true;
+  for (const shader::ShaderCreateInfo::SharedVariable &var : info.shared_variables_) {
+    std::string array, name;
+    split_array(var.name, name, array);
+    ss << (first ? ':' : ',') << name << "(_" << name << ")";
+    first = false;
+  }
+}
+
+static void shared_variable_declare(const shader::ShaderCreateInfo &info, std::stringstream &ss)
+{
+  for (const shader::ShaderCreateInfo::SharedVariable &var : info.shared_variables_) {
+    std::string array, name;
+    split_array(var.name, name, array);
+    ss << "threadgroup " << to_string(var.type) << ' ' << name << array << ";\n";
+  }
+}
+
+static void shared_variable_pass(const shader::ShaderCreateInfo &info, std::stringstream &ss)
+{
+  bool first = true;
+  if (info.shared_variables_.is_empty()) {
+    return;
+  }
+  ss << "(";
+  for (const shader::ShaderCreateInfo::SharedVariable &var : info.shared_variables_) {
+    std::string array, name;
+    split_array(var.name, name, array);
+    ss << (first ? ' ' : ',') << name;
+    first = false;
+  }
+  ss << ")";
 }
 
 /* Specialization constants will evaluate using a dynamic value if provided at PSO compile time. */
@@ -357,6 +420,30 @@ static void generate_specialization_constant_declarations(const shader::ShaderCr
     /* TODO(Metal): Output specialization constant chain. */
     ss << "constant " << sc.type << " " << sc.name << " [[function_constant(" << index << ")]];\n";
     index++;
+  }
+}
+
+static void generate_compilation_constant_declarations(const shader::ShaderCreateInfo *info,
+                                                       std::stringstream &ss)
+{
+  for (const CompilationConstant &cc : info->compilation_constants_) {
+    std::string value;
+    std::string value_define;
+    switch (cc.type) {
+      case Type::uint_t:
+        value = std::to_string(cc.value.u);
+        break;
+      case Type::int_t:
+        value = std::to_string(cc.value.i);
+        break;
+      case Type::bool_t:
+        value = cc.value.u ? "true" : "false";
+        value_define = std::to_string(cc.value.u);
+        break;
+      default:
+        BLI_assert_unreachable();
+    }
+    ss << "constant " << cc.type << " " << cc.name << " = " << value << ";\n";
   }
 }
 
@@ -399,6 +486,7 @@ bool MTLShader::generate_msl_from_glsl(const shader::ShaderCreateInfo *info)
    * from GLSL to MSL. Also include additional GPU defines for
    * optional high-level feature support. */
   std::string msl_defines_string = "#define GPU_ARB_shader_draw_parameters 1\n";
+  msl_defines_string += "#define GPU_ARB_clip_control 1\n";
 
   /* NOTE(Metal): textureGather appears to not function correctly on non-Apple-silicon GPUs.
    * Manifests as selection outlines not showing up (#103412). Disable texture gather if
@@ -468,9 +556,7 @@ bool MTLShader::generate_msl_from_glsl(const shader::ShaderCreateInfo *info)
                                   shd_builder_->glsl_fragment_source_.find("gl_FragDepth") !=
                                       std::string::npos;
 
-    /* TODO(fclem): Add to create info. */
-    msl_iface.uses_gl_FragStencilRefARB = shd_builder_->glsl_fragment_source_.find(
-                                              "gl_FragStencilRefARB") != std::string::npos;
+    msl_iface.uses_gl_FragStencilRefARB = bool(info->builtins_ & BuiltinBits::STENCIL_REF);
 
     msl_iface.depth_write = info->depth_write_;
 
@@ -488,24 +574,19 @@ bool MTLShader::generate_msl_from_glsl(const shader::ShaderCreateInfo *info)
   ss_vertex << "#line " STRINGIFY(__LINE__) " \"" __FILE__ "\"" << std::endl;
   ss_fragment << "#line " STRINGIFY(__LINE__) " \"" __FILE__ "\"" << std::endl;
 
-  if (bool(info->builtins_ & BuiltinBits::TEXTURE_ATOMIC) &&
-      MTLBackend::get_capabilities().supports_texture_atomics)
-  {
-    ss_vertex << ATOMIC_DEFINE_STR;
-    ss_fragment << ATOMIC_DEFINE_STR;
-  }
-
   /* Generate specialization constants. */
   generate_specialization_constant_declarations(info, ss_vertex);
   generate_specialization_constant_declarations(info, ss_fragment);
 
+  /* Generate compilation constants. */
+  generate_compilation_constant_declarations(info, ss_vertex);
+  generate_compilation_constant_declarations(info, ss_fragment);
+
   /*** Generate VERTEX Stage ***/
   /* Conditional defines. */
-  if (msl_iface.use_argument_buffer_for_samplers()) {
-    ss_vertex << "#define USE_ARGUMENT_BUFFER_FOR_SAMPLERS 1" << std::endl;
-    ss_vertex << "#define ARGUMENT_BUFFER_NUM_SAMPLERS "
-              << msl_iface.max_sampler_index_for_stage(ShaderStage::VERTEX) + 1 << std::endl;
-  }
+  arg_buf_samplers_vert_ = msl_iface.use_argument_buffer_for_samplers() ?
+                               msl_iface.max_sampler_index_for_stage(ShaderStage::VERTEX) + 1 :
+                               0;
 
   /* Inject common Metal header. */
   ss_vertex << msl_iface.msl_patch_default_get() << std::endl << std::endl;
@@ -646,11 +727,9 @@ bool MTLShader::generate_msl_from_glsl(const shader::ShaderCreateInfo *info)
   {
 
     /* Conditional defines. */
-    if (msl_iface.use_argument_buffer_for_samplers()) {
-      ss_fragment << "#define USE_ARGUMENT_BUFFER_FOR_SAMPLERS 1" << std::endl;
-      ss_fragment << "#define ARGUMENT_BUFFER_NUM_SAMPLERS "
-                  << msl_iface.max_sampler_index_for_stage(ShaderStage::FRAGMENT) + 1 << std::endl;
-    }
+    arg_buf_samplers_frag_ = msl_iface.use_argument_buffer_for_samplers() ?
+                                 msl_iface.max_sampler_index_for_stage(ShaderStage::FRAGMENT) + 1 :
+                                 0;
 
     /* Inject common Metal header. */
     ss_fragment << msl_iface.msl_patch_default_get() << std::endl << std::endl;
@@ -869,41 +948,15 @@ bool MTLShader::generate_msl_from_glsl_compute(const shader::ShaderCreateInfo *i
   ss_compute << "#line " STRINGIFY(__LINE__) " \"" __FILE__ "\"" << std::endl;
 
   ss_compute << "#define GPU_ARB_shader_draw_parameters 1\n";
-  if (bool(info->builtins_ & BuiltinBits::TEXTURE_ATOMIC) &&
-      MTLBackend::get_capabilities().supports_texture_atomics)
-  {
-    ss_compute << ATOMIC_DEFINE_STR;
-  }
+  ss_compute << "#define GPU_ARB_clip_control 1\n";
 
   generate_specialization_constant_declarations(info, ss_compute);
+  generate_compilation_constant_declarations(info, ss_compute);
 
   /* Conditional defines. */
-  if (msl_iface.use_argument_buffer_for_samplers()) {
-    ss_compute << "#define USE_ARGUMENT_BUFFER_FOR_SAMPLERS 1" << std::endl;
-    ss_compute << "#define ARGUMENT_BUFFER_NUM_SAMPLERS "
-               << msl_iface.max_sampler_index_for_stage(ShaderStage::COMPUTE) + 1 << std::endl;
-  }
-
-  /* Inject static workgroup sizes. */
-  if (msl_iface.uses_gl_WorkGroupSize) {
-  }
-
-  /* Inject constant work group sizes. */
-  if (msl_iface.uses_gl_WorkGroupSize) {
-    ss_compute << "#define MTL_USE_WORKGROUP_SIZE 1" << std::endl;
-    ss_compute << "#define MTL_WORKGROUP_SIZE_X " << info->compute_layout_.local_size_x
-               << std::endl;
-    ss_compute << "#define MTL_WORKGROUP_SIZE_Y "
-               << ((info->compute_layout_.local_size_y != -1) ?
-                       info->compute_layout_.local_size_y :
-                       1)
-               << std::endl;
-    ss_compute << "#define MTL_WORKGROUP_SIZE_Z "
-               << ((info->compute_layout_.local_size_y != -1) ?
-                       info->compute_layout_.local_size_y :
-                       1)
-               << std::endl;
-  }
+  arg_buf_samplers_comp_ = msl_iface.use_argument_buffer_for_samplers() ?
+                               msl_iface.max_sampler_index_for_stage(ShaderStage::COMPUTE) + 1 :
+                               0;
 
   /* Inject common Metal header. */
   ss_compute << msl_iface.msl_patch_default_get() << std::endl << std::endl;
@@ -953,14 +1006,27 @@ bool MTLShader::generate_msl_from_glsl_compute(const shader::ShaderCreateInfo *i
   /* Compute constructor for Shared memory blocks, as we must pass
    * local references from entry-point function scope into the class
    * instantiation. */
-  ss_compute << get_stage_class_name(ShaderStage::COMPUTE)
-             << "(MSL_SHARED_VARS_ARGS) MSL_SHARED_VARS_ASSIGN {}\n";
+  ss_compute << get_stage_class_name(ShaderStage::COMPUTE) << "( ";
+  if (!info->shared_variables_.is_empty()) {
+    shared_variable_args(*info, ss_compute);
+  }
+  else {
+    ss_compute << "MSL_SHARED_VARS_ARGS";
+  }
+  ss_compute << ")";
+  if (!info->shared_variables_.is_empty()) {
+    shared_variable_assign(*info, ss_compute);
+  }
+  else {
+    ss_compute << " MSL_SHARED_VARS_ASSIGN ";
+  }
+  ss_compute << "{}\n";
 
   /* Class Closing Bracket to end shader global scope. */
   ss_compute << "};" << std::endl;
 
   /* Generate Vertex shader entry-point function containing resource bindings. */
-  ss_compute << msl_iface.generate_msl_compute_entry_stub();
+  ss_compute << msl_iface.generate_msl_compute_entry_stub(*info);
 
 #ifndef NDEBUG
   /* In debug mode, we inject the name of the shader into the entry-point function
@@ -1072,9 +1138,8 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
         /* Samplers to have access::sample by default. */
         MSLTextureSamplerAccess access = MSLTextureSamplerAccess::TEXTURE_ACCESS_SAMPLE;
         /* TextureBuffers must have read/write/read-write access pattern. */
-        if (res.sampler.type == ImageType::FLOAT_BUFFER ||
-            res.sampler.type == ImageType::INT_BUFFER ||
-            res.sampler.type == ImageType::UINT_BUFFER)
+        if (res.sampler.type == ImageType::FloatBuffer ||
+            res.sampler.type == ImageType::IntBuffer || res.sampler.type == ImageType::UintBuffer)
         {
           access = MSLTextureSamplerAccess::TEXTURE_ACCESS_READ;
         }
@@ -1096,10 +1161,10 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
       case shader::ShaderCreateInfo::Resource::BindType::IMAGE: {
         /* Flatten qualifier flags into final access state. */
         MSLTextureSamplerAccess access;
-        if ((res.image.qualifiers & Qualifier::READ_WRITE) == Qualifier::READ_WRITE) {
+        if ((res.image.qualifiers & Qualifier::read_write) == Qualifier::read_write) {
           access = MSLTextureSamplerAccess::TEXTURE_ACCESS_READWRITE;
         }
-        else if (bool(res.image.qualifiers & Qualifier::WRITE)) {
+        else if (bool(res.image.qualifiers & Qualifier::write)) {
           access = MSLTextureSamplerAccess::TEXTURE_ACCESS_WRITE;
         }
         else {
@@ -1137,7 +1202,7 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
 
         BLI_assert(ubo.location >= 0 && ubo.location < MTL_MAX_BUFFER_BINDINGS);
 
-        ubo.qualifiers = shader::Qualifier::READ;
+        ubo.qualifiers = shader::Qualifier::read;
         ubo.type_name = res.uniformbuf.type_name;
         ubo.is_texture_buffer = false;
         ubo.is_array = (array_offset > -1);
@@ -1193,12 +1258,12 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     uint atomic_fallback_buffer_count = 0;
     for (MSLTextureResource &tex : texture_samplers) {
       if (ELEM(tex.type,
-               ImageType::UINT_2D_ATOMIC,
-               ImageType::UINT_2D_ARRAY_ATOMIC,
-               ImageType::UINT_3D_ATOMIC,
-               ImageType::INT_2D_ATOMIC,
-               ImageType::INT_2D_ARRAY_ATOMIC,
-               ImageType::INT_3D_ATOMIC))
+               ImageType::AtomicUint2D,
+               ImageType::AtomicUint2DArray,
+               ImageType::AtomicUint3D,
+               ImageType::AtomicInt2D,
+               ImageType::AtomicInt2DArray,
+               ImageType::AtomicInt3D))
       {
         /* Add storage-buffer bind-point. */
         MSLBufferBlock ssbo;
@@ -1219,7 +1284,7 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
         BLI_assert(ssbo.location >= 0 && ssbo.location < MTL_MAX_BUFFER_BINDINGS);
 
         /* Qualifier should be read write and type is either uint or int. */
-        ssbo.qualifiers = Qualifier::READ_WRITE;
+        ssbo.qualifiers = Qualifier::read_write;
         ssbo.type_name = tex.get_msl_return_type_str();
         ssbo.is_array = false;
         ssbo.name = tex.name + "_storagebuf";
@@ -1228,7 +1293,7 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
         storage_blocks.append(ssbo);
 
         /* Add uniform for metadata. */
-        MSLUniform uniform(shader::Type::IVEC4, tex.name + "_metadata", false, 1);
+        MSLUniform uniform(shader::Type::int4_t, tex.name + "_metadata", false, 1);
         uniforms.append(uniform);
 
         atomic_fallback_buffer_count++;
@@ -1264,7 +1329,6 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
 
   /** Fragment outputs. */
   for (const shader::ShaderCreateInfo::FragOut &frag_out : create_info_->fragment_outputs_) {
-
     /* Validate input. */
     BLI_assert(frag_out.name.is_empty() == false);
     BLI_assert(frag_out.index >= 0);
@@ -1292,40 +1356,23 @@ void MSLGeneratorInterface::prepare_from_createinfo(const shader::ShaderCreateIn
     /* Populate MSLGenerator attribute. */
     MSLFragmentTileInputAttribute mtl_frag_in;
     mtl_frag_in.layout_location = frag_tile_in.index;
-    mtl_frag_in.layout_index = (frag_tile_in.blend != DualBlend::NONE) ?
-                                   ((frag_tile_in.blend == DualBlend::SRC_0) ? 0 : 1) :
-                                   -1;
+    mtl_frag_in.layout_index = -1;
     mtl_frag_in.type = frag_tile_in.type;
     mtl_frag_in.name = frag_tile_in.name;
     mtl_frag_in.raster_order_group = frag_tile_in.raster_order_group;
+    mtl_frag_in.is_layered_input = ELEM(frag_tile_in.img_type,
+                                        ImageType::Uint2DArray,
+                                        ImageType::Int2DArray,
+                                        ImageType::Float2DArray);
 
     fragment_tile_inputs.append(mtl_frag_in);
 
     /* If we do not support native tile inputs, generate an image-binding per input. */
     if (!MTLBackend::capabilities.supports_native_tile_inputs) {
-      /* Determine type: */
-      bool is_layered_fb = bool(create_info_->builtins_ & BuiltinBits::LAYER);
-      /* Start with invalid value to detect failure cases. */
-      ImageType image_type = ImageType::FLOAT_BUFFER;
-      switch (frag_tile_in.type) {
-        case Type::FLOAT:
-          image_type = is_layered_fb ? ImageType::FLOAT_2D_ARRAY : ImageType::FLOAT_2D;
-          break;
-        case Type::INT:
-          image_type = is_layered_fb ? ImageType::INT_2D_ARRAY : ImageType::INT_2D;
-          break;
-        case Type::UINT:
-          image_type = is_layered_fb ? ImageType::UINT_2D_ARRAY : ImageType::UINT_2D;
-          break;
-        default:
-          break;
-      }
-      BLI_assert(image_type != ImageType::FLOAT_BUFFER);
-
       /* Generate texture binding resource. */
       MSLTextureResource msl_image;
       msl_image.stage = ShaderStage::FRAGMENT;
-      msl_image.type = image_type;
+      msl_image.type = frag_tile_in.img_type;
       msl_image.name = frag_tile_in.name + "_subpass_img";
       msl_image.access = MSLTextureSamplerAccess::TEXTURE_ACCESS_READ;
       msl_image.slot = texture_slot_id++;
@@ -1555,7 +1602,8 @@ std::string MSLGeneratorInterface::generate_msl_fragment_entry_stub()
   return out.str();
 }
 
-std::string MSLGeneratorInterface::generate_msl_compute_entry_stub()
+std::string MSLGeneratorInterface::generate_msl_compute_entry_stub(
+    const shader::ShaderCreateInfo &info)
 {
   static const char *shader_stage_inst_name = get_shader_stage_instance_name(ShaderStage::COMPUTE);
   std::stringstream out;
@@ -1581,9 +1629,23 @@ std::string MSLGeneratorInterface::generate_msl_compute_entry_stub()
 
   out << this->generate_msl_compute_inputs_string();
   out << ") {" << std::endl << std::endl;
-  out << "MSL_SHARED_VARS_DECLARE\n";
-  out << "\t" << get_stage_class_name(ShaderStage::COMPUTE) << " " << shader_stage_inst_name
-      << " MSL_SHARED_VARS_PASS;\n";
+  if (!info.shared_variables_.is_empty()) {
+    shared_variable_declare(info, out);
+  }
+  else {
+    out << "MSL_SHARED_VARS_DECLARE\n";
+  }
+
+  out << "\t" << get_stage_class_name(ShaderStage::COMPUTE) << " " << shader_stage_inst_name;
+  /* Shared vars should be either all be declared in shader (MSL_SHARED_VARS_* path) or all in
+   * create infos (shared_variable_* path). */
+  if (!info.shared_variables_.is_empty()) {
+    shared_variable_pass(info, out);
+  }
+  else {
+    out << " MSL_SHARED_VARS_PASS ";
+  }
+  out << ";\n";
 
   /* Copy global variables. */
   /* Entry point parameters for gl Globals. */
@@ -1705,7 +1767,7 @@ void MSLGeneratorInterface::generate_msl_uniforms_input_string(std::stringstream
         out << "const ";
       }
       /* For literal/existing global types, we do not need the class name-space accessor. */
-      bool writeable = (ssbo.qualifiers & shader::Qualifier::WRITE) == shader::Qualifier::WRITE;
+      bool writeable = (ssbo.qualifiers & shader::Qualifier::write) == shader::Qualifier::write;
       const char *memory_scope = ((writeable) ? "device " : "constant ");
       out << memory_scope;
       if (!is_builtin_type(ssbo.type_name)) {
@@ -2145,9 +2207,14 @@ std::string MSLGeneratorInterface::generate_msl_fragment_tile_input_population()
       swizzle[to_component_count(tile_input.type)] = '\0';
 
       bool is_layered_fb = bool(create_info_->builtins_ & BuiltinBits::LAYER);
-      std::string texel_co = (is_layered_fb) ?
-                                 "ivec3(ivec2(v_in._default_position_.xy), int(v_in.gpu_Layer))" :
-                                 "ivec2(v_in._default_position_.xy)";
+      std::string texel_co =
+          (tile_input.is_layered_input) ?
+              ((is_layered_fb)  ? "ivec3(ivec2(v_in._default_position_.xy), int(v_in.gpu_Layer))" :
+                                  /* This should fetch the attached layer.
+                                   * But this is not simple to set. For now
+                                   * assume it is always the first layer. */
+                                  "ivec3(ivec2(v_in._default_position_.xy), 0)") :
+              "ivec2(v_in._default_position_.xy)";
 
       out << "\t" << get_shader_stage_instance_name(ShaderStage::FRAGMENT) << "."
           << tile_input.name << " = imageLoad("
@@ -2198,7 +2265,7 @@ std::string MSLGeneratorInterface::generate_msl_uniform_block_population(ShaderS
       out << " = ";
 
       if (bool(stage & ShaderStage::VERTEX)) {
-        bool writeable = bool(ssbo.qualifiers & shader::Qualifier::WRITE);
+        bool writeable = bool(ssbo.qualifiers & shader::Qualifier::write);
         const char *memory_scope = ((writeable) ? "device " : "constant ");
 
         out << "const_cast<" << memory_scope;
@@ -2586,7 +2653,7 @@ std::string MSLGeneratorInterface::generate_msl_texture_vars(ShaderStage shader_
             << this->texture_samplers[i].name << ".atomic.buffer = ";
 
         if (bool(shader_stage & ShaderStage::VERTEX)) {
-          bool writeable = bool(ssbo.qualifiers & shader::Qualifier::WRITE);
+          bool writeable = bool(ssbo.qualifiers & shader::Qualifier::write);
           const char *memory_scope = ((writeable) ? "device " : "constant ");
 
           out << "const_cast<" << memory_scope;
@@ -2609,10 +2676,10 @@ std::string MSLGeneratorInterface::generate_msl_texture_vars(ShaderStage shader_
         /* Buffer-backed 2D Array and 3D texture types are not natively supported so texture size
          * is passed in as uniform metadata for 3D to 2D coordinate remapping. */
         if (ELEM(this->texture_samplers[i].type,
-                 ImageType::UINT_2D_ARRAY_ATOMIC,
-                 ImageType::UINT_3D_ATOMIC,
-                 ImageType::INT_2D_ARRAY_ATOMIC,
-                 ImageType::INT_3D_ATOMIC))
+                 ImageType::AtomicUint2DArray,
+                 ImageType::AtomicUint3D,
+                 ImageType::AtomicInt2DArray,
+                 ImageType::AtomicInt3D))
         {
           out << "\t" << get_shader_stage_instance_name(shader_stage) << "."
               << this->texture_samplers[i].name << ".atomic.texture_size = ushort3(uniforms->"
@@ -2749,7 +2816,7 @@ MTLShaderInterface *MSLGeneratorInterface::bake_shader_interface(
      * components. */
     if (is_matrix_type(this->vertex_input_attributes[attribute].type)) {
 
-      eMTLDataType mtl_type = to_mtl_type(
+      MTLInterfaceDataType mtl_type = to_mtl_type(
           get_matrix_subtype(this->vertex_input_attributes[attribute].type));
       int size = mtl_get_data_type_size(mtl_type);
       for (int elem = 0;
@@ -2788,7 +2855,7 @@ MTLShaderInterface *MSLGeneratorInterface::bake_shader_interface(
     else {
 
       /* Normal attribute types. */
-      eMTLDataType mtl_type = to_mtl_type(this->vertex_input_attributes[attribute].type);
+      MTLInterfaceDataType mtl_type = to_mtl_type(this->vertex_input_attributes[attribute].type);
       int size = mtl_get_data_type_size(mtl_type);
       interface->add_input_attribute(
           name_buffer_copystr(&interface->name_buffer_,
@@ -2899,110 +2966,110 @@ std::string MSLTextureResource::get_msl_texture_type_str() const
   bool supports_native_atomics = MTLBackend::get_capabilities().supports_texture_atomics;
   /* Add Types as needed. */
   switch (this->type) {
-    case ImageType::FLOAT_1D: {
+    case ImageType::Float1D: {
       return "texture1d";
     }
-    case ImageType::FLOAT_2D: {
+    case ImageType::Float2D: {
       return "texture2d";
     }
-    case ImageType::FLOAT_3D: {
+    case ImageType::Float3D: {
       return "texture3d";
     }
-    case ImageType::FLOAT_CUBE: {
+    case ImageType::FloatCube: {
       return "texturecube";
     }
-    case ImageType::FLOAT_1D_ARRAY: {
+    case ImageType::Float1DArray: {
       return "texture1d_array";
     }
-    case ImageType::FLOAT_2D_ARRAY: {
+    case ImageType::Float2DArray: {
       return "texture2d_array";
     }
-    case ImageType::FLOAT_CUBE_ARRAY: {
+    case ImageType::FloatCubeArray: {
       return "texturecube_array";
     }
-    case ImageType::FLOAT_BUFFER: {
+    case ImageType::FloatBuffer: {
       return "texture_buffer";
     }
-    case ImageType::DEPTH_2D: {
+    case ImageType::Depth2D: {
       return "depth2d";
     }
-    case ImageType::SHADOW_2D: {
+    case ImageType::Shadow2D: {
       return "depth2d";
     }
-    case ImageType::DEPTH_2D_ARRAY: {
+    case ImageType::Depth2DArray: {
       return "depth2d_array";
     }
-    case ImageType::SHADOW_2D_ARRAY: {
+    case ImageType::Shadow2DArray: {
       return "depth2d_array";
     }
-    case ImageType::DEPTH_CUBE: {
+    case ImageType::DepthCube: {
       return "depthcube";
     }
-    case ImageType::SHADOW_CUBE: {
+    case ImageType::ShadowCube: {
       return "depthcube";
     }
-    case ImageType::DEPTH_CUBE_ARRAY: {
+    case ImageType::DepthCubeArray: {
       return "depthcube_array";
     }
-    case ImageType::SHADOW_CUBE_ARRAY: {
+    case ImageType::ShadowCubeArray: {
       return "depthcube_array";
     }
-    case ImageType::INT_1D: {
+    case ImageType::Int1D: {
       return "texture1d";
     }
-    case ImageType::INT_2D: {
+    case ImageType::Int2D: {
       return "texture2d";
     }
-    case ImageType::INT_3D: {
+    case ImageType::Int3D: {
       return "texture3d";
     }
-    case ImageType::INT_CUBE: {
+    case ImageType::IntCube: {
       return "texturecube";
     }
-    case ImageType::INT_1D_ARRAY: {
+    case ImageType::Int1DArray: {
       return "texture1d_array";
     }
-    case ImageType::INT_2D_ARRAY: {
+    case ImageType::Int2DArray: {
       return "texture2d_array";
     }
-    case ImageType::INT_CUBE_ARRAY: {
+    case ImageType::IntCubeArray: {
       return "texturecube_array";
     }
-    case ImageType::INT_BUFFER: {
+    case ImageType::IntBuffer: {
       return "texture_buffer";
     }
-    case ImageType::UINT_1D: {
+    case ImageType::Uint1D: {
       return "texture1d";
     }
-    case ImageType::UINT_2D: {
+    case ImageType::Uint2D: {
       return "texture2d";
     }
-    case ImageType::UINT_3D: {
+    case ImageType::Uint3D: {
       return "texture3d";
     }
-    case ImageType::UINT_CUBE: {
+    case ImageType::UintCube: {
       return "texturecube";
     }
-    case ImageType::UINT_1D_ARRAY: {
+    case ImageType::Uint1DArray: {
       return "texture1d_array";
     }
-    case ImageType::UINT_2D_ARRAY: {
+    case ImageType::Uint2DArray: {
       return "texture2d_array";
     }
-    case ImageType::UINT_CUBE_ARRAY: {
+    case ImageType::UintCubeArray: {
       return "texturecube_array";
     }
-    case ImageType::UINT_BUFFER: {
+    case ImageType::UintBuffer: {
       return "texture_buffer";
     }
     /* If texture atomics are natively supported, we use the native texture type, otherwise all
      * other formats are implemented via texture2d. */
-    case ImageType::INT_2D_ATOMIC:
-    case ImageType::UINT_2D_ATOMIC: {
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicUint2D: {
       return "texture2d";
     }
-    case ImageType::INT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_2D_ARRAY_ATOMIC: {
+    case ImageType::AtomicInt2DArray:
+    case ImageType::AtomicUint2DArray: {
       if (supports_native_atomics) {
         return "texture2d_array";
       }
@@ -3010,8 +3077,8 @@ std::string MSLTextureResource::get_msl_texture_type_str() const
         return "texture2d";
       }
     }
-    case ImageType::INT_3D_ATOMIC:
-    case ImageType::UINT_3D_ATOMIC: {
+    case ImageType::AtomicInt3D:
+    case ImageType::AtomicUint3D: {
       if (supports_native_atomics) {
         return "texture3d";
       }
@@ -3033,106 +3100,106 @@ std::string MSLTextureResource::get_msl_wrapper_type_str() const
   bool supports_native_atomics = MTLBackend::get_capabilities().supports_texture_atomics;
   /* Add Types as needed. */
   switch (this->type) {
-    case ImageType::FLOAT_1D: {
+    case ImageType::Float1D: {
       return "_mtl_sampler_1d";
     }
-    case ImageType::FLOAT_2D: {
+    case ImageType::Float2D: {
       return "_mtl_sampler_2d";
     }
-    case ImageType::FLOAT_3D: {
+    case ImageType::Float3D: {
       return "_mtl_sampler_3d";
     }
-    case ImageType::FLOAT_CUBE: {
+    case ImageType::FloatCube: {
       return "_mtl_sampler_cube";
     }
-    case ImageType::FLOAT_1D_ARRAY: {
+    case ImageType::Float1DArray: {
       return "_mtl_sampler_1d_array";
     }
-    case ImageType::FLOAT_2D_ARRAY: {
+    case ImageType::Float2DArray: {
       return "_mtl_sampler_2d_array";
     }
-    case ImageType::FLOAT_CUBE_ARRAY: {
+    case ImageType::FloatCubeArray: {
       return "_mtl_sampler_cube_array";
     }
-    case ImageType::FLOAT_BUFFER: {
+    case ImageType::FloatBuffer: {
       return "_mtl_sampler_buffer";
     }
-    case ImageType::DEPTH_2D: {
+    case ImageType::Depth2D: {
       return "_mtl_sampler_depth_2d";
     }
-    case ImageType::SHADOW_2D: {
+    case ImageType::Shadow2D: {
       return "_mtl_sampler_depth_2d";
     }
-    case ImageType::DEPTH_2D_ARRAY: {
+    case ImageType::Depth2DArray: {
       return "_mtl_sampler_depth_2d_array";
     }
-    case ImageType::SHADOW_2D_ARRAY: {
+    case ImageType::Shadow2DArray: {
       return "_mtl_sampler_depth_2d_array";
     }
-    case ImageType::DEPTH_CUBE: {
+    case ImageType::DepthCube: {
       return "_mtl_sampler_depth_cube";
     }
-    case ImageType::SHADOW_CUBE: {
+    case ImageType::ShadowCube: {
       return "_mtl_sampler_depth_cube";
     }
-    case ImageType::DEPTH_CUBE_ARRAY: {
+    case ImageType::DepthCubeArray: {
       return "_mtl_sampler_depth_cube_array";
     }
-    case ImageType::SHADOW_CUBE_ARRAY: {
+    case ImageType::ShadowCubeArray: {
       return "_mtl_sampler_depth_cube_array";
     }
-    case ImageType::INT_1D: {
+    case ImageType::Int1D: {
       return "_mtl_sampler_1d";
     }
-    case ImageType::INT_2D: {
+    case ImageType::Int2D: {
       return "_mtl_sampler_2d";
     }
-    case ImageType::INT_3D: {
+    case ImageType::Int3D: {
       return "_mtl_sampler_3d";
     }
-    case ImageType::INT_CUBE: {
+    case ImageType::IntCube: {
       return "_mtl_sampler_cube";
     }
-    case ImageType::INT_1D_ARRAY: {
+    case ImageType::Int1DArray: {
       return "_mtl_sampler_1d_array";
     }
-    case ImageType::INT_2D_ARRAY: {
+    case ImageType::Int2DArray: {
       return "_mtl_sampler_2d_array";
     }
-    case ImageType::INT_CUBE_ARRAY: {
+    case ImageType::IntCubeArray: {
       return "_mtl_sampler_cube_array";
     }
-    case ImageType::INT_BUFFER: {
+    case ImageType::IntBuffer: {
       return "_mtl_sampler_buffer";
     }
-    case ImageType::UINT_1D: {
+    case ImageType::Uint1D: {
       return "_mtl_sampler_1d";
     }
-    case ImageType::UINT_2D: {
+    case ImageType::Uint2D: {
       return "_mtl_sampler_2d";
     }
-    case ImageType::UINT_3D: {
+    case ImageType::Uint3D: {
       return "_mtl_sampler_3d";
     }
-    case ImageType::UINT_CUBE: {
+    case ImageType::UintCube: {
       return "_mtl_sampler_cube";
     }
-    case ImageType::UINT_1D_ARRAY: {
+    case ImageType::Uint1DArray: {
       return "_mtl_sampler_1d_array";
     }
-    case ImageType::UINT_2D_ARRAY: {
+    case ImageType::Uint2DArray: {
       return "_mtl_sampler_2d_array";
     }
-    case ImageType::UINT_CUBE_ARRAY: {
+    case ImageType::UintCubeArray: {
       return "_mtl_sampler_cube_array";
     }
-    case ImageType::UINT_BUFFER: {
+    case ImageType::UintBuffer: {
       return "_mtl_sampler_buffer";
     }
     /* If native texture atomics are unsupported, map types to fallback atomic structures which
      * contain a buffer pointer and metadata members for size and alignment. */
-    case ImageType::INT_2D_ATOMIC:
-    case ImageType::UINT_2D_ATOMIC: {
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicUint2D: {
       if (supports_native_atomics) {
         return "_mtl_sampler_2d";
       }
@@ -3140,8 +3207,8 @@ std::string MSLTextureResource::get_msl_wrapper_type_str() const
         return "_mtl_sampler_2d_atomic";
       }
     }
-    case ImageType::INT_3D_ATOMIC:
-    case ImageType::UINT_3D_ATOMIC: {
+    case ImageType::AtomicInt3D:
+    case ImageType::AtomicUint3D: {
       if (supports_native_atomics) {
         return "_mtl_sampler_3d";
       }
@@ -3149,8 +3216,8 @@ std::string MSLTextureResource::get_msl_wrapper_type_str() const
         return "_mtl_sampler_3d_atomic";
       }
     }
-    case ImageType::INT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_2D_ARRAY_ATOMIC: {
+    case ImageType::AtomicInt2DArray:
+    case ImageType::AtomicUint2DArray: {
       if (supports_native_atomics) {
         return "_mtl_sampler_2d_array";
       }
@@ -3171,51 +3238,51 @@ std::string MSLTextureResource::get_msl_return_type_str() const
   /* Add Types as needed */
   switch (this->type) {
     /* Floating point return. */
-    case ImageType::FLOAT_1D:
-    case ImageType::FLOAT_2D:
-    case ImageType::FLOAT_3D:
-    case ImageType::FLOAT_CUBE:
-    case ImageType::FLOAT_1D_ARRAY:
-    case ImageType::FLOAT_2D_ARRAY:
-    case ImageType::FLOAT_CUBE_ARRAY:
-    case ImageType::FLOAT_BUFFER:
-    case ImageType::DEPTH_2D:
-    case ImageType::SHADOW_2D:
-    case ImageType::DEPTH_2D_ARRAY:
-    case ImageType::SHADOW_2D_ARRAY:
-    case ImageType::DEPTH_CUBE:
-    case ImageType::SHADOW_CUBE:
-    case ImageType::DEPTH_CUBE_ARRAY:
-    case ImageType::SHADOW_CUBE_ARRAY: {
+    case ImageType::Float1D:
+    case ImageType::Float2D:
+    case ImageType::Float3D:
+    case ImageType::FloatCube:
+    case ImageType::Float1DArray:
+    case ImageType::Float2DArray:
+    case ImageType::FloatCubeArray:
+    case ImageType::FloatBuffer:
+    case ImageType::Depth2D:
+    case ImageType::Shadow2D:
+    case ImageType::Depth2DArray:
+    case ImageType::Shadow2DArray:
+    case ImageType::DepthCube:
+    case ImageType::ShadowCube:
+    case ImageType::DepthCubeArray:
+    case ImageType::ShadowCubeArray: {
       return "float";
     }
     /* Integer return. */
-    case ImageType::INT_1D:
-    case ImageType::INT_2D:
-    case ImageType::INT_3D:
-    case ImageType::INT_CUBE:
-    case ImageType::INT_1D_ARRAY:
-    case ImageType::INT_2D_ARRAY:
-    case ImageType::INT_CUBE_ARRAY:
-    case ImageType::INT_BUFFER:
-    case ImageType::INT_2D_ATOMIC:
-    case ImageType::INT_2D_ARRAY_ATOMIC:
-    case ImageType::INT_3D_ATOMIC: {
+    case ImageType::Int1D:
+    case ImageType::Int2D:
+    case ImageType::Int3D:
+    case ImageType::IntCube:
+    case ImageType::Int1DArray:
+    case ImageType::Int2DArray:
+    case ImageType::IntCubeArray:
+    case ImageType::IntBuffer:
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicInt2DArray:
+    case ImageType::AtomicInt3D: {
       return "int";
     }
 
     /* Unsigned Integer return. */
-    case ImageType::UINT_1D:
-    case ImageType::UINT_2D:
-    case ImageType::UINT_3D:
-    case ImageType::UINT_CUBE:
-    case ImageType::UINT_1D_ARRAY:
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_CUBE_ARRAY:
-    case ImageType::UINT_BUFFER:
-    case ImageType::UINT_2D_ATOMIC:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
-    case ImageType::UINT_3D_ATOMIC: {
+    case ImageType::Uint1D:
+    case ImageType::Uint2D:
+    case ImageType::Uint3D:
+    case ImageType::UintCube:
+    case ImageType::Uint1DArray:
+    case ImageType::Uint2DArray:
+    case ImageType::UintCubeArray:
+    case ImageType::UintBuffer:
+    case ImageType::AtomicUint2D:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::AtomicUint3D: {
       return "uint32_t";
     }
 
@@ -3227,110 +3294,110 @@ std::string MSLTextureResource::get_msl_return_type_str() const
   };
 }
 
-eGPUTextureType MSLTextureResource::get_texture_binding_type() const
+GPUTextureType MSLTextureResource::get_texture_binding_type() const
 {
   /* Add Types as needed */
   switch (this->type) {
-    case ImageType::FLOAT_1D: {
+    case ImageType::Float1D: {
       return GPU_TEXTURE_1D;
     }
-    case ImageType::FLOAT_2D: {
+    case ImageType::Float2D: {
       return GPU_TEXTURE_2D;
     }
-    case ImageType::FLOAT_3D: {
+    case ImageType::Float3D: {
       return GPU_TEXTURE_3D;
     }
-    case ImageType::FLOAT_CUBE: {
+    case ImageType::FloatCube: {
       return GPU_TEXTURE_CUBE;
     }
-    case ImageType::FLOAT_1D_ARRAY: {
+    case ImageType::Float1DArray: {
       return GPU_TEXTURE_1D_ARRAY;
     }
-    case ImageType::FLOAT_2D_ARRAY: {
+    case ImageType::Float2DArray: {
       return GPU_TEXTURE_2D_ARRAY;
     }
-    case ImageType::FLOAT_CUBE_ARRAY: {
+    case ImageType::FloatCubeArray: {
       return GPU_TEXTURE_CUBE_ARRAY;
     }
-    case ImageType::FLOAT_BUFFER: {
+    case ImageType::FloatBuffer: {
       return GPU_TEXTURE_BUFFER;
     }
-    case ImageType::DEPTH_2D: {
+    case ImageType::Depth2D: {
       return GPU_TEXTURE_2D;
     }
-    case ImageType::SHADOW_2D: {
+    case ImageType::Shadow2D: {
       return GPU_TEXTURE_2D;
     }
-    case ImageType::DEPTH_2D_ARRAY: {
+    case ImageType::Depth2DArray: {
       return GPU_TEXTURE_2D_ARRAY;
     }
-    case ImageType::SHADOW_2D_ARRAY: {
+    case ImageType::Shadow2DArray: {
       return GPU_TEXTURE_2D_ARRAY;
     }
-    case ImageType::DEPTH_CUBE: {
+    case ImageType::DepthCube: {
       return GPU_TEXTURE_CUBE;
     }
-    case ImageType::SHADOW_CUBE: {
+    case ImageType::ShadowCube: {
       return GPU_TEXTURE_CUBE;
     }
-    case ImageType::DEPTH_CUBE_ARRAY: {
+    case ImageType::DepthCubeArray: {
       return GPU_TEXTURE_CUBE_ARRAY;
     }
-    case ImageType::SHADOW_CUBE_ARRAY: {
+    case ImageType::ShadowCubeArray: {
       return GPU_TEXTURE_CUBE_ARRAY;
     }
-    case ImageType::INT_1D: {
+    case ImageType::Int1D: {
       return GPU_TEXTURE_1D;
     }
-    case ImageType::INT_2D: {
+    case ImageType::Int2D: {
       return GPU_TEXTURE_2D;
     }
-    case ImageType::INT_3D: {
+    case ImageType::Int3D: {
       return GPU_TEXTURE_3D;
     }
-    case ImageType::INT_CUBE: {
+    case ImageType::IntCube: {
       return GPU_TEXTURE_CUBE;
     }
-    case ImageType::INT_1D_ARRAY: {
+    case ImageType::Int1DArray: {
       return GPU_TEXTURE_1D_ARRAY;
     }
-    case ImageType::INT_2D_ARRAY: {
+    case ImageType::Int2DArray: {
       return GPU_TEXTURE_2D_ARRAY;
     }
-    case ImageType::INT_CUBE_ARRAY: {
+    case ImageType::IntCubeArray: {
       return GPU_TEXTURE_CUBE_ARRAY;
     }
-    case ImageType::INT_BUFFER: {
+    case ImageType::IntBuffer: {
       return GPU_TEXTURE_BUFFER;
     }
-    case ImageType::UINT_1D: {
+    case ImageType::Uint1D: {
       return GPU_TEXTURE_1D;
     }
-    case ImageType::UINT_2D:
-    case ImageType::UINT_2D_ATOMIC:
-    case ImageType::INT_2D_ATOMIC: {
+    case ImageType::Uint2D:
+    case ImageType::AtomicUint2D:
+    case ImageType::AtomicInt2D: {
       return GPU_TEXTURE_2D;
     }
-    case ImageType::UINT_3D:
-    case ImageType::UINT_3D_ATOMIC:
-    case ImageType::INT_3D_ATOMIC: {
+    case ImageType::Uint3D:
+    case ImageType::AtomicUint3D:
+    case ImageType::AtomicInt3D: {
       return GPU_TEXTURE_3D;
     }
-    case ImageType::UINT_CUBE: {
+    case ImageType::UintCube: {
       return GPU_TEXTURE_CUBE;
     }
-    case ImageType::UINT_1D_ARRAY: {
+    case ImageType::Uint1DArray: {
       return GPU_TEXTURE_1D_ARRAY;
     }
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
-    case ImageType::INT_2D_ARRAY_ATOMIC: {
+    case ImageType::Uint2DArray:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::AtomicInt2DArray: {
       return GPU_TEXTURE_2D_ARRAY;
     }
-    case ImageType::UINT_CUBE_ARRAY: {
+    case ImageType::UintCubeArray: {
       return GPU_TEXTURE_CUBE_ARRAY;
     }
-    case ImageType::UINT_BUFFER: {
+    case ImageType::UintBuffer: {
       return GPU_TEXTURE_BUFFER;
     }
     default: {
@@ -3340,50 +3407,50 @@ eGPUTextureType MSLTextureResource::get_texture_binding_type() const
   };
 }
 
-eGPUSamplerFormat MSLTextureResource::get_sampler_format() const
+GPUSamplerFormat MSLTextureResource::get_sampler_format() const
 {
   switch (this->type) {
-    case ImageType::FLOAT_BUFFER:
-    case ImageType::FLOAT_1D:
-    case ImageType::FLOAT_1D_ARRAY:
-    case ImageType::FLOAT_2D:
-    case ImageType::FLOAT_2D_ARRAY:
-    case ImageType::FLOAT_3D:
-    case ImageType::FLOAT_CUBE:
-    case ImageType::FLOAT_CUBE_ARRAY:
+    case ImageType::FloatBuffer:
+    case ImageType::Float1D:
+    case ImageType::Float1DArray:
+    case ImageType::Float2D:
+    case ImageType::Float2DArray:
+    case ImageType::Float3D:
+    case ImageType::FloatCube:
+    case ImageType::FloatCubeArray:
       return GPU_SAMPLER_TYPE_FLOAT;
-    case ImageType::INT_BUFFER:
-    case ImageType::INT_1D:
-    case ImageType::INT_1D_ARRAY:
-    case ImageType::INT_2D:
-    case ImageType::INT_2D_ARRAY:
-    case ImageType::INT_3D:
-    case ImageType::INT_CUBE:
-    case ImageType::INT_CUBE_ARRAY:
-    case ImageType::INT_2D_ATOMIC:
-    case ImageType::INT_3D_ATOMIC:
-    case ImageType::INT_2D_ARRAY_ATOMIC:
+    case ImageType::IntBuffer:
+    case ImageType::Int1D:
+    case ImageType::Int1DArray:
+    case ImageType::Int2D:
+    case ImageType::Int2DArray:
+    case ImageType::Int3D:
+    case ImageType::IntCube:
+    case ImageType::IntCubeArray:
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicInt3D:
+    case ImageType::AtomicInt2DArray:
       return GPU_SAMPLER_TYPE_INT;
-    case ImageType::UINT_BUFFER:
-    case ImageType::UINT_1D:
-    case ImageType::UINT_1D_ARRAY:
-    case ImageType::UINT_2D:
-    case ImageType::UINT_2D_ARRAY:
-    case ImageType::UINT_3D:
-    case ImageType::UINT_CUBE:
-    case ImageType::UINT_CUBE_ARRAY:
-    case ImageType::UINT_2D_ATOMIC:
-    case ImageType::UINT_3D_ATOMIC:
-    case ImageType::UINT_2D_ARRAY_ATOMIC:
+    case ImageType::UintBuffer:
+    case ImageType::Uint1D:
+    case ImageType::Uint1DArray:
+    case ImageType::Uint2D:
+    case ImageType::Uint2DArray:
+    case ImageType::Uint3D:
+    case ImageType::UintCube:
+    case ImageType::UintCubeArray:
+    case ImageType::AtomicUint2D:
+    case ImageType::AtomicUint3D:
+    case ImageType::AtomicUint2DArray:
       return GPU_SAMPLER_TYPE_UINT;
-    case ImageType::SHADOW_2D:
-    case ImageType::SHADOW_2D_ARRAY:
-    case ImageType::SHADOW_CUBE:
-    case ImageType::SHADOW_CUBE_ARRAY:
-    case ImageType::DEPTH_2D:
-    case ImageType::DEPTH_2D_ARRAY:
-    case ImageType::DEPTH_CUBE:
-    case ImageType::DEPTH_CUBE_ARRAY:
+    case ImageType::Shadow2D:
+    case ImageType::Shadow2DArray:
+    case ImageType::ShadowCube:
+    case ImageType::ShadowCubeArray:
+    case ImageType::Depth2D:
+    case ImageType::Depth2DArray:
+    case ImageType::DepthCube:
+    case ImageType::DepthCubeArray:
       return GPU_SAMPLER_TYPE_DEPTH;
     default:
       BLI_assert_unreachable();

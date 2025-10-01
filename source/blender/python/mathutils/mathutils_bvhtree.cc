@@ -320,7 +320,7 @@ static void py_bvhtree_nearest_point_cb(void *userdata,
 PyDoc_STRVAR(
     /* Wrap. */
     py_bvhtree_ray_cast_doc,
-    ".. method:: ray_cast(origin, direction, distance=sys.float_info.max)\n"
+    ".. method:: ray_cast(origin, direction, distance=sys.float_info.max, /)\n"
     "\n"
     "   Cast a ray onto the mesh.\n"
     "\n"
@@ -372,7 +372,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     py_bvhtree_find_nearest_doc,
     ".. method:: find_nearest(origin, distance=" PYBVH_MAX_DIST_STR
-    ")\n"
+    ", /)\n"
     "\n"
     "   Find the nearest element (typically face index) to a point.\n"
     "\n"
@@ -457,7 +457,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     py_bvhtree_find_nearest_range_doc,
     ".. method:: find_nearest_range(origin, distance=" PYBVH_MAX_DIST_STR
-    ")\n"
+    ", /)\n"
     "\n"
     "   Find the nearest elements (typically face index) to a point in the distance range.\n"
     "\n"
@@ -550,7 +550,7 @@ static bool py_bvhtree_overlap_cb(void *userdata, int index_a, int index_b, int 
 PyDoc_STRVAR(
     /* Wrap. */
     py_bvhtree_overlap_doc,
-    ".. method:: overlap(other_tree)\n"
+    ".. method:: overlap(other_tree, /)\n"
     "\n"
     "   Find overlapping indices between 2 trees.\n"
     "\n"
@@ -636,7 +636,7 @@ static PyObject *py_bvhtree_overlap(PyBVHTree *self, PyBVHTree *other)
 PyDoc_STRVAR(
     /* Wrap. */
     C_BVHTree_FromPolygons_doc,
-    ".. classmethod:: FromPolygons(vertices, polygons, all_triangles=False, epsilon=0.0)\n"
+    ".. classmethod:: FromPolygons(vertices, polygons, *, all_triangles=False, epsilon=0.0)\n"
     "\n"
     "   BVH tree constructed geometry passed in as arguments.\n"
     "\n"
@@ -928,7 +928,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
 PyDoc_STRVAR(
     /* Wrap. */
     C_BVHTree_FromBMesh_doc,
-    ".. classmethod:: FromBMesh(bmesh, epsilon=0.0)\n"
+    ".. classmethod:: FromBMesh(bmesh, *, epsilon=0.0)\n"
     "\n"
     "   BVH tree based on :class:`BMesh` data.\n"
     "\n"
@@ -1029,7 +1029,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
                                 const bool use_cage,
                                 bool *r_free_mesh)
 {
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   /* we only need minimum mesh data for topology and vertex locations */
   const CustomData_MeshMasks data_masks = CD_MASK_BAREMESH;
   const bool use_render = DEG_get_mode(depsgraph) == DAG_EVAL_RENDER;
@@ -1126,7 +1126,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
 PyDoc_STRVAR(
     /* Wrap. */
     C_BVHTree_FromObject_doc,
-    ".. classmethod:: FromObject(object, depsgraph, deform=True, render=False, "
+    ".. classmethod:: FromObject(object, depsgraph, *, deform=True, render=False, "
     "cage=False, epsilon=0.0)\n"
     "\n"
     "   BVH tree based on :class:`Object` data.\n"
@@ -1246,9 +1246,14 @@ static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObje
 /** \name Module & Type definition
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef py_bvhtree_methods[] = {
@@ -1284,8 +1289,12 @@ static PyMethodDef py_bvhtree_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyTypeObject PyBVHTree_Type = {

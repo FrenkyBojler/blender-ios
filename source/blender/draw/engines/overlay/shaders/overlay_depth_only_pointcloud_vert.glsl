@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_depth_pointcloud)
 
@@ -16,7 +16,7 @@ void main()
 {
   select_id_set(drw_custom_id());
 
-  vec3 world_pos, world_nor;
+  float3 world_pos, world_nor;
   float world_radius;
   pointcloud_get_pos_nor_radius(world_pos, world_nor, world_radius);
 
@@ -26,8 +26,8 @@ void main()
   /* Avoid expense of geometry shader by ensuring rastered point-cloud primitive
    * covers at least a whole pixel. */
   int i = gl_VertexID % 3;
-  vec2 ofs = (i == 0) ? vec2(-1.0) : ((i == 1) ? vec2(2.0, -1.0) : vec2(-1.0, 2.0));
-  gl_Position.xy += sizeViewportInv * gl_Position.w * ofs;
+  float2 ofs = (i == 0) ? float2(-1.0f) : ((i == 1) ? float2(2.0f, -1.0f) : float2(-1.0f, 2.0f));
+  gl_Position.xy += uniform_buf.size_viewport_inv * gl_Position.w * ofs;
 #endif
 
   view_clipping_distances(world_pos);

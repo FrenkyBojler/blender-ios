@@ -61,6 +61,7 @@ if(WITH_OPENSUBDIV)
     internal/evaluator/gpu_compute_evaluator.h
     internal/evaluator/gpu_patch_table.cc
     internal/evaluator/gpu_patch_table.hh
+    internal/evaluator/gpu_vertex_buffer_wrapper.hh
     internal/evaluator/patch_map.cc
     internal/evaluator/patch_map.h
 
@@ -78,12 +79,6 @@ if(WITH_OPENSUBDIV)
     ${OPENSUBDIV_LIBRARIES}
     ${Epoxy_LIBRARIES}
   )
-
-  if(WITH_OPENMP AND WITH_OPENMP_STATIC)
-    list(APPEND LIB
-      ${OpenMP_LIBRARIES}
-    )
-  endif()
 
   if(WIN32)
     add_definitions(-DNOMINMAX)
@@ -107,15 +102,25 @@ if(WITH_OPENSUBDIV)
   )
 
   set(GLSL_SOURCE_CONTENT "")
+  set(GLSL_METADATA_CONTENT "")
+  set(GLSL_INFOS_CONTENT "")
   foreach(GLSL_FILE ${GLSL_SRC})
     get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
     string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
-    string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(datatoc_${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+    string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+    string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
+    string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")
   endforeach()
 
   set(glsl_source_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_osd_source_list.h")
   file(GENERATE OUTPUT ${glsl_source_list_file} CONTENT "${GLSL_SOURCE_CONTENT}")
   list(APPEND SRC ${glsl_source_list_file})
+  set(glsl_metadata_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_osd_metadata_list.hh")
+  file(GENERATE OUTPUT ${glsl_metadata_list_file} CONTENT "${GLSL_METADATA_CONTENT}")
+  list(APPEND SRC ${glsl_metadata_list_file})
+  set(glsl_infos_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_osd_infos_list.hh")
+  file(GENERATE OUTPUT ${glsl_infos_list_file} CONTENT "${GLSL_INFOS_CONTENT}")
+  list(APPEND SRC ${glsl_infos_list_file})
   list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
   target_include_directories(bf_osd_shaders PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

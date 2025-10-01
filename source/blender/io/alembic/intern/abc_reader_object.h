@@ -41,7 +41,7 @@ struct ImportSettings {
   bool is_sequence = false;
   bool set_frame_range = false;
 
-  /* Min and max frame detected from  file sequences. */
+  /* Min and max frame detected from file sequences. */
   int sequence_min_frame = 0;
   int sequence_max_frame = 1;
 
@@ -73,7 +73,9 @@ class AbcObjectReader {
   Object *m_object;
   Alembic::Abc::IObject m_iobject;
 
-  /* XXX - TODO(kevindietrich) : this references stack memory... */
+  /* XXX - This used to reference stack memory for MeshSequenceCache scenarios. That has been
+   * addressed but ownership of these settings should be made more apparent to prevent similar
+   * issues in the future. */
   ImportSettings *m_settings;
   /* This is initialized from the ImportSettings above on construction. It will need to be removed
    * once we fix the stack memory reference situation. */
