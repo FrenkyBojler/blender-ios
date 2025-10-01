@@ -452,17 +452,17 @@ static int treesort_custom(const void *v1, const void *v2)
   const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
 
   if (x1->idcode != ID_OB || x2->idcode != ID_OB) {
-    return BLI_strcasecmp_natural(x1->name, x2->name);
+    return 0; /*Preserrves original order for non objects.*/
   }
 
   TreeElement *parent = x1->te->parent;
   if (!parent) {
-    return BLI_strcasecmp_natural(x1->name, x2->name);
+    return 0; /*Preserves original order if there's no parent.*/
   }
 
   Collection *col = outliner_collection_from_tree_element(parent);
   if (!col) {
-    return BLI_strcasecmp_natural(x1->name, x2->name);
+    return 0; /*Preserves original order if not in colleciton.*/
   }
 
   Object *ob1 = (Object *)TREESTORE(x1->te)->id;
@@ -478,7 +478,7 @@ static int treesort_custom(const void *v1, const void *v2)
     return -1;
   if (a > b)
     return 1;
-  return BLI_strcasecmp_natural(x1->name, x2->name);
+  return 0;
 }
 
 /* Move children that are not in the collection to the end of the list. */
