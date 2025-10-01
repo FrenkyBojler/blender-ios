@@ -1529,7 +1529,7 @@ bool BKE_sound_stream_info_get(Main *main,
   return true;
 }
 
-#ifdef WITH_RUBBERBAND
+#  ifdef WITH_RUBBERBAND
 void *BKE_sound_add_time_stretch_effect(void *sound_handle, float fps)
 {
   return AUD_Sound_animateableTimeStretchPitchScale(
@@ -1553,7 +1553,7 @@ void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
   AUD_Sound_animateableTimeStretchPitchScale_setConstantRangeAnimationData(
       handle, AUD_AP_TIME_STRETCH, frame_start, frame_end, &time_stretch);
 }
-#endif /* WITH_RUBBERBAND */
+#  endif /* WITH_RUBBERBAND */
 
 #else /* WITH_AUDASPACE */
 
