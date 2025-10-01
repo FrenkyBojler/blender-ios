@@ -21,6 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
+  b.add_default_layout();
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
@@ -109,7 +110,8 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridVoxelize");
   ntype.ui_name = "Voxelize Grid";
-  ntype.ui_description = "Make active tiles of a volume grid into voxels";
+  ntype.ui_description =
+      "Remove sparseness from a volume grid by making the active tiles into voxels";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
