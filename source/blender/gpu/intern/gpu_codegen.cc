@@ -251,6 +251,9 @@ void GPUCodegen::generate_resources()
     ss << "struct NodeTree {\n";
     LISTBASE_FOREACH (LinkData *, link, &ubo_inputs_) {
       GPUInput *input = (GPUInput *)(link->data);
+      if (input->is_duplicate) {
+        continue;
+      }
       if (input->source == GPU_SOURCE_CRYPTOMATTE) {
         ss << input->type << " crypto_hash;\n";
       }
