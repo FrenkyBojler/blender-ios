@@ -3394,6 +3394,20 @@ static void iter_backwards_ex(const bNodeTree *ntree,
     }
     iter_backwards_ex(ntree, link->fromnode, callback, userdata, recursion_mask);
   }
+  /* Zone input nodes are linked to their corresponding zone output nodes,
+   * even if there is no bNodeLink between them. */
+  if (const bNodeZoneType *zone_type = zone_type_by_node_type(node_start->type_legacy)) {
+    if (zone_type->output_type == node_start->type_legacy) {
+      if (const bNode *zone_input_node = zone_type->get_corresponding_input(*ntree, *node_start)) {
+        if (!callback(
+                const_cast<bNode *>(zone_input_node), const_cast<bNode *>(node_start), userdata))
+        {
+          return;
+        }
+        iter_backwards_ex(ntree, zone_input_node, callback, userdata, recursion_mask);
+      }
+    }
+  }
 }
 
 void node_chain_iterator_backwards(const bNodeTree *ntree,
