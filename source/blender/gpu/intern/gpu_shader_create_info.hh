@@ -768,7 +768,7 @@ struct ShaderCreateInfo {
   struct VertIn {
     int index;
     Type type;
-    StringRefNull name;
+    ResourceString name;
 
     bool operator==(const VertIn &b) const
     {
@@ -1578,6 +1578,9 @@ struct ShaderCreateInfo {
 #  undef TEST_EQUAL
 #  undef TEST_VECTOR_EQUAL
 };
+
+/* Storage for strings referenced but the patched create info. */
+using ShaderCreateInfoStringCache = Vector<std::unique_ptr<std::string>, 0>;
 
 }  // namespace blender::gpu::shader
 

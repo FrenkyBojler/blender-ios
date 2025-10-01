@@ -452,9 +452,19 @@ void ShaderCreateInfo::validate_vertex_attributes(const ShaderCreateInfo *other_
 {
   uint32_t attr_bits = 0;
   for (auto &attr : vertex_inputs_) {
-    if (attr.index >= 16 || attr.index < 0) {
+    if (attr.type == Type::float3x3_t) {
+      std::cout << name_ << ": \"" << attr.name << "\" : float3x3 unsupported as vertex attribute."
+                << std::endl;
+      BLI_assert(0);
+    }
+    if (attr.type == Type::float4x4_t) {
+      std::cout << name_ << ": \"" << attr.name << "\" : float4x4 unsupported as vertex attribute."
+                << std::endl;
+      BLI_assert(0);
+    }
+    if (attr.name.is_array()) {
       std::cout << name_ << ": \"" << attr.name
-                << "\" : Type::float3x3_t unsupported as vertex attribute." << std::endl;
+                << "\" : arrays are unsupported as vertex attribute." << std::endl;
       BLI_assert(0);
     }
     if (attr.index >= 16 || attr.index < 0) {
