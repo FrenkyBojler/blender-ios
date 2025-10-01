@@ -29,6 +29,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
@@ -63,6 +64,7 @@
 /* For menu, popup, icons, etc. */
 #include "ED_fileselect.hh"
 #include "ED_numinput.hh"
+#include "ED_object.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
@@ -370,6 +372,8 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
 
   wmWindow *win = CTX_wm_window(&C);
   Scene *active_scene = WM_window_get_active_scene(win);
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *prev_obact = BKE_view_layer_active_object_get(view_layer);
 
   Editing *ed = seq::editing_get(sequence_scene);
   if (!ed) {
@@ -448,6 +452,14 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     active_scene->r.subframe = 0.0f;
   }
   FRAMENUMBER_MIN_CLAMP(active_scene->r.cfra);
+
+  /* Try to sync the object mode of the active object. */
+  if (prev_obact) {
+    Object *obact = CTX_data_active_object(&C);
+    if (obact && prev_obact->type == obact->type) {
+      ed::object::mode_set(&C, eObjectMode(prev_obact->mode));
+    }
+  }
 
   DEG_id_tag_update(&active_scene->id, ID_RECALC_FRAME_CHANGE);
   WM_event_add_notifier(&C, NC_WINDOW, nullptr);
@@ -1746,6 +1758,7 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   const int split_side = sequence_split_side_for_exec_get(op);
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
+  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
 
   seq::prefetch_stop(scene);
 
@@ -1756,9 +1769,14 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
 
     if (ignore_selection || strip->flag & SELECT) {
       const char *error_msg = nullptr;
-      if (seq::edit_strip_split(
-              bmain, scene, ed->current_strips(), strip, split_frame, method, &error_msg) !=
-          nullptr)
+      if (seq::edit_strip_split(bmain,
+                                scene,
+                                ed->current_strips(),
+                                strip,
+                                split_frame,
+                                method,
+                                ignore_connections,
+                                &error_msg) != nullptr)
       {
         changed = true;
       }
@@ -1870,6 +1888,10 @@ static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
   if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
     layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
+
+  layout->separator();
+
+  layout->prop(op->ptr, "ignore_connections", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void SEQUENCER_OT_split(wmOperatorType *ot)
@@ -1937,6 +1959,12 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
       "Make cut even if strip is not selected preserving selection state after cut");
 
   RNA_def_property_flag(prop, PROP_HIDDEN);
+
+  RNA_def_boolean(ot->srna,
+                  "ignore_connections",
+                  false,
+                  "Ignore Connections",
+                  "Don't propagate split to connected strips");
 }
 
 /** \} */
@@ -1988,6 +2016,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
                                   strip,
                                   rect_frames[axis],
                                   method,
+                                  false,
                                   &error_msg) != nullptr)
         {
           if (error_msg != nullptr) {
