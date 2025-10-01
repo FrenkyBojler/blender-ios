@@ -381,6 +381,11 @@ static void blo_update_defaults_paint(Paint *paint)
   }
 }
 
+static void blo_update_defaults_windowmanager(wmWindowManager *wm)
+{
+  wm->xr.session_settings.fly_speed = 3.0f;
+}
+
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
@@ -388,6 +393,8 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 
   scene->r.cfra = 1.0f;
+  scene->r.im_format.exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
+  scene->r.bake.im_format.exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
 
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
@@ -438,7 +445,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     BKE_curvemap_reset(gp_falloff_curve->cm,
                        &gp_falloff_curve->clipr,
                        CURVE_PRESET_GAUSS,
-                       CURVEMAP_SLOPE_POSITIVE);
+                       CurveMapSlopeType::Positive);
   }
   if (ts->gp_sculpt.cur_primitive == nullptr) {
     ts->gp_sculpt.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -447,7 +454,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     BKE_curvemap_reset(gp_primitive_curve->cm,
                        &gp_primitive_curve->clipr,
                        CURVE_PRESET_BELL,
-                       CURVEMAP_SLOPE_POSITIVE);
+                       CurveMapSlopeType::Positive);
   }
 
   if (ts->sculpt) {
@@ -616,6 +623,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
   /* Work-spaces. */
   LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+    blo_update_defaults_windowmanager(wm);
+
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
         WorkSpaceLayout *layout = BKE_workspace_active_layout_for_workspace_get(
