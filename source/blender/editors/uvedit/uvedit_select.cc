@@ -438,12 +438,6 @@ bool uvedit_edge_select_test_ex(const ToolSettings *ts,
   return BM_ELEM_CD_GET_BOOL(l, offsets.select_edge);
 }
 
-bool uvedit_edge_seam_test_ex(const BMLoop *l, const BMUVOffsets &offsets)
-{
-  BLI_assert(offsets.select_vert >= 0);
-  BLI_assert(offsets.select_edge >= 0);
-  return BM_elem_flag_test_bool(l->e, BM_ELEM_SEAM);
-}
 bool uvedit_edge_select_test(const Scene *scene, const BMLoop *l, const BMUVOffsets &offsets)
 {
   return uvedit_edge_select_test_ex(scene->toolsettings, l, offsets);
