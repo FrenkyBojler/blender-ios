@@ -988,7 +988,7 @@ void gpu_node_graph_free(GPUNodeGraph *graph)
 
 /* Prune Unused Nodes */
 
-void gpu_nodes_tag(GPUNodeLink *link, GPUNodeTag tag)
+void gpu_nodes_tag(GPUNodeGraph *graph, GPUNodeLink *link, GPUNodeTag tag)
 {
   GPUNode *node;
 
@@ -1004,7 +1004,22 @@ void gpu_nodes_tag(GPUNodeLink *link, GPUNodeTag tag)
   node->tag |= tag;
   LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
     if (input->link) {
-      gpu_nodes_tag(input->link, tag);
+      gpu_nodes_tag(graph, input->link, tag);
+    }
+  }
+
+  /* Zone input nodes are linked to their corresponding zone output nodes,
+   * even if there is no GPUNodeLink between them. */
+  if (node->is_zone_end) {
+    LISTBASE_FOREACH (GPUNode *, node2, &graph->nodes) {
+      if (node2->zone_index == node->zone_index && !node2->is_zone_end && !(node2->tag & tag)) {
+        node2->tag |= tag;
+        LISTBASE_FOREACH (GPUInput *, input, &node2->inputs) {
+          if (input->link) {
+            gpu_nodes_tag(graph, input->link, tag);
+          }
+        }
+      }
     }
   }
 }
@@ -1015,19 +1030,19 @@ void gpu_node_graph_prune_unused(GPUNodeGraph *graph)
     node->tag = GPU_NODE_TAG_NONE;
   }
 
-  gpu_nodes_tag(graph->outlink_surface, GPU_NODE_TAG_SURFACE);
-  gpu_nodes_tag(graph->outlink_volume, GPU_NODE_TAG_VOLUME);
-  gpu_nodes_tag(graph->outlink_displacement, GPU_NODE_TAG_DISPLACEMENT);
-  gpu_nodes_tag(graph->outlink_thickness, GPU_NODE_TAG_THICKNESS);
+  gpu_nodes_tag(graph, graph->outlink_surface, GPU_NODE_TAG_SURFACE);
+  gpu_nodes_tag(graph, graph->outlink_volume, GPU_NODE_TAG_VOLUME);
+  gpu_nodes_tag(graph, graph->outlink_displacement, GPU_NODE_TAG_DISPLACEMENT);
+  gpu_nodes_tag(graph, graph->outlink_thickness, GPU_NODE_TAG_THICKNESS);
 
   LISTBASE_FOREACH (GPUNodeGraphOutputLink *, aovlink, &graph->outlink_aovs) {
-    gpu_nodes_tag(aovlink->outlink, GPU_NODE_TAG_AOV);
+    gpu_nodes_tag(graph, aovlink->outlink, GPU_NODE_TAG_AOV);
   }
   LISTBASE_FOREACH (GPUNodeGraphFunctionLink *, funclink, &graph->material_functions) {
-    gpu_nodes_tag(funclink->outlink, GPU_NODE_TAG_FUNCTION);
+    gpu_nodes_tag(graph, funclink->outlink, GPU_NODE_TAG_FUNCTION);
   }
   LISTBASE_FOREACH (GPUNodeGraphOutputLink *, compositor_link, &graph->outlink_compositor) {
-    gpu_nodes_tag(compositor_link->outlink, GPU_NODE_TAG_COMPOSITOR);
+    gpu_nodes_tag(graph, compositor_link->outlink, GPU_NODE_TAG_COMPOSITOR);
   }
 
   for (GPUNode *node = static_cast<GPUNode *>(graph->nodes.first), *next = nullptr; node;

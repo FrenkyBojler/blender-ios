@@ -603,14 +603,14 @@ void GPUCodegen::generate_graphs()
         node->tag &= ~GPU_NODE_TAG_FUNCTION;
       }
       /* Tag only the nodes needed for the current function */
-      gpu_nodes_tag(func_link->outlink, GPU_NODE_TAG_FUNCTION);
+      gpu_nodes_tag(&graph, func_link->outlink, GPU_NODE_TAG_FUNCTION);
       GPUGraphOutput graph = graph_serialize(GPU_NODE_TAG_FUNCTION, func_link->outlink);
       eval_ss << "float " << func_link->name << "() {\n" << graph.serialized << "}\n\n";
       output.material_functions.append({eval_ss.str(), graph.dependencies});
     }
     /* Leave the function tags as they were before serialization */
     LISTBASE_FOREACH (GPUNodeGraphFunctionLink *, funclink, &graph.material_functions) {
-      gpu_nodes_tag(funclink->outlink, GPU_NODE_TAG_FUNCTION);
+      gpu_nodes_tag(&graph, funclink->outlink, GPU_NODE_TAG_FUNCTION);
     }
   }
 

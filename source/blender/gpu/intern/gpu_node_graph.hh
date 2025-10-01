@@ -194,7 +194,7 @@ struct GPUNodeGraph {
 
 /* Node Graph */
 
-void gpu_nodes_tag(GPUNodeLink *link, GPUNodeTag tag);
+void gpu_nodes_tag(GPUNodeGraph *graph, GPUNodeLink *link, GPUNodeTag tag);
 void gpu_node_graph_prune_unused(GPUNodeGraph *graph);
 void gpu_node_graph_finalize_uniform_attrs(GPUNodeGraph *graph);
 
