@@ -503,18 +503,15 @@ y component = screen space y coordinate of the sample
 z component = depth of the sample (the lowest value)
 */
 static float3 ndof_get_min_depth_coords(ARegion *region,
-                                             const int sample_grid_width,
+                                        const rcti sample_grid_area,
                                              const int sample_grid_resolution)
 {
-  rcti sample_grid_area;
-  const int sample_grid_center[2] = {region->winx / 2, region->winy / 2};
-  BLI_rcti_init_pt_radius(&sample_grid_area, sample_grid_center, sample_grid_width / 2);
-
-  const int step = sample_grid_width / sample_grid_resolution;
+  const int step_x = (sample_grid_area.xmax - sample_grid_area.xmin) / sample_grid_resolution;
+  const int step_y = (sample_grid_area.ymax - sample_grid_area.ymin) / sample_grid_resolution;
   float3 result(FLT_MAX);
 
-  for (int x = sample_grid_area.xmin; x <= sample_grid_area.xmax; x += step) {
-    for (int y = sample_grid_area.ymin; y <= sample_grid_area.ymax; y += step) {
+  for (int x = sample_grid_area.xmin; x <= sample_grid_area.xmax; x += step_x) {
+    for (int y = sample_grid_area.ymin; y <= sample_grid_area.ymax; y += step_x) {
       float depth_near = ndof_read_zbuf(region, x, y);
       if (depth_near < result.z) {
         result.x = x;
@@ -531,7 +528,22 @@ static std::optional<float3> ndof_orbit_center_calc_from_zbuf(Depsgraph *depsgra
                                                               ScrArea *area,
                                                               ARegion *region)
 {
-  float3 min_depth_pt = ndof_get_min_depth_coords(region, region->winx / 3, 8);
+  rcti sample_grid_area;
+  int sampling_resolution = 0;  // sample count = (sampling_resolution)^2
+  if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_FLY) {
+    sample_grid_area.xmin = 0.3 * region->winx;
+    sample_grid_area.xmax = 0.7 * region->winx;
+    sample_grid_area.ymin = 0.2 * region->winy;
+    sample_grid_area.ymax = 0.6 * region->winy;
+    sampling_resolution = 9;
+  }
+  else {
+    int view_center[2] = {region->winx / 2, region->winy / 2};
+    BLI_rcti_init_pt_radius(&sample_grid_area, view_center, 0.05 * region->winx);
+    sampling_resolution = 5;
+  }
+
+  float3 min_depth_pt = ndof_get_min_depth_coords(region, sample_grid_area, sampling_resolution);
 
   if (min_depth_pt.z == FLT_MAX) {
     return std::nullopt;
