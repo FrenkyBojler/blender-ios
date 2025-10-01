@@ -2206,8 +2206,13 @@ bool rna_Object_light_linking_override_apply(Main *bmain,
   Object *ob_dst = blender::id_cast<Object *>(ptr_dst->owner_id);
   Object *ob_src = blender::id_cast<Object *>(ptr_src->owner_id);
 
+  if (ob_dst->light_linking == nullptr && ob_src->light_linking == nullptr) {
+    /* Nothing to do. */
+    return false;
+  }
+
   if (ob_dst->light_linking == nullptr && ob_src->light_linking != nullptr) {
-    /* Copy light linking data from reference into final local object. */
+    /* Copy light linking data from previous liboverride data into final liboverride one. */
     BKE_light_linking_copy(ob_dst, ob_src, 0);
     return true;
   }
@@ -2216,7 +2221,8 @@ bool rna_Object_light_linking_override_apply(Main *bmain,
     BKE_light_linking_delete(ob_dst, 0);
     return true;
   }
-  else if (ob_dst->light_linking != nullptr && ob_src->light_linking != nullptr) {
+  else {
+    BLI_assert(ob_dst->light_linking != nullptr && ob_src->light_linking != nullptr);
     /* Override had to create a light linking data, but now its reference also has one, need to
      * merge them by keeping the overridable data from the liboverride, while using the light
      * linking of the reference.
@@ -2224,27 +2230,30 @@ bool rna_Object_light_linking_override_apply(Main *bmain,
      * Note that this case will not be encountered when the linked reference data already had
      * light linking data, since there will be no operation for the light linking pointer itself
      * then, only potentially for its internal overridable data (collections...). */
-    if (ob_dst->light_linking->receiver_collection == nullptr) {
+
+    /* For these collections, only replace linked data with previously defined liboverride data if
+     * the latter is non-null. Otherwise, assume that the previously defined liboverride data
+     * property was 'unset', and can be replaced by the linked reference value. */
+    if (ob_src->light_linking->receiver_collection != nullptr) {
+      id_us_min(blender::id_cast<ID *>(ob_dst->light_linking->receiver_collection));
       ob_dst->light_linking->receiver_collection = ob_src->light_linking->receiver_collection;
       id_us_plus(blender::id_cast<ID *>(ob_dst->light_linking->receiver_collection));
     }
-
-    if (ob_dst->light_linking->blocker_collection == nullptr) {
+    if (ob_src->light_linking->blocker_collection != nullptr) {
+      id_us_min(blender::id_cast<ID *>(ob_dst->light_linking->blocker_collection));
       ob_dst->light_linking->blocker_collection = ob_src->light_linking->blocker_collection;
       id_us_plus(blender::id_cast<ID *>(ob_dst->light_linking->blocker_collection));
     }
 
     /* Note: LightLinking runtime data is currently set by depsgraph evaluation, so no need to
      * handle them here. */
-
-    DEG_id_tag_update(&ob_dst->id, ID_RECALC_SHADING);
-
-    DEG_relations_tag_update(bmain);
-    WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob_dst->id);
-    return true;
   }
 
-  return false;
+  DEG_id_tag_update(&ob_dst->id, ID_RECALC_SHADING);
+
+  DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob_dst->id);
+  return true;
 }
 
 static PointerRNA rna_LightLinking_receiver_collection_get(PointerRNA *ptr)
