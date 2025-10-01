@@ -232,8 +232,9 @@ static void node_snap_grid_apply(TransInfo *t)
       }
 
       /* Nodes are snapped to the grid by first aligning their initial position to the grid and
-       * then offsetting them in grid increments. This ensures that multiple unsnapped nodes snap
-       * to the grid in sync while moving.
+       * then offsetting them in grid increments.
+       *
+       * This ensures that multiple unsnapped nodes snap to the grid in sync while moving.
        */
 
       const float2 inital_location = td.iloc;
