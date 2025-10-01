@@ -158,7 +158,7 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
   if (newlen <= prop->totallen) {
     if (newlen < prop->len && prop->totallen - newlen < IDP_ARRAY_REALLOC_LIMIT) {
       for (int i = newlen; i < prop->len; i++) {
-        IDP_FreePropertyContent(GETPROP(prop, i));
+        IDP_ClearProperty(GETPROP(prop, i));
       }
 
       prop->len = newlen;
@@ -174,7 +174,7 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
   if (newlen < prop->len) {
     /* newlen is smaller */
     for (int i = newlen; i < prop->len; i++) {
-      IDP_FreePropertyContent(GETPROP(prop, i));
+      IDP_ClearProperty(GETPROP(prop, i));
     }
   }
 
@@ -755,6 +755,14 @@ IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop, const blender::Stri
   BLI_assert(prop->data.children_map);
   BLI_assert(prop->data.children_map->children.size() == prop->len);
   return prop->data.children_map->children.lookup_key_default_as(name, nullptr);
+}
+
+IDProperty *IDP_GetPropertyFromGroup_null(const IDProperty *prop, const blender::StringRef name)
+{
+  if (!prop) {
+    return nullptr;
+  }
+  return IDP_GetPropertyFromGroup(prop, name);
 }
 
 IDProperty *IDP_GetPropertyTypeFromGroup(const IDProperty *prop,

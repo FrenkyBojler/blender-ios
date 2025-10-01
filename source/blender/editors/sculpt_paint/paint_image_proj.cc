@@ -6747,11 +6747,9 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNodeTree *ntree = ma->nodetree;
 
     if (!ntree) {
-      ED_node_shader_default(C, &ma->id);
+      ED_node_shader_default(C, bmain, &ma->id);
       ntree = ma->nodetree;
     }
-
-    ma->use_nodes = true;
 
     const ePaintCanvasSource slot_type = ob->mode == OB_MODE_SCULPT ?
                                              (ePaintCanvasSource)RNA_enum_get(op->ptr,

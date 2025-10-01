@@ -153,6 +153,8 @@ struct State {
   bool draw_background = false;
   /** True if the render engine outputs satisfactory depth information to the depth buffer. */
   bool is_render_depth_available = false;
+  /** Whether we should render a vignette over the scene. */
+  bool vignette_enabled = false;
   /** Should text draw in this mode? */
   bool show_text = false;
   bool hide_overlays = false;
@@ -606,8 +608,8 @@ struct Resources : public select::SelectMap {
 
   /* Render Frame-buffers. Only used for multiplicative blending on top of the render. */
   /* TODO(fclem): Remove the usage of these somehow. This is against design. */
-  GPUFrameBuffer *render_fb = nullptr;
-  GPUFrameBuffer *render_in_front_fb = nullptr;
+  gpu::FrameBuffer *render_fb = nullptr;
+  gpu::FrameBuffer *render_in_front_fb = nullptr;
 
   /* Target containing line direction and data for line expansion and anti-aliasing. */
   TextureFromPool line_tx = {"line_tx"};

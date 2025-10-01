@@ -302,10 +302,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
 
   if (!USER_VERSION_ATLEAST(500, 56)) {
     FROM_DEFAULT_V4_UCHAR(common.anim.playhead);
-    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker);
-    FROM_DEFAULT_V4_UCHAR(common.anim.time_marker_selected);
-    FROM_DEFAULT_V4_UCHAR(common.anim.channel);
-    FROM_DEFAULT_V4_UCHAR(common.anim.channel_sub);
     FROM_DEFAULT_V4_UCHAR(common.anim.channel_group);
     FROM_DEFAULT_V4_UCHAR(common.anim.channel_group_active);
   }
@@ -324,10 +320,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex);
     FROM_DEFAULT_V4_UCHAR(common.curves.handle_vertex_select);
     btheme->common.curves.handle_vertex_size = U_theme_default.common.curves.handle_vertex_size;
-  }
-
-  if (!USER_VERSION_ATLEAST(500, 68)) {
-    FROM_DEFAULT_V4_UCHAR(space_clip.track_selected);
   }
 
   if (!USER_VERSION_ATLEAST(500, 69)) {
@@ -359,6 +351,39 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(regions.asset_shelf.header_back);
     FROM_DEFAULT_V4_UCHAR(regions.sidebars.back);
     FROM_DEFAULT_V4_UCHAR(regions.sidebars.tab_back);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 79)) {
+    FROM_DEFAULT_V4_UCHAR(common.anim.channels);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channels_sub);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel);
+    FROM_DEFAULT_V4_UCHAR(common.anim.channel_selected);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 80)) {
+    FROM_DEFAULT_V4_UCHAR(regions.scrubbing.back);
+    FROM_DEFAULT_V4_UCHAR(regions.scrubbing.text);
+    FROM_DEFAULT_V4_UCHAR(regions.scrubbing.time_marker);
+    FROM_DEFAULT_V4_UCHAR(regions.scrubbing.time_marker_selected);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 91)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.bevel);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.seam);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.sharp);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.crease);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.freestyle);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 93)) {
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.text);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.text_sel);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.item);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.inner);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.inner_sel);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.outline);
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_curve.outline_sel);
+    btheme->tui.wcol_curve.roundness = U_theme_default.tui.wcol_curve.roundness;
   }
 
   /**
@@ -1632,6 +1657,45 @@ void blo_do_versions_userdef(UserDef *userdef)
     if (userdef->stored_bounds.file.xmin == userdef->stored_bounds.file.xmax) {
       memcpy(&userdef->stored_bounds, &U_default.stored_bounds, sizeof(userdef->stored_bounds));
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 90)) {
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Basic");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Pixel Art");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Utilities");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Basic");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Pixel Art");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Utilities");
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 94)) {
+    /* Force-reset file compression to ON, see #135735. */
+    userdef->flag |= USER_FILECOMPRESS;
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 96)) {
+    /* Increase the number of recently-used files if using the old default value. */
+    if (userdef->recent_files == 20) {
+      userdef->recent_files = 200;
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 99)) {
+    userdef->xr_navigation.vignette_intensity = 50.0f;
+    userdef->xr_navigation.turn_amount = DEG2RAD(30);
+    userdef->xr_navigation.turn_speed = DEG2RAD(60);
+    userdef->xr_navigation.flag = USER_XR_NAV_SNAP_TURN;
   }
 
   /**
