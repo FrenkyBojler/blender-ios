@@ -366,6 +366,7 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_posterize.glsl
   shaders/library/gpu_shader_compositor_separate_combine.glsl
   shaders/library/gpu_shader_compositor_set_alpha.glsl
+  shaders/library/gpu_shader_compositor_shuffle.glsl
   shaders/library/gpu_shader_compositor_store.glsl
   shaders/library/gpu_shader_compositor_store_output.glsl
   shaders/library/gpu_shader_compositor_summed_area_table_lib.glsl

@@ -123,6 +123,7 @@ class NODE_MT_compositor_node_color_mix_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeCombineColor")
         self.node_operator(layout, "CompositorNodeSeparateColor")
+        self.node_operator(layout, "CompositorNodeShuffle")
         layout.separator()
         self.node_operator(layout, "CompositorNodeZcombine")
         self.color_mix_node(context, layout)

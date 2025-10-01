@@ -1336,6 +1336,24 @@ typedef struct NodeCMPCombSepColor {
   uint8_t ycc_mode;
 } NodeCMPCombSepColor;
 
+typedef struct NodeCMPShuffle {
+  uint8_t red;
+  uint8_t green;
+  uint8_t blue;
+  uint8_t alpha;
+  uint8_t mode;
+  uint8_t ycc_mode;
+  uint8_t use_red_expr;
+  uint8_t use_green_expr;
+  uint8_t use_blue_expr;
+  uint8_t use_alpha_expr;
+  char _pad[6];
+  char *red_expr;
+  char *green_expr;
+  char *blue_expr;
+  char *alpha_expr;
+} NodeCMPShuffle;
+
 /** Defocus blur node. */
 typedef struct NodeDefocus {
   char bktype;
@@ -3192,6 +3210,39 @@ typedef enum CMPNodeCombSepColorMode {
   CMP_NODE_COMBSEP_COLOR_YCC = 3,
   CMP_NODE_COMBSEP_COLOR_YUV = 4,
 } CMPNodeCombSepColorMode;
+
+typedef enum CMPNodeShuffleMode {
+  CMP_NODE_SHUFFLE_RGB = 0,
+  CMP_NODE_SHUFFLE_HSV = 1,
+  CMP_NODE_SHUFFLE_HSL = 2,
+  CMP_NODE_SHUFFLE_YCC = 3,
+  CMP_NODE_SHUFFLE_YUV = 4,
+  CMP_NODE_SHUFFLE_MOTION = 5,
+  CMP_NODE_SHUFFLE_DEPTH = 6,
+} CMPNodeShuffleMode;
+
+typedef enum CMPNodeShuffleChannel {
+  CMP_NODE_SHUFFLE_CHANNEL_RED = 0,
+  CMP_NODE_SHUFFLE_CHANNEL_GREEN = 1,
+  CMP_NODE_SHUFFLE_CHANNEL_BLUE = 2,
+  CMP_NODE_SHUFFLE_CHANNEL_ALPHA = 3,
+  CMP_NODE_SHUFFLE_CHANNEL_HUE = 4,
+  CMP_NODE_SHUFFLE_CHANNEL_SATURATION = 5,
+  CMP_NODE_SHUFFLE_CHANNEL_VALUE = 6,
+  CMP_NODE_SHUFFLE_CHANNEL_LIGHTNESS = 7,
+  CMP_NODE_SHUFFLE_CHANNEL_Y = 8,
+  CMP_NODE_SHUFFLE_CHANNEL_U = 9,
+  CMP_NODE_SHUFFLE_CHANNEL_V = 10,
+  CMP_NODE_SHUFFLE_CHANNEL_CB = 11,
+  CMP_NODE_SHUFFLE_CHANNEL_CR = 12,
+  CMP_NODE_SHUFFLE_CHANNEL_FORWARD_U = 13,
+  CMP_NODE_SHUFFLE_CHANNEL_FORWARD_V = 14,
+  CMP_NODE_SHUFFLE_CHANNEL_BACKWARD_U = 15,
+  CMP_NODE_SHUFFLE_CHANNEL_BACKWARD_V = 16,
+  CMP_NODE_SHUFFLE_CHANNEL_DEPTH = 17,
+  CMP_NODE_SHUFFLE_CHANNEL_BLACK = 18,
+  CMP_NODE_SHUFFLE_CHANNEL_WHITE = 19,
+} CMPNodeShuffleChannel;
 
 /* Cryptomatte node source. */
 typedef enum CMPNodeCryptomatteSource {

@@ -6641,6 +6641,141 @@ static void def_cmp_combsep_color(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_cmp_shuffle(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem mode_items[] = {
+      {CMP_NODE_COMBSEP_COLOR_RGB,
+       "RGB",
+       ICON_NONE,
+       "RGB",
+       "Use RGB (Red, Green, Blue) color processing"},
+      {CMP_NODE_COMBSEP_COLOR_HSV,
+       "HSV",
+       ICON_NONE,
+       "HSV",
+       "Use HSV (Hue, Saturation, Value) color processing"},
+      {CMP_NODE_COMBSEP_COLOR_HSL,
+       "HSL",
+       ICON_NONE,
+       "HSL",
+       "Use HSL (Hue, Saturation, Lightness) color processing"},
+      {CMP_NODE_COMBSEP_COLOR_YCC,
+       "YCC",
+       ICON_NONE,
+       "YCbCr",
+       "Use YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color "
+       "processing"},
+      {CMP_NODE_COMBSEP_COLOR_YUV,
+       "YUV",
+       ICON_NONE,
+       "YUV",
+       "Use YUV (Y - luma, U V - chroma) color processing"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem channel_items[] = {
+      {CMP_NODE_SHUFFLE_CHANNEL_RED, "RED", ICON_NONE, "Red", "Use red channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_GREEN, "GREEN", ICON_NONE, "Green", "Use green channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_BLUE, "BLUE", ICON_NONE, "Blue", "Use blue channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_ALPHA, "ALPHA", ICON_NONE, "Alpha", "Use alpha channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_HUE, "HUE", ICON_NONE, "Hue", "Use hue channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_SATURATION, "SATURATION", ICON_NONE, "Saturation", "Use saturation channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_VALUE, "VALUE", ICON_NONE, "Value", "Use value channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_LIGHTNESS, "LIGHTNESS", ICON_NONE, "Lightness", "Use lightness channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_Y, "Y", ICON_NONE, "Y (Luma)", "Use Y (luma) channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_U, "U", ICON_NONE, "U (Chroma)", "Use U (chroma) channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_V, "V", ICON_NONE, "V (Chroma)", "Use V (chroma) channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_CB, "CB", ICON_NONE, "Cb (Chroma)", "Use Cb (chroma) channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_CR, "CR", ICON_NONE, "Cr (Chroma)", "Use Cr (chroma) channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_FORWARD_U, "FORWARD_U", ICON_NONE, "Forward U", "Use forward motion U channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_FORWARD_V, "FORWARD_V", ICON_NONE, "Forward V", "Use forward motion V channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_BACKWARD_U, "BACKWARD_U", ICON_NONE, "Backward U", "Use backward motion U channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_BACKWARD_V, "BACKWARD_V", ICON_NONE, "Backward V", "Use backward motion V channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_DEPTH, "DEPTH", ICON_NONE, "Depth", "Use depth (Z) channel"},
+      {CMP_NODE_SHUFFLE_CHANNEL_BLACK, "BLACK", ICON_NONE, "Black", "Use constant black (0.0)"},
+      {CMP_NODE_SHUFFLE_CHANNEL_WHITE, "WHITE", ICON_NONE, "White", "Use constant white (1.0)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeCMPShuffle", "storage");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_ui_text(prop, "", "Mode of color processing");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "ycc_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, node_ycc_items);
+  RNA_def_property_ui_text(prop, "", "Color space used for YCbCrA processing");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "red", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "red");
+  RNA_def_property_enum_items(prop, channel_items);
+  RNA_def_property_ui_text(prop, "Red", "Channel to use for red output");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "green", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "green");
+  RNA_def_property_enum_items(prop, channel_items);
+  RNA_def_property_ui_text(prop, "Green", "Channel to use for green output");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "blue", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "blue");
+  RNA_def_property_enum_items(prop, channel_items);
+  RNA_def_property_ui_text(prop, "Blue", "Channel to use for blue output");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "alpha", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "alpha");
+  RNA_def_property_enum_items(prop, channel_items);
+  RNA_def_property_ui_text(prop, "Alpha", "Channel to use for alpha output");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_red_expr", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_red_expr", 1);
+  RNA_def_property_ui_text(prop, "Use Expression", "Use mathematical expression for red channel");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_green_expr", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_green_expr", 1);
+  RNA_def_property_ui_text(prop, "Use Expression", "Use mathematical expression for green channel");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_blue_expr", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_blue_expr", 1);
+  RNA_def_property_ui_text(prop, "Use Expression", "Use mathematical expression for blue channel");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_alpha_expr", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_alpha_expr", 1);
+  RNA_def_property_ui_text(prop, "Use Expression", "Use mathematical expression for alpha channel");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "red_expr", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "red_expr");
+  RNA_def_property_ui_text(prop, "Expression", "Mathematical expression for red channel (e.g. (r+g)*2)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "green_expr", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "green_expr");
+  RNA_def_property_ui_text(prop, "Expression", "Mathematical expression for green channel (e.g. (r+g)*2)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "blue_expr", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "blue_expr");
+  RNA_def_property_ui_text(prop, "Expression", "Mathematical expression for blue channel (e.g. (r+g)*2)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "alpha_expr", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "alpha_expr");
+  RNA_def_property_ui_text(prop, "Expression", "Mathematical expression for alpha channel (e.g. (r+g)*2)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_cmp_movieclip(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -9915,6 +10050,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeSceneTime");
   define("CompositorNode", "CompositorNodeSeparateColor", def_cmp_combsep_color);
   define("CompositorNode", "CompositorNodeSetAlpha");
+  define("CompositorNode", "CompositorNodeShuffle", def_cmp_shuffle);
   define("CompositorNode", "CompositorNodeSplit");
   define("CompositorNode", "CompositorNodeStabilize", def_cmp_stabilize2d);
   define("CompositorNode", "CompositorNodeSwitch");
