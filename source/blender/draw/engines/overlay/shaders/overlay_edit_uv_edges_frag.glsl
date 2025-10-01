@@ -32,6 +32,9 @@ void main()
   float line_distance = distance(stipple_pos, stipple_start) / max(dd.x, dd.y);
 
   if (OVERLAY_UVLineStyle(line_style) == OVERLAY_UV_LINE_STYLE_OUTLINE) {
+    /* TODO(@ideasman42): The current wire-edit color contrast enough against the selection.
+     * Look into changing the default theme color instead of reducing contrast with edge-select.
+     */
     float4 base_color = use_edge_select ? (theme.colors.wire_edit * 0.5f) : theme.colors.wire_edit;
     inner_color = get_edge_color(base_color);
     outer_color = float4(float3(0.0f), 1.0f);
