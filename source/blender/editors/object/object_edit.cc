@@ -1835,7 +1835,7 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
     AssetWeakReference asset_weak_ref{};
     asset_weak_ref.asset_library_type = ASSET_LIBRARY_ESSENTIALS;
     asset_weak_ref.relative_asset_identifier = BLI_strdup(
-        "geometry_nodes/smooth_by_angle.blend/NodeTree/Smooth by Angle");
+        "geometry_nodes/geometry_nodes_essentials.blend/NodeTree/Smooth by Angle");
 
     const asset_system::AssetRepresentation *asset_representation =
         asset::find_asset_from_weak_ref(*C, asset_weak_ref, op->reports);
@@ -1890,7 +1890,8 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
         smooth_by_angle_nmd->node_group = node_group;
         id_us_plus(&node_group->id);
         MOD_nodes_update_interface(object, smooth_by_angle_nmd);
-        smooth_by_angle_nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR;
+        smooth_by_angle_nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR |
+                                     NODES_MODIFIER_HIDE_MANAGE_PANEL;
         STRNCPY_UTF8(smooth_by_angle_nmd->modifier.name, DATA_(node_group->id.name + 2));
         BKE_modifier_unique_name(&object->modifiers, &smooth_by_angle_nmd->modifier);
       }
@@ -1898,10 +1899,10 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
       IDProperty *angle_prop = IDP_GetPropertyFromGroup(smooth_by_angle_nmd->settings.properties,
                                                         angle_identifier.c_str());
       if (angle_prop->type == IDP_FLOAT) {
-        IDP_Float(angle_prop) = angle;
+        IDP_float_set(angle_prop, angle);
       }
       else if (angle_prop->type == IDP_DOUBLE) {
-        IDP_Double(angle_prop) = angle;
+        IDP_double_set(angle_prop, angle);
       }
 
       DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);

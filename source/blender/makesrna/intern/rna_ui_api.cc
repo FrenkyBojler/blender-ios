@@ -750,19 +750,6 @@ static void rna_uiTemplateCacheFileVelocity(uiLayout *layout,
   uiTemplateCacheFileVelocity(layout, &fileptr);
 }
 
-static void rna_uiTemplateCacheFileProcedural(uiLayout *layout,
-                                              bContext *C,
-                                              PointerRNA *ptr,
-                                              const char *propname)
-{
-  PointerRNA fileptr;
-  if (!uiTemplateCacheFilePointer(ptr, propname, &fileptr)) {
-    return;
-  }
-
-  uiTemplateCacheFileProcedural(layout, C, &fileptr);
-}
-
 static void rna_uiTemplateCacheFileTimeSettings(uiLayout *layout,
                                                 PointerRNA *ptr,
                                                 const char *propname)
@@ -911,10 +898,12 @@ void rna_uiLayoutPanel(uiLayout *layout,
 
 static void rna_uiLayout_template_node_asset_menu_items(uiLayout *layout,
                                                         bContext *C,
-                                                        const char *catalog_path)
+                                                        const char *catalog_path,
+                                                        const int operator_type)
 {
   using namespace blender;
-  ed::space_node::ui_template_node_asset_menu_items(*layout, *C, StringRef(catalog_path));
+  ed::space_node::ui_template_node_asset_menu_items(
+      *layout, *C, StringRef(catalog_path), NodeAssetMenuOperatorType(operator_type));
 }
 
 static void rna_uiLayout_template_node_operator_asset_menu_items(uiLayout *layout,
@@ -1211,6 +1200,20 @@ void RNA_api_ui_layout(StructRNA *srna)
        0,
        "Line",
        "Horizontal or Vertical line, depending on layout direction."},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem rna_enum_template_node_operator_type[] = {
+      {int(NodeAssetMenuOperatorType::Add),
+       "ADD",
+       0,
+       "Add Node",
+       "Add a node to the active tree."},
+      {int(NodeAssetMenuOperatorType::Swap),
+       "SWAP",
+       0,
+       "Swap Node",
+       "Replace the selected nodes with the specified type."},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2136,6 +2139,12 @@ void RNA_api_ui_layout(StructRNA *srna)
       srna, "template_node_asset_menu_items", "rna_uiLayout_template_node_asset_menu_items");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   parm = RNA_def_string(func, "catalog_path", nullptr, 0, "", "");
+  parm = RNA_def_enum(func,
+                      "operator",
+                      rna_enum_template_node_operator_type,
+                      int(NodeAssetMenuOperatorType::Add),
+                      "Operator",
+                      "The operator the asset menu will use");
 
   func = RNA_def_function(srna,
                           "template_modifier_asset_menu_items",
@@ -2205,12 +2214,6 @@ void RNA_api_ui_layout(StructRNA *srna)
   api_ui_item_rna_common(func);
 
   func = RNA_def_function(
-      srna, "template_cache_file_procedural", "rna_uiTemplateCacheFileProcedural");
-  RNA_def_function_ui_description(func, "Show cache files render procedural properties");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-  api_ui_item_rna_common(func);
-
-  func = RNA_def_function(
       srna, "template_cache_file_time_settings", "rna_uiTemplateCacheFileTimeSettings");
   RNA_def_function_ui_description(func, "Show cache files time settings");
   api_ui_item_rna_common(func);
@@ -2222,7 +2225,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 
   func = RNA_def_function(srna, "template_recent_files", "uiTemplateRecentFiles");
   RNA_def_function_ui_description(func, "Show list of recently saved .blend files");
-  RNA_def_int(func, "rows", 5, 1, INT_MAX, "", "Maximum number of items to show", 1, INT_MAX);
+  RNA_def_int(func, "rows", 6, 1, INT_MAX, "", "Maximum number of items to show", 1, INT_MAX);
   parm = RNA_def_int(func, "found", 0, 0, INT_MAX, "", "Number of items drawn", 0, INT_MAX);
   RNA_def_function_return(func, parm);
 

@@ -208,8 +208,8 @@ typedef struct UserDef_TempWinBounds {
 } UserDef_TempWinBounds;
 
 /**
- * Checking experimental members must use the #USER_EXPERIMENTAL_TEST() macro
- * unless the #USER_DEVELOPER_UI is known to be enabled.
+ * Checking experimental members must use either the #USER_EXPERIMENTAL_TEST() macro
+ * or the #USER_DEVELOPER_TOOL_TEST() macro.
  */
 typedef struct UserDef_Experimental {
   /* Debug options, always available. */
@@ -224,6 +224,7 @@ typedef struct UserDef_Experimental {
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
   char write_legacy_blend_file_format;
+  char no_data_block_packing;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
@@ -233,10 +234,12 @@ typedef struct UserDef_Experimental {
   char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char _pad[6];
+  char _pad[5];
 } UserDef_Experimental;
 
-#define USER_EXPERIMENTAL_TEST(userdef, member) \
+#define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
+
+#define USER_DEVELOPER_TOOL_TEST(userdef, member) \
   (((userdef)->flag & USER_DEVELOPER_UI) && ((userdef)->experimental).member)
 
 /**
@@ -500,7 +503,7 @@ typedef struct UserDef {
 
   char _pad16[2];
 
-  /** #eGPUBackendType */
+  /** #GPUBackendType */
   short gpu_backend;
 
   /** Number of samples for FPS display calculations. */
@@ -659,6 +662,7 @@ typedef enum eUserPref_Section {
   USER_SECTION_FILE_PATHS = 15,
   USER_SECTION_EXPERIMENTAL = 16,
   USER_SECTION_EXTENSIONS = 17,
+  USER_SECTION_DEVELOPER_TOOLS = 18,
 } eUserPref_Section;
 
 /** #UserDef_SpaceData.flag (State of the user preferences UI). */
@@ -824,7 +828,7 @@ typedef enum eUserpref_GPU_Flag {
 } eUserpref_GPU_Flag;
 
 /** #UserDef.gpu_backend
- * NOTE: Keep in sync with eGPUBackendType. */
+ * NOTE: Keep in sync with GPUBackendType. */
 enum eUserPref_GPUBackendType {
   USER_GPU_BACKEND_OPENGL = 1 << 0,
   USER_GPU_BACKEND_METAL = 1 << 1,

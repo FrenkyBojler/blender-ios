@@ -13,6 +13,7 @@
 
 #ifdef WITH_VULKAN_BACKEND
 #  include <vulkan/vulkan_core.h>
+VK_DEFINE_HANDLE(VmaAllocator)
 #endif
 
 /* This is used by `GHOST_C-api.h` too, cannot use C++ conventions. */
@@ -860,13 +861,15 @@ typedef struct {
 typedef struct {
   /* Is HDR enabled for this Window? */
   bool hdr_enabled;
+  /* Is wide gamut enabled for this Window? */
+  bool wide_gamut_enabled;
   /* Scale factor to display SDR content in HDR. */
   float sdr_white_level;
 } GHOST_WindowHDRInfo;
 
 #define GHOST_WINDOW_HDR_INFO_NONE \
   { \
-    /*hdr_enabled*/ false, /*sdr_white_level*/ 1.0f, \
+    /*hdr_enabled*/ false, /*wide_gamut_enabled*/ false, /*sdr_white_level*/ 1.0f, \
   }
 
 #ifdef WITH_VULKAN_BACKEND
@@ -990,6 +993,8 @@ typedef struct {
   VkQueue queue;
   /** The #std::mutex mutex. */
   void *queue_mutex;
+  /** Vulkan memory allocator of the device. */
+  VmaAllocator vma_allocator;
 } GHOST_VulkanHandles;
 
 #endif

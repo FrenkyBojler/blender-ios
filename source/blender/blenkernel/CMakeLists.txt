@@ -147,6 +147,7 @@ set(SRC
   intern/grease_pencil_vertex_groups.cc
   intern/icons.cc
   intern/icons_rasterize.cc
+  intern/id_hash.cc
   intern/idprop.cc
   intern/idprop_create.cc
   intern/idprop_serialize.cc
@@ -419,6 +420,7 @@ set(SRC
   BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
   BKE_icons.h
+  BKE_id_hash.hh
   BKE_idprop.hh
   BKE_idtype.hh
   BKE_image.hh
@@ -711,36 +713,6 @@ if(WITH_JACK)
   add_definitions(-DWITH_JACK)
 endif()
 
-if(WITH_LZO)
-  if(WITH_SYSTEM_LZO)
-    list(APPEND INC_SYS
-      ${LZO_INCLUDE_DIR}
-    )
-    list(APPEND LIB
-      ${LZO_LIBRARIES}
-    )
-    add_definitions(-DWITH_SYSTEM_LZO)
-  else()
-    list(APPEND INC_SYS
-      ../../../extern/lzo/minilzo
-    )
-    list(APPEND LIB
-      extern_minilzo
-    )
-  endif()
-  add_definitions(-DWITH_LZO)
-endif()
-
-if(WITH_LZMA)
-  list(APPEND INC_SYS
-    ../../../extern/lzma
-  )
-  list(APPEND LIB
-    extern_lzma
-  )
-  add_definitions(-DWITH_LZMA)
-endif()
-
 if(WITH_LIBMV)
   add_definitions(-DWITH_LIBMV)
 endif()
@@ -829,6 +801,7 @@ if(WITH_GTESTS)
     intern/file_handler_test.cc
     intern/grease_pencil_test.cc
     intern/idprop_serialize_test.cc
+    intern/idprop_test.cc
     intern/image_partial_update_test.cc
     intern/image_test.cc
     intern/lattice_deform_test.cc
