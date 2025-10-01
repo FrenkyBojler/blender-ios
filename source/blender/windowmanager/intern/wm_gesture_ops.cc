@@ -33,12 +33,12 @@
 
 #include "wm.hh"
 #include "wm_event_types.hh"
+#include "wm_window.hh"
 
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
 #include "RNA_access.hh"
-#include "wm_window.hh"
 
 using blender::Array;
 using blender::float2;
