@@ -950,14 +950,16 @@ static void generate_raster_builtin(GeneratedStreams &ss,
                                     const StringRefNull type,
                                     const StringRefNull var,
                                     const StringRefNull attribute,
+                                    const StringRefNull array = "",
                                     const bool is_const = false)
 {
   StringRefNull const_qual = is_const ? "const " : "";
   StringRefNull mem_scope = "thread ";
   /* Declaration inside builtin class. */
-  declaration << "    " << type << " " << var << " " << attribute << ";\n";
+  declaration << "    " << type << " " << var << " " << attribute << array << ";\n";
   /* Global scope access. */
-  ss.wrapper_class_members << "  " << mem_scope << const_qual << type << " &" << var << ";\n";
+  ss.wrapper_class_members << "  " << mem_scope << const_qual << type << " (&" << var << ")"
+                           << array << ";\n";
   ss.wrapper_constructor_assign << Sep() << var << "(mtl_vert_out." << var << ")";
 }
 
@@ -976,7 +978,7 @@ static std::string generate_raster_builtins(GeneratedStreams &ss,
     generate_raster_builtin(ss, decl, "float4", "gl_Position", pos_attr);
   }
   else {
-    generate_raster_builtin(ss, decl, "float4", "gl_FragCoord", pos_attr, true);
+    generate_raster_builtin(ss, decl, "float4", "gl_FragCoord", pos_attr, "", true);
   }
 
   if (bool(info.builtins_ & BuiltinBits::LAYER) && stage == ShaderStage::VERTEX) {
@@ -988,9 +990,15 @@ static std::string generate_raster_builtins(GeneratedStreams &ss,
   if (bool(info.builtins_ & BuiltinBits::POINT_SIZE) && stage == ShaderStage::VERTEX) {
     generate_raster_builtin(ss, decl, "float", "gl_PointSize", "[[point_size]]");
   }
-  /* TODO(fclem): A bit more involved. */
-  // out << "  float gl_ClipDistance [[clip_distance]] [6];\n";
-
+  if (bool(info.builtins_ & BuiltinBits::CLIP_DISTANCES) && stage == ShaderStage::VERTEX) {
+    generate_raster_builtin(ss, decl, "float", "gl_ClipDistance", "[[clip_distance]]", " [6]");
+    /* We always create all planes and initialize them to 1 (passing). This way the shader doesn't
+     * have to write to them for the ones it doesn't need. */
+    StringRefNull vert_inout_inst = get_stage_out_instance_name(stage);
+    for ([[maybe_unused]] const int i : IndexRange(6)) {
+      ss.entry_point_start << "  " << vert_inout_inst << ".gl_ClipDistance[" << i << "] = 1.0f;\n";
+    }
+  }
   return decl.str();
 }
 

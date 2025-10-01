@@ -448,6 +448,7 @@ enum class BuiltinBits {
   BARYCENTRIC_COORD = (1 << 0),
   STENCIL_REF = (1 << 1),
   FRAG_COORD = (1 << 2),
+  CLIP_DISTANCES = (1 << 3),
   FRONT_FACING = (1 << 4),
   GLOBAL_INVOCATION_ID = (1 << 5),
   INSTANCE_ID = (1 << 6),
