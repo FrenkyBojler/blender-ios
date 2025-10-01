@@ -101,7 +101,7 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   simage->spacetype = SPACE_IMAGE;
   simage->zoom = 1.0f;
   simage->lock = true;
-  simage->flag = SI_SHOW_GPENCIL | SI_USE_ALPHA | SI_COORDFLOATS;
+  simage->flag = SI_SHOW_GPENCIL | SI_USE_ALPHA | SI_COORDFLOATS | SI_SHOW_SEAMS;
   simage->uv_opacity = 1.0f;
   simage->uv_face_opacity = 1.0f;
   simage->stretch_opacity = 1.0f;

@@ -1703,6 +1703,7 @@ class IMAGE_PT_overlay_uv_edit_geometry(Panel):
         row = col.row()
         row.active = not uvedit.show_stretch
         row.prop(uvedit, "show_faces", text="Faces")
+        row.prop(uvedit, "show_seams", text="Seams")
 
 
 class IMAGE_PT_overlay_uv_display(Panel):

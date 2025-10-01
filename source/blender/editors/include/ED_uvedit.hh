@@ -94,9 +94,7 @@ bool uvedit_edge_select_test_ex(const ToolSettings *ts,
                                 const BMLoop *l,
                                 const BMUVOffsets &offsets);
 
-bool uvedit_edge_seam_test_ex(const ToolSettings *ts,
-                                const BMLoop *l,
-                                const BMUVOffsets &offsets);                               
+bool uvedit_edge_seam_test_ex(const BMLoop *l, const BMUVOffsets &offsets);
 bool uvedit_uv_select_test_ex(const ToolSettings *ts, const BMLoop *l, const BMUVOffsets &offsets);
 
 bool uvedit_face_visible_test(const Scene *scene, const BMFace *efa);

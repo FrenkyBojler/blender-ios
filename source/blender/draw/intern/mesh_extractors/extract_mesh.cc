@@ -78,7 +78,7 @@ void mesh_render_data_loop_edge_flag(const MeshRenderData &mr,
     eattr.v_flag |= VFLAG_EDGE_UV_SELECT;
     eattr.v_flag |= VFLAG_VERT_UV_SELECT;
   }
-  if (uvedit_edge_seam_test_ex(mr.toolsettings,l,offsets)){
+  if (uvedit_edge_seam_test_ex(mr.toolsettings, l, offsets)) {
     eattr.e_flag |= VFLAG_EDGE_SEAM;
   }
 }

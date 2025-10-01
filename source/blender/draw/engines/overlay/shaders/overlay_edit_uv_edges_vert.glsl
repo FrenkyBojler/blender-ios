@@ -137,14 +137,13 @@ void geometry_main(VertOut geom_in[2],
   /* No blending with edge selection. */
   bool select_1 = use_edge_select ? geom_in[0].selected : geom_in[1].selected;
 
-
   GeomOut geom_out;
   geom_out.stipple_start = geom_in[0].stipple_start;
   geom_out.stipple_pos = geom_in[0].stipple_pos;
   geom_out.gpu_position = geom_in[0].hs_P + float4(edge_ofs, 0.0f, 0.0f);
   geom_out.edge_coord = half_size;
   geom_out.selected = select_0;
-  geom_out.seam = geom_in[0].seam;
+  geom_out.seam = use_seam ? geom_in[0].seam : false;
   strip_EmitVertex(0, out_vertex_id, out_primitive_id, geom_out);
 
   geom_out.gpu_position = geom_in[0].hs_P - float4(edge_ofs, 0.0f, 0.0f);

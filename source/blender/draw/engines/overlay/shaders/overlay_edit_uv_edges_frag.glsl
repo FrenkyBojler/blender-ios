@@ -10,9 +10,10 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_edit_uv_edges)
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
 
-float4 get_edge_color(float4 base_color) {
+float4 get_edge_color(float4 base_color)
+{
   if (seam_fac != 0.0f && selection_fac != 0.0f) {
-    return mix(theme.colors.edge_seam, theme.colors.edge_select, 0.25f);
+    return mix(theme.colors.edge_seam, theme.colors.edge_select, 0.5f);
   }
   else if (seam_fac != 0.0f) {
     return theme.colors.edge_seam;

@@ -4029,6 +4029,11 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
       prop, "Pixel Coordinates", "Display UV coordinates in pixels rather than from 0.0 to 1.0");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
+  prop = RNA_def_property(srna, "show_seams", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SI_SHOW_SEAMS);
+  RNA_def_property_ui_text(prop, "Seams", "Display seam overlay");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
   prop = RNA_def_property(srna, "show_faces", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", SI_NO_DRAWFACES);
   RNA_def_property_ui_text(prop, "Display Faces", "Display faces over the image");
