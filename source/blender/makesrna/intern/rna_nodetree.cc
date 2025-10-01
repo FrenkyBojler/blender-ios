@@ -47,11 +47,11 @@ const EnumPropertyItem rna_enum_node_socket_data_type_items[] = {
     {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", ""},
     {SOCK_BOOLEAN, "BOOLEAN", ICON_NODE_SOCKET_BOOLEAN, "Boolean", ""},
     {SOCK_VECTOR, "VECTOR", ICON_NODE_SOCKET_VECTOR, "Vector", ""},
+    {SOCK_RGBA, "RGBA", ICON_NODE_SOCKET_RGBA, "Color", ""},
     {SOCK_ROTATION, "ROTATION", ICON_NODE_SOCKET_ROTATION, "Rotation", ""},
     {SOCK_MATRIX, "MATRIX", ICON_NODE_SOCKET_MATRIX, "Matrix", ""},
     {SOCK_STRING, "STRING", ICON_NODE_SOCKET_STRING, "String", ""},
     {SOCK_MENU, "MENU", ICON_NODE_SOCKET_MENU, "Menu", ""},
-    {SOCK_RGBA, "RGBA", ICON_NODE_SOCKET_RGBA, "Color", ""},
     {SOCK_SHADER, "SHADER", ICON_NODE_SOCKET_SHADER, "Shader", ""},
     {SOCK_OBJECT, "OBJECT", ICON_NODE_SOCKET_OBJECT, "Object", ""},
     {SOCK_IMAGE, "IMAGE", ICON_NODE_SOCKET_IMAGE, "Image", ""},
@@ -659,6 +659,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_viewer.hh"
 #  include "NOD_geometry.hh"
 #  include "NOD_geometry_nodes_lazy_function.hh"
+#  include "NOD_rna_define.hh"
 #  include "NOD_shader.h"
 #  include "NOD_socket.hh"
 #  include "NOD_socket_items.hh"
@@ -2285,6 +2286,15 @@ static void rna_GeometryNodeTree_is_type_grease_pencil_set(PointerRNA *ptr, bool
   geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_GREASE_PENCIL, value);
 }
 
+static bool rna_GeometryNodeTree_modifier_manage_panel_get(PointerRNA *ptr)
+{
+  return !geometry_node_asset_trait_flag_get(ptr, GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL);
+}
+static void rna_GeometryNodeTree_modifier_manage_panel_set(PointerRNA *ptr, bool value)
+{
+  geometry_node_asset_trait_flag_set(ptr, GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL, !value);
+}
+
 static bool random_value_type_supported(const EnumPropertyItem *item)
 {
   return ELEM(item->value, CD_PROP_FLOAT, CD_PROP_FLOAT3, CD_PROP_BOOL, CD_PROP_INT32);
@@ -2342,26 +2352,6 @@ static const EnumPropertyItem *rna_GeometryNodeAttributeDomain_attribute_domain_
 
   *r_free = true;
   return item_array;
-}
-
-static const EnumPropertyItem *rna_structure_type_no_auto_itemf(bContext * /*C*/,
-                                                                PointerRNA * /*ptr*/,
-                                                                PropertyRNA * /*prop*/,
-                                                                bool *r_free)
-{
-  EnumPropertyItem *items = nullptr;
-  int items_len = 0;
-  for (const EnumPropertyItem *item = rna_enum_node_socket_structure_type_items; item->identifier;
-       item++)
-  {
-    if (item->value != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-      RNA_enum_item_add(&items, &items_len, item);
-    }
-  }
-  RNA_enum_item_end(&items, &items_len);
-
-  *r_free = true;
-  return items;
 }
 
 static StructRNA *rna_ShaderNode_register(Main *bmain,
@@ -3826,6 +3816,20 @@ typename Accessor::ItemT *rna_Node_ItemArray_new_with_socket_and_name(
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
   return new_item;
+}
+
+template<typename Accessor>
+static const EnumPropertyItem *rna_Node_ItemArray_structure_type_itemf(bContext * /*C*/,
+                                                                       PointerRNA *ptr,
+                                                                       PropertyRNA * /*prop*/,
+                                                                       bool *r_free)
+{
+  using ItemT = typename Accessor::ItemT;
+
+  const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
+  const ItemT &item = *static_cast<const ItemT *>(ptr->data);
+  const eNodeSocketDatatype socket_type = Accessor::get_socket_type(item);
+  return rna_NodeSocket_structure_type_item_filter(ntree, socket_type, r_free);
 }
 
 static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *bmain)
@@ -7521,6 +7525,11 @@ static void rna_def_closure_input_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<ClosureInputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7543,11 +7552,27 @@ static void rna_def_closure_input_items(BlenderRNA *brna)
 
 static void rna_def_closure_output_item(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
   StructRNA *srna = RNA_def_struct(brna, "NodeClosureOutputItem", nullptr);
   RNA_def_struct_ui_text(srna, "Closure Output Item", "");
   RNA_def_struct_sdna(srna, "NodeClosureOutputItem");
 
   rna_def_node_item_array_socket_item_common(srna, "ClosureOutputItemsAccessor", true);
+
+  prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<ClosureOutputItemsAccessor>");
+  RNA_def_property_ui_text(
+      prop,
+      "Structure Type",
+      "What kind of higher order types are expected to flow through this socket");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<ClosureOutputItemsAccessor>");
 }
 
 static void rna_def_closure_output_items(BlenderRNA *brna)
@@ -7597,6 +7622,16 @@ static void def_closure_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "define_signature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_CLOSURE_FLAG_DEFINE_SIGNATURE);
+  RNA_def_property_ui_text(
+      prop,
+      "Define Signature",
+      "This zone defines a closure signature that should be used by other nodes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_geo_capture_attribute_item(BlenderRNA *brna)
@@ -7681,7 +7716,11 @@ static void rna_def_evaluate_closure_input_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_structure_type_no_auto_itemf");
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<EvaluateClosureInputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7717,7 +7756,11 @@ static void rna_def_evaluate_closure_output_item(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_structure_type_no_auto_itemf");
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<EvaluateClosureOutputItemsAccessor>");
   RNA_def_property_ui_text(
       prop,
       "Structure Type",
@@ -7778,6 +7821,17 @@ static void def_evaluate_closure(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "define_signature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "flag", NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE);
+  RNA_def_property_ui_text(
+      prop,
+      "Define Signature",
+      "This node defines a closure signature that should be used by other nodes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_geo_bake_item(BlenderRNA *brna)
@@ -7857,10 +7911,26 @@ static void rna_def_geo_bake(BlenderRNA *brna, StructRNA *srna)
 
 static void rna_def_combine_bundle_item(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
   StructRNA *srna = RNA_def_struct(brna, "NodeCombineBundleItem", nullptr);
   RNA_def_struct_ui_text(srna, "Combine Bundle Item", "");
 
   rna_def_node_item_array_socket_item_common(srna, "CombineBundleItemsAccessor", true);
+
+  prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<CombineBundleItemsAccessor>");
+  RNA_def_property_ui_text(
+      prop,
+      "Structure Type",
+      "What kind of higher order types are expected to flow through this socket");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<CombineBundleItemsAccessor>");
 }
 
 static void rna_def_combine_bundle_items(BlenderRNA *brna)
@@ -7896,14 +7966,40 @@ static void def_combine_bundle(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "define_signature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_COMBINE_BUNDLE_FLAG_DEFINE_SIGNATURE);
+  RNA_def_property_ui_text(
+      prop,
+      "Define Signature",
+      "This node defines a bundle signature that should be used by other nodes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_separate_bundle_item(BlenderRNA *brna)
 {
+  PropertyRNA *prop;
+
   StructRNA *srna = RNA_def_struct(brna, "NodeSeparateBundleItem", nullptr);
   RNA_def_struct_ui_text(srna, "Separate Bundle Item", "");
 
   rna_def_node_item_array_socket_item_common(srna, "SeparateBundleItemsAccessor", true);
+
+  prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop,
+      nullptr,
+      nullptr,
+      "rna_Node_ItemArray_structure_type_itemf<SeparateBundleItemsAccessor>");
+  RNA_def_property_ui_text(
+      prop,
+      "Structure Type",
+      "What kind of higher order types are expected to flow through this socket");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<SeparateBundleItemsAccessor>");
 }
 
 static void rna_def_separate_bundle_items(BlenderRNA *brna)
@@ -7939,6 +8035,16 @@ static void def_separate_bundle(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "define_signature", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_SEPARATE_BUNDLE_FLAG_DEFINE_SIGNATURE);
+  RNA_def_property_ui_text(
+      prop,
+      "Define Signature",
+      "This node defines a bundle signature that should be used by other nodes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_index_switch_item(BlenderRNA *brna)
@@ -9536,6 +9642,18 @@ static void rna_def_geometry_nodetree(BlenderRNA *brna)
                                  "rna_GeometryNodeTree_is_type_grease_pencil_get",
                                  "rna_GeometryNodeTree_is_type_grease_pencil_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
+
+  prop = RNA_def_property(srna, "show_modifier_manage_panel", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GeometryNodeTree_modifier_manage_panel_get",
+                                 "rna_GeometryNodeTree_modifier_manage_panel_set");
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", 0);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Show Manage Panel",
+      "Turn on the option to display the manage panel when creating a modifier");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update");
 }
 
 static StructRNA *define_specific_node(BlenderRNA *brna,
@@ -9623,7 +9741,9 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeClosureInput", def_closure_input);
   define("NodeInternal", "NodeClosureOutput", def_closure_output);
   define("NodeInternal", "NodeCombineBundle", def_combine_bundle);
+  define("NodeInternal", "NodeEnableOutput");
   define("NodeInternal", "NodeEvaluateClosure", def_evaluate_closure);
+  define("NodeInternal", "NodeJoinBundle");
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
 
   define("ShaderNode", "ShaderNodeAddShader");
@@ -10105,6 +10225,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeTriangulate");
   define("GeometryNode", "GeometryNodeTrimCurve");
   define("GeometryNode", "GeometryNodeUVPackIslands");
+  define("GeometryNode", "GeometryNodeUVTangent");
   define("GeometryNode", "GeometryNodeUVUnwrap");
   define("GeometryNode", "GeometryNodeVertexOfCorner");
   define("GeometryNode", "GeometryNodeViewer", rna_def_geo_viewer);
