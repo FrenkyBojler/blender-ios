@@ -309,9 +309,8 @@ enum {
   VFLAG_VERT_UV_PINNED = 1 << 4,
   VFLAG_EDGE_UV_SELECT = 1 << 5,
   VFLAG_FACE_UV_ACTIVE = 1 << 6,
-  VFLAG_FACE_UV_SELECT = 1 << 8,
-  VFLAG_EDGE_UV_SEAM = 1 << 7,
-  /* Can now go beyond 1 << 7. */
+  VFLAG_FACE_UV_SELECT = 1 << 7,
+  /* Beware to not go over 1 << 7 (it's a byte flag). */
 };
 
 /** \} */
