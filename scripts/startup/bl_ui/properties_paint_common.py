@@ -260,8 +260,6 @@ class UnifiedPaintPanel:
             prop_name,
             unified_paint_settings_override=None,
             unified_name=None,
-            pressure_name=None,
-            curve_visibility_name=None,
             icon='NONE',
             text=None,
             slider=False,
@@ -288,18 +286,31 @@ class UnifiedPaintPanel:
             # NOTE: We don't draw UnifiedPaintSettings in the header to reduce clutter. D5928#136281
             row.prop(ups, unified_name, text="", icon='BRUSHES_ALL')
 
-        if pressure_name:
-            row.prop(brush, pressure_name, text="")
+        return row
+
+    @staticmethod
+    def prop_pressure(
+            layout,
+            context,
+            parent_row,
+            brush,
+            pressure_name,
+            curve_visibility_name=None,
+            custom_curve_name=None,
+            header=False
+    ):
+        paint = UnifiedPaintPanel.paint_settings(context)
+        parent_row.prop(brush, pressure_name, text="")
 
         if curve_visibility_name and not header:
             is_active = getattr(paint, curve_visibility_name)
-            row.prop(
+            parent_row.prop(
                 paint,
                 curve_visibility_name,
                 text="",
                 icon='DOWNARROW_HLT' if is_active else 'RIGHTARROW',
                 emboss=False)
-        return row
+
 
     @staticmethod
     def prop_unified_color(parent, context, brush, prop_name, *, text=None):
