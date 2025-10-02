@@ -144,14 +144,9 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d, int end_frame_w
                          blender::seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
   const float end_frame = start_frame + duration;
 
-  /* Only draw two separate 'curtains' if there's no overlap between them. */
-  if (start_frame < end_frame + end_frame_width) {
-    immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, float(start_frame), v2d->cur.ymax);
-    immRectf(pos, float(end_frame + end_frame_width), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
-  }
-  else {
-    immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
-  }
+  BLI_assert(start_frame < end_frame + end_frame_width);
+  immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, float(start_frame), v2d->cur.ymax);
+  immRectf(pos, float(end_frame + end_frame_width), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 
   immUnbindProgram();
 
