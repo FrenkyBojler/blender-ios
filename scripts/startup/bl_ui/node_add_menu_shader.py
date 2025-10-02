@@ -445,6 +445,7 @@ class NODE_MT_shader_node_all_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Input")
         self.draw_menu(layout, "Output")
         layout.separator()
+        # Do not order this alphabetically, we are matching the order in the output node.
         self.draw_menu(layout, "Shader")
         self.draw_menu(layout, "Displacement")
         layout.separator()
