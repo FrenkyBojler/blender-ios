@@ -12,7 +12,7 @@ _op_call = _ops_module.call
 _op_as_string = _ops_module.as_string
 _op_get_rna_type = _ops_module.get_rna_type
 _op_get_bl_options = _ops_module.get_bl_options
-_op_create_callable = _ops_module.create_callable
+_op_create_function = _ops_module.create_function
 
 _ModuleType = type(_ops_module)
 
@@ -25,7 +25,7 @@ def _bpy_ops_submodule__getattr__(module, func):
     # for improved operator execution performance.
     if func.startswith("__"):
         raise AttributeError(func)
-    return _op_create_callable(module, func)
+    return _op_create_function(module, func)
 
 
 def _bpy_ops_submodule__dir__(module):
