@@ -1679,6 +1679,9 @@ bool BKE_sound_stream_info_get(Main * /*main*/,
   return false;
 }
 
+#endif /* WITH_AUDASPACE */
+
+#if !defined(WITH_AUDASPACE) || !defined(WITH_RUBBERBAND)
 void *BKE_sound_add_time_stretch_effect(void * /*sound_handle*/, float /*fps*/)
 {
   return nullptr;
@@ -1696,8 +1699,7 @@ void BKE_sound_set_scene_sound_time_stretch_constant_range(void * /*handle*/,
                                                            float /*time_stretch*/)
 {
 }
-
-#endif /* WITH_AUDASPACE */
+#endif
 
 void BKE_sound_reset_scene_runtime(Scene *scene)
 {
