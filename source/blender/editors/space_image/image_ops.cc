@@ -1383,6 +1383,7 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
     }
 
     BLI_freelistN(&range->udim_tiles);
+    BLI_freelistN(&range->frames);
   }
   BLI_freelistN(&ranges);
 
@@ -2088,7 +2089,7 @@ static bool image_save_as_poll(bContext *C)
     Image *ima = image_from_context(C);
 
     if (ima->source == IMA_SRC_VIEWER) {
-      CTX_wm_operator_poll_msg_set(C, "cannot save image while rendering");
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
       return false;
     }
   }
@@ -3295,7 +3296,7 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     ED_image_undo_push_end();
   }
   else {
-    // Ensure that an image buffer can be aquired for all UDIM tiles
+    // Ensure that an image buffer can be acquired for all UDIM tiles
     LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
       iuser.tile = current_tile->tile_number;
 

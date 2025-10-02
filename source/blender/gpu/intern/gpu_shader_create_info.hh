@@ -182,6 +182,8 @@
            #name, \
            Frequency::freq)
 
+#  define GROUP_SHARED(type, name) .shared_variable(Type::type##_t, #name)
+
 #  define BUILTINS(builtin) .builtins(builtin)
 
 #  define VERTEX_SOURCE(filename) .vertex_source(filename)
@@ -279,6 +281,8 @@
 #  define IMAGE(slot, format, qualifiers, type, name) _##qualifiers type name;
 #  define IMAGE_FREQ(slot, format, qualifiers, type, name, freq) _##qualifiers type name;
 
+#  define GROUP_SHARED(type, name) type name;
+
 #  define BUILTINS(builtin)
 
 #  define VERTEX_SOURCE(filename)
@@ -331,7 +335,7 @@ struct GPUSource;
 namespace blender::gpu::shader {
 
 /* All of these functions is a bit out of place */
-static inline Type to_type(const eGPUType type)
+static inline Type to_type(const GPUType type)
 {
   switch (type) {
     case GPU_FLOAT:
@@ -347,7 +351,7 @@ static inline Type to_type(const eGPUType type)
     case GPU_MAT4:
       return Type::float4x4_t;
     default:
-      BLI_assert_msg(0, "Error: Cannot convert eGPUType to shader::Type.");
+      BLI_assert_msg(0, "Error: Cannot convert GPUType to shader::Type.");
       return Type::float_t;
   }
 }
@@ -425,7 +429,7 @@ static inline std::ostream &operator<<(std::ostream &stream, const Type type)
   }
 }
 
-static inline std::ostream &operator<<(std::ostream &stream, const eGPUType type)
+static inline std::ostream &operator<<(std::ostream &stream, const GPUType type)
 {
   switch (type) {
     case GPU_CLOSURE:
@@ -442,6 +446,7 @@ enum class BuiltinBits {
    * \note Emulated on OpenGL.
    */
   BARYCENTRIC_COORD = (1 << 0),
+  STENCIL_REF = (1 << 1),
   FRAG_COORD = (1 << 2),
   FRONT_FACING = (1 << 4),
   GLOBAL_INVOCATION_ID = (1 << 5),
@@ -636,7 +641,7 @@ struct StageInterfaceInfo {
   Vector<InOut> inouts;
 
   StageInterfaceInfo(const char *name_, const char *instance_name_ = "")
-      : name(name_), instance_name(instance_name_){};
+      : name(name_), instance_name(instance_name_) {};
   ~StageInterfaceInfo() = default;
 
   using Self = StageInterfaceInfo;
@@ -683,6 +688,8 @@ struct ShaderCreateInfo {
   StringRefNull name_;
   /** True if the shader is static and can be pre-compiled at compile time. */
   bool do_static_compilation_ = false;
+  /** True if the shader is not part of gpu_shader_create_info_list. */
+  bool is_generated_ = true;
   /** If true, all additionally linked create info will be merged into this one. */
   bool finalized_ = false;
   /** If true, all resources will have an automatic location assigned. */
@@ -707,10 +714,40 @@ struct ShaderCreateInfo {
   std::string compute_source_generated;
   std::string geometry_source_generated;
   std::string typedef_source_generated;
-  /** Manually set generated dependencies. */
+  /** Manually set generated dependencies file names. */
   Vector<StringRefNull, 0> dependencies_generated;
 
   GeneratedSourceList generated_sources;
+
+  /* Same as StringRefNull but with a few extra member functions. */
+  struct ResourceString : public StringRefNull {
+    constexpr ResourceString() : StringRefNull() {}
+    constexpr ResourceString(const char *str, int64_t size) : StringRefNull(str, size) {}
+    ResourceString(std::nullptr_t) = delete;
+    constexpr ResourceString(const char *str) : StringRefNull(str) {}
+    ResourceString(const std::string &str) : StringRefNull(str) {}
+    ResourceString(const StringRefNull &str) : StringRefNull(str) {}
+
+    int64_t array_offset() const
+    {
+      return this->find_first_of("[");
+    }
+
+    bool is_array() const
+    {
+      return array_offset() != -1;
+    }
+
+    StringRef str_no_array() const
+    {
+      return StringRef(this->c_str(), this->array_offset());
+    }
+
+    StringRef str_only_array() const
+    {
+      return this->substr(this->array_offset());
+    }
+  };
 
 #  define TEST_EQUAL(a, b, _member) \
     if (!((a)._member == (b)._member)) { \
@@ -814,6 +851,13 @@ struct ShaderCreateInfo {
   Vector<CompilationConstant, 0> compilation_constants_;
   Vector<SpecializationConstant> specialization_constants_;
 
+  struct SharedVariable {
+    Type type;
+    ResourceString name;
+  };
+
+  Vector<SharedVariable, 0> shared_variables_;
+
   struct Sampler {
     ImageType type;
     GPUSamplerState sampler;
@@ -829,13 +873,13 @@ struct ShaderCreateInfo {
 
   struct UniformBuf {
     StringRefNull type_name;
-    StringRefNull name;
+    ResourceString name;
   };
 
   struct StorageBuf {
     Qualifier qualifiers;
     StringRefNull type_name;
-    StringRefNull name;
+    ResourceString name;
   };
 
   struct Resource {
@@ -855,7 +899,7 @@ struct ShaderCreateInfo {
       StorageBuf storagebuf;
     };
 
-    Resource(BindType type, int _slot) : bind_type(type), slot(_slot){};
+    Resource(BindType type, int _slot) : bind_type(type), slot(_slot) {};
 
     bool operator==(const Resource &b) const
     {
@@ -924,7 +968,7 @@ struct ShaderCreateInfo {
 
   struct PushConst {
     Type type;
-    StringRefNull name;
+    ResourceString name;
     int array_size;
 
     bool operator==(const PushConst &b) const
@@ -958,7 +1002,7 @@ struct ShaderCreateInfo {
 #  endif
 
  public:
-  ShaderCreateInfo(const char *name) : name_(name){};
+  ShaderCreateInfo(const char *name) : name_(name) {};
   ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;
@@ -1147,6 +1191,18 @@ struct ShaderCreateInfo {
   /* TODO: Add API to specify unique specialization config permutations in CreateInfo, allowing
    * specialized compilation to be primed and handled in the background at start-up, rather than
    * waiting for a given permutation to occur dynamically. */
+
+  /** \} */
+
+  /* -------------------------------------------------------------------- */
+  /** \name Compute shader Shared variables
+   * \{ */
+
+  Self &shared_variable(Type type, StringRefNull name)
+  {
+    shared_variables_.append({type, name});
+    return *(Self *)this;
+  }
 
   /** \} */
 

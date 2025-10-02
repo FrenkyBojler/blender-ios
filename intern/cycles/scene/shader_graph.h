@@ -56,6 +56,7 @@ enum ShaderNodeSpecialType {
   SHADER_SPECIAL_TYPE_OUTPUT,
   SHADER_SPECIAL_TYPE_BUMP,
   SHADER_SPECIAL_TYPE_OUTPUT_AOV,
+  SHADER_SPECIAL_TYPE_LIGHT_PATH,
 };
 
 /* Input
@@ -171,7 +172,7 @@ class ShaderNode : public Node {
   /* Simplify settings used by artists to the ones which are simpler to
    * evaluate in the kernel but keep the final result unchanged.
    */
-  virtual void simplify_settings(Scene * /*scene*/){};
+  virtual void simplify_settings(Scene * /*scene*/) {};
 
   virtual bool has_surface_emission()
   {

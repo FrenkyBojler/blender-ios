@@ -98,7 +98,7 @@ static void standard_defines(Vector<StringRefNull> &sources)
     sources.append("#define OS_UNIX\n");
   }
   /* API Definition */
-  eGPUBackendType backend = GPU_backend_get_type();
+  GPUBackendType backend = GPU_backend_get_type();
   switch (backend) {
     case GPU_BACKEND_OPENGL:
       sources.append("#define GPU_OPENGL\n");
@@ -113,99 +113,6 @@ static void standard_defines(Vector<StringRefNull> &sources)
       BLI_assert_msg(false, "Invalid GPU Backend Type");
       break;
   }
-
-  if (GPU_crappy_amd_driver()) {
-    sources.append("#define GPU_DEPRECATED_AMD_DRIVER\n");
-  }
-}
-
-blender::gpu::Shader *GPU_shader_create_ex(const std::optional<StringRefNull> vertcode,
-                                           const std::optional<StringRefNull> fragcode,
-                                           const std::optional<StringRefNull> geomcode,
-                                           const std::optional<StringRefNull> computecode,
-                                           const std::optional<StringRefNull> libcode,
-                                           const std::optional<StringRefNull> defines,
-                                           const StringRefNull shname)
-{
-  /* At least a vertex shader and a fragment shader are required, or only a compute shader. */
-  BLI_assert((fragcode.has_value() && vertcode.has_value() && !computecode.has_value()) ||
-             (!fragcode.has_value() && !vertcode.has_value() && !geomcode.has_value() &&
-              computecode.has_value()));
-
-  Shader *shader = GPUBackend::get()->shader_alloc(shname.c_str());
-  /* Needs to be called before init as GL uses the default specialization constants state to insert
-   * default shader inside a map. */
-  shader->constants = std::make_unique<const shader::SpecializationConstants>();
-  shader->init();
-
-  if (vertcode) {
-    Vector<StringRefNull> sources;
-    standard_defines(sources);
-    sources.append("#define GPU_VERTEX_SHADER\n");
-    sources.append("#define IN_OUT out\n");
-    if (geomcode) {
-      sources.append("#define USE_GEOMETRY_SHADER\n");
-    }
-    if (defines) {
-      sources.append(*defines);
-    }
-    sources.append(*vertcode);
-
-    shader->vertex_shader_from_glsl(sources);
-  }
-
-  if (fragcode) {
-    Vector<StringRefNull> sources;
-    standard_defines(sources);
-    sources.append("#define GPU_FRAGMENT_SHADER\n");
-    sources.append("#define IN_OUT in\n");
-    if (geomcode) {
-      sources.append("#define USE_GEOMETRY_SHADER\n");
-    }
-    if (defines) {
-      sources.append(*defines);
-    }
-    if (libcode) {
-      sources.append(*libcode);
-    }
-    sources.append(*fragcode);
-
-    shader->fragment_shader_from_glsl(sources);
-  }
-
-  if (geomcode) {
-    Vector<StringRefNull> sources;
-    standard_defines(sources);
-    sources.append("#define GPU_GEOMETRY_SHADER\n");
-    if (defines) {
-      sources.append(*defines);
-    }
-    sources.append(*geomcode);
-
-    shader->geometry_shader_from_glsl(sources);
-  }
-
-  if (computecode) {
-    Vector<StringRefNull> sources;
-    standard_defines(sources);
-    sources.append("#define GPU_COMPUTE_SHADER\n");
-    if (defines) {
-      sources.append(*defines);
-    }
-    if (libcode) {
-      sources.append(*libcode);
-    }
-    sources.append(*computecode);
-
-    shader->compute_shader_from_glsl(sources);
-  }
-
-  if (!shader->finalize()) {
-    delete shader;
-    return nullptr;
-  };
-
-  return shader;
 }
 
 void GPU_shader_free(blender::gpu::Shader *shader)
@@ -218,26 +125,6 @@ void GPU_shader_free(blender::gpu::Shader *shader)
 /* -------------------------------------------------------------------- */
 /** \name Creation utils
  * \{ */
-
-blender::gpu::Shader *GPU_shader_create(const std::optional<StringRefNull> vertcode,
-                                        const std::optional<StringRefNull> fragcode,
-                                        const std::optional<StringRefNull> geomcode,
-                                        const std::optional<StringRefNull> libcode,
-                                        const std::optional<StringRefNull> defines,
-                                        const StringRefNull shname)
-{
-  return GPU_shader_create_ex(
-      vertcode, fragcode, geomcode, std::nullopt, libcode, defines, shname);
-}
-
-blender::gpu::Shader *GPU_shader_create_compute(const std::optional<StringRefNull> computecode,
-                                                const std::optional<StringRefNull> libcode,
-                                                const std::optional<StringRefNull> defines,
-                                                const StringRefNull shname)
-{
-  return GPU_shader_create_ex(
-      std::nullopt, std::nullopt, std::nullopt, computecode, libcode, defines, shname);
-}
 
 const GPUShaderCreateInfo *GPU_shader_create_info_get(const char *info_name)
 {
@@ -309,63 +196,6 @@ blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateIn
   info.compute_source_generated = compute_source_original;
 
   return result;
-}
-
-blender::gpu::Shader *GPU_shader_create_from_python(std::optional<StringRefNull> vertcode,
-                                                    std::optional<StringRefNull> fragcode,
-                                                    std::optional<StringRefNull> geomcode,
-                                                    std::optional<StringRefNull> libcode,
-                                                    std::optional<StringRefNull> defines,
-                                                    const std::optional<StringRefNull> name)
-{
-  std::string defines_cat = "#define GPU_RAW_PYTHON_SHADER\n";
-  if (defines) {
-    defines_cat += defines.value();
-    defines = defines_cat;
-  }
-  else {
-    defines = defines_cat;
-  }
-
-  std::string libcodecat;
-
-  if (!libcode) {
-    libcode = datatoc_gpu_shader_colorspace_lib_glsl;
-  }
-  else {
-    libcodecat = *libcode + datatoc_gpu_shader_colorspace_lib_glsl;
-    libcode = libcodecat;
-  }
-
-  std::string vertex_source_processed;
-  std::string fragment_source_processed;
-  std::string geometry_source_processed;
-  std::string library_source_processed;
-
-  if (vertcode.has_value()) {
-    vertex_source_processed = GPU_shader_preprocess_source(*vertcode);
-    vertcode = vertex_source_processed;
-  }
-  if (fragcode.has_value()) {
-    fragment_source_processed = GPU_shader_preprocess_source(*fragcode);
-    fragcode = fragment_source_processed;
-  }
-  if (geomcode.has_value()) {
-    geometry_source_processed = GPU_shader_preprocess_source(*geomcode);
-    geomcode = geometry_source_processed;
-  }
-  if (libcode.has_value()) {
-    library_source_processed = GPU_shader_preprocess_source(*libcode);
-    libcode = library_source_processed;
-  }
-
-  /* Use pyGPUShader as default name for shader. */
-  blender::StringRefNull shname = name.value_or("pyGPUShader");
-
-  blender::gpu::Shader *sh = GPU_shader_create_ex(
-      vertcode, fragcode, geomcode, std::nullopt, libcode, defines, shname);
-
-  return sh;
 }
 
 BatchHandle GPU_shader_batch_create_from_infos(Span<const GPUShaderCreateInfo *> infos,
@@ -573,12 +403,6 @@ int GPU_shader_get_builtin_uniform(blender::gpu::Shader *shader, int builtin)
 {
   const ShaderInterface *interface = shader->interface;
   return interface->uniform_builtin((GPUUniformBuiltin)builtin);
-}
-
-int GPU_shader_get_builtin_block(blender::gpu::Shader *shader, int builtin)
-{
-  const ShaderInterface *interface = shader->interface;
-  return interface->ubo_builtin((GPUUniformBlockBuiltin)builtin);
 }
 
 int GPU_shader_get_ssbo_binding(blender::gpu::Shader *shader, const char *name)
@@ -832,6 +656,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
 
   using namespace blender::gpu::shader;
   const_cast<ShaderCreateInfo &>(info).finalize();
+  BLI_assert(info.do_static_compilation_ || info.is_generated_);
 
   TimePoint start_time;
 
@@ -876,12 +701,13 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     typedefs.append(info.typedef_source_generated);
   }
   for (auto filename : info.typedef_sources_) {
-    typedefs.append(gpu_shader_dependency_get_source(filename));
+    typedefs.extend_non_duplicates(
+        gpu_shader_dependency_get_resolved_source(filename, info.generated_sources, info.name_));
   }
 
   if (!info.vertex_source_.is_empty()) {
-    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(info.vertex_source_,
-                                                                           info.generated_sources);
+    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
+        info.vertex_source_, info.generated_sources, info.name_);
     std::string interface = shader->vertex_interface_declare(info);
 
     Vector<StringRefNull> sources;
@@ -895,7 +721,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(interface);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.vertex_source_generated);
 
     if (info.vertex_entry_fn_ != "main") {
@@ -908,8 +733,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   }
 
   if (!info.fragment_source_.is_empty()) {
-    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(info.fragment_source_,
-                                                                           info.generated_sources);
+    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
+        info.fragment_source_, info.generated_sources, info.name_);
     std::string interface = shader->fragment_interface_declare(info);
 
     Vector<StringRefNull> sources;
@@ -923,7 +748,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(interface);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.fragment_source_generated);
 
     if (info.fragment_entry_fn_ != "main") {
@@ -936,8 +760,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   }
 
   if (!info.geometry_source_.is_empty()) {
-    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(info.geometry_source_,
-                                                                           info.generated_sources);
+    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
+        info.geometry_source_, info.generated_sources, info.name_);
     std::string layout = shader->geometry_layout_declare(info);
     std::string interface = shader->geometry_interface_declare(info);
 
@@ -962,8 +786,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   }
 
   if (!info.compute_source_.is_empty()) {
-    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(info.compute_source_,
-                                                                           info.generated_sources);
+    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
+        info.compute_source_, info.generated_sources, info.name_);
     std::string layout = shader->compute_layout_declare(info);
 
     Vector<StringRefNull> sources;
@@ -974,7 +798,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(layout);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.compute_source_generated);
 
     if (info.compute_entry_fn_ != "main") {
@@ -1193,7 +1016,7 @@ void ShaderCompiler::do_work(void *work_payload)
 
 bool ShaderCompiler::is_compiling_impl()
 {
-  /* The mutex should be locked befor calling this function. */
+  /* The mutex should be locked before calling this function. */
   BLI_assert(!mutex_.try_lock());
 
   if (!compilation_queue_.is_empty()) {

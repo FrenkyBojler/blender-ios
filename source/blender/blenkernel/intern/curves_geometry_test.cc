@@ -85,6 +85,34 @@ TEST(curves_geometry, TypeCount)
   EXPECT_EQ(counts[CURVE_TYPE_NURBS], 3);
 }
 
+TEST(curves_geometry, CyclicOffsets)
+{
+  CurvesGeometry curves = create_basic_curves(100, 10);
+  {
+    EXPECT_FALSE(curves.has_cyclic_curve());
+  }
+  {
+    curves.cyclic_for_write().fill(true);
+    curves.tag_topology_changed();
+    EXPECT_TRUE(curves.has_cyclic_curve());
+  }
+  {
+    curves.cyclic_for_write().fill(false);
+    curves.tag_topology_changed();
+    EXPECT_FALSE(curves.has_cyclic_curve());
+  }
+  {
+    curves.attributes_for_write().remove("cyclic");
+    EXPECT_FALSE(curves.has_cyclic_curve());
+  }
+  {
+    curves.cyclic_for_write().copy_from(
+        {false, true, false, true, false, false, false, false, true, false});
+    curves.tag_topology_changed();
+    EXPECT_TRUE(curves.has_cyclic_curve());
+  }
+}
+
 TEST(curves_geometry, CatmullRomEvaluation)
 {
   CurvesGeometry curves(4, 1);

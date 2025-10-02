@@ -223,11 +223,18 @@ static GreasePencilBatchCache *grease_pencil_batch_cache_get(GreasePencil &greas
 /** \name Vertex Buffers
  * \{ */
 
-BLI_INLINE int32_t pack_rotation_aspect_hardness(float rot, float asp, float softness)
+BLI_INLINE int32_t pack_rotation_aspect_hardness_miter(const float rot,
+                                                       const float asp,
+                                                       const float softness,
+                                                       const float miter_angle)
 {
   int32_t packed = 0;
   /* Aspect uses 9 bits */
   float asp_normalized = (asp > 1.0f) ? (1.0f / asp) : asp;
+  /* Use the default aspect ratio of 1 when the value is outside of the valid range. */
+  if (asp_normalized <= 0.0f) {
+    asp_normalized = 1.0f;
+  }
   packed |= int32_t(unit_float_to_uchar_clamp(asp_normalized));
   /* Store if inverted in the 9th bit. */
   if (asp > 1.0f) {
@@ -243,17 +250,22 @@ BLI_INLINE int32_t pack_rotation_aspect_hardness(float rot, float asp, float sof
   }
   /* Hardness uses 8 bits */
   packed |= int32_t(unit_float_to_uchar_clamp(1.0f - softness)) << 18;
-  return packed;
-}
 
-static void copy_transformed_positions(const Span<float3> src_positions,
-                                       const IndexRange range,
-                                       const float4x4 &transform,
-                                       MutableSpan<float3> dst_positions)
-{
-  for (const int point_i : range) {
-    dst_positions[point_i] = math::transform_point(transform, src_positions[point_i]);
+  /* Miter Angle uses the last 6 bits */
+  if (miter_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
+    packed |= GP_CORNER_TYPE_ROUND_BITS << 26;
   }
+  else if (miter_angle >= GP_STROKE_MITER_ANGLE_BEVEL) {
+    packed |= GP_CORNER_TYPE_BEVEL_BITS << 26;
+  }
+  else {
+    const float miter_norm = (miter_angle / M_PI);
+    packed |= int32_t(clamp_i(
+                  int(miter_norm * GP_CORNER_TYPE_MITER_NUMBER), 1, GP_CORNER_TYPE_MITER_NUMBER))
+              << 26;
+  }
+
+  return packed;
 }
 
 [[maybe_unused]] static bool grease_pencil_batch_cache_is_edit_discarded(
@@ -334,11 +346,8 @@ static void grease_pencil_weight_batch_ensure(Object &object,
         object, info.drawing, memory);
 
     const IndexRange points(drawing_start_offset, curves.points_num());
-    const Span<float3> positions = curves.positions();
-    MutableSpan<float3> positions_slice = points_pos.slice(points);
-    threading::parallel_for(curves.points_range(), 1024, [&](const IndexRange range) {
-      copy_transformed_positions(positions, range, layer_space_to_object_space, positions_slice);
-    });
+    math::transform_points(
+        curves.positions(), layer_space_to_object_space, points_pos.slice(points));
 
     /* Get vertex weights of the active vertex group in this drawing. */
     const VArray<float> weights = *curves.attributes().lookup_or_default<float>(
@@ -532,14 +541,8 @@ static void grease_pencil_cache_add_nurbs(Object &object,
 
   MutableSpan<float3> positions_eval_slice = edit_line_points.slice(eval_slice);
 
-  /* This will copy over the position but without the layer transform. */
   array_utils::gather(positions, nurbs_points, positions_eval_slice);
-
-  /* Go through the position and apply the layer transform. */
-  threading::parallel_for(nurbs_points.index_range(), 1024, [&](const IndexRange range) {
-    copy_transformed_positions(
-        positions_eval_slice, range, layer_space_to_object_space, positions_eval_slice);
-  });
+  math::transform_points(layer_space_to_object_space, positions_eval_slice);
 
   MutableSpan<float> selection_eval_slice = edit_line_selection.slice(eval_slice);
 
@@ -844,22 +847,14 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     const IndexRange points(drawing_start_offset, curves.points_num());
     const IndexRange points_eval(drawing_line_start_offset, curves.evaluated_points_num());
 
-    const Span<float3> positions = curves.positions();
     if (!layer.is_locked()) {
-      MutableSpan<float3> positions_slice = edit_points.slice(points);
-      threading::parallel_for(curves.points_range(), 1024, [&](const IndexRange range) {
-        copy_transformed_positions(positions, range, layer_space_to_object_space, positions_slice);
-      });
+      math::transform_points(
+          curves.positions(), layer_space_to_object_space, edit_points.slice(points));
     }
 
-    const Span<float3> positions_eval = curves.evaluated_positions();
-
-    MutableSpan<float3> positions_eval_slice = edit_line_points.slice(points_eval);
-    threading::parallel_for(
-        IndexRange(curves.evaluated_points_num()), 1024, [&](const IndexRange range) {
-          copy_transformed_positions(
-              positions_eval, range, layer_space_to_object_space, positions_eval_slice);
-        });
+    math::transform_points(curves.evaluated_positions(),
+                           layer_space_to_object_space,
+                           edit_line_points.slice(points_eval));
 
     /* Do not show selection for locked layers. */
     if (!layer.is_locked()) {
@@ -941,20 +936,14 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     MutableSpan<float3> positions_slice_left = edit_points.slice(left_slice);
     MutableSpan<float3> positions_slice_right = edit_points.slice(right_slice);
 
-    const Span<float3> handles_left = curves.handle_positions_left();
-    const Span<float3> handles_right = curves.handle_positions_right();
+    const Span<float3> handles_left = *curves.handle_positions_left();
+    const Span<float3> handles_right = *curves.handle_positions_right();
 
-    /* This will copy over the position but without the layer transform. */
     array_utils::gather(handles_left, bezier_points, positions_slice_left);
     array_utils::gather(handles_right, bezier_points, positions_slice_right);
 
-    /* Go through the position and apply the layer transform. */
-    threading::parallel_for(bezier_points.index_range(), 1024, [&](const IndexRange range) {
-      copy_transformed_positions(
-          positions_slice_left, range, layer_space_to_object_space, positions_slice_left);
-      copy_transformed_positions(
-          positions_slice_right, range, layer_space_to_object_space, positions_slice_right);
-    });
+    math::transform_points(layer_space_to_object_space, positions_slice_left);
+    math::transform_points(layer_space_to_object_space, positions_slice_right);
 
     const VArray<float> selected_left = *curves.attributes().lookup_or_default<float>(
         ".selection_handle_left", bke::AttrDomain::Point, true);
@@ -1087,6 +1076,59 @@ static VArray<T> attribute_interpolate(const VArray<T> &input, const bke::Curves
   return VArray<T>::from_container(std::move(out));
 };
 
+static VArray<float> interpolate_corners(const bke::CurvesGeometry &curves)
+{
+  const VArray<float> miter_angles = *curves.attributes().lookup_or_default<float>(
+      "miter_angle", bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
+
+  if (curves.is_single_type(CURVE_TYPE_POLY)) {
+    return miter_angles;
+  }
+
+  if (miter_angles.is_single() &&
+      miter_angles.get_internal_single() == GP_STROKE_MITER_ANGLE_ROUND)
+  {
+    return VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.evaluated_points_num());
+  }
+
+  /* Default all the evaluated points to be round.
+   * This is done so that the added points look as smooth as possible. */
+  Array<float> eval_corners(curves.evaluated_points_num(), GP_STROKE_MITER_ANGLE_ROUND);
+
+  const VArray<int8_t> types = curves.curve_types();
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
+
+  threading::parallel_for(curves.curves_range(), 128, [&](IndexRange range) {
+    for (const int curve_i : range) {
+      const IndexRange eval_points = evaluated_points_by_curve[curve_i];
+      const IndexRange points = points_by_curve[curve_i];
+      MutableSpan<float> eval_corners_range = eval_corners.as_mutable_span().slice(eval_points);
+
+      switch (types[curve_i]) {
+        case CURVE_TYPE_POLY:
+          for (const int i : points.index_range()) {
+            eval_corners_range[i] = miter_angles[points[i]];
+          }
+          break;
+        case CURVE_TYPE_BEZIER: {
+          const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
+          for (const int i : points.index_range()) {
+            eval_corners_range[offsets[i]] = miter_angles[points[i]];
+          }
+          break;
+        }
+        case CURVE_TYPE_NURBS:
+        case CURVE_TYPE_CATMULL_ROM: {
+          /* NUBRS and Catmull-Rom are continuous and don't have corners. */
+          break;
+        }
+      }
+    }
+  });
+  return VArray<float>::from_container(std::move(eval_corners));
+}
+
 static void grease_pencil_geom_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
                                             const Scene &scene)
@@ -1212,6 +1254,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         *attributes.lookup_or_default<ColorGeometry4f>(
             "vertex_color", bke::AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f)),
         curves);
+    const VArray<float> miter_angles = interpolate_corners(curves);
 
     /* Assumes that if the ".selection" attribute does not exist, all points are selected. */
     const VArray<float> selection_float = *attributes.lookup_or_default<float>(
@@ -1251,6 +1294,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                               int point_i,
                               int idx,
                               float u_stroke,
+                              bool cyclic,
                               const float4x2 &texture_matrix,
                               GreasePencilStrokeVert &s_vert,
                               GreasePencilColorVert &c_vert) {
@@ -1262,14 +1306,20 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                       ((end_cap == GP_STROKE_CAP_TYPE_ROUND) ? 1.0f : -1.0f);
       s_vert.opacity = opacities[point_i] *
                        ((start_cap == GP_STROKE_CAP_TYPE_ROUND) ? 1.0f : -1.0f);
-      s_vert.point_id = verts_range[idx];
+
+      /* Store if the curve is cyclic in the sign of the point index. */
+      s_vert.point_id = cyclic ? -verts_range[idx] : verts_range[idx];
       s_vert.stroke_id = verts_range.first();
+
       /* The material index is allowed to be negative as it's stored as a generic attribute. To
        * ensure the material used by the shader is valid this needs to be clamped to zero. */
       s_vert.mat = std::max(materials[curve_i], 0) % GPENCIL_MATERIAL_BUFFER_LEN;
 
-      s_vert.packed_asp_hard_rot = pack_rotation_aspect_hardness(
-          rotations[point_i], stroke_point_aspect_ratios[curve_i], stroke_softness[curve_i]);
+      s_vert.packed_asp_hard_rot = pack_rotation_aspect_hardness_miter(
+          rotations[point_i],
+          stroke_point_aspect_ratios[curve_i],
+          stroke_softness[curve_i],
+          miter_angles[point_i]);
       s_vert.u_stroke = u_stroke;
       copy_v2_v2(s_vert.uv_fill, texture_matrix * float4(pos, 1.0f));
 
@@ -1299,6 +1349,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
       /* First vertex is not drawn. */
       verts_slice.first().mat = -1;
+      /* The first vertex will have the index of the last vertex. */
+      verts_slice.first().stroke_id = verts_range.last();
 
       /* If the stroke has more than 2 points, add the triangle indices to the index buffer. */
       if (points.size() >= 3) {
@@ -1325,6 +1377,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                        points[i],
                        idx,
                        u_stroke,
+                       is_cyclic,
                        texture_matrix,
                        verts_slice[idx],
                        cols_slice[idx]);
@@ -1341,6 +1394,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                        points[0],
                        idx,
                        u_stroke,
+                       is_cyclic,
                        texture_matrix,
                        verts_slice[idx],
                        cols_slice[idx]);

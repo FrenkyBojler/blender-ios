@@ -6,6 +6,7 @@
  * \ingroup edtransform
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -481,7 +482,7 @@ static void applyObjectConstraintVec(const TransInfo *t,
     copy_v3_v3(out, in);
     if (t->con.mode & CON_APPLY) {
       mul_m3_v3(t->spacemtx_inv, out);
-      const float(*axismtx)[3] = transform_object_axismtx_get(t, tc, td);
+      const float (*axismtx)[3] = transform_object_axismtx_get(t, tc, td);
       mul_m3_v3(axismtx, out);
       if (t->flag & T_EDIT) {
         mul_m3_v3(tc->mat3_unit, out);
@@ -528,7 +529,7 @@ static void applyObjectConstraintSize(const TransInfo *t,
     float tmat[3][3];
     float imat[3][3];
 
-    const float(*axismtx)[3] = transform_object_axismtx_get(t, tc, td);
+    const float (*axismtx)[3] = transform_object_axismtx_get(t, tc, td);
     invert_m3_m3(imat, axismtx);
 
     if (!(t->con.mode & CON_AXIS0)) {
@@ -605,7 +606,7 @@ static void applyObjectConstraintRot(const TransInfo *t,
 {
   if (t->con.mode & CON_APPLY) {
     float tmp_axismtx[3][3];
-    const float(*axismtx)[3];
+    const float (*axismtx)[3];
 
     /* On setup call, use first object. */
     if (td == nullptr) {
@@ -802,7 +803,7 @@ void drawConstraint(TransInfo *t)
       drawLine(t, t->center_global, t->spacemtx[1], 'Y', 0);
       drawLine(t, t->center_global, t->spacemtx[2], 'Z', 0);
 
-      eGPUDepthTest depth_test_enabled = GPU_depth_test_get();
+      GPUDepthTest depth_test_enabled = GPU_depth_test_get();
       if (depth_test_enabled) {
         GPU_depth_test(GPU_DEPTH_NONE);
       }
@@ -875,7 +876,7 @@ void drawPropCircle(TransInfo *t)
       GPU_matrix_scale_2f(1.0f / t->aspect[0], 1.0f / t->aspect[1]);
     }
 
-    eGPUDepthTest depth_test_enabled = GPU_depth_test_get();
+    GPUDepthTest depth_test_enabled = GPU_depth_test_get();
     if (depth_test_enabled) {
       GPU_depth_test(GPU_DEPTH_NONE);
     }
@@ -959,7 +960,7 @@ static void drawObjectConstraint(TransInfo *t)
     TransData *td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
       float co[3];
-      const float(*axismtx)[3];
+      const float (*axismtx)[3];
 
       if (t->flag & T_PROP_EDIT) {
         /* We're sorted, so skip the rest. */
@@ -1025,7 +1026,13 @@ void startConstraint(TransInfo *t)
 {
   t->con.mode |= CON_APPLY;
   *t->con.text = ' ';
-  t->num.idx_max = min_ii(getConstraintSpaceDimension(t) - 1, t->idx_max);
+
+  /* When `dims` is zero, no constraints are set (or not set *yet*).
+   * In this case `t->num.idx_max` is unlikely to be used.
+   * Set to `t->idx_max` as it's the default when transform starts
+   * to prevent numeric errors, see: #144916. */
+  const short dims = getConstraintSpaceDimension(t);
+  t->num.idx_max = (dims > 0) ? std::min<short>(dims - 1, t->idx_max) : t->idx_max;
 }
 
 void stopConstraint(TransInfo *t)

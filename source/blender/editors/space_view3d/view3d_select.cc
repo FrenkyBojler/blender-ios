@@ -520,7 +520,7 @@ static void do_lasso_select_pose__do_tag(void *user_data,
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
   const bArmature *arm = static_cast<bArmature *>(data->vc->obact->data);
-  if (!PBONE_SELECTABLE(arm, pchan->bone)) {
+  if (!blender::animrig::bone_is_selectable(arm, pchan)) {
     return;
   }
 
@@ -659,7 +659,7 @@ static bool do_pose_tag_select_op_exec(blender::MutableSpan<Base *> bases, const
       continue;
     }
 
-    bool changed = true;
+    bool changed = false;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
       Bone *bone = pchan->bone;
       if ((bone->flag & BONE_UNSELECTABLE) == 0) {
@@ -1012,7 +1012,7 @@ static void do_lasso_select_armature__doSelectBone(void *user_data,
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
   const bArmature *arm = static_cast<const bArmature *>(data->vc->obedit->data);
-  if (!blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+  if (!blender::animrig::bone_is_visible(arm, ebone)) {
     return;
   }
 
@@ -1059,7 +1059,7 @@ static void do_lasso_select_armature__doSelectBone_clip_content(void *user_data,
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
   bArmature *arm = static_cast<bArmature *>(data->vc->obedit->data);
-  if (!blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+  if (!blender::animrig::bone_is_visible(arm, ebone)) {
     return;
   }
 
@@ -1362,7 +1362,7 @@ static bool view3d_lasso_select(bContext *C,
     }
     else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT)) {
       changed_multi |= PE_lasso_select(C,
-                                       reinterpret_cast<const int(*)[2]>(mcoords.data()),
+                                       reinterpret_cast<const int (*)[2]>(mcoords.data()),
                                        mcoords.size(),
                                        sel_op) != OPERATOR_CANCELLED;
     }
@@ -5040,7 +5040,7 @@ static void do_circle_select_pose__doSelectBone(void *user_data,
 {
   CircleSelectUserData *data = static_cast<CircleSelectUserData *>(user_data);
   bArmature *arm = static_cast<bArmature *>(data->vc->obact->data);
-  if (!PBONE_SELECTABLE(arm, pchan->bone)) {
+  if (!blender::animrig::bone_is_selectable(arm, pchan)) {
     return;
   }
 
@@ -5152,7 +5152,7 @@ static void do_circle_select_armature__doSelectBone(void *user_data,
   CircleSelectUserData *data = static_cast<CircleSelectUserData *>(user_data);
   const bArmature *arm = static_cast<const bArmature *>(data->vc->obedit->data);
   if (!(data->select ? EBONE_SELECTABLE(arm, ebone) :
-                       blender::animrig::bone_is_visible_editbone(arm, ebone)))
+                       blender::animrig::bone_is_visible(arm, ebone)))
   {
     return;
   }
@@ -5210,7 +5210,7 @@ static void do_circle_select_armature__doSelectBone_clip_content(void *user_data
   bArmature *arm = static_cast<bArmature *>(data->vc->obedit->data);
 
   if (!(data->select ? EBONE_SELECTABLE(arm, ebone) :
-                       blender::animrig::bone_is_visible_editbone(arm, ebone)))
+                       blender::animrig::bone_is_visible(arm, ebone)))
   {
     return;
   }

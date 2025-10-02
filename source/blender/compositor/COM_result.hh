@@ -23,6 +23,8 @@
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
+#include "NOD_menu_value.hh"
+
 #include "COM_domain.hh"
 #include "COM_meta_data.hh"
 
@@ -41,9 +43,9 @@ enum class ResultType : uint8_t {
   Int2,
   Color,
   Bool,
+  Menu,
 
   /* Single value only types. See Result::is_single_value_only_type. */
-  Menu,
   String,
 };
 
@@ -133,8 +135,8 @@ class Result {
    * which will be identical to that stored in the data_ member. The active variant member depends
    * on the type of the result. This member is uninitialized and should not be used if the result
    * is not a single value. */
-  std::variant<float, float2, float3, float4, int32_t, int2, bool, std::string> single_value_ =
-      0.0f;
+  std::variant<float, float2, float3, float4, int32_t, int2, bool, std::string, nodes::MenuValue>
+      single_value_ = 0.0f;
   /* The domain of the result. This only matters if the result was not a single value. See the
    * discussion in COM_domain.hh for more information. */
   Domain domain_ = Domain::identity();
@@ -236,7 +238,12 @@ class Result {
   /* Creates and allocates a new result that matches the type and precision of this result and
    * uploads the CPU data that exist in this result. The result is assumed to be allocated on the
    * CPU. See the allocate_data method for more information on the from_pool parameters. */
-  Result upload_to_gpu(const bool from_pool);
+  Result upload_to_gpu(const bool from_pool) const;
+
+  /* Creates and allocates a new result that matches the type and precision of this result and
+   * downloads the GPU data that exist in this result. The result is assumed to be allocated on the
+   * GPU. */
+  Result download_to_cpu() const;
 
   /* Bind the GPU texture of the result to the texture image unit with the given name in the
    * currently bound given shader. This also inserts a memory barrier for texture fetches to ensure
@@ -270,6 +277,10 @@ class Result {
    * that case, intermediate results can be temporary results that can eventually be stolen by the
    * actual output of the operation. See the uses of the method for a practical example of use. */
   void steal_data(Result &source);
+
+  /* Similar to the Result variant of steal_data, but steals from a raw data buffer. The buffer is
+   * assumed to be allocated using Blender's guarded allocator.  */
+  void steal_data(void *data, int2 size);
 
   /* Set up the result to wrap an external GPU texture that is not allocated nor managed by the
    * result. The is_external_ member will be set to true, the domain will be set to have the same
@@ -348,6 +359,9 @@ class Result {
 
   /* Computes the number of channels of the result based on its type. */
   int64_t channels_count() const;
+
+  /* Computes the size of the result's data in bytes. */
+  int64_t size_in_bytes() const;
 
   blender::gpu::Texture *gpu_texture() const;
 
@@ -487,6 +501,7 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
     case ResultType::Float:
     case ResultType::Int:
     case ResultType::Bool:
+    case ResultType::Menu:
       return 1;
     case ResultType::Float2:
     case ResultType::Int2:
@@ -496,7 +511,6 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
     case ResultType::Color:
     case ResultType::Float4:
       return 4;
-    case ResultType::Menu:
     case ResultType::String:
       /* Single only types do not have channels. */
       BLI_assert(Result::is_single_value_only_type(type_));
@@ -674,11 +688,8 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                              extension_mode_x,
                                              extension_mode_y);
       break;
-    /* The anisotropic sampling requires separate handling with EWA. */
-    case Interpolation::Anisotropic:
-      BLI_assert_unreachable();
-      break;
     case Interpolation::Bicubic:
+    case Interpolation::Anisotropic:
       math::interpolate_cubic_bspline_wrapmode_fl(buffer,
                                                   pixel_value,
                                                   size.x,

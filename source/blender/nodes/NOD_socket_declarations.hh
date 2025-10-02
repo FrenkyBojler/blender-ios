@@ -4,13 +4,16 @@
 
 #pragma once
 
+#include <cfloat>
+
+#include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
 
 #include "RNA_types.hh"
 
 #include "BKE_node_enum.hh"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -228,7 +231,7 @@ class Menu : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_MENU;
 
-  int32_t default_value;
+  MenuValue default_value;
   bool is_expanded = false;
   ImplicitSharingPtr<bke::RuntimeNodeEnumItems> items;
 
@@ -244,7 +247,7 @@ class Menu : public SocketDeclaration {
 
 class MenuBuilder : public SocketDeclarationBuilder<Menu> {
  public:
-  MenuBuilder &default_value(int32_t value);
+  MenuBuilder &default_value(MenuValue value);
 
   /** Draw the menu items next to each other instead of as a drop-down menu. */
   MenuBuilder &expanded(bool value = true);
@@ -598,7 +601,7 @@ inline StringBuilder &StringBuilder::subtype(PropertySubType subtype)
 /** \name #MenuBuilder Inline Methods
  * \{ */
 
-inline MenuBuilder &MenuBuilder::default_value(const int32_t value)
+inline MenuBuilder &MenuBuilder::default_value(const MenuValue value)
 {
   decl_->default_value = value;
   return *this;

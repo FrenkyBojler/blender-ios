@@ -479,6 +479,16 @@ void MetalDevice::compile_and_load(const int device_id, MetalPipelineType pso_ty
       options.languageVersion = MTLLanguageVersion3_1;
     }
 #  endif
+#  if defined(MAC_OS_VERSION_15_0)
+    if (@available(macos 15.0, *)) {
+      options.languageVersion = MTLLanguageVersion3_2;
+      if (const char *loglevel = getenv("MTL_LOG_LEVEL")) {
+        if (strcmp(loglevel, "MTLLogLevelDebug") == 0) {
+          options.enableLogging = true;
+        }
+      }
+    }
+#  endif
 
     if (getenv("CYCLES_METAL_PROFILING") || getenv("CYCLES_METAL_DEBUG")) {
       path_write_text(path_cache_get(string_printf("%s.metal", kernel_type_as_string(pso_type))),
@@ -596,9 +606,9 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
     }
 
     if (mem.name) {
-      LOG_WORK << "Buffer allocate: " << mem.name << ", "
-               << string_human_readable_number(mem.memory_size()) << " bytes. ("
-               << string_human_readable_size(mem.memory_size()) << ")";
+      LOG_DEBUG << "Buffer allocate: " << mem.name << ", "
+                << string_human_readable_number(mem.memory_size()) << " bytes. ("
+                << string_human_readable_size(mem.memory_size()) << ")";
     }
 
     mem.device_size = metal_buffer.allocatedSize;
@@ -928,10 +938,16 @@ void MetalDevice::const_copy_to(const char *name, void *host, const size_t size)
 
   /* Update data storage pointers in launch parameters. */
   if (strcmp(name, "integrator_state") == 0) {
-    /* IntegratorStateGPU is contiguous pointers */
+    /* IntegratorStateGPU is contiguous pointers up until sort_partition_divisor. */
     const size_t pointer_block_size = offsetof(IntegratorStateGPU, sort_partition_divisor);
     update_launch_pointers(
         offsetof(KernelParamsMetal, integrator_state), host, pointer_block_size);
+
+    /* Ensure the non-pointers part of IntegratorStateGPU is copied (this is the proper fix for
+     * #144713). */
+    memcpy((uint8_t *)&launch_params->integrator_state + pointer_block_size,
+           (uint8_t *)host + pointer_block_size,
+           sizeof(IntegratorStateGPU) - pointer_block_size);
   }
 #  define KERNEL_DATA_ARRAY(data_type, tex_name) \
     else if (strcmp(name, #tex_name) == 0) { \
@@ -1077,9 +1093,9 @@ void MetalDevice::tex_alloc(device_texture &mem)
        */
       desc.allowGPUOptimizedContents = false;
 
-      LOG_WORK << "Texture 2D allocate: " << mem.name << ", "
-               << string_human_readable_number(mem.memory_size()) << " bytes. ("
-               << string_human_readable_size(mem.memory_size()) << ")";
+      LOG_DEBUG << "Texture 2D allocate: " << mem.name << ", "
+                << string_human_readable_number(mem.memory_size()) << " bytes. ("
+                << string_human_readable_size(mem.memory_size()) << ")";
 
       mtlTexture = [mtlDevice newTextureWithDescriptor:desc];
       if (!mtlTexture) {

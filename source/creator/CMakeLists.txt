@@ -20,6 +20,7 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
   PRIVATE bf::dependencies::optional::opencolorio
 )
@@ -1419,6 +1420,13 @@ elseif(WIN32)
 
   # Filenames change slightly between FFMPEG versions check both 6.0 and fallback to 5.0
   # to ease the transition between versions.
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avfilter-10.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avfilter-10.dll
+      ALL
+    )  
+  endif()
   if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
     windows_install_shared_manifest(
       FILES
@@ -1613,6 +1621,12 @@ elseif(APPLE)
     MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION}.${BLENDER_VERSION_PATCH} ${BLENDER_DATE}"
   )
 
+  # Xcode Archiving support for distributing the application (Testflight, App Store Connect, etc...)
+  set_target_properties(blender PROPERTIES
+    XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
+    XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
+  )
+
   if(WITH_BLENDER_THUMBNAILER)
     set(OSX_THUMBNAILER_SOURCEDIR ${OSX_APP_SOURCEDIR}/Contents/PlugIns/blender-thumbnailer.appex)
     set_target_properties(blender-thumbnailer PROPERTIES
@@ -1672,7 +1686,7 @@ elseif(APPLE)
 
   if(WITH_VULKAN_BACKEND)
     install(
-      FILES ${VULKAN_LIBRARY} ${MOLTENVK_LIBRARY}
+      FILES ${VULKAN_LIBRARY}
       DESTINATION ${TARGETDIR_LIB}
     )
   endif()

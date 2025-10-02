@@ -12,6 +12,7 @@ set(INC
   ../../compositor/utilities
   ../../makesrna
   ../../nodes/geometry/include
+  ../../sequencer
   ../asset
 
   # RNA_prototypes.hh
@@ -32,6 +33,7 @@ set(SRC
   node_edit.cc
   node_geometry_attribute_search.cc
   node_geometry_layer_search.cc
+  node_geometry_volume_grid_search.cc
   node_gizmo.cc
   node_group.cc
   node_ops.cc
@@ -69,6 +71,7 @@ set(LIB
   PRIVATE bf::nodes
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::sequencer
 )
 
 if(WITH_OPENIMAGEDENOISE)
@@ -77,20 +80,6 @@ endif()
 
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
-endif()
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
 endif()
 
 if(WITH_TBB)

@@ -39,7 +39,7 @@ from bpy.app.translations import (
 )
 
 
-class ImagePaintPanel:
+class ImagePaintPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
 
@@ -352,7 +352,7 @@ class IMAGE_MT_uvs_mirror(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("mesh.faces_mirror_uv")
+        layout.operator("uv.copy_mirrored_faces")
 
         layout.separator()
 
@@ -470,6 +470,11 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.pack_islands")
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("uv.average_islands_scale")
+        layout.operator("uv.arrange_islands")
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("uv.custom_region_set")
+        layout.operator_context = 'EXEC_REGION_WIN'
+        layout.prop(context.tool_settings, "use_uv_custom_region", text="Custom Region", toggle=True)
 
         layout.separator()
 
@@ -937,9 +942,6 @@ class IMAGE_HT_header(Header):
             if ima.is_stereo_3d:
                 row = layout.row()
                 row.prop(sima, "show_stereo_3d", text="")
-            if show_maskedit:
-                row = layout.row()
-                row.popover(panel="IMAGE_PT_mask_display")
 
             # layers.
             layout.template_image_layers(ima, iuser)
@@ -1036,11 +1038,6 @@ class IMAGE_PT_mask_animation(MASK_PT_animation, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "Mask"
-
-
-class IMAGE_PT_mask_display(MASK_PT_display, Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'HEADER'
 
 
 # --- end mask ---
@@ -1242,13 +1239,18 @@ class IMAGE_PT_paint_settings(Panel, ImagePaintPanel):
     bl_category = "Tool"
     bl_label = "Brush Settings"
 
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and settings.brush is not None
+
     def draw(self, context):
         layout = self.layout
 
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        settings = context.tool_settings.image_paint
+        settings = self.paint_settings(context)
         brush = settings.brush
 
         if brush:
@@ -1262,13 +1264,18 @@ class IMAGE_PT_paint_settings_advanced(Panel, ImagePaintPanel):
     bl_label = "Advanced"
     bl_ui_units_x = 12
 
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and settings.brush is not None
+
     def draw(self, context):
         layout = self.layout
 
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        settings = context.tool_settings.image_paint
+        settings = self.paint_settings(context)
         brush = settings.brush
         if brush:
             brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
@@ -1404,11 +1411,11 @@ class IMAGE_PT_uv_sculpt_curve(Panel):
         props = context.scene.tool_settings.uv_sculpt
 
         col = layout.column()
-        col.prop(props, "curve_preset", expand=True)
+        col.prop(props, "curve_distance_falloff_preset", expand=True)
 
-        if props.curve_preset == 'CUSTOM':
+        if props.curve_distance_falloff_preset == 'CUSTOM':
             col = layout.column()
-            col.template_curve_mapping(props, "strength_curve")
+            col.template_curve_mapping(props, "curve_distance_falloff")
 
 
 # Only a popover.
@@ -1772,6 +1779,18 @@ class IMAGE_PT_overlay_render_guides(Panel):
         subrow.prop(overlay, "passepartout_alpha", text="Passepartout")
 
 
+class IMAGE_PT_overlay_mask(MASK_PT_display, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_parent_id = "IMAGE_PT_overlay"
+
+    @classmethod
+    def poll(cls, context):
+        si = context.space_data
+
+        return si.ui_mode == 'MASK'
+
+
 # Grease Pencil properties
 class IMAGE_PT_annotation(AnnotationDataPanel, Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1825,7 +1844,6 @@ classes = (
     IMAGE_PT_active_tool,
     IMAGE_PT_mask,
     IMAGE_PT_mask_layers,
-    IMAGE_PT_mask_display,
     IMAGE_PT_active_mask_spline,
     IMAGE_PT_active_mask_point,
     IMAGE_PT_mask_animation,
@@ -1867,6 +1885,7 @@ classes = (
     IMAGE_PT_overlay_uv_display,
     IMAGE_PT_overlay_image,
     IMAGE_PT_overlay_render_guides,
+    IMAGE_PT_overlay_mask,
     IMAGE_AST_brush_paint,
 )
 

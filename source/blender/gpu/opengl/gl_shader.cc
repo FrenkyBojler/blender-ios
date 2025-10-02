@@ -35,6 +35,15 @@
 
 #include <sstream>
 #include <stdio.h>
+
+#include <fmt/format.h>
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdio.h>
+#include <string>
+
 #ifdef WIN32
 #  define popen _popen
 #  define pclose _pclose
@@ -43,8 +52,6 @@
 using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
-
-extern "C" char datatoc_glsl_shader_defines_glsl[];
 
 /* -------------------------------------------------------------------- */
 /** \name Creation / Destruction
@@ -77,18 +84,6 @@ void GLShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
 
   /* NOTE: This is not threadsafe with regards to the specialization constants state access.
    * The shader creation must be externally synchronized. */
-  main_program_ = program_cache_
-                      .lookup_or_add_cb(constants->values,
-                                        []() { return std::make_unique<GLProgram>(); })
-                      .get();
-  if (!main_program_->program_id) {
-    main_program_->program_id = glCreateProgram();
-    debug::object_label(GL_PROGRAM, main_program_->program_id, name);
-  }
-}
-
-void GLShader::init()
-{
   main_program_ = program_cache_
                       .lookup_or_add_cb(constants->values,
                                         []() { return std::make_unique<GLProgram>(); })
@@ -617,6 +612,10 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
         break;
     }
   }
+  ss << "\n/* Shared Variables. */\n";
+  for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
+    ss << "shared " << to_string(sv.type) << " " << sv.name << ";\n";
+  }
   /* NOTE: We define macros in GLSL to trigger compilation error if the resource names
    * are reused for local variables. This is to match other backend behavior which needs accessors
    * macros. */
@@ -1101,10 +1100,11 @@ static StringRefNull glsl_patch_vertex_get()
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_VERTEX_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1130,10 +1130,11 @@ static StringRefNull glsl_patch_geometry_get()
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_GEOMETRY_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1166,10 +1167,11 @@ static StringRefNull glsl_patch_fragment_get()
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_FRAGMENT_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1190,9 +1192,10 @@ static StringRefNull glsl_patch_compute_get()
 
     ss << "#define GPU_ARB_clip_control\n";
 
-    ss << datatoc_glsl_shader_defines_glsl;
-
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1276,11 +1279,17 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
     return 0;
   }
 
-  Array<const char *, 16> c_str_sources(sources.size());
-  for (const int i : sources.index_range()) {
-    c_str_sources[i] = sources[i].c_str();
+  std::string concat_source = fmt::to_string(fmt::join(sources, ""));
+
+  /* Patch line directives so that we can make error reporting consistent. */
+  size_t start_pos = 0;
+  while ((start_pos = concat_source.find("#line ", start_pos)) != std::string::npos) {
+    concat_source[start_pos] = '/';
+    concat_source[start_pos + 1] = '/';
   }
-  glShaderSource(shader, c_str_sources.size(), c_str_sources.data(), nullptr);
+
+  const char *str_ptr = concat_source.c_str();
+  glShaderSource(shader, 1, &str_ptr, nullptr);
   glCompileShader(shader);
 
   GLint status;
@@ -1557,12 +1566,13 @@ size_t GLSourcesBaked::size()
 
 GLShader::GLProgram::~GLProgram()
 {
+  /* This can run from any thread even without a GLContext bound. */
   /* Invalid handles are silently ignored. */
-  glDeleteShader(vert_shader);
-  glDeleteShader(geom_shader);
-  glDeleteShader(frag_shader);
-  glDeleteShader(compute_shader);
-  glDeleteProgram(program_id);
+  GLContext::shader_free(vert_shader);
+  GLContext::shader_free(geom_shader);
+  GLContext::shader_free(frag_shader);
+  GLContext::shader_free(compute_shader);
+  GLContext::program_free(program_id);
 }
 
 void GLShader::GLProgram::program_link(StringRefNull shader_name)

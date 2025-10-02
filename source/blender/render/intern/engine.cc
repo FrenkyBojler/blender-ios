@@ -113,19 +113,6 @@ bool RE_engine_is_external(const Render *re)
   return (re->engine && re->engine->type && re->engine->type->render);
 }
 
-bool RE_engine_supports_alembic_procedural(const RenderEngineType *render_type, Scene *scene)
-{
-  if ((render_type->flag & RE_USE_ALEMBIC_PROCEDURAL) == 0) {
-    return false;
-  }
-
-  if (BKE_scene_uses_cycles(scene) && !BKE_scene_uses_cycles_experimental_features(scene)) {
-    return false;
-  }
-
-  return true;
-}
-
 /* Create, Free */
 
 RenderEngine *RE_engine_create(RenderEngineType *type)
@@ -620,10 +607,10 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine,
    * leaving stereo to be handled by the engine. */
   Render *re = engine->re;
   if (use_spherical_stereo || re == nullptr) {
-    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float (*)[4])r_modelmat);
   }
   else {
-    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float (*)[4])r_modelmat);
   }
 }
 

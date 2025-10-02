@@ -27,9 +27,14 @@ namespace blender::nodes::node_composite_crop_cc {
 
 static void cmp_node_crop_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Int>("X")
       .default_value(0)
       .min(0)
@@ -49,15 +54,13 @@ static void cmp_node_crop_declare(NodeDeclarationBuilder &b)
       .default_value(1080)
       .min(1)
 
-      .description("The width of the crop region");
+      .description("The height of the crop region");
   b.add_input<decl::Bool>("Alpha Crop")
       .default_value(false)
 
       .description(
           "Sets the areas outside of the crop region to be transparent instead of actually "
           "cropping the size of the image");
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;

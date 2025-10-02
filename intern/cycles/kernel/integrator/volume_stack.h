@@ -23,6 +23,12 @@ ccl_device_forceinline VolumeStack volume_stack_read(const IntegratorGenericStat
   else {
     return integrator_state_read_volume_stack(state, i);
   }
+
+#  ifdef __KERNEL_GPU__
+  /* Silence false positive warning with some GPU compilers. */
+  VolumeStack stack = {};
+  return stack;
+#  endif
 }
 
 template<const bool shadow, typename IntegratorGenericState>
@@ -145,7 +151,7 @@ ccl_device_inline bool volume_is_homogeneous(KernelGlobals kg,
 
   if (shader_flag & SD_NEED_VOLUME_ATTRIBUTES) {
     const int object = entry.object;
-    if (object == OBJECT_NONE) {
+    if (object == kernel_data.background.object_index) {
       /* Volume attributes for world is not supported. */
       return true;
     }
@@ -161,8 +167,29 @@ ccl_device_inline bool volume_is_homogeneous(KernelGlobals kg,
 }
 
 template<const bool shadow, typename IntegratorGenericState>
+ccl_device_inline bool volume_is_homogeneous(KernelGlobals kg, const IntegratorGenericState state)
+{
+  for (int i = 0;; i++) {
+    const VolumeStack entry = volume_stack_read<shadow>(state, i);
+
+    if (entry.shader == SHADER_NONE) {
+      return true;
+    }
+
+    if (!volume_is_homogeneous(kg, entry)) {
+      return false;
+    }
+  }
+
+  kernel_assert(false);
+  return false;
+}
+
+template<const bool shadow, typename IntegratorGenericState>
 ccl_device float volume_stack_step_size(KernelGlobals kg, const IntegratorGenericState state)
 {
+  kernel_assert(kernel_data.integrator.volume_ray_marching);
+
   float step_size = FLT_MAX;
 
   for (int i = 0;; i++) {
@@ -172,8 +199,7 @@ ccl_device float volume_stack_step_size(KernelGlobals kg, const IntegratorGeneri
     }
 
     if (!volume_is_homogeneous(kg, entry)) {
-      float object_step_size = object_volume_step_size(kg, entry.object);
-      object_step_size *= kernel_data.integrator.volume_step_rate;
+      const float object_step_size = kernel_data_fetch(volume_step_size, entry.object);
       step_size = fminf(object_step_size, step_size);
     }
   }

@@ -303,7 +303,7 @@ template<
     /* bool device_only = false */>
 class UniformBuffer : public T, public detail::UniformCommon<T, 1, false> {
  public:
-  UniformBuffer(const char *name = nullptr) : detail::UniformCommon<T, 1, false>(name)
+  UniformBuffer(const char *name = nullptr) : T{}, detail::UniformCommon<T, 1, false>(name)
   {
     /* TODO(@fclem): How could we map this? */
     this->data_ = static_cast<T *>(this);
@@ -416,7 +416,7 @@ class StorageVectorBuffer : public StorageArrayBuffer<T, len, false> {
   int64_t item_len_ = 0;
 
  public:
-  StorageVectorBuffer(const char *name = nullptr) : StorageArrayBuffer<T, len, false>(name){};
+  StorageVectorBuffer(const char *name = nullptr) : StorageArrayBuffer<T, len, false>(name) {};
   ~StorageVectorBuffer() = default;
 
   /**
@@ -496,7 +496,7 @@ template<
     bool device_only = false>
 class StorageBuffer : public T, public detail::StorageCommon<T, 1, device_only> {
  public:
-  StorageBuffer(const char *name = nullptr) : detail::StorageCommon<T, 1, device_only>(name)
+  StorageBuffer(const char *name = nullptr) : T{}, detail::StorageCommon<T, 1, device_only>(name)
   {
     /* TODO(@fclem): How could we map this? */
     this->data_ = static_cast<T *>(this);
@@ -1065,7 +1065,7 @@ class Texture : NonCopyable {
 
 class TextureFromPool : public Texture, NonMovable {
  public:
-  TextureFromPool(const char *name = "gpu::Texture") : Texture(name){};
+  TextureFromPool(const char *name = "gpu::Texture") : Texture(name) {};
 
   /* Always use `release()` after rendering. */
   void acquire(int2 extent,
@@ -1201,12 +1201,12 @@ static inline gpu::Texture **as_texture(Image **img)
 
 class Framebuffer : NonCopyable {
  private:
-  GPUFrameBuffer *fb_ = nullptr;
+  gpu::FrameBuffer *fb_ = nullptr;
   const char *name_;
 
  public:
-  Framebuffer() : name_(""){};
-  Framebuffer(const char *name) : name_(name){};
+  Framebuffer() : name_("") {};
+  Framebuffer(const char *name) : name_(name) {};
 
   ~Framebuffer()
   {
@@ -1262,12 +1262,12 @@ class Framebuffer : NonCopyable {
     return *this;
   }
 
-  operator GPUFrameBuffer *() const
+  operator gpu::FrameBuffer *() const
   {
     return fb_;
   }
 
-  GPUFrameBuffer **operator&()
+  gpu::FrameBuffer **operator&()
   {
     return &fb_;
   }

@@ -18,6 +18,7 @@
 #include "scene/shader_nodes.h"
 #include "scene/svm.h"
 #include "scene/tables.h"
+#include "scene/volume.h"
 
 #include "util/log.h"
 #include "util/murmurhash.h"
@@ -53,7 +54,6 @@ NODE_DEFINE(Shader)
 
   SOCKET_BOOLEAN(use_transparent_shadow, "Use Transparent Shadow", true);
   SOCKET_BOOLEAN(use_bump_map_correction, "Bump Map Correction", true);
-  SOCKET_BOOLEAN(heterogeneous_volume, "Heterogeneous Volume", true);
 
   static NodeEnum volume_sampling_method_enum;
   volume_sampling_method_enum.insert("distance", VOLUME_SAMPLING_DISTANCE);
@@ -104,6 +104,7 @@ Shader::Shader() : Node(get_node_type())
   has_volume_attribute_dependency = false;
   has_volume_connected = false;
   prev_volume_step_rate = 0.0f;
+  has_light_path_node = false;
 
   emission_estimate = zero_float3();
   emission_sampling = EMISSION_SAMPLING_NONE;
@@ -397,6 +398,10 @@ void Shader::tag_update(Scene *scene)
     scene->object_manager->need_flags_update = true;
     prev_volume_step_rate = volume_step_rate;
   }
+
+  if (has_volume || prev_has_volume) {
+    scene->volume_manager->tag_update(this);
+  }
 }
 
 void Shader::tag_used(Scene *scene)
@@ -527,6 +532,15 @@ void ShaderManager::device_update_pre(Device * /*device*/,
       shader->has_volume_spatial_varying = false;
       shader->has_volume_attribute_dependency = false;
       shader->has_displacement = output->input("Displacement")->link != nullptr;
+
+      shader->has_light_path_node = false;
+      for (ShaderNode *node : shader->graph->nodes) {
+        if (node->special_type == SHADER_SPECIAL_TYPE_LIGHT_PATH) {
+          /* TODO: check if the light path node is linked to the volume output. */
+          shader->has_light_path_node = true;
+          break;
+        }
+      }
     }
 
     if (shader->reference_count()) {
@@ -536,7 +550,10 @@ void ShaderManager::device_update_pre(Device * /*device*/,
 
   /* Set this early as it is needed by volume rendering passes. */
   KernelIntegrator *kintegrator = &dscene->data.integrator;
-  kintegrator->use_volumes = has_volumes;
+  if (bool(kintegrator->use_volumes) != has_volumes) {
+    scene->tag_has_volume_modified();
+    kintegrator->use_volumes = has_volumes;
+  }
 }
 
 void ShaderManager::device_update_post(Device *device,
@@ -598,10 +615,8 @@ void ShaderManager::device_update_common(Device * /*device*/,
     if (shader->has_volume_connected && !shader->has_surface) {
       flag |= SD_HAS_ONLY_VOLUME;
     }
-    if (shader->has_volume) {
-      if (shader->get_heterogeneous_volume() && shader->has_volume_spatial_varying) {
-        flag |= SD_HETEROGENEOUS_VOLUME;
-      }
+    if (shader->has_volume && shader->has_volume_spatial_varying) {
+      flag |= SD_HETEROGENEOUS_VOLUME;
     }
     if (shader->has_volume_attribute_dependency) {
       flag |= SD_NEED_VOLUME_ATTRIBUTES;
@@ -631,6 +646,10 @@ void ShaderManager::device_update_common(Device * /*device*/,
     /* constant emission check */
     if (shader->emission_is_constant) {
       flag |= SD_HAS_CONSTANT_EMISSION;
+    }
+
+    if (shader->has_light_path_node) {
+      flag |= SD_HAS_LIGHT_PATH_NODE;
     }
 
     const uint32_t cryptomatte_id = util_murmur_hash3(
@@ -681,7 +700,7 @@ void ShaderManager::device_update_common(Device * /*device*/,
   kfilm->rec709_to_r = make_float4(rec709_to_r);
   kfilm->rec709_to_g = make_float4(rec709_to_g);
   kfilm->rec709_to_b = make_float4(rec709_to_b);
-  kfilm->is_rec709 = is_rec709;
+  kfilm->is_rec709 = scene_linear_space == SceneLinearSpace::Rec709;
 }
 
 void ShaderManager::device_free_common(Device * /*device*/, DeviceScene *dscene, Scene *scene)
@@ -926,15 +945,13 @@ void ShaderManager::compute_thin_film_table(const Transform &xyz_to_rgb)
    * the XYZ-to-RGB matrix to get the RGB LUT.
    *
    * That's what this function does: We load the precomputed values, convert to RGB, normalize
-   * the result to make the DC term equal to 1, convert from real/imaginary to magnitude/phase
-   * since that form is smoother and therefore interpolates more nicely, and then store that
-   * into the final table that's used by the kernel.
+   * the result to make the DC term equal to 1, and then store that into the final table that's
+   * used by the kernel.
    */
   assert(sizeof(table_thin_film_cmf) == 6 * THIN_FILM_TABLE_SIZE * sizeof(float));
   thin_film_table.resize(6 * THIN_FILM_TABLE_SIZE);
 
   float3 normalization;
-  float3 prevPhase = zero_float3();
   for (int i = 0; i < THIN_FILM_TABLE_SIZE; i++) {
     const float *table_row = table_thin_film_cmf[i];
     /* Load precomputed resampled Fourier-transformed XYZ CMFs. */
@@ -952,21 +969,13 @@ void ShaderManager::compute_thin_film_table(const Transform &xyz_to_rgb)
       normalization = 1.0f / rgbReal;
     }
 
-    /* Convert the complex value into magnitude/phase representation. */
-    const float3 rgbMag = sqrt(sqr(rgbReal) + sqr(rgbImag));
-    float3 rgbPhase = atan2(rgbImag, rgbReal);
-
-    /* Unwrap phase to avoid jumps. */
-    rgbPhase -= M_2PI_F * round((rgbPhase - prevPhase) * M_1_2PI_F);
-    prevPhase = rgbPhase;
-
     /* Store in lookup table. */
-    thin_film_table[i + 0 * THIN_FILM_TABLE_SIZE] = rgbMag.x * normalization.x;
-    thin_film_table[i + 1 * THIN_FILM_TABLE_SIZE] = rgbMag.y * normalization.y;
-    thin_film_table[i + 2 * THIN_FILM_TABLE_SIZE] = rgbMag.z * normalization.z;
-    thin_film_table[i + 3 * THIN_FILM_TABLE_SIZE] = rgbPhase.x;
-    thin_film_table[i + 4 * THIN_FILM_TABLE_SIZE] = rgbPhase.y;
-    thin_film_table[i + 5 * THIN_FILM_TABLE_SIZE] = rgbPhase.z;
+    thin_film_table[i + 0 * THIN_FILM_TABLE_SIZE] = rgbReal.x * normalization.x;
+    thin_film_table[i + 1 * THIN_FILM_TABLE_SIZE] = rgbReal.y * normalization.y;
+    thin_film_table[i + 2 * THIN_FILM_TABLE_SIZE] = rgbReal.z * normalization.z;
+    thin_film_table[i + 3 * THIN_FILM_TABLE_SIZE] = rgbImag.x * normalization.x;
+    thin_film_table[i + 4 * THIN_FILM_TABLE_SIZE] = rgbImag.y * normalization.y;
+    thin_film_table[i + 5 * THIN_FILM_TABLE_SIZE] = rgbImag.z * normalization.z;
   }
 }
 
@@ -996,7 +1005,7 @@ void ShaderManager::init_xyz_transforms()
   rec709_to_r = make_float3(1.0f, 0.0f, 0.0f);
   rec709_to_g = make_float3(0.0f, 1.0f, 0.0f);
   rec709_to_b = make_float3(0.0f, 0.0f, 1.0f);
-  is_rec709 = true;
+  scene_linear_space = SceneLinearSpace::Rec709;
 
   compute_thin_film_table(xyz_to_rec709);
 
@@ -1064,9 +1073,46 @@ void ShaderManager::init_xyz_transforms()
   rec709_to_r = make_float3(rec709_to_rgb.x);
   rec709_to_g = make_float3(rec709_to_rgb.y);
   rec709_to_b = make_float3(rec709_to_rgb.z);
-  is_rec709 = transform_equal_threshold(xyz_to_rgb, xyz_to_rec709, 0.0001f);
 
   compute_thin_film_table(xyz_to_rgb);
+
+  const Transform xyz_to_rec2020 = make_transform(1.7166512f,
+                                                  -0.3556708f,
+                                                  -0.2533663f,
+                                                  0.0f,
+                                                  -0.6666844,
+                                                  1.6164812f,
+                                                  0.0157685f,
+                                                  0.0f,
+                                                  0.0176399f,
+                                                  -0.0427706f,
+                                                  0.9421031f,
+                                                  0.0f);
+  const Transform acescg_to_xyz = make_transform(0.652238f,
+                                                 0.128237f,
+                                                 0.169983f,
+                                                 0.0f,
+                                                 0.267672f,
+                                                 0.674340f,
+                                                 0.057988f,
+                                                 0.0f,
+                                                 -0.005382f,
+                                                 0.001369f,
+                                                 1.093071f,
+                                                 0.0f);
+
+  if (transform_equal_threshold(xyz_to_rgb, xyz_to_rec709, 0.001f)) {
+    scene_linear_space = SceneLinearSpace::Rec709;
+  }
+  else if (transform_equal_threshold(xyz_to_rgb, xyz_to_rec2020, 0.001f)) {
+    scene_linear_space = SceneLinearSpace::Rec2020;
+  }
+  else if (transform_equal_threshold(rgb_to_xyz, acescg_to_xyz, 0.001f)) {
+    scene_linear_space = SceneLinearSpace::ACEScg;
+  }
+  else {
+    scene_linear_space = SceneLinearSpace::Unknown;
+  }
 #endif
 }
 

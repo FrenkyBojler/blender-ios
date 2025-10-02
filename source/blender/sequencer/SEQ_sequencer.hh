@@ -69,13 +69,6 @@ void editing_free(Scene *scene, bool do_id_user);
  * \return pointer to active seqbase. returns NULL if ed is NULL
  */
 ListBase *active_seqbase_get(const Editing *ed);
-/**
- * Set seqbase that is being viewed currently. This can be main seqbase or meta strip seqbase
- *
- * \param ed: sequence editor data
- * \param seqbase: ListBase with strips
- */
-void active_seqbase_set(Editing *ed, ListBase *seqbase);
 Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type);
 void strip_free(Scene *scene, Strip *strip);
 /**
@@ -150,6 +143,16 @@ Strip *lookup_strip_by_name(Editing *ed, const char *key);
  * \return Span of strips
  */
 Span<Strip *> lookup_strips_by_scene(Editing *ed, const Scene *key);
+
+/**
+ * Find all strips using provided compositor node tree as a modifier
+ *
+ * \param ed: Editing that owns lookup hash
+ * \param key: Node tree pointer
+ *
+ * \return Span of strips
+ */
+Span<Strip *> lookup_strips_by_compositor_node_group(Editing *ed, const bNodeTree *key);
 
 /**
  * Find which meta strip the given timeline channel belongs to. Returns nullptr if it is a global

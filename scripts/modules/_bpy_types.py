@@ -135,7 +135,7 @@ class Library(_types.ID):
         # we could make this an attribute in rna.
         attr_links = (
             "actions", "armatures", "brushes", "cameras",
-            "curves", "grease_pencils_v3", "collections", "images",
+            "curves", "grease_pencils", "collections", "images",
             "lights", "lattices", "materials", "metaballs",
             "meshes", "node_groups", "objects", "scenes",
             "sounds", "speakers", "textures", "texts",
@@ -970,7 +970,7 @@ class Gizmo(_StructRNA):
 
         with gpu.matrix.push_pop():
             gpu.matrix.multiply_matrix(matrix)
-            batch.draw()
+            batch.draw(shader)
 
         if use_blend:
             gpu.state.blend_set('NONE')
@@ -1002,7 +1002,6 @@ class Gizmo(_StructRNA):
         vbo.attr_fill(id=pos_id, data=verts)
         batch = GPUBatch(type=type, buf=vbo)
         shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-        batch.program_set(shader)
         return (batch, shader)
 
 
@@ -1448,7 +1447,7 @@ class HydraRenderEngine(RenderEngine):
 
     def get_render_settings(self, engine_type: str):
         """
-        Provide render settings for `HdRenderDelegate`.
+        Provide render settings for ``HdRenderDelegate``.
         """
         return {}
 
@@ -1510,10 +1509,55 @@ class GreasePencilDrawing(_StructRNA):
 
         .. note::
 
-            When point/curves count of a drawing is changed, the slice returned by this
-            call prior to the change is no longer valid. You need to get the new stroke
-            slice via `drawing.strokes[n]`.
+           When point/curves count of a drawing is changed, the slice returned by this
+           call prior to the change is no longer valid. You need to get the new stroke
+           slice via ``drawing.strokes[n]``.
         """
         from _bpy_internal.grease_pencil.stroke import GreasePencilStrokeSlice
         num_strokes = self.attributes.domain_size('CURVE')
         return GreasePencilStrokeSlice(self, 0, num_strokes)
+
+
+class Material(_types.ID):
+    __slots__ = ()
+
+    def inline_shader_nodes(self):
+        """
+        Get the inlined shader nodes of this material. This preprocesses the node tree
+        to remove nested groups, repeat zones and more.
+
+        :return: The inlined shader nodes.
+        :rtype: :class:`bpy.types.InlineShaderNodes`
+        """
+        from bpy.types import InlineShaderNodes
+        return InlineShaderNodes.from_material(self)
+
+
+class Light(_types.ID):
+    __slots__ = ()
+
+    def inline_shader_nodes(self):
+        """
+        Get the inlined shader nodes of this light. This preprocesses the node tree
+        to remove nested groups, repeat zones and more.
+
+        :return: The inlined shader nodes.
+        :rtype: :class:`bpy.types.InlineShaderNodes`
+        """
+        from bpy.types import InlineShaderNodes
+        return InlineShaderNodes.from_light(self)
+
+
+class World(_types.ID):
+    __slots__ = ()
+
+    def inline_shader_nodes(self):
+        """
+        Get the inlined shader nodes of this world. This preprocesses the node tree
+        to remove nested groups, repeat zones and more.
+
+        :return: The inlined shader nodes.
+        :rtype: :class:`bpy.types.InlineShaderNodes`
+        """
+        from bpy.types import InlineShaderNodes
+        return InlineShaderNodes.from_world(self)

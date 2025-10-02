@@ -574,6 +574,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_SHADE_VOLUME].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_VOLUME].raygen.entryFunctionName =
         "__raygen__kernel_optix_integrator_shade_volume";
+    group_descs[PG_RGEN_SHADE_VOLUME_RAY_MARCHING].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_SHADE_VOLUME_RAY_MARCHING].raygen.module = optix_module;
+    group_descs[PG_RGEN_SHADE_VOLUME_RAY_MARCHING].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_shade_volume_ray_marching";
     group_descs[PG_RGEN_SHADE_SHADOW].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
     group_descs[PG_RGEN_SHADE_SHADOW].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_SHADOW].raygen.entryFunctionName =
@@ -594,6 +598,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY].raygen.module = optix_module;
     group_descs[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY].raygen.entryFunctionName =
         "__raygen__kernel_optix_shader_eval_curve_shadow_transparency";
+    group_descs[PG_RGEN_EVAL_VOLUME_DENSITY].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_EVAL_VOLUME_DENSITY].raygen.module = optix_module;
+    group_descs[PG_RGEN_EVAL_VOLUME_DENSITY].raygen.entryFunctionName =
+        "__raygen__kernel_optix_shader_eval_volume_density";
   }
 
 #  ifdef WITH_OSL
@@ -1034,6 +1042,7 @@ bool OptiXDevice::load_osl_kernels()
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_BACKGROUND]);
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY]);
     pipeline_groups.push_back(groups[PG_RGEN_INIT_FROM_CAMERA]);
+    pipeline_groups.push_back(groups[PG_RGEN_EVAL_VOLUME_DENSITY]);
 
     for (const OptixProgramGroup &group : osl_groups) {
       if (group != nullptr) {

@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 
+#include "BLI_math_constants.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.hh"
@@ -933,13 +934,13 @@ static void rna_EditBone_parent_set(PointerRNA *ptr, PointerRNA value, ReportLis
 static void rna_EditBone_matrix_get(PointerRNA *ptr, float *values)
 {
   EditBone *ebone = (EditBone *)(ptr->data);
-  ED_armature_ebone_to_mat4(ebone, (float(*)[4])values);
+  ED_armature_ebone_to_mat4(ebone, (float (*)[4])values);
 }
 
 static void rna_EditBone_matrix_set(PointerRNA *ptr, const float *values)
 {
   EditBone *ebone = (EditBone *)(ptr->data);
-  ED_armature_ebone_from_mat4(ebone, (float(*)[4])values);
+  ED_armature_ebone_from_mat4(ebone, (float (*)[4])values);
 }
 
 static float rna_EditBone_length_get(PointerRNA *ptr)
@@ -1126,7 +1127,7 @@ static bool rna_Armature_is_editmode_get(PointerRNA *ptr)
 
 static void rna_Armature_transform(bArmature *arm, const float mat[16])
 {
-  ED_armature_transform(arm, (const float(*)[4])mat, true);
+  ED_armature_transform(arm, (const float (*)[4])mat, true);
 }
 
 static int rna_Armature_relation_line_position_get(PointerRNA *ptr)
@@ -1780,7 +1781,7 @@ static void rna_def_bone(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_HIDDEN_A);
   RNA_def_property_ui_text(prop, "Hide", "Bone is not visible when it is in Edit Mode");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
-  RNA_def_property_update(prop, 0, "rna_EditBone_hide_update");
+  RNA_def_property_update(prop, 0, "rna_Bone_hide_update");
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_SELECTED);

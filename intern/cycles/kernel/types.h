@@ -291,12 +291,14 @@ enum PathTraceDimension {
 
   /* Volume */
   PRNG_VOLUME_PHASE = 3,
-  PRNG_VOLUME_COLOR_CHANNEL = 4,
+  PRNG_VOLUME_RESERVOIR = 4,
   PRNG_VOLUME_SCATTER_DISTANCE = 5,
-  PRNG_VOLUME_OFFSET = 6,
+  PRNG_VOLUME_EXPANSION_ORDER = 6,
   PRNG_VOLUME_SHADE_OFFSET = 7,
   PRNG_VOLUME_PHASE_GUIDING_DISTANCE = 8,
   PRNG_VOLUME_PHASE_GUIDING_EQUIANGULAR = 9,
+  PRNG_VOLUME_COLOR_CHANNEL = 4,
+  PRNG_VOLUME_OFFSET = 6,
 
   /* Subsurface random walk bounces */
   PRNG_SUBSURFACE_BSDF = 0,
@@ -308,6 +310,9 @@ enum PathTraceDimension {
   /* Subsurface disk bounce */
   PRNG_SUBSURFACE_DISK = 0,
   PRNG_SUBSURFACE_DISK_RESAMPLE = 1,
+
+  /* Volume density baking. */
+  PRNG_BAKE_VOLUME_DENSITY_EVAL = 0,
 
   /* High enough number so we don't need to change it when adding new dimensions,
    * low enough so there is no uint16_t overflow with many bounces. */
@@ -434,6 +439,13 @@ enum PathRayFlag : uint32_t {
 
   /* Path is evaluating background for an approximate shadow catcher with non-transparent film. */
   PATH_RAY_SHADOW_CATCHER_BACKGROUND = (1U << 31U),
+
+  /* TODO(weizhen): should add another flag to record only the primary scatter, but then we need to
+     change the flag to 64 bits or split path_flags in two. Right now we also write volume scatter
+     if the primary hit is surface, but that seems fine. */
+  /* Volume scattering probability guiding. This flag is added to path where the primary ray passed
+     through the volume without scattering. */
+  PATH_RAY_VOLUME_PRIMARY_TRANSMIT = (1U << 23U),
 };
 
 // 8bit enum, just in case we need to move more variables in it
@@ -502,6 +514,8 @@ enum PassType {
   PASS_VOLUME,
   PASS_VOLUME_DIRECT,
   PASS_VOLUME_INDIRECT,
+  PASS_VOLUME_SCATTER,
+  PASS_VOLUME_TRANSMIT,
   PASS_CATEGORY_LIGHT_END = 31,
 
   /* Data passes */
@@ -528,6 +542,7 @@ enum PassType {
   PASS_DENOISING_ALBEDO,
   PASS_DENOISING_DEPTH,
   PASS_DENOISING_PREVIOUS,
+  PASS_RENDER_TIME,
 
   /* PASS_SHADOW_CATCHER accumulates contribution of shadow catcher object which is not affected by
    * any other object. The pass accessor will divide the combined pass by the shadow catcher. The
@@ -551,6 +566,10 @@ enum PassType {
   PASS_GUIDING_PROBABILITY,
   /* The avg. roughness at the first bounce. */
   PASS_GUIDING_AVG_ROUGHNESS,
+  /* The majorant optical depth along the ray, for volume scattering probability guiding.
+   * When reading this pass, it is converted to majorant transmittance */
+  PASS_VOLUME_MAJORANT,
+  PASS_VOLUME_MAJORANT_SAMPLE_COUNT,
   PASS_CATEGORY_DATA_END = 63,
 
   PASS_BAKE_PRIMITIVE,
@@ -951,6 +970,8 @@ struct AttributeMap {
 #endif
 
 #define MAX_VOLUME_CLOSURE 8  // NOLINT
+/* Set the maximal resolution to be 128 (2^7) to limit traversing overhead. */
+#define VOLUME_OCTREE_MAX_DEPTH 7
 
 /* This struct is the base class for all closures. The common members are
  * duplicated in all derived classes since we don't have C++ in the kernel
@@ -979,8 +1000,7 @@ struct AttributeMap {
   ClosureType type; \
   float sample_weight
 
-struct ccl_align(16) ShaderClosure
-{
+struct ccl_align(16) ShaderClosure {
   SHADER_CLOSURE_BASE;
 
   /* Extra space for closures to store data, somewhat arbitrary but closures
@@ -1030,6 +1050,8 @@ enum ShaderDataFlag {
 
   /* Shader flags. */
 
+  /* If Light Path Node is present in the shader graph. */
+  SD_HAS_LIGHT_PATH_NODE = (1 << 13),
   /* Apply a correction term to smooth illumination on grazing angles when using bump mapping. */
   SD_USE_BUMP_MAP_CORRECTION = (1 << 15),
   /* Use front side for direct light sampling. */
@@ -1109,8 +1131,7 @@ enum ShaderDataObjectFlag {
                      SD_OBJECT_HAS_VOLUME_MOTION)
 };
 
-struct ccl_align(16) ShaderData
-{
+struct ccl_align(16) ShaderData {
   /* position */
   float3 P;
   /* smooth normal for shading */
@@ -1192,15 +1213,13 @@ struct ccl_align(16) ShaderData
 #ifdef __KERNEL_GPU__
 /* ShaderDataTinyStorage needs the same alignment as ShaderData, or else
  * the pointer cast in AS_SHADER_DATA invokes undefined behavior. */
-struct ccl_align(16) ShaderDataTinyStorage
-{
+struct ccl_align(16) ShaderDataTinyStorage {
   char pad[sizeof(ShaderData) - sizeof(ShaderClosure) * MAX_CLOSURE];
 };
 
 /* ShaderDataCausticsStorage needs the same alignment as ShaderData, or else
  * the pointer cast in AS_SHADER_DATA invokes undefined behavior. */
-struct ccl_align(16) ShaderDataCausticsStorage
-{
+struct ccl_align(16) ShaderDataCausticsStorage {
   char pad[sizeof(ShaderData) - sizeof(ShaderClosure) * (MAX_CLOSURE - CAUSTICS_MAX_CLOSURE)];
 };
 #else
@@ -1409,9 +1428,7 @@ enum KernelBVHLayout {
 };
 
 /* Specialized struct that can become constants in dynamic compilation. */
-#define KERNEL_STRUCT_BEGIN(name, parent) \
-  struct ccl_align(16) name \
-  {
+#define KERNEL_STRUCT_BEGIN(name, parent) struct ccl_align(16) name {
 #define KERNEL_STRUCT_END(name) \
   } \
   ; \
@@ -1453,8 +1470,7 @@ struct KernelLightLinkSet {
   uint light_tree_root;
 };
 
-struct ccl_align(16) KernelData
-{
+struct ccl_align(16) KernelData {
   /* Features and limits. */
   uint kernel_features;
   uint max_closures;
@@ -1679,6 +1695,27 @@ struct KernelLightTreeNode {
 };
 static_assert_align(KernelLightTreeNode, 16);
 
+struct KernelOctreeRoot {
+  packed_float3 scale;
+  int id;
+  packed_float3 translation;
+  int shader;
+};
+
+struct KernelOctreeNode {
+  /* Index of the parent node in device vector `volume_tree_nodes`. */
+  int parent;
+
+  /* Index of the first child node in device vector `volume_tree_nodes`. All children of the same
+   * node are stored in contiguous memory. */
+  int first_child;
+
+  /* Minimal and maximal volume density inside the node. */
+  /* TODO(weizhen): we can make sigma Spectral for better accuracy. Since only root and leaf nodes
+   * need sigma, we can introduce `KernelOctreeInnerNode` to reduce the size of the struct. */
+  Extrema<float> sigma;
+};
+
 struct KernelLightTreeEmitter {
   /* Bounding cone. */
   float theta_o;
@@ -1811,6 +1848,7 @@ enum DeviceKernel : int {
   DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE,
   DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE,
   DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME,
+  DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING,
   DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW,
   DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT,
   DEVICE_KERNEL_INTEGRATOR_MEGAKERNEL,
@@ -1833,15 +1871,18 @@ enum DeviceKernel : int {
   DEVICE_KERNEL_SHADER_EVAL_DISPLACE,
   DEVICE_KERNEL_SHADER_EVAL_BACKGROUND,
   DEVICE_KERNEL_SHADER_EVAL_CURVE_SHADOW_TRANSPARENCY,
+  DEVICE_KERNEL_SHADER_EVAL_VOLUME_DENSITY,
 
 #define DECLARE_FILM_CONVERT_KERNEL(variant) \
   DEVICE_KERNEL_FILM_CONVERT_##variant, DEVICE_KERNEL_FILM_CONVERT_##variant##_HALF_RGBA
 
   DECLARE_FILM_CONVERT_KERNEL(DEPTH),
   DECLARE_FILM_CONVERT_KERNEL(MIST),
+  DECLARE_FILM_CONVERT_KERNEL(VOLUME_MAJORANT),
   DECLARE_FILM_CONVERT_KERNEL(SAMPLE_COUNT),
   DECLARE_FILM_CONVERT_KERNEL(FLOAT),
   DECLARE_FILM_CONVERT_KERNEL(LIGHT_PATH),
+  DECLARE_FILM_CONVERT_KERNEL(RGBE),
   DECLARE_FILM_CONVERT_KERNEL(FLOAT3),
   DECLARE_FILM_CONVERT_KERNEL(MOTION),
   DECLARE_FILM_CONVERT_KERNEL(CRYPTOMATTE),
@@ -1860,6 +1901,10 @@ enum DeviceKernel : int {
   DEVICE_KERNEL_FILTER_GUIDING_SET_FAKE_ALBEDO,
   DEVICE_KERNEL_FILTER_COLOR_PREPROCESS,
   DEVICE_KERNEL_FILTER_COLOR_POSTPROCESS,
+  DEVICE_KERNEL_FILTER_COLOR_FLIP_Y,
+
+  DEVICE_KERNEL_VOLUME_GUIDING_FILTER_X,
+  DEVICE_KERNEL_VOLUME_GUIDING_FILTER_Y,
 
   DEVICE_KERNEL_CRYPTOMATTE_POSTPROCESS,
 

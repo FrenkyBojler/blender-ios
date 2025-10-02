@@ -290,6 +290,7 @@ static void displace_volume(ModifierData *md, const ModifierEvalContext *ctx, Vo
 
     DisplaceGridOp displace_grid_op{grid, *vdmd, *ctx};
     BKE_volume_grid_type_operation(grid_type, displace_grid_op);
+    volume_grid->tag_tree_modified();
   }
 
 #else
@@ -341,4 +342,5 @@ ModifierTypeInfo modifierType_VolumeDisplace = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

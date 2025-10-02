@@ -1183,7 +1183,6 @@ context_type_map = {
     "active_object": [("Object", False)],
     "active_operator": [("Operator", False)],
     "active_pose_bone": [("PoseBone", False)],
-    "active_sequence_strip": [("Strip", False)],
     "active_strip": [("Strip", False)],
     "active_editable_fcurve": [("FCurve", False)],
     "active_nla_strip": [("NlaStrip", False)],
@@ -1212,7 +1211,7 @@ context_type_map = {
     "editable_fcurves": [("FCurve", True)],
     "fluid": [("FluidSimulationModifier", False)],
     "gpencil": [("GreasePencil", False)],
-    "grease_pencil": [("GreasePencilv3", False)],
+    "grease_pencil": [("GreasePencil", False)],
     "curves": [("Hair Curves", False)],
     "id": [("ID", False)],
     "image_paint_object": [("Object", False)],
@@ -1245,7 +1244,6 @@ context_type_map = {
     "selected_editable_fcurves": [("FCurve", True)],
     "selected_editable_keyframes": [("Keyframe", True)],
     "selected_editable_objects": [("Object", True)],
-    "selected_editable_sequences": [("Strip", True)],
     "selected_editable_strips": [("Strip", True)],
     "selected_files": [("FileSelectEntry", True)],
     "selected_ids": [("ID", True)],
@@ -1255,11 +1253,10 @@ context_type_map = {
     "selected_objects": [("Object", True)],
     "selected_pose_bones": [("PoseBone", True)],
     "selected_pose_bones_from_active_object": [("PoseBone", True)],
-    "selected_sequences": [("Strip", True)],
     "selected_strips": [("Strip", True)],
     "selected_visible_actions": [("Action", True)],
     "selected_visible_fcurves": [("FCurve", True)],
-    "sequences": [("Strip", True)],
+    "sequencer_scene": [("Scene", False)],
     "strips": [("Strip", True)],
     "soft_body": [("SoftBodyModifier", False)],
     "speaker": [("Speaker", False)],
@@ -1268,6 +1265,7 @@ context_type_map = {
     "texture_slot": [("TextureSlot", False)],
     "texture_user": [("ID", False)],
     "texture_user_property": [("Property", False)],
+    "tool_settings": [("ToolSettings", False)],
     "ui_list": [("UIList", False)],
     "vertex_paint_object": [("Object", False)],
     "view_layer": [("ViewLayer", False)],
@@ -1741,7 +1739,7 @@ def pyrna2sphinx(basepath):
                     if not descr:
                         descr = prop.name
                     # In rare cases `descr` may be empty.
-                    fw("         `{:s}`, {:s}\n\n".format(
+                    fw("         ``{:s}``, {:s}\n\n".format(
                         prop.identifier,
                         ", ".join((val for val in (descr, type_descr) if val))
                     ))
@@ -2187,6 +2185,24 @@ def write_rst_geometry_set(basepath):
     EXAMPLE_SET_USED.add("bpy.types.GeometrySet")
 
 
+def write_rst_inline_shader_nodes(basepath):
+    """
+    Write the RST files for ``bpy.types.InlineShaderNodes``.
+    """
+    if 'bpy.types.InlineShaderNodes' in EXCLUDE_MODULES:
+        return
+
+    # Write the index.
+    filepath = os.path.join(basepath, "bpy.types.InlineShaderNodes.rst")
+    with open(filepath, "w", encoding="utf-8") as fh:
+        fw = fh.write
+        fw(title_string("InlineShaderNodes", "="))
+        write_example_ref("", fw, "bpy.types.InlineShaderNodes")
+        pyclass2sphinx(fw, "bpy.types", "InlineShaderNodes", bpy.types.InlineShaderNodes, False)
+
+    EXAMPLE_SET_USED.add("bpy.types.InlineShaderNodes")
+
+
 def write_rst_msgbus(basepath):
     """
     Write the RST files of ``bpy.msgbus`` module
@@ -2539,6 +2555,7 @@ def rna2sphinx(basepath):
     write_rst_ops_index(basepath)           # `bpy.ops`.
     write_rst_msgbus(basepath)              # `bpy.msgbus`.
     write_rst_geometry_set(basepath)        # `bpy.types.GeometrySet`.
+    write_rst_inline_shader_nodes(basepath)  # `bpy.types.InlineShaderNodes`.
     pyrna2sphinx(basepath)                  # `bpy.types.*` & `bpy.ops.*`.
     write_rst_data(basepath)                # `bpy.data`.
     write_rst_importable_modules(basepath)
