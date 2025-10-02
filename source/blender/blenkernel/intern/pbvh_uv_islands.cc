@@ -591,7 +591,7 @@ struct Fan {
           break;
         }
       }
-      if (stop == false || mesh_data.edge_to_primitive_map[current_edge].size() != 2) {
+      if (stop == false || !mesh_data.is_edge_manifold(current_edge)) {
         flags.is_manifold = false;
         break;
       }
