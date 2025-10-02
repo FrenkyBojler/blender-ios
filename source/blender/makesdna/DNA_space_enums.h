@@ -1043,6 +1043,7 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
   SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM = 13,
+  SPREADSHEET_VALUE_TYPE_INT64 = 14,
 } eSpreadsheetColumnValueType;
 
 typedef enum eSpreadsheetColumnFlag {

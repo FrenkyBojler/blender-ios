@@ -65,6 +65,7 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
   switch (data_type) {
     case SPREADSHEET_VALUE_TYPE_INT8:
     case SPREADSHEET_VALUE_TYPE_INT32:
+    case SPREADSHEET_VALUE_TYPE_INT64:
       return std::to_string(row_filter.value_int);
     case SPREADSHEET_VALUE_TYPE_FLOAT: {
       std::ostringstream result;
@@ -213,6 +214,7 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
       layout->prop(filter_ptr, "value_int8", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;
     case SPREADSHEET_VALUE_TYPE_INT32:
+    case SPREADSHEET_VALUE_TYPE_INT64:
       layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       layout->prop(filter_ptr, "value_int", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;

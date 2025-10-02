@@ -151,29 +151,11 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<int>()) {
-      const int value = *value_ptr.get<int>();
-      const std::string value_str = std::to_string(value);
-      uiBut *but = uiDefIconTextBut(params.block,
-                                    ButType::Label,
-                                    0,
-                                    ICON_NONE,
-                                    value_str,
-                                    params.xmin,
-                                    params.ymin,
-                                    params.width,
-                                    params.height,
-                                    nullptr,
-                                    std::nullopt);
-      UI_but_func_tooltip_set(
-          but,
-          [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
-            return fmt::format("{}", *((int *)argN));
-          },
-          MEM_dupallocN<int>(__func__, value),
-          MEM_freeN);
-      /* Right-align Integers. */
-      UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
-      UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
+      this->draw_int(params, *value_ptr.get<int>());
+      return;
+    }
+    if (type.is<int64_t>()) {
+      this->draw_int(params, *value_ptr.get<int64_t>());
       return;
     }
     if (type.is<int8_t>()) {
@@ -387,6 +369,32 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
   }
 
+  void draw_int(const CellDrawParams &params, const int64_t value) const
+  {
+    const std::string value_str = fmt::format(std::locale("en_US.UTF-8"), "{:L}", value);
+    uiBut *but = uiDefIconTextBut(params.block,
+                                  ButType::Label,
+                                  0,
+                                  ICON_NONE,
+                                  value_str,
+                                  params.xmin,
+                                  params.ymin,
+                                  params.width,
+                                  params.height,
+                                  nullptr,
+                                  std::nullopt);
+    UI_but_func_tooltip_set(
+        but,
+        [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+          return fmt::format(std::locale("en_US.UTF-8"), "{:L}", *((int *)argN));
+        },
+        MEM_dupallocN<int64_t>(__func__, value),
+        MEM_freeN);
+    /* Right-align Integers. */
+    UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+    UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
+  }
+
   void draw_int_vector(const CellDrawParams &params, const Span<int> values) const
   {
     BLI_assert(!values.is_empty());
@@ -555,6 +563,16 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
           max_sample_size,
           data_.typed<int>(),
           [](const int value) { return fmt::format("{}", value); });
+    }
+    case SPREADSHEET_VALUE_TYPE_INT64: {
+      return estimate_max_column_width<int64_t>(get_min_width(3 * SPREADSHEET_WIDTH_UNIT),
+                                                fontid,
+                                                max_sample_size,
+                                                data_.typed<int64_t>(),
+                                                [](const int64_t value) {
+                                                  return fmt::format(
+                                                      std::locale("en_US.UTF-8"), "{:L}", value);
+                                                });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT: {
       return estimate_max_column_width<float>(
