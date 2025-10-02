@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_volume_grid.hh"
-
 #include "NOD_socket_search_link.hh"
 
 #include "UI_interface_layout.hh"
@@ -11,7 +9,11 @@
 
 #include "node_geometry_util.hh"
 
-#include "openvdb/tools/LevelSetFilter.h"
+#include "BKE_volume_grid.hh"
+
+#ifdef WITH_OPENVDB
+#  include "openvdb/tools/LevelSetFilter.h"
+#endif
 
 namespace blender::nodes::node_geo_sdf_grid_filter_cc {
 
