@@ -121,8 +121,10 @@ class VKResourceStateTracker {
       struct {
         /** VkImage handle of the resource being tracked. */
         VkImage vk_image = VK_NULL_HANDLE;
-        /** Number of layers that the resource has. */
-        uint32_t layer_count = 0;
+        /** Has this resource multiple layers. */
+        bool multiple_layers = false;
+        /** Has this resource multiple mipmaps. */
+        bool multiple_mipmaps = false;
       } image;
     };
 
@@ -154,7 +156,26 @@ class VKResourceStateTracker {
       if (type == VKResourceType::BUFFER) {
         return false;
       }
-      return image.layer_count > 1;
+      return image.multiple_layers;
+    }
+
+    /**
+     * Check if the given resource handle has multiple mipmaps.
+     *
+     * Returns true when
+     * - handle is a layered image with more than one mipmap.
+     *
+     * Returns false when
+     * - handle isn't an image resource or
+     * - handle isn't a layered image or
+     * - handle has only a single layer.
+     */
+    bool has_multiple_mipmaps()
+    {
+      if (type == VKResourceType::BUFFER) {
+        return false;
+      }
+      return image.multiple_mipmaps;
     }
   };
 
@@ -188,7 +209,10 @@ class VKResourceStateTracker {
    * When an image is created in VKTexture, it needs to be registered in the device resources so
    * the resource state can be tracked during its lifetime.
    */
-  void add_image(VkImage vk_image, uint32_t layer_count, const char *name = nullptr);
+  void add_image(VkImage vk_image,
+                 bool multiple_layers,
+                 bool multiple_mipmaps,
+                 const char *name = nullptr);
 
   /**
    * Remove an registered image.
