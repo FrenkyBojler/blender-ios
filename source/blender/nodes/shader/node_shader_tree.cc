@@ -859,7 +859,7 @@ static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
     iter_shader_to_rgba_depth_count(ntree, link->fromnode, max_depth, depth_level);
   }
 
-  /* Zone input nodes are linked to their corresponding zone output nodes,
+  /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
    * even if there is no bNodeLink between them. */
   if (const blender::bke::bNodeZoneType *zone_type = blender::bke::zone_type_by_node_type(
           node->type_legacy))

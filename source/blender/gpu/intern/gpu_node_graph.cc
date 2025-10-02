@@ -1007,7 +1007,7 @@ void gpu_nodes_tag(GPUNodeGraph *graph, GPUNodeLink *link, GPUNodeTag tag)
     }
   }
 
-  /* Zone input nodes are linked to their corresponding zone output nodes,
+  /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
    * even if there is no GPUNodeLink between them. */
   if (node->is_zone_end) {
     LISTBASE_FOREACH (GPUNode *, node2, &graph->nodes) {

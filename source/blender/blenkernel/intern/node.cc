@@ -3394,7 +3394,7 @@ static void iter_backwards_ex(const bNodeTree *ntree,
     }
     iter_backwards_ex(ntree, link->fromnode, callback, userdata, recursion_mask);
   }
-  /* Zone input nodes are linked to their corresponding zone output nodes,
+  /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
    * even if there is no bNodeLink between them. */
   if (const bNodeZoneType *zone_type = zone_type_by_node_type(node_start->type_legacy)) {
     if (zone_type->output_type == node_start->type_legacy) {
