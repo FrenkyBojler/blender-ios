@@ -291,6 +291,10 @@ def assign_parameters(target, val_dict=None, **params):
 def assign_rna_properties(target: bpy.types.PropertyGroup, source: bpy.types.PropertyGroup) -> None:
     """Basically calling `setattr(target, key, value)` for each item in `source`."""
 
+    assert isinstance(target, bpy.types.PropertyGroup), "Target must be PropertyGroup, but is {!r}".format(type(target))
+    assert isinstance(source, bpy.types.PropertyGroup), "Source must be PropertyGroup, but is {!r}".format(type(source))
+    assert (target.__class__ == source.__class__), "Source and target must be PropertyGroups of the same type."
+
     def _setattr(obj, name, value):
         """Wrapper around setattr() that has more concrete info in its exception when it fails."""
         try:
@@ -300,39 +304,54 @@ def assign_rna_properties(target: bpy.types.PropertyGroup, source: bpy.types.Pro
                 "Could not set {!r}.{!s} = {!r} (type={!s}): {!s}".format(
                     obj, attr, value, type(value), ex)) from None
 
+    skip_properties = {'rna_type', 'bl_rna'}
+
     for prop in source.bl_rna.properties:
-        if target.is_property_readonly(prop.identifier):
+        attr = prop.identifier
+
+        if attr in skip_properties:
             continue
 
-        attr = prop.identifier
-        value = getattr(source, attr)
+        # Un-set properties if necessary:
+        try:
+            is_set = source.is_property_set(attr)
+        except TypeError as ex:
+            raise TypeError("{!s} on {!s}".format('; '.join(ex.args), source)) from None
+        if not is_set:
+            target.property_unset(attr)
+            continue
 
-        # Recurse into property groups.
+        # Set properties, depending on their type:
+        value = getattr(source, attr)
         match prop.type:
             # Directly assignable types:
             case 'BOOLEAN' | 'INT' | 'FLOAT' | 'ENUM' | 'STRING':
+                if target.is_property_readonly(attr):
+                    continue
                 _setattr(target, attr, value)
 
             # Treat as list-like:
             case 'COLLECTION':
                 coll = getattr(target, attr)
                 coll.clear()
-                for item in value:
-                    coll.add(item)
+                for source_item in value:
+                    target_propgroup = coll.add()
+                    assign_rna_properties(target_propgroup, source_item)
+
+            # Pointer properties are treated depending on the type they point
+            # to. PropertyGroups have to be dealt with by recursion, while other
+            # types can be assigned directly.
+            case 'POINTER':
+                if isinstance(value, bpy.types.PropertyGroup):
+                    print(f"\033[95mRecursing into {target}.{attr}: {value}\033[0m")
+                    assign_rna_properties(getattr(target, attr), value)
+                    continue
+                if target.is_property_readonly(attr):
+                    continue
+                _setattr(target, attr, value)
 
             case _:
                 raise TypeError("no implementation for RNA property {!r} type {!r}".format(prop.identifier, prop.type))
-
-        if isinstance(value, bpy.types.PropertyGroup):
-            assign_parameters(getattr(target, attr), value)
-            continue
-
-        try:
-            setattr(target, attr, value)
-        except AttributeError as ex:
-            raise AttributeError(
-                "Could not set target.{!s} = {!r} (type={!s}): {!s}".format(
-                    attr, value, type(value), ex))
 
 
 def select_object(context: bpy.types.Context, obj: bpy.types.Object, deselect_all=False):
