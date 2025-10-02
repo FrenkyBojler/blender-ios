@@ -351,9 +351,30 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
  */
 static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
 {
-  char idname_py[OP_MAX_TYPENAME];
-  WM_operator_py_idname(idname_py, self->idname_bl);
-  return PyUnicode_FromFormat("<bpy.ops.%s callable>", idname_py);
+  /* Use the same format as the original Python implementation */
+  PyObject *args = PyTuple_New(1);
+  if (!args) {
+    return nullptr;
+  }
+  PyObject *name_obj = PyUnicode_FromString(self->idname_bl);
+  if (!name_obj) {
+    Py_DECREF(args);
+    return nullptr;
+  }
+  PyTuple_SET_ITEM(args, 0, name_obj);
+
+  PyObject *result = pyop_as_string(nullptr, args);
+  Py_DECREF(args);
+
+  if (!result) {
+    /* Fallback to simple string if pyop_as_string fails. */
+    PyErr_Clear();
+    char idname_py[OP_MAX_TYPENAME];
+    WM_operator_py_idname(idname_py, self->idname_bl);
+    return PyUnicode_FromFormat("<bpy.ops.%s callable>", idname_py);
+  }
+
+  return result;
 }
 
 /**
