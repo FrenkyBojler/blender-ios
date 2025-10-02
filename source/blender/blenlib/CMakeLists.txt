@@ -174,7 +174,7 @@ set(SRC
   # Header as source (included in C files above).
   intern/kdtree_impl.h
   intern/list_sort_impl.h
-  intern/radial_tiling_exact_copy.hh
+  intern/radial_tiling_shared.hh
 
   BLI_alloca.h
   BLI_allocator.hh

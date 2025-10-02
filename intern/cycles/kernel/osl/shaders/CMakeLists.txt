@@ -120,7 +120,7 @@ set(SRC_OSL_HEADERS
   node_math.h
   node_noise.h
   node_ramp_util.h
-  node_radial_tiling_exact_copy.h
+  node_radial_tiling_shared.h
   node_voronoi.h
   stdcycles.h
   ${SRC_OSL_HEADER_DIST}

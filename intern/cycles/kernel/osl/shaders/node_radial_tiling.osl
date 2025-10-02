@@ -12,8 +12,8 @@
 /* Define macro flags for code adaption. */
 #define ADAPT_TO_OSL
 
-/* The rounded polygon calculation functions are defined in node_radial_tiling_exact_copy.h. */
-#include "node_radial_tiling_exact_copy.h"
+/* The rounded polygon calculation functions are defined in node_radial_tiling_shared.h. */
+#include "node_radial_tiling_shared.h"
 
 /* Undefine macro flags used for code adaption. */
 #undef ADAPT_TO_OSL

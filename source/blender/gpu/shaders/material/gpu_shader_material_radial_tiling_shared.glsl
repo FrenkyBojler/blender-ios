@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 /* The following files are always to be kept as exact copies of each other:
- * radial_tiling_exact_copy.hh
- * node_radial_tiling_exact_copy.h
- * radial_tiling_exact_copy.h
- * gpu_shader_material_radial_tiling_exact_copy.glsl */
+ * radial_tiling_shared.hh
+ * node_radial_tiling_shared.h
+ * radial_tiling_shared.h
+ * gpu_shader_material_radial_tiling_shared.glsl */
 
 /* The SVM implementation is used as the base shared version because multiple math function
  * identifiers are already used as macros in the SVM code, making a code adaption into an SVM

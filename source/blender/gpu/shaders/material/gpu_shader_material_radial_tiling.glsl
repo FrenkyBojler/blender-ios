@@ -8,8 +8,8 @@
 /* No macro flags necessary, as code is adapted to GLSL by default. */
 
 /* The rounded polygon calculation functions are defined in
- * gpu_shader_material_radial_tiling_exact_copy.glsl. */
-#include "gpu_shader_material_radial_tiling_exact_copy.glsl"
+ * gpu_shader_material_radial_tiling_shared.glsl. */
+#include "gpu_shader_material_radial_tiling_shared.glsl"
 
 /* Undefine macro flags used for code adaption. */
 /* No macro flags necessary, as code is adapted to GLSL by default. */

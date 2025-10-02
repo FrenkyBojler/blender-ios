@@ -16,8 +16,8 @@ namespace blender {
 /* Define macro flags for code adaption. */
 #define ADAPT_TO_GEOMETRY_NODES
 
-/* The rounded polygon calculation functions are defined in radial_tiling_exact_copy.hh. */
-#include "radial_tiling_exact_copy.hh"
+/* The rounded polygon calculation functions are defined in radial_tiling_shared.hh. */
+#include "radial_tiling_shared.hh"
 
 /* Undefine macro flags used for code adaption. */
 #undef ADAPT_TO_GEOMETRY_NODES
