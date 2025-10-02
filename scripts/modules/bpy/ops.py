@@ -12,6 +12,7 @@ _op_call = _ops_module.call
 _op_as_string = _ops_module.as_string
 _op_get_rna_type = _ops_module.get_rna_type
 _op_get_bl_options = _ops_module.get_bl_options
+_op_create_callable = _ops_module.create_callable
 
 _ModuleType = type(_ops_module)
 
@@ -77,6 +78,27 @@ class _BPyOpsSubModOp:
     def __init__(self, module, func):
         self._module = module
         self._func = func
+        # Create a direct C++ callable that bypasses Python __call__
+        self._cpp_call = lambda *args, **kw: self._direct_cpp_call(*args, **kw)
+
+    def _direct_cpp_call(self, *args, **kw):
+        """Direct call to C++ that doesn't appear in Python stack traces."""
+        opname = self.idname_py()
+        if args:
+            C_exec, C_undo = self._parse_args(args)
+            return _op_call(opname, kw, C_exec, C_undo)
+        else:
+            return _op_call(opname, kw)
+
+    def __getattribute__(self, name):
+        if name == '__call__':
+            # Return the C++ callable instead of the Python __call__ method
+            return object.__getattribute__(self, '_cpp_call')
+        return object.__getattribute__(self, name)
+
+    def __init__(self, module, func):
+        self._module = module
+        self._func = func
 
     def poll(self, *args):
         C_exec, _C_undo = _BPyOpsSubModOp._parse_args(args)
@@ -122,10 +144,10 @@ class _BPyOpsSubModOp:
 # Sub-Module Access
 
 def _bpy_ops_submodule__getattr__(module, func):
-    # Return a value from `bpy.ops.{module}.{func}`
+    # Return a C++ callable object that bypasses Python __call__
     if func.startswith("__"):
         raise AttributeError(func)
-    return _BPyOpsSubModOp(module, func)
+    return _op_create_callable(module, func)
 
 
 def _bpy_ops_submodule__dir__(module):

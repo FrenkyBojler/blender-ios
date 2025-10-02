@@ -397,6 +397,140 @@ static PyObject *pyop_dir(PyObject * /*self*/)
   return list;
 }
 
+/* C++ Operator Callable Type */
+typedef struct {
+  PyObject_HEAD
+  char *module;
+  char *func;
+  char *idname_py_cache;
+} BPyOpsCallable;
+
+static void BPyOpsCallable_dealloc(BPyOpsCallable *self)
+{
+  if (self->module) {
+    MEM_freeN(self->module);
+  }
+  if (self->func) {
+    MEM_freeN(self->func);
+  }
+  if (self->idname_py_cache) {
+    MEM_freeN(self->idname_py_cache);
+  }
+  Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+static const char *BPyOpsCallable_get_idname_py(BPyOpsCallable *self)
+{
+  if (!self->idname_py_cache) {
+    size_t len = strlen(self->module) + strlen(self->func) + 2; /* +1 for '.', +1 for '\0' */
+    self->idname_py_cache = (char *)MEM_mallocN(len, "op idname_py");
+    snprintf(self->idname_py_cache, len, "%s.%s", self->module, self->func);
+  }
+  return self->idname_py_cache;
+}
+
+static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObject *kwargs)
+{
+  const char *opname = BPyOpsCallable_get_idname_py(self);
+  const char *context_str = nullptr;
+  int is_undo = false;
+  
+  /* Parse additional positional arguments for context/undo */
+  Py_ssize_t args_len = PyTuple_Size(args);
+  bool is_exec = false, is_undo_set = false;
+  
+  for (Py_ssize_t i = 0; i < args_len; i++) {
+    PyObject *arg = PyTuple_GetItem(args, i);
+    
+    if (!is_exec && PyUnicode_Check(arg)) {
+      if (is_undo_set) {
+        PyErr_SetString(PyExc_ValueError, "string arg must come before the boolean");
+        return nullptr;
+      }
+      context_str = PyUnicode_AsUTF8(arg);
+      is_exec = true;
+    }
+    else if (!is_undo_set && PyLong_Check(arg)) {
+      is_undo = PyLong_AsLong(arg);
+      is_undo_set = true;
+    }
+    else {
+      PyErr_SetString(PyExc_ValueError, "1-2 args execution context is supported");
+      return nullptr;
+    }
+  }
+
+  /* Create arguments tuple for pyop_call */
+  PyObject *call_args = PyTuple_New(4);
+  if (!call_args) {
+    return nullptr;
+  }
+  
+  PyTuple_SET_ITEM(call_args, 0, PyUnicode_FromString(opname));
+  PyTuple_SET_ITEM(call_args, 1, kwargs ? Py_NewRef(kwargs) : PyDict_New());
+  PyTuple_SET_ITEM(call_args, 2, context_str ? PyUnicode_FromString(context_str) : PyUnicode_FromString("EXEC_DEFAULT"));
+  PyTuple_SET_ITEM(call_args, 3, PyLong_FromLong(is_undo));
+
+  /* Call the main operator function */
+  PyObject *result = pyop_call(nullptr, call_args);
+  
+  Py_DECREF(call_args);
+  return result;
+}
+
+static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
+{
+  const char *opname = BPyOpsCallable_get_idname_py(self);
+  return PyUnicode_FromFormat("<bpy.ops.%s callable>", opname);
+}
+
+static PyTypeObject BPyOpsCallableType = {
+    PyVarObject_HEAD_INIT(nullptr, 0)
+    "BPyOpsCallable",                           /* tp_name */
+    sizeof(BPyOpsCallable),                     /* tp_basicsize */
+    0,                                          /* tp_itemsize */
+    (destructor)BPyOpsCallable_dealloc,         /* tp_dealloc */
+    0,                                          /* tp_vectorcall_offset */
+    nullptr,                                    /* tp_getattr */
+    nullptr,                                    /* tp_setattr */
+    nullptr,                                    /* tp_as_async */
+    (reprfunc)BPyOpsCallable_repr,              /* tp_repr */
+    nullptr,                                    /* tp_as_number */
+    nullptr,                                    /* tp_as_sequence */
+    nullptr,                                    /* tp_as_mapping */
+    nullptr,                                    /* tp_hash */
+    (ternaryfunc)BPyOpsCallable_call,           /* tp_call */
+    nullptr,                                    /* tp_str */
+    nullptr,                                    /* tp_getattro */
+    nullptr,                                    /* tp_setattro */
+    nullptr,                                    /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    "Blender operator callable",                /* tp_doc */
+};
+
+static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
+{
+  const char *module, *func;
+  
+  if (!PyArg_ParseTuple(args, "ss", &module, &func)) {
+    return nullptr;
+  }
+
+  BPyOpsCallable *callable = (BPyOpsCallable *)PyObject_New(BPyOpsCallable, &BPyOpsCallableType);
+  if (!callable) {
+    return nullptr;
+  }
+
+  callable->module = (char *)MEM_mallocN(strlen(module) + 1, "op module");
+  callable->func = (char *)MEM_mallocN(strlen(func) + 1, "op func");
+  callable->idname_py_cache = nullptr;
+  
+  strcpy(callable->module, module);
+  strcpy(callable->func, func);
+
+  return (PyObject *)callable;
+}
+
 static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
@@ -435,6 +569,7 @@ static PyMethodDef bpy_ops_methods[] = {
     {"dir", (PyCFunction)pyop_dir, METH_NOARGS, nullptr},
     {"get_rna_type", (PyCFunction)pyop_getrna_type, METH_O, nullptr},
     {"get_bl_options", (PyCFunction)pyop_get_bl_options, METH_O, nullptr},
+    {"create_callable", (PyCFunction)pyop_create_callable, METH_VARARGS, nullptr},
     {"macro_define", (PyCFunction)PYOP_wrap_macro_define, METH_VARARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
@@ -462,6 +597,10 @@ static PyModuleDef bpy_ops_module = {
 PyObject *BPY_operator_module()
 {
   PyObject *submodule;
+
+  if (PyType_Ready(&BPyOpsCallableType) < 0) {
+    return nullptr;
+  }
 
   submodule = PyModule_Create(&bpy_ops_module);
 
