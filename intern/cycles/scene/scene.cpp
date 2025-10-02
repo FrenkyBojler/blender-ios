@@ -574,9 +574,6 @@ void Scene::update_kernel_features()
         has_caustics_light = true;
       }
     }
-    if (geom->is_instanced()) {
-      kernel_features |= KERNEL_FEATURE_INSTANCING;
-    }
     if (object->has_light_linking()) {
       kernel_features |= KERNEL_FEATURE_LIGHT_LINKING;
     }

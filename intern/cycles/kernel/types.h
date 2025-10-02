@@ -135,9 +135,6 @@ CCL_NAMESPACE_BEGIN
 /* Light tree. */
 #define KERNEL_FEATURE_LIGHT_TREE (1U << 31U)
 
-/* Instances */
-#define KERNEL_FEATURE_INSTANCING (1U << 31U)
-
 /* Shader node feature mask, to specialize shader evaluation for kernels. */
 
 #define KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT \

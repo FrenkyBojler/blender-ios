@@ -27,7 +27,7 @@ static void *s_error_user_ptr = nullptr;
 #  ifdef WITH_EMBREE_GPU
 static RTCFeatureFlags oneapi_embree_features_from_kernel_features(const uint kernel_features)
 {
-  unsigned int feature_flags = RTC_FEATURE_FLAG_TRIANGLE |
+  unsigned int feature_flags = RTC_FEATURE_FLAG_TRIANGLE | RTC_FEATURE_FLAG_INSTANCE |
                                RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS;
 
   if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
@@ -42,9 +42,6 @@ static RTCFeatureFlags oneapi_embree_features_from_kernel_features(const uint ke
   }
   if (kernel_features & KERNEL_FEATURE_OBJECT_MOTION) {
     feature_flags |= RTC_FEATURE_FLAG_MOTION_BLUR;
-  }
-  if (kernel_features & KERNEL_FEATURE_INSTANCING) {
-    feature_flags |= RTC_FEATURE_FLAG_INSTANCE;
   }
 
   return (RTCFeatureFlags)feature_flags;
