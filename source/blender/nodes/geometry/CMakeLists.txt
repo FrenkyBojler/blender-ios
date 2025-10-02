@@ -79,12 +79,14 @@ set(SRC
   nodes/node_geo_edge_paths_to_selection.cc
   nodes/node_geo_edge_split.cc
   nodes/node_geo_edges_to_face_groups.cc
+  nodes/node_geo_enable_output.cc
   nodes/node_geo_evaluate_at_index.cc
   nodes/node_geo_evaluate_closure.cc
   nodes/node_geo_evaluate_on_domain.cc
   nodes/node_geo_extrude_mesh.cc
   nodes/node_geo_field_average.cc
   nodes/node_geo_field_min_and_max.cc
+  nodes/node_geo_field_to_grid.cc
   nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
@@ -145,6 +147,7 @@ set(SRC
   nodes/node_geo_instances_to_points.cc
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
+  nodes/node_geo_join_bundle.cc
   nodes/node_geo_join_geometry.cc
   nodes/node_geo_list.cc
   nodes/node_geo_list_get_item.cc
@@ -241,6 +244,7 @@ set(SRC
   nodes/node_geo_translate_instances.cc
   nodes/node_geo_triangulate.cc
   nodes/node_geo_uv_pack_islands.cc
+  nodes/node_geo_uv_tangent.cc
   nodes/node_geo_uv_unwrap.cc
   nodes/node_geo_viewer.cc
   nodes/node_geo_viewport_transform.cc
@@ -252,6 +256,7 @@ set(SRC
   include/NOD_geo_bundle.hh
   include/NOD_geo_capture_attribute.hh
   include/NOD_geo_closure.hh
+  include/NOD_geo_field_to_grid.hh
   include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh

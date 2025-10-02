@@ -1593,7 +1593,7 @@ static blender::Vector<ExrChannel> exr_channels_in_multi_part_file(const MultiPa
     const ChannelList &c = file.header(p).channels();
 
     /* Parse colorspace. Per part colorspaces are not currently used, but
-     * might as well populate them them for consistency with writing. */
+     * might as well populate them for consistency with writing. */
     const ColorSpace *colorspace = imb_exr_part_colorspace(file.header(p));
     if (colorspace == nullptr) {
       colorspace = global_colorspace;
@@ -2020,7 +2020,7 @@ static void imb_exr_set_known_colorspace(const Header &header, ImFileColorSpace 
 
   /* Try chromaticities. */
   if (header_chromaticities &&
-      (imb_check_chromaticity_matches(header_chromaticities->value(), CHROMATICITIES_XYZ_E)))
+      imb_check_chromaticity_matches(header_chromaticities->value(), CHROMATICITIES_XYZ_E))
   {
     /* Only works for the Blender default configuration due to fixed name. */
     STRNCPY_UTF8(r_colorspace.metadata_colorspace, "Linear CIE-XYZ E");
