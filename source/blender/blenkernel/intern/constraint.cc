@@ -5493,7 +5493,7 @@ static void value_attribute_to_matrix(float r_matrix[4][4],
       break;
     }
     case CON_ATTRIBUTE_4X4MATRIX: {
-      copy_m4_m4(r_matrix, (*value.get<blender::float4x4>()).ptr());
+      copy_m4_m4(r_matrix, value.get<blender::float4x4>()->ptr());
       break;
     }
     default: {
@@ -5537,7 +5537,7 @@ static void attribute_transform_free_data(bConstraint *con)
 {
   bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
   if (data->attribute_name) {
-    MEM_freeN(data->attribute_name);
+    MEM_SAFE_FREE(data->attribute_name);
     data->attribute_name = nullptr;
   }
 }
@@ -5550,11 +5550,12 @@ static void attribute_transform_id_looper(bConstraint *con, ConstraintIDFunc fun
 
 static void attribute_transform_copy_data(bConstraint *con, bConstraint *srccon)
 {
-  const bAttributeTransformConstraint *src = static_cast<bAttributeTransformConstraint *>(srccon->data);
-  bAttributeTransformConstraint *dst = static_cast<bAttributeTransformConstraint *>(con->data);
+  const auto *src = static_cast<bAttributeTransformConstraint *>(srccon->data);
+  auto *dst = static_cast<bAttributeTransformConstraint *>(con->data);
+  dst->attribute_name = BLI_strdup_null(src->attribute_name);
 
   if (src->attribute_name) {
-    dst->attribute_name = BLI_strdup(src->attribute_name);
+    dst->attribute_name = BLI_strdup_null(src->attribute_name);
   }
 }
 
@@ -5590,12 +5591,13 @@ static void attribute_transform_flush_tars(bConstraint *con, ListBase *list, boo
 }
 
 static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
-                                 bConstraint *con,
-                                 bConstraintOb * /*cob*/,
-                                 bConstraintTarget *ct,
-                                 float /*ctime*/)
+                                           bConstraint *con,
+                                           bConstraintOb * /*cob*/,
+                                           bConstraintTarget *ct,
+                                           float /*ctime*/)
 {
-  const bAttributeTransformConstraint *acon = static_cast<bAttributeTransformConstraint *>(con->data);
+  const bAttributeTransformConstraint *acon = static_cast<bAttributeTransformConstraint *>(
+      con->data);
 
   if (!VALID_CONS_TARGET(ct)) {
     return false;
@@ -5642,7 +5644,8 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
 static void attribute_transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targets)
 {
   bConstraintTarget *ct = static_cast<bConstraintTarget *>(targets->first);
-  const bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+  const bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(
+      con->data);
 
   /* Only evaluate if there is a target. */
   if (!VALID_CONS_TARGET(ct)) {
@@ -6781,7 +6784,8 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
           break;
         }
         case CONSTRAINT_TYPE_ATTRIBUTE_TRANS: {
-          bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+          bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(
+              con->data);
           BLO_write_string(writer, data->attribute_name);
           break;
         }
@@ -6849,7 +6853,8 @@ void BKE_constraint_blend_read_data(BlendDataReader *reader, ID *id_owner, ListB
         break;
       }
       case CONSTRAINT_TYPE_ATTRIBUTE_TRANS: {
-        bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+        bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(
+            con->data);
         BLO_read_string(reader, &data->attribute_name);
         break;
       }

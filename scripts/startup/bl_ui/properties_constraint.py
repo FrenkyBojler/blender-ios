@@ -988,7 +988,7 @@ class ConstraintButtonsPanel:
 
         layout.prop(con, "attribute_name", text="Attribute Name")
         layout.prop(con, "data_type", text="Data Type")
-        layout.prop(con, "domain_type", text="Domain")
+        layout.prop(con, "domain", text="Domain")
         layout.prop(con, "sample_index", text="Sample Index")
 
         layout.separator()
