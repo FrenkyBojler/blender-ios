@@ -86,6 +86,7 @@ set(SRC
   nodes/node_geo_extrude_mesh.cc
   nodes/node_geo_field_average.cc
   nodes/node_geo_field_min_and_max.cc
+  nodes/node_geo_field_to_grid.cc
   nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
@@ -95,7 +96,11 @@ set(SRC
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
+  nodes/node_geo_grid_curl.cc
+  nodes/node_geo_grid_divergence.cc
+  nodes/node_geo_grid_gradient.cc
   nodes/node_geo_grid_info.cc
+  nodes/node_geo_grid_laplacian.cc
   nodes/node_geo_grid_to_mesh.cc
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
@@ -146,6 +151,7 @@ set(SRC
   nodes/node_geo_instances_to_points.cc
   nodes/node_geo_interpolate_curves.cc
   nodes/node_geo_is_viewport.cc
+  nodes/node_geo_join_bundle.cc
   nodes/node_geo_join_geometry.cc
   nodes/node_geo_list.cc
   nodes/node_geo_list_get_item.cc
@@ -254,6 +260,7 @@ set(SRC
   include/NOD_geo_bundle.hh
   include/NOD_geo_capture_attribute.hh
   include/NOD_geo_closure.hh
+  include/NOD_geo_field_to_grid.hh
   include/NOD_geo_foreach_geometry_element.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh

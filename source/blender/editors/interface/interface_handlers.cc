@@ -3472,7 +3472,7 @@ const wmIMEData *ui_but_ime_data_get(uiBut *but)
 {
   uiHandleButtonData *data = but->semi_modal_state ? but->semi_modal_state : but->active;
 
-  if (data && data->window) {
+  if (data && data->window && data->window->runtime->ime_data_is_composing) {
     return data->window->runtime->ime_data;
   }
   return nullptr;
@@ -8771,7 +8771,9 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 #else
       status.item(IFACE_("Snap"), ICON_EVENT_CTRL);
 #endif
-      status.item(IFACE_("Precision"), ICON_EVENT_SHIFT);
+      if (ui_but_is_float(but)) {
+        status.item(IFACE_("Precision"), ICON_EVENT_SHIFT);
+      }
     }
     ui_numedit_begin(but, data);
   }
