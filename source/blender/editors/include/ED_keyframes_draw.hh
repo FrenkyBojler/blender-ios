@@ -54,7 +54,8 @@ void draw_keyframe_shape(float x,
                          float alpha,
                          const KeyframeShaderBindings *sh_bindings,
                          short handle_type,
-                         short extreme_type);
+                         short extreme_type,
+                         bool draw_mini);
 
 /* ******************************* Methods ****************************** */
 
@@ -72,7 +73,8 @@ void ED_add_action_group_channel(ChannelDrawList *channel_list,
                                  bActionGroup *agrp,
                                  float ypos,
                                  float yscale_fac,
-                                 int saction_flag);
+                                 int saction_flag,
+                                 bool is_expanded);
 /* Layered Action Summary. */
 void ED_add_action_layered_channel(ChannelDrawList *channel_list,
                                    bAnimContext *ac,
@@ -80,7 +82,8 @@ void ED_add_action_layered_channel(ChannelDrawList *channel_list,
                                    bAction *action,
                                    const float ypos,
                                    const float yscale_fac,
-                                   int saction_flag);
+                                   int saction_flag,
+                                   bool is_expanded);
 /* Action Slot summary. */
 void ED_add_action_slot_channel(ChannelDrawList *channel_list,
                                 bAnimContext *ac,
@@ -89,34 +92,39 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
                                 blender::animrig::Slot &slot,
                                 float ypos,
                                 float yscale_fac,
-                                int saction_flag);
+                                int saction_flag,
+                                bool is_expanded);
 /* Legacy Action Summary */
 void ED_add_action_channel(ChannelDrawList *channel_list,
                            bAnimListElem *ale,
                            bAction *act,
                            float ypos,
                            float yscale_fac,
-                           int saction_flag);
+                           int saction_flag,
+                           bool is_expanded);
 /* Object Summary */
 void ED_add_object_channel(ChannelDrawList *channel_list,
                            bDopeSheet *ads,
                            Object *ob,
                            float ypos,
                            float yscale_fac,
-                           int saction_flag);
+                           int saction_flag,
+                           bool is_expanded);
 /* Scene Summary */
 void ED_add_scene_channel(ChannelDrawList *channel_list,
                           bDopeSheet *ads,
                           Scene *sce,
                           float ypos,
                           float yscale_fac,
-                          int saction_flag);
+                          int saction_flag,
+                          bool is_expanded);
 /* DopeSheet Summary */
 void ED_add_summary_channel(ChannelDrawList *channel_list,
                             bAnimContext *ac,
                             float ypos,
                             float yscale_fac,
-                            int saction_flag);
+                            int saction_flag,
+                            bool is_expanded);
 
 /* Grease Pencil cels channels */
 void ED_add_grease_pencil_cels_channel(ChannelDrawList *channel_list,

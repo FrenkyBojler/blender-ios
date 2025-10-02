@@ -304,7 +304,8 @@ static void retime_key_draw(const TimelineDrawContext *timeline_ctx,
                       alpha,
                       &sh_bindings,
                       0,
-                      0);
+                      0,
+                      false);
 }
 
 void sequencer_retiming_draw_continuity(const TimelineDrawContext *timeline_ctx,

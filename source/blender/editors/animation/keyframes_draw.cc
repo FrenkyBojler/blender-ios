@@ -51,7 +51,8 @@ void draw_keyframe_shape(const float x,
                          const float alpha,
                          const KeyframeShaderBindings *sh_bindings,
                          const short handle_type,
-                         const short extreme_type)
+                         const short extreme_type,
+                         const bool draw_mini)
 {
   bool draw_fill = ELEM(mode, KEYFRAME_SHAPE_INSIDE, KEYFRAME_SHAPE_BOTH);
   bool draw_outline = ELEM(mode, KEYFRAME_SHAPE_FRAME, KEYFRAME_SHAPE_BOTH);
@@ -115,6 +116,14 @@ void draw_keyframe_shape(const float x,
     /* For effects like graying out protected/muted channels. The theme RNA/UI doesn't allow users
      * to set the alpha. */
     fill_col[3] = 255.0f * alpha;
+
+    if (draw_mini) {
+      size *= 0.6f;
+      fill_col[0] *= 0.6f;
+      fill_col[1] *= 0.6;
+      fill_col[2] *= 0.6;
+      fill_col[3] *= 0.4f;
+    }
 
     if (!draw_outline) {
       /* force outline color to match */
@@ -357,7 +366,8 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
                               const ActKeyColumn *keys,
                               const int key_len,
                               float ypos,
-                              eSAction_Flag saction_flag)
+                              eSAction_Flag saction_flag,
+                              const bool draw_mini)
 {
   short handle_type = KEYFRAME_HANDLE_NONE, extreme_type = KEYFRAME_EXTREME_NONE;
 
@@ -376,11 +386,12 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
                           ctx->icon_size,
                           (ak->sel & SELECT),
                           eBezTriple_KeyframeType(ak->key_type),
-                          KEYFRAME_SHAPE_BOTH,
+                          draw_mini ? KEYFRAME_SHAPE_INSIDE : KEYFRAME_SHAPE_BOTH,
                           ctx->alpha,
                           sh_bindings,
                           handle_type,
-                          extreme_type);
+                          extreme_type,
+                          (ak->sel & SELECT) ? false : draw_mini);
     }
   }
 }
@@ -411,6 +422,7 @@ struct ChannelListElement {
   float ypos;
   eSAction_Flag saction_flag;
   bool channel_locked;
+  bool is_expanded;
 
   /* Currently only used for F-Curve channels, because some should be nla
    * remapped but not others. All other channel types ignore this, as it's clear
@@ -544,7 +556,9 @@ static void draw_channel_keys(ChannelListElement *elem,
 
   const int key_len = ED_keylist_array_len(elem->keylist);
   const ActKeyColumn *keys = ED_keylist_array(elem->keylist);
-  draw_keylist_keys(&ctx, v2d, sh_bindings, keys, key_len, elem->ypos, elem->saction_flag);
+
+  draw_keylist_keys(
+      &ctx, v2d, sh_bindings, keys, key_len, elem->ypos, elem->saction_flag, elem->is_expanded);
 }
 
 static void prepare_channel_for_drawing(ChannelListElement *elem)
@@ -688,12 +702,14 @@ void ED_add_summary_channel(ChannelDrawList *channel_list,
                             bAnimContext *ac,
                             float ypos,
                             float yscale_fac,
-                            int saction_flag)
+                            int saction_flag,
+                            bool is_expanded)
 {
   saction_flag &= ~SACTION_SHOW_EXTREMES;
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::SUMMARY, ypos, yscale_fac, eSAction_Flag(saction_flag));
   draw_elem->ac = ac;
+  draw_elem->is_expanded = is_expanded;
 }
 
 void ED_add_scene_channel(ChannelDrawList *channel_list,
@@ -701,13 +717,15 @@ void ED_add_scene_channel(ChannelDrawList *channel_list,
                           Scene *sce,
                           float ypos,
                           float yscale_fac,
-                          int saction_flag)
+                          int saction_flag,
+                          bool is_expanded)
 {
   saction_flag &= ~SACTION_SHOW_EXTREMES;
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::SCENE, ypos, yscale_fac, eSAction_Flag(saction_flag));
   draw_elem->ads = ads;
   draw_elem->sce = sce;
+  draw_elem->is_expanded = is_expanded;
 }
 
 void ED_add_object_channel(ChannelDrawList *channel_list,
@@ -715,13 +733,15 @@ void ED_add_object_channel(ChannelDrawList *channel_list,
                            Object *ob,
                            float ypos,
                            float yscale_fac,
-                           int saction_flag)
+                           int saction_flag,
+                           bool is_expanded)
 {
   saction_flag &= ~SACTION_SHOW_EXTREMES;
   ChannelListElement *draw_elem = channel_list_add_element(
       channel_list, ChannelType::OBJECT, ypos, yscale_fac, eSAction_Flag(saction_flag));
   draw_elem->ads = ads;
   draw_elem->ob = ob;
+  draw_elem->is_expanded = is_expanded;
 }
 
 void ED_add_fcurve_channel(ChannelDrawList *channel_list,
@@ -751,7 +771,8 @@ void ED_add_action_group_channel(ChannelDrawList *channel_list,
                                  bActionGroup *agrp,
                                  float ypos,
                                  float yscale_fac,
-                                 int saction_flag)
+                                 int saction_flag,
+                                 bool is_expanded)
 {
   bool locked = (agrp->flag & AGRP_PROTECTED) ||
                 ((ale->adt && ale->adt->action) &&
@@ -763,6 +784,7 @@ void ED_add_action_group_channel(ChannelDrawList *channel_list,
   draw_elem->adt = ale->adt;
   draw_elem->agrp = agrp;
   draw_elem->channel_locked = locked;
+  draw_elem->is_expanded = is_expanded;
 }
 
 void ED_add_action_layered_channel(ChannelDrawList *channel_list,
@@ -771,7 +793,8 @@ void ED_add_action_layered_channel(ChannelDrawList *channel_list,
                                    bAction *action,
                                    const float ypos,
                                    const float yscale_fac,
-                                   int saction_flag)
+                                   int saction_flag,
+                                   bool is_expanded)
 {
   BLI_assert(action);
   BLI_assert(action->wrap().is_action_layered());
@@ -786,6 +809,7 @@ void ED_add_action_layered_channel(ChannelDrawList *channel_list,
   draw_elem->adt = ale->adt;
   draw_elem->act = action;
   draw_elem->channel_locked = locked;
+  draw_elem->is_expanded = is_expanded;
 }
 
 void ED_add_action_slot_channel(ChannelDrawList *channel_list,
@@ -795,7 +819,8 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
                                 animrig::Slot &slot,
                                 const float ypos,
                                 const float yscale_fac,
-                                int saction_flag)
+                                int saction_flag,
+                                bool is_expanded)
 {
   const bool locked = (ID_IS_LINKED(&action) || ID_IS_OVERRIDE_LIBRARY(&action));
   saction_flag &= ~SACTION_SHOW_EXTREMES;
@@ -808,6 +833,7 @@ void ED_add_action_slot_channel(ChannelDrawList *channel_list,
   draw_elem->act = &action;
   draw_elem->action_slot = &slot;
   draw_elem->channel_locked = locked;
+  draw_elem->is_expanded = is_expanded;
 }
 
 void ED_add_action_channel(ChannelDrawList *channel_list,
@@ -815,7 +841,8 @@ void ED_add_action_channel(ChannelDrawList *channel_list,
                            bAction *act,
                            float ypos,
                            float yscale_fac,
-                           int saction_flag)
+                           int saction_flag,
+                           bool is_expanded)
 {
   BLI_assert(!act || act->wrap().is_action_legacy());
 
@@ -828,6 +855,7 @@ void ED_add_action_channel(ChannelDrawList *channel_list,
   draw_elem->adt = ale->adt;
   draw_elem->act = act;
   draw_elem->channel_locked = locked;
+  draw_elem->is_expanded = is_expanded;
 }
 
 void ED_add_grease_pencil_datablock_channel(ChannelDrawList *channel_list,

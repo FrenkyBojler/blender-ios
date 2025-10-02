@@ -332,6 +332,7 @@ static void draw_keyframes(bAnimContext *ac,
   {
     const float ymin = ymax - ANIM_UI_get_channel_height();
     float ycenter = (ymin + ymax) / 2.0f;
+    bool is_expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND) != 0;
 
     /* check if visible */
     if (!(IN_RANGE(ymin, v2d->cur.ymin, v2d->cur.ymax) ||
@@ -348,8 +349,12 @@ static void draw_keyframes(bAnimContext *ac,
     /* Add channels to list to draw later. */
     switch (ale->datatype) {
       case ALE_ALL:
-        ED_add_summary_channel(
-            draw_list, static_cast<bAnimContext *>(ale->data), ycenter, scale_factor, action_flag);
+        ED_add_summary_channel(draw_list,
+                               static_cast<bAnimContext *>(ale->data),
+                               ycenter,
+                               scale_factor,
+                               action_flag,
+                               is_expanded);
         break;
       case ALE_SCE:
         ED_add_scene_channel(draw_list,
@@ -357,7 +362,8 @@ static void draw_keyframes(bAnimContext *ac,
                              static_cast<Scene *>(ale->key_data),
                              ycenter,
                              scale_factor,
-                             action_flag);
+                             action_flag,
+                             is_expanded);
         break;
       case ALE_OB:
         ED_add_object_channel(draw_list,
@@ -365,7 +371,8 @@ static void draw_keyframes(bAnimContext *ac,
                               static_cast<Object *>(ale->key_data),
                               ycenter,
                               scale_factor,
-                              action_flag);
+                              action_flag,
+                              is_expanded);
         break;
       case ALE_ACTION_LAYERED:
         ED_add_action_layered_channel(draw_list,
@@ -374,7 +381,8 @@ static void draw_keyframes(bAnimContext *ac,
                                       static_cast<bAction *>(ale->key_data),
                                       ycenter,
                                       scale_factor,
-                                      action_flag);
+                                      action_flag,
+                                      is_expanded);
         break;
       case ALE_ACTION_SLOT:
         ED_add_action_slot_channel(draw_list,
@@ -384,7 +392,8 @@ static void draw_keyframes(bAnimContext *ac,
                                    *static_cast<animrig::Slot *>(ale->data),
                                    ycenter,
                                    scale_factor,
-                                   action_flag);
+                                   action_flag,
+                                   is_expanded);
         break;
       case ALE_ACT:
         ED_add_action_channel(draw_list,
@@ -392,7 +401,8 @@ static void draw_keyframes(bAnimContext *ac,
                               static_cast<bAction *>(ale->key_data),
                               ycenter,
                               scale_factor,
-                              action_flag);
+                              action_flag,
+                              is_expanded);
         break;
       case ALE_GROUP:
         ED_add_action_group_channel(draw_list,
@@ -400,7 +410,8 @@ static void draw_keyframes(bAnimContext *ac,
                                     static_cast<bActionGroup *>(ale->data),
                                     ycenter,
                                     scale_factor,
-                                    action_flag);
+                                    action_flag,
+                                    is_expanded);
         break;
       case ALE_FCURVE: {
         ED_add_fcurve_channel(draw_list,
