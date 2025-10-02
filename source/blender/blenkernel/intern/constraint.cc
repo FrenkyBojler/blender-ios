@@ -5596,6 +5596,7 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
                                            bConstraintTarget *ct,
                                            float /*ctime*/)
 {
+  using namespace blender;
   const bAttributeTransformConstraint *acon = static_cast<bAttributeTransformConstraint *>(
       con->data);
 
@@ -5605,25 +5606,22 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
 
   unit_m4(ct->matrix);
 
-  const blender::bke::AttrDomain domain = domain_value_to_attribute(acon->domain);
-  const blender::bke::AttrType sample_data_type = type_value_to_attribute(acon->data_type);
-  const blender::bke::GeometrySet &target_eval = blender::bke::object_get_evaluated_geometry_set(
-      *ct->tar);
+  const bke::AttrDomain domain = domain_value_to_attribute(acon->domain);
+  const bke::AttrType sample_data_type = type_value_to_attribute(acon->data_type);
+  const bke::GeometrySet &target_eval = bke::object_get_evaluated_geometry_set(*ct->tar);
 
-  const blender::bke::GeometryComponent *component = find_source_component(target_eval, domain);
+  const bke::GeometryComponent *component = find_source_component(target_eval, domain);
   if (component == nullptr) {
     return false;
   }
 
-  const std::optional<blender::bke::AttributeAccessor> optional_attributes =
-      component->attributes();
+  const std::optional<bke::AttributeAccessor> optional_attributes = component->attributes();
   if (!optional_attributes.has_value()) {
     return false;
   }
 
-  const blender::bke::AttributeAccessor &attributes = *optional_attributes;
-  const blender::GVArray attribute = *attributes.lookup(
-      acon->attribute_name, domain, sample_data_type);
+  const bke::AttributeAccessor &attributes = *optional_attributes;
+  const GVArray attribute = *attributes.lookup(acon->attribute_name, domain, sample_data_type);
 
   if (attribute.is_empty()) {
     return false;
@@ -5631,11 +5629,11 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
 
   const int index = std::clamp<int>(acon->sample_index, 0, attribute.size() - 1);
 
-  const blender::CPPType &type = attribute.type();
+  const CPPType &type = attribute.type();
   BUFFER_FOR_CPP_TYPE_VALUE(type, sampled_value);
   attribute.get_to_uninitialized(index, sampled_value);
 
-  value_attribute_to_matrix(ct->matrix, blender::GPointer(type, sampled_value), acon->data_type);
+  value_attribute_to_matrix(ct->matrix, GPointer(type, sampled_value), acon->data_type);
   type.destruct(sampled_value);
 
   return true;
