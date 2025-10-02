@@ -27,7 +27,6 @@ static void node_declare(NodeDeclarationBuilder &b)
           "A scaling type factor by which to make brighter pixels brighter, but keeping the "
           "darker pixels dark. "
           "Use a negative number to decrease contrast, and a positive number to increase it");
-
 }
 
 static int gpu_shader_brightcontrast(GPUMaterial *mat,
