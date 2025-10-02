@@ -74,14 +74,13 @@ void VKDescriptorSetUpdator::bind_image_resource(const VKStateManager &state_man
       resource_binding.location);
   /* Update access info. */
   VKSubImageRange subimage = {};
-  if (resource_binding.arrayed == VKImageViewArrayed::ARRAYED && texture.is_texture_view()) {
-    // TODO: forward responsibility to VKTexture (subimage_range())
+  if (texture.is_texture_view()) {
     IndexRange layer_range = texture.layer_range();
     IndexRange mipmap_range = texture.mip_map_range();
-    subimage = {uint32_t(layer_range.start()),
-                uint32_t(layer_range.size()),
-                uint32_t(mipmap_range.start()),
-                uint32_t(mipmap_range.size())};
+    subimage = {uint32_t(mipmap_range.start()),
+                uint32_t(mipmap_range.size()),
+                uint32_t(layer_range.start()),
+                uint32_t(layer_range.size())};
   }
   access_info.images.append({texture.vk_image_handle(),
                              resource_binding.access_mask,
