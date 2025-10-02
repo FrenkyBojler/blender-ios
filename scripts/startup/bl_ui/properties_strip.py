@@ -26,7 +26,7 @@ class StripButtonsPanel:
 class StripColorTagPicker:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = "none" # Used as popver
+    bl_context = "none"  # Used as popover
 
     @classmethod
     def poll(cls, context):
