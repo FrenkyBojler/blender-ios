@@ -334,9 +334,9 @@ bool ED_pose_deselect_all(Object *ob, int select_mode, const bool ignore_visibil
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     /* ignore the pchan if it isn't visible or if its selection cannot be changed */
     if (ignore_visibility || blender::animrig::bone_is_visible(arm, pchan)) {
-      int flag_prev = pchan->bone->flag;
+      int flag_prev = pchan->flag;
       pose_do_bone_select(pchan, select_mode);
-      changed = (changed || flag_prev != pchan->bone->flag);
+      changed = (changed || flag_prev != pchan->flag);
     }
   }
   return changed;
@@ -1289,15 +1289,15 @@ void POSE_OT_select_grouped(wmOperatorType *ot)
 /* -------------------------------------- */
 
 /* Add the given selection flags to the bone flags. */
-static void bone_selection_flags_add(bPoseChannel *pchan, const eBone_Flag new_selection_flags)
+static void bone_selection_flags_add(bPoseChannel *pchan, const ePchan_Flag new_selection_flags)
 {
-  pchan->bone->flag |= new_selection_flags;
+  pchan->flag |= new_selection_flags;
 }
 
 /* Set the bone flags to the given selection flags. */
-static void bone_selection_flags_set(bPoseChannel *pchan, const eBone_Flag new_selection_flags)
+static void bone_selection_flags_set(bPoseChannel *pchan, const ePchan_Flag new_selection_flags)
 {
-  pchan->bone->flag = new_selection_flags;
+  pchan->flag = new_selection_flags;
 }
 
 /**
@@ -1322,12 +1322,12 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
     bPoseChannel *pchan_mirror_act = nullptr;
 
     /* Remember the pre-mirroring selection flags of the bones. */
-    blender::Map<bPoseChannel *, eBone_Flag> old_selection_flags;
+    blender::Map<bPoseChannel *, ePchan_Flag> old_selection_flags;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       /* Treat invisible bones as deselected. */
-      const int flags = blender::animrig::bone_is_visible(arm, pchan) ? pchan->bone->flag : 0;
+      const int flags = blender::animrig::bone_is_visible(arm, pchan) ? pchan->flag : 0;
 
-      old_selection_flags.add_new(pchan, eBone_Flag(flags));
+      old_selection_flags.add_new(pchan, ePchan_Flag(flags));
     }
 
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
@@ -1352,7 +1352,7 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      const eBone_Flag flags_mirror = old_selection_flags.lookup(pchan_mirror);
+      const ePchan_Flag flags_mirror = old_selection_flags.lookup(pchan_mirror);
       set_bone_selection_flags(pchan, flags_mirror);
     }
 
