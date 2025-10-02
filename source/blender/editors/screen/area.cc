@@ -3333,11 +3333,6 @@ void ED_region_panels_layout_ex(const bContext *C,
       {
         continue;
       }
-      if (contexts != nullptr && panel->type->context[0] &&
-          !streq_array_any(panel->type->context, contexts))
-      {
-        continue;
-      }
       const int width = panel_draw_width_from_max_width_get(region, panel->type, max_panel_width);
 
       if (UI_panel_is_dragging(panel)) {
