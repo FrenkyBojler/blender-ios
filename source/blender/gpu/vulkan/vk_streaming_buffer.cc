@@ -12,8 +12,8 @@
 
 namespace blender::gpu {
 VKStreamingBuffer::VKStreamingBuffer(VKBuffer &buffer, VkDeviceSize min_offset_alignment)
-    : vk_buffer_dst_(buffer.vk_handle()),
-      min_offset_alignment_(min_offset_alignment),
+    : min_offset_alignment_(min_offset_alignment),
+      vk_buffer_dst_(buffer.vk_handle()),
       vk_buffer_size_(buffer.size_in_bytes())
 {
 }
