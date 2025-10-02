@@ -40,7 +40,7 @@ static void node_register()
   ntype.ui_name = "Grid Curl";
   ntype.ui_description =
       "Calculate the magnitude and direction of circulation of a directional vector grid";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;

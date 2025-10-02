@@ -39,7 +39,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeGridLaplacian");
   ntype.ui_name = "Grid Laplacian";
   ntype.ui_description = "Compute the divergence of the gradient of the input grid";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
