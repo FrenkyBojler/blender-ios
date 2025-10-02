@@ -1102,6 +1102,7 @@ class NODE_PT_node_tree_properties(Panel):
     bl_region_type = 'UI'
     bl_category = "Group"
     bl_label = "Group"
+    bl_order = 0
 
     @classmethod
     def poll(cls, context):
@@ -1156,6 +1157,7 @@ class NODE_PT_node_tree_animation(Panel):
     bl_category = "Group"
     bl_label = "Animation"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 20
 
     @classmethod
     def poll(cls, context):
