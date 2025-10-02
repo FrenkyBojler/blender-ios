@@ -18,6 +18,20 @@
 
 #include "bpy_operator_function.hh"
 
+/**
+ * Validate that operator module and function names will fit in the target buffers.
+ *
+ * :param module: The operator module name (e.g., "object")
+ * :param func: The operator function name (e.g., "select_all")
+ * :return: true if names are valid length, false otherwise
+ */
+static bool validate_operator_name_length(const char *module, const char *func)
+{
+  const size_t py_len = strlen(module) + 1 + strlen(func) + 1; /* "." + null terminator */
+  const size_t bl_len = strlen(module) + 4 + strlen(func) + 1; /* "_OT_" + null terminator */
+  return py_len <= OP_MAX_TYPENAME && bl_len <= OP_MAX_TYPENAME;
+}
+
 /** Utility functions for BPyOpsCallable. */
 static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, bool *is_undo)
 {
@@ -76,23 +90,45 @@ static void BPyOpsCallable_dealloc(BPyOpsCallable *self)
  */
 static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObject *kwargs)
 {
-  if (!self->idname_py[0]) {
-    PyErr_SetString(PyExc_RuntimeError,
-                    "Invalid operator callable state: missing operator identifier");
-    return nullptr;
-  }
-
-  /* Build args tuple for pyop_call: (opname, kw, context_str, is_undo). */
+  /* Build args tuple for pyop_call: (opname, kw, ...extra args...).
+   * Create the child objects first so we can handle allocation failures cleanly. */
   Py_ssize_t args_len = PyTuple_Size(args);
   PyObject *new_args = PyTuple_New(2 + args_len);
   if (!new_args) {
     return nullptr;
   }
 
-  PyTuple_SET_ITEM(new_args, 0, PyUnicode_FromString(self->idname_py));
-  PyTuple_SET_ITEM(new_args, 1, kwargs ? Py_NewRef(kwargs) : PyDict_New());
+  PyObject *opname = PyUnicode_FromString(self->idname_py);
+  if (!opname) {
+    Py_DECREF(new_args);
+    return nullptr;
+  }
+
+  PyObject *kwobj = kwargs ? Py_NewRef(kwargs) : PyDict_New();
+  if (!kwobj) {
+    Py_DECREF(opname);
+    Py_DECREF(new_args);
+    return nullptr;
+  }
+
+  /* Steal references into the tuple. */
+  PyTuple_SET_ITEM(new_args, 0, opname);
+  PyTuple_SET_ITEM(new_args, 1, kwobj);
+
   for (Py_ssize_t i = 0; i < args_len; i++) {
-    PyTuple_SET_ITEM(new_args, i + 2, Py_NewRef(PyTuple_GET_ITEM(args, i)));
+    /* PyTuple_GET_ITEM returns a borrowed reference; create a new ref for the tuple. */
+    PyObject *item = Py_NewRef(PyTuple_GET_ITEM(args, i));
+    /* Py_NewRef should not fail for a valid borrowed item, but be defensive. */
+    if (!item) {
+      /* Cleanup: DECREF already-inserted items and the tuple container. */
+      for (Py_ssize_t j = 0; j < i + 2; j++) {
+        PyObject *tmp = PyTuple_GET_ITEM(new_args, j);
+        Py_XDECREF(tmp);
+      }
+      Py_DECREF(new_args);
+      return nullptr;
+    }
+    PyTuple_SET_ITEM(new_args, i + 2, item);
   }
 
   PyObject *result = pyop_call(nullptr, new_args);
@@ -106,25 +142,33 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
  */
 static PyObject *BPyOpsCallable_poll(BPyOpsCallable *self, PyObject *args)
 {
-  if (!self->idname_py[0]) {
-    PyErr_SetString(PyExc_RuntimeError, "Invalid operator callable state");
-    return nullptr;
-  }
-
   const char *context_str;
   bool is_undo;
   if (!BPyOpsCallable_parse_args(args, &context_str, &is_undo)) {
     return nullptr;
   }
 
-  /* Create arguments for pyop_poll. */
+  /* Create arguments for pyop_poll and check allocations carefully. */
   PyObject *poll_args = PyTuple_New(2);
   if (!poll_args) {
     return nullptr;
   }
 
-  PyTuple_SET_ITEM(poll_args, 0, PyUnicode_FromString(self->idname_py));
-  PyTuple_SET_ITEM(poll_args, 1, PyUnicode_FromString(context_str));
+  PyObject *idname_obj = PyUnicode_FromString(self->idname_py);
+  if (!idname_obj) {
+    Py_DECREF(poll_args);
+    return nullptr;
+  }
+
+  PyObject *context_obj = PyUnicode_FromString(context_str);
+  if (!context_obj) {
+    Py_DECREF(idname_obj);
+    Py_DECREF(poll_args);
+    return nullptr;
+  }
+
+  PyTuple_SET_ITEM(poll_args, 0, idname_obj);
+  PyTuple_SET_ITEM(poll_args, 1, context_obj);
 
   PyObject *result = pyop_poll(nullptr, poll_args);
   Py_DECREF(poll_args);
@@ -137,11 +181,6 @@ static PyObject *BPyOpsCallable_poll(BPyOpsCallable *self, PyObject *args)
  */
 static PyObject *BPyOpsCallable_get_rna_type(BPyOpsCallable *self, PyObject * /*args*/)
 {
-  if (!self->idname_bl[0]) {
-    PyErr_SetString(PyExc_RuntimeError, "Invalid operator callable state");
-    return nullptr;
-  }
-
   PyObject *idname_obj = PyUnicode_FromString(self->idname_bl);
   if (!idname_obj) {
     return nullptr;
@@ -158,11 +197,6 @@ static PyObject *BPyOpsCallable_get_rna_type(BPyOpsCallable *self, PyObject * /*
  */
 static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
 {
-  if (!self->idname_py[0]) {
-    PyErr_SetString(PyExc_RuntimeError, "Invalid operator callable state");
-    return nullptr;
-  }
-
   /* Get the operator signature. */
   PyObject *sig_args = PyTuple_New(1);
   if (!sig_args) {
@@ -187,9 +221,6 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
  */
 static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
 {
-  if (!self->idname_py[0]) {
-    return PyUnicode_FromString("<invalid bpy.ops callable>");
-  }
   return PyUnicode_FromFormat("<bpy.ops.%s callable>", self->idname_py);
 }
 
@@ -198,10 +229,6 @@ static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
  */
 static PyObject *BPyOpsCallable_str(BPyOpsCallable *self)
 {
-  if (!self->idname_py[0]) {
-    return PyUnicode_FromString("<invalid bpy.ops callable>");
-  }
-
   /* Extract module and function from idname_py. */
   const char *dot_pos = strchr(self->idname_py, '.');
   if (!dot_pos) {
@@ -252,11 +279,6 @@ static PyMethodDef BPyOpsCallable_methods[] = {
  */
 static PyObject *BPyOpsCallable_get_bl_options_property(BPyOpsCallable *self, void * /*closure*/)
 {
-  if (!self->idname_bl[0]) {
-    PyErr_SetString(PyExc_RuntimeError, "Invalid operator callable state");
-    return nullptr;
-  }
-
   PyObject *idname_obj = PyUnicode_FromString(self->idname_bl);
   if (!idname_obj) {
     return nullptr;
@@ -364,15 +386,14 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  /* Construct the Python idname (e.g., "object.select_all") */
-  const size_t py_estimated_len = strlen(module) + 1 + strlen(func) +
-                                  1; /* "." + null terminator */
-  if (py_estimated_len > sizeof(callable->idname_py)) {
+  /* Validate operator name lengths before constructing strings. */
+  if (!validate_operator_name_length(module, func)) {
     PyErr_Format(PyExc_ValueError, "Operator name too long: %s.%s", module, func);
     Py_DECREF(callable);
     return nullptr;
   }
 
+  /* Construct the Python idname (e.g., "object.select_all") */
   int py_result = snprintf(
       callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
   if (py_result < 0 || py_result >= int(sizeof(callable->idname_py))) {
@@ -385,15 +406,6 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
   char module_upper[OP_MAX_TYPENAME];
   BLI_strncpy(module_upper, module, sizeof(module_upper));
   BLI_str_toupper_ascii(module_upper, sizeof(module_upper));
-
-  /* Check if the constructed idname would fit in the buffer */
-  const size_t estimated_len = strlen(module_upper) + 4 + strlen(func) +
-                               1; /* "_OT_" + null terminator */
-  if (estimated_len > sizeof(callable->idname_bl)) {
-    PyErr_Format(PyExc_ValueError, "Operator name too long: %s.%s", module, func);
-    Py_DECREF(callable);
-    return nullptr;
-  }
 
   int bl_result = snprintf(
       callable->idname_bl, sizeof(callable->idname_bl), "%s_OT_%s", module_upper, func);
