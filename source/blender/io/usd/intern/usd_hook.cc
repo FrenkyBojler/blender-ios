@@ -116,6 +116,8 @@ class USDSceneExportContext {
  private:
   pxr::UsdStageRefPtr stage_;
   PointerRNA depsgraph_ptr_;
+  ImportedPrimMap prim_map_;
+  PYTHON_NS::dict *prim_map_dict_ = nullptr;
 
  public:
   USDSceneExportContext() = default;
@@ -123,6 +125,17 @@ class USDSceneExportContext {
   USDSceneExportContext(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph) : stage_(stage)
   {
     depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
+  }
+
+  USDSceneExportContext(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, const ImportedPrimMap &in_prim_map)
+      : stage_(stage), prim_map_(in_prim_map)
+  {
+    depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
+  }
+
+  void release()
+  {
+    delete prim_map_dict_;
   }
 
   pxr::UsdStageRefPtr get_stage() const
@@ -133,6 +146,26 @@ class USDSceneExportContext {
   const PointerRNA &get_depsgraph() const
   {
     return depsgraph_ptr_;
+  }
+
+  PYTHON_NS::dict get_prim_map()
+  {
+    if (!prim_map_dict_) {
+      prim_map_dict_ = new PYTHON_NS::dict;
+
+      prim_map_.foreach_item([&](const pxr::SdfPath &path, const Vector<PointerRNA> &ids) {
+        if (!prim_map_dict_->has_key(path)) {
+          (*prim_map_dict_)[path] = PYTHON_NS::list();
+        }
+
+        PYTHON_NS::list list = PYTHON_NS::extract<PYTHON_NS::list>((*prim_map_dict_)[path]);
+        for (const auto &ptr_rna : ids) {
+          list.append(ptr_rna);
+        }
+      });
+    }
+
+    return *prim_map_dict_;
   }
 };
 
@@ -324,7 +357,8 @@ void register_hook_converters()
       .def("get_stage", &USDSceneExportContext::get_stage)
       .def("get_depsgraph",
            &USDSceneExportContext::get_depsgraph,
-           python::return_value_policy<python::return_by_value>());
+           python::return_value_policy<python::return_by_value>())
+      .def("get_prim_map", &USDSceneExportContext::get_prim_map);
 
   python::class_<USDMaterialExportContext>("USDMaterialExportContext")
       .def("get_stage", &USDMaterialExportContext::get_stage)
@@ -440,6 +474,11 @@ class OnExportInvoker final : public USDHookInvoker {
   {
   }
 
+  OnExportInvoker(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, const ImportedPrimMap &prim_map, ReportList *reports)
+      : USDHookInvoker(reports), hook_context_(stage, depsgraph, prim_map)
+  {
+  }
+
  private:
   const char *function_name() const override
   {
@@ -449,6 +488,11 @@ class OnExportInvoker final : public USDHookInvoker {
   void call_hook(PyObject *hook_obj) override
   {
     python::call_method<bool>(hook_obj, function_name(), REF(hook_context_));
+  }
+
+  void release_in_gil() override
+  {
+    hook_context_.release();
   }
 };
 
@@ -595,6 +639,16 @@ void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportLi
   }
 
   OnExportInvoker on_export(stage, depsgraph, reports);
+  on_export.call();
+}
+
+void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, const ImportedPrimMap &prim_map, ReportList *reports)
+{
+  if (hook_list().empty()) {
+    return;
+  }
+
+  OnExportInvoker on_export(stage, depsgraph, prim_map, reports);
   on_export.call();
 }
 

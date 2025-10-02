@@ -35,6 +35,9 @@
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 
+#include "RNA_access.hh"
+#include "RNA_types.hh"
+
 namespace blender::io::usd {
 
 USDHierarchyIterator::USDHierarchyIterator(Main *bmain,
@@ -435,6 +438,50 @@ void USDHierarchyIterator::add_usd_skel_export_mapping(const Object *obj, const 
   {
     skinned_mesh_export_map_.add(obj, path);
   }
+}
+
+blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::get_exported_prim_map() const
+{
+  blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map;
+
+  /* Iterate through the duplisource export path map. */
+  duplisource_export_path_.foreach_item([&prim_map](ID *id, const std::string &export_path) {
+    pxr::SdfPath usd_path(export_path);
+    prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(id));
+  });
+
+  /* Iterate through the export graph to get object mappings. */
+  export_graph_.foreach_item([&prim_map, this](const ObjectIdentifier &obj_id, const ExportChildren & /*children*/) {
+    if (obj_id.object) {
+      /* Create a simple export path based on object name. */
+      std::string export_path = "/" + make_valid_name(obj_id.object->id.name + 2);
+      pxr::SdfPath usd_path(export_path);
+      
+      prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(&obj_id.object->id));
+      
+      /* Add object data if it exists. */
+      if (obj_id.object->data) {
+        prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(static_cast<ID *>(obj_id.object->data)));
+      }
+    }
+  });
+
+  /* Add skeleton mappings. */
+  armature_export_map_.foreach_item([&prim_map](const Object *obj, const pxr::SdfPath &path) {
+    prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
+  });
+
+  /* Add skinned mesh mappings. */
+  skinned_mesh_export_map_.foreach_item([&prim_map](const Object *obj, const pxr::SdfPath &path) {
+    prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
+  });
+
+  /* Add shape key mesh mappings. */
+  shape_key_mesh_export_map_.foreach_item([&prim_map](const Object *obj, const pxr::SdfPath &path) {
+    prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
+  });
+
+  return prim_map;
 }
 
 USDExporterContext USDHierarchyIterator::create_point_instancer_context(

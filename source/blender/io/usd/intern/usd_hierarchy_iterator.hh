@@ -49,6 +49,9 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
 
   void process_usd_skel() const;
 
+  /* Get the mapping of exported objects to their USD prim paths. */
+  blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> get_exported_prim_map() const;
+
  protected:
   bool mark_as_weak_export(const Object *object) const override;
   void determine_point_instancers(const HierarchyContext *context);
