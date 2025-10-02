@@ -32,7 +32,7 @@
  * Update view layer dependencies similar to rna_ViewLayer_update_tagged.
  * If there is no active view layer update all view layers.
  */
-static void view_layer_update_tagged()
+static void BPyOpsCallable_view_layer_update()
 {
   bContext *C = BPY_context_get();
   if (!C) {
@@ -129,7 +129,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
     return nullptr;
   }
   /* Pre-call view-layer update to ensure RNA changes are applied (matches old Python wrapper). */
-  view_layer_update_tagged();
+  BPyOpsCallable_view_layer_update();
 
   PyObject *opname = PyUnicode_FromString(self->idname_py);
   if (!opname) {
@@ -176,7 +176,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
     if (finished_str) {
       int has_finished = PySequence_Contains(result, finished_str);
       if (has_finished == 1) {
-        view_layer_update_tagged();
+        BPyOpsCallable_view_layer_update();
       }
       if (has_finished == -1) {
         PyErr_Clear();
