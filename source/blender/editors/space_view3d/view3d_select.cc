@@ -650,7 +650,7 @@ static bool do_pose_tag_select_op_exec(blender::MutableSpan<Base *> bases, const
     Object *ob_iter = base_iter->object;
     bArmature *arm = static_cast<bArmature *>(ob_iter->data);
 
-    bool changed = true;
+    bool changed = false;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
       Bone *bone = pchan->bone;
       if ((bone->flag & BONE_UNSELECTABLE) == 0) {
