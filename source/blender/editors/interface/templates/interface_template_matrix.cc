@@ -75,7 +75,7 @@ static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
                            &rotation_mode_index,
                            i,
                            i,
-                           mode_info.description);
+                           TIP_(mode_info.description));
     UI_but_flag_disable(but, UI_BUT_UNDO);
     if (i == rotation_mode_index) {
       UI_but_flag_enable(but, UI_SELECT_DRAW);
