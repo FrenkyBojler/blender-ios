@@ -64,7 +64,7 @@ static void BPyOpsCallable_view_layer_update()
 }
 
 /** Utility functions for BPyOpsCallable. */
-static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, bool *is_undo)
+static bool BPyOpsCallable_parse_args(PyObject *args, const char **r_context_str, bool *r_is_undo)
 {
   const char *C_exec = "EXEC_DEFAULT";
   bool C_undo = false;
@@ -93,8 +93,8 @@ static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, 
     }
   }
 
-  *context_str = C_exec;
-  *is_undo = C_undo;
+  *r_context_str = C_exec;
+  *r_is_undo = C_undo;
   return true;
 }
 
