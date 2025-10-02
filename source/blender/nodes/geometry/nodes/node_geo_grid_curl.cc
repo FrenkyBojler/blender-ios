@@ -40,7 +40,8 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridCurl");
   ntype.ui_name = "Grid Curl";
-  ntype.ui_description = "Calculate the curl of a vector grid.";
+  ntype.ui_description =
+      "Calculate the magnitude and direction of circulation of a directional vector grid";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

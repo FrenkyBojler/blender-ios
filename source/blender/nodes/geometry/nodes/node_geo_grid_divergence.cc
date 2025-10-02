@@ -38,7 +38,8 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridDivergence");
   ntype.ui_name = "Grid Divergence";
-  ntype.ui_description = "Calculate the divergence of a vector field of a grid.";
+  ntype.ui_description =
+      "Calculate the flow into and out of each point of a directional vector grid";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

@@ -40,7 +40,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridLaplacian");
   ntype.ui_name = "Grid Laplacian";
-  ntype.ui_description = "Compute the Laplacian of the given scalar field of a grid.";
+  ntype.ui_description = "Compute the divergence of the gradient of the input grid";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

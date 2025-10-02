@@ -38,7 +38,8 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridGradient");
   ntype.ui_name = "Grid Gradient";
-  ntype.ui_description = "Calculate the gradient of a scalar field of a grid.";
+  ntype.ui_description =
+      "Calculate the direction and magnitude of the change in values of a scalar grid";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
