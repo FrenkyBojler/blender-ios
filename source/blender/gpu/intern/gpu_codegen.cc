@@ -362,10 +362,6 @@ void GPUCodegen::node_serialize(Set<StringRefNull> &used_libraries,
     eval_ss << output->type << " " << output << ";\n";
   }
 
-  if (node->skip_call) {
-    return;
-  }
-
   /* Function call. */
   eval_ss << node->name << "(";
   /* Input arguments. */
@@ -537,16 +533,6 @@ void GPUCodegen::set_unique_ids()
     GPUInput *end_input = find_zone_io((GPUInput *)end->inputs.first);
     GPUOutput *end_output = find_zone_io((GPUOutput *)end->outputs.first);
 
-    if (!zone_starts.contains(end->zone_index)) {
-      /* The zone input is disconnected, skip the call. */
-      end->skip_call = true;
-      for (; end_input; end_input = end_input->next, end_output = end_output->next) {
-        end_output->id = end_input->id;
-        end_output->is_duplicate = true;
-      }
-      continue;
-    }
-
     GPUNode *start = zone_starts.lookup(end->zone_index);
 
     GPUInput *start_input = find_zone_io((GPUInput *)start->inputs.first);
@@ -563,20 +549,6 @@ void GPUCodegen::set_unique_ids()
       end_input->is_duplicate = true;
       end_output->id = start_input->id;
       end_output->is_duplicate = true;
-    }
-  }
-
-  for (GPUNode *start : zone_starts.values()) {
-    if (!zone_ends.contains(start->zone_index)) {
-      /* The zone output is disconnected, skip the call. */
-      GPUInput *start_input = find_zone_io((GPUInput *)start->inputs.first);
-      GPUOutput *start_output = find_zone_io((GPUOutput *)start->outputs.first);
-      start->skip_call = true;
-      for (; start_input; start_input = start_input->next, start_output = start_output->next) {
-        start_output->id = start_input->id;
-        start_output->is_duplicate = true;
-      }
-      continue;
     }
   }
 }
