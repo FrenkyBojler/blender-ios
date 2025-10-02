@@ -15,7 +15,9 @@
 
 #include "node_geometry_util.hh"
 
-#include "openvdb/tools/Prune.h"
+#ifdef WITH_OPENVDB
+#  include "openvdb/tools/Prune.h"
+#endif
 
 namespace blender::nodes::node_geo_grid_prune_cc {
 
