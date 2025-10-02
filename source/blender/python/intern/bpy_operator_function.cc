@@ -13,6 +13,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 
 #include "DNA_scene_types.h"
 
@@ -460,7 +461,7 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
   }
 
   /* Construct the Python idname (e.g., "object.select_all") */
-  int py_result = snprintf(
+  int py_result = BLI_snprintf(
       callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
   if (py_result < 0 || py_result >= int(sizeof(callable->idname_py))) {
     PyErr_Format(PyExc_ValueError, "Failed to format operator name: %s.%s", module, func);
@@ -473,7 +474,7 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
   BLI_strncpy(module_upper, module, sizeof(module_upper));
   BLI_str_toupper_ascii(module_upper, sizeof(module_upper));
 
-  int bl_result = snprintf(
+  int bl_result = BLI_snprintf(
       callable->idname_bl, sizeof(callable->idname_bl), "%s_OT_%s", module_upper, func);
   if (bl_result < 0 || bl_result >= int(sizeof(callable->idname_bl))) {
     PyErr_Format(PyExc_ValueError, "Failed to format operator name: %s.%s", module, func);
