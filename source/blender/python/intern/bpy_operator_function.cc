@@ -15,6 +15,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
+#include "BKE_main.hh"
 #include "DNA_scene_types.h"
 
 #include "../generic/py_capi_utils.hh"
@@ -44,21 +45,23 @@ static void BPyOpsCallable_view_layer_update()
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  if (scene && view_layer) {
-    /* Update the active view layer. */
+  if (view_layer) {
+    /* Update the active view layer (matches Python: if view_layer). */
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
     if (depsgraph && !DEG_is_evaluating(depsgraph)) {
       DEG_make_active(depsgraph);
       BKE_scene_graph_update_tagged(depsgraph, bmain);
     }
   }
-  else if (scene) {
-    /* No active view layer: update all view layers. */
-    LISTBASE_FOREACH (ViewLayer *, vl, &scene->view_layers) {
-      Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, vl);
-      if (depsgraph && !DEG_is_evaluating(depsgraph)) {
-        DEG_make_active(depsgraph);
-        BKE_scene_graph_update_tagged(depsgraph, bmain);
+  else {
+    /* No active view layer: update all view layers in all scenes (matches Python logic). */
+    LISTBASE_FOREACH (Scene *, scene_iter, &bmain->scenes) {
+      LISTBASE_FOREACH (ViewLayer *, vl, &scene_iter->view_layers) {
+        Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene_iter, vl);
+        if (depsgraph && !DEG_is_evaluating(depsgraph)) {
+          DEG_make_active(depsgraph);
+          BKE_scene_graph_update_tagged(depsgraph, bmain);
+        }
       }
     }
   }
