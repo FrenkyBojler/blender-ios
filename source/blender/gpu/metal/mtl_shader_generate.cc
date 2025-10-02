@@ -575,10 +575,11 @@ static const char *to_string(const Interpolation &interp)
   }
 }
 
-static std::string line_directive(int line)
-{
-  return std::string("#line ") + std::to_string(line) + (" \"" __FILE__ "\"\n");
-}
+#if 0
+#  define LINE ""
+#else
+#  define LINE "\n#line " STRINGIFY(__LINE__) " \"" __FILE__ "\"\n"
+#endif
 
 std::string wrap_type(StringRefNull type_name, const ShaderStage stage)
 {
@@ -1536,7 +1537,7 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
 
   out << gpu_shader_dependency_get_source("GPU_shader_shared_utils.hh");
 
-  // out << line_directive(__LINE__);
+  out << LINE;
   out << generated.wrapper_class_prefix.str() << "\n\n";
   out << "struct " << stage_class_name << " {\n";
 
@@ -1562,18 +1563,15 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
   out << " {}\n";
   out << "};\n\n";
 
-  // out << line_directive(__LINE__);
-
   /* Entry point attribute. */
   if (info.early_fragment_test_ && stage == ShaderStage::FRAGMENT) {
-    out << "[[early_fragment_tests]]\n";
+    out << LINE << "[[early_fragment_tests]]";
   }
 
   /* Entry point signature. */
-  // out << line_directive(__LINE__);
-  out << stage_type_name << " " << stage_out_class << " " << entry_point_name << "\n";
+  out << LINE << stage_type_name << " " << stage_out_class << " " << entry_point_name;
 
-  // out << line_directive(__LINE__);
+  out << LINE;
   out << "(";
   out << generated.entry_point_parameters.str() << "\n";
   out << ")\n";
@@ -1582,25 +1580,24 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
   out << "{\n";
   {
     if (stage_out_class != "void") {
-      // out << line_directive(__LINE__);
-      out << "  " << stage_out_class << " " << stage_out_inst_name << ";\n";
+      out << LINE;
+      out << "  " << stage_out_class << " " << stage_out_inst_name << ";";
     }
 
-    // out << line_directive(__LINE__);
-    out << generated.entry_point_start.str() << "\n";
+    out << LINE;
+    out << generated.entry_point_start.str();
 
-    // out << line_directive(__LINE__);
-    out << "  " << stage_class_name << " " << stage_inst_name << "\n";
+    out << LINE;
+    out << "  " << stage_class_name << " " << stage_inst_name;
     out << "  {";
     out << generated.wrapper_instance_init.str() << "\n";
     out << "  };\n\n";
 
-    // out << line_directive(__LINE__);
-    // out << "  " << stage_inst_name << ".main();\n\n";
+    out << LINE;
+    // out << "  " << stage_inst_name << ".main();\n";
 
     if (stage_out_class != "void") {
-      // out << line_directive(__LINE__);
-      out << "  return " << stage_out_inst_name << ";\n";
+      out << LINE << "  return " << stage_out_inst_name << ";\n";
     }
   }
   out << "}\n";
