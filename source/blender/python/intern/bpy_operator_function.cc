@@ -11,13 +11,57 @@
 
 #include <Python.h>
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
+
+#include "DNA_scene_types.h"
 
 #include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "bpy_operator_function.hh"
 #include "BPY_extern.hh"
+#include "bpy_capi_utils.hh"
+#include "bpy_operator_function.hh"
+
+#include "BKE_context.hh"
+#include "BKE_scene.hh"
+
+#include "DEG_depsgraph.hh"
+
+/**
+ * Update view layer dependencies similar to rna_ViewLayer_update_tagged.
+ * If there is no active view layer update all view layers.
+ */
+static void view_layer_update_tagged()
+{
+  bContext *C = BPY_context_get();
+  if (!C) {
+    return;
+  }
+
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  if (scene && view_layer) {
+    /* Update the active view layer */
+    Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
+    if (depsgraph && !DEG_is_evaluating(depsgraph)) {
+      DEG_make_active(depsgraph);
+      BKE_scene_graph_update_tagged(depsgraph, bmain);
+    }
+  }
+  else if (scene) {
+    /* No active view layer: update all view layers */
+    LISTBASE_FOREACH (ViewLayer *, vl, &scene->view_layers) {
+      Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, vl);
+      if (depsgraph && !DEG_is_evaluating(depsgraph)) {
+        DEG_make_active(depsgraph);
+        BKE_scene_graph_update_tagged(depsgraph, bmain);
+      }
+    }
+  }
+}
 
 /** Utility functions for BPyOpsCallable. */
 static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, bool *is_undo)
@@ -77,81 +121,6 @@ static void BPyOpsCallable_dealloc(BPyOpsCallable *self)
  */
 static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObject *kwargs)
 {
-  /* Helper: update active view layer similar to the Python wrapper.
-   * If there is no active view layer (background), update all view layers. */
-  auto view_layer_update = [&]() {
-    /* Import bpy and fetch context via Python to mimic previous behavior.
-     * Using Python-level context retrieval keeps this code simple and safe. */
-    PyObject *bpy_mod = PyImport_ImportModule("bpy");
-    if (!bpy_mod) {
-      PyErr_Clear();
-      return;
-    }
-    PyObject *context = PyObject_GetAttrString(bpy_mod, "context");
-    Py_DECREF(bpy_mod);
-    if (!context) {
-      PyErr_Clear();
-      return;
-    }
-
-    PyObject *view_layer = PyObject_GetAttrString(context, "view_layer");
-    if (view_layer && view_layer != Py_None) {
-      /* call view_layer.update() */
-      PyObject *res = PyObject_CallMethod(view_layer, (char *)"update", nullptr);
-      Py_XDECREF(res);
-      Py_DECREF(view_layer);
-      Py_DECREF(context);
-      return;
-    }
-    Py_XDECREF(view_layer);
-
-    /* No active view_layer: iterate scenes -> view_layers and call update(). */
-    PyObject *data = PyObject_GetAttrString(context, "_data");
-    Py_DECREF(context);
-    if (!data) {
-      PyErr_Clear();
-      return;
-    }
-    PyObject *scenes = PyObject_GetAttrString(data, "scenes");
-    Py_DECREF(data);
-    if (!scenes) {
-      PyErr_Clear();
-      return;
-    }
-
-    PyObject *it = PyObject_GetIter(scenes);
-    Py_DECREF(scenes);
-    if (!it) {
-      PyErr_Clear();
-      return;
-    }
-
-    PyObject *scene;
-    while ((scene = PyIter_Next(it)) != nullptr) {
-      PyObject *view_layers = PyObject_GetAttrString(scene, "view_layers");
-      Py_DECREF(scene);
-      if (!view_layers) {
-        PyErr_Clear();
-        continue;
-      }
-      PyObject *it2 = PyObject_GetIter(view_layers);
-      Py_DECREF(view_layers);
-      if (!it2) {
-        PyErr_Clear();
-        continue;
-      }
-      PyObject *vl;
-      while ((vl = PyIter_Next(it2)) != nullptr) {
-        PyObject *res = PyObject_CallMethod(vl, (char *)"update", nullptr);
-        Py_XDECREF(res);
-        Py_DECREF(vl);
-      }
-      Py_DECREF(it2);
-    }
-    Py_DECREF(it);
-    PyErr_Clear();
-  };
-
   /* Build args tuple for pyop_call: (opname, kw, ...extra args...).
    * Create the child objects first so we can handle allocation failures cleanly. */
   Py_ssize_t args_len = PyTuple_Size(args);
@@ -160,7 +129,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
     return nullptr;
   }
   /* Pre-call view-layer update to ensure RNA changes are applied (matches old Python wrapper). */
-  view_layer_update();
+  view_layer_update_tagged();
 
   PyObject *opname = PyUnicode_FromString(self->idname_py);
   if (!opname) {
@@ -207,7 +176,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
     if (finished_str) {
       int has_finished = PySequence_Contains(result, finished_str);
       if (has_finished == 1) {
-        view_layer_update();
+        view_layer_update_tagged();
       }
       if (has_finished == -1) {
         PyErr_Clear();
