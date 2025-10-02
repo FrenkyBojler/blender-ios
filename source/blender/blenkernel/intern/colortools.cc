@@ -464,6 +464,7 @@ void BKE_curvemap_invert(CurveMap *cuma)
   CurveMapPoint *newpoints = static_cast<CurveMapPoint *>(MEM_dupallocN(cuma->curve));
 
   for (i = 0; i < cuma->totpoint; i++) {
+    newpoints[i].x = 1.0f - cuma->curve[last - i].x;
     newpoints[i].y = cuma->curve[last - i].y;
   }
 
@@ -499,7 +500,7 @@ void BKE_curvemap_handle_set(CurveMap *cuma, int type)
 static void calchandle_curvemap(BezTriple *bezt, const BezTriple *prev, const BezTriple *next)
 {
 /* defines to avoid confusion */
-#define p2_h1 ((p2)-3)
+#define p2_h1 ((p2) - 3)
 #define p2_h2 ((p2) + 3)
 
   const float *p1, *p3;
