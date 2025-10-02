@@ -558,8 +558,10 @@ static bool snap_selected_to_location_rotation(bContext *C,
     }
 
     for (Object *ob : objects) {
-      if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
-        continue;
+      if (use_offset) {
+        if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
+          continue;
+        }
       }
 
       blender::float3 target_loc_local; /* parent-relative */
