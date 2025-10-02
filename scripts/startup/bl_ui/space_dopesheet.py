@@ -106,7 +106,7 @@ class DopesheetFilterPopoverBase:
             flow.prop(dopesheet, "show_armatures", text="Armatures")
         if bpy.data.cameras:
             flow.prop(dopesheet, "show_cameras", text="Cameras")
-        if bpy.data.grease_pencils_v3:
+        if bpy.data.grease_pencils:
             flow.prop(dopesheet, "show_gpencil", text="Grease Pencil Objects")
         if bpy.data.lights:
             flow.prop(dopesheet, "show_lights", text="Lights")
@@ -205,16 +205,10 @@ class DOPESHEET_HT_header(Header):
         st = context.space_data
 
         layout.template_header()
+        layout.prop(st, "ui_mode", text="")
 
-        if st.mode == 'TIMELINE':
-            from bl_ui.space_time import TIME_MT_editor_menus
-            TIME_MT_editor_menus.draw_collapsible(context, layout)
-            playback_controls(layout, context)
-        else:
-            layout.prop(st, "ui_mode", text="")
-
-            DOPESHEET_MT_editor_menus.draw_collapsible(context, layout)
-            DOPESHEET_HT_editor_buttons.draw_header(context, layout)
+        DOPESHEET_MT_editor_menus.draw_collapsible(context, layout)
+        DOPESHEET_HT_editor_buttons.draw_header(context, layout)
 
 
 # Header for "normal" dopesheet editor modes (e.g. Dope Sheet, Action, Shape Keys, etc.)
