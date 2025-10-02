@@ -805,9 +805,7 @@ void VKCommandBuilder::ImageTracker::begin(const VKRenderGraph &render_graph,
   for (const VKRenderGraphLink &link : links.outputs) {
     VKResourceStateTracker::Resource &resource = render_graph.resources_.resources_.lookup(
         link.resource.handle);
-    const bool multiple_layers = resource.has_multiple_layers();
-    const bool multiple_mipmaps = resource.has_multiple_mipmaps();
-    if (multiple_layers || multiple_mipmaps) {
+    if (resource.use_subresource_tracking()) {
       tracked_attachments.add(resource.image.vk_image);
     }
   }

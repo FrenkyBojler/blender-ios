@@ -121,10 +121,8 @@ class VKResourceStateTracker {
       struct {
         /** VkImage handle of the resource being tracked. */
         VkImage vk_image = VK_NULL_HANDLE;
-        /** Has this resource multiple layers. */
-        bool multiple_layers = false;
-        /** Has this resource multiple mipmaps. */
-        bool multiple_mipmaps = false;
+        /** Do we need to track subresources (layers/mipmaps). */
+        bool use_subresource_tracking = false;
       } image;
     };
 
@@ -141,41 +139,21 @@ class VKResourceStateTracker {
 #endif
 
     /**
-     * Check if the given resource handle has multiple layers.
+     * Check if the given resource handle subresources needs to be tracked.
      *
      * Returns true when
-     * - handle is a layered image with more than one layer.
+     * - handle is an image with subresource tracking enables.
      *
      * Returns false when
      * - handle isn't an image resource or
-     * - handle isn't a layered image or
-     * - handle has only a single layer.
+     * - handle doesn't have subresource tracking enabled.
      */
-    bool has_multiple_layers()
+    bool use_subresource_tracking()
     {
       if (type == VKResourceType::BUFFER) {
         return false;
       }
-      return image.multiple_layers;
-    }
-
-    /**
-     * Check if the given resource handle has multiple mipmaps.
-     *
-     * Returns true when
-     * - handle is a layered image with more than one mipmap.
-     *
-     * Returns false when
-     * - handle isn't an image resource or
-     * - handle isn't a layered image or
-     * - handle has only a single layer.
-     */
-    bool has_multiple_mipmaps()
-    {
-      if (type == VKResourceType::BUFFER) {
-        return false;
-      }
-      return image.multiple_mipmaps;
+      return image.use_subresource_tracking;
     }
   };
 
@@ -209,10 +187,7 @@ class VKResourceStateTracker {
    * When an image is created in VKTexture, it needs to be registered in the device resources so
    * the resource state can be tracked during its lifetime.
    */
-  void add_image(VkImage vk_image,
-                 bool multiple_layers,
-                 bool multiple_mipmaps,
-                 const char *name = nullptr);
+  void add_image(VkImage vk_image, bool use_subresource_tracking, const char *name = nullptr);
 
   /**
    * Remove an registered image.

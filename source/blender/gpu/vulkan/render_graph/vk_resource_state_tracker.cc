@@ -31,8 +31,7 @@ ResourceHandle VKResourceStateTracker::create_resource_slot()
 }
 
 void VKResourceStateTracker::add_image(VkImage vk_image,
-                                       bool multiple_layers,
-                                       bool multiple_mipmaps,
+                                       bool use_subresource_tracking,
                                        const char *name)
 {
   UNUSED_VARS_NDEBUG(name);
@@ -45,8 +44,7 @@ void VKResourceStateTracker::add_image(VkImage vk_image,
 
   resource.type = VKResourceType::IMAGE;
   resource.image.vk_image = vk_image;
-  resource.image.multiple_layers = multiple_layers;
-  resource.image.multiple_mipmaps = multiple_mipmaps;
+  resource.image.use_subresource_tracking = use_subresource_tracking;
 #ifndef NDEBUG
   resource.name = name;
 #endif
