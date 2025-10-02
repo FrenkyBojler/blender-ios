@@ -90,28 +90,15 @@ class _BPyOpsSubModOp:
         return self._module + "." + self._func
 
     def __call__(self, *args, **kw):
-        import bpy
-        context = bpy.context
-
-        # Get the operator from blender
-        wm = context.window_manager
-
-        # Run to account for any RNA values the user changes.
-        # NOTE: We only update active view-layer, since that's what
-        # operators are supposed to operate on. There might be some
-        # corner cases when operator need a full scene update though.
-        _BPyOpsSubModOp._view_layer_update(context)
-
+        """
+        Call the operator using the C++ implementation in `_bpy.ops.call`.
+        """
+        opname = self.idname_py()
         if args:
-            C_exec, C_undo = _BPyOpsSubModOp._parse_args(args)
-            ret = _op_call(self.idname_py(), kw, C_exec, C_undo)
+            C_exec, C_undo = self._parse_args(args)
+            return _op_call(opname, kw, C_exec, C_undo)
         else:
-            ret = _op_call(self.idname_py(), kw)
-
-        if 'FINISHED' in ret and context.window_manager == wm:
-            _BPyOpsSubModOp._view_layer_update(context)
-
-        return ret
+            return _op_call(opname, kw)
 
     def get_rna_type(self):
         """Internal function for introspection"""

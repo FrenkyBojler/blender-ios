@@ -206,102 +206,33 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   }
 
   if (WM_operator_poll_context(C, ot, context) == false) {
-    bool msg_free = false;
-    const char *msg = CTX_wm_operator_poll_msg_get(C, &msg_free);
+    const char *msg = CTX_wm_operator_poll_msg_get(C, nullptr);
     PyErr_Format(PyExc_RuntimeError,
                  "Operator bpy.ops.%.200s.poll() %.200s",
                  opname,
                  msg ? msg : "failed, context is incorrect");
     CTX_wm_operator_poll_msg_clear(C);
-    if (msg_free) {
-      MEM_freeN(msg);
-    }
-    error_val = -1;
+    return nullptr;
   }
-  else {
-    WM_operator_properties_create_ptr(&ptr, ot);
-    WM_operator_properties_sanitize(&ptr, false);
 
-    if (kw && PyDict_Size(kw)) {
-      error_val = pyrna_pydict_to_props(
-          &ptr, kw, false, "Converting py args to operator properties:");
-    }
+  WM_operator_properties_create_ptr(&ptr, ot);
+  WM_operator_properties_sanitize(&ptr, false);
 
-    if (error_val == 0) {
-      ReportList *reports;
-
-      reports = MEM_mallocN<ReportList>("wmOperatorReportList");
-
-      /* Own so these don't move into global reports. */
-      BKE_reports_init(reports, RPT_STORE | RPT_OP_HOLD | RPT_PRINT_HANDLED_BY_OWNER);
-
-#ifdef BPY_RELEASE_GIL
-      /* release GIL, since a thread could be started from an operator
-       * that updates a driver */
-      /* NOTE: I have not seen any examples of code that does this
-       * so it may not be officially supported but seems to work ok. */
-      {
-        PyThreadState *ts = PyEval_SaveThread();
-#endif
-
-        retval = WM_operator_call_py(C, ot, context, &ptr, reports, is_undo);
-
-#ifdef BPY_RELEASE_GIL
-        /* regain GIL */
-        PyEval_RestoreThread(ts);
-      }
-#endif
-
-      error_val = BPy_reports_to_error(reports, PyExc_RuntimeError, false);
-
-      /* operator output is nice to have in the terminal/console too */
-      if (!BLI_listbase_is_empty(&reports->list)) {
-        /* Restore the print level as this is owned by the operator now. */
-        eReportType level = eReportType(reports->printlevel);
-        BKE_report_print_level_set(reports, CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG);
-        BPy_reports_write_stdout(reports, nullptr);
-        BKE_report_print_level_set(reports, level);
-      }
-
-      BKE_reports_clear(reports);
-      if ((reports->flag & RPT_FREE) == 0) {
-        BKE_reports_free(reports);
-        MEM_freeN(reports);
-      }
-      else {
-        /* The WM is now responsible for running the modal operator,
-         * show reports in the info window. */
-        reports->flag &= ~RPT_OP_HOLD;
-      }
-    }
-
-    WM_operator_properties_free(&ptr);
-
-#if 0
-    /* if there is some way to know an operator takes args we should use this */
-    {
-      /* no props */
-      if (kw != nullptr) {
-        PyErr_Format(PyExc_AttributeError, "Operator \"%s\" does not take any args", opname);
-        return nullptr;
-      }
-
-      WM_operator_name_call(C, opname, blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
-    }
-#endif
+  if (kw && PyDict_Size(kw)) {
+    error_val = pyrna_pydict_to_props(
+        &ptr, kw, false, "Converting py args to operator properties:");
   }
+
+  if (error_val == 0) {
+    retval = WM_operator_call_py(C, ot, context, &ptr, nullptr, is_undo);
+  }
+
+  WM_operator_properties_free(&ptr);
 
   if (error_val == -1) {
     return nullptr;
   }
 
-  /* When calling `bpy.ops.wm.read_factory_settings()` `bpy.data's` main pointer
-   * is freed by clear_globals(), further access will crash blender.
-   * Setting context is not needed in this case, only calling because this
-   * function corrects bpy.data (internal Main pointer) */
-  BPY_modules_update();
-
-  /* Return `retval` flag as a set. */
   return pyrna_enum_bitfield_as_set(rna_enum_operator_return_items, int(retval));
 }
 
