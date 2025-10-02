@@ -18,20 +18,6 @@
 
 #include "bpy_operator_function.hh"
 
-/**
- * Validate that operator module and function names will fit in the target buffers.
- *
- * :param module: The operator module name (e.g., "object")
- * :param func: The operator function name (e.g., "select_all")
- * :return: true if names are valid length, false otherwise
- */
-static bool validate_operator_name_length(const char *module, const char *func)
-{
-  const size_t py_len = strlen(module) + 1 + strlen(func) + 1; /* "." + null terminator */
-  const size_t bl_len = strlen(module) + 4 + strlen(func) + 1; /* "_OT_" + null terminator */
-  return py_len <= OP_MAX_TYPENAME && bl_len <= OP_MAX_TYPENAME;
-}
-
 /** Utility functions for BPyOpsCallable. */
 static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, bool *is_undo)
 {
@@ -197,15 +183,14 @@ static PyObject *BPyOpsCallable_get_rna_type(BPyOpsCallable *self, PyObject * /*
  */
 static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
 {
-  /* Get the operator signature. */
-  PyObject *sig_args = PyTuple_New(1);
-  if (!sig_args) {
+  PyObject *args = PyTuple_New(1);
+  if (!args) {
     return nullptr;
   }
-  PyTuple_SET_ITEM(sig_args, 0, PyUnicode_FromString(self->idname_py));
+  PyTuple_SET_ITEM(args, 0, PyUnicode_FromString(self->idname_py));
 
-  PyObject *result = pyop_as_string(nullptr, sig_args);
-  Py_DECREF(sig_args);
+  PyObject *result = pyop_as_string(nullptr, args);
+  Py_DECREF(args);
 
   if (!result) {
     /* Fallback to simple string if pyop_as_string fails. */
@@ -387,7 +372,9 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
   }
 
   /* Validate operator name lengths before constructing strings. */
-  if (!validate_operator_name_length(module, func)) {
+  size_t py_len = strlen(module) + 1 + strlen(func) + 1; /* "." + null terminator */
+  size_t bl_len = strlen(module) + 4 + strlen(func) + 1; /* "_OT_" + null terminator */
+  if (py_len > OP_MAX_TYPENAME || bl_len > OP_MAX_TYPENAME) {
     PyErr_Format(PyExc_ValueError, "Operator name too long: %s.%s", module, func);
     Py_DECREF(callable);
     return nullptr;
