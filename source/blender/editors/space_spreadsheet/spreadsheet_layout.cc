@@ -13,6 +13,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
 
 #include "BKE_instances.hh"
 
@@ -143,19 +144,21 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     const CPPType &type = data.type();
     BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
     data.get_to_uninitialized(real_index, buffer);
-    this->draw_content_cell_value(GPointer(type, buffer), params);
+    this->draw_content_cell_value(GPointer(type, buffer), params, column);
     type.destruct(buffer);
   }
 
-  void draw_content_cell_value(const GPointer value_ptr, const CellDrawParams &params) const
+  void draw_content_cell_value(const GPointer value_ptr,
+                               const CellDrawParams &params,
+                               const ColumnValues &column) const
   {
     const CPPType &type = *value_ptr.type();
     if (type.is<int>()) {
-      this->draw_int(params, *value_ptr.get<int>());
+      this->draw_int(params, *value_ptr.get<int>(), column.display_hint());
       return;
     }
     if (type.is<int64_t>()) {
-      this->draw_int(params, *value_ptr.get<int64_t>());
+      this->draw_int(params, *value_ptr.get<int64_t>(), column.display_hint());
       return;
     }
     if (type.is<int8_t>()) {
@@ -325,7 +328,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
         const bke::SocketValueVariant &value_variant = socket_value->value;
         if (value_variant.is_single()) {
           const GPointer single_value_ptr = value_variant.get_single_ptr();
-          this->draw_content_cell_value(single_value_ptr, params);
+          this->draw_content_cell_value(single_value_ptr, params, column);
           return;
         }
       }
@@ -369,9 +372,23 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
   }
 
-  void draw_int(const CellDrawParams &params, const int64_t value) const
+  void draw_int(const CellDrawParams &params,
+                const int64_t value,
+                const ColumnValueDisplayHint display_hint) const
   {
-    const std::string value_str = fmt::format(std::locale("en_US.UTF-8"), "{:L}", value);
+    std::string value_str;
+    switch (display_hint) {
+      case ColumnValueDisplayHint::Bytes: {
+        char dst[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];
+        BLI_str_format_byte_unit(dst, value, true);
+        value_str = dst;
+        break;
+      }
+      default: {
+        value_str = fmt::format(std::locale("en_US.UTF-8"), "{:L}", value);
+        break;
+      }
+    }
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
                                   0,
@@ -386,7 +403,8 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     UI_but_func_tooltip_set(
         but,
         [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
-          return fmt::format(std::locale("en_US.UTF-8"), "{:L}", *((int *)argN));
+          return fmt::format(
+              std::locale("en_US.UTF-8"), "{:L} {}", *((int64_t *)argN), TIP_("bytes"));
         },
         MEM_dupallocN<int64_t>(__func__, value),
         MEM_freeN);

@@ -684,7 +684,8 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
   }
   if (STREQ(column_id.name, "Size")) {
     const int64_t size = grid.size_in_bytes();
-    return std::make_unique<ColumnValues>(IFACE_("Size"), VArray<int64_t>::from_single(size, 1));
+    return std::make_unique<ColumnValues>(
+        IFACE_("Size"), VArray<int64_t>::from_single(size, 1), ColumnValueDisplayHint::Bytes);
   }
   return {};
 }
