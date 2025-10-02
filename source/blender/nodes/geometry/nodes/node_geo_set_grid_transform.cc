@@ -32,7 +32,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
+  b.add_input(data_type, "Grid")
+      .hide_value()
+      .structure_type(StructureType::Grid)
+      .is_default_link_socket();
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_output<decl::Bool>("Is Valid")
       .description("The new transform is valid and was successfully applied to the grid.");
@@ -99,7 +102,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeSetGridTransform");
   ntype.ui_name = "Set Grid Transform";
   ntype.ui_description = "Set the transform for the grid from index space into object space.";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
