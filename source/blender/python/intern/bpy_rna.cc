@@ -3998,21 +3998,21 @@ PyDoc_STRVAR(
     pyrna_struct_path_from_module_doc,
     ".. method:: path_from_module(property=\"\", index=-1, /)\n"
     "\n"
-    "   Returns the full data path to this struct (string).\n"
+    "   Returns the full data path to this struct (as a string) from the bpy module.\n"
     "\n"
     "   :arg property: Optional property name to get the full path from\n"
     "   :type property: str\n"
     "   :arg index: Optional index of the property.\n"
     "      \"-1\" means that the property has no indices.\n"
-    "   :type property: index\n"
+    "   :type index: int\n"
     "   :return: The full path to the data.\n"
     "   :rtype: str\n"
     "\n"
     "   :raises ValueError:\n"
     "      if the input data cannot be converted into a full data path.\n"
     "\n"
-    "      .. note:: Even if all input data in correct, this function might\n"
-    "         error out because Blender can not derive a valid path.\n"
+    "      .. note:: Even if all input data is correct, this function might\n"
+    "         error out because Blender cannot derive a valid path.\n"
     "         The incomplete path will be printed in the error message.\n");
 static PyObject *pyrna_struct_path_from_module(BPy_StructRNA *self, PyObject *args)
 {
@@ -4080,7 +4080,7 @@ PyDoc_STRVAR(
     pyrna_prop_path_from_module_doc,
     ".. method:: path_from_module()\n"
     "\n"
-    "   Returns the full data path to this struct (string).\n"
+    "   Returns the full data path to this struct (as a string) from the bpy module.\n"
     "\n"
     "   :return: The full path to the data.\n"
     "   :rtype: str\n"
@@ -4088,8 +4088,8 @@ PyDoc_STRVAR(
     "   :raises ValueError:\n"
     "      if the input data cannot be converted into a full data path.\n"
     "\n"
-    "      .. note:: Even if all input data in correct, this function might\n"
-    "         error out because Blender can not derive a valid path.\n"
+    "      .. note:: Even if all input data is correct, this function might\n"
+    "         error out because Blender cannot derive a valid path.\n"
     "         The incomplete path will be printed in the error message.\n");
 static PyObject *pyrna_prop_path_from_module(BPy_PropertyRNA *self)
 {
