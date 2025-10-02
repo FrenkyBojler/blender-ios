@@ -63,7 +63,7 @@ static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
   for (size_t i = 0; i < RNA_enum_items_count(rna_enum_object_rotation_mode_items); i++) {
     const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[i];
     int yco = -1.5f * UI_UNIT_Y;
-    int width = 180.0f * UI_SCALE_FAC;
+    int width = 9 * UI_UNIT_X;
     uiBut *but = uiDefButI(layout->block(),
                            ButType::Row,
                            0,
