@@ -272,7 +272,6 @@ class UnifiedPaintPanel:
             :param unified_paint_settings_override allows a caller to pass in a specific object for usage. Needed for
             some 'brush-like' tools."""
         row = layout.row(align=True)
-        paint = UnifiedPaintPanel.paint_settings(context)
         if unified_paint_settings_override:
             ups = unified_paint_settings_override
         else:
@@ -315,7 +314,7 @@ class UnifiedPaintPanel:
         if is_active:
             subcol = layout.column()
             subcol.active = getattr(brush, pressure_name)
-            subcol.template_curve_mapping(brush, custom_curve_name, brush=True)
+            subcol.template_curve_mapping(brush, custom_curve_name, brush=True, show_presets=True)
 
 
     @staticmethod
