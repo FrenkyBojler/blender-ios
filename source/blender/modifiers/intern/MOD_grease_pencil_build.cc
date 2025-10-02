@@ -511,7 +511,7 @@ static float get_factor_from_draw_speed(const bke::CurvesGeometry &curves,
    */
   for (const int curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[curve];
-    if (delta_times[points_by_curve[curve].last()] == 0.0f) {
+    if (delta_times[points.last()] == 0.0f && points.size() != 1) {
       for (const int point_id : points.index_range()) {
         const int point_i = points[point_id];
         delta_times[point_i] = GP_BUILD_TIME_DEFAULT_STROKES * float(point_id) /
