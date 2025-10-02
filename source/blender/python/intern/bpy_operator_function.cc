@@ -28,6 +28,8 @@
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
 
+#include "WM_api.hh"
+
 #include "DEG_depsgraph.hh"
 
 /**
@@ -139,7 +141,11 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
   bContext *C = BPY_context_get();
   wmWindowManager *wm = C ? CTX_wm_manager(C) : nullptr;
 
-  PyObject *opname = PyUnicode_FromString(self->idname_py);
+  /* Convert Blender format to Python format for the call. */
+  char idname_py[OP_MAX_TYPENAME];
+  WM_operator_py_idname(idname_py, self->idname_bl);
+
+  PyObject *opname = PyUnicode_FromString(idname_py);
   if (!opname) {
     Py_DECREF(new_args);
     return nullptr;
@@ -214,7 +220,11 @@ static PyObject *BPyOpsCallable_poll(BPyOpsCallable *self, PyObject *args)
     return nullptr;
   }
 
-  PyObject *idname_obj = PyUnicode_FromString(self->idname_py);
+  /* Convert Blender format to Python format for the poll call. */
+  char idname_py[OP_MAX_TYPENAME];
+  WM_operator_py_idname(idname_py, self->idname_bl);
+
+  PyObject *idname_obj = PyUnicode_FromString(idname_py);
   if (!idname_obj) {
     Py_DECREF(poll_args);
     return nullptr;
@@ -248,7 +258,9 @@ static PyObject *BPyOpsCallable_idname(BPyOpsCallable *self, PyObject * /*args*/
  */
 static PyObject *BPyOpsCallable_idname_py(BPyOpsCallable *self, PyObject * /*args*/)
 {
-  return PyUnicode_FromString(self->idname_py);
+  char idname_py[OP_MAX_TYPENAME];
+  WM_operator_py_idname(idname_py, self->idname_bl);
+  return PyUnicode_FromString(idname_py);
 }
 
 /**
@@ -292,7 +304,9 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
   if (!sig_result) {
     /* Fallback to simple string if pyop_as_string fails. */
     PyErr_Clear();
-    return PyUnicode_FromFormat("bpy.ops.%s(...)", self->idname_py);
+    char idname_py[OP_MAX_TYPENAME];
+    WM_operator_py_idname(idname_py, self->idname_bl);
+    return PyUnicode_FromFormat("bpy.ops.%s(...)", idname_py);
   }
 
   /* Get RNA type and description using Blender format idname (matches original Python behavior). */
@@ -324,7 +338,13 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
   Py_DECREF(sig_result);
   Py_DECREF(description);
 
-  return combined ? combined : PyUnicode_FromFormat("bpy.ops.%s(...)", self->idname_py);
+  if (!combined) {
+    char idname_py[OP_MAX_TYPENAME];
+    WM_operator_py_idname(idname_py, self->idname_bl);
+    return PyUnicode_FromFormat("bpy.ops.%s(...)", idname_py);
+  }
+
+  return combined;
 }
 
 /**
@@ -332,7 +352,9 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
  */
 static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
 {
-  return PyUnicode_FromFormat("<bpy.ops.%s callable>", self->idname_py);
+  char idname_py[OP_MAX_TYPENAME];
+  WM_operator_py_idname(idname_py, self->idname_bl);
+  return PyUnicode_FromFormat("<bpy.ops.%s callable>", idname_py);
 }
 
 /**
@@ -340,13 +362,16 @@ static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
  */
 static PyObject *BPyOpsCallable_str(BPyOpsCallable *self)
 {
+  char idname_py[OP_MAX_TYPENAME];
+  WM_operator_py_idname(idname_py, self->idname_bl);
+
   /* Extract module and function from idname_py. */
-  const char *dot_pos = strchr(self->idname_py, '.');
+  const char *dot_pos = strchr(idname_py, '.');
   if (!dot_pos) {
-    return PyUnicode_FromFormat("<function bpy.ops.%s at %p>", self->idname_py, (void *)self);
+    return PyUnicode_FromFormat("<function bpy.ops.%s at %p>", idname_py, (void *)self);
   }
 
-  size_t module_len = dot_pos - self->idname_py;
+  size_t module_len = dot_pos - idname_py;
   char module[OP_MAX_TYPENAME];
   char func[OP_MAX_TYPENAME];
 
@@ -355,7 +380,7 @@ static PyObject *BPyOpsCallable_str(BPyOpsCallable *self)
     /* Truncate if necessary. */
     module_len = sizeof(module) - 1;
   }
-  memcpy(module, self->idname_py, module_len);
+  memcpy(module, idname_py, module_len);
   module[module_len] = '\0';
   BLI_strncpy(func, dot_pos + 1, sizeof(func));
 
@@ -510,19 +535,9 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
   }
 
   /* Validate operator name lengths before constructing strings. */
-  size_t py_len = strlen(module) + 1 + strlen(func) + 1; /* "." + null terminator */
   size_t bl_len = strlen(module) + 4 + strlen(func) + 1; /* "_OT_" + null terminator */
-  if (py_len > OP_MAX_TYPENAME || bl_len > OP_MAX_TYPENAME) {
+  if (bl_len > OP_MAX_TYPENAME) {
     PyErr_Format(PyExc_ValueError, "Operator name too long: %s.%s", module, func);
-    Py_DECREF(callable);
-    return nullptr;
-  }
-
-  /* Construct the Python idname (e.g., "object.select_all") */
-  int py_result = BLI_snprintf(
-      callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
-  if (py_result < 0 || py_result >= int(sizeof(callable->idname_py))) {
-    PyErr_Format(PyExc_ValueError, "Failed to format operator name: %s.%s", module, func);
     Py_DECREF(callable);
     return nullptr;
   }
