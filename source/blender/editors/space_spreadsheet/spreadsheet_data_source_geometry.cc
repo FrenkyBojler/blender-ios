@@ -560,7 +560,7 @@ void VolumeDataSource::foreach_default_column_ids(
   }
 
   for (const char *name :
-       {"Grid Name", "Data Type", "Class", "Voxels", "Leaf Voxels", "Tiles", "Size", "Extent"})
+       {"Grid Name", "Data Type", "Class", "Extent", "Voxels", "Leaf Voxels", "Tiles", "Size"})
   {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
@@ -679,7 +679,7 @@ void VolumeGridDataSource::foreach_default_column_ids(
   }
 
   for (const char *name :
-       {"Data Type", "Class", "Voxels", "Leaf Voxels", "Tiles", "Size", "Extent"})
+       {"Data Type", "Class", "Extent", "Voxels", "Leaf Voxels", "Tiles", "Size"})
   {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
