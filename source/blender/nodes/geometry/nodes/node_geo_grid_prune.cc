@@ -34,18 +34,41 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (!node) {
     return;
   }
-  const Mode mode = Mode(node->custom2);
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
-  if (mode == Mode::Threshold) {
-    b.add_input(data_type, "Threshold").structure_type(StructureType::Single);
-  }
+  static EnumPropertyItem mode_items[] = {
+      {int(Mode::Inactive),
+       "INACTIVE",
+       0,
+       "Inactive",
+       "Turn inactive voxels and tiles into inactive background tiles"},
+      {int(Mode::Threshold),
+       "THRESHOLD",
+       0,
+       "Threshold",
+       "Turn regions where all voxels have the same value and active state (within a tolerance "
+       "threshold) into inactive background tiles"},
+      {int(Mode::SDF),
+       "SDF",
+       0,
+       "SDF",
+       "Replace inactive tiles with inactive nodes. Faster than tolerance-based pruning, useful "
+       "for cases like narrow-band SDF grids with only inside or outside background values."},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  b.add_input<decl::Menu>("Mode")
+      .static_items(mode_items)
+      .default_value(MenuValue(Mode::Threshold))
+      .structure_type(StructureType::Single)
+      .optional_label();
+  b.add_input(data_type, "Threshold")
+      .structure_type(StructureType::Single)
+      .usage_by_single_menu(int(Mode::Threshold));
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -86,7 +109,6 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  const Mode mode = Mode(params.node().custom2);
   bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {
     params.set_default_remaining_outputs();
@@ -94,7 +116,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
-  switch (mode) {
+  switch (params.extract_input<Mode>("Mode")) {
     case Mode::Inactive: {
       bke::volume_grid::to_typed_grid(
           grid_base, [&](auto &grid) { openvdb::tools::pruneInactive(grid.tree()); });
@@ -170,38 +192,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = SOCK_FLOAT;
-  node->custom2 = int16_t(Mode::Inactive);
 }
 
 static void node_rna(StructRNA *srna)
 {
-  static EnumPropertyItem mode_items[] = {
-      {int(Mode::Inactive),
-       "INACTIVE",
-       0,
-       "Inactive",
-       "Turn inactive voxels and tiles into inactive background tiles"},
-      {int(Mode::Threshold),
-       "THRESHOLD",
-       0,
-       "Threshold",
-       "Turn regions where all voxels have the same value and active state (within a tolerance "
-       "threshold) into inactive background tiles"},
-      {int(Mode::SDF),
-       "SDF",
-       0,
-       "SDF",
-       "Replace inactive tiles with inactive nodes. Faster than tolerance-based pruning, useful "
-       "for cases like narrow-band SDF grids with only inside or outside background values."},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-  RNA_def_node_enum(srna,
-                    "mode",
-                    "Mode",
-                    "",
-                    mode_items,
-                    NOD_inline_enum_accessors(custom2),
-                    int(Mode::Inactive));
   RNA_def_node_enum(srna,
                     "data_type",
                     "Data Type",
@@ -218,7 +212,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeGridPrune");
   ntype.ui_name = "Prune Grid";
   ntype.ui_description =
-      "Make the storage of a volume grid more efficient by collapsing voxels into tiles or inner "
+      "Make the storage of a volume grid more efficient by collapsing data into tiles or inner "
       "nodes";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
