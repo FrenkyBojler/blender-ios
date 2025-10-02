@@ -559,14 +559,8 @@ void VolumeDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name : {"Grid Name",
-                           "Data Type",
-                           "Class",
-                           "Active Voxels",
-                           "Active Leaf Voxels",
-                           "Active Tiles",
-                           "Size",
-                           "Extent"})
+  for (const char *name :
+       {"Grid Name", "Data Type", "Class", "Voxels", "Leaf Voxels", "Tiles", "Size", "Extent"})
   {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
@@ -620,24 +614,21 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
           return grid_class_name(*BKE_volume_grid_get(volume, index));
         }));
   }
-  if (STREQ(column_id.name, "Active Voxels")) {
+  if (STREQ(column_id.name, "Voxels")) {
     return std::make_unique<ColumnValues>(
-        IFACE_("Active Voxels"),
-        VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+        IFACE_("Voxels"), VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
           return BKE_volume_grid_get(volume, index)->active_voxels();
         }));
   }
-  if (STREQ(column_id.name, "Active Leaf Voxels")) {
+  if (STREQ(column_id.name, "Leaf Voxels")) {
     return std::make_unique<ColumnValues>(
-        IFACE_("Active Leaf Voxels"),
-        VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+        IFACE_("Leaf Voxels"), VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
           return BKE_volume_grid_get(volume, index)->active_leaf_voxels();
         }));
   }
-  if (STREQ(column_id.name, "Active Tiles")) {
+  if (STREQ(column_id.name, "Tiles")) {
     return std::make_unique<ColumnValues>(
-        IFACE_("Active Tiles"),
-        VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+        IFACE_("Tiles"), VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
           return BKE_volume_grid_get(volume, index)->active_tiles();
         }));
   }
@@ -687,13 +678,8 @@ void VolumeGridDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name : {"Data Type",
-                           "Class",
-                           "Active Voxels",
-                           "Active Leaf Voxels",
-                           "Active Tiles",
-                           "Size",
-                           "Extent"})
+  for (const char *name :
+       {"Data Type", "Class", "Voxels", "Leaf Voxels", "Tiles", "Size", "Extent"})
   {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
@@ -716,19 +702,19 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
     return std::make_unique<ColumnValues>(IFACE_("Class"),
                                           VArray<std::string>::from_single(name, 1));
   }
-  if (STREQ(column_id.name, "Active Voxels")) {
+  if (STREQ(column_id.name, "Voxels")) {
     const int64_t active_voxels = grid.active_voxels();
-    return std::make_unique<ColumnValues>(IFACE_("Active Voxels"),
+    return std::make_unique<ColumnValues>(IFACE_("Voxels"),
                                           VArray<int64_t>::from_single(active_voxels, 1));
   }
-  if (STREQ(column_id.name, "Active Leaf Voxels")) {
+  if (STREQ(column_id.name, "Leaf Voxels")) {
     const int64_t active_leaf_voxels = grid.active_leaf_voxels();
-    return std::make_unique<ColumnValues>(IFACE_("Active Leaf Voxels"),
+    return std::make_unique<ColumnValues>(IFACE_("Leaf Voxels"),
                                           VArray<int64_t>::from_single(active_leaf_voxels, 1));
   }
-  if (STREQ(column_id.name, "Active Tiles")) {
+  if (STREQ(column_id.name, "Tiles")) {
     const int64_t active_tiles = grid.active_tiles();
-    return std::make_unique<ColumnValues>(IFACE_("Active Tiles"),
+    return std::make_unique<ColumnValues>(IFACE_("Tiles"),
                                           VArray<int64_t>::from_single(active_tiles, 1));
   }
   if (STREQ(column_id.name, "Size")) {
