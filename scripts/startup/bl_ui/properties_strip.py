@@ -26,7 +26,7 @@ class StripButtonsPanel:
 class StripColorTagPicker:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = "strip"
+    bl_context = "none" # Used as popver
 
     @classmethod
     def poll(cls, context):
@@ -35,8 +35,7 @@ class StripColorTagPicker:
 
 class STRIP_PT_color_tag_picker(StripColorTagPicker, Panel):
     bl_label = "Color Tag"
-    bl_options = {'HIDE_HEADER', 'INSTANCED'}
-    # bl_category = "Strip"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, _context):
         layout = self.layout
