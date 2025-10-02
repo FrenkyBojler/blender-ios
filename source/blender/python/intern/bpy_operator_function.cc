@@ -48,7 +48,7 @@ static void BPyOpsCallable_view_layer_update()
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   if (view_layer) {
-    /* Update the active view layer (matches Python: if view_layer). */
+    /* Update the active view layer. */
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
     if (depsgraph && !DEG_is_evaluating(depsgraph)) {
       DEG_make_active(depsgraph);
@@ -56,7 +56,7 @@ static void BPyOpsCallable_view_layer_update()
     }
   }
   else {
-    /* No active view layer: update all view layers in all scenes (matches Python logic). */
+    /* No active view layer: update all view layers in all scenes. */
     LISTBASE_FOREACH (Scene *, scene_iter, &bmain->scenes) {
       LISTBASE_FOREACH (ViewLayer *, vl, &scene_iter->view_layers) {
         Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene_iter, vl);
@@ -134,7 +134,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
   if (!new_args) {
     return nullptr;
   }
-  /* Pre-call view-layer update to ensure RNA changes are applied (matches old Python wrapper). */
+  /* Pre-call view-layer update to ensure RNA changes are applied. */
   BPyOpsCallable_view_layer_update();
 
   /* Store the window manager before operator execution to check if it changes. */
@@ -204,7 +204,6 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
 
 /**
  * Test if the operator can be executed in the current context.
- * This is the equivalent of the poll() method in Python.
  */
 static PyObject *BPyOpsCallable_poll(BPyOpsCallable *self, PyObject *args)
 {
@@ -285,7 +284,7 @@ static PyObject *BPyOpsCallable_get_rna_type(BPyOpsCallable *self, PyObject * /*
  */
 static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
 {
-  /* Get operator signature using Blender format idname (matches original Python behavior: 
+  /* Get operator signature using Blender format idname:
    * _op_as_string(self.idname()) where idname() returns Blender format). */
   PyObject *args = PyTuple_New(1);
   if (!args) {
@@ -309,7 +308,7 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
     return PyUnicode_FromFormat("bpy.ops.%s(...)", idname_py);
   }
 
-  /* Get RNA type and description using Blender format idname (matches original Python behavior). */
+  /* Get RNA type and description using Blender format idname. */
   PyObject *idname_bl_obj = PyUnicode_FromString(self->idname_bl);
   if (!idname_bl_obj) {
     Py_DECREF(sig_result);
@@ -333,7 +332,7 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
     return sig_result; /* Return just signature on failure. */
   }
 
-  /* Combine signature and description with newline (matches original Python format). */
+  /* Combine signature and description with newline. */
   PyObject *combined = PyUnicode_FromFormat("%U\n%U", sig_result, description);
   Py_DECREF(sig_result);
   Py_DECREF(description);
@@ -452,19 +451,10 @@ static PyGetSetDef BPyOpsCallable_getsetters[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 /* Define the documentation string for the BPyOpsCallableType. */
-PyDoc_STRVAR(
-    BPyOpsCallableType_doc,
-    "Callable Blender operator.\n"
-    "\n"
-    "This object represents a Blender operator that can be called to perform actions.\n"
-    "Operators are the primary way to interact with Blender's functionality from Python.\n"
-    "\n"
-    "Usage:\n"
-    "   bpy.ops.object.select_all(action='SELECT')\n"
-    "   \n"
-    "   # Check if operator can run\n"
-    "   if bpy.ops.object.select_all.poll():\n"
-    "       bpy.ops.object.select_all(action='DESELECT')\n");
+PyDoc_STRVAR(BPyOpsCallableType_doc,
+             "Callable Blender operator.\n"
+             "\n"
+             "This object represents a Blender operator that can be called to perform actions.\n");
 
 PyTypeObject BPyOpsCallableType = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
