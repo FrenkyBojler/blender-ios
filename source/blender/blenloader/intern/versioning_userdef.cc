@@ -387,7 +387,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 95)) {
-    FROM_DEFAULT_V4_UCHAR(space_action.interpolation_bezier);
+    FROM_DEFAULT_V4_UCHAR(space_action.interpolation_other);
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_constant);
     FROM_DEFAULT_V4_UCHAR(space_action.interpolation_linear);
   }

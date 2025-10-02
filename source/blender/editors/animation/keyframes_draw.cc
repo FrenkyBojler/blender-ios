@@ -193,7 +193,7 @@ struct DrawKeylistUIData {
 
   float ipo_color_linear[4];
   float ipo_color_constant[4];
-  float ipo_color_bezier[4];
+  float ipo_color_other[4];
   float ipo_color_mix[4];
 
   /* Show interpolation and handle type? */
@@ -223,14 +223,14 @@ static void channel_ui_data_init(DrawKeylistUIData *ctx,
   UI_GetThemeColor4fv(TH_LONGKEY, ctx->unsel_color);
   UI_GetThemeColor4fv(TH_DOPESHEET_IPOLINE, ctx->ipo_color_linear);
   UI_GetThemeColor4fv(TH_DOPESHEET_IPOCONST, ctx->ipo_color_constant);
-  UI_GetThemeColor4fv(TH_DOPESHEET_IPOBEZ, ctx->ipo_color_bezier);
+  UI_GetThemeColor4fv(TH_DOPESHEET_IPOOTHER, ctx->ipo_color_other);
   UI_GetThemeColor4fv(TH_KEYTYPE_KEYFRAME, ctx->ipo_color_mix);
 
   ctx->sel_color[3] *= ctx->alpha;
   ctx->unsel_color[3] *= ctx->alpha;
   ctx->ipo_color_linear[3] *= ctx->alpha;
   ctx->ipo_color_constant[3] *= ctx->alpha;
-  ctx->ipo_color_bezier[3] *= ctx->alpha;
+  ctx->ipo_color_other[3] *= ctx->alpha;
   ctx->ipo_color_mix[3] *= ctx->alpha * 0.5f;
 
   copy_v4_v4(ctx->sel_mhcol, ctx->sel_color);
@@ -313,8 +313,8 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
     color = ctx->ipo_color_mix;
   }
   else {
-    if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_BEZIER) {
-      color = ctx->ipo_color_bezier;
+    if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_OTHER) {
+      color = ctx->ipo_color_other;
     }
     else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_LINEAR) {
       color = ctx->ipo_color_linear;

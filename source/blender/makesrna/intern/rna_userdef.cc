@@ -3902,10 +3902,10 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Summary", "Color of summary channel");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "interpolation_bezier", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "interpolation_linear", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
-      prop, "Bézier Interpolation", "Color of lines showing Bézier interpolation mode");
+      prop, "Linear Interpolation", "Color of lines showing linear interpolation mode");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "interpolation_constant", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -3914,10 +3914,10 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
       prop, "Constant Interpolation", "Color of lines showing constant interpolation mode");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "interpolation_linear", PROP_FLOAT, PROP_COLOR_GAMMA);
+  prop = RNA_def_property(srna, "interpolation_other", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
-      prop, "Linear Interpolation", "Color of lines showing linear interpolation mode");
+      prop, "Other Interpolation", "Color of lines showing easings & dynamic interpolation mode");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "simulated_frames", PROP_FLOAT, PROP_COLOR_GAMMA);

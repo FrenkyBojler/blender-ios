@@ -96,8 +96,8 @@ enum eActKeyBlock_Hold {
   ACTKEYBLOCK_FLAG_IPO_LINEAR = (1 << 5),
   /** The curve segment uses constant interpolation. */
   ACTKEYBLOCK_FLAG_IPO_CONSTANT = (1 << 6),
-  /** The curve segment uses bezier interpolation. */
-  ACTKEYBLOCK_FLAG_IPO_BEZIER = (1 << 7),
+  /** The curve segment uses easing or dynamic interpolation. */
+  ACTKEYBLOCK_FLAG_IPO_OTHER = (1 << 7),
 };
 
 /* *********************** Keyframe Drawing ****************************** */

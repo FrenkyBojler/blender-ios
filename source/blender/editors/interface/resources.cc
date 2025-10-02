@@ -798,8 +798,8 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_DOPESHEET_IPOCONST:
           cp = ts->interpolation_constant;
           break;
-        case TH_DOPESHEET_IPOBEZ:
-          cp = ts->interpolation_bezier;
+        case TH_DOPESHEET_IPOOTHER:
+          cp = ts->interpolation_other;
           break;
 
         case TH_PREVIEW_BACK:
