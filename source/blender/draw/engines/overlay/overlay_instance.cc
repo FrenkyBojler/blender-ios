@@ -363,7 +363,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   /* Grid Axis */
   bTheme *btheme = UI_GetTheme();
   ThemeSpace *ts = &btheme->space_view3d;
-  float mix_color[4] = {0.3f, 0.3f, 0.3f, 1.0f};  
+  float mix_color[4] = {0.3f, 0.3f, 0.3f, 1.0f};
   float temp_color[4];
   UI_GetThemeColor4fv(TH_AXIS_X, temp_color);
   gb.colors.grid_axis_x = math::interpolate(float4(mix_color), float4(temp_color), ts->axis_contrast);
