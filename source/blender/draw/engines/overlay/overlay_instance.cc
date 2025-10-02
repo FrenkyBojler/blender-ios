@@ -359,12 +359,18 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   const bool is_bg_darker = reduce_add(gb.colors.grid.xyz()) + 0.12f >
                             reduce_add(gb.colors.background.xyz());
   UI_GetThemeColorShade4fv(TH_GRID, (is_bg_darker) ? 20 : -10, gb.colors.grid_emphasis);
+
   /* Grid Axis */
-  float axis_fade_col[4];
-  UI_GetThemeColor4fv(TH_AXIS_FADE, axis_fade_col);
-  UI_GetThemeColorBlendShade4fv(TH_AXIS_X, TH_AXIS_FADE, axis_fade_col[3], 0, gb.colors.grid_axis_x);
-  UI_GetThemeColorBlendShade4fv(TH_AXIS_Y, TH_AXIS_FADE, axis_fade_col[3], 0, gb.colors.grid_axis_y);
-  UI_GetThemeColorBlendShade4fv(TH_AXIS_Z, TH_AXIS_FADE, axis_fade_col[3], 0, gb.colors.grid_axis_z);
+  bTheme *btheme = UI_GetTheme();
+  ThemeSpace *ts = &btheme->space_view3d;
+  float mix_color[4] = {0.3f, 0.3f, 0.3f, 1.0f};  
+  float temp_color[4];
+  UI_GetThemeColor4fv(TH_AXIS_X, temp_color);
+  gb.colors.grid_axis_x = math::interpolate(float4(mix_color), float4(temp_color), ts->axis_contrast);
+  UI_GetThemeColor4fv(TH_AXIS_Y, temp_color);
+  gb.colors.grid_axis_y = math::interpolate(float4(mix_color), float4(temp_color), ts->axis_contrast);
+  UI_GetThemeColor4fv(TH_AXIS_Z, temp_color);
+  gb.colors.grid_axis_z = math::interpolate(float4(mix_color), float4(temp_color), ts->axis_contrast);
 
   UI_GetThemeColorShadeAlpha4fv(TH_TRANSFORM, 0, -80, gb.colors.deselect);
   UI_GetThemeColorShadeAlpha4fv(TH_WIRE, 0, -30, gb.colors.outline);
