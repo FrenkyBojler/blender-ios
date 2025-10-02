@@ -118,12 +118,12 @@ static void mesh_data_init_edges(MeshData &mesh_data)
           {v1, v2},
           [&](int *value) {
             edge_index = mesh_data.edges.size();
-            *value = edge_index + 1;
+            *value = edge_index;
             mesh_data.edges.append({v1, v2});
             mesh_data.vert_to_edge_map.add(edge_index, v1, v2);
           },
           [&](int *value) {
-            edge_index = *value - 1;
+            edge_index = *value;
             *value = edge_index;
           });
 
@@ -591,7 +591,7 @@ struct Fan {
           break;
         }
       }
-      if (stop == false) {
+      if (stop == false || !mesh_data.is_edge_manifold(current_edge)) {
         flags.is_manifold = false;
         break;
       }
