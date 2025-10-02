@@ -48,7 +48,7 @@ static std::ostream &operator<<(std::ostream &stream, const GPUInput *input)
     case GPU_SOURCE_CONSTANT:
       return stream << (input->is_zone_io ? "zone" : "cons") << input->id;
     case GPU_SOURCE_UNIFORM:
-      return stream << "node_tree.u" << input->id;
+      return stream << "node_tree.u" << input->id << (input->is_duplicate ? "b" : "");
     case GPU_SOURCE_ATTR:
       return stream << "var_attrs.v" << input->attr->id;
     case GPU_SOURCE_UNIFORM_ATTR:
@@ -251,14 +251,11 @@ void GPUCodegen::generate_resources()
     ss << "struct NodeTree {\n";
     LISTBASE_FOREACH (LinkData *, link, &ubo_inputs_) {
       GPUInput *input = (GPUInput *)(link->data);
-      if (input->is_duplicate) {
-        continue;
-      }
       if (input->source == GPU_SOURCE_CRYPTOMATTE) {
         ss << input->type << " crypto_hash;\n";
       }
       else {
-        ss << input->type << " u" << input->id << ";\n";
+        ss << input->type << " u" << input->id << (input->is_duplicate ? "b" : "") << ";\n";
       }
     }
     ss << "};\n\n";
@@ -494,7 +491,7 @@ void GPUCodegen::generate_uniform_buffer()
   /* Extract uniform inputs. */
   LISTBASE_FOREACH (GPUNode *, node, &graph.nodes) {
     LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
-      if (input->source == GPU_SOURCE_UNIFORM && !input->link && !input->is_duplicate) {
+      if (input->source == GPU_SOURCE_UNIFORM && !input->link) {
         /* We handle the UBO uniforms separately. */
         BLI_addtail(&ubo_inputs_, BLI_genericNodeN(input));
         uniforms_total_++;
