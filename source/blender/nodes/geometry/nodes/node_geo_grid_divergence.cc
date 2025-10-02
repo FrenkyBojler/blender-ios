@@ -1,16 +1,21 @@
 /* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #include "BKE_volume_grid.hh"
+
 #include "node_geometry_util.hh"
+
 #include "openvdb/tools/GridOperators.h"
-#include "openvdb_fwd.hh"
+
 namespace blender::nodes::node_geo_grid_divergence_cc {
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Vector>("Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output<decl::Float>("Grid").structure_type(StructureType::Grid);
 }
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
@@ -27,6 +32,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   node_geo_exec_with_missing_openvdb(params);
 #endif
 }
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -40,4 +46,5 @@ static void node_register()
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
+
 }  // namespace blender::nodes::node_geo_grid_divergence_cc
