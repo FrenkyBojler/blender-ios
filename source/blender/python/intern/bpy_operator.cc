@@ -431,7 +431,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
   PyTuple_SET_ITEM(new_args, 0, PyUnicode_FromString(self->idname_py));
   PyTuple_SET_ITEM(new_args, 1, kwargs ? Py_NewRef(kwargs) : PyDict_New());
   for (Py_ssize_t i = 0; i < args_len; i++) {
-    PyTuple_SET_ITEM(new_args, i + 2, Py_NewRef(PyTuple_GetItem(args, i)));
+    PyTuple_SET_ITEM(new_args, i + 2, Py_NewRef(PyTuple_GET_ITEM(args, i)));
   }
 
   PyObject *result = pyop_call(nullptr, new_args);
@@ -448,15 +448,27 @@ static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
 }
 
 static PyTypeObject BPyOpsCallableType = {
-    PyVarObject_HEAD_INIT(nullptr, 0).tp_name = "BPyOpsCallable",
-    .tp_basicsize = sizeof(BPyOpsCallable),
-    .tp_dealloc = (destructor)BPyOpsCallable_dealloc,
-    .tp_repr = (reprfunc)BPyOpsCallable_repr,
-    .tp_call = (ternaryfunc)BPyOpsCallable_call,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_doc = "Blender operator callable object for direct C++ execution",
-    /* FIXME: Additional PyTypeObject fields like tp_traverse, tp_clear may not be needed
-     * need to verify this. */
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "BPyOpsCallable",
+    /*tp_basicsize*/ sizeof(BPyOpsCallable),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ (destructor)BPyOpsCallable_dealloc,
+    /*tp_print*/ 0,  // Replace nullptr with 0 for Py_ssize_t compatibility
+    /*tp_getattr*/ nullptr,
+    /*tp_setattr*/ nullptr,
+    /*tp_as_async*/ nullptr,
+    /*tp_repr*/ (reprfunc)BPyOpsCallable_repr,
+    /*tp_as_number*/ nullptr,
+    /*tp_as_sequence*/ nullptr,
+    /*tp_as_mapping*/ nullptr,
+    /*tp_hash*/ nullptr,
+    /*tp_call*/ (ternaryfunc)BPyOpsCallable_call,
+    /*tp_str*/ nullptr,
+    /*tp_getattro*/ nullptr,
+    /*tp_setattro*/ nullptr,
+    /*tp_as_buffer*/ nullptr,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
+    /*tp_doc*/ "Blender operator callable object for direct C++ execution",
 };
 
 static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
