@@ -23,13 +23,6 @@ VKStreamingBuffer::~VKStreamingBuffer()
   vk_buffer_dst_ = VK_NULL_HANDLE;
 }
 
-static void align_offset(VkDeviceSize &r_size, VkDeviceSize alignment)
-{
-  if (alignment > 1) {
-    r_size = (r_size + alignment - 1) & ~(alignment - 1);
-  }
-}
-
 VkDeviceSize VKStreamingBuffer::update(VKContext &context, const void *data, size_t data_size)
 {
   render_graph::VKRenderGraph &render_graph = context.render_graph();
