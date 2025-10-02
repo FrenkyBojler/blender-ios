@@ -412,8 +412,14 @@ static PyMethodDef BPyOpsCallable_methods[] = {
      (PyCFunction)BPyOpsCallable_get_rna_type,
      METH_NOARGS,
      BPyOpsCallable_get_rna_type_doc},
-    {"idname", (PyCFunction)BPyOpsCallable_idname, METH_NOARGS, "Return the Blender-format operator idname (e.g., 'OBJECT_OT_select_all')"},
-    {"idname_py", (PyCFunction)BPyOpsCallable_idname_py, METH_NOARGS, "Return the Python-format operator idname (e.g., 'object.select_all')"},
+    {"idname",
+     (PyCFunction)BPyOpsCallable_idname,
+     METH_NOARGS,
+     "Return the Blender-format operator idname (e.g., 'OBJECT_OT_select_all')"},
+    {"idname_py",
+     (PyCFunction)BPyOpsCallable_idname_py,
+     METH_NOARGS,
+     "Return the Python-format operator idname (e.g., 'object.select_all')"},
     {nullptr, nullptr, 0, nullptr}};
 
 /**
