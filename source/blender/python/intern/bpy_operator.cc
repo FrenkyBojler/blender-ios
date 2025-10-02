@@ -447,6 +447,9 @@ static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
   return PyUnicode_FromFormat("<bpy.ops.%s callable>", self->idname_py);
 }
 
+/* Define the documentation string for the BPyOpsCallableType. */
+PyDoc_STRVAR(BPyOpsCallableType_doc, "Represents a callable operator.");
+
 static PyTypeObject BPyOpsCallableType = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "BPyOpsCallable",
@@ -468,7 +471,7 @@ static PyTypeObject BPyOpsCallableType = {
     /*tp_setattro*/ nullptr,
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT,
-    /*tp_doc*/ "Blender operator callable object for direct C++ execution",
+    /*tp_doc*/ BPyOpsCallableType_doc,
 };
 
 static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
