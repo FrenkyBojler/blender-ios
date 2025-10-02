@@ -4003,11 +4003,13 @@ PyDoc_STRVAR(
     "   :arg property: Optional property name to get the full path from\n"
     "   :type property: str\n"
     "   :arg index: Optional index of the property.\n"
-    "      \"-1\" means that the property has no indices.\n"
+    "      \"-1\" means that the property has no index.\n"
     "   :type property: int\n"
     "   :return: The full path to the data.\n"
     "   :rtype: str\n"
     "\n"
+    "   :raises ValueError:\n"
+    "      if the input data cannot be converted into a full data path.\n"
     "   .. note:: Even if all input data in correct, this function might\n"
     "      error out because Blender can not derive a valid path.\n"
     "      The incomplete path will be printed in the error message.\n");
@@ -4066,6 +4068,50 @@ static PyObject *pyrna_struct_path_from_module(BPy_StructRNA *self, PyObject *ar
                  "Only got \"%.200s\" as an incomplete path",
                  RNA_struct_identifier(self->ptr->type),
                  path.value().c_str());
+    return nullptr;
+  }
+
+  return PyC_UnicodeFromStdStr(path.value());
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_path_from_module_doc,
+    ".. method:: path_from_module()\n"
+    "\n"
+    "   Returns the full data path to this struct (string).\n"
+    "\n"
+    "   :return: The full path to the data.\n"
+    "   :rtype: str\n"
+    "\n"
+    "   :raises ValueError:\n"
+    "      if the input data cannot be converted into a full data path.\n"
+    "   .. note:: Even if all input data in correct, this function might\n"
+    "      error out because Blender can not derive a valid path.\n"
+    "      The incomplete path will be printed in the error message.\n");
+static PyObject *pyrna_prop_path_from_module(BPy_PropertyRNA *self)
+{
+  PropertyRNA *prop = self->prop;
+
+  const std::optional<std::string> path = RNA_path_full_property_py_ex(
+      &self->ptr.value(), prop, -1, true);
+
+  if (!path) {
+    PyErr_Format(PyExc_ValueError,
+                 "%.200s.%.200s.path_from_module() does not support path creation for this type",
+                 RNA_struct_identifier(self->ptr->type),
+                 RNA_property_identifier(prop));
+    return nullptr;
+  }
+
+  if (path.value().back() == '.') {
+    PyErr_Format(
+        PyExc_ValueError,
+        "%.200s.%.200s.path_from_module() could not derive a complete path for this type.\n"
+        "Only got \"%.200s\" as an incomplete path",
+        RNA_struct_identifier(self->ptr->type),
+        RNA_property_identifier(prop),
+        path.value().c_str());
     return nullptr;
   }
 
@@ -6374,6 +6420,10 @@ static PyMethodDef pyrna_prop_methods[] = {
      (PyCFunction)pyrna_prop_path_from_id,
      METH_NOARGS,
      pyrna_prop_path_from_id_doc},
+    {"path_from_module",
+     (PyCFunction)pyrna_prop_path_from_module,
+     METH_NOARGS,
+     pyrna_prop_path_from_module_doc},
     {"as_bytes", (PyCFunction)pyrna_prop_as_bytes, METH_NOARGS, pyrna_prop_as_bytes_doc},
     {"update", (PyCFunction)pyrna_prop_update, METH_NOARGS, pyrna_prop_update_doc},
     {"__dir__", (PyCFunction)pyrna_prop_dir, METH_NOARGS, nullptr},
