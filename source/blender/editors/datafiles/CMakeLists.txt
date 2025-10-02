@@ -256,7 +256,7 @@ if(WITH_BLENDER)
       constraint
       constraint_bone
       con_action
-      con_attribute
+      con_attributetransform
       con_armature
       con_camerasolver
       con_childof
