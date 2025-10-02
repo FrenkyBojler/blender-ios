@@ -110,8 +110,8 @@ static void node_tree_interface_panel_draw(const bContext *C, Panel *panel)
 
 void node_tree_interface_panel_register(ARegionType *art)
 {
-  PanelType *pt = MEM_callocN<PanelType>("NODE_PT_node_tree_interface2");
-  STRNCPY_UTF8(pt->idname, "NODE_PT_node_tree_interface2");
+  PanelType *pt = MEM_callocN<PanelType>("NODE_PT_node_tree_interface");
+  STRNCPY_UTF8(pt->idname, "NODE_PT_node_tree_interface");
   STRNCPY_UTF8(pt->label, N_("Group Sockets"));
   STRNCPY_UTF8(pt->category, "Group");
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
