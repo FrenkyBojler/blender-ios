@@ -1122,7 +1122,7 @@ void CustomSocketDrawParams::draw_standard(uiLayout &layout,
                               &layout,
                               &this->socket_ptr,
                               &this->node_ptr,
-                              (label_override.has_value()) ? *label_override : this->label);
+                              label_override.has_value() ? *label_override : this->label);
 }
 
 }  // namespace blender::nodes

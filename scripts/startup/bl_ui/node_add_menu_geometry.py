@@ -792,7 +792,7 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
-        self.node_operator(layout, "NodeJoinBundles")
+        self.node_operator(layout, "NodeJoinBundle")
         self.node_operator(layout, "GeometryNodeGatherBundleGeometries")
         self.typed_bundle(layout, label="Typed Bundle")
         self.draw_assets_for_catalog(layout, "Utilities/Bundle")
@@ -945,6 +945,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         if context.preferences.experimental.use_new_volume_nodes:
             self.node_operator(layout, "GeometryNodeGridToMesh")
             self.node_operator(layout, "GeometryNodeSDFGridBoolean")
+            self.node_operator(layout, "GeometryNodeFieldToGrid")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 

@@ -932,7 +932,7 @@ static void v3d_editvertex_buts(
     UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
 
     if (totcurvebweight == tot) {
-      float &weight = (ELEM(ob->type, OB_CURVES, OB_GREASE_PENCIL)) ?
+      float &weight = ELEM(ob->type, OB_CURVES, OB_GREASE_PENCIL) ?
                           tfp->ve_median.curves.nurbs_weight :
                           tfp->ve_median.curve.b_weight;
       but = uiDefButF(block,
@@ -1595,7 +1595,7 @@ static void v3d_editvertex_buts(
 static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d, Object *ob)
 {
   uiBlock *block = (layout) ? layout->block() : nullptr;
-  uiLayout &sub_layout = layout->absolute(false);
+  uiLayout *sub_layout = layout ? &layout->absolute(false) : nullptr;
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   const bool is_editable = ID_IS_EDITABLE(&ob->id);
 
@@ -1610,8 +1610,8 @@ static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d
     copy_v3_v3(tfp->ob_scale_orig, ob->scale);
     copy_m4_m4(tfp->ob_obmat_orig, ob->object_to_world().ptr());
 
-    if (!is_editable) {
-      sub_layout.enabled_set(false);
+    if (!is_editable && sub_layout) {
+      sub_layout->enabled_set(false);
     }
 
     uiDefBut(block,
@@ -2166,7 +2166,7 @@ static bool view3d_panel_curve_data_poll(const bContext *C, PanelType * /*pt*/)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  return (ob && (ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES) && BKE_object_is_in_editmode(ob)));
+  return (ob && ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES) && BKE_object_is_in_editmode(ob));
 }
 
 static void apply_to_active_object(
