@@ -905,7 +905,7 @@ void MESH_OT_dupli_extrude_cursor(wmOperatorType *ot)
   ot->name = "Extrude to Mouse Cursor or Add Vertex";
   ot->idname = "MESH_OT_dupli_extrude_cursor";
   ot->description =
-      "Extrudes selection to the mouse cursor, or adds a vertex there if nothing is selected";
+      "Extrude selection to the mouse cursor, or add a vertex at the mouse cursor if nothing is selected";
 
   /* API callbacks. */
   ot->invoke = edbm_dupli_extrude_cursor_invoke;
