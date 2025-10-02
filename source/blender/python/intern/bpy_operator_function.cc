@@ -236,6 +236,22 @@ static PyObject *BPyOpsCallable_poll(BPyOpsCallable *self, PyObject *args)
 }
 
 /**
+ * Return the Blender-format operator idname (e.g., "OBJECT_OT_select_all").
+ */
+static PyObject *BPyOpsCallable_idname(BPyOpsCallable *self, PyObject * /*args*/)
+{
+  return PyUnicode_FromString(self->idname_bl);
+}
+
+/**
+ * Return the Python-format operator idname (e.g., "object.select_all").
+ */
+static PyObject *BPyOpsCallable_idname_py(BPyOpsCallable *self, PyObject * /*args*/)
+{
+  return PyUnicode_FromString(self->idname_py);
+}
+
+/**
  * Get the RNA type definition for this operator.
  * Used for introspection and documentation generation.
  */
@@ -341,6 +357,8 @@ static PyMethodDef BPyOpsCallable_methods[] = {
      (PyCFunction)BPyOpsCallable_get_rna_type,
      METH_NOARGS,
      BPyOpsCallable_get_rna_type_doc},
+    {"idname", (PyCFunction)BPyOpsCallable_idname, METH_NOARGS, "Return the Blender-format operator idname (e.g., 'OBJECT_OT_select_all')"},
+    {"idname_py", (PyCFunction)BPyOpsCallable_idname_py, METH_NOARGS, "Return the Python-format operator idname (e.g., 'object.select_all')"},
     {nullptr, nullptr, 0, nullptr}};
 
 /**
