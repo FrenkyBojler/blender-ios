@@ -456,7 +456,7 @@ static std::optional<float3> ndof_orbit_center_calc_from_bounds(Depsgraph *depsg
 {
   std::optional<Bounds<float3>> bounding_box = std::nullopt;
 
-  if (U.ndof_flag & NDOF_ORBIT_CENTER_SELECTED) {
+  if ((U.ndof_flag & NDOF_ORBIT_CENTER_SELECTED) && NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U)) {
     bool do_zoom = false;
     bounding_box = view3d_calc_minmax_selected(depsgraph, area, region, false, false, &do_zoom);
   }
@@ -574,7 +574,10 @@ static std::optional<float3> ndof_orbit_center_calc_from_zbuf(Depsgraph *depsgra
 
   /* Use the found center if either #NDOF_ORBIT_CENTER_SELECTED is not enabled,
    * there are no selected objects center is within bounding box of selected objects. */
-  if ((U.ndof_flag & NDOF_ORBIT_CENTER_SELECTED) == 0) {
+  if ((((U.ndof_flag & NDOF_ORBIT_CENTER_SELECTED) == 0) &&
+       NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U)) ||
+      !NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U))
+  {
     return zbuf_center;
   }
 
