@@ -16,8 +16,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Float>("SDF Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_output<decl::Float>("SDF Grid").structure_type(StructureType::Grid).align_with_previous();
+  b.add_input<decl::Float>("Grid").hide_value().structure_type(StructureType::Grid);
+  b.add_output<decl::Float>("Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input<decl::Int>("Iterations")
       .default_value(1)
       .min(1)
@@ -27,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  auto grid = params.extract_input<bke::VolumeGrid<float>>("SDF Grid");
+  auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid");
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
@@ -51,7 +51,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("SDF Grid", std::move(grid));
+  params.set_output("Grid", std::move(grid));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
