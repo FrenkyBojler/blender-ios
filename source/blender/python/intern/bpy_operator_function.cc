@@ -269,31 +269,62 @@ static PyObject *BPyOpsCallable_get_rna_type(BPyOpsCallable *self, PyObject * /*
 
 /**
  * Get the documentation string for this operator.
- * Returns the operator signature for use in help() and documentation.
+ * Returns the operator signature and description for use in help() and documentation.
  */
 static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
 {
+  /* Get operator signature using Blender format idname (matches original Python behavior: 
+   * _op_as_string(self.idname()) where idname() returns Blender format). */
   PyObject *args = PyTuple_New(1);
   if (!args) {
     return nullptr;
   }
-  PyObject *name_obj = PyUnicode_FromString(self->idname_py);
+  PyObject *name_obj = PyUnicode_FromString(self->idname_bl);
   if (!name_obj) {
     Py_DECREF(args);
     return nullptr;
   }
   PyTuple_SET_ITEM(args, 0, name_obj);
 
-  PyObject *result = pyop_as_string(nullptr, args);
+  PyObject *sig_result = pyop_as_string(nullptr, args);
   Py_DECREF(args);
 
-  if (!result) {
+  if (!sig_result) {
     /* Fallback to simple string if pyop_as_string fails. */
     PyErr_Clear();
-    result = PyUnicode_FromFormat("bpy.ops.%s(...)", self->idname_py);
+    return PyUnicode_FromFormat("bpy.ops.%s(...)", self->idname_py);
   }
 
-  return result;
+  /* Get RNA type and description using Blender format idname (matches original Python behavior). */
+  PyObject *idname_bl_obj = PyUnicode_FromString(self->idname_bl);
+  if (!idname_bl_obj) {
+    Py_DECREF(sig_result);
+    return sig_result; /* Return just signature on failure. */
+  }
+
+  PyObject *rna_type = pyop_getrna_type(nullptr, idname_bl_obj);
+  Py_DECREF(idname_bl_obj);
+
+  if (!rna_type) {
+    PyErr_Clear();
+    return sig_result; /* Return just signature on failure. */
+  }
+
+  /* Get description attribute from RNA type. */
+  PyObject *description = PyObject_GetAttrString(rna_type, "description");
+  Py_DECREF(rna_type);
+
+  if (!description) {
+    PyErr_Clear();
+    return sig_result; /* Return just signature on failure. */
+  }
+
+  /* Combine signature and description with newline (matches original Python format). */
+  PyObject *combined = PyUnicode_FromFormat("%U\n%U", sig_result, description);
+  Py_DECREF(sig_result);
+  Py_DECREF(description);
+
+  return combined ? combined : PyUnicode_FromFormat("bpy.ops.%s(...)", self->idname_py);
 }
 
 /**
