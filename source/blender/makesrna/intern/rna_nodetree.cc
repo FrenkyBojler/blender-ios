@@ -6656,6 +6656,18 @@ static void def_cmp_combsep_color(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_cmp_expression(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeCMPExpression", "storage");
+
+  prop = RNA_def_property(srna, "expression", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "expression");
+  RNA_def_property_ui_text(prop, "Expression", "Mathematical expression (e.g. a + b * 2)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_cmp_movieclip(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -9967,6 +9979,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeDoubleEdgeMask");
   define("CompositorNode", "CompositorNodeEllipseMask");
   define("CompositorNode", "CompositorNodeExposure");
+  define("CompositorNode", "CompositorNodeExpression", def_cmp_expression);
   define("CompositorNode", "CompositorNodeFilter");
   define("CompositorNode", "CompositorNodeFlip");
   define("CompositorNode", "CompositorNodeGamma");

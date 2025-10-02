@@ -267,6 +267,12 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.draw_menu(layout, path="Utilities/Math")
         self.draw_menu(layout, path="Utilities/Vector")
+        self.node_operator(layout, "CompositorNodeExpression")
+        self.node_operator(layout, "ShaderNodeMapRange")
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
+        self.node_operator(layout, "ShaderNodeMix")
+        self.node_operator(layout, "ShaderNodeClamp")
+        self.node_operator(layout, "ShaderNodeFloatCurve")
         layout.separator()
         self.node_operator(layout, "CompositorNodeLevels")
         self.node_operator(layout, "CompositorNodeNormalize")

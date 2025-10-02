@@ -1336,6 +1336,10 @@ typedef struct NodeCMPCombSepColor {
   uint8_t ycc_mode;
 } NodeCMPCombSepColor;
 
+typedef struct NodeCMPExpression {
+  char *expression;
+} NodeCMPExpression;
+
 /** Defocus blur node. */
 typedef struct NodeDefocus {
   char bktype;
