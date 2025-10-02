@@ -62,9 +62,30 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(MenuValue(Mode::Threshold))
       .structure_type(StructureType::Single)
       .optional_label();
-  b.add_input(data_type, "Threshold")
-      .structure_type(StructureType::Single)
-      .usage_by_single_menu(int(Mode::Threshold));
+  if (data_type != SOCK_BOOLEAN) {
+    auto &threshold = b.add_input(data_type, "Threshold")
+                          .structure_type(StructureType::Single)
+                          .usage_by_single_menu(int(Mode::Threshold));
+    switch (data_type) {
+      case SOCK_FLOAT: {
+        auto &threshold_typed = static_cast<decl::FloatBuilder &>(threshold);
+        threshold_typed.min(0.0f).default_value(0.01f);
+        break;
+      }
+      case SOCK_VECTOR: {
+        auto &threshold_typed = static_cast<decl::VectorBuilder &>(threshold);
+        threshold_typed.min(0.0f).default_value(float3(0.01f));
+        break;
+      }
+      case SOCK_INT: {
+        auto &threshold_typed = static_cast<decl::IntBuilder &>(threshold);
+        threshold_typed.min(0).default_value(0);
+        break;
+      }
+      default:
+        BLI_assert_unreachable();
+    }
+  }
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
