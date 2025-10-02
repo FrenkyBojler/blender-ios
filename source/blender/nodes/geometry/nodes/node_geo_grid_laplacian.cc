@@ -12,10 +12,8 @@ namespace blender::nodes::node_geo_grid_laplacian_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
   b.add_input<decl::Float>("Grid").hide_value().structure_type(StructureType::Grid);
-  b.add_output<decl::Float>("Grid").structure_type(StructureType::Grid).align_with_previous();
+  b.add_output<decl::Float>("Laplacian").structure_type(StructureType::Grid);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -29,7 +27,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::VolumeTreeAccessToken tree_token;
   const openvdb::FloatGrid &vdb_grid = grid.grid(tree_token);
   openvdb::FloatGrid::Ptr laplacian_vdb_grid = openvdb::tools::laplacian(vdb_grid);
-  params.set_output("Grid", bke::VolumeGrid<float>(std::move(laplacian_vdb_grid)));
+  params.set_output("Laplacian", bke::VolumeGrid<float>(std::move(laplacian_vdb_grid)));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
