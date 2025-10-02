@@ -15,6 +15,8 @@
 
 #include <Python.h>
 
+#include "DNA_windowmanager_types.h"
+
 #include "RNA_types.hh"
 
 #include "BLI_listbase.h"
@@ -402,18 +404,17 @@ typedef struct {
   PyObject_HEAD
   /** Cached operator identifier (e.g., "object.select_all").
    * This bypasses Python's __call__ overhead for performance optimization. */
-  PyObject *idname_py;
+  char idname_py[OP_MAX_TYPENAME];
 } BPyOpsCallable;
 
 static void BPyOpsCallable_dealloc(BPyOpsCallable *self)
 {
-  Py_XDECREF(self->idname_py);
   Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObject *kwargs)
 {
-  if (!self->idname_py) {
+  if (!self->idname_py[0]) {
     PyErr_SetString(PyExc_RuntimeError,
                     "Invalid operator callable state: missing operator identifier");
     return nullptr;
@@ -427,7 +428,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
     return nullptr;
   }
 
-  PyTuple_SET_ITEM(new_args, 0, Py_NewRef(self->idname_py));
+  PyTuple_SET_ITEM(new_args, 0, PyUnicode_FromString(self->idname_py));
   PyTuple_SET_ITEM(new_args, 1, kwargs ? Py_NewRef(kwargs) : PyDict_New());
   for (Py_ssize_t i = 0; i < args_len; i++) {
     PyTuple_SET_ITEM(new_args, i + 2, Py_NewRef(PyTuple_GetItem(args, i)));
@@ -440,10 +441,10 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
 
 static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
 {
-  if (!self->idname_py) {
+  if (!self->idname_py[0]) {
     return PyUnicode_FromString("<invalid bpy.ops callable>");
   }
-  return PyUnicode_FromFormat("<bpy.ops.%U callable>", self->idname_py);
+  return PyUnicode_FromFormat("<bpy.ops.%s callable>", self->idname_py);
 }
 
 static PyTypeObject BPyOpsCallableType = {
@@ -472,8 +473,9 @@ static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  callable->idname_py = PyUnicode_FromFormat("%s.%s", module, func);
-  if (!callable->idname_py) {
+  /* Construct the full idname and copy to the char array. */
+  snprintf(callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
+  if (!callable->idname_py[0]) {
     Py_DECREF(callable);
     return nullptr;
   }
