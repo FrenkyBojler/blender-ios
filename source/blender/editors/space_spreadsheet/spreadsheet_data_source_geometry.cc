@@ -565,7 +565,8 @@ void VolumeDataSource::foreach_default_column_ids(
                            "Active Voxels",
                            "Active Leaf Voxels",
                            "Active Tiles",
-                           "Size"})
+                           "Size",
+                           "Extent"})
   {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
@@ -650,6 +651,12 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
             }),
         ColumnValueDisplayHint::Bytes);
   }
+  if (STREQ(column_id.name, "Extent")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Extent"), VArray<int3>::from_std_func(size, [volume](const int64_t index) {
+          return int3(BKE_volume_grid_get(volume, index)->active_bounds().dim().asPointer());
+        }));
+  }
 #else
   UNUSED_VARS(column_id);
 #endif
@@ -680,8 +687,13 @@ void VolumeGridDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name :
-       {"Data Type", "Class", "Active Voxels", "Active Leaf Voxels", "Active Tiles", "Size"})
+  for (const char *name : {"Data Type",
+                           "Class",
+                           "Active Voxels",
+                           "Active Leaf Voxels",
+                           "Active Tiles",
+                           "Size",
+                           "Extent"})
   {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
@@ -723,6 +735,10 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
     const int64_t size = grid.size_in_bytes();
     return std::make_unique<ColumnValues>(
         IFACE_("Size"), VArray<int64_t>::from_single(size, 1), ColumnValueDisplayHint::Bytes);
+  }
+  if (STREQ(column_id.name, "Extent")) {
+    const int3 extent = int3(grid.active_bounds().dim().asPointer());
+    return std::make_unique<ColumnValues>(IFACE_("Extent"), VArray<int3>::from_single(extent, 1));
   }
   return {};
 }

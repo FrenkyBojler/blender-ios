@@ -190,6 +190,11 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       this->draw_int_vector(params, Span(&value.x, 2));
       return;
     }
+    if (type.is<int3>()) {
+      const int3 value = *value_ptr.get<int3>();
+      this->draw_int_vector(params, Span(&value.x, 3));
+      return;
+    }
     if (type.is<float>()) {
       const float value = *value_ptr.get<float>();
       std::stringstream ss;
@@ -602,11 +607,19 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_INT32_2D: {
       return estimate_max_column_width<int2>(
-          get_min_width(3 * SPREADSHEET_WIDTH_UNIT),
+          get_min_width(6 * SPREADSHEET_WIDTH_UNIT),
           fontid,
           max_sample_size,
           data_.typed<int2>(),
           [](const int2 value) { return fmt::format("{}  {}", value.x, value.y); });
+    }
+    case SPREADSHEET_VALUE_TYPE_INT32_3D: {
+      return estimate_max_column_width<int3>(
+          get_min_width(9 * SPREADSHEET_WIDTH_UNIT),
+          fontid,
+          max_sample_size,
+          data_.typed<int3>(),
+          [](const int3 value) { return fmt::format("{}  {}  {}", value.x, value.y, value.z); });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT2: {
       return estimate_max_column_width<float2>(

@@ -18,6 +18,7 @@
 #  include "BKE_volume_enums.hh"
 #  include "BKE_volume_grid_type_traits.hh"
 
+#  include "BLI_bounds_types.hh"
 #  include "BLI_cache_mutex.hh"
 #  include "BLI_implicit_sharing_ptr.hh"
 #  include "BLI_mutex.hh"
@@ -127,6 +128,8 @@ class VolumeGridData : public ImplicitSharingMixin {
   mutable int64_t active_tiles_ = 0;
   mutable CacheMutex size_in_bytes_mutex_;
   mutable int64_t size_in_bytes_ = 0;
+  mutable CacheMutex active_bounds_mutex_;
+  mutable openvdb::CoordBBox active_bounds_;
 
   /**
    * A token that allows detecting whether some code is currently accessing the tree (not grid) or
@@ -255,6 +258,7 @@ class VolumeGridData : public ImplicitSharingMixin {
   int64_t active_leaf_voxels() const;
   int64_t active_tiles() const;
   int64_t size_in_bytes() const;
+  const openvdb::CoordBBox &active_bounds() const;
 
  private:
   /**

@@ -184,6 +184,7 @@ void VolumeGridData::tag_tree_modified() const
   active_leaf_voxels_mutex_.tag_dirty();
   active_tiles_mutex_.tag_dirty();
   size_in_bytes_mutex_.tag_dirty();
+  active_bounds_mutex_.tag_dirty();
 }
 
 bool VolumeGridData::is_loaded() const
@@ -245,6 +246,17 @@ int64_t VolumeGridData::size_in_bytes() const
     size_in_bytes_ = tree.memUsage();
   });
   return size_in_bytes_;
+}
+
+const openvdb::CoordBBox &VolumeGridData::active_bounds() const
+{
+  active_bounds_mutex_.ensure([&]() {
+    VolumeTreeAccessToken token;
+    const openvdb::GridBase &grid = this->grid(token);
+    const openvdb::TreeBase &tree = grid.baseTree();
+    tree.evalActiveVoxelBoundingBox(active_bounds_);
+  });
+  return active_bounds_;
 }
 
 std::string VolumeGridData::error_message() const
