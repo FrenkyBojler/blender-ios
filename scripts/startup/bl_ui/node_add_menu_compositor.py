@@ -307,6 +307,7 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
+
 class NODE_MT_compositor_node_math_base(node_add_menu.NodeMenu):
     bl_label = "Math"
     menu_path = "Utilities/Math"
@@ -321,6 +322,7 @@ class NODE_MT_compositor_node_math_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeMix")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
+
 
 class NODE_MT_compositor_node_creative_base(node_add_menu.NodeMenu):
     bl_label = "Creative"

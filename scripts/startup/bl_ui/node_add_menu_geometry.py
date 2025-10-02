@@ -708,7 +708,6 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, path="Utilities/Deprecated")
 
 
-
 class NODE_MT_gn_utilities_deprecated_base(node_add_menu.NodeMenu):
     bl_label = "Deprecated"
     menu_path = "Utilities/Deprecated"
