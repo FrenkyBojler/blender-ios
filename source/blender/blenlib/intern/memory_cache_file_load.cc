@@ -140,4 +140,28 @@ std::shared_ptr<CachedValue> get_loaded_base(const GenericKey &loader_key,
   return memory_cache::get_base(key, load_fn);
 }
 
+void invalidate_file(StringRefNull filepath)
+{
+  FileStatMap &file_stat_map = get_file_stat_map();
+
+  std::lock_guard lock{file_stat_map.mutex};
+
+  /* Update the stored modification time to force re-check */
+  const std::optional<int64_t> new_time = get_file_modification_time(filepath);
+  file_stat_map.map.add_overwrite(std::string(filepath), new_time);
+
+  /* Invalidate all caches that reference this file */
+  threading::isolate_task([&]() {
+    memory_cache::remove_if([&](const GenericKey &other_key) {
+      if (const auto *other_key_typed = dynamic_cast<const LoadFileKey *>(&other_key)) {
+        const Span<std::string> other_key_paths = other_key_typed->file_paths();
+        return std::any_of(other_key_paths.begin(),
+                           other_key_paths.end(),
+                           [&](const StringRefNull path) { return path == filepath; });
+      }
+      return false;
+    });
+  });
+}
+
 }  // namespace blender::memory_cache

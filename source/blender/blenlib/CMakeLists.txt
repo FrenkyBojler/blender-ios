@@ -128,6 +128,7 @@ set(SRC
   intern/offset_indices.cc
   intern/ordered_edge.cc
   intern/path_utils.cc
+  intern/file_watcher.cc
   intern/polyfill_2d.cc
   intern/polyfill_2d_beautify.cc
   intern/quadric.cc

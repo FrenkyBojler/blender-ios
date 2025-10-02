@@ -23,6 +23,12 @@ std::shared_ptr<CachedValue> get_loaded_base(const GenericKey &loader_key,
                                              Span<StringRefNull> file_paths,
                                              FunctionRef<std::unique_ptr<CachedValue>()> load_fn);
 
+/**
+ * Invalidate cache entry for a specific file.
+ * This forces the file to be reloaded on next access.
+ */
+void invalidate_file(StringRefNull filepath);
+
 template<typename T>
 inline std::shared_ptr<const T> get_loaded(const GenericKey &loader_key,
                                            Span<StringRefNull> file_paths,

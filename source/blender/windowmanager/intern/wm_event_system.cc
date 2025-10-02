@@ -17,6 +17,7 @@
 #include "AS_asset_library.hh"
 
 #include "DNA_listBase.h"
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
@@ -44,11 +45,15 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_undo_system.hh"
+
 #include "BKE_workspace.hh"
+
+#include "BLI_file_watcher.hh"
 
 #include "BKE_sound.h"
 
@@ -4098,6 +4103,26 @@ void wm_event_do_handlers(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(ED_undo_is_state_valid(C));
+
+  /* Check for file changes in geometry import nodes. */
+  if (wm && !BLI_listbase_is_empty(&wm->windows)) {
+    if (blender::file_watcher::poll()) {
+      Main *bmain = CTX_data_main(C);
+      if (bmain) {
+        /* Tag all geometry node trees for recalculation. */
+        LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+          if (ntree->type == NTREE_GEOMETRY) {
+            DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
+          }
+        }
+        /* Ensure all invariants are maintained. */
+        BKE_main_ensure_invariants(*bmain);
+        /* Send notifiers to trigger UI and viewport updates. */
+        WM_main_add_notifier(NC_NODE | NA_EDITED, nullptr);
+        WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, nullptr);
+      }
+    }
+  }
 
   /* Begin GPU render boundary - Certain event handlers require GPU usage. */
   GPU_render_begin();

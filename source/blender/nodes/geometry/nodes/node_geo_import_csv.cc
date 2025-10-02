@@ -4,6 +4,9 @@
 
 #include <fmt/format.h>
 
+#include "node_geometry_util.hh"
+
+#include "BLI_file_watcher.hh"
 #include "BLI_generic_key_string.hh"
 #include "BLI_listbase.h"
 #include "BLI_memory_cache_file_load.hh"
@@ -12,8 +15,6 @@
 #include "BKE_report.hh"
 
 #include "IO_csv.hh"
-
-#include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_import_csv {
 
@@ -59,6 +60,11 @@ static void node_geo_exec(GeoNodeExecParams params)
                              TIP_("Delimiter must not be \\n, \\r, \" or \\"));
     params.set_default_remaining_outputs();
     return;
+  }
+
+  /* Watch file for changes. */
+  if (!path->empty()) {
+    file_watcher::add_file(*path);
   }
 
   /* Encode delimiter in key because it affects the result. */
