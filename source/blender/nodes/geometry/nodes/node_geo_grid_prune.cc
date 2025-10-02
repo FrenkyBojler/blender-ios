@@ -118,8 +118,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
   switch (params.extract_input<Mode>("Mode")) {
     case Mode::Inactive: {
-      bke::volume_grid::to_typed_grid(
-          grid_base, [&](auto &grid) { openvdb::tools::pruneInactive(grid.tree()); });
+      bke::volume_grid::prune_inactive(grid_base);
       break;
     }
     case Mode::Threshold: {
