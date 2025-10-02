@@ -2245,7 +2245,10 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
         image_settings.media_type = 'IMAGE'
         image_settings.file_format = formats[self.filename_ext]
 
-        get_viewer_image().save_render(fp)
+        try:
+            get_viewer_image().save_render(fp)
+        except RuntimeError as e:
+            self.report({'ERROR'}, rpt_("Could not write image: {}").format(e))
 
         image_settings.media_type = old_media_type
         image_settings.file_format = old_file_format
