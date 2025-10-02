@@ -322,9 +322,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_GRID:
           cp = ts->grid;
           break;
-        case TH_AXIS_FADE:
-          cp = ts->axis_fade;
-          break;
         case TH_TIME_SCRUB_BACKGROUND:
           cp = btheme->regions.scrubbing.back;
           break;

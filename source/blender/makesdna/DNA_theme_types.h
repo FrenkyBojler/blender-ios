@@ -310,10 +310,8 @@ typedef struct ThemeSpace {
 
   unsigned char hilite[4];
   unsigned char grid[4];
-  unsigned char axis_fade[4];
   unsigned char view_overlay[4];
   float axis_contrast;
-  char _pad[4];
 
   unsigned char wire[4], wire_edit[4], select[4];
   unsigned char lamp[4], speaker[4], empty[4], camera[4];
