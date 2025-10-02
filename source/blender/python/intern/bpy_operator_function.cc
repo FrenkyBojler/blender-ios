@@ -436,6 +436,10 @@ int BPy_OpsCallable_InitTypes(void)
 
 /**
  * Create a new BPyOpsCallable object for the given operator module and function.
+ *
+ * \param self: Unused (required by Python C API).
+ * \param args: Python tuple containing module and function name strings.
+ * \return: New BPyOpsCallable object or NULL on error.
  */
 PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
 {
