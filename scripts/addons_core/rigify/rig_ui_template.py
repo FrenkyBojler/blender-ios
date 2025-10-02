@@ -910,7 +910,7 @@ class RigLayers(bpy.types.Panel):
         layout = self.layout
         row_table = collections.defaultdict(list)
         for coll in flatten_children(context.active_object.data.collections):
-            row_id = coll.get('rigify_ui_row', 0)
+            row_id = getattr(coll, 'rigify_ui_row', 0)
             if row_id > 0:
                 row_table[row_id].append(coll)
         col = layout.column()
@@ -1393,7 +1393,10 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
 
         script.write(UI_LAYERS_PANEL)
 
-        script.write("\ndef register():\n")
+        # Inject the RNA property (un)register functions.
+        self._write_rna_prop_register_funcs(script)
+
+        script.write("def register():\n")
 
         ui_register = OrderedDict.fromkeys(self.ui_register)
         for s in ui_register:
@@ -1426,3 +1429,17 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
 
         # Attach the script to the rig
         self.obj['rig_ui'] = script
+
+    def _write_rna_prop_register_funcs(self, script: bpy.types.Text) -> None:
+        """Inject the (un)register_rna_properties functions into the script."""
+        import inspect
+        from . import register_rna_properties, unregister_rna_properties
+
+        register_func_src = inspect.getsource(register_rna_properties)
+        unregister_func_src = inspect.getsource(unregister_rna_properties)
+
+        script.write("\n\n")
+        script.write(register_func_src)
+        script.write("\n\n")
+        script.write(unregister_func_src)
+        script.write("\n\n")
