@@ -99,11 +99,7 @@ struct GPUMaterial {
 
   std::string name;
 
-  GPUMaterial(eGPUMaterialEngine engine) : engine(engine)
-  {
-    graph.used_libraries = BLI_gset_new(
-        BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "GPUNodeGraph.used_libraries");
-  };
+  GPUMaterial(eGPUMaterialEngine engine) : engine(engine) {};
 
   ~GPUMaterial()
   {
@@ -318,7 +314,7 @@ blender::gpu::Shader *GPU_material_get_shader(GPUMaterial *material)
   return GPU_pass_shader_get(GPU_material_get_pass(material));
 }
 
-eGPUMaterialStatus GPU_material_status(GPUMaterial *mat)
+GPUMaterialStatus GPU_material_status(GPUMaterial *mat)
 {
   switch (GPU_pass_status(mat->pass)) {
     case GPU_PASS_SUCCESS:
@@ -572,7 +568,7 @@ void GPU_material_add_output_link_composite(GPUMaterial *material, GPUNodeLink *
 }
 
 char *GPU_material_split_sub_function(GPUMaterial *material,
-                                      eGPUType return_type,
+                                      GPUType return_type,
                                       GPUNodeLink **link)
 {
   /* Force cast to return type. */

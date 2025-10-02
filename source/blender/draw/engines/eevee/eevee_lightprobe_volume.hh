@@ -139,7 +139,7 @@ class IrradianceBake {
   bool do_break_ = false;
 
  public:
-  IrradianceBake(Instance &inst) : inst_(inst){};
+  IrradianceBake(Instance &inst) : inst_(inst) {};
 
   void init(const Object &probe_object);
   void sync();
@@ -233,8 +233,8 @@ class VolumeProbeModule {
   bool do_update_world_ = true;
 
  public:
-  VolumeProbeModule(Instance &inst) : bake(inst), inst_(inst){};
-  ~VolumeProbeModule(){};
+  VolumeProbeModule(Instance &inst) : bake(inst), inst_(inst) {};
+  ~VolumeProbeModule() {};
 
   void init();
   void sync();
@@ -246,7 +246,7 @@ class VolumeProbeModule {
   }
 
   void set_view(View &view);
-  void viewport_draw(View &view, GPUFrameBuffer *view_fb);
+  void viewport_draw(View &view, gpu::FrameBuffer *view_fb);
 
   Vector<IrradianceBrickPacked> bricks_alloc(int brick_len);
   void bricks_free(Vector<IrradianceBrickPacked> &bricks);
@@ -259,8 +259,8 @@ class VolumeProbeModule {
   }
 
  private:
-  void debug_pass_draw(View &view, GPUFrameBuffer *view_fb);
-  void display_pass_draw(View &view, GPUFrameBuffer *view_fb);
+  void debug_pass_draw(View &view, gpu::FrameBuffer *view_fb);
+  void display_pass_draw(View &view, gpu::FrameBuffer *view_fb);
 
   friend class SphereProbeModule;
 };

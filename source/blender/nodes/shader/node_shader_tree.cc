@@ -7,6 +7,7 @@
  */
 
 #include <cstring>
+#include <stack>
 
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
@@ -157,7 +158,9 @@ static bool shader_validate_link(eNodeSocketDatatype from, eNodeSocketDatatype t
   if (from == SOCK_SHADER) {
     return to == SOCK_SHADER;
   }
-  if (ELEM(to, SOCK_BUNDLE, SOCK_CLOSURE) || ELEM(from, SOCK_BUNDLE, SOCK_CLOSURE)) {
+  if (ELEM(to, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_MENU) ||
+      ELEM(from, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_MENU))
+  {
     return from == to;
   }
   return true;
@@ -174,7 +177,8 @@ static bool shader_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*n
                                                                         SOCK_RGBA,
                                                                         SOCK_SHADER,
                                                                         SOCK_BUNDLE,
-                                                                        SOCK_CLOSURE);
+                                                                        SOCK_CLOSURE,
+                                                                        SOCK_MENU);
 }
 
 blender::bke::bNodeTreeType *ntreeType_Shader;
@@ -189,7 +193,7 @@ void register_node_tree_type_sh()
   tt->group_idname = "ShaderNodeGroup";
   tt->ui_name = N_("Shader Editor");
   tt->ui_icon = ICON_NODE_MATERIAL;
-  tt->ui_description = N_("Shader nodes");
+  tt->ui_description = N_("Edit materials, lights, and world shading using nodes");
 
   tt->foreach_nodeclass = foreach_nodeclass;
   tt->localize = localize;
@@ -789,31 +793,45 @@ static void ntree_shader_shader_to_rgba_branches(bNodeTree *ntree)
   }
 }
 
-static void iter_shader_to_rgba_depth_count(bNode *node,
-                                            int16_t &max_depth,
-                                            int16_t depth_level = 0)
+static void iter_shader_to_rgba_depth_count(bNode *start_node, int16_t &max_depth)
 {
-  if (node->type_legacy == SH_NODE_SHADERTORGB) {
-    depth_level++;
-    max_depth = std::max(max_depth, depth_level);
-  }
+  struct StackNode {
+    bNode *node;
+    int16_t depth;
+  };
 
-  if (node->runtime->tmp_flag >= depth_level) {
-    /* We already iterated this branch at this or a greater depth. */
-    return;
-  }
-  node->runtime->tmp_flag = std::max(node->runtime->tmp_flag, depth_level);
+  std::stack<StackNode> stack;
+  stack.push({start_node, 0});
 
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    bNodeLink *link = sock->link;
-    if (link == nullptr) {
+  while (!stack.empty()) {
+    StackNode s_node = stack.top();
+    stack.pop();
+
+    bNode *node = s_node.node;
+    int16_t depth_level = s_node.depth;
+
+    if (node->type_legacy == SH_NODE_SHADERTORGB) {
+      depth_level++;
+      max_depth = std::max(max_depth, depth_level);
+    }
+
+    if (node->runtime->tmp_flag >= depth_level) {
+      /* We already iterated this branch at this or a greater depth. */
       continue;
     }
-    if ((link->flag & NODE_LINK_VALID) == 0) {
-      /* Skip links marked as cyclic. */
-      continue;
+    node->runtime->tmp_flag = std::max(node->runtime->tmp_flag, depth_level);
+
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+      bNodeLink *link = sock->link;
+      if (link == nullptr) {
+        continue;
+      }
+      if ((link->flag & NODE_LINK_VALID) == 0) {
+        /* Skip links marked as cyclic. */
+        continue;
+      }
+      stack.push({link->fromnode, depth_level});
     }
-    iter_shader_to_rgba_depth_count(link->fromnode, max_depth, depth_level);
   }
 }
 

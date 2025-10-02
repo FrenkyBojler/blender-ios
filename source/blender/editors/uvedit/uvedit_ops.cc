@@ -124,7 +124,7 @@ bool ED_object_get_active_image(Object *ob,
 {
   Material *ma = DEG_is_evaluated(ob) ? BKE_object_material_get_eval(ob, mat_nr) :
                                         BKE_object_material_get(ob, mat_nr);
-  bNodeTree *ntree = (ma && ma->use_nodes) ? ma->nodetree : nullptr;
+  bNodeTree *ntree = ma ? ma->nodetree : nullptr;
   bNode *node = (ntree) ? bke::node_get_active_texture(*ntree) : nullptr;
 
   if (node && is_image_texture_node(node)) {
@@ -170,7 +170,7 @@ bool ED_object_get_active_image(Object *ob,
 void ED_object_assign_active_image(Main *bmain, Object *ob, int mat_nr, Image *ima)
 {
   Material *ma = BKE_object_material_get(ob, mat_nr);
-  bNode *node = (ma && ma->use_nodes) ? bke::node_get_active_texture(*ma->nodetree) : nullptr;
+  bNode *node = ma ? bke::node_get_active_texture(*ma->nodetree) : nullptr;
 
   if (node && is_image_texture_node(node)) {
     node->id = &ima->id;
@@ -206,7 +206,7 @@ void ED_uvedit_foreach_uv(const Scene *scene,
                           FunctionRef<void(float[2])> user_fn)
 {
   /* Check selection for quick return. */
-  const bool synced_selection = (scene->toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool synced_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
   if (synced_selection && bm->totvertsel == (selected ? 0 : bm->totvert)) {
     return;
   }
@@ -765,12 +765,12 @@ static void UV_OT_arrange_islands(wmOperatorType *ot)
        "LARGE_TO_SMALL",
        0,
        "Largest to Smallest",
-       "Sort Islands from Largest to Smallest"},
+       "Sort islands from largest to smallest"},
       {int(UVAlignIslandOrder::SmallToLarge),
        "SMALL_TO_LARGE",
        0,
        "Smallest to Largest",
-       "Sort Islands from Smallest to Largest"},
+       "Sort islands from smallest to largest"},
       {int(UVAlignIslandOrder::Fixed), "Fixed", 0, "Fixed", "Preserve island order"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -1632,7 +1632,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
   const ToolSettings *ts = scene->toolsettings;
   const bool clear = RNA_boolean_get(op->ptr, "clear");
   const bool invert = RNA_boolean_get(op->ptr, "invert");
-  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1763,7 +1763,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     BMLoop *l;
     BMIter iter, liter;
 
-    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       /* Pass. */
     }
     else {
@@ -1774,7 +1774,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     }
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
-    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (EDBM_mesh_hide(em, swap)) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
         EDBMUpdate_Params params = {0};
@@ -1836,7 +1836,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
               BM_face_select_set(em->bm, efa, false);
               break;
             }
-            if (UV_VERT_SEL_TEST(l, !swap) && (ts->uv_selectmode == UV_SELECT_VERTEX)) {
+            if (UV_VERT_SEL_TEST(l, !swap) && (ts->uv_selectmode == UV_SELECT_VERT)) {
               BM_face_select_set(em->bm, efa, false);
               break;
             }
@@ -1936,7 +1936,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     BMLoop *l;
     BMIter iter, liter;
 
-    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       /* Pass. */
     }
     else {
@@ -1953,7 +1953,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
      * visibility checks internally. Current implementation handles each case separately. */
 
     /* call the mesh function if we are in mesh sync sel */
-    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
+    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (EDBM_mesh_reveal(em, select)) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
         EDBMUpdate_Params params = {0};
@@ -2248,7 +2248,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
   BMIter iter, liter;
 
   const bool flag_set = !RNA_boolean_get(op->ptr, "clear");
-  const bool synced_selection = (ts->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
