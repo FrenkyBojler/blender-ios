@@ -78,27 +78,6 @@ class _BPyOpsSubModOp:
     def __init__(self, module, func):
         self._module = module
         self._func = func
-        # Create a direct C++ callable that bypasses Python __call__
-        self._cpp_call = lambda *args, **kw: self._direct_cpp_call(*args, **kw)
-
-    def _direct_cpp_call(self, *args, **kw):
-        """Direct call to C++ that doesn't appear in Python stack traces."""
-        opname = self.idname_py()
-        if args:
-            C_exec, C_undo = self._parse_args(args)
-            return _op_call(opname, kw, C_exec, C_undo)
-        else:
-            return _op_call(opname, kw)
-
-    def __getattribute__(self, name):
-        if name == '__call__':
-            # Return the C++ callable instead of the Python __call__ method
-            return object.__getattribute__(self, '_cpp_call')
-        return object.__getattribute__(self, name)
-
-    def __init__(self, module, func):
-        self._module = module
-        self._func = func
 
     def poll(self, *args):
         C_exec, _C_undo = _BPyOpsSubModOp._parse_args(args)
