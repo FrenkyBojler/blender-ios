@@ -1,3 +1,4 @@
 Referenced by issue #139428, WoA: Vulkan: Icons and text disappear
 Referenced by pull request #146958, Fix: Vulkan: Performance regression text drawing
 Referenced by commit a0370d2fe3d15a21d452b7900f5e6c1330bcafab, Fix: Vulkan: Performance regression text drawing
+Referenced by issue #147168, Regression showing status bar text since 4.5 (OpenGL only)
