@@ -135,6 +135,10 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
   /* Pre-call view-layer update to ensure RNA changes are applied (matches old Python wrapper). */
   BPyOpsCallable_view_layer_update();
 
+  /* Store the window manager before operator execution to check if it changes. */
+  bContext *C = BPY_context_get();
+  wmWindowManager *wm = C ? CTX_wm_manager(C) : nullptr;
+
   PyObject *opname = PyUnicode_FromString(self->idname_py);
   if (!opname) {
     Py_DECREF(new_args);
@@ -171,15 +175,13 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
   PyObject *result = pyop_call(nullptr, new_args);
   Py_DECREF(new_args);
 
-  /* Post-call: if operator finished and window manager unchanged, update view-layer again.
-   * The result from pyop_call is usually a set-like object of flags. We'll check for the
-   * presence of the string "FINISHED". */
+  /* Post-call: if operator finished and window manager unchanged, update view-layer again.*/
   if (result) {
     /* Check membership 'FINISHED' in result using a single temporary PyObject. */
     PyObject *finished_str = PyUnicode_FromString("FINISHED");
     if (finished_str) {
       int has_finished = PySequence_Contains(result, finished_str);
-      if (has_finished == 1) {
+      if (has_finished == 1 && CTX_wm_manager(C) == wm) {
         BPyOpsCallable_view_layer_update();
       }
       if (has_finished == -1) {
