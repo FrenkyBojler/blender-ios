@@ -93,12 +93,11 @@ class _BPyOpsSubModOp:
         """
         Call the operator using the C++ implementation in `_bpy.ops.call`.
         """
-        opname = self.idname_py()
         if args:
             C_exec, C_undo = self._parse_args(args)
-            return _op_call(opname, kw, C_exec, C_undo)
+            return _op_call(self.idname_py(), kw, C_exec, C_undo)
         else:
-            return _op_call(opname, kw)
+            return _op_call(self.idname_py(), kw)
 
     def get_rna_type(self):
         """Internal function for introspection"""
