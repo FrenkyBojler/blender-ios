@@ -1573,6 +1573,21 @@ struct ShaderCreateInfo {
     return has_resource_type(Resource::BindType::IMAGE);
   }
 
+  int sampler_count() const
+  {
+    int count = 0;
+    for (const ShaderCreateInfo::Resource &res : this->pass_resources_) {
+      count += int(res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER);
+    }
+    for (const ShaderCreateInfo::Resource &res : this->batch_resources_) {
+      count += int(res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER);
+    }
+    for (const ShaderCreateInfo::Resource &res : this->geometry_resources_) {
+      count += int(res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER);
+    }
+    return count;
+  }
+
   /** \} */
 
 #  undef TEST_EQUAL

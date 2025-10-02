@@ -9,11 +9,10 @@
 using namespace metal;
 
 /* Generate wrapper structs for combined texture and sampler type. */
-/* TODO: Bindless. */
-// #if MTL_ARGUMENT_BUFFER_NUM_SAMPLERS > 0
-// using sampler_ptr = constant sampler *;
+// #ifdef MTL_USE_SAMPLER_ARGUMENT_BUFFER
+using sampler_ptr = constant sampler *;
 // #else
-using sampler_ptr = thread sampler *;
+// using sampler_ptr = thread sampler *;
 // #endif
 
 #define ENABLE_IF(cond) thread metal::enable_if_t<(cond)> * = nullptr
@@ -648,11 +647,4 @@ template<typename T, access A> int3 textureSize(thread _sampler3DAtomic<T, A> im
 #  define isampler2DArrayAtomic isampler2DArray
 #  define isampler2DAtomic isampler2D
 #  define isampler3DAtomic isampler3D
-#endif
-
-/* Sampler struct for argument buffer. */
-#if MTL_ARGUMENT_BUFFER_NUM_SAMPLERS > 0
-struct SStruct {
-  array<sampler, MTL_ARGUMENT_BUFFER_NUM_SAMPLERS> sampler_args [[id(0)]];
-};
 #endif

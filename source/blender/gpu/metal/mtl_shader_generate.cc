@@ -714,7 +714,8 @@ static void generate_texture(GeneratedStreams &generated,
                              const shader::ImageType type,
                              ResourceString name,
                              int slot,
-                             const ShaderStage stage)
+                             const ShaderStage stage,
+                             const bool use_sampler_argument_buffer = false)
 {
   const bool supports_native_atomics = MTLBackend::get_capabilities().supports_texture_atomics;
 
@@ -727,7 +728,9 @@ static void generate_texture(GeneratedStreams &generated,
      * Avoid this warning: "writable resources in non-void vertex function". */
     qualifier = shader::Qualifier::read;
   }
-  const std::string sampler_name = name + "_samp_";
+  const std::string sampler_name = use_sampler_argument_buffer ?
+                                       ("mtl_samplers.samplers[" + std::to_string(slot) + "]") :
+                                       (name + "_samp_");
   const std::string temp_args = to_component_type(type) + ", " + to_access(is_sampler, qualifier);
   const std::string type_str = to_raw_type(type) + "<" + temp_args + "> ";
   const std::string wrapper_str = "_" + to_wrapper_type(type) + "<" + temp_args + "> ";
@@ -794,7 +797,7 @@ static void generate_texture(GeneratedStreams &generated,
     auto &out = generated.entry_point_parameters;
     out << Sep() << type_str << name << " [[texture(" << slot << ")]]";
 
-    if (is_sampler) {
+    if (is_sampler && !use_sampler_argument_buffer) {
       out << Sep() << "sampler " << sampler_name << " [[sampler(" << slot << ")]]";
     }
   }
@@ -807,15 +810,14 @@ static void generate_resource(GeneratedStreams &generated,
 {
   switch (res.bind_type) {
     case ShaderCreateInfo::Resource::BindType::SAMPLER:
-      if (!use_sampler_argument_buffer) {
-        generate_texture(generated,
-                         true,
-                         Qualifier::read,
-                         res.sampler.type,
-                         res.sampler.name,
-                         MTL_SAMPLER_SLOT_OFFSET + res.slot,
-                         stage);
-      }
+      generate_texture(generated,
+                       true,
+                       Qualifier::read,
+                       res.sampler.type,
+                       res.sampler.name,
+                       MTL_SAMPLER_SLOT_OFFSET + res.slot,
+                       stage,
+                       use_sampler_argument_buffer);
       break;
     case ShaderCreateInfo::Resource::BindType::IMAGE:
       generate_texture(generated,
@@ -903,6 +905,23 @@ static std::string generate_defines(const shader::ShaderCreateInfo &info)
   return out.str();
 }
 
+static void generate_sampler_argument_buffer(GeneratedStreams &generated, int sampler_count)
+{
+  {
+    /* Global scope definition before the wrapper class. */
+    auto &out = generated.wrapper_class_prefix;
+    out << "struct BindlessSamplers {\n";
+    out << "  array<sampler, " << sampler_count << "> samplers [[id(0)]];\n";
+    out << "};\n";
+  }
+  {
+    /* Entry point arguments. */
+    auto &out = generated.entry_point_parameters;
+    out << Sep() << "constant BindlessSamplers &mtl_samplers";
+    out << " [[buffer(" << MTL_SAMPLER_ARGUMENT_BUFFER_SLOT << ")]]";
+  }
+}
+
 void generate_resources(GeneratedStreams &generated,
                         const ShaderStage stage,
                         const ShaderCreateInfo &info,
@@ -929,6 +948,10 @@ void generate_resources(GeneratedStreams &generated,
   }
   for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
     generate_resource(generated, res, stage, use_sampler_argument_buffer);
+  }
+
+  if (use_sampler_argument_buffer) {
+    generate_sampler_argument_buffer(generated, info.sampler_count());
   }
 
   generate_uniforms(generated, info.push_constants_, stage);
