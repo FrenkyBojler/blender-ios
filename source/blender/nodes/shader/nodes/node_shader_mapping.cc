@@ -15,11 +15,15 @@ namespace blender::nodes::node_shader_mapping_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<decl::Vector>("Vector")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(-FLT_MAX)
       .max(FLT_MAX)
       .description("The vector to be transformed");
+  b.add_output<decl::Vector>("Vector").align_with_previous();
   b.add_input<decl::Vector>("Location")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(-FLT_MAX)
@@ -38,7 +42,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(FLT_MAX)
       .subtype(PROP_XYZ)
       .description("The amount of scaling along each axis");
-  b.add_output<decl::Vector>("Vector");
 }
 
 static void node_shader_buts_mapping(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)

@@ -16,12 +16,15 @@ namespace blender::nodes::node_shader_vector_transform_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<decl::Vector>("Vector")
       .default_value({0.5f, 0.5f, 0.5f})
       .min(-10000.0f)
       .max(10000.0f)
       .description("Vector, point, or normal which will be used for conversion between spaces");
-  b.add_output<decl::Vector>("Vector");
+  b.add_output<decl::Vector>("Vector").align_with_previous();
 }
 
 static void node_shader_buts_vect_transform(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)

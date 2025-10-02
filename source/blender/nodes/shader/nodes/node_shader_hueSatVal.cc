@@ -12,6 +12,12 @@ namespace blender::nodes::node_shader_hueSatVal_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Color>("Color")
+      .default_value({0.8f, 0.8f, 0.8f, 1.0f})
+      .description("Color input on which HSV color transformation will be applied");
+  b.add_output<decl::Color>("Color").align_with_previous();
   b.add_input<decl::Float>("Hue").default_value(0.5f).min(0.0f).max(1.0f).description(
       "Hue rotation offset, from 0 (-180°) to 1 (+180°). Note that 0 and 1 have the same result");
   b.add_input<decl::Float>("Saturation")
@@ -35,10 +41,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .description("Amount of influence the node exerts on the image");
-  b.add_input<decl::Color>("Color")
-      .default_value({0.8f, 0.8f, 0.8f, 1.0f})
-      .description("Color input on which HSV color transformation will be applied");
-  b.add_output<decl::Color>("Color");
 }
 
 static int gpu_shader_hue_sat(GPUMaterial *mat,
