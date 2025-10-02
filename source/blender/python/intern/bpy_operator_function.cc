@@ -16,7 +16,7 @@
 #include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "bpy_operator_fn.hh"
+#include "bpy_operator_function.hh"
 
 /** Utility functions for BPyOpsCallable. */
 static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, bool *is_undo)
@@ -345,4 +345,63 @@ int BPy_OpsCallable_InitTypes(void)
     return -1;
   }
   return 0;
+}
+
+/**
+ * Create a new BPyOpsCallable object for the given operator module and function.
+ */
+PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
+{
+  const char *module, *func;
+
+  if (!PyArg_ParseTuple(args, "ss", &module, &func)) {
+    return nullptr;
+  }
+
+  /* Create a new BPyOpsCallable instance for direct C++ operator execution. */
+  BPyOpsCallable *callable = (BPyOpsCallable *)PyObject_New(BPyOpsCallable, &BPyOpsCallableType);
+  if (!callable) {
+    return nullptr;
+  }
+
+  /* Construct the Python idname (e.g., "object.select_all") */
+  const size_t py_estimated_len = strlen(module) + 1 + strlen(func) +
+                                  1; /* "." + null terminator */
+  if (py_estimated_len > sizeof(callable->idname_py)) {
+    PyErr_Format(PyExc_ValueError, "Operator name too long: %s.%s", module, func);
+    Py_DECREF(callable);
+    return nullptr;
+  }
+
+  int py_result = snprintf(
+      callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
+  if (py_result < 0 || py_result >= int(sizeof(callable->idname_py))) {
+    PyErr_Format(PyExc_ValueError, "Failed to format operator name: %s.%s", module, func);
+    Py_DECREF(callable);
+    return nullptr;
+  }
+
+  /* Construct the Blender idname (e.g., "OBJECT_OT_select_all") */
+  char module_upper[OP_MAX_TYPENAME];
+  BLI_strncpy(module_upper, module, sizeof(module_upper));
+  BLI_str_toupper_ascii(module_upper, sizeof(module_upper));
+
+  /* Check if the constructed idname would fit in the buffer */
+  const size_t estimated_len = strlen(module_upper) + 4 + strlen(func) +
+                               1; /* "_OT_" + null terminator */
+  if (estimated_len > sizeof(callable->idname_bl)) {
+    PyErr_Format(PyExc_ValueError, "Operator name too long: %s.%s", module, func);
+    Py_DECREF(callable);
+    return nullptr;
+  }
+
+  int bl_result = snprintf(
+      callable->idname_bl, sizeof(callable->idname_bl), "%s_OT_%s", module_upper, func);
+  if (bl_result < 0 || bl_result >= int(sizeof(callable->idname_bl))) {
+    PyErr_Format(PyExc_ValueError, "Failed to format operator name: %s.%s", module, func);
+    Py_DECREF(callable);
+    return nullptr;
+  }
+
+  return (PyObject *)callable;
 }
