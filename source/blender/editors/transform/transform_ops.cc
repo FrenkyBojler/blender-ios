@@ -561,8 +561,13 @@ static wmOperatorStatus transform_invoke(bContext *C, wmOperator *op, const wmEv
   }
 
   /* When modal, allow 'value' to set initial offset. */
-  if ((event == nullptr) && RNA_struct_property_is_set(op->ptr, "value")) {
-    return transform_exec(C, op);
+  if (event == nullptr) {
+    if (transformops_mode(op) == TFM_SHEAR) {
+      PropertyRNA *prop_angle = RNA_struct_find_property(op->ptr, "angle");
+      if (prop_angle && RNA_property_is_set(op->ptr, prop_angle)) {
+        return transform_exec(C, op);
+      }
+    }
   }
 
   /* Add temp handler. */
@@ -1101,7 +1106,8 @@ static void TRANSFORM_OT_shear(wmOperatorType *ot)
   ot->poll = transform_shear_poll;
   ot->poll_property = transform_poll_property;
 
-  RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
+  RNA_def_float_rotation(
+      ot->srna, "angle", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 
   WM_operatortype_props_advanced_begin(ot);
 
