@@ -400,7 +400,8 @@ static PyObject *pyop_dir(PyObject * /*self*/)
 /** C++ Operator Callable Type */
 typedef struct {
   PyObject_HEAD
-  /** Cached operator identifier (e.g., "object.select_all"). */
+  /** Cached operator identifier (e.g., "object.select_all").
+   * This bypasses Python's __call__ overhead for performance optimization. */
   PyObject *idname_py;
 } BPyOpsCallable;
 
@@ -413,11 +414,13 @@ static void BPyOpsCallable_dealloc(BPyOpsCallable *self)
 static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObject *kwargs)
 {
   if (!self->idname_py) {
-    PyErr_SetString(PyExc_RuntimeError, "Invalid operator callable state");
+    PyErr_SetString(PyExc_RuntimeError,
+                    "Invalid operator callable state: missing operator identifier");
     return nullptr;
   }
 
-  /* Build args tuple for pyop_call: (opname, kw, context_str, is_undo) */
+  /* Build args tuple for pyop_call: (opname, kw, context_str, is_undo).
+   * This creates the same argument structure that the Python version would pass. */
   Py_ssize_t args_len = PyTuple_Size(args);
   PyObject *new_args = PyTuple_New(2 + args_len);
   if (!new_args) {
@@ -444,16 +447,15 @@ static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
 }
 
 static PyTypeObject BPyOpsCallableType = {
-    PyVarObject_HEAD_INIT(nullptr, 0)
-    .tp_name = "BPyOpsCallable",
+    PyVarObject_HEAD_INIT(nullptr, 0).tp_name = "BPyOpsCallable",
     .tp_basicsize = sizeof(BPyOpsCallable),
     .tp_dealloc = (destructor)BPyOpsCallable_dealloc,
     .tp_repr = (reprfunc)BPyOpsCallable_repr,
     .tp_call = (ternaryfunc)BPyOpsCallable_call,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_doc = "Blender operator callable",
-    /* FIXME: decide if we need the remaining PyTypeObject fields like tp_traverse, tp_clear, etc.
-     */
+    .tp_doc = "Blender operator callable object for direct C++ execution",
+    /* FIXME: Additional PyTypeObject fields like tp_traverse, tp_clear may not be needed
+     * need to verify this. */
 };
 
 static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
@@ -464,6 +466,7 @@ static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
+  /* Create a new BPyOpsCallable instance for direct C++ operator execution. */
   BPyOpsCallable *callable = (BPyOpsCallable *)PyObject_New(BPyOpsCallable, &BPyOpsCallableType);
   if (!callable) {
     return nullptr;

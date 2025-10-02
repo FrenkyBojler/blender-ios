@@ -93,6 +93,7 @@ class _BPyOpsSubModOp:
     def __call__(self, *args, **kw):
         """
         Call the operator using the C++ implementation in `_bpy.ops.call`.
+        This bypasses Python overhead for improved performance.
         """
         if args:
             C_exec, C_undo = self._parse_args(args)
@@ -123,7 +124,8 @@ class _BPyOpsSubModOp:
 # Sub-Module Access
 
 def _bpy_ops_submodule__getattr__(module, func):
-    # Return a C++ callable object that bypasses Python __call__
+    # Return a C++ callable object that bypasses Python __call__ overhead
+    # for improved operator execution performance
     if func.startswith("__"):
         raise AttributeError(func)
     return _op_create_callable(module, func)
