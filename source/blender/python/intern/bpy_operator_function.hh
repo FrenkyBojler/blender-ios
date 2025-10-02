@@ -11,10 +11,8 @@
 
 #pragma once
 
+#include "DNA_windowmanager_types.h"
 #include <Python.h>
-
-/** Maximum length for operator type names. */
-#define OP_MAX_TYPENAME 64
 
 /** C++ Operator Callable Type. */
 typedef struct {
