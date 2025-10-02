@@ -154,9 +154,10 @@ static void compute_deep_hash_recursive(const Main &bmain,
     return;
   }
 
-  XXH3_state_t *hash_state = XXH3_createState();
-  XXH3_128bits_reset(hash_state);
-  XXH3_128bits_update(hash_state, &*id_shallow_hash, sizeof(XXH128_hash_t));
+  std::unique_ptr<XXH3_state_t, void (*)(XXH3_state_t *)> hash_state(
+      XXH3_createState(), [](XXH3_state_t *hash_state) -> void { XXH3_freeState(hash_state); });
+  XXH3_128bits_reset(hash_state.get());
+  XXH3_128bits_update(hash_state.get(), &*id_shallow_hash, sizeof(XXH128_hash_t));
 
   bool success = true;
   BKE_library_foreach_ID_link(
@@ -180,7 +181,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
           /* Need to update the hash even if there is no id. There is a difference between the case
            * where there is no id and the case where this callback is not called at all.*/
           const int random_data = 452942579;
-          XXH3_128bits_update(hash_state, &random_data, sizeof(int));
+          XXH3_128bits_update(hash_state.get(), &random_data, sizeof(int));
           return IDWALK_RET_NOP;
         }
         /* All embedded ID usages should already have been excluded above. */
@@ -188,7 +189,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
         if (current_stack.contains(referenced_id)) {
           /* Somehow encode that we had a circular reference here. */
           const int random_data = 234632342;
-          XXH3_128bits_update(hash_state, &random_data, sizeof(int));
+          XXH3_128bits_update(hash_state.get(), &random_data, sizeof(int));
           return IDWALK_RET_NOP;
         }
         compute_deep_hash_recursive(bmain, *referenced_id, current_stack, r_hashes, r_errors);
@@ -197,7 +198,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
           success = false;
           return IDWALK_RET_STOP_ITER;
         }
-        XXH3_128bits_update(hash_state, referenced_id_hash->data, sizeof(IDHash));
+        XXH3_128bits_update(hash_state.get(), referenced_id_hash->data, sizeof(IDHash));
         return IDWALK_RET_NOP;
       },
       nullptr,
@@ -207,8 +208,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
     return;
   }
   IDHash new_deep_hash;
-  const XXH128_hash_t new_deep_hash_xxh128 = XXH3_128bits_digest(hash_state);
-  XXH3_freeState(hash_state);
+  const XXH128_hash_t new_deep_hash_xxh128 = XXH3_128bits_digest(hash_state.get());
   static_assert(sizeof(IDHash) == sizeof(XXH128_hash_t));
   memcpy(new_deep_hash.data, &new_deep_hash_xxh128, sizeof(IDHash));
   r_hashes.add(&id, new_deep_hash);
