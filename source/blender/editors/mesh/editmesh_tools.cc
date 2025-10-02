@@ -1562,14 +1562,81 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
       }
       continue;
     }
+    /**
+     * The connect path operator was originally written to support the scenario where a user
+     * selects vertices. It also supports the case where only edges are selected by converting them
+     * to a vertex path.
+     *  However, users may also select a mix of vertices and edges. If we don't handle
+     * this properly, the operator will try to treat an edge like a vertex, which leads to asserts
+     * and crashes (see #147150).
+     *
+     * This block inspects the current selection and splits it into two cases:
+     *    Edges only: handled by the existing helper
+     *     (bm_vert_connect_select_history_edge_to_vert_path).
+     *    Mixed vertices + edges: we rebuild the selection into a vertex only list.
+     *     Every vertex is kept as is. Every edge is replaced by one of its endpoint
+     *     vertices, chosen based on proximity to the last vertex we added. This
+     *    gives a reasonable path like order instead of picking endpoints
+     *     at random.
+     *
+     * By the end of this, bm->selected always contains only vertices, so the
+     * connect path operator can safely run without ever passing an edge into
+     * BM_edge_exists.
+     */
 
-    if (bm->selected.first) {
-      BMEditSelection *ese = static_cast<BMEditSelection *>(bm->selected.first);
-      if (ese->htype == BM_EDGE) {
-        if (bm_vert_connect_select_history_edge_to_vert_path(bm, &selected_orig)) {
-          std::swap(bm->selected, selected_orig);
+    bool any_edge = false, any_vert = false, only_edges = true;
+    LISTBASE_FOREACH (BMEditSelection *, ese_scan, &bm->selected) {
+      any_edge |= (ese_scan->htype == BM_EDGE);
+      any_vert |= (ese_scan->htype == BM_VERT);
+      if (ese_scan->htype != BM_EDGE) {
+        only_edges = false;
+      }
+    }
+
+    if (any_edge && !any_vert) {
+      if (bm_vert_connect_select_history_edge_to_vert_path(bm, &selected_orig)) {
+        std::swap(bm->selected, selected_orig);
+      }
+    }
+
+    else if (any_edge && any_vert) {
+      ListBase selected_orig_mixed = {nullptr, nullptr};
+      std::swap(bm->selected, selected_orig_mixed);
+
+      ListBase new_hist = {nullptr, nullptr};
+      BMVert *last_v = nullptr;
+
+      auto push_unique = [&](BMVert *v) {
+        if (v && v != last_v) {
+          BM_select_history_store_notest(bm, (BMElem *)v);
+
+          if (bm->selected.last) {
+            BMEditSelection *node = static_cast<BMEditSelection *>(bm->selected.last);
+
+            BLI_remlink(&bm->selected, node);
+            BLI_addtail(&new_hist, node);
+
+            last_v = (BMVert *)node->ele;
+          }
+        }
+      };
+
+      LISTBASE_FOREACH (BMEditSelection *, ese, &selected_orig_mixed) {
+        if (ese->htype == BM_VERT) {
+          push_unique((BMVert *)ese->ele);
+        }
+        else if (ese->htype == BM_EDGE) {
+          BMEdge *e = (BMEdge *)ese->ele;
+          BMVert *nearest_vert = (last_v && (len_squared_v3v3(last_v->co, e->v1->co) >
+                                             len_squared_v3v3(last_v->co, e->v2->co))) ?
+                                     e->v2 :
+                                     e->v1;
+          push_unique(nearest_vert);
         }
       }
+
+      bm->selected = new_hist;
+      selected_orig = selected_orig_mixed;
     }
 
     BM_custom_loop_normals_to_vector_layer(bm);
