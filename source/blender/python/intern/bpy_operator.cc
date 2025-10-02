@@ -401,10 +401,6 @@ static PyObject *pyop_dir(PyObject * /*self*/)
   return list;
 }
 
-/**
- * Create a new BPyOpsCallable object for the given operator module and function.
- */
-
 PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;

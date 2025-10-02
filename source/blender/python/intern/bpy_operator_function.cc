@@ -181,7 +181,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
   PyObject *result = pyop_call(nullptr, new_args);
   Py_DECREF(new_args);
 
-  /* Post-call: if operator finished and window manager unchanged, update view-layer again.*/
+  /* Post-call: if operator finished and window manager unchanged, update view-layer again. */
   if (result) {
     /* Check membership 'FINISHED' in result using a single temporary PyObject. */
     PyObject *finished_str = PyUnicode_FromString("FINISHED");
@@ -493,7 +493,7 @@ PyTypeObject BPyOpsCallableType = {
  * Initialize the BPyOpsCallable type.
  * This must be called before using any BPyOpsCallable functions.
  *
- * :return: 0 on success, -1 on failure
+ * \return 0 on success, -1 on failure
  */
 int BPy_OpsCallable_InitTypes(void)
 {
@@ -506,9 +506,9 @@ int BPy_OpsCallable_InitTypes(void)
 /**
  * Create a new BPyOpsCallable object for the given operator module and function.
  *
- * \param self: Unused (required by Python C API).
- * \param args: Python tuple containing module and function name strings.
- * \return: New BPyOpsCallable object or NULL on error.
+ * \param self Unused (required by Python C API).
+ * \param args Python tuple containing module and function name strings.
+ * \return New BPyOpsCallable object or NULL on error.
  */
 PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
 {
