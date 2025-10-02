@@ -65,7 +65,8 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
   auto sycl_mem_handle_type = sycl::ext::oneapi::experimental::external_mem_handle_type::opaque_fd;
   sycl::ext::oneapi::experimental::external_mem_descriptor<
       sycl::ext::oneapi::experimental::resource_fd>
-      sycl_external_mem_descriptor{interop_buffer.take_handle(), sycl_mem_handle_type};
+      sycl_external_mem_descriptor{static_cast<int>(interop_buffer.take_handle()),
+                                   sycl_mem_handle_type};
 #  endif
 
   sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
@@ -78,7 +79,7 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
     CloseHandle(HANDLE(vulkan_windows_handle_));
     vulkan_windows_handle_ = nullptr;
 #  else
-    close(external_memory_handle_desc.handle.fd);
+    close(sycl_external_mem_descriptor.external_resource.file_descriptor);
 #  endif
     LOG_ERROR << "Error importing Vulkan memory: " << e.what();
     return;
