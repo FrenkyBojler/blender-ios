@@ -475,13 +475,13 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
       if (event->val == KM_PRESS) {
         ARegion *region = CTX_wm_region(C);
         RNA_int_set_array(op->ptr, "location", event->mval);
+        paint_sample_color(
+            C, region, data, event->mval[0], event->mval[1], use_sample_texture, true);
         if (!data->sample_palette) {
           data->sample_palette = true;
           sample_color_update_header(data, C);
           BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
         }
-        paint_sample_color(
-            C, region, data, event->mval[0], event->mval[1], use_sample_texture, true);
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
       break;
