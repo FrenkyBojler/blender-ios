@@ -473,6 +473,9 @@ class RigifySelectionColors(bpy.types.PropertyGroup):
 class RigifyParameters(bpy.types.PropertyGroup):
     name: StringProperty()
 
+    # NOTE: parameters are dynamically added to this PropertyGroup.
+    # Check `ControlLayersOption` in `layers.py`.
+
 
 class RigifyBoneCollectionReference(bpy.types.PropertyGroup):
     """Reference from a RigifyParameters field to a bone collection."""

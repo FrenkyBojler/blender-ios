@@ -288,6 +288,53 @@ def assign_parameters(target, val_dict=None, **params):
             raise Exception(f"Couldn't set {key} to {value}: {e}")
 
 
+def assign_rna_properties(target: bpy.types.PropertyGroup, source: bpy.types.PropertyGroup) -> None:
+    """Basically calling `setattr(target, key, value)` for each item in `source`."""
+
+    def _setattr(obj, name, value):
+        """Wrapper around setattr() that has more concrete info in its exception when it fails."""
+        try:
+            setattr(obj, name, value)
+        except AttributeError as ex:
+            raise AttributeError(
+                "Could not set {!r}.{!s} = {!r} (type={!s}): {!s}".format(
+                    obj, attr, value, type(value), ex)) from None
+
+    for prop in source.bl_rna.properties:
+        if target.is_property_readonly(prop.identifier):
+            continue
+
+        attr = prop.identifier
+        value = getattr(source, attr)
+
+        # Recurse into property groups.
+        match prop.type:
+            # Directly assignable types:
+            case 'BOOLEAN' | 'INT' | 'FLOAT' | 'ENUM' | 'STRING':
+                _setattr(target, attr, value)
+
+            # Treat as list-like:
+            case 'COLLECTION':
+                coll = getattr(target, attr)
+                coll.clear()
+                for item in value:
+                    coll.add(item)
+
+            case _:
+                raise TypeError("no implementation for RNA property {!r} type {!r}".format(prop.identifier, prop.type))
+
+        if isinstance(value, bpy.types.PropertyGroup):
+            assign_parameters(getattr(target, attr), value)
+            continue
+
+        try:
+            setattr(target, attr, value)
+        except AttributeError as ex:
+            raise AttributeError(
+                "Could not set target.{!s} = {!r} (type={!s}): {!s}".format(
+                    attr, value, type(value), ex))
+
+
 def select_object(context: bpy.types.Context, obj: bpy.types.Object, deselect_all=False):
     view_layer = context.view_layer
 

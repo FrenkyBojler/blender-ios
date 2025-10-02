@@ -910,7 +910,7 @@ class RigLayers(bpy.types.Panel):
         layout = self.layout
         row_table = collections.defaultdict(list)
         for coll in flatten_children(context.active_object.data.collections):
-            row_id = getattr(coll, 'rigify_ui_row', 0)
+            row_id = coll.rigify_ui_row
             if row_id > 0:
                 row_table[row_id].append(coll)
         col = layout.column()
@@ -919,7 +919,7 @@ class RigLayers(bpy.types.Panel):
             row_buttons = row_table[row_id]
             if row_buttons:
                 for coll in row_buttons:
-                    title = coll.get('rigify_ui_title') or coll.name
+                    title = coll.rigify_ui_title or coll.name
                     row2 = row.row()
                     row2.active = coll.is_visible_ancestors
                     row2.prop(coll, 'is_visible', toggle=True, text=title, translate=False)
