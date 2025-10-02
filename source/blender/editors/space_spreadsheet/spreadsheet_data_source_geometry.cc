@@ -559,7 +559,14 @@ void VolumeDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name : {"Grid Name", "Data Type", "Class"}) {
+  for (const char *name : {"Grid Name",
+                           "Data Type",
+                           "Class",
+                           "Active Voxels",
+                           "Active Leaf Voxels",
+                           "Active Tiles",
+                           "Size"})
+  {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
   }
@@ -611,6 +618,37 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
         IFACE_("Class"), VArray<std::string>::from_std_func(size, [volume](int64_t index) {
           return grid_class_name(*BKE_volume_grid_get(volume, index));
         }));
+  }
+  if (STREQ(column_id.name, "Active Voxels")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Active Voxels"),
+        VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+          return BKE_volume_grid_get(volume, index)->active_voxels();
+        }));
+  }
+  if (STREQ(column_id.name, "Active Leaf Voxels")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Active Leaf Voxels"),
+        VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+          return BKE_volume_grid_get(volume, index)->active_leaf_voxels();
+        }));
+  }
+  if (STREQ(column_id.name, "Active Tiles")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Active Tiles"),
+        VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+          return BKE_volume_grid_get(volume, index)->active_tiles();
+        }));
+  }
+  if (STREQ(column_id.name, "Size")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Size"),
+        VArray<int64_t>::from_std_func(
+            size,
+            [volume](const int64_t index) {
+              return BKE_volume_grid_get(volume, index)->size_in_bytes();
+            }),
+        ColumnValueDisplayHint::Bytes);
   }
 #else
   UNUSED_VARS(column_id);
@@ -667,7 +705,6 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
                                           VArray<std::string>::from_single(name, 1));
   }
   if (STREQ(column_id.name, "Active Voxels")) {
-    SCOPED_TIMER("count voxels");
     const int64_t active_voxels = grid.active_voxels();
     return std::make_unique<ColumnValues>(IFACE_("Active Voxels"),
                                           VArray<int64_t>::from_single(active_voxels, 1));
