@@ -262,7 +262,6 @@ class UnifiedPaintPanel:
             unified_name=None,
             pressure_name=None,
             curve_visibility_name=None,
-            icon='NONE',
             text=None,
             slider=False,
             header=False,
@@ -282,7 +281,7 @@ class UnifiedPaintPanel:
         if unified_name and getattr(ups, unified_name):
             prop_owner = ups
 
-        row.prop(prop_owner, prop_name, icon=icon, text=text, slider=slider)
+        row.prop(prop_owner, prop_name, icon='NONE', text=text, slider=slider)
 
         if unified_name and not header:
             # NOTE: We don't draw UnifiedPaintSettings in the header to reduce clutter. D5928#136281
@@ -572,7 +571,7 @@ class StrokePanel(BrushPanel):
             if settings.show_jitter_curve and self.is_popover is False:
                 subcol = col.column()
                 subcol.active = brush.use_pressure_jitter
-                subcol.template_curve_mapping(brush, "curve_jitter", brush=True)
+                subcol.template_curve_mapping(brush, "curve_jitter", brush=True, show_presets=True)
             col.row().prop(brush, "jitter_unit", expand=True)
 
         col.separator()
@@ -1186,7 +1185,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             if paint.show_size_curve and not popover:
                 subcol = layout.column()
                 subcol.active = brush.use_pressure_size
-                subcol.template_curve_mapping(brush, "curve_size", brush=True)
+                subcol.template_curve_mapping(brush, "curve_size", brush=True, show_presets=True)
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
             layout.separator()
@@ -1208,7 +1207,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
             if paint.show_strength_curve and not popover:
                 subcol = layout.column()
                 subcol.active = brush.use_pressure_strength
-                subcol.template_curve_mapping(brush, "curve_strength", brush=True)
+                subcol.template_curve_mapping(brush, "curve_strength", brush=True, show_presets=True)
         layout.separator()
 
     if direction:
@@ -1707,7 +1706,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             if paint.show_size_curve:
                 col = layout.column()
                 col.active = brush.use_pressure_size
-                col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True)
+                col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True, show_presets=True)
 
         row = layout.row(align=True)
         row.prop(brush, "strength", slider=True, text="Strength")
@@ -1723,7 +1722,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             if paint.show_strength_curve:
                 col = layout.column()
                 col.active = brush.use_pressure_strength
-                col.template_curve_mapping(gp_settings, "curve_strength", brush=True)
+                col.template_curve_mapping(gp_settings, "curve_strength", brush=True, show_presets=True)
 
     if props:
         layout.prop(props, "subdivision")
