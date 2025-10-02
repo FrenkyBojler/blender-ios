@@ -18,7 +18,6 @@
 #  include "BKE_volume_enums.hh"
 #  include "BKE_volume_grid_type_traits.hh"
 
-#  include "BLI_bounds_types.hh"
 #  include "BLI_cache_mutex.hh"
 #  include "BLI_implicit_sharing_ptr.hh"
 #  include "BLI_mutex.hh"

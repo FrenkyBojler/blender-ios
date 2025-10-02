@@ -6,7 +6,6 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_timeit.hh"
 #include "BLI_virtual_array.hh"
 
 #include "BKE_attribute.hh"
