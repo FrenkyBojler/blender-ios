@@ -21,7 +21,7 @@ _ModuleType = type(_ops_module)
 # Sub-Module Access
 
 def _bpy_ops_submodule__getattr__(module, func):
-    # Return a C++ BPyOpsCallable object that bypasses Python __call__ overhead
+    # Return a `BPyOpsCallable` object that bypasses Python `__call__` overhead
     # for improved operator execution performance.
     if func.startswith("__"):
         raise AttributeError(func)

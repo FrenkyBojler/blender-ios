@@ -15,8 +15,6 @@
 
 #include <Python.h>
 
-#include "DNA_windowmanager_types.h"
-
 #include "RNA_types.hh"
 
 #include "BLI_listbase.h"
@@ -468,7 +466,7 @@ PyObject *BPY_operator_module()
 {
   PyObject *submodule;
 
-  if (BPy_OpsCallable_InitTypes() < 0) {
+  if (BPyOpFunction_InitTypes() < 0) {
     return nullptr;
   }
 
