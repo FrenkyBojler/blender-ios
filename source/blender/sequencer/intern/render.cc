@@ -621,6 +621,7 @@ static void multiply_ibuf(ImBuf *ibuf, const float fmul, const bool multiply_alp
 }
 
 static ImBuf *input_preprocess(const RenderData *context,
+                               SeqRenderState *state,
                                Strip *strip,
                                float timeline_frame,
                                ImBuf *ibuf,
@@ -663,7 +664,7 @@ static ImBuf *input_preprocess(const RenderData *context,
 
   if (strip->modifiers.first) {
     ibuf = IMB_makeSingleUser(ibuf);
-    modifier_apply_stack(context, strip, ibuf, timeline_frame);
+    modifier_apply_stack(context, state, strip, ibuf, timeline_frame);
   }
 
   if (sequencer_use_crop(strip) || sequencer_use_transform(strip) || context->rectx != ibuf->x ||
@@ -696,6 +697,7 @@ static ImBuf *input_preprocess(const RenderData *context,
 }
 
 static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
+                                         SeqRenderState *state,
                                          Strip *strip,
                                          ImBuf *ibuf,
                                          float timeline_frame,
@@ -720,7 +722,7 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
   }
 
   if (use_preprocess) {
-    ibuf = input_preprocess(context, strip, timeline_frame, ibuf, is_proxy_image);
+    ibuf = input_preprocess(context, state, strip, timeline_frame, ibuf, is_proxy_image);
   }
 
   return ibuf;
@@ -931,6 +933,7 @@ static ImBuf *create_missing_media_image(const RenderData *context, int width, i
 }
 
 static ImBuf *seq_render_image_strip(const RenderData *context,
+                                     SeqRenderState *state,
                                      Strip *strip,
                                      int timeline_frame,
                                      bool *r_is_proxy_image)
@@ -983,7 +986,7 @@ static ImBuf *seq_render_image_strip(const RenderData *context,
 
       if (view_id != context->view_id) {
         ibufs_arr[view_id] = seq_render_preprocess_ibuf(
-            &localcontext, strip, ibufs_arr[view_id], timeline_frame, true, false);
+            &localcontext, state, strip, ibufs_arr[view_id], timeline_frame, true, false);
       }
     }
 
@@ -1103,6 +1106,7 @@ static ImBuf *seq_render_movie_strip_view(const RenderData *context,
 }
 
 static ImBuf *seq_render_movie_strip(const RenderData *context,
+                                     SeqRenderState *state,
                                      Strip *strip,
                                      float timeline_frame,
                                      bool *r_is_proxy_image)
@@ -1148,7 +1152,7 @@ static ImBuf *seq_render_movie_strip(const RenderData *context,
 
       if (view_id != context->view_id && ibuf_arr[view_id]) {
         ibuf_arr[view_id] = seq_render_preprocess_ibuf(
-            &localcontext, strip, ibuf_arr[view_id], timeline_frame, true, false);
+            &localcontext, state, strip, ibuf_arr[view_id], timeline_frame, true, false);
       }
     }
 
@@ -1694,10 +1698,10 @@ static ImBuf *do_render_strip_uncached(const RenderData *context,
     ibuf = seq_render_effect_strip_impl(context, state, strip, timeline_frame);
   }
   else if (strip->type == STRIP_TYPE_IMAGE) {
-    ibuf = seq_render_image_strip(context, strip, timeline_frame, r_is_proxy_image);
+    ibuf = seq_render_image_strip(context, state, strip, timeline_frame, r_is_proxy_image);
   }
   else if (strip->type == STRIP_TYPE_MOVIE) {
-    ibuf = seq_render_movie_strip(context, strip, timeline_frame, r_is_proxy_image);
+    ibuf = seq_render_movie_strip(context, state, strip, timeline_frame, r_is_proxy_image);
   }
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
     ibuf = seq_render_movieclip_strip(
@@ -1751,7 +1755,7 @@ ImBuf *seq_render_strip(const RenderData *context,
   if (ibuf) {
     use_preprocess = seq_input_have_to_preprocess(context, strip, timeline_frame);
     ibuf = seq_render_preprocess_ibuf(
-        context, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
+        context, state, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
     intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
   }
 

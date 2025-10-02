@@ -746,6 +746,10 @@ class NODE_MT_gn_utilities_rotation_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "FunctionNodeAxisAngleToRotation")
         self.node_operator(layout, "FunctionNodeEulerToRotation")
         self.node_operator(layout, "FunctionNodeInvertRotation")
+        props = self.node_operator(layout, "ShaderNodeMix", label="Mix Rotation")
+        ops = props.settings.add()
+        ops.name = "data_type"
+        ops.value = "'ROTATION'"
         self.node_operator(layout, "FunctionNodeRotateRotation")
         self.node_operator(layout, "FunctionNodeRotateVector")
         self.node_operator(layout, "FunctionNodeRotationToAxisAngle")
@@ -786,6 +790,7 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
+        self.node_operator(layout, "NodeJoinBundle")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -846,6 +851,7 @@ class NODE_MT_gn_mesh_uv_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeUVPackIslands")
+        self.node_operator(layout, "GeometryNodeUVTangent")
         self.node_operator(layout, "GeometryNodeUVUnwrap")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
@@ -936,6 +942,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         if context.preferences.experimental.use_new_volume_nodes:
             self.node_operator(layout, "GeometryNodeGridToMesh")
             self.node_operator(layout, "GeometryNodeSDFGridBoolean")
+            self.node_operator(layout, "GeometryNodeFieldToGrid")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 

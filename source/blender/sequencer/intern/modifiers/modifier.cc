@@ -161,7 +161,8 @@ void draw_mask_input_type_settings(const bContext *C, uiLayout *layout, PointerR
     MetaStack *ms = meta_stack_active_get(ed);
     PointerRNA sequences_object;
     if (ms) {
-      sequences_object = RNA_pointer_create_discrete(&sequencer_scene->id, &RNA_MetaStrip, ms);
+      sequences_object = RNA_pointer_create_discrete(
+          &sequencer_scene->id, &RNA_MetaStrip, ms->parent_strip);
     }
     else {
       sequences_object = RNA_pointer_create_discrete(
@@ -325,6 +326,7 @@ void apply_and_advance_mask(float4 /*input*/, float4 & /*result*/, const void *&
  * \a timeline_frame is offset by \a fra_offset only in case we are using a real mask.
  */
 static ImBuf *modifier_render_mask_input(const RenderData *context,
+                                         SeqRenderState *state,
                                          int input_x,
                                          int input_y,
                                          int mask_input_type,
@@ -336,8 +338,7 @@ static ImBuf *modifier_render_mask_input(const RenderData *context,
   ImBuf *mask_input = nullptr;
 
   if (mask_input_type == STRIP_MASK_INPUT_STRIP && mask_strip) {
-    SeqRenderState state;
-    mask_input = seq_render_strip(context, &state, mask_strip, timeline_frame);
+    mask_input = seq_render_strip(context, state, mask_strip, timeline_frame);
     if (mask_input && (mask_input->x != input_x || mask_input->y != input_y)) {
       ImBuf *scaled_mask = IMB_scale_into_new(
           mask_input, input_x, input_y, IMBScaleFilter::Bilinear, true);
@@ -494,6 +495,7 @@ static bool skip_modifier(Scene *scene, const StripModifierData *smd, int timeli
 }
 
 void modifier_apply_stack(const RenderData *context,
+                          SeqRenderState *state,
                           const Strip *strip,
                           ImBuf *ibuf,
                           int timeline_frame)
@@ -525,6 +527,7 @@ void modifier_apply_stack(const RenderData *context,
       }
 
       ImBuf *mask = modifier_render_mask_input(context,
+                                               state,
                                                ibuf->x,
                                                ibuf->y,
                                                smd->mask_input_type,
