@@ -30,7 +30,7 @@
 #include "DEG_depsgraph.hh"
 
 /**
- * Update view layer dependencies similar to rna_ViewLayer_update_tagged.
+ * Update view layer dependencies.
  * If there is no active view layer update all view layers.
  */
 static void BPyOpsCallable_view_layer_update()
@@ -45,7 +45,7 @@ static void BPyOpsCallable_view_layer_update()
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   if (scene && view_layer) {
-    /* Update the active view layer */
+    /* Update the active view layer. */
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
     if (depsgraph && !DEG_is_evaluating(depsgraph)) {
       DEG_make_active(depsgraph);
@@ -53,7 +53,7 @@ static void BPyOpsCallable_view_layer_update()
     }
   }
   else if (scene) {
-    /* No active view layer: update all view layers */
+    /* No active view layer: update all view layers. */
     LISTBASE_FOREACH (ViewLayer *, vl, &scene->view_layers) {
       Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, vl);
       if (depsgraph && !DEG_is_evaluating(depsgraph)) {
@@ -203,7 +203,7 @@ static PyObject *BPyOpsCallable_poll(BPyOpsCallable *self, PyObject *args)
     return nullptr;
   }
 
-  /* Create arguments for pyop_poll and check allocations carefully. */
+  /* Create arguments for pyop_poll and check allocations. */
   PyObject *poll_args = PyTuple_New(2);
   if (!poll_args) {
     return nullptr;
