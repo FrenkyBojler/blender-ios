@@ -20,6 +20,7 @@
 #include "RNA_types.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
@@ -28,6 +29,7 @@
 #include "BPY_extern.hh"
 #include "bpy_capi_utils.hh"
 #include "bpy_operator.hh"
+#include "bpy_operator_fn.hh"
 #include "bpy_operator_wrap.hh"
 #include "bpy_rna.hh" /* for setting argument properties & type method `get_rna_type`. */
 
@@ -48,6 +50,8 @@
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
 
+/* Functions now declared in bpy_operator_fn.hh */
+
 static wmOperatorType *ot_lookup_from_py_string(PyObject *value, const char *py_fn_id)
 {
   const char *opname = PyUnicode_AsUTF8(value);
@@ -64,7 +68,7 @@ static wmOperatorType *ot_lookup_from_py_string(PyObject *value, const char *py_
   return ot;
 }
 
-static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   const char *opname;
@@ -130,7 +134,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   return Py_NewRef(ret);
 }
 
-static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   int error_val = 0;
@@ -307,7 +311,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   return pyrna_enum_bitfield_as_set(rna_enum_operator_return_items, int(retval));
 }
 
-static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
 
@@ -399,81 +403,17 @@ static PyObject *pyop_dir(PyObject * /*self*/)
   return list;
 }
 
-/** C++ Operator Callable Type */
-typedef struct {
-  PyObject_HEAD
-  /** Cached operator identifier (e.g., "object.select_all").
-   * This bypasses Python's __call__ overhead for performance optimization. */
-  char idname_py[OP_MAX_TYPENAME];
-} BPyOpsCallable;
+/* Removed utility functions - moved to bpy_operator_fn.cc */
 
-static void BPyOpsCallable_dealloc(BPyOpsCallable *self)
-{
-  Py_TYPE(self)->tp_free((PyObject *)self);
-}
+/* BPyOpsCallable type moved to bpy_operator_fn.cc */
 
-static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObject *kwargs)
-{
-  if (!self->idname_py[0]) {
-    PyErr_SetString(PyExc_RuntimeError,
-                    "Invalid operator callable state: missing operator identifier");
-    return nullptr;
-  }
+/* BPyOpsCallable method implementations moved to bpy_operator_fn.cc */
 
-  /* Build args tuple for pyop_call: (opname, kw, context_str, is_undo).
-   * This creates the same argument structure that the Python version would pass. */
-  Py_ssize_t args_len = PyTuple_Size(args);
-  PyObject *new_args = PyTuple_New(2 + args_len);
-  if (!new_args) {
-    return nullptr;
-  }
-
-  PyTuple_SET_ITEM(new_args, 0, PyUnicode_FromString(self->idname_py));
-  PyTuple_SET_ITEM(new_args, 1, kwargs ? Py_NewRef(kwargs) : PyDict_New());
-  for (Py_ssize_t i = 0; i < args_len; i++) {
-    PyTuple_SET_ITEM(new_args, i + 2, Py_NewRef(PyTuple_GET_ITEM(args, i)));
-  }
-
-  PyObject *result = pyop_call(nullptr, new_args);
-  Py_DECREF(new_args);
-  return result;
-}
-
-static PyObject *BPyOpsCallable_repr(BPyOpsCallable *self)
-{
-  if (!self->idname_py[0]) {
-    return PyUnicode_FromString("<invalid bpy.ops callable>");
-  }
-  return PyUnicode_FromFormat("<bpy.ops.%s callable>", self->idname_py);
-}
-
-/* Define the documentation string for the BPyOpsCallableType. */
-PyDoc_STRVAR(BPyOpsCallableType_doc, "Represents a callable operator.");
-
-static PyTypeObject BPyOpsCallableType = {
-    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
-    /*tp_name*/ "BPyOpsCallable",
-    /*tp_basicsize*/ sizeof(BPyOpsCallable),
-    /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)BPyOpsCallable_dealloc,
-    /*tp_print*/ 0,  // Replace nullptr with 0 for Py_ssize_t compatibility
-    /*tp_getattr*/ nullptr,
-    /*tp_setattr*/ nullptr,
-    /*tp_as_async*/ nullptr,
-    /*tp_repr*/ (reprfunc)BPyOpsCallable_repr,
-    /*tp_as_number*/ nullptr,
-    /*tp_as_sequence*/ nullptr,
-    /*tp_as_mapping*/ nullptr,
-    /*tp_hash*/ nullptr,
-    /*tp_call*/ (ternaryfunc)BPyOpsCallable_call,
-    /*tp_str*/ nullptr,
-    /*tp_getattro*/ nullptr,
-    /*tp_setattro*/ nullptr,
-    /*tp_as_buffer*/ nullptr,
-    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
-    /*tp_doc*/ BPyOpsCallableType_doc,
-};
-
+/**
+ * Create a new BPyOpsCallable object for the given operator module and function.
+ * This replaces the Python _BPyOpsSubModOp class with a C++ implementation
+ * for improved performance.
+ */
 static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
 {
   const char *module, *func;
@@ -488,9 +428,41 @@ static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  /* Construct the full idname and copy to the char array. */
-  snprintf(callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
-  if (!callable->idname_py[0]) {
+  /* Construct the Python idname (e.g., "object.select_all") */
+  const size_t py_estimated_len = strlen(module) + 1 + strlen(func) + 1; /* "." + null terminator */
+  if (py_estimated_len > sizeof(callable->idname_py)) {
+    PyErr_Format(PyExc_ValueError, 
+                 "Operator name too long: %s.%s", module, func);
+    Py_DECREF(callable);
+    return nullptr;
+  }
+  
+  int py_result = snprintf(callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
+  if (py_result < 0 || py_result >= int(sizeof(callable->idname_py))) {
+    PyErr_Format(PyExc_ValueError, 
+                 "Failed to format operator name: %s.%s", module, func);
+    Py_DECREF(callable);
+    return nullptr;
+  }
+
+  /* Construct the Blender idname (e.g., "OBJECT_OT_select_all") */
+  char module_upper[OP_MAX_TYPENAME];
+  BLI_strncpy(module_upper, module, sizeof(module_upper));
+  BLI_str_toupper_ascii(module_upper, sizeof(module_upper));
+  
+  /* Check if the constructed idname would fit in the buffer */
+  const size_t estimated_len = strlen(module_upper) + 4 + strlen(func) + 1; /* "_OT_" + null terminator */
+  if (estimated_len > sizeof(callable->idname_bl)) {
+    PyErr_Format(PyExc_ValueError, 
+                 "Operator name too long: %s.%s", module, func);
+    Py_DECREF(callable);
+    return nullptr;
+  }
+  
+  int bl_result = snprintf(callable->idname_bl, sizeof(callable->idname_bl), "%s_OT_%s", module_upper, func);
+  if (bl_result < 0 || bl_result >= int(sizeof(callable->idname_bl))) {
+    PyErr_Format(PyExc_ValueError, 
+                 "Failed to format operator name: %s.%s", module, func);
     Py_DECREF(callable);
     return nullptr;
   }
@@ -498,7 +470,7 @@ static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
   return (PyObject *)callable;
 }
 
-static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
+PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
   if ((ot = ot_lookup_from_py_string(value, "get_rna_type")) == nullptr) {
@@ -510,7 +482,7 @@ static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
   return (PyObject *)pyrna;
 }
 
-static PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
+PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
   if ((ot = ot_lookup_from_py_string(value, "get_bl_options")) == nullptr) {
@@ -565,7 +537,7 @@ PyObject *BPY_operator_module()
 {
   PyObject *submodule;
 
-  if (PyType_Ready(&BPyOpsCallableType) < 0) {
+  if (BPy_OpsCallable_InitTypes() < 0) {
     return nullptr;
   }
 
