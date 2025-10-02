@@ -443,7 +443,7 @@ static PyMethodDef bpy_ops_methods[] = {
     {"dir", (PyCFunction)pyop_dir, METH_NOARGS, nullptr},
     {"get_rna_type", (PyCFunction)pyop_getrna_type, METH_O, nullptr},
     {"get_bl_options", (PyCFunction)pyop_get_bl_options, METH_O, nullptr},
-  {"create_function", (PyCFunction)pyop_create_function, METH_VARARGS, nullptr},
+    {"create_function", (PyCFunction)pyop_create_function, METH_VARARGS, nullptr},
     {"macro_define", (PyCFunction)PYOP_wrap_macro_define, METH_VARARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };

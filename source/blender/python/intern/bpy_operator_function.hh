@@ -35,7 +35,7 @@ PyObject *pyop_as_string(PyObject *self, PyObject *args);
 PyObject *pyop_getrna_type(PyObject *self, PyObject *value);
 PyObject *pyop_get_bl_options(PyObject *self, PyObject *value);
 
-/* Create a new BPyOpsCallable object for the given operator module and function. */
+/** Create a new BPyOpsCallable object for the given operator module and function. */
 PyObject *pyop_create_function(PyObject *self, PyObject *args);
 
 /**
