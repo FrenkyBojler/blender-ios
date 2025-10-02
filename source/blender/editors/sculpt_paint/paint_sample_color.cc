@@ -158,18 +158,19 @@ static int imapaint_pick_face(ViewContext *vc,
 }
 
 struct SampleColorData {
-  ARegion *region;
   bool show_cursor;
   short launch_event;
   float initcolor[3];
-  bool use_palette;
-  bool sample_texture;
+  bool sample_palette;
 
   blender::float3 accum_color;
   int num_samples;
 };
 
-static void paint_set_color(bContext *C, SampleColorData *data, const blender::float3 &rgb_f)
+static void paint_set_color(bContext *C,
+                            SampleColorData *data,
+                            const blender::float3 &rgb_f,
+                            const bool use_palette)
 {
   data->accum_color += rgb_f;
   data->num_samples++;
@@ -178,7 +179,7 @@ static void paint_set_color(bContext *C, SampleColorData *data, const blender::f
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
-  if (data->use_palette) {
+  if (use_palette) {
     Palette *palette = BKE_paint_palette(paint);
     PaletteColor *color = nullptr;
 
@@ -197,19 +198,25 @@ static void paint_set_color(bContext *C, SampleColorData *data, const blender::f
   }
 }
 
-static void paint_sample_color(bContext *C, SampleColorData *data, int x, int y)
+static void paint_sample_color(bContext *C,
+                               ARegion *region,
+                               SampleColorData *data,
+                               int x,
+                               int y,
+                               bool texpaint_proj,
+                               bool use_palette)
 {
   using namespace blender;
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-  CLAMP(x, 0, data->region->winx);
-  CLAMP(y, 0, data->region->winy);
+  CLAMP(x, 0, region->winx);
+  CLAMP(y, 0, region->winy);
 
   SpaceImage *sima = CTX_wm_space_image(C);
   const View3D *v3d = CTX_wm_view3d(C);
 
-  if (v3d && data->sample_texture) {
+  if (v3d && texpaint_proj) {
     /* first try getting a color directly from the mesh faces if possible */
     ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
@@ -286,7 +293,7 @@ static void paint_sample_color(bContext *C, SampleColorData *data, int x, int y)
                 rgba_f = math::clamp(rgba_f, 0.0f, 1.0f);
                 straight_to_premul_v4(rgba_f);
 
-                paint_set_color(C, data, float3(rgba_f));
+                paint_set_color(C, data, float3(rgba_f), use_palette);
               }
               else {
                 uchar4 rgba = interp == SHD_INTERP_CLOSEST ?
@@ -300,7 +307,7 @@ static void paint_sample_color(bContext *C, SampleColorData *data, int x, int y)
                                                                     ibuf->byte_buffer.colorspace);
                 }
 
-                paint_set_color(C, data, rgba_f);
+                paint_set_color(C, data, rgba_f, use_palette);
               }
               BKE_image_release_ibuf(image, ibuf, nullptr);
               return;
@@ -317,8 +324,8 @@ static void paint_sample_color(bContext *C, SampleColorData *data, int x, int y)
      * Linear Scene Reference Space. */
     float rgba_f[3];
     bool is_data;
-    if (ED_space_image_color_sample(sima, data->region, blender::int2(x, y), rgba_f, &is_data)) {
-      paint_set_color(C, data, rgba_f);
+    if (ED_space_image_color_sample(sima, region, blender::int2(x, y), rgba_f, &is_data)) {
+      paint_set_color(C, data, rgba_f, use_palette);
       return;
     }
   }
@@ -326,18 +333,17 @@ static void paint_sample_color(bContext *C, SampleColorData *data, int x, int y)
   /* No sample found; sample directly from the GPU front buffer. */
   {
     float rgb_fl[3];
-    WM_window_pixels_read_sample(
-        C,
-        CTX_wm_window(C),
-        blender::int2(x + data->region->winrct.xmin, y + data->region->winrct.ymin),
-        rgb_fl);
+    WM_window_pixels_read_sample(C,
+                                 CTX_wm_window(C),
+                                 blender::int2(x + region->winrct.xmin, y + region->winrct.ymin),
+                                 rgb_fl);
 
     /* The sampled color is in display colorspace, convert to scene linear. */
     const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
         scene->display_settings.display_device);
     IMB_colormanagement_display_to_scene_linear_v3(rgb_fl, display);
 
-    paint_set_color(C, data, rgb_fl);
+    paint_set_color(C, data, rgb_fl, use_palette);
   }
 }
 
@@ -349,7 +355,7 @@ static void sample_color_update_header(SampleColorData *data, bContext *C)
   if (area) {
     SNPRINTF_UTF8(msg,
                   IFACE_("Sample color for %s"),
-                  !data->use_palette ?
+                  !data->sample_palette ?
                       IFACE_("Brush. Use Left Click to sample for palette instead") :
                       IFACE_("Palette. Use Left Click to sample more colors"));
     ED_workspace_status_text(C, msg);
@@ -361,6 +367,7 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
   SampleColorData *data = static_cast<SampleColorData *>(op->customdata);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
+  PaintMode mode = BKE_paintmode_get_active_from_context(C);
   ARegion *region = CTX_wm_region(C);
   wmWindow *win = CTX_wm_window(C);
   const bool show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
@@ -372,8 +379,11 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
   WM_redraw_windows(C);
 
   RNA_int_get_array(op->ptr, "location", location);
-  data->use_palette = RNA_boolean_get(op->ptr, "palette");
-  paint_sample_color(C, data, location[0], location[1]);
+  const bool use_palette = RNA_boolean_get(op->ptr, "palette");
+  const bool use_sample_texture = (mode == PaintMode::Texture3D) &&
+                                  !RNA_boolean_get(op->ptr, "merged");
+
+  paint_sample_color(C, region, data, location[0], location[1], use_sample_texture, use_palette);
 
   if (show_cursor) {
     paint->flags |= PAINT_SHOW_BRUSH;
@@ -392,19 +402,15 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   ARegion *region = CTX_wm_region(C);
   wmWindow *win = CTX_wm_window(C);
 
-  data->region = region;
   data->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
   data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
   copy_v3_v3(data->initcolor, BKE_brush_color_get(paint, brush));
-  data->use_palette = false;
+  data->sample_palette = false;
   op->customdata = data;
   paint->flags &= ~PAINT_SHOW_BRUSH;
 
   data->accum_color = blender::float3(0.0f);
   data->num_samples = 0;
-
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  data->sample_texture = (mode == PaintMode::Texture3D) && !RNA_boolean_get(op->ptr, "merged");
 
   sample_color_update_header(data, C);
 
@@ -416,7 +422,11 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
 
   RNA_int_set_array(op->ptr, "location", event->mval);
 
-  paint_sample_color(C, data, event->mval[0], event->mval[1]);
+  PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  const bool use_sample_texture = (mode == PaintMode::Texture3D) &&
+                                  !RNA_boolean_get(op->ptr, "merged");
+
+  paint_sample_color(C, region, data, event->mval[0], event->mval[1], use_sample_texture, false);
   WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
   WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
@@ -435,7 +445,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
       paint->flags |= PAINT_SHOW_BRUSH;
     }
 
-    if (data->use_palette) {
+    if (data->sample_palette) {
       BKE_brush_color_set(paint, brush, data->initcolor);
       RNA_boolean_set(op->ptr, "palette", true);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
@@ -447,24 +457,31 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
     return OPERATOR_FINISHED;
   }
 
+  PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  const bool use_sample_texture = (mode == PaintMode::Texture3D) &&
+                                  !RNA_boolean_get(op->ptr, "merged");
+
   switch (event->type) {
     case MOUSEMOVE: {
+      ARegion *region = CTX_wm_region(C);
       RNA_int_set_array(op->ptr, "location", event->mval);
-      data->use_palette = false;
-      paint_sample_color(C, data, event->mval[0], event->mval[1]);
+      paint_sample_color(
+          C, region, data, event->mval[0], event->mval[1], use_sample_texture, false);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       break;
     }
 
     case LEFTMOUSE:
       if (event->val == KM_PRESS) {
+        ARegion *region = CTX_wm_region(C);
         RNA_int_set_array(op->ptr, "location", event->mval);
-        if (!data->use_palette) {
+        if (!data->sample_palette) {
+          data->sample_palette = true;
           sample_color_update_header(data, C);
           BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
         }
-        data->use_palette = true;
-        paint_sample_color(C, data, event->mval[0], event->mval[1]);
+        paint_sample_color(
+            C, region, data, event->mval[0], event->mval[1], use_sample_texture, true);
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
       break;
