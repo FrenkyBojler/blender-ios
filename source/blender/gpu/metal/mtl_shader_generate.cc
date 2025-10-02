@@ -1040,14 +1040,14 @@ static std::string generate_raster_builtins(GeneratedStreams &ss,
 }
 
 static void generate_inout(std::stringstream &out,
-                           const StageInterfaceInfo::InOut &inout,
-                           int &index_counter)
+                           StringRefNull iface_name,
+                           const StageInterfaceInfo::InOut &inout)
 {
   /* TODO(fclem): Move this to the GPU level and do not assert but simply fail compilation. */
   BLI_assert(inout.type != Type::float3x3_t && inout.type != Type::float4x4_t &&
              !inout.name.is_array());
-  out << "    " << inout.type << " " << inout.name.str_no_array();
-  out << to_string(inout.interp) << " [[user(_" << index_counter++ << ")]];\n";
+  out << "    " << inout.type << " _" << iface_name << "_" << inout.name.str_no_array();
+  out << to_string(inout.interp) << ";\n";
 }
 
 static void generate_vertex_out(GeneratedStreams &generated,
@@ -1063,18 +1063,6 @@ static void generate_vertex_out(GeneratedStreams &generated,
   {
     auto &out = generated.wrapper_class_members;
 
-    int id = 0;
-    /* Block definition for named interfaces. */
-    for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
-      if (!iface->instance_name.is_empty()) {
-        out << "  struct " << iface->name << " {\n";
-        for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
-          generate_inout(out, inout, id);
-        }
-        out << "  };\n";
-      }
-    }
-
     std::string builtins_decl = generate_raster_builtins(generated, info, stage);
 
     /* References definition for global access. */
@@ -1085,8 +1073,13 @@ static void generate_vertex_out(GeneratedStreams &generated,
         }
       }
       else {
-        out << "  " << const_qual << mem_scope << iface->name << " &" << iface->instance_name
-            << ";\n";
+        out << "  struct " << iface->name << " {\n";
+        for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
+          /* Eventually, we only need one pointer per named interface. However, this require
+           * MSL 3.0 which would mean artificially dropping support for older MacOS versions. */
+          out << "  " << const_qual << mem_scope << inout.type << " &" << inout.name << ";\n";
+        }
+        out << "  } " << iface->instance_name << ";\n";
       }
     }
 
@@ -1095,14 +1088,8 @@ static void generate_vertex_out(GeneratedStreams &generated,
     out << builtins_decl;
     for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
       out << "    /* " << iface->name << " */\n";
-      if (iface->instance_name.is_empty()) {
-        for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
-          generate_inout(out, inout, id);
-        }
-      }
-      else {
-        /* Nest the named blocks. */
-        out << "    " << iface->name << " " << iface->instance_name << ";\n";
+      for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
+        generate_inout(out, iface->instance_name, inout);
       }
     }
     out << "  };\n\n";
@@ -1118,11 +1105,15 @@ static void generate_vertex_out(GeneratedStreams &generated,
     for (const StageInterfaceInfo *iface : info.vertex_out_interfaces_) {
       if (iface->instance_name.is_empty()) {
         for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
-          out << Sep() << inout.name << "(mtl_vert_out." << inout.name << ")";
+          out << Sep() << inout.name << "(mtl_vert_out.__" << inout.name << ")";
         }
       }
       else {
-        out << Sep() << iface->instance_name << "(mtl_vert_out." << iface->instance_name << ")";
+        ArgumentStream args;
+        for (const StageInterfaceInfo::InOut &inout : iface->inouts) {
+          args << Sep() << "  mtl_vert_out._" << iface->instance_name << "_" << inout.name;
+        }
+        out << Sep() << iface->instance_name << "({" << args.str() << "\n  })";
       }
     }
   }

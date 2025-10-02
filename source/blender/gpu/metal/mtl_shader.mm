@@ -344,11 +344,6 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     if (info->subpass_inputs_.is_empty() == false) {
       options.languageVersion = MTLLanguageVersion2_3;
     }
-#if defined(MAC_OS_VERSION_13_0)
-    if (@available(macOS 13.00, *)) {
-      options.languageVersion = MTLLanguageVersion3_0;
-    }
-#endif
 #if defined(MAC_OS_VERSION_14_0)
     if (@available(macOS 14.00, *)) {
       /* Texture atomics require Metal 3.1. */
