@@ -345,8 +345,8 @@ void GPUCodegen::node_serialize(Set<StringRefNull> &used_libraries,
           eval_ss << type() << " " << input << " = ";
           source_reference(input);
           eval_ss << ";\n";
-          break;
         }
+        break;
       default:
         if (input->is_zone_io && (!input->is_duplicate || !input->link)) {
           eval_ss << type() << " zone" << input->id << " = " << input << ";\n";
@@ -379,9 +379,8 @@ void GPUCodegen::node_serialize(Set<StringRefNull> &used_libraries,
         eval_ss << input;
         break;
     }
-    if ((input->next && !input->next->is_zone_io) ||
-        ((GPUOutput *)node->outputs.first) && !((GPUOutput *)node->outputs.first)->is_zone_io)
-    {
+    GPUOutput *output = static_cast<GPUOutput *>(node->outputs.first);
+    if ((input->next && !input->next->is_zone_io) || (output && !output->is_zone_io)) {
       eval_ss << ", ";
     }
   }
