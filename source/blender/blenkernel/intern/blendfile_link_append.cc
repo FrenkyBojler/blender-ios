@@ -967,26 +967,28 @@ void BKE_blendfile_link_pack(BlendfileLinkAppendContext *lapp_context, ReportLis
 
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
-    if (ID_IS_LINKED(id_iter) && !ID_IS_PACKED(id_iter)) {
-      if (!(id_iter->tag & ID_TAG_PRE_EXISTING)) {
-        linked_ids_to_delete.add(id_iter);
+    if (!ID_IS_LINKED(id_iter) || ID_IS_PACKED(id_iter) ||
+        (id_iter->tag & ID_TAG_PRE_EXISTING) != 0)
+    {
+      continue;
+    }
 
-        BlendfileLinkAppendContextItem *item = lapp_context->new_id_to_item.lookup_default(
-            id_iter, nullptr);
-        if (item == nullptr) {
-          item = BKE_blendfile_link_append_context_item_add(
-              lapp_context, BKE_id_name(*id_iter), GS(id_iter->name), nullptr);
-          item->new_id = id_iter;
-          item->source_library = id_iter->lib;
-          /* Since we did not have an item for that ID yet, we know user did not select it
-           * explicitly, it was rather linked indirectly. This info is important for
-           * instantiation of collections.
-           */
-          item->tag |= LINK_APPEND_TAG_INDIRECT;
-          item->action = LINK_APPEND_ACT_UNSET;
-          new_id_to_item_mapping_add(*lapp_context, id_iter, *item);
-        }
-      }
+    linked_ids_to_delete.add(id_iter);
+
+    BlendfileLinkAppendContextItem *item = lapp_context->new_id_to_item.lookup_default(id_iter,
+                                                                                       nullptr);
+    if (item == nullptr) {
+      item = BKE_blendfile_link_append_context_item_add(
+          lapp_context, BKE_id_name(*id_iter), GS(id_iter->name), nullptr);
+      item->new_id = id_iter;
+      item->source_library = id_iter->lib;
+      /* Since we did not have an item for that ID yet, we know user did not select it
+       * explicitly, it was rather linked indirectly. This info is important for
+       * instantiation of collections.
+       */
+      item->tag |= LINK_APPEND_TAG_INDIRECT;
+      item->action = LINK_APPEND_ACT_UNSET;
+      new_id_to_item_mapping_add(*lapp_context, id_iter, *item);
     }
   }
   FOREACH_MAIN_ID_END;
