@@ -18,9 +18,7 @@
 
 #include "bpy_operator_fn.hh"
 
-/* External functions are declared in bpy_operator_fn.hh */
-
-/** Utility functions for BPyOpsCallable */
+/** Utility functions for BPyOpsCallable. */
 static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, bool *is_undo)
 {
   const char *C_exec = "EXEC_DEFAULT";
@@ -31,7 +29,7 @@ static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, 
   Py_ssize_t args_len = PyTuple_Size(args);
   for (Py_ssize_t i = 0; i < args_len; i++) {
     PyObject *arg = PyTuple_GET_ITEM(args, i);
-    
+
     if (!is_exec && PyUnicode_Check(arg)) {
       if (is_undo_set) {
         PyErr_SetString(PyExc_ValueError, "string arg must come before the boolean");
@@ -65,12 +63,12 @@ static void BPyOpsCallable_dealloc(BPyOpsCallable *self)
 
 /**
  * __call__(context='EXEC_DEFAULT', undo=None, **kwargs)
- * 
+ *
  * Execute the operator with the given parameters.
- * 
+ *
  * :arg context: Execution context (optional)
  * :type context: str
- * :arg undo: Force undo behavior (optional) 
+ * :arg undo: Force undo behavior (optional)
  * :type undo: bool
  * :arg kwargs: Operator properties
  * :return: Set of completion status flags
@@ -84,8 +82,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
     return nullptr;
   }
 
-  /* Build args tuple for pyop_call: (opname, kw, context_str, is_undo).
-   * This creates the same argument structure that the Python version would pass. */
+  /* Build args tuple for pyop_call: (opname, kw, context_str, is_undo). */
   Py_ssize_t args_len = PyTuple_Size(args);
   PyObject *new_args = PyTuple_New(2 + args_len);
   if (!new_args) {
@@ -105,7 +102,7 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
 
 /**
  * Test if the operator can be executed in the current context.
- * This is the equivalent of the poll() method from the Python _BPyOpsSubModOp class.
+ * This is the equivalent of the poll() method in Python.
  */
 static PyObject *BPyOpsCallable_poll(BPyOpsCallable *self, PyObject *args)
 {
@@ -120,12 +117,12 @@ static PyObject *BPyOpsCallable_poll(BPyOpsCallable *self, PyObject *args)
     return nullptr;
   }
 
-  /* Create arguments for pyop_poll */
+  /* Create arguments for pyop_poll. */
   PyObject *poll_args = PyTuple_New(2);
   if (!poll_args) {
     return nullptr;
   }
-  
+
   PyTuple_SET_ITEM(poll_args, 0, PyUnicode_FromString(self->idname_py));
   PyTuple_SET_ITEM(poll_args, 1, PyUnicode_FromString(context_str));
 
@@ -144,12 +141,12 @@ static PyObject *BPyOpsCallable_get_rna_type(BPyOpsCallable *self, PyObject * /*
     PyErr_SetString(PyExc_RuntimeError, "Invalid operator callable state");
     return nullptr;
   }
-  
+
   PyObject *idname_obj = PyUnicode_FromString(self->idname_bl);
   if (!idname_obj) {
     return nullptr;
   }
-  
+
   PyObject *result = pyop_getrna_type(nullptr, idname_obj);
   Py_DECREF(idname_obj);
   return result;
@@ -166,22 +163,22 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
     return nullptr;
   }
 
-  /* Simple implementation - just get the operator signature for now */
+  /* Get the operator signature. */
   PyObject *sig_args = PyTuple_New(1);
   if (!sig_args) {
     return nullptr;
   }
   PyTuple_SET_ITEM(sig_args, 0, PyUnicode_FromString(self->idname_py));
-  
+
   PyObject *result = pyop_as_string(nullptr, sig_args);
   Py_DECREF(sig_args);
-  
+
   if (!result) {
-    /* Fallback to simple string if pyop_as_string fails */
+    /* Fallback to simple string if pyop_as_string fails. */
     PyErr_Clear();
     result = PyUnicode_FromFormat("bpy.ops.%s(...)", self->idname_py);
   }
-  
+
   return result;
 }
 
@@ -205,7 +202,7 @@ static PyObject *BPyOpsCallable_str(BPyOpsCallable *self)
     return PyUnicode_FromString("<invalid bpy.ops callable>");
   }
 
-  /* Extract module and function from idname_py */
+  /* Extract module and function from idname_py. */
   const char *dot_pos = strchr(self->idname_py, '.');
   if (!dot_pos) {
     return PyUnicode_FromFormat("<function bpy.ops.%s at %p>", self->idname_py, (void *)self);
@@ -214,40 +211,40 @@ static PyObject *BPyOpsCallable_str(BPyOpsCallable *self)
   size_t module_len = dot_pos - self->idname_py;
   char module[OP_MAX_TYPENAME];
   char func[OP_MAX_TYPENAME];
-  
+
   BLI_strncpy(module, self->idname_py, module_len + 1);
   BLI_strncpy(func, dot_pos + 1, sizeof(func));
 
   return PyUnicode_FromFormat("<function bpy.ops.%s.%s at %p>", module, func, (void *)self);
 }
 
-/* Docstrings for BPyOpsCallable methods */
+/* Docstrings for BPyOpsCallable methods. */
 PyDoc_STRVAR(BPyOpsCallable_poll_doc,
-"poll(context='EXEC_DEFAULT')\n"
-"\n"
-"Test if the operator can be executed in the current context.\n"
-"\n"
-":arg context: Execution context (optional)\n"
-":type context: str\n"
-":return: True if the operator can be executed\n"
-":rtype: bool"
-);
+             "poll(context='EXEC_DEFAULT')\n"
+             "\n"
+             "Test if the operator can be executed in the current context.\n"
+             "\n"
+             ":arg context: Execution context (optional)\n"
+             ":type context: str\n"
+             ":return: True if the operator can be executed\n"
+             ":rtype: bool");
 
 PyDoc_STRVAR(BPyOpsCallable_get_rna_type_doc,
-"get_rna_type()\n"
-"\n"
-"Get the RNA type definition for this operator.\n"
-"\n"
-":return: RNA type object for introspection\n"
-":rtype: bpy.types.Struct"
-);
+             "get_rna_type()\n"
+             "\n"
+             "Get the RNA type definition for this operator.\n"
+             "\n"
+             ":return: RNA type object for introspection\n"
+             ":rtype: bpy.types.Struct");
 
-/* Method definitions for BPyOpsCallable */
+/* Method definitions for BPyOpsCallable. */
 static PyMethodDef BPyOpsCallable_methods[] = {
     {"poll", (PyCFunction)BPyOpsCallable_poll, METH_VARARGS, BPyOpsCallable_poll_doc},
-    {"get_rna_type", (PyCFunction)BPyOpsCallable_get_rna_type, METH_NOARGS, BPyOpsCallable_get_rna_type_doc},
-    {nullptr, nullptr, 0, nullptr}
-};
+    {"get_rna_type",
+     (PyCFunction)BPyOpsCallable_get_rna_type,
+     METH_NOARGS,
+     BPyOpsCallable_get_rna_type_doc},
+    {nullptr, nullptr, 0, nullptr}};
 
 /**
  * Get the bl_options property for this operator.
@@ -259,12 +256,12 @@ static PyObject *BPyOpsCallable_get_bl_options_property(BPyOpsCallable *self, vo
     PyErr_SetString(PyExc_RuntimeError, "Invalid operator callable state");
     return nullptr;
   }
-  
+
   PyObject *idname_obj = PyUnicode_FromString(self->idname_bl);
   if (!idname_obj) {
     return nullptr;
   }
-  
+
   PyObject *result = pyop_get_bl_options(nullptr, idname_obj);
   Py_DECREF(idname_obj);
   return result;
@@ -276,27 +273,32 @@ static PyObject *BPyOpsCallable_get_doc_property(BPyOpsCallable *self, void * /*
 }
 
 static PyGetSetDef BPyOpsCallable_getsetters[] = {
-    {"bl_options", (getter)BPyOpsCallable_get_bl_options_property, nullptr, 
-     "Set of option flags for this operator (e.g. 'REGISTER', 'UNDO')", nullptr},
-    {"__doc__", (getter)BPyOpsCallable_get_doc_property, nullptr, 
-     "Operator documentation string with signature and description", nullptr},
-    {nullptr, nullptr, nullptr, nullptr, nullptr}
-};
+    {"bl_options",
+     (getter)BPyOpsCallable_get_bl_options_property,
+     nullptr,
+     "Set of option flags for this operator (e.g. 'REGISTER', 'UNDO')",
+     nullptr},
+    {"__doc__",
+     (getter)BPyOpsCallable_get_doc_property,
+     nullptr,
+     "Operator documentation string with signature and description",
+     nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 /* Define the documentation string for the BPyOpsCallableType. */
-PyDoc_STRVAR(BPyOpsCallableType_doc,
-"Callable Blender operator.\n"
-"\n"
-"This object represents a Blender operator that can be called to perform actions.\n"
-"Operators are the primary way to interact with Blender's functionality from Python.\n"
-"\n"
-"Usage:\n"
-"   bpy.ops.object.select_all(action='SELECT')\n"
-"   \n"
-"   # Check if operator can run\n"
-"   if bpy.ops.object.select_all.poll():\n"
-"       bpy.ops.object.select_all(action='DESELECT')\n"
-);
+PyDoc_STRVAR(
+    BPyOpsCallableType_doc,
+    "Callable Blender operator.\n"
+    "\n"
+    "This object represents a Blender operator that can be called to perform actions.\n"
+    "Operators are the primary way to interact with Blender's functionality from Python.\n"
+    "\n"
+    "Usage:\n"
+    "   bpy.ops.object.select_all(action='SELECT')\n"
+    "   \n"
+    "   # Check if operator can run\n"
+    "   if bpy.ops.object.select_all.poll():\n"
+    "       bpy.ops.object.select_all(action='DESELECT')\n");
 
 PyTypeObject BPyOpsCallableType = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)

@@ -50,8 +50,6 @@
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
 
-/* Functions now declared in bpy_operator_fn.hh */
-
 static wmOperatorType *ot_lookup_from_py_string(PyObject *value, const char *py_fn_id)
 {
   const char *opname = PyUnicode_AsUTF8(value);
@@ -403,16 +401,8 @@ static PyObject *pyop_dir(PyObject * /*self*/)
   return list;
 }
 
-/* Removed utility functions - moved to bpy_operator_fn.cc */
-
-/* BPyOpsCallable type moved to bpy_operator_fn.cc */
-
-/* BPyOpsCallable method implementations moved to bpy_operator_fn.cc */
-
 /**
  * Create a new BPyOpsCallable object for the given operator module and function.
- * This replaces the Python _BPyOpsSubModOp class with a C++ implementation
- * for improved performance.
  */
 static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
 {
@@ -429,18 +419,18 @@ static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
   }
 
   /* Construct the Python idname (e.g., "object.select_all") */
-  const size_t py_estimated_len = strlen(module) + 1 + strlen(func) + 1; /* "." + null terminator */
+  const size_t py_estimated_len = strlen(module) + 1 + strlen(func) +
+                                  1; /* "." + null terminator */
   if (py_estimated_len > sizeof(callable->idname_py)) {
-    PyErr_Format(PyExc_ValueError, 
-                 "Operator name too long: %s.%s", module, func);
+    PyErr_Format(PyExc_ValueError, "Operator name too long: %s.%s", module, func);
     Py_DECREF(callable);
     return nullptr;
   }
-  
-  int py_result = snprintf(callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
+
+  int py_result = snprintf(
+      callable->idname_py, sizeof(callable->idname_py), "%s.%s", module, func);
   if (py_result < 0 || py_result >= int(sizeof(callable->idname_py))) {
-    PyErr_Format(PyExc_ValueError, 
-                 "Failed to format operator name: %s.%s", module, func);
+    PyErr_Format(PyExc_ValueError, "Failed to format operator name: %s.%s", module, func);
     Py_DECREF(callable);
     return nullptr;
   }
@@ -449,20 +439,20 @@ static PyObject *pyop_create_callable(PyObject * /*self*/, PyObject *args)
   char module_upper[OP_MAX_TYPENAME];
   BLI_strncpy(module_upper, module, sizeof(module_upper));
   BLI_str_toupper_ascii(module_upper, sizeof(module_upper));
-  
+
   /* Check if the constructed idname would fit in the buffer */
-  const size_t estimated_len = strlen(module_upper) + 4 + strlen(func) + 1; /* "_OT_" + null terminator */
+  const size_t estimated_len = strlen(module_upper) + 4 + strlen(func) +
+                               1; /* "_OT_" + null terminator */
   if (estimated_len > sizeof(callable->idname_bl)) {
-    PyErr_Format(PyExc_ValueError, 
-                 "Operator name too long: %s.%s", module, func);
+    PyErr_Format(PyExc_ValueError, "Operator name too long: %s.%s", module, func);
     Py_DECREF(callable);
     return nullptr;
   }
-  
-  int bl_result = snprintf(callable->idname_bl, sizeof(callable->idname_bl), "%s_OT_%s", module_upper, func);
+
+  int bl_result = snprintf(
+      callable->idname_bl, sizeof(callable->idname_bl), "%s_OT_%s", module_upper, func);
   if (bl_result < 0 || bl_result >= int(sizeof(callable->idname_bl))) {
-    PyErr_Format(PyExc_ValueError, 
-                 "Failed to format operator name: %s.%s", module, func);
+    PyErr_Format(PyExc_ValueError, "Failed to format operator name: %s.%s", module, func);
     Py_DECREF(callable);
     return nullptr;
   }

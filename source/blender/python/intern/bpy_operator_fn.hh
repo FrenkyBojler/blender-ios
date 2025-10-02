@@ -13,10 +13,10 @@
 
 #include <Python.h>
 
-/** Maximum length for operator type names */
+/** Maximum length for operator type names. */
 #define OP_MAX_TYPENAME 64
 
-/** C++ Operator Callable Type */
+/** C++ Operator Callable Type. */
 typedef struct {
   PyObject_HEAD
   /** Cached operator identifier (e.g., "object.select_all").
@@ -30,7 +30,7 @@ extern PyTypeObject BPyOpsCallableType;
 
 #define BPy_OpsCallable_Check(v) (PyObject_TypeCheck(v, &BPyOpsCallableType))
 
-/* Forward declarations for external functions from bpy_operator.cc */
+/* Forward declarations for external functions from bpy_operator.cc. */
 PyObject *pyop_poll(PyObject *self, PyObject *args);
 PyObject *pyop_call(PyObject *self, PyObject *args);
 PyObject *pyop_as_string(PyObject *self, PyObject *args);
