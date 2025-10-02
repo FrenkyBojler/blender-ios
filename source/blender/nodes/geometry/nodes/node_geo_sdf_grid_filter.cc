@@ -127,45 +127,46 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::VolumeTreeAccessToken tree_token;
   openvdb::FloatGrid &vdb_grid = grid.grid_for_write(tree_token);
 
-  /* These filters are meant for signed distance fields to results may vary wildly
-  if being applied to other grid types.  */
-  if (vdb_grid.getGridClass() != openvdb::GRID_LEVEL_SET) {
-    params.error_message_add(
-        NodeWarningType::Warning,
-        "Input grid is not marked as a level set. Results may be unpredictable");
-  }
+  try {
+    openvdb::tools::LevelSetFilter<openvdb::FloatGrid> filter(vdb_grid);
 
-  openvdb::tools::LevelSetFilter<openvdb::FloatGrid> filter(vdb_grid);
+    if (filter_type == FilterType::Offset) {
+      const float distance = params.extract_input<float>("Distance");
+      filter.offset(distance);
+    }
+    else {
+      const int iterations = std::max(params.extract_input<int>("Iterations"), 1);
+      const int width = std::max(params.extract_input<int>("Width"), 1);
 
-  if (filter_type == FilterType::Offset) {
-    const float distance = params.extract_input<float>("Distance");
-    filter.offset(distance);
-  }
-  else {
-    const int iterations = std::max(params.extract_input<int>("Iterations"), 1);
-    const int width = std::max(params.extract_input<int>("Width"), 1);
-
-    for (int i = 0; i < iterations; i++) {
-      switch (filter_type) {
-        case FilterType::Laplacian:
-          filter.laplacian();
-          break;
-        case FilterType::MeanCurvature:
-          filter.meanCurvature();
-          break;
-        case FilterType::Median:
-          filter.median(width);
-          break;
-        case FilterType::Mean:
-          filter.mean(width);
-          break;
-        case FilterType::Fillet:
-          filter.fillet();
-          break;
-        case FilterType::Offset:
-          break;
+      for (int i = 0; i < iterations; i++) {
+        switch (filter_type) {
+          case FilterType::Laplacian:
+            filter.laplacian();
+            break;
+          case FilterType::MeanCurvature:
+            filter.meanCurvature();
+            break;
+          case FilterType::Median:
+            filter.median(width);
+            break;
+          case FilterType::Mean:
+            filter.mean(width);
+            break;
+          case FilterType::Fillet:
+            filter.fillet();
+            break;
+          case FilterType::Offset:
+            break;
+        }
       }
     }
+  }
+  catch (const openvdb::RuntimeError &e) {
+    params.error_message_add(NodeWarningType::Error,
+                              "Input grid is not a valid level set. Please use a signed distance "
+                              "field grid as input");
+    params.set_default_remaining_outputs();
+    return;
   }
 
   params.set_output("SDF Grid", std::move(grid));
