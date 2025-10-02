@@ -17,6 +17,7 @@
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "bpy_operator_function.hh"
+#include "BPY_extern.hh"
 
 /** Utility functions for BPyOpsCallable. */
 static bool BPyOpsCallable_parse_args(PyObject *args, const char **context_str, bool *is_undo)
@@ -76,6 +77,81 @@ static void BPyOpsCallable_dealloc(BPyOpsCallable *self)
  */
 static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObject *kwargs)
 {
+  /* Helper: update active view layer similar to the Python wrapper.
+   * If there is no active view layer (background), update all view layers. */
+  auto view_layer_update = [&]() {
+    /* Import bpy and fetch context via Python to mimic previous behavior.
+     * Using Python-level context retrieval keeps this code simple and safe. */
+    PyObject *bpy_mod = PyImport_ImportModule("bpy");
+    if (!bpy_mod) {
+      PyErr_Clear();
+      return;
+    }
+    PyObject *context = PyObject_GetAttrString(bpy_mod, "context");
+    Py_DECREF(bpy_mod);
+    if (!context) {
+      PyErr_Clear();
+      return;
+    }
+
+    PyObject *view_layer = PyObject_GetAttrString(context, "view_layer");
+    if (view_layer && view_layer != Py_None) {
+      /* call view_layer.update() */
+      PyObject *res = PyObject_CallMethod(view_layer, (char *)"update", nullptr);
+      Py_XDECREF(res);
+      Py_DECREF(view_layer);
+      Py_DECREF(context);
+      return;
+    }
+    Py_XDECREF(view_layer);
+
+    /* No active view_layer: iterate scenes -> view_layers and call update(). */
+    PyObject *data = PyObject_GetAttrString(context, "_data");
+    Py_DECREF(context);
+    if (!data) {
+      PyErr_Clear();
+      return;
+    }
+    PyObject *scenes = PyObject_GetAttrString(data, "scenes");
+    Py_DECREF(data);
+    if (!scenes) {
+      PyErr_Clear();
+      return;
+    }
+
+    PyObject *it = PyObject_GetIter(scenes);
+    Py_DECREF(scenes);
+    if (!it) {
+      PyErr_Clear();
+      return;
+    }
+
+    PyObject *scene;
+    while ((scene = PyIter_Next(it)) != nullptr) {
+      PyObject *view_layers = PyObject_GetAttrString(scene, "view_layers");
+      Py_DECREF(scene);
+      if (!view_layers) {
+        PyErr_Clear();
+        continue;
+      }
+      PyObject *it2 = PyObject_GetIter(view_layers);
+      Py_DECREF(view_layers);
+      if (!it2) {
+        PyErr_Clear();
+        continue;
+      }
+      PyObject *vl;
+      while ((vl = PyIter_Next(it2)) != nullptr) {
+        PyObject *res = PyObject_CallMethod(vl, (char *)"update", nullptr);
+        Py_XDECREF(res);
+        Py_DECREF(vl);
+      }
+      Py_DECREF(it2);
+    }
+    Py_DECREF(it);
+    PyErr_Clear();
+  };
+
   /* Build args tuple for pyop_call: (opname, kw, ...extra args...).
    * Create the child objects first so we can handle allocation failures cleanly. */
   Py_ssize_t args_len = PyTuple_Size(args);
@@ -83,6 +159,8 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
   if (!new_args) {
     return nullptr;
   }
+  /* Pre-call view-layer update to ensure RNA changes are applied (matches old Python wrapper). */
+  view_layer_update();
 
   PyObject *opname = PyUnicode_FromString(self->idname_py);
   if (!opname) {
@@ -119,6 +197,27 @@ static PyObject *BPyOpsCallable_call(BPyOpsCallable *self, PyObject *args, PyObj
 
   PyObject *result = pyop_call(nullptr, new_args);
   Py_DECREF(new_args);
+
+  /* Post-call: if operator finished and window manager unchanged, update view-layer again.
+   * The result from pyop_call is usually a set-like object of flags. We'll check for the
+   * presence of the string "FINISHED". */
+  if (result) {
+    /* Check membership 'FINISHED' in result using a single temporary PyObject. */
+    PyObject *finished_str = PyUnicode_FromString("FINISHED");
+    if (finished_str) {
+      int has_finished = PySequence_Contains(result, finished_str);
+      if (has_finished == 1) {
+        view_layer_update();
+      }
+      if (has_finished == -1) {
+        PyErr_Clear();
+      }
+      Py_DECREF(finished_str);
+    }
+    else {
+      PyErr_Clear();
+    }
+  }
   return result;
 }
 
@@ -187,7 +286,12 @@ static PyObject *BPyOpsCallable_get_doc(BPyOpsCallable *self)
   if (!args) {
     return nullptr;
   }
-  PyTuple_SET_ITEM(args, 0, PyUnicode_FromString(self->idname_py));
+  PyObject *name_obj = PyUnicode_FromString(self->idname_py);
+  if (!name_obj) {
+    Py_DECREF(args);
+    return nullptr;
+  }
+  PyTuple_SET_ITEM(args, 0, name_obj);
 
   PyObject *result = pyop_as_string(nullptr, args);
   Py_DECREF(args);
@@ -224,7 +328,13 @@ static PyObject *BPyOpsCallable_str(BPyOpsCallable *self)
   char module[OP_MAX_TYPENAME];
   char func[OP_MAX_TYPENAME];
 
-  BLI_strncpy(module, self->idname_py, module_len + 1);
+  /* Copy with bounds checking. */
+  if (module_len >= sizeof(module)) {
+    /* Truncate if necessary. */
+    module_len = sizeof(module) - 1;
+  }
+  memcpy(module, self->idname_py, module_len);
+  module[module_len] = '\0';
   BLI_strncpy(func, dot_pos + 1, sizeof(func));
 
   return PyUnicode_FromFormat("<function bpy.ops.%s.%s at %p>", module, func, (void *)self);
