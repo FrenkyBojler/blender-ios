@@ -5536,10 +5536,7 @@ static const blender::bke::GeometryComponent *find_source_component(
 static void attribute_transform_free_data(bConstraint *con)
 {
   bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
-  if (data->attribute_name) {
-    MEM_SAFE_FREE(data->attribute_name);
-    data->attribute_name = nullptr;
-  }
+  MEM_SAFE_FREE(data->attribute_name);
 }
 
 static void attribute_transform_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -5553,10 +5550,6 @@ static void attribute_transform_copy_data(bConstraint *con, bConstraint *srccon)
   const auto *src = static_cast<bAttributeTransformConstraint *>(srccon->data);
   auto *dst = static_cast<bAttributeTransformConstraint *>(con->data);
   dst->attribute_name = BLI_strdup_null(src->attribute_name);
-
-  if (src->attribute_name) {
-    dst->attribute_name = BLI_strdup_null(src->attribute_name);
-  }
 }
 
 static void attribute_transform_new_data(void *cdata)
