@@ -1302,7 +1302,7 @@ void BM_mesh_uvselect_mode_flush_ex(BMesh *bm, const short selectmode)
   }
 }
 
-void BM_mesh_uvselect_mode_flush(BMesh *bm, const short selectmode)
+void BM_mesh_uvselect_mode_flush(BMesh *bm)
 {
   BM_mesh_uvselect_mode_flush_ex(bm, bm->selectmode);
 }
