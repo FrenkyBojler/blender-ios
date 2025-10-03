@@ -29,144 +29,9 @@ _axis_enum_items = [
     ("z", "Z", "", 3),
 ]
 
-class UnableToMirrorError(Exception):
-    """Raised when mirroring is enabled but no mirror object/bone is set."""
-
-
 # Mapping from frame number to the dominant (in terms of genetics) key type.
 # GENERATED is the only recessive key type, others are dominant.
 KeyInfo: TypeAlias = dict[float, str]
-
-
-class Transformable(metaclass=abc.ABCMeta):
-    """Interface for a bone or an object."""
-
-    def __init__(self) -> None:
-        self._key_info_cache: Optional[KeyInfo] = None
-
-    @abc.abstractmethod
-    def matrix_world(self) -> Matrix:
-        pass
-
-    def set_matrix_world(self, context: Context, matrix: Matrix) -> None:
-        """Set the world matrix, without autokeying."""
-        self._set_matrix_world(context, matrix)
-
-    def set_matrix_world_autokey(self, context: Context, matrix: Matrix) -> None:
-        """Set the world matrix, and autokey the resulting transform."""
-        self._set_matrix_world(context, matrix)
-        self._autokey_matrix_world(context)
-
-    @abc.abstractmethod
-    def _set_matrix_world(self, context: Context, matrix: Matrix) -> None:
-        pass
-
-    @abc.abstractmethod
-    def _autokey_matrix_world(self, context: Context) -> None:
-        pass
-
-    @abc.abstractmethod
-    def _my_fcurves(self) -> Iterable[bpy.types.FCurve]:
-        pass
-
-    def key_info(self) -> KeyInfo:
-        if self._key_info_cache is not None:
-            return self._key_info_cache
-
-        keyinfo: KeyInfo = {}
-        for fcurve in self._my_fcurves():
-            for kp in fcurve.keyframe_points:
-                frame = kp.co.x
-                if kp.type == 'GENERATED' and frame in keyinfo:
-                    # Don't bother overwriting other key types.
-                    continue
-                keyinfo[frame] = kp.type
-
-        self._key_info_cache = keyinfo
-        return keyinfo
-
-    def remove_keys_of_type(
-            self,
-            key_type: str,
-            *,
-            frame_start: float | int = float("-inf"),
-            frame_end: float | int = float("inf")) -> None:
-        self._key_info_cache = None
-
-        for fcurve in self._my_fcurves():
-            to_remove = [
-                kp for kp in fcurve.keyframe_points if kp.type == key_type and (frame_start <= kp.co.x <= frame_end)
-            ]
-            for kp in reversed(to_remove):
-                fcurve.keyframe_points.remove(kp, fast=True)
-            fcurve.keyframe_points.handles_recalc()
-
-
-class TransformableObject(Transformable):
-    object: Object
-
-    def __init__(self, object: Object) -> None:
-        super().__init__()
-        self.object = object
-
-    def __str__(self) -> str:
-        return f"TransformableObject({self.object.name})"
-
-    def matrix_world(self) -> Matrix:
-        return self.object.matrix_world
-
-    def _set_matrix_world(self, _context: Context, matrix: Matrix) -> None:
-        self.object.matrix_world = matrix
-
-    def _autokey_matrix_world(self, context: Context) -> None:
-        AutoKeying.autokey_transformation(context, self.object)
-
-    def __hash__(self) -> int:
-        return hash(self.object.as_pointer())
-
-    def _my_fcurves(self) -> Iterable[bpy.types.FCurve]:
-        cbag = _channelbag_for_id(self.object)
-        if not cbag:
-            return
-        yield from cbag.fcurves
-
-
-class TransformableBone(Transformable):
-    arm_object: Object
-    pose_bone: PoseBone
-
-    def __init__(self, pose_bone: PoseBone) -> None:
-        super().__init__()
-        self.arm_object = pose_bone.id_data
-        self.pose_bone = pose_bone
-
-    def __str__(self) -> str:
-        return f"TransformableBone({self.arm_object.name}, bone={self.pose_bone.name})"
-
-    def matrix_world(self) -> Matrix:
-        mat = self.arm_object.matrix_world @ self.pose_bone.matrix
-        return mat
-
-    def _set_matrix_world(self, context: Context, matrix: Matrix) -> None:
-        # Convert matrix to armature-local space
-        arm_eval = self.arm_object.evaluated_get(context.view_layer.depsgraph)
-        self.pose_bone.matrix = arm_eval.matrix_world.inverted() @ matrix
-
-    def _autokey_matrix_world(self, context: Context) -> None:
-        AutoKeying.autokey_transformation(context, self.pose_bone)
-
-    def __hash__(self) -> int:
-        return hash(self.pose_bone.as_pointer())
-
-    def _my_fcurves(self) -> Iterable[bpy.types.FCurve]:
-        cbag = _channelbag_for_id(self.arm_object)
-        if not cbag:
-            return
-
-        rna_prefix = self.pose_bone.path_from_id() + "."
-        for fcurve in cbag.fcurves:
-            if fcurve.data_path.startswith(rna_prefix):
-                yield fcurve
 
 
 def get_matrix(context: Context) -> Matrix:
@@ -270,24 +135,6 @@ def _copy_matrix_to_clipboard(window_manager: bpy.types.WindowManager, matrix: M
     window_manager.clipboard = f"Matrix((\n{as_string}\n))"
 
 
-def get_relative_ob(context: Context) -> Optional[Object]:
-    """Get the 'relative' object.
-
-    This is the object that's configured, or if that's empty, the active scene camera.
-    """
-    rel_ob = context.scene.tool_settings.anim_relative_object
-    return rel_ob or context.scene.camera
-
-
-def _refresh_3d_panels():
-    refresh_area_types = {'VIEW_3D'}
-    for win in bpy.context.window_manager.windows:
-        for area in win.screen.areas:
-            if area.type not in refresh_area_types:
-                continue
-            area.tag_redraw()
-
-
 class OBJECT_OT_copy_global_transform(Operator):
     bl_idname = "object.copy_global_transform"
     bl_label = "Copy Global Transform"
@@ -305,6 +152,15 @@ class OBJECT_OT_copy_global_transform(Operator):
         mat = get_matrix(context)
         _copy_matrix_to_clipboard(context.window_manager, mat)
         return {'FINISHED'}
+
+
+def get_relative_ob(context: Context) -> Optional[Object]:
+    """Get the 'relative' object.
+
+    This is the object that's configured, or if that's empty, the active scene camera.
+    """
+    rel_ob = context.scene.tool_settings.anim_relative_object
+    return rel_ob or context.scene.camera
 
 
 class OBJECT_OT_copy_relative_transform(Operator):
@@ -332,6 +188,10 @@ class OBJECT_OT_copy_relative_transform(Operator):
         mat = rel_ob.matrix_world.inverted() @ get_matrix(context)
         _copy_matrix_to_clipboard(context.window_manager, mat)
         return {'FINISHED'}
+
+
+class UnableToMirrorError(Exception):
+    """Raised when mirroring is enabled but no mirror object/bone is set."""
 
 
 class OBJECT_OT_paste_transform(Operator):
@@ -596,6 +456,137 @@ class OBJECT_OT_paste_transform(Operator):
             context.scene.frame_set(int(current_frame), subframe=current_frame % 1.0)
 
 
+class Transformable(metaclass=abc.ABCMeta):
+    """Interface for a bone or an object."""
+
+    def __init__(self) -> None:
+        self._key_info_cache: Optional[KeyInfo] = None
+
+    @abc.abstractmethod
+    def matrix_world(self) -> Matrix:
+        pass
+
+    def set_matrix_world(self, context: Context, matrix: Matrix) -> None:
+        """Set the world matrix, without autokeying."""
+        self._set_matrix_world(context, matrix)
+
+    def set_matrix_world_autokey(self, context: Context, matrix: Matrix) -> None:
+        """Set the world matrix, and autokey the resulting transform."""
+        self._set_matrix_world(context, matrix)
+        self._autokey_matrix_world(context)
+
+    @abc.abstractmethod
+    def _set_matrix_world(self, context: Context, matrix: Matrix) -> None:
+        pass
+
+    @abc.abstractmethod
+    def _autokey_matrix_world(self, context: Context) -> None:
+        pass
+
+    @abc.abstractmethod
+    def _my_fcurves(self) -> Iterable[bpy.types.FCurve]:
+        pass
+
+    def key_info(self) -> KeyInfo:
+        if self._key_info_cache is not None:
+            return self._key_info_cache
+
+        keyinfo: KeyInfo = {}
+        for fcurve in self._my_fcurves():
+            for kp in fcurve.keyframe_points:
+                frame = kp.co.x
+                if kp.type == 'GENERATED' and frame in keyinfo:
+                    # Don't bother overwriting other key types.
+                    continue
+                keyinfo[frame] = kp.type
+
+        self._key_info_cache = keyinfo
+        return keyinfo
+
+    def remove_keys_of_type(
+            self,
+            key_type: str,
+            *,
+            frame_start: float | int = float("-inf"),
+            frame_end: float | int = float("inf")) -> None:
+        self._key_info_cache = None
+
+        for fcurve in self._my_fcurves():
+            to_remove = [
+                kp for kp in fcurve.keyframe_points if kp.type == key_type and (frame_start <= kp.co.x <= frame_end)
+            ]
+            for kp in reversed(to_remove):
+                fcurve.keyframe_points.remove(kp, fast=True)
+            fcurve.keyframe_points.handles_recalc()
+
+
+class TransformableObject(Transformable):
+    object: Object
+
+    def __init__(self, object: Object) -> None:
+        super().__init__()
+        self.object = object
+
+    def __str__(self) -> str:
+        return f"TransformableObject({self.object.name})"
+
+    def matrix_world(self) -> Matrix:
+        return self.object.matrix_world
+
+    def _set_matrix_world(self, _context: Context, matrix: Matrix) -> None:
+        self.object.matrix_world = matrix
+
+    def _autokey_matrix_world(self, context: Context) -> None:
+        AutoKeying.autokey_transformation(context, self.object)
+
+    def __hash__(self) -> int:
+        return hash(self.object.as_pointer())
+
+    def _my_fcurves(self) -> Iterable[bpy.types.FCurve]:
+        cbag = _channelbag_for_id(self.object)
+        if not cbag:
+            return
+        yield from cbag.fcurves
+
+
+class TransformableBone(Transformable):
+    arm_object: Object
+    pose_bone: PoseBone
+
+    def __init__(self, pose_bone: PoseBone) -> None:
+        super().__init__()
+        self.arm_object = pose_bone.id_data
+        self.pose_bone = pose_bone
+
+    def __str__(self) -> str:
+        return f"TransformableBone({self.arm_object.name}, bone={self.pose_bone.name})"
+
+    def matrix_world(self) -> Matrix:
+        mat = self.arm_object.matrix_world @ self.pose_bone.matrix
+        return mat
+
+    def _set_matrix_world(self, context: Context, matrix: Matrix) -> None:
+        # Convert matrix to armature-local space
+        arm_eval = self.arm_object.evaluated_get(context.view_layer.depsgraph)
+        self.pose_bone.matrix = arm_eval.matrix_world.inverted() @ matrix
+
+    def _autokey_matrix_world(self, context: Context) -> None:
+        AutoKeying.autokey_transformation(context, self.pose_bone)
+
+    def __hash__(self) -> int:
+        return hash(self.pose_bone.as_pointer())
+
+    def _my_fcurves(self) -> Iterable[bpy.types.FCurve]:
+        cbag = _channelbag_for_id(self.arm_object)
+        if not cbag:
+            return
+
+        rna_prefix = self.pose_bone.path_from_id() + "."
+        for fcurve in cbag.fcurves:
+            if fcurve.data_path.startswith(rna_prefix):
+                yield fcurve
+
+
 class FixToCameraCommon:
     """Common functionality for the Fix To Scene Camera operator + its 'delete' button."""
 
@@ -754,6 +745,16 @@ class OBJECT_OT_delete_fix_to_camera_keys(Operator, FixToCameraCommon):
 
 # Messagebus subscription to monitor changes & refresh panels.
 _msgbus_owner = object()
+
+
+def _refresh_3d_panels():
+    refresh_area_types = {'VIEW_3D'}
+    for win in bpy.context.window_manager.windows:
+        for area in win.screen.areas:
+            if area.type not in refresh_area_types:
+                continue
+            area.tag_redraw()
+
 
 classes = (
     OBJECT_OT_copy_global_transform,
