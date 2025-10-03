@@ -295,7 +295,7 @@ void GPUCodegen::node_serialize(Set<StringRefNull> &used_libraries,
     GPUType from = (input->source == GPU_SOURCE_ATTR) ? input->attr->gputype :
                                                         input->link->output->type;
     if (from != to) {
-      /* Use defines declared inside codegen_lib (i.e: vec4_from_float). */
+      /* Use defines declared inside codegen_lib (e.g. vec4_from_float). */
       eval_ss << to << "_from_" << from << "(";
     }
 

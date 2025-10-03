@@ -116,8 +116,9 @@ struct GPUOutput {
   GPUNodeLink *link; /* output link */
   int id;            /* unique id as created by code generator */
 
-  /* Zones. */
+  /* True for Zone Items. */
   bool is_zone_io;
+  /* This variable is shared with other socket/s and doesn't need to be declared. */
   bool is_duplicate;
 };
 
@@ -147,8 +148,9 @@ struct GPUInput {
     char function_call[64];
   };
 
-  /* Zones. */
+  /* True for Zone Items. */
   bool is_zone_io;
+  /* This variable is shared with other socket/s and doesn't need to be declared. */
   bool is_duplicate;
 };
 
