@@ -14,36 +14,50 @@
 
 namespace blender::nodes::node_geo_grid_advect_cc {
 
-#ifdef WITH_OPENVDB
+enum class IntegrationScheme : int8_t {
+  SemiLagrangian = 0,
+  Midpoint = 1,
+  RungeKutta3 = 2,
+  RungeKutta4 = 3,
+  MacCormack = 4,
+  BFECC = 5,
+};
+
+enum class LimiterType : int8_t {
+  None = 0,
+  Clamp = 1,
+  Revert = 2,
+};
+
 static const EnumPropertyItem integration_scheme_items[] = {
-    {int(openvdb::v12_0::tools::Scheme::SEMI),
+    {int(IntegrationScheme::SemiLagrangian),
      "SEMI",
      0,
      "Semi-Lagrangian",
      "1st order semi-Lagrangian integration. Fast but least accurate, suitable for simple "
      "advection"},
-    {int(openvdb::v12_0::tools::Scheme::MID),
+    {int(IntegrationScheme::Midpoint),
      "MID",
      0,
      "Midpoint",
      "2nd order midpoint integration. Good balance between speed and accuracy for most cases"},
-    {int(openvdb::v12_0::tools::Scheme::RK3),
+    {int(IntegrationScheme::RungeKutta3),
      "RK3",
      0,
      "Runge-Kutta 3",
      "3rd order Runge-Kutta integration. Higher accuracy at moderate computational cost"},
-    {int(openvdb::v12_0::tools::Scheme::RK4),
+    {int(IntegrationScheme::RungeKutta4),
      "RK4",
      0,
      "Runge-Kutta 4",
      "4th order Runge-Kutta integration. Highest accuracy single-step method but slower"},
-    {int(openvdb::v12_0::tools::Scheme::MAC),
+    {int(IntegrationScheme::MacCormack),
      "MAC",
      0,
      "MacCormack",
      "MacCormack scheme with implicit diffusion control. Reduces numerical dissipation while "
      "maintaining stability"},
-    {int(openvdb::v12_0::tools::Scheme::BFECC),
+    {int(IntegrationScheme::BFECC),
      "BFECC",
      0,
      "BFECC",
@@ -53,18 +67,18 @@ static const EnumPropertyItem integration_scheme_items[] = {
 };
 
 static const EnumPropertyItem limiter_type_items[] = {
-    {int(openvdb::v12_0::tools::Scheme::NO_LIMITER),
+    {int(LimiterType::None),
      "NONE",
      0,
      "None",
      "No limiting applied. Fastest but may produce artifacts in high-order schemes"},
-    {int(openvdb::v12_0::tools::Scheme::CLAMP),
+    {int(LimiterType::Clamp),
      "CLAMP",
      0,
      "Clamp",
      "Clamp values to the range of the original neighborhood. Prevents overshooting and "
      "undershooting"},
-    {int(openvdb::v12_0::tools::Scheme::REVERT),
+    {int(LimiterType::Revert),
      "REVERT",
      0,
      "Revert",
@@ -72,18 +86,6 @@ static const EnumPropertyItem limiter_type_items[] = {
      "clamping"},
     {0, nullptr, 0, nullptr, nullptr},
 };
-#else
-/* Dummy enums when compiled without OpenVDB. */
-static const EnumPropertyItem integration_scheme_items[] = {
-    {0, "SEMI", 0, "Semi-Lagrangian", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
-static const EnumPropertyItem limiter_type_items[] = {
-    {0, "NONE", 0, "None", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-#endif
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -104,29 +106,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input<decl::Vector>("Velocity").hide_value().structure_type(StructureType::Grid);
-#ifdef WITH_OPENVDB
   b.add_input<decl::Menu>("Integration Scheme")
       .static_items(integration_scheme_items)
-      .default_value(MenuValue(int(openvdb::v12_0::tools::Scheme::RK3)))
+      .default_value(IntegrationScheme::RungeKutta3)
       .optional_label()
       .description("Numerical integration method for advection");
   b.add_input<decl::Menu>("Limiter")
       .static_items(limiter_type_items)
-      .default_value(MenuValue(int(openvdb::v12_0::tools::Scheme::CLAMP)))
+      .default_value(LimiterType::Clamp)
       .optional_label()
       .description("Limiting strategy to prevent numerical artifacts");
-#else
-  b.add_input<decl::Menu>("Integration Scheme")
-      .static_items(integration_scheme_items)
-      .default_value(MenuValue(0))
-      .optional_label()
-      .description("Numerical integration method for advection");
-  b.add_input<decl::Menu>("Limiter")
-      .static_items(limiter_type_items)
-      .default_value(MenuValue(0))
-      .optional_label()
-      .description("Limiting strategy to prevent numerical artifacts");
-#endif
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -167,22 +156,50 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 }
 
 #ifdef WITH_OPENVDB
+static openvdb::v12_0::tools::Scheme::SemiLagrangian to_openvdb_scheme(
+    const IntegrationScheme scheme)
+{
+  switch (scheme) {
+    case IntegrationScheme::SemiLagrangian:
+      return openvdb::v12_0::tools::Scheme::SEMI;
+    case IntegrationScheme::Midpoint:
+      return openvdb::v12_0::tools::Scheme::MID;
+    case IntegrationScheme::RungeKutta3:
+      return openvdb::v12_0::tools::Scheme::RK3;
+    case IntegrationScheme::RungeKutta4:
+      return openvdb::v12_0::tools::Scheme::RK4;
+    case IntegrationScheme::MacCormack:
+      return openvdb::v12_0::tools::Scheme::MAC;
+    case IntegrationScheme::BFECC:
+      return openvdb::v12_0::tools::Scheme::BFECC;
+  }
+  return openvdb::v12_0::tools::Scheme::SEMI;
+}
+
+static openvdb::v12_0::tools::Scheme::Limiter to_openvdb_limiter(const LimiterType limiter)
+{
+  switch (limiter) {
+    case LimiterType::None:
+      return openvdb::v12_0::tools::Scheme::NO_LIMITER;
+    case LimiterType::Clamp:
+      return openvdb::v12_0::tools::Scheme::CLAMP;
+    case LimiterType::Revert:
+      return openvdb::v12_0::tools::Scheme::REVERT;
+  }
+  return openvdb::v12_0::tools::Scheme::NO_LIMITER;
+}
+
 template<typename GridType, typename SamplerType = openvdb::tools::Sampler<1>>
 static typename GridType::Ptr advect_grid(const GridType &grid,
                                           const openvdb::Vec3SGrid &velocity_grid,
                                           const float time_step,
-                                          const int scheme_int,
-                                          const int limiter_int)
+                                          const IntegrationScheme scheme,
+                                          const LimiterType limiter)
 {
-  const openvdb::v12_0::tools::Scheme::SemiLagrangian scheme =
-      static_cast<openvdb::v12_0::tools::Scheme::SemiLagrangian>(scheme_int);
-  const openvdb::v12_0::tools::Scheme::Limiter limiter =
-      static_cast<openvdb::v12_0::tools::Scheme::Limiter>(limiter_int);
-
   openvdb::tools::VolumeAdvection<openvdb::Vec3SGrid, false> advection(velocity_grid);
 
-  advection.setIntegrator(scheme);
-  advection.setLimiter(limiter);
+  advection.setIntegrator(to_openvdb_scheme(scheme));
+  advection.setLimiter(to_openvdb_limiter(limiter));
   return advection.template advect<GridType, SamplerType>(grid, time_step);
 }
 #endif
@@ -204,8 +221,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const float time_step = params.extract_input<float>("Time Step");
-  const int scheme = params.extract_input<int>("Integration Scheme");
-  const int limiter = params.extract_input<int>("Limiter");
+  const IntegrationScheme scheme = params.extract_input<IntegrationScheme>("Integration Scheme");
+  const LimiterType limiter = params.extract_input<LimiterType>("Limiter");
 
   bke::VolumeTreeAccessToken tree_token;
   const openvdb::Vec3SGrid &velocity_vdb_grid = velocity_grid.grid(tree_token);
