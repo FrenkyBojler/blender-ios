@@ -64,7 +64,7 @@ static void undolatt_to_editlatt(UndoLattice *ult, EditLatt *editlatt, Lattice *
     MEM_freeN(editlatt->latt->def);
     editlatt->latt->def = static_cast<BPoint *>(MEM_dupallocN(ult->def));
 
-    /* Update base lattice controol points. */
+    /* Update base lattice control points. */
     if (lt && lt->def) {
       MEM_freeN(lt->def);
       lt->def = static_cast<BPoint *>(MEM_dupallocN(ult->def));
@@ -290,7 +290,7 @@ static void lattice_undosys_step_decode(
       continue;
     }
 
-    /* Paass base lattice so it gets updated too. */
+    /* Pass base lattice so it gets updated too. */
     undolatt_to_editlatt(&elem->data, lt->editlatt, lt);
     lt->editlatt->needs_flush_to_id = 1;
     DEG_id_tag_update(&lt->id, ID_RECALC_GEOMETRY);
