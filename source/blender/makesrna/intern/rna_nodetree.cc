@@ -8935,6 +8935,7 @@ static void rna_def_node(BlenderRNA *brna)
                                     "rna_NodeInputs_lookup_string",
                                     nullptr);
   RNA_def_property_struct_type(prop, "NodeSocket");
+  RNA_def_property_flag_hide_from_ui_workaround(prop);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Inputs", "");
   rna_def_node_sockets_api(brna, prop, SOCK_IN);
@@ -8951,6 +8952,7 @@ static void rna_def_node(BlenderRNA *brna)
                                     "rna_NodeOutputs_lookup_string",
                                     nullptr);
   RNA_def_property_struct_type(prop, "NodeSocket");
+  RNA_def_property_flag_hide_from_ui_workaround(prop);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Outputs", "");
   rna_def_node_sockets_api(brna, prop, SOCK_OUT);
@@ -10170,7 +10172,9 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGridGradient");
   define("GeometryNode", "GeometryNodeGridInfo");
   define("GeometryNode", "GeometryNodeGridLaplacian");
+  define("GeometryNode", "GeometryNodeGridPrune");
   define("GeometryNode", "GeometryNodeGridToMesh");
+  define("GeometryNode", "GeometryNodeGridVoxelize");
   define("GeometryNode", "GeometryNodeImageInfo");
   define("GeometryNode", "GeometryNodeImageTexture", def_geo_image_texture);
   define("GeometryNode", "GeometryNodeImportCSV");
@@ -10282,6 +10286,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSetGreasePencilColor");
   define("GeometryNode", "GeometryNodeSetGreasePencilDepth");
   define("GeometryNode", "GeometryNodeSetGreasePencilSoftness");
+  define("GeometryNode", "GeometryNodeSetGridBackground");
   define("GeometryNode", "GeometryNodeSetGridTransform");
   define("GeometryNode", "GeometryNodeSetID");
   define("GeometryNode", "GeometryNodeSetInstanceTransform");

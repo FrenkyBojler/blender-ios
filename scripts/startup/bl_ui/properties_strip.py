@@ -876,6 +876,13 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
 
             layout.use_property_split = False
             col = layout.column()
+
+            split = col.split(factor=0.4)
+            split.label(text="")
+            split.prop(strip, "pitch_correction")
+
+            split = col.split(factor=0.4)
+            split.label(text="")
             split.prop(strip, "show_waveform")
 
 
