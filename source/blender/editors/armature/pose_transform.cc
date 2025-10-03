@@ -258,7 +258,7 @@ static void applyarmature_process_selected_recursive(bArmature *arm,
                                                    &old_bpt);
 
       /* Applied parent effects that have to be kept, if any. */
-      float(*new_parent_pose)[4] = pstate ? pstate->new_rest_mat : bone->parent->arm_mat;
+      float (*new_parent_pose)[4] = pstate ? pstate->new_rest_mat : bone->parent->arm_mat;
       BKE_bone_parent_transform_calc_from_matrices(bone->flag,
                                                    bone->inherit_scale_mode,
                                                    offs_bone,
@@ -800,7 +800,7 @@ static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
   /* Sets chan->flag to POSE_KEY if bone selected. */
   set_pose_keys(ob);
 
-  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
+  PartialWriteContext copybuffer{*bmain};
   copybuffer.id_add(
       &ob->id,
       PartialWriteContext::IDAddOptions{

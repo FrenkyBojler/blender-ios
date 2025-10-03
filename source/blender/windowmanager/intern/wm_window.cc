@@ -574,7 +574,7 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
    * from the server - exiting immediately. */
   const char *filepath = (OS_MAC || OS_WINDOWS) ?
                              filepath_as_bytes :
-                             BLI_str_utf8_invalid_substitute_as_needed(filepath_as_bytes,
+                             BLI_str_utf8_invalid_substitute_if_needed(filepath_as_bytes,
                                                                        strlen(filepath_as_bytes),
                                                                        '?',
                                                                        _filepath_utf8_buf,
@@ -1324,10 +1324,10 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   const bool mm_placement = WM_capabilities_flag() & WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
 
   if (bounds_valid && mm_placement) {
-    rect.xmin = (int)(stored_bounds->xmin * UI_SCALE_FAC);
-    rect.ymin = (int)(stored_bounds->ymin * UI_SCALE_FAC);
-    rect.xmax = (int)(stored_bounds->xmax * UI_SCALE_FAC);
-    rect.ymax = (int)(stored_bounds->ymax * UI_SCALE_FAC);
+    rect.xmin = int(stored_bounds->xmin * UI_SCALE_FAC);
+    rect.ymin = int(stored_bounds->ymin * UI_SCALE_FAC);
+    rect.xmax = int(stored_bounds->xmax * UI_SCALE_FAC);
+    rect.ymax = int(stored_bounds->ymax * UI_SCALE_FAC);
     align = WIN_ALIGN_ABSOLUTE;
   }
   else {
