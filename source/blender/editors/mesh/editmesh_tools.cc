@@ -1590,7 +1590,7 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
 
     /* Reject mixed selections (see #147150).
      * Without this check, mixed selections cause downstream code to cast
-     * edges/faces as vertices, triggering assertions in BM_edge_exists(). */
+     * edges as vertices, triggering assertions in BM_edge_exists(). */
     if (!bm_vert_connect_select_history_ensure_uniform_type(bm, op, &reported_mixed_selection)) {
       failed_selection_order_len++;
       continue;
