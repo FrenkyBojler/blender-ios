@@ -6,9 +6,10 @@
 
 #include "NOD_socket_search_link.hh"
 
+#include "BKE_volume_grid.hh"
+#include "BKE_volume_openvdb.hh"
+
 #ifdef WITH_OPENVDB
-#  include "BKE_volume_grid.hh"
-#  include "BKE_volume_openvdb.hh"
 #  include "openvdb/tools/VolumeAdvect.h"
 #endif
 
