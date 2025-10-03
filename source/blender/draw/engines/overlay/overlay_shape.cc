@@ -1347,8 +1347,8 @@ ShapeCache::ShapeCache()
   }
   /* cursor lines */
   {
-    const float f5 = .66f;
-    const float f20 = .33f;
+    const float f5 = 0.66f;
+    const float f20 = 0.33f;
     const std::array<int, 3> axis_theme = {TH_AXIS_X, TH_AXIS_Y, TH_AXIS_Z};
 
     float crosshair_color[3];
@@ -1358,12 +1358,12 @@ ShapeCache::ShapeCache()
     for (int i = 0; i < 3; i++) {
       float3 axis(0.0f);
       axis[i] = 1.0f;
-      /* Draw the axes a darker and desaturated. */
+      /* Draw the axes a little darker and desaturated. */
       UI_GetThemeColorBlendShade3fv(axis_theme[i], TH_WHITE, .33f, -30, crosshair_color);
       verts.append({f5 * axis, crosshair_color});
       verts.append({f20 * axis, crosshair_color});
 
-      /* Draw the negative axis a little darker. */
+      /* Draw the negative axis even darker. */
       axis[i] = -1.0f;
       UI_GetThemeColorBlendShade3fv(axis_theme[i], TH_WHITE, .33f, -90, crosshair_color);
       verts.append({f5 * axis, crosshair_color});
