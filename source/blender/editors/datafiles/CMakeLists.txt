@@ -572,6 +572,7 @@ if(WITH_BLENDER)
       mod_cloth
       mod_color_balance
       mod_curve
+      mod_curve_to_tube
       mod_curves
       mod_dash
       mod_data_transfer
@@ -603,6 +604,7 @@ if(WITH_BLENDER)
       mod_particle_instance
       mod_physics
       mod_remesh
+      mod_scatter_on_surface
       mod_screw
       mod_shrinkwrap
       mod_simpledeform
@@ -787,7 +789,6 @@ if(WITH_BLENDER)
       rigid_body
       rigid_body_constraint
       rna
-      rna_add
       rndcurve
       rootcurve
       scene
@@ -810,6 +811,7 @@ if(WITH_BLENDER)
       seq_splitview
       seq_strip_duplicate
       seq_strip_meta
+      seq_strip_modifier
       settings
       shaderfx
       shading_bbox

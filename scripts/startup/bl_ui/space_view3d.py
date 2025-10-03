@@ -1481,7 +1481,17 @@ class VIEW3D_MT_view(Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_view_render")
+        layout.operator(
+            "render.opengl",
+            text="Render Viewport Preview",
+            icon='RENDER_STILL',
+        )
+        layout.operator(
+            "render.opengl",
+            text="Render Playblast",
+            icon='RENDER_ANIMATION',
+        ).animation = True
+
         layout.separator()
 
         layout.menu("INFO_MT_area")
@@ -1637,31 +1647,6 @@ class VIEW3D_MT_view_regions(Menu):
         layout.separator()
 
         layout.operator("view3d.clear_render_border")
-
-
-class VIEW3D_MT_view_render(Menu):
-    bl_label = "Render Preview"
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.operator(
-            "render.opengl",
-            text="Render Viewport Image",
-            icon='RENDER_STILL',
-        )
-        layout.operator(
-            "render.opengl",
-            text="Render Viewport Animation",
-            icon='RENDER_ANIMATION',
-        ).animation = True
-
-        layout.separator()
-        props = layout.operator(
-            "render.opengl",
-            text="Render Viewport Keyframes",
-        )
-        props.animation = True
-        props.render_keyed_only = True
 
 
 # ********** Select menus, suffix from context.mode **********
@@ -2618,6 +2603,20 @@ class VIEW3D_MT_grease_pencil_add(Menu):
         layout.operator("object.grease_pencil_add", text="Object Line Art", icon='OBJECT_DATA').type = 'LINEART_OBJECT'
 
 
+class VIEW3D_MT_lattice_add(Menu):
+    bl_idname = "VIEW3D_MT_lattice_add"
+    bl_label = "Lattice"
+    bl_translation_context = i18n_contexts.operator_default
+    bl_options = {'SEARCH_ON_KEY_PRESS'}
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_WIN'
+
+        layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
+        layout.operator("object.lattice_add_to_selected", text="Lattice Deform Selected", icon='OUTLINER_OB_LATTICE')
+
+
 class VIEW3D_MT_empty_add(Menu):
     bl_idname = "VIEW3D_MT_empty_add"
     bl_label = "Empty"
@@ -2676,7 +2675,7 @@ class VIEW3D_MT_add(Menu):
         else:
             layout.operator("object.armature_add", text="Armature", icon='OUTLINER_OB_ARMATURE')
 
-        layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
+        layout.menu("VIEW3D_MT_lattice_add", icon='OUTLINER_OB_LATTICE')
 
         layout.separator()
 
@@ -5854,6 +5853,7 @@ class VIEW3D_MT_edit_greasepencil_point(Menu):
         layout.separator()
 
         layout.operator_menu_enum("grease_pencil.set_handle_type", property="type")
+        layout.operator_menu_enum("grease_pencil.set_corner_type", property="corner_type")
 
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
@@ -7037,6 +7037,7 @@ class VIEW3D_PT_overlay_object(Panel):
         view = context.space_data
         overlay = view.overlay
         display_all = overlay.show_overlays
+        mode = context.mode
 
         col = layout.column(align=True)
         col.active = display_all
@@ -7054,9 +7055,24 @@ class VIEW3D_PT_overlay_object(Panel):
         sub = split.column(align=True)
         sub.prop(overlay, "show_bones", text="Bones")
         sub.prop(overlay, "show_motion_paths")
-        sub.prop(overlay, "show_object_origins", text="Origins")
+
+        can_show_object_origins = mode not in {
+            'PAINT_TEXTURE',
+            'PAINT_2D',
+            'SCULPT',
+            'PAINT_VERTEX',
+            'PAINT_WEIGHT',
+            'SCULPT_CURVES',
+            'PAINT_GREASE_PENCIL',
+            'VERTEX_GREASE_PENCIL',
+            'WEIGHT_GREASE_PENCIL',
+            'SCULPT_GREASE_PENCIL',
+        }
         subsub = sub.column()
-        subsub.active = overlay.show_object_origins
+        subsub.active = can_show_object_origins
+        subsub.prop(overlay, "show_object_origins", text="Origins")
+        subsub = sub.column()
+        subsub.active = can_show_object_origins and overlay.show_object_origins
         subsub.prop(overlay, "show_object_origins_all", text="Origins (All)")
 
 
@@ -8379,6 +8395,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.operator("transform.transform", text="Shrink/Fatten").mode = 'CURVE_SHRINKFATTEN'
             col.operator("grease_pencil.stroke_smooth", text="Smooth Points")
             col.operator("grease_pencil.set_start_point", text="Set Start Point")
+            col.operator_menu_enum("grease_pencil.set_corner_type", property="corner_type")
 
             col.separator()
 
@@ -8998,14 +9015,7 @@ class VIEW3D_PT_curves_sculpt_parameter_falloff(Panel):
             brush.curves_sculpt_settings,
             "curve_parameter_falloff",
             brush=True,
-            use_negative_slope=True)
-        row = layout.row(align=True)
-        row.operator("brush.sculpt_curves_falloff_preset", icon='SMOOTHCURVE', text="").shape = 'SMOOTH'
-        row.operator("brush.sculpt_curves_falloff_preset", icon='SPHERECURVE', text="").shape = 'ROUND'
-        row.operator("brush.sculpt_curves_falloff_preset", icon='ROOTCURVE', text="").shape = 'ROOT'
-        row.operator("brush.sculpt_curves_falloff_preset", icon='SHARPCURVE', text="").shape = 'SHARP'
-        row.operator("brush.sculpt_curves_falloff_preset", icon='LINCURVE', text="").shape = 'LINE'
-        row.operator("brush.sculpt_curves_falloff_preset", icon='NOCURVE', text="").shape = 'MAX'
+            show_presets=True)
 
 
 class VIEW3D_PT_curves_sculpt_grow_shrink_scaling(Panel):
@@ -9085,6 +9095,16 @@ class VIEW3D_AST_brush_texture_paint(View3DAssetShelf, bpy.types.AssetShelf):
     mode_prop = "use_paint_image"
     brush_type_prop = "image_brush_type"
 
+    @classmethod
+    def poll(cls, context):
+        if not super().poll(context):
+            return False
+        # bl_space_type from #View3DAssetShelf is ignored for popup asset shelves.
+        # Avoid this to be called from the Image Editor (both
+        # #IMAGE_AST_brush_paint and #VIEW3D_AST_brush_texture_paint are included
+        # in the #km_image_paint keymap). See #145987.
+        return context.space_data.type != 'IMAGE_EDITOR'
+
 
 class VIEW3D_AST_brush_gpencil_paint(View3DAssetShelf, bpy.types.AssetShelf):
     mode = 'PAINT_GREASE_PENCIL'
@@ -9128,7 +9148,6 @@ classes = (
     VIEW3D_MT_view_align_selected,
     VIEW3D_MT_view_viewpoint,
     VIEW3D_MT_view_regions,
-    VIEW3D_MT_view_render,
     VIEW3D_MT_select_object,
     VIEW3D_MT_select_object_more_less,
     VIEW3D_MT_select_pose,
@@ -9166,6 +9185,7 @@ classes = (
     VIEW3D_MT_camera_add,
     VIEW3D_MT_volume_add,
     VIEW3D_MT_grease_pencil_add,
+    VIEW3D_MT_lattice_add,
     VIEW3D_MT_empty_add,
     VIEW3D_MT_add,
     VIEW3D_MT_image_add,

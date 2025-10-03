@@ -472,13 +472,6 @@ void VKTexture::update_sub(int offset[3],
   update_sub(0, offset, extent, format, nullptr, &pixel_buffer);
 }
 
-uint VKTexture::gl_bindcode_get() const
-{
-  /* TODO(fclem): Legacy. Should be removed at some point. */
-
-  return 0;
-}
-
 VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handle_type)
 {
   const VKDevice &device = VKBackend::get().device;
@@ -725,7 +718,8 @@ bool VKTexture::allocate()
   }
   debug::object_label(vk_image_, name_);
 
-  device.resources.add_image(vk_image_, image_info.arrayLayers, name_);
+  const bool use_subresource_tracking = image_info.arrayLayers > 1 || image_info.mipLevels > 1;
+  device.resources.add_image(vk_image_, use_subresource_tracking, name_);
 
   return result == VK_SUCCESS;
 }

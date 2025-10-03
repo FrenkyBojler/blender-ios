@@ -482,7 +482,6 @@ void mesh_calc_edges(Mesh &mesh,
   }
 
   CustomData_free_layer_named(&mesh.edge_data, ".edge_verts");
-  CustomData_free_layer_named(&mesh.edge_data, ".select_edge");
   for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
     const void *src_data = layer.data;
     const size_t elem_size = CustomData_sizeof(eCustomDataType(layer.type));
@@ -518,7 +517,7 @@ void mesh_calc_edges(Mesh &mesh,
       ".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(edge_verts.data()));
 
   if (select_new_edges) {
-    BLI_assert(!dst_attributes.contains(".select_edge"));
+    dst_attributes.remove(".select_edge");
     if (ELEM(back_range_of_new_edges.size(), 0, mesh.edges_num)) {
       const bool fill_value = back_range_of_new_edges.size() == mesh.edges_num;
       dst_attributes.add<int2>(
