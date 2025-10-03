@@ -552,12 +552,10 @@ GPUFunction *gpu_material_library_get_function(const char *name)
 void gpu_material_library_use_function(blender::Set<blender::StringRefNull> &used_libraries,
                                        const char *name)
 {
-  /* TODO: Remove conditional and assert.
-   * Currently needed since REPEAT_BEGIN/END are macros, not functions. */
-  if (GPUFunction *function = g_functions->lookup_default(name, nullptr)) {
-    GPUSource *source = reinterpret_cast<GPUSource *>(function->source);
-    used_libraries.add(source->filename.c_str());
-  }
+  GPUFunction *function = g_functions->lookup_default(name, nullptr);
+  BLI_assert_msg(function != nullptr, "Requested function not in the function library");
+  GPUSource *source = reinterpret_cast<GPUSource *>(function->source);
+  used_libraries.add(source->filename.c_str());
 }
 
 namespace blender::gpu::shader {
