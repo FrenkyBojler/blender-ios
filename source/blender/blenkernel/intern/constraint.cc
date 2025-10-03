@@ -5482,18 +5482,15 @@ static void value_attribute_to_matrix(float r_matrix[4][4],
                                       const Attribute_Data_Type data_type)
 {
   switch (data_type) {
-    case CON_ATTRIBUTE_VECTOR: {
+    case CON_ATTRIBUTE_VECTOR:
       copy_v3_v3(r_matrix[3], *value.get<blender::float3>());
       break;
-    }
-    case CON_ATTRIBUTE_QUATERNION: {
+    case CON_ATTRIBUTE_QUATERNION:
       quat_to_mat4(r_matrix, *value.get<blender::float4>());
       break;
-    }
-    case CON_ATTRIBUTE_4X4MATRIX: {
+    case CON_ATTRIBUTE_4X4MATRIX:
       copy_m4_m4(r_matrix, value.get<blender::float4x4>()->ptr());
       break;
-    }
   }
   BLI_assert_unreachable();
 }
@@ -5579,10 +5576,10 @@ static void geometry_attribute_flush_tars(bConstraint *con, ListBase *list, cons
 }
 
 static bool geometry_attribute_get_tarmat(Depsgraph * /*depsgraph*/,
-                                           bConstraint *con,
-                                           bConstraintOb * /*cob*/,
-                                           bConstraintTarget *ct,
-                                           float /*ctime*/)
+                                          bConstraint *con,
+                                          bConstraintOb * /*cob*/,
+                                          bConstraintTarget *ct,
+                                          float /*ctime*/)
 {
   using namespace blender;
   const bGeometryAttributeConstraint *acon = static_cast<bGeometryAttributeConstraint *>(
@@ -5661,15 +5658,13 @@ static void geometry_attribute_evaluate(bConstraint *con, bConstraintOb *cob, Li
   mat4_to_loc_rot_size(next_location, next_rotation, next_size, ct->matrix);
 
   switch (data->data_type) {
-    case CON_ATTRIBUTE_VECTOR: {
+    case CON_ATTRIBUTE_VECTOR:
       loc_rot_size_to_mat4(target_mat, next_location, prev_rotation, prev_size);
       break;
-    }
-    case CON_ATTRIBUTE_QUATERNION: {
+    case CON_ATTRIBUTE_QUATERNION:
       loc_rot_size_to_mat4(target_mat, prev_location, next_rotation, prev_size);
       break;
-    }
-    case CON_ATTRIBUTE_4X4MATRIX: {
+    case CON_ATTRIBUTE_4X4MATRIX:
       if ((data->flags & MIX_LOC) && (data->flags & MIX_ROT) && (data->flags & MIX_SCALE)) {
         copy_m4_m4(target_mat, ct->matrix);
       }
@@ -5686,7 +5681,6 @@ static void geometry_attribute_evaluate(bConstraint *con, bConstraintOb *cob, Li
         loc_rot_size_to_mat4(target_mat, prev_location, prev_rotation, prev_size);
       }
       break;
-    }
   }
 
   /* Finally, combine the matrices. */
