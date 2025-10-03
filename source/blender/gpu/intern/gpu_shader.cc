@@ -733,7 +733,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
       sources.append("(); }\n");
     }
 
-    shader->vertex_shader_from_glsl(sources);
+    shader->vertex_shader_from_glsl(info, sources);
   }
 
   if (!info.fragment_source_.is_empty()) {
@@ -760,7 +760,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
       sources.append("(); }\n");
     }
 
-    shader->fragment_shader_from_glsl(sources);
+    shader->fragment_shader_from_glsl(info, sources);
   }
 
   if (!info.geometry_source_.is_empty()) {
@@ -786,7 +786,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
       sources.append("(); }\n");
     }
 
-    shader->geometry_shader_from_glsl(sources);
+    shader->geometry_shader_from_glsl(info, sources);
   }
 
   if (!info.compute_source_.is_empty()) {
@@ -810,7 +810,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
       sources.append("(); }\n");
     }
 
-    shader->compute_shader_from_glsl(sources);
+    shader->compute_shader_from_glsl(info, sources);
   }
 
   if (!shader->finalize(&info)) {

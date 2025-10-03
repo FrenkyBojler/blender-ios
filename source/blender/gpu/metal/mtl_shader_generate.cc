@@ -1448,8 +1448,7 @@ static void generate_builtins(GeneratedStreams &ss,
 }
 
 /* Return available buffer slots for vertex buffer bindings. */
-uint32_t available_buffer_slots(const ShaderCreateInfo &info,
-                                const bool use_sampler_argument_buffer)
+uint32_t available_buffer_slots(const ShaderCreateInfo &info)
 {
   uint32_t free_slots = ~((~0u) << 31u);
 
@@ -1481,7 +1480,7 @@ uint32_t available_buffer_slots(const ShaderCreateInfo &info,
     free_slots &= ~(1u << MTL_PUSH_CONSTANT_BUFFER_SLOT);
   }
 
-  if (use_sampler_argument_buffer) {
+  if (bool(info.builtins_ & BuiltinBits::USE_SAMPLER_ARG_BUFFER)) {
     free_slots &= ~(1u << MTL_SAMPLER_ARGUMENT_BUFFER_SLOT);
   }
 
@@ -1533,9 +1532,9 @@ static void generate_standard_defines(std::stringstream &ss)
   }
 }
 
-std::string generate_entry_point(const ShaderCreateInfo &info,
-                                 const ShaderStage stage,
-                                 const StringRefNull entry_point_name)
+std::pair<std::string, std::string> generate_entry_point(const ShaderCreateInfo &info,
+                                                         const ShaderStage stage,
+                                                         const StringRefNull entry_point_name)
 {
   StringRefNull stage_out_class_name = get_stage_out_class_name(stage, info);
   StringRefNull stage_out_inst_name = get_stage_out_instance_name(stage);
@@ -1553,61 +1552,14 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
   generate_stage_interfaces(generated, stage, info);
   generate_resources(generated, stage, info);
 
+  std::stringstream prefix;
+  prefix << LINE;
+  prefix << generated.wrapper_class_prefix.str() << "\n\n";
+  prefix << "struct " << stage_class_name << " {\n";
+
+  /* User generated code goes here. */
+
   std::stringstream out;
-
-  generate_standard_defines(out);
-  out << "#define USE_GPU_SHADER_CREATE_INFO\n";
-
-  switch (stage) {
-    case ShaderStage::COMPUTE:
-      out << "#define GPU_COMPUTE_SHADER\n";
-      break;
-    case ShaderStage::FRAGMENT:
-      out << "#define GPU_FRAGMENT_SHADER\n";
-      break;
-    case ShaderStage::VERTEX:
-      out << "#define GPU_VERTEX_SHADER\n";
-      break;
-    default:
-      BLI_assert_unreachable();
-      break;
-  }
-
-  out << generate_defines(info);
-  out << info.resource_guard_defines();
-
-  out << gpu_shader_dependency_get_source("GPU_shader_shared_utils.hh");
-
-  out << LINE;
-  out << generated.wrapper_class_prefix.str() << "\n\n";
-  out << "struct " << stage_class_name << " {\n";
-
-  Vector<StringRefNull> typedefs;
-  for (auto filename : info.typedef_sources_) {
-    typedefs.extend_non_duplicates(
-        gpu_shader_dependency_get_resolved_source(filename, info.generated_sources));
-  }
-  out << fmt::to_string(fmt::join(typedefs, ""));
-
-  switch (stage) {
-    case ShaderStage::COMPUTE:
-      // out << fmt::to_string(
-      //     fmt::join(gpu_shader_dependency_get_resolved_source(info.compute_source_, {}), ""));
-      break;
-    case ShaderStage::FRAGMENT:
-      out << fmt::to_string(
-          fmt::join(gpu_shader_dependency_get_resolved_source(info.fragment_source_, {}), ""));
-      break;
-    case ShaderStage::VERTEX:
-      out << fmt::to_string(
-          fmt::join(gpu_shader_dependency_get_resolved_source(info.vertex_source_, {}), ""));
-      break;
-    default:
-      BLI_assert_unreachable();
-      break;
-  }
-
-  /* End of user generated code. */
   out << "\n";
   /* Undefine macros that can conflict with attributes. We still need to keep other user macros in
    * case they are used inside resources declaration. */
@@ -1654,7 +1606,7 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
     out << "  };\n\n";
 
     out << LINE;
-    // out << "  " << stage_inst_name << ".main();\n";
+    out << "  " << stage_inst_name << ".main();\n";
 
     if (stage_out_class != "void") {
       out << LINE << "  return " << stage_out_inst_name << ";\n";
@@ -1662,7 +1614,7 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
   }
   out << "}\n";
 
-  return out.str();
+  return {prefix.str(), out.str()};
 }
 
 uint32_t get_and_occupy_next_slot(uint32_t &buffer_mask)
@@ -1692,7 +1644,7 @@ void patch_create_info_atomic_workaround(std::unique_ptr<shader::ShaderCreateInf
 
     if (patched_info == nullptr) {
       patched_info = std::make_unique<shader::ShaderCreateInfo>(original_info);
-      free_slots = available_buffer_slots(original_info, false /* Not needed. */);
+      free_slots = available_buffer_slots(original_info);
     }
     int slot = get_and_occupy_next_slot(free_slots);
     patched_names.append(std::make_unique<std::string>(name + "_buf_[]"));
@@ -1726,4 +1678,5 @@ void patch_create_info_atomic_workaround(std::unique_ptr<shader::ShaderCreateInf
     ensure_atomic_workaround_resource(res);
   }
 }
+
 }  // namespace blender::gpu

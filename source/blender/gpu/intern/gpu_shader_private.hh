@@ -81,10 +81,14 @@ class Shader {
   virtual const shader::ShaderCreateInfo &patch_create_info(
       const shader::ShaderCreateInfo &original_info) = 0;
 
-  virtual void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
-  virtual void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
-  virtual void fragment_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
-  virtual void compute_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
+  virtual void vertex_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                       MutableSpan<StringRefNull> sources) = 0;
+  virtual void geometry_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                         MutableSpan<StringRefNull> sources) = 0;
+  virtual void fragment_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                         MutableSpan<StringRefNull> sources) = 0;
+  virtual void compute_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                        MutableSpan<StringRefNull> sources) = 0;
   virtual bool finalize(const shader::ShaderCreateInfo *info = nullptr) = 0;
   /* Pre-warms PSOs using parent shader's cached PSO descriptors. Limit specifies maximum PSOs to
    * warm. If -1, compiles all PSO permutations in parent shader.

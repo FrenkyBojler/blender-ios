@@ -214,10 +214,11 @@ class MTLShaderInterface : public ShaderInterface {
   char name[256];
 
  public:
-  MTLShaderInterface(const char *name);
+  MTLShaderInterface(const char *name, const shader::ShaderCreateInfo &info);
   ~MTLShaderInterface() override;
 
   void init();
+  void bake(const shader::ShaderCreateInfo &info);
   void add_input_attribute(uint32_t name_offset,
                            uint32_t attribute_location,
                            MTLVertexFormat format,

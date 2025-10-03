@@ -135,21 +135,6 @@ struct MTLComputePipelineStateInstance {
   id<MTLComputePipelineState> pso = nil;
 };
 
-/* #MTLShaderBuilder source wrapper used during initial compilation. */
-struct MTLShaderBuilder {
-  NSString *msl_source_vert_ = @"";
-  NSString *msl_source_frag_ = @"";
-  NSString *msl_source_compute_ = @"";
-
-  /* Generated GLSL source used during compilation. */
-  std::string glsl_vertex_source_ = "";
-  std::string glsl_fragment_source_ = "";
-  std::string glsl_compute_source_ = "";
-
-  /* Indicates whether source code has been provided via MSL directly. */
-  bool source_from_msl_ = false;
-};
-
 /**
  * #MTLShader implements shader compilation, Pipeline State Object (PSO)
  * creation for rendering and uniform data binding.
@@ -171,21 +156,15 @@ class MTLShader : public Shader {
   /* Context Handle. */
   MTLContext *context_ = nullptr;
 
-  /** Shader source code. */
-  MTLShaderBuilder *shd_builder_ = nullptr;
-  NSString *vertex_function_name_ = @"";
-  NSString *fragment_function_name_ = @"";
-  NSString *compute_function_name_ = @"";
-
   /** Compiled shader resources. */
   id<MTLLibrary> shader_library_vert_ = nil;
   id<MTLLibrary> shader_library_frag_ = nil;
-  id<MTLLibrary> shader_library_compute_ = nil;
+  id<MTLLibrary> shader_library_comp_ = nil;
   bool valid_ = false;
 
   /** Render pipeline state and PSO caching. */
   /* Metal API Descriptor used for creation of unique PSOs based on rendering state. */
-  MTLRenderPipelineDescriptor *pso_descriptor_ = nil;
+  ::MTLRenderPipelineDescriptor *pso_descriptor_ = nil;
   /* Metal backend struct containing all high-level pipeline state parameters
    * which contribute to instantiation of a unique PSO. */
   MTLRenderPipelineStateDescriptor current_pipeline_state_;
@@ -229,13 +208,6 @@ class MTLShader : public Shader {
 
  public:
   MTLShader(MTLContext *ctx, const char *name);
-  MTLShader(MTLContext *ctx,
-            MTLShaderInterface *interface,
-            const char *name,
-            NSString *input_vertex_source,
-            NSString *input_fragment_source,
-            NSString *vertex_function_name_,
-            NSString *fragment_function_name_);
   ~MTLShader();
 
   void init(const shader::ShaderCreateInfo & /*info*/, bool is_batch_compilation) override;
@@ -245,10 +217,14 @@ class MTLShader : public Shader {
       const shader::ShaderCreateInfo &original_info) override;
 
   /* Assign GLSL source. */
-  void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
-  void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
-  void fragment_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
-  void compute_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
+  void vertex_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                               MutableSpan<StringRefNull> sources) override;
+  void geometry_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                 MutableSpan<StringRefNull> sources) override;
+  void fragment_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                 MutableSpan<StringRefNull> sources) override;
+  void compute_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                MutableSpan<StringRefNull> sources) override;
 
   /* Compile and build - Return true if successful. */
   bool finalize(const shader::ShaderCreateInfo *info = nullptr) override;
@@ -262,7 +238,7 @@ class MTLShader : public Shader {
   }
   bool has_compute_shader_lib()
   {
-    return (shader_library_compute_ != nil);
+    return (shader_library_comp_ != nil);
   }
   bool has_parent_shader()
   {
@@ -299,14 +275,6 @@ class MTLShader : public Shader {
   bool get_push_constant_is_dirty();
   void push_constant_bindstate_mark_dirty(bool is_dirty);
 
-  /* Metal shader properties and source mapping. */
-  void set_vertex_function_name(NSString *vetex_function_name);
-  void set_fragment_function_name(NSString *fragment_function_name);
-  void set_compute_function_name(NSString *compute_function_name);
-  void shader_source_from_msl(NSString *input_vertex_source, NSString *input_fragment_source);
-  void shader_compute_source_from_msl(NSString *input_compute_source);
-  void set_interface(MTLShaderInterface *interface);
-
   MTLRenderPipelineStateInstance *bake_current_pipeline_state(MTLContext *ctx,
                                                               MTLPrimitiveTopologyClass prim_type);
   MTLRenderPipelineStateInstance *bake_pipeline_state(
@@ -323,9 +291,12 @@ class MTLShader : public Shader {
   }
 
  private:
-  /* Generate MSL shader from GLSL source. */
-  bool generate_msl_from_glsl(const shader::ShaderCreateInfo *info);
-  bool generate_msl_from_glsl_compute(const shader::ShaderCreateInfo *info);
+  /** Create, compile and attach the shader stage to the shader program. */
+  id<MTLLibrary> create_shader_library(const shader::ShaderCreateInfo &info,
+                                       ShaderStage stage,
+                                       MutableSpan<StringRefNull> sources);
+
+  std::string entry_point_name_get(const ShaderStage stage);
 
   MEM_CXX_CLASS_ALLOC_FUNCS("MTLShader");
 };

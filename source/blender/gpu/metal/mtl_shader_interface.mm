@@ -24,7 +24,41 @@
 
 namespace blender::gpu {
 
-MTLShaderInterface::MTLShaderInterface(const char *name)
+/**
+ * Add string to name buffer. Utility function to be used in bake_shader_interface.
+ * Returns the offset of the inserted name.
+ */
+static uint32_t name_buffer_copystr(char **name_buffer_ptr,
+                                    const char *str_to_copy,
+                                    uint32_t &name_buffer_size,
+                                    uint32_t &name_buffer_offset)
+{
+  /* Verify input is valid. */
+  BLI_assert(str_to_copy != nullptr);
+
+  /* Determine length of new string, and ensure name buffer is large enough. */
+  uint32_t ret_len = strlen(str_to_copy);
+  BLI_assert(ret_len > 0);
+
+  /* If required name buffer size is larger, increase by at least 128 bytes. */
+  if (name_buffer_offset + ret_len + 1 > name_buffer_size) {
+    name_buffer_size = name_buffer_offset + max_ii(128, ret_len + 1);
+    *name_buffer_ptr = (char *)MEM_reallocN(*name_buffer_ptr, name_buffer_size);
+  }
+
+  /* Copy string into name buffer. */
+  uint32_t insert_offset = name_buffer_offset;
+  char *current_offset = (*name_buffer_ptr) + insert_offset;
+  memcpy(current_offset, str_to_copy, (ret_len + 1) * sizeof(char));
+
+  /* Adjust offset including null terminator. */
+  name_buffer_offset += ret_len + 1;
+
+  /* Return offset into name buffer for inserted string. */
+  return insert_offset;
+}
+
+MTLShaderInterface::MTLShaderInterface(const char *name, const shader::ShaderCreateInfo &info)
 {
   /* Shared ShaderInputs array is populated later on in `prepare_common_shader_inputs`
    * after Metal Shader Interface preparation. */
@@ -36,6 +70,7 @@ MTLShaderInterface::MTLShaderInterface(const char *name)
 
   /* Ensure #ShaderInterface parameters are cleared. */
   this->init();
+  this->bake(info);
 }
 
 MTLShaderInterface::~MTLShaderInterface()
@@ -637,6 +672,122 @@ void MTLShaderInterface::insert_argument_encoder(int buffer_index, id encoder)
     }
   }
   MTL_LOG_WARNING("could not insert encoder into cache!");
+}
+
+void MTLShaderInterface::bake(const shader::ShaderCreateInfo &info)
+{
+#if 0
+  using namespace shader;
+  /* Name buffer. */
+  /* Initialize name buffer. */
+  uint32_t name_buffer_size = 256;
+  uint32_t name_buffer_offset = 0;
+  name_buffer_ = (char *)MEM_mallocN(name_buffer_size, "name_buffer");
+
+  Vector<ShaderCreateInfo::Resource> all_resources;
+  all_resources.extend(info.pass_resources_);
+  all_resources.extend(info.batch_resources_);
+  all_resources.extend(info.geometry_resources_);
+
+  /* Prepare Interface Input Attributes. */
+  int c_offset = 0;
+  for (const ShaderCreateInfo::VertIn &attr : info.vertex_inputs_) {
+
+    /* Normal attribute types. */
+    MTLInterfaceDataType mtl_type = to_mtl_type(attr.type);
+    int size = mtl_get_data_type_size(mtl_type);
+    add_input_attribute(
+        name_buffer_copystr(
+            &name_buffer_, attr.name.c_str(), name_buffer_size, name_buffer_offset),
+        attr.index,
+        mtl_datatype_to_vertex_type(mtl_type),
+        0,
+        size,
+        c_offset);
+    c_offset += size;
+
+    /* Used in `GPU_shader_get_attribute_info`. */
+    attr_types_[attr.index] = uint8_t(attr.type);
+  }
+
+  /* Prepare Interface Default Uniform Block. */
+  add_push_constant_block(name_buffer_copystr(
+      &name_buffer_, "PushConstantBlock", name_buffer_size, name_buffer_offset));
+
+  for (int uniform = 0; uniform < this->uniforms.size(); uniform++) {
+    add_uniform(name_buffer_copystr(&name_buffer_,
+                                    this->uniforms[uniform].name.c_str(),
+                                    name_buffer_size,
+                                    name_buffer_offset),
+                to_mtl_type(this->uniforms[uniform].type),
+                (this->uniforms[uniform].is_array) ? this->uniforms[uniform].array_elems : 1);
+  }
+
+  /* Prepare Interface Uniform Blocks. */
+  for (int uniform_block = 0; uniform_block < this->uniform_blocks.size(); uniform_block++) {
+    add_uniform_block(name_buffer_copystr(&name_buffer_,
+                                          this->uniform_blocks[uniform_block].name.c_str(),
+                                          name_buffer_size,
+                                          name_buffer_offset),
+                      this->uniform_blocks[uniform_block].slot,
+                      this->uniform_blocks[uniform_block].location,
+                      0,
+                      this->uniform_blocks[uniform_block].stage);
+  }
+
+  /* Prepare Interface Storage Blocks. */
+  for (int storage_block = 0; storage_block < this->storage_blocks.size(); storage_block++) {
+    add_storage_block(name_buffer_copystr(&name_buffer_,
+                                          this->storage_blocks[storage_block].name.c_str(),
+                                          name_buffer_size,
+                                          name_buffer_offset),
+                      this->storage_blocks[storage_block].slot,
+                      this->storage_blocks[storage_block].location,
+                      0,
+                      this->storage_blocks[storage_block].stage);
+  }
+
+  /* Texture/sampler bindings to interface. */
+  for (const MSLTextureResource &input_texture : this->texture_samplers) {
+    /* Determine SSBO bind location for buffer-baked texture's data. */
+    uint tex_buf_ssbo_location = -1;
+    uint tex_buf_ssbo_id = input_texture.atomic_fallback_buffer_ssbo_id;
+    if (tex_buf_ssbo_id != -1) {
+      tex_buf_ssbo_location = this->storage_blocks[tex_buf_ssbo_id].location;
+    }
+
+    add_texture(
+        name_buffer_copystr(
+            &name_buffer_, input_texture.name.c_str(), name_buffer_size, name_buffer_offset),
+        input_texture.slot,
+        input_texture.location,
+        input_texture.get_texture_binding_type(),
+        input_texture.get_sampler_format(),
+        input_texture.is_texture_sampler,
+        input_texture.stage,
+        tex_buf_ssbo_location);
+  }
+
+  /* Specialization Constants. */
+  for (const MSLConstant &constant : this->constants) {
+    add_constant(name_buffer_copystr(
+        &name_buffer_, constant.name.c_str(), name_buffer_size, name_buffer_offset));
+  }
+
+  /* Sampler Parameters. */
+  set_sampler_properties(this->use_argument_buffer_for_samplers(),
+                         this->get_sampler_argument_buffer_bind_index(ShaderStage::VERTEX),
+                         this->get_sampler_argument_buffer_bind_index(ShaderStage::FRAGMENT),
+                         this->get_sampler_argument_buffer_bind_index(ShaderStage::COMPUTE));
+
+  /* Map Metal bindings to standardized ShaderInput struct name/binding index. */
+  prepare_common_shader_inputs(info);
+
+  /* Resize name buffer to save some memory. */
+  if (name_buffer_offset < name_buffer_size) {
+    name_buffer_ = (char *)MEM_reallocN(interface->name_buffer_, name_buffer_offset);
+  }
+#endif
 }
 
 MTLVertexFormat mtl_datatype_to_vertex_type(MTLInterfaceDataType type)
