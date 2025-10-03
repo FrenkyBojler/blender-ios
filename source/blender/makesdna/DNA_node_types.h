@@ -2426,6 +2426,40 @@ typedef struct GeometryNodeFieldToGrid {
   int active_index;
 } GeometryNodeFieldToGrid;
 
+typedef struct GeometryNodeFieldToListItem {
+  /** #eNodeSocketDatatype. */
+  int8_t socket_type;
+  char _pad[3];
+  int identifier;
+  char *name;
+} GeometryNodeFieldToListItem;
+
+typedef struct GeometryNodeFieldToList {
+  /** #eNodeSocketDatatype. */
+  char _pad[4];
+  int next_identifier;
+  GeometryNodeFieldToListItem *items;
+  int items_num;
+  int active_index;
+} GeometryNodeFieldToList;
+
+typedef struct GeometryNodeClosureToListItem {
+  /** #eNodeSocketDatatype. */
+  int8_t socket_type;
+  char _pad[3];
+  int identifier;
+  char *name;
+} GeometryNodeClosureToListItem;
+
+typedef struct GeometryNodeClosureToList {
+  /** #eNodeSocketDatatype. */
+  char _pad[4];
+  int next_identifier;
+  GeometryNodeClosureToListItem *items;
+  int items_num;
+  int active_index;
+} GeometryNodeClosureToList;
+
 typedef struct NodeGeometryDistributePointsInVolume {
   /** #GeometryNodePointDistributeVolumeMode. */
   uint8_t mode;
