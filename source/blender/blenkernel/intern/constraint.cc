@@ -5458,10 +5458,9 @@ static blender::bke::AttrDomain domain_value_to_attribute(const int domain)
       return blender::bke::AttrDomain::Curve;
     case CON_ATTRIBUTE_DOMAIN_INSTANCE:
       return blender::bke::AttrDomain::Instance;
-    default:
-      BLI_assert_unreachable();
-      return blender::bke::AttrDomain::Point;
   }
+  BLI_assert_unreachable();
+  return blender::bke::AttrDomain::Point;
 }
 
 static blender::bke::AttrType type_value_to_attribute(const int data_type)
@@ -5473,10 +5472,9 @@ static blender::bke::AttrType type_value_to_attribute(const int data_type)
       return blender::bke::AttrType::Quaternion;
     case CON_ATTRIBUTE_4X4MATRIX:
       return blender::bke::AttrType::Float4x4;
-    default:
-      BLI_assert_unreachable();
-      return blender::bke::AttrType::Float3;
   }
+  BLI_assert_unreachable();
+  return blender::bke::AttrType::Float3;
 }
 
 static void value_attribute_to_matrix(float r_matrix[4][4],
@@ -5496,10 +5494,8 @@ static void value_attribute_to_matrix(float r_matrix[4][4],
       copy_m4_m4(r_matrix, value.get<blender::float4x4>()->ptr());
       break;
     }
-    default: {
-      BLI_assert_unreachable();
-    }
   }
+  BLI_assert_unreachable();
 }
 
 static bool component_is_available(const blender::bke::GeometrySet &geometry,
@@ -5718,11 +5714,8 @@ static void attribute_transform_evaluate(bConstraint *con, bConstraintOb *cob, L
       mul_m4_m4m4_split_channels(cob->matrix, cob->matrix, target_mat);
       break;
     }
-
-    default: {
-      BLI_assert_msg(0, "Unknown Copy Transforms mix mode");
-    }
   }
+  BLI_assert_msg(0, "Unknown Copy Transforms mix mode");
 
   if (data->apply_target_transform) {
     mul_m4_m4m4(cob->matrix, ct->tar->object_to_world().ptr(), cob->matrix);
