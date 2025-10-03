@@ -388,7 +388,10 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
         ss << "#define MTL_WORKGROUP_SIZE_Y " << info->compute_layout_.local_size_y << "\n";
         ss << "#define MTL_WORKGROUP_SIZE_Z " << info->compute_layout_.local_size_z << "\n";
       }
-      ss << "#define MTL_ARGUMENT_BUFFER_NUM_SAMPLERS " << arg_buf_samplers_size << "\n";
+
+      if (true) {
+        ss << "#define MTL_USE_SAMPLER_ARGUMENT_BUFFER\n";
+      }
 
       if (bool(info->builtins_ & BuiltinBits::TEXTURE_ATOMIC) &&
           MTLBackend::get_capabilities().supports_texture_atomics)

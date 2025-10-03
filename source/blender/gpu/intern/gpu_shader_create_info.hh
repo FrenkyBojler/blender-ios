@@ -655,6 +655,10 @@ struct ResourceString : public StringRefNull {
 
   StringRef str_only_array() const
   {
+    int64_t offset = this->array_offset();
+    if (offset == -1) {
+      return "";
+    }
     return this->substr(this->array_offset());
   }
 };
@@ -975,6 +979,11 @@ struct ShaderCreateInfo {
     Type type;
     ResourceString name;
     int array_size;
+
+    std::string array_str() const
+    {
+      return array_size > 0 ? "[" + std::to_string(array_size) + "]" : "";
+    }
 
     bool operator==(const PushConst &b) const
     {
@@ -1465,7 +1474,7 @@ struct ShaderCreateInfo {
    * (All statically declared CreateInfos are automatically finalized at startup) */
   void finalize(const bool recursive = false);
 
-  void resource_guard_defines(std::string &defines) const;
+  std::string resource_guard_defines() const;
 
   std::string check_error() const;
   bool is_vulkan_compatible() const;

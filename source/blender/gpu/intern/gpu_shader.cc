@@ -31,7 +31,7 @@ extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
 
 namespace blender::gpu {
 
-std::string Shader::defines_declare(const shader::ShaderCreateInfo &info) const
+std::string Shader::defines_declare(const shader::ShaderCreateInfo &info)
 {
   std::string defines;
   for (const auto &def : info.defines_) {
@@ -693,7 +693,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
   std::string defines = shader->defines_declare(info);
   std::string resources = shader->resources_declare(info);
 
-  info.resource_guard_defines(defines);
+  defines += info.resource_guard_defines();
 
   defines += "#define USE_GPU_SHADER_CREATE_INFO\n";
 

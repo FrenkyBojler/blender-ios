@@ -101,7 +101,7 @@ class Shader {
   /* Add specialization constant declarations to shader instance. */
   void specialization_constants_init(const shader::ShaderCreateInfo &info);
 
-  std::string defines_declare(const shader::ShaderCreateInfo &info) const;
+  static std::string defines_declare(const shader::ShaderCreateInfo &info);
   virtual std::string resources_declare(const shader::ShaderCreateInfo &info) const = 0;
   virtual std::string vertex_interface_declare(const shader::ShaderCreateInfo &info) const = 0;
   virtual std::string fragment_interface_declare(const shader::ShaderCreateInfo &info) const = 0;

@@ -96,8 +96,9 @@ bool ShaderCreateInfo::is_vulkan_compatible() const
 
 /** \} */
 
-void ShaderCreateInfo::resource_guard_defines(std::string &defines) const
+std::string ShaderCreateInfo::resource_guard_defines() const
 {
+  std::string defines;
   if (name_.startswith("MA") || name_.startswith("WO")) {
     defines += "#define CREATE_INFO_Material\n";
   }
@@ -108,8 +109,9 @@ void ShaderCreateInfo::resource_guard_defines(std::string &defines) const
     const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
         gpu_shader_create_info_get(info_name.c_str()));
 
-    info.resource_guard_defines(defines);
+    defines += info.resource_guard_defines();
   }
+  return defines;
 }
 
 void ShaderCreateInfo::finalize(const bool recursive)

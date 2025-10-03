@@ -454,7 +454,7 @@ static const char *get_stage_out_class_name(ShaderStage stage, const ShaderCreat
       return "mtl_VertOut";
     case ShaderStage::FRAGMENT:
       return (info.fragment_outputs_.is_empty() && info.depth_write_ == DepthWrite::UNCHANGED &&
-              info.early_fragment_test_ /* TODO FragStencil */) ?
+              bool(info.builtins_ & BuiltinBits::STENCIL_REF) == false) ?
                  "void" :
                  "mtl_FragOut";
     case ShaderStage::COMPUTE:
@@ -618,13 +618,14 @@ static void generate_uniforms(GeneratedStreams &generated,
     auto &out = generated.wrapper_class_members;
     out << "  struct PushConstantBlock {\n";
     for (const ShaderCreateInfo::PushConst &uni : uniforms) {
-      out << "    " << uni.type << " " << uni.name << ";\n";
+      out << "    " << uni.type << " " << uni.name << uni.array_str() << ";\n";
     }
     out << "  };\n";
 
     /* References definition for global access. */
     for (const ShaderCreateInfo::PushConst &uni : uniforms) {
-      out << "  const constant " << uni.type << ref_type(uni.name) << ";\n";
+      out << "  const constant " << uni.type << " (&" << uni.name << ")" << uni.array_str()
+          << ";\n";
     }
   }
   {
@@ -661,10 +662,11 @@ static void generate_buffer(GeneratedStreams &generated,
 {
   const char *memory_scope = (writeable) ? "device " : "constant ";
   const char *const_qual = bool(stage & ShaderStage::VERTEX) ? "const " : "";
+
   {
     /* References definition for global access. */
     auto &out = generated.wrapper_class_members;
-    out << "  " << const_qual << memory_scope << type << ref_type(name) << ";\n";
+    out << "  " << memory_scope << type << ref_type(name) << ";\n";
   }
   {
     /* Constructor parameters. */
@@ -674,7 +676,12 @@ static void generate_buffer(GeneratedStreams &generated,
   {
     /* Constructor assignments. */
     auto &out = generated.wrapper_constructor_assign;
-    out << Sep() << name.str_no_array() << "(" << name.str_no_array() << ")";
+    out << Sep() << name.str_no_array() << "(";
+    /* Remove the const qualifier. Its only there to avoid a compiler warning. */
+    out << "const_cast<" << memory_scope << type << " (&)" << name.str_only_array() << ">(";
+    out << name.str_no_array();
+    out << ")";
+    out << ")";
   }
   {
     /* Constructor arguments. */
@@ -1028,6 +1035,7 @@ static std::string generate_raster_builtins(GeneratedStreams &ss,
                                             const ShaderCreateInfo &info,
                                             const ShaderStage stage)
 {
+  const bool is_frag = stage == ShaderStage::FRAGMENT;
   std::stringstream decl;
 
   /* If invariance is available, utilize this to consistently mitigate depth fighting artifacts
@@ -1035,18 +1043,20 @@ static std::string generate_raster_builtins(GeneratedStreams &ss,
    * with maximum precision. */
   /* TODO(fclem): Maybe worth enabling only for cases where it matters (only mesh rendering). */
   std::string pos_attr = "[[position]] [[invariant]]";
-  if (bool(info.builtins_ & BuiltinBits::FRAG_COORD) && stage == ShaderStage::VERTEX) {
+  if (stage == ShaderStage::VERTEX) {
     generate_raster_builtin(ss, decl, "float4", "gl_Position", pos_attr);
   }
-  else {
+  else if (bool(info.builtins_ & BuiltinBits::FRAG_COORD) && stage == ShaderStage::FRAGMENT) {
     generate_raster_builtin(ss, decl, "float4", "gl_FragCoord", pos_attr, "", true);
   }
 
-  if (bool(info.builtins_ & BuiltinBits::LAYER) && stage == ShaderStage::VERTEX) {
-    generate_raster_builtin(ss, decl, "uint", "gpu_layer", "[[render_target_array_index]]");
+  if (bool(info.builtins_ & BuiltinBits::LAYER)) {
+    generate_raster_builtin(
+        ss, decl, "uint", "gpu_Layer", "[[render_target_array_index]]", "", is_frag);
   }
-  if (bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX) && stage == ShaderStage::VERTEX) {
-    generate_raster_builtin(ss, decl, "uint", "gpu_viewport_index", "[[viewport_array_index]]");
+  if (bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX)) {
+    generate_raster_builtin(
+        ss, decl, "uint", "gpu_ViewportIndex", "[[viewport_array_index]]", "", is_frag);
   }
   if (bool(info.builtins_ & BuiltinBits::POINT_SIZE) && stage == ShaderStage::VERTEX) {
     generate_raster_builtin(ss, decl, "float", "gl_PointSize", "[[point_size]]");
@@ -1202,10 +1212,9 @@ static std::string generate_fragment_builtins(GeneratedStreams &ss, const Shader
     };
     generate_fragment_builtin(ss, decl, "float", "gl_FragDepth", "float", attr(info.depth_write_));
   }
-  /* TODO(fclem): Add to create info. */
-  const bool use_stencil_ref_ARB = !info.early_fragment_test_;
-  if (use_stencil_ref_ARB) {
-    generate_fragment_builtin(ss, decl, "int", "gpu_FragStencilRef", "uint", "[[stencil]]");
+
+  if (bool(info.builtins_ & BuiltinBits::STENCIL_REF)) {
+    generate_fragment_builtin(ss, decl, "int", "gl_FragStencilRefARB", "uint", "[[stencil]]");
   }
 
   return decl.str();
@@ -1373,6 +1382,22 @@ static void generate_builtin(GeneratedStreams &generated,
   generate_builtin(generated, wrapper_type, wrapper_var, wrapper_type, native_var);
 }
 
+static void generate_instance_id(GeneratedStreams &ss)
+{
+  generate_builtin(ss, "int", "gpu_InstanceIndex", "uint", "[[instance_id]]");
+  generate_builtin(ss, "int", "gpu_BaseInstance", "uint", "[[base_instance]]");
+  /* MSL matches Vulkan semantic of gpu_InstanceIndex.
+   * Thus we have to emulate gl_InstanceID support. */
+  {
+    auto &out = ss.wrapper_class_members;
+    out << "  int gl_InstanceID;\n";
+  }
+  {
+    auto &out = ss.wrapper_constructor_assign;
+    out << Sep() << "gl_InstanceID(gpu_InstanceIndex - gpu_BaseInstance)";
+  }
+}
+
 static void generate_builtins(GeneratedStreams &ss,
                               const ShaderStage stage,
                               const ShaderCreateInfo &info)
@@ -1382,14 +1407,11 @@ static void generate_builtins(GeneratedStreams &ss,
       generate_builtin(ss, "int", "gl_VertexID", "uint", "[[vertex_id]]");
     }
     if (bool(info.builtins_ & BuiltinBits::INSTANCE_ID)) {
-      generate_builtin(ss, "int", "gl_InstanceID", "uint", "[[instance_id]]");
-    }
-    if (bool(info.builtins_ & BuiltinBits::INSTANCE_ID)) {
-      generate_builtin(ss, "int", "gl_BaseInstanceARB", "uint", "[[base_instance]]");
+      generate_instance_id(ss);
     }
   }
   else if (stage == ShaderStage::FRAGMENT) {
-    if (bool(info.builtins_ & BuiltinBits::INSTANCE_ID)) {
+    if (bool(info.builtins_ & BuiltinBits::FRONT_FACING)) {
       generate_builtin(ss, "bool", "gl_FrontFacing", "[[front_facing]]");
     }
     if (bool(info.builtins_ & BuiltinBits::PRIMITIVE_ID)) {
@@ -1527,13 +1549,30 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
   GeneratedStreams generated;
   generate_builtins(generated, stage, info);
   generate_stage_interfaces(generated, stage, info);
-  generate_resources(generated, stage, info, false);
+  generate_resources(generated, stage, info, true);
 
   std::stringstream out;
 
   generate_standard_defines(out);
   out << "#define USE_GPU_SHADER_CREATE_INFO\n";
+
+  switch (stage) {
+    case ShaderStage::COMPUTE:
+      out << "#define GPU_COMPUTE_SHADER\n";
+      break;
+    case ShaderStage::FRAGMENT:
+      out << "#define GPU_FRAGMENT_SHADER\n";
+      break;
+    case ShaderStage::VERTEX:
+      out << "#define GPU_VERTEX_SHADER\n";
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+
   out << generate_defines(info);
+  out << info.resource_guard_defines();
 
   out << gpu_shader_dependency_get_source("GPU_shader_shared_utils.hh");
 
@@ -1548,9 +1587,28 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
   }
   out << fmt::to_string(fmt::join(typedefs, ""));
 
+  switch (stage) {
+    case ShaderStage::COMPUTE:
+      // out << fmt::to_string(
+      //     fmt::join(gpu_shader_dependency_get_resolved_source(info.compute_source_, {}), ""));
+      break;
+    case ShaderStage::FRAGMENT:
+      out << fmt::to_string(
+          fmt::join(gpu_shader_dependency_get_resolved_source(info.fragment_source_, {}), ""));
+      break;
+    case ShaderStage::VERTEX:
+      out << fmt::to_string(
+          fmt::join(gpu_shader_dependency_get_resolved_source(info.vertex_source_, {}), ""));
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+
   /* End of user generated code. */
-  /* Undefine macros that can conflict with attributes. */
   out << "\n";
+  /* Undefine macros that can conflict with attributes. We still need to keep other user macros in
+   * case they are used inside resources declaration. */
   out << "#undef color\n";
   out << "#undef user\n";
 
