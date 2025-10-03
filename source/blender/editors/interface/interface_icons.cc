@@ -311,8 +311,7 @@ static void vicon_keytype_draw_wrapper(const float x,
                       alpha,
                       &sh_bindings,
                       handle_type,
-                      KEYFRAME_EXTREME_NONE,
-                      false);
+                      KEYFRAME_EXTREME_NONE);
 
   immEnd();
   GPU_program_point_size(false);

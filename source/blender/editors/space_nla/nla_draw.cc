@@ -152,8 +152,7 @@ static void nla_action_draw_keyframes(
                           1.0f,
                           &sh_bindings,
                           KEYFRAME_HANDLE_NONE,
-                          KEYFRAME_EXTREME_NONE,
-                          false);
+                          KEYFRAME_EXTREME_NONE);
     }
 
     immEnd();

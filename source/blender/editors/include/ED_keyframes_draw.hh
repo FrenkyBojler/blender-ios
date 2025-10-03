@@ -54,8 +54,7 @@ void draw_keyframe_shape(float x,
                          float alpha,
                          const KeyframeShaderBindings *sh_bindings,
                          short handle_type,
-                         short extreme_type,
-                         bool draw_mini);
+                         short extreme_type);
 
 /* ******************************* Methods ****************************** */
 

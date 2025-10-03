@@ -51,8 +51,7 @@ void draw_keyframe_shape(const float x,
                          const float alpha,
                          const KeyframeShaderBindings *sh_bindings,
                          const short handle_type,
-                         const short extreme_type,
-                         const bool draw_mini)
+                         const short extreme_type)
 {
   bool draw_fill = ELEM(mode, KEYFRAME_SHAPE_INSIDE, KEYFRAME_SHAPE_BOTH);
   bool draw_outline = ELEM(mode, KEYFRAME_SHAPE_FRAME, KEYFRAME_SHAPE_BOTH);
@@ -116,14 +115,6 @@ void draw_keyframe_shape(const float x,
     /* For effects like graying out protected/muted channels. The theme RNA/UI doesn't allow users
      * to set the alpha. */
     fill_col[3] = 255.0f * alpha;
-
-    if (draw_mini) {
-      size *= 0.6f;
-      fill_col[0] *= 0.6f;
-      fill_col[1] *= 0.6;
-      fill_col[2] *= 0.6;
-      fill_col[3] *= 0.4f;
-    }
 
     if (!draw_outline) {
       /* force outline color to match */
@@ -367,7 +358,7 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
                               const int key_len,
                               float ypos,
                               eSAction_Flag saction_flag,
-                              const bool draw_mini)
+                              const bool is_expanded)
 {
   short handle_type = KEYFRAME_HANDLE_NONE, extreme_type = KEYFRAME_EXTREME_NONE;
 
@@ -381,17 +372,21 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
         extreme_type = ak->extreme_type;
       }
 
+      /* Draw smaller keyframes if is_expanded is set.
+       * Selected keys draw at regular size. */
+      const float key_size = (is_expanded && !(ak->sel & SELECT)) ? U.widget_unit * 0.33f :
+                                                                    ctx->icon_size;
+
       draw_keyframe_shape(ak->cfra,
                           ypos,
-                          ctx->icon_size,
+                          key_size,
                           (ak->sel & SELECT),
                           eBezTriple_KeyframeType(ak->key_type),
-                          draw_mini ? KEYFRAME_SHAPE_INSIDE : KEYFRAME_SHAPE_BOTH,
+                          KEYFRAME_SHAPE_BOTH,
                           ctx->alpha,
                           sh_bindings,
                           handle_type,
-                          extreme_type,
-                          (ak->sel & SELECT) ? false : draw_mini);
+                          extreme_type);
     }
   }
 }
