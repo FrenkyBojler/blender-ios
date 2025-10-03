@@ -55,9 +55,6 @@ static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeS
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
-    return;
-  }
   const std::optional<eNodeSocketDatatype> node_type = node_type_for_socket_type(
       params.other_socket());
   if (!node_type) {
@@ -247,7 +244,7 @@ static void node_register()
   ntype.ui_name = "Sample Grid Index";
   ntype.ui_description = "Retrieve volume grid values at specific voxels";
   ntype.enum_name_legacy = "SAMPLE_GRID_INDEX";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
