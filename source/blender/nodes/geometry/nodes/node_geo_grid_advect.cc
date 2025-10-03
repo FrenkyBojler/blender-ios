@@ -214,7 +214,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   BKE_volume_grid_type_to_static_type(grid_type, [&](auto grid_type_tag) {
     using GridType = typename decltype(grid_type_tag)::type;
-    /* Only float, int, and vector float grids are supported. Others are filtered at UI level. */
     if constexpr (std::is_same_v<GridType, openvdb::FloatGrid> ||
                   std::is_same_v<GridType, openvdb::Int32Grid> ||
                   std::is_same_v<GridType, openvdb::Vec3fGrid>)
@@ -242,13 +241,13 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = SOCK_FLOAT;
 }
 
+/* Only float, int, and vector grids are supported for advection */
 static const EnumPropertyItem *advect_grid_socket_type_filter(bContext * /*C*/,
                                                               PointerRNA * /*ptr*/,
                                                               PropertyRNA * /*prop*/,
                                                               bool *r_free)
 {
   *r_free = true;
-  /* Only float, int, and vector grids are supported for advection. */
   return enum_items_filter(rna_enum_node_socket_data_type_items,
                            [](const EnumPropertyItem &item) -> bool {
                              const eNodeSocketDatatype type = eNodeSocketDatatype(item.value);
