@@ -2,12 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_lightprobe_volume_info.hh"
+#include "infos/eevee_lightprobe_volume_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(eevee_debug_surfels)
 
 #include "draw_view_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_math_matrix_construct_lib.glsl"
 
 void main()
 {

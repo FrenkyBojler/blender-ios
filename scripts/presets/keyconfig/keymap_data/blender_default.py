@@ -1042,7 +1042,7 @@ def km_user_interface(_params):
         ("ui.view_scroll", {"type": 'WHEELUPMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'WHEELDOWNMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'CLICK'}, None),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
          {"properties": [("extend", True)]}),
         ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
@@ -1395,7 +1395,7 @@ def km_uv_editor(params):
             ("uv.select_box", {"type": 'B', "value": 'PRESS'},
              {"properties": [("pinned", False)]}),
             (op_tool, "builtin.select_box"), params),
-        ("uv.select_box", {"type": 'B', "value": 'PRESS', "ctrl": True},
+        ("uv.select_box", {"type": 'B', "value": 'PRESS', "alt": True},
          {"properties": [("pinned", True)]}),
         op_tool_optional(
             ("uv.select_circle", {"type": 'C', "value": 'PRESS'}, None),
@@ -1426,6 +1426,10 @@ def km_uv_editor(params):
          {"properties": [("clear", True)]}),
         ("uv.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("uv.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("uv.custom_region_set", {"type": 'B', "value": 'PRESS', "ctrl": True}, None),
+        ("wm.context_toggle", {"type": 'B', "value": 'PRESS', "ctrl": True, "alt": True},
+         {"properties": [("data_path", "tool_settings.use_uv_custom_region")]}),
+
         op_menu("IMAGE_MT_uvs_unwrap", {"type": 'U', "value": 'PRESS'}),
         (
             op_menu_pie("IMAGE_MT_uvs_snap_pie", {"type": 'S', "value": 'PRESS', "shift": True})
@@ -2226,7 +2230,9 @@ def km_node_editor(params):
          {"properties": [("replace", False)]}),
         ("node.link_make", {"type": 'J', "value": 'PRESS', "shift": True},
          {"properties": [("replace", True)]}),
+        ("node.join_nodes", {"type": 'J', "value": 'PRESS', "ctrl": True}, None),
         op_menu("NODE_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
+        op_menu("NODE_MT_swap", {"type": 'S', "value": 'PRESS', "shift": True}),
         ("node.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True},
          {"properties": [("NODE_OT_translate_attach", [("TRANSFORM_OT_translate", [("view2d_edge_pan", True)])])]}),
         ("node.duplicate_move_linked", {"type": 'D', "value": 'PRESS', "alt": True},
@@ -2262,6 +2268,7 @@ def km_node_editor(params):
         ("node.group_make", {"type": 'G', "value": 'PRESS', "ctrl": True}, None),
         ("node.group_ungroup", {"type": 'G', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("node.group_separate", {"type": 'P', "value": 'PRESS'}, None),
+        ("node.group_enter_exit", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("node.group_edit", {"type": 'TAB', "value": 'PRESS'},
          {"properties": [("exit", False)]}),
         ("node.group_edit", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
@@ -3539,6 +3546,8 @@ def km_clip_editor(params):
         ("clip.cursor_set", params.cursor_set_event, None),
         ("clip.copy_tracks", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("clip.paste_tracks", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        ("wm.context_toggle", {"type": 'Z', "value": 'PRESS', "alt": True, "shift": True},
+         {"properties": [("data_path", "space_data.overlay.show_overlays")]}),
         *_template_items_context_menu("CLIP_MT_tracking_context_menu", params.context_menu_event),
     ])
 
@@ -8618,6 +8627,14 @@ def km_sequencer_tool_blade(_params):
                  ("side", 'NO_CHANGE'),
                  ("use_cursor_position", True),
                  ("ignore_selection", True),
+             ]}),
+            ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
+             {"properties": [
+                 ("type", 'SOFT'),
+                 ("side", 'NO_CHANGE'),
+                 ("use_cursor_position", True),
+                 ("ignore_selection", True),
+                 ("ignore_connections", True),
              ]}),
         ]},
     )

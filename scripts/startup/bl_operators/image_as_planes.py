@@ -424,15 +424,14 @@ def create_cycles_material(self, context, img_spec, name):
         material = bpy.data.materials.get((name, None))
     if material is None:
         material = bpy.data.materials.new(name=name)
-
-    material.use_nodes = True
+        material.node_tree.nodes.clear()
 
     material.surface_render_method = self.render_method
     material.use_backface_culling = self.use_backface_culling
     material.use_transparency_overlap = self.show_transparent_back
 
     node_tree = material.node_tree
-    out_node = clean_node_tree(node_tree)
+    out_node = node_tree.nodes.new("ShaderNodeOutputMaterial")
 
     tex_image = create_cycles_texnode(self, node_tree, img_spec)
 
