@@ -344,7 +344,7 @@ bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
   return changed;
 }
 
-enum UVMoveType {
+enum class UVMoveType {
   Dynamic = 0,
   Pixel = 1,
   Udim = 2,
@@ -369,10 +369,10 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
   int size[2];
   ED_space_image_get_size(sima, &size[0], &size[1]);
   float distance_final;
-  if (type == Dynamic) {
+  if (type == UVMoveType::Dynamic) {
     distance_final = (float)distance / sima->tile_grid_shape[int(axis)];
   }
-  else if (type == Pixel) {
+  else if (type == UVMoveType::Pixel) {
     distance_final = (float)distance / size[int(axis)];
   }
   else {
@@ -402,9 +402,9 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
 static void UV_OT_move_on_axis(wmOperatorType *ot)
 {
   static const EnumPropertyItem shift_items[] = {
-      {Dynamic, "DYNAMIC", 0, "Dynamic", "Move by dynamic grid"},
-      {Pixel, "PIXEL", 0, "Pixel", "Move by pixel"},
-      {Udim, "UDIM", 0, "UDIM", "Move by UDIM"},
+      {int(UVMoveType::Dynamic), "DYNAMIC", 0, "Dynamic", "Move by dynamic grid"},
+      {int(UVMoveType::Pixel), "PIXEL", 0, "Pixel", "Move by pixel"},
+      {int(UVMoveType::Udim), "UDIM", 0, "UDIM", "Move by UDIM"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -425,7 +425,7 @@ static void UV_OT_move_on_axis(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   /* properties */
-  RNA_def_enum(ot->srna, "type", shift_items, Udim, "Type", "Move Type");
+  RNA_def_enum(ot->srna, "type", shift_items, int(UVMoveType::Udim), "Type", "Move Type");
   RNA_def_enum(
       ot->srna, "axis", axis_items, int(UVMoveDirection::X), "Axis", "Axis to move UVs on");
   RNA_def_int(ot->srna,
