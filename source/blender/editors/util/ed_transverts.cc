@@ -331,13 +331,11 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
     }
 
     if (mode & TM_CALC_MAPLOC) {
-      if (!DEG_is_original(obedit)) {
-        const Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(obedit);
-        if (tvs->transverts && editmesh_eval_cage) {
-          BM_mesh_elem_table_ensure(bm, BM_VERT);
-          BKE_mesh_foreach_mapped_vert(
-              editmesh_eval_cage, set_mapped_co, userdata, MESH_FOREACH_NOP);
-        }
+      const Mesh *editmesh_eval_cage = BKE_object_get_editmesh_eval_cage(obedit);
+      if (tvs->transverts && editmesh_eval_cage) {
+        BM_mesh_elem_table_ensure(bm, BM_VERT);
+        BKE_mesh_foreach_mapped_vert(
+            editmesh_eval_cage, set_mapped_co, userdata, MESH_FOREACH_NOP);
       }
     }
   }
