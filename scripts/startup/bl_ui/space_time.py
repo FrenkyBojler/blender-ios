@@ -42,20 +42,22 @@ def playback_controls(layout, context):
     is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
 
     scene = context.scene if not is_sequencer else context.sequencer_scene
-    tool_settings = context.tool_settings
+    tool_settings = scene.tool_settings if scene else None
     screen = context.screen
 
-    layout.popover(
-        panel="TIME_PT_playback",
-        text="Playback",
-    )
+    if scene:
+        layout.popover(
+            panel="TIME_PT_playback",
+            text="Playback",
+        )
 
-    icon_keytype = 'KEYTYPE_{:s}_VEC'.format(context.tool_settings.keyframe_type)
-    layout.popover(
-        panel="TIME_PT_keyframing_settings",
-        text_ctxt=i18n_contexts.id_windowmanager,
-        icon=icon_keytype,
-    )
+    if tool_settings:
+        icon_keytype = 'KEYTYPE_{:s}_VEC'.format(tool_settings.keyframe_type)
+        layout.popover(
+            panel="TIME_PT_keyframing_settings",
+            text_ctxt=i18n_contexts.id_windowmanager,
+            icon=icon_keytype,
+        )
 
     if is_sequencer:
         layout.prop(context.workspace, "use_scene_time_sync", text="Sync Scene Time")
@@ -95,10 +97,11 @@ def playback_controls(layout, context):
     row.operator("screen.keyframe_jump", text="", icon='NEXT_KEYFRAME').next = True
     row.operator("screen.frame_jump", text="", icon='FF').end = True
 
-    row = layout.row(align=True)
-    row.prop(tool_settings, "use_snap_playhead", text="")
-    sub = row.row(align=True)
-    sub.popover(panel="TIME_PT_playhead_snapping", text="")
+    if tool_settings:
+        row = layout.row(align=True)
+        row.prop(tool_settings, "use_snap_playhead", text="")
+        sub = row.row(align=True)
+        sub.popover(panel="TIME_PT_playhead_snapping", text="")
 
     layout.separator_spacer()
 
@@ -121,71 +124,6 @@ def playback_controls(layout, context):
         else:
             sub.prop(scene, "frame_preview_start", text="Start")
             sub.prop(scene, "frame_preview_end", text="End")
-
-
-class TIME_MT_editor_menus(Menu):
-    bl_idname = "TIME_MT_editor_menus"
-    bl_label = ""
-
-    def draw(self, context):
-        layout = self.layout
-        horizontal = (layout.direction == 'VERTICAL')
-        st = context.space_data
-        if horizontal:
-            row = layout.row()
-            sub = row.row(align=True)
-        else:
-            sub = layout
-
-        sub.menu("TIME_MT_view")
-        if st.show_markers:
-            sub.menu("TIME_MT_marker")
-
-
-class TIME_MT_marker(Menu):
-    bl_label = "Marker"
-
-    def draw(self, context):
-        layout = self.layout
-
-        marker_menu_generic(layout, context)
-
-
-class TIME_MT_view(Menu):
-    bl_label = "View"
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        st = context.space_data
-
-        layout.prop(st, "show_region_hud")
-        layout.prop(st, "show_region_channels")
-        layout.separator()
-
-        # NOTE: "action" now, since timeline is in the dopesheet editor, instead of as own editor
-        layout.operator("action.view_all")
-        if context.scene.use_preview_range:
-            layout.operator("anim.scene_range_frame", text="Frame Preview Range")
-        else:
-            layout.operator("anim.scene_range_frame", text="Frame Scene Range")
-        layout.operator("action.view_frame")
-        layout.separator()
-
-        layout.prop(st, "show_markers")
-        layout.prop(st, "show_seconds")
-        layout.prop(st, "show_locked_time")
-        layout.separator()
-
-        layout.prop(scene, "show_keys_from_selected_only")
-        layout.prop(st.dopesheet, "show_only_errors")
-        layout.separator()
-
-        layout.menu("DOPESHEET_MT_cache")
-        layout.separator()
-
-        layout.menu("INFO_MT_area")
 
 
 def marker_menu_generic(layout, context):
@@ -298,7 +236,7 @@ class TIME_PT_keyframing_settings(TimelinePanelButtons, Panel):
             self.bl_label = scene.keying_sets_all.active.bl_label
             if scene.keying_sets_all.active.bl_label in scene.keying_sets:
                 # Do not translate, this keying set is user-defined.
-                self.bl_translation_context = "Do not translate"
+                self.bl_translation_context = i18n_contexts.no_translation
             else:
                 # Use the keying set's translation context (default).
                 self.bl_translation_context = scene.keying_sets_all.active.bl_rna.translation_context
@@ -354,9 +292,6 @@ class TIME_PT_auto_keyframing(TimelinePanelButtons, Panel):
 ###################################
 
 classes = (
-    TIME_MT_editor_menus,
-    TIME_MT_marker,
-    TIME_MT_view,
     TIME_PT_playback,
     TIME_PT_keyframing_settings,
     TIME_PT_auto_keyframing,
