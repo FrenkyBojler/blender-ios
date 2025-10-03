@@ -922,6 +922,8 @@ class NODE_MT_gn_volume_write_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeStoreNamedGrid")
+        self.node_operator(layout, "GeometryNodeSetGridBackground")
+        self.node_operator(layout, "GeometryNodeSetGridTransform")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -935,6 +937,10 @@ class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleGrid")
         self.node_operator(layout, "GeometryNodeSampleGridIndex")
+        self.node_operator(layout, "GeometryNodeGridCurl")
+        self.node_operator(layout, "GeometryNodeGridDivergence")
+        self.node_operator(layout, "GeometryNodeGridGradient")
+        self.node_operator(layout, "GeometryNodeGridLaplacian")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -950,6 +956,8 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
             self.node_operator(layout, "GeometryNodeGridToMesh")
             self.node_operator(layout, "GeometryNodeSDFGridBoolean")
             self.node_operator(layout, "GeometryNodeFieldToGrid")
+            self.node_operator(layout, "GeometryNodeGridPrune")
+            self.node_operator(layout, "GeometryNodeGridVoxelize")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
