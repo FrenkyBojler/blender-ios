@@ -903,9 +903,11 @@ bool GPU_stack_link_zone(GPUMaterial *material,
 
   LISTBASE_FOREACH_INDEX (GPUInput *, input, &node->inputs, i) {
     input->is_zone_io = i >= in_argument_count;
+    input->is_duplicate = input->is_zone_io && is_zone_end;
   }
   LISTBASE_FOREACH_INDEX (GPUOutput *, output, &node->outputs, i) {
     output->is_zone_io = i >= out_argument_count;
+    output->is_duplicate = output->is_zone_io;
   }
 
   BLI_addtail(&graph->nodes, node);

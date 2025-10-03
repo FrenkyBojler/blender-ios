@@ -543,11 +543,8 @@ void GPUCodegen::set_unique_ids()
                         end_output = end_output->next)
     {
       start_output->id = start_input->id;
-      start_output->is_duplicate = true;
       end_input->id = start_input->id;
-      end_input->is_duplicate = true;
       end_output->id = start_input->id;
-      end_output->is_duplicate = true;
     }
   }
 }
