@@ -191,3 +191,30 @@ void BKE_mesh_gpu_topology_add_specialization_constants(
       Type::int_t, "vert_to_face_offsets_offset", topology.vert_to_face_offsets_offset);
   info.specialization_constant(Type::int_t, "vert_to_face_offset", topology.vert_to_face_offset);
 }
+
+blender::gpu::StorageBuf *BKE_mesh_gpu_positions_create_ssbo(const Mesh *mesh)
+{
+  if (!mesh || mesh->verts_num == 0) {
+    return nullptr;
+  }
+
+  if (!GPU_context_active_get()) {
+    return nullptr;
+  }
+
+  const blender::Span<blender::float3> positions = mesh->vert_positions();
+  blender::Vector<blender::float4> positions_float4;
+  positions_float4.resize(positions.size());
+
+  for (const int i : positions.index_range()) {
+    positions_float4[i] = blender::float4(positions[i], 1.0f);
+  }
+
+  blender::gpu::StorageBuf *ssbo = GPU_storagebuf_create_ex(positions_float4.size() *
+                                                                sizeof(blender::float4),
+                                                            positions_float4.data(),
+                                                            GPU_USAGE_STATIC,
+                                                            __func__);
+
+  return ssbo;
+}
