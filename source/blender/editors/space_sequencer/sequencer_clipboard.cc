@@ -158,7 +158,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
   /* NOTE: Setting the same current file path as G_MAIN is necessary for now to get correct
    * external filepaths when writing the partial write context on disk. otherwise, filepaths from
    * the scene's sequencer strips (e.g. image ones) would also need to be remapped in this code. */
-  PartialWriteContext copy_buffer{bmain_src->filepath};
+  PartialWriteContext copy_buffer{*bmain_src};
   const char *scene_name = "copybuffer_vse_scene";
 
   /* Add a dummy empty scene to the temporary Main copy buffer. */
@@ -547,7 +547,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     /* Place strips that generate an image at the mouse cursor. */
-    if (region->regiontype == RGN_TYPE_PREVIEW && !(RNA_boolean_get(op->ptr, "keep_offset")) &&
+    if (region->regiontype == RGN_TYPE_PREVIEW && !RNA_boolean_get(op->ptr, "keep_offset") &&
         istrip->type != STRIP_TYPE_SOUND_RAM &&
         seq::must_render_strip(seq::query_all_strips(&nseqbase), istrip))
     {
