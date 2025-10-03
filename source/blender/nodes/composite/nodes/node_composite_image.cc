@@ -45,7 +45,6 @@
 
 #include "NOD_node_extra_info.hh"
 
-#include "COM_algorithm_extract_alpha.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -53,7 +52,6 @@
 
 static blender::bke::bNodeSocketTemplate cmp_node_rlayers_out[] = {
     {SOCK_RGBA, N_("Image"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT, N_("Alpha"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_FLOAT, N_(RE_PASSNAME_DEPTH), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_NORMAL), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_UV), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
@@ -275,18 +273,6 @@ static void cmp_node_image_create_outputs(bNodeTree *ntree,
                                          false,
                                          available_sockets,
                                          &prev_index);
-          /* Special handling for the Combined pass to ensure compatibility. */
-          if (STREQ(rpass->name, RE_PASSNAME_COMBINED)) {
-            cmp_node_image_add_pass_output(ntree,
-                                           node,
-                                           "Alpha",
-                                           rpass->name,
-                                           -1,
-                                           SOCK_FLOAT,
-                                           false,
-                                           available_sockets,
-                                           &prev_index);
-          }
         }
         BKE_image_release_ibuf(ima, ibuf, nullptr);
         return;
@@ -300,15 +286,6 @@ static void cmp_node_image_create_outputs(bNodeTree *ntree,
                                  RE_PASSNAME_COMBINED,
                                  -1,
                                  SOCK_RGBA,
-                                 false,
-                                 available_sockets,
-                                 &prev_index);
-  cmp_node_image_add_pass_output(ntree,
-                                 node,
-                                 "Alpha",
-                                 RE_PASSNAME_COMBINED,
-                                 -1,
-                                 SOCK_FLOAT,
                                  false,
                                  available_sockets,
                                  &prev_index);
@@ -345,15 +322,15 @@ void node_cmp_rlayers_register_pass(bNodeTree *ntree,
   if (STREQ(name, RE_PASSNAME_COMBINED)) {
     cmp_node_image_add_pass_output(
         ntree, node, "Image", name, -1, type, true, data->available_sockets, &data->prev_index);
-    cmp_node_image_add_pass_output(ntree,
-                                   node,
-                                   "Alpha",
-                                   name,
-                                   -1,
-                                   SOCK_FLOAT,
-                                   true,
-                                   data->available_sockets,
-                                   &data->prev_index);
+    // cmp_node_image_add_pass_output(ntree,
+    //                                node,
+    //                                "Alpha",
+    //                                name,
+    //                                -1,
+    //                                SOCK_FLOAT,
+    //                                true,
+    //                                data->available_sockets,
+    //                                &data->prev_index);
   }
   else {
     cmp_node_image_add_pass_output(
@@ -431,15 +408,15 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
                                  true,
                                  available_sockets,
                                  &prev_index);
-  cmp_node_image_add_pass_output(ntree,
-                                 node,
-                                 "Alpha",
-                                 RE_PASSNAME_COMBINED,
-                                 RRES_OUT_ALPHA,
-                                 SOCK_FLOAT,
-                                 true,
-                                 available_sockets,
-                                 &prev_index);
+  // cmp_node_image_add_pass_output(ntree,
+  //                                node,
+  //                                "Alpha",
+  //                                RE_PASSNAME_COMBINED,
+  //                                RRES_OUT_ALPHA,
+  //                                SOCK_FLOAT,
+  //                                true,
+  //                                available_sockets,
+  //                                &prev_index);
 }
 
 /* XXX make this into a generic socket verification function for dynamic socket replacement
@@ -577,15 +554,9 @@ class ImageOperation : public NodeOperation {
       return;
     }
 
-    /* Alpha is not an actual pass, but one that is extracted from the combined pass. */
-    if (identifier == "Alpha" && pass_name == RE_PASSNAME_COMBINED) {
-      extract_alpha(context(), cached_image, result);
-    }
-    else {
-      result.set_type(cached_image.type());
-      result.set_precision(cached_image.precision());
-      result.wrap_external(cached_image);
-    }
+    result.set_type(cached_image.type());
+    result.set_precision(cached_image.precision());
+    result.wrap_external(cached_image);
   }
 
   /* Get the name of the pass corresponding to the output with the given identifier. */
@@ -648,9 +619,7 @@ const char *node_cmp_rlayers_sock_to_pass(int sock_index)
   if (sock_index >= NUM_LEGACY_SOCKETS) {
     return nullptr;
   }
-  const char *name = cmp_node_rlayers_out[sock_index].name;
-  /* Exception for alpha, which is derived from Combined. */
-  return STREQ(name, "Alpha") ? RE_PASSNAME_COMBINED : name;
+  return cmp_node_rlayers_out[sock_index].name;
 }
 
 namespace blender::nodes::node_composite_render_layer_cc {
@@ -774,7 +743,7 @@ static void node_extra_info(NodeExtraInfoParams &parameters)
   bool is_any_pass_used = false;
   for (const bNodeSocket *output : parameters.node.output_sockets()) {
     /* Combined pass is always available. */
-    if (StringRef(output->name) == "Image" || StringRef(output->name) == "Alpha") {
+    if (StringRef(output->name) == "Image") {
       continue;
     }
     if (output->is_logically_linked()) {
@@ -806,17 +775,11 @@ class RenderLayerOperation : public NodeOperation {
     const int view_layer = this->bnode().custom1;
 
     Result &image_result = this->get_result("Image");
-    Result &alpha_result = this->get_result("Alpha");
 
-    if (image_result.should_compute() || alpha_result.should_compute()) {
+    if (image_result.should_compute()) {
       const Result combined_pass = this->context().get_pass(
           scene, view_layer, RE_PASSNAME_COMBINED);
-      if (image_result.should_compute()) {
-        this->execute_pass(combined_pass, image_result);
-      }
-      if (alpha_result.should_compute()) {
-        this->execute_pass(combined_pass, alpha_result);
-      }
+      this->execute_pass(combined_pass, image_result);
     }
 
     for (const bNodeSocket *output : this->node()->output_sockets()) {
@@ -824,7 +787,7 @@ class RenderLayerOperation : public NodeOperation {
         continue;
       }
 
-      if (STR_ELEM(output->identifier, "Image", "Alpha")) {
+      if (STREQ(output->identifier, "Image")) {
         continue;
       }
 
@@ -894,11 +857,6 @@ class RenderLayerOperation : public NodeOperation {
 
   const char *get_shader_name(const Result &pass, const Result &result)
   {
-    /* Special case for alpha output. */
-    if (pass.type() == ResultType::Color && result.type() == ResultType::Float) {
-      return "compositor_read_input_alpha";
-    }
-
     switch (pass.type()) {
       case ResultType::Float:
         return "compositor_read_input_float";
@@ -931,18 +889,9 @@ class RenderLayerOperation : public NodeOperation {
     const int2 lower_bound = this->context().get_compositing_region().min;
 
     result.allocate_texture(Domain(this->context().get_compositing_region_size()));
-
-    /* Special case for alpha output. */
-    if (pass.type() == ResultType::Color && result.type() == ResultType::Float) {
-      parallel_for(result.domain().size, [&](const int2 texel) {
-        result.store_pixel(texel, pass.load_pixel<float4>(texel + lower_bound).w);
-      });
-    }
-    else {
-      parallel_for(result.domain().size, [&](const int2 texel) {
-        result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
-      });
-    }
+    parallel_for(result.domain().size, [&](const int2 texel) {
+      result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
+    });
   }
 
   /* Get the name of the pass corresponding to the output with the given identifier. */
