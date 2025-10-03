@@ -2761,6 +2761,53 @@ static void do_version_adaptive_subdivision(Main *bmain)
   }
 }
 
+static void do_version_alpha_pass(bNodeTree *node_tree, bNode *node)
+{
+  bNodeSocket *image_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Image");
+  bNodeSocket *alpha_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Alpha");
+
+  /* Find the link going out of the Alpha output and replace it with the Alpha channel from the
+   * Image output. */
+  bNodeLink *alpha_link = nullptr;
+  bool is_alpha_output_used = false;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
+    if (link->fromsock == alpha_output) {
+      alpha_link = link;
+      is_alpha_output_used = true;
+    }
+  }
+
+  /* The alpha output is unused, nothing to do. */
+  if (!is_alpha_output_used) {
+    return;
+  }
+  /* Extract the alpha channel from the Image output using a Separate Color node. */
+
+  // todo(habib): use version_node_add_empty()
+  bNode *target_node = alpha_link->tonode;
+  bNode *separate_node = blender::bke::node_add_static_node(
+      nullptr, *node_tree, CMP_NODE_SEPARATE_COLOR);
+  separate_node->parent = node->parent;
+  separate_node->custom1 = NODE_COMBSEP_COLOR_RGB;
+  separate_node->location[0] = target_node->location[0];
+  separate_node->location[1] = target_node->location[1] - 20.0f;
+  separate_node->flag |= NODE_COLLAPSED;
+
+  blender::bke::node_add_link(*node_tree,
+                              *node,
+                              *image_output,
+                              *separate_node,
+                              *blender::bke::node_find_socket(*separate_node, SOCK_IN, "Image"));
+
+  blender::bke::node_add_link(*node_tree,
+                              *separate_node,
+                              *blender::bke::node_find_socket(*separate_node, SOCK_OUT, "Alpha"),
+                              *alpha_link->tonode,
+                              *alpha_link->tosock);
+
+  blender::bke::node_remove_link(node_tree, *alpha_link);
+}
+
 void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   using namespace blender;
@@ -3805,6 +3852,23 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
       }
+    }
+
+    if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 101)) {
+      FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+        if (node_tree->type == NTREE_COMPOSIT) {
+          LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+            if (node->type_legacy == CMP_NODE_R_LAYERS) {
+              /* Alpha pass was removed from the Render Layers node.
+               * Previously, an alpha pass was created for every loaded image. After removing the
+               * alpha pass, we cannot differentiate alpha passes created by Blender on load or by
+               * users when saving EXRs. So we skip versioning for the Image node. */
+              do_version_alpha_pass(node_tree, node);
+            }
+          }
+        }
+      }
+      FOREACH_NODETREE_END;
     }
   }
 
