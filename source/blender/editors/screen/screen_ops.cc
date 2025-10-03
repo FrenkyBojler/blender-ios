@@ -5584,12 +5584,8 @@ static bool match_region_with_redraws(const ScrArea *area,
     }
   }
   else if (regiontype == RGN_TYPE_HEADER) {
-    if (spacetype == SPACE_ACTION) {
-      /* The timeline shows the current frame in the header. Other headers
-       * don't need to be updated. */
-      SpaceAction *saction = (SpaceAction *)area->spacedata.first;
-      return saction->mode == SACTCONT_TIMELINE;
-    }
+    /* Since the timeline does not exist anymore, this doesn't need updating. */
+    return false;
   }
   else if (regiontype == RGN_TYPE_FOOTER) {
     /* The footer region in animation editors shows the current frame. */
@@ -5845,6 +5841,12 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   /* Since we follow draw-flags, we can't send notifier but tag regions ourselves. */
   if (depsgraph != nullptr) {
     ED_update_for_newframe(bmain, depsgraph);
+
+    /* Updating the frame, and invoking the frame pre/post hooks, can result in the current timer
+     * being removed. For example, calling `screen.animation_cancel` inside `frame_change_post`. */
+    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+      return OPERATOR_FINISHED;
+    }
   }
 
   LISTBASE_FOREACH (wmWindow *, window, &wm->windows) {
@@ -5988,6 +5990,9 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
                                          CTX_data_view_layer(C);
   Depsgraph *depsgraph = is_sequencer ? BKE_scene_ensure_depsgraph(bmain, scene, view_layer) :
                                         CTX_data_ensure_evaluated_depsgraph(C);
+  if (is_sequencer) {
+    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+  }
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
@@ -6959,6 +6964,8 @@ static std::string screen_drop_scene_tooltip(bContext * /*C*/,
     switch (asset_drag->import_settings.method) {
       case ASSET_IMPORT_LINK:
         return fmt::format(fmt::runtime(TIP_("Link {}")), dragged_scene_name);
+      case ASSET_IMPORT_PACK:
+        return fmt::format(fmt::runtime(TIP_("Pack {}")), dragged_scene_name);
       case ASSET_IMPORT_APPEND:
         return fmt::format(fmt::runtime(TIP_("Append {}")), dragged_scene_name);
       case ASSET_IMPORT_APPEND_REUSE:
