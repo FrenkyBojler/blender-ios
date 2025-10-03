@@ -40,6 +40,15 @@ void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params)
   }
 }
 
+bool node_geo_sdf_grid_error_not_levelset(GeoNodeExecParams &params)
+{
+  params.error_message_add(
+      NodeWarningType::Error,
+      "Input grid is not a valid level set. Please use a signed distance field grid as input");
+  params.set_default_remaining_outputs();
+  return false;
+}
+
 namespace enums {
 
 const EnumPropertyItem *attribute_type_type_with_socket_fn(bContext * /*C*/,

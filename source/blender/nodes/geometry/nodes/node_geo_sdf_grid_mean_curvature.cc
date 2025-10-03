@@ -20,7 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input<decl::Int>("Iterations")
       .default_value(1)
-      .min(1)
+      .min(0)
       .description("Number of iterations to apply the filter");
 }
 
@@ -33,21 +33,24 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  const int iterations = params.extract_input<int>("Iterations");
+
+  if (iterations <= 0) {
+    params.set_output("Grid", std::move(grid));
+    return;
+  }
+
   bke::VolumeTreeAccessToken tree_token;
   openvdb::FloatGrid &vdb_grid = grid.grid_for_write(tree_token);
 
   try {
     openvdb::tools::LevelSetFilter<openvdb::FloatGrid> filter(vdb_grid);
-    const int iterations = std::max(params.extract_input<int>("Iterations"), 1);
     for (int i = 0; i < iterations; i++) {
       filter.meanCurvature();
     }
   }
   catch (const openvdb::RuntimeError &e) {
-    params.error_message_add(NodeWarningType::Error,
-                             "Input grid is not a valid level set. Please use a signed distance "
-                             "field grid as input");
-    params.set_default_remaining_outputs();
+    node_geo_sdf_grid_error_not_levelset(params);
     return;
   }
 
@@ -68,7 +71,6 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
