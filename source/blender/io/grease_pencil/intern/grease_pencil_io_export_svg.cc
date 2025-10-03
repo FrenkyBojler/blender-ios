@@ -50,6 +50,7 @@ static std::string rgb_to_hexstr(const float color[3])
 static void write_stroke_color_attribute(pugi::xml_node node,
                                          const ColorGeometry4f &stroke_color,
                                          const float stroke_opacity,
+                                         const float stroke_width,
                                          const bool round_cap)
 {
   ColorGeometry4f color;
@@ -57,6 +58,7 @@ static void write_stroke_color_attribute(pugi::xml_node node,
   std::string stroke_hex = rgb_to_hexstr(color);
 
   node.append_attribute("stroke").set_value(stroke_hex.c_str());
+  node.append_attribute("stroke-width").set_value(stroke_width);
   node.append_attribute("stroke-opacity").set_value(stroke_color.a * stroke_opacity);
 
   node.append_attribute("fill").set_value("none");
@@ -349,7 +351,7 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
       }
 
       if (width) {
-        write_stroke_color_attribute(element_node, color, opacity, round_cap);
+        write_stroke_color_attribute(element_node, color, opacity, *width, round_cap);
       }
       else {
         write_fill_color_attribute(element_node, color, opacity);
