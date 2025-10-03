@@ -91,6 +91,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
+  b.add_default_layout();
 
   const bNode *node = b.node_or_null();
   if (!node) {
