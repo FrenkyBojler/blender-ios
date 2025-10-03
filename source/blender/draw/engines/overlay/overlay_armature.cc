@@ -2063,24 +2063,24 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
     const eArmature_Drawtype drawtype = bone->drawtype == ARM_DRAW_TYPE_ARMATURE_DEFINED ?
                                             arm_drawtype :
                                             eArmature_Drawtype(bone->drawtype);
-    bone_draw_update_display_matrix(drawtype, use_custom_shape, bone_ptr);
     if (!(draw_ctx->is_transforming() && ctx->isolate_bones && !(bone->flag & BONE_SELECTED))) {
+      bone_draw_update_display_matrix(drawtype, use_custom_shape, bone_ptr);
       bone_draw(drawtype, use_custom_shape, ctx, bone_ptr, boneflag, select_id);
-    }
-
-    /* Below this point nothing is used for selection queries. */
-    if (is_pose_select) {
-      continue;
-    }
-
-    if (draw_dofs) {
-      draw_bone_degrees_of_freedom(ctx, pchan);
-    }
-    if (show_text && (arm.flag & ARM_DRAWNAMES)) {
-      draw_bone_name(ctx, bone_ptr, boneflag);
-    }
-    if (arm.flag & ARM_DRAWAXES) {
-      draw_axes(ctx, bone_ptr, arm);
+  
+      /* Below this point nothing is used for selection queries. */
+      if (is_pose_select) {
+        continue;
+      }
+  
+      if (draw_dofs) {
+        draw_bone_degrees_of_freedom(ctx, pchan);
+      }
+      if (show_text && (arm.flag & ARM_DRAWNAMES)) {
+        draw_bone_name(ctx, bone_ptr, boneflag);
+      }
+      if (arm.flag & ARM_DRAWAXES) {
+        draw_axes(ctx, bone_ptr, arm);
+      }
     }
   }
 }
