@@ -1054,14 +1054,14 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
   /* No need to apply the time-stretch effect if all the retiming range speeds are 1, as the
    * effect itself is still expensive while the audio is playing and want to avoid having to use it
    * whenever we can. */
-  bool correct_pitch = (strip->flag & SEQ_AUDIO_PITCH_CORRECTION) &&
+  bool correct_pitch = (strip->flag & SEQ_AUDIO_PITCH_CORRECTION) && strip->sound != nullptr &&
                        std::any_of(retiming_data.ranges.begin(),
                                    retiming_data.ranges.end(),
                                    [](const RetimingRange &range) {
                                      return range.type != TRANSITION && range.speed != 1.0;
                                    });
 
-  void *sound_handle = strip->sound->playback_handle;
+  void *sound_handle = strip->sound ? strip->sound->playback_handle : nullptr;
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   if (correct_pitch) {
     sound_handle = BKE_sound_add_time_stretch_effect(sound_handle, scene_fps);
