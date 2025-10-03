@@ -1418,6 +1418,24 @@ def km_uv_editor(params):
         op_menu("IMAGE_MT_uvs_merge", {"type": 'M', "value": 'PRESS'}),
         op_menu("IMAGE_MT_uvs_split", {"type": 'M', "value": 'PRESS', "alt": True}),
         op_menu("IMAGE_MT_uvs_align", {"type": 'W', "value": 'PRESS', "shift": True}),
+        *[
+            (
+                "uv.move_on_axis",
+                {"type": key, "value": 'PRESS', **mod_dict},
+                {"properties": [("axis", axis), ("type", move_type), ("distance", distance)]}
+            )
+            for mod_dict, move_type in (
+                ({"ctrl": True}, 'DYNAMIC'),
+                ({"shift": True}, 'PIXEL'),
+                ({}, 'UDIM'),
+            )
+            for key, axis, distance in (
+                ('NUMPAD_8', 'Y', 1),
+                ('NUMPAD_2', 'Y', -1),
+                ('NUMPAD_6', 'X', 1),
+                ('NUMPAD_4', 'X', -1),
+            )
+        ],
         ("uv.stitch", {"type": 'V', "value": 'PRESS', "alt": True}, None),
         ("uv.rip_move", {"type": 'V', "value": 'PRESS'}, None),
         ("uv.pin", {"type": 'P', "value": 'PRESS'},
@@ -2268,8 +2286,7 @@ def km_node_editor(params):
         ("node.group_make", {"type": 'G', "value": 'PRESS', "ctrl": True}, None),
         ("node.group_ungroup", {"type": 'G', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("node.group_separate", {"type": 'P', "value": 'PRESS'}, None),
-        ("node.group_edit", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'},
-         {"properties": [("exit", False)]}),
+        ("node.group_enter_exit", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("node.group_edit", {"type": 'TAB', "value": 'PRESS'},
          {"properties": [("exit", False)]}),
         ("node.group_edit", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
@@ -5930,6 +5947,8 @@ def km_edit_pointcloud(params):
         ("pointcloud.separate", {"type": 'P', "value": 'PRESS'}, None),
         ("transform.transform", {"type": 'S', "value": 'PRESS', "alt": True},
          {"properties": [("mode", 'CURVE_SHRINKFATTEN')]}),
+        *_template_items_proportional_editing(
+            params, connected=True, toggle_data_path="tool_settings.use_proportional_edit"),
     ])
 
     return keymap
@@ -8628,6 +8647,14 @@ def km_sequencer_tool_blade(_params):
                  ("side", 'NO_CHANGE'),
                  ("use_cursor_position", True),
                  ("ignore_selection", True),
+             ]}),
+            ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
+             {"properties": [
+                 ("type", 'SOFT'),
+                 ("side", 'NO_CHANGE'),
+                 ("use_cursor_position", True),
+                 ("ignore_selection", True),
+                 ("ignore_connections", True),
              ]}),
         ]},
     )
