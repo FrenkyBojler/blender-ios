@@ -226,10 +226,14 @@ static void get_context_path_node_geometry(const bContext &C,
   }
   else {
     Object *object = CTX_data_active_object(&C);
-    ui::context_path_add_generic(path, RNA_Object, object);
-    ModifierData *modifier = BKE_object_active_modifier(object);
-    ui::context_path_add_generic(path, RNA_Modifier, modifier, ICON_GEOMETRY_NODES);
-    context_path_add_node_tree_and_node_groups(snode, path);
+    if (object != nullptr) {
+      ui::context_path_add_generic(path, RNA_Object, object);
+      ModifierData *modifier = BKE_object_active_modifier(object);
+      if (modifier != nullptr) {
+        ui::context_path_add_generic(path, RNA_Modifier, modifier, ICON_GEOMETRY_NODES);
+        context_path_add_node_tree_and_node_groups(snode, path);
+      }
+    }
   }
 }
 
