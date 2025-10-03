@@ -2,18 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_volume_grid.hh"
+#include "node_geometry_util.hh"
 
 #include "NOD_socket_search_link.hh"
 
-#include "node_geometry_util.hh"
-
 #ifdef WITH_OPENVDB
+#  include "BKE_volume_grid.hh"
 #  include "openvdb/tools/VolumeAdvect.h"
 #endif
 
 namespace blender::nodes::node_geo_grid_advect_cc {
 
+#ifdef WITH_OPENVDB
 static const EnumPropertyItem integration_scheme_items[] = {
     {int(openvdb::v12_0::tools::Scheme::SEMI),
      "SEMI",
@@ -71,6 +71,18 @@ static const EnumPropertyItem limiter_type_items[] = {
      "clamping"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+#else
+/* Dummy enums when compiled without OpenVDB. */
+static const EnumPropertyItem integration_scheme_items[] = {
+    {0, "SEMI", 0, "Semi-Lagrangian", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem limiter_type_items[] = {
+    {0, "NONE", 0, "None", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+#endif
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -87,16 +99,29 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input<decl::Vector>("Velocity").hide_value().structure_type(StructureType::Grid);
+#ifdef WITH_OPENVDB
   b.add_input<decl::Menu>("Integration Scheme")
       .static_items(integration_scheme_items)
-      .default_value(openvdb::v12_0::tools::Scheme::RK3)
+      .default_value(MenuValue(int(openvdb::v12_0::tools::Scheme::RK3)))
       .optional_label()
       .description("Numerical integration method for advection");
   b.add_input<decl::Menu>("Limiter")
       .static_items(limiter_type_items)
-      .default_value(openvdb::v12_0::tools::Scheme::CLAMP)
+      .default_value(MenuValue(int(openvdb::v12_0::tools::Scheme::CLAMP)))
       .optional_label()
       .description("Limiting strategy to prevent numerical artifacts");
+#else
+  b.add_input<decl::Menu>("Integration Scheme")
+      .static_items(integration_scheme_items)
+      .default_value(MenuValue(0))
+      .optional_label()
+      .description("Numerical integration method for advection");
+  b.add_input<decl::Menu>("Limiter")
+      .static_items(limiter_type_items)
+      .default_value(MenuValue(0))
+      .optional_label()
+      .description("Limiting strategy to prevent numerical artifacts");
+#endif
   b.add_input<decl::Float>("Time Step")
       .default_value(1.0f)
       .min(0.0f)
@@ -145,9 +170,14 @@ template<typename GridType, typename SamplerType = openvdb::tools::Sampler<1>>
 static typename GridType::Ptr advect_grid(const GridType &grid,
                                           const openvdb::Vec3SGrid &velocity_grid,
                                           const float time_step,
-                                          const openvdb::tools::Scheme scheme,
-                                          const openvdb::v12_0::tools::Scheme limiter)
+                                          const int scheme_int,
+                                          const int limiter_int)
 {
+  const openvdb::v12_0::tools::Scheme::SemiLagrangian scheme =
+      static_cast<openvdb::v12_0::tools::Scheme::SemiLagrangian>(scheme_int);
+  const openvdb::v12_0::tools::Scheme::Limiter limiter =
+      static_cast<openvdb::v12_0::tools::Scheme::Limiter>(limiter_int);
+
   openvdb::tools::VolumeAdvection<openvdb::Vec3SGrid, false> advection(velocity_grid);
 
   advection.setIntegrator(scheme);
@@ -173,9 +203,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const float time_step = params.extract_input<float>("Time Step");
-  const auto scheme = params.get_input<openvdb::tools::Scheme::SemiLagrangian>(
-      "Integration Scheme");
-  const auto limiter = params.get_input<openvdb::v12_0::tools::Scheme::SemiLagrangian>("Limiter");
+  const int scheme = params.extract_input<int>("Integration Scheme");
+  const int limiter = params.extract_input<int>("Limiter");
 
   bke::VolumeTreeAccessToken tree_token;
   const openvdb::Vec3SGrid &velocity_vdb_grid = velocity_grid.grid(tree_token);
