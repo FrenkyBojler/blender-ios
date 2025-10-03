@@ -185,6 +185,10 @@ class SampleGridFunction : public mf::MultiFunction {
   bke::GVolumeGrid grid_;
   InterpolationMode interpolation_;
   mf::Signature signature_;
+  VolumeGridType grid_type_;
+  /** Avoid accessing grid in #call function to avoid overhead for each multi-function call. */
+  bke::VolumeTreeAccessToken tree_token_;
+  const openvdb::GridBase *grid_base_ = nullptr;
 
  public:
   SampleGridFunction(bke::GVolumeGrid grid, InterpolationMode interpolation)
@@ -199,6 +203,9 @@ class SampleGridFunction : public mf::MultiFunction {
     builder.single_input<float3>("Position");
     builder.single_output("Value", *cpp_type);
     this->set_signature(&signature_);
+
+    grid_base_ = &grid_->grid(tree_token_);
+    grid_type_ = grid_->grid_type();
   }
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
@@ -207,10 +214,13 @@ class SampleGridFunction : public mf::MultiFunction {
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
 
     bke::VolumeTreeAccessToken tree_token;
-    convert_to_static_type(grid_->grid_type(), [&](auto dummy) {
+    convert_to_static_type(grid_type_, [&](auto dummy) {
       using T = decltype(dummy);
-      sample_grid<T>(
-          grid_.typed<T>().grid(tree_token), interpolation_, positions, mask, dst.typed<T>());
+      sample_grid<T>(static_cast<const bke::OpenvdbGridType<T> &>(*grid_base_),
+                     interpolation_,
+                     positions,
+                     mask,
+                     dst.typed<T>());
     });
   }
 };
