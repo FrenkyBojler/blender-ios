@@ -28,6 +28,8 @@
 
 #include "DNA_genfile.h"
 
+#include "BLI_endian_defines.h"
+#include "BLI_fftw.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
@@ -38,13 +40,12 @@
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
 #include "BKE_brush.hh"
-#include "BKE_cachefile.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_particle.h"
@@ -61,16 +62,22 @@
 
 #include "IMB_imbuf.hh" /* For #IMB_init. */
 
+#include "MOV_util.hh"
+
 #include "RE_engine.h"
 #include "RE_texture.h"
 
 #include "ED_datafiles.h"
 
+#include "SEQ_modifier.hh"
+
 #include "WM_api.hh"
 
 #include "RNA_define.hh"
 
-#include "GPU_compilation_subprocess.hh"
+#ifdef WITH_OPENGL_BACKEND
+#  include "GPU_compilation_subprocess.hh"
+#endif
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -82,10 +89,6 @@
 #  include <floatingpoint.h>
 #endif
 
-#ifdef _OPENMP
-#  include <omp.h>
-#endif
-
 #ifdef WITH_BINRELOC
 #  include "binreloc.h"
 #endif
@@ -94,11 +97,13 @@
 #  include "libmv-capi.h"
 #endif
 
-#ifdef WITH_CYCLES_LOGGING
+#ifdef WITH_CYCLES
 #  include "CCL_api.h"
 #endif
 
 #include "creator_intern.h" /* Own include. */
+
+BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
 
 /* -------------------------------------------------------------------- */
 /** \name Local Defines
@@ -146,6 +151,11 @@ static void main_callback_setup()
   MEM_set_error_callback(callback_mem_error);
 }
 
+/** Data to free when Blender exits early on. */
+struct CreatorAtExitData_EarlyExit {
+  bContext *C;
+};
+
 /** Free data on early exit (if Python calls `sys.exit()` while parsing args for eg). */
 struct CreatorAtExitData {
 #ifndef WITH_PYTHON_MODULE
@@ -157,9 +167,11 @@ struct CreatorAtExitData {
   int argv_num;
 #endif
 
-#if defined(WITH_PYTHON_MODULE) && !defined(USE_WIN32_UNICODE_ARGS)
-  void *_empty; /* Prevent empty struct error with MSVC. */
-#endif
+  /**
+   * When non-null, run additional exit logic.
+   * Cleared once early initialization is over.
+   */
+  CreatorAtExitData_EarlyExit *early_exit = nullptr;
 };
 
 static void callback_main_atexit(void *user_data)
@@ -171,8 +183,6 @@ static void callback_main_atexit(void *user_data)
     BLI_args_destroy(app_init_data->ba);
     app_init_data->ba = nullptr;
   }
-#else
-  UNUSED_VARS(app_init_data); /* May be unused. */
 #endif
 
 #ifdef USE_WIN32_UNICODE_ARGS
@@ -183,9 +193,20 @@ static void callback_main_atexit(void *user_data)
     free((void *)app_init_data->argv);
     app_init_data->argv = nullptr;
   }
-#else
-  UNUSED_VARS(app_init_data); /* May be unused. */
 #endif
+
+  if (CreatorAtExitData_EarlyExit *early_exit = app_init_data->early_exit) {
+    CTX_free(early_exit->C);
+
+    DEG_free_node_types();
+
+    BKE_blender_globals_clear();
+    BKE_appdir_exit();
+
+    DNA_sdna_current_free();
+
+    CLG_exit();
+  }
 }
 
 static void callback_clg_fatal(void *fp)
@@ -286,14 +307,12 @@ int main(int argc,
   bArgs *ba;
 #endif
 
-#ifdef USE_WIN32_UNICODE_ARGS
-  char **argv;
-  int argv_num;
-#endif
-
   /* Ensure we free data on early-exit. */
   CreatorAtExitData app_init_data = {nullptr};
   BKE_blender_atexit_register(callback_main_atexit, &app_init_data);
+
+  CreatorAtExitData_EarlyExit app_init_data_early_exit = {nullptr};
+  app_init_data.early_exit = &app_init_data_early_exit;
 
 /* Un-buffered `stdout` makes `stdout` and `stderr` better synchronized, and helps
  * when stepping through code in a debugger (prints are immediately
@@ -304,18 +323,6 @@ int main(int argc,
   setvbuf(stdout, nullptr, _IONBF, 0);
 #endif
 
-#ifdef _OPENMP
-#  if defined(WIN32) && defined(_MSC_VER)
-  /* We delay loading of OPENMP so we can set the policy here. */
-  _putenv_s("OMP_WAIT_POLICY", "PASSIVE");
-#  endif
-  /* Ensure the OpenMP runtime is initialized as soon as possible to make sure duplicate
-   * `libomp/libiomp5` runtime conflicts are detected as soon as a second runtime is initialized.
-   * Initialization must be done after setting any relevant environment variables, but before
-   * installing signal handlers. */
-  omp_get_max_threads();
-#endif
-
 #ifdef WIN32
 #  ifdef USE_WIN32_UNICODE_ARGS
   /* Win32 Unicode Arguments. */
@@ -323,16 +330,16 @@ int main(int argc,
     /* NOTE: Can't use `guardedalloc` allocation here, as it's not yet initialized
      * (it depends on the arguments passed in, which is what we're getting here!). */
     wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
-    argv = static_cast<char **>(malloc(argc * sizeof(char *)));
-    for (argv_num = 0; argv_num < argc; argv_num++) {
-      argv[argv_num] = alloc_utf_8_from_16(argv_16[argv_num], 0);
+    app_init_data.argv = static_cast<char **>(malloc(argc * sizeof(char *)));
+    for (int i = 0; i < argc; i++) {
+      app_init_data.argv[i] = alloc_utf_8_from_16(argv_16[i], 0);
     }
     LocalFree(argv_16);
 
     /* Free on early-exit. */
-    app_init_data.argv = argv;
-    app_init_data.argv_num = argv_num;
+    app_init_data.argv_num = argc;
   }
+  const char **argv = const_cast<const char **>(app_init_data.argv);
 #  endif /* USE_WIN32_UNICODE_ARGS */
 #endif   /* WIN32 */
 
@@ -381,9 +388,15 @@ int main(int argc,
 
   /* Initialize logging. */
   CLG_init();
+  CLG_output_use_timestamp_set(true);
+  CLG_output_use_memory_set(false);
+  CLG_output_use_source_set(false);
+  CLG_output_use_basename_set(false);
   CLG_fatal_fn_set(callback_clg_fatal);
 
   C = CTX_create();
+
+  app_init_data_early_exit.C = C;
 
 #ifdef WITH_PYTHON_MODULE
 #  ifdef __APPLE__
@@ -400,8 +413,6 @@ int main(int argc,
 
 #ifdef WITH_LIBMV
   libmv_initLogging(argv[0]);
-#elif defined(WITH_CYCLES_LOGGING)
-  CCL_init_logging(argv[0]);
 #endif
 
 #if defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG) && defined(WITH_GMP)
@@ -439,29 +450,22 @@ int main(int argc,
 
   BKE_cpp_types_init();
   BKE_idtype_init();
-  BKE_cachefiles_init();
   BKE_modifier_init();
+  blender::seq::modifiers_init();
   BKE_shaderfx_init();
   BKE_volumes_init();
   DEG_register_node_types();
-
-  BKE_brush_system_init();
-  RE_texture_rng_init();
 
   BKE_callback_global_init();
 
 /* First test for background-mode (#Global.background). */
 #ifndef WITH_PYTHON_MODULE
-  ba = BLI_args_create(argc, (const char **)argv); /* Skip binary path. */
+  ba = BLI_args_create(argc, argv); /* Skip binary path. */
 
   /* Ensure we free on early exit. */
   app_init_data.ba = ba;
 
   main_args_setup(C, ba, false);
-
-  /* Begin argument parsing, ignore leaks so arguments that call #exit
-   * (such as `--version` & `--help`) don't report leaks. */
-  MEM_use_memleak_detection(false);
 
   /* Parse environment handling arguments. */
   BLI_args_parse(ba, ARG_PASS_ENVIRONMENT, nullptr, nullptr);
@@ -478,6 +482,9 @@ int main(int argc,
   /* After parsing number of threads argument. */
   BLI_task_scheduler_init();
 
+  /* Initialize FFTW threading support. */
+  blender::fftw::initialize_float();
+
 #ifndef WITH_PYTHON_MODULE
   /* The settings pass includes:
    * - Background-mode assignment (#Global.background), checked by other subsystems
@@ -493,18 +500,26 @@ int main(int argc,
   main_signal_setup();
 #endif
 
+  /* Continue with regular initialization, no need to use "early" exit. */
+  app_init_data.early_exit = nullptr;
+
+#ifdef WITH_CYCLES
+  CCL_log_init();
+#endif
+
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
   IMB_init();
-#ifdef WITH_FFMPEG
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
-  IMB_ffmpeg_init();
-#endif
+  MOV_init();
 
   /* After #ARG_PASS_SETTINGS arguments, this is so #WM_main_playanim skips #RNA_init. */
   RNA_init();
 
+  RE_texture_rng_init();
   RE_engines_init();
   blender::bke::node_system_init();
+
+  BKE_brush_system_init();
   BKE_particle_init_rng();
   /* End second initialization. */
 
@@ -535,7 +550,7 @@ int main(int argc,
   BLI_args_parse(ba, ARG_PASS_SETTINGS_FORCE, nullptr, nullptr);
 #endif
 
-  WM_init(C, argc, (const char **)argv);
+  WM_init(C, argc, argv);
 
 #ifndef WITH_PYTHON
   printf(
@@ -561,9 +576,6 @@ int main(int argc,
    */
   callback_main_atexit(&app_init_data);
   BKE_blender_atexit_unregister(callback_main_atexit, &app_init_data);
-
-  /* End argument parsing, allow memory leaks to be printed. */
-  MEM_use_memleak_detection(true);
 
 /* Paranoid, avoid accidental re-use. */
 #ifndef WITH_PYTHON_MODULE

@@ -71,7 +71,7 @@ def language_menu(args, settings):
             continue
         for po_path in os.listdir(po_dir):
             uid = po_to_uid.get(po_path, None)
-            # print("Checking %s, found uid %s" % (po_path, uid))
+            # print("Checking {:s}, found uid {:s}".format(po_path, uid))
             po_path = os.path.join(po_dir, po_path)
             if uid is not None:
                 po = utils_i18n.I18nMessages(uid=uid, kind='PO', src=po_path, settings=settings)
@@ -86,7 +86,7 @@ def main():
     parser = argparse.ArgumentParser(description="Tool to perform common actions over PO/MO files.")
     parser.add_argument(
         '-s', '--settings', default=None,
-        help="Override (some) default settings. Either a JSon file name, or a JSon string.",
+        help="Override (some) default settings. Either a JSON file name, or a JSON string.",
     )
     sub_parsers = parser.add_subparsers()
 

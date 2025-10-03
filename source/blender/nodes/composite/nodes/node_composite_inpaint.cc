@@ -11,10 +11,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
-
-#include "DNA_scene_types.h"
 
 #include "COM_algorithm_jump_flooding.hh"
 #include "COM_algorithm_symmetric_separable_blur_variable_size.hh"
@@ -29,18 +26,19 @@ namespace blender::nodes::node_composite_inpaint_cc {
 
 static void cmp_node_inpaint_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
+      .hide_value()
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
+  b.add_input<decl::Int>("Size").default_value(0).min(0).description(
+      "The size of the inpaint in pixels");
 }
 
-static void node_composit_buts_inpaint(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "distance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-}
-
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class InpaintOperation : public NodeOperation {
  public:
@@ -48,10 +46,10 @@ class InpaintOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input = get_input("Image");
-    Result &output = get_result("Image");
-    if (input.is_single_value() || get_max_distance() == 0) {
-      input.pass_through(output);
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value() || this->get_max_distance() == 0) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -63,9 +61,8 @@ class InpaintOperation : public NodeOperation {
     inpainting_boundary.release();
 
     Result filled_region = context().create_result(ResultType::Color);
-    Result distance_to_boundary = context().create_result(ResultType::Float,
-                                                          ResultPrecision::Half);
-    Result smoothing_radius = context().create_result(ResultType::Float, ResultPrecision::Half);
+    Result distance_to_boundary = context().create_result(ResultType::Float);
+    Result smoothing_radius = context().create_result(ResultType::Float);
     fill_inpainting_region(
         flooded_boundary, filled_region, distance_to_boundary, smoothing_radius);
     flooded_boundary.release();
@@ -95,8 +92,8 @@ class InpaintOperation : public NodeOperation {
 
   Result compute_inpainting_boundary_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_inpaint_compute_boundary",
-                                             ResultPrecision::Half);
+    gpu::Shader *shader = context().get_shader("compositor_inpaint_compute_boundary",
+                                               ResultPrecision::Half);
     GPU_shader_bind(shader);
 
     const Result &input = get_input("Image");
@@ -184,7 +181,7 @@ class InpaintOperation : public NodeOperation {
                                   Result &distance_to_boundary,
                                   Result &smoothing_radius)
   {
-    GPUShader *shader = context().get_shader("compositor_inpaint_fill_region");
+    gpu::Shader *shader = context().get_shader("compositor_inpaint_fill_region");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "max_distance", get_max_distance());
@@ -283,7 +280,7 @@ class InpaintOperation : public NodeOperation {
   void compute_inpainting_region_gpu(const Result &inpainted_region,
                                      const Result &distance_to_boundary)
   {
-    GPUShader *shader = context().get_shader("compositor_inpaint_compute_region");
+    gpu::Shader *shader = context().get_shader("compositor_inpaint_compute_region");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "max_distance", get_max_distance());
@@ -347,7 +344,7 @@ class InpaintOperation : public NodeOperation {
 
   int get_max_distance()
   {
-    return bnode().custom2;
+    return math::max(0, this->get_input("Size").get_single_value_default(0));
   }
 };
 
@@ -358,16 +355,20 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_inpaint_cc
 
-void register_node_type_cmp_inpaint()
+static void register_node_type_cmp_inpaint()
 {
   namespace file_ns = blender::nodes::node_composite_inpaint_cc;
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_INPAINT, "Inpaint", NODE_CLASS_OP_FILTER);
+  cmp_node_type_base(&ntype, "CompositorNodeInpaint", CMP_NODE_INPAINT);
+  ntype.ui_name = "Inpaint";
+  ntype.ui_description = "Extend borders of an image into transparent or masked regions";
+  ntype.enum_name_legacy = "INPAINT";
+  ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_inpaint_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_inpaint;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_inpaint)

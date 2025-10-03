@@ -4,17 +4,19 @@
 
 #pragma once
 
+#include "bmesh_class.hh"
+
 /** \file
  * \ingroup bmesh
  */
 
-typedef struct BMEditSelection {
+struct BMEditSelection {
   struct BMEditSelection *next, *prev;
   BMElem *ele;
   char htype;
-} BMEditSelection;
+};
 
-typedef enum eBMSelectionFlushFLags {
+enum eBMSelectionFlushFLags {
   BM_SELECT_LEN_FLUSH_RECALC_NOTHING = 0,
   BM_SELECT_LEN_FLUSH_RECALC_VERT = (1 << 0),
   BM_SELECT_LEN_FLUSH_RECALC_EDGE = (1 << 1),
@@ -22,7 +24,7 @@ typedef enum eBMSelectionFlushFLags {
   BM_SELECT_LEN_FLUSH_RECALC_ALL = (BM_SELECT_LEN_FLUSH_RECALC_VERT |
                                     BM_SELECT_LEN_FLUSH_RECALC_EDGE |
                                     BM_SELECT_LEN_FLUSH_RECALC_FACE),
-} eBMSelectionFlushFLags;
+};
 
 /* Geometry hiding code. */
 
@@ -106,13 +108,12 @@ void BM_mesh_select_mode_flush_ex(BMesh *bm, short selectmode, eBMSelectionFlush
 void BM_mesh_select_mode_flush(BMesh *bm);
 
 /**
- * Mode independent de-selection flush (up/down).
+ * Mode independent selection/de-selection flush from vertices.
+ *
+ * \param select: When true, flush the selection state to de-selected elements,
+ * otherwise perform the opposite, flushing de-selection.
  */
-void BM_mesh_deselect_flush(BMesh *bm);
-/**
- * Mode independent selection flush (up/down).
- */
-void BM_mesh_select_flush(BMesh *bm);
+void BM_mesh_select_flush_from_verts(BMesh *bm, bool select);
 
 int BM_mesh_elem_hflag_count_enabled(BMesh *bm, char htype, char hflag, bool respecthide);
 int BM_mesh_elem_hflag_count_disabled(BMesh *bm, char htype, char hflag, bool respecthide);

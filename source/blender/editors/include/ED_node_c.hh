@@ -47,9 +47,9 @@ int ED_node_tree_path_length(SpaceNode *snode);
  */
 void ED_node_tree_path_get(SpaceNode *snode, char *value);
 
-void ED_node_tree_start(SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from);
-void ED_node_tree_push(SpaceNode *snode, bNodeTree *ntree, bNode *gnode);
-void ED_node_tree_pop(SpaceNode *snode);
+void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID *id, ID *from);
+void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNode *gnode);
+void ED_node_tree_pop(ARegion *region, SpaceNode *snode);
 int ED_node_tree_depth(SpaceNode *snode);
 bNodeTree *ED_node_tree_get(SpaceNode *snode, int level);
 
@@ -65,30 +65,28 @@ void ED_init_node_socket_type_virtual(blender::bke::bNodeSocketType *stype);
 void ED_node_sample_set(const float col[4]);
 void ED_node_type_draw_color(const char *idname, float *r_color);
 
-/* `node_draw.cc` */
-
-void ED_node_tree_update(const bContext *C);
-void ED_node_tag_update_id(ID *id);
-
-float ED_node_grid_size();
-
 /* `node_edit.cc` */
 
 void ED_node_set_tree_type(SpaceNode *snode, blender::bke::bNodeTreeType *typeinfo);
 bool ED_node_is_compositor(const SpaceNode *snode);
 bool ED_node_is_shader(SpaceNode *snode);
 bool ED_node_is_texture(SpaceNode *snode);
-bool ED_node_is_geometry(SpaceNode *snode);
+bool ED_node_is_geometry(const SpaceNode *snode);
 bool ED_node_supports_preview(SpaceNode *snode);
 
 /**
  * Assumes nothing being done in ntree yet, sets the default in/out node.
  * Called from shading buttons or header.
  */
-void ED_node_shader_default(const bContext *C, ID *id);
+void ED_node_shader_default(const bContext *C, Main *bmain, ID *id);
+
+/**
+ * Initializes an empty compositing node tree with default nodes.
+ */
+void ED_node_composit_default_init(const bContext *C, bNodeTree *ntree);
 /**
  * Assumes nothing being done in ntree yet, sets the default in/out node.
- * Called from shading buttons or header.
+ * Called from compositing buttons or header.
  */
 void ED_node_composit_default(const bContext *C, Scene *scene);
 /**
@@ -99,24 +97,6 @@ void ED_node_texture_default(const bContext *C, Tex *tex);
 void ED_node_post_apply_transform(bContext *C, bNodeTree *ntree);
 void ED_node_set_active(
     Main *bmain, SpaceNode *snode, bNodeTree *ntree, bNode *node, bool *r_active_texture_changed);
-
-/**
- * Call after one or more node trees have been changed and tagged accordingly.
- *
- * This function will make sure that other parts of Blender update accordingly. For example, if the
- * node group interface changed, parent node groups have to be updated as well.
- *
- * Additionally, this will send notifiers and tag the depsgraph based on the changes. Depsgraph
- * relation updates have to be triggered by the caller.
- *
- * \param C: Context if available. This can be null.
- * \param bmain: Main whose data-blocks should be updated based on the changes.
- * \param ntree: Under some circumstances the caller knows that only one node tree has
- *   changed since the last update. In this case the function may be able to skip scanning #bmain
- *   for other things that have to be changed. It may still scan #bmain if the interface of the
- *   node tree has changed.
- */
-void ED_node_tree_propagate_change(const bContext *C, Main *bmain, bNodeTree *ntree);
 
 /**
  * \param scene_owner: is the owner of the job,

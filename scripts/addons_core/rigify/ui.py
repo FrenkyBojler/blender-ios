@@ -16,6 +16,7 @@ from bpy.app.translations import (
     pgettext_rpt as rpt_,
     contexts as i18n_contexts,
 )
+from bpy_extras import anim_utils
 
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable, Any
@@ -217,6 +218,7 @@ class DATA_PT_rigify_advanced(bpy.types.Panel):
 # noinspection PyPep8Naming
 class DATA_PT_rigify_samples(bpy.types.Panel):
     bl_label = "Samples"
+    bl_translation_context = i18n_contexts.id_armature
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "data"
@@ -903,7 +905,7 @@ class BONE_PT_rigify_buttons(bpy.types.Panel):
             except (ImportError, AttributeError, KeyError):
                 row = layout.row()
                 box = row.box()
-                text = iface_("ERROR: type \"{:s}\" does not exist!").format(rig_name)
+                text = rpt_("ERROR: type \"{:s}\" does not exist!").format(rig_name)
                 box.label(text=text, icon='ERROR', translate=False)
             else:
                 if hasattr(rig.Rig, 'parameters_ui'):
@@ -965,14 +967,16 @@ class VIEW3D_PT_rigify_animation_tools(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        if obj and obj.type == 'ARMATURE':
-            rig_id = obj.data.get("rig_id")
-            if rig_id is not None:
-                has_arm = hasattr(bpy.types, 'POSE_OT_rigify_arm_ik2fk_' + rig_id)
-                has_leg = hasattr(bpy.types, 'POSE_OT_rigify_leg_ik2fk_' + rig_id)
-                return has_arm or has_leg
+        if not obj or obj.type != 'ARMATURE':
+            return False
 
-        return False
+        rig_id = obj.data.get("rig_id", "")
+        if not rig_id:
+            return False
+
+        has_arm = hasattr(bpy.types, f'POSE_OT_rigify_arm_ik2fk_{rig_id}')
+        has_leg = hasattr(bpy.types, f'POSE_OT_rigify_leg_ik2fk_{rig_id}')
+        return has_arm or has_leg
 
     def draw(self, context):
         obj = context.active_object
@@ -1466,7 +1470,7 @@ def ik_to_fk(rig: ArmatureObject, window='ALL'):
                 break
 
 
-def clear_animation(act, anim_type, names):
+def clear_animation(channelbag, anim_type, names):
     bones = []
     for group in names:
         if names[group]['limb_type'] == 'arm':
@@ -1482,7 +1486,7 @@ def clear_animation(act, anim_type, names):
                 bones.extend([names[group]['controls'][1], names[group]['controls'][2], names[group]['controls'][3],
                               names[group]['controls'][4]])
     f_curves = []
-    for fcu in act.fcurves:
+    for fcu in channelbag.fcurves:
         words = fcu.data_path.split('"')
         if words[0] == "pose.bones[" and words[1] in bones:
             f_curves.append(fcu)
@@ -1491,7 +1495,7 @@ def clear_animation(act, anim_type, names):
         return
 
     for fcu in f_curves:
-        act.fcurves.remove(fcu)
+        channelbag.fcurves.remove(fcu)
 
     # Put cleared bones back to rest pose
     bpy.ops.pose.loc_clear()
@@ -1670,7 +1674,7 @@ class OBJECT_OT_ClearAnimation(bpy.types.Operator):
     bl_idname = "rigify.clear_animation"
     bl_label = "Clear Animation"
     bl_description = "Clear animation for FK or IK bones"
-    bl_options = {'INTERNAL'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     anim_type: StringProperty()
 
@@ -1678,13 +1682,14 @@ class OBJECT_OT_ClearAnimation(bpy.types.Operator):
         rig = verify_armature_obj(context.object)
 
         if not rig.animation_data:
-            return {'FINISHED'}
+            return {'CANCELLED'}
 
-        act = rig.animation_data.action
-        if not act:
-            return {'FINISHED'}
+        channelbag = anim_utils.action_get_channelbag_for_slot(
+            rig.animation_data.action, rig.animation_data.action_slot)
+        if not channelbag:
+            return {'CANCELLED'}
 
-        clear_animation(act, self.anim_type, names=get_limb_generated_names(rig))
+        clear_animation(channelbag, self.anim_type, names=get_limb_generated_names(rig))
         return {'FINISHED'}
 
 

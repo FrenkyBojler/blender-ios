@@ -40,7 +40,7 @@ GLTexture::GLTexture(const char *name) : Texture(name)
 GLTexture::~GLTexture()
 {
   if (framebuffer_) {
-    GPU_framebuffer_free(wrap(framebuffer_));
+    GPU_framebuffer_free(framebuffer_);
   }
   GLContext *ctx = GLContext::get();
   if (ctx != nullptr && is_bound_) {
@@ -48,17 +48,11 @@ GLTexture::~GLTexture()
     ctx->state_manager->texture_unbind(this);
     ctx->state_manager->image_unbind(this);
   }
-  GLContext::tex_free(tex_id_);
+  GLContext::texture_free(tex_id_);
 }
 
 bool GLTexture::init_internal()
 {
-  if ((format_ == GPU_DEPTH24_STENCIL8) && GPU_depth_blitting_workaround()) {
-    /* MacOS + Radeon Pro fails to blit depth on GPU_DEPTH24_STENCIL8
-     * but works on GPU_DEPTH32F_STENCIL8. */
-    format_ = GPU_DEPTH32F_STENCIL8;
-  }
-
   target_ = to_gl_target(type_);
 
   /* We need to bind once to define the texture type. */
@@ -120,9 +114,12 @@ bool GLTexture::init_internal(VertBuf *vbo)
   return true;
 }
 
-bool GLTexture::init_internal(GPUTexture *src, int mip_offset, int layer_offset, bool use_stencil)
+bool GLTexture::init_internal(gpu::Texture *src,
+                              int mip_offset,
+                              int layer_offset,
+                              bool use_stencil)
 {
-  const GLTexture *gl_src = static_cast<const GLTexture *>(unwrap(src));
+  const GLTexture *gl_src = static_cast<const GLTexture *>(src);
   GLenum internal_format = to_gl_internal_format(format_);
   target_ = to_gl_target(type_);
 
@@ -138,7 +135,7 @@ bool GLTexture::init_internal(GPUTexture *src, int mip_offset, int layer_offset,
   debug::object_label(GL_TEXTURE, tex_id_, name_);
 
   /* Stencil view support. */
-  if (ELEM(format_, GPU_DEPTH24_STENCIL8, GPU_DEPTH32F_STENCIL8)) {
+  if (ELEM(format_, TextureFormat::SFLOAT_32_DEPTH_UINT_8)) {
     stencil_texture_mode_set(use_stencil);
   }
 
@@ -269,7 +266,7 @@ void GLTexture::update_sub(int offset[3],
   GLContext::state_manager_active_get()->texture_bind_temp(this);
 
   /* Bind pixel buffer for source data. */
-  GLint pix_buf_handle = (GLint)GPU_pixel_buffer_get_native_handle(pixbuf);
+  GLint pix_buf_handle = (GLint)GPU_pixel_buffer_get_native_handle(pixbuf).handle;
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pix_buf_handle);
 
   switch (dimensions) {
@@ -298,8 +295,7 @@ void GLTexture::generate_mipmap()
 
   /* Some drivers have bugs when using #glGenerateMipmap with depth textures (see #56789).
    * In this case we just create a complete texture with mipmaps manually without
-   * down-sampling. You must initialize the texture levels using other methods like
-   * #GPU_framebuffer_recursive_downsample(). */
+   * down-sampling. You must initialize the texture levels using other methods. */
   if (format_flag_ & GPU_FORMAT_DEPTH) {
     return;
   }
@@ -328,24 +324,20 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(validate_data_format(format_, data_format));
 
-  if (GLContext::clear_texture_support) {
-    int mip = 0;
-    GLenum gl_format = to_gl_data_format(format_);
-    GLenum gl_type = to_gl(data_format);
-    glClearTexImage(tex_id_, mip, gl_format, gl_type, data);
-  }
-  else {
-    /* Fallback for older GL. */
-    GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  /* Note: do not use glClearTexImage, even if it is available (via
+   * extension or GL 4.4). It causes GL framebuffer binding to be
+   * way slower at least on some drivers (e.g. Win10 / NV RTX 3080,
+   * but also reportedly others), as if glClearTexImage causes
+   * "pixel data" to exist which is then uploaded CPU -> GPU at bind
+   * time. */
 
-    FrameBuffer *fb = this->framebuffer_get();
-    fb->bind(true);
-    fb->clear_attachment(this->attachment_type(0), data_format, data);
+  gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
-    GPU_framebuffer_bind(prev_fb);
-  }
+  FrameBuffer *fb = this->framebuffer_get();
+  fb->bind(true);
+  fb->clear_attachment(this->attachment_type(0), data_format, data);
 
-  has_pixels_ = true;
+  GPU_framebuffer_bind(prev_fb);
 }
 
 void GLTexture::copy_to(Texture *dst_)
@@ -385,7 +377,8 @@ void *GLTexture::read(int mip, eGPUDataFormat type)
    * if the texture is big. (see #66573) */
   void *data = MEM_mallocN(texture_size + 8, "GPU_texture_read");
 
-  GLenum gl_format = to_gl_data_format(format_);
+  GLenum gl_format = to_gl_data_format(
+      format_ == TextureFormat::SFLOAT_32_DEPTH_UINT_8 ? TextureFormat::SFLOAT_32_DEPTH : format_);
   GLenum gl_type = to_gl(type);
 
   if (GLContext::direct_state_access_support) {
@@ -463,8 +456,8 @@ FrameBuffer *GLTexture::framebuffer_get()
     return framebuffer_;
   }
   BLI_assert(!(type_ & GPU_TEXTURE_1D));
-  framebuffer_ = unwrap(GPU_framebuffer_create(name_));
-  framebuffer_->attachment_set(this->attachment_type(0), GPU_ATTACHMENT_TEXTURE(wrap(this)));
+  framebuffer_ = GPU_framebuffer_create(name_);
+  framebuffer_->attachment_set(this->attachment_type(0), GPU_ATTACHMENT_TEXTURE(this));
   has_pixels_ = true;
   return framebuffer_;
 }
@@ -624,10 +617,11 @@ GLuint GLTexture::get_sampler(const GPUSamplerState &sampler_state)
  * Dummy texture to see if the implementation supports the requested size.
  * \{ */
 
-/* NOTE: This only checks if this mipmap is valid / supported.
- * TODO(fclem): make the check cover the whole mipmap chain. */
 bool GLTexture::proxy_check(int mip)
 {
+  /* NOTE: This only checks if this mipmap is valid / supported.
+   * TODO(fclem): make the check cover the whole mipmap chain. */
+
   /* Manual validation first, since some implementation have issues with proxy creation. */
   int max_size = GPU_max_texture_size();
   int max_3d_size = GPU_max_texture_3d_size();
@@ -677,7 +671,7 @@ bool GLTexture::proxy_check(int mip)
   GLenum gl_proxy = to_gl_proxy(type_);
   GLenum internal_format = to_gl_internal_format(format_);
   GLenum gl_format = to_gl_data_format(format_);
-  GLenum gl_type = to_gl(to_data_format(format_));
+  GLenum gl_type = to_gl(to_texture_data_format(format_));
   /* Small exception. */
   int dimensions = (type_ == GPU_TEXTURE_CUBE) ? 2 : this->dimensions_count();
 
@@ -722,11 +716,6 @@ bool GLTexture::proxy_check(int mip)
 
 void GLTexture::check_feedback_loop()
 {
-  /* Recursive down sample workaround break this check.
-   * See #recursive_downsample() for more information. */
-  if (GPU_mip_render_workaround()) {
-    return;
-  }
   /* Do not check if using compute shader. */
   GLShader *sh = dynamic_cast<GLShader *>(Context::get()->shader);
   if (sh && sh->is_compute()) {
@@ -756,13 +745,6 @@ void GLTexture::check_feedback_loop()
       return;
     }
   }
-}
-
-uint GLTexture::gl_bindcode_get() const
-{
-  /* TODO(fclem): Legacy. Should be removed at some point. */
-
-  return tex_id_;
 }
 
 /* -------------------------------------------------------------------- */
@@ -813,9 +795,12 @@ void GLPixelBuffer::unmap()
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
-int64_t GLPixelBuffer::get_native_handle()
+GPUPixelBufferNativeHandle GLPixelBuffer::get_native_handle()
 {
-  return int64_t(gl_id_);
+  GPUPixelBufferNativeHandle native_handle;
+  native_handle.handle = int64_t(gl_id_);
+  native_handle.size = size_;
+  return native_handle;
 }
 
 size_t GLPixelBuffer::get_size()

@@ -2,17 +2,24 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <algorithm>
+#include <numeric>
+
 #include "BLI_array.hh"
 #include "BLI_math_base.h"
 #include "BLI_ordered_edge.hh"
 #include "BLI_span.hh"
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
 #include "BKE_geometry_compare.hh"
+
+#include "DNA_curve_types.h"
+#include "DNA_lattice_types.h"
 
 namespace blender::bke::compare_geometry {
 
@@ -252,18 +259,42 @@ static bool values_different(const T value1,
   if constexpr (std::is_same_v<T, float>) {
     return compare_threshold_relative(value1, value2, threshold);
   }
-  if constexpr (is_same_any_v<T, float2, float3, ColorGeometry4f>) {
+
+  /* GCC 15.x triggers an array-bounds warning unless `component_i` is assumed to be in range. */
+#if (defined(__GNUC__) && (__GNUC__ >= 15) && !defined(__clang__))
+#  define ASSERT_AND_ASSUME(expr) \
+    BLI_assert(expr); \
+    [[assume(expr)]];
+#else
+#  define ASSERT_AND_ASSUME(expr) BLI_assert(expr);
+#endif
+
+  if constexpr (is_same_any_v<T, float2>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 2);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, float3>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 3);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, ColorGeometry4f>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
   }
   if constexpr (std::is_same_v<T, math::Quaternion>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     const float4 value1_f = float4(value1);
     const float4 value2_f = float4(value2);
     return compare_threshold_relative(value1_f[component_i], value2_f[component_i], threshold);
   }
   if constexpr (std::is_same_v<T, float4x4>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     return compare_threshold_relative(
         value1.base_ptr()[component_i], value2.base_ptr()[component_i], threshold);
   }
+
+#undef ASSERT_AND_ASSUME
+
   BLI_assert_unreachable();
 }
 
@@ -277,7 +308,7 @@ static bool update_set_ids(MutableSpan<int> set_ids,
                            const Span<T> values1,
                            const Span<T> values2,
                            const Span<int> sorted_to_values1,
-                           MutableSpan<int> sorted_to_values2,
+                           const Span<int> sorted_to_values2,
                            const float threshold,
                            const int component_i)
 {
@@ -366,15 +397,15 @@ static void update_set_sizes(const Span<int> set_ids, MutableSpan<int> set_sizes
   }
 }
 
-static void edges_from_vertex_sets(const Span<int2> edges,
-                                   const Span<int> verts_to_sorted,
-                                   const Span<int> vertex_set_ids,
-                                   MutableSpan<OrderedEdge> r_edges)
+static void edges_from_vert_sets(const Span<int2> edges,
+                                 const Span<int> verts_to_sorted,
+                                 const Span<int> vert_set_ids,
+                                 MutableSpan<OrderedEdge> r_edges)
 {
   for (const int i : r_edges.index_range()) {
     const int2 e = edges[i];
-    r_edges[i] = OrderedEdge(vertex_set_ids[verts_to_sorted[e.x]],
-                             vertex_set_ids[verts_to_sorted[e.y]]);
+    r_edges[i] = OrderedEdge(vert_set_ids[verts_to_sorted[e.x]],
+                             vert_set_ids[verts_to_sorted[e.y]]);
   }
 }
 
@@ -389,8 +420,8 @@ static bool sort_edges(const Span<int2> edges1,
   /* Need `NoInitialization()` because OrderedEdge is not default constructible. */
   Array<OrderedEdge> ordered_edges1(edges1.size(), NoInitialization());
   Array<OrderedEdge> ordered_edges2(edges2.size(), NoInitialization());
-  edges_from_vertex_sets(edges1, verts.to_sorted1, verts.set_ids, ordered_edges1);
-  edges_from_vertex_sets(edges2, verts.to_sorted2, verts.set_ids, ordered_edges2);
+  edges_from_vert_sets(edges1, verts.to_sorted1, verts.set_ids, ordered_edges1);
+  edges_from_vert_sets(edges2, verts.to_sorted2, verts.set_ids, ordered_edges2);
   sort_per_set_based_on_attributes(edges.set_sizes,
                                    edges.from_sorted1,
                                    edges.from_sorted2,
@@ -454,9 +485,7 @@ static void calc_smallest_corner_ids(const Span<int> face_offsets,
     const IndexRange corners = IndexRange(face_start, face_end - face_start);
     for (const int corner_i : corners.drop_front(1)) {
       const int corner_id = corner_set_ids[corners_to_sorted[corner_i]];
-      if (corner_id < smallest) {
-        smallest = corner_id;
-      }
+      smallest = std::min(corner_id, smallest);
     }
     smallest_corner_ids[face_i] = smallest;
   }
@@ -697,10 +726,10 @@ static bool all_set_sizes_one(const Span<int> set_sizes)
  *
  * \returns the type of mismatch that occurred if the mapping couldn't be constructed.
  */
-static std::optional<GeoMismatch> construct_vertex_mapping(const Mesh &mesh1,
-                                                           const Mesh &mesh2,
-                                                           IndexMapping &verts,
-                                                           IndexMapping &edges)
+static std::optional<GeoMismatch> construct_vert_mapping(const Mesh &mesh1,
+                                                         const Mesh &mesh2,
+                                                         IndexMapping &verts,
+                                                         IndexMapping &edges)
 {
   if (all_set_sizes_one(verts.set_sizes)) {
     /* The vertices are already in one-to-one correspondence. */
@@ -731,7 +760,7 @@ static std::optional<GeoMismatch> construct_vertex_mapping(const Mesh &mesh1,
       if (edges1.size() != edges2.size()) {
         continue;
       }
-      bool vertex_matches = true;
+      bool vert_matches = true;
       for (const int edge1 : edges1) {
         bool found_matching_edge = false;
         for (const int edge2 : edges2) {
@@ -741,11 +770,11 @@ static std::optional<GeoMismatch> construct_vertex_mapping(const Mesh &mesh1,
           }
         }
         if (!found_matching_edge) {
-          vertex_matches = false;
+          vert_matches = false;
           break;
         }
       }
-      if (vertex_matches) {
+      if (vert_matches) {
         matching_verts.append(index_in_set);
       }
     }
@@ -875,7 +904,7 @@ std::optional<GeoMismatch> compare_meshes(const Mesh &mesh1,
     return mismatch;
   };
 
-  mismatch = construct_vertex_mapping(mesh1, mesh2, verts, edges);
+  mismatch = construct_vert_mapping(mesh1, mesh2, verts, edges);
   if (mismatch) {
     return mismatch;
   }
@@ -1013,6 +1042,37 @@ std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
   for (const int sorted_i : curves.from_sorted1.index_range()) {
     if (curves.from_sorted1[sorted_i] != curves.from_sorted2[sorted_i]) {
       return GeoMismatch::Indices;
+    }
+  }
+
+  /* No mismatches found. */
+  return std::nullopt;
+}
+
+std::optional<GeoMismatch> compare_lattices(const Lattice &lattice1,
+                                            const Lattice &lattice2,
+                                            float threshold)
+{
+  if (lattice1.pntsu != lattice2.pntsu) {
+    return GeoMismatch::NumPoints;
+  }
+  if (lattice1.pntsv != lattice2.pntsv) {
+    return GeoMismatch::NumPoints;
+  }
+  if (lattice1.pntsw != lattice2.pntsw) {
+    return GeoMismatch::NumPoints;
+  }
+
+  const int num_points = lattice1.pntsu * lattice1.pntsv * lattice1.pntsw;
+  const Span<BPoint> bpoints1 = {lattice1.def, num_points};
+  const Span<BPoint> bpoints2 = {lattice2.def, num_points};
+  for (const int i : IndexRange(num_points)) {
+    const float3 co1 = bpoints1[i].vec;
+    const float3 co2 = bpoints2[i].vec;
+    for (const int component : IndexRange(3)) {
+      if (values_different(co1, co2, threshold, component)) {
+        return GeoMismatch::PointAttributes;
+      }
     }
   }
 

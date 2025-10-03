@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_type_conversions.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
@@ -9,7 +11,7 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -26,10 +28,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
-  b.add_input(data_type, "Grid").hide_value();
-  b.add_input<decl::Int>("X").supports_field();
-  b.add_input<decl::Int>("Y").supports_field();
-  b.add_input<decl::Int>("Z").supports_field();
+  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
+  b.add_input<decl::Int>("X").supports_field().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Y").supports_field().structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Z").supports_field().structure_type(StructureType::Dynamic);
 
   b.add_output(data_type, "Value").dependent_field({1, 2, 3});
 }
@@ -53,7 +55,7 @@ static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeS
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  if (!U.experimental.use_new_volume_nodes) {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_new_volume_nodes)) {
     return;
   }
   const std::optional<eNodeSocketDatatype> node_type = node_type_for_socket_type(
@@ -94,12 +96,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-}
-
-static void node_init(bNodeTree * /*tree*/, bNode *node)
-{
-  node->custom1 = SOCK_FLOAT;
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 #ifdef WITH_OPENVDB
@@ -197,10 +194,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   auto fn = std::make_shared<SampleGridIndexFunction>(std::move(grid));
-  auto op = FieldOperation::Create(std::move(fn),
-                                   {params.extract_input<Field<int>>("X"),
-                                    params.extract_input<Field<int>>("Y"),
-                                    params.extract_input<Field<int>>("Z")});
+  auto op = FieldOperation::from(std::move(fn),
+                                 {params.extract_input<Field<int>>("X"),
+                                  params.extract_input<Field<int>>("Y"),
+                                  params.extract_input<Field<int>>("Z")});
 
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   const CPPType &output_type = *bke::socket_type_to_geo_nodes_base_cpp_type(data_type);
@@ -212,16 +209,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 #endif
 }
 
-static const EnumPropertyItem *data_type_filter_fn(bContext * /*C*/,
-                                                   PointerRNA * /*ptr*/,
-                                                   PropertyRNA * /*prop*/,
-                                                   bool *r_free)
+static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  *r_free = true;
-  return enum_items_filter(
-      rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-        return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR);
-      });
+  node->custom1 = SOCK_FLOAT;
 }
 
 static void node_rna(StructRNA *srna)
@@ -233,22 +223,25 @@ static void node_rna(StructRNA *srna)
                     rna_enum_node_socket_data_type_items,
                     NOD_inline_enum_accessors(custom1),
                     SOCK_FLOAT,
-                    data_type_filter_fn);
+                    grid_socket_type_items_filter_fn);
 }
 
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_SAMPLE_GRID_INDEX, "Sample Grid Index", NODE_CLASS_CONVERTER);
+  geo_node_type_base(&ntype, "GeometryNodeSampleGridIndex", GEO_NODE_SAMPLE_GRID_INDEX);
+  ntype.ui_name = "Sample Grid Index";
+  ntype.ui_description = "Retrieve volume grid values at specific voxels";
+  ntype.enum_name_legacy = "SAMPLE_GRID_INDEX";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

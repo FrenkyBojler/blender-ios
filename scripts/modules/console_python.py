@@ -31,7 +31,7 @@ class _TempModuleOverride:
         self.module = sys.modules.get(self.module_name)
         sys.modules[self.module_name] = self.module_override
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, _type, _value, _traceback):
         if self.module is None:
             # Account for removal of `module_override` (albeit unlikely).
             sys.modules.pop(self.module_name, None)
@@ -350,7 +350,7 @@ def banner(context):
         "PYTHON INTERACTIVE CONSOLE {:s}".format(version_string),
         "",
         "Builtin Modules:       "
-        "bpy, bpy.data, bpy.ops, bpy.props, bpy.types, bpy.context, bpy.utils, bgl, gpu, blf, mathutils",
+        "bpy, bpy.data, bpy.ops, bpy.props, bpy.types, bpy.context, bpy.utils, gpu, blf, mathutils",
 
         "Convenience Imports:   from mathutils import *; from math import *",
         "Convenience Variables: C = bpy.context, D = bpy.data",

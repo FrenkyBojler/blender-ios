@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "draw_view_data.hh"
+
 #include "image_drawing_mode.hh"
 #include "image_instance.hh"
 #include "image_shader.hh"
@@ -14,9 +16,9 @@ namespace blender::image_engine {
 void ScreenSpaceDrawingMode::add_shgroups() const
 {
   PassSimple &pass = instance_.state.image_ps;
-  GPUShader *shader = ShaderModule::module_get().color.get();
+  gpu::Shader *shader = ShaderModule::module_get().color.get();
   const ShaderParameters &sh_params = instance_.state.sh_params;
-  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+  DefaultTextureList *dtxl = DRW_context_get()->viewport_texture_list_get();
 
   pass.shader_set(shader);
   pass.push_constant("far_near_distances", sh_params.far_near);
@@ -26,7 +28,7 @@ void ScreenSpaceDrawingMode::add_shgroups() const
   pass.bind_texture("depth_tx", dtxl->depth);
 
   float4x4 image_mat = float4x4::identity();
-  ResourceHandle handle = instance_.manager->resource_handle(image_mat);
+  ResourceHandleRange handle = instance_.manager->resource_handle(image_mat);
   for (const TextureInfo &info : instance_.state.texture_infos) {
     PassSimple::Sub &sub = pass.sub("Texture");
     sub.push_constant("offset", info.offset());
@@ -38,13 +40,13 @@ void ScreenSpaceDrawingMode::add_shgroups() const
 void ScreenSpaceDrawingMode::add_depth_shgroups(::Image *image, ImageUser *image_user) const
 {
   PassSimple &pass = instance_.state.depth_ps;
-  GPUShader *shader = ShaderModule::module_get().depth.get();
+  gpu::Shader *shader = ShaderModule::module_get().depth.get();
   pass.shader_set(shader);
 
   float4x4 image_mat = float4x4::identity();
-  ResourceHandle handle = instance_.manager->resource_handle(image_mat);
+  ResourceHandleRange handle = instance_.manager->resource_handle(image_mat);
 
-  ImageUser tile_user = {0};
+  ImageUser tile_user = {nullptr};
   if (image_user) {
     tile_user = *image_user;
   }
@@ -121,7 +123,7 @@ void ScreenSpaceDrawingMode::do_partial_update_float_buffer(
     return;
   }
 
-  IMB_float_from_rect_ex(float_buffer, src, &clipped_update_region);
+  IMB_float_from_byte_ex(float_buffer, src, &clipped_update_region);
 }
 
 void ScreenSpaceDrawingMode::do_partial_update(
@@ -146,7 +148,7 @@ void ScreenSpaceDrawingMode::do_partial_update(
       if (info.need_full_update) {
         continue;
       }
-      GPUTexture *texture = info.texture;
+      gpu::Texture *texture = info.texture;
       const float texture_width = GPU_texture_width(texture);
       const float texture_height = GPU_texture_height(texture);
       /* TODO: early bound check. */
@@ -186,6 +188,10 @@ void ScreenSpaceDrawingMode::do_partial_update(
                texture_height / BLI_rctf_size_y(&info.clipping_uv_bounds)),
           ceil((changed_overlapping_region_in_uv_space.ymax - info.clipping_uv_bounds.ymin) *
                texture_height / BLI_rctf_size_y(&info.clipping_uv_bounds)));
+      gpu_texture_region_to_update.xmax = min_ii(gpu_texture_region_to_update.xmax,
+                                                 info.clipping_bounds.xmax);
+      gpu_texture_region_to_update.ymax = min_ii(gpu_texture_region_to_update.ymax,
+                                                 info.clipping_bounds.ymax);
 
       rcti tile_region_to_extract;
       BLI_rcti_init(
@@ -202,16 +208,16 @@ void ScreenSpaceDrawingMode::do_partial_update(
 
       ImBuf extracted_buffer;
       IMB_initImBuf(
-          &extracted_buffer, texture_region_width, texture_region_height, 32, IB_rectfloat);
+          &extracted_buffer, texture_region_width, texture_region_height, 32, IB_float_data);
 
       int offset = 0;
       for (int y = gpu_texture_region_to_update.ymin; y < gpu_texture_region_to_update.ymax; y++) {
-        float yf = y / (float)texture_height;
+        float yf = y / float(texture_height);
         float v = info.clipping_uv_bounds.ymax * yf + info.clipping_uv_bounds.ymin * (1.0 - yf) -
                   tile_offset_y;
         for (int x = gpu_texture_region_to_update.xmin; x < gpu_texture_region_to_update.xmax; x++)
         {
-          float xf = x / (float)texture_width;
+          float xf = x / float(texture_width);
           float u = info.clipping_uv_bounds.xmax * xf + info.clipping_uv_bounds.xmin * (1.0 - xf) -
                     tile_offset_x;
           imbuf::interpolate_nearest_border_fl(tile_buffer,
@@ -232,7 +238,7 @@ void ScreenSpaceDrawingMode::do_partial_update(
                              extracted_buffer.x,
                              extracted_buffer.y,
                              0);
-      imb_freerectImbuf_all(&extracted_buffer);
+      IMB_free_all_data(&extracted_buffer);
     }
   }
 }
@@ -253,8 +259,8 @@ void ScreenSpaceDrawingMode::do_full_update_gpu_texture(TextureInfo &info,
   ImBuf texture_buffer;
   const int texture_width = GPU_texture_width(info.texture);
   const int texture_height = GPU_texture_height(info.texture);
-  IMB_initImBuf(&texture_buffer, texture_width, texture_height, 0, IB_rectfloat);
-  ImageUser tile_user = {0};
+  IMB_initImBuf(&texture_buffer, texture_width, texture_height, 0, IB_float_data);
+  ImageUser tile_user = {nullptr};
   if (image_user) {
     tile_user = *image_user;
   }
@@ -274,7 +280,7 @@ void ScreenSpaceDrawingMode::do_full_update_gpu_texture(TextureInfo &info,
   }
   IMB_gpu_clamp_half_float(&texture_buffer);
   GPU_texture_update(info.texture, GPU_DATA_FLOAT, texture_buffer.float_buffer.data);
-  imb_freerectImbuf_all(&texture_buffer);
+  IMB_free_all_data(&texture_buffer);
 }
 
 void ScreenSpaceDrawingMode::do_full_update_texture_slot(const TextureInfo &texture_info,
@@ -289,7 +295,7 @@ void ScreenSpaceDrawingMode::do_full_update_texture_slot(const TextureInfo &text
   /* IMB_transform works in a non-consistent space. This should be documented or fixed!.
    * Construct a variant of the info_uv_to_texture that adds the texel space
    * transformation. */
-  float4x4 uv_to_texel;
+  float3x3 uv_to_texel;
   rctf texture_area;
   rctf tile_area;
 
@@ -300,7 +306,7 @@ void ScreenSpaceDrawingMode::do_full_update_texture_slot(const TextureInfo &text
       tile_buffer.x * (texture_info.clipping_uv_bounds.xmax - image_tile.get_tile_x_offset()),
       tile_buffer.y * (texture_info.clipping_uv_bounds.ymin - image_tile.get_tile_y_offset()),
       tile_buffer.y * (texture_info.clipping_uv_bounds.ymax - image_tile.get_tile_y_offset()));
-  BLI_rctf_transform_calc_m4_pivot_min(&tile_area, &texture_area, uv_to_texel.ptr());
+  BLI_rctf_transform_calc_m3_pivot_min(&tile_area, &texture_area, uv_to_texel.ptr());
   uv_to_texel = math::invert(uv_to_texel);
 
   rctf crop_rect;
@@ -319,14 +325,14 @@ void ScreenSpaceDrawingMode::do_full_update_texture_slot(const TextureInfo &text
                 &texture_buffer,
                 transform_mode,
                 IMB_FILTER_NEAREST,
-                uv_to_texel.ptr(),
+                uv_to_texel,
                 crop_rect_ptr);
 }
 
 void ScreenSpaceDrawingMode::begin_sync() const
 {
   {
-    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    DefaultTextureList *dtxl = DRW_context_get()->viewport_texture_list_get();
     instance_.state.depth_fb.ensure(GPU_ATTACHMENT_TEXTURE(dtxl->depth));
     instance_.state.color_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(dtxl->color));
   }
@@ -379,27 +385,13 @@ void ScreenSpaceDrawingMode::draw_finish() const
 void ScreenSpaceDrawingMode::draw_viewport() const
 {
   float clear_depth = instance_.state.flags.do_tile_drawing ? 0.75 : 1.0f;
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-    /* OpenGL doesn't support clearing depth stencil via load store actions as the data types
-     * should match. */
-    GPU_framebuffer_bind(instance_.state.depth_fb);
-    instance_.state.depth_fb.clear_depth(clear_depth);
-  }
-  else {
-    GPU_framebuffer_bind_ex(instance_.state.depth_fb,
-                            {
-                                {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {clear_depth}},
-                            });
-  }
+  GPU_framebuffer_bind(instance_.state.depth_fb);
+  instance_.state.depth_fb.clear_depth(clear_depth);
   instance_.manager->submit(instance_.state.depth_ps, instance_.state.view);
 
-  GPU_framebuffer_bind_ex(
-      instance_.state.color_fb,
-      {
-          {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_DONT_CARE, {0.0f}},
-          {GPU_LOADACTION_CLEAR, GPU_STOREACTION_STORE, {0.0f, 0.0f, 0.0f, 0.0f}},
-
-      });
+  GPU_framebuffer_bind(instance_.state.color_fb);
+  float4 clear_color = float4(0.0);
+  GPU_framebuffer_clear_color(instance_.state.color_fb, clear_color);
   instance_.manager->submit(instance_.state.image_ps, instance_.state.view);
 }
 

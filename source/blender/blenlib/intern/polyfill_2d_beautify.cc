@@ -32,7 +32,7 @@
 
 #include "BLI_polyfill_2d_beautify.h" /* own include */
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* Used to find matching edges. */
 struct OrderEdge {
@@ -335,7 +335,7 @@ static void polyedge_rotate(HalfEdge *edges, const HalfEdge *e)
   HalfEdge *ed[6];
   uint ed_index[6];
 
-  ed_index[0] = (uint)(e - edges);
+  ed_index[0] = uint(e - edges);
   ed[0] = &edges[ed_index[0]];
   ed_index[1] = ed[0]->e_next;
   ed[1] = &edges[ed_index[1]];
@@ -424,7 +424,7 @@ void BLI_polyfill_beautify(const float (*coords)[2],
 
   /* Now perform iterative rotations. */
 #if 0
-  eheap_table = BLI_memarena_alloc(arena, sizeof(HeapNode *) * (size_t)edges_len);
+  eheap_table = BLI_memarena_alloc(arena, sizeof(HeapNode *) * size_t(edges_len));
 #else
   /* We can re-use this since its big enough. */
   eheap_table = (HeapNode **)order_edges;

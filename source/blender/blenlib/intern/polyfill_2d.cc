@@ -44,7 +44,7 @@
 
 #include "BLI_polyfill_2d.h" /* own include */
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* avoid fan-fill topology */
 #define USE_CLIP_EVEN
@@ -64,6 +64,8 @@
 #ifdef DEBUG_TIME
 #  include "BLI_time_utildefines.h"
 #endif
+
+namespace {
 
 using eSign = int8_t;
 
@@ -143,11 +145,13 @@ struct PolyFill {
   uint32_t tris_num;
 
 #ifdef USE_KDTREE
-  struct KDTree2D kdtree;
+  KDTree2D kdtree;
 #endif
 };
 
-/* based on libgdx 2013-11-28, apache 2.0 licensed */
+}  // namespace
+
+/* Based on LIBGDX 2013-11-28, APACHE 2.0 licensed. */
 
 static void pf_coord_sign_calc(const PolyFill *pf, PolyIndex *pi);
 
@@ -196,7 +200,7 @@ static eSign span_tri_v2_sign(const float v1[2], const float v2[2], const float 
 }
 
 #ifdef USE_KDTREE
-#  define KDNODE_UNSET ((uint32_t)-1)
+#  define KDNODE_UNSET (uint32_t(-1))
 
 enum {
   KDNODE_FLAG_REMOVED = (1 << 0),
@@ -229,7 +233,7 @@ static void kdtree2d_init(KDTree2D *tree, const uint32_t coords_num, const PolyI
     }
   }
 
-  BLI_assert(tree->node_num == (uint32_t)(node - tree->nodes));
+  BLI_assert(tree->node_num == uint32_t(node - tree->nodes));
 }
 
 static uint32_t kdtree2d_balance_recursive(KDTreeNode2D *nodes,
@@ -258,7 +262,7 @@ static uint32_t kdtree2d_balance_recursive(KDTreeNode2D *nodes,
     i = neg - 1;
     j = pos;
 
-    while (1) {
+    while (true) {
       while (coords[nodes[++i].index][axis] < co) { /* pass */
       }
       while (coords[nodes[--j].index][axis] > co && j > neg) { /* pass */
@@ -338,7 +342,7 @@ static void kdtree2d_node_remove(KDTree2D *tree, uint32_t index)
   {
     KDTreeNode2D *node_parent = &tree->nodes[node->parent];
 
-    BLI_assert((uint32_t)(node - tree->nodes) == node_index);
+    BLI_assert(uint32_t(node - tree->nodes) == node_index);
     if (node_parent->neg == node_index) {
       node_parent->neg = KDNODE_UNSET;
     }
@@ -466,7 +470,7 @@ static void pf_coord_remove(PolyFill *pf, PolyIndex *pi)
     pf->indices = pi->next;
   }
 #ifndef NDEBUG
-  pi->index = (uint32_t)-1;
+  pi->index = uint32_t(-1);
   pi->next = pi->prev = nullptr;
 #endif /* !NDEBUG */
 
@@ -582,7 +586,7 @@ static void pf_triangulate(PolyFill *pf)
 static void pf_coord_sign_calc(const PolyFill *pf, PolyIndex *pi)
 {
   /* localize */
-  const float(*coords)[2] = pf->coords;
+  const float (*coords)[2] = pf->coords;
 
   pi->sign = span_tri_v2_sign(coords[pi->prev->index], coords[pi->index], coords[pi->next->index]);
 }
@@ -678,7 +682,7 @@ static bool pf_ear_tip_check(PolyFill *pf, PolyIndex *pi_ear_tip, const eSign si
 {
 #ifndef USE_KDTREE
   /* localize */
-  const float(*coords)[2] = pf->coords;
+  const float (*coords)[2] = pf->coords;
   PolyIndex *pi_curr;
 
   const float *v1, *v2, *v3;
@@ -916,7 +920,7 @@ void BLI_polyfill_calc(const float (*coords)[2],
                        const int coords_sign,
                        uint32_t (*r_tris)[3])
 {
-  /* Fallback to heap memory for large allocations.
+  /* Fall back to heap memory for large allocations.
    * Avoid running out of stack memory on systems with 512kb stack (macOS).
    * This happens at around 13,000 points, use a much lower value to be safe. */
   if (UNLIKELY(coords_num > 8192)) {

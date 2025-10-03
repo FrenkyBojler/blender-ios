@@ -14,7 +14,7 @@
  * - `v2` = `vec2` = vector 2.
  * - `v3` = `vec3` = vector 3.
  * - `v4` = `vec4` = vector 4.
- * - `vn` = `vec4q = vector N dimensions, *passed as an arg, after the vector*..
+ * - `vn` = `vec4q` = vector N dimensions, *passed as an arg, after the vector*..
  * - `qt` = `quat` = quaternion.
  * - `dq` = `dquat` = dual quaternion.
  * - `m2` = `mat2` = matrix 2x2.
@@ -45,54 +45,10 @@
  * - R = result matrix
  */
 
-#if defined(_MSC_VER) && !defined(_USE_MATH_DEFINES)
-#  define _USE_MATH_DEFINES
-#endif
-
 #include "BLI_assert.h"
-#include "BLI_math_inline.h"
+#include "BLI_math_constants.h"  // IWYU pragma: export
+#include "BLI_math_inline.h"     // IWYU pragma: export
 #include "BLI_sys_types.h"
-#include <math.h>
-
-#ifndef M_PI
-#  define M_PI 3.14159265358979323846 /* pi */
-#endif
-#ifndef M_PI_2
-#  define M_PI_2 1.57079632679489661923 /* pi/2 */
-#endif
-#ifndef M_PI_4
-#  define M_PI_4 0.78539816339744830962 /* pi/4 */
-#endif
-#ifndef M_SQRT2
-#  define M_SQRT2 1.41421356237309504880 /* sqrt(2) */
-#endif
-#ifndef M_SQRT1_2
-#  define M_SQRT1_2 0.70710678118654752440 /* 1/sqrt(2) */
-#endif
-#ifndef M_SQRT3
-#  define M_SQRT3 1.73205080756887729352 /* sqrt(3) */
-#endif
-#ifndef M_SQRT1_3
-#  define M_SQRT1_3 0.57735026918962576450 /* 1/sqrt(3) */
-#endif
-#ifndef M_1_PI
-#  define M_1_PI 0.318309886183790671538 /* 1/pi */
-#endif
-#ifndef M_E
-#  define M_E 2.7182818284590452354 /* e */
-#endif
-#ifndef M_LOG2E
-#  define M_LOG2E 1.4426950408889634074 /* log_2 e */
-#endif
-#ifndef M_LOG10E
-#  define M_LOG10E 0.43429448190325182765 /* log_10 e */
-#endif
-#ifndef M_LN2
-#  define M_LN2 0.69314718055994530942 /* log_e 2 */
-#endif
-#ifndef M_LN10
-#  define M_LN10 2.30258509299404568402 /* log_e 10 */
-#endif
 
 #if defined(__GNUC__)
 #  define NAN_FLT __builtin_nanf("")
@@ -102,16 +58,12 @@ static const int NAN_INT = 0x7FC00000;
 #endif
 
 #if BLI_MATH_DO_INLINE
-#  include "intern/math_base_inline.c"
+#  include "intern/math_base_inline.cc"  // IWYU pragma: export
 #endif
 
 #ifdef BLI_MATH_GCC_WARN_PRAGMA
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wredundant-decls"
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 /******************************* Float ******************************/
@@ -210,6 +162,26 @@ MINLINE uint ulp_diff_ff(float a, float b);
  */
 MINLINE int compare_ff_relative(float a, float b, float max_diff, int max_ulps);
 MINLINE bool compare_threshold_relative(float value1, float value2, float thresh);
+
+/**
+ * Increment the given float to the next representable floating point value in
+ * the positive direction.
+ *
+ * Infinities and NaNs are left untouched. Subnormal numbers are handled
+ * correctly, as is crossing zero (i.e. 0 and -0 are considered a single value,
+ * and progressing past zero continues on to the positive numbers).
+ */
+MINLINE float increment_ulp(float value);
+
+/**
+ * Decrement the given float to the next representable floating point value in
+ * the negative direction.
+ *
+ * Infinities and NaNs are left untouched. Subnormal numbers are handled
+ * correctly, as is zero (i.e. 0 and -0 are considered a single value, and
+ * progressing past zero continues on to the negative numbers).
+ */
+MINLINE float decrement_ulp(float value);
 
 MINLINE float signf(float f);
 MINLINE int signum_i_ex(float a, float eps);
@@ -355,14 +327,6 @@ float ceil_power_of_10(float f);
     } \
     (void)0
 
-#  define BLI_ASSERT_UNIT_V3_DB(v) \
-    { \
-      const double _test_unit = len_squared_v3_db(v); \
-      BLI_assert(!(fabs(_test_unit - 1.0) >= BLI_ASSERT_UNIT_EPSILON_DB) || \
-                 !(fabs(_test_unit) >= BLI_ASSERT_UNIT_EPSILON_DB)); \
-    } \
-    (void)0
-
 #  define BLI_ASSERT_UNIT_V2(v) \
     { \
       const float _test_unit = len_squared_v2(v); \
@@ -400,13 +364,8 @@ float ceil_power_of_10(float f);
 #else
 #  define BLI_ASSERT_UNIT_V2(v) (void)(v)
 #  define BLI_ASSERT_UNIT_V3(v) (void)(v)
-#  define BLI_ASSERT_UNIT_V3_DB(v) (void)(v)
 #  define BLI_ASSERT_UNIT_QUAT(v) (void)(v)
 #  define BLI_ASSERT_ZERO_M3(m) (void)(m)
 #  define BLI_ASSERT_ZERO_M4(m) (void)(m)
 #  define BLI_ASSERT_UNIT_M3(m) (void)(m)
-#endif
-
-#ifdef __cplusplus
-}
 #endif

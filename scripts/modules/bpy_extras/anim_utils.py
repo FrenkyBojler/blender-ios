@@ -13,7 +13,7 @@ __all__ = (
 )
 
 import bpy
-from bpy.types import Action, ActionSlot
+from bpy.types import Action, ActionSlot, ActionChannelbag
 from dataclasses import dataclass
 
 from collections.abc import (
@@ -75,24 +75,58 @@ class BakeOptions:
     """Bake custom properties."""
 
 
-def _get_channelbag_for_slot(action: Action, slot: ActionSlot):
-    # This is on purpose limited to the first layer and strip. To support more
-    # than 1 layer, a rewrite of this operator is needed which ideally would
-    # happen in C++.
-    for layer in action.layers:
-        for strip in layer.strips:
-            channelbag = strip.channels(slot.handle)
-            return channelbag
-
-
-def _ensure_channelbag_exists(action: Action, slot: ActionSlot):
-    channelbag = _get_channelbag_for_slot(action, slot)
-    if channelbag:
-        return channelbag
+def action_get_channelbag_for_slot(action: Action | None, slot: ActionSlot | None) -> ActionChannelbag | None:
+    """
+    Returns the first channelbag found for the slot.
+    In case there are multiple layers or strips they are iterated until a
+    channelbag for that slot is found. In case no matching channelbag is found, returns None.
+    """
+    if not action or not slot:
+        # This is just for convenience so that you can call
+        # action_get_channelbag_for_slot(adt.action, adt.action_slot) and check
+        # the return value for None, without having to also check the action and
+        # the slot for None.
+        return None
 
     for layer in action.layers:
         for strip in layer.strips:
-            return strip.channelbags.new(slot)
+            channelbag = strip.channelbag(slot)
+            if channelbag:
+                return channelbag
+    return None
+
+
+def action_get_first_suitable_slot(action: Action | None, target_id_type: str) -> ActionSlot | None:
+    """Return the first Slot of the given Action that's suitable for the given ID type.
+
+    Typically you should not need this function; when an Action is assigned to a
+    data-block, just use the slot that was assigned along with it.
+    """
+
+    if not action:
+        return None
+
+    slot_types = ('UNSPECIFIED', target_id_type)
+    for slot in action.slots:
+        if slot.target_id_type in slot_types:
+            return slot
+    return None
+
+
+def action_ensure_channelbag_for_slot(action: Action, slot: ActionSlot) -> ActionChannelbag:
+    """Ensure a layer and a keyframe strip exists, then ensure that strip has a channelbag for the slot."""
+
+    try:
+        layer = action.layers[0]
+    except IndexError:
+        layer = action.layers.new("Layer")
+
+    try:
+        strip = layer.strips[0]
+    except IndexError:
+        strip = layer.strips.new(type='KEYFRAME')
+
+    return strip.channelbag(slot, ensure=True)
 
 
 def bake_action(
@@ -278,7 +312,10 @@ def bake_action_iter(
             if isinstance(obj[key], idprop.types.IDPropertyGroup):
                 continue
             obj[key] = value
-            if key in obj.bl_rna.properties:
+            # The check for `is_runtime` is needed in case the custom property has the same
+            # name as a built in property, e.g. `scale`. In that case the simple check
+            # `key in ...` would be true and the square brackets would never get added.
+            if key in obj.bl_rna.properties and obj.bl_rna.properties[key].is_runtime:
                 rna_path = key
             else:
                 rna_path = "[\"{:s}\"]".format(bpy.utils.escape_identifier(key))
@@ -371,51 +408,49 @@ def bake_action_iter(
             obj_info.append((frame, *obj_frame_info(obj)))
 
     # -------------------------------------------------------------------------
-    # Clean (store initial data)
-    if bake_options.do_clean and action is not None:
-        clean_orig_data = {fcu: {p.co[1] for p in fcu.keyframe_points} for fcu in action.fcurves}
-    else:
-        clean_orig_data = {}
-
-    # -------------------------------------------------------------------------
     # Create action
 
     # in case animation data hasn't been created
     atd = obj.animation_data_create()
+    old_slot_name = atd.last_slot_identifier[2:]
     is_new_action = action is None
     if is_new_action:
         action = bpy.data.actions.new("Action")
-    else:
-        # When baking into the current action, a slot needs to be assigned.
-        if not atd.action_slot:
-            slot = action.slots.new(obj.id_type, obj.name)
-            atd.action_slot = slot
 
     # Only leave tweak mode if we actually need to modify the action (#57159)
     if action != atd.action:
         # Leave tweak mode before trying to modify the action (#48397)
         if atd.use_tweak_mode:
             atd.use_tweak_mode = False
-
         atd.action = action
-        if action.is_action_layered:
-            slot = action.slots.new(obj.id_type, obj.name)
-            atd.action_slot = slot
+
+    # A slot needs to be assigned.
+    if not atd.action_slot:
+        slot = action.slots.new(obj.id_type, old_slot_name or obj.name)
+        atd.action_slot = slot
 
     # Baking the action only makes sense in Replace mode, so force it (#69105)
     if not atd.use_tweak_mode:
         atd.action_blend_type = 'REPLACE'
 
+    # If any data is going to be baked, there will be a channelbag created, so
+    # might just as well create it now and have a clear, unambiguous reference
+    # to it. If it is created here, it will have no F-Curves, and so certain
+    # loops below will just be no-ops.
+    channelbag: ActionChannelbag = action_ensure_channelbag_for_slot(atd.action, atd.action_slot)
+
+    # -------------------------------------------------------------------------
+    # Clean (store initial data)
+    if bake_options.do_clean:
+        clean_orig_data = {fcu: {p.co[1] for p in fcu.keyframe_points} for fcu in channelbag.fcurves}
+    else:
+        clean_orig_data = {}
+
     # -------------------------------------------------------------------------
     # Apply transformations to action
 
     # pose
-    lookup_fcurves = {}
-    assert action.is_action_layered
-    channelbag = _get_channelbag_for_slot(action, atd.action_slot)
-    if channelbag:
-        # channelbag can be None if no layers or strips exist in the action.
-        lookup_fcurves = {(fcurve.data_path, fcurve.array_index): fcurve for fcurve in channelbag.fcurves}
+    lookup_fcurves = {(fcurve.data_path, fcurve.array_index): fcurve for fcurve in channelbag.fcurves}
 
     if bake_options.do_pose:
         for f, armature_custom_properties in armature_info:
@@ -507,10 +542,10 @@ def bake_action_iter(
                     bake_custom_properties(pbone, custom_props=custom_props[name], frame=f, group_name=name)
 
             if is_new_action:
-                keyframes.insert_keyframes_into_new_action(total_new_keys, action, name)
+                keyframes.insert_keyframes_into_new_action(total_new_keys, channelbag, name)
             else:
                 keyframes.insert_keyframes_into_existing_action(
-                    lookup_fcurves, total_new_keys, action, atd.action_slot)
+                    lookup_fcurves, total_new_keys, channelbag)
 
     # object. TODO. multiple objects
     if bake_options.do_object:
@@ -574,10 +609,9 @@ def bake_action_iter(
                 bake_custom_properties(obj, custom_props=custom_props, frame=f, group_name=name)
 
         if is_new_action:
-            keyframes.insert_keyframes_into_new_action(total_new_keys, action, name)
+            keyframes.insert_keyframes_into_new_action(total_new_keys, channelbag, name)
         else:
-            keyframes.insert_keyframes_into_existing_action(
-                lookup_fcurves, total_new_keys, action, atd.action_slot)
+            keyframes.insert_keyframes_into_existing_action(lookup_fcurves, total_new_keys, channelbag)
 
         if bake_options.do_parents_clear:
             obj.parent = None
@@ -586,7 +620,7 @@ def bake_action_iter(
     # Clean
 
     if bake_options.do_clean:
-        for fcu in action.fcurves:
+        for fcu in channelbag.fcurves:
             fcu_orig_data = clean_orig_data.get(fcu, set())
 
             keyframe_points = fcu.keyframe_points
@@ -658,15 +692,14 @@ class KeyframesCo:
     def insert_keyframes_into_new_action(
         self,
         total_new_keys: int,
-        action: Action,
-        action_group_name: str,
+        channelbag: ActionChannelbag,
+        group_name: str,
     ) -> None:
         """
         Assumes the action is new, that it has no F-curves. Otherwise, the only difference between versions is
         performance and implementation simplicity.
 
-        :arg action_group_name: Name of Action Group that F-curves are added to.
-        :type action_group_name: str
+        :arg group_name: Name of the Group that F-curves are added to.
         """
         linear_enum_values = [
             bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items["LINEAR"].value
@@ -677,8 +710,8 @@ class KeyframesCo:
                 continue
 
             data_path, array_index = fc_key
-            keyframe_points = action.fcurves.new(
-                data_path, index=array_index, action_group=action_group_name
+            keyframe_points = channelbag.fcurves.new(
+                data_path, index=array_index, group_name=group_name
             ).keyframe_points
 
             keyframe_points.add(total_new_keys)
@@ -692,18 +725,14 @@ class KeyframesCo:
         self,
         lookup_fcurves: Mapping[FCurveKey, bpy.types.FCurve],
         total_new_keys: int,
-        action: Action,
-        action_slot: ActionSlot,
+        channelbag: ActionChannelbag,
     ) -> None:
         """
         Assumes the action already exists, that it might already have F-curves. Otherwise, the
         only difference between versions is performance and implementation simplicity.
 
         :arg lookup_fcurves: : This is only used for efficiency.
-           It's a substitute for ``action.fcurves.find()`` which is a potentially expensive linear search.
-        :type lookup_fcurves: ``Mapping[FCurveKey, bpy.types.FCurve]``
-        :arg action_group_name: Name of Action Group that F-curves are added to.
-        :type action_group_name: str
+           It's a substitute for ``channelbag.fcurves.find()`` which is a potentially expensive linear search.
         """
         linear_enum_values = [
             bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items["LINEAR"].value
@@ -716,11 +745,6 @@ class KeyframesCo:
             fcurve = lookup_fcurves.get(fc_key, None)
             if fcurve is None:
                 data_path, array_index = fc_key
-                assert action.is_action_layered
-                channelbag = _ensure_channelbag_exists(action, action_slot)
-                if not channelbag:
-                    # Can happen if no layers or strips exist on the action.
-                    continue
                 fcurve = channelbag.fcurves.new(data_path, index=array_index)
 
             keyframe_points = fcurve.keyframe_points
