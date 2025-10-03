@@ -95,7 +95,7 @@ GVArray VoxelCoordinateFieldInput::get_varray_for_context(const fn::FieldContext
         [&](const int i) { result[i] = tiles[i].min()[axis_.as_int()]; });
     return VArray<int>::from_container(std::move(result));
   }
-  return VArray<int>::from_single(0, mask.min_array_size());
+  return {};
 }
 
 VoxelExtentFieldInput::VoxelExtentFieldInput(const math::Axis axis)
@@ -117,7 +117,7 @@ GVArray VoxelExtentFieldInput::get_varray_for_context(const fn::FieldContext &co
         [&](const int i) { result[i] = tiles[i].dim()[axis_.as_int()]; });
     return VArray<int>::from_container(std::move(result));
   }
-  return VArray<int>::from_single(0, mask.min_array_size());
+  return {};
 }
 
 IsTileFieldInput::IsTileFieldInput() : fn::FieldInput(CPPType::get<bool>(), TIP_("Is Tile")) {}
@@ -132,7 +132,7 @@ GVArray IsTileFieldInput::get_varray_for_context(const fn::FieldContext &context
   if (dynamic_cast<const TilesFieldContext *>(&context)) {
     return VArray<bool>::from_single(true, mask.min_array_size());
   }
-  return VArray<bool>::from_single(false, mask.min_array_size());
+  return {};
 }
 
 }  // namespace blender::bke
