@@ -479,6 +479,9 @@ enum class BuiltinBits {
    * Will do nothing if ClipControl is unsupported. */
   CLIP_CONTROL = (1 << 19),
 
+  /* On metal, tag the shader to use argument buffer to overcome the 16 sampler limit. */
+  USE_SAMPLER_ARG_BUFFER = (1 << 20),
+
   /* Not a builtin but a flag we use to tag shaders that use the debug features. */
   USE_PRINTF = (1 << 28),
   USE_DEBUG_DRAW = (1 << 29),

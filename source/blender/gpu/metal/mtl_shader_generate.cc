@@ -932,9 +932,11 @@ static void generate_sampler_argument_buffer(GeneratedStreams &generated, int sa
 
 void generate_resources(GeneratedStreams &generated,
                         const ShaderStage stage,
-                        const ShaderCreateInfo &info,
-                        const bool use_sampler_argument_buffer)
+                        const ShaderCreateInfo &info)
 {
+  const bool use_sampler_argument_buffer = bool(info.builtins_ &
+                                                BuiltinBits::USE_SAMPLER_ARG_BUFFER);
+
   int specialization_constant_index = MTL_SPECIALIZATION_CONSTANT_OFFSET;
   for (const SpecializationConstant &sc : info.specialization_constants_) {
     generate_specialization_constant(generated, sc, specialization_constant_index++);
@@ -1549,7 +1551,7 @@ std::string generate_entry_point(const ShaderCreateInfo &info,
   GeneratedStreams generated;
   generate_builtins(generated, stage, info);
   generate_stage_interfaces(generated, stage, info);
-  generate_resources(generated, stage, info, true);
+  generate_resources(generated, stage, info);
 
   std::stringstream out;
 

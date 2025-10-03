@@ -199,6 +199,13 @@ const shader::ShaderCreateInfo &MTLShader::patch_create_info(
     patch_create_info_atomic_workaround(patched_info_, patched_info_strings_, original_info);
   }
 
+  if (original_info.sampler_count() > 16) {
+    if (patched_info_ == nullptr) {
+      patched_info_ = std::make_unique<shader::ShaderCreateInfo>(original_info);
+    }
+    patched_info_->builtins_ |= BuiltinBits::USE_SAMPLER_ARG_BUFFER;
+  }
+
   return patched_info_ != nullptr ? *patched_info_ : original_info;
 }
 
@@ -362,19 +369,15 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     uint8_t total_stages = (is_compute) ? 1 : 2;
 
     for (int stage_count = 0; stage_count < total_stages; stage_count++) {
-      int arg_buf_samplers_size = 0;
       switch (src_stage) {
         case ShaderStage::VERTEX:
           source_to_compile = shd_builder_->msl_source_vert_;
-          arg_buf_samplers_size = arg_buf_samplers_vert_;
           break;
         case ShaderStage::FRAGMENT:
           source_to_compile = shd_builder_->msl_source_frag_;
-          arg_buf_samplers_size = arg_buf_samplers_frag_;
           break;
         case ShaderStage::COMPUTE:
           source_to_compile = shd_builder_->msl_source_compute_;
-          arg_buf_samplers_size = arg_buf_samplers_comp_;
           break;
         default:
           BLI_assert_unreachable();
@@ -389,7 +392,7 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
         ss << "#define MTL_WORKGROUP_SIZE_Z " << info->compute_layout_.local_size_z << "\n";
       }
 
-      if (true) {
+      if (bool(info->builtins_ & BuiltinBits::USE_SAMPLER_ARG_BUFFER)) {
         ss << "#define MTL_USE_SAMPLER_ARGUMENT_BUFFER\n";
       }
 

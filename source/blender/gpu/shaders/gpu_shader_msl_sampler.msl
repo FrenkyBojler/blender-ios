@@ -9,11 +9,11 @@
 using namespace metal;
 
 /* Generate wrapper structs for combined texture and sampler type. */
-// #ifdef MTL_USE_SAMPLER_ARGUMENT_BUFFER
+#ifdef MTL_USE_SAMPLER_ARGUMENT_BUFFER
 using sampler_ptr = constant sampler *;
-// #else
-// using sampler_ptr = thread sampler *;
-// #endif
+#else
+using sampler_ptr = thread sampler *;
+#endif
 
 #define ENABLE_IF(cond) thread metal::enable_if_t<(cond)> * = nullptr
 
