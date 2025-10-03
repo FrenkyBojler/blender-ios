@@ -149,6 +149,7 @@ set(SRC
   nodes/node_geo_input_spline_length.cc
   nodes/node_geo_input_spline_resolution.cc
   nodes/node_geo_input_tangent.cc
+  nodes/node_geo_input_voxel_index.cc
   nodes/node_geo_instance_on_points.cc
   nodes/node_geo_instances_to_points.cc
   nodes/node_geo_interpolate_curves.cc
@@ -227,6 +228,7 @@ set(SRC
   nodes/node_geo_set_grease_pencil_color.cc
   nodes/node_geo_set_grease_pencil_depth_mode.cc
   nodes/node_geo_set_grease_pencil_softness.cc
+  nodes/node_geo_set_grid_background.cc
   nodes/node_geo_set_grid_transform.cc
   nodes/node_geo_set_id.cc
   nodes/node_geo_set_instance_transform.cc
