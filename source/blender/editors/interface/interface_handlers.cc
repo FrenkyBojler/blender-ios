@@ -5151,6 +5151,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
           }
 
           if (ui_block_is_popup_any(but->block)) {
+            /* TODO(!147047): This should be handled in selection operator. */
             force_activate_view_item_but(C, data->region, view_item_but, false);
             return WM_UI_HANDLER_BREAK;
           }
