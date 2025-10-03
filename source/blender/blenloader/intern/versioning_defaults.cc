@@ -381,6 +381,11 @@ static void blo_update_defaults_paint(Paint *paint)
   }
 }
 
+static void blo_update_defaults_windowmanager(wmWindowManager *wm)
+{
+  wm->xr.session_settings.fly_speed = 3.0f;
+}
+
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
@@ -440,7 +445,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     BKE_curvemap_reset(gp_falloff_curve->cm,
                        &gp_falloff_curve->clipr,
                        CURVE_PRESET_GAUSS,
-                       CURVEMAP_SLOPE_POSITIVE);
+                       CurveMapSlopeType::Positive);
   }
   if (ts->gp_sculpt.cur_primitive == nullptr) {
     ts->gp_sculpt.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -449,7 +454,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     BKE_curvemap_reset(gp_primitive_curve->cm,
                        &gp_primitive_curve->clipr,
                        CURVE_PRESET_BELL,
-                       CURVEMAP_SLOPE_POSITIVE);
+                       CurveMapSlopeType::Positive);
   }
 
   if (ts->sculpt) {
@@ -467,7 +472,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
         {0.125, 0.50}, {0.375, 0.50}, {0.375, 0.75}, {0.125, 0.75}, {0.375, 0.50}, {0.625, 0.50},
         {0.625, 0.75}, {0.375, 0.75}, {0.375, 0.25}, {0.625, 0.25}, {0.625, 0.50}, {0.375, 0.50},
     };
-    float(*uv_map)[2] = static_cast<float(*)[2]>(
+    float (*uv_map)[2] = static_cast<float (*)[2]>(
         CustomData_get_layer_for_write(&mesh->corner_data, CD_PROP_FLOAT2, mesh->corners_num));
     memcpy(uv_map, uv_values, sizeof(float[2]) * mesh->corners_num);
   }
@@ -618,6 +623,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
   /* Work-spaces. */
   LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+    blo_update_defaults_windowmanager(wm);
+
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
         WorkSpaceLayout *layout = BKE_workspace_active_layout_for_workspace_get(
