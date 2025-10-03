@@ -1,1 +1,2 @@
 Referenced by issue #147264, Immediate Crash when Switching to some specific workspace
+Referenced by commit b36b7e2d70dc7ab53b90a075197f5c9f23b80ad4, Fix #147264: Crash in Geometry Nodes editor with no object or modifier
