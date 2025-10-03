@@ -16,7 +16,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_uv_edges)
 struct VertIn {
   float2 uv;
   uint flag;
-  uint seam;
+  uint e_flag;
 };
 
 VertIn input_assembly(uint in_vertex_id)
@@ -27,10 +27,10 @@ VertIn input_assembly(uint in_vertex_id)
   vert_in.uv = gpu_attr_load_float2(au, gpu_attr_0, v_i);
 #ifdef WIREFRAME
   vert_in.flag = 0u;
-  vert_in.seam = 0u;
+  vert_in.e_flag = 0u;
 #else
   vert_in.flag = gpu_attr_load_uchar4(data, gpu_attr_1, v_i).x;
-  vert_in.seam = gpu_attr_load_uchar4(data, gpu_attr_1, v_i).y;
+  vert_in.e_flag = gpu_attr_load_uchar4(data, gpu_attr_1, v_i).y;
 
 #endif
   return vert_in;
@@ -58,7 +58,7 @@ VertOut vertex_main(VertIn v_in)
 
   const uint selection_flag = use_edge_select ? uint(EDGE_UV_SELECT) : uint(VERT_UV_SELECT);
   vert_out.selected = flag_test(v_in.flag, selection_flag);
-  vert_out.seam = flag_test(v_in.seam, uint(EDGE_SEAM));
+  vert_out.seam = flag_test(v_in.e_flag, uint(EDGE_SEAM));
 
   /* Move selected edges to the top so that they occlude unselected edges.
    * - Vertices are between 0.0 and 0.2 depth.

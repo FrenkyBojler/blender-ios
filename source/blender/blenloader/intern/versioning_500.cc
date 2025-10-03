@@ -3756,7 +3756,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 98)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 101)) {
     /* Image Editor: toggle seam overlay on. */
     if (!DNA_struct_exists(fd->filesdna, "SpaceClipOverlay")) {
       LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
