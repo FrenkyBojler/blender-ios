@@ -81,6 +81,10 @@ ccl_device
   }
 
   float3 N = stack_valid(data_node.x) ? stack_load_float3(stack, data_node.x) : sd->N;
+  if ((sd->flag & SD_BACKFACING) && dot(sd->N, N) < 0.0f) {
+    /* Backfacing, keep `N` in the same hemisphere as `sd->N`. */
+    N = -N;
+  }
   N = safe_normalize_fallback(N, sd->N);
 
   const float param1 = (stack_valid(param1_offset)) ? stack_load_float(stack, param1_offset) :
