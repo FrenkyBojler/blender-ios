@@ -134,37 +134,6 @@ void draw_keyframe_shape(const float x,
     }
   }
 
-  /* Handle type to outline shape. */
-  switch (handle_type) {
-    case KEYFRAME_HANDLE_AUTO_CLAMP:
-      flags = GPU_KEYFRAME_SHAPE_CIRCLE;
-      break; /* circle */
-    case KEYFRAME_HANDLE_AUTO:
-      flags = GPU_KEYFRAME_SHAPE_CIRCLE | GPU_KEYFRAME_SHAPE_INNER_DOT;
-      break; /* circle with dot */
-    case KEYFRAME_HANDLE_VECTOR:
-      flags = GPU_KEYFRAME_SHAPE_SQUARE;
-      break; /* square */
-    case KEYFRAME_HANDLE_ALIGNED:
-      flags = GPU_KEYFRAME_SHAPE_DIAMOND | GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL;
-      break; /* clipped diamond */
-
-    case KEYFRAME_HANDLE_FREE:
-    default:
-      flags = GPU_KEYFRAME_SHAPE_DIAMOND; /* diamond */
-  }
-
-  /* Extreme type to arrow-like shading. */
-  if (extreme_type & KEYFRAME_EXTREME_MAX) {
-    flags |= GPU_KEYFRAME_SHAPE_ARROW_END_MAX;
-  }
-  if (extreme_type & KEYFRAME_EXTREME_MIN) {
-    flags |= GPU_KEYFRAME_SHAPE_ARROW_END_MIN;
-  }
-  if (extreme_type & GPU_KEYFRAME_SHAPE_ARROW_END_MIXED) {
-    flags |= 0x400;
-  }
-
   if (draw_outline) {
     /* exterior - black frame */
     UI_GetThemeColor4ubv(sel ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
@@ -176,6 +145,37 @@ void draw_keyframe_shape(const float x,
       fill_col[1] = outline_col[1];
       fill_col[2] = outline_col[2];
       fill_col[3] = 0;
+    }
+
+    /* Handle type to outline shape. */
+    switch (handle_type) {
+      case KEYFRAME_HANDLE_AUTO_CLAMP:
+        flags = GPU_KEYFRAME_SHAPE_CIRCLE;
+        break; /* circle */
+      case KEYFRAME_HANDLE_AUTO:
+        flags = GPU_KEYFRAME_SHAPE_CIRCLE | GPU_KEYFRAME_SHAPE_INNER_DOT;
+        break; /* circle with dot */
+      case KEYFRAME_HANDLE_VECTOR:
+        flags = GPU_KEYFRAME_SHAPE_SQUARE;
+        break; /* square */
+      case KEYFRAME_HANDLE_ALIGNED:
+        flags = GPU_KEYFRAME_SHAPE_DIAMOND | GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL;
+        break; /* clipped diamond */
+
+      case KEYFRAME_HANDLE_FREE:
+      default:
+        flags = GPU_KEYFRAME_SHAPE_DIAMOND; /* diamond */
+    }
+
+    /* Extreme type to arrow-like shading. */
+    if (extreme_type & KEYFRAME_EXTREME_MAX) {
+      flags |= GPU_KEYFRAME_SHAPE_ARROW_END_MAX;
+    }
+    if (extreme_type & KEYFRAME_EXTREME_MIN) {
+      flags |= GPU_KEYFRAME_SHAPE_ARROW_END_MIN;
+    }
+    if (extreme_type & GPU_KEYFRAME_SHAPE_ARROW_END_MIXED) {
+      flags |= 0x400;
     }
   }
 
