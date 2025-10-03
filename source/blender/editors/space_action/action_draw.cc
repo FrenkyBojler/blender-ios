@@ -446,7 +446,8 @@ static void draw_keyframes(bAnimContext *ac,
                                                static_cast<const GreasePencil *>(ale->data),
                                                ycenter,
                                                scale_factor,
-                                               action_flag);
+                                               action_flag,
+                                               is_expanded);
         break;
       case ALE_GPFRAME:
         ED_add_grease_pencil_layer_legacy_channel(draw_list,

@@ -861,7 +861,8 @@ void ED_add_grease_pencil_datablock_channel(ChannelDrawList *channel_list,
                                             const GreasePencil *grease_pencil,
                                             const float ypos,
                                             const float yscale_fac,
-                                            int saction_flag)
+                                            int saction_flag,
+                                            const bool is_expanded)
 {
   ChannelListElement *draw_elem = channel_list_add_element(channel_list,
                                                            ChannelType::GREASE_PENCIL_DATA,
@@ -875,6 +876,7 @@ void ED_add_grease_pencil_datablock_channel(ChannelDrawList *channel_list,
   draw_elem->act = ale->adt ? ale->adt->action : nullptr;
   draw_elem->grease_pencil = grease_pencil;
   draw_elem->ac = ac;
+  draw_elem->is_expanded = is_expanded;
 }
 
 void ED_add_grease_pencil_cels_channel(ChannelDrawList *channel_list,

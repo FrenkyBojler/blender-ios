@@ -148,7 +148,8 @@ void ED_add_grease_pencil_datablock_channel(ChannelDrawList *channel_list,
                                             const GreasePencil *grease_pencil,
                                             const float ypos,
                                             const float yscale_fac,
-                                            int saction_flag);
+                                            int saction_flag,
+                                            bool is_expanded);
 
 /* Grease Pencil Layer */
 void ED_add_grease_pencil_layer_legacy_channel(ChannelDrawList *channel_list,
