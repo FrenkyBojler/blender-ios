@@ -374,7 +374,7 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
 
       /* Draw keyframes smaller and dimmer if is_expanded is set.
        * Selected keys draw at regular size and opacity. */
-      const float key_size_smallest = min_ff(ctx->icon_size, U.widget_unit * 0.25f);
+      const float key_size_smallest = min_ff(ctx->icon_size, U.widget_unit * 0.33f);
       const float key_size = (is_expanded && !(ak->sel & SELECT)) ? key_size_smallest :
                                                                     ctx->icon_size;
       const float key_alpha = (is_expanded ? ctx->alpha * 0.8f : ctx->alpha);
