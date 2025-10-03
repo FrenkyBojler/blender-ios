@@ -5502,11 +5502,10 @@ static bool component_is_available(const blender::bke::GeometrySet &geometry,
                                    const blender::bke::GeometryComponent::Type type,
                                    const blender::bke::AttrDomain domain)
 {
-  if (!geometry.has(type)) {
-    return false;
+  if (const blender::bke::GeometryComponent &component = *geometry.get_component(type)) {
+    return component.attribute_domain_size(domain);
   }
-  const blender::bke::GeometryComponent &component = *geometry.get_component(type);
-  return component.attribute_domain_size(domain) != 0;
+  return false;
 }
 
 static const blender::bke::GeometryComponent *find_source_component(
@@ -5568,10 +5567,10 @@ static int attribute_transform_get_tars(bConstraint *con, ListBase *list)
   return 1;
 }
 
-static void attribute_transform_flush_tars(bConstraint *con, ListBase *list, bool no_copy)
+static void attribute_transform_flush_tars(bConstraint *con, ListBase *list, const bool no_copy)
 {
   if (!con || !list) {
-    return 0;
+    return;
   }
   bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
   bConstraintTarget *ct = static_cast<bConstraintTarget *>(list->first);
