@@ -1542,9 +1542,7 @@ bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
       if (!BM_edge_is_wire(e)) {
         continue;
       }
-      if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN) &&
-          (BM_elem_flag_test(e, BM_ELEM_SELECT) ^ hflag_swap))
-      {
+      if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN) && !BM_elem_flag_test(e, BM_ELEM_SELECT)) {
         BM_elem_hide_set(em->bm, (BMElem *)e, true);
         changed = true;
       }
