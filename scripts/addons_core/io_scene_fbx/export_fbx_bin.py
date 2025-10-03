@@ -808,6 +808,15 @@ def fbx_data_mesh_shapes_elements(root, me_obj, me, scene_data, fbx_me_tmpl, fbx
         elem_data_single_int32_array(geom, b"Indexes", shape_verts_idx)
         elem_data_single_float64_array(geom, b"Vertices", shape_verts_co)
         if write_normals:
+            # In some Unity versions (2020-2023), when all normals are 0 for
+            # a particular shape, it'll recalculate instead of importing,
+            # causing really broken normals. This works around it as per
+            # discussion in !126491
+            eps = 1.1e-6
+            requires_unity_workaround = (np.abs(shape_verts_nors) < eps).all()
+            if requires_unity_workaround:
+                shape_verts_nors[0][0] = eps
+
             elem_data_single_float64_array(geom, b"Normals", shape_verts_nors)
 
     # Yiha! BindPose for shapekeys too! Dodecasigh...
