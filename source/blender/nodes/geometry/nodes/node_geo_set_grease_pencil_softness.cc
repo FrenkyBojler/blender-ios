@@ -5,6 +5,8 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_grease_pencil_softness_cc {
@@ -15,7 +17,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Grease Pencil")
       .supported_type(GeometryComponent::Type::GreasePencil)
-      .align_with_previous();
+      .align_with_previous()
+      .description("Grease Pencil to set the softness of");
   b.add_output<decl::Geometry>("Grease Pencil").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Softness").default_value(0.0f).min(0.0f).max(1.0f).field_on_all();
@@ -27,7 +30,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<float> softness = params.extract_input<Field<float>>("Softness");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
     if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
       using namespace bke::greasepencil;
       for (const int layer_index : grease_pencil->layers().index_range()) {

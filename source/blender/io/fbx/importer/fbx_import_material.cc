@@ -16,6 +16,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_material_types.h"
 
@@ -213,14 +214,31 @@ static Image *load_texture_image(Main *bmain, const std::string &file_dir, const
 {
   /* Check with filename directly. */
   Image *image = BKE_image_load_exists(bmain, tex.filename.data);
+  /* Try loading as a relative path. */
   if (image == nullptr) {
-    /* Try loading as a relative path. */
     std::string path = file_dir + "/" + tex.filename.data;
     image = BKE_image_load_exists(bmain, path.c_str());
-    if (image == nullptr) {
-      /* Try loading with absolute path from FBX. */
-      image = BKE_image_load_exists(bmain, tex.absolute_filename.data);
-    }
+  }
+  /* Try loading with absolute path from FBX. */
+  if (image == nullptr) {
+    image = BKE_image_load_exists(bmain, tex.absolute_filename.data);
+  }
+
+  /* If still not found, try taking progressively longer parts of the absolute path,
+   * as relative to the file. */
+  if (image == nullptr) {
+    size_t pos = tex.absolute_filename.length;
+    do {
+      const char *parent_path = BLI_path_parent_dir_end(tex.absolute_filename.data, pos);
+      if (parent_path == nullptr) {
+        break;
+      }
+      char path[FILE_MAX];
+      BLI_path_join(path, sizeof(path), file_dir.c_str(), parent_path);
+      BLI_path_normalize(path);
+      image = BKE_image_load_exists(bmain, path);
+      pos = parent_path - tex.absolute_filename.data;
+    } while (image == nullptr);
   }
 
   /* Create dummy/placeholder image. */
@@ -302,12 +320,11 @@ static void add_image_texture(Main *bmain,
   BLI_assert(image != nullptr);
 
   /* Set "non-color" color space for all "data" textures. */
-  if (!STREQ(socket_name, "Base Color") && !STREQ(socket_name, "Specular Tint") &&
-      !STREQ(socket_name, "Sheen Tint") && !STREQ(socket_name, "Coat Tint") &&
-      !STREQ(socket_name, "Emission Color"))
+  if (!STR_ELEM(
+          socket_name, "Base Color", "Specular Tint", "Sheen Tint", "Coat Tint", "Emission Color"))
   {
-    STRNCPY(image->colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
+    STRNCPY_UTF8(image->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
   }
 
   /* Add texture node and any UV transformations if needed. */
@@ -324,7 +341,7 @@ static void add_image_texture(Main *bmain,
 
   /* UV transform. */
   if (ftex->has_uv_transform) {
-    /*@TODO: which UV set to use. */
+    /* TODO: which UV set to use. */
     bNode *uvmap = add_node(ntree, SH_NODE_UVMAP, node_locx_texcoord, node_locy);
     bNode *mapping = add_node(ntree, SH_NODE_MAPPING, node_locx_mapping, node_locy);
     mapping->custom1 = TEXMAP_TYPE_TEXTURE;
@@ -428,7 +445,6 @@ Material *import_material(Main *bmain, const std::string &base_dir, const ufbx_m
   Material *mat = BKE_material_add(bmain, fmat.name.data);
   id_us_min(&mat->id);
 
-  mat->use_nodes = true;
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &mat->id, "Shader Nodetree", ntreeType_Shader->idname);
   bNode *bsdf = add_node(ntree, SH_NODE_BSDF_PRINCIPLED, node_locx_bsdf, node_locy_top);

@@ -370,9 +370,9 @@ static uchar copy_attr_name(GPUVertFormat *format, const StringRef name)
   const int64_t chars_to_copy = std::min(name.size(), available);
 
   name.substr(0, available).copy_unsafe(format->names + name_offset);
+  BLI_assert((format->name_offset + chars_to_copy + 1) <= GPU_VERT_ATTR_NAMES_BUF_LEN);
   format->name_offset += chars_to_copy + 1;
 
-  BLI_assert(format->name_offset <= GPU_VERT_ATTR_NAMES_BUF_LEN);
   return name_offset;
 }
 
@@ -451,7 +451,7 @@ void GPU_vertformat_multiload_enable(GPUVertFormat *format, int load_count)
   for (int i = 0; i < attr_len; i++, attr++) {
     const char *attr_name = GPU_vertformat_attr_name_get(format, attr, 0);
     for (int j = 1; j < load_count; j++) {
-      char load_name[68 /* MAX_CUSTOMDATA_LAYER_NAME */];
+      char load_name[/*MAX_CUSTOMDATA_LAYER_NAME*/ 68];
       SNPRINTF(load_name, "%s%d", attr_name, j);
       GPUVertAttr *dst_attr = &format->attrs[format->attr_len++];
       *dst_attr = *attr;
@@ -632,7 +632,7 @@ static void recommended_fetch_mode_and_comp_type(Type gpu_type,
   }
 }
 
-void GPU_vertformat_from_shader(GPUVertFormat *format, const GPUShader *shader)
+void GPU_vertformat_from_shader(GPUVertFormat *format, const blender::gpu::Shader *shader)
 {
   GPU_vertformat_clear(format);
 

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 
 #include "MEM_guardedalloc.h"
 
@@ -68,7 +69,6 @@ struct PrefetchJob {
   RenderData context = {};
   RenderData context_cpy = {};
   ListBase *seqbasep = nullptr;
-  ListBase *seqbasep_cpy = nullptr;
 
   /* prefetch area */
   int cfra = 0;
@@ -155,8 +155,7 @@ static Strip *original_strip_get(const Strip *strip, Scene *scene)
 static RenderData *get_original_context(const RenderData *context)
 {
   PrefetchJob *pfjob = seq_prefetch_job_get(context->scene);
-
-  return &pfjob->context;
+  return pfjob ? &pfjob->context : nullptr;
 }
 
 Scene *prefetch_get_original_scene(const RenderData *context)
@@ -164,7 +163,9 @@ Scene *prefetch_get_original_scene(const RenderData *context)
   Scene *scene = context->scene;
   if (context->is_prefetch_render) {
     context = get_original_context(context);
-    scene = context->scene;
+    if (context != nullptr) {
+      scene = context->scene;
+    }
   }
   return scene;
 }
@@ -174,8 +175,10 @@ Scene *prefetch_get_original_scene_and_strip(const RenderData *context, const St
   Scene *scene = context->scene;
   if (context->is_prefetch_render) {
     context = get_original_context(context);
-    scene = context->scene;
-    strip = original_strip_get(strip, scene);
+    if (context != nullptr) {
+      scene = context->scene;
+      strip = original_strip_get(strip, scene);
+    }
   }
   return scene;
 }
@@ -205,8 +208,8 @@ static AnimationEvalContext seq_prefetch_anim_eval_context(PrefetchJob *pfjob)
 void seq_prefetch_get_time_range(Scene *scene, int *r_start, int *r_end)
 {
   /* When there is no prefetch job, return "impossible" negative values. */
-  *r_start = INT_MIN;
-  *r_end = INT_MIN;
+  *r_start = std::numeric_limits<int>::min();
+  *r_end = std::numeric_limits<int>::min();
 
   PrefetchJob *pfjob = seq_prefetch_job_get(scene);
   if (pfjob == nullptr) {
@@ -370,10 +373,10 @@ static void seq_prefetch_update_active_seqbase(PrefetchJob *pfjob)
 
   if (ms_orig != nullptr) {
     Strip *meta_eval = original_strip_get(ms_orig->parent_strip, pfjob->scene_eval);
-    active_seqbase_set(ed_eval, &meta_eval->seqbase);
+    ed_eval->current_meta_strip = meta_eval;
   }
   else {
-    active_seqbase_set(ed_eval, &ed_eval->seqbase);
+    ed_eval->current_meta_strip = nullptr;
   }
 }
 
@@ -417,7 +420,7 @@ static bool strip_is_cached(PrefetchJob *pfjob, Strip *strip, bool can_have_fina
   }
 
   if (can_have_final_image) {
-    ibuf = final_image_cache_get(pfjob->context.scene, cfra, pfjob->context.view_id);
+    ibuf = final_image_cache_get(pfjob->context.scene, cfra, pfjob->context.view_id, 0);
     if (ibuf != nullptr) {
       IMB_freeImBuf(ibuf);
       return true;
@@ -612,7 +615,7 @@ void seq_prefetch_start(const RenderData *context, float timeline_frame)
 {
   Scene *scene = context->scene;
   Editing *ed = scene->ed;
-  bool has_strips = bool(ed->seqbasep->first);
+  bool has_strips = bool(ed->current_strips()->first);
 
   if (!context->is_prefetch_render && !context->is_proxy_render) {
     bool playing = context->is_playing;

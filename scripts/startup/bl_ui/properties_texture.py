@@ -38,13 +38,9 @@ class TEXTURE_UL_texslots(UIList):
         slot = item
         tex = slot.texture if slot else None
 
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            if tex:
-                layout.prop(tex, "name", text="", emboss=False, icon_value=icon)
-            else:
-                layout.label(text="", icon_value=icon)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
+        if tex:
+            layout.prop(tex, "name", text="", emboss=False, icon_value=icon)
+        else:
             layout.label(text="", icon_value=icon)
 
 
@@ -492,7 +488,7 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, Panel):
             sub.prop(tex, "repeat_x", text="Repeat X")
             sub.prop(tex, "repeat_y", text="Y")
 
-            col = flow.column(heading="Mirror")
+            col = flow.column(heading="Mirror", heading_ctxt=i18n_contexts.id_image)
             sub = col.column()
             sub.active = (tex.repeat_x > 1)
             sub.prop(tex, "use_mirror_x", text="X")
@@ -929,7 +925,7 @@ class TEXTURE_PT_animation(TextureButtonsPanel, PropertiesAnimationMixin, Proper
         texture = context.texture
 
         # Assumption: the texture user is a particle system texture slot,
-        # something like `bpy.data.particles['ParticleSettings'].texture_slots[0]`.
+        # something like `bpy.data.particles["ParticleSettings"].texture_slots[0]`.
         # Since at the top of the properties panel the user is shown first, and
         # underneath that the texture itself, this panel uses the same order.
         if texture_user := context.texture_user:

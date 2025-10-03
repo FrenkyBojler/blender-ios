@@ -28,7 +28,7 @@ class SelectPattern(Operator):
         translation_context=i18n_contexts.id_text,
         description="Name filter using '*', '?' and "
         "'[abc]' unix style wildcards",
-        maxlen=64,
+        maxlen=256,
         default="*",
     )
     case_sensitive: BoolProperty(
@@ -266,7 +266,7 @@ class SubdivisionSet(Operator):
                     mod_name = "Multiresolution"
                 else:
                     mod_name = "Subdivision Surface"
-                self.report({'WARNING'}, "No {0} modifiers found".format(mod_name))
+                self.report({'WARNING'}, rpt_("No {:s} modifiers found").format(mod_name))
                 return {'CANCELLED'}
 
         if not relative and level < 0:
@@ -372,6 +372,7 @@ class ShapeTransfer(Operator):
             if len(me.shape_keys.key_blocks) == 1:
                 key.name = "Basis"
                 key = ob.shape_key_add(from_mix=False)  # we need a rest
+            key.value = 0.0
             key.name = name
             ob.active_shape_key_index = len(me.shape_keys.key_blocks) - 1
             ob.show_only_shape_key = True
@@ -819,6 +820,8 @@ class TransformsToDeltasAnim(Operator):
         return (obs is not None)
 
     def execute(self, context):
+        from bpy_extras import anim_utils
+
         # map from standard transform paths to "new" transform paths
         STANDARD_TO_DELTA_PATHS = {
             "location": "delta_location",
@@ -842,7 +845,10 @@ class TransformsToDeltasAnim(Operator):
             # first pass over F-Curves: ensure that we don't have conflicting
             # transforms already (e.g. if this was applied already) #29110.
             existingFCurves = {}
-            for fcu in adt.action.fcurves:
+            channelbag = anim_utils.action_get_channelbag_for_slot(adt.action, adt.action_slot)
+            if not channelbag:
+                continue
+            for fcu in channelbag.fcurves:
                 # get "delta" path - i.e. the final paths which may clash
                 path = fcu.data_path
                 if path in STANDARD_TO_DELTA_PATHS:
@@ -877,7 +883,7 @@ class TransformsToDeltasAnim(Operator):
 
             # if F-Curve uses standard transform path
             # just append "delta_" to this path
-            for fcu in adt.action.fcurves:
+            for fcu in channelbag.fcurves:
                 if fcu.data_path == "location":
                     fcu.data_path = "delta_location"
                     obj.location.zero()

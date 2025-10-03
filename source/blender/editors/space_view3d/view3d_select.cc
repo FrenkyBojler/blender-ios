@@ -31,7 +31,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_rect.h"
 #include "BLI_span.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -520,7 +520,7 @@ static void do_lasso_select_pose__do_tag(void *user_data,
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
   const bArmature *arm = static_cast<bArmature *>(data->vc->obact->data);
-  if (!PBONE_SELECTABLE(arm, pchan->bone)) {
+  if (!blender::animrig::bone_is_selectable(arm, pchan)) {
     return;
   }
 
@@ -659,7 +659,7 @@ static bool do_pose_tag_select_op_exec(blender::MutableSpan<Base *> bases, const
       continue;
     }
 
-    bool changed = true;
+    bool changed = false;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
       Bone *bone = pchan->bone;
       if ((bone->flag & BONE_UNSELECTABLE) == 0) {
@@ -1012,7 +1012,7 @@ static void do_lasso_select_armature__doSelectBone(void *user_data,
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
   const bArmature *arm = static_cast<const bArmature *>(data->vc->obedit->data);
-  if (!blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+  if (!blender::animrig::bone_is_visible(arm, ebone)) {
     return;
   }
 
@@ -1059,7 +1059,7 @@ static void do_lasso_select_armature__doSelectBone_clip_content(void *user_data,
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
   bArmature *arm = static_cast<bArmature *>(data->vc->obedit->data);
-  if (!blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+  if (!blender::animrig::bone_is_visible(arm, ebone)) {
     return;
   }
 
@@ -1184,10 +1184,15 @@ static bool do_lasso_select_grease_pencil(const ViewContext *vc,
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                ob_eval, *object, info.layer_index, info.frame_number);
+                ob_eval, *object, info.drawing);
         const IndexMask visible_handle_elements =
             ed::greasepencil::retrieve_visible_bezier_handle_elements(
-                *object, info.drawing, info.layer_index, selection_domain, memory);
+                *object,
+                info.drawing,
+                info.layer_index,
+                selection_domain,
+                vc->v3d->overlay.handle_display,
+                memory);
         const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
         const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(vc->rv3d,
                                                                             layer_to_world);
@@ -1357,7 +1362,7 @@ static bool view3d_lasso_select(bContext *C,
     }
     else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT)) {
       changed_multi |= PE_lasso_select(C,
-                                       reinterpret_cast<const int(*)[2]>(mcoords.data()),
+                                       reinterpret_cast<const int (*)[2]>(mcoords.data()),
                                        mcoords.size(),
                                        sel_op) != OPERATOR_CANCELLED;
     }
@@ -1779,7 +1784,7 @@ static bool object_mouse_select_menu(bContext *C,
     Object *ob = base->object;
     const char *name = ob->id.name + 2;
 
-    BLI_strncpy(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME - 2);
+    BLI_strncpy_utf8(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME - 2);
     object_mouse_select_menu_data[i].icon = UI_icon_from_id(&ob->id);
   }
 
@@ -1790,7 +1795,7 @@ static bool object_mouse_select_menu(bContext *C,
   RNA_boolean_set(&ptr, "extend", params.sel_op == SEL_OP_ADD);
   RNA_boolean_set(&ptr, "deselect", params.sel_op == SEL_OP_SUB);
   RNA_boolean_set(&ptr, "toggle", params.sel_op == SEL_OP_XOR);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   BLI_freelistN(&base_ref_list);
@@ -2028,7 +2033,7 @@ static bool bone_mouse_select_menu(bContext *C,
       name = pchan->name;
     }
 
-    BLI_strncpy(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME - 2);
+    BLI_strncpy_utf8(object_mouse_select_menu_data[i].idname, name, MAX_ID_NAME - 2);
     object_mouse_select_menu_data[i].icon = ICON_BONE_DATA;
   }
 
@@ -2039,7 +2044,7 @@ static bool bone_mouse_select_menu(bContext *C,
   RNA_boolean_set(&ptr, "extend", params.sel_op == SEL_OP_ADD);
   RNA_boolean_set(&ptr, "deselect", params.sel_op == SEL_OP_SUB);
   RNA_boolean_set(&ptr, "toggle", params.sel_op == SEL_OP_XOR);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   BLI_freelistN(&bone_ref_list);
@@ -2753,6 +2758,9 @@ static bool ed_object_select_pick(bContext *C,
         /* Special case, even when there are no hits, pose logic may de-select all bones. */
         ((gpu->hits == 0) && has_pose_old))
     {
+      /* Regarding the `basact` null checks.
+       * While it's unlikely there are GPU hits *without* `basact` being found,
+       * it's possible looking up the selection index fails, see: #143161. */
 
       if (basact && (gpu->has_bones && (basact->object->type == OB_CAMERA))) {
         MovieClip *clip = BKE_object_movieclip_get(scene, basact->object, false);
@@ -2774,7 +2782,8 @@ static bool ed_object_select_pick(bContext *C,
           }
         }
       }
-      else if (ED_armature_pose_select_pick_with_buffer(scene,
+      else if ((basact || oldbasact) &&
+               ED_armature_pose_select_pick_with_buffer(scene,
                                                         view_layer,
                                                         v3d,
                                                         basact ? basact : (Base *)oldbasact,
@@ -3131,35 +3140,41 @@ static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPic
         return (a.elem.distance_sq < b.elem.distance_sq) ? a : b;
       });
 
-  std::atomic<bool> deselected = false;
+  Array<bool> changed(bases.size(), false);
   if (params.deselect_all || params.sel_op == SEL_OP_SET) {
     threading::parallel_for(bases.index_range(), 1L, [&](const IndexRange range) {
-      for (Base *base : bases.as_span().slice(range)) {
-        PointCloud &pointcloud = *static_cast<PointCloud *>(base->object->data);
+      for (const int i : range) {
+        PointCloud &pointcloud = *static_cast<PointCloud *>(bases[i]->object->data);
         if (!pointcloud::has_anything_selected(pointcloud)) {
           continue;
         }
 
-        bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(pointcloud,
-                                                                                     CD_PROP_BOOL);
+        bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(
+            pointcloud, bke::AttrType::Bool);
         pointcloud::fill_selection_false(selection.span, IndexMask(pointcloud.totpoint));
         selection.finish();
 
-        deselected = true;
+        changed[i] = true;
+      }
+    });
+
+    for (const int i : bases.index_range()) {
+      if (changed[i]) {
+        PointCloud &pointcloud = *static_cast<PointCloud *>(bases[i]->object->data);
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
          * generic attribute for now. */
         DEG_id_tag_update(&pointcloud.id, ID_RECALC_GEOMETRY);
         WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &pointcloud);
       }
-    });
+    }
   }
 
   if (!closest.pointcloud) {
-    return deselected;
+    return changed.as_span().contains(true);
   }
 
-  bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(*closest.pointcloud,
-                                                                               CD_PROP_BOOL);
+  bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(
+      *closest.pointcloud, bke::AttrType::Bool);
   curves::apply_selection_operation_at_index(selection.span, closest.elem.index, params.sel_op);
   selection.finish();
 
@@ -3251,11 +3266,11 @@ static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPi
         return (a.elem.distance_sq < b.elem.distance_sq) ? a : b;
       });
 
-  std::atomic<bool> deselected = false;
+  Array<bool> changed(bases.size(), false);
   if (params.deselect_all || params.sel_op == SEL_OP_SET) {
     threading::parallel_for(bases.index_range(), 1L, [&](const IndexRange range) {
-      for (Base *base : bases.as_span().slice(range)) {
-        Curves &curves_id = *static_cast<Curves *>(base->object->data);
+      for (const int i : range) {
+        Curves &curves_id = *static_cast<Curves *>(bases[i]->object->data);
         bke::CurvesGeometry &curves = curves_id.geometry.wrap();
         if (!ed::curves::has_anything_selected(curves, selection_domain)) {
           continue;
@@ -3266,24 +3281,30 @@ static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPi
               ed::curves::fill_selection_false(selection.span);
             });
 
-        deselected = true;
+        changed[i] = true;
+      }
+    });
+
+    for (const int i : bases.index_range()) {
+      if (changed[i]) {
+        Curves &curves_id = *static_cast<Curves *>(bases[i]->object->data);
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
          * generic attribute for now. */
         DEG_id_tag_update(&curves_id.id, ID_RECALC_GEOMETRY);
         WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &curves_id);
       }
-    });
+    }
   }
 
   if (!closest.curves_id) {
-    return deselected;
+    return changed.as_span().contains(true);
   }
 
   if (selection_domain == bke::AttrDomain::Point) {
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
         closest.curves_id->geometry.wrap(),
         bke::AttrDomain::Point,
-        CD_PROP_BOOL,
+        bke::AttrType::Bool,
         closest.selection_attribute_name);
     ed::curves::apply_selection_operation_at_index(
         selection.span, closest.elem.index, params.sel_op);
@@ -3351,7 +3372,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
           /* Get deformation by modifiers. */
           bke::crazyspace::GeometryDeformation deformation =
               bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                  ob_eval, *object, info.layer_index, info.frame_number);
+                  ob_eval, *object, info.drawing);
 
           IndexMaskMemory memory;
           const IndexMask elements = ed::greasepencil::retrieve_editable_elements(
@@ -3361,7 +3382,12 @@ static bool ed_grease_pencil_select_pick(bContext *C,
           }
           const IndexMask visible_handle_elements =
               ed::greasepencil::retrieve_visible_bezier_handle_elements(
-                  *object, info.drawing, info.layer_index, selection_domain, memory);
+                  *object,
+                  info.drawing,
+                  info.layer_index,
+                  selection_domain,
+                  vc.v3d->overlay.handle_display,
+                  memory);
           const bke::CurvesGeometry &curves = info.drawing.strokes();
           const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
           const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(vc.rv3d,
@@ -4409,10 +4435,15 @@ static bool do_grease_pencil_box_select(const ViewContext *vc,
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                ob_eval, *object, info.layer_index, info.frame_number);
+                ob_eval, *object, info.drawing);
         const IndexMask visible_handle_elements =
             ed::greasepencil::retrieve_visible_bezier_handle_elements(
-                *object, info.drawing, info.layer_index, selection_domain, memory);
+                *object,
+                info.drawing,
+                info.layer_index,
+                selection_domain,
+                vc->v3d->overlay.handle_display,
+                memory);
         const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
         const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(vc->rv3d,
                                                                             layer_to_world);
@@ -5009,7 +5040,7 @@ static void do_circle_select_pose__doSelectBone(void *user_data,
 {
   CircleSelectUserData *data = static_cast<CircleSelectUserData *>(user_data);
   bArmature *arm = static_cast<bArmature *>(data->vc->obact->data);
-  if (!PBONE_SELECTABLE(arm, pchan->bone)) {
+  if (!blender::animrig::bone_is_selectable(arm, pchan)) {
     return;
   }
 
@@ -5121,7 +5152,7 @@ static void do_circle_select_armature__doSelectBone(void *user_data,
   CircleSelectUserData *data = static_cast<CircleSelectUserData *>(user_data);
   const bArmature *arm = static_cast<const bArmature *>(data->vc->obedit->data);
   if (!(data->select ? EBONE_SELECTABLE(arm, ebone) :
-                       blender::animrig::bone_is_visible_editbone(arm, ebone)))
+                       blender::animrig::bone_is_visible(arm, ebone)))
   {
     return;
   }
@@ -5179,7 +5210,7 @@ static void do_circle_select_armature__doSelectBone_clip_content(void *user_data
   bArmature *arm = static_cast<bArmature *>(data->vc->obedit->data);
 
   if (!(data->select ? EBONE_SELECTABLE(arm, ebone) :
-                       blender::animrig::bone_is_visible_editbone(arm, ebone)))
+                       blender::animrig::bone_is_visible(arm, ebone)))
   {
     return;
   }
@@ -5292,10 +5323,15 @@ static bool grease_pencil_circle_select(const ViewContext *vc,
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                ob_eval, *object, info.layer_index, info.frame_number);
+                ob_eval, *object, info.drawing);
         const IndexMask visible_handle_elements =
             ed::greasepencil::retrieve_visible_bezier_handle_elements(
-                *object, info.drawing, info.layer_index, selection_domain, memory);
+                *object,
+                info.drawing,
+                info.layer_index,
+                selection_domain,
+                vc->v3d->overlay.handle_display,
+                memory);
         const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
         const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(vc->rv3d,
                                                                             layer_to_world);

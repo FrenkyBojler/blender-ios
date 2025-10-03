@@ -6,6 +6,7 @@
  * \ingroup gpu
  */
 
+#include "BKE_global.hh"
 #include "BLI_utildefines.h"
 
 #include "GPU_capabilities.hh"
@@ -23,7 +24,7 @@ struct BuiltinShader : blender::gpu::StaticShader {
 /* Cache of built-in shaders (each is created on first use). */
 static BuiltinShader *builtin_shaders[GPU_SHADER_CFG_LEN][GPU_SHADER_BUILTIN_LEN] = {{nullptr}};
 
-static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
+static const char *builtin_shader_create_info_name(GPUBuiltinShader shader)
 {
   switch (shader) {
     case GPU_SHADER_TEXT:
@@ -100,27 +101,33 @@ static const char *builtin_shader_create_info_name(eGPUBuiltinShader shader)
       return "gpu_shader_2D_node_socket_inst";
     case GPU_SHADER_2D_NODELINK:
       return "gpu_shader_2D_nodelink";
-    case GPU_SHADER_2D_NODELINK_INST:
-      return "gpu_shader_2D_nodelink_inst";
     case GPU_SHADER_GPENCIL_STROKE:
       return "gpu_shader_gpencil_stroke";
     case GPU_SHADER_SEQUENCER_STRIPS:
       return "gpu_shader_sequencer_strips";
     case GPU_SHADER_SEQUENCER_THUMBS:
       return "gpu_shader_sequencer_thumbs";
+    case GPU_SHADER_SEQUENCER_SCOPE_RASTER:
+      return "gpu_shader_sequencer_scope_raster";
+    case GPU_SHADER_SEQUENCER_SCOPE_RESOLVE:
+      return "gpu_shader_sequencer_scope_resolve";
+    case GPU_SHADER_SEQUENCER_ZEBRA:
+      return "gpu_shader_sequencer_zebra";
     case GPU_SHADER_INDEXBUF_POINTS:
       return "gpu_shader_index_2d_array_points";
     case GPU_SHADER_INDEXBUF_LINES:
       return "gpu_shader_index_2d_array_lines";
     case GPU_SHADER_INDEXBUF_TRIS:
       return "gpu_shader_index_2d_array_tris";
+    case GPU_SHADER_XR_RAYCAST:
+      return "gpu_shader_xr_raycast";
     default:
       BLI_assert_unreachable();
       return "";
   }
 }
 
-static const char *builtin_shader_create_info_name_clipped(eGPUBuiltinShader shader)
+static const char *builtin_shader_create_info_name_clipped(GPUBuiltinShader shader)
 {
   switch (shader) {
     case GPU_SHADER_3D_UNIFORM_COLOR:
@@ -143,11 +150,10 @@ static const char *builtin_shader_create_info_name_clipped(eGPUBuiltinShader sha
   }
 }
 
-GPUShader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
-                                                     eGPUShaderConfig sh_cfg)
+blender::gpu::Shader *GPU_shader_get_builtin_shader_with_config(GPUBuiltinShader shader,
+                                                                GPUShaderConfig sh_cfg)
 {
   BLI_assert(shader < GPU_SHADER_BUILTIN_LEN);
-  BLI_assert(sh_cfg < GPU_SHADER_CFG_LEN);
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic push
@@ -184,23 +190,22 @@ GPUShader *GPU_shader_get_builtin_shader_with_config(eGPUBuiltinShader shader,
              GPU_SHADER_3D_POLYLINE_FLAT_COLOR,
              GPU_SHADER_3D_POLYLINE_SMOOTH_COLOR))
     {
-      GPUShader *sh = (*sh_p)->get();
+      blender::gpu::Shader *sh = (*sh_p)->get();
       /* Set a default value for `lineSmooth`.
        * Ideally this value should be set by the caller. */
       GPU_shader_bind(sh);
       GPU_shader_uniform_1i(sh, "lineSmooth", 1);
       /* WORKAROUND: See is_polyline declaration. */
-      blender::gpu::unwrap(sh)->is_polyline = true;
+      sh->is_polyline = true;
     }
   }
 
   return (*sh_p)->get();
 }
 
-static void gpu_shader_warm_builtin_shader_async(eGPUBuiltinShader shader, eGPUShaderConfig sh_cfg)
+static void gpu_shader_warm_builtin_shader_async(GPUBuiltinShader shader, GPUShaderConfig sh_cfg)
 {
   BLI_assert(shader < GPU_SHADER_BUILTIN_LEN);
-  BLI_assert(sh_cfg < GPU_SHADER_CFG_LEN);
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic push
@@ -231,13 +236,19 @@ static void gpu_shader_warm_builtin_shader_async(eGPUBuiltinShader shader, eGPUS
   (*sh_p)->ensure_compile_async();
 }
 
-GPUShader *GPU_shader_get_builtin_shader(eGPUBuiltinShader shader)
+blender::gpu::Shader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 {
   return GPU_shader_get_builtin_shader_with_config(shader, GPU_SHADER_CFG_DEFAULT);
 }
 
 void GPU_shader_builtin_warm_up()
 {
+  if ((G.debug & G_DEBUG_GPU) && (GPU_backend_get_type() == GPU_BACKEND_OPENGL)) {
+    /* On some system (Mesa OpenGL), doing this warm up seems to breaks something related to debug
+     * hooks and makes the Blender application hang. */
+    return;
+  }
+
   if (GPU_use_subprocess_compilation() && (GPU_backend_get_type() == GPU_BACKEND_OPENGL)) {
     /* The overhead of creating the subprocesses at this exact moment can create bubbles during the
      * startup process. It is usually fast enough on OpenGL that we can skip it. */

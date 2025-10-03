@@ -15,6 +15,7 @@
 #include "draw_view.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_material.hh"
 #include "BKE_object.hh"
@@ -115,14 +116,14 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
 
   const Span<int> material_indices = draw_data.ensure_material_indices(*ob);
 
-  const int max_material = BKE_object_material_count_eval(ob);
+  const int max_material = std::max(0, BKE_object_material_count_eval(ob) - 1);
   Vector<SculptBatch> result_batches(visible_nodes.size());
   visible_nodes.foreach_index([&](const int i, const int pos) {
     result_batches[pos] = {};
     result_batches[pos].batch = batches[i];
     result_batches[pos].material_slot = material_indices.is_empty() ?
                                             0 :
-                                            std::min(material_indices[i], max_material);
+                                            std::clamp(material_indices[i], 0, max_material);
     result_batches[pos].debug_index = pos;
   });
 
@@ -148,7 +149,8 @@ static bool bmesh_attribute_exists(const BMesh &bm,
                                    const StringRef name)
 {
   const CustomData *cdata = get_cdata(bm, meta_data.domain);
-  return cdata && CustomData_get_offset_named(cdata, meta_data.data_type, name) != -1;
+  return cdata && CustomData_get_offset_named(
+                      cdata, *bke::attr_type_to_custom_data_type(meta_data.data_type), name) != -1;
 }
 
 Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature features)

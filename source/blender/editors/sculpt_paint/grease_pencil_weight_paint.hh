@@ -125,20 +125,19 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
   {
     using namespace blender::ed::greasepencil;
 
-    const Scene *scene = CTX_data_scene(&C);
     this->object = CTX_data_active_object(&C);
     this->grease_pencil = static_cast<GreasePencil *>(this->object->data);
     Paint *paint = BKE_paint_get_active_from_context(&C);
     Brush *brush = BKE_paint_brush(paint);
 
     this->brush = brush;
-    this->initial_brush_radius = BKE_brush_size_get(scene, brush);
-    this->initial_brush_strength = BKE_brush_alpha_get(scene, brush);
-    this->brush_weight = BKE_brush_weight_get(scene, brush);
+    this->initial_brush_radius = BKE_brush_radius_get(paint, brush);
+    this->initial_brush_strength = BKE_brush_alpha_get(paint, brush);
+    this->brush_weight = BKE_brush_weight_get(paint, brush);
     this->mouse_position_previous = start_sample.mouse_position;
     this->invert_brush_weight = false;
 
-    BKE_curvemapping_init(brush->curve);
+    BKE_curvemapping_init(brush->curve_distance_falloff);
 
     /* Auto-normalize weights is only applied when the object is deformed by an armature. */
     const ToolSettings *ts = CTX_data_tool_settings(&C);
@@ -244,7 +243,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
 
         bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                ob_eval, *this->object, drawing_info.layer_index, drawing_info.frame_number);
+                ob_eval, *this->object, drawing_info.drawing);
         drawing_weight_data.point_positions.reinitialize(deformation.positions.size());
         threading::parallel_for(curves.points_range(), 1024, [&](const IndexRange point_range) {
           for (const int point : point_range) {

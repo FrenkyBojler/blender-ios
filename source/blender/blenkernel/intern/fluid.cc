@@ -92,7 +92,7 @@ static void fluid_modifier_reset_ex(FluidModifierData *fmd, bool need_lock);
 #ifdef WITH_FLUID
 // #define DEBUG_PRINT
 
-static CLG_LogRef LOG = {"bke.fluid"};
+static CLG_LogRef LOG = {"physics.fluid"};
 
 /* -------------------------------------------------------------------- */
 /** \name Fluid API
@@ -521,7 +521,7 @@ static bool fluid_modifier_init(
     copy_v3_v3_int(fds->res_max, res);
 
     /* Set time, frame length = 0.1 is at 25fps. */
-    fds->frame_length = DT_DEFAULT * (25.0f / FPS) * fds->time_scale;
+    fds->frame_length = DT_DEFAULT * (25.0f / scene->frames_per_second()) * fds->time_scale;
     /* Initially dt is equal to frame length (dt can change with adaptive-time stepping though). */
     fds->dt = fds->frame_length;
     fds->time_per_frame = 0;
@@ -1259,8 +1259,13 @@ static void compute_obstaclesemission(Scene *scene,
          * BLI_mutex_lock() called in manta_step(), so safe to update subframe here
          * TODO(sebbas): Using BKE_scene_ctime_get(scene) instead of new DEG_get_ctime(depsgraph)
          * as subframes don't work with the latter yet. */
-        BKE_object_modifier_update_subframe(
-            depsgraph, scene, effecobj, true, 5, BKE_scene_ctime_get(scene), eModifierType_Fluid);
+        BKE_object_modifier_update_subframe(depsgraph,
+                                            scene,
+                                            effecobj,
+                                            true,
+                                            OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT,
+                                            BKE_scene_ctime_get(scene),
+                                            eModifierType_Fluid);
 
         if (subframes) {
           obstacles_from_mesh(effecobj, fds, fes, &bb_temp, subframe_dt);
@@ -1794,7 +1799,7 @@ static void sample_mesh(FluidFlowSettings *ffs,
                         const blender::Span<blender::float3> vert_normals,
                         const int *corner_verts,
                         const blender::int3 *corner_tris,
-                        const float (*mloopuv)[2],
+                        blender::Span<blender::float2> uv_map,
                         float *influence_map,
                         float *velocity_map,
                         int index,
@@ -1915,11 +1920,11 @@ static void sample_mesh(FluidFlowSettings *ffs,
           tex_co[2] = ((z - flow_center[2]) / base_res[2] - ffs->texture_offset) /
                       ffs->texture_size;
         }
-        else if (mloopuv) {
+        else if (!uv_map.is_empty()) {
           const float *uv[3];
-          uv[0] = mloopuv[corner_tris[tri_i][0]];
-          uv[1] = mloopuv[corner_tris[tri_i][1]];
-          uv[2] = mloopuv[corner_tris[tri_i][2]];
+          uv[0] = uv_map[corner_tris[tri_i][0]];
+          uv[1] = uv_map[corner_tris[tri_i][1]];
+          uv[2] = uv_map[corner_tris[tri_i][2]];
 
           interp_v2_v2v2v2(tex_co, UNPACK3(uv), weights);
 
@@ -1992,7 +1997,7 @@ struct EmitFromDMData {
   blender::Span<blender::float3> vert_normals;
   blender::Span<int> corner_verts;
   blender::Span<blender::int3> corner_tris;
-  const float (*mloopuv)[2];
+  blender::Span<blender::float2> uv_map;
   const MDeformVert *dvert;
   int defgrp_index;
 
@@ -2026,7 +2031,7 @@ static void emit_from_mesh_task_cb(void *__restrict userdata,
                     data->vert_normals,
                     data->corner_verts.data(),
                     data->corner_tris.data(),
-                    data->mloopuv,
+                    data->uv_map,
                     bb->influence,
                     bb->velocity,
                     index,
@@ -2077,8 +2082,9 @@ static void emit_from_mesh(
     const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
     const int numverts = mesh->verts_num;
     const MDeformVert *dvert = mesh->deform_verts().data();
-    const float(*mloopuv)[2] = static_cast<const float(*)[2]>(
-        CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, ffs->uvlayer_name));
+    const blender::bke::AttributeAccessor attributes = mesh->attributes();
+    const blender::VArraySpan uv_map = *attributes.lookup<blender::float2>(
+        ffs->uvlayer_name, blender::bke::AttrDomain::Corner);
 
     if (ffs->flags & FLUID_FLOW_INITVELOCITY) {
       vert_vel = MEM_calloc_arrayN<float>(3 * size_t(numverts), "manta_flow_velocity");
@@ -2145,7 +2151,7 @@ static void emit_from_mesh(
       data.vert_normals = mesh->vert_normals();
       data.corner_verts = corner_verts;
       data.corner_tris = corner_tris;
-      data.mloopuv = mloopuv;
+      data.uv_map = uv_map;
       data.dvert = dvert;
       data.defgrp_index = defgrp_index;
       data.tree = &tree_data;
@@ -2221,6 +2227,7 @@ static void adaptive_domain_adjust(
   int x, y, z;
   float *density = manta_smoke_get_density(fds->fluid);
   float *fuel = manta_smoke_get_fuel(fds->fluid);
+  float *heat = manta_smoke_get_heat(fds->fluid);
   float *bigdensity = manta_noise_get_density(fds->fluid);
   float *bigfuel = manta_noise_get_fuel(fds->fluid);
   float *vx = manta_get_velocity_x(fds->fluid);
@@ -2257,6 +2264,7 @@ static void adaptive_domain_adjust(
                                 fds->res[1],
                                 z - fds->res_min[2]);
         max_den = (fuel) ? std::max(density[index], fuel[index]) : density[index];
+        max_den = (heat) ? std::max(max_den, heat[index]) : max_den;
 
         /* Check high resolution bounds if max density isn't already high enough. */
         if (max_den < fds->adapt_threshold && fds->flags & FLUID_DOMAIN_USE_NOISE && fds->fluid) {
@@ -2731,8 +2739,13 @@ static void compute_flowsemission(Scene *scene,
          * BLI_mutex_lock() called in manta_step(), so safe to update subframe here
          * TODO(sebbas): Using BKE_scene_ctime_get(scene) instead of new DEG_get_ctime(depsgraph)
          * as subframes don't work with the latter yet. */
-        BKE_object_modifier_update_subframe(
-            depsgraph, scene, flowobj, true, 5, BKE_scene_ctime_get(scene), eModifierType_Fluid);
+        BKE_object_modifier_update_subframe(depsgraph,
+                                            scene,
+                                            flowobj,
+                                            true,
+                                            OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT,
+                                            BKE_scene_ctime_get(scene),
+                                            eModifierType_Fluid);
 
         /* Emission from particles. */
         if (ffs->source == FLUID_FLOW_SOURCE_PARTICLES) {
@@ -3079,7 +3092,7 @@ static void update_effectors_task_cb(void *__restrict userdata,
       const uint index = manta_get_index(x, fds->res[0], y, fds->res[1], z);
 
       if ((data->fuel && std::max(data->density[index], data->fuel[index]) < FLT_EPSILON) ||
-          (data->density && data->density[index] < FLT_EPSILON) ||
+          (!data->fuel && data->density && data->density[index] < FLT_EPSILON) ||
           (data->phi_obs_in && data->phi_obs_in[index] < 0.0f) ||
           data->flags[index] & 2) /* Manta-flow convention: `2 == FlagObstacle`. */
       {
@@ -3211,10 +3224,12 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   blender::MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   blender::MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
-  const bool is_sharp = orgmesh->attributes()
-                            .lookup_or_default<bool>("sharp_face", AttrDomain::Face, false)
-                            .varray[0];
-  mesh_smooth_set(*mesh, !is_sharp);
+  if (orgmesh->attributes().domain_size(AttrDomain::Face) > 0) {
+    const bool is_sharp = orgmesh->attributes()
+                              .lookup_or_default<bool>("sharp_face", AttrDomain::Face, false)
+                              .varray[0];
+    mesh_smooth_set(*mesh, !is_sharp);
+  }
 
   /* Get size (dimension) but considering scaling. */
   copy_v3_v3(cell_size_scaled, fds->cell_size);
@@ -3241,7 +3256,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   bool use_speedvectors = fds->flags & FLUID_DOMAIN_USE_SPEED_VECTORS;
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   SpanAttributeWriter<float3> velocities;
-  float time_mult = fds->dx / (DT_DEFAULT * (25.0f / FPS));
+  float time_mult = fds->dx / (DT_DEFAULT * (25.0f / scene->frames_per_second()));
 
   if (use_speedvectors) {
     velocities = attributes.lookup_or_add_for_write_only_span<float3>("velocity",
@@ -3544,7 +3559,7 @@ static void manta_guiding(
     Depsgraph *depsgraph, Scene *scene, Object *ob, FluidModifierData *fmd, int frame)
 {
   FluidDomainSettings *fds = fmd->domain;
-  float dt = DT_DEFAULT * (25.0f / FPS) * fds->time_scale;
+  float dt = DT_DEFAULT * (25.0f / scene->frames_per_second()) * fds->time_scale;
 
   std::scoped_lock lock(object_update_lock);
 
@@ -3715,7 +3730,7 @@ static void fluid_modifier_processDomain(FluidModifierData *fmd,
   copy_v3_v3_int(o_shift, fds->shift);
 
   /* Ensure that time parameters are initialized correctly before every step. */
-  fds->frame_length = DT_DEFAULT * (25.0f / FPS) * fds->time_scale;
+  fds->frame_length = DT_DEFAULT * (25.0f / scene->frames_per_second()) * fds->time_scale;
   fds->dt = fds->frame_length;
   fds->time_per_frame = 0;
 
@@ -4418,6 +4433,15 @@ void BKE_fluid_particle_system_create(Main *bmain,
   part->totpart = 0;
   part->draw_size = 0.01f; /* Make fluid particles more subtle in viewport. */
   part->draw_col = PART_DRAW_COL_VEL;
+
+  /* Use different shape and color for fluid particles to be able to find issues in Viewport */
+  if (psys_type == PART_FLUID_BUBBLE) {
+    part->draw_as = PART_DRAW_CIRC;
+  }
+  if (psys_type == PART_FLUID_FOAM) {
+    part->draw_as = PART_DRAW_CROSS;
+  }
+
   part->phystype = PART_PHYS_NO; /* No physics needed, part system only used to display data. */
   psys->part = part;
   psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
@@ -4997,7 +5021,7 @@ void BKE_fluid_modifier_copy(const FluidModifierData *fmd, FluidModifierData *tf
     FluidFlowSettings *ffs = fmd->flow;
 
     /* NOTE: This is dangerous, as it will generate invalid data in case we are copying between
-     * different objects. Extra external code has to be called then to ensure proper remapping of
+     * different objects. Extra external code has to be called to ensure proper remapping of
      * that pointer. See e.g. `BKE_object_copy_particlesystems` or `BKE_object_copy_modifier`. */
     tffs->psys = ffs->psys;
     tffs->noise_texture = ffs->noise_texture;

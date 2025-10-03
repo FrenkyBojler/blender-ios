@@ -10,15 +10,13 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_duplilist.hh"
+#include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_key.hh"
-#include "BKE_modifier.hh"
-#include "BKE_node_legacy_types.hh"
 #include "BKE_object.hh"
 #include "BKE_particle.h"
 
 #include "BLI_assert.h"
-#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_set.hh"
 #include "BLI_string_utils.hh"
@@ -26,7 +24,6 @@
 #include "DNA_ID.h"
 #include "DNA_layer_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
@@ -57,7 +54,7 @@ bool HierarchyContext::is_prototype() const
 {
   /* The context is for a prototype if it's for a duplisource or
    * for a duplicated object that was designated to be a prototype
-   * because the original was not included in the export.*/
+   * because the original was not included in the export. */
   return is_duplisource || (duplicator != nullptr && !is_instance());
 }
 
@@ -322,15 +319,14 @@ void AbstractHierarchyIterator::export_graph_construct()
     if (!duplilist.is_empty()) {
       DupliParentFinder dupli_parent_finder;
 
-      for (DupliObject &dupli_object : duplilist) {
-        PersistentID persistent_id(&dupli_object);
+      for (const DupliObject &dupli_object : duplilist) {
         if (!should_visit_dupli_object(&dupli_object)) {
           continue;
         }
         dupli_parent_finder.insert(&dupli_object);
       }
 
-      for (DupliObject &dupli_object : duplilist) {
+      for (const DupliObject &dupli_object : duplilist) {
         if (!should_visit_dupli_object(&dupli_object)) {
           continue;
         }
@@ -469,7 +465,7 @@ ObjectIdentifier AbstractHierarchyIterator::determine_graph_index_object(
   return ObjectIdentifier::for_real_object(context->export_parent);
 }
 
-void AbstractHierarchyIterator::visit_dupli_object(DupliObject *dupli_object,
+void AbstractHierarchyIterator::visit_dupli_object(const DupliObject *dupli_object,
                                                    Object *duplicator,
                                                    const DupliParentFinder &dupli_parent_finder)
 {
@@ -582,7 +578,7 @@ bool AbstractHierarchyIterator::determine_duplication_references(
   }
 
   /* Will be set to true if any child contexts are instances that were designated
-   * as proxies for the original prototype.*/
+   * as proxies for the original prototype. */
   bool contains_proxy_prototype = false;
 
   for (HierarchyContext *context : *children) {
@@ -648,12 +644,15 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
     return;
   }
 
+  bool has_point_instance_ancestor = false;
+  if (parent_context &&
+      (parent_context->is_point_instance || parent_context->has_point_instance_ancestor))
+  {
+    has_point_instance_ancestor = true;
+  }
+
   for (HierarchyContext *context : *children) {
-    if (parent_context) {
-      if (parent_context->is_point_instance || parent_context->has_point_instance_ancestor) {
-        context->has_point_instance_ancestor = true;
-      }
-    }
+    context->has_point_instance_ancestor = has_point_instance_ancestor;
 
     /* Update the context so that it is correct for this parent-child relation. */
     copy_m4_m4(context->parent_matrix_inv_world, parent_matrix_inv_world);
@@ -787,7 +786,7 @@ void AbstractHierarchyIterator::make_writers_particle_systems(
   }
 }
 
-std::string AbstractHierarchyIterator::get_object_name(const Object *object)
+std::string AbstractHierarchyIterator::get_object_name(const Object *object) const
 {
   return get_id_name(&object->id);
 }
@@ -800,7 +799,7 @@ std::string AbstractHierarchyIterator::get_object_name(const Object *object, con
 
 std::string AbstractHierarchyIterator::get_object_data_name(const Object *object) const
 {
-  ID *object_data = static_cast<ID *>(object->data);
+  const ID *object_data = static_cast<ID *>(object->data);
   return get_id_name(object_data);
 }
 
@@ -811,7 +810,7 @@ AbstractHierarchyWriter *AbstractHierarchyIterator::get_writer(
 }
 
 EnsuredWriter AbstractHierarchyIterator::ensure_writer(
-    HierarchyContext *context, AbstractHierarchyIterator::create_writer_func create_func)
+    const HierarchyContext *context, AbstractHierarchyIterator::create_writer_func create_func)
 {
   AbstractHierarchyWriter *writer = get_writer(context->export_path);
   if (writer != nullptr) {

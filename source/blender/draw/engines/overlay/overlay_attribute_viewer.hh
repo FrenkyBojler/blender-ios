@@ -9,7 +9,6 @@
 #pragma once
 
 #include "BKE_curves.hh"
-#include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
 #include "DNA_curve_types.h"
 #include "DNA_pointcloud_types.h"
@@ -47,7 +46,7 @@ class AttributeViewer : Overlay {
     ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA,
                   state.clipping_plane_count);
 
-    auto create_sub = [&](const char *name, GPUShader *shader) {
+    auto create_sub = [&](const char *name, gpu::Shader *shader) {
       auto &sub = ps_.sub(name);
       sub.shader_set(shader);
       return &sub;
@@ -120,7 +119,7 @@ class AttributeViewer : Overlay {
     color.a *= state.overlay.viewer_attribute_opacity;
     switch (object.type) {
       case OB_MESH: {
-        ResourceHandle res_handle = manager.unique_handle(ob_ref);
+        ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
         {
           gpu::Batch *batch = DRW_cache_mesh_surface_get(&object);
@@ -147,7 +146,7 @@ class AttributeViewer : Overlay {
         gpu::Batch *batch = DRW_cache_curve_edge_wire_get(&object);
         auto &sub = *instance_sub_;
         sub.push_constant("ucolor", float4(color));
-        ResourceHandle res_handle = manager.resource_handle(object.object_to_world());
+        ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
         sub.draw(batch, res_handle);
         break;
       }
@@ -159,10 +158,9 @@ class AttributeViewer : Overlay {
     }
   }
 
-  static bool attribute_type_supports_viewer_overlay(const eCustomDataType data_type)
+  static bool attribute_type_supports_viewer_overlay(const bke::AttrType data_type)
   {
-    return CD_TYPE_AS_MASK(data_type) &
-           (CD_MASK_PROP_ALL & ~(CD_MASK_PROP_QUATERNION | CD_MASK_PROP_FLOAT4X4));
+    return !ELEM(data_type, bke::AttrType::Quaternion, bke::AttrType::Float4x4);
   }
 
   void populate_for_geometry(const ObjectRef &ob_ref, const State &state, Manager &manager)
@@ -214,7 +212,7 @@ class AttributeViewer : Overlay {
               gpu::Batch *batch = DRW_cache_curve_edge_wire_viewer_attribute_get(&object);
               auto &sub = *curve_sub_;
               sub.push_constant("opacity", opacity);
-              ResourceHandle res_handle = manager.resource_handle(object.object_to_world());
+              ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
               sub.draw(batch, res_handle);
             }
           }
@@ -229,14 +227,17 @@ class AttributeViewer : Overlay {
         {
           if (attribute_type_supports_viewer_overlay(meta_data->data_type)) {
             bool is_point_domain;
-            gpu::VertBuf **texture = DRW_curves_texture_for_evaluated_attribute(
-                &curves_id, ".viewer", &is_point_domain);
-            auto &sub = *curves_sub_;
-            gpu::Batch *batch = curves_sub_pass_setup(sub, state.scene, ob_ref.object);
-            sub.push_constant("opacity", opacity);
-            sub.push_constant("is_point_domain", is_point_domain);
-            sub.bind_texture("color_tx", *texture);
-            sub.draw(batch, manager.unique_handle(ob_ref));
+            bool is_valid;
+            gpu::VertBufPtr &texture = DRW_curves_texture_for_evaluated_attribute(
+                &curves_id, ".viewer", is_point_domain, is_valid);
+            if (is_valid) {
+              auto &sub = *curves_sub_;
+              gpu::Batch *batch = curves_sub_pass_setup(sub, state.scene, ob_ref.object);
+              sub.push_constant("opacity", opacity);
+              sub.push_constant("is_point_domain", is_point_domain);
+              sub.bind_texture("color_tx", texture);
+              sub.draw(batch, manager.unique_handle(ob_ref));
+            }
           }
         }
         break;

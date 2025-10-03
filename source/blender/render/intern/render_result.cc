@@ -17,7 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -146,7 +146,7 @@ void render_result_views_shallowcopy(RenderResult *dst, RenderResult *src)
     rv = MEM_callocN<RenderView>("new render view");
     BLI_addtail(&dst->views, rv);
 
-    STRNCPY(rv->name, rview->name);
+    STRNCPY_UTF8(rv->name, rview->name);
 
     rv->ibuf = rview->ibuf;
   }
@@ -220,7 +220,7 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
       buffer_data[x] = PASS_VECTOR_MAX;
     }
   }
-  else if (STREQ(rp->name, RE_PASSNAME_Z)) {
+  else if (STREQ(rp->name, RE_PASSNAME_DEPTH)) {
     for (int x = rectsize - 1; x >= 0; x--) {
       buffer_data[x] = 10e10;
     }
@@ -248,16 +248,6 @@ RenderPass *render_layer_add_pass(RenderResult *rr,
   STRNCPY(rpass->view, viewname);
   RE_render_result_full_channel_name(
       rpass->fullname, nullptr, rpass->name, rpass->view, rpass->chan_id, -1);
-
-  if (rl->exrhandle) {
-    int a;
-    for (a = 0; a < channels; a++) {
-      char passname[EXR_PASS_MAXNAME];
-      RE_render_result_full_channel_name(
-          passname, nullptr, rpass->name, nullptr, rpass->chan_id, a);
-      IMB_exr_add_channel(rl->exrhandle, rl->name, passname, viewname, 0, 0, nullptr, false);
-    }
-  }
 
   BLI_addtail(&rl->passes, rpass);
 
@@ -315,7 +305,7 @@ RenderResult *render_result_new(Render *re,
     rl = MEM_callocN<RenderLayer>("new render layer");
     BLI_addtail(&rr->layers, rl);
 
-    STRNCPY(rl->name, view_layer->name);
+    STRNCPY_UTF8(rl->name, view_layer->name);
     rl->layflag = view_layer->layflag;
 
     rl->passflag = view_layer->passflag;
@@ -384,10 +374,6 @@ void render_result_passes_allocated_ensure(RenderResult *rr)
 
   LISTBASE_FOREACH (RenderLayer *, rl, &rr->layers) {
     LISTBASE_FOREACH (RenderPass *, rp, &rl->passes) {
-      if (rl->exrhandle != nullptr && !STREQ(rp->name, RE_PASSNAME_COMBINED)) {
-        continue;
-      }
-
       render_layer_allocate_pass(rr, rp);
     }
   }
@@ -462,7 +448,7 @@ void RE_pass_set_buffer_data(RenderPass *pass, float *data)
   IMB_assign_float_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
 }
 
-GPUTexture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
+blender::gpu::Texture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
 {
   ImBuf *ibuf = rpass->ibuf;
 
@@ -481,9 +467,11 @@ GPUTexture *RE_pass_ensure_gpu_texture_cache(Render *re, RenderPass *rpass)
     return nullptr;
   }
 
-  const eGPUTextureFormat format = (rpass->channels == 1) ? GPU_R32F :
-                                   (rpass->channels == 3) ? GPU_RGB32F :
-                                                            GPU_RGBA32F;
+  const blender::gpu::TextureFormat format = (rpass->channels == 1) ?
+                                                 blender::gpu::TextureFormat::SFLOAT_32 :
+                                             (rpass->channels == 3) ?
+                                                 blender::gpu::TextureFormat::SFLOAT_32_32_32 :
+                                                 blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
 
   /* TODO(sergey): Use utility to assign the texture. */
   ibuf->gpu.texture = GPU_texture_create_2d("RenderBuffer.gpu_texture",
@@ -545,7 +533,7 @@ static int passtype_from_name(const char *name)
   ((void)0)
 
   CHECK_PASS(COMBINED);
-  CHECK_PASS(Z);
+  CHECK_PASS(DEPTH);
   CHECK_PASS(VECTOR);
   CHECK_PASS(NORMAL);
   CHECK_PASS(UV);
@@ -625,7 +613,7 @@ static void *ml_addview_cb(void *base, const char *str)
   RenderResult *rr = static_cast<RenderResult *>(base);
 
   RenderView *rv = MEM_callocN<RenderView>("new render view");
-  STRNCPY(rv->name, str);
+  STRNCPY_UTF8(rv->name, str);
 
   /* For stereo drawing we need to ensure:
    * STEREO_LEFT_NAME  == STEREO_LEFT_ID and
@@ -708,7 +696,7 @@ static int order_render_passes(const void *a, const void *b)
 }
 
 RenderResult *render_result_new_from_exr(
-    void *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
+    ExrHandle *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
 {
   RenderResult *rr = MEM_callocN<RenderResult>(__func__);
   const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
@@ -756,7 +744,7 @@ void render_result_view_new(RenderResult *rr, const char *viewname)
 {
   RenderView *rv = MEM_callocN<RenderView>("new render view");
   BLI_addtail(&rr->views, rv);
-  STRNCPY(rv->name, viewname);
+  STRNCPY_UTF8(rv->name, viewname);
 }
 
 void render_result_views_new(RenderResult *rr, const RenderData *rd)
@@ -908,7 +896,7 @@ bool render_result_exr_file_read_path(RenderResult *rr,
                                       ReportList *reports,
                                       const char *filepath)
 {
-  void *exrhandle = IMB_exr_get_handle();
+  ExrHandle *exrhandle = IMB_exr_get_handle();
   int rectx, recty;
 
   if (!IMB_exr_begin_read(exrhandle, filepath, &rectx, &recty, false)) {
@@ -944,25 +932,20 @@ bool render_result_exr_file_read_path(RenderResult *rr,
       char fullname[EXR_PASS_MAXNAME];
 
       for (a = 0; a < xstride; a++) {
+        /* First try with layer included. */
         RE_render_result_full_channel_name(
-            fullname, nullptr, rpass->name, rpass->view, rpass->chan_id, a);
-
-        if (IMB_exr_set_channel(exrhandle,
-                                rl->name,
-                                fullname,
-                                xstride,
-                                ystride,
-                                rpass->ibuf->float_buffer.data + a))
+            fullname, rl->name, rpass->name, rpass->view, rpass->chan_id, a);
+        if (IMB_exr_set_channel(
+                exrhandle, fullname, xstride, ystride, rpass->ibuf->float_buffer.data + a))
         {
           found_channels = true;
         }
         else if (rl_single) {
-          if (IMB_exr_set_channel(exrhandle,
-                                  nullptr,
-                                  fullname,
-                                  xstride,
-                                  ystride,
-                                  rpass->ibuf->float_buffer.data + a))
+          /* Then try without layer name. */
+          RE_render_result_full_channel_name(
+              fullname, nullptr, rpass->name, rpass->view, rpass->chan_id, a);
+          if (IMB_exr_set_channel(
+                  exrhandle, fullname, xstride, ystride, rpass->ibuf->float_buffer.data + a))
           {
             found_channels = true;
           }
@@ -1034,6 +1017,11 @@ static void render_result_exr_file_cache_path(Scene *sce,
     root = root_buf;
   }
 
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * If #filename is already long (it is initialized from the blend-file name itself), adding the
+   * scene name can cause the file name to be truncated.
+   */
   SNPRINTF(filename_full, "cached_RR_%s_%s_%s.exr", filename, sce->id.name + 2, path_hexdigest);
 
   BLI_path_join(r_path, FILE_CACHE_MAX, root, filename_full);
@@ -1063,7 +1051,7 @@ bool render_result_exr_file_cache_read(Render *re)
   printf("read exr cache file: %s\n", filepath);
 
   /* Try opening the file. */
-  void *exrhandle = IMB_exr_get_handle();
+  ExrHandle *exrhandle = IMB_exr_get_handle();
   int rectx, recty;
 
   if (!IMB_exr_begin_read(exrhandle, filepath, &rectx, &recty, true)) {
@@ -1318,7 +1306,6 @@ static RenderLayer *duplicate_render_layer(RenderLayer *rl)
   RenderLayer *new_rl = MEM_dupallocN<RenderLayer>("new render layer", *rl);
   new_rl->next = new_rl->prev = nullptr;
   new_rl->passes.first = new_rl->passes.last = nullptr;
-  new_rl->exrhandle = nullptr;
   LISTBASE_FOREACH (RenderPass *, rpass, &rl->passes) {
     RenderPass *new_rpass = duplicate_render_pass(rpass);
     BLI_addtail(&new_rl->passes, new_rpass);

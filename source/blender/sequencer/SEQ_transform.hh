@@ -21,8 +21,9 @@ namespace blender::seq {
 
 bool transform_strip_can_be_translated(const Strip *strip);
 /**
- * Used so we can do a quick check for single image strip
- * since they work a bit differently to normal image strips (during transform).
+ * Checks whether the strip functions as a single static display,
+ * which means it has only one unique frame of content and does not draw holds.
+ * This includes non-sequence image strips and all effect strips with no inputs (e.g. color, text).
  */
 bool transform_single_image_check(const Strip *strip);
 bool transform_test_overlap(const Scene *scene, ListBase *seqbasep, Strip *test);
@@ -89,6 +90,24 @@ blender::float2 image_transform_mirror_factor_get(const Strip *strip);
  */
 blender::float2 image_transform_origin_offset_pixelspace_get(const Scene *scene,
                                                              const Strip *strip);
+
+/**
+ * Get strip transform origin relative value. This function is mainly needed to
+ * recalculate text strip origin position.
+ *
+ * \param render_size: Size of image canvas in pixels
+ * \param strip: Strip to calculate origin for
+ */
+float2 image_transform_origin_get(const Scene *scene, const Strip *strip);
+
+/**
+ * Get size of the image, which is produced by strip without any transformation.
+ *
+ * \param render_size: Size of image canvas in pixels
+ * \param strip: Strip to calculate origin for
+ */
+float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip);
+
 /**
  * Get 4 corner points of strip image, optionally without rotation component applied.
  * Corner vectors are in viewport space.

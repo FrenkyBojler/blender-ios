@@ -7,8 +7,10 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 
 #include "ANIM_bone_collections.hh"
 #include "intern/bone_collections_internal.hh"
@@ -48,9 +50,12 @@ class ArmatureBoneCollections : public testing::Test {
  protected:
   bArmature arm = {};
   Bone bone1 = {}, bone2 = {}, bone3 = {};
+  Main *bmain;
 
   void SetUp() override
   {
+    bmain = BKE_main_new();
+    G_MAIN = bmain;
     STRNCPY(arm.id.name, "ARArmature");
     STRNCPY(bone1.name, "bone1");
     STRNCPY(bone2.name, "bone2");
@@ -71,6 +76,9 @@ class ArmatureBoneCollections : public testing::Test {
 
     BKE_idtype_init();
     BKE_libblock_free_datablock(&arm.id, 0);
+
+    BKE_main_free(bmain);
+    G_MAIN = nullptr;
   }
 };
 
@@ -1177,7 +1185,7 @@ TEST_F(ArmatureBoneCollections, bcoll_move_to_parent__within_siblings)
   EXPECT_EQ(0, arm.collection_array[5]->child_count);
   EXPECT_EQ(0, arm.collection_array[6]->child_count);
 
-  /* Move r0_child1 to become the 3nd child of root_0. */
+  /* Move r0_child1 to become the 3rd child of root_0. */
   EXPECT_EQ(5,
             armature_bonecoll_move_to_parent(&arm,
                                              2, /* From index. */

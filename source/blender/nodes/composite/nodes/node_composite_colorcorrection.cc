@@ -16,7 +16,6 @@
 
 #include "IMB_colormanagement.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -29,11 +28,13 @@ namespace blender::nodes::node_composite_colorcorrection_cc {
 
 static void cmp_node_colorcorrection_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
-  b.add_output<decl::Color>("Image");
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
 
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Mask").default_value(1.0f).min(0.0f).max(1.0f);
 
   PanelDeclarationBuilder &master_panel = b.add_panel("Master").default_closed(true);
@@ -171,14 +172,14 @@ static void cmp_node_colorcorrection_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .description(
-          "Specifies the luminance at which the midetones of the image start and the shadows end");
+          "Specifies the luminance at which the midtones of the image start and the shadows end");
   tonal_range_panel.add_input<decl::Float>("Midtones End")
       .default_value(0.7f)
       .subtype(PROP_FACTOR)
       .min(0.0f)
       .max(1.0f)
       .description(
-          "Specifies the luminance at which the midetones of the image end and the highlights "
+          "Specifies the luminance at which the midtones of the image end and the highlights "
           "start");
 
   PanelDeclarationBuilder &tone_range_panel = b.add_panel("Channels").default_closed(true);

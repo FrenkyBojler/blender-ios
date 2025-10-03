@@ -20,7 +20,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_shrinkwrap.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -95,7 +95,7 @@ static void deform_verts(ModifierData *md,
                             mesh,
                             dvert,
                             defgrp_index,
-                            reinterpret_cast<float(*)[3]>(positions.data()),
+                            reinterpret_cast<float (*)[3]>(positions.data()),
                             positions.size());
 }
 
@@ -130,7 +130,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   int wrap_method = RNA_enum_get(ptr, "wrap_method");
 
@@ -215,4 +215,5 @@ ModifierTypeInfo modifierType_Shrinkwrap = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

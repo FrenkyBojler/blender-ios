@@ -10,7 +10,7 @@
 
 #include "BLT_translation.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "IMB_colormanagement.hh"
@@ -45,10 +45,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::String>("A", "A_STR")
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .hide_label();
+      .optional_label();
   b.add_input<decl::String>("B", "B_STR")
       .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
-      .hide_label();
+      .optional_label();
 
   b.add_input<decl::Float>("C").default_value(0.9f);
   b.add_input<decl::Float>("Angle").default_value(0.0872665f).subtype(PROP_ANGLE);
@@ -197,7 +197,7 @@ static void node_label(const bNodeTree * /*tree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_compare_operation_items, data->operation, &name);
   if (!enum_label) {
-    name = "Unknown";
+    name = N_("Unknown");
   }
   BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
@@ -738,6 +738,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeCompare", FN_NODE_COMPARE);
   ntype.ui_name = "Compare";
+  ntype.ui_description = "Perform a comparison operation on the two given inputs";
   ntype.enum_name_legacy = "COMPARE";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -40,7 +41,6 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
@@ -282,7 +282,7 @@ void UI_list_panel_unique_str(Panel *panel, char *r_name)
 {
   /* The panel sort-order will be unique for a specific panel type because the instanced
    * panel list is regenerated for every change in the data order / length. */
-  BLI_snprintf(r_name, INSTANCED_PANEL_UNIQUE_STR_SIZE, "%d", panel->sortorder);
+  BLI_snprintf_utf8(r_name, INSTANCED_PANEL_UNIQUE_STR_SIZE, "%d", panel->sortorder);
 }
 
 /**
@@ -1070,13 +1070,20 @@ static void panel_title_color_get(const Panel *panel,
   }
 }
 
-static void panel_draw_highlight_border(const Panel *panel,
-                                        const rcti *rect,
-                                        const rcti *header_rect)
+static void panel_draw_border(const Panel *panel,
+                              const rcti *rect,
+                              const rcti *header_rect,
+                              const bool is_active)
 {
   const bool is_subpanel = panel->type->parent != nullptr;
   if (is_subpanel) {
     return;
+  }
+
+  float color[4];
+  UI_GetThemeColor4fv(is_active ? TH_PANEL_ACTIVE : TH_PANEL_OUTLINE, color);
+  if (color[3] == 0.0f) {
+    return; /* No border to draw. */
   }
 
   const bTheme *btheme = UI_GetTheme();
@@ -1089,9 +1096,6 @@ static void panel_draw_highlight_border(const Panel *panel,
   box_rect.xmax = rect->xmax;
   box_rect.ymin = UI_panel_is_closed(panel) ? header_rect->ymin : rect->ymin;
   box_rect.ymax = header_rect->ymax;
-
-  float color[4];
-  UI_GetThemeColor4fv(TH_SELECT_ACTIVE, color);
   UI_draw_roundbox_4fv(&box_rect, false, radius, color);
 }
 
@@ -1146,7 +1150,11 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   if (panel->drawname && panel->drawname[0] != '\0') {
     rcti title_rect;
     title_rect.xmin = widget_rect.xmin + (panel->labelofs / aspect) + scaled_unit * 1.1f;
-    title_rect.xmax = widget_rect.xmax - scaled_unit;
+    title_rect.xmax = widget_rect.xmax;
+    if (!is_subpanel && show_background) {
+      /* Don't draw over the drag widget. */
+      title_rect.xmax -= scaled_unit;
+    }
     title_rect.ymin = widget_rect.ymin - 2.0f / aspect;
     title_rect.ymax = widget_rect.ymax;
 
@@ -1229,6 +1237,21 @@ void ui_draw_layout_panels_backdrop(const ARegion *region,
   }
 }
 
+static void panel_draw_softshadow(const rctf *box_rect,
+                                  const int roundboxalign,
+                                  const float radius,
+                                  const float shadow_width)
+{
+  const float outline = U.pixelsize;
+
+  rctf shadow_rect = *box_rect;
+  BLI_rctf_pad(&shadow_rect, -outline, -outline);
+  UI_draw_roundbox_corner_set(roundboxalign);
+
+  const float shadow_alpha = UI_GetTheme()->tui.menu_shadow_fac;
+  ui_draw_dropshadow(&shadow_rect, radius, shadow_width, 1.0f, shadow_alpha);
+}
+
 static void panel_draw_aligned_backdrop(const ARegion *region,
                                         const Panel *panel,
                                         const rcti *rect,
@@ -1237,6 +1260,7 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
   const bool is_open = !UI_panel_is_closed(panel);
   const bool is_subpanel = panel->type->parent != nullptr;
   const bool has_header = (panel->type->flag & PANEL_TYPE_NO_HEADER) == 0;
+  const bool is_dragging = UI_panel_is_dragging(panel);
 
   if (is_subpanel && !is_open) {
     return;
@@ -1248,6 +1272,22 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_blend(GPU_BLEND_ALPHA);
+
+  /* Draw shadow on top-level panels with headers during drag or region overlap. */
+  if (!is_subpanel && has_header && (region->overlap || is_dragging)) {
+    /* Make shadow wider (at least 16px) while the panel is being dragged. */
+    const float shadow_width = is_dragging ?
+                                   max_ii(int(16.0f * UI_SCALE_FAC), UI_ThemeMenuShadowWidth()) :
+                                   UI_ThemeMenuShadowWidth();
+    const int roundboxalign = is_open ? UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT : UI_CNR_ALL;
+
+    rctf box_rect;
+    box_rect.xmin = rect->xmin;
+    box_rect.xmax = rect->xmax;
+    box_rect.ymin = is_open ? rect->ymin : header_rect->ymin;
+    box_rect.ymax = header_rect->ymax;
+    panel_draw_softshadow(&box_rect, roundboxalign, radius, shadow_width);
+  }
 
   /* Panel backdrop. */
   if (is_open || !has_header) {
@@ -1261,9 +1301,10 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
     }
 
     rctf box_rect;
-    box_rect.xmin = rect->xmin;
-    box_rect.xmax = rect->xmax;
-    box_rect.ymin = rect->ymin;
+    const float padding = is_subpanel ? U.widget_unit * 0.1f / aspect : 0.0f;
+    box_rect.xmin = rect->xmin + padding;
+    box_rect.xmax = rect->xmax - padding;
+    box_rect.ymin = rect->ymin + padding;
     box_rect.ymax = rect->ymax;
     UI_draw_roundbox_4fv(&box_rect, true, radius, panel_backcolor);
 
@@ -1330,8 +1371,9 @@ void ui_draw_aligned_panel(const ARegion *region,
                                region_search_filter_active);
   }
 
-  if (panel_custom_data_active_get(panel)) {
-    panel_draw_highlight_border(panel, rect, &header_rect);
+  /* Draw the panel outline on non-transparent panels. */
+  if (UI_panel_should_show_background(region, panel->type)) {
+    panel_draw_border(panel, rect, &header_rect, panel_custom_data_active_get(panel));
   }
 }
 
@@ -1438,7 +1480,8 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     rcti *rct = &pc_dyn->rect;
     const char *category_id = pc_dyn->idname;
     const char *category_id_draw = IFACE_(category_id);
-    const int category_width = BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX);
+    const int category_width = round_fl_to_int(
+        BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
@@ -1571,9 +1614,9 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     /* Tab titles. */
 
     /* Offset toward the middle of the rect. */
-    const int text_v_ofs = (rct_xmax - rct_xmin) * 0.5f;
+    const int text_v_ofs = round_fl_to_int(float(rct_xmax - rct_xmin) * 0.5f);
     /* Offset down as the font size increases. */
-    const int text_size_offset = int(fstyle_points * UI_SCALE_FAC * 0.35f);
+    const int text_size_offset = round_fl_to_int(fstyle_points * UI_SCALE_FAC * 0.35f);
 
     BLF_position(fontid,
                  is_left ? rct->xmax - text_v_ofs + text_size_offset :
@@ -2380,7 +2423,7 @@ static void ui_panel_category_active_set(ARegion *region, const char *idname, bo
   }
   else {
     pc_act = MEM_callocN<PanelCategoryStack>(__func__);
-    STRNCPY(pc_act->idname, idname);
+    STRNCPY_UTF8(pc_act->idname, idname);
   }
 
   if (fallback) {
@@ -2469,7 +2512,7 @@ void UI_panel_category_add(ARegion *region, const char *name)
   PanelCategoryDyn *pc_dyn = MEM_callocN<PanelCategoryDyn>(__func__);
   BLI_addtail(&region->runtime->panels_category, pc_dyn);
 
-  STRNCPY(pc_dyn->idname, name);
+  STRNCPY_UTF8(pc_dyn->idname, name);
 
   /* 'pc_dyn->rect' must be set on draw. */
 }
@@ -2626,7 +2669,7 @@ int ui_handler_panel_region(bContext *C,
 
   const uiBut *region_active_but = ui_region_find_active_but(region);
   const bool region_has_active_button = region_active_but &&
-                                        region_active_but->type != UI_BTYPE_LABEL;
+                                        region_active_but->type != ButType::Label;
 
   LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     Panel *panel = block->panel;
@@ -2699,8 +2742,8 @@ static void ui_panel_custom_data_set_recursive(Panel *panel, PointerRNA *custom_
 
 void UI_panel_context_pointer_set(Panel *panel, const char *name, PointerRNA *ptr)
 {
-  uiLayoutSetContextPointer(panel->layout, name, ptr);
-  panel->runtime->context = uiLayoutGetContextStore(panel->layout);
+  panel->layout->context_ptr_set(name, ptr);
+  panel->runtime->context = panel->layout->context_store();
 }
 
 void UI_panel_custom_data_set(Panel *panel, PointerRNA *custom_data)
@@ -2854,7 +2897,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const uiHandle
 
     /* Initiate edge panning during drags for scrolling beyond the initial region view. */
     wmOperatorType *ot = WM_operatortype_find("VIEW2D_OT_edge_pan", true);
-    ui_handle_afterfunc_add_operator(ot, WM_OP_INVOKE_DEFAULT);
+    ui_handle_afterfunc_add_operator(ot, blender::wm::OpCallContext::InvokeDefault);
   }
   else if (state == PANEL_STATE_ANIMATION) {
     panel_set_flag_recursive(panel, PNL_SELECT, false);

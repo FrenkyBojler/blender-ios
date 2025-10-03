@@ -13,7 +13,7 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
-  b.add_input(data_type, "Grid").hide_value();
+  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
 
   b.add_output<decl::Matrix>("Transform")
       .description("Transform from grid index space to object space");
@@ -38,8 +38,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -73,9 +73,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       });
 #else
-  params.set_default_remaining_outputs();
-  params.error_message_add(NodeWarningType::Error,
-                           TIP_("Disabled, Blender was compiled without OpenVDB"));
+  node_geo_exec_with_missing_openvdb(params);
 #endif
 }
 
@@ -89,7 +87,7 @@ static void node_rna(StructRNA *srna)
   RNA_def_node_enum(srna,
                     "data_type",
                     "Data Type",
-                    "Type of grid data",
+                    "Node socket data type",
                     rna_enum_node_socket_data_type_items,
                     NOD_inline_enum_accessors(custom1),
                     SOCK_FLOAT,

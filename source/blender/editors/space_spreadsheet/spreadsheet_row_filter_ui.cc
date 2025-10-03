@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
+#include <fmt/format.h>
+#include <sstream>
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -17,6 +19,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -29,14 +32,12 @@
 #include "spreadsheet_intern.hh"
 #include "spreadsheet_row_filter_ui.hh"
 
-#include <sstream>
-
 namespace blender::ed::spreadsheet {
 
 static void filter_panel_id_fn(void * /*row_filter_v*/, char *r_name)
 {
   /* All row filters use the same panel ID. */
-  BLI_strncpy(r_name, "SPREADSHEET_PT_filter", BKE_ST_MAXNAME);
+  BLI_strncpy_utf8(r_name, "SPREADSHEET_PT_filter", BKE_ST_MAXNAME);
 }
 
 static std::string operation_string(const eSpreadsheetColumnValueType data_type,
@@ -64,6 +65,7 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
   switch (data_type) {
     case SPREADSHEET_VALUE_TYPE_INT8:
     case SPREADSHEET_VALUE_TYPE_INT32:
+    case SPREADSHEET_VALUE_TYPE_INT64:
       return std::to_string(row_filter.value_int);
     case SPREADSHEET_VALUE_TYPE_FLOAT: {
       std::ostringstream result;
@@ -75,6 +77,13 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
       std::ostringstream result;
       result << "(" << row_filter.value_int2[0] << ", " << row_filter.value_int2[1] << ")";
       return result.str();
+    }
+    case SPREADSHEET_VALUE_TYPE_INT32_3D: {
+      std::ostringstream result;
+      return fmt::format("({}, {}, {})",
+                         row_filter.value_int3[0],
+                         row_filter.value_int3[1],
+                         row_filter.value_int3[2]);
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT2: {
       std::ostringstream result;
@@ -110,6 +119,7 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
       return row_filter.value_string;
     case SPREADSHEET_VALUE_TYPE_QUATERNION:
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
+    case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM:
     case SPREADSHEET_VALUE_TYPE_UNKNOWN:
       return "";
   }
@@ -149,7 +159,7 @@ static void spreadsheet_filter_panel_draw_header(const bContext *C, Panel *panel
   }
 
   uiLayout *row = &layout->row(true);
-  row->emboss_set(blender::ui::EmbossType::None);
+  row->emboss_set(ui::EmbossType::None);
   row->prop(filter_ptr, "enabled", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   if (column_name.is_empty()) {
@@ -170,7 +180,7 @@ static void spreadsheet_filter_panel_draw_header(const bContext *C, Panel *panel
   }
 
   row = &layout->row(true);
-  row->emboss_set(blender::ui::EmbossType::None);
+  row->emboss_set(ui::EmbossType::None);
   const int current_index = BLI_findindex(&sspreadsheet->row_filters, filter);
   PointerRNA op_ptr = row->op("SPREADSHEET_OT_remove_row_filter_rule", "", ICON_X);
   RNA_int_set(&op_ptr, "index", current_index);
@@ -195,8 +205,8 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
     layout->active_set(false);
   }
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->prop(filter_ptr, "column_name", UI_ITEM_NONE, IFACE_("Column"), ICON_NONE);
 
@@ -211,12 +221,17 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
       layout->prop(filter_ptr, "value_int8", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;
     case SPREADSHEET_VALUE_TYPE_INT32:
+    case SPREADSHEET_VALUE_TYPE_INT64:
       layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       layout->prop(filter_ptr, "value_int", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;
     case SPREADSHEET_VALUE_TYPE_INT32_2D:
       layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       layout->prop(filter_ptr, "value_int2", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
+      break;
+    case SPREADSHEET_VALUE_TYPE_INT32_3D:
+      layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(filter_ptr, "value_int3", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;
     case SPREADSHEET_VALUE_TYPE_FLOAT:
       layout->prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -259,6 +274,7 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
     case SPREADSHEET_VALUE_TYPE_UNKNOWN:
     case SPREADSHEET_VALUE_TYPE_QUATERNION:
     case SPREADSHEET_VALUE_TYPE_FLOAT4X4:
+    case SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM:
       layout->label(IFACE_("Unsupported column type"), ICON_ERROR);
       break;
   }
@@ -350,10 +366,10 @@ void register_row_filter_panels(ARegionType &region_type)
 {
   {
     PanelType *panel_type = MEM_callocN<PanelType>(__func__);
-    STRNCPY(panel_type->idname, "SPREADSHEET_PT_row_filters");
-    STRNCPY(panel_type->label, N_("Filters"));
-    STRNCPY(panel_type->category, "Filters");
-    STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+    STRNCPY_UTF8(panel_type->idname, "SPREADSHEET_PT_row_filters");
+    STRNCPY_UTF8(panel_type->label, N_("Filters"));
+    STRNCPY_UTF8(panel_type->category, "Filters");
+    STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
     panel_type->flag = PANEL_TYPE_NO_HEADER;
     panel_type->draw = spreadsheet_row_filters_layout;
     BLI_addtail(&region_type.paneltypes, panel_type);
@@ -361,10 +377,10 @@ void register_row_filter_panels(ARegionType &region_type)
 
   {
     PanelType *panel_type = MEM_callocN<PanelType>(__func__);
-    STRNCPY(panel_type->idname, "SPREADSHEET_PT_filter");
-    STRNCPY(panel_type->label, "");
-    STRNCPY(panel_type->category, "Filters");
-    STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+    STRNCPY_UTF8(panel_type->idname, "SPREADSHEET_PT_filter");
+    STRNCPY_UTF8(panel_type->label, "");
+    STRNCPY_UTF8(panel_type->category, "Filters");
+    STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
     panel_type->flag = PANEL_TYPE_INSTANCED | PANEL_TYPE_HEADER_EXPAND;
     panel_type->draw_header = spreadsheet_filter_panel_draw_header;
     panel_type->draw = spreadsheet_filter_panel_draw;

@@ -49,7 +49,6 @@ typedef struct MeshRuntimeHandle MeshRuntimeHandle;
 #endif
 
 struct AnimData;
-struct Ipo;
 struct Key;
 struct MCol;
 struct MEdge;
@@ -67,8 +66,6 @@ typedef struct Mesh {
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
 
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
   struct Key *key;
 
   /**
@@ -241,7 +238,8 @@ typedef struct Mesh {
   /* Deprecated size of #fdata. */
   int totface_legacy;
 
-  char _pad1[4];
+  char _pad1;
+  int8_t radial_symmetry[3];
 
   /**
    * Data that isn't saved in files, including caches of derived data, temporary data to improve
@@ -282,7 +280,7 @@ typedef struct Mesh {
   blender::MutableSpan<int> face_offsets_for_write();
 
   /**
-   * Array of vertices for every face corner,  stored in the ".corner_vert" integer attribute.
+   * Array of vertices for every face corner, stored in the ".corner_vert" integer attribute.
    * For example, the vertices in a face can be retrieved with the #slice method:
    * \code{.cc}
    * const Span<int> face_verts = corner_verts.slice(face);
@@ -553,10 +551,10 @@ enum {
 };
 
 /** #SubsurfModifierData.subdivType */
-enum {
+typedef enum MeshSubdivType {
   ME_CC_SUBSURF = 0,
   ME_SIMPLE_SUBSURF = 1,
-};
+} MeshSubdivType;
 
 /** #Mesh.symmetry */
 typedef enum eMeshSymmetryType {

@@ -48,7 +48,6 @@
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
@@ -84,7 +83,7 @@ using blender::Vector;
 
 using namespace blender::bke::id;
 
-static CLG_LogRef LOG = {"bke.lib_id"};
+static CLG_LogRef LOG = {"lib.id"};
 
 IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     /*id_code*/ ID_LINK_PLACEHOLDER,
@@ -105,6 +104,7 @@ IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ nullptr,
@@ -148,7 +148,7 @@ static bool lib_id_library_local_paths_callback(BPathForeachPathData *bpath_data
   if (BLI_path_abs(filepath, base_old)) {
     /* Path was relative and is now absolute. Remap.
      * Important BLI_path_normalize runs before the path is made relative
-     * because it won't work for paths that start with "//../" */
+     * because it won't work for paths that start with `//../` */
     BLI_path_normalize(filepath);
     BLI_path_rel(filepath, base_new);
     BLI_strncpy(path_dst, filepath, path_dst_maxncpy);
@@ -680,9 +680,6 @@ ID *BKE_id_copy_in_lib(Main *bmain,
       /* Invalid case, already caught by the assert above. */
       return nullptr;
     }
-    /* Allow some garbage non-initialized memory to go in, and clean it up here. */
-    const size_t size = BKE_libblock_get_alloc_info(GS(id->name), nullptr);
-    memset(newid, 0, size);
   }
 
   /* Early output if source is nullptr. */
@@ -1303,6 +1300,13 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
  *
  * **************************** */
 
+void BKE_libblock_runtime_ensure(ID &id)
+{
+  if (!id.runtime) {
+    id.runtime = MEM_new<blender::bke::id::ID_Runtime>(__func__);
+  }
+}
+
 size_t BKE_libblock_get_alloc_info(short type, const char **r_name)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(type);
@@ -1325,7 +1329,8 @@ ID *BKE_libblock_alloc_notest(short type)
   const char *name;
   size_t size = BKE_libblock_get_alloc_info(type, &name);
   if (size != 0) {
-    return static_cast<ID *>(MEM_callocN(size, name));
+    ID *id = static_cast<ID *>(MEM_callocN(size, name));
+    return id;
   }
   BLI_assert_msg(0, "Request to allocate unknown data type");
   return nullptr;
@@ -1342,6 +1347,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
   ID *id = BKE_libblock_alloc_notest(type);
+  BKE_libblock_runtime_ensure(*id);
 
   if (id) {
     if ((flag & LIB_ID_CREATE_NO_MAIN) != 0) {
@@ -1446,10 +1452,10 @@ void BKE_libblock_init_empty(ID *id)
 
 void BKE_libblock_runtime_reset_remapping_status(ID *id)
 {
-  id->runtime.remap.status = 0;
-  id->runtime.remap.skipped_refcounted = 0;
-  id->runtime.remap.skipped_direct = 0;
-  id->runtime.remap.skipped_indirect = 0;
+  id->runtime->remap.status = 0;
+  id->runtime->remap.skipped_refcounted = 0;
+  id->runtime->remap.skipped_direct = 0;
+  id->runtime->remap.skipped_indirect = 0;
 }
 
 /* ********** ID session-wise UID management. ********** */
@@ -1549,13 +1555,17 @@ void BKE_libblock_copy_in_lib(Main *bmain,
       ((owner_library && *owner_library) ? (ID_TAG_EXTERN | ID_TAG_INDIRECT) : 0);
 
   if ((flag & LIB_ID_CREATE_NO_ALLOCATE) != 0) {
-    /* `new_id_p` already contains pointer to allocated memory. */
-    /* TODO: do we want to memset(0) whole mem before filling it? */
+    /* `new_id_p` already contains pointer to allocated memory.
+     * Clear and initialize it similar to BKE_libblock_alloc_in_lib. */
+    const size_t size = BKE_libblock_get_alloc_info(GS(id->name), nullptr);
+    memset(new_id, 0, size);
+    BKE_libblock_runtime_ensure(*new_id);
     STRNCPY(new_id->name, id->name);
     new_id->us = 0;
     new_id->tag |= ID_TAG_NOT_ALLOCATED | ID_TAG_NO_MAIN | ID_TAG_NO_USER_REFCOUNT;
     new_id->lib = owner_library ? *owner_library : id->lib;
-    /* TODO: Do we want/need to copy more from ID struct itself? */
+    /* TODO: Is this entirely consistent with BKE_libblock_alloc_in_lib, and can we
+     * deduplicate the initialization code? */
   }
   else {
     new_id = static_cast<ID *>(
@@ -1657,6 +1667,14 @@ void BKE_libblock_copy_in_lib(Main *bmain,
     DEG_id_type_tag(bmain, GS(new_id->name));
   }
 
+  if (owner_library && *owner_library && ((*owner_library)->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0) {
+    new_id->flag |= ID_FLAG_LINKED_AND_PACKED;
+  }
+
+  if (flag & LIB_ID_COPY_ID_NEW_SET) {
+    ID_NEW_SET(id, new_id);
+  }
+
   *new_id_p = new_id;
 }
 
@@ -1723,27 +1741,14 @@ ID *BKE_libblock_find_name_and_library(Main *bmain,
                                        const char *name,
                                        const char *lib_name)
 {
-  ListBase *lb = which_libbase(bmain, type);
-  BLI_assert(lb != nullptr);
-  LISTBASE_FOREACH (ID *, id, lb) {
-    if (!STREQ(BKE_id_name(*id), name)) {
-      continue;
-    }
-    if (lib_name == nullptr || lib_name[0] == '\0') {
-      if (id->lib == nullptr) {
-        return id;
-      }
-      return nullptr;
-    }
-    if (id->lib == nullptr) {
-      return nullptr;
-    }
-    if (!STREQ(BKE_id_name(id->lib->id), lib_name)) {
-      continue;
-    }
-    return id;
+  const bool is_linked = (lib_name && lib_name[0] != '\0');
+  Library *library = is_linked ? reinterpret_cast<Library *>(
+                                     BKE_libblock_find_name(bmain, ID_LI, lib_name, nullptr)) :
+                                 nullptr;
+  if (is_linked && !library) {
+    return nullptr;
   }
-  return nullptr;
+  return BKE_libblock_find_name(bmain, type, name, library);
 }
 
 ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
@@ -1751,20 +1756,22 @@ ID *BKE_libblock_find_name_and_library_filepath(Main *bmain,
                                                 const char *name,
                                                 const char *lib_filepath_abs)
 {
-  ListBase *lb = which_libbase(bmain, type);
-  BLI_assert(lb != nullptr);
-  LISTBASE_FOREACH (ID *, id, lb) {
-    if (!STREQ(BKE_id_name(*id), name)) {
-      continue;
+  const bool is_linked = (lib_filepath_abs && lib_filepath_abs[0] != '\0');
+  Library *library = nullptr;
+  if (is_linked) {
+    const ListBase *lb = which_libbase(bmain, ID_LI);
+    LISTBASE_FOREACH (ID *, id_iter, lb) {
+      Library *lib_iter = reinterpret_cast<Library *>(id_iter);
+      if (STREQ(lib_iter->runtime->filepath_abs, lib_filepath_abs)) {
+        library = lib_iter;
+        break;
+      }
     }
-    if (id->lib == nullptr && lib_filepath_abs == nullptr) {
-      return id;
-    }
-    if (id->lib && lib_filepath_abs && STREQ(id->lib->runtime->filepath_abs, lib_filepath_abs)) {
-      return id;
+    if (!library) {
+      return nullptr;
     }
   }
-  return nullptr;
+  return BKE_libblock_find_name(bmain, type, name, library);
 }
 
 void id_sort_by_name(ListBase *lb, ID *id, ID *id_sorting_hint)
@@ -2622,8 +2629,11 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
   if (id->properties && !ELEM(GS(id->name), ID_WM)) {
     IDP_BlendWrite(writer, id->properties);
   }
-  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
-   * the matching call to #BLO_read_struct). */
+  /* ID_WM's id->system_properties are considered runtime only, and never written in .blend file.
+   */
+  if (id->system_properties && !ELEM(GS(id->name), ID_WM)) {
+    IDP_BlendWrite(writer, id->system_properties);
+  }
 
   BKE_animdata_blend_write(writer, id);
 

@@ -16,7 +16,10 @@
 #include "IMB_imbuf_enums.h"
 
 struct ColormanageCache;
-struct GPUTexture;
+struct ExrHandle;
+namespace blender::gpu {
+class Texture;
+}
 struct IDProperty;
 
 namespace blender::ocio {
@@ -39,6 +42,7 @@ using ColorSpace = blender::ocio::ColorSpace;
  */
 
 #define OPENEXR_HALF (1 << 8)
+#define OPENEXR_MULTIPART (1 << 9)
 /* Lowest bits of foptions.flag / exr_codec contain actual codec enum. */
 #define OPENEXR_CODEC_MASK (0xF)
 
@@ -166,7 +170,7 @@ struct ImBufGPU {
    * De-referencing the ImBuf or its GPU texture can happen from any state. */
   /* TODO(sergey): This should become a list of textures, to support having high-res ImBuf on GPU
    * without hitting hardware limitations. */
-  GPUTexture *texture;
+  blender::gpu::Texture *texture;
 };
 
 /** \} */
@@ -226,8 +230,8 @@ struct ImBuf {
   int userflags;
   /** image metadata */
   IDProperty *metadata;
-  /** temporary storage */
-  void *userdata;
+  /** OpenEXR handle. */
+  ExrHandle *exrhandle;
 
   /* file information */
   /** file type we are going to save as */
@@ -236,6 +240,8 @@ struct ImBuf {
   ImbFormatOptions foptions;
   /** The absolute file path associated with this image. */
   char filepath[IMB_FILEPATH_SIZE];
+  /* For movie files, the frame number loaded from the file. */
+  int fileframe;
 
   /** reference counter for multiple users */
   int32_t refcounter;
