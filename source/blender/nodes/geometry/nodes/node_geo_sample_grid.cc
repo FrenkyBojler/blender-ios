@@ -121,14 +121,18 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
 {
   using GridType = bke::OpenvdbGridType<T>;
   using GridValueT = typename GridType::ValueType;
-  using AccessorT = typename GridType::ConstAccessor;
+  using AccessorT = typename GridType::ConstUnsafeAccessor;
   using TraitsT = typename bke::VolumeGridTraits<T>;
-  AccessorT accessor = grid.getConstAccessor();
+  AccessorT accessor = grid.getConstUnsafeAccessor();
 
-  auto sample_data = [&](auto sampler) {
+  auto sample_data = [&](auto sampler_type_tag) {
+    using Sampler = typename decltype(sampler_type_tag)::type;
     mask.foreach_index([&](const int64_t i) {
       const float3 &pos = positions[i];
-      GridValueT value = sampler.wsSample(openvdb::Vec3R(pos.x, pos.y, pos.z));
+      const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
+      const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
+      GridValueT value;
+      Sampler::sample(accessor, index_pos, value);
       dst[i] = TraitsT::to_blender(value);
     });
   };
@@ -140,21 +144,15 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
   }
   switch (real_interpolation) {
     case InterpolationMode::TriLinear: {
-      openvdb::tools::GridSampler<AccessorT, openvdb::tools::BoxSampler> sampler(accessor,
-                                                                                 grid.transform());
-      sample_data(sampler);
+      sample_data(TypeTag<openvdb::tools::BoxSampler>{});
       break;
     }
     case InterpolationMode::TriQuadratic: {
-      openvdb::tools::GridSampler<AccessorT, openvdb::tools::QuadraticSampler> sampler(
-          accessor, grid.transform());
-      sample_data(sampler);
+      sample_data(TypeTag<openvdb::tools::QuadraticSampler>{});
       break;
     }
     case InterpolationMode::Nearest: {
-      openvdb::tools::GridSampler<AccessorT, openvdb::tools::PointSampler> sampler(
-          accessor, grid.transform());
-      sample_data(sampler);
+      sample_data(TypeTag<openvdb::tools::PointSampler>{});
       break;
     }
   }
