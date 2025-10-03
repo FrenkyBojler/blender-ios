@@ -1536,6 +1536,32 @@ static bool bm_vert_connect_select_history_edge_to_vert_path(BMesh *bm, ListBase
   return true;
 }
 
+/**
+ * Checks if a selection contains mixed element types (vertices, edges or faces).
+ */
+static bool bm_vert_connect_select_history_ensure_uniform_type(BMesh *bm,
+                                                               wmOperator *op,
+                                                               bool *r_reported_error)
+{
+  bool any_edge = false, any_vert = false, any_face = false;
+  LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
+    any_edge |= (ese->htype == BM_EDGE);
+    any_vert |= (ese->htype == BM_VERT);
+    any_face |= (ese->htype == BM_FACE);
+  }
+
+  const int selection_types = (any_vert ? 1 : 0) + (any_edge ? 1 : 0) + (any_face ? 1 : 0);
+  if (selection_types > 1) {
+    if (!*r_reported_error) {
+      BKE_report(op->reports, RPT_ERROR, "Cannot connect mixed selections");
+      *r_reported_error = true;
+    }
+    return false;
+  }
+
+  return true;
+}
+
 static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
@@ -1564,30 +1590,17 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    /* Reject mixed selections (see #147150).
+     * Without this check, mixed selections cause downstream code to cast
+     * edges/faces as vertices, triggering assertions in BM_edge_exists(). */
+    if (!bm_vert_connect_select_history_ensure_uniform_type(bm, op, &reported_mixed_selection)) {
+      failed_selection_order_len++;
+      continue;
+    }
+
     if (bm->selected.first) {
-      /* Reject mixed selections (see #147150).
-       * The operator expects only vertices or only edges (which get converted).
-       * Mixed selections cause type casting crashes in BM_edge_exists().
-       */
-      bool any_edge = false, any_vert = false, any_face = false;
-      LISTBASE_FOREACH (BMEditSelection *, ese_scan, &bm->selected) {
-        any_edge |= (ese_scan->htype == BM_EDGE);
-        any_vert |= (ese_scan->htype == BM_VERT);
-        any_face |= (ese_scan->htype == BM_FACE);
-      }
-
-      const int selection_types = (any_vert ? 1 : 0) + (any_edge ? 1 : 0) + (any_face ? 1 : 0);
-
-      if (selection_types > 1) {
-        if (!reported_mixed_selection) {
-          BKE_report(op->reports, RPT_ERROR, "Cannot mix selection types");
-          reported_mixed_selection = true;
-        }
-        failed_selection_order_len++;
-        continue;
-      }
-
-      if (any_edge) {
+      BMEditSelection *ese = static_cast<BMEditSelection *>(bm->selected.first);
+      if (ese->htype == BM_EDGE) {
         if (bm_vert_connect_select_history_edge_to_vert_path(bm, &selected_orig)) {
           std::swap(bm->selected, selected_orig);
         }
