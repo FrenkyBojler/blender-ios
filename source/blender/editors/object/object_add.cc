@@ -779,7 +779,7 @@ static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and
     const Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
     if (object_eval && DEG_object_transform_is_evaluated(*object_eval)) {
       if (std::optional<Bounds<float3>> object_bounds = BKE_object_boundbox_get(object_eval)) {
-        const float(*object_to_world_matrix)[4] = object_eval->object_to_world().ptr();
+        const float (*object_to_world_matrix)[4] = object_eval->object_to_world().ptr();
         /* Generate all 8 corners of the bounding box. */
         std::array<float3, 8> corners = bounds::corners(*object_bounds);
         for (float3 &corner : corners) {
@@ -5189,7 +5189,8 @@ static bool active_shape_key_editable_poll(bContext *C)
 
 static wmOperatorStatus join_shapes_exec(bContext *C, wmOperator *op)
 {
-  return ED_mesh_shapes_join_objects_exec(C, true, op->reports);
+  return ED_mesh_shapes_join_objects_exec(
+      C, true, RNA_boolean_get(op->ptr, "use_mirror"), op->reports);
 }
 
 void OBJECT_OT_join_shapes(wmOperatorType *ot)
@@ -5204,11 +5205,16 @@ void OBJECT_OT_join_shapes(wmOperatorType *ot)
   ot->poll = active_shape_key_editable_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "use_mirror", false, "Mirror", "Mirror the new shape key values");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
 {
-  return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
+  return ED_mesh_shapes_join_objects_exec(
+      C, false, RNA_boolean_get(op->ptr, "use_mirror"), op->reports);
 }
 
 static bool object_update_shapes_poll(bContext *C)
@@ -5237,6 +5243,10 @@ void OBJECT_OT_update_shapes(wmOperatorType *ot)
   ot->poll = object_update_shapes_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna, "use_mirror", false, "Mirror", "Mirror the new shape key values");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
