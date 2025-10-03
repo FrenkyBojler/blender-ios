@@ -5883,14 +5883,13 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       BMLoop *l;
       BMIter liter;
 
-      bool island_in_tile = false;
+      bool face_in_tile = false;
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
         const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
 
-        if (luv[0] >= tile_x && luv[0] < tile_x + 1.0f && luv[1] >= tile_y &&
-            luv[1] < tile_y + 1.0f)
+        if (luv[0] > tile_x && luv[0] < tile_x + 1.0f && luv[1] > tile_y && luv[1] < tile_y + 1.0f)
         {
-          island_in_tile = true;
+          face_in_tile = true;
           break;
         }
       }
@@ -5898,13 +5897,15 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
         const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
 
-        if (luv[0] >= tile_x && luv[0] <= tile_x + 1.0f && luv[1] >= tile_y &&
-            luv[1] <= tile_y + 1.0f)
-        {
-          if (island_in_tile || (luv[0] != tile_x + 1.0f && luv[1] != tile_y + 1.0f)) {
-            uvedit_uv_select_set_with_sticky(scene, em->bm, l, true, offsets);
-            changed = true;
-          }
+        bool overlaps_tile = (luv[0] >= tile_x && luv[0] <= tile_x + 1.0f && luv[1] >= tile_y &&
+                              luv[1] <= tile_y + 1.0f);
+
+        bool tile_edge = (luv[0] == tile_x + 1.0f || luv[1] == tile_y + 1.0f || luv[0] == tile_x ||
+                          luv[1] == tile_y);
+
+        if (overlaps_tile && (face_in_tile || !tile_edge)) {
+          uvedit_uv_select_set_with_sticky(scene, em->bm, l, true, offsets);
+          changed = true;
         }
       }
     }
@@ -5922,6 +5923,22 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus uv_select_tile_invoke(bContext *C,
+                                              wmOperator *op,
+                                              const wmEvent * /*event*/)
+{
+
+  PropertyRNA *prop_tile_x = RNA_struct_find_property(op->ptr, "tile_x");
+  PropertyRNA *prop_tile_y = RNA_struct_find_property(op->ptr, "tile_y");
+
+  if (!RNA_property_is_set(op->ptr, prop_tile_x) || !RNA_property_is_set(op->ptr, prop_tile_y)) {
+    const SpaceImage *sima = CTX_wm_space_image(C);
+
+    RNA_property_int_set(op->ptr, prop_tile_x, (int)sima->cursor[0]);
+    RNA_property_int_set(op->ptr, prop_tile_y, (int)sima->cursor[1]);
+  }
+  return uv_select_tile_exec(C, op);
+}
 void UV_OT_select_tile(wmOperatorType *ot)
 {
   /* identifiers */
@@ -5930,6 +5947,7 @@ void UV_OT_select_tile(wmOperatorType *ot)
   ot->idname = "UV_OT_select_tile";
 
   /* API callbacks. */
+  ot->invoke = uv_select_tile_invoke;
   ot->exec = uv_select_tile_exec;
   ot->poll = ED_operator_uvedit_space_image;
 
