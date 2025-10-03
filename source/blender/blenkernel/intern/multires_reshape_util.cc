@@ -561,7 +561,7 @@ static void allocate_displacement_grid(MDisps *displacement_grid, const int leve
 {
   const int grid_size = blender::bke::subdiv::grid_size_from_level(level);
   const int grid_area = grid_size * grid_size;
-  float (*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
+  float(*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
   if (displacement_grid->disps != nullptr) {
     MEM_freeN(displacement_grid->disps);
   }
@@ -644,7 +644,7 @@ void multires_reshape_store_original_grids(MultiresReshapeContext *reshape_conte
      * Reshape process will ensure all grids are on top level, but that happens on separate set of
      * grids which eventually replaces original one. */
     if (orig_grid->disps != nullptr) {
-      orig_grid->disps = static_cast<float (*)[3]>(MEM_dupallocN(orig_grid->disps));
+      orig_grid->disps = static_cast<float(*)[3]>(MEM_dupallocN(orig_grid->disps));
     }
     if (orig_grid_paint_masks != nullptr) {
       GridPaintMask *orig_paint_mask_grid = &orig_grid_paint_masks[grid_index];
@@ -702,6 +702,29 @@ static void foreach_grid_face_coordinate_task(void *__restrict userdata_v,
       }
     }
   }
+}
+
+static void foreach_grid_coordinate_single_threaded(const MultiresReshapeContext *reshape_context,
+                                                    const int level,
+                                                    ForeachGridCoordinateCallback callback,
+                                                    void *userdata_v)
+{
+  ForeachGridCoordinateTaskData data;
+  data.reshape_context = reshape_context;
+  data.grid_size = blender::bke::subdiv::grid_size_from_level(level);
+  data.grid_size_1_inv = 1.0f / (float(data.grid_size) - 1.0f);
+  data.callback = callback;
+  data.callback_userdata_v = userdata_v;
+
+  TaskParallelSettings parallel_range_settings;
+  BLI_parallel_range_settings_defaults(&parallel_range_settings);
+  parallel_range_settings.min_iter_per_thread = 1;
+  parallel_range_settings.use_threading = false;
+
+  const Mesh *base_mesh = reshape_context->base_mesh;
+  const int num_faces = base_mesh->faces_num;
+  BLI_task_parallel_range(
+      0, num_faces, &data, foreach_grid_face_coordinate_task, &parallel_range_settings);
 }
 
 /* Run given callback for every grid coordinate at a given level. */
@@ -763,6 +786,29 @@ void multires_reshape_object_grids_to_tangent_displacement(
 /* -------------------------------------------------------------------- */
 /** \name MDISPS
  * \{ */
+
+static void debug_reshape_grid_coord(const MultiresReshapeContext *reshape_context,
+                                     const GridCoord *grid_coord,
+                                     void * /*userdata_v*/)
+{
+  ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(reshape_context,
+                                                                                 grid_coord);
+    printf("DEBUG (%f, %f)- (%f, %f, %f)\n",
+         grid_coord->u,
+         grid_coord->v,
+         grid_element.displacement->x,
+         grid_element.displacement->y,
+         grid_element.displacement->z);
+}
+
+void multires_debug_reshape_grid_coord(
+    const MultiresReshapeContext *reshape_context)
+{
+  printf(__func__);
+  printf("\n");
+  foreach_grid_coordinate_single_threaded(
+      reshape_context, reshape_context->top.level, debug_reshape_grid_coord, nullptr);
+}
 
 /* TODO(sergey): Make foreach_grid_coordinate more accessible and move this functionality to
  * its own file. */

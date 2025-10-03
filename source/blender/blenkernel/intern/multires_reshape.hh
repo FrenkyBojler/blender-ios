@@ -309,6 +309,8 @@ bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext 
  */
 void multires_reshape_assign_final_coords_from_mdisps(
     const MultiresReshapeContext *reshape_context);
+void multires_debug_reshape_grid_coord(
+    const MultiresReshapeContext *reshape_context);
 
 /**
  * Reads from original #CD_MIDTSPS, writes to the current mesh #CD_MDISPS.
