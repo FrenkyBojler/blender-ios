@@ -562,16 +562,16 @@ typedef struct bTransformCacheConstraint {
   char reader_object_path[/*FILE_MAX*/ 1024];
 } bTransformCacheConstraint;
 
-/* bAttributeTransformConstraint->flag */
-typedef enum eAttributeTransformConstraint_Flags {
+/* bGeometryAttributeConstraint->flag */
+typedef enum eGeometryAttributeConstraint_Flags {
   APPLY_TARGET_TRANSFORM = (1 << 0),
   MIX_LOC = (1 << 1),
   MIX_ROT = (1 << 2),
   MIX_SCALE = (1 << 3),
-} eAttributeTransformConstraint_Flags;
+} eGeometryAttributeConstraint_Flags;
 
-/* Attribute Constraint */
-typedef struct bAttributeTransformConstraint {
+/* Geometry Attribute Constraint */
+typedef struct bGeometryAttributeConstraint {
   struct Object *target;
   char *attribute_name;
   int32_t sample_index;
@@ -581,10 +581,10 @@ typedef struct bAttributeTransformConstraint {
   uint8_t domain;
   /* #Attribute_Data_Type */
   uint8_t data_type;
-  /* #eAttributeTransformConstraint_Flags */
+  /* #eGeometryAttributeConstraint_Flags */
   uint8_t flags;
   char _pad0[7];
-} bAttributeTransformConstraint;
+} bGeometryAttributeConstraint;
 
 /* Atrtibute Domain */
 typedef enum Attribute_Domain {
@@ -662,7 +662,7 @@ typedef enum eBConstraint_Types {
   CONSTRAINT_TYPE_OBJECTSOLVER = 28,
   CONSTRAINT_TYPE_TRANSFORM_CACHE = 29,
   CONSTRAINT_TYPE_ARMATURE = 30,
-  CONSTRAINT_TYPE_ATTRIBUTE_TRANS = 31,
+  CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE = 31,
 
   /* This should be the last entry in this list. */
   NUM_CONSTRAINT_TYPES,

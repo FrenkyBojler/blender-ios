@@ -256,7 +256,6 @@ if(WITH_BLENDER)
       constraint
       constraint_bone
       con_action
-      con_attributetransform
       con_armature
       con_camerasolver
       con_childof
@@ -265,6 +264,7 @@ if(WITH_BLENDER)
       con_floor
       con_followpath
       con_followtrack
+      con_geometryattribute
       con_kinematic
       con_locktrack
       con_loclike

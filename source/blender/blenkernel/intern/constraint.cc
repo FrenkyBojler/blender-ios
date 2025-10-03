@@ -5441,7 +5441,7 @@ static bConstraintTypeInfo CTI_TRANSFORM_CACHE = {
     /*evaluate_constraint*/ transformcache_evaluate,
 };
 
-/* ---------- Attribute Transform Constraint ----------- */
+/* ---------- Geometry Attribute Constraint ----------- */
 
 static blender::bke::AttrDomain domain_value_to_attribute(const Attribute_Domain domain)
 {
@@ -5528,38 +5528,38 @@ static const blender::bke::GeometryComponent *find_source_component(
   return nullptr;
 }
 
-static void attribute_transform_free_data(bConstraint *con)
+static void geometry_attribute_free_data(bConstraint *con)
 {
-  bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+  bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(con->data);
   MEM_SAFE_FREE(data->attribute_name);
 }
 
-static void attribute_transform_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
+static void geometry_attribute_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
 {
-  bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+  bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(con->data);
   func(con, (ID **)&data->target, false, userdata);
 }
 
-static void attribute_transform_copy_data(bConstraint *con, bConstraint *srccon)
+static void geometry_attribute_copy_data(bConstraint *con, bConstraint *srccon)
 {
-  const auto *src = static_cast<bAttributeTransformConstraint *>(srccon->data);
-  auto *dst = static_cast<bAttributeTransformConstraint *>(con->data);
+  const auto *src = static_cast<bGeometryAttributeConstraint *>(srccon->data);
+  auto *dst = static_cast<bGeometryAttributeConstraint *>(con->data);
   dst->attribute_name = BLI_strdup_null(src->attribute_name);
 }
 
-static void attribute_transform_new_data(void *cdata)
+static void geometry_attribute_new_data(void *cdata)
 {
-  bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(cdata);
+  bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(cdata);
   data->attribute_name = BLI_strdup("position");
   data->flags = MIX_LOC | MIX_ROT | MIX_SCALE;
 }
 
-static int attribute_transform_get_tars(bConstraint *con, ListBase *list)
+static int geometry_attribute_get_tars(bConstraint *con, ListBase *list)
 {
   if (!con || !list) {
     return 0;
   }
-  bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+  bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(con->data);
   bConstraintTarget *ct;
 
   SINGLETARGETNS_GET_TARS(con, data->target, ct, list);
@@ -5567,25 +5567,25 @@ static int attribute_transform_get_tars(bConstraint *con, ListBase *list)
   return 1;
 }
 
-static void attribute_transform_flush_tars(bConstraint *con, ListBase *list, const bool no_copy)
+static void geometry_attribute_flush_tars(bConstraint *con, ListBase *list, const bool no_copy)
 {
   if (!con || !list) {
     return;
   }
-  bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+  bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(con->data);
   bConstraintTarget *ct = static_cast<bConstraintTarget *>(list->first);
 
   SINGLETARGETNS_FLUSH_TARS(con, data->target, ct, list, no_copy);
 }
 
-static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
+static bool geometry_attribute_get_tarmat(Depsgraph * /*depsgraph*/,
                                            bConstraint *con,
                                            bConstraintOb * /*cob*/,
                                            bConstraintTarget *ct,
                                            float /*ctime*/)
 {
   using namespace blender;
-  const bAttributeTransformConstraint *acon = static_cast<bAttributeTransformConstraint *>(
+  const bGeometryAttributeConstraint *acon = static_cast<bGeometryAttributeConstraint *>(
       con->data);
 
   if (!VALID_CONS_TARGET(ct)) {
@@ -5631,10 +5631,10 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
   return true;
 }
 
-static void attribute_transform_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targets)
+static void geometry_attribute_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *targets)
 {
   bConstraintTarget *ct = static_cast<bConstraintTarget *>(targets->first);
-  const bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(
+  const bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(
       con->data);
 
   /* Only evaluate if there is a target. */
@@ -5726,18 +5726,18 @@ static void attribute_transform_evaluate(bConstraint *con, bConstraintOb *cob, L
 }
 
 static bConstraintTypeInfo CTI_ATTRIBUTE = {
-    /*type*/ CONSTRAINT_TYPE_ATTRIBUTE_TRANS,
-    /*size*/ sizeof(bAttributeTransformConstraint),
-    /*name*/ N_("Attribute Transform"),
-    /*struct_name*/ "bAttributeTransformConstraint",
-    /*free_data*/ attribute_transform_free_data,
-    /*id_looper*/ attribute_transform_id_looper,
-    /*copy_data*/ attribute_transform_copy_data,
-    /*new_data*/ attribute_transform_new_data,
-    /*get_constraint_targets*/ attribute_transform_get_tars,
-    /*flush_constraint_targets*/ attribute_transform_flush_tars,
-    /*get_target_matrix*/ attribute_transform_get_tarmat,
-    /*evaluate_constraint*/ attribute_transform_evaluate,
+    /*type*/ CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE,
+    /*size*/ sizeof(bGeometryAttributeConstraint),
+    /*name*/ N_("Geometry Attribute"),
+    /*struct_name*/ "bGeometryAttributeConstraint",
+    /*free_data*/ geometry_attribute_free_data,
+    /*id_looper*/ geometry_attribute_id_looper,
+    /*copy_data*/ geometry_attribute_copy_data,
+    /*new_data*/ geometry_attribute_new_data,
+    /*get_constraint_targets*/ geometry_attribute_get_tars,
+    /*flush_constraint_targets*/ geometry_attribute_flush_tars,
+    /*get_target_matrix*/ geometry_attribute_get_tarmat,
+    /*evaluate_constraint*/ geometry_attribute_evaluate,
 };
 
 /* ************************* Constraints Type-Info *************************** */
@@ -6770,8 +6770,8 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
 
           break;
         }
-        case CONSTRAINT_TYPE_ATTRIBUTE_TRANS: {
-          bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(
+        case CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE: {
+          bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(
               con->data);
           BLO_write_string(writer, data->attribute_name);
           break;
@@ -6839,8 +6839,8 @@ void BKE_constraint_blend_read_data(BlendDataReader *reader, ID *id_owner, ListB
         data->reader_object_path[0] = '\0';
         break;
       }
-      case CONSTRAINT_TYPE_ATTRIBUTE_TRANS: {
-        bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(
+      case CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE: {
+        bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(
             con->data);
         BLO_read_string(reader, &data->attribute_name);
         break;
