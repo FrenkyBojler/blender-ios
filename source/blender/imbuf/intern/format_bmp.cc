@@ -11,7 +11,7 @@
 #include "IMB_filetype.hh"
 #include "IMB_imbuf_types.hh"
 
-OIIO_NAMESPACE_USING
+using namespace OIIO;
 using namespace blender::imbuf;
 
 bool imb_is_a_bmp(const uchar *mem, size_t size)

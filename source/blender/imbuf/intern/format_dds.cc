@@ -21,7 +21,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-OIIO_NAMESPACE_USING
+using namespace OIIO;
 using namespace blender::imbuf;
 
 static void LoadDXTCImage(ImBuf *ibuf, Filesystem::IOMemReader &mem_reader);

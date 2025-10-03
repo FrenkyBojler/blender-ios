@@ -25,7 +25,7 @@
 static CLG_LogRef LOG_READ = {"image.read"};
 static CLG_LogRef LOG_WRITE = {"image.write"};
 
-OIIO_NAMESPACE_USING
+using namespace OIIO;
 
 using std::string;
 using std::unique_ptr;

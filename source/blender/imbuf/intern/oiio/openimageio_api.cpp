@@ -12,7 +12,7 @@
 
 #include "BLI_threads.h"
 
-OIIO_NAMESPACE_USING
+using namespace OIIO;
 
 void OIIO_init()
 {
