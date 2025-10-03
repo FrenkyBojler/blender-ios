@@ -25,6 +25,7 @@
 #include "BLI_linklist.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_listbase.h"
+#include "BLI_math_bits.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -1543,15 +1544,12 @@ static bool bm_vert_connect_select_history_ensure_uniform_type(BMesh *bm,
                                                                wmOperator *op,
                                                                bool *r_reported_error)
 {
-  bool any_edge = false, any_vert = false, any_face = false;
+  char htype_selected = 0;
   LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
-    any_edge |= (ese->htype == BM_EDGE);
-    any_vert |= (ese->htype == BM_VERT);
-    any_face |= (ese->htype == BM_FACE);
+    htype_selected |= ese->htype;
   }
 
-  const int selection_types = (any_vert ? 1 : 0) + (any_edge ? 1 : 0) + (any_face ? 1 : 0);
-  if (selection_types > 1) {
+  if (count_bits_i(htype_selected) != 1) {
     if (!*r_reported_error) {
       BKE_report(op->reports, RPT_ERROR, "Cannot connect mixed selections");
       *r_reported_error = true;
