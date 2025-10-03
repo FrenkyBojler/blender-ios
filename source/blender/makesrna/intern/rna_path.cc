@@ -1109,9 +1109,6 @@ static std::string rna_path_from_ptr_to_property_index_ex(const PointerRNA *ptr,
                                                           int index,
                                                           const blender::StringRef path_prefix)
 {
-  /* Python style negative indexing isn't supported. */
-  BLI_assert(index >= 0);
-
   const bool is_rna = (prop->magic == RNA_MAGIC);
 
   const char *propname = RNA_property_identifier(prop);
@@ -1288,8 +1285,6 @@ std::optional<std::string> RNA_path_full_property_py_ex(const PointerRNA *ptr,
                                                         int index,
                                                         bool use_fallback)
 {
-  /* Python style negative indexing isn't supported. */
-  BLI_assert(index >= -1);
   const char *data_delim;
 
   if (!ptr->owner_id) {
@@ -1331,9 +1326,6 @@ std::optional<std::string> RNA_path_struct_property_py(PointerRNA *ptr,
                                                        PropertyRNA *prop,
                                                        int index)
 {
-  /* Python style negative indexing isn't supported. */
-  BLI_assert(index >= -1);
-
   if (!ptr->owner_id) {
     return std::nullopt;
   }
