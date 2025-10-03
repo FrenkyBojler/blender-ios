@@ -33,19 +33,27 @@ typedef struct _object PyObject;
  *  - recomputes packed corner normals.
  *
  * Python signature:
- *   scatter_positions_to_corners(obj, ssbo_positions)
+ *   scatter_positions_to_corners(obj, ssbo_positions, transform=None)
  *
  * Requirements and notes:
  *  - `obj` must be convertible to a Blender `Object *` owning mesh data with a ready batch cache.
  *  - `ssbo_positions` must be a `gpu.types.GPUStorageBuf` containing `vec4` per vertex
  *    (size == verts_num * sizeof(vec4)).
+ *  - `transform` optional 4x4 matrix for transforming positions during scatter.
  *  - A valid GPU context must be active when calling this function.
  *  - The function binds destination VBOs as SSBOs and dispatches the compute shader,
  *    then performs the required memory barriers.
  */
-PyObject *pygpu_mesh_scatter(PyObject * self,
-                             PyObject *args,
-                             PyObject *kwds);
+PyObject *pygpu_mesh_scatter(PyObject *self, PyObject *args, PyObject *kwds);
+
+/**
+ * Free GPU resources (shader + SSBOs) associated with the mesh owned by obj.
+ * Also resets mesh GPU deform flags.
+ *
+ * Python signature:
+ *   scatter_free_for_mesh(obj)
+ */
+PyObject *pygpu_mesh_scatter_free(PyObject *self, PyObject *args, PyObject *kwds);
 
 /**
  * Initialize the `gpu.mesh` submodule and add the scatter function.

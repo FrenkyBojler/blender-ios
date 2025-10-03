@@ -31,9 +31,7 @@
 static void pygpu_module_free(void *m)
 {
   (void)m;
-  if (GPU_context_active_get()) {
-    bpygpu_mesh_scatter_shaders_free_all();
-  }
+  bpygpu_mesh_scatter_shaders_free_all();
 }
 
 /* -------------------------------------------------------------------- */

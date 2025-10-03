@@ -5,13 +5,14 @@
  */
 
 #include <Python.h>
-#include <unordered_map>
 #include <mutex>
+#include <unordered_map>
 
 #include "gpu_py_mesh_scatter.hh"
 
 #include "BKE_idtype.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_gpu.hh"
 #include "BKE_scene.hh"
 
 #include "BLI_math_matrix.h"
@@ -25,8 +26,8 @@
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
 #include "GPU_capabilities.hh"
-#include "GPU_context.hh"
 #include "GPU_compute.hh"
+#include "GPU_context.hh"
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_storage_buffer.hh"
@@ -46,13 +47,8 @@
 
 struct MeshScatterResources {
   blender::gpu::Shader *shader = nullptr;
-  blender::gpu::StorageBuf *ssbo_topology = nullptr;
+  blender::bke::MeshGPUTopology topology;
   blender::gpu::StorageBuf *ssbo_transform_mat = nullptr;
-  int face_offsets_offset = 0;
-  int corner_to_face_offset = 0;
-  int corner_verts_offset = 0;
-  int vert_to_face_offsets_offset = 0;
-  int vert_to_face_offset = 0;
   int normals_domain = 0;
   int normals_hq = 0;
 };
@@ -170,67 +166,33 @@ void bpygpu_mesh_scatter_free_for_mesh(Mesh *mesh)
     return;
   }
 
-  /* Reset flags (safe to do from Python thread since callers use this from UI thread). */
   mesh->is_using_gpu_deform = 0;
-  /* mesh->is_running_gpu_deform flag is only on evaluated mesh (ob_eval->runtime->data_eval)
-   * so we don't reset it here. It will be reset next time the object is evaluated. */
 
-  /* Take ownership of the resource entry if present. */
   {
     std::lock_guard<std::mutex> lock(g_mesh_scatter_resources_mutex);
     auto it = g_mesh_scatter_resources.find(mesh);
     if (it == g_mesh_scatter_resources.end()) {
-      /* Nothing to free. */
       return;
     }
 
-    /* Move resource out of the map so the map no longer contains a dangling entry. */
     MeshScatterResources res = std::move(it->second);
-    /* Erase the map entry using the iterator. */
     g_mesh_scatter_resources.erase(it);
 
     if (GPU_context_active_get()) {
-      /* Immediate GPU-safe free. */
       if (res.shader) {
         GPU_shader_free(res.shader);
-      }
-      if (res.ssbo_topology) {
-        GPU_storagebuf_free(res.ssbo_topology);
       }
       if (res.ssbo_transform_mat) {
         GPU_storagebuf_free(res.ssbo_transform_mat);
       }
+      BKE_mesh_gpu_topology_free(res.topology);
     }
     else {
-      /* Defer freeing until a GPU context is available (store the resources). */
+      res.topology.data.clear();
+      res.topology.total_size = 0;
       g_mesh_scatter_orphans.push_back(std::move(res));
     }
   }
-}
-
-/* Call this from module shutdown (or periodically when a GPU context is active)
- * to flush any deferred frees. */
-static void mesh_scatter_orphans_flush()
-{
-  if (!GPU_context_active_get()) {
-    return;
-  }
-  std::lock_guard<std::mutex> lock(g_mesh_scatter_resources_mutex);
-  for (MeshScatterResources &r : g_mesh_scatter_orphans) {
-    if (r.shader) {
-      GPU_shader_free(r.shader);
-      r.shader = nullptr;
-    }
-    if (r.ssbo_topology) {
-      GPU_storagebuf_free(r.ssbo_topology);
-      r.ssbo_topology = nullptr;
-    }
-    if (r.ssbo_transform_mat) {
-      GPU_storagebuf_free(r.ssbo_transform_mat);
-      r.ssbo_transform_mat = nullptr;
-    }
-  }
-  g_mesh_scatter_orphans.clear();
 }
 
 /* Create (or reuse) scatter resources for a specific mesh:
@@ -259,58 +221,12 @@ static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh, Sc
 
   MeshScatterResources res;
 
-  /* Build topology packed ints. */
-  const auto face_offsets = mesh->face_offsets();
-  const auto corner_to_face = mesh->corner_to_face_map();
-  const auto corner_verts_span = mesh->corner_verts();
-  std::vector<int> corner_verts_vec(corner_verts_span.begin(), corner_verts_span.end());
-
-  const blender::OffsetIndices<int> v2f_off = mesh->vert_to_face_map_offsets();
-  const blender::GroupedSpan<int> v2f = mesh->vert_to_face_map();
-
-  const int v2f_offsets_size = v2f_off.size();
-  std::vector<int> v2f_offsets(v2f_offsets_size, 0);
-  for (int v = 0; v < v2f_offsets_size; ++v) {
-    v2f_offsets[v] = v2f_off.data()[v];
-  }
-  const int total_v2f = v2f_offsets.empty() ? 0 : v2f_offsets.back();
-
-  std::vector<int> v2f_indices;
-  v2f_indices.resize(std::max(total_v2f, 0));
-  if (v2f_offsets_size > 0) {
-    blender::threading::parallel_for(
-        blender::IndexRange(v2f_offsets_size - 1), 4096, [&](const blender::IndexRange range) {
-          for (int v : range) {
-            const blender::Span<int> faces_v = v2f[v];
-            const int dst = v2f_off.data()[v];
-            if (!faces_v.is_empty()) {
-              std::copy(faces_v.begin(), faces_v.end(), v2f_indices.begin() + dst);
-            }
-          }
-        });
+  if (!BKE_mesh_gpu_topology_create(mesh, res.topology)) {
+    return nullptr;
   }
 
-  /* Compute offsets for packed buffer. */
-  res.face_offsets_offset = 0;
-  res.corner_to_face_offset = res.face_offsets_offset + int(face_offsets.size());
-  res.corner_verts_offset = res.corner_to_face_offset + int(corner_to_face.size());
-  res.vert_to_face_offsets_offset = res.corner_verts_offset + int(corner_verts_vec.size());
-  res.vert_to_face_offset = res.vert_to_face_offsets_offset + int(v2f_offsets.size());
-  const int topo_total_size = res.vert_to_face_offset + int(v2f_indices.size());
-
-  /* Pack into single int vector. */
-  std::vector<int> topo;
-  topo.reserve(topo_total_size);
-  topo.insert(topo.end(), face_offsets.begin(), face_offsets.end());
-  topo.insert(topo.end(), corner_to_face.begin(), corner_to_face.end());
-  topo.insert(topo.end(), corner_verts_vec.begin(), corner_verts_vec.end());
-  topo.insert(topo.end(), v2f_offsets.begin(), v2f_offsets.end());
-  topo.insert(topo.end(), v2f_indices.begin(), v2f_indices.end());
-
-  /* Create and upload SSBO. */
-  if (!topo.empty()) {
-    res.ssbo_topology = GPU_storagebuf_create(sizeof(int) * topo_total_size);
-    GPU_storagebuf_update(res.ssbo_topology, topo.data());
+  if (!BKE_mesh_gpu_topology_upload(res.topology)) {
+    return nullptr;
   }
 
   /* Create and upload transform matrix SSBO (identity matrix). */
@@ -337,23 +253,14 @@ static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh, Sc
   info.storage_buf(3, Qualifier::read, "mat4", "transform_mat[]");
   info.storage_buf(4, Qualifier::read, "int", "topo[]");
 
-  info.specialization_constant(Type::int_t, "face_offsets_offset", res.face_offsets_offset);
-  info.specialization_constant(Type::int_t, "corner_to_face_offset", res.corner_to_face_offset);
-  info.specialization_constant(Type::int_t, "corner_verts_offset", res.corner_verts_offset);
-  info.specialization_constant(
-      Type::int_t, "vert_to_face_offsets_offset", res.vert_to_face_offsets_offset);
-  info.specialization_constant(Type::int_t, "vert_to_face_offset", res.vert_to_face_offset);
+  BKE_mesh_gpu_topology_add_specialization_constants(info, res.topology);
+
   info.specialization_constant(Type::int_t, "normals_domain", res.normals_domain);
   info.specialization_constant(Type::int_t, "normals_hq", res.normals_hq);
 
-  info.compute_source_generated = R"GLSL(
-// Utility accessors
-int face_offsets(int i) { return topo[face_offsets_offset + i]; }
-int corner_to_face(int i) { return topo[corner_to_face_offset + i]; }
-int corner_verts(int i) { return topo[corner_verts_offset + i]; }
-int vert_to_face_offsets(int i) { return topo[vert_to_face_offsets_offset + i]; }
-int vert_to_face(int i) { return topo[vert_to_face_offset + i]; }
+  std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(res.topology);
 
+  info.compute_source_generated = glsl_accessors + R"GLSL(
 // helpers SNORM16 packing
 int pack_i16_trunc(float x) {
   const int max_i16 = 32767;
@@ -450,10 +357,6 @@ void main() {
   blender::gpu::Shader *shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
   if (!shader) {
     /* Creation failed: cleanup created ssbo if any. */
-    if (res.ssbo_topology) {
-      GPU_storagebuf_free(res.ssbo_topology);
-      res.ssbo_topology = nullptr;
-    }
     if (res.ssbo_transform_mat) {
       GPU_storagebuf_free(res.ssbo_transform_mat);
       res.ssbo_transform_mat = nullptr;
@@ -472,32 +375,42 @@ void main() {
 static void mesh_scatter_resources_free_all()
 {
   std::lock_guard<std::mutex> lock(g_mesh_scatter_resources_mutex);
-  /* free map entries as before */
+
+  /* Free map entries */
   for (auto &kv : g_mesh_scatter_resources) {
-    /* Reset mesh flag so mesh state is consistent after resource free. */
     const Mesh *mesh_key = kv.first;
     if (mesh_key) {
       Mesh *mesh_mut = const_cast<Mesh *>(mesh_key);
       mesh_mut->is_using_gpu_deform = 0;
     }
     MeshScatterResources &r = kv.second;
-    if (r.shader) {
+    if (r.shader && GPU_context_active_get()) {
       GPU_shader_free(r.shader);
       r.shader = nullptr;
     }
-    if (r.ssbo_topology) {
-      GPU_storagebuf_free(r.ssbo_topology);
-      r.ssbo_topology = nullptr;
-    }
-    if (r.ssbo_transform_mat) {
+    if (r.ssbo_transform_mat && GPU_context_active_get()) {
       GPU_storagebuf_free(r.ssbo_transform_mat);
       r.ssbo_transform_mat = nullptr;
     }
+    BKE_mesh_gpu_topology_free(r.topology);
   }
   g_mesh_scatter_resources.clear();
 
-  /* Also flush orphans (if any). */
-  mesh_scatter_orphans_flush();
+  /* Free orphans */
+  for (MeshScatterResources &r : g_mesh_scatter_orphans) {
+    if (GPU_context_active_get()) {
+      if (r.shader) {
+        GPU_shader_free(r.shader);
+      }
+      if (r.ssbo_transform_mat) {
+        GPU_storagebuf_free(r.ssbo_transform_mat);
+      }
+      if (r.topology.ssbo) {
+        GPU_storagebuf_free(r.topology.ssbo);
+        r.topology.ssbo = nullptr;
+      }
+    }
+  }
   g_mesh_scatter_orphans.clear();
 }
 
@@ -873,7 +786,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
 
   /* Bind transform_mat/topo */
   GPU_storagebuf_bind(res->ssbo_transform_mat, 3);
-  GPU_storagebuf_bind(res->ssbo_topology, 4);
+  GPU_storagebuf_bind(res->topology.ssbo, 4);
 
   /* Dispatch compute */
   const int num_corners = int(mesh_eval->corner_verts().size());
