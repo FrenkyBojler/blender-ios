@@ -5443,7 +5443,7 @@ static bConstraintTypeInfo CTI_TRANSFORM_CACHE = {
 
 /* ---------- Attribute Transform Constraint ----------- */
 
-static blender::bke::AttrDomain domain_value_to_attribute(const int domain)
+static blender::bke::AttrDomain domain_value_to_attribute(const Attribute_Domain domain)
 {
   switch (domain) {
     case CON_ATTRIBUTE_DOMAIN_POINT:
@@ -5463,7 +5463,7 @@ static blender::bke::AttrDomain domain_value_to_attribute(const int domain)
   return blender::bke::AttrDomain::Point;
 }
 
-static blender::bke::AttrType type_value_to_attribute(const int data_type)
+static blender::bke::AttrType type_value_to_attribute(const Attribute_Data_Type data_type)
 {
   switch (data_type) {
     case CON_ATTRIBUTE_VECTOR:
@@ -5479,7 +5479,7 @@ static blender::bke::AttrType type_value_to_attribute(const int data_type)
 
 static void value_attribute_to_matrix(float r_matrix[4][4],
                                       const blender::GPointer value,
-                                      const int data_type)
+                                      const Attribute_Data_Type data_type)
 {
   switch (data_type) {
     case CON_ATTRIBUTE_VECTOR: {
@@ -5594,8 +5594,8 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
 
   unit_m4(ct->matrix);
 
-  const bke::AttrDomain domain = domain_value_to_attribute(acon->domain);
-  const bke::AttrType sample_data_type = type_value_to_attribute(acon->data_type);
+  const bke::AttrDomain domain = domain_value_to_attribute(static_cast<Attribute_Domain>(acon->domain));
+  const bke::AttrType sample_data_type = type_value_to_attribute(static_cast<Attribute_Data_Type>(acon->data_type));
   const bke::GeometrySet &target_eval = bke::object_get_evaluated_geometry_set(*ct->tar);
 
   const bke::GeometryComponent *component = find_source_component(target_eval, domain);
@@ -5621,7 +5621,7 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
   BUFFER_FOR_CPP_TYPE_VALUE(type, sampled_value);
   attribute.get_to_uninitialized(index, sampled_value);
 
-  value_attribute_to_matrix(ct->matrix, GPointer(type, sampled_value), acon->data_type);
+  value_attribute_to_matrix(ct->matrix, GPointer(type, sampled_value), static_cast<Attribute_Data_Type>(acon->data_type));
   type.destruct(sampled_value);
 
   return true;
