@@ -5557,26 +5557,26 @@ static void attribute_transform_new_data(void *cdata)
 
 static int attribute_transform_get_tars(bConstraint *con, ListBase *list)
 {
-  if (con && list) {
-    bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
-    bConstraintTarget *ct;
-
-    SINGLETARGETNS_GET_TARS(con, data->target, ct, list);
-
-    return 1;
+  if (!con || !list) {
+    return 0;
   }
+  bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+  bConstraintTarget *ct;
 
-  return 0;
+  SINGLETARGETNS_GET_TARS(con, data->target, ct, list);
+
+  return 1;
 }
 
 static void attribute_transform_flush_tars(bConstraint *con, ListBase *list, bool no_copy)
 {
-  if (con && list) {
-    bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
-    bConstraintTarget *ct = static_cast<bConstraintTarget *>(list->first);
-
-    SINGLETARGETNS_FLUSH_TARS(con, data->target, ct, list, no_copy);
+  if (!con || !list) {
+    return 0;
   }
+  bAttributeTransformConstraint *data = static_cast<bAttributeTransformConstraint *>(con->data);
+  bConstraintTarget *ct = static_cast<bConstraintTarget *>(list->first);
+
+  SINGLETARGETNS_FLUSH_TARS(con, data->target, ct, list, no_copy);
 }
 
 static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
