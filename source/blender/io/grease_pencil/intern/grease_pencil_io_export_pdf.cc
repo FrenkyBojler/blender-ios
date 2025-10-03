@@ -48,7 +48,8 @@ class PDFExporter : public GreasePencilExporter {
                                 const bool cyclic,
                                 const ColorGeometry4f &color,
                                 const float opacity,
-                                std::optional<float> width);
+                                std::optional<float> width,
+                                std::optional<float> miter_limit_angle);
   bool write_to_file(StringRefNull filepath);
 };
 
@@ -153,9 +154,11 @@ void PDFExporter::export_grease_pencil_layer(const Object &object,
                           const ColorGeometry4f &color,
                           const float opacity,
                           const std::optional<float> width,
+                          const std::optional<float> miter_limit_angle,
                           const bool /*round_cap*/,
                           const bool /*is_outline*/) {
-    write_stroke_to_polyline(layer_to_world, positions, cyclic, color, opacity, width);
+    write_stroke_to_polyline(
+        layer_to_world, positions, cyclic, color, opacity, width, miter_limit_angle);
   };
 
   foreach_stroke_in_layer(object, layer, drawing, write_stroke);
@@ -200,10 +203,26 @@ void PDFExporter::write_stroke_to_polyline(const float4x4 &transform,
                                            const bool cyclic,
                                            const ColorGeometry4f &color,
                                            const float opacity,
-                                           const std::optional<float> width)
+                                           const std::optional<float> width,
+                                           const std::optional<float> miter_limit_angle)
 {
   if (width) {
-    HPDF_Page_SetLineJoin(page_, HPDF_ROUND_JOIN);
+    BLI_assert(miter_limit_angle);
+
+    if (*miter_limit_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
+      HPDF_Page_SetLineJoin(page_, HPDF_ROUND_JOIN);
+    }
+    else if (*miter_limit_angle >= GP_STROKE_MITER_ANGLE_BEVEL) {
+      HPDF_Page_SetLineJoin(page_, HPDF_BEVEL_JOIN);
+    }
+    else {
+      /* Convert the Miter angle to the Miter limit. */
+      const float miter_limit = 1.0f / math::sin(*miter_limit_angle / 2.0f);
+
+      HPDF_Page_SetLineJoin(page_, HPDF_MITER_JOIN);
+      HPDF_Page_SetMiterLimit(page_, miter_limit);
+    }
+
     HPDF_Page_SetLineWidth(page_, std::max(*width, 1.0f));
   }
 

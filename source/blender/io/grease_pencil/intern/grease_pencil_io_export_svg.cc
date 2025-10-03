@@ -50,6 +50,7 @@ static std::string rgb_to_hexstr(const float color[3])
 static void write_stroke_color_attribute(pugi::xml_node node,
                                          const ColorGeometry4f &stroke_color,
                                          const float stroke_opacity,
+                                         const float miter_limit_angle,
                                          const bool round_cap)
 {
   ColorGeometry4f color;
@@ -61,6 +62,20 @@ static void write_stroke_color_attribute(pugi::xml_node node,
 
   node.append_attribute("fill").set_value("none");
   node.append_attribute("stroke-linecap").set_value(round_cap ? "round" : "square");
+
+  if (miter_limit_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
+    node.append_attribute("stroke-linejoin").set_value("round");
+  }
+  else if (miter_limit_angle >= GP_STROKE_MITER_ANGLE_BEVEL) {
+    node.append_attribute("stroke-linejoin").set_value("bevel");
+  }
+  else {
+    /* Convert the Miter angle to the Miter limit. */
+    const float miter_limit = 1.0f / math::sin(miter_limit_angle / 2.0f);
+
+    node.append_attribute("stroke-linejoin").set_value("miter");
+    node.append_attribute("stroke-miterlimit").set_value(miter_limit);
+  }
 }
 
 static void write_fill_color_attribute(pugi::xml_node node,
@@ -330,6 +345,7 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
                           const ColorGeometry4f &color,
                           const float opacity,
                           const std::optional<float> width,
+                          const std::optional<float> miter_limit_angle,
                           const bool round_cap,
                           const bool is_outline) {
     if (is_outline) {
@@ -349,7 +365,9 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
       }
 
       if (width) {
-        write_stroke_color_attribute(element_node, color, opacity, round_cap);
+        BLI_assert(miter_limit_angle);
+
+        write_stroke_color_attribute(element_node, color, opacity, *miter_limit_angle, round_cap);
       }
       else {
         write_fill_color_attribute(element_node, color, opacity);

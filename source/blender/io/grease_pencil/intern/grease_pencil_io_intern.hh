@@ -86,6 +86,7 @@ class GreasePencilExporter {
                                          const ColorGeometry4f &color,
                                          float opacity,
                                          std::optional<float> width,
+                                         std::optional<float> miter_limit_angle,
                                          bool round_cap,
                                          bool is_outline)>;
 
