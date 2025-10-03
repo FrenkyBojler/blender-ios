@@ -128,7 +128,8 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
                                  ScrArea *area,
                                  ARegion *region,
                                  const bool has_translate,
-                                 const bool has_zoom)
+                                 const bool has_zoom,
+                                 const float speed)
 {
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -164,7 +165,6 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
 
   if (has_translate) {
 
-    const float speed = view3d_ndof_pan_speed_calc(rv3d);
     pan_vec *= speed * ndof.time_delta;
 
     /* transform motion from view to world coordinates */
@@ -725,7 +725,8 @@ static wmOperatorStatus ndof_orbit_invoke_impl(bContext *C,
     const bool has_zoom = (rv3d->is_persp == false) && WM_event_ndof_translation_has_zoom(ndof);
 
     if (has_translate || has_zoom) {
-      view3d_ndof_pan_zoom(ndof, vod->area, vod->region, has_translate, has_zoom);
+      const float pan_speed = view3d_ndof_pan_speed_calc(rv3d);
+      view3d_ndof_pan_zoom(ndof, vod->area, vod->region, has_translate, has_zoom, pan_speed);
       xform_flag |= HAS_TRANSLATE;
     }
 
@@ -797,9 +798,11 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
   View3D *v3d = vod->v3d;
   RegionView3D *rv3d = vod->rv3d;
   char xform_flag = 0;
-
   /* off by default, until changed later this function */
   rv3d->ndof_rot_angle = 0.0f;
+  const bool fly_with_auto_speed = !NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U) &&
+                               (U.ndof_flag & NDOF_DYNAMIC_FLY_SPEED);
+  static float pan_speed_buffer = 0.;
 
   if (ndof.progress == P_FINISHING) {
     /* pass */
@@ -820,6 +823,11 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
           }
         }
         rv3d->ndof_flag |= RV3D_NDOF_OFS_IS_VALID;
+        // Update and buffer pan speed value only when in Fly mode
+        // with automatic speed enabled, and the motion is starting.
+        if (fly_with_auto_speed) {
+          pan_speed_buffer = view3d_ndof_pan_speed_calc(rv3d);
+        }
       }
     }
   }
@@ -830,7 +838,10 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
                           ED_view3d_offset_lock_check(v3d, rv3d);
 
     if (has_translate || has_zoom) {
-      view3d_ndof_pan_zoom(ndof, vod->area, vod->region, has_translate, true);
+      if (!fly_with_auto_speed) {
+        pan_speed_buffer = view3d_ndof_pan_speed_calc(rv3d);
+      }
+      view3d_ndof_pan_zoom(ndof, vod->area, vod->region, has_translate, true, pan_speed_buffer);
       xform_flag |= HAS_TRANSLATE;
     }
   }
@@ -868,7 +879,10 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     }
 
     if (has_translate || has_zoom) {
-      view3d_ndof_pan_zoom(ndof, vod->area, vod->region, has_translate, has_zoom);
+      if (!fly_with_auto_speed) {
+        pan_speed_buffer = view3d_ndof_pan_speed_calc(rv3d);
+      }
+      view3d_ndof_pan_zoom(ndof, vod->area, vod->region, has_translate, has_zoom, pan_speed_buffer);
       xform_flag |= HAS_TRANSLATE;
     }
   }
@@ -954,7 +968,8 @@ static wmOperatorStatus ndof_pan_invoke_impl(bContext *C,
     ScrArea *area = vod->area;
 
     if (has_translate || has_zoom) {
-      view3d_ndof_pan_zoom(ndof, area, region, has_translate, has_zoom);
+      const float pan_speed = view3d_ndof_pan_speed_calc(rv3d);
+      view3d_ndof_pan_zoom(ndof, area, region, has_translate, has_zoom, pan_speed);
       xform_flag |= HAS_TRANSLATE;
     }
   }
