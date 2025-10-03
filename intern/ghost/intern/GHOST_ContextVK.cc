@@ -864,8 +864,12 @@ VkFence GHOST_ContextVK::getFence()
 
 void GHOST_ContextVK::setPresentFence(VkSwapchainKHR swapchain, VkFence present_fence)
 {
+  if (!present_fence) {
+    return;
+  }
   present_fences_[swapchain].push_back(present_fence);
   GHOST_DeviceVK &device_vk = vulkan_instance->device.value();
+  /** Recycle signaled fences. */
   for (auto &item : present_fences_) {
     auto end = item.second.end();
     auto it = std::remove_if(item.second.begin(), item.second.end(), [&](const VkFence fence) {
@@ -933,11 +937,13 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
     std::scoped_lock lock(device_vk.queue_mutex);
     VkSwapchainPresentFenceInfoEXT fence_info{VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT};
     VkFence present_fence = this->getFence();
+    if (device_vk.use_vk_ext_swapchain_maintenance_1) {
 
-    fence_info.swapchainCount = 1;
-    fence_info.pFences = &present_fence;
+      fence_info.swapchainCount = 1;
+      fence_info.pFences = &present_fence;
 
-    present_info.pNext = &fence_info;
+      present_info.pNext = &fence_info;
+    }
     present_result = vkQueuePresentKHR(device_vk.generic_queue, &present_info);
     this->setPresentFence(swapchain_, present_fence);
   }
