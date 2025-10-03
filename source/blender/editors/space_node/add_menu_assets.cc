@@ -80,7 +80,6 @@ static Set<StringRef> get_builtin_menus(const int tree_type)
               "Geometry/Material",
               "Geometry/Read",
               "Geometry/Sample",
-              "Geometry/Selection",
               "Geometry/Write",
               "Geometry/Operations",
               "Curve",
@@ -150,8 +149,8 @@ static Set<StringRef> get_builtin_menus(const int tree_type)
               "Color",
               "Texture",
               "Utilities",
-              "Utilities/Vector",
               "Utilities/Math",
+              "Utilities/Vector",
               "Group",
               "Layout"};
   }
