@@ -1330,7 +1330,7 @@ ShapeCache::ShapeCache()
   /* cursor circle */
   {
     const int segments = 12;
-    const float radius = 0.28f;
+    const float radius = 0.38f;
     const float color_dark[3] = {0.4f, 0.4f, 0.4f};
     const float color_light[3] = {0.8f, 0.8f, 0.8f};
 
@@ -1347,8 +1347,8 @@ ShapeCache::ShapeCache()
   }
   /* cursor lines */
   {
-    const float f5 = 0.68f;
-    const float f20 = 0.33f;
+    const float f5 = 0.78f;
+    const float f20 = 0.43f;
     const std::array<int, 3> axis_theme = {TH_AXIS_X, TH_AXIS_Y, TH_AXIS_Z};
 
     float crosshair_color[3];
