@@ -439,7 +439,7 @@ void BM_mesh_select_mode_flush(BMesh *bm)
 
 /** \} */
 
-void BM_mesh_select_flush(BMesh *bm, const bool select)
+void BM_mesh_select_flush_from_verts(BMesh *bm, const bool select)
 {
   if (select) {
     BMEdge *e;
@@ -1114,6 +1114,19 @@ void BM_select_history_validate(BMesh *bm)
       BLI_freelinkN(&(bm->selected), ese);
     }
   }
+}
+
+char BM_select_history_htype_all(const BMesh *bm)
+{
+  char htype_selected = 0;
+  LISTBASE_FOREACH (const BMEditSelection *, ese, &bm->selected) {
+    htype_selected |= ese->htype;
+    /* Early exit if all types found. */
+    if (htype_selected == (BM_VERT | BM_EDGE | BM_FACE)) {
+      break;
+    }
+  }
+  return htype_selected;
 }
 
 bool BM_select_history_active_get(BMesh *bm, BMEditSelection *ese)

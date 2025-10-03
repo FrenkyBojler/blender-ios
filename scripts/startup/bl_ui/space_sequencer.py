@@ -174,7 +174,8 @@ class SEQUENCER_HT_header(Header):
 
         layout.separator_spacer()
 
-        tool_settings = context.tool_settings
+        scene = context.sequencer_scene
+        tool_settings = scene.tool_settings if scene else None
         sequencer_tool_settings = tool_settings.sequencer_tool_settings if tool_settings else None
 
         if st.view_type == 'SEQUENCER':
@@ -492,7 +493,7 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
-        layout.prop(st, "show_region_footer")
+        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
         if is_preview:
@@ -547,7 +548,11 @@ class SEQUENCER_MT_view(Menu):
             layout.menu("SEQUENCER_MT_range")
             layout.separator()
 
-        layout.menu("SEQUENCER_MT_view_render")
+        layout.operator("render.opengl", text="Render Still Preview", icon='RENDER_STILL').sequencer = True
+        props = layout.operator("render.opengl", text="Render Sequence Preview", icon='RENDER_ANIMATION')
+        props.animation = True
+        props.sequencer = True
+
         layout.separator()
 
         layout.operator("sequencer.export_subtitles", text="Export Subtitles", icon='EXPORT')
@@ -686,8 +691,7 @@ class SEQUENCER_MT_change(Menu):
         if strip and strip.type in {
             'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
             'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-            'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
-            'GAUSSIAN_BLUR',
+            'SPEED', 'MULTICAM', 'ADJUSTMENT', 'GAUSSIAN_BLUR',
         }:
             layout.menu("SEQUENCER_MT_strip_effect_change")
             layout.operator("sequencer.swap_inputs")
@@ -845,7 +849,6 @@ class SEQUENCER_MT_add_effect(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.effect_strip_add", text="Transform").type = 'TRANSFORM'
         col.operator("sequencer.effect_strip_add", text="Speed Control").type = 'SPEED'
         col.operator("sequencer.effect_strip_add", text="Glow").type = 'GLOW'
         col.operator("sequencer.effect_strip_add", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
@@ -1085,7 +1088,6 @@ class SEQUENCER_MT_strip_effect_change(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.change_effect_type", text="Transform").type = 'TRANSFORM'
         col.operator("sequencer.change_effect_type", text="Speed Control").type = 'SPEED'
         col.operator("sequencer.change_effect_type", text="Glow").type = 'GLOW'
         col.operator("sequencer.change_effect_type", text="Gaussian Blur").type = 'GAUSSIAN_BLUR'
@@ -1219,8 +1221,7 @@ class SEQUENCER_MT_strip(Menu):
                 if strip_type in {
                         'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                         'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-                        'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
-                        'GAUSSIAN_BLUR',
+                        'SPEED', 'MULTICAM', 'ADJUSTMENT', 'GAUSSIAN_BLUR',
                 }:
                     layout.separator()
                     layout.menu("SEQUENCER_MT_strip_effect")
@@ -1403,8 +1404,7 @@ class SEQUENCER_MT_context_menu(Menu):
             if strip_type in {
                     'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
                     'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
-                    'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
-                    'GAUSSIAN_BLUR',
+                    'SPEED', 'MULTICAM', 'ADJUSTMENT', 'GAUSSIAN_BLUR',
             }:
                 layout.separator()
                 layout.menu("SEQUENCER_MT_strip_effect")
@@ -1481,8 +1481,8 @@ class SEQUENCER_MT_pivot_pie(Menu):
         layout = self.layout
         pie = layout.menu_pie()
 
-        if context.tool_settings:
-            sequencer_tool_settings = context.tool_settings.sequencer_tool_settings
+        if context.sequencer_scene:
+            sequencer_tool_settings = context.sequencer_scene.tool_settings.sequencer_tool_settings
 
             pie.prop_enum(sequencer_tool_settings, "pivot_point", value='CENTER')
             pie.prop_enum(sequencer_tool_settings, "pivot_point", value='CURSOR')
@@ -1567,6 +1567,7 @@ class SEQUENCER_MT_modifier_add(Menu):
         else:
             self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
             self.operator_modifier_add(layout, 'COLOR_BALANCE')
+            self.operator_modifier_add(layout, 'COMPOSITOR')
             self.operator_modifier_add(layout, 'CURVES')
             self.operator_modifier_add(layout, 'HUE_CORRECT')
             self.operator_modifier_add(layout, 'MASK')
@@ -1651,8 +1652,7 @@ class SEQUENCER_PT_strip(SequencerButtonsPanel, Panel):
 
         if strip_type in {
                 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER', 'MULTIPLY',
-                'GLOW', 'TRANSFORM', 'SPEED', 'MULTICAM',
-                'GAUSSIAN_BLUR', 'COLORMIX',
+                'GLOW', 'SPEED', 'MULTICAM', 'GAUSSIAN_BLUR', 'COLORMIX',
         }:
             icon_header = 'SHADERFX'
         elif strip_type in {
@@ -1743,8 +1743,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
 
         return strip.type in {
             'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
-            'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR', 'SPEED',
+            'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW', 'COLOR', 'SPEED',
             'MULTICAM', 'GAUSSIAN_BLUR', 'TEXT', 'COLORMIX',
         }
 
@@ -1807,30 +1806,6 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             row.enabled = strip.speed_control != 'STRETCH'
             row = layout.row(align=True, heading="Interpolation")
             row.prop(strip, "use_frame_interpolate", text="")
-
-        elif strip_type == 'TRANSFORM':
-            col = layout.column()
-
-            col.prop(strip, "interpolation")
-            col.prop(strip, "translation_unit")
-            col = layout.column(align=True)
-            col.prop(strip, "translate_start_x", text="Position X")
-            col.prop(strip, "translate_start_y", text="Y")
-
-            col.separator()
-
-            colsub = col.column(align=True)
-            colsub.prop(strip, "use_uniform_scale")
-            if strip.use_uniform_scale:
-                colsub = col.column(align=True)
-                colsub.prop(strip, "scale_start_x", text="Scale")
-            else:
-                col.prop(strip, "scale_start_x", text="Scale X")
-                col.prop(strip, "scale_start_y", text="Y")
-
-            col.separator()
-
-            col.prop(strip, "rotation_start", text="Rotation")
 
         elif strip_type == 'MULTICAM':
             col = layout.column(align=True)
@@ -2527,6 +2502,10 @@ class SEQUENCER_PT_adjust_sound(SequencerButtonsPanel, Panel):
             layout.use_property_split = False
             col = layout.column()
 
+            split = col.split(factor=0.4)
+            split.label(text="")
+            split.prop(strip, "pitch_correction")
+
             if overlay_settings.waveform_display_type == 'DEFAULT_WAVEFORMS':
                 split = col.split(factor=0.4)
                 split.label(text="")
@@ -2623,8 +2602,7 @@ class SEQUENCER_PT_adjust_video(SequencerButtonsPanel, Panel):
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
+            'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
         }
 
     def draw(self, context):
@@ -2660,8 +2638,7 @@ class SEQUENCER_PT_adjust_color(SequencerButtonsPanel, Panel):
             'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY',
-            'WIPE', 'GLOW', 'TRANSFORM', 'COLOR',
-            'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
+            'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',
         }
 
     def draw(self, context):
@@ -3115,7 +3092,7 @@ class SEQUENCER_PT_preview_snapping(Panel):
     @classmethod
     def poll(cls, context):
         st = context.space_data
-        return st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'} and context.tool_settings
+        return st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'} and context.sequencer_scene
 
     def draw(self, context):
         tool_settings = context.tool_settings
@@ -3140,7 +3117,7 @@ class SEQUENCER_PT_sequencer_snapping(Panel):
     @classmethod
     def poll(cls, context):
         st = context.space_data
-        return st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'} and context.tool_settings
+        return st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'} and context.sequencer_scene
 
     def draw(self, context):
         tool_settings = context.tool_settings
@@ -3169,7 +3146,6 @@ classes = (
     SEQUENCER_HT_playback_controls,
     SEQUENCER_MT_editor_menus,
     SEQUENCER_MT_range,
-    SEQUENCER_MT_view_render,
     SEQUENCER_MT_view,
     SEQUENCER_MT_preview_zoom,
     SEQUENCER_MT_proxy,
