@@ -167,6 +167,14 @@ typedef struct WalkNavigation {
   char _pad0[6];
 } WalkNavigation;
 
+typedef struct XrNavigation {
+  float vignette_intensity;
+  float turn_speed;
+  float turn_amount;
+  short flag;
+  char _pad0[2];
+} XrNavigation;
+
 typedef struct UserDef_Runtime {
   /** Mark as changed so the preferences are saved on exit. */
   char is_dirty;
@@ -231,10 +239,9 @@ typedef struct UserDef_Experimental {
   char use_new_curves_tools;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
-  char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char _pad[5];
+  char _pad[6];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -619,6 +626,7 @@ typedef struct UserDef {
   char statusbar_flag;    /* eUserpref_StatusBar_Flag */
 
   struct WalkNavigation walk_navigation;
+  struct XrNavigation xr_navigation;
 
   /** The UI for the user preferences. */
   UserDef_SpaceData space_data;
@@ -1107,6 +1115,12 @@ typedef enum eUserpref_FactorDisplay {
   USER_FACTOR_AS_FACTOR = 0,
   USER_FACTOR_AS_PERCENTAGE = 1,
 } eUserpref_FactorDisplay;
+
+/** #UserDef.xr_navigation_flag */
+typedef enum eUserpref_XrNavigationFlags {
+  USER_XR_NAV_SNAP_TURN = (1 << 0),
+  USER_XR_NAV_INVERT_ROTATION = (1 << 1),
+} eUserpref_XrNavigationFlags;
 
 typedef enum eUserpref_RenderDisplayType {
   USER_RENDER_DISPLAY_NONE = 0,
