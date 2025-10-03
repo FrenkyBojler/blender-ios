@@ -5883,14 +5883,28 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       BMLoop *l;
       BMIter liter;
 
+      bool island_in_tile = false;
+      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+        const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
+
+        if (luv[0] >= tile_x && luv[0] < tile_x + 1.0f && luv[1] >= tile_y &&
+            luv[1] < tile_y + 1.0f)
+        {
+          island_in_tile = true;
+          break;
+        }
+      }
+
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
         const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
 
         if (luv[0] >= tile_x && luv[0] <= tile_x + 1.0f && luv[1] >= tile_y &&
             luv[1] <= tile_y + 1.0f)
         {
-          changed = true;
-          uvedit_uv_select_set_with_sticky(scene, em->bm, l, true, offsets);
+          if (island_in_tile || (luv[0] != tile_x + 1.0f && luv[1] != tile_y + 1.0f)) {
+            uvedit_uv_select_set_with_sticky(scene, em->bm, l, true, offsets);
+            changed = true;
+          }
         }
       }
     }
