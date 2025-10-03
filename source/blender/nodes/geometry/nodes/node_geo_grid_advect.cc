@@ -8,6 +8,7 @@
 
 #ifdef WITH_OPENVDB
 #  include "BKE_volume_grid.hh"
+#  include "BKE_volume_openvdb.hh"
 #  include "openvdb/tools/VolumeAdvect.h"
 #endif
 
@@ -96,6 +97,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
+  b.add_input<decl::Float>("Time Step")
+      .default_value(1.0f)
+      .min(0.0f)
+      .description("Time step for advection in seconds");
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input<decl::Vector>("Velocity").hide_value().structure_type(StructureType::Grid);
@@ -122,10 +127,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label()
       .description("Limiting strategy to prevent numerical artifacts");
 #endif
-  b.add_input<decl::Float>("Time Step")
-      .default_value(1.0f)
-      .min(0.0f)
-      .description("Time step for advection in seconds");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -210,43 +211,27 @@ static void node_geo_exec(GeoNodeExecParams params)
   const openvdb::Vec3SGrid &velocity_vdb_grid = velocity_grid.grid(tree_token);
 
   const VolumeGridType grid_type = grid->grid_type();
-  switch (grid_type) {
-    case VOLUME_GRID_FLOAT: {
-      const bke::VolumeGrid<float> typed_grid = grid.typed<float>();
-      const openvdb::FloatGrid &vdb_grid = typed_grid.grid(tree_token);
-      openvdb::FloatGrid::Ptr result = advect_grid(
-          vdb_grid, velocity_vdb_grid, time_step, scheme, limiter);
-      params.set_output("Grid", bke::GVolumeGrid(bke::VolumeGrid<float>(std::move(result))));
-      break;
+
+  BKE_volume_grid_type_to_static_type(grid_type, [&](auto grid_type_tag) {
+    using GridType = typename decltype(grid_type_tag)::type;
+    /* Only float, int, and vector float grids are supported. Others are filtered at UI level. */
+    if constexpr (std::is_same_v<GridType, openvdb::FloatGrid> ||
+                  std::is_same_v<GridType, openvdb::Int32Grid> ||
+                  std::is_same_v<GridType, openvdb::Vec3fGrid>)
+    {
+      typename GridType::Ptr result = advect_grid(
+          static_cast<const GridType &>(grid->grid(tree_token)),
+          velocity_vdb_grid,
+          time_step,
+          scheme,
+          limiter);
+      params.set_output("Grid", bke::GVolumeGrid(std::move(result)));
     }
-    case VOLUME_GRID_INT: {
-      const bke::VolumeGrid<int> typed_grid = grid.typed<int>();
-      const openvdb::Int32Grid &vdb_grid = typed_grid.grid(tree_token);
-      openvdb::Int32Grid::Ptr result = advect_grid(
-          vdb_grid, velocity_vdb_grid, time_step, scheme, limiter);
-      params.set_output("Grid", bke::GVolumeGrid(bke::VolumeGrid<int>(std::move(result))));
-      break;
-    }
-    case VOLUME_GRID_VECTOR_FLOAT: {
-      const bke::VolumeGrid<float3> typed_grid = grid.typed<float3>();
-      const openvdb::Vec3fGrid &vdb_grid = typed_grid.grid(tree_token);
-      openvdb::Vec3fGrid::Ptr result = advect_grid(
-          vdb_grid, velocity_vdb_grid, time_step, scheme, limiter);
-      params.set_output("Grid", bke::GVolumeGrid(bke::VolumeGrid<float3>(std::move(result))));
-      break;
-    }
-    case VOLUME_GRID_BOOLEAN:
-    case VOLUME_GRID_MASK:
-    case VOLUME_GRID_UNKNOWN:
-    case VOLUME_GRID_DOUBLE:
-    case VOLUME_GRID_INT64:
-    case VOLUME_GRID_VECTOR_DOUBLE:
-    case VOLUME_GRID_VECTOR_INT:
-    case VOLUME_GRID_POINTS:
+    else {
       params.error_message_add(NodeWarningType::Error, "Unsupported grid type for advection");
       params.set_default_remaining_outputs();
-      return;
-  }
+    }
+  });
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -255,6 +240,20 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = SOCK_FLOAT;
+}
+
+static const EnumPropertyItem *advect_grid_socket_type_filter(bContext * /*C*/,
+                                                              PointerRNA * /*ptr*/,
+                                                              PropertyRNA * /*prop*/,
+                                                              bool *r_free)
+{
+  *r_free = true;
+  /* Only float, int, and vector grids are supported for advection. */
+  return enum_items_filter(rna_enum_node_socket_data_type_items,
+                           [](const EnumPropertyItem &item) -> bool {
+                             const eNodeSocketDatatype type = eNodeSocketDatatype(item.value);
+                             return ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR);
+                           });
 }
 
 static void node_rna(StructRNA *srna)
@@ -266,7 +265,7 @@ static void node_rna(StructRNA *srna)
                     rna_enum_node_socket_data_type_items,
                     NOD_inline_enum_accessors(custom1),
                     SOCK_FLOAT,
-                    grid_socket_type_items_filter_fn);
+                    advect_grid_socket_type_filter);
 }
 
 static void node_register()
