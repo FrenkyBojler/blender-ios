@@ -4435,7 +4435,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
           prop->noteflag,
           rna_function_string(prop->editable),
           rna_function_string(prop->itemeditable),
-          rna_function_string(prop->name_func),
+          rna_function_string(prop->ui_name_func),
           rna_function_string(prop->override_diff),
           rna_function_string(prop->override_store),
           rna_function_string(prop->override_apply));

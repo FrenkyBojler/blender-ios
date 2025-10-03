@@ -3231,7 +3231,7 @@ void RNA_def_property_ui_name_func(PropertyRNA *prop, const char *name_func)
   }
 
   if (name_func) {
-    prop->name_func = (PropUINameFunc)name_func;
+    prop->ui_name_func = (PropUINameFunc)name_func;
   }
 }
 

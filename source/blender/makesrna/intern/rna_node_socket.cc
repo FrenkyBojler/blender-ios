@@ -467,10 +467,15 @@ static void rna_NodeSocketStandard_draw_color_simple(StructRNA *type, float r_co
   typeinfo->draw_color_simple(typeinfo, r_color);
 }
 
-static const char *rna_NodeSocketStandard_name_func(const PointerRNA *ptr)
+static const char *rna_NodeSocketStandard_name_func(const PointerRNA *ptr,
+                                                    const PropertyRNA * /*prop*/,
+                                                    const bool do_translate)
 {
   const bNodeSocket *socket = ptr->data_as<bNodeSocket>();
-  return blender::ed::space_node::node_socket_get_label(socket);
+  if (do_translate) {
+    return blender::ed::space_node::node_socket_get_label(socket);
+  }
+  return socket->name;
 }
 
 /* ******** Node Socket Subtypes ******** */
