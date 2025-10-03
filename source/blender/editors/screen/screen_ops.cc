@@ -4619,6 +4619,43 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
               std::swap(jd->sa1->winy, jd->sa2->winy);
             }
 
+            bool has_properties = false;
+            bool has_outliner = false;
+            ED_screen_areas_iter (jd->win1, jd->screen, area) {
+              if (area->spacetype == SPACE_PROPERTIES) {
+                has_properties = true;
+              }
+              else if (area->spacetype == SPACE_OUTLINER) {
+                has_outliner = true;
+              }
+            }
+
+            if (jd->split_dir == SCREEN_AXIS_H && jd->sa1->v1->vec.x > int(jd->win1->sizex * 0.6f))
+            {
+              if (!has_properties && ELEM(SPACE_OUTLINER, jd->sa1->spacetype, jd->sa2->spacetype))
+              {
+                ED_area_newspace(C,
+                                 jd->sa1->v1->vec.y < jd->sa2->v1->vec.y ? jd->sa1 : jd->sa2,
+                                 SPACE_PROPERTIES,
+                                 true);
+              }
+              if (!has_outliner && ELEM(SPACE_PROPERTIES, jd->sa1->spacetype, jd->sa2->spacetype))
+              {
+                ED_area_newspace(C,
+                                 jd->sa1->v1->vec.y > jd->sa2->v1->vec.y ? jd->sa1 : jd->sa2,
+                                 SPACE_OUTLINER,
+                                 true);
+              }
+            }
+            else if (!has_properties && !has_outliner && jd->split_dir == SCREEN_AXIS_V) {
+              ScrArea *right = (jd->sa1->v1->vec.x > jd->sa2->v1->vec.x) ? jd->sa1 : jd->sa2;
+              if (right->v1->vec.x > int(jd->win1->sizex * 0.6f)) {
+                ED_area_newspace(C, right, SPACE_PROPERTIES, true);
+                right = area_split(jd->win1, jd->screen, right, SCREEN_AXIS_H, 0.65f, true);
+                ED_area_newspace(C, right, SPACE_OUTLINER, true);
+              }
+            }
+
             ED_area_tag_redraw(jd->sa1);
             ED_area_tag_redraw(jd->sa2);
           }
