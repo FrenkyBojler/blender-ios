@@ -5502,8 +5502,8 @@ static bool component_is_available(const blender::bke::GeometrySet &geometry,
                                    const blender::bke::GeometryComponent::Type type,
                                    const blender::bke::AttrDomain domain)
 {
-  if (const blender::bke::GeometryComponent &component = *geometry.get_component(type)) {
-    return component.attribute_domain_size(domain);
+  if (const blender::bke::GeometryComponent *component = geometry.get_component(type)) {
+    return component->attribute_domain_size(domain) != 0;
   }
   return false;
 }
@@ -5594,8 +5594,10 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
 
   unit_m4(ct->matrix);
 
-  const bke::AttrDomain domain = domain_value_to_attribute(static_cast<Attribute_Domain>(acon->domain));
-  const bke::AttrType sample_data_type = type_value_to_attribute(static_cast<Attribute_Data_Type>(acon->data_type));
+  const bke::AttrDomain domain = domain_value_to_attribute(
+      static_cast<Attribute_Domain>(acon->domain));
+  const bke::AttrType sample_data_type = type_value_to_attribute(
+      static_cast<Attribute_Data_Type>(acon->data_type));
   const bke::GeometrySet &target_eval = bke::object_get_evaluated_geometry_set(*ct->tar);
 
   const bke::GeometryComponent *component = find_source_component(target_eval, domain);
@@ -5621,7 +5623,9 @@ static bool attribute_transform_get_tarmat(Depsgraph * /*depsgraph*/,
   BUFFER_FOR_CPP_TYPE_VALUE(type, sampled_value);
   attribute.get_to_uninitialized(index, sampled_value);
 
-  value_attribute_to_matrix(ct->matrix, GPointer(type, sampled_value), static_cast<Attribute_Data_Type>(acon->data_type));
+  value_attribute_to_matrix(ct->matrix,
+                            GPointer(type, sampled_value),
+                            static_cast<Attribute_Data_Type>(acon->data_type));
   type.destruct(sampled_value);
 
   return true;
