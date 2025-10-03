@@ -487,7 +487,12 @@ function(cuda_add_common_flags cuda_version in_flags out_flags)
   endif()
 
   if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${cuda_version}" GREATER_EQUAL 129)
-    set(flags ${flags} --split-compile=0)
+    # Only use split compile with few binaries, to avoid excessive memory usage.
+    # This is mainly helpful for quick local builds for one architecture.
+    list(LENGTH CYCLES_CUDA_BINARIES_ARCH _num_binaries)
+    if(_num_binaries LESS_EQUAL 2)
+      set(flags ${flags} --split-compile=0)
+    endif()
   endif()
 
   set(${out_flags} ${flags} PARENT_SCOPE)
