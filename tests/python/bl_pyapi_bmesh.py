@@ -217,16 +217,90 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.free()
 
     def test_uv_select_flush_mode(self):
-        pass
-
-    def test_uv_select_flush(self):
-        from mathutils import Vector
         bm = bmesh.new()
+
+        # Do a NOP empty mesh check.
+        bm.uv_select_sync_valid = True
+        bm.uv_select_flush_mode()
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
         bmesh.ops.create_grid(bm, x_segments=3, y_segments=3, size=1.0)
         # Needed for methods that act on UV select.
         bm.uv_select_sync_valid = True
 
+        # Do a NOP.
+        bm.uv_select_flush_mode()
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        def bm_select_set_all(bm, select):
+            for f in bm.faces:
+                f.uv_select = select
+                for l in f.loops:
+                    l.uv_select_vert = select
+                    l.uv_select_edge = select
+
+        # Simple tests that selects all elements in a mode: `VERT`.
+        bm.select_mode = {'VERT'}
+        bm_select_set_all(bm, False)
+        # Select only verts.
+        for f in bm.faces:
+            for l in f.loops:
+                l.uv_select_vert = True
+        bm.uv_select_flush_mode()
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((36, 36, 9), (16, 24, 9)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # Simple tests that selects all elements in a mode: `EDGE`.
+        bm.select_mode = {'EDGE'}
+        bm_select_set_all(bm, False)
+        # Select only edges..
+        for f in bm.faces:
+            for l in f.loops:
+                l.uv_select_edge_set(True)
+        bm.uv_select_flush_mode()
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((36, 36, 9), (16, 24, 9)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # Simple tests that selects all elements in a mode: `FACE`.
+        bm.select_mode = {'FACE'}
+        bm_select_set_all(bm, False)
+        # Select only faces.
+        for f in bm.faces:
+            f.uv_select_set(True)
+        bm.uv_select_flush_mode()
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((36, 36, 9), (16, 24, 9)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # TODO: Complex mixed selection.
+
+    def test_uv_select_flush(self):
+        from mathutils import Vector
+        bm = bmesh.new()
+
+        # Do a NOP empty mesh check.
+        bm.uv_select_sync_valid = True
+        bm.uv_select_flush(True)
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        bmesh.ops.create_grid(bm, x_segments=3, y_segments=3, size=1.0)
+        # Needed for methods that act on UV select.
+        bm.uv_select_sync_valid = True
         self.assertEqual((len(bm.verts), len(bm.edges), len(bm.faces)), (16, 24, 9))
+
+        # Do a NOP check.
+        bm.uv_select_flush(True)
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         faces = list(bm.faces)
 
@@ -248,6 +322,8 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         self.assertEqual(
             uv_select_check_non_zero(bm, sync=True, flush=True),
             {
+                "count_uv_edge_unselected_with_all_verts_selected": 4,
+                "count_uv_face_unselected_with_all_verts_selected": 1,
                 "count_uv_vert_any_selected_with_vert_unselected": 4,
             },
         )
@@ -259,7 +335,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
             uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True),
             # Not actually an error as the UV's have intentionally been selected in isolation.
             {
-                'count_uv_vert_non_contiguous_selected': 5,
+                "count_uv_vert_non_contiguous_selected": 5,
             },
         )
 
@@ -297,16 +373,82 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.free()
 
     def test_uv_select_sync_from_mesh(self):
-        from mathutils import Vector
         bm = bmesh.new()
+
+        uv_layer = bm.loops.layers.uv.new()
+
+        # Do a NOP empty mesh check.
+        bm.select_flush(True)
+        bm.uv_select_sync_from_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
         bmesh.ops.create_grid(bm, x_segments=4, y_segments=4, size=2.0)
         # Needed for methods that act on UV select.
         bm.uv_select_sync_valid = True
 
-        # save_to_blend_file_for_testing(bm)
+        # Deselect all verts and flush back to the mesh.
+        for v in bm.verts:
+            v.select = False
+        bm.select_flush(True)
+        bm.uv_select_sync_from_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # Select all verts and flush back to the mesh.
+        for v in bm.verts:
+            v.select = True
+        bm.select_flush(True)
+        bm.uv_select_sync_from_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((64, 64, 16), (25, 40, 16)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # TODO: Complex mixed selection.
 
     def test_uv_select_sync_to_mesh(self):
-        pass
+        # Even though this is called in other tests,
+        # perform some additional checks here such as checking hide is respected.
+
+        bm = bmesh.new()
+
+        uv_layer = bm.loops.layers.uv.new()
+
+        # Do a NOP empty mesh check.
+        bm.select_flush(True)
+        bm.uv_select_sync_from_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        bmesh.ops.create_grid(bm, x_segments=4, y_segments=4, size=2.0)
+        # Needed for methods that act on UV select.
+        bm.uv_select_sync_valid = True
+
+        # Select a single faces UV's bottom left hand corner (as well as adjacent UV's).
+        for f in bm.faces:
+            for l in f.loops:
+                l.uv_select_vert = True
+
+        bm.uv_select_flush(True)
+        bm.uv_select_sync_to_mesh()
+
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((64, 64, 16), (25, 40, 16)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # Hide all geometry, then check syncing doesn't select them.
+        for v in bm.verts:
+            v.hide = True
+        for e in bm.edges:
+            e.hide = True
+        for f in bm.faces:
+            f.hide = True
+
+        bm.uv_select_flush(True)
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        bm.uv_select_sync_to_mesh()
+        # Nothing should be selected because the mesh is hidden.
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
 
     def test_uv_select_foreach_set(self):
         # Select UV's directly, similar to selecting in the UV editor.
