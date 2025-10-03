@@ -3,16 +3,29 @@
 #include "BKE_mesh_gpu.hh"
 
 #include <fmt/format.h>
+#include <mutex>
+#include <unordered_map>
 
 #include "BKE_mesh.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 #include "BLI_task.hh"
 
 #include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 
+#include "GPU_compute.hh"
 #include "GPU_context.hh"
+#include "GPU_state.hh"
+#include "GPU_vertex_buffer.hh"
+
+#include "DEG_depsgraph_query.hh"
+
+#include "WM_api.hh"
+
+#include "../draw/intern/draw_cache_extract.hh"
 
 bool BKE_mesh_gpu_topology_create(const Mesh *mesh, blender::bke::MeshGPUTopology &topology)
 {
@@ -84,8 +97,7 @@ bool BKE_mesh_gpu_topology_create(const Mesh *mesh, blender::bke::MeshGPUTopolog
   topology.corner_verts_offset = topology.corner_to_face_offset + int(corner_to_face.size());
   topology.corner_tris_offset = topology.corner_verts_offset + int(corner_verts_vec.size());
   topology.corner_tri_faces_offset = topology.corner_tris_offset + int(corner_tris_flat.size());
-  topology.edges_offset = topology.corner_tri_faces_offset +
-                          int(corner_tri_faces_vec.size());
+  topology.edges_offset = topology.corner_tri_faces_offset + int(corner_tri_faces_vec.size());
   topology.corner_edges_offset = topology.edges_offset + int(edges_flat.size());
   topology.vert_to_face_offsets_offset = topology.corner_edges_offset +
                                          int(corner_edges_vec.size());
@@ -217,4 +229,198 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_positions_create_ssbo(const Mesh *mesh)
                                                             __func__);
 
   return ssbo;
+}
+
+#define MESH_GPU_TOPOLOGY_BINDING 14
+#define MESH_GPU_POSITIONS_BINDING 15
+
+struct MeshGpuData {
+  blender::bke::MeshGPUTopology topology;
+  blender::gpu::StorageBuf *ssbo_positions = nullptr;
+};
+
+static std::unordered_map<std::string, blender::gpu::Shader *> g_shader_cache;
+static std::unordered_map<const Mesh *, MeshGpuData> g_mesh_data_cache;
+static std::mutex g_mesh_cache_mutex;
+
+blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
+    const Depsgraph *depsgraph,
+    const Object *ob_eval,
+    const char *shader_name,
+    const char *main_glsl,
+    blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
+    const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
+    int dispatch_count)
+{
+  if (!GPU_context_active_get() || !depsgraph || !ob_eval || ob_eval->type != OB_MESH) {
+    return blender::bke::GpuComputeStatus::Error;
+  }
+
+  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  if (!mesh_eval) {
+    return blender::bke::GpuComputeStatus::Error;
+  }
+
+  Object *ob_orig = DEG_get_original(const_cast<Object *>(ob_eval));
+  if (!ob_orig) {
+    return blender::bke::GpuComputeStatus::Error;
+  }
+  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+
+  if (ob_orig->mode != OB_MODE_OBJECT) {
+    return blender::bke::GpuComputeStatus::NotReady;
+  }
+
+  if (!mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_WINDOW, nullptr);
+    return blender::bke::GpuComputeStatus::NotReady;
+  }
+
+  using namespace blender::draw;
+
+  auto *cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  auto *vbo_pos_ptr = cache->final.buff.vbos.lookup_ptr(blender::draw::VBOType::Position);
+  if (!vbo_pos_ptr) {
+    BKE_mesh_gpu_free_for_mesh(mesh_orig);
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_WINDOW, nullptr);
+    return blender::bke::GpuComputeStatus::NotReady;
+  }
+  auto *vbo_pos = vbo_pos_ptr->get();
+  const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
+  if (format->stride != 16) {
+    BKE_mesh_gpu_free_for_mesh(mesh_orig);
+    if (mesh_orig) {
+      mesh_orig->is_using_gpu_deform = 1;
+    }
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_WINDOW, nullptr);
+    return blender::bke::GpuComputeStatus::NotReady;
+  }
+  else {
+    mesh_orig->is_using_gpu_deform = 0;
+  }
+
+  mesh_eval->is_running_gpu_deform = 1;
+
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+
+  auto &mesh_data = g_mesh_data_cache[mesh_eval];
+  if (!mesh_data.topology.ssbo) {
+    if (!BKE_mesh_gpu_topology_create(mesh_eval, mesh_data.topology) ||
+        !BKE_mesh_gpu_topology_upload(mesh_data.topology))
+    {
+      return blender::bke::GpuComputeStatus::Error;
+    }
+  }
+  if (!mesh_data.ssbo_positions) {
+    mesh_data.ssbo_positions = BKE_mesh_gpu_positions_create_ssbo(mesh_eval);
+    if (!mesh_data.ssbo_positions) {
+      return blender::bke::GpuComputeStatus::Error;
+    }
+  }
+
+  blender::gpu::Shader *shader = nullptr;
+  auto it = g_shader_cache.find(shader_name);
+  if (it != g_shader_cache.end()) {
+    shader = it->second;
+  }
+  else {
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo info(shader_name);
+    info.local_group_size(256, 1, 1);
+    info.compute_source("draw_colormanagement_lib.glsl");
+
+    for (const auto &binding : caller_bindings) {
+      info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
+    }
+    info.storage_buf(MESH_GPU_TOPOLOGY_BINDING, Qualifier::read, "int", "topo[]");
+    info.storage_buf(MESH_GPU_POSITIONS_BINDING, Qualifier::read, "vec4", "positions_in[]");
+
+    BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
+
+    if (config_fn) {
+      config_fn(info);
+    }
+
+    std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
+    info.compute_source_generated = glsl_accessors + main_glsl;
+
+    shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
+    if (!shader) {
+      return blender::bke::GpuComputeStatus::Error;
+    }
+    g_shader_cache[shader_name] = shader;
+  }
+
+  GPU_shader_bind(shader);
+  for (const auto &binding : caller_bindings) {
+    std::visit(
+        [&](auto &&arg) {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, blender::gpu::StorageBuf *>) {
+            if (arg) {
+              GPU_storagebuf_bind(arg, binding.binding);
+            }
+          }
+          else if constexpr (std::is_same_v<T, blender::gpu::VertBuf *>) {
+            if (arg) {
+              arg->bind_as_ssbo(binding.binding);
+            }
+          }
+        },
+        binding.buffer);
+  }
+
+  GPU_storagebuf_bind(mesh_data.topology.ssbo, MESH_GPU_TOPOLOGY_BINDING);
+  GPU_storagebuf_bind(mesh_data.ssbo_positions, MESH_GPU_POSITIONS_BINDING);
+
+  const int group_size = 256;
+  const int num_groups = (dispatch_count + group_size - 1) / group_size;
+  GPU_compute_dispatch(shader, num_groups, 1, 1);
+
+  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
+  GPU_shader_unbind();
+
+  if (ob_orig) {
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+  }
+
+  return blender::bke::GpuComputeStatus::Success;
+}
+
+void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  auto it = g_mesh_data_cache.find(mesh);
+  if (it != g_mesh_data_cache.end()) {
+    MeshGpuData &data = it->second;
+    if (data.ssbo_positions) {
+      GPU_storagebuf_free(data.ssbo_positions);
+    }
+    BKE_mesh_gpu_topology_free(data.topology);
+    mesh->is_using_gpu_deform = 0;
+    g_mesh_data_cache.erase(it);
+  }
+}
+
+void BKE_mesh_gpu_free_all_caches()
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+  for (auto &pair : g_mesh_data_cache) {
+    MeshGpuData &data = pair.second;
+    if (data.ssbo_positions) {
+      GPU_storagebuf_free(data.ssbo_positions);
+    }
+    BKE_mesh_gpu_topology_free(data.topology);
+  }
+  g_mesh_data_cache.clear();
+
+  for (auto &pair : g_shader_cache) {
+    if (pair.second) {
+      GPU_shader_free(pair.second);
+    }
+  }
+  g_shader_cache.clear();
 }

@@ -45,262 +45,30 @@
 #include "gpu_py_storagebuffer.hh"
 #include "gpu_py_vertex_buffer.hh"
 
-struct MeshScatterResources {
-  blender::gpu::Shader *shader = nullptr;
-  blender::bke::MeshGPUTopology topology;
-  blender::gpu::StorageBuf *ssbo_transform_mat = nullptr;
-  int normals_domain = 0;
-  int normals_hq = 0;
-};
-
-/* Rollback guard for MeshScatter operations.
- *
- * Purpose:
- * - Centralizes cleanup of GPU resources and mesh state when a fatal error occurs
- *   after the mesh state has been mutated or GPU resources have been allocated.
- *
- * Usage:
- * - Construct the guard early: `MeshScatterRollback rb(mesh_orig, ob_orig);`
- * - Activate rollback only once irreversible work or allocations have been done:
- *     `rb.enable_rollback();`
- * - On a fatal error after activation, call:
- *     `return rb.fail_with_cleanup("message");`
- *   This sets the Python exception, arms the rollback and returns `nullptr`.
- * - For transient "retry" paths (e.g. `Py_RETURN_NONE` when cache is not ready),
- *   do not enable the rollback -- these paths should not free or reset state.
- * - On success call `rb.commit()` to disarm the rollback and avoid cleanup.
- *
- * Destructor (when and how it runs):
- * - The destructor is invoked automatically when the local `rb` object goes out of scope.
- *   This includes:
- *     - Normal function exit (end of `pygpu_mesh_scatter`),
- *     - Any early `return` from the function (including returns from `rb.fail_with_cleanup()`),
- *     - Stack unwinding during a C++ exception.
- * - The destructor performs cleanup only if the guard is armed (`enabled == true`).
- *   In that case it:
- *     - Resets `mesh_eval->is_running_gpu_deform` to 0 to avoid leaving the evaluated mesh marked,
- *     - Calls `bpygpu_mesh_scatter_free_for_mesh(mesh_orig)` to free or orphan GPU resources
- *       in a GPU-context-safe way,
- *     - Tags the object for geometry update and requests a redraw:
- *         `DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);`
- *         `WM_main_add_notifier(NC_WINDOW, nullptr);`
- * - If the guard is not armed (either `enable_rollback()` was never called, or `commit()` was
- *   called), the destructor is a no-op.
- *
- * Rationale:
- * - The RAII pattern avoids duplicated cleanup code and guarantees atomic rollback
- *   of mesh state on errors. Deferred freeing (orphaning) is handled by
- *   `bpygpu_mesh_scatter_free_for_mesh` to remain safe with respect to GPU context.
- */
-struct MeshScatterRollback {
-  Mesh *mesh_orig;
-  Mesh *mesh_eval;
-  Object *ob;
-  bool enabled = false;
-
-  MeshScatterRollback(Mesh *m_orig, Mesh *m_eval, Object *o)
-      : mesh_orig(m_orig), mesh_eval(m_eval), ob(o)
-  {
-  }
-
-  void enable_rollback()
-  {
-    enabled = true;
-  }
-
-  void commit()
-  {
-    /* Disarm rollback and drop references so destructor no-ops. */
-    enabled = false;
-    mesh_orig = nullptr;
-    mesh_eval = nullptr;
-    ob = nullptr;
-  }
-
-  /* Fail helper: set Python error, arm rollback and return nullptr. */
-  PyObject *fail_with_cleanup(const char *msg)
-  {
-    if (msg) {
-      PyErr_SetString(PyExc_RuntimeError, msg);
-    }
-    /* Arm the rollback so the destructor will cleanup. */
-    enabled = true;
-    return nullptr;
-  }
-
-  ~MeshScatterRollback()
-  {
-    if (!enabled) {
-      return;
-    }
-
-    /* Ensure evaluated mesh flag is reset so we don't leave it marked as running. */
-    if (mesh_eval) {
-      mesh_eval->is_running_gpu_deform = 0;
-    }
-
-    /* Free or orphan GPU resources associated with the original mesh. */
-    if (mesh_orig) {
-      bpygpu_mesh_scatter_free_for_mesh(mesh_orig);
-    }
-
-    /* Request geometry rebuild/redraw for the object so the system recovers. */
-    if (ob) {
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_main_add_notifier(NC_WINDOW, nullptr);
-    }
-  }
-};
-
-/* Orphans to free later when GPU context is available. */
-static std::vector<MeshScatterResources> g_mesh_scatter_orphans;
-static std::unordered_map<const Mesh *, MeshScatterResources> g_mesh_scatter_resources;
-static std::mutex g_mesh_scatter_resources_mutex;
-
-/* Free resources for a single mesh (safe to call from other translation units).
- * If no GPU context is active the resource is moved to a pending orphan list
- * and freed later (module cleanup or when a context becomes available). */
-void bpygpu_mesh_scatter_free_for_mesh(Mesh *mesh)
-{
-  if (mesh == nullptr) {
-    return;
-  }
-
-  mesh->is_using_gpu_deform = 0;
-
-  {
-    std::lock_guard<std::mutex> lock(g_mesh_scatter_resources_mutex);
-    auto it = g_mesh_scatter_resources.find(mesh);
-    if (it == g_mesh_scatter_resources.end()) {
-      return;
-    }
-
-    MeshScatterResources res = std::move(it->second);
-    g_mesh_scatter_resources.erase(it);
-
-    if (GPU_context_active_get()) {
-      if (res.shader) {
-        GPU_shader_free(res.shader);
-      }
-      if (res.ssbo_transform_mat) {
-        GPU_storagebuf_free(res.ssbo_transform_mat);
-      }
-      BKE_mesh_gpu_topology_free(res.topology);
-    }
-    else {
-      res.topology.data.clear();
-      res.topology.total_size = 0;
-      g_mesh_scatter_orphans.push_back(std::move(res));
-    }
-  }
-}
-
-/* Create (or reuse) scatter resources for a specific mesh:
- * - builds and uploads the packed topology SSBO
- * - creates the specialized compute shader with specialization constants set to those offsets
- *
- * Returns nullptr on failure (e.g. no GPU context). */
-static MeshScatterResources *mesh_scatter_resources_get_or_create(Mesh *mesh, Scene *scene)
-{
-  if (!mesh) {
-    return nullptr;
-  }
-
-  std::lock_guard<std::mutex> lock(g_mesh_scatter_resources_mutex);
-
-  auto it = g_mesh_scatter_resources.find(mesh);
-  if (it != g_mesh_scatter_resources.end()) {
-    /* Existing resources found -> return pointer to stored value. */
-    return &it->second;
-  }
-
-  /* Must have a GPU context to create SSBOs / shaders. */
-  if (!GPU_context_active_get()) {
-    return nullptr;
-  }
-
-  MeshScatterResources res;
-
-  if (!BKE_mesh_gpu_topology_create(mesh, res.topology)) {
-    return nullptr;
-  }
-
-  if (!BKE_mesh_gpu_topology_upload(res.topology)) {
-    return nullptr;
-  }
-
-  /* Create and upload transform matrix SSBO (identity matrix). */
-  if (!res.ssbo_transform_mat) {
-    float transform_mat[4][4];
-    unit_m4(transform_mat);
-    res.ssbo_transform_mat = GPU_storagebuf_create(sizeof(float) * 16);
-    GPU_storagebuf_update(res.ssbo_transform_mat, transform_mat);
-  }
-
-  res.normals_domain = mesh->normals_domain() == blender::bke::MeshNormalDomain::Face ? 1 : 0;
-  res.normals_hq = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) || GPU_use_hq_normals_workaround());
-
-  /* Create shader with specialization constants baked to mesh offsets. */
-  using namespace blender::gpu::shader;
-  const int group_size = 256;
-
-  ShaderCreateInfo info("BGE_Armature_Scatter_Pass_Mesh");
-  info.local_group_size(group_size, 1, 1);
-  info.compute_source("draw_colormanagement_lib.glsl");
-  info.storage_buf(0, Qualifier::write, "vec4", "positions[]");
-  info.storage_buf(1, Qualifier::write, "uint", "normals[]");
-  info.storage_buf(2, Qualifier::read, "vec4", "skinned_vert_positions[]");
-  info.storage_buf(3, Qualifier::read, "mat4", "transform_mat[]");
-  info.storage_buf(4, Qualifier::read, "int", "topo[]");
-
-  BKE_mesh_gpu_topology_add_specialization_constants(info, res.topology);
-
-  info.specialization_constant(Type::int_t, "normals_domain", res.normals_domain);
-  info.specialization_constant(Type::int_t, "normals_hq", res.normals_hq);
-
-  std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(res.topology);
-
-  info.compute_source_generated = glsl_accessors + R"GLSL(
-// helpers SNORM16 packing
+// GLSL code for the main compute logic.
+// Note the buffer names match the GpuMeshComputeBinding definitions below.
+static const char *SCATTER_SHADER_MAIN_GLSL = R"GLSL(
+// GLSL utility functions (packing, normals, etc.)
 int pack_i16_trunc(float x) {
-  const int max_i16 = 32767;
-  const int min_i16 = -32768;
-  float s = x * float(max_i16);
-  int q = int(round(s));
-  return clamp(q, min_i16, max_i16);
+  return clamp(int(round(x * 32767.0)), -32768, 32767);
 }
 uint pack_i16_pair(float a, float b) {
-  uint lo = uint(pack_i16_trunc(a)) & 0xFFFFu;
-  uint hi = (uint(pack_i16_trunc(b)) & 0xFFFFu) << 16;
-  return lo | hi;
+  return (uint(pack_i16_trunc(a)) & 0xFFFFu) | ((uint(pack_i16_trunc(b)) & 0xFFFFu) << 16);
 }
-
-// 10_10_10_2 packing utility
 int pack_i10_trunc(float x) {
-  const int signed_int_10_max = 511;
-  const int signed_int_10_min = -512;
-  float s = x * float(signed_int_10_max);
-  int q = int(s);
-  q = clamp(q, signed_int_10_min, signed_int_10_max);
-  return q & 0x3FF;
+  return clamp(int(x * 511.0), -512, 511) & 0x3FF;
 }
-
 uint pack_norm(vec3 n) {
-  int nx = pack_i10_trunc(n.x);
-  int ny = pack_i10_trunc(n.y);
-  int nz = pack_i10_trunc(n.z);
-  return uint(nx) | (uint(ny) << 10) | (uint(nz) << 20);
+  return uint(pack_i10_trunc(n.x)) | (uint(pack_i10_trunc(n.y)) << 10) | (uint(pack_i10_trunc(n.z)) << 20);
 }
 
 vec3 newell_face_normal_object(int f) {
   int beg = face_offsets(f);
   int end = face_offsets(f + 1);
   vec3 n = vec3(0.0);
-  int v_prev_idx = corner_verts(end - 1);
-  vec3 v_prev = skinned_vert_positions[v_prev_idx].xyz;
+  vec3 v_prev = positions_in[corner_verts(end - 1)].xyz;
   for (int i = beg; i < end; ++i) {
-    int v_curr_idx = corner_verts(i);
-    vec3 v_curr = skinned_vert_positions[v_curr_idx].xyz;
+    vec3 v_curr = positions_in[corner_verts(i)].xyz;
     n += cross(v_prev, v_curr);
     v_prev = v_curr;
   }
@@ -313,268 +81,85 @@ vec3 transform_normal(vec3 n, mat4 m) {
 
 void main() {
   uint c = gl_GlobalInvocationID.x;
-  if (c >= positions.length()) {
+  if (c >= positions_out.length()) {
     return;
   }
 
   int v = corner_verts(int(c));
 
   // 1) Scatter position
-  vec4 p_obj = skinned_vert_positions[v];
-  positions[c] = transform_mat[0] * p_obj;
+  vec4 p_obj = skinned_positions_in[v];
+  positions_out[c] = transform_mat[0] * p_obj;
 
   // 2) Calculate and scatter normal
   vec3 n_obj;
-  if (normals_domain == 1) { // Face
+  if (normals_domain == 1) { // Face normals
     int f = corner_to_face(int(c));
     n_obj = newell_face_normal_object(f);
   }
-  else { // Point
+  else { // Vertex normals
     int beg = vert_to_face_offsets(v);
     int end = vert_to_face_offsets(v + 1);
     vec3 n_accum = vec3(0.0);
     for (int i = beg; i < end; ++i) {
-      int f = vert_to_face(i);
-      n_accum += newell_face_normal_object(f);
+      n_accum += newell_face_normal_object(vert_to_face(i));
     }
     n_obj = n_accum;
   }
 
   vec3 n_world = transform_normal(n_obj, transform_mat[0]);
   if (normals_hq == 0) {
-    /* existing 10_10_10_2 packing, 1 uint per corner */
-    normals[c] = pack_norm(n_world);
+    normals_out[c] = pack_norm(n_world);
   }
   else {
-    /* SNORM16x4 packing: write 2 uints per corner (x,y) then (z,0) */
     int base = int(c) * 2;
-    normals[base + 0] = pack_i16_pair(n_world.x, n_world.y);
-    normals[base + 1] = pack_i16_pair(n_world.z, 0.0);
+    normals_out[base + 0] = pack_i16_pair(n_world.x, n_world.y);
+    normals_out[base + 1] = pack_i16_pair(n_world.z, 0.0);
   }
 }
 )GLSL";
 
-  blender::gpu::Shader *shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
-  if (!shader) {
-    /* Creation failed: cleanup created ssbo if any. */
-    if (res.ssbo_transform_mat) {
-      GPU_storagebuf_free(res.ssbo_transform_mat);
-      res.ssbo_transform_mat = nullptr;
-    }
-    return nullptr;
-  }
-
-  res.shader = shader;
-
-  /* Insert into global map and return pointer to stored value. */
-  auto inserted = g_mesh_scatter_resources.emplace(mesh, std::move(res));
-  return &inserted.first->second;
-}
-
-/* Free all cached mesh scatter resources (shader + ssbo) */
-static void mesh_scatter_resources_free_all()
+/* Helper to create a temporary SSBO for the transform matrix. */
+static blender::gpu::StorageBuf *create_transform_ssbo_from_py(PyObject *py_transform)
 {
-  std::lock_guard<std::mutex> lock(g_mesh_scatter_resources_mutex);
-
-  /* Free map entries */
-  for (auto &kv : g_mesh_scatter_resources) {
-    const Mesh *mesh_key = kv.first;
-    if (mesh_key) {
-      Mesh *mesh_mut = const_cast<Mesh *>(mesh_key);
-      mesh_mut->is_using_gpu_deform = 0;
-    }
-    MeshScatterResources &r = kv.second;
-    if (r.shader && GPU_context_active_get()) {
-      GPU_shader_free(r.shader);
-      r.shader = nullptr;
-    }
-    if (r.ssbo_transform_mat && GPU_context_active_get()) {
-      GPU_storagebuf_free(r.ssbo_transform_mat);
-      r.ssbo_transform_mat = nullptr;
-    }
-    BKE_mesh_gpu_topology_free(r.topology);
-  }
-  g_mesh_scatter_resources.clear();
-
-  /* Free orphans */
-  for (MeshScatterResources &r : g_mesh_scatter_orphans) {
-    if (GPU_context_active_get()) {
-      if (r.shader) {
-        GPU_shader_free(r.shader);
-      }
-      if (r.ssbo_transform_mat) {
-        GPU_storagebuf_free(r.ssbo_transform_mat);
-      }
-      if (r.topology.ssbo) {
-        GPU_storagebuf_free(r.topology.ssbo);
-        r.topology.ssbo = nullptr;
-      }
-    }
-  }
-  g_mesh_scatter_orphans.clear();
-}
-
-/* Expose C symbol for module cleanup (used from gpu module free). */
-void bpygpu_mesh_scatter_shaders_free_all()
-{
-  mesh_scatter_resources_free_all();
-}
-
-static bool vbos_ready_for_scatter(Mesh *mesh_eval)
-{
-  if (!mesh_eval || !mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
-    return false;
-  }
-  auto cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
-  if (!cache || cache->final.buff.vbos.size() == 0) {
-    return false;
-  }
-  return true;
-}
-
-/* Returns stored MeshScatterResources pointer or nullptr on failure.
- * If expected_corners is provided it is filled with current corner count.
- */
-static MeshScatterResources *ensure_resources(Mesh *mesh_eval, Scene *scene, int *expected_corners)
-{
-  MeshScatterResources *res = mesh_scatter_resources_get_or_create(mesh_eval, scene);
-  if (!res) {
-    return nullptr;
-  }
-  if (expected_corners) {
-    *expected_corners = int(mesh_eval->corner_verts().size());
-  }
-  return res;
-}
-
-/* Result type for post MeshScatterResources creation checks.
- * If `error` != nullptr the check failed and callers should treat it as an error message.
- * On success `error` is nullptr and cache/vbo pointers are valid.
- */
-struct ResourceCheckResult {
-  const char *error;
-  blender::draw::MeshBatchCache *cache;
-  blender::gpu::VertBuf *vbo_pos;
-  blender::gpu::VertBuf *vbo_nor;
-};
-
-static ResourceCheckResult check_post_resource_invariants(Object *ob_orig,
-                                                          Mesh *mesh_orig,
-                                                          Mesh *mesh_eval)
-{
-  using namespace blender::draw;
-
-  ResourceCheckResult result = {nullptr, nullptr, nullptr, nullptr};
-
-  if (!mesh_eval || !mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
-    result.error = "Mesh batch cache not available after resource setup";
-    return result;
-  }
-  if (ob_orig->type != OB_MESH) {
-    result.error = "Object no longer owns a mesh";
-    return result;
-  }
-  if (ob_orig->modifiers.first) {
-    result.error = "Object gained modifiers while running";
-    return result;
-  }
-  if (mesh_orig != static_cast<Mesh *>(ob_orig->data)) {
-    result.error = "Mesh data was replaced while running";
-    return result;
-  }
-
-  auto cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
-  if (!cache || cache->final.buff.vbos.size() == 0) {
-    result.error = "Mesh batch cache VBOs not available after resource setup";
-    return result;
-  }
-
-  /* Lookup VBOs */
-  auto pos_it = cache->final.buff.vbos.lookup_ptr(VBOType::Position);
-  auto nor_it = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal);
-  if (!pos_it || !nor_it) {
-    result.error = "Required VBOs missing after resource setup";
-    return result;
-  }
-
-  blender::gpu::VertBuf *pos_vbo = pos_it->get();
-  blender::gpu::VertBuf *nor_vbo = nor_it->get();
-
-  const GPUVertFormat *format2 = GPU_vertbuf_get_format(pos_vbo);
-  int pos_id2 = GPU_vertformat_attr_id_get(format2, "pos");
-  if (pos_id2 < 0) {
-    result.error = "Position attribute missing in VBO";
-    return result;
-  }
-
-  /* Success: fill result */
-  result.cache = cache;
-  result.vbo_pos = pos_vbo;
-  result.vbo_nor = nor_vbo;
-  return result;
-}
-
-/* Parse and upload the transform SSBO. On error this returns rb.fail_with_cleanup(...).
- * On success returns nullptr (no Python exception set).
- *
- * rb must be valid; if rollback semantics are desired rb.enable_rollback() should be called
- * before invoking this helper.
- */
-static PyObject *parse_and_upload_transform(PyObject *py_transform,
-                                            MeshScatterResources *res,
-                                            MeshScatterRollback &rb)
-{
-  if (py_transform == nullptr || py_transform == Py_None) {
-    return nullptr; /* nothing to do */
-  }
-
-  if (MatrixObject_Check(py_transform)) {
-    MatrixObject *mat = (MatrixObject *)py_transform;
-    if (BaseMath_ReadCallback((BaseMathObject *)mat) == -1) {
-      return rb.fail_with_cleanup("Invalid mathutils.Matrix");
-    }
-    if ((mat->row_num != mat->col_num) || !ELEM(mat->row_num, 4)) {
-      return rb.fail_with_cleanup("Expected 4x4 matrix");
-    }
-    if (!res->ssbo_transform_mat) {
-      res->ssbo_transform_mat = GPU_storagebuf_create(sizeof(float) * 16);
-      if (!res->ssbo_transform_mat) {
-        return rb.fail_with_cleanup("Failed to create transform SSBO");
-      }
-    }
-    GPU_storagebuf_update(res->ssbo_transform_mat, mat->matrix);
-    return nullptr;
-  }
-
-  /* Fallback: flat sequence of 16 numbers (column-major) */
-  if (!PySequence_Check(py_transform) || PySequence_Size(py_transform) != 16) {
-    return rb.fail_with_cleanup(
-        "transform must be a mathutils.Matrix or a sequence of 16 numbers");
+  if (!py_transform || py_transform == Py_None) {
+    // No transform provided, create an identity matrix SSBO.
+    float identity_mat[4][4];
+    unit_m4(identity_mat);
+    return GPU_storagebuf_create_ex(
+        sizeof(identity_mat), identity_mat, GPU_USAGE_STATIC, __func__);
   }
 
   float transform_mat[16];
-  for (int i = 0; i < 16; i++) {
-    PyObject *item = PySequence_GetItem(py_transform, i); /* new ref */
-    if (!item) {
-      return rb.fail_with_cleanup("Failed to read transform sequence");
+  if (MatrixObject_Check(py_transform)) {
+    MatrixObject *mat = (MatrixObject *)py_transform;
+    if (BaseMath_ReadCallback((BaseMathObject *)mat) == -1 || mat->row_num != 4 ||
+        mat->col_num != 4)
+    {
+      PyErr_SetString(PyExc_ValueError, "Invalid 4x4 mathutils.Matrix for transform");
+      return nullptr;
     }
-    double val = PyFloat_AsDouble(item);
-    Py_DECREF(item);
-    if (PyErr_Occurred()) {
-      PyErr_Clear(); /* convert generic Python error to clearer message via fail_with_cleanup */
-      return rb.fail_with_cleanup("transform elements must be numbers");
-    }
-    transform_mat[i] = (float)val;
+    memcpy(transform_mat, mat->matrix, sizeof(transform_mat));
   }
-
-  if (!res->ssbo_transform_mat) {
-    res->ssbo_transform_mat = GPU_storagebuf_create(sizeof(float) * 16);
-    if (!res->ssbo_transform_mat) {
-      return rb.fail_with_cleanup("Failed to create transform SSBO");
+  else {
+    // Fallback for sequence of 16 floats.
+    if (!PySequence_Check(py_transform) || PySequence_Size(py_transform) != 16) {
+      PyErr_SetString(PyExc_TypeError,
+                      "transform must be a 4x4 mathutils.Matrix or a sequence of 16 floats");
+      return nullptr;
+    }
+    for (int i = 0; i < 16; i++) {
+      PyObject *item = PySequence_GetItem(py_transform, i);
+      if (!item)
+        return nullptr;
+      transform_mat[i] = PyFloat_AsDouble(item);
+      Py_DECREF(item);
+      if (PyErr_Occurred())
+        return nullptr;
     }
   }
-  GPU_storagebuf_update(res->ssbo_transform_mat, transform_mat);
-  return nullptr;
+  return GPU_storagebuf_create_ex(
+      sizeof(transform_mat), transform_mat, GPU_USAGE_STATIC, __func__);
 }
 
 PyDoc_STRVAR(
@@ -609,199 +194,115 @@ PyDoc_STRVAR(
 static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   using namespace blender::draw;
+  using namespace blender::bke;
 
   PyObject *py_obj = nullptr;
-  BPyGPUStorageBuf *py_ssbo = nullptr;
+  BPyGPUStorageBuf *py_ssbo_skinned_pos = nullptr;
   PyObject *py_transform = nullptr;
 
-  static const char *_keywords[] = {"obj", "ssbo", "transform", nullptr};
+  static const char *keywords[] = {"obj", "ssbo", "transform", nullptr};
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwds,
                                    "OO|O:scatter_positions_to_corners",
-                                   (char **)_keywords,
+                                   (char **)keywords,
                                    &py_obj,
-                                   &py_ssbo,
+                                   &py_ssbo_skinned_pos,
                                    &py_transform))
   {
     return nullptr;
   }
 
-  /* Validate GPU context */
+  /* --- 1. Validate Inputs --- */
   if (!GPU_context_active_get()) {
     PyErr_SetString(PyExc_RuntimeError, "No active GPU context");
     return nullptr;
   }
-
-  /* Validate ssbo */
-  if (!py_ssbo || py_ssbo->ssbo == nullptr) {
+  if (!py_ssbo_skinned_pos || !py_ssbo_skinned_pos->ssbo) {
     PyErr_SetString(PyExc_TypeError, "Expected a GPUStorageBuf as second argument");
     return nullptr;
   }
 
-  /* Convert Python object to Blender Object* */
   ID *id_obj = nullptr;
-  if (!pyrna_id_FromPyObject(py_obj, &id_obj)) {
+  if (!pyrna_id_FromPyObject(py_obj, &id_obj) || GS(id_obj->name) != ID_OB) {
     PyErr_Format(PyExc_TypeError, "Expected an Object, not %.200s", Py_TYPE(py_obj)->tp_name);
-    return nullptr;
-  }
-  if (GS(id_obj->name) != ID_OB) {
-    PyErr_Format(PyExc_TypeError,
-                 "Expected an Object, not %.200s",
-                 BKE_idtype_idcode_to_name(GS(id_obj->name)));
     return nullptr;
   }
 
   Object *ob_eval = reinterpret_cast<Object *>(id_obj);
-  if (!DEG_is_evaluated(ob_eval)) {
-    PyErr_SetString(PyExc_TypeError, "Expected an evaluated object");
-    return nullptr;
-  }
-
-  if (ob_eval->modifiers.first) {
-    PyErr_SetString(PyExc_ValueError, "Objects with modifiers are not supported");
-    return nullptr;
-  }
-  if (ob_eval->type != OB_MESH) {
-    PyErr_SetString(PyExc_TypeError, "Object does not own a mesh");
+  if (!DEG_is_evaluated(ob_eval) || ob_eval->type != OB_MESH) {
+    PyErr_SetString(PyExc_TypeError, "Expected an evaluated mesh object");
     return nullptr;
   }
 
   Depsgraph *depsgraph = DEG_get_depsgraph_by_id(ob_eval->id);
   if (!depsgraph) {
-    PyErr_SetString(PyExc_TypeError, "Object is not owned by a depsgraph");
+    PyErr_SetString(PyExc_RuntimeError, "Object is not owned by a depsgraph");
     return nullptr;
   }
 
-  Object *ob_orig = DEG_get_original(ob_eval);
-  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
   Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
-
-  /* Reject running in other Mode than OB_MODE_OBJECT (retry) */
-  if (ob_orig->mode != OB_MODE_OBJECT) {
+  if (!mesh_eval || !mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
+    /* Not an error, just not ready. Request a redraw and tell Python to try again later. */
+    Object *ob_orig = DEG_get_original(ob_eval);
+    if (ob_orig) {
+      DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_WINDOW, nullptr);
+    }
     Py_RETURN_NONE;
   }
 
-  /* Quick check for batch cache presence */
-  if (!vbos_ready_for_scatter(mesh_eval)) {
-    Py_RETURN_NONE; /* retry later */
+  /* --- 2. Prepare GPU resources and bindings --- */
+  auto *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+  auto *vbo_pos = cache->final.buff.vbos.lookup_ptr(VBOType::Position)->get();
+  auto *vbo_nor = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal)->get();
+
+  blender::gpu::StorageBuf *transform_ssbo = create_transform_ssbo_from_py(py_transform);
+  if (PyErr_Occurred()) {
+    return nullptr;
   }
 
-  blender::draw::MeshBatchCache *cache = static_cast<blender::draw::MeshBatchCache *>(
-      mesh_eval->runtime->batch_cache);
+  using namespace blender::gpu::shader;
 
-  /* Lookup VBOs */
-  blender::gpu::VertBuf *vbo_pos = nullptr;
-  blender::gpu::VertBuf *vbo_nor = nullptr;
-  {
-    auto pos_it = cache->final.buff.vbos.lookup_ptr(VBOType::Position);
-    auto nor_it = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal);
-    if (pos_it) {
-      vbo_pos = pos_it->get();
-    }
-    if (nor_it) {
-      vbo_nor = nor_it->get();
-    }
-    if (!vbo_pos || !vbo_nor) {
-      PyErr_SetString(PyExc_RuntimeError, "Required VBOs not present in cache");
-      return nullptr;
-    }
-  }
+  std::vector<GpuMeshComputeBinding> bindings = {
+      {0, vbo_pos, Qualifier::write, "vec4", "positions_out[]"},
+      {1, vbo_nor, Qualifier::write, "uint", "normals_out[]"},
+      {2, py_ssbo_skinned_pos->ssbo, Qualifier::read, "vec4", "skinned_positions_in[]"},
+      {3, transform_ssbo, Qualifier::read, "mat4", "transform_mat[]"},
+  };
 
-  /* Inspect vertex format and decide if we need rebuild (retry) */
-  const GPUVertFormat *format = GPU_vertbuf_get_format(vbo_pos);
-  int pos_id = GPU_vertformat_attr_id_get(format, "pos");
-  const GPUVertAttr *attr = &format->attrs[pos_id];
-  blender::gpu::VertAttrType type = attr->type.format;
-
-  using blender::gpu::VertAttrType;
-  if (type == VertAttrType::SFLOAT_32_32_32_32) {
-    mesh_orig->is_using_gpu_deform = 0;
-  }
-  else if (type == VertAttrType::SFLOAT_32_32_32) {
-    /* Request geometry rebuild (retry next frame) */
-    mesh_orig->is_using_gpu_deform = 1;
-  }
-
-  /* If the object is already tagged for geometry rebuild and the VBO format
-   * indicates the draw/cache is already to float4, free scatter resources and
-   * retry later. Do this before arming the rollback or marking mesh_eval. */
-  if ((ob_orig->id.recalc & ID_RECALC_GEOMETRY) != 0 &&
-      type == blender::gpu::VertAttrType::SFLOAT_32_32_32_32)
-  {
-    bpygpu_mesh_scatter_free_for_mesh(mesh_orig);
-    Py_RETURN_NONE;
-  }
-
-  if (mesh_orig->is_using_gpu_deform == 1) {
-    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
-    BKE_scene_graph_update_tagged(depsgraph, DEG_get_bmain(depsgraph));
-    WM_main_add_notifier(NC_WINDOW, nullptr);
-    Py_RETURN_NONE;
-  }
-
-  /* Mark evaluated mesh as running GPU deform */
-  mesh_eval->is_running_gpu_deform = 1;
-
-  /* Create rollback guard now (it will reset is_running_gpu_deform and free resources on error).
-   */
-  MeshScatterRollback rb(mesh_orig, mesh_eval, ob_orig);
-  /* Arm rollback immediately so any subsequent error triggers cleanup. */
-  rb.enable_rollback();
-
-  /* Create / get resources (may create SSBOs and shader) */
   Scene *scene = DEG_get_input_scene(depsgraph);
+  const int normals_domain_val = (mesh_eval->normals_domain() == MeshNormalDomain::Face) ? 1 : 0;
+  const int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
+                                 GPU_use_hq_normals_workaround());
 
-  MeshScatterResources *res = ensure_resources(mesh_eval, scene, nullptr);
+  auto config_shader = [&](blender::gpu::shader::ShaderCreateInfo &info) {
+    info.specialization_constant(
+        blender::gpu::shader::Type::int_t, "normals_domain", normals_domain_val);
+    info.specialization_constant(blender::gpu::shader::Type::int_t, "normals_hq", normals_hq_val);
+  };
 
-  if (!res || !res->shader) {
-    return rb.fail_with_cleanup("Scatter compute shader not available for mesh");
+  /* --- 3. Run Compute Shader via High-Level API --- */
+  GpuComputeStatus status = BKE_mesh_gpu_run_compute(depsgraph,
+                                                     ob_eval,
+                                                     "py_mesh_scatter",
+                                                     SCATTER_SHADER_MAIN_GLSL,
+                                                     bindings,
+                                                     config_shader,
+                                                     mesh_eval->corner_verts().size());
+
+  if (transform_ssbo) {
+    GPU_storagebuf_free(transform_ssbo);
   }
 
-  /* Check again if we need to free MeshScatterResources */
-  auto inv = check_post_resource_invariants(ob_orig, mesh_orig, mesh_eval);
-  if (inv.error) {
-    return rb.fail_with_cleanup(inv.error);
-  }
-  cache = inv.cache;
-  vbo_pos = inv.vbo_pos;
-  vbo_nor = inv.vbo_nor;
-
-  /* Parse & upload optional transform. On error this returns rb.fail_with_cleanup(...) */
-  PyObject *parse_err = parse_and_upload_transform(py_transform, res, rb);
-  if (parse_err) {
-    return parse_err;
+  if (status == GpuComputeStatus::Error) {
+    PyErr_SetString(PyExc_RuntimeError, "Failed to run mesh compute shader");
+    return nullptr;
   }
 
-  /* Bind shader with specialization constants state */
-  const blender::gpu::shader::SpecializationConstants *constants_state =
-      &GPU_shader_get_default_constant_state(res->shader);
-  GPU_shader_bind(res->shader, constants_state);
+  if (status == GpuComputeStatus::NotReady) {
+    Py_RETURN_NONE;
+  }
 
-  /* Bind destination VBOs as SSBO */
-  vbo_pos->bind_as_ssbo(0);
-  vbo_nor->bind_as_ssbo(1);
-
-  /* Bind user SSBO (positions per vertex) */
-  GPU_storagebuf_bind(py_ssbo->ssbo, 2);
-
-  /* Bind transform_mat/topo */
-  GPU_storagebuf_bind(res->ssbo_transform_mat, 3);
-  GPU_storagebuf_bind(res->topology.ssbo, 4);
-
-  /* Dispatch compute */
-  const int num_corners = int(mesh_eval->corner_verts().size());
-  const int group_size = 256;
-  const int num_groups_corners = (num_corners + group_size - 1) / group_size;
-  GPU_compute_dispatch(res->shader, num_groups_corners, 1, 1);
-
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
-
-  GPU_shader_unbind();
-
-  /* Tag the object for transform to reset TAA samples... */
-  DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
-
-  rb.commit();
   Py_RETURN_NONE;
 }
 
@@ -860,9 +361,25 @@ static PyObject *pygpu_mesh_scatter_free(PyObject * /*self*/, PyObject *args, Py
   }
 
   /* Free GPU resources associated with this mesh (thread-safe internally). */
-  bpygpu_mesh_scatter_free_for_mesh(mesh_orig);
+  BKE_mesh_gpu_free_for_mesh(mesh_orig);
+  if (mesh_orig) {
+    mesh_orig->is_using_gpu_deform = 0;
+  }
+  if (ob->data == mesh_orig) {
+    static_cast<Mesh *>(ob->data)->is_running_gpu_deform = 0;
+  }
 
   Py_RETURN_NONE;
+}
+
+void bpygpu_mesh_scatter_free_for_mesh(Mesh *me)
+{
+  BKE_mesh_gpu_free_for_mesh(me);
+}
+
+void bpygpu_mesh_scatter_shaders_free_all()
+{
+  BKE_mesh_gpu_free_all_caches();
 }
 
 #ifdef __GNUC__
