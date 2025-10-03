@@ -308,7 +308,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
           "image=0x1, subresource_range=" +
           endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
-          "base_array_layer=1, layer_count=0  )" +
+          "base_array_layer=1, layer_count=4294967295  )" +
           endl() + ")",
       log[1]);
   EXPECT_EQ("begin_rendering(p_rendering_info=flags=, render_area=" + endl() +
@@ -342,7 +342,7 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
           "new_layout=" +
           color_attachment_layout_str() + ", image=0x1, subresource_range=" + endl() +
           "    aspect_mask=VK_IMAGE_ASPECT_COLOR_BIT, base_mip_level=0, level_count=4294967295, "
-          "base_array_layer=1, layer_count=0  )" +
+          "base_array_layer=1, layer_count=4294967295  )" +
           endl() + ")",
       log[8]);
 }
