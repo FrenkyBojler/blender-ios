@@ -621,6 +621,7 @@ static void multiply_ibuf(ImBuf *ibuf, const float fmul, const bool multiply_alp
 }
 
 static ImBuf *input_preprocess(const RenderData *context,
+                               SeqRenderState *state,
                                Strip *strip,
                                float timeline_frame,
                                ImBuf *ibuf,
@@ -691,13 +692,14 @@ static ImBuf *input_preprocess(const RenderData *context,
   }
 
   if (strip->modifiers.first) {
-    modifier_apply_stack(context, strip, preprocessed_ibuf, timeline_frame);
+    modifier_apply_stack(context, state, strip, preprocessed_ibuf, timeline_frame);
   }
 
   return preprocessed_ibuf;
 }
 
 static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
+                                         SeqRenderState *state,
                                          Strip *strip,
                                          ImBuf *ibuf,
                                          float timeline_frame,
@@ -722,7 +724,7 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
   }
 
   if (use_preprocess) {
-    ibuf = input_preprocess(context, strip, timeline_frame, ibuf, is_proxy_image);
+    ibuf = input_preprocess(context, state, strip, timeline_frame, ibuf, is_proxy_image);
   }
 
   return ibuf;
@@ -770,7 +772,7 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
 
   switch (early_out) {
     case StripEarlyOut::NoInput:
-      out = sh.execute(context, strip, timeline_frame, fac, nullptr, nullptr);
+      out = sh.execute(context, state, strip, timeline_frame, fac, nullptr, nullptr);
       break;
     case StripEarlyOut::DoEffect:
       for (i = 0; i < 2; i++) {
@@ -795,7 +797,7 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
       }
 
       if (ibuf[0] && (ibuf[1] || effect_get_num_inputs(strip->type) == 1)) {
-        out = sh.execute(context, strip, timeline_frame, fac, ibuf[0], ibuf[1]);
+        out = sh.execute(context, state, strip, timeline_frame, fac, ibuf[0], ibuf[1]);
       }
       break;
     case StripEarlyOut::UseInput1:
@@ -933,6 +935,7 @@ static ImBuf *create_missing_media_image(const RenderData *context, int width, i
 }
 
 static ImBuf *seq_render_image_strip(const RenderData *context,
+                                     SeqRenderState *state,
                                      Strip *strip,
                                      int timeline_frame,
                                      bool *r_is_proxy_image)
@@ -985,7 +988,7 @@ static ImBuf *seq_render_image_strip(const RenderData *context,
 
       if (view_id != context->view_id) {
         ibufs_arr[view_id] = seq_render_preprocess_ibuf(
-            &localcontext, strip, ibufs_arr[view_id], timeline_frame, true, false);
+            &localcontext, state, strip, ibufs_arr[view_id], timeline_frame, true, false);
       }
     }
 
@@ -1105,6 +1108,7 @@ static ImBuf *seq_render_movie_strip_view(const RenderData *context,
 }
 
 static ImBuf *seq_render_movie_strip(const RenderData *context,
+                                     SeqRenderState *state,
                                      Strip *strip,
                                      float timeline_frame,
                                      bool *r_is_proxy_image)
@@ -1150,7 +1154,7 @@ static ImBuf *seq_render_movie_strip(const RenderData *context,
 
       if (view_id != context->view_id && ibuf_arr[view_id]) {
         ibuf_arr[view_id] = seq_render_preprocess_ibuf(
-            &localcontext, strip, ibuf_arr[view_id], timeline_frame, true, false);
+            &localcontext, state, strip, ibuf_arr[view_id], timeline_frame, true, false);
       }
     }
 
@@ -1693,10 +1697,10 @@ static ImBuf *do_render_strip_uncached(const RenderData *context,
     ibuf = seq_render_effect_strip_impl(context, state, strip, timeline_frame);
   }
   else if (strip->type == STRIP_TYPE_IMAGE) {
-    ibuf = seq_render_image_strip(context, strip, timeline_frame, r_is_proxy_image);
+    ibuf = seq_render_image_strip(context, state, strip, timeline_frame, r_is_proxy_image);
   }
   else if (strip->type == STRIP_TYPE_MOVIE) {
-    ibuf = seq_render_movie_strip(context, strip, timeline_frame, r_is_proxy_image);
+    ibuf = seq_render_movie_strip(context, state, strip, timeline_frame, r_is_proxy_image);
   }
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
     ibuf = seq_render_movieclip_strip(
@@ -1750,7 +1754,7 @@ ImBuf *seq_render_strip(const RenderData *context,
   if (ibuf) {
     use_preprocess = seq_input_have_to_preprocess(context, strip, timeline_frame);
     ibuf = seq_render_preprocess_ibuf(
-        context, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
+        context, state, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
     intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
   }
 
@@ -1789,7 +1793,13 @@ static StripEarlyOut strip_get_early_out_for_blend_mode(Strip *strip)
 }
 
 static ImBuf *seq_render_strip_stack_apply_effect(
-    const RenderData *context, Strip *strip, float timeline_frame, ImBuf *ibuf1, ImBuf *ibuf2)
+
+    const RenderData *context,
+    SeqRenderState *state,
+    Strip *strip,
+    float timeline_frame,
+    ImBuf *ibuf1,
+    ImBuf *ibuf2)
 {
   ImBuf *out;
   EffectHandle sh = strip_blend_mode_handle_get(strip);
@@ -1798,10 +1808,10 @@ static ImBuf *seq_render_strip_stack_apply_effect(
   int swap_input = seq_must_swap_input_in_blend_mode(strip);
 
   if (swap_input) {
-    out = sh.execute(context, strip, timeline_frame, fac, ibuf2, ibuf1);
+    out = sh.execute(context, state, strip, timeline_frame, fac, ibuf2, ibuf1);
   }
   else {
-    out = sh.execute(context, strip, timeline_frame, fac, ibuf1, ibuf2);
+    out = sh.execute(context, state, strip, timeline_frame, fac, ibuf1, ibuf2);
   }
 
   return out;
@@ -1911,7 +1921,8 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
               context->rectx, context->recty, 32, use_float ? IB_float_data : IB_byte_data);
           seq_imbuf_assign_spaces(context->scene, ibuf1);
 
-          out = seq_render_strip_stack_apply_effect(context, strip, timeline_frame, ibuf1, ibuf2);
+          out = seq_render_strip_stack_apply_effect(
+              context, state, strip, timeline_frame, ibuf1, ibuf2);
           IMB_metadata_copy(out, ibuf2);
 
           intra_frame_cache_put_composite(context->scene, strip, out);
@@ -1939,7 +1950,8 @@ static ImBuf *seq_render_strip_stack(const RenderData *context,
       ImBuf *ibuf1 = out;
       ImBuf *ibuf2 = seq_render_strip(context, state, strip, timeline_frame);
 
-      out = seq_render_strip_stack_apply_effect(context, strip, timeline_frame, ibuf1, ibuf2);
+      out = seq_render_strip_stack_apply_effect(
+          context, state, strip, timeline_frame, ibuf1, ibuf2);
 
       IMB_freeImBuf(ibuf1);
       IMB_freeImBuf(ibuf2);
@@ -2013,14 +2025,14 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
 }
 
 ImBuf *seq_render_give_ibuf_seqbase(const RenderData *context,
+                                    SeqRenderState *state,
                                     float timeline_frame,
                                     int chan_shown,
                                     ListBase *channels,
                                     ListBase *seqbasep)
 {
-  SeqRenderState state;
 
-  return seq_render_strip_stack(context, &state, channels, seqbasep, timeline_frame, chan_shown);
+  return seq_render_strip_stack(context, state, channels, seqbasep, timeline_frame, chan_shown);
 }
 
 ImBuf *render_give_ibuf_direct(const RenderData *context, float timeline_frame, Strip *strip)
