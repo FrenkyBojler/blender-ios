@@ -1537,29 +1537,6 @@ static bool bm_vert_connect_select_history_edge_to_vert_path(BMesh *bm, ListBase
   return true;
 }
 
-/**
- * Checks if a selection contains mixed element types (vertices, edges or faces).
- */
-static bool bm_vert_connect_select_history_ensure_uniform_type(BMesh *bm,
-                                                               wmOperator *op,
-                                                               bool *r_reported_error)
-{
-  char htype_selected = 0;
-  LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
-    htype_selected |= ese->htype;
-  }
-
-  if (count_bits_i(htype_selected) != 1) {
-    if (!*r_reported_error) {
-      BKE_report(op->reports, RPT_ERROR, "Cannot connect mixed selections");
-      *r_reported_error = true;
-    }
-    return false;
-  }
-
-  return true;
-}
-
 static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
@@ -1588,10 +1565,13 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    /* Reject mixed selections (see #147150).
-     * Without this check, mixed selections cause downstream code to cast
-     * edges as vertices, triggering assertions in BM_edge_exists(). */
-    if (!bm_vert_connect_select_history_ensure_uniform_type(bm, op, &reported_mixed_selection)) {
+    /* Skip mixed selections since path handling only supports uniform types, see #147150. */
+    char htype_selected = BM_select_history_htype_all(bm);
+    if (count_bits_i(htype_selected) != 1) {
+      if (!reported_mixed_selection) {
+        BKE_report(op->reports, RPT_ERROR, "Cannot connect mixed selection");
+        reported_mixed_selection = true;
+      }
       failed_selection_order_len++;
       continue;
     }
