@@ -1979,7 +1979,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  scene->r.use_preview_frame = 0;
+  scene->ed->runtime.use_preview_frame = 0;
 
   View2D *v2d = UI_view2d_fromcontext(C);
   rctf rectf;
@@ -2123,13 +2123,13 @@ static wmOperatorStatus sequencer_box_cut_modal(bContext *C, wmOperator *op, con
 
   View2D *v2d = UI_view2d_fromcontext(C);
   int mouse_frame = UI_view2d_region_to_view_x(v2d, event->mval[0]);
-  scene->r.use_preview_frame = 1;
-  scene->r.vse_preview_frame = mouse_frame;
+  scene->ed->runtime.use_preview_frame = 1;
+  scene->ed->runtime.vse_preview_frame = mouse_frame;
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   wmOperatorStatus gesture_return = WM_gesture_box_modal(C, op, event);
   if (OPERATOR_CANCELLED == gesture_return) {
-    scene->r.use_preview_frame = 0;
+    scene->ed->runtime.use_preview_frame = 0;
   }
   return gesture_return;
 }

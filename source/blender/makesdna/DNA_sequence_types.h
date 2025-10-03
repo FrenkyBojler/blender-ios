@@ -337,6 +337,10 @@ typedef struct EditingRuntime {
   SourceImageCache *source_image_cache;
   FinalImageCache *final_image_cache;
   PreviewCache *preview_cache;
+  /** Used for renderenig a different frame using sequencer_draw_get_transform_preview. */
+  int vse_preview_frame;
+  /** Determines with 0 and 1 if vse_preview_frame should be used for transform preview. */
+  int use_preview_frame;
 } EditingRuntime;
 
 typedef struct Editing {
