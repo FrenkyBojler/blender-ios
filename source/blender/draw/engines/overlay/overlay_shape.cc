@@ -1359,7 +1359,7 @@ ShapeCache::ShapeCache()
       float3 axis(0.0f);
       axis[i] = 1.0f;
       /* Draw the axes a little darker and desaturated. */
-      UI_GetThemeColorBlendShade3fv(axis_theme[i], TH_WHITE, .33f, -30, crosshair_color);
+      UI_GetThemeColorBlendShade3fv(axis_theme[i], TH_WHITE, .25f, -20, crosshair_color);
       verts.append({f5 * axis, crosshair_color});
       verts.append({f20 * axis, crosshair_color});
 
