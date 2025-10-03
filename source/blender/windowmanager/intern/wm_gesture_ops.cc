@@ -184,6 +184,7 @@ wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEven
   {
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
     gesture->wait_for_input = wait_for_input;
+    gesture->is_tablet_gesture = event->tablet.active;
   }
 
   /* Add modal handler. */
@@ -232,8 +233,11 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
         return OPERATOR_CANCELLED;
       }
       case GESTURE_MODAL_SWITCH_CORNER: {
-        WM_cursor_warp(win, rect->xmin + gesture->winrct.xmin, rect->ymin + gesture->winrct.ymin);
-        BLI_rcti_scale(rect, -1.0);
+        if (gesture->is_tablet_gesture == EVT_TABLET_NONE) {
+          WM_cursor_warp(
+              win, rect->xmin + gesture->winrct.xmin, rect->ymin + gesture->winrct.ymin);
+          BLI_rcti_scale(rect, -1.0);
+        }
         break;
       }
     }
