@@ -102,6 +102,7 @@
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_modifier.hh"
 
 #include "BLO_read_write.hh"
 
@@ -807,13 +808,9 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
-  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-    FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
-    if (smd->type == eSeqModifierType_Compositor) {
-      auto *modifier_data = reinterpret_cast<SequencerCompositorModifierData *>(smd);
-      FOREACHID_PROCESS_IDSUPER(data, modifier_data->node_group, IDWALK_CB_USER);
-    }
-  }
+  blender::seq::foreach_strip_modifier_id(strip, [&](ID *id){
+    BKE_lib_query_foreachid_process(data, reinterpret_cast<ID **>(&(id)), IDWALK_CB_USER);
+  });
 
   if (strip->type == STRIP_TYPE_TEXT && strip->effectdata) {
     TextVars *text_data = static_cast<TextVars *>(strip->effectdata);
