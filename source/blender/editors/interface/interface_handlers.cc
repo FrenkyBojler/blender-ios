@@ -5150,6 +5150,12 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
             return WM_UI_HANDLER_BREAK;
           }
 
+          if (ui_block_is_popup_any(but->block)) {
+            /* TODO(!147047): This should be handled in selection operator. */
+            force_activate_view_item_but(C, data->region, view_item_but, false);
+            return WM_UI_HANDLER_BREAK;
+          }
+
           if (UI_view_item_supports_drag(*view_item_but->view_item)) {
             button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
             data->dragstartx = event->xy[0];
@@ -8771,7 +8777,9 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 #else
       status.item(IFACE_("Snap"), ICON_EVENT_CTRL);
 #endif
-      status.item(IFACE_("Precision"), ICON_EVENT_SHIFT);
+      if (ui_but_is_float(but)) {
+        status.item(IFACE_("Precision"), ICON_EVENT_SHIFT);
+      }
     }
     ui_numedit_begin(but, data);
   }
