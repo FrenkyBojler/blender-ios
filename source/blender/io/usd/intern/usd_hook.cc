@@ -127,7 +127,9 @@ class USDSceneExportContext {
     depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
   }
 
-  USDSceneExportContext(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, const ImportedPrimMap &in_prim_map)
+  USDSceneExportContext(pxr::UsdStageRefPtr stage,
+                        Depsgraph *depsgraph,
+                        const ImportedPrimMap &in_prim_map)
       : stage_(stage), prim_map_(in_prim_map)
   {
     depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
@@ -474,7 +476,10 @@ class OnExportInvoker final : public USDHookInvoker {
   {
   }
 
-  OnExportInvoker(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, const ImportedPrimMap &prim_map, ReportList *reports)
+  OnExportInvoker(pxr::UsdStageRefPtr stage,
+                  Depsgraph *depsgraph,
+                  const ImportedPrimMap &prim_map,
+                  ReportList *reports)
       : USDHookInvoker(reports), hook_context_(stage, depsgraph, prim_map)
   {
   }
@@ -642,7 +647,10 @@ void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportLi
   on_export.call();
 }
 
-void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, const ImportedPrimMap &prim_map, ReportList *reports)
+void call_export_hooks(pxr::UsdStageRefPtr stage,
+                       Depsgraph *depsgraph,
+                       const ImportedPrimMap &prim_map,
+                       ReportList *reports)
 {
   if (hook_list().empty()) {
     return;

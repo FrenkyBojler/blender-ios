@@ -26,7 +26,10 @@ void register_hook_converters();
 
 /** Call the 'on_export' chaser function defined in the registered #USDHook classes. */
 void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportList *reports);
-void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &prim_map, ReportList *reports);
+void call_export_hooks(pxr::UsdStageRefPtr stage,
+                       Depsgraph *depsgraph,
+                       const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &prim_map,
+                       ReportList *reports);
 
 /** Call the 'on_material_export' hook functions defined in the registered #USDHook classes. */
 void call_material_export_hooks(pxr::UsdStageRefPtr stage,
