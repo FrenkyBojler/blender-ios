@@ -864,7 +864,7 @@ VkFence GHOST_ContextVK::getFence()
 
 void GHOST_ContextVK::setPresentFence(VkSwapchainKHR swapchain, VkFence present_fence)
 {
-  if (!present_fence) {
+  if (present_fence == VK_NULL_HANDLE) {
     return;
   }
   present_fences_[swapchain].push_back(present_fence);
@@ -873,7 +873,7 @@ void GHOST_ContextVK::setPresentFence(VkSwapchainKHR swapchain, VkFence present_
   for (auto &item : present_fences_) {
     auto end = item.second.end();
     auto it = std::remove_if(item.second.begin(), item.second.end(), [&](const VkFence fence) {
-      if (vkGetFenceStatus(device_vk.vk_device, fence) != VK_NOT_READY) {
+      if (vkGetFenceStatus(device_vk.vk_device, fence) == VK_NOT_READY) {
         return false;
       }
       vkResetFences(device_vk.vk_device, 1, &fence);
@@ -936,8 +936,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   {
     std::scoped_lock lock(device_vk.queue_mutex);
     VkSwapchainPresentFenceInfoEXT fence_info{VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT};
-    VkFence present_fence = this->getFence();
+    VkFence present_fence = VK_NULL_HANDLE;
     if (device_vk.use_vk_ext_swapchain_maintenance_1) {
+      present_fence = this->getFence();
 
       fence_info.swapchainCount = 1;
       fence_info.pFences = &present_fence;
