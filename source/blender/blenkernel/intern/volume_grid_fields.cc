@@ -37,6 +37,9 @@ GVArray VoxelFieldContext::get_varray_for_input(const fn::FieldInput &field_inpu
       return VArray<float3>::from_container(std::move(positions));
     }
   }
+  if (dynamic_cast<const fn::IndexFieldInput *>(&field_input)) {
+    return {};
+  }
   return field_input.get_varray_for_context(*this, mask, scope);
 }
 
@@ -63,6 +66,9 @@ GVArray TilesFieldContext::get_varray_for_input(const fn::FieldInput &field_inpu
       });
       return VArray<float3>::from_container(std::move(positions));
     }
+  }
+  if (dynamic_cast<const fn::IndexFieldInput *>(&field_input)) {
+    return {};
   }
   return field_input.get_varray_for_context(*this, mask, scope);
 }
