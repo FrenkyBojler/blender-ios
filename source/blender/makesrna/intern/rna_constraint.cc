@@ -166,7 +166,7 @@ const EnumPropertyItem rna_enum_constraint_type_items[] = {
      "Shrinkwrap",
      "Restrict movements to surface of target mesh"},
     {CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE,
-     "ATTRIBUTE_TRANSFORM",
+     "GEOMETRY_ATTRIBUTE",
      ICON_CON_GEOMETRYATTRIBUTE,
      "Geometry Attribute",
      "Retrieve transform from target geometry attribute data"},
