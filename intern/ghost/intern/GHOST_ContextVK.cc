@@ -29,6 +29,7 @@
 
 #include "CLG_log.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdio>
@@ -760,6 +761,11 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
   if (submission_frame_data.submission_fence) {
     vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   }
+  for (auto swapchain : submission_frame_data.discard_pile.swapchains) {
+    auto &fences = present_fences_[swapchain_];
+    vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
+    present_fences_.erase(swapchain);
+  }
   submission_frame_data.discard_pile.destroy(vk_device);
 
   const bool use_hdr_swapchain = hdr_info_ &&
@@ -842,6 +848,37 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
 
   return GHOST_kSuccess;
 }
+VkFence GHOST_ContextVK::getFence()
+{
+  if (!fence_pile_.empty()) {
+    VkFence fence = fence_pile_.back();
+    fence_pile_.pop_back();
+    return fence;
+  }
+  GHOST_DeviceVK &device_vk = vulkan_instance->device.value();
+  VkFence fence = VK_NULL_HANDLE;
+  const VkFenceCreateInfo fence_create_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+  vkCreateFence(device_vk.vk_device, &fence_create_info, nullptr, &fence);
+  return fence;
+}
+
+void GHOST_ContextVK::setPresentFence(VkSwapchainKHR swapchain, VkFence present_fence)
+{
+  present_fences_[swapchain].push_back(present_fence);
+  GHOST_DeviceVK &device_vk = vulkan_instance->device.value();
+  for (auto &item : present_fences_) {
+    auto end = item.second.end();
+    auto it = std::remove_if(item.second.begin(), item.second.end(), [&](const VkFence fence) {
+      if (vkGetFenceStatus(device_vk.vk_device, fence) != VK_NOT_READY) {
+        return false;
+      }
+      vkResetFences(device_vk.vk_device, 1, &fence);
+      fence_pile_.push_back(fence);
+      return true;
+    });
+    item.second.erase(it, end);
+  }
+}
 
 GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
 {
@@ -894,7 +931,15 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   VkResult present_result = VK_SUCCESS;
   {
     std::scoped_lock lock(device_vk.queue_mutex);
+    VkSwapchainPresentFenceInfoEXT fence_info{VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT};
+    VkFence present_fence = this->getFence();
+
+    fence_info.swapchainCount = 1;
+    fence_info.pFences = &present_fence;
+
+    present_info.pNext = &fence_info;
     present_result = vkQueuePresentKHR(device_vk.generic_queue, &present_info);
+    this->setPresentFence(swapchain_, present_fence);
   }
   acquired_swapchain_image_index_.reset();
 
@@ -1258,7 +1303,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
   create_info.queueFamilyIndexCount = 0;
   create_info.pQueueFamilyIndices = nullptr;
-  device_vk.wait_idle();
+
   VK_CHECK(vkCreateSwapchainKHR(device_vk.vk_device, &create_info, nullptr, &swapchain_),
            GHOST_kFailure);
 
@@ -1317,6 +1362,8 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
   GHOST_DeviceVK &device_vk = vulkan_instance.value().device.value();
 
   if (swapchain_ != VK_NULL_HANDLE) {
+    auto &fences = present_fences_[swapchain_];
+    vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
     vkDestroySwapchainKHR(device_vk.vk_device, swapchain_, nullptr);
   }
   device_vk.wait_idle();
@@ -1325,6 +1372,11 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
   }
   swapchain_images_.clear();
   for (GHOST_Frame &frame_data : frame_data_) {
+    for (auto swapchain : frame_data.discard_pile.swapchains) {
+      auto &fences = present_fences_[swapchain_];
+      vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
+      present_fences_.erase(swapchain);
+    }
     frame_data.destroy(device_vk.vk_device);
   }
   frame_data_.clear();
