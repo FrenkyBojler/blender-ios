@@ -335,7 +335,7 @@ void USDAbstractWriter::write_id_properties(const pxr::UsdPrim &prim,
                                             pxr::UsdTimeCode time) const
 {
   if (usd_export_context_.hierarchy_iterator) {
-    usd_export_context_.hierarchy_iterator->add_to_prim_map(prim.GetPath(), const_cast<ID *>(&id));
+    usd_export_context_.hierarchy_iterator->add_to_prim_map(prim.GetPath(), &id);
   }
 
   if (!usd_export_context_.export_params.export_custom_properties) {

@@ -33,7 +33,7 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
   ObjExportMap skinned_mesh_export_map_;
   ObjExportMap shape_key_mesh_export_map_;
 
-  mutable blender::Map<pxr::SdfPath, blender::Vector<std::pair<std::string, short>>> exported_prim_map_;
+  mutable blender::Map<pxr::SdfPath, blender::Vector<std::pair<std::string, int16_t>>> exported_prim_map_;
 
   /* Map prototype_paths[instancer path] = [
    *   (proto_path_1, proto_object_1), (proto_path_2, proto_object_2), ... ] */
@@ -55,7 +55,7 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
   blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> get_exported_prim_map() const;
 
   /* Add an ID to the prim map for a given USD path. */
-  void add_to_prim_map(const pxr::SdfPath &usd_path, ID *id) const;
+  void add_to_prim_map(const pxr::SdfPath &usd_path, const ID *id) const;
 
  protected:
   bool mark_as_weak_export(const Object *object) const override;

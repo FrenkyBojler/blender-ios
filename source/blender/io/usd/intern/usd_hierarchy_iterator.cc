@@ -447,31 +447,33 @@ blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
 {
   blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map;
 
-  exported_prim_map_.foreach_item([&](const pxr::SdfPath &usd_path,
-                                      const blender::Vector<std::pair<std::string, short>> &id_infos) {
-    for (const auto &id_info : id_infos) {
-      const std::string &obj_name = id_info.first;
-      short obj_type = id_info.second;
-      
-      ListBase *lb = which_libbase(bmain_, obj_type);
-      if (lb) {
-        LISTBASE_FOREACH(ID *, original_id, lb) {
-          if (STREQ(original_id->name + 2, obj_name.c_str())) {
-            prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(original_id));
-            break;
+  exported_prim_map_.foreach_item(
+      [&](const pxr::SdfPath &usd_path,
+          const blender::Vector<std::pair<std::string, int16_t>> &id_infos) {
+        for (const auto &id_info : id_infos) {
+          const std::string &obj_name = id_info.first;
+          const int16_t obj_type = id_info.second;
+
+          ListBase *lb = which_libbase(bmain_, obj_type);
+          if (lb) {
+            LISTBASE_FOREACH (ID *, original_id, lb) {
+              if (STREQ(original_id->name + 2, obj_name.c_str())) {
+                prim_map.lookup_or_add_default(usd_path).append(
+                    RNA_id_pointer_create(original_id));
+                break;
+              }
+            }
           }
         }
-      }
-    }
-  });
+      });
 
   return prim_map;
 }
 
-void USDHierarchyIterator::add_to_prim_map(const pxr::SdfPath &usd_path, ID *id) const
+void USDHierarchyIterator::add_to_prim_map(const pxr::SdfPath &usd_path, const ID *id) const
 {
-  std::string id_name = id->name + 2;
-  short id_type = GS(id->name);
+  const std::string id_name = id->name + 2;
+  const int16_t id_type = GS(id->name);
   exported_prim_map_.lookup_or_add_default(usd_path).append(std::make_pair(id_name, id_type));
 }
 
