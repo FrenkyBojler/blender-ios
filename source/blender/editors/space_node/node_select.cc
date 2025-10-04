@@ -541,24 +541,11 @@ static const bNodeSocket *find_socket_at_mouse_y(const Span<const bNodeSocket *>
   return best_socket;
 }
 
-static void handle_group_input_node_selection(bContext &C,
-                                              bNodeTree &tree,
-                                              bNode &group_input_node,
-                                              const float2 &cursor)
+static void activate_interface_socket_and_scroll_into_view(bContext &C,
+                                                           bNodeTree &tree,
+                                                           bNodeTreeInterfaceSocket &io_socket)
 {
   ScrArea *area = CTX_wm_area(&C);
-
-  tree.ensure_topology_cache();
-  tree.ensure_interface_cache();
-
-  const bNodeSocket *indicated_socket = find_socket_at_mouse_y(
-      group_input_node.output_sockets().drop_back(1), cursor.y);
-  if (!indicated_socket) {
-    return;
-  }
-
-  const int group_input_i = indicated_socket->index();
-  bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[group_input_i];
   bNodeTreeInterfacePanel &io_panel = *tree.tree_interface.find_item_parent(io_socket.item, true);
   bNodeTreeInterfaceItem *item_to_activate = nullptr;
   if (io_panel.header_toggle_socket() == &io_socket) {
@@ -573,6 +560,41 @@ static void handle_group_input_node_selection(bContext &C,
   LISTBASE_FOREACH (uiBlock *, block, &ui_region->runtime->uiblocks) {
     UI_block_tree_view_scroll_active_into_view(*block, "Node Tree Declaration Tree View");
   }
+}
+
+static void handle_group_input_node_selection(bContext &C,
+                                              bNodeTree &tree,
+                                              const bNode &group_input_node,
+                                              const float2 &cursor)
+{
+
+  tree.ensure_topology_cache();
+  tree.ensure_interface_cache();
+  const bNodeSocket *indicated_socket = find_socket_at_mouse_y(
+      group_input_node.output_sockets().drop_back(1), cursor.y);
+  if (!indicated_socket) {
+    return;
+  }
+  const int group_input_i = indicated_socket->index();
+  bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[group_input_i];
+  activate_interface_socket_and_scroll_into_view(C, tree, io_socket);
+}
+
+static void handle_group_output_node_selection(bContext &C,
+                                               bNodeTree &tree,
+                                               const bNode &group_output_node,
+                                               const float2 &cursor)
+{
+  tree.ensure_topology_cache();
+  tree.ensure_interface_cache();
+  const bNodeSocket *indicated_socket = find_socket_at_mouse_y(
+      group_output_node.input_sockets().drop_back(1), cursor.y);
+  if (!indicated_socket) {
+    return;
+  }
+  const int group_output_i = indicated_socket->index();
+  bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[group_output_i];
+  activate_interface_socket_and_scroll_into_view(C, tree, io_socket);
 }
 
 static bool node_mouse_select(bContext *C,
@@ -699,6 +721,9 @@ static bool node_mouse_select(bContext *C,
 
       if (node->is_group_input()) {
         handle_group_input_node_selection(*C, node_tree, *node, cursor);
+      }
+      if (node->is_group_output()) {
+        handle_group_output_node_selection(*C, node_tree, *node, cursor);
       }
 
       changed = true;
