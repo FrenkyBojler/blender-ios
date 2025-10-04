@@ -234,10 +234,12 @@ class MTLShader : public Shader {
   {
     return current_pipeline_state_;
   }
-  MTLShaderInterface *get_interface()
+
+  MTLShaderInterface &get_interface()
   {
-    return static_cast<MTLShaderInterface *>(this->interface);
+    return *static_cast<MTLShaderInterface *>(this->interface);
   }
+
   void *get_push_constant_data()
   {
     return push_constant_data_;

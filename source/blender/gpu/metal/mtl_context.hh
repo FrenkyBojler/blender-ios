@@ -134,10 +134,10 @@ class MTLRenderPassState {
 
   /* Sampler Binding (RenderCommandEncoder). */
   void bind_vertex_sampler(MTLSamplerBinding &sampler_binding,
-                           bool use_argument_buffer_for_samplers,
+                           bool use_samplers_argument_buffer,
                            uint slot);
   void bind_fragment_sampler(MTLSamplerBinding &sampler_binding,
-                             bool use_argument_buffer_for_samplers,
+                             bool use_samplers_argument_buffer,
                              uint slot);
 
   /* Buffer binding (RenderCommandEncoder). */
@@ -175,7 +175,7 @@ class MTLComputeState {
   void bind_compute_texture(id<MTLTexture> tex, uint slot);
   /* Sampler Binding (ComputeCommandEncoder). */
   void bind_compute_sampler(MTLSamplerBinding &sampler_binding,
-                            bool use_argument_buffer_for_samplers,
+                            bool use_samplers_argument_buffer,
                             uint slot);
   /* Buffer binding (ComputeCommandEncoder). */
   void bind_compute_buffer(id<MTLBuffer> buffer, uint64_t buffer_offset, uint index);
@@ -881,15 +881,15 @@ class MTLContext : public Context {
    * invalid and cannot be applied. This should cancel a draw call. */
   bool ensure_render_pipeline_state(MTLPrimitiveType prim_type);
   bool ensure_buffer_bindings(id<MTLRenderCommandEncoder> rec,
-                              const MTLShaderInterface *shader_interface,
+                              const MTLShaderInterface &shader_interface,
                               const MTLRenderPipelineStateInstance *pipeline_state_instance);
   bool ensure_buffer_bindings(id<MTLComputeCommandEncoder> rec,
-                              const MTLShaderInterface *shader_interface);
+                              const MTLShaderInterface &shader_interface);
   void ensure_texture_bindings(id<MTLRenderCommandEncoder> rec,
-                               MTLShaderInterface *shader_interface,
+                               MTLShaderInterface &shader_interface,
                                const MTLRenderPipelineStateInstance *pipeline_state_instance);
   void ensure_texture_bindings(id<MTLComputeCommandEncoder> rec,
-                               MTLShaderInterface *shader_interface,
+                               MTLShaderInterface &shader_interface,
                                const MTLComputePipelineStateInstance *pipeline_state_instance);
   void ensure_depth_stencil_state(MTLPrimitiveType prim_type);
 

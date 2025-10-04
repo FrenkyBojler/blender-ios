@@ -576,6 +576,22 @@ enum class ImageReadWriteType {
 #  undef TYPES_EXPAND
 };
 
+static inline bool is_atomic_type(ImageType type)
+{
+  switch (type) {
+    case ImageType::AtomicUint2D:
+    case ImageType::AtomicInt2D:
+    case ImageType::AtomicUint2DArray:
+    case ImageType::AtomicInt2DArray:
+    case ImageType::AtomicUint3D:
+    case ImageType::AtomicInt3D:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
 /* Storage qualifiers. */
 enum class Qualifier {
   /** Restrict flag is set by default. Unless specified otherwise. */

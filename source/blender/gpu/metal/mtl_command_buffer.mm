@@ -785,7 +785,7 @@ void MTLComputeState::bind_compute_texture(id<MTLTexture> tex, uint slot)
 }
 
 void MTLRenderPassState::bind_vertex_sampler(MTLSamplerBinding &sampler_binding,
-                                             bool use_argument_buffer_for_samplers,
+                                             bool use_samplers_argument_buffer,
                                              uint slot)
 {
   /* Range check. */
@@ -798,13 +798,13 @@ void MTLRenderPassState::bind_vertex_sampler(MTLSamplerBinding &sampler_binding,
   /* If sampler state has not changed for the given slot, we do not need to fetch. */
   if (this->cached_vertex_sampler_state_bindings[slot].sampler_state == nil ||
       !(this->cached_vertex_sampler_state_bindings[slot].binding_state == sampler_binding.state) ||
-      use_argument_buffer_for_samplers)
+      use_samplers_argument_buffer)
   {
 
     id<MTLSamplerState> sampler_state = (sampler_binding.state == DEFAULT_SAMPLER_STATE) ?
                                             ctx.get_default_sampler_state() :
                                             ctx.get_sampler_from_state(sampler_binding.state);
-    if (!use_argument_buffer_for_samplers) {
+    if (!use_samplers_argument_buffer) {
       /* Update binding and cached state. */
       id<MTLRenderCommandEncoder> rec = this->cmd.get_active_render_command_encoder();
       BLI_assert(rec != nil);
@@ -815,7 +815,7 @@ void MTLRenderPassState::bind_vertex_sampler(MTLSamplerBinding &sampler_binding,
 
     /* Flag last binding type. */
     this->cached_vertex_sampler_state_bindings[slot].is_arg_buffer_binding =
-        use_argument_buffer_for_samplers;
+        use_samplers_argument_buffer;
 
     /* Always assign to argument buffer samplers binding array - Efficiently ensures the value in
      * the samplers array is always up to date. */
@@ -825,7 +825,7 @@ void MTLRenderPassState::bind_vertex_sampler(MTLSamplerBinding &sampler_binding,
 }
 
 void MTLRenderPassState::bind_fragment_sampler(MTLSamplerBinding &sampler_binding,
-                                               bool use_argument_buffer_for_samplers,
+                                               bool use_samplers_argument_buffer,
                                                uint slot)
 {
   /* Range check. */
@@ -839,13 +839,13 @@ void MTLRenderPassState::bind_fragment_sampler(MTLSamplerBinding &sampler_bindin
   if (this->cached_fragment_sampler_state_bindings[slot].sampler_state == nil ||
       !(this->cached_fragment_sampler_state_bindings[slot].binding_state ==
         sampler_binding.state) ||
-      use_argument_buffer_for_samplers)
+      use_samplers_argument_buffer)
   {
 
     id<MTLSamplerState> sampler_state = (sampler_binding.state == DEFAULT_SAMPLER_STATE) ?
                                             ctx.get_default_sampler_state() :
                                             ctx.get_sampler_from_state(sampler_binding.state);
-    if (!use_argument_buffer_for_samplers) {
+    if (!use_samplers_argument_buffer) {
       /* Update binding and cached state. */
       id<MTLRenderCommandEncoder> rec = this->cmd.get_active_render_command_encoder();
       BLI_assert(rec != nil);
@@ -856,7 +856,7 @@ void MTLRenderPassState::bind_fragment_sampler(MTLSamplerBinding &sampler_bindin
 
     /* Flag last binding type */
     this->cached_fragment_sampler_state_bindings[slot].is_arg_buffer_binding =
-        use_argument_buffer_for_samplers;
+        use_samplers_argument_buffer;
 
     /* Always assign to argument buffer samplers binding array - Efficiently ensures the value in
      * the samplers array is always up to date. */
@@ -866,7 +866,7 @@ void MTLRenderPassState::bind_fragment_sampler(MTLSamplerBinding &sampler_bindin
 }
 
 void MTLComputeState::bind_compute_sampler(MTLSamplerBinding &sampler_binding,
-                                           bool use_argument_buffer_for_samplers,
+                                           bool use_samplers_argument_buffer,
                                            uint slot)
 {
   /* Range check. */
@@ -880,13 +880,13 @@ void MTLComputeState::bind_compute_sampler(MTLSamplerBinding &sampler_binding,
   if (this->cached_compute_sampler_state_bindings[slot].sampler_state == nil ||
       !(this->cached_compute_sampler_state_bindings[slot].binding_state ==
         sampler_binding.state) ||
-      use_argument_buffer_for_samplers)
+      use_samplers_argument_buffer)
   {
 
     id<MTLSamplerState> sampler_state = (sampler_binding.state == DEFAULT_SAMPLER_STATE) ?
                                             ctx.get_default_sampler_state() :
                                             ctx.get_sampler_from_state(sampler_binding.state);
-    if (!use_argument_buffer_for_samplers) {
+    if (!use_samplers_argument_buffer) {
       /* Update binding and cached state. */
       id<MTLComputeCommandEncoder> rec = this->cmd.get_active_compute_command_encoder();
       BLI_assert(rec != nil);
@@ -897,7 +897,7 @@ void MTLComputeState::bind_compute_sampler(MTLSamplerBinding &sampler_binding,
 
     /* Flag last binding type */
     this->cached_compute_sampler_state_bindings[slot].is_arg_buffer_binding =
-        use_argument_buffer_for_samplers;
+        use_samplers_argument_buffer;
 
     /* Always assign to argument buffer samplers binding array - Efficiently ensures the value in
      * the samplers array is always up to date. */

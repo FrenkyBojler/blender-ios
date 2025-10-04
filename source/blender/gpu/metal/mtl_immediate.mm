@@ -65,10 +65,7 @@ void MTLImmediate::end()
     MTLShader *active_mtl_shader = static_cast<MTLShader *>(shader);
 
     /* Skip draw if Metal shader is not valid. */
-    if (active_mtl_shader == nullptr || !active_mtl_shader->is_valid() ||
-        active_mtl_shader->get_interface() == nullptr)
-    {
-
+    if (active_mtl_shader == nullptr || !active_mtl_shader->is_valid()) {
       const StringRefNull ptr = (active_mtl_shader) ? active_mtl_shader->name_get() : "";
       MTL_LOG_WARNING(
           "MTLImmediate::end -- cannot perform draw as active shader is NULL or invalid (likely "
@@ -104,12 +101,12 @@ void MTLImmediate::end()
     MTLStateManager *state_manager = static_cast<MTLStateManager *>(
         MTLContext::get()->state_manager);
     MTLRenderPipelineStateDescriptor &desc = state_manager->get_pipeline_descriptor();
-    const MTLShaderInterface *interface = active_mtl_shader->get_interface();
+    const MTLShaderInterface &interface = active_mtl_shader->get_interface();
 
     /* Reset vertex descriptor to default state. */
     desc.reset_vertex_descriptor();
-    desc.vertex_descriptor.total_attributes = interface->get_total_attributes();
-    desc.vertex_descriptor.max_attribute_value = interface->get_total_attributes() - 1;
+    desc.vertex_descriptor.total_attributes = interface.get_total_attributes();
+    desc.vertex_descriptor.max_attribute_value = interface.get_total_attributes() - 1;
     desc.vertex_descriptor.num_vert_buffers = 1;
 
     for (int i = 0; i < desc.vertex_descriptor.total_attributes; i++) {

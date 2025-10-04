@@ -67,97 +67,10 @@ namespace blender::gpu {
  * information to a specified buffer, and is unique to the shader's resource interface.
  */
 
-inline uint get_shader_stage_index(ShaderStage stage)
-{
-  switch (stage) {
-    case ShaderStage::VERTEX:
-      return 0;
-    case ShaderStage::FRAGMENT:
-      return 1;
-    case ShaderStage::COMPUTE:
-      return 2;
-    default:
-      BLI_assert_unreachable();
-      return 0;
-  }
-  return 0;
-}
-
-/* Shader input/output binding information. */
-struct MTLShaderInputAttribute {
-  uint32_t name_offset;
-  MTLVertexFormat format;
-  uint32_t index;
-  uint32_t location;
-  uint32_t size;
-  uint32_t buffer_index;
-  uint32_t offset;
-  /* For attributes of Matrix/array types, we need to insert "fake" attributes for
-   * each element, as matrix types are not natively supported.
-   *
-   *   > 1 if matrix/arrays are used, specifying number of elements.
-   *   = 1 for non-matrix types
-   *   = 0 if used as a dummy slot for "fake" matrix attributes. */
-  uint32_t matrix_element_count;
-};
-
-struct MTLShaderBufferBlock {
-  uint32_t name_offset;
-  uint32_t size = 0;
-  /* Buffer resource bind index in shader `[[buffer(index)]]`. */
-  uint32_t buffer_index;
-  /* Explicit bind location for texture. */
-  int location;
-  /* Tracking for manual uniform addition. */
-  uint32_t current_offset;
-  ShaderStage stage_mask;
-};
-
-struct MTLShaderUniform {
-  uint32_t name_offset;
-  /* Index of `MTLShaderBufferBlock` this uniform belongs to. */
-  uint32_t size_in_bytes;
-  uint32_t byte_offset;
-  MTLInterfaceDataType type;
-  uint32_t array_len;
-};
-
-struct MTLShaderConstant {
-  uint32_t name_offset;
-};
-
-struct MTLShaderTexture {
-  bool used;
-  uint32_t name_offset;
-  /* Texture resource bind slot in shader `[[texture(n)]]`. */
-  int slot_index;
-  /* Explicit bind location for texture. */
-  int location;
-  GPUTextureType type;
-  GPUSamplerFormat sampler_format;
-  ShaderStage stage_mask;
-  /* Whether texture resource is expected to be image or sampler. */
-  bool is_texture_sampler;
-  /* SSBO index for texture buffer binding. */
-  int texture_buffer_ssbo_location = -1;
-  /* Uniform location for texture buffer metadata. */
-  int buffer_metadata_uniform_loc = -1;
-};
-
-struct MTLShaderSampler {
-  uint32_t name_offset;
-  /* Sampler resource bind slot in shader `[[sampler(n)]]`. */
-  uint32_t slot_index = 0;
-};
-
-/* Utility Functions. */
-MTLVertexFormat mtl_datatype_to_vertex_type(MTLInterfaceDataType type);
-
 /**
  * Implementation of Shader interface for Metal Back-end.
  */
 class MTLShaderInterface : public ShaderInterface {
-
  private:
   /* Argument encoders caching.
    * Static size is based on common input permutation variations. */
@@ -168,47 +81,14 @@ class MTLShaderInterface : public ShaderInterface {
   };
   ArgumentEncoderCacheEntry arg_encoders_[ARGUMENT_ENCODERS_CACHE_SIZE] = {};
 
-  /* Vertex input Attributes. */
-  uint32_t total_attributes_;
-  uint32_t total_vert_stride_;
-  MTLShaderInputAttribute attributes_[MTL_MAX_VERTEX_INPUT_ATTRIBUTES];
-
-  /* Uniforms. */
-  uint32_t total_uniforms_;
-  MTLShaderUniform uniforms_[MTL_MAX_UNIFORMS_PER_BLOCK];
-
-  /* Uniform Blocks. */
-  uint32_t total_uniform_blocks_;
-  uint32_t max_uniformbuf_index_;
-  MTLShaderBufferBlock ubos_[MTL_MAX_BUFFER_BINDINGS];
-  MTLShaderBufferBlock push_constant_block_;
-
-  /* Storage blocks. */
-  uint32_t total_storage_blocks_;
-  uint32_t max_storagebuf_index_;
-  MTLShaderBufferBlock ssbos_[MTL_MAX_BUFFER_BINDINGS];
-
-  /* Textures. */
-  /* Textures support explicit binding indices, so some texture slots
-   * remain unused. */
-  uint32_t total_textures_;
-  int max_texture_index_;
-  MTLShaderTexture textures_[MTL_MAX_TEXTURE_SLOTS];
-
-  /* Specialization constants. */
-  uint32_t total_constants_;
-  Vector<MTLShaderConstant> constants_;
-
-  /* Whether argument buffers are used for sampler bindings. */
-  bool sampler_use_argument_buffer_;
-  int sampler_argument_buffer_bind_index_[3];
-
   /* Attribute Mask. */
   uint32_t enabled_attribute_mask_;
 
   /* Bit Mask representing the free buffer slots from this interface.
    * Used to bind the vertex and index buffers. */
   uint32_t vertex_buffer_mask_ = 0;
+
+  shader::BuiltinBits shader_builtins_ = shader::BuiltinBits::NONE;
 
   /* Debug. */
   char name[256];
@@ -217,83 +97,15 @@ class MTLShaderInterface : public ShaderInterface {
   MTLShaderInterface(const char *name, const shader::ShaderCreateInfo &info);
   ~MTLShaderInterface() override;
 
-  void init();
-  void bake(const shader::ShaderCreateInfo &info);
-  void add_input_attribute(uint32_t name_offset,
-                           uint32_t attribute_location,
-                           MTLVertexFormat format,
-                           uint32_t buffer_index,
-                           uint32_t size,
-                           uint32_t offset,
-                           int matrix_element_count = 1);
-  uint32_t add_uniform_block(uint32_t name_offset,
-                             uint32_t buffer_index,
-                             uint32_t location,
-                             uint32_t size,
-                             ShaderStage stage_mask = ShaderStage::ANY);
-  uint32_t add_storage_block(uint32_t name_offset,
-                             uint32_t buffer_index,
-                             uint32_t location,
-                             uint32_t size,
-                             ShaderStage stage_mask = ShaderStage::ANY);
-  void add_uniform(uint32_t name_offset, MTLInterfaceDataType type, int array_len = 1);
-  void add_texture(uint32_t name_offset,
-                   uint32_t texture_slot,
-                   uint32_t location,
-                   GPUTextureType tex_binding_type,
-                   GPUSamplerFormat sampler_format,
-                   bool is_texture_sampler,
-                   ShaderStage stage_mask = ShaderStage::FRAGMENT,
-                   int tex_buffer_ssbo_location = -1);
-  void add_push_constant_block(uint32_t name_offset);
-  void add_constant(uint32_t name_offset);
+  bool use_samplers_argument_buffer() const
+  {
+    return bool(shader_builtins_ & shader::BuiltinBits::USE_SAMPLER_ARG_BUFFER);
+  }
 
-  /* Resolve and cache locations of builtin uniforms and uniform blocks. */
-  void map_builtins();
-  void set_sampler_properties(bool use_argument_buffer,
-                              uint32_t argument_buffer_bind_index_vert,
-                              uint32_t argument_buffer_bind_index_frag,
-                              uint32_t argument_buffer_bind_index_compute);
-
-  /* Prepare #ShaderInput interface for binding resolution. */
-  void prepare_common_shader_inputs(const shader::ShaderCreateInfo *info = nullptr);
-
-  /* Fetch Uniforms. */
-  const MTLShaderUniform &get_uniform(uint index) const;
-  uint32_t get_total_uniforms() const;
-
-  /* Fetch Constants. */
-  uint32_t get_total_constants() const;
-
-  /* Fetch Uniform Blocks. */
-  const MTLShaderBufferBlock &get_uniform_block(uint index) const;
-  uint32_t get_total_uniform_blocks() const;
-  bool has_uniform_block(uint32_t block_index) const;
-  uint32_t get_uniform_block_size(uint32_t block_index) const;
-
-  /* Fetch Storage Blocks. */
-  const MTLShaderBufferBlock &get_storage_block(uint index) const;
-  uint32_t get_total_storage_blocks() const;
-  bool has_storage_block(uint32_t block_index) const;
-  uint32_t get_storage_block_size(uint32_t block_index) const;
-
-  /* Push constant uniform data block should always be available. */
-  const MTLShaderBufferBlock &get_push_constant_block() const;
-  uint32_t get_max_buffer_index() const;
-
-  /* Fetch textures. */
-  const MTLShaderTexture &get_texture(uint index) const;
-  uint32_t get_total_textures() const;
-  uint32_t get_max_texture_index() const;
-  bool uses_argument_buffer_for_samplers() const;
-  int get_argument_buffer_bind_index(ShaderStage stage) const;
-
-  /* Fetch Attributes. */
-  const MTLShaderInputAttribute &get_attribute(uint index) const;
-  uint32_t get_total_attributes() const;
-  uint32_t get_total_vertex_stride() const;
-  uint32_t get_enabled_attribute_mask() const;
-  uint32_t get_available_vertex_buffer_slots_mask() const;
+  bool is_point_shader() const
+  {
+    return (shader_builtins_ & shader::BuiltinBits::POINT_SIZE) == shader::BuiltinBits::POINT_SIZE;
+  }
 
   /* Name buffer fetching. */
   const char *get_name_at_offset(uint32_t offset) const;

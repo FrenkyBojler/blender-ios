@@ -375,11 +375,8 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
   /* Prepare backing data storage for local uniforms. */
   const MTLShaderBufferBlock &push_constant_block = mtl_interface->get_push_constant_block();
   if (push_constant_block.size > 0) {
-    push_constant_data_ = MEM_callocN(push_constant_block.size, __func__);
+    push_constant_data_ = MEM_callocN(push_constant_block.size, "PushConstantMemory");
     this->push_constant_bindstate_mark_dirty(true);
-  }
-  else {
-    push_constant_data_ = nullptr;
   }
 
   if (is_compute) {
@@ -1135,12 +1132,6 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
   BLI_assert_msg((MTL_uniform_buffer_base_index + get_max_ubo_index() + 2) <
                      MTL_MAX_BUFFER_BINDINGS,
                  "UBO and SSBO bindings exceed the fragment bind table limit.");
-
-  /* Argument buffer. */
-  if (mtl_interface->uses_argument_buffer_for_samplers()) {
-    BLI_assert_msg(mtl_interface->get_argument_buffer_bind_index() < MTL_MAX_BUFFER_BINDINGS,
-                   "Argument buffer binding exceeds the fragment bind table limit.");
-  }
 #endif
 
   MTLRenderPipelineReflection *reflection_data = [MTLRenderPipelineReflection new];
