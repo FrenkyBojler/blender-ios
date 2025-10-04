@@ -52,6 +52,8 @@
 
 static blender::bke::bNodeSocketTemplate cmp_node_rlayers_out[] = {
     {SOCK_RGBA, N_("Image"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    // /* Alpha pass was removed, but kept here for compatibility. */
+    // {SOCK_FLOAT, N_("Alpha"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_FLOAT, N_(RE_PASSNAME_DEPTH), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_NORMAL), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_UV), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
@@ -816,7 +818,7 @@ class RenderLayerOperation : public NodeOperation {
 
   void execute_pass_gpu(const Result &pass, Result &result)
   {
-    gpu::Shader *shader = this->context().get_shader(this->get_shader_name(pass, result),
+    gpu::Shader *shader = this->context().get_shader(this->get_shader_name(pass),
                                                      result.precision());
     GPU_shader_bind(shader);
 
@@ -837,7 +839,7 @@ class RenderLayerOperation : public NodeOperation {
     result.unbind_as_image();
   }
 
-  const char *get_shader_name(const Result &pass, const Result &result)
+  const char *get_shader_name(const Result &pass)
   {
     switch (pass.type()) {
       case ResultType::Float:
