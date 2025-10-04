@@ -2902,13 +2902,7 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
     ColorTheme4f color_background;
     UI_GetThemeColor4fv(TH_BACK, color_background);
 
-    const float mix_factor = 0.6f;
-    color_header.r = ((1.0f - mix_factor) * color_header.r) + (mix_factor * color_background.r);
-    color_header.g = ((1.0f - mix_factor) * color_header.g) + (mix_factor * color_background.g);
-    color_header.b = ((1.0f - mix_factor) * color_header.b) + (mix_factor * color_background.b);
-    color_header.a = ((1.0f - mix_factor) * color_header.a) + (mix_factor * color_background.a);
-
-    color_header.a -= 0.2f;
+    UI_GetColorPtrBlendAlpha4fv(color_header, color_background, 0.6f, -0.2f, color_header);
   }
 
   return color_header;
@@ -3258,17 +3252,10 @@ static void node_draw_basis(const bContext &C,
     /* Muted nodes get a mix of the background with the node color and are drawn slightly
      * transparent so the wires inside are visible. */
     if (node.is_muted()) {
-      const float mix_factor = 0.8f;
-
       float color_background[4];
       UI_GetThemeColor4fv(TH_BACK, color_background);
 
-      color[0] = ((1.0f - mix_factor) * color[0]) + (mix_factor * color_background[0]);
-      color[1] = ((1.0f - mix_factor) * color[1]) + (mix_factor * color_background[1]);
-      color[2] = ((1.0f - mix_factor) * color[2]) + (mix_factor * color_background[2]);
-      color[3] = ((1.0f - mix_factor) * color[3]) + (mix_factor * color_background[3]);
-
-      color[3] -= 0.2f;
+      UI_GetColorPtrBlendAlpha4fv(color, color_background, 0.8f, -0.2f, color);
     }
 
     /* Add some padding to prevent transparent gaps with the outline. */
