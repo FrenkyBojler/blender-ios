@@ -144,4 +144,6 @@ void ui_template_node_asset_menu_items(uiLayout &layout,
 /** See #SpaceNode_Runtime::node_can_sync_states. */
 Map<int, bool> &node_can_sync_cache_get(SpaceNode &snode);
 
+void node_tree_interface_draw(bContext &C, uiLayout &layout, bNodeTree &tree);
+
 }  // namespace blender::ed::space_node
