@@ -550,31 +550,6 @@ static int treesort_type_ob(const void *v1, const void *v2)
   return BLI_strcasecmp_natural(x1->name, x2->name);
 }
 
-/* Comparator for creation sort. */
-static int treesort_creation(const void *v1, const void *v2)
-{
-  const tTreeSort *x1 = static_cast<const tTreeSort *>(v1);
-  const tTreeSort *x2 = static_cast<const tTreeSort *>(v2);
-
-  if ((x1->idcode != ID_OB) || (x2->idcode != ID_OB)) {
-    return BLI_strcasecmp_natural(x1->name, x2->name);
-  }
-
-  const Object *ob1 = reinterpret_cast<const Object *>(x1->id);
-  const Object *ob2 = reinterpret_cast<const Object *>(x2->id);
-
-  const uint64_t a = ob1->id.session_uid;
-  const uint64_t b = ob2->id.session_uid;
-
-  if (a < b) {
-    return -1;
-  }
-  if (a > b) {
-    return 1;
-  }
-
-  return BLI_strcasecmp_natural(x1->name, x2->name);
-}
 
 /* this is nice option for later? doesn't look too useful... */
 #if 0
@@ -760,46 +735,6 @@ static void outliner_sort_type(ListBase *lb)
   }
 }
 
-/* Apply creation sorting to object lists. */
-static void outliner_sort_creation(ListBase *lb)
-{
-  TreeElement *last_te = static_cast<TreeElement *>(lb->last);
-  if (last_te == nullptr) {
-    return;
-  }
-
-  TreeStoreElem *last_tselem = TREESTORE(last_te);
-
-  if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
-    const int totelem = BLI_listbase_count(lb);
-    if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array (creation)");
-      tTreeSort *tp = tear;
-
-      LISTBASE_FOREACH (TreeElement *, te, lb) {
-        TreeStoreElem *tselem = TREESTORE(te);
-        tp->te = te;
-        tp->id = tselem->id;
-        tp->name = te->name;
-        tp->idcode = te->idcode;
-        tp++;
-      }
-
-      qsort(tear, totelem, sizeof(tTreeSort), treesort_creation);
-
-      BLI_listbase_clear(lb);
-      tp = tear;
-      for (int i = 0; i < totelem; i++, tp++) {
-        BLI_addtail(lb, tp->te);
-      }
-      MEM_freeN(tear);
-    }
-  }
-
-  LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
-    outliner_sort_creation(&te_iter->subtree);
-  }
-}
 
 /* Sort objects so those actually in the collection come before children not in the collection,
  * then recurse. Used to visually separate dashed “not in collection” links. */
@@ -1386,10 +1321,6 @@ void outliner_build_tree(Main *mainvar,
 
     case SO_SORT_TYPE:
       outliner_sort_type(&space_outliner->tree);
-      break;
-
-    case SO_SORT_CREATION:
-      outliner_sort_creation(&space_outliner->tree);
       break;
   }
 

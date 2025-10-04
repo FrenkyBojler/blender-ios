@@ -151,8 +151,7 @@ typedef enum eSpaceOutliner_Flag {
 typedef enum eSpaceOutliner_Sort_Types {
   SO_SORT_CUSTOM = 0,
   SO_SORT_ALPHA = 1,
-  SO_SORT_TYPE = 2,
-  SO_SORT_CREATION = 3,
+  SO_SORT_TYPE = 2
 } eSpaceOutliner_Sort_Types;
 
 /** #SpaceOutliner.filter */
