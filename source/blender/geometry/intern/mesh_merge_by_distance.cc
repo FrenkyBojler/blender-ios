@@ -1346,12 +1346,13 @@ static void merge_customdata_all(Span<int> dest_map,
                                  Span<int> double_elems,
                                  const int dest_size,
                                  const bool do_mix_data,
-                                 Map<int, Vector<int>> &final_mixes,
+                                 Vector<int> &r_src_index_offsets,
+                                 Vector<int> &r_src_index_data,
                                  Array<int> &r_final_map)
 {
-  UNUSED_VARS_NDEBUG(dest_size);
-
   const int source_size = dest_map.size();
+  r_src_index_offsets.reserve(dest_size + 1);
+  r_src_index_data.reserve(source_size);
 
   MutableSpan<int> groups_offs_;
   Array<int> groups_buffer;
@@ -1370,12 +1371,11 @@ static void merge_customdata_all(Span<int> dest_map,
   bool finalize_map = false;
   int dest_index = 0;
   for (int i = 0; i < source_size; i++) {
-    int count = 0;
     while (i < source_size && dest_map[i] == OUT_OF_CONTEXT) {
-      r_final_map[i] = dest_index + count;
-      final_mixes.add_new(dest_index, Span{i});
+      r_final_map[i] = dest_index;
+      r_src_index_offsets.append_unchecked(r_src_index_data.size());
+      r_src_index_data.append(i);
       dest_index++;
-      count++;
       i++;
     }
 
@@ -1384,10 +1384,12 @@ static void merge_customdata_all(Span<int> dest_map,
     }
     if (dest_map[i] == i) {
       if (do_mix_data) {
-        final_mixes.add_new(dest_index, groups_buffer.as_span().slice(groups_offs[i]));
+        r_src_index_offsets.append_unchecked(r_src_index_data.size());
+        r_src_index_data.extend(groups_buffer.as_span().slice(groups_offs[i]));
       }
       else {
-        final_mixes.add_new(dest_index, {i});
+        r_src_index_offsets.append_unchecked(r_src_index_data.size());
+        r_src_index_data.append(i);
       }
       r_final_map[i] = dest_index;
       dest_index++;
@@ -1422,6 +1424,8 @@ static void merge_customdata_all(Span<int> dest_map,
     }
   }
 
+  r_src_index_offsets.append_unchecked(r_src_index_data.size());
+
   BLI_assert(dest_index == dest_size);
 }
 
@@ -1431,25 +1435,49 @@ static void merge_customdata_all(Span<int> dest_map,
 /** \name Mesh Vertex Merging
  * \{ */
 
-static void mix_with_map(const GSpan src_attr,
-                         const Map<int, Vector<int>> &dst_to_src_map,
-                         GMutableSpan dst_attr)
+static void mix_src_indices(const GSpan src_attr,
+                            const GroupedSpan<int> dst_to_src_map,
+                            GMutableSpan dst_attr)
 {
   bke::attribute_math::convert_to_static_type(src_attr.type(), [&](auto dummy) {
     using T = decltype(dummy);
     const Span<T> src = src_attr.typed<T>();
     MutableSpan<T> dst = dst_attr.typed<T>();
-    for (const MapItem<int, Vector<int>> &item : dst_to_src_map.items()) {
-      if (item.value.size() == 1) {
-        dst[item.key] = src[item.value.first()];
-        continue;
+    threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
+      for (const int dst_index : range) {
+        const Span<int> src_indices = dst_to_src_map[dst_index];
+        if (src_indices.size() == 1) {
+          dst[dst_index] = src[src_indices.first()];
+          continue;
+        }
+        bke::attribute_math::DefaultMixer<T> mixer({&dst[dst_index], 1});
+        for (const int src_index : src_indices) {
+          mixer.mix_in(0, src[src_index]);
+        }
+        mixer.finalize();
       }
-      bke::attribute_math::DefaultMixer<T> mixer({&dst[item.key], 1});
-      for (const int src_index : item.value) {
-        mixer.mix_in(0, src[src_index]);
-      }
-      mixer.finalize();
+    });
+  });
+}
+
+static void mix_attributes(const bke::AttributeAccessor src_attributes,
+                           const GroupedSpan<int> dst_to_src,
+                           const bke::AttrDomain domain,
+                           const Set<StringRef> &skip_names,
+                           bke::MutableAttributeAccessor dst_attributes)
+{
+  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain != domain) {
+      return;
     }
+    if (skip_names.contains(iter.name)) {
+      return;
+    }
+    const GVArraySpan src_attr = *iter.get();
+    bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
+        iter.name, iter.domain, iter.data_type);
+    mix_src_indices(src_attr, dst_to_src, dst_attr.span);
+    dst_attr.finish();
   });
 }
 
@@ -1489,49 +1517,37 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   /* Vertices. */
 
   Array<int> vert_final_map;
-  Map<int, Vector<int>> dst_vert_to_src_verts;
+  Vector<int> vert_src_index_offset_data;
+  Vector<int> vert_src_index_data;
   merge_customdata_all(vert_dest_map,
                        weld_mesh.double_verts,
                        result_nverts,
                        do_mix_data,
-                       dst_vert_to_src_verts,
+                       vert_src_index_offset_data,
+                       vert_src_index_data,
                        vert_final_map);
+  const GroupedSpan<int> dst_to_src_verts(OffsetIndices<int>(vert_src_index_offset_data),
+                                          vert_src_index_data);
 
-  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain != bke::AttrDomain::Point) {
-      return;
-    }
-    const GVArraySpan src_attr = *iter.get();
-    bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
-        iter.name, iter.domain, iter.data_type);
-    mix_with_map(src_attr, dst_vert_to_src_verts, dst_attr.span);
-    dst_attr.finish();
-  });
+  mix_attributes(src_attributes, dst_to_src_verts, bke::AttrDomain::Point, {}, dst_attributes);
 
   /* Edges. */
 
   Array<int> edge_final_map;
-  Map<int, Vector<int>> dst_edge_to_src_edges;
+  Vector<int> edge_src_index_offset_data;
+  Vector<int> edge_src_index_data;
   merge_customdata_all(weld_mesh.edge_dest_map,
                        weld_mesh.double_edges,
                        result_nedges,
                        do_mix_data,
-                       dst_edge_to_src_edges,
+                       edge_src_index_offset_data,
+                       edge_src_index_data,
                        edge_final_map);
+  const GroupedSpan<int> dst_to_src_edges(OffsetIndices<int>(edge_src_index_offset_data),
+                                          edge_src_index_data);
 
-  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain != bke::AttrDomain::Edge) {
-      return;
-    }
-    if (ELEM(iter.name, ".edge_verts")) {
-      return;
-    }
-    const GVArraySpan src_attr = *iter.get();
-    bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
-        iter.name, iter.domain, iter.data_type);
-    mix_with_map(src_attr, dst_edge_to_src_edges, dst_attr.span);
-    dst_attr.finish();
-  });
+  mix_attributes(
+      src_attributes, dst_to_src_edges, bke::AttrDomain::Edge, {".edge_verts"}, dst_attributes);
 
   threading::parallel_for(dst_edges.index_range(), 2048, [&](const IndexRange range) {
     for (const int dst_edge_index : range) {
@@ -1541,22 +1557,29 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   });
 
   /* Faces/Loops. */
+  Vector<int> corner_src_index_offset_data;
+  Vector<int> corner_src_index_data;
+
+  corner_src_index_offset_data.reserve(result->corners_num + 1);
+  corner_src_index_data.reserve(mesh.corners_num);
 
   int r_i = 0;
   int loop_cur = 0;
   Array<bool> dst_face_unaffected(result_nfaces);
-  Array<int> dst_face_to_src_face(result_nfaces);
-  Map<int, Vector<int>> src_corners_by_dst_corner;
+  Array<int> dst_to_src_faces(result_nfaces);
   Array<int, 64> group_buffer(weld_mesh.max_face_len);
   for (const int i : src_faces.index_range()) {
     const int loop_start = loop_cur;
     const int poly_ctx = weld_mesh.face_map[i];
     if (poly_ctx == OUT_OF_CONTEXT) {
-      loop_cur += src_faces[i].size();
+      for (const int loop_orig : src_faces[i]) {
+        corner_src_index_offset_data.append_unchecked(corner_src_index_data.size());
+        corner_src_index_data.append(loop_orig);
+        loop_cur++;
+      }
       dst_face_unaffected[r_i] = true;
     }
     else {
-      dst_face_unaffected[r_i] = false;
       const WeldPoly &wp = weld_mesh.wpoly[poly_ctx];
       WeldLoopOfPolyIter iter;
       if (!weld_iter_loop_of_poly_begin(iter,
@@ -1573,15 +1596,17 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       if (wp.poly_dst != OUT_OF_CONTEXT) {
         continue;
       }
+      dst_face_unaffected[r_i] = false;
       do {
-        src_corners_by_dst_corner.add_new(loop_cur, Span(group_buffer.data(), iter.group_len));
+        corner_src_index_offset_data.append_unchecked(corner_src_index_data.size());
+        corner_src_index_data.extend(Span(group_buffer.data(), iter.group_len));
         dst_corner_verts[loop_cur] = vert_final_map[iter.v];
         dst_corner_edges[loop_cur] = edge_final_map[iter.e];
         loop_cur++;
       } while (weld_iter_loop_of_poly_next(iter));
     }
 
-    dst_face_to_src_face[r_i] = i;
+    dst_to_src_faces[r_i] = i;
     dst_face_offsets[r_i] = loop_start;
     r_i++;
   }
@@ -1607,7 +1632,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       continue;
     }
     do {
-      src_corners_by_dst_corner.add_new(loop_cur, Span(group_buffer.data(), iter.group_len));
+      corner_src_index_offset_data.append_unchecked(corner_src_index_data.size());
+      corner_src_index_data.extend(Span(group_buffer.data(), iter.group_len));
       dst_corner_verts[loop_cur] = vert_final_map[iter.v];
       dst_corner_edges[loop_cur] = edge_final_map[iter.e];
       loop_cur++;
@@ -1616,6 +1642,11 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     dst_face_offsets[r_i] = loop_start;
     r_i++;
   }
+
+  corner_src_index_offset_data.append_unchecked(corner_src_index_data.size());
+
+  const GroupedSpan<int> dst_to_src_corners(OffsetIndices<int>(corner_src_index_offset_data),
+                                            corner_src_index_data);
 
   const OffsetIndices dst_faces = result->faces();
 
@@ -1628,7 +1659,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
     bke::attribute_math::gather(
-        src_attr, dst_face_to_src_face, dst_attr.span.drop_back(weld_mesh.wpoly_new_len));
+        src_attr, dst_to_src_faces, dst_attr.span.drop_back(weld_mesh.wpoly_new_len));
     type.fill_assign_n(type.default_value(),
                        dst_attr.span.take_back(weld_mesh.wpoly_new_len).data(),
                        weld_mesh.wpoly_new_len);
@@ -1639,7 +1670,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   const IndexMask out_of_context_faces = IndexMask::from_bools(dst_face_unaffected, memory);
 
   out_of_context_faces.foreach_index(GrainSize(1024), [&](const int dst_face_index) {
-    const IndexRange src_face = src_faces[dst_face_to_src_face[dst_face_index]];
+    const IndexRange src_face = src_faces[dst_to_src_faces[dst_face_index]];
     const IndexRange dst_face = dst_faces[dst_face_index];
     for (const int i : src_face.index_range()) {
       dst_corner_verts[dst_face[i]] = vert_final_map[src_corner_verts[src_face[i]]];
@@ -1647,29 +1678,11 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     }
   });
 
-  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain != bke::AttrDomain::Corner) {
-      return;
-    }
-    if (ELEM(iter.name, ".corner_vert", ".corner_edge")) {
-      return;
-    }
-    const GVArraySpan src_attr = *iter.get();
-    const CPPType &type = src_attr.type();
-    bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
-        iter.name, iter.domain, iter.data_type);
-
-    mix_with_map(src_attr, src_corners_by_dst_corner, dst_attr.span);
-
-    out_of_context_faces.foreach_index(GrainSize(1024), [&](const int dst_face) {
-      const int src_face = dst_face_to_src_face[dst_face];
-      type.copy_assign_n(src_attr[src_faces[src_face].first()],
-                         dst_attr.span[dst_faces[dst_face].first()],
-                         src_faces[src_face].size());
-    });
-
-    dst_attr.finish();
-  });
+  mix_attributes(src_attributes,
+                 dst_to_src_corners,
+                 bke::AttrDomain::Corner,
+                 {".corner_vert", ".corner_edge"},
+                 dst_attributes);
 
   BLI_assert(int(r_i) == result_nfaces);
   BLI_assert(loop_cur == result_nloops);
