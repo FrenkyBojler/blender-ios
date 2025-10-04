@@ -33,7 +33,8 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
   ObjExportMap skinned_mesh_export_map_;
   ObjExportMap shape_key_mesh_export_map_;
 
-  mutable blender::Map<pxr::SdfPath, blender::Vector<std::pair<std::string, int16_t>>> exported_prim_map_;
+  mutable blender::Map<pxr::SdfPath, blender::Vector<std::pair<std::string, int16_t>>>
+      exported_prim_map_;
 
   /* Map prototype_paths[instancer path] = [
    *   (proto_path_1, proto_object_1), (proto_path_2, proto_object_2), ... ] */

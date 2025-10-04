@@ -142,8 +142,16 @@ USDExporterContext USDHierarchyIterator::create_usd_export_context(const Hierarc
   const std::string export_file_path = root_layer->GetRealPath();
   auto get_time_code = [this]() { return this->export_time_; };
 
-  USDExporterContext exporter_context = USDExporterContext{
-      bmain_, depsgraph_, stage_, path, get_time_code, params_, export_file_path, nullptr, nullptr, this};
+  USDExporterContext exporter_context = USDExporterContext{bmain_,
+                                                           depsgraph_,
+                                                           stage_,
+                                                           path,
+                                                           get_time_code,
+                                                           params_,
+                                                           export_file_path,
+                                                           nullptr,
+                                                           nullptr,
+                                                           this};
 
   /* Provides optional skel mapping hook. Now it's been used in USDPointInstancerWriter for write
    * base layer. */

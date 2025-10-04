@@ -121,9 +121,10 @@ class USDSceneExportContext {
  public:
   USDSceneExportContext() = default;
 
-  USDSceneExportContext(pxr::UsdStageRefPtr stage,
-                        Depsgraph *depsgraph,
-                        const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &prim_map = {})
+  USDSceneExportContext(
+      pxr::UsdStageRefPtr stage,
+      Depsgraph *depsgraph,
+      const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &prim_map = {})
       : stage_(stage), prim_map_(prim_map)
   {
     depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
