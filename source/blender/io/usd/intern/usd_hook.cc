@@ -637,16 +637,6 @@ class OnMaterialImportInvoker final : public USDHookInvoker {
   }
 };
 
-void call_export_hooks(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportList *reports)
-{
-  if (hook_list().empty()) {
-    return;
-  }
-
-  OnExportInvoker on_export(stage, depsgraph, reports);
-  on_export.call();
-}
-
 void call_export_hooks(pxr::UsdStageRefPtr stage,
                        Depsgraph *depsgraph,
                        const ImportedPrimMap &prim_map,
