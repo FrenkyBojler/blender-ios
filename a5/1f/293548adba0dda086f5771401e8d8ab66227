@@ -21,3 +21,4 @@ Referenced by issue #122055, Segmentation fault on startup (Linux)
 Referenced by issue #117399, Adding assets (modifiers, such as Smooth by Angle) not working in background Python script because Asset list might not be fully loaded yet
 Referenced by issue #135838, How to use the "Move the view" (hand style icon) through the Win32 API "sendInput" （simulate mouse）
 Referenced by issue #136787, Default EEVEE renderer crashes-to-desktop when opening Material or Shading tabs
+Referenced by issue #141455, Sidebar tabs wiggle when resizing and enabling/disabling them
