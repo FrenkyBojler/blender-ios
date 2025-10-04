@@ -8,6 +8,7 @@
 
 #include "AS_asset_representation.hh"
 
+#include "BKE_node_socket_value.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
@@ -412,6 +413,7 @@ const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
       source_location.compute_context_hash = parent_compute_context ?
                                                  parent_compute_context->hash() :
                                                  ComputeContextHash{};
+      source_location.compute_context = parent_compute_context;
       return compute_context_for_closure_evaluation(parent_compute_context,
                                                     output_node.output_socket(0),
                                                     compute_context_cache,
@@ -475,18 +477,24 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
 static const ComputeContext *get_node_editor_root_compute_context(
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache)
 {
-  switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
-    case SNODE_GEOMETRY_MODIFIER: {
-      std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
-          ed::space_node::get_modifier_for_node_editor(snode);
-      if (!object_and_modifier) {
-        return nullptr;
+  if (snode.nodetree->type == NTREE_GEOMETRY) {
+    switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
+      case SNODE_GEOMETRY_MODIFIER: {
+        std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
+            ed::space_node::get_modifier_for_node_editor(snode);
+        if (!object_and_modifier) {
+          return nullptr;
+        }
+        return &compute_context_cache.for_modifier(nullptr, *object_and_modifier->nmd);
       }
-      return &compute_context_cache.for_modifier(nullptr, *object_and_modifier->nmd);
+      case SNODE_GEOMETRY_TOOL: {
+        return &compute_context_cache.for_operator(nullptr);
+      }
     }
-    case SNODE_GEOMETRY_TOOL: {
-      return &compute_context_cache.for_operator(nullptr);
-    }
+    return nullptr;
+  }
+  if (snode.nodetree->type == NTREE_SHADER) {
+    return &compute_context_cache.for_shader(nullptr, snode.nodetree);
   }
   return nullptr;
 }
@@ -497,7 +505,7 @@ static const ComputeContext *get_node_editor_root_compute_context(
   if (!snode.edittree) {
     return nullptr;
   }
-  if (snode.edittree->type != NTREE_GEOMETRY) {
+  if (!ELEM(snode.edittree->type, NTREE_GEOMETRY, NTREE_SHADER)) {
     return nullptr;
   }
   const ComputeContext *root_context = get_node_editor_root_compute_context(snode,
@@ -752,10 +760,14 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
         }
       }
       else if (ED_node_is_geometry(snode)) {
-        /* Rather strict check: only redraw when the reference matches the current editor's ID. */
         if (wmn->data == ND_MODIFIER) {
+          /* Rather strict check: only redraw when the reference matches current editor's ID, */
           if (wmn->reference == snode->id || snode->id == nullptr) {
             node_area_tag_tree_recalc(snode, area);
+          }
+          /* Redraw context path if modifier was added or removed. */
+          if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
+            ED_area_tag_redraw(area);
           }
         }
       }
@@ -983,7 +995,7 @@ static bool node_group_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
     }
     const AssetMetaData *metadata = &asset_data->asset->get_metadata();
     const IDProperty *tree_type = BKE_asset_metadata_idprop_find(metadata, "type");
-    if (!tree_type || IDP_Int(tree_type) != snode->edittree->type) {
+    if (!tree_type || IDP_int_get(tree_type) != snode->edittree->type) {
       return false;
     }
   }
@@ -1425,7 +1437,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
         }
       }
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "active_node")) {
@@ -1434,7 +1446,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
       CTX_data_pointer_set(result, &snode->edittree->id, &RNA_Node, node);
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_POINTER);
+    CTX_data_type_set(result, ContextDataType::Pointer);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "node_previews")) {
@@ -1445,7 +1457,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
                            &snode->nodetree->runtime->previews);
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_POINTER);
+    CTX_data_type_set(result, ContextDataType::Pointer);
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "material")) {
@@ -1864,6 +1876,8 @@ void ED_spacetype_node()
   art->draw = node_buttons_region_draw;
   BLI_addhead(&st->regiontypes, art);
 
+  node_tree_interface_panel_register(art);
+
   /* regions: toolbar */
   art = MEM_callocN<ARegionType>("spacetype view3d tools region");
   art->regionid = RGN_TYPE_TOOLS;
@@ -1877,9 +1891,10 @@ void ED_spacetype_node()
   art->draw = node_toolbar_region_draw;
   BLI_addhead(&st->regiontypes, art);
 
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_catalog_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, catalog_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, unassigned_assets_menu_type()));
   WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, swap_root_catalogs_menu_type()));
 
   BKE_spacetype_register(std::move(st));
 }

@@ -17,6 +17,7 @@ from bl_ui.properties_data_grease_pencil import (
     GreasePencil_LayerDisplayPanel,
 )
 from bl_ui.space_time import playback_controls
+from bl_ui.properties_data_mesh import draw_shape_key_properties
 
 from rna_prop_ui import PropertyPanel
 
@@ -105,7 +106,7 @@ class DopesheetFilterPopoverBase:
             flow.prop(dopesheet, "show_armatures", text="Armatures")
         if bpy.data.cameras:
             flow.prop(dopesheet, "show_cameras", text="Cameras")
-        if bpy.data.grease_pencils_v3:
+        if bpy.data.grease_pencils:
             flow.prop(dopesheet, "show_gpencil", text="Grease Pencil Objects")
         if bpy.data.lights:
             flow.prop(dopesheet, "show_lights", text="Lights")
@@ -204,16 +205,10 @@ class DOPESHEET_HT_header(Header):
         st = context.space_data
 
         layout.template_header()
+        layout.prop(st, "ui_mode", text="")
 
-        if st.mode == 'TIMELINE':
-            from bl_ui.space_time import TIME_MT_editor_menus
-            TIME_MT_editor_menus.draw_collapsible(context, layout)
-            playback_controls(layout, context)
-        else:
-            layout.prop(st, "ui_mode", text="")
-
-            DOPESHEET_MT_editor_menus.draw_collapsible(context, layout)
-            DOPESHEET_HT_editor_buttons.draw_header(context, layout)
+        DOPESHEET_MT_editor_menus.draw_collapsible(context, layout)
+        DOPESHEET_HT_editor_buttons.draw_header(context, layout)
 
 
 # Header for "normal" dopesheet editor modes (e.g. Dope Sheet, Action, Shape Keys, etc.)
@@ -405,7 +400,7 @@ class DOPESHEET_MT_view(Menu):
         layout.prop(st, "show_region_ui")
         layout.prop(st, "show_region_hud")
         layout.prop(st, "show_region_channels")
-        layout.prop(st, "show_region_footer")
+        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
         layout.operator("action.view_selected")
@@ -994,6 +989,31 @@ class DOPESHEET_PT_grease_pencil_layer_display(
     bl_options = {'DEFAULT_CLOSED'}
 
 
+class DOPESHEET_PT_ShapeKey(Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Shape Key"
+    bl_label = "Shape Key"
+
+    @classmethod
+    def poll(cls, context):
+        st = context.space_data
+        if st.mode != 'SHAPEKEY':
+            return False
+
+        ob = context.object
+        if ob is None or ob.active_shape_key is None:
+            return False
+
+        if not ob.data.shape_keys.use_relative:
+            return False
+
+        return ob.active_shape_key_index > 0
+
+    def draw(self, context):
+        draw_shape_key_properties(context, self.layout)
+
+
 classes = (
     DOPESHEET_HT_header,
     DOPESHEET_HT_playback_controls,
@@ -1024,6 +1044,7 @@ classes = (
     DOPESHEET_PT_grease_pencil_layer_adjustments,
     DOPESHEET_PT_grease_pencil_layer_relations,
     DOPESHEET_PT_grease_pencil_layer_display,
+    DOPESHEET_PT_ShapeKey,
 )
 
 if __name__ == "__main__":  # only for live edit.

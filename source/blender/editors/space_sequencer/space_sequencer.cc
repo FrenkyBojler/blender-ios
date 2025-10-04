@@ -710,7 +710,12 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     if (strip != nullptr) {
       ListBase *channels = seq::channels_displayed_get(ed);
       const bool locked = seq::transform_is_locked(channels, strip);
-      if (STREQ(tref->idname, "builtin.blade")) {
+      const int frame = round_fl_to_int(mouse_co_view[0]);
+      /* We cannot split the first and last frame, so blade cursor should not appear then. */
+      if (STREQ(tref->idname, "builtin.blade") &&
+          frame != seq::time_left_handle_frame_get(scene, strip) &&
+          frame != seq::time_right_handle_frame_get(scene, strip))
+      {
         wmcursor = locked ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
       }
       else if (STREQ(tref->idname, "builtin.slip")) {
@@ -1031,7 +1036,6 @@ static void sequencer_buttons_region_init(wmWindowManager *wm, ARegion *region)
       wm->runtime->defaultconf, "Video Sequence Editor", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  UI_panel_category_active_set_default(region, "Strip");
   ED_region_panels_init(wm, region);
 }
 
@@ -1208,15 +1212,6 @@ void ED_spacetype_sequencer()
   art->draw = sequencer_buttons_region_draw;
   BLI_addhead(&st->regiontypes, art);
 
-  /* Register the panel types from strip modifiers. The actual panels are built per strip modifier
-   * rather than per modifier type. */
-  for (int i = 0; i < NUM_STRIP_MODIFIER_TYPES; i++) {
-    const seq::StripModifierTypeInfo *mti = seq::modifier_type_info_get(i);
-    if (mti != nullptr && mti->panel_register != nullptr) {
-      mti->panel_register(art);
-    }
-  }
-
   sequencer_buttons_register(art);
   /* Toolbar. */
   art = MEM_callocN<ARegionType>("spacetype sequencer tools region");
@@ -1281,7 +1276,7 @@ void ED_spacetype_sequencer()
 
   WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_catalog_assets_menu_type()));
   WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_unassigned_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_scene_menu_type()));
 
   BKE_spacetype_register(std::move(st));
 

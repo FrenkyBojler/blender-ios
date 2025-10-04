@@ -27,6 +27,7 @@
 #include "eevee_ambient_occlusion.hh"
 #include "eevee_camera.hh"
 #include "eevee_cryptomatte.hh"
+#include "eevee_debug_shared.hh"
 #include "eevee_depth_of_field.hh"
 #include "eevee_film.hh"
 #include "eevee_gbuffer.hh"
@@ -52,6 +53,8 @@
 #include "eevee_world.hh"
 
 namespace blender::eevee {
+
+using UniformDataBuf = draw::UniformBuffer<UniformData>;
 
 /* Combines data from several modules to avoid wasting binding slots. */
 struct UniformDataModule {
@@ -198,8 +201,8 @@ class Instance : public DrawEngine {
         planar_probes(*this),
         volume_probes(*this),
         light_probes(*this),
-        volume(*this, uniform_data.data.volumes){};
-  ~Instance(){};
+        volume(*this, uniform_data.data.volumes) {};
+  ~Instance() {};
 
   blender::StringRefNull name_get() final
   {
