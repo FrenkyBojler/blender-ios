@@ -2761,40 +2761,20 @@ static void do_version_adaptive_subdivision(Main *bmain)
   }
 }
 
-static void do_version_alpha_pass(bNodeTree *node_tree, bNode *node)
+static void extract_alpha(bNodeTree *node_tree, bNodeSocket *image_output, bNodeLink *alpha_link)
 {
-  bNodeSocket *image_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Image");
-  bNodeSocket *alpha_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Alpha");
-
-  /* Find the link going out of the Alpha output and replace it with the Alpha channel from the
-   * Image output. */
-  bNodeLink *alpha_link = nullptr;
-  bool is_alpha_output_used = false;
-  LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
-    if (link->fromsock == alpha_output) {
-      alpha_link = link;
-      is_alpha_output_used = true;
-    }
-  }
-
-  /* The alpha output is unused, nothing to do. */
-  if (!is_alpha_output_used) {
-    return;
-  }
-  /* Extract the alpha channel from the Image output using a Separate Color node. */
-
   // todo(habib): use version_node_add_empty()
   bNode *target_node = alpha_link->tonode;
   bNode *separate_node = blender::bke::node_add_static_node(
       nullptr, *node_tree, CMP_NODE_SEPARATE_COLOR);
-  separate_node->parent = node->parent;
+  separate_node->parent = alpha_link->fromnode->parent;
   separate_node->custom1 = NODE_COMBSEP_COLOR_RGB;
   separate_node->location[0] = target_node->location[0];
   separate_node->location[1] = target_node->location[1] - 20.0f;
   separate_node->flag |= NODE_COLLAPSED;
 
   blender::bke::node_add_link(*node_tree,
-                              *node,
+                              *alpha_link->fromnode,
                               *image_output,
                               *separate_node,
                               *blender::bke::node_find_socket(*separate_node, SOCK_IN, "Image"));
@@ -2804,8 +2784,59 @@ static void do_version_alpha_pass(bNodeTree *node_tree, bNode *node)
                               *blender::bke::node_find_socket(*separate_node, SOCK_OUT, "Alpha"),
                               *alpha_link->tonode,
                               *alpha_link->tosock);
+}
 
+static void do_version_remove_alpha_render_layers(bNodeTree *node_tree, bNode *node)
+{
+  bNodeSocket *image_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Image");
+  bNodeSocket *alpha_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Alpha");
+  BLI_assert_msg(image_output && alpha_output,
+                 "Expected Render Layers node to have hard coded Image and Alpha passes.");
+
+  bNodeLink *alpha_link = nullptr;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
+    if (link->fromsock == alpha_output) {
+      alpha_link = link;
+    }
+  }
+
+  /* The alpha output is unused, nothing to do. */
+  if (alpha_link == nullptr) {
+    return;
+  }
+
+  extract_alpha(node_tree, image_output, alpha_link);
   blender::bke::node_remove_link(node_tree, *alpha_link);
+}
+
+static void do_version_remove_alpha_image(bNodeTree *node_tree, bNode *node)
+{
+  bNodeSocket *image_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Image");
+  bNodeSocket *alpha_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Alpha");
+
+  if (image_output == nullptr || alpha_output == nullptr) {
+    /* Multilayer EXRs likely defined custom names for the passes. So we skip versioning. */
+    return;
+  }
+
+  bNodeLink *alpha_link = nullptr;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
+    if (link->fromsock == alpha_output) {
+      alpha_link = link;
+    }
+  }
+
+  /* The alpha output is unused, we can safely remove the socket. */
+  if (alpha_link == nullptr) {
+    MEM_freeN(reinterpret_cast<NodeImageLayer *>(alpha_output->storage));
+    blender::bke::node_remove_socket(*node_tree, *node, *alpha_output);
+    return;
+  }
+
+  extract_alpha(node_tree, image_output, alpha_link);
+  blender::bke::node_remove_link(node_tree, *alpha_link);
+  MEM_freeN(reinterpret_cast<NodeImageLayer *>(alpha_output->storage));
+  blender::bke::node_remove_socket(*node_tree, *node, *alpha_output);
 }
 
 void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
@@ -3862,13 +3893,16 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
               /* Alpha pass was removed from the Render Layers node.
                * Previously, an alpha pass was created for every loaded image. After removing the
                * alpha pass, we cannot differentiate alpha passes created by Blender on load or by
-               * users when saving EXRs. So we skip versioning for the Image node. */
-              do_version_alpha_pass(node_tree, node);
+               * users when saving EXRs. So versioning is not fully supported for EXR files. */
+              do_version_remove_alpha_render_layers(node_tree, node);
+            }
+            else if (node->type_legacy == CMP_NODE_IMAGE) {
+              do_version_remove_alpha_image(node_tree, node);
             }
           }
         }
+        FOREACH_NODETREE_END;
       }
-      FOREACH_NODETREE_END;
     }
   }
 

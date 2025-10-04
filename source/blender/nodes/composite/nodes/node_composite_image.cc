@@ -322,15 +322,6 @@ void node_cmp_rlayers_register_pass(bNodeTree *ntree,
   if (STREQ(name, RE_PASSNAME_COMBINED)) {
     cmp_node_image_add_pass_output(
         ntree, node, "Image", name, -1, type, true, data->available_sockets, &data->prev_index);
-    // cmp_node_image_add_pass_output(ntree,
-    //                                node,
-    //                                "Alpha",
-    //                                name,
-    //                                -1,
-    //                                SOCK_FLOAT,
-    //                                true,
-    //                                data->available_sockets,
-    //                                &data->prev_index);
   }
   else {
     cmp_node_image_add_pass_output(
@@ -408,15 +399,6 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
                                  true,
                                  available_sockets,
                                  &prev_index);
-  // cmp_node_image_add_pass_output(ntree,
-  //                                node,
-  //                                "Alpha",
-  //                                RE_PASSNAME_COMBINED,
-  //                                RRES_OUT_ALPHA,
-  //                                SOCK_FLOAT,
-  //                                true,
-  //                                available_sockets,
-  //                                &prev_index);
 }
 
 /* XXX make this into a generic socket verification function for dynamic socket replacement
