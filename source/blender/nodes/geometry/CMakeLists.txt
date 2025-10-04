@@ -102,6 +102,7 @@ set(SRC
   nodes/node_geo_grid_info.cc
   nodes/node_geo_grid_laplacian.cc
   nodes/node_geo_grid_prune.cc
+  nodes/node_geo_grid_solve_poisson.cc
   nodes/node_geo_grid_to_mesh.cc
   nodes/node_geo_grid_voxelize.cc
   nodes/node_geo_image.cc
