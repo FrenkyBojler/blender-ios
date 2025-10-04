@@ -263,14 +263,15 @@ void UI_region_views_clear_search_highlight(const ARegion *region)
   }
 }
 
-void UI_block_tree_view_focus_active(uiBlock &block, const blender::StringRef view_idname)
+void UI_block_tree_view_scroll_active_into_view(uiBlock &block,
+                                                const blender::StringRef view_idname)
 {
   LISTBASE_FOREACH (ViewLink *, view_link, &block.views) {
     if (view_link->idname != view_idname) {
       continue;
     }
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view_link->view.get())) {
-      tree_view->focus_active_on_redraw();
+      tree_view->scroll_active_into_view_on_redraw();
     }
   }
 }

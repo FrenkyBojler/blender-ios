@@ -130,7 +130,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * Can be set to true to focus by operators to change scroll_value_ so that the active item is in
    * view after the next redraw.
    */
-  bool focus_on_active_on_redraw_ = false;
+  bool scroll_active_into_view_on_redraw_ = false;
   /**
    * The total number of items in the tree during the last redraw.
    */
@@ -155,8 +155,14 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /**
    * Change the scroll position so that this index is visible if possible.
    */
-  void focus(int focus_index);
-  void focus_active_on_redraw();
+  void scroll_into_view(int focus_index);
+
+  /**
+   * Tag the tree view so that it adjusts its scroll position so that the active item becomes
+   * visible after the next redraw. This can be used by operators which changed the active item and
+   * want to make it obvious to the user.
+   */
+  void scroll_active_into_view_on_redraw();
 
   /**
    * \param xy: The mouse coordinates in window space.

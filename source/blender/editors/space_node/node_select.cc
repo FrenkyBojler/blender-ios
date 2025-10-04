@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <fmt/format.h>
 
-#include "BKE_screen.hh"
 #include "DNA_collection_types.h"
 #include "DNA_image_types.h"
 #include "DNA_material_types.h"
@@ -36,6 +35,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
 #include "BKE_workspace.hh"
 
@@ -666,7 +666,7 @@ static bool node_mouse_select(bContext *C,
           ScrArea *area = CTX_wm_area(C);
           ARegion *ui_region = BKE_region_find_in_listbase_by_type(&area->regionbase, RGN_TYPE_UI);
           LISTBASE_FOREACH (uiBlock *, block, &ui_region->runtime->uiblocks) {
-            UI_block_tree_view_focus_active(*block, "Node Tree Declaration Tree View");
+            UI_block_tree_view_scroll_active_into_view(*block, "Node Tree Declaration Tree View");
           }
         }
       }
