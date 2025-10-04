@@ -11,6 +11,7 @@
 #include <pxr/usd/usdShade/material.h>
 
 struct Depsgraph;
+struct Main;
 struct Material;
 struct ReportList;
 

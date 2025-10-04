@@ -33,8 +33,6 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
   ObjExportMap skinned_mesh_export_map_;
   ObjExportMap shape_key_mesh_export_map_;
 
-  /* Map to store exported prims to their associated Blender ID identifiers.
-   * We store safe identifiers (name + type) instead of pointers to avoid accessing freed evaluated objects. */
   mutable blender::Map<pxr::SdfPath, blender::Vector<std::pair<std::string, short>>> exported_prim_map_;
 
   /* Map prototype_paths[instancer path] = [

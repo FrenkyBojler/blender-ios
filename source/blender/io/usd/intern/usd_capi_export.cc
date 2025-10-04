@@ -591,7 +591,6 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
     process_scene_graph_instances(params, usd_stage);
   }
 
-  /* Get the export prim mapping and call hooks with it. */
   const auto prim_map = iter.get_exported_prim_map();
   call_export_hooks(usd_stage, depsgraph, prim_map, params.worker_status->reports);
 

@@ -116,28 +116,17 @@ class USDSceneExportContext {
  private:
   pxr::UsdStageRefPtr stage_;
   PointerRNA depsgraph_ptr_;
-  ImportedPrimMap prim_map_;
-  PYTHON_NS::dict *prim_map_dict_ = nullptr;
+  blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map_;
 
  public:
   USDSceneExportContext() = default;
 
-  USDSceneExportContext(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph) : stage_(stage)
-  {
-    depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
-  }
-
   USDSceneExportContext(pxr::UsdStageRefPtr stage,
                         Depsgraph *depsgraph,
-                        const ImportedPrimMap &in_prim_map)
-      : stage_(stage), prim_map_(in_prim_map)
+                        const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &prim_map = {})
+      : stage_(stage), prim_map_(prim_map)
   {
     depsgraph_ptr_ = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
-  }
-
-  void release()
-  {
-    delete prim_map_dict_;
   }
 
   pxr::UsdStageRefPtr get_stage() const
@@ -152,22 +141,15 @@ class USDSceneExportContext {
 
   PYTHON_NS::dict get_prim_map()
   {
-    if (!prim_map_dict_) {
-      prim_map_dict_ = new PYTHON_NS::dict;
-
-      prim_map_.foreach_item([&](const pxr::SdfPath &path, const Vector<PointerRNA> &ids) {
-        if (!prim_map_dict_->has_key(path)) {
-          (*prim_map_dict_)[path] = PYTHON_NS::list();
-        }
-
-        PYTHON_NS::list list = PYTHON_NS::extract<PYTHON_NS::list>((*prim_map_dict_)[path]);
-        for (const auto &ptr_rna : ids) {
-          list.append(ptr_rna);
-        }
-      });
-    }
-
-    return *prim_map_dict_;
+    PYTHON_NS::dict result;
+    prim_map_.foreach_item([&](const pxr::SdfPath &path, const Vector<PointerRNA> &ids) {
+      PYTHON_NS::list id_list;
+      for (const PointerRNA &ptr_rna : ids) {
+        id_list.append(ptr_rna);
+      }
+      result[path] = id_list;
+    });
+    return result;
   }
 };
 
@@ -175,20 +157,14 @@ class USDSceneExportContext {
 class USDSceneImportContext {
  private:
   pxr::UsdStageRefPtr stage_;
-  ImportedPrimMap prim_map_;
-  PYTHON_NS::dict *prim_map_dict_ = nullptr;
+  blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map_;
 
  public:
   USDSceneImportContext() = default;
 
-  USDSceneImportContext(pxr::UsdStageRefPtr in_stage, const ImportedPrimMap &in_prim_map)
+  USDSceneImportContext(pxr::UsdStageRefPtr in_stage, const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &in_prim_map)
       : stage_(in_stage), prim_map_(in_prim_map)
   {
-  }
-
-  void release()
-  {
-    delete prim_map_dict_;
   }
 
   pxr::UsdStageRefPtr get_stage() const
@@ -198,22 +174,15 @@ class USDSceneImportContext {
 
   PYTHON_NS::dict get_prim_map()
   {
-    if (!prim_map_dict_) {
-      prim_map_dict_ = new PYTHON_NS::dict;
-
-      prim_map_.foreach_item([&](const pxr::SdfPath &path, const Vector<PointerRNA> &ids) {
-        if (!prim_map_dict_->has_key(path)) {
-          (*prim_map_dict_)[path] = PYTHON_NS::list();
-        }
-
-        PYTHON_NS::list list = PYTHON_NS::extract<PYTHON_NS::list>((*prim_map_dict_)[path]);
-        for (const auto &ptr_rna : ids) {
-          list.append(ptr_rna);
-        }
-      });
-    }
-
-    return *prim_map_dict_;
+    PYTHON_NS::dict result;
+    prim_map_.foreach_item([&](const pxr::SdfPath &path, const Vector<PointerRNA> &ids) {
+      PYTHON_NS::list id_list;
+      for (const PointerRNA &ptr_rna : ids) {
+        id_list.append(ptr_rna);
+      }
+      result[path] = id_list;
+    });
+    return result;
   }
 };
 
@@ -449,7 +418,6 @@ class USDHookInvoker {
       }
     }
 
-    release_in_gil();
     PyGILState_Release(gilstate);
   }
 
@@ -463,7 +431,6 @@ class USDHookInvoker {
   virtual void call_hook(PyObject *hook_obj) = 0;
 
   virtual void init_in_gil() {};
-  virtual void release_in_gil() {};
 };
 
 class OnExportInvoker final : public USDHookInvoker {
@@ -471,14 +438,9 @@ class OnExportInvoker final : public USDHookInvoker {
   USDSceneExportContext hook_context_;
 
  public:
-  OnExportInvoker(pxr::UsdStageRefPtr stage, Depsgraph *depsgraph, ReportList *reports)
-      : USDHookInvoker(reports), hook_context_(stage, depsgraph)
-  {
-  }
-
   OnExportInvoker(pxr::UsdStageRefPtr stage,
                   Depsgraph *depsgraph,
-                  const ImportedPrimMap &prim_map,
+                  const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &prim_map,
                   ReportList *reports)
       : USDHookInvoker(reports), hook_context_(stage, depsgraph, prim_map)
   {
@@ -493,11 +455,6 @@ class OnExportInvoker final : public USDHookInvoker {
   void call_hook(PyObject *hook_obj) override
   {
     python::call_method<bool>(hook_obj, function_name(), REF(hook_context_));
-  }
-
-  void release_in_gil() override
-  {
-    hook_context_.release();
   }
 };
 
@@ -538,7 +495,7 @@ class OnImportInvoker final : public USDHookInvoker {
   USDSceneImportContext hook_context_;
 
  public:
-  OnImportInvoker(pxr::UsdStageRefPtr stage, const ImportedPrimMap &prim_map, ReportList *reports)
+  OnImportInvoker(pxr::UsdStageRefPtr stage, const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &prim_map, ReportList *reports)
       : USDHookInvoker(reports), hook_context_(stage, prim_map)
   {
   }
@@ -552,11 +509,6 @@ class OnImportInvoker final : public USDHookInvoker {
   void call_hook(PyObject *hook_obj) override
   {
     python::call_method<bool>(hook_obj, function_name(), REF(hook_context_));
-  }
-
-  void release_in_gil() override
-  {
-    hook_context_.release();
   }
 };
 
@@ -639,7 +591,7 @@ class OnMaterialImportInvoker final : public USDHookInvoker {
 
 void call_export_hooks(pxr::UsdStageRefPtr stage,
                        Depsgraph *depsgraph,
-                       const ImportedPrimMap &prim_map,
+                       const blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> &prim_map,
                        ReportList *reports)
 {
   if (hook_list().empty()) {

@@ -143,17 +143,12 @@ USDExporterContext USDHierarchyIterator::create_usd_export_context(const Hierarc
   auto get_time_code = [this]() { return this->export_time_; };
 
   USDExporterContext exporter_context = USDExporterContext{
-      bmain_, depsgraph_, stage_, path, get_time_code, params_, export_file_path, nullptr, nullptr, nullptr};
+      bmain_, depsgraph_, stage_, path, get_time_code, params_, export_file_path, nullptr, nullptr, this};
 
   /* Provides optional skel mapping hook. Now it's been used in USDPointInstancerWriter for write
    * base layer. */
   exporter_context.add_skel_mapping_fn = [this](const Object *obj, const pxr::SdfPath &usd_path) {
     this->add_usd_skel_export_mapping(obj, usd_path);
-  };
-
-  /* Provides prim map building hook for adding IDs to the export prim map. */
-  exporter_context.add_to_prim_map_fn = [this](const pxr::SdfPath &usd_path, ID *id) {
-    this->add_to_prim_map(usd_path, id);
   };
 
   return exporter_context;
@@ -452,20 +447,18 @@ blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
 {
   blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map;
 
-  /* Convert the safe identifiers back to PointerRNA by looking up the original objects in bmain. */
   exported_prim_map_.foreach_item([&](const pxr::SdfPath &usd_path,
                                       const blender::Vector<std::pair<std::string, short>> &id_infos) {
     for (const auto &id_info : id_infos) {
       const std::string &obj_name = id_info.first;
       short obj_type = id_info.second;
       
-      /* Find the original object in bmain with this name and type */
       ListBase *lb = which_libbase(bmain_, obj_type);
       if (lb) {
         LISTBASE_FOREACH(ID *, original_id, lb) {
           if (STREQ(original_id->name + 2, obj_name.c_str())) {
             prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(original_id));
-            break;  /* Found the original, no need to continue searching */
+            break;
           }
         }
       }
@@ -477,7 +470,7 @@ blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
 
 void USDHierarchyIterator::add_to_prim_map(const pxr::SdfPath &usd_path, ID *id) const
 {
-  std::string id_name = id->name + 2;  /* Skip ID type prefix */
+  std::string id_name = id->name + 2;
   short id_type = GS(id->name);
   exported_prim_map_.lookup_or_add_default(usd_path).append(std::make_pair(id_name, id_type));
 }
@@ -501,7 +494,7 @@ USDExporterContext USDHierarchyIterator::create_point_instancer_context(
           export_context.export_file_path,
           export_context.export_image_fn,
           export_context.add_skel_mapping_fn,
-          export_context.add_to_prim_map_fn};
+          export_context.hierarchy_iterator};
 }
 
 }  // namespace blender::io::usd

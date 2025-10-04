@@ -39,8 +39,7 @@ struct USDExporterContext {
   /** Optional callback for skel/shape-key path registration (used by USDPointInstancerWriter). */
   std::function<void(const Object *, const pxr::SdfPath &)> add_skel_mapping_fn;
 
-  /** Optional callback for adding IDs to the export prim map. */
-  std::function<void(const pxr::SdfPath &, ID *)> add_to_prim_map_fn;
+  USDHierarchyIterator *hierarchy_iterator;
 };
 
 }  // namespace blender::io::usd
