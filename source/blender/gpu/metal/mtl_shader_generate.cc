@@ -12,53 +12,6 @@
 #include "mtl_backend.hh"
 #include "mtl_shader_generate.hh"
 
-/**
- * In Metal UBO, SSBO and Push Constants all share the same binding space with a maximum of 31
- * bindings per stage. To avoid bind location clash, we associate different ranges to different
- * usage. Given that vertex and index buffers are not present in the shader code, we try to pack
- * them in the remaining unused slots. This is done inside the PSO description building (inside the
- * Batch API).
- *
- * +-----------------------------+--------+------------+
- * | Type                        | Count  | Slot Range |
- * +-----------------------------+--------+------------+
- * | Vertex Buffers              |     16 |    0..30   |
- * | Storage Buffers             |     16 |    0..15   |
- * | Uniform Buffers             |     13 |   16..28   |
- * | Push Constant Buffer        |      1 |   29..29   |
- * | Sampler Argument Buffer     |      1 |   30..30   |
- * +-----------------------------+--------+------------+
- */
-#define MTL_MAX_SSBO 16
-#define MTL_MAX_UBO 13
-#define MTL_SSBO_SLOT_OFFSET 0
-#define MTL_UBO_SLOT_OFFSET MTL_MAX_SSBO
-#define MTL_PUSH_CONSTANT_BUFFER_SLOT (MTL_MAX_SSBO + MTL_MAX_UBO)
-#define MTL_SAMPLER_ARGUMENT_BUFFER_SLOT (MTL_PUSH_CONSTANT_BUFFER_SLOT + 1)
-
-/**
- * Whether they are used for arbitrary load/store or sampling, all textures share a binding space
- * per stage (up to 128 slots on our target devices). However, we keep the same combined
- * texture+sampler semantic as GLSL. The sampler binding space is much more limited (16 on target
- * hardware) which limits the maximum texture we can bind for sampling. So we reserve the first 16
- * slots to samplers and the next 16 to images. Using the first slot for samplers allows to reuse
- * the same slot for the texture and the sampler object.
- *
- * +-----------------------------+--------+------------+
- * | Type                        | Count  | Slot Range |
- * +-----------------------------+--------+------------+
- * | Sampler Textures            |     16 |    0..15   |
- * | Image Textures              |     16 |   16..31   |
- * +-----------------------------+--------+------------+
- */
-#define MTL_MAX_SAMPLER 16
-#define MTL_MAX_IMAGE 16 /* Could be much higher but we keep book-keeping footprint low. */
-#define MTL_SAMPLER_SLOT_OFFSET 0
-#define MTL_IMAGE_SLOT_OFFSET MTL_MAX_SAMPLER
-
-/* Other parts of the backend also use specialization constants. */
-#define MTL_SPECIALIZATION_CONSTANT_OFFSET 30
-
 using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
@@ -736,8 +689,10 @@ static void generate_texture(GeneratedStreams &generated,
      * Avoid this warning: "writable resources in non-void vertex function". */
     qualifier = shader::Qualifier::read;
   }
+  /* Samplers use a different bind space and start at 0. */
+  const std::string sampler_slot = std::to_string(slot - MTL_SAMPLER_SLOT_OFFSET);
   const std::string sampler_name = use_sampler_argument_buffer ?
-                                       ("mtl_samplers.samplers[" + std::to_string(slot) + "]") :
+                                       ("mtl_samplers.samplers[" + sampler_slot + "]") :
                                        (name + "_samp_");
   const std::string temp_args = to_component_type(type) + ", " + to_access(is_sampler, qualifier);
   const std::string type_str = to_raw_type(type) + "<" + temp_args + "> ";
@@ -806,7 +761,7 @@ static void generate_texture(GeneratedStreams &generated,
     out << Sep() << type_str << name << " [[texture(" << slot << ")]]";
 
     if (is_sampler && !use_sampler_argument_buffer) {
-      out << Sep() << "sampler " << sampler_name << " [[sampler(" << slot << ")]]";
+      out << Sep() << "sampler " << sampler_name << " [[sampler(" << sampler_slot << ")]]";
     }
   }
 }

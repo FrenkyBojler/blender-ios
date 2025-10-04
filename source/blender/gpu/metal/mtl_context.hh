@@ -884,8 +884,7 @@ class MTLContext : public Context {
                               const MTLShaderInterface *shader_interface,
                               const MTLRenderPipelineStateInstance *pipeline_state_instance);
   bool ensure_buffer_bindings(id<MTLComputeCommandEncoder> rec,
-                              const MTLShaderInterface *shader_interface,
-                              const MTLComputePipelineStateInstance *pipeline_state_instance);
+                              const MTLShaderInterface *shader_interface);
   void ensure_texture_bindings(id<MTLRenderCommandEncoder> rec,
                                MTLShaderInterface *shader_interface,
                                const MTLRenderPipelineStateInstance *pipeline_state_instance);

@@ -77,11 +77,6 @@ struct MTLRenderPipelineStateInstance {
   /** Derived information. */
   /* Unique index for PSO variant. */
   uint32_t shader_pso_index;
-  /* Base bind index for binding uniform buffers, offset based on other
-   * bound buffers such as vertex buffers, as the count can vary. */
-  int base_uniform_buffer_index;
-  /* Base bind index for binding storage buffers. */
-  int base_storage_buffer_index;
   /* buffer bind slot used for null attributes (-1 if not needed). */
   int null_attribute_buffer_index;
   /* Topology class. */
@@ -122,11 +117,6 @@ struct MTLComputePipelineStateInstance {
   /** Derived information. */
   /* Unique index for PSO variant. */
   uint32_t shader_pso_index;
-  /* Base bind index for binding uniform buffers, offset based on other
-   * bound buffers such as vertex buffers, as the count can vary. */
-  int base_uniform_buffer_index = -1;
-  /* Base bind index for binding storage buffers. */
-  int base_storage_buffer_index = -1;
 
   /* Function instances with specialization.
    * Required for argument encoder construction. */

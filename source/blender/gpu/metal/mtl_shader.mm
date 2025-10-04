@@ -983,47 +983,6 @@ MTLRenderPipelineStateInstance *MTLShader::bake_pipeline_state(
       desc.inputPrimitiveTopology = pipeline_descriptor.vertex_descriptor.prim_topology_class;
     }
 
-    /* Update constant value for 'MTL_uniform_buffer_base_index'. */
-    [values setConstantValue:&MTL_uniform_buffer_base_index
-                        type:MTLDataTypeInt
-                    withName:@"MTL_uniform_buffer_base_index"];
-
-    /* Storage buffer bind index.
-     * This is always relative to MTL_uniform_buffer_base_index, plus the number of active buffers,
-     * and an additional space for the push constant block.
-     * If the shader does not have any uniform blocks, then we can place directly after the push
-     * constant block. As we do not need an extra spot for the UBO at index '0'. */
-    int MTL_storage_buffer_base_index = MTL_uniform_buffer_base_index + 1 +
-                                        ((mtl_interface->get_total_uniform_blocks() > 0) ?
-                                             mtl_interface->get_total_uniform_blocks() :
-                                             0);
-    [values setConstantValue:&MTL_storage_buffer_base_index
-                        type:MTLDataTypeInt
-                    withName:@"MTL_storage_buffer_base_index"];
-
-    /* Clipping planes. */
-    int MTL_clip_distances_enabled = (pipeline_descriptor.clipping_plane_enable_mask > 0) ? 1 : 0;
-
-    /* Only define specialization constant if planes are required.
-     * We guard clip_planes usage on this flag. */
-    [values setConstantValue:&MTL_clip_distances_enabled
-                        type:MTLDataTypeInt
-                    withName:@"MTL_clip_distances_enabled"];
-
-    if (MTL_clip_distances_enabled > 0) {
-      /* Assign individual enablement flags. Only define a flag function constant
-       * if it is used. */
-      for (const int plane : IndexRange(6)) {
-        int plane_enabled = ctx->pipeline_state.clip_distance_enabled[plane] ? 1 : 0;
-        if (plane_enabled) {
-          [values
-              setConstantValue:&plane_enabled
-                          type:MTLDataTypeInt
-                      withName:[NSString stringWithFormat:@"MTL_clip_distance_enabled%d", plane]];
-        }
-      }
-    }
-
     /* gl_PointSize constant. */
     bool null_pointsize = true;
     float MTL_pointsize = pipeline_descriptor.point_size;
@@ -1181,8 +1140,6 @@ MTLRenderPipelineStateInstance *MTLShader::bake_pipeline_state(
     pso_inst->vert = desc.vertexFunction;
     pso_inst->frag = desc.fragmentFunction;
     pso_inst->pso = pso;
-    pso_inst->base_uniform_buffer_index = MTL_uniform_buffer_base_index;
-    pso_inst->base_storage_buffer_index = MTL_storage_buffer_base_index;
     pso_inst->null_attribute_buffer_index = (using_null_buffer) ? null_buffer_index : -1;
     pso_inst->prim_type = prim_type;
 
@@ -1312,31 +1269,6 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
   populate_specialization_constant_values(
       values, *this->constants, compute_pipeline_descriptor.specialization_state);
 
-  /* Offset the bind index for Uniform buffers such that they begin after the VBO
-   * buffer bind slots. `MTL_uniform_buffer_base_index` is passed as a function
-   * specialization constant, customized per unique pipeline state permutation.
-   *
-   * For Compute shaders, this offset is always zero, but this needs setting as
-   * it is expected as part of the common Metal shader header. */
-  int MTL_uniform_buffer_base_index = 0;
-  [values setConstantValue:&MTL_uniform_buffer_base_index
-                      type:MTLDataTypeInt
-                  withName:@"MTL_uniform_buffer_base_index"];
-
-  /* Storage buffer bind index.
-   * This is always relative to MTL_uniform_buffer_base_index, plus the number of active buffers,
-   * and an additional space for the push constant block.
-   * If the shader does not have any uniform blocks, then we can place directly after the push
-   * constant block. As we do not need an extra spot for the UBO at index '0'. */
-  int MTL_storage_buffer_base_index = MTL_uniform_buffer_base_index + 1 +
-                                      ((mtl_interface->get_total_uniform_blocks() > 0) ?
-                                           mtl_interface->get_total_uniform_blocks() :
-                                           0);
-
-  [values setConstantValue:&MTL_storage_buffer_base_index
-                      type:MTLDataTypeInt
-                  withName:@"MTL_storage_buffer_base_index"];
-
   std::string function_name = entry_point_name_get(ShaderStage::COMPUTE);
   NSError *error = nullptr;
 
@@ -1414,31 +1346,22 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
     }
   }
 
+  [desc release];
+
   if (error) {
     NSLog(@"Failed to create PSO for compute shader: %s error %@\n", this->name, error);
     return nullptr;
   }
-  else if (!pso) {
+  if (!pso) {
     NSLog(@"Failed to create PSO for compute shader: %s, but no error was provided!\n",
           this->name);
     return nullptr;
   }
-  else {
-#if 0
-      NSLog(@"Successfully compiled compute PSO for shader: %s (Metal Context: %p)\n",
-            this->name,
-            ctx);
-#endif
-  }
-
-  [desc release];
 
   /* Gather reflection data and create MTLComputePipelineStateInstance to store results. */
   MTLComputePipelineStateInstance *compute_pso_instance = new MTLComputePipelineStateInstance();
   compute_pso_instance->compute = compute_function;
   compute_pso_instance->pso = pso;
-  compute_pso_instance->base_uniform_buffer_index = MTL_uniform_buffer_base_index;
-  compute_pso_instance->base_storage_buffer_index = MTL_storage_buffer_base_index;
   pso_cache_lock_.lock();
   compute_pso_instance->shader_pso_index = compute_pso_cache_.size();
   compute_pso_cache_.add(compute_pipeline_descriptor, compute_pso_instance);
