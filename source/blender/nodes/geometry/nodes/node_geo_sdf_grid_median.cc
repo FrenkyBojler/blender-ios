@@ -18,7 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Float>("Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output<decl::Float>("Grid").structure_type(StructureType::Grid).align_with_previous();
-  b.add_input<decl::Int>("Width").default_value(1).min(1).description(
+  b.add_input<decl::Int>("Width").default_value(1).min(0).description(
       "Filter kernel radius in voxels");
   b.add_input<decl::Int>("Iterations")
       .default_value(1)
@@ -36,8 +36,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const int iterations = params.extract_input<int>("Iterations");
+  const int width = params.extract_input<int>("Width");
 
-  if (iterations <= 0) {
+  if (iterations <= 0 || width <= 0) {
     params.set_output("Grid", std::move(grid));
     return;
   }
@@ -47,7 +48,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   try {
     openvdb::tools::LevelSetFilter<openvdb::FloatGrid> filter(vdb_grid);
-    const int width = std::max(params.extract_input<int>("Width"), 1);
     for (int i = 0; i < iterations; i++) {
       filter.median(width);
     }
