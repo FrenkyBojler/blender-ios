@@ -1729,7 +1729,6 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
   const char *error_prefix = "uv_select_foreach_set(...)";
   static const char *kwlist[] = {
       "",
-      "select",
       "loop_verts",
       "loop_edges",
       "faces",
@@ -1840,9 +1839,9 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
                                      blender::Span(face_array, face_array_num));
   }
 
-  MEM_SAFE_FREE(loop_vert_array);
-  MEM_SAFE_FREE(loop_edge_array);
-  MEM_SAFE_FREE(face_array);
+  PyMem_FREE(loop_vert_array);
+  PyMem_FREE(loop_edge_array);
+  PyMem_FREE(face_array);
 
   if (ok == false) {
     /* The error has been raised. */
