@@ -136,7 +136,7 @@ GPointer rna_property_for_attribute_type_retrieve_value(PointerRNA &ptr,
     case bke::AttrType::ColorByte: {
       ColorGeometry4f value;
       RNA_float_get_array(&ptr, prop_name.c_str(), value);
-      *static_cast<ColorGeometry4b *>(buffer) = value.encode();
+      *static_cast<ColorGeometry4b *>(buffer) = color::encode(value);
       break;
     }
     case bke::AttrType::Bool:
@@ -179,7 +179,7 @@ void rna_property_for_attribute_type_set_value(PointerRNA &ptr,
       RNA_property_float_set_array(&ptr, &prop, *value.get<float3>());
       break;
     case bke::AttrType::ColorByte:
-      RNA_property_float_set_array(&ptr, &prop, value.get<ColorGeometry4b>()->decode());
+      RNA_property_float_set_array(&ptr, &prop, color::decode(*value.get<ColorGeometry4b>()));
       break;
     case bke::AttrType::ColorFloat:
       RNA_property_float_set_array(&ptr, &prop, *value.get<ColorGeometry4f>());
@@ -316,7 +316,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
         attributes.unique_name_calc(name),
         bke::AttrDomain(domain),
         *bke::custom_data_type_to_attr_type(type),
-        bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
+        bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));
 
     BKE_attributes_active_set(owner, attr.name());
 
@@ -553,7 +553,7 @@ bool convert_attribute(AttributeOwner &owner,
 
   if (was_active) {
     /* The attribute active status is stored as an index. Changing the attribute's domain will
-     * change its index, so reassign the active attribute if necessary.*/
+     * change its index, so reassign the active attribute if necessary. */
     BKE_attributes_active_set(owner, name_copy);
   }
 
@@ -968,7 +968,8 @@ static bool geometry_color_attribute_convert_poll(bContext *C)
     return false;
   }
   if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & ATTR_DOMAIN_MASK_COLOR) ||
-      !(CD_TYPE_AS_MASK(meta_data->data_type) & CD_MASK_COLOR_ALL))
+      !(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(meta_data->data_type)) &
+        CD_MASK_COLOR_ALL))
   {
     return false;
   }

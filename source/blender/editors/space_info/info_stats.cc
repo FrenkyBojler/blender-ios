@@ -17,6 +17,7 @@
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_enums.h"
 #include "DNA_windowmanager_types.h"
@@ -345,6 +346,14 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     stats->totvertsel += array_utils::count_booleans(selection);
     stats->totpoints += curves.points_num();
   }
+  else if (obedit->type == OB_POINTCLOUD) {
+    using namespace blender;
+    PointCloud &pointcloud = *static_cast<PointCloud *>(obedit->data);
+    const VArray<bool> selection = *pointcloud.attributes().lookup_or_default<bool>(
+        ".selection", bke::AttrDomain::Point, true);
+    stats->totvertsel = array_utils::count_booleans(selection);
+    stats->totpoints = pointcloud.totpoint;
+  }
 }
 
 static void stats_object_pose(const Object *ob, SceneStats *stats)
@@ -571,115 +580,122 @@ static void get_stats_string(char *info,
   LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
 
   if (object_mode == OB_MODE_OBJECT) {
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
-                              "%s | ",
-                              BKE_collection_ui_name_get(layer_collection->collection));
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                   len - *ofs,
+                                   "%s | ",
+                                   BKE_collection_ui_name_get(layer_collection->collection));
   }
 
   if (ob) {
-    *ofs += BLI_snprintf_rlen(info + *ofs, len - *ofs, "%s | ", ob->id.name + 2);
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, "%s | ", ob->id.name + 2);
   }
 
   if ((ob) && (ob->type == OB_GREASE_PENCIL)) {
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                   len - *ofs,
 
-                              IFACE_("Layers:%s | Frames:%s | Strokes:%s | Points:%s"),
-                              stats_fmt->totgplayer,
-                              stats_fmt->totgpframe,
-                              stats_fmt->totgpstroke,
-                              stats_fmt->totpoints);
+                                   IFACE_("Layers:%s | Frames:%s | Strokes:%s | Points:%s"),
+                                   stats_fmt->totgplayer,
+                                   stats_fmt->totgpframe,
+                                   stats_fmt->totgpstroke,
+                                   stats_fmt->totpoints);
     return;
   }
 
   if (ob && ob->mode == OB_MODE_EDIT) {
     if (BKE_keyblock_from_object(ob)) {
-      *ofs += BLI_strncpy_rlen(info + *ofs, IFACE_("(Key) "), len - *ofs);
+      *ofs += BLI_strncpy_utf8_rlen(info + *ofs, IFACE_("(Key) "), len - *ofs);
     }
 
     if (ob->type == OB_MESH) {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
 
-                                IFACE_("Verts:%s/%s | Edges:%s/%s | Faces:%s/%s | Tris:%s"),
-                                stats_fmt->totvertsel,
-                                stats_fmt->totvert,
-                                stats_fmt->totedgesel,
-                                stats_fmt->totedge,
-                                stats_fmt->totfacesel,
-                                stats_fmt->totface,
-                                stats_fmt->tottri);
+                                     IFACE_("Verts:%s/%s | Edges:%s/%s | Faces:%s/%s | Tris:%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totvert,
+                                     stats_fmt->totedgesel,
+                                     stats_fmt->totedge,
+                                     stats_fmt->totfacesel,
+                                     stats_fmt->totface,
+                                     stats_fmt->tottri);
     }
     else if (ob->type == OB_ARMATURE) {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
 
-                                IFACE_("Joints:%s/%s | Bones:%s/%s"),
-                                stats_fmt->totvertsel,
-                                stats_fmt->totvert,
-                                stats_fmt->totbonesel,
-                                stats_fmt->totbone);
+                                     IFACE_("Joints:%s/%s | Bones:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totvert,
+                                     stats_fmt->totbonesel,
+                                     stats_fmt->totbone);
     }
     else if (ob->type == OB_CURVES) {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
-                                IFACE_("Points:%s/%s"),
-                                stats_fmt->totvertsel,
-                                stats_fmt->totpoints);
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
+                                     IFACE_("Points:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totpoints);
+    }
+    else if (ob->type == OB_POINTCLOUD) {
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
+                                     IFACE_("Points:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totpoints);
     }
     else {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
-                                IFACE_("Verts:%s/%s"),
-                                stats_fmt->totvertsel,
-                                stats_fmt->totvert);
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
+                                     IFACE_("Verts:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totvert);
     }
   }
   else if (ob && (object_mode & OB_MODE_POSE)) {
-    *ofs += BLI_snprintf_rlen(
+    *ofs += BLI_snprintf_utf8_rlen(
         info + *ofs, len - *ofs, IFACE_("Bones:%s/%s"), stats_fmt->totbonesel, stats_fmt->totbone);
   }
   else if (ob && (ob->type == OB_CURVES)) {
     const char *count = (object_mode == OB_MODE_SCULPT_CURVES) ? stats_fmt->totvertsculpt :
                                                                  stats_fmt->totpoints;
-    *ofs += BLI_snprintf_rlen(info + *ofs, len - *ofs, IFACE_("Points:%s"), count);
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, IFACE_("Points:%s"), count);
   }
   else if (ob && (object_mode & OB_MODE_SCULPT)) {
     if (stats_is_object_dynamic_topology_sculpt(ob)) {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
 
-                                IFACE_("Verts:%s | Tris:%s"),
-                                stats_fmt->totvertsculpt,
-                                stats_fmt->tottri);
+                                     IFACE_("Verts:%s | Tris:%s"),
+                                     stats_fmt->totvertsculpt,
+                                     stats_fmt->tottri);
     }
     else {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
 
-                                IFACE_("Verts:%s | Faces:%s"),
-                                stats_fmt->totvertsculpt,
-                                stats_fmt->totfacesculpt);
+                                     IFACE_("Verts:%s | Faces:%s"),
+                                     stats_fmt->totvertsculpt,
+                                     stats_fmt->totfacesculpt);
     }
   }
   else {
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                   len - *ofs,
 
-                              IFACE_("Verts:%s | Faces:%s | Tris:%s"),
-                              stats_fmt->totvert,
-                              stats_fmt->totface,
-                              stats_fmt->tottri);
+                                   IFACE_("Verts:%s | Faces:%s | Tris:%s"),
+                                   stats_fmt->totvert,
+                                   stats_fmt->totface,
+                                   stats_fmt->tottri);
   }
 
   if (!STREQ(&stats_fmt->totobj[0], "0")) {
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                   len - *ofs,
 
-                              IFACE_(" | Objects:%s/%s"),
-                              stats_fmt->totobjsel,
-                              stats_fmt->totobj);
+                                   IFACE_(" | Objects:%s/%s"),
+                                   stats_fmt->totobjsel,
+                                   stats_fmt->totobj);
   }
 }
 
@@ -706,30 +722,34 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
   /* Scene Duration. */
   if (statusbar_flag & STATUSBAR_SHOW_SCENE_DURATION) {
     if (info[0]) {
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
+      ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, " | ");
     }
     const int relative_current_frame = (scene->r.cfra - scene->r.sfra) + 1;
     const int frame_count = (scene->r.efra - scene->r.sfra) + 1;
     char timecode[32];
-    BLI_timecode_string_from_time(
-        timecode, sizeof(timecode), -2, FRA2TIME(frame_count), FPS, U.timecode_style);
-    ofs += BLI_snprintf_rlen(info + ofs,
-                             len - ofs,
+    BLI_timecode_string_from_time(timecode,
+                                  sizeof(timecode),
+                                  -2,
+                                  FRA2TIME(frame_count),
+                                  scene->frames_per_second(),
+                                  U.timecode_style);
+    ofs += BLI_snprintf_utf8_rlen(info + ofs,
+                                  len - ofs,
 
-                             IFACE_("Duration: %s (Frame %i/%i)"),
-                             timecode,
-                             relative_current_frame,
-                             frame_count);
+                                  IFACE_("Duration: %s (Frame %i/%i)"),
+                                  timecode,
+                                  relative_current_frame,
+                                  frame_count);
   }
 
   /* Memory status. */
   if (statusbar_flag & STATUSBAR_SHOW_MEMORY) {
     if (info[0]) {
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
+      ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, " | ");
     }
     uintptr_t mem_in_use = MEM_get_memory_in_use();
     BLI_str_format_byte_unit(formatted_mem, mem_in_use, false);
-    ofs += BLI_snprintf_rlen(info + ofs, len, IFACE_("Memory: %s"), formatted_mem);
+    ofs += BLI_snprintf_utf8_rlen(info + ofs, len, IFACE_("Memory: %s"), formatted_mem);
   }
 
   /* GPU VRAM status. */
@@ -739,28 +759,29 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     float gpu_total_gb = gpu_tot_mem_kb / 1048576.0f;
     float gpu_free_gb = gpu_free_mem_kb / 1048576.0f;
     if (info[0]) {
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
+      ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, " | ");
     }
     if (gpu_free_mem_kb && gpu_tot_mem_kb) {
-      ofs += BLI_snprintf_rlen(info + ofs,
-                               len - ofs,
+      ofs += BLI_snprintf_utf8_rlen(info + ofs,
+                                    len - ofs,
 
-                               IFACE_("VRAM: %.1f/%.1f GiB"),
-                               gpu_total_gb - gpu_free_gb,
-                               gpu_total_gb);
+                                    IFACE_("VRAM: %.1f/%.1f GiB"),
+                                    gpu_total_gb - gpu_free_gb,
+                                    gpu_total_gb);
     }
     else {
       /* Can only show amount of GPU VRAM available. */
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, IFACE_("VRAM: %.1f GiB Free"), gpu_free_gb);
+      ofs += BLI_snprintf_utf8_rlen(
+          info + ofs, len - ofs, IFACE_("VRAM: %.1f GiB Free"), gpu_free_gb);
     }
   }
 
   /* Blender version. */
   if (statusbar_flag & STATUSBAR_SHOW_VERSION) {
     if (info[0]) {
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
+      ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, " | ");
     }
-    ofs += BLI_snprintf_rlen(
+    ofs += BLI_snprintf_utf8_rlen(
         info + ofs, len - ofs, IFACE_("%s"), BKE_blender_version_string_compact());
   }
 
@@ -793,7 +814,7 @@ static void stats_row(int col1,
   *y -= height;
   BLF_draw_default(col1, *y, 0.0f, key, 128);
   char values[128];
-  SNPRINTF(values, (value2) ? "%s / %s" : "%s", value1, value2);
+  SNPRINTF_UTF8(values, (value2) ? "%s / %s" : "%s", value1, value2);
   BLF_draw_default(col2, *y, 0.0f, values, sizeof(values));
 }
 
@@ -893,6 +914,9 @@ void ED_info_draw_stats(
     }
     else if (ob->type == OB_CURVES) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
+    }
+    else if (ob->type == OB_POINTCLOUD) {
+      stats_row(col1, labels[POINTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
     }
     else if (ob->type != OB_FONT) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);

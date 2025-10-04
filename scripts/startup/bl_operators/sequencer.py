@@ -122,7 +122,7 @@ class SequencerDeinterlaceSelectedMovies(Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
+        scene = context.sequencer_scene
         return (scene and scene.sequence_editor)
 
     def execute(self, context):
@@ -145,14 +145,16 @@ class SequencerFadesClear(Operator):
         return strip is not None
 
     def execute(self, context):
+        from bpy_extras import anim_utils
+
         scene = context.scene
         animation_data = scene.animation_data
         if animation_data is None:
             return {'CANCELLED'}
-        action = animation_data.action
-        if action is None:
+        channelbag = anim_utils.action_get_channelbag_for_slot(animation_data.action, animation_data.action_slot)
+        if channelbag is None:
             return {'CANCELLED'}
-        fcurves = action.fcurves
+        fcurves = channelbag.fcurves
         fcurve_map = {
             curve.data_path: curve
             for curve in fcurves

@@ -22,7 +22,7 @@ NODE_STORAGE_FUNCS(NodeGeometryImageTexture)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Image>("Image").hide_label();
+  b.add_input<decl::Image>("Image").optional_label();
   b.add_input<decl::Vector>("Vector")
       .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description("Texture coordinates from 0 to 1");
@@ -409,7 +409,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Field<float3> vector_field = params.extract_input<Field<float3>>("Vector");
 
-  auto image_op = FieldOperation::Create(std::move(image_fn), {std::move(vector_field)});
+  auto image_op = FieldOperation::from(std::move(image_fn), {std::move(vector_field)});
 
   params.set_output("Color", Field<ColorGeometry4f>(image_op, 0));
   params.set_output("Alpha", Field<float>(image_op, 1));

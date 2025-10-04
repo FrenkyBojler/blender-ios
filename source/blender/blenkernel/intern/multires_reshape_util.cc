@@ -56,9 +56,7 @@ blender::bke::subdiv::Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgrap
   if (!subdiv) {
     return nullptr;
   }
-  if (!subdiv::eval_begin_from_mesh(
-          subdiv, base_mesh, {}, subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr))
-  {
+  if (!subdiv::eval_begin_from_mesh(subdiv, base_mesh, subdiv::SUBDIV_EVALUATOR_TYPE_CPU)) {
     subdiv::free(subdiv);
     return nullptr;
   }
@@ -476,7 +474,8 @@ ReshapeGridElement multires_reshape_grid_element_for_grid_coord(
 
   if (reshape_context->mdisps != nullptr) {
     MDisps *displacement_grid = &reshape_context->mdisps[grid_coord->grid_index];
-    grid_element.displacement = displacement_grid->disps[grid_element_index];
+    grid_element.displacement = reinterpret_cast<blender::float3 *>(
+        displacement_grid->disps[grid_element_index]);
   }
 
   if (reshape_context->grid_paint_masks != nullptr) {
@@ -507,7 +506,7 @@ ReshapeConstGridElement multires_reshape_orig_grid_element_for_grid_coord(
       const int grid_x = lround(grid_coord->u * (grid_size - 1));
       const int grid_y = lround(grid_coord->v * (grid_size - 1));
       const int grid_element_index = grid_y * grid_size + grid_x;
-      copy_v3_v3(grid_element.displacement, displacement_grid->disps[grid_element_index]);
+      grid_element.displacement = displacement_grid->disps[grid_element_index];
     }
   }
 
@@ -532,10 +531,11 @@ ReshapeConstGridElement multires_reshape_orig_grid_element_for_grid_coord(
 /** \name Sample limit surface of the base mesh
  * \{ */
 
-void multires_reshape_evaluate_limit_at_grid(const MultiresReshapeContext *reshape_context,
-                                             const GridCoord *grid_coord,
-                                             blender::float3 &r_P,
-                                             blender::float3x3 &r_tangent_matrix)
+void multires_reshape_evaluate_base_mesh_limit_at_grid(
+    const MultiresReshapeContext *reshape_context,
+    const GridCoord *grid_coord,
+    blender::float3 &r_P,
+    blender::float3x3 &r_tangent_matrix)
 {
   blender::float3 dPdu;
   blender::float3 dPdv;
@@ -561,7 +561,7 @@ static void allocate_displacement_grid(MDisps *displacement_grid, const int leve
 {
   const int grid_size = blender::bke::subdiv::grid_size_from_level(level);
   const int grid_area = grid_size * grid_size;
-  float(*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
+  float (*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
   if (displacement_grid->disps != nullptr) {
     MEM_freeN(displacement_grid->disps);
   }
@@ -644,7 +644,7 @@ void multires_reshape_store_original_grids(MultiresReshapeContext *reshape_conte
      * Reshape process will ensure all grids are on top level, but that happens on separate set of
      * grids which eventually replaces original one. */
     if (orig_grid->disps != nullptr) {
-      orig_grid->disps = static_cast<float(*)[3]>(MEM_dupallocN(orig_grid->disps));
+      orig_grid->disps = static_cast<float (*)[3]>(MEM_dupallocN(orig_grid->disps));
     }
     if (orig_grid_paint_masks != nullptr) {
       GridPaintMask *orig_paint_mask_grid = &orig_grid_paint_masks[grid_index];
@@ -734,19 +734,19 @@ static void object_grid_element_to_tangent_displacement(
 {
   blender::float3 P;
   blender::float3x3 tangent_matrix;
-  multires_reshape_evaluate_limit_at_grid(reshape_context, grid_coord, P, tangent_matrix);
+  multires_reshape_evaluate_base_mesh_limit_at_grid(
+      reshape_context, grid_coord, P, tangent_matrix);
 
   const blender::float3x3 inv_tangent_matrix = blender::math::invert(tangent_matrix);
 
   ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(reshape_context,
                                                                                  grid_coord);
 
-  blender::float3 D;
-  sub_v3_v3v3(D, grid_element.displacement, P);
+  blender::float3 D = *grid_element.displacement - P;
 
   blender::float3 tangent_D = blender::math::transform_direction(inv_tangent_matrix, D);
 
-  copy_v3_v3(grid_element.displacement, tangent_D);
+  *grid_element.displacement = tangent_D;
 }
 
 void multires_reshape_object_grids_to_tangent_displacement(
@@ -773,14 +773,15 @@ static void assign_final_coords_from_mdisps(const MultiresReshapeContext *reshap
 {
   blender::float3 P;
   blender::float3x3 tangent_matrix;
-  multires_reshape_evaluate_limit_at_grid(reshape_context, grid_coord, P, tangent_matrix);
+  multires_reshape_evaluate_base_mesh_limit_at_grid(
+      reshape_context, grid_coord, P, tangent_matrix);
 
   ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(reshape_context,
                                                                                  grid_coord);
-  blender::float3 D;
-  mul_v3_m3v3(D, tangent_matrix.ptr(), grid_element.displacement);
+  const blender::float3 D = blender::math::transform_direction(tangent_matrix,
+                                                               *grid_element.displacement);
 
-  add_v3_v3v3(grid_element.displacement, P, D);
+  *grid_element.displacement = P + D;
 }
 
 void multires_reshape_assign_final_coords_from_mdisps(
@@ -796,17 +797,18 @@ static void assign_final_elements_from_orig_mdisps(const MultiresReshapeContext 
 {
   blender::float3 P;
   blender::float3x3 tangent_matrix;
-  multires_reshape_evaluate_limit_at_grid(reshape_context, grid_coord, P, tangent_matrix);
+  multires_reshape_evaluate_base_mesh_limit_at_grid(
+      reshape_context, grid_coord, P, tangent_matrix);
 
   const ReshapeConstGridElement orig_grid_element =
       multires_reshape_orig_grid_element_for_grid_coord(reshape_context, grid_coord);
 
-  blender::float3 D;
-  mul_v3_m3v3(D, tangent_matrix.ptr(), orig_grid_element.displacement);
+  blender::float3 D = blender::math::transform_direction(tangent_matrix,
+                                                         orig_grid_element.displacement);
 
   ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(reshape_context,
                                                                                  grid_coord);
-  add_v3_v3v3(grid_element.displacement, P, D);
+  *grid_element.displacement = P + D;
 
   if (grid_element.mask != nullptr) {
     *grid_element.mask = orig_grid_element.mask;

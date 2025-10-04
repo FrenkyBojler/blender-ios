@@ -135,13 +135,8 @@ static void mix_normals(const float mix_factor,
 
   if (dvert) {
     facs = MEM_malloc_arrayN<float>(size_t(corner_verts.size()), __func__);
-    BKE_defvert_extract_vgroup_to_loopweights(dvert,
-                                              defgrp_index,
-                                              verts_num,
-                                              corner_verts.data(),
-                                              corner_verts.size(),
-                                              use_invert_vgroup,
-                                              facs);
+    BKE_defvert_extract_vgroup_to_loopweights(
+        dvert, defgrp_index, verts_num, corner_verts, use_invert_vgroup, facs);
   }
 
   for (i = corner_verts.size(), no_new = nos_new, no_old = nos_old, wfac = facs; i--;
@@ -231,7 +226,7 @@ static void normalEditModifier_do_radial(NormalEditModifierData *enmd,
 
   const bool do_facenors_fix = (enmd->flag & MOD_NORMALEDIT_NO_POLYNORS_FIX) == 0;
 
-  float(*cos)[3] = MEM_malloc_arrayN<float[3]>(size_t(vert_positions.size()), __func__);
+  float (*cos)[3] = MEM_malloc_arrayN<float[3]>(size_t(vert_positions.size()), __func__);
   blender::Array<blender::float3> nos(corner_verts.size());
   float3 size;
 
@@ -380,7 +375,7 @@ static void normalEditModifier_do_directional(NormalEditModifierData *enmd,
     }
   }
   else {
-    float(*cos)[3] = MEM_malloc_arrayN<float[3]>(size_t(positions.size()), __func__);
+    float (*cos)[3] = MEM_malloc_arrayN<float[3]>(size_t(positions.size()), __func__);
     generate_vert_coordinates(mesh, ob, ob_target, nullptr, positions.size(), cos, nullptr);
 
     BLI_bitmap *done_verts = BLI_BITMAP_NEW(size_t(positions.size()), __func__);
@@ -722,4 +717,5 @@ ModifierTypeInfo modifierType_NormalEdit = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

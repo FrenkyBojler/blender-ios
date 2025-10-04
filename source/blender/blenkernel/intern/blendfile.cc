@@ -21,12 +21,14 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -570,7 +572,7 @@ static void unpin_file_local_grease_pencil_brush_materials(const ReuseOldBMainDa
 }
 
 /**
- * Does a complete replacement of data in `new_bmain` by data from `old_bmain. Original new data
+ * Does a complete replacement of data in `new_bmain` by data from `old_bmain`. Original new data
  * are moved to the `old_bmain`, and will be freed together with it.
  *
  * WARNING: Currently only expects to work on local data, won't work properly if some of the IDs of
@@ -897,7 +899,7 @@ static void wm_data_consistency_ensure(wmWindowManager *curwm,
       win->scene = cur_scene;
     }
     if (BKE_view_layer_find(win->scene, win->view_layer_name) == nullptr) {
-      STRNCPY(win->view_layer_name, cur_view_layer->name);
+      STRNCPY_UTF8(win->view_layer_name, cur_view_layer->name);
     }
 
     view3d_data_consistency_ensure(win, win->scene, cur_view_layer);
@@ -980,6 +982,9 @@ static void setup_app_data(bContext *C,
   reuse_data.old_bmain = bmain;
   reuse_data.wm_setup_data = wm_setup_data;
 
+  const bool reuse_editable_assets = mode != LOAD_UNDO && !params->is_factory_settings &&
+                                     reuse_editable_asset_needed(&reuse_data);
+
   if (mode != LOAD_UNDO) {
     const short ui_id_codes[]{ID_WS, ID_SCR};
 
@@ -1006,7 +1011,7 @@ static void setup_app_data(bContext *C,
 
     BKE_main_idmap_destroy(reuse_data.id_map);
 
-    if (!params->is_factory_settings && reuse_editable_asset_needed(&reuse_data)) {
+    if (reuse_editable_assets) {
       unpin_file_local_grease_pencil_brush_materials(&reuse_data);
       /* Keep linked brush asset data, similar to UI data. Only does a known
        * subset know. Could do everything, but that risks dragging along more
@@ -1227,9 +1232,11 @@ static void setup_app_data(bContext *C,
   /* Setting scene might require having a dependency graph, with copy-on-eval
    * we need to make sure we ensure scene has correct color management before
    * constructing dependency graph. */
-  if (mode != LOAD_UNDO) {
-    IMB_colormanagement_check_file_config(bmain);
+  if (params->is_startup) {
+    IMB_colormanagement_working_space_init_startup(bmain);
   }
+  IMB_colormanagement_working_space_check(bmain, mode == LOAD_UNDO, reuse_editable_assets);
+  IMB_colormanagement_check_file_config(bmain);
 
   BKE_scene_set_background(bmain, curscene);
 
@@ -1353,9 +1360,7 @@ BlendFileData *BKE_blendfile_read(const char *filepath,
 {
   /* Don't print startup file loading. */
   if (params->is_startup == false) {
-    if (!G.quiet) {
-      CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
   }
 
   BlendFileData *bfd = BLO_read_from_file(filepath, eBLOReadSkip(params->skip_flags), reports);
@@ -1518,7 +1523,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
     };
     for (int i = 0; i < ARRAY_SIZE(addons); i++) {
       bAddon *addon = BKE_addon_new();
-      STRNCPY(addon->module, addons[i]);
+      STRNCPY_UTF8(addon->module, addons[i]);
       BLI_addtail(&userdef->addons, addon);
     }
   }
@@ -1567,6 +1572,24 @@ UserDef *BKE_blendfile_userdef_from_defaults()
         userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh Sculpt/Paint");
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
         userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh Sculpt/Simulation");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Basic");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Pixel Art");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Utilities");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Basic");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Pixel Art");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Utilities");
 
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
         userdef, "VIEW3D_AST_brush_gpencil_paint", "Brushes/Grease Pencil Draw/Draw");
@@ -1634,9 +1657,7 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
   if (cfgdir) {
     bool ok_write;
     BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
-    if (!G.quiet) {
-      printf("Writing userprefs: \"%s\" ", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_BLEND, "Writing user preferences: \"%s\" ", filepath);
     if (use_template_userpref) {
       ok_write = BKE_blendfile_userdef_write_app_template(filepath, reports);
     }
@@ -1645,15 +1666,10 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
     }
 
     if (ok_write) {
-      if (!G.quiet) {
-        printf("ok\n");
-      }
       BKE_report(reports, RPT_INFO, "Preferences saved");
     }
     else {
-      if (!G.quiet) {
-        printf("fail\n");
-      }
+      CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
       ok = false;
       BKE_report(reports, RPT_ERROR, "Saving preferences failed");
     }
@@ -1668,18 +1684,11 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
       /* Also save app-template preferences. */
       BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
 
-      if (!G.quiet) {
-        printf("Writing userprefs app-template: \"%s\" ", filepath);
-      }
+      CLOG_INFO_NOCHECK(&LOG_BLEND, "Writing user preferences app-template: \"%s\" ", filepath);
       if (BKE_blendfile_userdef_write(filepath, reports) != 0) {
-        if (!G.quiet) {
-          printf("ok\n");
-        }
       }
       else {
-        if (!G.quiet) {
-          printf("fail\n");
-        }
+        CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
         ok = false;
       }
     }
@@ -1750,12 +1759,13 @@ static CLG_LogRef LOG_PARTIALWRITE = {"blend.partial_write"};
 
 namespace blender::bke::blendfile {
 
-PartialWriteContext::PartialWriteContext(StringRefNull reference_root_filepath)
-    : reference_root_filepath_(reference_root_filepath)
+PartialWriteContext::PartialWriteContext(Main &reference_main)
+    : reference_root_filepath_(BKE_main_blendfile_path(&reference_main))
 {
   if (!reference_root_filepath_.empty()) {
     STRNCPY(this->bmain.filepath, reference_root_filepath_.c_str());
   }
+  this->bmain.colorspace = reference_main.colorspace;
   /* Only for IDs matching existing data in current G_MAIN. */
   matching_uid_map_ = BKE_main_idmap_create(&this->bmain, false, nullptr, MAIN_IDMAP_TYPE_UID);
   /* For all IDs existing in the context. */

@@ -32,7 +32,9 @@ class PROPERTIES_HT_header(Header):
                 space.show_properties_bone or
                 space.show_properties_bone_constraints or
                 space.show_properties_material or
-                space.show_properties_texture
+                space.show_properties_texture or
+                space.show_properties_strip or
+                space.show_properties_strip_modifier
                 )
 
     def draw(self, context):
@@ -122,6 +124,8 @@ class PROPERTIES_PT_options(Panel):
             ("show_properties_bone_constraints", "Bone Constraints", 'CONSTRAINT_BONE'),
             ("show_properties_material", "Material", 'MATERIAL'),
             ("show_properties_texture", "Texture", 'TEXTURE'),
+            ("show_properties_strip", "Strip", 'SEQ_SEQUENCER'),
+            ("show_properties_strip_modifier", "Strip Modifiers", 'SEQ_STRIP_MODIFIER')
         ]
 
         col = layout.column(align=True)
@@ -154,7 +158,7 @@ class PropertiesAnimationMixin:
     def _animated_id(cls, context):
         assert cls._animated_id_context_property, "set _animated_id_context_property on {!r}".format(cls)
 
-        # If the pinned ID is of a different type, there could still be a an ID
+        # If the pinned ID is of a different type, there could still be an ID
         # for which to show this panel. For example, a camera object can be
         # pinned, and then this panel can be shown for its camera data.
         return getattr(context, cls._animated_id_context_property, None)

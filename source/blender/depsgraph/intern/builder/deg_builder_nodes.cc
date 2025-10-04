@@ -659,7 +659,6 @@ void DepsgraphNodeBuilder::build_id(ID *id, const bool force_be_visible)
       break;
 
     case ID_LI:
-    case ID_IP:
     case ID_SCR:
     case ID_VF:
     case ID_BR:
@@ -953,6 +952,12 @@ void DepsgraphNodeBuilder::build_object_modifiers(Object *object)
             Object *ob_eval = reinterpret_cast<Object *>(id_node->id_cow);
             ModifierData *md_eval = reinterpret_cast<ModifierData *>(
                 BLI_findlink(&ob_eval->modifiers, modifier_index));
+            if (!md_eval) {
+              /* The modifiers may not be available on the evaluated object if the object has an
+               * error that turned it into an Empty. Modifiers are not copied on this object type.
+               * Also see #142290. */
+              return;
+            }
             /* Set flag that the modifier can check when it is evaluated. */
             const bool is_user_modified = modifier_node->flag & DEPSOP_FLAG_USER_MODIFIED;
             SET_FLAG_FROM_TEST(md_eval->flag, is_user_modified, eModifierFlag_UserModified);
@@ -2316,6 +2321,18 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
     }
     ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
     nb->build_scene_speakers(strip->scene, sequence_view_layer);
+  }
+  LISTBASE_FOREACH (StripModifierData *, modifier, &strip->modifiers) {
+    if (modifier->type != eSeqModifierType_Compositor) {
+      continue;
+    }
+
+    const SequencerCompositorModifierData *modifier_data =
+        reinterpret_cast<SequencerCompositorModifierData *>(modifier);
+    if (!modifier_data->node_group) {
+      continue;
+    }
+    nb->build_nodetree(modifier_data->node_group);
   }
   /* TODO(sergey): Movie clip, scene, camera, mask. */
   return true;

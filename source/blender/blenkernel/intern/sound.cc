@@ -45,6 +45,7 @@
 #  include <AUD_Sequence.h>
 #  include <AUD_Sound.h>
 #  include <AUD_Special.h>
+#  include <AUD_Types.h>
 #endif
 
 #include "BKE_bpath.hh"
@@ -86,7 +87,6 @@ static void sound_copy_data(Main * /*bmain*/,
   BLI_spin_init(static_cast<SpinLock *>(sound_dst->spinlock));
 
   /* Just to be sure, should not have any value actually after reading time. */
-  sound_dst->ipo = nullptr;
   sound_dst->newpackedfile = nullptr;
 
   if (sound_src->packedfile != nullptr) {
@@ -115,16 +115,6 @@ static void sound_free_data(ID *id)
     /* The void cast is needed when building without TBB. */
     MEM_freeN((void *)static_cast<SpinLock *>(sound->spinlock));
     sound->spinlock = nullptr;
-  }
-}
-
-static void sound_foreach_id(ID *id, LibraryForeachIDData *data)
-{
-  bSound *sound = reinterpret_cast<bSound *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, sound->ipo, IDWALK_CB_USER);
   }
 }
 
@@ -219,9 +209,10 @@ IDTypeInfo IDType_ID_SO = {
     /*copy_data*/ sound_copy_data,
     /*free_data*/ sound_free_data,
     /*make_local*/ nullptr,
-    /*foreach_id*/ sound_foreach_id,
+    /*foreach_id*/ nullptr,
     /*foreach_cache*/ sound_foreach_cache,
     /*foreach_path*/ sound_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ sound_blend_write,
@@ -367,6 +358,31 @@ struct GlobalState {
 
   int num_device_users = 0;
   std::chrono::time_point<std::chrono::steady_clock> last_user_disconnect_time_point;
+
+  ~GlobalState()
+  {
+    /* Ensure that we don't end up in a deadlock if the global state is being cleaned up
+     * before BKE_sound_exit_once has been called. (For example if someone called exit()
+     * to quickly close the program without cleaning up)
+     *
+     * If we don't do this, we could end up in a state where this destructor is waiting for
+     * other threads to let go of delayed_close_cv forever. See #146640.
+     */
+    exit_threads();
+  }
+
+  void exit_threads()
+  {
+    {
+      std::unique_lock lock(sound_device_mutex);
+      need_exit = true;
+    }
+
+    if (delayed_close_thread.joinable()) {
+      delayed_close_cv.notify_all();
+      delayed_close_thread.join();
+    }
+  }
 };
 
 GlobalState g_state;
@@ -538,15 +554,7 @@ void BKE_sound_exit()
 
 void BKE_sound_exit_once()
 {
-  {
-    std::unique_lock lock(g_state.sound_device_mutex);
-    g_state.need_exit = true;
-  }
-
-  if (g_state.delayed_close_thread.joinable()) {
-    g_state.delayed_close_cv.notify_one();
-    g_state.delayed_close_thread.join();
-  }
+  g_state.exit_threads();
 
   std::lock_guard lock(g_state.sound_device_mutex);
   sound_device_close_no_lock();
@@ -784,8 +792,11 @@ void BKE_sound_load(Main *bmain, bSound *sound)
 AUD_Device *BKE_sound_mixdown(const Scene *scene, AUD_DeviceSpecs specs, int start, float volume)
 {
   sound_verify_evaluated_id(&scene->id);
-  return AUD_openMixdownDevice(
-      specs, scene->sound_scene, volume, AUD_RESAMPLE_QUALITY_MEDIUM, start / FPS);
+  return AUD_openMixdownDevice(specs,
+                               scene->sound_scene,
+                               volume,
+                               AUD_RESAMPLE_QUALITY_MEDIUM,
+                               start / scene->frames_per_second());
 }
 
 void BKE_sound_create_scene(Scene *scene)
@@ -797,7 +808,8 @@ void BKE_sound_create_scene(Scene *scene)
     scene->r.frs_sec_base = 1;
   }
 
-  scene->sound_scene = AUD_Sequence_create(FPS, scene->audio.flag & AUDIO_MUTE);
+  scene->sound_scene = AUD_Sequence_create(scene->frames_per_second(),
+                                           scene->audio.flag & AUDIO_MUTE);
   AUD_Sequence_setSpeedOfSound(scene->sound_scene, scene->audio.speed_of_sound);
   AUD_Sequence_setDopplerFactor(scene->sound_scene, scene->audio.doppler_factor);
   AUD_Sequence_setDistanceModel(scene->sound_scene,
@@ -869,7 +881,7 @@ void BKE_sound_update_fps(Main *bmain, Scene *scene)
   sound_verify_evaluated_id(&scene->id);
 
   if (scene->sound_scene) {
-    AUD_Sequence_setFPS(scene->sound_scene, FPS);
+    AUD_Sequence_setFPS(scene->sound_scene, scene->frames_per_second());
   }
 
   blender::seq::sound_update_length(bmain, scene);
@@ -890,7 +902,7 @@ void *BKE_sound_scene_add_scene_sound(
 {
   sound_verify_evaluated_id(&scene->id);
   if (sequence->scene && scene != sequence->scene) {
-    const double fps = FPS;
+    const double fps = scene->frames_per_second();
     return AUD_Sequence_add(scene->sound_scene,
                             sequence->scene->sound_scene,
                             startframe / fps,
@@ -919,7 +931,7 @@ void *BKE_sound_add_scene_sound(
     return nullptr;
   }
   sound_verify_evaluated_id(&sequence->sound->id);
-  const double fps = FPS;
+  const double fps = scene->frames_per_second();
   const double offset_time = sequence->sound->offset_time + sequence->sound_offset -
                              frameskip / fps;
   if (offset_time >= 0.0f) {
@@ -963,7 +975,7 @@ void BKE_sound_move_scene_sound(const Scene *scene,
                                 double audio_offset)
 {
   sound_verify_evaluated_id(&scene->id);
-  const double fps = FPS;
+  const double fps = scene->frames_per_second();
   const double offset_time = audio_offset - frameskip / fps;
   if (offset_time >= 0.0f) {
     AUD_SequenceEntry_move(handle, startframe / fps + offset_time, endframe / fps, 0.0f);
@@ -1093,7 +1105,7 @@ void BKE_sound_play_scene(Scene *scene)
   sound_verify_evaluated_id(&scene->id);
 
   AUD_Status status;
-  const double cur_time = FRA2TIME((scene->r.cfra + scene->r.subframe));
+  const double cur_time = FRA2TIME(scene->r.cfra + scene->r.subframe);
 
   AUD_Device_lock(g_state.sound_device);
 
@@ -1193,7 +1205,7 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
     AUD_Handle_pause(scene->playback_handle);
   }
 
-  const double one_frame = 1.0 / FPS +
+  const double one_frame = 1.0 / scene->frames_per_second() +
                            (U.audiorate > 0 ? U.mixbufsize / double(U.audiorate) : 0.0);
   const double cur_time = FRA2TIME(scene->r.cfra);
 
@@ -1337,7 +1349,10 @@ static void sound_update_base(Scene *scene, Object *object, void *new_set)
 
       if (AUD_removeSet(scene->speaker_handles, strip->speaker_handle)) {
         if (speaker->sound) {
-          AUD_SequenceEntry_move(strip->speaker_handle, double(strip->start) / FPS, FLT_MAX, 0);
+          AUD_SequenceEntry_move(strip->speaker_handle,
+                                 double(strip->start) / scene->frames_per_second(),
+                                 FLT_MAX,
+                                 0);
         }
         else {
           AUD_Sequence_remove(scene->sound_scene, strip->speaker_handle);
@@ -1348,7 +1363,8 @@ static void sound_update_base(Scene *scene, Object *object, void *new_set)
         if (speaker->sound) {
           strip->speaker_handle = AUD_Sequence_add(scene->sound_scene,
                                                    speaker->sound->playback_handle,
-                                                   double(strip->start) / FPS,
+                                                   double(strip->start) /
+                                                       scene->frames_per_second(),
                                                    FLT_MAX,
                                                    0);
           AUD_SequenceEntry_setRelative(strip->speaker_handle, 0);
@@ -1513,6 +1529,32 @@ bool BKE_sound_stream_info_get(Main *main,
   return true;
 }
 
+#  ifdef WITH_RUBBERBAND
+void *BKE_sound_add_time_stretch_effect(void *sound_handle, float fps)
+{
+  return AUD_Sound_animateableTimeStretchPitchScale(
+      sound_handle, fps, 1.0, 1.0, AUD_STRETCHER_QUALITY_HIGH, false);
+}
+void BKE_sound_set_scene_sound_time_stretch_at_frame(void *handle,
+                                                     int frame,
+                                                     float time_stretch,
+                                                     char animated)
+{
+  AUD_Sound_animateableTimeStretchPitchScale_setAnimationData(
+      handle, AUD_AP_TIME_STRETCH, frame, &time_stretch, animated);
+}
+void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
+                                                           int frame_start,
+                                                           int frame_end,
+                                                           float time_stretch)
+{
+  frame_start = max_ii(0, frame_start);
+  frame_end = max_ii(0, frame_end);
+  AUD_Sound_animateableTimeStretchPitchScale_setConstantRangeAnimationData(
+      handle, AUD_AP_TIME_STRETCH, frame_start, frame_end, &time_stretch);
+}
+#  endif /* WITH_RUBBERBAND */
+
 #else /* WITH_AUDASPACE */
 
 #  include "BLI_utildefines.h"
@@ -1581,6 +1623,7 @@ void BKE_sound_read_waveform(Main *bmain,
 {
   UNUSED_VARS(sound, stop, bmain);
 }
+
 void BKE_sound_update_sequencer(Main * /*main*/, bSound * /*sound*/) {}
 void BKE_sound_update_scene(Depsgraph * /*depsgraph*/, Scene * /*scene*/) {}
 void BKE_sound_update_scene_sound(void * /*handle*/, bSound * /*sound*/) {}
@@ -1637,6 +1680,26 @@ bool BKE_sound_stream_info_get(Main * /*main*/,
 }
 
 #endif /* WITH_AUDASPACE */
+
+#if !defined(WITH_AUDASPACE) || !defined(WITH_RUBBERBAND)
+void *BKE_sound_add_time_stretch_effect(void * /*sound_handle*/, float /*fps*/)
+{
+  return nullptr;
+}
+
+void BKE_sound_set_scene_sound_time_stretch_at_frame(void * /*handle*/,
+                                                     int /*frame*/,
+                                                     float /*time_stretch*/,
+                                                     char /*animated*/)
+{
+}
+void BKE_sound_set_scene_sound_time_stretch_constant_range(void * /*handle*/,
+                                                           int /*frame_start*/,
+                                                           int /*frame_end*/,
+                                                           float /*time_stretch*/)
+{
+}
+#endif
 
 void BKE_sound_reset_scene_runtime(Scene *scene)
 {

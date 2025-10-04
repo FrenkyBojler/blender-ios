@@ -32,6 +32,7 @@
 #include "BLI_math_matrix_types.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 static void init_data(ModifierData *md)
 {
@@ -216,4 +217,5 @@ ModifierTypeInfo modifierType_MeshToVolume = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

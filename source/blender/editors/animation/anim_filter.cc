@@ -102,6 +102,57 @@ using namespace blender;
 /* ************************************************************ */
 /* Blender Context <-> Animation Context mapping */
 
+bAction *ANIM_active_action_from_area(Scene *scene,
+                                      ViewLayer *view_layer,
+                                      const ScrArea *area,
+                                      ID **r_action_user)
+{
+  if (area->spacetype != SPACE_ACTION) {
+    return nullptr;
+  }
+
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  if (!ob) {
+    return nullptr;
+  }
+
+  const SpaceAction *saction = static_cast<const SpaceAction *>(area->spacedata.first);
+  switch (eAnimEdit_Context(saction->mode)) {
+    case SACTCONT_ACTION: {
+      bAction *active_action = ob->adt ? ob->adt->action : nullptr;
+      if (r_action_user) {
+        *r_action_user = &ob->id;
+      }
+      return active_action;
+    }
+
+    case SACTCONT_SHAPEKEY: {
+      Key *active_key = BKE_key_from_object(ob);
+      bAction *active_action = (active_key && active_key->adt) ? active_key->adt->action : nullptr;
+      if (r_action_user) {
+        *r_action_user = &active_key->id;
+      }
+      return active_action;
+    }
+
+    case SACTCONT_GPENCIL:
+    case SACTCONT_DOPESHEET:
+    case SACTCONT_MASK:
+    case SACTCONT_CACHEFILE:
+      if (r_action_user) {
+        *r_action_user = nullptr;
+      }
+      return nullptr;
+    case SACTCONT_TIMELINE:
+      BLI_assert_unreachable();
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
 /* ----------- Private Stuff - Action Editor ------------- */
 
 /* Get shapekey data being edited (for Action Editor -> ShapeKey mode) */
@@ -132,21 +183,18 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
   ac->ads = &saction->ads;
   ac->dopesheet_mode = eAnimEdit_Context(saction->mode);
 
+  ac->active_action = ANIM_active_action_from_area(
+      ac->scene, ac->view_layer, ac->area, &ac->active_action_user);
+
   /* sync settings with current view status, then return appropriate data */
   switch (saction->mode) {
     case SACTCONT_ACTION: /* 'Action Editor' */
-      /* if not pinned, sync with active object */
-      if (/* `saction->pin == 0` */ true) {
-        if (ac->obact && ac->obact->adt) {
-          saction->action = ac->obact->adt->action;
-        }
-        else {
-          saction->action = nullptr;
-        }
-      }
-
       ac->datatype = ANIMCONT_ACTION;
-      ac->data = saction->action;
+      ac->data = ac->active_action;
+
+      if (saction->flag & SACTION_POSEMARKERS_SHOW) {
+        ac->markers = &ac->active_action->markers;
+      }
 
       return true;
 
@@ -154,17 +202,10 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
       ac->datatype = ANIMCONT_SHAPEKEY;
       ac->data = actedit_get_shapekeys(ac);
 
-      /* if not pinned, sync with active object */
-      if (/* `saction->pin == 0` */ true) {
-        Key *key = static_cast<Key *>(ac->data);
-
-        if (key && key->adt) {
-          saction->action = key->adt->action;
-        }
-        else {
-          saction->action = nullptr;
-        }
+      if (saction->flag & SACTION_POSEMARKERS_SHOW) {
+        ac->markers = &ac->active_action->markers;
       }
+
       return true;
 
     case SACTCONT_GPENCIL: /* Grease Pencil */ /* XXX review how this mode is handled... */
@@ -205,29 +246,6 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
       saction->ads.source = reinterpret_cast<ID *>(ac->scene);
 
       ac->datatype = ANIMCONT_DOPESHEET;
-      ac->data = &saction->ads;
-      return true;
-
-    case SACTCONT_TIMELINE: /* Timeline */
-      /* update scene-pointer (no need to check for pinning yet, as not implemented) */
-      saction->ads.source = reinterpret_cast<ID *>(ac->scene);
-
-      /* sync scene's "selected keys only" flag with our "only selected" flag
-       *
-       * XXX: This is a workaround for #55525. We shouldn't really be syncing the flags like this,
-       * but it's a simpler fix for now than also figuring out how the next/prev keyframe
-       * tools should work in the 3D View if we allowed full access to the timeline's
-       * dopesheet filters (i.e. we'd have to figure out where to host those settings,
-       * to be on a scene level like this flag currently is, along with several other unknowns).
-       */
-      if (ac->scene->flag & SCE_KEYS_NO_SELONLY) {
-        saction->ads.filterflag &= ~ADS_FILTER_ONLYSEL;
-      }
-      else {
-        saction->ads.filterflag |= ADS_FILTER_ONLYSEL;
-      }
-
-      ac->datatype = ANIMCONT_TIMELINE;
       ac->data = &saction->ads;
       return true;
 
@@ -377,11 +395,14 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
   ac->scene = scene;
   ac->view_layer = CTX_data_view_layer(C);
   if (scene) {
-    ac->markers = ED_context_get_markers(C);
-    BKE_view_layer_synced_ensure(ac->scene, ac->view_layer);
+    /* This may be overwritten by actedit_get_context() when pose markers should be shown. */
+    ac->markers = &scene->markers;
+  }
+  if (scene && ac->view_layer) {
+    BKE_view_layer_synced_ensure(scene, ac->view_layer);
+    ac->obact = BKE_view_layer_active_object_get(ac->view_layer);
   }
   ac->depsgraph = CTX_data_depsgraph_pointer(C);
-  ac->obact = BKE_view_layer_active_object_get(ac->view_layer);
   ac->area = area;
   ac->region = region;
   ac->sl = sl;
@@ -996,7 +1017,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
           bArmature *arm = static_cast<bArmature *>(ob->data);
 
           /* Skipping - is currently hidden. */
-          if (!blender::animrig::bone_is_visible_pchan(arm, pchan)) {
+          if (!blender::animrig::bone_is_visible(arm, pchan)) {
             return true;
           }
         }
@@ -1022,7 +1043,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
       /* Get strip name, and check if this strip is selected. */
       Editing *ed = blender::seq::editing_get(scene);
       if (ed) {
-        strip = blender::seq::get_strip_by_name(ed->seqbasep, strip_name, false);
+        strip = blender::seq::get_strip_by_name(ed->current_strips(), strip_name, false);
       }
 
       /* Can only add this F-Curve if it is selected. */
@@ -1087,7 +1108,7 @@ static bool name_matches_dopesheet_filter(const bDopeSheet *ads, const char *nam
     const size_t str_len = strlen(ads->searchstr);
     const int words_max = BLI_string_max_possible_word_count(str_len);
 
-    int(*words)[2] = static_cast<int(*)[2]>(BLI_array_alloca(words, words_max));
+    int (*words)[2] = static_cast<int (*)[2]>(BLI_array_alloca(words, words_max));
     const int words_len = BLI_string_find_split_words(
         ads->searchstr, str_len, ' ', words, words_max);
     bool found = false;
@@ -1126,7 +1147,7 @@ static bool skip_fcurve_with_name(
   /* get type info for channel */
   acf = ANIM_channel_get_typeinfo(&ale_dummy);
   if (acf && acf->name) {
-    char name[256]; /* hopefully this will be enough! */
+    char name[ANIM_CHAN_NAME_SIZE];
 
     /* get name */
     acf->name(&ale_dummy, name);
@@ -1424,7 +1445,7 @@ static size_t animfilter_fcurves_span(bAnimContext *ac,
     /* Note that this might not be the same as ale->adt->slot_handle. The reason this F-Curve is
      * shown could be because it's in the Action editor, showing ale->adt->action with _all_
      * slots, and this F-Curve could be from a different slot than what's used by the owner
-     * of `ale->adt`.  */
+     * of `ale->adt`. */
     ale->slot_handle = slot_handle;
 
     BLI_addtail(anim_data, ale);
@@ -2216,7 +2237,7 @@ static size_t animdata_filter_grease_pencil_data(bAnimContext *ac,
 
   /* The Grease Pencil mode is not supposed to show channels for regular F-Curves from regular
    * Actions. At some point this might be desirable, but it would also require changing the
-   * filtering flags for pretty much all operators running there.  */
+   * filtering flags for pretty much all operators running there. */
   const bool show_animdata = grease_pencil->adt && (ac->datatype != ANIMCONT_GPENCIL);
 
   /* When asked from "AnimData" blocks (i.e. the top-level containers for normal animation),
@@ -3691,7 +3712,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
   }
 
   /* Annotations are always shown if "Only Show Selected" is disabled. This works in the Timeline
-   * as well as in the Dope Sheet.*/
+   * as well as in the Dope Sheet. */
   if (!(ac->ads->filterflag & ADS_FILTER_ONLYSEL) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL))
   {
     LISTBASE_FOREACH (bGPdata *, gp_data, &ac->bmain->gpencils) {

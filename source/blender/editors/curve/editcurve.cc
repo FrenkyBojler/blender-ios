@@ -25,6 +25,7 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -664,7 +665,7 @@ static void calc_shapeKeys(Object *obedit, ListBase *newnurbs)
   Nurb *newnu;
   int totvert = BKE_keyblock_curve_element_count(&editnurb->nurbs);
 
-  float(*ofs)[3] = nullptr;
+  float (*ofs)[3] = nullptr;
   std::optional<blender::Array<bool>> dependent;
   const float *oldkey, *ofp;
   float *newkey;
@@ -968,23 +969,23 @@ static void fcurve_path_rename(const char *orig_rna_path,
       pt_index = 0;
 
       while (a--) {
-        SNPRINTF(rna_path, "splines[%d].bezier_points[%d]", nu_index, pt_index);
+        SNPRINTF_UTF8(rna_path, "splines[%d].bezier_points[%d]", nu_index, pt_index);
 
         keyIndex = getCVKeyIndex(editnurb, bezt);
         if (keyIndex) {
-          SNPRINTF(orig_rna_path,
-                   "splines[%d].bezier_points[%d]",
-                   keyIndex->nu_index,
-                   keyIndex->pt_index);
+          SNPRINTF_UTF8(orig_rna_path,
+                        "splines[%d].bezier_points[%d]",
+                        keyIndex->nu_index,
+                        keyIndex->pt_index);
 
           if (keyIndex->switched) {
             char handle_path[64], orig_handle_path[64];
-            SNPRINTF(orig_handle_path, "%s.handle_left", orig_rna_path);
-            SNPRINTF(handle_path, "%s.handle_right", rna_path);
+            SNPRINTF_UTF8(orig_handle_path, "%s.handle_left", orig_rna_path);
+            SNPRINTF_UTF8(handle_path, "%s.handle_right", rna_path);
             fcurve_path_rename(orig_handle_path, handle_path, orig_curves, processed_fcurves);
 
-            SNPRINTF(orig_handle_path, "%s.handle_right", orig_rna_path);
-            SNPRINTF(handle_path, "%s.handle_left", rna_path);
+            SNPRINTF_UTF8(orig_handle_path, "%s.handle_right", orig_rna_path);
+            SNPRINTF_UTF8(handle_path, "%s.handle_left", rna_path);
             fcurve_path_rename(orig_handle_path, handle_path, orig_curves, processed_fcurves);
           }
 
@@ -1014,11 +1015,11 @@ static void fcurve_path_rename(const char *orig_rna_path,
       pt_index = 0;
 
       while (a--) {
-        SNPRINTF(rna_path, "splines[%d].points[%d]", nu_index, pt_index);
+        SNPRINTF_UTF8(rna_path, "splines[%d].points[%d]", nu_index, pt_index);
 
         keyIndex = getCVKeyIndex(editnurb, bp);
         if (keyIndex) {
-          SNPRINTF(
+          SNPRINTF_UTF8(
               orig_rna_path, "splines[%d].points[%d]", keyIndex->nu_index, keyIndex->pt_index);
           fcurve_path_rename(orig_rna_path, rna_path, orig_curves, processed_fcurves);
 
@@ -1072,8 +1073,8 @@ static void fcurve_path_rename(const char *orig_rna_path,
     }
 
     if (keyIndex) {
-      SNPRINTF(rna_path, "splines[%d]", nu_index);
-      SNPRINTF(orig_rna_path, "splines[%d]", keyIndex->nu_index);
+      SNPRINTF_UTF8(rna_path, "splines[%d]", nu_index);
+      SNPRINTF_UTF8(orig_rna_path, "splines[%d]", keyIndex->nu_index);
       fcurve_path_rename(orig_rna_path, rna_path, orig_curves, processed_fcurves);
     }
   }
@@ -5971,7 +5972,7 @@ static wmOperatorStatus toggle_cyclic_invoke(bContext *C,
         if (nu->type == CU_NURBS) {
           pup = UI_popup_menu_begin(C, IFACE_("Direction"), ICON_NONE);
           layout = UI_popup_menu_layout(pup);
-          uiItemsEnumO(layout, op->type->idname, "direction");
+          layout->op_enum(op->type->idname, "direction");
           UI_popup_menu_end(C, pup);
           return OPERATOR_INTERFACE;
         }

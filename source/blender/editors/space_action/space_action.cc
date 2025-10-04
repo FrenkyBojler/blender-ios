@@ -17,7 +17,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_math_base.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -166,11 +167,12 @@ static void action_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Dopesheet", SPACE_ACTION, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Dopesheet", SPACE_ACTION, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_poll(
       &region->runtime->handlers, keymap, WM_event_handler_region_v2d_mask_no_marker_poll);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Dopesheet Generic", SPACE_ACTION, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Dopesheet Generic", SPACE_ACTION, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -237,10 +239,9 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* Draw the manually set intended playback frame range highlight in the Action editor. */
-  if (ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY) && saction->action) {
-    AnimData *adt = ED_actedit_animdata_from_context(C, nullptr);
-
-    ANIM_draw_action_framerange(adt, saction->action, v2d, -FLT_MAX, FLT_MAX);
+  if (ac.active_action) {
+    AnimData *adt = BKE_animdata_from_id(ac.active_action_user);
+    ANIM_draw_action_framerange(adt, ac.active_action, v2d, -FLT_MAX, FLT_MAX);
   }
 
   /* data */
@@ -273,7 +274,8 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
 
   /* scrubbing region */
-  ED_time_scrub_draw(region, scene, saction->flag & SACTION_DRAWTIME, true);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, saction->flag & SACTION_DRAWTIME, true, fps);
 }
 
 static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
@@ -310,10 +312,12 @@ static void action_channel_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Dopesheet Generic", SPACE_ACTION, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Dopesheet Generic", SPACE_ACTION, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -445,9 +449,9 @@ static void saction_channel_region_message_subscribe(const wmRegionMessageSubscr
         &RNA_Keyframe,
         &RNA_FCurveSample,
 
-        &RNA_GreasePencil, /* Grease Pencil */
-        &RNA_GPencilLayer,
-        &RNA_GPencilFrame,
+        &RNA_Annotation, /* Grease Pencil */
+        &RNA_AnnotationLayer,
+        &RNA_AnnotationFrame,
     };
 
     for (int i = 0; i < ARRAY_SIZE(type_array); i++) {
@@ -560,7 +564,7 @@ static void action_listener(const wmSpaceTypeListenerParams *params)
   switch (wmn->category) {
     case NC_GPENCIL:
       /* only handle these events for containers in which GPencil frames are displayed */
-      if (ELEM(saction->mode, SACTCONT_GPENCIL, SACTCONT_DOPESHEET, SACTCONT_TIMELINE)) {
+      if (ELEM(saction->mode, SACTCONT_GPENCIL, SACTCONT_DOPESHEET)) {
         if (wmn->action == NA_EDITED) {
           ED_area_tag_redraw(area);
         }
@@ -622,10 +626,8 @@ static void action_listener(const wmSpaceTypeListenerParams *params)
           }
           break;
         default:
-          if (saction->mode != SACTCONT_TIMELINE) {
-            /* Just redrawing the view will do. */
-            ED_area_tag_redraw(area);
-          }
+          /* Just redrawing the view will do. */
+          ED_area_tag_redraw(area);
           break;
       }
       break;
@@ -643,11 +645,6 @@ static void action_listener(const wmSpaceTypeListenerParams *params)
         case ND_POINTCACHE:
         case ND_MODIFIER:
         case ND_PARTICLE:
-          /* only needed in timeline mode */
-          if (saction->mode == SACTCONT_TIMELINE) {
-            ED_area_tag_refresh(area);
-            ED_area_tag_redraw(area);
-          }
           break;
         default: /* just redrawing the view will do */
           ED_area_tag_redraw(area);
@@ -706,39 +703,18 @@ static void action_listener(const wmSpaceTypeListenerParams *params)
 
 static void action_header_region_listener(const wmRegionListenerParams *params)
 {
-  ScrArea *area = params->area;
   ARegion *region = params->region;
   const wmNotifier *wmn = params->notifier;
-  SpaceAction *saction = (SpaceAction *)area->spacedata.first;
 
   /* context changes */
   switch (wmn->category) {
     case NC_SCREEN:
-      if (saction->mode == SACTCONT_TIMELINE) {
-        if (wmn->data == ND_ANIMPLAY) {
-          ED_region_tag_redraw(region);
-        }
-      }
       break;
     case NC_SCENE:
-      if (saction->mode == SACTCONT_TIMELINE) {
-        switch (wmn->data) {
-          case ND_RENDER_RESULT:
-          case ND_OB_SELECT:
-          case ND_FRAME:
-          case ND_FRAME_RANGE:
-          case ND_KEYINGSET:
-          case ND_RENDER_OPTIONS:
-            ED_region_tag_redraw(region);
-            break;
-        }
-      }
-      else {
-        switch (wmn->data) {
-          case ND_OB_ACTIVE:
-            ED_region_tag_redraw(region);
-            break;
-        }
+      switch (wmn->data) {
+        case ND_OB_ACTIVE:
+          ED_region_tag_redraw(region);
+          break;
       }
       break;
     case NC_ID:
@@ -793,7 +769,8 @@ static void action_buttons_area_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Dopesheet Generic", SPACE_ACTION, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Dopesheet Generic", SPACE_ACTION, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -872,7 +849,6 @@ static void action_id_remap(ScrArea * /*area*/,
 {
   SpaceAction *sact = (SpaceAction *)slink;
 
-  mappings.apply(reinterpret_cast<ID **>(&sact->action), ID_REMAP_APPLY_DEFAULT);
   mappings.apply(reinterpret_cast<ID **>(&sact->ads.filter_grp), ID_REMAP_APPLY_DEFAULT);
   mappings.apply(&sact->ads.source, ID_REMAP_APPLY_DEFAULT);
 }
@@ -883,8 +859,6 @@ static void action_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
   const int data_flags = BKE_lib_query_foreachid_process_flags_get(data);
   const bool is_readonly = (data_flags & IDWALK_READONLY) != 0;
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sact->action, IDWALK_CB_DIRECT_WEAK_LINK);
-
   /* NOTE: Could be deduplicated with the #bDopeSheet handling of #SpaceNla and #SpaceGraph. */
   BKE_LIB_FOREACHID_PROCESS_ID(data, sact->ads.source, IDWALK_CB_DIRECT_WEAK_LINK);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, sact->ads.filter_grp, IDWALK_CB_DIRECT_WEAK_LINK);
@@ -894,54 +868,6 @@ static void action_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
      * at it (as it can only be updated that way) #28962. */
     sact->runtime.flag |= SACTION_RUNTIME_FLAG_NEED_CHAN_SYNC;
   }
-}
-
-/**
- * \note Used for splitting out a subset of modes is more involved,
- * The previous non-timeline mode is stored so switching back to the
- * dope-sheet doesn't always reset the sub-mode.
- */
-static int action_space_subtype_get(ScrArea *area)
-{
-  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
-  return sact->mode == SACTCONT_TIMELINE ? SACTCONT_TIMELINE : SACTCONT_DOPESHEET;
-}
-
-static void action_space_subtype_set(ScrArea *area, int value)
-{
-  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
-  if (value == SACTCONT_TIMELINE) {
-    if (sact->mode != SACTCONT_TIMELINE) {
-      sact->mode_prev = sact->mode;
-    }
-    sact->mode = value;
-  }
-  else {
-    sact->mode = sact->mode_prev;
-  }
-}
-
-static void action_space_subtype_item_extend(bContext * /*C*/,
-                                             EnumPropertyItem **item,
-                                             int *totitem)
-{
-  RNA_enum_items_add(item, totitem, rna_enum_space_action_mode_items);
-}
-
-static blender::StringRefNull action_space_name_get(const ScrArea *area)
-{
-  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
-  const int index = max_ii(0, RNA_enum_from_value(rna_enum_space_action_mode_items, sact->mode));
-  const EnumPropertyItem item = rna_enum_space_action_mode_items[index];
-  return item.name;
-}
-
-static int action_space_icon_get(const ScrArea *area)
-{
-  SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
-  const int index = max_ii(0, RNA_enum_from_value(rna_enum_space_action_mode_items, sact->mode));
-  const EnumPropertyItem item = rna_enum_space_action_mode_items[index];
-  return item.icon;
 }
 
 static void action_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
@@ -961,7 +887,7 @@ void ED_spacetype_action()
   ARegionType *art;
 
   st->spaceid = SPACE_ACTION;
-  STRNCPY(st->name, "Action");
+  STRNCPY_UTF8(st->name, "Action");
 
   st->create = action_create;
   st->free = action_free;
@@ -973,11 +899,6 @@ void ED_spacetype_action()
   st->refresh = action_refresh;
   st->id_remap = action_id_remap;
   st->foreach_id = action_foreach_id;
-  st->space_subtype_item_extend = action_space_subtype_item_extend;
-  st->space_subtype_get = action_space_subtype_get;
-  st->space_subtype_set = action_space_subtype_set;
-  st->space_name_get = action_space_name_get;
-  st->space_icon_get = action_space_icon_get;
   st->blend_read_data = action_space_blend_read_data;
   st->blend_read_after_liblink = nullptr;
   st->blend_write = action_space_blend_write;

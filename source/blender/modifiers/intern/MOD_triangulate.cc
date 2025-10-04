@@ -22,6 +22,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
@@ -154,4 +155,5 @@ ModifierTypeInfo modifierType_Triangulate = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

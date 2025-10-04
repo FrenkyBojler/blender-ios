@@ -259,18 +259,42 @@ static bool values_different(const T value1,
   if constexpr (std::is_same_v<T, float>) {
     return compare_threshold_relative(value1, value2, threshold);
   }
-  if constexpr (is_same_any_v<T, float2, float3, ColorGeometry4f>) {
+
+  /* GCC 15.x triggers an array-bounds warning unless `component_i` is assumed to be in range. */
+#if (defined(__GNUC__) && (__GNUC__ >= 15) && !defined(__clang__))
+#  define ASSERT_AND_ASSUME(expr) \
+    BLI_assert(expr); \
+    [[assume(expr)]];
+#else
+#  define ASSERT_AND_ASSUME(expr) BLI_assert(expr);
+#endif
+
+  if constexpr (is_same_any_v<T, float2>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 2);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, float3>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 3);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, ColorGeometry4f>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
   }
   if constexpr (std::is_same_v<T, math::Quaternion>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     const float4 value1_f = float4(value1);
     const float4 value2_f = float4(value2);
     return compare_threshold_relative(value1_f[component_i], value2_f[component_i], threshold);
   }
   if constexpr (std::is_same_v<T, float4x4>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     return compare_threshold_relative(
         value1.base_ptr()[component_i], value2.base_ptr()[component_i], threshold);
   }
+
+#undef ASSERT_AND_ASSUME
+
   BLI_assert_unreachable();
 }
 
@@ -284,7 +308,7 @@ static bool update_set_ids(MutableSpan<int> set_ids,
                            const Span<T> values1,
                            const Span<T> values2,
                            const Span<int> sorted_to_values1,
-                           MutableSpan<int> sorted_to_values2,
+                           const Span<int> sorted_to_values2,
                            const float threshold,
                            const int component_i)
 {

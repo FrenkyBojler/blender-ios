@@ -32,12 +32,12 @@ struct FinalImageCache {
     int view_id;
     int display_channel;
 
-    const uint64_t hash() const
+    uint64_t hash() const
     {
-      return blender::get_default_hash(timeline_frame, view_id, display_channel);
+      return get_default_hash(timeline_frame, view_id, display_channel);
     }
 
-    bool operator==(const FinalImageCache::Key &other) const
+    bool operator==(const Key &other) const
     {
       return timeline_frame == other.timeline_frame && view_id == other.view_id &&
              display_channel == other.display_channel;

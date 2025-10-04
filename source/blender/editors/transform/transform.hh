@@ -202,6 +202,7 @@ enum eTModifier {
   MOD_SNAP_FORCED = 1 << 6,
   MOD_EDIT_SNAP_SOURCE = 1 << 7,
   MOD_NODE_FRAME = 1 << 8,
+  MOD_STRIP_CLAMP_HOLDS = 1 << 9,
 };
 ENUM_OPERATORS(eTModifier, MOD_EDIT_SNAP_SOURCE)
 
@@ -330,6 +331,8 @@ enum {
   TFM_MODAL_PASSTHROUGH_NAVIGATE = 36,
 
   TFM_MODAL_NODE_FRAME = 37,
+
+  TFM_MODAL_STRIP_CLAMP = 38,
 };
 
 /** \} */
@@ -468,6 +471,12 @@ struct TransDataExtension {
   int rotOrder;
   /** Original object transformation used for rigid bodies. */
   float oloc[3], orot[3], oquat[4], orotAxis[3], orotAngle;
+
+  /**
+   * Use when #TransDataBasic::center has been overridden but the real center is still needed
+   * for internal calculations.
+   */
+  float center_no_override[3];
 };
 
 struct TransData2D {

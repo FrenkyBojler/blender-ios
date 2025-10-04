@@ -32,7 +32,7 @@
 #include "BLI_memarena.h"
 #include "BLI_set.hh"
 #include "BLI_stack.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -456,7 +456,7 @@ static void knifetool_draw_visible_distances(const KnifeTool_OpData *kcd)
 
   const UnitSettings &unit = kcd->scene->unit;
   if (unit.system == USER_UNIT_NONE) {
-    SNPRINTF(numstr, "%.*f", distance_precision, cut_len);
+    SNPRINTF_UTF8(numstr, "%.*f", distance_precision, cut_len);
   }
   else {
     BKE_unit_value_as_string_scaled(
@@ -587,7 +587,7 @@ static void knifetool_draw_angle(const KnifeTool_OpData *kcd,
 
   const UnitSettings &unit = kcd->scene->unit;
   if (unit.system == USER_UNIT_NONE) {
-    SNPRINTF(numstr, "%.*f" BLI_STR_UTF8_DEGREE_SIGN, angle_precision, RAD2DEGF(angle));
+    SNPRINTF_UTF8(numstr, "%.*f" BLI_STR_UTF8_DEGREE_SIGN, angle_precision, RAD2DEGF(angle));
   }
   else {
     BKE_unit_value_as_string(
@@ -4715,7 +4715,7 @@ static bool edbm_mesh_knife_point_isect(LinkNode *polys, const float cent_ss[2])
   int isect = 0;
 
   while (p) {
-    const float(*mval_fl)[2] = static_cast<const float(*)[2]>(p->link);
+    const float (*mval_fl)[2] = static_cast<const float (*)[2]>(p->link);
     const int mval_tot = MEM_allocN_len(mval_fl) / sizeof(*mval_fl);
     isect += int(isect_point_poly_v2(cent_ss, mval_fl, mval_tot - 1));
     p = p->next;
@@ -4765,7 +4765,7 @@ void EDBM_mesh_knife(
     knife_recalc_ortho(kcd);
 
     while (p) {
-      const float(*mval_fl)[2] = static_cast<const float(*)[2]>(p->link);
+      const float (*mval_fl)[2] = static_cast<const float (*)[2]>(p->link);
       const int mval_tot = MEM_allocN_len(mval_fl) / sizeof(*mval_fl);
       int i;
 

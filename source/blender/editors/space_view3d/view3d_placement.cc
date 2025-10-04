@@ -511,7 +511,7 @@ static void draw_circle_in_quad(const float v1[3],
       {-1, +1},
   };
 
-  float(*coords)[3] = static_cast<float(*)[3]>(
+  float (*coords)[3] = static_cast<float (*)[3]>(
       MEM_mallocN(sizeof(float[3]) * (resolution + 1), __func__));
   for (int i = 0; i <= resolution; i++) {
     float theta = ((2.0f * M_PI) * (float(i) / float(resolution))) + 0.01f;
@@ -647,7 +647,7 @@ static void draw_primitive_view(const bContext *C, ARegion * /*region*/, void *a
   UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, color);
 
   const bool use_depth = !XRAY_ENABLED(ipd->v3d);
-  const eGPUDepthTest depth_test_enabled = GPU_depth_test_get();
+  const GPUDepthTest depth_test_enabled = GPU_depth_test_get();
 
   if (use_depth) {
     GPU_depth_test(GPU_DEPTH_NONE);
@@ -738,7 +738,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
     /* For drag events, update the location since it will be set from the drag-start.
      * This is needed as cursor-drawing doesn't deal with drag events and will use
      * the current cursor location instead of the drag-start. */
-    if (event->val == KM_CLICK_DRAG) {
+    if (event->val == KM_PRESS_DRAG) {
       /* Set this flag so snapping always updated. */
       int mval[2];
       WM_event_drag_start_mval(event, ipd->region, mval);
@@ -1188,7 +1188,8 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
             RNA_float_set(&op_props, "radius2", 0.0f);
           }
 
-          WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+          WM_operator_name_call_ptr(
+              C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
           WM_operator_properties_free(&op_props);
         }
         else {

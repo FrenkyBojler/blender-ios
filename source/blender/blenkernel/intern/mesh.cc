@@ -75,7 +75,7 @@
 
 #include "BLO_read_write.hh"
 
-/** Using STACK_FIXED_DEPTH to keep the implementation in line with pbvh.cc.*/
+/** Using STACK_FIXED_DEPTH to keep the implementation in line with `pbvh.cc`. */
 #define STACK_FIXED_DEPTH 100
 
 using blender::float3;
@@ -273,16 +273,11 @@ static void mesh_free_data(ID *id)
 static void mesh_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->texcomesh, IDWALK_CB_NEVER_SELF);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->key, IDWALK_CB_USER);
   for (int i = 0; i < mesh->totcol; i++) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->mat[i], IDWALK_CB_USER);
-  }
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, mesh->ipo, IDWALK_CB_USER);
   }
 }
 
@@ -294,6 +289,32 @@ static void mesh_foreach_path(ID *id, BPathForeachPathData *bpath_data)
                                          mesh->corner_data.external->filepath,
                                          sizeof(mesh->corner_data.external->filepath));
   }
+}
+
+static void mesh_foreach_working_space_color(ID *id, const IDTypeForeachColorFunctionCallback &fn)
+{
+  Mesh *mesh = reinterpret_cast<Mesh *>(id);
+#if 0
+  /* In the future we'll be able to use just this. */
+  mesh->attribute_storage.wrap().foreach_working_space_color(fn);
+#else
+  auto convert_domain = [&fn](CustomData *customdata, size_t size) {
+    for (int i = 0; i < customdata->totlayer; i++) {
+      CustomDataLayer *layer = &customdata->layers[i];
+      if (layer->data && layer->type == CD_PROP_COLOR) {
+        fn.implicit_sharing_array(
+            *reinterpret_cast<blender::ImplicitSharingPtr<> *>(&layer->sharing_info),
+            reinterpret_cast<blender::ColorGeometry4f *&>(layer->data),
+            size);
+      }
+    }
+  };
+
+  convert_domain(&mesh->vert_data, mesh->verts_num);
+  convert_domain(&mesh->edge_data, mesh->edges_num);
+  convert_domain(&mesh->face_data, mesh->faces_num);
+  convert_domain(&mesh->corner_data, mesh->corners_num);
+#endif
 }
 
 static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -357,6 +378,10 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
         mesh->face_data, AttrDomain::Face, mesh->faces_num, face_layers, attribute_data);
     CustomData_blend_write_prepare(
         mesh->corner_data, AttrDomain::Corner, mesh->corners_num, loop_layers, attribute_data);
+    if (!is_undo) {
+      mesh_freestyle_marks_to_legacy(
+          attribute_data, mesh->edge_data, mesh->face_data, edge_layers, face_layers);
+    }
     if (attribute_data.attributes.is_empty()) {
       mesh->attribute_storage.dna_attributes = nullptr;
       mesh->attribute_storage.dna_attributes_num = 0;
@@ -488,6 +513,7 @@ IDTypeInfo IDType_ID_ME = {
     /*foreach_id*/ mesh_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ mesh_foreach_path,
+    /*foreach_working_space_color*/ mesh_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ mesh_blend_write,
@@ -860,6 +886,13 @@ void mesh_apply_spatial_organization(Mesh &mesh)
     group_face_offsets.append(new_face_order.size());
   }
 
+  for (const int vert : IndexRange(mesh.verts_num)) {
+    if (!added_verts[vert]) {
+      new_vert_order.append(vert);
+      added_verts[vert].set();
+    }
+  }
+
   Array<int> vert_reverse_map(mesh.verts_num);
   for (const int i : IndexRange(mesh.verts_num)) {
     vert_reverse_map[new_vert_order[i]] = i;
@@ -886,8 +919,9 @@ void mesh_apply_spatial_organization(Mesh &mesh)
   corner_verts.copy_from(new_corner_verts);
 
   MutableSpan<int> face_offsets = mesh.face_offsets_for_write();
-  MutableSpan<int> face_sizes_view = face_offsets.take_front(new_face_order.size());
-  gather_group_sizes(old_faces, new_face_order, face_sizes_view);
+  Vector<int> face_sizes(new_face_order.size());
+  gather_group_sizes(old_faces, new_face_order, face_sizes);
+  face_offsets.take_front(face_sizes.size()).copy_from(face_sizes);
   offset_indices::accumulate_counts_to_offsets(face_offsets);
 
   MutableAttributeAccessor attributes_for_write = mesh.attributes_for_write();
@@ -1673,7 +1707,7 @@ void mesh_smooth_set(Mesh &mesh, const bool use_smooth, const bool keep_sharp_ed
   if (!use_smooth) {
     attributes.add<bool>("sharp_face",
                          AttrDomain::Face,
-                         AttributeInitVArray(VArray<bool>::ForSingle(true, mesh.faces_num)));
+                         AttributeInitVArray(VArray<bool>::from_single(true, mesh.faces_num)));
   }
 }
 
@@ -1826,30 +1860,11 @@ const blender::VectorSet<int> &Mesh::material_indices_used() const
 
 namespace blender::bke {
 
-static void transform_positions(MutableSpan<float3> positions, const float4x4 &matrix)
-{
-  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &position : positions.slice(range)) {
-      position = math::transform_point(matrix, position);
-    }
-  });
-}
-
 static void translate_positions(MutableSpan<float3> positions, const float3 &translation)
 {
   threading::parallel_for(positions.index_range(), 2048, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position += translation;
-    }
-  });
-}
-
-static void transform_normals(MutableSpan<float3> normals, const float4x4 &matrix)
-{
-  const float3x3 normal_transform = math::transpose(math::invert(float3x3(matrix)));
-  threading::parallel_for(normals.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &normal : normals.slice(range)) {
-      normal = normal_transform * normal;
     }
   });
 }
@@ -1884,23 +1899,15 @@ void mesh_translate(Mesh &mesh, const float3 &translation, const bool do_shape_k
 
 void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys)
 {
-  transform_positions(mesh.vert_positions_for_write(), transform);
+  math::transform_points(transform, mesh.vert_positions_for_write());
 
   if (do_shape_keys && mesh.key) {
     LISTBASE_FOREACH (KeyBlock *, kb, &mesh.key->block) {
-      transform_positions(MutableSpan(static_cast<float3 *>(kb->data), kb->totelem), transform);
+      math::transform_points(transform, MutableSpan(static_cast<float3 *>(kb->data), kb->totelem));
     }
   }
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(
-          "custom_normal"))
-  {
-    if (meta_data->data_type == bke::AttrType::Float3) {
-      bke::SpanAttributeWriter normals = attributes.lookup_for_write_span<float3>("custom_normal");
-      transform_normals(normals.span, transform);
-      normals.finish();
-    }
-  }
+  transform_custom_normal_attribute(transform, attributes);
 
   mesh.tag_positions_changed();
 }

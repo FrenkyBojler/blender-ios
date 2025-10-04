@@ -16,7 +16,9 @@ NODE_STORAGE_FUNCS(NodeGeometryMeshToVolume)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh whose inner volume is converted to a density grid");
   b.add_input<decl::Float>("Density").default_value(1.0f).min(0.01f).max(FLT_MAX);
   b.add_input<decl::Float>("Voxel Size")
       .default_value(0.3f)
@@ -65,7 +67,6 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

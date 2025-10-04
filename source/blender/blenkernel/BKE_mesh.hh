@@ -20,6 +20,7 @@ namespace blender::bke {
 
 enum class AttrDomain : int8_t;
 enum class AttrType : int16_t;
+struct AttributeMetaData;
 struct AttributeAccessorFunctions;
 
 namespace mesh {
@@ -149,15 +150,10 @@ struct CornerNormalSpace {
 
 /**
  * Storage for corner fan coordinate spaces for an entire mesh.
+ * For performance reason the distribution of #spaces and index mapping of them in
+ * #corner_space_indices are non-deterministic.
  */
 struct CornerNormalSpaceArray {
-  /**
-   * Results are added from multiple threads. The lock is an easy way to parallelize adding results
-   * for each corner fan. This method means the order of spaces in the `spaces` vector and
-   * `corners_by_face` is non-deterministic. That shouldn't affect the final output for the user
-   * though.
-   */
-  Mutex build_mutex;
   /**
    * The normal coordinate spaces, potentially shared between multiple face corners in a smooth fan
    * connected to a vertex (and not per face corner). Depending on the mesh (the amount of sharing
@@ -253,6 +249,23 @@ void edges_sharp_from_angle_set(OffsetIndices<int> faces,
                                 Span<bool> sharp_faces,
                                 const float split_angle,
                                 MutableSpan<bool> sharp_edges);
+
+/** Return true if the type and domain represent the tangent-space custom normals storage. */
+bool is_corner_fan_normals(const AttributeMetaData &meta_data);
+
+/** Tracks the storage format for a resulting mesh based on a combination of input meshes. */
+class NormalJoinInfo {
+ public:
+  enum class Output : int8_t { None, CornerFan, Free };
+  Output result_type = Output::None;
+  std::optional<bke::AttrDomain> result_domain;
+
+  void add_no_custom_normals(bke::MeshNormalDomain domain);
+  void add_corner_fan_normals();
+  void add_domain(bke::AttrDomain domain);
+  void add_free_normals(bke::AttrDomain domain);
+  void add_mesh(const Mesh &mesh);
+};
 
 }  // namespace mesh
 

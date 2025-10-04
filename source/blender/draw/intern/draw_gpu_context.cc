@@ -24,7 +24,7 @@
 /* -------------------------------------------------------------------- */
 /** \name Submission critical section
  *
- * The usage of GPUShader objects is currently not thread safe. Since they are shared resources
+ * The usage of gpu::Shader objects is currently not thread safe. Since they are shared resources
  * between render engine instances, we cannot allow pass submissions in a concurrent manner.
  * \{ */
 
@@ -79,7 +79,7 @@ void DRW_submission_end()
 /* Context that can be shared across threads. Usage is guarded by a ticket mutex.
  * Should eventually be moved to GPU module after we get rid of the WM calls. */
 class ContextShared {
-  /* Should be private but needs to be public for XR workaround.*/
+  /* Should be private but needs to be public for XR workaround. */
  public:
   TicketMutex *mutex_ = nullptr;
   /** Unique ghost context used by Viewports. */
@@ -121,6 +121,11 @@ class ContextShared {
     WM_system_gpu_context_activate(system_gpu_context_);
     GPU_context_active_set(blender_gpu_context_);
     GPU_context_begin_frame(blender_gpu_context_);
+  }
+
+  bool is_enabled()
+  {
+    return blender_gpu_context_ == GPU_context_active_get();
   }
 
   /* Restore window drawable after disabling if restore is true. */
@@ -167,12 +172,7 @@ void DRW_gpu_context_create()
   viewport_context = MEM_new<ContextShared>(__func__);
   preview_context = MEM_new<ContextShared>(__func__);
 
-  /* Some part of the code assumes no context is left bound. */
-  GPU_context_active_set(nullptr);
-  WM_system_gpu_context_release(preview_context->system_gpu_context_);
-
-  /* Activate the window's context if any. */
-  wm_window_reset_drawable();
+  viewport_context->enable();
 }
 
 void DRW_gpu_context_destroy()
@@ -242,6 +242,11 @@ bool DRW_gpu_context_try_enable()
   }
   DRW_gpu_context_enable_ex(true);
   return true;
+}
+
+bool DRW_gpu_context_is_enabled()
+{
+  return viewport_context && viewport_context->is_enabled();
 }
 
 void DRW_gpu_context_disable()

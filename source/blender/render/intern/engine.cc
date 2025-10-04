@@ -113,19 +113,6 @@ bool RE_engine_is_external(const Render *re)
   return (re->engine && re->engine->type && re->engine->type->render);
 }
 
-bool RE_engine_supports_alembic_procedural(const RenderEngineType *render_type, Scene *scene)
-{
-  if ((render_type->flag & RE_USE_ALEMBIC_PROCEDURAL) == 0) {
-    return false;
-  }
-
-  if (BKE_scene_uses_cycles(scene) && !BKE_scene_uses_cycles_experimental_features(scene)) {
-    return false;
-  }
-
-  return true;
-}
-
 /* Create, Free */
 
 RenderEngine *RE_engine_create(RenderEngineType *type)
@@ -534,8 +521,8 @@ void RE_engine_update_memory_stats(RenderEngine *engine, float mem_used, float m
   Render *re = engine->re;
 
   if (re) {
-    re->i.mem_used = (int)ceilf(mem_used);
-    re->i.mem_peak = (int)ceilf(mem_peak);
+    re->i.mem_used = int(ceilf(mem_used));
+    re->i.mem_peak = int(ceilf(mem_peak));
   }
 }
 
@@ -620,10 +607,10 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine,
    * leaving stereo to be handled by the engine. */
   Render *re = engine->re;
   if (use_spherical_stereo || re == nullptr) {
-    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float (*)[4])r_modelmat);
   }
   else {
-    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float (*)[4])r_modelmat);
   }
 }
 
@@ -792,7 +779,7 @@ bool RE_bake_engine(Render *re,
 
   /* set render info */
   re->i.cfra = re->scene->r.cfra;
-  BLI_strncpy(re->i.scene_name, re->scene->id.name + 2, sizeof(re->i.scene_name) - 2);
+  STRNCPY(re->i.scene_name, re->scene->id.name + 2);
 
   /* render */
   engine = re->engine;
@@ -1321,7 +1308,7 @@ void RE_engine_tile_highlight_clear_all(RenderEngine *engine)
 
 bool RE_engine_gpu_context_create(RenderEngine *engine)
 {
-  /* If the there already is a draw manager render context available, reuse it. */
+  /* If there already is a draw manager render context available, reuse it. */
   engine->use_drw_render_context = (engine->re && RE_system_gpu_context_get(engine->re));
   if (engine->use_drw_render_context) {
     return true;

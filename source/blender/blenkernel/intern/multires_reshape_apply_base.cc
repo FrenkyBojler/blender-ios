@@ -12,7 +12,7 @@
 
 #include "DNA_mesh_types.h"
 
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 
 #include "BKE_mesh.hh"
@@ -36,12 +36,13 @@ void multires_reshape_apply_base_update_mesh_coords(MultiresReshapeContext *resh
 
     blender::float3 P;
     blender::float3x3 tangent_matrix;
-    multires_reshape_evaluate_limit_at_grid(reshape_context, &grid_coord, P, tangent_matrix);
+    multires_reshape_evaluate_base_mesh_limit_at_grid(
+        reshape_context, &grid_coord, P, tangent_matrix);
 
     ReshapeConstGridElement grid_element = multires_reshape_orig_grid_element_for_grid_coord(
         reshape_context, &grid_coord);
-    blender::float3 D;
-    mul_v3_m3v3(D, tangent_matrix.ptr(), grid_element.displacement);
+    const blender::float3 D = blender::math::transform_direction(tangent_matrix,
+                                                                 grid_element.displacement);
 
     base_positions[corner_verts[loop_index]] = P + D;
   }

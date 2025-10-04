@@ -281,7 +281,12 @@ typedef struct View3D_Runtime {
   /** Runtime only flags. */
   int flag;
 
-  char _pad1[4];
+  /**
+   * The previously calculated selection center.
+   * Only use when `flag` #V3D_RUNTIME_OFS_LAST_IS_VALID is set.
+   */
+  float ofs_last_center[3];
+
   /* Only used for overlay stats while in local-view. */
   struct SceneStats *local_stats;
 } View3D_Runtime;
@@ -345,7 +350,8 @@ typedef struct View3D {
 
   float lens, grid;
   float clip_start, clip_end;
-  float ofs[3] DNA_DEPRECATED;
+  float vignette_aperture;
+  float ofs[2] DNA_DEPRECATED;
 
   char _pad[1];
 
@@ -422,6 +428,9 @@ enum {
   V3D_RUNTIME_DEPTHBUF_OVERRIDDEN = (1 << 1),
   /** Local view may have become empty, and may need to be exited. */
   V3D_RUNTIME_LOCAL_MAYBE_EMPTY = (1 << 2),
+  /** Last offset is valid. */
+  V3D_RUNTIME_OFS_LAST_CENTER_IS_VALID = (1 << 3),
+
 };
 
 /** #RegionView3D::persp */
@@ -437,12 +446,12 @@ enum {
   RV3D_NAVIGATING = 1 << 3,
   RV3D_GPULIGHT_UPDATE = 1 << 4,
   RV3D_PAINTING = 1 << 5,
-  // RV3D_IS_GAME_ENGINE = 1 << 5, /* UNUSED */
   /**
    * Disable Z-buffer offset, skip calls to #ED_view3d_polygon_offset.
    * Use when precise surface depth is needed and picking bias isn't, see #45434).
    */
   RV3D_ZOFFSET_DISABLED = 1 << 6,
+  RV3D_WAS_CAMOB = 1 << 7,
 };
 
 /** #RegionView3D.viewlock */

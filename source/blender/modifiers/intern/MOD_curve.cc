@@ -27,6 +27,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -106,7 +107,7 @@ static void deform_verts(ModifierData *md,
   const int defaxis = std::clamp(cmd->defaxis - 1, 0, 5);
   BKE_curve_deform_coords(cmd->object,
                           ctx->object,
-                          reinterpret_cast<float(*)[3]>(positions.data()),
+                          reinterpret_cast<float (*)[3]>(positions.data()),
                           positions.size(),
                           dvert,
                           defgrp_index,
@@ -140,7 +141,7 @@ static void deform_verts_EM(ModifierData *md,
   if (use_dverts) {
     BKE_curve_deform_coords_with_editmesh(cmd->object,
                                           ctx->object,
-                                          reinterpret_cast<float(*)[3]>(positions.data()),
+                                          reinterpret_cast<float (*)[3]>(positions.data()),
                                           positions.size(),
                                           defgrp_index,
                                           cmd->flag,
@@ -150,7 +151,7 @@ static void deform_verts_EM(ModifierData *md,
   else {
     BKE_curve_deform_coords(cmd->object,
                             ctx->object,
-                            reinterpret_cast<float(*)[3]>(positions.data()),
+                            reinterpret_cast<float (*)[3]>(positions.data()),
                             positions.size(),
                             nullptr,
                             defgrp_index,
@@ -215,4 +216,5 @@ ModifierTypeInfo modifierType_Curve = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

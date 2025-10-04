@@ -12,8 +12,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_time.h"
 #include "BLI_timecode.h"
@@ -90,6 +91,8 @@ struct RenderJob : public RenderJobBase {
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
   bool interface_locked;
+  int frame_start;
+  int frame_end;
 };
 
 /* called inside thread! */
@@ -293,6 +296,32 @@ static void screen_render_single_layer_set(
   }
 }
 
+static bool render_operator_has_custom_frame_range(wmOperator *render_operator)
+{
+  return RNA_struct_property_is_set(render_operator->ptr, "frame_start") ||
+         RNA_struct_property_is_set(render_operator->ptr, "frame_end");
+}
+
+static void get_render_operator_frame_range(wmOperator *render_operator,
+                                            const Scene *scene,
+                                            int &frame_start,
+                                            int &frame_end)
+{
+  if (RNA_struct_property_is_set(render_operator->ptr, "frame_start")) {
+    frame_start = RNA_int_get(render_operator->ptr, "frame_start");
+  }
+  else {
+    frame_start = scene->r.sfra;
+  }
+
+  if (RNA_struct_property_is_set(render_operator->ptr, "frame_end")) {
+    frame_end = RNA_int_get(render_operator->ptr, "frame_end");
+  }
+  else {
+    frame_end = scene->r.efra;
+  }
+}
+
 /* executes blocking render */
 static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
 {
@@ -310,6 +339,18 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
 
   /* Cannot do render if there is not this function. */
   if (re_type->render == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!is_animation && render_operator_has_custom_frame_range(op)) {
+    BKE_report(op->reports, RPT_ERROR, "Frame start/end specified in a non-animation render");
+    return OPERATOR_CANCELLED;
+  }
+
+  int frame_start, frame_end;
+  get_render_operator_frame_range(op, scene, frame_start, frame_end);
+  if (is_animation && frame_start > frame_end) {
+    BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
 
@@ -347,8 +388,8 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
                   scene,
                   single_layer,
                   camera_override,
-                  scene->r.sfra,
-                  scene->r.efra,
+                  frame_start,
+                  frame_end,
                   scene->r.frame_step);
   }
   else {
@@ -431,7 +472,7 @@ static void make_renderinfo_string(const RenderStats *rs,
   }
 
   /* frame number */
-  SNPRINTF(info_buffers.frame, "%d ", scene->r.cfra);
+  SNPRINTF_UTF8(info_buffers.frame, "%d ", scene->r.cfra);
   ret_array[i++] = RPT_("Frame:");
   ret_array[i++] = info_buffers.frame;
 
@@ -468,13 +509,14 @@ static void make_renderinfo_string(const RenderStats *rs,
     }
     else {
       if (rs->mem_peak == 0.0f) {
-        SNPRINTF(info_buffers.statistics,
-                 RPT_("Mem:%dM, Peak %dM"),
-                 megs_used_memory,
-                 megs_peak_memory);
+        SNPRINTF_UTF8(info_buffers.statistics,
+                      RPT_("Mem:%dM, Peak: %dM"),
+                      megs_used_memory,
+                      megs_peak_memory);
       }
       else {
-        SNPRINTF(info_buffers.statistics, RPT_("Mem:%dM, Peak: %dM"), rs->mem_used, rs->mem_peak);
+        SNPRINTF_UTF8(
+            info_buffers.statistics, RPT_("Mem:%dM, Peak: %dM"), rs->mem_used, rs->mem_peak);
       }
       info_statistics = info_buffers.statistics;
     }
@@ -704,8 +746,8 @@ static void render_startjob(void *rjv, wmJobWorkerStatus *worker_status)
                   rj->scene,
                   rj->single_layer,
                   rj->camera_override,
-                  rj->scene->r.sfra,
-                  rj->scene->r.efra,
+                  rj->frame_start,
+                  rj->frame_end,
                   rj->scene->r.frame_step);
   }
   else {
@@ -842,7 +884,7 @@ static void render_endjob(void *rjv)
      * and using one from Global will unlock exactly the same manager as
      * was locked before running the job.
      */
-    WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
+    WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
     DEG_tag_on_visible_update(G_MAIN, false);
   }
 }
@@ -881,7 +923,7 @@ static void render_drawlock(void *rjv, bool lock)
 
   /* If interface is locked, renderer callback shall do nothing. */
   if (!rj->interface_locked) {
-    BKE_spacedata_draw_locks(lock);
+    BKE_spacedata_draw_locks(lock ? REGION_DRAW_LOCK_RENDER : REGION_DRAW_LOCK_NONE);
   }
 }
 
@@ -979,6 +1021,18 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
+  if (!is_animation && render_operator_has_custom_frame_range(op)) {
+    BKE_report(op->reports, RPT_ERROR, "Frame start/end specified in a non-animation render");
+    return OPERATOR_CANCELLED;
+  }
+
+  int frame_start, frame_end;
+  get_render_operator_frame_range(op, scene, frame_start, frame_end);
+  if (is_animation && frame_start > frame_end) {
+    BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
+    return OPERATOR_CANCELLED;
+  }
+
   /* custom scene and single layer re-render */
   screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
 
@@ -1044,6 +1098,8 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   rj->orig_layer = 0;
   rj->last_layer = 0;
   rj->area = area;
+  rj->frame_start = frame_start;
+  rj->frame_end = frame_end;
 
   BKE_color_managed_display_settings_copy(&rj->display_settings, &scene->display_settings);
   BKE_color_managed_view_settings_copy(&rj->view_settings, &scene->view_settings);
@@ -1061,7 +1117,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* Lock the user interface depending on render settings. */
   if (scene->r.use_lock_interface) {
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_RENDER);
 
     /* Set flag interface need to be unlocked.
      *
@@ -1082,7 +1138,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     name = RPT_("Rendering sequence...");
   }
   else {
-    name = RPT_("Render...");
+    name = RPT_("Rendering...");
   }
 
   wm_job = WM_jobs_get(CTX_wm_manager(C),
@@ -1191,6 +1247,30 @@ void RENDER_OT_render(wmOperatorType *ot)
                         "Scene",
                         "Scene to render, current scene if not specified");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(
+      ot->srna,
+      "frame_start",
+      0,
+      INT_MIN,
+      INT_MAX,
+      "Start Frame",
+      "Frame to start rendering animation at. If not specified, the scene start frame will be "
+      "assumed. This should only be specified if doing an animation render",
+      INT_MIN,
+      INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(
+      ot->srna,
+      "frame_end",
+      0,
+      INT_MIN,
+      INT_MAX,
+      "End Frame",
+      "Frame to end rendering animation at. If not specified, the scene end frame will be "
+      "assumed. This should only be specified if doing an animation render",
+      INT_MIN,
+      INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 Scene *ED_render_job_get_scene(const bContext *C)
@@ -1228,8 +1308,10 @@ static wmOperatorStatus render_shutter_curve_preset_exec(bContext *C, wmOperator
 
   mblur_shutter_curve->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
   mblur_shutter_curve->preset = preset;
-  BKE_curvemap_reset(
-      cm, &mblur_shutter_curve->clipr, mblur_shutter_curve->preset, CURVEMAP_SLOPE_POS_NEG);
+  BKE_curvemap_reset(cm,
+                     &mblur_shutter_curve->clipr,
+                     mblur_shutter_curve->preset,
+                     CurveMapSlopeType::PositiveNegative);
   BKE_curvemapping_changed(mblur_shutter_curve, false);
 
   return OPERATOR_FINISHED;

@@ -43,7 +43,7 @@ class ImagePrepass : Overlay {
     ps_.draw(res.shapes.image_quad.get());
   }
 
-  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view) final
+  void draw_on_render(gpu::FrameBuffer *framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -130,6 +130,10 @@ class Prepass : Overlay {
 
   void particle_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res, const State &state)
   {
+    if (state.skip_particles) {
+      return;
+    }
+
     Object *ob = ob_ref.object;
 
     ResourceHandleRange handle = {};

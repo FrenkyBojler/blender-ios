@@ -184,7 +184,7 @@ static void v3d_cursor_plane_draw_grid(const int resolution,
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
   const size_t coords_len = resolution * resolution;
-  float(*coords)[3] = static_cast<float(*)[3]>(
+  float (*coords)[3] = static_cast<float (*)[3]>(
       MEM_mallocN(sizeof(*coords) * coords_len, __func__));
 
   const int axis_x = (plane_axis + 0) % 3;
@@ -983,7 +983,7 @@ static void v3d_cursor_snap_activate()
        * TODO: ED_view3d_cursor_snap_init */
 
 #ifdef USE_SNAP_DETECT_FROM_KEYMAP_HACK
-      wmKeyConfig *keyconf = ((wmWindowManager *)G.main->wm.first)->defaultconf;
+      wmKeyConfig *keyconf = ((wmWindowManager *)G.main->wm.first)->runtime->defaultconf;
 
       data_intern->keymap = WM_modalkeymap_find(keyconf, "Generic Gizmo Tweak Modal Map");
       RNA_enum_value_from_id(

@@ -152,6 +152,10 @@ class AddPresetBase:
                 self.report({'WARNING'}, "Failed to create presets path")
                 return {'CANCELLED'}
 
+            if _is_path_readonly(target_path):
+                self.report({'WARNING'}, "Cannot create presets with built-in names")
+                return {'CANCELLED'}
+
             filepath = os.path.join(target_path, filename) + ext
 
             if hasattr(self, "add"):
@@ -408,6 +412,20 @@ class AddPresetCloth(AddPresetBase, Operator):
         "cloth.settings.compression_damping",
         "cloth.settings.shear_damping",
         "cloth.settings.bending_damping",
+        "cloth.settings.use_internal_springs",
+        "cloth.settings.internal_spring_max_length",
+        "cloth.settings.internal_spring_max_diversion",
+        "cloth.settings.internal_spring_normal_check",
+        "cloth.settings.internal_tension_stiffness",
+        "cloth.settings.internal_compression_stiffness",
+        "cloth.settings.internal_tension_stiffness_max",
+        "cloth.settings.internal_compression_stiffness_max",
+        "cloth.settings.use_pressure",
+        "cloth.settings.uniform_pressure_force",
+        "cloth.settings.use_pressure_volume",
+        "cloth.settings.target_volume",
+        "cloth.settings.pressure_factor",
+        "cloth.settings.fluid_density",
     ]
 
     preset_subdir = "cloth"
@@ -700,7 +718,7 @@ class SavePresetInterfaceTheme(AddPresetBase, Operator):
         try:
             rna_xml.xml_file_write(context, filepath, preset_menu_class.preset_xml_map)
         except Exception as ex:
-            self.report({'ERROR'}, "Unable to overwrite preset: {:s}".format(str(ex)))
+            self.report({'ERROR'}, rpt_("Unable to overwrite preset: {:s}").format(str(ex)))
             import traceback
             traceback.print_exc()
             return {'CANCELLED'}
@@ -937,7 +955,7 @@ class WM_OT_operator_presets_cleanup(Operator):
 
 
 class AddPresetGpencilBrush(AddPresetBase, Operator):
-    """Add or remove grease pencil brush preset"""
+    """Add or remove Grease Pencil brush preset"""
     bl_idname = "scene.gpencil_brush_preset_add"
     bl_label = "Add Grease Pencil Brush Preset"
     preset_menu = "VIEW3D_PT_gpencil_brush_presets"

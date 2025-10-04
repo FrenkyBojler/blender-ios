@@ -888,7 +888,7 @@ void shear_fcurve_segment(FCurve *fcu,
   }
 
   for (int i = segment->start_index; i < segment->start_index + segment->length; i++) {
-    /* For easy calculation of the curve, the  values are normalized. */
+    /* For easy calculation of the curve, the values are normalized. */
     float normalized_x;
     if (direction == SHEAR_FROM_LEFT) {
       normalized_x = (fcu->bezt[i].vec[1][0] - left_key->vec[1][0]) / key_x_range;
@@ -1711,7 +1711,7 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
     BLI_assert(ale_slot);
   }
 
-  /* NASTYNESS: this code shouldn't have to care about which slots are currently visible in
+  /* NASTINESS: this code shouldn't have to care about which slots are currently visible in
    * the channel list. But since selection state is only relevant when they CAN actually be
    * selected, it does matter. This code assumes:
    *   1. because SELECTION or SELECTION_AND_IDENTIFIER was returned, slot selection is a
