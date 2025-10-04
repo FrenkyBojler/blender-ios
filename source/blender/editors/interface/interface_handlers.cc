@@ -3472,7 +3472,7 @@ const wmIMEData *ui_but_ime_data_get(uiBut *but)
 {
   uiHandleButtonData *data = but->semi_modal_state ? but->semi_modal_state : but->active;
 
-  if (data && data->window) {
+  if (data && data->window && data->window->runtime->ime_data_is_composing) {
     return data->window->runtime->ime_data;
   }
   return nullptr;
@@ -5142,7 +5142,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
   BLI_assert(view_item_but->type == ButType::ViewItem);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
-    if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
+    if (event->type == LEFTMOUSE) {
       switch (event->val) {
         case KM_PRESS:
           /* Extra icons have priority, don't mess with them. */
@@ -5150,13 +5150,16 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
             return WM_UI_HANDLER_BREAK;
           }
 
+          if (ui_block_is_popup_any(but->block)) {
+            /* TODO(!147047): This should be handled in selection operator. */
+            force_activate_view_item_but(C, data->region, view_item_but, false);
+            return WM_UI_HANDLER_BREAK;
+          }
+
           if (UI_view_item_supports_drag(*view_item_but->view_item)) {
             button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
             data->dragstartx = event->xy[0];
             data->dragstarty = event->xy[1];
-          }
-          else {
-            force_activate_view_item_but(C, data->region, view_item_but);
           }
 
           /* Always continue for drag and drop handling. Also for cases where keymap items are
@@ -8774,7 +8777,9 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 #else
       status.item(IFACE_("Snap"), ICON_EVENT_CTRL);
 #endif
-      status.item(IFACE_("Precision"), ICON_EVENT_SHIFT);
+      if (ui_but_is_float(but)) {
+        status.item(IFACE_("Precision"), ICON_EVENT_SHIFT);
+      }
     }
     ui_numedit_begin(but, data);
   }
@@ -9962,7 +9967,7 @@ static int ui_list_get_increment(const uiList *ui_list, const int type, const in
 
   /* Handle column offsets for grid layouts. */
   if (ELEM(type, EVT_UPARROWKEY, EVT_DOWNARROWKEY) &&
-      ELEM(ui_list->layout_type, UILST_LAYOUT_GRID, UILST_LAYOUT_BIG_PREVIEW_GRID))
+      ELEM(ui_list->layout_type, UILST_LAYOUT_BIG_PREVIEW_GRID))
   {
     increment = (type == EVT_UPARROWKEY) ? -columns : columns;
   }

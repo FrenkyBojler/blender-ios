@@ -763,6 +763,7 @@ void DeferredLayer::end_sync(bool is_first_pass,
       pass.specialize_constant(
           sh, "use_radiance_feedback", use_feedback_output_ && use_clamp_direct_);
       pass.specialize_constant(sh, "render_pass_normal_enabled", rbuf_data.normal_id != -1);
+      pass.specialize_constant(sh, "render_pass_position_enabled", rbuf_data.position_id != -1);
       pass.shader_set(sh);
       /* Use stencil test to reject pixels not written by this layer. */
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL | DRW_STATE_STENCIL_NEQUAL);
@@ -779,6 +780,7 @@ void DeferredLayer::end_sync(bool is_first_pass,
       pass.bind_image("radiance_feedback_img", &radiance_feedback_tx_);
       pass.bind_resources(inst_.gbuffer);
       pass.bind_resources(inst_.uniform_data);
+      pass.bind_resources(inst_.hiz_buffer.front);
       pass.barrier(GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS);
       pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     }
@@ -903,7 +905,7 @@ gpu::Texture *DeferredLayer::render(View &main_view,
   }
 
   GPU_framebuffer_bind(combined_fb);
-  inst_.manager->submit(combine_ps_);
+  inst_.manager->submit(combine_ps_, render_view);
 
   if (use_feedback_output_ && !use_clamp_direct_) {
     /* We skip writing the radiance during the combine pass. Do a simple fast copy. */
@@ -942,8 +944,12 @@ void DeferredPipeline::begin_sync()
 
 void DeferredPipeline::end_sync()
 {
+  Instance &inst = opaque_layer_.inst_;
+
   opaque_layer_.end_sync(true, refraction_layer_.is_empty(), refraction_layer_.has_transmission());
   refraction_layer_.end_sync(opaque_layer_.is_empty(), true, false);
+
+  inst.pipelines.data.gbuffer_additional_data_layer_id = this->normal_layer_count() - 1;
 
   debug_pass_sync();
 }
@@ -967,7 +973,7 @@ void DeferredPipeline::debug_pass_sync()
   pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-void DeferredPipeline::debug_draw(draw::View &view, GPUFrameBuffer *combined_fb)
+void DeferredPipeline::debug_draw(draw::View &view, gpu::FrameBuffer *combined_fb)
 {
   Instance &inst = opaque_layer_.inst_;
   if (!ELEM(inst.debug_mode,

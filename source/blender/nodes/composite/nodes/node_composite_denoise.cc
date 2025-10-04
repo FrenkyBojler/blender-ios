@@ -73,31 +73,33 @@ static const EnumPropertyItem quality_items[] = {
 
 static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0)
+      .hide_value()
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
+  b.add_input<decl::Color>("Albedo")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Normal")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(-1.0f)
       .max(1.0f)
       .hide_value()
-      .compositor_domain_priority(2)
-      .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Color>("Albedo")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .hide_value()
-      .compositor_domain_priority(1)
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Bool>("HDR").default_value(true);
   b.add_input<decl::Menu>("Prefilter")
       .default_value(CMP_NODE_DENOISE_PREFILTER_ACCURATE)
-      .static_items(prefilter_items);
+      .static_items(prefilter_items)
+      .optional_label();
   b.add_input<decl::Menu>("Quality")
       .default_value(CMP_NODE_DENOISE_QUALITY_SCENE)
-      .static_items(quality_items);
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+      .static_items(quality_items)
+      .optional_label();
 }
 
 static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
