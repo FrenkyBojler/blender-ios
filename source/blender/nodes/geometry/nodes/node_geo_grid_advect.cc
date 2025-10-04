@@ -104,7 +104,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(1.0f)
       .min(0.0f)
       .description("Time step for advection in seconds");
-  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
+  b.add_input(data_type, "Grid")
+      .hide_value()
+      .structure_type(StructureType::Grid)
+      .is_default_link_socket();
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input<decl::Vector>("Velocity").hide_value().structure_type(StructureType::Grid);
   b.add_input<decl::Menu>("Integration Scheme")
@@ -281,6 +284,13 @@ static void node_rna(StructRNA *srna)
                     advect_grid_socket_type_filter);
 }
 
+static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
+                                                       const bNode &node,
+                                                       const bNodeSocket &output_socket)
+{
+  return node.input_by_identifier(output_socket.identifier);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -294,6 +304,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
+  ntype.internally_linked_input = node_internally_linked_input;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
