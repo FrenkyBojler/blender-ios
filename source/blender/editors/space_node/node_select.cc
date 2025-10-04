@@ -522,6 +522,37 @@ void node_select_single(bContext &C, bNode &node)
   WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
 }
 
+static void handle_group_input_node_selection(bContext &C,
+                                              bNodeTree &tree,
+                                              bNode &group_input_node)
+{
+  ScrArea *area = CTX_wm_area(&C);
+  tree.ensure_topology_cache();
+  tree.ensure_interface_cache();
+  for (const bNodeSocket *socket : group_input_node.output_sockets().drop_back(1)) {
+    if (!socket->is_icon_visible()) {
+      continue;
+    }
+    const int group_input_i = socket->index();
+    bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[group_input_i];
+    bNodeTreeInterfacePanel &io_panel = *tree.tree_interface.find_item_parent(io_socket.item,
+                                                                              true);
+    bNodeTreeInterfaceItem *item_to_activate = nullptr;
+    if (io_panel.header_toggle_socket() == &io_socket) {
+      item_to_activate = &io_panel.item;
+    }
+    else {
+      item_to_activate = &io_socket.item;
+    }
+    tree.tree_interface.active_item_set(item_to_activate);
+
+    ARegion *ui_region = BKE_region_find_in_listbase_by_type(&area->regionbase, RGN_TYPE_UI);
+    LISTBASE_FOREACH (uiBlock *, block, &ui_region->runtime->uiblocks) {
+      UI_block_tree_view_scroll_active_into_view(*block, "Node Tree Declaration Tree View");
+    }
+  }
+}
+
 static bool node_mouse_select(bContext *C,
                               wmOperator *op,
                               const int2 mval,
@@ -645,30 +676,7 @@ static bool node_mouse_select(bContext *C,
       }
 
       if (node->is_group_input()) {
-        node_tree.ensure_topology_cache();
-        node_tree.ensure_interface_cache();
-        for (const bNodeSocket *socket : node->output_sockets().drop_back(1)) {
-          if (!socket->is_icon_visible()) {
-            continue;
-          }
-          const int group_input_i = socket->index();
-          bNodeTreeInterfaceSocket &io_socket = *node_tree.interface_inputs()[group_input_i];
-          bNodeTreeInterfacePanel &io_panel = *node_tree.tree_interface.find_item_parent(
-              io_socket.item, true);
-          bNodeTreeInterfaceItem *item_to_activate = nullptr;
-          if (io_panel.header_toggle_socket() == &io_socket) {
-            item_to_activate = &io_panel.item;
-          }
-          else {
-            item_to_activate = &io_socket.item;
-          }
-          node_tree.tree_interface.active_item_set(item_to_activate);
-          ScrArea *area = CTX_wm_area(C);
-          ARegion *ui_region = BKE_region_find_in_listbase_by_type(&area->regionbase, RGN_TYPE_UI);
-          LISTBASE_FOREACH (uiBlock *, block, &ui_region->runtime->uiblocks) {
-            UI_block_tree_view_scroll_active_into_view(*block, "Node Tree Declaration Tree View");
-          }
-        }
+        handle_group_input_node_selection(*C, node_tree, *node);
       }
 
       changed = true;
