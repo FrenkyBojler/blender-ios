@@ -130,7 +130,7 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
   cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
   cumap->preset = CURVE_PRESET_LINE;
 
-  BKE_curvemap_reset(cumap->cm, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, cumap->preset, CurveMapSlopeType::Positive);
   BKE_curvemapping_changed(cumap, false);
   BKE_curvemapping_init(cumap);
 
@@ -140,7 +140,7 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
 CurveMapping *BKE_paint_default_curve()
 {
   CurveMapping *cumap = BKE_curvemapping_add(1, 0, 0, 1, 1);
-  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CurveMapSlopeType::Positive);
   BKE_curvemapping_init(cumap);
 
   return cumap;
@@ -165,7 +165,7 @@ static void scene_init_data(ID *id)
   BKE_curvemap_reset(mblur_shutter_curve->cm,
                      &mblur_shutter_curve->clipr,
                      CURVE_PRESET_MAX,
-                     CURVEMAP_SLOPE_POS_NEG);
+                     CurveMapSlopeType::PositiveNegative);
 
   scene->toolsettings = DNA_struct_default_alloc(ToolSettings);
 
@@ -179,8 +179,10 @@ static void scene_init_data(ID *id)
   scene->toolsettings->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
   CurveMapping *gp_falloff_curve = scene->toolsettings->gp_sculpt.cur_falloff;
   BKE_curvemapping_init(gp_falloff_curve);
-  BKE_curvemap_reset(
-      gp_falloff_curve->cm, &gp_falloff_curve->clipr, CURVE_PRESET_GAUSS, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(gp_falloff_curve->cm,
+                     &gp_falloff_curve->clipr,
+                     CURVE_PRESET_GAUSS,
+                     CurveMapSlopeType::Positive);
 
   scene->toolsettings->gp_sculpt.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
   CurveMapping *gp_primitive_curve = scene->toolsettings->gp_sculpt.cur_primitive;
@@ -188,7 +190,7 @@ static void scene_init_data(ID *id)
   BKE_curvemap_reset(gp_primitive_curve->cm,
                      &gp_primitive_curve->clipr,
                      CURVE_PRESET_BELL,
-                     CURVEMAP_SLOPE_POSITIVE);
+                     CurveMapSlopeType::Positive);
 
   scene->unit.system = USER_UNIT_METRIC;
   scene->unit.scale_length = 1.0f;
@@ -229,12 +231,11 @@ static void scene_init_data(ID *id)
   colorspace_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_SEQUENCER);
 
   BKE_color_managed_display_settings_init(&scene->display_settings);
-  BKE_color_managed_view_settings_init_render(
-      &scene->view_settings, &scene->display_settings, "AgX");
+  BKE_color_managed_view_settings_init(&scene->view_settings, &scene->display_settings, "AgX");
   STRNCPY_UTF8(scene->sequencer_colorspace_settings.name, colorspace_name);
 
-  BKE_image_format_init(&scene->r.im_format, true);
-  BKE_image_format_init(&scene->r.bake.im_format, true);
+  BKE_image_format_init(&scene->r.im_format);
+  BKE_image_format_init(&scene->r.bake.im_format);
 
   /* Curve Profile */
   scene->toolsettings->custom_bevel_profile_preset = BKE_curveprofile_add(PROF_PRESET_LINE);
@@ -318,7 +319,7 @@ static void scene_copy_data(Main *bmain,
   BKE_curvemapping_copy_data(&scene_dst->r.mblur_shutter_curve, &scene_src->r.mblur_shutter_curve);
 
   /* tool settings */
-  scene_dst->toolsettings = BKE_toolsettings_copy(scene_dst->toolsettings, flag_subdata);
+  scene_dst->toolsettings = BKE_toolsettings_copy(scene_src->toolsettings, flag_subdata);
 
   if (scene_src->display.shading.prop) {
     scene_dst->display.shading.prop = IDP_CopyProperty(scene_src->display.shading.prop);
@@ -808,6 +809,10 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   });
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
+    if (smd->type == eSeqModifierType_Compositor) {
+      auto *modifier_data = reinterpret_cast<SequencerCompositorModifierData *>(smd);
+      FOREACHID_PROCESS_IDSUPER(data, modifier_data->node_group, IDWALK_CB_USER);
+    }
   }
 
   if (strip->type == STRIP_TYPE_TEXT && strip->effectdata) {
@@ -1071,8 +1076,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
     BKE_paint_blend_write(writer, &ts->sculpt->paint);
   }
-  if (ts->uvsculpt.strength_curve) {
-    BKE_curvemapping_blend_write(writer, ts->uvsculpt.strength_curve);
+  if (ts->uvsculpt.curve_distance_falloff) {
+    BKE_curvemapping_blend_write(writer, ts->uvsculpt.curve_distance_falloff);
   }
   if (ts->gp_paint) {
     BLO_write_struct(writer, GpPaint, ts->gp_paint);
@@ -1283,10 +1288,10 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     sce->toolsettings->particle.scene = nullptr;
     sce->toolsettings->particle.object = nullptr;
     sce->toolsettings->gp_sculpt.paintcursor = nullptr;
-    if (sce->toolsettings->uvsculpt.strength_curve) {
-      BLO_read_struct(reader, CurveMapping, &sce->toolsettings->uvsculpt.strength_curve);
-      BKE_curvemapping_blend_read(reader, sce->toolsettings->uvsculpt.strength_curve);
-      BKE_curvemapping_init(sce->toolsettings->uvsculpt.strength_curve);
+    if (sce->toolsettings->uvsculpt.curve_distance_falloff) {
+      BLO_read_struct(reader, CurveMapping, &sce->toolsettings->uvsculpt.curve_distance_falloff);
+      BKE_curvemapping_blend_read(reader, sce->toolsettings->uvsculpt.curve_distance_falloff);
+      BKE_curvemapping_init(sce->toolsettings->uvsculpt.curve_distance_falloff);
     }
 
     if (sce->toolsettings->sculpt) {
@@ -1623,9 +1628,10 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
       BKE_curvemapping_init(ts->sculpt->automasking_cavity_curve_op);
     }
   }
-  if (toolsettings->uvsculpt.strength_curve) {
-    ts->uvsculpt.strength_curve = BKE_curvemapping_copy(toolsettings->uvsculpt.strength_curve);
-    BKE_curvemapping_init(ts->uvsculpt.strength_curve);
+  if (toolsettings->uvsculpt.curve_distance_falloff) {
+    ts->uvsculpt.curve_distance_falloff = BKE_curvemapping_copy(
+        toolsettings->uvsculpt.curve_distance_falloff);
+    BKE_curvemapping_init(ts->uvsculpt.curve_distance_falloff);
   }
   if (toolsettings->gp_paint) {
     ts->gp_paint = static_cast<GpPaint *>(MEM_dupallocN(toolsettings->gp_paint));
@@ -1699,8 +1705,8 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
     BKE_paint_free(&toolsettings->sculpt->paint);
     MEM_freeN(toolsettings->sculpt);
   }
-  if (toolsettings->uvsculpt.strength_curve) {
-    BKE_curvemapping_free(toolsettings->uvsculpt.strength_curve);
+  if (toolsettings->uvsculpt.curve_distance_falloff) {
+    BKE_curvemapping_free(toolsettings->uvsculpt.curve_distance_falloff);
   }
   if (toolsettings->gp_paint) {
     BKE_paint_free(&toolsettings->gp_paint->paint);
@@ -2801,20 +2807,6 @@ enum eCyclesFeatureSet {
   CYCLES_FEATURES_SUPPORTED = 0,
   CYCLES_FEATURES_EXPERIMENTAL = 1,
 };
-
-bool BKE_scene_uses_cycles_experimental_features(Scene *scene)
-{
-  BLI_assert(BKE_scene_uses_cycles(scene));
-  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
-  PointerRNA cycles_ptr = RNA_pointer_get(&scene_ptr, "cycles");
-
-  if (RNA_pointer_is_null(&cycles_ptr)) {
-    /* The pointer only exists if Cycles is enabled. */
-    return false;
-  }
-
-  return RNA_enum_get(&cycles_ptr, "feature_set") == CYCLES_FEATURES_EXPERIMENTAL;
-}
 
 void BKE_scene_base_flag_to_objects(const Scene *scene, ViewLayer *view_layer)
 {
