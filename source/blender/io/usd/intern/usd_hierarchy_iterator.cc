@@ -26,14 +26,19 @@
 
 #include <string>
 
+#include <pxr/usd/usd/primRange.h>
+
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
 #include "BLI_assert.h"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_types.hh"
@@ -445,31 +450,22 @@ blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
 {
   blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map;
 
-  /* Add objects from duplisource export path map (contains actual export paths). */
-  duplisource_export_path_.foreach_item([&prim_map](ID *id, const std::string &export_path) {
-    pxr::SdfPath usd_path(export_path);
-    prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(id));
-  });
-
-  /* Add armature mappings. */
-  armature_export_map_.foreach_item([&prim_map](const Object *obj, const pxr::SdfPath &path) {
-    prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
-  });
-
-  /* Add skinned mesh mappings. */
-  skinned_mesh_export_map_.foreach_item([&prim_map](const Object *obj, const pxr::SdfPath &path) {
-    prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
-  });
-
-  /* Add shape key mesh mappings. */
-  shape_key_mesh_export_map_.foreach_item([&prim_map](const Object *obj,
-                                                      const pxr::SdfPath &path) {
-    prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
+  /* Simple mapping from duplisource export path map - contains all exported datablocks. */
+  duplisource_export_path_.foreach_item([&prim_map, this](ID *id, const std::string &export_path) {
+    pxr::SdfPath usd_path;
+    if (!params_.root_prim_path.empty()) {
+      usd_path = pxr::SdfPath(params_.root_prim_path + export_path);
+    }
+    else {
+      usd_path = pxr::SdfPath(export_path);
+    }
+    /* Get the original ID to ensure we're not storing evaluated IDs in the prim map. */
+    ID *original_id = DEG_get_original_id(id);
+    prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(original_id));
   });
 
   return prim_map;
 }
-
 USDExporterContext USDHierarchyIterator::create_point_instancer_context(
     const HierarchyContext *context, const USDExporterContext &export_context) const
 {
