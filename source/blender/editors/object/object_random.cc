@@ -107,7 +107,7 @@ static wmOperatorStatus object_rand_verts_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      const Object *ob_iter_eval = (const Object *)DEG_get_evaluated_id(depsgraph, &ob_iter->id);
+      const Object *ob_iter_eval = DEG_get_evaluated(depsgraph, ob_iter);
       ED_transverts_create_from_obedit(&tvs, ob_iter_eval, mode);
       if (tvs.transverts_tot == 0) {
         continue;
