@@ -25,6 +25,7 @@ struct Collection;
 struct ID;
 struct CollectionChild;
 struct CollectionExport;
+struct CollectionObject;
 struct GHash;
 struct Main;
 struct Object;
@@ -254,8 +255,7 @@ void BKE_collection_object_move(
 
 /** Find the entry for ob inside collection
  * Returns nullptr if not found. */
-struct CollectionObject;
-CollectionObject *BKE_collection_object_find_in(struct Collection *collection, struct Object *ob);
+CollectionObject *BKE_collection_object_find_in(Collection *collection, Object *ob);
 
 /**
  * Remove object from all collections of scene

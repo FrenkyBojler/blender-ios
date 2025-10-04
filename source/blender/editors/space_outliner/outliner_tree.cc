@@ -550,7 +550,6 @@ static int treesort_type_ob(const void *v1, const void *v2)
   return BLI_strcasecmp_natural(x1->name, x2->name);
 }
 
-
 /* this is nice option for later? doesn't look too useful... */
 #if 0
 static int treesort_obtype_alpha(const void *v1, const void *v2)
@@ -734,7 +733,6 @@ static void outliner_sort_type(ListBase *lb)
     outliner_sort_type(&te->subtree);
   }
 }
-
 
 /* Sort objects so those actually in the collection come before children not in the collection,
  * then recurse. Used to visually separate dashed “not in collection” links. */
