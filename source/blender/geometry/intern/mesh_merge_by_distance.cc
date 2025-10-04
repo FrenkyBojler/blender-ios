@@ -1437,6 +1437,17 @@ static void merge_customdata_all(Span<int> dest_map,
 /** \name Mesh Vertex Merging
  * \{ */
 
+template<typename T>
+static void copy_first_from_src(const Span<T> src,
+                                const GroupedSpan<int> dst_to_src,
+                                MutableSpan<T> dst)
+{
+  for (const int dst_index : dst.index_range()) {
+    const int src_index = dst_to_src[dst_index].first();
+    dst[dst_index] = src[src_index];
+  }
+}
+
 static void mix_src_indices(const GSpan src_attr,
                             const GroupedSpan<int> dst_to_src,
                             GMutableSpan dst_attr)
@@ -1598,7 +1609,14 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
                  get_vertex_group_names(mesh),
                  dst_attributes);
   mix_vertex_groups(mesh, dst_to_src_verts, *result);
-  // TODO: Original indices.
+  if (CustomData_has_layer(&mesh.vert_data, CD_ORIGINDEX)) {
+    const Span src(static_cast<const int *>(CustomData_get_layer(&mesh.vert_data, CD_ORIGINDEX)),
+                   mesh.verts_num);
+    MutableSpan dst(static_cast<int *>(CustomData_add_layer(
+                        &result->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, result->verts_num)),
+                    result->verts_num);
+    copy_first_from_src(src, dst_to_src_verts, dst);
+  }
 
   /* Edges. */
 
@@ -1617,7 +1635,14 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   mix_attributes(
       src_attributes, dst_to_src_edges, bke::AttrDomain::Edge, {".edge_verts"}, dst_attributes);
-  // TODO: Original indices.
+  if (CustomData_has_layer(&mesh.edge_data, CD_ORIGINDEX)) {
+    const Span src(static_cast<const int *>(CustomData_get_layer(&mesh.edge_data, CD_ORIGINDEX)),
+                   mesh.edges_num);
+    MutableSpan dst(static_cast<int *>(CustomData_add_layer(
+                        &result->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, result->edges_num)),
+                    result->edges_num);
+    copy_first_from_src(src, dst_to_src_edges, dst);
+  }
 
   threading::parallel_for(dst_edges.index_range(), 2048, [&](const IndexRange range) {
     for (const int dst_edge_index : range) {
@@ -1736,6 +1761,16 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     dst_attr.finish();
   });
 
+  if (CustomData_has_layer(&mesh.face_data, CD_ORIGINDEX)) {
+    const Span src(static_cast<const int *>(CustomData_get_layer(&mesh.face_data, CD_ORIGINDEX)),
+                   mesh.faces_num);
+    MutableSpan dst(static_cast<int *>(CustomData_add_layer(
+                        &result->face_data, CD_ORIGINDEX, CD_CONSTRUCT, result->faces_num)),
+                    result->faces_num);
+    bke::attribute_math::gather(src, dst_to_src_faces, dst.drop_back(weld_mesh.wpoly_new_len));
+    dst.take_back(weld_mesh.wpoly_new_len).fill(ORIGINDEX_NONE);
+  }
+
   IndexMaskMemory memory;
   const IndexMask out_of_context_faces = IndexMask::from_bools(dst_face_unaffected, memory);
 
@@ -1753,7 +1788,6 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
                  bke::AttrDomain::Corner,
                  {".corner_vert", ".corner_edge"},
                  dst_attributes);
-  // TODO: Original indices.
 
   BLI_assert(int(r_i) == result_nfaces);
   BLI_assert(loop_cur == result_nloops);
