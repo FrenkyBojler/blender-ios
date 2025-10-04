@@ -480,7 +480,7 @@ void VolumeProbeModule::set_view(View & /*view*/)
   do_update_world_ = false;
 }
 
-void VolumeProbeModule::viewport_draw(View &view, GPUFrameBuffer *view_fb)
+void VolumeProbeModule::viewport_draw(View &view, gpu::FrameBuffer *view_fb)
 {
   if (!inst_.is_baking()) {
     debug_pass_draw(view, view_fb);
@@ -488,7 +488,7 @@ void VolumeProbeModule::viewport_draw(View &view, GPUFrameBuffer *view_fb)
   }
 }
 
-void VolumeProbeModule::debug_pass_draw(View &view, GPUFrameBuffer *view_fb)
+void VolumeProbeModule::debug_pass_draw(View &view, gpu::FrameBuffer *view_fb)
 {
   switch (inst_.debug_mode) {
     case eDebugMode::DEBUG_IRRADIANCE_CACHE_SURFELS_NORMAL:
@@ -618,7 +618,7 @@ void VolumeProbeModule::debug_pass_draw(View &view, GPUFrameBuffer *view_fb)
   }
 }
 
-void VolumeProbeModule::display_pass_draw(View &view, GPUFrameBuffer *view_fb)
+void VolumeProbeModule::display_pass_draw(View &view, gpu::FrameBuffer *view_fb)
 {
   if (!display_grids_enabled_) {
     return;
@@ -1335,7 +1335,7 @@ void IrradianceBake::read_virtual_offset(LightProbeGridCacheFrame *cache_frame)
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
-  cache_frame->baking.virtual_offset = (float(*)[4])virtual_offset_tx_.read<float4>(
+  cache_frame->baking.virtual_offset = (float (*)[4])virtual_offset_tx_.read<float4>(
       GPU_DATA_FLOAT);
 }
 
@@ -1352,10 +1352,10 @@ LightProbeGridCacheFrame *IrradianceBake::read_result_unpacked()
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
-  cache_frame->baking.L0 = (float(*)[4])irradiance_L0_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_a = (float(*)[4])irradiance_L1_a_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_b = (float(*)[4])irradiance_L1_b_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_c = (float(*)[4])irradiance_L1_c_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L0 = (float (*)[4])irradiance_L0_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_a = (float (*)[4])irradiance_L1_a_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_b = (float (*)[4])irradiance_L1_b_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_c = (float (*)[4])irradiance_L1_c_tx_.read<float4>(GPU_DATA_FLOAT);
   cache_frame->baking.validity = (float *)validity_tx_.read<float>(GPU_DATA_FLOAT);
 
   return cache_frame;
@@ -1374,20 +1374,20 @@ LightProbeGridCacheFrame *IrradianceBake::read_result_packed()
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
-  cache_frame->baking.L0 = (float(*)[4])irradiance_L0_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_a = (float(*)[4])irradiance_L1_a_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_b = (float(*)[4])irradiance_L1_b_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_c = (float(*)[4])irradiance_L1_c_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L0 = (float (*)[4])irradiance_L0_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_a = (float (*)[4])irradiance_L1_a_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_b = (float (*)[4])irradiance_L1_b_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_c = (float (*)[4])irradiance_L1_c_tx_.read<float4>(GPU_DATA_FLOAT);
   cache_frame->baking.validity = (float *)validity_tx_.read<float>(GPU_DATA_FLOAT);
 
   int64_t sample_count = int64_t(irradiance_L0_tx_.width()) * irradiance_L0_tx_.height() *
                          irradiance_L0_tx_.depth();
   size_t coefficient_texture_size = sizeof(*cache_frame->irradiance.L0) * sample_count;
   size_t validity_texture_size = sizeof(*cache_frame->connectivity.validity) * sample_count;
-  cache_frame->irradiance.L0 = (float(*)[3])MEM_mallocN(coefficient_texture_size, __func__);
-  cache_frame->irradiance.L1_a = (float(*)[3])MEM_mallocN(coefficient_texture_size, __func__);
-  cache_frame->irradiance.L1_b = (float(*)[3])MEM_mallocN(coefficient_texture_size, __func__);
-  cache_frame->irradiance.L1_c = (float(*)[3])MEM_mallocN(coefficient_texture_size, __func__);
+  cache_frame->irradiance.L0 = (float (*)[3])MEM_mallocN(coefficient_texture_size, __func__);
+  cache_frame->irradiance.L1_a = (float (*)[3])MEM_mallocN(coefficient_texture_size, __func__);
+  cache_frame->irradiance.L1_b = (float (*)[3])MEM_mallocN(coefficient_texture_size, __func__);
+  cache_frame->irradiance.L1_c = (float (*)[3])MEM_mallocN(coefficient_texture_size, __func__);
   cache_frame->connectivity.validity = (uint8_t *)MEM_mallocN(validity_texture_size, __func__);
 
   size_t visibility_texture_size = sizeof(*cache_frame->irradiance.L0) * sample_count;
