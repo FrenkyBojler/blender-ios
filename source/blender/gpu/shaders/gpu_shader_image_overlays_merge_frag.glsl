@@ -4,7 +4,7 @@
 
 /* Merge overlays texture on top of image texture and transform to display space (assume sRGB) */
 
-#include "infos/gpu_shader_2D_image_overlays_merge_info.hh"
+#include "infos/gpu_shader_2D_image_overlays_merge_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(gpu_shader_2D_image_overlays_merge)
 
@@ -32,7 +32,7 @@ void main()
   float4 overlay_col = texture(overlays_texture, texCoord_interp.xy);
 
   if (overlay) {
-    if (use_hdr) {
+    if (use_hdr_display) {
       /* When using HDR, interpolate towards clamped color to improve display of
        * alpha-blended overlays. */
       fragColor = mix(fragColor, clamp(fragColor, 0.0f, 1.0f), overlay_col.a);

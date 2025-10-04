@@ -1284,6 +1284,7 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME:
+    case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT: {
       const bool device_is_simd8 =
@@ -1353,7 +1354,7 @@ static const int lowest_supported_driver_version_win = 1016554;
  * This information is returned by `ocloc query OCL_DRIVER_VERSION`. */
 static const int lowest_supported_driver_version_neo = 31896;
 #  else
-static const int lowest_supported_driver_version_neo = 31740;
+static const int lowest_supported_driver_version_neo = 34666;
 #  endif
 
 int parse_driver_build_version(const sycl::device &device)
@@ -1372,6 +1373,13 @@ int parse_driver_build_version(const sycl::device &device)
         if (third_number_substr.length() == 3 && forth_number_substr.length() == 4) {
           driver_build_version = std::stoi(third_number_substr) * 10000 +
                                  std::stoi(forth_number_substr);
+        }
+        /* This is actually not a correct version string (Major.Minor.Patch.Optional), see blender
+         * bug report #137277, but there are several driver versions with this Intel bug existing
+         * at this point, so it is worth working around this issue in Blender source code, allowing
+         * users to actually use Intel GPU when it is possible. */
+        else if (third_number_substr.length() == 5 && forth_number_substr.length() == 6) {
+          driver_build_version = std::stoi(third_number_substr);
         }
       }
       else {

@@ -368,10 +368,11 @@ static wmOperatorStatus material_slot_assign_exec(bContext *C, wmOperator * /*op
       }
     }
     else if (ob->type == OB_FONT) {
-      EditFont *ef = ((Curve *)ob->data)->editfont;
+      const Curve *cu = static_cast<const Curve *>(ob->data);
+      EditFont *ef = cu->editfont;
       int i, selstart, selend;
 
-      if (ef && BKE_vfont_select_get(ob, &selstart, &selend)) {
+      if (ef && BKE_vfont_select_get(cu, &selstart, &selend)) {
         for (i = selstart; i <= selend; i++) {
           changed = true;
           ef->textbufinfo[i].mat_nr = mat_nr_active;
@@ -852,8 +853,7 @@ static wmOperatorStatus new_material_exec(bContext *C, wmOperator * /*op*/)
     else {
       ma = BKE_gpencil_material_add(bmain, name);
     }
-    ED_node_shader_default(C, &ma->id);
-    ma->use_nodes = true;
+    ED_node_shader_default(C, bmain, &ma->id);
   }
 
   if (prop) {
@@ -982,7 +982,7 @@ static wmOperatorStatus new_world_exec(bContext *C, wmOperator * /*op*/)
   }
   else {
     wo = BKE_world_add(bmain, CTX_DATA_(BLT_I18NCONTEXT_ID_WORLD, "World"));
-    ED_node_shader_default(C, &wo->id);
+    ED_node_shader_default(C, bmain, &wo->id);
   }
 
   /* hook into UI */
@@ -2718,7 +2718,7 @@ static wmOperatorStatus copy_material_exec(bContext *C, wmOperator *op)
   }
 
   Main *bmain = CTX_data_main(C);
-  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
+  PartialWriteContext copybuffer{*bmain};
 
   /* Add the material to the copybuffer (and all of its dependencies). */
   copybuffer.id_add(
@@ -2899,7 +2899,6 @@ static wmOperatorStatus paste_material_exec(bContext *C, wmOperator *op)
   SWAP_MEMBER(spec);
   SWAP_MEMBER(roughness);
   SWAP_MEMBER(metallic);
-  SWAP_MEMBER(use_nodes);
   SWAP_MEMBER(index);
   SWAP_MEMBER(nodetree);
   SWAP_MEMBER(line_col);

@@ -146,8 +146,6 @@ const char *get_default_stripname_by_type(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Wipe");
     case STRIP_TYPE_GLOW:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Glow");
-    case STRIP_TYPE_TRANSFORM:
-      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Transform");
     case STRIP_TYPE_COLOR:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color");
     case STRIP_TYPE_MULTICAM:
@@ -170,7 +168,7 @@ const char *strip_give_name(const Strip *strip)
   const char *name = get_default_stripname_by_type(strip->type);
 
   if (!name) {
-    if (!(strip->type & STRIP_TYPE_EFFECT)) {
+    if (!strip->is_effect()) {
       return strip->data->dirpath;
     }
 

@@ -9,6 +9,7 @@
 #include "BLI_fileops.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -1856,7 +1857,7 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  char filepath[FILE_MAX];
+  char filepath[FILE_MAX_LIBEXTRA];
   filelist_file_get_full_path(sfile->files, fileentry, filepath);
 
   WM_cursor_set(CTX_wm_window(C), WM_CURSOR_WAIT);

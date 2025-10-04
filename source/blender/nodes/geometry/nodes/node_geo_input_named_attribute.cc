@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_default_layout();
 
-  b.add_output<decl::Bool>("Exists").field_source();
+  b.add_input<decl::String>("Name").is_attribute_name().optional_label();
 
   if (node != nullptr) {
     const NodeGeometryInputNamedAttribute &storage = node_storage(*node);

@@ -913,7 +913,7 @@ static PyObject *pygpu_shader_unbind(BPyGPUShader * /*self*/)
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_shader_from_builtin_doc,
-    ".. function:: from_builtin(shader_name, config='DEFAULT')\n"
+    ".. function:: from_builtin(shader_name, *, config='DEFAULT')\n"
     "\n"
     "   Shaders that are embedded in the blender internal code (see :ref:`built-in-shaders`).\n"
     "   They all read the uniform ``mat4 ModelViewProjectionMatrix``,\n"
@@ -961,8 +961,7 @@ static PyObject *pygpu_shader_from_builtin(PyObject * /*self*/, PyObject *args, 
   }
 
   blender::gpu::Shader *shader = GPU_shader_get_builtin_shader_with_config(
-      eGPUBuiltinShader(pygpu_bultinshader.value_found),
-      eGPUShaderConfig(pygpu_config.value_found));
+      GPUBuiltinShader(pygpu_bultinshader.value_found), GPUShaderConfig(pygpu_config.value_found));
 
   if (shader == nullptr) {
     PyErr_SetString(PyExc_ValueError, "Builtin shader doesn't exist in the requested config");

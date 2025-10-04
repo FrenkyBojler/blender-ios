@@ -177,8 +177,8 @@ static void draw_backdrops(bAnimContext *ac, ListBase &anim_data, View2D *v2d, u
   uchar col_summary[4];
 
   /* get theme colors */
-  UI_GetThemeColor4ubv(TH_SHADE2, col2);
-  UI_GetThemeColor4ubv(TH_HILITE, col1);
+  UI_GetThemeColor4ubv(TH_CHANNEL, col2);
+  UI_GetThemeColor4ubv(TH_CHANNEL_SELECT, col1);
   UI_GetThemeColor4ubv(TH_ANIM_ACTIVE, col_summary);
 
   UI_GetThemeColor4ubv(TH_GROUP, col2a);
@@ -318,10 +318,6 @@ static void draw_keyframes(bAnimContext *ac,
    */
   int action_flag = saction->flag;
   bDopeSheet *ads = &saction->ads;
-
-  if (saction->mode == SACTCONT_TIMELINE) {
-    action_flag &= ~(SACTION_SHOW_INTERPOLATION | SACTION_SHOW_EXTREMES);
-  }
 
   const float channel_step = ANIM_UI_get_channel_step();
   float ymax = ANIM_UI_get_first_channel_top(v2d);
