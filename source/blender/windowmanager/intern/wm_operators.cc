@@ -4346,7 +4346,7 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
       {GESTURE_MODAL_DESELECT, "DESELECT", 0, "Deselect", ""},
       {GESTURE_MODAL_BEGIN, "BEGIN", 0, "Begin", ""},
       {GESTURE_MODAL_MOVE, "MOVE", 0, "Move", ""},
-      {GESTURE_MODAL_SWITCH_CORNER, "SWITCH_CORNER", 0, "Switch Corner", ""},
+      {GESTURE_MODAL_FLIP, "FLIP_BOX", 0, "Flip Box", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

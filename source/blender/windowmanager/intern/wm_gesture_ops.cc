@@ -232,7 +232,7 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
         gesture_modal_end(C, op);
         return OPERATOR_CANCELLED;
       }
-      case GESTURE_MODAL_SWITCH_CORNER: {
+      case GESTURE_MODAL_FLIP: {
         if (gesture->is_tablet_gesture == EVT_TABLET_NONE) {
           WM_cursor_warp(
               win, rect->xmin + gesture->winrct.xmin, rect->ymin + gesture->winrct.ymin);

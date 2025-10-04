@@ -530,11 +530,9 @@ enum {
   /** Toggle to activate snapping (angle snapping for straight line). */
   GESTURE_MODAL_SNAP = 13,
 
-  /** Toggle to activate flip (flip the active side of a straight line). */
+  /** Toggle to activate flip (flip the active side of a straight line or the active corner of a
+     box gesture). */
   GESTURE_MODAL_FLIP = 14,
-
-  /** Box select: switch to the oposite corner of the box. */
-  GESTURE_MODAL_SWITCH_CORNER = 15,
 };
 
 /** \} */
