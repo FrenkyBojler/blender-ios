@@ -313,8 +313,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   auto sample_position = params.extract_input<bke::SocketValueVariant>("Sample Position");
 
-  bke::SocketValueVariant index;
   std::string error_message;
+  bke::SocketValueVariant index;
   if (!execute_multi_function_on_value_variant(
           std::make_shared<SampleNearestFunction>(std::move(geometry), domain),
           {&sample_position},

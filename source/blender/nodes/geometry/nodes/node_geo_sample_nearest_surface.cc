@@ -208,53 +208,49 @@ static void node_geo_exec(GeoNodeExecParams params)
   auto sample_position = params.extract_input<bke::SocketValueVariant>("Sample Position");
   auto sample_group_id = params.extract_input<bke::SocketValueVariant>("Sample Group ID");
 
-  bke::SocketValueVariant triangle_indices;
+  std::string error_message;
+
+  bke::SocketValueVariant triangle_index;
   bke::SocketValueVariant nearest_positions;
   bke::SocketValueVariant is_valid;
+  if (!execute_multi_function_on_value_variant(
+          std::make_shared<SampleNearestSurfaceFunction>(geometry, group_id_field),
+          {&sample_position, &sample_group_id},
+          {&triangle_index, &nearest_positions, &is_valid},
+          params.user_data(),
+          error_message))
   {
-    std::string error_message;
-    if (!execute_multi_function_on_value_variant(
-            std::make_shared<SampleNearestSurfaceFunction>(geometry, group_id_field),
-            {&sample_position, &sample_group_id},
-            {&triangle_indices, &nearest_positions, &is_valid},
-            params.user_data(),
-            error_message))
-    {
-      params.set_default_remaining_outputs();
-      params.error_message_add(NodeWarningType::Error, std::move(error_message));
-      return;
-    }
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
   }
+
   bke::SocketValueVariant bary_weights;
+  bke::SocketValueVariant triangle_index_copy = triangle_index;
+  if (!execute_multi_function_on_value_variant(
+          std::make_shared<bke::mesh_surface_sample::BaryWeightFromPositionFn>(geometry),
+          {&nearest_positions, &triangle_index_copy},
+          {&bary_weights},
+          params.user_data(),
+          error_message))
   {
-    std::string error_message;
-    if (!execute_multi_function_on_value_variant(
-            std::make_shared<bke::mesh_surface_sample::BaryWeightFromPositionFn>(geometry),
-            {&nearest_positions, &triangle_indices},
-            {&bary_weights},
-            params.user_data(),
-            error_message))
-    {
-      params.set_default_remaining_outputs();
-      params.error_message_add(NodeWarningType::Error, std::move(error_message));
-      return;
-    }
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
   }
+
   bke::SocketValueVariant sample_value;
+  if (!execute_multi_function_on_value_variant(
+          std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(geometry,
+                                                                         std::move(value)),
+          {&triangle_index, &bary_weights},
+          {&sample_value},
+          params.user_data(),
+          error_message))
   {
-    std::string error_message;
-    if (!execute_multi_function_on_value_variant(
-            std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(geometry,
-                                                                           std::move(value)),
-            {&triangle_indices, &bary_weights},
-            {&sample_value},
-            params.user_data(),
-            error_message))
-    {
-      params.set_default_remaining_outputs();
-      params.error_message_add(NodeWarningType::Error, std::move(error_message));
-      return;
-    }
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
   }
 
   params.set_output("Value", std::move(sample_value));

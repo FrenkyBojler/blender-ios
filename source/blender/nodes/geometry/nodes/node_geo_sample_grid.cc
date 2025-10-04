@@ -236,8 +236,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const auto interpolation = params.get_input<InterpolationMode>("Interpolation");
   bke::SocketValueVariant position = params.extract_input<bke::SocketValueVariant>("Position");
 
-  bke::SocketValueVariant output_value;
   std::string error_message;
+  bke::SocketValueVariant output_value;
   if (!execute_multi_function_on_value_variant(
           std::make_shared<SampleGridFunction>(std::move(grid), interpolation),
           {&position},

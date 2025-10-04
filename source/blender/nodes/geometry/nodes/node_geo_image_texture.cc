@@ -409,9 +409,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   auto sample_uv = params.extract_input<bke::SocketValueVariant>("Vector");
 
+  std::string error_message;
   bke::SocketValueVariant color;
   bke::SocketValueVariant alpha;
-  std::string error_message;
   if (!execute_multi_function_on_value_variant(
           std::move(image_fn), {&sample_uv}, {&color, &alpha}, params.user_data(), error_message))
   {

@@ -124,8 +124,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  bke::SocketValueVariant output_value;
   std::string error_message;
+  bke::SocketValueVariant output_value;
   if (!execute_multi_function_on_value_variant(
           std::make_shared<SampleIndexFunction>(std::move(list)),
           {&index},

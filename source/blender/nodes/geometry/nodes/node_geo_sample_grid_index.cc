@@ -204,8 +204,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   auto y = params.extract_input<bke::SocketValueVariant>("Y");
   auto z = params.extract_input<bke::SocketValueVariant>("Z");
 
-  bke::SocketValueVariant output_value;
   std::string error_message;
+  bke::SocketValueVariant output_value;
   if (!execute_multi_function_on_value_variant(
           std::make_shared<SampleGridIndexFunction>(std::move(grid)),
           {&x, &y, &z},

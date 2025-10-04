@@ -276,10 +276,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   auto sample_position = params.extract_input<bke::SocketValueVariant>("Source Position");
   auto sample_group_id = params.extract_input<bke::SocketValueVariant>("Sample Group ID");
 
+  std::string error_message;
   bke::SocketValueVariant position;
   bke::SocketValueVariant distance;
   bke::SocketValueVariant is_valid;
-  std::string error_message;
   if (!execute_multi_function_on_value_variant(
           std::make_shared<ProximityFunction>(
               std::move(target), target_type, std::move(group_id_field)),

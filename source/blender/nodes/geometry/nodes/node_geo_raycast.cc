@@ -298,11 +298,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GField field = params.extract_input<GField>("Attribute");
   bke::SocketValueVariant bary_weights;
+  bke::SocketValueVariant triangle_index_copy = triangle_index;
   switch (mapping) {
     case GEO_NODE_RAYCAST_INTERPOLATED:
       if (!execute_multi_function_on_value_variant(
               std::make_shared<bke::mesh_surface_sample::BaryWeightFromPositionFn>(target),
-              {&hit_position, &triangle_index},
+              {&hit_position, &triangle_index_copy},
               {&bary_weights},
               params.user_data(),
               error_message))
@@ -315,7 +316,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     case GEO_NODE_RAYCAST_NEAREST:
       if (!execute_multi_function_on_value_variant(
               std::make_shared<bke::mesh_surface_sample::CornerBaryWeightFromPositionFn>(target),
-              {&hit_position, &triangle_index},
+              {&hit_position, &triangle_index_copy},
               {&bary_weights},
               params.user_data(),
               error_message))
