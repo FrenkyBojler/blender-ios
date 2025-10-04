@@ -333,6 +333,12 @@ void USDAbstractWriter::write_id_properties(const pxr::UsdPrim &prim,
                                             const ID &id,
                                             pxr::UsdTimeCode time) const
 {
+  /* Always add this ID to the prim map if callback is available, regardless of custom properties
+   * setting. */
+  if (usd_export_context_.add_to_prim_map_fn) {
+    usd_export_context_.add_to_prim_map_fn(prim.GetPath(), const_cast<ID *>(&id));
+  }
+
   if (!usd_export_context_.export_params.export_custom_properties) {
     return;
   }
