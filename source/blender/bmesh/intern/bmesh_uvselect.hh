@@ -396,7 +396,10 @@ void BM_mesh_uvselect_flush_from_verts(BMesh *bm, bool select);
 /** \name UV Selection Flushing (Selection Mode Aware)
  * \{ */
 
-void BM_mesh_uvselect_mode_flush_ex(BMesh *bm, const short selectmode);
+/**
+ * \param flush_down: See #BMSelectFlushFlag::Down for notes on flushing down.
+ */
+void BM_mesh_uvselect_mode_flush_ex(BMesh *bm, const short selectmode, bool flush_down);
 void BM_mesh_uvselect_mode_flush(BMesh *bm);
 
 /**

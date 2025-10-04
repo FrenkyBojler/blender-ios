@@ -1289,22 +1289,22 @@ void BM_mesh_uvselect_flush_from_verts(BMesh *bm, const bool select)
 /** \name UV Selection Flushing (Selection Mode Aware)
  * \{ */
 
-void BM_mesh_uvselect_mode_flush_ex(BMesh *bm, const short selectmode)
+void BM_mesh_uvselect_mode_flush_ex(BMesh *bm, const short selectmode, const bool flush_down)
 {
   if (selectmode & SCE_SELECT_VERTEX) {
     BM_mesh_uvselect_flush_from_loop_verts(bm);
   }
   else if (selectmode & SCE_SELECT_EDGE) {
-    BM_mesh_uvselect_flush_from_loop_edges(bm, false);
+    BM_mesh_uvselect_flush_from_loop_edges(bm, flush_down);
   }
   else {
-    BM_mesh_uvselect_flush_from_faces(bm, false);
+    BM_mesh_uvselect_flush_from_faces(bm, flush_down);
   }
 }
 
 void BM_mesh_uvselect_mode_flush(BMesh *bm)
 {
-  BM_mesh_uvselect_mode_flush_ex(bm, bm->selectmode);
+  BM_mesh_uvselect_mode_flush_ex(bm, bm->selectmode, false);
 }
 
 void BM_mesh_uvselect_mode_flush_only_select(BMesh *bm)
