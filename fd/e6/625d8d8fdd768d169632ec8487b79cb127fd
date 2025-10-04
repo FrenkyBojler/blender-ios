@@ -1,2 +1,3 @@
 Referenced by issue #146205, keyframing hide_viewport and vertex coords leads to assert-fail
 Referenced by issue #146211, Crash when attaching viewer node in geometry nodes
+Referenced by issue #147357, `make update` in github mirror clone  now requires user to type github username and password
