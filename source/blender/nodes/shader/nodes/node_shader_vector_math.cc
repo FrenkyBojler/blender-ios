@@ -6,18 +6,16 @@
  * \ingroup shdnodes
  */
 
+#include "node_shader_util.hh"
 #include "node_util.hh"
 
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_math_functions.hh"
+#include "NOD_multi_function.hh"
 #include "NOD_socket_search_link.hh"
 #include "NOD_value_elem_eval.hh"
 
 #include "RNA_enum_types.hh"
-
-#include "NOD_multi_function.hh"
-
-#include "node_shader_util.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
