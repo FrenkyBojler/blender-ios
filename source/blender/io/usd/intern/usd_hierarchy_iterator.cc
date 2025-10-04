@@ -459,9 +459,8 @@ blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
     else {
       usd_path = pxr::SdfPath(export_path);
     }
-    /* Get the original ID to ensure we're not storing evaluated IDs in the prim map. */
-    ID *original_id = DEG_get_original_id(id);
-    prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(original_id));
+
+    prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(id));
   });
 
   return prim_map;
