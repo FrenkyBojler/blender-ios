@@ -458,19 +458,9 @@ blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
   exported_prim_map_.foreach_item(
       [&](const pxr::SdfPath &usd_path,
           const blender::Vector<std::pair<std::string, int16_t>> &id_infos) {
-        for (const auto &id_info : id_infos) {
-          const std::string &obj_name = id_info.first;
-          const int16_t obj_type = id_info.second;
-
-          ListBase *lb = which_libbase(bmain_, obj_type);
-          if (lb) {
-            LISTBASE_FOREACH (ID *, original_id, lb) {
-              if (STREQ(original_id->name + 2, obj_name.c_str())) {
-                prim_map.lookup_or_add_default(usd_path).append(
-                    RNA_id_pointer_create(original_id));
-                break;
-              }
-            }
+        for (const auto &[obj_name, obj_type] : id_infos) {
+          if (ID *id = BKE_libblock_find_name(bmain_, obj_type, obj_name.c_str())) {
+            prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(id));
           }
         }
       });
