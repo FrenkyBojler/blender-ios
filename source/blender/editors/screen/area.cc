@@ -513,7 +513,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   ED_region_pixelspace(region);
 
   /* Remove sRGB override by rebinding the framebuffer. */
-  GPUFrameBuffer *fb = GPU_framebuffer_active_get();
+  blender::gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
   GPU_framebuffer_bind(fb);
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_PIXEL);
@@ -3333,6 +3333,10 @@ void ED_region_panels_layout_ex(const bContext *C,
       {
         continue;
       }
+      if (!panel_add_check(C, workspace, contexts, category_override, panel->type)) {
+        continue;
+      }
+
       const int width = panel_draw_width_from_max_width_get(region, panel->type, max_panel_width);
 
       if (UI_panel_is_dragging(panel)) {
