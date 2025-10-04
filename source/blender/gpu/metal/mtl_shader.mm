@@ -35,7 +35,6 @@
 #include "mtl_pso_descriptor_state.hh"
 #include "mtl_shader.hh"
 #include "mtl_shader_generate.hh"
-#include "mtl_shader_generator.hh"
 #include "mtl_shader_interface.hh"
 #include "mtl_shader_log.hh"
 #include "mtl_texture.hh"
@@ -370,36 +369,32 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
   this->interface = mtl_interface;
   BLI_assert(this->interface != nullptr);
 
-  @autoreleasepool {
-    /* Create descriptors.
-     * Each shader type requires a differing descriptor. */
-    if (!is_compute) {
-      /* Prepare Render pipeline descriptor. */
-      pso_descriptor_ = [[MTLRenderPipelineDescriptor alloc] init];
-      pso_descriptor_.label = [NSString stringWithUTF8String:this->name];
-    }
+  /* Shader has successfully been created. */
+  valid_ = true;
 
-    /* Shader has successfully been created. */
-    valid_ = true;
+  /* Prepare backing data storage for local uniforms. */
+  const MTLShaderBufferBlock &push_constant_block = mtl_interface->get_push_constant_block();
+  if (push_constant_block.size > 0) {
+    push_constant_data_ = MEM_callocN(push_constant_block.size, __func__);
+    this->push_constant_bindstate_mark_dirty(true);
+  }
+  else {
+    push_constant_data_ = nullptr;
+  }
 
-    /* Prepare backing data storage for local uniforms. */
-    const MTLShaderBufferBlock &push_constant_block = mtl_interface->get_push_constant_block();
-    if (push_constant_block.size > 0) {
-      push_constant_data_ = MEM_callocN(push_constant_block.size, __func__);
-      this->push_constant_bindstate_mark_dirty(true);
-    }
-    else {
-      push_constant_data_ = nullptr;
-    }
-
+  if (is_compute) {
     /* If this is a compute shader, bake base PSO for compute straight-away.
      * NOTE: This will compile the base unspecialized variant. */
-    if (is_compute) {
-      /* Set descriptor to default shader constants */
-      MTLComputePipelineStateDescriptor compute_pipeline_descriptor(this->constants->values);
 
-      this->bake_compute_pipeline_state(context_, compute_pipeline_descriptor);
-    }
+    /* Set descriptor to default shader constants */
+    MTLComputePipelineStateDescriptor compute_pipeline_descriptor(this->constants->values);
+
+    this->bake_compute_pipeline_state(context_, compute_pipeline_descriptor);
+  }
+  else {
+    /* Prepare Render pipeline descriptor. */
+    pso_descriptor_ = [[MTLRenderPipelineDescriptor alloc] init];
+    pso_descriptor_.label = [NSString stringWithUTF8String:this->name];
   }
 
   return true;
@@ -620,7 +615,7 @@ void MTLShader::push_constant_bindstate_mark_dirty(bool is_dirty)
 }
 
 /* Attempts to pre-generate a PSO based on the parent shaders PSO
- * (Render shaders only) */
+ * (Material shaders only) */
 void MTLShader::warm_cache(int limit)
 {
   if (parent_shader_ != nullptr) {
@@ -646,7 +641,7 @@ void MTLShader::warm_cache(int limit)
     for (int i : IndexRange(min_ii(descriptors.size(), limit))) {
       const MTLRenderPipelineStateDescriptor &pso_descriptor = descriptors[i];
       const MTLPrimitiveTopologyClass &prim_class = prim_classes[i];
-      bake_pipeline_state(ctx, prim_class, pso_descriptor);
+      bake_graphic_pipeline_state(ctx, prim_class, pso_descriptor);
     }
   }
 }
@@ -660,12 +655,16 @@ void MTLShader::warm_cache(int limit)
 
 /**
  * Populates `values` with the given `SpecializationStateDescriptor` values.
+ * Setup function specialization constants, used to modify and optimize
+ * generated code based on current render pipeline configuration.
+ * Note: Returns a retained object.
  */
-static void populate_specialization_constant_values(
-    MTLFunctionConstantValues *values,
+static ::MTLFunctionConstantValues *populate_specialization_constant_values(
     const shader::SpecializationConstants &shader_constants,
     const SpecializationStateDescriptor &specialization_descriptor)
 {
+  ::MTLFunctionConstantValues *values = [MTLFunctionConstantValues new];
+
   for (auto i : shader_constants.types.index_range()) {
     const shader::SpecializationConstant::Value &value = specialization_descriptor.values[i];
 
@@ -688,12 +687,92 @@ static void populate_specialization_constant_values(
         break;
     }
   }
+  return values;
 }
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Bake Pipeline State Objects
  * \{ */
+
+static void parse_reflection_data(MTLRenderPipelineStateInstance *pso_inst,
+                                  MTLRenderPipelineReflection *reflection_data)
+{
+  /* Extract shader reflection data for buffer bindings.
+   * This reflection data is used to contrast the binding information
+   * we know about in the interface against the bindings in the finalized
+   * PSO. This accounts for bindings which have been stripped out during
+   * optimization, and allows us to both avoid over-binding and also
+   * allows us to verify size-correctness for bindings, to ensure
+   * that buffers bound are not smaller than the size of expected data. */
+  NSArray<MTLArgument *> *vert_args = [reflection_data vertexArguments];
+
+  pso_inst->buffer_bindings_reflection_data_vert.clear();
+  int buffer_binding_max_ind = 0;
+
+  for (int i = 0; i < [vert_args count]; i++) {
+    ::MTLArgument *arg = [vert_args objectAtIndex:i];
+    if ([arg type] == MTLArgumentTypeBuffer) {
+      int buf_index = [arg index];
+      if (buf_index >= 0) {
+        buffer_binding_max_ind = max_ii(buffer_binding_max_ind, buf_index);
+      }
+    }
+  }
+  pso_inst->buffer_bindings_reflection_data_vert.resize(buffer_binding_max_ind + 1);
+  for (int i = 0; i < buffer_binding_max_ind + 1; i++) {
+    pso_inst->buffer_bindings_reflection_data_vert[i] = {0, 0, 0, false};
+  }
+
+  for (int i = 0; i < [vert_args count]; i++) {
+    MTLArgument *arg = [vert_args objectAtIndex:i];
+    if ([arg type] == MTLArgumentTypeBuffer) {
+      int buf_index = [arg index];
+
+      if (buf_index >= 0) {
+        pso_inst->buffer_bindings_reflection_data_vert[buf_index] = {
+            (uint32_t)([arg index]),
+            (uint32_t)([arg bufferDataSize]),
+            (uint32_t)([arg bufferAlignment]),
+            ([arg isActive] == YES) ? true : false};
+      }
+    }
+  }
+
+  NSArray<MTLArgument *> *frag_args = [reflection_data fragmentArguments];
+
+  pso_inst->buffer_bindings_reflection_data_frag.clear();
+  buffer_binding_max_ind = 0;
+
+  for (int i = 0; i < [frag_args count]; i++) {
+    MTLArgument *arg = [frag_args objectAtIndex:i];
+    if ([arg type] == MTLArgumentTypeBuffer) {
+      int buf_index = [arg index];
+      if (buf_index >= 0) {
+        buffer_binding_max_ind = max_ii(buffer_binding_max_ind, buf_index);
+      }
+    }
+  }
+  pso_inst->buffer_bindings_reflection_data_frag.resize(buffer_binding_max_ind + 1);
+  for (int i = 0; i < buffer_binding_max_ind + 1; i++) {
+    pso_inst->buffer_bindings_reflection_data_frag[i] = {0, 0, 0, false};
+  }
+
+  for (int i = 0; i < [frag_args count]; i++) {
+    MTLArgument *arg = [frag_args objectAtIndex:i];
+    if ([arg type] == MTLArgumentTypeBuffer) {
+      int buf_index = [arg index];
+      shader_debug_printf(" BUF IND: %d (arg name: %s)\n", buf_index, [[arg name] UTF8String]);
+      if (buf_index >= 0) {
+        pso_inst->buffer_bindings_reflection_data_frag[buf_index] = {
+            (uint32_t)([arg index]),
+            (uint32_t)([arg bufferDataSize]),
+            (uint32_t)([arg bufferAlignment]),
+            ([arg isActive] == YES) ? true : false};
+      }
+    }
+  }
+}
 
 /**
  * Bakes or fetches a pipeline state using the current
@@ -787,12 +866,12 @@ MTLRenderPipelineStateInstance *MTLShader::bake_current_pipeline_state(
   pipeline_descriptor.specialization_state = {ctx->constants_state.values};
 
   /* Bake pipeline state using global descriptor. */
-  return bake_pipeline_state(ctx, prim_type, pipeline_descriptor);
+  return bake_graphic_pipeline_state(ctx, prim_type, pipeline_descriptor);
 }
 
 /* Variant which bakes a pipeline state based on an existing MTLRenderPipelineStateDescriptor.
  * This function should be callable from a secondary compilation thread. */
-MTLRenderPipelineStateInstance *MTLShader::bake_pipeline_state(
+MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
     MTLContext *ctx,
     MTLPrimitiveTopologyClass prim_type,
     const MTLRenderPipelineStateDescriptor &pipeline_descriptor)
@@ -819,427 +898,299 @@ MTLRenderPipelineStateInstance *MTLShader::bake_pipeline_state(
    * - If unspecialized does NOT exist, build specialized version straight away, as we pay the
    * cost of compilation in both cases regardless. */
 
-  /* Generate new Render Pipeline State Object (PSO). */
-  @autoreleasepool {
-    /* Prepare Render Pipeline Descriptor. */
+  /* Prepare Render Pipeline Descriptor. */
 
-    /* Setup function specialization constants, used to modify and optimize
-     * generated code based on current render pipeline configuration. */
-    MTLFunctionConstantValues *values = [[MTLFunctionConstantValues new] autorelease];
+  ::MTLFunctionConstantValues *values = populate_specialization_constant_values(
+      *this->constants, pipeline_descriptor.specialization_state);
 
-    /* Custom function constant values: */
-    populate_specialization_constant_values(
-        values, *this->constants, pipeline_descriptor.specialization_state);
+  /* Prepare Vertex descriptor based on current pipeline vertex binding state. */
+  ::MTLRenderPipelineDescriptor *desc = pso_descriptor_;
+  [desc reset];
+  pso_descriptor_.label = [NSString stringWithUTF8String:this->name];
 
-    /* Prepare Vertex descriptor based on current pipeline vertex binding state. */
-    MTLRenderPipelineDescriptor *desc = pso_descriptor_;
-    [desc reset];
-    pso_descriptor_.label = [NSString stringWithUTF8String:this->name];
+  /* Offset the bind index for Uniform buffers such that they begin after the VBO
+   * buffer bind slots. `MTL_uniform_buffer_base_index` is passed as a function
+   * specialization constant, customized per unique pipeline state permutation.
+   *
+   * NOTE: For binding point compaction, we could use the number of VBOs present
+   * in the current PSO configuration `pipeline_descriptors.vertex_descriptor.num_vert_buffers`).
+   * However, it is more efficient to simply offset the uniform buffer base index to the
+   * maximal number of VBO bind-points, as then UBO bind-points for similar draw calls
+   * will align and avoid the requirement for additional binding. */
+  int MTL_uniform_buffer_base_index = pipeline_descriptor.vertex_descriptor.num_vert_buffers + 1;
 
-    /* Offset the bind index for Uniform buffers such that they begin after the VBO
-     * buffer bind slots. `MTL_uniform_buffer_base_index` is passed as a function
-     * specialization constant, customized per unique pipeline state permutation.
-     *
-     * NOTE: For binding point compaction, we could use the number of VBOs present
-     * in the current PSO configuration `pipeline_descriptors.vertex_descriptor.num_vert_buffers`).
-     * However, it is more efficient to simply offset the uniform buffer base index to the
-     * maximal number of VBO bind-points, as then UBO bind-points for similar draw calls
-     * will align and avoid the requirement for additional binding. */
-    int MTL_uniform_buffer_base_index = pipeline_descriptor.vertex_descriptor.num_vert_buffers + 1;
+  /* Null buffer index is used if an attribute is not found in the
+   * bound VBOs #VertexFormat. */
+  int null_buffer_index = pipeline_descriptor.vertex_descriptor.num_vert_buffers;
+  bool using_null_buffer = false;
 
-    /* Null buffer index is used if an attribute is not found in the
-     * bound VBOs #VertexFormat. */
-    int null_buffer_index = pipeline_descriptor.vertex_descriptor.num_vert_buffers;
-    bool using_null_buffer = false;
-
+  {
+    for (const uint i : IndexRange(pipeline_descriptor.vertex_descriptor.max_attribute_value + 1))
     {
-      for (const uint i :
-           IndexRange(pipeline_descriptor.vertex_descriptor.max_attribute_value + 1))
-      {
+      /* Metal back-end attribute descriptor state. */
+      const MTLVertexAttributeDescriptorPSO &attribute_desc =
+          pipeline_descriptor.vertex_descriptor.attributes[i];
 
-        /* Metal back-end attribute descriptor state. */
-        const MTLVertexAttributeDescriptorPSO &attribute_desc =
-            pipeline_descriptor.vertex_descriptor.attributes[i];
+      /* Copy metal back-end attribute descriptor state into PSO descriptor.
+       * NOTE: need to copy each element due to direct assignment restrictions.
+       * Also note */
+      ::MTLVertexAttributeDescriptor *mtl_attribute = desc.vertexDescriptor.attributes[i];
 
-        /* Flag format conversion */
-        /* In some cases, Metal cannot implicitly convert between data types.
-         * In these instances, the fetch mode #GPUVertFetchMode as provided in the vertex format
-         * is passed in, and used to populate function constants named: MTL_AttributeConvert0..15.
-         *
-         * It is then the responsibility of the vertex shader to perform any necessary type
-         * casting.
-         *
-         * See `mtl_shader.hh` for more information. Relevant Metal API documentation:
-         * https://developer.apple.com/documentation/metal/mtlvertexattributedescriptor/1516081-format?language=objc
-         */
-        if (attribute_desc.format == MTLVertexFormatInvalid) {
-#if 0 /* Disable warning as it is too verbose and is supported. */
-          MTL_LOG_WARNING(
-              "MTLShader: baking pipeline state for '%s'- skipping input attribute at "
-              "index '%d' but none was specified in the current vertex state",
-              mtl_interface->get_name(),
-              i);
-#endif
-          /* Write out null conversion constant if attribute unused. */
-          int MTL_attribute_conversion_mode = 0;
-          [values setConstantValue:&MTL_attribute_conversion_mode
-                              type:MTLDataTypeInt
-                          withName:[NSString stringWithFormat:@"MTL_AttributeConvert%d", i]];
-          continue;
-        }
+      mtl_attribute.format = attribute_desc.format;
+      mtl_attribute.offset = attribute_desc.offset;
+      mtl_attribute.bufferIndex = attribute_desc.buffer_index;
+    }
 
-        int MTL_attribute_conversion_mode = (int)attribute_desc.format_conversion_mode;
-        [values setConstantValue:&MTL_attribute_conversion_mode
-                            type:MTLDataTypeInt
-                        withName:[NSString stringWithFormat:@"MTL_AttributeConvert%d", i]];
-        if (MTL_attribute_conversion_mode == GPU_FETCH_INT_TO_FLOAT_UNIT) {
-          shader_debug_printf(
-              "TODO(Metal): Shader %s needs to support internal format conversion\n",
-              mtl_interface->get_name());
-        }
+    for (const uint i : IndexRange(pipeline_descriptor.vertex_descriptor.num_vert_buffers)) {
+      /* Metal back-end state buffer layout. */
+      const MTLVertexBufferLayoutDescriptorPSO &buf_layout =
+          pipeline_descriptor.vertex_descriptor.buffer_layouts[i];
+      /* Copy metal back-end buffer layout state into PSO descriptor.
+       * NOTE: need to copy each element due to copying from internal
+       * back-end descriptor to Metal API descriptor. */
+      ::MTLVertexBufferLayoutDescriptor *mtl_buf_layout =
+          desc.vertexDescriptor.layouts[buf_layout.buffer_slot];
 
-        /* Copy metal back-end attribute descriptor state into PSO descriptor.
-         * NOTE: need to copy each element due to direct assignment restrictions.
-         * Also note */
-        MTLVertexAttributeDescriptor *mtl_attribute = desc.vertexDescriptor.attributes[i];
+      mtl_buf_layout.stepFunction = buf_layout.step_function;
+      mtl_buf_layout.stepRate = buf_layout.step_rate;
+      mtl_buf_layout.stride = buf_layout.stride;
+    }
 
-        mtl_attribute.format = attribute_desc.format;
-        mtl_attribute.offset = attribute_desc.offset;
-        mtl_attribute.bufferIndex = attribute_desc.buffer_index;
-      }
+    /* Mark empty attribute conversion. */
+    for (int i = pipeline_descriptor.vertex_descriptor.max_attribute_value + 1;
+         i < GPU_VERT_ATTR_MAX_LEN;
+         i++)
+    {
+      int MTL_attribute_conversion_mode = 0;
+      [values setConstantValue:&MTL_attribute_conversion_mode
+                          type:MTLDataTypeInt
+                      withName:[NSString stringWithFormat:@"MTL_AttributeConvert%d", i]];
+    }
 
-      for (const uint i : IndexRange(pipeline_descriptor.vertex_descriptor.num_vert_buffers)) {
-        /* Metal back-end state buffer layout. */
-        const MTLVertexBufferLayoutDescriptorPSO &buf_layout =
-            pipeline_descriptor.vertex_descriptor.buffer_layouts[i];
-        /* Copy metal back-end buffer layout state into PSO descriptor.
-         * NOTE: need to copy each element due to copying from internal
-         * back-end descriptor to Metal API descriptor. */
-        MTLVertexBufferLayoutDescriptor *mtl_buf_layout =
-            desc.vertexDescriptor.layouts[buf_layout.buffer_slot];
+    /* DEBUG: Missing/empty attributes. */
+    /* Attributes are normally mapped as part of the state setting based on the used
+     * #GPUVertFormat, however, if attributes have not been set, we can sort them out here. */
+    for (const uint i : IndexRange(mtl_interface->get_total_attributes())) {
+      const MTLShaderInputAttribute &attribute = mtl_interface->get_attribute(i);
+      MTLVertexAttributeDescriptor *current_attribute =
+          desc.vertexDescriptor.attributes[attribute.location];
 
-        mtl_buf_layout.stepFunction = buf_layout.step_function;
-        mtl_buf_layout.stepRate = buf_layout.step_rate;
-        mtl_buf_layout.stride = buf_layout.stride;
-      }
-
-      /* Mark empty attribute conversion. */
-      for (int i = pipeline_descriptor.vertex_descriptor.max_attribute_value + 1;
-           i < GPU_VERT_ATTR_MAX_LEN;
-           i++)
-      {
-        int MTL_attribute_conversion_mode = 0;
-        [values setConstantValue:&MTL_attribute_conversion_mode
-                            type:MTLDataTypeInt
-                        withName:[NSString stringWithFormat:@"MTL_AttributeConvert%d", i]];
-      }
-
-      /* DEBUG: Missing/empty attributes. */
-      /* Attributes are normally mapped as part of the state setting based on the used
-       * #GPUVertFormat, however, if attributes have not been set, we can sort them out here. */
-      for (const uint i : IndexRange(mtl_interface->get_total_attributes())) {
-        const MTLShaderInputAttribute &attribute = mtl_interface->get_attribute(i);
-        MTLVertexAttributeDescriptor *current_attribute =
-            desc.vertexDescriptor.attributes[attribute.location];
-
-        if (current_attribute.format == MTLVertexFormatInvalid) {
+      if (current_attribute.format == MTLVertexFormatInvalid) {
 #if MTL_DEBUG_SHADER_ATTRIBUTES == 1
-          printf("-> Filling in unbound attribute '%s' for shader PSO '%s' with location: %u\n",
-                 mtl_interface->get_name_at_offset(attribute.name_offset),
-                 mtl_interface->get_name(),
-                 attribute.location);
+        printf("-> Filling in unbound attribute '%s' for shader PSO '%s' with location: %u\n",
+               mtl_interface->get_name_at_offset(attribute.name_offset),
+               mtl_interface->get_name(),
+               attribute.location);
 #endif
-          current_attribute.format = attribute.format;
-          current_attribute.offset = 0;
-          current_attribute.bufferIndex = null_buffer_index;
+        current_attribute.format = attribute.format;
+        current_attribute.offset = 0;
+        current_attribute.bufferIndex = null_buffer_index;
 
-          /* Add Null vert buffer binding for invalid attributes. */
-          if (!using_null_buffer) {
-            MTLVertexBufferLayoutDescriptor *null_buf_layout =
-                desc.vertexDescriptor.layouts[null_buffer_index];
+        /* Add Null vert buffer binding for invalid attributes. */
+        if (!using_null_buffer) {
+          MTLVertexBufferLayoutDescriptor *null_buf_layout =
+              desc.vertexDescriptor.layouts[null_buffer_index];
 
-            /* Use constant step function such that null buffer can
-             * contain just a singular dummy attribute. */
-            null_buf_layout.stepFunction = MTLVertexStepFunctionConstant;
-            null_buf_layout.stepRate = 0;
-            null_buf_layout.stride = max_ii(null_buf_layout.stride, attribute.size);
+          /* Use constant step function such that null buffer can
+           * contain just a singular dummy attribute. */
+          null_buf_layout.stepFunction = MTLVertexStepFunctionConstant;
+          null_buf_layout.stepRate = 0;
+          null_buf_layout.stride = max_ii(null_buf_layout.stride, attribute.size);
 
-            /* If we are using the maximum number of vertex buffers, or tight binding indices,
-             * MTL_uniform_buffer_base_index needs shifting to the bind slot after the null buffer
-             * index. */
-            if (null_buffer_index >= MTL_uniform_buffer_base_index) {
-              MTL_uniform_buffer_base_index = null_buffer_index + 1;
-            }
-            using_null_buffer = true;
-#if MTL_DEBUG_SHADER_ATTRIBUTES == 1
-            MTL_LOG_DEBUG("Setting up buffer binding for null attribute with buffer index %d",
-                          null_buffer_index);
-#endif
+          /* If we are using the maximum number of vertex buffers, or tight binding indices,
+           * MTL_uniform_buffer_base_index needs shifting to the bind slot after the null buffer
+           * index. */
+          if (null_buffer_index >= MTL_uniform_buffer_base_index) {
+            MTL_uniform_buffer_base_index = null_buffer_index + 1;
           }
+          using_null_buffer = true;
+#if MTL_DEBUG_SHADER_ATTRIBUTES == 1
+          MTL_LOG_DEBUG("Setting up buffer binding for null attribute with buffer index %d",
+                        null_buffer_index);
+#endif
         }
       }
-
-      /* Primitive Topology. */
-      desc.inputPrimitiveTopology = pipeline_descriptor.vertex_descriptor.prim_topology_class;
     }
 
-    /* gl_PointSize constant. */
-    bool null_pointsize = true;
-    float MTL_pointsize = pipeline_descriptor.point_size;
-    if (pipeline_descriptor.vertex_descriptor.prim_topology_class ==
-        MTLPrimitiveTopologyClassPoint)
-    {
-      /* `if pointsize is > 0.0`, PROGRAM_POINT_SIZE is enabled, and `gl_PointSize` shader keyword
-       * overrides the value. Otherwise, if < 0.0, use global constant point size. */
-      if (MTL_pointsize < 0.0) {
-        MTL_pointsize = fabsf(MTL_pointsize);
-        [values setConstantValue:&MTL_pointsize
-                            type:MTLDataTypeFloat
-                        withName:@"MTL_global_pointsize"];
-        null_pointsize = false;
-      }
-    }
+    /* Primitive Topology. */
+    desc.inputPrimitiveTopology = pipeline_descriptor.vertex_descriptor.prim_topology_class;
+  }
 
-    if (null_pointsize) {
-      MTL_pointsize = 0.0f;
+  /* gl_PointSize constant. */
+  bool null_pointsize = true;
+  float MTL_pointsize = pipeline_descriptor.point_size;
+  if (pipeline_descriptor.vertex_descriptor.prim_topology_class == MTLPrimitiveTopologyClassPoint)
+  {
+    /* `if pointsize is > 0.0`, PROGRAM_POINT_SIZE is enabled, and `gl_PointSize` shader keyword
+     * overrides the value. Otherwise, if < 0.0, use global constant point size. */
+    if (MTL_pointsize < 0.0) {
+      MTL_pointsize = fabsf(MTL_pointsize);
       [values setConstantValue:&MTL_pointsize
                           type:MTLDataTypeFloat
                       withName:@"MTL_global_pointsize"];
+      null_pointsize = false;
     }
-
-    {
-      std::string function_name = entry_point_name_get(ShaderStage::VERTEX);
-      NSError *error = nullptr;
-
-      desc.vertexFunction = [shader_library_vert_
-          newFunctionWithName:[NSString stringWithUTF8String:function_name.c_str()]
-               constantValues:values
-                        error:&error];
-      if (error) {
-        bool has_error = (
-            [[error localizedDescription] rangeOfString:@"Compilation succeeded"].location ==
-            NSNotFound);
-
-        const char *errors_c_str = [[error localizedDescription] UTF8String];
-
-        MTLLogParser parser;
-        print_log({""}, errors_c_str, "VertShader", has_error, &parser);
-
-        /* Only exit out if genuine error and not warning */
-        if (has_error) {
-          return nullptr;
-        }
-      }
-    }
-
-    {
-      std::string function_name = entry_point_name_get(ShaderStage::FRAGMENT);
-      NSError *error = nullptr;
-
-      desc.fragmentFunction = [shader_library_frag_
-          newFunctionWithName:[NSString stringWithUTF8String:function_name.c_str()]
-               constantValues:values
-                        error:&error];
-      if (error) {
-        bool has_error = (
-            [[error localizedDescription] rangeOfString:@"Compilation succeeded"].location ==
-            NSNotFound);
-
-        const char *errors_c_str = [[error localizedDescription] UTF8String];
-
-        MTLLogParser parser;
-        print_log({""}, errors_c_str, "FragShader", has_error, &parser);
-
-        /* Only exit out if genuine error and not warning */
-        if (has_error) {
-          return nullptr;
-        }
-      }
-    }
-
-    /* Setup pixel format state */
-    for (int color_attachment = 0; color_attachment < GPU_FB_MAX_COLOR_ATTACHMENT;
-         color_attachment++)
-    {
-      /* Fetch color attachment pixel format in back-end pipeline state. */
-      MTLPixelFormat pixel_format = pipeline_descriptor.color_attachment_format[color_attachment];
-      /* Populate MTL API PSO attachment descriptor. */
-      MTLRenderPipelineColorAttachmentDescriptor *col_attachment =
-          desc.colorAttachments[color_attachment];
-
-      col_attachment.pixelFormat = pixel_format;
-      if (pixel_format != MTLPixelFormatInvalid) {
-        bool format_supports_blending = mtl_format_supports_blending(pixel_format);
-
-        col_attachment.writeMask = pipeline_descriptor.color_write_mask;
-        col_attachment.blendingEnabled = pipeline_descriptor.blending_enabled &&
-                                         format_supports_blending;
-        if (format_supports_blending && pipeline_descriptor.blending_enabled) {
-          col_attachment.alphaBlendOperation = pipeline_descriptor.alpha_blend_op;
-          col_attachment.rgbBlendOperation = pipeline_descriptor.rgb_blend_op;
-          col_attachment.destinationAlphaBlendFactor = pipeline_descriptor.dest_alpha_blend_factor;
-          col_attachment.destinationRGBBlendFactor = pipeline_descriptor.dest_rgb_blend_factor;
-          col_attachment.sourceAlphaBlendFactor = pipeline_descriptor.src_alpha_blend_factor;
-          col_attachment.sourceRGBBlendFactor = pipeline_descriptor.src_rgb_blend_factor;
-        }
-        else {
-          if (pipeline_descriptor.blending_enabled && !format_supports_blending) {
-            shader_debug_printf(
-                "[Warning] Attempting to Bake PSO, but MTLPixelFormat %d does not support "
-                "blending\n",
-                *((int *)&pixel_format));
-          }
-        }
-      }
-    }
-    desc.depthAttachmentPixelFormat = pipeline_descriptor.depth_attachment_format;
-    desc.stencilAttachmentPixelFormat = pipeline_descriptor.stencil_attachment_format;
-
-    /* Bind-point range validation.
-     * We need to ensure that the PSO will have valid bind-point ranges, or is using the
-     * appropriate bindless fallback path if any bind limits are exceeded. */
-#ifdef NDEBUG
-    /* Ensure Buffer bindings are within range. */
-    BLI_assert_msg((MTL_uniform_buffer_base_index + get_max_ubo_index() + 2) <
-                       MTL_MAX_BUFFER_BINDINGS,
-                   "UBO and SSBO bindings exceed the fragment bind table limit.");
-
-    /* Argument buffer. */
-    if (mtl_interface->uses_argument_buffer_for_samplers()) {
-      BLI_assert_msg(mtl_interface->get_argument_buffer_bind_index() < MTL_MAX_BUFFER_BINDINGS,
-                     "Argument buffer binding exceeds the fragment bind table limit.");
-    }
-#endif
-
-    /* Compile PSO */
-    NSError *error = nullptr;
-    MTLAutoreleasedRenderPipelineReflection reflection_data;
-    id<MTLRenderPipelineState> pso = [ctx->device
-        newRenderPipelineStateWithDescriptor:desc
-                                     options:MTLPipelineOptionBufferTypeInfo
-                                  reflection:&reflection_data
-                                       error:&error];
-    if (error) {
-      NSLog(@"Failed to create PSO for shader: %s error %@\n", this->name, error);
-      BLI_assert(false);
-      return nullptr;
-    }
-    else if (!pso) {
-      NSLog(@"Failed to create PSO for shader: %s, but no error was provided!\n", this->name);
-      BLI_assert(false);
-      return nullptr;
-    }
-    else {
-#if 0
-      NSLog(@"Successfully compiled PSO for shader: %s (Metal Context: %p)\n", this->name, ctx);
-#endif
-    }
-
-    /* Prepare pipeline state instance. */
-    MTLRenderPipelineStateInstance *pso_inst = new MTLRenderPipelineStateInstance();
-    pso_inst->vert = desc.vertexFunction;
-    pso_inst->frag = desc.fragmentFunction;
-    pso_inst->pso = pso;
-    pso_inst->null_attribute_buffer_index = (using_null_buffer) ? null_buffer_index : -1;
-    pso_inst->prim_type = prim_type;
-
-    pso_inst->reflection_data_available = (reflection_data != nil);
-    if (reflection_data != nil) {
-
-      /* Extract shader reflection data for buffer bindings.
-       * This reflection data is used to contrast the binding information
-       * we know about in the interface against the bindings in the finalized
-       * PSO. This accounts for bindings which have been stripped out during
-       * optimization, and allows us to both avoid over-binding and also
-       * allows us to verify size-correctness for bindings, to ensure
-       * that buffers bound are not smaller than the size of expected data. */
-      NSArray<MTLArgument *> *vert_args = [reflection_data vertexArguments];
-
-      pso_inst->buffer_bindings_reflection_data_vert.clear();
-      int buffer_binding_max_ind = 0;
-
-      for (int i = 0; i < [vert_args count]; i++) {
-        MTLArgument *arg = [vert_args objectAtIndex:i];
-        if ([arg type] == MTLArgumentTypeBuffer) {
-          int buf_index = [arg index] - MTL_uniform_buffer_base_index;
-          if (buf_index >= 0) {
-            buffer_binding_max_ind = max_ii(buffer_binding_max_ind, buf_index);
-          }
-        }
-      }
-      pso_inst->buffer_bindings_reflection_data_vert.resize(buffer_binding_max_ind + 1);
-      for (int i = 0; i < buffer_binding_max_ind + 1; i++) {
-        pso_inst->buffer_bindings_reflection_data_vert[i] = {0, 0, 0, false};
-      }
-
-      for (int i = 0; i < [vert_args count]; i++) {
-        MTLArgument *arg = [vert_args objectAtIndex:i];
-        if ([arg type] == MTLArgumentTypeBuffer) {
-          int buf_index = [arg index] - MTL_uniform_buffer_base_index;
-
-          if (buf_index >= 0) {
-            pso_inst->buffer_bindings_reflection_data_vert[buf_index] = {
-                (uint32_t)([arg index]),
-                (uint32_t)([arg bufferDataSize]),
-                (uint32_t)([arg bufferAlignment]),
-                ([arg isActive] == YES) ? true : false};
-          }
-        }
-      }
-
-      NSArray<MTLArgument *> *frag_args = [reflection_data fragmentArguments];
-
-      pso_inst->buffer_bindings_reflection_data_frag.clear();
-      buffer_binding_max_ind = 0;
-
-      for (int i = 0; i < [frag_args count]; i++) {
-        MTLArgument *arg = [frag_args objectAtIndex:i];
-        if ([arg type] == MTLArgumentTypeBuffer) {
-          int buf_index = [arg index] - MTL_uniform_buffer_base_index;
-          if (buf_index >= 0) {
-            buffer_binding_max_ind = max_ii(buffer_binding_max_ind, buf_index);
-          }
-        }
-      }
-      pso_inst->buffer_bindings_reflection_data_frag.resize(buffer_binding_max_ind + 1);
-      for (int i = 0; i < buffer_binding_max_ind + 1; i++) {
-        pso_inst->buffer_bindings_reflection_data_frag[i] = {0, 0, 0, false};
-      }
-
-      for (int i = 0; i < [frag_args count]; i++) {
-        MTLArgument *arg = [frag_args objectAtIndex:i];
-        if ([arg type] == MTLArgumentTypeBuffer) {
-          int buf_index = [arg index] - MTL_uniform_buffer_base_index;
-          shader_debug_printf(" BUF IND: %d (arg name: %s)\n", buf_index, [[arg name] UTF8String]);
-          if (buf_index >= 0) {
-            pso_inst->buffer_bindings_reflection_data_frag[buf_index] = {
-                (uint32_t)([arg index]),
-                (uint32_t)([arg bufferDataSize]),
-                (uint32_t)([arg bufferAlignment]),
-                ([arg isActive] == YES) ? true : false};
-          }
-        }
-      }
-    }
-
-    /* Insert into pso cache. */
-    pso_cache_lock_.lock();
-    pso_inst->shader_pso_index = pso_cache_.size();
-    pso_cache_.add(pipeline_descriptor, pso_inst);
-    pso_cache_lock_.unlock();
-    shader_debug_printf(
-        "PSO CACHE: Stored new variant in PSO cache for shader '%s' Hash: '%llu'\n",
-        this->name,
-        pipeline_descriptor.hash());
-    return pso_inst;
   }
+
+  if (null_pointsize) {
+    MTL_pointsize = 0.0f;
+    [values setConstantValue:&MTL_pointsize
+                        type:MTLDataTypeFloat
+                    withName:@"MTL_global_pointsize"];
+  }
+
+  {
+    std::string function_name = entry_point_name_get(ShaderStage::VERTEX);
+    NSError *error = nullptr;
+
+    desc.vertexFunction = [shader_library_vert_
+        newFunctionWithName:[NSString stringWithUTF8String:function_name.c_str()]
+             constantValues:values
+                      error:&error];
+    if (error) {
+      bool has_error = (
+          [[error localizedDescription] rangeOfString:@"Compilation succeeded"].location ==
+          NSNotFound);
+
+      const char *errors_c_str = [[error localizedDescription] UTF8String];
+
+      MTLLogParser parser;
+      print_log({""}, errors_c_str, "VertShader", has_error, &parser);
+
+      /* Only exit out if genuine error and not warning */
+      if (has_error) {
+        return nullptr;
+      }
+    }
+  }
+
+  {
+    std::string function_name = entry_point_name_get(ShaderStage::FRAGMENT);
+    NSError *error = nullptr;
+
+    desc.fragmentFunction = [shader_library_frag_
+        newFunctionWithName:[NSString stringWithUTF8String:function_name.c_str()]
+             constantValues:values
+                      error:&error];
+    if (error) {
+      bool has_error = (
+          [[error localizedDescription] rangeOfString:@"Compilation succeeded"].location ==
+          NSNotFound);
+
+      const char *errors_c_str = [[error localizedDescription] UTF8String];
+
+      MTLLogParser parser;
+      print_log({""}, errors_c_str, "FragShader", has_error, &parser);
+
+      /* Only exit out if genuine error and not warning */
+      if (has_error) {
+        return nullptr;
+      }
+    }
+  }
+
+  /* Setup pixel format state */
+  for (int color_attachment = 0; color_attachment < GPU_FB_MAX_COLOR_ATTACHMENT;
+       color_attachment++)
+  {
+    /* Fetch color attachment pixel format in back-end pipeline state. */
+    MTLPixelFormat pixel_format = pipeline_descriptor.color_attachment_format[color_attachment];
+    /* Populate MTL API PSO attachment descriptor. */
+    MTLRenderPipelineColorAttachmentDescriptor *col_attachment =
+        desc.colorAttachments[color_attachment];
+
+    col_attachment.pixelFormat = pixel_format;
+    if (pixel_format != MTLPixelFormatInvalid) {
+      bool format_supports_blending = mtl_format_supports_blending(pixel_format);
+
+      col_attachment.writeMask = pipeline_descriptor.color_write_mask;
+      col_attachment.blendingEnabled = pipeline_descriptor.blending_enabled &&
+                                       format_supports_blending;
+      if (format_supports_blending && pipeline_descriptor.blending_enabled) {
+        col_attachment.alphaBlendOperation = pipeline_descriptor.alpha_blend_op;
+        col_attachment.rgbBlendOperation = pipeline_descriptor.rgb_blend_op;
+        col_attachment.destinationAlphaBlendFactor = pipeline_descriptor.dest_alpha_blend_factor;
+        col_attachment.destinationRGBBlendFactor = pipeline_descriptor.dest_rgb_blend_factor;
+        col_attachment.sourceAlphaBlendFactor = pipeline_descriptor.src_alpha_blend_factor;
+        col_attachment.sourceRGBBlendFactor = pipeline_descriptor.src_rgb_blend_factor;
+      }
+      else {
+        if (pipeline_descriptor.blending_enabled && !format_supports_blending) {
+          shader_debug_printf(
+              "[Warning] Attempting to Bake PSO, but MTLPixelFormat %d does not support "
+              "blending\n",
+              *((int *)&pixel_format));
+        }
+      }
+    }
+  }
+  desc.depthAttachmentPixelFormat = pipeline_descriptor.depth_attachment_format;
+  desc.stencilAttachmentPixelFormat = pipeline_descriptor.stencil_attachment_format;
+
+  /* Bind-point range validation.
+   * We need to ensure that the PSO will have valid bind-point ranges, or is using the
+   * appropriate bindless fallback path if any bind limits are exceeded. */
+#ifdef NDEBUG
+  /* Ensure Buffer bindings are within range. */
+  BLI_assert_msg((MTL_uniform_buffer_base_index + get_max_ubo_index() + 2) <
+                     MTL_MAX_BUFFER_BINDINGS,
+                 "UBO and SSBO bindings exceed the fragment bind table limit.");
+
+  /* Argument buffer. */
+  if (mtl_interface->uses_argument_buffer_for_samplers()) {
+    BLI_assert_msg(mtl_interface->get_argument_buffer_bind_index() < MTL_MAX_BUFFER_BINDINGS,
+                   "Argument buffer binding exceeds the fragment bind table limit.");
+  }
+#endif
+
+  MTLRenderPipelineReflection *reflection_data = [MTLRenderPipelineReflection new];
+  /* Compile PSO */
+  NSError *error = nullptr;
+  id<MTLRenderPipelineState> pso = [ctx->device
+      newRenderPipelineStateWithDescriptor:desc
+                                   options:MTLPipelineOptionBufferTypeInfo
+                                reflection:&reflection_data
+                                     error:&error];
+  if (error) {
+    NSLog(@"Failed to create PSO for shader: %s error %@\n", this->name, error);
+    BLI_assert(false);
+    return nullptr;
+  }
+  if (!pso) {
+    NSLog(@"Failed to create PSO for shader: %s, but no error was provided!\n", this->name);
+    BLI_assert(false);
+    return nullptr;
+  }
+
+  /* Prepare pipeline state instance. */
+  MTLRenderPipelineStateInstance *pso_inst = new MTLRenderPipelineStateInstance();
+  pso_inst->vert = desc.vertexFunction;
+  pso_inst->frag = desc.fragmentFunction;
+  pso_inst->pso = pso;
+  pso_inst->null_attribute_buffer_index = (using_null_buffer) ? null_buffer_index : -1;
+  pso_inst->prim_type = prim_type;
+
+  pso_inst->reflection_data_available = (reflection_data != nil);
+  if (pso_inst->reflection_data_available) {
+    parse_reflection_data(pso_inst, reflection_data);
+  }
+
+  [reflection_data release];
+
+  /* Insert into pso cache. */
+  pso_cache_lock_.lock();
+  pso_inst->shader_pso_index = pso_cache_.size();
+  pso_cache_.add(pipeline_descriptor, pso_inst);
+  pso_cache_lock_.unlock();
+  shader_debug_printf("PSO CACHE: Stored new variant in PSO cache for shader '%s' Hash: '%llu'\n",
+                      this->name,
+                      pipeline_descriptor.hash());
+  return pso_inst;
 }
 
 MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
     MTLContext *ctx, MTLComputePipelineStateDescriptor &compute_pipeline_descriptor)
 {
-  /* NOTE(Metal): Bakes and caches a PSO for compute. */
-  BLI_assert(this);
   MTLShaderInterface *mtl_interface = this->get_interface();
   BLI_assert(mtl_interface);
   BLI_assert(this->is_valid());
@@ -1261,13 +1212,10 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
 
   /* Setup function specialization constants, used to modify and optimize
    * generated code based on current render pipeline configuration. */
-  ::MTLFunctionConstantValues *values = [[MTLFunctionConstantValues new] autorelease];
+  ::MTLFunctionConstantValues *values = populate_specialization_constant_values(
+      *this->constants, compute_pipeline_descriptor.specialization_state);
 
   /* TODO: Compile specialized shader variants asynchronously. */
-
-  /* Custom function constant values: */
-  populate_specialization_constant_values(
-      values, *this->constants, compute_pipeline_descriptor.specialization_state);
 
   std::string function_name = entry_point_name_get(ShaderStage::COMPUTE);
   NSError *error = nullptr;
@@ -1278,6 +1226,8 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
            constantValues:values
                     error:&error];
   compute_function.label = [NSString stringWithUTF8String:this->name];
+
+  [values release];
 
   if (error) {
     NSLog(@"Compile Error - Metal Shader compute function, error %@", error);
@@ -1294,24 +1244,6 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
   ::MTLComputePipelineDescriptor *desc = [[MTLComputePipelineDescriptor alloc] init];
   desc.label = [NSString stringWithUTF8String:this->name];
   desc.computeFunction = compute_function;
-
-  /** If Max Total threads per threadgroup tuning parameters are specified, compile with these.
-   * This enables the compiler to make informed decisions based on the upper bound of threads
-   * issued for a given compute call.
-   * This per-shader tuning can reduce the static register memory allocation by reducing the
-   * worst-case allocation and increasing thread occupancy.
-   *
-   * NOTE: This is only enabled on Apple M1 and M2 GPUs. Apple M3 GPUs feature dynamic caching
-   * which controls register allocation dynamically based on the runtime state. */
-  const MTLCapabilities &capabilities = MTLBackend::get_capabilities();
-  if (ELEM(capabilities.gpu, APPLE_GPU_M1, APPLE_GPU_M2)) {
-    if (maxTotalThreadsPerThreadgroup_Tuning_ > 0) {
-      desc.maxTotalThreadsPerThreadgroup = this->maxTotalThreadsPerThreadgroup_Tuning_;
-      MTL_LOG_DEBUG("Using custom parameter for shader %s value %u\n",
-                    this->name,
-                    maxTotalThreadsPerThreadgroup_Tuning_);
-    }
-  }
 
   id<MTLComputePipelineState> pso = [ctx->device
       newComputePipelineStateWithDescriptor:desc

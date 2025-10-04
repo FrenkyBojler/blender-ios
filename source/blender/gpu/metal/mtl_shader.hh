@@ -64,7 +64,6 @@ struct MTLBufferArgumentData {
   bool active;
 };
 
-/* Metal Render Pipeline State Instance. */
 struct MTLRenderPipelineStateInstance {
   /* Function instances with specialization.
    * Required for argument encoder construction. */
@@ -88,14 +87,16 @@ struct MTLRenderPipelineStateInstance {
    * Back-end over-generates bindings due to detecting their presence, though in many cases, the
    * bindings in the source are not all used for a given shader.
    * This information can also be used to eliminate redundant/unused bindings. */
+  /* TODO(fclem): Buffer correctness is already checked inside the GL & VK backend in a much
+   * simpler way. Also this induce some overhead that would be preferable to avoid in the normal
+   * case. */
+  /* TODO(fclem): Removing unused bindings can be done using a bit flag instead of vectors. */
   bool reflection_data_available;
   blender::Vector<MTLBufferArgumentData> buffer_bindings_reflection_data_vert;
   blender::Vector<MTLBufferArgumentData> buffer_bindings_reflection_data_frag;
 };
 
-/* Common compute pipeline state. */
 struct MTLComputePipelineStateCommon {
-
   /* Thread-group information is common for all PSO variants. */
   int threadgroup_x_len = 1;
   int threadgroup_y_len = 1;
@@ -111,9 +112,7 @@ struct MTLComputePipelineStateCommon {
   }
 };
 
-/* Metal Compute Pipeline State instance per PSO. */
 struct MTLComputePipelineStateInstance {
-
   /** Derived information. */
   /* Unique index for PSO variant. */
   uint32_t shader_pso_index;
@@ -183,9 +182,6 @@ class MTLShader : public Shader {
   void *push_constant_data_ = nullptr;
   bool push_constant_modified_ = false;
 
-  /* Special definition for Max TotalThreadsPerThreadgroup tuning. */
-  uint maxTotalThreadsPerThreadgroup_Tuning_ = 0;
-
   /* Set to true when batch compiling */
   bool async_compilation_ = false;
 
@@ -250,12 +246,30 @@ class MTLShader : public Shader {
   /* Shader source generators from create-info.
    * These aren't all used by Metal, as certain parts of source code generation
    * for shader entry-points and resource mapping occur during `finalize`. */
-  std::string resources_declare(const shader::ShaderCreateInfo &info) const override;
-  std::string vertex_interface_declare(const shader::ShaderCreateInfo &info) const override;
-  std::string fragment_interface_declare(const shader::ShaderCreateInfo &info) const override;
-  std::string geometry_interface_declare(const shader::ShaderCreateInfo &info) const override;
-  std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
-  std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
+  std::string resources_declare(const shader::ShaderCreateInfo & /*info*/) const override
+  {
+    return "";
+  }
+  std::string vertex_interface_declare(const shader::ShaderCreateInfo & /*info*/) const override
+  {
+    return "";
+  }
+  std::string fragment_interface_declare(const shader::ShaderCreateInfo & /*info*/) const override
+  {
+    return "";
+  }
+  std::string geometry_interface_declare(const shader::ShaderCreateInfo & /*info*/) const override
+  {
+    return "";
+  }
+  std::string geometry_layout_declare(const shader::ShaderCreateInfo & /*info*/) const override
+  {
+    return "";
+  }
+  std::string compute_layout_declare(const shader::ShaderCreateInfo & /*info*/) const override
+  {
+    return "";
+  }
 
   void bind(const shader::SpecializationConstants *constants_state) override;
   void unbind() override;
@@ -267,11 +281,13 @@ class MTLShader : public Shader {
 
   MTLRenderPipelineStateInstance *bake_current_pipeline_state(MTLContext *ctx,
                                                               MTLPrimitiveTopologyClass prim_type);
-  MTLRenderPipelineStateInstance *bake_pipeline_state(
+  /* Bakes and caches a PSO for graphic. */
+  MTLRenderPipelineStateInstance *bake_graphic_pipeline_state(
       MTLContext *ctx,
       MTLPrimitiveTopologyClass prim_type,
       const MTLRenderPipelineStateDescriptor &pipeline_descriptor);
 
+  /* Bakes and caches a PSO for compute. */
   MTLComputePipelineStateInstance *bake_compute_pipeline_state(
       MTLContext *ctx, MTLComputePipelineStateDescriptor &compute_pipeline_descriptor);
 
@@ -398,11 +414,9 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
   switch (fetch_mode) { \
     case GPU_FETCH_INT: \
       FORMAT_PER_COMP(_type, ) \
+    case GPU_FETCH_INT_TO_FLOAT_UNIT: \
     case GPU_FETCH_FLOAT: \
       BLI_assert_msg(0, "Invalid fetch mode for integer attribute"); \
-      break; \
-    case GPU_FETCH_INT_TO_FLOAT_UNIT: \
-      /* Fallback to manual conversion */ \
       break; \
   } \
   break;

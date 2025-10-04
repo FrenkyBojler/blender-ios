@@ -25,7 +25,7 @@ namespace blender::gpu {
  * for use in PSO construction and caching.
  */
 struct MTLVertexAttributeDescriptorPSO {
-  MTLVertexFormat format;
+  ::MTLVertexFormat format;
   int offset;
   int buffer_index;
   GPUVertFetchMode format_conversion_mode;
@@ -53,7 +53,7 @@ struct MTLVertexAttributeDescriptorPSO {
 };
 
 struct MTLVertexBufferLayoutDescriptorPSO {
-  MTLVertexStepFunction step_function;
+  ::MTLVertexStepFunction step_function;
   int step_rate;
   int stride;
   int buffer_slot;
@@ -86,7 +86,7 @@ struct MTLVertexDescriptor {
   int max_attribute_value;
   int total_attributes;
   int num_vert_buffers;
-  MTLPrimitiveTopologyClass prim_topology_class;
+  ::MTLPrimitiveTopologyClass prim_topology_class;
 
   bool operator==(const MTLVertexDescriptor &other) const
   {

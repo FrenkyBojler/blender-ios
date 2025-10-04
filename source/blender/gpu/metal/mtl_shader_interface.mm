@@ -395,7 +395,7 @@ void MTLShaderInterface::prepare_common_shader_inputs(const shader::ShaderCreate
      * #MTLContextGlobalShaderPipelineState::ubo_bindings. The buffer bind index [[buffer(N)]]
      * within the shader will apply an offset for bound vertex buffers and the default uniform
      * PushConstantBlock.
-     * see `mtl_shader_generator.hh` for buffer binding table breakdown. */
+     * see `mtl_shader_generate.hh` for buffer binding table breakdown. */
     current_input->binding = shd_ubo.location;
     current_input++;
   }
