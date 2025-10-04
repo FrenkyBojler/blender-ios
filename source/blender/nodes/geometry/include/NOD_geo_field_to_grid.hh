@@ -62,7 +62,7 @@ struct FieldToGridItemsAccessor : public socket_items::SocketItemsAccessorDefaul
 
   static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
-    return socket_type_supports_grids(socket_type);
+    return socket_type_supports_grids(socket_type) || socket_type == SOCK_RGBA;
   }
 
   static char **get_name(GeometryNodeFieldToGridItem &item)
@@ -76,7 +76,9 @@ struct FieldToGridItemsAccessor : public socket_items::SocketItemsAccessorDefaul
                                              const char *name)
   {
     auto *storage = static_cast<GeometryNodeFieldToGrid *>(node.storage);
-    item.data_type = socket_type;
+    /* Map RGBA sockets to vector type to allow for vector socket creation on dragging */
+    const eNodeSocketDatatype grid_socket_type = (socket_type == SOCK_RGBA) ? SOCK_VECTOR : socket_type;
+    item.data_type = grid_socket_type;
     item.identifier = storage->next_identifier++;
     socket_items::set_item_name_and_make_unique<FieldToGridItemsAccessor>(node, item, name);
   }
