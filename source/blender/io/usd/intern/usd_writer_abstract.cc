@@ -334,6 +334,7 @@ void USDAbstractWriter::write_id_properties(const pxr::UsdPrim &prim,
                                             const ID &id,
                                             pxr::UsdTimeCode time) const
 {
+  // TODO move this somewhere where it makes sense to be
   if (usd_export_context_.hierarchy_iterator) {
     usd_export_context_.hierarchy_iterator->add_to_prim_map(prim.GetPath(), &id);
   }
