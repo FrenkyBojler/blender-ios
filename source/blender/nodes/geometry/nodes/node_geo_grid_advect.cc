@@ -104,8 +104,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
   b.add_input<decl::Float>("Time Step")
+      .subtype(PROP_TIME_ABSOLUTE)
       .default_value(1.0f)
-      .min(0.0f)
       .description("Time step for advection in seconds");
   b.add_input(data_type, "Grid")
       .hide_value()
