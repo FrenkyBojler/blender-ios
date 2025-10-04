@@ -29,6 +29,8 @@
 #include "BKE_undo_system.hh"
 #include "BKE_workspace.hh"
 
+#include "BLT_translation.hh"
+
 #include "BLO_blend_validate.hh"
 
 #include "ED_asset.hh"
@@ -555,6 +557,15 @@ static bool ed_undo_poll(bContext *C)
   return (undo_stack->step_active != nullptr) && (undo_stack->step_active->prev != nullptr);
 }
 
+static std::string ed_undo_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  UndoStack *undo_stack = ED_undo_stack_get();
+  if (undo_stack && undo_stack->step_active && undo_stack->step_active->prev) {
+    return IFACE_("Undo") + std::string(" ") + std::string(IFACE_(undo_stack->step_active->name));
+  }
+  return {};
+}
+
 void ED_OT_undo(wmOperatorType *ot)
 {
   /* identifiers */
@@ -565,6 +576,9 @@ void ED_OT_undo(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = ed_undo_exec;
   ot->poll = ed_undo_poll;
+
+  ot->get_name = ed_undo_get_name;
+  ot->flag = OPTYPE_GET_NAME_ALWAYS;
 }
 
 void ED_OT_undo_push(wmOperatorType *ot)
@@ -598,6 +612,16 @@ static bool ed_redo_poll(bContext *C)
   return (undo_stack->step_active != nullptr) && (undo_stack->step_active->next != nullptr);
 }
 
+static std::string ed_redo_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  UndoStack *undo_stack = ED_undo_stack_get();
+  if (undo_stack && undo_stack->step_active && undo_stack->step_active->next) {
+    return IFACE_("Redo") + std::string(" ") +
+           std::string(IFACE_(undo_stack->step_active->next->name));
+  }
+  return {};
+}
+
 void ED_OT_redo(wmOperatorType *ot)
 {
   /* identifiers */
@@ -608,6 +632,9 @@ void ED_OT_redo(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = ed_redo_exec;
   ot->poll = ed_redo_poll;
+
+  ot->get_name = ed_redo_get_name;
+  ot->flag = OPTYPE_GET_NAME_ALWAYS;
 }
 
 void ED_OT_undo_redo(wmOperatorType *ot)

@@ -219,6 +219,9 @@ enum {
 
   /** Handle events before modal operators without this flag. */
   OPTYPE_MODAL_PRIORITY = (1 << 12),
+
+  /** Call get_name even if there are no properties. */
+  OPTYPE_GET_NAME_ALWAYS = (1 << 13),
 };
 
 /** For #WM_cursor_grab_enable wrap axis. */

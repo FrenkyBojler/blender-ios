@@ -227,6 +227,12 @@ static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
       std::string drawstr = std::string("(") + drawstr_override + ")" + drawstr_suffix;
       item->drawstr = scope.allocator().copy_string(drawstr);
     }
+    else if (but->optype != nullptr && (STREQ(but->optype->idname, "ED_OT_undo") ||
+                                        STREQ(but->optype->idname, "ED_OT_redo")))
+    {
+      /* Don't use dynamic names for Undo and Redo. */
+      item->drawstr = scope.allocator().copy_string((RNA_struct_ui_name(but->optype->srna)));
+    }
     else {
       item->drawstr = scope.allocator().copy_string(but->drawstr);
     }
