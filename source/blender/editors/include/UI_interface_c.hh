@@ -384,6 +384,9 @@ enum {
 
   /** Draw icon inverted to indicate a special state. */
   UI_BUT_ICON_INVERT = 1 << 27,
+
+  /** Draw the text in a monospace font. */
+  UI_BUT_FONT_MONOSPACE = 1 << 28,
 };
 
 enum class ButPointerType : uint8_t {

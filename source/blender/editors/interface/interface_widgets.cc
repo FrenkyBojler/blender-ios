@@ -2014,10 +2014,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   const wmIMEData *ime_data;
 #endif
 
-  uiFontStyle my_style = *fstyle;
-  my_style.uifont_id = blf_mono_font;
-
-  UI_fontstyle_set(&my_style);
+  UI_fontstyle_set(fstyle);
 
   eFontStyle_Align align;
   if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
@@ -2104,7 +2101,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor4ubv(wcol->item);
       const auto boxes = BLF_str_selection_boxes(
-          my_style.uifont_id,
+          fstyle->uifont_id,
           drawstr + but->ofs,
           strlen(drawstr + but->ofs),
           (but->selsta >= but->ofs) ? but->selsta - but->ofs : 0,
@@ -2142,7 +2139,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     /* Draw text cursor (caret). */
     if (but->pos >= but->ofs) {
 
-      int t = BLF_str_offset_to_cursor(my_style.uifont_id,
+      int t = BLF_str_offset_to_cursor(fstyle->uifont_id,
                                        drawstr + but->ofs,
                                        UI_MAX_DRAW_STR,
                                        but_pos_ofs - but->ofs,
@@ -2185,7 +2182,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     }
     if (ime_data && ime_data->composite.size()) {
       /* Composite underline. */
-      widget_draw_text_ime_underline(&my_style, wcol, but, rect, ime_data, drawstr);
+      widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr);
     }
 #endif
   }
@@ -2240,7 +2237,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (drawlen > 0) {
       uiFontStyleDraw_Params params{};
       params.align = align;
-      UI_fontstyle_draw_ex(&my_style,
+      UI_fontstyle_draw_ex(fstyle,
                            rect,
                            drawstr + but->ofs,
                            drawlen,
@@ -2269,17 +2266,17 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
         if (ul_index != -1) {
           rcti bounds;
-          if (BLF_str_offset_to_glyph_bounds(my_style.uifont_id, drawstr_ofs, ul_index, &bounds) &&
+          if (BLF_str_offset_to_glyph_bounds(fstyle->uifont_id, drawstr_ofs, ul_index, &bounds) &&
               !BLI_rcti_is_empty(&bounds))
           {
-            int ul_width = round_fl_to_int(BLF_width(my_style.uifont_id, "_", 2));
+            int ul_width = round_fl_to_int(BLF_width(fstyle->uifont_id, "_", 2));
             int pos_x = rect->xmin + font_xofs + bounds.xmin +
                         (bounds.xmax - bounds.xmin - ul_width) / 2;
             int pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize;
             /* Use text output because direct drawing doesn't always work. See #89246. */
-            BLF_position(my_style.uifont_id, float(pos_x), pos_y, 0.0f);
-            BLF_color4ubv(my_style.uifont_id, wcol->text);
-            BLF_draw(my_style.uifont_id, "_", 2);
+            BLF_position(fstyle->uifont_id, float(pos_x), pos_y, 0.0f);
+            BLF_color4ubv(fstyle->uifont_id, wcol->text);
+            BLF_draw(fstyle->uifont_id, "_", 2);
           }
         }
       }
@@ -2292,7 +2289,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (placeholder && placeholder[0]) {
       uiFontStyleDraw_Params params{};
       params.align = align;
-      uiFontStyle style = my_style;
+      uiFontStyle style = *fstyle;
       style.shadow = 0;
       uchar col[4];
       copy_v4_v4_uchar(col, wcol->text);
@@ -2313,7 +2310,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     rect->xmax -= UI_TEXT_CLIP_MARGIN;
     uiFontStyleDraw_Params params{};
     params.align = UI_STYLE_TEXT_RIGHT;
-    UI_fontstyle_draw(&my_style, rect, drawstr_right, UI_MAX_DRAW_STR, col, &params);
+    UI_fontstyle_draw(fstyle, rect, drawstr_right, UI_MAX_DRAW_STR, col, &params);
   }
 }
 
@@ -5034,6 +5031,13 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   const ThemeUI *tui = &btheme->tui;
   const uiFontStyle *fstyle = &style->widget;
   uiWidgetType *wt = nullptr;
+
+  std::optional<uiFontStyle> fstyle_override;
+  if (but->drawflag & UI_BUT_FONT_MONOSPACE) {
+    fstyle_override = *fstyle;
+    fstyle_override->uifont_id = blf_mono_font;
+    fstyle = &*fstyle_override;
+  }
 
   /* handle menus separately */
   if (but->emboss == blender::ui::EmbossType::Pulldown) {

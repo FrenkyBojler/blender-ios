@@ -32,6 +32,25 @@ namespace blender::nodes::node_geo_viewer_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryViewer)
 
+static void draw_input_socket(CustomSocketDrawParams &params)
+{
+  uiBlock *block = params.layout.block();
+  uiBut *but = uiDefBut(block,
+                        ButType::Label,
+                        0,
+                        "Hello World",
+                        0,
+                        0,
+                        1,
+                        UI_UNIT_Y,
+                        nullptr,
+                        0.0f,
+                        0.0f,
+                        std::nullopt);
+  UI_but_color_set(but, ColorGeometry4b(230, 230, 100, 255));
+  UI_but_drawflag_enable(but, UI_BUT_FONT_MONOSPACE);
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -59,6 +78,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       input_decl.field_on_all();
     }
     input_decl.structure_type(StructureType::Dynamic);
+    input_decl.custom_draw([](CustomSocketDrawParams &params) { draw_input_socket(params); });
   }
 
   b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
