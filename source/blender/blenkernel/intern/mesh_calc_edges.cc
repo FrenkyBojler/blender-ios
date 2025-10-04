@@ -457,7 +457,7 @@ void mesh_calc_edges(Mesh &mesh,
   BLI_assert(back_range_of_new_edges.one_after_last() == result_edges_num);
 
   Vector<std::string> attributes_to_drop;
-  /* TODO: Need ::all_pass() on #attribute_filter to know is this loop can be skipped. */
+  /* TODO: Need ::all_pass() on #attribute_filter to know if this loop can be skipped. */
   mesh.attributes().foreach_attribute([&](const AttributeIter &attribute) {
     if (attribute.data_type == AttrType::String) {
       return;
