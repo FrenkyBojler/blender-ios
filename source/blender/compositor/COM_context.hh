@@ -102,6 +102,12 @@ class Context {
    * or support for viewers. */
   virtual bool treat_viewer_as_compositor_output() const;
 
+  /* True if the compositor viewer output should use output region/bounds setup in the context. */
+  virtual bool use_context_bounds_for_viewer_output() const
+  {
+    return true;
+  }
+
   /* Populates the given meta data from the render stamp information of the given render pass. */
   virtual void populate_meta_data_for_pass(const Scene *scene,
                                            int view_layer_id,
