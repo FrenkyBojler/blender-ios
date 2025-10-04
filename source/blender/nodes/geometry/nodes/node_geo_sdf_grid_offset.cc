@@ -19,8 +19,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Grid").hide_value().structure_type(StructureType::Grid);
   b.add_output<decl::Float>("Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input<decl::Float>("Distance")
+      .subtype(PROP_DISTANCE)
       .default_value(0.1f)
-      .description("World-space distance to offset the SDF surface");
+      .description("Object-space distance to offset the SDF surface");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
