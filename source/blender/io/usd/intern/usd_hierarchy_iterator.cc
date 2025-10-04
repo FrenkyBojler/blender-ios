@@ -119,6 +119,9 @@ USDExporterContext USDHierarchyIterator::create_usd_export_context(const Hierarc
     path = pxr::SdfPath(context->export_path);
   }
 
+  /* Store the computed USD path for this object in our complete prim map. */
+  store_export_path(context, path);
+
   if (params_.merge_parent_xform && context->is_object_data_context && !context->is_parent) {
     bool can_merge_with_xform = true;
     if (params_.export_shapekeys && is_mesh_with_shape_keys(context->object)) {
@@ -440,46 +443,50 @@ void USDHierarchyIterator::add_usd_skel_export_mapping(const Object *obj, const 
   }
 }
 
+void USDHierarchyIterator::store_export_path(const HierarchyContext *context,
+                                             const pxr::SdfPath &usd_path) const
+{
+  if (!context || !context->object) {
+    return;
+  }
+
+  /* Store the object's export path. */
+  exported_prim_map_.add(&context->object->id, usd_path);
+
+  if (context->object->data) {
+    ID *data_id = static_cast<ID *>(context->object->data);
+    std::string data_path_str = get_object_data_path(context);
+    pxr::SdfPath data_path;
+    if (!params_.root_prim_path.empty()) {
+      data_path = pxr::SdfPath(params_.root_prim_path + data_path_str);
+    }
+    else {
+      data_path = pxr::SdfPath(data_path_str);
+    }
+    exported_prim_map_.add(data_id, data_path);
+  }
+}
+
 blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
     get_exported_prim_map() const
 {
   blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map;
 
-  /* Iterate through the duplisource export path map. */
-  duplisource_export_path_.foreach_item([&prim_map](ID *id, const std::string &export_path) {
-    pxr::SdfPath usd_path(export_path);
+  exported_prim_map_.foreach_item([&prim_map](ID *id, const pxr::SdfPath &usd_path) {
     prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(id));
   });
 
-  /* Iterate through the export graph to get object mappings. */
-  export_graph_.foreach_item([&prim_map, this](const ObjectIdentifier &obj_id,
-                                               const ExportChildren & /*children*/) {
-    if (obj_id.object) {
-      /* Create a simple export path based on object name. */
-      std::string export_path = "/" + make_valid_name(obj_id.object->id.name + 2);
-      pxr::SdfPath usd_path(export_path);
-
-      prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(&obj_id.object->id));
-
-      /* Add object data if it exists. */
-      if (obj_id.object->data) {
-        prim_map.lookup_or_add_default(usd_path).append(
-            RNA_id_pointer_create(static_cast<ID *>(obj_id.object->data)));
-      }
-    }
-  });
-
-  /* Add skeleton mappings. */
+  // Add armature mappings.
   armature_export_map_.foreach_item([&prim_map](const Object *obj, const pxr::SdfPath &path) {
     prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
   });
 
-  /* Add skinned mesh mappings. */
+  // Add mesh mappings.
   skinned_mesh_export_map_.foreach_item([&prim_map](const Object *obj, const pxr::SdfPath &path) {
     prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
   });
 
-  /* Add shape key mesh mappings. */
+  // Add shape key mappings.
   shape_key_mesh_export_map_.foreach_item([&prim_map](const Object *obj,
                                                       const pxr::SdfPath &path) {
     prim_map.lookup_or_add_default(path).append(RNA_id_pointer_create(const_cast<ID *>(&obj->id)));
@@ -497,6 +504,9 @@ USDExporterContext USDHierarchyIterator::create_point_instancer_context(
 
   pxr::SdfPath base_path = export_context.usd_path.GetParentPath().AppendChild(
       pxr::TfToken(safe_name));
+
+  // Store the computed USD path for this point instancer in our exported prim map.
+  store_export_path(context, base_path);
 
   return {export_context.bmain,
           export_context.depsgraph,

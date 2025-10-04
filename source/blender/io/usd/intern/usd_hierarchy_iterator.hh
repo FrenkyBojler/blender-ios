@@ -37,6 +37,9 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
    *   (proto_path_1, proto_object_1), (proto_path_2, proto_object_2), ... ] */
   Map<pxr::SdfPath, Set<std::pair<pxr::SdfPath, Object *>>> prototype_paths_;
 
+  /* Mapping from Blender IDs to their USD export paths.*/
+  mutable Map<ID *, pxr::SdfPath> exported_prim_map_;
+
  public:
   USDHierarchyIterator(Main *bmain,
                        Depsgraph *depsgraph,
@@ -72,6 +75,9 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
       const HierarchyContext *context, const USDExporterContext &usd_export_context) const;
 
   void add_usd_skel_export_mapping(const Object *obj, const pxr::SdfPath &usd_path);
+
+  /* Store export path for an object and its data during hierarchy iteration. */
+  void store_export_path(const HierarchyContext *context, const pxr::SdfPath &usd_path) const;
 };
 
 }  // namespace blender::io::usd
