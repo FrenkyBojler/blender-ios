@@ -3,3 +3,4 @@ Referenced by pull request #146068, WIP: EEVEE: support repeat zones natively
 Referenced by issue #146409, CYCLES - Shader AOV output nodes no longer write to AOV's when inside a group
 Referenced by pull request #146983, Fix #146409: nested shader node outputs are ignored
 Referenced by commit e53f0066f9bb84670bfc3987001a81e68bc78005, Fix #146409: nested shader node outputs are ignored
+Referenced by issue #147340, Blender crashes when using a volume shader as a input for the world background
