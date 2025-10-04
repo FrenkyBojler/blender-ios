@@ -33,6 +33,8 @@
 #include "BKE_report.hh"
 
 #include "BLI_assert.h"
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -153,6 +155,27 @@ USDExporterContext USDHierarchyIterator::create_usd_export_context(const Hierarc
   exporter_context.add_skel_mapping_fn = [this](const Object *obj, const pxr::SdfPath &usd_path) {
     this->add_usd_skel_export_mapping(obj, usd_path);
   };
+
+  /* Capture the actual final USD path for this object/data to build the prim map later.
+   * Store safe identifiers (name + type) instead of pointers to avoid accessing freed objects.
+   * The 'path' variable here already has the merge logic applied. */
+  if (context->object) {
+    if (context->is_object_data_context) {
+      /* This is an object data context - store the data mapping */
+      if (context->object->data) {
+        ID *data_id = static_cast<ID *>(context->object->data);
+        std::string data_name = data_id->name + 2;  /* Skip ID type prefix */
+        short data_type = GS(data_id->name);
+        actual_usd_paths_.add_overwrite(std::make_pair(data_name, data_type), path);
+      }
+    }
+    else {
+      /* This is an object context - store the object mapping */
+      std::string obj_name = context->object->id.name + 2;  /* Skip ID type prefix */
+      short obj_type = GS(context->object->id.name);
+      actual_usd_paths_.add_overwrite(std::make_pair(obj_name, obj_type), path);
+    }
+  }
 
   return exporter_context;
 }
@@ -450,17 +473,23 @@ blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
 {
   blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map;
 
-  /* Simple mapping from duplisource export path map - contains all exported datablocks. */
-  duplisource_export_path_.foreach_item([&prim_map, this](ID *id, const std::string &export_path) {
-    pxr::SdfPath usd_path;
-    if (!params_.root_prim_path.empty()) {
-      usd_path = pxr::SdfPath(params_.root_prim_path + export_path);
+  /* Use the actual USD paths that were captured during export (after merge logic).
+   * Look up the original objects in bmain using the stored safe identifiers. */
+  actual_usd_paths_.foreach_item([&](const std::pair<std::string, short> &id_info, 
+                                     const pxr::SdfPath &usd_path) {
+    const std::string &obj_name = id_info.first;
+    short obj_type = id_info.second;
+    
+    /* Find the original object in bmain with this name and type */
+    ListBase *lb = which_libbase(bmain_, obj_type);
+    if (lb) {
+      LISTBASE_FOREACH(ID *, original_id, lb) {
+        if (STREQ(original_id->name + 2, obj_name.c_str())) {
+          prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(original_id));
+          break;  /* Found the original, no need to continue searching */
+        }
+      }
     }
-    else {
-      usd_path = pxr::SdfPath(export_path);
-    }
-
-    prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(id));
   });
 
   return prim_map;
