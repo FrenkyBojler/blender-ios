@@ -127,6 +127,11 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * button layout. */
   std::shared_ptr<int> scroll_value_ = nullptr;
   /**
+   * Can be set to true to focus by operators to change scroll_value_ so that the active item is in
+   * view after the next redraw.
+   */
+  bool focus_on_active_on_redraw_ = false;
+  /**
    * The total number of items in the tree during the last redraw.
    */
   int last_tot_items_ = 0;
@@ -146,6 +151,12 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
+
+  /**
+   * Change the scroll position so that this index is visible if possible.
+   */
+  void focus(int focus_index);
+  void focus_active_on_redraw();
 
   /**
    * \param xy: The mouse coordinates in window space.

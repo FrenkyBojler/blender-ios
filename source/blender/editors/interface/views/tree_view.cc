@@ -322,6 +322,7 @@ void AbstractTreeView::update_children_from_old(const AbstractView &old_view)
 
   custom_height_ = old_tree_view.custom_height_;
   scroll_value_ = old_tree_view.scroll_value_;
+  focus_on_active_on_redraw_ = old_tree_view.focus_on_active_on_redraw_;
   update_children_from_old_recursive(*this, old_tree_view);
 }
 
@@ -391,6 +392,32 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   }
   /* Scroll value will be sanitized/clamped when drawing. */
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
+}
+
+void AbstractTreeView::focus(const int focus_index)
+{
+  if (!supports_scrolling()) {
+    return;
+  }
+  if (!scroll_value_) {
+    return;
+  }
+  const std::optional<int> visible_row_count = this->tot_visible_row_count();
+  if (visible_row_count) {
+    const bool is_visible = focus_index >= *scroll_value_ &&
+                            focus_index < *scroll_value_ + *visible_row_count;
+    if (!is_visible) {
+      *scroll_value_ = focus_index - *visible_row_count / 2;
+    }
+  }
+  else {
+    *scroll_value_ = focus_index;
+  }
+}
+
+void AbstractTreeView::focus_active_on_redraw()
+{
+  focus_on_active_on_redraw_ = true;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -814,6 +841,28 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   /* Column for the tree view. */
   row->column(true);
 
+  const AbstractTreeView::IterOptions iter_visible_flattened_options =
+      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered;
+
+  std::optional<int> focus_index;
+  if (tree_view.focus_on_active_on_redraw_) {
+    /* Disable again, so that it doesn't happen on every redraw. */
+    tree_view.focus_on_active_on_redraw_ = false;
+    /* Find the index of the active item to focus on. */
+    int index = 0;
+    tree_view.foreach_item(
+        [&](AbstractTreeViewItem &item) {
+          if (item.is_active()) {
+            focus_index = index;
+          }
+          index++;
+        },
+        iter_visible_flattened_options);
+    if (focus_index.has_value()) {
+      tree_view.focus(*focus_index);
+    }
+  }
+
   /* Clamp scroll-value to valid range. */
   if (tree_view.scroll_value_ && visible_row_count) {
     *tree_view.scroll_value_ = std::clamp(
@@ -831,7 +880,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
         }
         index++;
       },
-      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
+      iter_visible_flattened_options);
 
   if (tree_view.custom_height_) {
 

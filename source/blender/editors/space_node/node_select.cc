@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <fmt/format.h>
 
+#include "BKE_screen.hh"
 #include "DNA_collection_types.h"
 #include "DNA_image_types.h"
 #include "DNA_material_types.h"
@@ -641,6 +642,33 @@ static bool node_mouse_select(bContext *C,
           /* Doesn't make sense for picking. */
           BLI_assert_unreachable();
           break;
+      }
+
+      if (node->is_group_input()) {
+        node_tree.ensure_topology_cache();
+        node_tree.ensure_interface_cache();
+        for (const bNodeSocket *socket : node->output_sockets().drop_back(1)) {
+          if (!socket->is_icon_visible()) {
+            continue;
+          }
+          const int group_input_i = socket->index();
+          bNodeTreeInterfaceSocket &io_socket = *node_tree.interface_inputs()[group_input_i];
+          bNodeTreeInterfacePanel &io_panel = *node_tree.tree_interface.find_item_parent(
+              io_socket.item, true);
+          bNodeTreeInterfaceItem *item_to_activate = nullptr;
+          if (io_panel.header_toggle_socket() == &io_socket) {
+            item_to_activate = &io_panel.item;
+          }
+          else {
+            item_to_activate = &io_socket.item;
+          }
+          node_tree.tree_interface.active_item_set(item_to_activate);
+          ScrArea *area = CTX_wm_area(C);
+          ARegion *ui_region = BKE_region_find_in_listbase_by_type(&area->regionbase, RGN_TYPE_UI);
+          LISTBASE_FOREACH (uiBlock *, block, &ui_region->runtime->uiblocks) {
+            UI_block_tree_view_focus_active(*block, "Node Tree Declaration Tree View");
+          }
+        }
       }
 
       changed = true;

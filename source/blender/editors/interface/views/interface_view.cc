@@ -263,6 +263,18 @@ void UI_region_views_clear_search_highlight(const ARegion *region)
   }
 }
 
+void UI_block_tree_view_focus_active(uiBlock &block, const blender::StringRef view_idname)
+{
+  LISTBASE_FOREACH (ViewLink *, view_link, &block.views) {
+    if (view_link->idname != view_idname) {
+      continue;
+    }
+    if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view_link->view.get())) {
+      tree_view->focus_active_on_redraw();
+    }
+  }
+}
+
 namespace blender::ui {
 
 std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const ARegion *region,
