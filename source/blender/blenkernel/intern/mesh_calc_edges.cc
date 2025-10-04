@@ -6,10 +6,6 @@
  * \ingroup bke
  */
 
-#include <iostream>
-
-#include <stdlib.h>
-
 #include "BLI_array_utils.hh"
 #include "BLI_math_base.h"
 #include "BLI_ordered_edge.hh"
@@ -19,10 +15,8 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_filter.hh"
-#include "BKE_attribute_filters.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
 namespace blender::bke {
