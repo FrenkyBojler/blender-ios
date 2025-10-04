@@ -258,4 +258,5 @@ class GHOST_ContextVK : public GHOST_Context {
 
   VkFence getFence();
   void setPresentFence(VkSwapchainKHR swapchain, VkFence fence);
+  void destroySwapchainPresentFences(VkSwapchainKHR swapchain);
 };

@@ -762,9 +762,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
     vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   }
   for (VkSwapchainKHR swapchain : submission_frame_data.discard_pile.swapchains) {
-    const std::vector<VkFence> &fences = present_fences_[swapchain_];
-    vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
-    present_fences_.erase(swapchain);
+    this->destroySwapchainPresentFences(swapchain);
   }
   submission_frame_data.discard_pile.destroy(vk_device);
 
@@ -1364,14 +1362,23 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   return GHOST_kSuccess;
 }
 
+void GHOST_ContextVK::destroySwapchainPresentFences(VkSwapchainKHR swapchain)
+{
+  GHOST_DeviceVK &device_vk = vulkan_instance.value().device.value();
+  const std::vector<VkFence> &fences = present_fences_[swapchain];
+  vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
+  for (VkFence fence : fences) {
+    vkDestroyFence(device_vk.vk_device, fence, nullptr);
+  }
+  present_fences_.erase(swapchain);
+}
+
 GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
 {
   GHOST_DeviceVK &device_vk = vulkan_instance.value().device.value();
 
   if (swapchain_ != VK_NULL_HANDLE) {
-    const std::vector<VkFence> &fences = present_fences_[swapchain_];
-    vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
-    present_fences_.erase(swapchain_);
+    this->destroySwapchainPresentFences(swapchain_);
     vkDestroySwapchainKHR(device_vk.vk_device, swapchain_, nullptr);
   }
   device_vk.wait_idle();
@@ -1381,9 +1388,7 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
   swapchain_images_.clear();
   for (GHOST_Frame &frame_data : frame_data_) {
     for (VkSwapchainKHR swapchain : frame_data.discard_pile.swapchains) {
-      const std::vector<VkFence> &fences = present_fences_[swapchain_];
-      vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
-      present_fences_.erase(swapchain);
+      this->destroySwapchainPresentFences(swapchain);
     }
     frame_data.destroy(device_vk.vk_device);
   }
