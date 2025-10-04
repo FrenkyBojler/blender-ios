@@ -1530,7 +1530,7 @@ static void mix_vertex_groups(const Mesh &mesh_src,
         const MDeformVert &src_dvert = src_dverts[src_vert];
         for (const MDeformWeight &src_weight : Span(src_dvert.dw, src_dvert.totweight)) {
           const int i = weights.index_of_or_add(MDeformWeight{src_weight.def_nr, 0.0f});
-          const_cast<MDeformWeight &>(dst_dvert.dw[i]).weight += src_weight.weight * src_num_inv;
+          const_cast<MDeformWeight &>(weights[i]).weight += src_weight.weight * src_num_inv;
         }
       }
 
@@ -1668,7 +1668,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   threading::parallel_for(dst_edges.index_range(), 2048, [&](const IndexRange range) {
     for (const int dst_edge_index : range) {
-      const int2 src_edge = src_edges[edge_final_map[dst_edge_index]];
+      const int src_edge_index = dst_to_src_edges[dst_edge_index].first();
+      const int2 src_edge = src_edges[src_edge_index];
       dst_edges[dst_edge_index] = int2(vert_final_map[src_edge[0]], vert_final_map[src_edge[1]]);
     }
   });
@@ -1682,8 +1683,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   int r_i = 0;
   int loop_cur = 0;
-  Array<bool> dst_face_unaffected(result_nfaces);
-  Array<int> dst_to_src_faces(result_nfaces);
+  Array<bool> dst_face_unaffected(result_nfaces - weld_mesh.wpoly_new_len);
+  Array<int> dst_to_src_faces(result_nfaces - weld_mesh.wpoly_new_len);
   Array<int, 64> group_buffer(weld_mesh.max_face_len);
   for (const int i : src_faces.index_range()) {
     const int loop_start = loop_cur;
@@ -1729,7 +1730,6 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   }
 
   /* New Polygons. */
-  dst_face_unaffected.as_mutable_span().take_back(weld_mesh.wpoly_new_len).fill(false);
   for (const int i : weld_mesh.wpoly.index_range().take_back(weld_mesh.wpoly_new_len)) {
     const WeldPoly &wp = weld_mesh.wpoly[i];
     const int loop_start = loop_cur;
