@@ -220,7 +220,6 @@ void ED_transverts_create_from_obedit(TransVertStore *tvs, const Object *obedit,
   using namespace blender;
   BLI_assert(DEG_is_evaluated(obedit));
 
-
   Nurb *nu;
   BezTriple *bezt;
   BPoint *bp;
