@@ -745,11 +745,42 @@ static bool ui_rna_is_userdef(PointerRNA *ptr, PropertyRNA *prop)
   if (base == nullptr) {
     base = ptr->type;
   }
-  return ELEM(base,
-              &RNA_AddonPreferences,
-              &RNA_KeyConfigPreferences,
-              &RNA_KeyMapItem,
-              &RNA_UserAssetLibrary);
+
+  bool is_userdef = false;
+  if (ELEM(base,
+           &RNA_AddonPreferences,
+           &RNA_KeyConfigPreferences,
+           &RNA_KeyMapItem,
+           &RNA_UserAssetLibrary))
+  {
+    is_userdef = true;
+  }
+  else if (ptr->owner_id) {
+    switch (GS(ptr->owner_id->name)) {
+      case ID_WM: {
+        for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
+          if (RNA_struct_is_a(ancestor.type, &RNA_KeyConfigPreferences)) {
+            is_userdef = true;
+            break;
+          }
+        }
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+  }
+  else if (ptr->owner_id == nullptr) {
+    for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
+      if (RNA_struct_is_a(ancestor.type, &RNA_AddonPreferences)) {
+        is_userdef = true;
+        break;
+      }
+    }
+  }
+
+  return is_userdef;
 }
 
 bool UI_but_is_userdef(const uiBut *but)
@@ -3441,7 +3472,7 @@ const wmIMEData *ui_but_ime_data_get(uiBut *but)
 {
   uiHandleButtonData *data = but->semi_modal_state ? but->semi_modal_state : but->active;
 
-  if (data && data->window) {
+  if (data && data->window && data->window->runtime->ime_data_is_composing) {
     return data->window->runtime->ime_data;
   }
   return nullptr;
@@ -5088,7 +5119,12 @@ static void force_activate_view_item_but(bContext *C,
 
   /* For popups. Other abstract view instances correctly calls the select operator, see:
    * #141235. */
+  if (but->context) {
+    CTX_store_set(C, but->context);
+  }
   but->view_item->activate(*C);
+  CTX_store_set(C, nullptr);
+
   ED_region_tag_redraw_no_rebuild(region);
   ED_region_tag_refresh_ui(region);
 
@@ -5106,7 +5142,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
   BLI_assert(view_item_but->type == ButType::ViewItem);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
-    if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
+    if (event->type == LEFTMOUSE) {
       switch (event->val) {
         case KM_PRESS:
           /* Extra icons have priority, don't mess with them. */
@@ -5114,13 +5150,16 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
             return WM_UI_HANDLER_BREAK;
           }
 
+          if (ui_block_is_popup_any(but->block)) {
+            /* TODO(!147047): This should be handled in selection operator. */
+            force_activate_view_item_but(C, data->region, view_item_but, false);
+            return WM_UI_HANDLER_BREAK;
+          }
+
           if (UI_view_item_supports_drag(*view_item_but->view_item)) {
             button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
             data->dragstartx = event->xy[0];
             data->dragstarty = event->xy[1];
-          }
-          else {
-            force_activate_view_item_but(C, data->region, view_item_but);
           }
 
           /* Always continue for drag and drop handling. Also for cases where keymap items are
@@ -5131,7 +5170,8 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
           if (UI_view_item_can_rename(*view_item_but->view_item)) {
             data->cancel = true;
             UI_view_item_begin_rename(*view_item_but->view_item);
-            ED_region_tag_redraw(CTX_wm_region(C));
+            ED_region_tag_redraw(data->region);
+            ED_region_tag_refresh_ui(data->region);
             return WM_UI_HANDLER_BREAK;
           }
           return WM_UI_HANDLER_CONTINUE;
@@ -6660,13 +6700,13 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
               if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
+                IMB_colormanagement_srgb_to_scene_linear_v3(color, color);
                 BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
               else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
-                IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
                 BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
@@ -8316,7 +8356,8 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
           but->type == ButType::ViewItem ? but :
                                            ui_view_item_find_mouse_over(data->region, event->xy));
       if (clicked_view_item_but) {
-        clicked_view_item_but->view_item->activate(*C);
+        clicked_view_item_but->view_item->activate_for_context_menu(*C);
+        ED_region_tag_redraw_no_rebuild(data->region);
       }
 
       /* RMB has two options now */
@@ -8736,7 +8777,9 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 #else
       status.item(IFACE_("Snap"), ICON_EVENT_CTRL);
 #endif
-      status.item(IFACE_("Precision"), ICON_EVENT_SHIFT);
+      if (ui_but_is_float(but)) {
+        status.item(IFACE_("Precision"), ICON_EVENT_SHIFT);
+      }
     }
     ui_numedit_begin(but, data);
   }
@@ -9924,7 +9967,7 @@ static int ui_list_get_increment(const uiList *ui_list, const int type, const in
 
   /* Handle column offsets for grid layouts. */
   if (ELEM(type, EVT_UPARROWKEY, EVT_DOWNARROWKEY) &&
-      ELEM(ui_list->layout_type, UILST_LAYOUT_GRID, UILST_LAYOUT_BIG_PREVIEW_GRID))
+      ELEM(ui_list->layout_type, UILST_LAYOUT_BIG_PREVIEW_GRID))
   {
     increment = (type == EVT_UPARROWKEY) ? -columns : columns;
   }
@@ -10142,15 +10185,25 @@ static int ui_handle_view_item_event(bContext *C,
       }
       break;
     case LEFTMOUSE:
-      if ((event->val == KM_PRESS) && (event->modifier == 0)) {
+      if (event->modifier == 0) {
         /* Only bother finding the active view item button if the active button isn't already a
          * view item. */
         uiButViewItem *view_but = static_cast<uiButViewItem *>(
             (active_but && active_but->type == ButType::ViewItem) ?
                 active_but :
                 ui_view_item_find_mouse_over(region, event->xy));
-        /* Will free active button if there already is one. */
+
         if (view_but) {
+          if (UI_view_item_supports_drag(*view_but->view_item)) {
+            if (event->val != KM_CLICK) {
+              break;
+            }
+          }
+          else if (event->val != KM_PRESS) {
+            break;
+          }
+
+          /* Will free active button if there already is one. */
           /* Close the popup when clicking on the view item directly, not any overlapped button. */
           const bool close_popup = view_but == active_but;
           force_activate_view_item_but(C, region, view_but, close_popup);
@@ -11510,7 +11563,9 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
         /* handle animation */
         if (!(block->pie_data.flags & UI_PIE_ANIMATION_FINISHED)) {
-          const double final_time = 0.01 * U.pie_animation_timeout;
+          const double final_time = (U.uiflag & USER_REDUCE_MOTION) ?
+                                        0.0f :
+                                        0.01 * U.pie_animation_timeout;
           float fac = duration / final_time;
           const float pie_radius = U.pie_menu_radius * UI_SCALE_FAC;
 

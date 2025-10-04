@@ -2893,6 +2893,8 @@ static std::optional<wp_cursor_shape_device_v1_shape> gwl_seat_cursor_find_wl_sh
       return std::nullopt;
     case GHOST_kStandardCursorBlade:
       return std::nullopt;
+    case GHOST_kStandardCursorSlip:
+      return std::nullopt;
     case GHOST_kStandardCursorCustom:
       return std::nullopt;
   }
@@ -4704,8 +4706,7 @@ static void touch_seat_handle_frame(void *data, wl_touch * /*touch*/)
       seat->touch.wl.surface_window = nullptr;
     }
 
-    GHOST_ASSERT(touch_events_num <= sizeof(touch_events) / sizeof(touch_events[0]),
-                 "Buffer overflow");
+    GHOST_ASSERT(touch_events_num <= ARRAY_SIZE(touch_events), "Buffer overflow");
 
     /* Ensure events are ordered in time. */
     if (UNLIKELY(touch_events_num > 1)) {
@@ -6759,7 +6760,10 @@ static void gwl_registry_xdg_decoration_manager_remove(GWL_Display *display,
 static void gwl_registry_xdg_output_manager_add(GWL_Display *display,
                                                 const GWL_RegisteryAdd_Params &params)
 {
-  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 2u, 3u);
+  /* NOTE(@ideasman42): only version 3 and over is well supported.
+   * Support version 1 so GNOME-32 (on the build-bots Rocky8) can be used.
+   * Use `zxdg_output_v1_get_version` to ensure feature support at runtime. */
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 3u);
 
   display->xdg.output_manager = static_cast<zxdg_output_manager_v1 *>(wl_registry_bind(
       display->wl.registry, params.name, &zxdg_output_manager_v1_interface, version));
@@ -6984,10 +6988,6 @@ static void gwl_registry_wl_seat_remove(GWL_Display *display, void *user_data, c
     zwp_tablet_seat_v2_destroy(seat->wp.tablet_seat);
   }
 
-  if (seat->cursor.custom_data) {
-    munmap(seat->cursor.custom_data, seat->cursor.custom_data_size);
-  }
-
   /* Disable all capabilities as a way to free:
    * - `seat.wl_pointer` (and related cursor variables).
    * - `seat.wl_touch`.
@@ -6996,6 +6996,20 @@ static void gwl_registry_wl_seat_remove(GWL_Display *display, void *user_data, c
   gwl_seat_capability_pointer_disable(seat);
   gwl_seat_capability_keyboard_disable(seat);
   gwl_seat_capability_touch_disable(seat);
+
+  /* Run after tablet & input devices have been disabled
+   * to ensure the buffer from a *visible* cursor never destroyed.
+   *
+   * Note that most compositors will have already released the buffer,
+   * in that case this will have been set to null.
+   * However this isn't guaranteed, see: #145557. */
+  if (seat->cursor.wl.buffer) {
+    wl_buffer_destroy(seat->cursor.wl.buffer);
+  }
+
+  if (seat->cursor.custom_data) {
+    munmap(seat->cursor.custom_data, seat->cursor.custom_data_size);
+  }
 
   /* Un-referencing checks for nullptr case. */
   xkb_state_unref(seat->xkb.state);
@@ -9072,6 +9086,8 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
       ~(
           /* WAYLAND doesn't support accessing the window position. */
           GHOST_kCapabilityWindowPosition |
+          /* WAYLAND cannot precisely place windows among multiple monitors. */
+          GHOST_kCapabilityMultiMonitorPlacement |
           /* WAYLAND doesn't support setting the cursor position directly,
            * this is an intentional choice, forcing us to use a software cursor in this case. */
           GHOST_kCapabilityCursorWarp |

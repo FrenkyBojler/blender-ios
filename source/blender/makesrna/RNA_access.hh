@@ -541,7 +541,8 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
                                                            PropertyRNA *prop);
 
 /**
- * \return the length without `\0` terminator.
+ * \return The final length without `\0` terminator (might differ from the length of the stored
+ * string, when a `get_transform` callback is defined).
  */
 int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop);
 void RNA_property_string_get_default(PropertyRNA *prop, char *value, int value_maxncpy);
@@ -568,7 +569,20 @@ int RNA_property_enum_get_default(PointerRNA *ptr, PropertyRNA *prop);
 int RNA_property_enum_step(
     const bContext *C, PointerRNA *ptr, PropertyRNA *prop, int from_value, int step);
 
+/**
+ * WARNING: _may_ create data in IDPGroup backend storage case.
+ * While creation of data itself is mutex-protected, potential concurrent _accesses_ to the same
+ * property are not, so threaded calls to #RNA_property_pointer_get() remain highly unsafe.
+ */
 PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop) ATTR_NONNULL(1, 2);
+/**
+ * Same as above, but never creates an empty IDPGroup property for Pointer runtime properties that
+ * are not set yet.
+ *
+ * Ideally this should never be done ever, as it is intrisically not threadsafe, but for the time
+ * being at least provide a way to avoid this bad behavior. */
+PointerRNA RNA_property_pointer_get_never_create(PointerRNA *ptr, PropertyRNA *prop)
+    ATTR_NONNULL(1, 2);
 void RNA_property_pointer_set(PointerRNA *ptr,
                               PropertyRNA *prop,
                               PointerRNA ptr_value,

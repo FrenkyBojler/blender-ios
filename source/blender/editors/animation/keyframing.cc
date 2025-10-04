@@ -12,7 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -756,6 +756,7 @@ static wmOperatorStatus clear_anim_v3d_exec(bContext *C, wmOperator * /*op*/)
           DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
           changed = true;
         }
+        DEG_id_tag_update(&ob->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
       }
       else {
         for (fcu = static_cast<FCurve *>(dna_action->curves.first); fcu; fcu = fcn) {
@@ -930,7 +931,7 @@ void ANIM_OT_keyframe_clear_vse(wmOperatorType *ot)
   ot->invoke = clear_anim_vse_invoke;
   ot->exec = clear_anim_vse_exec;
 
-  ot->poll = ED_operator_areaactive;
+  ot->poll = ED_operator_sequencer_scene_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1120,7 +1121,7 @@ void ANIM_OT_keyframe_delete_vse(wmOperatorType *ot)
   ot->invoke = delete_key_vse_invoke;
   ot->exec = delete_key_vse_exec;
 
-  ot->poll = ED_operator_areaactive;
+  ot->poll = ED_operator_sequencer_scene_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

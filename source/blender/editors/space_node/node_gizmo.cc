@@ -110,7 +110,7 @@ static void gizmo_node_backdrop_prop_matrix_get(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 void *value_p)
 {
-  float(*matrix)[4] = (float(*)[4])value_p;
+  float (*matrix)[4] = (float (*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   const SpaceNode *snode = (const SpaceNode *)gz_prop->custom_func.user_data;
   matrix[0][0] = snode->zoom;
@@ -123,7 +123,7 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 const void *value_p)
 {
-  const float(*matrix)[4] = (const float(*)[4])value_p;
+  const float (*matrix)[4] = (const float (*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   SpaceNode *snode = (SpaceNode *)gz_prop->custom_func.user_data;
   snode->zoom = matrix[0][0];
@@ -311,7 +311,7 @@ static void gizmo_node_crop_prop_matrix_get(const wmGizmo *gz,
                                             wmGizmoProperty *gz_prop,
                                             void *value_p)
 {
-  float(*matrix)[4] = (float(*)[4])value_p;
+  float (*matrix)[4] = (float (*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *crop_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = crop_group->state.dims;
@@ -331,7 +331,7 @@ static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
                                             wmGizmoProperty *gz_prop,
                                             const void *value_p)
 {
-  const float(*matrix)[4] = (const float(*)[4])value_p;
+  const float (*matrix)[4] = (const float (*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *crop_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = crop_group->state.dims;
@@ -477,7 +477,7 @@ static void gizmo_node_box_mask_prop_matrix_get(const wmGizmo *gz,
                                                 wmGizmoProperty *gz_prop,
                                                 void *value_p)
 {
-  float(*matrix)[4] = (float(*)[4])value_p;
+  float (*matrix)[4] = (float (*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *mask_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = mask_group->state.dims;
@@ -511,7 +511,7 @@ static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
                                                 wmGizmoProperty *gz_prop,
                                                 const void *value_p)
 {
-  const float(*matrix)[4] = (const float(*)[4])value_p;
+  const float (*matrix)[4] = (const float (*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *mask_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = mask_group->state.dims;
@@ -755,19 +755,26 @@ static bool WIDGETGROUP_node_glare_poll(const bContext *C, wmGizmoGroupType * /*
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
-  if ((node && node->is_type("CompositorNodeGlare")) &&
-      static_cast<NodeGlare *>(node->storage)->type == CMP_NODE_GLARE_SUN_BEAMS)
-  {
-    snode->edittree->ensure_topology_cache();
-    LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
-      if (STR_ELEM(input->name, "Sun Position") && input->is_directly_linked()) {
-        return false;
-      }
-    }
-    return true;
+  if (!node || !node->is_type("CompositorNodeGlare")) {
+    return false;
   }
 
-  return false;
+  bNodeSocket &type_socket = *blender::bke::node_find_socket(*node, SOCK_IN, "Type");
+  snode->edittree->ensure_topology_cache();
+  if (type_socket.is_directly_linked()) {
+    return false;
+  }
+
+  if (type_socket.default_value_typed<bNodeSocketValueMenu>()->value != CMP_NODE_GLARE_SUN_BEAMS) {
+    return false;
+  }
+
+  LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
+    if (STR_ELEM(input->name, "Sun Position") && input->is_directly_linked()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 static void WIDGETGROUP_node_glare_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
@@ -1011,7 +1018,7 @@ static void gizmo_node_split_prop_matrix_get(const wmGizmo *gz,
                                              wmGizmoProperty *gz_prop,
                                              void *value_p)
 {
-  float(*matrix)[4] = reinterpret_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = reinterpret_cast<float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *split_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = split_group->state.dims;
@@ -1040,7 +1047,7 @@ static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
                                              wmGizmoProperty *gz_prop,
                                              const void *value_p)
 {
-  const float(*matrix)[4] = reinterpret_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = reinterpret_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *split_group = reinterpret_cast<NodeBBoxWidgetGroup *>(
       gz->parent_gzgroup->customdata);

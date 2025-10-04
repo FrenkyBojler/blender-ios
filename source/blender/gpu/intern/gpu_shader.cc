@@ -98,7 +98,7 @@ static void standard_defines(Vector<StringRefNull> &sources)
     sources.append("#define OS_UNIX\n");
   }
   /* API Definition */
-  eGPUBackendType backend = GPU_backend_get_type();
+  GPUBackendType backend = GPU_backend_get_type();
   switch (backend) {
     case GPU_BACKEND_OPENGL:
       sources.append("#define GPU_OPENGL\n");
@@ -112,10 +112,6 @@ static void standard_defines(Vector<StringRefNull> &sources)
     default:
       BLI_assert_msg(false, "Invalid GPU Backend Type");
       break;
-  }
-
-  if (GPU_crappy_amd_driver()) {
-    sources.append("#define GPU_DEPRECATED_AMD_DRIVER\n");
   }
 }
 
@@ -660,6 +656,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
 
   using namespace blender::gpu::shader;
   const_cast<ShaderCreateInfo &>(info).finalize();
+  BLI_assert(info.do_static_compilation_ || info.is_generated_);
 
   TimePoint start_time;
 
@@ -704,12 +701,13 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     typedefs.append(info.typedef_source_generated);
   }
   for (auto filename : info.typedef_sources_) {
-    typedefs.append(gpu_shader_dependency_get_source(filename));
+    typedefs.extend_non_duplicates(
+        gpu_shader_dependency_get_resolved_source(filename, info.generated_sources, info.name_));
   }
 
   if (!info.vertex_source_.is_empty()) {
-    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(info.vertex_source_,
-                                                                           info.generated_sources);
+    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
+        info.vertex_source_, info.generated_sources, info.name_);
     std::string interface = shader->vertex_interface_declare(info);
 
     Vector<StringRefNull> sources;
@@ -723,7 +721,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(interface);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.vertex_source_generated);
 
     if (info.vertex_entry_fn_ != "main") {
@@ -736,8 +733,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   }
 
   if (!info.fragment_source_.is_empty()) {
-    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(info.fragment_source_,
-                                                                           info.generated_sources);
+    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
+        info.fragment_source_, info.generated_sources, info.name_);
     std::string interface = shader->fragment_interface_declare(info);
 
     Vector<StringRefNull> sources;
@@ -751,7 +748,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(interface);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.fragment_source_generated);
 
     if (info.fragment_entry_fn_ != "main") {
@@ -764,8 +760,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   }
 
   if (!info.geometry_source_.is_empty()) {
-    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(info.geometry_source_,
-                                                                           info.generated_sources);
+    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
+        info.geometry_source_, info.generated_sources, info.name_);
     std::string layout = shader->geometry_layout_declare(info);
     std::string interface = shader->geometry_interface_declare(info);
 
@@ -790,8 +786,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   }
 
   if (!info.compute_source_.is_empty()) {
-    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(info.compute_source_,
-                                                                           info.generated_sources);
+    Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
+        info.compute_source_, info.generated_sources, info.name_);
     std::string layout = shader->compute_layout_declare(info);
 
     Vector<StringRefNull> sources;
@@ -802,7 +798,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
     sources.append(resources);
     sources.append(layout);
     sources.extend(code);
-    sources.extend(info.dependencies_generated);
     sources.append(info.compute_source_generated);
 
     if (info.compute_entry_fn_ != "main") {
@@ -1021,7 +1016,7 @@ void ShaderCompiler::do_work(void *work_payload)
 
 bool ShaderCompiler::is_compiling_impl()
 {
-  /* The mutex should be locked befor calling this function. */
+  /* The mutex should be locked before calling this function. */
   BLI_assert(!mutex_.try_lock());
 
   if (!compilation_queue_.is_empty()) {

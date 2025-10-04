@@ -13,8 +13,8 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -25,7 +25,6 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_space_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -233,7 +232,7 @@ static void vicon_rgb_red_draw(
 {
   const float color[4] = {0.5f, 0.0f, 0.0f, 1.0f * alpha};
   vicon_rgb_color_draw(x, y, w, h, color, 0.25f * alpha);
-  const char *text = TIP_("R");
+  const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "R");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
 }
 
@@ -242,7 +241,7 @@ static void vicon_rgb_green_draw(
 {
   const float color[4] = {0.0f, 0.4f, 0.0f, 1.0f * alpha};
   vicon_rgb_color_draw(x, y, w, h, color, 0.2f * alpha);
-  const char *text = TIP_("G");
+  const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "G");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
 }
 
@@ -251,7 +250,7 @@ static void vicon_rgb_blue_draw(
 {
   const float color[4] = {0.0f, 0.0f, 1.0f, 1.0f * alpha};
   vicon_rgb_color_draw(x, y, w, h, color, 0.3f * alpha);
-  const char *text = TIP_("B");
+  const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "B");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
 }
 
@@ -1457,7 +1456,7 @@ static void icon_draw_rect(float x,
   }
 
   /* draw */
-  eGPUBuiltinShader shader;
+  GPUBuiltinShader shader;
   if (desaturate != 0.0f) {
     shader = GPU_SHADER_2D_IMAGE_DESATURATE_COLOR;
   }
@@ -1552,10 +1551,10 @@ static void svg_replace_color_attributes(std::string &svg,
       {"blender_tool_transform", tool_transform},
       {"blender_tool_white", tool_white},
       {"blender_tool_red", tool_red},
-      {"blender_bevel_weight", nullptr, TH_EDGE_BEVEL},
-      {"blender_mesh_crease", nullptr, TH_EDGE_CREASE},
-      {"blender_edge_seam", nullptr, TH_EDGE_SEAM},
-      {"blender_edge_sharp", nullptr, TH_EDGE_SHARP},
+      {"blender_bevel", nullptr, TH_BEVEL},
+      {"blender_crease", nullptr, TH_CREASE},
+      {"blender_seam", nullptr, TH_SEAM},
+      {"blender_sharp", nullptr, TH_SHARP},
   };
 
   for (const ColorItem &item : items) {
@@ -1748,11 +1747,14 @@ static void icon_draw_size(float x,
     icon_draw_rect_input(x, y, w, h, icon_id, aspect, alpha, inverted);
   }
   else if (ELEM(di->type, ICON_TYPE_SVG_MONO, ICON_TYPE_SVG_COLOR)) {
-    float outline_intensity = mono_border ? (btheme->tui.icon_border_intensity > 0.0f ?
-                                                 btheme->tui.icon_border_intensity :
-                                                 0.3f) :
-                                            0.0f;
-    outline_intensity *= alpha;
+    /* The alpha may be over 1.0, however `outline_intensity` must be in the [0..1] range. */
+    const float outline_intensity = mono_border ?
+                                        std::min(1.0f,
+                                                 (btheme->tui.icon_border_intensity > 0.0f ?
+                                                      btheme->tui.icon_border_intensity :
+                                                      0.3f) *
+                                                     alpha) :
+                                        0.0f;
 
     float color[4];
     if (icon_id == ICON_NOT_FOUND) {
@@ -1963,6 +1965,9 @@ int ui_id_icon_get(const bContext *C, ID *id, const bool big)
 int UI_icon_from_library(const ID *id)
 {
   if (ID_IS_LINKED(id)) {
+    if (ID_IS_PACKED(id)) {
+      return ICON_PACKAGE;
+    }
     if (id->tag & ID_TAG_MISSING) {
       return ICON_LIBRARY_DATA_BROKEN;
     }
@@ -2121,7 +2126,6 @@ int UI_icon_from_idcode(const int idcode)
 
     /* No icons for these ID-types. */
     case ID_LI:
-    case ID_IP:
     case ID_SCR:
     case ID_WM:
       break;
