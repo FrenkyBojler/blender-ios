@@ -10,6 +10,7 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_offset_indices.hh"
 #include "BLI_vector.hh"
@@ -19,6 +20,7 @@
 #include "BKE_mesh.hh"
 #include "DNA_meshdata_types.h"
 
+#include "DNA_object_types.h"
 #include "GEO_mesh_merge_by_distance.hh"
 #include "GEO_randomize.hh"
 
@@ -1436,7 +1438,7 @@ static void merge_customdata_all(Span<int> dest_map,
  * \{ */
 
 static void mix_src_indices(const GSpan src_attr,
-                            const GroupedSpan<int> dst_to_src_map,
+                            const GroupedSpan<int> dst_to_src,
                             GMutableSpan dst_attr)
 {
   bke::attribute_math::convert_to_static_type(src_attr.type(), [&](auto dummy) {
@@ -1445,7 +1447,7 @@ static void mix_src_indices(const GSpan src_attr,
     MutableSpan<T> dst = dst_attr.typed<T>();
     threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
       for (const int dst_index : range) {
-        const Span<int> src_indices = dst_to_src_map[dst_index];
+        const Span<int> src_indices = dst_to_src[dst_index];
         if (src_indices.size() == 1) {
           dst[dst_index] = src[src_indices.first()];
           continue;
@@ -1479,6 +1481,67 @@ static void mix_attributes(const bke::AttributeAccessor src_attributes,
     mix_src_indices(src_attr, dst_to_src, dst_attr.span);
     dst_attr.finish();
   });
+}
+
+static void mix_vertex_groups(const Mesh &mesh_src,
+                              const GroupedSpan<int> dst_to_src,
+                              Mesh &mesh_dst)
+{
+  const char *func = __func__;
+  const Span<MDeformVert> src_dverts = mesh_src.deform_verts();
+  if (src_dverts.is_empty()) {
+    return;
+  }
+  MutableSpan<MDeformVert> dst_dverts = mesh_dst.deform_verts_for_write();
+  threading::parallel_for(dst_to_src.index_range(), 256, [&](const IndexRange range) {
+    struct WeightIndexGetter {
+      int operator()(const MDeformWeight &value) const
+      {
+        return value.def_nr;
+      }
+    };
+    CustomIDVectorSet<MDeformWeight, WeightIndexGetter, 64> weights;
+
+    for (const int dst_vert : range) {
+      MDeformVert &dst_dvert = dst_dverts[dst_vert];
+
+      const Span<int> src_verts = dst_to_src[dst_vert];
+      if (src_verts.size() == 1) {
+        const MDeformVert &src_dvert = src_dverts[src_verts.first()];
+        dst_dvert.dw = MEM_malloc_arrayN<MDeformWeight>(src_dvert.totweight, func);
+        std::copy_n(src_dvert.dw, src_dvert.totweight, dst_dvert.dw);
+        dst_dvert.totweight = src_dvert.totweight;
+        continue;
+      }
+
+      const float src_num_inv = math::rcp(float(src_verts.size()));
+      for (const int src_vert : src_verts) {
+        const MDeformVert &src_dvert = src_dverts[src_vert];
+        for (const MDeformWeight &src_weight : Span(src_dvert.dw, src_dvert.totweight)) {
+          const int i = weights.index_of_or_add(MDeformWeight{src_weight.def_nr, 0.0f});
+          const_cast<MDeformWeight &>(dst_dvert.dw[i]).weight += src_weight.weight * src_num_inv;
+        }
+      }
+
+      std::sort(const_cast<MDeformWeight *>(weights.begin()),
+                const_cast<MDeformWeight *>(weights.end()),
+                [](const auto &a, const auto &b) { return a.def_nr < b.def_nr; });
+
+      dst_dvert.dw = MEM_malloc_arrayN<MDeformWeight>(weights.size(), func);
+      dst_dvert.totweight = weights.size();
+      std::copy(weights.begin(), weights.end(), dst_dvert.dw);
+      weights.clear_and_keep_capacity();
+    }
+  });
+}
+
+static Set<StringRef> get_vertex_group_names(const Mesh &mesh)
+{
+  Set<StringRef> names;
+  LISTBASE_FOREACH (bDeformGroup *, group, &mesh.vertex_group_names) {
+    names.add(group->name);
+  }
+  return names;
 }
 
 static Mesh *create_merged_mesh(const Mesh &mesh,
@@ -1529,7 +1592,13 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   const GroupedSpan<int> dst_to_src_verts(OffsetIndices<int>(vert_src_index_offset_data),
                                           vert_src_index_data);
 
-  mix_attributes(src_attributes, dst_to_src_verts, bke::AttrDomain::Point, {}, dst_attributes);
+  mix_attributes(src_attributes,
+                 dst_to_src_verts,
+                 bke::AttrDomain::Point,
+                 get_vertex_group_names(mesh),
+                 dst_attributes);
+  mix_vertex_groups(mesh, dst_to_src_verts, *result);
+  // TODO: Original indices.
 
   /* Edges. */
 
@@ -1548,6 +1617,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   mix_attributes(
       src_attributes, dst_to_src_edges, bke::AttrDomain::Edge, {".edge_verts"}, dst_attributes);
+  // TODO: Original indices.
 
   threading::parallel_for(dst_edges.index_range(), 2048, [&](const IndexRange range) {
     for (const int dst_edge_index : range) {
@@ -1683,6 +1753,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
                  bke::AttrDomain::Corner,
                  {".corner_vert", ".corner_edge"},
                  dst_attributes);
+  // TODO: Original indices.
 
   BLI_assert(int(r_i) == result_nfaces);
   BLI_assert(loop_cur == result_nloops);
