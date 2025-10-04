@@ -734,50 +734,6 @@ static void outliner_sort_type(ListBase *lb)
   }
 }
 
-/* Sort objects so those actually in the collection come before children not in the collection,
- * then recurse. Used to visually separate dashed “not in collection” links. */
-[[maybe_unused]] static void outliner_collections_children_sort(ListBase *lb)
-{
-  TreeElement *last_te = static_cast<TreeElement *>(lb->last);
-  if (last_te == nullptr) {
-    return;
-  }
-  TreeStoreElem *last_tselem = TREESTORE(last_te);
-
-  /* Sorting rules: only object lists. */
-  if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
-    int totelem = BLI_listbase_count(lb);
-
-    if (totelem > 1) {
-      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
-      tTreeSort *tp = tear;
-
-      LISTBASE_FOREACH (TreeElement *, te, lb) {
-        TreeStoreElem *tselem = TREESTORE(te);
-        tp->te = te;
-        tp->name = te->name;
-        tp->idcode = te->idcode;
-        tp->id = tselem->id;
-        tp++;
-      }
-
-      qsort(tear, totelem, sizeof(tTreeSort), treesort_child_not_in_collection);
-
-      BLI_listbase_clear(lb);
-      tp = tear;
-      while (totelem--) {
-        BLI_addtail(lb, tp->te);
-        tp++;
-      }
-      MEM_freeN(tear);
-    }
-  }
-
-  LISTBASE_FOREACH (TreeElement *, te_iter, lb) {
-    outliner_collections_children_sort(&te_iter->subtree);
-  }
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
