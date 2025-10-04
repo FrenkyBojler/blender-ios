@@ -154,37 +154,36 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 }
 
 #ifdef WITH_OPENVDB
-static openvdb::v12_0::tools::Scheme::SemiLagrangian to_openvdb_scheme(
-    const IntegrationScheme scheme)
+static openvdb::tools::Scheme::SemiLagrangian to_openvdb_scheme(const IntegrationScheme scheme)
 {
   switch (scheme) {
     case IntegrationScheme::SemiLagrangian:
-      return openvdb::v12_0::tools::Scheme::SEMI;
+      return openvdb::tools::Scheme::SEMI;
     case IntegrationScheme::Midpoint:
-      return openvdb::v12_0::tools::Scheme::MID;
+      return openvdb::tools::Scheme::MID;
     case IntegrationScheme::RungeKutta3:
-      return openvdb::v12_0::tools::Scheme::RK3;
+      return openvdb::tools::Scheme::RK3;
     case IntegrationScheme::RungeKutta4:
-      return openvdb::v12_0::tools::Scheme::RK4;
+      return openvdb::tools::Scheme::RK4;
     case IntegrationScheme::MacCormack:
-      return openvdb::v12_0::tools::Scheme::MAC;
+      return openvdb::tools::Scheme::MAC;
     case IntegrationScheme::BFECC:
-      return openvdb::v12_0::tools::Scheme::BFECC;
+      return openvdb::tools::Scheme::BFECC;
   }
-  return openvdb::v12_0::tools::Scheme::SEMI;
+  return openvdb::tools::Scheme::SEMI;
 }
 
-static openvdb::v12_0::tools::Scheme::Limiter to_openvdb_limiter(const LimiterType limiter)
+static openvdb::tools::Scheme::Limiter to_openvdb_limiter(const LimiterType limiter)
 {
   switch (limiter) {
     case LimiterType::None:
-      return openvdb::v12_0::tools::Scheme::NO_LIMITER;
+      return openvdb::tools::Scheme::NO_LIMITER;
     case LimiterType::Clamp:
-      return openvdb::v12_0::tools::Scheme::CLAMP;
+      return openvdb::tools::Scheme::CLAMP;
     case LimiterType::Revert:
-      return openvdb::v12_0::tools::Scheme::REVERT;
+      return openvdb::tools::Scheme::REVERT;
   }
-  return openvdb::v12_0::tools::Scheme::NO_LIMITER;
+  return openvdb::tools::Scheme::NO_LIMITER;
 }
 
 template<typename GridType, typename SamplerType = openvdb::tools::Sampler<1>>
