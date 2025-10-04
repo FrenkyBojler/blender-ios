@@ -752,10 +752,6 @@ static void rna_def_collection_object(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "CollectionLightLinking");
   RNA_def_property_ui_text(prop, "Light Linking", "Light linking settings of the collection");
 
-  prop = RNA_def_property(srna, "sort_index", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "sort_index");
-  RNA_def_property_ui_text(prop, "Sort Index", "Custom order index inside the parent collection");
-
   RNA_define_lib_overridable(false);
 }
 
