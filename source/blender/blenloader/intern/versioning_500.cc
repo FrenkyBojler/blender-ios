@@ -2763,25 +2763,34 @@ static void do_version_adaptive_subdivision(Main *bmain)
 
 static void extract_alpha(bNodeTree *node_tree, bNodeSocket *image_output, bNodeLink *alpha_link)
 {
-  // todo(habib): use version_node_add_empty()
   bNode *target_node = alpha_link->tonode;
-  bNode *separate_node = blender::bke::node_add_static_node(
-      nullptr, *node_tree, CMP_NODE_SEPARATE_COLOR);
-  separate_node->parent = alpha_link->fromnode->parent;
-  separate_node->custom1 = NODE_COMBSEP_COLOR_RGB;
-  separate_node->location[0] = target_node->location[0];
-  separate_node->location[1] = target_node->location[1] - 20.0f;
-  separate_node->flag |= NODE_COLLAPSED;
+
+  bNode &separate_node = version_node_add_empty(*node_tree, "CompositorNodeSeparateColor");
+  version_node_add_socket(*node_tree, separate_node, SOCK_IN, "NodeSocketColor", "Image");
+  version_node_add_socket(*node_tree, separate_node, SOCK_OUT, "NodeSocketFloat", "Red");
+  version_node_add_socket(*node_tree, separate_node, SOCK_OUT, "NodeSocketFloat", "Green");
+  version_node_add_socket(*node_tree, separate_node, SOCK_OUT, "NodeSocketFloat", "Blue");
+  version_node_add_socket(*node_tree, separate_node, SOCK_OUT, "NodeSocketFloat", "Alpha");
+  NodeCMPCombSepColor *data = MEM_callocN<NodeCMPCombSepColor>(__func__);
+  data->mode = CMP_NODE_COMBSEP_COLOR_RGB;
+  data->ycc_mode = BLI_YCC_ITU_BT709;
+  separate_node.storage = data;
+
+  separate_node.parent = alpha_link->fromnode->parent;
+  separate_node.custom1 = NODE_COMBSEP_COLOR_RGB;
+  separate_node.location[0] = target_node->location[0];
+  separate_node.location[1] = target_node->location[1] - 20.0f;
+  separate_node.flag |= NODE_COLLAPSED;
 
   blender::bke::node_add_link(*node_tree,
                               *alpha_link->fromnode,
                               *image_output,
-                              *separate_node,
-                              *blender::bke::node_find_socket(*separate_node, SOCK_IN, "Image"));
+                              separate_node,
+                              *blender::bke::node_find_socket(separate_node, SOCK_IN, "Image"));
 
   blender::bke::node_add_link(*node_tree,
-                              *separate_node,
-                              *blender::bke::node_find_socket(*separate_node, SOCK_OUT, "Alpha"),
+                              separate_node,
+                              *blender::bke::node_find_socket(separate_node, SOCK_OUT, "Alpha"),
                               *alpha_link->tonode,
                               *alpha_link->tosock);
 }
