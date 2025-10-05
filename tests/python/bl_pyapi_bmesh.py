@@ -68,7 +68,7 @@ class TestBMeshBasic(unittest.TestCase):
 # ------------------------------------------------------------------------------
 # UV Selection
 
-def uv_select_check_or_empty(
+def bm_uv_select_check_or_empty(
         bm,
         sync=False,
         flush=False,
@@ -82,8 +82,8 @@ def uv_select_check_or_empty(
     ) or {}
 
 
-def uv_select_check_non_zero(
-        bm,
+def bm_uv_select_check_non_zero(
+        bm, /, *,
         sync=False,
         flush=False,
         contiguous=False,
@@ -100,6 +100,14 @@ def uv_select_check_non_zero(
     if result is not None:
         return {key: value for key, value in result.items() if value != 0}
     return {}
+
+
+def bm_uv_select_set_all(bm, /, *, select):
+    for f in bm.faces:
+        f.uv_select = select
+        for l in f.loops:
+            l.uv_select_vert = select
+            l.uv_select_edge = select
 
 
 def bm_uv_layer_from_coords(bm, uv_layer):
@@ -151,6 +159,11 @@ def bm_loop_select_count_vert_edge_face(bm):
     return (uv_vert, uv_edge, uv_face), (mesh_vert, mesh_edge, mesh_face)
 
 
+def bm_uv_select_reset(bm, /, *, select):
+    bm_uv_select_set_all(bm, select=select)
+    bm.uv_select_sync_to_mesh()
+
+
 class TestBMeshUVSelectSimple(unittest.TestCase):
 
     def test_uv_grid(self):
@@ -167,14 +180,14 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
 
         # Nothing selected.
         bm.uv_select_sync_valid = True
-        self.assertEqual(uv_select_check_or_empty(bm, sync=True), {})
+        self.assertEqual(bm_uv_select_check_or_empty(bm, sync=True), {})
 
         # All verts selected, no UV's selected.
         for v in bm.verts:
             v.select = True
 
         bm.uv_select_sync_valid = True
-        self.assertEqual(uv_select_check_or_empty(bm, sync=True).get(
+        self.assertEqual(bm_uv_select_check_or_empty(bm, sync=True).get(
             "count_uv_vert_none_selected_with_vert_selected", 0), 20)
 
         # No verts selected, all UV's selected.
@@ -186,7 +199,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
 
         bm.uv_select_sync_valid = True
         self.assertTrue(
-            uv_select_check_or_empty(bm, sync=True).get("count_uv_vert_any_selected_with_vert_unselected", 0),
+            bm_uv_select_check_or_empty(bm, sync=True).get("count_uv_vert_any_selected_with_vert_unselected", 0),
             48)
 
         bm.free()
@@ -211,7 +224,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
                 l.uv_select_edge = do_select
 
         bm.uv_select_sync_valid = True
-        result = uv_select_check_or_empty(bm, sync=True, flush=True, contiguous=False)
+        result = bm_uv_select_check_or_empty(bm, sync=True, flush=True, contiguous=False)
         self.assertTrue(result.get("count_uv_vert_any_selected_with_vert_unselected", 0), 48)
 
         bm.free()
@@ -224,7 +237,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush_mode()
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         bmesh.ops.create_grid(bm, x_segments=3, y_segments=3, size=1.0)
         # Needed for methods that act on UV select.
@@ -234,18 +247,11 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush_mode()
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
-
-        def bm_select_set_all(bm, select):
-            for f in bm.faces:
-                f.uv_select = select
-                for l in f.loops:
-                    l.uv_select_vert = select
-                    l.uv_select_edge = select
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         # Simple tests that selects all elements in a mode: `VERT`.
         bm.select_mode = {'VERT'}
-        bm_select_set_all(bm, False)
+        bm_uv_select_set_all(bm, select=False)
         # Select only verts.
         for f in bm.faces:
             for l in f.loops:
@@ -253,11 +259,11 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush_mode()
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((36, 36, 9), (16, 24, 9)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         # Simple tests that selects all elements in a mode: `EDGE`.
         bm.select_mode = {'EDGE'}
-        bm_select_set_all(bm, False)
+        bm_uv_select_set_all(bm, select=False)
         # Select only edges..
         for f in bm.faces:
             for l in f.loops:
@@ -265,18 +271,18 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush_mode()
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((36, 36, 9), (16, 24, 9)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         # Simple tests that selects all elements in a mode: `FACE`.
         bm.select_mode = {'FACE'}
-        bm_select_set_all(bm, False)
+        bm_uv_select_set_all(bm, select=False)
         # Select only faces.
         for f in bm.faces:
             f.uv_select_set(True)
         bm.uv_select_flush_mode()
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((36, 36, 9), (16, 24, 9)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         # TODO: Complex mixed selection.
 
@@ -289,7 +295,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush(True)
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         bmesh.ops.create_grid(bm, x_segments=3, y_segments=3, size=1.0)
         # Needed for methods that act on UV select.
@@ -300,7 +306,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush(True)
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         faces = list(bm.faces)
 
@@ -320,7 +326,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((4, 0, 0), (0, 0, 0)))
         # Check.
         self.assertEqual(
-            uv_select_check_non_zero(bm, sync=True, flush=True),
+            bm_uv_select_check_non_zero(bm, sync=True, flush=True),
             {
                 "count_uv_edge_unselected_with_all_verts_selected": 4,
                 "count_uv_face_unselected_with_all_verts_selected": 1,
@@ -332,7 +338,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((4, 4, 1), (4, 4, 1)))
         self.assertEqual(
-            uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True),
+            bm_uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True),
             # Not actually an error as the UV's have intentionally been selected in isolation.
             {
                 "count_uv_vert_non_contiguous_selected": 5,
@@ -346,8 +352,8 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush(False)
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True), {})
 
         # Select a single faces UV's bottom left hand corner (as well as adjacent UV's).
         for f in faces:
@@ -360,13 +366,13 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_flush(True)
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((9, 6, 1), (4, 4, 1)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True, contiguous=True), {})
 
         # Ensure flushing de-selection does nothing when there is nothing to do.
         bm.uv_select_flush(False)
         bm.uv_select_sync_to_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((9, 6, 1), (4, 4, 1)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         self.assertTrue(bm.uv_select_sync_valid)
 
@@ -374,14 +380,14 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
 
     def test_uv_select_sync_from_mesh(self):
         bm = bmesh.new()
-
         uv_layer = bm.loops.layers.uv.new()
+        del uv_layer
 
         # Do a NOP empty mesh check.
         bm.select_flush(True)
         bm.uv_select_sync_from_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         bmesh.ops.create_grid(bm, x_segments=4, y_segments=4, size=2.0)
         # Needed for methods that act on UV select.
@@ -393,7 +399,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.select_flush(True)
         bm.uv_select_sync_from_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         # Select all verts and flush back to the mesh.
         for v in bm.verts:
@@ -401,7 +407,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.select_flush(True)
         bm.uv_select_sync_from_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((64, 64, 16), (25, 40, 16)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         # TODO: Complex mixed selection.
 
@@ -410,14 +416,14 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         # perform some additional checks here such as checking hide is respected.
 
         bm = bmesh.new()
-
         uv_layer = bm.loops.layers.uv.new()
+        del uv_layer
 
         # Do a NOP empty mesh check.
         bm.select_flush(True)
         bm.uv_select_sync_from_mesh()
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         bmesh.ops.create_grid(bm, x_segments=4, y_segments=4, size=2.0)
         # Needed for methods that act on UV select.
@@ -432,7 +438,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
         bm.uv_select_sync_to_mesh()
 
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((64, 64, 16), (25, 40, 16)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         # Hide all geometry, then check syncing doesn't select them.
         for v in bm.verts:
@@ -444,7 +450,7 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
 
         bm.uv_select_flush(True)
         self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
-        self.assertEqual(uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
 
         bm.uv_select_sync_to_mesh()
         # Nothing should be selected because the mesh is hidden.
@@ -452,7 +458,102 @@ class TestBMeshUVSelectSimple(unittest.TestCase):
 
     def test_uv_select_foreach_set(self):
         # Select UV's directly, similar to selecting in the UV editor.
-        pass
+        bm = bmesh.new()
+        uv_layer = bm.loops.layers.uv.new()
+        bm.uv_select_sync_valid = True
+        bm.uv_select_foreach_set(True)
+
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((0, 0, 0), (0, 0, 0)))
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # Use 3 segments to avoid central vertices (simplifies above/below tests when picking half the mesh).
+        bmesh.ops.create_grid(bm, x_segments=3, y_segments=3, size=2.0)
+        bm_uv_layer_from_coords(bm, uv_layer)
+
+        # Select all vertices with X below 0.0.
+        verts_x_pos = []
+        verts_x_neg = []
+        for v in bm.verts:
+            (verts_x_pos if v.co.x > 0.0 else verts_x_neg).append(v)
+        self.assertEqual((len(verts_x_neg), len(verts_x_pos)), (8, 8))
+
+        verts_x_pos_as_set = set(verts_x_pos)
+        # verts_x_neg_as_set = set(verts_x_neg)
+
+        faces_x_pos = [
+            f for f in bm.faces
+            # Find the loop that spans positive edges.
+            if len(set(l.vert for l in f.loops) & verts_x_pos_as_set) == 4
+        ]
+        self.assertEqual(len(faces_x_pos), 3)
+
+        loop_edges_x_pos = [
+            l for f in faces_x_pos
+            for l in f.loops
+        ]
+        self.assertEqual(len(loop_edges_x_pos), 12)
+
+        # ---------------
+        # Select by Verts
+        bm.uv_select_foreach_set(
+            True,
+            loop_verts=[next(iter(v.link_loops)) for v in verts_x_pos],
+        )
+        bm.uv_select_flush(True)
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((18, 15, 3), (8, 10, 3)))
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
+        # ------------------
+        # De-Select by Verts
+        bm_uv_select_reset(bm, select=True)
+        bm.uv_select_foreach_set(
+            False,
+            loop_verts=[next(iter(v.link_loops)) for v in verts_x_pos],
+        )
+        bm.uv_select_flush(False)
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((18, 15, 3), (8, 10, 3)))
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # ---------------
+        # Select by Edges
+        bm.select_mode = {'EDGE'}
+        bm_uv_select_reset(bm, select=False)
+        bm.uv_select_foreach_set(True, loop_edges=loop_edges_x_pos)
+        bm.uv_select_flush_mode(flush_down=True)
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((18, 15, 3), (8, 10, 3)))
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # ------------------
+        # De-Select by Edges
+        bm_uv_select_reset(bm, select=True)
+        bm.uv_select_foreach_set(False, loop_edges=loop_edges_x_pos)
+        bm.uv_select_flush_mode(flush_down=True)
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((24, 21, 3), (12, 14, 3)))
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # ---------------
+        # Select by Faces
+        bm.select_mode = {'FACE'}
+        bm_uv_select_reset(bm, select=False)
+        bm.uv_select_foreach_set(True, faces=faces_x_pos)
+        bm.uv_select_flush_mode(flush_down=True)
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((12, 12, 3), (8, 10, 3)))
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # ------------------
+        # De-Select by Faces
+        bm_uv_select_reset(bm, select=True)
+        bm.uv_select_foreach_set(False, faces=faces_x_pos)
+        bm.uv_select_flush_mode(flush_down=True)
+        bm.uv_select_sync_to_mesh()
+        self.assertEqual(bm_loop_select_count_vert_edge_face(bm), ((24, 24, 6), (12, 17, 6)))
+        self.assertEqual(bm_uv_select_check_non_zero(bm, sync=True, flush=True), {})
+
+        # save_to_blend_file_for_testing(bm)
 
     def test_uv_select_foreach_set_from_mesh(self):
         """
