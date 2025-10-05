@@ -70,19 +70,23 @@ static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeS
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
-      params.other_socket());
-  if (!data_type) {
-    return;
-  }
+  const bNodeSocket &other_socket = params.other_socket();
+  const bool is_grid = other_socket.runtime->inferred_structure_type == StructureType::Grid;
+  const eNodeSocketDatatype other_type = eNodeSocketDatatype(other_socket.type);
+
   if (params.in_out() == SOCK_IN) {
-    params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSetGridTransform");
-      node.custom1 = *data_type;
-      params.update_and_connect_available_socket(node, "Grid");
-    });
-    const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
-    if (params.node_tree().typeinfo->validate_link(other_type, SOCK_MATRIX)) {
+    if (is_grid) {
+      const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
+          other_socket);
+      if (data_type) {
+        params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
+          bNode &node = params.add_node("GeometryNodeSetGridTransform");
+          node.custom1 = *data_type;
+          params.update_and_connect_available_socket(node, "Grid");
+        });
+      }
+    }
+    else if (params.node_tree().typeinfo->validate_link(other_type, SOCK_MATRIX)) {
       params.add_item(IFACE_("Transform"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSetGridTransform");
         params.update_and_connect_available_socket(node, "Transform");
@@ -90,15 +94,21 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     }
   }
   else {
-    params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSetGridTransform");
-      node.custom1 = *data_type;
-      params.update_and_connect_available_socket(node, "Grid");
-    });
-    params.add_item(IFACE_("Is Valid"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSetGridTransform");
-      params.update_and_connect_available_socket(node, "Is Valid");
-    });
+    const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
+        other_socket);
+    if (data_type) {
+      params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeSetGridTransform");
+        node.custom1 = *data_type;
+        params.update_and_connect_available_socket(node, "Grid");
+      });
+    }
+    if (params.node_tree().typeinfo->validate_link(SOCK_BOOLEAN, other_type)) {
+      params.add_item(IFACE_("Is Valid"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeSetGridTransform");
+        params.update_and_connect_available_socket(node, "Is Valid");
+      });
+    }
   }
 }
 
