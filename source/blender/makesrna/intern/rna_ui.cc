@@ -1704,7 +1704,10 @@ static void rna_def_ui_layout(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "UILayout", nullptr);
   RNA_def_struct_sdna(srna, "uiLayout");
-  RNA_def_struct_ui_text(srna, "UI Layout", "User interface layout in a panel or header");
+  RNA_def_struct_ui_text(srna,
+                         "UI Layout",
+                         "User interface layout in a panel or header. See :class:`Panel`, "
+                         ":class:`Menu` or :class:`Operator.draw` for usage examples.");
 
   prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_UILayout_active_get", "rna_UILayout_active_set");
