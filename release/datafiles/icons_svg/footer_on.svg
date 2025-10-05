@@ -24,14 +24,14 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="0.251875"
-     inkscape:cx="210.42184"
+     inkscape:cx="208.43672"
      inkscape:cy="1014.3921"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="1912"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg5">
+     inkscape:current-layer="g1">
     <inkscape:grid
        id="grid5"
        units="px"
@@ -50,14 +50,7 @@
      style="fill:#ffffff;fill-opacity:0.80000001">
     <path
        id="path3"
-       d="m 301.5,647 c -0.82235,0 -1.5,0.67765 -1.5,1.5 v 11.00486 c 0,0.82235 0.67765,1.5 1.5,1.5 h 11 c 0.82235,0 1.5,-0.67765 1.5,-1.5 V 648.5 c 0,-0.82235 -0.67765,-1.5 -1.5,-1.5 z m -0.5,1 h 12 v 12.00018 h -12 z"
-       opacity="0.6"
-       sodipodi:nodetypes="sssssssssccccc"
-       style="opacity:1;fill:#ffffff;fill-opacity:0.8" />
+       style="opacity:1;fill:#ffffff;fill-opacity:1"
+       d="M 301.50001 647 C 300.67766 647 300.00001 647.67765 300.00001 648.5 L 300.00001 659.50486 C 300.00001 660.32721 300.67766 661.00486 301.50001 661.00486 L 312.50001 661.00486 C 313.32236 661.00486 314.00001 660.32721 314.00001 659.50486 L 314.00001 648.5 C 314.00001 647.67765 313.32236 647 312.50001 647 L 301.50001 647 z M 301.00001 648 L 313.00001 648 L 313.00001 655.9992 L 301.00001 655.99879 L 301.00001 648 z " />
   </g>
-  <path
-     style="fill:#ffffff;fill-opacity:1;stroke-width:100;stroke-opacity:0.85"
-     d="m 199.81968,999.87806 1200.35702,0.0426 -0.043,400.25606 -1200.27185,-0.043 z"
-     id="path1"
-     sodipodi:nodetypes="ccccc" />
 </svg>

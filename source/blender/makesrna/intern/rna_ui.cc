@@ -27,26 +27,29 @@
 #include "WM_types.hh"
 
 /* see WM_types.hh */
+using wmOpCallContext = blender::wm::OpCallContext;
+
+/* clang-format off */
 const EnumPropertyItem rna_enum_operator_context_items[] = {
-    {WM_OP_INVOKE_DEFAULT, "INVOKE_DEFAULT", 0, "Invoke Default", ""},
-    {WM_OP_INVOKE_REGION_WIN, "INVOKE_REGION_WIN", 0, "Invoke Region Window", ""},
-    {WM_OP_INVOKE_REGION_CHANNELS, "INVOKE_REGION_CHANNELS", 0, "Invoke Region Channels", ""},
-    {WM_OP_INVOKE_REGION_PREVIEW, "INVOKE_REGION_PREVIEW", 0, "Invoke Region Preview", ""},
-    {WM_OP_INVOKE_AREA, "INVOKE_AREA", 0, "Invoke Area", ""},
-    {WM_OP_INVOKE_SCREEN, "INVOKE_SCREEN", 0, "Invoke Screen", ""},
-    {WM_OP_EXEC_DEFAULT, "EXEC_DEFAULT", 0, "Exec Default", ""},
-    {WM_OP_EXEC_REGION_WIN, "EXEC_REGION_WIN", 0, "Exec Region Window", ""},
-    {WM_OP_EXEC_REGION_CHANNELS, "EXEC_REGION_CHANNELS", 0, "Exec Region Channels", ""},
-    {WM_OP_EXEC_REGION_PREVIEW, "EXEC_REGION_PREVIEW", 0, "Exec Region Preview", ""},
-    {WM_OP_EXEC_AREA, "EXEC_AREA", 0, "Exec Area", ""},
-    {WM_OP_EXEC_SCREEN, "EXEC_SCREEN", 0, "Exec Screen", ""},
+    {int(wmOpCallContext::InvokeDefault), "INVOKE_DEFAULT", 0, "Invoke Default", ""},
+    {int(wmOpCallContext::InvokeRegionWin), "INVOKE_REGION_WIN", 0, "Invoke Region Window", ""},
+    {int(wmOpCallContext::InvokeRegionChannels), "INVOKE_REGION_CHANNELS", 0, "Invoke Region Channels", ""},
+    {int(wmOpCallContext::InvokeRegionPreview), "INVOKE_REGION_PREVIEW", 0, "Invoke Region Preview", ""},
+    {int(wmOpCallContext::InvokeArea), "INVOKE_AREA", 0, "Invoke Area", ""},
+    {int(wmOpCallContext::InvokeScreen), "INVOKE_SCREEN", 0, "Invoke Screen", ""},
+    {int(wmOpCallContext::ExecDefault), "EXEC_DEFAULT", 0, "Exec Default", ""},
+    {int(wmOpCallContext::ExecRegionWin), "EXEC_REGION_WIN", 0, "Exec Region Window", ""},
+    {int(wmOpCallContext::ExecRegionChannels), "EXEC_REGION_CHANNELS", 0, "Exec Region Channels", ""},
+    {int(wmOpCallContext::ExecRegionPreview), "EXEC_REGION_PREVIEW", 0, "Exec Region Preview", ""},
+    {int(wmOpCallContext::ExecArea), "EXEC_AREA", 0, "Exec Area", ""},
+    {int(wmOpCallContext::ExecScreen), "EXEC_SCREEN", 0, "Exec Screen", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
+/* clang-format on */
 
 const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
     {UILST_LAYOUT_DEFAULT, "DEFAULT", 0, "Default Layout", "Use the default, multi-rows layout"},
     {UILST_LAYOUT_COMPACT, "COMPACT", 0, "Compact Layout", "Use the compact, single-row layout"},
-    {UILST_LAYOUT_GRID, "GRID", 0, "Grid Layout", "Use the grid-based layout"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1241,7 +1244,7 @@ static StructRNA *rna_AssetShelf_register(Main *bmain,
                 RPT_ERROR,
                 "Registering asset shelf class: '%s' is too long, maximum length is %d",
                 identifier,
-                (int)sizeof(shelf_type->idname));
+                int(sizeof(shelf_type->idname)));
     return nullptr;
   }
 
@@ -1305,6 +1308,24 @@ static void rna_AssetShelf_activate_operator_set(PointerRNA *ptr, const char *va
 {
   AssetShelf *shelf = static_cast<AssetShelf *>(ptr->data);
   shelf->type->activate_operator = value;
+}
+
+static void rna_AssetShelf_drag_operator_get(PointerRNA *ptr, char *value)
+{
+  AssetShelf *shelf = static_cast<AssetShelf *>(ptr->data);
+  strcpy(value, shelf->type->drag_operator.c_str());
+}
+
+static int rna_AssetShelf_drag_operator_length(PointerRNA *ptr)
+{
+  AssetShelf *shelf = static_cast<AssetShelf *>(ptr->data);
+  return shelf->type->drag_operator.size();
+}
+
+static void rna_AssetShelf_drag_operator_set(PointerRNA *ptr, const char *value)
+{
+  AssetShelf *shelf = static_cast<AssetShelf *>(ptr->data);
+  shelf->type->drag_operator = value;
 }
 
 static StructRNA *rna_AssetShelf_refine(PointerRNA *shelf_ptr)
@@ -1394,22 +1415,22 @@ static void rna_UILayout_activate_init_set(PointerRNA *ptr, bool value)
 
 static bool rna_UILayout_alert_get(PointerRNA *ptr)
 {
-  return uiLayoutGetRedAlert(static_cast<uiLayout *>(ptr->data));
+  return static_cast<uiLayout *>(ptr->data)->red_alert();
 }
 
 static void rna_UILayout_alert_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetRedAlert(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->red_alert_set(value);
 }
 
 static void rna_UILayout_op_context_set(PointerRNA *ptr, int value)
 {
-  static_cast<uiLayout *>(ptr->data)->operator_context_set(wmOperatorCallContext(value));
+  static_cast<uiLayout *>(ptr->data)->operator_context_set(blender::wm::OpCallContext(value));
 }
 
 static int rna_UILayout_op_context_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->operator_context();
+  return int(static_cast<uiLayout *>(ptr->data)->operator_context());
 }
 
 static bool rna_UILayout_enabled_get(PointerRNA *ptr)
@@ -1425,12 +1446,12 @@ static void rna_UILayout_enabled_set(PointerRNA *ptr, bool value)
 #  if 0
 static int rna_UILayout_red_alert_get(PointerRNA *ptr)
 {
-  return uiLayoutGetRedAlert(static_cast<uiLayout *>(ptr->data));
+  return static_cast<uiLayout *>(ptr->data)->red_alert();
 }
 
 static void rna_UILayout_red_alert_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetRedAlert(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->red_alert_set(value);
 }
 #  endif
 
@@ -1446,7 +1467,7 @@ static void rna_UILayout_alignment_set(PointerRNA *ptr, int value)
 
 static int rna_UILayout_direction_get(PointerRNA *ptr)
 {
-  return uiLayoutGetLocalDir(static_cast<uiLayout *>(ptr->data));
+  return int(ptr->data_as<uiLayout>()->local_direction());
 }
 
 static float rna_UILayout_scale_x_get(PointerRNA *ptr)
@@ -1501,22 +1522,22 @@ static void rna_UILayout_emboss_set(PointerRNA *ptr, int value)
 
 static bool rna_UILayout_property_split_get(PointerRNA *ptr)
 {
-  return uiLayoutGetPropSep(static_cast<uiLayout *>(ptr->data));
+  return static_cast<const uiLayout *>(ptr->data)->use_property_split();
 }
 
 static void rna_UILayout_property_split_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetPropSep(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->use_property_split_set(value);
 }
 
 static bool rna_UILayout_property_decorate_get(PointerRNA *ptr)
 {
-  return uiLayoutGetPropDecorate(static_cast<uiLayout *>(ptr->data));
+  return static_cast<const uiLayout *>(ptr->data)->use_property_decorate();
 }
 
 static void rna_UILayout_property_decorate_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetPropDecorate(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->use_property_decorate_set(value);
 }
 
 /* File Handler */
@@ -1653,8 +1674,8 @@ static void rna_def_ui_layout(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem direction_items[] = {
-      {UI_LAYOUT_HORIZONTAL, "HORIZONTAL", 0, "Horizontal", ""},
-      {UI_LAYOUT_VERTICAL, "VERTICAL", 0, "Vertical", ""},
+      {int(blender::ui::LayoutDirection::Horizontal), "HORIZONTAL", 0, "Horizontal", ""},
+      {int(blender::ui::LayoutDirection::Vertical), "VERTICAL", 0, "Vertical", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1670,11 +1691,7 @@ static void rna_def_ui_layout(BlenderRNA *brna)
        0,
        "Pull-down Menu",
        "Draw pull-down menu style"},
-      {int(blender::ui::EmbossType::PieMenu),
-       "RADIAL_MENU",
-       0,
-       "Pie Menu",
-       "Draw radial menu style"},
+      {int(blender::ui::EmbossType::PieMenu), "PIE_MENU", 0, "Pie Menu", "Draw radial menu style"},
       {int(blender::ui::EmbossType::NoneOrStatus),
        "NONE_OR_STATUS",
        0,
@@ -1932,9 +1949,9 @@ static void rna_def_panel(BlenderRNA *brna)
                            "possible combinations bl_context/bl_region_type/bl_space_type)");
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_enum_sdna(prop, nullptr, "type->flag");
   RNA_def_property_enum_items(prop, panel_flag_items);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this panel type");
 
   prop = RNA_def_property(srna, "bl_parent_id", PROP_STRING, PROP_NONE);
@@ -1980,7 +1997,7 @@ static void rna_def_uilist(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "uiList");
   RNA_def_struct_refine_func(srna, "rna_UIList_refine");
   RNA_def_struct_register_funcs(srna, "rna_UIList_register", "rna_UIList_unregister", nullptr);
-  RNA_def_struct_idprops_func(srna, "rna_UIList_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_UIList_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES | STRUCT_PUBLIC_NAMESPACE_INHERIT);
 
   /* Registration */
@@ -2284,9 +2301,9 @@ static void rna_def_menu(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_enum_sdna(prop, nullptr, "type->flag");
   RNA_def_property_enum_items(prop, menu_flag_items);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this menu type");
 
   RNA_define_verify_sdna(true);
@@ -2316,6 +2333,12 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
        "Store Enabled Catalogs in Preferences",
        "Store the shelf's enabled catalogs in the preferences rather than the local asset shelf "
        "settings"},
+      {ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU,
+       "ACTIVATE_FOR_CONTEXT_MENU",
+       0,
+       "",
+       "When spawning a context menu for an asset, activate the asset and call "
+       "`bl_activate_operator` if present, rather than just highlighting the asset"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2343,13 +2366,15 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
   RNA_def_property_enum_sdna(prop, nullptr, "type->space_type");
   RNA_def_property_enum_items(prop, rna_enum_space_type_items);
   RNA_def_property_flag(prop, PROP_REGISTER);
-  RNA_def_property_ui_text(
-      prop, "Space Type", "The space where the asset shelf is going to be used in");
+  RNA_def_property_ui_text(prop,
+                           "Space Type",
+                           "The space where the asset shelf will show up in. Ignored for popup "
+                           "asset shelves which can be displayed in any space.");
 
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_enum_sdna(prop, nullptr, "type->flag");
   RNA_def_property_enum_items(prop, asset_shelf_flag_items);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Options for this asset shelf type");
 
   prop = RNA_def_property(srna, "bl_activate_operator", PROP_STRING, PROP_NONE);
@@ -2362,6 +2387,17 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
       prop,
       "Activate Operator",
       "Operator to call when activating an item with asset reference properties");
+
+  prop = RNA_def_property(srna, "bl_drag_operator", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_AssetShelf_drag_operator_get",
+                                "rna_AssetShelf_drag_operator_length",
+                                "rna_AssetShelf_drag_operator_set");
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop,
+      "Drag Operator",
+      "Operator to call when dragging an item with asset reference properties");
 
   prop = RNA_def_property(srna, "bl_default_preview_size", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "type->default_preview_size");
@@ -2401,7 +2437,7 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
                          "asset_reference",
                          "AssetWeakReference",
                          "",
-                         "The weak reference to the asset to be hightlighted as active, or None");
+                         "The weak reference to the asset to be highlighted as active, or None");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "draw_context_menu", nullptr);
@@ -2501,7 +2537,7 @@ static void rna_def_file_handler(BlenderRNA *brna)
       "File Extensions",
       "Formatted string of file extensions supported by the file handler, each extension should "
       "start with a \".\" and be separated by \";\"."
-      "\nFor Example: `\".blend;.ble\"`");
+      "\nFor Example: ``\".blend;.ble\"``");
 
   PropertyRNA *parm;
   FunctionRNA *func;

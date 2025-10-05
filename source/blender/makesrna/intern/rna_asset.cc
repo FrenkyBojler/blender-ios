@@ -80,7 +80,7 @@ static bool rna_AssetMetaData_editable_from_owner_id(const ID *owner_id,
 
   if (r_info) {
     *r_info = N_(
-        "Asset metadata from external asset libraries can't be edited, only assets stored in the "
+        "Asset metadata from external asset libraries cannot be edited, only assets stored in the "
         "current file can");
   }
   return false;
@@ -525,6 +525,12 @@ static void rna_def_asset_data(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Asset Data", "Additional data stored for an asset data-block");
   //  RNA_def_struct_ui_icon(srna, ICON_ASSET); /* TODO: Icon doesn't exist! */
   /* The struct has custom properties, but no pointer properties to other IDs! */
+  /* FIXME: These need to remain 'user-defined' properties for now, as they are _not_ accessible
+   * through RNA system.
+   * Current situation is not great, as these idprops are technically system-defined (users have no
+   * access/control over them), yet they behave as user-defined ones.
+   * Ultimately it's a similar issue as with the 'Node Modifier' - though not sure the same
+   * solution (actually using RNA access to them) would be desired here?. */
   RNA_def_struct_idprops_func(srna, "rna_AssetMetaData_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES); /* Mandatory! */
 
@@ -671,12 +677,6 @@ static void rna_def_asset_representation(BlenderRNA *brna)
       "of the asset inside the file");
 }
 
-static void rna_def_asset_catalog_path(BlenderRNA *brna)
-{
-  StructRNA *srna = RNA_def_struct(brna, "AssetCatalogPath", nullptr);
-  RNA_def_struct_ui_text(srna, "Catalog Path", "");
-}
-
 static void rna_def_asset_library_reference(BlenderRNA *brna)
 {
   StructRNA *srna = RNA_def_struct(brna, "AssetLibraryReference", nullptr);
@@ -722,7 +722,6 @@ void RNA_def_asset(BlenderRNA *brna)
   rna_def_asset_data(brna);
   rna_def_asset_library_reference(brna);
   rna_def_asset_representation(brna);
-  rna_def_asset_catalog_path(brna);
   rna_def_asset_weak_reference(brna);
 
   RNA_define_animate_sdna(true);

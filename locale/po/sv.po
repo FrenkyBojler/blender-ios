@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Beta (b'6ccdb8c06e27')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-16 10:45+0000\n"
-"PO-Revision-Date: 2025-06-16 09:45+0000\n"
+"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"PO-Revision-Date: 2025-09-29 00:59+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
 "Language: sv\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.11"
+"X-Generator: Weblate 5.12.1"
 
 
 msgid "Shader AOV"
@@ -207,6 +207,10 @@ msgid "Expanded"
 msgstr "Expanderad"
 
 
+msgid "Action group is expanded except in graph editor"
+msgstr "Åtgärdsgruppen utökas förutom i grafredigeraren"
+
+
 msgid "Expanded in Graph Editor"
 msgstr "Expanderad i grafredigeraren"
 
@@ -225,6 +229,10 @@ msgstr "Åtgärdslager"
 
 msgid "Action Layers"
 msgstr "Åtgärdslager"
+
+
+msgid "Collection of animation layers"
+msgstr "Samling av animationslager"
 
 
 msgid "Collection of timeline markers"
@@ -462,8 +470,24 @@ msgid "Device to use for computation (rendering with Cycles)"
 msgstr "Enhet att använda för beräkning (rendering med Cycles)"
 
 
+msgid "Kernel Optimization"
+msgstr "Kärnoptimering"
+
+
+msgid "Kernels can be optimized based on scene content. Optimized kernels are requested at the start of a render. If optimized kernels are not available, rendering will proceed using generic kernels until the optimized set is available in the cache. This can result in additional CPU usage for a brief time (tens of seconds)"
+msgstr "Kärnor kan optimeras baserat på sceninnehåll. Optimerade kärnor begärs i början av en rendering. Om optimerade kärnor inte finns tillgängliga fortsätter renderingen med generiska kärnor tills den optimerade uppsättningen finns tillgänglig i cacheminnet. Detta kan resultera i extra CPU-användning under en kort tid (tiotals sekunder)"
+
+
 msgid "Off"
 msgstr "Av"
+
+
+msgid "Disable kernel optimization. Slowest rendering, no extra background CPU usage"
+msgstr "Inaktivera kärnoptimering. Långsammast rendering, ingen extra CPU-användning i bakgrunden"
+
+
+msgid "Full"
+msgstr "Fullständig"
 
 
 msgid "Optimize all kernels. Fastest rendering, may result in extra background CPU usage"
@@ -474,6 +498,10 @@ msgid "MetalRT"
 msgstr "MetalRT"
 
 
+msgid "MetalRT for ray tracing uses less memory for scenes which use curves extensively, and can give better performance in specific cases"
+msgstr "MetalRT för strålspårning använder mindre minne för scener som använder kurvor i stor utsträckning, och kan ge bättre prestanda i vissa fall"
+
+
 msgid "On"
 msgstr "På"
 
@@ -482,12 +510,36 @@ msgid "Auto"
 msgstr "Auto"
 
 
+msgid "Automatically pick the fastest intersection method"
+msgstr "Välj automatiskt den snabbaste intersektionsmetoden"
+
+
 msgid "Distribute memory across devices"
 msgstr "Fördela minne över enheter"
 
 
+msgid "HIP RT (Unstable)"
+msgstr "HIP RT (Ostabil)"
+
+
+msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above. This currently has known stability issues, that are expected to be solved before the next release."
+msgstr "HIP RT möjliggör AMD-hårdvarustrålspårning på RDNA2 och högre. Det finns för närvarande kända stabilitetsproblem, som förväntas vara lösta före nästa utgåva."
+
+
 msgid "Embree on GPU"
 msgstr "Embree på GPU"
+
+
+msgid "KHR_materials_variants_ui"
+msgstr "KHR_materials_variants_ui"
+
+
+msgid "Displays glTF UI to manage material variants"
+msgstr "Visar glTF UI för att hantera materialvarianter"
+
+
+msgid "Path to gltfpack binary"
+msgstr "Sökväg till binärfilen gltfpack"
 
 
 msgid "        Filter by Name"
@@ -518,12 +570,24 @@ msgid "Translation Root"
 msgstr "Översättningsrot"
 
 
+msgid "The bf-translation repository"
+msgstr "Arkivet för bf-translation"
+
+
 msgid "Import Paths"
 msgstr "Import-sökvägar"
 
 
 msgid "Additional paths to add to sys.path (';' separated)"
 msgstr "Ytterligare sökvägar att lägga till i sys.path (separerade med ';')"
+
+
+msgid "Warn about messages not starting by a capitalized letter (with a few allowed exceptions!)"
+msgstr "Varna för meddelanden som inte inleds med en versal bokstav (med några få tillåtna undantag!)"
+
+
+msgid "Persistent Data Path"
+msgstr "Beständig datasökväg"
 
 
 msgid "User Add-ons"
@@ -646,6 +710,74 @@ msgid "Bake to active Camera"
 msgstr "Baka till aktiv kamera"
 
 
+msgid "Active Frame"
+msgstr "Aktiv bildruta"
+
+
+msgid "Hide"
+msgstr "Göm"
+
+
+msgid "After Color"
+msgstr "Efter färg"
+
+
+msgid "Frames After"
+msgstr "Bildrutor efter"
+
+
+msgid "Before Color"
+msgstr "Före färg"
+
+
+msgid "Frames Before"
+msgstr "Bildrutor före"
+
+
+msgid "Opacity"
+msgstr "Genomskinlighet"
+
+
+msgid "Frames"
+msgstr "Rutor"
+
+
+msgid "Info"
+msgstr "Info"
+
+
+msgid "Layer name"
+msgstr "Lagernamn"
+
+
+msgid "Ruler"
+msgstr "Linjal"
+
+
+msgid "Locked"
+msgstr "Låst"
+
+
+msgid "In Front"
+msgstr "Framför"
+
+
+msgid "Thickness"
+msgstr "Tjocklek"
+
+
+msgid "Onion Skinning"
+msgstr "Lökskal"
+
+
+msgid "Default"
+msgstr "Förval"
+
+
+msgid "Coordinates"
+msgstr "Koordinater"
+
+
 msgid "Any Type"
 msgstr "Valfri typ"
 
@@ -734,10 +866,6 @@ msgid "Python Console"
 msgstr "Python-konsol"
 
 
-msgid "Info"
-msgstr "Info"
-
-
 msgid "Top Bar"
 msgstr "Toppfält"
 
@@ -820,10 +948,6 @@ msgstr "Aktivt ben"
 
 msgid "Armature's active bone"
 msgstr "Armaturens aktiva ben"
-
-
-msgid "Catalog Path"
-msgstr "Katalogsökväg"
 
 
 msgid "Asset Data"
@@ -975,6 +1099,10 @@ msgid "Options for this asset shelf type"
 msgstr "Alternativ för denna typ av tillgångshylla"
 
 
+msgid "When spawning a context menu for an asset, activate the asset and call `bl_activate_operator` if present, rather than just highlighting the asset"
+msgstr "När du skapar ett snabbmeny för en tillgång, aktivera tillgången och anropa `bl_activate_operator` om det finns, istället för att bara markera tillgången"
+
+
 msgid "Preview Size"
 msgstr "Förhandsvisning storlek"
 
@@ -1039,6 +1167,14 @@ msgid "32-bit integer"
 msgstr "32-bit heltal"
 
 
+msgid "Boolean"
+msgstr "Boolesk"
+
+
+msgid "True or false"
+msgstr "Sant eller falskt"
+
+
 msgid "Vector"
 msgstr "Vektor"
 
@@ -1051,8 +1187,12 @@ msgid "RGBA color with 32-bit floating-point values"
 msgstr "RGBA-färg med 32-bitars flyttalsvärden"
 
 
-msgid "RGBA color with 8-bit positive integer values"
-msgstr "RGBA-färg med 8-bitars positivt heltalsvärde"
+msgid "Quaternion"
+msgstr "Kvaternion"
+
+
+msgid "Floating point quaternion rotation"
+msgstr "Flyttals kvaternionsrotation"
 
 
 msgid "String"
@@ -1061,22 +1201,6 @@ msgstr "Sträng"
 
 msgid "Text string"
 msgstr "Textsträng"
-
-
-msgid "Boolean"
-msgstr "Boolesk"
-
-
-msgid "True or false"
-msgstr "Sant eller falskt"
-
-
-msgid "2D Vector"
-msgstr "2D-vektor"
-
-
-msgid "2D vector with floating-point values"
-msgstr "2D-vektor med flyttalsvärden"
 
 
 msgid "8-Bit Integer"
@@ -1091,12 +1215,16 @@ msgid "2D Integer Vector"
 msgstr "2D-heltalsvektor"
 
 
-msgid "Quaternion"
-msgstr "Kvaternion"
+msgid "2D Vector"
+msgstr "2D-vektor"
 
 
-msgid "Floating point quaternion rotation"
-msgstr "Flyttals kvaternionsrotation"
+msgid "2D vector with floating-point values"
+msgstr "2D-vektor med flyttalsvärden"
+
+
+msgid "RGBA color with 8-bit positive integer values"
+msgstr "RGBA-färg med 8-bitars positivt heltalsvärde"
 
 
 msgid "Domain"
@@ -1175,6 +1303,14 @@ msgid "Name of the Attribute"
 msgstr "Namn på attributen"
 
 
+msgid "Store a value for every element"
+msgstr "Lagra ett värde för varje element"
+
+
+msgid "Store a single value for the entire domain"
+msgstr "Lagra ett enstaka värde för hela domänen"
+
+
 msgid "Bool Attribute"
 msgstr "Boolesk attribut"
 
@@ -1251,6 +1387,14 @@ msgid "The name of the default color attribute used as a fallback for rendering"
 msgstr "Namnet på standard färgattribut som används som reserv för rendering"
 
 
+msgid "Object"
+msgstr "Objekt"
+
+
+msgid "Tangent"
+msgstr "Tangent"
+
+
 msgid "File Path"
 msgstr "Sökväg"
 
@@ -1311,14 +1455,6 @@ msgid "-Z"
 msgstr "-Z"
 
 
-msgid "Object"
-msgstr "Objekt"
-
-
-msgid "Tangent"
-msgstr "Tangent"
-
-
 msgid "None"
 msgstr "Ingen"
 
@@ -1355,8 +1491,28 @@ msgid "Image Textures"
 msgstr "Bildtexturer"
 
 
+msgid "Bake Type"
+msgstr "Bakningstyp"
+
+
+msgid "Normals"
+msgstr "Normaler"
+
+
 msgid "Clear"
 msgstr "Nollställ"
+
+
+msgid "Low Resolution Mesh"
+msgstr "Lågupplöst mesh"
+
+
+msgid "Calculate heights against unsubdivided low resolution mesh"
+msgstr "Beräkna höjder mot icke-uppdelat lågupplöst mesh"
+
+
+msgid "Emission"
+msgstr "Emission"
 
 
 msgid "View From"
@@ -1411,10 +1567,6 @@ msgid "Handle 2 Type"
 msgstr "Typ för handtag 2"
 
 
-msgid "Hide"
-msgstr "Göm"
-
-
 msgid "Visibility status"
 msgstr "Synlighetsstatus"
 
@@ -1459,6 +1611,10 @@ msgid "Actions"
 msgstr "Åtgärder"
 
 
+msgid "Annotation"
+msgstr "Anteckning"
+
+
 msgid "Armatures"
 msgstr "Armaturer"
 
@@ -1499,6 +1655,14 @@ msgid "Collection data-blocks"
 msgstr "Samling datablock"
 
 
+msgid "Color Space"
+msgstr "Färgrymd"
+
+
+msgid "Information about the color space used for data-blocks in a blend file"
+msgstr "Information om färgrymden som används för datablock i en blend-fil"
+
+
 msgid "Curves"
 msgstr "Kurvor"
 
@@ -1521,10 +1685,6 @@ msgstr "Vektortypsnitt"
 
 msgid "Vector font data-blocks"
 msgstr "Vektortypsnitt datablock"
-
-
-msgid "Annotation"
-msgstr "Anteckning"
 
 
 msgid "Grease Pencil"
@@ -2027,6 +2187,26 @@ msgid "Collection of worlds"
 msgstr "Samling av världar"
 
 
+msgid "Blend-File Color Space"
+msgstr "Färgrymd för blend-fil"
+
+
+msgid "Missing OpenColorIO Configuration"
+msgstr "Saknad OpenColorIO-konfiguration"
+
+
+msgid "A color space, view or display was not found, which likely means the OpenColorIO config used to create this blend file is missing"
+msgstr "Ett färgrymd, en vy eller en skärm hittades inte, vilket troligen betyder att OpenColorIO-konfigurationen som användes för att skapa denna blend-fil saknas"
+
+
+msgid "Color space used for all scene linear colors in this file, and for compositing, shader and geometry nodes processing"
+msgstr "Färgrymd som används för alla linjära färger i denna fil, samt för komposition, shader och geometrinodbearbetning"
+
+
+msgid "ACEScg"
+msgstr "ACEScg"
+
+
 msgid "Current stage of the import process"
 msgstr "Aktuellt skede i importprocessen"
 
@@ -2418,10 +2598,6 @@ msgid "Hardness"
 msgstr "Hårdhet"
 
 
-msgid "Thickness"
-msgstr "Tjocklek"
-
-
 msgctxt "Brush"
 msgid "Jitter"
 msgstr "Jitter"
@@ -2519,10 +2695,6 @@ msgstr "Bana"
 
 msgid "Background Image"
 msgstr "Bakgrundsbild"
-
-
-msgid "Opacity"
-msgstr "Genomskinlighet"
 
 
 msgid "Clip User"
@@ -2739,20 +2911,20 @@ msgid "Kill collided particles"
 msgstr "Ta bort krockade partiklar"
 
 
-msgid "Display device name"
-msgstr "Visa enhetens namn"
+msgid "Display"
+msgstr "Visa"
 
 
 msgid "Is Data"
 msgstr "Är data"
 
 
+msgid "ACES 2.0 sRGB"
+msgstr "ACES 2.0 sRGB"
+
+
 msgid "ACES2065-1"
 msgstr "ACES2065-1"
-
-
-msgid "ACEScg"
-msgstr "ACEScg"
 
 
 msgid "Display P3"
@@ -2767,12 +2939,12 @@ msgid "Rec.2020"
 msgstr "Rec.2020"
 
 
-msgid "Color Space"
-msgstr "Färgrymd"
-
-
 msgid "Curve"
 msgstr "Bana"
+
+
+msgid "Is HDR"
+msgstr "Är HDR"
 
 
 msgid "Use Curves"
@@ -2781,6 +2953,10 @@ msgstr "Använd kurvor"
 
 msgid "Use White Balance"
 msgstr "Använd vitbalans"
+
+
+msgid "View"
+msgstr "Visning"
 
 
 msgid "White Point"
@@ -3122,10 +3298,6 @@ msgstr "Kopiera Z"
 
 msgid "Copy the target's Z location"
 msgstr "Kopiera målets Z-position"
-
-
-msgid "Default"
-msgstr "Förval"
 
 
 msgid "Invert the X rotation"
@@ -3477,10 +3649,6 @@ msgid "Plane"
 msgstr "Plan"
 
 
-msgid "View"
-msgstr "Visning"
-
-
 msgid "Detect Corners"
 msgstr "Upptäck hörn"
 
@@ -3676,6 +3844,10 @@ msgstr "Enstaka egenskap"
 
 msgid "Inner Proximity"
 msgstr "Inre närhet"
+
+
+msgid "Paint Color Ramp"
+msgstr "Färgramp"
 
 
 msgctxt "Brush"
@@ -4325,14 +4497,6 @@ msgid "File Extensions"
 msgstr "Filändelse"
 
 
-msgid ""
-"Formatted string of file extensions supported by the file handler, each extension should start with a \".\" and be separated by \";\".\n"
-"For Example: `\".blend;.ble\"`"
-msgstr ""
-"Formaterad sträng av filändelser som stöds av filhanteraren, varje filändelse ska börja med \".\" och separeras med \";\".\n"
-"Till exempel: `\".blend;.ble\"`"
-
-
 msgid "Label"
 msgstr "Etikett"
 
@@ -4717,6 +4881,10 @@ msgid "Append"
 msgstr "Infoga"
 
 
+msgid "Pack"
+msgstr "Packa"
+
+
 msgid "2D vector"
 msgstr "2D-vektor"
 
@@ -5031,6 +5199,10 @@ msgid "Menu"
 msgstr "Meny"
 
 
+msgid "Shader"
+msgstr "Shader"
+
+
 msgid "Collection"
 msgstr "Samling"
 
@@ -5071,50 +5243,6 @@ msgid "Python Scripting"
 msgstr "Python-skriptning"
 
 
-msgid "Active Frame"
-msgstr "Aktiv bildruta"
-
-
-msgid "After Color"
-msgstr "Efter färg"
-
-
-msgid "Frames After"
-msgstr "Bildrutor efter"
-
-
-msgid "Before Color"
-msgstr "Före färg"
-
-
-msgid "Frames Before"
-msgstr "Bildrutor före"
-
-
-msgid "Frames"
-msgstr "Rutor"
-
-
-msgid "Layer name"
-msgstr "Lagernamn"
-
-
-msgid "Ruler"
-msgstr "Linjal"
-
-
-msgid "Locked"
-msgstr "Låst"
-
-
-msgid "In Front"
-msgstr "Framför"
-
-
-msgid "Onion Skinning"
-msgstr "Lökskal"
-
-
 msgid "Use object as reference point"
 msgstr "Använd objektet som referenspunkt"
 
@@ -5145,10 +5273,6 @@ msgstr "Påverka endast aktivt lager"
 
 msgid "Use Curve"
 msgstr "Använd kurva"
-
-
-msgid "Coordinates"
-msgstr "Koordinater"
 
 
 msgid "Line Width"
@@ -5593,6 +5717,10 @@ msgid "Add Color"
 msgstr "Lägg till färg"
 
 
+msgid "Falloff Curve"
+msgstr "Avtagandekurva"
+
+
 msgctxt "Curve"
 msgid "Custom"
 msgstr "Anpassad"
@@ -5657,26 +5785,6 @@ msgid "Scale"
 msgstr "Skala"
 
 
-msgctxt "GPencil"
-msgid "Brush Type"
-msgstr "Penseltyp"
-
-
-msgctxt "GPencil"
-msgid "Thickness"
-msgstr "Tjocklek"
-
-
-msgctxt "GPencil"
-msgid "Randomize"
-msgstr "Slumpa"
-
-
-msgctxt "GPencil"
-msgid "Clone"
-msgstr "Klona"
-
-
 msgctxt "Brush"
 msgid "Brush Type"
 msgstr "Penseltyp"
@@ -5707,6 +5815,26 @@ msgstr "Sudda ut"
 
 msgid "The brush is used for erasing strokes"
 msgstr "Penseln används för att sudda ut streck"
+
+
+msgctxt "GPencil"
+msgid "Brush Type"
+msgstr "Penseltyp"
+
+
+msgctxt "GPencil"
+msgid "Thickness"
+msgstr "Tjocklek"
+
+
+msgctxt "GPencil"
+msgid "Randomize"
+msgstr "Slumpa"
+
+
+msgctxt "GPencil"
+msgid "Clone"
+msgstr "Klona"
 
 
 msgid "Brush Type"
@@ -5792,14 +5920,6 @@ msgid "Saturation Jitter"
 msgstr "Mättnadsjitter"
 
 
-msgid "Y Plane"
-msgstr "Y-plan"
-
-
-msgid "Z Plane"
-msgstr "Z-plan"
-
-
 msgctxt "Brush"
 msgid "Clay"
 msgstr "Lera"
@@ -5833,6 +5953,14 @@ msgstr "Tyg"
 msgctxt "Brush"
 msgid "Paint"
 msgstr "Måla"
+
+
+msgid "Y Plane"
+msgstr "Y-plan"
+
+
+msgid "Z Plane"
+msgstr "Z-plan"
 
 
 msgid "Secondary Color"
@@ -5911,6 +6039,10 @@ msgid "Show texture in viewport"
 msgstr "Visa textur i vy"
 
 
+msgid "Spacing Distance"
+msgstr "Avståndsdistans"
+
+
 msgid "Adjust Strength for Spacing"
 msgstr "Justera styrkan för avstånd"
 
@@ -5955,6 +6087,10 @@ msgstr "Min longitud"
 
 msgid "Clip Start"
 msgstr "Beskärningsstart"
+
+
+msgid "Custom File Path"
+msgstr "Anpassad filsökväg"
 
 
 msgid "Use internal text data-block"
@@ -6161,10 +6297,6 @@ msgid "Fast Editing"
 msgstr "Snabbredigera"
 
 
-msgid "Normals"
-msgstr "Normaler"
-
-
 msgid "Active Texture"
 msgstr "Aktiv textur"
 
@@ -6254,40 +6386,40 @@ msgid "Color Space Settings"
 msgstr "Inställningar för färgrymd"
 
 
-msgid "BMP"
-msgstr "BMP"
+msgid "Output image in JPEG format"
+msgstr "Resultatbild i JPEG-format"
 
 
-msgid "Output image in bitmap format"
-msgstr "Resultatbild som pixelbild"
-
-
-msgid "Iris"
-msgstr "Iris"
+msgid "Output image in OpenEXR format"
+msgstr "Resultatbild i OpenEXR-format"
 
 
 msgid "Output image in PNG format"
 msgstr "Resultatbild i PNG-format"
 
 
-msgid "JPEG"
-msgstr "JPEG"
+msgid "Output image in bitmap format"
+msgstr "Resultatbild som pixelbild"
 
 
-msgid "Output image in JPEG format"
-msgstr "Resultatbild i JPEG-format"
+msgid "Output image in Cineon format"
+msgstr "Resultatbild i Cineon-format"
 
 
-msgid "JPEG 2000"
-msgstr "JPEG 2000"
+msgid "DPX (.dpx)"
+msgstr "DPX (.dpx)"
+
+
+msgid "Output image in DPX format"
+msgstr "Resultatbild i DPX-format"
 
 
 msgid "Output image in JPEG 2000 format"
 msgstr "Resultatbild i JPEG 2000-format"
 
 
-msgid "Targa"
-msgstr "Targa"
+msgid "Output image in Radiance HDR format"
+msgstr "Resultatbild i Radiance HDR-format"
 
 
 msgid "Output image in Targa format"
@@ -6298,48 +6430,20 @@ msgid "Output image in uncompressed Targa format"
 msgstr "Resultatbild i okomprimerat TARGA-format"
 
 
-msgid "Cineon"
-msgstr "Cineon"
-
-
-msgid "Output image in Cineon format"
-msgstr "Resultatbild i Cineon-format"
-
-
-msgid "DPX"
-msgstr "DPX"
-
-
-msgid "Output image in DPX format"
-msgstr "Resultatbild i DPX-format"
-
-
-msgid "OpenEXR MultiLayer"
-msgstr "OpenEXR MultiLayer"
-
-
-msgid "Output image in multilayer OpenEXR format"
-msgstr "Resultatbild i flerlagers OpenEXR-format"
-
-
-msgid "Output image in OpenEXR format"
-msgstr "Resultatbild i OpenEXR-format"
-
-
-msgid "Output image in Radiance HDR format"
-msgstr "Resultatbild i Radiance HDR-format"
-
-
-msgid "TIFF"
-msgstr "TIFF"
+msgid "TIFF (.tif)"
+msgstr "TIFF (.tif)"
 
 
 msgid "Output image in TIFF format"
 msgstr "Resultatbild i TIFF-format"
 
 
-msgid "WebP"
-msgstr "WebP"
+msgid "Output image in multilayer OpenEXR format"
+msgstr "Resultatbild i flerlagers OpenEXR-format"
+
+
+msgid "True if the image data is loaded into memory"
+msgstr "True om bilddata har lästs in i minnet"
 
 
 msgid "Dirty"
@@ -6638,10 +6742,6 @@ msgstr "Filter"
 
 msgid "Script"
 msgstr "Skript"
-
-
-msgid "Shader"
-msgstr "Shader"
 
 
 msgid "Pattern"
@@ -6967,10 +7067,6 @@ msgid "Axis"
 msgstr "Axel"
 
 
-msgid "Display"
-msgstr "Visa"
-
-
 msgid "Size of particles on viewport"
 msgstr "Storlek av partiklar i vy"
 
@@ -7104,6 +7200,10 @@ msgid "Whole Collection"
 msgstr "Hela samlingen"
 
 
+msgid "Annotations"
+msgstr "Anteckningar"
+
+
 msgid "Inverse"
 msgstr "Omvänd"
 
@@ -7134,10 +7234,6 @@ msgstr "EEVEE"
 
 msgid "Current Frame"
 msgstr "Aktuell bildruta"
-
-
-msgid "Annotations"
-msgstr "Anteckningar"
 
 
 msgid "Sync Mode"
@@ -7533,10 +7629,6 @@ msgid "Filter Size"
 msgstr "Filterstorlek"
 
 
-msgid "Area"
-msgstr "Område"
-
-
 msgid "Invert Alpha"
 msgstr "Invertera alfa"
 
@@ -7843,10 +7935,6 @@ msgid "Mist"
 msgstr "Dimma"
 
 
-msgid "Use shader nodes to render the world"
-msgstr "Använd shadernoder för att rendera världen"
-
-
 msgid "Use Shadow"
 msgstr "Använd skugga"
 
@@ -7973,6 +8061,10 @@ msgstr "JP2"
 
 msgid "J2K"
 msgstr "J2K"
+
+
+msgid "Video"
+msgstr "Video"
 
 
 msgid "LZW"
@@ -8865,10 +8957,6 @@ msgid "Double Click"
 msgstr "Dubbelklick"
 
 
-msgid "Click Drag"
-msgstr "Klicka och dra"
-
-
 msgctxt "Action"
 msgid "Back"
 msgstr "Tillbaka"
@@ -9247,12 +9335,136 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Clean Up"
-msgstr "Städa upp"
+msgid "Mirror"
+msgstr "Spegla"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgid "Local View"
+msgstr "Lokal vy"
+
+
+msgid "Viewpoint"
+msgstr "Visningspunkt"
+
+
+msgid "Navigation"
+msgstr "Navigering"
+
+
+msgid "Align View"
+msgstr "Justera vy"
+
+
+msgid "Align View to Active"
+msgstr "Justera vy till aktiv"
+
+
+msgid "Select More/Less"
+msgstr "Markera mera/mindre"
+
+
+msgid "Assign Material"
+msgstr "Tilldela material"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
+
+
+msgid "Light"
+msgstr "Ljus"
+
+
+msgid "Light Probe"
+msgstr "Ljussond"
+
+
+msgid "Adjust"
+msgstr "Justera"
+
+
+msgid "Add Image"
+msgstr "Lägg till bild"
+
+
+msgid "Relations"
+msgstr "Relationer"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Rigid Body"
+msgstr "Rigid kropp"
+
+
+msgid "Apply"
+msgstr "Applicera"
+
+
+msgid "Track"
+msgstr "Spår"
+
+
+msgid "Quick Effects"
+msgstr "Snabbeffekter"
 
 
 msgid "Show/Hide"
 msgstr "Visa/dölj"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Asset"
+msgstr "Tillgång"
+
+
+msgid "Convert"
+msgstr "Konvertera"
+
+
+msgid "Link/Transfer Data"
+msgstr "Länka/överför data"
+
+
+msgid "Propagate"
+msgstr "Propagera"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Read"
+msgstr "Läs"
+
+
+msgid "Write"
+msgstr "Skriv"
+
+
+msgid "Primitives"
+msgstr "Primitiver"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Instances"
+msgstr "Instanser"
 
 
 msgid "Special Characters"
@@ -9263,104 +9475,24 @@ msgid "Text"
 msgstr "Text"
 
 
-msgid "Metaball"
-msgstr "Metaboll"
+msgid "Import"
+msgstr "Importera"
 
 
-msgid "Names"
-msgstr "Namn"
+msgid "Deprecated"
+msgstr "Föråldrad"
 
 
-msgid "Merge"
-msgstr "Sammanfoga"
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Pivot Point"
 msgstr "Fast punkt"
-
-
-msgid "Snap"
-msgstr "Snäpp"
-
-
-msgid "Link/Transfer Data"
-msgstr "Länka/överför data"
-
-
-msgid "Convert"
-msgstr "Konvertera"
-
-
-msgid "Relations"
-msgstr "Relationer"
-
-
-msgid "Add Image"
-msgstr "Lägg till bild"
-
-
-msgid "Light Probe"
-msgstr "Ljussond"
-
-
-msgid "Light"
-msgstr "Ljus"
-
-
-msgid "Asset"
-msgstr "Tillgång"
-
-
-msgid "Quick Effects"
-msgstr "Snabbeffekter"
-
-
-msgid "Track"
-msgstr "Spår"
-
-
-msgid "Apply"
-msgstr "Applicera"
-
-
-msgid "Assign Material"
-msgstr "Tilldela material"
-
-
-msgid "Rigid Body"
-msgstr "Rigid kropp"
-
-
-msgid "Propagate"
-msgstr "Propagera"
-
-
-msgid "Local View"
-msgstr "Lokal vy"
-
-
-msgid "Select More/Less"
-msgstr "Markera mera/mindre"
-
-
-msgid "Align View to Active"
-msgstr "Justera vy till aktiv"
-
-
-msgid "Align View"
-msgstr "Justera vy"
-
-
-msgid "Navigation"
-msgstr "Navigering"
-
-
-msgid "Viewpoint"
-msgstr "Visningspunkt"
-
-
-msgid "Mirror"
-msgstr "Spegla"
 
 
 msgid "Animals"
@@ -9404,6 +9536,10 @@ msgid "Add Attribute"
 msgstr "Lägg till attribut"
 
 
+msgid "Cache"
+msgstr "Cache"
+
+
 msgid "Channel"
 msgstr "Kanal"
 
@@ -9442,12 +9578,13 @@ msgid "Move to Layer"
 msgstr "Flytta till lager"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Align"
 msgstr "Justera"
+
+
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "Spegel"
 
 
 msgid "Show/Hide Faces"
@@ -9472,57 +9609,13 @@ msgid "Track"
 msgstr "Spåra"
 
 
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Deprecated"
-msgstr "Föråldrad"
-
-
-msgid "Math"
-msgstr "Matematik"
-
-
-msgid "Primitives"
-msgstr "Primitiver"
-
-
-msgid "Adjust"
-msgstr "Justera"
-
-
-msgid "Import"
-msgstr "Importera"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Node"
 msgstr "Nod"
-
-
-msgid "Read"
-msgstr "Läs"
-
-
-msgid "Write"
-msgstr "Skriv"
 
 
 msgctxt "NodeTree"
 msgid "Constant"
 msgstr "Konstant"
-
-
-msgid "Instances"
-msgstr "Instanser"
-
-
-msgid "To Socket"
-msgstr "Till uttag"
 
 
 msgid "Copy Label"
@@ -9531,10 +9624,6 @@ msgstr "Kopiera etikett"
 
 msgid "Copy to Selected"
 msgstr "Kopiera till markerade"
-
-
-msgid "Switch Type to..."
-msgstr "Växla typ till..."
 
 
 msgid "Add Modifier"
@@ -9551,11 +9640,6 @@ msgstr "Fysik"
 
 msgid "Frame Rate Presets"
 msgstr "Bildfrekvens-förinställningar"
-
-
-msgctxt "Operator"
-msgid "Scene"
-msgstr "Scen"
 
 
 msgid "Transition"
@@ -9584,10 +9668,6 @@ msgstr "Open Shading Language"
 
 msgid "Python"
 msgstr "Python"
-
-
-msgid "Cache"
-msgstr "Cache"
 
 
 msgid "Blender"
@@ -9624,6 +9704,34 @@ msgstr "Återställ"
 
 msgid "Help"
 msgstr "Hjälp"
+
+
+msgid ""
+"\n"
+"    UI button context menu definition. Scripts can append/prepend this to\n"
+"    add own operators to the context menu. They must check context though, so\n"
+"    their items only draw in a valid context and for the correct buttons.\n"
+"    "
+msgstr ""
+"\n"
+"    Definition av kontextmeny för UI-knapp. Skript kan lägga till/förbereda detta för att\n"
+"    lägga till egna operatörer i snabbmenyn. De måste dock kontrollera sammanhanget,\n"
+"    så att deras objekt bara ritas i ett giltigt sammanhang och för rätt knappar.\n"
+"    "
+
+
+msgid ""
+"\n"
+"    UI List item context menu definition. Scripts can append/prepend this to\n"
+"    add own operators to the context menu. They must check context though, so\n"
+"    their items only draw in a valid context and for the correct UI list.\n"
+"    "
+msgstr ""
+"\n"
+"    UI Definition av kontextmeny för listobjekt. Skript kan lägga till/förbereda detta för att\n"
+"    lägga till egna operatörer i snabbmenyn. De måste dock kontrollera sammanhanget,\n"
+"    så att deras objekt bara ritas i en giltig kontext och för rätt UI-lista.\n"
+"    "
 
 
 msgid "Add-ons Settings"
@@ -9939,6 +10047,22 @@ msgid "Dead"
 msgstr "Död"
 
 
+msgid "Invert Material"
+msgstr "Invertera material"
+
+
+msgid "Layer Pass"
+msgstr "Lagerpass"
+
+
+msgid "Material Pass"
+msgstr "Materialpass"
+
+
+msgid "Material pass"
+msgstr "Materialpass"
+
+
 msgid "Use Object Offset"
 msgstr "Använd objektförskjutning"
 
@@ -9990,6 +10114,11 @@ msgid "None"
 msgstr "Ingen"
 
 
+msgctxt "GPencil"
+msgid "Shaded"
+msgstr "Skuggad"
+
+
 msgid "Select contour or silhouette"
 msgstr "Välj kontur eller silhuett"
 
@@ -10016,6 +10145,15 @@ msgstr "Använd lätt kontur"
 
 msgid "Use Material"
 msgstr "Använd material"
+
+
+msgid "Position Factor"
+msgstr "Positionsfaktor"
+
+
+msgctxt "GPencil"
+msgid "Steps"
+msgstr "Steg"
 
 
 msgid "Start Offset"
@@ -10052,10 +10190,6 @@ msgstr "Kedja"
 
 msgid "Lowest"
 msgstr "Lägsta"
-
-
-msgid "Falloff Curve"
-msgstr "Avtagandekurva"
 
 
 msgid "Anchor Weights"
@@ -10204,6 +10338,10 @@ msgstr "Jämn"
 
 msgid "Complex"
 msgstr "Komplex"
+
+
+msgid "Keep Normals"
+msgstr "Behåll normaler"
 
 
 msgid "Beauty"
@@ -10383,10 +10521,6 @@ msgid "Opacity of the image"
 msgstr "Bildens opacitet"
 
 
-msgid "Markers"
-msgstr "Markörer"
-
-
 msgid "Delete Track"
 msgstr "Ta bort spår"
 
@@ -10459,12 +10593,20 @@ msgid "Custom Color"
 msgstr "Anpassad färg"
 
 
+msgid "Progress"
+msgstr "Förlopp"
+
+
 msgid "Starting"
 msgstr "Påbörjad"
 
 
-msgid "Meta"
-msgstr "Meta"
+msgid "In progress"
+msgstr "Påbörjad"
+
+
+msgid "Finishing"
+msgstr "Färdigställer"
 
 
 msgctxt "Action"
@@ -10488,29 +10630,6 @@ msgid "Alpha Over"
 msgstr "Alfa över"
 
 
-msgid "(Deprecated: Unused.)"
-msgstr "(Föråldrad: Oanvänd.)"
-
-
-msgctxt "NodeTree"
-msgid "Quadratic"
-msgstr "Kvadratisk"
-
-
-msgctxt "NodeTree"
-msgid "Cubic"
-msgstr "Kubisk"
-
-
-msgctxt "NodeTree"
-msgid "Catrom"
-msgstr "Catrom"
-
-
-msgid "Not"
-msgstr "Inte"
-
-
 msgid "Brightness/Contrast"
 msgstr "Ljusstyrka/kontrast"
 
@@ -10523,46 +10642,8 @@ msgid "Channel Key"
 msgstr "Kanalnyckel"
 
 
-msgid "YUV"
-msgstr "YUV"
-
-
-msgid "YCbCr"
-msgstr "YCbCr"
-
-
-msgctxt "Color"
-msgid "Limit Channel"
-msgstr "Begränsa kanal"
-
-
-msgid "High"
-msgstr "Hög"
-
-
-msgid "Algorithm"
-msgstr "Algoritm"
-
-
-msgid "Limit by single channel"
-msgstr "Begränsa med enstaka kanal"
-
-
-msgid "Low"
-msgstr "Låg"
-
-
-msgctxt "Color"
-msgid "Channel"
-msgstr "Kanal"
-
-
 msgid "Chroma Key"
 msgstr "Chroma-nyckel"
-
-
-msgid "Acceptance"
-msgstr "Godkännande"
 
 
 msgid "Color Balance"
@@ -10573,32 +10654,16 @@ msgid "Adjust color and values"
 msgstr "Justera färg och värden"
 
 
-msgid "Basis"
-msgstr "Bas"
+msgid "Combine Color"
+msgstr "Kombinera färg"
 
 
-msgid "S"
-msgstr "S"
+msgid "YCbCr"
+msgstr "YCbCr"
 
 
-msgid "Limit by red"
-msgstr "Begränsa med rött"
-
-
-msgid "Limit by green"
-msgstr "Begränsa med grönt"
-
-
-msgid "Limit by blue"
-msgstr "Begränsa med blått"
-
-
-msgid "Combine RGBA (Legacy)"
-msgstr "Kombinera RGBA (föråldrad)"
-
-
-msgid "Combine YCbCrA (Legacy)"
-msgstr "Kombinera YCbCrA (föråldrad)"
+msgid "YUV"
+msgstr "YUV"
 
 
 msgid "ITU 601"
@@ -10609,16 +10674,8 @@ msgid "ITU 709"
 msgstr "ITU 709"
 
 
-msgid "Combine YUVA (Legacy)"
-msgstr "Kombinera YUVA (föråldrad)"
-
-
-msgid "Combine Color"
-msgstr "Kombinera färg"
-
-
-msgid "Combine XYZ"
-msgstr "Kombinera XYZ"
+msgid "JPEG"
+msgstr "JPEG"
 
 
 msgid "From"
@@ -10629,24 +10686,12 @@ msgid "To"
 msgstr "Till"
 
 
-msgid "Anisotropic"
-msgstr "Anisotropisk"
+msgid "Convolve"
+msgstr "Konvolvera"
 
 
-msgid "X2"
-msgstr "X2"
-
-
-msgid "Y2"
-msgstr "Y2"
-
-
-msgid "X1"
-msgstr "X1"
-
-
-msgid "Y1"
-msgstr "Y1"
+msgid "Convolves an image with a kernel"
+msgstr "Konvolverar en bild med en kärna"
 
 
 msgid "Use Object layer"
@@ -10659,14 +10704,6 @@ msgstr "Använd materiallager"
 
 msgid "RGB Curves"
 msgstr "RGB-kurvor"
-
-
-msgid "Center X"
-msgstr "Centrum X"
-
-
-msgid "Center Y"
-msgstr "Centrum Y"
 
 
 msgid "8 sides"
@@ -10705,47 +10742,6 @@ msgid "Z-Scale"
 msgstr "Z-skala"
 
 
-msgid "High quality"
-msgstr "Hög kvalitet"
-
-
-msgid "Balanced"
-msgstr "Balanserad"
-
-
-msgid "Process HDR images"
-msgstr "Bearbeta HDR-bilder"
-
-
-msgctxt "Image"
-msgid "Edge"
-msgstr "Kant"
-
-
-msgid "Kirsch"
-msgstr "Kirsch"
-
-
-msgid "Shadow"
-msgstr "Skugga"
-
-
-msgid "Flip X"
-msgstr "Vänd X"
-
-
-msgid "Flip Y"
-msgstr "Vänd Y"
-
-
-msgid "Flip X & Y"
-msgstr "Vänd X & Y"
-
-
-msgid "Rotate 45°"
-msgstr "Rotera 45°"
-
-
 msgid "Apply a color transformation in the HSV color model"
 msgstr "Applicera en färgomvandling i HSV-färgmodellen"
 
@@ -10758,51 +10754,154 @@ msgid "Kuwahara"
 msgstr "Kuwahara"
 
 
-msgid "Eccentricity"
-msgstr "Eccentricitet"
-
-
-msgid "Classic"
-msgstr "Klassisk"
-
-
 msgid "Lens Distortion"
 msgstr "Linsförvrängning"
 
 
+msgid "Write image file to disk"
+msgstr "Skriv bildfil till disk"
+
+
+msgid "The directory where the image will be written"
+msgstr "Katalogen där bilden kommer att skrivas"
+
+
+msgid "Save as Render"
+msgstr "Spara som rendering"
+
+
+msgid "A color picker"
+msgstr "En färgväljare"
+
+
+msgid "RGB to BW"
+msgstr "RGB till BW"
+
+
+msgid "Vector value"
+msgstr "Vektorvärde"
+
+
+msgid "Per Dimension"
+msgstr "Per dimension"
+
+
+msgid "Rotate"
+msgstr "Rotera"
+
+
+msgid "Scene Time"
+msgstr "Scentid"
+
+
+msgid "Switch View"
+msgstr "Växla vy"
+
+
+msgid "Track Position"
+msgstr "Spårposition"
+
+
+msgid "Translate"
+msgstr "Översätt"
+
+
+msgid "Viewer"
+msgstr "Visare"
+
+
+msgid "Build a rotation from an axis and a rotation around that axis"
+msgstr "Bygg en rotation från en axel och en rotation runt den axeln"
+
+
+msgid "And"
+msgstr "Och"
+
+
+msgid "Or"
+msgstr "Eller"
+
+
+msgid "Not"
+msgstr "Inte"
+
+
+msgid "Perform a logical operation on the given boolean inputs"
+msgstr "Utför en logisk operation på de givna booleska inmatningarna"
+
+
+msgid "Opposite of the input"
+msgstr "Motsatsen till inmatningen"
+
+
+msgid "Nor"
+msgstr "Nor"
+
+
+msgid "Not Equal"
+msgstr "Inte lika"
+
+
+msgid "Combine four channels into a single color, based on a particular color model"
+msgstr "Kombinera fyra kanaler till en enda färg, baserat på en viss färgmodell"
+
+
+msgid "Combine Matrix"
+msgstr "Kombinera matris"
+
+
+msgid "Combine a translation vector, a rotation, and a scale vector into a transformation matrix"
+msgstr "Kombinera en translationsvektor, en rotation och en skalningsvektor till en transformationsmatris"
+
+
+msgid "Compare"
+msgstr "Jämför"
+
+
+msgid "Perform a comparison operation on the two given inputs"
+msgstr "Utför en jämförelse mellan de två givna inmatningarna"
+
+
+msgid "Less Than"
+msgstr "Mindre än"
+
+
+msgid "Less Than or Equal"
+msgstr "Mindre än eller lika med"
+
+
+msgid "Brighter"
+msgstr "Ljusare"
+
+
+msgid "Darker"
+msgstr "Mörkare"
+
+
+msgid "Build a rotation from separate angles around each axis"
+msgstr "Bygg en rotation från separata vinklar runt varje axel"
+
+
+msgid "Find the number of times a given string occurs in another string and the position of the first match"
+msgstr "Hitta antalet gånger en given sträng förekommer i en annan sträng och positionen för den första träffen"
+
+
+msgid "Convert the given floating-point number to an integer, with a choice of methods"
+msgstr "Konvertera det angivna flyttalstalet till ett heltal, med val av metoder"
+
+
 msgctxt "NodeTree"
-msgid "Jitter"
-msgstr "Jitter"
-
-
-msgid "Combined"
-msgstr "Kombinerad"
-
-
-msgid "Combined RGB"
-msgstr "Kombinerad RGB"
-
-
-msgid "Red Channel"
-msgstr "Röd kanal"
-
-
-msgid "Blue Channel"
-msgstr "Blå kanal"
-
-
-msgid "Luminance"
-msgstr "Luminans"
+msgid "Ceiling"
+msgstr "Tak"
 
 
 msgctxt "NodeTree"
-msgid "Nearest"
-msgstr "Närmast"
+msgid "Truncate"
+msgstr "Trunkera"
 
 
-msgctxt "NodeTree"
-msgid "Anisotropic"
-msgstr "Anisotropisk"
+msgid "Generate a randomized integer using the given input value as a seed"
+msgstr "Generera ett slumpmässigt heltal med den angivna inmatningen som ett frö"
 
 
 msgctxt "NodeTree"
@@ -10841,17 +10940,12 @@ msgstr "A * B + C"
 
 
 msgctxt "NodeTree"
-msgid "Logarithm"
-msgstr "Logaritm"
-
-
-msgid "1 / Square root of A"
-msgstr "1 / kvadratroten av A"
-
-
-msgctxt "NodeTree"
 msgid "Absolute"
 msgstr "Absolut"
+
+
+msgid "-A"
+msgstr "-A"
 
 
 msgctxt "NodeTree"
@@ -10865,207 +10959,6 @@ msgstr "Maximum"
 
 
 msgctxt "NodeTree"
-msgid "Less Than"
-msgstr "Mindre än"
-
-
-msgid "1 if A < B else 0"
-msgstr "1 if A < B else 0"
-
-
-msgid "1 if A > B else 0"
-msgstr "1 if A > B else 0"
-
-
-msgctxt "NodeTree"
-msgid "Compare"
-msgstr "Jämför"
-
-
-msgctxt "NodeTree"
-msgid "Truncate"
-msgstr "Trunkera"
-
-
-msgctxt "NodeTree"
-msgid "Cosine"
-msgstr "Cosinus"
-
-
-msgid "cos(A)"
-msgstr "cos(A)"
-
-
-msgctxt "NodeTree"
-msgid "Tangent"
-msgstr "Tangent"
-
-
-msgid "tan(A)"
-msgstr "tan(A)"
-
-
-msgctxt "NodeTree"
-msgid "Arcsine"
-msgstr "Arcsinus"
-
-
-msgid "arcsin(A)"
-msgstr "arcsin(A)"
-
-
-msgid "arccos(A)"
-msgstr "arccos(A)"
-
-
-msgid "arctan(A)"
-msgstr "arctan(A)"
-
-
-msgctxt "NodeTree"
-msgid "Arctan2"
-msgstr "Arctan2"
-
-
-msgid "cosh(A)"
-msgstr "cosh(A)"
-
-
-msgid "tanh(A)"
-msgstr "tanh(A)"
-
-
-msgctxt "NodeTree"
-msgid "To Radians"
-msgstr "Till radianer"
-
-
-msgid "Write image file to disk"
-msgstr "Skriv bildfil till disk"
-
-
-msgid "Save as Render"
-msgstr "Spara som rendering"
-
-
-msgid "A color picker"
-msgstr "En färgväljare"
-
-
-msgid "RGB to BW"
-msgstr "RGB till BW"
-
-
-msgid "Vector value"
-msgstr "Vektorvärde"
-
-
-msgid "Rotate"
-msgstr "Rotera"
-
-
-msgid "Scene Time"
-msgstr "Scentid"
-
-
-msgid "Apply Mask"
-msgstr "Tillämpa mask"
-
-
-msgid "Replace Alpha"
-msgstr "Ersätt alfa"
-
-
-msgid "Switch View"
-msgstr "Växla vy"
-
-
-msgid "Track Position"
-msgstr "Spårposition"
-
-
-msgid "Translate"
-msgstr "Översätt"
-
-
-msgid "X Axis"
-msgstr "X-axel"
-
-
-msgid "Y Axis"
-msgstr "Y-axel"
-
-
-msgid "Repeats on both axes"
-msgstr "Upprepas på båda axlarna"
-
-
-msgid "Map values to colors with the use of a gradient"
-msgstr "Mappa värden till färger med användning av en gradient"
-
-
-msgid "Min Speed"
-msgstr "Min hastighet"
-
-
-msgid "Viewer"
-msgstr "Visare"
-
-
-msgid "And"
-msgstr "Och"
-
-
-msgid "Or"
-msgstr "Eller"
-
-
-msgid "Opposite of the input"
-msgstr "Motsatsen till inmatningen"
-
-
-msgid "Nor"
-msgstr "Nor"
-
-
-msgid "Not Equal"
-msgstr "Inte lika"
-
-
-msgid "Combine Matrix"
-msgstr "Kombinera matris"
-
-
-msgid "Compare"
-msgstr "Jämför"
-
-
-msgid "Less Than"
-msgstr "Mindre än"
-
-
-msgid "Less Than or Equal"
-msgstr "Mindre än eller lika med"
-
-
-msgid "Brighter"
-msgstr "Ljusare"
-
-
-msgid "Darker"
-msgstr "Mörkare"
-
-
-msgctxt "NodeTree"
-msgid "Ceiling"
-msgstr "Tak"
-
-
-msgid "-A"
-msgstr "-A"
-
-
-msgctxt "NodeTree"
 msgid "Modulo"
 msgstr "Modulo"
 
@@ -11074,12 +10967,12 @@ msgid "Invert Rotation"
 msgstr "Invertera rotation"
 
 
-msgid "Contains"
-msgstr "Innehåller"
-
-
 msgid "Replace String"
 msgstr "Ersätt sträng"
+
+
+msgid "Replace a given string segment with another"
+msgstr "Ersätt ett visst strängsegment med ett annat"
 
 
 msgid "Rotate Rotation"
@@ -11282,10 +11175,6 @@ msgid "Generate a mesh on the XY plane with faces on the inside of input curves"
 msgstr "Generera en mesh på XY-planet med ytor på insidan av input-kurvorna"
 
 
-msgid "Triangles"
-msgstr "Trianglar"
-
-
 msgid "Geometry to Instance"
 msgstr "Geometri till instans"
 
@@ -11381,12 +11270,28 @@ msgid "Merge separately generated geometries into a single one"
 msgstr "Slå ihop separat genererade geometrier till en och samma"
 
 
+msgid "Create a list of values"
+msgstr "Skapa en lista över värden"
+
+
+msgid "Retrieve a value from a list"
+msgstr "Hämta ett värde från en lista"
+
+
+msgid "Count how many items are in a given list"
+msgstr "Räkna hur många objekt som finns i en given lista"
+
+
 msgid "Active item"
 msgstr "Aktivt objekt"
 
 
 msgid "N-Gon"
 msgstr "N-Gon"
+
+
+msgid "Triangles"
+msgstr "Trianglar"
 
 
 msgid "Generate a cone mesh"
@@ -11441,10 +11346,6 @@ msgid "Create a fog volume with the shape of the input mesh's surface"
 msgstr "Skapa en dim-volym med formen av input-meshens yta"
 
 
-msgid "How the voxel size is specified"
-msgstr "Hur voxel-storleken anges"
-
-
 msgid "UV Sphere"
 msgstr "UV-sfär"
 
@@ -11489,10 +11390,6 @@ msgid "Delete an attribute with a specified name from a geometry. Typically used
 msgstr "Ta bort en attribut med ett angivet namn från en geometri. Används oftast för att optimera prestanda"
 
 
-msgid "Wildcard"
-msgstr "Jokertecken"
-
-
 msgid "Repeat Input"
 msgstr "Upprepa inmatning"
 
@@ -11525,10 +11422,6 @@ msgid "All Curves"
 msgstr "Alla kurvor"
 
 
-msgid "Trilinear"
-msgstr "Trilinjär"
-
-
 msgid "Scale Elements"
 msgstr "Skala element"
 
@@ -11547,18 +11440,6 @@ msgstr "Skala individuella ytor eller närliggande ytöar"
 
 msgid "Scale individual edges or neighboring edge islands"
 msgstr "Skala individuella kanter eller närliggande kantöar"
-
-
-msgid "Scale Mode"
-msgstr "Skalningsläge"
-
-
-msgid "Scale elements by the same factor in every direction"
-msgstr "Skala element med samma faktor i alla riktningar"
-
-
-msgid "Scale elements in a single direction"
-msgstr "Skala element i en enskild riktning"
 
 
 msgid "Scale Instances"
@@ -11731,14 +11612,6 @@ msgstr "Transformera geometri"
 
 msgid "Translate, rotate or scale the geometry"
 msgstr "Flytta, rotera eller skala geometrin"
-
-
-msgid "Components"
-msgstr "Komponenter"
-
-
-msgid "Use a transformation matrix"
-msgstr "Använd en transformationsmatris"
 
 
 msgid "Translate Instances"
@@ -11918,8 +11791,8 @@ msgid "Min Max"
 msgstr "Min Max"
 
 
-msgid "Combine RGB (Legacy)"
-msgstr "Kombinera RGB (föråldrad)"
+msgid "Combine XYZ"
+msgstr "Kombinera XYZ"
 
 
 msgid "Create a vector from X, Y, and Z components"
@@ -11928,10 +11801,6 @@ msgstr "Skapa en vektor från X, Y och Z-komponenter"
 
 msgid "Shader Custom Group"
 msgstr "Shader anpassad grupp"
-
-
-msgid "Emission"
-msgstr "Emission"
 
 
 msgid "Float Curve"
@@ -11968,6 +11837,86 @@ msgstr "Typ av interpolation"
 
 msgid "Transform a point"
 msgstr "Transformera en punkt"
+
+
+msgctxt "NodeTree"
+msgid "Logarithm"
+msgstr "Logaritm"
+
+
+msgid "1 / Square root of A"
+msgstr "1 / kvadratroten av A"
+
+
+msgctxt "NodeTree"
+msgid "Less Than"
+msgstr "Mindre än"
+
+
+msgid "1 if A < B else 0"
+msgstr "1 if A < B else 0"
+
+
+msgid "1 if A > B else 0"
+msgstr "1 if A > B else 0"
+
+
+msgctxt "NodeTree"
+msgid "Compare"
+msgstr "Jämför"
+
+
+msgctxt "NodeTree"
+msgid "Cosine"
+msgstr "Cosinus"
+
+
+msgid "cos(A)"
+msgstr "cos(A)"
+
+
+msgctxt "NodeTree"
+msgid "Tangent"
+msgstr "Tangent"
+
+
+msgid "tan(A)"
+msgstr "tan(A)"
+
+
+msgctxt "NodeTree"
+msgid "Arcsine"
+msgstr "Arcsinus"
+
+
+msgid "arcsin(A)"
+msgstr "arcsin(A)"
+
+
+msgid "arccos(A)"
+msgstr "arccos(A)"
+
+
+msgid "arctan(A)"
+msgstr "arctan(A)"
+
+
+msgctxt "NodeTree"
+msgid "Arctan2"
+msgstr "Arctan2"
+
+
+msgid "cosh(A)"
+msgstr "cosh(A)"
+
+
+msgid "tanh(A)"
+msgstr "tanh(A)"
+
+
+msgctxt "NodeTree"
+msgid "To Radians"
+msgstr "Till radianer"
 
 
 msgid "Mix two input colors"
@@ -12107,50 +12056,6 @@ msgid "Dimensions"
 msgstr "Dimensioner"
 
 
-msgid "Color Source"
-msgstr "Färgkälla"
-
-
-msgid "Particle Age"
-msgstr "Partikel ålder"
-
-
-msgid "Lifetime mapped as 0.0 to 1.0 intensity"
-msgstr "Livstiden omräknad till intensitet mellan 0,0 och 1,0"
-
-
-msgid "Particle Speed"
-msgstr "Partikel fart"
-
-
-msgid "Particle speed (absolute magnitude of velocity) mapped as 0.0 to 1.0 intensity"
-msgstr "Partikelfart (absolut magnitud av hastighet) omräknad till intensitet mellan 0,0 och 1,0"
-
-
-msgid "Particle Velocity"
-msgstr "Partikel hastighet"
-
-
-msgid "XYZ velocity mapped to RGB colors"
-msgstr "XYZ-hastighet omräknad till RGB-färger"
-
-
-msgid "Particle System to render as points"
-msgstr "Partikelsystem att rendera som punkter"
-
-
-msgid "Point Source"
-msgstr "Punktkälla"
-
-
-msgid "Point data to use as renderable point density"
-msgstr "Punktdata att använda som renderbar punktdensitet"
-
-
-msgid "Generate point density from a particle system"
-msgstr "Generera punktdensitet från ett partikelsystem"
-
-
 msgid "Sky Texture"
 msgstr "Himmelstextur"
 
@@ -12171,18 +12076,6 @@ msgid "Height from sea level"
 msgstr "Höjd över havsnivån"
 
 
-msgid "Dust"
-msgstr "Damm"
-
-
-msgid "Ground Albedo"
-msgstr "Mark albedo"
-
-
-msgid "Ground color that is subtly reflected in the sky"
-msgstr "Markfärg som subtilt reflekteras i himlen"
-
-
 msgid "Ozone"
 msgstr "Ozon"
 
@@ -12195,36 +12088,8 @@ msgid "Which sky model should be used"
 msgstr "Vilken modell för himmel som ska användas"
 
 
-msgid "Preetham"
-msgstr "Preetham"
-
-
-msgid "Preetham 1999"
-msgstr "Preetham 1999"
-
-
-msgid "Hosek / Wilkie"
-msgstr "Hosek / Wilkie"
-
-
-msgid "Hosek / Wilkie 2012"
-msgstr "Hosek / Wilkie 2012"
-
-
-msgid "Nishita"
-msgstr "Nishita"
-
-
-msgid "Nishita 1993 improved"
-msgstr "Nishita 1993 förbättrad"
-
-
-msgid "Sun Direction"
-msgstr "Sol riktning"
-
-
 msgid "Direction from where the sun is shining"
-msgstr "Riktningen som solen skiner ifrån"
+msgstr "Riktning från vilken solen skiner"
 
 
 msgid "Sun Disc"
@@ -12245,10 +12110,6 @@ msgstr "Solens vinkel från horisonten"
 
 msgid "Sun Intensity"
 msgstr "Sol intensitet"
-
-
-msgid "Strength of sun"
-msgstr "Solens styrka"
 
 
 msgid "Sun Rotation"
@@ -12375,8 +12236,8 @@ msgid "White Noise Texture"
 msgstr "Vitbrustextur"
 
 
-msgid "Return a random value or color based on an input seed"
-msgstr "Returnera slumpvis värde eller färg baserat på input-frö"
+msgid "UV coordinates that map a texture along the stroke length"
+msgstr "UV-koordinater som mappar en textur längs streckets längd"
 
 
 msgid "Use Tips"
@@ -12385,6 +12246,10 @@ msgstr "Använd tips"
 
 msgid "UV coordinates to be used for mapping"
 msgstr "UV-koordinater som används för mappning"
+
+
+msgid "Map values to colors with the use of a gradient"
+msgstr "Mappa värden till färger med användning av en gradient"
 
 
 msgid "Displace the surface along an arbitrary direction"
@@ -12464,6 +12329,14 @@ msgstr "Vektor rotera"
 
 msgid "Rotate a vector around a pivot point (center)"
 msgstr "Rotera en vektor runt en pivotpunkt (center)"
+
+
+msgid "X Axis"
+msgstr "X-axel"
+
+
+msgid "Y Axis"
+msgstr "Y-axel"
 
 
 msgid "Convert From"
@@ -12625,10 +12498,6 @@ msgstr "Nodlänkar"
 
 msgid "Collection of Node Links"
 msgstr "Samling av nodlänkar"
-
-
-msgid "Use Node Format"
-msgstr "Använd nodformat"
 
 
 msgid "Node Outputs"
@@ -12955,10 +12824,6 @@ msgid "Minimum value"
 msgstr "Minimalt värde"
 
 
-msgid "Subtype"
-msgstr "Undertyp"
-
-
 msgid "Subtype of the default value"
 msgstr "Undertyp av standardvärdet"
 
@@ -13053,6 +12918,10 @@ msgstr "Aktiv begränsning"
 
 msgid "Active Object constraint"
 msgstr "Aktiv objektbegränsning"
+
+
+msgid "Shadow"
+msgstr "Skugga"
 
 
 msgid "Object cast shadows in the 3D viewport"
@@ -13727,17 +13596,9 @@ msgid "Clean up I18n Work Repository"
 msgstr "Städa upp I18n-arbetsförråd"
 
 
-msgid "Load translations' settings from a persistent JSon file"
-msgstr "Läs in översättningarnas inställningar från en bestående JSon-fil"
-
-
 msgctxt "Operator"
 msgid "I18n Load Settings"
 msgstr "Inställningar för I18n-inläsning"
-
-
-msgid "Save translations' settings in a persistent JSon file"
-msgstr "Spara översättningarnas inställningar i en beständig JSon-fil"
 
 
 msgctxt "Operator"
@@ -14006,16 +13867,6 @@ msgstr "Sätt typ av keyframe för de markerade keyframes"
 
 msgid "Jitter"
 msgstr "Jitter"
-
-
-msgctxt "Operator"
-msgid "Next Layer"
-msgstr "Nästa lager"
-
-
-msgctxt "Operator"
-msgid "Previous Layer"
-msgstr "Föregående lager"
 
 
 msgctxt "Operator"
@@ -15016,8 +14867,8 @@ msgstr "Ta bort begränsning"
 
 
 msgctxt "Operator"
-msgid "Add Bezier"
-msgstr "Lägg till Bezier"
+msgid "Add Bézier"
+msgstr "Lägg till Bézier"
 
 
 msgid "Align the new object to the view"
@@ -15049,6 +14900,22 @@ msgstr "Rita kurvor"
 
 msgid "Duplicate"
 msgstr "Duplicera"
+
+
+msgid "Toggle Free/Align"
+msgstr "Växla fri/upprätad"
+
+
+msgid "Delete Point"
+msgstr "Ta bort punkt"
+
+
+msgid "Delete an existing point"
+msgstr "Ta bort en befintlig punkt"
+
+
+msgid "Toggle Selection"
+msgstr "Växla markering"
 
 
 msgid "(De)select all control points"
@@ -15129,30 +14996,9 @@ msgid "Bake Time"
 msgstr "Bakningstid"
 
 
-msgid "Toggle Free/Align"
-msgstr "Växla fri/upprätad"
-
-
-msgid "Delete Point"
-msgstr "Ta bort punkt"
-
-
-msgid "Delete an existing point"
-msgstr "Ta bort en befintlig punkt"
-
-
-msgid "Toggle Selection"
-msgstr "Växla markering"
-
-
 msgctxt "Operator"
 msgid "Add Bézier Circle"
 msgstr "Lägg till Bézier-cirkel"
-
-
-msgctxt "Operator"
-msgid "Add Bézier"
-msgstr "Lägg till Bézier"
 
 
 msgctxt "Operator"
@@ -15280,10 +15126,6 @@ msgstr "Annan"
 
 msgid "Always write absolute paths"
 msgstr "Skriv alltid absoluta sökvägar"
-
-
-msgid "Always write relative paths (where possible)"
-msgstr "Skriv alltid relativa sökvägar (där så är möjligt)"
 
 
 msgid "Custom Properties"
@@ -16665,6 +16507,10 @@ msgid "Update Scene FPS"
 msgstr "Uppdatera scenens bildfrekvens"
 
 
+msgid "Make Unique"
+msgstr "Gör unik"
+
+
 msgid "Import Animation"
 msgstr "Importera animering"
 
@@ -17829,12 +17675,8 @@ msgstr "Avgruppera de valda noderna"
 
 
 msgctxt "Operator"
-msgid "Hide"
-msgstr "Dölj"
-
-
-msgid "Toggle hiding of selected nodes"
-msgstr "Visa/göm markerade noder"
+msgid "Collapse"
+msgstr "Fäll ihop"
 
 
 msgctxt "Operator"
@@ -18047,6 +17889,10 @@ msgid "Replace with"
 msgstr "Ersätt med"
 
 
+msgid "BMP"
+msgstr "BMP"
+
+
 msgid "IRIS"
 msgstr "IRIS"
 
@@ -18063,8 +17909,16 @@ msgid "CINEON"
 msgstr "CINEON"
 
 
+msgid "DPX"
+msgstr "DPX"
+
+
 msgid "OPEN_EXR"
 msgstr "OPEN_EXR"
+
+
+msgid "TIFF"
+msgstr "TIFF"
 
 
 msgid "Toggle preview display for selected nodes"
@@ -18134,6 +17988,10 @@ msgstr "-Y"
 msgctxt "Color"
 msgid "-Z"
 msgstr "-Z"
+
+
+msgid "Combined"
+msgstr "Kombinerad"
 
 
 msgctxt "Operator"
@@ -18443,10 +18301,6 @@ msgid "Link objects to a collection"
 msgstr "Länka objekt till en samling"
 
 
-msgid "Move objects to a new collection"
-msgstr "Flytta objekt till ny samling"
-
-
 msgid "Name of the newly added collection"
 msgstr "Namnge den nyskapade samlingen"
 
@@ -18677,6 +18531,10 @@ msgid "Move objects to a collection"
 msgstr "Flytta objekt till en samling"
 
 
+msgid "Move objects to a new collection"
+msgstr "Flytta objekt till ny samling"
+
+
 msgctxt "Operator"
 msgid "Delete Higher Levels"
 msgstr "Ta bort högre nivåer"
@@ -18768,6 +18626,14 @@ msgstr "Lägg till ett punktmoln-objekt i scenen"
 msgctxt "Operator"
 msgid "Toggle Pose Mode"
 msgstr "Växla poseringsläge"
+
+
+msgid "Low"
+msgstr "Låg"
+
+
+msgid "High"
+msgstr "Hög"
 
 
 msgid "View Percentage"
@@ -19084,6 +18950,11 @@ msgstr "Ny samling"
 
 
 msgctxt "Operator"
+msgid "Hide"
+msgstr "Dölj"
+
+
+msgctxt "Operator"
 msgid "Delete Data-Block"
 msgstr "Ta bort datablock"
 
@@ -19245,6 +19116,10 @@ msgid "Saturation, Value, Hue"
 msgstr "Mättnad, värde, färgton"
 
 
+msgid "Luminance"
+msgstr "Luminans"
+
+
 msgctxt "Operator"
 msgid "Connect Hair"
 msgstr "Anslut hår"
@@ -19252,11 +19127,6 @@ msgstr "Anslut hår"
 
 msgid "All Hair"
 msgstr "Allt hår"
-
-
-msgctxt "Operator"
-msgid "Mirror"
-msgstr "Spegel"
 
 
 msgid "Add new particle settings"
@@ -19278,10 +19148,6 @@ msgstr "Kopiera valda punkter"
 
 msgid "Overwrite Mode"
 msgstr "Överskrivningsläge"
-
-
-msgid "Activate New Action"
-msgstr "Aktivera ny åtgärd"
 
 
 msgid "Rotation only"
@@ -19828,6 +19694,14 @@ msgid "Unmasked"
 msgstr "Omaskerad"
 
 
+msgid "Allow Overlap"
+msgstr "Tillåt överlappning"
+
+
+msgid "Replace Selection"
+msgstr "Ersätt markering"
+
+
 msgctxt "Sequence"
 msgid "Type"
 msgstr "Typ"
@@ -19894,14 +19768,6 @@ msgstr "Kopiera"
 
 msgid "Delete Data"
 msgstr "Ta bort data"
-
-
-msgid "Allow Overlap"
-msgstr "Tillåt överlappning"
-
-
-msgid "Replace Selection"
-msgstr "Ersätt markering"
 
 
 msgctxt "Operator"
@@ -20519,10 +20385,6 @@ msgid "Jump to Target"
 msgstr "Hoppa till mål"
 
 
-msgid "NoOp"
-msgstr "NoOp"
-
-
 msgctxt "Operator"
 msgid "Align"
 msgstr "Justera"
@@ -20538,6 +20400,34 @@ msgstr "Justera horisontellt"
 
 msgid "Align to Geometry axis"
 msgstr "Justera till geometriaxel"
+
+
+msgid "Active UDIM"
+msgstr "Aktiv UDIM"
+
+
+msgid "2D Cursor"
+msgstr "2D-pekare"
+
+
+msgid "Largest to Smallest"
+msgstr "Störst till minsta"
+
+
+msgid "Sort islands from largest to smallest"
+msgstr "Sortera öarna från största till minsta"
+
+
+msgid "Smallest to Largest"
+msgstr "Minsta till största"
+
+
+msgid "Sort islands from smallest to largest"
+msgstr "Sortera öarna från minsta till största"
+
+
+msgid "Preserve island order"
+msgstr "Bevara ordningen på öarna"
 
 
 msgctxt "Operator"
@@ -20580,14 +20470,6 @@ msgstr "Fraktion"
 
 msgid "Rotation and Scale"
 msgstr "Rotation och skala"
-
-
-msgid "Active UDIM"
-msgstr "Aktiv UDIM"
-
-
-msgid "Island"
-msgstr "Ö"
 
 
 msgctxt "Mesh"
@@ -20866,40 +20748,6 @@ msgstr "Alla objekt"
 
 
 msgctxt "Operator"
-msgid "Export COLLADA (Legacy)"
-msgstr "Exportera COLLADA (föråldrad)"
-
-
-msgid "Include all Actions"
-msgstr "Inkludera alla åtgärder"
-
-
-msgid "Include Animations"
-msgstr "Inkludera animationer"
-
-
-msgid "Compatibility mode for Second Life, OpenSimulator and other compatible online worlds"
-msgstr "Kompatibilitetsläge för Second Life, OpenSimulator och andra kompatibla onlinevärldar"
-
-
-msgid "Arm"
-msgstr "Arm"
-
-
-msgid "Use Object Instances"
-msgstr "Använd objektinstanser"
-
-
-msgctxt "Operator"
-msgid "Import COLLADA (Legacy)"
-msgstr "Importera COLLADA (föråldrad)"
-
-
-msgid "Load a Collada file (Deprecated)"
-msgstr "Läs in en Collada-fil (Föråldrad)"
-
-
-msgctxt "Operator"
 msgid "Export All Collections"
 msgstr "Exportera alla samlingar"
 
@@ -20923,11 +20771,6 @@ msgstr "Felsökningsmeny"
 
 msgid "Debug Value"
 msgstr "Felsök värde"
-
-
-msgctxt "Operator"
-msgid "Import FBX (experimental)"
-msgstr "Importera FBX (experimentell)"
 
 
 msgctxt "Operator"
@@ -21360,10 +21203,6 @@ msgid "Import USD"
 msgstr "Importera USD"
 
 
-msgid "All Custom"
-msgstr "Alla anpassade"
-
-
 msgid "Create Collection"
 msgstr "Skapa samling"
 
@@ -21392,12 +21231,12 @@ msgid "Copy files to textures directory"
 msgstr "Kopiera filer till texturkatalog"
 
 
-msgid "Make Unique"
-msgstr "Gör unik"
-
-
 msgid "All Purpose"
 msgstr "Alla ändamål"
+
+
+msgid "All Custom"
+msgstr "Alla anpassade"
 
 
 msgid "Use Existing"
@@ -21525,6 +21364,10 @@ msgid "Active Palette"
 msgstr "Aktiv palett"
 
 
+msgid "Show Size Curve"
+msgstr "Visa storlekskurva"
+
+
 msgid "Clone Image"
 msgstr "Klona bild"
 
@@ -21623,10 +21466,6 @@ msgstr "Anpassad form"
 
 msgid "Camera Presets"
 msgstr "Kameraförval"
-
-
-msgid "2D Cursor"
-msgstr "2D-pekare"
 
 
 msgid "Transforms"
@@ -21904,10 +21743,6 @@ msgid "Audio"
 msgstr "Ljud"
 
 
-msgid "Video"
-msgstr "Video"
-
-
 msgid "Views"
 msgstr "Vyer"
 
@@ -21951,10 +21786,6 @@ msgstr "Tidslinje"
 
 msgid "New Objects"
 msgstr "Nya objekt"
-
-
-msgid "Debugging"
-msgstr "Felsökning"
 
 
 msgid "New Features"
@@ -22060,10 +21891,6 @@ msgstr "Inställningar för operativsystem"
 
 msgid "Text Editor Presets"
 msgstr "Textredigerare förinställningar"
-
-
-msgid "Panel Colors"
-msgstr "Panelfärger"
 
 
 msgid "Collection Colors"
@@ -22247,6 +22074,10 @@ msgstr "Filtrera tillägg"
 
 msgid "Particle in a particle system"
 msgstr "Partikel i ett partikelsystem"
+
+
+msgid "Particle Velocity"
+msgstr "Partikel hastighet"
 
 
 msgid "Display actual particles"
@@ -23172,18 +23003,6 @@ msgid "Automatic (Automatic)"
 msgstr "Automatiskt (automatiskt)"
 
 
-msgid "Automatically choose system's defined language if available, or fall-back to English"
-msgstr "Välj automatiskt operativsystemets språk om tillgängligt, eller engelska som reserv"
-
-
-msgid "HDRI Preview Size"
-msgstr "HDRI förhandsvisningsstorlek"
-
-
-msgid "Diameter of the HDRI preview spheres"
-msgstr "Diameter på HDRI förhandsvisningssfärer"
-
-
 msgid "Brightness of the icon"
 msgstr "Ljushet av ikonen"
 
@@ -23535,10 +23354,6 @@ msgid "Trigger B"
 msgstr "Utlösare B"
 
 
-msgid "TEMPORARY, DO NOT USE - File data used to refer to the asset"
-msgstr "TEMPORÄR, ANVÄND INTE - Filinformation som används för att hänvisa till tillgången"
-
-
 msgid "Case"
 msgstr "Skiftläge"
 
@@ -23617,8 +23432,8 @@ msgid "Use Motion Blur"
 msgstr "Använd rörelseoskärpa"
 
 
-msgid "Bake Type"
-msgstr "Bakningstyp"
+msgid "Render Time"
+msgstr "Renderingstid"
 
 
 msgid "BVH2"
@@ -23635,6 +23450,14 @@ msgstr "Dynamisk BVH"
 
 msgid "AVX2"
 msgstr "AVX2"
+
+
+msgid "High quality"
+msgstr "Hög kvalitet"
+
+
+msgid "Balanced"
+msgstr "Balanserad"
 
 
 msgid "Device to use for rendering"
@@ -23703,6 +23526,10 @@ msgstr "object_color"
 
 msgid "Color picker"
 msgstr "Färgväljare"
+
+
+msgid "Arm"
+msgstr "Arm"
 
 
 msgid "Leg"
@@ -23821,14 +23648,6 @@ msgid "Render Passes"
 msgstr "Renderingspass"
 
 
-msgid "Bias"
-msgstr "Justering"
-
-
-msgid "Algorithm to generate the margin"
-msgstr "Algoritm för att generera marginalen"
-
-
 msgid "Engine"
 msgstr "Motor"
 
@@ -23891,18 +23710,6 @@ msgstr "Global maximal uppdelningsnivå"
 
 msgid "Threads Mode"
 msgstr "Trådläge"
-
-
-msgid "Low Resolution Mesh"
-msgstr "Lågupplöst mesh"
-
-
-msgid "Calculate heights against unsubdivided low resolution mesh"
-msgstr "Beräkna höjder mot icke-uppdelat lågupplöst mesh"
-
-
-msgid "User Scale"
-msgstr "Användarskala"
 
 
 msgid "Render Region"
@@ -23983,6 +23790,10 @@ msgstr "Viskositet"
 
 msgid "Classical"
 msgstr "Klassisk"
+
+
+msgid "Bias"
+msgstr "Justering"
 
 
 msgid "Trace Precision"
@@ -24083,6 +23894,10 @@ msgstr "Individuella ursprung"
 
 msgid "Borders"
 msgstr "Ramar"
+
+
+msgid "Markers"
+msgstr "Markörer"
 
 
 msgid "Duotone"
@@ -24268,16 +24083,6 @@ msgstr "Redigera träd"
 
 
 msgctxt "ID"
-msgid "Modifier"
-msgstr "Modifierare"
-
-
-msgctxt "ID"
-msgid "Tool"
-msgstr "Verktyg"
-
-
-msgctxt "ID"
 msgid "Texture Type"
 msgstr "Texturtyp"
 
@@ -24288,6 +24093,11 @@ msgstr "Data API"
 
 msgid "Unused Data"
 msgstr "Oanvänt data"
+
+
+msgctxt "ID"
+msgid "Tool"
+msgstr "Verktyg"
 
 
 msgid "Scene Properties"
@@ -24416,6 +24226,10 @@ msgid "3D Region"
 msgstr "3D-region"
 
 
+msgid "Meta"
+msgstr "Meta"
+
+
 msgid "Speaker"
 msgstr "Högtalare"
 
@@ -24542,12 +24356,25 @@ msgid "Strobe"
 msgstr "Stroboskop"
 
 
+msgid "Flip X"
+msgstr "Vänd X"
+
+
+msgid "Flip Y"
+msgstr "Vänd Y"
+
+
 msgid "Input 1"
 msgstr "Ingång 1"
 
 
 msgid "Input 2"
 msgstr "Ingång 2"
+
+
+msgctxt "Color"
+msgid "Value"
+msgstr "Värde"
 
 
 msgid "Speed Control"
@@ -24706,16 +24533,16 @@ msgid "Active Theme Area"
 msgstr "Aktiv temadel"
 
 
-msgid "Theme Console"
-msgstr "Temakonsol"
+msgid "Channel Group"
+msgstr "Kanalgrupp"
 
 
 msgid "Active Channel Group"
 msgstr "Aktiv kanalgrupp"
 
 
-msgid "Channel Group"
-msgstr "Kanalgrupp"
+msgid "Theme Console"
+msgstr "Temakonsol"
 
 
 msgid "Summary"
@@ -24750,10 +24577,6 @@ msgid "Transitions"
 msgstr "Övergångar"
 
 
-msgid "Layout Node"
-msgstr "Layoutnod"
-
-
 msgid "Repeat Zone"
 msgstr "Upprepa zon"
 
@@ -24780,10 +24603,6 @@ msgstr "Temainställningar för egenskaperna"
 
 msgid "Search Match"
 msgstr "Sökträff"
-
-
-msgid "Draw Action"
-msgstr "Ritningsåtgärd"
 
 
 msgid "Preview Background"
@@ -25828,14 +25647,6 @@ msgid "Legacy Add-on"
 msgstr "Föråldrat tillägg"
 
 
-msgid "Name: {:s}"
-msgstr "Namn: {:s}"
-
-
-msgid "Repository: {:s}"
-msgstr "Förråd: {:s}"
-
-
 msgctxt "Operator"
 msgid "Add Repository..."
 msgstr "Lägg till förråd..."
@@ -25877,6 +25688,10 @@ msgid "Theme \"{:s}\" is already installed!"
 msgstr "Temat \"{:s}\" är redan installerat!"
 
 
+msgid "Name: {:s}"
+msgstr "Namn: {:s}"
+
+
 msgid "URL: {:s}"
 msgstr "URL: {:s}"
 
@@ -25889,8 +25704,22 @@ msgid "Unable to install a directory"
 msgstr "Det går inte att installera en katalog"
 
 
+msgid "Repository: {:s}"
+msgstr "Förråd: {:s}"
+
+
 msgid "Age: {:s}"
 msgstr "Ålder: {:s}"
+
+
+msgctxt "Preferences"
+msgid "Legacy (User)"
+msgstr "Föråldrad (användare)"
+
+
+msgctxt "Preferences"
+msgid "Legacy (Other)"
+msgstr "Föråldrad (annan)"
 
 
 msgid "Missing Built-in Add-ons"
@@ -26057,6 +25886,30 @@ msgid "Paste and Bake"
 msgstr "Klistra in och baka"
 
 
+msgid "Do not use compute device"
+msgstr "Använd inte beräkningsenhet"
+
+
+msgid "Use CUDA for GPU acceleration"
+msgstr "Använd CUDA för GPU-acceleration"
+
+
+msgid "Use OptiX for GPU acceleration"
+msgstr "Använd OptiX för GPU-acceleration"
+
+
+msgid "Use HIP for GPU acceleration"
+msgstr "Använd HIP för GPU-acceleration"
+
+
+msgid "Use Metal for GPU acceleration"
+msgstr "Använd Metal för GPU-acceleration"
+
+
+msgid "Use oneAPI for GPU acceleration"
+msgstr "Använd oneAPI för GPU-acceleration"
+
+
 msgid "and NVIDIA driver version %s or newer"
 msgstr "och NVIDIA-drivrutin version %s eller nyare"
 
@@ -26113,6 +25966,10 @@ msgid "Use GPU"
 msgstr "Använd GPU"
 
 
+msgid "Scatter"
+msgstr "Sprid"
+
+
 msgid "Cycles built without Embree support"
 msgstr "Cycles byggd utan Embree-stöd"
 
@@ -26141,6 +25998,11 @@ msgstr "Det går inte att uppdatera scenens bildfrekvens eftersom BVH-filen inne
 
 msgid "Unable to parse XML, %s:%s for file %r"
 msgstr "Det gick inte att tolka XML, %s:%s för filen %r"
+
+
+msgctxt "Operator"
+msgid "FBX (.fbx) (Legacy)"
+msgstr "FBX (.fbx) (föråldrad)"
 
 
 msgctxt "Operator"
@@ -26209,6 +26071,10 @@ msgid "(Quick access: Shift+W)"
 msgstr "(Snabbåtkomst: Shift+W)"
 
 
+msgid "To Socket"
+msgstr "Till uttag"
+
+
 msgctxt "Operator"
 msgid "Do Not Replace Links"
 msgstr "Ersätt inte länkar"
@@ -26237,6 +26103,16 @@ msgstr "Tog bort {} noder"
 
 msgid "Deleted 1 node"
 msgstr "Tog bort 1 nod"
+
+
+msgctxt "UI_Events_KeyMaps"
+msgid "Alt"
+msgstr "Alt"
+
+
+msgctxt "UI_Events_KeyMaps"
+msgid "Ctrl"
+msgstr "Ctrl"
 
 
 msgid "Viewer image not found."
@@ -26278,12 +26154,12 @@ msgid "Documentation"
 msgstr "Dokumentation"
 
 
-msgid "File:"
-msgstr "Fil:"
-
-
 msgid " (not installed)"
 msgstr " (inte installerad)"
+
+
+msgid "File:"
+msgstr "Fil:"
 
 
 msgid "Symmetrical ({:s})"
@@ -26465,12 +26341,12 @@ msgid "(Unassigned)"
 msgstr "(Inte tilldelad)"
 
 
-msgid "{:s} (unavailable)"
-msgstr "{:s} (inte tillgänglig)"
-
-
 msgid "{:s} (Global)"
 msgstr "{:s} (Global)"
+
+
+msgid "{:s} (unavailable)"
+msgstr "{:s} (inte tillgänglig)"
 
 
 msgctxt "Operator"
@@ -26591,17 +26467,17 @@ msgstr "Kom igång"
 
 
 msgctxt "Operator"
-msgid "Donate"
-msgstr "Donera"
-
-
-msgctxt "Operator"
 msgid "What's New"
 msgstr "Vad är nytt"
 
 
 msgid "Running in Offline Mode"
 msgstr "Körning i offline-läge"
+
+
+msgctxt "Operator"
+msgid "Donate"
+msgstr "Donera"
 
 
 msgctxt "Operator"
@@ -26733,11 +26609,6 @@ msgstr "Högtalare"
 msgctxt "Operator"
 msgid "Manual"
 msgstr "Manual"
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Handledningar"
 
 
 msgctxt "Operator"
@@ -27056,11 +26927,6 @@ msgstr "Pilstorlek"
 
 
 msgctxt "Operator"
-msgid "Delete All Shape Keys"
-msgstr "Ta bort alla formnycklar"
-
-
-msgctxt "Operator"
 msgid "Sort by Name"
 msgstr "Sortera efter namn"
 
@@ -27091,13 +26957,8 @@ msgstr "Ta bort alla grupper"
 
 
 msgctxt "Operator"
-msgid "Move to Top"
-msgstr "Flytta till toppen"
-
-
-msgctxt "Operator"
-msgid "Move to Bottom"
-msgstr "Flytta till botten"
+msgid "Flip"
+msgstr "Vänd"
 
 
 msgid "Name collisions: "
@@ -27224,10 +27085,6 @@ msgstr "Ny"
 
 msgid "Date"
 msgstr "Datum"
-
-
-msgid "Render Time"
-msgstr "Renderingstid"
 
 
 msgid "Hostname"
@@ -27582,10 +27439,6 @@ msgid "Export to File"
 msgstr "Exportera till fil"
 
 
-msgid "Minimum Size"
-msgstr "Minsta storlek"
-
-
 msgid "Calculate"
 msgstr "Beräkna"
 
@@ -27674,8 +27527,8 @@ msgid "Apply Default Settings"
 msgstr "Tillämpa standardinställningar"
 
 
-msgid "3D Markers"
-msgstr "3D-markörer"
+msgid "Aspect Ratio"
+msgstr "Storleksförhållande"
 
 
 msgctxt "Operator"
@@ -27700,6 +27553,10 @@ msgstr "Omvänd"
 
 msgid "Normalization"
 msgstr "Normalisering"
+
+
+msgid "3D Markers"
+msgstr "3D-markörer"
 
 
 msgctxt "Operator"
@@ -27916,6 +27773,16 @@ msgstr "Blender-ID:n"
 
 
 msgctxt "Operator"
+msgid "Move to Top"
+msgstr "Flytta till toppen"
+
+
+msgctxt "Operator"
+msgid "Move to Bottom"
+msgstr "Flytta till botten"
+
+
+msgctxt "Operator"
 msgid "Increase Number"
 msgstr "Öka siffra"
 
@@ -28017,6 +27884,10 @@ msgstr "Efter avstånd"
 msgctxt "Operator"
 msgid "Selection"
 msgstr "Markering"
+
+
+msgid "Island"
+msgstr "Ö"
 
 
 msgid "Modified Edges"
@@ -28128,21 +27999,12 @@ msgstr "Yta"
 
 
 msgctxt "Operator"
-msgid "Island"
-msgstr "Ö"
-
-
-msgctxt "Operator"
 msgid "Zoom 1:1"
 msgstr "Zooma 1:1"
 
 
 msgid "Image*"
 msgstr "Bild*"
-
-
-msgid "Aspect Ratio"
-msgstr "Storleksförhållande"
 
 
 msgid "Repeat Image"
@@ -28201,11 +28063,6 @@ msgstr "Dela horisontellt"
 msgctxt "Operator"
 msgid "Vertical Split"
 msgstr "Dela vertikalt"
-
-
-msgctxt "Operator"
-msgid "Toggle Fullscreen Area"
-msgstr "Växla till helskärmsområde"
 
 
 msgctxt "Operator"
@@ -28271,11 +28128,6 @@ msgstr "Nodalternativ"
 msgctxt "Operator"
 msgid "Unconnected Sockets"
 msgstr "Okopplade uttag"
-
-
-msgctxt "Operator"
-msgid "Collapse"
-msgstr "Fäll ihop"
 
 
 msgctxt "Operator"
@@ -28496,8 +28348,28 @@ msgid "Fade"
 msgstr "Tona"
 
 
+msgctxt "Operator"
+msgid "Delete Keyframes..."
+msgstr "Ta bort keyframes..."
+
+
+msgctxt "Operator"
+msgid "Clear Keyframes..."
+msgstr "Rensa keyframes..."
+
+
+msgctxt "Operator"
+msgid "Interactive Mirror"
+msgstr "Interaktiv spegel"
+
+
 msgid "Storage"
 msgstr "Lagring"
+
+
+msgctxt "Operator"
+msgid "Render Sequencer Image"
+msgstr "Rendera sekvensbild"
 
 
 msgctxt "Operator"
@@ -28570,11 +28442,6 @@ msgstr "Justeringslager"
 
 
 msgctxt "Operator"
-msgid "Scene..."
-msgstr "Scen..."
-
-
-msgctxt "Operator"
 msgid "Subtract"
 msgstr "Subtrahera"
 
@@ -28636,12 +28503,8 @@ msgid "Unpack"
 msgstr "Packa upp"
 
 
-msgid "Pack"
-msgstr "Packa"
-
-
-msgid "dB"
-msgstr "dB"
+msgid "{:d} MB"
+msgstr "{:d} MB"
 
 
 msgid "Cut To"
@@ -28767,12 +28630,12 @@ msgid "Active Editor"
 msgstr "Aktiv redigerare"
 
 
-msgid "Weight: {:.3f}"
-msgstr "Vikt: {:.3f}"
-
-
 msgid "Annotation:"
 msgstr "Anteckning:"
+
+
+msgid "Weight: {:.3f}"
+msgstr "Vikt: {:.3f}"
 
 
 msgctxt "Operator"
@@ -28890,6 +28753,10 @@ msgid "General"
 msgstr "Allmänt"
 
 
+msgid "More..."
+msgstr "Mer..."
+
+
 msgctxt "Operator"
 msgid "Load Factory Blender Settings"
 msgstr "Läs in fabriksinställningar för Blender"
@@ -28911,16 +28778,6 @@ msgstr "Vågfront (.obj)"
 
 
 msgctxt "Operator"
-msgid "FBX (.fbx) (experimental)"
-msgstr "FBX (.fbx) (experimentell)"
-
-
-msgctxt "Operator"
-msgid "Collada (.dae) (Legacy)"
-msgstr "Collada (.dae) (föråldrad)"
-
-
-msgctxt "Operator"
 msgid "Render Image"
 msgstr "Rendera bild"
 
@@ -28933,6 +28790,11 @@ msgstr "Operatorsökning..."
 msgctxt "Operator"
 msgid "Release Notes"
 msgstr "Versionsinformation"
+
+
+msgctxt "Operator"
+msgid "Tutorials"
+msgstr "Handledningar"
 
 
 msgctxt "Operator"
@@ -29108,14 +28970,6 @@ msgid "A restart of Blender is required"
 msgstr "En omstart av Blender krävs"
 
 
-msgid "• WoA support"
-msgstr "• WoA-stöd"
-
-
-msgid "• Low VR performance"
-msgstr "• Låg VR-prestanda"
-
-
 msgid "Open blend files with this Blender version"
 msgstr "Öppna blend-filer med denna Blender-version"
 
@@ -29150,6 +29004,10 @@ msgid "Repository URL"
 msgstr "URL till förrådet"
 
 
+msgid "• Windows on ARM requires driver 31.0.112.0 or higher"
+msgstr "• Windows på ARM kräver drivrutin 31.0.112.0 eller högre"
+
+
 msgid "Enabled on startup, overriding the preference."
 msgstr "Aktiverad vid uppstart, åsidosätter inställningen."
 
@@ -29176,11 +29034,6 @@ msgstr "Läs in fabriksinställningar {:s}"
 
 msgid "Color {:d}"
 msgstr "Färg {:d}"
-
-
-msgctxt "Operator"
-msgid "Interactive Mirror"
-msgstr "Interaktiv spegel"
 
 
 msgctxt "Operator"
@@ -29398,16 +29251,6 @@ msgstr "Gör lokal..."
 
 
 msgctxt "Operator"
-msgid "Delete Keyframes..."
-msgstr "Ta bort keyframes..."
-
-
-msgctxt "Operator"
-msgid "Clear Keyframes..."
-msgstr "Rensa keyframes..."
-
-
-msgctxt "Operator"
 msgid "Change Shape"
 msgstr "Ändra form"
 
@@ -29597,11 +29440,6 @@ msgstr "Stark"
 
 
 msgctxt "Operator"
-msgid "Flip"
-msgstr "Vänd"
-
-
-msgctxt "Operator"
 msgid "Rotate..."
 msgstr "Rotera..."
 
@@ -29614,11 +29452,6 @@ msgstr "Ben"
 msgctxt "Operator"
 msgid "Arrange"
 msgstr "Arrangera"
-
-
-msgctxt "Operator"
-msgid "Bezier"
-msgstr "Bezier"
 
 
 msgid "Toggle Overlays"
@@ -29644,10 +29477,6 @@ msgstr "Statistik"
 
 msgid "Color Opacity"
 msgstr "Färgopacitet"
-
-
-msgid "Seams"
-msgstr "Sömmar"
 
 
 msgctxt "Operator"
@@ -30262,8 +30091,8 @@ msgid "\"{}\" attribute from geometry"
 msgstr "\"{}\" attribut från geometri"
 
 
-msgid "ipos"
-msgstr "ipos"
+msgid "Basis"
+msgstr "Bas"
 
 
 msgid "Key %d"
@@ -30558,6 +30387,10 @@ msgid "Unable to open blend <memory>"
 msgstr "Går inte att öppna blend <memory>"
 
 
+msgid "Blend file '%s' created by a Big Endian version of Blender, support for these files has been removed in Blender 5.0, use an older version of Blender to open and convert it."
+msgstr "Blend-filen '%s' skapades av en Big Endian-version av Blender, stöd för dessa filer kommer att tas bort i Blender 5.0. Använd en äldre version av Blender för att öppna och konvertera den."
+
+
 msgid "Unable to read '%s': %s"
 msgstr "Det går inte att läsa '%s': %s"
 
@@ -30664,12 +30497,12 @@ msgid "B"
 msgstr "B"
 
 
+msgid "Remove animation from selected strips?"
+msgstr "Tar bort animering från markerade remsor?"
+
+
 msgid "'%s' is not editable"
 msgstr "'%s' är inte redigerbar"
-
-
-msgid "Button doesn't appear to have any property information attached (ptr.data = %p, prop = %p)"
-msgstr "Knappen verkar inte ha någon egenskapsinformation kopplad till sig (ptr.data = %p, prop = %p)"
 
 
 msgid "Missing bone name"
@@ -30718,6 +30551,10 @@ msgstr "Det går inte att läsa in %s från %s"
 
 msgid "Cannot make segment"
 msgstr "Kan inte göra segment"
+
+
+msgid "Insert"
+msgstr "Infoga"
 
 
 msgid "Text too long"
@@ -30831,16 +30668,12 @@ msgid "Autocomplete"
 msgstr "Automatisk komplettering"
 
 
-msgid "R"
-msgstr "R"
+msgid "Generating StudioLight icon..."
+msgstr "Genererar StudioLight-ikon..."
 
 
 msgid "OS"
 msgstr "OS"
-
-
-msgid "Insert"
-msgstr "Infoga"
 
 
 msgctxt "UI_Events_KeyMaps"
@@ -30850,6 +30683,10 @@ msgstr "Mellanslag"
 
 msgid "%d items"
 msgstr "%d objekt"
+
+
+msgid "Color Space: "
+msgstr "Färgrymd: "
 
 
 msgid "Red:"
@@ -30864,26 +30701,20 @@ msgid "Lightness:"
 msgstr "Ljushet:"
 
 
-msgid "Alpha:"
-msgstr "Alfa:"
-
-
-msgid "Red, Green, Blue"
-msgstr "Röd, grön, blå"
-
-
-msgid "Lightness"
-msgstr "Ljushet"
-
-
-msgctxt "Color"
 msgid "Value:"
 msgstr "Värde:"
 
 
-msgctxt "Color"
-msgid "Value"
-msgstr "Värde"
+msgid "Alpha:"
+msgstr "Alfa:"
+
+
+msgid "RGB values"
+msgstr "RGB-värden"
+
+
+msgid "Lightness"
+msgstr "Ljushet"
 
 
 msgid "Redo"
@@ -30914,6 +30745,10 @@ msgid "Python: {}"
 msgstr "Python: {}"
 
 
+msgid "Python: {}.{}"
+msgstr "Python: {}.{}"
+
+
 msgid "(Shift-Click/Drag to select multiple)"
 msgstr "(Shift-klicka/Dra för att välja flera)"
 
@@ -30932,10 +30767,6 @@ msgstr "Inbyggd tillgång"
 
 msgid "Disabled: {}"
 msgstr "Inaktiverad: {}"
-
-
-msgid "Python: {}.{}"
-msgstr "Python: {}.{}"
 
 
 msgid "Movie"
@@ -30998,6 +30829,10 @@ msgstr "Återställ vy"
 
 msgid "Reset Curve"
 msgstr "Återställ kurva"
+
+
+msgid "S"
+msgstr "S"
 
 
 msgid "Combined channels"
@@ -31210,10 +31045,6 @@ msgid "Insert after panel"
 msgstr "Infoga efter panel"
 
 
-msgid "More..."
-msgstr "Mer..."
-
-
 msgid "File Not Found"
 msgstr "Det gick inte att hitta filen"
 
@@ -31234,6 +31065,10 @@ msgid "Stop animation playback"
 msgstr "Stoppa uppspelning av animering"
 
 
+msgid "Canceling..."
+msgstr "Avbryter..."
+
+
 msgid "Resize Region"
 msgstr "Ändra storlek på region"
 
@@ -31247,20 +31082,8 @@ msgid "Unable to determine ABC sequence length"
 msgstr "Det går inte att fastställa ABC-sekvensens längd"
 
 
-msgid "Texture Options"
-msgstr "Texturalternativ"
-
-
-msgid "Can't create export file"
-msgstr "Kan inte skapa exportfil"
-
-
 msgid "Scene Options"
 msgstr "Scenalternativ"
-
-
-msgid "Unable to export SVG"
-msgstr "Det går inte att exportera SVG"
 
 
 msgid "Unable to export PDF"
@@ -31309,6 +31132,10 @@ msgstr "Kon"
 
 msgid "Outer"
 msgstr "Yttre"
+
+
+msgid "Seams"
+msgstr "Sömmar"
 
 
 msgid "Close"
@@ -31426,6 +31253,18 @@ msgid "Deleted %u object(s)"
 msgstr "Tog bort %u objekt"
 
 
+msgid "None of the objects are compatible with a conversion to \"%s\""
+msgstr "Inget av objekten är kompatibelt med en konvertering till ”%s”"
+
+
+msgid "The selection included %d object type(s) which do not support conversion to \"%s\""
+msgstr "Valet innehöll %d objekttyp(er) som inte stöder konvertering till ”%s”"
+
+
+msgid "Baking nodes..."
+msgstr "Bakar noder..."
+
+
 msgid "Add IK"
 msgstr "Lägg till IK"
 
@@ -31470,6 +31309,10 @@ msgid "Apply Modifier"
 msgstr "Tillämpa modifierare"
 
 
+msgid "Simulating ocean..."
+msgstr "Simulerar hav..."
+
+
 msgid "%d new levels rebuilt"
 msgstr "%d nya nivåer återuppbyggda"
 
@@ -31484,6 +31327,10 @@ msgstr "Välj samling"
 
 msgid "Removed effect: %s"
 msgstr "Tog bort effekt: %s"
+
+
+msgid "Object \"%s\" has a non-invertible transformation matrix, not applying transform"
+msgstr "Objektet ”%s” har en icke-inverterbar transformationsmatris, transformering tillämpas inte"
 
 
 msgid "%i object(s) not centered, %i changed:"
@@ -31594,12 +31441,12 @@ msgid "Time:"
 msgstr "Tid:"
 
 
-msgid "Mem:%.2fM (Peak %.2fM)"
-msgstr "Minne:%.2fM (topp %.2fM)"
+msgid "Mem:%dM, Peak: %dM"
+msgstr "Minne:%dM, Högsta: %dM"
 
 
-msgid "Mem:%.2fM, Peak: %.2fM"
-msgstr "Minne:%.2fM, topp: %.2fM"
+msgid "Rendering sequence..."
+msgstr "Renderar sekvens..."
 
 
 msgid "Scene has no camera"
@@ -31610,6 +31457,10 @@ msgid "Write error: cannot save %s"
 msgstr "Skrivfel: kan inte spara %s"
 
 
+msgid "Generating icon preview..."
+msgstr "Genererar ikonförhandsvisning..."
+
+
 msgid "Replace this area"
 msgstr "Ersätt detta område"
 
@@ -31618,8 +31469,8 @@ msgid "Select Area"
 msgstr "Välj område"
 
 
-msgid "Full Screen Area"
-msgstr "Område för helskärm"
+msgid "Set {} as active"
+msgstr "Ställ in {} som aktiv"
 
 
 msgid "No fullscreen areas were found"
@@ -31664,10 +31515,6 @@ msgid "Trace"
 msgstr "Spåra"
 
 
-msgid "Brush. Use Left Click to sample for palette instead"
-msgstr "Pensel. Använd vänsterklick för palettprov istället"
-
-
 msgid " Materials,"
 msgstr " Material,"
 
@@ -31700,8 +31547,8 @@ msgid "Palette created"
 msgstr "Palett skapad"
 
 
-msgid "Warning!"
-msgstr "Varning!"
+msgid "Brush. Use Left Click to sample for palette instead"
+msgstr "Pensel. Använd vänsterklick för palettprov istället"
 
 
 msgid "Unknown boolean error"
@@ -31896,6 +31743,10 @@ msgid "Asset Catalogs"
 msgstr "Tillgångskataloger"
 
 
+msgid "Listing directories..."
+msgstr "Listar kataloger..."
+
+
 msgid "Home"
 msgstr "Hem"
 
@@ -31934,10 +31785,6 @@ msgstr "Interpolation:"
 
 msgid "Driver Value:"
 msgstr "Drivarvärde:"
-
-
-msgid "Value:"
-msgstr "Värde:"
 
 
 msgid "Update Dependencies"
@@ -32021,10 +31868,6 @@ msgid "Select Layer"
 msgstr "Välj lager"
 
 
-msgid "Can't Load Image"
-msgstr "Kan inte läsa in bilden"
-
-
 msgid "%d × %d, "
 msgstr "%d × %d, "
 
@@ -32067,22 +31910,6 @@ msgstr "%d bild(er) kommer sparas i %s"
 
 msgid "Saved %s"
 msgstr "Sparade %s"
-
-
-msgid "Image can't be saved, use a different file format: \"%s\""
-msgstr "Bild kunde inte sparas, använd ett annat filformat: \"%s\""
-
-
-msgid "Multiple images can't be saved to an identical path: \"%s\""
-msgstr "Flera bilder kan inte sparas till en identisk sökväg: \"%s\""
-
-
-msgid "Image can't be saved, no valid file path: \"%s\""
-msgstr "Bild kunde inte sparas, ingen giltig sökväg: \"%s\""
-
-
-msgid "can't save image while rendering"
-msgstr "kan inte spara bild när rendering pågår"
 
 
 msgid "No images available"
@@ -32173,6 +32000,10 @@ msgid "Menu Error"
 msgstr "Menyfel"
 
 
+msgid "Subtype"
+msgstr "Undertyp"
+
+
 msgid "Could not determine type of group node"
 msgstr "Kunde inte avgöra typ av gruppnod"
 
@@ -32213,70 +32044,6 @@ msgid "Adding node groups isn't supported for custom (Python defined) node trees
 msgstr "Att lägga till nodgrupper stöds inte för anpassade (Python-definierade) nodträd"
 
 
-msgid "{} (Menu)"
-msgstr "{} (Meny)"
-
-
-msgid "{} (Integer)"
-msgstr "{} (Heltal)"
-
-
-msgid "{} (Float)"
-msgstr "{} (Flyttal)"
-
-
-msgid "({}, {}, {}) (Vector)"
-msgstr "({}, {}, {}) (Vektor)"
-
-
-msgid "({}, {}, {}, {}) (Color)"
-msgstr "({}, {}, {}, {}) (Färg)"
-
-
-msgid "(Rotation)"
-msgstr "(Rotation)"
-
-
-msgid "{} (Boolean)"
-msgstr "{} (Boolean)"
-
-
-msgid "True"
-msgstr "Sant"
-
-
-msgid "(Matrix)"
-msgstr "(Matris)"
-
-
-msgid "• {}"
-msgstr "• {}"
-
-
-msgid "• Grid"
-msgstr "• Rutnät"
-
-
-msgid "• Instances: {}"
-msgstr "• Instanser: {}"
-
-
-msgid "• Edit: {}, {}, {}"
-msgstr "• Redigera: {}, {}, {}"
-
-
-msgid "• Grease Pencil: {} layers"
-msgstr "• Grease Pencil: {} lager"
-
-
-msgid "{}... (String)"
-msgstr "{}... (Sträng)"
-
-
-msgid "{} (String)"
-msgstr "{} (Sträng)"
-
-
 msgid "  • \"{}\": "
 msgstr "  • \"{}\": "
 
@@ -32295,6 +32062,34 @@ msgstr " Namngivna attribut"
 
 msgid "Cannot insert group '%s' in '%s'"
 msgstr "Kunde inte infoga gruppen '%s' i '%s'"
+
+
+msgid "Value: Unknown (not evaluated)"
+msgstr "Värde: Okänt (inte evaluerat)"
+
+
+msgid "Values: None"
+msgstr "Värden: Inga"
+
+
+msgid "True"
+msgstr "Sant"
+
+
+msgid "Geometry components:"
+msgstr "Geometrikomponenter:"
+
+
+msgid "Inputs:"
+msgstr "Inmatningar:"
+
+
+msgid "Outputs:"
+msgstr "Utmatningar:"
+
+
+msgid "Type: List"
+msgstr "Typ: Lista"
 
 
 msgid "Disconnect"
@@ -32471,16 +32266,16 @@ msgid "Crease:"
 msgstr "Vecka:"
 
 
-msgid "Weight:"
-msgstr "Vikt:"
-
-
 msgid "Radius:"
 msgstr "Radie:"
 
 
 msgid "Tilt:"
 msgstr "Lutning:"
+
+
+msgid "Weight:"
+msgstr "Vikt:"
 
 
 msgid "Dimensions:"
@@ -32703,10 +32498,6 @@ msgid "Opacity: %3f"
 msgstr "Opacitet: %3f"
 
 
-msgid " or Alt) Even Thickness {}"
-msgstr " eller Alt) Jämn tjocklek {}"
-
-
 msgid "ScaleX: %s"
 msgstr "SkalaX: %s"
 
@@ -32807,20 +32598,20 @@ msgid "Unable to create new object"
 msgstr "Det går inte att skapa ett nytt objekt"
 
 
-msgid "%s: Can't resolve path %s"
-msgstr "%s: Kan inte slå upp sökvägen %s"
+msgid "Cannot write to asset %s: %s"
+msgstr "Kan inte skriva till tillgång %s: %s"
 
 
-msgid "%s: Can't write to asset %s: %s"
-msgstr "%s: Kan inte skriva till tillgången %s: %s"
-
-
-msgid "Can't write to asset %s:  %s"
-msgstr "Kan inte skriva till tillgång %s:  %s"
+msgid "One or more objects used as prototypes in 'Instance on Points' nodes either do not have 'As Instance' enabled in their 'Object Info' nodes, or the prototype is the base geometry input itself. Both cases prevent valid point instancer export. If it's the former, enable 'As Instance' to avoid incorrect self-referencing."
+msgstr "Ett eller flera objekt som används som prototyper i noder av typen ”Instans på punkter” har antingen inte alternativet ”Som instans” aktiverat i sina ’Objektinfo’-noder, eller så är prototypen själva basgeometrin som matats in. Båda fallen förhindrar export av giltiga punktinstanser. Om det är det förstnämnda fallet, aktivera ”Som instans” för att undvika felaktiga självreferenser."
 
 
 msgid "Unhandled Gprim type: %s (%s)"
 msgstr "Ohanterad Gprim-typ: %s (%s)"
+
+
+msgid "OBJ Export: No information to write"
+msgstr "OBJ-export: Ingen information att skriva"
 
 
 msgid "Built-in fonts cannot be renamed"
@@ -32833,14 +32624,6 @@ msgstr "'%s' är av en typ som inte kan vara en tillgång"
 
 msgid "'%s' does not contain '%s' with prefix and suffix"
 msgstr "'%s' innehåller inte '%s' med prefix och suffix"
-
-
-msgid "'%s' doesn't have upper case alpha-numeric prefix"
-msgstr "'%s' har inte ett alfanumeriskt prefix med versaler"
-
-
-msgid "'%s' doesn't have an alpha-numeric suffix"
-msgstr "'%s' har inte ett alfanumeriskt suffix"
 
 
 msgid "%s: expected %s type, not %s"
@@ -33115,16 +32898,6 @@ msgid "Button 12"
 msgstr "Knapp 12"
 
 
-msgctxt "UI_Events_KeyMaps"
-msgid "Alt"
-msgstr "Alt"
-
-
-msgctxt "UI_Events_KeyMaps"
-msgid "Ctrl"
-msgstr "Ctrl"
-
-
 msgid "Unknown operator"
 msgstr "Okänd operator"
 
@@ -33218,10 +32991,6 @@ msgid "Restrictions"
 msgstr "Begränsningar"
 
 
-msgid "Viewport {:.2f} px"
-msgstr "Visningsområde {:.2f} px"
-
-
 msgid "Out of memory"
 msgstr "Slut på minne"
 
@@ -33264,8 +33033,12 @@ msgid "Bright"
 msgstr "Ljus"
 
 
-msgid "Color Space:"
-msgstr "Färgrymd:"
+msgid "YUV Key Channel"
+msgstr "YUV-nyckelkanal"
+
+
+msgid "YCbCr Key Channel"
+msgstr "YCbCr-nyckelkanal"
 
 
 msgid "Limit Strength"
@@ -33276,12 +33049,24 @@ msgid "Midtones"
 msgstr "Mellantoner"
 
 
+msgid "Convert from display to scene linear instead. Not all view transforms can be inverted exactly, and the result may not match the original scene linear image"
+msgstr "Konvertera istället från skärm till scenlinjär. Inte alla vyomvandlingar kan inverteras exakt, och resultatet kanske inte stämmer överens med den ursprungliga scenlinjära bilden"
+
+
 msgid "Upper Left"
 msgstr "Övre vänster"
 
 
-msgid "Quality:"
-msgstr "Kvalitet:"
+msgid "A"
+msgstr "A"
+
+
+msgid "Anti-Alias"
+msgstr "Kantutjämning"
+
+
+msgid "Result"
+msgstr "Resultat"
 
 
 msgid "Image 1"
@@ -33292,59 +33077,28 @@ msgid "Image 2"
 msgstr "Bild 2"
 
 
-msgid "Path:"
-msgstr "Bana:"
-
-
-msgid "Add Input"
-msgstr "Lägg till inmatning"
-
-
-msgid "Layer:"
-msgstr "Lager:"
-
-
-msgid "Anti-Alias"
-msgstr "Kantutjämning"
+msgid "Kirsch"
+msgstr "Kirsch"
 
 
 msgid "Balance"
 msgstr "Balans"
 
 
+msgid "Eccentricity"
+msgstr "Eccentricitet"
+
+
 msgid "Offset Y"
 msgstr "Y-förskjutning"
-
-
-msgid "Dot"
-msgstr "Punkt"
 
 
 msgid "Cb"
 msgstr "Cb"
 
 
-msgctxt "Color"
-msgid "V"
-msgstr "V"
-
-
-msgctxt "Color"
-msgid "Y"
-msgstr "Y"
-
-
-msgctxt "Color"
-msgid "U"
-msgstr "U"
-
-
 msgid "Bitwise %s"
 msgstr "Bitvis %s"
-
-
-msgid "A"
-msgstr "A"
 
 
 msgid "Column 1 Row 1"
@@ -33431,10 +33185,6 @@ msgid "C"
 msgstr "C"
 
 
-msgid "Result"
-msgstr "Resultat"
-
-
 msgctxt "NodeTree"
 msgid "A"
 msgstr "A"
@@ -33452,10 +33202,6 @@ msgstr "Okänd"
 
 msgid "Invalid format: \"{}\""
 msgstr "Ogiltigt format: \"{}\""
-
-
-msgid "Type \"{}\" can't be formatted"
-msgstr "Typen \"{}\" kan inte formateras"
 
 
 msgid "Line Break"
@@ -33497,10 +33243,6 @@ msgstr "Summa"
 
 msgid "Bake to Disk"
 msgstr "Baka till disk"
-
-
-msgid "Can't bake in zone"
-msgstr "Kan inte baka i zonen"
 
 
 msgid "Baked Frame {}"
@@ -33611,6 +33353,14 @@ msgid "Rings must be at least 3"
 msgstr "Ringar måste vara minst 3"
 
 
+msgid "The subdivision level is too large"
+msgstr "Subdivisionsnivån är för stor"
+
+
+msgid "How the voxel size is specified"
+msgstr "Hur voxel-storleken anges"
+
+
 msgid "As Instance"
 msgstr "Som instans"
 
@@ -33631,8 +33381,8 @@ msgid "Iteration"
 msgstr "Iteration"
 
 
-msgid "Value not found: \"{}\""
-msgstr "Värdet hittades inte: \"{}\""
+msgid "Scale Mode"
+msgstr "Skalningsläge"
 
 
 msgid "Inverted"
@@ -33659,10 +33409,6 @@ msgid "\"{}\" from {}"
 msgstr "\"{}\" från {}"
 
 
-msgid "Missing Data-Block"
-msgstr "Saknade datablock"
-
-
 msgid " (Deprecated)"
 msgstr " (Föråldrad)"
 
@@ -33679,6 +33425,14 @@ msgid "IOR"
 msgstr "Brytningsindex"
 
 
+msgid "Thin Film IOR"
+msgstr "Tunnfilm IOR"
+
+
+msgid "Thin Film"
+msgstr "Tunn film"
+
+
 msgid "Anisotropy"
 msgstr "Anisotropi"
 
@@ -33691,12 +33445,8 @@ msgid "Color of the material"
 msgstr "Materialets färg"
 
 
-msgid "Thin Film IOR"
-msgstr "Tunnfilm IOR"
-
-
-msgid "Thin Film"
-msgstr "Tunn film"
+msgid "Anisotropic"
+msgstr "Anisotropisk"
 
 
 msgid "View Distance"
@@ -33715,6 +33465,10 @@ msgid "Color2"
 msgstr "Färg2"
 
 
+msgid "Dot"
+msgstr "Punkt"
+
+
 msgid "Age"
 msgstr "Ålder"
 
@@ -33725,10 +33479,6 @@ msgstr "BSSRDF"
 
 msgid "Diameter"
 msgstr "Diameter"
-
-
-msgid "Scatter"
-msgstr "Sprid"
 
 
 msgid "Coordinate 1"
@@ -33779,10 +33529,6 @@ msgid "Cannot initialize the GPU"
 msgstr "Kan inte initiera GPU:n"
 
 
-msgid "Fra:%d Mem:%.2fM (Peak %.2fM) | Time:%s | %s"
-msgstr "Fra:%d Minne:%.2fM (högst %.2fM) | Tid:%s | %s"
-
-
 msgid "Image too small"
 msgstr "Bilden är för liten"
 
@@ -33796,6 +33542,11 @@ msgstr "%s: misslyckades med att läsa in '%s'"
 
 
 msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "Ljusstyrka/kontrast"
+
+
+msgctxt "Sequence"
 msgid "Color Balance"
 msgstr "Färgbalans"
 
@@ -33803,11 +33554,6 @@ msgstr "Färgbalans"
 msgctxt "Sequence"
 msgid "Curves"
 msgstr "Kurvor"
-
-
-msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "Ljusstyrka/kontrast"
 
 
 msgctxt "Sequence"
@@ -33839,6 +33585,10 @@ msgstr "Vågeffekt"
 
 msgid "window_managers"
 msgstr "window_managers"
+
+
+msgid "Failed to open file browser!"
+msgstr "Misslyckades med att öppna filbläddraren!"
 
 
 msgid "Overwrite Startup File"
@@ -33917,6 +33667,10 @@ msgid "saved as a new, regular file."
 msgstr "sparad som en ny, vanlig fil."
 
 
+msgid "Displays, views or color spaces in this file were missing and have been changed."
+msgstr "Skärmar, vyer eller färgrymder i den här filen saknades och har ändrats."
+
+
 msgid "Cannot overwrite asset system files. Save as new file"
 msgstr "Det går inte att skriva över systemfiler för tillgångar. Spara som ny fil"
 
@@ -33927,6 +33681,10 @@ msgstr "med en äldre Blender-version?"
 
 msgid "Cannot overwrite asset system files. Save as new file?"
 msgstr "Det går inte att skriva över systemfiler för tillgångar. Spara som ny fil?"
+
+
+msgid "Overwrite file with current OpenColorIO configuration?"
+msgstr "Skriv över filen med aktuell OpenColorIO-konfiguration?"
 
 
 msgid "Save changes before closing?"
@@ -33967,6 +33725,26 @@ msgstr "Sparade kopia som \"%s\""
 
 msgid "Saved as \"%s\""
 msgstr "Sparad som '%s'"
+
+
+msgid ""
+"To match renders with the previous working space as closely as possible,\n"
+"colors in all materials, lights and geometry must be converted.\n"
+"\n"
+"Some nodes graphs cannot be converted accurately and may need manual fix-ups."
+msgstr ""
+"För att matcha renderingar med det tidigare arbetsområdet så nära som möjligt\n"
+"måste färger i alla material, ljus och geometri konverteras.\n"
+"\n"
+"Vissa nodgrafer kan inte konverteras korrekt och kan behöva manuella korrigeringar."
+
+
+msgid "Can't change working space while jobs are running"
+msgstr "Det går inte att ändra arbetsytan när jobb körs"
+
+
+msgid "Can't change working space with modified images, save them first"
+msgstr "Det går inte att ändra arbetsytan med modifierade bilder, spara dem först"
 
 
 msgid "Not a library"
@@ -34023,8 +33801,8 @@ msgstr "%d × %s: %.4f ms, genomsnitt: %.8f ms"
 
 
 msgctxt "WindowManager"
-msgid "Your graphics card or driver has limited support. It may work, but with issues."
-msgstr "Ditt grafikkort eller din drivrutin har begränsat stöd. Det kan fungera, men med problem."
+msgid "Newer graphics drivers might be available with better Blender compatibility."
+msgstr "Nyare grafikdrivrutiner kan finnas tillgängliga med bättre kompatibilitet med Blender."
 
 
 msgctxt "WindowManager"
@@ -34043,13 +33821,8 @@ msgstr "Uppgradering till den senaste macOS-versionen kan förbättra stödet f�
 
 
 msgctxt "WindowManager"
-msgid "Your graphics card or driver is not supported."
-msgstr "Ditt grafikkort eller din drivrutin stöds inte."
-
-
-msgctxt "WindowManager"
-msgid "The program will now close."
-msgstr "Programmet kommer nu att avslutas."
+msgid "Blender will now close."
+msgstr "Blender kommer nu att stängas."
 
 
 msgctxt "Operator"
@@ -34700,6 +34473,10 @@ msgstr "Litauiska - Lietuviškai"
 
 msgid "English (UK)"
 msgstr "Engelska (Storbritannien)"
+
+
+msgid "Malayalam - മലയാളം"
+msgstr "Malayalam - മലയാളം"
 
 
 msgid "Add & Subtract"

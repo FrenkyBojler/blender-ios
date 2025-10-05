@@ -216,7 +216,7 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
     /* Check relative paths are supported here as this option will be hidden
      * when it's not supported. In this case the value may have been enabled
      * by default or from the last-used setting.
-     * Either way, don't use the blend-file relative prefix when it's not supported.  */
+     * Either way, don't use the blend-file relative prefix when it's not supported. */
     const PropertySubType prop_subtype = RNA_property_subtype(fbo->prop);
     const bool is_relative = BLI_path_is_rel(path);
     const bool make_relative = RNA_boolean_get(op->ptr, "relative_path") &&
@@ -332,7 +332,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_string_set(&props_ptr, "filepath", path);
-    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     MEM_freeN(path);

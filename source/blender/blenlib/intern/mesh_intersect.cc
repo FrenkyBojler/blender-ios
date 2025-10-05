@@ -716,7 +716,7 @@ struct BBCalcData {
   const IMesh &im;
   Array<BoundingBox> *face_bounding_box;
 
-  BBCalcData(const IMesh &im, Array<BoundingBox> *fbb) : im(im), face_bounding_box(fbb){};
+  BBCalcData(const IMesh &im, Array<BoundingBox> *fbb) : im(im), face_bounding_box(fbb) {};
 };
 
 static void calc_face_bb_range_func(void *__restrict userdata,
@@ -741,7 +741,7 @@ struct BBPadData {
   Array<BoundingBox> *face_bounding_box;
   double pad;
 
-  BBPadData(Array<BoundingBox> *fbb, double pad) : face_bounding_box(fbb), pad(pad){};
+  BBPadData(Array<BoundingBox> *fbb, double pad) : face_bounding_box(fbb), pad(pad) {};
 };
 
 static void pad_face_bb_range_func(void *__restrict userdata,
@@ -1944,7 +1944,7 @@ static Array<Face *> polyfill_triangulate_poly(Face *f, IMeshArena *arena)
   }
   /* Project along negative face normal so (x,y) can be used in 2d. */
   float axis_mat[3][3];
-  float(*projverts)[2];
+  float (*projverts)[2];
   uint(*tris)[3];
   const int totfilltri = flen - 2;
   /* Prepare projected vertices and array to receive triangles in tessellation. */
@@ -2114,7 +2114,7 @@ static bool face_is_degenerate(const Face *f)
 }
 
 /** Fast check for degenerate tris. It is OK if it returns true for nearly degenerate triangles. */
-static bool any_degenerate_tris_fast(const Array<Face *> triangulation)
+static bool any_degenerate_tris_fast(const Array<Face *> &triangulation)
 {
   for (const Face *f : triangulation) {
     const Vert *v0 = (*f)[0];
@@ -2423,7 +2423,7 @@ static void calc_overlap_itts_range_func(void *__restrict userdata,
 
 /**
  * Fill in itt_map with the vector of ITT_values that result from intersecting the triangles in
- * ov. Use a canonical order for triangles: (a,b) where  a < b.
+ * ov. Use a canonical order for triangles: (a,b) where `a < b`.
  */
 static void calc_overlap_itts(Map<std::pair<int, int>, ITT_value> &itt_map,
                               const IMesh &tm,
@@ -2846,8 +2846,7 @@ static IMesh remove_degenerate_tris(const IMesh &tm_in)
 
 IMesh trimesh_self_intersect(const IMesh &tm_in, IMeshArena *arena)
 {
-  return trimesh_nary_intersect(
-      tm_in, 1, [](int /*t*/) { return 0; }, true, arena);
+  return trimesh_nary_intersect(tm_in, 1, [](int /*t*/) { return 0; }, true, arena);
 }
 
 IMesh trimesh_nary_intersect(const IMesh &tm_in,

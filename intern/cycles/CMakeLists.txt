@@ -325,26 +325,6 @@ if(WITH_OPENIMAGEDENOISE)
   )
 endif()
 
-# Logging capabilities using GLog library.
-if(WITH_CYCLES_LOGGING)
-  add_definitions(-DWITH_CYCLES_LOGGING)
-  add_definitions(${GLOG_DEFINES})
-  add_definitions(-DCYCLES_GFLAGS_NAMESPACE=${GFLAGS_NAMESPACE})
-  include_directories(
-    SYSTEM
-    ${GLOG_INCLUDE_DIRS}
-    ${GFLAGS_INCLUDE_DIRS}
-  )
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-  include_directories(
-    SYSTEM
-    ${ALEMBIC_INCLUDE_DIRS}
-  )
-endif()
-
 # Includes that might be overrides by USD last, to avoid compiling
 # against the wrong versions of other libraries.
 include_directories(

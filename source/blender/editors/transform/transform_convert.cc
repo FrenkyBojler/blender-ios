@@ -129,8 +129,8 @@ static void sort_trans_data_dist_container(const TransInfo *t, TransDataContaine
     return tc->data[a].rdist < tc->data[b].rdist;
   };
 
-  /* The "sort by distance" is often preceeded by "calculate distance", which is
-   * often preceeded by "sort selected first". */
+  /* The "sort by distance" is often preceded by "calculate distance", which is
+   * often preceded by "sort selected first". */
   MEM_SAFE_FREE(tc->sorted_index_map);
 
   make_sorted_index_map(tc, compare);
@@ -179,32 +179,32 @@ static float3 prop_dist_loc_get(const TransDataContainer *tc,
                                 const bool use_island,
                                 const float proj_vec[3])
 {
-  float3 r_vec;
+  float3 vec;
 
   if (use_island) {
     if (tc->use_local_mat) {
-      mul_v3_m4v3(r_vec, tc->mat, td->iloc);
+      mul_v3_m4v3(vec, tc->mat, td->iloc);
     }
     else {
-      mul_v3_m3v3(r_vec, td->mtx, td->iloc);
+      mul_v3_m3v3(vec, td->mtx, td->iloc);
     }
   }
   else {
     if (tc->use_local_mat) {
-      mul_v3_m4v3(r_vec, tc->mat, td->center);
+      mul_v3_m4v3(vec, tc->mat, td->center);
     }
     else {
-      mul_v3_m3v3(r_vec, td->mtx, td->center);
+      mul_v3_m3v3(vec, td->mtx, td->center);
     }
   }
 
   if (proj_vec) {
     float vec_p[3];
-    project_v3_v3v3(vec_p, r_vec, proj_vec);
-    sub_v3_v3(r_vec, vec_p);
+    project_v3_v3v3(vec_p, vec, proj_vec);
+    sub_v3_v3(vec, vec_p);
   }
 
-  return r_vec;
+  return vec;
 }
 
 /**
@@ -215,8 +215,6 @@ static float3 prop_dist_loc_get(const TransDataContainer *tc,
  */
 static void set_prop_dist(TransInfo *t, const bool with_dist)
 {
-  int a;
-
   float _proj_vec[3];
   const float *proj_vec = nullptr;
 
@@ -234,17 +232,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
   /* Count number of selected. */
   int td_table_len = 0;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    BLI_assert(tc->sorted_index_map);
-    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
-      TransData *td = &tc->data[i];
-      if (td->flag & TD_SELECTED) {
-        td_table_len++;
-      }
-      else {
-        /* By definition transform-data has selected items in beginning. */
-        break;
-      }
-    }
+    tc->foreach_index_selected([&](const int /*i*/) { td_table_len++; });
   }
 
   /* Pointers to selected's #TransData.
@@ -257,23 +245,16 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
   int td_table_index = 0;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    BLI_assert(tc->sorted_index_map);
-    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+    tc->foreach_index_selected([&](const int i) {
       TransData *td = &tc->data[i];
-      if (td->flag & TD_SELECTED) {
-        /* Initialize, it was malloced. */
-        td->rdist = 0.0f;
+      /* Initialize, it was malloced. */
+      td->rdist = 0.0f;
 
-        const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
+      const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
-        BLI_kdtree_3d_insert(td_tree, td_table_index, vec);
-        td_table[td_table_index++] = td;
-      }
-      else {
-        /* By definition transform-data has selected items in beginning. */
-        break;
-      }
-    }
+      BLI_kdtree_3d_insert(td_tree, td_table_index, vec);
+      td_table[td_table_index++] = td;
+    });
   }
   BLI_assert(td_table_index == td_table_len);
 
@@ -281,29 +262,32 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
   /* For each non-selected vertex, find distance to the nearest selected vertex. */
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    TransData *td = tc->data;
-    for (a = 0; a < tc->data_len; a++, td++) {
-      if ((td->flag & TD_SELECTED) == 0) {
-        const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
+    tc->foreach_index([&](const int i) {
+      TransData *td = &tc->data[i];
+      if (td->flag & TD_SELECTED) {
+        return true;
+      }
 
-        KDTreeNearest_3d nearest;
-        const int td_index = BLI_kdtree_3d_find_nearest(td_tree, vec, &nearest);
+      const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
-        td->rdist = -1.0f;
-        if (td_index != -1) {
-          td->rdist = nearest.dist;
-          if (use_island) {
-            /* Use center and axismtx of closest point found. */
-            copy_v3_v3(td->center, td_table[td_index]->center);
-            copy_m3_m3(td->axismtx, td_table[td_index]->axismtx);
-          }
-        }
+      KDTreeNearest_3d nearest;
+      const int td_index = BLI_kdtree_3d_find_nearest(td_tree, vec, &nearest);
 
-        if (with_dist) {
-          td->dist = td->rdist;
+      td->rdist = -1.0f;
+      if (td_index != -1) {
+        td->rdist = nearest.dist;
+        if (use_island) {
+          /* Use center and axismtx of closest point found. */
+          copy_v3_v3(td->center, td_table[td_index]->center);
+          copy_m3_m3(td->axismtx, td_table[td_index]->axismtx);
         }
       }
-    }
+
+      if (with_dist) {
+        td->dist = td->rdist;
+      }
+      return true;
+    });
   }
 
   BLI_kdtree_3d_free(td_tree);
@@ -511,24 +495,24 @@ void clipUVData(TransInfo *t)
 
 char transform_convert_frame_side_dir_get(TransInfo *t, float cframe)
 {
-  char r_dir;
+  char dir;
   float center[2];
   if (t->flag & T_MODAL) {
     UI_view2d_region_to_view(
         (View2D *)t->view, t->mouse.imval[0], t->mouse.imval[1], &center[0], &center[1]);
-    r_dir = (center[0] > cframe) ? 'R' : 'L';
+    dir = (center[0] > cframe) ? 'R' : 'L';
     {
       /* XXX: This saves the direction in the "mirror" property to be used for redo! */
-      if (r_dir == 'R') {
+      if (dir == 'R') {
         t->flag |= T_NO_MIRROR;
       }
     }
   }
   else {
-    r_dir = (t->flag & T_NO_MIRROR) ? 'R' : 'L';
+    dir = (t->flag & T_NO_MIRROR) ? 'R' : 'L';
   }
 
-  return r_dir;
+  return dir;
 }
 
 bool FrameOnMouseSide(char side, float frame, float cframe)

@@ -169,7 +169,7 @@ static void modify_drawing(const GreasePencilShrinkwrapModifierData &smd,
   });
 
   /* Optional smoothing after shrinkwrap. */
-  const VArray<bool> point_selection = VArray<bool>::ForSingle(true, curves.points_num());
+  const VArray<bool> point_selection = VArray<bool>::from_single(true, curves.points_num());
   const bool smooth_ends = false;
   const bool keep_shape = true;
   geometry::smooth_curve_attribute(curves_mask,
@@ -225,6 +225,9 @@ static void modify_geometry_set(ModifierData *md,
   const int frame = grease_pencil.runtime->eval_frame;
 
   ensure_shrinkwrap_cache_data(smd, *ctx);
+  if (!smd.cache_data) {
+    return;
+  }
 
   IndexMaskMemory mask_memory;
   const IndexMask layer_mask = modifier::greasepencil::get_filtered_layer_mask(
@@ -247,7 +250,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   int wrap_method = RNA_enum_get(ptr, "wrap_method");
   uiLayout *col, *row;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "wrap_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -285,7 +288,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
   layout->prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "smooth_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "smooth_step", UI_ITEM_NONE, IFACE_("Repeat"), ICON_NONE);

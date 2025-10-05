@@ -19,6 +19,7 @@
 #include "BLI_alloca.h"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
+#include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -153,7 +154,7 @@ struct Profile {
   float *prof_co;
   /** Like prof_co, but for seg power of 2 >= seg. */
   float *prof_co_2;
-  /** Mark a special case so the these parameters aren't reset with others. */
+  /** Mark a special case so these parameters aren't reset with others. */
   bool special_params;
 };
 #define PRO_SQUARE_R 1e4f
@@ -333,7 +334,7 @@ enum AngleKind {
 /** Container for loops representing UV verts which should be merged together in a UV map. */
 using UVVertBucket = Set<BMLoop *>;
 
-/** Mapping of vertex to UV vert buckets (i.e. loops belonging to that key `BMVert`). */
+/** Mapping of vertex to UV vert buckets (i.e. loops belonging to that `BMVert` key). */
 using UVVertMap = Map<BMVert *, Vector<UVVertBucket>>;
 
 /** Bevel parameters and state. */
@@ -643,6 +644,10 @@ static bool edges_face_connected_at_vert(BMEdge *bme1, BMEdge *bme2)
  */
 static UVFace *register_uv_face(BevelParams *bp, BMFace *fnew, BMFace *frep, BMFace **frep_arr)
 {
+  if (!fnew) {
+    return nullptr;
+  }
+
   UVFace *uv_face = (UVFace *)BLI_memarena_alloc(bp->mem_arena, sizeof(UVFace));
   uv_face->f = fnew;
   uv_face->attached_frep = nullptr;
@@ -705,7 +710,7 @@ static void update_uv_vert_map(BevelParams *bp,
         }
 
         UVFace *uv_face2 = find_uv_face(bp, l2->f);
-        if (!uv_face2) {
+        if (!uv_face2 || !uv_face2->attached_frep) {
           continue;
         }
 
@@ -809,24 +814,19 @@ static void bevel_merge_uvs(BevelParams *bp, BMesh *bm)
     int uv_data_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, i);
     for (Vector<UVVertBucket> &uv_vert_buckets : bp->uv_vert_maps[i].values()) {
       for (UVVertBucket &uv_vert_bucket : uv_vert_buckets) {
-        /* Using face weights instead of mean average because it produces slightly better results,
-         * although this is purely empirical and subjective. */
-        float weight_sum = 0.0f;
+        int num_uv_verts = uv_vert_bucket.size();
+        if (num_uv_verts <= 1) {
+          continue;
+        }
         float uv[2] = {0.0f, 0.0f};
         for (BMLoop *l : uv_vert_bucket) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-          float weighted_luv[2] = {0.0f, 0.0f};
-          float face_area = BM_face_calc_area(l->f);
-          mul_v2_v2fl(weighted_luv, luv, face_area);
-          add_v2_v2(uv, weighted_luv);
-          weight_sum += face_area;
+          add_v2_v2(uv, luv);
         }
-        if (uv_vert_bucket.size() > 1 && weight_sum > 0.0f) {
-          mul_v2_fl(uv, 1.0f / weight_sum);
-          for (BMLoop *l : uv_vert_bucket) {
-            float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-            copy_v2_v2(luv, uv);
-          }
+        mul_v2_fl(uv, 1.0f / float(num_uv_verts));
+        for (BMLoop *l : uv_vert_bucket) {
+          float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
+          copy_v2_v2(luv, uv);
         }
       }
     }
@@ -921,7 +921,7 @@ static BMFace *bev_create_ngon(BevelParams *bp,
     return nullptr;
   }
 
-  if ((facerep || (face_arr && face_arr[0]))) {
+  if (facerep || (face_arr && face_arr[0])) {
     BM_elem_attrs_copy(bm, facerep ? facerep : face_arr[0], f);
     if (do_interp) {
       int i = 0;
@@ -1211,7 +1211,7 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
 static BMFace *choose_rep_face(BevelParams *bp, BMFace **face, int nfaces)
 {
 #define VEC_VALUE_LEN 6
-  float(*value_vecs)[VEC_VALUE_LEN] = nullptr;
+  float (*value_vecs)[VEC_VALUE_LEN] = nullptr;
   int num_viable = 0;
 
   value_vecs = BLI_array_alloca(value_vecs, nfaces);
@@ -2536,7 +2536,7 @@ static void check_edge_data_seam_sharp_edges(BevVert *bv, int flag)
 
 static void bevel_extend_edge_data_ex(BevVert *bv, int flag)
 {
-  BLI_assert(flag == BM_ELEM_SEAM || flag == BM_ELEM_SMOOTH);
+  BLI_assert(ELEM(flag, BM_ELEM_SEAM, BM_ELEM_SMOOTH));
   VMesh *vm = bv->vmesh;
 
   BoundVert *bcur = bv->vmesh->boundstart, *start = bcur;
@@ -2654,7 +2654,7 @@ static void bevel_harden_normals(BevelParams *bp, BMesh *bm)
   int cd_clnors_offset = CustomData_get_offset_named(
       &bm->ldata, CD_PROP_INT16_2D, "custom_normal");
 
-  /* If there is not already a custom split normal layer then making one
+  /* If there is not already a custom normal layer then making one
    * (with #BM_lnorspace_update) will not respect the auto-smooth angle between smooth faces.
    * To get that to happen, we have to mark the sharpen the edges that are only sharp because
    * of the angle test -- otherwise would be smooth. */
@@ -2668,6 +2668,12 @@ static void bevel_harden_normals(BevelParams *bp, BMesh *bm)
 
   if (cd_clnors_offset == -1) {
     cd_clnors_offset = CustomData_get_offset_named(&bm->ldata, CD_PROP_INT16_2D, "custom_normal");
+  }
+
+  /* If the custom normals attribute still hasn't been added with the correct type, at least don't
+   * crash. */
+  if (cd_clnors_offset == -1) {
+    return;
   }
 
   BMIter fiter;
@@ -4963,7 +4969,7 @@ static float projected_boundary_area(BevVert *bv, BMFace *f)
 {
   BMEdge *e1, *e2;
   VMesh *vm = bv->vmesh;
-  float(*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
+  float (*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, f->no);
   get_incident_edges(f, bv->v, &e1, &e2);
@@ -7125,7 +7131,6 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 
   int odd = nseg % 2;
   int mid = nseg / 2;
-  BMEdge *center_bme = nullptr;
   BMFace *fchoices[2] = {f1, f2};
   BMFace *f_choice = nullptr;
   int center_adj_k = -1;
@@ -7189,8 +7194,6 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
       BMEdge *edges[4] = {nullptr, nullptr, bme, bme};
       r_f = bev_create_ngon(
           bp, bm, verts, 4, nullptr, f1, edges, nullptr, &nv_bv_map, mat_nr, true);
-      center_bme = BM_edge_exists(verts[2], verts[3]);
-      BLI_assert(center_bme != nullptr);
     }
     else if (!odd && k == mid + 1) {
       /* Right poly that touches an even center line on left. */
@@ -7700,7 +7703,8 @@ static float geometry_collide_offset(BevelParams *bp, EdgeHalf *eb)
    * The intersection of these two corner vectors is the collapse point.
    * The length of edge B divided by the projection of these vectors onto edge B
    * is the number of 'offsets' that can be accommodated. */
-  float offsets_projected_on_B = (ka + cos1 * kb) / sin1 + (kc + cos2 * kb) / sin2;
+  float offsets_projected_on_B = safe_divide(ka + cos1 * kb, sin1) +
+                                 safe_divide(kc + cos2 * kb, sin2);
   if (offsets_projected_on_B > BEVEL_EPSILON) {
     offsets_projected_on_B = bp->offset * (len_v3v3(vb->co, vc->co) / offsets_projected_on_B);
     if (offsets_projected_on_B > BEVEL_EPSILON) {
@@ -7713,48 +7717,54 @@ static float geometry_collide_offset(BevelParams *bp, EdgeHalf *eb)
    * iterating until we find a return edge (not in line with B) to provide a minimum offset
    * to the far side of the N-gon. This is not perfect, but is simpler and will catch many
    * more overlap issues. */
-  if (ka == 0.0f && kb > FLT_EPSILON) {
-    BMLoop *la = BM_face_edge_share_loop(eb->fnext, ea->e);
-    if (la) {
-      float A_side_slide = 0.0f;
-      float exterior_angle = 0.0f;
-      bool first = true;
-      while (exterior_angle < 0.0001f) {
-        if (first) {
-          exterior_angle = float(M_PI) - th1;
-          first = false;
-        }
-        else {
-          la = la->prev;
-          exterior_angle += float(M_PI) -
-                            angle_v3v3v3(la->v->co, la->next->v->co, la->next->next->v->co);
-        }
-        A_side_slide += BM_edge_calc_length(la->e) * sinf(exterior_angle);
-      }
-      limit = std::min(A_side_slide, limit);
-    }
-  }
+  if (kb > FLT_EPSILON && (ka == 0.0f || kc == 0.0f)) {
+    // use bevel weight offsets and not the full offset where weights are used
+    kb = bp->offset / kb;
 
-  if (kb > FLT_EPSILON && kc == 0.0f) {
-    BMLoop *lc = BM_face_edge_share_loop(eb->fnext, eb->e);
-    if (lc) {
-      lc = lc->next;
-      float C_side_slide = 0.0f;
-      float exterior_angle = 0.0f;
-      bool first = true;
-      while (exterior_angle < 0.0001f) {
-        if (first) {
-          exterior_angle = float(M_PI) - th2;
-          first = false;
+    if (ka == 0.0f) {
+      BMLoop *la = BM_face_edge_share_loop(eb->fnext, ea->e);
+      if (la) {
+        float A_side_slide = 0.0f;
+        float exterior_angle = 0.0f;
+        bool first = true;
+
+        while (exterior_angle < 0.0001f) {
+          if (first) {
+            exterior_angle = float(M_PI) - th1;
+            first = false;
+          }
+          else {
+            la = la->prev;
+            exterior_angle += float(M_PI) -
+                              angle_v3v3v3(la->v->co, la->next->v->co, la->next->next->v->co);
+          }
+          A_side_slide += BM_edge_calc_length(la->e) * sinf(exterior_angle);
         }
-        else {
-          lc = lc->next;
-          exterior_angle += float(M_PI) -
-                            angle_v3v3v3(lc->prev->v->co, lc->v->co, lc->next->v->co);
-        }
-        C_side_slide += BM_edge_calc_length(lc->e) * sinf(exterior_angle);
+        limit = std::min(A_side_slide * kb, limit);
       }
-      limit = std::min(C_side_slide, limit);
+    }
+
+    if (kc == 0.0f) {
+      BMLoop *lc = BM_face_edge_share_loop(eb->fnext, eb->e);
+      if (lc) {
+        lc = lc->next;
+        float C_side_slide = 0.0f;
+        float exterior_angle = 0.0f;
+        bool first = true;
+        while (exterior_angle < 0.0001f) {
+          if (first) {
+            exterior_angle = float(M_PI) - th2;
+            first = false;
+          }
+          else {
+            lc = lc->next;
+            exterior_angle += float(M_PI) -
+                              angle_v3v3v3(lc->prev->v->co, lc->v->co, lc->next->v->co);
+          }
+          C_side_slide += BM_edge_calc_length(lc->e) * sinf(exterior_angle);
+        }
+        limit = std::min(C_side_slide * kb, limit);
+      }
     }
   }
   return limit;
@@ -7961,8 +7971,8 @@ void BM_mesh_bevel(BMesh *bm,
       bv = bevel_vert_construct(bm, &bp, v);
       if (!limit_offset && bv) {
         build_boundary(&bp, bv, true);
+        determine_uv_vert_connectivity(&bp, bm, v);
       }
-      determine_uv_vert_connectivity(&bp, bm, v);
     }
   }
 
@@ -7976,6 +7986,7 @@ void BM_mesh_bevel(BMesh *bm,
         bv = find_bevvert(&bp, v);
         if (bv) {
           build_boundary(&bp, bv, true);
+          determine_uv_vert_connectivity(&bp, bm, v);
         }
       }
     }

@@ -297,9 +297,7 @@ def __gather_extensions(blender_mesh,
     if bpy.context.preferences.addons['io_scene_gltf2'].preferences.KHR_materials_variants_ui is False:
         return None
 
-    if bpy.data.scenes[0].get('gltf2_KHR_materials_variants_variants') is None:
-        return None
-    if len(bpy.data.scenes[0]['gltf2_KHR_materials_variants_variants']) == 0:
+    if not bpy.data.scenes[0].gltf2_KHR_materials_variants_variants:
         return None
 
     # Material idx is the slot idx. Retrieve associated variant, if any
@@ -318,7 +316,7 @@ def __gather_extensions(blender_mesh,
                 # Avoid duplicates
                 export_settings['log'].warning(
                     'Variant ' + str(v.variant.variant_idx) +
-                    ' has 2 differents materials for a single slot. Skipping it.')
+                    ' has 2 different materials for a single slot. Skipping it.')
                 continue
 
             vari = ext_variants.gather_variant(v.variant.variant_idx, export_settings)

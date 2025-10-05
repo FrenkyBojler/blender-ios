@@ -603,7 +603,7 @@ def fbx_data_light_elements(root, lamp, scene_data):
     elem_data_single_int32(light, b"GeometryVersion", FBX_GEOMETRY_VERSION)  # Sic...
 
     intensity = lamp.energy * 100.0 * pow(2.0, lamp.exposure)
-    color = lamp.color
+    color = lamp.color.copy()
     if lamp.use_temperature:
         temperature_color = lamp.temperature_color
         color[0] *= temperature_color[0]
@@ -1185,8 +1185,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
             #     normal_source = me.polygon_normals
             #     normal_mapping = b"ByPolygon"
             case 'CORNER' | 'FACE':
-                # We have a mix of sharp/smooth edges/faces or custom split normals, so need to get normals from
-                # corners.
+                # We have a mix of sharp/smooth edges/faces or custom normals, so need to get normals from corners.
                 normal_source = me.corner_normals
                 normal_mapping = b"ByPolygonVertex"
             case _:
@@ -1248,13 +1247,15 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
                     num_loops = len(me.loops)
                     t_ln = np.empty(num_loops * 3, dtype=normal_bl_dtype)
                     # t_lnw = np.zeros(len(me.loops), dtype=np.float64)
-                    uv_names = [uvlayer.name for uvlayer in me.uv_layers]
-                    # Annoying, `me.calc_tangent` errors in case there is no geometry...
-                    if num_loops > 0:
-                        for name in uv_names:
+                    # WARNING: Since tangent layers are recomputed inside the loop, do not directly iterate over the
+                    # uvlayers. Instead, cache their keys (names), and use this cached data inside the loop to compute
+                    # the tangent layers.
+                    uvlayer_names = [uvl.name for uvl in me.uv_layers]
+                    for idx, name in enumerate(uvlayer_names):
+                        # Annoying, `me.calc_tangent` errors in case there is no geometry...
+                        if num_loops > 0:
                             me.calc_tangents(uvmap=name)
-                    for idx, uvlayer in enumerate(me.uv_layers):
-                        name = uvlayer.name
+
                         # Loop bitangents (aka binormals).
                         # NOTE: this is not supported by importer currently.
                         me.loops.foreach_get("bitangent", t_ln)
@@ -2490,16 +2491,25 @@ def fbx_animations(scene_data):
 
     # All actions.
     if scene_data.settings.bake_anim_use_all_actions:
-        def validate_actions(act, path_resolve):
-            for fc in act.fcurves:
-                data_path = fc.data_path
-                if fc.array_index:
-                    data_path = data_path + "[%d]" % fc.array_index
-                try:
-                    path_resolve(data_path)
-                except ValueError:
-                    return False  # Invalid.
-            return True  # Valid.
+        def find_validate_action_slot(act, path_resolve) -> bpy.types.ActionSlot | None:
+            for layer in act.layers:
+                for strip in layer.strips:
+                    for channelbag in strip.channelbags:
+                        if not channelbag.fcurves:
+                            # Do not export empty Channelbags.
+                            continue
+                        for fc in channelbag.fcurves:
+                            data_path = fc.data_path
+                            if fc.array_index:
+                                data_path = data_path + "[%d]" % fc.array_index
+                            try:
+                                path_resolve(data_path)
+                            except ValueError:
+                                break  # Invalid, go to next strip.
+                        else:
+                            # Did not 'break', so all F-Curves are valid.
+                            return channelbag.slot
+            return None  # Found nothing to return.
 
         def restore_object(ob_to, ob_from):
             # Restore org state of object (ugh :/ ).
@@ -2539,14 +2549,20 @@ def fbx_animations(scene_data):
             pbones_matrices = [pbo.matrix_basis.copy() for pbo in ob.pose.bones] if ob.type == 'ARMATURE' else ...
 
             org_act = ob.animation_data.action
+            org_act_slot = ob.animation_data.action_slot
             path_resolve = ob.path_resolve
 
             for act in bpy.data.actions:
                 # For now, *all* paths in the action must be valid for the object, to validate the action.
                 # Unless that action was already assigned to the object!
-                if act != org_act and not validate_actions(act, path_resolve):
+                if act == org_act:
+                    act_slot = org_act_slot
+                else:
+                    act_slot = find_validate_action_slot(act, path_resolve)
+                if not act_slot:
                     continue
                 ob.animation_data.action = act
+                ob.animation_data.action_slot = act_slot
                 frame_start, frame_end = act.frame_range  # sic!
                 add_anim(animations, animated,
                          fbx_animations_do(scene_data, (ob, act), frame_start, frame_end, True,
@@ -2556,6 +2572,7 @@ def fbx_animations(scene_data):
                     for pbo, mat in zip(ob.pose.bones, pbones_matrices):
                         pbo.matrix_basis = mat.copy()
                 ob.animation_data.action = org_act
+                ob.animation_data.action_slot = org_act_slot
                 restore_object(ob, ob_copy)
                 scene.frame_set(scene.frame_current, subframe=0.0)
 
@@ -2563,6 +2580,7 @@ def fbx_animations(scene_data):
                 for pbo, mat in zip(ob.pose.bones, pbones_matrices):
                     pbo.matrix_basis = mat.copy()
             ob.animation_data.action = org_act
+            ob.animation_data.action_slot = org_act_slot
 
             bpy.data.objects.remove(ob_copy)
             scene.frame_set(scene.frame_current, subframe=0.0)

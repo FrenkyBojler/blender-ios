@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Beta (b'6ccdb8c06e27')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-16 10:45+0000\n"
-"PO-Revision-Date: 2025-04-14 08:18+0000\n"
+"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"PO-Revision-Date: 2025-07-23 15:13+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Basque <https://translate.blender.org/projects/blender-ui/ui/eu/>\n"
 "Language: eu\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.10.1"
+"X-Generator: Weblate 5.12.1"
 
 
 msgid "Name"
@@ -195,6 +195,18 @@ msgid "Tails"
 msgstr "Isatsak"
 
 
+msgid "Info"
+msgstr "Informazioa"
+
+
+msgid "Onion Skinning"
+msgstr "Tipula-azapa"
+
+
+msgid "Default"
+msgstr "Lehenetsia"
+
+
 msgid "Height"
 msgstr "Altuera"
 
@@ -217,10 +229,6 @@ msgstr "Grafo Editorea"
 
 msgid "Text Editor"
 msgstr "Testu Editorea"
-
-
-msgid "Info"
-msgstr "Informazioa"
 
 
 msgid "Outliner"
@@ -247,6 +255,10 @@ msgid "Layer"
 msgstr "Geruza"
 
 
+msgid "Object"
+msgstr "Objektua"
+
+
 msgid "+X"
 msgstr "+X"
 
@@ -261,10 +273,6 @@ msgstr "-X"
 
 msgid "-Y"
 msgstr "-Y"
-
-
-msgid "Object"
-msgstr "Objektua"
 
 
 msgid "Emit"
@@ -333,10 +341,6 @@ msgstr "Eskeletoa"
 
 msgid "Z"
 msgstr "Z"
-
-
-msgid "Default"
-msgstr "Lehenetsia"
 
 
 msgid "Camera"
@@ -409,10 +413,6 @@ msgstr "Ezabatu"
 
 msgid "Normal"
 msgstr "Normala"
-
-
-msgid "Onion Skinning"
-msgstr "Tipula-azapa"
 
 
 msgid "Grid"
@@ -500,10 +500,6 @@ msgid "Filter Size"
 msgstr "Filtroaren tamaina"
 
 
-msgid "Area"
-msgstr "Azalera"
-
-
 msgid "Repeat X"
 msgstr "X Errepikatu"
 
@@ -557,6 +553,10 @@ msgid "Min Angle"
 msgstr "Angelu Minimoa"
 
 
+msgid "Relations"
+msgstr "Loturak"
+
+
 msgid "Show/Hide"
 msgstr "Erakutsi/Ezkutatu"
 
@@ -565,8 +565,8 @@ msgid "Text"
 msgstr "Testua"
 
 
-msgid "Relations"
-msgstr "Loturak"
+msgid "Import"
+msgstr "Inportatu"
 
 
 msgid "UV"
@@ -575,10 +575,6 @@ msgstr "UV"
 
 msgid "Show/Hide Faces"
 msgstr "Aurpegiak erakutsi/ezkutatu"
-
-
-msgid "Import"
-msgstr "Inportatu"
 
 
 msgid "Physics"
@@ -627,24 +623,8 @@ msgid "Starting"
 msgstr "Hasten"
 
 
-msgid "Shadow"
-msgstr "Itzala"
-
-
-msgid "Combined"
-msgstr "Konbinatuak"
-
-
 msgid "Translate"
 msgstr "Mugitu"
-
-
-msgid "X Axis"
-msgstr "X Ardatza"
-
-
-msgid "Y Axis"
-msgstr "Y Ardatza"
 
 
 msgid "Original"
@@ -675,8 +655,20 @@ msgid "Z axis"
 msgstr "Z ardatza"
 
 
+msgid "X Axis"
+msgstr "X Ardatza"
+
+
+msgid "Y Axis"
+msgstr "Y Ardatza"
+
+
 msgid "Z Axis"
 msgstr "Z Ardatza"
+
+
+msgid "Shadow"
+msgstr "Itzala"
 
 
 msgctxt "Operator"
@@ -892,6 +884,18 @@ msgid "Reset Original Length"
 msgstr "Jatorrizko Luzera Berrasieratu"
 
 
+msgid "Remove from selection"
+msgstr "Hautaketatik ezabatu"
+
+
+msgid "Toggle Selection"
+msgstr "Hautaketa txandakatu"
+
+
+msgid "Toggle the selection"
+msgstr "Hautaketa txandakatu"
+
+
 msgctxt "Operator"
 msgid "(De)select First"
 msgstr "(Ez)hautatu Lehena"
@@ -912,18 +916,6 @@ msgid "Add Duplicate"
 msgstr "Bikoizketa Gehitu"
 
 
-msgid "Remove from selection"
-msgstr "Hautaketatik ezabatu"
-
-
-msgid "Toggle Selection"
-msgstr "Hautaketa txandakatu"
-
-
-msgid "Toggle the selection"
-msgstr "Hautaketa txandakatu"
-
-
 msgid "Object Types"
 msgstr "Objektu mota"
 
@@ -942,10 +934,6 @@ msgstr "Besteak"
 
 msgid "Always write absolute paths"
 msgstr "Beti helbide absolutuak idatzi"
-
-
-msgid "Always write relative paths (where possible)"
-msgstr "Beti helbide erlatiboak idatzi (posible denean)"
 
 
 msgid "Filename only"
@@ -1451,13 +1439,12 @@ msgid "Duplicate Linked"
 msgstr "Bikoiztu Estekatua"
 
 
-msgctxt "Operator"
-msgid "Hide"
-msgstr "Ezkutatu"
-
-
 msgid "Mouse location"
 msgstr "Arratoiaren lokalizazioa"
+
+
+msgid "Combined"
+msgstr "Konbinatuak"
 
 
 msgctxt "Operator"
@@ -1471,6 +1458,11 @@ msgstr "Umea"
 
 msgid "Hierarchy"
 msgstr "Hierarkia"
+
+
+msgctxt "Operator"
+msgid "Hide"
+msgstr "Ezkutatu"
 
 
 msgid "Reset"
@@ -1860,11 +1852,6 @@ msgstr "Kolorea"
 msgctxt "Operator"
 msgid "Text"
 msgstr "Testua"
-
-
-msgctxt "Operator"
-msgid "Scene..."
-msgstr "Eszena"
 
 
 msgctxt "Text"

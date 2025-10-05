@@ -24,6 +24,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -175,6 +176,14 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
     }
   }
+}
+
+static void linestyle_foreach_working_space_color(ID *id,
+                                                  const IDTypeForeachColorFunctionCallback &fn)
+{
+  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
+
+  fn.single(&linestyle->r);
 }
 
 static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modifiers)
@@ -665,6 +674,7 @@ IDTypeInfo IDType_ID_LS = {
     /*foreach_id*/ linestyle_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ linestyle_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ linestyle_blend_write,
@@ -717,7 +727,7 @@ static LineStyleModifier *new_modifier(const char *name, int type, size_t size)
   }
   m = (LineStyleModifier *)MEM_callocN(size, "line style modifier");
   m->type = type;
-  STRNCPY(m->name, DATA_(name));
+  STRNCPY_UTF8(m->name, DATA_(name));
   m->influence = 1.0f;
   m->flags = LS_MODIFIER_ENABLED | LS_MODIFIER_EXPANDED;
 

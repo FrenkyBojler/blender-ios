@@ -140,7 +140,7 @@ static bool raycastMesh(SnapObjectContext *sctx,
   }
 
   BLI_assert(treedata.raycast_callback != nullptr);
-  if (sctx->ret.hit_list) {
+  if (sctx->runtime.hit_list) {
     RayCastAll_Data data;
 
     data.bvhdata = &treedata;
@@ -149,7 +149,7 @@ static bool raycastMesh(SnapObjectContext *sctx,
     data.len_diff = len_diff;
     data.local_scale = local_scale;
     data.ob_uuid = ob_index;
-    data.hit_list = sctx->ret.hit_list;
+    data.hit_list = sctx->runtime.hit_list;
 
     void *hit_last_prev = data.hit_list->last;
     BLI_bvhtree_ray_cast_all(
@@ -389,7 +389,7 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
       cb_snap_edge(&nearest2d,
                    face_edges[i],
                    &nearest2d.nearest_precalc,
-                   reinterpret_cast<float(*)[4]>(nearest2d.clip_planes.data()),
+                   reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
                    nearest2d.clip_planes.size(),
                    &nearest);
     }
@@ -401,7 +401,7 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
       cb_snap_vert(&nearest2d,
                    face_verts[i],
                    &nearest2d.nearest_precalc,
-                   reinterpret_cast<float(*)[4]>(nearest2d.clip_planes.data()),
+                   reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
                    nearest2d.clip_planes.size(),
                    &nearest);
     }
@@ -501,15 +501,16 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
   if (bvhtree[1]) {
     BLI_assert(snap_to & SCE_SNAP_TO_POINT);
     /* Snap to loose verts. */
-    BLI_bvhtree_find_nearest_projected(bvhtree[1],
-                                       nearest2d.pmat_local.ptr(),
-                                       sctx->runtime.win_size,
-                                       sctx->runtime.mval,
-                                       reinterpret_cast<float(*)[4]>(nearest2d.clip_planes.data()),
-                                       nearest2d.clip_planes.size(),
-                                       &nearest,
-                                       cb_snap_vert,
-                                       &nearest2d);
+    BLI_bvhtree_find_nearest_projected(
+        bvhtree[1],
+        nearest2d.pmat_local.ptr(),
+        sctx->runtime.win_size,
+        sctx->runtime.mval,
+        reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
+        nearest2d.clip_planes.size(),
+        &nearest,
+        cb_snap_vert,
+        &nearest2d);
 
     if (nearest.index != -1) {
       last_index = nearest.index;
@@ -525,7 +526,7 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
           nearest2d.pmat_local.ptr(),
           sctx->runtime.win_size,
           sctx->runtime.mval,
-          reinterpret_cast<float(*)[4]>(nearest2d.clip_planes.data()),
+          reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
           nearest2d.clip_planes.size(),
           &nearest,
           cb_snap_edge,
@@ -539,7 +540,7 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
           nearest2d.pmat_local.ptr(),
           sctx->runtime.win_size,
           sctx->runtime.mval,
-          reinterpret_cast<float(*)[4]>(nearest2d.clip_planes.data()),
+          reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
           nearest2d.clip_planes.size(),
           &nearest,
           cb_snap_tri_edges,
@@ -558,7 +559,7 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
           nearest2d.pmat_local.ptr(),
           sctx->runtime.win_size,
           sctx->runtime.mval,
-          reinterpret_cast<float(*)[4]>(nearest2d.clip_planes.data()),
+          reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
           nearest2d.clip_planes.size(),
           &nearest,
           cb_snap_edge_verts,
@@ -572,7 +573,7 @@ static eSnapMode snapMesh(SnapObjectContext *sctx,
           nearest2d.pmat_local.ptr(),
           sctx->runtime.win_size,
           sctx->runtime.mval,
-          reinterpret_cast<float(*)[4]>(nearest2d.clip_planes.data()),
+          reinterpret_cast<float (*)[4]>(nearest2d.clip_planes.data()),
           nearest2d.clip_planes.size(),
           &nearest,
           cb_snap_tri_verts,

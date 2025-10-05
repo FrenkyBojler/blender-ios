@@ -19,9 +19,14 @@ namespace blender::nodes::node_composite_antialiasing_cc {
 
 static void cmp_node_antialiasing_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .hide_value()
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Float>("Threshold")
       .default_value(0.2f)
       .subtype(PROP_FACTOR)
@@ -29,25 +34,20 @@ static void cmp_node_antialiasing_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .description(
           "Specifies the threshold or sensitivity to edges. Lowering this value you will be able "
-          "to detect more edges at the expense of performance")
-      .compositor_expects_single_value();
+          "to detect more edges at the expense of performance");
   b.add_input<decl::Float>("Contrast Limit")
       .default_value(2.0f)
       .min(0.0f)
       .description(
           "If there is an neighbor edge that has a Contrast Limit times bigger contrast than "
           "current edge, current edge will be discarded. This allows to eliminate spurious "
-          "crossing edges")
-      .compositor_expects_single_value();
+          "crossing edges");
   b.add_input<decl::Float>("Corner Rounding")
       .default_value(0.25f)
       .subtype(PROP_FACTOR)
       .min(0.0f)
       .max(1.0f)
-      .description("Specifies how much sharp corners will be rounded")
-      .compositor_expects_single_value();
-
-  b.add_output<decl::Color>("Image");
+      .description("Specifies how much sharp corners will be rounded");
 }
 
 using namespace blender::compositor;
@@ -110,7 +110,7 @@ static void register_node_type_cmp_antialiasing()
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_antialiasing_declare;
   ntype.flag |= NODE_PREVIEW;
-  blender::bke::node_type_size(ntype, 170, 140, 200);
+  blender::bke::node_type_size(ntype, 175, 140, 200);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);

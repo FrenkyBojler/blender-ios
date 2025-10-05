@@ -279,7 +279,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
       /* Protection against Python scripts not setting proper size limit. */
       char *glob = RNA_property_string_get_alloc(op->ptr, prop, nullptr, 0, nullptr);
       BLI_SCOPED_DEFER([&]() { MEM_freeN(glob); });
-      STRNCPY(params->filter_glob, glob);
+      STRNCPY_UTF8(params->filter_glob, glob);
       /* Fix stupid things that truncating might have generated,
        * like last group being a 'match everything' wildcard-only one... */
       BLI_path_extension_glob_validate(params->filter_glob);
@@ -535,6 +535,8 @@ int ED_fileselect_asset_import_method_get(const SpaceFile *sfile, const FileDirE
       return ASSET_IMPORT_APPEND;
     case FILE_ASSET_IMPORT_APPEND_REUSE:
       return ASSET_IMPORT_APPEND_REUSE;
+    case FILE_ASSET_IMPORT_PACK:
+      return ASSET_IMPORT_PACK;
 
       /* Should be handled above already. Break and fail below. */
     case FILE_ASSET_IMPORT_FOLLOW_PREFS:
@@ -619,6 +621,7 @@ void ED_fileselect_activate_by_relpath(SpaceFile *sfile, const char *relative_pa
 
 void ED_fileselect_deselect_all(SpaceFile *sfile)
 {
+  BLI_assert(sfile->files);
   file_select_deselect_all(sfile, FILE_SEL_SELECTED);
   WM_main_add_notifier(NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 }
@@ -630,7 +633,7 @@ void ED_fileselect_deselect_all(SpaceFile *sfile)
 void ED_fileselect_window_params_get(const wmWindow *win, int r_win_size[2], bool *r_is_maximized)
 {
   /* Get DPI/pixel-size independent size to be stored in preferences. */
-  WM_window_set_dpi(win); /* Ensure the DPI is taken from the right window. */
+  WM_window_dpi_set_userdef(win); /* Ensure the DPI is taken from the right window. */
 
   const blender::int2 win_size = WM_window_native_pixel_size(win);
   r_win_size[0] = win_size[0] / UI_SCALE_FAC;
@@ -685,9 +688,7 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
   }
 }
 
-void ED_fileselect_params_to_userdef(SpaceFile *sfile,
-                                     const int temp_win_size[2],
-                                     const bool is_maximized)
+void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   UserDef_FileSpaceData *sfile_udata_new = &U.file_space_data;
@@ -709,11 +710,6 @@ void ED_fileselect_params_to_userdef(SpaceFile *sfile,
     /* In this case also remember the invert flag. */
     sfile_udata_new->flag = (sfile_udata_new->flag & ~FILE_SORT_INVERT) |
                             (params->flag & FILE_SORT_INVERT);
-  }
-
-  if (temp_win_size && !is_maximized) {
-    sfile_udata_new->temp_win_sizex = temp_win_size[0];
-    sfile_udata_new->temp_win_sizey = temp_win_size[1];
   }
 
   /* Tag preferences as dirty if something has changed. */
@@ -759,8 +755,7 @@ int ED_fileselect_layout_numfiles(FileLayout *layout, ARegion *region)
   }
 
   const int y_item = layout->tile_h + (2 * layout->tile_border_y);
-  const int y_view = int(BLI_rctf_size_y(&region->v2d.cur)) - layout->offset_top -
-                     layout->list_padding_top;
+  const int y_view = int(BLI_rctf_size_y(&region->v2d.cur)) - layout->offset_top;
   const int y_over = y_item - (y_view % y_item);
   numfiles = int(float(y_view + y_over) / float(y_item));
   return numfiles * layout->flow_columns;
@@ -1328,20 +1323,7 @@ void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile)
     return;
   }
   if (sfile->op) {
-    wmWindow *temp_win = (wm->winactive && WM_window_is_temp_screen(wm->winactive)) ?
-                             wm->winactive :
-                             nullptr;
-    if (temp_win) {
-      int win_size[2];
-      bool is_maximized;
-
-      ED_fileselect_window_params_get(temp_win, win_size, &is_maximized);
-      ED_fileselect_params_to_userdef(sfile, win_size, is_maximized);
-    }
-    else {
-      ED_fileselect_params_to_userdef(sfile, nullptr, false);
-    }
-
+    ED_fileselect_params_to_userdef(sfile);
     WM_event_fileselect_event(wm, sfile->op, EVT_FILESELECT_EXTERNAL_CANCEL);
     sfile->op = nullptr;
   }
@@ -1501,4 +1483,18 @@ void ED_fileselect_ensure_default_filepath(bContext *C, wmOperator *op, const ch
     BLI_path_extension_replace(filepath, sizeof(filepath), extension);
     RNA_string_set(op->ptr, "filepath", filepath);
   }
+}
+
+blender::Vector<std::string> ED_fileselect_selected_files_full_paths(const SpaceFile *sfile)
+{
+  blender::Vector<std::string> paths;
+  char path[FILE_MAX_LIBEXTRA];
+  for (const int i : blender::IndexRange(filelist_files_ensure(sfile->files))) {
+    if (filelist_entry_is_selected(sfile->files, i)) {
+      const FileDirEntry *entry = filelist_file(sfile->files, i);
+      filelist_file_get_full_path(sfile->files, entry, path);
+      paths.append(path);
+    }
+  }
+  return paths;
 }

@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector_types.hh"
@@ -14,6 +13,8 @@
 #include "FN_multi_function_builder.hh"
 
 #include "NOD_multi_function.hh"
+
+#include "BKE_node.hh"
 
 #include "UI_resources.hh"
 
@@ -27,7 +28,13 @@ namespace blender::nodes::node_composite_color_matte_cc {
 
 static void cmp_node_color_matte_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.is_function_node();
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
+  b.add_output<decl::Float>("Matte");
+
   b.add_input<decl::Color>("Key Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Hue")
       .default_value(0.01f)
@@ -53,9 +60,6 @@ static void cmp_node_color_matte_declare(NodeDeclarationBuilder &b)
       .description(
           "If the difference in value between the color and key color is less than this "
           "threshold, it is keyed");
-
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Matte");
 }
 
 using namespace blender::compositor;
@@ -132,6 +136,7 @@ static void register_node_type_cmp_color_matte()
   ntype.flag |= NODE_PREVIEW;
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
+  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

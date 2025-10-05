@@ -61,7 +61,6 @@ static void UVsToTransData(const float aspect[2],
   memset(r_td->axismtx, 0, sizeof(r_td->axismtx));
   r_td->axismtx[2][2] = 1.0f;
 
-  r_td->ext = nullptr;
   r_td->val = nullptr;
 
   if (selected) {
@@ -361,7 +360,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         const bool selected = uvedit_uv_select_test(scene, l, offsets);
-        float(*luv)[2];
+        float (*luv)[2];
         const float *center = nullptr;
         float prop_distance = FLT_MAX;
 
@@ -381,7 +380,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
           }
         }
 
-        luv = (float(*)[2])BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
+        luv = (float (*)[2])BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
         UVsToTransData(t->aspect, *luv, center, prop_distance, selected, l, td++, td2d++);
       }
     }
@@ -502,18 +501,13 @@ struct UVGroups {
 
     /* Now, count and set the index for the corners being transformed. */
     this->sd_len = 0;
-    BLI_assert(tc->sorted_index_map);
-    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+    tc->foreach_index_selected([&](const int i) {
       TransData *td = &tc->data[i];
-      if (!(td->flag & TD_SELECTED)) {
-        /* The selected ones are sorted at the beginning. */
-        break;
-      }
       this->sd_len++;
 
       BMLoop *l = static_cast<BMLoop *>(td->extra);
       BM_elem_index_set(l, i);
-    }
+    });
     bm->elem_index_dirty |= BM_LOOP;
 
     /* Create the groups. */
@@ -565,8 +559,8 @@ struct UVGroups {
 
   Array<TransDataVertSlideVert> sd_array_create_and_init(TransDataContainer *tc)
   {
-    Array<TransDataVertSlideVert> r_sv(this->sd_len);
-    TransDataVertSlideVert *sv = r_sv.data();
+    Array<TransDataVertSlideVert> sv_array(this->sd_len);
+    TransDataVertSlideVert *sv = sv_array.data();
     for (const int group_index : this->groups().index_range()) {
       for (int td_index : this->td_indices_get(group_index)) {
         TransData *td = &tc->data[td_index];
@@ -575,13 +569,13 @@ struct UVGroups {
       }
     }
 
-    return r_sv;
+    return sv_array;
   }
 
   Array<TransDataEdgeSlideVert> sd_array_create_and_init_edge(TransDataContainer *tc)
   {
-    Array<TransDataEdgeSlideVert> r_sv(this->sd_len);
-    TransDataEdgeSlideVert *sv = r_sv.data();
+    Array<TransDataEdgeSlideVert> sv_array(this->sd_len);
+    TransDataEdgeSlideVert *sv = sv_array.data();
     for (const int group_index : this->groups().index_range()) {
       for (int td_index : this->td_indices_get(group_index)) {
         TransData *td = &tc->data[td_index];
@@ -593,7 +587,7 @@ struct UVGroups {
       }
     }
 
-    return r_sv;
+    return sv_array;
   }
 
   MutableSpan<TransDataVertSlideVert> sd_group_get(MutableSpan<TransDataVertSlideVert> sd_array,
@@ -646,9 +640,9 @@ Array<TransDataVertSlideVert> transform_mesh_uv_vert_slide_data_create(
 
   UVGroups *uv_groups = mesh_uv_groups_get(tc, bm, offsets);
 
-  Array<TransDataVertSlideVert> r_sv = uv_groups->sd_array_create_and_init(tc);
+  Array<TransDataVertSlideVert> sv_array = uv_groups->sd_array_create_and_init(tc);
 
-  r_loc_dst_buffer.reserve(r_sv.size() * 4);
+  r_loc_dst_buffer.reserve(sv_array.size() * 4);
 
   for (const int group_index : uv_groups->groups().index_range()) {
     const int size_prev = r_loc_dst_buffer.size();
@@ -673,7 +667,7 @@ Array<TransDataVertSlideVert> transform_mesh_uv_vert_slide_data_create(
     }
 
     const int size_new = r_loc_dst_buffer.size() - size_prev;
-    for (TransDataVertSlideVert &sv : uv_groups->sd_group_get(r_sv, group_index)) {
+    for (TransDataVertSlideVert &sv : uv_groups->sd_group_get(sv_array, group_index)) {
       /* The buffer address may change as the vector is resized. Avoid setting #Span now. */
       // sv.targets = r_loc_dst_buffer.as_span().drop_front(size_prev);
 
@@ -690,12 +684,12 @@ Array<TransDataVertSlideVert> transform_mesh_uv_vert_slide_data_create(
     }
   }
 
-  for (TransDataVertSlideVert &sv : r_sv) {
+  for (TransDataVertSlideVert &sv : sv_array) {
     int start = POINTER_AS_INT(sv.co_link_orig_3d.data());
     sv.co_link_orig_3d = r_loc_dst_buffer.as_span().slice(start, sv.co_link_orig_3d.size());
   }
 
-  return r_sv;
+  return sv_array;
 }
 
 /** \} */
@@ -825,7 +819,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
                                                                        TransDataContainer *tc,
                                                                        int *r_group_len)
 {
-  Array<TransDataEdgeSlideVert> r_sv;
+  Array<TransDataEdgeSlideVert> sv_array;
   BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
   BMesh *bm = em->bm;
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
@@ -840,17 +834,12 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
 
     /* First we just need to "clean up" the neighboring loops.
      * This way we can identify where a group of sliding edges starts and where it ends. */
-    BLI_assert(tc->sorted_index_map);
-    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+    tc->foreach_index_selected([&](const int i) {
       TransData *td = &tc->data[i];
-      if (!(td->flag & TD_SELECTED)) {
-        /* The selected ones are sorted at the beginning. */
-        break;
-      }
       BMLoop *l = static_cast<BMLoop *>(td->extra);
       BM_elem_index_set(l->prev, -1);
       BM_elem_index_set(l->next, -1);
-    }
+    });
 
     /* Now set the group indexes. */
     for (const int group_index : uv_groups->groups().index_range()) {
@@ -889,7 +878,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
 
         if (group_linked_pair[1] != -1) {
           /* For Edge Slide, the vertex can only be connected to a maximum of 2 sliding edges. */
-          return r_sv;
+          return sv_array;
         }
         const int slot = int(group_linked_pair[0] != -1);
         group_linked_pair[slot] = group_index_dst;
@@ -898,22 +887,22 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
 
     if (group_linked_pair[0] == -1) {
       /* For Edge Slide, the vertex must be connected to at least 1 sliding edge. */
-      return r_sv;
+      return sv_array;
     }
   }
 
   /* Alloc and initialize the #TransDataEdgeSlideVert. */
-  r_sv = uv_groups->sd_array_create_and_init_edge(tc);
+  sv_array = uv_groups->sd_array_create_and_init_edge(tc);
 
   /* Compute the sliding groups. */
   int loop_nr = 0;
-  for (int i : r_sv.index_range()) {
-    if (r_sv[i].loop_nr != -1) {
+  for (int i : sv_array.index_range()) {
+    if (sv_array[i].loop_nr != -1) {
       /* This vertex has already been computed. */
       continue;
     }
 
-    BMLoop *l = static_cast<BMLoop *>(r_sv[i].td->extra);
+    BMLoop *l = static_cast<BMLoop *>(sv_array[i].td->extra);
     int group_index = BM_elem_index_get(l);
 
     /* Start from a vertex connected to just a single edge or any if it doesn't exist. */
@@ -1109,7 +1098,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
       }
 
       TransDataEdgeSlideVert *sv_first = nullptr;
-      for (TransDataEdgeSlideVert &sv : uv_groups->sd_group_get(r_sv, curr.i)) {
+      for (TransDataEdgeSlideVert &sv : uv_groups->sd_group_get(sv_array, curr.i)) {
         if (sv_first) {
           TransData *td = sv.td;
           sv = *sv_first;
@@ -1147,7 +1136,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
     loop_nr++;
   }
   *r_group_len = loop_nr;
-  return r_sv;
+  return sv_array;
 }
 
 /** \} */
