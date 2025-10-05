@@ -10,6 +10,12 @@ identify which member is required.
 
 This example shows how to log which context members are being accessed. Log statements are
 printed to your system's console.
+
+.. important::
+
+    Not all operators rely on Context Members and therefore will not be affected by
+    ``context.temp_override``, use logging to what members if any are accessed.
+
 """
 
 import bpy
