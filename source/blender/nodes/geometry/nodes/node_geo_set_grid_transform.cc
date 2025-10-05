@@ -81,13 +81,15 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
       node.custom1 = *data_type;
       params.update_and_connect_available_socket(node, "Grid");
     });
+    const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
+    if (params.node_tree().typeinfo->validate_link(other_type, SOCK_MATRIX)) {
+      params.add_item(IFACE_("Transform"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeSetGridTransform");
+        params.update_and_connect_available_socket(node, "Transform");
+      });
+    }
   }
   else {
-    const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
-    params.add_item(IFACE_("Transform"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSetGridTransform");
-      params.update_and_connect_available_socket(node, "Transform");
-    });
     params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeSetGridTransform");
       node.custom1 = *data_type;
