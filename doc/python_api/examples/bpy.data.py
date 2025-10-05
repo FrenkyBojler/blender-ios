@@ -34,4 +34,4 @@ if "Cube" in bpy.data.meshes:
 import os
 with open(os.path.splitext(bpy.data.filepath)[0] + ".txt", 'w') as fs:
     for image in bpy.data.images:
-        fs.write("{:s} {:d} x {:d}\n".format(image.filepath, image.size[0], image.size[1]))
+        fs.write(f"{image.filepath} {image.size[0]} x {image.size[1]}\n")
