@@ -2,51 +2,48 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
-#include "BLI_task.hh"
-
-#include "NOD_rna_define.hh"
 
 #include "GEO_transform.hh"
-
-#include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_transform_geometry_cc {
 
+static EnumPropertyItem mode_items[] = {
+    {GEO_NODE_TRANSFORM_MODE_COMPONENTS,
+     "COMPONENTS",
+     0,
+     "Components",
+     "Provide separate location, rotation and scale"},
+    {GEO_NODE_TRANSFORM_MODE_MATRIX, "MATRIX", 0, "Matrix", "Use a transformation matrix"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
-  b.add_input<decl::Vector>("Translation").subtype(PROP_TRANSLATION);
-  b.add_input<decl::Rotation>("Rotation");
-  b.add_input<decl::Vector>("Scale").default_value({1, 1, 1}).subtype(PROP_XYZ);
-  b.add_input<decl::Matrix>("Transform");
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
-}
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
-static void node_update(bNodeTree *tree, bNode *node)
-{
-  bNodeSocket *translation_socket = static_cast<bNodeSocket *>(node->inputs.first)->next;
-  bNodeSocket *rotation_socket = translation_socket->next;
-  bNodeSocket *scale_socket = rotation_socket->next;
-  bNodeSocket *transform_socket = scale_socket->next;
-
-  const bool use_matrix = node->custom1 == GEO_NODE_TRANSFORM_MODE_MATRIX;
-
-  bke::node_set_socket_availability(tree, translation_socket, !use_matrix);
-  bke::node_set_socket_availability(tree, rotation_socket, !use_matrix);
-  bke::node_set_socket_availability(tree, scale_socket, !use_matrix);
-  bke::node_set_socket_availability(tree, transform_socket, use_matrix);
-}
-
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  b.add_input<decl::Geometry>("Geometry")
+      .is_default_link_socket()
+      .description("Geometry to transform");
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_input<decl::Menu>("Mode")
+      .static_items(mode_items)
+      .optional_label()
+      .description("How the transformation is specified");
+  b.add_input<decl::Vector>("Translation")
+      .subtype(PROP_TRANSLATION)
+      .usage_by_single_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
+  b.add_input<decl::Rotation>("Rotation").usage_by_single_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
+  b.add_input<decl::Vector>("Scale")
+      .default_value({1, 1, 1})
+      .subtype(PROP_XYZ)
+      .usage_by_single_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
+  b.add_input<decl::Matrix>("Transform").usage_by_single_menu(GEO_NODE_TRANSFORM_MODE_MATRIX);
 }
 
 static bool use_translate(const math::Quaternion &rotation, const float3 scale)
@@ -65,7 +62,11 @@ static bool use_translate(const math::Quaternion &rotation, const float3 scale)
 static void report_errors(GeoNodeExecParams &params,
                           const geometry::TransformGeometryErrors &errors)
 {
-  if (errors.volume_too_small) {
+  if (errors.bad_volume_transform) {
+    params.error_message_add(NodeWarningType::Warning,
+                             TIP_("Invalid transformation for volume grids"));
+  }
+  else if (errors.volume_too_small) {
     params.error_message_add(NodeWarningType::Warning,
                              TIP_("Volume scale is lower than permitted by OpenVDB"));
   }
@@ -73,10 +74,10 @@ static void report_errors(GeoNodeExecParams &params,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const bool use_matrix = params.node().custom1 == GEO_NODE_TRANSFORM_MODE_MATRIX;
+  const auto mode = params.get_input<NodeGeometryTransformMode>("Mode");
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
-  if (use_matrix) {
+  if (mode == GEO_NODE_TRANSFORM_MODE_MATRIX) {
     const float4x4 transform = params.extract_input<float4x4>("Transform");
     if (auto errors = geometry::transform_geometry(geometry_set, transform)) {
       report_errors(params, *errors);
@@ -103,39 +104,17 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Geometry", std::move(geometry_set));
 }
 
-static void node_rna(StructRNA *srna)
-{
-  static EnumPropertyItem mode_items[] = {
-      {GEO_NODE_TRANSFORM_MODE_COMPONENTS,
-       "COMPONENTS",
-       0,
-       "Components",
-       "Provide separate location, rotation and scale"},
-      {GEO_NODE_TRANSFORM_MODE_MATRIX, "MATRIX", 0, "Matrix", "Use a transformation matrix"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_node_enum(srna,
-                    "mode",
-                    "Mode",
-                    "How the transformation is specified",
-                    mode_items,
-                    NOD_inline_enum_accessors(custom1));
-}
-
 static void register_node()
 {
   static blender::bke::bNodeType ntype;
-
-  geo_node_type_base(
-      &ntype, GEO_NODE_TRANSFORM_GEOMETRY, "Transform Geometry", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeTransform", GEO_NODE_TRANSFORM_GEOMETRY);
+  ntype.ui_name = "Transform Geometry";
+  ntype.ui_description = "Translate, rotate or scale the geometry";
+  ntype.enum_name_legacy = "TRANSFORM_GEOMETRY";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
-  ntype.updatefunc = node_update;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
-
-  node_rna(ntype.rna_ext.srna);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node)
 

@@ -11,13 +11,11 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
-
-#include "../mathutils/mathutils.h"
+#include "../mathutils/mathutils.hh"
 
 #include "bmesh.hh"
-#include "bmesh_py_geometry.h" /* own include */
-#include "bmesh_py_types.h"
+#include "bmesh_py_geometry.hh" /* own include */
+#include "bmesh_py_types.hh"
 
 PyDoc_STRVAR(
     /* Wrap. */
@@ -64,7 +62,7 @@ static PyMethodDef BPy_BM_geometry_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     BPy_BM_utils_doc,
-    "This module provides access to bmesh geometry evaluation functions.");
+    "This module provides access to bmesh geometry evaluation functions.\n");
 static PyModuleDef BPy_BM_geometry_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bmesh.geometry",

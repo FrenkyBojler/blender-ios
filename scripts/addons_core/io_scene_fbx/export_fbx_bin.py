@@ -204,6 +204,7 @@ def fbx_template_def_light(scene, settings, override_defaults=None, nbr_users=0)
         b"CastLight": (True, "p_bool", False),
         b"Color": ((1.0, 1.0, 1.0), "p_color", True),
         b"Intensity": (100.0, "p_number", True),  # Times 100 compared to Blender values...
+        b"Exposure" : (0.0, "p_number", True ),
         b"DecayType": (2, "p_enum", False),  # Quadratic.
         b"DecayStart": (30.0 * gscale, "p_double", False),
         b"CastShadows": (True, "p_bool", False),
@@ -588,11 +589,12 @@ def fbx_data_light_elements(root, lamp, scene_data):
     light_key = scene_data.data_lights[lamp]
     do_light = True
     do_shadow = False
+    # NOTE: this was removed from lamps, always write black.
     shadow_color = Vector((0.0, 0.0, 0.0))
     if lamp.type not in {'HEMI'}:
         do_light = True
         do_shadow = lamp.use_shadow
-        shadow_color = lamp.shadow_color
+        # `shadow_color = lamp.shadow_color`: now removed.
 
     light = elem_data_single_int64(root, b"NodeAttribute", get_fbx_uuid_from_key(light_key))
     light.add_string(fbx_name_class(lamp.name.encode(), b"NodeAttribute"))
@@ -600,12 +602,20 @@ def fbx_data_light_elements(root, lamp, scene_data):
 
     elem_data_single_int32(light, b"GeometryVersion", FBX_GEOMETRY_VERSION)  # Sic...
 
+    intensity = lamp.energy * 100.0 * pow(2.0, lamp.exposure)
+    color = lamp.color.copy()
+    if lamp.use_temperature:
+        temperature_color = lamp.temperature_color
+        color[0] *= temperature_color[0]
+        color[1] *= temperature_color[1]
+        color[2] *= temperature_color[2]
+
     tmpl = elem_props_template_init(scene_data.templates, b"Light")
     props = elem_properties(light)
     elem_props_template_set(tmpl, props, "p_enum", b"LightType", FBX_LIGHT_TYPES[lamp.type])
     elem_props_template_set(tmpl, props, "p_bool", b"CastLight", do_light)
-    elem_props_template_set(tmpl, props, "p_color", b"Color", lamp.color)
-    elem_props_template_set(tmpl, props, "p_number", b"Intensity", lamp.energy * 100.0)
+    elem_props_template_set(tmpl, props, "p_color", b"Color", color)
+    elem_props_template_set(tmpl, props, "p_number", b"Intensity", intensity)
     elem_props_template_set(tmpl, props, "p_enum", b"DecayType", FBX_LIGHT_DECAY_TYPES['INVERSE_SQUARE'])
     elem_props_template_set(tmpl, props, "p_double", b"DecayStart", 25.0 * gscale)  # 25 is old Blender default
     elem_props_template_set(tmpl, props, "p_bool", b"CastShadows", do_shadow)
@@ -869,8 +879,9 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         fbx_data_element_custom_properties(props, me)
 
     # Subdivision levels. Take them from the first found subsurf modifier from the
-    # first object that has the mesh. Write crease information if the object has
-    # and subsurf modifier.
+    # first object that has the mesh. Always write crease information if present,
+    # if the modifier explicitly uses creases ("use_creases" setting) and mesh lacks them,
+    # still provide zeros (see TODO comment below)
     write_crease = False
     if scene_data.settings.use_subsurf:
         last_subsurf = None
@@ -894,6 +905,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
             elem_data_single_int32(geom, b"PropagateEdgeHardness", 0)
 
             write_crease = last_subsurf.use_creases
+    write_crease = (write_crease or me.edge_creases)
 
     elem_data_single_int32(geom, b"GeometryVersion", FBX_GEOMETRY_VERSION)
 
@@ -1029,7 +1041,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
     # And now, layers!
 
     # Smoothing.
-    if smooth_type in {'FACE', 'EDGE'}:
+    if smooth_type in {'FACE', 'EDGE', 'SMOOTH_GROUP'}:
         ps_fbx_dtype = np.int32
         _map = b""
         if smooth_type == 'FACE':
@@ -1043,6 +1055,10 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
             else:
                 # The mesh has no "sharp_face" attribute, so every face is smooth.
                 t_ps = np.ones(len(me.polygons), dtype=ps_fbx_dtype)
+            _map = b"ByPolygon"
+        elif smooth_type == 'SMOOTH_GROUP':
+            smoothing_groups = me.calc_smooth_groups(use_bitflags=True, use_boundary_vertices_for_bitflags=True)[0]
+            t_ps = np.asarray(smoothing_groups, dtype=ps_fbx_dtype)
             _map = b"ByPolygon"
         else:  # EDGE
             _map = b"ByEdge"
@@ -1169,8 +1185,7 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
             #     normal_source = me.polygon_normals
             #     normal_mapping = b"ByPolygon"
             case 'CORNER' | 'FACE':
-                # We have a mix of sharp/smooth edges/faces or custom split normals, so need to get normals from
-                # corners.
+                # We have a mix of sharp/smooth edges/faces or custom normals, so need to get normals from corners.
                 normal_source = me.corner_normals
                 normal_mapping = b"ByPolygonVertex"
             case _:
@@ -1188,13 +1203,19 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         # FBX SDK documentation says that normals should use IndexToDirect.
         elem_data_single_string(lay_nor, b"ReferenceInformationType", b"IndexToDirect")
 
-        # Tuple of unique sorted normals and then the index in the unique sorted normals of each normal in t_normal.
-        # Since we don't care about how the normals are sorted, only that they're unique, we can use the fast unique
-        # helper function.
-        t_normal, t_normal_idx = fast_first_axis_unique(t_normal.reshape(-1, 3), return_inverse=True)
+        # Workaround for Unity FBX import issue where the normals are considered invalid if any normals are
+        # deduplicated. See #123088.
+        if normal_mapping == b"ByVertice":
+            # Write every normal without any deduplication, so the indices array will be [0, 1, 2, ..., n].
+            t_normal_idx = np.arange(len(t_normal.reshape(-1, 3)), dtype=normal_idx_fbx_dtype)
+        else:
+            # Tuple of unique sorted normals and then the index in the unique sorted normals of each normal in t_normal.
+            # Since we don't care about how the normals are sorted, only that they're unique, we can use the fast unique
+            # helper function.
+            t_normal, t_normal_idx = fast_first_axis_unique(t_normal.reshape(-1, 3), return_inverse=True)
 
-        # Convert to the type for fbx
-        t_normal_idx = astype_view_signedness(t_normal_idx, normal_idx_fbx_dtype)
+            # Convert to the type for fbx
+            t_normal_idx = astype_view_signedness(t_normal_idx, normal_idx_fbx_dtype)
 
         elem_data_single_float64_array(lay_nor, b"Normals", t_normal)
         # Normal weights, no idea what it is.
@@ -1226,13 +1247,15 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
                     num_loops = len(me.loops)
                     t_ln = np.empty(num_loops * 3, dtype=normal_bl_dtype)
                     # t_lnw = np.zeros(len(me.loops), dtype=np.float64)
-                    uv_names = [uvlayer.name for uvlayer in me.uv_layers]
-                    # Annoying, `me.calc_tangent` errors in case there is no geometry...
-                    if num_loops > 0:
-                        for name in uv_names:
+                    # WARNING: Since tangent layers are recomputed inside the loop, do not directly iterate over the
+                    # uvlayers. Instead, cache their keys (names), and use this cached data inside the loop to compute
+                    # the tangent layers.
+                    uvlayer_names = [uvl.name for uvl in me.uv_layers]
+                    for idx, name in enumerate(uvlayer_names):
+                        # Annoying, `me.calc_tangent` errors in case there is no geometry...
+                        if num_loops > 0:
                             me.calc_tangents(uvmap=name)
-                    for idx, uvlayer in enumerate(me.uv_layers):
-                        name = uvlayer.name
+
                         # Loop bitangents (aka binormals).
                         # NOTE: this is not supported by importer currently.
                         me.loops.foreach_get("bitangent", t_ln)
@@ -1494,14 +1517,14 @@ def fbx_data_mesh_elements(root, me_obj, scene_data, done_meshes):
         lay_tan = elem_empty(layer, b"LayerElement")
         elem_data_single_string(lay_tan, b"Type", b"LayerElementTangent")
         elem_data_single_int32(lay_tan, b"TypedIndex", 0)
-    if smooth_type in {'FACE', 'EDGE'}:
+    if smooth_type in {'FACE', 'EDGE', 'SMOOTH_GROUP'}:
         lay_smooth = elem_empty(layer, b"LayerElement")
         elem_data_single_string(lay_smooth, b"Type", b"LayerElementSmoothing")
         elem_data_single_int32(lay_smooth, b"TypedIndex", 0)
     if write_crease:
-        lay_smooth = elem_empty(layer, b"LayerElement")
-        elem_data_single_string(lay_smooth, b"Type", b"LayerElementEdgeCrease")
-        elem_data_single_int32(lay_smooth, b"TypedIndex", 0)
+        lay_crease = elem_empty(layer, b"LayerElement")
+        elem_data_single_string(lay_crease, b"Type", b"LayerElementEdgeCrease")
+        elem_data_single_int32(lay_crease, b"TypedIndex", 0)
     if vcolnumber:
         lay_vcol = elem_empty(layer, b"LayerElement")
         elem_data_single_string(lay_vcol, b"Type", b"LayerElementColor")
@@ -1743,7 +1766,7 @@ def fbx_data_video_elements(root, vid, scene_data):
                     with open(filepath, 'br') as f:
                         elem_data_single_bytes(fbx_vid, b"Content", f.read())
                 except Exception as e:
-                    print("WARNING: embedding file {} failed ({})".format(filepath, e))
+                    print("WARNING: embedding file {:s} failed ({:s})".format(filepath, str(e)))
                     elem_data_single_bytes(fbx_vid, b"Content", b"")
                 msetts.embedded_set.add(filepath)
     # Looks like we'd rather not write any 'Content' element in this case (see T44442).
@@ -2468,16 +2491,25 @@ def fbx_animations(scene_data):
 
     # All actions.
     if scene_data.settings.bake_anim_use_all_actions:
-        def validate_actions(act, path_resolve):
-            for fc in act.fcurves:
-                data_path = fc.data_path
-                if fc.array_index:
-                    data_path = data_path + "[%d]" % fc.array_index
-                try:
-                    path_resolve(data_path)
-                except ValueError:
-                    return False  # Invalid.
-            return True  # Valid.
+        def find_validate_action_slot(act, path_resolve) -> bpy.types.ActionSlot | None:
+            for layer in act.layers:
+                for strip in layer.strips:
+                    for channelbag in strip.channelbags:
+                        if not channelbag.fcurves:
+                            # Do not export empty Channelbags.
+                            continue
+                        for fc in channelbag.fcurves:
+                            data_path = fc.data_path
+                            if fc.array_index:
+                                data_path = data_path + "[%d]" % fc.array_index
+                            try:
+                                path_resolve(data_path)
+                            except ValueError:
+                                break  # Invalid, go to next strip.
+                        else:
+                            # Did not 'break', so all F-Curves are valid.
+                            return channelbag.slot
+            return None  # Found nothing to return.
 
         def restore_object(ob_to, ob_from):
             # Restore org state of object (ugh :/ ).
@@ -2517,14 +2549,20 @@ def fbx_animations(scene_data):
             pbones_matrices = [pbo.matrix_basis.copy() for pbo in ob.pose.bones] if ob.type == 'ARMATURE' else ...
 
             org_act = ob.animation_data.action
+            org_act_slot = ob.animation_data.action_slot
             path_resolve = ob.path_resolve
 
             for act in bpy.data.actions:
                 # For now, *all* paths in the action must be valid for the object, to validate the action.
                 # Unless that action was already assigned to the object!
-                if act != org_act and not validate_actions(act, path_resolve):
+                if act == org_act:
+                    act_slot = org_act_slot
+                else:
+                    act_slot = find_validate_action_slot(act, path_resolve)
+                if not act_slot:
                     continue
                 ob.animation_data.action = act
+                ob.animation_data.action_slot = act_slot
                 frame_start, frame_end = act.frame_range  # sic!
                 add_anim(animations, animated,
                          fbx_animations_do(scene_data, (ob, act), frame_start, frame_end, True,
@@ -2534,6 +2572,7 @@ def fbx_animations(scene_data):
                     for pbo, mat in zip(ob.pose.bones, pbones_matrices):
                         pbo.matrix_basis = mat.copy()
                 ob.animation_data.action = org_act
+                ob.animation_data.action_slot = org_act_slot
                 restore_object(ob, ob_copy)
                 scene.frame_set(scene.frame_current, subframe=0.0)
 
@@ -2541,6 +2580,7 @@ def fbx_animations(scene_data):
                 for pbo, mat in zip(ob.pose.bones, pbones_matrices):
                     pbo.matrix_basis = mat.copy()
             ob.animation_data.action = org_act
+            ob.animation_data.action_slot = org_act_slot
 
             bpy.data.objects.remove(ob_copy)
             scene.frame_set(scene.frame_current, subframe=0.0)
@@ -2674,17 +2714,23 @@ def fbx_data_from_scene(scene, depsgraph, settings):
             # NOTE: The dependency graph might be re-evaluating multiple times, which could
             # potentially free the mesh created early on. So we put those meshes to bmain and
             # free them afterwards. Not ideal but ensures correct ownership.
+            # This also converts non-mesh Objects to Mesh data.
             tmp_me = bpy.data.meshes.new_from_object(
                 ob_to_convert, preserve_all_data_layers=True, depsgraph=depsgraph)
 
-            # Usually the materials of the evaluated object will be the same, but modifiers, such as Geometry Nodes,
-            # can change the materials.
-            orig_mats = tuple(slot.material for slot in ob.material_slots)
-            eval_mats = tuple(slot.material.original if slot.material else None
-                              for slot in ob_to_convert.material_slots)
+            # Usually the materials of the evaluated Object converted to a Mesh will be the same as the original
+            # Object, but modifiers, such as Geometry Nodes, can change the materials.
+            orig_mats = [slot.material for slot in ob.material_slots]
+            eval_mats = list(tmp_me.materials)
             if orig_mats != eval_mats:
-                # Override the default behaviour of getting materials from ob_obj.bdata.material_slots.
-                ob_obj.override_materials = eval_mats
+                # An object-linked material slot replaces the material on the data at the slot's index. If applying
+                # modifiers changes the materials on the data, the object-linked material slot will replace the new
+                # material at the same index as before.
+                for i, slot in zip(range(len(eval_mats)), ob.material_slots):
+                    if slot.link == 'OBJECT':
+                        eval_mats[i] = slot.material
+                # Override the default behavior of getting materials from `ob_obj.bdata.material_slots`.
+                ob_obj.override_materials = tuple(eval_mats)
         elif do_convert:
             tmp_me = bpy.data.meshes.new_from_object(ob, preserve_all_data_layers=True, depsgraph=depsgraph)
         elif do_copy:
@@ -3038,7 +3084,7 @@ def fbx_data_from_scene(scene, depsgraph, settings):
             idx = _objs_indices[ob_obj] = _objs_indices.get(ob_obj, -1) + 1
             # XXX If a mesh has multiple material slots with the same material, they are combined into one slot.
             # Even if duplicate materials were exported without combining them into one slot, keeping duplicate
-            # materials separated does not appear to be common behaviour of external software when importing FBX.
+            # materials separated does not appear to be common behavior of external software when importing FBX.
             mesh_material_indices.setdefault(me, {})[ma] = idx
     del _objs_indices
 
@@ -3494,7 +3540,7 @@ def save_single(operator, scene, depsgraph, filepath="",
     import bpy_extras.io_utils
 
     print('\nFBX export starting... %r' % filepath)
-    start_time = time.process_time()
+    start_time = time.time()
 
     # Generate some data about exported scene...
     scene_data = fbx_data_from_scene(scene, depsgraph, settings)
@@ -3537,7 +3583,7 @@ def save_single(operator, scene, depsgraph, filepath="",
     if not media_settings.embed_textures:
         bpy_extras.io_utils.path_reference_copy(media_settings.copy_set)
 
-    print('export finished in %.4f sec.' % (time.process_time() - start_time))
+    print('export finished in %.4f sec.' % (time.time() - start_time))
     return {'FINISHED'}
 
 
@@ -3634,9 +3680,12 @@ def save(operator, context,
         if use_visible:
             ctx_objects = tuple(obj for obj in ctx_objects if obj.visible_get())
 
+        # Sort exported objects by their names.
+        ctx_objects = sorted(ctx_objects, key=lambda ob: ob.name)
+
         # Ensure no Objects are in Edit mode.
         # Copy to a tuple for safety, to avoid the risk of modifying ctx_objects while iterating.
-        for obj in tuple(ctx_objects):
+        for obj in ctx_objects:
             if not ensure_object_not_in_edit_mode(context, obj):
                 operator.report({'ERROR'}, "%s could not be set out of Edit Mode, so cannot be exported" % obj.name)
                 return {'CANCELLED'}

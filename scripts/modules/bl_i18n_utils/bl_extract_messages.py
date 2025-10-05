@@ -6,6 +6,10 @@
 # XXX: This script is meant to be used from inside Blender!
 #      You should not directly use this script, rather use update_msg.py!
 
+__all__ = (
+    "dump_addon_messages",
+)
+
 import time
 import os
 import re
@@ -29,7 +33,7 @@ def init_spell_check(settings, lang="en_US"):
     try:
         from bl_i18n_utils import utils_spell_check
         return utils_spell_check.SpellChecker(settings, lang)
-    except BaseException as ex:
+    except Exception as ex:
         print("Failed to import utils_spell_check ({})".format(str(ex)))
         return None
 
@@ -206,9 +210,9 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
     """
     def class_blacklist():
         blacklist_rna_class = {getattr(bpy.types, cls_id) for cls_id in (
-            # core classes
+            # Core classes.
             "Context", "Event", "Function", "UILayout", "UnknownType", "Struct",
-            # registerable classes
+            # Registerable base classes.
             "Panel", "Menu", "Header", "RenderEngine",
             "Operator", "OperatorProperties", "OperatorMacro", "Macro", "KeyingSetInfo",
         )
@@ -294,8 +298,10 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
                     if item.name and prop_name_validate(cls, item.name, item.identifier):
                         process_msg(msgs, msgctxt, item.name, msgsrc, reports, check_ctxt_rna, settings)
                     if item.description:
-                        process_msg(msgs, default_context, item.description, msgsrc, reports, check_ctxt_rna_tip,
-                                    settings)
+                        process_msg(
+                            msgs, default_context, item.description, msgsrc, reports, check_ctxt_rna_tip,
+                            settings,
+                        )
                 for item in prop.enum_items_static:
                     if item.identifier in done_items:
                         continue
@@ -304,8 +310,10 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
                     if item.name and prop_name_validate(cls, item.name, item.identifier):
                         process_msg(msgs, msgctxt, item.name, msgsrc, reports, check_ctxt_rna, settings)
                     if item.description:
-                        process_msg(msgs, default_context, item.description, msgsrc, reports, check_ctxt_rna_tip,
-                                    settings)
+                        process_msg(
+                            msgs, default_context, item.description, msgsrc, reports, check_ctxt_rna_tip,
+                            settings,
+                        )
 
     def walk_tools_definitions(cls):
         from bl_ui.space_toolsystem_common import ToolDef
@@ -344,7 +352,7 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
         msgctxt = bl_rna.translation_context or default_context
 
         if bl_rna.name and (bl_rna.name != bl_rna.identifier or
-                            (msgctxt != default_context and not hasattr(bl_rna, "bl_label"))):
+                            (msgctxt != default_context and not hasattr(cls, "bl_label"))):
             process_msg(msgs, msgctxt, bl_rna.name, msgsrc, reports, check_ctxt_rna, settings)
 
         if bl_rna.description:
@@ -353,14 +361,14 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
             process_msg(msgs, default_context, cls.__doc__, msgsrc, reports, check_ctxt_rna_tip, settings)
 
         # Panels' "tabs" system.
-        if hasattr(bl_rna, "bl_category") and bl_rna.bl_category:
-            process_msg(msgs, default_context, bl_rna.bl_category, msgsrc, reports, check_ctxt_rna, settings)
+        if hasattr(cls, "bl_category") and cls.bl_category:
+            process_msg(msgs, default_context, cls.bl_category, msgsrc, reports, check_ctxt_rna, settings)
 
-        if hasattr(bl_rna, "bl_label") and bl_rna.bl_label:
-            process_msg(msgs, msgctxt, bl_rna.bl_label, msgsrc, reports, check_ctxt_rna, settings)
+        if hasattr(cls, "bl_label") and cls.bl_label:
+            process_msg(msgs, msgctxt, cls.bl_label, msgsrc, reports, check_ctxt_rna, settings)
 
         # Tools Panels definitions.
-        if hasattr(bl_rna, "tools_all") and bl_rna.tools_all:
+        if hasattr(cls, "tools_all") and cls.tools_all:
             walk_tools_definitions(cls)
 
         walk_properties(cls)
@@ -397,7 +405,7 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
             return cls.__name__
         cls_id = ""
         bl_rna = getattr(cls, "bl_rna", None)
-        # It seems that py-defined 'wrappers' RNA classes (like `MeshEdge` in `bpy_types.py`) need to be accessed
+        # It seems that py-defined 'wrappers' RNA classes (like `MeshEdge` in `_bpy_types.py`) need to be accessed
         # once from `bpy.types` before they have a valid `bl_rna` member.
         # Weirdly enough, this is only triggered on release builds, debug builds somehow do not have that issue.
         if bl_rna is None:
@@ -413,14 +421,20 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
     def cls_set_generate_recurse(cls_list):
         ret_cls_set = set()
         for cls in cls_list:
-            reports["rna_structs"].append(cls)
-            # Fully skip operators related types, they are discovered separately through introspection of `bpy.ops`.
-            if issubclass(cls, bpy.types.Operator) or issubclass(cls, bpy.types.OperatorProperties):
-                continue
-            # Ignore those Operator sub-classes (anyway, will get the same from OperatorProperties sub-classes!)...
+            # Do not process blacklisted classes, but do handle their children.
             if cls in blacklist_rna_class:
                 reports["rna_structs_skipped"].append(cls)
+            elif bpy.types.Operator in cls.__bases__ and not getattr(cls, "is_registered", True):
+                # unregistering a python-defined operator does not remove it from the list of subclasses of
+                # `bpy.types.Operator`, this works around this issue.
+                # While not a huge problem for main UI messages extraction, it does break fairly badly
+                # extraction of specific add-ons UI messages, see #116579.
+                print("SKIPPING because unregistered:", cls)
+                continue
+            elif cls in ret_cls_set:
+                continue
             else:
+                reports["rna_structs"].append(cls)
                 ret_cls_set.add(cls)
             # Recursively discover subclasses, even if the current class was black-listed.
             ret_cls_set |= cls_set_generate_recurse(cls.__subclasses__())
@@ -433,20 +447,8 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
     for cls_name in cls_dir:
         getattr(bpy.types, cls_name)
 
-    # Parse everything (recursively parsing from bpy_struct "class"...), except operators.
+    # Parse everything (recursively parsing from bpy_struct "class"...).
     cls_set = cls_set_generate_recurse(bpy.types.ID.__base__.__subclasses__())
-
-    # Operators need special handling, as the mix between the RNA types for operators, and their properties, creates
-    # a lot of issues for 'children-based' recursive type processing above. So instead, discover operators from
-    # introspecting `bpy.ops`.
-    for op_category_name in dir(bpy.ops):
-        op_category = getattr(bpy.ops, op_category_name)
-        for op_name in dir(op_category):
-            op = getattr(op_category, op_name, None)
-            if not op:
-                print(f"Cannot get Operator 'bpy.ops.{op_category}.{op_name}'")
-                continue
-            cls_set.add(op.get_rna_type().bl_rna.__class__)
 
     cls_list = sorted(cls_set, key=full_class_id)
     for cls in cls_list:
@@ -486,7 +488,7 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
 def dump_py_messages_from_files(msgs, reports, files, settings):
     """
     Dump text inlined in the python files given, e.g. "My Name" in:
-        layout.prop("someprop", text="My Name")
+        ``layout.prop("someprop", text="My Name")``
     """
     import ast
 
@@ -587,7 +589,7 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
             op = getattr(op, n)
         try:
             return op.get_rna_type().translation_context
-        except BaseException as ex:
+        except Exception as ex:
             default_op_context = i18n_contexts.operator_default
             print("ERROR: ", str(ex))
             print("       Assuming default operator context '{}'".format(default_op_context))
@@ -617,6 +619,7 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
         "msgid": ((("msgctxt",), _ctxt_to_ctxt),
                   ),
         "message": (),
+        "label": (),
         "heading": ((("heading_ctxt",), _ctxt_to_ctxt),),
         "placeholder": ((("text_ctxt",), _ctxt_to_ctxt),),
     }
@@ -666,6 +669,16 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
         func_translate_args[func_id] = pgettext_variants_args
         for sub_func_id in func_ids:
             func_translate_args[sub_func_id] = pgettext_variants_args
+    # Manually add functions from node_add_menu.py.
+    for func_id, arg_pos in (
+            ("add_node_type", 3),
+            ("add_node_type_with_outputs", 5),
+            ("add_simulation_zone", 1),
+            ("add_repeat_zone", 1),
+            ("add_foreach_geometry_element_zone", 1),
+            ("add_closure_zone", 1),
+    ):
+        func_translate_args[func_id] = {"label": (arg_pos, {})}
     # print(func_translate_args)
 
     # Break recursive nodes look up on some kind of nodes.
@@ -698,7 +711,7 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
         for node in ast.walk(root_node):
             if type(node) == ast.Call:
                 # ~ print("found function at")
-                # ~ print("%s:%d" % (fp, node.lineno))
+                # ~ print("{:s}:{:d}".format(fp, node.lineno))
 
                 # We can't skip such situations! from blah import foo\nfoo("bar") would also be an ast.Name func!
                 if type(node.func) == ast.Name:
@@ -712,7 +725,7 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
                 # Skip function if it's marked as not translatable.
                 do_translate = True
                 for kw in node.keywords:
-                    if kw.arg == "translate" and not kw.value.value:
+                    if kw.arg == "translate" and not getattr(kw.value, "value", False):
                         do_translate = False
                         break
                 if not do_translate:
@@ -880,11 +893,11 @@ def dump_src_messages(msgs, reports, settings):
     forced = set()
     if os.path.isfile(settings.SRC_POTFILES):
         with open(settings.SRC_POTFILES, encoding="utf8") as src:
-            for l in src:
-                if l[0] == '-':
-                    forbidden.add(l[1:].rstrip('\n'))
-                elif l[0] != '#':
-                    forced.add(l.rstrip('\n'))
+            for line in src:
+                if line[0] == '-':
+                    forbidden.add(line[1:].rstrip('\n'))
+                elif line[0] != '#':
+                    forced.add(line.rstrip('\n'))
     for root, dirs, files in os.walk(settings.POTFILES_SOURCE_DIR):
         if "/.git" in root:
             continue
@@ -945,8 +958,72 @@ def dump_template_messages(msgs, reports, settings):
     for workspace_name in sorted(workspace_names):
         for msgsrc in sorted(workspace_names[workspace_name]):
             msgsrc = "Workspace from template " + msgsrc
-            process_msg(msgs, msgctxt, workspace_name, msgsrc,
-                        reports, None, settings)
+            process_msg(
+                msgs, msgctxt, workspace_name, msgsrc,
+                reports, None, settings,
+            )
+
+
+def dump_ocio_config(msgs, reports, settings):
+    # This assumes the default Blender config is used when we extract messages.
+    import PyOpenColorIO as OCIO
+    config = OCIO.GetCurrentConfig()
+
+    for display in config.getDisplays():
+        msgsrc = "Display name from OCIO config"
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, display, msgsrc,
+            reports, None, settings,
+        )
+
+        for view in config.getViews(display):
+            msgsrc = "View name from OCIO display " + display
+            process_msg(
+                msgs, settings.DEFAULT_CONTEXT, view, msgsrc,
+                reports, None, settings,
+            )
+
+            description = config.getDisplayViewDescription(display, view)
+            msgsrc = "View description from OCIO display " + display
+            process_msg(
+                msgs, settings.DEFAULT_CONTEXT, description, msgsrc,
+                reports, None, settings,
+            )
+
+    for look in config.getLookNames():
+        # Some looks include their view's name to have unique names,
+        # we need to keep only the look.
+        if " - " in look:
+            view, name = look.split(" - ")
+            source = "OCIO view " + view
+        else:
+            name = look
+            source = "OCIO config"
+        msgsrc = "Look name from " + source
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, name, msgsrc,
+            reports, None, settings,
+        )
+        msgsrc = "Look description from " + source
+        description = config.getLook(look).getDescription()
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, description, msgsrc,
+            reports, None, settings,
+        )
+
+    for colorspace in config.getColorSpaces():
+        name = colorspace.getName()
+        msgsrc = "Colorspace name from OCIO config"
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, name, msgsrc,
+            reports, None, settings,
+        )
+        description = colorspace.getDescription()
+        msgsrc = "Colorspace description from OCIO config"
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, description, msgsrc,
+            reports, None, settings,
+        )
 
 
 def dump_asset_messages(msgs, reports, settings):
@@ -968,8 +1045,10 @@ def dump_asset_messages(msgs, reports, settings):
 
     msgsrc = "Asset catalog from " + settings.ASSET_CATALOG_FILE
     for catalog in sorted(catalogs):
-        process_msg(msgs, settings.DEFAULT_CONTEXT, catalog, msgsrc,
-                    reports, None, settings)
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, catalog, msgsrc,
+            reports, None, settings,
+        )
 
     # Parse the asset blend files
     asset_files = {}
@@ -1006,20 +1085,28 @@ def dump_asset_messages(msgs, reports, settings):
         for asset in sorted(asset_files[asset_file], key=lambda a: a["name"]):
             name, description = asset["name"], asset["description"]
             msgsrc = "Asset name from file " + asset_file
-            process_msg(msgs, settings.DEFAULT_CONTEXT, name, msgsrc,
-                        reports, None, settings)
+            process_msg(
+                msgs, settings.DEFAULT_CONTEXT, name, msgsrc,
+                reports, None, settings,
+            )
             msgsrc = "Asset description from file " + asset_file
-            process_msg(msgs, settings.DEFAULT_CONTEXT, description, msgsrc,
-                        reports, None, settings)
+            process_msg(
+                msgs, settings.DEFAULT_CONTEXT, description, msgsrc,
+                reports, None, settings,
+            )
 
             if "sockets" in asset:
                 for socket_name, socket_description in asset["sockets"]:
                     msgsrc = f"Socket name from node group {name}, file {asset_file}"
-                    process_msg(msgs, settings.DEFAULT_CONTEXT, socket_name, msgsrc,
-                                reports, None, settings)
+                    process_msg(
+                        msgs, settings.DEFAULT_CONTEXT, socket_name, msgsrc,
+                        reports, None, settings,
+                    )
                     msgsrc = f"Socket description from node group {name}, file {asset_file}"
-                    process_msg(msgs, settings.DEFAULT_CONTEXT, socket_description, msgsrc,
-                                reports, None, settings)
+                    process_msg(
+                        msgs, settings.DEFAULT_CONTEXT, socket_description, msgsrc,
+                        reports, None, settings,
+                    )
 
 
 def dump_addon_bl_info(msgs, reports, module, settings):
@@ -1128,11 +1215,13 @@ def dump_messages(do_messages, do_checks, settings):
 
     # Get strings specific to translations' menu.
     for lng in settings.LANGUAGES:
-        process_msg(msgs, settings.DEFAULT_CONTEXT, lng[1], "Languages’ labels from bl_i18n_utils/settings.py",
-                    reports, None, settings)
-    for cat in settings.LANGUAGES_CATEGORIES:
-        process_msg(msgs, settings.DEFAULT_CONTEXT, cat[1],
-                    "Language categories’ labels from bl_i18n_utils/settings.py", reports, None, settings)
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, lng[1], "Languages’ labels from bl_i18n_utils/settings.py",
+            reports, None, settings,
+        )
+
+    # Get strings from OCIO config.
+    dump_ocio_config(msgs, reports, settings)
 
     # Get strings from asset catalogs and blend files.
     # This loads each asset blend file in turn.
@@ -1186,19 +1275,13 @@ def dump_addon_messages(addon_module_name, do_checks, settings):
     minus_check_ctxt = _gen_check_ctxt(settings) if do_checks else None
 
     # Get strings from RNA, our addon being enabled.
-    print("A")
     reports = _gen_reports(check_ctxt)
-    print("B")
     dump_rna_messages(msgs, reports, settings)
-    print("C")
 
     # Now disable our addon, and re-scan RNA.
     utils.enable_addons(addons={addon_module_name}, disable=True)
-    print("D")
     reports["check_ctxt"] = minus_check_ctxt
-    print("E")
     dump_rna_messages(minus_msgs, reports, settings)
-    print("F")
 
     # Restore previous state if needed!
     if was_loaded:
@@ -1238,13 +1321,6 @@ def dump_addon_messages(addon_module_name, do_checks, settings):
 
 
 def main():
-    try:
-        import bpy
-    except ImportError:
-        print("This script must run from inside blender")
-        return
-
-    import sys
     import argparse
 
     # Get rid of Blender args!
@@ -1255,7 +1331,7 @@ def main():
     parser.add_argument('-m', '--no_messages', default=True, action="store_false", help="No export of UI messages.")
     parser.add_argument('-o', '--output', default=None, help="Output POT file path.")
     parser.add_argument('-s', '--settings', default=None,
-                        help="Override (some) default settings. Either a JSon file name, or a JSon string.")
+                        help="Override (some) default settings. Either a JSON file name, or a JSON string.")
     args = parser.parse_args(argv)
 
     settings = settings_i18n.I18nSettings()

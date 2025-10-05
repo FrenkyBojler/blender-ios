@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include <optional>
@@ -13,7 +17,6 @@
 
 #include "DNA_customdata_types.h" /* #CustomData_MeshMasks. */
 
-struct bGPdata;
 struct Curve;
 struct CurveCache;
 struct ID;
@@ -52,9 +55,6 @@ struct ObjectRuntime {
    * somebody else.
    */
   char is_data_eval_owned = false;
-
-  /** Start time of the mode transfer overlay animation. */
-  double overlay_mode_transfer_start_time = 0.0f;
 
   /**
    * The bounding box of the object's evaluated geometry in the active dependency graph. The bounds
@@ -99,18 +99,6 @@ struct ObjectRuntime {
    * #eModifierTypeFlag_SupportsMapping.
    */
   Mesh *editmesh_eval_cage = nullptr;
-
-  /**
-   * Original grease pencil bGPdata pointer, before object->data was changed to point
-   * to gpd_eval.
-   * Is assigned by dependency graph's copy-on-evaluation.
-   */
-  bGPdata *gpd_orig = nullptr;
-  /**
-   * bGPdata structure created during object evaluation.
-   * It has all modifiers applied.
-   */
-  bGPdata *gpd_eval = nullptr;
 
   /**
    * This is a mesh representation of corresponding object.

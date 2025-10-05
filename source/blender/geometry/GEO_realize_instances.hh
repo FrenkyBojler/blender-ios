@@ -25,11 +25,12 @@ struct RealizeInstancesOptions {
    */
   bool realize_instance_attributes = true;
 
-  bke::AnonymousAttributePropagationInfo propagation_info;
+  std::reference_wrapper<const bke::AttributeFilter> attribute_filter =
+      bke::AttributeFilter::default_filter();
 };
 
 /**
- * Allow  the user to choice which instances to realize and to what depth.
+ * Allow the user to choice which instances to realize and to what depth.
  */
 struct VariedDepthOptions {
   /**
@@ -45,7 +46,7 @@ struct VariedDepthOptions {
   /**
    * Use this value to realize the instance completely
    */
-  static const int MAX_DEPTH = -1;
+  static constexpr int MAX_DEPTH = -1;
 };
 
 /**

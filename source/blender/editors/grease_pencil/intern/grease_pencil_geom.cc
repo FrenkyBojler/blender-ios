@@ -7,11 +7,10 @@
  */
 
 #include <algorithm>
-#include <limits>
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -25,6 +24,7 @@
 #include "BKE_grease_pencil.hh"
 
 #include "DNA_curves_types.h"
+#include "DNA_gpencil_legacy_types.h"
 
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
@@ -103,8 +103,8 @@ Array<float2> polyline_fit_curve(Span<float2> points,
   corner_mask.to_indices(indices.as_mutable_span());
   uint *indicies_ptr = corner_mask.is_empty() ? nullptr : reinterpret_cast<uint *>(indices.data());
 
-  float *r_cubic_array;
-  uint r_cubic_array_len;
+  float *cubic_array;
+  uint cubic_array_len;
   int error = curve_fit_cubic_to_points_fl(*points.data(),
                                            points.size(),
                                            2,
@@ -112,8 +112,8 @@ Array<float2> polyline_fit_curve(Span<float2> points,
                                            CURVE_FIT_CALC_HIGH_QUALIY,
                                            indicies_ptr,
                                            indices.size(),
-                                           &r_cubic_array,
-                                           &r_cubic_array_len,
+                                           &cubic_array,
+                                           &cubic_array_len,
                                            nullptr,
                                            nullptr,
                                            nullptr);
@@ -123,15 +123,14 @@ Array<float2> polyline_fit_curve(Span<float2> points,
     return {};
   }
 
-  if (r_cubic_array == nullptr) {
+  if (cubic_array == nullptr) {
     return {};
   }
 
-  Span<float2> r_cubic_array_span(reinterpret_cast<float2 *>(r_cubic_array),
-                                  r_cubic_array_len * 3);
-  Array<float2> curve_positions(r_cubic_array_span);
+  Span<float2> cubic_array_span(reinterpret_cast<float2 *>(cubic_array), cubic_array_len * 3);
+  Array<float2> curve_positions(cubic_array_span);
   /* Free the c-style array. */
-  free(r_cubic_array);
+  free(cubic_array);
   return curve_positions;
 }
 
@@ -148,8 +147,8 @@ IndexMask polyline_detect_corners(Span<float2> points,
   if (points.size() == 1) {
     return IndexMask::from_indices<int>({0}, memory);
   }
-  uint *r_corners;
-  uint r_corner_len;
+  uint *corners;
+  uint corners_len;
   const int error = curve_fit_corners_detect_fl(*points.data(),
                                                 points.size(),
                                                 float2::type_length,
@@ -157,22 +156,22 @@ IndexMask polyline_detect_corners(Span<float2> points,
                                                 radius_max,
                                                 samples_max,
                                                 angle_threshold,
-                                                &r_corners,
-                                                &r_corner_len);
+                                                &corners,
+                                                &corners_len);
   if (error != 0) {
     /* Error occurred, return. */
     return IndexMask();
   }
 
-  if (r_corners == nullptr) {
+  if (corners == nullptr) {
     return IndexMask();
   }
 
   BLI_assert(samples_max < std::numeric_limits<int>::max());
-  Span<int> indices(reinterpret_cast<int *>(r_corners), r_corner_len);
+  Span<int> indices(reinterpret_cast<int *>(corners), corners_len);
   const IndexMask corner_mask = IndexMask::from_indices<int>(indices, memory);
   /* Free the c-style array. */
-  free(r_corners);
+  free(corners);
   return corner_mask;
 }
 
@@ -208,13 +207,13 @@ int curve_merge_by_distance(const IndexRange points,
   return duplicate_count;
 }
 
-/* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
-blender::bke::CurvesGeometry curves_merge_by_distance(
-    const bke::CurvesGeometry &src_curves,
-    const float merge_distance,
-    const IndexMask &selection,
-    const bke::AnonymousAttributePropagationInfo &propagation_info)
+blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curves,
+                                                      const float merge_distance,
+                                                      const IndexMask &selection,
+                                                      const bke::AttributeFilter &attribute_filter)
 {
+  /* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
+
   const int src_point_size = src_curves.points_num();
   if (src_point_size == 0) {
     return {};
@@ -233,7 +232,7 @@ blender::bke::CurvesGeometry curves_merge_by_distance(
       const IndexRange points = points_by_curve[curve_i];
       merge_indices_per_curve[curve_i].reinitialize(points.size());
 
-      Array<float> distances_along_curve(points.size());
+      Array<float> distances_along_curve(points.size() + int(cyclic[curve_i]));
       distances_along_curve.first() = 0.0f;
       const Span<float> lengths = src_curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
       distances_along_curve.as_mutable_span().drop_front(1).copy_from(lengths);
@@ -303,21 +302,21 @@ blender::bke::CurvesGeometry curves_merge_by_distance(
 
   bke::AttributeAccessor src_attributes = src_curves.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-  src_attributes.for_all([&](const bke::AttributeIDRef &id,
-                             const bke::AttributeMetaData &meta_data) {
-    if (id.is_anonymous() && !propagation_info.propagate(id.anonymous_id())) {
-      return true;
+  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (attribute_filter.allow_skip(iter.name)) {
+      return;
     }
-    if (meta_data.domain != bke::AttrDomain::Point) {
-      return true;
+    if (iter.domain != bke::AttrDomain::Point) {
+      return;
     }
 
-    bke::GAttributeReader src_attribute = src_attributes.lookup(id);
+    bke::GAttributeReader src_attribute = iter.get();
     bke::attribute_math::convert_to_static_type(src_attribute.varray.type(), [&](auto dummy) {
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
-            dst_attributes.lookup_or_add_for_write_only_span<T>(id, bke::AttrDomain::Point);
+            dst_attributes.lookup_or_add_for_write_only_span<T>(iter.name, bke::AttrDomain::Point);
+        BLI_assert(dst_attribute);
         VArraySpan<T> src = src_attribute.varray.typed<T>();
 
         threading::parallel_for(dst_curves.points_range(), 1024, [&](IndexRange range) {
@@ -339,9 +338,12 @@ blender::bke::CurvesGeometry curves_merge_by_distance(
         dst_attribute.finish();
       }
     });
-    return true;
   });
 
+  if (dst_curves.nurbs_has_custom_knots()) {
+    bke::curves::nurbs::update_custom_knot_modes(
+        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+  }
   return dst_curves;
 }
 
@@ -351,7 +353,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
     const float4x4 &layer_to_world,
     const float merge_distance,
     const IndexMask &selection,
-    const bke::AnonymousAttributePropagationInfo &propagation_info)
+    const bke::AttributeFilter &attribute_filter)
 {
   const OffsetIndices src_points_by_curve = src_curves.points_by_curve();
   const Span<float3> src_positions = src_curves.positions();
@@ -359,6 +361,8 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
 
   Array<float2> screen_start_points(src_curves.curves_num());
   Array<float2> screen_end_points(src_curves.curves_num());
+  const VArray<bool> cyclic = *src_curves.attributes().lookup_or_default<bool>(
+      "cyclic", bke::AttrDomain::Curve, false);
   /* For comparing screen space positions use a 2D KDTree. Each curve adds 2 points. */
   KDTree_2d *tree = BLI_kdtree_2d_new(2 * src_curves.curves_num());
 
@@ -378,6 +382,9 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
   });
   /* Note: KDTree insertion is not thread-safe, don't parallelize this. */
   for (const int src_i : src_curves.curves_range()) {
+    if (cyclic[src_i] == true) {
+      continue;
+    }
     BLI_kdtree_2d_insert(tree, src_i * 2, screen_start_points[src_i]);
     BLI_kdtree_2d_insert(tree, src_i * 2 + 1, screen_end_points[src_i]);
   }
@@ -434,7 +441,33 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
   BLI_kdtree_2d_free(tree);
 
   return geometry::curves_merge_endpoints(
-      src_curves, connect_to_curve, flip_direction, propagation_info);
+      src_curves, connect_to_curve, flip_direction, attribute_filter);
+}
+
+/* Generate a full circle around a point. */
+static void generate_circle_from_point(const float3 &pt,
+                                       const float radius,
+                                       const int corner_subdivisions,
+                                       const int src_point_index,
+                                       Vector<float3> &r_perimeter,
+                                       Vector<int> &r_src_indices)
+{
+  /* Number of points is 2^(n+2) on a full circle (n=corner_subdivisions). */
+  BLI_assert(corner_subdivisions >= 0);
+  const int num_points = 1 << (corner_subdivisions + 2);
+  const float delta_angle = 2 * M_PI / float(num_points);
+  const float delta_cos = math::cos(delta_angle);
+  const float delta_sin = math::sin(delta_angle);
+
+  float3 vec = float3(radius, 0, 0);
+  for ([[maybe_unused]] const int i : IndexRange(num_points)) {
+    r_perimeter.append(pt + vec);
+    r_src_indices.append(src_point_index);
+
+    const float x = delta_cos * vec.x - delta_sin * vec.y;
+    const float y = delta_sin * vec.x + delta_cos * vec.y;
+    vec = float3(x, y, 0.0f);
+  }
 }
 
 /* Generate points in an counter-clockwise arc between two directions. */
@@ -506,6 +539,8 @@ static void generate_cap(const float3 &point,
                                        r_src_indices);
       break;
     case GP_STROKE_CAP_FLAT:
+      r_perimeter.append(point - normal * radius);
+      r_src_indices.append(src_point_index);
       r_perimeter.append(point + normal * radius);
       r_src_indices.append(src_point_index);
       break;
@@ -515,13 +550,14 @@ static void generate_cap(const float3 &point,
   }
 }
 
-/* Generate a corner between two segments, with a rounded outer perimeter.
+/* Generate a corner between two segments, using `miter_limit_angle` as the corner type.
  * NOTE: The perimeter is considered to be to the right hand side of the stroke. The left side
  * perimeter can be generated by reversing the order of points. */
 static void generate_corner(const float3 &pt_a,
                             const float3 &pt_b,
                             const float3 &pt_c,
                             const float radius,
+                            const float miter_limit_angle,
                             const int corner_subdivisions,
                             const int src_point_index,
                             Vector<float3> &r_perimeter,
@@ -538,7 +574,7 @@ static void generate_corner(const float3 &pt_a,
   /* Whether the corner is an inside or outside corner.
    * This determines whether an arc is added or a single miter point. */
   const bool is_outside_corner = (sin_angle >= 0.0f);
-  if (is_outside_corner) {
+  if (is_outside_corner && miter_limit_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
     generate_arc_from_point_to_point(pt_b + normal_prev * radius,
                                      pt_b + normal * radius,
                                      pt_b,
@@ -546,21 +582,38 @@ static void generate_corner(const float3 &pt_a,
                                      src_point_index,
                                      r_perimeter,
                                      r_src_indices);
+    return;
   }
-  else {
-    const float2 avg_tangent = math::normalize(tangent_prev + tangent);
-    const float3 miter = {avg_tangent.y, -avg_tangent.x, 0.0f};
-    const float miter_invscale = math::dot(normal, miter);
 
-    /* Avoid division by tiny values for steep angles. */
-    const float3 miter_point = (radius < length * miter_invscale &&
-                                radius < length_prev * miter_invscale) ?
-                                   pt_b + miter * radius / miter_invscale :
-                                   pt_b + miter * radius;
+  const float2 avg_tangent = math::normalize(tangent_prev + tangent);
+  const float3 miter = {avg_tangent.y, -avg_tangent.x, 0.0f};
+  const float miter_invscale = math::dot(normal, miter);
 
-    r_perimeter.append(miter_point);
-    r_src_indices.append(src_point_index);
+  if (is_outside_corner) {
+    const bool is_bevel = -math::dot(tangent, tangent_prev) > math::cos(miter_limit_angle);
+    if (is_bevel) {
+      r_perimeter.append(pt_b + normal_prev * radius);
+      r_perimeter.append(pt_b + normal * radius);
+      r_src_indices.append_n_times(src_point_index, 2);
+      return;
+    }
+    else {
+      const float3 miter_point = pt_b + miter * radius / miter_invscale;
+
+      r_perimeter.append(miter_point);
+      r_src_indices.append(src_point_index);
+      return;
+    }
   }
+
+  /* Avoid division by tiny values for steep angles. */
+  const float3 miter_point = (radius < length * miter_invscale &&
+                              radius < length_prev * miter_invscale) ?
+                                 pt_b + miter * radius / miter_invscale :
+                                 pt_b + miter * radius;
+
+  r_perimeter.append(miter_point);
+  r_src_indices.append(src_point_index);
 }
 
 static void generate_stroke_perimeter(const Span<float3> all_positions,
@@ -571,6 +624,7 @@ static void generate_stroke_perimeter(const Span<float3> all_positions,
                                       const bool use_caps,
                                       const eGPDstroke_Caps start_cap_type,
                                       const eGPDstroke_Caps end_cap_type,
+                                      const VArray<float> miter_angles,
                                       const float outline_offset,
                                       Vector<float3> &r_perimeter,
                                       Vector<int> &r_point_counts,
@@ -578,7 +632,20 @@ static void generate_stroke_perimeter(const Span<float3> all_positions,
 {
   const Span<float3> positions = all_positions.slice(points);
   const int point_num = points.size();
-  if (point_num < 2) {
+  if (point_num == 0) {
+    return;
+  }
+  if (point_num == 1) {
+    /* Generate a circle for a single point. */
+    const int perimeter_start = r_perimeter.size();
+    const int point = points.first();
+    const float radius = std::max(all_radii[point] + outline_offset, 0.0f);
+    generate_circle_from_point(
+        positions.first(), radius, corner_subdivisions, point, r_perimeter, r_point_indices);
+    const int perimeter_count = r_perimeter.size() - perimeter_start;
+    if (perimeter_count > 0) {
+      r_point_counts.append(perimeter_count);
+    }
     return;
   }
 
@@ -588,8 +655,16 @@ static void generate_stroke_perimeter(const Span<float3> all_positions,
     const float3 pt_b = positions[b];
     const float3 pt_c = positions[c];
     const float radius = std::max(all_radii[point] + outline_offset, 0.0f);
-    generate_corner(
-        pt_a, pt_b, pt_c, radius, corner_subdivisions, point, r_perimeter, r_point_indices);
+    const float miter_angle = miter_angles[point];
+    generate_corner(pt_a,
+                    pt_b,
+                    pt_c,
+                    radius,
+                    miter_angle,
+                    corner_subdivisions,
+                    point,
+                    r_perimeter,
+                    r_point_indices);
   };
   auto add_cap = [&](const int center_i, const int next_i, const eGPDstroke_Caps cap_type) {
     const int point = points[center_i];
@@ -700,16 +775,15 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
       "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
   const VArray<int> src_material_index = *src_attributes.lookup_or_default(
       "material_index", bke::AttrDomain::Curve, 0);
+  const VArray<float> miter_angles = *src_attributes.lookup_or_default<float>(
+      "miter_angle", bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
 
   /* Transform positions and radii. */
-  const float scale = math::average(math::to_scale(transform));
   Array<float3> transformed_positions(src_positions.size());
+  math::transform_points(src_positions, transform, transformed_positions);
+
   Array<float> transformed_radii(src_radii.size());
-  threading::parallel_for(transformed_positions.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      transformed_positions[i] = math::transform_point(transform, src_positions[i]);
-    }
-  });
+  const float scale = math::average(math::to_scale(transform));
   threading::parallel_for(transformed_radii.index_range(), 4096, [&](const IndexRange range) {
     for (const int i : range) {
       transformed_radii[i] = src_radii[i] * scale;
@@ -739,15 +813,15 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
                               use_caps,
                               eGPDstroke_Caps(src_start_caps[curve_i]),
                               eGPDstroke_Caps(src_end_caps[curve_i]),
+                              miter_angles,
                               outline_offset,
                               data.positions,
                               data.point_counts,
                               data.point_indices);
 
     /* Transform perimeter positions back into object space. */
-    for (float3 &pos : data.positions.as_mutable_span().drop_front(prev_point_num)) {
-      pos = math::transform_point(transform_inv, pos);
-    }
+    math::transform_points(transform_inv,
+                           data.positions.as_mutable_span().drop_front(prev_point_num));
 
     data.curve_indices.append_n_times(curve_i, data.point_counts.size() - prev_curve_num);
   });
@@ -808,14 +882,14 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
 
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Point,
-                         {},
-                         {"position", "radius"},
+                         bke::AttrDomain::Point,
+                         bke::attribute_filter_from_skip_ref({"position", "radius"}),
                          dst_point_map,
                          dst_attributes);
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
-                         {},
-                         {"cyclic", "material_index"},
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_from_skip_ref({"cyclic", "material_index"}),
                          dst_curve_map,
                          dst_attributes);
 
@@ -827,7 +901,7 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
   return dst_curves;
 }
 
-namespace cutter {
+namespace trim {
 
 enum Side : uint8_t { Start = 0, End = 1 };
 enum Distance : uint8_t { Min = 0, Max = 1 };
@@ -852,8 +926,8 @@ struct Segment {
    * in a CurvesGeometry. */
   int point_range[2];
 
-  /* The normalized distance where the cutter segment is intersected by another curve.
-   * For the outer ends of the cutter segment the intersection distance is given between:
+  /* The normalized distance where the trim segment is intersected by another curve.
+   * For the outer ends of the trim segment the intersection distance is given between:
    * - [start point - 1] and [start point]
    * - [end point] and [end point + 1]
    */
@@ -866,14 +940,14 @@ struct Segment {
 
 /**
  * Structure describing:
- * - A collection of cutter segments.
+ * - A collection of trim segments.
  */
 struct Segments {
-  /* Collection of cutter segments: parts of curves between other curves, to be removed from the
+  /* Collection of trim segments: parts of curves between other curves, to be removed from the
    * geometry. */
   Vector<Segment> segments;
 
-  /* Create an initial cutter segment with a point range of one point. */
+  /* Create an initial trim segment with a point range of one point. */
   Segment *create_segment(const int curve, const int point)
   {
     Segment segment{};
@@ -886,7 +960,7 @@ struct Segments {
     return &this->segments.last();
   }
 
-  /* Merge cutter segments that are next to each other. */
+  /* Merge trim segments that are next to each other. */
   void merge_adjacent_segments()
   {
     Vector<Segment> merged_segments;
@@ -954,7 +1028,7 @@ static float get_intersection_distance_of_segments(const float2 &co_a,
   const float b2 = co_c[0] - co_d[0];
   const float c2 = a2 * co_c[0] + b2 * co_c[1];
 
-  const float det = float(a1 * b2 - a2 * b1);
+  const float det = (a1 * b2 - a2 * b1);
   if (det == 0.0f) {
     return 0.0f;
   }
@@ -1074,15 +1148,15 @@ static void get_intersections_of_curve_with_curves(const int src_curve,
 }
 
 /**
- * Expand a cutter segment by walking along the curve in forward or backward direction.
- * A cutter segments ends at an intersection with another curve, or at the outer end of the curve.
+ * Expand a trim segment by walking along the curve in forward or backward direction.
+ * A trim segments ends at an intersection with another curve, or at the outer end of the curve.
  */
-static void expand_cutter_segment_direction(Segment &segment,
-                                            const int direction,
-                                            const bke::CurvesGeometry &src,
-                                            const Span<bool> is_intersected_after_point,
-                                            const Span<float2> intersection_distance,
-                                            MutableSpan<bool> point_is_in_segment)
+static void expand_trim_segment_direction(Segment &segment,
+                                          const int direction,
+                                          const bke::CurvesGeometry &src,
+                                          const Span<bool> is_intersected_after_point,
+                                          const Span<float2> intersection_distance,
+                                          MutableSpan<bool> point_is_in_segment)
 {
   const OffsetIndices<int> points_by_curve = src.points_by_curve();
   const int point_first = points_by_curve[segment.curve].first();
@@ -1151,22 +1225,22 @@ static void expand_cutter_segment_direction(Segment &segment,
 }
 
 /**
- * Expand a cutter segment of one point by walking along the curve in both directions.
+ * Expand a trim segment of one point by walking along the curve in both directions.
  */
-static void expand_cutter_segment(Segment &segment,
-                                  const bke::CurvesGeometry &src,
-                                  const Span<bool> is_intersected_after_point,
-                                  const Span<float2> intersection_distance,
-                                  MutableSpan<bool> point_is_in_segment)
+static void expand_trim_segment(Segment &segment,
+                                const bke::CurvesGeometry &src,
+                                const Span<bool> is_intersected_after_point,
+                                const Span<float2> intersection_distance,
+                                MutableSpan<bool> point_is_in_segment)
 {
   const int8_t directions[2] = {-1, 1};
   for (const int8_t direction : directions) {
-    expand_cutter_segment_direction(segment,
-                                    direction,
-                                    src,
-                                    is_intersected_after_point,
-                                    intersection_distance,
-                                    point_is_in_segment);
+    expand_trim_segment_direction(segment,
+                                  direction,
+                                  src,
+                                  is_intersected_after_point,
+                                  intersection_distance,
+                                  point_is_in_segment);
   }
 }
 
@@ -1192,28 +1266,28 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                            intersection_distance);
   });
 
-  /* Expand the selected curve points to cutter segments (the part of the curve between two
+  /* Expand the selected curve points to trim segments (the part of the curve between two
    * intersections). */
   const VArray<bool> is_cyclic = src.cyclic();
   Array<bool> point_is_in_segment(src_points_num, false);
-  threading::EnumerableThreadSpecific<Segments> cutter_segments_by_thread;
+  threading::EnumerableThreadSpecific<Segments> trim_segments_by_thread;
   curve_selection.foreach_index(GrainSize(32), [&](const int curve_i, const int pos) {
-    Segments &thread_segments = cutter_segments_by_thread.local();
+    Segments &thread_segments = trim_segments_by_thread.local();
     for (const int selected_point : selected_points_in_curves[pos]) {
-      /* Skip point when it is already part of a cutter segment. */
+      /* Skip point when it is already part of a trim segment. */
       if (point_is_in_segment[selected_point]) {
         continue;
       }
 
-      /* Create new cutter segment. */
+      /* Create new trim segment. */
       Segment *segment = thread_segments.create_segment(curve_i, selected_point);
 
-      /* Expand the cutter segment in both directions until an intersection is found or the
+      /* Expand the trim segment in both directions until an intersection is found or the
        * end of the curve is reached. */
-      expand_cutter_segment(
+      expand_trim_segment(
           *segment, src, is_intersected_after_point, intersection_distance, point_is_in_segment);
 
-      /* When the end of a curve is reached and the curve is cyclic, we add an extra cutter
+      /* When the end of a curve is reached and the curve is cyclic, we add an extra trim
        * segment for the cyclic second part. */
       if (is_cyclic[curve_i] &&
           (!segment->is_intersected[Side::Start] || !segment->is_intersected[Side::End]) &&
@@ -1225,28 +1299,28 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
         segment = thread_segments.create_segment(curve_i, cyclic_outer_point);
 
         /* Expand this second segment. */
-        expand_cutter_segment(
+        expand_trim_segment(
             *segment, src, is_intersected_after_point, intersection_distance, point_is_in_segment);
       }
     }
   });
-  Segments cutter_segments;
-  for (Segments &thread_segments : cutter_segments_by_thread) {
-    cutter_segments.segments.extend(thread_segments.segments);
+  Segments trim_segments;
+  for (Segments &thread_segments : trim_segments_by_thread) {
+    trim_segments.segments.extend(thread_segments.segments);
   }
 
-  /* Abort when no cutter segments are found in the lasso area. */
+  /* Abort when no trim segments are found in the lasso area. */
   bke::CurvesGeometry dst;
-  if (cutter_segments.segments.is_empty()) {
+  if (trim_segments.segments.is_empty()) {
     return dst;
   }
 
-  /* Merge adjacent cutter segments. E.g. two point ranges of 0-10 and 11-20 will be merged
+  /* Merge adjacent trim segments. E.g. two point ranges of 0-10 and 11-20 will be merged
    * to one range of 0-20. */
-  cutter_segments.merge_adjacent_segments();
+  trim_segments.merge_adjacent_segments();
 
   /* Create the point transfer data, for converting the source geometry into the new geometry.
-   * First, add all curve points not affected by the cutter tool. */
+   * First, add all curve points not affected by the trim tool. */
   Array<Vector<PointTransferData>> src_to_dst_points(src_points_num);
   for (const int src_curve : src.curves_range()) {
     const IndexRange src_points = src_points_by_curve[src_curve];
@@ -1255,19 +1329,19 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
       const int src_next_point = (src_point == src_points.last()) ? src_points.first() :
                                                                     (src_point + 1);
 
-      /* Add the source point only if it does not lie inside a cutter segment. */
+      /* Add the source point only if it does not lie inside a trim segment. */
       if (!point_is_in_segment[src_point]) {
         dst_points.append({src_point, src_next_point, 0.0f, true, false});
       }
     }
   }
 
-  /* Add new curve points at the intersection points of the cutter segments.
+  /* Add new curve points at the intersection points of the trim segments.
    *
    *                               a                 b
    *  source curve    o--------o---*---o--------o----*---o--------o
    *                               ^                 ^
-   *  cutter segment               |-----------------|
+   *  trim segment                 |-----------------|
    *
    *  o = existing curve point
    *  * = newly created curve point
@@ -1280,33 +1354,33 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
    * We avoid inserting a new point very close to the adjacent one, because that's just adding
    * clutter to the geometry.
    */
-  for (const Segment &cutter_segment : cutter_segments.segments) {
-    /* Intersection at cutter segment start. */
-    if (cutter_segment.is_intersected[Side::Start] &&
-        cutter_segment.intersection_distance[Side::Start] > DISTANCE_FACTOR_THRESHOLD)
+  for (const Segment &trim_segment : trim_segments.segments) {
+    /* Intersection at trim segment start. */
+    if (trim_segment.is_intersected[Side::Start] &&
+        trim_segment.intersection_distance[Side::Start] > DISTANCE_FACTOR_THRESHOLD)
     {
-      const int src_point = cutter_segment.point_range[Side::Start] - 1;
+      const int src_point = trim_segment.point_range[Side::Start] - 1;
       Vector<PointTransferData> &dst_points = src_to_dst_points[src_point];
       dst_points.append({src_point,
                          src_point + 1,
-                         cutter_segment.intersection_distance[Side::Start],
+                         trim_segment.intersection_distance[Side::Start],
                          false,
                          false});
     }
-    /* Intersection at cutter segment end. */
-    if (cutter_segment.is_intersected[Side::End]) {
-      const int src_point = cutter_segment.point_range[Side::End];
-      if (cutter_segment.intersection_distance[Side::End] < (1.0f - DISTANCE_FACTOR_THRESHOLD)) {
+    /* Intersection at trim segment end. */
+    if (trim_segment.is_intersected[Side::End]) {
+      const int src_point = trim_segment.point_range[Side::End];
+      if (trim_segment.intersection_distance[Side::End] < (1.0f - DISTANCE_FACTOR_THRESHOLD)) {
         Vector<PointTransferData> &dst_points = src_to_dst_points[src_point];
         dst_points.append({src_point,
                            src_point + 1,
-                           cutter_segment.intersection_distance[Side::End],
+                           trim_segment.intersection_distance[Side::End],
                            false,
                            true});
       }
       else {
         /* Mark the 'is_cut' flag on the next point, because a new curve is starting here after
-         * the removed cutter segment. */
+         * the removed trim segment. */
         Vector<PointTransferData> &dst_points = src_to_dst_points[src_point + 1];
         for (PointTransferData &dst_point : dst_points) {
           if (dst_point.is_src_point) {
@@ -1323,7 +1397,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   return dst;
 }
 
-}  // namespace cutter
+}  // namespace trim
 
 Curves2DBVHTree build_curves_2d_bvh_from_visible(const ViewContext &vc,
                                                  const Object &object,
@@ -1363,7 +1437,7 @@ Curves2DBVHTree build_curves_2d_bvh_from_visible(const ViewContext &vc,
       continue;
     }
 
-    const bke::greasepencil::Layer &layer = *grease_pencil.layer(info.layer_index);
+    const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
     const float4x4 layer_to_world = layer.to_world_space(object);
     const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(vc.rv3d, layer_to_world);
     const bke::CurvesGeometry &curves = info.drawing.strokes();

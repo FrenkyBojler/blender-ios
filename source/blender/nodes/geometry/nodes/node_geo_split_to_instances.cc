@@ -13,7 +13,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -28,7 +28,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type({GeometryComponent::Type::Mesh,
                        GeometryComponent::Type::PointCloud,
                        GeometryComponent::Type::Curve,
-                       GeometryComponent::Type::Instance});
+                       GeometryComponent::Type::Instance})
+      .description("Geometry to split into instances");
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Int>("Group ID").field_on_all().hide_value();
   b.add_output<decl::Geometry>("Instances")
@@ -41,9 +42,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void ensure_group_geometries(Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id,
@@ -101,7 +102,7 @@ static void split_mesh_groups(const MeshComponent &component,
                               const AttrDomain domain,
                               const Field<bool> &selection_field,
                               const Field<int> &group_id_field,
-                              const AnonymousAttributePropagationInfo &propagation_info,
+                              const AttributeFilter &attribute_filter,
                               Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id)
 {
   SplitGroups split_groups;
@@ -120,7 +121,7 @@ static void split_mesh_groups(const MeshComponent &component,
     /* Need task isolation because of the thread local variable. */
     threading::isolate_task([&]() {
       MutableSpan<bool> group_selection = group_selection_per_thread.local();
-      const VArray<bool> group_selection_varray = VArray<bool>::ForSpan(group_selection);
+      const VArray<bool> group_selection_varray = VArray<bool>::from_span(group_selection);
       for (const int group_index : range) {
         const IndexMask &mask = split_groups.group_masks[group_index];
         index_mask::masked_fill(group_selection, true, mask);
@@ -129,7 +130,7 @@ static void split_mesh_groups(const MeshComponent &component,
         /* Using #mesh_copy_selection here is not ideal, because it can lead to O(n^2) behavior
          * when there are many groups. */
         std::optional<Mesh *> group_mesh_opt = geometry::mesh_copy_selection(
-            src_mesh, group_selection_varray, domain, propagation_info);
+            src_mesh, group_selection_varray, domain, attribute_filter);
         GeometrySet &group_geometry = *geometry_by_group_id.lookup(group_id);
         if (group_mesh_opt.has_value()) {
           if (Mesh *group_mesh = *group_mesh_opt) {
@@ -152,7 +153,7 @@ static void split_mesh_groups(const MeshComponent &component,
 static void split_pointcloud_groups(const PointCloudComponent &component,
                                     const Field<bool> &selection_field,
                                     const Field<int> &group_id_field,
-                                    const AnonymousAttributePropagationInfo &propagation_info,
+                                    const AttributeFilter &attribute_filter,
                                     Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id)
 {
   SplitGroups split_groups;
@@ -175,8 +176,12 @@ static void split_pointcloud_groups(const PointCloudComponent &component,
 
       const AttributeAccessor src_attributes = src_pointcloud.attributes();
       MutableAttributeAccessor dst_attributes = group_pointcloud->attributes_for_write();
-      bke::gather_attributes(
-          src_attributes, AttrDomain::Point, propagation_info, {}, mask, dst_attributes);
+      bke::gather_attributes(src_attributes,
+                             AttrDomain::Point,
+                             AttrDomain::Point,
+                             attribute_filter,
+                             mask,
+                             dst_attributes);
 
       GeometrySet &group_geometry = *geometry_by_group_id.lookup(group_id);
       group_geometry.replace_pointcloud(group_pointcloud);
@@ -188,7 +193,7 @@ static void split_curve_groups(const bke::CurveComponent &component,
                                const AttrDomain domain,
                                const Field<bool> &selection_field,
                                const Field<int> &group_id_field,
-                               const AnonymousAttributePropagationInfo &propagation_info,
+                               const AttributeFilter &attribute_filter,
                                Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id)
 {
   SplitGroups split_groups;
@@ -205,10 +210,10 @@ static void split_curve_groups(const bke::CurveComponent &component,
 
       bke::CurvesGeometry group_curves;
       if (domain == AttrDomain::Point) {
-        group_curves = bke::curves_copy_point_selection(src_curves, mask, propagation_info);
+        group_curves = bke::curves_copy_point_selection(src_curves, mask, attribute_filter);
       }
       else {
-        group_curves = bke::curves_copy_curve_selection(src_curves, mask, propagation_info);
+        group_curves = bke::curves_copy_curve_selection(src_curves, mask, attribute_filter);
       }
       Curves *group_curves_id = bke::curves_new_nomain(std::move(group_curves));
       GeometrySet &group_geometry = *geometry_by_group_id.lookup(group_id);
@@ -220,7 +225,7 @@ static void split_curve_groups(const bke::CurveComponent &component,
 static void split_instance_groups(const InstancesComponent &component,
                                   const Field<bool> &selection_field,
                                   const Field<int> &group_id_field,
-                                  const AnonymousAttributePropagationInfo &propagation_info,
+                                  const AttributeFilter &attribute_filter,
                                   Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id)
 {
   SplitGroups split_groups;
@@ -248,8 +253,8 @@ static void split_instance_groups(const InstancesComponent &component,
 
       bke::gather_attributes(src_instances.attributes(),
                              AttrDomain::Instance,
-                             propagation_info,
-                             {},
+                             AttrDomain::Instance,
+                             attribute_filter,
                              mask,
                              group_instances->attributes_for_write());
       group_instances->remove_unused_references();
@@ -269,8 +274,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<int> group_id_field = params.extract_input<Field<int>>("Group ID");
 
-  const AnonymousAttributePropagationInfo &propagation_info = params.get_output_propagation_info(
-      "Instances");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Instances");
 
   Map<int, std::unique_ptr<GeometrySet>> geometry_by_group_id;
 
@@ -282,13 +286,13 @@ static void node_geo_exec(GeoNodeExecParams params)
                       domain,
                       selection_field,
                       group_id_field,
-                      propagation_info,
+                      attribute_filter,
                       geometry_by_group_id);
   }
   if (src_geometry.has_pointcloud() && domain == AttrDomain::Point) {
     const auto &component = *src_geometry.get_component<PointCloudComponent>();
     split_pointcloud_groups(
-        component, selection_field, group_id_field, propagation_info, geometry_by_group_id);
+        component, selection_field, group_id_field, attribute_filter, geometry_by_group_id);
   }
   if (src_geometry.has_curves() && ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
     const auto &component = *src_geometry.get_component<bke::CurveComponent>();
@@ -296,13 +300,13 @@ static void node_geo_exec(GeoNodeExecParams params)
                        domain,
                        selection_field,
                        group_id_field,
-                       propagation_info,
+                       attribute_filter,
                        geometry_by_group_id);
   }
   if (src_geometry.has_instances() && domain == AttrDomain::Instance) {
     const auto &component = *src_geometry.get_component<bke::InstancesComponent>();
     split_instance_groups(
-        component, selection_field, group_id_field, propagation_info, geometry_by_group_id);
+        component, selection_field, group_id_field, attribute_filter, geometry_by_group_id);
   }
 
   bke::Instances *dst_instances = new bke::Instances();
@@ -310,7 +314,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int total_groups_num = geometry_by_group_id.size();
   dst_instances->resize(total_groups_num);
 
-  AnonymousAttributeIDPtr dst_group_id_attribute_id =
+  std::optional<std::string> dst_group_id_attribute_id =
       params.get_output_anonymous_attribute_id_if_needed("Group ID");
   if (dst_group_id_attribute_id) {
     SpanAttributeWriter<int> dst_group_id =
@@ -351,12 +355,15 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_SPLIT_TO_INSTANCES, "Split to Instances", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSplitToInstances", GEO_NODE_SPLIT_TO_INSTANCES);
+  ntype.ui_name = "Split to Instances";
+  ntype.ui_description = "Create separate geometries containing the elements from the same group";
+  ntype.enum_name_legacy = "Split to Instances";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

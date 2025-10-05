@@ -2,8 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
+#include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
 namespace blender::noise {
@@ -28,6 +33,7 @@ uint32_t hash_float(float kx);
 uint32_t hash_float(float2 k);
 uint32_t hash_float(float3 k);
 uint32_t hash_float(float4 k);
+uint32_t hash_float(const float4x4 &k);
 
 /* Hash integers to `float` between 0 and 1. */
 

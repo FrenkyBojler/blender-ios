@@ -83,10 +83,15 @@ class ConstraintButtonsPanel:
             if con.target_space == 'CUSTOM' or con.owner_space == 'CUSTOM':
                 col = layout.column()
                 col.prop(con, "space_object")
-                if con.space_object and con.space_object.type == 'ARMATURE':
-                    col.prop_search(con, "space_subtarget", con.space_object.data, "bones", text="Bone")
-                elif con.space_object and con.space_object.type in {'MESH', 'LATTICE'}:
-                    col.prop_search(con, "space_subtarget", con.space_object, "vertex_groups", text="Vertex Group")
+                if space_object := con.space_object:
+                    match space_object.type:
+                        case 'ARMATURE':
+                            col.prop_search(con, "space_subtarget", con.space_object.data, "bones", text="Bone")
+                        case 'MESH', 'LATTICE':
+                            col.prop_search(
+                                con, "space_subtarget", con.space_object,
+                                "vertex_groups", text="Vertex Group",
+                            )
 
     @staticmethod
     def target_template(layout, con, subtargets=True):
@@ -659,6 +664,25 @@ class ConstraintButtonsPanel:
         if con.shrinkwrap_type == 'PROJECT':
             layout.prop(con, "project_axis", expand=True, text="Project Axis")
             layout.prop(con, "project_axis_space", text="Space")
+
+            if con.project_axis_space == 'CUSTOM':
+                col = layout.column()
+                col.prop(con, "space_object")
+                if space_object := con.space_object:
+                    match space_object.type:
+                        case 'ARMATURE':
+                            col.prop_search(
+                                con, "space_subtarget",
+                                con.space_object.data, "bones",
+                                text="Bone",
+                            )
+                        case 'MESH', 'LATTICE':
+                            col.prop_search(
+                                con, "space_subtarget",
+                                con.space_object, "vertex_groups",
+                                text="Vertex Group",
+                            )
+
             layout.prop(con, "project_limit", text="Distance")
             layout.prop(con, "use_project_opposite")
 
@@ -832,10 +856,6 @@ class ConstraintButtonsPanel:
             layout.prop_search(con, "object_path", cache_file, "object_paths")
 
         self.draw_influence(layout, con)
-
-    def draw_python_constraint(self, _context):
-        layout = self.layout
-        layout.label(text="Blender 2.6 doesn't support Python constraints yet")
 
     def draw_armature(self, context):
         layout = self.layout
@@ -1126,7 +1146,18 @@ class ConstraintButtonsSubPanel:
         layout.use_property_split = True
         layout.use_property_decorate = True
 
-        layout.prop(con, "action")
+        col = layout.column(align=True)
+        col.prop(con, "action")
+        if con.action and con.action.is_action_layered:
+            col.context_pointer_set("animated_id", con.id_data)
+            col.template_search(
+                con, "action_slot",
+                con, "action_suitable_slots",
+                new="",  # No use in making a new slot here.
+                unlink="anim.slot_unassign_from_constraint",
+                text="Slot",
+            )
+
         layout.prop(con, "use_bone_object_action")
 
         col = layout.column(align=True)
@@ -1136,11 +1167,6 @@ class ConstraintButtonsSubPanel:
     def draw_transform_cache_velocity(self, context):
         self.draw_transform_cache_subpanel(
             context, self.layout.template_cache_file_velocity
-        )
-
-    def draw_transform_cache_procedural(self, context):
-        self.draw_transform_cache_subpanel(
-            context, self.layout.template_cache_file_procedural
         )
 
     def draw_transform_cache_time(self, context):
@@ -1583,22 +1609,6 @@ class BONE_PT_bTransformCacheConstraint_layers(BoneConstraintPanel, ConstraintBu
         self.draw_transform_cache_layers(context)
 
 
-class OBJECT_PT_bTransformCacheConstraint_procedural(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
-    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
-    bl_label = "Render Procedural"
-
-    def draw(self, context):
-        self.draw_transform_cache_procedural(context)
-
-
-class BONE_PT_bTransformCacheConstraint_procedural(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
-    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
-    bl_label = "Render Procedural"
-
-    def draw(self, context):
-        self.draw_transform_cache_procedural(context)
-
-
 class OBJECT_PT_bTransformCacheConstraint_time(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
     bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
     bl_label = "Time"
@@ -1613,18 +1623,6 @@ class BONE_PT_bTransformCacheConstraint_time(BoneConstraintPanel, ConstraintButt
 
     def draw(self, context):
         self.draw_transform_cache_time(context)
-
-
-# Python Constraint
-
-class OBJECT_PT_bPythonConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
-    def draw(self, context):
-        self.draw_python_constraint(context)
-
-
-class BONE_PT_bPythonConstraint(BoneConstraintPanel, ConstraintButtonsPanel, Panel):
-    def draw(self, context):
-        self.draw_python_constraint(context)
 
 
 # Armature Constraint
@@ -1702,10 +1700,8 @@ classes = (
     OBJECT_PT_bObjectSolverConstraint,
     OBJECT_PT_bTransformCacheConstraint,
     OBJECT_PT_bTransformCacheConstraint_time,
-    OBJECT_PT_bTransformCacheConstraint_procedural,
     OBJECT_PT_bTransformCacheConstraint_velocity,
     OBJECT_PT_bTransformCacheConstraint_layers,
-    OBJECT_PT_bPythonConstraint,
     OBJECT_PT_bArmatureConstraint,
     OBJECT_PT_bArmatureConstraint_bones,
     # Bone panels
@@ -1743,10 +1739,8 @@ classes = (
     BONE_PT_bObjectSolverConstraint,
     BONE_PT_bTransformCacheConstraint,
     BONE_PT_bTransformCacheConstraint_time,
-    BONE_PT_bTransformCacheConstraint_procedural,
     BONE_PT_bTransformCacheConstraint_velocity,
     BONE_PT_bTransformCacheConstraint_layers,
-    BONE_PT_bPythonConstraint,
     BONE_PT_bArmatureConstraint,
     BONE_PT_bArmatureConstraint_bones,
 )

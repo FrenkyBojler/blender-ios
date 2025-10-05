@@ -7,6 +7,7 @@
  * \ingroup bke
  */
 
+#include "BLI_implicit_sharing.hh"
 #include "BLI_string_ref.hh"
 
 #define RET_OK 0
@@ -46,7 +47,8 @@ PackedFile *BKE_packedfile_duplicate(const PackedFile *pf_src);
 PackedFile *BKE_packedfile_new(ReportList *reports,
                                const char *filepath_rel,
                                const char *basepath);
-PackedFile *BKE_packedfile_new_from_memory(void *mem, int memlen);
+PackedFile *BKE_packedfile_new_from_memory(
+    const void *mem, int memlen, const blender::ImplicitSharingInfo *sharing_info = nullptr);
 
 /**
  * No libraries for now.
@@ -63,7 +65,7 @@ void BKE_packedfile_pack_all_libraries(Main *bmain, ReportList *reports);
  * It returns a char *to the existing file name / new file name or NULL when
  * there was an error or when the user decides to cancel the operation.
  *
- * \warning 'abs_name' may be relative still! (use a "//" prefix)
+ * \warning 'abs_name' may be relative still! (use a `//` prefix)
  * be sure to run #BLI_path_abs on it first.
  */
 char *BKE_packedfile_unpack_to_file(ReportList *reports,
@@ -108,7 +110,20 @@ void BKE_packedfile_free(PackedFile *pf);
 
 /* Info. */
 
-int BKE_packedfile_count_all(Main *bmain);
+struct PackedFileCount {
+  /** Counts e.g. packed images and sounds. */
+  int individual_files = 0;
+  /** Counts bakes that may consist of multiple files. */
+  int bakes = 0;
+
+  int total() const
+  {
+    return this->individual_files + this->bakes;
+  }
+};
+
+PackedFileCount BKE_packedfile_count_all(Main *bmain);
+
 /**
  * This function compares a packed file to a 'real' file.
  * It returns an integer indicating if:

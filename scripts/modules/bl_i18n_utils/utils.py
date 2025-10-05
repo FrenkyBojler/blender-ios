@@ -4,6 +4,16 @@
 
 # Some misc utilities...
 
+__all__ = (
+    "I18n",
+    "I18nMessage",
+    "I18nMessages",
+    "enable_addons",
+    "find_best_isocode_matches",
+    "get_po_files_from_dir",
+    "list_po_dir",
+)
+
 import collections
 import os
 import platform
@@ -16,7 +26,6 @@ from bl_i18n_utils import (
     settings,
     utils_rtl,
 )
-from typing import Dict
 
 
 ##### Misc Utils #####
@@ -66,10 +75,11 @@ def locale_explode(locale):
     m = _locale_explode_re.match(locale)
     if m:
         lang, country, variant = m.groups()
-        return (lang, country, variant,
-                "%s_%s" % (lang, country) if country else None,
-                "%s@%s" % (lang, variant) if variant else None)
-
+        return (
+            lang, country, variant,
+            "{:s}_{:s}".format(lang, country) if country else None,
+            "{:s}@{:s}".format(lang, variant) if variant else None
+        )
     try:
         import bpy.app.translations as bpy_translations
         assert ret == bpy_translations.locale_explode(locale)
@@ -82,19 +92,20 @@ def locale_explode(locale):
 def locale_match(loc1, loc2):
     """
     Return:
-        -n if loc1 is a subtype of loc2 (e.g. 'fr_FR' is a subtype of 'fr').
+        -n if loc1 is a subtype of loc2 (e.g. ``fr_FR`` is a subtype of ``fr``).
         +n if loc2 is a subtype of loc1.
-        n becomes smaller when both locales are more similar (e.g. (sr, sr_SR) are more similar than (sr, sr_SR@latin)).
+        n becomes smaller when both locales are more similar
+        ... (e.g. (``sr, sr_SR``) are more similar than (``sr, sr_SR@latin``)).
         0 if they are exactly the same.
         ... (Ellipsis) if they cannot match!
-    Note: We consider that 'sr_SR@latin' is a subtype of 'sr@latin', 'sr_SR' and 'sr', but 'sr_SR' and 'sr@latin' won't
-          match (will return ...)!
+    Note: We consider that ``sr_SR@latin`` is a subtype of ``sr@latin``, ``sr_SR`` and ``sr``,
+          but ``sr_SR`` and ``sr@latin`` won't match (will return ...)!
     Note: About similarity, diff in variants are more important than diff in countries, currently here are the cases:
-            (sr, sr_SR)             -> 1
-            (sr@latin, sr_SR@latin) -> 1
-            (sr, sr@latin)          -> 2
-            (sr_SR, sr_SR@latin)    -> 2
-            (sr, sr_SR@latin)       -> 3
+            (``sr, sr_SR``)             -> 1
+            (``sr@latin, sr_SR@latin``) -> 1
+            (``sr, sr@latin``)          -> 2
+            (``sr_SR, sr_SR@latin``)    -> 2
+            (``sr, sr_SR@latin``)       -> 3
     """
     if loc1 == loc2:
         return 0
@@ -239,7 +250,7 @@ def enable_addons(addons=None, support=None, disable=False, check_only=False):
                         continue
                     print("    Enabling module ", addon_module_name)
                     bpy.ops.preferences.addon_enable(module=addon_module_name)
-            except BaseException as ex:  # XXX TEMP WORKAROUND
+            except Exception as ex:  # XXX TEMP WORKAROUND
                 print(ex)
 
         # XXX There are currently some problems with bpy/rna...
@@ -495,8 +506,10 @@ class I18nMessages:
 
         msgs = cls(uid=uid, settings=settings)
         key = settings.PO_HEADER_KEY
-        msgs.msgs[key] = I18nMessage([key[0]], [key[1]], msgstr.split("\n"), comment.split("\n"),
-                                     False, False, settings=settings)
+        msgs.msgs[key] = I18nMessage(
+            [key[0]], [key[1]], msgstr.split("\n"), comment.split("\n"),
+            False, False, settings=settings,
+        )
         msgs.update_info()
 
         return msgs
@@ -924,8 +937,10 @@ class I18nMessages:
                 self.parsing_errors.append((line_nr, "{} context/msgid is already in current messages!".format(msgkey)))
                 return
 
-            self.msgs[msgkey] = I18nMessage(msgctxt_lines, msgid_lines, msgstr_lines, comment_lines,
-                                            is_commented, is_fuzzy, settings=self.settings)
+            self.msgs[msgkey] = I18nMessage(
+                msgctxt_lines, msgid_lines, msgstr_lines, comment_lines,
+                is_commented, is_fuzzy, settings=self.settings,
+            )
 
             # Let's clean up and get ready for next message!
             reading_msgid = reading_msgstr = reading_msgctxt = reading_comment = False
@@ -1210,7 +1225,7 @@ class I18nMessages:
         """
         Update or create a single PO file (specified by a filepath) from the given POT `I18nMessages` data.
 
-        Callback usable in a context where Blender specific modules (like `bpy`) are not available.
+        Callback usable in a context where Blender specific modules (like ``bpy``) are not available.
         """
         import sys
         sys.stdout.reconfigure(encoding="utf-8")
@@ -1230,7 +1245,7 @@ class I18nMessages:
         """
         Cleanup a single PO file (specified by a filepath).
 
-        Callback usable in a context where Blender specific modules (like `bpy`) are not available.
+        Callback usable in a context where Blender specific modules (like ``bpy``) are not available.
         """
         import sys
         sys.stdout.reconfigure(encoding="utf-8")
@@ -1250,7 +1265,7 @@ class I18nMessages:
         """
         Cleanup and write a single PO file (specified by a filepath) into the relevant Blender source 'compact' PO file.
 
-        Callback usable in a context where Blender specific modules (like `bpy`) are not available.
+        Callback usable in a context where Blender specific modules (like ``bpy``) are not available.
         """
         import sys
         sys.stdout.reconfigure(encoding="utf-8")
@@ -1270,7 +1285,7 @@ class I18nMessages:
                        "Cleaned up {} commented messages.\n".format(lng['name'], lng['uid'], po.clean_commented()) +
                        ("Errors in this po, solved as best as possible!\n\t" + "\n\t".join(errs) if errs else ""))
         if lng['uid'] in settings.IMPORT_LANGUAGES_RTL:
-            if platform.system not in {'Linux'}:
+            if platform.system() not in {'Linux'}:
                 reports.append("Skipping RtL processing of {} language ({}), "
                                "this is only supported on Linux currently.".format(lng['name'], lng['uid']))
             else:
@@ -1334,7 +1349,7 @@ class I18n:
 
     def __init__(self, kind=None, src=None, langs=set(), settings=settings):
         self.settings = settings
-        self.trans: Dict[str, I18nMessages] = {}
+        self.trans: dict[str, I18nMessages] = {}
         self.src = {}  # Should have the same keys as self.trans (plus PARSER_PY_ID for py file)!
         self.dst = self._dst  # A callable that transforms src_path into dst_path!
         if kind and src:
@@ -1432,7 +1447,7 @@ class I18n:
         """
         txts = []
         if os.path.isdir(src):
-            for root, dnames, fnames in os.walk(src):
+            for root, _dnames, fnames in os.walk(src):
                 for fname in fnames:
                     if not fname.endswith(".py"):
                         continue
@@ -1464,8 +1479,10 @@ class I18n:
         """
         root_dir, pot_file = src
         if pot_file and os.path.isfile(pot_file):
-            self.trans[self.settings.PARSER_TEMPLATE_ID] = I18nMessages(self.settings.PARSER_TEMPLATE_ID, 'PO',
-                                                                        pot_file, pot_file, settings=self.settings)
+            self.trans[self.settings.PARSER_TEMPLATE_ID] = I18nMessages(
+                self.settings.PARSER_TEMPLATE_ID, 'PO',
+                pot_file, pot_file, settings=self.settings,
+            )
             self.src_po[self.settings.PARSER_TEMPLATE_ID] = pot_file
 
         for uid, po_file in get_po_files_from_dir(root_dir, langs):
@@ -1485,28 +1502,36 @@ class I18n:
             msgs = ()
         for key, (sources, gen_comments), *translations in msgs:
             if self.settings.PARSER_TEMPLATE_ID not in self.trans:
-                self.trans[self.settings.PARSER_TEMPLATE_ID] = I18nMessages(self.settings.PARSER_TEMPLATE_ID,
-                                                                            settings=self.settings)
+                self.trans[self.settings.PARSER_TEMPLATE_ID] = I18nMessages(
+                    self.settings.PARSER_TEMPLATE_ID,
+                    settings=self.settings,
+                )
                 self.src[self.settings.PARSER_TEMPLATE_ID] = self.py_file
             if key in self.trans[self.settings.PARSER_TEMPLATE_ID].msgs:
                 print("ERROR! key {} is defined more than once! Skipping re-definitions!")
                 continue
             custom_src = [c for c in sources if c.startswith("bpy.")]
             src = [c for c in sources if not c.startswith("bpy.")]
-            common_comment_lines = [self.settings.PO_COMMENT_PREFIX_GENERATED + c for c in gen_comments] + \
-                                   [self.settings.PO_COMMENT_PREFIX_SOURCE_CUSTOM + c for c in custom_src] + \
-                                   [self.settings.PO_COMMENT_PREFIX_SOURCE + c for c in src]
+            common_comment_lines = (
+                [self.settings.PO_COMMENT_PREFIX_GENERATED + c for c in gen_comments] +
+                [self.settings.PO_COMMENT_PREFIX_SOURCE_CUSTOM + c for c in custom_src] +
+                [self.settings.PO_COMMENT_PREFIX_SOURCE + c for c in src]
+            )
             ctxt = [key[0]] if key[0] else [default_context]
-            self.trans[self.settings.PARSER_TEMPLATE_ID].msgs[key] = I18nMessage(ctxt, [key[1]], [""],
-                                                                                 common_comment_lines, False, False,
-                                                                                 settings=self.settings)
+            self.trans[self.settings.PARSER_TEMPLATE_ID].msgs[key] = I18nMessage(
+                ctxt, [key[1]], [""],
+                common_comment_lines, False, False,
+                settings=self.settings,
+            )
             for uid, msgstr, (is_fuzzy, user_comments) in translations:
                 if uid not in self.trans:
                     self.trans[uid] = I18nMessages(uid, settings=self.settings)
                     self.src[uid] = self.py_file
                 comment_lines = [self.settings.PO_COMMENT_PREFIX + c for c in user_comments] + common_comment_lines
-                self.trans[uid].msgs[key] = I18nMessage(ctxt, [key[1]], [msgstr], comment_lines, False, is_fuzzy,
-                                                        settings=self.settings)
+                self.trans[uid].msgs[key] = I18nMessage(
+                    ctxt, [key[1]], [msgstr], comment_lines, False, is_fuzzy,
+                    settings=self.settings,
+                )
         # key = self.settings.PO_HEADER_KEY
         # for uid, trans in self.trans.items():
         #     if key not in trans.msgs:
@@ -1648,9 +1673,11 @@ class I18n:
             if prev is None and nxt is None:
                 print("WARNING: Looks like given python file {} has no auto-generated translations yet, will be added "
                       "at the end of the file, you can move that section later if needed...".format(dst))
-                txt = ([txt, "", self.settings.PARSER_PY_MARKER_BEGIN] +
-                       _gen_py(self, langs) +
-                       ["", self.settings.PARSER_PY_MARKER_END])
+                txt = (
+                    [txt, "", self.settings.PARSER_PY_MARKER_BEGIN] +
+                    _gen_py(self, langs) +
+                    ["", self.settings.PARSER_PY_MARKER_END]
+                )
             else:
                 # We completely replace the text found between start and end markers...
                 txt = _gen_py(self, langs)

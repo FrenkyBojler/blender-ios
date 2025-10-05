@@ -30,6 +30,7 @@ static VKPushConstants::Layout::PushConstant init_constant(
   layout.type = push_constant.type;
   layout.array_size = push_constant.array_size;
   layout.offset = *r_offset;
+  layout.inner_row_padding = LayoutT::inner_row_padding(push_constant.type);
 
   reserve<LayoutT>(push_constant.type, push_constant.array_size, r_offset);
   return layout;
@@ -144,43 +145,24 @@ VKPushConstants &VKPushConstants::operator=(VKPushConstants &&other)
   return *this;
 }
 
-void VKPushConstants::update(VKContext &context)
-{
-  VKDescriptorSetTracker &descriptor_set = context.descriptor_set_get();
-
-  switch (layout_get().storage_type_get()) {
-    case VKPushConstants::StorageType::NONE:
-      break;
-
-    case VKPushConstants::StorageType::PUSH_CONSTANTS:
-      break;
-
-    case VKPushConstants::StorageType::UNIFORM_BUFFER:
-      update_uniform_buffer();
-      descriptor_set.bind(*uniform_buffer_get(), layout_get().descriptor_set_location_get());
-      break;
-  }
-}
-
 void VKPushConstants::update_uniform_buffer()
 {
   BLI_assert(layout_->storage_type_get() == StorageType::UNIFORM_BUFFER);
   BLI_assert(data_ != nullptr);
-  VKContext &context = *VKContext::get();
-  std::unique_ptr<VKUniformBuffer> &uniform_buffer = tracked_resource_for(context, is_dirty_);
-  uniform_buffer->update(data_);
-  is_dirty_ = false;
+  if (!uniform_buffer_) {
+    uniform_buffer_ = std::make_unique<VKUniformBuffer>(layout_->size_in_bytes(),
+                                                        "push constants buffer");
+  }
+
+  uniform_buffer_->reset_data_uploaded();
+  uniform_buffer_->update(data_);
 }
 
 std::unique_ptr<VKUniformBuffer> &VKPushConstants::uniform_buffer_get()
 {
   BLI_assert(layout_->storage_type_get() == StorageType::UNIFORM_BUFFER);
-  return active_resource();
-}
-
-std::unique_ptr<VKUniformBuffer> VKPushConstants::create_resource(VKContext & /*context*/)
-{
-  return std::make_unique<VKUniformBuffer>(layout_->size_in_bytes(), __func__);
+  BLI_assert(uniform_buffer_);
+  return uniform_buffer_;
 }
 
 }  // namespace blender::gpu

@@ -21,7 +21,7 @@ class DrawWeightPaintOperation : public WeightPaintOperation {
     this->ensure_active_vertex_group_in_object();
     this->get_locked_and_bone_deformed_vertex_groups();
 
-    /* Get the add/subtract mode of the draw tool. */
+    /* Get the add/subtract mode of the draw brush. */
     this->invert_brush_weight = (this->brush->flag & BRUSH_DIR_IN) != 0;
     if (this->stroke_mode == BRUSH_STROKE_INVERT) {
       this->invert_brush_weight = !this->invert_brush_weight;
@@ -60,14 +60,18 @@ class DrawWeightPaintOperation : public WeightPaintOperation {
            * buffer. */
           threading::parallel_for_each(drawing_weights, [&](DrawingWeightData &drawing_weight) {
             for (const int point_index : drawing_weight.point_positions.index_range()) {
-              const float2 &co = drawing_weight.point_positions[point_index];
+              /* Skip read-only points. */
+              if (drawing_weight.point_is_read_only[point_index]) {
+                continue;
+              }
 
               /* When the point is under the brush, add it to the brush point buffer. */
+              const float2 &co = drawing_weight.point_positions[point_index];
               this->add_point_under_brush_to_brush_buffer(co, drawing_weight, point_index);
             }
           });
 
-          /* Apply the Draw tool to all points in the brush buffer. */
+          /* Apply the Draw brush to all points in the brush buffer. */
           threading::parallel_for_each(drawing_weights, [&](DrawingWeightData &drawing_weight) {
             for (const BrushPoint &point : drawing_weight.points_in_brush) {
               this->apply_weight_to_point(point, this->brush_weight, drawing_weight);
@@ -82,7 +86,7 @@ class DrawWeightPaintOperation : public WeightPaintOperation {
             }
 
             if (!drawing_weight.points_in_brush.is_empty()) {
-              changed = true;
+              changed.store(true, std::memory_order_relaxed);
               drawing_weight.points_in_brush.clear();
             }
           });
