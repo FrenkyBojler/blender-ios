@@ -107,6 +107,7 @@ static wmOperatorStatus wm_obj_export_exec(bContext *C, wmOperator *op)
 
   export_params.export_selected_objects = RNA_boolean_get(op->ptr, "export_selected_objects");
   export_params.export_uv = RNA_boolean_get(op->ptr, "export_uv");
+  export_params.export_uv_seams = RNA_boolean_get(op->ptr, "export_uv_seams");
   export_params.export_normals = RNA_boolean_get(op->ptr, "export_normals");
   export_params.export_colors = RNA_boolean_get(op->ptr, "export_colors");
   export_params.export_materials = RNA_boolean_get(op->ptr, "export_materials");
