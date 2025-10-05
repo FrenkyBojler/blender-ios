@@ -4,14 +4,9 @@
 
 # ./blender.bin --background --python tests/python/bl_pyapi_bmesh.py -- --verbose
 
-
 __all__ = (
     "main",
 )
-# TODO: remove before committing to main.
-'''
-env UBSAN_OPTIONS=print_stacktrace=1 ASAN_OPTIONS=check_initialization_order=0:leak_check_at_exit=0 bash -c 'while true; do inotifywait -e close_write tests/python/bl_pyapi_bmesh.py; tput clear && ./blender.bin --background --python tests/python/bl_pyapi_bmesh.py -- --verbose; done'
-'''
 
 import bmesh
 import unittest
