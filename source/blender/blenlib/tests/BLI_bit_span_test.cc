@@ -43,6 +43,10 @@ TEST(bit_span, Iteration)
     EXPECT_EQ(bit.test(), ELEM(index, 2, 3));
     index++;
   }
+
+  for (const int bit_index : span.high_bits()) {
+    EXPECT_EQ(true, ELEM(bit_index, 2, 3));
+  }
 }
 
 TEST(bit_span, MutableIteration)
