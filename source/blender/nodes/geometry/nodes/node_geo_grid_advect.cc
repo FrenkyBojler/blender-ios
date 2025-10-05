@@ -103,16 +103,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.add_input<decl::Float>("Time Step")
-      .subtype(PROP_TIME_ABSOLUTE)
-      .default_value(1.0f)
-      .description("Time step for advection in seconds");
   b.add_input(data_type, "Grid")
       .hide_value()
       .structure_type(StructureType::Grid)
       .is_default_link_socket();
   b.add_output(data_type, "Grid").structure_type(StructureType::Grid).align_with_previous();
   b.add_input<decl::Vector>("Velocity").hide_value().structure_type(StructureType::Grid);
+  b.add_input<decl::Float>("Time Step")
+      .subtype(PROP_TIME_ABSOLUTE)
+      .default_value(1.0f)
+      .description("Time step for advection in seconds");
   b.add_input<decl::Menu>("Integration Scheme")
       .static_items(integration_scheme_items)
       .default_value(IntegrationScheme::RungeKutta3)
