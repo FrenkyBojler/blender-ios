@@ -2442,16 +2442,16 @@ static bool uv_copy_mirrored_faces(
   BMVert *v;
   BMIter iter;
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-    bool v_selected = false;
+    bool uv_selected = false;
     BMLoop *l;
     BMIter liter;
     BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
       if (uvedit_uv_select_test(scene, l, offsets)) {
-        v_selected = true;
+        uv_selected = true;
         break;
       }
     }
-    if (!v_selected) {
+    if (!uv_selected) {
       continue;
     }
 
