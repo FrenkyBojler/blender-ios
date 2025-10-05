@@ -124,7 +124,7 @@ class MTLBatch : public Batch {
 
   VertBufBinding prepare_vertex_binding(MTLVertBuf *verts,
                                         MTLRenderPipelineStateDescriptor &desc,
-                                        const MTLShaderInterface *interface,
+                                        const MTLShaderInterface &interface,
                                         uint16_t &attr_mask,
                                         uint32_t &buffer_mask);
 

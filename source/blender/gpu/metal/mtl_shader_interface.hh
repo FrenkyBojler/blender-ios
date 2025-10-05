@@ -14,6 +14,7 @@
 
 #include "gpu_shader_interface.hh"
 #include "mtl_capabilities.hh"
+#include "mtl_push_constant.hh"
 #include "mtl_shader_interface_type.hh"
 
 #include "GPU_common.hh"
@@ -82,7 +83,7 @@ class MTLShaderInterface : public ShaderInterface {
   ArgumentEncoderCacheEntry arg_encoders_[ARGUMENT_ENCODERS_CACHE_SIZE] = {};
 
   /* Attribute Mask. */
-  uint32_t enabled_attribute_mask_;
+  uint32_t enabled_attribute_mask_ = 0;
 
   /* Bit Mask representing the free buffer slots from this interface.
    * Used to bind the vertex and index buffers. */
@@ -94,8 +95,15 @@ class MTLShaderInterface : public ShaderInterface {
   char name[256];
 
  public:
-  MTLShaderInterface(const char *name, const shader::ShaderCreateInfo &info);
+  MTLShaderInterface(const char *name,
+                     const shader::ShaderCreateInfo &info,
+                     MTLPushConstantBuf *push_constant_buf = nullptr);
   ~MTLShaderInterface() override;
+
+  uint32_t vertex_buffer_mask() const
+  {
+    return vertex_buffer_mask_;
+  }
 
   bool use_samplers_argument_buffer() const
   {
@@ -108,10 +116,10 @@ class MTLShaderInterface : public ShaderInterface {
   }
 
   /* Name buffer fetching. */
-  const char *get_name_at_offset(uint32_t offset) const;
+  const char *name_at_offset(uint32_t offset) const;
 
   /* Interface name. */
-  const char *get_name() const
+  const char *name_get() const
   {
     return this->name;
   }

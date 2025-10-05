@@ -688,6 +688,7 @@ void MTLCommandBufferManager::encode_wait_for_event(id<MTLEvent> event, uint64_t
 /* -------------------------------------------------------------------- */
 /** \name Render Pass State for active RenderCommandEncoder
  * \{ */
+
 /* Reset binding state when a new RenderCommandEncoder is bound, to ensure
  * pipeline resources are re-applied to the new Encoder.
  * NOTE: In Metal, state is only persistent within an MTLCommandEncoder,
@@ -699,7 +700,7 @@ void MTLRenderPassState::reset_state()
   this->bound_ds_state = nil;
 
   /* Clear shader binding. */
-  this->last_bound_shader_state.set(nullptr, 0);
+  this->last_bound_shader_state = {nullptr, 0};
 
   /* Other states. */
   MTLFrameBuffer *fb = this->cmd.get_active_framebuffer();
@@ -788,12 +789,8 @@ void MTLRenderPassState::bind_vertex_sampler(MTLSamplerBinding &sampler_binding,
                                              bool use_samplers_argument_buffer,
                                              uint slot)
 {
-  /* Range check. */
-  const MTLShaderInterface *shader_interface = ctx.pipeline_state.active_shader->get_interface();
   BLI_assert(slot >= 0);
-  BLI_assert(slot <= shader_interface->get_max_texture_index());
   BLI_assert(slot < MTL_MAX_TEXTURE_SLOTS);
-  UNUSED_VARS_NDEBUG(shader_interface);
 
   /* If sampler state has not changed for the given slot, we do not need to fetch. */
   if (this->cached_vertex_sampler_state_bindings[slot].sampler_state == nil ||
@@ -828,12 +825,8 @@ void MTLRenderPassState::bind_fragment_sampler(MTLSamplerBinding &sampler_bindin
                                                bool use_samplers_argument_buffer,
                                                uint slot)
 {
-  /* Range check. */
-  const MTLShaderInterface *shader_interface = ctx.pipeline_state.active_shader->get_interface();
   BLI_assert(slot >= 0);
-  BLI_assert(slot <= shader_interface->get_max_texture_index());
   BLI_assert(slot < MTL_MAX_TEXTURE_SLOTS);
-  UNUSED_VARS_NDEBUG(shader_interface);
 
   /* If sampler state has not changed for the given slot, we do not need to fetch. */
   if (this->cached_fragment_sampler_state_bindings[slot].sampler_state == nil ||
@@ -869,12 +862,8 @@ void MTLComputeState::bind_compute_sampler(MTLSamplerBinding &sampler_binding,
                                            bool use_samplers_argument_buffer,
                                            uint slot)
 {
-  /* Range check. */
-  const MTLShaderInterface *shader_interface = ctx.pipeline_state.active_shader->get_interface();
   BLI_assert(slot >= 0);
-  BLI_assert(slot <= shader_interface->get_max_texture_index());
   BLI_assert(slot < MTL_MAX_TEXTURE_SLOTS);
-  UNUSED_VARS_NDEBUG(shader_interface);
 
   /* If sampler state has not changed for the given slot, we do not need to fetch. */
   if (this->cached_compute_sampler_state_bindings[slot].sampler_state == nil ||

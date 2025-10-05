@@ -859,15 +859,6 @@ static void generate_shared_variable(GeneratedStreams &generated,
   }
 }
 
-static std::string generate_defines(const shader::ShaderCreateInfo &info)
-{
-  std::stringstream out;
-  for (const auto &def : info.defines_) {
-    out << "#define " << def[0] << " " << def[1] << "\n";
-  }
-  return out.str();
-}
-
 static void generate_sampler_argument_buffer(GeneratedStreams &generated, int sampler_count)
 {
   {
@@ -1440,51 +1431,6 @@ uint32_t available_buffer_slots(const ShaderCreateInfo &info)
   }
 
   return free_slots;
-}
-
-static void generate_standard_defines(std::stringstream &ss)
-{
-  /* Define to identify code usage in shading language. */
-  ss << "#define GPU_SHADER\n";
-  /* some useful defines to detect GPU type */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    ss << "#define GPU_ATI\n";
-  }
-  else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    ss << "#define GPU_NVIDIA\n";
-  }
-  else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    ss << "#define GPU_INTEL\n";
-  }
-  else if (GPU_type_matches(GPU_DEVICE_APPLE, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    ss << "#define GPU_APPLE\n";
-  }
-  /* some useful defines to detect OS type */
-  if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_WIN, GPU_DRIVER_ANY)) {
-    ss << "#define OS_WIN\n";
-  }
-  else if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY)) {
-    ss << "#define OS_MAC\n";
-  }
-  else if (GPU_type_matches(GPU_DEVICE_ANY, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
-    ss << "#define OS_UNIX\n";
-  }
-  /* API Definition */
-  GPUBackendType backend = GPU_backend_get_type();
-  switch (backend) {
-    case GPU_BACKEND_OPENGL:
-      ss << "#define GPU_OPENGL\n";
-      break;
-    case GPU_BACKEND_METAL:
-      ss << "#define GPU_METAL\n";
-      break;
-    case GPU_BACKEND_VULKAN:
-      ss << "#define GPU_VULKAN\n";
-      break;
-    default:
-      BLI_assert_msg(false, "Invalid GPU Backend Type");
-      break;
-  }
 }
 
 std::pair<std::string, std::string> generate_entry_point(const ShaderCreateInfo &info,

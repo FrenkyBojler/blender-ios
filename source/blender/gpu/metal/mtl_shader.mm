@@ -88,12 +88,8 @@ MTLShader::MTLShader(MTLContext *ctx, const char *name) : Shader(name)
 MTLShader::~MTLShader()
 {
   if (this->is_valid()) {
-
     /* Free uniform data block. */
-    if (push_constant_data_ != nullptr) {
-      MEM_freeN(push_constant_data_);
-      push_constant_data_ = nullptr;
-    }
+    MEM_SAFE_DELETE(push_constant_buf_);
 
     /* Free Metal resources.
      * This is done in the order of:
@@ -364,20 +360,16 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     return false;
   }
 
+  /* Prepare backing data storage for local uniforms. */
+  if (info->push_constants_.is_empty() == false) {
+    push_constant_buf_ = MEM_new<MTLPushConstantBuf>("MTLPushConstantBuf", *info);
+  }
+
   /* Ensure we have a valid shader interface. */
-  MTLShaderInterface *mtl_interface = new MTLShaderInterface(this->name, *info);
-  this->interface = mtl_interface;
-  BLI_assert(this->interface != nullptr);
+  this->interface = new MTLShaderInterface(this->name, *info, push_constant_buf_);
 
   /* Shader has successfully been created. */
   valid_ = true;
-
-  /* Prepare backing data storage for local uniforms. */
-  const MTLShaderBufferBlock &push_constant_block = mtl_interface->get_push_constant_block();
-  if (push_constant_block.size > 0) {
-    push_constant_data_ = MEM_callocN(push_constant_block.size, "PushConstantMemory");
-    this->push_constant_bindstate_mark_dirty(true);
-  }
 
   if (is_compute) {
     /* If this is a compute shader, bake base PSO for compute straight-away.
@@ -430,185 +422,56 @@ void MTLShader::uniform_float(int location, int comp_len, int array_size, const 
   if (!this->is_valid()) {
     return;
   }
-  MTLShaderInterface *mtl_interface = get_interface();
-  if (location < 0 || location >= mtl_interface->get_total_uniforms()) {
-    MTL_LOG_WARNING(
-        "Uniform location %d is not valid in Shader %s", location, this->name_get().c_str());
+
+  if (push_constant_buf_ == nullptr || location < 0 || location >= push_constant_buf_->size()) {
+    MTL_LOG_WARNING("Shader %s: Invalid uniform location %d", this->name, location);
     return;
   }
 
-  /* Fetch more information about uniform from interface. */
-  const MTLShaderUniform &uniform = mtl_interface->get_uniform(location);
+  if (comp_len == 9) {
+    /* Convert float3x3 case into float3[3] case. They have the same alignment. */
+    comp_len = 3;
+    array_size *= 3;
+  }
+  else if (comp_len == 16) {
+    /* Convert float4x4 case into float4[4] case. They have the same alignment. */
+    comp_len = 4;
+    array_size *= 4;
+  }
+  else {
+    /* Input and output are both packed. Convert to a 1 iteration assignment below. */
+    comp_len *= array_size;
+    array_size = 1;
+  }
 
-  /* Prepare to copy data into local shader push constant memory block. */
-  BLI_assert(push_constant_data_ != nullptr);
-  uint8_t *dest_ptr = (uint8_t *)push_constant_data_;
-  dest_ptr += uniform.byte_offset;
-  uint32_t copy_size = sizeof(float) * comp_len * array_size;
+  /* It is more efficient on the host to only modify data if it has changed.
+   * Data modifications are small, so memory comparison is cheap.
+   * If uniforms have remained unchanged, then we avoid both copying
+   * data into the local uniform struct, and upload of the modified uniform
+   * contents in the command stream. */
+  bool update = false;
 
-  /* Test per-element size. It is valid to copy less array elements than the total, but each
-   * array element needs to match. */
-  uint32_t source_per_element_size = sizeof(float) * comp_len;
-  uint32_t dest_per_element_size = uniform.size_in_bytes / uniform.array_len;
-  BLI_assert_msg(
-      source_per_element_size <= dest_per_element_size,
-      "source Per-array-element size must be smaller than destination storage capacity for "
-      "that data");
-
-  if (source_per_element_size < dest_per_element_size) {
-    switch (uniform.type) {
-
-      /* Special case for handling 'vec3' array upload. */
-      case MTL_DATATYPE_FLOAT3: {
-        int numvecs = uniform.array_len;
-        uint8_t *data_c = (uint8_t *)data;
-
-        /* It is more efficient on the host to only modify data if it has changed.
-         * Data modifications are small, so memory comparison is cheap.
-         * If uniforms have remained unchanged, then we avoid both copying
-         * data into the local uniform struct, and upload of the modified uniform
-         * contents in the command stream. */
-        bool changed = false;
-        for (int i = 0; i < numvecs; i++) {
-          changed = changed || (memcmp((void *)dest_ptr, (void *)data_c, sizeof(float) * 3) != 0);
-          if (changed) {
-            memcpy((void *)dest_ptr, (void *)data_c, sizeof(float) * 3);
-          }
-          data_c += sizeof(float) * 3;
-          dest_ptr += sizeof(float) * 4;
-        }
-        if (changed) {
-          this->push_constant_bindstate_mark_dirty(true);
-        }
-        return;
-      }
-
-      /* Special case for handling 'mat3' upload. */
-      case MTL_DATATYPE_FLOAT3x3: {
-        int numvecs = 3 * uniform.array_len;
-        uint8_t *data_c = (uint8_t *)data;
-
-        /* It is more efficient on the host to only modify data if it has changed.
-         * Data modifications are small, so memory comparison is cheap.
-         * If uniforms have remained unchanged, then we avoid both copying
-         * data into the local uniform struct, and upload of the modified uniform
-         * contents in the command stream. */
-        bool changed = false;
-        for (int i = 0; i < numvecs; i++) {
-          changed = changed || (memcmp((void *)dest_ptr, (void *)data_c, sizeof(float) * 3) != 0);
-          if (changed) {
-            memcpy((void *)dest_ptr, (void *)data_c, sizeof(float) * 3);
-          }
-          data_c += sizeof(float) * 3;
-          dest_ptr += sizeof(float) * 4;
-        }
-        if (changed) {
-          this->push_constant_bindstate_mark_dirty(true);
-        }
-        return;
-      }
-      default:
-        shader_debug_printf("INCOMPATIBLE UNIFORM TYPE: %d\n", uniform.type);
-        break;
+  /* float3 is 16 bytes on Metal. This is the only case where we need this iteration. */
+  constexpr int size_padded = 16;
+  const size_t data_size = comp_len * sizeof(float);
+  for (int i : IndexRange(array_size)) {
+    const void *src = data + i * comp_len;
+    void *dst = push_constant_buf_->data() + (location + i * size_padded);
+    if (update || memcmp(dst, src, data_size) != 0) {
+      memcpy(dst, src, data_size);
+      update = true;
     }
   }
 
-  /* Debug checks. */
-  BLI_assert_msg(
-      copy_size <= uniform.size_in_bytes,
-      "Size of provided uniform data is greater than size specified in Shader interface\n");
-
-  /* Only flag UBO as modified if data is different -- This can avoid re-binding of unmodified
-   * local uniform data. */
-  bool data_changed = (memcmp((void *)dest_ptr, (void *)data, copy_size) != 0);
-  if (data_changed) {
-    this->push_constant_bindstate_mark_dirty(true);
-    memcpy((void *)dest_ptr, (void *)data, copy_size);
+  if (update) {
+    push_constant_buf_->tag_dirty();
   }
 }
 
 void MTLShader::uniform_int(int location, int comp_len, int array_size, const int *data)
 {
-  BLI_assert(this);
-  if (!this->is_valid()) {
-    return;
-  }
-
-  /* NOTE(Metal): Invalidation warning for uniform re-mapping of texture slots, unsupported in
-   * Metal, as we cannot point a texture binding at a different slot. */
-  MTLShaderInterface *mtl_interface = this->get_interface();
-  if (location >= mtl_interface->get_total_uniforms() &&
-      location < (mtl_interface->get_total_uniforms() + mtl_interface->get_total_textures()))
-  {
-    MTL_LOG_WARNING(
-        "Texture uniform location re-mapping unsupported in Metal. (Possibly also bad uniform "
-        "location %d)",
-        location);
-    return;
-  }
-
-  if (location < 0 || location >= mtl_interface->get_total_uniforms()) {
-    MTL_LOG_WARNING(
-        "Uniform is not valid at location %d - Shader %s", location, this->name_get().c_str());
-    return;
-  }
-
-  /* Fetch more information about uniform from interface. */
-  const MTLShaderUniform &uniform = mtl_interface->get_uniform(location);
-
-  /* Determine data location in uniform block. */
-  BLI_assert(push_constant_data_ != nullptr);
-  uint8_t *ptr = (uint8_t *)push_constant_data_;
-  ptr += uniform.byte_offset;
-
-  /** Determine size of data to copy. */
-  const char *data_to_copy = (char *)data;
-  uint data_size_to_copy = sizeof(int) * comp_len * array_size;
-
-  /* Special cases for small types support where storage is shader push constant buffer is smaller
-   * than the incoming data. */
-  ushort us;
-  uchar uc;
-  if (uniform.size_in_bytes == 1) {
-    /* Convert integer storage value down to uchar. */
-    data_size_to_copy = uniform.size_in_bytes;
-    uc = *data;
-    data_to_copy = (char *)&uc;
-  }
-  else if (uniform.size_in_bytes == 2) {
-    /* Convert integer storage value down to ushort. */
-    data_size_to_copy = uniform.size_in_bytes;
-    us = *data;
-    data_to_copy = (char *)&us;
-  }
-  else {
-    BLI_assert_msg(
-        (mtl_get_data_type_alignment(uniform.type) % sizeof(int)) == 0,
-        "When uniform inputs are provided as integers, the underlying type must adhere "
-        "to alignment per-component. If this test fails, the input data cannot be directly copied "
-        "to the buffer. e.g. Array of small types uchar/bool/ushort etc; are currently not "
-        "handled.");
-  }
-
-  /* Copy data into local block. Only flag UBO as modified if data is different
-   * This can avoid re-binding of unmodified local uniform data, reducing
-   * the total number of copy operations needed and data transfers between
-   * CPU and GPU. */
-  bool data_changed = (memcmp((void *)ptr, (void *)data_to_copy, data_size_to_copy) != 0);
-  if (data_changed) {
-    this->push_constant_bindstate_mark_dirty(true);
-    memcpy((void *)ptr, (void *)data_to_copy, data_size_to_copy);
-  }
-}
-
-bool MTLShader::get_push_constant_is_dirty()
-{
-  return push_constant_modified_;
-}
-
-void MTLShader::push_constant_bindstate_mark_dirty(bool is_dirty)
-{
-  push_constant_modified_ = is_dirty;
+  static_assert(sizeof(int) == sizeof(float), "int to float reinterpret expect matching size");
+  uniform_float(location, comp_len, array_size, reinterpret_cast<const float *>(data));
 }
 
 /* Attempts to pre-generate a PSO based on the parent shaders PSO
@@ -873,9 +736,6 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
     MTLPrimitiveTopologyClass prim_type,
     const MTLRenderPipelineStateDescriptor &pipeline_descriptor)
 {
-  /* Fetch shader interface. */
-  MTLShaderInterface *mtl_interface = this->get_interface();
-  BLI_assert(mtl_interface);
   BLI_assert(this->is_valid());
 
   /* Check if current PSO exists in the cache. */
@@ -904,17 +764,6 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
   ::MTLRenderPipelineDescriptor *desc = pso_descriptor_;
   [desc reset];
   pso_descriptor_.label = [NSString stringWithUTF8String:this->name];
-
-  /* Offset the bind index for Uniform buffers such that they begin after the VBO
-   * buffer bind slots. `MTL_uniform_buffer_base_index` is passed as a function
-   * specialization constant, customized per unique pipeline state permutation.
-   *
-   * NOTE: For binding point compaction, we could use the number of VBOs present
-   * in the current PSO configuration `pipeline_descriptors.vertex_descriptor.num_vert_buffers`).
-   * However, it is more efficient to simply offset the uniform buffer base index to the
-   * maximal number of VBO bind-points, as then UBO bind-points for similar draw calls
-   * will align and avoid the requirement for additional binding. */
-  int MTL_uniform_buffer_base_index = pipeline_descriptor.vertex_descriptor.num_vert_buffers + 1;
 
   /* Null buffer index is used if an attribute is not found in the
    * bound VBOs #VertexFormat. */
@@ -962,51 +811,6 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
       [values setConstantValue:&MTL_attribute_conversion_mode
                           type:MTLDataTypeInt
                       withName:[NSString stringWithFormat:@"MTL_AttributeConvert%d", i]];
-    }
-
-    /* DEBUG: Missing/empty attributes. */
-    /* Attributes are normally mapped as part of the state setting based on the used
-     * #GPUVertFormat, however, if attributes have not been set, we can sort them out here. */
-    for (const uint i : IndexRange(mtl_interface->get_total_attributes())) {
-      const MTLShaderInputAttribute &attribute = mtl_interface->get_attribute(i);
-      MTLVertexAttributeDescriptor *current_attribute =
-          desc.vertexDescriptor.attributes[attribute.location];
-
-      if (current_attribute.format == MTLVertexFormatInvalid) {
-#if MTL_DEBUG_SHADER_ATTRIBUTES == 1
-        printf("-> Filling in unbound attribute '%s' for shader PSO '%s' with location: %u\n",
-               mtl_interface->get_name_at_offset(attribute.name_offset),
-               mtl_interface->get_name(),
-               attribute.location);
-#endif
-        current_attribute.format = attribute.format;
-        current_attribute.offset = 0;
-        current_attribute.bufferIndex = null_buffer_index;
-
-        /* Add Null vert buffer binding for invalid attributes. */
-        if (!using_null_buffer) {
-          MTLVertexBufferLayoutDescriptor *null_buf_layout =
-              desc.vertexDescriptor.layouts[null_buffer_index];
-
-          /* Use constant step function such that null buffer can
-           * contain just a singular dummy attribute. */
-          null_buf_layout.stepFunction = MTLVertexStepFunctionConstant;
-          null_buf_layout.stepRate = 0;
-          null_buf_layout.stride = max_ii(null_buf_layout.stride, attribute.size);
-
-          /* If we are using the maximum number of vertex buffers, or tight binding indices,
-           * MTL_uniform_buffer_base_index needs shifting to the bind slot after the null buffer
-           * index. */
-          if (null_buffer_index >= MTL_uniform_buffer_base_index) {
-            MTL_uniform_buffer_base_index = null_buffer_index + 1;
-          }
-          using_null_buffer = true;
-#if MTL_DEBUG_SHADER_ATTRIBUTES == 1
-          MTL_LOG_DEBUG("Setting up buffer binding for null attribute with buffer index %d",
-                        null_buffer_index);
-#endif
-        }
-      }
     }
 
     /* Primitive Topology. */
@@ -1182,8 +986,6 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
 MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
     MTLContext *ctx, MTLComputePipelineStateDescriptor &compute_pipeline_descriptor)
 {
-  MTLShaderInterface *mtl_interface = this->get_interface();
-  BLI_assert(mtl_interface);
   BLI_assert(this->is_valid());
   BLI_assert(shader_library_comp_ != nil);
 

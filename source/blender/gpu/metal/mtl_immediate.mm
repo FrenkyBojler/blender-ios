@@ -10,6 +10,8 @@
 
 #include "BKE_global.hh"
 
+#include "BLI_bit_span.hh"
+
 #include "GPU_vertex_format.hh"
 #include "gpu_context_private.hh"
 #include "gpu_shader_private.hh"
@@ -20,6 +22,7 @@
 #include "mtl_immediate.hh"
 #include "mtl_primitive.hh"
 #include "mtl_shader.hh"
+#include "mtl_vertex_buffer.hh"
 
 namespace blender::gpu {
 
@@ -87,14 +90,12 @@ void MTLImmediate::end()
 
     /* Debug markers for frame-capture and detailed error messages. */
     if (G.debug & G_DEBUG_GPU) {
-      [rec pushDebugGroup:[NSString
-                              stringWithFormat:@"immEnd(verts: %d, shader: %s)",
-                                               this->vertex_idx,
-                                               active_mtl_shader->get_interface()->get_name()]];
+      [rec pushDebugGroup:[NSString stringWithFormat:@"immEnd(verts: %d, shader: %s)",
+                                                     this->vertex_idx,
+                                                     active_mtl_shader->name_get().c_str()]];
       [rec insertDebugSignpost:[NSString stringWithFormat:@"immEnd(verts: %d, shader: %s)",
                                                           this->vertex_idx,
-                                                          active_mtl_shader->get_interface()
-                                                              ->get_name()]];
+                                                          active_mtl_shader->name_get().c_str()]];
     }
 
     /* Populate pipeline state vertex descriptor. */
@@ -105,8 +106,8 @@ void MTLImmediate::end()
 
     /* Reset vertex descriptor to default state. */
     desc.reset_vertex_descriptor();
-    desc.vertex_descriptor.total_attributes = interface.get_total_attributes();
-    desc.vertex_descriptor.max_attribute_value = interface.get_total_attributes() - 1;
+    desc.vertex_descriptor.total_attributes = interface.attr_len_;
+    desc.vertex_descriptor.max_attribute_value = interface.attr_len_ - 1;
     desc.vertex_descriptor.num_vert_buffers = 1;
 
     for (int i = 0; i < desc.vertex_descriptor.total_attributes; i++) {
@@ -115,82 +116,46 @@ void MTLImmediate::end()
 
     /* Populate Vertex descriptor and verify attributes.
      * TODO(Metal): Cache this vertex state based on Vertex format and shaders. */
-    for (int i = 0; i < interface->get_total_attributes(); i++) {
+    const bits::BitInt mask = interface.enabled_attr_mask_;
+    for (int i : BitSpan(&mask, 16)) {
+      const ShaderInput *input = interface.attr_get(i);
+      BLI_assert(input != nullptr);
 
-      /* NOTE: Attribute in VERTEX FORMAT does not necessarily share the same array index as
-       * attributes in shader interface. */
       GPUVertAttr *attr = nullptr;
-      const MTLShaderInputAttribute &mtl_shader_attribute = interface->get_attribute(i);
-
       /* Scan through vertex_format attributes until one with a name matching the shader interface
        * is found. */
       for (uint32_t a_idx = 0; a_idx < this->vertex_format.attr_len && attr == nullptr; a_idx++) {
         GPUVertAttr *check_attribute = &this->vertex_format.attrs[a_idx];
-
         /* Attributes can have multiple name aliases associated with them. */
         for (uint32_t n_idx = 0; n_idx < check_attribute->name_len; n_idx++) {
-          const char *name = GPU_vertformat_attr_name_get(
+          StringRefNull name = GPU_vertformat_attr_name_get(
               &this->vertex_format, check_attribute, n_idx);
 
-          if (strcmp(name, interface->get_name_at_offset(mtl_shader_attribute.name_offset)) == 0) {
+          if (name == StringRefNull(interface.name_at_offset(input->name_offset))) {
             attr = check_attribute;
             break;
           }
         }
       }
 
-      BLI_assert_msg(attr != nullptr,
-                     "Could not find expected attribute in immediate mode vertex format.");
+      BLI_assert_msg(!attr, "Could not find expected attribute in immediate mode vertex format.");
       if (attr == nullptr) {
         MTL_LOG_ERROR(
             "MTLImmediate::end Could not find matching attribute '%s' from Shader Interface in "
             "Vertex Format! - TODO: Bind Dummy attribute",
-            interface->get_name_at_offset(mtl_shader_attribute.name_offset));
+            interface.name_at_offset(input->name_offset));
         return;
       }
 
-      /* Determine whether implicit type conversion between input vertex format
-       * and shader interface vertex format is supported. */
-      MTLVertexFormat convertedFormat;
-      bool can_use_implicit_conversion = mtl_convert_vertex_format(mtl_shader_attribute.format,
-                                                                   attr->type.comp_type(),
-                                                                   attr->type.comp_len(),
-                                                                   attr->type.fetch_mode(),
-                                                                   &convertedFormat);
-
-      if (can_use_implicit_conversion) {
-        /* Metal API can implicitly convert some formats during vertex assembly:
-         * - Converting from a normalized short2 format to float2
-         * - Type truncation e.g. Float4 to Float2.
-         * - Type expansion from Float3 to Float4.
-         * - NOTE: extra components are filled with the corresponding components of (0,0,0,1).
-         * (See
-         * https://developer.apple.com/documentation/metal/mtlvertexattributedescriptor/1516081-format)
-         */
-        bool is_floating_point_format = is_fetch_float(attr->type.format);
-        desc.vertex_descriptor.attributes[i].format = convertedFormat;
-        desc.vertex_descriptor.attributes[i].format_conversion_mode =
-            (is_floating_point_format) ? (GPUVertFetchMode)GPU_FETCH_FLOAT :
-                                         (GPUVertFetchMode)GPU_FETCH_INT;
-        BLI_assert(convertedFormat != MTLVertexFormatInvalid);
-      }
-      else {
-        /* Some conversions are NOT valid, e.g. Int4 to Float4
-         * - In this case, we need to implement a conversion routine inside the shader.
-         * - This is handled using the format_conversion_mode flag
-         * - This flag is passed into the PSO as a function specialization,
-         *   and will generate an appropriate conversion function when reading the vertex attribute
-         *   value into local shader storage.
-         *   (If no explicit conversion is needed, the function specialize to a pass-through). */
-        MTLVertexFormat converted_format = format_resize_comp(mtl_shader_attribute.format,
-                                                              attr->type.comp_len());
-        desc.vertex_descriptor.attributes[i].format = converted_format;
-        desc.vertex_descriptor.attributes[i].format_conversion_mode = attr->type.fetch_mode();
-        BLI_assert(desc.vertex_descriptor.attributes[i].format != MTLVertexFormatInvalid);
-      }
+      MTLVertexAttributeDescriptorPSO &pso_attr = desc.vertex_descriptor.attributes[i];
+      pso_attr.format = gpu_vertex_format_to_metal(attr->type.format);
+      pso_attr.format_conversion_mode = (is_fetch_float(attr->type.format)) ?
+                                            GPUVertFetchMode(GPU_FETCH_FLOAT) :
+                                            GPUVertFetchMode(GPU_FETCH_INT);
       /* Using attribute offset in vertex format, as this will be correct */
-      desc.vertex_descriptor.attributes[i].offset = attr->offset;
-      desc.vertex_descriptor.attributes[i].buffer_index = mtl_shader_attribute.buffer_index;
+      pso_attr.offset = attr->offset;
+      pso_attr.buffer_index = bitscan_forward_uint(interface.vertex_buffer_mask());
+      BLI_assert(pso_attr.format != MTLVertexFormatInvalid);
     }
 
     /* Buffer bindings for singular vertex buffer. */

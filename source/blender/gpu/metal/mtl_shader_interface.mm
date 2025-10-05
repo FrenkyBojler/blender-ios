@@ -14,6 +14,7 @@
 
 #include "mtl_common.hh"
 #include "mtl_debug.hh"
+#include "mtl_push_constant.hh"
 #include "mtl_shader_generate.hh"
 #include "mtl_shader_interface.hh"
 #include "mtl_shader_interface_type.hh"
@@ -25,7 +26,9 @@
 
 namespace blender::gpu {
 
-MTLShaderInterface::MTLShaderInterface(const char *name, const shader::ShaderCreateInfo &info)
+MTLShaderInterface::MTLShaderInterface(const char *name,
+                                       const shader::ShaderCreateInfo &info,
+                                       MTLPushConstantBuf *push_constant_buf)
 {
   using namespace blender::gpu::shader;
 
@@ -108,11 +111,9 @@ MTLShaderInterface::MTLShaderInterface(const char *name, const shader::ShaderCre
   set_image_formats_from_info(info);
 
   /* Push constants. */
-  int32_t push_constant_location = 1024;
   for (const ShaderCreateInfo::PushConst &push_constant : info.push_constants_) {
-    /* TODO(fclem): Pack push constant layout. */
     copy_input_name(input, push_constant.name, name_buffer_, name_buffer_offset);
-    input->location = push_constant_location++;
+    input->location = push_constant_buf->append(push_constant);
     input->binding = -1;
     input++;
   }
@@ -171,7 +172,7 @@ MTLShaderInterface::~MTLShaderInterface()
   }
 }
 
-const char *MTLShaderInterface::get_name_at_offset(uint32_t offset) const
+const char *MTLShaderInterface::name_at_offset(uint32_t offset) const
 {
   return name_buffer_ + offset;
 }

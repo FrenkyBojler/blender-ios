@@ -16,6 +16,7 @@
 #include "GPU_batch.hh"
 #include "GPU_common.hh"
 #include "gpu_shader_private.hh"
+#include "gpu_vertex_format_private.hh"
 
 #include "mtl_batch.hh"
 #include "mtl_context.hh"
@@ -101,7 +102,7 @@ bool MTLBatch::MTLVertexDescriptorCache::insert(
 /* Return index inside the vertex descriptor. */
 VertBufBinding MTLBatch::prepare_vertex_binding(MTLVertBuf *verts,
                                                 MTLRenderPipelineStateDescriptor &desc,
-                                                const MTLShaderInterface *interface,
+                                                const MTLShaderInterface &interface,
                                                 uint16_t &attr_mask,
                                                 uint32_t &buffer_mask)
 {
@@ -131,31 +132,22 @@ VertBufBinding MTLBatch::prepare_vertex_binding(MTLVertBuf *verts,
      * name aliases. */
     for (uint32_t n_idx = 0; n_idx < a->name_len; n_idx++) {
       const char *name = GPU_vertformat_attr_name_get(format, a, n_idx);
-      const ShaderInput *input = interface->attr_get(name);
+      const ShaderInput *input = interface.attr_get(name);
 
       if (input == nullptr || input->location == -1) {
         continue;
       }
 
-      /* Fetch metal attribute information (ShaderInput->binding is used to fetch the corresponding
-       * slot. */
-      const MTLShaderInputAttribute &mtl_attr = interface->get_attribute(input->binding);
-      BLI_assert(mtl_attr.location >= 0);
-      /* Verify that the attribute location from the shader interface
-       * matches the attribute location returned in the input table. These should always be the
-       * same. */
-      BLI_assert(mtl_attr.location == input->location);
-
       /* Check if attribute is already present in the given slot. */
-      if ((~attr_mask) & (1 << mtl_attr.location)) {
+      if ((~attr_mask) & (1 << input->location)) {
         MTL_LOG_DEBUG(
             "  -- [Batch] Skipping attribute with input location %d (As one is already bound)",
-            mtl_attr.location);
+            input->location);
         continue;
       }
 
       /* Update attribute used-slot mask. */
-      attr_mask &= ~(1 << mtl_attr.location);
+      attr_mask &= ~(1 << input->location);
 
       /* Add buffer layout entry in descriptor if it has not yet been added
        * for current vertex buffer. */
@@ -184,68 +176,19 @@ VertBufBinding MTLBatch::prepare_vertex_binding(MTLVertBuf *verts,
       }
 
       {
-        /* Handle Any required format conversions.
-         * NOTE(Metal): If there is a mismatch between the format of an attribute
-         * in the shader interface, and the specified format in the VertexBuffer VertexFormat,
-         * we need to perform a format conversion.
-         *
-         * The Metal API can perform certain conversions internally during vertex assembly:
-         *   - Type Normalization e.g short2 to float2 between 0.0 to 1.0.
-         *   - Type Truncation e.g. Float4 to Float2.
-         *   - Type expansion e,g, Float3 to Float4 (Following 0,0,0,1 for assignment to empty
-         * elements).
-         *
-         * Certain conversion cannot be performed however, and in these cases, we need to
-         * instruct the shader to generate a specialized version with a conversion routine upon
-         * attribute read.
-         *   - This handles cases such as conversion between types e.g. Integer to float without
-         * normalization.
-         *
-         * For more information on the supported and unsupported conversions, see:
-         * https://developer.apple.com/documentation/metal/mtlvertexattributedescriptor/1516081-format?language=objc
-         */
-        MTLVertexFormat converted_format;
-        bool can_use_internal_conversion = mtl_convert_vertex_format(mtl_attr.format,
-                                                                     a->type.comp_type(),
-                                                                     a->type.comp_len(),
-                                                                     a->type.fetch_mode(),
-                                                                     &converted_format);
-        bool is_floating_point_format = (a->type.comp_type() == GPU_COMP_F32);
+        MTLVertexAttributeDescriptorPSO &pso_attr =
+            desc.vertex_descriptor.attributes[input->location];
 
-        if (can_use_internal_conversion) {
-          desc.vertex_descriptor.attributes[mtl_attr.location].format = converted_format;
-          desc.vertex_descriptor.attributes[mtl_attr.location].format_conversion_mode =
-              is_floating_point_format ? (GPUVertFetchMode)GPU_FETCH_FLOAT :
-                                         (GPUVertFetchMode)GPU_FETCH_INT;
-          BLI_assert(converted_format != MTLVertexFormatInvalid);
-        }
-        else {
-          /* The internal implicit conversion is not supported.
-           * In this case, we need to handle conversion inside the shader.
-           * This is handled using `format_conversion_mode`.
-           * `format_conversion_mode` is assigned the blender-specified fetch mode (GPU_FETCH_*).
-           * This then controls how a given attribute is interpreted. The data will be read
-           * as specified and then converted appropriately to the correct form.
-           *
-           * e.g. if `GPU_FETCH_INT_TO_FLOAT` is specified, the specialized read-routine
-           * in the shader will read the data as an int, and cast this to floating point
-           * representation. (Rather than reading the source data as float).
-           *
-           * NOTE: Even if full conversion is not supported, we may still partially perform an
-           * implicit conversion where possible, such as vector truncation or expansion. */
-          MTLVertexFormat converted_format = format_resize_comp(mtl_attr.format,
-                                                                a->type.comp_len());
-          desc.vertex_descriptor.attributes[mtl_attr.location].format = converted_format;
-          desc.vertex_descriptor.attributes[mtl_attr.location].format_conversion_mode =
-              a->type.fetch_mode();
-          BLI_assert(desc.vertex_descriptor.attributes[mtl_attr.location].format !=
-                     MTLVertexFormatInvalid);
-        }
-        desc.vertex_descriptor.attributes[mtl_attr.location].offset = attribute_offset;
-        desc.vertex_descriptor.attributes[mtl_attr.location].buffer_index = binding.slot_id;
+        pso_attr.format = gpu_vertex_format_to_metal(a->type.format);
+        pso_attr.offset = attribute_offset;
+        pso_attr.buffer_index = binding.slot_id;
+        pso_attr.format_conversion_mode = is_fetch_float(a->type.format) ?
+                                              GPUVertFetchMode(GPU_FETCH_FLOAT) :
+                                              GPUVertFetchMode(GPU_FETCH_INT);
+
         desc.vertex_descriptor.max_attribute_value =
-            ((mtl_attr.location) > desc.vertex_descriptor.max_attribute_value) ?
-                (mtl_attr.location) :
+            ((input->location) > desc.vertex_descriptor.max_attribute_value) ?
+                (input->location) :
                 desc.vertex_descriptor.max_attribute_value;
         desc.vertex_descriptor.total_attributes++;
 
@@ -253,21 +196,20 @@ VertBufBinding MTLBatch::prepare_vertex_binding(MTLVertBuf *verts,
          * of this, it is possible that we may skip over certain attributes if they were not in
          * the source GPUVertFormat. */
         MTL_LOG_DEBUG(
-            " -- Batch Attribute(%d): ORIG Shader Format: %d, ORIG Vert format: %d, Vert "
+            " -- Batch Attribute(%d): ORIG Vert format: %d, Vert "
             "components: %d, Fetch Mode %d --> FINAL FORMAT: %d",
-            mtl_attr.location,
-            (int)mtl_attr.format,
+            input->location,
             (int)a->type.comp_type(),
             (int)a->type.comp_len(),
             (int)a->type.fetch_mode(),
-            (int)desc.vertex_descriptor.attributes[mtl_attr.location].format);
+            (int)pso_attr.format);
 
         MTL_LOG_DEBUG(
             "  -- [Batch] matching vertex attribute '%s' (Attribute Index: %d, Buffer index: "
             "%d, "
             "offset: %d)",
             name,
-            mtl_attr.location,
+            input->location,
             binding.desc_id,
             attribute_offset);
       }
@@ -339,11 +281,10 @@ id<MTLRenderCommandEncoder> MTLBatch::bind()
   if (G.debug & G_DEBUG_GPU) {
     [rec pushDebugGroup:[NSString stringWithFormat:@"Draw Commands%@ (Shader: %s)",
                                                    this->elem ? @"(indexed)" : @"",
-                                                   active_shader_->get_interface()->get_name()]];
-    [rec insertDebugSignpost:[NSString
-                                 stringWithFormat:@"Draw Commands %@ (Shader: %s)",
-                                                  this->elem ? @"(indexed)" : @"",
-                                                  active_shader_->get_interface()->get_name()]];
+                                                   active_shader_->name_get().c_str()]];
+    [rec insertDebugSignpost:[NSString stringWithFormat:@"Draw Commands %@ (Shader: %s)",
+                                                        this->elem ? @"(indexed)" : @"",
+                                                        active_shader_->name_get().c_str()]];
   }
 
   /*** Bind Vertex Buffers and Index Buffers **/
@@ -393,9 +334,9 @@ void MTLBatch::prepare_vertex_descriptor_and_bindings(MutableSpan<MTLVertBuf *> 
   MTLStateManager *state_manager = static_cast<MTLStateManager *>(
       MTLContext::get()->state_manager);
   MTLRenderPipelineStateDescriptor &desc = state_manager->get_pipeline_descriptor();
-  const MTLShaderInterface *interface = active_shader_->get_interface();
-  uint16_t attr_mask = interface->get_enabled_attribute_mask();
-  uint32_t buffer_mask = interface->get_available_vertex_buffer_slots_mask();
+  const MTLShaderInterface &interface = active_shader_->get_interface();
+  uint16_t attr_mask = interface.enabled_attr_mask_;
+  uint32_t buffer_mask = interface.vertex_buffer_mask();
 
   /* Reset vertex descriptor to default state. */
   desc.reset_vertex_descriptor();
@@ -414,7 +355,7 @@ void MTLBatch::prepare_vertex_descriptor_and_bindings(MutableSpan<MTLVertBuf *> 
    * currently bound shader. We cache this data, for a given Batch<->ShderInterface pairing in a
    * VAO cache to avoid the need to recalculate this data. */
 
-  VertexDescriptorShaderInterfacePair *pair = this->vao_cache.find(interface);
+  VertexDescriptorShaderInterfacePair *pair = this->vao_cache.find(&interface);
   if (pair) {
     desc.vertex_descriptor = pair->vertex_descriptor;
     attr_mask = pair->attr_mask;
@@ -429,7 +370,7 @@ void MTLBatch::prepare_vertex_descriptor_and_bindings(MutableSpan<MTLVertBuf *> 
   }
   else {
     VertexDescriptorShaderInterfacePair pair{};
-    pair.interface = interface;
+    pair.interface = &interface;
 
     for (int i = 0; i < GPU_BATCH_VBO_MAX_LEN; ++i) {
       pair.bufferIds[i].id = -1;
@@ -476,7 +417,7 @@ void MTLBatch::prepare_vertex_descriptor_and_bindings(MutableSpan<MTLVertBuf *> 
         MTL_LOG_WARNING(
             "Warning: Missing expected attribute '%s' with location: %u in shader %s (attr "
             "number: %u)",
-            active_shader_->get_interface()->get_name_at_offset(attr.name_offset),
+            active_shader_->get_interface()->name_at_offset(attr.name_offset),
             attr.location,
             active_shader_->name_get(),
             i);

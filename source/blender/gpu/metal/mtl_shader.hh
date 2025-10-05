@@ -145,6 +145,9 @@ class MTLShader : public Shader {
   /* Context Handle. */
   MTLContext *context_ = nullptr;
 
+  /* Can be nullptr if no uniform is present inside the shader. */
+  MTLPushConstantBuf *push_constant_buf_ = nullptr;
+
   /** Compiled shader resources. */
   id<MTLLibrary> shader_library_vert_ = nil;
   id<MTLLibrary> shader_library_frag_ = nil;
@@ -172,25 +175,8 @@ class MTLShader : public Shader {
   /* True to enable multi-viewport rendering support. */
   bool uses_gpu_viewport_index = false;
 
-  /* Metal Shader Uniform data store.
-   * This blocks is used to store current shader push_constant
-   * data before it is submitted to the GPU. This is currently
-   * stored per shader instance, though depending on GPU module
-   * functionality, this could potentially be a global data store.
-   * This data is associated with the PushConstantBlock, which is
-   * always at index zero in the UBO list. */
-  void *push_constant_data_ = nullptr;
-  bool push_constant_modified_ = false;
-
   /* Set to true when batch compiling */
   bool async_compilation_ = false;
-
-  /* If greater than one, use argument buffer to support arbitrary number of samplers. */
-  int arg_buf_samplers_vert_ = 0;
-  int arg_buf_samplers_frag_ = 0;
-  int arg_buf_samplers_comp_ = 0;
-
-  bool finalize_shader(const shader::ShaderCreateInfo *info = nullptr);
 
  public:
   MTLShader(MTLContext *ctx, const char *name);
@@ -240,9 +226,10 @@ class MTLShader : public Shader {
     return *static_cast<MTLShaderInterface *>(this->interface);
   }
 
-  void *get_push_constant_data()
+  /* Might return nullptr if no push constants are present in the interface. */
+  MTLPushConstantBuf *get_push_constant_buf()
   {
-    return push_constant_data_;
+    return push_constant_buf_;
   }
 
   /* Shader source generators from create-info.
@@ -278,8 +265,6 @@ class MTLShader : public Shader {
 
   void uniform_float(int location, int comp_len, int array_size, const float *data) override;
   void uniform_int(int location, int comp_len, int array_size, const int *data) override;
-  bool get_push_constant_is_dirty();
-  void push_constant_bindstate_mark_dirty(bool is_dirty);
 
   MTLRenderPipelineStateInstance *bake_current_pipeline_state(MTLContext *ctx,
                                                               MTLPrimitiveTopologyClass prim_type);
@@ -524,86 +509,6 @@ inline bool mtl_format_is_normalized(MTLVertexFormat format)
 
 #undef FORMAT_PER_TYPE
   return false;
-}
-
-/**
- * Returns whether the METAL API can internally convert between the input type of data in the
- * incoming vertex buffer and the format used by the vertex attribute inside the shader.
- *
- * - Returns TRUE if the type can be converted internally, along with returning the appropriate
- *   type to be passed into the #MTLVertexAttributeDescriptorPSO.
- *
- * - Returns FALSE if the type cannot be converted internally e.g. casting Int4 to Float4.
- *
- * If implicit conversion is not possible, then we can fallback to performing manual attribute
- * conversion using the special attribute read function specializations in the shader.
- * These functions selectively convert between types based on the specified vertex
- * attribute `GPUVertFetchMode fetch_mode` e.g. `GPU_FETCH_INT`.
- */
-inline MTLVertexFormat mtl_convert_vertex_format_ex(MTLVertexFormat shader_attr_format,
-                                                    GPUVertCompType component_type,
-                                                    uint32_t component_len,
-                                                    GPUVertFetchMode fetch_mode)
-{
-  MTLVertexFormat vertex_attr_format = to_mtl(component_type, fetch_mode, component_len);
-
-  if (vertex_attr_format == MTLVertexFormatInvalid) {
-    /* No valid builtin conversion known or error. */
-    return vertex_attr_format;
-  }
-
-  if (vertex_attr_format == shader_attr_format) {
-    /* Everything matches. Nothing to do. */
-    return vertex_attr_format;
-  }
-
-  if (vertex_attr_format == MTLVertexFormatInt1010102Normalized) {
-    BLI_assert_msg(format_get_component_type(shader_attr_format) == MTLVertexFormatFloat,
-                   "Vertex format is GPU_COMP_I10 but shader input is not float");
-    return vertex_attr_format;
-  }
-
-  /* Attribute type mismatch. Check if casting is supported. */
-  MTLVertexFormat shader_attr_comp_type = format_get_component_type(shader_attr_format);
-  MTLVertexFormat vertex_attr_comp_type = format_get_component_type(vertex_attr_format);
-
-  if (shader_attr_comp_type == vertex_attr_comp_type) {
-    /* Conversion of vectors of different lengths is valid. */
-    return vertex_attr_format;
-  }
-
-  if (shader_attr_comp_type != MTLVertexFormatFloat) {
-    BLI_assert_msg(vertex_attr_comp_type != MTLVertexFormatFloat,
-                   "Vertex format is GPU_COMP_F32 but shader input is not float");
-  }
-  /* Casting normalized MTLVertexFormat types are only valid to float or half. */
-  if (shader_attr_comp_type == MTLVertexFormatFloat) {
-    BLI_assert_msg(mtl_format_is_normalized(vertex_attr_comp_type),
-                   "Vertex format is INT_TO_FLOAT_UNIT but shader input is not float");
-  }
-  /* The sign of an integer MTLVertexFormat can not be cast to a shader argument with an integer
-   * type of a different sign. */
-  if (shader_attr_comp_type == MTLVertexFormatInt) {
-    BLI_assert_msg(ELEM(vertex_attr_comp_type, MTLVertexFormatChar, MTLVertexFormatShort),
-                   "Vertex format is either I8 or I16 but shader input is not float");
-  }
-  if (shader_attr_comp_type == MTLVertexFormatUInt) {
-    BLI_assert_msg(ELEM(vertex_attr_comp_type, MTLVertexFormatUChar, MTLVertexFormatUShort),
-                   "Vertex format is either U8 or U16 but shader input is not float");
-  }
-  /* Valid automatic conversion. */
-  return vertex_attr_format;
-}
-
-inline bool mtl_convert_vertex_format(MTLVertexFormat shader_attr_format,
-                                      GPUVertCompType component_type,
-                                      uint32_t component_len,
-                                      GPUVertFetchMode fetch_mode,
-                                      MTLVertexFormat *r_convertedFormat)
-{
-  *r_convertedFormat = mtl_convert_vertex_format_ex(
-      shader_attr_format, component_type, component_len, fetch_mode);
-  return (*r_convertedFormat != MTLVertexFormatInvalid);
 }
 
 uint32_t get_and_occupy_next_slot(uint32_t &buffer_mask);

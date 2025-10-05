@@ -5,9 +5,12 @@
 /** \file
  * \ingroup gpu
  */
-#include "mtl_vertex_buffer.hh"
+
+#include "GPU_vertex_format.hh"
+
 #include "mtl_debug.hh"
 #include "mtl_storage_buffer.hh"
+#include "mtl_vertex_buffer.hh"
 
 namespace blender::gpu {
 
@@ -357,6 +360,28 @@ void MTLVertBuf::wrap_handle(uint64_t handle)
 void MTLVertBuf::flag_used()
 {
   contents_in_flight_ = true;
+}
+
+MTLVertexFormat gpu_vertex_format_to_metal(VertAttrType vert_format)
+{
+#define CASE(a, b, c, blender_enum, d, e, mtl_vertex_enum, g, h) \
+  case VertAttrType::blender_enum: \
+    return MTLVertexFormat##mtl_vertex_enum;
+
+#define CASE_DEPRECATED(a, b, c, blender_enum, d, e, mtl_vertex_enum, g, h) \
+  case VertAttrType::blender_enum##_DEPRECATED: \
+    break;
+
+  switch (vert_format) {
+    GPU_VERTEX_FORMAT_EXPAND(CASE)
+    GPU_VERTEX_DEPRECATED_FORMAT_EXPAND(CASE_DEPRECATED)
+    case VertAttrType::Invalid:
+      break;
+  }
+#undef CASE
+#undef CASE_DEPRECATED
+  BLI_assert_msg(false, "Unrecognised GPU vertex format!\n");
+  return MTLVertexFormatInvalid;
 }
 
 }  // namespace blender::gpu

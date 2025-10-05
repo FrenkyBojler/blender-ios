@@ -79,7 +79,6 @@ struct MTLVertexBufferLayoutDescriptorPSO {
 };
 
 struct MTLVertexDescriptor {
-
   /* Core Vertex Attributes. */
   MTLVertexAttributeDescriptorPSO attributes[GPU_VERT_ATTR_MAX_LEN];
   MTLVertexBufferLayoutDescriptorPSO buffer_layouts[GPU_BATCH_VBO_MAX_LEN];

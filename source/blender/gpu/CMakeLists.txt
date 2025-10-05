@@ -351,6 +351,7 @@ set(METAL_SRC
   metal/mtl_immediate.mm
   metal/mtl_index_buffer.mm
   metal/mtl_memory.mm
+  metal/mtl_push_constant.cc
   metal/mtl_query.mm
   metal/mtl_shader.mm
   metal/mtl_shader_generate.cc
@@ -375,6 +376,7 @@ set(METAL_SRC
   metal/mtl_memory.hh
   metal/mtl_primitive.hh
   metal/mtl_pso_descriptor_state.hh
+  metal/mtl_push_constant.hh
   metal/mtl_query.hh
   metal/mtl_shader.hh
   metal/mtl_shader_generate.hh

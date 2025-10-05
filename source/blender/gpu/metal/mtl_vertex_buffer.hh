@@ -19,6 +19,8 @@
 
 namespace blender::gpu {
 
+MTLVertexFormat gpu_vertex_format_to_metal(VertAttrType vert_format);
+
 class MTLVertBuf : public VertBuf {
   friend class gpu::MTLTexture; /* For buffer texture. */
   friend class MTLBatch;

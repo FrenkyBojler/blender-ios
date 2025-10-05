@@ -50,13 +50,13 @@ class MTLStorageBuf;
 
 /* Structs containing information on current binding state for textures and samplers. */
 struct MTLTextureBinding {
-  bool used;
-  gpu::MTLTexture *texture_resource;
+  bool used = false;
+  gpu::MTLTexture *texture_resource = nullptr;
 };
 
 struct MTLSamplerBinding {
-  bool used;
-  MTLSamplerState state;
+  bool used = false;
+  MTLSamplerState state = {GPUSamplerState::default_sampler()};
 
   bool operator==(MTLSamplerBinding const &other) const
   {
@@ -68,12 +68,16 @@ struct MTLSamplerBinding {
  * In Metal, resource bindings are local to the MTLCommandEncoder,
  * not globally to the whole pipeline/cmd buffer. */
 struct MTLBoundShaderState {
-  MTLShader *shader_ = nullptr;
-  uint pso_index_;
-  void set(MTLShader *shader, uint pso_index)
+  MTLShader *shader = nullptr;
+  uint pso_index = 0;
+
+  bool operator==(MTLBoundShaderState const &other) const
   {
-    shader_ = shader;
-    pso_index_ = pso_index;
+    return (shader == other.shader && pso_index == other.pso_index);
+  }
+  bool operator!=(MTLBoundShaderState const &other) const
+  {
+    return !(*this == other);
   }
 };
 
@@ -161,9 +165,9 @@ class MTLComputeState {
   MTLCommandBufferManager &cmd;
 
   id<MTLComputePipelineState> bound_pso = nil;
-  BufferBindingCached cached_compute_buffer_bindings[MTL_MAX_BUFFER_BINDINGS];
-  TextureBindingCached cached_compute_texture_bindings[MTL_MAX_TEXTURE_SLOTS];
-  SamplerStateBindingCached cached_compute_sampler_state_bindings[MTL_MAX_TEXTURE_SLOTS];
+  BufferBindingCached cached_compute_buffer_bindings[MTL_MAX_BUFFER_BINDINGS] = {};
+  TextureBindingCached cached_compute_texture_bindings[MTL_MAX_TEXTURE_SLOTS] = {};
+  SamplerStateBindingCached cached_compute_sampler_state_bindings[MTL_MAX_TEXTURE_SLOTS] = {};
 
   /* Reset ComputeCommandEncoder binding state. */
   void reset_state();
@@ -442,18 +446,16 @@ enum MTLPipelineStateDirtyFlag {
 ENUM_OPERATORS(MTLPipelineStateDirtyFlag, MTL_PIPELINE_STATE_CULLMODE_FLAG);
 
 struct MTLUniformBufferBinding {
-  bool bound;
-  MTLUniformBuf *ubo;
+  bool bound = false;
+  MTLUniformBuf *ubo = nullptr;
 };
 
 struct MTLStorageBufferBinding {
-  bool bound;
-  MTLStorageBuf *ssbo;
+  bool bound = false;
+  MTLStorageBuf *ssbo = nullptr;
 };
 
 struct MTLContextGlobalShaderPipelineState {
-  bool initialised = false;
-
   /* Whether the pipeline state has been modified since application.
    * `dirty_flags` is a bitmask of the types of state which have been updated.
    * This is in order to optimize calls and only re-apply state as needed.
@@ -470,17 +472,17 @@ struct MTLContextGlobalShaderPipelineState {
   MTLShader *active_shader = nullptr;
 
   /* Global Uniform Buffers. */
-  MTLUniformBufferBinding ubo_bindings[MTL_MAX_BUFFER_BINDINGS];
+  MTLUniformBufferBinding ubo_bindings[MTL_MAX_BUFFER_BINDINGS] = {};
 
   /* Storage buffer. */
-  MTLStorageBufferBinding ssbo_bindings[MTL_MAX_BUFFER_BINDINGS];
+  MTLStorageBufferBinding ssbo_bindings[MTL_MAX_BUFFER_BINDINGS] = {};
 
   /* Context Texture bindings. */
-  MTLTextureBinding texture_bindings[MTL_MAX_TEXTURE_SLOTS];
-  MTLSamplerBinding sampler_bindings[MTL_MAX_SAMPLER_SLOTS];
+  MTLTextureBinding texture_bindings[MTL_MAX_TEXTURE_SLOTS] = {};
+  MTLSamplerBinding sampler_bindings[MTL_MAX_SAMPLER_SLOTS] = {};
 
   /* Image bindings. */
-  MTLTextureBinding image_bindings[MTL_MAX_TEXTURE_SLOTS];
+  MTLTextureBinding image_bindings[MTL_MAX_TEXTURE_SLOTS] = {};
 
   /*** --- Render Pipeline State --- ***/
   /* Track global render pipeline state for the current context. The functions in GPU_state.hh

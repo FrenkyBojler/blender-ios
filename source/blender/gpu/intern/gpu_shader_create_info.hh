@@ -999,6 +999,11 @@ struct ShaderCreateInfo {
     ResourceString name;
     int array_size;
 
+    int array_size_safe() const
+    {
+      return (array_size > 0) ? array_size : 1;
+    }
+
     std::string array_str() const
     {
       return array_size > 0 ? "[" + std::to_string(array_size) + "]" : "";
