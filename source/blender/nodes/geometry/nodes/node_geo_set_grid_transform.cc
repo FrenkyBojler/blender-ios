@@ -70,11 +70,13 @@ static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeS
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
-  const bool is_grid = other_socket.runtime->inferred_structure_type == StructureType::Grid;
+  const StructureType structure_type = other_socket.runtime->inferred_structure_type;
+  const bool is_grid = structure_type == StructureType::Grid;
+  const bool is_dynamic = structure_type == StructureType::Dynamic;
   const eNodeSocketDatatype other_type = eNodeSocketDatatype(other_socket.type);
 
   if (params.in_out() == SOCK_IN) {
-    if (is_grid) {
+    if (is_grid || is_dynamic) {
       const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(other_socket);
       if (data_type) {
         params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
@@ -84,7 +86,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
         });
       }
     }
-    else if (params.node_tree().typeinfo->validate_link(other_type, SOCK_MATRIX)) {
+    if (!is_grid && params.node_tree().typeinfo->validate_link(other_type, SOCK_MATRIX)) {
       params.add_item(IFACE_("Transform"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSetGridTransform");
         params.update_and_connect_available_socket(node, "Transform");
