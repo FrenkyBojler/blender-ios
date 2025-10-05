@@ -2428,7 +2428,8 @@ static void UV_OT_mark_seam(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "clear", false, "Clear Seams", "Clear instead of marking seams");
 }
 
-static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int *r_double_warn)
+static bool uv_copy_mirrored_faces(
+    const Scene *scene, BMesh *bm, int direction, int precision, int *r_double_warn)
 {
   *r_double_warn = 0;
   const float precision_scale = powf(10.0f, precision);
@@ -2436,9 +2437,24 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
   Map<float3, BMVert *> mirror_gt, mirror_lt;
   Map<BMVert *, BMVert *> vmap;
 
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+
   BMVert *v;
   BMIter iter;
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+    bool v_selected = false;
+    BMLoop *l;
+    BMIter liter;
+    BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
+      if (uvedit_uv_select_test(scene, l, offsets)) {
+        v_selected = true;
+        break;
+      }
+    }
+    if (!v_selected) {
+      continue;
+    }
+
     float3 pos = math::round(float3(v->co) * precision_scale);
     if (pos.x >= 0.0f) {
       if (mirror_gt.contains(pos)) {
@@ -2565,7 +2581,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 
     int double_warn = 0;
 
-    bool changed = uv_copy_mirrored_faces(em->bm, direction, precision, &double_warn);
+    bool changed = uv_copy_mirrored_faces(scene, em->bm, direction, precision, &double_warn);
 
     if (double_warn) {
       total_duplicates += double_warn;
