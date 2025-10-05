@@ -677,7 +677,7 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
         dst_index = BM_elem_index_get(ele_dst);
         src_index = BM_elem_index_get(ele_src);
       }
-
+      
       const int object_index = blender::ed::object::object_in_mode_to_index(
           scene, view_layer, OB_MODE_EDIT, obedit);
       BLI_assert(object_index != -1);
@@ -720,10 +720,10 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (uv_selectmode & UV_SELECT_FACE) {
-    if (dst_index < 0 || dst_index >= bm->totface) {
+    if (dst_index < 0 || dst_index >= bm->totface || src_index < 0 || src_index >= bm->totface) {
       return OPERATOR_CANCELLED;
     }
-    if (!(ele_src = (BMElem *)BM_mesh_active_face_get(bm, false, false)) ||
+    if (!(ele_src = (BMElem *)BM_face_at_index_find_or_table(bm, src_index)) ||
         !(ele_dst = (BMElem *)BM_face_at_index_find_or_table(bm, dst_index)))
     {
       return OPERATOR_CANCELLED;
