@@ -12,6 +12,7 @@
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -48,6 +49,55 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
+{
+  switch (socket.type) {
+    case SOCK_FLOAT:
+      return SOCK_FLOAT;
+    case SOCK_BOOLEAN:
+      return SOCK_BOOLEAN;
+    case SOCK_INT:
+      return SOCK_INT;
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+      return SOCK_VECTOR;
+    default:
+      return std::nullopt;
+  }
+}
+
+static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
+{
+  const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
+      params.other_socket());
+  if (!data_type) {
+    return;
+  }
+  if (params.in_out() == SOCK_IN) {
+    params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeSetGridTransform");
+      node.custom1 = *data_type;
+      params.update_and_connect_available_socket(node, "Grid");
+    });
+  }
+  else {
+    const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
+    params.add_item(IFACE_("Transform"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeSetGridTransform");
+      params.update_and_connect_available_socket(node, "Transform");
+    });
+    params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeSetGridTransform");
+      node.custom1 = *data_type;
+      params.update_and_connect_available_socket(node, "Grid");
+    });
+    params.add_item(IFACE_("Is Valid"), [](LinkSearchOpParams &params) {
+      bNode &node = params.add_node("GeometryNodeSetGridTransform");
+      params.update_and_connect_available_socket(node, "Is Valid");
+    });
+  }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -104,6 +154,7 @@ static void node_register()
   ntype.ui_description = "Set the transform for the grid from index space into object space.";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
+  ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
