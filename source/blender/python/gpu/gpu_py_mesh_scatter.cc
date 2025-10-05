@@ -253,7 +253,6 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   /* --- 3. Run Compute Shader via High-Level API --- */
   GpuComputeStatus status = BKE_mesh_gpu_run_compute(depsgraph,
                                                      ob_eval,
-                                                     "py_mesh_scatter",
                                                      SCATTER_SHADER_MAIN_GLSL,
                                                      bindings,
                                                      config_shader,

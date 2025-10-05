@@ -124,7 +124,6 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_positions_create_ssbo(const Mesh *mesh);
  * - Dispatching the compute shader.
  *
  * \param mesh: The mesh to operate on.
- * \param shader_name: A unique name for caching the shader and topology resources.
  * \param main_glsl: The GLSL source code for the `main()` function of the compute shader.
  * \param bindings: A span of additional SSBOs to bind.
  * \param dispatch_count: The number of elements to process (e.g., mesh->verts_num).
@@ -133,7 +132,6 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_positions_create_ssbo(const Mesh *mesh);
 blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
-    const char *shader_name,
     const char *main_glsl,
     blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
     const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
