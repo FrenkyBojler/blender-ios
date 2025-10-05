@@ -75,6 +75,11 @@ enum eViewLayerAOVFlag {
   AOV_CONFLICT = (1 << 0),
 };
 
+/* #ViewLayerLPE.flag */
+enum eViewLayerLPEFlag {
+  LPE_INVALID_EXPRESSION = (1 << 0),
+};
+
 /* #ViewLayer.cryptomatte_flag */
 enum eViewLayerCryptomatteFlags {
   VIEW_LAYER_CRYPTOMATTE_OBJECT = (1 << 0),
@@ -233,6 +238,19 @@ struct LightgroupMembership {
   char name[64] = "";
 };
 
+/** LPE (Light Path Expression) Render-pass definition. */
+struct ViewLayerLPE {
+  struct ViewLayerLPE *next = nullptr, *prev = nullptr;
+
+  /* Name of the LPE pass. */
+  char name[64] = "";
+  /* LPE expression string (e.g., "C[DS]*L"). */
+  char expression[128] = "";
+  /* Flags for validation and status. */
+  int flag = 0;
+  char _pad[4] = {};
+};
+
 struct ViewLayer {
   struct ViewLayer *next = nullptr, *prev = nullptr;
   char name[/*MAX_NAME*/ 64] = "";
@@ -275,6 +293,10 @@ struct ViewLayer {
 
   ListBaseT<ViewLayerLightgroup> lightgroups = {nullptr, nullptr};
   ViewLayerLightgroup *active_lightgroup = nullptr;
+
+  /** List containing #ViewLayerLPE. */
+  ListBaseT<ViewLayerLPE> lpes = {nullptr, nullptr};
+  ViewLayerLPE *active_lpe = nullptr;
 
   /* Runtime data */
   struct Base **object_bases_array = nullptr;

@@ -2809,6 +2809,31 @@ void rna_ViewLayer_active_lightgroup_index_set(PointerRNA *ptr, int value)
   view_layer->active_lightgroup = lightgroup;
 }
 
+/* LPE RNA accessor functions */
+void rna_ViewLayer_active_lpe_index_range(
+    PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+  *min = 0;
+  *max = max_ii(0, BLI_listbase_count(&view_layer->lpes) - 1);
+}
+
+int rna_ViewLayer_active_lpe_index_get(PointerRNA *ptr)
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+  if (view_layer->active_lpe == nullptr) {
+    return 0;
+  }
+  return max_ii(0, BLI_findindex(&view_layer->lpes, view_layer->active_lpe));
+}
+
+void rna_ViewLayer_active_lpe_index_set(PointerRNA *ptr, int value)
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+  ViewLayerLPE *lpe = static_cast<ViewLayerLPE *>(BLI_findlink(&view_layer->lpes, value));
+  view_layer->active_lpe = lpe;
+}
+
 static void rna_ViewLayerLightgroup_name_get(PointerRNA *ptr, char *value)
 {
   ViewLayerLightgroup *lightgroup = static_cast<ViewLayerLightgroup *>(ptr->data);
@@ -4930,6 +4955,57 @@ static void rna_def_view_layer_lightgroup(BlenderRNA *brna)
   RNA_def_struct_name_property(srna, prop);
 }
 
+static void rna_def_view_layer_lpes(BlenderRNA *brna, PropertyRNA *cprop)
+{
+  StructRNA *srna;
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  RNA_def_property_srna(cprop, "ViewLayerLPEs");
+  srna = RNA_def_struct(brna, "ViewLayerLPEs", nullptr);
+  RNA_def_struct_sdna(srna, "ViewLayer");
+  RNA_def_struct_ui_text(srna, "List of LPEs", "Collection of Light Path Expression passes");
+
+  func = RNA_def_function(srna, "add", "BKE_view_layer_add_lpe");
+  parm = RNA_def_pointer(func, "lpe", "ViewLayerLPE", "", "Newly created LPE pass");
+  RNA_def_function_return(func, parm);
+  parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of newly created LPE pass");
+
+  func = RNA_def_function(srna, "remove", "BKE_view_layer_remove_lpe");
+  parm = RNA_def_pointer(func, "lpe", "ViewLayerLPE", "", "LPE pass to remove");
+  RNA_def_function_ui_description(func, "Remove given LPE pass");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
+}
+
+static void rna_def_view_layer_lpe(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ViewLayerLPE", nullptr);
+  RNA_def_struct_sdna(srna, "ViewLayerLPE");
+  RNA_def_struct_ui_text(srna, "Light Path Expression", "LPE pass definition");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "name");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Name", "Name of the LPE pass");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+  RNA_def_struct_name_property(srna, prop);
+
+  prop = RNA_def_property(srna, "expression", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "expression");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Expression", "Light Path Expression (e.g., C[DS]*L)");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+
+  prop = RNA_def_property(srna, "is_valid", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", LPE_INVALID_EXPRESSION);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Valid", "Whether the LPE expression is valid");
+}
+
 void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool scene)
 {
   PropertyRNA *prop;
@@ -5024,6 +5100,26 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
                                "rna_ViewLayer_active_lightgroup_index_set",
                                "rna_ViewLayer_active_lightgroup_index_range");
     RNA_def_property_ui_text(prop, "Active Lightgroup Index", "Index of active lightgroup");
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+    /* LPE passes */
+    prop = RNA_def_property(srna, "lpes", PROP_COLLECTION, PROP_NONE);
+    RNA_def_property_collection_sdna(prop, nullptr, "lpes", nullptr);
+    RNA_def_property_struct_type(prop, "ViewLayerLPE");
+    RNA_def_property_ui_text(prop, "Light Path Expressions", "");
+    rna_def_view_layer_lpes(brna, prop);
+
+    prop = RNA_def_property(srna, "active_lpe", PROP_POINTER, PROP_NONE);
+    RNA_def_property_struct_type(prop, "ViewLayerLPE");
+    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+    RNA_def_property_ui_text(prop, "Light Path Expressions", "Active LPE pass");
+
+    prop = RNA_def_property(srna, "active_lpe_index", PROP_INT, PROP_UNSIGNED);
+    RNA_def_property_int_funcs(prop,
+                               "rna_ViewLayer_active_lpe_index_get",
+                               "rna_ViewLayer_active_lpe_index_set",
+                               "rna_ViewLayer_active_lpe_index_range");
+    RNA_def_property_ui_text(prop, "Active LPE Index", "Index of active LPE pass");
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
     prop = RNA_def_property(srna, "use_pass_cryptomatte_object", PROP_BOOLEAN, PROP_NONE);
@@ -9269,6 +9365,7 @@ void RNA_def_scene(BlenderRNA *brna)
   rna_def_scene_hydra(brna);
   rna_def_view_layer_aov(brna);
   rna_def_view_layer_lightgroup(brna);
+  rna_def_view_layer_lpe(brna);
   rna_def_view_layer_eevee(brna);
   rna_def_scene_gpencil(brna);
   RNA_define_animate_sdna(true);

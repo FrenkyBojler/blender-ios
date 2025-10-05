@@ -126,7 +126,7 @@ NODE_DEFINE(Film)
   return type;
 }
 
-Film::Film() : Node(get_node_type()), filter_table_offset_(TABLE_OFFSET_INVALID) {}
+Film::Film() : Node(get_node_type()), filter_table_offset_(TABLE_OFFSET_INVALID), lpe_expressions_offset_(TABLE_OFFSET_INVALID) {}
 
 Film::~Film() = default;
 
@@ -177,6 +177,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->pass_glossy_color = PASS_UNUSED;
   kfilm->pass_transmission_color = PASS_UNUSED;
   kfilm->pass_background = PASS_UNUSED;
+  kfilm->pass_lpe = PASS_UNUSED;
   kfilm->pass_emission = PASS_UNUSED;
   kfilm->pass_ao = PASS_UNUSED;
   kfilm->pass_diffuse_direct = PASS_UNUSED;
@@ -421,6 +422,12 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
       case PASS_GUIDING_AVG_ROUGHNESS:
         kfilm->pass_guiding_avg_roughness = kfilm->pass_stride;
         break;
+      case PASS_LPE:
+        /* Set LPE pass offset - use first LPE pass only */
+        if (kfilm->pass_lpe == PASS_UNUSED) {
+          kfilm->pass_lpe = kfilm->pass_stride;
+        }
+        break;
       default:
         assert(false);
         break;
@@ -434,6 +441,39 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   scene->lookup_tables->remove_table(&filter_table_offset_);
   filter_table_offset_ = scene->lookup_tables->add_table(dscene, table);
   dscene->data.tables.filter_table_offset = (int)filter_table_offset_;
+
+  /* LPE expressions table */
+  /* Build table by iterating passes in order, not sorted map */
+  int num_lpe = 0;
+  const int LPE_MAX_EXPRESSION_LENGTH = 32;
+  vector<float> lpe_table;
+
+  for (const Pass *pass : scene->passes) {
+    if (pass->get_type() == PASS_LPE && !pass->lpe_expression.empty() && pass->is_written()) {
+      const string expr = pass->lpe_expression.string();
+
+      /* Pack string into uint32 values (4 chars per uint) */
+      for (int i = 0; i < LPE_MAX_EXPRESSION_LENGTH; i += 4) {
+        uint32_t packed = 0;
+        for (int j = 0; j < 4; j++) {
+          int idx = i + j;
+          char c = (idx < expr.length()) ? expr[idx] : '\0';
+          packed |= ((uint32_t)(unsigned char)c) << (j * 8);
+        }
+        lpe_table.push_back(__uint_as_float(packed));
+      }
+      num_lpe++;
+    }
+  }
+
+  kfilm->num_lpe_passes = num_lpe;
+  kfilm->lpe_expressions_offset = 0;
+
+  if (num_lpe > 0) {
+    scene->lookup_tables->remove_table(&lpe_expressions_offset_);
+    lpe_expressions_offset_ = scene->lookup_tables->add_table(dscene, lpe_table);
+    kfilm->lpe_expressions_offset = (int)lpe_expressions_offset_;
+  }
 
   /* mist pass parameters */
   kfilm->mist_start = mist_start;
@@ -449,6 +489,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 void Film::device_free(Device * /*device*/, DeviceScene * /*dscene*/, Scene *scene)
 {
   scene->lookup_tables->remove_table(&filter_table_offset_);
+  scene->lookup_tables->remove_table(&lpe_expressions_offset_);
 }
 
 int Film::get_aov_offset(Scene *scene, string name, bool &is_color)
@@ -637,6 +678,9 @@ void Film::update_passes(Scene *scene)
   prev_have_motion_pass = have_motion_pass;
   prev_have_ao_pass = have_ao_pass;
 
+  /* Update LPE passes */
+  update_lpe_passes(scene);
+
   tag_modified();
 
   /* Debug logging. */
@@ -780,9 +824,99 @@ uint Film::get_kernel_features(const Scene *scene) const
     if (pass_type == PASS_AO) {
       kernel_features |= KERNEL_FEATURE_AO_PASS;
     }
+
+    if (pass_type == PASS_LPE) {
+      kernel_features |= KERNEL_FEATURE_NODE_AOV;
+    }
   }
 
   return kernel_features;
+}
+
+/* LPE-specific Film methods */
+
+void Film::register_lpe_passes(Scene *scene)
+{
+  lpe_pass_map_.clear();
+  
+  /* Iterate through scene passes to find LPE passes */
+  for (Pass *pass : scene->passes) {
+    if (pass->is_lpe_pass()) {
+      
+      /* Skip LPE passes with empty expressions - only warn if pass has a name */
+      if (pass->lpe_expression.empty()) {
+        if (!pass->name.empty()) {
+          LOG_WARNING << "Skipping LPE pass '" << pass->name.c_str() << "' with empty expression";
+        }
+        continue;
+      }
+      
+      /* Compile LPE expression if not already compiled */
+      if (!pass->compile_lpe_expression()) {
+        LOG_ERROR << "Failed to compile LPE expression '" << pass->lpe_expression.c_str() 
+                  << "' for pass '" << pass->name.c_str() << "'";
+        continue;
+      }
+      
+      /* LOG_INFO << "Successfully registered LPE pass: " << pass->name.c_str(); */
+      /* Register the pass in our map */
+      lpe_pass_map_[pass->name.string()] = pass;
+    }
+  }
+  
+  /* LOG_INFO << "Registered " << lpe_pass_map_.size() << " LPE passes"; */
+}
+
+bool Film::update_lpe_passes(Scene *scene)
+{
+  map<ustring, int> lpe_expressions;
+  int i = 0;
+  for (Pass *pass : scene->passes) {
+    if (pass->is_lpe_pass() && !pass->lpe_expression.empty()) {
+      /* Assign unique ID to each unique LPE expression */
+      if (!lpe_expressions.count(pass->lpe_expression)) {
+        lpe_expressions[pass->lpe_expression] = i;
+        pass->lpe_id = i;
+        i++;
+      }
+      else {
+        /* Reuse existing ID for same expression */
+        pass->lpe_id = lpe_expressions[pass->lpe_expression];
+      }
+    }
+  }
+
+  if (scene->lpe_expressions != lpe_expressions) {
+    scene->lpe_expressions = lpe_expressions;
+    return true;
+  }
+
+  return false;
+}
+
+int Film::get_lpe_offset(Scene *scene, const string &lpe_name) const
+{
+  auto it = lpe_pass_map_.find(lpe_name);
+  if (it == lpe_pass_map_.end()) {
+    return -1;  /* Pass not found */
+  }
+
+  Pass *target_pass = it->second;
+
+  /* Calculate offset relative to first LPE pass by counting preceding LPE passes */
+  int lpe_offset = 0;
+  for (const Pass *pass : scene->passes) {
+    if (pass->get_type() == PASS_LPE && pass->is_written()) {
+      /* Found our target pass */
+      if (pass == target_pass) {
+        return lpe_offset;
+      }
+      /* Count components from preceding LPE passes */
+      lpe_offset += pass->get_info().num_components;
+    }
+  }
+
+  return -1;  /* Pass not found in scene passes */
 }
 
 CCL_NAMESPACE_END

@@ -1,0 +1,669 @@
+/* SPDX-FileCopyrightText: 2011-2024 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+#pragma once
+
+#include "kernel/film/write.h"
+
+CCL_NAMESPACE_BEGIN
+
+/* Light Path Expression (LPE) Pass Evaluation
+ *
+ * Helper functions for evaluating light path expressions and writing
+ * to LPE render passes during path tracing.
+ */
+
+/* LPE Event Types - OSL Light Path Expression Specification
+ * Events are stored as single character codes that can be combined:
+ * - C: Camera
+ * - R: Reflection
+ * - T: Transmission
+ * - V: Volume scatter
+ * - L: Light
+ * - O: Emission (object)
+ * - B: Background
+ * - D: Diffuse scatter
+ * - G: Glossy scatter
+ * - S: Singular/Specular scatter
+ *
+ * Each event is stored as a single character in path string.
+ * Path examples: "CDL" = Camera -> Diffuse -> Light
+ *                "CRDL" = Camera -> Reflection+Diffuse -> Light
+ */
+
+#define LPE_MAX_EVENTS 8  /* 64 bits / 8 bits per char = 8 events */
+#define LPE_MAX_EXPRESSION_LENGTH 32  /* Maximum length for an LPE expression string */
+#define LPE_MAX_PASSES 32  /* Maximum number of LPE passes (increased for flexibility) */
+
+/* Event character codes matching the parser */
+#define LPE_EVENT_CAMERA       'C'
+#define LPE_EVENT_REFLECTION   'R'
+#define LPE_EVENT_TRANSMISSION 'T'
+#define LPE_EVENT_VOLUME       'V'
+#define LPE_EVENT_LIGHT        'L'
+#define LPE_EVENT_EMISSION     'O'
+#define LPE_EVENT_BACKGROUND   'B'
+#define LPE_EVENT_DIFFUSE      'D'
+#define LPE_EVENT_GLOSSY       'G'
+#define LPE_EVENT_SINGULAR     'S'
+
+/* Add an event character to the LPE path string */
+ccl_device_inline void kernel_lpe_add_event(ccl_global IntegratorState state, char event_char)
+{
+  const uint event_count = INTEGRATOR_STATE(state, path, lpe_event_count);
+
+  /* Only store up to MAX events */
+  if (event_count >= LPE_MAX_EVENTS) {
+    return;
+  }
+
+  /* Store event character in packed field (8 bits per event) */
+  uint64_t events = INTEGRATOR_STATE(state, path, lpe_events);
+  events |= ((uint64_t)event_char << (event_count * 8));
+
+  INTEGRATOR_STATE_WRITE(state, path, lpe_events) = events;
+  INTEGRATOR_STATE_WRITE(state, path, lpe_event_count) = event_count + 1;
+}
+
+/* Initialize LPE state for a camera ray */
+ccl_device_inline void kernel_lpe_init_camera_ray(ccl_global IntegratorState state)
+{
+  /* Initialize LPE path tracking for camera ray (C) */
+  INTEGRATOR_STATE_WRITE(state, path, lpe_events) = 0;
+  INTEGRATOR_STATE_WRITE(state, path, lpe_event_count) = 0;
+  INTEGRATOR_STATE_WRITE(state, path, lpe_lightgroup_id) = 0;
+  INTEGRATOR_STATE_WRITE(state, path, lpe_pass_id) = -1;
+
+  /* Add camera event as first event */
+  kernel_lpe_add_event(state, LPE_EVENT_CAMERA);
+}
+
+
+/* Record a volume scattering event */
+ccl_device_inline void kernel_lpe_record_volume_event(ccl_global IntegratorState state)
+{
+  kernel_lpe_add_event(state, LPE_EVENT_VOLUME);
+}
+
+/* Record a light hit */
+ccl_device_inline void kernel_lpe_record_light_hit(ccl_global IntegratorState state)
+{
+  kernel_lpe_add_event(state, LPE_EVENT_LIGHT);
+}
+
+/* Record a diffuse reflection bounce */
+ccl_device_inline void kernel_lpe_record_diffuse_bounce(ccl_global IntegratorState state)
+{
+  /* For OSL LPE, diffuse reflection is just 'D' */
+  kernel_lpe_add_event(state, LPE_EVENT_DIFFUSE);
+}
+
+/* Record a glossy reflection bounce */
+ccl_device_inline void kernel_lpe_record_glossy_bounce(ccl_global IntegratorState state)
+{
+  /* For OSL LPE, glossy reflection is 'G' */
+  kernel_lpe_add_event(state, LPE_EVENT_GLOSSY);
+}
+
+/* Record a singular reflection bounce */
+ccl_device_inline void kernel_lpe_record_singular_bounce(ccl_global IntegratorState state)
+{
+  /* For OSL LPE, singular/specular reflection is 'S' */
+  kernel_lpe_add_event(state, LPE_EVENT_SINGULAR);
+}
+
+/* Record a transmission bounce (diffuse) */
+ccl_device_inline void kernel_lpe_record_transmission_bounce(ccl_global IntegratorState state)
+{
+  /* For OSL LPE, transmission is 'T' */
+  kernel_lpe_add_event(state, LPE_EVENT_TRANSMISSION);
+}
+
+/* Record a reflection event */
+ccl_device_inline void kernel_lpe_record_reflection_event(ccl_global IntegratorState state)
+{
+  kernel_lpe_add_event(state, LPE_EVENT_REFLECTION);
+}
+
+/* Record an emission event */
+ccl_device_inline void kernel_lpe_record_emission_event(ccl_global IntegratorState state, int lightgroup)
+{
+  kernel_lpe_add_event(state, LPE_EVENT_EMISSION);
+  INTEGRATOR_STATE_WRITE(state, path, lpe_lightgroup_id) = lightgroup;
+}
+
+/* Record a background hit */
+ccl_device_inline void kernel_lpe_record_background_hit(ccl_global IntegratorState state)
+{
+  kernel_lpe_add_event(state, LPE_EVENT_BACKGROUND);
+}
+
+/* Record bounce from a specific closure (stub - events already recorded in path_state_next) */
+ccl_device_inline void kernel_lpe_record_bounce_from_closure(ccl_global IntegratorState state,
+                                                               int closure_type)
+{
+  (void)state;
+  (void)closure_type;
+}
+
+/* Extract path string from packed events */
+ccl_device_inline void kernel_lpe_extract_path(ccl_global IntegratorState state,
+                                                 ccl_private char *path_str,
+                                                 int max_len)
+{
+  const uint event_count = INTEGRATOR_STATE(state, path, lpe_event_count);
+  const uint64_t events = INTEGRATOR_STATE(state, path, lpe_events);
+
+  int len = min((int)event_count, max_len - 1);
+  for (int i = 0; i < len; i++) {
+    path_str[i] = (char)((events >> (i * 8)) & 0xFF);
+  }
+  path_str[len] = '\0';
+}
+
+/* Check if character matches a character class [ABC] */
+ccl_device_inline bool kernel_lpe_matches_char_class(char c, ccl_private const char *pattern, int *class_end)
+{
+  int i = 0;
+  bool found = false;
+
+  while (pattern[i] != '\0' && pattern[i] != ']') {
+    if (pattern[i] == c) {
+      found = true;
+    }
+    i++;
+  }
+
+  /* class_end points after the ']' */
+  *class_end = (pattern[i] == ']') ? i + 1 : i;
+  return found;
+}
+
+/* Parse quantifier {n} or {n,m} and return min/max counts
+ * Also handles event counting {EVENT=N} syntax
+ * Returns total length of quantifier including braces
+ * If no comma: min=max=n (exactly n)
+ * If comma but no max: max=-1 (n or more)
+ * If EVENT=N format: sets event_char and exact_count */
+ccl_device_inline int kernel_lpe_parse_quantifier(ccl_private const char *pattern,
+                                                    int *min_count,
+                                                    int *max_count,
+                                                    char *event_char,
+                                                    int *exact_count)
+{
+  if (pattern[0] != '{') {
+    return 0;
+  }
+
+  *event_char = '\0';
+  *exact_count = -1;
+  int pos = 1;
+  *min_count = 0;
+  *max_count = 0;
+
+  /* Check for EVENT=N syntax (e.g., {D=3}) */
+  if (pattern[pos] >= 'A' && pattern[pos] <= 'Z') {
+    *event_char = pattern[pos];
+    pos++;
+
+    if (pattern[pos] == '=') {
+      pos++;
+      *exact_count = 0;
+      while (pattern[pos] >= '0' && pattern[pos] <= '9') {
+        *exact_count = *exact_count * 10 + (pattern[pos] - '0');
+        pos++;
+      }
+
+      if (pattern[pos] == '}') {
+        pos++;
+        return pos;
+      }
+    }
+    return 0; /* Invalid format */
+  }
+
+  /* Parse first number for regular quantifier */
+  while (pattern[pos] >= '0' && pattern[pos] <= '9') {
+    *min_count = *min_count * 10 + (pattern[pos] - '0');
+    pos++;
+  }
+
+  /* Check for comma (range) */
+  if (pattern[pos] == ',') {
+    pos++;
+    /* Check if there's a max value */
+    if (pattern[pos] >= '0' && pattern[pos] <= '9') {
+      while (pattern[pos] >= '0' && pattern[pos] <= '9') {
+        *max_count = *max_count * 10 + (pattern[pos] - '0');
+        pos++;
+      }
+    }
+    else {
+      /* No max specified = unlimited (use -1 to indicate) */
+      *max_count = -1;
+    }
+  }
+  else {
+    /* No comma = exact count */
+    *max_count = *min_count;
+  }
+
+  /* Expect closing brace */
+  if (pattern[pos] == '}') {
+    pos++;
+    return pos;
+  }
+
+  /* Invalid quantifier */
+  return 0;
+}
+
+/* Count occurrences of a specific event character in path */
+ccl_device_inline int kernel_lpe_count_event(ccl_private const char *path, char event)
+{
+  int count = 0;
+  for (int i = 0; path[i] != '\0'; i++) {
+    if (path[i] == event) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/* Advanced LPE pattern matching with wildcard support
+ * Supports:
+ * - . : matches any single character
+ * - * : zero or more of the preceding character/class
+ * - + : one or more of the preceding character/class
+ * - {n} : exactly n repetitions
+ * - {n,m} : between n and m repetitions (inclusive)
+ * - {n,} : n or more repetitions
+ * - {EVENT=N} : count constraint - path must have exactly N occurrences of EVENT
+ * - [ABC] : character class (matches any char in the set)
+ * - Literal characters
+ */
+ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
+                                           ccl_private const char *pattern)
+{
+  int path_pos = 0;
+  int pattern_pos = 0;
+
+  while (pattern[pattern_pos] != '\0') {
+    char p = pattern[pattern_pos];
+    char next_p = pattern[pattern_pos + 1];
+
+    /* Handle event counter {EVENT=N} */
+    if (p == '{' && next_p >= 'A' && next_p <= 'Z') {
+      int min_count, max_count;
+      char event_char;
+      int exact_count;
+      int quant_len = kernel_lpe_parse_quantifier(&pattern[pattern_pos], &min_count, &max_count, &event_char, &exact_count);
+
+      if (quant_len > 0 && exact_count >= 0) {
+        /* This is an event counter {EVENT=N} */
+        int actual_count = kernel_lpe_count_event(path, event_char);
+        if (actual_count != exact_count) {
+          return false;
+        }
+        pattern_pos += quant_len;
+        continue;
+      }
+    }
+
+    /* Handle character class [ABC] */
+    if (p == '[') {
+      int class_end = 0;
+      bool matched = kernel_lpe_matches_char_class(path[path_pos], &pattern[pattern_pos + 1], &class_end);
+
+      /* Check for quantifiers after character class */
+      char quantifier = pattern[pattern_pos + 1 + class_end];
+
+      /* Handle {n} or {n,m} quantifier */
+      if (quantifier == '{') {
+        int min_count, max_count;
+        char event_char;
+        int exact_count;
+        int quant_len = kernel_lpe_parse_quantifier(&pattern[pattern_pos + 1 + class_end], &min_count, &max_count, &event_char, &exact_count);
+
+        /* Event counter should not follow character class */
+        if (exact_count >= 0) {
+          return false;
+        }
+
+        if (quant_len > 0) {
+          /* Match exactly min_count times (required) */
+          int count = 0;
+          int save_pos = path_pos;
+          for (; count < min_count; count++) {
+            if (path[path_pos] == '\0') {
+              return false;
+            }
+            int tmp = 0;
+            if (!kernel_lpe_matches_char_class(path[path_pos], &pattern[pattern_pos + 1], &tmp)) {
+              return false;
+            }
+            path_pos++;
+          }
+
+          pattern_pos += 1 + class_end + quant_len;
+
+          /* If max_count == min_count, we're done with exact match */
+          if (max_count == min_count) {
+            continue;
+          }
+
+          /* Try matching between min_count and max_count (or unlimited if max_count == -1) */
+          int max_additional = (max_count == -1) ? 100 : (max_count - min_count);
+          for (int extra = 0; extra <= max_additional && path[path_pos] != '\0'; extra++) {
+            if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+              return true;
+            }
+            /* Try one more match */
+            int tmp = 0;
+            if (kernel_lpe_matches_char_class(path[path_pos], &pattern[save_pos + 1], &tmp)) {
+              path_pos++;
+            }
+            else {
+              break;
+            }
+          }
+          return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+        }
+      }
+      /* Handle * quantifier */
+      else if (quantifier == '*') {
+        /* [ABC]* - zero or more */
+        const int class_start = pattern_pos + 1; /* Save position of class content */
+        pattern_pos += 2 + class_end;
+        while (path[path_pos] != '\0') {
+          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+            return true;
+          }
+          int tmp = 0;
+          if (kernel_lpe_matches_char_class(path[path_pos], &pattern[class_start], &tmp)) {
+            path_pos++;
+          }
+          else {
+            break;
+          }
+        }
+        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+      }
+      /* Handle + quantifier */
+      else if (quantifier == '+') {
+        /* [ABC]+ - one or more */
+        if (!matched || path[path_pos] == '\0') {
+          return false;
+        }
+        path_pos++;
+        const int class_start = pattern_pos + 1; /* Save position of class content */
+        pattern_pos += 2 + class_end;
+
+        while (path[path_pos] != '\0') {
+          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+            return true;
+          }
+          int tmp = 0;
+          if (kernel_lpe_matches_char_class(path[path_pos], &pattern[class_start], &tmp)) {
+            path_pos++;
+          }
+          else {
+            break;
+          }
+        }
+        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+      }
+      else {
+        /* [ABC] - single match */
+        if (!matched || path[path_pos] == '\0') {
+          return false;
+        }
+        path_pos++;
+        pattern_pos += 1 + class_end;
+      }
+    }
+    /* Handle {n} or {n,m} after single character */
+    else if (next_p == '{') {
+      int min_count, max_count;
+      char event_char;
+      int exact_count;
+      int quant_len = kernel_lpe_parse_quantifier(&pattern[pattern_pos + 1], &min_count, &max_count, &event_char, &exact_count);
+
+      /* Event counter should have been handled earlier, skip if found here */
+      if (exact_count >= 0) {
+        return false; /* Invalid: event counter must not follow a character */
+      }
+
+      if (quant_len > 0) {
+        /* Match exactly min_count times (required) */
+        for (int count = 0; count < min_count; count++) {
+          if (path[path_pos] == '\0' || (p != '.' && path[path_pos] != p)) {
+            return false;
+          }
+          path_pos++;
+        }
+
+        pattern_pos += 1 + quant_len;
+
+        /* If max_count == min_count, we're done with exact match */
+        if (max_count == min_count) {
+          continue;
+        }
+
+        /* Try matching between min_count and max_count (or unlimited if max_count == -1) */
+        int max_additional = (max_count == -1) ? 100 : (max_count - min_count);
+        for (int extra = 0; extra <= max_additional && path[path_pos] != '\0'; extra++) {
+          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+            return true;
+          }
+          /* Try one more match */
+          if (p == '.' || path[path_pos] == p) {
+            path_pos++;
+          }
+          else {
+            break;
+          }
+        }
+        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+      }
+    }
+    /* Handle X* - zero or more X */
+    else if (next_p == '*') {
+      pattern_pos += 2;
+
+      while (path[path_pos] != '\0') {
+        if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+          return true;
+        }
+        if (p == '.' || path[path_pos] == p) {
+          path_pos++;
+        }
+        else {
+          break;
+        }
+      }
+      return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+    }
+    /* Handle X+ - one or more X */
+    else if (next_p == '+') {
+      /* Must match at least once */
+      if (path[path_pos] == '\0' || (p != '.' && p != path[path_pos])) {
+        return false;
+      }
+      path_pos++;
+      pattern_pos += 2;
+
+      while (path[path_pos] != '\0') {
+        if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+          return true;
+        }
+        if (p == '.' || path[path_pos] == p) {
+          path_pos++;
+        }
+        else {
+          break;
+        }
+      }
+      return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+    }
+    /* Match single character */
+    else {
+      if (path[path_pos] == '\0') {
+        return false;
+      }
+
+      /* '.' matches any character, otherwise must match exactly */
+      if (p != '.' && p != path[path_pos]) {
+        return false;
+      }
+
+      path_pos++;
+      pattern_pos++;
+    }
+  }
+
+  /* Both must be at end for a match */
+  return path[path_pos] == '\0';
+}
+
+/* Write LPE contribution to a pass with a final event */
+ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
+                                               ccl_global IntegratorState state,
+                                               ccl_global float *ccl_restrict render_buffer,
+                                               Spectrum contribution,
+                                               char final_event)
+{
+  /* Early exit if no LPE passes configured */
+  if (kernel_data.film.pass_lpe == PASS_UNUSED || kernel_data.film.num_lpe_passes == 0) {
+    return;
+  }
+
+  /* Save current event state to restore later */
+  const uint64_t saved_events = INTEGRATOR_STATE(state, path, lpe_events);
+  const uint8_t saved_count = INTEGRATOR_STATE(state, path, lpe_event_count);
+
+  /* Add final event for matching (Light, Background, or Emission) */
+  kernel_lpe_add_event(state, final_event);
+
+  /* Extract current path string with final event included */
+  char path_str[LPE_MAX_EVENTS + 1];
+  kernel_lpe_extract_path(state, path_str, LPE_MAX_EVENTS + 1);
+
+  /* Get the base offset for LPE passes in the render buffer */
+  ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
+
+  /* Get LPE expression data from lookup tables */
+  const int lpe_offset = kernel_data.film.lpe_expressions_offset;
+
+  /* Current buffer offset - starts at first LPE pass and increments by 3 for each pass */
+  int current_lpe_offset = kernel_data.film.pass_lpe;
+
+  /* Iterate through all LPE passes and match against their expressions */
+  for (int pass_id = 0; pass_id < kernel_data.film.num_lpe_passes; pass_id++) {
+    /* Get expression string from lookup table */
+    ccl_global const float *lpe_data = &kernel_data_fetch(lookup_table, lpe_offset + pass_id * LPE_MAX_EXPRESSION_LENGTH / 4);
+
+    /* Convert float array back to char string */
+    char expression[LPE_MAX_EXPRESSION_LENGTH];
+    for (int i = 0; i < LPE_MAX_EXPRESSION_LENGTH; i += 4) {
+      uint packed = __float_as_uint(lpe_data[i / 4]);
+      expression[i + 0] = (char)((packed >> 0) & 0xFF);
+      expression[i + 1] = (char)((packed >> 8) & 0xFF);
+      expression[i + 2] = (char)((packed >> 16) & 0xFF);
+      expression[i + 3] = (char)((packed >> 24) & 0xFF);
+    }
+
+    /* Match path against expression */
+    if (kernel_lpe_matches(path_str, expression)) {
+      /* Write contribution to this LPE pass */
+      film_write_pass_spectrum(buffer + current_lpe_offset, contribution);
+    }
+
+    /* Move to next LPE pass (each pass has 3 components: RGB) */
+    current_lpe_offset += 3;
+  }
+
+  /* Restore original event state */
+  INTEGRATOR_STATE_WRITE(state, path, lpe_events) = saved_events;
+  INTEGRATOR_STATE_WRITE(state, path, lpe_event_count) = saved_count;
+}
+
+/* Write LPE contribution to a pass from shadow ray with a final event */
+ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
+                                               IntegratorShadowState state,
+                                               ccl_global float *ccl_restrict render_buffer,
+                                               Spectrum contribution,
+                                               char final_event)
+{
+  /* Early exit if no LPE passes configured */
+  if (kernel_data.film.pass_lpe == PASS_UNUSED || kernel_data.film.num_lpe_passes == 0) {
+    return;
+  }
+
+  /* Save current event state to restore later */
+  const uint64_t saved_events = INTEGRATOR_STATE(state, shadow_path, lpe_events);
+  const uint8_t saved_count = INTEGRATOR_STATE(state, shadow_path, lpe_event_count);
+
+  /* Add final event for matching (Light, Background, or Emission) */
+  uint8_t event_count = INTEGRATOR_STATE(state, shadow_path, lpe_event_count);
+  if (event_count < LPE_MAX_EVENTS) {
+    uint64_t events = INTEGRATOR_STATE(state, shadow_path, lpe_events);
+    events |= ((uint64_t)final_event << (event_count * 8));
+    INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events) = events;
+    INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_event_count) = event_count + 1;
+  }
+
+  /* Extract current path string with final event included */
+  char path_str[LPE_MAX_EVENTS + 1];
+  event_count = INTEGRATOR_STATE(state, shadow_path, lpe_event_count);
+  const uint64_t events = INTEGRATOR_STATE(state, shadow_path, lpe_events);
+
+  int len = min((int)event_count, LPE_MAX_EVENTS);
+  for (int i = 0; i < len; i++) {
+    path_str[i] = (char)((events >> (i * 8)) & 0xFF);
+  }
+  path_str[len] = '\0';
+
+  /* Get the base offset for LPE passes in the render buffer */
+  const uint32_t render_pixel_index = INTEGRATOR_STATE(state, shadow_path, render_pixel_index);
+  const uint64_t render_buffer_offset = (uint64_t)render_pixel_index * kernel_data.film.pass_stride;
+  ccl_global float *buffer = render_buffer + render_buffer_offset;
+
+  /* Get LPE expression data from lookup tables */
+  const int lpe_offset = kernel_data.film.lpe_expressions_offset;
+
+  /* Current buffer offset - starts at first LPE pass and increments by 3 for each pass */
+  int current_lpe_offset = kernel_data.film.pass_lpe;
+
+  /* Iterate through all LPE passes and match against their expressions */
+  for (int pass_id = 0; pass_id < kernel_data.film.num_lpe_passes; pass_id++) {
+    /* Get expression string from lookup table */
+    ccl_global const float *lpe_data = &kernel_data_fetch(lookup_table, lpe_offset + pass_id * LPE_MAX_EXPRESSION_LENGTH / 4);
+
+    /* Convert float array back to char string */
+    char expression[LPE_MAX_EXPRESSION_LENGTH];
+    for (int i = 0; i < LPE_MAX_EXPRESSION_LENGTH; i += 4) {
+      uint packed = __float_as_uint(lpe_data[i / 4]);
+      expression[i + 0] = (char)((packed >> 0) & 0xFF);
+      expression[i + 1] = (char)((packed >> 8) & 0xFF);
+      expression[i + 2] = (char)((packed >> 16) & 0xFF);
+      expression[i + 3] = (char)((packed >> 24) & 0xFF);
+    }
+
+    /* Match path against expression */
+    if (kernel_lpe_matches(path_str, expression)) {
+      /* Write contribution to this LPE pass */
+      film_write_pass_spectrum(buffer + current_lpe_offset, contribution);
+    }
+
+    /* Move to next LPE pass (each pass has 3 components: RGB) */
+    current_lpe_offset += 3;
+  }
+
+  /* Restore original event state */
+  INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events) = saved_events;
+  INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_event_count) = saved_count;
+}
+
+CCL_NAMESPACE_END

@@ -1945,6 +1945,9 @@ ccl_device void volume_integrate_null_scattering(KernelGlobals kg,
     if (light_link_object_match(kg, light_link_receiver_forward(kg, state), sd->object)) {
       film_write_volume_emission(
           kg, state, vstate.emission, render_buffer, object_lightgroup(kg, sd->object));
+
+      /* Write LPE passes with Emission event. */
+      kernel_lpe_write_pass(kg, state, render_buffer, vstate.emission, LPE_EVENT_EMISSION);
     }
   }
 
@@ -2367,6 +2370,9 @@ ccl_device_forceinline void volume_integrate_ray_marching(
     if (light_link_object_match(kg, light_link_receiver_forward(kg, state), sd->object)) {
       film_write_volume_emission(
           kg, state, accum_emission, render_buffer, object_lightgroup(kg, sd->object));
+
+      /* Write LPE passes with Emission event. */
+      kernel_lpe_write_pass(kg, state, render_buffer, accum_emission, LPE_EVENT_EMISSION);
     }
   }
 
@@ -2522,6 +2528,23 @@ ccl_device_forceinline void integrate_volume_direct_light(
 
   /* Write Light-group, +1 as light-group is int but we need to encode into a uint8_t. */
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lightgroup) = ls.group + 1;
+
+  /* Copy LPE events for light path expressions */
+  if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_events) = INTEGRATOR_STATE(
+        state, path, lpe_events);
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_event_count) = INTEGRATOR_STATE(
+        state, path, lpe_event_count);
+
+    /* Add volume scatter event */
+    uint8_t event_count = INTEGRATOR_STATE(shadow_state, shadow_path, lpe_event_count);
+    if (event_count < LPE_MAX_EVENTS) {
+      uint64_t events = INTEGRATOR_STATE(shadow_state, shadow_path, lpe_events);
+      events |= ((uint64_t)LPE_EVENT_VOLUME << (event_count * 8));
+      INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_events) = events;
+      INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_event_count) = event_count + 1;
+    }
+  }
 
 #  if defined(__PATH_GUIDING__)
   if ((kernel_data.kernel_features & KERNEL_FEATURE_PATH_GUIDING)) {

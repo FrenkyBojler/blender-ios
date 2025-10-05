@@ -252,6 +252,8 @@ void BKE_view_layer_free_ex(ViewLayer *view_layer, const bool do_id_user)
   view_layer->active_aov = nullptr;
   BLI_freelistN(&view_layer->lightgroups);
   view_layer->active_lightgroup = nullptr;
+  BLI_freelistN(&view_layer->lpes);
+  view_layer->active_lpe = nullptr;
 
   /* Cannot use MEM_SAFE_DELETE, as #SceneStats type is only forward-declared in
    * `DNA_layer_types.h`
@@ -464,6 +466,29 @@ static void layer_lightgroup_copy_data(ViewLayer *view_layer_dst,
   }
 }
 
+static void layer_lpe_copy_data(ViewLayer *view_layer_dst,
+                                const ViewLayer *view_layer_src,
+                                ListBase *lpes_dst,
+                                const ListBase *lpes_src)
+{
+  if (lpes_src != nullptr) {
+    BLI_duplicatelist(lpes_dst, lpes_src);
+  }
+
+  ViewLayerLPE *lpe_dst = static_cast<ViewLayerLPE *>(lpes_dst->first);
+  const ViewLayerLPE *lpe_src = static_cast<const ViewLayerLPE *>(lpes_src->first);
+
+  while (lpe_dst != nullptr) {
+    BLI_assert(lpe_src);
+    if (lpe_src == view_layer_src->active_lpe) {
+      view_layer_dst->active_lpe = lpe_dst;
+    }
+
+    lpe_dst = lpe_dst->next;
+    lpe_src = lpe_src->next;
+  }
+}
+
 static void layer_collections_copy_data(ViewLayer *view_layer_dst,
                                         const ViewLayer *view_layer_src,
                                         ListBaseT<LayerCollection> *layer_collections_dst,
@@ -543,6 +568,9 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
   BLI_listbase_clear(&view_layer_dst->lightgroups);
   layer_lightgroup_copy_data(
       view_layer_dst, view_layer_src, &view_layer_dst->lightgroups, &view_layer_src->lightgroups);
+
+  BLI_listbase_clear(&view_layer_dst->lpes);
+  layer_lpe_copy_data(view_layer_dst, view_layer_src, &view_layer_dst->lpes, &view_layer_src->lpes);
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     id_us_plus(id_cast<ID *>(view_layer_dst->mat_override));
@@ -2444,6 +2472,9 @@ void BKE_view_layer_blend_write(BlendWriter *writer, const Scene *scene, ViewLay
   for (ViewLayerLightgroup &lightgroup : view_layer->lightgroups) {
     writer->write_struct(&lightgroup);
   }
+  LISTBASE_FOREACH (ViewLayerLPE *, lpe, &view_layer->lpes) {
+    BLO_write_struct(writer, ViewLayerLPE, lpe);
+  }
   write_layer_collections(writer, &view_layer->layer_collections);
 }
 
@@ -2500,6 +2531,9 @@ void BKE_view_layer_blend_read_data(BlendDataReader *reader, ViewLayer *view_lay
 
   BLO_read_struct_list(reader, ViewLayerLightgroup, &view_layer->lightgroups);
   BLO_read_struct(reader, ViewLayerLightgroup, &view_layer->active_lightgroup);
+
+  BLO_read_struct_list(reader, ViewLayerLPE, &view_layer->lpes);
+  BLO_read_struct(reader, ViewLayerLPE, &view_layer->active_lpe);
 
   view_layer->object_bases_array = nullptr;
   view_layer->object_bases_hash = nullptr;
@@ -2776,6 +2810,81 @@ void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name)
       *lgm = nullptr;
     }
   }
+}
+
+/* ---------------------------------------------------------------------- */
+/** \name Light Path Expression Management
+ * \{ */
+
+static void viewlayer_lpe_active_set(ViewLayer *view_layer, ViewLayerLPE *lpe)
+{
+  view_layer->active_lpe = lpe;
+}
+
+static void viewlayer_lpe_make_name_unique(ViewLayer *view_layer, ViewLayerLPE *lpe)
+{
+  BLI_uniquename(&view_layer->lpes,
+                 lpe,
+                 DATA_("LPE"),
+                 '.',
+                 offsetof(ViewLayerLPE, name),
+                 sizeof(lpe->name));
+}
+
+ViewLayerLPE *BKE_view_layer_add_lpe(ViewLayer *view_layer, const char *name)
+{
+  ViewLayerLPE *lpe = MEM_callocN<ViewLayerLPE>(__func__);
+  
+  STRNCPY_UTF8(lpe->name, (name && name[0]) ? name : DATA_("CustomLPE"));
+  STRNCPY_UTF8(lpe->expression, "C[DS]*L");  /* Default LPE expression */
+  lpe->flag = 0;
+  
+  BLI_addtail(&view_layer->lpes, lpe);
+  viewlayer_lpe_active_set(view_layer, lpe);
+  viewlayer_lpe_make_name_unique(view_layer, lpe);
+  
+  return lpe;
+}
+
+void BKE_view_layer_remove_lpe(ViewLayer *view_layer, ViewLayerLPE *lpe)
+{
+  BLI_assert(BLI_findindex(&view_layer->lpes, lpe) != -1);
+  BLI_assert(lpe != nullptr);
+  
+  if (view_layer->active_lpe == lpe) {
+    if (lpe->next) {
+      viewlayer_lpe_active_set(view_layer, (ViewLayerLPE *)lpe->next);
+    }
+    else {
+      viewlayer_lpe_active_set(view_layer, (ViewLayerLPE *)lpe->prev);
+    }
+  }
+  
+  BLI_freelinkN(&view_layer->lpes, lpe);
+}
+
+void BKE_view_layer_set_active_lpe(ViewLayer *view_layer, ViewLayerLPE *lpe)
+{
+  viewlayer_lpe_active_set(view_layer, lpe);
+}
+
+ViewLayer *BKE_view_layer_find_with_lpe(Scene *scene, ViewLayerLPE *lpe)
+{
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+    if (BLI_findindex(&view_layer->lpes, lpe) != -1) {
+      return view_layer;
+    }
+  }
+  return nullptr;
+}
+
+void BKE_view_layer_rename_lpe(Scene * /*scene*/,
+                               ViewLayer *view_layer,
+                               ViewLayerLPE *lpe,
+                               const char *name)
+{
+  STRNCPY_UTF8(lpe->name, name);
+  viewlayer_lpe_make_name_unique(view_layer, lpe);
 }
 
 /** \} */

@@ -370,7 +370,11 @@ enum PassType {
    * When reading this pass, it is converted to majorant transmittance */
   PASS_VOLUME_MAJORANT,
   PASS_VOLUME_MAJORANT_SAMPLE_COUNT,
-  PASS_CATEGORY_DATA_END = 63,
+  
+  /* Light Path Expression passes */
+  PASS_LPE,
+  
+  PASS_CATEGORY_DATA_END = 64,
 
   PASS_BAKE_PRIMITIVE,
   PASS_BAKE_SEED,
@@ -388,6 +392,18 @@ enum CryptomatteType {
   CRYPT_MATERIAL = (1 << 1),
   CRYPT_ASSET = (1 << 2),
   CRYPT_ACCURATE = (1 << 3),
+};
+
+/* Light Path Expression pass data */
+struct LPEPassData {
+  /* LPE expression string */
+  char expression[128];
+  /* Pass name */
+  char name[64];
+  /* Whether the expression is valid */
+  bool is_valid;
+  /* Compiled expression hash for quick validation */
+  uint32_t expression_hash;
 };
 
 struct BsdfEval {
@@ -1207,6 +1223,8 @@ struct KernelFilmConvert {
   int pass_shadow_catcher_sample_count;
   int pass_shadow_catcher_matte;
   int pass_background;
+  int pass_lpe;
+  int lpe_pad1, lpe_pad2;  /* Ensure 16-byte alignment */
 
   float scale;
   float exposure;
@@ -1226,7 +1244,7 @@ struct KernelFilmConvert {
   int is_denoised;
 
   /* Padding. */
-  int pad1;
+  int pad1, pad2;
 };
 static_assert_align(KernelFilmConvert, 16);
 

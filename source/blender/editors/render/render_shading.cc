@@ -1228,6 +1228,264 @@ void SCENE_OT_view_layer_remove_aov(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name View Layer Add LPE Operator
+ * \{ */
+
+static wmOperatorStatus view_layer_add_lpe_exec(bContext *C, wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  BKE_view_layer_add_lpe(view_layer, "LPE");
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+  DEG_relations_tag_update(CTX_data_main(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_view_layer_add_lpe(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add LPE";
+  ot->idname = "SCENE_OT_view_layer_add_lpe";
+  ot->description = "Add a Light Path Expression pass";
+
+  /* API callbacks. */
+  ot->exec = view_layer_add_lpe_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name View Layer Remove LPE Operator
+ * \{ */
+
+static wmOperatorStatus view_layer_remove_lpe_exec(bContext *C, wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  if (view_layer->active_lpe == nullptr) {
+    return OPERATOR_FINISHED;
+  }
+
+  BKE_view_layer_remove_lpe(view_layer, view_layer->active_lpe);
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+  DEG_relations_tag_update(CTX_data_main(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_view_layer_remove_lpe(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove LPE";
+  ot->idname = "SCENE_OT_view_layer_remove_lpe";
+  ot->description = "Remove Active LPE pass";
+
+  /* API callbacks. */
+  ot->exec = view_layer_remove_lpe_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name View Layer Move LPE Operator
+ * \{ */
+
+static wmOperatorStatus view_layer_lpe_move_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  if (view_layer->active_lpe == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int direction = RNA_enum_get(op->ptr, "direction");
+  const int index = BLI_findindex(&view_layer->lpes, view_layer->active_lpe);
+
+  if ((direction == -1 && index > 0) || (direction == 1 && index < BLI_listbase_count(&view_layer->lpes) - 1)) {
+    ViewLayerLPE *lpe = view_layer->active_lpe;
+    void *prev = lpe->prev;
+    void *next = lpe->next;
+
+    BLI_remlink(&view_layer->lpes, lpe);
+
+    if (direction == -1) {
+      /* Move up */
+      BLI_insertlinkbefore(&view_layer->lpes, prev, lpe);
+    }
+    else {
+      /* Move down */
+      BLI_insertlinkafter(&view_layer->lpes, next, lpe);
+    }
+
+    if (scene->compositing_node_group) {
+      ntreeCompositUpdateRLayers(scene->compositing_node_group);
+    }
+
+    Main *bmain = CTX_data_main(C);
+    BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+    BKE_ntree_update(*bmain);
+
+    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_relations_tag_update(bmain);
+    WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_NODES, nullptr);
+
+    return OPERATOR_FINISHED;
+  }
+
+  return OPERATOR_CANCELLED;
+}
+
+void SCENE_OT_view_layer_lpe_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem direction_items[] = {
+      {-1, "UP", 0, "Up", ""},
+      {1, "DOWN", 0, "Down", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* identifiers */
+  ot->name = "Move LPE";
+  ot->idname = "SCENE_OT_view_layer_lpe_move";
+  ot->description = "Move LPE pass up or down";
+
+  /* API callbacks. */
+  ot->exec = view_layer_lpe_move_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  /* properties */
+  RNA_def_enum(ot->srna, "direction", direction_items, 0, "Direction", "Direction to move");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name View Layer Sort LPEs Operator
+ * \{ */
+
+static wmOperatorStatus view_layer_lpe_sort_exec(bContext *C, wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  /* Convert to array for sorting */
+  const int count = BLI_listbase_count(&view_layer->lpes);
+  if (count < 2) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ViewLayerLPE **lpes_array = static_cast<ViewLayerLPE **>(
+      MEM_mallocN(sizeof(ViewLayerLPE *) * count, __func__));
+
+  int i = 0;
+  LISTBASE_FOREACH (ViewLayerLPE *, lpe, &view_layer->lpes) {
+    lpes_array[i++] = lpe;
+  }
+
+  /* Sort by name */
+  qsort(lpes_array, count, sizeof(ViewLayerLPE *), [](const void *a, const void *b) {
+    const ViewLayerLPE *lpe_a = *(const ViewLayerLPE **)a;
+    const ViewLayerLPE *lpe_b = *(const ViewLayerLPE **)b;
+    return strcmp(lpe_a->name, lpe_b->name);
+  });
+
+  /* Rebuild list */
+  BLI_listbase_clear(&view_layer->lpes);
+  for (i = 0; i < count; i++) {
+    BLI_addtail(&view_layer->lpes, lpes_array[i]);
+  }
+
+  MEM_freeN(lpes_array);
+
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
+  }
+
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+  DEG_relations_tag_update(bmain);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_NODES, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_view_layer_lpe_sort(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Sort LPEs by Name";
+  ot->idname = "SCENE_OT_view_layer_lpe_sort";
+  ot->description = "Sort all LPE passes alphabetically by name";
+
+  /* API callbacks. */
+  ot->exec = view_layer_lpe_sort_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name View Layer Remove All LPEs Operator
+ * \{ */
+
+static wmOperatorStatus view_layer_lpe_remove_all_exec(bContext *C, wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  if (BLI_listbase_is_empty(&view_layer->lpes)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  LISTBASE_FOREACH_MUTABLE (ViewLayerLPE *, lpe, &view_layer->lpes) {
+    BKE_view_layer_remove_lpe(view_layer, lpe);
+  }
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+  DEG_relations_tag_update(CTX_data_main(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_view_layer_lpe_remove_all(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove All LPEs";
+  ot->idname = "SCENE_OT_view_layer_lpe_remove_all";
+  ot->description = "Remove all LPE passes";
+
+  /* API callbacks. */
+  ot->exec = view_layer_lpe_remove_all_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name View Layer Add Lightgroup Operator
  * \{ */
 

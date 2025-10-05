@@ -9,6 +9,8 @@
 #include "kernel/integrator/surface_shader.h"
 #include "kernel/integrator/volume_stack.h"
 
+#include "kernel/film/lpe_passes.h"
+
 #include "kernel/geom/shader_data.h"
 #include "kernel/light/light.h"
 
@@ -187,6 +189,13 @@ ccl_device void integrator_shade_shadow(KernelGlobals kg,
 
   guiding_record_direct_light(kg, state);
   film_write_direct_light(kg, state, render_buffer);
+
+  /* Write LPE passes with Light event. */
+  if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+    const Spectrum throughput = INTEGRATOR_STATE(state, shadow_path, throughput);
+    kernel_lpe_write_pass(kg, state, render_buffer, throughput, LPE_EVENT_LIGHT);
+  }
+
   integrator_shadow_path_terminate(state, DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW);
 }
 

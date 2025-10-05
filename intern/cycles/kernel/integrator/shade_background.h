@@ -6,6 +6,7 @@
 
 #include "kernel/film/data_passes.h"
 #include "kernel/film/light_passes.h"
+#include "kernel/film/lpe_passes.h"
 
 #include "kernel/integrator/guiding.h"
 #include "kernel/integrator/intersect_closest.h"
@@ -122,6 +123,9 @@ ccl_device_inline void integrate_background(KernelGlobals kg,
   /* Write to render buffer. */
   film_write_background(kg, state, L, transparent, is_transparent_background_ray, render_buffer);
   film_write_data_passes_background(kg, state, render_buffer);
+
+  /* Write LPE passes with Background event. */
+  kernel_lpe_write_pass(kg, state, render_buffer, L, LPE_EVENT_BACKGROUND);
 }
 
 ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
@@ -190,6 +194,9 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
     guiding_record_background(kg, state, eval, mis_weight);
     film_write_surface_emission(
         kg, state, eval, mis_weight, render_buffer, object_lightgroup(kg, klight->object_id));
+
+    /* Write LPE passes with Light event for distant lights. */
+    kernel_lpe_write_pass(kg, state, render_buffer, eval * mis_weight, LPE_EVENT_LIGHT);
   }
 }
 

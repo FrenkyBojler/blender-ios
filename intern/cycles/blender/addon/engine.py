@@ -262,6 +262,12 @@ def list_render_passes(scene, srl):
     for lightgroup in srl.lightgroups:
         yield ("Combined_%s" % lightgroup.name, "RGB", 'COLOR')
 
+    # Light Path Expressions.
+    for lpe in srl.lpes:
+        if not lpe.is_valid:
+            continue
+        yield (lpe.name, "RGB", 'COLOR')
+
     # Path guiding debug passes.
     if _cycles.with_debug:
         yield ("Guiding Color", "RGB", 'COLOR')

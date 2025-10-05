@@ -65,6 +65,11 @@ KERNEL_STRUCT_MEMBER(shadow_path,
                      float,
                      bsdf_eval_average,
                      KernelFeatureRequest(KERNEL_FEATURE_PATH_TRACING, KERNEL_FEATURE_LIGHT_TREE))
+/* Light Path Expression event tracking. */
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint8_t, lpe_event_count, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint16_t, lpe_lightgroup_id, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, int16_t, lpe_pass_id, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_END(shadow_path)
 
 /********************************** Shadow Ray *******************************/

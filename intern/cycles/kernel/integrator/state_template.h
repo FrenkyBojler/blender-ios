@@ -67,6 +67,17 @@ KERNEL_STRUCT_MEMBER(path, PackedSpectrum, denoising_feature_throughput, KERNEL_
 /* Shader sorting. */
 /* TODO: compress as uint16? or leave out entirely and recompute key in sorting code? */
 KERNEL_STRUCT_MEMBER(path, uint32_t, shader_sort_key, KERNEL_FEATURE_PATH_TRACING)
+/* Light Path Expression event tracking. */
+/* Compact representation of path events for LPE matching.
+ * Each event is stored as 8-bit character (C, R, T, V, L, O, B, D, G, S).
+ * This allows up to 8 events in a 64-bit field. */
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events, KERNEL_FEATURE_NODE_AOV)
+/* Number of events currently stored in lpe_events (max 8) */
+KERNEL_STRUCT_MEMBER(path, uint8_t, lpe_event_count, KERNEL_FEATURE_NODE_AOV)
+/* Current light group ID for LPE matching */
+KERNEL_STRUCT_MEMBER(path, uint16_t, lpe_lightgroup_id, KERNEL_FEATURE_NODE_AOV)
+/* Current matched LPE pass ID (-1 if no match yet) */
+KERNEL_STRUCT_MEMBER(path, int16_t, lpe_pass_id, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_END(path)
 
 /************************************** Ray ***********************************/

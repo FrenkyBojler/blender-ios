@@ -102,6 +102,7 @@ const NodeEnum *Pass::get_type_enum()
     pass_type_enum.insert("bake_primitive", PASS_BAKE_PRIMITIVE);
     pass_type_enum.insert("bake_seed", PASS_BAKE_SEED);
     pass_type_enum.insert("bake_differential", PASS_BAKE_DIFFERENTIAL);
+    pass_type_enum.insert("lpe", PASS_LPE);
 
 #ifdef WITH_CYCLES_DEBUG
     pass_type_enum.insert("guiding_color", PASS_GUIDING_COLOR);
@@ -137,11 +138,12 @@ NODE_DEFINE(Pass)
   SOCKET_STRING(name, "Name", ustring());
   SOCKET_BOOLEAN(include_albedo, "Include Albedo", false);
   SOCKET_STRING(lightgroup, "Light Group", ustring());
+  SOCKET_STRING(lpe_expression, "LPE Expression", ustring());
 
   return type;
 }
 
-Pass::Pass() : Node(get_node_type()), is_auto_(false) {}
+Pass::Pass() : Node(get_node_type()), lpe_id(-1), is_auto_(false) {}
 
 PassInfo Pass::get_info() const
 {
@@ -375,6 +377,11 @@ PassInfo Pass::get_info(const PassType type,
       pass_info.use_exposure = false;
       pass_info.use_filter = false;
       break;
+    case PASS_LPE:
+      pass_info.num_components = 3;
+      pass_info.use_exposure = true;
+      pass_info.support_denoise = true;
+      break;
 
     case PASS_CATEGORY_LIGHT_END:
     case PASS_CATEGORY_DATA_END:
@@ -474,6 +481,43 @@ std::ostream &operator<<(std::ostream &os, const Pass &pass)
 bool is_volume_guiding_pass(const PassType pass_type)
 {
   return (pass_type == PASS_VOLUME_SCATTER) || (pass_type == PASS_VOLUME_TRANSMIT);
+}
+
+/* LPE-specific Pass methods */
+
+bool Pass::compile_lpe_expression()
+{
+  if (!is_lpe_pass()) {
+    return true;  /* Non-LPE passes are always valid */
+  }
+  
+  if (lpe_expression.empty()) {
+    LOG_ERROR << "LPE pass has empty expression";
+    return false;
+  }
+  
+  /* Compile the LPE expression with error handling */
+  try {
+    return lpe_parser_.compile(lpe_expression.string());
+  }
+  catch (...) {
+    LOG_ERROR << "Exception during LPE compilation for expression: " << lpe_expression.c_str();
+    return false;
+  }
+}
+
+bool Pass::is_lpe_expression_valid() const
+{
+  if (!is_lpe_pass()) {
+    return true;  /* Non-LPE passes are always valid */
+  }
+  
+  /* Try to compile if not already compiled */
+  if (!lpe_parser_.is_valid() && !lpe_expression.empty()) {
+    const_cast<Pass*>(this)->compile_lpe_expression();
+  }
+  
+  return lpe_parser_.is_valid();
 }
 
 CCL_NAMESPACE_END

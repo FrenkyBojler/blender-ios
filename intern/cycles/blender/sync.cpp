@@ -823,6 +823,30 @@ void BlenderSync::sync_render_passes(blender::RenderLayer &b_rlay,
     expected_passes.insert(name);
   }
 
+  /* LPE (Light Path Expression) passes. */
+  BL::ViewLayer::lpes_iterator b_lpe_iter;
+  for (b_view_layer.lpes.begin(b_lpe_iter); b_lpe_iter != b_view_layer.lpes.end(); ++b_lpe_iter) {
+    BL::ViewLayerLPE b_lpe(*b_lpe_iter);
+
+    if (!b_lpe.is_valid()) {
+      LOG_WARNING << "Skipping invalid LPE pass: " << b_lpe.name();
+      continue;
+    }
+
+    const string name = b_lpe.name();
+    const string expression = b_lpe.expression();
+
+    if (name.empty() || expression.empty()) {
+      LOG_WARNING << "Skipping LPE pass with empty name or expression";
+      continue;
+    }
+
+    Pass *pass = pass_add(scene, PASS_LPE, name.c_str(), PassMode::NOISY);
+    pass->set_lpe_expression(ustring(expression));
+    /* LPE ID will be assigned by Film::update_lpe_passes() based on expression */
+    expected_passes.insert(name);
+  }
+
   /* Sync the passes that were defined in engine.py. */
   for (blender::RenderPass &b_pass : b_rlay.passes) {
     PassType pass_type = PASS_NONE;

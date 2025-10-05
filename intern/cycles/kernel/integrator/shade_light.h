@@ -5,6 +5,7 @@
 #pragma once
 
 #include "kernel/film/light_passes.h"
+#include "kernel/film/lpe_passes.h"
 
 #include "kernel/integrator/path_state.h"
 
@@ -68,6 +69,9 @@ ccl_device_inline void integrate_light_forward(KernelGlobals kg,
   const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
   film_write_surface_emission(
       kg, state, eval, mis_weight, render_buffer, object_lightgroup(kg, klight->object_id));
+
+  /* Write LPE passes with Light event. */
+  kernel_lpe_write_pass(kg, state, render_buffer, eval * mis_weight, LPE_EVENT_LIGHT);
 }
 
 /* Evaluate light shader at intersection in forward path tracing. */

@@ -18,6 +18,7 @@ set(SRC
   image_maketx.cpp
   image_metadata.cpp
   log.cpp
+  lpe.cpp
   math_cdf.cpp
   md5.cpp
   murmurhash.cpp
@@ -75,6 +76,7 @@ set(SRC_HEADERS
   image_metadata.h
   list.h
   log.h
+  lpe.h
   map.h
   math.h
   math_base.h

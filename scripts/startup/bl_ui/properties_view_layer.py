@@ -31,6 +31,21 @@ class VIEWLAYER_UL_aov(UIList):
         split.row().prop(item, "type", text="", emboss=False)
 
 
+class VIEWLAYER_UL_lpe(UIList):
+    """UI List for Light Path Expression passes"""
+
+    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname):
+        row = layout.row()
+        split = row.split(factor=0.4)  # Name takes 40%, expression takes 60%
+
+        # LPE Pass Name field
+        icon = 'NONE' if item.is_valid else 'ERROR'
+        split.row().prop(item, "name", text="", icon=icon, emboss=False)
+
+        # LPE Expression field
+        split.row().prop(item, "expression", text="", emboss=False)
+
+
 class ViewLayerButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -254,6 +269,17 @@ class VIEWLAYER_MT_lightgroup_sync(Menu):
         layout.operator("scene.view_layer_remove_unused_lightgroups", icon='REMOVE')
 
 
+class VIEWLAYER_MT_lpe_context_menu(Menu):
+    bl_label = "LPE Specials"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("scene.view_layer_lpe_sort", icon='SORTALPHA', text="Sort by Name")
+        layout.separator()
+        layout.operator("scene.view_layer_lpe_remove_all", icon='X', text="Delete All LPEs")
+
+
 class ViewLayerLightgroupsPanelHelper(ViewLayerButtonsPanel):
     bl_label = "Light Groups"
 
@@ -281,6 +307,49 @@ class ViewLayerLightgroupsPanelHelper(ViewLayerButtonsPanel):
 
 
 class VIEWLAYER_PT_layer_passes_lightgroups(ViewLayerLightgroupsPanelHelper, Panel):
+    bl_parent_id = "VIEWLAYER_PT_layer_passes"
+    COMPAT_ENGINES = {'CYCLES'}
+
+
+class ViewLayerLPEPanelHelper(ViewLayerButtonsPanel):
+    """Helper class for LPE panel functionality"""
+    bl_label = "Light Path Expressions"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        view_layer = context.view_layer
+
+        # Main UI List layout
+        row = layout.row()
+        col = row.column()
+        col.template_list("VIEWLAYER_UL_lpe", "lpes", view_layer, "lpes",
+                         view_layer, "active_lpe_index", rows=3)
+
+        # Add/Remove/Menu buttons
+        col = row.column()
+        sub = col.column(align=True)
+        sub.operator("scene.view_layer_add_lpe", icon='ADD', text="")
+        sub.operator("scene.view_layer_remove_lpe", icon='REMOVE', text="")
+        sub.separator()
+        sub.menu("VIEWLAYER_MT_lpe_context_menu", icon='DOWNARROW_HLT', text="")
+
+        # Up/Down buttons for reordering
+        lpe = view_layer.active_lpe
+        if lpe:
+            sub.separator()
+            sub.operator("scene.view_layer_lpe_move", icon='TRIA_UP', text="").direction = 'UP'
+            sub.operator("scene.view_layer_lpe_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
+
+        # Validation feedback
+        if view_layer.lpes and view_layer.active_lpe and not view_layer.active_lpe.is_valid:
+            layout.label(text="Invalid LPE expression", icon='ERROR')
+
+
+class VIEWLAYER_PT_layer_passes_lpe(ViewLayerLPEPanelHelper, Panel):
+    """Light Path Expressions panel for Cycles"""
     bl_parent_id = "VIEWLAYER_PT_layer_passes"
     COMPAT_ENGINES = {'CYCLES'}
 
@@ -316,7 +385,7 @@ class VIEWLAYER_PT_override(ViewLayerButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_EEVEE',
-        'CYCLES',
+        'BLENDER_RENDER',
     }
 
     def draw(self, context):
@@ -341,6 +410,7 @@ class VIEWLAYER_PT_layer_custom_props(PropertyPanel, Panel):
 
 classes = (
     VIEWLAYER_MT_lightgroup_sync,
+    VIEWLAYER_MT_lpe_context_menu,
     VIEWLAYER_PT_context_layer,
     VIEWLAYER_PT_layer,
     VIEWLAYER_PT_layer_passes,
@@ -350,10 +420,12 @@ classes = (
     VIEWLAYER_PT_layer_passes_cryptomatte,
     VIEWLAYER_PT_layer_passes_aov,
     VIEWLAYER_PT_layer_passes_lightgroups,
+    VIEWLAYER_PT_layer_passes_lpe,
     VIEWLAYER_PT_filter,
     VIEWLAYER_PT_override,
     VIEWLAYER_PT_layer_custom_props,
     VIEWLAYER_UL_aov,
+    VIEWLAYER_UL_lpe,
 )
 
 if __name__ == "__main__":  # only for live edit.

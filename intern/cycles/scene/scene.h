@@ -119,6 +119,9 @@ class Scene : public NodeOwner {
   /* Maps from Light group names to their pass ID. */
   map<ustring, int> lightgroups;
 
+  /* Maps from LPE expression strings to their pass ID. */
+  map<ustring, int> lpe_expressions;
+
   /* data */
   unique_ptr<BVH> bvh;
   unique_ptr<LookupTables> lookup_tables;

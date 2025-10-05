@@ -10,6 +10,7 @@
 #include "kernel/film/data_passes.h"
 #include "kernel/film/denoising_passes.h"
 #include "kernel/film/light_passes.h"
+#include "kernel/film/lpe_passes.h"
 
 #include "kernel/light/sample.h"
 
@@ -153,6 +154,9 @@ ccl_device_forceinline void integrate_surface_emission(KernelGlobals kg,
   guiding_record_surface_emission(kg, state, L, mis_weight);
   film_write_surface_emission(
       kg, state, L, mis_weight, render_buffer, object_lightgroup(kg, sd->object));
+
+  /* Write LPE passes with Emission event. */
+  kernel_lpe_write_pass(kg, state, render_buffer, L * mis_weight, LPE_EVENT_EMISSION);
 }
 
 ccl_device int integrate_surface_ray_portal(KernelGlobals kg,
@@ -209,7 +213,8 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
                                           const Spectrum bsdf_spectrum,
                                           const int light_group,
                                           const int mnee_vertex_count,
-                                          const bool constant_light_shader)
+                                          const bool constant_light_shader,
+                                          const char lpe_event)
 {
 
   /* Branch off shadow kernel. */
@@ -292,6 +297,29 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
     INTEGRATOR_STATE(shadow_state, shadow_path, guiding_mis_weight) = 0.0f;
   }
 #endif
+
+  /* Copy LPE events for light path expression matching */
+  if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_events) = INTEGRATOR_STATE(
+        state, path, lpe_events);
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_event_count) = INTEGRATOR_STATE(
+        state, path, lpe_event_count);
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_lightgroup_id) = INTEGRATOR_STATE(
+        state, path, lpe_lightgroup_id);
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_pass_id) = INTEGRATOR_STATE(
+        state, path, lpe_pass_id);
+
+    /* Add BSDF interaction event for direct lighting */
+    if (lpe_event != '\0') {
+      uint8_t event_count = INTEGRATOR_STATE(shadow_state, shadow_path, lpe_event_count);
+      if (event_count < LPE_MAX_EVENTS) {
+        uint64_t events = INTEGRATOR_STATE(shadow_state, shadow_path, lpe_events);
+        events |= ((uint64_t)lpe_event << (event_count * 8));
+        INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_events) = events;
+        INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_event_count) = event_count + 1;
+      }
+    }
+  }
 
   return shadow_state;
 }
@@ -424,6 +452,36 @@ ccl_device
     ray.P = integrate_surface_ray_offset(kg, sd, ray.P, ray.D);
   }
 
+  /* Compute BSDF weights for LPE and light passes */
+  const Spectrum diffuse_weight = bsdf_eval_pass_diffuse_weight(&bsdf_eval);
+  const Spectrum glossy_weight = bsdf_eval_pass_glossy_weight(&bsdf_eval);
+
+  /* For OSL LPE, add surface type event for direct lighting.
+   * This makes CDL = "Camera → Diffuse surface receives Light" (direct lighting)
+   * vs CDDL = "Camera → Diffuse → Diffuse → Light" (indirect with 1 bounce).
+   * Determine the surface type based on which BSDF component dominates. */
+  char lpe_event = '\0';
+
+  if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+    const float diffuse_avg = average(diffuse_weight);
+    const float glossy_avg = average(glossy_weight);
+
+    /* Compute transmission weight: what's not diffuse or glossy */
+    const Spectrum transmission_weight = one_spectrum() - diffuse_weight - glossy_weight;
+    const float transmission_avg = average(transmission_weight);
+
+    /* Determine dominant surface type. Diffuse has priority for mixed materials. */
+    if (diffuse_avg > glossy_avg && diffuse_avg > transmission_avg) {
+      lpe_event = LPE_EVENT_DIFFUSE;
+    }
+    else if (glossy_avg > transmission_avg) {
+      lpe_event = LPE_EVENT_GLOSSY;
+    }
+    else if (transmission_avg > 0.0f) {
+      lpe_event = LPE_EVENT_TRANSMISSION;
+    }
+  }
+
   /* Branch off shadow kernel. */
   IntegratorShadowState shadow_state = integrate_direct_light_shadow_init_common(
       kg,
@@ -432,7 +490,8 @@ ccl_device
       bsdf_eval_sum(&bsdf_eval),
       ls.group,
       mnee_vertex_count,
-      is_constant_light_shader);
+      is_constant_light_shader,
+      lpe_event);
 
   if (is_transmission) {
 #ifdef __VOLUME__
@@ -454,8 +513,8 @@ ccl_device
     else {
       /* Direct light, use BSDFs at this bounce. */
       shadow_flag |= PATH_RAY_SURFACE_PASS;
-      pass_diffuse_weight = PackedSpectrum(bsdf_eval_pass_diffuse_weight(&bsdf_eval));
-      pass_glossy_weight = PackedSpectrum(bsdf_eval_pass_glossy_weight(&bsdf_eval));
+      pass_diffuse_weight = PackedSpectrum(diffuse_weight);
+      pass_glossy_weight = PackedSpectrum(glossy_weight);
     }
 
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, pass_diffuse_weight) = pass_diffuse_weight;
@@ -598,6 +657,9 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
                                 normalize(bsdf_wo),
                                 bsdf_sampled_roughness,
                                 bsdf_eta);
+
+  /* Record LPE bounce event based on closure type. */
+  kernel_lpe_record_bounce_from_closure(state, sc->type);
 
   return label;
 }

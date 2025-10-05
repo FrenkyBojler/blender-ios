@@ -651,6 +651,16 @@ void BKE_view_layer_rename_lightgroup(Scene *scene,
                                       ViewLayerLightgroup *lightgroup,
                                       const char *name);
 
+/* Light Path Expression functions */
+ViewLayerLPE *BKE_view_layer_add_lpe(ViewLayer *view_layer, const char *name);
+void BKE_view_layer_remove_lpe(ViewLayer *view_layer, ViewLayerLPE *lpe);
+void BKE_view_layer_set_active_lpe(ViewLayer *view_layer, ViewLayerLPE *lpe);
+ViewLayer *BKE_view_layer_find_with_lpe(Scene *scene, ViewLayerLPE *lpe);
+void BKE_view_layer_rename_lpe(Scene *scene,
+                               ViewLayer *view_layer,
+                               ViewLayerLPE *lpe,
+                               const char *name);
+
 int BKE_lightgroup_membership_get(const LightgroupMembership *lgm, char *name);
 int BKE_lightgroup_membership_length(const LightgroupMembership *lgm);
 void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name);

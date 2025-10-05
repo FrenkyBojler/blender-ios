@@ -8,6 +8,7 @@
 
 #include "util/string.h"
 #include "util/unique_ptr_vector.h"
+#include "util/lpe.h"
 
 #include "kernel/types.h"
 
@@ -56,6 +57,10 @@ class Pass : public Node {
   NODE_SOCKET_API(ustring, name)
   NODE_SOCKET_API(bool, include_albedo)
   NODE_SOCKET_API(ustring, lightgroup)
+  NODE_SOCKET_API(ustring, lpe_expression)
+
+  /* LPE numeric ID (assigned during scene sync, similar to lightgroup IDs) */
+  int lpe_id;
 
   Pass();
 
@@ -66,10 +71,19 @@ class Pass : public Node {
    * pixels allocated to save memory. */
   bool is_written() const;
 
+  /* LPE-specific methods */
+  bool is_lpe_pass() const { return type == PASS_LPE; }
+  bool compile_lpe_expression();
+  bool is_lpe_expression_valid() const;
+
  protected:
   /* This has been created automatically as a requirement to various rendering functionality
    * (such as adaptive sampling). */
   bool is_auto_;
+
+ private:
+  /* LPE parser for compiled expression */
+  mutable LPEParser lpe_parser_;
 
  public:
   static const NodeEnum *get_type_enum();

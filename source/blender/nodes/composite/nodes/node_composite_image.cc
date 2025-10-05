@@ -14,6 +14,7 @@
 #include "BKE_node_runtime.hh"
 
 #include "DNA_image_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
@@ -22,6 +23,460 @@
 #include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
+/* **************** IMAGE (and RenderResult, multi-layer image) ******************** */
+
+static blender::bke::bNodeSocketTemplate cmp_node_rlayers_out[] = {
+    {SOCK_RGBA, N_("Image"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_("Alpha"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_(RE_PASSNAME_DEPTH), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_VECTOR, N_(RE_PASSNAME_NORMAL), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_VECTOR, N_(RE_PASSNAME_UV), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_VECTOR, N_(RE_PASSNAME_VECTOR), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_VECTOR, N_(RE_PASSNAME_POSITION), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_DEPRECATED), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_DEPRECATED), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_SHADOW), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_AO), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_DEPRECATED), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_DEPRECATED), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_DEPRECATED), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_(RE_PASSNAME_INDEXOB), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_(RE_PASSNAME_INDEXMA), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_(RE_PASSNAME_MIST), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_EMIT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_ENVIRONMENT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_DIFFUSE_DIRECT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_DIFFUSE_INDIRECT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_DIFFUSE_COLOR), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_GLOSSY_DIRECT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_GLOSSY_INDIRECT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_GLOSSY_COLOR), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_TRANSM_DIRECT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_TRANSM_INDIRECT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_TRANSM_COLOR), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_SUBSURFACE_DIRECT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_SUBSURFACE_INDIRECT), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_RGBA, N_(RE_PASSNAME_SUBSURFACE_COLOR), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {-1, ""},
+};
+#define NUM_LEGACY_SOCKETS (ARRAY_SIZE(cmp_node_rlayers_out) - 1)
+
+static const char *cmp_node_legacy_pass_name(const char *name)
+{
+  if (STREQ(name, "Diffuse Direct")) {
+    return "DiffDir";
+  }
+  if (STREQ(name, "Diffuse Indirect")) {
+    return "DiffInd";
+  }
+  if (STREQ(name, "Diffuse Color")) {
+    return "DiffCol";
+  }
+  if (STREQ(name, "Glossy Direct")) {
+    return "GlossDir";
+  }
+  if (STREQ(name, "Glossy Indirect")) {
+    return "GlossInd";
+  }
+  if (STREQ(name, "Glossy Color")) {
+    return "GlossCol";
+  }
+  if (STREQ(name, "Transmission Direct")) {
+    return "TransDir";
+  }
+  if (STREQ(name, "Transmission Indirect")) {
+    return "TransInd";
+  }
+  if (STREQ(name, "Transmission Color")) {
+    return "TransCol";
+  }
+  if (STREQ(name, "Volume Direct")) {
+    return "VolumeDir";
+  }
+  if (STREQ(name, "Volume Indirect")) {
+    return "VolumeInd";
+  }
+  if (STREQ(name, "Volume Color")) {
+    return "VolumeCol";
+  }
+  if (STREQ(name, "Ambient Occlusion")) {
+    return "AO";
+  }
+  if (STREQ(name, "Environment")) {
+    return "Env";
+  }
+  if (STREQ(name, "Material Index")) {
+    return "IndexMA";
+  }
+  if (STREQ(name, "Object Index")) {
+    return "IndexOB";
+  }
+  if (STREQ(name, "Grease Pencil")) {
+    return "GreasePencil";
+  }
+  if (STREQ(name, "Emission")) {
+    return "Emit";
+  }
+
+  return nullptr;
+}
+
+static void cmp_node_image_add_pass_output(bNodeTree *ntree,
+                                           bNode *node,
+                                           const char *name,
+                                           const char *passname,
+                                           int rres_index,
+                                           eNodeSocketDatatype type,
+                                           int /*is_rlayers*/,
+                                           LinkNodePair *available_sockets,
+                                           int *prev_index)
+{
+  bNodeSocket *sock = (bNodeSocket *)BLI_findstring(
+      &node->outputs, name, offsetof(bNodeSocket, name));
+
+  /* Rename legacy socket names to new ones. */
+  if (sock == nullptr) {
+    const char *legacy_name = cmp_node_legacy_pass_name(name);
+    if (legacy_name) {
+      sock = (bNodeSocket *)BLI_findstring(
+          &node->outputs, legacy_name, offsetof(bNodeSocket, name));
+      if (sock) {
+        STRNCPY(sock->name, name);
+        STRNCPY(sock->identifier, name);
+      }
+    }
+  }
+
+  /* Replace if types don't match. */
+  if (sock && sock->type != type) {
+    blender::bke::node_remove_socket(*ntree, *node, *sock);
+    sock = nullptr;
+  }
+
+  /* Create socket if it doesn't exist yet. */
+  if (sock == nullptr) {
+    if (rres_index >= 0) {
+      sock = node_add_socket_from_template(
+          ntree, node, &cmp_node_rlayers_out[rres_index], SOCK_OUT);
+    }
+    else {
+      sock = blender::bke::node_add_static_socket(
+          *ntree, *node, SOCK_OUT, type, PROP_NONE, name, name);
+    }
+    /* extra socket info */
+    NodeImageLayer *sockdata = MEM_callocN<NodeImageLayer>(__func__);
+    sock->storage = sockdata;
+  }
+
+  NodeImageLayer *sockdata = (NodeImageLayer *)sock->storage;
+  if (sockdata) {
+    STRNCPY_UTF8(sockdata->pass_name, passname);
+  }
+
+  /* Reorder sockets according to order that passes are added. */
+  const int after_index = (*prev_index)++;
+  bNodeSocket *after_sock = (bNodeSocket *)BLI_findlink(&node->outputs, after_index);
+  BLI_remlink(&node->outputs, sock);
+  BLI_insertlinkafter(&node->outputs, after_sock, sock);
+
+  BLI_linklist_append(available_sockets, sock);
+}
+
+static eNodeSocketDatatype socket_type_from_pass(const RenderPass *pass)
+{
+  switch (pass->channels) {
+    case 1:
+      return SOCK_FLOAT;
+    case 2:
+    case 3:
+      if (STR_ELEM(pass->chan_id, "RGB", "rgb")) {
+        return SOCK_RGBA;
+      }
+      else {
+        return SOCK_VECTOR;
+      }
+    case 4:
+      if (STR_ELEM(pass->chan_id, "RGBA", "rgba")) {
+        return SOCK_RGBA;
+      }
+      else {
+        return SOCK_VECTOR;
+      }
+    default:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return SOCK_FLOAT;
+}
+
+static void cmp_node_image_create_outputs(bNodeTree *ntree,
+                                          bNode *node,
+                                          LinkNodePair *available_sockets)
+{
+  Image *ima = (Image *)node->id;
+  ImBuf *ibuf;
+  int prev_index = -1;
+  if (ima) {
+    ImageUser *iuser = (ImageUser *)node->storage;
+    ImageUser load_iuser = {nullptr};
+    int offset = BKE_image_sequence_guess_offset(ima);
+
+    /* It is possible that image user in this node is not
+     * properly updated yet. In this case loading image will
+     * fail and sockets detection will go wrong.
+     *
+     * So we manually construct image user to be sure first
+     * image from sequence (that one which is set as filename
+     * for image data-block) is used for sockets detection. */
+    load_iuser.framenr = offset;
+
+    /* make sure ima->type is correct */
+    ibuf = BKE_image_acquire_ibuf(ima, &load_iuser, nullptr);
+
+    if (ima->rr) {
+      RenderLayer *rl = (RenderLayer *)BLI_findlink(&ima->rr->layers, iuser->layer);
+
+      if (rl) {
+        LISTBASE_FOREACH (RenderPass *, rpass, &rl->passes) {
+          const eNodeSocketDatatype type = socket_type_from_pass(rpass);
+          cmp_node_image_add_pass_output(ntree,
+                                         node,
+                                         rpass->name,
+                                         rpass->name,
+                                         -1,
+                                         type,
+                                         false,
+                                         available_sockets,
+                                         &prev_index);
+          /* Special handling for the Combined pass to ensure compatibility. */
+          if (STREQ(rpass->name, RE_PASSNAME_COMBINED)) {
+            cmp_node_image_add_pass_output(ntree,
+                                           node,
+                                           "Alpha",
+                                           rpass->name,
+                                           -1,
+                                           SOCK_FLOAT,
+                                           false,
+                                           available_sockets,
+                                           &prev_index);
+          }
+        }
+        BKE_image_release_ibuf(ima, ibuf, nullptr);
+        return;
+      }
+    }
+  }
+
+  cmp_node_image_add_pass_output(ntree,
+                                 node,
+                                 "Image",
+                                 RE_PASSNAME_COMBINED,
+                                 -1,
+                                 SOCK_RGBA,
+                                 false,
+                                 available_sockets,
+                                 &prev_index);
+  cmp_node_image_add_pass_output(ntree,
+                                 node,
+                                 "Alpha",
+                                 RE_PASSNAME_COMBINED,
+                                 -1,
+                                 SOCK_FLOAT,
+                                 false,
+                                 available_sockets,
+                                 &prev_index);
+
+  if (ima) {
+    BKE_image_release_ibuf(ima, ibuf, nullptr);
+  }
+}
+
+struct RLayerUpdateData {
+  LinkNodePair *available_sockets;
+  int prev_index;
+};
+
+void node_cmp_rlayers_register_pass(bNodeTree *ntree,
+                                    bNode *node,
+                                    Scene *scene,
+                                    ViewLayer *view_layer,
+                                    const char *name,
+                                    eNodeSocketDatatype type)
+{
+  RLayerUpdateData *data = (RLayerUpdateData *)node->storage;
+
+  if (scene == nullptr || view_layer == nullptr || data == nullptr || node->id != (ID *)scene) {
+    return;
+  }
+
+  ViewLayer *node_view_layer = (ViewLayer *)BLI_findlink(&scene->view_layers, node->custom1);
+  if (node_view_layer != view_layer) {
+    return;
+  }
+
+  /* Special handling for the Combined pass to ensure compatibility. */
+  if (STREQ(name, RE_PASSNAME_COMBINED)) {
+    cmp_node_image_add_pass_output(
+        ntree, node, "Image", name, -1, type, true, data->available_sockets, &data->prev_index);
+    cmp_node_image_add_pass_output(ntree,
+                                   node,
+                                   "Alpha",
+                                   name,
+                                   -1,
+                                   SOCK_FLOAT,
+                                   true,
+                                   data->available_sockets,
+                                   &data->prev_index);
+  }
+  else {
+    cmp_node_image_add_pass_output(
+        ntree, node, name, name, -1, type, true, data->available_sockets, &data->prev_index);
+  }
+}
+
+struct CreateOutputUserData {
+  bNodeTree &ntree;
+  bNode &node;
+};
+
+static void cmp_node_rlayer_create_outputs_cb(void *userdata,
+                                              Scene *scene,
+                                              ViewLayer *view_layer,
+                                              const char *name,
+                                              int /*channels*/,
+                                              const char * /*chanid*/,
+                                              eNodeSocketDatatype type)
+{
+  CreateOutputUserData &data = *(CreateOutputUserData *)userdata;
+  node_cmp_rlayers_register_pass(&data.ntree, &data.node, scene, view_layer, name, type);
+}
+
+static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
+                                           bNode *node,
+                                           LinkNodePair *available_sockets)
+{
+  Scene *scene = (Scene *)node->id;
+
+  if (scene) {
+    RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
+    if (engine_type && engine_type->update_render_passes) {
+      ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&scene->view_layers, node->custom1);
+      if (view_layer) {
+        RLayerUpdateData *data = MEM_mallocN<RLayerUpdateData>("render layer update data");
+        data->available_sockets = available_sockets;
+        data->prev_index = -1;
+        node->storage = data;
+
+        CreateOutputUserData userdata = {*ntree, *node};
+
+        RenderEngine *engine = RE_engine_create(engine_type);
+        RE_engine_update_render_passes(
+            engine, scene, view_layer, cmp_node_rlayer_create_outputs_cb, &userdata);
+        RE_engine_free(engine);
+
+        if ((scene->r.mode & R_EDGE_FRS) &&
+            (view_layer->freestyle_config.flags & FREESTYLE_AS_RENDER_PASS))
+        {
+          node_cmp_rlayers_register_pass(
+              ntree, node, scene, view_layer, RE_PASSNAME_FREESTYLE, SOCK_RGBA);
+        }
+
+        if (view_layer->grease_pencil_flags & GREASE_PENCIL_AS_SEPARATE_PASS) {
+          node_cmp_rlayers_register_pass(
+              ntree, node, scene, view_layer, RE_PASSNAME_GREASE_PENCIL, SOCK_RGBA);
+        }
+
+        /* Register LPE passes */
+        if (!BLI_listbase_is_empty(&view_layer->lpes)) {
+          LISTBASE_FOREACH (ViewLayerLPE *, lpe, &view_layer->lpes) {
+            if (lpe->name[0] != '\0' && lpe->expression[0] != '\0') {
+              node_cmp_rlayers_register_pass(
+                  ntree, node, scene, view_layer, lpe->name, SOCK_RGBA);
+            }
+          }
+        }
+
+        MEM_freeN(data);
+        node->storage = nullptr;
+
+        return;
+      }
+    }
+  }
+
+  int prev_index = -1;
+  cmp_node_image_add_pass_output(ntree,
+                                 node,
+                                 "Image",
+                                 RE_PASSNAME_COMBINED,
+                                 RRES_OUT_IMAGE,
+                                 SOCK_RGBA,
+                                 true,
+                                 available_sockets,
+                                 &prev_index);
+  cmp_node_image_add_pass_output(ntree,
+                                 node,
+                                 "Alpha",
+                                 RE_PASSNAME_COMBINED,
+                                 RRES_OUT_ALPHA,
+                                 SOCK_FLOAT,
+                                 true,
+                                 available_sockets,
+                                 &prev_index);
+}
+
+/* XXX make this into a generic socket verification function for dynamic socket replacement
+ * (multi-layer, groups, static templates). */
+static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rlayer)
+{
+  bNodeSocket *sock, *sock_next;
+  LinkNodePair available_sockets = {nullptr, nullptr};
+
+  /* XXX make callback */
+  if (rlayer) {
+    cmp_node_rlayer_create_outputs(ntree, node, &available_sockets);
+  }
+  else {
+    cmp_node_image_create_outputs(ntree, node, &available_sockets);
+  }
+
+  /* Get rid of sockets whose passes are not available in the image.
+   * If sockets that are not available would be deleted, the connections to them would be lost
+   * when e.g. opening a file (since there's no render at all yet).
+   * Therefore, sockets with connected links will just be set as unavailable.
+   *
+   * Another important detail comes from compatibility with the older socket model, where there
+   * was a fixed socket per pass type that was just hidden or not. Therefore, older versions expect
+   * the first 31 passes to belong to a specific pass type.
+   * So, we keep those 31 always allocated before the others as well,
+   * even if they have no links attached. */
+  int sock_index = 0;
+  for (sock = (bNodeSocket *)node->outputs.first; sock; sock = sock_next, sock_index++) {
+    sock_next = sock->next;
+    if (BLI_linklist_index(available_sockets.list, sock) >= 0) {
+      sock->flag &= ~SOCK_HIDDEN;
+      blender::bke::node_set_socket_availability(*ntree, *sock, true);
+    }
+    else {
+      bNodeLink *link;
+      for (link = (bNodeLink *)ntree->links.first; link; link = link->next) {
+        if (link->fromsock == sock) {
+          break;
+        }
+      }
+      if (!link && (!rlayer || sock_index >= NUM_LEGACY_SOCKETS)) {
+        MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
+        blender::bke::node_remove_socket(*ntree, *node, *sock);
+      }
+      else {
+        blender::bke::node_set_socket_availability(*ntree, *sock, false);
+      }
+    }
+  }
+
+  BLI_linklist_free(available_sockets.list, nullptr);
+}
 
 namespace blender::nodes::node_composite_image_cc {
 

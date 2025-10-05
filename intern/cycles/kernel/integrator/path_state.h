@@ -8,6 +8,8 @@
 
 #include "kernel/sample/pattern.h"
 
+#include "kernel/film/lpe_passes.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Initialize queues, so that this path is considered terminated.
@@ -58,6 +60,9 @@ ccl_device_inline void path_state_init_integrator(KernelGlobals kg,
   INTEGRATOR_STATE_WRITE(state, path, rng_offset) = PRNG_BOUNCE_NUM;
   INTEGRATOR_STATE_WRITE(state, path, flag) = PATH_RAY_CAMERA | PATH_RAY_MIS_SKIP |
                                               PATH_RAY_TRANSPARENT_BACKGROUND;
+  
+  /* Initialize LPE path tracking. */
+  kernel_lpe_init_camera_ray(state);
   INTEGRATOR_STATE_WRITE(state, path, mis_ray_pdf) = 0.0f;
   INTEGRATOR_STATE_WRITE(state, path, min_ray_pdf) = FLT_MAX;
   INTEGRATOR_STATE_WRITE(state, path, continuation_probability) = 1.0f;
@@ -105,6 +110,11 @@ ccl_device_inline void path_state_init_integrator(KernelGlobals kg,
     INTEGRATOR_STATE_WRITE(state, path, mis_ray_object) = OBJECT_NONE;
   }
 #endif
+
+  /* Initialize LPE path tracking with camera event */
+  if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+    kernel_lpe_init_camera_ray(state);
+  }
 }
 
 ccl_device_inline void path_state_next(KernelGlobals kg,
@@ -160,6 +170,10 @@ ccl_device_inline void path_state_next(KernelGlobals kg,
     if (volume_bounce >= kernel_data.integrator.max_volume_bounce) {
       flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
     }
+    /* Record LPE volume interaction event */
+    if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+      kernel_lpe_record_volume_event(state);
+    }
 
     if (bounce == 1) {
       flag &= ~PATH_RAY_VOLUME_PRIMARY_TRANSMIT;
@@ -179,12 +193,25 @@ ccl_device_inline void path_state_next(KernelGlobals kg,
         if (diffuse_bounce >= kernel_data.integrator.max_diffuse_bounce) {
           flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
         }
+        /* Record LPE diffuse bounce event */
+        if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+          kernel_lpe_record_diffuse_bounce(state);
+        }
       }
       else {
         const int glossy_bounce = INTEGRATOR_STATE(state, path, glossy_bounce) + 1;
         INTEGRATOR_STATE_WRITE(state, path, glossy_bounce) = glossy_bounce;
         if (glossy_bounce >= kernel_data.integrator.max_glossy_bounce) {
           flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
+        }
+        /* Record LPE glossy or singular bounce event */
+        if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+          if (label & LABEL_SINGULAR) {
+            kernel_lpe_record_singular_bounce(state);
+          }
+          else {
+            kernel_lpe_record_glossy_bounce(state);
+          }
         }
       }
     }
@@ -201,6 +228,10 @@ ccl_device_inline void path_state_next(KernelGlobals kg,
       INTEGRATOR_STATE_WRITE(state, path, transmission_bounce) = transmission_bounce;
       if (transmission_bounce >= kernel_data.integrator.max_transmission_bounce) {
         flag |= PATH_RAY_TERMINATE_AFTER_TRANSPARENT;
+      }
+      /* Record LPE transmission bounce event */
+      if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+        kernel_lpe_record_transmission_bounce(state);
       }
     }
 

@@ -44,6 +44,11 @@ void ED_operatortypes_render()
   WM_operatortype_append(SCENE_OT_view_layer_remove);
   WM_operatortype_append(SCENE_OT_view_layer_add_aov);
   WM_operatortype_append(SCENE_OT_view_layer_remove_aov);
+  WM_operatortype_append(SCENE_OT_view_layer_add_lpe);
+  WM_operatortype_append(SCENE_OT_view_layer_remove_lpe);
+  WM_operatortype_append(SCENE_OT_view_layer_lpe_move);
+  WM_operatortype_append(SCENE_OT_view_layer_lpe_sort);
+  WM_operatortype_append(SCENE_OT_view_layer_lpe_remove_all);
   WM_operatortype_append(SCENE_OT_view_layer_add_lightgroup);
   WM_operatortype_append(SCENE_OT_view_layer_remove_lightgroup);
   WM_operatortype_append(SCENE_OT_view_layer_add_used_lightgroups);

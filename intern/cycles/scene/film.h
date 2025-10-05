@@ -5,12 +5,14 @@
 #pragma once
 
 #include "scene/pass.h"
+#include "scene/tables.h"
 
 #include "kernel/types.h"
 
 #include "graph/node.h"
 
 #include "util/string.h"
+#include "util/map.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -54,9 +56,12 @@ class Film : public Node {
 
  private:
   size_t filter_table_offset_;
+  size_t lpe_expressions_offset_ = TABLE_OFFSET_INVALID;
   bool prev_have_uv_pass = false;
   bool prev_have_motion_pass = false;
   bool prev_have_ao_pass = false;
+  /* Track LPE passes for offset calculation */
+  map<string, Pass*> lpe_pass_map_;
 
  public:
   Film();
@@ -74,6 +79,11 @@ class Film : public Node {
 
   /* Update passes so that they contain all passes required for the configured functionality. */
   void update_passes(Scene *scene);
+
+  /* LPE-specific methods */
+  void register_lpe_passes(Scene *scene);
+  bool update_lpe_passes(Scene *scene);
+  int get_lpe_offset(Scene *scene, const string &lpe_name) const;
 
   uint get_kernel_features(const Scene *scene) const;
 
