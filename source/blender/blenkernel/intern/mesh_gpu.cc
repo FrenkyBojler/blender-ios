@@ -27,6 +27,34 @@
 
 #include "../draw/intern/draw_cache_extract.hh"
 
+struct MeshGpuData {
+  blender::bke::MeshGPUTopology topology;
+  blender::gpu::StorageBuf *ssbo_positions = nullptr;
+};
+
+static std::unordered_map<std::string, blender::gpu::Shader *> g_shader_cache;
+static std::unordered_map<const Mesh *, MeshGpuData> g_mesh_data_cache;
+static std::vector<MeshGpuData> g_mesh_data_orphans;
+static std::mutex g_mesh_cache_mutex;
+
+static void mesh_gpu_orphans_flush()
+{
+  std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+
+  if (!GPU_context_active_get()) {
+    return;
+  }
+
+  for (MeshGpuData &d : g_mesh_data_orphans) {
+    if (d.ssbo_positions) {
+      GPU_storagebuf_free(d.ssbo_positions);
+      d.ssbo_positions = nullptr;
+    }
+    BKE_mesh_gpu_topology_free(d.topology);
+  }
+  g_mesh_data_orphans.clear();
+}
+
 bool BKE_mesh_gpu_topology_create(const Mesh *mesh, blender::bke::MeshGPUTopology &topology)
 {
   if (!mesh) {
@@ -234,15 +262,6 @@ blender::gpu::StorageBuf *BKE_mesh_gpu_positions_create_ssbo(const Mesh *mesh)
 #define MESH_GPU_TOPOLOGY_BINDING 14
 #define MESH_GPU_POSITIONS_BINDING 15
 
-struct MeshGpuData {
-  blender::bke::MeshGPUTopology topology;
-  blender::gpu::StorageBuf *ssbo_positions = nullptr;
-};
-
-static std::unordered_map<std::string, blender::gpu::Shader *> g_shader_cache;
-static std::unordered_map<const Mesh *, MeshGpuData> g_mesh_data_cache;
-static std::mutex g_mesh_cache_mutex;
-
 blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const Depsgraph *depsgraph,
     const Object *ob_eval,
@@ -254,6 +273,11 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 {
   if (!GPU_context_active_get() || !depsgraph || !ob_eval || ob_eval->type != OB_MESH) {
     return blender::bke::GpuComputeStatus::Error;
+  }
+
+  /* Attempt to free any deferred resources now that we are on a GPU context. */
+  if (GPU_context_active_get()) {
+    mesh_gpu_orphans_flush();
   }
 
   Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
@@ -306,17 +330,29 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
   std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
 
-  auto &mesh_data = g_mesh_data_cache[mesh_eval];
+  /* Use original mesh as cache key. Resources are persistent per original mesh. */
+  if (!mesh_orig) {
+    mesh_eval->is_running_gpu_deform = 0;
+    return blender::bke::GpuComputeStatus::Error;
+  }
+
+  auto &mesh_data = g_mesh_data_cache[mesh_orig];
+  /* Create/upload topology (from evaluated mesh) if needed. On failure cleanup. */
   if (!mesh_data.topology.ssbo) {
     if (!BKE_mesh_gpu_topology_create(mesh_eval, mesh_data.topology) ||
         !BKE_mesh_gpu_topology_upload(mesh_data.topology))
     {
+      BKE_mesh_gpu_free_for_mesh(mesh_orig);
+      mesh_eval->is_running_gpu_deform = 0;
       return blender::bke::GpuComputeStatus::Error;
     }
   }
+  /* Create positions SSBO (from evaluated mesh) if needed. */
   if (!mesh_data.ssbo_positions) {
     mesh_data.ssbo_positions = BKE_mesh_gpu_positions_create_ssbo(mesh_eval);
     if (!mesh_data.ssbo_positions) {
+      BKE_mesh_gpu_free_for_mesh(mesh_orig);
+      mesh_eval->is_running_gpu_deform = 0;
       return blender::bke::GpuComputeStatus::Error;
     }
   }
@@ -392,31 +428,59 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
 void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
 {
+  if (mesh == nullptr) {
+    return;
+  }
+
   std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
   auto it = g_mesh_data_cache.find(mesh);
-  if (it != g_mesh_data_cache.end()) {
-    MeshGpuData &data = it->second;
+  if (it == g_mesh_data_cache.end()) {
+    /* Ensure flag reset even if no cached data */
+    mesh->is_using_gpu_deform = 0;
+    return;
+  }
+
+  /* Move data out of the cache map. */
+  MeshGpuData data = std::move(it->second);
+  g_mesh_data_cache.erase(it);
+
+  if (GPU_context_active_get()) {
+    /* Immediate GPU-safe deletion. */
     if (data.ssbo_positions) {
       GPU_storagebuf_free(data.ssbo_positions);
+      data.ssbo_positions = nullptr;
     }
     BKE_mesh_gpu_topology_free(data.topology);
-    mesh->is_using_gpu_deform = 0;
-    g_mesh_data_cache.erase(it);
   }
+  else {
+    /* Defer freeing until a GPU context is available. */
+    g_mesh_data_orphans.push_back(std::move(data));
+  }
+
+  mesh->is_using_gpu_deform = 0;
 }
 
 void BKE_mesh_gpu_free_all_caches()
 {
   std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
+
+  /* Free per-mesh cache entries. */
   for (auto &pair : g_mesh_data_cache) {
     MeshGpuData &data = pair.second;
-    if (data.ssbo_positions) {
+    if (data.ssbo_positions && GPU_context_active_get()) {
       GPU_storagebuf_free(data.ssbo_positions);
+      data.ssbo_positions = nullptr;
     }
     BKE_mesh_gpu_topology_free(data.topology);
   }
   g_mesh_data_cache.clear();
 
+  /* Try to flush any deferred frees if we have a context. */
+  if (GPU_context_active_get()) {
+    mesh_gpu_orphans_flush();
+  }
+
+  /* Free shader cache (global). */
   for (auto &pair : g_shader_cache) {
     if (pair.second) {
       GPU_shader_free(pair.second);

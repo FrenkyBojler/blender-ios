@@ -28,6 +28,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_gpu.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
@@ -38,10 +39,6 @@
 
 #include "GPU_batch.hh"
 #include "GPU_material.hh"
-
-#ifdef WITH_PYTHON
-#include "../python/gpu/gpu_py_mesh_scatter.hh"
-#endif
 
 #include "DRW_render.hh"
 
@@ -481,8 +478,6 @@ static void mesh_batch_cache_init(Mesh &mesh)
   }
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh.runtime->batch_cache);
 
-  cache->mesh_owner = &mesh;
-
   cache->is_editmode = mesh.runtime->edit_mesh != nullptr;
 
   if (cache->is_editmode == false) {
@@ -677,10 +672,10 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
 void DRW_mesh_batch_cache_free(void *batch_cache)
 {
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(batch_cache);
-#ifdef WITH_PYTHON
   BLI_assert(cache->mesh_owner != nullptr);
-  bpygpu_mesh_scatter_free_for_mesh(cache->mesh_owner);
-#endif
+  if (cache->mesh_owner) {
+    BKE_mesh_gpu_free_for_mesh(cache->mesh_owner);
+  }
   mesh_batch_cache_clear(*cache);
   MEM_delete(cache);
 }
