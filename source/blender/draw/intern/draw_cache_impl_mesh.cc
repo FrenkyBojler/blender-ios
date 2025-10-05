@@ -673,7 +673,7 @@ void DRW_mesh_batch_cache_free(void *batch_cache)
 {
   MeshBatchCache *cache = static_cast<MeshBatchCache *>(batch_cache);
   BLI_assert(cache->mesh_owner != nullptr);
-  if (cache->mesh_owner) {
+  if (cache->mesh_owner && cache->mesh_owner->is_using_gpu_deform == 0) {
     BKE_mesh_gpu_free_for_mesh(cache->mesh_owner);
   }
   mesh_batch_cache_clear(*cache);

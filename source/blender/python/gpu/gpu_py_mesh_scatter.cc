@@ -119,49 +119,6 @@ void main() {
 }
 )GLSL";
 
-/* Helper to create a temporary SSBO for the transform matrix. */
-static blender::gpu::StorageBuf *create_transform_ssbo_from_py(PyObject *py_transform)
-{
-  if (!py_transform || py_transform == Py_None) {
-    // No transform provided, create an identity matrix SSBO.
-    float identity_mat[4][4];
-    unit_m4(identity_mat);
-    return GPU_storagebuf_create_ex(
-        sizeof(identity_mat), identity_mat, GPU_USAGE_STATIC, __func__);
-  }
-
-  float transform_mat[16];
-  if (MatrixObject_Check(py_transform)) {
-    MatrixObject *mat = (MatrixObject *)py_transform;
-    if (BaseMath_ReadCallback((BaseMathObject *)mat) == -1 || mat->row_num != 4 ||
-        mat->col_num != 4)
-    {
-      PyErr_SetString(PyExc_ValueError, "Invalid 4x4 mathutils.Matrix for transform");
-      return nullptr;
-    }
-    memcpy(transform_mat, mat->matrix, sizeof(transform_mat));
-  }
-  else {
-    // Fallback for sequence of 16 floats.
-    if (!PySequence_Check(py_transform) || PySequence_Size(py_transform) != 16) {
-      PyErr_SetString(PyExc_TypeError,
-                      "transform must be a 4x4 mathutils.Matrix or a sequence of 16 floats");
-      return nullptr;
-    }
-    for (int i = 0; i < 16; i++) {
-      PyObject *item = PySequence_GetItem(py_transform, i);
-      if (!item)
-        return nullptr;
-      transform_mat[i] = PyFloat_AsDouble(item);
-      Py_DECREF(item);
-      if (PyErr_Occurred())
-        return nullptr;
-    }
-  }
-  return GPU_storagebuf_create_ex(
-      sizeof(transform_mat), transform_mat, GPU_USAGE_STATIC, __func__);
-}
-
 PyDoc_STRVAR(
     pygpu_mesh_scatter_doc,
     ".. function:: scatter_positions_to_corners(obj, ssbo_positions, transform=None)\n"
@@ -182,14 +139,8 @@ PyDoc_STRVAR(
     "   populate VBOs synchronously.\n\n"
     "   `obj` must be an evaluated bpy.types.Object owning a mesh. `ssbo_positions`\n"
     "   must be a gpu.types.GPUStorageBuf containing vec4 per vertex.\n\n"
-    "   Optional argument `transform` may be provided to apply a 4x4 transform when\n"
-    "   scattering positions. Accepted values:\n"
-    "     - a `mathutils.Matrix` (4x4) — the matrix is copied as-is from the mathutils\n"
-    "       object (internal mathutils layout).\n"
-    "     - a flat sequence of 16 floats — the sequence must be provided in column-major\n"
-    "       order (suitable for GLSL `mat4`).\n\n"
-    "   If you need a different memory layout, transpose the matrix in Python before\n"
-    "   calling (for example: `[m[row][col] for col in range(4) for row in range(4)]`).\n");
+    "   Optional argument `transform` must be a gpu.types.GPUStorageBuf containing\n"
+    "   a mat4");
 
 static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
@@ -198,7 +149,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
 
   PyObject *py_obj = nullptr;
   BPyGPUStorageBuf *py_ssbo_skinned_pos = nullptr;
-  PyObject *py_transform = nullptr;
+  BPyGPUStorageBuf *py_ssbo_transform = nullptr;
 
   static const char *keywords[] = {"obj", "ssbo", "transform", nullptr};
   if (!PyArg_ParseTupleAndKeywords(args,
@@ -207,7 +158,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
                                    (char **)keywords,
                                    &py_obj,
                                    &py_ssbo_skinned_pos,
-                                   &py_transform))
+                                   &py_ssbo_transform))
   {
     return nullptr;
   }
@@ -218,7 +169,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
     return nullptr;
   }
   if (!py_ssbo_skinned_pos || !py_ssbo_skinned_pos->ssbo) {
-    PyErr_SetString(PyExc_TypeError, "Expected a GPUStorageBuf as second argument");
+    PyErr_SetString(PyExc_TypeError, "Expected a GPUStorageBuf as second argument (positions SSBO)");
     return nullptr;
   }
 
@@ -256,9 +207,23 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   auto *vbo_pos = cache->final.buff.vbos.lookup_ptr(VBOType::Position)->get();
   auto *vbo_nor = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal)->get();
 
-  blender::gpu::StorageBuf *transform_ssbo = create_transform_ssbo_from_py(py_transform);
-  if (PyErr_Occurred()) {
-    return nullptr;
+  /* Transform SSBO: optional. If not provided, create an identity SSBO and mark it
+   * as owned by this function (we will free it unless compute is deferred). */
+  blender::gpu::StorageBuf *transform_ssbo = nullptr;
+  bool transform_owned = false;
+
+  if (py_ssbo_transform == nullptr) {
+    transform_ssbo = GPU_storagebuf_create(sizeof(float) * 16);
+    float m[4][4];
+    unit_m4(m);
+    GPU_storagebuf_update(transform_ssbo, &m[0][0]);
+    transform_owned = true;
+  }
+  else {
+    if (!py_ssbo_transform->ssbo) {
+      PyErr_SetString(PyExc_TypeError, "transform SSBO is invalid");
+      return nullptr;
+    }
   }
 
   using namespace blender::gpu::shader;
@@ -267,7 +232,11 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
       {0, vbo_pos, Qualifier::write, "vec4", "positions_out[]"},
       {1, vbo_nor, Qualifier::write, "uint", "normals_out[]"},
       {2, py_ssbo_skinned_pos->ssbo, Qualifier::read, "vec4", "skinned_positions_in[]"},
-      {3, transform_ssbo, Qualifier::read, "mat4", "transform_mat[]"},
+      {3,
+       transform_owned ? transform_ssbo : py_ssbo_transform->ssbo,
+       Qualifier::read,
+       "mat4",
+       "transform_mat[]"},
   };
 
   Scene *scene = DEG_get_input_scene(depsgraph);
@@ -290,19 +259,16 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
                                                      config_shader,
                                                      mesh_eval->corner_verts().size());
 
-  if (transform_ssbo) {
-    GPU_storagebuf_free(transform_ssbo);
-  }
-
   if (status == GpuComputeStatus::Error) {
     PyErr_SetString(PyExc_RuntimeError, "Failed to run mesh compute shader");
     return nullptr;
   }
 
-  if (status == GpuComputeStatus::NotReady) {
-    Py_RETURN_NONE;
+  /* Ready: free locally-created SSBO. */
+  if (transform_owned && transform_ssbo) {
+    GPU_storagebuf_free(transform_ssbo);
+    transform_ssbo = nullptr;
   }
-
   Py_RETURN_NONE;
 }
 
@@ -374,6 +340,8 @@ static PyObject *pygpu_mesh_scatter_free(PyObject * /*self*/, PyObject *args, Py
 
 void bpygpu_mesh_scatter_free_for_mesh(Mesh *me)
 {
+  /* Only frees shader + topology ssbo,
+   * User has to free himself his ssbos (positions + transform) */
   BKE_mesh_gpu_free_for_mesh(me);
 }
 

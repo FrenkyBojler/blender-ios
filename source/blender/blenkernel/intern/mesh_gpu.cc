@@ -323,18 +323,13 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     return blender::bke::GpuComputeStatus::NotReady;
   }
   else {
+    // reset is_using_gpu_deform as soon as possible
     mesh_orig->is_using_gpu_deform = 0;
   }
 
   mesh_eval->is_running_gpu_deform = 1;
 
   std::lock_guard<std::mutex> lock(g_mesh_cache_mutex);
-
-  /* Use original mesh as cache key. Resources are persistent per original mesh. */
-  if (!mesh_orig) {
-    mesh_eval->is_running_gpu_deform = 0;
-    return blender::bke::GpuComputeStatus::Error;
-  }
 
   auto &mesh_data = g_mesh_data_cache[mesh_orig];
   /* Create/upload topology (from evaluated mesh) if needed. On failure cleanup. */
