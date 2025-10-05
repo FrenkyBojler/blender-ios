@@ -15,19 +15,12 @@ print(list(bpy.data.scenes.keys()))
 # Create a new mesh and object, and link it to the first scene
 mymesh = bpy.data.meshes.new("myMesh")  # Create Mesh Data block
 myobj = bpy.data.objects.new("myObj", mymesh)  # Create Object Data block
-
-
-# Add geometry to the mesh (vertices and faces)
-mymesh.from_pydata(
+mymesh.from_pydata(  # Add geometry to the mesh (vertices and faces)
     [(-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0)],
     edges=[],
     faces=[(0, 1, 2, 3)],
 )
-
-# Link the object to the first scene
-scene = bpy.data.scenes[0]
-scene.collection.objects.link(myobj)
-print(f"Linked object '{myobj.name}' to scene '{scene.name}'")
+bpy.data.scenes[0].collection.objects.link(myobj)  # Link the object to the first scene
 
 
 # Remove a specific mesh if it exists
