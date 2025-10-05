@@ -22,6 +22,7 @@
 #include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -2772,6 +2773,66 @@ static void do_version_adaptive_subdivision(Main *bmain)
   }
 }
 
+static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
+{
+  if (light->use_nodes) {
+    return;
+  }
+
+  /* Users defined a light node tree, but deactivated it by disabling "Use Nodes". So we
+   * simulate the same effect by creating a new Light Output node and setting it to active. */
+  bNodeTree *ntree = light->nodetree;
+  if (ntree == nullptr) {
+    /* In case the light was defined through Python API it might have been missing a node tree. */
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        bmain, &light->id, "Light Node Tree Versioning", "ShaderNodeTree");
+  }
+
+  bNode *old_output = nullptr;
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (STREQ(node->idname, "ShaderNodeOutputLight") && (node->flag & NODE_DO_OUTPUT)) {
+      old_output = node;
+      old_output->flag &= ~NODE_DO_OUTPUT;
+    }
+  }
+
+  bNode &new_output = version_node_add_empty(*ntree, "ShaderNodeOutputLight");
+  bNodeSocket &output_surface_input = version_node_add_socket(
+      *ntree, new_output, SOCK_IN, "NodeSocketShader", "Surface");
+
+  bNode &emission = version_node_add_empty(*ntree, "ShaderNodeEmission");
+  bNodeSocket &emission_color_input = version_node_add_socket(
+      *ntree, emission, SOCK_IN, "NodeSocketColor", "Color");
+  bNodeSocket &emission_strength_input = version_node_add_socket(
+      *ntree, emission, SOCK_IN, "NodeSocketFloat", "Strength");
+  bNodeSocket &emission_output = version_node_add_socket(
+      *ntree, emission, SOCK_OUT, "NodeSocketShader", "Emission");
+
+  version_node_add_link(*ntree, emission, emission_output, new_output, output_surface_input);
+
+  bNodeSocketValueRGBA *rgba = emission_color_input.default_value_typed<bNodeSocketValueRGBA>();
+  rgba->value[0] = light->r;
+  rgba->value[1] = light->g;
+  rgba->value[2] = light->b;
+  rgba->value[3] = 1.0f;
+  emission_strength_input.default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
+
+  if (old_output != nullptr) {
+    /* Position the newly created node after the old output. Assume the old output node is at
+     * the far right of the node tree. */
+    emission.location[0] = old_output->location[0] + 1.5f * old_output->width;
+    emission.location[1] = old_output->location[1];
+  }
+
+  new_output.location[0] = emission.location[0] + 2.0f * emission.width;
+  new_output.location[1] = emission.location[1];
+
+  bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
+  STRNCPY(frame->label, RPT_("Versioning: Use Nodes was removed"));
+  emission.parent = frame;
+  new_output.parent = frame;
+}
+
 void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   using namespace blender;
@@ -3815,6 +3876,12 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
             }
           }
         }
+      }
+    }
+
+    if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 102)) {
+      LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+        do_version_light_remove_use_nodes(bmain, light);
       }
     }
   }

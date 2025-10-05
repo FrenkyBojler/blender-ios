@@ -71,7 +71,7 @@ class NODE_HT_header(Header):
 
                 if snode_id:
                     row = layout.row()
-                    if ob_type not in types_that_support_material:
+                    if ob_type not in types_that_support_material and ob_type != 'LIGHT':
                         row.prop(snode_id, "use_nodes")
 
                 layout.separator_spacer()
