@@ -471,7 +471,7 @@ class TOPBAR_MT_render(Menu):
         seq_scene = context.sequencer_scene
         strips = getattr(context, "strips", ())
 
-        can_render_seq = seq_scene and len(strips) > 0
+        can_render_seq = seq_scene and seq_scene.render.use_sequencer and len(strips) > 0
 
         if not (can_render_seq and seq_scene == scene):
             layout.operator("render.render", text="Render Image", icon='RENDER_STILL').use_viewport = True
