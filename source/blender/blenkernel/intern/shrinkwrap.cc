@@ -1421,13 +1421,13 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd,
 
   if (mesh != nullptr && smd->shrinkType == MOD_SHRINKWRAP_PROJECT) {
     /* Setup arrays to get vertex positions, normals and deform weights */
-    calc.vert_positions = reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data());
+    calc.vert_positions = reinterpret_cast<float (*)[3]>(mesh->vert_positions_for_write().data());
     calc.vert_normals = mesh->vert_normals();
 
     /* Using vertices positions/normals as if a subsurface was applied */
     if (smd->subsurfLevels) {
       subdivided_positions = shrinkwrap_calc_subdivided_positions(mesh, smd->subsurfLevels);
-      calc.vert_positions = reinterpret_cast<float(*)[3]>(subdivided_positions.data());
+      calc.vert_positions = reinterpret_cast<float (*)[3]>(subdivided_positions.data());
     }
   }
 
@@ -1481,7 +1481,7 @@ void shrinkwrapParams_deform(const ShrinkwrapParams &params,
   calc.smd = &smd;
   calc.ob = &object;
   calc.numVerts = int(positions.size());
-  calc.vertexCos = reinterpret_cast<float(*)[3]>(positions.data());
+  calc.vertexCos = reinterpret_cast<float (*)[3]>(positions.data());
   calc.dvert = dvert.is_empty() ? nullptr : dvert.data();
   calc.vgroup = defgrp_index;
   calc.invert_vgroup = params.invert_vertex_weights;
@@ -1529,7 +1529,7 @@ void BKE_shrinkwrap_mesh_nearest_surface_deform(Depsgraph *depsgraph,
       src_me,
       nullptr,
       -1,
-      reinterpret_cast<float(*)[3]>(src_me->vert_positions_for_write().data()),
+      reinterpret_cast<float (*)[3]>(src_me->vert_positions_for_write().data()),
       src_me->verts_num);
   src_me->tag_positions_changed();
 }
@@ -1553,12 +1553,12 @@ void BKE_shrinkwrap_remesh_target_project(Mesh *src_me, Mesh *target_me, Object 
 
   calc.smd = &ssmd;
   calc.numVerts = src_me->verts_num;
-  calc.vertexCos = reinterpret_cast<float(*)[3]>(src_me->vert_positions_for_write().data());
+  calc.vertexCos = reinterpret_cast<float (*)[3]>(src_me->vert_positions_for_write().data());
   calc.vert_normals = src_me->vert_normals();
   calc.vgroup = -1;
   calc.target = target_me;
   calc.keepDist = ssmd.keepDist;
-  calc.vert_positions = reinterpret_cast<float(*)[3]>(src_me->vert_positions_for_write().data());
+  calc.vert_positions = reinterpret_cast<float (*)[3]>(src_me->vert_positions_for_write().data());
   BLI_SPACE_TRANSFORM_SETUP(&calc.local2target, ob_target, ob_target);
 
   ShrinkwrapTreeData tree;
