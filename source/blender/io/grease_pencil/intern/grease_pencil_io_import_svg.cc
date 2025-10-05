@@ -198,6 +198,8 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
                                                                bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> point_opacities = attributes.lookup_or_add_for_write_span<float>(
       "opacity", bke::AttrDomain::Point);
+  bke::SpanAttributeWriter<float> miter_angles = attributes.lookup_or_add_for_write_span<float>(
+      "miter_angle", bke::AttrDomain::Point);
 
   materials.span.slice(curves_range).fill(material_index);
   const ColorGeometry4f shape_color = convert_svg_color(shape.fill);
@@ -245,12 +247,27 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
       }
     }
 
+    if (miter_angles) {
+      if (shape.strokeLineJoin == NSVG_JOIN_MITER) {
+        /* Convert the miter limit to the miter angle. */
+        const float miter_angle = 2.0f * math::asin(1.0f / shape.miterLimit);
+        miter_angles.span.slice(points).fill(miter_angle);
+      }
+      else if (shape.strokeLineJoin == NSVG_JOIN_ROUND) {
+        miter_angles.span.slice(points).fill(GP_STROKE_MITER_ANGLE_ROUND);
+      }
+      else if (shape.strokeLineJoin == NSVG_JOIN_BEVEL) {
+        miter_angles.span.slice(points).fill(GP_STROKE_MITER_ANGLE_BEVEL);
+      }
+    }
+
     ++curve_index;
   }
 
   materials.finish();
   fill_colors.finish();
   fill_opacities.finish();
+  miter_angles.finish();
   radii.finish();
   vertex_colors.finish();
   point_opacities.finish();
