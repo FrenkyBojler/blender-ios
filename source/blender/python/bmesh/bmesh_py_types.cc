@@ -1818,7 +1818,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
     {
       ok = false;
     }
-    else if (bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
+    else if (bm_test && bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
       ok = false;
     }
   }
@@ -1835,7 +1835,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
     {
       ok = false;
     }
-    else if (bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
+    else if (bm_test && bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
       ok = false;
     }
   }
@@ -1846,7 +1846,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set(BPy_BMesh *self, PyObject *args
     {
       ok = false;
     }
-    else if (bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
+    else if (bm_test && bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
       ok = false;
     }
   }
@@ -1961,7 +1961,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
     {
       ok = false;
     }
-    else if (bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
+    else if (bm_test && bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
       ok = false;
     }
   }
@@ -1972,7 +1972,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
     {
       ok = false;
     }
-    else if (bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
+    else if (bm_test && bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
       ok = false;
     }
   }
@@ -1983,7 +1983,7 @@ static PyObject *bpy_bmesh_uv_select_foreach_set_from_mesh(BPy_BMesh *self,
     {
       ok = false;
     }
-    else if (bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
+    else if (bm_test && bpy_bm_check_bm_match_or_error(bm, bm_test, error_prefix) == -1) {
       ok = false;
     }
   }
