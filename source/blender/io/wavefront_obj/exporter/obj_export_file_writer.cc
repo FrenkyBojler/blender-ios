@@ -318,6 +318,14 @@ void OBJWriter::write_uv_coords(FormatHandler &fh, OBJMesh &r_obj_mesh_data) con
     buf.write_obj_uv(uv_vertex[0], uv_vertex[1]);
   });
 }
+void OBJWriter::write_uv_seams(FormatHandler &fh, OBJMesh &r_obj_mesh_data) const
+{
+  const Span<float2> uv_seams = r_obj_mesh_data.get_uv_seams();
+  obj_parallel_chunked_output(fh, uv_seams.size(), [&](FormatHandler &buf, int i) {
+    const float2 &uv_seam = uv_seams[i];
+    buf.write_obj_uv_seam(uv_seam[0], uv_seam[1]);
+  });
+}
 
 void OBJWriter::write_normals(FormatHandler &fh, OBJMesh &obj_mesh_data)
 {

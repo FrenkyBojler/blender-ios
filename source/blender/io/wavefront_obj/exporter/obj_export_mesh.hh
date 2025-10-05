@@ -50,6 +50,7 @@ class OBJMesh : NonCopyable {
   Array<int> corner_to_uv_index_;
   /** UV vertices. */
   Vector<float2> uv_coords_;
+  Vector<float2> uv_seams_;
 
   /** Index into #normal_coords_ for every face corner. */
   Array<int> corner_to_normal_index_;
@@ -84,6 +85,7 @@ class OBJMesh : NonCopyable {
   int tot_vertices() const;
   int tot_faces() const;
   int tot_uv_vertices() const;
+  int tot_uv_seams() const;
   int tot_edges() const;
   int tot_deform_groups() const;
   bool is_mirrored_transform() const
@@ -148,6 +150,20 @@ class OBJMesh : NonCopyable {
     return corner_to_uv_index_.as_span().slice(mesh_faces_[face_index]);
   }
 
+  void store_uv_seams();
+
+  Span<float2> get_uv_seams() const
+  {
+    return uv_seams_;
+  }
+  Span<int> get_face_uv_semas(const int face_index) const
+  {
+    if (uv_coords_.is_empty()) {
+      return {};
+    }
+    BLI_assert(face_index < mesh_faces_.size());
+    return corner_to_uv_index_.as_span().slice(mesh_faces_[face_index]);
+  }
   /**
    * Find the unique normals of the mesh and stores them in a member variable.
    * Also stores the indices into that vector with for each corner.

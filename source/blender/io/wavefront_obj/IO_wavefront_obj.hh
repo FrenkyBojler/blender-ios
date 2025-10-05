@@ -50,6 +50,7 @@ struct OBJExportParams {
   bool apply_transform = true;
   eEvaluationMode export_eval_mode = DAG_EVAL_VIEWPORT;
   bool export_uv = true;
+  bool export_uv_seams = false;
   bool export_normals = true;
   bool export_colors = false;
   bool export_materials = true;

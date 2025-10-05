@@ -162,6 +162,7 @@ static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerR
   if (uiLayout *panel = layout->panel(C, "OBJ_export_geometry", false, IFACE_("Geometry"))) {
     uiLayout *col = &panel->column(false);
     col->prop(ptr, "export_uv", UI_ITEM_NONE, IFACE_("UV Coordinates"), ICON_NONE);
+    col->prop(ptr, "export_uv_seams", UI_ITEM_NONE, IFACE_("UV Seams"), ICON_NONE);
     col->prop(ptr, "export_normals", UI_ITEM_NONE, IFACE_("Normals"), ICON_NONE);
     col->prop(ptr, "export_colors", UI_ITEM_NONE, IFACE_("Colors"), ICON_NONE);
     col->prop(ptr, "export_curves_as_nurbs", UI_ITEM_NONE, IFACE_("Curves as NURBS"), ICON_NONE);
@@ -342,6 +343,7 @@ void WM_OT_obj_export(wmOperatorType *ot)
                   "Export Selected Objects",
                   "Export only selected objects instead of all supported objects");
   RNA_def_boolean(ot->srna, "export_uv", true, "Export UVs", "");
+  RNA_def_boolean(ot->srna, "export_uv_seams", true, "Export UV Seams", "");
   RNA_def_boolean(ot->srna,
                   "export_normals",
                   true,

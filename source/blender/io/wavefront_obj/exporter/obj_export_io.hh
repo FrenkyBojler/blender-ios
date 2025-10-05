@@ -78,6 +78,10 @@ class FormatHandler : NonCopyable, NonMovable {
   {
     write_impl("vt {:.6f} {:.6f}\n", x, y);
   }
+  void write_obj_uv_seam(float x, float y)
+  {
+    write_impl("vt {:.6f} {:.6f}\n", x, y);
+  }
   void write_obj_normal(float x, float y, float z)
   {
     write_impl("vn {:.4f} {:.4f} {:.4f}\n", x, y, z);

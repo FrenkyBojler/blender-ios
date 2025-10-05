@@ -187,7 +187,10 @@ int OBJMesh::tot_uv_vertices() const
 {
   return int(uv_coords_.size());
 }
-
+int OBJMesh::tot_uv_seams() const
+{
+  return int(uv_seams_.size());
+}
 int OBJMesh::tot_edges() const
 {
   return export_mesh_->edges_num;
@@ -302,6 +305,42 @@ void OBJMesh::store_uv_coords_and_indices()
       uv_coords_.append(uv);
     }
     corner_to_uv_index_[index] = uv_index;
+  }
+}
+
+void OBJMesh::store_uv_seams()
+{
+  const bke::AttributeAccessor attributes = export_mesh_->attributes();
+
+  const VArraySpan<bool> uv_seams = *attributes.lookup<bool>("uv_seam", bke::AttrDomain::Edge);
+
+  const StringRef active_uv_name = CustomData_get_active_layer_name(&export_mesh_->corner_data,
+                                                                    CD_PROP_FLOAT2);
+
+  if (active_uv_name.is_empty()) {
+    return;
+  }
+
+  const VArray<float2> uv_map_varray = *attributes.lookup<float2>(active_uv_name,
+                                                                  bke::AttrDomain::Corner);
+
+  const VArraySpan<float2> uv_map(uv_map_varray);
+
+  if (uv_map.is_empty()) {
+    return;
+  }
+
+  const Span<int> corner_edges = export_mesh_->corner_edges();
+
+  uv_seams_.clear();
+  uv_seams_.reserve(export_mesh_->corners_num);
+
+  for (int corner = 0; corner < export_mesh_->corners_num; corner++) {
+    const int edge_index = corner_edges[corner];
+
+    if (uv_seams[edge_index]) {
+      uv_seams_.append(uv_map[corner]);
+    }
   }
 }
 

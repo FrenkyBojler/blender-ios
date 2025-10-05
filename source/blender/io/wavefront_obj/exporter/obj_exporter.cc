@@ -194,6 +194,9 @@ static void write_mesh_objects(const Span<std::unique_ptr<OBJMesh>> exportable_a
       if (export_params.export_uv) {
         obj.store_uv_coords_and_indices();
       }
+      if (export_params.export_uv_seams) {
+        obj.store_uv_seams();
+      }
     }
   });
 
@@ -207,6 +210,7 @@ static void write_mesh_objects(const Span<std::unique_ptr<OBJMesh>> exportable_a
     index_offsets.append(offsets);
     offsets.vertex_offset += obj.tot_vertices();
     offsets.uv_vertex_offset += obj.tot_uv_vertices();
+    offsets.uv_seam_offset += obj.tot_uv_seams();
     offsets.normal_offset += obj.get_normal_coords().size();
   }
 
@@ -231,6 +235,9 @@ static void write_mesh_objects(const Span<std::unique_ptr<OBJMesh>> exportable_a
         }
         if (export_params.export_uv) {
           obj_writer.write_uv_coords(fh, obj);
+        }
+        if (export_params.export_uv_seams) {
+          obj_writer.write_uv_seams(fh, obj);
         }
         /* This function takes a 0-indexed slot index for the obj_mesh object and
          * returns the material name that we are using in the `.obj` file for it. */
