@@ -2465,7 +2465,7 @@ static bool uv_copy_mirrored_faces(
         mirror_gt.lookup(pos) = v;
       }
       else {
-        mirror_gt.add_new(pos, v);
+        mirror_gt.add(pos, v);
       }
     }
     if (pos.x <= 0.0f) {
@@ -2474,7 +2474,7 @@ static bool uv_copy_mirrored_faces(
         mirror_lt.lookup(pos) = v;
       }
       else {
-        mirror_lt.add_new(pos, v);
+        mirror_lt.add(pos, v);
       }
     }
   }
@@ -2488,7 +2488,7 @@ static bool uv_copy_mirrored_faces(
         vmap.lookup(v) = v_mirror;
       }
       else {
-        vmap.add_new(v, v_mirror);
+        vmap.add(v, v_mirror);
       }
     }
   }
@@ -2502,7 +2502,7 @@ static bool uv_copy_mirrored_faces(
         vmap.lookup(v) = v_mirror;
       }
       else {
-        vmap.add_new(v, v_mirror);
+        vmap.add(v, v_mirror);
       }
     }
   }
