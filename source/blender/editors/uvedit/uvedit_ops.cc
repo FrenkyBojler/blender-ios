@@ -2428,7 +2428,21 @@ static void UV_OT_mark_seam(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "clear", false, "Clear Seams", "Clear instead of marking seams");
 }
 
-static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int *r_double_warn)
+/* Returns true only if all UVs in the given face are selected. */
+static bool face_uv_selected_all(const Scene *scene, BMFace *f, const BMUVOffsets &offsets)
+{
+  BMLoop *l;
+  BMIter liter;
+  BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+    if (!uvedit_uv_select_test(scene, l, offsets)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool uv_copy_mirrored_faces(
+    const Scene *scene, BMesh *bm, int direction, int precision, int *r_double_warn)
 {
   *r_double_warn = 0;
   const float precision_scale = powf(10.0f, precision);
@@ -2436,6 +2450,11 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
   Map<float3, BMVert *> mirror_gt, mirror_lt;
   Map<BMVert *, BMVert *> vmap;
 
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  /* Skip if BMesh has no UVs */
+  if (offsets.uv == -1) {
+    return false;
+  }
   BMVert *v;
   BMIter iter;
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
@@ -2443,14 +2462,20 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     if (pos.x >= 0.0f) {
       if (mirror_gt.contains(pos)) {
         (*r_double_warn)++;
+        mirror_gt.lookup(pos) = v;
       }
-      mirror_gt.add(pos, v);
+      else {
+        mirror_gt.add_new(pos, v);
+      }
     }
     if (pos.x <= 0.0f) {
       if (mirror_lt.contains(pos)) {
         (*r_double_warn)++;
+        mirror_lt.lookup(pos) = v;
       }
-      mirror_lt.add(pos, v);
+      else {
+        mirror_lt.add_new(pos, v);
+      }
     }
   }
 
@@ -2459,15 +2484,26 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
     mirror_pos[0] = -mirror_pos[0];
     BMVert *v_mirror = mirror_lt.lookup_default(mirror_pos, nullptr);
     if (v_mirror) {
-      vmap.add(v, v_mirror);
+      if (vmap.contains(v)) {
+        vmap.lookup(v) = v_mirror;
+      }
+      else {
+        vmap.add_new(v, v_mirror);
+      }
     }
   }
+
   for (const auto &[pos, v] : mirror_lt.items()) {
     float3 mirror_pos = pos;
     mirror_pos[0] = -mirror_pos[0];
     BMVert *v_mirror = mirror_gt.lookup_default(mirror_pos, nullptr);
     if (v_mirror) {
-      vmap.add(v, v_mirror);
+      if (vmap.contains(v)) {
+        vmap.lookup(v) = v_mirror;
+      }
+      else {
+        vmap.add_new(v, v_mirror);
+      }
     }
   }
 
@@ -2514,6 +2550,12 @@ static bool uv_copy_mirrored_faces(BMesh *bm, int direction, int precision, int 
 
   bool changed = false;
   for (const auto &[f_dst, f_src] : face_map.items()) {
+
+    if (!face_uv_selected_all(scene, f_dst, offsets) ||
+        !face_uv_selected_all(scene, f_src, offsets))
+    {
+      continue;
+    }
 
     {
       float f_dst_center[3];
@@ -2565,7 +2607,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 
     int double_warn = 0;
 
-    bool changed = uv_copy_mirrored_faces(em->bm, direction, precision, &double_warn);
+    bool changed = uv_copy_mirrored_faces(scene, em->bm, direction, precision, &double_warn);
 
     if (double_warn) {
       total_duplicates += double_warn;
