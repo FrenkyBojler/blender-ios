@@ -11,7 +11,6 @@
 #include "BKE_volume_openvdb.hh"
 
 #include "NOD_rna_define.hh"
-#include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "UI_interface_layout.hh"
@@ -76,8 +75,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 
   if (params.in_out() == SOCK_IN) {
     if (is_grid) {
-      const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
-          other_socket);
+      const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(other_socket);
       if (data_type) {
         params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
           bNode &node = params.add_node("GeometryNodeSetGridTransform");
@@ -94,8 +92,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     }
   }
   else {
-    const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(
-        other_socket);
+    const std::optional<eNodeSocketDatatype> data_type = node_type_for_socket_type(other_socket);
     if (data_type) {
       params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeSetGridTransform");
