@@ -426,12 +426,15 @@ void BM_mesh_uvselect_set_elem_shared(BMesh *bm,
   /* TODO: this could be optimized to reduce traversal of connected UV's for every element. */
 
   for (BMLoop *l_vert : loop_verts) {
+    BM_loop_vert_uvselect_set_noflush(bm, l_vert, select);
     BM_loop_vert_uvselect_set_shared(bm, l_vert, select, cd_loop_uv_offset);
   }
   for (BMLoop *l_edge : loop_edges) {
+    BM_loop_edge_uvselect_set(bm, l_edge, select);
     BM_loop_edge_uvselect_set_shared(bm, l_edge, select, cd_loop_uv_offset);
   }
   for (BMFace *f : faces) {
+    BM_face_uvselect_set(bm, f, select);
     BM_face_uvselect_set_shared(bm, f, select, cd_loop_uv_offset);
   }
 }
