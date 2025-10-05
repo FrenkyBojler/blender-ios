@@ -1301,6 +1301,10 @@ def pycontext2sphinx(basepath):
     fw("\n")
     fw("Note that all context values are read-only,\n")
     fw("but may be modified through the data API or by running operators.\n\n")
+    fw("\n")
+    fw(".. literalinclude:: ../examples/bpy.context.py\n")
+    
+    EXAMPLE_SET_USED.add("bpy.context")
 
     # Track all unique properties to properly use `noindex`.
     unique = set()
