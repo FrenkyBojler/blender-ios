@@ -928,6 +928,9 @@ typedef struct bNodeTree {
   blender::Span<const bNodeTreeInterfaceSocket *> interface_outputs() const;
   blender::Span<bNodeTreeInterfaceItem *> interface_items();
   blender::Span<const bNodeTreeInterfaceItem *> interface_items() const;
+  bNodeTreeInterfaceSocket *interface_socket_by_identifier(blender::StringRefNull identifier);
+  const bNodeTreeInterfaceSocket *interface_socket_by_identifier(
+      blender::StringRefNull identifier) const;
 
   int interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const;

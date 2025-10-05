@@ -126,7 +126,12 @@ typedef struct bNodeTreeInterfaceSocket {
 
   /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type;
-  char _pad[7];
+  /* When true, use custom color defined by override_color_index instead of socket type color. */
+  uint8_t override_color_enabled;
+  /* Index into a small fixed palette (implementation defined). Range: 0-15 currently. */
+  uint8_t override_color_index;
+  /* Remaining padding for future expansion (keeps struct size stable). */
+  char _pad[5];
 
 #ifdef __cplusplus
   bNodeSocketTypeHandle *socket_typeinfo() const;

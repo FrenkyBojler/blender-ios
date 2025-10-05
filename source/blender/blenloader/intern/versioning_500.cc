@@ -2618,6 +2618,21 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 102)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      node_tree->tree_interface.foreach_item([](bNodeTreeInterfaceItem &item) {
+        if (item.item_type != NODE_INTERFACE_SOCKET) {
+          return true;
+        }
+        auto &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+        socket.override_color_enabled = 0;
+        socket.override_color_index = 0;
+        return true;
+      });
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

@@ -1545,8 +1545,11 @@ void node_socket_color_get(const bContext &C,
                            const bNodeTree &ntree,
                            PointerRNA &node_ptr,
                            const bNodeSocket &sock,
-                           float r_color[4])
+                           float r_color[4],
+                           bool *r_is_interface_override)
 {
+  bool override_applied = false;
+
   if (!sock.typeinfo->draw_color) {
     /* Fall back to the simple variant. If not defined either, fall back to a magenta color. */
     if (sock.typeinfo->draw_color_simple) {
@@ -1555,13 +1558,37 @@ void node_socket_color_get(const bContext &C,
     else {
       copy_v4_v4(r_color, float4(1.0f, 0.0f, 1.0f, 1.0f));
     }
-    return;
+    /* Even when the base type has no draw_color we still allow interface override below. */
+  }
+  else {
+    BLI_assert(RNA_struct_is_a(node_ptr.type, &RNA_Node));
+    PointerRNA ptr = RNA_pointer_create_discrete(
+        &const_cast<ID &>(ntree.id), &RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
+    sock.typeinfo->draw_color((bContext *)&C, &ptr, &node_ptr, r_color);
   }
 
-  BLI_assert(RNA_struct_is_a(node_ptr.type, &RNA_Node));
-  PointerRNA ptr = RNA_pointer_create_discrete(
-      &const_cast<ID &>(ntree.id), &RNA_NodeSocket, &const_cast<bNodeSocket &>(sock));
-  sock.typeinfo->draw_color((bContext *)&C, &ptr, &node_ptr, r_color);
+  /* After determining the base socket color, attempt to override it if this is a group node
+   * socket backed by an interface socket that has override_color_enabled. */
+  bNode *node = static_cast<bNode *>(node_ptr.data);
+  if (node && node->typeinfo && node->typeinfo->type_legacy == NODE_GROUP && node->id != nullptr &&
+      sock.identifier[0] != '\0')
+  {
+    const bNodeTree *group_ntree = reinterpret_cast<const bNodeTree *>(node->id);
+    group_ntree->ensure_interface_cache();
+    if (const bNodeTreeInterfaceSocket *interface_socket =
+            group_ntree->interface_socket_by_identifier(sock.identifier))
+    {
+      if (interface_socket->override_color_enabled) {
+        const blender::ColorGeometry4f override_col = interface_socket->socket_color();
+        copy_v4_v4(r_color, float4(override_col[0], override_col[1], override_col[2], override_col[3]));
+        override_applied = true;
+      }
+    }
+  }
+
+  if (r_is_interface_override) {
+    *r_is_interface_override = override_applied;
+  }
 }
 
 static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, uiLayout &layout)

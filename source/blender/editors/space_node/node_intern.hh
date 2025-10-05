@@ -168,7 +168,8 @@ void node_socket_color_get(const bContext &C,
                            const bNodeTree &ntree,
                            PointerRNA &node_ptr,
                            const bNodeSocket &sock,
-                           float r_color[4]);
+                           float r_color[4],
+                           bool *r_is_interface_override = nullptr);
 
 const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_label);
 

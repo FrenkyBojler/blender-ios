@@ -16,6 +16,7 @@
 #include <type_traits>
 
 #include "BLI_cache_mutex.hh"
+#include "BLI_map.hh"
 #include "BLI_parameter_pack_utils.hh"
 #include "BLI_vector_set.hh"
 
@@ -44,6 +45,8 @@ class bNodeTreeInterfaceRuntime {
   /* Socket-only lists for input/output access by index. */
   VectorSet<bNodeTreeInterfaceSocket *> inputs_;
   VectorSet<bNodeTreeInterfaceSocket *> outputs_;
+  /** Lookup table to quickly resolve sockets by their persistent identifier. */
+  Map<StringRefNull, bNodeTreeInterfaceSocket *> sockets_by_identifier_;
 };
 
 namespace node_interface {

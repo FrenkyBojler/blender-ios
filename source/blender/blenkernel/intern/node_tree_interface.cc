@@ -692,6 +692,29 @@ blender::bke::bNodeSocketType *bNodeTreeInterfaceSocket::socket_typeinfo() const
 
 blender::ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
 {
+  if (override_color_enabled) {
+    /* Simple fixed palette of 16 colors (can be expanded). */
+    static const blender::ColorGeometry4f palette[] = {
+        {0.780f, 0.227f, 0.227f, 1.0f}, /* 0 red-ish */
+        {0.949f, 0.631f, 0.176f, 1.0f}, /* 1 orange */
+        {0.988f, 0.914f, 0.310f, 1.0f}, /* 2 yellow */
+        {0.455f, 0.761f, 0.271f, 1.0f}, /* 3 green */
+        {0.282f, 0.639f, 0.827f, 1.0f}, /* 4 cyan */
+        {0.239f, 0.369f, 0.945f, 1.0f}, /* 5 blue */
+        {0.584f, 0.318f, 0.918f, 1.0f}, /* 6 purple */
+        {0.922f, 0.282f, 0.788f, 1.0f}, /* 7 pink */
+        {0.400f, 0.400f, 0.400f, 1.0f}, /* 8 gray */
+        {0.149f, 0.149f, 0.149f, 1.0f}, /* 9 dark gray */
+        {0.957f, 0.957f, 0.957f, 1.0f}, /* 10 near white */
+        {0.149f, 0.529f, 0.529f, 1.0f}, /* 11 teal */
+        {0.710f, 0.486f, 0.149f, 1.0f}, /* 12 brown */
+        {0.545f, 0.149f, 0.149f, 1.0f}, /* 13 dark red */
+        {0.149f, 0.286f, 0.545f, 1.0f}, /* 14 navy */
+        {0.271f, 0.149f, 0.545f, 1.0f}, /* 15 indigo */
+    };
+    const int index = override_color_index & 15; /* clamp to 0-15 */
+    return palette[index];
+  }
   blender::bke::bNodeSocketType *typeinfo = this->socket_typeinfo();
   if (typeinfo && typeinfo->draw_color_simple) {
     float color[4];
@@ -1503,6 +1526,7 @@ void bNodeTreeInterface::ensure_items_cache() const
     runtime.items_.clear();
     runtime.inputs_.clear();
     runtime.outputs_.clear();
+    runtime.sockets_by_identifier_.clear();
 
     /* Items in the cache are mutable pointers, but node tree update considers ID data to be
      * immutable when caching. DNA ListBase pointers can be mutable even if their container is
@@ -1517,6 +1541,9 @@ void bNodeTreeInterface::ensure_items_cache() const
         }
         if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
           runtime.outputs_.add_new(socket);
+        }
+        if (socket->identifier && socket->identifier[0] != '\0') {
+          runtime.sockets_by_identifier_.add_overwrite(socket->identifier, socket);
         }
       }
       return true;

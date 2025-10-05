@@ -1253,6 +1253,24 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
       prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocket_default_input_itemf");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
+  /* Custom color override. */
+  prop = RNA_def_property(srna, "override_color", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "override_color_enabled", 1);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+               "Override Color",
+               "Use a custom color index instead of the socket's type color");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
+  prop = RNA_def_property(srna, "override_color_index", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "override_color_index");
+  RNA_def_property_range(prop, 0, 15);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+               "Override Color Index",
+               "Index into a fixed palette used when Override Color is enabled");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
   /* Registered properties and functions for custom socket types. */
   prop = RNA_def_property(srna, "bl_socket_idname", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "socket_type");

@@ -2178,15 +2178,15 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
 
   UI_GetThemeColor4fv(th_col3, draw_config.outline_color);
 
+  const bNodeTree &node_tree = *snode.edittree;
+  PointerRNA from_node_ptr = RNA_pointer_create_discrete(
+      &const_cast<ID &>(node_tree.id), &RNA_Node, link.fromnode);
+  PointerRNA to_node_ptr = RNA_pointer_create_discrete(
+      &const_cast<ID &>(node_tree.id), &RNA_Node, link.tonode);
+
   if (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
       snode.overlay.flag & SN_OVERLAY_SHOW_WIRE_COLORS)
   {
-    const bNodeTree &node_tree = *snode.edittree;
-    PointerRNA from_node_ptr = RNA_pointer_create_discrete(
-        &const_cast<ID &>(node_tree.id), &RNA_Node, link.fromnode);
-    PointerRNA to_node_ptr = RNA_pointer_create_discrete(
-        &const_cast<ID &>(node_tree.id), &RNA_Node, link.tonode);
-
     if (link.fromsock) {
       node_socket_color_get(C, node_tree, from_node_ptr, *link.fromsock, draw_config.start_color);
     }
@@ -2204,6 +2204,44 @@ static NodeLinkDrawConfig nodelink_get_draw_config(const bContext &C,
   else {
     UI_GetThemeColor4fv(th_col1, draw_config.start_color);
     UI_GetThemeColor4fv(th_col2, draw_config.end_color);
+
+    if (link.fromsock) {
+      bool override_applied = false;
+      float override_color[4];
+      node_socket_color_get(
+          C, node_tree, from_node_ptr, *link.fromsock, override_color, &override_applied);
+      if (override_applied) {
+        copy_v4_v4(draw_config.start_color, override_color);
+      }
+    }
+    else if (link.tosock) {
+      bool override_applied = false;
+      float override_color[4];
+      node_socket_color_get(
+          C, node_tree, to_node_ptr, *link.tosock, override_color, &override_applied);
+      if (override_applied) {
+        copy_v4_v4(draw_config.start_color, override_color);
+      }
+    }
+
+    if (link.tosock) {
+      bool override_applied = false;
+      float override_color[4];
+      node_socket_color_get(
+          C, node_tree, to_node_ptr, *link.tosock, override_color, &override_applied);
+      if (override_applied) {
+        copy_v4_v4(draw_config.end_color, override_color);
+      }
+    }
+    else if (link.fromsock) {
+      bool override_applied = false;
+      float override_color[4];
+      node_socket_color_get(
+          C, node_tree, from_node_ptr, *link.fromsock, override_color, &override_applied);
+      if (override_applied) {
+        copy_v4_v4(draw_config.end_color, override_color);
+      }
+    }
   }
 
   /* Highlight links connected to selected nodes. */

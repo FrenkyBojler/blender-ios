@@ -706,6 +706,29 @@ inline blender::Span<const bNodeTreeInterfaceItem *> bNodeTree::interface_items(
   return this->tree_interface.runtime->items_.as_span();
 }
 
+inline bNodeTreeInterfaceSocket *bNodeTree::interface_socket_by_identifier(
+    blender::StringRefNull identifier)
+{
+  const bNodeTree *const_self = this;
+  return const_cast<bNodeTreeInterfaceSocket *>(
+      const_self->interface_socket_by_identifier(identifier));
+}
+
+inline const bNodeTreeInterfaceSocket *bNodeTree::interface_socket_by_identifier(
+    blender::StringRefNull identifier) const
+{
+  if (identifier.is_empty()) {
+    return nullptr;
+  }
+  BLI_assert(this->tree_interface.items_cache_is_available());
+  if (const bNodeTreeInterfaceSocket *const *socket_ptr =
+          this->tree_interface.runtime->sockets_by_identifier_.lookup_ptr(identifier))
+  {
+    return *socket_ptr;
+  }
+  return nullptr;
+}
+
 inline int bNodeTree::interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const
 {
   BLI_assert(this->tree_interface.items_cache_is_available());
