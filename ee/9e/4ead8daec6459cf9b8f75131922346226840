@@ -1,3 +1,4 @@
 Referenced by pull request #136743, Fix: VSE crash when moving retiming key
 Referenced by commit 144b1a7d56b6c895643921517bd7c1042c2b075f, Fix: VSE crash when moving retiming key
 Referenced by pull request #136916, Fix: VSE crash when moving retiming key
+Referenced by issue #147374, VSE: Adding Freeze Frame to either end of a video or image sequences crashed.
