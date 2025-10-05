@@ -69,6 +69,8 @@ Scripts can also run from the command line with Blender but to learn scripting i
 Key Concepts
 ============
 
+.. _info_quickstart-data_access:
+
 Data Access
 -----------
 
