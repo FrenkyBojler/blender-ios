@@ -2488,7 +2488,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         block->data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
-        float(*newptr)[3] = static_cast<float(*)[3]>(block->data);
+        float (*newptr)[3] = static_cast<float (*)[3]>(block->data);
 
         LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
           if (nu->bezt) {
@@ -3180,7 +3180,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             BKE_curvemap_reset(gset.cur_falloff->cm,
                                &gset.cur_falloff->clipr,
                                CURVE_PRESET_GAUSS,
-                               CURVEMAP_SLOPE_POSITIVE);
+                               CurveMapSlopeType::Positive);
           }
         }
       }
@@ -4554,7 +4554,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           BKE_curvemap_reset(gset.cur_primitive->cm,
                              &gset.cur_primitive->clipr,
                              CURVE_PRESET_BELL,
-                             CURVEMAP_SLOPE_POSITIVE);
+                             CurveMapSlopeType::Positive);
         }
       }
     }
