@@ -2455,7 +2455,7 @@ static bool uv_copy_mirrored_faces(
       continue;
     }
 
-    float3 pos = math::round(float3(v->co) * precision_scale);
+    float3 pos = math::round(float3(v->co) * precision_scale) / precision_scale;
     if (pos.x >= 0.0f) {
       if (mirror_gt.contains(pos)) {
         (*r_double_warn)++;
