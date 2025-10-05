@@ -776,6 +776,7 @@ void MTLRenderPassState::bind_fragment_texture(id<MTLTexture> tex, uint slot)
 
 void MTLComputeState::bind_compute_texture(id<MTLTexture> tex, uint slot)
 {
+  BLI_assert(tex != nil);
   if (this->cached_compute_texture_bindings[slot].metal_texture != tex) {
     id<MTLComputeCommandEncoder> rec = this->cmd.get_active_compute_command_encoder();
     BLI_assert(rec != nil);

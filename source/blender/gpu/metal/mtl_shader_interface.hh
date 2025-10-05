@@ -73,21 +73,12 @@ namespace blender::gpu {
  */
 class MTLShaderInterface : public ShaderInterface {
  private:
-  /* Argument encoders caching.
-   * Static size is based on common input permutation variations. */
-  static const int ARGUMENT_ENCODERS_CACHE_SIZE = 3;
-  struct ArgumentEncoderCacheEntry {
-    id<MTLArgumentEncoder> encoder;
-    int buffer_index;
-  };
-  ArgumentEncoderCacheEntry arg_encoders_[ARGUMENT_ENCODERS_CACHE_SIZE] = {};
-
-  /* Attribute Mask. */
-  uint32_t enabled_attribute_mask_ = 0;
+  /* Argument buffer encoder for sampler buffer. */
+  id<MTLArgumentEncoder> arg_encoder_ = nil;
 
   /* Bit Mask representing the free buffer slots from this interface.
    * Used to bind the vertex and index buffers. */
-  uint32_t vertex_buffer_mask_ = 0;
+  uint32_t vertex_buffer_mask_ = ~(~uint32_t(0) << MTL_MAX_BUFFER_BINDINGS);
 
   shader::BuiltinBits shader_builtins_ = shader::BuiltinBits::NONE;
 
@@ -105,6 +96,14 @@ class MTLShaderInterface : public ShaderInterface {
     return vertex_buffer_mask_;
   }
 
+  bool use_layer() const
+  {
+    return bool(shader_builtins_ & shader::BuiltinBits::LAYER);
+  }
+  bool use_viewport_index() const
+  {
+    return bool(shader_builtins_ & shader::BuiltinBits::VIEWPORT_INDEX);
+  }
   bool use_samplers_argument_buffer() const
   {
     return bool(shader_builtins_ & shader::BuiltinBits::USE_SAMPLER_ARG_BUFFER);
@@ -124,10 +123,7 @@ class MTLShaderInterface : public ShaderInterface {
     return this->name;
   }
 
-  /* Argument buffer encoder management. */
-  id<MTLArgumentEncoder> find_argument_encoder(int buffer_index) const;
-
-  void insert_argument_encoder(int buffer_index, id encoder);
+  id<MTLArgumentEncoder> ensure_argument_encoder(id<MTLFunction> mtl_function);
 
   MEM_CXX_CLASS_ALLOC_FUNCS("MTLShaderInterface");
 };

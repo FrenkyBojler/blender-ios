@@ -117,33 +117,37 @@ void MTLImmediate::end()
     /* Populate Vertex descriptor and verify attributes.
      * TODO(Metal): Cache this vertex state based on Vertex format and shaders. */
     const bits::BitInt mask = interface.enabled_attr_mask_;
-    for (int i : BitSpan(&mask, 16)) {
+    for (int i : BitSpan(&mask, 16).high_bits()) {
       const ShaderInput *input = interface.attr_get(i);
       BLI_assert(input != nullptr);
+      StringRefNull input_name(interface.name_at_offset(input->name_offset));
 
       GPUVertAttr *attr = nullptr;
       /* Scan through vertex_format attributes until one with a name matching the shader interface
        * is found. */
       for (uint32_t a_idx = 0; a_idx < this->vertex_format.attr_len && attr == nullptr; a_idx++) {
-        GPUVertAttr *check_attribute = &this->vertex_format.attrs[a_idx];
+        GPUVertAttr *candidate = &this->vertex_format.attrs[a_idx];
         /* Attributes can have multiple name aliases associated with them. */
-        for (uint32_t n_idx = 0; n_idx < check_attribute->name_len; n_idx++) {
+        for (uint32_t n_idx = 0; n_idx < candidate->name_len; n_idx++) {
           StringRefNull name = GPU_vertformat_attr_name_get(
-              &this->vertex_format, check_attribute, n_idx);
-
-          if (name == StringRefNull(interface.name_at_offset(input->name_offset))) {
-            attr = check_attribute;
+              &this->vertex_format, candidate, n_idx);
+          if (name == input_name) {
+            attr = candidate;
             break;
           }
         }
       }
 
-      BLI_assert_msg(!attr, "Could not find expected attribute in immediate mode vertex format.");
       if (attr == nullptr) {
-        MTL_LOG_ERROR(
-            "MTLImmediate::end Could not find matching attribute '%s' from Shader Interface in "
-            "Vertex Format! - TODO: Bind Dummy attribute",
-            interface.name_at_offset(input->name_offset));
+        MTL_LOG_ERROR("MTLImmediate::end Could not find matching attribute '%s' in Vertex Format!",
+                      input_name.c_str());
+        BLI_assert_unreachable();
+        return;
+      }
+
+      if (interface.vertex_buffer_mask() == 0) {
+        MTL_LOG_ERROR("MTLImmediate::end Not enough buffer slot to bind attribute.");
+        BLI_assert_unreachable();
         return;
       }
 

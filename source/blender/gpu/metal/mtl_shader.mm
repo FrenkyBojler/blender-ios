@@ -715,9 +715,10 @@ MTLRenderPipelineStateInstance *MTLShader::bake_current_pipeline_state(
         pipeline_descriptor.clipping_plane_enable_mask |
         ((ctx->pipeline_state.clip_distance_enabled[plane]) ? (1 << plane) : 0);
   }
-
+  MTLShaderInterface &interface = this->get_interface();
   /* Primitive Type -- Primitive topology class needs to be specified for layered rendering. */
-  bool requires_specific_topology_class = uses_gpu_layer || uses_gpu_viewport_index ||
+  bool requires_specific_topology_class = interface.use_layer() ||
+                                          interface.use_viewport_index() ||
                                           prim_type == MTLPrimitiveTopologyClassPoint;
   pipeline_descriptor.vertex_descriptor.prim_topology_class =
       (requires_specific_topology_class) ? prim_type : MTLPrimitiveTopologyClassUnspecified;
@@ -763,7 +764,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
   /* Prepare Vertex descriptor based on current pipeline vertex binding state. */
   ::MTLRenderPipelineDescriptor *desc = pso_descriptor_;
   [desc reset];
-  pso_descriptor_.label = [NSString stringWithUTF8String:this->name];
+  desc.label = [NSString stringWithUTF8String:this->name];
 
   /* Null buffer index is used if an attribute is not found in the
    * bound VBOs #VertexFormat. */

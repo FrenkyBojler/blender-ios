@@ -27,6 +27,7 @@
 #include "mtl_framebuffer.hh"
 #include "mtl_memory.hh"
 #include "mtl_shader.hh"
+#include "mtl_shader_generate.hh"
 #include "mtl_shader_interface.hh"
 #include "mtl_texture.hh"
 
@@ -50,17 +51,15 @@ class MTLStorageBuf;
 
 /* Structs containing information on current binding state for textures and samplers. */
 struct MTLTextureBinding {
-  bool used = false;
   gpu::MTLTexture *texture_resource = nullptr;
 };
 
 struct MTLSamplerBinding {
-  bool used = false;
   MTLSamplerState state = {GPUSamplerState::default_sampler()};
 
   bool operator==(MTLSamplerBinding const &other) const
   {
-    return (used == other.used && state == other.state);
+    return state == other.state;
   }
 };
 
@@ -465,24 +464,18 @@ struct MTLContextGlobalShaderPipelineState {
   bool dirty = true;
   MTLPipelineStateDirtyFlag dirty_flags = MTL_PIPELINE_STATE_NULL_FLAG;
 
-  /* Shader resources. */
-  MTLShader *null_shader = nullptr;
-
   /* Active Shader State. */
   MTLShader *active_shader = nullptr;
 
   /* Global Uniform Buffers. */
-  MTLUniformBufferBinding ubo_bindings[MTL_MAX_BUFFER_BINDINGS] = {};
-
+  std::array<MTLUniformBufferBinding, MTL_MAX_UBO> ubo_bindings = {};
   /* Storage buffer. */
-  MTLStorageBufferBinding ssbo_bindings[MTL_MAX_BUFFER_BINDINGS] = {};
-
+  std::array<MTLStorageBufferBinding, MTL_MAX_SSBO> ssbo_bindings = {};
   /* Context Texture bindings. */
-  MTLTextureBinding texture_bindings[MTL_MAX_TEXTURE_SLOTS] = {};
-  MTLSamplerBinding sampler_bindings[MTL_MAX_SAMPLER_SLOTS] = {};
-
+  std::array<MTLTextureBinding, MTL_MAX_SAMPLER> texture_bindings = {};
+  std::array<MTLSamplerBinding, MTL_MAX_SAMPLER> sampler_bindings = {};
   /* Image bindings. */
-  MTLTextureBinding image_bindings[MTL_MAX_TEXTURE_SLOTS] = {};
+  std::array<MTLTextureBinding, MTL_MAX_IMAGE> image_bindings = {};
 
   /*** --- Render Pipeline State --- ***/
   /* Track global render pipeline state for the current context. The functions in GPU_state.hh

@@ -89,6 +89,7 @@ MTLShaderInterface::MTLShaderInterface(const char *name,
       copy_input_name(input, res.uniformbuf.name, name_buffer_, name_buffer_offset);
       input->location = input->binding = res.slot;
       enabled_ubo_mask_ |= (1 << input->binding);
+      vertex_buffer_mask_ &= ~(1 << (input->binding + MTL_UBO_SLOT_OFFSET));
       input++;
     }
   }
@@ -124,6 +125,7 @@ MTLShaderInterface::MTLShaderInterface(const char *name,
       copy_input_name(input, res.storagebuf.name, name_buffer_, name_buffer_offset);
       input->location = input->binding = res.slot;
       enabled_ssbo_mask_ |= (1 << input->binding);
+      vertex_buffer_mask_ &= ~(1 << (input->binding + MTL_SSBO_SLOT_OFFSET));
       input++;
     }
   }
@@ -164,11 +166,9 @@ MTLShaderInterface::MTLShaderInterface(const char *name,
 
 MTLShaderInterface::~MTLShaderInterface()
 {
-  for (const int i : IndexRange(ARGUMENT_ENCODERS_CACHE_SIZE)) {
-    if (arg_encoders_[i].encoder != nil) {
-      id<MTLArgumentEncoder> enc = arg_encoders_[i].encoder;
-      [enc release];
-    }
+  if (arg_encoder_ != nil) {
+    [arg_encoder_ release];
+    arg_encoder_ = nil;
   }
 }
 
@@ -177,25 +177,13 @@ const char *MTLShaderInterface::name_at_offset(uint32_t offset) const
   return name_buffer_ + offset;
 }
 
-id<MTLArgumentEncoder> MTLShaderInterface::find_argument_encoder(int buffer_index) const
+id<MTLArgumentEncoder> MTLShaderInterface::ensure_argument_encoder(id<MTLFunction> mtl_function)
 {
-  id encoder = nil;
-  for (const int i : IndexRange(ARGUMENT_ENCODERS_CACHE_SIZE)) {
-    encoder = arg_encoders_[i].buffer_index == buffer_index ? arg_encoders_[i].encoder : encoder;
+  if (arg_encoder_ == nil) {
+    arg_encoder_ = [mtl_function
+        newArgumentEncoderWithBufferIndex:MTL_SAMPLER_ARGUMENT_BUFFER_SLOT];
   }
-  return encoder;
-}
-
-void MTLShaderInterface::insert_argument_encoder(int buffer_index, id encoder)
-{
-  for (const int i : IndexRange(ARGUMENT_ENCODERS_CACHE_SIZE)) {
-    if (arg_encoders_[i].encoder == nil) {
-      arg_encoders_[i].encoder = encoder;
-      arg_encoders_[i].buffer_index = buffer_index;
-      return;
-    }
-  }
-  MTL_LOG_WARNING("could not insert encoder into cache!");
+  return arg_encoder_;
 }
 
 }  // namespace blender::gpu

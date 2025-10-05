@@ -169,12 +169,6 @@ class MTLShader : public Shader {
   blender::Map<MTLComputePipelineStateDescriptor, MTLComputePipelineStateInstance *>
       compute_pso_cache_;
 
-  /* True to enable multi-layered rendering support. */
-  bool uses_gpu_layer = false;
-
-  /* True to enable multi-viewport rendering support. */
-  bool uses_gpu_viewport_index = false;
-
   /* Set to true when batch compiling */
   bool async_compilation_ = false;
 
