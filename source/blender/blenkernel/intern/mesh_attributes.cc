@@ -848,9 +848,6 @@ static const auto &builtin_attributes()
     position.deletable = false;
     map.add_new("position", std::move(position));
 
-    AttrBuiltinInfo id(AttrDomain::Point, AttrType::Int32);
-    map.add_new("id", std::move(id));
-
     static const auto material_index_clamp = mf::build::SI1_SO<int, int>(
         "Material Index Validate",
         [](int value) {
