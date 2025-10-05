@@ -3813,6 +3813,10 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
             if (region->regiontype == RGN_TYPE_FOOTER) {
               region->flag &= ~RGN_FLAG_HIDDEN;
             }
+            /* Hide the sidebar. */
+            if (region->regiontype == RGN_TYPE_UI) {
+              region->flag |= RGN_FLAG_HIDDEN;
+            }
           }
         }
       }
