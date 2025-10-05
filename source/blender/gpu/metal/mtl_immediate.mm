@@ -62,7 +62,7 @@ void MTLImmediate::end()
   /* Verify context is valid, vertex data is written and a valid shader is bound. */
   if (context_ && this->vertex_idx > 0 && this->shader) {
 
-    MTLShader *active_mtl_shader = static_cast<MTLShader *>(unwrap(shader));
+    MTLShader *active_mtl_shader = static_cast<MTLShader *>(shader);
 
     /* Skip draw if Metal shader is not valid. */
     if (active_mtl_shader == nullptr || !active_mtl_shader->is_valid() ||
@@ -155,12 +155,11 @@ void MTLImmediate::end()
       /* Determine whether implicit type conversion between input vertex format
        * and shader interface vertex format is supported. */
       MTLVertexFormat convertedFormat;
-      bool can_use_implicit_conversion = mtl_convert_vertex_format(
-          mtl_shader_attribute.format,
-          (GPUVertCompType)attr->comp_type,
-          attr->comp_len,
-          (GPUVertFetchMode)attr->fetch_mode,
-          &convertedFormat);
+      bool can_use_implicit_conversion = mtl_convert_vertex_format(mtl_shader_attribute.format,
+                                                                   attr->type.comp_type(),
+                                                                   attr->type.comp_len(),
+                                                                   attr->type.fetch_mode(),
+                                                                   &convertedFormat);
 
       if (can_use_implicit_conversion) {
         /* Metal API can implicitly convert some formats during vertex assembly:
@@ -171,7 +170,7 @@ void MTLImmediate::end()
          * (See
          * https://developer.apple.com/documentation/metal/mtlvertexattributedescriptor/1516081-format)
          */
-        bool is_floating_point_format = (attr->comp_type == GPU_COMP_F32);
+        bool is_floating_point_format = is_fetch_float(attr->type.format);
         desc.vertex_descriptor.attributes[i].format = convertedFormat;
         desc.vertex_descriptor.attributes[i].format_conversion_mode =
             (is_floating_point_format) ? (GPUVertFetchMode)GPU_FETCH_FLOAT :
@@ -187,10 +186,9 @@ void MTLImmediate::end()
          *   value into local shader storage.
          *   (If no explicit conversion is needed, the function specialize to a pass-through). */
         MTLVertexFormat converted_format = format_resize_comp(mtl_shader_attribute.format,
-                                                              attr->comp_len);
+                                                              attr->type.comp_len());
         desc.vertex_descriptor.attributes[i].format = converted_format;
-        desc.vertex_descriptor.attributes[i].format_conversion_mode = (GPUVertFetchMode)
-                                                                          attr->fetch_mode;
+        desc.vertex_descriptor.attributes[i].format_conversion_mode = attr->type.fetch_mode();
         BLI_assert(desc.vertex_descriptor.attributes[i].format != MTLVertexFormatInvalid);
       }
       /* Using attribute offset in vertex format, as this will be correct */
@@ -215,7 +213,7 @@ void MTLImmediate::end()
       this->prim_type = GPU_PRIM_LINE_STRIP;
     }
 
-    if (unwrap(this->shader)->is_polyline) {
+    if (this->shader->is_polyline) {
       context_->get_scratchbuffer_manager().bind_as_ssbo(GPU_SSBO_POLYLINE_POS_BUF_SLOT);
       context_->get_scratchbuffer_manager().bind_as_ssbo(GPU_SSBO_POLYLINE_COL_BUF_SLOT);
       context_->get_scratchbuffer_manager().bind_as_ssbo(GPU_SSBO_INDEX_BUF_SLOT);
@@ -311,7 +309,7 @@ void MTLImmediate::end()
         /* Set depth stencil state (requires knowledge of primitive type). */
         context_->ensure_depth_stencil_state(primitive_type);
 
-        if (unwrap(this->shader)->is_polyline) {
+        if (this->shader->is_polyline) {
           this->polyline_draw_workaround(current_allocation_.buffer_offset);
         }
         else {
@@ -325,7 +323,7 @@ void MTLImmediate::end()
       [rec popDebugGroup];
     }
 
-    if (unwrap(this->shader)->is_polyline) {
+    if (this->shader->is_polyline) {
       context_->get_scratchbuffer_manager().unbind_as_ssbo();
 
       context_->pipeline_state.ssbo_bindings[GPU_SSBO_POLYLINE_POS_BUF_SLOT].ssbo = nil;

@@ -39,8 +39,10 @@
 #include "RNA_prototypes.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_sequencer.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -71,7 +73,7 @@ static void sound_open_init(bContext *C, wmOperator *op)
 }
 
 #ifdef WITH_AUDASPACE
-static int sound_open_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sound_open_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   bSound *sound;
@@ -114,7 +116,7 @@ static int sound_open_exec(bContext *C, wmOperator *op)
 
 #else /* WITH_AUDASPACE */
 
-static int sound_open_exec(bContext * /*C*/, wmOperator *op)
+static wmOperatorStatus sound_open_exec(bContext * /*C*/, wmOperator *op)
 {
   BKE_report(op->reports, RPT_ERROR, "Compiled without sound support");
 
@@ -123,7 +125,7 @@ static int sound_open_exec(bContext * /*C*/, wmOperator *op)
 
 #endif
 
-static int sound_open_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sound_open_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     return sound_open_exec(C, op);
@@ -141,7 +143,7 @@ static void SOUND_OT_open(wmOperatorType *ot)
   ot->description = "Load a sound file";
   ot->idname = "SOUND_OT_open";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_open_exec;
   ot->invoke = sound_open_invoke;
   ot->cancel = sound_open_cancel;
@@ -168,7 +170,7 @@ static void SOUND_OT_open_mono(wmOperatorType *ot)
   ot->description = "Load a sound file as mono";
   ot->idname = "SOUND_OT_open_mono";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_open_exec;
   ot->invoke = sound_open_invoke;
   ot->cancel = sound_open_cancel;
@@ -255,7 +257,7 @@ static void sound_update_animation_flags(Scene *scene)
   }
 }
 
-static int sound_update_animation_flags_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sound_update_animation_flags_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 
@@ -279,7 +281,7 @@ static void SOUND_OT_update_animation_flags(wmOperatorType *ot)
   ot->description = "Update animation flags";
   ot->idname = "SOUND_OT_update_animation_flags";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_update_animation_flags_exec;
 
   /* flags */
@@ -288,7 +290,7 @@ static void SOUND_OT_update_animation_flags(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-static int sound_bake_animation_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sound_bake_animation_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   /* NOTE: We will be forcefully evaluating dependency graph at every frame, so no need to ensure
@@ -319,7 +321,7 @@ static void SOUND_OT_bake_animation(wmOperatorType *ot)
   ot->description = "Update the audio animation cache";
   ot->idname = "SOUND_OT_bake_animation";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_bake_animation_exec;
 
   /* flags */
@@ -328,7 +330,7 @@ static void SOUND_OT_bake_animation(wmOperatorType *ot)
 
 /******************** mixdown operator ********************/
 
-static int sound_mixdown_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
 {
 #ifdef WITH_AUDASPACE
   char filepath[FILE_MAX];
@@ -488,7 +490,7 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
 
 #endif /* WITH_AUDASPACE */
 
-static int sound_mixdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sound_mixdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "filepath")) {
     return sound_mixdown_exec(C, op);
@@ -560,8 +562,8 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   PropertyRNA *prop_codec;
   PropertyRNA *prop_bitrate;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   AUD_Container container = AUD_Container(RNA_enum_get(op->ptr, "container"));
   AUD_Codec codec = AUD_Codec(RNA_enum_get(op->ptr, "codec"));
@@ -717,7 +719,7 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
   ot->description = "Mix the scene's audio to a sound file";
   ot->idname = "SOUND_OT_mixdown";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_mixdown_exec;
   ot->invoke = sound_mixdown_invoke;
 
@@ -775,9 +777,9 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
 
 static bool sound_poll(bContext *C)
 {
-  Editing *ed = CTX_data_scene(C)->ed;
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
 
-  if (!ed || !ed->act_seq || ed->act_seq->type != STRIP_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
     return false;
   }
 
@@ -785,17 +787,17 @@ static bool sound_poll(bContext *C)
 }
 /********************* pack operator *********************/
 
-static int sound_pack_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Editing *ed = CTX_data_scene(C)->ed;
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
   bSound *sound;
 
-  if (!ed || !ed->act_seq || ed->act_seq->type != STRIP_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
     return OPERATOR_CANCELLED;
   }
 
-  sound = ed->act_seq->sound;
+  sound = ed->act_strip->sound;
 
   if (!sound || sound->packedfile) {
     return OPERATOR_CANCELLED;
@@ -816,7 +818,7 @@ static void SOUND_OT_pack(wmOperatorType *ot)
   ot->description = "Pack the sound into the current blend file";
   ot->idname = "SOUND_OT_pack";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_pack_exec;
   ot->poll = sound_poll;
 
@@ -826,7 +828,7 @@ static void SOUND_OT_pack(wmOperatorType *ot)
 
 /********************* unpack operator *********************/
 
-static int sound_unpack_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   int method = RNA_enum_get(op->ptr, "method");
@@ -859,20 +861,20 @@ static int sound_unpack_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Editing *ed = CTX_data_scene(C)->ed;
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
   bSound *sound;
 
   if (RNA_struct_property_is_set(op->ptr, "id")) {
     return sound_unpack_exec(C, op);
   }
 
-  if (!ed || !ed->act_seq || ed->act_seq->type != STRIP_TYPE_SOUND_RAM) {
+  if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
     return OPERATOR_CANCELLED;
   }
 
-  sound = ed->act_seq->sound;
+  sound = ed->act_strip->sound;
 
   if (!sound || !sound->packedfile) {
     return OPERATOR_CANCELLED;
@@ -902,7 +904,7 @@ static void SOUND_OT_unpack(wmOperatorType *ot)
   ot->description = "Unpack the sound to the samples filename";
   ot->idname = "SOUND_OT_unpack";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_unpack_exec;
   ot->invoke = sound_unpack_invoke;
   ot->poll = sound_poll;

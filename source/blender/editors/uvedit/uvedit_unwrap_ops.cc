@@ -28,10 +28,9 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
-#include "BLI_uvproject.h"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -47,16 +46,18 @@
 #include "BKE_mesh.hh"
 #include "BKE_object_types.hh"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.hh"
+#include "BKE_uvproject.h"
 
 #include "DEG_depsgraph.hh"
 
 #include "GEO_uv_pack.hh"
 #include "GEO_uv_parametrizer.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_image.hh"
@@ -84,7 +85,7 @@ using blender::geometry::ParamSlimOptions;
 /** \name Utility Functions
  * \{ */
 
-static bool ED_uvedit_ensure_uvs(Object *obedit)
+static bool uvedit_ensure_uvs(Object *obedit)
 {
   if (ED_uvedit_test(obedit)) {
     return true;
@@ -108,7 +109,7 @@ static bool ED_uvedit_ensure_uvs(Object *obedit)
   BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
   const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
-  /* select new UVs (ignore UV_SYNC_SELECTION in this case) */
+  /* select new UVs (ignore UV_FLAG_SELECT_SYNC in this case) */
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
     BMIter liter;
     BMLoop *l;
@@ -274,7 +275,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
     options.use_subsurf = (ts->uvcalc_flag & UVCALC_USESUBSURF) != 0;
 
     options.use_weights = ts->uvcalc_flag & UVCALC_UNWRAP_USE_WEIGHTS;
-    STRNCPY(options.weight_group, ts->uvcalc_weight_group);
+    STRNCPY_UTF8(options.weight_group, ts->uvcalc_weight_group);
     options.slim.weight_influence = ts->uvcalc_weight_factor;
 
     options.slim.iterations = ts->uvcalc_iterations;
@@ -453,7 +454,7 @@ static bool uvedit_have_selection(const Scene *scene, BMEditMesh *em, const Unwr
   /* verify if we have any selected uv's before unwrapping,
    * so we can cancel the operator early */
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-    if (scene->toolsettings->uv_flag & UV_SYNC_SELECTION) {
+    if (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
         continue;
       }
@@ -902,8 +903,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
   const int *origPolyIndices = static_cast<const int *>(
       CustomData_get_layer(&subdiv_mesh->face_data, CD_ORIGINDEX));
 
-  faceMap = static_cast<BMFace **>(
-      MEM_mallocN(subdiv_mesh->faces_num * sizeof(BMFace *), "unwrap_edit_face_map"));
+  faceMap = MEM_malloc_arrayN<BMFace *>(subdiv_mesh->faces_num, "unwrap_edit_face_map");
 
   BM_mesh_elem_index_ensure(em->bm, BM_VERT);
   BM_mesh_elem_table_ensure(em->bm, BM_EDGE | BM_FACE);
@@ -913,8 +913,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     faceMap[i] = BM_face_at_index(em->bm, origPolyIndices[i]);
   }
 
-  edgeMap = static_cast<BMEdge **>(
-      MEM_mallocN(subdiv_mesh->edges_num * sizeof(BMEdge *), "unwrap_edit_edge_map"));
+  edgeMap = MEM_malloc_arrayN<BMEdge *>(subdiv_mesh->edges_num, "unwrap_edit_edge_map");
 
   /* map subsurfed edges to original editEdges */
   for (int i = 0; i < subdiv_mesh->edges_num; i++) {
@@ -933,7 +932,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     float weight[4];
     BMFace *origFace = faceMap[i];
 
-    if (scene->toolsettings->uv_flag & UV_SYNC_SELECTION) {
+    if (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (BM_elem_flag_test(origFace, BM_ELEM_HIDDEN)) {
         continue;
       }
@@ -1097,7 +1096,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
   ScrArea *area = CTX_wm_area(C);
   const Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   blender::geometry::uv_parametrizer_stretch_blend(ms->handle, ms->blend);
   blender::geometry::uv_parametrizer_stretch_iter(ms->handle);
@@ -1111,7 +1110,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
     blender::geometry::uv_parametrizer_flush(ms->handle);
 
     if (area) {
-      SNPRINTF(str, IFACE_("Minimize Stretch. Blend %.2f"), ms->blend);
+      SNPRINTF_UTF8(str, IFACE_("Minimize Stretch. Blend %.2f"), ms->blend);
       ED_area_status_text(area, str);
       ED_workspace_status_text(C, IFACE_("Press + and -, or scroll wheel to set blending"));
     }
@@ -1137,7 +1136,7 @@ static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
   ScrArea *area = CTX_wm_area(C);
   const Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   ED_area_status_text(area, nullptr);
   ED_workspace_status_text(C, nullptr);
@@ -1171,7 +1170,7 @@ static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
   op->customdata = nullptr;
 }
 
-static int minimize_stretch_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus minimize_stretch_exec(bContext *C, wmOperator *op)
 {
   int i, iterations;
 
@@ -1188,7 +1187,9 @@ static int minimize_stretch_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int minimize_stretch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus minimize_stretch_invoke(bContext *C,
+                                                wmOperator *op,
+                                                const wmEvent * /*event*/)
 {
   if (!minimize_stretch_init(C, op)) {
     return OPERATOR_CANCELLED;
@@ -1203,7 +1204,7 @@ static int minimize_stretch_invoke(bContext *C, wmOperator *op, const wmEvent * 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   MinStretch *ms = static_cast<MinStretch *>(op->customdata);
 
@@ -1248,6 +1249,9 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
         } while (BLI_time_now_seconds() - start < 0.01);
       }
       break;
+    default: {
+      break;
+    }
   }
 
   if (ms->iterations && ms->i >= ms->iterations) {
@@ -1271,7 +1275,7 @@ void UV_OT_minimize_stretch(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_GRAB_CURSOR_XY | OPTYPE_BLOCKING;
   ot->description = "Reduce UV stretching by relaxing angles";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = minimize_stretch_exec;
   ot->invoke = minimize_stretch_invoke;
   ot->modal = minimize_stretch_modal;
@@ -1315,7 +1319,7 @@ static void island_uv_transform(FaceIsland *island,
   /* Use a pre-transform to compute `A * (x+b)`
    *
    * \note Ordinarily, we'd use a post_transform like `A * x + b`
-   * In general, post-transforms are easier to work with when using homogenous co-ordinates.
+   * In general, post-transforms are easier to work with when using homogeneous coordinates.
    *
    * When UV mapping into the unit square, post-transforms can lose precision on small islands.
    * Instead we're using a pre-transform to maintain precision.
@@ -1434,6 +1438,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
                                       const SpaceImage *udim_source_closest,
                                       const bool original_selection,
                                       const bool notify_wm,
+                                      const rctf *custom_region,
                                       blender::geometry::UVPackIsland_Params *params)
 {
   blender::Vector<FaceIsland *> island_vector;
@@ -1522,6 +1527,17 @@ static void uvedit_pack_islands_multi(const Scene *scene,
                                 (selection_max_co[1] - selection_min_co[1]);
     }
   }
+  else if (custom_region) {
+    if (!BLI_rctf_is_empty(custom_region)) {
+      const blender::float2 custom_region_size = {
+          BLI_rctf_size_x(custom_region),
+          BLI_rctf_size_y(custom_region),
+      };
+      ARRAY_SET_ITEMS(params->udim_base_offset, custom_region->xmin, custom_region->ymin);
+      params->target_extent = custom_region_size.y;
+      params->target_aspect_y = custom_region_size.x / custom_region_size.y;
+    }
+  }
 
   MemArena *arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
   Heap *heap = BLI_heap_new();
@@ -1608,14 +1624,16 @@ static void uvedit_pack_islands_multi(const Scene *scene,
     invert_m2_m2(matrix_inverse, matrix);
 
     /* Add base_offset, post transform. */
-    mul_v2_m2v2(pre_translate, matrix_inverse, base_offset);
+    if (!pinned_vector[i] || params->pin_method != ED_UVPACK_PIN_LOCK_ALL) {
+      mul_v2_m2v2(pre_translate, matrix_inverse, base_offset);
 
-    /* Add pre-translation from #pack_islands. */
-    pre_translate[0] += pack_island->pre_translate.x;
-    pre_translate[1] += pack_island->pre_translate.y;
+      /* Add pre-translation from #pack_islands. */
+      pre_translate[0] += pack_island->pre_translate.x;
+      pre_translate[1] += pack_island->pre_translate.y;
 
-    /* Perform the transformation. */
-    island_uv_transform(island, matrix, pre_translate);
+      /* Perform the transformation. */
+      island_uv_transform(island, matrix, pre_translate);
+    }
   }
 
   for (const int64_t i : pack_island_vector.index_range()) {
@@ -1650,6 +1668,7 @@ enum {
   PACK_UDIM_SRC_CLOSEST = 0,
   PACK_UDIM_SRC_ACTIVE,
   PACK_ORIGINAL_AABB,
+  PACK_CUSTOM_REGION,
 };
 
 struct UVPackIslandsData {
@@ -1666,6 +1685,7 @@ struct UVPackIslandsData {
   bool use_job;
 
   blender::geometry::UVPackIsland_Params pack_island_params;
+  rctf custom_region;
 };
 
 static void pack_islands_startjob(void *pidv, wmJobWorkerStatus *worker_status)
@@ -1684,6 +1704,8 @@ static void pack_islands_startjob(void *pidv, wmJobWorkerStatus *worker_status)
                             (pid->udim_source == PACK_UDIM_SRC_CLOSEST) ? pid->sima : nullptr,
                             (pid->udim_source == PACK_ORIGINAL_AABB),
                             !pid->use_job,
+                            (pid->udim_source == PACK_CUSTOM_REGION) ? &pid->custom_region :
+                                                                       nullptr,
                             &pid->pack_island_params);
 
   worker_status->progress = 0.99f;
@@ -1708,15 +1730,16 @@ static void pack_islands_freejob(void *pidv)
 {
   WM_cursor_wait(false);
   UVPackIslandsData *pid = static_cast<UVPackIslandsData *>(pidv);
-  WM_set_locked_interface(pid->wm, false);
+  WM_locked_interface_set(pid->wm, false);
   MEM_delete(pid);
 }
 
-static int pack_islands_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
   const SpaceImage *sima = CTX_wm_space_image(C);
+  const ToolSettings *ts = scene->toolsettings;
 
   UnwrapOptions options = unwrap_options_get(op, nullptr, scene->toolsettings);
   options.topology_from_uvs = true;
@@ -1749,6 +1772,19 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
   pid->sima = sima;
   pid->udim_source = udim_source;
   pid->wm = CTX_wm_manager(C);
+
+  if (udim_source == PACK_CUSTOM_REGION) {
+    if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
+      pid->custom_region = ts->uv_custom_region;
+    }
+    else {
+      pid->custom_region.xmin = pid->custom_region.ymin = 0.0f;
+      pid->custom_region.xmax = pid->custom_region.ymax = 1.0f;
+    }
+  }
+  else {
+    pid->custom_region = {0.0f};
+  }
 
   blender::geometry::UVPackIsland_Params &pack_island_params = pid->pack_island_params;
   {
@@ -1785,6 +1821,9 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
     pack_island_params.setUDIMOffsetFromSpaceImage(sima);
   }
 
+  /* Needed even when jobs aren't used, see: #146195. */
+  G.is_break = false;
+
   if (pid->use_job) {
     /* Setup job. */
     if (pid->wm->op_undo_depth == 0) {
@@ -1794,14 +1833,13 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
     }
 
     wmJob *wm_job = WM_jobs_get(
-        pid->wm, CTX_wm_window(C), scene, "Packing UVs", WM_JOB_PROGRESS, WM_JOB_TYPE_UV_PACK);
+        pid->wm, CTX_wm_window(C), scene, "Packing UVs...", WM_JOB_PROGRESS, WM_JOB_TYPE_UV_PACK);
     WM_jobs_customdata_set(wm_job, pid, pack_islands_freejob);
     WM_jobs_timer(wm_job, 0.1, 0, 0);
-    WM_set_locked_interface(pid->wm, true);
+    WM_locked_interface_set_with_flags(pid->wm, REGION_DRAW_LOCK_RENDER);
     WM_jobs_callbacks(wm_job, pack_islands_startjob, nullptr, nullptr, pack_islands_endjob);
 
     WM_cursor_wait(true);
-    G.is_break = false;
     WM_jobs_start(CTX_wm_manager(C), wm_job);
     return OPERATOR_FINISHED;
   }
@@ -1886,33 +1924,33 @@ static const EnumPropertyItem pinned_islands_method_items[] = {
 static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+  layout->prop(op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   {
-    uiItemR(layout, op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = uiLayoutRow(layout, true);
-    uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "rotate"));
-    uiItemR(sub, op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemS(layout);
+    layout->prop(op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiLayout *sub = &layout->row(true);
+    sub->active_set(RNA_boolean_get(op->ptr, "rotate"));
+    sub->prop(op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->separator();
   }
-  uiItemR(layout, op->ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  layout->prop(op->ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->separator();
   {
-    uiItemR(layout, op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = uiLayoutRow(layout, true);
-    uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "pin"));
-    uiItemR(sub, op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
-    uiItemS(layout);
+    layout->prop(op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiLayout *sub = &layout->row(true);
+    sub->active_set(RNA_boolean_get(op->ptr, "pin"));
+    sub->prop(op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
+    layout->separator();
   }
-  uiItemR(layout, op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  layout->prop(op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->separator();
 }
 
-static int uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Pack Islands"), IFACE_("Pack"));
 }
@@ -1931,6 +1969,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
        0,
        "Original bounding box",
        "Pack to starting bounding box of islands"},
+      {PACK_CUSTOM_REGION, "CUSTOM_REGION", 0, "Custom Region", "Pack islands to custom region"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
@@ -1946,7 +1985,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER;
 #endif
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pack_islands_exec;
 
 #ifdef USE_INTERACTIVE_PACK
@@ -2002,12 +2041,12 @@ void UV_OT_pack_islands(wmOperatorType *ot)
 /** \name Average UV Islands Scale Operator
  * \{ */
 
-static int average_islands_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus average_islands_scale_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   UnwrapOptions options = unwrap_options_get(nullptr, nullptr, ts);
   options.topology_from_uvs = true;
@@ -2054,7 +2093,7 @@ void UV_OT_average_islands_scale(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = average_islands_scale_exec;
   ot->poll = ED_operator_uvedit;
 
@@ -2092,7 +2131,7 @@ static bool uvedit_live_unwrap_timer_validate(const wmWindowManager *wm)
   if (g_live_unwrap.timer == nullptr) {
     return false;
   }
-  if (BLI_findindex(&wm->timers, g_live_unwrap.timer) != -1) {
+  if (BLI_findindex(&wm->runtime->timers, g_live_unwrap.timer) != -1) {
     return false;
   }
   g_live_unwrap.timer = nullptr;
@@ -2140,8 +2179,8 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, wmWindow *win_mod
   /* Create or increase size of g_live_unwrap.handles array */
   if (g_live_unwrap.handles == nullptr) {
     g_live_unwrap.len_alloc = 32;
-    g_live_unwrap.handles = static_cast<ParamHandle **>(MEM_mallocN(
-        sizeof(ParamHandle *) * g_live_unwrap.len_alloc, "uvedit_live_unwrap_liveHandles"));
+    g_live_unwrap.handles = MEM_malloc_arrayN<ParamHandle *>(g_live_unwrap.len_alloc,
+                                                             "uvedit_live_unwrap_liveHandles");
     g_live_unwrap.len = 0;
   }
   if (g_live_unwrap.len >= g_live_unwrap.len_alloc) {
@@ -2757,7 +2796,8 @@ void ED_uvedit_live_unwrap(const Scene *scene, const Span<Object *> objects)
     pack_island_params.margin_method = ED_UVPACK_MARGIN_SCALED;
     pack_island_params.margin = scene->toolsettings->uvcalc_margin;
 
-    uvedit_pack_islands_multi(scene, objects, nullptr, nullptr, false, true, &pack_island_params);
+    uvedit_pack_islands_multi(
+        scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
   }
 }
 
@@ -2766,7 +2806,7 @@ enum {
   UNWRAP_ERROR_NEGATIVE = (1 << 1),
 };
 
-static int unwrap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
@@ -2801,7 +2841,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
     float obsize[3];
     bool use_subsurf_final;
 
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -2858,7 +2898,8 @@ static int unwrap_exec(bContext *C, wmOperator *op)
       RNA_enum_get(op->ptr, "margin_method"));
   pack_island_params.margin = RNA_float_get(op->ptr, "margin");
 
-  uvedit_pack_islands_multi(scene, objects, nullptr, nullptr, false, true, &pack_island_params);
+  uvedit_pack_islands_multi(
+      scene, objects, nullptr, nullptr, false, true, nullptr, &pack_island_params);
 
   if (count_failed == 0 && count_changed == 0) {
     BKE_report(op->reports,
@@ -2880,42 +2921,42 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* Main draw call */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
 
   uiLayout *col;
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, &ptr, "method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(true);
+  col->prop(&ptr, "method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   bool is_slim = RNA_enum_get(op->ptr, "method") == UVCALC_UNWRAP_METHOD_MINIMUM_STRETCH;
 
   if (is_slim) {
-    uiItemR(col, &ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, &ptr, "no_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(&ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(&ptr, "no_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiItemS(col);
-    uiItemR(col, &ptr, "use_weights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->separator();
+    col->prop(&ptr, "use_weights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (RNA_boolean_get(op->ptr, "use_weights")) {
-      col = uiLayoutColumn(layout, true);
-      uiItemR(col, &ptr, "weight_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(col, &ptr, "weight_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col = &layout->column(true);
+      col->prop(&ptr, "weight_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(&ptr, "weight_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
   else {
-    uiItemR(col, &ptr, "fill_holes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(&ptr, "fill_holes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemS(col);
-  uiItemR(col, &ptr, "use_subsurf_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->separator();
+  col->prop(&ptr, "use_subsurf_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemS(col);
-  uiItemR(col, &ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, &ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, &ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->separator();
+  col->prop(&ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void UV_OT_unwrap(wmOperatorType *ot)
@@ -2935,7 +2976,7 @@ void UV_OT_unwrap(wmOperatorType *ot)
   ot->idname = "UV_OT_unwrap";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = unwrap_exec;
   ot->poll = ED_operator_uvmap;
 
@@ -3149,7 +3190,7 @@ static blender::Vector<blender::float3> smart_uv_project_calculate_project_norma
   return project_normal_array;
 }
 
-static int smart_project_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -3186,14 +3227,13 @@ static int smart_project_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     bool changed = false;
 
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
     BLI_assert(offsets.uv >= 0);
-    ThickFace *thick_faces = static_cast<ThickFace *>(
-        MEM_mallocN(sizeof(*thick_faces) * em->bm->totface, __func__));
+    ThickFace *thick_faces = MEM_malloc_arrayN<ThickFace>(em->bm->totface, __func__);
 
     uint thick_faces_len = 0;
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -3318,7 +3358,8 @@ static int smart_project_exec(bContext *C, wmOperator *op)
     params.margin_method = eUVPackIsland_MarginMethod(RNA_enum_get(op->ptr, "margin_method"));
     params.margin = RNA_float_get(op->ptr, "island_margin");
 
-    uvedit_pack_islands_multi(scene, objects_changed, nullptr, nullptr, false, true, &params);
+    uvedit_pack_islands_multi(
+        scene, objects_changed, nullptr, nullptr, false, true, nullptr, &params);
 
     /* #uvedit_pack_islands_multi only supports `per_face_aspect = false`. */
     const bool per_face_aspect = false;
@@ -3328,7 +3369,7 @@ static int smart_project_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int smart_project_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus smart_project_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(
       C, op, event, IFACE_("Smart UV Project"), IFACE_("Unwrap"));
@@ -3345,7 +3386,7 @@ void UV_OT_smart_project(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = smart_project_exec;
   ot->poll = ED_operator_uvmap;
   ot->invoke = smart_project_invoke;
@@ -3405,9 +3446,9 @@ void UV_OT_smart_project(wmOperatorType *ot)
 /** \name Project UV From View Operator
  * \{ */
 
-static int uv_from_view_exec(bContext *C, wmOperator *op);
+static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op);
 
-static int uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -3426,7 +3467,7 @@ static int uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent * /*ev
   return uv_from_view_exec(C, op);
 }
 
-static int uv_from_view_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
@@ -3465,7 +3506,7 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
     bool changed = false;
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3481,14 +3522,14 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
 
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-          BLI_uvproject_from_view_ortho(luv, l->v->co, rotmat);
+          BKE_uvproject_from_view_ortho(luv, l->v->co, rotmat);
         }
         changed = true;
       }
     }
     else if (camera) {
       const bool camera_bounds = RNA_boolean_get(op->ptr, "camera_bounds");
-      ProjCameraInfo *uci = BLI_uvproject_camera_info(
+      ProjCameraInfo *uci = BKE_uvproject_camera_info(
           v3d->camera,
           obedit->object_to_world().ptr(),
           camera_bounds ? (scene->r.xsch * scene->r.xasp) : 1.0f,
@@ -3502,12 +3543,12 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
 
           BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
             float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-            BLI_uvproject_from_camera(luv, l->v->co, uci);
+            BKE_uvproject_from_camera(luv, l->v->co, uci);
           }
           changed = true;
         }
 
-        BLI_uvproject_camera_info_free(uci);
+        BKE_uvproject_camera_info_free(uci);
       }
     }
     else {
@@ -3520,7 +3561,7 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
 
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-          BLI_uvproject_from_view(
+          BKE_uvproject_from_view(
               luv, l->v->co, rv3d->persmat, rotmat, region->winx, region->winy);
         }
         changed = true;
@@ -3564,7 +3605,7 @@ void UV_OT_project_from_view(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = uv_from_view_invoke;
   ot->exec = uv_from_view_exec;
   ot->poll = uv_from_view_poll;
@@ -3585,7 +3626,7 @@ void UV_OT_project_from_view(wmOperatorType *ot)
 /** \name Reset UV Operator
  * \{ */
 
-static int reset_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus reset_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -3602,7 +3643,7 @@ static int reset_exec(bContext *C, wmOperator * /*op*/)
     }
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3624,7 +3665,7 @@ void UV_OT_reset(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = reset_exec;
   ot->poll = ED_operator_uvmap;
 }
@@ -3840,7 +3881,7 @@ static float uv_sphere_project(const Scene *scene,
   return max_u;
 }
 
-static int sphere_project_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sphere_project_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -3864,7 +3905,7 @@ static int sphere_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -3915,7 +3956,7 @@ void UV_OT_sphere_project(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sphere_project_exec;
   ot->poll = ED_operator_uvmap;
 
@@ -4018,7 +4059,7 @@ static float uv_cylinder_project(const Scene *scene,
   return max_u;
 }
 
-static int cylinder_project_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -4042,7 +4083,7 @@ static int cylinder_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
@@ -4103,7 +4144,7 @@ void UV_OT_cylinder_project(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = cylinder_project_exec;
   ot->poll = ED_operator_uvmap;
 
@@ -4166,7 +4207,7 @@ static void uvedit_unwrap_cube_project(const Scene *scene,
   }
 }
 
-static int cube_project_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -4192,12 +4233,12 @@ static int cube_project_exec(bContext *C, wmOperator *op)
     }
 
     /* add uvs if they don't exist yet */
-    if (!ED_uvedit_ensure_uvs(obedit)) {
+    if (!uvedit_ensure_uvs(obedit)) {
       continue;
     }
 
     float bounds[2][3];
-    float(*bounds_buf)[3] = nullptr;
+    float (*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;
@@ -4239,7 +4280,7 @@ void UV_OT_cube_project(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = cube_project_exec;
   ot->poll = ED_operator_uvmap;
 
@@ -4265,7 +4306,7 @@ void UV_OT_cube_project(wmOperatorType *ot)
 void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  bool sync_selection = (scene->toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
+  bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   BMeshCreateParams create_params{};
   create_params.use_toolflags = false;
@@ -4273,7 +4314,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
 
   /* turn sync selection off,
    * since we are not in edit mode we need to ensure only the uv flags are tested */
-  scene->toolsettings->uv_flag &= ~UV_SYNC_SELECTION;
+  scene->toolsettings->uv_flag &= ~UV_FLAG_SELECT_SYNC;
 
   ED_mesh_uv_ensure(mesh, nullptr);
 
@@ -4297,7 +4338,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   params.margin_method = ED_UVPACK_MARGIN_SCALED;
   params.margin = 0.001f;
 
-  uvedit_pack_islands_multi(scene, {ob}, &bm, nullptr, false, true, &params);
+  uvedit_pack_islands_multi(scene, {ob}, &bm, nullptr, false, true, nullptr, &params);
 
   /* Write back from BMesh to Mesh. */
   BMeshToMeshParams bm_to_me_params{};
@@ -4305,7 +4346,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   BM_mesh_free(bm);
 
   if (sync_selection) {
-    scene->toolsettings->uv_flag |= UV_SYNC_SELECTION;
+    scene->toolsettings->uv_flag |= UV_FLAG_SELECT_SYNC;
   }
 }
 

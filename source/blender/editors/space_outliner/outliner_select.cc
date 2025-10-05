@@ -63,6 +63,7 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "outliner_intern.hh"
@@ -258,7 +259,7 @@ static void do_outliner_object_select_recursive(const Scene *scene,
 static void do_outliner_bone_select_recursive(bArmature *arm, Bone *bone_parent, bool select)
 {
   LISTBASE_FOREACH (Bone *, bone, &bone_parent->childbase) {
-    if (select && PBONE_SELECTABLE(arm, bone)) {
+    if (select && blender::animrig::bone_is_selectable(arm, bone)) {
       bone->flag |= BONE_SELECTED;
     }
     else {
@@ -576,7 +577,7 @@ static void tree_element_posechannel_activate(bContext *C,
     pchan->bone->flag &= ~BONE_SELECTED;
   }
   else {
-    if (ANIM_bone_is_visible(arm, pchan->bone)) {
+    if (blender::animrig::bone_is_visible(arm, pchan)) {
       pchan->bone->flag |= BONE_SELECTED;
     }
     arm->act_bone = pchan->bone;
@@ -620,7 +621,7 @@ static void tree_element_bone_activate(bContext *C,
     bone->flag &= ~BONE_SELECTED;
   }
   else {
-    if (ANIM_bone_is_visible(arm, bone) && ((bone->flag & BONE_UNSELECTABLE) == 0)) {
+    if (blender::animrig::bone_is_visible(arm, bone) && ((bone->flag & BONE_UNSELECTABLE) == 0)) {
       bone->flag |= BONE_SELECTED;
     }
     arm->act_bone = bone;
@@ -729,40 +730,48 @@ static void tree_element_constraint_activate(bContext *C,
 }
 
 static void tree_element_strip_activate(bContext *C,
-                                        Scene *scene,
+                                        WorkSpace *workspace,
                                         TreeElement *te,
                                         const eOLSetState set)
 {
+  Scene *sequencer_scene = workspace->sequencer_scene;
+  if (!sequencer_scene) {
+    return;
+  }
   const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
   Strip *strip = &te_strip->get_strip();
-  Editing *ed = seq::editing_get(scene);
+  Editing *ed = seq::editing_get(sequencer_scene);
 
-  if (BLI_findindex(ed->seqbasep, strip) != -1) {
+  if (BLI_findindex(ed->current_strips(), strip) != -1) {
     if (set == OL_SETSEL_EXTEND) {
-      seq::select_active_set(scene, nullptr);
+      seq::select_active_set(sequencer_scene, nullptr);
     }
-    vse::deselect_all_strips(scene);
+    vse::deselect_all_strips(sequencer_scene);
 
     if ((set == OL_SETSEL_EXTEND) && strip->flag & SELECT) {
       strip->flag &= ~SELECT;
     }
     else {
       strip->flag |= SELECT;
-      seq::select_active_set(scene, strip);
+      seq::select_active_set(sequencer_scene, strip);
     }
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, sequencer_scene);
 }
 
-static void tree_element_strip_dup_activate(Scene *scene, TreeElement * /*te*/)
+static void tree_element_strip_dup_activate(WorkSpace *workspace, TreeElement * /*te*/)
 {
-  Editing *ed = seq::editing_get(scene);
+  Scene *sequencer_scene = workspace->sequencer_scene;
+  if (!sequencer_scene) {
+    return;
+  }
+  Editing *ed = seq::editing_get(sequencer_scene);
 
 #if 0
   select_single_seq(strip, 1);
 #endif
-  Strip *p = static_cast<Strip *>(ed->seqbasep->first);
+  Strip *p = static_cast<Strip *>(ed->current_strips()->first);
   while (p) {
     if ((!p->data) || (!p->data->stripdata) || (p->data->stripdata->filename[0] == '\0')) {
       p = p->next;
@@ -881,10 +890,10 @@ void tree_element_type_active_set(bContext *C,
       tree_element_bonecollection_activate(C, te, tselem);
       break;
     case TSE_STRIP:
-      tree_element_strip_activate(C, tvc.scene, te, set);
+      tree_element_strip_activate(C, tvc.workspace, te, set);
       break;
     case TSE_STRIP_DUP:
-      tree_element_strip_dup_activate(tvc.scene, te);
+      tree_element_strip_dup_activate(tvc.workspace, te);
       break;
     case TSE_GP_LAYER:
       tree_element_gplayer_activate(C, te, tselem);
@@ -1013,13 +1022,17 @@ static eOLDrawState tree_element_bone_collection_state_get(const TreeElement *te
   return OL_DRAWSEL_NONE;
 }
 
-static eOLDrawState tree_element_strip_state_get(const Scene *scene, const TreeElement *te)
+static eOLDrawState tree_element_strip_state_get(const WorkSpace *workspace, const TreeElement *te)
 {
+  const Scene *sequencer_scene = workspace->sequencer_scene;
+  if (!sequencer_scene) {
+    return OL_DRAWSEL_NONE;
+  }
   const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
   const Strip *strip = &te_strip->get_strip();
-  const Editing *ed = scene->ed;
+  const Editing *ed = seq::editing_get(sequencer_scene);
 
-  if (ed && ed->act_seq == strip && strip->flag & SELECT) {
+  if (ed && ed->act_strip == strip && strip->flag & SELECT) {
     return OL_DRAWSEL_NORMAL;
   }
   return OL_DRAWSEL_NONE;
@@ -1188,7 +1201,7 @@ eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
     case TSE_R_LAYER:
       return tree_element_viewlayer_state_get(tvc.view_layer, te);
     case TSE_STRIP:
-      return tree_element_strip_state_get(tvc.scene, te);
+      return tree_element_strip_state_get(tvc.workspace, te);
     case TSE_STRIP_DUP:
       return tree_element_strip_dup_state_get(te);
     case TSE_GP_LAYER:
@@ -1762,12 +1775,12 @@ static bool outliner_is_co_within_active_mode_column(bContext *C,
  *
  * May expend/collapse branches or activate items.
  */
-static int outliner_item_do_activate_from_cursor(bContext *C,
-                                                 const int mval[2],
-                                                 const bool extend,
-                                                 const bool use_range,
-                                                 const bool deselect_all,
-                                                 const bool recurse)
+static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
+                                                              const int mval[2],
+                                                              const bool extend,
+                                                              const bool use_range,
+                                                              const bool deselect_all,
+                                                              const bool recurse)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -1887,7 +1900,9 @@ static int outliner_item_do_activate_from_cursor(bContext *C,
 }
 
 /* Event can enter-key, then it opens/closes. */
-static int outliner_item_activate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus outliner_item_activate_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
 
@@ -1951,7 +1966,7 @@ static void outliner_box_select(bContext *C,
   });
 }
 
-static int outliner_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_box_select_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -1978,7 +1993,9 @@ static int outliner_box_select_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int outliner_box_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus outliner_box_select_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ARegion *region = CTX_wm_region(C);
@@ -2011,7 +2028,7 @@ void OUTLINER_OT_select_box(wmOperatorType *ot)
   ot->idname = "OUTLINER_OT_select_box";
   ot->description = "Use box selection to select tree elements";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = outliner_box_select_invoke;
   ot->exec = outliner_box_select_exec;
   ot->modal = WM_gesture_box_modal;
@@ -2208,7 +2225,9 @@ static void outliner_walk_scroll(SpaceOutliner *space_outliner, ARegion *region,
   }
 }
 
-static int outliner_walk_select_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus outliner_walk_select_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ARegion *region = CTX_wm_region(C);
@@ -2246,7 +2265,7 @@ void OUTLINER_OT_select_walk(wmOperatorType *ot)
   ot->idname = "OUTLINER_OT_select_walk";
   ot->description = "Use walk navigation to select tree elements";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = outliner_walk_select_invoke;
   ot->poll = ED_operator_outliner_active;
 

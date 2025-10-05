@@ -284,15 +284,26 @@ typedef struct bPoseChannel {
 
   struct bPoseChannel *next, *prev;
 
-  /** User-Defined Properties on this PoseChannel. */
+  /**
+   * User-defined custom properties storage on this PoseChannel. Typically Accessed through the
+   * 'dict' syntax from Python.
+   */
   IDProperty *prop;
+
+  /**
+   * System-defined custom properties storage. Used to store data dynamically defined either by
+   * Blender itself (e.g. the GeoNode modifier), or some python script, extension etc.
+   *
+   * Typically accessed through RNA paths (`C.object.my_dynamic_float_property = 33.3`), when
+   * wrapped/defined by RNA.
+   */
+  IDProperty *system_properties;
 
   /** Constraints that act on this PoseChannel. */
   ListBase constraints;
-  /** Need to match bone name length: MAXBONENAME. */
-  char name[64];
+  char name[/*MAXBONENAME*/ 64];
 
-  /** Dynamic, for detecting transform changes. */
+  /** Dynamic, for detecting transform changes (ePchan_Flag). */
   short flag;
   /** Settings for IK bones. */
   short ikflag;
@@ -344,7 +355,7 @@ typedef struct bPoseChannel {
 
   /** Transforms - written in by actions or transform. */
   float loc[3];
-  float size[3];
+  float scale[3];
 
   /**
    * Rotations - written in by actions or transform
@@ -422,6 +433,8 @@ typedef struct bPoseChannel {
 
   BoneColor color; /* MUST be named the same as in Bone and EditBone structs. */
 
+  void *_pad2;
+
   /** Runtime data (keep last). */
   struct bPoseChannel_Runtime runtime;
 } bPoseChannel;
@@ -431,7 +444,7 @@ typedef enum ePchan_Flag {
   /* has transforms */
   POSE_LOC = (1 << 0),
   POSE_ROT = (1 << 1),
-  POSE_SIZE = (1 << 2),
+  POSE_SCALE = (1 << 2),
 
   /* old IK/cache stuff
    * - used to be here from (1 << 3) to (1 << 8)
@@ -441,7 +454,14 @@ typedef enum ePchan_Flag {
 
   /* has BBone deforms */
   POSE_BBONE_SHAPE = (1 << 3),
-
+  /* When set and bPoseChan.custom_tx is not a nullptr, the gizmo will be drawn at the location and
+     orientation of the custom_tx instead of this bone. */
+  POSE_TRANSFORM_AT_CUSTOM_TX = (1 << 4),
+  /* When set, transformations will modify the bone as if it was a child of the
+     bPoseChan.custom_tx. The flag only has an effect when `POSE_TRANSFORM_AT_CUSTOM_TX` and
+     `custom_tx` are set. This can be useful for rigs where the deformation is coming from
+     blendshapes in addition to the armature. */
+  POSE_TRANSFORM_AROUND_CUSTOM_TX = (1 << 5),
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),
   POSE_DONE = (1 << 10),
@@ -491,6 +511,7 @@ typedef enum ePchan_IkFlag {
 /* PoseChannel->drawflag */
 typedef enum ePchan_DrawFlag {
   PCHAN_DRAW_NO_CUSTOM_BONE_SIZE = (1 << 0),
+  PCHAN_DRAW_HIDDEN = (1 << 1),
 } ePchan_DrawFlag;
 
 /* NOTE: It doesn't take custom_scale_xyz into account. */
@@ -758,20 +779,29 @@ typedef enum eActionGroup_Flag {
  * \see blender::animrig::Action for more detailed documentation.
  */
 typedef struct bAction {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_AC;
+#endif
+
   /** ID-serialization for relinking. */
   ID id;
 
-  struct ActionLayer **layer_array; /* Array of 'layer_array_num' layers. */
+  /** Array of `layer_array_num` layers. */
+  struct ActionLayer **layer_array;
   int layer_array_num;
   int layer_active_index; /* Index into layer_array, -1 means 'no active'. */
 
-  struct ActionSlot **slot_array; /* Array of 'slot_array_num` slots. */
+  /** Array of `slot_array_num` slots. */
+  struct ActionSlot **slot_array;
   int slot_array_num;
   int32_t last_slot_handle;
 
   /* Storage for the underlying data of strips. Each strip type has its own
    * array, and strips reference this data with an enum indicating the strip
-   * type and an int containing the index in the array to use. */
+   * type and an int containing the index in the array to use.
+   *
+   * NOTE: when adding new strip data arrays, also update `duplicate_slot()`. */
   struct ActionStripKeyframeData **strip_keyframe_data_array;
   int strip_keyframe_data_array_num;
 
@@ -791,8 +821,6 @@ typedef struct bAction {
 
   /** Legacy F-Curves (FCurve), introduced in Blender 2.5. */
   ListBase curves;
-  /** Legacy Action Channels (bActionChannel) from pre-2.5 animation system. */
-  ListBase chanbase DNA_DEPRECATED;
   /** Legacy Groups of function-curves (bActionGroup), introduced in Blender 2.5. */
   ListBase groups;
 
@@ -842,11 +870,11 @@ typedef enum eAction_Flags {
 } eAction_Flags;
 
 /* ************************************************ */
-/* Action/Dopesheet Editor */
+/* Action/Dope-sheet Editor */
 
-/** Storage for Dopesheet/Grease-Pencil Editor data. */
+/** Storage for Dope-sheet/Grease-Pencil Editor data. */
 typedef struct bDopeSheet {
-  /** Currently ID_SCE (for Dopesheet), and ID_SC (for Grease Pencil). */
+  /** Currently ID_SCE (for Dope-sheet), and ID_SC (for Grease Pencil). */
   ID *source;
   /** Cache for channels (only initialized when pinned). */ /* XXX not used! */
   ListBase chanbase;
@@ -894,7 +922,7 @@ typedef enum eDopeSheet_FilterFlag {
   /* datatype-based filtering */
   ADS_FILTER_NOSHAPEKEYS = (1 << 6),
   ADS_FILTER_NOMESH = (1 << 7),
-  /** for animdata on object level, if we only want to concentrate on materials/etc. */
+  /** For animation-data on object level, if we only want to concentrate on materials/etc. */
   ADS_FILTER_NOOBJ = (1 << 8),
   ADS_FILTER_NOLAT = (1 << 9),
   ADS_FILTER_NOCAM = (1 << 10),
@@ -942,6 +970,8 @@ typedef enum eDopeSheet_FilterFlag2 {
 
   /** Include working drivers with variables using their fallback values into Only Show Errors. */
   ADS_FILTER_DRIVER_FALLBACK_AS_ERROR = (1 << 6),
+
+  ADS_FILTER_NOLIGHTPROBE = (1 << 7),
 } eDopeSheet_FilterFlag2;
 
 /* DopeSheet general flags */
@@ -978,10 +1008,8 @@ typedef struct SpaceAction {
   /** Copied to region. */
   View2D v2d DNA_DEPRECATED;
 
-  /** The currently active action and its slot. */
-  bAction *action;
-  int32_t action_slot_handle;
-  char _pad2[4];
+  /** The currently active action (deprecated). */
+  bAction *action DNA_DEPRECATED;
 
   /** The currently active context (when not showing action). */
   bDopeSheet ads;
@@ -1085,38 +1113,6 @@ typedef enum eTimeline_Cache_Flag {
 } eTimeline_Cache_Flag;
 
 /* ************************************************ */
-/* Legacy Data */
-
-/* WARNING: Action Channels are now deprecated... they were part of the old animation system!
- *        (ONLY USED FOR DO_VERSIONS...)
- *
- * Action Channels belong to Actions. They are linked with an IPO block, and can also own
- * Constraint Channels in certain situations.
- *
- * Action-Channels can only belong to one group at a time, but they still live the Action's
- * list of achans (to preserve backwards compatibility, and also minimize the code
- * that would need to be recoded). Grouped achans are stored at the start of the list, according
- * to the position of the group in the list, and their position within the group.
- */
-typedef struct bActionChannel {
-  struct bActionChannel *next, *prev;
-  /** Action Group this Action Channel belongs to. */
-  bActionGroup *grp;
-
-  /** IPO block this action channel references. */
-  struct Ipo *ipo;
-  /** Constraint Channels (when Action Channel represents an Object or Bone). */
-  ListBase constraintChannels;
-
-  /** Settings accessed via bitmapping. */
-  int flag;
-  /** Channel name, MAX_NAME. */
-  char name[64];
-  /** Temporary setting - may be used to indicate group that channel belongs to during syncing. */
-  int temp;
-} bActionChannel;
-
-/* ************************************************ */
 /* Layered Animation data-types. */
 
 /**
@@ -1124,7 +1120,7 @@ typedef struct bActionChannel {
  */
 typedef struct ActionLayer {
   /** User-Visible identifier, unique within the Animation. */
-  char name[64]; /* MAX_NAME. */
+  char name[/*MAX_NAME*/ 64];
 
   float influence; /* [0-1] */
 
@@ -1168,7 +1164,7 @@ typedef struct ActionSlot {
    *
    * \see #AnimData::slot_name
    */
-  char identifier[66]; /* MAX_ID_NAME */
+  char identifier[/*MAX_ID_NAME*/ 258];
 
   /**
    * Type of ID-block that this slot is intended for.
@@ -1308,6 +1304,4 @@ typedef struct ActionChannelbag {
 static_assert(std::is_same_v<decltype(ActionSlot::handle), decltype(bAction::last_slot_handle)>);
 static_assert(
     std::is_same_v<decltype(ActionSlot::handle), decltype(ActionChannelbag::slot_handle)>);
-static_assert(
-    std::is_same_v<decltype(ActionSlot::handle), decltype(SpaceAction::action_slot_handle)>);
 #endif

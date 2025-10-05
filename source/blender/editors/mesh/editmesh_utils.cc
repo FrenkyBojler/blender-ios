@@ -373,7 +373,7 @@ void EDBM_selectmode_to_scene(bContext *C)
 
 void EDBM_selectmode_flush_ex(BMEditMesh *em, const short selectmode)
 {
-  BM_mesh_select_mode_flush_ex(em->bm, selectmode, BM_SELECT_LEN_FLUSH_RECALC_ALL);
+  BM_mesh_select_mode_flush_ex(em->bm, selectmode, BMSelectFlushFlag_All);
 }
 
 void EDBM_selectmode_flush(BMEditMesh *em)
@@ -381,18 +381,11 @@ void EDBM_selectmode_flush(BMEditMesh *em)
   EDBM_selectmode_flush_ex(em, em->selectmode);
 }
 
-void EDBM_deselect_flush(BMEditMesh *em)
+void EDBM_select_flush_from_verts(BMEditMesh *em, const bool select)
 {
-  /* function below doesn't use. just do this to keep the values in sync */
+  /* Function below doesn't use. just do this to keep the values in sync. */
   em->bm->selectmode = em->selectmode;
-  BM_mesh_deselect_flush(em->bm);
-}
-
-void EDBM_select_flush(BMEditMesh *em)
-{
-  /* function below doesn't use. just do this to keep the values in sync */
-  em->bm->selectmode = em->selectmode;
-  BM_mesh_select_flush(em->bm);
+  BM_mesh_select_flush_from_verts(em->bm, select);
 }
 
 void EDBM_select_more(BMEditMesh *em, const bool use_face_step)
@@ -489,8 +482,8 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, const bool use_select)
     return nullptr;
   }
 
-  vmap->vert = (UvMapVert **)MEM_callocN(sizeof(*vmap->vert) * totverts, "UvMapVert_pt");
-  UvMapVert *buf = vmap->buf = (UvMapVert *)MEM_callocN(sizeof(*vmap->buf) * totuv, "UvMapVert");
+  vmap->vert = MEM_calloc_arrayN<UvMapVert *>(totverts, "UvMapVert_pt");
+  UvMapVert *buf = vmap->buf = MEM_calloc_arrayN<UvMapVert>(totuv, "UvMapVert");
 
   if (!vmap->vert || !vmap->buf) {
     BKE_mesh_uv_vert_map_free(vmap);
@@ -759,18 +752,16 @@ static void bm_uv_build_islands(UvElementMap *element_map,
   int islandbufsize = 0;
 
   /* map holds the map from current vmap->buf to the new, sorted map */
-  uint *map = static_cast<uint *>(MEM_mallocN(sizeof(*map) * totuv, __func__));
-  BMFace **stack = static_cast<BMFace **>(MEM_mallocN(sizeof(*stack) * bm->totface, __func__));
-  UvElement *islandbuf = static_cast<UvElement *>(
-      MEM_callocN(sizeof(*islandbuf) * totuv, __func__));
+  uint *map = MEM_malloc_arrayN<uint>(totuv, __func__);
+  BMFace **stack = MEM_malloc_arrayN<BMFace *>(bm->totface, __func__);
+  UvElement *islandbuf = MEM_calloc_arrayN<UvElement>(totuv, __func__);
   /* Island number for BMFaces. */
-  int *island_number = static_cast<int *>(
-      MEM_callocN(sizeof(*island_number) * bm->totface, __func__));
+  int *island_number = MEM_calloc_arrayN<int>(bm->totface, __func__);
   copy_vn_i(island_number, bm->totface, INVALID_ISLAND);
 
   const BMUVOffsets uv_offsets = BM_uv_map_offsets_get(bm);
 
-  const bool use_uv_edge_connectivity = scene->toolsettings->uv_flag & UV_SYNC_SELECTION ?
+  const bool use_uv_edge_connectivity = scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC ?
                                             scene->toolsettings->selectmode & SCE_SELECT_EDGE :
                                             scene->toolsettings->uv_selectmode & UV_SELECT_EDGE;
   if (use_uv_edge_connectivity) {
@@ -839,12 +830,9 @@ static void bm_uv_build_islands(UvElementMap *element_map,
     }
   }
 
-  element_map->island_indices = static_cast<int *>(
-      MEM_callocN(sizeof(*element_map->island_indices) * nislands, __func__));
-  element_map->island_total_uvs = static_cast<int *>(
-      MEM_callocN(sizeof(*element_map->island_total_uvs) * nislands, __func__));
-  element_map->island_total_unique_uvs = static_cast<int *>(
-      MEM_callocN(sizeof(*element_map->island_total_unique_uvs) * nislands, __func__));
+  element_map->island_indices = MEM_calloc_arrayN<int>(nislands, __func__);
+  element_map->island_total_uvs = MEM_calloc_arrayN<int>(nislands, __func__);
+  element_map->island_total_unique_uvs = MEM_calloc_arrayN<int>(nislands, __func__);
   int j = 0;
   for (int i = 0; i < totuv; i++) {
     UvElement *next = element_map->storage[i].next;
@@ -995,7 +983,7 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
                                        const bool do_islands)
 {
   /* In uv sync selection, all UVs (from unhidden geometry) are visible. */
-  const bool face_selected = !(scene->toolsettings->uv_flag & UV_SYNC_SELECTION);
+  const bool face_selected = !(scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC);
 
   BMVert *ev;
   BMFace *efa;
@@ -1043,9 +1031,7 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
   element_map->storage = (UvElement *)MEM_callocN(sizeof(*element_map->storage) * totuv,
                                                   "UvElement");
 
-  bool *winding = use_winding ?
-                      static_cast<bool *>(MEM_callocN(sizeof(*winding) * bm->totface, "winding")) :
-                      nullptr;
+  bool *winding = use_winding ? MEM_calloc_arrayN<bool>(bm->totface, "winding") : nullptr;
 
   UvElement *buf = element_map->storage;
   int j;
@@ -1527,7 +1513,7 @@ bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
   BMElem *ele;
   int itermode;
   char hflag_swap = swap ? BM_ELEM_SELECT : 0;
-  bool changed = true;
+  bool changed = false;
 
   if (em->selectmode & SCE_SELECT_VERTEX) {
     itermode = BM_VERTS_OF_MESH;
@@ -1544,6 +1530,36 @@ bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
       if (BM_elem_flag_test(ele, BM_ELEM_SELECT) ^ hflag_swap) {
         BM_elem_hide_set(em->bm, ele, true);
         changed = true;
+      }
+    }
+  }
+
+  /* Hiding unselected. */
+  if (swap) {
+    /* In face select mode, also hide loose edges that aren't part of any visible face. */
+    if (itermode == BM_FACES_OF_MESH) {
+      BMEdge *e;
+      BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+        if (!BM_edge_is_wire(e)) {
+          continue;
+        }
+        if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN) && !BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          BM_elem_hide_set(em->bm, (BMElem *)e, true);
+          changed = true;
+        }
+      }
+    }
+    /* In edge or face select mode, also hide isolated verts that aren't connected to an edge. */
+    if (ELEM(itermode, BM_EDGES_OF_MESH, BM_FACES_OF_MESH)) {
+      BMVert *v;
+      BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+        if (v->e) {
+          continue;
+        }
+        if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN) && !BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+          BM_elem_hide_set(em->bm, (BMElem *)v, true);
+          changed = true;
+        }
       }
     }
   }

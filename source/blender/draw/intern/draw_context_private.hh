@@ -15,6 +15,7 @@
 
 #include "BLI_task.h"
 #include "BLI_threads.h"
+#include "BLI_vector_set.hh"
 
 #include "GPU_batch.hh"
 #include "GPU_context.hh"
@@ -32,7 +33,6 @@ namespace blender::draw {
 struct CurvesModule;
 struct VolumeModule;
 struct PointCloudModule;
-struct DRW_Attributes;
 struct DRW_MeshCDMask;
 class CurveRefinePass;
 class View;
@@ -61,6 +61,8 @@ struct DRWData {
 
   /* Ensure modules are created. */
   void modules_init();
+  /* Callbacks before each sync cycle. */
+  void modules_begin_sync();
   /* Callbacks after one draw to clear transient data. */
   void modules_exit();
 };
@@ -72,12 +74,12 @@ struct DRWData {
  * \{ */
 
 /* Get thread local draw context. */
-DRWContext &drw_get();
+inline DRWContext &drw_get()
+{
+  return DRWContext::get_active();
+}
 
-void drw_debug_draw();
-void drw_debug_init();
-void drw_debug_module_free(DRWDebugModule *module);
-GPUStorageBuf *drw_debug_gpu_draw_buf_get();
+namespace blender::draw {
 
 void drw_batch_cache_validate(Object *ob);
 void drw_batch_cache_generate_requested(Object *ob, TaskGraph &task_graph);
@@ -88,17 +90,12 @@ void drw_batch_cache_generate_requested(Object *ob, TaskGraph &task_graph);
 void drw_batch_cache_generate_requested_delayed(Object *ob);
 void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, TaskGraph &task_graph);
 
-namespace blender::draw {
-
 void DRW_mesh_get_attributes(const Object &object,
                              const Mesh &mesh,
                              Span<const GPUMaterial *> materials,
-                             DRW_Attributes *r_attrs,
+                             VectorSet<std::string> *r_attrs,
                              DRW_MeshCDMask *r_cd_needed);
 
 }  // namespace blender::draw
-
-void DRW_manager_begin_sync();
-void DRW_manager_end_sync();
 
 /** \} */

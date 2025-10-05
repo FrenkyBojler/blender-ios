@@ -9,14 +9,21 @@
 #include <algorithm>
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_idprop.hh"
 
 #include "DNA_ID.h"
+
 #include "IMB_allocimbuf.hh"
 #include "IMB_colormanagement.hh"
+#include "IMB_filetype.hh"
 #include "IMB_metadata.hh"
+
+#include "CLG_log.h"
+
+static CLG_LogRef LOG_READ = {"image.read"};
+static CLG_LogRef LOG_WRITE = {"image.write"};
 
 OIIO_NAMESPACE_USING
 
@@ -126,7 +133,7 @@ static ImBuf *load_pixels(
   bool ok = in->read_image(
       0, 0, 0, channels, format, ibuf_data, ibuf_xstride, -ibuf_ystride, AutoStride);
   if (!ok) {
-    fprintf(stderr, "ImageInput::read_image() failed: %s\n", in->geterror().c_str());
+    CLOG_ERROR(&LOG_READ, "OpenImageIO read failed: %s", in->geterror().c_str());
 
     IMB_freeImBuf(ibuf);
     return nullptr;
@@ -139,36 +146,28 @@ static ImBuf *load_pixels(
   return ibuf;
 }
 
-static void set_colorspace_name(char colorspace[IM_MAX_SPACE],
+static void set_file_colorspace(ImFileColorSpace &r_colorspace,
                                 const ReadContext &ctx,
                                 const ImageSpec &spec,
                                 bool is_float)
 {
-  const bool is_colorspace_set = (colorspace[0] != '\0');
-  if (is_colorspace_set) {
-    return;
-  }
-
-  /* Use a default role unless otherwise specified. */
-  if (ctx.use_colorspace_role >= 0) {
-    colorspace_set_default_role(colorspace, IM_MAX_SPACE, ctx.use_colorspace_role);
-  }
-  else if (is_float) {
-    colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_FLOAT);
-  }
-  else {
-    colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
-  }
+  /* Guess float data types means HDR colors. File formats can override this later. */
+  r_colorspace.is_hdr_float = is_float;
 
   /* Override if necessary. */
-  if (ctx.use_embedded_colorspace) {
+  if (ctx.use_metadata_colorspace) {
     string ics = spec.get_string_attribute("oiio:ColorSpace");
-    char file_colorspace[IM_MAX_SPACE];
-    STRNCPY(file_colorspace, ics.c_str());
+    STRNCPY_UTF8(r_colorspace.metadata_colorspace, ics.c_str());
+  }
 
-    /* Only use color-spaces that exist. */
-    if (colormanage_colorspace_get_named(file_colorspace)) {
-      BLI_strncpy(colorspace, file_colorspace, IM_MAX_SPACE);
+  /* Get colorspace from CICP. */
+  int cicp[4] = {};
+  if (spec.getattribute("CICP", TypeDesc(TypeDesc::INT, 4), cicp, true)) {
+    const ColorSpace *colorspace = IMB_colormanagement_space_from_cicp(
+        cicp, ColorManagedFileOutput::Image);
+    if (colorspace) {
+      STRNCPY_UTF8(r_colorspace.metadata_colorspace,
+                   IMB_colormanagement_colorspace_get_name(colorspace));
     }
   }
 }
@@ -176,7 +175,7 @@ static void set_colorspace_name(char colorspace[IM_MAX_SPACE],
 /**
  * Get an #ImBuf filled in with pixel data and associated metadata using the provided ImageInput.
  */
-static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, char colorspace[IM_MAX_SPACE])
+static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, ImFileColorSpace &r_colorspace)
 {
   const ImageSpec &spec = in->spec();
   const int width = spec.width;
@@ -203,12 +202,18 @@ static ImBuf *get_oiio_ibuf(ImageInput *in, const ReadContext &ctx, char colorsp
   /* Fill in common ibuf properties. */
   if (ibuf) {
     ibuf->ftype = ctx.file_type;
-    ibuf->flags |= (spec.format == TypeDesc::HALF) ? IB_halffloat : 0;
+    ibuf->foptions.flag |= (spec.format == TypeDesc::HALF) ? OPENEXR_HALF : 0;
 
-    set_colorspace_name(colorspace, ctx, spec, is_float);
+    set_file_colorspace(r_colorspace, ctx, spec, is_float);
 
-    float x_res = spec.get_float_attribute("XResolution", 0.0f);
-    float y_res = spec.get_float_attribute("YResolution", 0.0f);
+    double x_res = spec.get_float_attribute("XResolution", 0.0f);
+    double y_res = spec.get_float_attribute("YResolution", 0.0f);
+    /* Some formats store the resolution as integers. */
+    if (!(x_res > 0.0f && y_res > 0.0f)) {
+      x_res = spec.get_int_attribute("XResolution", 0);
+      y_res = spec.get_int_attribute("YResolution", 0);
+    }
+
     if (x_res > 0.0f && y_res > 0.0f) {
       double scale = 1.0;
       auto unit = spec.get_string_attribute("ResolutionUnit", "");
@@ -277,7 +282,7 @@ bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format)
 
 ImBuf *imb_oiio_read(const ReadContext &ctx,
                      const ImageSpec &config,
-                     char colorspace[IM_MAX_SPACE],
+                     ImFileColorSpace &r_colorspace,
                      ImageSpec &r_newspec)
 {
   /* This memory proxy must remain alive for the full duration of the read. */
@@ -287,7 +292,7 @@ ImBuf *imb_oiio_read(const ReadContext &ctx,
     return nullptr;
   }
 
-  return get_oiio_ibuf(in.get(), ctx, colorspace);
+  return get_oiio_ibuf(in.get(), ctx, r_colorspace);
 }
 
 bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSpec &file_spec)
@@ -371,7 +376,13 @@ bool imb_oiio_write(const WriteContext &ctx, const char *filepath, const ImageSp
     }
   }
 
-  return write_ok && close_ok;
+  const bool all_ok = write_ok && close_ok;
+  if (!all_ok) {
+    CLOG_ERROR(&LOG_WRITE, "OpenImageIO write failed: %s", out->geterror().c_str());
+    errno = 0; /* Prevent higher level layers from calling `perror` unnecessarily. */
+  }
+
+  return all_ok;
 }
 
 WriteContext imb_create_write_context(const char *file_format,
@@ -439,16 +450,47 @@ ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, Type
           }
         }
 
-        file_spec.attribute(prop->name, IDP_String(prop));
+        file_spec.attribute(prop->name, IDP_string_get(prop));
       }
     }
   }
 
   if (ctx.ibuf->ppm[0] > 0.0 && ctx.ibuf->ppm[1] > 0.0) {
-    /* More OIIO formats support inch than meter. */
-    file_spec.attribute("ResolutionUnit", "in");
-    file_spec.attribute("XResolution", float(ctx.ibuf->ppm[0] * 0.0254));
-    file_spec.attribute("YResolution", float(ctx.ibuf->ppm[1] * 0.0254));
+    if (STREQ(ctx.file_format, "bmp")) {
+      /* BMP only supports meters as integers. */
+      file_spec.attribute("ResolutionUnit", "m");
+      file_spec.attribute("XResolution", int(round(ctx.ibuf->ppm[0])));
+      file_spec.attribute("YResolution", int(round(ctx.ibuf->ppm[1])));
+    }
+    else {
+      /* More OIIO formats support inch than meter. */
+      file_spec.attribute("ResolutionUnit", "in");
+      file_spec.attribute("XResolution", float(ctx.ibuf->ppm[0] * 0.0254));
+      file_spec.attribute("YResolution", float(ctx.ibuf->ppm[1] * 0.0254));
+    }
+  }
+
+  /* Write ICC profile and/or CICP if there is one associated with the colorspace. */
+  const ColorSpace *colorspace = (ctx.mem_spec.format == TypeDesc::FLOAT) ?
+                                     ctx.ibuf->float_buffer.colorspace :
+                                     ctx.ibuf->byte_buffer.colorspace;
+  if (colorspace) {
+    Vector<char> icc_profile = IMB_colormanagement_space_to_icc_profile(colorspace);
+    if (!icc_profile.is_empty()) {
+      file_spec.attribute("ICCProfile",
+                          OIIO::TypeDesc(OIIO::TypeDesc::UINT8, icc_profile.size()),
+                          icc_profile.data());
+    }
+
+    /* PNG only supports RGB matrix. For AVIF and HEIF we want to use a YUV matrix
+     * as these are based on video codecs designed to use them. */
+    const bool rgb_matrix = STREQ(ctx.file_format, "png");
+    int cicp[4];
+    if (IMB_colormanagement_space_to_cicp(
+            colorspace, ColorManagedFileOutput::Image, rgb_matrix, cicp))
+    {
+      file_spec.attribute("CICP", TypeDesc(TypeDesc::INT, 4), cicp);
+    }
   }
 
   return file_spec;

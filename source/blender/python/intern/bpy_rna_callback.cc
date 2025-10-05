@@ -60,7 +60,6 @@ static void cb_region_draw(const bContext *C, ARegion * /*region*/, void *custom
   }
   else {
     PyErr_Print();
-    PyErr_Clear();
   }
 
   bpy_context_clear((bContext *)C, &gilstate);
@@ -80,7 +79,10 @@ static PyObject *PyC_Tuple_CopySized(PyObject *src, int len_dst)
   return dst;
 }
 
-static void cb_wm_cursor_draw(bContext *C, int x, int y, void *customdata)
+static void cb_wm_cursor_draw(bContext *C,
+                              const blender::int2 &xy,
+                              const blender::float2 & /*tilt*/,
+                              void *customdata)
 {
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
@@ -92,7 +94,7 @@ static void cb_wm_cursor_draw(bContext *C, int x, int y, void *customdata)
   const int cb_args_len = PyTuple_GET_SIZE(cb_args);
 
   PyObject *cb_args_xy = PyTuple_New(2);
-  PyTuple_SET_ITEMS(cb_args_xy, PyLong_FromLong(x), PyLong_FromLong(y));
+  PyTuple_SET_ITEMS(cb_args_xy, PyLong_FromLong(xy.x), PyLong_FromLong(xy.y));
 
   PyObject *cb_args_with_xy = PyC_Tuple_CopySized(cb_args, cb_args_len + 1);
   PyTuple_SET_ITEM(cb_args_with_xy, cb_args_len, cb_args_xy);
@@ -106,7 +108,6 @@ static void cb_wm_cursor_draw(bContext *C, int x, int y, void *customdata)
   }
   else {
     PyErr_Print();
-    PyErr_Clear();
   }
 
   bpy_context_clear(C, &gilstate);
@@ -170,7 +171,7 @@ PyObject *pyrna_callback_remove(BPy_StructRNA *self, PyObject *args)
 
   if (handle == nullptr) {
     PyErr_SetString(PyExc_ValueError,
-                    "callback_remove(handle): nullptr handle given, invalid or already removed");
+                    "callback_remove(handle): null handle given, invalid or already removed");
     return nullptr;
   }
 
@@ -385,7 +386,7 @@ PyObject *pyrna_callback_classmethod_remove(PyObject * /*self*/, PyObject *args)
   handle = PyCapsule_GetPointer(py_handle, rna_capsual_id);
   if (handle == nullptr) {
     PyErr_SetString(PyExc_ValueError,
-                    "callback_remove(handler): nullptr handler given, invalid or already removed");
+                    "callback_remove(handler): null handler given, invalid or already removed");
     return nullptr;
   }
 

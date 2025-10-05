@@ -16,13 +16,17 @@
 
 #include "BLI_path_utils.hh"
 
+#include "BLT_translation.hh"
+
 #include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
 
 #include "DNA_userdef_types.h"
-#include "ED_asset.hh"
+
 #include "RNA_access.hh"
+
+#include "ED_asset.hh"
 
 namespace blender::ed::asset {
 
@@ -40,20 +44,36 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
     UI_tooltip_text_field_add(tip, meta_data.description, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
   }
 
-  if (asset.owner_asset_library().library_type() == ASSET_LIBRARY_CUSTOM) {
-    UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
+  switch (asset.owner_asset_library().library_type()) {
+    case ASSET_LIBRARY_CUSTOM: {
+      UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
 
-    const std::string full_blend_path = asset.full_library_path();
+      const std::string full_blend_path = asset.full_library_path();
 
-    char dir[FILE_MAX], file[FILE_MAX];
-    BLI_path_split_dir_file(full_blend_path.c_str(), dir, sizeof(dir), file, sizeof(file));
+      char dir[FILE_MAX], file[FILE_MAX];
+      BLI_path_split_dir_file(full_blend_path.c_str(), dir, sizeof(dir), file, sizeof(file));
 
-    if (file[0]) {
-      UI_tooltip_text_field_add(tip, file, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_MAIN);
+      if (file[0]) {
+        UI_tooltip_text_field_add(tip, file, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_MAIN);
+      }
+      if (dir[0]) {
+        UI_tooltip_text_field_add(tip, dir, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_MAIN);
+      }
+      break;
     }
-    if (dir[0]) {
-      UI_tooltip_text_field_add(tip, dir, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_MAIN);
-    }
+    case ASSET_LIBRARY_LOCAL:
+      UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
+      UI_tooltip_text_field_add(
+          tip, TIP_("Asset Library: Current File"), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_VALUE);
+      break;
+    case ASSET_LIBRARY_ESSENTIALS:
+      UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
+      UI_tooltip_text_field_add(
+          tip, TIP_("Asset Library: Essentials"), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_VALUE);
+      break;
+    default:
+      /* Intentionally empty. */
+      break;
   }
 }
 

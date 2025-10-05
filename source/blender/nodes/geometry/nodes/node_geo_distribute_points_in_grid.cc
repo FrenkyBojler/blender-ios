@@ -18,7 +18,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_randomize.hh"
@@ -34,7 +34,7 @@ enum class DistributeMode {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Grid").hide_value();
+  b.add_input<decl::Float>("Grid").hide_value().structure_type(StructureType::Grid);
   auto &density = b.add_input<decl::Float>("Density")
                       .default_value(1.0f)
                       .min(0.0f)
@@ -70,7 +70,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -264,7 +264,6 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
   blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

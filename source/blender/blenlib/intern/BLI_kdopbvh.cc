@@ -49,10 +49,8 @@
 
 #define MAX_TREETYPE 32
 
-/* Setting zero so we can catch bugs in BLI_task/KDOPBVH.
- * TODO(sergey): Deduplicate the limits with #blender::bke::pbvh::Tree from BKE.
- */
 #ifndef NDEBUG
+/* Setting zero so we can catch bugs in BLI_task/KDOPBVH. */
 #  define KDOPBVH_THREAD_LEAF_THRESHOLD 0
 #else
 #  define KDOPBVH_THREAD_LEAF_THRESHOLD 1024
@@ -228,7 +226,7 @@ MINLINE axis_t max_axis(axis_t a, axis_t b)
 static void node_minmax_init(const BVHTree *tree, BVHNode *node)
 {
   axis_t axis_iter;
-  float(*bv)[2] = (float(*)[2])node->bv;
+  float (*bv)[2] = (float (*)[2])node->bv;
 
   for (axis_iter = tree->start_axis; axis_iter != tree->stop_axis; axis_iter++) {
     bv[axis_iter][0] = FLT_MAX;
@@ -485,14 +483,13 @@ static void bvhtree_info(BVHTree *tree)
          tree->branch_num + tree->leaf_num,
          tree->branch_num,
          tree->leaf_num);
-  printf(
-      "Memory per node = %ubytes\n",
-      (uint)(sizeof(BVHNode) + sizeof(BVHNode *) * tree->tree_type + sizeof(float) * tree->axis));
-  printf("BV memory = %ubytes\n", (uint)MEM_allocN_len(tree->nodebv));
+  printf("Memory per node = %ubytes\n",
+         uint(sizeof(BVHNode) + sizeof(BVHNode *) * tree->tree_type + sizeof(float) * tree->axis));
+  printf("BV memory = %ubytes\n", uint(MEM_allocN_len(tree->nodebv)));
 
   printf("Total memory = %ubytes\n",
-         (uint)(sizeof(BVHTree) + MEM_allocN_len(tree->nodes) + MEM_allocN_len(tree->nodearray) +
-                MEM_allocN_len(tree->nodechild) + MEM_allocN_len(tree->nodebv)));
+         uint(sizeof(BVHTree) + MEM_allocN_len(tree->nodes) + MEM_allocN_len(tree->nodearray) +
+              MEM_allocN_len(tree->nodechild) + MEM_allocN_len(tree->nodebv)));
 
   bvhtree_print_tree(tree, tree->nodes[tree->leaf_num], 0);
 }
@@ -1405,8 +1402,7 @@ BVHTreeOverlap *BLI_bvhtree_overlap_ex(
       total += BLI_stack_count(data[j].overlap);
     }
 
-    to = overlap = static_cast<BVHTreeOverlap *>(
-        MEM_mallocN(sizeof(BVHTreeOverlap) * total, "BVHTreeOverlap"));
+    to = overlap = MEM_malloc_arrayN<BVHTreeOverlap>(total, "BVHTreeOverlap");
 
     for (j = 0; j < thread_num; j++) {
       uint count = uint(BLI_stack_count(data[j].overlap));
@@ -1510,7 +1506,7 @@ int *BLI_bvhtree_intersect_plane(const BVHTree *tree, float plane[4], uint *r_in
 
     total = BLI_stack_count(data.intersect);
     if (total) {
-      intersect = static_cast<int *>(MEM_mallocN(sizeof(int) * total, __func__));
+      intersect = MEM_malloc_arrayN<int>(total, __func__);
       BLI_stack_pop_n(data.intersect, intersect, uint(total));
     }
     BLI_stack_free(data.intersect);

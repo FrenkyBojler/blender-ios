@@ -857,10 +857,6 @@ class ConstraintButtonsPanel:
 
         self.draw_influence(layout, con)
 
-    def draw_python_constraint(self, _context):
-        layout = self.layout
-        layout.label(text="Blender 2.6 doesn't support Python constraints yet")
-
     def draw_armature(self, context):
         layout = self.layout
         con = self.get_constraint(context)
@@ -1171,11 +1167,6 @@ class ConstraintButtonsSubPanel:
     def draw_transform_cache_velocity(self, context):
         self.draw_transform_cache_subpanel(
             context, self.layout.template_cache_file_velocity
-        )
-
-    def draw_transform_cache_procedural(self, context):
-        self.draw_transform_cache_subpanel(
-            context, self.layout.template_cache_file_procedural
         )
 
     def draw_transform_cache_time(self, context):
@@ -1618,22 +1609,6 @@ class BONE_PT_bTransformCacheConstraint_layers(BoneConstraintPanel, ConstraintBu
         self.draw_transform_cache_layers(context)
 
 
-class OBJECT_PT_bTransformCacheConstraint_procedural(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
-    bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
-    bl_label = "Render Procedural"
-
-    def draw(self, context):
-        self.draw_transform_cache_procedural(context)
-
-
-class BONE_PT_bTransformCacheConstraint_procedural(BoneConstraintPanel, ConstraintButtonsSubPanel, Panel):
-    bl_parent_id = "BONE_PT_bTransformCacheConstraint"
-    bl_label = "Render Procedural"
-
-    def draw(self, context):
-        self.draw_transform_cache_procedural(context)
-
-
 class OBJECT_PT_bTransformCacheConstraint_time(ObjectConstraintPanel, ConstraintButtonsSubPanel, Panel):
     bl_parent_id = "OBJECT_PT_bTransformCacheConstraint"
     bl_label = "Time"
@@ -1648,18 +1623,6 @@ class BONE_PT_bTransformCacheConstraint_time(BoneConstraintPanel, ConstraintButt
 
     def draw(self, context):
         self.draw_transform_cache_time(context)
-
-
-# Python Constraint
-
-class OBJECT_PT_bPythonConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
-    def draw(self, context):
-        self.draw_python_constraint(context)
-
-
-class BONE_PT_bPythonConstraint(BoneConstraintPanel, ConstraintButtonsPanel, Panel):
-    def draw(self, context):
-        self.draw_python_constraint(context)
 
 
 # Armature Constraint
@@ -1737,10 +1700,8 @@ classes = (
     OBJECT_PT_bObjectSolverConstraint,
     OBJECT_PT_bTransformCacheConstraint,
     OBJECT_PT_bTransformCacheConstraint_time,
-    OBJECT_PT_bTransformCacheConstraint_procedural,
     OBJECT_PT_bTransformCacheConstraint_velocity,
     OBJECT_PT_bTransformCacheConstraint_layers,
-    OBJECT_PT_bPythonConstraint,
     OBJECT_PT_bArmatureConstraint,
     OBJECT_PT_bArmatureConstraint_bones,
     # Bone panels
@@ -1778,10 +1739,8 @@ classes = (
     BONE_PT_bObjectSolverConstraint,
     BONE_PT_bTransformCacheConstraint,
     BONE_PT_bTransformCacheConstraint_time,
-    BONE_PT_bTransformCacheConstraint_procedural,
     BONE_PT_bTransformCacheConstraint_velocity,
     BONE_PT_bTransformCacheConstraint_layers,
-    BONE_PT_bPythonConstraint,
     BONE_PT_bArmatureConstraint,
     BONE_PT_bArmatureConstraint_bones,
 )

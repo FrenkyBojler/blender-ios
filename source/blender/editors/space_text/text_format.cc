@@ -34,10 +34,10 @@ static void flatten_string_append(FlattenString *fs, const char *c, int accum, i
     int *naccum;
     fs->len *= 2;
 
-    nbuf = static_cast<char *>(MEM_callocN(sizeof(*fs->buf) * fs->len, "fs->buf"));
+    nbuf = MEM_calloc_arrayN<char>(fs->len, "fs->buf");
     memcpy(nbuf, fs->buf, sizeof(*fs->buf) * fs->pos);
 
-    naccum = static_cast<int *>(MEM_callocN(sizeof(*fs->accum) * fs->len, "fs->accum"));
+    naccum = MEM_calloc_arrayN<int>(fs->len, "fs->accum");
     memcpy(naccum, fs->accum, sizeof(*fs->accum) * fs->pos);
 
     if (fs->buf != fs->fixedbuf) {
@@ -112,14 +112,14 @@ int text_check_format_len(TextLine *line, uint len)
   if (line->format) {
     if (strlen(line->format) < len) {
       MEM_freeN(line->format);
-      line->format = static_cast<char *>(MEM_mallocN(len + 2, "SyntaxFormat"));
+      line->format = MEM_malloc_arrayN<char>(len + 2, "SyntaxFormat");
       if (!line->format) {
         return 0;
       }
     }
   }
   else {
-    line->format = static_cast<char *>(MEM_mallocN(len + 2, "SyntaxFormat"));
+    line->format = MEM_malloc_arrayN<char>(len + 2, "SyntaxFormat");
     if (!line->format) {
       return 0;
     }
@@ -178,13 +178,13 @@ TextFormatType *ED_text_format_get(Text *text)
   if (text) {
     const char *text_ext = strchr(text->id.name + 2, '.');
     if (text_ext) {
-      text_ext++; /* skip the '.' */
-      /* Check all text formats in the static list */
+      text_ext++; /* Skip the `.`. */
+      /* Check all text formats in the static list. */
       LISTBASE_FOREACH (TextFormatType *, tft, &tft_lb) {
-        /* All formats should have an ext, but just in case */
+        /* All formats should have an ext, but just in case. */
         const char **ext;
         for (ext = tft->ext; *ext; ext++) {
-          /* If extension matches text name, return the matching tft */
+          /* If extension matches text name, return the matching tft. */
           if (BLI_strcasecmp(text_ext, *ext) == 0) {
             return tft;
           }
@@ -193,11 +193,11 @@ TextFormatType *ED_text_format_get(Text *text)
     }
 
     /* If we make it here we never found an extension that worked - return
-     * the "default" text format */
+     * the "default" text format. */
     return static_cast<TextFormatType *>(tft_lb.first);
   }
 
-  /* Return the "default" text format */
+  /* Return the "default" text format. */
   return static_cast<TextFormatType *>(tft_lb.first);
 }
 
@@ -218,18 +218,18 @@ bool ED_text_is_syntax_highlight_supported(Text *text)
     /* Extensionless data-blocks are considered highlightable as Python. */
     return true;
   }
-  text_ext++; /* skip the '.' */
+  text_ext++; /* Skip the `.`. */
   if (BLI_string_is_decimal(text_ext)) {
-    /* "Text.001" is treated as extensionless, and thus highlightable. */
+    /* `Text.001` is treated as extensionless, and thus highlightable. */
     return true;
   }
 
-  /* Check all text formats in the static list */
+  /* Check all text formats in the static list. */
   LISTBASE_FOREACH (TextFormatType *, tft, &tft_lb) {
-    /* All formats should have an ext, but just in case */
+    /* All formats should have an ext, but just in case. */
     const char **ext;
     for (ext = tft->ext; *ext; ext++) {
-      /* If extension matches text name, return the matching tft */
+      /* If extension matches text name, return the matching tft. */
       if (BLI_strcasecmp(text_ext, *ext) == 0) {
         return true;
       }

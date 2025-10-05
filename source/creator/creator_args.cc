@@ -35,6 +35,7 @@
 #  endif
 
 #  include "BKE_appdir.hh"
+#  include "BKE_blender.hh"
 #  include "BKE_blender_cli_command.hh"
 #  include "BKE_blender_version.h"
 #  include "BKE_blendfile.hh"
@@ -68,10 +69,6 @@
 #    include "libmv-capi.h"
 #  endif
 
-#  ifdef WITH_CYCLES_LOGGING
-#    include "CCL_api.h"
-#  endif
-
 #  include "DEG_depsgraph.hh"
 
 #  include "WM_types.hh"
@@ -85,16 +82,23 @@
 /**
  * Support extracting arguments for all platforms (for documentation purposes).
  * These names match the upper case defines.
+ *
+ * \note these build-defines should only be used to exclude arguments
+ * from `--help` when those arguments are not handled at all.
+ * Where using them would be the same as passing in an unknown argument.
+ * It's possible scripts are shared between platforms,
+ * so it's preferable that known arguments are documented.
  */
 struct BuildDefs {
   bool win32;
   bool with_cycles;
-  bool with_cycles_logging;
   bool with_ffmpeg;
   bool with_freestyle;
   bool with_libmv;
-  bool with_ocio;
+  bool with_opencolorio;
+  bool with_opengl_backend;
   bool with_renderdoc;
+  bool with_vulkan_backend;
   bool with_xr_openxr;
 };
 
@@ -116,9 +120,6 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  ifdef WITH_CYCLES
   build_defs->with_cycles = true;
 #  endif
-#  ifdef WITH_CYCLES_LOGGING
-  build_defs->with_cycles_logging = true;
-#  endif
 #  ifdef WITH_FFMPEG
   build_defs->with_ffmpeg = true;
 #  endif
@@ -128,11 +129,17 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  ifdef WITH_LIBMV
   build_defs->with_libmv = true;
 #  endif
-#  ifdef WITH_OCIO
-  build_defs->with_ocio = true;
+#  ifdef WITH_OPENGL_BACKEND
+  build_defs->with_opengl_backend = true;
+#  endif
+#  ifdef WITH_OPENCOLORIO
+  build_defs->with_opencolorio = true;
 #  endif
 #  ifdef WITH_RENDERDOC
   build_defs->with_renderdoc = true;
+#  endif
+#  ifdef WITH_VULKAN_BACKEND
+  build_defs->with_vulkan_backend = true;
 #  endif
 #  ifdef WITH_XR_OPENXR
   build_defs->with_xr_openxr = true;
@@ -382,7 +389,7 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
     }
   }
 
-  int(*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
+  int (*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end_range;
@@ -627,6 +634,10 @@ static const char arg_handle_print_version_doc[] =
 static int arg_handle_print_version(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   print_version_full();
+
+  /* Handles cleanup before exit. */
+  BKE_blender_atexit();
+
   exit(EXIT_SUCCESS);
   BLI_assert_unreachable();
   return 0;
@@ -717,10 +728,11 @@ static void print_help(bArgs *ba, bool all)
   PRINT("Logging Options:\n");
   BLI_args_print_arg_doc(ba, "--log");
   BLI_args_print_arg_doc(ba, "--log-level");
-  BLI_args_print_arg_doc(ba, "--log-show-basename");
+  BLI_args_print_arg_doc(ba, "--log-show-memory");
+  BLI_args_print_arg_doc(ba, "--log-show-source");
   BLI_args_print_arg_doc(ba, "--log-show-backtrace");
-  BLI_args_print_arg_doc(ba, "--log-show-timestamp");
   BLI_args_print_arg_doc(ba, "--log-file");
+  BLI_args_print_arg_doc(ba, "--log-list-categories");
 
   PRINT("\n");
   PRINT("Debug Options:\n");
@@ -729,15 +741,9 @@ static void print_help(bArgs *ba, bool all)
 
   PRINT("\n");
   BLI_args_print_arg_doc(ba, "--debug-events");
-  if (defs.with_ffmpeg) {
-    BLI_args_print_arg_doc(ba, "--debug-ffmpeg");
-  }
   BLI_args_print_arg_doc(ba, "--debug-handlers");
   if (defs.with_libmv) {
     BLI_args_print_arg_doc(ba, "--debug-libmv");
-  }
-  if (defs.with_cycles_logging) {
-    BLI_args_print_arg_doc(ba, "--debug-cycles");
   }
   BLI_args_print_arg_doc(ba, "--debug-memory");
   BLI_args_print_arg_doc(ba, "--debug-jobs");
@@ -755,9 +761,13 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-gpu");
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-gpu-compile-shaders");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-shader-debug-info");
   if (defs.with_renderdoc) {
     BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
     BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
+  }
+  if (defs.with_vulkan_backend) {
+    BLI_args_print_arg_doc(ba, "--debug-gpu-vulkan-local-read");
   }
   BLI_args_print_arg_doc(ba, "--debug-wm");
   if (defs.with_xr_openxr) {
@@ -782,10 +792,11 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   PRINT("GPU Options:\n");
   BLI_args_print_arg_doc(ba, "--gpu-backend");
-#  ifdef WITH_OPENGL_BACKEND
-  BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
+  BLI_args_print_arg_doc(ba, "--gpu-vsync");
+  if (defs.with_opengl_backend) {
+    BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
+  }
   BLI_args_print_arg_doc(ba, "--profile-gpu");
-#  endif
 
   PRINT("\n");
   PRINT("Misc Options:\n");
@@ -809,11 +820,13 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--help");
   BLI_args_print_arg_doc(ba, "/?");
 
-  /* WIN32 only (ignored for non-WIN32). */
+  /* File type registration (Windows & Linux only). */
   BLI_args_print_arg_doc(ba, "--register");
   BLI_args_print_arg_doc(ba, "--register-allusers");
   BLI_args_print_arg_doc(ba, "--unregister");
   BLI_args_print_arg_doc(ba, "--unregister-allusers");
+  /* Windows only.  */
+  BLI_args_print_arg_doc(ba, "--qos");
 
   BLI_args_print_arg_doc(ba, "--version");
 
@@ -870,14 +883,15 @@ static void print_help(bArgs *ba, bool all)
   PRINT(
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
-  if (defs.with_ocio) {
-    PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
+  if (defs.with_opencolorio) {
+    PRINT(
+        "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
+        "                             If not set, the 'OCIO' environment variable is used.\n");
   }
   if (defs.win32 || all) {
     PRINT("  $TEMP                      Store temporary files here (MS-Windows).\n");
   }
   if (!defs.win32 || all) {
-    /* NOTE: while `TMP` checked, don't include here as it's non-standard & may be removed. */
     PRINT("  $TMPDIR                    Store temporary files here (UNIX Systems).\n");
   }
   PRINT(
@@ -921,6 +935,9 @@ static int arg_handle_print_help(int /*argc*/, const char ** /*argv*/, void *dat
   bArgs *ba = (bArgs *)data;
 
   print_help(ba, false);
+
+  /* Handles cleanup before exit. */
+  BKE_blender_atexit();
 
   exit(EXIT_SUCCESS);
   BLI_assert_unreachable();
@@ -1029,7 +1046,7 @@ static const char arg_handle_quiet_set_doc[] =
     "Suppress status printing (warnings & errors are still printed).";
 static int arg_handle_quiet_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   return 0;
 }
 
@@ -1064,7 +1081,7 @@ static const char arg_handle_background_mode_set_doc[] =
     "\tand can be re-enabled by passing in '-setaudio Default' afterwards.";
 static int arg_handle_background_mode_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  if (!G.quiet) {
+  if (!CLG_quiet_get()) {
     print_version_short();
   }
   background_mode_set();
@@ -1087,7 +1104,7 @@ static int arg_handle_command_set(int argc, const char **argv, void *data)
       BLI_assert_unreachable();
     }
     /* Application "info" messages get in the way of command line output, suppress them. */
-    G.quiet = true;
+    CLG_quiet_set(true);
 
     background_mode_set();
 
@@ -1113,12 +1130,12 @@ static int arg_handle_command_set(int argc, const char **argv, void *data)
 
 static const char arg_handle_disable_depsgraph_on_file_load_doc[] =
     "\n"
-    "\tBackround mode: Do not systematically build and evaluate ViewLayers' dependency graphs\n"
-    "\twhen loading a blendfile in background mode (`-b` or `-c` options).\n"
+    "\tBackground mode: Do not systematically build and evaluate ViewLayers' dependency graphs\n"
+    "\twhen loading a blend-file in background mode ('-b' or '-c' options).\n"
     "\n"
     "\tScripts requiring evaluated data then need to explicitly ensure that\n"
     "\tan evaluated depsgraph is available\n"
-    "\t(e.g. by calling `depsgraph = context.evaluated_depsgraph_get()`).\n"
+    "\t(e.g. by calling 'depsgraph = context.evaluated_depsgraph_get()').\n"
     "\n"
     "\tNOTE: this is a temporary option, in the future depsgraph will never be\n"
     "\tautomatically generated on file load in background mode.";
@@ -1132,10 +1149,10 @@ static int arg_handle_disable_depsgraph_on_file_load(int /*argc*/,
 
 static const char arg_handle_disable_liboverride_auto_resync_doc[] =
     "\n"
-    "\tDo not perform library override automatic resync when loading a new blendfile.\n"
+    "\tDo not perform library override automatic resync when loading a new blend-file.\n"
     "\n"
     "\tNOTE: this is an alternative way to get the same effect as when setting the\n"
-    "\t`No Override Auto Resync` User Preferences Debug option.";
+    "\t'No Override Auto Resync' User Preferences Debug option.";
 static int arg_handle_disable_liboverride_auto_resync(int /*argc*/,
                                                       const char ** /*argv*/,
                                                       void * /*data*/)
@@ -1146,34 +1163,65 @@ static int arg_handle_disable_liboverride_auto_resync(int /*argc*/,
 
 static const char arg_handle_log_level_set_doc[] =
     "<level>\n"
-    "\tSet the logging verbosity level (higher for more details) defaults to 1,\n"
-    "\tuse -1 to log all levels.";
+    "\tSet the logging verbosity level.\n"
+    "\n"
+    "\tfatal: Fatal errors only\n"
+    "\terror: Errors only\n"
+    "\twarning: Warnings\n"
+    "\tinfo: Information about devices, files, configuration, operations\n"
+    "\tdebug: Verbose messages for developers\n"
+    "\ttrace: Very verbose code execution tracing";
 static int arg_handle_log_level_set(int argc, const char **argv, void * /*data*/)
 {
   const char *arg_id = "--log-level";
   if (argc > 1) {
     const char *err_msg = nullptr;
-    if (!parse_int_clamp(argv[1], nullptr, -1, INT_MAX, &G.log.level, &err_msg)) {
-      fprintf(stderr, "\nError: %s '%s %s'.\n", err_msg, arg_id, argv[1]);
+
+    if (STRCASEEQ(argv[1], "fatal")) {
+      G.log.level = CLG_LEVEL_FATAL;
+    }
+    else if (STRCASEEQ(argv[1], "error")) {
+      G.log.level = CLG_LEVEL_ERROR;
+    }
+    else if (STRCASEEQ(argv[1], "warning")) {
+      G.log.level = CLG_LEVEL_WARN;
+    }
+    else if (STRCASEEQ(argv[1], "info")) {
+      G.log.level = CLG_LEVEL_INFO;
+    }
+    else if (STRCASEEQ(argv[1], "debug")) {
+      G.log.level = CLG_LEVEL_DEBUG;
+    }
+    else if (STRCASEEQ(argv[1], "trace")) {
+      G.log.level = CLG_LEVEL_TRACE;
+    }
+    else if (parse_int_clamp(argv[1], nullptr, -1, INT_MAX, &G.log.level, &err_msg)) {
+      /* Numeric level for backwards compatibility. */
+      if (G.log.level < 0) {
+        G.log.level = CLG_LEVEL_LEN - 1;
+      }
+      else {
+        G.log.level = std::min(CLG_LEVEL_INFO + G.log.level, CLG_LEVEL_LEN - 1);
+      }
     }
     else {
-      if (G.log.level == -1) {
-        G.log.level = INT_MAX;
-      }
-      CLG_level_set(G.log.level);
+      fprintf(stderr, "\nError: Invalid log level '%s %s'.\n", arg_id, argv[1]);
+      return 1;
     }
+
+    CLG_level_set(CLG_Level(G.log.level));
     return 1;
   }
   fprintf(stderr, "\nError: '%s' no args given.\n", arg_id);
   return 0;
 }
 
-static const char arg_handle_log_show_basename_set_doc[] =
+static const char arg_handle_log_show_source_set_doc[] =
     "\n\t"
-    "Only show file name in output (not the leading path).";
-static int arg_handle_log_show_basename_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+    "Show source file and function name in output.";
+static int arg_handle_log_show_source_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  CLG_output_use_basename_set(true);
+  CLG_output_use_source_set(true);
   return 0;
 }
 
@@ -1188,12 +1236,12 @@ static int arg_handle_log_show_backtrace_set(int /*argc*/, const char ** /*argv*
   return 0;
 }
 
-static const char arg_handle_log_show_timestamp_set_doc[] =
+static const char arg_handle_log_show_memory_set_doc[] =
     "\n\t"
-    "Show a timestamp for each log message in seconds since start.";
-static int arg_handle_log_show_timestamp_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+    "Show memory usage for each log message.";
+static int arg_handle_log_show_memory_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-  CLG_output_use_timestamp_set(true);
+  CLG_output_use_memory_set(true);
   return 0;
 }
 
@@ -1226,13 +1274,12 @@ static int arg_handle_log_file_set(int argc, const char **argv, void * /*data*/)
 static const char arg_handle_log_set_doc[] =
     "<match>\n"
     "\tEnable logging categories, taking a single comma separated argument.\n"
-    "\tMultiple categories can be matched using a '.*' suffix,\n"
-    "\tso '--log \"wm.*\"' logs every kind of window-manager message.\n"
-    "\tSub-string can be matched using a '*' prefix and suffix,\n"
-    "\tso '--log \"*undo*\"' logs every kind of undo-related message.\n"
-    "\tUse \"^\" prefix to ignore, so '--log \"*,^wm.operator.*\"' logs all except for "
-    "'wm.operators.*'\n"
-    "\tUse \"*\" to log everything.";
+    "\n"
+    "\t--log \"*\": log everything\n"
+    "\t--log \"event\": logs every category starting with 'event'.\n"
+    "\t--log \"render,cycles\": log both render and cycles messages.\n"
+    "\t--log \"*mesh*\": log every category containing 'mesh' sub-string.\n"
+    "\t--log \"*,^operator\": log everything except operators, with '^prefix' to exclude.";
 static int arg_handle_log_set(int argc, const char **argv, void * /*data*/)
 {
   const char *arg_id = "--log";
@@ -1266,6 +1313,19 @@ static int arg_handle_log_set(int argc, const char **argv, void * /*data*/)
   return 0;
 }
 
+static const char arg_handle_list_clog_cats_doc[] =
+    "\n"
+    "\tList all available logging categories for '--log', and exit.\n";
+
+static int arg_handle_list_clog_cats(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  auto print_identifier = [](const char *identifier, void *) { printf("%s\n", identifier); };
+  CLG_logref_list_all(print_identifier, nullptr);
+  BKE_blender_atexit();
+  exit(EXIT_SUCCESS);
+  return 0;
+}
+
 static const char arg_handle_debug_mode_set_doc[] =
     "\n"
     "\tTurn debugging on.\n"
@@ -1290,9 +1350,6 @@ static int arg_handle_debug_mode_set(int /*argc*/, const char ** /*argv*/, void 
   return 0;
 }
 
-static const char arg_handle_debug_mode_generic_set_doc_ffmpeg[] =
-    "\n\t"
-    "Enable debug messages from FFmpeg library.";
 static const char arg_handle_debug_mode_generic_set_doc_freestyle[] =
     "\n\t"
     "Enable debug messages for Freestyle.";
@@ -1353,11 +1410,9 @@ static const char arg_handle_debug_mode_generic_set_doc_depsgraph_uid[] =
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_workarounds[] =
     "\n\t"
     "Enable workarounds for typical GPU issues and disable all GPU extensions.";
-#  ifdef WITH_VULKAN_BACKEND
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_vulkan_local_read[] =
     "\n\t"
     "Force Vulkan dynamic rendering local read when supported by device.";
-#  endif
 
 static int arg_handle_debug_mode_generic_set(int /*argc*/, const char ** /*argv*/, void *data)
 {
@@ -1367,7 +1422,7 @@ static int arg_handle_debug_mode_generic_set(int /*argc*/, const char ** /*argv*
 
 static const char arg_handle_debug_mode_io_doc[] =
     "\n\t"
-    "Enable debug messages for I/O (Collada, ...).";
+    "Enable debug messages for I/O.";
 static int arg_handle_debug_mode_io(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   G.debug |= G_DEBUG_IO;
@@ -1382,9 +1437,6 @@ static int arg_handle_debug_mode_all(int /*argc*/, const char ** /*argv*/, void 
   G.debug |= G_DEBUG_ALL;
 #  ifdef WITH_LIBMV
   libmv_startDebugLogging();
-#  endif
-#  ifdef WITH_CYCLES_LOGGING
-  CCL_start_debug_logging();
 #  endif
   return 0;
 }
@@ -1405,9 +1457,18 @@ static const char arg_handle_debug_mode_cycles_doc[] =
     "Enable debug messages from Cycles.";
 static int arg_handle_debug_mode_cycles(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
-#  ifdef WITH_CYCLES_LOGGING
-  CCL_start_debug_logging();
-#  endif
+  const char *cycles_filter = "cycles.*";
+  CLG_type_filter_include(cycles_filter, strlen(cycles_filter));
+  return 0;
+}
+
+static const char arg_handle_debug_mode_ffmpeg_doc[] =
+    "\n\t"
+    "Enable debug messages from FFmpeg video input and output.";
+static int arg_handle_debug_mode_ffmpeg(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  const char *video_filter = "video.*";
+  CLG_type_filter_include(video_filter, strlen(video_filter));
   return 0;
 }
 
@@ -1471,7 +1532,12 @@ static const char arg_handle_debug_gpu_scope_capture_set_doc[] =
 static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, void * /*data*/)
 {
   if (argc > 1) {
+#  ifdef WITH_RENDERDOC
     STRNCPY(G.gpu_debug_scope_name, argv[1]);
+#  else
+    UNUSED_VARS(argc, argv);
+    BLI_assert_unreachable();
+#  endif
     return 1;
   }
   fprintf(stderr, "\nError: you must specify a scope name to capture.\n");
@@ -1486,15 +1552,28 @@ static int arg_handle_debug_gpu_renderdoc_set(int /*argc*/,
                                               void * /*data*/)
 {
 #  ifdef WITH_RENDERDOC
-  G.debug |= G_DEBUG_GPU_RENDERDOC | G_DEBUG_GPU;
+  G.debug |= G_DEBUG_GPU_RENDERDOC | G_DEBUG_GPU | G_DEBUG_GPU_SHADER_DEBUG_INFO;
+#  else
+  BLI_assert_unreachable();
 #  endif
+  return 0;
+}
+
+static const char arg_handle_debug_gpu_shader_debug_info_set_doc[] =
+    "\n"
+    "\tEnable shader debug info generation (Vulkan only).";
+static int arg_handle_debug_gpu_shader_debug_info_set(int /*argc*/,
+                                                      const char ** /*argv*/,
+                                                      void * /*data*/)
+{
+  G.debug |= G_DEBUG_GPU_SHADER_DEBUG_INFO;
   return 0;
 }
 
 static const char arg_handle_gpu_backend_set_doc_all[] =
     "\n"
     "\tForce to use a specific GPU backend. Valid options: "
-    "'vulkan' (experimental),  "
+    "'vulkan',  "
     "'metal',  "
     "'opengl'.";
 static const char arg_handle_gpu_backend_set_doc[] =
@@ -1510,23 +1589,23 @@ static const char arg_handle_gpu_backend_set_doc[] =
 #    if defined(WITH_OPENGL_BACKEND) || defined(WITH_METAL_BACKEND)
     " or "
 #    endif
-    "'vulkan' (experimental)"
+    "'vulkan'"
 #  endif
     ".";
 static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data*/)
 {
-  if (argc == 0) {
+  if (argc < 2) {
     fprintf(stderr, "\nError: GPU backend must follow '--gpu-backend'.\n");
     return 0;
   }
   const char *backends_supported[3] = {nullptr};
   int backends_supported_num = 0;
 
-  eGPUBackendType gpu_backend = GPU_BACKEND_NONE;
+  GPUBackendType gpu_backend = GPU_BACKEND_NONE;
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (false) {
-    /* Just a dummy if to make the following ifdef blocks work. */
+    /* Use a dummy block to make the following `ifdef` blocks work. */
   }
 #  ifdef WITH_OPENGL_BACKEND
   else if (STREQ(argv[1], (backends_supported[backends_supported_num++] = "opengl"))) {
@@ -1549,7 +1628,7 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
       fprintf(stderr, (i + 1 != backends_supported_num) ? "%s, " : "%s", backends_supported[i]);
     }
     fprintf(stderr, "].\n");
-    return 0;
+    return 1;
   }
   /* NOLINTEND: bugprone-assignment-in-if-condition */
 
@@ -1558,7 +1637,44 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
   return 1;
 }
 
-#  ifdef WITH_OPENGL_BACKEND
+static const char arg_handle_gpu_vsync_set_doc[] =
+    "\n"
+    "\tSet the VSync.\n"
+    "\tValid options are: 'on', 'off' & 'auto' for adaptive sync.\n"
+    "\n"
+    "\t* The default settings depend on the GPU driver.\n"
+    "\t* Disabling VSync can be useful for testing performance.\n"
+    "\t* 'auto' is only supported by the OpenGL backend.";
+static int arg_handle_gpu_vsync_set(int argc, const char **argv, void * /*data*/)
+{
+  const char *arg_id = "--gpu-vsync";
+
+  if (argc < 2) {
+    fprintf(stderr, "\nError: VSync value must follow '%s'.\n", arg_id);
+    return 0;
+  }
+
+  /* Must be compatible with #GHOST_TVSyncModes. */
+  int vsync;
+  if (STREQ(argv[1], "on")) {
+    vsync = 1;
+  }
+  else if (STREQ(argv[1], "off")) {
+    vsync = 0;
+  }
+  else if (STREQ(argv[1], "auto")) {
+    vsync = -1;
+  }
+  else {
+    fprintf(stderr, "\nError: expected a value in [on, off, auto] '%s %s'.\n", arg_id, argv[1]);
+    return 1;
+  }
+
+  GPU_backend_vsync_set_override(vsync);
+
+  return 1;
+}
+
 static const char arg_handle_gpu_compilation_subprocesses_set_doc[] =
     "\n"
     "\tOverride the Max Compilation Subprocesses setting (OpenGL only).";
@@ -1579,10 +1695,15 @@ static int arg_handle_gpu_compilation_subprocesses_set(int argc,
               argv[1],
               min,
               max);
-      return 0;
+      return 1;
     }
 
+#  ifdef WITH_OPENGL_BACKEND
     GPU_compilation_subprocess_override_set(subprocesses);
+#  else
+    UNUSED_VARS(subprocesses);
+    BLI_assert_unreachable();
+#  endif
     return 1;
   }
   fprintf(stderr,
@@ -1592,7 +1713,6 @@ static int arg_handle_gpu_compilation_subprocesses_set(int argc,
           arg_id);
   return 0;
 }
-#  endif
 
 static const char arg_handle_debug_fpe_set_doc[] =
     "\n\t"
@@ -1699,9 +1819,9 @@ static int arg_handle_playback_mode(int argc, const char **argv, void * /*data*/
   /* Ignore the animation player if `-b` was given first. */
   if (G.background == 0) {
     /* Skip this argument (`-a`). */
-    WM_main_playanim(argc - 1, argv + 1);
+    const int exit_code = WM_main_playanim(argc - 1, argv + 1);
 
-    exit(EXIT_SUCCESS);
+    exit(exit_code);
   }
 
   return -2;
@@ -1817,14 +1937,16 @@ static const char arg_handle_register_extension_doc[] =
     "Register blend-file extension for current user, then exit (Windows & Linux only).";
 static int arg_handle_register_extension(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
-#  if !(defined(WIN32) && defined(__APPLE__))
+#  if !(defined(WIN32) || defined(__APPLE__))
   if (!main_arg_deferred_is_set()) {
     main_arg_deferred_setup(arg_handle_register_extension, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argv, data);
 #  endif
   arg_handle_extension_registration(true, false);
   return argc - 1;
@@ -1835,14 +1957,16 @@ static const char arg_handle_register_extension_all_doc[] =
     "Register blend-file extension for all users, then exit (Windows & Linux only).";
 static int arg_handle_register_extension_all(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
-#  if !(defined(WIN32) && defined(__APPLE__))
+#  if !(defined(WIN32) || defined(__APPLE__))
   if (!main_arg_deferred_is_set()) {
     main_arg_deferred_setup(arg_handle_register_extension_all, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argv, data);
 #  endif
   arg_handle_extension_registration(true, true);
   return argc - 1;
@@ -1853,14 +1977,16 @@ static const char arg_handle_unregister_extension_doc[] =
     "Unregister blend-file extension for current user, then exit (Windows & Linux only).";
 static int arg_handle_unregister_extension(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
-#  if !(defined(WIN32) && defined(__APPLE__))
+#  if !(defined(WIN32) || defined(__APPLE__))
   if (!main_arg_deferred_is_set()) {
     main_arg_deferred_setup(arg_handle_unregister_extension, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argc, argv, data);
 #  endif
   arg_handle_extension_registration(false, false);
   return 0;
@@ -1871,16 +1997,55 @@ static const char arg_handle_unregister_extension_all_doc[] =
     "Unregister blend-file extension for all users, then exit (Windows & Linux only).";
 static int arg_handle_unregister_extension_all(int argc, const char **argv, void *data)
 {
-  G.quiet = true;
+  CLG_quiet_set(true);
   background_mode_set();
 
-#  if !(defined(WIN32) && defined(__APPLE__))
+#  if !(defined(WIN32) || defined(__APPLE__))
   if (!main_arg_deferred_is_set()) {
     main_arg_deferred_setup(arg_handle_unregister_extension_all, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argc, argv, data);
 #  endif
   arg_handle_extension_registration(false, true);
+  return 0;
+}
+
+static const char arg_handle_qos_set_doc[] =
+    "<level>\n"
+    "\tSet the Quality of Service (QoS) mode for hybrid CPU architectures (Windows only).\n"
+    "\n"
+    "\tdefault: Uses the default behavior of the OS.\n"
+    "\thigh: Always makes use of performance cores.\n"
+    "\teco: Schedules Blender threads exclusively to efficiency cores.";
+static int arg_handle_qos_set(int argc, const char **argv, void * /*data*/)
+{
+  const char *arg_id = "--qos";
+  if (argc > 1) {
+#  ifdef _WIN32
+    QoSMode qos_mode;
+    if (STRCASEEQ(argv[1], "default")) {
+      qos_mode = QoSMode::DEFAULT;
+    }
+    else if (STRCASEEQ(argv[1], "high")) {
+      qos_mode = QoSMode::HIGH;
+    }
+    else if (STRCASEEQ(argv[1], "eco")) {
+      qos_mode = QoSMode::ECO;
+    }
+    else {
+      fprintf(stderr, "\nError: Invalid QoS level '%s %s'.\n", arg_id, argv[1]);
+      return 1;
+    }
+    BLI_windows_process_set_qos(qos_mode, QoSPrecedence::CMDLINE_ARG);
+#  else
+    UNUSED_VARS(argv);
+    fprintf(stderr, "\nError: '%s' is Windows only.\n", arg_id);
+#  endif
+    return 1;
+  }
+  fprintf(stderr, "\nError: '%s' no args given.\n", arg_id);
   return 0;
 }
 
@@ -1919,6 +2084,9 @@ static const char arg_handle_output_set_doc[] =
     "\tSet the render path and file name.\n"
     "\tUse '//' at the start of the path to render relative to the blend-file.\n"
     "\n"
+    "\tYou can use path templating features such as '{blend_name}' in the path.\n"
+    "\tSee Blender's documentation on path templates for more details.\n"
+    "\n"
     "\tThe '#' characters are replaced by the frame number, and used to define zero padding.\n"
     "\n"
     "\t* 'animation_##_test.png' becomes 'animation_01_test.png'\n"
@@ -1955,7 +2123,9 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
 {
   bContext *C = static_cast<bContext *>(data);
   if (argc >= 2) {
-    if (STREQ(argv[1], "help")) {
+    const char *engine_name = argv[1];
+
+    if (STREQ(engine_name, "help")) {
       printf("Blender Engine Listing:\n");
       LISTBASE_FOREACH (RenderEngineType *, type, &R_engines) {
         printf("\t%s\n", type->idname);
@@ -1965,12 +2135,17 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
     else {
       Scene *scene = CTX_data_scene(C);
       if (scene) {
-        if (BLI_findstring(&R_engines, argv[1], offsetof(RenderEngineType, idname))) {
-          STRNCPY_UTF8(scene->r.engine, argv[1]);
+        /* Backwards compatibility. */
+        if (STREQ(engine_name, "BLENDER_EEVEE_NEXT")) {
+          engine_name = "BLENDER_EEVEE";
+        }
+
+        if (BLI_findstring(&R_engines, engine_name, offsetof(RenderEngineType, idname))) {
+          STRNCPY_UTF8(scene->r.engine, engine_name);
           DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
         }
         else {
-          fprintf(stderr, "\nError: engine not found '%s'\n", argv[1]);
+          fprintf(stderr, "\nError: engine not found '%s'\n", engine_name);
           exit(1);
         }
       }
@@ -1991,7 +2166,7 @@ static const char arg_handle_image_type_set_doc[] =
     "<format>\n"
     "\tSet the render format.\n"
     "\tValid options are:\n"
-    "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'AVIRAW' 'AVIJPEG' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
+    "\t'TGA' 'RAWTGA' 'JPEG' 'IRIS' 'PNG' 'BMP' 'HDR' 'TIFF'.\n"
     "\n"
     "\tFormats that can be compiled into Blender, not available on all systems:\n"
     "\t'OPEN_EXR' 'OPEN_EXR_MULTILAYER' 'FFMPEG' 'CINEON' 'DPX' 'JP2' 'WEBP'.";
@@ -2073,10 +2248,6 @@ static int arg_handle_verbosity_set(int argc, const char **argv, void * /*data*/
 
 #  ifdef WITH_LIBMV
     libmv_setLoggingVerbosity(level);
-#  elif defined(WITH_CYCLES_LOGGING)
-    CCL_logging_verbosity_set(level);
-#  else
-    (void)level;
 #  endif
 
     return 1;
@@ -2118,6 +2289,12 @@ static int arg_handle_extension_set(int argc, const char **argv, void *data)
   return 0;
 }
 
+static void add_log_render_filter()
+{
+  const char *render_filter = "render.*";
+  CLG_type_filter_include(render_filter, strlen(render_filter));
+}
+
 static const char arg_handle_render_frame_doc[] =
     "<frame>\n"
     "\tRender frame <frame> and save it.\n"
@@ -2132,6 +2309,8 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
   bContext *C = static_cast<bContext *>(data);
   Scene *scene = CTX_data_scene(C);
   if (scene) {
+    add_log_render_filter();
+
     Main *bmain = CTX_data_main(C);
 
     if (argc > 1) {
@@ -2139,7 +2318,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
       Render *re;
       ReportList reports;
 
-      int(*frame_range_arr)[2], frames_range_len;
+      int (*frame_range_arr)[2], frames_range_len;
       if ((frame_range_arr = parse_int_range_relative_clamp_n(argv[1],
                                                               scene->r.sfra,
                                                               scene->r.efra,
@@ -2186,6 +2365,8 @@ static int arg_handle_render_animation(int /*argc*/, const char ** /*argv*/, voi
   bContext *C = static_cast<bContext *>(data);
   Scene *scene = CTX_data_scene(C);
   if (scene) {
+    add_log_render_filter();
+
     Main *bmain = CTX_data_main(C);
     Render *re = RE_NewSceneRender(scene);
     ReportList reports;
@@ -2509,7 +2690,6 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
   return 0;
 }
 
-#  ifdef WITH_OPENGL_BACKEND
 static const char arg_handle_profile_gpu_set_doc[] =
     "\n"
     "\tEnable CPU & GPU performance profiling for GPU debug groups\n"
@@ -2519,7 +2699,6 @@ static int arg_handle_profile_gpu_set(int /*argc*/, const char ** /*argv*/, void
   G.profile_gpu = true;
   return 0;
 }
-#  endif
 
 /**
  * Implementation for #arg_handle_load_last_file, also used by `--open-last`.
@@ -2535,8 +2714,11 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
   /* Load the file. */
   ReportList reports;
   BKE_reports_init(&reports, RPT_PRINT);
-  WM_file_autoexec_init(filepath);
-  const bool success = WM_file_read(C, filepath, &reports);
+  /* When activating from the command line there isn't an exact equivalent to operator properties.
+   * Instead, enabling auto-execution via `--enable-autoexec` causes the auto-execution
+   * check to be skipped (if it's set), so it's fine to always enable the check here. */
+  const bool use_scripts_autoexec_check = true;
+  const bool success = WM_file_read(C, filepath, use_scripts_autoexec_check, &reports);
   BKE_reports_free(&reports);
 
   if (success) {
@@ -2562,16 +2744,17 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
     if (load_empty_file == false) {
       error_msg = error_msg_generic;
     }
+    else if (!BKE_blendfile_extension_check(filepath)) {
+      /* Non-blend. Continue loading and give warning. */
+      G_MAIN->is_read_invalid = true;
+      return true;
+    }
     else if (BLI_exists(filepath)) {
       /* When a file is found but can't be loaded, handling it as a new file
        * could cause it to be unintentionally overwritten (data loss).
        * Further this is almost certainly not that a user would expect or want.
        * If they do, they can delete the file beforehand. */
       error_msg = error_msg_generic;
-    }
-    else if (!BKE_blendfile_extension_check(filepath)) {
-      /* Unrelated arguments should not be treated as new blend files. */
-      error_msg = "argument has no '.blend' file extension, not using as new file";
     }
 
     if (error_msg) {
@@ -2585,7 +2768,7 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
      *
      * WARNING: The path referenced may be incorrect, no attempt is made to validate the path
      * here or check that writing to it will work. If the users enters the path of a directory
-     * that doesn't exist (for e.g.) saving will fail.
+     * that doesn't exist (for example) saving will fail.
      * Attempting to create the file at this point is possible but likely to cause more
      * trouble than it's worth (what with network drives), removable devices ... etc. */
 
@@ -2674,32 +2857,35 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
    * especially `bpy.appdir` since it's useful to show errors finding paths on startup. */
   BLI_args_add(ba, nullptr, "--log", CB(arg_handle_log_set), ba);
   BLI_args_add(ba, nullptr, "--log-level", CB(arg_handle_log_level_set), ba);
-  BLI_args_add(ba, nullptr, "--log-show-basename", CB(arg_handle_log_show_basename_set), ba);
+  BLI_args_add(ba, nullptr, "--log-show-source", CB(arg_handle_log_show_source_set), ba);
   BLI_args_add(ba, nullptr, "--log-show-backtrace", CB(arg_handle_log_show_backtrace_set), ba);
-  BLI_args_add(ba, nullptr, "--log-show-timestamp", CB(arg_handle_log_show_timestamp_set), ba);
+  BLI_args_add(ba, nullptr, "--log-show-memory", CB(arg_handle_log_show_memory_set), ba);
   BLI_args_add(ba, nullptr, "--log-file", CB(arg_handle_log_file_set), ba);
 
   /* GPU backend selection should be part of #ARG_PASS_ENVIRONMENT for correct GPU context
    * selection for animation player. */
   BLI_args_add(ba, nullptr, "--gpu-backend", CB_ALL(arg_handle_gpu_backend_set), nullptr);
-#  ifdef WITH_OPENGL_BACKEND
-  BLI_args_add(ba,
-               nullptr,
-               "--gpu-compilation-subprocesses",
-               CB(arg_handle_gpu_compilation_subprocesses_set),
-               nullptr);
+  BLI_args_add(ba, nullptr, "--gpu-vsync", CB(arg_handle_gpu_vsync_set), nullptr);
+  if (defs.with_opengl_backend) {
+    BLI_args_add(ba,
+                 nullptr,
+                 "--gpu-compilation-subprocesses",
+                 CB(arg_handle_gpu_compilation_subprocesses_set),
+                 nullptr);
+  }
   BLI_args_add(ba, nullptr, "--profile-gpu", CB(arg_handle_profile_gpu_set), nullptr);
-#  endif
 
   /* Pass: Background Mode & Settings
    *
    * Also and commands that exit after usage. */
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS);
   BLI_args_add(ba, "-h", "--help", CB(arg_handle_print_help), ba);
+
   /* MS-Windows only. */
   BLI_args_add(ba, "/?", nullptr, CB_EX(arg_handle_print_help, win32), ba);
 
   BLI_args_add(ba, "-v", "--version", CB(arg_handle_print_version), nullptr);
+  BLI_args_add(ba, nullptr, "--log-list-categories", CB(arg_handle_list_clog_cats), nullptr);
 
   BLI_args_add(ba, "-y", "--enable-autoexec", CB_EX(arg_handle_python_set, enable), (void *)true);
   BLI_args_add(
@@ -2720,6 +2906,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* Command implies background mode (defers execution). */
   BLI_args_add(ba, "-c", "--command", CB(arg_handle_command_set), C);
 
+  BLI_args_add(ba, nullptr, "--qos", CB(arg_handle_qos_set), nullptr);
+
   BLI_args_add(ba,
                nullptr,
                "--disable-depsgraph-on-file-load",
@@ -2737,11 +2925,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, "-d", "--debug", CB(arg_handle_debug_mode_set), ba);
 
   if (defs.with_ffmpeg) {
-    BLI_args_add(ba,
-                 nullptr,
-                 "--debug-ffmpeg",
-                 CB_EX(arg_handle_debug_mode_generic_set, ffmpeg),
-                 (void *)G_DEBUG_FFMPEG);
+    BLI_args_add(ba, nullptr, "--debug-ffmpeg", CB(arg_handle_debug_mode_ffmpeg), nullptr);
   }
 
   if (defs.with_freestyle) {
@@ -2799,7 +2983,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   if (defs.with_libmv) {
     BLI_args_add(ba, nullptr, "--debug-libmv", CB(arg_handle_debug_mode_libmv), nullptr);
   }
-  if (defs.with_cycles_logging) {
+  if (defs.with_cycles) {
     BLI_args_add(ba, nullptr, "--debug-cycles", CB(arg_handle_debug_mode_cycles), nullptr);
   }
   BLI_args_add(ba, nullptr, "--debug-memory", CB(arg_handle_debug_mode_memory_set), nullptr);
@@ -2825,6 +3009,11 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
     BLI_args_add(
         ba, nullptr, "--debug-gpu-renderdoc", CB(arg_handle_debug_gpu_renderdoc_set), nullptr);
   }
+  BLI_args_add(ba,
+               nullptr,
+               "--debug-gpu-shader-debug-info",
+               CB(arg_handle_debug_gpu_shader_debug_info_set),
+               nullptr);
 
   BLI_args_add(ba,
                nullptr,
@@ -2872,13 +3061,13 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                "--debug-gpu-force-workarounds",
                CB_EX(arg_handle_debug_mode_generic_set, gpu_force_workarounds),
                (void *)G_DEBUG_GPU_FORCE_WORKAROUNDS);
-#  ifdef WITH_VULKAN_BACKEND
-  BLI_args_add(ba,
-               nullptr,
-               "--debug-gpu-vulkan-local-read",
-               CB_EX(arg_handle_debug_mode_generic_set, gpu_force_vulkan_local_read),
-               (void *)G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ);
-#  endif
+  if (defs.with_vulkan_backend) {
+    BLI_args_add(ba,
+                 nullptr,
+                 "--debug-gpu-vulkan-local-read",
+                 CB_EX(arg_handle_debug_mode_generic_set, gpu_force_vulkan_local_read),
+                 (void *)G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ);
+  }
   BLI_args_add(ba, nullptr, "--debug-exit-on-error", CB(arg_handle_debug_exit_on_error), nullptr);
 
   BLI_args_add(ba, nullptr, "--verbose", CB(arg_handle_verbosity_set), nullptr);

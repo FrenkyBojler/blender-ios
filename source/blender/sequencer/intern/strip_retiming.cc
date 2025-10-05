@@ -12,6 +12,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_sound_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -150,7 +151,7 @@ void retiming_reset(Scene *scene, Strip *strip)
 
   blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 
   retiming_key_overlap(scene, strip);
 }
@@ -340,7 +341,7 @@ static SeqRetimingKey *strip_retiming_add_key(Strip *strip, float frame_index)
   float value = strip_retiming_evaluate(strip, frame_index);
 
   SeqRetimingKey *keys = strip->retiming_keys;
-  size_t keys_count = retiming_keys_count(strip);
+  const int keys_count = retiming_keys_count(strip);
   const int new_key_index = start_key - keys + 1;
   BLI_assert(new_key_index >= 0);
   BLI_assert(new_key_index < keys_count);
@@ -692,22 +693,21 @@ static void strip_retiming_fix_transition(const Scene *scene, Strip *strip, SeqR
 
 static void strip_retiming_fix_transitions(const Scene *scene, Strip *strip, SeqRetimingKey *key)
 {
+  /* Store value, since handles array will be reallocated. */
   const int key_index = retiming_key_index_get(strip, key);
 
-  if (!retiming_is_last_key(strip, key)) {
-    SeqRetimingKey *next_key = key + 1;
-    if (retiming_key_is_transition_start(next_key)) {
-      strip_retiming_fix_transition(scene, strip, next_key);
+  if (key_index > 1) {
+    SeqRetimingKey *prev_key = key - 2;
+    if (retiming_key_is_transition_start(prev_key)) {
+      strip_retiming_fix_transition(scene, strip, prev_key);
     }
   }
 
-  if (key_index <= 1) {
-    return;
-  }
-
-  SeqRetimingKey *next_key = &retiming_keys_get(strip)[key_index + 1];
-  if (retiming_key_is_transition_start(next_key)) {
-    strip_retiming_fix_transition(scene, strip, next_key);
+  if (!retiming_is_last_key(strip, key)) {
+    SeqRetimingKey *next_key = &retiming_keys_get(strip)[key_index + 1];
+    if (retiming_key_is_transition_start(next_key)) {
+      strip_retiming_fix_transition(scene, strip, next_key);
+    }
   }
 }
 
@@ -776,7 +776,7 @@ void retiming_key_timeline_frame_set(const Scene *scene,
 
   blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
-  time_update_meta_strip_range(scene, SEQ_lookup_meta_by_strip(scene->ed, strip));
+  time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
 float retiming_key_speed_get(const Strip *strip, const SeqRetimingKey *key)
@@ -1036,7 +1036,7 @@ static RetimingRangeData strip_retiming_range_data_get(const Scene *scene, const
 {
   RetimingRangeData strip_retiming_data = RetimingRangeData(strip);
 
-  const Strip *meta_parent = SEQ_lookup_meta_by_strip(scene->ed, strip);
+  const Strip *meta_parent = lookup_meta_by_strip(scene->ed, strip);
   if (meta_parent == nullptr) {
     return strip_retiming_data;
   }
@@ -1048,6 +1048,30 @@ static RetimingRangeData strip_retiming_range_data_get(const Scene *scene, const
 
 void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
 {
+
+  RetimingRangeData retiming_data = strip_retiming_range_data_get(scene, strip);
+
+  /* No need to apply the time-stretch effect if all the retiming range speeds are 1, as the
+   * effect itself is still expensive while the audio is playing and want to avoid having to use it
+   * whenever we can. */
+  bool correct_pitch = (strip->flag & SEQ_AUDIO_PITCH_CORRECTION) && strip->sound != nullptr &&
+                       std::any_of(retiming_data.ranges.begin(),
+                                   retiming_data.ranges.end(),
+                                   [](const RetimingRange &range) {
+                                     return range.type != TRANSITION && range.speed != 1.0;
+                                   });
+#if !defined(WITH_RUBBERBAND)
+  correct_pitch = false;
+#endif
+
+  void *sound_handle = strip->sound ? strip->sound->playback_handle : nullptr;
+  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  if (correct_pitch) {
+    sound_handle = BKE_sound_add_time_stretch_effect(sound_handle, scene_fps);
+    BKE_sound_set_scene_sound_pitch_constant_range(
+        strip->scene_sound, 0, strip->start + strip->len, 1.0f);
+  }
+
   /* Content cut off by `anim_startofs` is as if it does not exist for sequencer. But Audaspace
    * seeking relies on having animation buffer initialized for whole sequence. */
   if (strip->anim_startofs > 0) {
@@ -1056,25 +1080,38 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
         strip->scene_sound, strip_start - strip->anim_startofs, strip_start, 1.0f);
   }
 
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = time_get_rounded_sound_offset(strip, scene_fps);
 
-  RetimingRangeData retiming_data = strip_retiming_range_data_get(scene, strip);
   for (int i = 0; i < retiming_data.ranges.size(); i++) {
-    RetimingRange range = retiming_data.ranges[i];
+    const RetimingRange &range = retiming_data.ranges[i];
     if (range.type == TRANSITION) {
-
       const int range_length = range.end - range.start;
       for (int i = 0; i <= range_length; i++) {
         const int frame = range.start + i;
-        BKE_sound_set_scene_sound_pitch_at_frame(
-            strip->scene_sound, frame + sound_offset, range.speed_table[i], true);
+        if (correct_pitch) {
+          BKE_sound_set_scene_sound_time_stretch_at_frame(
+              sound_handle, frame - strip->start, 1.0 / range.speed_table[i], true);
+        }
+        else {
+          BKE_sound_set_scene_sound_pitch_at_frame(
+              strip->scene_sound, frame + sound_offset, range.speed_table[i], true);
+        }
       }
     }
     else {
-      BKE_sound_set_scene_sound_pitch_constant_range(
-          strip->scene_sound, range.start + sound_offset, range.end + sound_offset, range.speed);
+      if (correct_pitch) {
+        BKE_sound_set_scene_sound_time_stretch_constant_range(
+            sound_handle, range.start - strip->start, range.end - strip->start, 1.0 / range.speed);
+      }
+      else {
+        BKE_sound_set_scene_sound_pitch_constant_range(
+            strip->scene_sound, range.start + sound_offset, range.end + sound_offset, range.speed);
+      }
     }
+  }
+
+  if (correct_pitch) {
+    BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
   }
 }
 
@@ -1082,7 +1119,7 @@ bool retiming_selection_clear(const Editing *ed)
 {
   bool was_empty = true;
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     for (SeqRetimingKey &key : retiming_keys_get(strip)) {
       was_empty &= (key.flag & SEQ_KEY_SELECTED) == 0;
       key.flag &= ~SEQ_KEY_SELECTED;
@@ -1115,7 +1152,7 @@ blender::Map<SeqRetimingKey *, Strip *> retiming_selection_get(const Editing *ed
   if (!ed) {
     return selection;
   }
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     for (SeqRetimingKey &key : retiming_keys_get(strip)) {
       if ((key.flag & SEQ_KEY_SELECTED) != 0) {
         selection.add(&key, strip);
@@ -1127,7 +1164,7 @@ blender::Map<SeqRetimingKey *, Strip *> retiming_selection_get(const Editing *ed
 
 bool retiming_selection_contains(const Editing *ed, const SeqRetimingKey *key)
 {
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     for (const SeqRetimingKey &key_iter : retiming_keys_get(strip)) {
       if ((key_iter.flag & SEQ_KEY_SELECTED) != 0 && &key_iter == key) {
         return true;

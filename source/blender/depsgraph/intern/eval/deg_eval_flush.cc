@@ -155,7 +155,7 @@ inline void flush_handle_component_node(IDNode *id_node,
 
 /* Schedule children of the given operation node for traversal.
  *
- * One of the children will by-pass the queue and will be returned as a function
+ * One of the children will bypass the queue and will be returned as a function
  * return value, so it can start being handled right away, without building too
  * much of a queue.
  */
@@ -198,17 +198,6 @@ inline OperationNode *flush_schedule_children(OperationNode *op_node, FlushQueue
   return result;
 }
 
-void flush_engine_data_update(ID *id)
-{
-  DrawDataList *draw_data_list = DRW_drawdatalist_from_id(id);
-  if (draw_data_list == nullptr) {
-    return;
-  }
-  LISTBASE_FOREACH (DrawData *, draw_data, draw_data_list) {
-    draw_data->recalc |= id->recalc;
-  }
-}
-
 /* NOTE: It will also accumulate flags from changed components. */
 void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *update_ctx)
 {
@@ -245,8 +234,6 @@ void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *upd
       if (graph->is_active && id_node->is_user_modified) {
         deg_editors_id_update(update_ctx, id_orig);
       }
-      /* Inform draw engines that something was changed. */
-      flush_engine_data_update(id_cow);
     }
   }
 }

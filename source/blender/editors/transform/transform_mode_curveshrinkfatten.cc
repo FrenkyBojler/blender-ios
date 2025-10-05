@@ -10,15 +10,15 @@
 
 #include "BLI_math_bits.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
-
 #include "BLT_translation.hh"
+
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -51,10 +51,10 @@ static void applyCurveShrinkFatten(TransInfo *t)
     char c[NUM_STR_REP_LEN];
 
     outputNumInput(&(t->num), c, t->scene->unit);
-    SNPRINTF(str, IFACE_("Shrink/Fatten: %s"), c);
+    SNPRINTF_UTF8(str, IFACE_("Shrink/Fatten: %s"), c);
   }
   else {
-    SNPRINTF(str, IFACE_("Shrink/Fatten: %3f"), ratio);
+    SNPRINTF_UTF8(str, IFACE_("Shrink/Fatten: %3f"), ratio);
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -93,23 +93,54 @@ static void initCurveShrinkFatten(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 0;
   t->num.idx_max = 0;
-  t->snap[0] = 0.1f;
-  t->snap[1] = t->snap[0] * 0.1f;
+  t->increment[0] = 0.1f;
+  t->increment_precision = 0.1f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_NONE;
 
   float scale_factor = 0.0f;
-  if (((t->spacetype == SPACE_VIEW3D) && (t->region->regiontype == RGN_TYPE_WINDOW) &&
-       (t->data_len_all == 1)) ||
-      (t->data_len_all == 3 && TRANS_DATA_CONTAINER_FIRST_OK(t)->data[0].val == nullptr))
-  {
+  if ((t->spacetype == SPACE_VIEW3D) && (t->region->regiontype == RGN_TYPE_WINDOW)) {
     /* For cases where only one point on the curve is being transformed and the radius of that
-     * point is zero, use the factor to multiply the offset of the ratio and allow scaling.
-     * Note that for bezier curves, 3 TransData equals 1 point in most cases. */
-    RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
-    scale_factor = rv3d->pixsize * t->mouse.factor * t->zfac;
+     * point is zero [that is actually only checked for in #applyCurveShrinkFatten()], use the
+     * factor to multiply the offset of the ratio and allow scaling. Note that for bezier curves, 3
+     * TransData equals 1 point in most cases. Handles (as opposed to control points) have their
+     * #TransData.val set to nullptr (set in #createTransCurveVerts() /
+     * #curve_populate_trans_data_structs() since we only want to apply values to _control points_
+     * [this is again checked for in #applyCurveShrinkFatten()]. Only calculate the scale_factor if
+     * we are working on a control point. */
+    bool use_scaling_factor = false;
+    if (t->data_len_all == 1) {
+      /* Either a single control point of a non-bezier curve or single handle of a bezier curve
+       * selected. */
+      use_scaling_factor = TRANS_DATA_CONTAINER_FIRST_OK(t)->data[0].val != nullptr;
+    }
+    if (t->data_len_all == 3) {
+      /* Either a single control point of a bezier curve (or its handles as well) selected, also
+       * true for three individual handles selected. Note the layout/order of TransData is
+       * different for Curve vs. Curves (Curves have the control point first, Curve has it in the
+       * middle), so check this explicitly. */
+      TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_OK(t);
+      TransData td_0 = tc->data[0];
+      TransData td_1 = tc->data[1];
+      TransData td_2 = tc->data[2];
+
+      if (t->data_type == &TransConvertType_Curve) {
+        use_scaling_factor = td_0.val == nullptr && td_1.val != nullptr && td_2.val == nullptr;
+      }
+      else if (ELEM(t->data_type,
+                    &curves::TransConvertType_Curves,
+                    &greasepencil::TransConvertType_GreasePencil))
+      {
+        use_scaling_factor = td_0.val != nullptr && td_1.val == nullptr && td_2.val == nullptr;
+      }
+    }
+
+    if (use_scaling_factor) {
+      RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
+      scale_factor = rv3d->pixsize * t->mouse.factor * t->zfac;
+    }
   }
   t->custom.mode.data = POINTER_FROM_UINT(float_as_uint(scale_factor));
 }
