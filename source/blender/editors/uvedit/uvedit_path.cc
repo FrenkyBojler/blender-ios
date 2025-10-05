@@ -550,7 +550,9 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
 
   /* We could support this, it needs further testing. */
-  if (RNA_struct_property_is_set(op->ptr, "index")) {
+  if (RNA_struct_property_is_set(op->ptr, "src_index") &&
+      RNA_struct_property_is_set(op->ptr, "dst_index"))
+  {
     return uv_shortest_path_pick_exec(C, op);
   }
 
@@ -659,25 +661,29 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
           scene, depsgraph, obedit, &op_params, ele_src, ele_dst, aspect_y, offsets);
 
       /* Store the object and it's index so redo is possible. */
-      int index;
+      int dst_index, src_index;
       if (uv_selectmode & UV_SELECT_FACE) {
         BM_mesh_elem_index_ensure(bm, BM_FACE);
-        index = BM_elem_index_get(ele_dst);
+        dst_index = BM_elem_index_get(ele_dst);
+        src_index = BM_elem_index_get(ele_src);
       }
       else if (uv_selectmode & UV_SELECT_EDGE) {
         BM_mesh_elem_index_ensure(bm, BM_LOOP);
-        index = BM_elem_index_get(ele_dst);
+        dst_index = BM_elem_index_get(ele_dst);
+        src_index = BM_elem_index_get(ele_src);
       }
       else {
         BM_mesh_elem_index_ensure(bm, BM_LOOP);
-        index = BM_elem_index_get(ele_dst);
+        dst_index = BM_elem_index_get(ele_dst);
+        src_index = BM_elem_index_get(ele_src);
       }
 
       const int object_index = blender::ed::object::object_in_mode_to_index(
           scene, view_layer, OB_MODE_EDIT, obedit);
       BLI_assert(object_index != -1);
       RNA_int_set(op->ptr, "object_index", object_index);
-      RNA_int_set(op->ptr, "index", index);
+      RNA_int_set(op->ptr, "src_index", src_index);
+      RNA_int_set(op->ptr, "dst_index", dst_index);
       changed = true;
     }
   }
@@ -693,7 +699,9 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
 
   const int object_index = RNA_int_get(op->ptr, "object_index");
-  const int index = RNA_int_get(op->ptr, "index");
+  const int src_index = RNA_int_get(op->ptr, "src_index");
+  const int dst_index = RNA_int_get(op->ptr, "dst_index");
+
   if (object_index == -1) {
     return OPERATOR_CANCELLED;
   }
@@ -712,31 +720,31 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (uv_selectmode & UV_SELECT_FACE) {
-    if (index < 0 || index >= bm->totface) {
+    if (dst_index < 0 || dst_index >= bm->totface || src_index < 0 || src_index >= bm->totface) {
       return OPERATOR_CANCELLED;
     }
     if (!(ele_src = (BMElem *)BM_mesh_active_face_get(bm, false, false)) ||
-        !(ele_dst = (BMElem *)BM_face_at_index_find_or_table(bm, index)))
+        !(ele_dst = (BMElem *)BM_face_at_index_find_or_table(bm, src_index)))
     {
       return OPERATOR_CANCELLED;
     }
   }
   else if (uv_selectmode & UV_SELECT_EDGE) {
-    if (index < 0 || index >= bm->totloop) {
+    if (dst_index < 0 || dst_index >= bm->totloop || src_index < 0 || src_index >= bm->totloop) {
       return OPERATOR_CANCELLED;
     }
-    if (!(ele_src = (BMElem *)ED_uvedit_active_edge_loop_get(bm)) ||
-        !(ele_dst = (BMElem *)BM_loop_at_index_find(bm, index)))
+    if (!(ele_src = (BMElem *)BM_loop_at_index_find(bm, src_index)) ||
+        !(ele_dst = (BMElem *)BM_loop_at_index_find(bm, dst_index)))
     {
       return OPERATOR_CANCELLED;
     }
   }
   else {
-    if (index < 0 || index >= bm->totloop) {
+    if (dst_index < 0 || dst_index >= bm->totloop || src_index < 0 || src_index >= bm->totloop) {
       return OPERATOR_CANCELLED;
     }
-    if (!(ele_src = (BMElem *)ED_uvedit_active_vert_loop_get(bm)) ||
-        !(ele_dst = (BMElem *)BM_loop_at_index_find(bm, index)))
+    if (!(ele_src = (BMElem *)BM_loop_at_index_find(bm, src_index)) ||
+        !(ele_dst = (BMElem *)BM_loop_at_index_find(bm, dst_index)))
     {
       return OPERATOR_CANCELLED;
     }
@@ -782,7 +790,9 @@ void UV_OT_shortest_path_pick(wmOperatorType *ot)
   /* use for redo */
   prop = RNA_def_int(ot->srna, "object_index", -1, -1, INT_MAX, "", "", 0, INT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-  prop = RNA_def_int(ot->srna, "index", -1, -1, INT_MAX, "", "", 0, INT_MAX);
+  prop = RNA_def_int(ot->srna, "src_index", -1, -1, INT_MAX, "", "", 0, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_int(ot->srna, "dst_index", -1, -1, INT_MAX, "", "", 0, INT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
