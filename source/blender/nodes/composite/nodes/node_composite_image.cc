@@ -391,8 +391,7 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
         if (!BLI_listbase_is_empty(&view_layer->lpes)) {
           LISTBASE_FOREACH (ViewLayerLPE *, lpe, &view_layer->lpes) {
             if (lpe->name[0] != '\0' && lpe->expression[0] != '\0') {
-              node_cmp_rlayers_register_pass(
-                  ntree, node, scene, view_layer, lpe->name, SOCK_RGBA);
+              node_cmp_rlayers_register_pass(ntree, node, scene, view_layer, lpe->name, SOCK_RGBA);
             }
           }
         }

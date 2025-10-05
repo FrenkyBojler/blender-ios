@@ -11,8 +11,8 @@
 
 #include "graph/node.h"
 
-#include "util/string.h"
 #include "util/map.h"
+#include "util/string.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -61,7 +61,7 @@ class Film : public Node {
   bool prev_have_motion_pass = false;
   bool prev_have_ao_pass = false;
   /* Track LPE passes for offset calculation */
-  map<string, Pass*> lpe_pass_map_;
+  map<string, Pass *> lpe_pass_map_;
 
  public:
   Film();

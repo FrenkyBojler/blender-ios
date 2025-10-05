@@ -6,9 +6,9 @@
 
 #include <iosfwd>
 
+#include "util/lpe.h"
 #include "util/string.h"
 #include "util/unique_ptr_vector.h"
-#include "util/lpe.h"
 
 #include "kernel/types.h"
 
@@ -72,7 +72,10 @@ class Pass : public Node {
   bool is_written() const;
 
   /* LPE-specific methods */
-  bool is_lpe_pass() const { return type == PASS_LPE; }
+  bool is_lpe_pass() const
+  {
+    return type == PASS_LPE;
+  }
   bool compile_lpe_expression();
   bool is_lpe_expression_valid() const;
 

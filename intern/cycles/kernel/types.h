@@ -370,10 +370,10 @@ enum PassType {
    * When reading this pass, it is converted to majorant transmittance */
   PASS_VOLUME_MAJORANT,
   PASS_VOLUME_MAJORANT_SAMPLE_COUNT,
-  
+
   /* Light Path Expression passes */
   PASS_LPE,
-  
+
   PASS_CATEGORY_DATA_END = 64,
 
   PASS_BAKE_PRIMITIVE,
@@ -1224,7 +1224,7 @@ struct KernelFilmConvert {
   int pass_shadow_catcher_matte;
   int pass_background;
   int pass_lpe;
-  int lpe_pad1, lpe_pad2;  /* Ensure 16-byte alignment */
+  int lpe_pad1, lpe_pad2; /* Ensure 16-byte alignment */
 
   float scale;
   float exposure;

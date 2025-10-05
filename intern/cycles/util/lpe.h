@@ -24,20 +24,20 @@ CCL_NAMESPACE_BEGIN
 
 /* LPE Token types for compiled expression */
 enum LPETokenType {
-  LPE_TOKEN_EVENT,      /* Specific event (C, RD, L, etc.) */
-  LPE_TOKEN_ANY,        /* . - match any single event */
-  LPE_TOKEN_STAR,       /* * - match zero or more */
-  LPE_TOKEN_PLUS,       /* + - match one or more */
-  LPE_TOKEN_OPTIONAL,   /* ? - match zero or one */
-  LPE_TOKEN_SET_BEGIN,  /* [ - start of character set */
-  LPE_TOKEN_SET_END,    /* ] - end of character set */
-  LPE_TOKEN_END         /* End of expression */
+  LPE_TOKEN_EVENT,     /* Specific event (C, RD, L, etc.) */
+  LPE_TOKEN_ANY,       /* . - match any single event */
+  LPE_TOKEN_STAR,      /* * - match zero or more */
+  LPE_TOKEN_PLUS,      /* + - match one or more */
+  LPE_TOKEN_OPTIONAL,  /* ? - match zero or one */
+  LPE_TOKEN_SET_BEGIN, /* [ - start of character set */
+  LPE_TOKEN_SET_END,   /* ] - end of character set */
+  LPE_TOKEN_END        /* End of expression */
 };
 
 struct LPEToken {
   LPETokenType type;
-  int event_mask;        /* Bitmask of allowed events for sets/specific events */
-  vector<char> events;   /* For character sets */
+  int event_mask;      /* Bitmask of allowed events for sets/specific events */
+  vector<char> events; /* For character sets */
 };
 
 class LPEParser {

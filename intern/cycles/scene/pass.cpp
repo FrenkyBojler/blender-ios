@@ -488,35 +488,32 @@ bool is_volume_guiding_pass(const PassType pass_type)
 bool Pass::compile_lpe_expression()
 {
   if (!is_lpe_pass()) {
-    return true;  /* Non-LPE passes are always valid */
+    return true;
   }
-  
+
   if (lpe_expression.empty()) {
     LOG_ERROR << "LPE pass has empty expression";
     return false;
   }
-  
-  /* Compile the LPE expression with error handling */
-  try {
-    return lpe_parser_.compile(lpe_expression.string());
-  }
-  catch (...) {
-    LOG_ERROR << "Exception during LPE compilation for expression: " << lpe_expression.c_str();
+
+  if (!lpe_parser_.compile(lpe_expression.string())) {
+    LOG_ERROR << "Failed to compile LPE expression: " << lpe_expression.c_str();
     return false;
   }
+
+  return true;
 }
 
 bool Pass::is_lpe_expression_valid() const
 {
   if (!is_lpe_pass()) {
-    return true;  /* Non-LPE passes are always valid */
+    return true;
   }
-  
-  /* Try to compile if not already compiled */
+
   if (!lpe_parser_.is_valid() && !lpe_expression.empty()) {
-    const_cast<Pass*>(this)->compile_lpe_expression();
+    const_cast<Pass *>(this)->compile_lpe_expression();
   }
-  
+
   return lpe_parser_.is_valid();
 }
 

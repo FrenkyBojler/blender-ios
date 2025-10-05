@@ -326,7 +326,7 @@ class ViewLayerLPEPanelHelper(ViewLayerButtonsPanel):
         row = layout.row()
         col = row.column()
         col.template_list("VIEWLAYER_UL_lpe", "lpes", view_layer, "lpes",
-                         view_layer, "active_lpe_index", rows=3)
+                          view_layer, "active_lpe_index", rows=3)
 
         # Add/Remove/Menu buttons
         col = row.column()

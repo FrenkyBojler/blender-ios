@@ -122,18 +122,29 @@ int LPEParser::char_to_event(char c) const
 {
   /* Map characters to event type indices (matching kernel definitions) */
   switch (c) {
-    case 'C': return 0;  /* LPE_TYPE_CAMERA */
-    case 'R': return 1;  /* LPE_TYPE_REFLECTION */
-    case 'T': return 2;  /* LPE_TYPE_TRANSMISSION */
-    case 'V': return 3;  /* LPE_TYPE_VOLUME */
-    case 'L': return 4;  /* LPE_TYPE_LIGHT */
-    case 'O': return 5;  /* LPE_TYPE_EMISSION */
-    case 'B': return 6;  /* LPE_TYPE_BACKGROUND */
+    case 'C':
+      return 0; /* LPE_TYPE_CAMERA */
+    case 'R':
+      return 1; /* LPE_TYPE_REFLECTION */
+    case 'T':
+      return 2; /* LPE_TYPE_TRANSMISSION */
+    case 'V':
+      return 3; /* LPE_TYPE_VOLUME */
+    case 'L':
+      return 4; /* LPE_TYPE_LIGHT */
+    case 'O':
+      return 5; /* LPE_TYPE_EMISSION */
+    case 'B':
+      return 6; /* LPE_TYPE_BACKGROUND */
     /* Scatter types - encode as separate events for simplicity */
-    case 'D': return 8;  /* Diffuse scatter */
-    case 'G': return 9;  /* Glossy scatter */
-    case 'S': return 10; /* Singular scatter */
-    default: return -1;
+    case 'D':
+      return 8; /* Diffuse scatter */
+    case 'G':
+      return 9; /* Glossy scatter */
+    case 'S':
+      return 10; /* Singular scatter */
+    default:
+      return -1;
   }
 }
 

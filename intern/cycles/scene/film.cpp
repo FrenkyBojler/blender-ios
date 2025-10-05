@@ -126,7 +126,12 @@ NODE_DEFINE(Film)
   return type;
 }
 
-Film::Film() : Node(get_node_type()), filter_table_offset_(TABLE_OFFSET_INVALID), lpe_expressions_offset_(TABLE_OFFSET_INVALID) {}
+Film::Film()
+    : Node(get_node_type()),
+      filter_table_offset_(TABLE_OFFSET_INVALID),
+      lpe_expressions_offset_(TABLE_OFFSET_INVALID)
+{
+}
 
 Film::~Film() = default;
 
@@ -838,33 +843,27 @@ uint Film::get_kernel_features(const Scene *scene) const
 void Film::register_lpe_passes(Scene *scene)
 {
   lpe_pass_map_.clear();
-  
-  /* Iterate through scene passes to find LPE passes */
+
   for (Pass *pass : scene->passes) {
-    if (pass->is_lpe_pass()) {
-      
-      /* Skip LPE passes with empty expressions - only warn if pass has a name */
-      if (pass->lpe_expression.empty()) {
-        if (!pass->name.empty()) {
-          LOG_WARNING << "Skipping LPE pass '" << pass->name.c_str() << "' with empty expression";
-        }
-        continue;
-      }
-      
-      /* Compile LPE expression if not already compiled */
-      if (!pass->compile_lpe_expression()) {
-        LOG_ERROR << "Failed to compile LPE expression '" << pass->lpe_expression.c_str() 
-                  << "' for pass '" << pass->name.c_str() << "'";
-        continue;
-      }
-      
-      /* LOG_INFO << "Successfully registered LPE pass: " << pass->name.c_str(); */
-      /* Register the pass in our map */
-      lpe_pass_map_[pass->name.string()] = pass;
+    if (!pass->is_lpe_pass()) {
+      continue;
     }
+
+    if (pass->lpe_expression.empty()) {
+      if (!pass->name.empty()) {
+        LOG_WARNING << "Skipping LPE pass '" << pass->name.c_str() << "' with empty expression";
+      }
+      continue;
+    }
+
+    if (!pass->compile_lpe_expression()) {
+      LOG_ERROR << "Failed to compile LPE expression '" << pass->lpe_expression.c_str()
+                << "' for pass '" << pass->name.c_str() << "'";
+      continue;
+    }
+
+    lpe_pass_map_[pass->name.string()] = pass;
   }
-  
-  /* LOG_INFO << "Registered " << lpe_pass_map_.size() << " LPE passes"; */
 }
 
 bool Film::update_lpe_passes(Scene *scene)
@@ -898,7 +897,7 @@ int Film::get_lpe_offset(Scene *scene, const string &lpe_name) const
 {
   auto it = lpe_pass_map_.find(lpe_name);
   if (it == lpe_pass_map_.end()) {
-    return -1;  /* Pass not found */
+    return -1; /* Pass not found */
   }
 
   Pass *target_pass = it->second;
@@ -916,7 +915,7 @@ int Film::get_lpe_offset(Scene *scene, const string &lpe_name) const
     }
   }
 
-  return -1;  /* Pass not found in scene passes */
+  return -1; /* Pass not found in scene passes */
 }
 
 CCL_NAMESPACE_END

@@ -151,7 +151,9 @@ KERNEL_STRUCT_MEMBER(film, int, pass_guiding_avg_roughness)
 /* LPE passes */
 KERNEL_STRUCT_MEMBER(film, int, pass_lpe)
 KERNEL_STRUCT_MEMBER(film, int, num_lpe_passes)
-KERNEL_STRUCT_MEMBER(film, int, lpe_expressions_offset)  /* Offset in lookup tables for LPE expressions */
+KERNEL_STRUCT_MEMBER(film,
+                     int,
+                     lpe_expressions_offset) /* Offset in lookup tables for LPE expressions */
 KERNEL_STRUCT_END(KernelFilm)
 
 /* Integrator. */

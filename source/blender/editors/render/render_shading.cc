@@ -1238,6 +1238,10 @@ static wmOperatorStatus view_layer_add_lpe_exec(bContext *C, wmOperator * /*op*/
 
   BKE_view_layer_add_lpe(view_layer, "LPE");
 
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
+  }
+
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
@@ -1275,6 +1279,10 @@ static wmOperatorStatus view_layer_remove_lpe_exec(bContext *C, wmOperator * /*o
   }
 
   BKE_view_layer_remove_lpe(view_layer, view_layer->active_lpe);
+
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
+  }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1314,8 +1322,9 @@ static wmOperatorStatus view_layer_lpe_move_exec(bContext *C, wmOperator *op)
 
   const int direction = RNA_enum_get(op->ptr, "direction");
   const int index = BLI_findindex(&view_layer->lpes, view_layer->active_lpe);
+  const int count = BLI_listbase_count(&view_layer->lpes);
 
-  if ((direction == -1 && index > 0) || (direction == 1 && index < BLI_listbase_count(&view_layer->lpes) - 1)) {
+  if ((direction == -1 && index > 0) || (direction == 1 && index < count - 1)) {
     ViewLayerLPE *lpe = view_layer->active_lpe;
     void *prev = lpe->prev;
     void *next = lpe->next;
@@ -1323,11 +1332,9 @@ static wmOperatorStatus view_layer_lpe_move_exec(bContext *C, wmOperator *op)
     BLI_remlink(&view_layer->lpes, lpe);
 
     if (direction == -1) {
-      /* Move up */
       BLI_insertlinkbefore(&view_layer->lpes, prev, lpe);
     }
     else {
-      /* Move down */
       BLI_insertlinkafter(&view_layer->lpes, next, lpe);
     }
 
@@ -1460,6 +1467,10 @@ static wmOperatorStatus view_layer_lpe_remove_all_exec(bContext *C, wmOperator *
 
   LISTBASE_FOREACH_MUTABLE (ViewLayerLPE *, lpe, &view_layer->lpes) {
     BKE_view_layer_remove_lpe(view_layer, lpe);
+  }
+
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);

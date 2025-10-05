@@ -570,7 +570,8 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
       view_layer_dst, view_layer_src, &view_layer_dst->lightgroups, &view_layer_src->lightgroups);
 
   BLI_listbase_clear(&view_layer_dst->lpes);
-  layer_lpe_copy_data(view_layer_dst, view_layer_src, &view_layer_dst->lpes, &view_layer_src->lpes);
+  layer_lpe_copy_data(
+      view_layer_dst, view_layer_src, &view_layer_dst->lpes, &view_layer_src->lpes);
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     id_us_plus(id_cast<ID *>(view_layer_dst->mat_override));
@@ -2823,26 +2824,22 @@ static void viewlayer_lpe_active_set(ViewLayer *view_layer, ViewLayerLPE *lpe)
 
 static void viewlayer_lpe_make_name_unique(ViewLayer *view_layer, ViewLayerLPE *lpe)
 {
-  BLI_uniquename(&view_layer->lpes,
-                 lpe,
-                 DATA_("LPE"),
-                 '.',
-                 offsetof(ViewLayerLPE, name),
-                 sizeof(lpe->name));
+  BLI_uniquename(
+      &view_layer->lpes, lpe, DATA_("LPE"), '.', offsetof(ViewLayerLPE, name), sizeof(lpe->name));
 }
 
 ViewLayerLPE *BKE_view_layer_add_lpe(ViewLayer *view_layer, const char *name)
 {
   ViewLayerLPE *lpe = MEM_callocN<ViewLayerLPE>(__func__);
-  
+
   STRNCPY_UTF8(lpe->name, (name && name[0]) ? name : DATA_("CustomLPE"));
-  STRNCPY_UTF8(lpe->expression, "C[DS]*L");  /* Default LPE expression */
+  STRNCPY_UTF8(lpe->expression, "C[DS]*L"); /* Default LPE expression */
   lpe->flag = 0;
-  
+
   BLI_addtail(&view_layer->lpes, lpe);
   viewlayer_lpe_active_set(view_layer, lpe);
   viewlayer_lpe_make_name_unique(view_layer, lpe);
-  
+
   return lpe;
 }
 
@@ -2850,7 +2847,7 @@ void BKE_view_layer_remove_lpe(ViewLayer *view_layer, ViewLayerLPE *lpe)
 {
   BLI_assert(BLI_findindex(&view_layer->lpes, lpe) != -1);
   BLI_assert(lpe != nullptr);
-  
+
   if (view_layer->active_lpe == lpe) {
     if (lpe->next) {
       viewlayer_lpe_active_set(view_layer, (ViewLayerLPE *)lpe->next);
@@ -2859,7 +2856,7 @@ void BKE_view_layer_remove_lpe(ViewLayer *view_layer, ViewLayerLPE *lpe)
       viewlayer_lpe_active_set(view_layer, (ViewLayerLPE *)lpe->prev);
     }
   }
-  
+
   BLI_freelinkN(&view_layer->lpes, lpe);
 }
 
