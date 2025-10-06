@@ -464,7 +464,7 @@ static AgxPrecomputeData agx_precompute(const float log2_min_in,
       rgb_rotation_in.x,
       rgb_rotation_in.y,
       rgb_rotation_in.z,
-      /* Above parameters use attenuation settings */
+      /* Above parameters use pre-processing settings */
       tinting_hue_in + 3.14159265358979323846,
       tinting_scale_in);
   outset_mat_inv_inset = blender::math::invert(RGBtoRGB(
@@ -701,7 +701,7 @@ static float4 agx_image_formation(const float4 color,
         rgb_rotation_in.x,
         rgb_rotation_in.y,
         rgb_rotation_in.z,
-        /* Above parameters use attenuation settings */
+        /* Above parameters use pre-processing settings */
         tinting_hue_in + 3.14159265358979323846,
         tinting_scale_in);
     outset_mat_inv_inset = blender::math::invert(RGBtoRGB(
