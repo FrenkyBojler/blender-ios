@@ -1512,6 +1512,16 @@ std::pair<std::string, std::string> generate_entry_point(const ShaderCreateInfo 
     out << LINE;
     out << "  " << stage_inst_name << ".main();\n";
 
+    if (stage == ShaderStage::VERTEX) {
+      /* For historical reasons vertex shader output is expected to be in OpenGL NDC coordinates:
+       * Z in [-1..+1] and Y up. */
+      std::string pos = stage_out_inst_name + ".gl_Position";
+      /* Flip Y. */
+      out << LINE << "  " << pos << ".y = -" << pos << ".y;\n";
+      /* Remap Z from [-1..+1] to [0..1]. */
+      out << LINE << "  " << pos << ".z = (" << pos << ".z + " << pos << ".w) / 2.0;\n";
+    }
+
     if (stage_out_class != "void") {
       out << LINE << "  return " << stage_out_inst_name << ";\n";
     }
