@@ -541,8 +541,7 @@ static const bNodeSocket *find_socket_at_mouse_y(const Span<const bNodeSocket *>
   return best_socket;
 }
 
-static void activate_interface_socket_and_scroll_into_view(bNodeTree &tree,
-                                                           bNodeTreeInterfaceSocket &io_socket)
+static void activate_interface_socket(bNodeTree &tree, bNodeTreeInterfaceSocket &io_socket)
 {
   bNodeTreeInterfacePanel &io_panel = *tree.tree_interface.find_item_parent(io_socket.item, true);
   bNodeTreeInterfaceItem *item_to_activate = nullptr;
@@ -569,7 +568,7 @@ static void handle_group_input_node_selection(bNodeTree &tree,
   }
   const int group_input_i = indicated_socket->index();
   bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[group_input_i];
-  activate_interface_socket_and_scroll_into_view(tree, io_socket);
+  activate_interface_socket(tree, io_socket);
 }
 
 static void handle_group_output_node_selection(bNodeTree &tree,
@@ -585,7 +584,7 @@ static void handle_group_output_node_selection(bNodeTree &tree,
   }
   const int group_output_i = indicated_socket->index();
   bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[group_output_i];
-  activate_interface_socket_and_scroll_into_view(tree, io_socket);
+  activate_interface_socket(tree, io_socket);
 }
 
 static bool node_mouse_select(bContext *C,
