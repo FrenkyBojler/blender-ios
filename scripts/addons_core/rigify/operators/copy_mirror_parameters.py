@@ -155,16 +155,10 @@ def copy_rigify_params(from_bone: bpy.types.PoseBone, to_bone: bpy.types.PoseBon
         assign_rna_properties(to_bone.rigify_parameters, from_bone.rigify_parameters)
         return True
 
-    print(f"\033[95mPropgroup to dict on {from_bone.name}\033[0m")
+    # For compatibility with the already-existing recursive_mirror(dict)
+    # function, round-trip the parameters through a dictionary.
     param_dict: dict[str, object] = propgroup_to_dict(from_params)
-    from pprint import pprint
-    pprint(param_dict)
-    assert isinstance(param_dict, dict), "Expected dict, got {!r}".format(param_dict)
-
     mirrored_dict: dict[str, object] = recursive_mirror(param_dict)  # type: ignore
-    print("Mirrored:")
-    pprint(mirrored_dict)
-
     assign_rna_properties(to_bone.rigify_parameters, mirrored_dict)
 
     # Bone collection references must be mirrored specially
