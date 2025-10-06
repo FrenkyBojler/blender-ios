@@ -346,6 +346,12 @@ kmi_defs = (
     # Lazy Connect with Menu
     (operators.NWLazyConnect.bl_idname, 'RIGHTMOUSE', 'PRESS', False,
      True, True, (('with_menu', True),), n_("Lazy Connect with Socket Menu")),
+    # Shift Nodes further apart
+    (operators.NWShiftNodes.bl_idname, 'MIDDLEMOUSE', 'PRESS', False,
+     False, True, (('reverse', False),), n_("Shift nodes further apart")),
+    # Shift Nodes closer together
+    (operators.NWShiftNodes.bl_idname, 'MIDDLEMOUSE', 'PRESS', False,
+     True, True, (('reverse', True),), n_("Shift nodes closer together")),
     # Align Nodes
     (operators.NWAlignNodes.bl_idname, 'EQUAL', 'PRESS', False, True,
      False, None, n_("Align selected nodes neatly in a row/column")),

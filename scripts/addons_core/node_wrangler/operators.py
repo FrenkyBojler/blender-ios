@@ -29,7 +29,7 @@ from itertools import chain
 from .interface import NWConnectionListInputs, NWConnectionListOutputs
 
 from .utils.constants import blend_types, geo_combine_operations, operations, navs, get_texture_node_types, rl_outputs
-from .utils.draw import draw_callback_nodeoutline
+from .utils.draw import draw_callback_nodeoutline, draw_callback_shift_nodes_line
 from .utils.paths import match_files_to_socket_names, split_into_components
 from .utils.nodes import (node_mid_pt, autolink, node_at_pos, get_nodes_links,
                           force_update, nw_check,
@@ -2374,6 +2374,91 @@ class NWResetNodes(bpy.types.Operator):
         self.report({'INFO'}, message)
         return {'FINISHED'}
 
+class NWShiftNodes(Operator):
+    """Shift nodes in mouse drag direction."""
+
+    bl_idname = "node.nw_shift_nodes"
+    bl_label = "Shift Nodes"
+    bl_options = {"REGISTER", "UNDO"}
+
+    reverse: BoolProperty(name="reverse")
+
+    @classmethod
+    def poll(cls, context):
+        return nw_check(cls, context)
+
+    def execute(self, context):
+        return {"FINISHED"}
+
+    def __get_local_position(self, context, event):
+        region = context.region.view2d
+        ui_scale = context.preferences.system.ui_scale
+        x, y = region.region_to_view(event.mouse_region_x, event.mouse_region_y)
+        return x / ui_scale, y / ui_scale
+
+    def __grid_snap(self, value, increment):
+        return (value // increment) * increment
+
+    def modal(self, context, event):
+        context.area.tag_redraw()
+        if event.type == "MOUSEMOVE":
+            current_x, _ = self.__get_local_position(context, event)
+            diff_x = current_x - self.init_x
+            mouse_pos = (event.mouse_region_x, event.mouse_region_y)
+
+            # snap value when snapping is enabled
+            if context.scene.tool_settings.use_snap_node:
+                GRID_SPACING = 20  # seems to be standard grid spacing
+                diff_x = self.__grid_snap(diff_x, GRID_SPACING)
+                mouse_pos = tuple(self.__grid_snap(v, GRID_SPACING) for v in mouse_pos)
+            self.mouse_path.append(mouse_pos)
+
+            nodes = context.space_data.edit_tree.nodes
+            for name, location_x in self.init_node_location.items():
+                if self.reverse:
+                    # shift nodes closer together
+                    # with mouse dragging left, move all nodes right of the cursor and vice versa
+                    if (current_x < self.init_x and location_x > self.init_x) or (
+                        current_x > self.init_x and location_x < self.init_x
+                    ):
+                        nodes[name].location_absolute = (location_x + diff_x, nodes[name].location_absolute.y)
+                else:
+                    # shift nodes further apart
+                    # with mouse dragging left, move all nodes left of the cursor and vice versa
+                    if (current_x < self.init_x and location_x < self.init_x) or (
+                        current_x > self.init_x and location_x > self.init_x
+                    ):
+                        nodes[name].location_absolute = (location_x + diff_x, nodes[name].location_absolute.y)
+
+        # FINISH
+        if event.type in ["MIDDLEMOUSE"]:
+            bpy.types.SpaceNodeEditor.draw_handler_remove(self._handle, "WINDOW")
+            return {"FINISHED"}
+
+        if event.type in ["ESC", "RIGHTMOUSE"]:
+            bpy.types.SpaceNodeEditor.draw_handler_remove(self._handle, "WINDOW")
+            return {"CANCELLED"}
+
+        return {"RUNNING_MODAL"}
+
+    def invoke(self, context, event):
+        # save initial position of all nodes except frames
+        nodes = context.space_data.edit_tree.nodes
+        self.init_node_location = {node.name: (node.location_absolute.x) for node in nodes if node.type != "FRAME"}
+        self.init_x, _ = self.__get_local_position(context, event)
+
+        args = (self, context, self.reverse)
+
+        self._handle = bpy.types.SpaceNodeEditor.draw_handler_add(
+            draw_callback_shift_nodes_line, args, "WINDOW", "POST_PIXEL"
+        )
+
+        self.mouse_path = []
+
+        context.window_manager.modal_handler_add(self)
+
+        return {"RUNNING_MODAL"}
+
 
 classes = (
     NWLazyMix,
@@ -2403,6 +2488,7 @@ classes = (
     NWAddSequence,
     NWSaveViewer,
     NWResetNodes,
+    NWShiftNodes,
 )
 
 
