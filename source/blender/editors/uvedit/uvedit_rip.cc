@@ -736,11 +736,8 @@ static bool uv_rip_pairs_calc_center_and_direction(UVRipPairs *rip,
 /**
  * \return true when a change was made.
  */
-static bool uv_rip_object(Scene *scene,
-                          Object *obedit,
-                          const float co[2],
-                          const float aspect_y,
-                          const bool only_along_seam)
+static bool uv_rip_object(
+    Scene *scene, Object *obedit, const float co[2], const float aspect_y, const bool only_seam)
 {
   Mesh *mesh = (Mesh *)obedit->data;
   BMEditMesh *em = mesh->runtime->edit_mesh.get();
@@ -810,7 +807,7 @@ static bool uv_rip_object(Scene *scene,
     }
   }
 
-  if (only_along_seam) {
+  if (only_seam) {
     blender::VectorSet<BMVert *> seam_verts;
     Vector<BMFace *> adjacent_faces;
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -974,9 +971,9 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  const bool only_along_seam = RNA_boolean_get(op->ptr, "only_along_seam");
+  const bool only_seam = RNA_boolean_get(op->ptr, "only_seam");
   for (Object *obedit : objects) {
-    if (uv_rip_object(scene, obedit, co, aspect_y, only_along_seam)) {
+    if (uv_rip_object(scene, obedit, co, aspect_y, only_seam)) {
       changed_multi = true;
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
@@ -1030,8 +1027,7 @@ void UV_OT_rip(wmOperatorType *ot)
       "Mouse location in normalized coordinates, 0.0 to 1.0 is within the image bounds",
       -100.0f,
       100.0f);
-  RNA_def_boolean(
-      ot->srna, "only_along_seam", false, "Only along seam", "Only rip seam border edges");
+  RNA_def_boolean(ot->srna, "only_seam", false, "Only seam", "Only rip seam border edges");
 }
 
 /** \} */
