@@ -736,7 +736,11 @@ static bool uv_rip_pairs_calc_center_and_direction(UVRipPairs *rip,
 /**
  * \return true when a change was made.
  */
-static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const float aspect_y)
+static bool uv_rip_object(Scene *scene,
+                          Object *obedit,
+                          const float co[2],
+                          const float aspect_y,
+                          const bool only_along_seam)
 {
   Mesh *mesh = (Mesh *)obedit->data;
   BMEditMesh *em = mesh->runtime->edit_mesh.get();
@@ -806,13 +810,58 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
     }
   }
 
+  if (only_along_seam) {
+    blender::VectorSet<BMVert *> seam_verts;
+    Vector<BMFace *> adjacent_faces;
+    BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+      bool face_has_seam = false;
+      int selected_count = 0;
+      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+        if (BM_elem_flag_test(l->e, BM_ELEM_SEAM)) {
+          face_has_seam = true;
+          seam_verts.add(l->e->v1);
+          seam_verts.add(l->e->v2);
+        }
+        if (BM_ELEM_CD_GET_BOOL(l, offsets.select_vert)) {
+          selected_count++;
+        }
+      }
+      if (face_has_seam && selected_count <= 2) {
+        adjacent_faces.append(efa);
+        BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+          BMLoop *l_radial = l->radial_next;
+          if (l_radial != l) {
+            adjacent_faces.append(l_radial->f);
+          }
+        }
+      }
+    }
+    for (BMFace *efa : adjacent_faces) {
+      bool all_selected = true;
+      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+        if (!BM_ELEM_CD_GET_BOOL(l, offsets.select_vert)) {
+          all_selected = false;
+          break;
+        }
+      }
+      if (!all_selected) {
+        BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+          if (seam_verts.contains(l->v)) {
+            BM_ELEM_CD_SET_BOOL(l, offsets.select_edge, false);
+            BM_ELEM_CD_SET_BOOL(l, offsets.select_vert, false);
+          }
+        }
+      }
+    }
+    return true;
+  }
   /* Special case: if we have selected faces, isolate them.
    * This isn't a rip, however it's useful for users as a quick way
    * to detach the selection.
    *
    * We could also extract an edge loop from the boundary
    * however in practice it's not that useful, see #78751. */
-  if (is_select_all_any) {
+  else if (is_select_all_any) {
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (!UL(l)->is_select_all) {
@@ -925,8 +974,9 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
+  const bool only_along_seam = RNA_boolean_get(op->ptr, "only_along_seam");
   for (Object *obedit : objects) {
-    if (uv_rip_object(scene, obedit, co, aspect_y)) {
+    if (uv_rip_object(scene, obedit, co, aspect_y, only_along_seam)) {
       changed_multi = true;
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
@@ -980,6 +1030,8 @@ void UV_OT_rip(wmOperatorType *ot)
       "Mouse location in normalized coordinates, 0.0 to 1.0 is within the image bounds",
       -100.0f,
       100.0f);
+  RNA_def_boolean(
+      ot->srna, "only_along_seam", false, "Only along seam", "Only rip seam border edges");
 }
 
 /** \} */
