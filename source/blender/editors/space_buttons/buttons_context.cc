@@ -24,6 +24,7 @@
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
@@ -37,6 +38,9 @@
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_screen.hh"
+
+#include "SEQ_modifier.hh"
+#include "SEQ_select.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -225,10 +229,8 @@ static bool buttons_context_path_object(ButsContextPath *path)
   return false;
 }
 
-static bool buttons_context_path_data(ButsContextPath *path, int type)
+static bool is_buttons_context_path_data(PointerRNA *ptr, int type)
 {
-  PointerRNA *ptr = &path->ptr[path->len - 1];
-
   /* if we already have a data, we're done */
   if (RNA_struct_is_a(ptr->type, &RNA_Mesh) && ELEM(type, -1, OB_MESH)) {
     return true;
@@ -259,7 +261,7 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
   if (RNA_struct_is_a(ptr->type, &RNA_LightProbe) && ELEM(type, -1, OB_LIGHTPROBE)) {
     return true;
   }
-  if (RNA_struct_is_a(ptr->type, &RNA_GreasePencilv3) && ELEM(type, -1, OB_GREASE_PENCIL)) {
+  if (RNA_struct_is_a(ptr->type, &RNA_GreasePencil) && ELEM(type, -1, OB_GREASE_PENCIL)) {
     return true;
   }
   if (RNA_struct_is_a(ptr->type, &RNA_Curves) && ELEM(type, -1, OB_CURVES)) {
@@ -271,6 +273,17 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
   if (RNA_struct_is_a(ptr->type, &RNA_Volume) && ELEM(type, -1, OB_VOLUME)) {
     return true;
   }
+  return false;
+}
+
+static bool buttons_context_path_data(ButsContextPath *path, int type)
+{
+  PointerRNA *ptr = &path->ptr[path->len - 1];
+
+  if (is_buttons_context_path_data(ptr, type)) {
+    return true;
+  }
+
   /* try to get an object in the path, no pinning supported here */
   if (buttons_context_path_object(path)) {
     Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
@@ -523,6 +536,46 @@ static bool buttons_context_path_texture(const bContext *C,
   return true;
 }
 
+static bool buttons_context_path_strip(ButsContextPath *path)
+{
+  PointerRNA *ptr = &path->ptr[path->len - 1];
+  /* If we already have a (pinned) strip, we're done. */
+  if (RNA_struct_is_a(ptr->type, &RNA_Strip)) {
+    return true;
+  }
+
+  if (buttons_context_path_scene(path)) {
+    Scene *scene = static_cast<Scene *>(path->ptr[path->len - 1].data);
+    Strip *active_strip = blender::seq::select_active_get(scene);
+    if (active_strip == nullptr) {
+      return false;
+    }
+
+    path->ptr[path->len] = RNA_pointer_create_discrete(&scene->id, &RNA_Strip, active_strip);
+    path->len++;
+    return true;
+  }
+
+  return false;
+}
+
+static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsContextPath *path)
+{
+  if (sequencer_scene && buttons_context_path_strip(path)) {
+    Strip *active_strip = static_cast<Strip *>(path->ptr[path->len - 1].data);
+
+    StripModifierData *smd = blender::seq::modifier_get_active(active_strip);
+    if (smd) {
+      path->ptr[path->len] = RNA_pointer_create_discrete(
+          &sequencer_scene->id, &RNA_StripModifier, smd);
+      path->len++;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 #ifdef WITH_FREESTYLE
 static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *view_layer)
 {
@@ -547,48 +600,68 @@ static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *vie
 }
 #endif
 
-static eSpaceButtons_Context context_from_path(const bContext *C, ButsContextPath *path)
+static eSpaceButtons_Context context_from_path_item(const bContext *C, PointerRNA *ptr)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
-  wmWindow *window = CTX_wm_window(C);
-
-  if (buttons_context_path_scene(path)) {
+  if (RNA_struct_is_a(ptr->type, &RNA_Scene)) {
     return BCONTEXT_SCENE;
   }
-  else if (buttons_context_path_view_layer(path, window)) {
+  else if (RNA_struct_is_a(ptr->type, &RNA_ViewLayer)) {
     return BCONTEXT_VIEW_LAYER;
   }
-  else if (buttons_context_path_world(path)) {
+  else if (RNA_struct_is_a(ptr->type, &RNA_World)) {
     return BCONTEXT_WORLD;
   }
-  else if (buttons_context_path_object(path)) {
+  else if (RNA_struct_is_a(ptr->type, &RNA_Object)) {
+    Object *ob = static_cast<Object *>(ptr->data);
+    if (ob && ob->type == OB_GREASE_PENCIL) {
+      return BCONTEXT_SHADERFX;
+    }
     return BCONTEXT_OBJECT;
   }
-  else if (buttons_context_path_data(path, -1)) {
-    return BCONTEXT_DATA;
-  }
-  else if (buttons_context_path_material(path)) {
+  else if (RNA_struct_is_a(ptr->type, &RNA_Material)) {
     return BCONTEXT_MATERIAL;
   }
-  else if (buttons_context_path_texture(
-               C, path, static_cast<ButsContextTexture *>(sbuts->texuser)))
-  {
-    return BCONTEXT_TEXTURE;
-  }
-  else if (buttons_context_path_particle(path)) {
-    return BCONTEXT_PARTICLE;
-  }
-  else if (buttons_context_path_bone(path)) {
-    return BCONTEXT_BONE;
-  }
-  else if (buttons_context_path_pose_bone(path)) {
+  else if (RNA_struct_is_a(ptr->type, &RNA_PoseBone)) {
     return BCONTEXT_BONE_CONSTRAINT;
   }
-  else if (buttons_context_path_shaderfx(path)) {
-    return BCONTEXT_SHADERFX;
-  }
-  else if (buttons_context_path_collection(C, path, window)) {
+  else if (RNA_struct_is_a(ptr->type, &RNA_Collection)) {
     return BCONTEXT_COLLECTION;
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_ParticleSettings) ||
+           RNA_struct_is_a(ptr->type, &RNA_ParticleSystem))
+  {
+    return BCONTEXT_PARTICLE;
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_Texture)) {
+    return BCONTEXT_TEXTURE;
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_Modifier)) {
+    ModifierData *md = static_cast<ModifierData *>(ptr->data);
+    if (md->type == eModifierType_ParticleSystem) {
+      return BCONTEXT_PARTICLE;
+    }
+    else if (ELEM(md->type,
+                  eModifierType_Cloth,
+                  eModifierType_Collision,
+                  eModifierType_DynamicPaint,
+                  eModifierType_Softbody,
+                  eModifierType_Fluid))
+    {
+      return BCONTEXT_PHYSICS;
+    }
+    return BCONTEXT_MODIFIER;
+  }
+  else if (is_buttons_context_path_data(ptr, -1)) {
+    return BCONTEXT_DATA;
+  }
+  else if (RNA_struct_is_a(ptr->type, &RNA_Strip)) {
+    return BCONTEXT_STRIP;
+  }
+  else if (is_buttons_context_path_data(ptr, OB_ARMATURE)) {
+    bArmature *arm = static_cast<bArmature *>(ptr->data);
+    if (arm && (arm->act_bone || (arm->edbo && arm->act_edbone))) {
+      return BCONTEXT_BONE;
+    }
   }
 
   return BCONTEXT_TOT;
@@ -601,6 +674,8 @@ static bool buttons_context_path(
    * Otherwise there is a loop reading the context that we are setting. */
   wmWindow *window = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(window);
+  WorkSpace *workspace = WM_window_get_active_workspace(window);
+  Scene *sequencer_scene = workspace->sequencer_scene;
   ViewLayer *view_layer = WM_window_get_active_view_layer(window);
 
   *path = {};
@@ -615,7 +690,13 @@ static bool buttons_context_path(
   }
   /* No pinned root, use scene as initial root. */
   else if (mainb != BCONTEXT_TOOL) {
-    path->ptr[0] = RNA_id_pointer_create(&scene->id);
+    if (ELEM(mainb, BCONTEXT_STRIP, BCONTEXT_STRIP_MODIFIER)) {
+      path->ptr[0] = RNA_id_pointer_create(&sequencer_scene->id);
+    }
+    else {
+      path->ptr[0] = RNA_id_pointer_create(&scene->id);
+    }
+
     path->len++;
 
     if (!ELEM(mainb,
@@ -623,7 +704,9 @@ static bool buttons_context_path(
               BCONTEXT_RENDER,
               BCONTEXT_OUTPUT,
               BCONTEXT_VIEW_LAYER,
-              BCONTEXT_WORLD))
+              BCONTEXT_WORLD,
+              BCONTEXT_STRIP,
+              BCONTEXT_STRIP_MODIFIER))
     {
       path->ptr[path->len] = RNA_pointer_create_discrete(nullptr, &RNA_ViewLayer, view_layer);
       path->len++;
@@ -691,6 +774,12 @@ static bool buttons_context_path(
       break;
     case BCONTEXT_BONE_CONSTRAINT:
       found = buttons_context_path_pose_bone(path);
+      break;
+    case BCONTEXT_STRIP:
+      found = buttons_context_path_strip(path);
+      break;
+    case BCONTEXT_STRIP_MODIFIER:
+      found = buttons_context_path_strip_modifier(sequencer_scene, path);
       break;
     default:
       found = false;
@@ -898,6 +987,8 @@ const char *buttons_context_dir[] = {
     "curves",
     "pointcloud",
     "volume",
+    "strip",
+    "strip_modifier",
     nullptr,
 };
 
@@ -1217,7 +1308,15 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "grease_pencil")) {
-    set_pointer_type(path, result, &RNA_GreasePencilv3);
+    set_pointer_type(path, result, &RNA_GreasePencil);
+    return CTX_RESULT_OK;
+  }
+  if (CTX_data_equals(member, "strip")) {
+    set_pointer_type(path, result, &RNA_Strip);
+    return CTX_RESULT_OK;
+  }
+  if (CTX_data_equals(member, "strip_modifier")) {
+    set_pointer_type(path, result, &RNA_StripModifier);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_MEMBER_NOT_FOUND;
@@ -1253,7 +1352,9 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
               BCONTEXT_OUTPUT,
               BCONTEXT_SCENE,
               BCONTEXT_VIEW_LAYER,
-              BCONTEXT_WORLD) &&
+              BCONTEXT_WORLD,
+              BCONTEXT_STRIP,
+              BCONTEXT_STRIP_MODIFIER) &&
         ptr->type == &RNA_Scene)
     {
       continue;
@@ -1283,11 +1384,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
     char namebuf[128];
     char *name = RNA_struct_name_get_alloc(ptr, namebuf, sizeof(namebuf), nullptr);
     if (name) {
-      ButsContextPath tmppath{
-          .ptr = *ptr,
-          .len = 1,
-      };
-      eSpaceButtons_Context context = context_from_path(C, &tmppath);
+      eSpaceButtons_Context context = context_from_path_item(C, ptr);
       if (context != BCONTEXT_TOT) {
         row->emboss_set(blender::ui::EmbossType::None);
         row->button(name, icon, [sbuts, ptr, context](const bContext &C) {
