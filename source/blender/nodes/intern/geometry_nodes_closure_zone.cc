@@ -336,8 +336,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     auto local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
 
     if (!eval_storage.graph_executor) {
-      int some_data_on_stack = 0;
-      if (user_data.call_data->stack_depth_limit > uintptr_t(&some_data_on_stack)) {
+      if (user_data.is_stack_limit_reached()) {
         this->initialize_pass_through_graph(eval_storage);
         if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
                 user_data))

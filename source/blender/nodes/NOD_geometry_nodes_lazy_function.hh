@@ -280,6 +280,12 @@ struct GeoNodesUserData : public fn::UserData {
   bool log_socket_values = true;
 
   destruct_ptr<fn::LocalUserData> get_local(LinearAllocator<> &allocator) override;
+
+  bool is_stack_limit_reached() const
+  {
+    char value = 0;
+    return uintptr_t(&value) > this->call_data->stack_depth_limit;
+  }
 };
 
 struct GeoNodesLocalUserData : public fn::LocalUserData {
