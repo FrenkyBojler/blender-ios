@@ -200,17 +200,16 @@ void Instance::antialiasing_accumulate(Manager &manager, const float alpha)
   {
     PassSimple &pass = this->accumulate_ps;
     pass.init();
-    pass.state_set(DRW_STATE_WRITE_DEPTH /* There is no depth, but avoid blank state. */);
     pass.shader_set(ShaderCache::get().accumulation.get());
     pass.bind_image("src_img", &this->render_color_tx);
     pass.bind_image("dst_img", &this->accumulation_tx);
     pass.push_constant("weight_src", alpha);
     pass.push_constant("weight_dst", 1.0f - alpha);
-    pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+    pass.dispatch(int3(
+      math::divide_ceil(size, int2(GPENCIL_ANTIALIASING_ACCUMULATE_GROUP_SIZE))
+      , 1));
   }
 
-  accumulation_fb.ensure(size);
-  GPU_framebuffer_bind(this->accumulation_fb);
   manager.submit(this->accumulate_ps);
 }
 

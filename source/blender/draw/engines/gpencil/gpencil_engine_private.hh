@@ -213,7 +213,6 @@ struct Instance final : public DrawEngine {
   gpu::FrameBuffer *scene_fb;
   /* Used for render accumulation antialiasing. */
   Texture accumulation_tx = {"gp_accumulation_tx"};
-  Framebuffer accumulation_fb = {"gp_accumulation_fb"};
   /* Copy of txl->dummy_tx */
   gpu::Texture *dummy_tx;
   /* Copy of v3d->shading.single_color. */

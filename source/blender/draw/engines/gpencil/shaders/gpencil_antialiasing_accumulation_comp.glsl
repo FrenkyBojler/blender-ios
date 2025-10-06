@@ -4,7 +4,7 @@
 
 #include "infos/gpencil_infos.hh"
 
-FRAGMENT_SHADER_CREATE_INFO(gpencil_antialiasing_accumulation)
+COMPUTE_SHADER_CREATE_INFO(gpencil_antialiasing_accumulation)
 
 float4 colorspace_scene_to_perceptual(float4 color)
 {
@@ -18,7 +18,8 @@ float4 colorspace_perceptual_to_scene(float4 color)
 
 void main()
 {
-  int2 texel = int2(gl_FragCoord.xy);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
+
   float4 data_src = colorspace_scene_to_perceptual(
       max(float4(0.0f), imageLoadFast(src_img, texel)));
   float4 data_dst = colorspace_scene_to_perceptual(
