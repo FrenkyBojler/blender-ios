@@ -875,6 +875,22 @@ static void ensure_texture_bindings(MTLContext &ctx,
   }
 }
 
+template<typename CommandEncoderT>
+static void ensure_push_constant(MTLContext &ctx,
+                                 MTLShader &shader,
+                                 CommandEncoderT enc,
+                                 MTLBindingCache<CommandEncoderT> bindings)
+{
+  MTLPushConstantBuf *pc_buf = shader.get_push_constant_buf();
+  /* Only need to rebind block if push constants have been modified -- or if no data is bound for
+   * the current RenderCommandEncoder. */
+  bindings.bind_bytes(enc,
+                      ctx.get_scratch_buffer_manager(),
+                      pc_buf->data(),
+                      pc_buf->size(),
+                      MTL_PUSH_CONSTANT_BUFFER_SLOT);
+}
+
 /* Bind UBOs and SSBOs to an active render command encoder using the rendering state of the
  * current context -> Active shader, Bound UBOs).
  * NOTE: `ensure_buffer_bindings` must be called after `ensure_texture_bindings` to allow
@@ -883,25 +899,9 @@ template<typename CommandEncoderT>
 static void ensure_buffer_bindings(MTLContext &ctx,
                                    MTLShader &shader,
                                    CommandEncoderT enc,
-                                   MTLBindingCache<CommandEncoderT> bindings,
-                                   const bool active_shader_changed)
+                                   MTLBindingCache<CommandEncoderT> bindings)
 {
   MTLShaderInterface &shader_interface = shader.get_interface();
-
-  /* Fetch push constant block and bind. */
-  MTLPushConstantBuf *pc_buf = shader.get_push_constant_buf();
-  if (pc_buf) {
-    /* Only need to rebind block if push constants have been modified -- or if no data is bound for
-     * the current RenderCommandEncoder. */
-    if (pc_buf->is_dirty() || active_shader_changed) {
-      bindings.bind_bytes(enc,
-                          ctx.get_scratch_buffer_manager(),
-                          pc_buf->data(),
-                          pc_buf->size(),
-                          MTL_PUSH_CONSTANT_BUFFER_SLOT);
-      pc_buf->tag_updated();
-    }
-  }
 
   /* TODO(fclem): Dirty binding tracking optimization. */
   uint32_t dirty_ubo_mask = ~uint32_t(0u);
@@ -1154,13 +1154,23 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
   bool active_shader_changed = assign_if_different(
       rps.last_bound_shader_state, MTLBoundShaderState{shader, pipe_state_inst->shader_pso_index});
 
+  MTLPushConstantBuf *pc_buf = shader->get_push_constant_buf();
+  if (active_shader_changed && pc_buf) {
+    pc_buf->tag_dirty();
+  }
+
   /** Ensure resource bindings. */
   MTLVertexCommandEncoder vert_rec{rec};
   MTLFragmentCommandEncoder frag_rec{rec};
   ensure_texture_bindings(*this, *shader, vert_rec, rps.vertex_bindings, pipe_state_inst->vert);
   ensure_texture_bindings(*this, *shader, frag_rec, rps.fragment_bindings, pipe_state_inst->frag);
-  ensure_buffer_bindings(*this, *shader, vert_rec, rps.vertex_bindings, active_shader_changed);
-  ensure_buffer_bindings(*this, *shader, frag_rec, rps.fragment_bindings, active_shader_changed);
+  ensure_buffer_bindings(*this, *shader, vert_rec, rps.vertex_bindings);
+  ensure_buffer_bindings(*this, *shader, frag_rec, rps.fragment_bindings);
+  if (pc_buf && pc_buf->is_dirty()) {
+    ensure_push_constant(*this, *shader, vert_rec, rps.vertex_bindings);
+    ensure_push_constant(*this, *shader, frag_rec, rps.fragment_bindings);
+    pc_buf->tag_updated();
+  }
 
   /* Bind Null attribute buffer, if needed. */
   if (pipe_state_inst->null_attribute_buffer_index >= 0) {
@@ -1486,10 +1496,19 @@ void MTLContext::compute_dispatch(int groups_x_len, int groups_y_len, int groups
   bool active_shader_changed = assign_if_different(
       cs.last_bound_shader_state, MTLBoundShaderState{shader, pipe_state_inst->shader_pso_index});
 
+  MTLPushConstantBuf *pc_buf = shader->get_push_constant_buf();
+  if (active_shader_changed && pc_buf) {
+    pc_buf->tag_dirty();
+  }
+
   /** Ensure resource bindings. */
   MTLComputeCommandEncoder comp_rec{compute_encoder};
   ensure_texture_bindings(*this, *shader, comp_rec, cs.compute_bindings, pipe_state_inst->compute);
-  ensure_buffer_bindings(*this, *shader, comp_rec, cs.compute_bindings, active_shader_changed);
+  ensure_buffer_bindings(*this, *shader, comp_rec, cs.compute_bindings);
+  if (pc_buf && pc_buf->is_dirty()) {
+    ensure_push_constant(*this, *shader, comp_rec, cs.compute_bindings);
+    pc_buf->tag_updated();
+  }
 
   /* Dispatch compute. */
   const MTLComputePipelineStateCommon &compute_state_common =
@@ -1529,10 +1548,19 @@ void MTLContext::compute_dispatch_indirect(StorageBuf *indirect_buf)
   bool active_shader_changed = assign_if_different(
       cs.last_bound_shader_state, MTLBoundShaderState{shader, pipe_state_inst->shader_pso_index});
 
+  MTLPushConstantBuf *pc_buf = shader->get_push_constant_buf();
+  if (active_shader_changed && pc_buf) {
+    pc_buf->tag_dirty();
+  }
+
   /** Ensure resource bindings. */
   MTLComputeCommandEncoder comp_rec{compute_encoder};
   ensure_texture_bindings(*this, *shader, comp_rec, cs.compute_bindings, pipe_state_inst->compute);
-  ensure_buffer_bindings(*this, *shader, comp_rec, cs.compute_bindings, active_shader_changed);
+  ensure_buffer_bindings(*this, *shader, comp_rec, cs.compute_bindings);
+  if (pc_buf && pc_buf->is_dirty()) {
+    ensure_push_constant(*this, *shader, comp_rec, cs.compute_bindings);
+    pc_buf->tag_updated();
+  }
 
   /* Indirect Dispatch compute. */
   MTLStorageBuf *mtlssbo = static_cast<MTLStorageBuf *>(indirect_buf);
