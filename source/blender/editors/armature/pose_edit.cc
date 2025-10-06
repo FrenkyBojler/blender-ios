@@ -93,13 +93,13 @@ static void flush_bone_data_to_pose(Object &ob)
 static void flush_pose_data_to_bone(Object &ob)
 {
   BLI_assert(ob.pose);
-  constexpr int selection_flag = (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
+  constexpr int selection_flags = (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob.pose->chanbase) {
     if (pose_bone->flag & POSE_SELECTED) {
-      pose_bone->bone->flag |= selection_flag;
+      pose_bone->bone->flag |= selection_flags;
     }
     else {
-      pose_bone->bone->flag &= ~selection_flag;
+      pose_bone->bone->flag &= ~selection_flags;
     }
   }
 }

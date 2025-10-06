@@ -606,7 +606,7 @@ static int armature_bone_transflags_update(Object &ob,
     }
   }
 
-  /* No transform on children if one parent bone is selected. */
+  /* No transform on children if any parent bone is selected. */
   LISTBASE_FOREACH (bPoseChannel *, pchan, lb) {
     if (pchan->runtime.flag & POSE_RUNTIME_TRANSFORM) {
       total -= bone_children_clear_transflag(*ob.pose, *pchan);

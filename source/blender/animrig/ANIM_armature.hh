@@ -76,9 +76,10 @@ void pose_bone_descendent_iterator(bPose &pose,
 
 /**
  * Iterates all descendents of the given pose bone depth first. The traversal for a branch is
- * stopped if the callback returns false.
+ * stopped if the callback returns false. Returns true if the iteration completed or false if it
+ * was stopped before visiting all bones.
  */
-void pose_bone_descendent_depth_iterator(bPose &pose,
+bool pose_bone_descendent_depth_iterator(bPose &pose,
                                          bPoseChannel &pose_bone,
                                          FunctionRef<bool(bPoseChannel &child_bone)> callback);
 }  // namespace blender::animrig

@@ -638,6 +638,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_char_array(writer, ob->totcol, ob->matbits);
 
   if (ob->pose) {
+    BLI_assert(ob->type == OB_ARMATURE);
     BKE_pose_blend_write(writer, ob->pose);
   }
   BKE_constraint_blend_write(writer, &ob->constraints);

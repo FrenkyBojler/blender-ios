@@ -285,13 +285,14 @@ void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot)
 /** \name Snap Selection to Location (Utility)
  * \{ */
 
-static bool pose_bone_flag_test_recursive(const bPoseChannel *pose_bone, int flag)
+/* Return true if the bone or any of its parents has the given runtime flag set. */
+static bool pose_bone_runtime_flag_test_recursive(const bPoseChannel *pose_bone, int flag)
 {
-  if (pose_bone->flag & flag) {
+  if (pose_bone->runtime.flag & flag) {
     return true;
   }
   if (pose_bone->parent) {
-    return pose_bone_flag_test_recursive(pose_bone->parent, flag);
+    return pose_bone_runtime_flag_test_recursive(pose_bone->parent, flag);
   }
   return false;
 }
@@ -432,7 +433,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
         if ((pchan->runtime.flag & POSE_RUNTIME_TRANSFORM) &&
             /* check that our parents not transformed (if we have one) */
             ((pchan->bone->parent &&
-              pose_bone_flag_test_recursive(pchan->parent, POSE_RUNTIME_TRANSFORM)) == 0))
+              pose_bone_runtime_flag_test_recursive(pchan->parent, POSE_RUNTIME_TRANSFORM)) == 0))
         {
           /* Get position in pchan (pose) space. */
           blender::float3 target_loc_pose;

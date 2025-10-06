@@ -1694,7 +1694,7 @@ static bool should_draw_relation_to_parent(const UnifiedBonePtr bone, const eBon
     /* Only draw if bone or its parent is selected - reduces viewport
      * complexity with complex rigs */
     const bPoseChannel *pchan = bone.as_posebone();
-    return (bone.flag() & BONE_SELECTED) ||
+    return (pchan->flag & POSE_SELECTED) ||
            (pchan->parent && (pchan->parent->flag & POSE_SELECTED));
   }
 

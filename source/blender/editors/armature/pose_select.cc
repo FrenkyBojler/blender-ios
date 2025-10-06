@@ -404,6 +404,7 @@ static void selectconnected_posebonechildren(Object &ob,
   blender::animrig::pose_bone_descendent_depth_iterator(
       *ob.pose, pose_bone, [extend](bPoseChannel &child) {
         if (!child.bone) {
+          BLI_assert_unreachable();
           return false;
         }
         /* Stop when unconnected child is encountered, or when unselectable bone is encountered. */

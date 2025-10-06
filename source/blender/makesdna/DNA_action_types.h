@@ -269,7 +269,7 @@ typedef struct bPoseChannel_Runtime {
   /* Inverse of the total length of the segment polyline. */
   float bbone_arc_length_reciprocal;
   /* bPoseChannelRuntimeFlag */
-  char flag;
+  uint8_t flag;
   char _pad1[3];
 
   /* Rest and posed matrices for segments. */
