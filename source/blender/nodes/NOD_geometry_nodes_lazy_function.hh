@@ -252,6 +252,10 @@ struct GeoNodesCallData {
    */
   GeoNodesOperatorData *operator_data = nullptr;
 
+  /**
+   * Stack limit at which Geometry Nodes should stop the evaluation. This is a preventative measure
+   * to avoid crashes caused by running out of stack space.
+   */
   int call_depth_limit = 100;
 
   /**

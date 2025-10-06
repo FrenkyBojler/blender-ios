@@ -467,11 +467,11 @@ typedef struct UserDef {
   short vbotimeout, vbocollectrate;
   short textimeout, texcollectrate;
   int memcachelimit;
+  int geometry_nodes_stack_limit;
   /** Unused. */
   int prefetchframes;
   /** Control the rotation step of the view when PAD2, PAD4, PAD6&PAD8 is use. */
   float pad_rot_angle;
-  char _pad12[4];
   /** Rotating view icon size. */
   short rvisize;
   /** Rotating view icon brightness. */
