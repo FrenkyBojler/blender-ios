@@ -123,7 +123,7 @@ void World::sync()
 
   if (GPU_material_status(gpumat) == GPU_MAT_FAILED) {
     bl_world = default_world_get();
-    ntree = default_tree.nodetree_get(bl_world);
+    ntree = bl_world->nodetree;
     gpumat = inst_.shaders.world_shader_get(bl_world, ntree, MAT_PIPE_DEFERRED, !wait_ready);
   }
   if (GPU_material_status(gpumat) == GPU_MAT_QUEUED) {
