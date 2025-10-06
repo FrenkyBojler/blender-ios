@@ -92,6 +92,23 @@ void pack_linked_id_hierarchy(Main &bmain, ID &root_id);
  */
 void main_cleanup_parent_archives(Main &bmain);
 
+/**
+ * Ensure that there is a valid archive library in given `bmain`, for the given `for_id`,
+ * `reference_library` and `for_id_deep_hash` parameters.
+ *
+ * \note Typically, both the `reference_library` and `for_id_deep_hash` are the same as the
+ * `for_id` library and deephash, but in some cases they may still differ (see e.g.
+ * #PartialWriteContext::ensure_library).
+ *
+ * \return the archive library. `is_new` is set to `true` if a new archive library had to be
+ * created, false if an existing one could be re-used.
+ */
+Library *get_archive_library(Main &bmain,
+                             ID &for_id,
+                             Library &reference_library,
+                             const IDHash &for_id_deep_hash,
+                             bool &is_new);
+
 };  // namespace blender::bke::library
 
 /** #LibraryRuntime.tag */
