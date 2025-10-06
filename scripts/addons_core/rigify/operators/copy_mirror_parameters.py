@@ -8,7 +8,7 @@ import importlib
 
 from ..utils.layers import REFS_TOGGLE_SUFFIX, REFS_LIST_SUFFIX, is_collection_ref_list_prop, copy_ref_list
 from ..utils.naming import Side, get_name_base_and_sides, mirror_name
-from ..utils.misc import property_to_python, assign_rna_properties
+from ..utils.misc import propgroup_to_dict, assign_rna_properties
 
 from ..utils.rig import get_rigify_type, get_rigify_params
 from ..rig_lists import get_rig_class
@@ -155,10 +155,16 @@ def copy_rigify_params(from_bone: bpy.types.PoseBone, to_bone: bpy.types.PoseBon
         assign_rna_properties(to_bone.rigify_parameters, from_bone.rigify_parameters)
         return True
 
-    param_dict: dict[str, object] = property_to_python(from_params)
+    print(f"\033[95mPropgroup to dict on {from_bone.name}\033[0m")
+    param_dict: dict[str, object] = propgroup_to_dict(from_params)
+    from pprint import pprint
+    pprint(param_dict)
     assert isinstance(param_dict, dict), "Expected dict, got {!r}".format(param_dict)
 
     mirrored_dict: dict[str, object] = recursive_mirror(param_dict)  # type: ignore
+    print("Mirrored:")
+    pprint(mirrored_dict)
+
     assign_rna_properties(to_bone.rigify_parameters, mirrored_dict)
 
     # Bone collection references must be mirrored specially
