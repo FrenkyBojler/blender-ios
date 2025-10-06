@@ -335,7 +335,8 @@ typedef struct ThemeSpace {
   unsigned char bevel[4], seam[4], sharp[4], crease[4], freestyle[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
-  unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];
+  unsigned char nurb_sel_uline[4], nurb_sel_vline[4];
+  char _pad5[4];
 
   /** Dope-sheet. */
   unsigned char ds_ipoline[4];
@@ -449,9 +450,6 @@ typedef struct ThemeSpace {
   unsigned char info_debug[4], info_debug_text[4];
   unsigned char info_property[4], info_property_text[4];
   unsigned char info_operator[4], info_operator_text[4];
-
-  unsigned char paint_curve_pivot[4];
-  unsigned char paint_curve_handle[4];
 
   unsigned char metadatabg[4];
   unsigned char metadatatext[4];
