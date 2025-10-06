@@ -110,6 +110,7 @@ void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width
 
 void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d, int end_frame_width)
 {
+  using namespace blender;
   SpaceAction *space_action = CTX_wm_space_action(C);
   if (!space_action || (space_action->overlays.flag & ADS_OVERLAY_SHOW_OVERLAYS) == 0 ||
       (space_action->overlays.flag & ADS_SHOW_SCENE_STRIP_FRAME_RANGE) == 0)
@@ -139,10 +140,12 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d, int end_frame_w
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorShadeAlpha(TH_ANIM_SCENE_STRIP_RANGE, -25, -30);
 
-  const float start_frame = scene_strip->scene->r.sfra + scene_strip->startofs;
-  const float duration = blender::seq::time_right_handle_frame_get(sequencer_scene, scene_strip) -
-                         blender::seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
-  const float end_frame = start_frame + duration;
+  const float left_handle = seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
+  const float right_handle = seq::time_right_handle_frame_get(sequencer_scene, scene_strip);
+  const float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
+                            scene_strip->scene->r.sfra;
+  const float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle) +
+                          scene_strip->scene->r.sfra;
 
   BLI_assert(start_frame < end_frame + end_frame_width);
   immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, float(start_frame), v2d->cur.ymax);
