@@ -98,6 +98,11 @@ struct ClosureToListItemsAccessor : public socket_items::SocketItemsAccessorDefa
     socket_items::set_item_name_and_make_unique<ClosureToListItemsAccessor>(node, item, name);
   }
 
+  static std::string input_socket_identifier_for_item(
+      const GeometryNodeClosureToListItem & /*item*/)
+  {
+    return {};
+  }
   static std::string output_socket_identifier_for_item(const GeometryNodeClosureToListItem &item)
   {
     return "Grid_" + std::to_string(item.identifier);

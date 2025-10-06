@@ -203,9 +203,8 @@ static void node_operators()
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  return true;
-  // return socket_items::try_add_item_via_any_extend_socket<ItemsAccessor>(
-  //     params.ntree, params.node, params.node, params.link);
+  return socket_items::try_add_item_via_any_extend_socket<ItemsAccessor>(
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
