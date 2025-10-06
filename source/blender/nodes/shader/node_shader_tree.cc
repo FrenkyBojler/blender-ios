@@ -22,6 +22,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
+#include "BLI_stack.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -795,41 +796,57 @@ static void ntree_shader_shader_to_rgba_branches(bNodeTree *ntree)
 }
 
 static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
-                                            bNode *node,
-                                            int16_t &max_depth,
-                                            int16_t depth_level = 0)
+                                            bNode *node_start,
+                                            int16_t &max_depth)
 {
-  if (node->type_legacy == SH_NODE_SHADERTORGB) {
-    depth_level++;
-    max_depth = std::max(max_depth, depth_level);
-  }
+  struct StackNode {
+    bNode *node;
+    int16_t depth;
+  };
 
-  if (node->runtime->tmp_flag >= depth_level) {
-    /* We already iterated this branch at this or a greater depth. */
-    return;
-  }
-  node->runtime->tmp_flag = std::max(node->runtime->tmp_flag, depth_level);
+  blender::Stack<StackNode> stack;
+  blender::Stack<StackNode> zone_stack;
+  stack.push({node_start, 0});
 
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    bNodeLink *link = sock->link;
-    if (link == nullptr) {
+  while (!stack.is_empty() || !zone_stack.is_empty()) {
+    StackNode s_node = !stack.is_empty() ? stack.pop() : zone_stack.pop();
+
+    bNode *node = s_node.node;
+    int16_t depth_level = s_node.depth;
+
+    if (node->runtime->tmp_flag >= depth_level) {
+      /* We already iterated this branch at this or a greater depth. */
       continue;
     }
-    if ((link->flag & NODE_LINK_VALID) == 0) {
-      /* Skip links marked as cyclic. */
-      continue;
-    }
-    iter_shader_to_rgba_depth_count(ntree, link->fromnode, max_depth, depth_level);
-  }
 
-  /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
-   * even if there is no bNodeLink between them. */
-  if (const blender::bke::bNodeZoneType *zone_type = blender::bke::zone_type_by_node_type(
-          node->type_legacy))
-  {
-    if (zone_type->output_type == node->type_legacy) {
-      if (bNode *zone_input_node = zone_type->get_corresponding_input(*ntree, *node)) {
-        iter_shader_to_rgba_depth_count(ntree, zone_input_node, max_depth, depth_level);
+    if (node->type_legacy == SH_NODE_SHADERTORGB) {
+      depth_level++;
+      max_depth = std::max(max_depth, depth_level);
+    }
+
+    node->runtime->tmp_flag = std::max(node->runtime->tmp_flag, depth_level);
+
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+      bNodeLink *link = sock->link;
+      if (link == nullptr) {
+        continue;
+      }
+      if ((link->flag & NODE_LINK_VALID) == 0) {
+        /* Skip links marked as cyclic. */
+        continue;
+      }
+      stack.push({link->fromnode, depth_level});
+    }
+
+    /* Zone input nodes are linked to their corresponding zone output nodes, even if there is no
+     * bNodeLink between them. */
+    if (const blender::bke::bNodeZoneType *zone_type = blender::bke::zone_type_by_node_type(
+            node->type_legacy))
+    {
+      if (zone_type->output_type == node->type_legacy) {
+        if (bNode *zone_input_node = zone_type->get_corresponding_input(*ntree, *node)) {
+          zone_stack.push({zone_input_node, depth_level});
+        }
       }
     }
   }

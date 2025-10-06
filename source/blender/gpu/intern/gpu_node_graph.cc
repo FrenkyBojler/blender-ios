@@ -17,6 +17,7 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -989,35 +990,40 @@ void gpu_node_graph_free(GPUNodeGraph *graph)
 
 /* Prune Unused Nodes */
 
-void gpu_nodes_tag(GPUNodeGraph *graph, GPUNodeLink *link, GPUNodeTag tag)
+void gpu_nodes_tag(GPUNodeGraph *graph, GPUNodeLink *link_start, GPUNodeTag tag)
 {
-  GPUNode *node;
-
-  if (!link || !link->output) {
+  if (!link_start || !link_start->output) {
     return;
   }
 
-  node = link->output->node;
-  if (node->tag & tag) {
-    return;
-  }
+  blender::Stack<GPUNode *> stack;
+  blender::Stack<GPUNode *> zone_stack;
+  stack.push(link_start->output->node);
 
-  node->tag |= tag;
-  LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
-    if (input->link) {
-      gpu_nodes_tag(graph, input->link, tag);
+  while (!stack.is_empty() || !zone_stack.is_empty()) {
+    GPUNode *node = !stack.is_empty() ? stack.pop() : zone_stack.pop();
+
+    if (node->tag & tag) {
+      continue;
     }
-  }
 
-  /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
-   * even if there is no GPUNodeLink between them. */
-  if (node->is_zone_end) {
-    LISTBASE_FOREACH (GPUNode *, node2, &graph->nodes) {
-      if (node2->zone_index == node->zone_index && !node2->is_zone_end && !(node2->tag & tag)) {
-        node2->tag |= tag;
-        LISTBASE_FOREACH (GPUInput *, input, &node2->inputs) {
-          if (input->link) {
-            gpu_nodes_tag(graph, input->link, tag);
+    node->tag |= tag;
+    LISTBASE_FOREACH (GPUInput *, input, &node->inputs) {
+      if (input->link && input->link->output) {
+        stack.push(input->link->output->node);
+      }
+    }
+
+    /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
+     * even if there is no GPUNodeLink between them. */
+    if (node->is_zone_end) {
+      LISTBASE_FOREACH (GPUNode *, node2, &graph->nodes) {
+        if (node2->zone_index == node->zone_index && !node2->is_zone_end && !(node2->tag & tag)) {
+          node2->tag |= tag;
+          LISTBASE_FOREACH (GPUInput *, input, &node2->inputs) {
+            if (input->link && input->link->output) {
+              zone_stack.push(input->link->output->node);
+            }
           }
         }
       }
