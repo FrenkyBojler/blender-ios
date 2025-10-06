@@ -235,7 +235,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   but not for the velocity grid being sampled */
   if (!grid_base.hasUniformVoxels()) {
     params.error_message_add(NodeWarningType::Error,
-                             "A grid must have a uniform voxel scale to be advected.");
+                             "The input grid must have a uniform voxel scale to be advected.");
     params.set_default_remaining_outputs();
     return;
   }
