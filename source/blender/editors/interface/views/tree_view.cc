@@ -843,6 +843,10 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   /* Column for the tree view. */
   row->column(true);
 
+  if (tree_view.custom_height_ && !tree_view.scroll_value_) {
+    tree_view.scroll_value_ = std::make_unique<int>(0);
+  }
+
   const AbstractTreeView::IterOptions iter_visible_flattened_options =
       AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered;
 
@@ -885,11 +889,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       iter_visible_flattened_options);
 
   if (tree_view.custom_height_) {
-
     *tree_view.custom_height_ = visible_row_count.value_or(1) * padded_item_height();
-    if (!tree_view.scroll_value_) {
-      tree_view.scroll_value_ = std::make_unique<int>(0);
-    }
 
     if (visible_row_count && (tot_items > *visible_row_count)) {
       row->column(false);

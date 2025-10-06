@@ -128,9 +128,10 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   std::shared_ptr<int> scroll_value_ = nullptr;
   /**
    * Can be set to true to focus by operators to change scroll_value_ so that the active item is in
-   * view after the next redraw.
+   * view after the next redraw. It's true by default so that when a new tree view comes as added,
+   * the active element is visible directly.
    */
-  bool scroll_active_into_view_on_redraw_ = false;
+  bool scroll_active_into_view_on_redraw_ = true;
   /**
    * The total number of items in the tree during the last redraw.
    */
