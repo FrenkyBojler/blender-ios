@@ -315,6 +315,9 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
       BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
       return OPERATOR_CANCELLED;
     }
+
+    /* Set flag to preserve template filenames in file browser */
+    RNA_boolean_set(op->ptr, "preserve_template_filename", true);
   }
 
   /* Useful yet irritating feature, Shift+Click to open the file
@@ -478,6 +481,13 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
   PropertyRNA *prop;
 
   prop = RNA_def_string(ot->srna, "filter_glob", nullptr, 0, "Glob Filter", "Custom filter");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "preserve_template_filename",
+                         false,
+                         "Preserve Template Filename",
+                         "Preserve template variable filenames in the file browser");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 

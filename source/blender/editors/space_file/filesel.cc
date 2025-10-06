@@ -44,6 +44,7 @@
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_preferences.h"
 
 #include "BLO_userdef_default.h"
@@ -138,7 +139,8 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
  * \note #RNA_struct_property_is_set_ex is used here because we want
  * the previously used settings to be used here rather than overriding them.
  */
-static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
+static FileSelectParams *fileselect_ensure_updated_file_params(
+    SpaceFile *sfile, bool preserve_template_filename = false)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
@@ -195,6 +197,34 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
       else {
         BLI_path_split_dir_file(
             filepath, params->dir, sizeof(params->dir), params->file, sizeof(params->file));
+
+        /* Check if template filename preservation is enabled and restore original template
+         * filename */
+        if (preserve_template_filename && op->customdata) {
+          struct FileBrowseOp {
+            PointerRNA ptr;
+            PropertyRNA *prop;
+            bool is_undo;
+            bool is_userdef;
+          };
+
+          FileBrowseOp *fbo = static_cast<FileBrowseOp *>(op->customdata);
+          if (fbo->prop && (RNA_property_flag(fbo->prop) & PROP_PATH_SUPPORTS_TEMPLATES)) {
+            /* Get the original un-evaluated property value */
+            char *original_path = RNA_property_string_get_alloc(
+                &fbo->ptr, fbo->prop, nullptr, 0, nullptr);
+
+            /* If original path contains templates, extract and restore filename */
+            if (BKE_path_contains_template_syntax(original_path)) {
+              const char *original_filename = BLI_path_basename(original_path);
+              if (original_filename[0] != '\0') {
+                STRNCPY(params->file, original_filename);
+              }
+            }
+
+            MEM_freeN(original_path);
+          }
+        }
       }
     }
     else {
@@ -362,7 +392,11 @@ FileSelectParams *ED_fileselect_ensure_active_params(SpaceFile *sfile)
   switch ((eFileBrowse_Mode)sfile->browse_mode) {
     case FILE_BROWSE_MODE_FILES:
       if (!sfile->params) {
-        fileselect_ensure_updated_file_params(sfile);
+        bool preserve_templates = false;
+        if (sfile->op && RNA_struct_find_property(sfile->op->ptr, "preserve_template_filename")) {
+          preserve_templates = RNA_boolean_get(sfile->op->ptr, "preserve_template_filename");
+        }
+        fileselect_ensure_updated_file_params(sfile, preserve_templates);
       }
       return sfile->params;
     case FILE_BROWSE_MODE_ASSETS:
