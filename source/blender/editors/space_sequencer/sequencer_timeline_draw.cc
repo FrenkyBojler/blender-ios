@@ -157,6 +157,80 @@ static bool seq_draw_waveforms_poll(const SpaceSeq *sseq, const Strip *strip)
   return false;
 }
 
+static void seq_draw_hover_indicator_line_test(TimelineDrawContext *timeline_ctx,
+                                               const Vector<StripDrawContext> &strips)
+{
+  uchar4 color{255, 0, 0, 255};
+  const bContext *C = timeline_ctx->C;
+  ARegion *region = CTX_wm_region(C);
+  Scene *scene = timeline_ctx->scene;
+  View2D *v2d = &region->v2d;
+
+  /* Probably shouldn't be accessing win in the draw method too... */
+  wmWindow *win = CTX_wm_window(C);
+  const wmEvent *event = win->eventstate;
+
+  int mval[2];
+  mval[0] = event->xy[0] - region->winrct.xmin;
+  mval[1] = event->xy[1] - region->winrct.ymin;
+
+  Strip *strip = strip_under_mouse_get(scene, v2d, mval);
+
+  float mouse_co[2];
+  UI_view2d_region_to_view(v2d, mval[0], mval[1], &mouse_co[0], &mouse_co[1]);
+  float hover_frame = mouse_co[0];
+
+  /* Maybe move this in the strip draw loop? */
+  const StripDrawContext *hovered_strip_ctx = nullptr;
+  if (strip) {
+    for (const StripDrawContext &strip_ctx : strips) {
+      if (strip_ctx.strip == strip) {
+        hovered_strip_ctx = &strip_ctx;
+        break;
+      }
+    }
+  }
+
+  /* Change the logic of this later... */
+  float y_bottom, y_top;
+  if (hovered_strip_ctx && hover_frame >= hovered_strip_ctx->left_handle &&
+      hover_frame <= hovered_strip_ctx->right_handle)
+  {
+    y_bottom = hovered_strip_ctx->bottom;
+    y_top = hovered_strip_ctx->top;
+    int strip_relative_frame = round_fl_to_int(hover_frame) - hovered_strip_ctx->left_handle;
+
+    char numstr[64];
+    size_t numstr_len = SNPRINTF_UTF8_RLEN(numstr, "%d", strip_relative_frame);
+
+    BLF_set_default();
+    const float text_width = BLF_width(BLF_default(), numstr, numstr_len);
+    const float text_margin = timeline_ctx->pixelx * 3.0f;
+    const float text_x = hover_frame - text_margin - (timeline_ctx->pixelx * text_width);
+
+    /* Find a better way to calculate this offset of y, as currently it shows the frame number at
+    halfway the strip when really zoomed in above the retiming keys when zoomed out. Ideally it
+    should just be just above the retiming keys but I'm not too sure... */
+
+    const float text_y = hovered_strip_ctx->bottom + hovered_strip_ctx->bottom * 0.05f;
+
+    UI_view2d_text_cache_add(timeline_ctx->v2d, text_x, text_y, numstr, numstr_len, color);
+  }
+
+  /* Otherwise, just draw the horizontal line on the entire editor area */
+  else {
+    y_bottom = v2d->cur.ymin;
+    y_top = v2d->cur.ymax;
+  }
+
+  float half_width = timeline_ctx->pixelx * 1.5f;
+  float x_left = hover_frame - half_width;
+  float x_right = hover_frame + half_width;
+
+  timeline_ctx->quads->add_quad(x_left, y_bottom, x_right, y_top, color);
+  timeline_ctx->quads->draw();
+}
+
 static bool strip_hides_text_overlay_first(const TimelineDrawContext *ctx,
                                            const StripDrawContext *strip_ctx)
 {
@@ -1559,6 +1633,8 @@ static void draw_seq_strips(TimelineDrawContext *timeline_ctx,
   sequencer_retiming_keys_draw(timeline_ctx, strips);
 
   draw_strips_foreground(timeline_ctx, strips_batch, strips);
+
+  seq_draw_hover_indicator_line_test(timeline_ctx, strips);
 
   /* Draw icons. */
   draw_strip_icons(timeline_ctx, strips);

@@ -1759,10 +1759,12 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
   const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
 
+  const bool all_channels = RNA_boolean_get(op->ptr, "all_channels");
+
   seq::prefetch_stop(scene);
 
   LISTBASE_FOREACH_BACKWARD (Strip *, strip, ed->current_strips()) {
-    if (use_cursor_position && strip->channel != split_channel) {
+    if (use_cursor_position && strip->channel != split_channel && !all_channels) {
       continue;
     }
 
@@ -1828,7 +1830,7 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  /* Passthrough to selection if used as tool. */
+  /* Pass through to selection if used as tool. */
   return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
 }
 
@@ -1885,7 +1887,8 @@ static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
 
   layout->prop(op->ptr, "use_cursor_position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
-    layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    // layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "all_channels", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   layout->separator();
@@ -1928,6 +1931,7 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
               "Channel in which strip will be cut",
               INT_MIN,
               INT_MAX);
+
   RNA_def_enum(ot->srna,
                "type",
                prop_split_types,
@@ -1956,6 +1960,14 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
       false,
       "Ignore Selection",
       "Make cut even if strip is not selected preserving selection state after cut");
+
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+
+  RNA_def_boolean(ot->srna,
+                  "all_channels",
+                  false,
+                  "All Channels",
+                  "Split across all channels at the cursor position");
 
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
