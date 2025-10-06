@@ -5685,32 +5685,23 @@ static void geometry_attribute_evaluate(bConstraint *con, bConstraintOb *cob, Li
 
   /* Finally, combine the matrices. */
   switch (data->mix_mode) {
-    case CON_ATTRIBUTE_MIX_REPLACE: {
+    case CON_ATTRIBUTE_MIX_REPLACE:
       copy_m4_m4(cob->matrix, target_mat);
       break;
-    }
-
     /* Simple matrix multiplication. */
-    case CON_ATTRIBUTE_MIX_BEFORE_FULL: {
+    case CON_ATTRIBUTE_MIX_BEFORE_FULL:
       mul_m4_m4m4(cob->matrix, target_mat, cob->matrix);
       break;
-    }
-
-    case CON_ATTRIBUTE_MIX_AFTER_FULL: {
+    case CON_ATTRIBUTE_MIX_AFTER_FULL:
       mul_m4_m4m4(cob->matrix, cob->matrix, target_mat);
       break;
-    }
-
     /* Fully separate handling of channels. */
-    case CON_ATTRIBUTE_MIX_BEFORE_SPLIT: {
+    case CON_ATTRIBUTE_MIX_BEFORE_SPLIT:
       mul_m4_m4m4_split_channels(cob->matrix, target_mat, cob->matrix);
       break;
-    }
-
-    case CON_ATTRIBUTE_MIX_AFTER_SPLIT: {
+    case CON_ATTRIBUTE_MIX_AFTER_SPLIT:
       mul_m4_m4m4_split_channels(cob->matrix, cob->matrix, target_mat);
       break;
-    }
   }
   BLI_assert_msg(0, "Unknown Copy Transforms mix mode");
 
