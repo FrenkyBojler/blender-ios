@@ -1993,7 +1993,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op
   if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C)) {
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       if (strip->type == STRIP_TYPE_SOUND_RAM || strip->flag & SEQ_MUTE ||
-          !(seq::time_strip_intersects_frame(scene, strip, scene->r.cfra)))
+          !seq::time_strip_intersects_frame(scene, strip, scene->r.cfra))
       {
         strip->flag &= ~STRIP_ALLSEL;
       }
@@ -2998,7 +2998,6 @@ const EnumPropertyItem sequencer_prop_effect_types[] = {
     {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", "Multiply color channels from two videos"},
     {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", "Sweep a transition line across the frame"},
     {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", "Add blur and brightness to light areas"},
-    {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", "Apply scale, rotation, or translation"},
     {STRIP_TYPE_COLOR, "COLOR", 0, "Color", "Add a simple color strip"},
     {STRIP_TYPE_SPEED, "SPEED", 0, "Speed", "Timewarp video strips, modifying playback speed"},
     {STRIP_TYPE_MULTICAM, "MULTICAM", 0, "Multicam Selector", "Control active camera angles"},
@@ -3397,7 +3396,7 @@ static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator 
 
   if (ed != nullptr) {
     Seq_get_text_cb_data cb_data = {&text_seq, scene};
-    seq::for_each_callback(&ed->seqbase, strip_get_text_strip_cb, &cb_data);
+    seq::foreach_strip(&ed->seqbase, strip_get_text_strip_cb, &cb_data);
   }
 
   if (BLI_listbase_is_empty(&text_seq)) {
