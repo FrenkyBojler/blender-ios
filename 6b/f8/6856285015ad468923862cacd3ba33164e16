@@ -1,2 +1,3 @@
 Referenced by issue #146529, Adjusting Rigid Body cache settings causes Blender to crash
 Referenced by pull request #146577, Fix #146529: Crash getting RNA path to scene rigid body pointcache
+Referenced by commit 47a0d9b52f32e986a8a30c2fe50a635d1574cede, Fix #146529: Crash getting RNA path to scene rigid body pointcache
