@@ -1396,7 +1396,7 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
         # Inject the RNA property (un)register functions.
         self._write_rna_prop_register_funcs(script)
 
-        script.write("def register():\n")
+        script.write("\ndef register():\n")
 
         ui_register = OrderedDict.fromkeys(self.ui_register)
         for s in ui_register:
@@ -1442,4 +1442,4 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
         script.write(register_func_src)
         script.write("\n\n")
         script.write(unregister_func_src)
-        script.write("\n\n")
+        script.write("\n")
