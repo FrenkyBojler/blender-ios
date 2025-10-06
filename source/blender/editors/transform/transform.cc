@@ -1801,7 +1801,8 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 
   if (t->mode == TFM_SHEAR) {
     if ((prop = RNA_struct_find_property(op->ptr, "angle"))) {
-      RNA_property_float_set(op->ptr, prop, t->values_final[0]);
+      const float angle_rad = atanf(t->values_final[0]);
+      RNA_property_float_set(op->ptr, prop, angle_rad);
     }
   }
 
