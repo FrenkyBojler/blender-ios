@@ -137,10 +137,7 @@ class UnifiedBonePtr {
 
   eBone_Flag flag() const
   {
-    if (is_editbone_) {
-      return static_cast<eBone_Flag>(eBone_->flag);
-    }
-    return static_cast<eBone_Flag>(pchan_->bone->flag);
+    return static_cast<eBone_Flag>(is_editbone_ ? eBone_->flag : pchan_->bone->flag);
   }
 
   /** Return the pose bone's constraint flags, or 0 if not a pose bone. */
