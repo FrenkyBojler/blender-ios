@@ -296,6 +296,7 @@ class UnifiedPaintPanel:
             context,
             parent_row,
             brush,
+            *,
             pressure_name,
             curve_visibility_name,
             custom_curve_name,
@@ -1196,9 +1197,9 @@ def brush_shared_settings(layout, context, brush, popover=False):
                     context,
                     unified_row,
                     brush,
-                    pressure_name,
-                    "show_size_curve",
-                    "curve_size",
+                    pressure_name=pressure_name,
+                    curve_visibility_name="show_size_curve",
+                    custom_curve_name="curve_size",
                 )
         if size_mode:
             layout.row().prop(size_owner, "use_locked_size", expand=True)
@@ -1221,9 +1222,9 @@ def brush_shared_settings(layout, context, brush, popover=False):
                 context,
                 unified_row,
                 brush,
-                pressure_name,
-                "show_strength_curve",
-                "curve_strength",
+                pressure_name=pressure_name,
+                curve_visibility_name="show_strength_curve",
+                custom_curve_name="curve_strength",
             )
         layout.separator()
 
