@@ -2428,19 +2428,6 @@ static void UV_OT_mark_seam(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "clear", false, "Clear Seams", "Clear instead of marking seams");
 }
 
-/* Returns true only if all UVs in the given face are selected. */
-static bool face_uv_selected_all(const Scene *scene, BMFace *f, const BMUVOffsets &offsets)
-{
-  BMLoop *l;
-  BMIter liter;
-  BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-    if (!uvedit_uv_select_test(scene, l, offsets)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 static bool uv_copy_mirrored_faces(
     const Scene *scene, BMesh *bm, int direction, int precision, int *r_double_warn)
 {
@@ -2535,8 +2522,8 @@ static bool uv_copy_mirrored_faces(
   for (const auto &[f_dst, f_src] : face_map.items()) {
 
     /* Skip unless both faces have all their UVs selected. */
-    if (!face_uv_selected_all(scene, f_dst, offsets) ||
-        !face_uv_selected_all(scene, f_src, offsets))
+    if (!uvedit_face_select_test(scene, f_dst, offsets) ||
+        !uvedit_face_select_test(scene, f_src, offsets))
     {
       continue;
     }
