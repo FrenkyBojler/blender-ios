@@ -5484,13 +5484,13 @@ static void value_attribute_to_matrix(float r_matrix[4][4],
   switch (data_type) {
     case CON_ATTRIBUTE_VECTOR:
       copy_v3_v3(r_matrix[3], *value.get<blender::float3>());
-      break;
+      return;
     case CON_ATTRIBUTE_QUATERNION:
       quat_to_mat4(r_matrix, *value.get<blender::float4>());
-      break;
+      return;
     case CON_ATTRIBUTE_4X4MATRIX:
       copy_m4_m4(r_matrix, value.get<blender::float4x4>()->ptr());
-      break;
+      return;
   }
   BLI_assert_unreachable();
 }
@@ -5703,7 +5703,6 @@ static void geometry_attribute_evaluate(bConstraint *con, bConstraintOb *cob, Li
       mul_m4_m4m4_split_channels(cob->matrix, cob->matrix, target_mat);
       break;
   }
-  BLI_assert_msg(0, "Unknown Copy Transforms mix mode");
 
   if (data->apply_target_transform) {
     mul_m4_m4m4(cob->matrix, ct->tar->object_to_world().ptr(), cob->matrix);
