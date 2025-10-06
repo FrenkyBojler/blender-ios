@@ -881,6 +881,7 @@ class DOPESHEET_MT_channel_context_menu(Menu):
 
         layout.separator()
 
+        layout.operator("graph.fmodifiers_delete").only_active = False
         layout.operator("anim.channels_delete")
 
         if is_graph_editor and context.space_data.mode == 'DRIVERS':

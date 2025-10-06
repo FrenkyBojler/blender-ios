@@ -330,6 +330,7 @@ class GRAPH_MT_channel(Menu):
         operator_context = layout.operator_context
         layout.operator_context = 'INVOKE_REGION_CHANNELS'
 
+        layout.operator("graph.fmodifiers_delete").only_active = False
         layout.operator("anim.channels_delete")
 
         if context.space_data.mode == 'DRIVERS':

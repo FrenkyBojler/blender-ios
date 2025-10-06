@@ -2945,6 +2945,71 @@ void GRAPH_OT_fmodifier_add(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Delete F-Modifiers Operator
+ * \{ */
+
+static wmOperatorStatus graph_fmodifiers_delete_exec(bContext *C, wmOperator *op)
+{
+  bAnimContext ac;
+  ListBase anim_data = {nullptr, nullptr};
+  int filter;
+
+  /* Get editor data. */
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Filter data. */
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
+            ANIMFILTER_FCURVESONLY);
+  if (RNA_boolean_get(op->ptr, "only_active")) {
+    /* FIXME: enforce in this case only a single channel to get handled? */
+    filter |= ANIMFILTER_ACTIVE;
+  }
+  else {
+    filter |= (ANIMFILTER_SEL | ANIMFILTER_CURVE_VISIBLE);
+  }
+  ANIM_animdata_filter(
+      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+
+  /* Remove F-Modifiers from each curve. */
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    FCurve *fcu = (FCurve *)ale->data;
+    free_fmodifiers(&fcu->modifiers);
+    ale->update |= ANIM_UPDATE_DEPS;
+  }
+
+  ANIM_animdata_update(&ac, &anim_data);
+  ANIM_animdata_freelist(&anim_data);
+
+  /* Set notifier that things have changed. */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+void GRAPH_OT_fmodifiers_delete(wmOperatorType *ot)
+{
+  /* Identifiers */
+  ot->name = "Delete F-Modifiers";
+  ot->idname = "GRAPH_OT_fmodifiers_delete";
+  ot->description = "Delete all F-Modifiers from the active/selected F-Curves";
+
+  /* API callbacks */
+  ot->exec = graph_fmodifiers_delete_exec;
+  ot->poll = graphop_selected_fcurve_poll;
+
+  /* Flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Properties */
+  RNA_def_boolean(
+      ot->srna, "only_active", false, "Only Active", "Only delete F-Modifiers from active F-Curve");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Copy F-Modifiers Operator
  * \{ */
 
