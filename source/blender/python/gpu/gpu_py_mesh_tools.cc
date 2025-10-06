@@ -8,7 +8,7 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "gpu_py_mesh_scatter.hh"
+#include "gpu_py_mesh_tools.hh"
 
 #include "BKE_idtype.hh"
 #include "BKE_mesh.hh"
@@ -44,6 +44,10 @@
 #include "gpu_py.hh"
 #include "gpu_py_storagebuffer.hh"
 #include "gpu_py_vertex_buffer.hh"
+
+using namespace blender::bke;
+using namespace blender::gpu::shader;
+using namespace blender::draw;
 
 // GLSL code for the main compute logic.
 // Note the buffer names match the GpuMeshComputeBinding definitions below.
@@ -144,9 +148,6 @@ PyDoc_STRVAR(
 
 static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
-  using namespace blender::draw;
-  using namespace blender::bke;
-
   PyObject *py_obj = nullptr;
   BPyGPUStorageBuf *py_ssbo_skinned_pos = nullptr;
   BPyGPUStorageBuf *py_ssbo_transform = nullptr;
@@ -337,16 +338,319 @@ static PyObject *pygpu_mesh_scatter_free(PyObject * /*self*/, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
-void bpygpu_mesh_scatter_free_for_mesh(Mesh *me)
+static blender::gpu::VertBuf *resolve_vbo_token(MeshBatchCache *cache, const std::string &token)
 {
-  /* Only frees shader + topology ssbo,
-   * User has to free himself his ssbos (positions + transform) */
-  BKE_mesh_gpu_free_for_mesh(me);
+  if (!cache || token.empty()) {
+    return nullptr;
+  }
+  std::string name = token;
+  const std::string prefix = "VBO:";
+  if (name.rfind(prefix, 0) == 0) {
+    name = name.substr(prefix.size());
+  }
+
+  if (name == "Position") {
+    auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::Position);
+    return ptr ? ptr->get() : nullptr;
+  }
+  if (name == "CornerNormal") {
+    auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::CornerNormal);
+    return ptr ? ptr->get() : nullptr;
+  }
+  if (name == "Tangents") {
+    auto *ptr = cache->final.buff.vbos.lookup_ptr(VBOType::Tangents);
+    return ptr ? ptr->get() : nullptr;
+  }
+  return nullptr;
 }
 
-void bpygpu_mesh_scatter_shaders_free_all()
+static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
-  BKE_mesh_gpu_free_all_caches();
+  PyObject *py_obj = nullptr;
+  PyObject *py_shader = nullptr;          /* str */
+  PyObject *py_bindings_seq = nullptr;    /* sequence of tuples */
+  PyObject *py_config_callable = nullptr; /* callable returning dict or None */
+  int dispatch_count = 0;
+
+  static const char *keywords[] = {
+      "obj", "shader", "bindings", "config", "dispatch_count", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "OOO|Oi:run_compute_mesh",
+                                   (char **)keywords,
+                                   &py_obj,
+                                   &py_shader,
+                                   &py_bindings_seq,
+                                   &py_config_callable,
+                                   &dispatch_count))
+  {
+    return nullptr;
+  }
+
+  if (!GPU_context_active_get()) {
+    PyErr_SetString(PyExc_RuntimeError, "No active GPU context");
+    return nullptr;
+  }
+
+  /* Get object */
+  ID *id_obj = nullptr;
+  if (!pyrna_id_FromPyObject(py_obj, &id_obj) || GS(id_obj->name) != ID_OB) {
+    PyErr_Format(PyExc_TypeError, "Expected an Object, not %.200s", Py_TYPE(py_obj)->tp_name);
+    return nullptr;
+  }
+  Object *ob_eval = reinterpret_cast<Object *>(id_obj);
+  if (!DEG_is_evaluated(ob_eval) || ob_eval->type != OB_MESH) {
+    PyErr_SetString(PyExc_TypeError, "Expected an evaluated mesh object");
+    return nullptr;
+  }
+  Depsgraph *depsgraph = DEG_get_depsgraph_by_id(ob_eval->id);
+  if (!depsgraph) {
+    PyErr_SetString(PyExc_RuntimeError, "Object is not owned by a depsgraph");
+    return nullptr;
+  }
+
+  /* Shader source */
+  if (!PyUnicode_Check(py_shader)) {
+    PyErr_SetString(PyExc_TypeError, "shader must be a string containing GLSL compute code");
+    return nullptr;
+  }
+  const char *shader_src = PyUnicode_AsUTF8(py_shader);
+  if (!shader_src) {
+    PyErr_SetString(PyExc_TypeError, "Failed to decode shader string");
+    return nullptr;
+  }
+
+  /* Convert bindings sequence -> std::vector<GpuMeshComputeBinding>
+   *
+   * Expected Python binding tuple:
+   *   (binding_index:int, buffer:GPUStorageBuf|GPUVertBuf|str_token|None,
+   *    qualifier:str('read'|'write'|'read_write'), type_name:str, bind_name:str)
+   *
+   * If buffer is a string token (e.g. "VBO:Position" or "Position") it will be resolved
+   * to the cache's VBO after the MeshBatchCache is obtained.
+   */
+  std::vector<GpuMeshComputeBinding> local_bindings;
+  std::vector<std::string> vbo_tokens;  // aligned with local_bindings
+  if (!PySequence_Check(py_bindings_seq)) {
+    PyErr_SetString(PyExc_TypeError, "bindings must be a sequence of tuples");
+    return nullptr;
+  }
+  Py_ssize_t n_bind = PySequence_Size(py_bindings_seq);
+  local_bindings.reserve(n_bind);
+  vbo_tokens.reserve(n_bind);
+
+  for (Py_ssize_t i = 0; i < n_bind; ++i) {
+    PyObject *py_item = PySequence_GetItem(py_bindings_seq, i); /* new ref */
+    if (!py_item) {
+      PyErr_SetString(PyExc_RuntimeError, "Failed to read binding item");
+      return nullptr;
+    }
+    if (!PyTuple_Check(py_item) || PyTuple_Size(py_item) != 5) {
+      PyErr_SetString(PyExc_TypeError,
+                      "Each binding must be a 5-tuple (index, buffer, qualifier, type, name)");
+      Py_DECREF(py_item);
+      return nullptr;
+    }
+
+    PyObject *py_idx = PyTuple_GetItem(py_item, 0);  /* borrowed */
+    PyObject *py_buf = PyTuple_GetItem(py_item, 1);  /* borrowed */
+    PyObject *py_qual = PyTuple_GetItem(py_item, 2); /* borrowed */
+    PyObject *py_typ = PyTuple_GetItem(py_item, 3);  /* borrowed */
+    PyObject *py_name = PyTuple_GetItem(py_item, 4); /* borrowed */
+
+    if (!PyLong_Check(py_idx) || !PyUnicode_Check(py_qual) || !PyUnicode_Check(py_typ) ||
+        !PyUnicode_Check(py_name))
+    {
+      PyErr_SetString(PyExc_TypeError, "Binding tuple types: (int, buffer, str, str, str)");
+      Py_DECREF(py_item);
+      return nullptr;
+    }
+
+    int binding_index = int(PyLong_AsLong(py_idx));
+    const char *qual_s = PyUnicode_AsUTF8(py_qual);
+    const char *type_name = PyUnicode_AsUTF8(py_typ);
+    const char *bind_name = PyUnicode_AsUTF8(py_name);
+
+    /* Resolve qualifier */
+    blender::gpu::shader::Qualifier qual = blender::gpu::shader::Qualifier::read;
+    if (strcmp(qual_s, "read") == 0) {
+      qual = blender::gpu::shader::Qualifier::read;
+    }
+    else if (strcmp(qual_s, "write") == 0) {
+      qual = blender::gpu::shader::Qualifier::write;
+    }
+    else if (strcmp(qual_s, "read_write") == 0) {
+      qual = blender::gpu::shader::Qualifier::read_write;
+    }
+    else {
+      PyErr_SetString(PyExc_ValueError, "qualifier must be 'read', 'write' or 'read_write'");
+      Py_DECREF(py_item);
+      return nullptr;
+    }
+
+    /* Resolve buffer variant: StorageBuf, VertBuf, None, or string token */
+    blender::gpu::StorageBuf *sb = nullptr;
+    blender::gpu::VertBuf *vb = nullptr;
+    std::string token;
+
+    if (py_buf == Py_None) {
+      sb = nullptr;
+      vb = nullptr;
+    }
+    else if (PyUnicode_Check(py_buf)) {
+      const char *s = PyUnicode_AsUTF8(py_buf);
+      if (!s) {
+        PyErr_SetString(PyExc_TypeError, "Invalid string for buffer token");
+        Py_DECREF(py_item);
+        return nullptr;
+      }
+      token = std::string(s);
+      // defer resolution until we have the cache
+    }
+    else {
+      BPyGPUStorageBuf *py_sb = reinterpret_cast<BPyGPUStorageBuf *>(py_buf);
+      if (py_sb && py_sb->ssbo) {
+        sb = py_sb->ssbo;
+      }
+      else {
+        BPyGPUVertBuf *py_vb = reinterpret_cast<BPyGPUVertBuf *>(py_buf);
+        if (py_vb && py_vb->buf) {
+          vb = py_vb->buf;
+        }
+        else {
+          PyErr_SetString(PyExc_TypeError,
+                          "buffer must be a gpu.types.GPUStorageBuf or gpu.types.GPUVertBuf or a "
+                          "string token or None");
+          Py_DECREF(py_item);
+          return nullptr;
+        }
+      }
+    }
+
+    GpuMeshComputeBinding b;
+    b.binding = binding_index;
+    if (sb) {
+      b.buffer = sb;
+    }
+    else if (vb) {
+      b.buffer = vb;
+    }
+    b.qualifiers = qual;
+    b.type_name = strdup(type_name);
+    b.bind_name = strdup(bind_name);
+    local_bindings.push_back(std::move(b));
+    vbo_tokens.push_back(std::move(token));
+
+    Py_DECREF(py_item);
+  }
+
+  /* Prepare mesh and validate VBOs like original function */
+  Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  if (!mesh_eval || !mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
+    Object *ob_orig = DEG_get_original(ob_eval);
+    if (ob_orig) {
+      DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_WINDOW, nullptr);
+    }
+    /* free duplicated strings */
+    for (auto &b : local_bindings) {
+      if (b.type_name)
+        free((void *)b.type_name);
+      if (b.bind_name)
+        free((void *)b.bind_name);
+    }
+    Py_RETURN_NONE;
+  }
+
+  auto *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+
+  /* Resolve any VBO tokens into actual VertBuf* using the mesh cache. */
+  for (size_t i = 0; i < local_bindings.size(); ++i) {
+    const std::string &tok = vbo_tokens[i];
+    if (tok.empty()) {
+      continue;
+    }
+    blender::gpu::VertBuf *resolved = resolve_vbo_token(cache, tok);
+    if (!resolved) {
+      /* Cleanup */
+      for (auto &b : local_bindings) {
+        if (b.type_name)
+          free((void *)b.type_name);
+        if (b.bind_name)
+          free((void *)b.bind_name);
+      }
+      PyErr_Format(
+          PyExc_RuntimeError, "Failed to resolve VBO token '%s' to a mesh VBO", tok.c_str());
+      return nullptr;
+    }
+    local_bindings[i].buffer = resolved;
+  }
+
+  /* Prepare config lambda: call existing mesh/scene defaults then call Python callable if present.
+   * The python callable is expected to return a dict {name: value}. */
+  Scene *scene = DEG_get_input_scene(DEG_get_depsgraph_by_id(ob_eval->id));
+  auto config = [&](blender::gpu::shader::ShaderCreateInfo &info) {
+    int normals_domain_val = (mesh_eval->normals_domain() == MeshNormalDomain::Face) ? 1 : 0;
+    int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
+                             GPU_use_hq_normals_workaround());
+    info.specialization_constant(
+        blender::gpu::shader::Type::int_t, "normals_domain", normals_domain_val);
+    info.specialization_constant(blender::gpu::shader::Type::int_t, "normals_hq", normals_hq_val);
+
+    if (py_config_callable && py_config_callable != Py_None &&
+        PyCallable_Check(py_config_callable))
+    {
+      PyObject *py_ret = PyObject_CallObject(py_config_callable, nullptr);
+      if (py_ret) {
+        if (PyDict_Check(py_ret)) {
+          PyObject *key, *value;
+          Py_ssize_t pos = 0;
+          while (PyDict_Next(py_ret, &pos, &key, &value)) {
+            if (!PyUnicode_Check(key)) {
+              continue;
+            }
+            const char *name = PyUnicode_AsUTF8(key);
+            if (PyLong_Check(value)) {
+              long v = PyLong_AsLong(value);
+              info.specialization_constant(blender::gpu::shader::Type::int_t, name, int(v));
+            }
+            else if (PyFloat_Check(value)) {
+              double vf = PyFloat_AsDouble(value);
+              info.specialization_constant(blender::gpu::shader::Type::float_t, name, vf);
+            }
+            else if (PyBool_Check(value)) {
+              bool vb = (value == Py_True);
+              info.specialization_constant(
+                  blender::gpu::shader::Type::bool_t, name, vb ? 1.0 : 0.0);
+            }
+          }
+        }
+        Py_DECREF(py_ret);
+      }
+      else {
+        PyErr_SetString(PyExc_RuntimeError, "config callable raised an exception");
+      }
+    }
+  };
+
+  const int dispatch = dispatch_count > 0 ? dispatch_count : int(mesh_eval->verts_num);
+  blender::bke::GpuComputeStatus status = BKE_mesh_gpu_run_compute(
+      DEG_get_depsgraph_by_id(ob_eval->id),
+      ob_eval,
+      shader_src,
+      blender::Span<GpuMeshComputeBinding>(local_bindings),
+      config,
+      dispatch);
+
+  /* free duplicated strings in local_bindings.type_name/bind_name if any */
+  for (auto &b : local_bindings) {
+    if (b.type_name)
+      free((void *)b.type_name);
+    if (b.bind_name)
+      free((void *)b.bind_name);
+  }
+
+  return PyLong_FromLong(static_cast<int>(status));
 }
 
 #ifdef __GNUC__
@@ -368,6 +672,27 @@ static PyMethodDef pygpu_mesh__tp_methods[] = {
      (PyCFunction)pygpu_mesh_scatter_free,
      METH_VARARGS | METH_KEYWORDS,
      pygpu_mesh_scatter_free_doc},
+    {"run_compute_mesh",
+     (PyCFunction)pygpu_mesh_run_compute,
+     METH_VARARGS | METH_KEYWORDS,
+     "Run a custom compute shader on a mesh.\\n\\n"
+     "Signature: run_compute_mesh(obj, shader: str, bindings: Sequence[tuple], "
+     "config: callable|None = None, dispatch_count: int = 0)\\n\\n"
+     "Bindings: sequence of 5-tuples (binding_index:int, "
+     "buffer:GPUStorageBuf|GPUVertBuf|str|None, "
+     "qualifier:str('read'|'write'|'read_write'), type_name:str, bind_name:str).\\n"
+     " - If `buffer` is a string token it is resolved against the mesh batch cache VBOs.\\n"
+     "   Supported tokens (examples): 'Position', 'VBO:Position', 'CornerNormal', "
+     "'VBO:CornerNormal'.\\n"
+     " - Use a `gpu.types.GPUStorageBuf` to pass SSBOs or a `gpu.types.GPUVertBuf` wrapper for "
+     "VBOs.\\n\\n"
+     "Config callable: optional callable returning a dict of specialization constants, e.g. "
+     "{'GRID_W': 128, 'GRID_H': 128, 'HEIGHT_SCALE': 1.0}. Supported value types: int, float, "
+     "bool.\\n\\n"
+     "dispatch_count: number of invocations (if 0, defaults to mesh vertex count).\\n\\n"
+     "Returns an integer status: 0=Success, 1=NotReady (deferred), 2=Error. The `obj` argument "
+     "must be an "
+     "evaluated mesh object with a ready batch cache."},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -395,4 +720,9 @@ PyObject *bpygpu_mesh_init(void)
 {
   PyObject *submodule = PyModule_Create(&pygpu_mesh_module_def);
   return submodule;
+}
+
+void bpygpu_mesh_tools_free_all()
+{
+  BKE_mesh_gpu_free_all_caches();
 }

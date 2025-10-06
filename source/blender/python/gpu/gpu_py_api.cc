@@ -20,7 +20,7 @@
 #include "gpu_py_capabilities.hh"
 #include "gpu_py_compute.hh"
 #include "gpu_py_matrix.hh"
-#include "gpu_py_mesh_scatter.hh"
+#include "gpu_py_mesh_tools.hh"
 #include "gpu_py_platform.hh"
 #include "gpu_py_select.hh"
 #include "gpu_py_state.hh"
@@ -31,7 +31,7 @@
 static void pygpu_module_free(void *m)
 {
   (void)m;
-  bpygpu_mesh_scatter_shaders_free_all();
+  bpygpu_mesh_tools_free_all();
 }
 
 /* -------------------------------------------------------------------- */

@@ -63,9 +63,7 @@ PyObject *pygpu_mesh_scatter_free(PyObject *self, PyObject *args, PyObject *kwds
  */
 PyObject *bpygpu_mesh_init() ATTR_WARN_UNUSED_RESULT;
 
-/* Free resources for mesh (called from draw code). */
-void bpygpu_mesh_scatter_free_for_mesh(Mesh *mesh);
 /* Free all scatter resources at python exit if not already done */
-void bpygpu_mesh_scatter_shaders_free_all();
+void bpygpu_mesh_tools_free_all();
 
 /** \} */
