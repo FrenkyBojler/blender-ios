@@ -88,8 +88,14 @@ id<MTLCommandBuffer> MTLCommandBufferManager::ensure_begin()
 /* If wait is true, CPU will stall until GPU work has completed. */
 bool MTLCommandBufferManager::submit(bool wait)
 {
-  /* Skip submission if command buffer is empty. */
-  if (empty_ || active_command_buffer_ == nil) {
+  /* If we have to wait, we must ensure to either finish the active command encoder or to wait
+   * until all previous one have completed. */
+  if (empty_ && !wait) {
+    /* Skip submission if command buffer is empty. */
+    return false;
+  }
+
+  if (active_command_buffer_ == nil) {
     if (wait) {
       /* Wait for any previously submitted work on this context to complete.
        * (The wait function will yield so may need reworking if this hits a
