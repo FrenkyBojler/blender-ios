@@ -93,6 +93,7 @@ set(SRC
   nodes/node_composite_rotate.cc
   nodes/node_composite_scale.cc
   nodes/node_composite_scene_time.cc
+  nodes/node_composite_distance_field.cc
   nodes/node_composite_sepcomb_color.cc
   nodes/node_composite_setalpha.cc
   nodes/node_composite_split.cc

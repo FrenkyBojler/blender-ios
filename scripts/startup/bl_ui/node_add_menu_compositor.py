@@ -140,6 +140,7 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeConvolve")
         self.node_operator(layout, "CompositorNodeDenoise")
         self.node_operator(layout, "CompositorNodeDespeckle")
+        self.node_operator(layout, "CompositorNodeDistanceField")
         layout.separator()
         self.node_operator(layout, "CompositorNodeDilateErode")
         self.node_operator(layout, "CompositorNodeInpaint")

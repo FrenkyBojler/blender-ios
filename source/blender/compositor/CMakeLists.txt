@@ -81,6 +81,7 @@ set(SRC
   algorithms/intern/parallel_reduction.cc
   algorithms/intern/recursive_gaussian_blur.cc
   algorithms/intern/sample_pixel.cc
+  algorithms/intern/distance_field.cc
   algorithms/intern/smaa.cc
   algorithms/intern/summed_area_table.cc
   algorithms/intern/symmetric_separable_blur.cc
@@ -99,6 +100,7 @@ set(SRC
   algorithms/COM_algorithm_parallel_reduction.hh
   algorithms/COM_algorithm_recursive_gaussian_blur.hh
   algorithms/COM_algorithm_sample_pixel.hh
+  algorithms/COM_algorithm_distance_field.hh
   algorithms/COM_algorithm_smaa.hh
   algorithms/COM_algorithm_summed_area_table.hh
   algorithms/COM_algorithm_symmetric_separable_blur.hh
@@ -181,6 +183,7 @@ set(GLSL_SRC
   shaders/infos/compositor_despeckle_infos.hh
   shaders/infos/compositor_directional_blur_infos.hh
   shaders/infos/compositor_displace_infos.hh
+  shaders/infos/compositor_distance_field_infos.hh
   shaders/infos/compositor_double_edge_mask_infos.hh
   shaders/infos/compositor_edge_filter_infos.hh
   shaders/infos/compositor_ellipse_mask_infos.hh
@@ -249,6 +252,8 @@ set(GLSL_SRC
   shaders/compositor_directional_blur.glsl
   shaders/compositor_displace.glsl
   shaders/compositor_displace_anisotropic.glsl
+  shaders/compositor_distance_field_calculate_edges.glsl
+  shaders/compositor_distance_field_calculate_distance.glsl
   shaders/compositor_double_edge_mask_compute_boundary.glsl
   shaders/compositor_double_edge_mask_compute_gradient.glsl
   shaders/compositor_edge_filter.glsl
