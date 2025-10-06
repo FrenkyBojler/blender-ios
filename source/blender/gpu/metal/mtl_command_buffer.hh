@@ -125,7 +125,7 @@ template<typename CommandEncoderT> struct MTLBindingCache {
   std::array<MTLTextureBindingCached, MTL_MAX_TEXTURE_SLOTS> texture_bindings = {};
   std::array<MTLSamplerStateBindingCached, MTL_MAX_TEXTURE_SLOTS> sampler_state_bindings = {};
 
-  void bind_buffer(CommandEncoderT enc, id<MTLBuffer> buf, uint index, size_t offset = 0);
+  void bind_buffer(CommandEncoderT enc, id<MTLBuffer> buf, size_t offset, uint index);
   void bind_bytes(CommandEncoderT enc,
                   MTLScratchBufferManager &scratch_buffer,
                   const void *bytes,
@@ -143,8 +143,8 @@ template<typename CommandEncoderT> struct MTLBindingCache {
 template<typename CommandEncoderT>
 void MTLBindingCache<CommandEncoderT>::bind_buffer(CommandEncoderT enc,
                                                    id<MTLBuffer> buf,
-                                                   uint index,
-                                                   size_t offset)
+                                                   size_t offset,
+                                                   uint index)
 {
   BLI_assert(buf != nil);
   BLI_assert(index >= 0);
