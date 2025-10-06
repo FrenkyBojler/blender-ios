@@ -306,10 +306,6 @@ void VKCommandBuilder::groups_build_commands(VKRenderGraph &render_graph,
        */
       rendering_active = false;
       command_buffer.end_rendering();
-
-      VKRenderGraphNode &rendering_node = render_graph.nodes_[rendering_scope];
-      render_graph.storage_.begin_rendering[rendering_node.storage_index].vk_rendering_info.flags =
-          VK_RENDERING_RESUMING_BIT;
     }
 
     /* Record group post barriers. */
