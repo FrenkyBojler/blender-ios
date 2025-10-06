@@ -119,6 +119,7 @@ set(SRC
   intern/lineart/lineart_util.cc
 
   MOD_modifiertypes.hh
+  MOD_multires.hh
   MOD_nodes.hh
   intern/MOD_grease_pencil_util.hh
   intern/MOD_meshcache_util.hh

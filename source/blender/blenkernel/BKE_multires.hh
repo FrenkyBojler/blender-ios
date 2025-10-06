@@ -33,6 +33,8 @@ enum MultiresModifiedFlags {
   MULTIRES_HIDDEN_MODIFIED = 2,
 };
 
+void BKE_multires_change_sculpt_level(MultiresModifierData *mmd, int lvl);
+
 /**
  * Delete mesh mdisps and grid paint masks.
  */

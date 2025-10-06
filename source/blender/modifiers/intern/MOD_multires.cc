@@ -43,6 +43,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "MOD_ui_common.hh"
+#include "MOD_multires.hh"
 
 struct MultiresRuntimeData {
   /* Cached subdivision surface descriptor, with topology and settings. */
@@ -59,11 +60,18 @@ static void init_data(ModifierData *md)
 
   /* Open subdivision panels by default. */
   md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT | UI_SUBPANEL_DATA_EXPAND_1;
+  mmd->runtime = MEM_new<blender::MultiresModifierRuntime>(__func__);
 }
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
 {
   BKE_modifier_copydata_generic(md_src, md_dst, flag);
+
+  const MultiresModifierData *mmd_src = (MultiresModifierData *)md_src;
+  MultiresModifierData *mmd_dst = (MultiresModifierData *)md_dst;
+
+  mmd_dst->runtime = MEM_new<blender::MultiresModifierRuntime>(__func__);
+  mmd_dst->runtime->previous_level = mmd_src->runtime->previous_level;
 }
 
 static void free_runtime_data(void *runtime_data_v)
@@ -81,6 +89,7 @@ static void free_runtime_data(void *runtime_data_v)
 static void free_data(ModifierData *md)
 {
   MultiresModifierData *mmd = (MultiresModifierData *)md;
+  MEM_SAFE_DELETE(mmd->runtime);
   free_runtime_data(mmd->modifier.runtime);
 }
 
@@ -93,6 +102,13 @@ static MultiresRuntimeData *multires_ensure_runtime(MultiresModifierData *mmd)
   }
   return runtime_data;
 }
+
+void BKE_multires_change_sculpt_level(MultiresModifierData *mmd, const int lvl)
+{
+  mmd->runtime->previous_level = mmd->sculptlvl;
+  mmd->sculptlvl = lvl;
+}
+
 
 /* Main goal of this function is to give usable subdivision surface descriptor
  * which matches settings and topology. */
@@ -166,9 +182,15 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
   if (ccg_settings.resolution < 3) {
     return result;
   }
+
   /* TODO: Do we have a easy way to get the "current" ccg? For a fast path */
   blender::bke::subdiv::displacement_attach_from_multires(subdiv, ctx->object, mesh, mmd);
-  printf("MMD: %d\n", mmd->sculptlvl);
+  int delta = 0;
+  if (mmd->runtime->previous_level) {
+    const int old_lvl = mmd->runtime->previous_level.value();
+    delta = mmd->sculptlvl - old_lvl;
+    printf("(%p) multires_as_ccg: old: %d, delta: %d, new: %d\n", mmd, old_lvl, delta, mmd->sculptlvl);
+  }
   result = BKE_subdiv_to_ccg_mesh(*subdiv, ccg_settings, *mesh);
 
   /* NOTE: CCG becomes an owner of Subdiv descriptor, so can not share
@@ -251,6 +273,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       blender::bke::subdiv::free(subdiv);
     }
   }
+
+  /* Reset the data after the mesh has applied. */
+  mmd->runtime->previous_level.reset();
+
   return result;
 }
 

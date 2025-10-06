@@ -22,14 +22,17 @@
 
 namespace blender {
 struct NodesModifierRuntime;
+struct MultiresModifierRuntime;
 namespace bke {
 struct BVHTreeFromMesh;
 }
 }  // namespace blender
 using NodesModifierRuntimeHandle = blender::NodesModifierRuntime;
+using MultiresModifierRuntimeHandle = blender::MultiresModifierRuntime;
 using BVHTreeFromMeshHandle = blender::bke::BVHTreeFromMesh;
 #else
 typedef struct NodesModifierRuntimeHandle NodesModifierRuntimeHandle;
+typedef struct MultiresModifierRuntimeHandle MultiresModifierRuntimeHandle;
 typedef struct BVHTreeFromMeshHandle BVHTreeFromMeshHandle;
 #endif
 struct LineartModifierRuntime;
@@ -1229,6 +1232,7 @@ typedef struct MultiresModifierData {
   short uv_smooth;
   short boundary_smooth;
   char _pad2[2];
+  MultiresModifierRuntimeHandle *runtime;
 } MultiresModifierData;
 
 typedef enum {
