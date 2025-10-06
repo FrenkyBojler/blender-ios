@@ -36,10 +36,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Solution")
       .structure_type(StructureType::Grid)
       .description("Solution to the Poisson equation");
-  b.add_output<decl::Bool>("Success").description("Whether the solver converged successfully");
+  b.add_output<decl::Bool>("Success").description("If the solver converged successfully");
   b.add_output<decl::Int>("Iterations").description("Number of iterations performed");
-  b.add_output<decl::Float>("Absolute Error").description("Final absolute error");
-  b.add_output<decl::Float>("Relative Error").description("Final relative error");
+  b.add_output<decl::Float>("Absolute Error").description("Final absolute error of the solution");
+  b.add_output<decl::Float>("Relative Error").description("Final relative error of the solution");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -78,7 +78,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!solver_state.success) {
     params.error_message_add(
         NodeWarningType::Warning,
-        "Poisson solver failed to converge within the specified iteration limit. Try increasing "
+        "Poisson solver failed to converge within the iteration limit. Try increasing "
         "the maximum iterations or tolerance");
   }
 #else
