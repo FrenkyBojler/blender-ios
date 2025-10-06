@@ -146,4 +146,6 @@ Map<int, bool> &node_can_sync_cache_get(SpaceNode &snode);
 
 void node_tree_interface_draw(bContext &C, uiLayout &layout, bNodeTree &tree);
 
+const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_label = nullptr);
+
 }  // namespace blender::ed::space_node
