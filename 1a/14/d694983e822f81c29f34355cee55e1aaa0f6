@@ -1,3 +1,4 @@
 Referenced by commit b113e848ef9, NDOF: implement new methods to pick the orbit-center
 Referenced by issue #129594, NDOF: Implement new algorithm for Center of Rotation
 Referenced by issue #138741, Show Navigation Guide Missing
+Referenced by issue #147409, UI: Show Navigation Guide Option Missing
