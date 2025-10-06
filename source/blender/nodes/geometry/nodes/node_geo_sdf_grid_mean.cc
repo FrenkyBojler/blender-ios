@@ -37,7 +37,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int iterations = params.extract_input<int>("Iterations");
   const int width = params.extract_input<int>("Width");
-
   if (iterations <= 0 || width <= 0) {
     params.set_output("Grid", std::move(grid));
     return;

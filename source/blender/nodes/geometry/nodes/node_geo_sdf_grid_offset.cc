@@ -33,12 +33,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  const float distance = params.extract_input<float>("Distance");
+
   bke::VolumeTreeAccessToken tree_token;
   openvdb::FloatGrid &vdb_grid = grid.grid_for_write(tree_token);
 
   try {
     openvdb::tools::LevelSetFilter<openvdb::FloatGrid> filter(vdb_grid);
-    const float distance = params.extract_input<float>("Distance");
     filter.offset(distance);
   }
   catch (const openvdb::RuntimeError &e) {
