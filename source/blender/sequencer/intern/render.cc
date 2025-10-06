@@ -71,6 +71,7 @@
 #include "cache/intra_frame_cache.hh"
 #include "cache/source_image_cache.hh"
 #include "effects/effects.hh"
+#include "modifiers/modifier.hh"
 #include "multiview.hh"
 #include "prefetch.hh"
 #include "proxy.hh"
@@ -440,19 +441,21 @@ static bool seq_need_scale_to_render_size(const Strip *strip, bool is_proxy_imag
   return true;
 }
 
-static float3x3 sequencer_image_crop_transform_matrix(const Scene *scene,
-                                                      const Strip *strip,
-                                                      const ImBuf *in,
-                                                      const ImBuf *out,
-                                                      const float image_scale_factor,
-                                                      const float preview_scale_factor)
+static float3x3 calc_strip_transform_matrix(const Scene *scene,
+                                            const Strip *strip,
+                                            const int in_x,
+                                            const int in_y,
+                                            const int out_x,
+                                            const int out_y,
+                                            const float image_scale_factor,
+                                            const float preview_scale_factor)
 {
   const StripTransform *transform = strip->data->transform;
 
   /* This value is intentionally kept as integer. Otherwise images with odd dimensions would
    * be translated to center of canvas by non-integer value, which would cause it to be
    * interpolated. Interpolation with 0 user defined translation is unwanted behavior. */
-  const int3 image_center_offs((out->x - in->x) / 2, (out->y - in->y) / 2, 0);
+  const int3 image_center_offs((out_x - in_x) / 2, (out_y - in_y) / 2, 0);
 
   const float2 translation(transform->xofs * preview_scale_factor,
                            transform->yofs * preview_scale_factor);
@@ -461,12 +464,12 @@ static float3x3 sequencer_image_crop_transform_matrix(const Scene *scene,
                      transform->scale_y * image_scale_factor);
 
   const float2 origin = image_transform_origin_get(scene, strip);
-  const float2 pivot(in->x * origin[0], in->y * origin[1]);
+  const float2 pivot(in_x * origin[0], in_y * origin[1]);
 
   const float3x3 matrix = math::from_loc_rot_scale<float3x3>(
       translation + float2(image_center_offs), rotation, scale);
   const float3x3 mat_pivot = math::from_origin_transform(matrix, pivot);
-  return math::invert(mat_pivot);
+  return mat_pivot;
 }
 
 static void sequencer_image_crop_init(const Strip *strip,
@@ -531,17 +534,14 @@ static eIMBInterpolationFilterMode get_auto_filter(const StripTransform *transfo
   return IMB_FILTER_BILINEAR;
 }
 
-static void sequencer_preprocess_transform_crop(
-    ImBuf *in, ImBuf *out, const RenderData *context, Strip *strip, const bool is_proxy_image)
+static void sequencer_preprocess_transform_crop(ImBuf *in,
+                                                ImBuf *out,
+                                                const RenderData *context,
+                                                Strip *strip,
+                                                const float3x3 &matrix,
+                                                const bool do_scale_to_render_size,
+                                                const float preview_scale_factor)
 {
-  const Scene *scene = context->scene;
-  const float preview_scale_factor = get_render_scale_factor(*context);
-  const bool do_scale_to_render_size = seq_need_scale_to_render_size(strip, is_proxy_image);
-  const float image_scale_factor = do_scale_to_render_size ? preview_scale_factor : 1.0f;
-
-  float3x3 matrix = sequencer_image_crop_transform_matrix(
-      scene, strip, in, out, image_scale_factor, preview_scale_factor);
-
   /* Proxy image is smaller, so crop values must be corrected by proxy scale factor.
    * Proxy scale factor always matches preview_scale_factor. */
   rctf source_crop;
@@ -662,9 +662,21 @@ static ImBuf *input_preprocess(const RenderData *context,
     multiply_ibuf(ibuf, mul, multiply_alpha);
   }
 
+  const float preview_scale_factor = get_render_scale_factor(*context);
+  const bool do_scale_to_render_size = seq_need_scale_to_render_size(strip, is_proxy_image);
+  const float image_scale_factor = do_scale_to_render_size ? preview_scale_factor : 1.0f;
+
   if (strip->modifiers.first) {
     ibuf = IMB_makeSingleUser(ibuf);
-    modifier_apply_stack(context, state, strip, ibuf, timeline_frame);
+    float3x3 matrix = calc_strip_transform_matrix(scene,
+                                                  strip,
+                                                  ibuf->x,
+                                                  ibuf->y,
+                                                  context->rectx,
+                                                  context->recty,
+                                                  image_scale_factor,
+                                                  preview_scale_factor);
+    modifier_apply_stack(context, state, strip, matrix, ibuf, timeline_frame);
   }
 
   if (sequencer_use_crop(strip) || sequencer_use_transform(strip) || context->rectx != ibuf->x ||
@@ -675,7 +687,23 @@ static ImBuf *input_preprocess(const RenderData *context,
     ImBuf *transformed_ibuf = IMB_allocImBuf(
         x, y, 32, ibuf->float_buffer.data ? IB_float_data : IB_byte_data);
 
-    sequencer_preprocess_transform_crop(ibuf, transformed_ibuf, context, strip, is_proxy_image);
+    /* Note: calculate matrix again; modifiers can actually change the image size. */
+    float3x3 matrix = calc_strip_transform_matrix(scene,
+                                                  strip,
+                                                  ibuf->x,
+                                                  ibuf->y,
+                                                  context->rectx,
+                                                  context->recty,
+                                                  image_scale_factor,
+                                                  preview_scale_factor);
+    matrix = math::invert(matrix);
+    sequencer_preprocess_transform_crop(ibuf,
+                                        transformed_ibuf,
+                                        context,
+                                        strip,
+                                        matrix,
+                                        do_scale_to_render_size,
+                                        preview_scale_factor);
 
     seq_imbuf_assign_spaces(scene, transformed_ibuf);
     IMB_metadata_copy(transformed_ibuf, ibuf);

@@ -35,6 +35,7 @@
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
+#include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
 #include "UI_interface.hh"
@@ -292,37 +293,11 @@ void store_pixel_raw(float4 pix, float *ptr)
   *reinterpret_cast<float4 *>(ptr) = pix;
 }
 
-/* Byte mask */
-void apply_and_advance_mask(float4 input, float4 &result, const uchar *&mask)
-{
-  float3 m;
-  rgb_uchar_to_float(m, mask);
-  result.x = math::interpolate(input.x, result.x, m.x);
-  result.y = math::interpolate(input.y, result.y, m.y);
-  result.z = math::interpolate(input.z, result.z, m.z);
-  mask += 4;
-}
-
-/* Float mask */
-void apply_and_advance_mask(float4 input, float4 &result, const float *&mask)
-{
-  float3 m(mask);
-  result.x = math::interpolate(input.x, result.x, m.x);
-  result.y = math::interpolate(input.y, result.y, m.y);
-  result.z = math::interpolate(input.z, result.z, m.z);
-  mask += 4;
-}
-
-/* No mask */
-void apply_and_advance_mask(float4 /*input*/, float4 & /*result*/, const void *& /*mask*/) {}
-
 /**
  * \a timeline_frame is offset by \a fra_offset only in case we are using a real mask.
  */
 static ImBuf *modifier_render_mask_input(const RenderData *context,
                                          SeqRenderState *state,
-                                         int input_x,
-                                         int input_y,
                                          int mask_input_type,
                                          Strip *mask_strip,
                                          Mask *mask_id,
@@ -331,13 +306,9 @@ static ImBuf *modifier_render_mask_input(const RenderData *context,
 {
   ImBuf *mask_input = nullptr;
 
-  if (mask_input_type == STRIP_MASK_INPUT_STRIP && mask_strip) {
-    mask_input = seq_render_strip(context, state, mask_strip, timeline_frame);
-    if (mask_input && (mask_input->x != input_x || mask_input->y != input_y)) {
-      ImBuf *scaled_mask = IMB_scale_into_new(
-          mask_input, input_x, input_y, IMBScaleFilter::Bilinear, true);
-      IMB_freeImBuf(mask_input);
-      mask_input = scaled_mask;
+  if (mask_input_type == STRIP_MASK_INPUT_STRIP) {
+    if (mask_strip) {
+      mask_input = seq_render_strip(context, state, mask_strip, timeline_frame);
     }
   }
   else if (mask_input_type == STRIP_MASK_INPUT_ID) {
@@ -345,8 +316,12 @@ static ImBuf *modifier_render_mask_input(const RenderData *context,
      * fine, but if it is a byte image then we also just take that without
      * extra memory allocations or conversions. All modifiers are expected
      * to handle mask being either type. */
-    mask_input = seq_render_mask(
-        context->depsgraph, input_x, input_y, mask_id, timeline_frame - fra_offset, false);
+    mask_input = seq_render_mask(context->depsgraph,
+                                 context->rectx,
+                                 context->recty,
+                                 mask_id,
+                                 timeline_frame - fra_offset,
+                                 false);
   }
 
   return mask_input;
@@ -491,6 +466,7 @@ static bool skip_modifier(Scene *scene, const StripModifierData *smd, int timeli
 void modifier_apply_stack(const RenderData *context,
                           SeqRenderState *state,
                           const Strip *strip,
+                          const float3x3 &transform,
                           ImBuf *ibuf,
                           int timeline_frame)
 {
@@ -522,14 +498,12 @@ void modifier_apply_stack(const RenderData *context,
 
       ImBuf *mask = modifier_render_mask_input(context,
                                                state,
-                                               ibuf->x,
-                                               ibuf->y,
                                                smd->mask_input_type,
                                                smd->mask_strip,
                                                smd->mask_id,
                                                timeline_frame,
                                                frame_offset);
-      smti->apply(context, smd, ibuf, mask);
+      smti->apply(context, strip, transform.ptr(), smd, ibuf, mask);
       if (mask) {
         IMB_freeImBuf(mask);
       }

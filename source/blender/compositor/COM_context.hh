@@ -102,8 +102,8 @@ class Context {
    * or support for viewers. */
   virtual bool treat_viewer_as_compositor_output() const;
 
-  /* True if the compositor viewer output should use output region/bounds setup in the context. */
-  virtual bool use_context_bounds_for_viewer_output() const
+  /* True if the compositor input/output should use output region/bounds setup in the context. */
+  virtual bool use_context_bounds_for_input_output() const
   {
     return true;
   }

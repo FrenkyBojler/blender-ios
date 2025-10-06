@@ -56,7 +56,12 @@ struct StripModifierTypeInfo {
   void (*copy_data)(StripModifierData *smd, StripModifierData *target);
 
   /* Apply modifier on an image buffer. */
-  void (*apply)(const RenderData *render_data, StripModifierData *smd, ImBuf *ibuf, ImBuf *mask);
+  void (*apply)(const RenderData *render_data,
+                const Strip *strip,
+                const float transform[3][3],
+                StripModifierData *smd,
+                ImBuf *ibuf,
+                ImBuf *mask);
 
   /** Register the panel types for the modifier's UI. */
   void (*panel_register)(ARegionType *region_type);
@@ -77,11 +82,6 @@ void modifier_clear(Strip *strip);
 void modifier_free(StripModifierData *smd);
 void modifier_unique_name(Strip *strip, StripModifierData *smd);
 StripModifierData *modifier_find_by_name(Strip *strip, const char *name);
-void modifier_apply_stack(const RenderData *context,
-                          SeqRenderState *state,
-                          const Strip *strip,
-                          ImBuf *ibuf,
-                          int timeline_frame);
 StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src);
 void modifier_list_copy(Strip *strip_new, Strip *strip);
 int sequence_supports_modifiers(Strip *strip);

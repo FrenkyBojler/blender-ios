@@ -24,6 +24,7 @@
 #include "SEQ_modifier.hh"
 #include "SEQ_modifiertypes.hh"
 #include "SEQ_render.hh"
+#include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -42,18 +43,26 @@ class CompositorContext : public compositor::Context {
 
   ImBuf *image_buffer_;
   ImBuf *mask_buffer_;
+  float3x3 xform_;
 
  public:
   CompositorContext(const RenderData &render_data,
                     const SequencerCompositorModifierData *modifier_data,
                     ImBuf *image_buffer,
-                    ImBuf *mask_buffer)
+                    ImBuf *mask_buffer,
+                    const Strip *strip)
       : compositor::Context(),
         render_data_(render_data),
         modifier_data_(modifier_data),
         image_buffer_(image_buffer),
-        mask_buffer_(mask_buffer)
+        mask_buffer_(mask_buffer),
+        xform_(float3x3::identity())
   {
+    if (mask_buffer) {
+      /* Note: do not use passed transform matrix since compositor coordinate
+       * space is not from the image corner, but rather centered on the image. */
+      xform_ = math::invert(image_transform_matrix_get(render_data.scene, strip));
+    }
   }
 
   const Scene &get_scene() const override
@@ -80,7 +89,7 @@ class CompositorContext : public compositor::Context {
     return true;
   }
 
-  bool use_context_bounds_for_viewer_output() const override
+  bool use_context_bounds_for_input_output() const override
   {
     return false;
   }
@@ -127,6 +136,7 @@ class CompositorContext : public compositor::Context {
     else if (name == "Mask" && mask_buffer_) {
       result.wrap_external(mask_buffer_->float_buffer.data,
                            int2(mask_buffer_->x, mask_buffer_->y));
+      result.set_transformation(xform_);
     }
 
     return result;
@@ -178,6 +188,8 @@ static bool ensure_linear_float_buffer(ImBuf *ibuf)
 }
 
 static void compositor_modifier_apply(const RenderData *render_data,
+                                      const Strip *strip,
+                                      const float /*transform*/[3][3],
                                       StripModifierData *strip_modifier_data,
                                       ImBuf *image_buffer,
                                       ImBuf *mask)
@@ -192,7 +204,7 @@ static void compositor_modifier_apply(const RenderData *render_data,
   const bool was_float_linear = ensure_linear_float_buffer(image_buffer);
   const bool was_byte = image_buffer->float_buffer.data == nullptr;
 
-  CompositorContext context(*render_data, modifier_data, image_buffer, mask);
+  CompositorContext context(*render_data, modifier_data, image_buffer, mask, strip);
   compositor::Evaluator evaluator(context);
   evaluator.evaluate();
 

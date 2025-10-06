@@ -145,7 +145,7 @@ class ViewerOperation : public NodeOperation {
     /* Viewers are treated as composite outputs that should be in the bounds of the compositing
      * region. */
     if (this->context().treat_viewer_as_compositor_output() &&
-        this->context().use_context_bounds_for_viewer_output())
+        this->context().use_context_bounds_for_input_output())
     {
       return this->context().get_compositing_region();
     }
@@ -159,7 +159,7 @@ class ViewerOperation : public NodeOperation {
     /* Viewers are treated as composite outputs that should be in the domain of the compositing
      * region. */
     if (this->context().treat_viewer_as_compositor_output() &&
-        this->context().use_context_bounds_for_viewer_output())
+        this->context().use_context_bounds_for_input_output())
     {
       return Domain(context().get_compositing_region_size());
     }
