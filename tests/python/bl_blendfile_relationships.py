@@ -218,7 +218,7 @@ class TestBlendFilePathForeach(TestHelper):
 
     def test_filepath_rewriting(self) -> None:
         def visit_path_fn(owner_id: bpy.types.ID, path: str, _meta: None) -> str | None:
-            return Path("//{}-rewritten.blend".format(owner_id.name)).as_posix()
+            return "//{}-rewritten.blend".format(owner_id.name)
         bpy.data.file_path_foreach(visit_path_fn)
 
         libs = bpy.data.libraries
