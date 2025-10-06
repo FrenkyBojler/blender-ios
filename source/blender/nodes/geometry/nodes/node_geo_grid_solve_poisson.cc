@@ -79,7 +79,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(
         NodeWarningType::Warning,
         "Poisson solver failed to converge within the iteration limit. Try increasing "
-        "the maximum iterations or tolerance");
+        "the maximum iterations or tolerance.");
   }
 #else
   node_geo_exec_with_missing_openvdb(params);
@@ -93,7 +93,7 @@ static void node_register()
   ntype.ui_name = "Grid Solve Poisson";
   ntype.ui_description =
       "Solve the Poisson equation for a scalar field. Computes a grid whose Laplacian equals the "
-      "input source grid";
+      "input scalar grid";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
