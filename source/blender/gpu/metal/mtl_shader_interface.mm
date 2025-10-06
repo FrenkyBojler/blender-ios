@@ -98,13 +98,13 @@ MTLShaderInterface::MTLShaderInterface(const char *name,
   for (const ShaderCreateInfo::Resource &res : all_resources) {
     if (res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
       copy_input_name(input, res.sampler.name, name_buffer_, name_buffer_offset);
-      input->location = input->binding = res.slot + MTL_SAMPLER_SLOT_OFFSET;
+      input->location = input->binding = res.slot;
       enabled_tex_mask_ |= (1ull << input->binding);
       input++;
     }
     else if (res.bind_type == ShaderCreateInfo::Resource::BindType::IMAGE) {
       copy_input_name(input, res.image.name, name_buffer_, name_buffer_offset);
-      input->location = input->binding = res.slot + MTL_IMAGE_SLOT_OFFSET;
+      input->location = input->binding = res.slot;
       enabled_ima_mask_ |= (1 << input->binding);
       input++;
     }

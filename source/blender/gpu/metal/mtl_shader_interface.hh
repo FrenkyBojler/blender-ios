@@ -77,7 +77,8 @@ class MTLShaderInterface : public ShaderInterface {
   id<MTLArgumentEncoder> arg_encoder_ = nil;
 
   /* Bit Mask representing the free buffer slots from this interface.
-   * Used to bind the vertex and index buffers. */
+   * Used to bind the vertex and index buffers.
+   * This references the Metal Buffer bind space, not the GPU one. */
   uint32_t vertex_buffer_mask_ = ~(~uint32_t(0) << MTL_MAX_BUFFER_BINDINGS);
 
   shader::BuiltinBits shader_builtins_ = shader::BuiltinBits::NONE;
