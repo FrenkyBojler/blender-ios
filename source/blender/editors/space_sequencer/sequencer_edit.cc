@@ -79,7 +79,6 @@
 
 /* Own include. */
 #include "sequencer_intern.hh"
-#include <algorithm>
 #include <cstddef>
 
 namespace blender::ed::vse {
