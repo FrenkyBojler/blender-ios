@@ -2677,14 +2677,16 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
 
     case LEFTMOUSE:
       if (sd->previewmode) {
-        float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
-        float outline[4] = {1.0f, 1.0f, 1.0f, 0.3f};
-        screen_animate_area_highlight(CTX_wm_window(C),
-                                      CTX_wm_screen(C),
-                                      &sd->sarea->totrct,
-                                      inner,
-                                      outline,
-                                      AREA_SPLIT_FADEOUT);
+        if (sd->sarea) {
+          float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+          float outline[4] = {1.0f, 1.0f, 1.0f, 0.3f};
+          screen_animate_area_highlight(CTX_wm_window(C),
+                                        CTX_wm_screen(C),
+                                        &sd->sarea->totrct,
+                                        inner,
+                                        outline,
+                                        AREA_SPLIT_FADEOUT);
+        }
         area_split_apply(C, op);
         area_split_exit(C, op);
         return OPERATOR_FINISHED;
