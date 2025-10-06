@@ -393,10 +393,14 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
-void AbstractTreeView::set_active_in_focus()
+void AbstractTreeView::scroll_active_into_view()
 {
   int index = 0;
   const std::optional<int> visible_row_count = tot_visible_row_count();
+
+  if (!custom_height_) {
+    return;
+  }
 
   if (!visible_row_count.has_value()) {
     return;
@@ -846,7 +850,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   row->column(true);
 
   if (tree_view.scroll_active_into_view_on_draw_) {
-    tree_view.set_active_in_focus();
+    tree_view.scroll_active_into_view();
   }
 
   /* Clamp scroll-value to valid range. */
