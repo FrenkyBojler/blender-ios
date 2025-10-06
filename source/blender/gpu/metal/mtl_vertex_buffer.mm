@@ -216,7 +216,7 @@ void MTLVertBuf::update_sub(uint start, uint len, const void *data)
 
   /* Create temporary scratch buffer allocation for sub-range of data. */
   MTLTemporaryBuffer scratch_allocation =
-      ctx->get_scratchbuffer_manager().scratch_buffer_allocate_range_aligned(len, 256);
+      ctx->get_scratch_buffer_manager().scratch_buffer_allocate_range_aligned(len, 256);
   memcpy(scratch_allocation.data, data, len);
   [scratch_allocation.metal_buffer
       didModifyRange:NSMakeRange(scratch_allocation.buffer_offset, len)];

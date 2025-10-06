@@ -178,7 +178,7 @@ void MTLIndexBuf::update_sub(uint32_t start, uint32_t len, const void *data)
    * Stage update contents in temporary buffer. */
   MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
-  MTLTemporaryBuffer range = ctx->get_scratchbuffer_manager().scratch_buffer_allocate_range(len);
+  MTLTemporaryBuffer range = ctx->get_scratch_buffer_manager().scratch_buffer_allocate_range(len);
   memcpy(range.data, data, len);
 
   /* Copy updated contents into primary buffer.

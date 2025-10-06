@@ -186,11 +186,11 @@ std::string MTLShader::entry_point_name_get(const ShaderStage stage)
 {
   switch (stage) {
     case ShaderStage::VERTEX:
-      return this->name_get() + "vert";
+      return this->name_get() + "_vert";
     case ShaderStage::FRAGMENT:
-      return this->name_get() + "frag";
+      return this->name_get() + "_frag";
     case ShaderStage::COMPUTE:
-      return this->name_get() + "comp";
+      return this->name_get() + "_comp";
     default:
       BLI_assert_unreachable();
       return "";

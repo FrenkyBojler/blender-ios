@@ -30,6 +30,8 @@ namespace blender::gpu {
 #define MTL_MAX_VERTEX_INPUT_ATTRIBUTES 31
 #define MTL_MAX_UNIFORMS_PER_BLOCK 64
 
+#define MTL_MAX_SET_BYTES_SIZE 4096
+
 enum AppleGPUType { APPLE_GPU_UNKNOWN = 0, APPLE_GPU_M1 = 1, APPLE_GPU_M2 = 2, APPLE_GPU_M3 = 3 };
 
 /* Context-specific limits -- populated in 'MTLBackend::platform_init' */

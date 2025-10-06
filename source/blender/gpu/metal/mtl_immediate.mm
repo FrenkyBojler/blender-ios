@@ -50,7 +50,7 @@ uchar *MTLImmediate::begin()
 
   /* Allocate a range of data and return host-accessible pointer. */
   const size_t bytes_needed = vertex_buffer_size(&vertex_format, vertex_alloc_length);
-  current_allocation_ = context_->get_scratchbuffer_manager()
+  current_allocation_ = context_->get_scratch_buffer_manager()
                             .scratch_buffer_allocate_range_aligned(bytes_needed, 256);
   [current_allocation_.metal_buffer retain];
   return reinterpret_cast<uchar *>(current_allocation_.data);
@@ -181,9 +181,9 @@ void MTLImmediate::end()
     }
 
     if (this->shader->is_polyline) {
-      context_->get_scratchbuffer_manager().bind_as_ssbo(GPU_SSBO_POLYLINE_POS_BUF_SLOT);
-      context_->get_scratchbuffer_manager().bind_as_ssbo(GPU_SSBO_POLYLINE_COL_BUF_SLOT);
-      context_->get_scratchbuffer_manager().bind_as_ssbo(GPU_SSBO_INDEX_BUF_SLOT);
+      context_->get_scratch_buffer_manager().bind_as_ssbo(GPU_SSBO_POLYLINE_POS_BUF_SLOT);
+      context_->get_scratch_buffer_manager().bind_as_ssbo(GPU_SSBO_POLYLINE_COL_BUF_SLOT);
+      context_->get_scratch_buffer_manager().bind_as_ssbo(GPU_SSBO_INDEX_BUF_SLOT);
     }
 
     MTLPrimitiveType mtl_prim_type = gpu_prim_type_to_metal(this->prim_type);
@@ -218,7 +218,7 @@ void MTLImmediate::end()
             uint32_t *index_buffer = nullptr;
 
             MTLTemporaryBuffer allocation =
-                context_->get_scratchbuffer_manager().scratch_buffer_allocate_range_aligned(
+                context_->get_scratch_buffer_manager().scratch_buffer_allocate_range_aligned(
                     alloc_size, 128);
             index_buffer = (uint32_t *)allocation.data;
 
@@ -291,7 +291,7 @@ void MTLImmediate::end()
     }
 
     if (this->shader->is_polyline) {
-      context_->get_scratchbuffer_manager().unbind_as_ssbo();
+      context_->get_scratch_buffer_manager().unbind_as_ssbo();
 
       context_->pipeline_state.ssbo_bindings[GPU_SSBO_POLYLINE_POS_BUF_SLOT].ssbo = nil;
       context_->pipeline_state.ssbo_bindings[GPU_SSBO_POLYLINE_COL_BUF_SLOT].ssbo = nil;

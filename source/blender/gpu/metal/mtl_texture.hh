@@ -318,6 +318,11 @@ class MTLTexture : public Texture {
     return tex_buffer_metadata_;
   }
 
+  id<MTLTexture> get_metal_handle();
+  id<MTLTexture> get_metal_handle_base();
+  id<MTLTexture> get_non_srgb_handle();
+  MTLSamplerState get_sampler_state();
+
  protected:
   bool init_internal() override;
   bool init_internal(VertBuf *vbo) override;
@@ -357,10 +362,6 @@ class MTLTexture : public Texture {
                      void *r_data);
   void bake_mip_swizzle_view();
 
-  id<MTLTexture> get_metal_handle();
-  id<MTLTexture> get_metal_handle_base();
-  id<MTLTexture> get_non_srgb_handle();
-  MTLSamplerState get_sampler_state();
   void blit(id<MTLBlitCommandEncoder> blit_encoder,
             uint src_x_offset,
             uint src_y_offset,
