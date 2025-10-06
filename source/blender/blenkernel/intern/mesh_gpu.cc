@@ -239,6 +239,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const char *main_glsl,
     blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
     const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
+    const std::function<void(blender::gpu::Shader *)> &post_bind_fn,
     int dispatch_count)
 {
   if (!GPU_context_active_get() || !depsgraph || !ob_eval || ob_eval->type != OB_MESH) {
@@ -359,7 +360,11 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
 
   GPU_storagebuf_bind(mesh_data.topology.ssbo, MESH_GPU_TOPOLOGY_BINDING);
-
+  /* Allow caller to set runtime push-constants / uniforms after shader is bound
+   * and before the dispatch. */
+  if (post_bind_fn) {
+    post_bind_fn(mesh_data.compute_shader);
+  }
   const int group_size = 256;
   const int num_groups = (dispatch_count + group_size - 1) / group_size;
   GPU_compute_dispatch(mesh_data.compute_shader, num_groups, 1, 1);

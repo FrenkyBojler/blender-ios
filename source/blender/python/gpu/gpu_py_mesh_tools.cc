@@ -257,6 +257,7 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
                                                      SCATTER_SHADER_MAIN_GLSL,
                                                      bindings,
                                                      config_shader,
+                                                     std::function<void(blender::gpu::Shader *)>(),
                                                      mesh_eval->corner_verts().size());
 
   if (status == GpuComputeStatus::Error) {
@@ -344,7 +345,7 @@ static blender::gpu::VertBuf *resolve_vbo_token(MeshBatchCache *cache, const std
     return nullptr;
   }
   std::string name = token;
-  const std::string prefix = "VBO:";
+  const std::string prefix = "VBO::";
   if (name.rfind(prefix, 0) == 0) {
     name = name.substr(prefix.size());
   }
@@ -586,10 +587,106 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
     local_bindings[i].buffer = resolved;
   }
 
-  /* Prepare config lambda: call existing mesh/scene defaults then call Python callable if present.
-   * The python callable is expected to return a dict {name: value}. */
+  /* Prepare config: collect specialization constants and push-constants from py_config_callable.
+   */
   Scene *scene = DEG_get_input_scene(DEG_get_depsgraph_by_id(ob_eval->id));
-  auto config = [&](blender::gpu::shader::ShaderCreateInfo &info) {
+
+  std::vector<std::pair<std::string, long>> spec_ints;
+  std::vector<std::pair<std::string, double>> spec_floats;
+  std::vector<std::pair<std::string, bool>> spec_bools;
+
+  struct PushConst {
+    std::string name;
+    enum Kind { FLOAT, INT, BOOL, FLOAT_ARRAY } kind;
+    std::vector<float> fdata;
+    std::vector<int> idata;
+    bool bdata = false;
+  };
+  std::vector<PushConst> push_constants;
+
+  if (py_config_callable && py_config_callable != Py_None && PyCallable_Check(py_config_callable))
+  {
+    PyObject *py_ret = PyObject_CallObject(py_config_callable, nullptr);
+    if (!py_ret) {
+      /* cleanup strings already allocated */
+      for (auto &b : local_bindings) {
+        if (b.type_name)
+          free((void *)b.type_name);
+        if (b.bind_name)
+          free((void *)b.bind_name);
+      }
+      PyErr_SetString(PyExc_RuntimeError, "config callable raised an exception");
+      return nullptr;
+    }
+    if (PyDict_Check(py_ret)) {
+      PyObject *key, *value;
+      Py_ssize_t pos = 0;
+      while (PyDict_Next(py_ret, &pos, &key, &value)) {
+        if (!PyUnicode_Check(key)) {
+          continue;
+        }
+        const char *name = PyUnicode_AsUTF8(key);
+        if (STREQ(name, "push_constants") && PyDict_Check(value)) {
+          PyObject *k2, *v2;
+          Py_ssize_t pos2 = 0;
+          while (PyDict_Next(value, &pos2, &k2, &v2)) {
+            if (!PyUnicode_Check(k2)) {
+              continue;
+            }
+            const char *pname = PyUnicode_AsUTF8(k2);
+            PushConst pc;
+            pc.name = pname;
+            if (PyFloat_Check(v2) || PyLong_Check(v2)) {
+              pc.kind = PushConst::FLOAT;
+              pc.fdata.push_back(PyFloat_AsDouble(v2));
+            }
+            else if (PyBool_Check(v2)) {
+              pc.kind = PushConst::BOOL;
+              pc.bdata = (v2 == Py_True);
+            }
+            else if (PySequence_Check(v2)) {
+              PyObject *seq = PySequence_Fast(v2, "push_constants array");
+              if (seq) {
+                Py_ssize_t len = PySequence_Fast_GET_SIZE(seq);
+                pc.kind = PushConst::FLOAT_ARRAY;
+                pc.fdata.reserve(len);
+                for (Py_ssize_t ii = 0; ii < len; ++ii) {
+                  PyObject *it = PySequence_Fast_GET_ITEM(seq, ii);
+                  pc.fdata.push_back(PyFloat_AsDouble(it));
+                }
+                Py_DECREF(seq);
+              }
+            }
+            push_constants.push_back(std::move(pc));
+          }
+        }
+        else {
+          if (PyLong_Check(value)) {
+            spec_ints.emplace_back(std::string(name), PyLong_AsLong(value));
+          }
+          else if (PyFloat_Check(value)) {
+            spec_floats.emplace_back(std::string(name), PyFloat_AsDouble(value));
+          }
+          else if (PyBool_Check(value)) {
+            spec_bools.emplace_back(std::string(name), value == Py_True);
+          }
+        }
+      }
+    }
+    Py_DECREF(py_ret);
+  }
+
+  /* IMPORTANT:
+   * We will move `push_constants` into the post_bind_fn (so the lambda owns the data).
+   * To still declare the push-constants in the `ShaderCreateInfo` we must keep a copy
+   * for the `config_with_specs` lambda. Moving `push_constants` before calling
+   * `config_with_specs` would leave it empty and the declarations would not be emitted,
+   * causing undefined identifiers at compile-time.
+   */
+  std::vector<PushConst> push_constants_for_info = push_constants;
+
+  /* Lambda to apply specialization constants and declare push-constants at shader create time. */
+  auto config_with_specs = [&](blender::gpu::shader::ShaderCreateInfo &info) {
     int normals_domain_val = (mesh_eval->normals_domain() == MeshNormalDomain::Face) ? 1 : 0;
     int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
                              GPU_use_hq_normals_workaround());
@@ -597,41 +694,77 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
         blender::gpu::shader::Type::int_t, "normals_domain", normals_domain_val);
     info.specialization_constant(blender::gpu::shader::Type::int_t, "normals_hq", normals_hq_val);
 
-    if (py_config_callable && py_config_callable != Py_None &&
-        PyCallable_Check(py_config_callable))
-    {
-      PyObject *py_ret = PyObject_CallObject(py_config_callable, nullptr);
-      if (py_ret) {
-        if (PyDict_Check(py_ret)) {
-          PyObject *key, *value;
-          Py_ssize_t pos = 0;
-          while (PyDict_Next(py_ret, &pos, &key, &value)) {
-            if (!PyUnicode_Check(key)) {
-              continue;
-            }
-            const char *name = PyUnicode_AsUTF8(key);
-            if (PyLong_Check(value)) {
-              long v = PyLong_AsLong(value);
-              info.specialization_constant(blender::gpu::shader::Type::int_t, name, int(v));
-            }
-            else if (PyFloat_Check(value)) {
-              double vf = PyFloat_AsDouble(value);
-              info.specialization_constant(blender::gpu::shader::Type::float_t, name, vf);
-            }
-            else if (PyBool_Check(value)) {
-              bool vb = (value == Py_True);
-              info.specialization_constant(
-                  blender::gpu::shader::Type::bool_t, name, vb ? 1.0 : 0.0);
-            }
-          }
+    for (auto &p : spec_ints) {
+      /* scalar specialization -> declare as scalar push-constant (array_size = 0). */
+      info.push_constant(blender::gpu::shader::Type::int_t, p.first.c_str(), 0);
+    }
+    for (auto &p : spec_floats) {
+      info.push_constant(blender::gpu::shader::Type::float_t, p.first.c_str(), 0);
+    }
+    for (auto &p : spec_bools) {
+      info.push_constant(blender::gpu::shader::Type::bool_t, p.first.c_str(), 0);
+    }
+
+    /* Declare push-constants provided by the Python config callable.
+     * Use the preserved copy `push_constants_for_info` so declarations are present
+     * even after we move the original vector into the post_bind_fn.
+     */
+    for (const PushConst &pc : push_constants_for_info) {
+      switch (pc.kind) {
+        case PushConst::FLOAT: {
+          const int count = int(pc.fdata.size());
+          /* scalar -> array_size 0, arrays -> provide size. */
+          info.push_constant(
+              blender::gpu::shader::Type::float_t, pc.name.c_str(), count > 1 ? count : 0);
+          break;
         }
-        Py_DECREF(py_ret);
-      }
-      else {
-        PyErr_SetString(PyExc_RuntimeError, "config callable raised an exception");
+        case PushConst::INT: {
+          const int count = int(pc.idata.size());
+          info.push_constant(
+              blender::gpu::shader::Type::int_t, pc.name.c_str(), count > 1 ? count : 0);
+          break;
+        }
+        case PushConst::BOOL: {
+          info.push_constant(blender::gpu::shader::Type::bool_t, pc.name.c_str(), 0);
+          break;
+        }
+        case PushConst::FLOAT_ARRAY: {
+          const int count = std::max<int>(1, int(pc.fdata.size()));
+          info.push_constant(blender::gpu::shader::Type::float_t, pc.name.c_str(), count);
+          break;
+        }
       }
     }
   };
+
+  /* Build post_bind_fn that sets push-constants at dispatch time using existing GPU uniform
+   * setters. */
+  std::function<void(blender::gpu::Shader *)> post_bind_fn = {};
+  if (!push_constants.empty()) {
+    post_bind_fn = [push_constants = std::move(push_constants)](blender::gpu::Shader *sh) {
+      for (const PushConst &pc : push_constants) {
+        const int loc = GPU_shader_get_uniform(sh, pc.name.c_str());
+        if (loc == -1) {
+          continue;
+        }
+        if (pc.kind == PushConst::FLOAT) {
+          GPU_shader_uniform_float_ex(sh, loc, 1, 1, pc.fdata.data());
+        }
+        else if (pc.kind == PushConst::INT) {
+          if (!pc.idata.empty()) {
+            GPU_shader_uniform_int_ex(sh, loc, int(pc.idata.size()), 1, pc.idata.data());
+          }
+        }
+        else if (pc.kind == PushConst::BOOL) {
+          int v = pc.bdata ? 1 : 0;
+          GPU_shader_uniform_int_ex(sh, loc, 1, 1, &v);
+        }
+        else if (pc.kind == PushConst::FLOAT_ARRAY) {
+          GPU_shader_uniform_float_ex(sh, loc, int(pc.fdata.size()), 1, pc.fdata.data());
+        }
+      }
+    };
+  }
 
   const int dispatch = dispatch_count > 0 ? dispatch_count : int(mesh_eval->verts_num);
   blender::bke::GpuComputeStatus status = BKE_mesh_gpu_run_compute(
@@ -639,7 +772,8 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
       ob_eval,
       shader_src,
       blender::Span<GpuMeshComputeBinding>(local_bindings),
-      config,
+      config_with_specs,
+      post_bind_fn,
       dispatch);
 
   /* free duplicated strings in local_bindings.type_name/bind_name if any */
@@ -682,7 +816,7 @@ static PyMethodDef pygpu_mesh__tp_methods[] = {
      "buffer:GPUStorageBuf|GPUVertBuf|str|None, "
      "qualifier:str('read'|'write'|'read_write'), type_name:str, bind_name:str).\\n"
      " - If `buffer` is a string token it is resolved against the mesh batch cache VBOs.\\n"
-     "   Supported tokens (examples): 'Position', 'VBO:Position', 'CornerNormal', "
+     "   Supported tokens (examples): 'Position', 'VBO::Position', 'CornerNormal', "
      "'VBO:CornerNormal'.\\n"
      " - Use a `gpu.types.GPUStorageBuf` to pass SSBOs or a `gpu.types.GPUVertBuf` wrapper for "
      "VBOs.\\n\\n"

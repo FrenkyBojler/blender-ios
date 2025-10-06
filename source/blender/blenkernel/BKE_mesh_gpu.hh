@@ -8,6 +8,7 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
+#include "GPU_shader.hh"
 #include "GPU_storage_buffer.hh"
 #include "GPU_vertex_buffer.hh"
 
@@ -125,7 +126,8 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const char *main_glsl,
     blender::Span<blender::bke::GpuMeshComputeBinding> caller_bindings,
     const std::function<void(blender::gpu::shader::ShaderCreateInfo &)> &config_fn,
-    int dispatch_count);
+    const std::function<void(blender::gpu::Shader *)> &post_bind_fn = {},
+    int dispatch_count = 0);
 
 /**
  * Free all cached GPU resources associated with a specific mesh.
