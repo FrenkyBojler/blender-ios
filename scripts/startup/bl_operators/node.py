@@ -43,24 +43,6 @@ switch_nodes = {
 }
 
 
-# A context manager for temporarily un-parenting nodes from their frames.
-# This gets rid of issues with framed nodes using relative coordinates.
-class temporary_unframe:
-    def __init__(self, nodes):
-        self.parent_dict = {}
-        for node in nodes:
-            if node.parent is not None:
-                self.parent_dict[node] = node.parent
-            node.parent = None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, _type, _value, _traceback):
-        for node, parent in self.parent_dict.items():
-            node.parent = parent
-
-
 def cast_value(source, target):
     source_type = source.type
     target_type = target.type
