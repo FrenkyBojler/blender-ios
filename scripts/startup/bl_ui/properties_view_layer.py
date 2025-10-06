@@ -343,10 +343,6 @@ class ViewLayerLPEPanelHelper(ViewLayerButtonsPanel):
             sub.operator("scene.view_layer_lpe_move", icon='TRIA_UP', text="").direction = 'UP'
             sub.operator("scene.view_layer_lpe_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
-        # Validation feedback
-        if view_layer.lpes and view_layer.active_lpe and not view_layer.active_lpe.is_valid:
-            layout.label(text="Invalid LPE expression", icon='ERROR')
-
 
 class VIEWLAYER_PT_layer_passes_lpe(ViewLayerLPEPanelHelper, Panel):
     """Light Path Expressions panel for Cycles"""

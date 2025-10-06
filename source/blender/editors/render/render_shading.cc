@@ -27,6 +27,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -1492,6 +1493,58 @@ void SCENE_OT_view_layer_lpe_remove_all(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name View Layer Add LPE Preset Operator
+ * \{ */
+
+static wmOperatorStatus view_layer_add_lpe_preset_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  char name[64];
+  char expression[128];
+
+  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op->ptr, "expression", expression);
+
+  ViewLayerLPE *lpe = BKE_view_layer_add_lpe(view_layer, name[0] ? name : "LPE");
+
+  if (lpe) {
+    STRNCPY_UTF8(lpe->expression, expression);
+  }
+
+  if (scene->compositing_node_group) {
+    ntreeCompositUpdateRLayers(scene->compositing_node_group);
+  }
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+  DEG_relations_tag_update(CTX_data_main(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_view_layer_add_lpe_preset(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add LPE Preset";
+  ot->idname = "SCENE_OT_view_layer_add_lpe_preset";
+  ot->description = "Add a Light Path Expression pass with a preset expression";
+
+  /* API callbacks. */
+  ot->exec = view_layer_add_lpe_preset_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  /* properties */
+  RNA_def_string(ot->srna, "name", nullptr, 64, "Name", "Name for the LPE pass");
+  RNA_def_string(ot->srna, "expression", nullptr, 128, "Expression", "LPE expression pattern");
 }
 
 /** \} */

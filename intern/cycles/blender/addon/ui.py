@@ -4,8 +4,10 @@
 
 from __future__ import annotations
 
+import os
 import bpy
 from bpy.app.translations import contexts as i18n_contexts
+from bpy.utils import is_path_builtin
 from bl_ui.utils import PresetPanel
 
 from bpy.types import Panel, Menu
@@ -56,6 +58,122 @@ class CYCLES_PT_performance_presets(CyclesPresetPanel):
     bl_label = "Performance Presets"
     preset_subdir = "cycles/performance"
     preset_add_operator = "render.cycles_performance_preset_add"
+
+
+class CYCLES_PT_lpe_presets(CyclesPresetPanel):
+    bl_label = "LPE Presets"
+    preset_subdir = "cycles/light_path_expressions"
+    preset_add_operator = "render.cycles_lpe_preset_add"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.emboss = 'PULLDOWN_MENU'
+        layout.operator_context = 'EXEC_DEFAULT'
+
+        direct_presets = [
+            "Diffuse_Direct.py",
+            "Glossy_Direct.py",
+            "Singular_Direct.py",
+            "Volume_Direct.py",
+            "Transmission_Direct.py",
+            "Emission_Direct.py",
+            "Background_Direct.py",
+        ]
+
+        indirect_presets = [
+            "Diffuse_Indirect.py",
+            "Glossy_Indirect.py",
+            "Singular_Indirect.py",
+            "Volume_Indirect.py",
+            "Transmission_Indirect.py",
+            "Emission_Indirect.py",
+            "Background_Indirect.py",
+        ]
+
+        advanced_presets = [
+            "Caustics.py",
+            "All_Paths.py",
+            "2_Bounces.py",
+            "Exactly_2_Diffuse.py",
+        ]
+
+        # Sort each preset category alphabetically
+        direct_presets.sort()
+        indirect_presets.sort()
+        advanced_presets.sort()
+
+        preset_paths = bpy.utils.preset_paths(self.preset_subdir)
+        if not preset_paths:
+            layout.label(text="No Presets")
+            return
+
+        all_presets = []
+        for preset_path in preset_paths:
+            if os.path.isdir(preset_path):
+                preset_files = os.listdir(preset_path)
+                all_presets.extend([(os.path.join(preset_path, f), f) for f in preset_files if f.endswith('.py')])
+
+        # Sort all presets alphabetically by filename
+        all_presets.sort(key=lambda x: x[1])
+
+        col = layout.column()
+        col.label(text="Direct Light")
+        for full_path, filename in all_presets:
+            if filename in direct_presets:
+                self.draw_preset_item(layout, full_path, filename)
+
+        layout.separator()
+        col = layout.column()
+        col.label(text="Indirect Light")
+        for full_path, filename in all_presets:
+            if filename in indirect_presets:
+                self.draw_preset_item(layout, full_path, filename)
+
+        layout.separator()
+        col = layout.column()
+        col.label(text="Advanced Patterns")
+        for full_path, filename in all_presets:
+            if filename in advanced_presets:
+                self.draw_preset_item(layout, full_path, filename)
+
+        layout.separator()
+        col = layout.column()
+        col.label(text="Custom")
+        for full_path, filename in all_presets:
+            if filename not in direct_presets + indirect_presets + advanced_presets:
+                self.draw_preset_item(layout, full_path, filename)
+
+        layout.separator()
+        row = layout.row()
+        wm = bpy.data.window_managers[0]
+        sub = row.row()
+        sub.emboss = 'NORMAL'
+        sub.prop(wm, "preset_name", text="")
+        props = row.operator(self.preset_add_operator, text="", icon='ADD')
+        props.name = wm.preset_name
+
+    def draw_preset_item(self, layout, filepath, filename):
+        display_name = bpy.path.display_name(filename[:-3])
+
+        row = layout.row(align=True)
+
+        # Center-aligned preset button
+        sub = row.row(align=True)
+        sub.alignment = 'CENTER'
+        props = sub.operator(self.preset_operator, text=display_name)
+        props.filepath = filepath
+        props.menu_idname = self.__class__.__name__
+
+        # Add remove button (only enabled for user presets, not built-in)
+        """
+        TODO: Remove Operator should be enabled only for user presets even if any LPE are created in the viewlayer
+        """
+        is_builtin = os.path.exists(filepath) and is_path_builtin(filepath)
+        sub = row.row(align=True)
+        sub.enabled = not is_builtin
+        props = sub.operator(self.preset_add_operator, text="", icon='REMOVE')
+        props.name = display_name
+        props.remove_name = True
 
 
 class CyclesButtonsPanel:
@@ -1128,9 +1246,12 @@ class CYCLES_RENDER_PT_passes_lightgroups(CyclesButtonsPanel, ViewLayerLightgrou
 
 
 class CYCLES_RENDER_PT_passes_lpe(CyclesButtonsPanel, ViewLayerLPEPanelHelper, Panel):
-    bl_label = "Light Path Expressions (LPE)"
+    bl_label = "Light Path Expressions"
     bl_context = "view_layer"
     bl_parent_id = "CYCLES_RENDER_PT_passes"
+
+    def draw_header_preset(self, context):
+        CYCLES_PT_lpe_presets.draw_panel_header(self.layout)
 
 
 class CYCLES_PT_post_processing(CyclesButtonsPanel, Panel):
@@ -2540,6 +2661,7 @@ classes = (
     CYCLES_PT_viewport_sampling_presets,
     CYCLES_PT_integrator_presets,
     CYCLES_PT_performance_presets,
+    CYCLES_PT_lpe_presets,
     CYCLES_RENDER_PT_sampling,
     CYCLES_RENDER_PT_sampling_viewport,
     CYCLES_RENDER_PT_sampling_viewport_denoise,

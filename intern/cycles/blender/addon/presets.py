@@ -112,11 +112,54 @@ class AddPresetPerformance(AddPresetBase, Operator):
     preset_subdir = "cycles/performance"
 
 
+class AddPresetLPE(AddPresetBase, Operator):
+    '''Add a Light Path Expression Preset'''
+    bl_idname = "render.cycles_lpe_preset_add"
+    bl_label = "Add LPE Preset"
+    preset_menu = "CYCLES_PT_lpe_presets"
+
+    preset_defines = [
+        "view_layer = bpy.context.view_layer",
+    ]
+
+    preset_values = [
+        "view_layer.active_lpe.name",
+        "view_layer.active_lpe.expression",
+    ]
+
+    preset_subdir = "cycles/light_path_expressions"
+
+    @classmethod
+    def poll(cls, context):
+        view_layer = context.view_layer
+        return view_layer and view_layer.active_lpe
+
+    def add(self, context, filepath):
+        import os
+
+        view_layer = context.view_layer
+        lpe = view_layer.active_lpe
+
+        if not lpe:
+            return
+
+        # Use the preset name from user input instead of lpe.name
+        preset_name = os.path.splitext(os.path.basename(filepath))[0]
+
+        with open(filepath, "w", encoding="utf-8") as file_preset:
+            file_preset.write("import bpy\n")
+            file_preset.write("view_layer = bpy.context.view_layer\n\n")
+            file_preset.write("view_layer.lpes.add()\n")
+            file_preset.write(f"view_layer.active_lpe.name = {repr(preset_name)}\n")
+            file_preset.write(f"view_layer.active_lpe.expression = {repr(lpe.expression)}\n")
+
+
 classes = (
     AddPresetIntegrator,
     AddPresetSampling,
     AddPresetViewportSampling,
     AddPresetPerformance,
+    AddPresetLPE,
 )
 
 
