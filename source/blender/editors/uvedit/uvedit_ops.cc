@@ -2438,25 +2438,21 @@ static bool uv_copy_mirrored_faces(
   Map<BMVert *, BMVert *> vmap;
 
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-  /* Skip if BMesh has no UVs. */
-  if (offsets.uv == -1) {
-    return false;
-  }
+  BLI_assert(offsets.uv != -1);
   BMVert *v;
   BMIter iter;
+  
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
     float3 pos = math::round(float3(v->co) * precision_scale);
     if (pos.x >= 0.0f) {
-      if (mirror_gt.contains(pos)) {
+      if (!mirror_gt.add_overwrite(pos, v)) {
         (*r_double_warn)++;
       }
-      mirror_gt.add_overwrite(pos, v);
     }
     if (pos.x <= 0.0f) {
-      if (mirror_lt.contains(pos)) {
+      if (!mirror_lt.add_overwrite(pos, v)) {
         (*r_double_warn)++;
       }
-      mirror_lt.add_overwrite(pos, v);
     }
   }
 
