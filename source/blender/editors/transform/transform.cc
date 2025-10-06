@@ -1731,6 +1731,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
           !RNA_property_is_set(op->ptr, prop))
       {
         BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+        const Object *obact = BKE_view_layer_active_object_get(t->view_layer);
         const eObjectMode object_mode = eObjectMode(obact ? obact->mode : OB_MODE_OBJECT);
 
         if (t->spacetype == SPACE_GRAPH) {
