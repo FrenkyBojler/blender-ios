@@ -3476,11 +3476,8 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
         return true;
       });
       for (ID *node_tree : node_trees) {
-        tmp_items += animdata_filter_ds_nodetree(ac,
-                                                 &tmp_data,
-                                                 reinterpret_cast<ID *>(sce),
-                                                 reinterpret_cast<bNodeTree *>(node_tree),
-                                                 filter_mode);
+        tmp_items += animdata_filter_ds_nodetree(
+            ac, &tmp_data, &sce->id, reinterpret_cast<bNodeTree *>(node_tree), filter_mode);
       }
     }
 
