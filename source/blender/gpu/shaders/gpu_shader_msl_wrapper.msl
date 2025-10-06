@@ -20,6 +20,8 @@
 /* File generated at runtime. This is just an example implementation. */
 #pragma runtime_generated
 
+#include "gpu_shader_msl_types.msl"
+
 /* Compilation constants go here. */
 constant int my_compilation_constant = 2;
 

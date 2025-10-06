@@ -247,7 +247,8 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
     }
 
     shader::GeneratedSource defines_src{"gpu_shader_msl_defines.msl", {}, ss.str()};
-    shader::GeneratedSource wrapper_src{"gpu_shader_msl_wrapper.msl", {}, wrapper.first};
+    shader::GeneratedSource wrapper_src{
+        "gpu_shader_msl_wrapper.msl", {"gpu_shader_msl_types.msl"}, wrapper.first};
     shader::GeneratedSourceList generated_sources{defines_src, wrapper_src};
 
     /* Concatenate common source. */

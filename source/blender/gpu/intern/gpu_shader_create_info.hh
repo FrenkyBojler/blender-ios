@@ -362,15 +362,15 @@ static inline std::ostream &operator<<(std::ostream &stream, const Type type)
     case Type::float_t:
       return stream << "float";
     case Type::float2_t:
-      return stream << "vec2";
+      return stream << "float2";
     case Type::float3_t:
-      return stream << "vec3";
+      return stream << "float3";
     case Type::float4_t:
-      return stream << "vec4";
+      return stream << "float4";
     case Type::float3x3_t:
-      return stream << "mat3";
+      return stream << "float3x3";
     case Type::float4x4_t:
-      return stream << "mat4";
+      return stream << "float4x4";
     case Type::float3_10_10_10_2_t:
       return stream << "vec3_1010102_Inorm";
     case Type::uchar_t:
@@ -392,19 +392,19 @@ static inline std::ostream &operator<<(std::ostream &stream, const Type type)
     case Type::int_t:
       return stream << "int";
     case Type::int2_t:
-      return stream << "ivec2";
+      return stream << "int2";
     case Type::int3_t:
-      return stream << "ivec3";
+      return stream << "int3";
     case Type::int4_t:
-      return stream << "ivec4";
+      return stream << "int4";
     case Type::uint_t:
       return stream << "uint";
     case Type::uint2_t:
-      return stream << "uvec2";
+      return stream << "uint2";
     case Type::uint3_t:
-      return stream << "uvec3";
+      return stream << "uint3";
     case Type::uint4_t:
-      return stream << "uvec4";
+      return stream << "uint4";
     case Type::ushort_t:
       return stream << "ushort";
     case Type::ushort2_t:
@@ -422,7 +422,7 @@ static inline std::ostream &operator<<(std::ostream &stream, const Type type)
     case Type::short4_t:
       return stream << "short4";
     case Type::bool_t:
-      return stream << "bool";
+      return stream << "bool32_t";
     default:
       BLI_assert(0);
       return stream;
