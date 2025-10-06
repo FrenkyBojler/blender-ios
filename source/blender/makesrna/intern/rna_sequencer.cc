@@ -2290,6 +2290,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Strip", "Sequence strip in the sequence editor");
   RNA_def_struct_refine_func(srna, "rna_Strip_refine");
   RNA_def_struct_path_func(srna, "rna_Strip_path");
+  RNA_def_struct_ui_icon(srna, ICON_SEQ_SEQUENCER);
   RNA_def_struct_idprops_func(srna, "rna_Strip_idprops");
   RNA_def_struct_system_idprops_func(srna, "rna_Strip_system_idprops");
 
@@ -3230,6 +3231,13 @@ static void rna_def_sound(BlenderRNA *brna)
       prop, "Display Waveform", "Display the audio waveform inside the strip");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
+  prop = RNA_def_property(srna, "pitch_correction", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_AUDIO_PITCH_CORRECTION);
+  RNA_def_property_ui_text(
+      prop,
+      "Preserve Pitch",
+      "Maintain the original pitch of the audio when changing playback speed");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_sound_update");
   rna_def_retiming_keys(srna);
   rna_def_input(srna);
 }
