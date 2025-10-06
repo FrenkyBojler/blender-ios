@@ -19,6 +19,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
+#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
@@ -2607,6 +2608,16 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 101)) {
+    const uint8_t default_flags = DNA_struct_default_get(ToolSettings)->fix_to_cam_flag;
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (!scene->toolsettings) {
+        continue;
+      }
+      scene->toolsettings->fix_to_cam_flag = default_flags;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -2749,11 +2760,12 @@ static void do_version_adaptive_subdivision(Main *bmain)
     LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
       if (md->type == eModifierType_Subsurf) {
         SubsurfModifierData *smd = (SubsurfModifierData *)md;
+        smd->adaptive_space = SUBSURF_ADAPTIVE_SPACE_PIXEL;
+        smd->adaptive_pixel_size = dicing_rate;
+        smd->adaptive_object_edge_length = 0.01f;
+
         if (use_adaptive_subdivision) {
           smd->flags |= eSubsurfModifierFlag_UseAdaptiveSubdivision;
-          smd->adaptive_space = SUBSURF_ADAPTIVE_SPACE_PIXEL;
-          smd->adaptive_pixel_size = dicing_rate;
-          smd->adaptive_object_edge_length = 0.01f;
         }
       }
     }
