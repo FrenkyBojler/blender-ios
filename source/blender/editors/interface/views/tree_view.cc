@@ -322,7 +322,6 @@ void AbstractTreeView::update_children_from_old(const AbstractView &old_view)
 
   custom_height_ = old_tree_view.custom_height_;
   scroll_value_ = old_tree_view.scroll_value_;
-  scroll_active_into_view_on_redraw_ = old_tree_view.scroll_active_into_view_on_redraw_;
   update_children_from_old_recursive(*this, old_tree_view);
 }
 
@@ -392,34 +391,6 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   }
   /* Scroll value will be sanitized/clamped when drawing. */
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
-}
-
-void AbstractTreeView::scroll_into_view(const int focus_index)
-{
-  if (!supports_scrolling()) {
-    return;
-  }
-  if (!scroll_value_) {
-    return;
-  }
-  const std::optional<int> visible_row_count = this->tot_visible_row_count();
-  if (visible_row_count) {
-    /* Avoid changing the scroll position if the item is visible already. */
-    const bool is_visible = focus_index >= *scroll_value_ &&
-                            focus_index < *scroll_value_ + *visible_row_count;
-    if (!is_visible) {
-      *scroll_value_ = focus_index - *visible_row_count / 2;
-    }
-  }
-  else {
-    /* Fall back to just scrolling exactly to the index. */
-    *scroll_value_ = focus_index;
-  }
-}
-
-void AbstractTreeView::scroll_active_into_view_on_redraw()
-{
-  scroll_active_into_view_on_redraw_ = true;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -843,32 +814,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   /* Column for the tree view. */
   row->column(true);
 
-  if (tree_view.custom_height_ && !tree_view.scroll_value_) {
-    tree_view.scroll_value_ = std::make_unique<int>(0);
-  }
-
-  const AbstractTreeView::IterOptions iter_visible_flattened_options =
-      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered;
-
-  std::optional<int> focus_index;
-  if (tree_view.scroll_active_into_view_on_redraw_) {
-    /* Disable again, so that it doesn't happen on every redraw. */
-    tree_view.scroll_active_into_view_on_redraw_ = false;
-    /* Find the index of the active item to focus on. */
-    int index = 0;
-    tree_view.foreach_item(
-        [&](AbstractTreeViewItem &item) {
-          if (item.is_active()) {
-            focus_index = index;
-          }
-          index++;
-        },
-        iter_visible_flattened_options);
-    if (focus_index.has_value()) {
-      tree_view.scroll_into_view(*focus_index);
-    }
-  }
-
   /* Clamp scroll-value to valid range. */
   if (tree_view.scroll_value_ && visible_row_count) {
     *tree_view.scroll_value_ = std::clamp(
@@ -886,10 +831,14 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
         }
         index++;
       },
-      iter_visible_flattened_options);
+      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
 
   if (tree_view.custom_height_) {
+
     *tree_view.custom_height_ = visible_row_count.value_or(1) * padded_item_height();
+    if (!tree_view.scroll_value_) {
+      tree_view.scroll_value_ = std::make_unique<int>(0);
+    }
 
     if (visible_row_count && (tot_items > *visible_row_count)) {
       row->column(false);

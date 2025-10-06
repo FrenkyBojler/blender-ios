@@ -296,11 +296,6 @@ blender::ui::AbstractTreeView *UI_block_add_view(
     blender::StringRef idname,
     std::unique_ptr<blender::ui::AbstractTreeView> tree_view);
 
-/**
- * Attempts to find a tree view with the given idname in the block and sets its scroll position.
- */
-void UI_block_tree_view_scroll_active_into_view(uiBlock &block, blender::StringRef view_idname);
-
 void UI_alert(bContext *C,
               blender::StringRef title,
               blender::StringRef message,
