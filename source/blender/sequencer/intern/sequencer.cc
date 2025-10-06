@@ -565,7 +565,7 @@ static Strip *strip_duplicate(Main *bmain,
       MovieClip *clip_old = strip_new->clip;
       strip_new->clip = reinterpret_cast<MovieClip *>(
           BKE_id_copy(bmain, reinterpret_cast<ID *>(clip_old)));
-      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+      if (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) {
         id_us_min(&strip_new->clip->id);
       }
     }
@@ -575,7 +575,7 @@ static Strip *strip_duplicate(Main *bmain,
       Mask *mask_old = strip_new->mask;
       strip_new->mask = reinterpret_cast<Mask *>(
           BKE_id_copy(bmain, reinterpret_cast<ID *>(mask_old)));
-      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+      if (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) {
         id_us_min(&strip_new->mask->id);
       }
     }
@@ -773,9 +773,6 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
         case STRIP_TYPE_GLOW:
           BLO_write_struct(writer, GlowVars, strip->effectdata);
           break;
-        case STRIP_TYPE_TRANSFORM:
-          BLO_write_struct(writer, TransformVars, strip->effectdata);
-          break;
         case STRIP_TYPE_GAUSSIAN_BLUR:
           BLO_write_struct(writer, GaussianBlurVars, strip->effectdata);
           break;
@@ -879,8 +876,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
       case STRIP_TYPE_GLOW:
         BLO_read_struct(reader, GlowVars, &strip->effectdata);
         break;
-      case STRIP_TYPE_TRANSFORM:
-        BLO_read_struct(reader, TransformVars, &strip->effectdata);
+      case STRIP_TYPE_TRANSFORM_LEGACY:
+        BLO_read_struct(reader, TransformVarsLegacy, &strip->effectdata);
         break;
       case STRIP_TYPE_GAUSSIAN_BLUR:
         BLO_read_struct(reader, GaussianBlurVars, &strip->effectdata);
