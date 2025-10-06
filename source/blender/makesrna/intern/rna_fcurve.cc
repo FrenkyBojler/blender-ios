@@ -1827,13 +1827,12 @@ static void rna_def_fmodifier_smooth(BlenderRNA *brna)
   prop = RNA_def_property(srna, "sigma", PROP_FLOAT, PROP_TIME);
   RNA_def_property_float_sdna(prop, nullptr, "sigma");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_range(prop, 0.001, 100.0);
-  RNA_def_property_ui_range(prop, 0.001, 2.0, 0.05, 3);
-  RNA_def_property_ui_text(
-      prop,
-      "Sigma",
-      "The shape of the Gaussian distribution in frames. Lower values will make it sharper, "
-      "but have less effect as the Filter Width is increased.");
+  RNA_def_property_range(prop, 0.1, 100.0);
+  RNA_def_property_ui_range(prop, 0.1, 2.0, 0.05, 3);
+  RNA_def_property_ui_text(prop,
+                           "Sigma",
+                           "The shape of the Gaussian distribution in frames. Lower values will "
+                           "increase sharpness across the Filter Width.");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
 
   prop = RNA_def_property(srna, "filter_width", PROP_INT, PROP_TIME);

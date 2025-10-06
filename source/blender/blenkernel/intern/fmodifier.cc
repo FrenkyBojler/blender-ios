@@ -1008,23 +1008,26 @@ static void fcm_smooth_new_data(void *mdata)
 }
 
 /* Evaluate the F-Curve at a certain point, by locally smoothing the values around that point. */
-static void fcm_smooth_frame(const FCurve *fcu,
-                             const FModifier *fcm,
-                             float *cvalue,
-                             const int evaltime)
+static float fcm_smooth_frame(const FCurve *fcu,
+                              const FModifier *fcm,
+                              const int evaltime,
+                              const float default_value)
 {
   FMod_Smooth *data = (FMod_Smooth *)fcm->data;
 
   const float sigma = data->sigma;
-  const int kernel_size = data->filter_width;
+  const int filter_width = data->filter_width;
+
+  /* If filter_width is too small, the smoothing weight will become zero. */
+  BLI_assert(filter_width >= 0.1);
 
   /* Hold variables for weight, so we can compensate for the influence of the modifier. */
   float total_weighted_value = 0.0f;
   float total_weight = 0.0f;
 
-  /* Define sampling window around the frame using the kernel size. */
-  const int start_frame = floorf(evaltime - kernel_size);
-  const int end_frame = ceilf(evaltime + kernel_size);
+  /* Define sampling window around the frame using the filder width. */
+  const int start_frame = floorf(evaltime - filter_width);
+  const int end_frame = ceilf(evaltime + filter_width);
 
   const float two_sigma_sq = 2.0f * sigma * sigma;
 
@@ -1032,9 +1035,9 @@ static void fcm_smooth_frame(const FCurve *fcu,
   for (float sample_time = start_frame; sample_time <= end_frame; ++sample_time) {
     const float sample_distance = sample_time - evaltime;
 
-    /* Normalize sigma to kernel window.
+    /* Normalize sigma to filter width.
      * This makes it consistent with the behavior in GRAPH_OT_gaussian_smooth. */
-    const float sample_dis_norm = sample_distance / kernel_size;
+    const float sample_dis_norm = sample_distance / filter_width;
     const float weight = expf(-(sample_dis_norm * sample_dis_norm) / two_sigma_sq);
 
     const float sample_value = evaluate_fcurve_unmodified(fcu, sample_time);
@@ -1043,9 +1046,12 @@ static void fcm_smooth_frame(const FCurve *fcu,
     total_weight += weight;
   }
 
-  if (total_weight > 0.0f) {
-    *cvalue = (total_weighted_value / total_weight);
+  if (total_weight <= 0.0f) {
+    BLI_assert_unreachable();
+    return default_value;
   }
+
+  return total_weighted_value / total_weight;
 }
 
 static void fcm_smooth_evaluate(
@@ -1056,7 +1062,7 @@ static void fcm_smooth_evaluate(
 
   /* If the evaltime is an integer frame, we directly calcuate the value. */
   if (!is_subframe) {
-    fcm_smooth_frame(fcu, fcm, cvalue, evaltime);
+    *cvalue = fcm_smooth_frame(fcu, fcm, evaltime, *cvalue);
     return;
   }
 
@@ -1067,8 +1073,8 @@ static void fcm_smooth_evaluate(
   float prev_value = evaluate_fcurve_unmodified(fcu, prev_frame);
   float next_value = evaluate_fcurve_unmodified(fcu, next_frame);
 
-  fcm_smooth_frame(fcu, fcm, &prev_value, prev_frame);
-  fcm_smooth_frame(fcu, fcm, &next_value, next_frame);
+  prev_value = fcm_smooth_frame(fcu, fcm, prev_frame, prev_value);
+  next_value = fcm_smooth_frame(fcu, fcm, next_frame, prev_value);
 
   *cvalue = interpf(next_value, prev_value, evaltime - prev_frame);
 }
