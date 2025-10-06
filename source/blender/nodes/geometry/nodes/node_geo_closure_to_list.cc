@@ -162,6 +162,10 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
       evaluate_closure_eagerly(*closure, closure_params);
       for (const int list_i : required_items.index_range()) {
+        if (closure_results[list_i].is_context_dependent_field()) {
+          cpp_types[list_i]->value_initialize(list_values[list_i][i]);
+          continue;
+        }
         cpp_types[list_i]->move_construct(
             const_cast<void *>(closure_results[list_i].get_single_ptr_raw()),
             list_values[list_i][i]);
