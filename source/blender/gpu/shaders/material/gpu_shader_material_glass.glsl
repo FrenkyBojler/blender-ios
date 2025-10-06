@@ -27,7 +27,7 @@ void node_bsdf_glass(float4 color,
 
   ClosureReflection reflection_data;
   reflection_data.weight = bsdf.x * weight;
-  reflection_data.color = color.rgb;
+  reflection_data.color = vec3(1.0);
   reflection_data.N = N;
   reflection_data.roughness = roughness;
 

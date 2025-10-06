@@ -25,7 +25,7 @@ shader node_glass_bsdf(color Color = 0.8,
 
   BSDF = generalized_schlick_bsdf(Normal,
                                   vector(0.0),
-                                  base_color,
+                                  1.0,
                                   base_color,
                                   r2,
                                   r2,

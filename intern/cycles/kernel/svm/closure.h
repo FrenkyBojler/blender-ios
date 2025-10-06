@@ -789,7 +789,7 @@ ccl_device
         fresnel->f90 = one_spectrum();
         fresnel->exponent = -ior;
         const float3 color = max(stack_load_float3(stack, data_node.y), zero_float3());
-        fresnel->reflection_tint = reflective_caustics ? rgb_to_spectrum(color) : zero_spectrum();
+        fresnel->reflection_tint = reflective_caustics ? one_spectrum() : zero_spectrum();
         fresnel->transmission_tint = refractive_caustics ? rgb_to_spectrum(color) :
                                                            zero_spectrum();
         fresnel->thin_film.thickness = thinfilm_thickness;
