@@ -1,3 +1,4 @@
 Referenced by issue #78259, Proportional Edit does not work in particle editing
 Referenced by pull request #147193, Fix #147070: Proportional editing even when disabled in object mode
 Referenced by issue #147070, Proportional editing works when disabled in object mode
+Referenced by commit 23fcfa3e4cc5b7ce755ea330696b306a6358317b, Fix #147070: Proportional editing even when disabled in object mode
