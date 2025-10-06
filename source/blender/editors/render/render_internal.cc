@@ -1314,12 +1314,13 @@ static RenderJobBase *render_job_get(const bContext *C)
   RenderJobBase *rj;
 
   /* Try to find job tied to active scene first. */
-  rj = (RenderJobBase *)WM_jobs_customdata_from_type(wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER);
+  rj = static_cast<RenderJobBase *>(
+      WM_jobs_customdata_from_type(wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER));
 
   /* If not found, attempt to find job tied to sequencer scene. */
   if (rj == nullptr) {
-    rj = (RenderJobBase *)WM_jobs_customdata_from_type(
-        wm, CTX_data_sequencer_scene(C), WM_JOB_TYPE_RENDER);
+    return static_cast<RenderJobBase *>(
+        WM_jobs_customdata_from_type(wm, CTX_data_sequencer_scene(C), WM_JOB_TYPE_RENDER));
   }
 
   return rj;

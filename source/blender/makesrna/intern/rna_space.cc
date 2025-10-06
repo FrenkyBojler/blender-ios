@@ -1825,7 +1825,7 @@ static void rna_SpaceImageEditor_show_stereo_update(Main * /*bmain*/,
 
 static void rna_SpaceImageEditor_show_sequencer_scene_set(PointerRNA *ptr, bool value)
 {
-  SpaceImage *sima = (SpaceImage *)(ptr->data);
+  SpaceImage *sima = ptr->data_as<SpaceImage>();
 
   if (value) {
     sima->iuser.flag |= IMA_SHOW_SEQUENCER_SCENE;
@@ -1837,7 +1837,7 @@ static void rna_SpaceImageEditor_show_sequencer_scene_set(PointerRNA *ptr, bool 
 
 static bool rna_SpaceImageEditor_show_sequencer_scene_get(PointerRNA *ptr)
 {
-  SpaceImage *sima = (SpaceImage *)(ptr->data);
+  SpaceImage *sima = ptr->data_as<SpaceImage>();
   return (sima->iuser.flag & IMA_SHOW_SEQUENCER_SCENE) != 0;
 }
 

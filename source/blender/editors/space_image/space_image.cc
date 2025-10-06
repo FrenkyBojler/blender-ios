@@ -84,12 +84,8 @@ static void image_user_refresh_scene(const bContext *C, SpaceImage *sima)
     Scene *render_scene = ED_render_job_get_current_scene(C);
     if (render_scene) {
       sima->iuser.scene = render_scene;
-      if (render_scene == CTX_data_sequencer_scene(C)) {
-        sima->iuser.flag |= IMA_SHOW_SEQUENCER_SCENE;
-      }
-      else {
-        sima->iuser.flag &= ~IMA_SHOW_SEQUENCER_SCENE;
-      }
+      SET_FLAG_FROM_TEST(
+          sima->iuser.flag, render_scene == CTX_data_sequencer_scene(C), IMA_SHOW_SEQUENCER_SCENE);
     }
   }
 
