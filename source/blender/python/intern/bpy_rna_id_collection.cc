@@ -525,7 +525,12 @@ struct IDFilePathForeachData {
   bool seen_error;
 };
 
-/** Wraps #eBPathForeachFlag from BKE_path.hh. */
+/**
+ * Wraps #eBPathForeachFlag from BKE_path.hh.
+ *
+ * This is exposed publicly (as in, not inline in a function) for the purpose of
+ * being included in documentation.
+ */
 const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
     /* BKE_BPATH_FOREACH_PATH_ABSOLUTE is not included here, as its only use is to initialize a
      * field in BPathForeachPathData that is not used by the callback. */
@@ -594,10 +599,21 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
 
   /* Construct the callback function parameters. */
   PointerRNA id_ptr = RNA_id_pointer_create(bpath_data->owner_id);
-  PyObject *args = PyTuple_New(2);
+  PyObject *args = PyTuple_New(3);
+  /* args[0]: */
   PyObject *py_owner_id = pyrna_struct_CreatePyObject(&id_ptr);
+  /* args[1]: */
   PyObject *py_path_src = PyUnicode_FromString(path_src);
-  PyTuple_SET_ITEMS(args, py_owner_id, py_path_src);
+  /* args[2]: currently-unused parameter for passing metadata of the path to the Python function.
+   * This is intended pass info like:
+   *  - Is the path intended to reference a directory or a file.
+   *  - Does the path support templates.
+   *  - Is the path referring to input or output (the render output, or file output nodes).
+   * Even though this is not implemented currently, the parameter is already added so that the
+   * eventual implementation is not an API-breaking change. */
+  PyObject *py_path_meta = Py_None;
+  Py_INCREF(py_path_meta); /* PyTuple_SET_ITEMS steals a reference, give it something to steal. */
+  PyTuple_SET_ITEMS(args, py_owner_id, py_path_src, py_path_meta);
 
   /* Call the Python callback function. */
   PyObject *result = PyObject_CallObject(data.visit_path_fn, args);
@@ -657,10 +673,10 @@ PyDoc_STRVAR(
     "   For list of valid set members for visit_types, see: "
     ":class:`bpy.types.KeyingSetPath.id_type`.\n"
     "\n"
-    "   :arg visit_path_fn: function that takes the data-block and a file path parameter, and "
-    "returns either ``None`` or a ``str``. In the latter case, the visited file path will be "
-    "replaced with the returned string.\n"
-    "   :type visit_path_fn: Callable[[:class:`bpy.types.ID`, str], str|None]\n"
+    "   :arg visit_path_fn: function that takes the data-block, a file path parameter, and a "
+    "placeholder for future use. The function should return either ``None`` or a ``str``. In the "
+    "latter case, the visited file path will be replaced with the returned string.\n"
+    "   :type visit_path_fn: Callable[[:class:`bpy.types.ID`, str, Any], str|None]\n"
     "   :arg subset: When given, only these data-blocks and their used file paths "
     "will be visited.\n"
     "   :type subset: set[str]\n"
@@ -790,7 +806,7 @@ static PyObject *bpy_file_path_foreach(PyObject *self, PyObject *args, PyObject 
       }
       FOREACH_MAIN_LISTBASE_ID_END;
     }
-    FOREACH_MAIN_LISTBASE_ID_END;
+    FOREACH_MAIN_LISTBASE_END;
   }
 
   Py_RETURN_NONE;

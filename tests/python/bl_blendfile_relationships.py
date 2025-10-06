@@ -217,7 +217,7 @@ class TestBlendFilePathForeach(TestHelper):
         }, visited_paths, "testing without SKIP_PACKED")
 
     def test_filepath_rewriting(self) -> None:
-        def visit_path_fn(owner_id: bpy.types.ID, path: str) -> str | None:
+        def visit_path_fn(owner_id: bpy.types.ID, path: str, _meta: None) -> str | None:
             return Path("//{}-rewritten.blend".format(owner_id.name)).as_posix()
         bpy.data.file_path_foreach(visit_path_fn)
 
@@ -229,6 +229,32 @@ class TestBlendFilePathForeach(TestHelper):
             bpy.data.images['pack.png'].filepath,
             "//libraries/pack.png",
             "Packed file should not have changed")
+
+    def test_exception_passing(self) -> None:
+        """Python exceptions in the callback function should be raised by file_path_foreach()."""
+        # Any Python exception should work, not just built-in ones.
+        class CustomException(Exception):
+            pass
+
+        def visit_path_fn(_owner_id: bpy.types.ID, _path: str, meta: None) -> str | None:
+            raise CustomException("arg0", 1, "arg2")
+
+        try:
+            bpy.data.file_path_foreach(visit_path_fn)
+        except CustomException as ex:
+            self.assertEqual(("arg0", 1, "arg2"), ex.args, "Parameters passed to the exception should be retained")
+        else:
+            self.fail("Expected exception not thrown")
+
+    def test_meta_parameter(self) -> None:
+        def visit_path_fn(_owner_id: bpy.types.ID, _path: str, meta: None) -> str | None:
+            # This is proven to work by the `test_exception_passing()` test above.
+            self.assertIsNone(
+                meta,
+                "The meta parameter is expected to be None; this test is expected to fail "
+                "once the metadata feature is actually getting implemented, and should then "
+                "be replaced with a proper test.")
+        bpy.data.file_path_foreach(visit_path_fn)
 
     @staticmethod
     def _file_path_foreach(
@@ -242,7 +268,7 @@ class TestBlendFilePathForeach(TestHelper):
         """
         visisted_paths: set[tuple[bpy.types.ID, Path]] = set()
 
-        def visit_path_fn(owner_id: bpy.types.ID, path: str) -> str | None:
+        def visit_path_fn(owner_id: bpy.types.ID, path: str, _meta: None) -> str | None:
             abspath = Path(str(bpy.path.abspath(path, library=owner_id.library)))
             visisted_paths.add((owner_id, abspath))
 
