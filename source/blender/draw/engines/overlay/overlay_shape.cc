@@ -1329,7 +1329,7 @@ ShapeCache::ShapeCache()
   }
   /* cursor circle */
   {
-    const int segments = 8;
+    const int segments = 12;
     const float radius = 0.5f;
     const float color_primary[3] = {1.0f, 0.0f, 0.0f};
     const float color_secondary[3] = {1.0f, 1.0f, 1.0f};
