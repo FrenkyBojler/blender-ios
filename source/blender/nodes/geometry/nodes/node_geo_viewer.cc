@@ -236,11 +236,20 @@ static void node_extra_info(NodeExtraInfoParams &params)
             ed::space_node::get_modifier_for_node_editor(*snode))
     {
       const NodesModifierData &nmd = *object_and_modifier->nmd;
+      nmd.node_group->ensure_topology_cache();
       if (!(nmd.modifier.mode & eModifierMode_Realtime)) {
         NodeExtraInfoRow row;
         row.icon = ICON_ERROR;
         row.text = TIP_("Modifier disabled");
         row.tooltip = TIP_("The viewer does not work because the modifier is disabled");
+        params.rows.append(std::move(row));
+      }
+      else if (!nmd.node_group->group_output_node()) {
+        NodeExtraInfoRow row;
+        row.icon = ICON_ERROR;
+        row.text = TIP_("Missing output");
+        row.tooltip = TIP_(
+            "The viewer does not work because the node group used by the modifier has no output");
         params.rows.append(std::move(row));
       }
     }
