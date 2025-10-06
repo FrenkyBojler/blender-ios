@@ -386,7 +386,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->tui.wcol_curve.roundness = U_theme_default.tui.wcol_curve.roundness;
   }
 
-  if (!USER_VERSION_ATLEAST(500, 101)) {
+  if (!USER_VERSION_ATLEAST(500, 102)) {
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_other);
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_constant);
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_linear);
