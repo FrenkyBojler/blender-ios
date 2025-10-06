@@ -426,16 +426,81 @@ void BM_mesh_uvselect_set_elem_shared(BMesh *bm,
   /* TODO: this could be optimized to reduce traversal of connected UV's for every element. */
 
   for (BMLoop *l_vert : loop_verts) {
-    BM_loop_vert_uvselect_set_noflush(bm, l_vert, select);
     BM_loop_vert_uvselect_set_shared(bm, l_vert, select, cd_loop_uv_offset);
   }
   for (BMLoop *l_edge : loop_edges) {
-    BM_loop_edge_uvselect_set(bm, l_edge, select);
     BM_loop_edge_uvselect_set_shared(bm, l_edge, select, cd_loop_uv_offset);
+
+    if (select) {
+      BM_loop_vert_uvselect_set_shared(bm, l_edge, select, cd_loop_uv_offset);
+      BM_loop_vert_uvselect_set_shared(bm, l_edge->next, select, cd_loop_uv_offset);
+    }
   }
   for (BMFace *f : faces) {
-    BM_face_uvselect_set(bm, f, select);
-    BM_face_uvselect_set_shared(bm, f, select, cd_loop_uv_offset);
+    if (select) {
+      BM_face_uvselect_set_shared(bm, f, select, cd_loop_uv_offset);
+    }
+    else {
+      BM_face_uvselect_set_noflush(bm, f, select);
+    }
+  }
+
+  /* Only de-select shared elements if they are no longer connected to a selection. */
+  if (!select) {
+    for (BMLoop *l_edge : loop_edges) {
+      if (BM_elem_flag_test(l_edge->f, BM_ELEM_HIDDEN)) {
+        continue;
+      }
+      /* If any of the vertices from the edges are no longer connected to a selected edge
+       * de-select the entire vertex.. */
+      for (BMLoop *l_edge_vert : {l_edge, l_edge->next}) {
+        if (!BM_loop_vert_uvselect_check_other_loop_edge(
+                l_edge_vert, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
+        {
+          BM_loop_vert_uvselect_set_shared(bm, l_edge_vert, false, cd_loop_uv_offset);
+        }
+      }
+    }
+
+    /* De-select edge pass. */
+    for (BMFace *f : faces) {
+      if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+        continue;
+      }
+
+      BMLoop *l_iter, *l_first;
+      l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+      do {
+        if (!BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
+          /* Already handled. */
+          continue;
+        }
+        if (!BM_loop_edge_uvselect_check_other_face(l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
+        {
+          BM_loop_edge_uvselect_set_shared(bm, l_iter, false, cd_loop_uv_offset);
+        }
+      } while ((l_iter = l_iter->next) != l_first);
+    }
+
+    /* De-select vert pass. */
+    for (BMFace *f : faces) {
+      if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+        continue;
+      }
+      BMLoop *l_iter, *l_first;
+      l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+      do {
+        if (!BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
+          /* Already handled. */
+          continue;
+        }
+        if (!BM_loop_vert_uvselect_check_other_loop_edge(
+                l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
+        {
+          BM_loop_vert_uvselect_set_shared(bm, l_iter, false, cd_loop_uv_offset);
+        }
+      } while ((l_iter = l_iter->next) != l_first);
+    }
   }
 }
 
