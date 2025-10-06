@@ -136,6 +136,8 @@ const UserDef U_default = {
     /** Clamped by half the systems memory. */
     .memcachelimit = 4096,
 
+    .geometry_nodes_stack_limit = 100,
+
     .prefetchframes = 0,
     .pad_rot_angle = 15,
     .rvisize = 25,
