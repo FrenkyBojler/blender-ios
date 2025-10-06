@@ -321,7 +321,6 @@ def propgroup_to_dict(source: bpy.types.PropertyGroup) -> dict[str, typing.Any]:
             # types can be assigned directly.
             case 'POINTER':
                 if isinstance(value, bpy.types.PropertyGroup):
-                    print(f"\033[95mRecursing into {source}.{attr}: {value}\033[0m")
                     dictionary[attr] = propgroup_to_dict(value)
                     continue
                 dictionary[attr] = value
@@ -424,7 +423,6 @@ def assign_rna_properties(target: bpy.types.PropertyGroup,
             # types can be assigned directly.
             case 'POINTER':
                 if isinstance(value, bpy.types.PropertyGroup):
-                    print(f"\033[95mRecursing into {target}.{attr}: {value}\033[0m")
                     assign_rna_properties(getattr(target, attr), value)
                     continue
                 if target.is_property_readonly(attr):
