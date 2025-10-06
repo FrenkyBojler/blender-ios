@@ -2451,7 +2451,7 @@ static bool uv_copy_mirrored_faces(
   Map<BMVert *, BMVert *> vmap;
 
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-  /* Skip if BMesh has no UVs */
+  /* Skip if BMesh has no UVs. */
   if (offsets.uv == -1) {
     return false;
   }
@@ -2534,6 +2534,7 @@ static bool uv_copy_mirrored_faces(
   bool changed = false;
   for (const auto &[f_dst, f_src] : face_map.items()) {
 
+    /* Skip unless both faces have all their UVs selected. */
     if (!face_uv_selected_all(scene, f_dst, offsets) ||
         !face_uv_selected_all(scene, f_src, offsets))
     {
