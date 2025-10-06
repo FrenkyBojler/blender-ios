@@ -2484,12 +2484,7 @@ static bool uv_copy_mirrored_faces(
     mirror_pos[0] = -mirror_pos[0];
     BMVert *v_mirror = mirror_lt.lookup_default(mirror_pos, nullptr);
     if (v_mirror) {
-      if (vmap.contains(v)) {
-        vmap.lookup(v) = v_mirror;
-      }
-      else {
-        vmap.add(v, v_mirror);
-      }
+      vmap.add(v, v_mirror);
     }
   }
 
@@ -2498,12 +2493,7 @@ static bool uv_copy_mirrored_faces(
     mirror_pos[0] = -mirror_pos[0];
     BMVert *v_mirror = mirror_gt.lookup_default(mirror_pos, nullptr);
     if (v_mirror) {
-      if (vmap.contains(v)) {
-        vmap.lookup(v) = v_mirror;
-      }
-      else {
-        vmap.add(v, v_mirror);
-      }
+      vmap.add(v, v_mirror);
     }
   }
 
