@@ -36,14 +36,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Int>("Width")
       .default_value(1)
-      .min(1)
+      .min(0)
       .max(10)
       .structure_type(StructureType::Single)
       .description("Half-width of the filter. Filter size is (2*width+1) voxels");
 
   b.add_input<decl::Int>("Iterations")
       .default_value(1)
-      .min(1)
+      .min(0)
       .max(100)
       .structure_type(StructureType::Single)
       .description("Number of times to apply the mean filter");
@@ -108,6 +108,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int width = params.extract_input<int>("Width");
   const int iterations = params.extract_input<int>("Iterations");
+  if (width == 0 || iterations == 0) {
+    params.set_default_remaining_outputs();
+    return;
+  }
 
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
@@ -142,11 +146,11 @@ static const EnumPropertyItem *grid_mean_socket_type_items_filter_fn(bContext * 
                                                                      bool *r_free)
 {
   *r_free = true;
-  return enum_items_filter(
-      rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-        return socket_type_supports_grids(eNodeSocketDatatype(item.value)) &&
-               item.value != SOCK_BOOLEAN;
-      });
+  return enum_items_filter(rna_enum_node_socket_data_type_items,
+                           [](const EnumPropertyItem &item) -> bool {
+                             return socket_type_supports_grids(eNodeSocketDatatype(item.value)) &&
+                                    item.value != SOCK_BOOLEAN;
+                           });
 }
 
 static void node_rna(StructRNA *srna)
