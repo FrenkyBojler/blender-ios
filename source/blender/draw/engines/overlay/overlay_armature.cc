@@ -126,20 +126,21 @@ class UnifiedBonePtr {
     *pchan = pchan_;
   }
 
+  bool is_selected() const
+  {
+    if (is_editbone_) {
+      return eBone_->flag & BONE_SELECTED;
+    }
+    BLI_assert(is_posebone());
+    return pchan_->flag & POSE_SELECTED;
+  }
+
   eBone_Flag flag() const
   {
     if (is_editbone_) {
       return static_cast<eBone_Flag>(eBone_->flag);
     }
-    /* Making sure the select flag is set correctly since it moved to the pose channel. */
-    eBone_Flag flag = static_cast<eBone_Flag>(pchan_->bone->flag);
-    if (pchan_->flag & POSE_SELECTED) {
-      flag |= BONE_SELECTED;
-    }
-    else {
-      flag &= ~BONE_SELECTED;
-    }
-    return flag;
+    return static_cast<eBone_Flag>(pchan_->bone->flag);
   }
 
   /** Return the pose bone's constraint flags, or 0 if not a pose bone. */
@@ -716,11 +717,11 @@ static void use_bone_color(float *r_color, const uint8_t *color_from_theme, cons
 static void get_pchan_color_wire(const UniformData &theme,
                                  const ThemeWireColor *bcolor,
                                  const eArmatureDrawMode draw_mode,
-                                 const eBone_Flag boneflag,
+                                 const UnifiedBonePtr bone,
                                  float r_color[4])
 {
-  const bool draw_active = boneflag & BONE_DRAW_ACTIVE;
-  const bool draw_selected = boneflag & BONE_SELECTED;
+  const bool draw_active = bone.flag() & BONE_DRAW_ACTIVE;
+  const bool draw_selected = bone.flag() & BONE_SELECTED;
   const bool is_edit = draw_mode == ARM_DRAW_MODE_EDIT;
   float4 wire_color;
 
@@ -868,10 +869,11 @@ static float get_bone_wire_thickness(const Armatures::DrawContext *ctx, int bone
 }
 
 static const float *get_bone_wire_color(const Armatures::DrawContext *ctx,
-                                        const eBone_Flag boneflag)
+                                        const UnifiedBonePtr bone)
 {
   static float disp_color[4];
 
+  const eBone_Flag boneflag = bone.flag();
   if (ctx->const_color) {
     copy_v3_v3(disp_color, ctx->const_color);
   }
@@ -879,10 +881,10 @@ static const float *get_bone_wire_color(const Armatures::DrawContext *ctx,
     const UniformData &theme = ctx->res->theme;
     switch (ctx->draw_mode) {
       case ARM_DRAW_MODE_EDIT:
-        get_pchan_color_wire(theme, ctx->bcolor, ctx->draw_mode, boneflag, disp_color);
+        get_pchan_color_wire(theme, ctx->bcolor, ctx->draw_mode, bone, disp_color);
         break;
       case ARM_DRAW_MODE_POSE:
-        get_pchan_color_wire(theme, ctx->bcolor, ctx->draw_mode, boneflag, disp_color);
+        get_pchan_color_wire(theme, ctx->bcolor, ctx->draw_mode, bone, disp_color);
 
         if (boneflag & BONE_DRAW_LOCKED_WEIGHT) {
           bone_locked_color_shade(theme, disp_color);
@@ -909,7 +911,7 @@ static void bone_hint_color_shade(float hint_color[4], const float color[4])
 }
 
 static const float *get_bone_hint_color(const Armatures::DrawContext *ctx,
-                                        const eBone_Flag boneflag)
+                                        const UnifiedBonePtr bone)
 {
   static float hint_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
@@ -917,7 +919,7 @@ static const float *get_bone_hint_color(const Armatures::DrawContext *ctx,
     bone_hint_color_shade(hint_color, ctx->res->theme.colors.bone_solid);
   }
   else {
-    const float *wire_color = get_bone_wire_color(ctx, boneflag);
+    const float *wire_color = get_bone_wire_color(ctx, bone);
     bone_hint_color_shade(hint_color, wire_color);
   }
 
@@ -1274,7 +1276,7 @@ static void draw_points(const Armatures::DrawContext *ctx,
     }
   }
   else if (ctx->draw_mode == ARM_DRAW_MODE_POSE) {
-    const float *wire_color = get_bone_wire_color(ctx, boneflag);
+    const float *wire_color = get_bone_wire_color(ctx, bone);
     copy_v4_v4(col_wire_tail, wire_color);
     copy_v4_v4(col_wire_root, wire_color);
   }
@@ -1334,8 +1336,8 @@ static void bone_draw_custom_shape(const Armatures::DrawContext *ctx,
                                    const int select_id)
 {
   const float *col_solid = get_bone_solid_color(ctx, boneflag);
-  const float *col_wire = get_bone_wire_color(ctx, boneflag);
-  const float *col_hint = get_bone_hint_color(ctx, boneflag);
+  const float *col_wire = get_bone_wire_color(ctx, bone);
+  const float *col_hint = get_bone_hint_color(ctx, bone);
   const float (*disp_mat)[4] = bone.disp_mat();
 
   auto sel_id = ctx->res->select_id(*ctx->ob_ref, select_id | BONESEL_BONE);
@@ -1372,8 +1374,8 @@ static void bone_draw_octa(const Armatures::DrawContext *ctx,
                            const int select_id)
 {
   const float *col_solid = get_bone_solid_with_consts_color(ctx, bone, boneflag);
-  const float *col_wire = get_bone_wire_color(ctx, boneflag);
-  const float *col_hint = get_bone_hint_color(ctx, boneflag);
+  const float *col_wire = get_bone_wire_color(ctx, bone);
+  const float *col_hint = get_bone_hint_color(ctx, bone);
 
   auto sel_id = ctx->res->select_id(*ctx->ob_ref, select_id | BONESEL_BONE);
   float4x4 bone_mat = ctx->ob->object_to_world() * float4x4(bone.disp_mat());
@@ -1394,7 +1396,7 @@ static void bone_draw_line(const Armatures::DrawContext *ctx,
                            const int select_id)
 {
   const float *col_bone = get_bone_solid_with_consts_color(ctx, bone, boneflag);
-  const float *col_wire = get_bone_wire_color(ctx, boneflag);
+  const float *col_wire = get_bone_wire_color(ctx, bone);
   const float no_display[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   const float *col_head = no_display;
   const float *col_tail = col_bone;
@@ -1459,8 +1461,8 @@ static void bone_draw_b_bone(const Armatures::DrawContext *ctx,
                              const int select_id)
 {
   const float *col_solid = get_bone_solid_with_consts_color(ctx, bone, boneflag);
-  const float *col_wire = get_bone_wire_color(ctx, boneflag);
-  const float *col_hint = get_bone_hint_color(ctx, boneflag);
+  const float *col_wire = get_bone_wire_color(ctx, bone);
+  const float *col_hint = get_bone_hint_color(ctx, bone);
 
   /* NOTE: Cannot reinterpret as float4x4 because of alignment requirement of float4x4.
    * This would require a deeper refactor. */
@@ -1497,8 +1499,8 @@ static void bone_draw_envelope(const Armatures::DrawContext *ctx,
                                const int select_id)
 {
   const float *col_solid = get_bone_solid_with_consts_color(ctx, bone, boneflag);
-  const float *col_wire = get_bone_wire_color(ctx, boneflag);
-  const float *col_hint = get_bone_hint_color(ctx, boneflag);
+  const float *col_wire = get_bone_wire_color(ctx, bone);
+  const float *col_hint = get_bone_hint_color(ctx, bone);
 
   const float *rad_head, *rad_tail, *distance;
   if (bone.is_editbone()) {
@@ -1542,7 +1544,7 @@ static void bone_draw_wire(const Armatures::DrawContext *ctx,
 {
   using namespace blender::math;
 
-  const float *col_wire = get_bone_wire_color(ctx, boneflag);
+  const float *col_wire = get_bone_wire_color(ctx, bone);
 
   auto sel_id = (ctx->bone_buf) ? ctx->res->select_id(*ctx->ob_ref, select_id | BONESEL_BONE) :
                                   draw::select::SelectMap::select_invalid_id();
