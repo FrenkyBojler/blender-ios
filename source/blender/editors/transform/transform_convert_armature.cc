@@ -712,11 +712,9 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     tdx->center_no_override[0] = 0;
     tdx->center_no_override[1] = 0;
     tdx->center_no_override[2] = 0;
-    int td_count = 0;
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       if (pchan->runtime.flag & POSE_RUNTIME_TRANSFORM) {
         add_pose_transdata(t, pchan, ob, td++, tdx++);
-        td_count++;
       }
     }
 
