@@ -1399,14 +1399,14 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
   }
 
   const bool is_rendering = G.is_rendering;
-  bool is_preview = !context->for_render && (context->scene->r.seq_prev_type) != OB_RENDER;
-  bool use_gpencil = true;
+  const bool is_preview = !context->for_render && (context->scene->r.seq_prev_type) != OB_RENDER;
+  const bool use_gpencil = (strip->flag & SEQ_SCENE_NO_ANNOTATION) == 0;
   double frame = double(scene->r.sfra) + double(frame_index) + double(strip->anim_startofs);
 
 #if 0 /* UNUSED */
   bool have_seq = (scene->r.scemode & R_DOSEQ) && scene->ed && scene->ed->seqbase.first;
 #endif
-  bool have_comp = (scene->r.scemode & R_DOCOMP) && scene->compositing_node_group;
+  const bool have_comp = (scene->r.scemode & R_DOCOMP) && scene->compositing_node_group;
 
   /* Get view layer for the strip. */
   ViewLayer *view_layer = BKE_view_layer_default_render(scene);
@@ -1425,10 +1425,6 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
 
   if (have_comp == false && camera == nullptr) {
     return nullptr;
-  }
-
-  if (strip->flag & SEQ_SCENE_NO_ANNOTATION) {
-    use_gpencil = false;
   }
 
   /* Prevent eternal loop. */
