@@ -228,7 +228,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   const LimiterType limiter = params.extract_input<LimiterType>("Limiter");
 
   bke::VolumeTreeAccessToken tree_token;
+  const openvdb::GridBase &grid_base = grid->grid(tree_token);
   const openvdb::Vec3SGrid &velocity_vdb_grid = velocity_grid.grid(tree_token);
+
+  /* OpenVDB's advection requires uniform voxel scale on the grid being advected
+  but not for the velocity grid being sampled */
+  if (!grid_base.hasUniformVoxels()) {
+    params.error_message_add(
+        NodeWarningType::Error,
+        "A grid must have a uniform voxel scale to be advected."
+    params.set_default_remaining_outputs();
+    return;
+  }
 
   const VolumeGridType grid_type = grid->grid_type();
 
