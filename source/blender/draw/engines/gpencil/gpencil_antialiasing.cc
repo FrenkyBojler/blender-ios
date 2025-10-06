@@ -205,9 +205,8 @@ void Instance::antialiasing_accumulate(Manager &manager, const float alpha)
     pass.bind_image("dst_img", &this->accumulation_tx);
     pass.push_constant("weight_src", alpha);
     pass.push_constant("weight_dst", 1.0f - alpha);
-    pass.dispatch(int3(
-      math::divide_ceil(size, int2(GPENCIL_ANTIALIASING_ACCUMULATE_GROUP_SIZE))
-      , 1));
+    pass.dispatch(
+        int3(math::divide_ceil(size, int2(GPENCIL_ANTIALIASING_ACCUMULATE_GROUP_SIZE)), 1));
   }
 
   manager.submit(this->accumulate_ps);
