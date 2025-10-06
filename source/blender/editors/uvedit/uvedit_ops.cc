@@ -2462,20 +2462,14 @@ static bool uv_copy_mirrored_faces(
     if (pos.x >= 0.0f) {
       if (mirror_gt.contains(pos)) {
         (*r_double_warn)++;
-        mirror_gt.lookup(pos) = v;
       }
-      else {
-        mirror_gt.add(pos, v);
-      }
+      mirror_gt.add_overwrite(pos, v);
     }
     if (pos.x <= 0.0f) {
       if (mirror_lt.contains(pos)) {
         (*r_double_warn)++;
-        mirror_lt.lookup(pos) = v;
       }
-      else {
-        mirror_lt.add(pos, v);
-      }
+      mirror_lt.add_overwrite(pos, v);
     }
   }
 
@@ -2487,7 +2481,6 @@ static bool uv_copy_mirrored_faces(
       vmap.add(v, v_mirror);
     }
   }
-
   for (const auto &[pos, v] : mirror_lt.items()) {
     float3 mirror_pos = pos;
     mirror_pos[0] = -mirror_pos[0];
