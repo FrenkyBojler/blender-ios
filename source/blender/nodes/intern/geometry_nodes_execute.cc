@@ -861,9 +861,6 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   user_data.call_data = &call_data;
   call_data.root_ntree = &btree;
 
-  const int64_t approximate_stack_limit = 300'000;
-  call_data.stack_depth_limit = uintptr_t(&user_data) - approximate_stack_limit;
-
   user_data.compute_context = &base_compute_context;
 
   ResourceScope scope;

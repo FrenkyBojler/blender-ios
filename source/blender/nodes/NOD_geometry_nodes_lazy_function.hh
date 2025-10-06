@@ -252,7 +252,7 @@ struct GeoNodesCallData {
    */
   GeoNodesOperatorData *operator_data = nullptr;
 
-  uintptr_t stack_depth_limit;
+  int call_depth_limit = 100;
 
   /**
    * Self object has slightly different semantics depending on how geometry nodes is called.
@@ -279,12 +279,13 @@ struct GeoNodesUserData : public fn::UserData {
    */
   bool log_socket_values = true;
 
+  int call_depth = 0;
+
   destruct_ptr<fn::LocalUserData> get_local(LinearAllocator<> &allocator) override;
 
   bool is_stack_limit_reached() const
   {
-    char value = 0;
-    return uintptr_t(&value) > this->call_data->stack_depth_limit;
+    return this->call_depth >= this->call_data->call_depth_limit;
   }
 };
 

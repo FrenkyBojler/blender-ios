@@ -378,6 +378,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
     closure_user_data.compute_context = &closure_compute_context;
     closure_user_data.log_socket_values = should_log_socket_values_for_context(
         user_data, closure_compute_context.hash());
+    closure_user_data.call_depth = user_data.call_depth + 1;
     GeoNodesLocalUserData closure_local_user_data{closure_user_data};
 
     lf::Context eval_graph_context{
