@@ -139,6 +139,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpu_graphic_specialization_test)
 ADDITIONAL_INFO(gpu_specialization_constants_base_test)
+BUILTINS(BuiltinBits::POINT_SIZE)
 VERTEX_SOURCE("gpu_specialization_test.glsl")
 FRAGMENT_SOURCE("gpu_specialization_test.glsl")
 DO_STATIC_COMPILATION()

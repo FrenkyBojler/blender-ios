@@ -856,9 +856,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
           NSNotFound);
 
       const char *errors_c_str = [[error localizedDescription] UTF8String];
-
-      MTLLogParser parser;
-      print_log({""}, errors_c_str, "VertShader", has_error, &parser);
+      MTL_LOG_ERROR("%s : %s", function_name.c_str(), errors_c_str);
 
       /* Only exit out if genuine error and not warning */
       if (has_error) {
@@ -881,9 +879,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
           NSNotFound);
 
       const char *errors_c_str = [[error localizedDescription] UTF8String];
-
-      MTLLogParser parser;
-      print_log({""}, errors_c_str, "FragShader", has_error, &parser);
+      MTL_LOG_ERROR("%s : %s", function_name.c_str(), errors_c_str);
 
       /* Only exit out if genuine error and not warning */
       if (has_error) {

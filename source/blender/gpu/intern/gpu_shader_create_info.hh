@@ -422,7 +422,7 @@ static inline std::ostream &operator<<(std::ostream &stream, const Type type)
     case Type::short4_t:
       return stream << "short4";
     case Type::bool_t:
-      return stream << "bool32_t";
+      return stream << "bool";
     default:
       BLI_assert(0);
       return stream;

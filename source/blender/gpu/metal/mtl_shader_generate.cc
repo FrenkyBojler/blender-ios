@@ -571,14 +571,17 @@ static void generate_uniforms(GeneratedStreams &generated,
     auto &out = generated.wrapper_class_members;
     out << "  struct PushConstantBlock {\n";
     for (const ShaderCreateInfo::PushConst &uni : uniforms) {
-      out << "    " << uni.type << " " << uni.name << uni.array_str() << ";\n";
+      /* Subtile workaround to follow sane alignment rules.
+       * Always use 4 bytes boolean like in GLSL. */
+      Type type = (uni.type == Type::bool_t) ? Type::int_t : uni.type;
+      out << "    " << type << " " << uni.name << uni.array_str() << ";\n";
     }
     out << "  };\n";
 
     /* References definition for global access. */
     for (const ShaderCreateInfo::PushConst &uni : uniforms) {
-      out << "  const constant " << uni.type << " (&" << uni.name << ")" << uni.array_str()
-          << ";\n";
+      Type type = (uni.type == Type::bool_t) ? Type::int_t : uni.type;
+      out << "  const constant " << type << " (&" << uni.name << ")" << uni.array_str() << ";\n";
     }
   }
   {

@@ -339,13 +339,16 @@ static StringRef print_test_line(StringRefNull test_src, int64_t test_line)
   return "";
 }
 
-static void gpu_shader_lib_test(const char *test_src_name, const char *additional_info = nullptr)
+static void gpu_shader_lib_test(StringRefNull test_src_name, const char *additional_info = nullptr)
 {
   using namespace shader;
 
   GPU_render_begin();
 
-  ShaderCreateInfo create_info(test_src_name);
+  std::string create_info_name = test_src_name.substr(0, test_src_name.find('.'));
+
+  ShaderCreateInfo create_info(create_info_name.c_str());
+  create_info.builtins(BuiltinBits::FRAG_COORD);
   create_info.fragment_source(test_src_name);
   create_info.additional_info("gpu_shader_test");
   if (additional_info) {
@@ -392,7 +395,7 @@ static void gpu_shader_lib_test(const char *test_src_name, const char *additiona
       continue;
     }
     if (test.status == TEST_STATUS_FAILED) {
-      ADD_FAILURE_AT(test_src_name, test.line)
+      ADD_FAILURE_AT(test_src_name.c_str(), test.line)
           << "Value of: " << print_test_line(test_src, test.line) << "\n"
           << "  Actual: " << print_test_data(test.expect, TestType(test.type)) << "\n"
           << "Expected: " << print_test_data(test.result, TestType(test.type)) << "\n";
