@@ -66,9 +66,9 @@ vec3 newell_face_normal_object(int f) {
   int beg = face_offsets(f);
   int end = face_offsets(f + 1);
   vec3 n = vec3(0.0);
-  vec3 v_prev = positions_in[corner_verts(end - 1)].xyz;
+  vec3 v_prev = skinned_positions_in[corner_verts(end - 1)].xyz;
   for (int i = beg; i < end; ++i) {
-    vec3 v_curr = positions_in[corner_verts(i)].xyz;
+    vec3 v_curr = skinned_positions_in[corner_verts(i)].xyz;
     n += cross(v_prev, v_curr);
     v_prev = v_curr;
   }

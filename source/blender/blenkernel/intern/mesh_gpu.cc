@@ -29,7 +29,6 @@
 
 struct MeshGpuData {
   blender::bke::MeshGPUTopology topology;
-  blender::gpu::StorageBuf *ssbo_positions = nullptr;
   blender::gpu::Shader *compute_shader = nullptr;
 };
 
@@ -46,10 +45,6 @@ static void mesh_gpu_orphans_flush()
   }
 
   for (MeshGpuData &d : g_mesh_data_orphans) {
-    if (d.ssbo_positions) {
-      GPU_storagebuf_free(d.ssbo_positions);
-      d.ssbo_positions = nullptr;
-    }
     if (d.compute_shader) {
       GPU_shader_free(d.compute_shader);
       d.compute_shader = nullptr;
@@ -236,35 +231,7 @@ void BKE_mesh_gpu_topology_add_specialization_constants(
   info.specialization_constant(Type::int_t, "vert_to_face_offset", topology.vert_to_face_offset);
 }
 
-blender::gpu::StorageBuf *BKE_mesh_gpu_positions_create_ssbo(const Mesh *mesh)
-{
-  if (!mesh || mesh->verts_num == 0) {
-    return nullptr;
-  }
-
-  if (!GPU_context_active_get()) {
-    return nullptr;
-  }
-
-  const blender::Span<blender::float3> positions = mesh->vert_positions();
-  blender::Vector<blender::float4> positions_float4;
-  positions_float4.resize(positions.size());
-
-  for (const int i : positions.index_range()) {
-    positions_float4[i] = blender::float4(positions[i], 1.0f);
-  }
-
-  blender::gpu::StorageBuf *ssbo = GPU_storagebuf_create_ex(positions_float4.size() *
-                                                                sizeof(blender::float4),
-                                                            positions_float4.data(),
-                                                            GPU_USAGE_STATIC,
-                                                            __func__);
-
-  return ssbo;
-}
-
-#define MESH_GPU_TOPOLOGY_BINDING 14
-#define MESH_GPU_POSITIONS_BINDING 15
+#define MESH_GPU_TOPOLOGY_BINDING 15
 
 blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     const Depsgraph *depsgraph,
@@ -345,15 +312,6 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
       return blender::bke::GpuComputeStatus::Error;
     }
   }
-  /* Create positions SSBO (from evaluated mesh) if needed. */
-  if (!mesh_data.ssbo_positions) {
-    mesh_data.ssbo_positions = BKE_mesh_gpu_positions_create_ssbo(mesh_eval);
-    if (!mesh_data.ssbo_positions) {
-      BKE_mesh_gpu_free_for_mesh(mesh_orig);
-      mesh_eval->is_running_gpu_deform = 0;
-      return blender::bke::GpuComputeStatus::Error;
-    }
-  }
 
   if (!mesh_data.compute_shader) {
     using namespace blender::gpu::shader;
@@ -365,7 +323,6 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
       info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
     }
     info.storage_buf(MESH_GPU_TOPOLOGY_BINDING, Qualifier::read, "int", "topo[]");
-    info.storage_buf(MESH_GPU_POSITIONS_BINDING, Qualifier::read, "vec4", "positions_in[]");
 
     BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
 
@@ -402,7 +359,6 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
 
   GPU_storagebuf_bind(mesh_data.topology.ssbo, MESH_GPU_TOPOLOGY_BINDING);
-  GPU_storagebuf_bind(mesh_data.ssbo_positions, MESH_GPU_POSITIONS_BINDING);
 
   const int group_size = 256;
   const int num_groups = (dispatch_count + group_size - 1) / group_size;
@@ -438,10 +394,6 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
 
   if (GPU_context_active_get()) {
     /* Immediate GPU-safe deletion. */
-    if (data.ssbo_positions) {
-      GPU_storagebuf_free(data.ssbo_positions);
-      data.ssbo_positions = nullptr;
-    }
     if (data.compute_shader) {
       GPU_shader_free(data.compute_shader);
       data.compute_shader = nullptr;
@@ -463,10 +415,6 @@ void BKE_mesh_gpu_free_all_caches()
   /* Free per-mesh cache entries. */
   for (auto &pair : g_mesh_data_cache) {
     MeshGpuData &data = pair.second;
-    if (data.ssbo_positions && GPU_context_active_get()) {
-      GPU_storagebuf_free(data.ssbo_positions);
-      data.ssbo_positions = nullptr;
-    }
     if (data.compute_shader && GPU_context_active_get()) {
       GPU_shader_free(data.compute_shader);
       data.compute_shader = nullptr;

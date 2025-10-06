@@ -105,16 +105,6 @@ bool BKE_mesh_gpu_topology_upload(blender::bke::MeshGPUTopology &topology);
 void BKE_mesh_gpu_topology_free(blender::bke::MeshGPUTopology &topology);
 
 /**
- * Create a GPU storage buffer (SSBO) from the vertex positions of a mesh.
- * The positions are packed as float4 for alignment.
- *
- * \param mesh: The mesh to get vertex positions from.
- * \return A new GPUStorageBuf* on success, or nullptr on failure. The caller is responsible for
- * freeing the buffer with GPU_storagebuf_free().
- */
-blender::gpu::StorageBuf *BKE_mesh_gpu_positions_create_ssbo(const Mesh *mesh);
-
-/**
  * A high-level utility to run a compute shader on a mesh.
  *
  * This function automates:
