@@ -559,6 +559,8 @@ static bool snap_selected_to_location_rotation(bContext *C,
 
     for (Object *ob : objects) {
       if (use_offset) {
+        /* In offset mode, skip child objects whose parents are also being transformed
+         * to avoid double transforms. In non-offset mode, allow children to move to the target. */
         if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
           continue;
         }
