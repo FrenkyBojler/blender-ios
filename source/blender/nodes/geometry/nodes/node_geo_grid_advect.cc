@@ -219,7 +219,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::VolumeGrid<float3> velocity_grid = params.extract_input<bke::VolumeGrid<float3>>(
       "Velocity");
   if (!velocity_grid) {
-    params.set_output("Grid", std::move(grid));
+    params.set_default_remaining_outputs();
     return;
   }
 
@@ -237,7 +237,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(
         NodeWarningType::Error,
         TIP_("The input grid must have a uniform voxel scale to be advected."));
-    params.set_default_remaining_outputs();
+    params.set_output("Grid", std::move(grid));
     return;
   }
 
