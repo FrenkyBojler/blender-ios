@@ -3384,10 +3384,22 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   if (backward) {
     scene->r.cfra -= delta;
     scene->r.subframe -= delta - int(delta);
+    /* Check if subframe has a non-fractional component, and roll that into cfra. */
+    if (scene->r.subframe < 0.0f) {
+      int borrow = (int)ceilf(-scene->r.subframe);
+      scene->r.cfra -= borrow;
+      scene->r.subframe += borrow;
+    }
   }
   else {
     scene->r.cfra += delta;
     scene->r.subframe += delta - int(delta);
+    /* Check if subframe has a non-fractional component, and roll that into cfra. */
+    if (scene->r.subframe >= 1.0f) {
+      int carry = (int)scene->r.subframe;
+      scene->r.cfra += carry;
+      scene->r.subframe -= carry;
+    }
   }
 
   ED_areas_do_frame_follow(C, true);
