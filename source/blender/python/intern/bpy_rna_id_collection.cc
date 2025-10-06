@@ -611,8 +611,7 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
    *  - Is the path referring to input or output (the render output, or file output nodes).
    * Even though this is not implemented currently, the parameter is already added so that the
    * eventual implementation is not an API-breaking change. */
-  PyObject *py_path_meta = Py_None;
-  Py_INCREF(py_path_meta); /* PyTuple_SET_ITEMS steals a reference, give it something to steal. */
+  PyObject *py_path_meta = Py_NewRef(Py_None);
   PyTuple_SET_ITEMS(args, py_owner_id, py_path_src, py_path_meta);
 
   /* Call the Python callback function. */
