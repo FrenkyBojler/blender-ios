@@ -1640,6 +1640,44 @@ static PyObject *bpy_bmesh_uv_select_flush(BPy_BMesh *self, PyObject *value)
 
 PyDoc_STRVAR(
     /* Wrap. */
+    bpy_bmesh_uv_select_flush_shared_doc,
+    ".. method:: uv_select_flush_shared(select)\n"
+    "\n"
+    "   Flush selection from UV vertices to contiguous UV's independent of the selection mode.\n"
+    "\n"
+    "   :arg select: Flush selection or de-selected elements.\n"
+    "   :type select: bool\n"
+    "\n"
+    "   .. note::\n"
+    "\n"
+    "      - |UV_SELECT_SYNC_TO_MESH_NEEDED|\n");
+static PyObject *bpy_bmesh_uv_select_flush_shared(BPy_BMesh *self, PyObject *value)
+{
+  const char *error_prefix = "uv_select_flush_shared(...)";
+  int param;
+
+  BPY_BM_CHECK_OBJ(self);
+
+  if ((param = PyC_Long_AsBool(value)) == -1) {
+    return nullptr;
+  }
+  BMesh *bm = self->bm;
+  /* While sync doesn't need to be valid,
+   * failing to make it valid causes selection functions to assert, so require it to be valid. */
+  if (bpy_bm_check_uv_select_sync_valid(bm, error_prefix) == -1) {
+    return nullptr;
+  }
+  if (param) {
+    BM_mesh_uvselect_flush_shared_only_select(bm, param);
+  }
+  else {
+    BM_mesh_uvselect_flush_shared_only_deselect(bm, param);
+  }
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     bpy_bmesh_uv_select_sync_from_mesh_doc,
     ".. method:: uv_select_sync_from_mesh(/, *, "
     "sticky_select_mode='SHARED_LOCATION')\n"
@@ -3812,6 +3850,10 @@ static PyMethodDef bpy_bmesh_methods[] = {
      (PyCFunction)bpy_bmesh_uv_select_flush,
      METH_O,
      bpy_bmesh_uv_select_flush_doc},
+    {"uv_select_flush_shared",
+     (PyCFunction)bpy_bmesh_uv_select_flush_shared,
+     METH_O,
+     bpy_bmesh_uv_select_flush_shared_doc},
 
     {"uv_select_sync_from_mesh",
      (PyCFunction)bpy_bmesh_uv_select_sync_from_mesh,

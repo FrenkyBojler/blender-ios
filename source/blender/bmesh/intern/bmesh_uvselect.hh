@@ -339,6 +339,7 @@ void BM_mesh_uvselect_flush_from_faces_only_deselect(BMesh *bm);
  * This avoids having to use more involved UV connectivity aware logic inline.
  */
 void BM_mesh_uvselect_flush_shared_only_select(BMesh *bm, int cd_loop_uv_offset);
+void BM_mesh_uvselect_flush_shared_only_deselect(BMesh *bm, int cd_loop_uv_offset);
 
 /** \} */
 

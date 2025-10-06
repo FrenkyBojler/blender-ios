@@ -1176,6 +1176,37 @@ void BM_mesh_uvselect_flush_shared_only_select(BMesh *bm, const int cd_loop_uv_o
   }
 }
 
+void BM_mesh_uvselect_flush_shared_only_deselect(BMesh *bm, const int cd_loop_uv_offset)
+{
+  BLI_assert(cd_loop_uv_offset >= 0);
+  BMIter iter;
+  BMFace *f;
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+      continue;
+    }
+
+    BMLoop *l_iter, *l_first;
+    l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+    do {
+      if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
+        if (!BM_loop_vert_uvselect_check_other_loop_vert(
+                l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
+        {
+          BM_loop_vert_uvselect_set_noflush(bm, l_iter, false);
+        }
+      }
+      if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
+        if (!BM_loop_edge_uvselect_check_other_loop_edge(
+                l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
+        {
+          BM_loop_edge_uvselect_set_noflush(bm, l_iter, false);
+        }
+      }
+    } while ((l_iter = l_iter->next) != l_first);
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
