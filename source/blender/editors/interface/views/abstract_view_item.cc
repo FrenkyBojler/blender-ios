@@ -118,9 +118,7 @@ void AbstractViewItem::change_state_delayed()
     if (*should_be_active) {
       /* Don't call #activate() here, since this reflects an external state change and therefore
        * shouldn't call #on_activate(). */
-      if (set_state_active()) {
-        view_->set_active_in_focus_ = true;
-      }
+      set_state_active();
     }
     else if (is_active_) {
       is_active_ = false;

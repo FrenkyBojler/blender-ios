@@ -77,7 +77,6 @@ class AbstractView {
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
   bool is_multiselect_supported_ = false;
-  bool set_active_in_focus_ = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -156,7 +155,6 @@ class AbstractView {
   void clear_search_highlight();
   void allow_multiselect_items();
   bool is_multiselect_supported() const;
-  virtual bool get_active_in_focus();
 
  protected:
   AbstractView() = default;

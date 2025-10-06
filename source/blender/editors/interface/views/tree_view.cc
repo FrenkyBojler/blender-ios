@@ -393,18 +393,23 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
-bool AbstractTreeView::get_active_in_focus()
+void AbstractTreeView::set_active_in_focus()
 {
-  int index = 1;
+  int index = 0;
   const std::optional<int> visible_row_count = tot_visible_row_count();
-  if (AbstractView::get_active_in_focus()) {
+
+  if (!visible_row_count.has_value()) {
+    return;
+  }
+
+  if (scroll_active_into_view_on_draw_) {
     if (!scroll_value_) {
       scroll_value_ = std::make_unique<int>(0);
     }
     foreach_item(
         [&, this](AbstractTreeViewItem &item) {
           if (item.is_active_) {
-            *scroll_value_ = std::max(0, index - *visible_row_count);
+            *scroll_value_ = std::max(0, index - *visible_row_count + 1);
             return;
           }
           index++;
@@ -412,7 +417,6 @@ bool AbstractTreeView::get_active_in_focus()
         AbstractTreeView::IterOptions::SkipCollapsed |
             AbstractTreeView::IterOptions::SkipFiltered);
   }
-  return true;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -742,7 +746,12 @@ bool AbstractTreeViewItem::is_collapsible() const
 
 void AbstractTreeViewItem::change_state_delayed()
 {
+  const bool prev_active_state = is_active();
   AbstractViewItem::change_state_delayed();
+
+  if (prev_active_state != is_active()) {
+    this->get_tree_view().scroll_active_into_view_on_draw_ = true;
+  }
 
   const std::optional<bool> should_be_collapsed = this->should_be_collapsed();
   if (should_be_collapsed.has_value()) {
@@ -836,7 +845,9 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   /* Column for the tree view. */
   row->column(true);
 
-  tree_view.get_active_in_focus();
+  if (tree_view.scroll_active_into_view_on_draw_) {
+    tree_view.set_active_in_focus();
+  }
 
   /* Clamp scroll-value to valid range. */
   if (tree_view.scroll_value_ && visible_row_count) {
