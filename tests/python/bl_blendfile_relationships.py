@@ -217,6 +217,9 @@ class TestBlendFilePathForeach(TestHelper):
         }, visited_paths, "testing without SKIP_PACKED")
 
     def test_filepath_rewriting(self) -> None:
+        # Store the pre-modification value, as its use of (back)slashes is platform-dependent.
+        image_filepath_before = str(bpy.data.images['pack.png'].filepath)
+
         def visit_path_fn(owner_id: bpy.types.ID, path: str, _meta: None) -> str | None:
             return "//{}-rewritten.blend".format(owner_id.name)
         bpy.data.file_path_foreach(visit_path_fn)
@@ -227,7 +230,7 @@ class TestBlendFilePathForeach(TestHelper):
         self.assertEqual(libs['indirect_datablocks'].filepath, "//indirect_datablocks-rewritten.blend")
         self.assertEqual(
             bpy.data.images['pack.png'].filepath,
-            "//libraries/pack.png",
+            image_filepath_before,
             "Packed file should not have changed")
 
     def test_exception_passing(self) -> None:
