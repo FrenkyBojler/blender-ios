@@ -152,7 +152,11 @@ class GreasePencil_LayerDisplayPanel:
         grease_pencil = context.grease_pencil
         layer = grease_pencil.layers.active
 
+        is_enabled = context.preferences.edit.use_anim_channel_group_colors
+        layout.active = is_enabled
         layout.prop(layer, "channel_color", text="Channel Color")
+        if not is_enabled:
+            layout.label(text="Channel colors are disabled in Animation Preferences")
 
 
 class GREASE_PENCIL_MT_layer_mask_add(Menu):
