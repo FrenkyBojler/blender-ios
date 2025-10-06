@@ -996,14 +996,16 @@ class ConstraintButtonsPanel:
 
         if con.data_type == 'FLOAT4X4':
             row = layout.row(heading="Enabled")
-            row.prop(con, "mix_loc", text="Location",toggle=True)
-            row.prop(con, "mix_rot", text="Rotation",toggle=True)
-            row.prop(con, "mix_scl", text="Scale",toggle=True)
+            row.prop(con, "mix_loc", text="Location", toggle=True)
+            row.prop(con, "mix_rot", text="Rotation", toggle=True)
+            row.prop(con, "mix_scl", text="Scale", toggle=True)
             row.label(icon='BLANK1')
 
         self.draw_influence(layout, con)
 
 # Parent class for constraint sub-panels.
+
+
 class ConstraintButtonsSubPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -1691,6 +1693,7 @@ class BONE_PT_bKinematicConstraint(BoneConstraintPanel, ConstraintButtonsPanel, 
 
  # Geometry Attribute Constraint.
 
+
 class OBJECT_PT_bGeometryAttributeConstraint(ObjectConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
         self.draw_geometry_attribute(context)
@@ -1699,6 +1702,7 @@ class OBJECT_PT_bGeometryAttributeConstraint(ObjectConstraintPanel, ConstraintBu
 class BONE_PT_bGeometryAttributeConstraint(BoneConstraintPanel, ConstraintButtonsPanel, Panel):
     def draw(self, context):
         self.draw_geometry_attribute(context)
+
 
 classes = (
     # Object Panels
