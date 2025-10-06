@@ -1284,6 +1284,7 @@ void OneapiDevice::get_adjusted_global_and_local_sizes(SyclQueue *queue,
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME:
+    case DEVICE_KERNEL_INTEGRATOR_SHADE_VOLUME_RAY_MARCHING:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW:
     case DEVICE_KERNEL_INTEGRATOR_SHADE_DEDICATED_LIGHT: {
       const bool device_is_simd8 =
@@ -1353,7 +1354,7 @@ static const int lowest_supported_driver_version_win = 1016554;
  * This information is returned by `ocloc query OCL_DRIVER_VERSION`. */
 static const int lowest_supported_driver_version_neo = 31896;
 #  else
-static const int lowest_supported_driver_version_neo = 31740;
+static const int lowest_supported_driver_version_neo = 34666;
 #  endif
 
 int parse_driver_build_version(const sycl::device &device)
@@ -1559,7 +1560,10 @@ void OneapiDevice::architecture_information(const SyclDevice *device,
     FILL_ARCH_INFO(intel_gpu_mtl_u, true)
     FILL_ARCH_INFO(intel_gpu_mtl_h, true)
     FILL_ARCH_INFO(intel_gpu_bmg_g21, true)
+    FILL_ARCH_INFO(intel_gpu_bmg_g31, true)
     FILL_ARCH_INFO(intel_gpu_lnl_m, true)
+    FILL_ARCH_INFO(intel_gpu_ptl_h, true)
+    FILL_ARCH_INFO(intel_gpu_ptl_u, true)
 
     default:
       name = "unknown";

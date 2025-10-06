@@ -484,6 +484,7 @@ class IMAGE_MT_uvs(Menu):
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.menu("IMAGE_MT_uvs_align")
         layout.operator("uv.align_rotation")
+        layout.operator_menu_enum("uv.move_on_axis", "type", text="Move on Axis")
 
         layout.separator()
 
@@ -1362,6 +1363,7 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel, StrokePanel):
     bl_parent_id = "IMAGE_PT_paint_settings"
     bl_category = "Tool"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_ui_units_x = 14
 
 
 class IMAGE_PT_paint_stroke_smooth_stroke(Panel, BrushButtonsPanel, SmoothStrokePanel):
@@ -1411,11 +1413,11 @@ class IMAGE_PT_uv_sculpt_curve(Panel):
         props = context.scene.tool_settings.uv_sculpt
 
         col = layout.column()
-        col.prop(props, "curve_preset", expand=True)
+        col.prop(props, "curve_distance_falloff_preset", expand=True)
 
-        if props.curve_preset == 'CUSTOM':
+        if props.curve_distance_falloff_preset == 'CUSTOM':
             col = layout.column()
-            col.template_curve_mapping(props, "strength_curve")
+            col.template_curve_mapping(props, "curve_distance_falloff")
 
 
 # Only a popover.
