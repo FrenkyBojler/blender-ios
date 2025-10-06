@@ -48,22 +48,9 @@ static const Chromaticities AWG3_PRI = {
     /* g: */ {0.221f, 0.848f},
     /* b: */ {0.0861f, -0.102f},
     /* w: */ {0.3127f, 0.3290f}};
-
-static const Chromaticities AWG4_PRI = {
-    /* r: */ {0.7347f, 0.2653f},
-    /* g: */ {0.1424f, 0.8576f},
-    /* b: */ {0.0991f, -0.0308f},
-    /* w: */ {0.3127f, 0.3290f}};
-
-static const Chromaticities EGAMUT_PRI = {
-    /* r: */ {0.8f, 0.3177f},
-    /* g: */ {0.18f, 0.9f},
-    /* b: */ {0.065f, -0.0805f},
-    /* w: */ {0.3127f, 0.3290f}};
-
 // Create a const array of Chromaticities for enum's index-based selection
 static const Chromaticities COLOR_SPACE_PRI[] = {
-    P3D65_PRI, REC709_PRI, REC2020_PRI, AWG3_PRI, AWG4_PRI, EGAMUT_PRI};
+    P3D65_PRI, REC709_PRI, REC2020_PRI, AWG3_PRI};
 
 /* ##########################################################################
     Functions
@@ -109,15 +96,7 @@ static inline float3 log2lin(float3 rgb,
                              float generic_log2_min_expo = -10,
                              float generic_log2_max_expo = 6.5)
 {
-  if (tf == 0) {  // Filmlight T-Log
-    rgb.x = rgb.x < 0.075f ? (rgb.x - 0.075f) / 16.18437649f :
-                             exp((rgb.x - 0.55201266f) / 0.09232903f) - 0.00570482f;
-    rgb.y = rgb.y < 0.075f ? (rgb.y - 0.075f) / 16.18437649f :
-                             exp((rgb.y - 0.55201266f) / 0.09232903f) - 0.00570482f;
-    rgb.z = rgb.z < 0.075f ? (rgb.z - 0.075f) / 16.18437649f :
-                             exp((rgb.z - 0.55201266f) / 0.09232903f) - 0.00570482f;
-  }
-  else if (tf == 1) {  // Arri LogC3 EI 800
+  if (tf == 0) {  // Arri LogC3 EI 800
     rgb.x = rgb.x > 0.149658f ?
                 (pow(10.0f, (rgb.x - 0.385537f) / 0.24719f) - 0.052272f) / 5.555556f :
                 (rgb.x - 0.092809f) / 5.367655f;
@@ -128,21 +107,7 @@ static inline float3 log2lin(float3 rgb,
                 (pow(10.0f, (rgb.z - 0.385537f) / 0.24719f) - 0.052272f) / 5.555556f :
                 (rgb.z - 0.092809f) / 5.367655f;
   }
-  else if (tf == 2) {  // Arri LogC 4
-    const float a = (pow(2.0f, 18.0f) - 16.0f) / 117.45f;
-    const float b = (1023.0f - 95.0f) / 1023.0f;
-    const float c = 95.0f / 1023.f;
-    const float s = (7.f * logf(2.0f) * pow(2.0f, 7.0f - 14.0f * c / b)) / (a * b);
-    const float t = (pow(2.0f, 14.0f * ((-1.0f * c) / b) + 6.0f) - 64.0f) / a;
-
-    rgb.x = rgb.x < 0.0f ? rgb.x * s + t :
-                           (pow(2.0f, (14.0f * (rgb.x - c) / b + 6.0f)) - 64.0f) / a;
-    rgb.y = rgb.y < 0.0f ? rgb.y * s + t :
-                           (pow(2.0f, (14.0f * (rgb.y - c) / b + 6.0f)) - 64.0f) / a;
-    rgb.z = rgb.z < 0.0f ? rgb.z * s + t :
-                           (pow(2.0f, (14.0f * (rgb.z - c) / b + 6.0f)) - 64.0f) / a;
-  }
-  else if (tf == 3) {  // User controlled PureLog2
+  else if (tf == 1) {  // User controlled PureLog2
     float mx = generic_log2_max_expo;
     float mn = generic_log2_min_expo;
 
@@ -161,15 +126,7 @@ static inline float3 lin2log(float3 rgb,
   float log_floor =
       log2lin(float3(0.0f, 0.0f, 0.0f), tf, generic_log2_min_expo, generic_log2_max_expo).x;
   rgb = maxf3(log_floor, rgb);
-  if (tf == 0) {  // Filmlight T-Log
-    rgb.x = rgb.x < 0.0f ? 16.18437649f * rgb.x + 0.075f :
-                           logf(rgb.x + 0.00570482f) * 0.09232903f + 0.55201266f;
-    rgb.y = rgb.y < 0.0f ? 16.18437649f * rgb.y + 0.075f :
-                           logf(rgb.y + 0.00570482f) * 0.09232903f + 0.55201266f;
-    rgb.z = rgb.z < 0.0f ? 16.18437649f * rgb.z + 0.075f :
-                           logf(rgb.z + 0.00570482f) * 0.09232903f + 0.55201266f;
-  }
-  else if (tf == 1) {  // Arri LogC3 EI 800
+  if (tf == 0) {  // Arri LogC3 EI 800
     rgb.x = rgb.x > 0.010591f ? 0.24719f * log10f(5.555556f * rgb.x + 0.052272f) + 0.385537f :
                                 5.367655f * rgb.x + 0.092809f;
     rgb.y = rgb.y > 0.010591f ? 0.24719f * log10f(5.555556f * rgb.y + 0.052272f) + 0.385537f :
@@ -177,18 +134,7 @@ static inline float3 lin2log(float3 rgb,
     rgb.z = rgb.z > 0.010591f ? 0.24719f * log10f(5.555556f * rgb.z + 0.052272f) + 0.385537f :
                                 5.367655f * rgb.z + 0.092809f;
   }
-  else if (tf == 2) {  // Arri LogC 4
-    const float a = (pow(2.0f, 18.0f) - 16.0f) / 117.45f;
-    const float b = (1023.0f - 95.0f) / 1023.0f;
-    const float c = 95.0f / 1023.f;
-    const float s = (7.f * logf(2.0f) * pow(2.0f, 7.0f - 14.0f * c / b)) / (a * b);
-    const float t = (pow(2.0f, 14.0f * ((-1.0f * c) / b) + 6.0f) - 64.0f) / a;
-
-    rgb.x = rgb.x >= t ? ((log2f(a * rgb.x + 64.f) - 6.f) / 14.f) * b + c : (rgb.x - t) / s;
-    rgb.y = rgb.y >= t ? ((log2f(a * rgb.y + 64.f) - 6.f) / 14.f) * b + c : (rgb.y - t) / s;
-    rgb.z = rgb.z >= t ? ((log2f(a * rgb.z + 64.f) - 6.f) / 14.f) * b + c : (rgb.z - t) / s;
-  }
-  else if (tf == 3) {  // User controlled PureLog2
+  else if (tf == 1) {  // User controlled PureLog2
     rgb = float3(log2f(rgb.x / 0.18f), log2f(rgb.y / 0.18f), log2f(rgb.z / 0.18f));
     rgb = minf3(generic_log2_max_expo, rgb);
     rgb = maxf3(generic_log2_min_expo, rgb);

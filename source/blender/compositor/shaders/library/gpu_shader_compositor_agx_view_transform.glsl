@@ -34,15 +34,7 @@ float4 log2lin(float4 rgba,
                float generic_log2_max_expo = 6.5)
 {
   float3 rgb = rgba.rgb;
-  if (tf == 0) {  // Filmlight T-Log
-    rgb.x = rgb.x < 0.075f ? (rgb.x - 0.075f) / 16.18437649f :
-                             exp((rgb.x - 0.55201266f) / 0.09232903f) - 0.00570482f;
-    rgb.y = rgb.y < 0.075f ? (rgb.y - 0.075f) / 16.18437649f :
-                             exp((rgb.y - 0.55201266f) / 0.09232903f) - 0.00570482f;
-    rgb.z = rgb.z < 0.075f ? (rgb.z - 0.075f) / 16.18437649f :
-                             exp((rgb.z - 0.55201266f) / 0.09232903f) - 0.00570482f;
-  }
-  else if (tf == 1) {  // Arri LogC3 EI 800
+  if (tf == 0) {  // Arri LogC3 EI 800
     rgb.x = rgb.x > 0.149658f ?
                 (pow(10.0f, (rgb.x - 0.385537f) / 0.24719f) - 0.052272f) / 5.555556f :
                 (rgb.x - 0.092809f) / 5.367655f;
@@ -53,21 +45,7 @@ float4 log2lin(float4 rgba,
                 (pow(10.0f, (rgb.z - 0.385537f) / 0.24719f) - 0.052272f) / 5.555556f :
                 (rgb.z - 0.092809f) / 5.367655f;
   }
-  else if (tf == 2) {  // Arri LogC 4
-    const float a = (pow(2.0f, 18.0f) - 16.0f) / 117.45f;
-    const float b = (1023.0f - 95.0f) / 1023.0f;
-    const float c = 95.0f / 1023.f;
-    const float s = (7.f * log(2.0f) * pow(2.0f, 7.0f - 14.0f * c / b)) / (a * b);
-    const float t = (pow(2.0f, 14.0f * ((-1.0f * c) / b) + 6.0f) - 64.0f) / a;
-
-    rgb.x = rgb.x < 0.0f ? rgb.x * s + t :
-                           (pow(2.0f, (14.0f * (rgb.x - c) / b + 6.0f)) - 64.0f) / a;
-    rgb.y = rgb.y < 0.0f ? rgb.y * s + t :
-                           (pow(2.0f, (14.0f * (rgb.y - c) / b + 6.0f)) - 64.0f) / a;
-    rgb.z = rgb.z < 0.0f ? rgb.z * s + t :
-                           (pow(2.0f, (14.0f * (rgb.z - c) / b + 6.0f)) - 64.0f) / a;
-  }
-  else if (tf == 3) {  // User controlled PureLog2
+  else if (tf == 1) {  // User controlled PureLog2
     float mx = generic_log2_max_expo;
     float mn = generic_log2_min_expo;
 
@@ -83,15 +61,7 @@ float4 lin2log(float4 rgba, int tf, float generic_log2_min_expo, float generic_l
   float3 rgb = rgba.rgb;
   float log_floor = log2lin(float4(0.0f), tf, generic_log2_min_expo, generic_log2_max_expo).x;
   rgb = max(float3(log_floor), rgb);
-  if (tf == 0) {  // Filmlight T-Log
-    rgb.x = rgb.x < 0.0f ? 16.18437649f * rgb.x + 0.075f :
-                           log(rgb.x + 0.00570482f) * 0.09232903f + 0.55201266f;
-    rgb.y = rgb.y < 0.0f ? 16.18437649f * rgb.y + 0.075f :
-                           log(rgb.y + 0.00570482f) * 0.09232903f + 0.55201266f;
-    rgb.z = rgb.z < 0.0f ? 16.18437649f * rgb.z + 0.075f :
-                           log(rgb.z + 0.00570482f) * 0.09232903f + 0.55201266f;
-  }
-  else if (tf == 1) {  // Arri LogC3 EI 800
+  if (tf == 0) {  // Arri LogC3 EI 800
     rgb.x = rgb.x > 0.010591f ?
                 0.24719f * (log(5.555556f * rgb.x + 0.052272f) / log(10.0f)) + 0.385537f :
                 5.367655f * rgb.x + 0.092809f;
@@ -102,18 +72,7 @@ float4 lin2log(float4 rgba, int tf, float generic_log2_min_expo, float generic_l
                 0.24719f * (log(5.555556f * rgb.z + 0.052272f) / log(10.0f)) + 0.385537f :
                 5.367655f * rgb.z + 0.092809f;
   }
-  else if (tf == 2) {  // Arri LogC 4
-    const float a = (pow(2.0f, 18.0f) - 16.0f) / 117.45f;
-    const float b = (1023.0f - 95.0f) / 1023.0f;
-    const float c = 95.0f / 1023.f;
-    const float s = (7.f * log(2.0f) * pow(2.0f, 7.0f - 14.0f * c / b)) / (a * b);
-    const float t = (pow(2.0f, 14.0f * ((-1.0f * c) / b) + 6.0f) - 64.0f) / a;
-
-    rgb.x = rgb.x >= t ? ((log2(a * rgb.x + 64.f) - 6.f) / 14.f) * b + c : (rgb.x - t) / s;
-    rgb.y = rgb.y >= t ? ((log2(a * rgb.y + 64.f) - 6.f) / 14.f) * b + c : (rgb.y - t) / s;
-    rgb.z = rgb.z >= t ? ((log2(a * rgb.z + 64.f) - 6.f) / 14.f) * b + c : (rgb.z - t) / s;
-  }
-  else if (tf == 3) {  // User controlled PureLog2
+  else if (tf == 1) {  // User controlled PureLog2
     rgb = log2(rgb / 0.18f);
     rgb = clamp(rgb, generic_log2_min_expo, generic_log2_max_expo);
 
@@ -542,20 +501,8 @@ void node_composite_agx_view_transform(float4 color,
       /* b: */ float2(0.0861f, -0.102f),
       /* w: */ float2(0.3127f, 0.3290f));
 
-  const Chromaticities AWG4_PRI = Chromaticities(
-      /* r: */ float2(0.7347f, 0.2653f),
-      /* g: */ float2(0.1424f, 0.8576f),
-      /* b: */ float2(0.0991f, -0.0308f),
-      /* w: */ float2(0.3127f, 0.3290f));
-
-  const Chromaticities EGAMUT_PRI = Chromaticities(
-      /* r: */ float2(0.8f, 0.3177f),
-      /* g: */ float2(0.18f, 0.9f),
-      /* b: */ float2(0.065f, -0.0805f),
-      /* w: */ float2(0.3127f, 0.3290f));
-
   const Chromaticities COLOR_SPACE_PRI[] = {
-      P3D65_PRI, REC709_PRI, REC2020_PRI, AWG3_PRI, AWG4_PRI, EGAMUT_PRI};
+      P3D65_PRI, REC709_PRI, REC2020_PRI, AWG3_PRI};
 
   color = scene_linear_to_working * color;
 
@@ -674,19 +621,19 @@ void node_composite_agx_view_transform(float4 color,
   if (bool(use_hdr_in)) {
     float4 pre_darken_hsv;
     rgb_to_hsv(img, pre_darken_hsv);
-    img = lin2log(img, 3, -20.0f, 2.47393118833f);
+    img = lin2log(img, 1, -20.0f, 2.47393118833f);
 
     float hdr_mg_pre_darken =
-        lin2log(float4(0.18f, 0.18f, 0.18f, 1.0f), 3, -20.0f, 2.47393118833f).x;
+        lin2log(float4(0.18f, 0.18f, 0.18f, 1.0f), 1, -20.0f, 2.47393118833f).x;
     float hdr_mg_darkened =
-        lin2log(float4(0.18f / hdr_sdr_ratio, 0.18f, 0.18f, 1.0f), 3, -20.0f, 2.47393118833f).x;
+        lin2log(float4(0.18f / hdr_sdr_ratio, 0.18f, 0.18f, 1.0f), 1, -20.0f, 2.47393118833f).x;
     // slope set to 1.000001 instead of 1.0 to prevent the curve from breaking when hdr_peak_in ==
     // hdr_midgray_factor_in
     img.x = sigmoid(img.x, 1, 3, 1.000001f, hdr_mg_pre_darken, hdr_mg_darkened, 1, 0);
     img.y = sigmoid(img.y, 1, 3, 1.000001f, hdr_mg_pre_darken, hdr_mg_darkened, 1, 0);
     img.z = sigmoid(img.z, 1, 3, 1.000001f, hdr_mg_pre_darken, hdr_mg_darkened, 1, 0);
 
-    img = log2lin(img, 3, -20.0f, 2.47393118833f);
+    img = log2lin(img, 1, -20.0f, 2.47393118833f);
 
     float4 post_darken_hsv;
     rgb_to_hsv(img, post_darken_hsv);

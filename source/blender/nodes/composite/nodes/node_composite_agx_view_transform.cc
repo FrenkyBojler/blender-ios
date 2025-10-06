@@ -40,15 +40,11 @@ enum class AGXPrimaries : int16_t {
   AGX_PRIMARIES_REC709 = 1,
   AGX_PRIMARIES_REC2020 = 2,
   AGX_PRIMARIES_AWG3 = 3,
-  AGX_PRIMARIES_AWG4 = 4,
-  AGX_PRIMARIES_EGAMUT = 5,
 };
 
 enum class AGXWorkingLog : int16_t {
-  AGX_WORKING_LOG_TLOG = 0,
-  AGX_WORKING_LOG_ARRI_LOGC3 = 1,
-  AGX_WORKING_LOG_ARRI_LOGC4 = 2,
-  AGX_WORKING_LOG_GENERIC_LOG2 = 3,
+  AGX_WORKING_LOG_ARRI_LOGC3 = 0,
+  AGX_WORKING_LOG_GENERIC_LOG2 = 1,
 };
 
 static const EnumPropertyItem agx_working_primaries_items[] = {
@@ -56,8 +52,6 @@ static const EnumPropertyItem agx_working_primaries_items[] = {
     {int(AGXPrimaries::AGX_PRIMARIES_REC709), "rec709", 0, "Rec.709", ""},
     {int(AGXPrimaries::AGX_PRIMARIES_REC2020), "rec2020", 0, "Rec.2020", ""},
     {int(AGXPrimaries::AGX_PRIMARIES_AWG3), "awg3", 0, "ARRI Alexa Wide Gamut 3", ""},
-    {int(AGXPrimaries::AGX_PRIMARIES_AWG4), "awg4", 0, "ARRI Alexa Wide Gamut 4", ""},
-    {int(AGXPrimaries::AGX_PRIMARIES_EGAMUT), "egamut", 0, "FilmLight E-Gamut", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -69,9 +63,7 @@ static const EnumPropertyItem agx_display_primaries_items[] = {
 };
 
 static const EnumPropertyItem agx_working_log_items[] = {
-    {int(AGXWorkingLog::AGX_WORKING_LOG_TLOG), "t_log", 0, "FilmLight T-Log", ""},
     {int(AGXWorkingLog::AGX_WORKING_LOG_ARRI_LOGC3), "arri_logc3", 0, "ARRI LogC3", ""},
-    {int(AGXWorkingLog::AGX_WORKING_LOG_ARRI_LOGC4), "arri_logc4", 0, "ARRI LogC4", ""},
     {int(AGXWorkingLog::AGX_WORKING_LOG_GENERIC_LOG2), "generic_log2", 0, "Generic Log2", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -659,18 +651,18 @@ static float4 agx_image_formation(const float4 color,
   if (use_hdr_in) {
     float3 pre_darken_hsv;
     rgb_to_hsv_v(img, pre_darken_hsv);
-    img = lin2log(img, 3, -20.0f, 2.47393118833f);
+    img = lin2log(img, 1, -20.0f, 2.47393118833f);
 
-    float hdr_mg_pre_darken = lin2log(float3(0.18f, 0.18f, 0.18f), 3, -20.0f, 2.47393118833f).x;
+    float hdr_mg_pre_darken = lin2log(float3(0.18f, 0.18f, 0.18f), 1, -20.0f, 2.47393118833f).x;
     float hdr_mg_darkened =
-        lin2log(float3(0.18f / hdr_sdr_ratio, 0.18f, 0.18f), 3, -20.0f, 2.47393118833f).x;
+        lin2log(float3(0.18f / hdr_sdr_ratio, 0.18f, 0.18f), 1, -20.0f, 2.47393118833f).x;
     // slope set to 1.000001 instead of 1.0 to prevent the curve from breaking when hdr_peak_in ==
     // hdr_midgray_factor_in
     img.x = sigmoid(img.x, 1, 3, 1.000001f, hdr_mg_pre_darken, hdr_mg_darkened, 1, 0);
     img.y = sigmoid(img.y, 1, 3, 1.000001f, hdr_mg_pre_darken, hdr_mg_darkened, 1, 0);
     img.z = sigmoid(img.z, 1, 3, 1.000001f, hdr_mg_pre_darken, hdr_mg_darkened, 1, 0);
 
-    img = log2lin(img, 3, -20.0f, 2.47393118833f);
+    img = log2lin(img, 1, -20.0f, 2.47393118833f);
 
     float3 post_darken_hsv;
     rgb_to_hsv_v(img, post_darken_hsv);
