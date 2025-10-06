@@ -1,2 +1,3 @@
 Referenced by issue #140635, Mem leak on undo since AttributeStorage changes
 Referenced by issue #140638, Grease pencil: error when saving file, crash when opening
+Referenced by issue #147427, Newest version of Blender that worked as expected
