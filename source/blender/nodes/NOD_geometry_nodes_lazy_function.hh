@@ -252,6 +252,8 @@ struct GeoNodesCallData {
    */
   GeoNodesOperatorData *operator_data = nullptr;
 
+  uintptr_t stack_depth_limit;
+
   /**
    * Self object has slightly different semantics depending on how geometry nodes is called.
    * Therefor, it is not stored directly in the global data.
