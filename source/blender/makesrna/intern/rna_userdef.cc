@@ -2013,7 +2013,7 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "icon_saturation", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_ui_text(prop, "Icon Saturation", "Saturation of icons in the interface");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "widget_emboss", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "widget_emboss");

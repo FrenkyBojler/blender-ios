@@ -227,10 +227,23 @@ static void vicon_rgb_text_draw(
   BLF_draw(font_id, str, len);
 }
 
+static void vicon_rgb_color_desaturate(float color[3], const uchar mono_rgba[4])
+{
+  bTheme *btheme = UI_GetTheme();
+  const float saturation = btheme->tui.icon_saturation;
+  if (saturation < 1.0f) {
+    const float max = float(srgb_to_grayscale_byte(mono_rgba)) / 255.0f;
+    color[0] = saturation * color[0] + ((1.0f - saturation) * max);
+    color[1] = saturation * color[1] + ((1.0f - saturation) * max);
+    color[2] = saturation * color[2] + ((1.0f - saturation) * max);
+  }
+}
+
 static void vicon_rgb_red_draw(
     float x, float y, float w, float h, float alpha, const uchar mono_rgba[4])
 {
-  const float color[4] = {0.5f, 0.0f, 0.0f, 1.0f * alpha};
+  float color[4] = {0.5f, 0.0f, 0.0f, 1.0f * alpha};
+  vicon_rgb_color_desaturate(color, mono_rgba);
   vicon_rgb_color_draw(x, y, w, h, color, 0.25f * alpha);
   const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "R");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
@@ -239,7 +252,8 @@ static void vicon_rgb_red_draw(
 static void vicon_rgb_green_draw(
     float x, float y, float w, float h, float alpha, const uchar mono_rgba[4])
 {
-  const float color[4] = {0.0f, 0.4f, 0.0f, 1.0f * alpha};
+  float color[4] = {0.0f, 0.4f, 0.0f, 1.0f * alpha};
+  vicon_rgb_color_desaturate(color, mono_rgba);
   vicon_rgb_color_draw(x, y, w, h, color, 0.2f * alpha);
   const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "G");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
@@ -248,7 +262,8 @@ static void vicon_rgb_green_draw(
 static void vicon_rgb_blue_draw(
     float x, float y, float w, float h, float alpha, const uchar mono_rgba[4])
 {
-  const float color[4] = {0.0f, 0.0f, 1.0f, 1.0f * alpha};
+  float color[4] = {0.0f, 0.0f, 1.0f, 1.0f * alpha};
+  vicon_rgb_color_desaturate(color, mono_rgba);
   vicon_rgb_color_draw(x, y, w, h, color, 0.3f * alpha);
   const char *text = CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "B");
   vicon_rgb_text_draw(x, y, w, h, text, mono_rgba);
@@ -490,7 +505,6 @@ static void vicon_collection_color_draw(
                   ICON_OUTLINER_COLLECTION,
                   aspect,
                   1.0f,
-                  0.0f,
                   collection_color->color,
                   btheme->tui.icon_border_intensity > 0.0f,
                   UI_NO_ICON_OVERLAY_TEXT);
@@ -527,7 +541,6 @@ static void vicon_strip_color_draw(
                   ICON_SNAP_FACE,
                   aspect,
                   1.0f,
-                  0.0f,
                   strip_color->color,
                   btheme->tui.icon_border_intensity > 0.0f,
                   UI_NO_ICON_OVERLAY_TEXT);
@@ -564,7 +577,6 @@ static void vicon_strip_color_draw_library_data_indirect(
                   ICON_LIBRARY_DATA_DIRECT,
                   aspect,
                   ICON_INDIRECT_DATA_ALPHA * alpha,
-                  0.0f,
                   nullptr,
                   false,
                   UI_NO_ICON_OVERLAY_TEXT);
@@ -580,7 +592,6 @@ static void vicon_strip_color_draw_library_data_override_noneditable(
                   ICON_LIBRARY_DATA_OVERRIDE,
                   aspect,
                   ICON_INDIRECT_DATA_ALPHA * alpha * 0.75f,
-                  0.0f,
                   nullptr,
                   false,
                   UI_NO_ICON_OVERLAY_TEXT);
@@ -599,7 +610,6 @@ static void vicon_layergroup_color_draw(
                   ICON_GREASEPENCIL_LAYER_GROUP,
                   aspect,
                   1.0f,
-                  0.0f,
                   layergroup_color->color,
                   btheme->tui.icon_border_intensity > 0.0f,
                   UI_NO_ICON_OVERLAY_TEXT);
@@ -1578,6 +1588,15 @@ static void svg_replace_color_attributes(std::string &svg,
       continue;
     }
 
+    bTheme *btheme = UI_GetTheme();
+    const float saturation = btheme->tui.icon_saturation;
+    if (saturation < 1.0f) {
+      const char max = srgb_to_grayscale_byte(color);
+      color[0] = char(saturation * float(color[0]) + ((1.0f - saturation) * float(max)));
+      color[1] = char(saturation * float(color[1]) + ((1.0f - saturation) * float(max)));
+      color[2] = char(saturation * float(color[2]) + ((1.0f - saturation) * float(max)));
+    }
+
     std::string hexcolor = fmt::format(
         "{:02x}{:02x}{:02x}{:02x}", color[0], color[1], color[2], color[3]);
 
@@ -1658,7 +1677,6 @@ static void icon_draw_size(float x,
                            float alpha,
                            enum eIconSizes size,
                            int draw_size,
-                           const float desaturate,
                            const uchar mono_rgba[4],
                            const bool mono_border,
                            const IconTextOverlay *text_overlay,
@@ -1669,6 +1687,7 @@ static void icon_draw_size(float x,
   }
 
   bTheme *btheme = UI_GetTheme();
+  const float desaturate = 1.0 - btheme->tui.icon_saturation;
   const float fdraw_size = float(draw_size);
 
   Icon *icon = BKE_icon_get(icon_id);
@@ -1740,7 +1759,15 @@ static void icon_draw_size(float x,
     }
 
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-    icon_draw_rect(x, y, w, h, w, h, ibuf->byte_buffer.data, alpha, desaturate);
+    icon_draw_rect(x,
+                   y,
+                   w,
+                   h,
+                   w,
+                   h,
+                   ibuf->byte_buffer.data,
+                   alpha,
+                   1.0 - (btheme->tui.icon_saturation * 0.5f));
     GPU_blend(GPU_BLEND_ALPHA);
   }
   else if (di->type == ICON_TYPE_EVENT) {
@@ -1762,6 +1789,12 @@ static void icon_draw_size(float x,
     }
     else if (mono_rgba) {
       rgba_uchar_to_float(color, mono_rgba);
+      if (desaturate > 0.0f) {
+        const float max = srgb_to_grayscale(color);
+        color[0] = (1.0f - desaturate) * color[0] + desaturate * max;
+        color[1] = (1.0f - desaturate) * color[1] + desaturate * max;
+        color[2] = (1.0f - desaturate) * color[2] + desaturate * max;
+      }
     }
     else {
       UI_GetThemeColor4fv(TH_TEXT, color);
@@ -2176,14 +2209,12 @@ int UI_icon_color_from_collection(const Collection *collection)
 
 void UI_icon_draw(float x, float y, int icon_id)
 {
-  UI_icon_draw_ex(
-      x, y, icon_id, UI_INV_SCALE_FAC, 1.0f, 0.0f, nullptr, false, UI_NO_ICON_OVERLAY_TEXT);
+  UI_icon_draw_ex(x, y, icon_id, UI_INV_SCALE_FAC, 1.0f, nullptr, false, UI_NO_ICON_OVERLAY_TEXT);
 }
 
 void UI_icon_draw_alpha(float x, float y, int icon_id, float alpha)
 {
-  UI_icon_draw_ex(
-      x, y, icon_id, UI_INV_SCALE_FAC, alpha, 0.0f, nullptr, false, UI_NO_ICON_OVERLAY_TEXT);
+  UI_icon_draw_ex(x, y, icon_id, UI_INV_SCALE_FAC, alpha, nullptr, false, UI_NO_ICON_OVERLAY_TEXT);
 }
 
 void UI_icon_draw_preview(float x, float y, int icon_id, float aspect, float alpha, int size)
@@ -2195,7 +2226,6 @@ void UI_icon_draw_preview(float x, float y, int icon_id, float aspect, float alp
                  alpha,
                  ICON_SIZE_PREVIEW,
                  size,
-                 false,
                  nullptr,
                  false,
                  UI_NO_ICON_OVERLAY_TEXT);
@@ -2206,7 +2236,6 @@ void UI_icon_draw_ex(float x,
                      int icon_id,
                      float aspect,
                      float alpha,
-                     float desaturate,
                      const uchar mono_color[4],
                      const bool mono_border,
                      const IconTextOverlay *text_overlay,
@@ -2220,7 +2249,6 @@ void UI_icon_draw_ex(float x,
                  alpha,
                  ICON_SIZE_ICON,
                  draw_size,
-                 desaturate,
                  mono_color,
                  mono_border,
                  text_overlay,

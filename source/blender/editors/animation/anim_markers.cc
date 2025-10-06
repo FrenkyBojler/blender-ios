@@ -510,7 +510,6 @@ static void draw_marker(const uiFontStyle *fstyle,
                   icon_id,
                   UI_INV_SCALE_FAC,
                   1.0f,
-                  0.0f,
                   marker_color,
                   false,
                   UI_NO_ICON_OVERLAY_TEXT);

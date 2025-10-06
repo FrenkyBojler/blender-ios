@@ -2989,7 +2989,6 @@ static bool tselem_draw_icon(uiBlock *block,
                         data.icon,
                         UI_INV_SCALE_FAC,
                         alpha,
-                        0.0f,
                         btheme->collection_color[collection->color_tag].color,
                         btheme->tui.icon_border_intensity > 0.0f,
                         &text_overlay);
@@ -3008,14 +3007,12 @@ static bool tselem_draw_icon(uiBlock *block,
                       data.icon,
                       UI_INV_SCALE_FAC,
                       alpha,
-                      0.0f,
                       color,
                       btheme->tui.icon_border_intensity > 0.0f,
                       &text_overlay);
     }
     else {
-      UI_icon_draw_ex(
-          x, y, data.icon, UI_INV_SCALE_FAC, alpha, 0.0f, nullptr, false, &text_overlay);
+      UI_icon_draw_ex(x, y, data.icon, UI_INV_SCALE_FAC, alpha, nullptr, false, &text_overlay);
     }
   }
   else {

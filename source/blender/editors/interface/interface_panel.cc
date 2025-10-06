@@ -1139,7 +1139,6 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
                     UI_panel_is_closed(panel) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
                     aspect * UI_INV_SCALE_FAC,
                     alpha,
-                    0.0f,
                     title_color,
                     false,
                     UI_NO_ICON_OVERLAY_TEXT);
@@ -1172,7 +1171,6 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
                     ICON_PINNED,
                     aspect * UI_INV_SCALE_FAC,
                     1.0f,
-                    0.0f,
                     title_color,
                     false,
                     UI_NO_ICON_OVERLAY_TEXT);
@@ -1190,7 +1188,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
     if (header_width < (scaled_unit * 5)) {
       alpha *= std::max((header_width - scaled_unit) / float(scaled_unit * 4), 0.0f);
     }
-    UI_icon_draw_ex(x, y, icon, size, alpha, 0.0f, title_color, false, UI_NO_ICON_OVERLAY_TEXT);
+    UI_icon_draw_ex(x, y, icon, size, alpha, title_color, false, UI_NO_ICON_OVERLAY_TEXT);
   }
 }
 

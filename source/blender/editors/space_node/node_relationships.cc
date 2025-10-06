@@ -1109,8 +1109,7 @@ static void draw_draglink_tooltip(const bContext * /*C*/, ARegion * /*region*/, 
 
   const int icon = !swap_links ? ICON_ADD : (new_link ? ICON_ANIM : ICON_UV_SYNC_SELECT);
 
-  UI_icon_draw_ex(
-      x, y, icon, UI_INV_SCALE_FAC, 1.0f, 0.0f, text_col, false, UI_NO_ICON_OVERLAY_TEXT);
+  UI_icon_draw_ex(x, y, icon, UI_INV_SCALE_FAC, 1.0f, text_col, false, UI_NO_ICON_OVERLAY_TEXT);
 }
 
 static void draw_draglink_tooltip_activate(const ARegion &region, bNodeLinkDrag &nldrag)

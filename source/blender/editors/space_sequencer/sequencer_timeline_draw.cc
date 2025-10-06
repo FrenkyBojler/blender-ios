@@ -938,7 +938,6 @@ static void draw_icon_centered(TimelineDrawContext &ctx,
                   icon_id,
                   inv_scale_fac,
                   1.0f,
-                  0.0f,
                   color,
                   false,
                   UI_NO_ICON_OVERLAY_TEXT);

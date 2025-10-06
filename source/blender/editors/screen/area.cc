@@ -148,7 +148,6 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
                   ICON_FULLSCREEN_EXIT,
                   UI_INV_SCALE_FAC,
                   min_ff(alpha, 0.75f),
-                  0.0f,
                   nullptr,
                   false,
                   UI_NO_ICON_OVERLAY_TEXT);

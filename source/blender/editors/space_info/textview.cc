@@ -242,7 +242,6 @@ static bool textview_draw_string(TextViewDrawState *tds,
                     icon,
                     (16 / UI_ICON_SIZE),
                     1.0f,
-                    0.0f,
                     icon_fg,
                     false,
                     UI_NO_ICON_OVERLAY_TEXT);

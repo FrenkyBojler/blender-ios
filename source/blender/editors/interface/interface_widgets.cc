@@ -1275,13 +1275,11 @@ static void widget_draw_icon_centered(const BIFIconID icon,
     const int y = BLI_rcti_cent_y(rect) - size / 2;
 
     const bTheme *btheme = UI_GetTheme();
-    const float desaturate = 1.0 - btheme->tui.icon_saturation;
     uchar color[4] = {mono_color[0], mono_color[1], mono_color[2], mono_color[3]};
     const bool has_theme = UI_icon_get_theme_color(int(icon), color);
     const bool outline = btheme->tui.icon_border_intensity > 0.0f && has_theme;
 
-    UI_icon_draw_ex(
-        x, y, icon, aspect * UI_INV_SCALE_FAC, alpha, desaturate, color, outline, nullptr);
+    UI_icon_draw_ex(x, y, icon, aspect * UI_INV_SCALE_FAC, alpha, color, outline, nullptr);
   }
 }
 
@@ -1417,10 +1415,10 @@ static void widget_draw_icon(
 
     /* to indicate draggable */
     if (ui_but_drag_is_draggable(but) && (but->flag & UI_HOVER)) {
-      UI_icon_draw_ex(xs, ys, icon, aspect, 1.25f, 0.0f, color, outline, &but->icon_overlay_text);
+      UI_icon_draw_ex(xs, ys, icon, aspect, 1.25f, color, outline, &but->icon_overlay_text);
     }
     else if (but->flag & (UI_HOVER | UI_SELECT | UI_SELECT_DRAW)) {
-      UI_icon_draw_ex(xs, ys, icon, aspect, alpha, 0.0f, color, outline, &but->icon_overlay_text);
+      UI_icon_draw_ex(xs, ys, icon, aspect, alpha, color, outline, &but->icon_overlay_text);
     }
     else if (!((but->icon != ICON_NONE) && UI_but_is_tool(but))) {
       if (has_theme) {
@@ -1431,16 +1429,13 @@ static void widget_draw_icon(
                       icon,
                       aspect,
                       alpha,
-                      0.0f,
                       color,
                       outline,
                       &but->icon_overlay_text,
                       but->drawflag & UI_BUT_ICON_INVERT);
     }
     else {
-      const float desaturate = 1.0 - btheme->tui.icon_saturation;
-      UI_icon_draw_ex(
-          xs, ys, icon, aspect, alpha, desaturate, color, outline, &but->icon_overlay_text);
+      UI_icon_draw_ex(xs, ys, icon, aspect, alpha, color, outline, &but->icon_overlay_text);
     }
   }
 
@@ -5874,8 +5869,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
     const float aspect = U.inv_scale_factor / zoom;
 
     GPU_blend(GPU_BLEND_ALPHA);
-    UI_icon_draw_ex(
-        xs, ys, iconid, aspect, 1.0f, 0.0f, wt->wcol.text, false, UI_NO_ICON_OVERLAY_TEXT);
+    UI_icon_draw_ex(xs, ys, iconid, aspect, 1.0f, wt->wcol.text, false, UI_NO_ICON_OVERLAY_TEXT);
     GPU_blend(GPU_BLEND_NONE);
   }
 

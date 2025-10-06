@@ -348,7 +348,6 @@ static void screen_draw_area_drag_tip(
                   ED_area_icon(source),
                   1.4f / scale,
                   1.0f,
-                  0.0f,
                   wcol->text,
                   true,
                   UI_NO_ICON_OVERLAY_TEXT);

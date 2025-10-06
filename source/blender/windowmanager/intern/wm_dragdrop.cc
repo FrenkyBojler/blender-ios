@@ -1081,8 +1081,7 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
     const uchar text_col[] = {255, 255, 255, 255};
     IconTextOverlay text_overlay;
     UI_icon_text_overlay_init_from_count(&text_overlay, path_count);
-    UI_icon_draw_ex(
-        x, y, ICON_DOCUMENTS, 1.0f / scale, 1.0f, 0.0f, text_col, false, &text_overlay);
+    UI_icon_draw_ex(x, y, ICON_DOCUMENTS, 1.0f / scale, 1.0f, text_col, false, &text_overlay);
   }
   else if (drag->imb) {
     /* This could also get the preview image of an ID when dragging one. But the big preview icon
@@ -1123,7 +1122,7 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
 
     const uchar text_col[] = {255, 255, 255, 255};
     UI_icon_draw_ex(
-        x, y, drag->icon, UI_INV_SCALE_FAC, 0.8, 0.0f, text_col, false, UI_NO_ICON_OVERLAY_TEXT);
+        x, y, drag->icon, UI_INV_SCALE_FAC, 0.8, text_col, false, UI_NO_ICON_OVERLAY_TEXT);
   }
 }
 
