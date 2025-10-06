@@ -93,7 +93,7 @@ static void node_register()
   ntype.ui_name = "Grid Solve Poisson";
   ntype.ui_description =
       "Solve the Poisson equation for a scalar field. Computes a grid whose Laplacian equals the "
-      "input scalar grid";
+      "input scalar grid.";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
