@@ -219,7 +219,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::VolumeGrid<float3> velocity_grid = params.extract_input<bke::VolumeGrid<float3>>(
       "Velocity");
   if (!velocity_grid) {
-    params.set_default_remaining_outputs();
+    params.set_output("Grid", std::move(grid));
     return;
   }
 
