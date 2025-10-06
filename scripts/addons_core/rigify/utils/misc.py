@@ -349,7 +349,7 @@ def assign_parameters(target, val_dict=None, **params):
 
 def assign_rna_properties(target: bpy.types.PropertyGroup,
                           source: bpy.types.PropertyGroup | dict[str, typing.Any]) -> None:
-    """Basically calling `setattr(target, key, value)` for each item in `source`.
+    """Basically calling `setattr(target, attribute, value_from_source)` for each property of `target`.
 
     Note that this follows much of the same logic as `propgroup_to_dict()` above.
     """
