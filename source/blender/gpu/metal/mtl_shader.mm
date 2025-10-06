@@ -891,6 +891,8 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
     }
   }
 
+  [values release];
+
   /* Setup pixel format state */
   for (int color_attachment = 0; color_attachment < GPU_FB_MAX_COLOR_ATTACHMENT;
        color_attachment++)
@@ -939,49 +941,51 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
                  "UBO and SSBO bindings exceed the fragment bind table limit.");
 #endif
 
-  MTLRenderPipelineReflection *reflection_data = [MTLRenderPipelineReflection new];
-  /* Compile PSO */
-  NSError *error = nullptr;
-  id<MTLRenderPipelineState> pso = [ctx->device
-      newRenderPipelineStateWithDescriptor:desc
-                                   options:MTLPipelineOptionBufferTypeInfo
-                                reflection:&reflection_data
-                                     error:&error];
-  if (error) {
-    NSLog(@"Failed to create PSO for shader: %s error %@\n", this->name, error);
-    BLI_assert(false);
-    return nullptr;
+  @autoreleasepool {
+    MTLAutoreleasedRenderPipelineReflection reflection_data;
+    NSError *error = nullptr;
+
+    /* Compile PSO */
+    id<MTLRenderPipelineState> pso = [ctx->device
+        newRenderPipelineStateWithDescriptor:desc
+                                     options:MTLPipelineOptionBufferTypeInfo
+                                  reflection:&reflection_data
+                                       error:&error];
+    if (error) {
+      NSLog(@"Failed to create PSO for shader: %s error %@\n", this->name, error);
+      BLI_assert(false);
+      return nullptr;
+    }
+    if (!pso) {
+      NSLog(@"Failed to create PSO for shader: %s, but no error was provided!\n", this->name);
+      BLI_assert(false);
+      return nullptr;
+    }
+
+    /* Prepare pipeline state instance. */
+    MTLRenderPipelineStateInstance *pso_inst = new MTLRenderPipelineStateInstance();
+    pso_inst->vert = desc.vertexFunction;
+    pso_inst->frag = desc.fragmentFunction;
+    pso_inst->pso = pso;
+    pso_inst->null_attribute_buffer_index = (using_null_buffer) ? null_buffer_index : -1;
+    pso_inst->prim_type = prim_type;
+
+    pso_inst->reflection_data_available = (reflection_data != nil);
+    if (pso_inst->reflection_data_available) {
+      parse_reflection_data(pso_inst, reflection_data);
+    }
+
+    /* Insert into pso cache. */
+    pso_cache_lock_.lock();
+    pso_inst->shader_pso_index = pso_cache_.size();
+    pso_cache_.add(pipeline_descriptor, pso_inst);
+    pso_cache_lock_.unlock();
+    shader_debug_printf(
+        "PSO CACHE: Stored new variant in PSO cache for shader '%s' Hash: '%llu'\n",
+        this->name,
+        pipeline_descriptor.hash());
+    return pso_inst;
   }
-  if (!pso) {
-    NSLog(@"Failed to create PSO for shader: %s, but no error was provided!\n", this->name);
-    BLI_assert(false);
-    return nullptr;
-  }
-
-  /* Prepare pipeline state instance. */
-  MTLRenderPipelineStateInstance *pso_inst = new MTLRenderPipelineStateInstance();
-  pso_inst->vert = desc.vertexFunction;
-  pso_inst->frag = desc.fragmentFunction;
-  pso_inst->pso = pso;
-  pso_inst->null_attribute_buffer_index = (using_null_buffer) ? null_buffer_index : -1;
-  pso_inst->prim_type = prim_type;
-
-  pso_inst->reflection_data_available = (reflection_data != nil);
-  if (pso_inst->reflection_data_available) {
-    parse_reflection_data(pso_inst, reflection_data);
-  }
-
-  [reflection_data release];
-
-  /* Insert into pso cache. */
-  pso_cache_lock_.lock();
-  pso_inst->shader_pso_index = pso_cache_.size();
-  pso_cache_.add(pipeline_descriptor, pso_inst);
-  pso_cache_lock_.unlock();
-  shader_debug_printf("PSO CACHE: Stored new variant in PSO cache for shader '%s' Hash: '%llu'\n",
-                      this->name,
-                      pipeline_descriptor.hash());
-  return pso_inst;
 }
 
 MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
