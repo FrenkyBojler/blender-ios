@@ -501,7 +501,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                     nodes_to_delete.add(node)
             else:
                 self.transfer_node_properties(old_node, new_node)
-                
+
                 if (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes):
                     self.transfer_switch_data(old_node, new_node)
 
