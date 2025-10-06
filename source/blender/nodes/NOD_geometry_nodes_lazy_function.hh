@@ -279,13 +279,11 @@ struct GeoNodesUserData : public fn::UserData {
    */
   bool log_socket_values = true;
 
-  int call_depth = 0;
-
   destruct_ptr<fn::LocalUserData> get_local(LinearAllocator<> &allocator) override;
 
   bool is_stack_limit_reached() const
   {
-    return this->call_depth >= this->call_data->call_depth_limit;
+    return this->compute_context->parents_num() >= this->call_data->call_depth_limit;
   }
 };
 

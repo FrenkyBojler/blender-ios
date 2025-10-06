@@ -734,7 +734,6 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
         user_data.compute_context, node_.identifier, &node_.owner_tree()};
     GeoNodesUserData eval_user_data = user_data;
     eval_user_data.compute_context = &eval_compute_context;
-    eval_user_data.call_depth = user_data.call_depth + 1;
 
     std::string error_message;
     if (!execute_multi_function_on_value_variant(*fn_item_.fn,
@@ -1159,7 +1158,6 @@ class LazyFunctionForGroupNode : public LazyFunction {
     group_user_data.compute_context = &compute_context;
     group_user_data.log_socket_values = should_log_socket_values_for_context(
         *user_data, compute_context.hash());
-    group_user_data.call_depth = user_data->call_depth + 1;
 
     GeoNodesLocalUserData group_local_user_data{group_user_data};
     lf::Context group_context{storage->group_storage, &group_user_data, &group_local_user_data};
@@ -1496,7 +1494,6 @@ class LazyFunctionForSimulationZone : public LazyFunction {
     zone_user_data.compute_context = &compute_context;
     zone_user_data.log_socket_values = should_log_socket_values_for_context(
         user_data, compute_context.hash());
-    zone_user_data.call_depth = user_data.call_depth + 1;
 
     GeoNodesLocalUserData zone_local_user_data{zone_user_data};
     lf::Context zone_context{context.storage, &zone_user_data, &zone_local_user_data};
