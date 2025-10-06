@@ -772,52 +772,33 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
   int null_buffer_index = pipeline_descriptor.vertex_descriptor.num_vert_buffers;
   bool using_null_buffer = false;
 
-  {
-    for (const uint i : IndexRange(pipeline_descriptor.vertex_descriptor.max_attribute_value + 1))
-    {
-      /* Metal back-end attribute descriptor state. */
-      const MTLVertexAttributeDescriptorPSO &attribute_desc =
-          pipeline_descriptor.vertex_descriptor.attributes[i];
+  const MTLVertexDescriptor &gpu_vert_desc = pipeline_descriptor.vertex_descriptor;
+  ::MTLVertexDescriptor *mtl_vert_desc = desc.vertexDescriptor;
 
-      /* Copy metal back-end attribute descriptor state into PSO descriptor.
-       * NOTE: need to copy each element due to direct assignment restrictions.
-       * Also note */
-      ::MTLVertexAttributeDescriptor *mtl_attribute = desc.vertexDescriptor.attributes[i];
-
-      mtl_attribute.format = attribute_desc.format;
-      mtl_attribute.offset = attribute_desc.offset;
-      mtl_attribute.bufferIndex = attribute_desc.buffer_index;
-    }
-
-    for (const uint i : IndexRange(pipeline_descriptor.vertex_descriptor.num_vert_buffers)) {
-      /* Metal back-end state buffer layout. */
-      const MTLVertexBufferLayoutDescriptorPSO &buf_layout =
-          pipeline_descriptor.vertex_descriptor.buffer_layouts[i];
-      /* Copy metal back-end buffer layout state into PSO descriptor.
-       * NOTE: need to copy each element due to copying from internal
-       * back-end descriptor to Metal API descriptor. */
-      ::MTLVertexBufferLayoutDescriptor *mtl_buf_layout =
-          desc.vertexDescriptor.layouts[buf_layout.buffer_slot];
-
-      mtl_buf_layout.stepFunction = buf_layout.step_function;
-      mtl_buf_layout.stepRate = buf_layout.step_rate;
-      mtl_buf_layout.stride = buf_layout.stride;
-    }
-
-    /* Mark empty attribute conversion. */
-    for (int i = pipeline_descriptor.vertex_descriptor.max_attribute_value + 1;
-         i < GPU_VERT_ATTR_MAX_LEN;
-         i++)
-    {
-      int MTL_attribute_conversion_mode = 0;
-      [values setConstantValue:&MTL_attribute_conversion_mode
-                          type:MTLDataTypeInt
-                      withName:[NSString stringWithFormat:@"MTL_AttributeConvert%d", i]];
-    }
-
-    /* Primitive Topology. */
-    desc.inputPrimitiveTopology = pipeline_descriptor.vertex_descriptor.prim_topology_class;
+  for (const uint i : IndexRange(gpu_vert_desc.max_attribute_value + 1)) {
+    const MTLVertexAttributeDescriptorPSO &attribute_desc = gpu_vert_desc.attributes[i];
+    /* Copy metal back-end attribute descriptor state into PSO descriptor.
+     * NOTE: need to copy each element due to direct assignment restrictions.
+     * Also note */
+    ::MTLVertexAttributeDescriptor *mtl_attribute = mtl_vert_desc.attributes[i];
+    mtl_attribute.format = attribute_desc.format;
+    mtl_attribute.offset = attribute_desc.offset;
+    mtl_attribute.bufferIndex = attribute_desc.buffer_index;
   }
+
+  for (const uint i : IndexRange(gpu_vert_desc.num_vert_buffers)) {
+    const MTLVertexBufferLayoutDescriptorPSO &buf_layout = gpu_vert_desc.buffer_layouts[i];
+    /* Copy metal back-end buffer layout state into PSO descriptor.
+     * NOTE: need to copy each element due to copying from internal
+     * back-end descriptor to Metal API descriptor. */
+    MTLVertexBufferLayoutDescriptor *mtl_layout = mtl_vert_desc.layouts[buf_layout.buffer_slot];
+    mtl_layout.stepFunction = buf_layout.step_function;
+    mtl_layout.stepRate = buf_layout.step_rate;
+    mtl_layout.stride = buf_layout.stride;
+  }
+
+  /* Primitive Topology. */
+  desc.inputPrimitiveTopology = pipeline_descriptor.vertex_descriptor.prim_topology_class;
 
   /* gl_PointSize constant. */
   bool null_pointsize = true;
