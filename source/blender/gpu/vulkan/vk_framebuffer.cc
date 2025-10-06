@@ -578,7 +578,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
   render_area_update(begin_rendering.node_data.vk_rendering_info.renderArea);
 
   color_attachment_formats_.clear();
-  uint32_t max_filled_slot_index = 0;
+  int32_t max_filled_slot_index = -1;
   for (int color_attachment_index :
        IndexRange(GPU_FB_COLOR_ATTACHMENT0, GPU_FB_MAX_COLOR_ATTACHMENT))
   {
@@ -653,7 +653,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
             vk_format);
   }
   color_attachment_size = max_filled_slot_index + 1;
-  begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = color_attachment_size;
+  begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = uint32_t(color_attachment_size);
   begin_rendering.node_data.vk_rendering_info.pColorAttachments =
       begin_rendering.node_data.color_attachments;
 
