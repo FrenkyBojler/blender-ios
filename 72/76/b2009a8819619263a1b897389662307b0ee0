@@ -9,3 +9,4 @@ Referenced by issue #143148, Material attributes referencing custom properties n
 Referenced by commit 1ea87081538e30fbda49053d1c22131946face58, Fix (unreported) wrong handling of system-defined IDProperties in RNA.
 Referenced by issue #146675, Rigify not longer draws side panel buttons
 Referenced by pull request #147199, Fix: correct RNA property access in Rigify
+Referenced by commit d989117f09ee8662d01132003afe9103b9525a1e, Fix: correct RNA property access in Rigify
