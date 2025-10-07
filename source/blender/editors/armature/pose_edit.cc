@@ -74,36 +74,6 @@ Object *ED_pose_object_from_context(bContext *C)
   return ob;
 }
 
-/* When switching mode, certain data needs to be copied from the `bPoseChannel` to the `Bone`. This
- * is not done in `BKE_pose_rebuild` because that is called in other cases other than mode
- * switching. */
-static void flush_bone_data_to_pose(Object &ob)
-{
-  BLI_assert(ob.pose);
-  LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob.pose->chanbase) {
-    if (pose_bone->bone->flag & BONE_SELECTED) {
-      pose_bone->flag |= POSE_SELECTED;
-    }
-    else {
-      pose_bone->flag &= ~POSE_SELECTED;
-    }
-  }
-}
-
-static void flush_pose_data_to_bone(Object &ob)
-{
-  BLI_assert(ob.pose);
-  constexpr int selection_flags = (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
-  LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob.pose->chanbase) {
-    if (pose_bone->flag & POSE_SELECTED) {
-      pose_bone->bone->flag |= selection_flags;
-    }
-    else {
-      pose_bone->bone->flag &= ~selection_flags;
-    }
-  }
-}
-
 bool ED_object_posemode_enter_ex(Main *bmain, Object *ob)
 {
   BLI_assert(BKE_id_is_editable(bmain, &ob->id));
@@ -113,7 +83,6 @@ bool ED_object_posemode_enter_ex(Main *bmain, Object *ob)
     case OB_ARMATURE:
       ob->restore_mode = ob->mode;
       ob->mode |= OB_MODE_POSE;
-      flush_bone_data_to_pose(*ob);
 
       /* Inform all evaluated versions that we changed the mode. */
       DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_SYNC_TO_EVAL);
@@ -147,7 +116,6 @@ bool ED_object_posemode_exit_ex(Main *bmain, Object *ob)
   if (ob) {
     ob->restore_mode = ob->mode;
     ob->mode &= ~OB_MODE_POSE;
-    flush_pose_data_to_bone(*ob);
 
     /* Inform all evaluated versions that we changed the mode. */
     DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_SYNC_TO_EVAL);
