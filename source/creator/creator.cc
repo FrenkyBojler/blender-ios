@@ -587,7 +587,7 @@ int main(int argc,
   argv = nullptr;
   (void)argv;
 #endif
-  BLI_assert_msg(false, "this always happens");
+
 #ifndef WITH_PYTHON_MODULE
   if (G.background) {
     int exit_code;
@@ -607,6 +607,7 @@ int main(int argc,
 
     /* Shows the splash as needed. */
     WM_init_splash_on_startup(C);
+
     WM_main(C);
   }
   /* Neither #WM_exit, #WM_main return, this quiets CLANG's `unreachable-code-return` warning. */
