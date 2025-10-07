@@ -104,6 +104,22 @@ bool uvedit_vert_is_all_other_faces_selected(const ToolSettings *ts,
                                              const BMLoop *l,
                                              const BMUVOffsets &offsets);
 
+[[nodiscard]] bool uvedit_vert_select_get_no_sync(const ToolSettings *ts,
+                                                  const BMesh *bm,
+                                                  const BMLoop *l);
+[[nodiscard]] bool uvedit_edge_select_get_no_sync(const ToolSettings *ts,
+                                                  const BMesh *bm,
+                                                  const BMLoop *l);
+
+void uvedit_vert_select_set_no_sync(const ToolSettings *ts,
+                                    const BMesh *bm,
+                                    BMLoop *l,
+                                    bool select);
+void uvedit_edge_select_set_no_sync(const ToolSettings *ts,
+                                    const BMesh *bm,
+                                    BMLoop *l,
+                                    bool select);
+
 /* utility tool functions */
 
 void uvedit_live_unwrap_update(SpaceImage *sima, Scene *scene, Object *obedit);

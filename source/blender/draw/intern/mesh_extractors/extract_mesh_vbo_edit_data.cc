@@ -125,7 +125,7 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
         EditLoopData &value = corners_data[corner];
         value = {};
         if (const BMFace *bm_face = bm_original_face_get(mr, face)) {
-          mesh_render_data_face_flag(mr, bm_face, {-1, -1, -1, -1}, value);
+          mesh_render_data_face_flag(mr, bm_face, {-1, -1}, value);
         }
         if (const BMVert *bm_vert = bm_original_vert_get(mr, corner_verts[corner])) {
           mesh_render_data_vert_flag(mr, bm_vert, value);
@@ -188,7 +188,7 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
         const int index = BM_elem_index_get(loop);
         EditLoopData &value = corners_data[index];
         value = {};
-        mesh_render_data_face_flag(mr, &face, {-1, -1, -1, -1}, corners_data[index]);
+        mesh_render_data_face_flag(mr, &face, {-1, -1}, corners_data[index]);
         mesh_render_data_edge_flag(mr, loop->e, corners_data[index]);
         mesh_render_data_vert_flag(mr, loop->v, corners_data[index]);
         loop = loop->next;
@@ -259,7 +259,7 @@ static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
         value = {};
 
         if (const BMFace *bm_face = bm_original_face_get(mr, coarse_face)) {
-          mesh_render_data_face_flag(mr, bm_face, {-1, -1, -1, -1}, value);
+          mesh_render_data_face_flag(mr, bm_face, {-1, -1}, value);
         }
 
         const int vert_origindex = subdiv_loop_vert_index[subdiv_corner];
@@ -337,7 +337,7 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
         EditLoopData &value = corners_data[subdiv_corner];
         value = {};
 
-        mesh_render_data_face_flag(mr, bm_face, {-1, -1, -1, -1}, value);
+        mesh_render_data_face_flag(mr, bm_face, {-1, -1}, value);
 
         const int vert_origindex = subdiv_loop_vert_index[subdiv_corner];
         if (vert_origindex != -1) {

@@ -41,9 +41,7 @@ enum class AttrDomain : int8_t;
  * has 4 extra bytes above what can be used for the base layer name, and these
  * prefixes are placed between 2 '.'s at the start of the layer name.
  * For example The uv vert selection layer of a layer named `UVMap.001`
- * will be called `.vs.UVMap.001`. */
-#define UV_VERTSEL_NAME "vs"
-#define UV_EDGESEL_NAME "es"
+ * will be called `.pn.UVMap.001`. */
 #define UV_PINNED_NAME "pn"
 
 /**
@@ -53,8 +51,6 @@ enum class AttrDomain : int8_t;
  */
 struct BMUVOffsets {
   int uv;
-  int select_vert;
-  int select_edge;
   int pin;
 };
 
