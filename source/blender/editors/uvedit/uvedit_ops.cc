@@ -264,6 +264,7 @@ void ED_uvedit_select_all(const ToolSettings *ts, BMesh *bm)
   BMIter iter, liter;
 
   BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+    uvedit_face_select_set_no_sync(ts, bm, efa, true);
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
       uvedit_vert_select_set_no_sync(ts, bm, l, true);
       uvedit_edge_select_set_no_sync(ts, bm, l, true);
@@ -2164,6 +2165,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
               uvedit_vert_select_set_no_sync(ts, em->bm, l, select);
               uvedit_edge_select_set_no_sync(ts, em->bm, l, select);
             }
+            uvedit_face_select_set_no_sync(ts, em->bm, efa, select);
             // BM_face_select_set(em->bm, efa, true);
             BM_elem_flag_enable(efa, BM_ELEM_TAG);
           }
@@ -2190,6 +2192,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
                 uvedit_edge_select_set_no_sync(ts, em->bm, l, select);
               }
             }
+            uvedit_face_select_set_no_sync(ts, em->bm, efa, select);
             // BM_face_select_set(em->bm, efa, true);
             BM_elem_flag_enable(efa, BM_ELEM_TAG);
           }
@@ -2204,6 +2207,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
             uvedit_vert_select_set_no_sync(ts, em->bm, l, select);
             uvedit_edge_select_set_no_sync(ts, em->bm, l, select);
           }
+          uvedit_face_select_set_no_sync(ts, em->bm, efa, select);
           // BM_face_select_set(em->bm, efa, true);
           BM_elem_flag_enable(efa, BM_ELEM_TAG);
         }
@@ -2217,6 +2221,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
             uvedit_vert_select_set_no_sync(ts, em->bm, l, select);
             uvedit_edge_select_set_no_sync(ts, em->bm, l, select);
           }
+          uvedit_face_select_set_no_sync(ts, em->bm, efa, select);
           // BM_face_select_set(em->bm, efa, true);
           BM_elem_flag_enable(efa, BM_ELEM_TAG);
         }

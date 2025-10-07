@@ -1426,7 +1426,8 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   mesh->act_face = -1;
 
   /* Will have been cleared when clearing geometry. */
-  if (bm->uv_select_sync_valid) {
+  const bool need_uv_select = CustomData_has_layer(&bm->ldata, CD_PROP_FLOAT2);
+  if (need_uv_select & bm->uv_select_sync_valid) {
     mesh->flag |= ME_FLAG_UV_SELET_SYNC;
   }
 
@@ -1440,11 +1441,6 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   bool need_sharp_edge = false;
   bool need_sharp_face = false;
   bool need_uv_seams = false;
-  const bool need_uv_select = (bm->uv_select_sync_valid &&
-                               /* Avoid redundant layer creation if there is no selection,
-                                * although a "Select All" / "De-select All" clears
-                                * #BMesh::uv_select_sync_valid so it's often not needed. */
-                               (bm->totvertsel != 0));
   Array<const BMVert *> vert_table;
   Array<const BMEdge *> edge_table;
   Array<const BMFace *> face_table;
@@ -1670,7 +1666,8 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   mesh.faces_num = bm.totface;
 
   /* Will have been cleared when clearing geometry. */
-  if (bm.uv_select_sync_valid) {
+  const bool need_uv_select = CustomData_has_layer(&bm.ldata, CD_PROP_FLOAT2);
+  if (need_uv_select && bm.uv_select_sync_valid) {
     mesh.flag |= ME_FLAG_UV_SELET_SYNC;
   }
 
@@ -1691,7 +1688,6 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   bool need_sharp_edge = false;
   bool need_sharp_face = false;
   bool need_uv_seams = false;
-  const bool need_uv_select = CustomData_has_layer(&bm.ldata, CD_PROP_FLOAT2);
 
   Array<const BMVert *> vert_table;
   Array<const BMEdge *> edge_table;

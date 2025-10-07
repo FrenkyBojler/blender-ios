@@ -110,6 +110,9 @@ bool uvedit_vert_is_all_other_faces_selected(const ToolSettings *ts,
 [[nodiscard]] bool uvedit_edge_select_get_no_sync(const ToolSettings *ts,
                                                   const BMesh *bm,
                                                   const BMLoop *l);
+[[nodiscard]] bool uvedit_face_select_get_no_sync(const ToolSettings *ts,
+                                                  const BMesh *bm,
+                                                  const BMFace *f);
 
 void uvedit_vert_select_set_no_sync(const ToolSettings *ts,
                                     const BMesh *bm,
@@ -118,6 +121,10 @@ void uvedit_vert_select_set_no_sync(const ToolSettings *ts,
 void uvedit_edge_select_set_no_sync(const ToolSettings *ts,
                                     const BMesh *bm,
                                     BMLoop *l,
+                                    bool select);
+void uvedit_face_select_set_no_sync(const ToolSettings *ts,
+                                    const BMesh *bm,
+                                    BMFace *f,
                                     bool select);
 
 /* utility tool functions */

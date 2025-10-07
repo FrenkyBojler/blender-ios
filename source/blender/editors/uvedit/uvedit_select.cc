@@ -420,13 +420,18 @@ bool uvedit_face_select_test_ex(const ToolSettings *ts, const BMesh *bm, const B
     return BM_elem_flag_test(efa, BM_ELEM_SELECT_UV);
   }
 
-  /* TODO: support faces for non-sync select. */
+  if (ts->uv_selectmode == UV_SELECT_FACE) {
+    if (!BM_elem_flag_test(efa, BM_ELEM_SELECT_UV)) {
+      return false;
+    }
+    return true;
+  }
   const char hflag_test = (ts->uv_selectmode & UV_SELECT_VERT) ? BM_ELEM_SELECT_UV :
                                                                  BM_ELEM_SELECT_UV_EDGE;
   const BMLoop *l_first = BM_FACE_FIRST_LOOP(efa);
   const BMLoop *l_iter = l_first;
   do {
-    if (!BM_elem_flag_test(efa, hflag_test)) {
+    if (!BM_elem_flag_test(l_iter, hflag_test)) {
       return false;
     }
   } while ((l_iter = l_iter->next) != l_first);
@@ -520,6 +525,7 @@ void uvedit_face_select_shared_vert(const Scene *scene,
     return;
   }
 
+  uvedit_face_select_set_no_sync(ts, bm, efa, select);
   BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
     uvedit_edge_select_set_no_sync(ts, bm, l, select);
 
@@ -560,6 +566,7 @@ void uvedit_face_select_enable(const Scene *scene, BMesh *bm, BMFace *efa)
     BMLoop *l;
     BMIter liter;
 
+    uvedit_face_select_set_no_sync(ts, bm, efa, true);
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
       uvedit_vert_select_set_no_sync(ts, bm, l, true);
       uvedit_edge_select_set_no_sync(ts, bm, l, true);
@@ -583,6 +590,7 @@ void uvedit_face_select_disable(const Scene *scene, BMesh *bm, BMFace *efa)
     BMLoop *l;
     BMIter liter;
 
+    uvedit_face_select_set_no_sync(ts, bm, efa, false);
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
       uvedit_vert_select_set_no_sync(ts, bm, l, false);
       uvedit_edge_select_set_no_sync(ts, bm, l, false);
@@ -1718,7 +1726,6 @@ static void bm_clear_uv_vert_selection(const Scene *scene, BMesh *bm)
     }
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
       uvedit_vert_select_set_no_sync(ts, bm, l, false);
-      uvedit_edge_select_set_no_sync(ts, bm, l, false);
     }
   }
 }
@@ -1726,9 +1733,12 @@ static void bm_clear_uv_vert_selection(const Scene *scene, BMesh *bm)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UV Select Low Level Wrapper (Porting)
+/** \name UV Selection Non-Sync API
  *
- * TODO: explain the purpose.
+ * \note this is for non-sync selection,
+ * where different rules apply and there is no expectation a selected UV
+ * implies it's base mesh selection flag also be set.
+ *
  * \{ */
 
 bool uvedit_vert_select_get_no_sync(const ToolSettings *ts, const BMesh *bm, const BMLoop *l)
@@ -1743,6 +1753,12 @@ bool uvedit_edge_select_get_no_sync(const ToolSettings *ts, const BMesh *bm, con
   UNUSED_VARS_NDEBUG(ts, bm);
   return BM_elem_flag_test_bool(l, BM_ELEM_SELECT_UV_EDGE);
 }
+bool uvedit_face_select_get_no_sync(const ToolSettings *ts, const BMesh *bm, const BMFace *f)
+{
+  BLI_assert(bm && (ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
+  UNUSED_VARS_NDEBUG(ts, bm);
+  return BM_elem_flag_test_bool(f, BM_ELEM_SELECT_UV);
+}
 
 void uvedit_vert_select_set_no_sync(const ToolSettings *ts,
                                     const BMesh *bm,
@@ -1750,6 +1766,7 @@ void uvedit_vert_select_set_no_sync(const ToolSettings *ts,
                                     bool select)
 {
   BLI_assert(bm && (ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
+  BLI_assert(BM_elem_flag_test(l->f, BM_ELEM_HIDDEN) == 0);
   UNUSED_VARS_NDEBUG(ts, bm);
   BM_elem_flag_set(l, BM_ELEM_SELECT_UV, select);
 }
@@ -1759,8 +1776,20 @@ void uvedit_edge_select_set_no_sync(const ToolSettings *ts,
                                     bool select)
 {
   BLI_assert(bm && (ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
+  BLI_assert(BM_elem_flag_test(l->f, BM_ELEM_HIDDEN) == 0);
   UNUSED_VARS_NDEBUG(ts, bm);
   BM_elem_flag_set(l, BM_ELEM_SELECT_UV_EDGE, select);
+}
+
+void uvedit_face_select_set_no_sync(const ToolSettings *ts,
+                                    const BMesh *bm,
+                                    BMFace *f,
+                                    bool select)
+{
+  BLI_assert(bm && (ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
+  BLI_assert(BM_elem_flag_test(f, BM_ELEM_HIDDEN) == 0);
+  UNUSED_VARS_NDEBUG(ts, bm);
+  BM_elem_flag_set(f, BM_ELEM_SELECT_UV, select);
 }
 
 /** \} */
@@ -1897,11 +1926,34 @@ void ED_uvedit_selectmode_flush(const Scene *scene, BMesh *bm)
       if (!uvedit_face_visible_test(scene, efa)) {
         continue;
       }
+      bool select_all = true;
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         bool edge_selected = uvedit_vert_select_get_no_sync(ts, bm, l) &&
                              uvedit_vert_select_get_no_sync(ts, bm, l->next);
         uvedit_edge_select_set_no_sync(ts, bm, l, edge_selected);
+        if (!edge_selected) {
+          select_all = false;
+        }
       }
+      uvedit_face_select_set_no_sync(ts, bm, efa, select_all);
+    }
+  }
+  else if (ts->uv_selectmode & UV_SELECT_EDGE) {
+    BMFace *efa;
+    BMLoop *l;
+    BMIter iter, liter;
+    BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+      if (!uvedit_face_visible_test(scene, efa)) {
+        continue;
+      }
+      bool select_all = true;
+      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+        if (!uvedit_edge_select_get_no_sync(ts, bm, l)) {
+          select_all = false;
+          break;
+        }
+      }
+      uvedit_face_select_set_no_sync(ts, bm, efa, select_all);
     }
   }
 }
@@ -1929,12 +1981,19 @@ void uvedit_select_flush_from_verts(const Scene *scene, BMesh *bm, const bool se
       if (!uvedit_face_visible_test(scene, efa)) {
         continue;
       }
+      bool select_all = true;
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (uvedit_vert_select_get_no_sync(ts, bm, l) &&
             uvedit_vert_select_get_no_sync(ts, bm, l->next))
         {
           uvedit_edge_select_set_no_sync(ts, bm, l, true);
         }
+        else {
+          select_all = false;
+        }
+      }
+      if (select_all) {
+        uvedit_face_select_set_no_sync(ts, bm, efa, true);
       }
     }
   }
@@ -1946,12 +2005,17 @@ void uvedit_select_flush_from_verts(const Scene *scene, BMesh *bm, const bool se
       if (!uvedit_face_visible_test(scene, efa)) {
         continue;
       }
+      bool select_all = true;
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (!uvedit_vert_select_get_no_sync(ts, bm, l) ||
             !uvedit_vert_select_get_no_sync(ts, bm, l->next))
         {
           uvedit_edge_select_set_no_sync(ts, bm, l, false);
+          select_all = false;
         }
+      }
+      if (select_all == false) {
+        uvedit_face_select_set_no_sync(ts, bm, efa, false);
       }
     }
   }
@@ -2994,6 +3058,7 @@ static void uv_select_all(const Scene *scene, BMEditMesh *em, bool select_all)
     if (!uvedit_face_visible_test(scene, efa)) {
       continue;
     }
+    uvedit_face_select_set_no_sync(ts, bm, efa, select_all);
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
       uvedit_vert_select_set_no_sync(ts, bm, l, select_all);
       uvedit_edge_select_set_no_sync(ts, bm, l, select_all);
@@ -3112,21 +3177,29 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
     if (!uvedit_face_visible_test(scene, efa)) {
       continue;
     }
+    bool select_all = true;
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
       if (uv_selectmode & (UV_SELECT_EDGE | UV_SELECT_FACE)) {
         /* Use UV edge selection to find vertices and edges that must be selected. */
-        bool es = uvedit_edge_select_get_no_sync(ts, bm, l);
-        uvedit_edge_select_set_no_sync(ts, bm, l, !es);
+        bool es = !uvedit_edge_select_get_no_sync(ts, bm, l);
+        uvedit_edge_select_set_no_sync(ts, bm, l, es);
         uvedit_vert_select_set_no_sync(ts, bm, l, false);
+        if (es == false) {
+          select_all = false;
+        }
       }
       /* Use UV vertex selection to find vertices and edges that must be selected. */
       else {
         BLI_assert(uv_selectmode & UV_SELECT_VERT);
-        bool vs = uvedit_vert_select_get_no_sync(ts, bm, l);
-        uvedit_vert_select_set_no_sync(ts, bm, l, !vs);
+        bool vs = !uvedit_vert_select_get_no_sync(ts, bm, l);
+        uvedit_vert_select_set_no_sync(ts, bm, l, vs);
         uvedit_edge_select_set_no_sync(ts, bm, l, false);
+        if (vs == false) {
+          select_all = false;
+        }
       }
     }
+    uvedit_face_select_set_no_sync(ts, bm, efa, select_all);
   }
 
   /* Flush based on uv vert/edge flags and current UV select mode */
@@ -4183,6 +4256,9 @@ static void uv_select_flush_from_tag_face(const Scene *scene, Object *obedit, co
       if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
         BM_face_uvselect_set_noflush(bm, efa, select);
       }
+      else {
+        uvedit_face_select_set_no_sync(ts, bm, efa, select);
+      }
 
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         uvedit_loop_edge_select_set(ts, bm, l, select);
@@ -4258,18 +4334,50 @@ static void uv_select_flush_from_tag_loop(const Scene *scene, Object *obedit, co
 
     /* now select tagged verts */
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+      bool tag_all = true;
+      bool tag_any = false;
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (BM_elem_flag_test(l->v, BM_ELEM_TAG)) {
           uvedit_uv_select_set(scene, bm, l, select);
+          tag_any = true;
+        }
+        else {
+          tag_all = false;
+        }
+      }
+      if (select) {
+        if (tag_all && uvedit_face_visible_test(scene, efa)) {
+          uvedit_face_select_set_no_sync(ts, bm, efa, true);
+        }
+      }
+      else {
+        if (tag_any && uvedit_face_visible_test(scene, efa)) {
+          uvedit_face_select_set_no_sync(ts, bm, efa, false);
         }
       }
     }
   }
   else if ((use_mesh_select == false) && (ts->uv_sticky == UV_STICKY_LOCATION)) {
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+      bool tag_all = true;
+      bool tag_any = false;
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         if (BM_elem_flag_test(l, BM_ELEM_TAG)) {
           uvedit_uv_select_flush_from_tag_sticky_loc_internal(scene, bm, l, select, offsets);
+          tag_any = true;
+        }
+        else {
+          tag_all = false;
+        }
+      }
+      if (select) {
+        if (tag_all && uvedit_face_visible_test(scene, efa)) {
+          uvedit_face_select_set_no_sync(ts, bm, efa, true);
+        }
+      }
+      else {
+        if (tag_any && uvedit_face_visible_test(scene, efa)) {
+          uvedit_face_select_set_no_sync(ts, bm, efa, false);
         }
       }
     }
@@ -4349,16 +4457,18 @@ static void uv_select_flush_from_loop_edge_flag(const Scene *scene, BMesh *bm)
     }
     else {
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        bool select_all = true;
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-
           if (uvedit_edge_select_get_no_sync(ts, bm, l)) {
             uvedit_vert_select_set_no_sync(ts, bm, l, true);
             uvedit_vert_select_set_no_sync(ts, bm, l->next, true);
           }
           else if (!uvedit_edge_select_get_no_sync(ts, bm, l->prev)) {
             uvedit_vert_select_set_no_sync(ts, bm, l->next, false);
+            select_all = false;
           }
         }
+        uvedit_face_select_set_no_sync(ts, bm, efa, select_all);
       }
     }
   }
@@ -6480,7 +6590,6 @@ void ED_uvedit_selectmode_clean(const Scene *scene, Object *obedit)
 
   ED_uvedit_selectmode_flush(scene, bm);
 }
-
 void ED_uvedit_selectmode_clean_multi(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
