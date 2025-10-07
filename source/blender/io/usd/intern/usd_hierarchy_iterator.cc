@@ -476,6 +476,9 @@ blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
 
 void USDHierarchyIterator::add_to_prim_map(const pxr::SdfPath &usd_path, const ID *id) const
 {
+  if (!id) {
+    return;
+  }
   const std::string id_name = id->name + 2;
   const int16_t id_type = GS(id->name);
   exported_prim_map_.lookup_or_add_default(usd_path).append(std::make_pair(id_name, id_type));
