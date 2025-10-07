@@ -155,6 +155,24 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
   if (!data_type) {
     return;
   }
+  if (params.in_out() == SOCK_IN) {
+    if (params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
+                                                   SOCK_VECTOR))
+    {
+      params.add_item(IFACE_("Velocity"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeGridAdvect");
+        params.update_and_connect_available_socket(node, "Velocity");
+      });
+    }
+    if (params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
+                                                   SOCK_FLOAT))
+    {
+      params.add_item(IFACE_("Time Step"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeGridAdvect");
+        params.update_and_connect_available_socket(node, "Time Step");
+      });
+    }
+  }
   params.add_item(IFACE_("Grid"), [data_type](LinkSearchOpParams &params) {
     bNode &node = params.add_node("GeometryNodeGridAdvect");
     node.custom1 = *data_type;
