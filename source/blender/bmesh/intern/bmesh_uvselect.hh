@@ -16,19 +16,19 @@
  *
  * The `BM_uvselect_*` API deals with synchronizing selection
  * between UV's and selected vertices edges & faces,
- * where a selected vertex in the 3D viewport may only have some of it's
+ * where a selected vertex in the 3D viewport may only have some of its
  * UV vertices selected in the UV editor.
  *
  * Supporting this involves flushing in both directions depending on the selection being edited.
  *
- * \note See #78393 a user-level overview of this functionality.
+ * \note See #78393 for a user-level overview of this functionality.
  * This describes the motivation to synchronize selection between UV's and the mesh.
  *
  * \note A short-hand term for vertex/edge/face selection used
  * in this file is View3D abbreviated to `v3d`, since this is the section
  * manipulated in the viewport, e.g. #BM_mesh_uvselect_sync_to_mesh.
  *
- * \note This is quite involved, as a last resort the UV selection can always be cleared
+ * \note This is quite involved. As a last resort the UV selection can always be cleared
  * and re-set from the mesh (v3d) selection, however it's good to keep UV selection
  * if possible because resetting may extend vertex selection to other UV islands.
  *
@@ -42,19 +42,19 @@
  *
  *   - When the UV selection changes (from the UV editor)
  *     this needs to be synchronized to the mesh.
- *   - When the meshes selection changes (from the 3D viewport)
+ *   - When the base-selection flags change (from the 3D viewport)
  *     this needs to be synchronized to the UV's.
  *     Synchronizing in this direction may be lossy, although (depending on the operation),
  *     support for maintaining a synchronized selection may be possible.
  *
  * - Flushing Selection ("flush")
- *   When an element of selected or de-selected, the selection state
+ *   When an element is selected or de-selected, the selection state
  *   of connected geometry may change too.
  *   So, de-selecting a vertex must de-select all faces that use that vertex.
  *
  *   The rules for flushing may depend on the selection mode.
- *   When de-selecting a face in vertex-select-mode, all it's vertices & edges
- *   must also be de-selected. When de-selecting a face in face-select-mode
+ *   When de-selecting a face in vertex-select-mode, all its vertices & edges
+ *   must also be de-selected. When de-selecting a face in face-select-mode,
  *   only vertices and edges no longer connected to any selected faces will be de-selected.
  *
  *   Since applying these rules while selecting individual elements is often impractical,
@@ -111,14 +111,14 @@
  *   (see: `BM_mesh_uvselect_flush_*` & `BM_mesh_uvselect_mode_flush_*` functions).
  * - The UV selection must be synchronized to the mesh selection
  *   (see #BM_mesh_uvselect_sync_to_mesh).
- * - The mesh must then flush selection to it's elements
+ * - The mesh must then flush selection to its elements
  *   (see: `BM_mesh_select_flush_*` & `BM_mesh_select_mode_flush_*` functions).
  *
  * Valid State
  * ===========
  *
  * For a valid state:
- * - A selected UV-vertex must have it's underlying mesh vertex selected.
+ * - A selected UV-vertex must have its underlying mesh vertex selected.
  * - A selected mesh-vertex must have at least one UV-vertex selected.
  *
  * This is *mostly* true for edges/faces too, however there cases where
@@ -129,8 +129,8 @@
  * Clearing the Valid State
  * ========================
  *
- * As already noted, tools should maintain the synchronized UV selection where possible
- * however when this information *isn't* needed it should be cleared aggressively
+ * As already noted, tools should maintain the synchronized UV selection where possible.
+ * However when this information *isn't* needed it should be cleared aggressively
  * (see #BM_mesh_uvselect_clear), since it adds both computation & memory overhead.
  *
  * For actions that overwrite the selection such as selecting or de-selecting all,
