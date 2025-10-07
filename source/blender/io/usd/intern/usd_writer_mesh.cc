@@ -4,9 +4,9 @@
 #include "usd_writer_mesh.hh"
 
 #include "usd_armature_utils.hh"
-#include "usd_hierarchy_iterator.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_blend_shape_utils.hh"
+#include "usd_hierarchy_iterator.hh"
 #include "usd_skel_convert.hh"
 #include "usd_utils.hh"
 
