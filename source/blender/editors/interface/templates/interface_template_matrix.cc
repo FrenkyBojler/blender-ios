@@ -27,7 +27,7 @@ using blender::StringRefNull;
 static std::string format_unit_value(float value, PropertySubType subtype, uiLayout *layout)
 {
   const UnitSettings *unit = layout->block()->unit;
-  int unit_type = RNA_SUBTYPE_UNIT(subtype);
+  const int unit_type = RNA_SUBTYPE_UNIT(subtype);
 
   /* Change negative zero to regular zero, without altering anything else. */
   value += +0.0f;
@@ -62,8 +62,8 @@ static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
 {
   for (size_t i = 0; i < RNA_enum_items_count(rna_enum_object_rotation_mode_items); i++) {
     const EnumPropertyItem &mode_info = rna_enum_object_rotation_mode_items[i];
-    int yco = -1.5f * UI_UNIT_Y;
-    int width = 9 * UI_UNIT_X;
+    const int yco = -1.5f * UI_UNIT_Y;
+    const int width = 9 * UI_UNIT_X;
     uiBut *but = uiDefButI(layout->block(),
                            ButType::Row,
                            0,
