@@ -3391,21 +3391,12 @@ static void node_draw_collapsed(const bContext &C,
   /* Body. */
   ColorTheme4f color = node_header_color_get(ntree, node, color_id);
   {
-    /* Add some padding to prevent transparent gaps with the outline. */
-    const float padding = 0.5f;
-    const rctf rect = {
-        rct.xmin - padding,
-        rct.xmax + padding,
-        rct.ymin - padding,
-        rct.ymax + padding,
-    };
-
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
-    UI_draw_roundbox_4fv(&rect, true, BASIS_RAD + padding, color);
+    UI_draw_roundbox_4fv(&rct, true, BASIS_RAD, color);
 
     /* Node Group indicator. */
     if (draw_node_details(snode)) {
-      node_draw_node_group_indicator(ntree, node, rct, BASIS_RAD + padding, color_id);
+      node_draw_node_group_indicator(ntree, node, rct, BASIS_RAD, color_id);
     }
   }
 
@@ -3460,6 +3451,13 @@ static void node_draw_collapsed(const bContext &C,
 
   /* Outline. */
   {
+    ColorTheme4f color_outline = node_header_outline_color_get(ntree, node, color_id);
+    UI_draw_roundbox_corner_set(UI_CNR_ALL);
+    UI_draw_roundbox_4fv(&rct, false, BASIS_RAD, color_outline);
+  }
+
+  /* Selection highlight */
+  if (node.flag & SELECT) {
     const float outline_width = U.pixelsize;
     const rctf rect = {
         rct.xmin - outline_width,
@@ -3467,16 +3465,9 @@ static void node_draw_collapsed(const bContext &C,
         rct.ymin - outline_width,
         rct.ymax + outline_width,
     };
-
-    ColorTheme4f color_outline = node_header_outline_color_get(ntree, node, color_id);
-
-    /* Color the outline according to active or selected status. */
-    if (node.flag & SELECT) {
-      UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_outline);
-    }
-
-    UI_draw_roundbox_corner_set(UI_CNR_ALL);
-    UI_draw_roundbox_4fv(&rect, false, BASIS_RAD + outline_width, color_outline);
+    ColorTheme4f color_highlight = node_header_outline_color_get(ntree, node, color_id);
+    UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_highlight);
+    UI_draw_roundbox_4fv(&rect, false, BASIS_RAD + outline_width, color_highlight);
   }
 
   if (node.is_muted()) {
