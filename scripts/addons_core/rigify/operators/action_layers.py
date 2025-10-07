@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import bpy, random
+import bpy
+import random
 
 from typing import Sequence, Any
 
@@ -90,17 +91,17 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
         if not slot_handle_as_str:
             return ""
         slot_handle = int(slot_handle_as_str)
-        action_slot = next((s for s in self.action.slots if s.handle==slot_handle), None)
+        action_slot = next((s for s in self.action.slots if s.handle == slot_handle), None)
         if not action_slot:
             return ""
-        # We use the display name rather than the identifier because in Rigify's context, 
-        # we don't care about the datablock type prefix found in the identifier, 
+        # We use the display name rather than the identifier because in Rigify's context,
+        # we don't care about the datablock type prefix found in the identifier,
         # since our action slots are always for Objects.
         return action_slot.name_display
 
-    def slot_name_to_handle(self, new_name: str, _current_name: str, _is_set: bool)  -> str:
+    def slot_name_to_handle(self, new_name: str, _current_name: str, _is_set: bool) -> str:
         """This is a set_transform callback function, see Blender 5.0 PyAPI docs."""
-        action_slot = self.action.slots.get("OB"+new_name)
+        action_slot = self.action.slots.get("OB" + new_name)
         if not action_slot:
             return ""
         return str(action_slot.handle)
@@ -109,7 +110,7 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
         name="Acion Slot",
         description="Slot of the Action to use for the Action Constraints",
         # These callbacks let us store the action slot's `handle` property
-        # under the hood (which is unique and never changes), while acting 
+        # under the hood (which is unique and never changes), while acting
         # as a user-friendly display name in the UI.
         get_transform=slot_name_from_handle,
         set_transform=slot_name_to_handle,
@@ -130,11 +131,11 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
 
     @property
     def action_slot(self) -> ActionSlot | None:
-        return self.action.slots.get("OB"+self.action_slot_ui)
+        return self.action.slots.get("OB" + self.action_slot_ui)
 
     @action_slot.setter
     def action_slot(self, slot: ActionSlot):
-        """For convenience, caller can assign an Action Slot, 
+        """For convenience, caller can assign an Action Slot,
         even though under the hood we'll actually be storing the slot handle.
         """
         # We don't actually assign the handle directly, since we have
@@ -146,7 +147,7 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
         consisting of the Action name and the slot name, with a little arrow inbetween.
 
         The latter is omitted when the Action has only a single slot, to be less cluttered
-        for users who prefer to use separate Actions, 
+        for users who prefer to use separate Actions,
         and for legacy rigs where all slots are named "Legacy Slot".
         """
         if not self.action:
@@ -237,7 +238,7 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
                     "to the last frame. Rotations are in degrees"
     )
 
-    ### Corrective Action properties
+    # Corrective Action properties
 
     is_corrective: BoolProperty(
         name="Corrective",
@@ -252,14 +253,15 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
             return ""
         unique_id = int(unique_id_as_str)
         action_setups = self.id_data.rigify_action_slots
-        action_setup = next((setup for setup in action_setups if setup.unique_id==unique_id), None)
+        action_setup = next((setup for setup in action_setups if setup.unique_id == unique_id), None)
         if not action_setup:
             return ""
         return action_setup.name
+
     def setup_name_to_id(self, name: str, _curr_value: str, _is_set: bool) -> str:
         """This is a set_transform callback function, see Blender 5.0 PyAPI docs."""
         action_setups = self.id_data.rigify_action_slots
-        action_setup = next((setup for setup in action_setups if setup.name==name), None)
+        action_setup = next((setup for setup in action_setups if setup.name == name), None)
         if not action_setup:
             return ""
         return str(action_setup.unique_id)
@@ -274,11 +276,12 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
         name="Trigger B",
         description="Action Set-up whose activation will trigger this set-up as a corrective",
         # These callbacks let us store the trigger action setups' `unique_id` property
-        # under the hood (which is unique and never changes), while acting as 
+        # under the hood (which is unique and never changes), while acting as
         # a user-friendly display name in the UI.
         get_transform=setup_id_to_str,
         set_transform=setup_name_to_id,
     )
+
     @property
     def trigger_a(self):
         action_setups = self.id_data.rigify_action_slots
@@ -372,7 +375,7 @@ class RIGIFY_UL_action_slots(UIList):
             # Check if the active action is a trigger for this corrective action.
             if action_slot.is_corrective and \
                 active_action in [action_slot.trigger_a,
-                                    action_slot.trigger_b]:
+                                  action_slot.trigger_b]:
                 icon = 'RESTRICT_INSTANCED_OFF'
 
             row.label(text=action_slot.name, icon=icon)
@@ -427,7 +430,6 @@ class RIGIFY_UL_action_slots(UIList):
         # No action
         else:
             layout.label(text="", translate=False, icon='ACTION')
-
 
 
 # noinspection PyPep8Naming
