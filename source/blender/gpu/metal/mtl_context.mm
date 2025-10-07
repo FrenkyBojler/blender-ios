@@ -1489,17 +1489,15 @@ void MTLContext::compute_dispatch(int groups_x_len, int groups_y_len, int groups
       this->main_command_buffer.ensure_begin_compute_encoder();
   BLI_assert(compute_encoder != nil);
 
+  MTLPushConstantBuf *pc_buf = shader->get_push_constant_buf();
+  if (pc_buf) {
+    /* Always tag dirty since we have a new encoder for each dispatch. */
+    pc_buf->tag_dirty();
+  }
+
   /* Bind PSO. */
   MTLComputeState &cs = this->main_command_buffer.get_compute_state();
   cs.bind_pso(pipe_state_inst->pso);
-
-  bool active_shader_changed = assign_if_different(
-      cs.last_bound_shader_state, MTLBoundShaderState{shader, pipe_state_inst->shader_pso_index});
-
-  MTLPushConstantBuf *pc_buf = shader->get_push_constant_buf();
-  if (active_shader_changed && pc_buf) {
-    pc_buf->tag_dirty();
-  }
 
   /** Ensure resource bindings. */
   MTLComputeCommandEncoder comp_rec{compute_encoder};
@@ -1541,17 +1539,15 @@ void MTLContext::compute_dispatch_indirect(StorageBuf *indirect_buf)
       this->main_command_buffer.ensure_begin_compute_encoder();
   BLI_assert(compute_encoder != nil);
 
+  MTLPushConstantBuf *pc_buf = shader->get_push_constant_buf();
+  if (pc_buf) {
+    /* Always tag dirty since we have a new encoder for each dispatch. */
+    pc_buf->tag_dirty();
+  }
+
   /* Bind PSO. */
   MTLComputeState &cs = this->main_command_buffer.get_compute_state();
   cs.bind_pso(pipe_state_inst->pso);
-
-  bool active_shader_changed = assign_if_different(
-      cs.last_bound_shader_state, MTLBoundShaderState{shader, pipe_state_inst->shader_pso_index});
-
-  MTLPushConstantBuf *pc_buf = shader->get_push_constant_buf();
-  if (active_shader_changed && pc_buf) {
-    pc_buf->tag_dirty();
-  }
 
   /** Ensure resource bindings. */
   MTLComputeCommandEncoder comp_rec{compute_encoder};

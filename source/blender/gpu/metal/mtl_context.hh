@@ -125,7 +125,6 @@ class MTLComputeState {
   MTLContext &ctx;
   MTLCommandBufferManager &cmd;
 
-  MTLBoundShaderState last_bound_shader_state = {};
   id<MTLComputePipelineState> bound_pso = nil;
 
   MTLBindingCache<gpu::MTLComputeCommandEncoder> compute_bindings;
