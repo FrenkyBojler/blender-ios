@@ -1922,10 +1922,10 @@ Library *PartialWriteContext::ensure_library(ID *ctx_id)
   Library *ctx_lib = ctx_base_lib;
   if (is_archive_lib) {
     /* Leave the creation of a new archive library to the Library code, when needed, instead of
-     * using the write context's own `id_add_copy` util. Both are doing different, and complex
-     * things, but for libraries the Library code should be mostly usage 'as-is'. */
+     * using the write context's own `id_add_copy` util. Both are doing different and complex
+     * things, but for archive libraries the Library code should be mostly usable 'as-is'. */
     bool is_new = false;
-    ctx_lib = blender::bke::library::get_archive_library(
+    ctx_lib = blender::bke::library::ensure_archive_library(
         this->bmain, *ctx_id, *ctx_lib, ctx_id->deep_hash, is_new);
     if (is_new) {
       ctx_lib->id.tag |= ID_TAG_TEMP_MAIN;

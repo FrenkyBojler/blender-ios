@@ -460,13 +460,10 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
   return archive_library;
 }
 
-Library *blender::bke::library::get_archive_library(Main &bmain,
-                                                    ID &for_id,
-                                                    Library &reference_library,
-                                                    const IDHash &for_id_deep_hash,
-                                                    bool &is_new)
+Library *blender::bke::library::ensure_archive_library(
+    Main &bmain, ID &id, Library &reference_library, const IDHash &id_deep_hash, bool &is_new)
 {
-  BLI_assert(ID_IS_LINKED(&for_id));
+  BLI_assert(ID_IS_LINKED(&id));
   BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
 
   Library *archive_library = nullptr;
@@ -475,16 +472,16 @@ Library *blender::bke::library::get_archive_library(Main &bmain,
     BLI_assert(lib_iter->archive_parent_library != nullptr);
     BLI_assert(lib_iter->archive_parent_library == &reference_library);
     /* Check if current archive library already contains an ID of same type and name. */
-    if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(for_id.name), BKE_id_name(for_id))) {
+    if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id.name), BKE_id_name(id))) {
 #ifndef NDEBUG
       ID *packed_id = BKE_libblock_find_name_and_library(
-          &bmain, GS(for_id.name), BKE_id_name(for_id), BKE_id_name(lib_iter->id));
+          &bmain, GS(id.name), BKE_id_name(id), BKE_id_name(lib_iter->id));
       BLI_assert_msg(
-          packed_id && packed_id->deep_hash != for_id_deep_hash,
+          packed_id && packed_id->deep_hash != id_deep_hash,
           "An already packed ID with same deep hash as the one to be packed, should have already "
           "be found and used (deduplication) before reaching this code-path");
 #endif
-      UNUSED_VARS_NDEBUG(for_id_deep_hash);
+      UNUSED_VARS_NDEBUG(id_deep_hash);
       continue;
     }
     archive_library = lib_iter;
@@ -549,7 +546,7 @@ static void pack_linked_id(Main &bmain,
     /* Find an existing archive Library not containing a 'version' of this ID yet (to prevent names
      * collisions). */
     bool is_new;
-    Library *archive_lib = get_archive_library(
+    Library *archive_lib = ensure_archive_library(
         bmain, *linked_id, *linked_id->lib, linked_id_deep_hash, is_new);
 
     auto copied_id_process =
