@@ -5032,13 +5032,6 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   const uiFontStyle *fstyle = &style->widget;
   uiWidgetType *wt = nullptr;
 
-  std::optional<uiFontStyle> fstyle_override;
-  if (but->drawflag & UI_BUT_FONT_MONOSPACE) {
-    fstyle_override = *fstyle;
-    fstyle_override->uifont_id = blf_mono_font;
-    fstyle = &*fstyle_override;
-  }
-
   /* handle menus separately */
   if (but->emboss == blender::ui::EmbossType::Pulldown) {
     switch (but->type) {
