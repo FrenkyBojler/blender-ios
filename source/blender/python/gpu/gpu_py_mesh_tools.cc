@@ -696,13 +696,13 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
 
     for (auto &p : spec_ints) {
       /* scalar specialization -> declare as scalar push-constant (array_size = 0). */
-      info.push_constant(blender::gpu::shader::Type::int_t, p.first.c_str(), 0);
+      info.specialization_constant(blender::gpu::shader::Type::int_t, p.first.c_str(), 0);
     }
     for (auto &p : spec_floats) {
-      info.push_constant(blender::gpu::shader::Type::float_t, p.first.c_str(), 0);
+      info.specialization_constant(blender::gpu::shader::Type::float_t, p.first.c_str(), 0);
     }
     for (auto &p : spec_bools) {
-      info.push_constant(blender::gpu::shader::Type::bool_t, p.first.c_str(), 0);
+      info.specialization_constant(blender::gpu::shader::Type::bool_t, p.first.c_str(), 0);
     }
 
     /* Declare push-constants provided by the Python config callable.
