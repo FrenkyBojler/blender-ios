@@ -136,8 +136,13 @@ void EDBM_select_less(BMEditMesh *em, bool use_face_step);
 void EDBM_selectmode_flush_ex(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_flush(BMEditMesh *em);
 
-void EDBM_deselect_flush(BMEditMesh *em);
-void EDBM_select_flush(BMEditMesh *em);
+/**
+ * Mode independent selection/de-selection flush from vertices.
+ *
+ * \param select: When true, flush the selection state to de-selected elements,
+ * otherwise perform the opposite, flushing de-selection.
+ */
+void EDBM_select_flush_from_verts(BMEditMesh *em, bool select);
 
 bool EDBM_vert_color_check(BMEditMesh *em);
 
@@ -206,6 +211,9 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select);
 
 void EDBM_flag_enable_all(BMEditMesh *em, char hflag);
 void EDBM_flag_disable_all(BMEditMesh *em, char hflag);
+
+/** \copydoc #BM_uvselect_clear */
+bool EDBM_uvselect_clear(BMEditMesh *em);
 
 bool BMBVH_EdgeVisible(const BMBVHTree *tree,
                        const BMEdge *e,
@@ -526,10 +534,6 @@ int ED_mesh_uv_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh);
-/**
- * Without a #bContext, called when UV-editing.
- */
-void ED_mesh_uv_loop_reset_ex(Mesh *mesh, int layernum);
 bool ED_mesh_color_ensure(Mesh *mesh, const char *name);
 int ED_mesh_color_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
@@ -571,11 +575,17 @@ void EDBM_redo_state_restore_and_free(BMBackup *backup, BMEditMesh *em, bool rec
     ATTR_NONNULL(1, 2);
 void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 
+namespace blender::ed::mesh {
+
+wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
+
+}
+
 /* `meshtools.cc` */
 
-wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
 wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
                                                   bool ensure_keys_exist,
+                                                  bool mirror,
                                                   ReportList *reports);
 
 /* Mirror lookup API. */

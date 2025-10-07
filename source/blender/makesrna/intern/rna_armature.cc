@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 
+#include "BLI_math_constants.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.hh"
@@ -759,14 +760,8 @@ static void rna_Bone_select_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
       DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
     }
     else if (GS(id->name) == ID_OB) {
-      Object *ob = (Object *)id;
-      bArmature *arm = (bArmature *)ob->data;
-
-      if (arm->flag & ARM_HAS_VIZ_DEPS) {
-        DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-      }
-
-      DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
+      /* This should be handled by the pose bone. */
+      BLI_assert_unreachable();
     }
   }
 
@@ -933,13 +928,13 @@ static void rna_EditBone_parent_set(PointerRNA *ptr, PointerRNA value, ReportLis
 static void rna_EditBone_matrix_get(PointerRNA *ptr, float *values)
 {
   EditBone *ebone = (EditBone *)(ptr->data);
-  ED_armature_ebone_to_mat4(ebone, (float(*)[4])values);
+  ED_armature_ebone_to_mat4(ebone, (float (*)[4])values);
 }
 
 static void rna_EditBone_matrix_set(PointerRNA *ptr, const float *values)
 {
   EditBone *ebone = (EditBone *)(ptr->data);
-  ED_armature_ebone_from_mat4(ebone, (float(*)[4])values);
+  ED_armature_ebone_from_mat4(ebone, (float (*)[4])values);
 }
 
 static float rna_EditBone_length_get(PointerRNA *ptr)
@@ -1126,7 +1121,7 @@ static bool rna_Armature_is_editmode_get(PointerRNA *ptr)
 
 static void rna_Armature_transform(bArmature *arm, const float mat[16])
 {
-  ED_armature_transform(arm, (const float(*)[4])mat, true);
+  ED_armature_transform(arm, (const float (*)[4])mat, true);
 }
 
 static int rna_Armature_relation_line_position_get(PointerRNA *ptr)

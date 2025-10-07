@@ -1590,8 +1590,11 @@ static void area_dupli_fn(bScreen * /*screen*/, ScrArea *area, void *user_data)
 /* operator callback */
 static bool area_dupli_open(bContext *C, ScrArea *area, const blender::int2 position)
 {
-  const rcti window_rect = {
-      position.x, position.x + area->winx, position.y, position.y + area->winy};
+  const wmWindow *win = CTX_wm_window(C);
+  const rcti window_rect = {win->posx + position.x,
+                            win->posx + position.x + area->winx,
+                            win->posy + position.y,
+                            win->posy + position.y + area->winy};
 
   /* Create new window. No need to set space_type since it will be copied over. */
   wmWindow *newwin = WM_window_open(C,
@@ -3412,6 +3415,68 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Time Jump Operator
+ * \{ */
+
+/* function to be called outside UI context, or for redo */
+static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  const bool backward = RNA_boolean_get(op->ptr, "backward");
+
+  float delta = scene->r.time_jump_delta;
+
+  if (scene->r.time_jump_unit == SCE_TIME_JUMP_SECOND) {
+    delta *= scene->r.frs_sec / scene->r.frs_sec_base;
+  }
+
+  int step = (int)delta;
+  float fraction = delta - step;
+  if (backward) {
+    scene->r.cfra -= step;
+    scene->r.subframe -= fraction;
+  }
+  else {
+    scene->r.cfra += step;
+    scene->r.subframe += fraction;
+  }
+
+  /* Check if subframe has a non-fractional component, and roll that into cfra. */
+  if (scene->r.subframe < 0.0f || scene->r.subframe >= 1.0f) {
+    const float subframe_offset = floorf(scene->r.subframe);
+    const int frame_offset = (int)subframe_offset;
+    scene->r.cfra += frame_offset;
+    scene->r.subframe -= subframe_offset;
+  }
+
+  ED_areas_do_frame_follow(C, true);
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_time_jump(wmOperatorType *ot)
+{
+  ot->name = "Jump Time by Delta";
+  ot->description = "Jump forward/backward by a given number of frames or seconds";
+  ot->idname = "SCREEN_OT_time_jump";
+
+  ot->exec = frame_jump_delta_exec;
+
+  ot->poll = operator_screenactive_norender;
+  ot->flag = OPTYPE_UNDO_GROUPED;
+  ot->undo_group = "Frame Change";
+
+  /* rna */
+  RNA_def_boolean(ot->srna, "backward", false, "Backwards", "Jump backwards in time");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Jump to Key-Frame Operator
  * \{ */
 
@@ -5066,6 +5131,7 @@ static void region_quadview_init_rv3d(
     ScrArea *area, ARegion *region, const char viewlock, const char view, const char persp)
 {
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+  rv3d->rflag &= ~RV3D_WAS_CAMOB;
 
   if (persp == RV3D_CAMOB) {
     ED_view3d_lastview_store(rv3d);
@@ -5629,12 +5695,8 @@ static bool match_region_with_redraws(const ScrArea *area,
     }
   }
   else if (regiontype == RGN_TYPE_HEADER) {
-    if (spacetype == SPACE_ACTION) {
-      /* The timeline shows the current frame in the header. Other headers
-       * don't need to be updated. */
-      SpaceAction *saction = (SpaceAction *)area->spacedata.first;
-      return saction->mode == SACTCONT_TIMELINE;
-    }
+    /* Since the timeline does not exist anymore, this doesn't need updating. */
+    return false;
   }
   else if (regiontype == RGN_TYPE_FOOTER) {
     /* The footer region in animation editors shows the current frame. */
@@ -5890,6 +5952,12 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   /* Since we follow draw-flags, we can't send notifier but tag regions ourselves. */
   if (depsgraph != nullptr) {
     ED_update_for_newframe(bmain, depsgraph);
+
+    /* Updating the frame, and invoking the frame pre/post hooks, can result in the current timer
+     * being removed. For example, calling `screen.animation_cancel` inside `frame_change_post`. */
+    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+      return OPERATOR_FINISHED;
+    }
   }
 
   LISTBASE_FOREACH (wmWindow *, window, &wm->windows) {
@@ -6033,6 +6101,9 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
                                          CTX_data_view_layer(C);
   Depsgraph *depsgraph = is_sequencer ? BKE_scene_ensure_depsgraph(bmain, scene, view_layer) :
                                         CTX_data_ensure_evaluated_depsgraph(C);
+  if (is_sequencer) {
+    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+  }
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
@@ -6285,12 +6356,6 @@ static void SCREEN_OT_back_to_previous(wmOperatorType *ot)
 
 static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
 {
-  wmWindow *win_cur = CTX_wm_window(C);
-  /* Use eventstate, not event from _invoke, so this can be called through exec(). */
-  const wmEvent *event = win_cur->eventstate;
-  int sizex = (680 + UI_NAVIGATION_REGION_WIDTH) * UI_SCALE_FAC;
-  int sizey = 520 * UI_SCALE_FAC;
-
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "section");
   if (prop && RNA_property_is_set(op->ptr, prop)) {
     /* Set active section via RNA, so it can fail properly. */
@@ -6302,19 +6367,11 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
     RNA_property_update(C, &pref_ptr, active_section_prop);
   }
 
-  const rcti window_rect = {
-      /*xmin*/ event->xy[0],
-      /*xmax*/ event->xy[0] + sizex,
-      /*ymin*/ event->xy[1],
-      /*ymax*/ event->xy[1] + sizey,
-  };
-
   /* changes context! */
-  if (ScrArea *area = ED_screen_temp_space_open(
-          C, nullptr, &window_rect, SPACE_USERPREF, U.preferences_display_type, false))
-  {
+  if (WM_window_open_temp(C, nullptr, SPACE_USERPREF, false)) {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
+    ScrArea *area = CTX_wm_area(C);
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
     region_header->flag |= RGN_FLAG_HIDDEN;
@@ -6373,13 +6430,6 @@ static void SCREEN_OT_userpref_show(wmOperatorType *ot)
 
 static wmOperatorStatus drivers_editor_show_exec(bContext *C, wmOperator *op)
 {
-  wmWindow *win_cur = CTX_wm_window(C);
-  /* Use eventstate, not event from _invoke, so this can be called through exec(). */
-  const wmEvent *event = win_cur->eventstate;
-
-  int sizex = 900 * UI_SCALE_FAC;
-  int sizey = 580 * UI_SCALE_FAC;
-
   /* Get active property to show driver for
    * - Need to grab it first, or else this info disappears
    *   after we've created the window
@@ -6389,25 +6439,8 @@ static wmOperatorStatus drivers_editor_show_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop;
   uiBut *but = UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
-  const rcti window_rect = {
-      /*xmin*/ event->xy[0],
-      /*xmax*/ event->xy[0] + sizex,
-      /*ymin*/ event->xy[1],
-      /*ymax*/ event->xy[1] + sizey,
-  };
-
   /* changes context! */
-  if (WM_window_open(C,
-                     IFACE_("Blender Drivers Editor"),
-                     &window_rect,
-                     SPACE_GRAPH,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
-  {
+  if (WM_window_open_temp(C, IFACE_("Blender Drivers Editor"), SPACE_GRAPH, false)) {
     ED_drivers_editor_init(C, CTX_wm_area(C));
 
     /* activate driver F-Curve for the property under the cursor */
@@ -6463,34 +6496,8 @@ static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
 
 static wmOperatorStatus info_log_show_exec(bContext *C, wmOperator *op)
 {
-  wmWindow *win_cur = CTX_wm_window(C);
-  /* Use eventstate, not event from _invoke, so this can be called through exec(). */
-  const wmEvent *event = win_cur->eventstate;
-  const int shift_y = 480;
-  const int mx = event->xy[0];
-  const int my = event->xy[1] + shift_y;
-  int sizex = 900 * UI_SCALE_FAC;
-  int sizey = 580 * UI_SCALE_FAC;
-
-  const rcti window_rect = {
-      /*xmin*/ mx,
-      /*xmax*/ mx + sizex,
-      /*ymin*/ my,
-      /*ymax*/ my + sizey,
-  };
-
   /* changes context! */
-  if (WM_window_open(C,
-                     IFACE_("Blender Info Log"),
-                     &window_rect,
-                     SPACE_INFO,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
-  {
+  if (WM_window_open_temp(C, IFACE_("Blender Info Log"), SPACE_INFO, false)) {
     return OPERATOR_FINISHED;
   }
   BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
@@ -6988,6 +6995,7 @@ void ED_operatortypes_screen()
   /* Frame changes. */
   WM_operatortype_append(SCREEN_OT_frame_offset);
   WM_operatortype_append(SCREEN_OT_frame_jump);
+  WM_operatortype_append(SCREEN_OT_time_jump);
   WM_operatortype_append(SCREEN_OT_keyframe_jump);
   WM_operatortype_append(SCREEN_OT_marker_jump);
 
@@ -7068,6 +7076,8 @@ static std::string screen_drop_scene_tooltip(bContext * /*C*/,
     switch (asset_drag->import_settings.method) {
       case ASSET_IMPORT_LINK:
         return fmt::format(fmt::runtime(TIP_("Link {}")), dragged_scene_name);
+      case ASSET_IMPORT_PACK:
+        return fmt::format(fmt::runtime(TIP_("Pack {}")), dragged_scene_name);
       case ASSET_IMPORT_APPEND:
         return fmt::format(fmt::runtime(TIP_("Append {}")), dragged_scene_name);
       case ASSET_IMPORT_APPEND_REUSE:

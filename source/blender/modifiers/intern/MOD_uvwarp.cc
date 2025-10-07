@@ -105,7 +105,7 @@ static void uv_warp_compute(void *__restrict userdata,
   const MDeformVert *dvert = data->dvert;
   const int defgrp_index = data->defgrp_index;
 
-  float(*warp_mat)[4] = data->warp_mat;
+  float (*warp_mat)[4] = data->warp_mat;
 
   int l;
 
@@ -339,4 +339,5 @@ ModifierTypeInfo modifierType_UVWarp = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

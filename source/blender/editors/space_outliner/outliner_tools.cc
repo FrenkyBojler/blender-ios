@@ -139,7 +139,6 @@ static void get_element_operation_type(
       case ID_SPK:
       case ID_MA:
       case ID_TE:
-      case ID_IP:
       case ID_IM:
       case ID_SO:
       case ID_KE:
@@ -2094,14 +2093,14 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
 
   if (event == OL_DOP_SELECT) {
-    pchan->bone->flag |= BONE_SELECTED;
+    pchan->flag |= POSE_SELECTED;
   }
   else if (event == OL_DOP_DESELECT) {
-    pchan->bone->flag &= ~BONE_SELECTED;
+    pchan->flag &= ~POSE_SELECTED;
   }
   else if (event == OL_DOP_HIDE) {
     pchan->drawflag |= PCHAN_DRAW_HIDDEN;
-    pchan->bone->flag &= ~BONE_SELECTED;
+    pchan->flag &= ~POSE_SELECTED;
   }
   else if (event == OL_DOP_UNHIDE) {
     pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;

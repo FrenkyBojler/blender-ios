@@ -817,6 +817,11 @@ static int outliner_id_copy_tag(SpaceOutliner *space_outliner,
 
     /* Add selected item and all of its dependencies to the copy buffer. */
     if (tselem->flag & TSE_SELECTED && ELEM(tselem->type, TSE_SOME_ID, TSE_LAYER_COLLECTION)) {
+      if (ID_IS_PACKED(tselem->id)) {
+        /* Direct link/append of packed IDs is not supported currently, so neither is their
+         * copy/pasting. */
+        continue;
+      }
       copybuffer.id_add(tselem->id,
                         PartialWriteContext::IDAddOptions{
                             (PartialWriteContext::IDAddOperations::SET_FAKE_USER |
@@ -839,7 +844,7 @@ static wmOperatorStatus outliner_id_copy_exec(bContext *C, wmOperator *op)
 
   Main *bmain = CTX_data_main(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
+  PartialWriteContext copybuffer{*bmain};
 
   const int num_ids = outliner_id_copy_tag(space_outliner, &space_outliner->tree, copybuffer);
   if (num_ids == 0) {
@@ -2495,28 +2500,9 @@ void OUTLINER_OT_orphans_purge(wmOperatorType *ot)
 
 static wmOperatorStatus outliner_orphans_manage_invoke(bContext *C,
                                                        wmOperator * /*op*/,
-                                                       const wmEvent *event)
+                                                       const wmEvent * /*event*/)
 {
-  const int sizex = int(450.0f * UI_SCALE_FAC);
-  const int sizey = int(450.0f * UI_SCALE_FAC);
-  const rcti window_rect = {
-      /*xmin*/ event->xy[0],
-      /*xmax*/ event->xy[0] + sizex,
-      /*ymin*/ event->xy[1],
-      /*ymax*/ event->xy[1] + sizey,
-  };
-
-  if (WM_window_open(C,
-                     IFACE_("Manage Unused Data"),
-                     &window_rect,
-                     SPACE_OUTLINER,
-                     false,
-                     false,
-                     true,
-                     WIN_ALIGN_LOCATION_CENTER,
-                     nullptr,
-                     nullptr) != nullptr)
-  {
+  if (WM_window_open_temp(C, IFACE_("Manage Unused Data"), SPACE_OUTLINER, false)) {
     SpaceOutliner *soutline = CTX_wm_space_outliner(C);
     soutline->outlinevis = SO_ID_ORPHANS;
     return OPERATOR_FINISHED;

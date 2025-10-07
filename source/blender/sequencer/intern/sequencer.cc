@@ -154,10 +154,10 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
   strip->speed_factor = 1.0f;
 
   if (strip->type == STRIP_TYPE_ADJUSTMENT) {
-    strip->blend_mode = STRIP_TYPE_CROSS;
+    strip->blend_mode = STRIP_BLEND_CROSS;
   }
   else {
-    strip->blend_mode = STRIP_TYPE_ALPHAOVER;
+    strip->blend_mode = STRIP_BLEND_ALPHAOVER;
   }
 
   strip->data = seq_strip_alloc(type);
@@ -186,7 +186,7 @@ static void seq_strip_free_ex(Scene *scene,
 
   relations_strip_free_anim(strip);
 
-  if (strip->type & STRIP_TYPE_EFFECT) {
+  if (strip->is_effect()) {
     EffectHandle sh = strip_effect_handle_get(strip);
     sh.free(strip, do_id_user);
   }
@@ -324,7 +324,7 @@ void editing_free(Scene *scene, const bool do_id_user)
 
 static void seq_new_fix_links_recursive(Strip *strip, blender::Map<Strip *, Strip *> strip_map)
 {
-  if (strip->type & STRIP_TYPE_EFFECT) {
+  if (strip->is_effect()) {
     strip->input1 = strip_map.lookup_default(strip->input1, strip->input1);
     strip->input2 = strip_map.lookup_default(strip->input2, strip->input2);
   }
@@ -565,7 +565,7 @@ static Strip *strip_duplicate(Main *bmain,
       MovieClip *clip_old = strip_new->clip;
       strip_new->clip = reinterpret_cast<MovieClip *>(
           BKE_id_copy(bmain, reinterpret_cast<ID *>(clip_old)));
-      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+      if (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) {
         id_us_min(&strip_new->clip->id);
       }
     }
@@ -575,7 +575,7 @@ static Strip *strip_duplicate(Main *bmain,
       Mask *mask_old = strip_new->mask;
       strip_new->mask = reinterpret_cast<Mask *>(
           BKE_id_copy(bmain, reinterpret_cast<ID *>(mask_old)));
-      if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT)) {
+      if (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) {
         id_us_min(&strip_new->mask->id);
       }
     }
@@ -594,7 +594,7 @@ static Strip *strip_duplicate(Main *bmain,
   else if (strip->type == STRIP_TYPE_IMAGE) {
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
   }
-  else if (strip->type & STRIP_TYPE_EFFECT) {
+  else if (strip->is_effect()) {
     EffectHandle sh;
     sh = strip_effect_handle_get(strip);
     if (sh.copy) {
@@ -773,9 +773,6 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
         case STRIP_TYPE_GLOW:
           BLO_write_struct(writer, GlowVars, strip->effectdata);
           break;
-        case STRIP_TYPE_TRANSFORM:
-          BLO_write_struct(writer, TransformVars, strip->effectdata);
-          break;
         case STRIP_TYPE_GAUSSIAN_BLUR:
           BLO_write_struct(writer, GaussianBlurVars, strip->effectdata);
           break;
@@ -846,9 +843,9 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
 void blend_write(BlendWriter *writer, ListBase *seqbase)
 {
   /* reset write flags */
-  for_each_callback(seqbase, seq_set_strip_done_cb, nullptr);
+  foreach_strip(seqbase, seq_set_strip_done_cb, nullptr);
 
-  for_each_callback(seqbase, strip_write_data_cb, writer);
+  foreach_strip(seqbase, strip_write_data_cb, writer);
 }
 
 static bool strip_read_data_cb(Strip *strip, void *user_data)
@@ -879,8 +876,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
       case STRIP_TYPE_GLOW:
         BLO_read_struct(reader, GlowVars, &strip->effectdata);
         break;
-      case STRIP_TYPE_TRANSFORM:
-        BLO_read_struct(reader, TransformVars, &strip->effectdata);
+      case STRIP_TYPE_TRANSFORM_LEGACY:
+        BLO_read_struct(reader, TransformVarsLegacy, &strip->effectdata);
         break;
       case STRIP_TYPE_GAUSSIAN_BLUR:
         BLO_read_struct(reader, GaussianBlurVars, &strip->effectdata);
@@ -903,7 +900,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 
   BLO_read_struct(reader, Stereo3dFormat, &strip->stereo3d_format);
 
-  if (strip->type & STRIP_TYPE_EFFECT) {
+  if (strip->is_effect()) {
     strip->runtime.flag |= STRIP_EFFECT_NOT_LOADED;
   }
 
@@ -975,7 +972,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 }
 void blend_read(BlendDataReader *reader, ListBase *seqbase)
 {
-  for_each_callback(seqbase, strip_read_data_cb, reader);
+  foreach_strip(seqbase, strip_read_data_cb, reader);
 }
 
 static bool strip_doversion_250_sound_proxy_update_cb(Strip *strip, void *user_data)
@@ -996,7 +993,7 @@ static bool strip_doversion_250_sound_proxy_update_cb(Strip *strip, void *user_d
 
 void doversion_250_sound_proxy_update(Main *bmain, Editing *ed)
 {
-  for_each_callback(&ed->seqbase, strip_doversion_250_sound_proxy_update_cb, bmain);
+  foreach_strip(&ed->seqbase, strip_doversion_250_sound_proxy_update_cb, bmain);
 }
 
 /* Depsgraph update functions. */
@@ -1111,7 +1108,7 @@ static void seq_update_scene_strip_sound(const Scene *scene, Strip *strip)
   bool sequencer_is_used = scene_sequencer_is_used(strip->scene, &scene->ed->seqbase);
 
   if (!sequencer_is_used && strip->scene->sound_scene != nullptr && strip->scene->ed != nullptr) {
-    for_each_callback(&strip->scene->ed->seqbase, seq_mute_sound_strips_cb, strip->scene);
+    foreach_strip(&strip->scene->ed->seqbase, seq_mute_sound_strips_cb, strip->scene);
   }
 }
 
@@ -1136,7 +1133,7 @@ void eval_strips(Depsgraph *depsgraph, Scene *scene, ListBase *seqbase)
   DEG_debug_print_eval(depsgraph, __func__, scene->id.name, scene);
   BKE_sound_ensure_scene(scene);
 
-  for_each_callback(seqbase, strip_sound_update_cb, scene);
+  foreach_strip(seqbase, strip_sound_update_cb, scene);
 
   edit_update_muting(scene->ed);
   sound_update_bounds_all(scene);
@@ -1176,4 +1173,11 @@ ListBase *Editing::current_channels() const
   }
   /* NOTE: Const correctness is non-existent with ListBase anyway. */
   return &const_cast<ListBase &>(this->channels);
+}
+
+bool Strip::is_effect() const
+{
+  return (this->type >= STRIP_TYPE_CROSS && this->type <= STRIP_TYPE_OVERDROP_REMOVED) ||
+         (this->type >= STRIP_TYPE_WIPE && this->type <= STRIP_TYPE_ADJUSTMENT) ||
+         (this->type >= STRIP_TYPE_GAUSSIAN_BLUR && this->type <= STRIP_TYPE_COLORMIX);
 }
