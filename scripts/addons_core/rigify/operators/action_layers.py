@@ -116,7 +116,8 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
         if unique_id:
             return unique_id
 
-        unique_id = random.randint(0, 2**63-1)
+        # IDProperties only support signed 32-bit integers.
+        unique_id = random.randint(0, 2**31 - 1)
         self['unique_id'] = unique_id
         return unique_id
 
