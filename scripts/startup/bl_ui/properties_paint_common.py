@@ -316,7 +316,6 @@ class UnifiedPaintPanel:
             subcol.active = getattr(brush, pressure_name)
             subcol.template_curve_mapping(brush, custom_curve_name, brush=True, show_presets=True)
 
-
     @staticmethod
     def prop_unified_color(parent, context, brush, prop_name, *, text=None):
         ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
@@ -1191,7 +1190,13 @@ def brush_shared_settings(layout, context, brush, popover=False):
                 text="Size",
                 slider=True,
             )
-            if not popover and size_pressure and mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
+            if not popover and size_pressure and mode in {
+                'PAINT_TEXTURE',
+                'PAINT_2D',
+                'SCULPT',
+                'PAINT_VERTEX',
+                'PAINT_WEIGHT',
+                    'SCULPT_CURVES'}:
                 UnifiedPaintPanel.prop_custom_pressure(
                     layout,
                     context,
@@ -1216,7 +1221,13 @@ def brush_shared_settings(layout, context, brush, popover=False):
             pressure_name=pressure_name,
             slider=True,
         )
-        if not popover and strength_pressure and mode in {'PAINT_TEXTURE', 'PAINT_2D', 'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'SCULPT_CURVES'}:
+        if not popover and strength_pressure and mode in {
+            'PAINT_TEXTURE',
+            'PAINT_2D',
+            'SCULPT',
+            'PAINT_VERTEX',
+            'PAINT_WEIGHT',
+                'SCULPT_CURVES'}:
             UnifiedPaintPanel.prop_custom_pressure(
                 layout,
                 context,
