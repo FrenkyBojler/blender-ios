@@ -1750,107 +1750,104 @@ static void node_draw_shadow(const SpaceNode &snode,
   UI_draw_roundbox_4fv(&rect, false, radius + 0.5f, color);
 }
 
-/* Node groups draw two "copies" of the node body underneath, just narrower and dimmer. */
+/* TODO: Cleanup. Deduplicate getting of header/outline color. */
+/* Node groups get a triangle indicator in the top right of the header. */
 static void node_draw_node_group_indicator(const SpaceNode &snode,
+                                           const bNodeTree &ntree,
                                            const bNode &node,
                                            const rctf &rect,
                                            const float radius,
-                                           const float color[4],
-                                           const bool is_selected)
+                                           const float color_header[4],
+                                           const bool is_selected,
+                                           const int color_id)
 {
   if (node.type_legacy != NODE_GROUP) {
     return;
   }
 
-  /* How far it extends down and narrows. */
-  const float offset = 2.8f * UI_SCALE_FAC;
-  const float alpha_selected = is_selected ? .33f : .0f;
-  const float shadow_width = 0.25f * U.widget_unit;
-  const float shadow_alpha = 0.15f;
+  const float indicator_size = 0.75f * NODE_DY;
+  const float2 bottom_right = {rect.xmax, rect.ymax - indicator_size};
+  const float2 top_left = {rect.xmax - indicator_size, rect.ymax};
+  const float2 center_vertex = 0.5f * (top_left + bottom_right);
 
-  UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+  GPU_blend(GPU_BLEND_ALPHA);
 
-  /* Start with the last copy. */
+  /* Colored triangle at the top right of the header. */
   {
-    const rctf rect_group_copy = {
-        rect.xmin + offset * 4,
-        rect.xmax - offset * 4,
-        rect.ymin - offset * 2,
-        rect.ymin - offset,
-    };
+    GPUVertFormat *format = immVertexFormat();
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
-    ui_draw_dropshadow(
-        &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
-
-    /* Use the node (or header) color but slightly transparent. */
-    float color_copy[4];
-    copy_v4_v4(color_copy, color);
-    color_copy[3] *= 0.2f + alpha_selected;
-    UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
-  }
-
-  /* Draw the first copy in the front. */
-  {
-    const rctf rect_group_copy = {
-        rect.xmin + offset * 2,
-        rect.xmax - offset * 2,
-        rect.ymin - offset,
-        rect.ymin,
-    };
-
-    ui_draw_dropshadow(
-        &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
-
-    float color_copy[4];
-    copy_v4_v4(color_copy, color);
-    color_copy[3] *= 0.5f + alpha_selected;
-    UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
-  }
-
-  /* Draw highlight lines. */
-  {
-    const uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-    const float padding = 4.0f * U.pixelsize;
+    /* Mix the text color into the header color. */
+    float color_indicator[4];
+    UI_GetThemeColorBlend4f(color_id, TH_TEXT, 0.3f, color_indicator);
+    if (node.is_muted()) {
+      color_indicator[3] = 0.3;
+    }
 
-    /* Use the body color as base, and lighten it a bit. */
-    uchar color_line[4];
-    rgba_float_to_uchar(color_line, color);
-    color_line[0] = min_ii(color_line[0] + 40, 255);
-    color_line[1] = min_ii(color_line[1] + 40, 255);
-    color_line[2] = min_ii(color_line[2] + 40, 255);
+    immUniformColor4fv(color_indicator);
 
-    GPU_blend(GPU_BLEND_ALPHA);
-    GPU_line_width(1.0f);
-    immBegin(GPU_PRIM_LINES, 6);
+    /* NOTE: Copied from `imm_draw_disk_partial`. */
+    const int nsegments = 12;
+    immBegin(GPU_PRIM_TRI_STRIP, nsegments * 2);
 
-    /* Bottom-most lines. */
-    /* Draw the lines three times, each with slightly less wide, for a fade effect. */
-    immUniformColor3ubvAlpha(color_line, 40);
-    immVertex2f(pos, rect.xmin + offset * 6, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmax - offset * 6, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmin + offset * 6 + padding, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmax - offset * 6 - padding, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmin + offset * 6 + padding * 2, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmax - offset * 6 - padding * 2, rect.ymin - offset * 2);
+    /* Top-left corner. */
+    immVertex2f(pos, center_vertex.x, center_vertex.y);
+    immVertex2f(pos, top_left.x, top_left.y);
+
+    /* Arc at the top-right corner of the node. */
+    const float angle_start = 0.0f;
+    const float angle_end = M_PI_2;
+    const float2 arc_center = {rect.xmax - radius, rect.ymax - radius};
+    for (int i = 1; i < nsegments - 1; i++) {
+      const float angle = interpf(angle_start, angle_end, (float(i) / float(nsegments - 1)));
+      const float angle_sin = sinf(angle);
+      const float angle_cos = cosf(angle);
+      immVertex2f(pos, center_vertex.x, center_vertex.y);
+      immVertex2f(pos, arc_center.x + (radius * angle_cos), arc_center.y + (radius * angle_sin));
+    }
+
+    /* Bottom-right corner. */
+    immVertex2f(pos, center_vertex.x, center_vertex.y);
+    immVertex2f(pos, bottom_right.x, bottom_right.y);
+
     immEnd();
-
-    /* Middle lines. */
-    immBegin(GPU_PRIM_LINES, 6);
-    immUniformColor3ubvAlpha(color_line, 50);
-    immVertex2f(pos, rect.xmin + offset * 4, rect.ymin - offset);
-    immVertex2f(pos, rect.xmax - offset * 4, rect.ymin - offset);
-    immVertex2f(pos, rect.xmin + offset * 4 + padding, rect.ymin - offset);
-    immVertex2f(pos, rect.xmax - offset * 4 - padding, rect.ymin - offset);
-    immVertex2f(pos, rect.xmin + offset * 4 + padding * 2, rect.ymin - offset);
-    immVertex2f(pos, rect.xmax - offset * 4 - padding * 2, rect.ymin - offset);
-    immEnd();
-
-    GPU_blend(GPU_BLEND_NONE);
     immUnbindProgram();
   }
+
+  /* Outline for the indicator. */
+  {
+    float color_header_outline[4];
+    if (node.is_muted()) {
+      UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.6f, color_header_outline);
+    }
+    else {
+      UI_GetThemeColorShade4fv(color_id, 20, color_header_outline);
+    }
+
+    GPUVertFormat *format = immVertexFormat();
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immUniformColor4fv(color_header_outline);
+
+    immBegin(GPU_PRIM_TRI_STRIP, 4);
+
+    const float offset = M_SQRT2 * U.pixelsize;
+
+    /* Top-left corner. */
+    immVertex2f(pos, top_left.x, top_left.y);
+    immVertex2f(pos, top_left.x + offset, top_left.y);
+
+    /* Bottom-right corner. */
+    immVertex2f(pos, bottom_right.x, bottom_right.y);
+    immVertex2f(pos, bottom_right.x, bottom_right.y + offset);
+
+    immEnd();
+    immUnbindProgram();
+  }
+
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void node_draw_socket(const bContext &C,
@@ -3268,7 +3265,8 @@ static void node_draw_basis(const bContext &C,
 
     /* Node Group indicator. */
     if (draw_node_details(snode)) {
-      node_draw_node_group_indicator(snode, node, rect, corner_radius, color, node.flag & SELECT);
+      node_draw_node_group_indicator(
+          snode, ntree, node, rct, corner_radius, color_header, node.flag & SELECT, color_id);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
@@ -3404,14 +3402,14 @@ static void node_draw_collapsed(const bContext &C,
         rct.ymax + padding,
     };
 
+    UI_draw_roundbox_corner_set(UI_CNR_ALL);
+    UI_draw_roundbox_4fv(&rect, true, BASIS_RAD + padding, color);
+
     /* Node Group indicator. */
     if (draw_node_details(snode)) {
       node_draw_node_group_indicator(
-          snode, node, rect, BASIS_RAD + padding, color, node.flag & SELECT);
+          snode, ntree, node, rct, BASIS_RAD + padding, color, node.flag & SELECT, color_id);
     }
-
-    UI_draw_roundbox_corner_set(UI_CNR_ALL);
-    UI_draw_roundbox_4fv(&rect, true, BASIS_RAD + padding, color);
   }
 
   /* Title. */
