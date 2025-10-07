@@ -308,7 +308,7 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
   /* Color for interpolation lines based on their type */
   const float *color;
 
-  if (ab->block.conflict & ACTKEYBLOCK_FLAG_NON_BEZIER) {
+  if (ab->block.conflict) {
     /* Mixed color is used by summary lines that combine multiple keyframe information */
     color = ctx->ipo_color_mix;
   }
@@ -349,7 +349,7 @@ static void draw_keylist_block(const DrawKeylistUIData *ctx, const ActKeyColumn 
       }
     }
     if (ctx->show_ipo && actkeyblock_is_valid(ab) &&
-        (ab->block.flag & ACTKEYBLOCK_FLAG_NON_BEZIER))
+        (ab->block.flag))
     {
       /* draw an interpolation line */
       draw_keylist_block_interpolation_line(ctx, ab, ypos);
