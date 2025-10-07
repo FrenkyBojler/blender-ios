@@ -267,11 +267,6 @@ class OBJECT_OT_paste_transform(Operator):
         if not context.active_pose_bone and not context.active_object:
             cls.poll_message_set("Select an object or pose bone")
             return False
-
-        clipboard = context.window_manager.clipboard.strip()
-        if not (clipboard.startswith("Matrix(") or clipboard.startswith("<Matrix 4x4")):
-            cls.poll_message_set("Clipboard does not contain a valid matrix")
-            return False
         return True
 
     @staticmethod
@@ -285,7 +280,11 @@ class OBJECT_OT_paste_transform(Operator):
         if len(lines) != 4:
             return None
 
-        floats = tuple(tuple(float(item) for item in line.split()) for line in lines)
+        try:
+            floats = tuple(tuple(float(item) for item in line.split()) for line in lines)
+        except ValueError:
+            # Apprently not the expected format.
+            return None
         return Matrix(floats)
 
     @staticmethod
@@ -307,11 +306,13 @@ class OBJECT_OT_paste_transform(Operator):
             mat = Matrix(ast.literal_eval(clipboard[6:]))
         elif clipboard.startswith("<Matrix 4x4"):
             mat = self.parse_repr_m4(clipboard[12:-1])
-        else:
+        elif clipboard:
             mat = self.parse_print_m4(clipboard)
+        else:
+            mat = None
 
         if mat is None:
-            self.report({'ERROR'}, "Clipboard does not contain a valid matrix")
+            self.report({'ERROR'}, "Clipboard does not contain a matrix")
             return {'CANCELLED'}
 
         try:
