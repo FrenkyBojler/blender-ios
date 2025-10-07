@@ -55,7 +55,7 @@ static std::string format_coefficient(float value)
 }
 
 /* Static variable to store rotation mode button state at runtime.
-   Defaults to XYZ Euler. */
+ * Defaults to XYZ Euler. */
 static int rotation_mode_index = 1;
 
 static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
