@@ -6,6 +6,8 @@
  * \ingroup gpu
  */
 
+#include "BKE_global.hh"
+
 #include "mtl_push_constant.hh"
 
 namespace blender::gpu {
@@ -54,7 +56,12 @@ MTLPushConstantBuf::MTLPushConstantBuf(const shader::ShaderCreateInfo &info)
   /* Pad to max alignment. */
   size_ = ceil_to_multiple_u(size_, max_alignement);
   data_ = reinterpret_cast<uint8_t *>(
-      MEM_malloc_arrayN_aligned(1, size_, 128, "MTLPushConstantData"));
+      MEM_calloc_arrayN_aligned(1, size_, 128, "MTLPushConstantData"));
+
+  if (G.debug & G_DEBUG_GPU) {
+    /* Poison values to detect unset values. */
+    memset(data_, 0xFD, size_);
+  }
 }
 
 MTLPushConstantBuf::~MTLPushConstantBuf()
