@@ -456,12 +456,16 @@ static IndexMask face_tris_mask(const OffsetIndices<int> faces,
       });
 }
 
-static IndexMask tris_in_set(
-    const IndexMask &tri_mask,
-    const OffsetIndices<int> faces,
-    const Span<int> corner_verts,
-    const VectorSet<FaceKey, 4, DefaultProbingStrategy, FaceHash, FacesEquality> &distinct_tris,
-    IndexMaskMemory &memory)
+static IndexMask tris_in_set(const IndexMask &tri_mask,
+                             const OffsetIndices<int> faces,
+                             const Span<int> corner_verts,
+                             const VectorSet<FaceKey,
+                                             4,
+                                             DefaultProbingStrategy,
+                                             FaceHash,
+                                             FacesEquality,
+                                             SimpleVectorSetSlot<FaceKey, int>> &distinct_tris,
+                             IndexMaskMemory &memory)
 {
   return IndexMask::from_predicate(tri_mask, GrainSize(4096), memory, [&](const int face_i) {
     BLI_assert(faces[face_i].size() == 3);
@@ -580,8 +584,13 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
    * #FaceKey know indices of the face and points into #ordered_vert_tris, but probe can be done
    * without #FaceKey but dirrectly with a triplet so probe not necessary to be a part of
    * #ordered_vert_tris. */
-  VectorSet<FaceKey, 4, DefaultProbingStrategy, FaceHash, FacesEquality> distinct_tris(
-      FaceHash{}, FacesEquality{ordered_vert_tris});
+  VectorSet<FaceKey,
+            4,
+            DefaultProbingStrategy,
+            FaceHash,
+            FacesEquality,
+            SimpleVectorSetSlot<FaceKey, int>>
+      distinct_tris(FaceHash{}, FacesEquality{ordered_vert_tris});
 
   /* Could be done parallel with use of grouping of faces by its lowest vertex and next linear
    * deduplication, but right now this is just sequential hash-set. */
