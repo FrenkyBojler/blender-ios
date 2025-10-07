@@ -2,3 +2,4 @@ Referenced by pull request #146092, Fix: Remove unused "Active Modifier Outline"
 Referenced by commit 929110db049cd4ffa8c4a324f40966d4af47b34e, Fix: Remove unused "Active Modifier Outline" setting
 Referenced by pull request #146967, Fix #146963: VSE compositor modifier Strip mask input field disappearing
 Referenced by commit 1e92530aa211ae2f04b497f574aee71393d1afa1, Fix #146963: VSE compositor modifier Strip mask input field disappearing
+Referenced by pull request #147571, Cleanup: Remove unused color balance modifier draw function
