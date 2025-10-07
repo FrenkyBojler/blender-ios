@@ -1,1 +1,2 @@
 Referenced by issue #147540, OSL Camera Failed to load OptiX OSL shadeops kernel
+Referenced by issue #147565, Crash on performing "Library override" on a linked collection within scene with more then one "View Layer".
