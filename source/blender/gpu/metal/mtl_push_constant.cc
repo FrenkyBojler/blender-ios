@@ -17,12 +17,17 @@ static size_t padded_size(const shader::ShaderCreateInfo::PushConst &push_consta
   size_t size;
   if (comp == 3) {
     /* Padded size for float3. */
-    size = 16;
+    size = 4 * sizeof(float);
     alignment = 16;
   }
   else if (comp == 9) {
     /* Padded size for float3x3. */
-    size = 16 * 3;
+    size = 3 * 4 * sizeof(float);
+    alignment = 16;
+  }
+  else if (comp == 16) {
+    /* Special alignment case for float4x4. */
+    size = 4 * 4 * sizeof(float);
     alignment = 16;
   }
   else {
