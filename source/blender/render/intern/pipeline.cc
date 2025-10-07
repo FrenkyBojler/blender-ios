@@ -695,6 +695,11 @@ void RE_FreeUnusedGPUResources()
     }
 
     LISTBASE_FOREACH (const wmWindow *, win, &wm->windows) {
+      if (!do_free) {
+        /* No need too do further checks. */
+        break;
+      }
+
       if (WM_window_get_active_scene(win) != scene) {
         continue;
       }
