@@ -47,13 +47,13 @@ typedef struct _object PyObject;
 PyObject *pygpu_mesh_scatter(PyObject *self, PyObject *args, PyObject *kwds);
 
 /**
- * Free GPU resources (shader + SSBOs) associated with the mesh owned by obj.
+ * Free GPU resources (shader + SSBO) associated with the mesh owned by obj.
  * Also resets mesh GPU deform flags.
  *
  * Python signature:
- *   scatter_free_for_mesh(obj)
+ *   free_compute_resources(obj)
  */
-PyObject *pygpu_mesh_scatter_free(PyObject *self, PyObject *args, PyObject *kwds);
+PyObject *pygpu_mesh_compute_free(PyObject *self, PyObject *args, PyObject *kwds);
 
 /**
  * Initialize the `gpu.mesh` submodule and add the scatter function.
