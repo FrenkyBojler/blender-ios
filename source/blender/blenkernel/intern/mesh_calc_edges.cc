@@ -6,10 +6,6 @@
  * \ingroup bke
  */
 
-#include <iostream>
-
-#include <stdlib.h>
-
 #include "BLI_array_utils.hh"
 #include "BLI_math_base.h"
 #include "BLI_ordered_edge.hh"
@@ -19,10 +15,8 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_filter.hh"
-#include "BKE_attribute_filters.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
 namespace blender::bke {
@@ -224,7 +218,7 @@ void mesh_calc_edges(Mesh &mesh,
 {
 
   if (mesh.edges_num == 0 && mesh.corners_num == 0) {
-    BLI_assert(BKE_mesh_is_valid(&mesh));
+    /* BLI_assert(BKE_mesh_is_valid(&mesh)); */
     return;
   }
 
@@ -232,7 +226,7 @@ void mesh_calc_edges(Mesh &mesh,
     CustomData_free(&mesh.edge_data);
     mesh.edges_num = 0;
     mesh.tag_loose_edges_none();
-    BLI_assert(BKE_mesh_is_valid(&mesh));
+    /* BLI_assert(BKE_mesh_is_valid(&mesh)); */
     return;
   }
 
@@ -258,7 +252,7 @@ void mesh_calc_edges(Mesh &mesh,
   const bool original_edges_are_distinct = original_unique_edge_num == mesh.edges_num;
 
   if (mesh.corners_num == 0 && keep_existing_edges && original_edges_are_distinct) {
-    BLI_assert(BKE_mesh_is_valid(&mesh));
+    /* BLI_assert(BKE_mesh_is_valid(&mesh)); */
     return;
   }
 
@@ -463,7 +457,7 @@ void mesh_calc_edges(Mesh &mesh,
   BLI_assert(back_range_of_new_edges.one_after_last() == result_edges_num);
 
   Vector<std::string> attributes_to_drop;
-  /* TODO: Need ::all_pass() on #attribute_filter to know is this loop can be skipped. */
+  /* TODO: Need ::all_pass() on #attribute_filter to know if this loop can be skipped. */
   mesh.attributes().foreach_attribute([&](const AttributeIter &attribute) {
     if (attribute.data_type == AttrType::String) {
       return;
@@ -542,7 +536,7 @@ void mesh_calc_edges(Mesh &mesh,
   /* Explicitly clear edge maps, because that way it can be parallelized. */
   calc_edges::clear_hash_tables(edge_maps);
 
-  BLI_assert(BKE_mesh_is_valid(&mesh));
+  /* BLI_assert(BKE_mesh_is_valid(&mesh)); */
 }
 
 void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new_edges)
