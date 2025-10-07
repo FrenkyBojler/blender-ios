@@ -1,2 +1,3 @@
 Referenced by issue #145607, "2D Stabilization" Dont Work  in Compositor Nodes.
 Referenced by issue #147157, Scale node in compositor misses X value indicator
+Referenced by commit 0efc88bacd1d30defa90c5ec26061e4c5661c394, Fix #147157: Scale node X input has no label
