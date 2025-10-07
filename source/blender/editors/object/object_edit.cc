@@ -889,8 +889,13 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
     WM_main_add_notifier(NC_SCENE | ND_MODE | NS_EDITMODE_MESH, nullptr);
   }
   else if (ob->type == OB_ARMATURE) {
-    /* Syncing the selection to the `Bone` before converting to edit bones. */
-    flush_pose_selection_to_bone(*ob);
+    /* Syncing the selection to the `Bone` before converting to edit bones. This is not possible if
+     * the Armature was just created, because then there is no pose data yet. Which is fine, the
+     * just-created edit bones already have the expected selection state. */
+    if (ob->pose) {
+      flush_pose_selection_to_bone(*ob);
+    }
+
     bArmature *arm = static_cast<bArmature *>(ob->data);
     ok = true;
     ED_armature_to_edit(arm);
