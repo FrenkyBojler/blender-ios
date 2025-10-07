@@ -868,16 +868,17 @@ void GHOST_ContextVK::setPresentFence(VkSwapchainKHR swapchain, VkFence present_
   present_fences_[swapchain].push_back(present_fence);
   GHOST_DeviceVK &device_vk = vulkan_instance->device.value();
   /** Recycle signaled fences. */
-  for (auto &item : present_fences_) {
-    auto end = item.second.end();
-    auto it = std::remove_if(item.second.begin(), item.second.end(), [&](const VkFence fence) {
-      if (vkGetFenceStatus(device_vk.vk_device, fence) == VK_NOT_READY) {
-        return false;
-      }
-      vkResetFences(device_vk.vk_device, 1, &fence);
-      fence_pile_.push_back(fence);
-      return true;
-    });
+  for (std::pair<const VkSwapchainKHR, std::vector<VkFence>> &item : present_fences_) {
+    std::vector<VkFence>::iterator end = item.second.end();
+    std::vector<VkFence>::iterator it = std::remove_if(
+        item.second.begin(), item.second.end(), [&](const VkFence fence) {
+          if (vkGetFenceStatus(device_vk.vk_device, fence) == VK_NOT_READY) {
+            return false;
+          }
+          vkResetFences(device_vk.vk_device, 1, &fence);
+          fence_pile_.push_back(fence);
+          return true;
+        });
     item.second.erase(it, end);
   }
 }
