@@ -556,8 +556,23 @@ static ::MTLFunctionConstantValues *populate_specialization_constant_values(
 /** \name Bake Pipeline State Objects
  * \{ */
 
-static void parse_reflection_data(MTLRenderPipelineStateInstance *pso_inst,
-                                  MTLRenderPipelineReflection *reflection_data)
+static uint32_t get_buffer_binding_mask(NSArray<MTLArgument *> *args)
+{
+  uint32_t mask = 0u;
+  for (int i = 0; i < [args count]; i++) {
+    MTLArgument *arg = [args objectAtIndex:i];
+    if ([arg type] == MTLArgumentTypeBuffer && [arg isActive] == FALSE) {
+      int index = [arg index];
+      if (index >= 0 && index < MTL_MAX_BUFFER_BINDINGS) {
+        mask |= (1 << index);
+      }
+    }
+  }
+  return mask;
+}
+
+void MTLRenderPipelineStateInstance::parse_reflection_data(
+    MTLRenderPipelineReflection *reflection_data)
 {
   /* Extract shader reflection data for buffer bindings.
    * This reflection data is used to contrast the binding information
@@ -566,73 +581,8 @@ static void parse_reflection_data(MTLRenderPipelineStateInstance *pso_inst,
    * optimization, and allows us to both avoid over-binding and also
    * allows us to verify size-correctness for bindings, to ensure
    * that buffers bound are not smaller than the size of expected data. */
-  NSArray<MTLArgument *> *vert_args = [reflection_data vertexArguments];
-
-  pso_inst->buffer_bindings_reflection_data_vert.clear();
-  int buffer_binding_max_ind = 0;
-
-  for (int i = 0; i < [vert_args count]; i++) {
-    ::MTLArgument *arg = [vert_args objectAtIndex:i];
-    if ([arg type] == MTLArgumentTypeBuffer) {
-      int buf_index = [arg index];
-      if (buf_index >= 0) {
-        buffer_binding_max_ind = max_ii(buffer_binding_max_ind, buf_index);
-      }
-    }
-  }
-  pso_inst->buffer_bindings_reflection_data_vert.resize(buffer_binding_max_ind + 1);
-  for (int i = 0; i < buffer_binding_max_ind + 1; i++) {
-    pso_inst->buffer_bindings_reflection_data_vert[i] = {0, 0, 0, false};
-  }
-
-  for (int i = 0; i < [vert_args count]; i++) {
-    MTLArgument *arg = [vert_args objectAtIndex:i];
-    if ([arg type] == MTLArgumentTypeBuffer) {
-      int buf_index = [arg index];
-
-      if (buf_index >= 0) {
-        pso_inst->buffer_bindings_reflection_data_vert[buf_index] = {
-            (uint32_t)([arg index]),
-            (uint32_t)([arg bufferDataSize]),
-            (uint32_t)([arg bufferAlignment]),
-            ([arg isActive] == YES) ? true : false};
-      }
-    }
-  }
-
-  NSArray<MTLArgument *> *frag_args = [reflection_data fragmentArguments];
-
-  pso_inst->buffer_bindings_reflection_data_frag.clear();
-  buffer_binding_max_ind = 0;
-
-  for (int i = 0; i < [frag_args count]; i++) {
-    MTLArgument *arg = [frag_args objectAtIndex:i];
-    if ([arg type] == MTLArgumentTypeBuffer) {
-      int buf_index = [arg index];
-      if (buf_index >= 0) {
-        buffer_binding_max_ind = max_ii(buffer_binding_max_ind, buf_index);
-      }
-    }
-  }
-  pso_inst->buffer_bindings_reflection_data_frag.resize(buffer_binding_max_ind + 1);
-  for (int i = 0; i < buffer_binding_max_ind + 1; i++) {
-    pso_inst->buffer_bindings_reflection_data_frag[i] = {0, 0, 0, false};
-  }
-
-  for (int i = 0; i < [frag_args count]; i++) {
-    MTLArgument *arg = [frag_args objectAtIndex:i];
-    if ([arg type] == MTLArgumentTypeBuffer) {
-      int buf_index = [arg index];
-      shader_debug_printf(" BUF IND: %d (arg name: %s)\n", buf_index, [[arg name] UTF8String]);
-      if (buf_index >= 0) {
-        pso_inst->buffer_bindings_reflection_data_frag[buf_index] = {
-            (uint32_t)([arg index]),
-            (uint32_t)([arg bufferDataSize]),
-            (uint32_t)([arg bufferAlignment]),
-            ([arg isActive] == YES) ? true : false};
-      }
-    }
-  }
+  this->used_buf_vert_mask &= ~get_buffer_binding_mask([reflection_data vertexArguments]);
+  this->used_buf_frag_mask &= ~get_buffer_binding_mask([reflection_data fragmentArguments]);
 }
 
 /**
@@ -971,10 +921,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
     pso_inst->null_attribute_buffer_index = (using_null_buffer) ? null_buffer_index : -1;
     pso_inst->prim_type = prim_type;
 
-    pso_inst->reflection_data_available = (reflection_data != nil);
-    if (pso_inst->reflection_data_available) {
-      parse_reflection_data(pso_inst, reflection_data);
-    }
+    pso_inst->parse_reflection_data(reflection_data);
 
     /* Insert into pso cache. */
     pso_cache_lock_.lock();

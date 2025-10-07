@@ -56,14 +56,6 @@ class MTLContext;
  * parameters which should ideally not be used for specialization. */
 #define MTL_SHADER_MAX_SPECIALIZED_PSOS 5
 
-/* Desired reflection data for a buffer binding. */
-struct MTLBufferArgumentData {
-  uint32_t index;
-  uint32_t size;
-  uint32_t alignment;
-  bool active;
-};
-
 struct MTLRenderPipelineStateInstance {
   /* Function instances with specialization.
    * Required for argument encoder construction. */
@@ -82,18 +74,11 @@ struct MTLRenderPipelineStateInstance {
   MTLPrimitiveTopologyClass prim_type;
 
   /** Reflection Data.
-   * Currently used to verify whether uniform buffers of incorrect sizes being bound, due to left
-   * over bindings being used for slots that did not need updating for a particular draw. Metal
-   * Back-end over-generates bindings due to detecting their presence, though in many cases, the
-   * bindings in the source are not all used for a given shader.
    * This information can also be used to eliminate redundant/unused bindings. */
-  /* TODO(fclem): Buffer correctness is already checked inside the GL & VK backend in a much
-   * simpler way. Also this induce some overhead that would be preferable to avoid in the normal
-   * case. */
-  /* TODO(fclem): Removing unused bindings can be done using a bit flag instead of vectors. */
-  bool reflection_data_available;
-  blender::Vector<MTLBufferArgumentData> buffer_bindings_reflection_data_vert;
-  blender::Vector<MTLBufferArgumentData> buffer_bindings_reflection_data_frag;
+  uint32_t used_buf_vert_mask = 0xFFFFFFFFu;
+  uint32_t used_buf_frag_mask = 0xFFFFFFFFu;
+
+  void parse_reflection_data(::MTLRenderPipelineReflection *reflection_data);
 };
 
 struct MTLComputePipelineStateCommon {

@@ -879,8 +879,13 @@ template<typename CommandEncoderT>
 static void ensure_push_constant(MTLContext &ctx,
                                  MTLShader &shader,
                                  CommandEncoderT enc,
-                                 MTLBindingCache<CommandEncoderT> bindings)
+                                 MTLBindingCache<CommandEncoderT> bindings,
+                                 uint32_t stage_buf_mask = uint32_t(-1))
 {
+  if ((stage_buf_mask & (1 << MTL_PUSH_CONSTANT_BUFFER_SLOT)) == 0) {
+    /* Push constant is not used by this shader. We can skip it. */
+    return;
+  }
   MTLPushConstantBuf *pc_buf = shader.get_push_constant_buf();
   /* Only need to rebind block if push constants have been modified -- or if no data is bound for
    * the current RenderCommandEncoder. */
@@ -899,7 +904,8 @@ template<typename CommandEncoderT>
 static void ensure_buffer_bindings(MTLContext &ctx,
                                    MTLShader &shader,
                                    CommandEncoderT enc,
-                                   MTLBindingCache<CommandEncoderT> bindings)
+                                   MTLBindingCache<CommandEncoderT> bindings,
+                                   uint32_t stage_buf_mask = uint32_t(-1))
 {
   MTLShaderInterface &shader_interface = shader.get_interface();
 
@@ -910,14 +916,14 @@ static void ensure_buffer_bindings(MTLContext &ctx,
   uint32_t dirty_enabled_ubo_mask = shader_interface.enabled_ubo_mask_ & dirty_ubo_mask;
   uint32_t dirty_enabled_ssbo_mask = shader_interface.enabled_ssbo_mask_ & dirty_ssbo_mask;
 
-  bits::BitInt bind_ubo = dirty_enabled_ubo_mask;
+  bits::BitInt bind_ubo = dirty_enabled_ubo_mask & (stage_buf_mask >> MTL_UBO_SLOT_OFFSET);
   for (const uint slot : BitSpan(&bind_ubo, MTL_MAX_UBO).high_bits()) {
     bindings.bind_buffer(enc,
                          ctx.pipeline_state.ubo_bindings[slot].ubo->get_metal_buffer(),
                          0,
                          MTL_UBO_SLOT_OFFSET + slot);
   }
-  bits::BitInt bind_ssbo = dirty_enabled_ssbo_mask;
+  bits::BitInt bind_ssbo = dirty_enabled_ssbo_mask & (stage_buf_mask >> MTL_SSBO_SLOT_OFFSET);
   for (const uint slot : BitSpan(&bind_ssbo, MTL_MAX_SSBO).high_bits()) {
     bindings.bind_buffer(enc,
                          ctx.pipeline_state.ssbo_bindings[slot].ssbo->get_metal_buffer(),
@@ -1121,16 +1127,16 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
   /* Fetch shader and bake valid PipelineStateObject (PSO) based on current
    * shader and state combination. This PSO represents the final GPU-executable
    * permutation of the shader. */
-  MTLRenderPipelineStateInstance *pipe_state_inst = shader->bake_current_pipeline_state(
+  MTLRenderPipelineStateInstance *psi = shader->bake_current_pipeline_state(
       this, mtl_prim_type_to_topology_class(mtl_prim_type));
 
-  if (!pipe_state_inst) {
+  if (!psi) {
     MTL_LOG_ERROR("Failed to bake Metal pipeline state for shader: %s",
                   shader_interface.name_get());
     return false;
   }
 
-  if (!pipe_state_inst->pso) {
+  if (!psi->pso) {
     MTL_LOG_ERROR("PSO for shader %s is null.", shader_interface.name_get());
     return false;
   }
@@ -1145,14 +1151,14 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
   }
 
   /* Bind Render Pipeline State. */
-  BLI_assert(pipe_state_inst->pso);
-  if (rps.bound_pso != pipe_state_inst->pso) {
-    [rec setRenderPipelineState:pipe_state_inst->pso];
-    rps.bound_pso = pipe_state_inst->pso;
+  BLI_assert(psi->pso);
+  if (rps.bound_pso != psi->pso) {
+    [rec setRenderPipelineState:psi->pso];
+    rps.bound_pso = psi->pso;
   }
 
   bool active_shader_changed = assign_if_different(
-      rps.last_bound_shader_state, MTLBoundShaderState{shader, pipe_state_inst->shader_pso_index});
+      rps.last_bound_shader_state, MTLBoundShaderState{shader, psi->shader_pso_index});
 
   MTLPushConstantBuf *pc_buf = shader->get_push_constant_buf();
   if (active_shader_changed && pc_buf) {
@@ -1162,24 +1168,23 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
   /** Ensure resource bindings. */
   MTLVertexCommandEncoder vert_rec{rec};
   MTLFragmentCommandEncoder frag_rec{rec};
-  ensure_texture_bindings(*this, *shader, vert_rec, rps.vertex_bindings, pipe_state_inst->vert);
-  ensure_texture_bindings(*this, *shader, frag_rec, rps.fragment_bindings, pipe_state_inst->frag);
-  ensure_buffer_bindings(*this, *shader, vert_rec, rps.vertex_bindings);
-  ensure_buffer_bindings(*this, *shader, frag_rec, rps.fragment_bindings);
+  ensure_texture_bindings(*this, *shader, vert_rec, rps.vertex_bindings, psi->vert);
+  ensure_texture_bindings(*this, *shader, frag_rec, rps.fragment_bindings, psi->frag);
+  ensure_buffer_bindings(*this, *shader, vert_rec, rps.vertex_bindings, psi->used_buf_vert_mask);
+  ensure_buffer_bindings(*this, *shader, frag_rec, rps.fragment_bindings, psi->used_buf_frag_mask);
   if (pc_buf && pc_buf->is_dirty()) {
-    ensure_push_constant(*this, *shader, vert_rec, rps.vertex_bindings);
-    ensure_push_constant(*this, *shader, frag_rec, rps.fragment_bindings);
+    ensure_push_constant(*this, *shader, vert_rec, rps.vertex_bindings, psi->used_buf_vert_mask);
+    ensure_push_constant(*this, *shader, frag_rec, rps.fragment_bindings, psi->used_buf_frag_mask);
     pc_buf->tag_updated();
   }
 
   /* Bind Null attribute buffer, if needed. */
-  if (pipe_state_inst->null_attribute_buffer_index >= 0) {
+  if (psi->null_attribute_buffer_index >= 0) {
     if (G.debug & G_DEBUG_GPU) {
       MTL_LOG_DEBUG("Binding null attribute buffer at index: %d",
-                    pipe_state_inst->null_attribute_buffer_index);
+                    psi->null_attribute_buffer_index);
     }
-    rps.bind_vertex_buffer(
-        this->get_null_attribute_buffer(), 0, pipe_state_inst->null_attribute_buffer_index);
+    rps.bind_vertex_buffer(this->get_null_attribute_buffer(), 0, psi->null_attribute_buffer_index);
   }
 
   /** Dynamic Per-draw Render State on RenderCommandEncoder. */
