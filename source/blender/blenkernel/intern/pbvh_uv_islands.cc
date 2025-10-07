@@ -1141,10 +1141,12 @@ std::optional<UVBorder> UVBorder::extract_from_edges(Vector<UVBorderEdge> &edges
   float2 first_uv = starting_border_edge->get_uv_vertex(0)->uv;
   float2 current_uv = starting_border_edge->get_uv_vertex(1)->uv;
   while (current_uv != first_uv) {
+    bool has_untagged_edge = false;
     for (UVBorderEdge &border_edge : edges) {
       if (border_edge.tag == true) {
         continue;
       }
+      has_untagged_edge = true;
       int i;
       for (i = 0; i < 2; i++) {
         if (border_edge.edge->vertices[i]->uv == current_uv) {
@@ -1158,6 +1160,9 @@ std::optional<UVBorder> UVBorder::extract_from_edges(Vector<UVBorderEdge> &edges
       if (i != 2) {
         break;
       }
+    }
+    if (!has_untagged_edge) {
+      break;
     }
   }
   return border;
