@@ -64,6 +64,8 @@ struct SubdivToCCGSettings {
   /** Denotes which extra layers to be added to CCG elements. */
   bool need_normal;
   bool need_mask;
+
+  /* TODO: Add delta */
 };
 
 struct SubdivCCGCoord {

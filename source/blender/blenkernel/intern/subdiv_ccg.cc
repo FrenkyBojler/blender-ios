@@ -433,8 +433,24 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
   stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
   SubdivCCGMaskEvaluator mask_evaluator;
   bool has_mask = BKE_subdiv_ccg_mask_init_from_paint(&mask_evaluator, &coarse_mesh);
+  /* TODO: Needs object to store data */
   std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
+
+  /* When switching to lower levels... */
+  /* Evaluate this twice, once for M(n - 1) and once for M(n)
+  /* At this point, the subdiv_ccg has the correct positions of M(n - 1) */
+  /* Construct an evaluator from this subdiv ccg. */
+  /* Use the evaluator get the limit surface positions and the tangent matrices */
+  /* For each vertex, V of N, MV = SubdivCCG position (object space), LV = Limit position (object space) */
+  /* Delta = (MV - LV) * LMat */
+
+  /* When switching to higher levels... */
+  /* Take the stored higher level tangent displacements */
+  /* Convert them to object space */
+  /* Re-add them to the new subdiv CCG */
+  /* Delete the data */
+
   if (has_mask) {
     mask_evaluator.free(&mask_evaluator);
   }
