@@ -1,2 +1,3 @@
 Referenced by issue #147114, UI: Changing the framerate makes the status bar show "Menu"
 Referenced by issue #146244, Severe bug: Blender freezes on cancelling a Terminal invoked animation render.
+Referenced by issue #147540, OSL Camera Failed to load OptiX OSL shadeops kernel
