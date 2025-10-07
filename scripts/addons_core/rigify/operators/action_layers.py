@@ -460,7 +460,7 @@ class DATA_PT_rigify_actions(Panel):
         col.template_ID(active_action_setup, 'action', new=RIGIFY_OT_action_create.bl_idname)
         if not active_action_setup.action:
             return
-        if active_action_setup.action.slots:
+        if not active_action_setup.action.slots:
             layout.alert = True
             layout.label(text="No slots in this Action.")
             return
