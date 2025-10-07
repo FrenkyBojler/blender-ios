@@ -16,3 +16,4 @@ Referenced by issue #125560, Regression: Mesh deform does not work anymore with 
 Referenced by issue #125295, Object not following another one
 Referenced by issue #123678, Convert to mesh cause mesh to disappear from viewport
 Referenced by issue #123624, No geometry after applying Visual Geometry to Mesh operator
+Referenced by issue #147488, Surface deform modifier breaks when you add a collision modifier on top of it.
