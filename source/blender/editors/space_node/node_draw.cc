@@ -1750,106 +1750,6 @@ static void node_draw_shadow(const SpaceNode &snode,
   UI_draw_roundbox_4fv(&rect, false, radius + 0.5f, color);
 }
 
-/* TODO: Cleanup. Deduplicate getting of header/outline color. */
-/* Node groups get a triangle indicator in the top right of the header. */
-static void node_draw_node_group_indicator(const SpaceNode &snode,
-                                           const bNodeTree &ntree,
-                                           const bNode &node,
-                                           const rctf &rect,
-                                           const float radius,
-                                           const float color_header[4],
-                                           const bool is_selected,
-                                           const int color_id)
-{
-  if (node.type_legacy != NODE_GROUP) {
-    return;
-  }
-
-  const float indicator_size = 0.75f * NODE_DY;
-  const float2 bottom_right = {rect.xmax, rect.ymax - indicator_size};
-  const float2 top_left = {rect.xmax - indicator_size, rect.ymax};
-  const float2 center_vertex = 0.5f * (top_left + bottom_right);
-
-  GPU_blend(GPU_BLEND_ALPHA);
-
-  /* Colored triangle at the top right of the header. */
-  {
-    GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-    /* Mix the text color into the header color. */
-    float color_indicator[4];
-    UI_GetThemeColorBlend4f(color_id, TH_TEXT, 0.3f, color_indicator);
-    if (node.is_muted()) {
-      color_indicator[3] = 0.3;
-    }
-
-    immUniformColor4fv(color_indicator);
-
-    /* NOTE: Copied from `imm_draw_disk_partial`. */
-    const int nsegments = 12;
-    immBegin(GPU_PRIM_TRI_STRIP, nsegments * 2);
-
-    /* Top-left corner. */
-    immVertex2f(pos, center_vertex.x, center_vertex.y);
-    immVertex2f(pos, top_left.x, top_left.y);
-
-    /* Arc at the top-right corner of the node. */
-    const float angle_start = 0.0f;
-    const float angle_end = M_PI_2;
-    const float2 arc_center = {rect.xmax - radius, rect.ymax - radius};
-    for (int i = 1; i < nsegments - 1; i++) {
-      const float angle = interpf(angle_start, angle_end, (float(i) / float(nsegments - 1)));
-      const float angle_sin = sinf(angle);
-      const float angle_cos = cosf(angle);
-      immVertex2f(pos, center_vertex.x, center_vertex.y);
-      immVertex2f(pos, arc_center.x + (radius * angle_cos), arc_center.y + (radius * angle_sin));
-    }
-
-    /* Bottom-right corner. */
-    immVertex2f(pos, center_vertex.x, center_vertex.y);
-    immVertex2f(pos, bottom_right.x, bottom_right.y);
-
-    immEnd();
-    immUnbindProgram();
-  }
-
-  /* Outline for the indicator. */
-  {
-    float color_header_outline[4];
-    if (node.is_muted()) {
-      UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.6f, color_header_outline);
-    }
-    else {
-      UI_GetThemeColorShade4fv(color_id, 20, color_header_outline);
-    }
-
-    GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformColor4fv(color_header_outline);
-
-    immBegin(GPU_PRIM_TRI_STRIP, 4);
-
-    const float offset = M_SQRT2 * U.pixelsize;
-
-    /* Top-left corner. */
-    immVertex2f(pos, top_left.x, top_left.y);
-    immVertex2f(pos, top_left.x + offset, top_left.y);
-
-    /* Bottom-right corner. */
-    immVertex2f(pos, bottom_right.x, bottom_right.y);
-    immVertex2f(pos, bottom_right.x, bottom_right.y + offset);
-
-    immEnd();
-    immUnbindProgram();
-  }
-
-  GPU_blend(GPU_BLEND_NONE);
-}
-
 static void node_draw_socket(const bContext &C,
                              const bNodeTree &ntree,
                              const bNode &node,
@@ -2905,6 +2805,23 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
   return color_header;
 }
 
+static ColorTheme4f node_header_outline_color_get(const bNodeTree &ntree,
+                                                  const bNode &node,
+                                                  const int color_id)
+{
+  ColorTheme4f color_header;
+  if (node_undefined_or_unsupported(ntree, node)) {
+    UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_header);
+  }
+  else if (node.is_muted()) {
+    UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.6f, color_header);
+  }
+  else {
+    UI_GetThemeColorShade4fv(color_id, 20, color_header);
+  }
+  return color_header;
+}
+
 static void node_header_custom_tooltip(const bNode &node, uiBut &but)
 {
   UI_but_func_tooltip_custom_set(
@@ -2929,6 +2846,96 @@ static void node_header_custom_tooltip(const bNode &node, uiBut &but)
       },
       &const_cast<bNode &>(node),
       nullptr);
+}
+
+/* TODO: Cleanup. Deduplicate getting of header/outline color. */
+/* Node groups get a triangle indicator in the top right of the header. */
+static void node_draw_node_group_indicator(const bNodeTree &ntree,
+                                           const bNode &node,
+                                           const rctf &rect,
+                                           const float radius,
+                                           const int color_id)
+{
+  if (node.type_legacy != NODE_GROUP) {
+    return;
+  }
+
+  const float indicator_size = 0.6f * NODE_DY;
+  const float2 top_left = {rect.xmax - indicator_size, rect.ymax};
+  const float2 bottom_right = {rect.xmax, rect.ymax - indicator_size};
+  const float2 center_vertex = 0.5f * (top_left + bottom_right);
+
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  /* Colored triangle at the top right of the header. */
+  {
+    GPUVertFormat *format = immVertexFormat();
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+    ColorTheme4f color_header = node_header_color_get(ntree, node, color_id);
+    ColorTheme4f color_text;
+    UI_GetThemeColor4fv(TH_TEXT, color_text);
+    const float alpha_offset = node.is_muted() ? -0.6f : 0.0f;
+
+    ColorTheme4f color_indicator;
+    UI_GetColorPtrBlendAlpha4fv(color_header, color_text, 0.3f, alpha_offset, color_indicator);
+
+    immUniformColor4fv(color_indicator);
+
+    /* Draw the indicator as a triangle-fan. */
+    const int nsegments = 12;
+    immBegin(GPU_PRIM_TRI_STRIP, nsegments * 2);
+
+    /* Bottom-right corner. */
+    immVertex2f(pos, center_vertex.x, center_vertex.y);
+    immVertex2f(pos, bottom_right.x, bottom_right.y);
+
+    /* Arc at the top-right corner of the node. */
+    const float2 arc_center = {rect.xmax - radius, rect.ymax - radius};
+    for (int i = 1; i < nsegments - 1; i++) {
+      const float angle = M_PI_2 * (float(i - 1) / float(nsegments - 2));
+      const float angle_sin = sinf(angle);
+      const float angle_cos = cosf(angle);
+      immVertex2f(pos, center_vertex.x, center_vertex.y);
+      immVertex2f(pos, arc_center.x + (radius * angle_cos), arc_center.y + (radius * angle_sin));
+    }
+
+    /* Top-left corner. */
+    immVertex2f(pos, center_vertex.x, center_vertex.y);
+    immVertex2f(pos, top_left.x, top_left.y);
+
+    immEnd();
+    immUnbindProgram();
+  }
+
+  /* Outline for the indicator. */
+  {
+    ColorTheme4f color_header_outline = node_header_outline_color_get(ntree, node, color_id);
+
+    GPUVertFormat *format = immVertexFormat();
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immUniformColor4fv(color_header_outline);
+
+    immBegin(GPU_PRIM_TRI_STRIP, 4);
+
+    const float offset = M_SQRT2 * U.pixelsize;
+
+    /* Top-left corner. */
+    immVertex2f(pos, top_left.x, top_left.y);
+    immVertex2f(pos, top_left.x + offset, top_left.y);
+
+    /* Bottom-right corner. */
+    immVertex2f(pos, bottom_right.x, bottom_right.y);
+    immVertex2f(pos, bottom_right.x, bottom_right.y + offset);
+
+    immEnd();
+    immUnbindProgram();
+  }
+
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void node_draw_basis(const bContext &C,
@@ -3265,8 +3272,7 @@ static void node_draw_basis(const bContext &C,
 
     /* Node Group indicator. */
     if (draw_node_details(snode)) {
-      node_draw_node_group_indicator(
-          snode, ntree, node, rct, corner_radius, color_header, node.flag & SELECT, color_id);
+      node_draw_node_group_indicator(ntree, node, rct, corner_radius, color_id);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
@@ -3306,16 +3312,8 @@ static void node_draw_basis(const bContext &C,
         rct.ymax - (NODE_DY + outline_width),
         rct.ymax,
     };
-    float color_header[4];
-    if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_header);
-    }
-    else if (node.is_muted()) {
-      UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.6f, color_header);
-    }
-    else {
-      UI_GetThemeColorShade4fv(color_id, 20, color_header);
-    }
+    ColorTheme4f color_header = node_header_outline_color_get(ntree, node, color_id);
+
     UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
     UI_draw_roundbox_4fv(&rect_header, false, BASIS_RAD, color_header);
 
@@ -3407,8 +3405,7 @@ static void node_draw_collapsed(const bContext &C,
 
     /* Node Group indicator. */
     if (draw_node_details(snode)) {
-      node_draw_node_group_indicator(
-          snode, ntree, node, rct, BASIS_RAD + padding, color, node.flag & SELECT, color_id);
+      node_draw_node_group_indicator(ntree, node, rct, BASIS_RAD + padding, color_id);
     }
   }
 
@@ -3471,22 +3468,11 @@ static void node_draw_collapsed(const bContext &C,
         rct.ymax + outline_width,
     };
 
-    /* Color the outline according to active, selected, or undefined status. */
-    float color_outline[4];
+    ColorTheme4f color_outline = node_header_outline_color_get(ntree, node, color_id);
 
+    /* Color the outline according to active or selected status. */
     if (node.flag & SELECT) {
       UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_outline);
-    }
-    else if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColor4fv(TH_REDALERT, color_outline);
-    }
-    else if (node.is_muted()) {
-      /* Muted nodes get a mix of the background with the node color. */
-      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, .4f, 10, color_outline);
-    }
-    else {
-      /* Use a mix of the backdrop and node type color, slightly lighter. */
-      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, .8f, 20, color_outline);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
