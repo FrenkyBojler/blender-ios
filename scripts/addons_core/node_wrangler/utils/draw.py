@@ -217,3 +217,32 @@ def draw_callback_nodeoutline(self, context, mode):
         draw_circle_2d_filled(m2x, m2y, 5, col_circle_inner)
 
         gpu.state.blend_set('NONE')
+
+def draw_callback_shift_nodes_line(self, context, reverse):
+    if self.mouse_path:
+        gpu.state.blend_set("ALPHA")
+
+        if reverse:
+            col_outer = (1.0, 0.2, 0.2, 0.4)
+            col_inner = (0.0, 0.0, 0.0, 0.5)
+        else:
+            col_outer = (0.2, 1.0, 0.2, 0.4)
+            col_inner = (0.0, 0.0, 0.0, 0.5)
+
+
+        m1x = self.mouse_path[0][0]
+        m1y = self.mouse_path[0][1]
+        m2x = self.mouse_path[-1][0]
+        m2y = self.mouse_path[0][1]
+
+        draw_line(m1x, m1y, m2x, m2y, 5, col_outer)  # line outline
+        draw_line(m1x, m1y, m2x, m2y, 2, col_inner)  # line inner
+
+        l_off = 10.0
+        draw_line(m1x, m1y - l_off, m1x, m1y + l_off, 5, col_outer)  # line outline
+        draw_line(m1x, m1y - l_off, m1x, m1y + l_off, 2, col_inner)  # line inner
+
+        draw_line(m2x, m2y - l_off, m2x, m2y + l_off, 5, col_outer)  # line outline
+        draw_line(m2x, m2y - l_off, m2x, m2y + l_off, 2, col_inner)  # line inner
+
+        gpu.state.blend_set("NONE")
