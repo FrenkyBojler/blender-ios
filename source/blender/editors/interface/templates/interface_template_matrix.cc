@@ -83,11 +83,14 @@ static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
   }
 }
 
-static void draw_matrix_template(uiLayout &layout, const float m4[4][4])
+static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA &prop)
 {
   /* Matrix template UI is mirroring Object's Transform UI for better UX. */
   uiLayout *row, *col;
   uiLayout *layout_ = &layout.box();
+
+  float m4[4][4];
+  RNA_property_float_get_array(&ptr, &prop, &m4[0][0]);
 
   /* Show a warning as a matrix with a shear cannot be represented fully
    * by a decomposition.
@@ -210,7 +213,17 @@ static void draw_matrix_template(uiLayout &layout, const float m4[4][4])
   row->label(format_coefficient(size[2]), ICON_NONE);
 }
 
-void uiTemplateMatrix(uiLayout *layout, const float matrix[16])
+void uiTemplateMatrix(uiLayout *layout, PointerRNA *ptr, const StringRefNull propname)
 {
-  draw_matrix_template(*layout, (const float(*)[4])matrix);
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
+
+  if (!prop || RNA_property_type(prop) != PROP_FLOAT ||
+      RNA_property_subtype(prop) != PROP_MATRIX || RNA_property_array_length(ptr, prop) != 16)
+  {
+    RNA_warning("4x4 Matrix property not found: %s.%s",
+                RNA_struct_identifier(ptr->type),
+                propname.c_str());
+    return;
+  }
+  draw_matrix_template(*layout, *ptr, *prop);
 }
