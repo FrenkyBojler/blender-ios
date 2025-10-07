@@ -251,24 +251,28 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     mesh_gpu_orphans_flush();
   }
 
+  Object *ob_orig = DEG_get_original(const_cast<Object *>(ob_eval));
+  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
   Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
   if (!mesh_eval) {
+    BKE_mesh_gpu_free_for_mesh(mesh_orig);
     return blender::bke::GpuComputeStatus::Error;
   }
 
-  Object *ob_orig = DEG_get_original(const_cast<Object *>(ob_eval));
   if (!ob_orig) {
+    BKE_mesh_gpu_free_for_mesh(mesh_orig);
     return blender::bke::GpuComputeStatus::Error;
   }
-  Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
 
   if (ob_orig->mode != OB_MODE_OBJECT) {
+    // early return when not in object mode
+    BKE_mesh_gpu_free_for_mesh(mesh_orig);
     return blender::bke::GpuComputeStatus::NotReady;
   }
 
   if (!mesh_eval->runtime || !mesh_eval->runtime->batch_cache) {
-    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_WINDOW, nullptr);
+    // early return
+    BKE_mesh_gpu_free_for_mesh(mesh_orig);
     return blender::bke::GpuComputeStatus::NotReady;
   }
 
@@ -277,9 +281,8 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   auto *cache = static_cast<blender::draw::MeshBatchCache *>(mesh_eval->runtime->batch_cache);
   auto *vbo_pos_ptr = cache->final.buff.vbos.lookup_ptr(blender::draw::VBOType::Position);
   if (!vbo_pos_ptr) {
+    // early return
     BKE_mesh_gpu_free_for_mesh(mesh_orig);
-    DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_WINDOW, nullptr);
     return blender::bke::GpuComputeStatus::NotReady;
   }
   auto *vbo_pos = vbo_pos_ptr->get();
@@ -296,6 +299,11 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   else {
     // reset is_using_gpu_deform as soon as possible
     mesh_orig->is_using_gpu_deform = 0;
+  }
+
+  if (format->stride == 16 && (ob_orig->id.recalc & ID_RECALC_GEOMETRY) != 0) {
+    BKE_mesh_gpu_free_for_mesh(mesh_orig);
+    return blender::bke::GpuComputeStatus::NotReady;
   }
 
   mesh_eval->is_running_gpu_deform = 1;
