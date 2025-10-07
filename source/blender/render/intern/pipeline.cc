@@ -696,7 +696,7 @@ void RE_FreeUnusedGPUResources()
 
     LISTBASE_FOREACH (const wmWindow *, win, &wm->windows) {
       if (!do_free) {
-        /* No need too do further checks. */
+        /* No need to do further checks. */
         break;
       }
 
