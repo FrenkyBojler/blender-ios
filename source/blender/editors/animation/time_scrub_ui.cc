@@ -94,7 +94,7 @@ static void draw_current_frame(const Scene *scene,
   const float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   const float box_width = std::max(text_width + (2.0f * text_padding), box_min_width);
   const float box_margin = 2.0f * UI_SCALE_FAC;
-  const float shadow_width = U.pixelsize;
+  const float shadow_width = UI_SCALE_FAC;
 
   float fg_color[4];
   UI_GetThemeColor4fv(TH_CFRAME, fg_color);
@@ -195,7 +195,8 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
 void ED_time_scrub_draw(const ARegion *region,
                         const Scene *scene,
                         bool display_seconds,
-                        bool discrete_frames)
+                        bool discrete_frames,
+                        const int base)
 {
   const View2D *v2d = &region->v2d;
 
@@ -211,11 +212,11 @@ void ED_time_scrub_draw(const ARegion *region,
   numbers_rect.ymin = get_centered_text_y(&scrub_region_rect) - 4 * UI_SCALE_FAC;
   if (discrete_frames) {
     UI_view2d_draw_scale_x__discrete_frames_or_seconds(
-        region, v2d, &numbers_rect, scene, display_seconds, TH_TEXT);
+        region, v2d, &numbers_rect, scene, display_seconds, TH_TIME_SCRUB_TEXT, base);
   }
   else {
     UI_view2d_draw_scale_x__frames_or_seconds(
-        region, v2d, &numbers_rect, scene, display_seconds, TH_TEXT);
+        region, v2d, &numbers_rect, scene, display_seconds, TH_TIME_SCRUB_TEXT, base);
   }
 
   GPU_matrix_pop_projection();

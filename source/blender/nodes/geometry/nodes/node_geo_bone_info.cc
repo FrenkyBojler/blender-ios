@@ -11,9 +11,11 @@ namespace blender::nodes::node_geo_bone_info_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Armature")
-      .hide_label()
+      .optional_label()
       .description("Armature object to retrieve the bone information from");
-  b.add_input<decl::String>("Bone Name").hide_label().description("Name of the bone to retrieve");
+  b.add_input<decl::String>("Bone Name")
+      .optional_label()
+      .description("Name of the bone to retrieve");
 
   b.add_output<decl::Matrix>("Pose").description(
       "Evaluated transformation of the bone on armature space");

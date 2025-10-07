@@ -12,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 
+#include "BLI_path_utils.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -1609,11 +1610,26 @@ static bool is_smooth_by_angle_modifier(const ModifierData &md)
   if (!nmd.node_group) {
     return false;
   }
-  const LibraryWeakReference *library_ref = nmd.node_group->id.library_weak_reference;
-  if (!library_ref) {
+  if (const LibraryWeakReference *library_ref = nmd.node_group->id.library_weak_reference) {
+    /* Support appended assets added before asset packing in Blender 5.0. */
+    if (!library_ref) {
+      return false;
+    }
+    if (!STREQ(library_ref->library_id_name + 2, "Smooth by Angle")) {
+      return false;
+    }
+    return true;
+  }
+  const Library *library = nmd.node_group->id.lib;
+  if (!library) {
     return false;
   }
-  if (!STREQ(library_ref->library_id_name + 2, "Smooth by Angle")) {
+  if (!BLI_path_contains(library->filepath,
+                         "datafiles/assets/nodes/geometry_nodes_essentials.blend"))
+  {
+    return false;
+  }
+  if (!STREQ(BKE_id_name(nmd.node_group->id), "Smooth by Angle")) {
     return false;
   }
   return true;
@@ -1644,8 +1660,6 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
     CTX_data_selected_editable_objects(C, &ctx_objects);
   }
 
-  bool modifier_removed = false;
-
   Set<ID *> object_data;
   for (const PointerRNA &ptr : ctx_objects) {
     Object *ob = static_cast<Object *>(ptr.data);
@@ -1658,7 +1672,7 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
             if (is_smooth_by_angle_modifier(*md)) {
               modifier_remove(op->reports, bmain, scene, ob, md);
               DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-              modifier_removed = true;
+              WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_REMOVED, ob);
               break;
             }
           }
@@ -1697,11 +1711,6 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
       DEG_id_tag_update(data, ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, data);
     }
-  }
-
-  if (modifier_removed) {
-    /* Outliner needs to know. #124302. */
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
   }
 
   if (has_linked_data) {
@@ -1835,7 +1844,7 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
     AssetWeakReference asset_weak_ref{};
     asset_weak_ref.asset_library_type = ASSET_LIBRARY_ESSENTIALS;
     asset_weak_ref.relative_asset_identifier = BLI_strdup(
-        "geometry_nodes/smooth_by_angle.blend/NodeTree/Smooth by Angle");
+        "nodes/geometry_nodes_essentials.blend/NodeTree/Smooth by Angle");
 
     const asset_system::AssetRepresentation *asset_representation =
         asset::find_asset_from_weak_ref(*C, asset_weak_ref, op->reports);
@@ -1890,7 +1899,8 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
         smooth_by_angle_nmd->node_group = node_group;
         id_us_plus(&node_group->id);
         MOD_nodes_update_interface(object, smooth_by_angle_nmd);
-        smooth_by_angle_nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR;
+        smooth_by_angle_nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR |
+                                     NODES_MODIFIER_HIDE_MANAGE_PANEL;
         STRNCPY_UTF8(smooth_by_angle_nmd->modifier.name, DATA_(node_group->id.name + 2));
         BKE_modifier_unique_name(&object->modifiers, &smooth_by_angle_nmd->modifier);
       }
@@ -1898,10 +1908,10 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
       IDProperty *angle_prop = IDP_GetPropertyFromGroup(smooth_by_angle_nmd->settings.properties,
                                                         angle_identifier.c_str());
       if (angle_prop->type == IDP_FLOAT) {
-        IDP_Float(angle_prop) = angle;
+        IDP_float_set(angle_prop, angle);
       }
       else if (angle_prop->type == IDP_DOUBLE) {
-        IDP_Double(angle_prop) = angle;
+        IDP_double_set(angle_prop, angle);
       }
 
       DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
@@ -1914,6 +1924,7 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
       LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
         if (is_smooth_by_angle_modifier(*md)) {
           modifier_remove(op->reports, &bmain, &scene, object, md);
+          WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_REMOVED, object);
           break;
         }
       }
@@ -2401,7 +2412,7 @@ static void move_to_collection_menu_draw(const bContext *C, Menu *menu)
   move_to_collection_menu_draw(menu, scene->master_collection, ICON_SCENE_DATA);
 }
 
-void move_to_colletion_menu_register()
+void move_to_collection_menu_register()
 {
   /* Add recursive sub-menu type, to avoid each sub-menu from showing the main menu shortcut. */
   MenuType *mt = MEM_callocN<MenuType>("OBJECT_MT_move_to_collection_recursive");
@@ -2421,7 +2432,7 @@ void move_to_colletion_menu_register()
   WM_menutype_add(mt);
 }
 
-void link_to_colletion_menu_register()
+void link_to_collection_menu_register()
 {
   /* Add recursive sub-menu type, to avoid each sub-menu from showing the main menu shortcut. */
   MenuType *mt = MEM_callocN<MenuType>("OBJECT_MT_link_to_collection_recursive");
