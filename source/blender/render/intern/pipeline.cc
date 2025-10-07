@@ -684,6 +684,16 @@ void RE_FreeUnusedGPUResources()
   for (Render *re : RenderGlobal.render_list) {
     bool do_free = true;
 
+    const Scene *re_scene = RE_GetScene(re);
+    /* Don't free scenes being rendered or composited. Note there is no
+     * race condition here because we are on the main thread and new jobs can only
+     * be started from the main thread. */
+    if (WM_jobs_test(wm, re_scene, WM_JOB_TYPE_RENDER) ||
+        WM_jobs_test(wm, re_scene, WM_JOB_TYPE_COMPOSITE))
+    {
+      do_free = false;
+    }
+
     LISTBASE_FOREACH (const wmWindow *, win, &wm->windows) {
       const Scene *scene = WM_window_get_active_scene(win);
       if (re != RE_GetSceneRender(scene)) {
@@ -713,26 +723,6 @@ void RE_FreeUnusedGPUResources()
           if (sima.image && sima.image->source == IMA_SRC_VIEWER) {
             do_free = false;
           }
-        }
-      }
-    }
-
-    if (do_free) {
-      /* Check all scenes, since a render might have started before changing the window scene.
-       * (See #147483) */
-      LISTBASE_FOREACH (const Scene *, scene, &G_MAIN->scenes) {
-        if (re != RE_GetSceneRender(scene)) {
-          continue;
-        }
-
-        /* Don't free if this scene is being rendered or composited. Note there is no
-         * race condition here because we are on the main thread and new jobs can only
-         * be started from the main thread. */
-        if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER) ||
-            WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE))
-        {
-          do_free = false;
-          break;
         }
       }
     }
