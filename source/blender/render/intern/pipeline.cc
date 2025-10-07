@@ -690,16 +690,6 @@ void RE_FreeUnusedGPUResources()
         continue;
       }
 
-      /* Don't free if this scene is being rendered or composited. Note there is no
-       * race condition here because we are on the main thread and new jobs can only
-       * be started from the main thread. */
-      if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER) ||
-          WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE))
-      {
-        do_free = false;
-        break;
-      }
-
       /* Detect if scene is using GPU compositing, and if either a node editor is
        * showing the nodes, or an image editor is showing the render result or viewer. */
       if (!(scene->compositing_node_group &&
@@ -723,6 +713,26 @@ void RE_FreeUnusedGPUResources()
           if (sima.image && sima.image->source == IMA_SRC_VIEWER) {
             do_free = false;
           }
+        }
+      }
+    }
+
+    if (do_free) {
+      /* Check all scenes, since a render might have started before changing the window scene.
+       * (See #147483) */
+      LISTBASE_FOREACH (const Scene *, scene, &G_MAIN->scenes) {
+        if (re != RE_GetSceneRender(scene)) {
+          continue;
+        }
+
+        /* Don't free if this scene is being rendered or composited. Note there is no
+         * race condition here because we are on the main thread and new jobs can only
+         * be started from the main thread. */
+        if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER) ||
+            WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE))
+        {
+          do_free = false;
+          break;
         }
       }
     }
