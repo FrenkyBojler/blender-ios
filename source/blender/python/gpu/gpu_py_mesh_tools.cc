@@ -273,19 +273,21 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(pygpu_mesh_scatter_free_doc,
-             ".. function:: scatter_free_for_mesh(obj)\n"
+PyDoc_STRVAR(pygpu_mesh_compute_free_doc,
+             ".. function:: free_compute_resources(obj)\n"
              "\n"
-             "   Free GPU resources (shader + SSBOs) associated with the mesh owned by `obj`.\n"
-             "   Also resets `mesh.is_using_gpu_deform` and `mesh.is_running_gpu_deform` to 0.\n"
+             "   Free GPU compute resources (shaders, internal buffers) associated with the mesh\n"
+             "   owned by `obj`. This should be called to clean up after using\n"
+             "   `gpu.mesh.scatter_positions_to_corners` or `gpu.mesh.run_compute_mesh`.\n"
+             "\n"
+             "   This also resets internal flags like `mesh.is_using_gpu_deform`.\n"
              "   `obj` may be an evaluated object or an original object (bpy.types.Object).\n");
-
-static PyObject *pygpu_mesh_scatter_free(PyObject * /*self*/, PyObject *args, PyObject *kwds)
+static PyObject *pygpu_mesh_compute_free(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   PyObject *py_obj = nullptr;
   static const char *_keywords[] = {"obj", nullptr};
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "O:scatter_free_for_mesh", (char **)_keywords, &py_obj))
+          args, kwds, "O:free_compute_resources", (char **)_keywords, &py_obj))
   {
     return nullptr;
   }
@@ -838,10 +840,10 @@ static PyMethodDef pygpu_mesh__tp_methods[] = {
      (PyCFunction)pygpu_mesh_scatter,
      METH_VARARGS | METH_KEYWORDS,
      pygpu_mesh_scatter_doc},
-    {"scatter_free_for_mesh",
-     (PyCFunction)pygpu_mesh_scatter_free,
+    {"free_compute_resources",
+     (PyCFunction)pygpu_mesh_compute_free,
      METH_VARARGS | METH_KEYWORDS,
-     pygpu_mesh_scatter_free_doc},
+     pygpu_mesh_compute_free_doc},
     {"run_compute_mesh",
      (PyCFunction)pygpu_mesh_run_compute,
      METH_VARARGS | METH_KEYWORDS,
