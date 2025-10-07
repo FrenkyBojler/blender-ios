@@ -1064,15 +1064,6 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 
     elem->obedit_ref.ptr = obedit;
     Mesh *mesh = static_cast<Mesh *>(elem->obedit_ref.ptr->data);
-
-    /* Skip objects with invalid edit mesh data to prevent crash.  See #147387. */
-    if (mesh->runtime->edit_mesh == nullptr || mesh->runtime->edit_mesh->bm == nullptr) {
-      CLOG_WARN(&LOG,
-                "Object '%s' marked as in edit mode but has invalid edit mesh, skipping",
-                obedit->id.name + 2);
-      continue;
-    }
-
     BMEditMesh *em = mesh->runtime->edit_mesh.get();
     undomesh_from_editmesh(&elem->data,
                            em,

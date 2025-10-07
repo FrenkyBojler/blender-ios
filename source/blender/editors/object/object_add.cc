@@ -3060,6 +3060,7 @@ static void object_data_convert_curve_to_mesh(Main *bmain, Depsgraph *depsgraph,
 static bool object_convert_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(C);
   if (!ID_IS_EDITABLE(scene)) {
     return false;
   }
@@ -3071,6 +3072,15 @@ static bool object_convert_poll(bContext *C)
   if (obact && obact->mode != OB_MODE_OBJECT) {
     return false;
   }
+
+  /* Exit edit mode for all objects before conversion to make sure their edit data is properly
+  flushed back to mesh.*/
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
+    if (ob->mode & OB_MODE_EDIT) {
+      blender::ed::object::editmode_exit_ex(bmain, scene, ob, blender::ed::object::EM_FREEDATA);
+    }
+  }
+  FOREACH_SCENE_OBJECT_END;
 
   /* Note that `obact` may not be editable,
    * only check the active object to ensure Blender is in object mode. */
