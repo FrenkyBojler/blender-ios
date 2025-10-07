@@ -3381,13 +3381,15 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
     delta *= scene->r.frs_sec / scene->r.frs_sec_base;
   }
 
+  int step = (int)delta;
+  float fraction = delta - step;
   if (backward) {
-    scene->r.cfra -= delta;
-    scene->r.subframe -= delta - int(delta);
+    scene->r.cfra -= step;
+    scene->r.subframe -= fraction;
   }
   else {
-    scene->r.cfra += delta;
-    scene->r.subframe += delta - int(delta);
+    scene->r.cfra += step;
+    scene->r.subframe += fraction;
   }
 
   /* Check if subframe has a non-fractional component, and roll that into cfra. */
