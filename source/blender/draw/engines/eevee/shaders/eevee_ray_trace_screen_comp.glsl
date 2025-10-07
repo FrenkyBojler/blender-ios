@@ -116,6 +116,9 @@ void main()
       float3 history_ss_hit_P = history_ndc_hit_P * 0.5f + 0.5f;
       /* Fetch radiance at hit-point. */
       radiance = textureLod(radiance_front_tx, history_ss_hit_P.xy, 0.0f).rgb;
+      if (any(isnan(radiance))) {
+        hit.valid = false;
+      }
     }
   }
   else if (trace_refraction) {
