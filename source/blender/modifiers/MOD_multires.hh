@@ -10,4 +10,4 @@ namespace blender {
 struct MultiresModifierRuntime {
   std::optional<int> previous_level;
 };
-}
+}  // namespace blender

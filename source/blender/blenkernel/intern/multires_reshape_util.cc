@@ -561,7 +561,7 @@ static void allocate_displacement_grid(MDisps *displacement_grid, const int leve
 {
   const int grid_size = blender::bke::subdiv::grid_size_from_level(level);
   const int grid_area = grid_size * grid_size;
-  float(*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
+  float (*disps)[3] = MEM_calloc_arrayN<float[3]>(grid_area, "multires disps");
   if (displacement_grid->disps != nullptr) {
     MEM_freeN(displacement_grid->disps);
   }
@@ -644,7 +644,7 @@ void multires_reshape_store_original_grids(MultiresReshapeContext *reshape_conte
      * Reshape process will ensure all grids are on top level, but that happens on separate set of
      * grids which eventually replaces original one. */
     if (orig_grid->disps != nullptr) {
-      orig_grid->disps = static_cast<float(*)[3]>(MEM_dupallocN(orig_grid->disps));
+      orig_grid->disps = static_cast<float (*)[3]>(MEM_dupallocN(orig_grid->disps));
     }
     if (orig_grid_paint_masks != nullptr) {
       GridPaintMask *orig_paint_mask_grid = &orig_grid_paint_masks[grid_index];
@@ -793,7 +793,7 @@ static void debug_reshape_grid_coord(const MultiresReshapeContext *reshape_conte
 {
   ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(reshape_context,
                                                                                  grid_coord);
-    printf("DEBUG (%f, %f)- (%f, %f, %f)\n",
+  printf("DEBUG (%f, %f)- (%f, %f, %f)\n",
          grid_coord->u,
          grid_coord->v,
          grid_element.displacement->x,
@@ -801,8 +801,7 @@ static void debug_reshape_grid_coord(const MultiresReshapeContext *reshape_conte
          grid_element.displacement->z);
 }
 
-void multires_debug_reshape_grid_coord(
-    const MultiresReshapeContext *reshape_context)
+void multires_debug_reshape_grid_coord(const MultiresReshapeContext *reshape_context)
 {
   printf(__func__);
   printf("\n");

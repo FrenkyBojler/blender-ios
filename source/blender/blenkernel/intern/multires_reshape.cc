@@ -261,8 +261,8 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   const int level_idx = top_level - 1;
   BLI_assert(level_idx >= 0);
   if (top_level > multires_runtime.disp_at_level.size()) {
-    blender::Vector<blender::float3> level_disp(multires_grid_tot[top_level] *
-                                                coarse_mesh->corners_num, blender::float3(0.0f));
+    blender::Vector<blender::float3> level_disp(
+        multires_grid_tot[top_level] * coarse_mesh->corners_num, blender::float3(0.0f));
     multires_runtime.disp_at_level.append(std::move(level_disp));
 #if 0
     printf("Creating new runtime layer (Current: %lld, Requested: %d)\n", multires_runtime.disp_at_level.size(), top_level);
@@ -283,7 +283,8 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
     return;
   }
 
-  /* After this call this point, we have the current SubdivCCG data stored as tangent displacements */
+  /* After this call this point, we have the current SubdivCCG data stored as tangent displacements
+   */
   /* TODO: Have this write to `multires_runtime` in tangent space of the base mesh. */
   /* TODO: Potentially write the object space positions too. */
   multires_flush_sculpt_updates(object);

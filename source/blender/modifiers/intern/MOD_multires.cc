@@ -42,8 +42,8 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "MOD_ui_common.hh"
 #include "MOD_multires.hh"
+#include "MOD_ui_common.hh"
 
 struct MultiresRuntimeData {
   /* Cached subdivision surface descriptor, with topology and settings. */
@@ -108,7 +108,6 @@ void BKE_multires_change_sculpt_level(MultiresModifierData *mmd, const int lvl)
   mmd->runtime->previous_level = mmd->sculptlvl;
   mmd->sculptlvl = lvl;
 }
-
 
 /* Main goal of this function is to give usable subdivision surface descriptor
  * which matches settings and topology. */
@@ -189,7 +188,11 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
   if (mmd->runtime->previous_level) {
     const int old_lvl = mmd->runtime->previous_level.value();
     delta = mmd->sculptlvl - old_lvl;
-    printf("(%p) multires_as_ccg: old: %d, delta: %d, new: %d\n", mmd, old_lvl, delta, mmd->sculptlvl);
+    printf("(%p) multires_as_ccg: old: %d, delta: %d, new: %d\n",
+           mmd,
+           old_lvl,
+           delta,
+           mmd->sculptlvl);
   }
   result = BKE_subdiv_to_ccg_mesh(*subdiv, ccg_settings, *mesh);
 

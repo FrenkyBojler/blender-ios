@@ -168,7 +168,7 @@ BLI_INLINE AverageWith read_displacement_grid_v2(const Span<float3> displacement
                                                  const int grid_size,
                                                  const float grid_u,
                                                  const float grid_v,
-                                                 float3& r_tangent_D)
+                                                 float3 &r_tangent_D)
 {
   if (displacement_grid.is_empty()) {
     r_tangent_D = float3(0.0f);
@@ -543,7 +543,6 @@ void displacement_attach_from_multires(Subdiv *subdiv,
 {
   displacement_attach_from_multires(subdiv, nullptr, mesh, mmd);
 }
-
 
 void displacement_attach_from_multires(Subdiv *subdiv,
                                        Object *object,
