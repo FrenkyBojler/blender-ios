@@ -114,6 +114,14 @@ void MTLImmediate::end()
       desc.vertex_descriptor.attributes[i].format = MTLVertexFormatInvalid;
     }
 
+    if (interface.vertex_buffer_mask() == 0) {
+      MTL_LOG_ERROR("MTLImmediate::end Not enough buffer slot to bind attributes.");
+      BLI_assert_unreachable();
+      return;
+    }
+
+    int imm_buffer_slot = bitscan_forward_uint(interface.vertex_buffer_mask());
+
     /* Populate Vertex descriptor and verify attributes.
      * TODO(Metal): Cache this vertex state based on Vertex format and shaders. */
     const bits::BitInt mask = interface.enabled_attr_mask_;
@@ -145,12 +153,6 @@ void MTLImmediate::end()
         return;
       }
 
-      if (interface.vertex_buffer_mask() == 0) {
-        MTL_LOG_ERROR("MTLImmediate::end Not enough buffer slot to bind attribute.");
-        BLI_assert_unreachable();
-        return;
-      }
-
       MTLVertexAttributeDescriptorPSO &pso_attr = desc.vertex_descriptor.attributes[i];
       pso_attr.format = gpu_vertex_format_to_metal(attr->type.format);
       pso_attr.format_conversion_mode = (is_fetch_float(attr->type.format)) ?
@@ -158,7 +160,7 @@ void MTLImmediate::end()
                                             GPUVertFetchMode(GPU_FETCH_INT);
       /* Using attribute offset in vertex format, as this will be correct */
       pso_attr.offset = attr->offset;
-      pso_attr.buffer_index = bitscan_forward_uint(interface.vertex_buffer_mask());
+      pso_attr.buffer_index = imm_buffer_slot;
       BLI_assert(pso_attr.format != MTLVertexFormatInvalid);
     }
 
@@ -185,6 +187,10 @@ void MTLImmediate::end()
       context_->get_scratch_buffer_manager().bind_as_ssbo(GPU_SSBO_POLYLINE_COL_BUF_SLOT);
       context_->get_scratch_buffer_manager().bind_as_ssbo(GPU_SSBO_INDEX_BUF_SLOT);
     }
+
+    /* Bind Vertex Buffer. */
+    rps.bind_vertex_buffer(
+        current_allocation_.metal_buffer, current_allocation_.buffer_offset, imm_buffer_slot);
 
     MTLPrimitiveType mtl_prim_type = gpu_prim_type_to_metal(this->prim_type);
 
@@ -230,7 +236,6 @@ void MTLImmediate::end()
             }
 
             @autoreleasepool {
-
               id<MTLBuffer> index_buffer_mtl = nil;
               uint64_t index_buffer_offset = 0;
 
@@ -243,10 +248,6 @@ void MTLImmediate::end()
               /* Set depth stencil state (requires knowledge of primitive type). */
               context_->ensure_depth_stencil_state(MTLPrimitiveTypeTriangle);
 
-              /* Bind Vertex Buffer. */
-              rps.bind_vertex_buffer(
-                  current_allocation_.metal_buffer, current_allocation_.buffer_offset, 0);
-
               /* Draw. */
               [rec drawIndexedPrimitives:MTLPrimitiveTypeTriangle
                               indexCount:fan_index_count
@@ -255,6 +256,13 @@ void MTLImmediate::end()
                        indexBufferOffset:index_buffer_offset];
               context_->main_command_buffer.register_draw_counters(fan_index_count);
             }
+            /* WORKAROUND(fclem): Can't figure out why, but this triangle fan workaround path makes
+             * the binding state incorrect which makes some following call to IMM to fail. It tries
+             * to bind a buffer with an offset (optimization) but the buffer have changed and
+             * should be rebound. But the binding retained the buffer (which might have been
+             * re-allocated?) and just try to bind the offset out of bound. */
+            rps.vertex_bindings.buffer_bindings[imm_buffer_slot].metal_buffer = nil;
+
             rendered = true;
           } break;
           default: {
@@ -268,10 +276,6 @@ void MTLImmediate::end()
       if (!rendered) {
         MTLPrimitiveType primitive_type = metal_primitive_type_;
         int vertex_count = this->vertex_idx;
-
-        /* Bind Vertex Buffer. */
-        rps.bind_vertex_buffer(
-            current_allocation_.metal_buffer, current_allocation_.buffer_offset, 0);
 
         /* Set depth stencil state (requires knowledge of primitive type). */
         context_->ensure_depth_stencil_state(primitive_type);
