@@ -279,10 +279,6 @@ class TEXT_MT_text(Menu):
             layout.separator()
             layout.operator("text.run_script")
 
-        layout.separator()
-
-        layout.operator("wm.operator_cheat_sheet")
-
 
 class TEXT_MT_templates_py(Menu):
     bl_label = "Python"

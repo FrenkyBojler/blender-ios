@@ -600,6 +600,7 @@ class TOPBAR_MT_help(Menu):
             ).url = "https://developer.blender.org/docs/"
             layout.operator("wm.url_open", text="Developer Community").url = "https://devtalk.blender.org"
             layout.operator("wm.url_open_preset", text="Python API Reference").type = 'API'
+            layout.operator("wm.operator_cheat_sheet", icon='TEXT')
 
         layout.separator()
 
