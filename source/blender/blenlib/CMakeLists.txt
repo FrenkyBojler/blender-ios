@@ -157,6 +157,7 @@ set(SRC
   intern/task_range.cc
   intern/task_scheduler.cc
   intern/tempfile.cc
+  intern/BLI_fingerprint.cc
   intern/threads.cc
   intern/time.cc
   intern/timecode.cc
@@ -392,6 +393,7 @@ set(SRC
   BLI_task.hh
   BLI_task_size_hints.hh
   BLI_tempfile.h
+  BLI_fingerprint.hh
   BLI_threads.h
   BLI_time.h
   BLI_time_utildefines.h
@@ -607,6 +609,7 @@ if(WITH_GTESTS)
     tests/BLI_task_graph_test.cc
     tests/BLI_task_test.cc
     tests/BLI_tempfile_test.cc
+    tests/BLI_fingerprint_test.cc
     tests/BLI_unique_sorted_indices_test.cc
     tests/BLI_utildefines_test.cc
     tests/BLI_uuid_test.cc
