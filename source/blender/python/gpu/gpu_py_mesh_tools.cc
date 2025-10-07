@@ -365,6 +365,42 @@ static blender::gpu::VertBuf *resolve_vbo_token(MeshBatchCache *cache, const std
   return nullptr;
 }
 
+PyDoc_STRVAR(
+    pygpu_mesh_run_compute_doc,
+    "Run a custom compute shader on a mesh.\\n\\n"
+    "Signature: run_compute_mesh(obj, shader: str, bindings: Sequence[tuple], "
+    "config: callable|None = None, dispatch_count: int = 0)\\n\\n"
+    "Bindings: sequence of 5-tuples (binding_index:int, "
+    "buffer:GPUStorageBuf|GPUVertBuf|str|None, "
+    "qualifier:str('read'|'write'|'read_write'), type_name:str, bind_name:str).\\n"
+    " - If `buffer` is a string token it is resolved against the mesh batch cache VBOs.\\n"
+    "   Supported tokens (examples): 'Position', 'VBO::Position', 'CornerNormal', "
+    "'VBO:CornerNormal'.\\n"
+    " - Use a `gpu.types.GPUStorageBuf` to pass SSBOs or a `gpu.types.GPUVertBuf` wrapper for "
+    "VBOs.\\n\\n"
+    "Config callable: optional callable that returns a Python dict. Two usages are supported:\\n"
+    "  * Top-level entries with scalar values (int, float, bool) are treated as specialization\\n"
+    "    constants and declared as specialization_constant at shader creation time.\\n"
+    "  * A special key 'push_constants' whose value is a dict of uniform names -> value(s).\\n"
+    "    Values can be float/int/bool or a sequence of floats/ints for arrays; they are set as\\n"
+    "    uniforms immediately before dispatch.\\n\\n"
+    "Example config callable (Python):\\n"
+    "def config():\\n"
+    "    return {\\n"
+    "        'GRID_W': 128,                # specialization constant (int)\\n"
+    "        'GRID_H': 128,                # specialization constant (int)\\n"
+    "        'HEIGHT_SCALE': 1.0,          # specialization constant (float)\\n"
+    "        'push_constants': {           # uniforms set before dispatch\\n"
+    "            'u_time': 1.234,\\n"
+    "            'u_spiral_strength': 0.5,\\n"
+    "            'u_enabled': True,\\n"
+    "            'u_offsets': [0.0, 1.0, 2.0],\\n"
+    "        }\\n"
+    "    }\\n\\n"
+    "dispatch_count: number of invocations (if 0, defaults to mesh vertex count).\\n\\n"
+    "Returns an integer status: 0=Success, 1=NotReady (deferred), 2=Error. The `obj` argument "
+    "must be an\\n"
+    "evaluated mesh object with a ready batch cache.");
 static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   PyObject *py_obj = nullptr;
@@ -809,24 +845,7 @@ static PyMethodDef pygpu_mesh__tp_methods[] = {
     {"run_compute_mesh",
      (PyCFunction)pygpu_mesh_run_compute,
      METH_VARARGS | METH_KEYWORDS,
-     "Run a custom compute shader on a mesh.\\n\\n"
-     "Signature: run_compute_mesh(obj, shader: str, bindings: Sequence[tuple], "
-     "config: callable|None = None, dispatch_count: int = 0)\\n\\n"
-     "Bindings: sequence of 5-tuples (binding_index:int, "
-     "buffer:GPUStorageBuf|GPUVertBuf|str|None, "
-     "qualifier:str('read'|'write'|'read_write'), type_name:str, bind_name:str).\\n"
-     " - If `buffer` is a string token it is resolved against the mesh batch cache VBOs.\\n"
-     "   Supported tokens (examples): 'Position', 'VBO::Position', 'CornerNormal', "
-     "'VBO:CornerNormal'.\\n"
-     " - Use a `gpu.types.GPUStorageBuf` to pass SSBOs or a `gpu.types.GPUVertBuf` wrapper for "
-     "VBOs.\\n\\n"
-     "Config callable: optional callable returning a dict of specialization constants, e.g. "
-     "{'GRID_W': 128, 'GRID_H': 128, 'HEIGHT_SCALE': 1.0}. Supported value types: int, float, "
-     "bool.\\n\\n"
-     "dispatch_count: number of invocations (if 0, defaults to mesh vertex count).\\n\\n"
-     "Returns an integer status: 0=Success, 1=NotReady (deferred), 2=Error. The `obj` argument "
-     "must be an "
-     "evaluated mesh object with a ready batch cache."},
+     pygpu_mesh_run_compute_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
