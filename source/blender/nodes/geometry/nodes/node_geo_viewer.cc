@@ -35,48 +35,40 @@ namespace blender::nodes::node_geo_viewer_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryViewer)
 
-static void draw_value_label(uiLayout &layout, const StringRef label)
-{
-  /* Show value grayed out because it's not editable. */
-  uiLayout &row = layout.row(false);
-  row.enabled_set(false);
-  row.label(label, ICON_NONE);
-}
-
 static void draw_float(uiLayout &layout, const float value)
 {
   const std::string label = fmt::format("{:.5f}", value);
-  draw_value_label(layout, label);
+  layout.label(label, ICON_NONE);
 }
 static void draw_int(uiLayout &layout, const int value)
 {
   const std::string label = fmt::format("{}", value);
-  draw_value_label(layout, label);
+  layout.label(label, ICON_NONE);
 }
 static void draw_bool(uiLayout &layout, const bool value)
 {
-  draw_value_label(layout, value ? IFACE_("True") : IFACE_("False"));
+  layout.label(value ? IFACE_("True") : IFACE_("False"), ICON_NONE);
 }
 static void draw_vector(uiLayout &layout, const float3 &value)
 {
   uiLayout &col = layout.column(true);
-  draw_value_label(col, fmt::format("{}: {:.5f}", IFACE_("X"), value.x));
-  draw_value_label(col, fmt::format("{}: {:.5f}", IFACE_("Y"), value.y));
-  draw_value_label(col, fmt::format("{}: {:.5f}", IFACE_("Z"), value.z));
+  col.label(fmt::format("{}: {:.5f}", IFACE_("X"), value.x), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("Y"), value.y), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("Z"), value.z), ICON_NONE);
 }
 static void draw_color(uiLayout &layout, const ColorGeometry4f &value)
 {
   uiLayout &col = layout.column(true);
-  draw_value_label(col, fmt::format("{}: {:.5f}", IFACE_("R"), value.r));
-  draw_value_label(col, fmt::format("{}: {:.5f}", IFACE_("G"), value.g));
-  draw_value_label(col, fmt::format("{}: {:.5f}", IFACE_("B"), value.b));
-  draw_value_label(col, fmt::format("{}: {:.5f}", IFACE_("A"), value.a));
+  col.label(fmt::format("{}: {:.5f}", IFACE_("R"), value.r), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("G"), value.g), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("B"), value.b), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", IFACE_("A"), value.a), ICON_NONE);
 }
 static void draw_string(uiLayout &layout, const StringRef value)
 {
   /* The node doesn't get wider than that anyway. */
   const int max_display_length = 200;
-  draw_value_label(layout, value.substr(0, max_display_length));
+  layout.label(value.substr(0, max_display_length), ICON_NONE);
 }
 static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
                                        geo_eval_log::GeoTreeLog &tree_log)
