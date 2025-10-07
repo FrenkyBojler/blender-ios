@@ -400,13 +400,6 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
   subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
   subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
 
-  /* with displacement evaluator, we get M(n) & M(n-1), because it's the original mesh deformed to
-   * the correct position. This is the call below to `subdiv_ccg_evaluate_grids */
-
-  /* TODO: We need the limit surface & tangent displacements of the current level... */
-
-  /* With that we can calculate the displacement and store it */
-
   if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
     stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
     return nullptr;
