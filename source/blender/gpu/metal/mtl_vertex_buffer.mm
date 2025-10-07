@@ -384,4 +384,78 @@ MTLVertexFormat gpu_vertex_format_to_metal(VertAttrType vert_format)
   return MTLVertexFormatInvalid;
 }
 
+MTLVertexFormat gpu_type_to_metal_vertex_format(const shader::Type type)
+{
+  using namespace shader;
+  switch (type) {
+    case Type::float_t:
+      return MTLVertexFormatFloat;
+    case Type::float2_t:
+      return MTLVertexFormatFloat2;
+    case Type::float3_t:
+      return MTLVertexFormatFloat3;
+    case Type::float4_t:
+      return MTLVertexFormatFloat4;
+    case Type::float3x3_t:
+      return MTLVertexFormatInvalid;
+    case Type::float4x4_t:
+      return MTLVertexFormatInvalid;
+    case Type::float3_10_10_10_2_t:
+      return MTLVertexFormatInvalid;
+    case Type::uchar_t:
+      return MTLVertexFormatUChar;
+    case Type::uchar2_t:
+      return MTLVertexFormatUChar2;
+    case Type::uchar3_t:
+      return MTLVertexFormatUChar3;
+    case Type::uchar4_t:
+      return MTLVertexFormatUChar4;
+    case Type::char_t:
+      return MTLVertexFormatChar;
+    case Type::char2_t:
+      return MTLVertexFormatChar2;
+    case Type::char3_t:
+      return MTLVertexFormatChar3;
+    case Type::char4_t:
+      return MTLVertexFormatChar4;
+    case Type::int_t:
+      return MTLVertexFormatInt;
+    case Type::int2_t:
+      return MTLVertexFormatInt2;
+    case Type::int3_t:
+      return MTLVertexFormatInt3;
+    case Type::int4_t:
+      return MTLVertexFormatInt4;
+    case Type::uint_t:
+      return MTLVertexFormatUInt;
+    case Type::uint2_t:
+      return MTLVertexFormatUInt2;
+    case Type::uint3_t:
+      return MTLVertexFormatUInt3;
+    case Type::uint4_t:
+      return MTLVertexFormatUInt4;
+    case Type::ushort_t:
+      return MTLVertexFormatUShort;
+    case Type::ushort2_t:
+      return MTLVertexFormatUShort2;
+    case Type::ushort3_t:
+      return MTLVertexFormatUShort3;
+    case Type::ushort4_t:
+      return MTLVertexFormatUShort4;
+    case Type::short_t:
+      return MTLVertexFormatShort;
+    case Type::short2_t:
+      return MTLVertexFormatShort2;
+    case Type::short3_t:
+      return MTLVertexFormatShort3;
+    case Type::short4_t:
+      return MTLVertexFormatShort4;
+    case Type::bool_t:
+      return MTLVertexFormatInvalid;
+    default:
+      BLI_assert(0);
+      return MTLVertexFormatInvalid;
+  }
+}
+
 }  // namespace blender::gpu

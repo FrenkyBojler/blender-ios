@@ -767,11 +767,6 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
   [desc reset];
   desc.label = [NSString stringWithUTF8String:this->name];
 
-  /* Null buffer index is used if an attribute is not found in the
-   * bound VBOs #VertexFormat. */
-  int null_buffer_index = pipeline_descriptor.vertex_descriptor.num_vert_buffers;
-  bool using_null_buffer = false;
-
   const MTLVertexDescriptor &gpu_vert_desc = pipeline_descriptor.vertex_descriptor;
   ::MTLVertexDescriptor *mtl_vert_desc = desc.vertexDescriptor;
 
@@ -795,6 +790,34 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
     mtl_layout.stepFunction = buf_layout.step_function;
     mtl_layout.stepRate = buf_layout.step_rate;
     mtl_layout.stride = buf_layout.stride;
+  }
+
+  /* Null buffer index is used if an attribute is not found in the
+   * bound VBOs #VertexFormat. */
+  /* WATCH: Hope that it doesn't conflict with and existing buffer. */
+  const int null_buffer_index = 31 - bitscan_reverse_uint(get_interface().vertex_buffer_mask());
+  bool using_null_buffer = false;
+
+  for (const ShaderInput &attr : Span<ShaderInput>(interface->inputs_, interface->attr_len_)) {
+    ::MTLVertexAttributeDescriptor *mtl_attribute = mtl_vert_desc.attributes[attr.binding];
+    if (mtl_attribute.format == MTLVertexFormatInvalid) {
+      /* An attribute should be bound there but no buffer was provided.
+       * Mimic OpenGL behavior by binding a dummy buffer with 0 stride. */
+      shader::Type input_type = shader::Type(get_interface().attr_types_[attr.binding]);
+      mtl_attribute.format = gpu_type_to_metal_vertex_format(input_type);
+      mtl_attribute.offset = 0;
+      mtl_attribute.bufferIndex = null_buffer_index;
+      using_null_buffer = true;
+    }
+  }
+
+  if (using_null_buffer) {
+    MTLVertexBufferLayoutDescriptor *mtl_layout = mtl_vert_desc.layouts[null_buffer_index];
+    /* Use constant step function such that null buffer can contain just a singular dummy
+     * attribute. */
+    mtl_layout.stepFunction = MTLVertexStepFunctionConstant;
+    mtl_layout.stepRate = 0;
+    mtl_layout.stride = 16; /* Doesn't matter as stepRate is 0. */
   }
 
   /* Primitive Topology. */
