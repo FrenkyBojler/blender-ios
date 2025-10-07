@@ -1710,15 +1710,7 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
         [](const uint32_t a, const uint32_t b) { return a | b; });
 
     float2 *coords = MEM_malloc_arrayN<float2>(size_t(mesh->corners_num), __func__);
-    bool *vert_selection = nullptr;
-    bool *edge_selection = nullptr;
     bool *pin = nullptr;
-    if (needed_boolean_attributes & MLOOPUV_VERTSEL) {
-      vert_selection = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
-    }
-    if (needed_boolean_attributes & MLOOPUV_EDGESEL) {
-      edge_selection = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
-    }
     if (needed_boolean_attributes & MLOOPUV_PINNED) {
       pin = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
     }
@@ -1726,16 +1718,6 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
     threading::parallel_for(IndexRange(mesh->corners_num), 4096, [&](IndexRange range) {
       for (const int i : range) {
         coords[i] = mloopuv[i].uv;
-      }
-      if (vert_selection) {
-        for (const int i : range) {
-          vert_selection[i] = mloopuv[i].flag & MLOOPUV_VERTSEL;
-        }
-      }
-      if (edge_selection) {
-        for (const int i : range) {
-          edge_selection[i] = mloopuv[i].flag & MLOOPUV_EDGESEL;
-        }
       }
       if (pin) {
         for (const int i : range) {
