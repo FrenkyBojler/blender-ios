@@ -661,7 +661,7 @@ struct wmGesture {
    * - for straight line is a #rcti: (`xmin`, `ymin`) is start, (`xmax`, `ymax`) is end.
    */
   void *customdata;
-  int is_tablet_gesture;
+  bool is_tablet_gesture;
 
   /** Free pointer to use for operator allocations (if set, its freed on exit). */
   wmGenericUserData user_data;
