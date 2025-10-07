@@ -24,8 +24,10 @@
 #include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
-
 #include "NOD_socket_declarations.hh"
+
+#include "ED_node.hh"
+
 #include "node_intern.hh"
 
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -229,6 +231,11 @@ class SocketTooltipBuilder {
     if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
       this->start_block(TooltipBlockType::Value);
       build_tooltip_value_implicit_default(socket_decl->default_input_type);
+      return;
+    }
+    if (socket_decl && socket_decl->structure_type == nodes::StructureType::Grid) {
+      this->start_block(TooltipBlockType::Value);
+      this->build_tooltip_value_and_type_oneline(TIP_("Empty Grid"), TIP_("Volume Grid"));
       return;
     }
     if (socket_.typeinfo->base_cpp_type == nullptr) {
