@@ -3826,7 +3826,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 102)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 103)) {
     /* Dope Sheet Editor: toggle overlays on. */
     if (!DNA_struct_exists(fd->filesdna, "SpaceActionOverlays")) {
       LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
