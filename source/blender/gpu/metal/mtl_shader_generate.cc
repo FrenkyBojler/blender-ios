@@ -471,7 +471,7 @@ std::string wrap_type(StringRefNull type_name, const ShaderStage stage)
 std::string ref_type(const ResourceString &str, const std::string &attribute = "")
 {
   if (!str.is_array()) {
-    return " &" + str;
+    return " &" + str + attribute;
   }
   return " (&" + str.str_no_array() + attribute + ")" + str.str_only_array();
 }
