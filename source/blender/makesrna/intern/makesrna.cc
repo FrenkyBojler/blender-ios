@@ -44,9 +44,11 @@ static int debugSRNA = 0;
 
 /* stub for BLI_abort() */
 #ifndef NDEBUG
-void BLI_system_backtrace(FILE *fp)
+void BLI_system_backtrace(FILE *fp, bool threads, bool modules)
 {
   (void)fp;
+  (void)threads;
+  (void)modules;
 }
 #endif /* !NDEBUG */
 

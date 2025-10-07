@@ -211,7 +211,7 @@ static void callback_main_atexit(void *user_data)
 
 static void callback_clg_fatal(void *fp)
 {
-  BLI_system_backtrace(static_cast<FILE *>(fp));
+  BLI_system_backtrace(static_cast<FILE *>(fp), false, false);
 }
 
 /** \} */
@@ -607,7 +607,7 @@ int main(int argc,
 
     /* Shows the splash as needed. */
     WM_init_splash_on_startup(C);
-
+    BLI_assert_msg(FALSE, "this always happens");
     WM_main(C);
   }
   /* Neither #WM_exit, #WM_main return, this quiets CLANG's `unreachable-code-return` warning. */

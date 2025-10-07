@@ -415,7 +415,7 @@ static void bli_load_symbols()
   }
 }
 
-void BLI_system_backtrace_with_os_info(FILE *fp, const void *os_info)
+void BLI_system_backtrace_with_os_info(FILE *fp, const void *os_info, bool threads, bool modules)
 {
   const EXCEPTION_POINTERS *exception_info = static_cast<const EXCEPTION_POINTERS *>(os_info);
   SymInitialize(GetCurrentProcess(), nullptr, TRUE);
@@ -426,9 +426,13 @@ void BLI_system_backtrace_with_os_info(FILE *fp, const void *os_info)
   if (bli_windows_system_backtrace_stack(fp, exception_info)) {
     /* When the blender symbols are missing the stack traces will be unreliable
      * so only run if the previous step completed successfully. */
-    bli_windows_system_backtrace_threads(fp);
+    if (threads) {
+      bli_windows_system_backtrace_threads(fp);
+    }
   }
-  bli_windows_system_backtrace_modules(fp);
+  if (modules) {
+    bli_windows_system_backtrace_modules(fp);
+  }
 }
 
 void BLI_windows_exception_print_message(const void *os_info)

@@ -120,7 +120,7 @@ static void crashlog_file_generate(const char *filepath, const void *os_info)
     }
 
     fputs("\n# backtrace\n", fp);
-    BLI_system_backtrace_with_os_info(fp, os_info);
+    BLI_system_backtrace_with_os_info(fp, os_info,true,true);
 
 #  ifdef WITH_PYTHON
     /* Generate python back-trace if Python is currently active. */

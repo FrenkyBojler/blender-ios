@@ -61,7 +61,10 @@ int BLI_cpu_support_sse2()
 
 /* Windows stack-walk lives in system_win32.cc */
 #if !defined(_MSC_VER)
-void BLI_system_backtrace_with_os_info(FILE *fp, const void * /*os_info*/)
+void BLI_system_backtrace_with_os_info(FILE *fp,
+                                       const void * /*os_info*/,
+                                       bool /*threads*/,
+                                       bool /*modules*/)
 {
   /* ----------------------- */
   /* If system as execinfo.h */
@@ -100,11 +103,11 @@ void BLI_system_backtrace_with_os_info(FILE *fp, const void * /*os_info*/)
 #endif
 /* end BLI_system_backtrace_with_os_info */
 
-void BLI_system_backtrace(FILE *fp)
+void BLI_system_backtrace(FILE *fp, bool threads, bool modules)
 {
   static blender::Mutex mutex;
   std::scoped_lock lock(mutex);
-  BLI_system_backtrace_with_os_info(fp, nullptr);
+  BLI_system_backtrace_with_os_info(fp, nullptr, threads, modules);
 }
 
 /* NOTE: The code for CPU brand string is adopted from Cycles. */

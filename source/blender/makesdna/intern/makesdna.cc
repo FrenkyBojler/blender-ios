@@ -116,9 +116,11 @@ static int additional_slen_offset;
 
 /* stub for BLI_abort() */
 #ifndef NDEBUG
-void BLI_system_backtrace(FILE *fp)
+void BLI_system_backtrace(FILE *fp, bool threads, bool modules)
 {
   (void)fp;
+  (void)threads;
+  (void)modules;
 }
 #endif
 

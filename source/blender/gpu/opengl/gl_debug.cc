@@ -121,7 +121,7 @@ static void APIENTRY debug_callback(GLenum /*source*/,
         if (use_color) {
           fprintf(stderr, "\033[2m");
         }
-        BLI_system_backtrace(stderr);
+        BLI_system_backtrace(stderr, false, false);
         if (use_color) {
           fprintf(stderr, "\033[0m\n");
         }
