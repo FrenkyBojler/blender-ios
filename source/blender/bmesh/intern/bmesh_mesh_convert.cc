@@ -578,7 +578,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
     bm->elem_index_dirty &= ~(BM_FACE | BM_LOOP); /* Added in order, clear dirty flag. */
   }
 
-  bm->uv_select_sync_valid = need_uv_select;
+  bm->uv_select_sync_valid = (need_uv_select && (mesh->flag & ME_FLAG_UV_SELET_SYNC)) != 0;
 
   /* -------------------------------------------------------------------- */
   /* MSelect clears the array elements (to avoid adding multiple times).
@@ -1425,6 +1425,11 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   mesh->faces_num = bm->totface;
   mesh->act_face = -1;
 
+  /* Will have been cleared when clearing geometry. */
+  if (bm->uv_select_sync_valid) {
+    mesh->flag |= ME_FLAG_UV_SELET_SYNC;
+  }
+
   bool need_select_vert = false;
   bool need_select_edge = false;
   bool need_select_poly = false;
@@ -1664,6 +1669,11 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   mesh.corners_num = bm.totloop;
   mesh.faces_num = bm.totface;
 
+  /* Will have been cleared when clearing geometry. */
+  if (bm.uv_select_sync_valid) {
+    mesh.flag |= ME_FLAG_UV_SELET_SYNC;
+  }
+
   mesh.runtime->deformed_only = true;
 
   const bool use_threading = (mesh.faces_num + mesh.edges_num) > 1024;
@@ -1681,7 +1691,7 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   bool need_sharp_edge = false;
   bool need_sharp_face = false;
   bool need_uv_seams = false;
-  const bool need_uv_select = bm.uv_select_sync_valid;
+  const bool need_uv_select = CustomData_has_layer(&bm.ldata, CD_PROP_FLOAT2);
 
   Array<const BMVert *> vert_table;
   Array<const BMEdge *> edge_table;
