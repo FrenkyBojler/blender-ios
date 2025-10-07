@@ -1743,7 +1743,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    BM_uv_map_attr_pin_ensure(em->bm, active_uv_name);
+    BM_uv_map_attr_pin_ensure_named(em->bm, active_uv_name);
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {

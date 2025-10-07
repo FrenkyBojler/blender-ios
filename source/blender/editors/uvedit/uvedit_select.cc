@@ -4423,7 +4423,7 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
       uvedit_select_prepare_custom_data(scene, bm);
       if (pinned) {
         const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
-        BM_uv_map_attr_pin_ensure(bm, active_uv_name);
+        BM_uv_map_attr_pin_ensure_named(bm, active_uv_name);
       }
     }
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
