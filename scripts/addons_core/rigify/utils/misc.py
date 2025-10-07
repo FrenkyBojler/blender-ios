@@ -278,14 +278,8 @@ def propgroup_to_dict(source: bpy.types.PropertyGroup) -> dict[str, typing.Any]:
     Note that this follows much of the same logic as `assign_rna_properties()` below.
     """
 
-    # Precondition checks.
+    # Precondition check.
     assert isinstance(source, bpy.types.PropertyGroup), "Source must be PropertyGroup, but is {!r}".format(type(source))
-
-    def _is_property_set(prop_identifier: str) -> bool:
-        return source.is_property_set(prop_identifier)
-
-    def _get_value(prop_identifier: str) -> typing.Any:
-        return getattr(source, prop_identifier)
 
     # Copy the property values one by one.
     skip_properties = {'rna_type', 'bl_rna'}
@@ -298,14 +292,14 @@ def propgroup_to_dict(source: bpy.types.PropertyGroup) -> dict[str, typing.Any]:
 
         # Un-set properties if necessary:
         try:
-            is_set = _is_property_set(attr)
+            is_set = source.is_property_set(attr)
         except TypeError as ex:
             raise TypeError("{!s} on {!s}".format('; '.join(ex.args), source)) from None
         if not is_set:
             continue
 
         # Set properties, depending on their type:
-        value = _get_value(attr)
+        value = getattr(source, attr)
         match prop.type:
             # Directly assignable types:
             case 'BOOLEAN' | 'INT' | 'FLOAT' | 'ENUM' | 'STRING':
