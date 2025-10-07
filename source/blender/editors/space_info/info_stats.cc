@@ -57,6 +57,9 @@
 
 #include "ED_info.hh"
 
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
+
 #include "WM_api.hh"
 
 #include "GPU_capabilities.hh"
@@ -578,16 +581,28 @@ static void get_stats_string(char *info,
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
   LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
+  std::string text;
 
   if (object_mode == OB_MODE_OBJECT) {
-    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
-                                   len - *ofs,
-                                   "%s | ",
-                                   BKE_collection_ui_name_get(layer_collection->collection));
+    text = UI_icon_as_string(ICON_GROUP);
+    text += BKE_collection_ui_name_get(layer_collection->collection);
+    text += "  ";
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
   }
 
   if (ob) {
-    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, "%s | ", ob->id.name + 2);
+    text = UI_icon_as_string(ICON_OBJECT_DATA);
+    text += ob->id.name + 2;
+    text += " ";
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
+  }
+
+  if (!STREQ(&stats_fmt->totobj[0], "0")) {
+    text = stats_fmt->totobjsel;
+    text += "/";
+    text += stats_fmt->totobj;
+    text += "  ";
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
   }
 
   if ((ob) && (ob->type == OB_GREASE_PENCIL)) {
@@ -608,17 +623,29 @@ static void get_stats_string(char *info,
     }
 
     if (ob->type == OB_MESH) {
-      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
-                                     len - *ofs,
+      text = UI_icon_as_string(ICON_VERTEXSEL);
+      text += stats_fmt->totvertsel;
+      text += "/";
+      text += stats_fmt->totvert;
+      text += "  ";
 
-                                     IFACE_("Verts:%s/%s | Edges:%s/%s | Faces:%s/%s | Tris:%s"),
-                                     stats_fmt->totvertsel,
-                                     stats_fmt->totvert,
-                                     stats_fmt->totedgesel,
-                                     stats_fmt->totedge,
-                                     stats_fmt->totfacesel,
-                                     stats_fmt->totface,
-                                     stats_fmt->tottri);
+      text += UI_icon_as_string(ICON_EDGESEL);
+      text += stats_fmt->totedgesel;
+      text += "/";
+      text += stats_fmt->totedge;
+      text += "  ";
+
+      text += UI_icon_as_string(ICON_FACESEL);
+      text += stats_fmt->totfacesel;
+      text += "/";
+      text += stats_fmt->totface;
+      text += "  ";
+
+      text += UI_icon_as_string(ICON_MARKER);
+      text += stats_fmt->tottri;
+      text += "  ";
+
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
     }
     else if (ob->type == OB_ARMATURE) {
       *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
@@ -645,11 +672,12 @@ static void get_stats_string(char *info,
                                      stats_fmt->totpoints);
     }
     else {
-      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
-                                     len - *ofs,
-                                     IFACE_("Verts:%s/%s"),
-                                     stats_fmt->totvertsel,
-                                     stats_fmt->totvert);
+      text = UI_icon_as_string(ICON_VERTEXSEL);
+      text += stats_fmt->totvertsel;
+      text += "/";
+      text += stats_fmt->totvert;
+      text += " ";
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
     }
   }
   else if (ob && (object_mode & OB_MODE_POSE)) {
@@ -665,37 +693,34 @@ static void get_stats_string(char *info,
     if (stats_is_object_dynamic_topology_sculpt(ob)) {
       *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
                                      len - *ofs,
-
                                      IFACE_("Verts:%s | Tris:%s"),
                                      stats_fmt->totvertsculpt,
                                      stats_fmt->tottri);
     }
     else {
-      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
-                                     len - *ofs,
-
-                                     IFACE_("Verts:%s | Faces:%s"),
-                                     stats_fmt->totvertsculpt,
-                                     stats_fmt->totfacesculpt);
+      text = UI_icon_as_string(ICON_VERTEXSEL);
+      text += stats_fmt->totvertsculpt;
+      text += " ";
+      text += UI_icon_as_string(ICON_FACESEL);
+      text += stats_fmt->totfacesculpt;
+      text += " ";
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
     }
   }
   else {
-    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
-                                   len - *ofs,
-
-                                   IFACE_("Verts:%s | Faces:%s | Tris:%s"),
-                                   stats_fmt->totvert,
-                                   stats_fmt->totface,
-                                   stats_fmt->tottri);
-  }
-
-  if (!STREQ(&stats_fmt->totobj[0], "0")) {
-    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
-                                   len - *ofs,
-
-                                   IFACE_(" | Objects:%s/%s"),
-                                   stats_fmt->totobjsel,
-                                   stats_fmt->totobj);
+    text = UI_icon_as_string(ICON_VERTEXSEL);
+    text += stats_fmt->totvert;
+    text += "  ";
+    text += UI_icon_as_string(ICON_EDGESEL);
+    text += stats_fmt->totedge;
+    text += "  ";
+    text += UI_icon_as_string(ICON_FACESEL);
+    text += stats_fmt->totface;
+    text += "  ";
+    text += UI_icon_as_string(ICON_MARKER);
+    text += stats_fmt->tottri;
+    text += "  ";
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, text.c_str());
   }
 }
 
