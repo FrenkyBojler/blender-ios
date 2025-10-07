@@ -3060,7 +3060,6 @@ static void object_data_convert_curve_to_mesh(Main *bmain, Depsgraph *depsgraph,
 static bool object_convert_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
-  Main *bmain = CTX_data_main(C);
   if (!ID_IS_EDITABLE(scene)) {
     return false;
   }
@@ -3072,15 +3071,6 @@ static bool object_convert_poll(bContext *C)
   if (obact && obact->mode != OB_MODE_OBJECT) {
     return false;
   }
-
-  /* Exit edit mode for all objects before conversion to make sure their edit data is properly
-  flushed back to mesh.*/
-  FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
-    if (ob->mode & OB_MODE_EDIT) {
-      blender::ed::object::editmode_exit_ex(bmain, scene, ob, blender::ed::object::EM_FREEDATA);
-    }
-  }
-  FOREACH_SCENE_OBJECT_END;
 
   /* Note that `obact` may not be editable,
    * only check the active object to ensure Blender is in object mode. */
@@ -4254,6 +4244,18 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 
   Vector<PointerRNA> selected_editable_bases;
   CTX_data_selected_editable_bases(C, &selected_editable_bases);
+
+  /* Disallow conversion if any selected editable object is in Edit Mode.
+   * This could be supported in the future, but it's a rare corner case
+   * typically triggered only by Python scripts. */
+  for (const PointerRNA &ptr : selected_editable_bases) {
+    Object *ob = ((Base *)ptr.data)->object;
+    if (ob->mode & OB_MODE_EDIT) {
+      BKE_report(
+          op->reports, RPT_ERROR, "Cannot convert selected objects while they are in Edit Mode.");
+      return OPERATOR_CANCELLED;
+    }
+  }
 
   /* Too expensive to detect on poll(). */
   if (selected_editable_bases.is_empty()) {
