@@ -53,30 +53,36 @@ def poll_trigger_action(_self, action):
 def get_first_compatible_action_slot(action: Action, id_type: str) -> ActionSlot | None:
     for slot in action.slots:
         if slot.target_id_type in ('UNSPECIFIED', id_type):
-            continue
-        return slot
+            return slot
+    return None
 
 
 class ActionSlot(PropertyGroup, ActionSlotBase):
-    def init(self, context):
+    def on_action_update(self, context):
         if not self.action:
             return
 
         # We must trigger the lazy-initialization of the unique_id before
         # any UI code tries to access it, since if it tried to lazy-initialize
         # during UI drawing, that would result in an error.
-        self.unique_id
+        self.ensure_unique_id()
 
-        # Set the first compatible slot if none already set.
-        if self.action and not self.action_slot:
-            self.action_slot = get_first_compatible_action_slot(self.action, 'OBJECT')
-        self['name'] = self.get_name_transform()
+        if self.action_slot:
+            # Nothing else to do here.
+            return
+
+        # Set the first compatible slot if none already set. However, be careful
+        # to prevent infinite loops, as this will call this function again.
+        first_slot = get_first_compatible_action_slot(self.action, 'OBJECT')
+        if first_slot:
+            # Only write when not None, to prevent looping infinitely.
+            self.action_slot = first_slot
 
     action: PointerProperty(
         name="Action",
         type=Action,
         description="Action to apply to the rig via constraints",
-        update=init,
+        update=on_action_update,
     )
 
     def slot_name_from_handle(self, slot_handle_as_str: str, _is_set: bool) -> str:
@@ -107,18 +113,19 @@ class ActionSlot(PropertyGroup, ActionSlotBase):
         # as a user-friendly display name in the UI.
         get_transform=slot_name_from_handle,
         set_transform=slot_name_to_handle,
-        update=init,
+        update=on_action_update,
     )
 
-    @property
-    def unique_id(self) -> int:
-        unique_id = self.get('unique_id') or 0
-        if unique_id:
-            return unique_id
+    unique_id: IntProperty(default=0)
 
-        # IDProperties only support signed 32-bit integers.
+    def ensure_unique_id(self) -> int:
+        if self.unique_id:
+            return self.unique_id
+
+        # IDProperties only support signed 32-bit integers, so this is the
+        # biggest pool of random numbers we can pick from.
         unique_id = random.randint(0, 2**31 - 1)
-        self['unique_id'] = unique_id
+        self.unique_id = unique_id
         return unique_id
 
     @property
