@@ -5074,6 +5074,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       "Open on Mouse Over",
       "Open menu buttons and pull-downs automatically when the mouse is hovering");
 
+  prop = RNA_def_property(srna, "menu_close_leave", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_MENU_CLOSE_LEAVE);
+  RNA_def_property_ui_text(
+      prop, "Close Menu on Leave", "Close menus when the mouse is moved out of the region.");
+
   prop = RNA_def_property(srna, "open_toplevel_delay", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "menuthreshold1");
   RNA_def_property_range(prop, 1, 40);
@@ -7404,10 +7409,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       "All Linked Data Direct",
       "Forces all linked data to be considered as directly linked. Workaround for current "
       "issues/limitations in BAT (Blender studio pipeline tool)");
-
-  prop = RNA_def_property(srna, "use_new_volume_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop, "New Volume Nodes", "Enables visibility of the new Volume nodes in the UI");
 
   prop = RNA_def_property(srna, "use_shader_node_previews", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

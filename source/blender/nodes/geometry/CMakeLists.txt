@@ -149,6 +149,7 @@ set(SRC
   nodes/node_geo_input_spline_length.cc
   nodes/node_geo_input_spline_resolution.cc
   nodes/node_geo_input_tangent.cc
+  nodes/node_geo_input_voxel_index.cc
   nodes/node_geo_instance_on_points.cc
   nodes/node_geo_instances_to_points.cc
   nodes/node_geo_interpolate_curves.cc
@@ -209,6 +210,12 @@ set(SRC
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
   nodes/node_geo_sdf_grid_boolean.cc
+  nodes/node_geo_sdf_grid_fillet.cc
+  nodes/node_geo_sdf_grid_laplacian.cc
+  nodes/node_geo_sdf_grid_mean.cc
+  nodes/node_geo_sdf_grid_mean_curvature.cc
+  nodes/node_geo_sdf_grid_median.cc
+  nodes/node_geo_sdf_grid_offset.cc
   nodes/node_geo_self_object.cc
   nodes/node_geo_separate_bundle.cc
   nodes/node_geo_separate_components.cc
