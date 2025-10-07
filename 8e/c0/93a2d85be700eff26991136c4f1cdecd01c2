@@ -1,2 +1,3 @@
 Referenced by issue #139198, Lost custom hotkey, when transferred from previous version
 Referenced by issue #142100, Shader Editor - CTRL +J No longer adds a frame to nodes in Blender 4.5
+Referenced by pull request #147499, Fix #147431: Node Editor: 'Join in Named Frame' missing from menus
