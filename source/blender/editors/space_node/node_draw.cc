@@ -3499,39 +3499,6 @@ static void node_draw_collapsed(const bContext &C,
     UI_but_flag_enable(but, UI_BUT_INACTIVE);
   }
 
-  /* Scale widget thing. */
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  GPU_blend(GPU_BLEND_ALPHA);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-  immUniformThemeColorShadeAlpha(TH_TEXT, -40, -180);
-  float dx = 0.5f * U.widget_unit;
-  const float dx2 = 0.15f * U.widget_unit * snode.runtime->aspect;
-  const float dy = 0.2f * U.widget_unit;
-
-  immBegin(GPU_PRIM_LINES, 4);
-  immVertex2f(pos, rct.xmax - dx, centy - dy);
-  immVertex2f(pos, rct.xmax - dx, centy + dy);
-
-  immVertex2f(pos, rct.xmax - dx - dx2, centy - dy);
-  immVertex2f(pos, rct.xmax - dx - dx2, centy + dy);
-  immEnd();
-
-  immUniformThemeColorShadeAlpha(TH_TEXT, 0, -180);
-  dx -= snode.runtime->aspect;
-
-  immBegin(GPU_PRIM_LINES, 4);
-  immVertex2f(pos, rct.xmax - dx, centy - dy);
-  immVertex2f(pos, rct.xmax - dx, centy + dy);
-
-  immVertex2f(pos, rct.xmax - dx - dx2, centy - dy);
-  immVertex2f(pos, rct.xmax - dx - dx2, centy + dy);
-  immEnd();
-
-  immUnbindProgram();
-  GPU_blend(GPU_BLEND_NONE);
-
   node_draw_sockets(C, block, snode, ntree, node);
 
   UI_block_end_ex(&C,

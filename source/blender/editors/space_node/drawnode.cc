@@ -201,7 +201,8 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
                                               const int x,
                                               const int y)
 {
-  const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f);
+  const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f) *
+                     (node->flag & NODE_COLLAPSED ? 2.0f : 1.0f);
 
   if (node->is_frame()) {
     NodeFrame *data = (NodeFrame *)node->storage;
@@ -229,17 +230,6 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
     }
 
     return dir;
-  }
-
-  if (node->flag & NODE_COLLAPSED) {
-    /* right part of node */
-    rctf bounds = node->runtime->draw_bounds;
-    bounds.xmin = node->runtime->draw_bounds.xmax - 1.0f * U.widget_unit;
-    if (BLI_rctf_isect_pt(&bounds, x, y)) {
-      return NODE_RESIZE_RIGHT;
-    }
-
-    return NODE_RESIZE_NONE;
   }
 
   const rctf &bounds = node->runtime->draw_bounds;
