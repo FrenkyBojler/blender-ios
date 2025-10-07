@@ -99,8 +99,13 @@ static const EnumPropertyItem limit_method_items[] = {
 
 static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.is_function_node();
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
+  b.add_output<decl::Float>("Matte");
+
   b.add_input<decl::Float>("Minimum")
       .default_value(0.0f)
       .subtype(PROP_FACTOR)
@@ -123,12 +128,14 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
       .default_value(RGBChannel::G)
       .static_items(rgb_channel_items)
       .expanded()
+      .translation_context(BLT_I18NCONTEXT_COLOR)
       .usage_by_menu("Color Space", CMP_NODE_CHANNEL_MATTE_CS_RGB)
       .optional_label();
   b.add_input<decl::Menu>("HSV Key Channel")
       .default_value(HSVChannel::H)
       .static_items(hsv_channel_items)
       .expanded()
+      .translation_context(BLT_I18NCONTEXT_COLOR)
       .usage_by_menu("Color Space", CMP_NODE_CHANNEL_MATTE_CS_HSV)
       .optional_label();
   b.add_input<decl::Menu>("YUV Key Channel")
@@ -237,9 +244,6 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_YCC);
           });
-
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Matte");
 }
 
 static void node_composit_init_channel_matte(bNodeTree * /*ntree*/, bNode *node)

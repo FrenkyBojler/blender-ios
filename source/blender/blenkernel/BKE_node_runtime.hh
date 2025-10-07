@@ -190,7 +190,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * evaluate the node group. Caching it here allows us to reuse the preprocessed node tree in case
    * its used multiple times.
    */
-  Mutex geometry_nodes_lazy_function_graph_info_mutex;
+  CacheMutex geometry_nodes_lazy_function_graph_info_mutex;
   std::unique_ptr<nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
 
@@ -442,6 +442,10 @@ class AllowUsingOutdatedInfo : NonCopyable, NonMovable {
   }
 };
 
+/* If result is not true then this means that the last node tree editing operation was not covered
+ * by the topology cache update ensure call. All derivative information about topology is not
+ * available. You should call "tree.ensure_topology_cache();" first.
+ */
 inline bool topology_cache_is_available(const bNodeTree &tree)
 {
   if (!tree.runtime->topology_cache_exists) {
