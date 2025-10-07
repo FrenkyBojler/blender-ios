@@ -105,7 +105,6 @@ static void draw_matrix_template(uiLayout &layout, const float m4[4][4])
   /* Translation. */
   col = &layout_->column(true);
   col->use_property_split_set(true);
-  uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(col);
 
   row = &col->row(true);
   uiItemL_respect_property_split(row, IFACE_("Location X"), ICON_NONE);
