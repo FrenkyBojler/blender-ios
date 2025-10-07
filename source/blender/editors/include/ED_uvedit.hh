@@ -93,7 +93,7 @@ namespace blender::ed::uv {
  * to a UV state which is "synchronized".
  *
  * Where practical (see note below) this is a preferred alternative to clearing the
- * UV selection state and re-initializing it from the mesh, because there may be be UV's
+ * UV selection state and re-initializing it from the mesh, because there may be UV's
  * selected on one UV island and not another, even though the vertices are shared.
  * Flushing and re-initializing will set both, losing the users selection.
  *

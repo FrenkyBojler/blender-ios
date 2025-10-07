@@ -221,7 +221,7 @@ void BM_loop_vert_uvselect_set_noflush(BMesh *bm, BMLoop *l, bool select);
  *   Supporting additional operations is always possible, at the time of writing it's
  *   impractical to do so, see: #131642 design task for details.
  *
- * Internally this mark the UV selection data as invalid,
+ * Internally this marks the UV selection data as invalid,
  * using the mesh selection as the "source-of-truth".
  *
  * \note By convention call this immediately after flushing.

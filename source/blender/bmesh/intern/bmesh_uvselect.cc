@@ -1625,7 +1625,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_edge_mode(BMesh *bm
   BMIter iter;
   BMFace *f;
 
-  /* Clearing all makes the the following logic simpler as
+  /* Clearing all makes the following logic simpler as
    * since we only need to select UV's connected to selected edges. */
   bm_mesh_uvselect_disable_all(bm);
 
@@ -1659,7 +1659,7 @@ static void bm_mesh_uvselect_flush_from_mesh_sticky_vert_for_face_mode(BMesh *bm
   BMIter iter;
   BMFace *f;
 
-  /* Clearing all makes the the following logic simpler as
+  /* Clearing all makes the following logic simpler as
    * since we only need to select UV's connected to selected edges. */
   bm_mesh_uvselect_disable_all(bm);
 
