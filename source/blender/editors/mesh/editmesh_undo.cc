@@ -1047,7 +1047,16 @@ struct MeshUndoStep {
   UndoRefID_Scene scene_ref;
   MeshUndoStep_Elem *elems;
   uint elems_len;
+  /* Snapshot of scene transform orientations so undo does not lose them. */
+  ListBase transform_spaces_copy;
+  TransformOrientationSlot *orientation_slots_copy;
 };
+
+static void undomesh_transform_spaces_copy(ListBase *dst, const ListBase *src)
+{
+  BLI_freelistN(dst);
+  BLI_duplicatelist(dst, src);
+}
 
 static bool mesh_undosys_poll(bContext *C)
 {
@@ -1098,6 +1107,12 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
     elem->data.mesh->id.session_uid = mesh->id.session_uid;
 #endif
   }
+
+  /* Save the scene's transform orientation data for undo. */
+  undomesh_transform_spaces_copy(&us->transform_spaces_copy, &scene->transform_spaces);
+  us->orientation_slots_copy = static_cast<TransformOrientationSlot *>(
+      MEM_mallocN(sizeof(scene->orientation_slots), __func__));
+  memcpy(us->orientation_slots_copy, scene->orientation_slots, sizeof(scene->orientation_slots));
 
   if (um_references != nullptr) {
     MEM_freeN(um_references);
@@ -1157,6 +1172,14 @@ static void mesh_undosys_step_decode(
   scene->toolsettings->selectmode = us->elems[0].data.selectmode;
   scene->toolsettings->uv_selectmode = us->elems[0].data.uv_selectmode;
 
+  /* Restore the scene's transform orientation list and active orientation slots
+  so that custom orientations are preserved after undo. */
+  undomesh_transform_spaces_copy(&scene->transform_spaces, &us->transform_spaces_copy);
+
+  if (us->orientation_slots_copy) {
+    memcpy(scene->orientation_slots, us->orientation_slots_copy, sizeof(scene->orientation_slots));
+  }
+
   bmain->is_memfile_undo_flush_needed = true;
 
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
@@ -1171,6 +1194,13 @@ static void mesh_undosys_step_free(UndoStep *us_p)
     undomesh_free_data(&elem->data);
   }
   MEM_freeN(us->elems);
+
+  /* Free orientation snapshot. */
+  BLI_freelistN(&us->transform_spaces_copy);
+  if (us->orientation_slots_copy) {
+    MEM_freeN(us->orientation_slots_copy);
+    us->orientation_slots_copy = nullptr;
+  }
 }
 
 static void mesh_undosys_foreach_ID_ref(UndoStep *us_p,
