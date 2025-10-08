@@ -571,6 +571,36 @@ static uint32_t get_buffers_binding_mask(NSArray<MTLArgument *> *args)
   return mask;
 }
 
+static uint16_t get_images_binding_mask(NSArray<MTLArgument *> *args)
+{
+  uint16_t mask = 0u;
+  for (int i = 0; i < [args count]; i++) {
+    MTLArgument *arg = [args objectAtIndex:i];
+    if ([arg type] == MTLArgumentTypeTexture && [arg isActive] == TRUE) {
+      int index = [arg index];
+      if (index >= 0 && index < MTL_MAX_IMAGE_SLOTS) {
+        mask |= (1 << index);
+      }
+    }
+  }
+  return mask;
+}
+
+static uint64_t get_samplers_binding_mask(NSArray<MTLArgument *> *args)
+{
+  uint64_t mask = 0u;
+  for (int i = 0; i < [args count]; i++) {
+    MTLArgument *arg = [args objectAtIndex:i];
+    if ([arg type] == MTLArgumentTypeTexture && [arg isActive] == TRUE) {
+      int index = [arg index];
+      if (index >= MTL_MAX_IMAGE_SLOTS && index < MTL_MAX_TEXTURE_SLOTS) {
+        mask |= (1 << (index - MTL_MAX_IMAGE_SLOTS));
+      }
+    }
+  }
+  return mask;
+}
+
 void MTLRenderPipelineStateInstance::parse_reflection_data(
     MTLRenderPipelineReflection *reflection_data)
 {
@@ -583,6 +613,12 @@ void MTLRenderPipelineStateInstance::parse_reflection_data(
    * that buffers bound are not smaller than the size of expected data. */
   this->used_buf_vert_mask = get_buffers_binding_mask([reflection_data vertexArguments]);
   this->used_buf_frag_mask = get_buffers_binding_mask([reflection_data fragmentArguments]);
+
+  this->used_tex_vert_mask = get_images_binding_mask([reflection_data vertexArguments]);
+  this->used_tex_frag_mask = get_images_binding_mask([reflection_data fragmentArguments]);
+
+  this->used_tex_vert_mask = get_samplers_binding_mask([reflection_data vertexArguments]);
+  this->used_tex_frag_mask = get_samplers_binding_mask([reflection_data fragmentArguments]);
 }
 
 /**

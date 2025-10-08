@@ -804,7 +804,9 @@ static void ensure_texture_bindings(MTLContext &ctx,
                                     MTLShader &shader,
                                     CommandEncoderT enc,
                                     MTLBindingCache<CommandEncoderT> &bindings,
-                                    id<MTLFunction> mtl_function)
+                                    id<MTLFunction> mtl_function,
+                                    uint16_t stage_ima_mask = uint16_t(-1),
+                                    uint64_t stage_tex_mask = uint64_t(-1))
 {
   MTLShaderInterface &shader_interface = shader.get_interface();
 
@@ -813,13 +815,13 @@ static void ensure_texture_bindings(MTLContext &ctx,
   }
 
   /* TODO(fclem): Dirty binding tracking optimization. */
-  uint32_t dirty_image_mask = ~uint32_t(0u);
-  uint32_t dirty_sampler_mask = ~uint32_t(0u);
+  uint16_t dirty_image_mask = ~uint16_t(0u);
+  uint64_t dirty_sampler_mask = ~uint64_t(0u);
 
-  uint32_t dirty_enabled_image_mask = shader_interface.enabled_ima_mask_ & dirty_image_mask;
-  uint32_t dirty_enabled_sampler_mask = shader_interface.enabled_tex_mask_ & dirty_sampler_mask;
+  uint16_t dirty_enabled_image_mask = shader_interface.enabled_ima_mask_ & dirty_image_mask;
+  uint64_t dirty_enabled_sampler_mask = shader_interface.enabled_tex_mask_ & dirty_sampler_mask;
 
-  bits::BitInt bind_image = dirty_enabled_image_mask;
+  bits::BitInt bind_image = dirty_enabled_image_mask & stage_ima_mask;
   for (const uint slot : BitSpan(&bind_image, MTL_MAX_IMAGE_SLOTS).high_bits()) {
     MTLTexture *gpu_tex = ctx.pipeline_state.image_bindings[slot].texture_resource;
     /* If texture resource is an image binding and has a non-default swizzle mask, we need
@@ -837,7 +839,7 @@ static void ensure_texture_bindings(MTLContext &ctx,
 #endif
   }
 
-  bits::BitInt bind_sampler = dirty_enabled_sampler_mask;
+  bits::BitInt bind_sampler = dirty_enabled_sampler_mask & stage_tex_mask;
   for (const uint slot : BitSpan(&bind_sampler, MTL_MAX_SAMPLER_SLOTS).high_bits()) {
     MTLTexture *gpu_tex = ctx.pipeline_state.texture_bindings[slot].texture_resource;
     MTLSamplerBinding &sampler_state = ctx.pipeline_state.sampler_bindings[slot];
@@ -1168,8 +1170,20 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
   /** Ensure resource bindings. */
   MTLVertexCommandEncoder vert_rec{rec};
   MTLFragmentCommandEncoder frag_rec{rec};
-  ensure_texture_bindings(*this, *shader, vert_rec, rps.vertex_bindings, psi->vert);
-  ensure_texture_bindings(*this, *shader, frag_rec, rps.fragment_bindings, psi->frag);
+  ensure_texture_bindings(*this,
+                          *shader,
+                          vert_rec,
+                          rps.vertex_bindings,
+                          psi->vert,
+                          psi->used_ima_vert_mask,
+                          psi->used_tex_vert_mask);
+  ensure_texture_bindings(*this,
+                          *shader,
+                          frag_rec,
+                          rps.fragment_bindings,
+                          psi->frag,
+                          psi->used_ima_frag_mask,
+                          psi->used_tex_frag_mask);
   ensure_buffer_bindings(*this, *shader, vert_rec, rps.vertex_bindings, psi->used_buf_vert_mask);
   ensure_buffer_bindings(*this, *shader, frag_rec, rps.fragment_bindings, psi->used_buf_frag_mask);
   if (pc_buf && pc_buf->is_dirty()) {

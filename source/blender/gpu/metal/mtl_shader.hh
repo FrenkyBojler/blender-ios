@@ -80,6 +80,12 @@ struct MTLRenderPipelineStateInstance {
    */
   uint32_t used_buf_vert_mask = 0;
   uint32_t used_buf_frag_mask = 0;
+  /* Same thing for images. */
+  uint16_t used_ima_vert_mask = 0;
+  uint16_t used_ima_frag_mask = 0;
+  /* Same thing for samplers. */
+  uint64_t used_tex_vert_mask = 0;
+  uint64_t used_tex_frag_mask = 0;
 
   void parse_reflection_data(::MTLRenderPipelineReflection *reflection_data);
 };
