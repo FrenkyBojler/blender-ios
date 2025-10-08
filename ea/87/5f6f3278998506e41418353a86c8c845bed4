@@ -5,4 +5,4 @@ Referenced by issue #116729, Refactoring: Geometry Nodes: Rewrite Ico Sphere mes
 Referenced by pull request #132493, Fix: Geometry Nodes: Ensure Triangulate node generate only unique faces and edges
 Referenced by issue #144983, Geometry nodes triangulate and armature modifier on a mesh with UV map vertex group name collision crashes Blender
 Referenced by issue #146403, Segfault when using triangulate geometry node on 4.5.3 LTS
-Referenced by pull request #147634, Fix: Geometry Nodes: Ensure Triangulate node generate only unique faces and edges
+Referenced by pull request #147634, Fix #144846: Mesh triangulation can generate duplicate faces and edges
