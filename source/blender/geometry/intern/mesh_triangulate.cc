@@ -345,13 +345,13 @@ static void calc_corner_tris(const Span<float3> positions,
 
 }  // namespace ngon
 
-struct FaceKey {
+struct TriKey {
   int tri_index;
   /* The lowest vertex index in the face is used as a hash value and a way to compare face keys to
    * avoid memory lookup in all false cases. */
   int tri_lower_vert;
 
-  FaceKey(const int tri_index, Span<int3> tris)
+  TriKey(const int tri_index, Span<int3> tris)
       : tri_index(tri_index), tri_lower_vert(tris[tri_index][0])
   {
     [[maybe_unused]] const int3 &tri_verts = tris[tri_index];
@@ -360,7 +360,7 @@ struct FaceKey {
 };
 
 struct FaceHash {
-  uint64_t operator()(const FaceKey value) const
+  uint64_t operator()(const TriKey value) const
   {
     return uint64_t(value.tri_lower_vert);
   }
@@ -374,12 +374,12 @@ struct FaceHash {
 
 struct FacesEquality {
   Span<int3> tris;
-  bool operator()(const FaceKey a, const FaceKey b) const
+  bool operator()(const TriKey a, const TriKey b) const
   {
     return a.tri_lower_vert == b.tri_lower_vert && tris[a.tri_index] == tris[b.tri_index];
   }
 
-  bool operator()(const int3 a, const FaceKey b) const
+  bool operator()(const int3 a, const TriKey b) const
   {
     BLI_assert(std::is_sorted(&a[0], &a[0] + 3));
     return b.tri_lower_vert == a[0] && tris[b.tri_index] == a;
@@ -439,12 +439,12 @@ static IndexMask face_tris_mask(const OffsetIndices<int> src_faces,
 static IndexMask tris_in_set(const IndexMask &tri_mask,
                              const OffsetIndices<int> faces,
                              const Span<int> corner_verts,
-                             const VectorSet<FaceKey,
+                             const VectorSet<TriKey,
                                              4,
                                              DefaultProbingStrategy,
                                              FaceHash,
                                              FacesEquality,
-                                             SimpleVectorSetSlot<FaceKey, int>> &distinct_tris,
+                                             SimpleVectorSetSlot<TriKey, int>> &distinct_tris,
                              IndexMaskMemory &memory)
 {
   return IndexMask::from_predicate(tri_mask, GrainSize(4096), memory, [&](const int face_i) {
@@ -454,7 +454,7 @@ static IndexMask tris_in_set(const IndexMask &tri_mask,
   });
 }
 
-static void face_keys_to_face_indices(const Span<FaceKey> faces, MutableSpan<int> indices)
+static void face_keys_to_face_indices(const Span<TriKey> faces, MutableSpan<int> indices)
 {
   BLI_assert(faces.size() == indices.size());
   threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
@@ -555,21 +555,21 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   const Span<int3> ordered_vert_tris = tri_to_ordered_tri(vert_tris.as_mutable_span());
 
   /* Use ordered vertex triplets (a < b < c) to represent all new triangles.
-   * #FaceKey knows indices of the face and points into #ordered_vert_tris, but probe can be done
-   * without #FaceKey but dirrectly with a triplet so probe not necessary to be a part of
+   * #TriKey knows indices of the face and points into #ordered_vert_tris, but probe can be done
+   * without #TriKey but dirrectly with a triplet so probe not necessary to be a part of
    * #ordered_vert_tris. */
-  VectorSet<FaceKey,
+  VectorSet<TriKey,
             4,
             DefaultProbingStrategy,
             FaceHash,
             FacesEquality,
-            SimpleVectorSetSlot<FaceKey, int>>
+            SimpleVectorSetSlot<TriKey, int>>
       distinct_tris(FaceHash{}, FacesEquality{ordered_vert_tris});
 
   /* Could be done parallel using grouping of faces by their lowest vertex and the next linear
    * deduplication, but right now this is just a sequential hash-set. */
   for (const int face_i : ordered_vert_tris.index_range()) {
-    const FaceKey face_key(face_i, ordered_vert_tris);
+    const TriKey face_key(face_i, ordered_vert_tris);
     distinct_tris.add(face_key);
   }
   const int distinct_tri_num = distinct_tris.size();
