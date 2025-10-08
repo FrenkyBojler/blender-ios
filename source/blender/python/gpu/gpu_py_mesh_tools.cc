@@ -733,14 +733,19 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
     info.specialization_constant(blender::gpu::shader::Type::int_t, "normals_hq", normals_hq_val);
 
     for (auto &p : spec_ints) {
-      /* scalar specialization -> declare as scalar push-constant (array_size = 0). */
-      info.specialization_constant(blender::gpu::shader::Type::int_t, p.first.c_str(), 0);
+      /* scalar specialization -> declare with the actual value provided by Python. */
+      info.specialization_constant(
+          blender::gpu::shader::Type::int_t, p.first.c_str(), int(p.second));
     }
     for (auto &p : spec_floats) {
-      info.specialization_constant(blender::gpu::shader::Type::float_t, p.first.c_str(), 0);
+      /* Use the float value collected from Python (stored as double). */
+      info.specialization_constant(
+          blender::gpu::shader::Type::float_t, p.first.c_str(), float(p.second));
     }
     for (auto &p : spec_bools) {
-      info.specialization_constant(blender::gpu::shader::Type::bool_t, p.first.c_str(), 0);
+      /* Bool specialization constant must be passed as int (0/1). */
+      info.specialization_constant(
+          blender::gpu::shader::Type::bool_t, p.first.c_str(), p.second ? 1 : 0);
     }
 
     /* Declare push-constants provided by the Python config callable.
