@@ -803,7 +803,7 @@ template<typename CommandEncoderT>
 static void ensure_texture_bindings(MTLContext &ctx,
                                     MTLShader &shader,
                                     CommandEncoderT enc,
-                                    MTLBindingCache<CommandEncoderT> bindings,
+                                    MTLBindingCache<CommandEncoderT> &bindings,
                                     id<MTLFunction> mtl_function)
 {
   MTLShaderInterface &shader_interface = shader.get_interface();
@@ -879,7 +879,7 @@ template<typename CommandEncoderT>
 static void ensure_push_constant(MTLContext &ctx,
                                  MTLShader &shader,
                                  CommandEncoderT enc,
-                                 MTLBindingCache<CommandEncoderT> bindings,
+                                 MTLBindingCache<CommandEncoderT> &bindings,
                                  uint32_t stage_buf_mask = uint32_t(-1))
 {
   if ((stage_buf_mask & (1 << MTL_PUSH_CONSTANT_BUFFER_SLOT)) == 0) {
@@ -904,7 +904,7 @@ template<typename CommandEncoderT>
 static void ensure_buffer_bindings(MTLContext &ctx,
                                    MTLShader &shader,
                                    CommandEncoderT enc,
-                                   MTLBindingCache<CommandEncoderT> bindings,
+                                   MTLBindingCache<CommandEncoderT> &bindings,
                                    uint32_t stage_buf_mask = uint32_t(-1))
 {
   MTLShaderInterface &shader_interface = shader.get_interface();

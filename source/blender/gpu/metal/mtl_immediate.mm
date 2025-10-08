@@ -256,12 +256,6 @@ void MTLImmediate::end()
                        indexBufferOffset:index_buffer_offset];
               context_->main_command_buffer.register_draw_counters(fan_index_count);
             }
-            /* WORKAROUND(fclem): Can't figure out why, but this triangle fan workaround path makes
-             * the binding state incorrect which makes some following call to IMM to fail. It tries
-             * to bind a buffer with an offset (optimization) but the buffer have changed and
-             * should be rebound. But the binding retained the buffer (which might have been
-             * re-allocated?) and just try to bind the offset out of bound. */
-            rps.vertex_bindings.buffer_bindings[imm_buffer_slot].metal_buffer = nil;
 
             rendered = true;
           } break;
