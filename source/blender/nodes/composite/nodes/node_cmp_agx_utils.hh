@@ -49,8 +49,7 @@ static const Chromaticities AWG3_PRI = {
     /* b: */ {0.0861f, -0.102f},
     /* w: */ {0.3127f, 0.3290f}};
 // Create a const array of Chromaticities for enum's index-based selection
-static const Chromaticities COLOR_SPACE_PRI[] = {
-    P3D65_PRI, REC709_PRI, REC2020_PRI, AWG3_PRI};
+static const Chromaticities COLOR_SPACE_PRI[] = {P3D65_PRI, REC709_PRI, REC2020_PRI, AWG3_PRI};
 
 /* ##########################################################################
     Functions

@@ -501,8 +501,7 @@ void node_composite_agx_view_transform(float4 color,
       /* b: */ float2(0.0861f, -0.102f),
       /* w: */ float2(0.3127f, 0.3290f));
 
-  const Chromaticities COLOR_SPACE_PRI[] = {
-      P3D65_PRI, REC709_PRI, REC2020_PRI, AWG3_PRI};
+  const Chromaticities COLOR_SPACE_PRI[] = {P3D65_PRI, REC709_PRI, REC2020_PRI, AWG3_PRI};
 
   color = scene_linear_to_working * color;
 
