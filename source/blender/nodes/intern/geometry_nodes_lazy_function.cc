@@ -743,20 +743,7 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
                                                  &eval_user_data,
                                                  error_message))
     {
-      int available_output_index = 0;
-      for (const bNodeSocket *bsocket : node_.output_sockets()) {
-        if (!bsocket->is_available()) {
-          continue;
-        }
-        SocketValueVariant *output_value = output_values[available_output_index];
-        if (!output_value) {
-          continue;
-        }
-        std::destroy_at(output_value);
-        construct_socket_default_value(*bsocket->typeinfo, output_value);
-        available_output_index++;
-      }
-
+      set_default_remaining_node_outputs(params, node_);
       if (!error_message.empty()) {
         const auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
         const auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(
@@ -769,7 +756,9 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
               {node_.identifier, {NodeWarningType::Error, error_message}});
         }
       }
+      return;
     }
+
     for (const int i : outputs_.index_range()) {
       if (params.get_output_usage(i) != lf::ValueUsage::Unused) {
         params.output_set(i);
@@ -4173,11 +4162,12 @@ struct GeometryNodesLazyFunctionBuilder {
   }
 };
 
-const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_graph(
-    const bNodeTree &btree)
+static std::unique_ptr<GeometryNodesLazyFunctionGraphInfo>
+ensure_geometry_nodes_lazy_function_graph_impl(const bNodeTree &btree)
 {
   btree.ensure_topology_cache();
   btree.ensure_interface_cache();
+
   if (btree.has_available_link_cycle()) {
     return nullptr;
   }
@@ -4214,23 +4204,20 @@ const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_gr
     }
   }
 
-  std::unique_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info_ptr =
-      btree.runtime->geometry_nodes_lazy_function_graph_info;
-
-  if (lf_graph_info_ptr) {
-    return lf_graph_info_ptr.get();
-  }
-  std::lock_guard lock{btree.runtime->geometry_nodes_lazy_function_graph_info_mutex};
-  if (lf_graph_info_ptr) {
-    return lf_graph_info_ptr.get();
-  }
-
   auto lf_graph_info = std::make_unique<GeometryNodesLazyFunctionGraphInfo>();
   GeometryNodesLazyFunctionBuilder builder{btree, *lf_graph_info};
   builder.build();
+  return lf_graph_info;
+}
 
-  lf_graph_info_ptr = std::move(lf_graph_info);
-  return lf_graph_info_ptr.get();
+const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_graph(
+    const bNodeTree &btree)
+{
+  btree.runtime->geometry_nodes_lazy_function_graph_info_mutex.ensure([&]() {
+    btree.runtime->geometry_nodes_lazy_function_graph_info =
+        ensure_geometry_nodes_lazy_function_graph_impl(btree);
+  });
+  return btree.runtime->geometry_nodes_lazy_function_graph_info.get();
 }
 
 destruct_ptr<fn::LocalUserData> GeoNodesUserData::get_local(LinearAllocator<> &allocator)

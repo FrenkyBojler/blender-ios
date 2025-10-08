@@ -435,6 +435,7 @@ void blo_split_main(Main *bmain, const bool do_split_packed_ids)
   blender::Vector<Main *> lib_main_array;
 
   int i = 0;
+  int lib_index = 0;
   for (Library *lib = static_cast<Library *>(bmain->libraries.first); lib;
        lib = static_cast<Library *>(lib->id.next), i++)
   {
@@ -451,8 +452,9 @@ void blo_split_main(Main *bmain, const bool do_split_packed_ids)
     libmain->colorspace = lib->runtime->colorspace;
     bmain->split_mains->add_new(libmain);
     libmain->split_mains = bmain->split_mains;
-    lib->runtime->temp_index = i;
+    lib->runtime->temp_index = lib_index;
     lib_main_array.append(libmain);
+    lib_index++;
   }
 
   MainListsArray lbarray = BKE_main_lists_get(*bmain);
@@ -576,10 +578,10 @@ struct BlendDataReader {
   FileData *fd;
 
   /**
-   * The key is the old pointer to shared data that's written to a file, typically an array. The
-   * corresponding value is the shared data at run-time.
+   * The key is the old address id referencing shared data that's written to a file, typically an
+   * array. The corresponding value is the shared data at run-time.
    */
-  blender::Map<const void *, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
+  blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> shared_data_by_stored_address;
 };
 
 struct BlendLibReader {
@@ -1823,7 +1825,7 @@ static const char *get_alloc_name(FileData *fd,
   keyT key{block_alloc_name + struct_name, bh->nr};
   if (!storage.contains(key)) {
     const std::string alloc_string = fmt::format(
-        fmt::runtime((is_id_data ? "{}{} (for ID type '{}')" : "{}{} (for block '{}')")),
+        fmt::runtime(is_id_data ? "{}{} (for ID type '{}')" : "{}{} (for block '{}')"),
         struct_name,
         bh->nr > 1 ? fmt::format("[{}]", bh->nr) : "",
         block_alloc_name);
@@ -2747,7 +2749,14 @@ static Main *blo_add_main_for_library(FileData *fd,
     if (is_packed_library) {
       BLI_assert(lib->flag & LIBRARY_FLAG_IS_ARCHIVE);
       BLI_assert(lib->archive_parent_library == reference_lib);
-      BLI_assert(reference_lib->runtime->archived_libraries.contains(lib));
+
+      /* If there is already an archive library in the new set of Mains, but not a 'libmain' for it
+       * yet, it is the first time that this archive library is effectively used to own a packed
+       * ID. Since regular libraries have their list of owned archive libs cleared when reused on
+       * undo, it means that this archive library should yet be listed in its regular owner one,
+       * and needs to be added there. See also #read_undo_move_libmain_data. */
+      BLI_assert(!reference_lib->runtime->archived_libraries.contains(lib));
+      reference_lib->runtime->archived_libraries.append(lib);
 
       BLI_assert(lib->runtime->filedata == nullptr);
       lib->runtime->filedata = fd;
@@ -2838,6 +2847,12 @@ static void read_undo_move_libmain_data(FileData *fd, Main *libmain, BHead *bhea
   BLI_remlink_safe(&old_main->libraries, curlib);
   new_main->split_mains->add_new(libmain);
   BLI_addtail(&new_main->libraries, curlib);
+
+  /* Remove all references to the archive libraries owned by this 'regular' library. The
+   * archive ones are only moved over into the new Main if some of their IDs are actually
+   * re-used. Otherwise they are deleted, so the 'regular' library cannot keep references to
+   * them at this point. See also #blo_add_main_for_library. */
+  curlib->runtime->archived_libraries = {};
 
   curlib->id.tag |= ID_TAG_UNDO_OLD_ID_REUSED_NOUNDO;
   BKE_main_idmap_insert_id(fd->new_idmap_uid, &curlib->id);
@@ -3511,6 +3526,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_500(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_510(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -3572,6 +3590,9 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_500(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_510(fd, main);
   }
 
   main->is_locked_for_linking = false;
@@ -5835,26 +5856,26 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
     const void **ptr_p,
     const blender::FunctionRef<const blender::ImplicitSharingInfo *()> read_fn)
 {
-  const void *old_address = *ptr_p;
+  const uint64_t old_address_id = uint64_t(*ptr_p);
   if (BLO_read_data_is_undo(reader)) {
     if (reader->fd->flags & FD_FLAGS_IS_MEMFILE) {
       UndoReader *undo_reader = reinterpret_cast<UndoReader *>(reader->fd->file);
       const MemFile &memfile = *undo_reader->memfile;
       if (memfile.shared_storage) {
         /* Check if the data was saved with sharing-info. */
-        if (const blender::ImplicitSharingInfo *sharing_info =
-                memfile.shared_storage->map.lookup_default(old_address, nullptr))
+        if (const blender::ImplicitSharingInfoAndData *sharing_info_data =
+                memfile.shared_storage->sharing_info_by_address_id.lookup_ptr(old_address_id))
         {
           /* Add a new owner of the data that is passed to the caller. */
-          sharing_info->add_user();
-          return {sharing_info, old_address};
+          sharing_info_data->sharing_info->add_user();
+          return *sharing_info_data;
         }
       }
     }
   }
 
   if (const blender::ImplicitSharingInfoAndData *shared_data =
-          reader->shared_data_by_stored_address.lookup_ptr(old_address))
+          reader->shared_data_by_stored_address.lookup_ptr(old_address_id))
   {
     /* The data was loaded before. No need to load it again. Just increase the user count to
      * indicate that it is shared. */
@@ -5869,7 +5890,7 @@ blender::ImplicitSharingInfoAndData blo_read_shared_impl(
   const blender::ImplicitSharingInfo *sharing_info = read_fn();
   const void *new_address = *ptr_p;
   const blender::ImplicitSharingInfoAndData shared_data{sharing_info, new_address};
-  reader->shared_data_by_stored_address.add(old_address, shared_data);
+  reader->shared_data_by_stored_address.add(old_address_id, shared_data);
   return shared_data;
 }
 

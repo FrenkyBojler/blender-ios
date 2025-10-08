@@ -498,6 +498,12 @@ static void propagate_right_to_left(const bNodeTree &tree,
             Vector<int, 8> inputs_with_links;
             for (const int input : node_interface.outputs[output].linked_inputs) {
               const bNodeSocket &input_socket = *input_sockets[input];
+              if (input_requirements[input_socket.index_in_all_inputs()] ==
+                  DataRequirement::Single)
+              {
+                /* Inputs which require a single value can't get a different requirement. */
+                continue;
+              }
               if (input_socket.is_directly_linked()) {
                 inputs_with_links.append(input_socket.index_in_all_inputs());
               }
@@ -697,7 +703,11 @@ static void propagate_left_to_right(const bNodeTree &tree,
   }
 
   /* Outputs of these nodes have dynamic structure type but should start out as single values. */
-  for (const StringRefNull idname : {"GeometryNodeRepeatInput", "GeometryNodeRepeatOutput"}) {
+  for (const StringRefNull idname : {"GeometryNodeRepeatInput",
+                                     "GeometryNodeRepeatOutput",
+                                     "GeometryNodeSimulationInput",
+                                     "GeometryNodeSimulationOutput"})
+  {
     for (const bNode *node : tree.nodes_by_type(idname)) {
       for (const bNodeSocket *socket : node->output_sockets()) {
         structure_types[socket->index_in_tree()] = StructureType::Single;
