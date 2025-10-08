@@ -2614,10 +2614,10 @@ void mesh_uv_select_to_single_attribute(Mesh &mesh)
     CustomData_free_layer_named(&mesh.corner_data, uv_select_edge_name_shared);
     CustomData_free_layer_named(&mesh.face_data, uv_select_face_name_shared);
 
-    STRNCPY(mesh.corner_data.layers[uv_select_vert].name, uv_select_vert_name_shared.c_str());
-    STRNCPY(mesh.corner_data.layers[uv_select_edge].name, uv_select_edge_name_shared.c_str());
+    STRNCPY_UTF8(mesh.corner_data.layers[uv_select_vert].name, uv_select_vert_name_shared.c_str());
+    STRNCPY_UTF8(mesh.corner_data.layers[uv_select_edge].name, uv_select_edge_name_shared.c_str());
 
-    bool *uv_select_face = MEM_calloc_arrayN<bool>(mesh.faces_num, __func__);
+    bool *uv_select_face = MEM_malloc_arrayN<bool>(mesh.faces_num, __func__);
     CustomData_add_layer_named_with_data(&mesh.face_data,
                                          CD_PROP_BOOL,
                                          uv_select_face,
@@ -2627,31 +2627,20 @@ void mesh_uv_select_to_single_attribute(Mesh &mesh)
 
     /* Create a face selection layer (flush from edges). */
     if (mesh.faces_num > 0) {
-      Span<int> corner_edges = mesh.corner_edges();
-      const int *face_offsets = mesh.face_offset_indices;
-      const bool *uv_select_edge_data = static_cast<bool *>(
-          mesh.corner_data.layers[uv_select_edge].data);
-      int corner_end = face_offsets[0];
-      for (const int face : IndexRange(mesh.faces_num)) {
-        int corner_start = corner_end;
-        corner_end = face_offsets[face + 1];
-        bool select_all = true;
-        for (int corner = corner_start; corner < corner_end; corner++) {
-          const int edge = corner_edges[corner];
-          if (uv_select_edge_data[edge] == false) {
-            select_all = false;
-            break;
-          }
+      const OffsetIndices<int> faces = mesh.faces();
+      const Span<bool> uv_select_edge_data(
+          static_cast<bool *>(mesh.corner_data.layers[uv_select_edge].data), mesh.corners_num);
+      threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
+        for (const int face : range) {
+          uv_select_face[face] = !uv_select_edge_data.slice(faces[face]).contains(false);
         }
-        if (select_all) {
-          uv_select_face[face] = true;
-        }
-        corner_end = corner_start;
-      }
+      });
     }
   }
 
-  Set<std::string> attributes_to_remove;
+  /* Logically a set as names are expected to be unique.
+   * If there are duplicates, this will remove those too. */
+  Vector<std::string> attributes_to_remove;
   for (const int i : IndexRange(mesh.corner_data.totlayer)) {
     const CustomDataLayer &layer = mesh.corner_data.layers[i];
     if (layer.type != CD_PROP_BOOL) {
@@ -2661,7 +2650,7 @@ void mesh_uv_select_to_single_attribute(Mesh &mesh)
     if (layer_name.startswith(uv_select_vert_prefix) ||
         layer_name.startswith(uv_select_edge_prefix))
     {
-      attributes_to_remove.add(layer.name);
+      attributes_to_remove.append(layer.name);
     }
   }
 
@@ -2670,7 +2659,6 @@ void mesh_uv_select_to_single_attribute(Mesh &mesh)
   }
 }
 
-//
 }  // namespace blender::bke
 
 /** \} */
