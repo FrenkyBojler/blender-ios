@@ -74,14 +74,6 @@ static void copy_loose_vert_hint(const Mesh &src, Mesh &dst)
   }
 }
 
-static void copy_loose_edge_hint(const Mesh &src, Mesh &dst)
-{
-  const auto &src_cache = src.runtime->loose_edges_cache;
-  if (src_cache.is_cached() && src_cache.data().count == 0) {
-    dst.tag_loose_edges_none();
-  }
-}
-
 namespace quad {
 
 /**
@@ -238,17 +230,6 @@ static OffsetIndices<int> calc_tris_by_ngon(const OffsetIndices<int> src_faces,
     face_offset_data[mask] = bke::mesh::face_triangles_num(src_faces[face].size());
   });
   return offset_indices::accumulate_counts_to_offsets(face_offset_data);
-}
-
-static OffsetIndices<int> calc_edges_by_ngon(const OffsetIndices<int> src_faces,
-                                             const IndexMask &selection,
-                                             MutableSpan<int> edge_offset_data)
-{
-  selection.foreach_index(GrainSize(2048), [&](const int face, const int mask) {
-    /* The number of new inner edges for each face is the number of corners - 3. */
-    edge_offset_data[mask] = src_faces[face].size() - 3;
-  });
-  return offset_indices::accumulate_counts_to_offsets(edge_offset_data);
 }
 
 static void calc_corner_tris(const Span<float3> positions,
