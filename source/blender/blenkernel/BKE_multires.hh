@@ -162,7 +162,10 @@ bool multiresModifier_reshapeFromCCG(int tot_level, Mesh *coarse_mesh, SubdivCCG
  * When moving from level n to level n - 1, stores the tangent space displacment on a CCG level
  * for all vertices between the CCG at level N and the subdivided position of N - 1.
  */
-bool multiresModifier_storeHigherLevelDelta(Object &object, const Mesh &coarse_mesh, SubdivCCG &higher_subdiv_ccg, SubdivCCG &lower_subdiv_ccg);
+bool multiresModifier_storeHigherLevelDelta(Object &object,
+                                            const Mesh &coarse_mesh,
+                                            SubdivCCG &higher_subdiv_ccg,
+                                            SubdivCCG &lower_subdiv_ccg);
 
 /* Subdivide multi-res displacement once. */
 

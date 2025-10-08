@@ -139,46 +139,59 @@ bool multiresModifier_reshapeFromCCG(const int tot_level, Mesh *coarse_mesh, Sub
   return true;
 }
 
-static blender::MutableSpan<blender::float3> multires_ensure_higher_delta_storage(Object &object, Mesh &coarse_mesh, const int level)
+static blender::MutableSpan<blender::float3> multires_ensure_higher_delta_storage(
+    Object &object, Mesh &coarse_mesh, const int level)
 {
   /* TODO: Ensure storage on the object, sized appropriately. */
   return {};
 }
 
-static void multires_reshape_calculate_object_delta(MultiresReshapeContext *reshape_context, SubdivCCG &higher_subdiv_ccg, blender::MutableSpan<blender::float3> object_delta)
+static void multires_reshape_calculate_object_delta(
+    MultiresReshapeContext *reshape_context,
+    SubdivCCG &higher_subdiv_ccg,
+    blender::MutableSpan<blender::float3> object_delta)
 {
-  /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into object_delta */
+  /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
+   * object_delta */
 }
 
-static void multires_reshape_object_delta_to_tangent_delta(MultiresReshapeContext *reshape_context, Object &object)
+static void multires_reshape_object_delta_to_tangent_delta(MultiresReshapeContext *reshape_context,
+                                                           Object &object)
 {
   /* TODO: Convert each object_delta into tangent_delta */
 }
 
-bool multiresModifier_storeHigherLevelDelta(Object &object, Mesh &coarse_mesh, SubdivCCG &higher_subdiv_ccg, SubdivCCG &lower_subdiv_ccg)
+bool multiresModifier_storeHigherLevelDelta(Object &object,
+                                            const Mesh &coarse_mesh,
+                                            SubdivCCG &higher_subdiv_ccg,
+                                            SubdivCCG &lower_subdiv_ccg)
 {
   /* When switching to lower levels... */
   /* Evaluate this twice, once for M(n - 1) and once for M(n)
   /* At this point, the subdiv_ccg has the correct positions of M(n - 1) */
   /* Construct an evaluator from this subdiv ccg. */
   /* Use the evaluator get the limit surface positions and the tangent matrices */
-  /* For each vertex, V of N, MV = SubdivCCG position (object space), LV = Limit position (object space) */
+  /* For each vertex, V of N, MV = SubdivCCG position (object space), LV = Limit position (object
+   * space) */
   /* Delta = (MV - LV) * LMat */
 
   MultiresReshapeContext reshape_context;
-  if (!multires_reshape_context_create_from_ccg( &reshape_context, &lower_subdiv_ccg, &coarse_mesh, higher_subdiv_ccg.level))
+  if (!multires_reshape_context_create_from_ccg(
+          &reshape_context, &lower_subdiv_ccg, &coarse_mesh, higher_subdiv_ccg.level))
   {
     return false;
   }
 
-  blender::MutableSpan<blender::float3> higher_storage = multires_ensure_higher_delta_storage(object, coarse_mesh, reshape_context.top.level);
+  blender::MutableSpan<blender::float3> higher_storage = multires_ensure_higher_delta_storage(
+      object, coarse_mesh, reshape_context.top.level);
 
   if (!multires_reshape_assign_final_coords_from_ccg(&reshape_context, &lower_subdiv_ccg)) {
     multires_reshape_context_free(&reshape_context);
     return false;
   }
 
-  multires_reshape_smooth_object_grids_v2(&reshape_context, MultiresSubdivideModeType::CatmullClark);
+  multires_reshape_smooth_object_grids_v2(&reshape_context,
+                                          MultiresSubdivideModeType::CatmullClark);
   multires_reshape_calculate_object_delta(&reshape_context, higher_subdiv_ccg, higher_storage);
   multires_reshape_object_delta_to_tangent_delta(&reshape_context, object);
   multires_reshape_context_free(&reshape_context);
