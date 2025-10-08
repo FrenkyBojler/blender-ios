@@ -70,8 +70,8 @@ void main()
    * good rays by evaluating null radiance transfer between the coplanar surfels for rays that
    * are not directly perpendicular to the surface. */
 
-  /* Avoid this step to produce TDR in setup that contains very complex path.
-   * This creates overshadowing. */
+  /* Limiting the total number of search steps avoids TDRs, but may cause overshadowing if the
+   * limit is reached. */
   const int max_search = 2000;
   uint search_count = 0;
 
