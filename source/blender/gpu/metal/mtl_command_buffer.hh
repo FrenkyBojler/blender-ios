@@ -10,8 +10,11 @@
 #include "mtl_memory.hh"
 #include "mtl_texture.hh"
 
-using namespace blender;
-using namespace blender::gpu;
+/* Metal profiling tools complain about redundant bindings. Using our own tracking mechanism we can
+ * avoid these redundant binds. Set to 0 to turn off this feature. */
+#define MTL_ENABLE_REDUNDANT_BINDING_OPTIMIZATION 1
+/* Avoid using the offset only update and force rebind even if buffer is the same. */
+#define MTL_FORCE_BUFFER_REBIND 0
 
 namespace blender::gpu {
 
@@ -60,9 +63,6 @@ struct MTLSamplerBinding {
 
 /* Caching of CommandEncoder Vertex/Fragment buffer bindings. */
 struct MTLBufferBindingCached {
-  /* Whether the given binding slot uses byte data (Push Constant equivalent)
-   * or an MTLBuffer. */
-  bool is_bytes = false;
   id<MTLBuffer> metal_buffer = nil;
   uint64_t offset = -1;
 };
@@ -151,18 +151,19 @@ void MTLBindingCache<CommandEncoderT>::bind_buffer(CommandEncoderT enc,
   BLI_assert(index < MTL_MAX_BUFFER_BINDINGS);
   MTLBufferBindingCached &binding = this->buffer_bindings[index];
 
-  if (binding.metal_buffer == buf && binding.offset == offset && binding.is_bytes) {
+#if MTL_ENABLE_REDUNDANT_BINDING_OPTIMIZATION
+  if (binding.metal_buffer == buf && binding.offset == offset) {
     return;
   }
+#endif
 
-  if (binding.metal_buffer == buf) {
+  if (binding.metal_buffer == buf && MTL_FORCE_BUFFER_REBIND == 0) {
     enc.set_buffer_offset(offset, index);
   }
   else {
     enc.set_buffer(buf, offset, index);
   }
 
-  binding.is_bytes = false;
   binding.metal_buffer = buf;
   binding.offset = offset;
 }
@@ -190,7 +191,6 @@ void MTLBindingCache<CommandEncoderT>::bind_bytes(CommandEncoderT enc,
 
   enc.set_bytes(bytes, length, index);
 
-  binding.is_bytes = true;
   binding.metal_buffer = nil;
   binding.offset = -1;
 }
@@ -205,9 +205,11 @@ void MTLBindingCache<CommandEncoderT>::bind_texture(CommandEncoderT enc,
   BLI_assert(index < MTL_MAX_TEXTURE_SLOTS);
   MTLTextureBindingCached &binding = this->texture_bindings[index];
 
+#if MTL_ENABLE_REDUNDANT_BINDING_OPTIMIZATION
   if (binding.metal_texture == tex) {
     return;
   }
+#endif
 
   enc.set_texture(tex, index);
 
@@ -226,12 +228,14 @@ void MTLBindingCache<CommandEncoderT>::bind_sampler(CommandEncoderT enc,
   BLI_assert(index < MTL_MAX_TEXTURE_SLOTS);
   MTLSamplerStateBindingCached &binding = this->sampler_state_bindings[index];
 
+#if MTL_ENABLE_REDUNDANT_BINDING_OPTIMIZATION
   /* If sampler state has not changed for the given slot, we do not need to fetch. */
   if (binding.sampler_state != nil && binding.binding_state == binding_state &&
       !use_samplers_argument_buffer)
   {
     return;
   }
+#endif
 
   /* Flag last binding type. */
   binding.is_arg_buffer_binding = use_samplers_argument_buffer;
