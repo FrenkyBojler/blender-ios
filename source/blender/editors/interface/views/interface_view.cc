@@ -26,6 +26,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_rect.h"
+#include "BLI_time.h"
 
 #include "ED_screen.hh"
 
@@ -199,7 +200,8 @@ void ui_block_views_draw_overlays(const ARegion *region, const uiBlock *block)
 
 blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region,
                                                   const int xy[2],
-                                                  const int pad)
+                                                  const int pad,
+                                                  uiBlock **r_block)
 {
   /* NOTE: Similar to #ui_but_find_mouse_over_ex(). */
 
@@ -221,6 +223,9 @@ blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region,
         BLI_rcti_pad(&padded_bounds, pad, pad);
       }
       if (BLI_rcti_isect_pt(&padded_bounds, mx, my)) {
+        if (r_block != nullptr) {
+          *r_block = block;
+        }
         return view_link->view.get();
       }
     }
@@ -229,38 +234,17 @@ blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region,
   return nullptr;
 }
 
-void UI_region_view_scroll_at_borders(const ARegion *region, const int xy[2])
+void UI_region_view_scroll_at_borders(ARegion *region, const int xy[2])
 {
-  float mx, my;
-  /* NOTE: Same as #UI_region_view_find_at but we want mouse coordinates in block space. */
-  AbstractView *view = [&]() -> AbstractView * {
-    if (!ui_region_contains_point_px(region, xy)) {
-      return nullptr;
-    }
-    LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
-      mx = xy[0];
-      my = xy[1];
-      ui_window_to_block_fl(region, block, &mx, &my);
-
-      LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
-        std::optional<rcti> bounds = view_link->view->get_bounds();
-        if (!bounds) {
-          continue;
-        }
-
-        rcti padded_bounds = *bounds;
-        BLI_rcti_pad(&padded_bounds, 0, UI_UNIT_Y);
-        if (BLI_rcti_isect_pt(&padded_bounds, mx, my)) {
-          return view_link->view.get();
-        }
-      }
-    }
-    return nullptr;
-  }();
-
+  uiBlock *block = nullptr;
+  AbstractView *view = UI_region_view_find_at(region, xy, UI_UNIT_Y, &block);
   if (view == nullptr) {
     return;
   }
+
+  float mx = xy[0];
+  float my = xy[1];
+  ui_window_to_block_fl(region, block, &mx, &my);
 
   std::optional<rcti> bounds = view->get_bounds();
   rcti top_bounds = *bounds;
@@ -274,6 +258,9 @@ void UI_region_view_scroll_at_borders(const ARegion *region, const int xy[2])
   else if (BLI_rcti_isect_pt(&bottom_bounds, mx, my)) {
     view->scroll(ViewScrollDirection::DOWN);
   }
+
+  ED_region_tag_redraw(region);
+  BLI_time_sleep_ms(30);
 }
 
 ui::AbstractViewItem *UI_region_views_find_item_at(const ARegion &region, const int xy[2])

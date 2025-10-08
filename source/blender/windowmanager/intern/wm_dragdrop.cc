@@ -594,16 +594,24 @@ void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
   CTX_store_set(C, nullptr);
 }
 
-void wm_drags_check_ops(bContext *C, const wmEvent *event)
+void wm_drags_handle_events(bContext *C, const wmEvent *event)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  if (!(ELEM(event->type, MOUSEMOVE, EVT_DROP) || ISKEYMODIFIER(event->type))) {
+    return;
+  }
 
+  wmWindowManager *wm = CTX_wm_manager(C);
+  ARegion *region = CTX_wm_region(C);
   bool any_active = false;
+
   LISTBASE_FOREACH (wmDrag *, drag, &wm->runtime->drags) {
     wm_drop_update_active(C, drag, event);
 
     if (drag->drop_state.active_dropbox) {
       any_active = true;
+      if (region && drag->drop_state.active_dropbox->on_hover) {
+        drag->drop_state.active_dropbox->on_hover(region, event->xy);
+      }
     }
   }
 
@@ -1284,10 +1292,6 @@ void wm_drags_draw(bContext *C, wmWindow *win)
         wmViewport(&region->winrct);
         drag->drop_state.active_dropbox->draw_in_view(C, win, drag, xy);
         wmWindowViewport(win);
-      }
-
-      if (region && drag->drop_state.active_dropbox->scroll_view) {
-        drag->drop_state.active_dropbox->scroll_view(region, xy);
       }
 
       /* Drawing should be allowed to assume the context from handling and polling (that's why we
