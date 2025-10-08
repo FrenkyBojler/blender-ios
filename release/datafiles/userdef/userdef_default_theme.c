@@ -122,13 +122,13 @@ const bTheme U_theme_default = {
       .roundness = 0.2f,
     },
     .wcol_curve = {
-      .outline = RGBA(0x727272ff),
-      .outline_sel = RGBA(0x9a9a9aff),
-      .inner = RGBA(0x545454ff),
-      .inner_sel = RGBA(0x000000ff),
-      .item = RGBA(0x00000059),
-      .text = RGBA(0x08080800),
-      .text_sel = RGBA(0xc9c9c900),
+      .outline = RGBA(0x3d3d3dff),
+      .outline_sel = RGBA(0x545454ff),
+      .inner = RGBA(0x1d1d1d80),
+      .inner_sel = RGBA(0x9a9a9aff),
+      .item = RGBA(0xffffff29),
+      .text = RGBA(0xb3b3b300),
+      .text_sel = RGBA(0xffffff00),
       .roundness = 0.2f,
     },
     .wcol_menu = {
@@ -289,7 +289,7 @@ const bTheme U_theme_default = {
   },
   .regions = {
     .asset_shelf = {
-      .back = RGBA(0x303030ff),
+      .back = RGBA(0x303030e6),
       .header_back = RGBA(0x1d1d1dff),
     },
     .channels = {
@@ -298,10 +298,10 @@ const bTheme U_theme_default = {
       .text_selected = RGBA(0xffaf23ff),
     },
     .scrubbing = {
-      .back = RGBA(0x161616ff),
-      .text = RGBA(0xc3c3c3ff),
-      .time_marker = RGBA(0xffffff4d),
-      .time_marker_selected = RGBA(0xffffffb3),
+      .back = RGBA(0x1d1d1dff),
+      .text = RGBA(0x808080ff),
+      .time_marker = RGBA(0xffffff80),
+      .time_marker_selected = RGBA(0xffffffff),
     },
     .sidebars = {
       .back = RGBA(0x30303000),
@@ -312,7 +312,6 @@ const bTheme U_theme_default = {
     .anim = {
       .playhead = RGBA(0x4772b3ff),
       .preview_range = RGBA(0xa14d0066),
-      .scene_strip_range = RGBA(0x00000080),
       .channels = RGBA(0x194e8080),
       .channels_sub = RGBA(0x0f2c4d80),
       .channel_group = RGBA(0x1a332d37),
@@ -333,6 +332,7 @@ const bTheme U_theme_default = {
       .keyframe_generated_selected = RGBA(0xa28962ff),
       .long_key = RGBA(0xffffff1f),
       .long_key_selected = RGBA(0xff8c0099),
+      .scene_strip_range = RGBA(0x00000080),
     },
     .curves = {
       .handle_free = RGBA(0x745900ff),
@@ -646,15 +646,15 @@ const bTheme U_theme_default = {
     .row_alternate = RGBA(0xffffff04),
   },
   .space_node = {
-    .back = RGBA(0x1d1d1d00),
+    .back = RGBA(0x1a1a1a00),
     .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
-    .header = RGBA(0x1d1d1db3),
+    .header = RGBA(0x1a1a1ab3),
     .header_text = RGBA(0xeeeeeeff),
     .header_text_hi = RGBA(0xffffffff),
     .shade2 = RGBA(0x7f7f7f64),
-    .grid = RGBA(0x28282800),
+    .grid = RGBA(0x30303000),
     .wire = RGBA(0x1a1a1aff),
     .select = RGBA(0xed5700ff),
     .active = RGBA(0xffffffff),

@@ -390,6 +390,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.scene_strip_range);
   }
 
+  /* Reset the theme due to compatibility breaking changes in 5.0. */
+  if (!USER_VERSION_ATLEAST(500, 109)) {
+    MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
