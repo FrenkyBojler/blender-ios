@@ -1,2 +1,3 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by pull request #147595, Fix: Crash when prefetching scene strip
+Referenced by commit 7b7b5a5fcd511feb3be8d0d00a4de6735c2f5e30, Fix: Crash when prefetching scene strip
