@@ -405,7 +405,7 @@ static Span<int3> tri_to_ordered_tri(MutableSpan<int3> tris)
   return tris;
 }
 
-static IndexMask face_tris_mask(const OffsetIndices<int> faces,
+static IndexMask face_tris_mask(const OffsetIndices<int> src_faces,
                                 const IndexMask &mask,
                                 IndexMaskMemory &memory)
 {
@@ -418,8 +418,7 @@ static IndexMask face_tris_mask(const OffsetIndices<int> faces,
           const IndexRange universe_as_range = unique_sorted_indices::non_empty_as_range(
               universe_segment.base_span());
           const IndexRange segment_range = universe_as_range.shift(universe_segment.offset());
-          const OffsetIndices segment_faces = faces.slice(segment_range);
-
+          const OffsetIndices segment_faces = src_faces.slice(segment_range);
           if (segment_faces.total_size() == segment_faces.size() * 3) {
             /* All faces in segment are triangles. */
             builder.add_range(universe_as_range.start(), universe_as_range.one_after_last());
@@ -429,7 +428,7 @@ static IndexMask face_tris_mask(const OffsetIndices<int> faces,
 
         for (const int16_t i : universe_segment.base_span()) {
           const int face = int(universe_segment.offset() + i);
-          if (faces[face].size() == 3) {
+          if (src_faces[face].size() == 3) {
             builder.add(i);
           }
         }
@@ -499,21 +498,16 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   IndexMaskMemory memory;
 
   /* If there is a lot of triangles in a mesh they can be fast skipped for filtering. */
-  const IndexMask tris_mask = face_tris_mask(src_faces, IndexRange(src_mesh.faces_num), memory);
-  const IndexMask selected_faces_mask = IndexMask::from_difference(
-      selection_with_tris, tris_mask, memory);
+  const IndexMask src_tris = face_tris_mask(src_faces, src_faces.index_range(), memory);
+  const IndexMask selection = IndexMask::from_difference(selection_with_tris, src_tris, memory);
 
   /* Divide the input selection into separate selections for each face type. This isn't necessary
    * for correctness, but considering groups of each face type separately simplifies optimizing
    * for each type. For example, quad triangulation is much simpler than Ngon triangulation. */
   const IndexMask quads = IndexMask::from_predicate(
-      selected_faces_mask, GrainSize(4096), memory, [&](const int i) {
-        return src_faces[i].size() == 4;
-      });
+      selection, GrainSize(4096), memory, [&](const int i) { return src_faces[i].size() == 4; });
   const IndexMask ngons = IndexMask::from_predicate(
-      selected_faces_mask, GrainSize(4096), memory, [&](const int i) {
-        return src_faces[i].size() > 4;
-      });
+      selection, GrainSize(4096), memory, [&](const int i) { return src_faces[i].size() > 4; });
   if (quads.is_empty() && ngons.is_empty()) {
     /* All selected faces are already triangles. */
     return std::nullopt;
@@ -584,18 +578,18 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   /* Since currently deduplication is greedy there is no mix of data of deduplicated triangles,
    * instead some of them are removed. Priority: Original triangles removed if any of new triangles
    * are the same. For all new triangles here is direct order dependency. */
-  const IndexMask skip_tris_mask = tris_in_set(
-      tris_mask, src_faces, src_corner_verts, distinct_tris, memory);
+  const IndexMask src_tris_duplicated = tris_in_set(
+      src_tris, src_faces, src_corner_verts, distinct_tris, memory);
 
   index_mask::ExprBuilder mask_builder;
-  const IndexMask distinct_original_faces = index_mask::evaluate_expression(
-      mask_builder.subtract(IndexRange(src_mesh.faces_num), {&quads, &ngons, &skip_tris_mask}),
+  const IndexMask distinct_src_faces = index_mask::evaluate_expression(
+      mask_builder.subtract(src_faces.index_range(), {&quads, &ngons, &src_tris_duplicated}),
       memory);
 
-  const IndexRange distinct_faces_range(distinct_tri_num + distinct_original_faces.size());
+  const IndexRange distinct_faces_range(distinct_tri_num + distinct_src_faces.size());
   const IndexRange distinct_tri_range = distinct_faces_range.take_front(distinct_tri_num);
   const IndexRange distinct_src_faces_range = distinct_faces_range.take_back(
-      distinct_original_faces.size());
+      distinct_src_faces.size());
 
   /* Create a mesh with no face corners.
    * - We haven't yet counted the number of corners from unselected faces. Creating the final face
@@ -611,7 +605,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   const int total_new_tri_corners = distinct_tri_range.size() * 3;
   offset_indices::gather_selected_offsets(
       src_faces,
-      distinct_original_faces,
+      distinct_src_faces,
       total_new_tri_corners,
       dst_offsets.take_back(distinct_src_faces_range.size() + 1));
 
@@ -661,9 +655,8 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
     bke::attribute_math::gather(attribute.src,
                                 dst_tri_to_src_face.as_span(),
                                 attribute.dst.span.slice(distinct_tri_range));
-    array_utils::gather(attribute.src,
-                        distinct_original_faces,
-                        attribute.dst.span.slice(distinct_src_faces_range));
+    array_utils::gather(
+        attribute.src, distinct_src_faces, attribute.dst.span.slice(distinct_src_faces_range));
     attribute.dst.finish();
   }
   if (CustomData_has_layer(&src_mesh.face_data, CD_ORIGINDEX)) {
@@ -675,7 +668,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
                     mesh->faces_num);
 
     array_utils::gather(src, dst_tri_to_src_face.as_span(), dst.slice(distinct_tri_range));
-    array_utils::gather(src, distinct_original_faces, dst.slice(distinct_src_faces_range));
+    array_utils::gather(src, distinct_src_faces, dst.slice(distinct_src_faces_range));
   }
 
   attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
@@ -683,7 +676,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   array_utils::gather_group_to_group(src_faces,
                                      faces.slice(distinct_src_faces_range),
-                                     distinct_original_faces,
+                                     distinct_src_faces,
                                      src_corner_verts,
                                      corner_verts);
   array_utils::gather(src_corner_verts,
@@ -699,8 +692,8 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   {
     bke::attribute_math::gather_group_to_group(
         src_faces,
-        faces.slice(IndexRange(distinct_tri_num, distinct_original_faces.size())),
-        distinct_original_faces,
+        faces.slice(IndexRange(distinct_tri_num, distinct_src_faces.size())),
+        distinct_src_faces,
         attribute.src,
         attribute.dst.span);
     bke::attribute_math::gather(attribute.src,
@@ -714,7 +707,6 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
 
   mesh->runtime->bounds_cache = src_mesh.runtime->bounds_cache;
   copy_loose_vert_hint(src_mesh, *mesh);
-  // copy_loose_edge_hint(src_mesh, *mesh);
   if (src_mesh.no_overlapping_topology()) {
     mesh->tag_overlapping_none();
   }
