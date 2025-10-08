@@ -241,7 +241,7 @@ PointerRNA RNA_pointer_create_from_ancestor(const PointerRNA &ptr, const int anc
 
 bool RNA_pointer_is_null(const PointerRNA *ptr)
 {
-  return (ptr->data == nullptr) || (ptr->owner_id == nullptr) || (ptr->type == nullptr);
+  return (ptr->data == nullptr) || (ptr->type == nullptr);
 }
 
 PointerRNA RNA_blender_rna_pointer_create()
@@ -2208,13 +2208,23 @@ int RNA_property_enum_bitflag_identifiers(
   return 0;
 }
 
-const char *RNA_property_ui_name(const PropertyRNA *prop)
+const char *RNA_property_ui_name(const PropertyRNA *prop, const PointerRNA *ptr)
 {
+  if (ptr && prop->magic == RNA_MAGIC && prop->ui_name_func) {
+    if (const char *name = prop->ui_name_func(ptr, prop, true)) {
+      return name;
+    }
+  }
   return CTX_IFACE_(RNA_property_translation_context(prop), rna_ensure_property_name(prop));
 }
 
-const char *RNA_property_ui_name_raw(const PropertyRNA *prop)
+const char *RNA_property_ui_name_raw(const PropertyRNA *prop, const PointerRNA *ptr)
 {
+  if (ptr && prop->magic == RNA_MAGIC && prop->ui_name_func) {
+    if (const char *name = prop->ui_name_func(ptr, prop, false)) {
+      return name;
+    }
+  }
   return rna_ensure_property_name(prop);
 }
 
@@ -4434,7 +4444,7 @@ int RNA_property_enum_step(
   return result_value;
 }
 
-PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop)
+static PointerRNA property_pointer_get(PointerRNA *ptr, PropertyRNA *prop, const bool do_create)
 {
   PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
   IDProperty *idprop;
@@ -4460,7 +4470,7 @@ PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop)
   if (pprop->get) {
     return pprop->get(ptr);
   }
-  if (prop->flag & PROP_IDPROPERTY) {
+  if (prop->flag & PROP_IDPROPERTY && do_create) {
     /* NOTE: While creating/writing data in an accessor is really bad design-wise, this is
      * currently very difficult to avoid in that case. So a global mutex is used to keep ensuring
      * thread safety. */
@@ -4471,6 +4481,16 @@ PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop)
     return RNA_property_pointer_get(ptr, prop);
   }
   return PointerRNA_NULL;
+}
+
+PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop)
+{
+  return property_pointer_get(ptr, prop, true);
+}
+
+PointerRNA RNA_property_pointer_get_never_create(PointerRNA *ptr, PropertyRNA *prop)
+{
+  return property_pointer_get(ptr, prop, false);
 }
 
 void RNA_property_pointer_set(PointerRNA *ptr,

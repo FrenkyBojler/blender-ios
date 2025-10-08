@@ -74,7 +74,7 @@ class MTLRenderPassState {
 
  public:
   MTLRenderPassState(MTLContext &context, MTLCommandBufferManager &command_buffer_manager)
-      : ctx(context), cmd(command_buffer_manager){};
+      : ctx(context), cmd(command_buffer_manager) {};
 
   /* Given a RenderPassState is associated with a live RenderCommandEncoder,
    * this state sits within the MTLCommandBufferManager. */
@@ -118,7 +118,7 @@ class MTLComputeState {
 
  public:
   MTLComputeState(MTLContext &context, MTLCommandBufferManager &command_buffer_manager)
-      : ctx(context), cmd(command_buffer_manager){};
+      : ctx(context), cmd(command_buffer_manager) {};
 
   /* Given a ComputePassState is associated with a live ComputeCommandEncoder,
    * this state sits within the MTLCommandBufferManager. */
@@ -521,7 +521,7 @@ class MTLCommandBufferManager {
 
  public:
   MTLCommandBufferManager(MTLContext &context)
-      : context_(context), render_pass_state_(context, *this), compute_state_(context, *this){};
+      : context_(context), render_pass_state_(context, *this), compute_state_(context, *this) {};
   void prepare(bool supports_render = true);
 
   /* If wait is true, CPU will stall until GPU work has completed. */
@@ -750,8 +750,8 @@ class MTLContext : public Context {
   bool debug_capture_scope_begin(void *scope) override;
   void debug_capture_scope_end(void *scope) override;
 
-  void debug_unbind_all_ubo() override{};
-  void debug_unbind_all_ssbo() override{};
+  void debug_unbind_all_ubo() override {};
+  void debug_unbind_all_ssbo() override {};
 
   /*** MTLContext Utility functions. */
   /*
