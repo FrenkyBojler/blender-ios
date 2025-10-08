@@ -2507,7 +2507,7 @@ static void do_version_lift_gamma_gain_srgb_to_linear(bNodeTree &node_tree, bNod
   bNodeSocket *type_input = blender::bke::node_find_socket(node, SOCK_IN, "Type");
   bNodeSocket *image_output = blender::bke::node_find_socket(node, SOCK_OUT, "Image");
 
-  /* Find the links going into and out of of the node. */
+  /* Find the links going into and out of the node. */
   bNodeLink *image_input_link = nullptr;
   bNodeLink *type_input_link = nullptr;
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
@@ -3932,6 +3932,12 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
           }
         }
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 105)) {
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      bke::mesh_uv_select_to_single_attribute(*mesh);
     }
   }
 
