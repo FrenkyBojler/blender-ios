@@ -24,6 +24,7 @@ static void transform_orientations_copy(ListBase *dst, const ListBase *src)
   BLI_duplicatelist(dst, src);
 }
 
+/* Capture current scene settings used in edit mode. */
 void ED_editmode_scene_state_capture(EditModeSceneState *dst, const Scene *scene)
 {
   transform_orientations_copy(&dst->transform_spaces, &scene->transform_spaces);
@@ -42,6 +43,7 @@ void ED_editmode_scene_state_capture(EditModeSceneState *dst, const Scene *scene
   }
 }
 
+/* Restore captured scene settings after undo. */
 void ED_editmode_scene_state_restore(Scene *scene, const EditModeSceneState *src)
 {
   transform_orientations_copy(&scene->transform_spaces, &src->transform_spaces);
@@ -51,7 +53,7 @@ void ED_editmode_scene_state_restore(Scene *scene, const EditModeSceneState *src
   if (!ts) {
     return;
   }
-    
+
   ts->proportional_edit = src->proportional_edit;
   ts->prop_mode = src->prop_mode;
   ts->proportional_size = src->proportional_size;
