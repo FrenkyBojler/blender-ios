@@ -29,7 +29,8 @@
 
 struct MeshGpuData {
   blender::bke::MeshGPUTopology topology;
-  blender::gpu::Shader *compute_shader = nullptr;
+  /* Support multiple compute shaders per mesh keyed by hash of generated source. */
+  std::unordered_map<size_t, blender::gpu::Shader *> compute_shaders;
 };
 
 static std::unordered_map<const Mesh *, MeshGpuData> g_mesh_data_cache;
@@ -45,10 +46,13 @@ static void mesh_gpu_orphans_flush()
   }
 
   for (MeshGpuData &d : g_mesh_data_orphans) {
-    if (d.compute_shader) {
-      GPU_shader_free(d.compute_shader);
-      d.compute_shader = nullptr;
+    for (auto &pair : d.compute_shaders) {
+      if (pair.second) {
+        GPU_shader_free(pair.second);
+        pair.second = nullptr;
+      }
     }
+    d.compute_shaders.clear();
     BKE_mesh_gpu_topology_free(d.topology);
   }
   g_mesh_data_orphans.clear();
@@ -322,33 +326,46 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     }
   }
 
-  if (!mesh_data.compute_shader) {
-    using namespace blender::gpu::shader;
-    ShaderCreateInfo info("mesh_compute_shader");
-    info.local_group_size(256, 1, 1);
-    info.compute_source("draw_colormanagement_lib.glsl");
+  using namespace blender::gpu::shader;
+  ShaderCreateInfo info("mesh_compute_shader");
+  info.local_group_size(256, 1, 1);
+  info.compute_source("draw_colormanagement_lib.glsl");
 
-    for (const auto &binding : caller_bindings) {
-      info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
-    }
-    info.storage_buf(MESH_GPU_TOPOLOGY_BINDING, Qualifier::read, "int", "topo[]");
+  for (const auto &binding : caller_bindings) {
+    info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
+  }
+  info.storage_buf(MESH_GPU_TOPOLOGY_BINDING, Qualifier::read, "int", "topo[]");
 
-    BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
+  BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
 
-    if (config_fn) {
-      config_fn(info);
-    }
-
-    std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
-    info.compute_source_generated = glsl_accessors + main_glsl;
-
-    mesh_data.compute_shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
-    if (!mesh_data.compute_shader) {
-      return blender::bke::GpuComputeStatus::Error;
-    }
+  if (config_fn) {
+    config_fn(info);
   }
 
-  GPU_shader_bind(mesh_data.compute_shader);
+  std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
+  info.compute_source_generated = glsl_accessors + main_glsl;
+
+  /* Compute a stable key for this shader variant (hash of full generated source). */
+  const std::string shader_source = info.compute_source_generated;
+  const size_t shader_key = std::hash<std::string>()(shader_source);
+
+  /* Lookup existing shader for this mesh + variant. */
+  blender::gpu::Shader *shader = nullptr;
+  auto it_shader = mesh_data.compute_shaders.find(shader_key);
+  if (it_shader != mesh_data.compute_shaders.end()) {
+    shader = it_shader->second;
+  }
+  else {
+    /* create shader from info */
+    blender::gpu::shader::ShaderCreateInfo info_copy = info; /* keep original */
+    shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info_copy);
+    if (!shader) {
+      return blender::bke::GpuComputeStatus::Error;
+    }
+    mesh_data.compute_shaders.emplace(shader_key, shader);
+  }
+
+  GPU_shader_bind(shader);
   for (const auto &binding : caller_bindings) {
     std::visit(
         [&](auto &&arg) {
@@ -371,11 +388,11 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   /* Allow caller to set runtime push-constants / uniforms after shader is bound
    * and before the dispatch. */
   if (post_bind_fn) {
-    post_bind_fn(mesh_data.compute_shader);
+    post_bind_fn(shader);
   }
   const int group_size = 256;
   const int num_groups = (dispatch_count + group_size - 1) / group_size;
-  GPU_compute_dispatch(mesh_data.compute_shader, num_groups, 1, 1);
+  GPU_compute_dispatch(shader, num_groups, 1, 1);
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
   GPU_shader_unbind();
@@ -407,10 +424,13 @@ void BKE_mesh_gpu_free_for_mesh(Mesh *mesh)
 
   if (GPU_context_active_get()) {
     /* Immediate GPU-safe deletion. */
-    if (data.compute_shader) {
-      GPU_shader_free(data.compute_shader);
-      data.compute_shader = nullptr;
+    for (auto &pair : data.compute_shaders) {
+      if (pair.second) {
+        GPU_shader_free(pair.second);
+        pair.second = nullptr;
+      }
     }
+    data.compute_shaders.clear();
     BKE_mesh_gpu_topology_free(data.topology);
   }
   else {
@@ -428,9 +448,11 @@ void BKE_mesh_gpu_free_all_caches()
   /* Free per-mesh cache entries. */
   for (auto &pair : g_mesh_data_cache) {
     MeshGpuData &data = pair.second;
-    if (data.compute_shader && GPU_context_active_get()) {
-      GPU_shader_free(data.compute_shader);
-      data.compute_shader = nullptr;
+    for (auto &sp : data.compute_shaders) {
+      if (sp.second && GPU_context_active_get()) {
+        GPU_shader_free(sp.second);
+        sp.second = nullptr;
+      }
     }
     BKE_mesh_gpu_topology_free(data.topology);
   }
