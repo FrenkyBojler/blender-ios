@@ -836,7 +836,7 @@ void generate_resources(GeneratedStreams &generated,
   }
 
   if (use_sampler_argument_buffer) {
-    generate_sampler_argument_buffer(generated, info.sampler_count());
+    generate_sampler_argument_buffer(generated, info.max_sampler_slot() + 1);
   }
 
   generate_uniforms(generated, info.push_constants_, stage);

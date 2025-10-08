@@ -1621,6 +1621,27 @@ struct ShaderCreateInfo {
     return count;
   }
 
+  int max_sampler_slot() const
+  {
+    int slot = 0;
+    for (const ShaderCreateInfo::Resource &res : this->pass_resources_) {
+      if (res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+        slot = std::max(slot, res.slot);
+      }
+    }
+    for (const ShaderCreateInfo::Resource &res : this->batch_resources_) {
+      if (res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+        slot = std::max(slot, res.slot);
+      }
+    }
+    for (const ShaderCreateInfo::Resource &res : this->geometry_resources_) {
+      if (res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+        slot = std::max(slot, res.slot);
+      }
+    }
+    return slot;
+  }
+
   /** \} */
 
 #  undef TEST_EQUAL

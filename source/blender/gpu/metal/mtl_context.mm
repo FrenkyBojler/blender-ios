@@ -758,7 +758,7 @@ static void bind_sampler_argument_buffer(
   BLI_assert(arg_buffer_idx < 32);
 
   const uint64_t tex_slot_mask = shader_interface.enabled_tex_mask_;
-  const uint max_sampler_index = 64 - bitscan_reverse_uint64(tex_slot_mask);
+  const uint max_sampler_index = 63 - bitscan_reverse_uint64(tex_slot_mask);
 
   /* Generate or Fetch argument buffer sampler configuration.
    * NOTE(Metal): we need to base sampler counts off of the maximal texture
