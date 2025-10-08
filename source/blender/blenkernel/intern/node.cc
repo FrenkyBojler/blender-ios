@@ -38,6 +38,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
+#include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -516,7 +517,7 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       NodeInputColor *input_color_storage = static_cast<NodeInputColor *>(node->storage);
       fn.single(input_color_storage->color);
     }
-    else if (node->type_legacy == TEX_NODE_VALTORGB || node->type_legacy == SH_NODE_VALTORGB) {
+    else if (ELEM(node->type_legacy, TEX_NODE_VALTORGB, SH_NODE_VALTORGB)) {
       ColorBand *coba = static_cast<ColorBand *>(node->storage);
       BKE_colorband_foreach_working_space_color(coba, fn);
     }
@@ -940,6 +941,16 @@ static void write_legacy_properties(bNodeTree &ntree)
           storage.limchan =
               limit_channel_socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
+        else if (node->type_legacy == CMP_NODE_DOUBLEEDGEMASK) {
+          bNodeSocket *image_edges_socket = node_find_socket(*node, SOCK_IN, "Image Edges");
+          node->custom2 = bool(
+              image_edges_socket->default_value_typed<bNodeSocketValueBoolean>()->value);
+
+          bNodeSocket *only_inside_outer_socket = node_find_socket(
+              *node, SOCK_IN, "Only Inside Outer");
+          node->custom1 = bool(
+              only_inside_outer_socket->default_value_typed<bNodeSocketValueBoolean>()->value);
+        }
       }
     }
     default:
@@ -1059,6 +1070,26 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
         /* The sockets of this item have the same identifiers that have been used by older
          * Blender versions before the node supported capturing multiple attributes. */
         storage.data_type_legacy = item.data_type;
+        break;
+      }
+    }
+  }
+  else if (node->type_legacy == GEO_NODE_VIEWER) {
+    /* Forward compatibility for older Blender versionins where the viewer node only had a geometry
+     * and field input. */
+    auto &storage = *static_cast<NodeGeometryViewer *>(node->storage);
+    for (const NodeGeometryViewerItem &item : Span{storage.items, storage.items_num}) {
+      if (ELEM(item.socket_type,
+               SOCK_FLOAT,
+               SOCK_INT,
+               SOCK_VECTOR,
+               SOCK_RGBA,
+               SOCK_BOOLEAN,
+               SOCK_ROTATION,
+               SOCK_MATRIX))
+      {
+        storage.data_type_legacy = *socket_type_to_custom_data_type(
+            eNodeSocketDatatype(item.socket_type));
         break;
       }
     }
@@ -3339,35 +3370,56 @@ void node_chain_iterator(const bNodeTree *ntree,
 }
 
 static void iter_backwards_ex(const bNodeTree *ntree,
-                              const bNode *node_start,
+                              bNode *node_start,
                               bool (*callback)(bNode *, bNode *, void *),
                               void *userdata,
                               const char recursion_mask)
 {
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node_start->inputs) {
-    bNodeLink *link = sock->link;
-    if (link == nullptr) {
-      continue;
-    }
-    if ((link->flag & NODE_LINK_VALID) == 0) {
-      /* Skip links marked as cyclic. */
-      continue;
-    }
-    if (link->fromnode->runtime->iter_flag & recursion_mask) {
-      continue;
-    }
+  blender::Stack<bNode *> stack;
+  blender::Stack<bNode *> zone_stack;
+  stack.push(node_start);
 
-    link->fromnode->runtime->iter_flag |= recursion_mask;
+  while (!stack.is_empty() || !zone_stack.is_empty()) {
+    bNode *node = !stack.is_empty() ? stack.pop() : zone_stack.pop();
 
-    if (!callback(link->fromnode, link->tonode, userdata)) {
-      return;
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+      bNodeLink *link = sock->link;
+      if (link == nullptr) {
+        continue;
+      }
+      if ((link->flag & NODE_LINK_VALID) == 0) {
+        /* Skip links marked as cyclic. */
+        continue;
+      }
+      if (link->fromnode->runtime->iter_flag & recursion_mask) {
+        continue;
+      }
+
+      link->fromnode->runtime->iter_flag |= recursion_mask;
+
+      if (!callback(link->fromnode, link->tonode, userdata)) {
+        break;
+      }
+      stack.push(link->fromnode);
     }
-    iter_backwards_ex(ntree, link->fromnode, callback, userdata, recursion_mask);
+    /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
+     * even if there is no bNodeLink between them. */
+    if (const bNodeZoneType *zone_type = zone_type_by_node_type(node->type_legacy)) {
+      if (zone_type->output_type == node->type_legacy) {
+        if (bNode *zone_input_node = const_cast<bNode *>(
+                zone_type->get_corresponding_input(*ntree, *node)))
+        {
+          if (callback(zone_input_node, node, userdata)) {
+            zone_stack.push(zone_input_node);
+          }
+        }
+      }
+    }
   }
 }
 
 void node_chain_iterator_backwards(const bNodeTree *ntree,
-                                   const bNode *node_start,
+                                   bNode *node_start,
                                    bool (*callback)(bNode *, bNode *, void *),
                                    void *userdata,
                                    const int recursion_lvl)
@@ -4404,6 +4456,7 @@ void node_tree_free_tree(bNodeTree &ntree)
 {
   ntree_free_data(&ntree.id);
   BKE_animdata_free(&ntree.id, false);
+  BKE_libblock_free_runtime_data(&ntree.id);
 }
 
 void node_tree_free_embedded_tree(bNodeTree *ntree)
@@ -4943,6 +4996,24 @@ std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
 StringRefNull node_socket_label(const bNodeSocket &sock)
 {
   return (sock.label[0] != '\0') ? sock.label : sock.name;
+}
+
+const char *node_socket_translation_context(const bNodeSocket &sock)
+{
+  /* The node is not explicitly defined. */
+  if (sock.runtime->declaration == nullptr) {
+    return nullptr;
+  }
+
+  const std::optional<std::string> &translation_context =
+      sock.runtime->declaration->translation_context;
+
+  /* Default context. */
+  if (!translation_context.has_value()) {
+    return nullptr;
+  }
+
+  return translation_context->c_str();
 }
 
 NodeColorTag node_color_tag(const bNode &node)
