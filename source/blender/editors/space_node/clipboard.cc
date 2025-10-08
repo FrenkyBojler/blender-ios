@@ -170,6 +170,7 @@ struct NodeClipboard {
         }
         else {
           Library *new_id_lib = libraries_path_to_id.lookup_default(id_info.library_path, nullptr);
+          BLI_assert(!new_id_lib || !(new_id_lib->flag & LIBRARY_FLAG_IS_ARCHIVE));
           if (id_info.library_path.empty() || new_id_lib) {
             id_info.new_id = BKE_main_idmap_lookup_name(bmain_id_map,
                                                         GS(id_info.id_name.c_str()),
