@@ -121,7 +121,9 @@ struct NodeClipboard {
     Map<std::string, Library *> libraries_path_to_id;
     for (NodeClipboardItemIDInfo &id_info : this->old_ids_to_idinfo.values()) {
       id_info.new_id.reset();
-      if (!id_info.library_path.empty() && !libraries_path_to_id.contains(id_info.library_path)) {
+      if (!id_info.packed_id_hash.has_value() && !id_info.library_path.empty() &&
+          !libraries_path_to_id.contains(id_info.library_path))
+      {
         libraries_path_to_id.add(
             id_info.library_path,
             blender::bke::library::search_filepath_abs(&bmain.libraries, id_info.library_path));
