@@ -427,8 +427,8 @@ static void sound_device_use_begin()
 
 static void sound_device_use_end_after(const std::chrono::milliseconds after_ms)
 {
-  if (g_state.num_device_users <= 0) {
-    BLI_assert_unreachable();
+  BLI_assert(g_state.num_device_users > 0);
+  if (g_state.num_device_users == 0) {
     return;
   }
 
