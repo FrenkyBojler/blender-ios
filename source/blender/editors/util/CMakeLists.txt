@@ -37,7 +37,7 @@ set(SRC
   ../include/ED_curves.hh
   ../include/ED_curves_sculpt.hh
   ../include/ED_datafiles.h
-  ../include/ED_editmode_scene_state.hh
+  ../include/ED_scene_state.hh
   ../include/ED_file_indexer.hh
   ../include/ED_fileselect.hh
   ../include/ED_geometry.hh

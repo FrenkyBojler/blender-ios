@@ -13,7 +13,7 @@ set(INC_SYS
 )
 
 set(SRC
-  ED_editmode_scene_state.cc
+  ED_transform_scene_state.cc
   transform.cc
   transform_constraints.cc
   transform_convert.cc
