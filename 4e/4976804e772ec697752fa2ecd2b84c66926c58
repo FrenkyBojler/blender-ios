@@ -3,3 +3,4 @@ Referenced by issue #132167, Data-Block Embedding Technical Design
 Referenced by issue #147036, Shade Auto Smooth crashes Blender
 Referenced by issue #147162, Curves Sculpt: Invalid library for 'BRComb'
 Referenced by issue #147214, Asset import option "Append (reuse data)" is gone.
+Referenced by issue #147541, node groups created in 5.0 is Broken when imported as a modifier
