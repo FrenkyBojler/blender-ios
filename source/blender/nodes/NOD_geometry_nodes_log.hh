@@ -30,6 +30,7 @@
 
 #include <chrono>
 
+#include "BLI_cache_mutex.hh"
 #include "BLI_compute_context.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_generic_pointer.hh"
@@ -134,6 +135,11 @@ struct GeometryAttributeInfo {
   std::optional<bke::AttrType> data_type;
 };
 
+struct VolumeGridInfo {
+  std::string name;
+  VolumeGridType grid_type;
+};
+
 /**
  * Geometries are not logged entirely, because that would result in a lot of time and memory
  * overhead. Instead, only the data needed for UI features is logged.
@@ -167,7 +173,7 @@ class GeometryInfoLog : public ValueLog {
     int gizmo_transforms_num = 0;
   };
   struct VolumeInfo {
-    int grids_num;
+    Vector<VolumeGridInfo> grids;
   };
 
   std::optional<MeshInfo> mesh_info;
@@ -239,6 +245,9 @@ class ListInfoLog : public ValueLog {
  * Data logged by a viewer node when it is executed.
  */
 class ViewerNodeLog {
+  mutable CacheMutex main_geometry_cache_mutex_;
+  mutable std::optional<bke::GeometrySet> main_geometry_cache_;
+
  public:
   struct Item {
     int identifier;
@@ -255,7 +264,7 @@ class ViewerNodeLog {
 
   CustomIDVectorSet<Item, ItemIdentifierGetter> items;
 
-  std::optional<bke::GeometrySet> main_geometry() const;
+  const bke::GeometrySet *main_geometry() const;
 };
 
 using Clock = std::chrono::steady_clock;
