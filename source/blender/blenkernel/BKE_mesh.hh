@@ -24,6 +24,8 @@ struct AttributeMetaData;
 struct AttributeAccessorFunctions;
 struct AttributeMetaData;
 
+struct AttributeFilter;
+
 namespace mesh {
 /* -------------------------------------------------------------------- */
 /** \name Polygon Data Evaluation
@@ -387,6 +389,11 @@ Mesh *mesh_new_no_attributes(int verts_num, int edges_num, int faces_num, int co
 
 /** Calculate edges from faces. */
 void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, bool select_new_edges);
+
+void mesh_calc_edges(Mesh &mesh,
+                     bool keep_existing_edges,
+                     bool select_new_edges,
+                     const AttributeFilter &attribute_filter);
 
 void mesh_translate(Mesh &mesh, const float3 &translation, bool do_shape_keys);
 

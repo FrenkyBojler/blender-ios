@@ -318,14 +318,6 @@ bool BKE_attribute_rename(AttributeOwner &owner,
     char buffer_dst[MAX_CUSTOMDATA_LAYER_NAME];
 
     bke_attribute_rename_if_exists(owner,
-                                   BKE_uv_map_vert_select_name_get(layer->name, buffer_src),
-                                   BKE_uv_map_vert_select_name_get(result_name, buffer_dst),
-                                   reports);
-    bke_attribute_rename_if_exists(owner,
-                                   BKE_uv_map_edge_select_name_get(layer->name, buffer_src),
-                                   BKE_uv_map_edge_select_name_get(result_name, buffer_dst),
-                                   reports);
-    bke_attribute_rename_if_exists(owner,
                                    BKE_uv_map_pin_name_get(layer->name, buffer_src),
                                    BKE_uv_map_pin_name_get(result_name, buffer_dst),
                                    reports);
@@ -483,13 +475,6 @@ CustomDataLayer *BKE_attribute_duplicate(AttributeOwner &owner,
     /* Duplicate UV sub-attributes. */
     char buffer_src[MAX_CUSTOMDATA_LAYER_NAME];
     char buffer_dst[MAX_CUSTOMDATA_LAYER_NAME];
-
-    bke_attribute_copy_if_exists(owner,
-                                 BKE_uv_map_vert_select_name_get(name, buffer_src),
-                                 BKE_uv_map_vert_select_name_get(uniquename, buffer_dst));
-    bke_attribute_copy_if_exists(owner,
-                                 BKE_uv_map_edge_select_name_get(name, buffer_src),
-                                 BKE_uv_map_edge_select_name_get(uniquename, buffer_dst));
     bke_attribute_copy_if_exists(owner,
                                  BKE_uv_map_pin_name_get(name, buffer_src),
                                  BKE_uv_map_pin_name_get(uniquename, buffer_dst));
@@ -569,10 +554,6 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
 
           if (type == CD_PROP_FLOAT2 && domain == int(AttrDomain::Corner)) {
             char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-            BM_data_layer_free_named(
-                em->bm, data, BKE_uv_map_vert_select_name_get(name_copy, buffer));
-            BM_data_layer_free_named(
-                em->bm, data, BKE_uv_map_edge_select_name_get(name_copy, buffer));
             BM_data_layer_free_named(em->bm, data, BKE_uv_map_pin_name_get(name_copy, buffer));
           }
           return true;
@@ -616,8 +597,6 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
 
     if (bke::mesh::is_uv_map(metadata)) {
       char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-      attributes->remove(BKE_uv_map_vert_select_name_get(name_copy, buffer));
-      attributes->remove(BKE_uv_map_edge_select_name_get(name_copy, buffer));
       attributes->remove(BKE_uv_map_pin_name_get(name_copy, buffer));
     }
     return true;
@@ -1062,24 +1041,6 @@ bool BKE_color_attribute_supported(const Mesh &mesh, const StringRef name)
     return false;
   }
   return true;
-}
-
-StringRef BKE_uv_map_vert_select_name_get(const StringRef uv_map_name, char *buffer)
-{
-  BLI_assert(strlen(UV_VERTSEL_NAME) == 2);
-  BLI_assert(uv_map_name.size() < MAX_CUSTOMDATA_LAYER_NAME - 4);
-  const auto result = fmt::format_to_n(
-      buffer, MAX_CUSTOMDATA_LAYER_NAME, ".{}.{}", UV_VERTSEL_NAME, uv_map_name);
-  return StringRef(buffer, result.size);
-}
-
-StringRef BKE_uv_map_edge_select_name_get(const StringRef uv_map_name, char *buffer)
-{
-  BLI_assert(strlen(UV_EDGESEL_NAME) == 2);
-  BLI_assert(uv_map_name.size() < MAX_CUSTOMDATA_LAYER_NAME - 4);
-  const auto result = fmt::format_to_n(
-      buffer, MAX_CUSTOMDATA_LAYER_NAME, ".{}.{}", UV_EDGESEL_NAME, uv_map_name);
-  return StringRef(buffer, result.size);
 }
 
 StringRef BKE_uv_map_pin_name_get(const StringRef uv_map_name, char *buffer)
