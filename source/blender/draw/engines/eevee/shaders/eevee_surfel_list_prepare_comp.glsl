@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Takes scene surfel representation and build lists of surfels aligning with a given direction.
+ * Takes the scene surfel representation to build lists of surfels aligning with a given direction.
  *
  * The lists heads are allocated to fit the surfel granularity.
  *
