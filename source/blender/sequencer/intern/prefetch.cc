@@ -43,6 +43,7 @@
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
 
+#include "SEQ_time.hh"
 #include "cache/final_image_cache.hh"
 #include "cache/source_image_cache.hh"
 #include "prefetch.hh"
@@ -394,35 +395,43 @@ static blender::VectorSet<Strip *> query_scene_strips(ListBase *seqbase)
   return strips;
 }
 
-static bool seq_prefetch_scene_strip_is_rendered(PrefetchJob *pfjob,
+static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
                                                  ListBase *channels,
                                                  ListBase *seqbase,
-                                                 blender::Span<Strip *> scene_strips)
+                                                 blender::Span<Strip *> scene_strips,
+                                                 int timeline_frame)
 {
-  float cfra = seq_prefetch_cfra(pfjob);
-  blender::Vector<Strip *> strips = seq_shown_strips_get(
-      pfjob->scene_eval, channels, seqbase, cfra, 0);
+  blender::Vector<Strip *> rendered_strips = seq_shown_strips_get(
+      scene, channels, seqbase, timeline_frame, 0);
 
   /* Iterate over rendered strips. */
-  for (Strip *strip : strips) {
+  for (Strip *strip : rendered_strips) {
     if (strip->type == STRIP_TYPE_META &&
         seq_prefetch_scene_strip_is_rendered(
-            pfjob, &strip->channels, &strip->seqbase, scene_strips))
+            scene, &strip->channels, &strip->seqbase, scene_strips, timeline_frame))
     {
       return true;
     }
 
-    if (strip->type == STRIP_TYPE_SCENE && (strip->flag & SEQ_SCENE_STRIPS) != 0) {
+    if (strip->type == STRIP_TYPE_SCENE && (strip->flag & SEQ_SCENE_STRIPS) != 0 &&
+        strip->scene != nullptr)
+    {
       const Scene *target_scene = strip->scene;
       Editing *target_ed = editing_get(target_scene);
       ListBase *target_seqbase = active_seqbase_get(target_ed);
       blender::VectorSet<Strip *> target_scene_strips = query_scene_strips(target_seqbase);
+      int target_timeline_frame = give_frame_index(scene, strip, timeline_frame) +
+                                  target_scene->r.sfra;
 
-      return seq_prefetch_scene_strip_is_rendered(
-          pfjob, channels_displayed_get(target_ed), target_seqbase, target_scene_strips);
+      return seq_prefetch_scene_strip_is_rendered(target_scene,
+                                                  channels_displayed_get(target_ed),
+                                                  target_seqbase,
+                                                  target_scene_strips,
+                                                  target_timeline_frame);
     }
 
-    /* Check if strip is effect of scene strip or uses it as modifier. This is recursive check. */
+    /* Check if strip is effect of scene strip or uses it as modifier.
+     * This also checks if `strip == seq_scene`. */
     for (Strip *seq_scene : scene_strips) {
       if (relations_render_loop_check(strip, seq_scene)) {
         return true;
@@ -437,7 +446,9 @@ static bool seq_prefetch_scene_strip_is_rendered(PrefetchJob *pfjob,
 static bool seq_prefetch_must_skip_frame(PrefetchJob *pfjob, ListBase *channels, ListBase *seqbase)
 {
   blender::VectorSet<Strip *> scene_strips = query_scene_strips(seqbase);
-  if (seq_prefetch_scene_strip_is_rendered(pfjob, channels, seqbase, scene_strips)) {
+  if (seq_prefetch_scene_strip_is_rendered(
+          pfjob->scene_eval, channels, seqbase, scene_strips, seq_prefetch_cfra(pfjob)))
+  {
     return true;
   }
   return false;
