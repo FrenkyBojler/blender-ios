@@ -21,6 +21,7 @@
 
 #include "BKE_ccg.hh"
 #include "BKE_mesh.hh"
+#include "BKE_multires.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_eval.hh"
 
@@ -430,19 +431,57 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
   std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
 
-  /* When switching to lower levels... */
-  /* Evaluate this twice, once for M(n - 1) and once for M(n)
-  /* At this point, the subdiv_ccg has the correct positions of M(n - 1) */
-  /* Construct an evaluator from this subdiv ccg. */
-  /* Use the evaluator get the limit surface positions and the tangent matrices */
-  /* For each vertex, V of N, MV = SubdivCCG position (object space), LV = Limit position (object space) */
-  /* Delta = (MV - LV) * LMat */
+  if (has_mask) {
+    mask_evaluator.free(&mask_evaluator);
+  }
+  if (!subdiv_ccg) {
+    return nullptr;
+  }
+  Mesh *result = BKE_mesh_copy_for_eval(coarse_mesh);
+  result->runtime->subdiv_ccg = std::move(subdiv_ccg);
+  return result;
+}
 
-  /* When switching to higher levels... */
-  /* Take the stored higher level tangent displacements */
-  /* Convert them to object space */
-  /* Re-add them to the new subdiv CCG */
-  /* Delete the data */
+Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
+                             Subdiv &subdiv,
+                             const SubdivToCCGSettings &settings,
+                             const Mesh &coarse_mesh,
+                             const int delta)
+{
+  /* Make sure evaluator is ready. */
+  stats_begin(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+  if (!eval_begin_from_mesh(&subdiv, &coarse_mesh, SUBDIV_EVALUATOR_TYPE_CPU)) {
+    if (coarse_mesh.faces_num) {
+      return nullptr;
+    }
+  }
+  stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+  SubdivCCGMaskEvaluator mask_evaluator;
+  bool has_mask = BKE_subdiv_ccg_mask_init_from_paint(&mask_evaluator, &coarse_mesh);
+  std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(
+      subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
+
+  if (delta < 0) {
+    SubdivToCCGSettings higher_settings;
+    higher_settings.level = settings.level - delta;
+    BLI_assert(higher_settings.level > settings.level);
+    higher_settings.resolution = (1 << higher_settings.level) + 1;
+    BLI_assert(higher_settings.resolution > settings.resolution);
+    higher_settings.need_normal = false;
+    higher_settings.need_mask = false;
+    std::unique_ptr<SubdivCCG> higher_subdiv_ccg = BKE_subdiv_to_ccg(
+        subdiv, higher_settings, coarse_mesh, nullptr);
+
+    multiresModifier_storeHigherLevelDelta(object, coarse_mesh, *higher_subdiv_ccg, *subdiv_ccg);
+    higher_subdiv_ccg.release();
+  }
+  else if (delta > 0) {
+    /* When switching to higher levels... */
+    /* Take the stored higher level tangent displacements */
+    /* Convert them to object space */
+    /* Re-add them to the new subdiv CCG */
+    /* Delete the data */
+  }
 
   if (has_mask) {
     mask_evaluator.free(&mask_evaluator);

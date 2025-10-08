@@ -165,6 +165,7 @@ static void multires_ccg_settings_init(SubdivToCCGSettings *settings,
   const Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
   Object *object = ctx->object;
   const int level = multires_get_level(scene, object, mmd, use_render_params, ignore_simplify);
+  settings->level = level;
   settings->resolution = (1 << level) + 1;
   settings->need_normal = true;
   settings->need_mask = has_mask;
@@ -194,7 +195,7 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
            delta,
            mmd->sculptlvl);
   }
-  result = BKE_subdiv_to_ccg_mesh(*subdiv, ccg_settings, *mesh);
+  result = BKE_subdiv_to_ccg_mesh(*ctx->object, *subdiv, ccg_settings, *mesh, delta);
 
   /* NOTE: CCG becomes an owner of Subdiv descriptor, so can not share
    * this pointer. Not sure if it's needed, but might have a second look

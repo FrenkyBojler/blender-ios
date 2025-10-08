@@ -22,6 +22,7 @@
 #include "BKE_ccg.hh"
 
 struct Mesh;
+struct Object;
 namespace blender::bke::subdiv {
 struct Subdiv;
 }
@@ -53,6 +54,7 @@ bool BKE_subdiv_ccg_mask_init_from_paint(SubdivCCGMaskEvaluator *mask_evaluator,
  * \{ */
 
 struct SubdivToCCGSettings {
+  int level;
   /**
    * Resolution at which regular ptex (created for quad face) are being
    * evaluated. This defines how many vertices final mesh will have: every
@@ -64,8 +66,6 @@ struct SubdivToCCGSettings {
   /** Denotes which extra layers to be added to CCG elements. */
   bool need_normal;
   bool need_mask;
-
-  /* TODO: Add delta */
 };
 
 struct SubdivCCGCoord {
@@ -226,6 +226,12 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(blender::bke::subdiv::Subdiv &subdi
 Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
                              const SubdivToCCGSettings &settings,
                              const Mesh &coarse_mesh);
+
+Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
+                             blender::bke::subdiv::Subdiv &subdiv,
+                             const SubdivToCCGSettings &settings,
+                             const Mesh &coarse_mesh,
+                             int delta);
 
 Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
                              const SubdivCCG &existing_ccg,
