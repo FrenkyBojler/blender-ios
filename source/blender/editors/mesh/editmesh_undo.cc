@@ -1084,7 +1084,6 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   us->elems_len = objects.size();
 
   ED_scene_state_capture(&us->scene_state, scene);
-
   UndoMesh **um_references = nullptr;
 
 #ifdef USE_ARRAY_STORE
