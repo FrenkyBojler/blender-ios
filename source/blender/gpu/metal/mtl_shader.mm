@@ -556,12 +556,12 @@ static ::MTLFunctionConstantValues *populate_specialization_constant_values(
 /** \name Bake Pipeline State Objects
  * \{ */
 
-static uint32_t get_buffer_binding_mask(NSArray<MTLArgument *> *args)
+static uint32_t get_buffers_binding_mask(NSArray<MTLArgument *> *args)
 {
   uint32_t mask = 0u;
   for (int i = 0; i < [args count]; i++) {
     MTLArgument *arg = [args objectAtIndex:i];
-    if ([arg type] == MTLArgumentTypeBuffer && [arg isActive] == FALSE) {
+    if ([arg type] == MTLArgumentTypeBuffer && [arg isActive] == TRUE) {
       int index = [arg index];
       if (index >= 0 && index < MTL_MAX_BUFFER_BINDINGS) {
         mask |= (1 << index);
@@ -581,8 +581,8 @@ void MTLRenderPipelineStateInstance::parse_reflection_data(
    * optimization, and allows us to both avoid over-binding and also
    * allows us to verify size-correctness for bindings, to ensure
    * that buffers bound are not smaller than the size of expected data. */
-  this->used_buf_vert_mask &= ~get_buffer_binding_mask([reflection_data vertexArguments]);
-  this->used_buf_frag_mask &= ~get_buffer_binding_mask([reflection_data fragmentArguments]);
+  this->used_buf_vert_mask = get_buffers_binding_mask([reflection_data vertexArguments]);
+  this->used_buf_frag_mask = get_buffers_binding_mask([reflection_data fragmentArguments]);
 }
 
 /**
@@ -720,6 +720,8 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
   const MTLVertexDescriptor &gpu_vert_desc = pipeline_descriptor.vertex_descriptor;
   ::MTLVertexDescriptor *mtl_vert_desc = desc.vertexDescriptor;
 
+  uint32_t vbo_bind_mask = 0;
+
   for (const uint i : IndexRange(gpu_vert_desc.max_attribute_value + 1)) {
     const MTLVertexAttributeDescriptorPSO &attribute_desc = gpu_vert_desc.attributes[i];
     /* Copy metal back-end attribute descriptor state into PSO descriptor.
@@ -740,6 +742,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
     mtl_layout.stepFunction = buf_layout.step_function;
     mtl_layout.stepRate = buf_layout.step_rate;
     mtl_layout.stride = buf_layout.stride;
+    vbo_bind_mask |= 1 << buf_layout.buffer_slot;
   }
 
   /* Null buffer index is used if an attribute is not found in the
@@ -768,6 +771,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
     mtl_layout.stepFunction = MTLVertexStepFunctionConstant;
     mtl_layout.stepRate = 0;
     mtl_layout.stride = 16; /* Doesn't matter as stepRate is 0. */
+    vbo_bind_mask |= 1 << null_buffer_index;
   }
 
   /* Primitive Topology. */
@@ -922,6 +926,8 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
     pso_inst->prim_type = prim_type;
 
     pso_inst->parse_reflection_data(reflection_data);
+    /* IMPORTANT: Discard any stale SSBOs or UBOs bindings that could override vertex bindings. */
+    pso_inst->used_buf_vert_mask &= ~vbo_bind_mask;
 
     /* Insert into pso cache. */
     pso_cache_lock_.lock();
