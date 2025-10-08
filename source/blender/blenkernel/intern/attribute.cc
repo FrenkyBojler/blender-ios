@@ -338,39 +338,33 @@ bool BKE_attribute_rename(AttributeOwner &owner,
   return true;
 }
 
-static bool attribute_name_exists(const AttributeOwner &owner, const StringRef name)
-{
-  const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(owner);
-
-  for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
-    if (!info[domain].customdata) {
-      continue;
-    }
-
-    const CustomData *cdata = info[domain].customdata;
-    for (int i = 0; i < cdata->totlayer; i++) {
-      const CustomDataLayer *layer = cdata->layers + i;
-
-      if (layer->name == name) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const StringRef name)
 {
-  // TODO_MESH_ATTR
-  if (owner.type() != AttributeOwnerType::Mesh) {
-    blender::bke::AttributeStorage &storage = *owner.get_storage();
-    return storage.unique_name_calc(name);
+  using namespace blender;
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    const Mesh &mesh = *owner.get_mesh();
+    if (mesh.runtime->edit_mesh) {
+      Set<StringRef, 16> names;
+      const auto add_names = [&](const CustomData &data) {
+        for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
+          if (CD_TYPE_AS_MASK(eCustomDataType(layer.type)) & CD_MASK_PROP_ALL) {
+            names.add(layer.name);
+          }
+        }
+      };
+      const BMesh &bm = *mesh.runtime->edit_mesh->bm;
+      add_names(bm.vdata);
+      add_names(bm.edata);
+      add_names(bm.pdata);
+      add_names(bm.ldata);
+      return BLI_uniquename_cb([&](const StringRef new_name) { return names.contains(new_name); },
+                               '.',
+                               name.is_empty() ? DATA_("Attribute") : name);
+    }
   }
-  return BLI_uniquename_cb(
-      [&](const StringRef new_name) { return attribute_name_exists(owner, new_name); },
-      '.',
-      name.is_empty() ? DATA_("Attribute") : name);
+
+  blender::bke::AttributeStorage &storage = *owner.get_storage();
+  return storage.unique_name_calc(name);
 }
 
 CustomDataLayer *BKE_attribute_new(AttributeOwner &owner,
