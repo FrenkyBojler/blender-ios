@@ -2749,7 +2749,14 @@ static Main *blo_add_main_for_library(FileData *fd,
     if (is_packed_library) {
       BLI_assert(lib->flag & LIBRARY_FLAG_IS_ARCHIVE);
       BLI_assert(lib->archive_parent_library == reference_lib);
-      BLI_assert(reference_lib->runtime->archived_libraries.contains(lib));
+
+      /* If there is already an archive library in the new set of Mains, but not a 'libmain' for it
+       * yet, it is the first time that this archive library is effectively used to own a packed
+       * ID. Since regular libraries have their list of owned archive libs cleared when reused on
+       * undo, it means that this archive library should yet be listed in its regular owner one,
+       * and needs to be added there. See also #read_undo_move_libmain_data. */
+      BLI_assert(!reference_lib->runtime->archived_libraries.contains(lib));
+      reference_lib->runtime->archived_libraries.append(lib);
 
       BLI_assert(lib->runtime->filedata == nullptr);
       lib->runtime->filedata = fd;
@@ -2840,6 +2847,12 @@ static void read_undo_move_libmain_data(FileData *fd, Main *libmain, BHead *bhea
   BLI_remlink_safe(&old_main->libraries, curlib);
   new_main->split_mains->add_new(libmain);
   BLI_addtail(&new_main->libraries, curlib);
+
+  /* Remove all references to the archive libraries owned by this 'regular' library. The
+   * archive ones are only moved over into the new Main if some of their IDs are actually
+   * re-used. Otherwise they are deleted, so the 'regular' library cannot keep references to
+   * them at this point. See also #blo_add_main_for_library. */
+  curlib->runtime->archived_libraries = {};
 
   curlib->id.tag |= ID_TAG_UNDO_OLD_ID_REUSED_NOUNDO;
   BKE_main_idmap_insert_id(fd->new_idmap_uid, &curlib->id);
@@ -3513,6 +3526,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_500(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_510(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -3574,6 +3590,9 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_500(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_510(fd, main);
   }
 
   main->is_locked_for_linking = false;
