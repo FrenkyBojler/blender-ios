@@ -42,9 +42,9 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "ED_editmode_scene_state.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_scene_state.hh"
 #include "ED_undo.hh"
 #include "ED_util.hh"
 
@@ -1083,8 +1083,7 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   us->elems = MEM_calloc_arrayN<MeshUndoStep_Elem>(objects.size(), __func__);
   us->elems_len = objects.size();
 
-  ED_editmode_scene_state_init(&us->scene_state);
-  ED_editmode_scene_state_capture(&us->scene_state, scene);
+  ED_scene_state_capture(&us->scene_state, scene);
 
   UndoMesh **um_references = nullptr;
 
@@ -1192,7 +1191,7 @@ static void mesh_undosys_step_decode(
     ts->uv_sticky = scene_data.uv_sticky;
     ts->uv_flag = (ts->uv_flag & ~uv_flag_undo) | (scene_data.uv_flag & uv_flag_undo);
   }
-  ED_editmode_scene_state_restore(scene, &us->scene_state);
+  ED_scene_state_restore(scene, &us->scene_state);
 
   bmain->is_memfile_undo_flush_needed = true;
 
@@ -1208,7 +1207,7 @@ static void mesh_undosys_step_free(UndoStep *us_p)
     undomesh_free_data(&elem->data);
   }
   MEM_freeN(us->elems);
-  ED_editmode_scene_state_free(&us->scene_state);
+  ED_scene_state_free(&us->scene_state);
 }
 
 static void mesh_undosys_foreach_ID_ref(UndoStep *us_p,

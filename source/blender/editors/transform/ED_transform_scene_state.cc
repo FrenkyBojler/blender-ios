@@ -6,13 +6,7 @@
 #include "DNA_scene_types.h"
 #include "MEM_guardedalloc.h"
 
-void ED_editmode_scene_state_init(EditModeSceneState *state)
-{
-  memset(state, 0, sizeof(*state));
-  BLI_listbase_clear(&state->transform_spaces);
-}
-
-void ED_editmode_scene_state_free(EditModeSceneState *state)
+void ED_scene_state_free(EditModeSceneState *state)
 {
   BLI_freelistN(&state->transform_spaces);
   BLI_listbase_clear(&state->transform_spaces);
@@ -25,7 +19,7 @@ static void transform_orientations_copy(ListBase *dst, const ListBase *src)
 }
 
 /* Capture current scene settings used in edit mode. */
-void ED_editmode_scene_state_capture(EditModeSceneState *dst, const Scene *scene)
+void ED_scene_state_capture(EditModeSceneState *dst, const Scene *scene)
 {
   transform_orientations_copy(&dst->transform_spaces, &scene->transform_spaces);
   memcpy(dst->orientation_slots, scene->orientation_slots, sizeof(dst->orientation_slots));
@@ -44,7 +38,7 @@ void ED_editmode_scene_state_capture(EditModeSceneState *dst, const Scene *scene
 }
 
 /* Restore captured scene settings after undo. */
-void ED_editmode_scene_state_restore(Scene *scene, const EditModeSceneState *src)
+void ED_scene_state_restore(Scene *scene, const EditModeSceneState *src)
 {
   transform_orientations_copy(&scene->transform_spaces, &src->transform_spaces);
   memcpy(scene->orientation_slots, src->orientation_slots, sizeof(src->orientation_slots));

@@ -20,9 +20,8 @@ typedef struct EditModeSceneState {
 } EditModeSceneState;
 
 /* Lifecycle */
-void ED_editmode_scene_state_init(EditModeSceneState *state);
-void ED_editmode_scene_state_free(EditModeSceneState *state);
+void ED_scene_state_free(EditModeSceneState *state);
 
 /* Capture and restore scene state for undo. */
-void ED_editmode_scene_state_capture(EditModeSceneState *state, const Scene *scene);
-void ED_editmode_scene_state_restore(Scene *scene, const EditModeSceneState *state);
+void ED_scene_state_capture(EditModeSceneState *state, const Scene *scene);
+void ED_scene_state_restore(Scene *scene, const EditModeSceneState *state);
