@@ -429,8 +429,7 @@ static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
   blender::Vector<Strip *> rendered_strips = seq_shown_strips_get(
       scene, channels, seqbase, timeline_frame, 0);
 
-  /* Iterate over rendered strips.
-   * Note, that check `strip == any(scene_strips)` is done by `relations_render_loop_check()`. */
+  /* Iterate over rendered strips. */
   for (Strip *strip : rendered_strips) {
     if (strip->type == STRIP_TYPE_META &&
         seq_prefetch_scene_strip_is_rendered(
@@ -456,7 +455,8 @@ static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
                                                   target_timeline_frame);
     }
 
-    /* Check if strip is effect of scene strip or uses it as modifier. This is recursive check. */
+    /* Check if strip is effect of scene strip or uses it as modifier.
+     * This also checks if `strip == seq_scene`. */
     for (Strip *seq_scene : scene_strips) {
       if (relations_render_loop_check(strip, seq_scene)) {
         return true;
