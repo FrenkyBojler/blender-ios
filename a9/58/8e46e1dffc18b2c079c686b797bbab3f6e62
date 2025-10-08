@@ -1,1 +1,2 @@
 Referenced by issue #147413, Timeline Marker vertical line is now tied to "Line Width" setting and obscures keyframes at "Thick" setting
+Referenced by issue #147624, UI: Playhead artifacts when using Time Stretching with Vulkan and Metal
