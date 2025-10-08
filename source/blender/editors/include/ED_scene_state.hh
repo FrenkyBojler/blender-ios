@@ -2,16 +2,11 @@
 
 #include "DNA_scene_types.h"
 
-/* Scene supports 4 transform orientation slots. */
-#ifndef TRANSFORM_ORIENTATION_SLOT_MAX
-#  define TRANSFORM_ORIENTATION_SLOT_MAX 4
-#endif
-
 typedef struct EditModeSceneState {
   /* Custom transform orientations. */
   ListBase transform_spaces;
   /* Active orientation slots. */
-  TransformOrientationSlot orientation_slots[TRANSFORM_ORIENTATION_SLOT_MAX];
+  TransformOrientationSlot orientation_slots[4];
 
   /* Proportional edit settings. */
   char proportional_edit;
