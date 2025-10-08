@@ -6,3 +6,4 @@ Referenced by commit 7147227a401af9f52926f225ca8518fd82f0bcc5, Python API: Make 
 Referenced by pull request #147187, Fix #147182: Duplicating workspace sequencer_scene based on window scene
 Referenced by commit bb3f0f540144ec9e7cab417e368fcfc58df45c06, Fix #147182: Duplicating workspace sequencer_scene based on window scene
 Referenced by issue #147083, Playing then pausing causes instant crash in file imported from 4.5
+Referenced by issue #146493, VSE crashes when doing edits
