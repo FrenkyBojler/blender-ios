@@ -769,7 +769,11 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         endif()
 
         # OSL variations of every test if WITH_CYCLES_TEST_OSL is set.
-        if(WITH_CYCLES_TEST_OSL AND NOT "${_cycles_osl_test_type}" STREQUAL "none")
+        #
+        # The cycles_denoise_cpu_osl has random crashes, without easy way for developers to nail it down.
+        # Disable the test until the #147642 is resolved.
+        if(WITH_CYCLES_TEST_OSL AND NOT "${_cycles_osl_test_type}" STREQUAL "none"
+           AND NOT _cycles_test_name STREQUAL "cycles_denoise_cpu")
           add_render_test(
             ${_cycles_test_name}_osl
             ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
