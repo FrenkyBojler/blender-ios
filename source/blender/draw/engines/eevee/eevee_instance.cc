@@ -967,6 +967,8 @@ void Instance::light_bake_irradiance(
         }
       };
       /* We use GPU_finish to take into account the GPU processing time. */
+      /* TODO(fclem): Could use timer queries to keep pipelining of GPU commands if that become a
+       * real bottleneck. */
       GPU_finish();
       double time_it_end_ms = BLI_time_now_seconds() * 1000.0;
 

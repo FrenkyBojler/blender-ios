@@ -5,7 +5,7 @@
 /**
  * Takes scene surfel representation and build list of surfels aligning in a given direction.
  *
- * The lists head are allocated to fit the surfel granularity.
+ * The lists heads are allocated to fit the surfel granularity.
  *
  * Due to alignment the link and list head are split into several int arrays to avoid too much
  * memory waste.

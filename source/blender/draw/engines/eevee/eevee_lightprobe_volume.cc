@@ -793,6 +793,7 @@ void IrradianceBake::sync()
     PassSimple &pass = surfel_ray_build_ps_;
     pass.init();
     {
+      /* Count number of surfel per list. */
       PassSimple::Sub &sub = pass.sub("ListPrepare");
       sub.shader_set(inst_.shaders.static_shader_get(SURFEL_LIST_PREPARE));
       sub.bind_ssbo(SURFEL_BUF_SLOT, &surfels_buf_);
@@ -803,6 +804,7 @@ void IrradianceBake::sync()
       sub.dispatch(&dispatch_per_surfel_);
     }
     {
+      /* Prefix sum of list sizes. Outputs an IndexRange per list. */
       PassSimple::Sub &sub = pass.sub("ListPrefix");
       sub.shader_set(inst_.shaders.static_shader_get(SURFEL_LIST_PREFIX));
       sub.bind_ssbo(SURFEL_BUF_SLOT, &surfels_buf_);
@@ -814,6 +816,8 @@ void IrradianceBake::sync()
       sub.dispatch(&dispatch_per_list_);
     }
     {
+      /* Copy surfel list sorting data into a flat array.
+       * All lists data are contiguous in memory using the IndexRange from previous pass. */
       PassSimple::Sub &sub = pass.sub("ListFlatten");
       sub.shader_set(inst_.shaders.static_shader_get(SURFEL_LIST_FLATTEN));
       sub.bind_ssbo(SURFEL_BUF_SLOT, &surfels_buf_);
@@ -827,6 +831,7 @@ void IrradianceBake::sync()
       sub.dispatch(&dispatch_per_surfel_);
     }
     {
+      /* Radix sort of the list. Output surfel index in the sorted list. */
       PassSimple::Sub &sub = pass.sub("ListSort");
       sub.shader_set(inst_.shaders.static_shader_get(SURFEL_LIST_SORT));
       sub.bind_ssbo(SURFEL_BUF_SLOT, &surfels_buf_);
@@ -840,6 +845,8 @@ void IrradianceBake::sync()
       sub.dispatch(&dispatch_per_surfel_);
     }
     {
+      /* Take the sorted lists array and copy adjacent surfel indices back to the Surfels.
+       * Also relink coplanar surfels to avoid over shadowing.  */
       PassSimple::Sub &sub = pass.sub("ListBuild");
       sub.shader_set(inst_.shaders.static_shader_get(SURFEL_LIST_BUILD));
       sub.bind_ssbo(SURFEL_BUF_SLOT, &surfels_buf_);
@@ -1384,7 +1391,7 @@ void IrradianceBake::read_virtual_offset(LightProbeGridCacheFrame *cache_frame)
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
-  cache_frame->baking.virtual_offset = (float (*)[4])virtual_offset_tx_.read<float4>(
+  cache_frame->baking.virtual_offset = (float(*)[4])virtual_offset_tx_.read<float4>(
       GPU_DATA_FLOAT);
 }
 
@@ -1401,10 +1408,10 @@ LightProbeGridCacheFrame *IrradianceBake::read_result_unpacked()
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
-  cache_frame->baking.L0 = (float (*)[4])irradiance_L0_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_a = (float (*)[4])irradiance_L1_a_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_b = (float (*)[4])irradiance_L1_b_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_c = (float (*)[4])irradiance_L1_c_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L0 = (float(*)[4])irradiance_L0_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_a = (float(*)[4])irradiance_L1_a_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_b = (float(*)[4])irradiance_L1_b_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_c = (float(*)[4])irradiance_L1_c_tx_.read<float4>(GPU_DATA_FLOAT);
   cache_frame->baking.validity = (float *)validity_tx_.read<float>(GPU_DATA_FLOAT);
 
   return cache_frame;
@@ -1423,20 +1430,20 @@ LightProbeGridCacheFrame *IrradianceBake::read_result_packed()
 
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
-  cache_frame->baking.L0 = (float (*)[4])irradiance_L0_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_a = (float (*)[4])irradiance_L1_a_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_b = (float (*)[4])irradiance_L1_b_tx_.read<float4>(GPU_DATA_FLOAT);
-  cache_frame->baking.L1_c = (float (*)[4])irradiance_L1_c_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L0 = (float(*)[4])irradiance_L0_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_a = (float(*)[4])irradiance_L1_a_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_b = (float(*)[4])irradiance_L1_b_tx_.read<float4>(GPU_DATA_FLOAT);
+  cache_frame->baking.L1_c = (float(*)[4])irradiance_L1_c_tx_.read<float4>(GPU_DATA_FLOAT);
   cache_frame->baking.validity = (float *)validity_tx_.read<float>(GPU_DATA_FLOAT);
 
   int64_t sample_count = int64_t(irradiance_L0_tx_.width()) * irradiance_L0_tx_.height() *
                          irradiance_L0_tx_.depth();
   size_t coefficient_texture_size = sizeof(*cache_frame->irradiance.L0) * sample_count;
   size_t validity_texture_size = sizeof(*cache_frame->connectivity.validity) * sample_count;
-  cache_frame->irradiance.L0 = (float (*)[3])MEM_mallocN(coefficient_texture_size, __func__);
-  cache_frame->irradiance.L1_a = (float (*)[3])MEM_mallocN(coefficient_texture_size, __func__);
-  cache_frame->irradiance.L1_b = (float (*)[3])MEM_mallocN(coefficient_texture_size, __func__);
-  cache_frame->irradiance.L1_c = (float (*)[3])MEM_mallocN(coefficient_texture_size, __func__);
+  cache_frame->irradiance.L0 = (float(*)[3])MEM_mallocN(coefficient_texture_size, __func__);
+  cache_frame->irradiance.L1_a = (float(*)[3])MEM_mallocN(coefficient_texture_size, __func__);
+  cache_frame->irradiance.L1_b = (float(*)[3])MEM_mallocN(coefficient_texture_size, __func__);
+  cache_frame->irradiance.L1_c = (float(*)[3])MEM_mallocN(coefficient_texture_size, __func__);
   cache_frame->connectivity.validity = (uint8_t *)MEM_mallocN(validity_texture_size, __func__);
 
   size_t visibility_texture_size = sizeof(*cache_frame->irradiance.L0) * sample_count;

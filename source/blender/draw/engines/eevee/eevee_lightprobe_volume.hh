@@ -91,6 +91,7 @@ class IrradianceBake {
   /** Sorting items for fast sorting of surfels. */
   StorageArrayBuffer<float, 16, true> list_item_distance_buf_ = {"list_item_distance_buf_"};
   StorageArrayBuffer<int, 16, true> list_item_surfel_id_buf_ = {"list_item_surfel_id_buf_"};
+  /** Result of sorting. Needed to be duplicated to avoid race condition. */
   StorageArrayBuffer<int, 16, true> sorted_surfel_id_buf_ = {"sorted_surfel_id_buf_"};
 
   /* Dispatch size for per surfel workload. */
@@ -147,7 +148,7 @@ class IrradianceBake {
   bool do_break_ = false;
 
  public:
-  IrradianceBake(Instance &inst) : inst_(inst) {};
+  IrradianceBake(Instance &inst) : inst_(inst){};
 
   void init(const Object &probe_object);
   void sync();
@@ -241,8 +242,8 @@ class VolumeProbeModule {
   bool do_update_world_ = true;
 
  public:
-  VolumeProbeModule(Instance &inst) : bake(inst), inst_(inst) {};
-  ~VolumeProbeModule() {};
+  VolumeProbeModule(Instance &inst) : bake(inst), inst_(inst){};
+  ~VolumeProbeModule(){};
 
   void init();
   void sync();
