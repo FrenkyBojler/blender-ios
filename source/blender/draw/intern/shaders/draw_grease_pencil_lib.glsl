@@ -51,7 +51,7 @@ float gpencil_stroke_segment_mask(float2 p1, float2 p2, float thickness, float h
   /* Divide by stroke radius. */
   uv_end /= thickness;
 
-  float dist = clamp(1.0f - length(uv_end) * 2.0f, 0.0f, 1.0f);
+  float dist = length(uv_end) * 2.0f;
   return gpencil_stroke_hardess_mask(dist, hardfac);
 }
 
