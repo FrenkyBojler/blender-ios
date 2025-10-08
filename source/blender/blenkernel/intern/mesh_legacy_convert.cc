@@ -2587,6 +2587,89 @@ void mesh_custom_normals_to_generic(Mesh &mesh)
   }
 }
 
+void mesh_uv_select_to_single_attribute(Mesh &mesh)
+{
+  const char *name = CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2);
+  if (!name) {
+    return;
+  }
+  const std::string uv_select_vert_name_shared = ".uv_select_vert";
+  const std::string uv_select_edge_name_shared = ".uv_select_edge";
+  const std::string uv_select_face_name_shared = ".uv_select_face";
+
+  const std::string uv_select_vert_prefix = ".vs.";
+  const std::string uv_select_edge_prefix = ".es.";
+
+  const std::string uv_select_vert_name = uv_select_vert_prefix + name;
+  const std::string uv_select_edge_name = uv_select_edge_prefix + name;
+
+  const int uv_select_vert = CustomData_get_named_layer_index(
+      &mesh.corner_data, CD_PROP_BOOL, uv_select_vert_name);
+  const int uv_select_edge = CustomData_get_named_layer_index(
+      &mesh.corner_data, CD_PROP_BOOL, uv_select_edge_name);
+
+  if (uv_select_vert != -1 && uv_select_edge != -1) {
+    /* Unlikely either exist but ensure there are no duplicate names. */
+    CustomData_free_layer_named(&mesh.corner_data, uv_select_vert_name_shared);
+    CustomData_free_layer_named(&mesh.corner_data, uv_select_edge_name_shared);
+    CustomData_free_layer_named(&mesh.face_data, uv_select_face_name_shared);
+
+    STRNCPY(mesh.corner_data.layers[uv_select_vert].name, uv_select_vert_name_shared.c_str());
+    STRNCPY(mesh.corner_data.layers[uv_select_edge].name, uv_select_edge_name_shared.c_str());
+
+    bool *uv_select_face = MEM_calloc_arrayN<bool>(mesh.faces_num, __func__);
+    CustomData_add_layer_named_with_data(&mesh.face_data,
+                                         CD_PROP_BOOL,
+                                         uv_select_face,
+                                         mesh.faces_num,
+                                         uv_select_face_name_shared,
+                                         nullptr);
+
+    /* Create a face selection layer (flush from edges). */
+    if (mesh.faces_num > 0) {
+      Span<int> corner_edges = mesh.corner_edges();
+      const int *face_offsets = mesh.face_offset_indices;
+      const bool *uv_select_edge_data = static_cast<bool *>(
+          mesh.corner_data.layers[uv_select_edge].data);
+      int corner_end = face_offsets[0];
+      for (const int face : IndexRange(mesh.faces_num)) {
+        int corner_start = corner_end;
+        corner_end = face_offsets[face + 1];
+        bool select_all = true;
+        for (int corner = corner_start; corner < corner_end; corner++) {
+          const int edge = corner_edges[corner];
+          if (uv_select_edge_data[edge] == false) {
+            select_all = false;
+            break;
+          }
+        }
+        if (select_all) {
+          uv_select_face[face] = true;
+        }
+        corner_end = corner_start;
+      }
+    }
+  }
+
+  Set<std::string> attributes_to_remove;
+  for (const int i : IndexRange(mesh.corner_data.totlayer)) {
+    const CustomDataLayer &layer = mesh.corner_data.layers[i];
+    if (layer.type != CD_PROP_BOOL) {
+      continue;
+    }
+    StringRef layer_name = StringRef(layer.name);
+    if (layer_name.startswith(uv_select_vert_prefix) ||
+        layer_name.startswith(uv_select_edge_prefix))
+    {
+      attributes_to_remove.add(layer.name);
+    }
+  }
+
+  for (const StringRef name_to_remove : attributes_to_remove) {
+    CustomData_free_layer_named(&mesh.corner_data, name_to_remove);
+  }
+}
+
 //
 }  // namespace blender::bke
 
