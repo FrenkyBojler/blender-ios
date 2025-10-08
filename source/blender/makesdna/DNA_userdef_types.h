@@ -685,7 +685,7 @@ typedef enum eUserPref_Flag {
   USER_AUTOSAVE = (1 << 0),
   USER_FLAG_NUMINPUT_ADVANCED = (1 << 1),
   USER_FLAG_RECENT_SEARCHES_DISABLE = (1 << 2),
-  USER_FLAG_UNUSED_3 = (1 << 3), /* cleared */
+  USER_MENU_CLOSE_LEAVE = (1 << 3),
   USER_FLAG_UNUSED_4 = (1 << 4), /* cleared */
   USER_TRACKBALL = (1 << 5),
   USER_FLAG_UNUSED_6 = (1 << 6), /* cleared */
@@ -939,6 +939,12 @@ typedef enum eUserpref_Anim_Flags {
   USER_ANIM_ONLY_SHOW_SELECTED_CURVE_KEYS = (1 << 1),
   USER_ANIM_HIGH_QUALITY_DRAWING = (1 << 2),
 } eUserpref_Anim_Flags;
+
+typedef enum eFixToCam_Flags {
+  FIX_TO_CAM_FLAG_USE_LOC = (1 << 0),
+  FIX_TO_CAM_FLAG_USE_ROT = (1 << 1),
+  FIX_TO_CAM_FLAG_USE_SCALE = (1 << 2),
+} eFixToCam_Flags;
 
 /** #UserDef.transopts */
 typedef enum eUserpref_Translation_Flags {
