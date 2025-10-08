@@ -108,6 +108,8 @@ typedef enum eSpaceButtons_Context {
   BCONTEXT_SHADERFX = 15,
   BCONTEXT_OUTPUT = 16,
   BCONTEXT_COLLECTION = 17,
+  BCONTEXT_STRIP = 18,
+  BCONTEXT_STRIP_MODIFIER = 19,
 
   /* Keep last. */
   BCONTEXT_TOT,
@@ -477,6 +479,11 @@ typedef enum eFileAssetImportMethod {
   FILE_ASSET_IMPORT_APPEND_REUSE = 2,
   /** Default: Follow the preference setting for this asset library. */
   FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
+  /**
+   * Link the data-block, but also pack it in the current file to keep it working even if the
+   * source file is not available anymore.
+   */
+  FILE_ASSET_IMPORT_PACK = 4,
 } eFileAssetImportMethod;
 
 typedef enum eFileAssetImportFlags {
@@ -879,6 +886,12 @@ typedef enum SpaceNodeGeometryNodesType {
   SNODE_GEOMETRY_TOOL = 1,
 } SpaceNodeGeometryNodesType;
 
+/** #SpaceNode.nodes_type */
+typedef enum SpaceNodeCompositorNodesType {
+  SNODE_COMPOSITOR_SCENE = 0,
+  SNODE_COMPOSITOR_SEQUENCER = 1,
+} SpaceNodeCompositorNodesType;
+
 /** #SpaceNode.insert_ofs_dir */
 enum {
   SNODE_INSERTOFS_DIR_RIGHT = 0,
@@ -1032,6 +1045,8 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
   SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM = 13,
+  SPREADSHEET_VALUE_TYPE_INT64 = 14,
+  SPREADSHEET_VALUE_TYPE_INT32_3D = 15,
 } eSpreadsheetColumnValueType;
 
 typedef enum eSpreadsheetColumnFlag {
