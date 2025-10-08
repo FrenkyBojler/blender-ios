@@ -445,7 +445,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
 Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
                              Subdiv &subdiv,
                              const SubdivToCCGSettings &settings,
-                             const Mesh &coarse_mesh,
+                             Mesh &coarse_mesh,
                              const int delta)
 {
   /* Make sure evaluator is ready. */
@@ -473,7 +473,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
         subdiv, higher_settings, coarse_mesh, nullptr);
 
     multiresModifier_storeHigherLevelDelta(object, coarse_mesh, *higher_subdiv_ccg, *subdiv_ccg);
-    higher_subdiv_ccg.release();
+    higher_subdiv_ccg.reset();
   }
   else if (delta > 0) {
     /* When switching to higher levels... */

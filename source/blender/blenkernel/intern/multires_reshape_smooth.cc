@@ -1416,4 +1416,30 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
 #endif
 }
 
+void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *reshape_context,
+                                             const MultiresSubdivideModeType mode,
+                                             blender::MutableSpan<blender::float3> storage)
+{
+#ifdef WITH_OPENSUBDIV
+  const int level_difference = (reshape_context->top.level - reshape_context->reshape.level);
+  if (level_difference == 0) {
+    /* Early output. */
+    return;
+  }
+
+  MultiresReshapeSmoothContext reshape_smooth_context(reshape_context, mode);
+  geometry_create(&reshape_smooth_context);
+  evaluate_linear_delta_grids(&reshape_smooth_context);
+
+  reshape_subdiv_create(&reshape_smooth_context);
+
+  /* Set each of the OpenSubdiv positions to the value in `.displacement` (i.e. object space
+   * coordinates created from subdiv + tangent disp) */
+  reshape_subdiv_refine_final(&reshape_smooth_context);
+  evaluate_higher_grid_positions(&reshape_smooth_context);
+#else
+  UNUSED_VARS(reshape_context, mode);
+#endif
+}
+
 /** \} */

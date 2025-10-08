@@ -299,6 +299,9 @@ bool multires_reshape_assign_final_coords_from_vertcos(
  */
 bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext *reshape_context,
                                                    SubdivCCG *subdiv_ccg);
+bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext *reshape_context,
+                                                   SubdivCCG *subdiv_ccg,
+                                                   blender::MutableSpan<blender::float3> storage);
 
 /* --------------------------------------------------------------------
  * Functions specific to reshaping from MDISPS.
@@ -342,6 +345,9 @@ void multires_reshape_smooth_object_grids(const MultiresReshapeContext *reshape_
 
 void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *reshape_context,
                                              enum MultiresSubdivideModeType mode);
+void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *reshape_context,
+                                             enum MultiresSubdivideModeType mode,
+                                             blender::MutableSpan<blender::float3> storage);
 
 /* --------------------------------------------------------------------
  * Displacement, space conversion.

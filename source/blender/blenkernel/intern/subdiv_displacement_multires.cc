@@ -520,9 +520,12 @@ static void displacement_init_data(Displacement &displacement,
   printf("Current: %d Total Levels: %lld\n", data.level, object.sculpt->multires.runtime.disp_at_level.size());
 #endif
   if (object != nullptr) {
+    data.level_displacements = {};
+#if 0
     data.level_displacements = object->sculpt->multires.runtime.disp_at_level[data.level - 1];
     BLI_assert(data.level_displacements.size() ==
                data.mesh->corners_num * data.grid_size * data.grid_size);
+#endif
   }
   data.mdisps = static_cast<const MDisps *>(CustomData_get_layer(&mesh.corner_data, CD_MDISPS));
   data.face_ptex_offset = face_ptex_offset_get(&subdiv);

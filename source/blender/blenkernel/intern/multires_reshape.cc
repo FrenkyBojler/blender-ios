@@ -140,10 +140,13 @@ bool multiresModifier_reshapeFromCCG(const int tot_level, Mesh *coarse_mesh, Sub
 }
 
 static blender::MutableSpan<blender::float3> multires_ensure_higher_delta_storage(
-    Object &object, Mesh &coarse_mesh, const int level)
+    Object &object, SubdivCCG &higher_subdiv_ccg, const int level)
 {
-  /* TODO: Ensure storage on the object, sized appropriately. */
-  return {};
+  SculptSession &ss = *object.sculpt;
+  if (ss.multires.runtime.disp_at_level[level - 1].is_empty()) {
+    ss.multires.runtime.disp_at_level[level - 1].resize(higher_subdiv_ccg.positions.size());
+  }
+  return ss.multires.runtime.disp_at_level[level - 1];
 }
 
 static void multires_reshape_calculate_object_delta(
@@ -155,14 +158,14 @@ static void multires_reshape_calculate_object_delta(
    * object_delta */
 }
 
-static void multires_reshape_object_delta_to_tangent_delta(MultiresReshapeContext *reshape_context,
-                                                           Object &object)
+static void multires_reshape_object_delta_to_tangent_delta(
+    MultiresReshapeContext *reshape_context, blender::MutableSpan<blender::float3> delta_storage)
 {
   /* TODO: Convert each object_delta into tangent_delta */
 }
 
 bool multiresModifier_storeHigherLevelDelta(Object &object,
-                                            const Mesh &coarse_mesh,
+                                            Mesh &coarse_mesh,
                                             SubdivCCG &higher_subdiv_ccg,
                                             SubdivCCG &lower_subdiv_ccg)
 {
@@ -182,18 +185,18 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
     return false;
   }
 
-  blender::MutableSpan<blender::float3> higher_storage = multires_ensure_higher_delta_storage(
-      object, coarse_mesh, reshape_context.top.level);
+  blender::MutableSpan<blender::float3> delta_storage = multires_ensure_higher_delta_storage(
+      object, higher_subdiv_ccg, reshape_context.top.level);
 
-  if (!multires_reshape_assign_final_coords_from_ccg(&reshape_context, &lower_subdiv_ccg)) {
+  if (!multires_reshape_assign_final_coords_from_ccg(&reshape_context, &lower_subdiv_ccg, delta_storage)) {
     multires_reshape_context_free(&reshape_context);
     return false;
   }
 
   multires_reshape_smooth_object_grids_v2(&reshape_context,
                                           MultiresSubdivideModeType::CatmullClark);
-  multires_reshape_calculate_object_delta(&reshape_context, higher_subdiv_ccg, higher_storage);
-  multires_reshape_object_delta_to_tangent_delta(&reshape_context, object);
+  multires_reshape_calculate_object_delta(&reshape_context, higher_subdiv_ccg, delta_storage);
+  multires_reshape_object_delta_to_tangent_delta(&reshape_context, delta_storage);
   multires_reshape_context_free(&reshape_context);
 
   return true;
@@ -322,13 +325,7 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   const int level_idx = top_level - 1;
   BLI_assert(level_idx >= 0);
   if (top_level > multires_runtime.disp_at_level.size()) {
-    blender::Vector<blender::float3> level_disp(
-        multires_grid_tot[top_level] * coarse_mesh->corners_num, blender::float3(0.0f));
-    multires_runtime.disp_at_level.append(std::move(level_disp));
-#if 0
-    printf("Creating new runtime layer (Current: %lld, Requested: %d)\n", multires_runtime.disp_at_level.size(), top_level);
-    printf("Resulting size: %lld, Addr: %p\n", multires_runtime.disp_at_level.size(), &multires_runtime);
-#endif
+    multires_runtime.disp_at_level.resize(top_level);
   }
 
   /* NOTE: Subdivision happens from the top level of the existing multires modifier. If it is set

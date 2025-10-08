@@ -163,7 +163,7 @@ bool multiresModifier_reshapeFromCCG(int tot_level, Mesh *coarse_mesh, SubdivCCG
  * for all vertices between the CCG at level N and the subdivided position of N - 1.
  */
 bool multiresModifier_storeHigherLevelDelta(Object &object,
-                                            const Mesh &coarse_mesh,
+                                            Mesh &coarse_mesh,
                                             SubdivCCG &higher_subdiv_ccg,
                                             SubdivCCG &lower_subdiv_ccg);
 
