@@ -1,3 +1,4 @@
 Referenced by commit 74fff8623f0, Nodes: support input socket usage inferencing for Mix and Mix Shader node
 Referenced by issue #133925, Geometry Nodes: Assert: Socket usage interface can not handle dangling animation action
 Referenced by issue #133369, Nodes: support input socket usage inferencing for Mix and Mix Shader node
+Referenced by issue #146949, Geometry Nodes Modifier - vertical scrolling very laggy when large node tree with many unused sockets
