@@ -136,7 +136,9 @@ void MTLStorageBuf::init()
       size_in_bytes_, (usage_ == GPU_USAGE_DEVICE_ONLY) ? false : true);
 
 #ifndef NDEBUG
-  metal_buffer_->set_label([NSString stringWithFormat:@"Storage Buffer %s", name_]);
+  static std::atomic<int> global_counter = 0;
+  int index = global_counter.fetch_add(1);
+  metal_buffer_->set_label([NSString stringWithFormat:@"SSBO %i %s", index, name_]);
 #endif
   BLI_assert(metal_buffer_ != nullptr);
   BLI_assert(metal_buffer_->get_metal_buffer() != nil);

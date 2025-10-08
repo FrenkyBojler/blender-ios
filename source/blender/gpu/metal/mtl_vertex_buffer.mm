@@ -115,7 +115,12 @@ void MTLVertBuf::bind()
   if (vbo_ == nullptr) {
     vbo_ = MTLContext::get_global_memory_manager()->allocate(
         required_size, (this->get_usage_type() != GPU_USAGE_DEVICE_ONLY));
-    vbo_->set_label(@"Vertex Buffer");
+#ifndef NDEBUG
+    static std::atomic<int> global_counter = 0;
+    int index = global_counter.fetch_add(1);
+    vbo_->set_label([NSString stringWithFormat:@"VBO %i", index]);
+#endif
+
     BLI_assert(vbo_ != nullptr);
     BLI_assert(vbo_->get_metal_buffer() != nil);
 

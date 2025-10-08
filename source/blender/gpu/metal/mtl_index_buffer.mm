@@ -135,7 +135,11 @@ void MTLIndexBuf::upload_data()
         ibo_ = MTLContext::get_global_memory_manager()->allocate(alloc_size_, true);
       }
       BLI_assert(ibo_);
-      ibo_->set_label(@"Index Buffer");
+#ifndef NDEBUG
+      static std::atomic<int> global_counter = 0;
+      int index = global_counter.fetch_add(1);
+      ibo_->set_label([NSString stringWithFormat:@"IBO %i", index]);
+#endif
     }
 
     /* No need to keep copy of data_ in system memory. */

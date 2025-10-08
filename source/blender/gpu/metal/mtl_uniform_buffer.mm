@@ -76,7 +76,9 @@ void MTLUniformBuf::update(const void *data)
     has_data_ = true;
 
 #ifndef NDEBUG
-    metal_buffer_->set_label([NSString stringWithFormat:@"Uniform Buffer %s", name_]);
+    static std::atomic<int> global_counter = 0;
+    int index = global_counter.fetch_add(1);
+    metal_buffer_->set_label([NSString stringWithFormat:@"UBO %i %s", index, name_]);
 #endif
     BLI_assert(metal_buffer_ != nullptr);
     BLI_assert(metal_buffer_->get_metal_buffer() != nil);
