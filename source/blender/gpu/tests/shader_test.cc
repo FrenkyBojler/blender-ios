@@ -246,6 +246,69 @@ static void test_shader_ssbo_binding()
 }
 GPU_TEST(shader_ssbo_binding)
 
+#ifdef WITH_METAL_BACKEND
+static void test_shader_sampler_argument_buffer_binding()
+{
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_sampler_arg_buf_graphic_test");
+  EXPECT_NE(shader, nullptr);
+
+  gpu::StorageBuf *ssbo = GPU_storagebuf_create(sizeof(float) * 4 * 18);
+
+  GPU_storagebuf_bind(ssbo, GPU_shader_get_ssbo_binding(shader, "data_out"));
+
+  blender::float4 tx_data(-1.0f, 1.0f, 2.0f, 3.0f);
+  blender::gpu::Texture *tex = GPU_texture_create_2d(
+      "tx", 1, 1, 1, TextureFormat::SFLOAT_32_32_32_32, GPU_TEXTURE_USAGE_SHADER_READ, &tx_data.x);
+
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_1"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_2"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_3"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_4"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_5"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_6"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_7"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_8"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_9"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_10"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_11"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_12"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_13"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_14"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_15"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_16"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_17"));
+  GPU_texture_bind(tex, GPU_shader_get_sampler_binding(shader, "tex_18"));
+
+  gpu::FrameBuffer *fb = GPU_framebuffer_create("test_fb");
+  GPU_framebuffer_default_size(fb, 1, 1);
+  GPU_framebuffer_bind(fb);
+
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_POINTS, 3);
+
+  GPU_batch_set_shader(batch, shader);
+  GPU_batch_draw(batch);
+
+  GPU_batch_discard(batch);
+
+  GPU_finish();
+
+  float4 data[18];
+  GPU_storagebuf_read(ssbo, &data);
+
+  for (int index = 0; index < 18; index++) {
+    EXPECT_EQ(data[index], tx_data);
+  }
+
+  /* Cleanup. */
+  GPU_shader_unbind();
+  GPU_framebuffer_free(fb);
+  GPU_storagebuf_free(ssbo);
+  GPU_texture_free(tex);
+  GPU_shader_free(shader);
+}
+GPU_TEST(shader_sampler_argument_buffer_binding)
+#endif
+
 static std::string print_test_data(const TestOutputRawData &raw, TestType type)
 {
   std::stringstream ss;
