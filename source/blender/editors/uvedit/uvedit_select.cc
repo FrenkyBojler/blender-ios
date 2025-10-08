@@ -1591,15 +1591,11 @@ BMLoop *uv_find_nearest_loop_from_edge(Scene *scene, Object *obedit, BMEdge *e, 
 /** \name Helper functions for UV selection.
  * \{ */
 
-void uvedit_select_prepare_custom_data(const Scene *scene, BMesh *bm)
+void uvedit_select_prepare_custom_data(const Scene *scene, BMesh * /*bm*/)
 {
   const ToolSettings *ts = scene->toolsettings;
   BLI_assert((ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
   UNUSED_VARS_NDEBUG(ts);
-  // TODO_MESH_ATTR
-  const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
-  BLI_assert(active_uv_name);
-  UNUSED_VARS_NDEBUG(active_uv_name);
 }
 
 void uvedit_select_prepare_sync_select(const Scene *scene, BMesh *bm)
