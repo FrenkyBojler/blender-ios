@@ -578,7 +578,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
     bm->elem_index_dirty &= ~(BM_FACE | BM_LOOP); /* Added in order, clear dirty flag. */
   }
 
-  bm->uv_select_sync_valid = (need_uv_select && (mesh->flag & ME_FLAG_UV_SELET_SYNC)) != 0;
+  bm->uv_select_sync_valid = (need_uv_select && (mesh->flag & ME_FLAG_UV_SELECT_SYNC_VALID)) != 0;
 
   /* -------------------------------------------------------------------- */
   /* MSelect clears the array elements (to avoid adding multiple times).
@@ -1428,7 +1428,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   /* Will have been cleared when clearing geometry. */
   const bool need_uv_select = CustomData_has_layer(&bm->ldata, CD_PROP_FLOAT2);
   if (need_uv_select & bm->uv_select_sync_valid) {
-    mesh->flag |= ME_FLAG_UV_SELET_SYNC;
+    mesh->flag |= ME_FLAG_UV_SELECT_SYNC_VALID;
   }
 
   bool need_select_vert = false;
@@ -1668,7 +1668,7 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   /* Will have been cleared when clearing geometry. */
   const bool need_uv_select = CustomData_has_layer(&bm.ldata, CD_PROP_FLOAT2);
   if (need_uv_select && bm.uv_select_sync_valid) {
-    mesh.flag |= ME_FLAG_UV_SELET_SYNC;
+    mesh.flag |= ME_FLAG_UV_SELECT_SYNC_VALID;
   }
 
   mesh.runtime->deformed_only = true;

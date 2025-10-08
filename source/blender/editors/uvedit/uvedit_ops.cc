@@ -2535,6 +2535,7 @@ static bool uv_copy_mirrored_faces(
 
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
   BLI_assert(offsets.uv != -1);
+  UNUSED_VARS_NDEBUG(offsets);
   BMVert *v;
   BMIter iter;
 
