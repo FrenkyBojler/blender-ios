@@ -1344,7 +1344,8 @@ class Preprocessor {
   {
     const bool skip_drw_debug = filename.find("draw_debug_draw_lib.glsl") != std::string::npos ||
                                 filename.find("draw_debug_draw_display_vert.glsl") !=
-                                    std::string::npos;
+                                    std::string::npos ||
+                                filename.find("draw_shader_shared.hh") != std::string::npos;
     using namespace metadata;
     /* TODO: This can trigger false positive caused by disabled #if blocks. */
     std::string tokens[] = {"gl_FragCoord",
