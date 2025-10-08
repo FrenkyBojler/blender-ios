@@ -3424,14 +3424,14 @@ static void node_draw_collapsed(const bContext &C,
 
   /* Collapse/expand icon. */
   {
-    const int but_size = U.widget_unit * 1.0f;
+    const int but_size = 0.8f * U.widget_unit;
     UI_block_emboss_set(&block, ui::EmbossType::None);
 
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
                               0,
                               ICON_RIGHTARROW,
-                              rct.xmin + (NODE_MARGIN_X / 3),
+                              rct.xmin + (NODE_MARGIN_X / 3) + 0.1f * U.widget_unit,
                               centy - but_size / 2,
                               but_size,
                               but_size,
