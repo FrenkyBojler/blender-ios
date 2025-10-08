@@ -56,7 +56,7 @@ static std::string format_coefficient(float value)
 
 /* Static variable to store rotation mode button state at runtime.
  * Defaults to XYZ Euler. */
-static int rotation_mode_index = 1;
+static int rotation_mode_index = ROT_MODE_EUL;
 
 static void rotation_mode_menu_callback(bContext *, uiLayout *layout, void *)
 {
@@ -99,7 +99,7 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
   float m3[3][3];
   copy_m3_m4(m3, m4);
   if (!is_orthogonal_m3(m3)) {
-    layout_->label(RPT_("Matrix Has a Shear"), ICON_ERROR);
+    layout_->label(RPT_("Matrix has a shear"), ICON_ERROR);
   }
 
   float loc[3], quat[4], size[3];
@@ -164,7 +164,7 @@ static void draw_matrix_template(uiLayout &layout, PointerRNA &ptr, PropertyRNA 
     uiItemL_respect_property_split(row, IFACE_("Z"), ICON_NONE);
     row->label(format_coefficient(axis[2]), ICON_NONE);
   }
-  else {  // Euler modes.
+  else { /* Euler modes. */
     quat_to_eulO(eul, mode_info.value, quat);
 
     row = &col->row(true);

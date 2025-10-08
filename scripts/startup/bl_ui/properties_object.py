@@ -115,18 +115,18 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.object and context.object.parent
+        ob = context.object
+        return ob and ob.parent
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
 
         ob = context.object
-        assert ob
         layout.template_matrix(ob, "matrix_parent_inverse")
 
         props = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform")
-        props.type = "CLEAR_INVERSE"
+        props.type = 'CLEAR_INVERSE'
 
 
 class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
