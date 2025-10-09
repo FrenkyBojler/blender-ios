@@ -264,6 +264,13 @@ void ui_region_to_window(const ARegion *region, int *x, int *y)
   *y += region->winrct.ymin;
 }
 
+void ui_region_to_window(
+    const ARegion *region, int region_x, int region_y, int *r_window_x, int *r_window_y)
+{
+  *r_window_x = region_x + region->winrct.xmin;
+  *r_window_y = region_y + region->winrct.ymin;
+}
+
 int uiBlock::but_index(const uiBut *but) const
 {
   BLI_assert(!buttons.is_empty() && but);
@@ -4575,7 +4582,8 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     rows = totitems;
   }
 
-  const char *title = RNA_property_ui_name(but->rnaprop);
+  const char *title = RNA_property_ui_name(
+      but->rnaprop, RNA_pointer_is_null(&but->rnapoin) ? nullptr : &but->rnapoin);
 
   /* Is there a non-blank label before this button on the same row? */
   uiBut *but_prev = but->block->prev_but(but);

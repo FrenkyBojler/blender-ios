@@ -17,6 +17,7 @@ if "bpy" in locals():
 import bpy
 from bpy.app.translations import pgettext_tip as tip_
 from mathutils import Matrix, Euler, Vector, Quaternion
+from bpy_extras import anim_utils
 
 # Also imported in .fbx_utils, so importing here is unlikely to further affect Blender startup time.
 import numpy as np
@@ -893,10 +894,10 @@ def blen_store_keyframes_multi(fbx_key_times, fcurve_and_key_values_pairs, blen_
         blen_fcurve.update()
 
 
-def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset, global_scale, shape_key_deforms,
+def blen_read_animations_action_item(channelbag, item, cnodes, fps, anim_offset, global_scale, shape_key_deforms,
                                      fbx_ktime):
     """
-    'Bake' loc/rot/scale into the action,
+    'Bake' loc/rot/scale into the channelbag,
     taking any pre_ and post_ matrix into account to transform from fbx into blender space.
     """
     from bpy.types import ShapeKey, Material, Camera
@@ -948,7 +949,7 @@ def blen_read_animations_action_item(action, item, cnodes, fps, anim_offset, glo
         else:  # Euler
             props[1] = (bl_obj.path_from_id("rotation_euler"), 3, grpname or "Euler Rotation")
 
-    blen_curves = [action.fcurves.new(prop, index=channel, action_group=grpname)
+    blen_curves = [channelbag.fcurves.new(prop, index=channel, group_name=grpname)
                    for prop, nbr_channels, grpname in props for channel in range(nbr_channels)]
 
     if isinstance(item, Material):
@@ -1098,8 +1099,14 @@ def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_o
                     actions[key] = action = bpy.data.actions.new(action_name)
                     action.use_fake_user = True
 
-                    # Create an Action Slot. Curves created via action.fcurves will automatically be assigned to it.
-                    action.slots.new(id_data.id_type, action_name)
+                    # Always use the same name for the slot. It should be simple
+                    # to switch between imported Actions while keeping Slot
+                    # auto-assignment, which means that all Actions should use
+                    # the same slot name. As long as there's no separate
+                    # indicator for the "intended object name" for this FBX
+                    # animation, this is the best Blender can do. Maybe the
+                    # 'stack name' would be a better choice?
+                    action.slots.new(id_data.id_type, "Slot")
 
                 # If none yet assigned, assign this action to id_data.
                 if not id_data.animation_data:
@@ -1109,7 +1116,8 @@ def blen_read_animations(fbx_tmpl_astack, fbx_tmpl_alayer, stacks, scene, anim_o
                     id_data.animation_data.action_slot = action.slots[0]
 
                 # And actually populate the action!
-                blen_read_animations_action_item(action, item, cnodes, scene.render.fps, anim_offset, global_scale,
+                channelbag = anim_utils.action_ensure_channelbag_for_slot(action, action.slots[0])
+                blen_read_animations_action_item(channelbag, item, cnodes, scene.render.fps, anim_offset, global_scale,
                                                  shape_key_values, fbx_ktime)
 
     # If the minimum/maximum animated value is outside the slider range of the shape key, attempt to expand the slider

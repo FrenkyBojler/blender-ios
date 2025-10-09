@@ -219,12 +219,6 @@ bool allow_procedural_attribute_access(StringRef attribute_name)
   if (attribute_name == ".reference_index") {
     return false;
   }
-  if (attribute_name.startswith("." UV_VERTSEL_NAME ".")) {
-    return false;
-  }
-  if (attribute_name.startswith("." UV_EDGESEL_NAME ".")) {
-    return false;
-  }
   if (attribute_name.startswith("." UV_PINNED_NAME ".")) {
     return false;
   }
@@ -956,6 +950,10 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     GVArray src = *iter.get();
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
+    /* Skip unsupported attributes. */
+    if (!dst) {
+      return;
+    }
     attributes.append({std::move(src), iter.name, {iter.domain, iter.data_type}, std::move(dst)});
   });
   return attributes;
