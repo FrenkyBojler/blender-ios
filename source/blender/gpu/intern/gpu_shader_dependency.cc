@@ -77,6 +77,8 @@ struct GPUSource {
     switch (builtin) {
       case Builtin::FragCoord:
         return BuiltinBits::FRAG_COORD;
+      case Builtin::FragStencilRef:
+        return BuiltinBits::STENCIL_REF;
       case Builtin::FrontFacing:
         return BuiltinBits::FRONT_FACING;
       case Builtin::GlobalInvocationID:
@@ -551,6 +553,7 @@ void gpu_material_library_use_function(blender::Set<blender::StringRefNull> &use
                                        const char *name)
 {
   GPUFunction *function = g_functions->lookup_default(name, nullptr);
+  BLI_assert_msg(function != nullptr, "Requested function not in the function library");
   GPUSource *source = reinterpret_cast<GPUSource *>(function->source);
   used_libraries.add(source->filename.c_str());
 }
