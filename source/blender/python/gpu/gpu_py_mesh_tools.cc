@@ -20,12 +20,11 @@
 
 #include "DNA_ID.h"
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 
 #include "../draw/intern/draw_cache_extract.hh"
 #include "../gpu/intern/gpu_shader_create_info.hh"
 
-#include "GPU_capabilities.hh"
+
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
 #include "GPU_shader.hh"
@@ -240,23 +239,12 @@ static PyObject *pygpu_mesh_scatter(PyObject * /*self*/, PyObject *args, PyObjec
        "transform_mat[]"},
   };
 
-  Scene *scene = DEG_get_input_scene(depsgraph);
-  const int normals_domain_val = (mesh_eval->normals_domain() == MeshNormalDomain::Face) ? 1 : 0;
-  const int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
-                                 GPU_use_hq_normals_workaround());
-
-  auto config_shader = [&](blender::gpu::shader::ShaderCreateInfo &info) {
-    info.specialization_constant(
-        blender::gpu::shader::Type::int_t, "normals_domain", normals_domain_val);
-    info.specialization_constant(blender::gpu::shader::Type::int_t, "normals_hq", normals_hq_val);
-  };
-
   /* --- 3. Run Compute Shader via High-Level API --- */
   GpuComputeStatus status = BKE_mesh_gpu_run_compute(depsgraph,
                                                      ob_eval,
                                                      SCATTER_SHADER_MAIN_GLSL,
                                                      bindings,
-                                                     config_shader,
+                                                     std::function<void(blender::gpu::shader::ShaderCreateInfo &)>(),
                                                      std::function<void(blender::gpu::Shader *)>(),
                                                      mesh_eval->corner_verts().size());
 
@@ -627,7 +615,6 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
 
   /* Prepare config: collect specialization constants and push-constants from py_config_callable.
    */
-  Scene *scene = DEG_get_input_scene(DEG_get_depsgraph_by_id(ob_eval->id));
 
   std::vector<std::pair<std::string, long>> spec_ints;
   std::vector<std::pair<std::string, double>> spec_floats;
@@ -725,13 +712,6 @@ static PyObject *pygpu_mesh_run_compute(PyObject * /*self*/, PyObject *args, PyO
 
   /* Lambda to apply specialization constants and declare push-constants at shader create time. */
   auto config_with_specs = [&](blender::gpu::shader::ShaderCreateInfo &info) {
-    int normals_domain_val = (mesh_eval->normals_domain() == MeshNormalDomain::Face) ? 1 : 0;
-    int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
-                             GPU_use_hq_normals_workaround());
-    info.specialization_constant(
-        blender::gpu::shader::Type::int_t, "normals_domain", normals_domain_val);
-    info.specialization_constant(blender::gpu::shader::Type::int_t, "normals_hq", normals_hq_val);
-
     for (auto &p : spec_ints) {
       /* scalar specialization -> declare with the actual value provided by Python. */
       info.specialization_constant(

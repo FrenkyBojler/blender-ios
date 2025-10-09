@@ -15,7 +15,9 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
+#include "GPU_capabilities.hh"
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
 #include "GPU_state.hh"
@@ -338,6 +340,16 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
 
   BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
 
+  // --- add specialization constants for normals (compute here since mesh_eval & scene available)
+  // ---
+  Scene *scene = DEG_get_input_scene(depsgraph);
+  int normals_domain_val = (mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face) ? 1 : 0;
+  int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
+                           GPU_use_hq_normals_workaround());
+  info.specialization_constant(
+      blender::gpu::shader::Type::int_t, "normals_domain", normals_domain_val);
+  info.specialization_constant(blender::gpu::shader::Type::int_t, "normals_hq", normals_hq_val);
+
   if (config_fn) {
     config_fn(info);
   }
@@ -345,9 +357,14 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
   info.compute_source_generated = glsl_accessors + main_glsl;
 
-  /* Compute a stable key for this shader variant (hash of full generated source). */
+  /* Compute a stable key for this shader variant.
+   * Include important specialization constants (normals_domain / normals_hq)
+   * so shaders compiled with different specialization values don't collide. */
   const std::string shader_source = info.compute_source_generated;
-  const size_t shader_key = std::hash<std::string>()(shader_source);
+  std::string shader_key_src = shader_source +
+                               ";normals_domain=" + std::to_string(normals_domain_val) +
+                               ";normals_hq=" + std::to_string(normals_hq_val);
+  const size_t shader_key = std::hash<std::string>()(shader_key_src);
 
   /* Lookup existing shader for this mesh + variant. */
   blender::gpu::Shader *shader = nullptr;
