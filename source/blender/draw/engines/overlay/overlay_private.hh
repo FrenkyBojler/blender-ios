@@ -1020,9 +1020,9 @@ struct FlatObjectRef {
    * Note: Only works in orthogonal view. */
   void if_flat_axis_orthogonal_to_view(Manager &manager, const View &view, Callback callback) const
   {
-    for (ResourceIndex i : handle.index_range()) {
+    for (ResourceIndex resource_index : handle.index_range()) {
       const float4x4 &object_to_world =
-          manager.matrix_buf.current().get_or_resize(i.resource_index()).model;
+          manager.matrix_buf.current().get_or_resize(resource_index.resource_index()).model;
 
       float3 view_forward = view.forward();
       float3 axis_not_flat_a = (flattened_axis_id == 0) ? object_to_world.y_axis() :
@@ -1032,7 +1032,7 @@ struct FlatObjectRef {
       float3 axis_flat = math::cross(axis_not_flat_a, axis_not_flat_b);
 
       if (math::abs(math::dot(view_forward, axis_flat)) < 1e-3f) {
-        callback(geom, i);
+        callback(geom, resource_index);
       }
     }
   }
