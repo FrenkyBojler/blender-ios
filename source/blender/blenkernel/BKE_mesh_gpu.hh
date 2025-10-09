@@ -9,7 +9,9 @@
 #include "BLI_vector.hh"
 
 #include "GPU_shader.hh"
+#include "GPU_index_buffer.hh"
 #include "GPU_storage_buffer.hh"
+#include "GPU_uniform_buffer.hh"
 #include "GPU_vertex_buffer.hh"
 
 #include "../gpu/intern/gpu_shader_create_info.hh"
@@ -55,8 +57,12 @@ struct MeshGPUTopology {
 struct GpuMeshComputeBinding {
   /** The binding point index in the shader (layout(binding = ...)). */
   int binding;
-  /** The buffer to bind. Can be a StorageBuf* or a VertBuf*. */
-  std::variant<blender::gpu::StorageBuf *, blender::gpu::VertBuf *> buffer;
+  /** The buffer to bind. Can be a StorageBuf* or a VertBuf* or a UniformBuf* or a IndexBuf*. */
+  std::variant<blender::gpu::StorageBuf *,
+               blender::gpu::VertBuf *,
+               blender::gpu::UniformBuf *,
+               blender::gpu::IndexBuf *>
+      buffer;
   /** Qualifiers (read, write, read_write). */
   blender::gpu::shader::Qualifier qualifiers;
   /** GLSL type name for the buffer declaration (e.g., "vec4", "uint"). */

@@ -21,7 +21,6 @@
 #include "GPU_compute.hh"
 #include "GPU_context.hh"
 #include "GPU_state.hh"
-#include "GPU_vertex_buffer.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -395,6 +394,16 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
           else if constexpr (std::is_same_v<T, blender::gpu::VertBuf *>) {
             if (arg) {
               arg->bind_as_ssbo(binding.binding);
+            }
+          }
+          else if constexpr (std::is_same_v<T, blender::gpu::UniformBuf *>) {
+            if (arg) {
+              GPU_uniformbuf_bind_as_ssbo(arg, binding.binding);
+            }
+          }
+          else if constexpr (std::is_same_v<T, blender::gpu::IndexBuf *>) {
+            if (arg) {
+              GPU_indexbuf_bind_as_ssbo(arg, binding.binding);
             }
           }
         },
