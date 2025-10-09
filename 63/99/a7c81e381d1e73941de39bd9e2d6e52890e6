@@ -1,1 +1,2 @@
 Referenced by issue #147357, `make update` in github mirror clone  now requires user to type github username and password
+Referenced by issue #137983, Release note tools: List of bug fixes per release override
