@@ -221,8 +221,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> seam_field = params.extract_input<Field<bool>>("Seam");
   const bool fill_holes = params.extract_input<bool>("Fill Holes");
   const float margin = params.extract_input<float>("Margin");
-  int iterations;
-  bool no_flip;
+  int iterations = 0;
+  bool no_flip = false;
   if ((GeometryNodeUVUnwrapMethod)method == GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH) {
     iterations = params.extract_input<int>("Iterations");
     no_flip = params.extract_input<bool>("No Flip");
