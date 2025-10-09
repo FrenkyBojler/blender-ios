@@ -6,3 +6,4 @@ Referenced by pull request #132493, Fix: Geometry Nodes: Ensure Triangulate node
 Referenced by issue #144983, Geometry nodes triangulate and armature modifier on a mesh with UV map vertex group name collision crashes Blender
 Referenced by issue #146403, Segfault when using triangulate geometry node on 4.5.3 LTS
 Referenced by pull request #147634, Fix #144846: Mesh triangulation can generate duplicate faces and edges
+Referenced by commit bfb0d2ad20a2cf700d85e8f121009cd4cdb795ab, Fix #144846: Mesh triangulation can generate duplicate faces and edges
