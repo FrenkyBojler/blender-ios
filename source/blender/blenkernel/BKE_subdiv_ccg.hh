@@ -230,7 +230,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
 Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
                              blender::bke::subdiv::Subdiv &subdiv,
                              const SubdivToCCGSettings &settings,
-                             const Mesh &coarse_mesh,
+                             Mesh &coarse_mesh,
                              int delta);
 
 Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,

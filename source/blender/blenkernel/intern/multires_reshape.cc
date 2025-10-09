@@ -193,8 +193,8 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
     return false;
   }
 
-  multires_reshape_smooth_object_grids_v2(&reshape_context,
-                                          MultiresSubdivideModeType::CatmullClark);
+  multires_reshape_smooth_object_grids_v2(
+      &reshape_context, MultiresSubdivideModeType::CatmullClark, delta_storage);
   multires_reshape_calculate_object_delta(&reshape_context, higher_subdiv_ccg, delta_storage);
   multires_reshape_object_delta_to_tangent_delta(&reshape_context, delta_storage);
   multires_reshape_context_free(&reshape_context);

@@ -24,6 +24,8 @@
 #include "BKE_multires.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_eval.hh"
+#include "DNA_modifier_types.h"
+#include "opensubdiv_evaluator_capi.hh"
 
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_topology_refiner.hh"
@@ -462,6 +464,22 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
 
   if (delta < 0) {
+
+    blender::bke::subdiv::Settings subdiv_settings;
+    subdiv_settings.is_adaptive = true;
+    subdiv_settings.is_simple = false;
+    subdiv_settings.level = subdiv.settings.level - delta;
+    subdiv_settings.use_creases = false;
+    subdiv_settings.vtx_boundary_interpolation = blender::bke::subdiv::vtx_boundary_interpolation_from_subsurf(SUBSURF_BOUNDARY_SMOOTH_ALL);
+    subdiv_settings.fvar_linear_interpolation = blender::bke::subdiv::fvar_interpolation_from_uv_smooth(SUBSURF_UV_SMOOTH_NONE);
+
+    Subdiv* temp_subdiv = new_from_mesh(&subdiv_settings, &coarse_mesh);
+    OpenSubdiv_EvaluatorSettings evaluator_settings = {0};
+    blender::bke::subdiv::eval_begin(temp_subdiv,
+                                     blender::bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU,
+                                     nullptr,
+                                     &evaluator_settings);
+
     SubdivToCCGSettings higher_settings;
     higher_settings.level = settings.level - delta;
     BLI_assert(higher_settings.level > settings.level);
@@ -470,7 +488,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
     higher_settings.need_normal = false;
     higher_settings.need_mask = false;
     std::unique_ptr<SubdivCCG> higher_subdiv_ccg = BKE_subdiv_to_ccg(
-        subdiv, higher_settings, coarse_mesh, nullptr);
+        *temp_subdiv, higher_settings, coarse_mesh, nullptr);
 
     multiresModifier_storeHigherLevelDelta(object, coarse_mesh, *higher_subdiv_ccg, *subdiv_ccg);
     higher_subdiv_ccg.reset();

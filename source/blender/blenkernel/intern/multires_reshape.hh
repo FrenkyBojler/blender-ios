@@ -237,6 +237,10 @@ void multires_reshape_tangent_matrix_for_corner(const MultiresReshapeContext *re
  */
 ReshapeGridElement multires_reshape_grid_element_for_grid_coord(
     const MultiresReshapeContext *reshape_context, const GridCoord *grid_coord);
+ReshapeGridElement multires_reshape_grid_element_for_grid_coord(
+    const MultiresReshapeContext *reshape_context, const GridCoord *grid_coord, const int &r_idx);
+int multires_index_for_grid_coord(const MultiresReshapeContext *reshape_context,
+                                  const GridCoord *grid_coord);
 ReshapeGridElement multires_reshape_grid_element_for_ptex_coord(
     const MultiresReshapeContext *reshape_context, const PTexCoord *ptex_coord);
 

@@ -971,6 +971,30 @@ using ReshapeSubdivCoarsePositionCb =
          const Vertex *vertex,
          blender::float3 &r_P);
 
+using ReshapeSubdivCoarsePositionWithStorageCb =
+    void(const MultiresReshapeSmoothContext *reshape_smooth_context,
+         blender::Span<blender::float3> storage,
+         const Vertex *vertex,
+         blender::float3 &r_P);
+
+static void reshape_subdiv_refine(const MultiresReshapeSmoothContext *reshape_smooth_context,
+                                  blender::Span<blender::float3> storage,
+                                  ReshapeSubdivCoarsePositionWithStorageCb coarse_position_cb)
+{
+  blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
+
+  /* TODO(sergey): For non-trivial coarse_position_cb we should multi-thread this loop. */
+
+  const int num_vertices = reshape_smooth_context->geometry.vertices.size();
+  for (int i = 0; i < num_vertices; ++i) {
+    const Vertex *vertex = &reshape_smooth_context->geometry.vertices[i];
+    blender::float3 P;
+    coarse_position_cb(reshape_smooth_context, storage, vertex, P);
+    reshape_subdiv->evaluator->eval_output->setCoarsePositions(P, i, 1);
+  }
+  reshape_subdiv->evaluator->eval_output->refine();
+}
+
 /* Refine subdivision surface topology at a reshape level for new coarse vertices positions. */
 static void reshape_subdiv_refine(const MultiresReshapeSmoothContext *reshape_smooth_context,
                                   ReshapeSubdivCoarsePositionCb coarse_position_cb)
@@ -1057,9 +1081,38 @@ static void reshape_subdiv_refine_final_P(
    * vertices coordinates. */
   r_P = *grid_element.displacement;
 }
+
 static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *reshape_smooth_context)
 {
   reshape_subdiv_refine(reshape_smooth_context, reshape_subdiv_refine_final_P);
+}
+
+static void reshape_subdiv_refine_final_P(
+    const MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::Span<blender::float3> storage,
+    const Vertex *vertex,
+    blender::float3 &r_P)
+{
+  const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
+  const GridCoord *grid_coord = reshape_subdiv_refine_vertex_grid_coord(vertex);
+
+  /* Check whether this is a loose vertex. */
+  if (grid_coord == nullptr) {
+    r_P = blender::float3(0.0f);
+    return;
+  }
+
+  const int idx = multires_index_for_grid_coord(reshape_context, grid_coord);
+
+  /* NOTE: At this point in reshape/propagate pipeline grid displacement is actually storing object
+   * vertices coordinates. */
+  r_P = storage[idx];
+}
+
+static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *reshape_smooth_context,
+                                        blender::Span<blender::float3> storage)
+{
+  reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
 }
 
 static void reshape_subdiv_evaluate_limit_at_grid(
@@ -1330,6 +1383,24 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
       });
 }
 
+static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape_smooth_context,
+                                           blender::MutableSpan<blender::float3> delta_storage)
+{
+  const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
+  foreach_toplevel_grid_coord(
+      reshape_smooth_context, [&](const PTexCoord *ptex_coord, const GridCoord *grid_coord) {
+        blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
+
+        const int idx = multires_index_for_grid_coord(reshape_context, grid_coord);
+
+        /* Surface. */
+        const blender::float3 P = blender::bke::subdiv::eval_limit_point(
+            reshape_subdiv, ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v);
+
+        delta_storage[idx] = P;
+      });
+}
+
 #endif
 
 /** \} */
@@ -1429,14 +1500,13 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
 
   MultiresReshapeSmoothContext reshape_smooth_context(reshape_context, mode);
   geometry_create(&reshape_smooth_context);
-  evaluate_linear_delta_grids(&reshape_smooth_context);
 
   reshape_subdiv_create(&reshape_smooth_context);
 
   /* Set each of the OpenSubdiv positions to the value in `.displacement` (i.e. object space
    * coordinates created from subdiv + tangent disp) */
-  reshape_subdiv_refine_final(&reshape_smooth_context);
-  evaluate_higher_grid_positions(&reshape_smooth_context);
+  reshape_subdiv_refine_final(&reshape_smooth_context, storage);
+  evaluate_higher_grid_positions(&reshape_smooth_context, storage);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif

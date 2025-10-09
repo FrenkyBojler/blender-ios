@@ -71,7 +71,9 @@ static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const in
   MultiresModifierData *mmd_dst = (MultiresModifierData *)md_dst;
 
   mmd_dst->runtime = MEM_new<blender::MultiresModifierRuntime>(__func__);
-  mmd_dst->runtime->previous_level = mmd_src->runtime->previous_level;
+  if (mmd_src->runtime) {
+    mmd_dst->runtime->previous_level = mmd_src->runtime->previous_level;
+  }
 }
 
 static void free_runtime_data(void *runtime_data_v)
@@ -105,6 +107,10 @@ static MultiresRuntimeData *multires_ensure_runtime(MultiresModifierData *mmd)
 
 void BKE_multires_change_sculpt_level(MultiresModifierData *mmd, const int lvl)
 {
+  if (mmd->runtime == nullptr) {
+    /* FIXME: Hacky, this should be in a blend_load */
+    mmd->runtime = MEM_new<blender::MultiresModifierRuntime>(__func__);
+  }
   mmd->runtime->previous_level = mmd->sculptlvl;
   mmd->sculptlvl = lvl;
 }
