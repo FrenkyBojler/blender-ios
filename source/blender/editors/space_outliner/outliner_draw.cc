@@ -2571,6 +2571,9 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
       if (id->tag & ID_TAG_MISSING) {
         return ICON_LIBRARY_DATA_BROKEN;
       }
+      else if (reinterpret_cast<const Library *>(id)->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        return ICON_PACKAGE;
+      }
       else if (((Library *)id)->runtime->parent) {
         return ICON_LIBRARY_DATA_INDIRECT;
       }
@@ -2748,6 +2751,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case CONSTRAINT_TYPE_SHRINKWRAP:
             data.icon = ICON_CON_SHRINKWRAP;
             break;
+          case CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE:
+            data.icon = ICON_CON_GEOMETRYATTRIBUTE;
+            break;
 
           default:
             data.icon = ICON_DOT;
@@ -2844,7 +2850,6 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case STRIP_TYPE_ALPHAUNDER:
           case STRIP_TYPE_COLORMIX:
           case STRIP_TYPE_MULTICAM:
-          case STRIP_TYPE_TRANSFORM:
           case STRIP_TYPE_SPEED:
           case STRIP_TYPE_GLOW:
           case STRIP_TYPE_GAUSSIAN_BLUR:
@@ -2875,8 +2880,16 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         const PointerRNA &ptr = te_rna_struct->get_pointer_rna();
 
         if (RNA_struct_is_ID(ptr.type)) {
-          data.drag_id = static_cast<ID *>(ptr.data);
-          data.icon = RNA_struct_ui_icon(ptr.type);
+          ID *id = static_cast<ID *>(ptr.data);
+          data.drag_id = id;
+          if (id && GS(id->name) == ID_LI &&
+              id_cast<Library *>(id)->flag & LIBRARY_FLAG_IS_ARCHIVE)
+          {
+            data.icon = ICON_PACKAGE;
+          }
+          else {
+            data.icon = RNA_struct_ui_icon(ptr.type);
+          }
         }
         else {
           data.icon = RNA_struct_ui_icon(ptr.type);
@@ -2976,7 +2989,7 @@ static bool tselem_draw_icon(uiBlock *block,
       if (collection->color_tag != COLLECTION_COLOR_NONE) {
         UI_icon_draw_ex(x,
                         y,
-                        data.icon,
+                        ICON_COLLECTION_COLOR_01 + collection->color_tag,
                         UI_INV_SCALE_FAC,
                         alpha,
                         0.0f,

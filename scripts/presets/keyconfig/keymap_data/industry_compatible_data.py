@@ -289,6 +289,10 @@ def km_screen_editing(params):
          {"properties": [("use_viewport", True)]}),
         ("render.render", {"type": 'RET', "value": 'PRESS', "ctrl": True, "alt": True},
          {"properties": [("animation", True), ("use_viewport", True)]}),
+        ("render.render", {"type": 'F12', "value": 'PRESS', "alt": True},
+         {"properties": [("use_sequencer_scene", True), ("use_viewport", True)]}),
+        ("render.render", {"type": 'F12', "value": 'PRESS', "ctrl": True, "alt": True},
+         {"properties": [("animation", True), ("use_sequencer_scene", True), ("use_viewport", True)]}),
         ("render.view_cancel", {"type": 'ESC', "value": 'PRESS'}, None),
     ])
 
@@ -420,7 +424,7 @@ def km_user_interface(params):
         ("anim.driver_button_remove", {"type": 'D', "value": 'PRESS', "alt": True}, None),
         ("anim.keyingset_button_add", {"type": 'K', "value": 'PRESS'}, None),
         ("anim.keyingset_button_remove", {"type": 'K', "value": 'PRESS', "alt": True}, None),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'CLICK'}, None),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
     ])
 
     return keymap
