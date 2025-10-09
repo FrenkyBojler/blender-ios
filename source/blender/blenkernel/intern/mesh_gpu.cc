@@ -326,43 +326,10 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
       return blender::bke::GpuComputeStatus::Error;
     }
   }
-
-  using namespace blender::gpu::shader;
-  ShaderCreateInfo info("mesh_compute_shader");
-  info.local_group_size(256, 1, 1);
-  info.compute_source("draw_colormanagement_lib.glsl");
-
-  for (const auto &binding : caller_bindings) {
-    info.storage_buf(binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
-  }
-  info.storage_buf(MESH_GPU_TOPOLOGY_BINDING, Qualifier::read, "int", "topo[]");
-
-  BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
-
-  // --- add specialization constants for normals (compute here since mesh_eval & scene available)
-  // ---
-  Scene *scene = DEG_get_input_scene(depsgraph);
-  int normals_domain_val = (mesh_eval->normals_domain() == blender::bke::MeshNormalDomain::Face) ? 1 : 0;
-  int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
-                           GPU_use_hq_normals_workaround());
-  info.specialization_constant(
-      blender::gpu::shader::Type::int_t, "normals_domain", normals_domain_val);
-  info.specialization_constant(blender::gpu::shader::Type::int_t, "normals_hq", normals_hq_val);
-
-  if (config_fn) {
-    config_fn(info);
-  }
-
   std::string glsl_accessors = BKE_mesh_gpu_topology_glsl_accessors_string(mesh_data.topology);
-  info.compute_source_generated = glsl_accessors + main_glsl;
-
-  /* Compute a stable key for this shader variant.
-   * Include important specialization constants (normals_domain / normals_hq)
-   * so shaders compiled with different specialization values don't collide. */
-  const std::string shader_source = info.compute_source_generated;
-  std::string shader_key_src = shader_source +
-                               ";normals_domain=" + std::to_string(normals_domain_val) +
-                               ";normals_hq=" + std::to_string(normals_hq_val);
+  const std::string shader_source = glsl_accessors + main_glsl;
+  /* Build shader identifier only from user glsl sources (not 100% fiable) */
+  std::string shader_key_src = shader_source;
   const size_t shader_key = std::hash<std::string>()(shader_key_src);
 
   /* Lookup existing shader for this mesh + variant. */
@@ -372,16 +339,52 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
     shader = it_shader->second;
   }
   else {
-    /* create shader from info */
-    blender::gpu::shader::ShaderCreateInfo info_copy = info; /* keep original */
-    shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info_copy);
+    using namespace blender::gpu::shader;
+    ShaderCreateInfo info("compute_shader");
+    info.local_group_size(256, 1, 1);
+    info.compute_source("draw_colormanagement_lib.glsl");
+    info.compute_source_generated = shader_source;
+
+    /* User buffer bindings */
+    for (const auto &binding : caller_bindings) {
+      info.storage_buf(
+          binding.binding, binding.qualifiers, binding.type_name, binding.bind_name);
+    }
+
+    /* Topology buffer binding */
+    info.storage_buf(MESH_GPU_TOPOLOGY_BINDING, Qualifier::read, "int", "topo[]");
+
+    /* Builtin Specialization constants */
+    Scene *scene = DEG_get_input_scene(depsgraph);
+    int normals_domain_val = (mesh_eval->normals_domain() ==
+                              blender::bke::MeshNormalDomain::Face) ?
+                                 1 :
+                                 0;
+    int normals_hq_val = int(bool(scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
+                             GPU_use_hq_normals_workaround());
+
+    info.specialization_constant(Type::int_t, "normals_domain", normals_domain_val);
+    info.specialization_constant(Type::int_t, "normals_hq", normals_hq_val);
+
+    BKE_mesh_gpu_topology_add_specialization_constants(info, mesh_data.topology);
+
+    /* User Specialization constants (and push_constants) */
+    if (config_fn) {
+      config_fn(info);
+    }
+
+    shader = GPU_shader_create_from_info((GPUShaderCreateInfo *)&info);
     if (!shader) {
       return blender::bke::GpuComputeStatus::Error;
     }
     mesh_data.compute_shaders.emplace(shader_key, shader);
   }
 
-  GPU_shader_bind(shader);
+  /* Bind shader, bind buffers, update uniforms, and compute */
+  const blender::gpu::shader::SpecializationConstants *constants =
+      &GPU_shader_get_default_constant_state(shader);
+  GPU_shader_bind(shader, constants);
+
   for (const auto &binding : caller_bindings) {
     std::visit(
         [&](auto &&arg) {
@@ -418,7 +421,7 @@ blender::bke::GpuComputeStatus BKE_mesh_gpu_run_compute(
   }
   const int group_size = 256;
   const int num_groups = (dispatch_count + group_size - 1) / group_size;
-  GPU_compute_dispatch(shader, num_groups, 1, 1);
+  GPU_compute_dispatch(shader, num_groups, 1, 1, constants);
 
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE | GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
   GPU_shader_unbind();
