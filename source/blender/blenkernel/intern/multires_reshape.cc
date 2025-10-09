@@ -22,6 +22,7 @@
 
 #include "BKE_mesh_types.hh"
 #include "BKE_paint.hh"
+#include "mikk_float3.hh"
 
 static const int multires_grid_tot[] = {
     0, 4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
@@ -150,12 +151,14 @@ static blender::MutableSpan<blender::float3> multires_ensure_higher_delta_storag
 }
 
 static void multires_reshape_calculate_object_delta(
-    MultiresReshapeContext *reshape_context,
     SubdivCCG &higher_subdiv_ccg,
     blender::MutableSpan<blender::float3> object_delta)
 {
   /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
    * object_delta */
+  for (const int i : higher_subdiv_ccg.positions.index_range()) {
+    object_delta[i] = higher_subdiv_ccg.positions[i] - object_delta[i];
+  }
 }
 
 static void multires_reshape_object_delta_to_tangent_delta(
@@ -187,6 +190,7 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
 
   blender::MutableSpan<blender::float3> delta_storage = multires_ensure_higher_delta_storage(
       object, higher_subdiv_ccg, reshape_context.top.level);
+  BLI_assert(delta_storage.size() == higher_subdiv_ccg.positions.size());
 
   if (!multires_reshape_assign_final_coords_from_ccg(&reshape_context, &lower_subdiv_ccg, delta_storage)) {
     multires_reshape_context_free(&reshape_context);
@@ -195,9 +199,19 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
 
   multires_reshape_smooth_object_grids_v2(
       &reshape_context, MultiresSubdivideModeType::CatmullClark, delta_storage);
-  multires_reshape_calculate_object_delta(&reshape_context, higher_subdiv_ccg, delta_storage);
+  printf("STORED LIMIT POS\n");
+  for (const int i : delta_storage.index_range()) {
+    printf("%f, %f, %f\n", delta_storage[i].x, delta_storage[i].y, delta_storage[i].z);
+  }
+  multires_reshape_calculate_object_delta(higher_subdiv_ccg, delta_storage);
+  printf("STORED HIGHER POS - LIMIT POS\n");
   multires_reshape_object_delta_to_tangent_delta(&reshape_context, delta_storage);
   multires_reshape_context_free(&reshape_context);
+
+  printf("HIGHER: %ld, LOWER: %ld, Storage: %ld\n", higher_subdiv_ccg.positions.size(), lower_subdiv_ccg.positions.size(), delta_storage.size());
+  for (const int i : delta_storage.index_range()) {
+    printf("%f, %f, %f\n", delta_storage[i].x, delta_storage[i].y, delta_storage[i].z);
+  }
 
   return true;
 }

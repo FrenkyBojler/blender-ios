@@ -424,6 +424,42 @@ static void foreach_toplevel_grid_coord(
   });
 }
 
+static void foreach_toplevel_grid_coord_single_threaded(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::FunctionRef<void(const PTexCoord *, const GridCoord *)> callback)
+{
+  using namespace blender;
+  const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
+  const int level_difference = (reshape_context->top.level - reshape_context->reshape.level);
+
+  const int inner_grid_size = (1 << level_difference) + 1;
+  const float inner_grid_size_1_inv = 1.0f / float(inner_grid_size - 1);
+
+  const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
+  for (const int face_index : faces.index_range()) {
+    const blender::IndexRange face = faces[face_index];
+    std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
+        reshape_smooth_context, face);
+
+    for (int y = 0; y < inner_grid_size; ++y) {
+      const float ptex_v = float(y) * inner_grid_size_1_inv;
+      for (int x = 0; x < inner_grid_size; ++x) {
+        const float ptex_u = float(x) * inner_grid_size_1_inv;
+
+        PTexCoord ptex_coord;
+        ptex_coord.ptex_face_index = face_index;
+        ptex_coord.u = ptex_u;
+        ptex_coord.v = ptex_v;
+
+        const GridCoord grid_coord = interpolate_grid_coord(
+            blender::Span(face_grid_coords), ptex_u, ptex_v);
+
+        callback(&ptex_coord, &grid_coord);
+      }
+    }
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -986,10 +1022,12 @@ static void reshape_subdiv_refine(const MultiresReshapeSmoothContext *reshape_sm
   /* TODO(sergey): For non-trivial coarse_position_cb we should multi-thread this loop. */
 
   const int num_vertices = reshape_smooth_context->geometry.vertices.size();
+  printf("SETTING %d VERTS\n", num_vertices);
   for (int i = 0; i < num_vertices; ++i) {
     const Vertex *vertex = &reshape_smooth_context->geometry.vertices[i];
     blender::float3 P;
     coarse_position_cb(reshape_smooth_context, storage, vertex, P);
+    printf("(%d) %f, %f, %f\n", i, P.x, P.y, P.z);
     reshape_subdiv->evaluator->eval_output->setCoarsePositions(P, i, 1);
   }
   reshape_subdiv->evaluator->eval_output->refine();
@@ -1102,7 +1140,8 @@ static void reshape_subdiv_refine_final_P(
     return;
   }
 
-  const int idx = multires_index_for_grid_coord(reshape_context, grid_coord);
+  const int idx = multires_index_for_grid_coord_for_reshape(reshape_context, grid_coord);
+  printf("\t%d -> %f %f %f\n", idx, storage[idx].x, storage[idx].y, storage[idx].z);
 
   /* NOTE: At this point in reshape/propagate pipeline grid displacement is actually storing object
    * vertices coordinates. */
@@ -1112,6 +1151,7 @@ static void reshape_subdiv_refine_final_P(
 static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *reshape_smooth_context,
                                         blender::Span<blender::float3> storage)
 {
+  printf("SETTING SUBDIV COARSE VERTS\n");
   reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
 }
 
@@ -1387,7 +1427,7 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
                                            blender::MutableSpan<blender::float3> delta_storage)
 {
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
-  foreach_toplevel_grid_coord(
+  foreach_toplevel_grid_coord_single_threaded(
       reshape_smooth_context, [&](const PTexCoord *ptex_coord, const GridCoord *grid_coord) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
 
@@ -1503,8 +1543,6 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
 
   reshape_subdiv_create(&reshape_smooth_context);
 
-  /* Set each of the OpenSubdiv positions to the value in `.displacement` (i.e. object space
-   * coordinates created from subdiv + tangent disp) */
   reshape_subdiv_refine_final(&reshape_smooth_context, storage);
   evaluate_higher_grid_positions(&reshape_smooth_context, storage);
 #else
