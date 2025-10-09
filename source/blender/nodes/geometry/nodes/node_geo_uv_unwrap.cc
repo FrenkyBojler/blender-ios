@@ -4,7 +4,6 @@
 
 #include "DNA_mesh_types.h"
 
-#include "DNA_node_types.h"
 #include "GEO_uv_pack.hh"
 #include "GEO_uv_parametrizer.hh"
 
