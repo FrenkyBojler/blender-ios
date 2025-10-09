@@ -579,6 +579,8 @@ static BMOpDefine bmo_pointmerge_def = {
         {"verts", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
         /* Position to merge at. */
         {"merge_co", BMO_OP_SLOT_VEC},
+        {"vert_snap", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE}},
+        {"average_vdata", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/
@@ -626,6 +628,7 @@ static BMOpDefine bmo_weld_verts_def = {
         /* Merged vertices to their centroid position,
          * otherwise the position of the target vertex is used. */
         {"use_centroid", BMO_OP_SLOT_BOOL},
+        {"average_vdata", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/

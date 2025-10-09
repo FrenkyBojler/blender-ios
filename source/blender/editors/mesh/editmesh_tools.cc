@@ -3341,7 +3341,12 @@ static bool merge_firstlast(BMEditMesh *em,
     }
   }
 
-  if (!EDBM_op_callf(em, wmop, "pointmerge verts=%hv merge_co=%v", BM_ELEM_SELECT, mergevert->co))
+  if (!EDBM_op_callf(em,
+                     wmop,
+                     "pointmerge verts=%hv merge_co=%v vert_snap=%e",
+                     BM_ELEM_SELECT,
+                     mergevert->co,
+                     mergevert))
   {
     return false;
   }
@@ -3377,11 +3382,9 @@ static bool merge_target(BMEditMesh *em,
       add_v3_v3(cent, v->co);
       i++;
     }
-
     if (!i) {
       return false;
     }
-
     fac = 1.0f / float(i);
     mul_v3_fl(cent, fac);
     copy_v3_v3(co, cent);
@@ -3398,7 +3401,16 @@ static bool merge_target(BMEditMesh *em,
     }
   }
 
-  if (!EDBM_op_callf(em, wmop, "pointmerge verts=%hv merge_co=%v", BM_ELEM_SELECT, co)) {
+  /* At Center should average vertex data, At Cursor leaves data as-is */
+  const bool do_avg_vdata = !use_cursor;
+
+  if (!EDBM_op_callf(em,
+                     wmop,
+                     "pointmerge verts=%hv merge_co=%v average_vdata=%b",
+                     BM_ELEM_SELECT,
+                     co,
+                     do_avg_vdata))
+  {
     return false;
   }
 
