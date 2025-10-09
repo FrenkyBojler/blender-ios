@@ -376,6 +376,10 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     /* If this is a compute shader, bake base PSO for compute straight-away.
      * NOTE: This will compile the base unspecialized variant. */
 
+    this->compute_pso_common_state_.set_compute_workgroup_size(info->compute_layout_.local_size_x,
+                                                               info->compute_layout_.local_size_y,
+                                                               info->compute_layout_.local_size_z);
+
     /* Set descriptor to default shader constants */
     MTLComputePipelineStateDescriptor compute_pipeline_descriptor(this->constants->values);
 
