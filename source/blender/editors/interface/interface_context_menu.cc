@@ -186,7 +186,9 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 
   uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
   UI_block_func_handle_set(block, but_shortcut_name_func, but);
-  UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
   UI_block_direction_set(block, UI_DIR_CENTER_Y);
 
   uiLayout &layout = blender::ui::block_layout(block,
@@ -248,6 +250,9 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
   UI_block_func_handle_set(block, but_shortcut_name_func, but);
   UI_block_direction_set(block, UI_DIR_CENTER_Y);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
 
   uiLayout &layout = blender::ui::block_layout(block,
                                                blender::ui::LayoutDirection::Vertical,

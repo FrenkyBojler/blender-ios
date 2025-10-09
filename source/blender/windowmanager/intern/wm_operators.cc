@@ -1156,7 +1156,10 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
   static char search[256] = "";
 
   uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
+  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_SEARCH_MENU);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   search[0] = '\0';
@@ -1438,7 +1441,10 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *region, void *arg_op)
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_REGULAR);
 
   /* #UI_BLOCK_NUMSELECT for layer buttons. */
-  UI_block_flag_enable(block, UI_BLOCK_NUMSELECT | UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+  UI_block_flag_enable(block, UI_BLOCK_NUMSELECT | UI_BLOCK_MOVEMOUSE_QUIT);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
 
   /* If register is not enabled, the operator gets freed on #OPERATOR_FINISHED
    * ui_apply_but_funcs_after calls #ED_undo_operator_repeate_cb and crashes. */
@@ -1706,7 +1712,10 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *region, void *user_d
 
   uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   UI_block_flag_disable(block, UI_BLOCK_LOOP);
-  UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+  UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_REGULAR);
 
   UI_popup_dummy_panel_set(region, block);
@@ -2032,7 +2041,10 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *region, void *userdat
   const SearchPopupInit_Data *init_data = static_cast<const SearchPopupInit_Data *>(userdata);
 
   uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
+  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_SEARCH_MENU);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   uiBut *but = uiDefSearchBut(block,

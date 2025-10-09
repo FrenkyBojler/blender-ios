@@ -296,7 +296,10 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 
   blender::ui::block_layout_resolve(block);
 
-  UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_NUMSELECT);
+  UI_block_flag_enable(block, UI_BLOCK_NUMSELECT);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
 
   if (pup->popup) {
     int offset[2] = {0, 0};

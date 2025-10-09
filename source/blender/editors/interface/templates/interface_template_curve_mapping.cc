@@ -107,7 +107,10 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap
   const float width = 8 * UI_UNIT_X;
 
   uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+  UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   bt = uiDefButBitI(block,

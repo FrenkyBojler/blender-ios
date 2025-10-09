@@ -11241,8 +11241,8 @@ static int ui_handle_menu_event(bContext *C,
                 menu->menuretval = UI_RETURN_OK;
               }
               else {
-                menu->menuretval = (U.flag & USER_MENU_CLOSE_LEAVE) ? UI_RETURN_OUT :
-                                                                      UI_RETURN_CANCEL;
+                /* Close all open menus. */
+                menu->menuretval = UI_RETURN_CANCEL;
               }
             }
           }
@@ -11315,7 +11315,7 @@ static int ui_handle_menu_event(bContext *C,
       else {
 
         /* check mouse moving outside of the menu */
-        if (inside == false && (block->flag & (UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_POPOVER))) {
+        if (inside == false && (block->flag & UI_BLOCK_MOVEMOUSE_QUIT)) {
           uiSafetyRct *saferct;
 
           ui_mouse_motion_towards_check(block, menu, event->xy, is_parent_inside == false);
@@ -11340,7 +11340,7 @@ static int ui_handle_menu_event(bContext *C,
           }
 
           /* strict check, and include the parent rect */
-          if (!menu->dotowards && !saferct && ((U.flag & USER_MENU_CLOSE_LEAVE) || level > 0)) {
+          if (!menu->dotowards && !saferct) {
             if (block->flag & UI_BLOCK_OUT_1) {
               menu->menuretval = UI_RETURN_OK;
             }

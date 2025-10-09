@@ -87,6 +87,10 @@ static void ui_popover_create_block(bContext *C,
   pup->block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   UI_block_flag_enable(pup->block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_POPOVER);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(pup->block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
+
 #ifdef USE_UI_POPOVER_ONCE
   if (pup->is_once) {
     UI_block_flag_enable(pup->block, UI_BLOCK_POPOVER_ONCE);

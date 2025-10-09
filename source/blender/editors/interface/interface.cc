@@ -4500,7 +4500,9 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   /* see comment in ui_item_enum_expand, re: `uiname`. */
   const EnumPropertyItem *item_array;
 
-  UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
 
   bool free;
   RNA_property_enum_items_gettexted(static_cast<bContext *>(block->evil_C),

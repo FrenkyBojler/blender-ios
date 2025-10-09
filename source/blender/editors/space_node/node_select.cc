@@ -1562,7 +1562,10 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   wmOperatorType *optype = (wmOperatorType *)arg_optype;
 
   block = UI_block_begin(C, region, "_popup", ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
+  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_SEARCH_MENU);
+  if (U.flag & USER_MENU_CLOSE_LEAVE) {
+    UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
+  }
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   const int box_width = UI_searchbox_size_x_guess(C, node_find_update_fn, nullptr);
