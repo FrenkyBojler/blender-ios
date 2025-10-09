@@ -10,7 +10,7 @@ from bpy.app.translations import (
 )
 
 
-tab_list = [
+tab_list = (
     ("show_properties_tool", "Tool", 'TOOL_SETTINGS'),
     ("show_properties_render", "Render", 'SCENE'),
     ("show_properties_output", "Output", 'OUTPUT'),
@@ -31,7 +31,7 @@ tab_list = [
     ("show_properties_texture", "Texture", 'TEXTURE'),
     ("show_properties_strip", "Strip", 'SEQ_SEQUENCER'),
     ("show_properties_strip_modifier", "Strip Modifiers", 'SEQ_STRIP_MODIFIER'),
-]
+)
 
 
 class PROPERTIES_HT_header(Header):
