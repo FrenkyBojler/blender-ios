@@ -52,7 +52,7 @@ struct MultiresRuntimeData {
 
 static void init_data(ModifierData *md)
 {
-  MultiresModifierData *mmd = (MultiresModifierData *)md;
+  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
 
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
 
@@ -81,7 +81,7 @@ static void free_runtime_data(void *runtime_data_v)
   if (runtime_data_v == nullptr) {
     return;
   }
-  MultiresRuntimeData *runtime_data = (MultiresRuntimeData *)runtime_data_v;
+  MultiresRuntimeData *runtime_data = static_cast<MultiresRuntimeData *>(runtime_data_v);
   if (runtime_data->subdiv != nullptr) {
     blender::bke::subdiv::free(runtime_data->subdiv);
   }
@@ -90,14 +90,14 @@ static void free_runtime_data(void *runtime_data_v)
 
 static void free_data(ModifierData *md)
 {
-  MultiresModifierData *mmd = (MultiresModifierData *)md;
+  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
   MEM_SAFE_DELETE(mmd->runtime);
   free_runtime_data(mmd->modifier.runtime);
 }
 
 static MultiresRuntimeData *multires_ensure_runtime(MultiresModifierData *mmd)
 {
-  MultiresRuntimeData *runtime_data = (MultiresRuntimeData *)mmd->modifier.runtime;
+  MultiresRuntimeData *runtime_data = static_cast<MultiresRuntimeData *>(mmd->modifier.runtime);
   if (runtime_data == nullptr) {
     runtime_data = MEM_callocN<MultiresRuntimeData>(__func__);
     mmd->modifier.runtime = runtime_data;
@@ -122,7 +122,7 @@ static blender::bke::subdiv::Subdiv *subdiv_descriptor_ensure(
     const blender::bke::subdiv::Settings *subdiv_settings,
     const Mesh *mesh)
 {
-  MultiresRuntimeData *runtime_data = (MultiresRuntimeData *)mmd->modifier.runtime;
+  MultiresRuntimeData *runtime_data = static_cast<MultiresRuntimeData *>(mmd->modifier.runtime);
   blender::bke::subdiv::Subdiv *subdiv = blender::bke::subdiv::update_from_mesh(
       runtime_data->subdiv, subdiv_settings, mesh);
   runtime_data->subdiv = subdiv;
@@ -131,7 +131,7 @@ static blender::bke::subdiv::Subdiv *subdiv_descriptor_ensure(
 
 /* Subdivide into fully qualified mesh. */
 
-static Mesh *multires_as_mesh(MultiresModifierData *mmd,
+static Mesh *multires_as_mesh(const MultiresModifierData *mmd,
                               const ModifierEvalContext *ctx,
                               Mesh *mesh,
                               blender::bke::subdiv::Subdiv *subdiv)
@@ -163,7 +163,7 @@ static Mesh *multires_as_mesh(MultiresModifierData *mmd,
 static void multires_ccg_settings_init(SubdivToCCGSettings *settings,
                                        const MultiresModifierData *mmd,
                                        const ModifierEvalContext *ctx,
-                                       Mesh *mesh)
+                                       const Mesh *mesh)
 {
   const bool has_mask = CustomData_has_layer(&mesh->corner_data, CD_GRID_PAINT_MASK);
   const bool use_render_params = (ctx->flag & MOD_APPLY_RENDER);
@@ -220,7 +220,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   BKE_modifier_set_error(ctx->object, md, "Disabled, built without OpenSubdiv");
   return result;
 #endif
-  MultiresModifierData *mmd = (MultiresModifierData *)md;
+  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
   blender::bke::subdiv::Settings subdiv_settings;
   BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
   if (subdiv_settings.level == 0) {
@@ -302,7 +302,7 @@ static void deform_matrices(ModifierData *md,
   return;
 #endif
 
-  MultiresModifierData *mmd = (MultiresModifierData *)md;
+  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
 
   blender::bke::subdiv::Settings subdiv_settings;
   BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
@@ -364,7 +364,7 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout->enabled_set(RNA_enum_get(&ob_ptr, "mode") != OB_MODE_EDIT);
 
-  MultiresModifierData *mmd = (MultiresModifierData *)ptr->data;
+  MultiresModifierData *mmd = static_cast<MultiresModifierData *>(ptr->data);
 
   /**
    * Changing some of the properties can not be done once there is an
@@ -384,7 +384,7 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
                       blender::wm::OpCallContext::ExecDefault,
                       UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::CatmullClark));
-  RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
+  RNA_string_set(&op_ptr, "modifier", reinterpret_cast<ModifierData *>(mmd)->name);
 
   row = &layout->row(false);
   op_ptr = row->op("OBJECT_OT_multires_subdivide",
@@ -393,14 +393,14 @@ static void subdivisions_panel_draw(const bContext * /*C*/, Panel *panel)
                    blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::Simple));
-  RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
+  RNA_string_set(&op_ptr, "modifier", reinterpret_cast<ModifierData *>(mmd)->name);
   op_ptr = row->op("OBJECT_OT_multires_subdivide",
                    IFACE_("Linear"),
                    ICON_NONE,
                    blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "mode", int8_t(MultiresSubdivideModeType::Linear));
-  RNA_string_set(&op_ptr, "modifier", ((ModifierData *)mmd)->name);
+  RNA_string_set(&op_ptr, "modifier", reinterpret_cast<ModifierData *>(mmd)->name);
 
   layout->separator();
 
@@ -435,7 +435,7 @@ static void generate_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *layout = panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
-  MultiresModifierData *mmd = (MultiresModifierData *)ptr->data;
+  MultiresModifierData *mmd = static_cast<MultiresModifierData *>(ptr->data);
 
   bool is_external = RNA_boolean_get(ptr, "is_external");
 
