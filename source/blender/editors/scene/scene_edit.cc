@@ -94,6 +94,11 @@ bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   WM_jobs_kill_all_from_owner(wm, scene);
 
+  /* cancel animation playback */
+  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+    ED_screen_animation_play(C, 0, 0);
+  }
+
   if (scene->id.prev) {
     scene_new = static_cast<Scene *>(scene->id.prev);
   }
