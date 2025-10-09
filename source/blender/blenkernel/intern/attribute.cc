@@ -257,6 +257,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
   }
 
   if (owner.type() == AttributeOwnerType::Mesh) {
+    // TODO_MESH_ATTR
     Mesh *mesh = owner.get_mesh();
     /* NOTE: Checking if the new name matches the old name only makes sense when the name
      * is clamped to its maximum length, otherwise assigning an over-long name multiple times
@@ -811,13 +812,17 @@ void BKE_attributes_active_set(AttributeOwner &owner, const StringRef name)
 {
   using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-    BLI_assert(layer != nullptr);
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      const CustomDataLayer *layer = BKE_attribute_search(
+          owner, name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
+      BLI_assert(layer != nullptr);
 
-    const int index = BKE_attribute_to_index(owner, layer, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL);
-    *BKE_attributes_active_index_p(owner) = index;
-    return;
+      const int index = BKE_attribute_to_index(
+          owner, layer, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL);
+      *BKE_attributes_active_index_p(owner) = index;
+      return;
+    }
   }
 
   bke::AttributeStorage &attributes = *owner.get_storage();

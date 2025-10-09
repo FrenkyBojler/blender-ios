@@ -214,13 +214,16 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
   }
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-    if (ELEM(layer->type, CD_PROP_STRING, CD_PROP_FLOAT4X4, CD_PROP_QUATERNION)) {
-      CTX_wm_operator_poll_msg_set(&C, "The active attribute has an unsupported type");
-      return false;
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      const CustomDataLayer *layer = BKE_attribute_search(
+          owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
+      if (ELEM(layer->type, CD_PROP_STRING, CD_PROP_FLOAT4X4, CD_PROP_QUATERNION)) {
+        CTX_wm_operator_poll_msg_set(&C, "The active attribute has an unsupported type");
+        return false;
+      }
+      return true;
     }
-    return true;
   }
 
   bke::AttributeAccessor attributes = *owner.get_accessor();
@@ -303,18 +306,21 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
   AttributeOwner owner = AttributeOwner::from_id(id);
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-    CustomDataLayer *layer = BKE_attribute_new(owner, name, type, domain, op->reports);
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      CustomDataLayer *layer = BKE_attribute_new(owner, name, type, domain, op->reports);
 
-    if (layer == nullptr) {
-      return OPERATOR_CANCELLED;
+      if (layer == nullptr) {
+        return OPERATOR_CANCELLED;
+      }
+
+      BKE_attributes_active_set(owner, layer->name);
+
+      DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+
+      return OPERATOR_FINISHED;
     }
-
-    BKE_attributes_active_set(owner, layer->name);
-
-    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_GEOM | ND_DATA, id);
-
-    return OPERATOR_FINISHED;
   }
 
   bke::MutableAttributeAccessor accessor = *owner.get_accessor();
