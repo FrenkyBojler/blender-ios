@@ -6042,7 +6042,7 @@ bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
 static void stop_playback(bContext *C)
 {
   Main *bmain = CTX_data_main(C);
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
   wmTimer *wt = screen->animtimer;
   ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
   Scene *scene = sad->scene;
@@ -6110,7 +6110,6 @@ static wmOperatorStatus start_playback(bContext *C, int sync, int mode)
 
 wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
 {
-
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     stop_playback(C);
     return OPERATOR_FINISHED;
