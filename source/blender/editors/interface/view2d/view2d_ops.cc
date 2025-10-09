@@ -1179,8 +1179,8 @@ static wmOperatorStatus view_zoomdrag_invoke(bContext *C, wmOperator *op, const 
     if (event->type == MOUSEPAN) {
       facx = zoomfac * WM_event_absolute_delta_x(event);
       facy = zoomfac * WM_event_absolute_delta_y(event);
-
-      if (U.uiflag & USER_ZOOM_INVERT) {
+      
+      if ((!!RNA_boolean_get(op->ptr, "paninv")) != (!!(U.uiflag & USER_ZOOM_INVERT))) {
         facx *= -1.0f;
         facy *= -1.0f;
       }
@@ -1419,6 +1419,8 @@ static void VIEW2D_OT_zoom(wmOperatorType *ot)
   prop = RNA_def_float(ot->srna, "deltax", 0, -FLT_MAX, FLT_MAX, "Delta X", "", -FLT_MAX, FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_float(ot->srna, "deltay", 0, -FLT_MAX, FLT_MAX, "Delta Y", "", -FLT_MAX, FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  prop = RNA_def_boolean(ot->srna, "paninv", false, "Invert Pan Motion", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
   WM_operator_properties_use_cursor_init(ot);
