@@ -53,7 +53,9 @@ struct MaskApplyOp {
   }
 };
 
-static void maskmodifier_apply(ModifierApplyContext &context, StripModifierData *smd, ImBuf *mask)
+static void maskmodifier_apply(ModifierApplyContext &context,
+                               StripModifierData * /*smd*/,
+                               ImBuf *mask)
 {
   if (mask == nullptr || (mask->byte_buffer.data == nullptr && mask->float_buffer.data == nullptr))
   {
