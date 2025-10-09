@@ -54,7 +54,7 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
 
   bNode &separate_node = version_node_add_empty(node_tree, "CompositorNodeSeparateColor");
   separate_node.parent = node.parent;
-  separate_node.location[0] = node.location[0];
+  separate_node.location[0] = node.location[0] - 10.0f;
   separate_node.location[1] = node.location[1];
   NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
   storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
@@ -74,7 +74,7 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
 
   bNode &set_alpha_node = version_node_add_empty(node_tree, "CompositorNodeSetAlpha");
   set_alpha_node.parent = node.parent;
-  set_alpha_node.location[0] = node.location[0];
+  set_alpha_node.location[0] = node.location[0] - 10.0f;
   set_alpha_node.location[1] = node.location[1];
   set_alpha_node.storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
 
@@ -129,7 +129,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
 
   bNode &separate_alpha_node = version_node_add_empty(node_tree, "FunctionNodeSeparateColor");
   separate_alpha_node.parent = node.parent;
-  separate_alpha_node.location[0] = node.location[0];
+  separate_alpha_node.location[0] = node.location[0] - 10.0f;
   separate_alpha_node.location[1] = node.location[1];
   NodeCombSepColor *separate_alpha_storage = MEM_callocN<NodeCombSepColor>(__func__);
   separate_alpha_storage->mode = NODE_COMBSEP_COLOR_RGB;
@@ -152,7 +152,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
 
   bNode &separate_color_node = version_node_add_empty(node_tree, "FunctionNodeSeparateColor");
   separate_color_node.parent = node.parent;
-  separate_color_node.location[0] = node.location[0];
+  separate_color_node.location[0] = node.location[0] - 10.0f;
   separate_color_node.location[1] = node.location[1];
   NodeCombSepColor *separate_color_storage = MEM_callocN<NodeCombSepColor>(__func__);
   separate_color_storage->mode = NODE_COMBSEP_COLOR_RGB;
@@ -171,7 +171,7 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
 
   bNode &combine_color_node = version_node_add_empty(node_tree, "FunctionNodeCombineColor");
   combine_color_node.parent = node.parent;
-  combine_color_node.location[0] = node.location[0];
+  combine_color_node.location[0] = node.location[0] - 10.0f;
   combine_color_node.location[1] = node.location[1];
   NodeCombSepColor *combine_color_storage = MEM_callocN<NodeCombSepColor>(__func__);
   combine_color_storage->mode = NODE_COMBSEP_COLOR_RGB;
