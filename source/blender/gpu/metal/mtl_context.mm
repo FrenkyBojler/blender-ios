@@ -726,15 +726,14 @@ void MTLContext::specialization_constants_set(
 /** \name Global Context State
  * \{ */
 
-static void bind_atomic_workaround_buffer(const ShaderInput *input,
+/* Needs to run before buffer and push constant binding. */
+static void bind_atomic_workaround_buffer(StringRefNull texture_name,
                                           MTLTexture *gpu_tex,
                                           MTLShaderInterface &shader_interface,
                                           MTLShader &active_shader)
 {
   BLI_assert(gpu_tex->usage_get() & GPU_TEXTURE_USAGE_ATOMIC);
 
-  BLI_assert(input);
-  const char *texture_name = shader_interface.name_at_offset(input->name_offset);
   std::string buf_name = texture_name + std::string("_buf_");
   std::string metadata_name = texture_name + std::string("_metadata_");
 
@@ -829,14 +828,15 @@ static void ensure_texture_bindings(MTLContext &ctx,
     id<MTLTexture> tex = gpu_tex->has_custom_swizzle() ? gpu_tex->get_metal_handle_base() :
                                                          gpu_tex->get_metal_handle();
     bindings.bind_texture(enc, tex, MTL_IMAGE_SLOT_OFFSET + slot);
-#if 0 /* TODO */
-    if (shader_interface.use_texture_atomic() && gpu_tex->use_atomic_workaround()) {
-      /* FIXME: texture_get might return an image input instead. */
-      const ShaderInput *input = shader_interface.texture_get(slot);
-      bind_atomic_workaround_buffer(
-          input, gpu_tex, shader_interface, *ctx.pipeline_state.active_shader);
+    if (shader_interface.use_texture_atomic() && (gpu_tex->usage_get() & GPU_TEXTURE_USAGE_ATOMIC))
+    {
+      if (MTLBackend::get_capabilities().supports_texture_atomics == false) {
+        bind_atomic_workaround_buffer(shader_interface.image_name_get(slot),
+                                      gpu_tex,
+                                      shader_interface,
+                                      *ctx.pipeline_state.active_shader);
+      }
     }
-#endif
   }
 
   bits::BitInt bind_sampler = dirty_enabled_sampler_mask & stage_tex_mask;
@@ -855,14 +855,15 @@ static void ensure_texture_bindings(MTLContext &ctx,
                           sampler_state.state,
                           shader_interface.use_samplers_argument_buffer(),
                           slot);
-#if 0 /* TODO */
-    if (shader_interface.use_texture_atomic() && gpu_tex->use_atomic_workaround()) {
-      /* FIXME: texture_get might return an image input instead. */
-      const ShaderInput *input = shader_interface.texture_get(slot);
-      bind_atomic_workaround_buffer(
-          input, gpu_tex, shader_interface, *ctx.pipeline_state.active_shader);
+    if (shader_interface.use_texture_atomic() && (gpu_tex->usage_get() & GPU_TEXTURE_USAGE_ATOMIC))
+    {
+      if (MTLBackend::get_capabilities().supports_texture_atomics == false) {
+        bind_atomic_workaround_buffer(shader_interface.sampler_name_get(slot),
+                                      gpu_tex,
+                                      shader_interface,
+                                      *ctx.pipeline_state.active_shader);
+      }
     }
-#endif
   }
 
   /* Construct and Bind argument buffer.
@@ -1027,7 +1028,7 @@ void MTLContext::set_viewports(int count, const int (&viewports)[GPU_MAX_VIEWPOR
   BLI_assert(this);
   bool changed = (this->pipeline_state.num_active_viewports != count);
   for (int v = 0; v < count; v++) {
-    const int (&viewport_info)[4] = viewports[v];
+    const int(&viewport_info)[4] = viewports[v];
 
     BLI_assert(viewport_info[0] >= 0);
     BLI_assert(viewport_info[1] >= 0);

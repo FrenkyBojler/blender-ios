@@ -83,6 +83,10 @@ class MTLShaderInterface : public ShaderInterface {
 
   shader::BuiltinBits shader_builtins_ = shader::BuiltinBits::NONE;
 
+  /* Used for texture atomic workaround. */
+  int image_names_offsets_[MTL_MAX_IMAGE_SLOTS];
+  int sampler_names_offsets_[MTL_MAX_SAMPLER_SLOTS];
+
   /* Debug. */
   char name[256];
 
@@ -109,6 +113,10 @@ class MTLShaderInterface : public ShaderInterface {
   {
     return bool(shader_builtins_ & shader::BuiltinBits::USE_SAMPLER_ARG_BUFFER);
   }
+  bool use_texture_atomic() const
+  {
+    return bool(shader_builtins_ & shader::BuiltinBits::TEXTURE_ATOMIC);
+  }
 
   bool is_point_shader() const
   {
@@ -122,6 +130,16 @@ class MTLShaderInterface : public ShaderInterface {
   const char *name_get() const
   {
     return this->name;
+  }
+
+  const char *image_name_get(int slot) const
+  {
+    return name_at_offset(image_names_offsets_[slot]);
+  }
+
+  const char *sampler_name_get(int slot) const
+  {
+    return name_at_offset(sampler_names_offsets_[slot]);
   }
 
   id<MTLArgumentEncoder> ensure_argument_encoder(id<MTLFunction> mtl_function);
