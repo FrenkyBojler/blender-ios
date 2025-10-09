@@ -1612,6 +1612,7 @@ void blo_do_versions_userdef(UserDef *userdef)
     wmKeyConfigFilterItemParams params{};
     params.check_item = true;
     params.check_diff_item_add = true;
+    params.check_diff_item_remove = true;
     BKE_keyconfig_pref_filter_items(
         userdef,
         &params,
