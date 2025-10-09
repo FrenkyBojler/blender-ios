@@ -1,2 +1,3 @@
 Referenced by issue #146139, 5.0 new crash today in `rna_CorrectiveSmoothModifier_rest_source_update`
 Referenced by commit 6a8c2ca16ee4477b06bd351de12ff2ada785b842, Fix #146139: Corrective smooth rest source property crash
+Referenced by issue #147710, Crash when attempting to bind a surface deform modifier to a faceless mesh
