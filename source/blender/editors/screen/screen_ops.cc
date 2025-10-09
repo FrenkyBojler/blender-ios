@@ -5762,8 +5762,18 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
 
   Main *bmain = CTX_data_main(C);
   ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
-  Scene *scene = sad->scene;
-  ViewLayer *view_layer = sad->view_layer;
+
+  Scene *scene;
+  ViewLayer *view_layer;
+  {
+    const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+    scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+    if (!scene) {
+      return OPERATOR_CANCELLED;
+    }
+    view_layer = is_sequencer ? BKE_view_layer_default_render(scene) : CTX_data_view_layer(C);
+  }
+
   Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
   Scene *scene_eval = (depsgraph != nullptr) ? DEG_get_evaluated_scene(depsgraph) : nullptr;
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -6059,7 +6069,7 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
 
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     /* stop playback now */
-    ED_screen_animation_timer(C, scene, view_layer, 0, 0, 0);
+    ED_screen_animation_timer(C, 0, 0, 0);
     ED_scene_fps_average_clear(scene);
     BKE_sound_stop_scene(scene_eval);
 
@@ -6098,7 +6108,7 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
       BKE_sound_play_scene(scene_eval);
     }
 
-    ED_screen_animation_timer(C, scene, view_layer, screen->redraws_flag, sync, mode);
+    ED_screen_animation_timer(C, screen->redraws_flag, sync, mode);
     ED_scene_fps_average_clear(scene);
 
     if (screen->animtimer) {

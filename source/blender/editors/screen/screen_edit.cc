@@ -1944,8 +1944,7 @@ ScrArea *ED_screen_temp_space_open(
   return nullptr;
 }
 
-void ED_screen_animation_timer(
-    bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable)
+void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
 {
   bScreen *screen = CTX_wm_screen(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1958,14 +1957,13 @@ void ED_screen_animation_timer(
   }
 
   if (enable) {
-    ScreenAnimData *sad = MEM_callocN<ScreenAnimData>("ScreenAnimData");
+    const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+    Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
 
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / scene->frames_per_second()));
 
+    ScreenAnimData *sad = MEM_callocN<ScreenAnimData>("ScreenAnimData");
     sad->region = CTX_wm_region(C);
-    sad->scene = scene;
-    sad->view_layer = view_layer;
-
     sad->do_scene_syncing = blender::ed::vse::is_scene_time_sync_needed(*C);
 
     sad->sfra = scene->r.cfra;

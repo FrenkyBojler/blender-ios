@@ -348,8 +348,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen);
  * redraws: uses defines from `stime->redraws`
  * \param enable: 1 - forward on, -1 - backwards on, 0 - off.
  */
-void ED_screen_animation_timer(
-    bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable);
+void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable);
 void ED_screen_animation_timer_update(bScreen *screen, int redraws);
 void ED_screen_restore_temp_type(bContext *C, ScrArea *area);
 ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type);

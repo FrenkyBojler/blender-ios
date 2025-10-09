@@ -347,10 +347,9 @@ static Scene *get_sequencer_scene_for_time_sync(const bContext &C)
   wmWindowManager *wm = CTX_wm_manager(&C);
   bScreen *screen = ED_screen_animation_playing(wm);
   if (screen && screen->animtimer) {
-    wmTimer *wt = screen->animtimer;
-    ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
-    if (sad->do_scene_syncing) {
-      return sad->scene;
+    const bool is_sequencer = CTX_wm_space_seq(&C) != nullptr;
+    if (is_sequencer) {
+      return CTX_data_sequencer_scene(&C);
     }
     /* If we're playing a scene that's not a sequence scene, don't try and sync. */
     return nullptr;
