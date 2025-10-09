@@ -1,1 +1,2 @@
 Referenced by commit 75202b8e38d8006276383034d304f93179d0e7e8, Fix: error in keymap creation from recent addition of "Hyper"
+Referenced by commit f9c7c8fdcbd9a6826ebe3c4989ee693a83c96090, Fix #146670: Disabled key-map items lost when loading old preferences
