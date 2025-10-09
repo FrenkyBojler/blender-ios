@@ -294,9 +294,6 @@ def draw_shape_key_properties(context, layout):
         row.active = enable_edit_value
         row.prop(key, "eval_time")
 
-    if ob.type == 'MESH':
-        layout.prop(ob, "add_rest_position_attribute")
-
 
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
     bl_label = "Shape Keys"
@@ -367,6 +364,9 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                 sub.operator("object.shape_key_retime", icon='RECOVER_LAST', text="")
 
             draw_shape_key_properties(context, layout)
+
+        if ob.type == 'MESH':
+            layout.prop(ob, "add_rest_position_attribute")
 
 
 class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
