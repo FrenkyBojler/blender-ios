@@ -3286,42 +3286,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 46)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype != SPACE_NODE) {
-            continue;
-          }
-          const SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
-          if (!STREQ(snode->tree_idname, "CompositorNodeTree")) {
-            continue;
-          }
-
-          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                 &sl->regionbase;
-
-          if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
-                  regionbase,
-                  RGN_TYPE_ASSET_SHELF,
-                  "Asset shelf for compositing (versioning)",
-                  RGN_TYPE_HEADER))
-          {
-            new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
-          }
-          if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
-                  regionbase,
-                  RGN_TYPE_ASSET_SHELF_HEADER,
-                  "Asset shelf header for compositing (versioning)",
-                  RGN_TYPE_ASSET_SHELF))
-          {
-            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
-          }
-        }
-      }
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 48)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_COMPOSIT) {
@@ -3972,6 +3936,38 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
           if (sl->spacetype == SPACE_IMAGE) {
             SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
             sima->iuser.flag &= ~IMA_SHOW_SEQUENCER_SCENE;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 109)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_NODE) {
+            continue;
+          }
+
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+
+          if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF,
+                  "Asset shelf for compositing (versioning)",
+                  RGN_TYPE_HEADER))
+          {
+            new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
+          }
+          if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF_HEADER,
+                  "Asset shelf header for compositing (versioning)",
+                  RGN_TYPE_ASSET_SHELF))
+          {
+            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
           }
         }
       }
