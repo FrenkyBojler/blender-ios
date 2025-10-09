@@ -42,10 +42,12 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_attribute_legacy_convert.hh"
@@ -79,6 +81,9 @@
 #include "WM_api.hh"
 
 #include "AS_asset_library.hh"
+
+#include "ANIM_action.hh"
+#include "ANIM_action_iterators.hh"
 
 #include "readfile.hh"
 
@@ -2577,6 +2582,112 @@ static void do_version_lift_gamma_gain_srgb_to_linear(bNodeTree &node_tree, bNod
   version_node_add_link(node_tree, node, *image_output, *gamma_node, *gamma_color_input);
 }
 
+static void do_version_bone_hide_property(
+    bArmature *armature, blender::Map<bArmature *, blender::Vector<Object *>> &armature_usage_map)
+{
+  using namespace blender::animrig;
+  constexpr char const *rna_path_suffix = "].hide";
+  AnimData *arm_adt = BKE_animdata_from_id(&armature->id);
+
+  if (!arm_adt) {
+    return;
+  }
+
+  if (!armature_usage_map.contains(armature)) {
+    /* Doing this means it won't be fixed for armatures that are not used by an object
+     * during versioning. However since the driver has to be moved to an object there is no way
+     * to fix it in this case. */
+    return;
+  }
+
+  blender::Vector<Object *> &users = armature_usage_map.lookup(armature);
+
+  if (!BLI_listbase_is_empty(&arm_adt->drivers)) {
+    blender::Vector<FCurve *> drivers_to_fix;
+    LISTBASE_FOREACH (FCurve *, fcurve, &arm_adt->drivers) {
+      const blender::StringRef rna_path(fcurve->rna_path);
+      if (rna_path.endswith(rna_path_suffix)) {
+        drivers_to_fix.append(fcurve);
+      }
+    }
+
+    for (Object *ob : users) {
+      AnimData *ob_adt = BKE_animdata_ensure_id(&ob->id);
+      for (FCurve *original : drivers_to_fix) {
+        /* Has to be a copy in case there is more than 1 object using the armature. */
+        FCurve *copy = BKE_fcurve_copy(original);
+        char *fixed_path = BLI_string_joinN("pose.", copy->rna_path);
+        MEM_SAFE_FREE(copy->rna_path);
+        copy->rna_path = fixed_path;
+        BLI_addtail(&ob_adt->drivers, copy);
+      }
+    }
+
+    for (FCurve *original : drivers_to_fix) {
+      BLI_remlink(&arm_adt->drivers, original);
+      BKE_fcurve_free(original);
+    }
+  }
+
+  if (arm_adt->action && arm_adt->slot_handle != Slot::unassigned) {
+    blender::Vector<FCurve *> fcurves_to_fix;
+    Action &action = arm_adt->action->wrap();
+    Channelbag *armature_channelbag = channelbag_for_action_slot(action, arm_adt->slot_handle);
+    if (!armature_channelbag) {
+      return;
+    }
+    for (FCurve *fcurve : armature_channelbag->fcurves()) {
+      const blender::StringRef rna_path(fcurve->rna_path);
+      if (rna_path.endswith(rna_path_suffix)) {
+        fcurves_to_fix.append(fcurve);
+      }
+    }
+
+    for (Object *ob : users) {
+      AnimData *ob_adt = BKE_animdata_ensure_id(&ob->id);
+      /**
+       * There are 3 scenarios when moving the fcurve from the armature to the object.
+       * 1. The object has an action + slot: Add the FCurve to the existing slot.
+       * 2. The object already has an action assigned, but no slot: Add a slot to the action of
+       * the object and assign it.
+       * 3. There is no Action on the object: Add a slot to the action of the armature and add
+       * the fcurve to it. Assign the action+slot to the object.
+       */
+      bAction *target_rna_action;
+      if (ob_adt->action && ob_adt->slot_handle != Slot::unassigned) {
+        target_rna_action = ob_adt->action;
+      }
+      else if (ob_adt->action) {
+        target_rna_action = ob_adt->action;
+        Action &action = target_rna_action->wrap();
+        Slot &slot = action.slot_add_for_id(ob->id);
+        assign_action_and_slot(&action, &slot, ob->id);
+      }
+      else {
+        /* The armature has an action in this case. */
+        BLI_assert(arm_adt->action && arm_adt->slot_handle != Slot::unassigned);
+        target_rna_action = arm_adt->action;
+        Action &action = target_rna_action->wrap();
+        Slot &slot = action.slot_add_for_id(ob->id);
+        assign_action_and_slot(&action, &slot, ob->id);
+      }
+      Channelbag &object_channelbag = action_channelbag_ensure(*target_rna_action, ob->id);
+
+      for (FCurve *original : fcurves_to_fix) {
+        FCurve *copy = BKE_fcurve_copy(original);
+        char *fixed_path = BLI_string_joinN("pose.", copy->rna_path);
+        MEM_SAFE_FREE(copy->rna_path);
+        copy->rna_path = fixed_path;
+        object_channelbag.fcurve_append(*copy);
+      }
+    }
+
+    for (FCurve *fcurve : fcurves_to_fix) {
+      armature_channelbag->fcurve_remove(*fcurve);
+    }
+  }
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -2694,6 +2805,24 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
         continue;
       }
       scene->toolsettings->fix_to_cam_flag = default_flags;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 109)) {
+    /* Build map of armature->object to quickly find out afterwards which armature is used by which
+     * objects. */
+    blender::Map<bArmature *, blender::Vector<Object *>> armature_usage_map;
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->type != OB_ARMATURE || !ob->data) {
+        continue;
+      }
+      bArmature *arm = reinterpret_cast<bArmature *>(ob->data);
+      blender::Vector<Object *> &users = armature_usage_map.lookup_or_add_default(arm);
+      users.append(ob);
+    }
+
+    LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+      do_version_bone_hide_property(arm, armature_usage_map);
     }
   }
 
