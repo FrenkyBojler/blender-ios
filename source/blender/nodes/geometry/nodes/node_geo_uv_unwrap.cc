@@ -31,8 +31,7 @@ static EnumPropertyItem method_items[] = {
      "MINIMUM_STRETCH",
      0,
      "Minimum Stretch",
-     "Uses SLIM (Scalable Locally Injective Mapping). This tries to minimize distortion for both "
-     "areas and angles."},
+     "Uses SLIM (Scalable Locally Injective Mapping). Minimizes distortion in areas and angles."},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -146,11 +145,11 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   geometry::uv_parametrizer_construct_end(handle, fill_holes, false, nullptr);
 
   if (method == GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH) {
-    geometry::ParamSlimOptions *slim_options = new geometry::ParamSlimOptions();
-    slim_options->iterations = iterations_;
-    slim_options->no_flip = no_flip_;
-    slim_options->skip_init = false;
-    uv_parametrizer_slim_solve(handle, slim_options, nullptr, nullptr);
+    geometry::ParamSlimOptions slim_options{};
+    slim_options.iterations = iterations_;
+    slim_options.no_flip = no_flip_;
+    slim_options.skip_init = false;
+    uv_parametrizer_slim_solve(handle, &slim_options, nullptr, nullptr);
   }
   else {
     geometry::uv_parametrizer_lscm_begin(
@@ -224,9 +223,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> seam_field = params.extract_input<Field<bool>>("Seam");
   const bool fill_holes = params.extract_input<bool>("Fill Holes");
   const float margin = params.extract_input<float>("Margin");
-  const int iterations = params.extract_input<int>("Iterations");
-  const bool no_flip = params.extract_input<bool>("No Flip");
-
+  int iterations;
+  bool no_flip;
+  if ((GeometryNodeUVUnwrapMethod)method == GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH) {
+    iterations = params.extract_input<int>("Iterations");
+    no_flip = params.extract_input<bool>("No Flip");
+  }
   params.set_output(
       "UV",
       Field<float3>(std::make_shared<UnwrapFieldInput>(
