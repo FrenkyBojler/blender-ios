@@ -2306,21 +2306,17 @@ class Preprocessor {
      */
     std::stringstream args, assign, declare, pass;
 
-    bool first = true;
     for (SharedVar &var : shared_vars_) {
-      char sep = first ? ' ' : ',';
-
-      args << sep << "threadgroup " << var.type << "(&_" << var.name << ")" << var.array;
-      assign << (first ? ':' : ',') << var.name << "(_" << var.name << ")";
+      args << "threadgroup " << var.type << "(&_" << var.name << ")" << var.array << ",  ";
+      assign << var.name << "(_" << var.name << "),  ";
       declare << "threadgroup " << var.type << ' ' << var.name << var.array << ";";
-      pass << sep << var.name;
-      first = false;
+      pass << var.name << ",  ";
     }
 
     suffix << "#define MSL_SHARED_VARS_ARGS " << args.str() << "\n";
     suffix << "#define MSL_SHARED_VARS_ASSIGN " << assign.str() << "\n";
     suffix << "#define MSL_SHARED_VARS_DECLARE " << declare.str() << "\n";
-    suffix << "#define MSL_SHARED_VARS_PASS (" << pass.str() << ")\n";
+    suffix << "#define MSL_SHARED_VARS_PASS " << pass.str() << "\n";
     suffix << "\n";
 
     return suffix.str();
