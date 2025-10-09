@@ -23,6 +23,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
 #include "BKE_subdiv.hh"
+#include "BKE_subdiv_ccg.hh"
 #include "BKE_subdiv_eval.hh"
 #include "BKE_subdiv_foreach.hh"
 #include "BKE_subdiv_mesh.hh"
@@ -426,46 +427,43 @@ static void foreach_toplevel_grid_coord(
 
 static void foreach_toplevel_grid_coord_single_threaded(
     MultiresReshapeSmoothContext *reshape_smooth_context,
-    blender::FunctionRef<void(const PTexCoord *, const GridCoord *)> callback)
+    blender::FunctionRef<void(const PTexCoord *, int)> callback)
 {
   using namespace blender;
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
-  const int level_difference = (reshape_context->top.level - reshape_context->reshape.level);
 
-  const int inner_grid_size = (1 << level_difference) + 1;
-  const float inner_grid_size_1_inv = 1.0f / float(inner_grid_size - 1);
-
-  const int top_grid_size = reshape_context->top.grid_size;
-  const float top_grid_size_1_inv = 1.0f / float(top_grid_size - 1);
-  printf("TOP GRID_SIZE => %d, %d, %d\n", reshape_context->top.level, top_grid_size, reshape_context->top.grid_size);
-
-  /* TODO: This iteration needs to be changed... - maybe there's a way that we can still fill out
-   * TODO: the CCG positions here? Alternatively, we only gather the "unique" ccg positions */
-
-  const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
-  printf("FACES: %d\n", faces.size());
+  const OffsetIndices<int> faces = reshape_smooth_context->reshape_context->base_faces;
+  const Span<int> face_ptex_offset = bke::subdiv::face_ptex_offset_get(reshape_context->subdiv);
+  const int grid_size = reshape_context->top.grid_size;
+  const int grid_area = grid_size * grid_size;
+  const float grid_size_1_inv = 1.0f / float(grid_size - 1);
+  BLI_assert(face_ptex_offset.size() == faces.size() + 1);
   for (const int face_index : faces.index_range()) {
-    const blender::IndexRange face = faces[face_index];
-    std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
-        reshape_smooth_context, face);
-
-    for (int y = 0; y < inner_grid_size; ++y) {
-      const float ptex_v = float(y) * inner_grid_size_1_inv;
-      for (int x = 0; x < inner_grid_size; ++x) {
-        const float ptex_u = float(x) * inner_grid_size_1_inv;
-
-        PTexCoord ptex_coord;
-        ptex_coord.ptex_face_index = face_index;
-        ptex_coord.u = ptex_u;
-        ptex_coord.v = ptex_v;
-
-        const GridCoord grid_coord = interpolate_grid_coord(
-            blender::Span(face_grid_coords), ptex_u, ptex_v);
-
-        callback(&ptex_coord, &grid_coord);
+    const IndexRange face = faces[face_index];
+    if (face.size() == 4) {
+      for (int corner = 0; corner < face.size(); ++corner) {
+        const int ptex_face_index = face_ptex_offset[face_index] + corner;
+        const int grid_index = face.start() + corner;
+        const IndexRange range = bke::ccg::grid_range(grid_area, grid_index);
+        for (int y = 0; y < grid_size; ++y) {
+          const float grid_v = y * grid_size_1_inv;
+          for (int x = 0; x < grid_size; ++x) {
+            const float grid_u = x * grid_size_1_inv;
+            PTexCoord ptex_coord;
+            ptex_coord.ptex_face_index = ptex_face_index;
+            bke::subdiv::rotate_grid_to_quad(corner, grid_u, grid_v, &ptex_coord.u, &ptex_coord.v);
+            const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
+            //printf("(%d, %d, %d) -> (%d, %f, %f) -> %d -> (%d, %f, %f)\n", corner, x, y, corner, grid_u, grid_v, element, ptex_face_index, ptex_coord.u, ptex_coord.v);
+            callback(&ptex_coord, element);
+          }
+        }
       }
     }
+    else {
+      BLI_assert_msg(false, "Unimplemented!");
+    }
   }
+#endif
 }
 
 /** \} */
@@ -1434,12 +1432,9 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
 static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape_smooth_context,
                                            blender::MutableSpan<blender::float3> delta_storage)
 {
-  const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
   foreach_toplevel_grid_coord_single_threaded(
-      reshape_smooth_context, [&](const PTexCoord *ptex_coord, const GridCoord *grid_coord) {
+      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
-
-        const int idx = multires_index_for_grid_coord(reshape_context, grid_coord);
 
         /* Surface. */
         const blender::float3 P = blender::bke::subdiv::eval_limit_point(
