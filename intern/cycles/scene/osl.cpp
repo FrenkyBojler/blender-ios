@@ -18,7 +18,7 @@
 #ifdef WITH_OSL
 
 /* OSL does lazy runtime detection of CPU features which has potential to run into threading
- * conflict. More details could be found in #147642 in our but tacker and in the PR against
+ * conflict. More details could be found in #147642 in our bug tacker and in the PR against
  * the upstream: https://github.com/AcademySoftwareFoundation/OpenShadingLanguage/pull/2029
  *
  * This work-around ensures to run CPU features detection once in a thread-safe manner which
