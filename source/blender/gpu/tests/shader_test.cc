@@ -316,7 +316,7 @@ static void test_shader_texture_atomic()
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                            GPU_TEXTURE_USAGE_ATOMIC;
-  uint32_t tx_data = 0u;
+  uint32_t tx_data[4] = {0u, 0u, 0u, 0u};
   blender::gpu::Texture *tex_2d = GPU_texture_create_2d(
       "tex_2d", 1, 1, 1, TextureFormat::UINT_32, usage, nullptr);
   blender::gpu::Texture *tex_2d_array = GPU_texture_create_2d_array(
@@ -324,9 +324,9 @@ static void test_shader_texture_atomic()
   blender::gpu::Texture *tex_3d = GPU_texture_create_3d(
       "tex_3d", 1, 1, 2, 1, TextureFormat::UINT_32, usage, nullptr);
 
-  GPU_texture_clear(tex_2d, eGPUDataFormat::GPU_DATA_UINT, &tx_data);
-  GPU_texture_clear(tex_2d_array, eGPUDataFormat::GPU_DATA_UINT, &tx_data);
-  GPU_texture_clear(tex_3d, eGPUDataFormat::GPU_DATA_UINT, &tx_data);
+  GPU_texture_clear(tex_2d, eGPUDataFormat::GPU_DATA_UINT, &tx_data[0]);
+  GPU_texture_clear(tex_2d_array, eGPUDataFormat::GPU_DATA_UINT, &tx_data[0]);
+  GPU_texture_clear(tex_3d, eGPUDataFormat::GPU_DATA_UINT, &tx_data[0]);
 
   GPU_texture_image_bind(tex_2d, GPU_shader_get_sampler_binding(shader, "img_atomic_2D"));
   GPU_texture_image_bind(tex_2d_array,

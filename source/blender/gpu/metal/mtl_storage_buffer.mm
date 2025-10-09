@@ -101,8 +101,7 @@ MTLStorageBuf::~MTLStorageBuf()
    * to check deactivated context's. */
   MTLContext *ctx = MTLContext::get();
   if (ctx) {
-    for (int i = 0; i < MTL_MAX_BUFFER_BINDINGS; i++) {
-      MTLStorageBufferBinding &slot = ctx->pipeline_state.ssbo_bindings[i];
+    for (MTLStorageBufferBinding &slot : ctx->pipeline_state.ssbo_bindings) {
       if (slot.bound && slot.ssbo == this) {
         slot.bound = false;
         slot.ssbo = nullptr;

@@ -36,8 +36,7 @@ MTLUniformBuf::~MTLUniformBuf()
    * to check deactivated context's. */
   MTLContext *ctx = MTLContext::get();
   if (ctx) {
-    for (int i = 0; i < MTL_MAX_BUFFER_BINDINGS; i++) {
-      MTLUniformBufferBinding &slot = ctx->pipeline_state.ubo_bindings[i];
+    for (MTLUniformBufferBinding &slot : ctx->pipeline_state.ubo_bindings) {
       if (slot.bound && slot.ubo == this) {
         slot.bound = false;
         slot.ubo = nullptr;

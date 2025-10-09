@@ -314,21 +314,16 @@ MTLContext::~MTLContext()
   GPU_texture_unbind_all();
 
   /* Unbind UBOs. */
-  for (int i = 0; i < MTL_MAX_BUFFER_BINDINGS; i++) {
-    if (this->pipeline_state.ubo_bindings[i].bound &&
-        this->pipeline_state.ubo_bindings[i].ubo != nullptr)
-    {
-      gpu::UniformBuf *ubo = this->pipeline_state.ubo_bindings[i].ubo;
-      GPU_uniformbuf_unbind(ubo);
+  for (auto &ubo_bind : this->pipeline_state.ubo_bindings) {
+    if (ubo_bind.bound && ubo_bind.ubo != nullptr) {
+      GPU_uniformbuf_unbind(ubo_bind.ubo);
     }
   }
 
   /* Unbind SSBOs. */
-  for (int i = 0; i < MTL_MAX_BUFFER_BINDINGS; i++) {
-    if (this->pipeline_state.ssbo_bindings[i].bound &&
-        this->pipeline_state.ssbo_bindings[i].ssbo != nullptr)
-    {
-      this->pipeline_state.ssbo_bindings[i].ssbo->unbind();
+  for (auto &ssbo_bind : this->pipeline_state.ssbo_bindings) {
+    if (ssbo_bind.bound && ssbo_bind.ssbo != nullptr) {
+      ssbo_bind.ssbo->unbind();
     }
   }
 
@@ -428,22 +423,18 @@ void MTLContext::activate()
   }
 
   /* Reset UBO bind state. */
-  for (int i = 0; i < MTL_MAX_BUFFER_BINDINGS; i++) {
-    if (this->pipeline_state.ubo_bindings[i].bound &&
-        this->pipeline_state.ubo_bindings[i].ubo != nullptr)
-    {
-      this->pipeline_state.ubo_bindings[i].bound = false;
-      this->pipeline_state.ubo_bindings[i].ubo = nullptr;
+  for (auto &ssbo_bind : this->pipeline_state.ubo_bindings) {
+    if (ssbo_bind.bound && ssbo_bind.ubo != nullptr) {
+      ssbo_bind.bound = false;
+      ssbo_bind.ubo = nullptr;
     }
   }
 
   /* Reset SSBO bind state. */
-  for (int i = 0; i < MTL_MAX_BUFFER_BINDINGS; i++) {
-    if (this->pipeline_state.ssbo_bindings[i].bound &&
-        this->pipeline_state.ssbo_bindings[i].ssbo != nullptr)
-    {
-      this->pipeline_state.ssbo_bindings[i].bound = false;
-      this->pipeline_state.ssbo_bindings[i].ssbo = nullptr;
+  for (auto &ssbo_bind : this->pipeline_state.ssbo_bindings) {
+    if (ssbo_bind.bound && ssbo_bind.ssbo != nullptr) {
+      ssbo_bind.bound = false;
+      ssbo_bind.ssbo = nullptr;
     }
   }
 
