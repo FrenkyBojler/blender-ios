@@ -19,6 +19,7 @@
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_customdata.hh"
+#include "BKE_geometry_set.hh"
 
 #include "DNA_mesh_types.h"
 
@@ -473,7 +474,7 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
     allocsize = &bm_mesh_allocsize_default;
   }
 
-  Map<StringRef, bke::AttributeDomainAndType> attributes;
+  bke::GeometrySet::GatheredAttributes attribute_info;
 
   for (int i = 0; i < me_src_array_len; i++) {
     const Mesh *me_src = me_src_array[i];
@@ -481,23 +482,16 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
       if (BM_attribute_stored_in_bmesh_builtin(attr.name())) {
         return;
       }
-      attributes.add_or_modify(
-          attr.name(),
-          [&](bke::AttributeDomainAndType *meta_data_final) {
-            *meta_data_final = {attr.domain(), attr.data_type()};
-          },
-          [&](bke::AttributeDomainAndType *meta_data_final) {
-            meta_data_final->data_type = bke::attribute_data_type_highest_complexity(
-                {meta_data_final->data_type, attr.data_type()});
-            meta_data_final->domain = bke::attribute_domain_highest_priority(
-                {meta_data_final->domain, attr.domain()});
-          });
+      attribute_info.add(attr.name(), {attr.domain(), attr.data_type()});
     });
   }
 
-  for (auto [name, meta_data] : attributes.items()) {
-    const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(meta_data.data_type);
-    CustomData &custom_data = get_bmesh_custom_data(*bm_dst, meta_data.domain);
+  for (const int i : attribute_info.names.index_range()) {
+    const StringRef name = attribute_info.names[i];
+    const bke::AttrDomain domain = attribute_info.kinds[i].domain;
+    const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(
+        attribute_info.kinds[i].data_type);
+    CustomData &custom_data = get_bmesh_custom_data(*bm_dst, domain);
     CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, name);
   }
 
