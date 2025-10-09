@@ -34,14 +34,14 @@ class SequencerCrossfadeSounds(Operator):
 
     @classmethod
     def poll(cls, context):
-        sequencer_scene = context.workspace.sequencer_scene
+        sequencer_scene = context.sequencer_scene
         if not sequencer_scene:
             return False
         strip = context.active_strip
         return strip and (strip.type == 'SOUND')
 
     def execute(self, context):
-        scene = context.workspace.sequencer_scene
+        scene = context.sequencer_scene
         strip1 = None
         strip2 = None
         for strip in scene.sequence_editor.strips_all:
@@ -92,14 +92,14 @@ class SequencerSplitMulticam(Operator):
 
     @classmethod
     def poll(cls, context):
-        sequencer_scene = context.workspace.sequencer_scene
+        sequencer_scene = context.sequencer_scene
         if not sequencer_scene:
             return False
         strip = context.active_strip
         return strip and (strip.type == 'MULTICAM')
 
     def execute(self, context):
-        scene = context.workspace.sequencer_scene
+        scene = context.sequencer_scene
         camera = self.camera
 
         strip = context.active_strip
@@ -132,7 +132,7 @@ class SequencerDeinterlaceSelectedMovies(Operator):
         return (scene and scene.sequence_editor)
 
     def execute(self, context):
-        scene = context.workspace.sequencer_scene
+        scene = context.sequencer_scene
         for strip in scene.sequence_editor.strips_all:
             if strip.select and strip.type == 'MOVIE':
                 strip.use_deinterlace = True
@@ -148,7 +148,7 @@ class SequencerFadesClear(Operator):
 
     @classmethod
     def poll(cls, context):
-        sequencer_scene = context.workspace.sequencer_scene
+        sequencer_scene = context.sequencer_scene
         if not sequencer_scene:
             return False
         strip = context.active_strip
@@ -157,7 +157,7 @@ class SequencerFadesClear(Operator):
     def execute(self, context):
         from bpy_extras import anim_utils
 
-        scene = context.workspace.sequencer_scene
+        scene = context.sequencer_scene
         animation_data = scene.animation_data
         if animation_data is None:
             return {'CANCELLED'}
@@ -211,7 +211,7 @@ class SequencerFadesAdd(Operator):
 
     @classmethod
     def poll(cls, context):
-        sequencer_scene = context.workspace.sequencer_scene
+        sequencer_scene = context.sequencer_scene
         if not sequencer_scene:
             return False
         # Can't use context.selected_strips as it can have an impact on performances
@@ -222,7 +222,7 @@ class SequencerFadesAdd(Operator):
         from math import floor
 
         # We must create a scene action first if there's none
-        scene = context.workspace.sequencer_scene
+        scene = context.sequencer_scene
         if not scene.animation_data:
             scene.animation_data_create()
         if not scene.animation_data.action:
@@ -267,7 +267,7 @@ class SequencerFadesAdd(Operator):
         return {'FINISHED'}
 
     def calculate_fade_duration(self, context, strip):
-        scene = context.workspace.sequencer_scene
+        scene = context.sequencer_scene
         frame_current = scene.frame_current
         duration = 0.0
         if self.type == 'CURSOR_TO':
@@ -301,7 +301,7 @@ class SequencerFadesAdd(Operator):
         that corresponds to the strip.
         Returns the matching FCurve or creates a new one if the function can't find a match.
         """
-        scene = context.workspace.sequencer_scene
+        scene = context.sequencer_scene
         action = scene.animation_data.action
         searched_data_path = strip.path_from_id(animated_property)
         return action.fcurve_ensure_for_datablock(scene, searched_data_path)
