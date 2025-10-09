@@ -309,6 +309,58 @@ static void test_shader_sampler_argument_buffer_binding()
 GPU_TEST(shader_sampler_argument_buffer_binding)
 #endif
 
+static void test_shader_texture_atomic()
+{
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_texture_atomic_test");
+  EXPECT_NE(shader, nullptr);
+
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
+                           GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ |
+                           GPU_TEXTURE_USAGE_ATOMIC;
+  uint32_t tx_data = 0u;
+  blender::gpu::Texture *tex_2d = GPU_texture_create_2d(
+      "tex_2d", 1, 1, 1, TextureFormat::UINT_32, usage, nullptr);
+  blender::gpu::Texture *tex_2d_array = GPU_texture_create_2d_array(
+      "tex_2d_array", 1, 1, 2, 1, TextureFormat::UINT_32, usage, nullptr);
+  blender::gpu::Texture *tex_3d = GPU_texture_create_3d(
+      "tex_3d", 1, 1, 2, 1, TextureFormat::UINT_32, usage, nullptr);
+
+  GPU_texture_clear(tex_2d, eGPUDataFormat::GPU_DATA_UINT, &tx_data);
+  GPU_texture_clear(tex_2d_array, eGPUDataFormat::GPU_DATA_UINT, &tx_data);
+  GPU_texture_clear(tex_3d, eGPUDataFormat::GPU_DATA_UINT, &tx_data);
+
+  GPU_texture_image_bind(tex_2d, GPU_shader_get_sampler_binding(shader, "img_atomic_2D"));
+  GPU_texture_image_bind(tex_2d_array,
+                         GPU_shader_get_sampler_binding(shader, "img_atomic_2D_array"));
+  GPU_texture_image_bind(tex_3d, GPU_shader_get_sampler_binding(shader, "img_atomic_3D"));
+
+  GPU_compute_dispatch(shader, 1, 1, 1);
+  GPU_finish();
+
+  uint32_t *tex_2d_data = (uint32_t *)GPU_texture_read(tex_2d, eGPUDataFormat::GPU_DATA_UINT, 0);
+  uint32_t *tex_2d_array_data = (uint32_t *)GPU_texture_read(
+      tex_2d_array, eGPUDataFormat::GPU_DATA_UINT, 0);
+  uint32_t *tex_3d_data = (uint32_t *)GPU_texture_read(tex_3d, eGPUDataFormat::GPU_DATA_UINT, 0);
+
+  EXPECT_EQ(tex_2d_data[0], 0xFFFFFFFFu);
+  EXPECT_EQ(tex_2d_array_data[0], 0xFFFFFFFFu);
+  EXPECT_EQ(tex_2d_array_data[1], 0xFFFFFFFFu);
+  EXPECT_EQ(tex_3d_data[0], 0xFFFFFFFFu);
+  EXPECT_EQ(tex_3d_data[1], 0xFFFFFFFFu);
+
+  MEM_SAFE_FREE(tex_2d_data);
+  MEM_SAFE_FREE(tex_2d_array_data);
+  MEM_SAFE_FREE(tex_3d_data);
+
+  /* Cleanup. */
+  GPU_texture_free(tex_2d);
+  GPU_texture_free(tex_2d_array);
+  GPU_texture_free(tex_3d);
+  GPU_shader_unbind();
+  GPU_shader_free(shader);
+}
+GPU_TEST(shader_texture_atomic)
+
 static std::string print_test_data(const TestOutputRawData &raw, TestType type)
 {
   std::stringstream ss;

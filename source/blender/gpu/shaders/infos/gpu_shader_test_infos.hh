@@ -146,6 +146,16 @@ FRAGMENT_SOURCE("gpu_texture_test.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(gpu_texture_atomic_test)
+LOCAL_GROUP_SIZE(32)
+BUILTINS(BuiltinBits::TEXTURE_ATOMIC)
+IMAGE(1, UINT_32, read_write, uimage2DAtomic, img_atomic_2D)
+IMAGE(3, UINT_32, read_write, uimage2DArrayAtomic, img_atomic_2D_array)
+IMAGE(5, UINT_32, read_write, uimage3DAtomic, img_atomic_3D)
+COMPUTE_SOURCE("gpu_texture_atomic_test.glsl")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
 /* Specialization constants. */
 
 GPU_SHADER_CREATE_INFO(gpu_specialization_constants_base_test)
