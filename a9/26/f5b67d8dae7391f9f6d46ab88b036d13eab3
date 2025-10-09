@@ -1,2 +1,3 @@
 Referenced by issue #147568, Test for greying out linked images in texture painting is backwards
 Referenced by pull request #147578, Fix #147568: Editable image in texture paint slot grayed out
+Referenced by commit c415febbbb9ed4121244691bc91973ff49482677, Fix #147568: Editable image in texture paint slot grayed out
