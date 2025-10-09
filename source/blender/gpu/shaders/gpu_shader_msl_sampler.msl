@@ -172,6 +172,10 @@ struct _mtl_sampler {
     return SizeVec(texture->get_width(lod), texture->get_height(lod), texture->get_depth(lod));
   }
 #ifndef MTL_SUPPORTS_TEXTURE_ATOMICS
+  template<> SizeVec size_impl<2, 0, true>(uint lod) const
+  {
+    return SizeVec(texture->get_width(lod), texture->get_height(lod));
+  }
   template<> SizeVec size_impl<2, 1, true>(uint lod) const
   {
     return SizeVec(atomic.texture_size);
