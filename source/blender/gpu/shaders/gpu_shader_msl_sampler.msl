@@ -146,7 +146,11 @@ struct _mtl_sampler {
   AtomicEmulation<T, Dim + Array, Atomic> atomic = {};
 #endif
 
-  template<int dim, int array, bool At = false> SizeVec size_impl(uint lod) const {}
+  template<int dim, int array, bool At = false> SizeVec size_impl(uint lod) const
+  {
+    return 0; /* Reference implementation. Never used in practice. */
+  }
+
   template<> SizeVec size_impl<1, 0>(uint lod) const
   {
     return SizeVec(texture->get_width());
