@@ -425,7 +425,7 @@ static void acf_summary_color(bAnimContext *ac, bAnimListElem *ale, float r_colo
    * just one line, there is no need for any distinction between lines, and the red-ish
    * color is only going to be a distraction. */
   const bool is_expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND);
-  UI_GetThemeColor3fv(is_expanded ? TH_ANIM_ACTIVE : TH_ANIM_INACTIVE, r_color);
+  UI_GetThemeColor3fv(is_expanded ? TH_ANIM_ACTIVE : TH_HEADER, r_color);
 }
 
 /* backdrop for summary widget */
