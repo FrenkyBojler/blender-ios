@@ -615,10 +615,10 @@ static bool buttons_context_path(
   /* No pinned root, use scene as initial root. */
   else if (mainb != BCONTEXT_TOOL) {
     if (ELEM(mainb, BCONTEXT_STRIP, BCONTEXT_STRIP_MODIFIER)) {
-      path->ptr[0] = RNA_id_pointer_create(&sequencer_scene->id);
+      path->ptr[0] = RNA_id_pointer_create(reinterpret_cast<ID *>(sequencer_scene));
     }
     else {
-      path->ptr[0] = RNA_id_pointer_create(&scene->id);
+      path->ptr[0] = RNA_id_pointer_create(reinterpret_cast<ID *>(scene));
     }
 
     path->len++;
