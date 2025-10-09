@@ -10,7 +10,7 @@ from bpy.app.translations import (
 )
 
 
-tab_list = (
+tabs_attr_infos = (
     ("show_properties_tool", "Tool", 'TOOL_SETTINGS'),
     ("show_properties_render", "Render", 'SCENE'),
     ("show_properties_output", "Output", 'OUTPUT'),
@@ -39,7 +39,7 @@ class PROPERTIES_HT_header(Header):
 
     @staticmethod
     def _search_poll(space):
-        return any(getattr(space, tab_info[0]) for tab_info in tab_list)
+        return any(getattr(space, tab_info[0]) for tab_info in tabs_attr_infos)
 
     def draw(self, context):
         layout = self.layout
@@ -69,7 +69,7 @@ class PROPERTIES_HT_header(Header):
 
 
 def has_hidden_tabs(space):
-    return not all(getattr(space, tab_info[0]) for tab_info in tab_list)
+    return not all(getattr(space, tab_info[0]) for tab_info in tabs_attr_infos)
 
 
 class PROPERTIES_PT_navigation_bar(Panel):
@@ -186,7 +186,7 @@ class PROPERTIES_PT_visibility(Panel):
 
         col = layout.column(align=True)
         col.label(text="Visible Tabs")
-        for prop, name, icon in tab_list:
+        for prop, name, icon in tabs_attr_infos:
             row = col.row(align=True)
             row.label(text=iface_(name), icon=icon)
             row.prop(space, prop, text="")
