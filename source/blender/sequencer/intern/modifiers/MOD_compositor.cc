@@ -126,19 +126,8 @@ class CompositorContext : public compositor::Context {
                                        bool /*is_data*/,
                                        compositor::ResultPrecision /*precision*/) override
   {
-    result_translation_ = domain.transformation.location();
-    compositor::Result result = this->create_result(compositor::ResultType::Color);
-    if (domain.size.x != image_buffer_->x || domain.size.y != image_buffer_->y) {
-      /* Output size is different (e.g. image is blurred with expanded bounds);
-       * need to allocate appropriately sized buffer. */
-      IMB_free_all_data(image_buffer_);
-      image_buffer_->x = domain.size.x;
-      image_buffer_->y = domain.size.y;
-      IMB_alloc_float_pixels(image_buffer_, 4, false);
-    }
-    result.wrap_external(image_buffer_->float_buffer.data,
-                         int2(image_buffer_->x, image_buffer_->y));
-    return result;
+    /* Within compositor modifier, output and viewer output function the same. */
+    return get_output(domain);
   }
 
   compositor::Result get_input(StringRef name) override
