@@ -3401,9 +3401,7 @@ static bool merge_target(BMEditMesh *em,
     }
   }
 
-  /* At Center should average vertex data, At Cursor leaves data as-is */
   const bool do_avg_vdata = !use_cursor;
-
   if (!EDBM_op_callf(em,
                      wmop,
                      "pointmerge verts=%hv merge_co=%v average_vdata=%b",
