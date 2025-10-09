@@ -8,7 +8,6 @@
 #include "GEO_uv_pack.hh"
 #include "GEO_uv_parametrizer.hh"
 
-#include "NOD_socket_declarations.hh"
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_uv_unwrap_cc {
