@@ -435,7 +435,15 @@ static void foreach_toplevel_grid_coord_single_threaded(
   const int inner_grid_size = (1 << level_difference) + 1;
   const float inner_grid_size_1_inv = 1.0f / float(inner_grid_size - 1);
 
+  const int top_grid_size = reshape_context->top.grid_size;
+  const float top_grid_size_1_inv = 1.0f / float(top_grid_size - 1);
+  printf("TOP GRID_SIZE => %d, %d, %d\n", reshape_context->top.level, top_grid_size, reshape_context->top.grid_size);
+
+  /* TODO: This iteration needs to be changed... - maybe there's a way that we can still fill out
+   * TODO: the CCG positions here? Alternatively, we only gather the "unique" ccg positions */
+
   const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
+  printf("FACES: %d\n", faces.size());
   for (const int face_index : faces.index_range()) {
     const blender::IndexRange face = faces[face_index];
     std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
