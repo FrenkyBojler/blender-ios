@@ -540,10 +540,11 @@ void node_composite_agx_view_transform(float4 color,
   // encode to working log
   color = lin2log(color, int(p_working_log), log2_min_in, log2_max_in);
 
-  if (bool(log2_maintain_contrast_in) && int(p_working_log) == 3) {
+  float general_contrast = general_contrast_in;
+  if (bool(log2_maintain_contrast_in) && int(p_working_log) == 1) {
     float base_exposure_range = 16.5f;
-    general_contrast_in = ((abs(log2_min_in) + log2_max_in) / base_exposure_range) *
-                          general_contrast_in;
+    general_contrast = ((abs(log2_min_in) + log2_max_in) / base_exposure_range) *
+                       general_contrast_in;
   }
 
   // check whether log middle gray is precomputed, if no, calculate it per-pixel.
@@ -591,7 +592,7 @@ void node_composite_agx_view_transform(float4 color,
   color.x = sigmoid(color.x,
                     shoulder_contrast_applied,
                     toe_contrast_in,
-                    general_contrast_in,
+                    general_contrast,
                     log_midgray_applied,
                     display_native_midgray_applied,
                     1.0f,
@@ -599,7 +600,7 @@ void node_composite_agx_view_transform(float4 color,
   color.y = sigmoid(color.y,
                     shoulder_contrast_applied,
                     toe_contrast_in,
-                    general_contrast_in,
+                    general_contrast,
                     log_midgray_applied,
                     display_native_midgray_applied,
                     1.0f,
@@ -607,7 +608,7 @@ void node_composite_agx_view_transform(float4 color,
   color.z = sigmoid(color.z,
                     shoulder_contrast_applied,
                     toe_contrast_in,
-                    general_contrast_in,
+                    general_contrast,
                     log_midgray_applied,
                     display_native_midgray_applied,
                     1.0f,
