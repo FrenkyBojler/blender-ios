@@ -3287,7 +3287,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 46)) {
-    /* Versioning from 0a0dd4ca37 was wrong, now corrected below (subversion 109). */
+    /* Versioning from 0a0dd4ca37 was wrong, now corrected below. */
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 48)) {
@@ -3933,7 +3933,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 108)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 1)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
