@@ -4,9 +4,18 @@
 
 void main()
 {
-  imageAtomicXor(img_atomic_2D, int2(0), uint(1u << gl_LocalInvocationIndex));
-  imageAtomicXor(img_atomic_2D_array, int3(0, 0, 0), uint(1u << gl_LocalInvocationIndex));
-  imageAtomicXor(img_atomic_2D_array, int3(0, 0, 1), uint(1u << gl_LocalInvocationIndex));
-  imageAtomicXor(img_atomic_3D, int3(0, 0, 0), uint(1u << gl_LocalInvocationIndex));
-  imageAtomicXor(img_atomic_3D, int3(0, 0, 1), uint(1u << gl_LocalInvocationIndex));
+  if (write_phase) {
+    imageAtomicXor(img_atomic_2D, int2(0), uint(1u << gl_LocalInvocationIndex));
+    imageAtomicXor(img_atomic_2D_array, int3(0, 0, 0), uint(1u << gl_LocalInvocationIndex));
+    imageAtomicXor(img_atomic_2D_array, int3(0, 0, 1), uint(1u << gl_LocalInvocationIndex));
+    imageAtomicXor(img_atomic_3D, int3(0, 0, 0), uint(1u << gl_LocalInvocationIndex));
+    imageAtomicXor(img_atomic_3D, int3(0, 0, 1), uint(1u << gl_LocalInvocationIndex));
+  }
+  else {
+    data_out[0] = imageLoad(img_atomic_2D, int2(0)).x;
+    data_out[1] = imageLoad(img_atomic_2D_array, int3(0, 0, 0)).x;
+    data_out[2] = imageLoad(img_atomic_2D_array, int3(0, 0, 1)).x;
+    data_out[3] = imageLoad(img_atomic_3D, int3(0, 0, 0)).x;
+    data_out[4] = imageLoad(img_atomic_3D, int3(0, 0, 1)).x;
+  }
 }

@@ -315,7 +315,6 @@ static void test_shader_texture_atomic()
   EXPECT_NE(shader, nullptr);
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
-                           GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ |
                            GPU_TEXTURE_USAGE_ATOMIC;
   uint32_t tx_data = 0u;
   blender::gpu::Texture *tex_2d = GPU_texture_create_2d(
@@ -334,28 +333,34 @@ static void test_shader_texture_atomic()
                          GPU_shader_get_sampler_binding(shader, "img_atomic_2D_array"));
   GPU_texture_image_bind(tex_3d, GPU_shader_get_sampler_binding(shader, "img_atomic_3D"));
 
+  gpu::StorageBuf *ssbo = GPU_storagebuf_create(sizeof(uint32_t) * 5);
+  GPU_storagebuf_bind(ssbo, GPU_shader_get_ssbo_binding(shader, "data_out"));
+
+  GPU_shader_bind(shader);
+  GPU_shader_uniform_1b(shader, "write_phase", true);
   GPU_compute_dispatch(shader, 1, 1, 1);
+  GPU_memory_barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
+
+  /* We can't host read atomic texture. So we do a manual read phase to a SSBO. */
+  GPU_shader_uniform_1b(shader, "write_phase", false);
+  GPU_compute_dispatch(shader, 1, 1, 1);
+  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
   GPU_finish();
 
-  uint32_t *tex_2d_data = (uint32_t *)GPU_texture_read(tex_2d, eGPUDataFormat::GPU_DATA_UINT, 0);
-  uint32_t *tex_2d_array_data = (uint32_t *)GPU_texture_read(
-      tex_2d_array, eGPUDataFormat::GPU_DATA_UINT, 0);
-  uint32_t *tex_3d_data = (uint32_t *)GPU_texture_read(tex_3d, eGPUDataFormat::GPU_DATA_UINT, 0);
+  uint32_t data[5];
+  GPU_storagebuf_read(ssbo, &data);
 
-  EXPECT_EQ(tex_2d_data[0], 0xFFFFFFFFu);
-  EXPECT_EQ(tex_2d_array_data[0], 0xFFFFFFFFu);
-  EXPECT_EQ(tex_2d_array_data[1], 0xFFFFFFFFu);
-  EXPECT_EQ(tex_3d_data[0], 0xFFFFFFFFu);
-  EXPECT_EQ(tex_3d_data[1], 0xFFFFFFFFu);
-
-  MEM_SAFE_FREE(tex_2d_data);
-  MEM_SAFE_FREE(tex_2d_array_data);
-  MEM_SAFE_FREE(tex_3d_data);
+  EXPECT_EQ(data[0], 0xFFFFFFFFu);
+  EXPECT_EQ(data[1], 0xFFFFFFFFu);
+  EXPECT_EQ(data[2], 0xFFFFFFFFu);
+  EXPECT_EQ(data[3], 0xFFFFFFFFu);
+  EXPECT_EQ(data[4], 0xFFFFFFFFu);
 
   /* Cleanup. */
   GPU_texture_free(tex_2d);
   GPU_texture_free(tex_2d_array);
   GPU_texture_free(tex_3d);
+  GPU_storagebuf_free(ssbo);
   GPU_shader_unbind();
   GPU_shader_free(shader);
 }
