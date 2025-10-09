@@ -17,6 +17,14 @@
 
 #ifdef WITH_OSL
 
+/* OSL does lazy runtime detection of CPU features which has potential to run into threading
+ * conflict. More details could be found in #147642 in our but tacker and in the PR against
+ * the upstream: https://github.com/AcademySoftwareFoundation/OpenShadingLanguage/pull/2029
+ *
+ * This work-around ensures to run CPU features detection once in a thread-safe manner which
+ * allows to side-step the threading issue later on. */
+#  define OSL_CPU_FEATURES_WORKAROUND
+
 #  include "kernel/osl/globals.h"
 #  include "kernel/osl/services.h"
 
@@ -27,6 +35,10 @@
 #  include "util/progress.h"
 #  include "util/projection.h"
 #  include "util/task.h"
+
+#  if defined(OSL_CPU_FEATURES_WORKAROUND)
+#    include <OSL/llvm_util.h>
+#  endif
 
 #endif
 
@@ -47,7 +59,17 @@ std::atomic<int> OSLCompiler::texture_shared_unique_id = 0;
 
 /* Shader Manager */
 
-OSLManager::OSLManager(Device *device) : device_(device), need_update_(true) {}
+OSLManager::OSLManager(Device *device) : device_(device), need_update_(true)
+{
+#  if defined(OSL_CPU_FEATURES_WORKAROUND)
+  {
+    OSL::pvt::LLVM_Util::ScopedJitMemoryUser llvm_jit_memory_user;
+    OSL::pvt::LLVM_Util::PerThreadInfo per_thread_info;
+    OSL::pvt::LLVM_Util ll(per_thread_info, 0, 4);
+    ll.detect_cpu_features(OSL::pvt::TargetISA::HOST, false);
+  }
+#  endif
+}
 
 OSLManager::~OSLManager()
 {
