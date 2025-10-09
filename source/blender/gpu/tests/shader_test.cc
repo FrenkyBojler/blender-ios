@@ -249,7 +249,7 @@ GPU_TEST(shader_ssbo_binding)
 #ifdef WITH_METAL_BACKEND
 static void test_shader_sampler_argument_buffer_binding()
 {
-  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_sampler_arg_buf_graphic_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_sampler_arg_buf_test");
   EXPECT_NE(shader, nullptr);
 
   gpu::StorageBuf *ssbo = GPU_storagebuf_create(sizeof(float) * 4 * 18);
