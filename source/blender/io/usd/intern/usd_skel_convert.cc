@@ -21,6 +21,7 @@
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"
@@ -194,11 +195,12 @@ void import_skeleton_curves(Main *bmain,
   }
 
   if (usd_bind_xforms.size() != joint_order.size()) {
-    BKE_reportf(reports,
-                RPT_WARNING,
-                "%s: Number of bind transforms doesn't match the number of joints for skeleton %s",
-                __func__,
-                skel_query.GetSkeleton().GetPrim().GetPath().GetAsString().c_str());
+    BKE_reportf(
+        reports,
+        RPT_WARNING,
+        "%s: Number of bind transforms does not match the number of joints for skeleton %s",
+        __func__,
+        skel_query.GetSkeleton().GetPrim().GetPath().GetAsString().c_str());
     return;
   }
 
@@ -233,7 +235,7 @@ void import_skeleton_curves(Main *bmain,
     if (joint_local_xforms.size() != joint_order.size()) {
       CLOG_WARN(
           &LOG,
-          "Number of joint local transform entries %zu doesn't match the number of joints %zu",
+          "Number of joint local transform entries %zu does not match the number of joints %zu",
           joint_local_xforms.size(),
           joint_order.size());
       continue;
@@ -410,11 +412,12 @@ void import_blendshapes(Main *bmain,
 
   /* Sanity check. */
   if (targets.size() != usd_blendshapes.size()) {
-    BKE_reportf(reports,
-                RPT_WARNING,
-                "%s: Number of blendshapes doesn't match number of blendshape targets for prim %s",
-                __func__,
-                prim.GetPath().GetAsString().c_str());
+    BKE_reportf(
+        reports,
+        RPT_WARNING,
+        "%s: Number of blendshapes does not match number of blendshape targets for prim %s",
+        __func__,
+        prim.GetPath().GetAsString().c_str());
     return;
   }
 
@@ -485,6 +488,10 @@ void import_blendshapes(Main *bmain,
     /* Add the key block. */
     kb = BKE_keyblock_add(key, blendshapes[i].GetString().c_str());
     BKE_keyblock_convert_from_mesh(mesh, key, kb);
+    if (!kb->data) {
+      /* Nothing to do. This can happen if the mesh has no vertices. */
+      continue;
+    }
 
     /* if authored, point indices are indices into the original mesh
      * that correspond to the values in the offsets array. */
@@ -637,7 +644,7 @@ void import_blendshapes(Main *bmain,
     if (usd_weights.size() != curves.size()) {
       CLOG_WARN(
           &LOG,
-          "Number of weight samples doesn't match number of shapekey curve entries for frame %f",
+          "Number of weight samples does not match number of shapekey curve entries for frame %f",
           frame);
       continue;
     }
@@ -698,7 +705,7 @@ static void set_rest_pose(Main *bmain,
       xf = xf * bind_xf.GetInverse();
 
       pxr::GfMatrix4f mat(xf);
-      BKE_pchan_apply_mat4(pchan, (float(*)[4])mat.data(), false);
+      BKE_pchan_apply_mat4(pchan, (float (*)[4])mat.data(), false);
 
       i++;
     }
@@ -864,7 +871,7 @@ void import_skeleton(Main *bmain,
         RPT_WARNING,
         "USD Skeleton Import: bone matrices with negative determinants detected in prim %s. "
         "Such matrices may indicate negative scales, possibly due to mirroring operations, "
-        "and can't currently be converted to Blender's bone representation. "
+        "and cannot currently be converted to Blender's bone representation. "
         "The skeletal animation won't be imported",
         skel.GetPath().GetAsString().c_str());
   }

@@ -45,6 +45,7 @@
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
 #include "ED_transform.hh"
+#include "ED_uvedit.hh"
 #include "ED_view3d.hh"
 
 #include "BLT_translation.hh"
@@ -239,6 +240,101 @@ void EDBM_select_mirrored(BMEditMesh *em,
 
   *r_totmirr = totmirr;
   *r_totfail = totfail;
+}
+
+bool EDBM_select_mirrored_extend_all(Object *obedit, BMEditMesh *em)
+{
+  BMesh *bm = em->bm;
+  int selectmode = em->selectmode;
+  bool changed = false;
+
+  if (bm->totfacesel == 0) {
+    selectmode &= ~SCE_SELECT_FACE;
+  }
+  if (bm->totedgesel == 0) {
+    selectmode &= ~SCE_SELECT_EDGE;
+  }
+  if (bm->totvertsel == 0) {
+    selectmode &= ~SCE_SELECT_VERTEX;
+  }
+
+  if (selectmode == 0) {
+    return changed;
+  }
+
+  char symmetry_htype = 0;
+  if (selectmode & SCE_SELECT_FACE) {
+    symmetry_htype |= BM_FACE;
+  }
+  if (selectmode & SCE_SELECT_EDGE) {
+    symmetry_htype |= BM_EDGE;
+  }
+  if (selectmode & SCE_SELECT_VERTEX) {
+    symmetry_htype |= BM_VERT;
+  }
+  if (std::optional<EditMeshSymmetryHelper> symmetry_helper =
+          EditMeshSymmetryHelper::create_if_needed(obedit, symmetry_htype))
+  {
+    const char hflag = BM_ELEM_SELECT;
+    BMIter iter;
+
+    if (selectmode & SCE_SELECT_FACE) {
+      blender::Vector<BMFace *> source_faces;
+      source_faces.reserve(bm->totfacesel);
+      BMFace *f;
+      BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, hflag)) {
+          source_faces.append(f);
+        }
+      }
+      const int totfacesel_prev = bm->totfacesel;
+      for (BMFace *f_orig : source_faces) {
+        symmetry_helper->set_hflag_on_mirror_faces(f_orig, hflag, true);
+      }
+      if (bm->totfacesel != totfacesel_prev) {
+        changed = true;
+      }
+    }
+    if (selectmode & SCE_SELECT_EDGE) {
+      blender::Vector<BMEdge *> source_edges;
+      source_edges.reserve(bm->totedgesel);
+      BMEdge *e;
+      BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, hflag)) {
+          source_edges.append(e);
+        }
+      }
+      const int totedgesel_prev = bm->totedgesel;
+      for (BMEdge *e_orig : source_edges) {
+        symmetry_helper->set_hflag_on_mirror_edges(e_orig, hflag, true);
+      }
+      if (bm->totedgesel != totedgesel_prev) {
+        changed = true;
+      }
+    }
+    if (selectmode & SCE_SELECT_VERTEX) {
+      blender::Vector<BMVert *> source_verts;
+      source_verts.reserve(bm->totvertsel);
+      BMVert *v;
+      BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, hflag)) {
+          source_verts.append(v);
+        }
+      }
+      const int totvertsel_prev = bm->totvertsel;
+      for (BMVert *v_orig : source_verts) {
+        symmetry_helper->set_hflag_on_mirror_verts(v_orig, hflag, true);
+      }
+      if (bm->totvertsel != totvertsel_prev) {
+        changed = true;
+      }
+    }
+    if (changed) {
+      EDBM_selectmode_flush(em);
+    }
+  }
+
+  return changed;
 }
 
 /** \} */
@@ -1362,7 +1458,7 @@ static wmOperatorStatus edbm_select_similar_region_exec(bContext *C, wmOperator 
   bool changed = false;
 
   /* Group variables. */
-  int(*group_index)[2];
+  int (*group_index)[2];
   int group_tot;
   int i;
 
@@ -1461,7 +1557,7 @@ static wmOperatorStatus edbm_select_mode_invoke(bContext *C, wmOperator *op, con
   /* Bypass when in UV non sync-select mode, fall through to keymap that edits. */
   if (CTX_wm_space_image(C)) {
     ToolSettings *ts = CTX_data_tool_settings(C);
-    if ((ts->uv_flag & UV_FLAG_SYNC_SELECT) == 0) {
+    if ((ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0) {
       return OPERATOR_PASS_THROUGH;
     }
     /* Bypass when no action is needed. */
@@ -1663,6 +1759,7 @@ static wmOperatorStatus edbm_loop_multiselect_exec(bContext *C, wmOperator *op)
       }
       if (changed) {
         EDBM_selectmode_flush(em);
+        EDBM_uvselect_clear(em);
       }
     }
     else {
@@ -1678,6 +1775,7 @@ static wmOperatorStatus edbm_loop_multiselect_exec(bContext *C, wmOperator *op)
       }
       if (changed) {
         EDBM_selectmode_flush(em);
+        EDBM_uvselect_clear(em);
       }
     }
     MEM_freeN(edarray);
@@ -1863,6 +1961,7 @@ static bool mouse_mesh_loop(
   }
 
   EDBM_selectmode_flush(em);
+  EDBM_uvselect_clear(em);
 
   /* Sets as active, useful for other tools. */
   if (select) {
@@ -2044,10 +2143,16 @@ static wmOperatorStatus edbm_select_all_exec(bContext *C, wmOperator *op)
         EDBM_flag_disable_all(em, BM_ELEM_SELECT);
         break;
       case SEL_INVERT:
-        EDBM_select_swap(em);
-        EDBM_selectmode_flush(em);
+        if (em->bm->uv_select_sync_valid) {
+          ED_uvedit_deselect_all(scene, obedit, SEL_INVERT);
+        }
+        else {
+          EDBM_select_swap(em);
+          EDBM_selectmode_flush(em);
+        }
         break;
     }
+
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
@@ -2165,6 +2270,12 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
     BMEditMesh *em = vc.em;
     BMesh *bm = em->bm;
 
+    const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
+    const BMUVSelectPickParams uv_pick_params = {
+        /*cd_loop_uv_offset*/ cd_loop_uv_offset,
+        /*shared*/ vc.scene->toolsettings->uv_sticky == UV_STICKY_LOCATION,
+    };
+
     if (efa) {
       switch (params.sel_op) {
         case SEL_OP_ADD: {
@@ -2176,6 +2287,9 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_face_select_set(bm, efa, false);
           BM_select_history_store(bm, efa);
           BM_face_select_set(bm, efa, true);
+          if (bm->uv_select_sync_valid) {
+            BM_face_uvselect_set_pick(bm, efa, true, uv_pick_params);
+          }
           break;
         }
         case SEL_OP_SUB: {
@@ -2188,10 +2302,16 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
             BM_select_history_store(bm, efa);
             BM_face_select_set(bm, efa, true);
+            if (bm->uv_select_sync_valid) {
+              BM_face_uvselect_set_pick(bm, efa, true, uv_pick_params);
+            }
           }
           else {
             BM_select_history_remove(bm, efa);
             BM_face_select_set(bm, efa, false);
+            if (bm->uv_select_sync_valid) {
+              BM_face_uvselect_set_pick(bm, efa, false, uv_pick_params);
+            }
           }
           break;
         }
@@ -2201,6 +2321,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
             BM_select_history_store(bm, efa);
             BM_face_select_set(bm, efa, true);
           }
+          /* UV select will have been cleared. */
           break;
         }
         case SEL_OP_AND: {
@@ -2219,21 +2340,33 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_edge_select_set(bm, eed, false);
           BM_select_history_store(bm, eed);
           BM_edge_select_set(bm, eed, true);
+          if (bm->uv_select_sync_valid) {
+            BM_edge_uvselect_set_pick(bm, eed, true, uv_pick_params);
+          }
           break;
         }
         case SEL_OP_SUB: {
           BM_select_history_remove(bm, eed);
           BM_edge_select_set(bm, eed, false);
+          if (bm->uv_select_sync_valid) {
+            BM_edge_uvselect_set_pick(bm, eed, false, uv_pick_params);
+          }
           break;
         }
         case SEL_OP_XOR: {
           if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
             BM_select_history_store(bm, eed);
             BM_edge_select_set(bm, eed, true);
+            if (bm->uv_select_sync_valid) {
+              BM_edge_uvselect_set_pick(bm, eed, true, uv_pick_params);
+            }
           }
           else {
             BM_select_history_remove(bm, eed);
             BM_edge_select_set(bm, eed, false);
+            if (bm->uv_select_sync_valid) {
+              BM_edge_uvselect_set_pick(bm, eed, false, uv_pick_params);
+            }
           }
           break;
         }
@@ -2259,21 +2392,33 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           BM_vert_select_set(bm, eve, false);
           BM_select_history_store(bm, eve);
           BM_vert_select_set(bm, eve, true);
+          if (bm->uv_select_sync_valid) {
+            BM_vert_uvselect_set_pick(bm, eve, true, uv_pick_params);
+          }
           break;
         }
         case SEL_OP_SUB: {
           BM_select_history_remove(bm, eve);
           BM_vert_select_set(bm, eve, false);
+          if (bm->uv_select_sync_valid) {
+            BM_vert_uvselect_set_pick(bm, eve, false, uv_pick_params);
+          }
           break;
         }
         case SEL_OP_XOR: {
           if (!BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
             BM_select_history_store(bm, eve);
             BM_vert_select_set(bm, eve, true);
+            if (bm->uv_select_sync_valid) {
+              BM_vert_uvselect_set_pick(bm, eve, true, uv_pick_params);
+            }
           }
           else {
             BM_select_history_remove(bm, eve);
             BM_vert_select_set(bm, eve, false);
+            if (bm->uv_select_sync_valid) {
+              BM_vert_uvselect_set_pick(bm, eve, false, uv_pick_params);
+            }
           }
           break;
         }
@@ -2363,6 +2508,7 @@ void EDBM_selectmode_set(BMEditMesh *em, const short selectmode)
   BMFace *efa;
   BMIter iter;
 
+  const short selectmode_prev = em->selectmode;
   em->selectmode = selectmode;
   em->bm->selectmode = selectmode;
 
@@ -2375,7 +2521,7 @@ void EDBM_selectmode_set(BMEditMesh *em, const short selectmode)
 
   if (em->selectmode & SCE_SELECT_VERTEX) {
     if (em->bm->totvertsel) {
-      EDBM_select_flush(em);
+      EDBM_select_flush_from_verts(em, true);
     }
   }
   else if (em->selectmode & SCE_SELECT_EDGE) {
@@ -2408,6 +2554,13 @@ void EDBM_selectmode_set(BMEditMesh *em, const short selectmode)
         }
       }
     }
+  }
+
+  if (em->bm->uv_select_sync_valid) {
+    /* NOTE(@ideasman42): this could/should use the "sticky" tool setting.
+     * Although in practice it's OK to assume "connected" sticky in this case. */
+    const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
+    BM_mesh_uvselect_mode_flush_update(em->bm, selectmode_prev, selectmode, cd_loop_uv_offset);
   }
 }
 
@@ -2490,7 +2643,7 @@ void EDBM_selectmode_convert(BMEditMesh *em,
         }
       }
       /* Deselect edges without both verts selected. */
-      BM_mesh_deselect_flush(bm);
+      BM_mesh_select_flush_from_verts(bm, false);
     }
   }
   else if (selectmode_old == SCE_SELECT_FACE) {
@@ -2506,7 +2659,7 @@ void EDBM_selectmode_convert(BMEditMesh *em,
         }
       }
       /* Deselect faces without edges selected. */
-      BM_mesh_deselect_flush(bm);
+      BM_mesh_select_flush_from_verts(bm, false);
     }
     else if (selectmode_new == SCE_SELECT_VERTEX) {
       /* Flush down (face -> vert). */
@@ -2517,7 +2670,7 @@ void EDBM_selectmode_convert(BMEditMesh *em,
         }
       }
       /* Deselect faces without verts selected. */
-      BM_mesh_deselect_flush(bm);
+      BM_mesh_select_flush_from_verts(bm, false);
     }
   }
 }
@@ -2599,13 +2752,39 @@ bool EDBM_selectmode_toggle_multi(bContext *C,
     return false;
   }
 
+  /* WARNING: unfortunately failing to ensure this causes problems in *some* cases.
+   * Adding UV data has negative performance impacts, but failing to do this means
+   * switching to the UV editor *might* should strange selection.
+   * Since we can't know if users will proceed to do UV editing after switching modes,
+   * ensure the UV data.
+   *
+   * Even though the data is added, it's only added if it's needed,
+   * so selecting all/none or when there are no UV's.
+   *
+   * Failing to do this means switching from face to vertex selection modes
+   * will leave vertices on adjacent islands selected - which seems like a bug. */
+  bool use_uv_select_ensure = false;
+
+  /* Only do this when sync-select is enabled so users can have better
+   * performance when editing high poly meshes. */
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+    /* Only when flushing down. */
+    if ((bitscan_forward_i(selectmode_new) < bitscan_forward_i(selectmode_old))) {
+      use_uv_select_ensure = true;
+    }
+  }
+
   if (use_extend == false || selectmode_new == 0) {
     if (use_expand) {
       const short selectmode_max = highest_order_bit_s(selectmode_old);
       for (Object *ob_iter : objects) {
         BMEditMesh *em_iter = BKE_editmesh_from_object(ob_iter);
         EDBM_selectmode_convert(em_iter, selectmode_max, selectmode_toggle);
+        /* NOTE: This could be supported, but converting UV's too is reasonably complicated.
+         * This can be considered a low priority TODO. */
+        EDBM_uvselect_clear(em_iter);
       }
+      use_uv_select_ensure = false;
     }
   }
 
@@ -2635,14 +2814,25 @@ bool EDBM_selectmode_toggle_multi(bContext *C,
 
   if (ret == true) {
     BLI_assert(selectmode_new != 0);
-    ts->selectmode = selectmode_new;
     for (Object *ob_iter : objects) {
       BMEditMesh *em_iter = BKE_editmesh_from_object(ob_iter);
+
+      if (use_uv_select_ensure) {
+        if (BM_mesh_select_is_mixed(em_iter->bm)) {
+          ED_uvedit_sync_uvselect_ensure_if_needed(ts, em_iter->bm);
+        }
+        else {
+          EDBM_uvselect_clear(em_iter);
+        }
+      }
+
       EDBM_selectmode_set(em_iter, selectmode_new);
       DEG_id_tag_update(static_cast<ID *>(ob_iter->data),
                         ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob_iter->data);
     }
+
+    ts->selectmode = selectmode_new;
     WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, nullptr);
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   }
@@ -2706,7 +2896,7 @@ bool EDBM_selectmode_set_multi(bContext *C, const short selectmode)
  * it's not guaranteed because objects can be shared across scenes and each
  * scene has its own select-mode which is applied to the object when entering edit-mode.
  *
- * This function should only be used when the an operation would cause errors
+ * This function should only be used when an operation would cause errors
  * when applied in the wrong selection mode.
  *
  * \return True when a change was made.
@@ -3014,7 +3204,7 @@ bool EDBM_select_interior_faces(BMEditMesh *em)
   }
 
   /* Group variables. */
-  int(*fgroup_index)[2];
+  int (*fgroup_index)[2];
   int fgroup_len;
 
   int *fgroup_array = MEM_malloc_arrayN<int>(bm->totface, __func__);
@@ -3538,6 +3728,8 @@ static wmOperatorStatus edbm_select_linked_exec(bContext *C, wmOperator *op)
       select_linked_delimit_end(em);
     }
 
+    EDBM_uvselect_clear(em);
+
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
@@ -3691,6 +3883,8 @@ static void edbm_select_linked_pick_ex(BMEditMesh *em, BMElem *ele, bool sel, in
 
     BMW_end(&walker);
   }
+
+  EDBM_uvselect_clear(em);
 
   if (delimit) {
     select_linked_delimit_end(em);
@@ -3941,6 +4135,8 @@ static wmOperatorStatus edbm_select_by_pole_count_exec(bContext *C, wmOperator *
 
     if (changed) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
@@ -4019,6 +4215,8 @@ static wmOperatorStatus edbm_select_face_by_sides_exec(bContext *C, wmOperator *
 
     if (changed) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
@@ -4130,6 +4328,7 @@ static wmOperatorStatus edbm_select_loose_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
@@ -4199,6 +4398,7 @@ static wmOperatorStatus edbm_select_mirror_exec(bContext *C, wmOperator *op)
 
     if (tot_mirr_iter) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
@@ -4209,7 +4409,7 @@ static wmOperatorStatus edbm_select_mirror_exec(bContext *C, wmOperator *op)
   }
 
   if (tot_mirr || tot_fail) {
-    ED_mesh_report_mirror_ex(op, tot_mirr, tot_fail, select_mode);
+    ED_mesh_report_mirror_ex(*op->reports, tot_mirr, tot_fail, select_mode);
   }
   return OPERATOR_FINISHED;
 }
@@ -4357,6 +4557,262 @@ static bool bm_edge_is_select_isolated(BMEdge *e)
   return true;
 }
 
+static BMEdge *bm_step_over_vert_to_next_selected_edge_in_chain(const BMEdge *e_curr, BMVert *v)
+{
+  BMIter eiter;
+  BMEdge *e_other, *e_next = nullptr;
+  int count = 0;
+  const int count_expected = 1;
+
+  BM_ITER_ELEM (e_other, &eiter, v, BM_EDGES_OF_VERT) {
+    if (e_other == e_curr || !BM_elem_flag_test(e_other, BM_ELEM_SELECT)) {
+      continue;
+    }
+    if (++count > count_expected) {
+      return nullptr;
+    }
+    e_next = e_other;
+  }
+  return (count == count_expected) ? e_next : nullptr;
+}
+
+static BMVert *bm_step_to_next_selected_vert_in_chain(BMVert *v_curr, BMVert *v_prev)
+{
+  BMIter eiter;
+  BMEdge *e;
+  BMVert *v_next = nullptr;
+  int count = 0;
+  const int count_expected = v_prev ? 1 : 2;
+
+  BM_ITER_ELEM (e, &eiter, v_curr, BM_EDGES_OF_VERT) {
+    BMVert *v_other = BM_edge_other_vert(e, v_curr);
+    if (v_other == v_prev || !BM_elem_flag_test(v_other, BM_ELEM_SELECT)) {
+      continue;
+    }
+    if (++count > count_expected) {
+      return nullptr;
+    }
+    v_next = v_other;
+  }
+  return (count == count_expected) ? v_next : nullptr;
+}
+
+static BMFace *bm_step_over_shared_edge_to_next_selected_face_in_chain(BMFace *f_curr,
+                                                                       BMFace *f_prev)
+{
+  BMIter liter;
+  BMLoop *l;
+  BMFace *f_next = nullptr;
+  int count = 0;
+  const int count_expected = f_prev ? 1 : 2;
+
+  BM_ITER_ELEM (l, &liter, f_curr, BM_LOOPS_OF_FACE) {
+    BMIter fiter;
+    BMFace *f_other;
+    BM_ITER_ELEM (f_other, &fiter, l->e, BM_FACES_OF_EDGE) {
+      if (ELEM(f_other, f_curr, f_prev) || !BM_elem_flag_test(f_other, BM_ELEM_SELECT)) {
+        continue;
+      }
+      if (++count > count_expected) {
+        return nullptr;
+      }
+      f_next = f_other;
+    }
+  }
+  return (count == count_expected) ? f_next : nullptr;
+}
+
+/**
+ * Check if the selected vertices form a loop cyclic chain.
+ */
+static bool bm_verts_form_cyclic_chain(BMVert *v_start)
+{
+  BMVert *v_prev = nullptr, *v_curr = v_start;
+
+  do {
+    int selected_neighbor_count = 0;
+    BMIter eiter;
+    BMEdge *e;
+    BM_ITER_ELEM (e, &eiter, v_curr, BM_EDGES_OF_VERT) {
+      BMVert *v_other = BM_edge_other_vert(e, v_curr);
+      if (BM_elem_flag_test(v_other, BM_ELEM_SELECT)) {
+        if (++selected_neighbor_count > 2) {
+          return false;
+        }
+      }
+    }
+    if (selected_neighbor_count != 2) {
+      return false;
+    }
+
+    BMVert *v_next = bm_step_to_next_selected_vert_in_chain(v_curr, v_prev);
+    if (v_next == nullptr) {
+      return false;
+    }
+    v_prev = v_curr;
+    v_curr = v_next;
+  } while (v_curr != v_start);
+
+  return true;
+}
+
+/**
+ * Check if the selected edges form a loop cyclic chain.
+ */
+static bool bm_edges_form_cyclic_chain(BMEdge *e_start)
+{
+  BMEdge *e_curr = e_start;
+  BMVert *v_through = e_start->v1;
+
+  do {
+    BMEdge *e_next = bm_step_over_vert_to_next_selected_edge_in_chain(e_curr, v_through);
+    if (e_next == nullptr) {
+      return false;
+    }
+    v_through = BM_edge_other_vert(e_next, v_through);
+    e_curr = e_next;
+
+  } while (e_curr != e_start);
+
+  return true;
+}
+
+/**
+ * Check if the selected faces form a loop cyclic chain.
+ */
+static bool bm_faces_form_cyclic_chain(BMFace *f_start)
+{
+  BMFace *f_prev = nullptr;
+  BMFace *f_curr = f_start;
+
+  do {
+    int selected_neighbor_count = 0;
+    BMIter liter;
+    BMLoop *l;
+
+    BM_ITER_ELEM (l, &liter, f_curr, BM_LOOPS_OF_FACE) {
+      BMIter fiter;
+      BMFace *f_other;
+      BM_ITER_ELEM (f_other, &fiter, l->e, BM_FACES_OF_EDGE) {
+        if (f_other != f_curr && BM_elem_flag_test(f_other, BM_ELEM_SELECT)) {
+          selected_neighbor_count++;
+        }
+      }
+    }
+    if (selected_neighbor_count != 2) {
+      return false;
+    }
+
+    BMFace *f_next = bm_step_over_shared_edge_to_next_selected_face_in_chain(f_curr, f_prev);
+    if (f_next == nullptr) {
+      return false;
+    }
+
+    f_prev = f_curr;
+    f_curr = f_next;
+  } while (f_curr != f_start);
+
+  return true;
+}
+
+static void walker_deselect_nth_vertex_chain(BMEditMesh *em,
+                                             const CheckerIntervalParams *op_params,
+                                             BMVert *v_start)
+{
+  BMesh *bm = em->bm;
+  BMVert *v_prev = nullptr;
+  BMVert *v_curr = v_start;
+  int index = 0;
+
+  /* Mark all vertices as unvisited. */
+  BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
+
+  while (v_curr && !BM_elem_flag_test(v_curr, BM_ELEM_TAG)) {
+    /* Mark as visited. */
+    BM_elem_flag_enable(v_curr, BM_ELEM_TAG);
+
+    /* Apply checker pattern based on position in loop. */
+    if (!WM_operator_properties_checker_interval_test(op_params, index)) {
+      BM_elem_select_set(bm, (BMElem *)v_curr, false);
+    }
+
+    /* Find next vertex in the loop. */
+    BMVert *v_next = bm_step_to_next_selected_vert_in_chain(v_curr, v_prev);
+    if (ELEM(v_next, nullptr, v_start)) {
+      break;
+    }
+
+    v_prev = v_curr;
+    v_curr = v_next;
+    index++;
+  }
+}
+
+static void walker_deselect_nth_edge_chain(BMEditMesh *em,
+                                           const CheckerIntervalParams *op_params,
+                                           BMEdge *e_start)
+{
+  BMesh *bm = em->bm;
+  BMEdge *e_curr = e_start;
+  BMVert *v_through = e_start->v1;
+  int index = 0;
+
+  /* Mark all edges as unvisited. */
+  BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
+
+  while (e_curr && !BM_elem_flag_test(e_curr, BM_ELEM_TAG)) {
+    /* Mark as visited. */
+    BM_elem_flag_enable(e_curr, BM_ELEM_TAG);
+
+    /* Apply checker pattern based on position in loop. */
+    if (!WM_operator_properties_checker_interval_test(op_params, index)) {
+      BM_elem_select_set(bm, (BMElem *)e_curr, false);
+    }
+
+    /* Find next edge in the loop. */
+    BMEdge *e_next = bm_step_over_vert_to_next_selected_edge_in_chain(e_curr, v_through);
+    if (ELEM(e_next, nullptr, e_start)) {
+      break;
+    }
+
+    v_through = BM_edge_other_vert(e_next, v_through);
+    e_curr = e_next;
+    index++;
+  }
+}
+
+static void walker_deselect_nth_face_chain(BMEditMesh *em,
+                                           const CheckerIntervalParams *op_params,
+                                           BMFace *f_start)
+{
+  BMesh *bm = em->bm;
+  BMFace *f_prev = nullptr;
+  BMFace *f_curr = f_start;
+  int index = 0;
+
+  /* Mark all faces as unvisited. */
+  BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
+
+  while (f_curr && !BM_elem_flag_test(f_curr, BM_ELEM_TAG)) {
+    BM_elem_flag_enable(f_curr, BM_ELEM_TAG);
+
+    BMFace *f_next = bm_step_over_shared_edge_to_next_selected_face_in_chain(f_curr, f_prev);
+
+    /* Apply checker pattern to current face. */
+    if (!WM_operator_properties_checker_interval_test(op_params, index)) {
+      BM_elem_select_set(bm, (BMElem *)f_curr, false);
+    }
+
+    if (ELEM(f_next, nullptr, f_start)) {
+      break;
+    }
+
+    f_prev = f_curr;
+    f_curr = f_next;
+    index++;
+  }
+}
+
 /* Walk all reachable elements of the same type as h_act in breadth-first
  * order, starting from h_act. Deselects elements if the depth when they
  * are reached is not a multiple of "nth". */
@@ -4374,6 +4830,40 @@ static void walker_deselect_nth(BMEditMesh *em,
   /* No active element from which to start - nothing to do. */
   if (h_act == nullptr) {
     return;
+  }
+
+  /* Note on cyclic-chain handling here:
+   *
+   * The use of a breadth first search to determine element order
+   * causes problems with cyclic topology.
+   *
+   * The walker ordered vertices by their graph depth from the active element.
+   * This approach was failing on loops like a circle because the breadth first
+   * search expanded in two directions simultaneously, creating a symmetrical
+   * but non sequential depth map, see: #126909. */
+  if (h_act->htype == BM_VERT) {
+    BMVert *v_start = (BMVert *)h_act;
+    if (bm_verts_form_cyclic_chain(v_start)) {
+      walker_deselect_nth_vertex_chain(em, op_params, v_start);
+      EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
+      return;
+    }
+  }
+  else if (h_act->htype == BM_EDGE) {
+    BMEdge *e_start = (BMEdge *)h_act;
+    if (bm_edges_form_cyclic_chain(e_start)) {
+      walker_deselect_nth_edge_chain(em, op_params, e_start);
+      EDBM_selectmode_flush_ex(em, SCE_SELECT_EDGE);
+      return;
+    }
+  }
+  else if (h_act->htype == BM_FACE) {
+    BMFace *f_start = (BMFace *)h_act;
+    if (bm_faces_form_cyclic_chain(f_start)) {
+      walker_deselect_nth_face_chain(em, op_params, f_start);
+      EDBM_selectmode_flush_ex(em, SCE_SELECT_FACE);
+      return;
+    }
   }
 
   /* Determine which type of iterator, walker, and select flush to use
@@ -4423,7 +4913,7 @@ static void walker_deselect_nth(BMEditMesh *em,
            BMW_FLAG_NOP, /* Don't use #BMW_FLAG_TEST_HIDDEN here since we want to deselect all. */
            BMW_NIL_LAY);
 
-  /* Use tag to avoid touching the same verts twice. */
+  /* Use tag to avoid touching the same elems twice. */
   BM_ITER_MESH (ele, &iter, bm, itertype) {
     BM_elem_flag_disable(ele, BM_ELEM_TAG);
   }
@@ -4545,6 +5035,8 @@ static wmOperatorStatus edbm_select_nth_exec(bContext *C, wmOperator *op)
     }
 
     if (edbm_deselect_nth(em, &op_params) == true) {
+      EDBM_uvselect_clear(em);
+
       found_active_elt = true;
       EDBMUpdate_Params params{};
       params.calc_looptris = false;
@@ -4636,6 +5128,8 @@ static wmOperatorStatus edbm_select_sharp_edges_exec(bContext *C, wmOperator *op
     else {
       EDBM_selectmode_flush(em);
     }
+    EDBM_uvselect_clear(em);
+
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
@@ -4845,6 +5339,7 @@ static wmOperatorStatus edbm_select_non_manifold_exec(bContext *C, wmOperator *o
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
     }
   }
 
@@ -4964,12 +5459,13 @@ static wmOperatorStatus edbm_select_random_exec(bContext *C, wmOperator *op)
     }
 
     if (select) {
-      /* Was #EDBM_select_flush, but it over selects in edge/face mode. */
+      /* Was #EDBM_select_flush_from_verts, but it over selects in edge/face mode. */
       EDBM_selectmode_flush(em);
     }
     else {
-      EDBM_deselect_flush(em);
+      EDBM_select_flush_from_verts(em, false);
     }
+    EDBM_uvselect_clear(em);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
@@ -5066,6 +5562,8 @@ static wmOperatorStatus edbm_select_ungrouped_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
@@ -5193,6 +5691,8 @@ static wmOperatorStatus edbm_select_axis_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       EDBM_selectmode_flush(em_iter);
+      EDBM_uvselect_clear(em);
+
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit_iter->data);
       DEG_id_tag_update(static_cast<ID *>(obedit_iter->data), ID_RECALC_SELECT);
     }
@@ -5512,6 +6012,7 @@ static wmOperatorStatus edbm_loop_to_region_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
@@ -5633,6 +6134,7 @@ static wmOperatorStatus edbm_select_by_attribute_exec(bContext *C, wmOperator * 
 
     if (changed) {
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);

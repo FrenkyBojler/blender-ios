@@ -36,6 +36,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -507,7 +508,7 @@ static int pupdate_time()
 static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
                                  ImBuf *ibuf,
                                  bool *r_glsl_used,
-                                 eGPUTextureFormat *r_format,
+                                 blender::gpu::TextureFormat *r_format,
                                  eGPUDataFormat *r_data,
                                  void **r_buffer_cache_handle)
 {
@@ -518,7 +519,7 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
   force_fallback |= (ibuf->dither != 0.0f);
 
   /* Default. */
-  *r_format = GPU_RGBA8;
+  *r_format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
   *r_data = GPU_DATA_UBYTE;
 
   /* Fallback to CPU based color space conversion. */
@@ -531,11 +532,11 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
 
     *r_data = GPU_DATA_FLOAT;
     if (ibuf->channels == 4) {
-      *r_format = GPU_RGBA16F;
+      *r_format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
     }
     else if (ibuf->channels == 3) {
       /* Alpha is implicitly 1. */
-      *r_format = GPU_RGB16F;
+      *r_format = blender::gpu::TextureFormat::SFLOAT_16_16_16;
     }
 
     if (ibuf->float_buffer.colorspace) {
@@ -569,7 +570,7 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
   if ((ibuf->byte_buffer.data || ibuf->float_buffer.data) && !*r_glsl_used) {
     display_buffer = IMB_display_buffer_acquire(
         ibuf, &display_ctx.view_settings, &display_ctx.display_settings, r_buffer_cache_handle);
-    *r_format = GPU_RGBA8;
+    *r_format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
     *r_data = GPU_DATA_UBYTE;
   }
 
@@ -583,7 +584,7 @@ static void draw_display_buffer(const PlayDisplayContext &display_ctx,
 {
   /* Format needs to be created prior to any #immBindShader call.
    * Do it here because OCIO binds its own shader. */
-  eGPUTextureFormat format;
+  blender::gpu::TextureFormat format;
   eGPUDataFormat data;
   bool glsl_used = false;
   GPUVertFormat *imm_format = immVertexFormat();
@@ -597,7 +598,7 @@ static void draw_display_buffer(const PlayDisplayContext &display_ctx,
 
   /* NOTE: This may fail, especially for large images that exceed the GPU's texture size limit.
    * Large images could be supported although this isn't so common for animation playback. */
-  GPUTexture *texture = GPU_texture_create_2d(
+  blender::gpu::Texture *texture = GPU_texture_create_2d(
       "display_buf", ibuf->x, ibuf->y, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
 
   if (texture) {
@@ -675,7 +676,9 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
   GHOST_ActivateWindowDrawingContext(ghost_data.window);
   GPU_render_begin();
 
+  GHOST_SwapWindowBufferAcquire(ghost_data.window);
   GPUContext *restore_context = GPU_context_active_get();
+
   GPU_context_active_set(ghost_data.gpu_context);
   GPU_context_begin_frame(ghost_data.gpu_context);
 
@@ -786,7 +789,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
   }
 
   GPU_context_end_frame(ghost_data.gpu_context);
-  GHOST_SwapWindowBuffers(ghost_data.window);
+  GHOST_SwapWindowBufferRelease(ghost_data.window);
   GPU_context_active_set(restore_context);
   GPU_render_end();
 }
@@ -1589,12 +1592,16 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr p
 static GHOST_WindowHandle playanim_window_open(
     GHOST_SystemHandle ghost_system, const char *title, int posx, int posy, int sizex, int sizey)
 {
-  GHOST_GPUSettings gpusettings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  gpusettings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  gpusettings.preferred_device.index = U.gpu_preferred_index;
-  gpusettings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpusettings.preferred_device.device_id = U.gpu_preferred_device_id;
+  GHOST_GPUSettings gpu_settings = {0};
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
+  gpu_settings.preferred_device.index = U.gpu_preferred_index;
+  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
+  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  if (GPU_backend_vsync_is_overridden()) {
+    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   {
     bool screen_size_valid = false;
@@ -1649,7 +1656,7 @@ static GHOST_WindowHandle playanim_window_open(
                             /* Could optionally start full-screen. */
                             GHOST_kWindowStateNormal,
                             false,
-                            gpusettings);
+                            gpu_settings);
 }
 
 static void playanim_window_zoom(PlayState &ps, const float zoom_offset)
@@ -1729,10 +1736,10 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   IMB_init();
   MOV_init();
 
-  STRNCPY(ps.display_ctx.display_settings.display_device,
-          IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
-  IMB_colormanagement_init_default_view_settings(&ps.display_ctx.view_settings,
-                                                 &ps.display_ctx.display_settings);
+  STRNCPY_UTF8(ps.display_ctx.display_settings.display_device,
+               IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE));
+  IMB_colormanagement_init_untonemapped_view_settings(&ps.display_ctx.view_settings,
+                                                      &ps.display_ctx.display_settings);
   ps.display_ctx.ui_scale = 1.0f;
 
   while ((argc > 0) && (argv[0][0] == '-')) {
@@ -1916,6 +1923,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
   ps.display_ctx.size = ps.ibuf_size;
 
+  GHOST_SwapWindowBufferAcquire(ps.ghost_data.window);
   GPU_render_begin();
   GPU_render_step();
   GPU_clear_color(0.1f, 0.1f, 0.1f, 0.0f);
@@ -1927,7 +1935,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
     playanim_gpu_matrix();
   }
 
-  GHOST_SwapWindowBuffers(ps.ghost_data.window);
+  GHOST_SwapWindowBufferRelease(ps.ghost_data.window);
   GPU_render_end();
 
   /* One of the frames was invalid or not passed in. */

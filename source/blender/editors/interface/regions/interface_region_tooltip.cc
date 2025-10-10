@@ -37,7 +37,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -308,7 +308,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
                                      bbox.ymax,
                                      field->image->ibuf->x,
                                      field->image->ibuf->y,
-                                     GPU_RGBA8,
+                                     blender::gpu::TextureFormat::UNORM_8_8_8_8,
                                      true,
                                      field->image->ibuf->byte_buffer.data,
                                      1.0f,
@@ -522,12 +522,12 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   if (but->drawstr.empty()) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
-    SNPRINTF(expr,
-             "bl_ui.space_toolsystem_common.item_from_id("
-             "bpy.context, "
-             "bpy.context.space_data.type, "
-             "'%s').label",
-             tool_id);
+    SNPRINTF_UTF8(expr,
+                  "bl_ui.space_toolsystem_common.item_from_id("
+                  "bpy.context, "
+                  "bpy.context.space_data.type, "
+                  "'%s').label",
+                  tool_id);
     char *expr_result = nullptr;
     bool is_error = false;
 
@@ -574,12 +574,12 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   if (is_quick_tip == false) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
-    SNPRINTF(expr,
-             "bl_ui.space_toolsystem_common.description_from_id("
-             "bpy.context, "
-             "bpy.context.space_data.type, "
-             "'%s')",
-             tool_id);
+    SNPRINTF_UTF8(expr,
+                  "bl_ui.space_toolsystem_common.description_from_id("
+                  "bpy.context, "
+                  "bpy.context.space_data.type, "
+                  "'%s')",
+                  tool_id);
 
     char *expr_result = nullptr;
     bool is_error = false;
@@ -698,13 +698,13 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
     {
       const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
       char expr[256];
-      SNPRINTF(expr,
-               "'\\x00'.join("
-               "item.idname for item in bl_ui.space_toolsystem_common.item_group_from_id("
-               "bpy.context, "
-               "bpy.context.space_data.type, '%s', coerce=True) "
-               "if item is not None)",
-               tool_id);
+      SNPRINTF_UTF8(expr,
+                    "'\\x00'.join("
+                    "item.idname for item in bl_ui.space_toolsystem_common.item_group_from_id("
+                    "bpy.context, "
+                    "bpy.context.space_data.type, '%s', coerce=True) "
+                    "if item is not None)",
+                    tool_id);
 
       if (has_valid_context == false) {
         /* pass */
@@ -770,14 +770,14 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   if ((is_quick_tip == false) && CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
-    SNPRINTF(expr,
-             "getattr("
-             "bl_ui.space_toolsystem_common.keymap_from_id("
-             "bpy.context, "
-             "bpy.context.space_data.type, "
-             "'%s'), "
-             "'as_pointer', lambda: 0)()",
-             tool_id);
+    SNPRINTF_UTF8(expr,
+                  "getattr("
+                  "bl_ui.space_toolsystem_common.keymap_from_id("
+                  "bpy.context, "
+                  "bpy.context.space_data.type, "
+                  "'%s'), "
+                  "'as_pointer', lambda: 0)()",
+                  tool_id);
 
     intptr_t expr_result = 0;
 
@@ -805,34 +805,35 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
 
 static std::string ui_tooltip_color_string(const blender::float4 &color,
                                            const blender::StringRefNull title,
+                                           const int max_title_len,
                                            const bool show_alpha,
                                            const bool show_hex = false)
 {
+  const int align = max_title_len - title.size();
+
   if (show_hex) {
     uchar hex[4];
     rgba_float_to_uchar(hex, color);
     if (show_alpha) {
-      return fmt::format("{}: #{:02X}{:02X}{:02X}{:02X}",
-                         TIP_(title),
+      return fmt::format("{}:{: <{}} #{:02X}{:02X}{:02X}{:02X}",
+                         title,
+                         "",
+                         align,
                          int(hex[0]),
                          int(hex[1]),
                          int(hex[2]),
                          int(hex[3]));
     }
     return fmt::format(
-        "{}: #{:02X}{:02X}{:02X}", TIP_(title), int(hex[0]), int(hex[1]), int(hex[2]));
+        "{}:{: <{}} #{:02X}{:02X}{:02X}", title, "", align, int(hex[0]), int(hex[1]), int(hex[2]));
   }
 
   if (show_alpha) {
-    return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}  {:.3f}",
-                       TIP_(title),
-                       color[0],
-                       color[1],
-                       color[2],
-                       color[3]);
+    return fmt::format("{}:{: <{}} {:.3f}", title, "", align, color[3]);
   }
 
-  return fmt::format("{}:  {:.3f}  {:.3f}  {:.3f}", TIP_(title), color[0], color[1], color[2]);
+  return fmt::format(
+      "{}:{: <{}} {:.3f}  {:.3f}  {:.3f}", title, "", align, color[0], color[1], color[2]);
 };
 
 void UI_tooltip_color_field_add(uiTooltipData &data,
@@ -842,25 +843,43 @@ void UI_tooltip_color_field_add(uiTooltipData &data,
                                 const ColorManagedDisplay *display,
                                 const uiTooltipColorID color_id)
 {
-  blender::float4 color = original_color;
-  if (!is_gamma && display) {
-    IMB_colormanagement_scene_linear_to_display_v3(color, display);
+  blender::float4 scene_linear_color = original_color;
+  blender::float4 display_color = original_color;
+  blender::float4 srgb_color = original_color;
+
+  if (is_gamma) {
+    IMB_colormanagement_srgb_to_scene_linear_v3(scene_linear_color, scene_linear_color);
+  }
+  else {
+    IMB_colormanagement_scene_linear_to_display_v3(
+        display_color, display, DISPLAY_SPACE_COLOR_INSPECTION);
+    IMB_colormanagement_scene_linear_to_srgb_v3(srgb_color, srgb_color);
   }
 
-  const std::string hex_st = ui_tooltip_color_string(color, "Hex", has_alpha, true);
+  float hsv[4];
+  rgb_to_hsv_v(srgb_color, hsv);
+  hsv[3] = srgb_color[3];
 
+  const blender::StringRefNull hex_title = TIP_("Hex");
+  const blender::StringRefNull rgb_title = (is_gamma) ? TIP_("sRGB") : TIP_("Display RGB");
+  const blender::StringRefNull hsv_title = TIP_("HSV");
+  const blender::StringRefNull alpha_title = TIP_("Alpha");
+  const int max_title_len = std::max(
+      {hex_title.size(), rgb_title.size(), hsv_title.size(), alpha_title.size()});
+
+  const std::string hex_st = ui_tooltip_color_string(
+      srgb_color, hex_title, max_title_len, has_alpha, true);
   const std::string rgba_st = ui_tooltip_color_string(
-      color, has_alpha ? "RGBA" : "RGB", has_alpha);
-
-  float hsva[4];
-  rgb_to_hsv_v(color, hsva);
-  hsva[3] = color[3];
-  const std::string hsva_st = ui_tooltip_color_string(hsva, has_alpha ? "HSVA" : "HSV", has_alpha);
+      display_color, rgb_title, max_title_len, false);
+  const std::string hsv_st = ui_tooltip_color_string(hsv, hsv_title, max_title_len, false);
+  const std::string alpha_st = ui_tooltip_color_string(
+      scene_linear_color, alpha_title, max_title_len, true);
 
   const uiFontStyle *fs = &UI_style_get()->tooltip;
   BLF_size(blf_mono_font, fs->points * UI_SCALE_FAC);
-  float w = BLF_width(blf_mono_font, hsva_st.c_str(), hsva_st.size());
+  float w = BLF_width(blf_mono_font, hsv_st.c_str(), hsv_st.size());
 
+  /* TODO: This clips wide gamut. Should make a float buffer and draw for display. */
   uiTooltipImage image_data;
   image_data.width = int(w);
   image_data.height = int(w / (has_alpha ? 4.0f : 3.0f));
@@ -868,35 +887,38 @@ void UI_tooltip_color_field_add(uiTooltipData &data,
   image_data.border = true;
   image_data.premultiplied = false;
 
-  if (color[3] == 1.0f) {
+  if (scene_linear_color[3] == 1.0f) {
     /* No transparency so draw the entire area solid without checkerboard. */
     image_data.background = uiTooltipImageBackground::None;
-    IMB_rectfill_area(image_data.ibuf, color, 1, 1, image_data.width, image_data.height, display);
+    IMB_rectfill_area(
+        image_data.ibuf, scene_linear_color, 1, 1, image_data.width, image_data.height);
   }
   else {
     image_data.background = uiTooltipImageBackground::Checkerboard_Fixed;
     /* Draw one half with transparency. */
     IMB_rectfill_area(image_data.ibuf,
-                      color,
+                      scene_linear_color,
                       image_data.width / 2,
                       1,
                       image_data.width,
-                      image_data.height,
-                      display);
+                      image_data.height);
     /* Draw the other half with a solid color. */
-    color[3] = 1.0f;
+    scene_linear_color[3] = 1.0f;
     IMB_rectfill_area(
-        image_data.ibuf, color, 1, 1, image_data.width / 2, image_data.height, display);
+        image_data.ibuf, scene_linear_color, 1, 1, image_data.width / 2, image_data.height);
   }
 
   UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
   UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
   UI_tooltip_image_field_add(data, image_data);
   UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
-  UI_tooltip_text_field_add(data, hex_st, {}, UI_TIP_STYLE_MONO, color_id, false);
-  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
   UI_tooltip_text_field_add(data, rgba_st, {}, UI_TIP_STYLE_MONO, color_id, false);
-  UI_tooltip_text_field_add(data, hsva_st, {}, UI_TIP_STYLE_MONO, color_id, false);
+  UI_tooltip_text_field_add(data, hsv_st, {}, UI_TIP_STYLE_MONO, color_id, false);
+  if (has_alpha) {
+    UI_tooltip_text_field_add(data, alpha_st, {}, UI_TIP_STYLE_MONO, color_id, false);
+  }
+  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
+  UI_tooltip_text_field_add(data, hex_st, {}, UI_TIP_STYLE_MONO, color_id, false);
 
   /* Tooltip now owns a copy of the ImBuf, so we can delete ours. */
   IMB_freeImBuf(image_data.ibuf);
@@ -1059,7 +1081,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     }
 
     /* special case enum rna buttons */
-    if ((but->type & UI_BTYPE_ROW) && rnaprop && RNA_property_flag(rnaprop) & PROP_ENUM_FLAG) {
+    if ((but->type == ButType::Row) && rnaprop && RNA_property_flag(rnaprop) & PROP_ENUM_FLAG) {
       UI_tooltip_text_field_add(*data,
                                 TIP_("(Shift-Click/Drag to select multiple)"),
                                 {},
@@ -1104,7 +1126,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
                               true);
   }
 
-  if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
+  if (ELEM(but->type, ButType::Text, ButType::SearchMenu)) {
     /* Better not show the value of a password. */
     if ((rnaprop && (RNA_property_subtype(rnaprop) == PROP_PASSWORD)) == 0) {
       /* Full string. */
@@ -1162,7 +1184,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   }
 
   /* Warn on path validity errors. */
-  if (ELEM(but->type, UI_BTYPE_TEXT) &&
+  if (ELEM(but->type, ButType::Text) &&
       /* Check red-alert, if the flag is not set, then this was suppressed. */
       (but->flag & UI_BUT_REDALERT))
   {
@@ -1186,7 +1208,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       /* We include PROP_NONE here because some plain string properties are used
        * as parts of paths. For example, the sub-paths in the compositor's File
        * Output node. */
-      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE)) {
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME, PROP_NONE)) {
         /* Template parse errors, for paths that support it. */
         if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
           const std::string path = RNA_property_string_get(&but->rnapoin, rnaprop);
@@ -1252,7 +1274,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     UI_tooltip_uibut_python_add(*data, *C, *but, extra_icon);
   }
 
-  if (but->type == UI_BTYPE_COLOR) {
+  if (but->type == ButType::Color) {
     const ColorManagedDisplay *display = UI_but_cm_display_get(*but);
 
     float color[4];
@@ -1373,7 +1395,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
   wmWindow *win = CTX_wm_window(C);
   const blender::int2 win_size = WM_window_native_pixel_size(win);
   rcti rect_i;
-  int font_flag = 0;
+  FontFlags font_flag = BLF_NONE;
 
   /* Create area region. */
   ARegion *region = ui_region_temp_add(CTX_wm_screen(C));
@@ -1667,7 +1689,7 @@ ARegion *UI_tooltip_create_from_button_or_extra_icon(
     }
     BLI_rcti_rctf_copy_round(&init_rect, &overlap_rect_fl);
   }
-  else if (but->type == UI_BTYPE_LABEL && BLI_rctf_size_y(&but->rect) > UI_UNIT_Y) {
+  else if (but->type == ButType::Label && BLI_rctf_size_y(&but->rect) > UI_UNIT_Y) {
     init_position[0] = win->eventstate->xy[0];
     init_position[1] = win->eventstate->xy[1] - (UI_POPUP_MARGIN / 2);
   }
@@ -1875,7 +1897,7 @@ static void ui_tooltip_from_vfont(const VFont &font, uiTooltipData &data)
   float color[4];
   const uiWidgetColors *theme = ui_tooltip_get_theme();
   rgba_uchar_to_float(color, theme->text);
-  ImBuf *ibuf = IMB_font_preview(filepath_abs, 200 * UI_SCALE_FAC, color);
+  ImBuf *ibuf = IMB_font_preview(filepath_abs, 256 * UI_SCALE_FAC, color, "ABCDabefg&0123");
   if (ibuf) {
     uiTooltipImage image_data;
     image_data.width = ibuf->x;

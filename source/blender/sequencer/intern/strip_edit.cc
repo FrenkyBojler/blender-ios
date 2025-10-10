@@ -58,12 +58,12 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
     }
 
     /* disallow effects to swap with non-effects strips */
-    if ((strip_a->type & STRIP_TYPE_EFFECT) != (strip_b->type & STRIP_TYPE_EFFECT)) {
+    if (strip_a->is_effect() != strip_b->is_effect()) {
       *r_error_str = N_("Strips were not compatible");
       return false;
     }
 
-    if ((strip_a->type & STRIP_TYPE_EFFECT) && (strip_b->type & STRIP_TYPE_EFFECT)) {
+    if (strip_a->is_effect() && strip_b->is_effect()) {
       if (effect_get_num_inputs(strip_a->type) != effect_get_num_inputs(strip_b->type)) {
         *r_error_str = N_("Strips must have the same number of inputs");
         return false;
@@ -90,6 +90,8 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
   std::swap(strip_a->channel, strip_b->channel);
   strip_time_effect_range_set(scene, strip_a);
   strip_time_effect_range_set(scene, strip_b);
+
+  strip_lookup_invalidate(editing_get(scene));
 
   return true;
 }
@@ -151,9 +153,9 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, St
       }
     }
 
-    /* Remove effects, that use strip. */
+    /* Mark effects for removal that use the strip. */
     if (relation_is_effect_of_strip(user_strip, strip)) {
-      user_strip->flag |= SEQ_FLAG_DELETE;
+      user_strip->runtime.flag |= STRIP_MARK_FOR_DELETE;
       /* Strips can be used as mask even if not in same seqbase. */
       sequencer_flag_users_for_removal(scene, &scene->ed->seqbase, user_strip);
     }
@@ -162,7 +164,7 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, St
 
 void edit_flag_for_removal(Scene *scene, ListBase *seqbase, Strip *strip)
 {
-  if (strip == nullptr || (strip->flag & SEQ_FLAG_DELETE) != 0) {
+  if (strip == nullptr || (strip->runtime.flag & STRIP_MARK_FOR_DELETE) != 0) {
     return;
   }
 
@@ -173,14 +175,14 @@ void edit_flag_for_removal(Scene *scene, ListBase *seqbase, Strip *strip)
     }
   }
 
-  strip->flag |= SEQ_FLAG_DELETE;
+  strip->runtime.flag |= STRIP_MARK_FOR_DELETE;
   sequencer_flag_users_for_removal(scene, seqbase, strip);
 }
 
 void edit_remove_flagged_strips(Scene *scene, ListBase *seqbase)
 {
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, seqbase) {
-    if (strip->flag & SEQ_FLAG_DELETE) {
+    if (strip->runtime.flag & STRIP_MARK_FOR_DELETE) {
       if (strip->type == STRIP_TYPE_META) {
         edit_remove_flagged_strips(scene, &strip->seqbase);
       }
@@ -356,14 +358,14 @@ static bool seq_edit_split_effect_inputs_intersect(const Scene *scene,
   bool input_does_intersect = false;
   if (strip->input1) {
     input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input1, timeline_frame);
-    if ((strip->input1->type & STRIP_TYPE_EFFECT) != 0) {
+    if (strip->input1->is_effect()) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
           scene, strip->input1, timeline_frame);
     }
   }
   if (strip->input2) {
     input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input2, timeline_frame);
-    if ((strip->input1->type & STRIP_TYPE_EFFECT) != 0) {
+    if (strip->input2->is_effect()) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
           scene, strip->input2, timeline_frame);
     }
@@ -382,7 +384,7 @@ static bool seq_edit_split_operation_permitted_check(const Scene *scene,
       *r_error = "Strip is locked.";
       return false;
     }
-    if ((strip->type & STRIP_TYPE_EFFECT) == 0) {
+    if (!strip->is_effect()) {
       continue;
     }
     if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
@@ -409,6 +411,7 @@ Strip *edit_strip_split(Main *bmain,
                         Strip *strip,
                         const int timeline_frame,
                         const eSplitMethod method,
+                        const bool ignore_connections,
                         const char **r_error)
 {
   if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
@@ -418,21 +421,11 @@ Strip *edit_strip_split(Main *bmain,
   /* Whole strip effect chain must be duplicated in order to preserve relationships. */
   blender::VectorSet<Strip *> strips;
   strips.add(strip);
-  iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
-
-  /* All connected strips (that are selected and at the cut frame) must also be duplicated. */
-  blender::VectorSet<Strip *> strips_old(strips);
-  for (Strip *strip : strips_old) {
-    blender::VectorSet<Strip *> connections = connected_strips_get(strip);
-    connections.remove_if([&](Strip *connection) {
-      return !(connection->flag & SELECT) ||
-             !seq_edit_split_intersect_check(scene, connection, timeline_frame);
-    });
-    strips.add_multiple(connections.as_span());
-  }
-
-  /* In case connected strips had effects, duplicate those too: */
-  iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
+  iterator_set_expand(scene,
+                      seqbase,
+                      strips,
+                      ignore_connections ? query_strip_effect_chain :
+                                           query_strip_connected_and_effect_chain);
 
   if (!seq_edit_split_operation_permitted_check(scene, strips, timeline_frame, r_error)) {
     return nullptr;
@@ -448,13 +441,18 @@ Strip *edit_strip_split(Main *bmain,
     BLI_remlink(seqbase, strip_iter);
     BLI_addtail(&left_strips, strip_iter);
 
+    if (ignore_connections) {
+      seq::disconnect(strip_iter);
+    }
+
     /* Duplicate curves from backup, so they can be renamed along with split strips. */
     animation_duplicate_backup_to_scene(scene, strip_iter, &animation_backup);
   }
 
   /* Duplicate ListBase. */
   ListBase right_strips = {nullptr, nullptr};
-  seqbase_duplicate_recursive(scene, scene, &right_strips, &left_strips, STRIP_DUPE_ALL, 0);
+  seqbase_duplicate_recursive(
+      bmain, scene, scene, &right_strips, &left_strips, StripDuplicate::All, 0);
 
   Strip *left_strip = static_cast<Strip *>(left_strips.first);
   Strip *right_strip = static_cast<Strip *>(right_strips.first);

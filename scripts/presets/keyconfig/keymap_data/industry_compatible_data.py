@@ -289,6 +289,10 @@ def km_screen_editing(params):
          {"properties": [("use_viewport", True)]}),
         ("render.render", {"type": 'RET', "value": 'PRESS', "ctrl": True, "alt": True},
          {"properties": [("animation", True), ("use_viewport", True)]}),
+        ("render.render", {"type": 'F12', "value": 'PRESS', "alt": True},
+         {"properties": [("use_sequencer_scene", True), ("use_viewport", True)]}),
+        ("render.render", {"type": 'F12', "value": 'PRESS', "ctrl": True, "alt": True},
+         {"properties": [("animation", True), ("use_sequencer_scene", True), ("use_viewport", True)]}),
         ("render.view_cancel", {"type": 'ESC', "value": 'PRESS'}, None),
     ])
 
@@ -1887,6 +1891,7 @@ def km_sequencer(params):
         # Tools
         op_tool_cycle("builtin.select_box", {"type": 'Q', "value": 'PRESS'}),
         op_tool_cycle("builtin.blade", {"type": 'B', "value": 'PRESS'}),
+        op_tool_cycle("builtin.slip", {"type": 'S', "value": 'PRESS'}),
     ])
 
     return keymap

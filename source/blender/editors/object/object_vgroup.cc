@@ -23,6 +23,7 @@
 #include "BLI_bitmap.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_utildefines_stack.h"
 #include "BLI_vector.hh"
@@ -1150,13 +1151,11 @@ static void vgroup_select_verts(const ToolSettings &tool_settings,
           }
         }
 
-        /* this has to be called, because this function operates on vertices only */
-        if (select) {
-          EDBM_select_flush(em); /* vertices to edges/faces */
-        }
-        else {
-          EDBM_deselect_flush(em);
-        }
+        /* This has to be called, because this function operates on vertices only.
+         * Vertices to edges/faces. */
+        EDBM_select_flush_from_verts(em, select);
+
+        EDBM_uvselect_clear(em);
       }
     }
     else {
@@ -1230,14 +1229,14 @@ static void vgroup_duplicate(Object *ob)
   }
 
   if (!strstr(dg->name, "_copy")) {
-    SNPRINTF(name, "%s_copy", dg->name);
+    SNPRINTF_UTF8(name, "%s_copy", dg->name);
   }
   else {
-    STRNCPY(name, dg->name);
+    STRNCPY_UTF8(name, dg->name);
   }
 
   cdg = BKE_defgroup_duplicate(dg);
-  STRNCPY(cdg->name, name);
+  STRNCPY_UTF8(cdg->name, name);
   BKE_object_defgroup_unique_name(cdg, ob);
 
   BLI_addtail(defbase, cdg);
@@ -1433,7 +1432,7 @@ static bool vgroup_normalize_all(Object *ob,
     soft_lock_flags[def_nr] = true;
   }
 
-  const bool all_locked = !lock_flags.contains(false);
+  const bool all_locked = !lock_flags.is_empty() && !lock_flags.contains(false);
   if (all_locked) {
     BKE_report(reports, RPT_ERROR, "All groups are locked");
   }
@@ -1467,8 +1466,8 @@ static void vgroup_normalize_all_deform_if_active_is_deform(Object *ob,
                                                             ReportList *reports,
                                                             std::optional<int> current_frame = {})
 {
-  int r_defgroup_tot = BKE_object_defgroup_count(ob);
-  bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
+  const int defgroup_tot = BKE_object_defgroup_count(ob);
+  bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, defgroup_tot);
   const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
 
   /* Only auto-normalize if the active group is bone-deforming. */
@@ -3701,7 +3700,7 @@ static wmOperatorStatus vertex_group_mirror_exec(bContext *C, wmOperator *op)
                 &totmirr,
                 &totfail);
 
-  ED_mesh_report_mirror(op, totmirr, totfail);
+  ED_mesh_report_mirror(*op->reports, totmirr, totfail);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -3891,7 +3890,7 @@ static char *vgroup_init_remap(Object *ob)
 
   name = name_array;
   LISTBASE_FOREACH (const bDeformGroup *, def, defbase) {
-    BLI_strncpy(name, def->name, MAX_VGROUP_NAME);
+    BLI_strncpy_utf8(name, def->name, MAX_VGROUP_NAME);
     name += MAX_VGROUP_NAME;
   }
 

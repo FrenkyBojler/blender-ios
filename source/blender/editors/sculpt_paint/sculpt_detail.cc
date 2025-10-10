@@ -14,7 +14,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
@@ -529,6 +529,7 @@ static void dyntopo_detail_size_parallel_lines_draw(uint pos3d,
   normalize_v3(spacing_disp);
 
   float line_disp[3];
+  zero_v3(line_disp);
   rotate_v2_v2fl(line_disp, spacing_disp, DEG2RAD(angle));
   mul_v3_fl(spacing_disp, total_len / tot_lines_fl);
 
@@ -636,7 +637,11 @@ static void dyntopo_detail_size_sample_from_surface(Object &ob,
                                                     DyntopoDetailSizeEditCustomData *cd)
 {
   SculptSession &ss = *ob.sculpt;
-  BMVert *active_vertex = std::get<BMVert *>(ss.active_vert());
+  const ActiveVert active_vert = ss.active_vert();
+  if (std::holds_alternative<std::monostate>(active_vert)) {
+    return;
+  }
+  BMVert *active_vertex = std::get<BMVert *>(active_vert);
 
   float len_accum = 0;
   BMeshNeighborVerts neighbors;
@@ -721,7 +726,7 @@ static void dyntopo_detail_size_update_header(bContext *C,
   }
   const PropertyRNA *prop = RNA_struct_find_property(&sculpt_ptr, property_name);
   const char *ui_name = RNA_property_ui_name(prop);
-  SNPRINTF(msg, format_string, ui_name, cd->current_value);
+  SNPRINTF_UTF8(msg, format_string, ui_name, cd->current_value);
   ScrArea *area = CTX_wm_area(C);
   ED_area_status_text(area, msg);
 
@@ -857,7 +862,7 @@ static wmOperatorStatus dyntopo_detail_size_edit_invoke(bContext *C,
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   cd->brush_radius = object_space_radius_get(vc, sd->paint, *brush, ss.cursor_location);
-  cd->pixel_radius = BKE_brush_size_get(&sd->paint, brush);
+  cd->pixel_radius = BKE_brush_radius_get(&sd->paint, brush);
 
   /* Generates the matrix to position the gizmo in the surface of the mesh using the same
    * location and orientation as the brush cursor. */

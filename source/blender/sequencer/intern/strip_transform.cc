@@ -44,7 +44,7 @@ bool transform_single_image_check(const Strip *strip)
 
 bool transform_strip_can_be_translated(const Strip *strip)
 {
-  return !(strip->type & STRIP_TYPE_EFFECT) || (effect_get_num_inputs(strip->type) == 0);
+  return !strip->is_effect() || (effect_get_num_inputs(strip->type) == 0);
 }
 
 bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
@@ -231,7 +231,7 @@ bool transform_seqbase_shuffle_time(blender::Span<Strip *> strips_to_shuffle,
   if (offset) {
     for (Strip *strip : strips_to_shuffle) {
       transform_translate_strip(evil_scene, strip, offset);
-      strip->flag &= ~SEQ_OVERLAP;
+      strip->runtime.flag &= ~STRIP_OVERLAP;
     }
 
     if (!time_dependent_strips.is_empty()) {
@@ -259,7 +259,7 @@ static blender::VectorSet<Strip *> extract_standalone_strips(
   blender::VectorSet<Strip *> standalone_strips;
 
   for (Strip *strip : transformed_strips) {
-    if ((strip->type & STRIP_TYPE_EFFECT) == 0 || strip->input1 == nullptr) {
+    if (!strip->is_effect() || strip->input1 == nullptr) {
       standalone_strips.add(strip);
     }
   }
@@ -410,6 +410,7 @@ static void strip_transform_handle_overwrite_split(Scene *scene,
                                         target,
                                         time_left_handle_frame_get(scene, transformed),
                                         SPLIT_SOFT,
+                                        true,
                                         nullptr);
   edit_strip_split(bmain,
                    scene,
@@ -417,6 +418,7 @@ static void strip_transform_handle_overwrite_split(Scene *scene,
                    split_strip,
                    time_right_handle_frame_get(scene, transformed),
                    SPLIT_SOFT,
+                   true,
                    nullptr);
   edit_flag_for_removal(scene, seqbasep, split_strip);
   edit_remove_flagged_strips(scene, seqbasep);
@@ -434,13 +436,13 @@ static void strip_transform_handle_overwrite_trim(Scene *scene,
       target, scene, seqbasep, query_strip_effect_chain);
 
   /* Expand collection by adding all target's children, effects and their children. */
-  if ((target->type & STRIP_TYPE_EFFECT) != 0) {
+  if (target->is_effect()) {
     iterator_set_expand(scene, seqbasep, targets, query_strip_effect_chain);
   }
 
   /* Trim all non effects, that have influence on effect length which is overlapping. */
   for (Strip *strip : targets) {
-    if ((strip->type & STRIP_TYPE_EFFECT) != 0 && effect_get_num_inputs(strip->type) > 0) {
+    if (strip->is_effect() && effect_get_num_inputs(strip->type) > 0) {
       continue;
     }
     if (overlap == STRIP_OVERLAP_LEFT_SIDE) {
@@ -541,7 +543,7 @@ void transform_handle_overlap(Scene *scene,
     if (transform_test_overlap(scene, seqbasep, strip)) {
       transform_seqbase_shuffle(seqbasep, strip, scene);
     }
-    strip->flag &= ~SEQ_OVERLAP;
+    strip->runtime.flag &= ~STRIP_OVERLAP;
   }
 }
 
@@ -575,7 +577,7 @@ bool transform_is_locked(ListBase *channels, const Strip *strip)
 {
   const SeqTimelineChannel *channel = channel_get_by_index(channels, strip->channel);
   return strip->flag & SEQ_LOCK ||
-         (channel_is_locked(channel) && ((strip->flag & SEQ_IGNORE_CHANNEL_LOCK) == 0));
+         (channel_is_locked(channel) && ((strip->runtime.flag & STRIP_IGNORE_CHANNEL_LOCK) == 0));
 }
 
 float2 image_transform_mirror_factor_get(const Strip *strip)
@@ -609,8 +611,8 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
 
   if (strip->type == STRIP_TYPE_TEXT) {
     const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-    const int font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : 0) |
-                           ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : 0);
+    const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                                 ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
     const int font = text_effect_font_init(nullptr, strip, font_flags);
 
     const TextVarsRuntime *runtime = text_effect_calc_runtime(

@@ -73,18 +73,19 @@ void VKDescriptorSetUpdator::bind_image_resource(const VKStateManager &state_man
       VK_IMAGE_LAYOUT_GENERAL,
       resource_binding.location);
   /* Update access info. */
-  uint32_t layer_base = 0;
-  uint32_t layer_count = VK_REMAINING_ARRAY_LAYERS;
-  if (resource_binding.arrayed == VKImageViewArrayed::ARRAYED && texture.is_texture_view()) {
+  VKSubImageRange subimage = {};
+  if (texture.is_texture_view()) {
     IndexRange layer_range = texture.layer_range();
-    layer_base = layer_range.start();
-    layer_count = layer_range.size();
+    IndexRange mipmap_range = texture.mip_map_range();
+    subimage = {uint32_t(mipmap_range.start()),
+                uint32_t(mipmap_range.size()),
+                uint32_t(layer_range.start()),
+                uint32_t(layer_range.size())};
   }
   access_info.images.append({texture.vk_image_handle(),
                              resource_binding.access_mask,
                              to_vk_image_aspect_flag_bits(texture.device_format_get()),
-                             layer_base,
-                             layer_count});
+                             subimage});
 }
 
 void VKDescriptorSetUpdator::bind_texture_resource(const VKDevice &device,
@@ -92,7 +93,13 @@ void VKDescriptorSetUpdator::bind_texture_resource(const VKDevice &device,
                                                    const VKResourceBinding &resource_binding,
                                                    render_graph::VKResourceAccessInfo &access_info)
 {
-  const BindSpaceTextures::Elem &elem = state_manager.textures_.get(resource_binding.binding);
+  const BindSpaceTextures::Elem *elem_ptr = state_manager.textures_.get(resource_binding.binding);
+  if (!elem_ptr) {
+    /* Unbound resource. */
+    BLI_assert_unreachable();
+    return;
+  }
+  const BindSpaceTextures::Elem &elem = *elem_ptr;
   switch (elem.resource_type) {
     case BindSpaceTextures::Type::VertexBuffer: {
       VKVertexBuffer &vertex_buffer = *static_cast<VKVertexBuffer *>(elem.resource);
@@ -123,8 +130,7 @@ void VKDescriptorSetUpdator::bind_texture_resource(const VKDevice &device,
         access_info.images.append({texture->vk_image_handle(),
                                    resource_binding.access_mask,
                                    to_vk_image_aspect_flag_bits(texture->device_format_get()),
-                                   0,
-                                   VK_REMAINING_ARRAY_LAYERS});
+                                   {}});
       }
       break;
     }
@@ -156,49 +162,34 @@ void VKDescriptorSetUpdator::bind_input_attachment_resource(
       access_info.images.append({texture->vk_image_handle(),
                                  resource_binding.access_mask,
                                  to_vk_image_aspect_flag_bits(texture->device_format_get()),
-                                 0,
-                                 VK_REMAINING_ARRAY_LAYERS});
+                                 {}});
     }
   }
   else {
-    bool supports_dynamic_rendering = device.extensions_get().dynamic_rendering;
-    const BindSpaceTextures::Elem &elem = state_manager.textures_.get(resource_binding.binding);
+    const BindSpaceTextures::Elem *elem_ptr = state_manager.textures_.get(
+        resource_binding.binding);
+    if (!elem_ptr) {
+      /* Unbound resource. */
+      BLI_assert_unreachable();
+      return;
+    }
+    const BindSpaceTextures::Elem &elem = *elem_ptr;
     VKTexture *texture = static_cast<VKTexture *>(elem.resource);
     BLI_assert(texture);
     BLI_assert(elem.resource_type == BindSpaceTextures::Type::Texture);
-    if (supports_dynamic_rendering) {
-      const VKSampler &sampler = device.samplers().get(elem.sampler);
-      bind_image(
-          VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-          sampler.vk_handle(),
-          texture->image_view_get(resource_binding.arrayed, VKImageViewFlags::DEFAULT).vk_handle(),
-          VK_IMAGE_LAYOUT_GENERAL,
-          resource_binding.location);
-      VkImage vk_image = texture->vk_image_handle();
-      if (vk_image != VK_NULL_HANDLE) {
-        access_info.images.append({vk_image,
-                                   resource_binding.access_mask,
-                                   to_vk_image_aspect_flag_bits(texture->device_format_get()),
-                                   0,
-                                   VK_REMAINING_ARRAY_LAYERS});
-      }
-    }
-    else {
-      /* Fall back to render-passes / sub-passes. */
-      bind_image(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                 VK_NULL_HANDLE,
-                 texture->image_view_get(resource_binding.arrayed, VKImageViewFlags::NO_SWIZZLING)
-                     .vk_handle(),
-                 VK_IMAGE_LAYOUT_GENERAL,
-                 resource_binding.location);
-      VkImage vk_image = texture->vk_image_handle();
-      if (vk_image != VK_NULL_HANDLE) {
-        access_info.images.append({vk_image,
-                                   resource_binding.access_mask,
-                                   to_vk_image_aspect_flag_bits(texture->device_format_get()),
-                                   0,
-                                   VK_REMAINING_ARRAY_LAYERS});
-      }
+    const VKSampler &sampler = device.samplers().get(elem.sampler);
+    bind_image(
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        sampler.vk_handle(),
+        texture->image_view_get(resource_binding.arrayed, VKImageViewFlags::DEFAULT).vk_handle(),
+        VK_IMAGE_LAYOUT_GENERAL,
+        resource_binding.location);
+    VkImage vk_image = texture->vk_image_handle();
+    if (vk_image != VK_NULL_HANDLE) {
+      access_info.images.append({vk_image,
+                                 resource_binding.access_mask,
+                                 to_vk_image_aspect_flag_bits(texture->device_format_get()),
+                                 {}});
     }
   }
 }
@@ -218,7 +209,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       VKIndexBuffer *index_buffer = static_cast<VKIndexBuffer *>(elem.resource);
       index_buffer->ensure_updated();
       vk_buffer = index_buffer->vk_handle();
-      vk_device_size = index_buffer->size_get();
+      vk_device_size = index_buffer->size_get() - elem.offset;
       vk_device_address = index_buffer->device_address_get();
       break;
     }
@@ -226,7 +217,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       VKVertexBuffer *vertex_buffer = static_cast<VKVertexBuffer *>(elem.resource);
       vertex_buffer->ensure_updated();
       vk_buffer = vertex_buffer->vk_handle();
-      vk_device_size = vertex_buffer->size_used_get();
+      vk_device_size = vertex_buffer->size_used_get() - elem.offset;
       vk_device_address = vertex_buffer->device_address_get();
       break;
     }
@@ -234,7 +225,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       VKUniformBuffer *uniform_buffer = static_cast<VKUniformBuffer *>(elem.resource);
       uniform_buffer->ensure_updated();
       vk_buffer = uniform_buffer->vk_handle();
-      vk_device_size = uniform_buffer->size_in_bytes();
+      vk_device_size = uniform_buffer->size_in_bytes() - elem.offset;
       vk_device_address = uniform_buffer->device_address_get();
       break;
     }
@@ -242,14 +233,14 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       VKStorageBuffer *storage_buffer = static_cast<VKStorageBuffer *>(elem.resource);
       storage_buffer->ensure_allocated();
       vk_buffer = storage_buffer->vk_handle();
-      vk_device_size = storage_buffer->size_in_bytes();
+      vk_device_size = storage_buffer->usage_size_get();
       vk_device_address = storage_buffer->device_address_get();
       break;
     }
     case BindSpaceStorageBuffers::Type::Buffer: {
       VKBuffer *buffer = static_cast<VKBuffer *>(elem.resource);
       vk_buffer = buffer->vk_handle();
-      vk_device_size = buffer->size_in_bytes();
+      vk_device_size = buffer->size_in_bytes() - elem.offset;
       vk_device_address = buffer->device_address_get();
       break;
     }
@@ -262,7 +253,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
               vk_buffer,
               vk_device_address,
               elem.offset,
-              vk_device_size - elem.offset,
+              vk_device_size,
               resource_binding.location);
   if (vk_buffer != VK_NULL_HANDLE) {
     access_info.buffers.append({vk_buffer, resource_binding.access_mask});
@@ -369,7 +360,12 @@ void VKDescriptorSetPoolUpdator::bind_buffer(VkDescriptorType vk_descriptor_type
                                              VkDeviceSize size_in_bytes,
                                              VKDescriptorSet::Location location)
 {
-  vk_descriptor_buffer_infos_.append({vk_buffer, buffer_offset, size_in_bytes});
+  if (vk_buffer == VK_NULL_HANDLE) {
+    vk_descriptor_buffer_infos_.append({VK_NULL_HANDLE, 0, VK_WHOLE_SIZE});
+  }
+  else {
+    vk_descriptor_buffer_infos_.append({vk_buffer, buffer_offset, size_in_bytes});
+  }
   vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                     nullptr,
                                     vk_descriptor_set,
@@ -542,7 +538,8 @@ void VKDescriptorBufferUpdator::allocate_new_descriptor_set(
                        VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                    0,
-                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
+                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                   0.8f);
     debug::object_label(buffer->vk_handle(), "DescriptorBuffer");
     descriptor_buffer_data = static_cast<uint8_t *>(buffer->mapped_memory_get());
     descriptor_buffer_device_address = buffer->device_address_get();

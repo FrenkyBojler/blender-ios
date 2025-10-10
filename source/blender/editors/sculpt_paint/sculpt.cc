@@ -59,9 +59,9 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_subsurf.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 
@@ -119,7 +119,7 @@ float object_space_radius_get(const ViewContext &vc,
 {
   if (!BKE_brush_use_locked_size(&paint, &brush)) {
     return paint_calc_object_space_radius(
-        vc, location, BKE_brush_size_get(&paint, &brush) * scale_factor);
+        vc, location, BKE_brush_radius_get(&paint, &brush) * scale_factor);
   }
   return BKE_brush_unprojected_radius_get(&paint, &brush) * scale_factor;
 }
@@ -1354,13 +1354,20 @@ struct SampleLocalData {
   Vector<float> distances;
 };
 
+enum class AverageDataFlags : uint8_t {
+  Position = 1 << 0,
+  Normal = 1 << 1,
+
+  All = Position | Normal
+};
+ENUM_OPERATORS(AverageDataFlags, AverageDataFlags::Normal);
+
 static void calc_area_normal_and_center_node_mesh(const Object &object,
                                                   const Span<float3> vert_positions,
                                                   const Span<float3> vert_normals,
                                                   const Span<bool> hide_vert,
                                                   const Brush &brush,
-                                                  const bool use_area_nos,
-                                                  const bool use_area_cos,
+                                                  const AverageDataFlags flag,
                                                   const bke::pbvh::MeshNode &node,
                                                   SampleLocalData &tls,
                                                   AreaNormalCenterData &anctd)
@@ -1394,19 +1401,21 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
         if (!hide_vert.is_empty() && hide_vert[vert]) {
           continue;
         }
-        const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-        const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-        if (!normal_test_r && !area_test_r) {
+        const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                                  distances_sq[i] <= normal_radius_sq;
+        const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                                  distances_sq[i] <= position_radius_sq;
+        if (!needs_normal && !needs_center) {
           continue;
         }
         const float3 &normal = orig_normals[i];
         const float distance = std::sqrt(distances_sq[i]);
         const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-        if (area_test_r) {
+        if (needs_center) {
           accumulate_area_center(
               location, orig_positions[i], distance, position_radius_inv, flip_index, anctd);
         }
-        if (normal_test_r) {
+        if (needs_normal) {
           accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
         }
       }
@@ -1424,19 +1433,21 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
     if (!hide_vert.is_empty() && hide_vert[vert]) {
       continue;
     }
-    const bool normal_test_r = distances_sq[i] <= normal_radius_sq;
-    const bool area_test_r = distances_sq[i] <= position_radius_sq;
-    if (!normal_test_r && !area_test_r) {
+    const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                              distances_sq[i] <= normal_radius_sq;
+    const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                              distances_sq[i] <= position_radius_sq;
+    if (!needs_normal && !needs_center) {
       continue;
     }
     const float3 &normal = vert_normals[vert];
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-    if (area_test_r) {
+    if (needs_center) {
       accumulate_area_center(
           location, vert_positions[vert], distance, position_radius_inv, flip_index, anctd);
     }
-    if (normal_test_r) {
+    if (needs_normal) {
       accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
     }
   }
@@ -1444,8 +1455,7 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
 
 static void calc_area_normal_and_center_node_grids(const Object &object,
                                                    const Brush &brush,
-                                                   const bool use_area_nos,
-                                                   const bool use_area_cos,
+                                                   const AverageDataFlags flag,
                                                    const bke::pbvh::GridsNode &node,
                                                    SampleLocalData &tls,
                                                    AreaNormalCenterData &anctd)
@@ -1487,15 +1497,17 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
           }
           const int node_vert = grid_range_node[offset];
 
-          const bool normal_test_r = use_area_nos && distances_sq[node_vert] <= normal_radius_sq;
-          const bool area_test_r = use_area_cos && distances_sq[node_vert] <= position_radius_sq;
-          if (!normal_test_r && !area_test_r) {
+          const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                                    distances_sq[node_vert] <= normal_radius_sq;
+          const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                                    distances_sq[node_vert] <= position_radius_sq;
+          if (!needs_normal && !needs_center) {
             continue;
           }
           const float3 &normal = orig_normals[node_vert];
           const float distance = std::sqrt(distances_sq[node_vert]);
           const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-          if (area_test_r) {
+          if (needs_center) {
             accumulate_area_center(location,
                                    orig_positions[node_vert],
                                    distance,
@@ -1503,7 +1515,7 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
                                    flip_index,
                                    anctd);
           }
-          if (normal_test_r) {
+          if (needs_normal) {
             accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
           }
         }
@@ -1529,19 +1541,21 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
       const int node_vert = grid_range_node[offset];
       const int vert = grid_range[offset];
 
-      const bool normal_test_r = use_area_nos && distances_sq[node_vert] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[node_vert] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
+      const bool needs_normal = uint8_t(flag & AverageDataFlags::Normal) != 0 &&
+                                distances_sq[node_vert] <= normal_radius_sq;
+      const bool needs_center = uint8_t(flag & AverageDataFlags::Position) != 0 &&
+                                distances_sq[node_vert] <= position_radius_sq;
+      if (!needs_normal && !needs_center) {
         continue;
       }
       const float3 &normal = normals[vert];
       const float distance = std::sqrt(distances_sq[node_vert]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
+      if (needs_center) {
         accumulate_area_center(
             location, positions[node_vert], distance, position_radius_inv, flip_index, anctd);
       }
-      if (normal_test_r) {
+      if (needs_normal) {
         accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
       }
     }
@@ -1550,8 +1564,7 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
 
 static void calc_area_normal_and_center_node_bmesh(const Object &object,
                                                    const Brush &brush,
-                                                   const bool use_area_nos,
-                                                   const bool use_area_cos,
+                                                   const AverageDataFlags flag,
                                                    const bool has_bm_orco,
                                                    const bke::pbvh::BMeshNode &node,
                                                    SampleLocalData &tls,
@@ -1596,9 +1609,11 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
         ss, positions, eBrushFalloffShape(brush.falloff_shape), distances_sq);
 
     for (const int i : orig_tris.index_range()) {
-      const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
+      const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                                distances_sq[i] <= normal_radius_sq;
+      const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                                distances_sq[i] <= position_radius_sq;
+      if (!needs_normal && !needs_center) {
         continue;
       }
       const float3 normal = math::normal_tri(float3(orig_positions[orig_tris[i][0]]),
@@ -1607,11 +1622,11 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
 
       const float distance = std::sqrt(distances_sq[i]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
+      if (needs_center) {
         accumulate_area_center(
             location, positions[i], distance, position_radius_inv, flip_index, anctd);
       }
-      if (normal_test_r) {
+      if (needs_normal) {
         accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
       }
     }
@@ -1637,20 +1652,22 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
         i++;
         continue;
       }
-      const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
+      const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                                distances_sq[i] <= normal_radius_sq;
+      const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                                distances_sq[i] <= position_radius_sq;
+      if (!needs_normal && !needs_center) {
         i++;
         continue;
       }
       const float3 &normal = normals[i];
       const float distance = std::sqrt(distances_sq[i]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
+      if (needs_center) {
         accumulate_area_center(
             location, positions[i], distance, position_radius_inv, flip_index, anctd);
       }
-      if (normal_test_r) {
+      if (needs_normal) {
         accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
       }
       i++;
@@ -1671,20 +1688,22 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
       i++;
       continue;
     }
-    const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-    const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-    if (!normal_test_r && !area_test_r) {
+    const bool needs_normal = bool(flag & AverageDataFlags::Normal) &&
+                              distances_sq[i] <= normal_radius_sq;
+    const bool needs_center = bool(flag & AverageDataFlags::Position) &&
+                              distances_sq[i] <= position_radius_sq;
+    if (!needs_normal && !needs_center) {
       i++;
       continue;
     }
     const float3 normal = vert->no;
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-    if (area_test_r) {
+    if (needs_center) {
       accumulate_area_center(
           location, positions[i], distance, position_radius_inv, flip_index, anctd);
     }
-    if (normal_test_r) {
+    if (needs_normal) {
       accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
     }
     i++;
@@ -1742,8 +1761,7 @@ void calc_area_center(const Depsgraph &depsgraph,
                                                     vert_normals,
                                                     hide_vert,
                                                     brush,
-                                                    false,
-                                                    true,
+                                                    AverageDataFlags::Position,
                                                     nodes[i],
                                                     tls,
                                                     anctd);
@@ -1765,7 +1783,7 @@ void calc_area_center(const Depsgraph &depsgraph,
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
               calc_area_normal_and_center_node_bmesh(
-                  ob, brush, false, true, has_bm_orco, nodes[i], tls, anctd);
+                  ob, brush, AverageDataFlags::Position, has_bm_orco, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -1781,7 +1799,8 @@ void calc_area_center(const Depsgraph &depsgraph,
           [&](const IndexRange range, AreaNormalCenterData anctd) {
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
-              calc_area_normal_and_center_node_grids(ob, brush, false, true, nodes[i], tls, anctd);
+              calc_area_normal_and_center_node_grids(
+                  ob, brush, AverageDataFlags::Position, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -1842,8 +1861,7 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
                                                     vert_normals,
                                                     hide_vert,
                                                     brush,
-                                                    true,
-                                                    false,
+                                                    AverageDataFlags::Normal,
                                                     nodes[i],
                                                     tls,
                                                     anctd);
@@ -1867,8 +1885,7 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
               calc_area_normal_and_center_node_bmesh(
                   ob,
                   brush,
-                  true,
-                  false,
+                  AverageDataFlags::Normal,
                   has_bm_orco,
                   static_cast<const blender::bke::pbvh::BMeshNode &>(nodes[i]),
                   tls,
@@ -1888,7 +1905,8 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
           [&](const IndexRange range, AreaNormalCenterData anctd) {
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
-              calc_area_normal_and_center_node_grids(ob, brush, true, false, nodes[i], tls, anctd);
+              calc_area_normal_and_center_node_grids(
+                  ob, brush, AverageDataFlags::Normal, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -2041,8 +2059,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
                                                     vert_normals,
                                                     hide_vert,
                                                     brush,
-                                                    true,
-                                                    true,
+                                                    AverageDataFlags::All,
                                                     nodes[i],
                                                     tls,
                                                     anctd);
@@ -2064,7 +2081,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
               calc_area_normal_and_center_node_bmesh(
-                  ob, brush, true, true, has_bm_orco, nodes[i], tls, anctd);
+                  ob, brush, AverageDataFlags::All, has_bm_orco, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -2080,7 +2097,8 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
           [&](const IndexRange range, AreaNormalCenterData anctd) {
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
-              calc_area_normal_and_center_node_grids(ob, brush, true, true, nodes[i], tls, anctd);
+              calc_area_normal_and_center_node_grids(
+                  ob, brush, AverageDataFlags::All, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -2157,16 +2175,18 @@ static float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::Str
 static float brush_strength(const Sculpt &sd,
                             const blender::ed::sculpt_paint::StrokeCache &cache,
                             const float feather,
-                            const UnifiedPaintSettings &ups,
                             const PaintModeSettings & /*paint_mode_settings*/)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
+  const blender::bke::PaintRuntime &paint_runtime = *sd.paint.runtime;
 
   /* Primary strength input; square it to make lower values more sensitive. */
   const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   const float alpha = root_alpha * root_alpha;
-  const float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
-  float overlap = ups.overlap_factor;
+  const float pressure = BKE_brush_use_alpha_pressure(&brush) ?
+                             BKE_curvemapping_evaluateF(brush.curve_strength, 0, cache.pressure) :
+                             1.0f;
+  float overlap = paint_runtime.overlap_factor;
   /* Spacing is integer percentage of radius, divide by 50 to get
    * normalized diameter. */
 
@@ -2988,10 +3008,9 @@ namespace blender::ed::sculpt_paint {
 
 static void dynamic_topology_update(const Depsgraph &depsgraph,
                                     const Scene & /*scene*/,
-                                    const Sculpt &sd,
+                                    Sculpt &sd,
                                     Object &ob,
                                     const Brush &brush,
-                                    UnifiedPaintSettings & /*ups*/,
                                     PaintModeSettings & /*paint_mode_settings*/)
 {
   SculptSession &ss = *ob.sculpt;
@@ -3177,10 +3196,9 @@ static void push_undo_nodes(const Depsgraph &depsgraph,
 
 static void do_brush_action(const Depsgraph &depsgraph,
                             const Scene & /*scene*/,
-                            const Sculpt &sd,
+                            Sculpt &sd,
                             Object &ob,
                             const Brush &brush,
-                            UnifiedPaintSettings &ups,
                             PaintModeSettings &paint_mode_settings)
 {
   SculptSession &ss = *ob.sculpt;
@@ -3404,7 +3422,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
       brush.autosmooth_factor > 0)
   {
-    if (brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
+    if (bke::brush::supports_auto_smooth_pressure(brush) &&
+        brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE)
+    {
       brushes::do_smooth_brush(
           depsgraph, sd, ob, node_mask, brush.autosmooth_factor * (1.0f - ss.cache->pressure));
     }
@@ -3433,10 +3453,11 @@ static void do_brush_action(const Depsgraph &depsgraph,
   /* Update average stroke position. */
   const float3 world_location = math::project_point(ob.object_to_world(), ss.cache->location);
 
-  add_v3_v3(ups.average_stroke_accum, world_location);
-  ups.average_stroke_counter++;
+  bke::PaintRuntime &paint_runtime = *sd.paint.runtime;
+  add_v3_v3(paint_runtime.average_stroke_accum, world_location);
+  paint_runtime.average_stroke_counter++;
   /* Update last stroke position. */
-  ups.last_stroke_valid = true;
+  paint_runtime.last_stroke_valid = true;
 }
 
 }  // namespace blender::ed::sculpt_paint
@@ -3503,18 +3524,16 @@ namespace blender::ed::sculpt_paint {
 
 using BrushActionFunc = void (*)(const Depsgraph &depsgraph,
                                  const Scene &scene,
-                                 const Sculpt &sd,
+                                 Sculpt &sd,
                                  Object &ob,
                                  const Brush &brush,
-                                 UnifiedPaintSettings &ups,
                                  PaintModeSettings &paint_mode_settings);
 
 static void do_tiled(const Depsgraph &depsgraph,
                      const Scene &scene,
-                     const Sculpt &sd,
+                     Sculpt &sd,
                      Object &ob,
                      const Brush &brush,
-                     UnifiedPaintSettings &ups,
                      PaintModeSettings &paint_mode_settings,
                      const BrushActionFunc action)
 {
@@ -3550,7 +3569,7 @@ static void do_tiled(const Depsgraph &depsgraph,
 
   /* First do the "un-tiled" position to initialize the stroke for this location. */
   cache->tile_pass = 0;
-  action(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings);
+  action(depsgraph, scene, sd, ob, brush, paint_mode_settings);
 
   /* Now do it for all the tiles. */
   copy_v3_v3_int(cur, start);
@@ -3570,7 +3589,7 @@ static void do_tiled(const Depsgraph &depsgraph,
           cache->initial_location_symm[dim] = cur[dim] * step[dim] +
                                               original_initial_location[dim];
         }
-        action(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings);
+        action(depsgraph, scene, sd, ob, brush, paint_mode_settings);
       }
     }
   }
@@ -3578,10 +3597,9 @@ static void do_tiled(const Depsgraph &depsgraph,
 
 static void do_radial_symmetry(const Depsgraph &depsgraph,
                                const Scene &scene,
-                               const Sculpt &sd,
+                               Sculpt &sd,
                                Object &ob,
                                const Brush &brush,
-                               UnifiedPaintSettings &ups,
                                PaintModeSettings &paint_mode_settings,
                                const BrushActionFunc action,
                                const ePaintSymmetryFlags symm,
@@ -3595,7 +3613,7 @@ static void do_radial_symmetry(const Depsgraph &depsgraph,
     const float angle = 2.0f * M_PI * i / mesh.radial_symmetry[axis - 'X'];
     ss.cache->radial_symmetry_pass = i;
     SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
-    do_tiled(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action);
+    do_tiled(depsgraph, scene, sd, ob, brush, paint_mode_settings, action);
   }
 }
 
@@ -3616,10 +3634,9 @@ static void sculpt_fix_noise_tear(const Sculpt &sd, Object &ob)
 
 static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
                                          const Scene &scene,
-                                         const Sculpt &sd,
+                                         Sculpt &sd,
                                          Object &ob,
                                          const BrushActionFunc action,
-                                         UnifiedPaintSettings &ups,
                                          PaintModeSettings &paint_mode_settings)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -3630,7 +3647,7 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
 
   float feather = calc_symmetry_feather(sd, mesh, *ss.cache);
 
-  cache.bstrength = brush_strength(sd, cache, feather, ups, paint_mode_settings);
+  cache.bstrength = brush_strength(sd, cache, feather, paint_mode_settings);
   cache.symmetry = symm;
 
   /* `symm` is a bit combination of XYZ -
@@ -3644,14 +3661,14 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
     cache.radial_symmetry_pass = 0;
 
     SCULPT_cache_calc_brushdata_symm(cache, symm, 0, 0);
-    do_tiled(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action);
+    do_tiled(depsgraph, scene, sd, ob, brush, paint_mode_settings, action);
 
     do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action, symm, 'X', feather);
+        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'X', feather);
     do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action, symm, 'Y', feather);
+        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'Y', feather);
     do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action, symm, 'Z', feather);
+        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'Z', feather);
   }
 }
 
@@ -3887,7 +3904,7 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
 
   cache->saved_smooth_size = BKE_brush_size_get(paint, smooth_brush);
   BKE_brush_size_set(paint, smooth_brush, cur_brush_size);
-  BKE_curvemapping_init(smooth_brush->curve);
+  BKE_curvemapping_init(smooth_brush->curve_distance_falloff);
 }
 
 static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
@@ -3923,7 +3940,7 @@ static void sculpt_update_cache_invariants(
     bContext *C, Sculpt &sd, SculptSession &ss, const wmOperator &op, const float mval[2])
 {
   StrokeCache *cache = MEM_new<StrokeCache>(__func__);
-  UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
   ToolSettings *tool_settings = CTX_data_tool_settings(C);
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
   ViewContext *vc = paint_stroke_view_context(static_cast<PaintStroke *>(op.customdata));
@@ -3973,10 +3990,10 @@ static void sculpt_update_cache_invariants(
   /* Not very nice, but with current events system implementation
    * we can't handle brush appearance inversion hotkey separately (sergey). */
   if (cache->invert) {
-    ups->draw_inverted = true;
+    paint_runtime->draw_inverted = true;
   }
   else {
-    ups->draw_inverted = false;
+    paint_runtime->draw_inverted = false;
   }
 
   /* Alt-Smooth. */
@@ -3988,7 +4005,7 @@ static void sculpt_update_cache_invariants(
 
   cache->mouse = cache->initial_mouse;
   cache->mouse_event = cache->initial_mouse;
-  copy_v2_v2(ups->tex_mouse, cache->initial_mouse);
+  copy_v2_v2(paint_runtime->tex_mouse, cache->initial_mouse);
 
   cache->initial_direction_flipped = brush_flip(*brush, *cache) < 0.0f;
 
@@ -4067,17 +4084,19 @@ static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
                                     float initial_size)
 {
+  const float pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache.pressure);
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_CLAY:
-      return max_ff(initial_size * 0.20f, initial_size * pow3f(cache.pressure));
+      return max_ff(initial_size * 0.20f, initial_size * pow3f(pressure_eval));
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
-      return max_ff(initial_size * 0.30f, initial_size * powf(cache.pressure, 1.5f));
+      return max_ff(initial_size * 0.30f, initial_size * powf(pressure_eval, 1.5f));
     case SCULPT_BRUSH_TYPE_CLAY_THUMB: {
       float clay_stabilized_pressure = brushes::clay_thumb_get_stabilized_pressure(cache);
-      return initial_size * clay_stabilized_pressure;
+      return initial_size *
+             BKE_curvemapping_evaluateF(brush.curve_size, 0, clay_stabilized_pressure);
     }
     default:
-      return initial_size * cache.pressure;
+      return initial_size * pressure_eval;
   }
 }
 
@@ -4123,10 +4142,11 @@ static bool need_delta_for_tip_orientation(const Brush &brush)
 }
 
 static void brush_delta_update(const Depsgraph &depsgraph,
-                               UnifiedPaintSettings &ups,
+                               Paint &paint,
                                const Object &ob,
                                const Brush &brush)
 {
+  bke::PaintRuntime &paint_runtime = *paint.runtime;
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   StrokeCache *cache = ss.cache;
@@ -4222,9 +4242,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
     /* Location stays the same for finding vertices in brush radius. */
     copy_v3_v3(cache->location, cache->orig_grab_location);
 
-    ups.draw_anchored = true;
-    copy_v2_v2(ups.anchored_initial_mouse, cache->initial_mouse);
-    ups.anchored_size = ups.pixel_radius;
+    paint_runtime.draw_anchored = true;
+    copy_v2_v2(paint_runtime.anchored_initial_mouse, cache->initial_mouse);
+    paint_runtime.anchored_size = paint_runtime.pixel_radius;
   }
 
   /* Handle 'rake' */
@@ -4272,7 +4292,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
 static void cache_paint_invariants_update(StrokeCache &cache, const Brush &brush)
 {
   cache.hardness = brush.hardness;
-  if (brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE) {
+  if (bke::brush::supports_hardness_pressure(brush) &&
+      brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE)
+  {
     cache.hardness *= brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE_INVERT ?
                           1.0f - cache.pressure :
                           cache.pressure;
@@ -4318,7 +4340,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Paint &paint = *BKE_paint_get_active_from_context(C);
-  UnifiedPaintSettings &ups = paint.unified_paint_settings;
+  bke::PaintRuntime &paint_runtime = *paint.runtime;
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   Brush &brush = *BKE_paint_brush(&sd.paint);
@@ -4350,7 +4372,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
     cache.initial_radius = object_space_radius_get(*cache.vc, paint, brush, cache.location);
 
     if (!BKE_brush_use_locked_size(&paint, &brush)) {
-      BKE_brush_unprojected_radius_set(&paint, &brush, cache.initial_radius);
+      BKE_brush_unprojected_size_set(&paint, &brush, cache.initial_radius);
     }
   }
 
@@ -4375,11 +4397,12 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, PaintMode::Sculpt))
   {
     cache.radius = brush_dynamic_size_get(brush, cache, cache.initial_radius);
-    cache.dyntopo_pixel_radius = brush_dynamic_size_get(brush, cache, ups.initial_pixel_radius);
+    cache.dyntopo_pixel_radius = brush_dynamic_size_get(
+        brush, cache, paint_runtime.initial_pixel_radius);
   }
   else {
     cache.radius = cache.initial_radius;
-    cache.dyntopo_pixel_radius = ups.initial_pixel_radius;
+    cache.dyntopo_pixel_radius = paint_runtime.initial_pixel_radius;
   }
 
   cache_paint_invariants_update(cache, brush);
@@ -4392,21 +4415,22 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
       RNA_float_get_array(ptr, "location", cache.location);
     }
 
-    cache.radius = paint_calc_object_space_radius(*cache.vc, cache.location, ups.pixel_radius);
+    cache.radius = paint_calc_object_space_radius(
+        *cache.vc, cache.location, paint_runtime.pixel_radius);
     cache.radius_squared = cache.radius * cache.radius;
   }
 
-  brush_delta_update(depsgraph, ups, ob, brush);
+  brush_delta_update(depsgraph, paint, ob, brush);
 
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ROTATE) {
     cache.vertex_rotation = -BLI_dial_angle(cache.dial, cache.mouse) * cache.bstrength;
 
-    ups.draw_anchored = true;
-    copy_v2_v2(ups.anchored_initial_mouse, cache.initial_mouse);
-    ups.anchored_size = ups.pixel_radius;
+    paint_runtime.draw_anchored = true;
+    copy_v2_v2(paint_runtime.anchored_initial_mouse, cache.initial_mouse);
+    paint_runtime.anchored_size = paint_runtime.pixel_radius;
   }
 
-  cache.special_rotation = ups.brush_rotation;
+  cache.special_rotation = paint_runtime.brush_rotation;
 
   cache.iteration_count++;
 }
@@ -4796,9 +4820,10 @@ bool cursor_geometry_info_update(bContext *C,
 }
 
 /**
- * \param check_closest if true and the ray test fails a point closest to the ray will be found.
- * \param limit_closest_radius if true then the closest point will be tested against the active
- * brush radius. */
+ * \param check_closest: if true and the ray test fails a point closest to the ray will be found.
+ * \param limit_closest_radius: if true then the closest point will be tested against the active
+ * brush radius.
+ */
 static bool stroke_get_location_bvh_ex(bContext *C,
                                        float3 &out,
                                        const float2 &mval,
@@ -5009,11 +5034,7 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
   }
 
   /* Restore the mesh before continuing with anchored stroke. */
-  if ((brush->flag & BRUSH_ANCHORED) ||
-      (ELEM(brush->sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) &&
-       BKE_brush_use_size_pressure(brush)) ||
-      (brush->flag & BRUSH_DRAG_DOT))
-  {
+  if (brush->flag & BRUSH_ANCHORED || brush->flag & BRUSH_DRAG_DOT) {
 
     undo::restore_from_undo_step(depsgraph, sd, ob);
 
@@ -5510,7 +5531,6 @@ static void stroke_update_step(bContext *C,
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  UnifiedPaintSettings &ups = sd.paint.unified_paint_settings;
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -5524,11 +5544,11 @@ static void stroke_update_step(bContext *C,
 
   if (dyntopo::stroke_is_dyntopo(ob, brush)) {
     do_symmetrical_brush_actions(
-        depsgraph, scene, sd, ob, dynamic_topology_update, ups, tool_settings.paint_mode);
+        depsgraph, scene, sd, ob, dynamic_topology_update, tool_settings.paint_mode);
   }
 
   do_symmetrical_brush_actions(
-      depsgraph, scene, sd, ob, do_brush_action, ups, tool_settings.paint_mode);
+      depsgraph, scene, sd, ob, do_brush_action, tool_settings.paint_mode);
 
   /* Hack to fix noise texture tearing mesh. */
   sculpt_fix_noise_tear(sd, ob);
@@ -5575,10 +5595,10 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
     brush_exit_tex(sd);
     return;
   }
-  UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
   Brush *brush = BKE_paint_brush(&sd.paint);
   BLI_assert(brush == ss.cache->brush); /* const, so we shouldn't change. */
-  ups->draw_inverted = false;
+  paint_runtime->draw_inverted = false;
 
   SCULPT_stroke_modifiers_check(C, ob, *brush);
 
@@ -5771,8 +5791,8 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
       "override_location",
       false,
       "Override Location",
-      "Override the given `location` array by recalculating object space positions from the "
-      "provided `mouse_event` positions");
+      "Override the given \"location\" array by recalculating object space positions from the "
+      "provided \"mouse_event\" positions");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   RNA_def_boolean(ot->srna,
@@ -7165,8 +7185,11 @@ void calc_brush_strength_factors(const StrokeCache &cache,
                                  const Span<float> distances,
                                  const MutableSpan<float> factors)
 {
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               cache.radius,
+                               factors);
 }
 
 void calc_brush_texture_factors(const SculptSession &ss,
@@ -7534,24 +7557,6 @@ void translations_from_new_positions(const Span<float3> new_positions,
   BLI_assert(new_positions.size() == old_positions.size());
   for (const int i : new_positions.index_range()) {
     translations[i] = new_positions[i] - old_positions[i];
-  }
-}
-
-void transform_positions(const Span<float3> src,
-                         const float4x4 &transform,
-                         const MutableSpan<float3> dst)
-{
-  BLI_assert(src.size() == dst.size());
-
-  for (const int i : src.index_range()) {
-    dst[i] = math::transform_point(transform, src[i]);
-  }
-}
-
-void transform_positions(const float4x4 &transform, const MutableSpan<float3> positions)
-{
-  for (const int i : positions.index_range()) {
-    positions[i] = math::transform_point(transform, positions[i]);
   }
 }
 

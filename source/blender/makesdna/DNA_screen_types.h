@@ -105,6 +105,10 @@ typedef struct bScreen {
   /** Context callback. */
   void /*bContextDataCallback*/ *context;
 
+  /* Used to restore after SCREENFULL state. */
+  short fullscreen_flag;
+  char _pad2[6];
+
   /** Runtime. */
   struct wmTooltipState *tool_tip;
 
@@ -591,9 +595,21 @@ enum {
   SCREENNORMAL = 0,
   /** One editor taking over the screen. */
   SCREENMAXIMIZED = 1,
-  /** One editor taking over the screen with no bare-minimum UI elements. */
+  /**
+   * One editor taking over the screen with no bare-minimum UI elements.
+   *
+   * Besides making the area full-screen this disables navigation & statistics because
+   * this is part of a stereo 3D pipeline where these elements would interfere, see: !142418.
+   */
   SCREENFULL = 2,
 };
+
+/** #bScreen.fullscreen_flag */
+typedef enum eScreen_Fullscreen_Flag {
+  FULLSCREEN_RESTORE_GIZMO_NAVIGATE = (1 << 0),
+  FULLSCREEN_RESTORE_TEXT = (1 << 1),
+  FULLSCREEN_RESTORE_STATS = (1 << 2),
+} eScreen_Fullscreen_Flag;
 
 /** #bScreen.redraws_flag */
 typedef enum eScreen_Redraws_Flag {
@@ -632,7 +648,6 @@ enum {
 enum {
   UILST_LAYOUT_DEFAULT = 0,
   UILST_LAYOUT_COMPACT = 1,
-  UILST_LAYOUT_GRID = 2,
   UILST_LAYOUT_BIG_PREVIEW_GRID = 3,
 };
 
@@ -781,6 +796,7 @@ enum {
    * wouldn't exist. Runtime only flag. */
   RGN_FLAG_POLL_FAILED = (1 << 10),
   RGN_FLAG_RESIZE_RESPECT_BUTTON_SECTIONS = (1 << 11),
+  RGN_FLAG_INDICATE_OVERFLOW = (1 << 12),
 };
 
 /** #ARegion.do_draw */

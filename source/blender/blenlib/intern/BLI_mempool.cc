@@ -53,7 +53,7 @@
    int64_t(c) << 16 | int64_t(b) << 8 | (a))
 
 /**
- * Important that this value is an is _not_  aligned with `sizeof(void *)`.
+ * Important that this value is not aligned with `sizeof(void *)`.
  * So having a pointer to 2/4/8... aligned memory is enough to ensure
  * the `freeword` will never be used.
  * To be safe, use a word that's the same in both directions.
@@ -130,7 +130,7 @@ struct BLI_mempool {
   ((BLI_freenode *)(CHECK_TYPE_INLINE(chunk, BLI_mempool_chunk *), (void *)((chunk) + 1)))
 
 #define NODE_STEP_NEXT(node) ((BLI_freenode *)((char *)(node) + esize))
-#define NODE_STEP_PREV(node) ((BLI_freenode *)((char *)(node)-esize))
+#define NODE_STEP_PREV(node) ((BLI_freenode *)((char *)(node) - esize))
 
 /** Extra bytes implicitly used for every chunk alloc. */
 #define CHUNK_OVERHEAD uint(MEM_SIZE_OVERHEAD + sizeof(BLI_mempool_chunk))
@@ -354,8 +354,8 @@ BLI_mempool *BLI_mempool_create(uint esize, uint elem_num, uint pchunk, uint fla
   /* Ensure this is a power of 2, minus the rounding by element size. */
 #if defined(USE_CHUNK_POW2) && !defined(NDEBUG)
   {
-    uint final_size = (uint)MEM_SIZE_OVERHEAD + (uint)sizeof(BLI_mempool_chunk) + pool->csize;
-    BLI_assert(((uint)power_of_2_max_u(final_size) - final_size) < pool->esize);
+    uint final_size = uint(MEM_SIZE_OVERHEAD) + uint(sizeof(BLI_mempool_chunk)) + pool->csize;
+    BLI_assert((uint(power_of_2_max_u(final_size)) - final_size) < pool->esize);
   }
 #endif
 

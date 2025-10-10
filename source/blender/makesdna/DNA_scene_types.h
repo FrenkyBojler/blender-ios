@@ -178,7 +178,7 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  char _pad0[4];
+  int _pad;
 
 #ifdef __cplusplus
   IMB_Ffmpeg_Codec_ID codec_id_get() const
@@ -330,39 +330,38 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_POSITION "Position"
 #define RE_PASSNAME_NORMAL "Normal"
 #define RE_PASSNAME_UV "UV"
-#define RE_PASSNAME_EMIT "Emit"
+#define RE_PASSNAME_EMIT "Emission"
 #define RE_PASSNAME_SHADOW "Shadow"
 
-#define RE_PASSNAME_AO "AO"
-#define RE_PASSNAME_ENVIRONMENT "Env"
-#define RE_PASSNAME_INDEXOB "IndexOB"
-#define RE_PASSNAME_INDEXMA "IndexMA"
+#define RE_PASSNAME_AO "Ambient Occlusion"
+#define RE_PASSNAME_ENVIRONMENT "Environment"
+#define RE_PASSNAME_INDEXOB "Object Index"
+#define RE_PASSNAME_INDEXMA "Material Index"
 #define RE_PASSNAME_MIST "Mist"
 
-#define RE_PASSNAME_DIFFUSE_DIRECT "DiffDir"
-#define RE_PASSNAME_DIFFUSE_INDIRECT "DiffInd"
-#define RE_PASSNAME_DIFFUSE_COLOR "DiffCol"
-#define RE_PASSNAME_GLOSSY_DIRECT "GlossDir"
-#define RE_PASSNAME_GLOSSY_INDIRECT "GlossInd"
-#define RE_PASSNAME_GLOSSY_COLOR "GlossCol"
-#define RE_PASSNAME_TRANSM_DIRECT "TransDir"
-#define RE_PASSNAME_TRANSM_INDIRECT "TransInd"
-#define RE_PASSNAME_TRANSM_COLOR "TransCol"
+#define RE_PASSNAME_DIFFUSE_DIRECT "Diffuse Direct"
+#define RE_PASSNAME_DIFFUSE_INDIRECT "Diffuse Indirect"
+#define RE_PASSNAME_DIFFUSE_COLOR "Diffuse Color"
+#define RE_PASSNAME_GLOSSY_DIRECT "Glossy Direct"
+#define RE_PASSNAME_GLOSSY_INDIRECT "Glossy Indirect"
+#define RE_PASSNAME_GLOSSY_COLOR "Glossy Color"
+#define RE_PASSNAME_TRANSM_DIRECT "Transmission Direct"
+#define RE_PASSNAME_TRANSM_INDIRECT "Transmission Indirect"
+#define RE_PASSNAME_TRANSM_COLOR "Transmission Color"
 
-#define RE_PASSNAME_SUBSURFACE_DIRECT "SubsurfaceDir"
-#define RE_PASSNAME_SUBSURFACE_INDIRECT "SubsurfaceInd"
-#define RE_PASSNAME_SUBSURFACE_COLOR "SubsurfaceCol"
+#define RE_PASSNAME_SUBSURFACE_DIRECT "Subsurface Direct"
+#define RE_PASSNAME_SUBSURFACE_INDIRECT "Subsurface Indirect"
+#define RE_PASSNAME_SUBSURFACE_COLOR "Subsurface Color"
 
 #define RE_PASSNAME_FREESTYLE "Freestyle"
-#define RE_PASSNAME_BLOOM "BloomCol"
-#define RE_PASSNAME_VOLUME_LIGHT "VolumeDir"
-#define RE_PASSNAME_TRANSPARENT "Transp"
+#define RE_PASSNAME_VOLUME_LIGHT "Volume Direct"
+#define RE_PASSNAME_TRANSPARENT "Transparent"
 
 #define RE_PASSNAME_CRYPTOMATTE_OBJECT "CryptoObject"
 #define RE_PASSNAME_CRYPTOMATTE_ASSET "CryptoAsset"
 #define RE_PASSNAME_CRYPTOMATTE_MATERIAL "CryptoMaterial"
 
-#define RE_PASSNAME_GREASE_PENCIL "GreasePencil"
+#define RE_PASSNAME_GREASE_PENCIL "Grease Pencil"
 
 /** \} */
 
@@ -456,6 +455,8 @@ typedef enum eStereo3dInterlaceType {
  * RNA ensures these enum's are only selectable for render output.
  */
 typedef struct ImageFormatData {
+  /** MediaType. */
+  char media_type;
   /**
    * R_IMF_IMTYPE_PNG, R_...
    * \note Video types should only ever be set from this structure when used from #RenderData.
@@ -480,11 +481,7 @@ typedef struct ImageFormatData {
 
   /** OpenEXR: R_IMF_EXR_CODEC_* values in low OPENEXR_CODEC_MASK bits. */
   char exr_codec;
-
-  /** CINEON. */
-  char cineon_flag;
-  short cineon_white, cineon_black;
-  float cineon_gamma;
+  char exr_flag;
 
   /** Jpeg2000. */
   char jp2_flag;
@@ -493,20 +490,31 @@ typedef struct ImageFormatData {
   /** TIFF. */
   char tiff_codec;
 
-  char _pad[4];
+  /** CINEON. */
+  char cineon_flag;
+  char _pad[3];
+  short cineon_white, cineon_black;
+  float cineon_gamma;
 
   /** Multi-view. */
-  char views_format;
   Stereo3dFormat stereo3d_format;
+  char views_format;
 
   /* Color management members. */
 
   char color_management;
-  char _pad1[7];
+  char _pad1[6];
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
   ColorManagedColorspaceSettings linear_colorspace_settings;
 } ImageFormatData;
+
+/** #ImageFormatData::media_type */
+typedef enum MediaType {
+  MEDIA_TYPE_IMAGE = 0,
+  MEDIA_TYPE_MULTI_LAYER_IMAGE = 1,
+  MEDIA_TYPE_VIDEO = 2,
+} MediaType;
 
 /** #ImageFormatData::imtype */
 enum {
@@ -518,8 +526,8 @@ enum {
   // R_MOVIE = 5, /* DEPRECATED */
   R_IMF_IMTYPE_IRIZ = 7,
   R_IMF_IMTYPE_RAWTGA = 14,
-  R_IMF_IMTYPE_AVIRAW = 15,
-  R_IMF_IMTYPE_AVIJPEG = 16,
+  /* R_IMF_IMTYPE_AVIRAW = 15, DEPRECATED */
+  /* R_IMF_IMTYPE_AVIJPEG = 16, DEPRECATED */
   R_IMF_IMTYPE_PNG = 17,
   // R_IMF_IMTYPE_AVICODEC = 18,  /* DEPRECATED */
   // R_IMF_IMTYPE_QUICKTIME = 19, /* DEPRECATED */
@@ -534,12 +542,12 @@ enum {
   R_IMF_IMTYPE_MULTILAYER = 28,
   R_IMF_IMTYPE_DDS = 29,
   R_IMF_IMTYPE_JP2 = 30,
-  R_IMF_IMTYPE_H264 = 31,
-  R_IMF_IMTYPE_XVID = 32,
-  R_IMF_IMTYPE_THEORA = 33,
+  /* R_IMF_IMTYPE_H264 = 31, DEPRECATED */
+  /* R_IMF_IMTYPE_XVID = 32, DEPRECATED */
+  /* R_IMF_IMTYPE_THEORA = 33, DEPRECATED */
   R_IMF_IMTYPE_PSD = 34,
   R_IMF_IMTYPE_WEBP = 35,
-  R_IMF_IMTYPE_AV1 = 36,
+  /* R_IMF_IMTYPE_AV1 = 36, DEPRECATED */
 
   R_IMF_IMTYPE_INVALID = 255,
 };
@@ -549,8 +557,6 @@ enum {
   // R_IMF_FLAG_ZBUF = 1 << 0, /* DEPRECATED, and cleared. */
   R_IMF_FLAG_PREVIEW_JPG = 1 << 1,
 };
-
-/*  */
 
 /**
  * #ImageFormatData::depth
@@ -594,6 +600,11 @@ enum {
   R_IMF_EXR_CODEC_DWAA = 8,
   R_IMF_EXR_CODEC_DWAB = 9,
   R_IMF_EXR_CODEC_MAX = 10,
+};
+
+/** #ImageFormatData::exr_flag */
+enum {
+  R_IMF_EXR_FLAG_MULTIPART = 1 << 0,
 };
 
 /** #ImageFormatData::jp2_flag */
@@ -640,6 +651,8 @@ typedef struct BakeData {
 
   char filepath[/*FILE_MAX*/ 1024];
 
+  int type;
+
   short width, height;
   short margin, flag;
 
@@ -650,14 +663,40 @@ typedef struct BakeData {
   char normal_swizzle[3];
   char normal_space;
 
+  char displacement_space;
+
   char target;
   char save_mode;
   char margin_type;
   char view_from;
-  char _pad[4];
+
+  char _pad[7];
 
   struct Object *cage_object;
 } BakeData;
+
+/** #BakeData::type */
+typedef enum eBakeType {
+  R_BAKE_NORMALS = 0,
+  R_BAKE_DISPLACEMENT = 1,
+  R_BAKE_AO = 2,
+  R_BAKE_VECTOR_DISPLACEMENT = 3,
+} eBakeType;
+
+/** #BakeData::flag */
+enum {
+  R_BAKE_CLEAR = 1 << 0,
+  // R_BAKE_OSA = 1 << 1, /* Deprecated. */
+  R_BAKE_TO_ACTIVE = 1 << 2,
+  // R_BAKE_NORMALIZE = 1 << 3, /* Deprecated. */
+  R_BAKE_MULTIRES = 1 << 4,
+  R_BAKE_LORES_MESH = 1 << 5,
+  // R_BAKE_VCOL = 1 << 6, /* Deprecated. */
+  // R_BAKE_USERSCALE = 1 << 7, /* Deprecated. */
+  R_BAKE_CAGE = 1 << 8,
+  R_BAKE_SPLIT_MAT = 1 << 9,
+  R_BAKE_AUTO_NAME = 1 << 10,
+};
 
 /** #BakeData::margin_type (char). */
 typedef enum eBakeMarginType {
@@ -706,6 +745,14 @@ typedef enum eBakePassFilter {
   R_BAKE_PASS_FILTER_INDIRECT = (1 << 7),
   R_BAKE_PASS_FILTER_COLOR = (1 << 8),
 } eBakePassFilter;
+
+/** #BakeData::normal_space and #BakeData::displacement_space */
+typedef enum eBakeSpace {
+  R_BAKE_SPACE_CAMERA = 0,
+  R_BAKE_SPACE_WORLD = 1,
+  R_BAKE_SPACE_OBJECT = 2,
+  R_BAKE_SPACE_TANGENT = 3,
+} eBakeSpace;
 
 #define R_BAKE_PASS_FILTER_ALL (~0)
 
@@ -836,16 +883,15 @@ typedef struct RenderData {
   /** Dither noise intensity. */
   float dither_intensity;
 
-  /* Bake Render options. */
-  short bake_mode, bake_flag;
-  short bake_margin, bake_samples;
-  short bake_margin_type;
-  char _pad9[6];
-  float bake_biasdist, bake_user_scale;
+  /** Legacy Bake Render options. */
+  short bake_mode DNA_DEPRECATED;
+  short bake_flag DNA_DEPRECATED;
+  short bake_margin DNA_DEPRECATED;
+  short bake_margin_type DNA_DEPRECATED;
 
   /**
-   *  Path to render output.
-   * \note  Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
+   * Path to render output.
+   * \note Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
    */
   char pic[/*FILE_MAX*/ 1024];
 
@@ -890,7 +936,7 @@ typedef struct RenderData {
   /** Performance Options. */
   short perf_flag;
 
-  /** Cycles baking. */
+  /** Baking. */
   struct BakeData bake;
 
   int _pad8;
@@ -925,7 +971,10 @@ typedef struct RenderData {
   int compositor_denoise_preview_quality; /* eCompositorDenoiseQaulity */
   int compositor_denoise_final_quality;   /* eCompositorDenoiseQaulity */
 
-  char _pad6[4];
+  /** Frames to jump manually. */
+  float time_jump_delta;
+  int time_jump_unit;
+  char _pad10[4];
 } RenderData;
 
 /** #RenderData::quality_flag */
@@ -937,6 +986,7 @@ typedef enum eQualityOption {
 typedef enum eHairType {
   SCE_HAIR_SHAPE_STRAND = 0,
   SCE_HAIR_SHAPE_STRIP = 1,
+  SCE_HAIR_SHAPE_CYLINDER = 2,
 } eHairType;
 
 /** #RenderData::motion_blur_position */
@@ -972,6 +1022,12 @@ typedef enum eCompositorDenoiseQaulity {
   SCE_COMPOSITOR_DENOISE_BALANCED = 1,
   SCE_COMPOSITOR_DENOISE_FAST = 2,
 } eCompositorDenoiseQaulity;
+
+/** #RenderData::time_jump_unit */
+enum {
+  SCE_TIME_JUMP_FRAME = 0,
+  SCE_TIME_JUMP_SECOND = 1,
+};
 
 /** \} */
 
@@ -1027,11 +1083,13 @@ typedef struct TimeMarker {
  * values are used
  */
 typedef struct UnifiedPaintSettings {
-  /** Unified radius of brush in pixels. */
+  DNA_DEFINE_CXX_METHODS(UnifiedPaintSettings)
+
+  /** Unified diameter of brush in pixels. */
   int size;
 
-  /** Unified radius of brush in Blender units. */
-  float unprojected_radius;
+  /** Unified diameter of brush in Blender units. */
+  float unprojected_size;
 
   /** Unified strength of brush. */
   float alpha;
@@ -1040,9 +1098,13 @@ typedef struct UnifiedPaintSettings {
   float weight;
 
   /** Unified brush color. */
-  float rgb[3];
+  float color[3];
   /** Unified brush secondary color. */
-  float secondary_rgb[3];
+  float secondary_color[3];
+
+  /* Deprecated sRGB color for forward compatibility. */
+  float rgb[3] DNA_DEPRECATED;
+  float secondary_rgb[3] DNA_DEPRECATED;
 
   /** Unified color jitter settings */
   int color_jitter_flag;
@@ -1058,73 +1120,6 @@ typedef struct UnifiedPaintSettings {
 
   /** User preferences for sculpt and paint. */
   int flag;
-  char _pad[4];
-
-  /* TODO: Many of the following values should not be on this struct, as it causes them to be
-   * persisted. PaintRuntime may be a better choice for some of these. */
-
-  /* Rake rotation. */
-
-  /** Record movement of mouse so that rake can start at an intuitive angle. */
-  float last_rake[2];
-  float last_rake_angle;
-
-  int last_stroke_valid;
-  float average_stroke_accum[3];
-  int average_stroke_counter;
-
-  /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
-   * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
-   * mouse curve, Bezier curve, etc.) */
-  float brush_rotation;
-  float brush_rotation_sec;
-
-  /*******************************************************************************
-   * all data below are used to communicate with cursor drawing and tex sampling *
-   *******************************************************************************/
-  int anchored_size;
-
-  /**
-   * Normalization factor due to accumulated value of curve along spacing.
-   * Calculated when brush spacing changes to dampen strength of stroke
-   * if space attenuation is used.
-   */
-  float overlap_factor;
-  char draw_inverted;
-  /** Check is there an ongoing stroke right now. */
-  char stroke_active;
-
-  char draw_anchored;
-  char do_linear_conversion;
-
-  /**
-   * Store last location of stroke or whether the mesh was hit.
-   * Valid only while stroke is active.
-   */
-  float last_location[3];
-  int last_hit;
-
-  float anchored_initial_mouse[2];
-
-  /**
-   * Radius of brush, pre-multiplied with pressure.
-   * In case of anchored brushes contains the anchored radius.
-   */
-  float pixel_radius;
-  float initial_pixel_radius;
-  float start_pixel_radius;
-
-  /** Drawing pressure. */
-  float size_pressure_value;
-
-  /** Position of mouse, used to sample the texture. */
-  float tex_mouse[2];
-
-  /** Position of mouse, used to sample the mask texture. */
-  float mask_tex_mouse[2];
-
-  /** ColorSpace cache to avoid locking up during sampling. */
-  const ColorSpaceHandle *colorspace;
 } UnifiedPaintSettings;
 
 /** \} */
@@ -1171,6 +1166,8 @@ typedef struct ToolSystemBrushBindings {
 
 /** Paint Tool Base. */
 typedef struct Paint {
+  DNA_DEFINE_CXX_METHODS(Paint)
+
   /**
    * The active brush. Possibly null. Possibly stored in a separate #Main data-base and not user-
    * counted.
@@ -1194,10 +1191,6 @@ typedef struct Paint {
   /** Cavity curve. */
   struct CurveMapping *cavity_curve;
 
-  /** WM Paint cursor. */
-  void *paint_cursor;
-  unsigned char paint_cursor_col[4];
-
   /** Enum #ePaintFlags. */
   int flags;
 
@@ -1209,9 +1202,14 @@ typedef struct Paint {
 
   /** Flags used for symmetry. */
   int symmetry_flags;
+  /**
+   * Collapsed state of a given pressure curve
+   * See #PaintCurveVisibilityFlags
+   */
+  int curve_visibility_flags;
+  char _pad[4];
 
   float tile_offset[3];
-  char _pad2[4];
   struct UnifiedPaintSettings unified_paint_settings;
 
   PaintRuntimeHandle *runtime;
@@ -1321,6 +1319,8 @@ typedef struct ParticleEditSettings {
 
 /** Sculpt. */
 typedef struct Sculpt {
+  DNA_DEFINE_CXX_METHODS(Sculpt)
+
   Paint paint;
 
   /** For rotating around a pivot point. */
@@ -1368,10 +1368,10 @@ typedef struct CurvesSculpt {
 } CurvesSculpt;
 
 typedef struct UvSculpt {
-  struct CurveMapping *strength_curve;
+  struct CurveMapping *curve_distance_falloff;
   int size;
   float strength;
-  int8_t curve_preset; /* #eBrushCurvePreset. */
+  int8_t curve_distance_falloff_preset; /* #eBrushCurvePreset. */
   char _pad[7];
 } UvSculpt;
 
@@ -1420,9 +1420,7 @@ typedef struct GpWeightPaint {
 typedef struct VPaint {
   Paint paint;
   char flag;
-  char _pad[3];
-  /** For mirrored painting. */
-  int radial_symm[3] DNA_DEPRECATED;
+  char _pad[7];
 } VPaint;
 
 /** #VPaint::flag */
@@ -1665,6 +1663,8 @@ enum {
 };
 
 typedef struct ToolSettings {
+  DNA_DEFINE_CXX_METHODS(ToolSettings)
+
   /** Vertex paint. */
   VPaint *vpaint;
   /** Weight paint. */
@@ -1702,6 +1702,8 @@ typedef struct ToolSettings {
   char uv_flag;
   char uv_selectmode;
   char uv_sticky;
+
+  rctf uv_custom_region;
 
   float uvcalc_margin;
 
@@ -1775,9 +1777,6 @@ typedef struct ToolSettings {
   /** Keyframe type (see DNA_curve_types.h). */
   char keyframe_type;
 
-  /** Multi-resolution meshes. */
-  char multires_subdiv_type;
-
   /** Edge tagging, store operator settings (no UI access). */
   char edge_mode;
 
@@ -1789,6 +1788,9 @@ typedef struct ToolSettings {
   char transform_flag;
   /** Snap elements (per space-type), #eSnapMode. */
   char snap_node_mode;
+
+  char _pad;
+
   short snap_mode;
   short snap_uv_mode;
   short snap_anim_mode;
@@ -1895,6 +1897,15 @@ typedef struct ToolSettings {
   int16_t snap_step_frames;
   /* Pixel threshold that needs to be crossed before the playhead is snapped to a point. */
   int playhead_snap_distance;
+
+  /* Animation settings, used by "Paste Global Transform" operator. */
+  struct Object *anim_mirror_object;
+  struct Object *anim_relative_object;
+  char anim_mirror_bone[64];
+
+  /* Flags for "Fix to Camera" operator. */
+  uint8_t fix_to_cam_flag; /* eFixToCam_Flags */
+  char _pad8[7];
 
 } ToolSettings;
 
@@ -2124,7 +2135,6 @@ typedef struct Scene {
   ListBase base DNA_DEPRECATED;
   /** Active base. */
   struct Base *basact DNA_DEPRECATED;
-  void *_pad1;
 
   /** 3d cursor location. */
   View3DCursor cursor;
@@ -2149,7 +2159,6 @@ typedef struct Scene {
 
   /** Default allocated now. */
   struct ToolSettings *toolsettings;
-  void *_pad4;
   struct DisplaySafeAreas safe_areas;
 
   /* Migrate or replace? depends on some internal things... */
@@ -2197,7 +2206,6 @@ typedef struct Scene {
   /** Physics simulation settings. */
   struct PhysicsSettings physics_settings;
 
-  void *_pad8;
   /**
    * XXX: runtime flag for drawing, actually belongs in the window,
    * only used by #BKE_object_handle_update()
@@ -2237,6 +2245,10 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
+#ifdef __cplusplus
+  /* Return the frame rate of the scene. */
+  double frames_per_second() const;
+#endif
 } Scene;
 
 /** \} */
@@ -2378,30 +2390,6 @@ enum {
   R_COLOR_MANAGEMENT_UNUSED_1 = (1 << 1),
 };
 
-/* bake_mode: same as RE_BAKE_xxx defines. */
-/** #RenderData::bake_flag */
-enum {
-  R_BAKE_CLEAR = 1 << 0,
-  // R_BAKE_OSA = 1 << 1, /* Deprecated. */
-  R_BAKE_TO_ACTIVE = 1 << 2,
-  // R_BAKE_NORMALIZE = 1 << 3, /* Deprecated. */
-  R_BAKE_MULTIRES = 1 << 4,
-  R_BAKE_LORES_MESH = 1 << 5,
-  // R_BAKE_VCOL = 1 << 6, /* Deprecated. */
-  R_BAKE_USERSCALE = 1 << 7,
-  R_BAKE_CAGE = 1 << 8,
-  R_BAKE_SPLIT_MAT = 1 << 9,
-  R_BAKE_AUTO_NAME = 1 << 10,
-};
-
-/** #RenderData::bake_normal_space */
-enum {
-  R_BAKE_SPACE_CAMERA = 0,
-  R_BAKE_SPACE_WORLD = 1,
-  R_BAKE_SPACE_OBJECT = 2,
-  R_BAKE_SPACE_TANGENT = 3,
-};
-
 /** #RenderData::line_thickness_mode */
 enum {
   R_LINE_THICKNESS_ABSOLUTE = 1,
@@ -2471,7 +2459,6 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 #define PEFRA ((PRVRANGEON) ? (scene->r.pefra) : (scene->r.efra))
 #define FRA2TIME(a) ((((double)scene->r.frs_sec_base) * (double)(a)) / (double)scene->r.frs_sec)
 #define TIME2FRA(a) ((((double)scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
-#define FPS (((double)scene->r.frs_sec) / (double)scene->r.frs_sec_base)
 
 /** \} */
 
@@ -2833,27 +2820,61 @@ enum {
 
 /** #ToolSettings::uv_flag */
 enum {
-  UV_FLAG_SYNC_SELECT = 1 << 0,
+  UV_FLAG_SELECT_SYNC = 1 << 0,
   UV_FLAG_SHOW_SAME_IMAGE = 1 << 1,
   /**
    * \note In most cases #ED_uvedit_select_island_check should be used to check if island
    * selection should be used - since not all combinations of options support it.
    */
-  UV_FLAG_ISLAND_SELECT = 1 << 2,
+  UV_FLAG_SELECT_ISLAND = 1 << 2,
+  UV_FLAG_CUSTOM_REGION = 1 << 3,
 };
 
 /** #ToolSettings::uv_selectmode */
 enum {
-  UV_SELECT_VERTEX = 1 << 0,
+  UV_SELECT_VERT = 1 << 0,
   UV_SELECT_EDGE = 1 << 1,
   UV_SELECT_FACE = 1 << 2,
 };
 
-/** #ToolSettings::uv_sticky */
+/**
+ * #ToolSettings::uv_sticky
+ *
+ * Control the behavior of selecting UV's in the UV editor.
+ *
+ * Internally UV's store selection for every face-corner,
+ * however for the purpose of conveniently selecting & editing UV's it's often
+ * preferable to use sticky selection (#UV_STICKY_LOCATION),
+ * where selecting a UV also selects other UV's at the same location.
+ *
+ * \note This setting only affects subsequent selection operations.
+ * It does not alter the current selection state.
+ */
 enum {
-  SI_STICKY_LOC = 0,
-  SI_STICKY_DISABLE = 1,
-  SI_STICKY_VERTEX = 2,
+  /**
+   * Treat all other UV's sharing the vertex at that location as a single UV.
+   * This is the default behavior.
+   *
+   * \note Ripping UV's apart is still possible with "Split" & "Rip" operators.
+   */
+  UV_STICKY_LOCATION = 0,
+  /**
+   * Treat all UV's as individual face-corners, no matter where they are located.
+   * This can be useful if the intention with UV editing is to manipulate each faces
+   * UV's independently of one another.
+   *
+   * \note This is impractical for typical usage as it's impractical
+   * to select and move a single UV connected to other UV chordates.
+   */
+  UV_STICKY_DISABLE = 1,
+  /**
+   * Selecting applies to all UV's sharing a vertex.
+   * This can be useful to weld UV's that share a vertex but have become separated.
+   *
+   * \note This is impractical for typical usage since selecting UV's at island-boundaries
+   * selects UV's of any other UV island-boundaries which share that vertex.
+   */
+  UV_STICKY_VERT = 2,
 };
 
 /** #ToolSettings::gpencil_flags */

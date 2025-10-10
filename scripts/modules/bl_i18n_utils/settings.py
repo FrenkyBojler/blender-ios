@@ -89,6 +89,7 @@ LANGUAGES = (
     (55, "Urdu - وُدرُا", "ur"),
     (56, "Lithuanian - Lietuviškai", "lt"),
     (57, "English (UK)", "en_GB"),
+    (58, "Malayalam - മലയാളം", "ml"),
 )
 
 # Default context, in py (keep in sync with `BLT_translation.hh`)!
@@ -255,7 +256,7 @@ PYGETTEXT_KEYWORDS = (() +
 
     tuple(("{}\\((?:[^\"',]+,){{1,2}}\\s*" + _msg_re + r"\s*(?:\)|,)").format(it)
           for it in ("BKE_report", "BKE_reportf", "BKE_reports_prepend", "BKE_reports_prependf",
-                     "CTX_wm_operator_poll_msg_set", "WM_report", "WM_reportf",
+                     "CTX_wm_operator_poll_msg_set", "WM_global_report", "WM_global_reportf",
                      "UI_but_disable")) +
 
     # bmesh operator errors
@@ -281,12 +282,13 @@ PYGETTEXT_KEYWORDS = (() +
           for it in ("modifier_subpanel_register", "gpencil_modifier_subpanel_register")) +
 
     # Node socket declarations: context-less names.
-    tuple((r"\.{}<decl::.*?>\(\s*" + _msg_re + r"(?:,[^),]+)*\s*\)"
+    tuple((r"\.{}(?:<decl::.*?>\(|[^,]+,)\s*" + _msg_re + r"(?:,[^),]+)*\s*\)"
            r"(?![^;]*\.translation_context\()").format(it)
           for it in ("add_input", "add_output")) +
 
     # Node socket declarations: names with contexts
-    tuple((r"\.{}<decl::.*?>\(\s*" + _msg_re + r"[^;]*\.translation_context\(\s*" + _ctxt_re + r"\s*\)").format(it)
+    tuple((r"\.{}(?:<decl::.*?>\(|[^,]+,)\s*" + _msg_re +
+           r"[^;]*\.translation_context\(\s*" + _ctxt_re + r"\s*\)").format(it)
           for it in ("add_input", "add_output")) +
 
     # Node socket declarations: description and error messages
@@ -428,7 +430,6 @@ WARN_MSGID_NOT_CAPITALIZED_ALLOWED = {
     "curves",
     "fonts",
     "grease_pencils",
-    "grease_pencils_v3",
     "hair_curves",
     "ipos",
     "lattices",
@@ -648,7 +649,7 @@ CUSTOM_PY_UI_FILES = [
     os.path.join("scripts", "startup", "bl_operators"),
     os.path.join("scripts", "modules", "rna_prop_ui.py"),
     os.path.join("scripts", "modules", "rna_keymap_ui.py"),
-    os.path.join("scripts", "modules", "bpy_types.py"),
+    os.path.join("scripts", "modules", "_bpy_types.py"),
     os.path.join("scripts", "presets", "keyconfig"),
 ]
 
@@ -716,7 +717,7 @@ def _check_valid_data(uid, val):
 class I18nSettings:
     """
     Class allowing persistence of our settings!
-    Saved in JSon format, so settings should be JSon'able objects!
+    Saved in JSON format, so settings should be JSON'able objects!
     """
     _settings = None
 
@@ -763,7 +764,7 @@ class I18nSettings:
             return
         if isinstance(fname, str):
             if not os.path.isfile(fname):
-                # Assume it is already real JSon string...
+                # Assume it is already real JSON string.
                 self.from_json(fname)
                 return
             with open(fname, encoding="utf8") as f:

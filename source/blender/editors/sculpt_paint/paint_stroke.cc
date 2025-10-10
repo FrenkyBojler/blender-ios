@@ -10,6 +10,8 @@
 #include <cfloat>
 #include <cmath>
 
+#include "fmt/format.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.h"
@@ -29,8 +31,10 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -159,7 +163,8 @@ static void paint_draw_smooth_cursor(bContext *C,
     const uint pos = GPU_vertformat_attr_add(
         immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformColor4ubv(paint->paint_cursor_col);
+    const uchar4 color = uchar4(255, 100, 100, 128);
+    immUniformColor4ubv(color);
 
     immBegin(GPU_PRIM_LINES, 2);
     immVertex2fv(pos, blender::float2(xy));
@@ -176,12 +181,11 @@ static void paint_draw_smooth_cursor(bContext *C,
   }
 }
 
-static void paint_draw_line_cursor(bContext *C,
+static void paint_draw_line_cursor(bContext * /*C*/,
                                    const blender::int2 &xy,
                                    const blender::float2 & /*tilt*/,
                                    void *customdata)
 {
-  const Paint *paint = BKE_paint_get_active_from_context(C);
   PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
 
   GPU_line_smooth(true);
@@ -196,9 +200,8 @@ static void paint_draw_line_cursor(bContext *C,
   immUniform2f("viewport_size", viewport_size[2], viewport_size[3]);
 
   immUniform1i("colors_len", 2); /* "advanced" mode */
-  const float alpha = float(paint->paint_cursor_col[3]) / 255.0f;
-  immUniform4f("color", 0.0f, 0.0f, 0.0f, alpha);
-  immUniform4f("color2", 1.0f, 1.0f, 1.0f, alpha);
+  immUniform4f("color", 0.0f, 0.0f, 0.0f, 0.5);
+  immUniform4f("color2", 1.0f, 1.0f, 1.0f, 0.5);
   immUniform1f("dash_width", 6.0f);
   immUniform1f("udash_factor", 0.5f);
 
@@ -317,7 +320,7 @@ bool paint_brush_update(bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
-  UnifiedPaintSettings &ups = *stroke->ups;
+  bke::PaintRuntime &paint_runtime = *paint->runtime;
   bool location_sampled = false;
   bool location_success = false;
   /* Use to perform all operations except applying the stroke,
@@ -333,30 +336,33 @@ bool paint_brush_update(bContext *C,
    *      changing events. We should avoid this after events system re-design */
   if (!stroke->brush_init) {
     copy_v2_v2(stroke->initial_mouse, mouse);
-    copy_v2_v2(ups.last_rake, mouse);
-    copy_v2_v2(ups.tex_mouse, mouse);
-    copy_v2_v2(ups.mask_tex_mouse, mouse);
+    copy_v2_v2(paint_runtime.last_rake, mouse);
+    copy_v2_v2(paint_runtime.tex_mouse, mouse);
+    copy_v2_v2(paint_runtime.mask_tex_mouse, mouse);
     stroke->cached_size_pressure = pressure;
+    BKE_curvemapping_init(brush.curve_size);
+    BKE_curvemapping_init(brush.curve_strength);
+    BKE_curvemapping_init(brush.curve_jitter);
 
     stroke->brush_init = true;
   }
 
   if (paint_supports_dynamic_size(brush, mode)) {
-    copy_v2_v2(ups.tex_mouse, mouse);
-    copy_v2_v2(ups.mask_tex_mouse, mouse);
-    stroke->cached_size_pressure = pressure;
+    copy_v2_v2(paint_runtime.tex_mouse, mouse);
+    copy_v2_v2(paint_runtime.mask_tex_mouse, mouse);
+    stroke->cached_size_pressure = BKE_curvemapping_evaluateF(brush.curve_size, 0, pressure);
   }
 
   /* Truly temporary data that isn't stored in properties */
 
-  ups.stroke_active = true;
-  ups.size_pressure_value = stroke->cached_size_pressure;
+  paint_runtime.stroke_active = true;
+  paint_runtime.size_pressure_value = stroke->cached_size_pressure;
 
-  ups.pixel_radius = BKE_brush_size_get(paint, &brush);
-  ups.initial_pixel_radius = BKE_brush_size_get(paint, &brush);
+  paint_runtime.pixel_radius = BKE_brush_radius_get(paint, &brush);
+  paint_runtime.initial_pixel_radius = BKE_brush_radius_get(paint, &brush);
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, mode)) {
-    ups.pixel_radius *= stroke->cached_size_pressure;
+    paint_runtime.pixel_radius *= stroke->cached_size_pressure;
   }
 
   if (paint_supports_dynamic_tex_coords(brush, mode)) {
@@ -370,10 +376,10 @@ bool paint_brush_update(bContext *C,
     }
 
     if (brush.mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-      BKE_brush_randomize_texture_coords(&ups, false);
+      BKE_brush_randomize_texture_coords(paint, false);
     }
     else {
-      copy_v2_v2(ups.tex_mouse, mouse);
+      copy_v2_v2(paint_runtime.tex_mouse, mouse);
     }
 
     /* take care of mask texture, if any */
@@ -388,10 +394,10 @@ bool paint_brush_update(bContext *C,
       }
 
       if (brush.mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-        BKE_brush_randomize_texture_coords(&ups, true);
+        BKE_brush_randomize_texture_coords(paint, true);
       }
       else {
-        copy_v2_v2(ups.mask_tex_mouse, mouse);
+        copy_v2_v2(paint_runtime.mask_tex_mouse, mouse);
       }
     }
   }
@@ -403,9 +409,10 @@ bool paint_brush_update(bContext *C,
     const float dx = mouse[0] - stroke->initial_mouse[0];
     const float dy = mouse[1] - stroke->initial_mouse[1];
 
-    ups.anchored_size = ups.pixel_radius = sqrtf(dx * dx + dy * dy);
+    paint_runtime.anchored_size = paint_runtime.pixel_radius = sqrtf(dx * dx + dy * dy);
 
-    ups.brush_rotation = ups.brush_rotation_sec = atan2f(dy, dx) + float(0.5f * M_PI);
+    paint_runtime.brush_rotation = paint_runtime.brush_rotation_sec = atan2f(dy, dx) +
+                                                                      float(0.5f * M_PI);
 
     if (brush.flag & BRUSH_EDGE_TO_EDGE) {
       halfway[0] = dx * 0.5f + stroke->initial_mouse[0];
@@ -427,26 +434,26 @@ bool paint_brush_update(bContext *C,
       }
     }
     if (hit) {
-      copy_v2_v2(ups.anchored_initial_mouse, halfway);
-      copy_v2_v2(ups.tex_mouse, halfway);
-      copy_v2_v2(ups.mask_tex_mouse, halfway);
+      copy_v2_v2(paint_runtime.anchored_initial_mouse, halfway);
+      copy_v2_v2(paint_runtime.tex_mouse, halfway);
+      copy_v2_v2(paint_runtime.mask_tex_mouse, halfway);
       copy_v2_v2(mouse, halfway);
-      ups.anchored_size /= 2.0f;
-      ups.pixel_radius /= 2.0f;
-      stroke->stroke_distance = ups.pixel_radius;
+      paint_runtime.anchored_size /= 2.0f;
+      paint_runtime.pixel_radius /= 2.0f;
+      stroke->stroke_distance = paint_runtime.pixel_radius;
     }
     else {
-      copy_v2_v2(ups.anchored_initial_mouse, stroke->initial_mouse);
+      copy_v2_v2(paint_runtime.anchored_initial_mouse, stroke->initial_mouse);
       copy_v2_v2(mouse, stroke->initial_mouse);
-      stroke->stroke_distance = ups.pixel_radius;
+      stroke->stroke_distance = paint_runtime.pixel_radius;
     }
-    ups.pixel_radius /= stroke->zoom_2d;
-    ups.draw_anchored = true;
+    paint_runtime.pixel_radius /= stroke->zoom_2d;
+    paint_runtime.draw_anchored = true;
   }
   else {
     /* curve strokes do their own rake calculation */
     if (!(brush.flag & BRUSH_CURVE)) {
-      if (!paint_calculate_rake_rotation(ups, brush, mouse_init, mode, stroke->rake_started)) {
+      if (!paint_calculate_rake_rotation(*paint, brush, mouse_init, mode, stroke->rake_started)) {
         /* Not enough motion to define an angle. */
         if (!stroke->rake_started) {
           is_dry_run = true;
@@ -465,15 +472,15 @@ bool paint_brush_update(bContext *C,
 
   if (do_random) {
     if (brush.mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
-      ups.brush_rotation += -brush.mtex.random_angle / 2.0f +
-                            brush.mtex.random_angle * stroke->rng->get_float();
+      paint_runtime.brush_rotation += -brush.mtex.random_angle / 2.0f +
+                                      brush.mtex.random_angle * stroke->rng->get_float();
     }
   }
 
   if (do_random_mask) {
     if (brush.mask_mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
-      ups.brush_rotation_sec += -brush.mask_mtex.random_angle / 2.0f +
-                                brush.mask_mtex.random_angle * stroke->rng->get_float();
+      paint_runtime.brush_rotation_sec += -brush.mask_mtex.random_angle / 2.0f +
+                                          brush.mask_mtex.random_angle * stroke->rng->get_float();
     }
   }
 
@@ -528,7 +535,7 @@ void paint_stroke_jitter_pos(const PaintStroke &stroke,
     float factor = stroke.zoom_2d;
 
     if (brush.flag & BRUSH_JITTER_PRESSURE) {
-      factor *= pressure;
+      factor *= BKE_curvemapping_evaluateF(brush.curve_jitter, 0, pressure);
     }
 
     BKE_brush_jitter_pos(*stroke.paint, brush, mval, r_mouse_out);
@@ -555,7 +562,7 @@ static void paint_brush_stroke_add_step(
   const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
-  UnifiedPaintSettings *ups = stroke->ups;
+  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
 
 /* the following code is adapted from texture paint. It may not be needed but leaving here
  * just in case for reference (code in texpaint removed as part of refactoring).
@@ -609,12 +616,12 @@ static void paint_brush_stroke_add_step(
 
   float3 location;
   bool is_location_is_set;
-  ups->last_hit = paint_brush_update(
+  paint_runtime->last_hit = paint_brush_update(
       C, brush, mode, stroke, mval, mouse_out, pressure, location, &is_location_is_set);
   if (is_location_is_set) {
-    copy_v3_v3(ups->last_location, location);
+    copy_v3_v3(paint_runtime->last_location, location);
   }
-  if (!ups->last_hit) {
+  if (!paint_runtime->last_hit) {
     return;
   }
 
@@ -632,7 +639,7 @@ static void paint_brush_stroke_add_step(
   if (add_step) {
     PointerRNA itemptr;
     RNA_collection_add(op->ptr, "stroke", &itemptr);
-    RNA_float_set(&itemptr, "size", ups->pixel_radius);
+    RNA_float_set(&itemptr, "size", paint_runtime->pixel_radius);
     RNA_float_set_array(&itemptr, "location", location);
     /* Mouse coordinates modified by the stroke type options. */
     RNA_float_set_array(&itemptr, "mouse", mouse_out);
@@ -682,8 +689,8 @@ static bool paint_smooth_stroke(PaintStroke *stroke,
 
 static float paint_space_stroke_spacing(const bContext *C,
                                         PaintStroke *stroke,
-                                        const float size_pressure,
-                                        const float spacing_pressure)
+                                        const float size_factor,
+                                        const float pressure)
 {
   const Paint *paint = BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
@@ -694,19 +701,19 @@ static float paint_space_stroke_spacing(const bContext *C,
     const float3 last_object_space_position = math::transform_point(
         stroke->vc.obact->world_to_object(), stroke->last_world_space_position);
     size_clamp = object_space_radius_get(
-        stroke->vc, *paint, brush, last_object_space_position, size_pressure);
+        stroke->vc, *paint, brush, last_object_space_position, size_factor);
   }
   else {
     /* brushes can have a minimum size of 1.0 but with pressure it can be smaller than a pixel
      * causing very high step sizes, hanging blender #32381. */
-    size_clamp = max_ff(1.0f, BKE_brush_size_get(stroke->paint, stroke->brush) * size_pressure);
+    size_clamp = max_ff(1.0f, BKE_brush_radius_get(stroke->paint, stroke->brush) * size_factor);
   }
 
   float spacing = stroke->brush->spacing;
 
   /* apply spacing pressure */
-  if (stroke->brush->flag & BRUSH_SPACING_PRESSURE) {
-    spacing = spacing * (1.5f - spacing_pressure);
+  if (stroke->brush->flag & BRUSH_SPACE && stroke->brush->flag & BRUSH_SPACING_PRESSURE) {
+    spacing = spacing * (1.5f - pressure);
   }
 
   if (cloth::is_cloth_deform_brush(brush)) {
@@ -727,6 +734,13 @@ static float paint_space_stroke_spacing(const bContext *C,
     return max_ff(FLT_EPSILON, size_clamp * spacing / 50.0f);
   }
   return max_ff(stroke->zoom_2d, size_clamp * spacing / 50.0f);
+}
+
+static float paint_space_stroke_spacing_no_pressure(const bContext *C, PaintStroke *stroke)
+{
+  /* Unlike many paint pressure curves, spacing assumes that a stroke without pressure (e.g. with
+   * the mouse, or with the setting turned off) represents an input of 0.5, not 1.0. */
+  return paint_space_stroke_spacing(C, stroke, 1.0f, 0.5f);
 }
 
 static float paint_stroke_overlapped_curve(const Brush &br, const float x, const float spacing)
@@ -783,19 +797,22 @@ static float paint_space_stroke_spacing_variable(bContext *C,
                                                  const float length)
 {
   if (BKE_brush_use_size_pressure(stroke->brush)) {
+    const float max_size_factor = BKE_curvemapping_evaluateF(stroke->brush->curve_size, 0, 1.0f);
     /* use pressure to modify size. set spacing so that at 100%, the circles
      * are aligned nicely with no overlap. for this the spacing needs to be
      * the average of the previous and next size. */
-    const float s = paint_space_stroke_spacing(C, stroke, 1.0f, pressure);
+    const float s = paint_space_stroke_spacing(C, stroke, max_size_factor, pressure);
     const float q = s * pressure_delta / (2.0f * length);
     const float pressure_fac = (1.0f + q) / (1.0f - q);
 
-    const float last_size_pressure = stroke->last_pressure;
-    const float new_size_pressure = stroke->last_pressure * pressure_fac;
+    const float last_size_factor = BKE_curvemapping_evaluateF(
+        stroke->brush->curve_size, 0, stroke->last_pressure);
+    const float new_size_factor = BKE_curvemapping_evaluateF(
+        stroke->brush->curve_size, 0, stroke->last_pressure * pressure_fac);
 
     /* average spacing */
-    const float last_spacing = paint_space_stroke_spacing(C, stroke, last_size_pressure, pressure);
-    const float new_spacing = paint_space_stroke_spacing(C, stroke, new_size_pressure, pressure);
+    const float last_spacing = paint_space_stroke_spacing(C, stroke, last_size_factor, pressure);
+    const float new_spacing = paint_space_stroke_spacing(C, stroke, new_size_factor, pressure);
 
     return 0.5f * (last_spacing + new_spacing);
   }
@@ -813,7 +830,7 @@ static int paint_space_stroke(bContext *C,
                               const float final_pressure)
 {
   const ARegion *region = CTX_wm_region(C);
-  UnifiedPaintSettings *ups = stroke->ups;
+  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
   const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
@@ -846,7 +863,7 @@ static int paint_space_stroke(bContext *C,
 
   float pressure = stroke->last_pressure;
   float pressure_delta = final_pressure - stroke->last_pressure;
-  const float no_pressure_spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
+  const float no_pressure_spacing = paint_space_stroke_spacing_no_pressure(C, stroke);
   int count = 0;
   while (length > 0.0f) {
     const float spacing = paint_space_stroke_spacing_variable(
@@ -869,8 +886,8 @@ static int paint_space_stroke(bContext *C,
       }
       pressure = stroke->last_pressure + (spacing / length) * pressure_delta;
 
-      ups->overlap_factor = paint_stroke_integrate_overlap(*stroke->brush,
-                                                           spacing / no_pressure_spacing);
+      paint_runtime->overlap_factor = paint_stroke_integrate_overlap(
+          *stroke->brush, spacing / no_pressure_spacing);
 
       stroke->stroke_distance += spacing / stroke->zoom_2d;
       paint_brush_stroke_add_step(C, op, stroke, mouse, pressure);
@@ -889,6 +906,11 @@ static int paint_space_stroke(bContext *C,
   return count;
 }
 
+static bool print_pressure_status_enabled()
+{
+  return (G.debug_value == 887);
+}
+
 /**** Public API ****/
 
 PaintStroke *paint_stroke_new(bContext *C,
@@ -905,6 +927,7 @@ PaintStroke *paint_stroke_new(bContext *C,
   Paint *paint = BKE_paint_get_active_from_context(C);
   stroke->paint = paint;
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  bke::PaintRuntime *paint_runtime = paint->runtime;
   Brush *br = stroke->brush = BKE_paint_brush(paint);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -929,15 +952,15 @@ PaintStroke *paint_stroke_new(bContext *C,
 
   /* Check here if color sampling the main brush should do color conversion. This is done here
    * to avoid locking up to get the image buffer during sampling. */
-  ups->do_linear_conversion = false;
-  ups->colorspace = nullptr;
+  paint_runtime->do_linear_conversion = false;
+  paint_runtime->colorspace = nullptr;
 
   if (br->mtex.tex && br->mtex.tex->type == TEX_IMAGE && br->mtex.tex->ima) {
     ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(
         br->mtex.tex->ima, &br->mtex.tex->iuser, nullptr);
     if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
-      ups->do_linear_conversion = true;
-      ups->colorspace = tex_ibuf->byte_buffer.colorspace;
+      paint_runtime->do_linear_conversion = true;
+      paint_runtime->colorspace = tex_ibuf->byte_buffer.colorspace;
     }
     BKE_image_pool_release_ibuf(br->mtex.tex->ima, tex_ibuf, nullptr);
   }
@@ -948,8 +971,8 @@ PaintStroke *paint_stroke_new(bContext *C,
     }
   }
   /* initialize here */
-  ups->overlap_factor = 1.0;
-  ups->stroke_active = true;
+  paint_runtime->overlap_factor = 1.0;
+  paint_runtime->stroke_active = true;
 
   if (rv3d) {
     rv3d->rflag |= RV3D_PAINTING;
@@ -958,20 +981,21 @@ PaintStroke *paint_stroke_new(bContext *C,
   /* Preserve location from last stroke while applying and resetting
    * ups->average_stroke_counter to 1.
    */
-  if (ups->average_stroke_counter) {
-    mul_v3_fl(ups->average_stroke_accum, 1.0f / float(ups->average_stroke_counter));
-    ups->average_stroke_counter = 1;
+  if (paint_runtime->average_stroke_counter) {
+    mul_v3_fl(paint_runtime->average_stroke_accum,
+              1.0f / float(paint_runtime->average_stroke_counter));
+    paint_runtime->average_stroke_counter = 1;
   }
 
   /* initialize here to avoid initialization conflict with threaded strokes */
-  BKE_curvemapping_init(br->curve);
+  BKE_curvemapping_init(br->curve_distance_falloff);
   if (paint->flags & PAINT_USE_CAVITY_MASK) {
     BKE_curvemapping_init(paint->cavity_curve);
   }
 
   BKE_paint_set_overlay_override(eOverlayFlags(br->overlay_flags));
 
-  ups->start_pixel_radius = BKE_brush_size_get(stroke->paint, br);
+  paint_runtime->start_pixel_radius = BKE_brush_radius_get(stroke->paint, br);
 
   return stroke;
 }
@@ -988,9 +1012,9 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
     return;
   }
 
-  UnifiedPaintSettings *ups = stroke->ups;
-  ups->draw_anchored = false;
-  ups->stroke_active = false;
+  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
+  paint_runtime->draw_anchored = false;
+  paint_runtime->stroke_active = false;
 
   if (stroke->timer) {
     WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), stroke->timer);
@@ -1005,15 +1029,18 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
 
 static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
-  UnifiedPaintSettings *ups = stroke->ups;
+  if (print_pressure_status_enabled()) {
+    ED_workspace_status_text(C, nullptr);
+  }
+  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
 
   /* reset rotation here to avoid doing so in cursor display */
   if (!(stroke->brush->mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
-    ups->brush_rotation = 0.0f;
+    paint_runtime->brush_rotation = 0.0f;
   }
 
   if (!(stroke->brush->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
-    ups->brush_rotation_sec = 0.0f;
+    paint_runtime->brush_rotation_sec = 0.0f;
   }
 
   if (stroke->stroke_started) {
@@ -1087,9 +1114,7 @@ bool paint_supports_dynamic_size(const Brush &br, const PaintMode mode)
 
   switch (mode) {
     case PaintMode::Sculpt:
-      if (sculpt_is_grab_tool(br)) {
-        return false;
-      }
+      return bke::brush::supports_size_pressure(br);
       break;
 
     case PaintMode::Texture2D: /* fall through */
@@ -1229,8 +1254,8 @@ static void paint_line_strokes_spacing(bContext *C,
                                        const float2 old_pos,
                                        const float2 new_pos)
 {
-  UnifiedPaintSettings *ups = stroke->ups;
   Paint *paint = BKE_paint_get_active_from_context(C);
+  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
   const Brush &brush = *BKE_paint_brush(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const ARegion *region = CTX_wm_region(C);
@@ -1298,7 +1323,7 @@ static void paint_line_strokes_spacing(bContext *C,
         mouse = stroke->last_mouse_position + mouse_delta * spacing_final;
       }
 
-      ups->overlap_factor = paint_stroke_integrate_overlap(*stroke->brush, 1.0);
+      paint_runtime->overlap_factor = paint_stroke_integrate_overlap(*stroke->brush, 1.0);
 
       stroke->stroke_distance += spacing / stroke->zoom_2d;
       paint_brush_stroke_add_step(C, op, stroke, mouse, 1.0);
@@ -1320,8 +1345,9 @@ static void paint_stroke_line_end(bContext *C,
                                   const float2 mouse)
 {
   Brush *br = stroke->brush;
+  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
   if (stroke->stroke_started && (br->flag & BRUSH_LINE)) {
-    stroke->ups->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
+    paint_runtime->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
 
     paint_brush_stroke_add_step(C, op, stroke, stroke->last_mouse_position, 1.0);
     paint_space_stroke(C, op, stroke, mouse, 1.0);
@@ -1336,8 +1362,8 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
   }
 
   Paint *paint = BKE_paint_get_active_from_context(C);
-  UnifiedPaintSettings &ups = paint->unified_paint_settings;
-  const float spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
+  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
+  const float no_pressure_spacing = paint_space_stroke_spacing_no_pressure(C, stroke);
   const PaintCurve *pc = br.paint_curve;
 
   if (!pc) {
@@ -1349,7 +1375,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 #endif
 
   const PaintCurvePoint *pcp = pc->points;
-  stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
+  paint_runtime->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
 
   float length_residue = 0.0f;
   for (int i = 0; i < pc->tot_points - 1; i++, pcp++) {
@@ -1386,7 +1412,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
     for (int j = 0; j < PAINT_CURVE_NUM_SEGMENTS; j++) {
       if (do_rake) {
         const float rotation = atan2f(tangents[2 * j + 1], tangents[2 * j]) + float(0.5f * M_PI);
-        paint_update_brush_rake_rotation(ups, br, rotation);
+        paint_update_brush_rake_rotation(*paint, br, rotation);
       }
 
       if (!stroke->stroke_started) {
@@ -1403,13 +1429,18 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 
         if (stroke->stroke_started) {
           paint_brush_stroke_add_step(C, op, stroke, data + 2 * j, 1.0);
-          paint_line_strokes_spacing(
-              C, op, stroke, spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
+          paint_line_strokes_spacing(C,
+                                     op,
+                                     stroke,
+                                     no_pressure_spacing,
+                                     &length_residue,
+                                     data + 2 * j,
+                                     data + 2 * (j + 1));
         }
       }
       else {
         paint_line_strokes_spacing(
-            C, op, stroke, spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
+            C, op, stroke, no_pressure_spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
       }
     }
   }
@@ -1456,6 +1487,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  bke::PaintRuntime &paint_runtime = *paint->runtime;
   PaintStroke *stroke = *stroke_p;
   const Brush *br = stroke->brush = BKE_paint_brush(paint);
   bool first_dab = false;
@@ -1472,6 +1504,11 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   const float tablet_pressure = WM_event_tablet_data(event, &stroke->pen_flip, nullptr);
   float pressure = ((br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0f :
                                                                                   tablet_pressure);
+
+  if (print_pressure_status_enabled() && WM_event_is_tablet(event)) {
+    std::string msg = fmt::format("Tablet Pressure: {:.4f}", pressure);
+    ED_workspace_status_text(C, msg.c_str());
+  }
 
   /* When processing a timer event the pressure from the event is 0, so use the last valid
    * pressure. */
@@ -1619,9 +1656,9 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
       if ((br->mtex.brush_angle_mode & MTEX_ANGLE_RAKE) ||
           (br->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE))
       {
-        copy_v2_v2(stroke->ups->last_rake, stroke->last_mouse_position);
+        copy_v2_v2(paint_runtime.last_rake, stroke->last_mouse_position);
       }
-      paint_calculate_rake_rotation(*stroke->ups, *br, mouse, mode, true);
+      paint_calculate_rake_rotation(*stroke->paint, *br, mouse, mode, true);
     }
   }
   else if (first_modal ||
@@ -1651,7 +1688,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   /* we want the stroke to have the first daub at the start location
    * instead of waiting till we have moved the space distance */
   if (first_dab && paint_space_stroke_enabled(*br, mode) && !(br->flag & BRUSH_SMOOTH_STROKE)) {
-    stroke->ups->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
+    paint_runtime.overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
     paint_brush_stroke_add_step(C, op, stroke, sample_average.mouse, sample_average.pressure);
     redraw = true;
   }

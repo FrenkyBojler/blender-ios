@@ -30,6 +30,7 @@
 
 #include <chrono>
 
+#include "BLI_cache_mutex.hh"
 #include "BLI_compute_context.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_generic_pointer.hh"
@@ -38,12 +39,13 @@
 #include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node.hh"
+#include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_volume_grid_fwd.hh"
 
 #include "NOD_geometry_nodes_closure_location.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_warning.hh"
-#include "NOD_socket_interface_key.hh"
 
 #include "FN_field.hh"
 
@@ -133,6 +135,11 @@ struct GeometryAttributeInfo {
   std::optional<bke::AttrType> data_type;
 };
 
+struct VolumeGridInfo {
+  std::string name;
+  VolumeGridType grid_type;
+};
+
 /**
  * Geometries are not logged entirely, because that would result in a lot of time and memory
  * overhead. Instead, only the data needed for UI features is logged.
@@ -166,7 +173,7 @@ class GeometryInfoLog : public ValueLog {
     int gizmo_transforms_num = 0;
   };
   struct VolumeInfo {
-    int grids_num;
+    Vector<VolumeGridInfo> grids;
   };
 
   std::optional<MeshInfo> mesh_info;
@@ -190,8 +197,8 @@ class GridInfoLog : public ValueLog {
 class BundleValueLog : public ValueLog {
  public:
   struct Item {
-    SocketInterfaceKey key;
-    const bke::bNodeSocketType *type;
+    std::string key;
+    std::variant<const bke::bNodeSocketType *, StringRefNull> type;
   };
 
   Vector<Item> items;
@@ -202,7 +209,7 @@ class BundleValueLog : public ValueLog {
 class ClosureValueLog : public ValueLog {
  public:
   struct Item {
-    SocketInterfaceKey key;
+    std::string key;
     const bke::bNodeSocketType *type;
   };
 
@@ -227,13 +234,37 @@ class ClosureValueLog : public ValueLog {
                   std::shared_ptr<ClosureEvalLog> eval_log);
 };
 
+class ListInfoLog : public ValueLog {
+ public:
+  int64_t size;
+
+  ListInfoLog(const List *list);
+};
+
 /**
- * Data logged by a viewer node when it is executed. In this case, we do want to log the entire
- * geometry.
+ * Data logged by a viewer node when it is executed.
  */
 class ViewerNodeLog {
+  mutable CacheMutex main_geometry_cache_mutex_;
+  mutable std::optional<bke::GeometrySet> main_geometry_cache_;
+
  public:
-  bke::GeometrySet geometry;
+  struct Item {
+    int identifier;
+    std::string name;
+    bke::SocketValueVariant value;
+  };
+
+  struct ItemIdentifierGetter {
+    int operator()(const Item &item) const
+    {
+      return item.identifier;
+    }
+  };
+
+  CustomIDVectorSet<Item, ItemIdentifierGetter> items;
+
+  const bke::GeometrySet *main_geometry() const;
 };
 
 using Clock = std::chrono::steady_clock;
@@ -303,7 +334,6 @@ class GeoTreeLogger {
   ~GeoTreeLogger();
 
   void log_value(const bNode &node, const bNodeSocket &socket, GPointer value);
-  void log_viewer_node(const bNode &viewer_node, bke::GeometrySet geometry);
 };
 
 /**

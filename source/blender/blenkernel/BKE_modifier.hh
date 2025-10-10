@@ -29,6 +29,7 @@ struct CustomData_MeshMasks;
 struct DepsNodeHandle;
 struct Depsgraph;
 struct ID;
+struct IDTypeForeachColorFunctionCallback;
 struct ListBase;
 struct Main;
 struct Mesh;
@@ -41,7 +42,7 @@ struct StructRNA;
 struct IDCacheKey;
 
 enum class ModifierTypeType {
-  /* Should not be used, only for None modifier type */
+  /** Should not be used, only for None modifier type. */
   None,
 
   /**
@@ -54,7 +55,7 @@ enum class ModifierTypeType {
 
   /** Modifier adds geometry. */
   Constructive,
-  /* Modifier can add and remove geometry. */
+  /** Modifier can add and remove geometry. */
   Nonconstructive,
 
   /**
@@ -249,7 +250,7 @@ struct ModifierTypeInfo {
                           Mesh *mesh,
                           blender::MutableSpan<blender::float3> positions);
 
-  /* Set deform matrix per vertex for crazy-space correction */
+  /** Set deform matrix per vertex for crazy-space correction. */
   void (*deform_matrices_EM)(ModifierData *md,
                              const ModifierEvalContext *ctx,
                              const BMEditMesh *em,
@@ -410,6 +411,12 @@ struct ModifierTypeInfo {
       Object *object,
       ModifierData *md,
       blender::FunctionRef<void(const IDCacheKey &cache_key, void **cache_p, uint flags)> fn);
+
+  /**
+   * Iterate over all working space colors.
+   */
+  void (*foreach_working_space_color)(ModifierData *md,
+                                      const IDTypeForeachColorFunctionCallback &fn);
 };
 
 /** Used to set a modifier's panel type. */

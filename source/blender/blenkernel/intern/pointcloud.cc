@@ -8,6 +8,7 @@
 
 #include <optional>
 
+#include "BLI_function_ref.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_defaults.h"
@@ -112,6 +113,13 @@ static void pointcloud_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void pointcloud_foreach_working_space_color(ID *id,
+                                                   const IDTypeForeachColorFunctionCallback &fn)
+{
+  PointCloud *pointcloud = (PointCloud *)id;
+  pointcloud->attribute_storage.wrap().foreach_working_space_color(fn);
+}
+
 static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   using namespace blender;
@@ -121,7 +129,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   ResourceScope scope;
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
   attribute_storage_blend_write_prepare(pointcloud->attribute_storage.wrap(), attribute_data);
-  BLI_assert(pointcloud->pdata_legacy.totlayer == 0);
+
   if (attribute_data.attributes.is_empty()) {
     pointcloud->attribute_storage.dna_attributes = nullptr;
     pointcloud->attribute_storage.dna_attributes_num = 0;
@@ -130,6 +138,8 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
     pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
     pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
   }
+
+  CustomData_reset(&pointcloud->pdata_legacy);
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
@@ -174,6 +184,7 @@ IDTypeInfo IDType_ID_PT = {
     /*foreach_id*/ pointcloud_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ pointcloud_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ pointcloud_blend_write,
@@ -187,7 +198,7 @@ IDTypeInfo IDType_ID_PT = {
 
 Span<float3> PointCloud::positions() const
 {
-  return blender::bke::get_span_attribute<float3>(
+  return *blender::bke::get_span_attribute<float3>(
       this->attribute_storage.wrap(), blender::bke::AttrDomain::Point, "position", this->totpoint);
 }
 MutableSpan<float3> PointCloud::positions_for_write()

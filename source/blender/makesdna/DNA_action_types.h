@@ -242,6 +242,21 @@ typedef struct bPoseChannel_BBoneSegmentBoundary {
   float depth_scale;
 } bPoseChannel_BBoneSegmentBoundary;
 
+/**
+ * Runtime flags on pose bones. Those are only used internally and are not exposed to the user.
+ */
+typedef enum bPoseChannelRuntimeFlag {
+  /** Used during transform. Not every selected bone is transformed. For example in a chain of
+     bones, only the first selected may be transformed. */
+  POSE_RUNTIME_TRANSFORM = (1 << 0),
+  /** Set to prevent hinge child bones from influencing the transform center. */
+  POSE_RUNTIME_HINGE_CHILD_TRANSFORM = (1 << 1),
+  /** Indicates that a parent is also being transformed. */
+  POSE_RUNTIME_TRANSFORM_CHILD = (1 << 2),
+  /* Set on bones during selection to tell following code that this bone should be operated on. */
+  POSE_RUNTIME_IN_SELECTION_AREA = (1 << 3),
+} bPoseChannelRuntimeFlag;
+
 typedef struct bPoseChannel_Runtime {
   SessionUID session_uid;
 
@@ -253,7 +268,9 @@ typedef struct bPoseChannel_Runtime {
 
   /* Inverse of the total length of the segment polyline. */
   float bbone_arc_length_reciprocal;
-  char _pad1[4];
+  /* bPoseChannelRuntimeFlag */
+  uint8_t flag;
+  char _pad1[3];
 
   /* Rest and posed matrices for segments. */
   struct Mat4 *bbone_rest_mats;
@@ -303,7 +320,7 @@ typedef struct bPoseChannel {
   ListBase constraints;
   char name[/*MAXBONENAME*/ 64];
 
-  /** Dynamic, for detecting transform changes. */
+  /** Dynamic, for detecting transform changes (ePchan_Flag). */
   short flag;
   /** Settings for IK bones. */
   short ikflag;
@@ -313,8 +330,9 @@ typedef struct bPoseChannel {
   short agrp_index;
   /** For quick detecting which constraints affect this channel. */
   char constflag;
-  /** Copy of bone flag, so you can work with library armatures, not for runtime use. */
-  char selectflag;
+  /** This used to store the selectionflag for serialization but is not longer required since that
+   * is now natively stored on the `flag` property. */
+  char selectflag DNA_DEPRECATED;
   char drawflag;
   char bboneflag DNA_DEPRECATED;
   char _pad0[4];
@@ -454,6 +472,15 @@ typedef enum ePchan_Flag {
 
   /* has BBone deforms */
   POSE_BBONE_SHAPE = (1 << 3),
+  /* When set and bPoseChan.custom_tx is not a nullptr, the gizmo will be drawn at the location and
+     orientation of the custom_tx instead of this bone. */
+  POSE_TRANSFORM_AT_CUSTOM_TX = (1 << 4),
+  /* When set, transformations will modify the bone as if it was a child of the
+     bPoseChan.custom_tx. The flag only has an effect when `POSE_TRANSFORM_AT_CUSTOM_TX` and
+     `custom_tx` are set. This can be useful for rigs where the deformation is coming from
+     blendshapes in addition to the armature. */
+  POSE_TRANSFORM_AROUND_CUSTOM_TX = (1 << 5),
+  POSE_SELECTED = (1 << 6),
 
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),
@@ -504,6 +531,7 @@ typedef enum ePchan_IkFlag {
 /* PoseChannel->drawflag */
 typedef enum ePchan_DrawFlag {
   PCHAN_DRAW_NO_CUSTOM_BONE_SIZE = (1 << 0),
+  PCHAN_DRAW_HIDDEN = (1 << 1),
 } ePchan_DrawFlag;
 
 /* NOTE: It doesn't take custom_scale_xyz into account. */
@@ -779,11 +807,13 @@ typedef struct bAction {
   /** ID-serialization for relinking. */
   ID id;
 
-  struct ActionLayer **layer_array; /* Array of 'layer_array_num' layers. */
+  /** Array of `layer_array_num` layers. */
+  struct ActionLayer **layer_array;
   int layer_array_num;
   int layer_active_index; /* Index into layer_array, -1 means 'no active'. */
 
-  struct ActionSlot **slot_array; /* Array of 'slot_array_num` slots. */
+  /** Array of `slot_array_num` slots. */
+  struct ActionSlot **slot_array;
   int slot_array_num;
   int32_t last_slot_handle;
 
@@ -811,8 +841,6 @@ typedef struct bAction {
 
   /** Legacy F-Curves (FCurve), introduced in Blender 2.5. */
   ListBase curves;
-  /** Legacy Action Channels (bActionChannel) from pre-2.5 animation system. */
-  ListBase chanbase DNA_DEPRECATED;
   /** Legacy Groups of function-curves (bActionGroup), introduced in Blender 2.5. */
   ListBase groups;
 
@@ -987,6 +1015,17 @@ typedef struct SpaceAction_Runtime {
   char _pad0[7];
 } SpaceAction_Runtime;
 
+typedef enum SpaceActionOverlays_Flag {
+  ADS_OVERLAY_SHOW_OVERLAYS = (1 << 0),
+  ADS_SHOW_SCENE_STRIP_FRAME_RANGE = (1 << 1)
+} SpaceActionOverlays_Flag;
+
+typedef struct SpaceActionOverlays {
+  /** #SpaceActionOverlays_Flag */
+  int flag;
+  char _pad0[4];
+} SpaceActionOverlays;
+
 /* Action Editor Space. This is defined here instead of in DNA_space_types.h */
 typedef struct SpaceAction {
   struct SpaceLink *next, *prev;
@@ -1000,10 +1039,8 @@ typedef struct SpaceAction {
   /** Copied to region. */
   View2D v2d DNA_DEPRECATED;
 
-  /** The currently active action and its slot. */
-  bAction *action;
-  int32_t action_slot_handle;
-  char _pad2[4];
+  /** The currently active action (deprecated). */
+  bAction *action DNA_DEPRECATED;
 
   /** The currently active context (when not showing action). */
   bDopeSheet ads;
@@ -1021,6 +1058,8 @@ typedef struct SpaceAction {
   /** (eTimeline_Cache_Flag). */
   char cache_display;
   char _pad1[6];
+
+  SpaceActionOverlays overlays;
 
   SpaceAction_Runtime runtime;
 } SpaceAction;
@@ -1105,38 +1144,6 @@ typedef enum eTimeline_Cache_Flag {
   TIME_CACHE_RIGIDBODY = (1 << 6),
   TIME_CACHE_SIMULATION_NODES = (1 << 7),
 } eTimeline_Cache_Flag;
-
-/* ************************************************ */
-/* Legacy Data */
-
-/* WARNING: Action Channels are now deprecated... they were part of the old animation system!
- *        (ONLY USED FOR DO_VERSIONS...)
- *
- * Action Channels belong to Actions. They are linked with an IPO block, and can also own
- * Constraint Channels in certain situations.
- *
- * Action-Channels can only belong to one group at a time, but they still live the Action's
- * list of achans (to preserve backwards compatibility, and also minimize the code
- * that would need to be recoded). Grouped achans are stored at the start of the list, according
- * to the position of the group in the list, and their position within the group.
- */
-typedef struct bActionChannel {
-  struct bActionChannel *next, *prev;
-  /** Action Group this Action Channel belongs to. */
-  bActionGroup *grp;
-
-  /** IPO block this action channel references. */
-  struct Ipo *ipo;
-  /** Constraint Channels (when Action Channel represents an Object or Bone). */
-  ListBase constraintChannels;
-
-  /** Settings accessed via bitmapping. */
-  int flag;
-  /** Channel name. */
-  char name[/*MAX_NAME*/ 64];
-  /** Temporary setting - may be used to indicate group that channel belongs to during syncing. */
-  int temp;
-} bActionChannel;
 
 /* ************************************************ */
 /* Layered Animation data-types. */
@@ -1330,6 +1337,4 @@ typedef struct ActionChannelbag {
 static_assert(std::is_same_v<decltype(ActionSlot::handle), decltype(bAction::last_slot_handle)>);
 static_assert(
     std::is_same_v<decltype(ActionSlot::handle), decltype(ActionChannelbag::slot_handle)>);
-static_assert(
-    std::is_same_v<decltype(ActionSlot::handle), decltype(SpaceAction::action_slot_handle)>);
 #endif

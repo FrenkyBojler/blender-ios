@@ -16,7 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -187,7 +187,7 @@ static void set_constraint_nth_target(bConstraint *con,
     for (ct = static_cast<bConstraintTarget *>(targets.first), i = 0; ct; ct = ct->next, i++) {
       if (i == index) {
         ct->tar = target;
-        STRNCPY(ct->subtarget, subtarget);
+        STRNCPY_UTF8(ct->subtarget, subtarget);
         break;
       }
     }
@@ -957,6 +957,34 @@ static wmOperatorStatus childof_clear_inverse_invoke(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
+static bool childof_clear_inverse_poll(bContext *C)
+{
+  if (!edit_constraint_liboverride_allowed_poll(C)) {
+    return false;
+  }
+
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  bConstraint *con = static_cast<bConstraint *>(ptr.data);
+
+  /* Allow workflows with unset context's constraint.
+   * The constraint can also be provided as an operator's property. */
+  if (con == nullptr) {
+    return true;
+  }
+
+  if (con->type != CONSTRAINT_TYPE_CHILDOF) {
+    return false;
+  }
+
+  bChildOfConstraint *data = static_cast<bChildOfConstraint *>(con->data);
+
+  if (is_identity_m4(data->invmat)) {
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set, so there is nothing to clear");
+    return false;
+  }
+  return true;
+}
+
 void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
 {
   /* identifiers */
@@ -967,7 +995,7 @@ void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = childof_clear_inverse_invoke;
   ot->exec = childof_clear_inverse_exec;
-  ot->poll = edit_constraint_liboverride_allowed_poll;
+  ot->poll = childof_clear_inverse_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1216,6 +1244,27 @@ static wmOperatorStatus objectsolver_clear_inverse_invoke(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
+static bool objectsolver_clear_inverse_poll(bContext *C)
+{
+  if (!edit_constraint_poll(C)) {
+    return false;
+  }
+
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  bConstraint *con = static_cast<bConstraint *>(ptr.data);
+  if (con == nullptr) {
+    return true;
+  }
+
+  bObjectSolverConstraint *data = (bObjectSolverConstraint *)con->data;
+
+  if (is_identity_m4(data->invmat)) {
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set, so there is nothing to clear");
+    return false;
+  }
+  return true;
+}
+
 void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1226,7 +1275,7 @@ void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = objectsolver_clear_inverse_invoke;
   ot->exec = objectsolver_clear_inverse_exec;
-  ot->poll = edit_constraint_poll;
+  ot->poll = objectsolver_clear_inverse_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1382,7 +1431,7 @@ static wmOperatorStatus constraint_delete_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
 
   /* free the constraint */
   if (BKE_constraint_remove_ex(lb, ob, con)) {
@@ -1455,7 +1504,7 @@ static wmOperatorStatus constraint_apply_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
   const bool is_first_constraint = con != constraints->first;
 
   /* Copy the constraint. */
@@ -1552,7 +1601,7 @@ static wmOperatorStatus constraint_copy_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
 
   /* Copy the constraint. */
   bConstraint *copy_con;
