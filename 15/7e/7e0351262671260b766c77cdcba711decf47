@@ -1,1 +1,2 @@
 Referenced by commit bfb0d2ad20a2cf700d85e8f121009cd4cdb795ab, Fix #144846: Mesh triangulation can generate duplicate faces and edges
+Referenced by issue #147797, Blender 5.0 Beta FREEZE or CRASH when import USD file
