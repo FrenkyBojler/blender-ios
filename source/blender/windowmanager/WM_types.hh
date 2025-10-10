@@ -1345,6 +1345,7 @@ struct wmDrag {
   ListBase ids;
   /** List of `wmDragAssetListItem`s. */
   ListBase asset_items;
+  wmTimer *timer;
 };
 
 /**

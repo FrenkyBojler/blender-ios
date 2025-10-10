@@ -260,7 +260,6 @@ void UI_region_view_scroll_at_borders(ARegion *region, const int xy[2])
   }
 
   ED_region_tag_redraw(region);
-  BLI_time_sleep_ms(30);
 }
 
 ui::AbstractViewItem *UI_region_views_find_item_at(const ARegion &region, const int xy[2])

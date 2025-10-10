@@ -596,7 +596,7 @@ void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
 
 void wm_drags_handle_events(bContext *C, const wmEvent *event)
 {
-  if (!(ELEM(event->type, MOUSEMOVE, EVT_DROP) || ISKEYMODIFIER(event->type))) {
+  if (!(ELEM(event->type, MOUSEMOVE, EVT_DROP, TIMER) || ISKEYMODIFIER(event->type))) {
     return;
   }
 
@@ -610,7 +610,14 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
     if (drag->drop_state.active_dropbox) {
       any_active = true;
       if (region && drag->drop_state.active_dropbox->on_hover) {
-        drag->drop_state.active_dropbox->on_hover(region, event->xy);
+        if (drag->timer == nullptr) {
+          drag->timer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.01);
+        }
+        if (drag->timer == event->customdata) {
+          WM_event_timer_remove(wm, CTX_wm_window(C), drag->timer);
+          drag->timer = nullptr;
+          drag->drop_state.active_dropbox->on_hover(region, event->xy);
+        }
       }
     }
   }
