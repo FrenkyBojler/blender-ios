@@ -1962,9 +1962,6 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
           if ((ob.base_flag & BASE_SELECTABLE) == 0) {
             return false;
           }
-          if ((ob.visibility_flag & OB_HIDE_SURFACE_PICK) != 0) {
-            return false;
-          }
         }
 
         if ((object_type_exclude_select & (1 << ob.type)) == 0) {
@@ -2044,9 +2041,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
         return false;
       }
       if (use_only_selected && !(ob.base_flag & BASE_SELECTED)) {
-        return false;
-      }
-      if ((ob.visibility_flag & OB_HIDE_SURFACE_PICK) != 0) {
         return false;
       }
       return true;
