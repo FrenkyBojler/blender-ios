@@ -3287,7 +3287,12 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 46)) {
-    /* Versioning from 0a0dd4ca37 was wrong, now corrected below. */
+    /* Versioning from 0a0dd4ca37 was wrong, it only created asset shelf regions for Node Editors
+     * that are Compositors. If you change a non-Node Editor (e.g. an Image Editor) to a Compositor
+     * Editor, all is fine (SpaceLink *node_create gets called, the regions set up correctly), but
+     * changing an existing Node Editor (e.g. Shader or Geometry Nodes) to a Compositor, no new
+     * Space gets set up (rightfully so) and we are then missing the regions. Now corrected below
+     * (version bump in 5.1 since that is also affected). */
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 48)) {
