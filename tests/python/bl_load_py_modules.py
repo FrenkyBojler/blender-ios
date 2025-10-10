@@ -18,7 +18,7 @@ import os
 # The trailing components of the path are used instead of the module name.
 # Both script files & directories are supported which prevents searching inside the directory.
 EXCLUDE_MODULE_PATHS = {
-    "bl_i18n_utils",
+    "_bl_i18n_utils",
     "_bl_previews_utils",
     "cycles",
 
