@@ -2618,7 +2618,6 @@ static void uv_select_linked_multi(Scene *scene,
           }
 
           if (!flag[iterv->face_index]) {
-
             if (delimit_seam) {
               BMFace *iterv_f = BM_face_at_index(bm, iterv->face_index);
               bool shares_non_seam_edge = false;
