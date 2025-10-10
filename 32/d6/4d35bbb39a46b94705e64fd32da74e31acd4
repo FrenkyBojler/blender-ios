@@ -1,2 +1,3 @@
 Referenced by commit 1f42ca9be3ee24c0f94f8c0aca2c9d061e1ba25b, Cleanup: GPU: Avoid warning in switch statement
 Referenced by commit 1611dc2fb38604a1a6cd3b173f623681cdaf3420, GPU: Rever mass renaming removing GPUTexture type from python
+Referenced by issue #147767, Occasional crash when trying to render with EEVEE
