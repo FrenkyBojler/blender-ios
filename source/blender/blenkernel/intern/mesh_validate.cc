@@ -410,7 +410,7 @@ void mesh_validate(Mesh &mesh)
   }
   const IndexMask valid_faces = invalid_faces_mask.complement(faces_range, memory);
 
-  Array<int> new_face_offsets(mesh.faces_num + 1);
+  Vector<int> new_face_offsets(mesh.faces_num + 1);
   invalid_faces_mask.foreach_index(GrainSize(4096), [&](const int face_i, const int pos) {
     const int face_start = face_offsets[face_i];
     const int face_size = face_offsets[face_i + 1] - face_start;
@@ -492,6 +492,9 @@ void mesh_validate(Mesh &mesh)
 
   mesh.faces_num = new_faces.size();
   mesh.corners_num = new_faces.total_size();
+  mesh.face_offset_indices = new_face_offsets.release().data;
+  mesh.runtime->face_offsets_sharing_info = implicit_sharing::info_for_mem_free(
+      mesh.face_offset_indices);
 
   const IndexMask invalid_edges_mask = IndexMask::from_bits(invalid_edges, memory);
   if (invalid_edges_mask.is_empty()) {
