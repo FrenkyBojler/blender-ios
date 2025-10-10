@@ -4005,7 +4005,7 @@ static size_t property_string_length_storage(PointerRNA *ptr, PropertyRNAOrID &p
   if (prop_rna_or_id.idprop) {
     IDProperty *idprop = prop_rna_or_id.idprop;
     if (idprop->subtype == IDP_STRING_SUB_BYTE) {
-      return size_t(idprop->len);
+      return size_t(idprop->len - 1);
     }
     /* these _must_ stay in sync */
     if (strlen(IDP_string_get(idprop)) != idprop->len - 1) {
