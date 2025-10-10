@@ -674,8 +674,8 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
 
     /* Build a map from parent to its children, to speed up the loop below. */
     blender::Map<EditBone *, blender::VectorSet<EditBone *>> parent_to_children;
-    for (EditBone *bone : blender::ListBaseWrapper<EditBone>(arm->edbo)) {
-      parent_to_children.lookup_or_add_default(bone->parent).add_new(bone);
+    LISTBASE_FOREACH (EditBone *, eBone, arm->edbo) {
+      parent_to_children.lookup_or_add_default(eBone->parent).add_new(eBone);
     }
 
     LISTBASE_FOREACH (EditBone *, eBone, arm->edbo) {
