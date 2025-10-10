@@ -814,6 +814,16 @@ static void ensure_texture_bindings(MTLContext &ctx,
   bits::BitInt bind_image = dirty_enabled_image_mask & stage_ima_mask;
   for (const uint slot : BitSpan(&bind_image, MTL_MAX_IMAGE_SLOTS).high_bits()) {
     MTLTexture *gpu_tex = ctx.pipeline_state.image_bindings[slot].texture_resource;
+
+    if (gpu_tex == nullptr) {
+      /* TODO(fclem): texture_get can also return uniforms or images. */
+      const int name_ofs = shader_interface.texture_get(slot)->name_offset;
+      MTL_LOG_ERROR("Shader %s: Missing image bind: %s slot(%d).",
+                    shader.name_get().c_str(),
+                    shader_interface.name_at_offset(name_ofs),
+                    slot);
+      continue;
+    }
     /* If texture resource is an image binding and has a non-default swizzle mask, we need
      * to bind the source texture resource to retain image write access. */
     id<MTLTexture> tex = gpu_tex->has_custom_swizzle() ? gpu_tex->get_metal_handle_base() :
@@ -834,6 +844,16 @@ static void ensure_texture_bindings(MTLContext &ctx,
   for (const uint slot : BitSpan(&bind_sampler, MTL_MAX_SAMPLER_SLOTS).high_bits()) {
     MTLTexture *gpu_tex = ctx.pipeline_state.texture_bindings[slot].texture_resource;
     MTLSamplerBinding &sampler_state = ctx.pipeline_state.sampler_bindings[slot];
+
+    if (gpu_tex == nullptr) {
+      /* TODO(fclem): texture_get can also return uniforms or images. */
+      const int name_ofs = shader_interface.texture_get(slot)->name_offset;
+      MTL_LOG_ERROR("Shader %s: Missing texture bind: %s slot(%d).",
+                    shader.name_get().c_str(),
+                    shader_interface.name_at_offset(name_ofs),
+                    slot);
+      continue;
+    }
 
     id<MTLSamplerState> mtl_sampler = (sampler_state.state == DEFAULT_SAMPLER_STATE) ?
                                           ctx.get_default_sampler_state() :
@@ -912,17 +932,31 @@ static void ensure_buffer_bindings(MTLContext &ctx,
 
   bits::BitInt bind_ubo = dirty_enabled_ubo_mask & (stage_buf_mask >> MTL_UBO_SLOT_OFFSET);
   for (const uint slot : BitSpan(&bind_ubo, MTL_MAX_UBO).high_bits()) {
-    bindings.bind_buffer(enc,
-                         ctx.pipeline_state.ubo_bindings[slot].ubo->get_metal_buffer(),
-                         0,
-                         MTL_UBO_SLOT_OFFSET + slot);
+    MTLUniformBufferBinding &bind = ctx.pipeline_state.ubo_bindings[slot];
+    if (bind.ubo) {
+      bindings.bind_buffer(enc, bind.ubo->get_metal_buffer(), 0, MTL_UBO_SLOT_OFFSET + slot);
+    }
+    else {
+      const int name_ofs = shader_interface.ubo_get(slot)->name_offset;
+      MTL_LOG_ERROR("Shader %s: Missing UBO bind: %s slot(%d).",
+                    shader.name_get().c_str(),
+                    shader_interface.name_at_offset(name_ofs),
+                    slot);
+    }
   }
   bits::BitInt bind_ssbo = dirty_enabled_ssbo_mask & (stage_buf_mask >> MTL_SSBO_SLOT_OFFSET);
   for (const uint slot : BitSpan(&bind_ssbo, MTL_MAX_SSBO).high_bits()) {
-    bindings.bind_buffer(enc,
-                         ctx.pipeline_state.ssbo_bindings[slot].ssbo->get_metal_buffer(),
-                         0,
-                         MTL_SSBO_SLOT_OFFSET + slot);
+    MTLStorageBufferBinding &bind = ctx.pipeline_state.ssbo_bindings[slot];
+    if (bind.ssbo) {
+      bindings.bind_buffer(enc, bind.ssbo->get_metal_buffer(), 0, MTL_SSBO_SLOT_OFFSET + slot);
+    }
+    else {
+      const int name_ofs = shader_interface.ssbo_get(slot)->name_offset;
+      MTL_LOG_ERROR("Shader %s: Missing SSBO bind: %s slot(%d).",
+                    shader.name_get().c_str(),
+                    shader_interface.name_at_offset(name_ofs),
+                    slot);
+    }
   }
 }
 
