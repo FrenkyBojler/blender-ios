@@ -1,2 +1,3 @@
 Referenced by issue #147776, Cropping misaligned when proxy_render_size is not 100%
 Referenced by pull request #147792, Fix #147776: VSE strip crop values not scaled to preview/proxy size
+Referenced by commit 9cbbe1ef738ca082c14ea79ab1f9f484bd9b8fce, Fix #147776: VSE strip crop values not scaled to preview/proxy size
