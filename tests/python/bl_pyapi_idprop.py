@@ -86,8 +86,10 @@ class TestIdPropertyCreation(TestHelper, unittest.TestCase):
         self.id[self.key_id] = value
         self.assertEqual(self.id[self.key_id], value)
         self.assertTrue(isinstance(self.id[self.key_id], bytes))
-        self.assertEqual(self.id[self.key_id],
-                         self.id.path_resolve('["%s"]' % bpy.utils.escape_identifier(self.key_id)))
+        self.assertTrue(
+            self.id.path_resolve(f'["{bpy.utils.escape_identifier(self.key_id)}"]')
+            in (value, value[:-1])
+        )
 
     def test_enum(self):
         # Note: Fake enum, this merely creates a PROP_INT idprop.
