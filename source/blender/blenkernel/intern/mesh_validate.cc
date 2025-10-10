@@ -13,6 +13,7 @@
 
 #include "BKE_attribute_math.hh"
 #include "BLI_array_utils.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "CLG_log.h"
 
 #include "DNA_mesh_types.h"
@@ -328,8 +329,10 @@ void mesh_validate(Mesh &mesh)
           }
         });
 
+    threading::EnumerableThreadSpecific<Vector<std::pair<int, int>>> all_replaced_corner_edges;
     threading::parallel_for_aligned(
         faces_range, 512, bits::BitsPerInt, [&](const IndexRange range) {
+          Vector<std::pair<int, int>> &replaced_corner_edges = all_replaced_corner_edges.local();
           for (const int face_i : range) {
             if (invalid_faces[face_i]) {
               continue;
@@ -343,23 +346,32 @@ void mesh_validate(Mesh &mesh)
               const int vert = corner_verts[corner];
               const int vert_next = corner_verts[corner_next];
               const OrderedEdge actual_edge(vert, vert_next);
-              const int unique_edge_index = unique_edges.index_of_try(actual_edge);
-              if (unique_edge_index == -1) {
+              const int actual_edge_index = unique_edges.index_of_try(actual_edge);
+              if (actual_edge_index == -1) {
                 invalid_faces[face_i].set();
                 break;
               }
               const int edge_reference = corner_edges[corner];
               if (!edges_range.contains(edge_reference)) {
                 faces_with_invalid_edges[face_i].set();
-                // TODO fix just edge and mark this as invalid differently
+                replaced_corner_edges.append({corner, actual_edge_index});
               }
               if (OrderedEdge(edges[edge_reference]) != actual_edge) {
                 faces_with_invalid_edges[face_i].set();
-                // TODO fix just edge and mark this as invalid differently
+                replaced_corner_edges.append({corner, actual_edge_index});
               }
             }
           }
         });
+
+    if (false /* faces_with_invalid_edges.contains(true) */) {  // TODO
+      MutableSpan<int> corner_edges_mut = mesh.corner_edges_for_write();
+      for (const Vector<std::pair<int, int>> &replaced_corner_edge : all_replaced_corner_edges) {
+        for (const std::pair<int, int> &replacement : replaced_corner_edge) {
+          corner_edges_mut[replacement.first] = replacement.second;
+        }
+      }
+    }
   }
 
   Array<int> sorted_corner_verts(mesh.corners_num);
