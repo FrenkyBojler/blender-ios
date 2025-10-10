@@ -618,8 +618,8 @@ void MTLRenderPipelineStateInstance::parse_reflection_data(
   this->used_buf_vert_mask = get_buffers_binding_mask([reflection_data vertexArguments]);
   this->used_buf_frag_mask = get_buffers_binding_mask([reflection_data fragmentArguments]);
 
-  this->used_tex_vert_mask = get_images_binding_mask([reflection_data vertexArguments]);
-  this->used_tex_frag_mask = get_images_binding_mask([reflection_data fragmentArguments]);
+  this->used_ima_vert_mask = get_images_binding_mask([reflection_data vertexArguments]);
+  this->used_ima_frag_mask = get_images_binding_mask([reflection_data fragmentArguments]);
 
   this->used_tex_vert_mask = get_samplers_binding_mask([reflection_data vertexArguments]);
   this->used_tex_frag_mask = get_samplers_binding_mask([reflection_data fragmentArguments]);
