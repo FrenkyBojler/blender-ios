@@ -11,6 +11,7 @@
 #include <cstring>
 #include <fmt/format.h>
 
+#include "BKE_attribute_math.hh"
 #include "CLG_log.h"
 
 #include "DNA_mesh_types.h"
@@ -347,7 +348,7 @@ void mesh_validate(Mesh &mesh)
   });
 
   using FaceMap = VectorSet<Span<int>,
-                            4,
+                            32,
                             DefaultProbingStrategy,
                             DefaultHash<Span<int>>,
                             DefaultEquality<Span<int>>,
@@ -373,11 +374,32 @@ void mesh_validate(Mesh &mesh)
   if (invalid_faces_mask.is_empty()) {
     return;
   }
+  const IndexMask valid_faces = invalid_faces_mask.complement(faces_range, memory);
 
   Array<int> new_face_offsets(mesh.faces_num + 1);
+  invalid_faces_mask.foreach_index(GrainSize(4096), [&](const int face_i, const int pos) {
+    const int face_start = face_offsets[face_i];
+    const int face_size = face_offsets[face_i + 1] - face_start;
+    new_face_offsets[pos] = new_face_offsets[face_i + 1] = face_start + face_size;
+  });
+  const OffsetIndices new_faces = offset_indices::accumulate_counts_to_offsets(new_face_offsets);
 
-  Array<int> new_corner_verts(mesh.corners_num);
-  invalid_faces_mask.foreach_index(GrainSize(1024), [&](const int index, const int pos) {});
+  for (CustomDataLayer &layer : MutableSpan(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
+    // TODO Handle non-attribute layers
+    const CPPType &type = *bke::custom_data_type_to_cpp_type(eCustomDataType(layer.type));
+    const GSpan src(type, layer.data, mesh.corners_num);
+
+    void *dst_data = MEM_malloc_arrayN(
+        new_faces.total_size(), CustomData_sizeof(eCustomDataType(layer.type)), __func__);
+
+    GMutableSpan dst(type, dst_data, new_faces.total_size());
+
+    bke::attribute_math::gather_to_groups(new_faces, valid_faces, src, dst);
+
+    layer.sharing_info->remove_user_and_delete_if_last();
+    layer.data = dst_data;
+    layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
+  }
 }
 
 }  // namespace blender::bke
