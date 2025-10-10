@@ -578,7 +578,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
   render_area_update(begin_rendering.node_data.vk_rendering_info.renderArea);
 
   color_attachment_formats_.clear();
-  int32_t max_filled_slot_index = 1;
+  int32_t max_filled_slot_index = -1;
   for (int color_attachment_index :
        IndexRange(GPU_FB_COLOR_ATTACHMENT0, GPU_FB_MAX_COLOR_ATTACHMENT))
   {
