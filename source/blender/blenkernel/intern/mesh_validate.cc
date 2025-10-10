@@ -419,7 +419,6 @@ void mesh_validate(Mesh &mesh)
   const OffsetIndices new_faces = offset_indices::accumulate_counts_to_offsets(new_face_offsets);
 
   for (CustomDataLayer &layer : MutableSpan(mesh.face_data.layers, mesh.face_data.totlayer)) {
-    // TODO Handle non-attribute layers
     const eCustomDataType cd_type = eCustomDataType(layer.type);
     if (CD_TYPE_AS_MASK(cd_type) & CD_MASK_PROP_ALL) {
       const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
@@ -434,13 +433,24 @@ void mesh_validate(Mesh &mesh)
       layer.data = dst_data;
       layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
     }
-    else {
-      BLI_assert_unreachable();
+    else if (cd_type == CD_ORIGINDEX) {
+      const Span src(static_cast<const int *>(layer.data), mesh.edges_num);
+
+      int *dst_data = MEM_malloc_arrayN<int>(new_faces.size(), __func__);
+      MutableSpan dst(dst_data, new_faces.size());
+
+      array_utils::gather(src, valid_faces, dst);
+
+      layer.sharing_info->remove_user_and_delete_if_last();
+      layer.data = dst_data;
+      layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
     }
   }
 
+  const OffsetIndices<int> old_faces = OffsetIndices<int>(face_offsets,
+                                                          offset_indices::NoSortCheck());
+
   for (CustomDataLayer &layer : MutableSpan(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
-    // TODO Handle non-attribute layers
     const eCustomDataType cd_type = eCustomDataType(layer.type);
     if (CD_TYPE_AS_MASK(cd_type) & CD_MASK_PROP_ALL) {
       const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
@@ -449,14 +459,34 @@ void mesh_validate(Mesh &mesh)
       void *dst_data = MEM_malloc_arrayN(new_faces.total_size(), type.size, __func__);
       GMutableSpan dst(type, dst_data, new_faces.total_size());
 
-      bke::attribute_math::gather_to_groups(new_faces, valid_faces, src, dst);
+      bke::attribute_math::gather_group_to_group(old_faces, new_faces, valid_faces, src, dst);
 
       layer.sharing_info->remove_user_and_delete_if_last();
       layer.data = dst_data;
       layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
     }
-    else {
-      BLI_assert_unreachable();
+    else if (ELEM(cd_type,
+                  CD_NORMAL,
+                  CD_ORIGINDEX,
+                  CD_MDISPS,
+                  CD_GRID_PAINT_MASK,
+                  CD_ORIGSPACE_MLOOP))
+    {
+      const size_t elem_size = CustomData_sizeof(cd_type);
+      const void *src = layer.data;
+
+      void *dst = MEM_malloc_arrayN(new_faces.total_size(), elem_size, __func__);
+
+      valid_faces.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
+        CustomData_copy_elements(cd_type,
+                                 POINTER_OFFSET(src, elem_size * old_faces[src_i].start()),
+                                 POINTER_OFFSET(dst, elem_size * new_faces[dst_i].start()),
+                                 new_faces[dst_i].size());
+      });
+
+      layer.sharing_info->remove_user_and_delete_if_last();
+      layer.data = dst;
+      layer.sharing_info = implicit_sharing::info_for_mem_free(dst);
     }
   }
 
@@ -472,7 +502,6 @@ void mesh_validate(Mesh &mesh)
   const int64_t invalid_edges_num = valid_edges.size();
 
   for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
-    // TODO Handle non-attribute layers
     const eCustomDataType cd_type = eCustomDataType(layer.type);
     if (CD_TYPE_AS_MASK(cd_type) & CD_MASK_PROP_ALL) {
       const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
