@@ -517,6 +517,7 @@ class NODE_MT_gn_mesh_operations_base(node_add_menu.NodeMenu):
     menu_path = "Mesh/Operations"
 
     def draw(self, context):
+        del context
         layout = self.layout
         self.node_operator(layout, "GeometryNodeDualMesh")
         self.node_operator(layout, "GeometryNodeEdgePathsToCurves")
@@ -525,11 +526,9 @@ class NODE_MT_gn_mesh_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeFlipFaces")
         self.node_operator(layout, "GeometryNodeMeshBoolean")
         self.node_operator(layout, "GeometryNodeMeshToCurve")
-        if context.preferences.experimental.use_new_volume_nodes:
-            self.node_operator(layout, "GeometryNodeMeshToDensityGrid")
+        self.node_operator(layout, "GeometryNodeMeshToDensityGrid")
         self.node_operator(layout, "GeometryNodeMeshToPoints")
-        if context.preferences.experimental.use_new_volume_nodes:
-            self.node_operator(layout, "GeometryNodeMeshToSDFGrid")
+        self.node_operator(layout, "GeometryNodeMeshToSDFGrid")
         self.node_operator(layout, "GeometryNodeMeshToVolume")
         self.node_operator(layout, "GeometryNodeScaleElements")
         self.node_operator(layout, "GeometryNodeSplitEdges")
@@ -609,16 +608,15 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
     bl_label = "Point"
 
     def draw(self, context):
+        del context
         layout = self.layout
         self.node_operator(layout, "GeometryNodeDistributePointsInVolume")
-        if context.preferences.experimental.use_new_volume_nodes:
-            self.node_operator(layout, "GeometryNodeDistributePointsInGrid")
+        self.node_operator(layout, "GeometryNodeDistributePointsInGrid")
         self.node_operator(layout, "GeometryNodeDistributePointsOnFaces")
         layout.separator()
         self.node_operator(layout, "GeometryNodePoints")
         self.node_operator(layout, "GeometryNodePointsToCurves")
-        if context.preferences.experimental.use_new_volume_nodes:
-            self.node_operator(layout, "GeometryNodePointsToSDFGrid")
+        self.node_operator(layout, "GeometryNodePointsToSDFGrid")
         self.node_operator(layout, "GeometryNodePointsToVertices")
         self.node_operator(layout, "GeometryNodePointsToVolume")
         layout.separator()
@@ -875,8 +873,8 @@ class NODE_MT_gn_utilities_vector_base(node_add_menu.NodeMenu):
         ops = props.settings.add()
         ops.name = "data_type"
         ops.value = "'VECTOR'"
-        layout.separator()
         self.node_operator(layout, "ShaderNodeSeparateXYZ")
+        layout.separator()
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
@@ -891,11 +889,10 @@ class NODE_MT_gn_volume_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
-        if context.preferences.experimental.use_new_volume_nodes:
-            self.draw_menu(layout, path="Volume/Read")
-            self.draw_menu(layout, path="Volume/Sample")
-            self.draw_menu(layout, path="Volume/Write")
-            layout.separator()
+        self.draw_menu(layout, path="Volume/Read")
+        self.draw_menu(layout, path="Volume/Sample")
+        self.draw_menu(layout, path="Volume/Write")
+        layout.separator()
         self.draw_menu(layout, path="Volume/Operations")
         self.draw_menu(layout, path="Volume/Primitives")
 
@@ -911,6 +908,7 @@ class NODE_MT_gn_volume_read_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeGetNamedGrid")
         self.node_operator(layout, "GeometryNodeGridInfo")
+        self.node_operator(layout, "GeometryNodeInputVoxelIndex")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -922,6 +920,8 @@ class NODE_MT_gn_volume_write_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeStoreNamedGrid")
+        self.node_operator(layout, "GeometryNodeSetGridBackground")
+        self.node_operator(layout, "GeometryNodeSetGridTransform")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -935,6 +935,11 @@ class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleGrid")
         self.node_operator(layout, "GeometryNodeSampleGridIndex")
+        self.node_operator(layout, "GeometryNodeGridAdvect")
+        self.node_operator(layout, "GeometryNodeGridCurl")
+        self.node_operator(layout, "GeometryNodeGridDivergence")
+        self.node_operator(layout, "GeometryNodeGridGradient")
+        self.node_operator(layout, "GeometryNodeGridLaplacian")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -944,12 +949,20 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
     menu_path = "Volume/Operations"
 
     def draw(self, context):
+        del context
         layout = self.layout
         self.node_operator(layout, "GeometryNodeVolumeToMesh")
-        if context.preferences.experimental.use_new_volume_nodes:
-            self.node_operator(layout, "GeometryNodeGridToMesh")
-            self.node_operator(layout, "GeometryNodeSDFGridBoolean")
-            self.node_operator(layout, "GeometryNodeFieldToGrid")
+        self.node_operator(layout, "GeometryNodeGridToMesh")
+        self.node_operator(layout, "GeometryNodeSDFGridBoolean")
+        self.node_operator(layout, "GeometryNodeSDFGridFillet")
+        self.node_operator(layout, "GeometryNodeSDFGridLaplacian")
+        self.node_operator(layout, "GeometryNodeSDFGridMean")
+        self.node_operator(layout, "GeometryNodeSDFGridMeanCurvature")
+        self.node_operator(layout, "GeometryNodeSDFGridMedian")
+        self.node_operator(layout, "GeometryNodeSDFGridOffset")
+        self.node_operator(layout, "GeometryNodeFieldToGrid")
+        self.node_operator(layout, "GeometryNodeGridPrune")
+        self.node_operator(layout, "GeometryNodeGridVoxelize")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
