@@ -288,6 +288,16 @@ class TestPropString(unittest.TestCase):
     def test_access_string_getset(self):
         self.do_test_access("test_string_getset", str, self.custom_value)
 
+    def test_access_string_bytes(self):
+        test_bytes = self.custom_value.encode()
+        id_inst["_bytes"] = test_bytes
+        retrieved = id_inst["_bytes"]
+        self.assertIsInstance(retrieved, bytes)
+        self.assertTrue(
+            retrieved == test_bytes or retrieved == test_bytes[:-1],
+            f"Expected {test_bytes!r} or {test_bytes[:-1]!r}, got {retrieved!r}",
+        )
+
     # TODO: Add expected failure cases (e.g. handling of too long values, invalid utf8 sequences, etc.).
 
 
