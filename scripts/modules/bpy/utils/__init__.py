@@ -1231,7 +1231,7 @@ def _blender_default_map():
     # NOTE(@ideasman42): Avoid importing this as there is no need to keep the lookup table in memory.
     # As this runs when the user accesses the "Online Manual", the overhead loading the file is acceptable.
     # In my tests it's under 1/100th of a second loading from a `pyc`.
-    ref_mod = execfile(_os.path.join(_script_base_dir, "modules", "rna_manual_reference.py"))
+    ref_mod = execfile(_os.path.join(_script_base_dir, "modules", "_rna_manual_reference.py"))
     return (ref_mod.url_manual_prefix, ref_mod.url_manual_mapping)
 
 
