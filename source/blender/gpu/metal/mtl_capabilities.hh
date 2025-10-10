@@ -13,7 +13,7 @@ namespace blender::gpu {
 /*** Derived from: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf ***/
 /** Upper Bound/Fixed Limits **/
 
-#define MTL_MAX_IMAGE_SLOTS 16
+#define MTL_MAX_IMAGE_SLOTS GPU_MAX_IMAGE /* Must match becaus of StateManager::image_formats. */
 #define MTL_MAX_SAMPLER_SLOTS 64
 /* Theoretical limit is 128 no target hardware. */
 #define MTL_MAX_TEXTURE_SLOTS (MTL_MAX_SAMPLER_SLOTS + MTL_MAX_IMAGE_SLOTS)

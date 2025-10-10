@@ -1019,7 +1019,7 @@ void MTLContext::set_viewports(int count, const int (&viewports)[GPU_MAX_VIEWPOR
   BLI_assert(this);
   bool changed = (this->pipeline_state.num_active_viewports != count);
   for (int v = 0; v < count; v++) {
-    const int (&viewport_info)[4] = viewports[v];
+    const int(&viewport_info)[4] = viewports[v];
 
     BLI_assert(viewport_info[0] >= 0);
     BLI_assert(viewport_info[1] >= 0);
@@ -1713,15 +1713,17 @@ void MTLContext::texture_unbind_all(bool is_image)
     int i = 0;
     for (auto &resource_bind : this->pipeline_state.image_bindings) {
       if (resource_bind.texture_resource) {
+        resource_bind.texture_resource->is_bound_ = false;
         resource_bind.texture_resource = nullptr;
         state_manager->image_formats[i] = TextureWriteFormat::Invalid;
-        i++;
       }
+      i++;
     }
   }
   else {
     for (auto &resource_bind : this->pipeline_state.texture_bindings) {
       if (resource_bind.texture_resource) {
+        resource_bind.texture_resource->is_bound_ = false;
         resource_bind.texture_resource = nullptr;
       }
     }

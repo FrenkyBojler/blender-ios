@@ -7,6 +7,8 @@
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_private.hh"
 
+#include "mtl_capabilities.hh"
+
 #include <sstream>
 
 /**
@@ -44,14 +46,12 @@
  * +-----------------------------+--------+------------+
  * | Type                        | Count  | Slot Range |
  * +-----------------------------+--------+------------+
- * | Image Textures              |     16 |    0..15   |
- * | Sampler Textures            |     64 |   16..79  |
+ * | Image Textures              |      8 |    0..7    |
+ * | Sampler Textures            |     64 |    8..71   |
  * +-----------------------------+--------+------------+
  */
-#define MTL_MAX_IMAGE 16 /* Could be much higher but we keep book-keeping footprint low. */
-#define MTL_MAX_SAMPLER 64
 #define MTL_IMAGE_SLOT_OFFSET 0
-#define MTL_SAMPLER_SLOT_OFFSET MTL_MAX_IMAGE
+#define MTL_SAMPLER_SLOT_OFFSET MTL_MAX_IMAGE_SLOTS
 
 /* Other parts of the backend also use specialization constants. */
 #define MTL_SPECIALIZATION_CONSTANT_OFFSET 30
