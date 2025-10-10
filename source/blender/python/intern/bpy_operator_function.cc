@@ -454,7 +454,7 @@ static PyGetSetDef BPyOpFunction_getsetters[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     BPyOpFunctionType_doc,
-    "BPyOpFunction(context='EXEC_DEFAULT', undo=None, **kwargs)\n"
+    "BPyOpFunction(context='EXEC_DEFAULT', undo=False, **kwargs)\n"
     "\n"
     "   Execute the operator with the given parameters.\n"
     "\n"
