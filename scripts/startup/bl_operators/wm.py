@@ -148,7 +148,7 @@ def context_path_validate(context, data_path):
 
 
 def context_path_to_rna_property(context, data_path):
-    from bl_rna_utils.data_path import property_definition_from_data_path
+    from _bl_rna_utils.data_path import property_definition_from_data_path
     rna_prop = property_definition_from_data_path(context, "." + data_path)
     if rna_prop is not None:
         return rna_prop
@@ -167,7 +167,7 @@ def context_path_decompose(data_path):
     # Note that the `.` is removed from the start of the first and second values,
     # this is done because `.attr` isn't convenient to use as an argument,
     # also the convention is not to include this within the data paths or the operator logic for `bpy.ops.wm.*`.
-    from bl_rna_utils.data_path import decompose_data_path
+    from _bl_rna_utils.data_path import decompose_data_path
     path_split = decompose_data_path("." + data_path)
 
     # Find the last property that isn't a function call.
