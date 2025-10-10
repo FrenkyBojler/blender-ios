@@ -794,15 +794,9 @@ static void ntree_shader_shader_to_rgba_branches(bNodeTree *ntree)
   }
 }
 
-struct NodeDepth {
-  int16_t shader_rgba_depth = -1;
-  int16_t zone_depth = -1;
-};
-
 static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
                                             bNode *node_start,
-                                            int16_t &max_depth,
-                                            Vector<NodeDepth> &depths)
+                                            int16_t &max_depth)
 {
   struct StackNode {
     bNode *node;
@@ -819,8 +813,7 @@ static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
     bNode *node = s_node.node;
     int16_t depth_level = s_node.depth;
 
-    int16_t &node_depth = depths[node->runtime->tmp_flag].shader_rgba_depth;
-    if (node_depth >= depth_level) {
+    if (node->runtime->tmp_flag >= depth_level) {
       /* We already iterated this branch at this or a greater depth. */
       continue;
     }
@@ -830,7 +823,7 @@ static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
       max_depth = std::max(max_depth, depth_level);
     }
 
-    node_depth = std::max(node_depth, depth_level);
+    node->runtime->tmp_flag = std::max(node->runtime->tmp_flag, depth_level);
 
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       bNodeLink *link = sock->link;
@@ -856,54 +849,6 @@ static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
       }
     }
   }
-}
-
-static int16_t iter_zone_depth_count(bNodeTree *ntree, bNode *node, Vector<NodeDepth> &depths)
-{
-  /* TODO: Make this non-recursive. */
-
-  if (!node) {
-    return 0;
-  }
-
-  int16_t &depth = depths[node->runtime->tmp_flag].zone_depth;
-  if (depth != -1) {
-    /* Already computed. */
-    return depth;
-  }
-
-  depth = 0;
-
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    bNodeLink *link = sock->link;
-    if (link == nullptr) {
-      continue;
-    }
-    if ((link->flag & NODE_LINK_VALID) == 0) {
-      /* Skip links marked as cyclic. */
-      continue;
-    }
-
-    depth = std::max(iter_zone_depth_count(ntree, link->fromnode, depths), depth);
-  }
-
-  /* Zone input nodes are linked to their corresponding zone output nodes, even if there is no
-   * bNodeLink between them. */
-  if (const blender::bke::bNodeZoneType *zone_type = blender::bke::zone_type_by_node_type(
-          node->type_legacy))
-  {
-    if (zone_type->output_type == node->type_legacy) {
-      if (bNode *zone_input_node = zone_type->get_corresponding_input(*ntree, *node)) {
-        depth = std::max(iter_zone_depth_count(ntree, zone_input_node, depths), depth);
-      }
-    }
-  }
-
-  if (node->type_legacy == GEO_NODE_REPEAT_INPUT) {
-    depth++;
-  }
-
-  return depth;
 }
 
 static void shader_node_disconnect_input(bNodeTree *ntree, bNode *node, int index)
@@ -982,8 +927,7 @@ static void ntree_shader_disconnect_inactive_mix_branches(bNodeTree *ntree)
         }
       }
       else if (storage->data_type == SOCK_RGBA) {
-        /* Branch A can't be optimized-out, since its alpha is always used regardless of factor
-         */
+        /* Branch A can't be optimized-out, since its alpha is always used regardless of factor */
         shader_node_disconnect_inactive_mix_branch(ntree, node, 0, -1, 7, storage->clamp_factor);
         /* Disconnect links from data_type-specific sockets that are not currently in use */
         for (int i : {1, 2, 3, 4, 5}) {
@@ -1060,41 +1004,20 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
   }
 
   exec = ntreeShaderBeginExecTree(localtree);
-  int16_t node_id = 0;
   /* Execute nodes ordered by the number of ShaderToRGB nodes found in their path,
    * so all closures can be properly evaluated. */
   int16_t max_depth = 0;
   LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
-    node->runtime->tmp_flag = node_id++;
+    node->runtime->tmp_flag = -1;
   }
-  Vector<NodeDepth> depths(node_id);
-
   if (output != nullptr) {
-    iter_shader_to_rgba_depth_count(localtree, output, max_depth, depths);
-    iter_zone_depth_count(localtree, output, depths);
+    iter_shader_to_rgba_depth_count(localtree, output, max_depth);
   }
   LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
     if (node->type_legacy == SH_NODE_OUTPUT_AOV) {
-      iter_shader_to_rgba_depth_count(localtree, node, max_depth, depths);
-      iter_zone_depth_count(localtree, node, depths);
+      iter_shader_to_rgba_depth_count(localtree, node, max_depth);
     }
   }
-#if 1
-  /* TODO: Keep taking RGBA depth into account. */
-  max_depth = 0;
-  LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
-    node->runtime->tmp_flag = depths[node->runtime->tmp_flag].zone_depth;
-    max_depth = std::max(max_depth, node->runtime->tmp_flag);
-  }
-  for (int depth = 0; depth <= max_depth; depth++) {
-    ntreeExecGPUNodes(exec, mat, output, &depth);
-    LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
-      if (node->type_legacy == SH_NODE_OUTPUT_AOV) {
-        ntreeExecGPUNodes(exec, mat, node, &depth);
-      }
-    }
-  }
-#else
   for (int depth = max_depth; depth >= 0; depth--) {
     ntreeExecGPUNodes(exec, mat, output, &depth);
     LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
@@ -1103,7 +1026,6 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
       }
     }
   }
-#endif
   ntreeShaderEndExecTree(exec);
 }
 
