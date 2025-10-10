@@ -2590,9 +2590,11 @@ static void uv_select_linked_multi(Scene *scene,
 
       efa = BM_face_at_index(bm, a);
 
-      blender::VectorSet<BMEdge *> face_edges;
-      BM_ITER_ELEM(l, &liter, efa, BM_LOOPS_OF_FACE) {
-        face_edges.add(l->e);
+      blender::VectorSet<BMEdge *> edges;
+      if (delimit_seam) {
+        BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+          edges.add(l->e);
+        }
       }
       BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 
@@ -2617,14 +2619,14 @@ static void uv_select_linked_multi(Scene *scene,
 
           if (!flag[iterv->face_index]) {
 
-            if(delimit_seam){
-              BMFace *face = BM_face_at_index(bm, iterv->face_index);
+            if (delimit_seam) {
+              BMFace *iterv_f = BM_face_at_index(bm, iterv->face_index);
               bool shares_non_seam_edge = false;
-              BMLoop *loop_iterv;
-              BMIter iter_iterv;
-              BM_ITER_ELEM (loop_iterv, &iter_iterv, face, BM_LOOPS_OF_FACE) {
-                if (face_edges.contains(loop_iterv->e)) {
-                  if (!BM_elem_flag_test(loop_iterv->e, BM_ELEM_SEAM)) {
+              BMLoop *iterv_l;
+              BMIter iterv_iter;
+              BM_ITER_ELEM (iterv_l, &iterv_iter, iterv_f, BM_LOOPS_OF_FACE) {
+                if (edges.contains(iterv_l->e)) {
+                  if (!BM_elem_flag_test(iterv_l->e, BM_ELEM_SEAM)) {
                     shares_non_seam_edge = true;
                     break;
                   }
