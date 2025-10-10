@@ -479,6 +479,11 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
                                      blender::bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU,
                                      nullptr,
                                      &evaluator_settings);
+    /* TODO: This subdiv needs the displacment evaluator. OR we need the old subdiv_ccg */
+    /* Options:
+     * 1. Introduce global subdivCCG cache?
+     * 2. pass in this displacement earlier? - probably easiest to do this for now.
+     */
 
     SubdivToCCGSettings higher_settings;
     higher_settings.level = settings.level - delta;

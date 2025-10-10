@@ -463,7 +463,6 @@ static void foreach_toplevel_grid_coord_single_threaded(
       BLI_assert_msg(false, "Unimplemented!");
     }
   }
-#endif
 }
 
 /** \} */
