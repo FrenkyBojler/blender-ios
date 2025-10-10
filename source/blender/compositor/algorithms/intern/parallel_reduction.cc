@@ -116,145 +116,38 @@ static Value parallel_reduce(const int2 range,
  * Sum Reductions.
  */
 
-static float sum_red_gpu(Context &context, const Result &result)
+static float4 sum_color_gpu(Context &context, const Result &result)
 {
-  gpu::Shader *shader = context.get_shader("compositor_sum_red", ResultPrecision::Full);
+  gpu::Shader *shader = context.get_shader("compositor_sum_color", ResultPrecision::Full);
   GPU_shader_bind(shader);
 
   float *reduced_value = parallel_reduction_dispatch(
-      result, shader, Result::gpu_texture_format(ResultType::Float, ResultPrecision::Full));
-  const float sum = *reduced_value;
+      result, shader, Result::gpu_texture_format(ResultType::Color, ResultPrecision::Full));
+  const float4 sum = float4(reduced_value);
   MEM_freeN(reduced_value);
   GPU_shader_unbind();
 
   return sum;
 }
 
-static float sum_red_cpu(const Result &result)
+static float4 sum_color_cpu(const Result &result)
 {
-  return float(parallel_reduce(
+  return float4(parallel_reduce(
       result.domain().size,
-      0.0,
-      [&](const int2 texel, double &accumulated_value) {
-        accumulated_value += result.load_pixel<float4>(texel).x;
+      double4(0.0),
+      [&](const int2 texel, double4 &accumulated_value) {
+        accumulated_value += double4(result.load_pixel<float4>(texel));
       },
-      [&](const double &a, const double &b) { return a + b; }));
+      [&](const double4 &a, const double4 &b) { return a + b; }));
 }
 
-float sum_red(Context &context, const Result &result)
+float4 sum_color(Context &context, const Result &result)
 {
   if (context.use_gpu()) {
-    return sum_red_gpu(context, result);
+    return sum_color_gpu(context, result);
   }
 
-  return sum_red_cpu(result);
-}
-
-static float sum_green_gpu(Context &context, const Result &result)
-{
-  gpu::Shader *shader = context.get_shader("compositor_sum_green", ResultPrecision::Full);
-  GPU_shader_bind(shader);
-
-  float *reduced_value = parallel_reduction_dispatch(
-      result, shader, Result::gpu_texture_format(ResultType::Float, ResultPrecision::Full));
-  const float sum = *reduced_value;
-  MEM_freeN(reduced_value);
-  GPU_shader_unbind();
-
-  return sum;
-}
-
-static float sum_green_cpu(const Result &result)
-{
-  return float(parallel_reduce(
-      result.domain().size,
-      0.0,
-      [&](const int2 texel, double &accumulated_value) {
-        accumulated_value += result.load_pixel<float4>(texel).y;
-      },
-      [&](const double &a, const double &b) { return a + b; }));
-}
-
-float sum_green(Context &context, const Result &result)
-{
-  if (context.use_gpu()) {
-    return sum_green_gpu(context, result);
-  }
-
-  return sum_green_cpu(result);
-}
-
-static float sum_blue_gpu(Context &context, const Result &result)
-{
-  gpu::Shader *shader = context.get_shader("compositor_sum_blue", ResultPrecision::Full);
-  GPU_shader_bind(shader);
-
-  float *reduced_value = parallel_reduction_dispatch(
-      result, shader, Result::gpu_texture_format(ResultType::Float, ResultPrecision::Full));
-  const float sum = *reduced_value;
-  MEM_freeN(reduced_value);
-  GPU_shader_unbind();
-
-  return sum;
-}
-
-static float sum_blue_cpu(const Result &result)
-{
-  return float(parallel_reduce(
-      result.domain().size,
-      0.0,
-      [&](const int2 texel, double &accumulated_value) {
-        accumulated_value += result.load_pixel<float4>(texel).z;
-      },
-      [&](const double &a, const double &b) { return a + b; }));
-}
-
-float sum_blue(Context &context, const Result &result)
-{
-  if (context.use_gpu()) {
-    return sum_blue_gpu(context, result);
-  }
-
-  return sum_blue_cpu(result);
-}
-
-static float sum_luminance_gpu(Context &context,
-                               const Result &result,
-                               const float3 &luminance_coefficients)
-{
-  gpu::Shader *shader = context.get_shader("compositor_sum_luminance", ResultPrecision::Full);
-  GPU_shader_bind(shader);
-
-  GPU_shader_uniform_3fv(shader, "luminance_coefficients", luminance_coefficients);
-
-  float *reduced_value = parallel_reduction_dispatch(
-      result, shader, Result::gpu_texture_format(ResultType::Float, ResultPrecision::Full));
-  const float sum = *reduced_value;
-  MEM_freeN(reduced_value);
-  GPU_shader_unbind();
-
-  return sum;
-}
-
-static float sum_luminance_cpu(const Result &result, const float3 &luminance_coefficients)
-{
-  return float(parallel_reduce(
-      result.domain().size,
-      0.0,
-      [&](const int2 texel, double &accumulated_value) {
-        accumulated_value += math::dot(result.load_pixel<float4>(texel).xyz(),
-                                       luminance_coefficients);
-      },
-      [&](const double &a, const double &b) { return a + b; }));
-}
-
-float sum_luminance(Context &context, const Result &result, const float3 &luminance_coefficients)
-{
-  if (context.use_gpu()) {
-    return sum_luminance_gpu(context, result, luminance_coefficients);
-  }
-
-  return sum_luminance_cpu(result, luminance_coefficients);
+  return sum_color_cpu(result);
 }
 
 static float sum_log_luminance_gpu(Context &context,
@@ -299,38 +192,16 @@ float sum_log_luminance(Context &context,
   return sum_log_luminance_cpu(result, luminance_coefficients);
 }
 
-static float4 sum_color_gpu(Context &context, const Result &result)
+/* --------------------------------------------------------------------
+ * Mean Reductions.
+ */
+
+float4 mean_color(Context &context, const Result &result)
 {
-  gpu::Shader *shader = context.get_shader("compositor_sum_color", ResultPrecision::Full);
-  GPU_shader_bind(shader);
-
-  float *reduced_value = parallel_reduction_dispatch(
-      result, shader, Result::gpu_texture_format(ResultType::Color, ResultPrecision::Full));
-  const float4 sum = float4(reduced_value);
-  MEM_freeN(reduced_value);
-  GPU_shader_unbind();
-
-  return sum;
-}
-
-static float4 sum_color_cpu(const Result &result)
-{
-  return float4(parallel_reduce(
-      result.domain().size,
-      double4(0.0),
-      [&](const int2 texel, double4 &accumulated_value) {
-        accumulated_value += double4(result.load_pixel<float4>(texel));
-      },
-      [&](const double4 &a, const double4 &b) { return a + b; }));
-}
-
-float4 sum_color(Context &context, const Result &result)
-{
-  if (context.use_gpu()) {
-    return sum_color_gpu(context, result);
-  }
-
-  return sum_color_cpu(result);
+  /* Assuming the image is premultiplied, we divide by the alpha to a weighted mean based on the
+   * alpha, which is desirable since the alpha region is not typically relevant. */
+  const float4 sum = sum_color(context, result);
+  return math::safe_divide(sum, sum.w);
 }
 
 /* --------------------------------------------------------------------

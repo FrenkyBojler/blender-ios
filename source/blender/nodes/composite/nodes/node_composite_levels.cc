@@ -118,25 +118,21 @@ class LevelsOperation : public NodeOperation {
   float compute_mean()
   {
     const Result &input = get_input("Image");
-    return compute_sum() / (input.domain().size.x * input.domain().size.y);
-  }
+    const float4 mean = mean_color(this->context(), input);
 
-  float compute_sum()
-  {
-    const Result &input = get_input("Image");
-    switch (get_channel()) {
+    switch (this->get_channel()) {
       case CMP_NODE_LEVLES_RED:
-        return sum_red(context(), input);
+        return mean.x;
       case CMP_NODE_LEVLES_GREEN:
-        return sum_green(context(), input);
+        return mean.y;
       case CMP_NODE_LEVLES_BLUE:
-        return sum_blue(context(), input);
+        return mean.z;
       case CMP_NODE_LEVLES_LUMINANCE_BT709:
-        return sum_luminance(context(), input, float3(luminance_coefficients_bt709_));
+        return math::dot(mean.xyz(), float3(luminance_coefficients_bt709_));
       case CMP_NODE_LEVLES_LUMINANCE: {
         float luminance_coefficients[3];
         IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
-        return sum_luminance(context(), input, float3(luminance_coefficients));
+        return math::dot(mean.xyz(), float3(luminance_coefficients));
       }
     }
 

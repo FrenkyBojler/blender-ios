@@ -15,18 +15,8 @@ namespace blender::compositor {
  * Sum Reductions.
  */
 
-/* Computes the sum of the red channel of all pixels in the given result. */
-float sum_red(Context &context, const Result &result);
-
-/* Computes the sum of the green channel of all pixels in the given result. */
-float sum_green(Context &context, const Result &result);
-
-/* Computes the sum of the blue channel of all pixels in the given result. */
-float sum_blue(Context &context, const Result &result);
-
-/* Computes the sum of the luminance of all pixels in the given result, using the given luminance
- * coefficients to compute the luminance. */
-float sum_luminance(Context &context, const Result &result, const float3 &luminance_coefficients);
+/* Computes the sum of the colors of all pixels in the given result. */
+float4 sum_color(Context &context, const Result &result);
 
 /* Computes the sum of the logarithm of the luminance of all pixels in the given result, using the
  * given luminance coefficients to compute the luminance. */
@@ -34,8 +24,13 @@ float sum_log_luminance(Context &context,
                         const Result &result,
                         const float3 &luminance_coefficients);
 
-/* Computes the sum of the colors of all pixels in the given result. */
-float4 sum_color(Context &context, const Result &result);
+/* --------------------------------------------------------------------
+ * Mean Reductions.
+ */
+
+/* Computes the mean of the colors of all pixels in the given result. The mean is weighted by the
+ * alpha channel. */
+float4 mean_color(Context &context, const Result &result);
 
 /* --------------------------------------------------------------------
  * Sum Of Squared Difference Reductions.
