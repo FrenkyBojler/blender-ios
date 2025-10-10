@@ -2462,6 +2462,7 @@ static void uv_select_linked_multi(Scene *scene,
                                    bool deselect,
                                    const bool toggle,
                                    const bool select_faces,
+                                   const bool delimit_seam,
                                    const char hflag)
 {
   if (select_faces) {
@@ -2589,6 +2590,10 @@ static void uv_select_linked_multi(Scene *scene,
 
       efa = BM_face_at_index(bm, a);
 
+      blender::VectorSet<BMEdge *> face_edges;
+      BM_ITER_ELEM(l, &liter, efa, BM_LOOPS_OF_FACE) {
+        face_edges.add(l->e);
+      }
       BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 
         /* make_uv_vert_map_EM sets verts tmp.l to the indices */
@@ -2611,30 +2616,24 @@ static void uv_select_linked_multi(Scene *scene,
           }
 
           if (!flag[iterv->face_index]) {
-            BMFace *face = BM_face_at_index(bm, iterv->face_index);
 
-            /* Check if faces share an edge */
-            bool shares_non_seam_edge = false;
-            BMLoop *efa_l;
-            BMIter efa_iter;
-            BM_ITER_ELEM (efa_l, &efa_iter, efa, BM_LOOPS_OF_FACE) {
-              BMLoop *face_l;
-              BMIter iter_l;
-              BM_ITER_ELEM (face_l, &iter_l, face, BM_LOOPS_OF_FACE) {
-                if (face_l->e == efa_l->e) {
-                  shares_non_seam_edge = true;
-                  if (BM_elem_flag_test(face_l->e, BM_ELEM_SEAM)) {
-                    shares_non_seam_edge = false;
+            if(delimit_seam){
+              BMFace *face = BM_face_at_index(bm, iterv->face_index);
+              bool shares_non_seam_edge = false;
+              BMLoop *loop_iterv;
+              BMIter iter_iterv;
+              BM_ITER_ELEM (loop_iterv, &iter_iterv, face, BM_LOOPS_OF_FACE) {
+                if (face_edges.contains(loop_iterv->e)) {
+                  if (!BM_elem_flag_test(loop_iterv->e, BM_ELEM_SEAM)) {
+                    shares_non_seam_edge = true;
+                    break;
                   }
-                  break;
                 }
               }
-              if (shares_non_seam_edge) {
-                break;
+
+              if (!shares_non_seam_edge) {
+                continue;
               }
-            }
-            if (!shares_non_seam_edge) {
-              continue;
             }
             flag[iterv->face_index] = 1;
             stack[stacksize] = iterv->face_index;
@@ -2787,7 +2786,8 @@ static void uv_select_linked_multi_for_select_island(Scene *scene,
   UvNearestHit hit = {};
   hit.ob = obedit;
   hit.efa = efa;
-  uv_select_linked_multi(scene, objects, &hit, extend, deselect, toggle, select_faces, hflag);
+  uv_select_linked_multi(
+      scene, objects, &hit, extend, deselect, toggle, select_faces, false, hflag);
 }
 
 const float *uvedit_first_selected_uv_from_vertex(Scene *scene,
@@ -3492,7 +3492,7 @@ static bool uv_mouse_select_multi(bContext *C,
       /* Current behavior of 'extend'
        * is actually toggling, so pass extend flag as 'toggle' here */
       uv_select_linked_multi(
-          scene, objects, &hit, extend, deselect, toggle, false, BM_ELEM_SELECT);
+          scene, objects, &hit, extend, deselect, toggle, false, false, BM_ELEM_SELECT);
       /* TODO: check if this actually changed. */
       changed = true;
     }
@@ -3921,13 +3921,14 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
   bool deselect = false;
   bool select_faces = (ts->uv_flag & UV_FLAG_SELECT_SYNC) && (ts->selectmode & SCE_SELECT_FACE) &&
                       (ts->uv_sticky == UV_STICKY_VERT);
-
+  bool delimit_seams;
   UvNearestHit hit = region ? uv_nearest_hit_init_max(&region->v2d) :
                               uv_nearest_hit_init_max_default();
 
   if (pick) {
     extend = RNA_boolean_get(op->ptr, "extend");
     deselect = RNA_boolean_get(op->ptr, "deselect");
+    delimit_seams = RNA_boolean_get(op->ptr, "delimit_seams");
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -3962,6 +3963,7 @@ static wmOperatorStatus uv_select_linked_internal(bContext *C,
                          deselect,
                          false,
                          select_faces,
+                         delimit_seams,
                          BM_ELEM_SELECT);
 
   if (pick) {
@@ -4045,6 +4047,12 @@ void UV_OT_select_linked_pick(wmOperatorType *ot)
                          false,
                          "Deselect",
                          "Deselect linked UV vertices rather than selecting them");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "delimit_seams",
+                         false,
+                         "Delimit Seams",
+                         "Don't cross UV seams when selecting linked UV vertices");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_float_vector(
       ot->srna,
