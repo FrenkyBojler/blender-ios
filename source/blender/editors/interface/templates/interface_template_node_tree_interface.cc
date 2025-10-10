@@ -332,6 +332,9 @@ class NodeTreeInterfaceView : public AbstractTreeView {
 
 std::unique_ptr<AbstractViewItemDragController> NodeSocketViewItem::create_drag_controller() const
 {
+  if (ID_IS_PACKED(&nodetree_.id)) {
+    return nullptr;
+  }
   return std::make_unique<NodeTreeInterfaceDragController>(
       static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), socket_.item, nodetree_);
 }
@@ -343,6 +346,9 @@ std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
 
 std::unique_ptr<AbstractViewItemDragController> NodePanelViewItem::create_drag_controller() const
 {
+  if (ID_IS_PACKED(&nodetree_.id)) {
+    return nullptr;
+  }
   return std::make_unique<NodeTreeInterfaceDragController>(
       static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), panel_.item, nodetree_);
 }
