@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstring>
+#include <fmt/format.h>
 
 #include "CLG_log.h"
 
@@ -37,10 +38,352 @@ using blender::float3;
 using blender::MutableSpan;
 using blender::Span;
 
+static CLG_LogRef LOG = {"geom.mesh"};
+
+namespace blender::bke {
+
+static void print_error_with_indices(const StringRef message, const IndexMask &indices)
+{
+  fmt::memory_buffer buffer;
+  fmt::appender dst(buffer);
+  fmt::format_to(dst, "{}: ", message);
+  indices.foreach_index([&](const int index, const int pos) {
+    if (pos != 0) {
+      fmt::format_to(dst, ", ");
+    }
+    fmt::format_to(dst, "{}", index);
+  });
+  CLOG_ERROR(&LOG, "%s", fmt::to_string(buffer).c_str());
+}
+
+bool mesh_is_valid(const Mesh &mesh)
+{
+  const IndexRange verts_range(mesh.verts_num);
+  const IndexRange edges_range(mesh.edges_num);
+  const IndexRange faces_range(mesh.faces_num);
+  const IndexRange corners_range(mesh.corners_num);
+  IndexMaskMemory memory;
+
+  if (mesh.verts_num > MESH_MAX_VERTS) {
+    return false;
+  }
+
+  const Span<int2> edges = mesh.edges();
+  const IndexMask out_of_range_edges = IndexMask::from_predicate(
+      edges.index_range(), GrainSize(1024), memory, [&](const int edge) {
+        return !verts_range.contains(edges[edge][0]) || !verts_range.contains(edges[edge][1]);
+      });
+  if (!out_of_range_edges.is_empty()) {
+    print_error_with_indices("Edges out of range", out_of_range_edges);
+    return false;
+  }
+  const IndexMask invalid_edges = IndexMask::from_predicate(
+      edges.index_range(), GrainSize(1024), memory, [&](const int edge) {
+        return edges[edge][0] == edges[edge][1];
+      });
+  if (!invalid_edges.is_empty()) {
+    print_error_with_indices("Edges have duplicate vertices", out_of_range_edges);
+    return false;
+  }
+
+  const Span<int> face_offsets = mesh.face_offsets();
+  if (face_offsets.last() != mesh.corners_num) {
+    return false;
+  }
+  if (face_offsets.first() != 0) {
+    return false;
+  }
+
+  const IndexMask invalid_face_sizes = IndexMask::from_predicate(
+      IndexRange(mesh.faces_num), GrainSize(2048), memory, [&](const int face_index) {
+        const int size = face_offsets[face_index + 1] - face_offsets[face_index];
+        if (size < 3) {
+          return false;
+        }
+        return true;
+      });
+  if (!invalid_face_sizes.is_empty()) {
+    return false;
+  }
+
+  const Span<int> corner_verts = mesh.corner_verts();
+  const OffsetIndices<int> faces = mesh.faces();
+  const IndexMask invalid_face_verts = IndexMask::from_predicate(
+      faces.index_range(), GrainSize(1024), memory, [&](const int face) {
+        Set<int, 64> set;
+        for (const int vert : corner_verts.slice(faces[face])) {
+          if (!verts_range.contains(vert)) {
+            return false;
+          }
+          if (!set.add(vert)) {
+            return false;
+          }
+        }
+        return true;
+      });
+  if (!invalid_face_verts.is_empty()) {
+    return false;
+  }
+
+  const Span<int> corner_edges = mesh.corner_edges();
+  const IndexMask invalid_face_edges = IndexMask::from_predicate(
+      faces.index_range(), GrainSize(1024), memory, [&](const int face) {
+        Set<int, 64> set;
+        for (const int edge : corner_edges.slice(faces[face])) {
+          if (!edges_range.contains(edge)) {
+            return false;
+          }
+          if (!set.add(edge)) {
+            return false;
+          }
+        }
+        return true;
+      });
+  if (!invalid_face_edges.is_empty()) {
+    return false;
+  }
+
+  using EdgeMap = VectorSet<OrderedEdge,
+                            32,
+                            DefaultProbingStrategy,
+                            DefaultHash<OrderedEdge>,
+                            DefaultEquality<OrderedEdge>,
+                            SimpleVectorSetSlot<OrderedEdge, int>,
+                            GuardedAllocator>;
+
+  EdgeMap edges_set;
+  edges_set.reserve(edges.size());
+
+  Array<bool> duplicate_edges(edges.size(), false);
+  for (const int edge_index : edges.index_range()) {
+    if (!edges_set.add(edges[edge_index])) {
+      duplicate_edges[edge_index] = true;
+    }
+  }
+
+  const IndexMask duplicate_edges_mask = IndexMask::from_bools(duplicate_edges, memory);
+  if (!duplicate_edges_mask.is_empty()) {
+    return false;
+  }
+
+  Array<int> sorted_corner_verts(corner_verts);
+  threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
+    for (const int face_i : range) {
+      const Span<int> face_verts = corner_verts.slice(faces[face_i]);
+      std::sort(face_verts.begin(), face_verts.end());
+      sorted_corner_verts.as_mutable_span().slice(faces[face_i]).copy_from(face_verts);
+    }
+  });
+
+  VectorSet<Span<int>,
+            4,
+            DefaultProbingStrategy,
+            DefaultHash<Span<int>>,
+            DefaultEquality<Span<int>>,
+            SimpleVectorSetSlot<Span<int>, int>>
+      faces_set;
+  faces_set.reserve(faces.size());
+
+  Array<bool> duplicate_faces(faces.size());
+  for (const int face_i : faces.index_range()) {
+    if (!faces_set.add(sorted_corner_verts.as_span().slice(faces[face_i]))) {
+      duplicate_faces[face_i] = true;
+    }
+  }
+  const IndexMask duplicate_faces_mask = IndexMask::from_bools(duplicate_faces, memory);
+  if (!duplicate_faces_mask.is_empty()) {
+    return false;
+  }
+
+  Array<bool> invalid_faces(faces.size(), false);
+  threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
+    for (const int face_index : range) {
+      const IndexRange face = faces[face_index];
+      for (const int corner : face) {
+        const int corner_next = mesh::face_corner_next(face, corner);
+        const int vert = corner_verts[corner];
+        const int vert_next = corner_verts[corner_next];
+        if (!verts_range.contains(vert) || !verts_range.contains(vert_next)) {
+          invalid_faces[face_index] = true;
+          continue;
+        }
+
+        const int reference_edge_index = corner_edges[corner];
+        if (!edges_range.contains(reference_edge_index)) {
+          invalid_faces[face_index] = true;
+          continue;
+        }
+
+        if (OrderedEdge(vert, vert_next) != OrderedEdge(edges[reference_edge_index])) {
+          invalid_faces[face_index] = true;
+          continue;
+        }
+      }
+    }
+  });
+  const IndexMask invalid_faces_mask = IndexMask::from_bools(invalid_faces, memory);
+  if (!invalid_faces_mask.is_empty()) {
+    return false;
+  }
+
+  return true;
+}
+
+void mesh_validate(Mesh &mesh)
+{
+  const IndexRange verts_range(mesh.verts_num);
+  const IndexRange edges_range(mesh.edges_num);
+  const IndexRange faces_range(mesh.faces_num);
+  Array<bool> invalid_edges(mesh.edges_num, false);
+
+  const Span<int2> edges = mesh.edges();
+  threading::parallel_for(edges_range, 4096, [&](const IndexRange range) {
+    for (const int edge_i : range) {
+      const int2 edge = edges[edge_i];
+      if (edge[0] == edge[1]) {
+        invalid_edges[edge_i] = true;
+        continue;
+      }
+      if (!verts_range.contains(edge[0]) || !verts_range.contains(edge[1])) {
+        invalid_edges[edge_i] = true;
+        continue;
+      }
+    }
+  });
+
+  using EdgeMap = VectorSet<OrderedEdge,
+                            32,
+                            DefaultProbingStrategy,
+                            DefaultHash<OrderedEdge>,
+                            DefaultEquality<OrderedEdge>,
+                            SimpleVectorSetSlot<OrderedEdge, int>,
+                            GuardedAllocator>;
+  EdgeMap unique_edges;
+  unique_edges.reserve(edges.size());
+  for (const int edge_i : edges_range) {
+    if (invalid_edges[edge_i]) {
+      continue;
+    }
+    const int2 edge = edges[edge_i];
+    unique_edges.add(edge);
+    // TODO handle removing duplicate edges properly
+  }
+
+  Array<bool> invalid_faces(mesh.faces_num, false);
+
+  const Span<int> face_offsets = mesh.face_offsets();
+  if (face_offsets.last() != mesh.corners_num) {
+    invalid_faces.fill(true);
+  }
+  if (face_offsets.first() != 0) {
+    invalid_faces.fill(true);
+  }
+
+  const Span<int> corner_verts = mesh.corner_verts();
+  const Span<int> corner_edges = mesh.corner_edges();
+
+  threading::parallel_for(faces_range, 512, [&](const IndexRange range) {
+    Set<int, 64> set;
+    for (const int face_i : range) {
+      const int face_start = face_offsets[face_i];
+      const int face_size = face_offsets[face_i + 1] - face_start;
+      if (face_size < 3) {
+        invalid_faces[face_i] = true;
+        continue;
+      }
+      const IndexRange face(face_start, face_size);
+
+      for (const int vert : corner_verts.slice(face)) {
+        if (!verts_range.contains(vert)) {
+          invalid_faces[face_i] = true;
+          break;
+        }
+      }
+
+      set.clear_and_keep_capacity();
+      for (const int vert : corner_verts.slice(face)) {
+        if (!set.add(vert)) {
+          invalid_faces[face_i] = true;
+          break;
+        }
+      }
+
+      for (const int corner : face) {
+        const int corner_next = mesh::face_corner_next(face, corner);
+        const int vert = corner_verts[corner];
+        const int vert_next = corner_verts[corner_next];
+        const OrderedEdge actual_edge(vert, vert_next);
+        const int unique_edge_index = unique_edges.index_of_try(actual_edge);
+        if (unique_edge_index == -1) {
+          invalid_faces[face_i] = true;
+          break;
+        }
+        const int edge_reference = corner_edges[corner];
+        if (!edges_range.contains(edge_reference)) {
+          invalid_faces[face_i] = true;
+          // TODO fix just edge and mark this as invalid differently
+        }
+        if (OrderedEdge(edges[edge_reference]) != actual_edge) {
+          invalid_faces[face_i] = true;
+          // TODO fix just edge and mark this as invalid differently
+        }
+      }
+    }
+  });
+
+  Array<int> sorted_corner_verts(corner_verts.size());
+  threading::parallel_for(faces_range, 512, [&](const IndexRange range) {
+    for (const int face_i : range) {
+      if (invalid_faces[face_i]) {
+        continue;
+      }
+      const int face_start = face_offsets[face_i];
+      const int face_size = face_offsets[face_i + 1] - face_start;
+      const IndexRange face(face_start, face_size);
+      MutableSpan<int> sorted_face_verts = sorted_corner_verts.as_mutable_span().slice(face);
+      sorted_face_verts.copy_from(corner_verts.slice(face));
+      std::sort(sorted_face_verts.begin(), sorted_face_verts.end());
+    }
+  });
+
+  using FaceMap = VectorSet<Span<int>,
+                            4,
+                            DefaultProbingStrategy,
+                            DefaultHash<Span<int>>,
+                            DefaultEquality<Span<int>>,
+                            SimpleVectorSetSlot<Span<int>, int>>;
+
+  FaceMap face_hash;
+  face_hash.reserve(mesh.faces_num);
+
+  for (const int face_i : faces_range) {
+    if (invalid_faces[face_i]) {
+      continue;
+    }
+    const int face_start = face_offsets[face_i];
+    const int face_size = face_offsets[face_i + 1] - face_start;
+    const IndexRange face(face_start, face_size);
+    if (!face_hash.add(corner_verts.slice(face))) {
+      invalid_faces[face_i] = true;
+    }
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask invalid_faces_mask = IndexMask::from_bools(invalid_faces, memory);
+  if (invalid_faces_mask.is_empty()) {
+    return;
+  }
+
+  Array<int> new_face_offsets(mesh.faces_num + 1);
+
+  Array<int> new_corner_verts(mesh.corners_num);
+  invalid_faces_mask.foreach_index(GrainSize(1024), [&](const int index, const int pos) {});
+}
+
+}  // namespace blender::bke
+
 /* corner v/e are unsigned, so using max uint_32 value as invalid marker... */
 #define INVALID_CORNER_EDGE_MARKER 4294967295u
-
-static CLG_LogRef LOG = {"geom.mesh"};
 
 void strip_loose_faces_corners(Mesh *mesh, blender::BitSpan faces_to_remove);
 void mesh_strip_edges(Mesh *mesh);
