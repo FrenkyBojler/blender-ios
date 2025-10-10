@@ -51,7 +51,7 @@ def lookup_rna_url(rna_id, visit_indices):
 def test_lookup_coverage():
 
     def rna_ids():
-        import rna_info
+        import _rna_info as rna_info
         struct = rna_info.BuildRNAInfo()[0]
         for struct_id, v in sorted(struct.items()):
             props = [(prop.identifier, prop) for prop in v.properties]
