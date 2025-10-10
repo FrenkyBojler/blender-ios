@@ -3533,6 +3533,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
                   action |= WM_HANDLER_BREAK;
 
                   /* Free the drags. */
+                  WM_event_timer_remove(wm, win, drag->timer);
                   WM_drag_free_list(lb);
                   WM_drag_free_list(&single_lb);
 
