@@ -5,3 +5,4 @@ Referenced by commit 007c31ed4b6d95a39ce211a67ed7a6b18b9094d4, Fix #145785: Snak
 Referenced by pull request #146054, Fix: Spacing doesn't work with non-default size curve
 Referenced by commit 58920692962d4ab5d0159a6c7db59163587547c5, Fix: Spacing doesn't work with non-default size curve
 Referenced by commit 5b02341a11286bbf29384640843dfebfafd5a024, UI: Add ability to collapse paint pressure curves
+Referenced by issue #147774, Crashes when using a brush created in the same session
