@@ -639,7 +639,7 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_edit_curves_point)
 /** \name Edit Lattice
  * \{ */
 
-GPU_SHADER_CREATE_INFO(overlay_edit_lattice_point_base)
+GPU_SHADER_CREATE_INFO(overlay_edit_lattice_point)
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, uint, data)
 VERTEX_OUT(overlay_edit_flat_color_iface)
@@ -650,11 +650,13 @@ VERTEX_SOURCE("overlay_edit_lattice_point_vert.glsl")
 FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_modelmat)
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_edit_lattice_point, overlay_edit_lattice_point_base)
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_lattice_point)
 
-GPU_SHADER_CREATE_INFO(overlay_edit_lattice_wire_base)
+GPU_SHADER_CREATE_INFO(overlay_edit_lattice_wire)
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float, weight)
 SAMPLER(0, sampler1D, weight_tx)
@@ -666,9 +668,11 @@ VERTEX_SOURCE("overlay_edit_lattice_wire_vert.glsl")
 FRAGMENT_SOURCE("overlay_varying_color.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_modelmat)
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_edit_lattice_wire, overlay_edit_lattice_wire_base)
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_lattice_wire)
 
 /** \} */
 
@@ -728,7 +732,7 @@ OVERLAY_INFO_CLIP_VARIATION(overlay_edit_particle_point)
 /** \name Edit PointCloud
  * \{ */
 
-GPU_SHADER_CREATE_INFO(overlay_edit_pointcloud_base)
+GPU_SHADER_CREATE_INFO(overlay_edit_pointcloud)
 VERTEX_IN(0, float4, pos_rad)
 VERTEX_OUT(overlay_edit_flat_color_iface)
 DEFINE("LINE_OUTPUT")
@@ -738,9 +742,11 @@ VERTEX_SOURCE("overlay_edit_pointcloud_vert.glsl")
 FRAGMENT_SOURCE("overlay_point_varying_color_frag.glsl")
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
+ADDITIONAL_INFO(draw_modelmat)
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-OVERLAY_INFO_VARIATIONS_MODELMAT(overlay_edit_pointcloud, overlay_edit_pointcloud_base)
+OVERLAY_INFO_CLIP_VARIATION(overlay_edit_pointcloud)
 
 /** \} */
 
