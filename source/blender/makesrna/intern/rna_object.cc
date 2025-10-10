@@ -2845,8 +2845,7 @@ static void rna_def_object_visibility(StructRNA *srna)
   RNA_def_property_ui_text(
       prop,
       "Disable in Surface Picking",
-      "Globally disable during selection and depth-picking operators. "
-      "The object can still be selected through the outliner. "
+      "Disable surface influence during selection, snapping and depth-picking operators. "
       "Usually used to avoid semi-transparent objects to affect scene navigation");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 
