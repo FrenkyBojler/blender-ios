@@ -1487,9 +1487,9 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   PaintStroke *stroke = *stroke_p;
+  /* During modal execution, we cannot assume that the context didn't change. 
+   * Ensure that `paint` is still valid and otherwise cancel the operator. */
   if (!paint) {
-    /* During modal execution, we cannot assume that the context didn't change.
-     * So make sure to check that this */
     if (op->type->cancel) {
       op->type->cancel(C, op);
     }
