@@ -223,8 +223,10 @@ void MTLVertBuf::update_sub(uint start, uint len, const void *data)
   MTLTemporaryBuffer scratch_allocation =
       ctx->get_scratch_buffer_manager().scratch_buffer_allocate_range_aligned(len, 256);
   memcpy(scratch_allocation.data, data, len);
-  [scratch_allocation.metal_buffer
-      didModifyRange:NSMakeRange(scratch_allocation.buffer_offset, len)];
+  if ([scratch_allocation.metal_buffer storageMode] == MTLStorageModeManaged) {
+    [scratch_allocation.metal_buffer
+        didModifyRange:NSMakeRange(scratch_allocation.buffer_offset, len)];
+  }
   id<MTLBuffer> data_buffer = scratch_allocation.metal_buffer;
   uint64_t data_buffer_offset = scratch_allocation.buffer_offset;
 
