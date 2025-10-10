@@ -1,2 +1,2 @@
 Referenced by issue #147618, gpu module produces wrong, darker colors in blender 5.0
-Referenced by pull request #147788, Fix #147618: PyGPU incorrect colors when drawing images
+Referenced by pull request #147788, WIP: Fix #147618: PyGPU incorrect colors when drawing images
