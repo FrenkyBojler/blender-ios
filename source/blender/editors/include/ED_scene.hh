@@ -28,6 +28,10 @@ Scene *ED_scene_sequencer_add(Main *bmain, bContext *C, eSceneCopyMethod method)
  * \return true if successful.
  */
 bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene) ATTR_NONNULL();
+bool ED_scene_replace_for_deletion(bContext &C,
+                                   Main &bmain,
+                                   Scene &scene,
+                                   Scene *scene_new = nullptr);
 /**
  * Depsgraph updates after scene becomes active in a window.
  */
