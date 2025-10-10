@@ -1,3 +1,4 @@
 Referenced by issue #143662, 4.5 Crash with Cycles render w/ Persistent Data + fileview thumbnails sequence
 Referenced by pull request #147706, Cycles: Fix OptiX context log no longer showing up
 Referenced by commit 5e81cb4611450416c0de585d260394213b6eba56, Cycles: Fix OptiX context log no longer showing up
+Referenced by commit b168a833af0825c4bf8fe54a74e16360e34a077b, Cycles: Fix OptiX context log no longer showing up
