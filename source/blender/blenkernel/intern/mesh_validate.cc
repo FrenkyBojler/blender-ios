@@ -12,6 +12,7 @@
 #include <fmt/format.h>
 
 #include "BKE_attribute_math.hh"
+#include "BLI_array_utils.hh"
 #include "CLG_log.h"
 
 #include "DNA_mesh_types.h"
@@ -280,73 +281,77 @@ void mesh_validate(Mesh &mesh)
     invalid_faces.fill(true);
   }
 
-  const Span<int> corner_verts = mesh.corner_verts();
-  const Span<int> corner_edges = mesh.corner_edges();
+  {
+    const Span<int> corner_verts = mesh.corner_verts();
+    const Span<int> corner_edges = mesh.corner_edges();
 
-  threading::parallel_for(faces_range, 512, [&](const IndexRange range) {
-    Set<int, 64> set;
-    for (const int face_i : range) {
-      const int face_start = face_offsets[face_i];
-      const int face_size = face_offsets[face_i + 1] - face_start;
-      if (face_size < 3) {
-        invalid_faces[face_i] = true;
-        continue;
-      }
-      const IndexRange face(face_start, face_size);
-
-      for (const int vert : corner_verts.slice(face)) {
-        if (!verts_range.contains(vert)) {
+    threading::parallel_for(faces_range, 512, [&](const IndexRange range) {
+      Set<int, 64> set;
+      for (const int face_i : range) {
+        const int face_start = face_offsets[face_i];
+        const int face_size = face_offsets[face_i + 1] - face_start;
+        if (face_size < 3) {
           invalid_faces[face_i] = true;
-          break;
+          continue;
+        }
+        const IndexRange face(face_start, face_size);
+
+        for (const int vert : corner_verts.slice(face)) {
+          if (!verts_range.contains(vert)) {
+            invalid_faces[face_i] = true;
+            break;
+          }
+        }
+
+        set.clear_and_keep_capacity();
+        for (const int vert : corner_verts.slice(face)) {
+          if (!set.add(vert)) {
+            invalid_faces[face_i] = true;
+            break;
+          }
+        }
+
+        for (const int corner : face) {
+          const int corner_next = mesh::face_corner_next(face, corner);
+          const int vert = corner_verts[corner];
+          const int vert_next = corner_verts[corner_next];
+          const OrderedEdge actual_edge(vert, vert_next);
+          const int unique_edge_index = unique_edges.index_of_try(actual_edge);
+          if (unique_edge_index == -1) {
+            invalid_faces[face_i] = true;
+            break;
+          }
+          const int edge_reference = corner_edges[corner];
+          if (!edges_range.contains(edge_reference)) {
+            invalid_faces[face_i] = true;
+            // TODO fix just edge and mark this as invalid differently
+          }
+          if (OrderedEdge(edges[edge_reference]) != actual_edge) {
+            invalid_faces[face_i] = true;
+            // TODO fix just edge and mark this as invalid differently
+          }
         }
       }
+    });
+  }
 
-      set.clear_and_keep_capacity();
-      for (const int vert : corner_verts.slice(face)) {
-        if (!set.add(vert)) {
-          invalid_faces[face_i] = true;
-          break;
+  Array<int> sorted_corner_verts(mesh.corners_num);
+  {
+    const Span<int> corner_verts = mesh.corner_verts();
+    threading::parallel_for(faces_range, 512, [&](const IndexRange range) {
+      for (const int face_i : range) {
+        if (invalid_faces[face_i]) {
+          continue;
         }
+        const int face_start = face_offsets[face_i];
+        const int face_size = face_offsets[face_i + 1] - face_start;
+        const IndexRange face(face_start, face_size);
+        MutableSpan<int> sorted_face_verts = sorted_corner_verts.as_mutable_span().slice(face);
+        sorted_face_verts.copy_from(corner_verts.slice(face));
+        std::sort(sorted_face_verts.begin(), sorted_face_verts.end());
       }
-
-      for (const int corner : face) {
-        const int corner_next = mesh::face_corner_next(face, corner);
-        const int vert = corner_verts[corner];
-        const int vert_next = corner_verts[corner_next];
-        const OrderedEdge actual_edge(vert, vert_next);
-        const int unique_edge_index = unique_edges.index_of_try(actual_edge);
-        if (unique_edge_index == -1) {
-          invalid_faces[face_i] = true;
-          break;
-        }
-        const int edge_reference = corner_edges[corner];
-        if (!edges_range.contains(edge_reference)) {
-          invalid_faces[face_i] = true;
-          // TODO fix just edge and mark this as invalid differently
-        }
-        if (OrderedEdge(edges[edge_reference]) != actual_edge) {
-          invalid_faces[face_i] = true;
-          // TODO fix just edge and mark this as invalid differently
-        }
-      }
-    }
-  });
-
-  Array<int> sorted_corner_verts(corner_verts.size());
-  threading::parallel_for(faces_range, 512, [&](const IndexRange range) {
-    for (const int face_i : range) {
-      if (invalid_faces[face_i]) {
-        continue;
-      }
-      const int face_start = face_offsets[face_i];
-      const int face_size = face_offsets[face_i + 1] - face_start;
-      const IndexRange face(face_start, face_size);
-      MutableSpan<int> sorted_face_verts = sorted_corner_verts.as_mutable_span().slice(face);
-      sorted_face_verts.copy_from(corner_verts.slice(face));
-      std::sort(sorted_face_verts.begin(), sorted_face_verts.end());
-    }
-  });
-
+    });
+  }
   using FaceMap = VectorSet<Span<int>,
                             32,
                             DefaultProbingStrategy,
@@ -364,7 +369,7 @@ void mesh_validate(Mesh &mesh)
     const int face_start = face_offsets[face_i];
     const int face_size = face_offsets[face_i + 1] - face_start;
     const IndexRange face(face_start, face_size);
-    if (!face_hash.add(corner_verts.slice(face))) {
+    if (!face_hash.add(sorted_corner_verts.as_span().slice(face))) {
       invalid_faces[face_i] = true;
     }
   }
@@ -384,14 +389,29 @@ void mesh_validate(Mesh &mesh)
   });
   const OffsetIndices new_faces = offset_indices::accumulate_counts_to_offsets(new_face_offsets);
 
+  for (CustomDataLayer &layer : MutableSpan(mesh.face_data.layers, mesh.face_data.totlayer)) {
+    // TODO Handle non-attribute layers
+    const eCustomDataType cd_type = eCustomDataType(layer.type);
+    const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
+    const GSpan src(type, layer.data, mesh.faces_num);
+
+    void *dst_data = MEM_malloc_arrayN(new_faces.size(), type.size, __func__);
+    GMutableSpan dst(type, dst_data, new_faces.size());
+
+    array_utils::gather(src, valid_faces, dst);
+
+    layer.sharing_info->remove_user_and_delete_if_last();
+    layer.data = dst_data;
+    layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
+  }
+
   for (CustomDataLayer &layer : MutableSpan(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
     // TODO Handle non-attribute layers
-    const CPPType &type = *bke::custom_data_type_to_cpp_type(eCustomDataType(layer.type));
+    const eCustomDataType cd_type = eCustomDataType(layer.type);
+    const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
     const GSpan src(type, layer.data, mesh.corners_num);
 
-    void *dst_data = MEM_malloc_arrayN(
-        new_faces.total_size(), CustomData_sizeof(eCustomDataType(layer.type)), __func__);
-
+    void *dst_data = MEM_malloc_arrayN(new_faces.total_size(), type.size, __func__);
     GMutableSpan dst(type, dst_data, new_faces.total_size());
 
     bke::attribute_math::gather_to_groups(new_faces, valid_faces, src, dst);
@@ -400,6 +420,44 @@ void mesh_validate(Mesh &mesh)
     layer.data = dst_data;
     layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
   }
+
+  mesh.faces_num = new_faces.size();
+  mesh.corners_num = new_faces.total_size();
+
+  const IndexMask invalid_edges_mask = IndexMask::from_bools(invalid_edges, memory);
+  if (invalid_edges_mask.is_empty()) {
+    return;
+  }
+
+  const IndexMask valid_edges = invalid_edges_mask.complement(edges_range, memory);
+  const int64_t invalid_edges_num = valid_edges.size();
+
+  for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
+    // TODO Handle non-attribute layers
+    const eCustomDataType cd_type = eCustomDataType(layer.type);
+    const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
+    const GSpan src(type, layer.data, mesh.edges_num);
+
+    void *dst_data = MEM_malloc_arrayN(invalid_edges_num, type.size, __func__);
+    GMutableSpan dst(type, dst_data, invalid_edges_num);
+
+    array_utils::gather(src, valid_edges, dst);
+
+    layer.sharing_info->remove_user_and_delete_if_last();
+    layer.data = dst_data;
+    layer.sharing_info = implicit_sharing::info_for_mem_free(dst_data);
+  }
+
+  mesh.edges_num = valid_edges.size();
+
+  Array<int> all_edges_to_valid_edges(mesh.edges_num);
+  index_mask::build_reverse_map(valid_edges, all_edges_to_valid_edges.as_mutable_span());
+  MutableSpan<int> corner_edges = mesh.corner_edges_for_write();
+  threading::parallel_for(corner_edges.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      corner_edges[i] = all_edges_to_valid_edges[corner_edges[i]];
+    }
+  });
 }
 
 }  // namespace blender::bke
