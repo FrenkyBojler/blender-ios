@@ -31,7 +31,7 @@ from bpy.app.translations import (
 
 def _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs):
     # Use the same logic as auto-completing in the Python console to expand the data-path.
-    from bl_console_utils.autocomplete import intellisense
+    from _bl_console_utils.autocomplete import intellisense
     context_prefix = "context."
     line = context_prefix + edit_text
     cursor = len(line)
