@@ -5,7 +5,6 @@
 #include <fcntl.h>
 #include <fmt/format.h>
 #include <mutex>
-#include <xxhash.h>
 
 #include "BKE_id_hash.hh"
 #include "BKE_lib_id.hh"
@@ -14,6 +13,7 @@
 #include "BKE_main.hh"
 
 #include "BLI_fileops.hh"
+#include "BLI_fingerprint.hh"
 #include "BLI_mmap.h"
 #include "BLI_mutex.hh"
 #include "BLI_set.hh"
@@ -36,16 +36,18 @@ static std::optional<Vector<char>> read_file(const StringRefNull path)
   return buffer;
 }
 
-static std::optional<XXH128_hash_t> compute_file_hash_with_file_read(const StringRefNull path)
+static std::optional<fingerprint::Digest> compute_file_hash_with_file_read(
+    const StringRefNull path)
 {
   const std::optional<Vector<char>> buffer = read_file(path);
   if (!buffer) {
     return std::nullopt;
   }
-  return XXH3_128bits(buffer->data(), buffer->size());
+  return fingerprint::hash(buffer->data(), buffer->size());
 }
 
-static std::optional<XXH128_hash_t> compute_file_hash_with_memory_map(const StringRefNull path)
+static std::optional<fingerprint::Digest> compute_file_hash_with_memory_map(
+    const StringRefNull path)
 {
   const int file = BLI_open(path.c_str(), O_BINARY | O_RDONLY, 0);
   if (file == -1) {
@@ -58,22 +60,22 @@ static std::optional<XXH128_hash_t> compute_file_hash_with_memory_map(const Stri
   BLI_SCOPED_DEFER([&]() { BLI_mmap_free(mmap_file); });
   const size_t size = BLI_mmap_get_length(mmap_file);
   const void *data = BLI_mmap_get_pointer(mmap_file);
-  const XXH128_hash_t hash = XXH3_128bits(data, size);
+  const fingerprint::Digest hash = fingerprint::hash(data, size);
   if (BLI_mmap_any_io_error(mmap_file)) {
     return std::nullopt;
   }
   return hash;
 }
 
-static std::optional<XXH128_hash_t> compute_file_hash(const StringRefNull path)
+static std::optional<fingerprint::Digest> compute_file_hash(const StringRefNull path)
 {
   /* First try the memory map the file, because it avoids an extra copy. */
-  if (const std::optional<XXH128_hash_t> hash = compute_file_hash_with_memory_map(path)) {
+  if (const std::optional<fingerprint::Digest> hash = compute_file_hash_with_memory_map(path)) {
     /* Make sure both code paths are tested even if memory mapping should almost always work. */
     BLI_assert(hash->low64 == compute_file_hash_with_file_read(path)->low64);
     return hash;
   }
-  if (const std::optional<XXH128_hash_t> hash = compute_file_hash_with_file_read(path)) {
+  if (const std::optional<fingerprint::Digest> hash = compute_file_hash_with_file_read(path)) {
     return hash;
   }
   return std::nullopt;
@@ -81,10 +83,11 @@ static std::optional<XXH128_hash_t> compute_file_hash(const StringRefNull path)
 
 struct CachedFileHash {
   int64_t last_modified = 0;
-  XXH128_hash_t hash;
+  fingerprint::Digest hash;
 };
 
-static std::optional<XXH128_hash_t> get_source_file_hash(const ID &id, DeepHashErrors &r_errors)
+static std::optional<fingerprint::Digest> get_source_file_hash(const ID &id,
+                                                               DeepHashErrors &r_errors)
 {
   static Map<std::string, CachedFileHash> cache;
   static Mutex mutex;
@@ -109,7 +112,7 @@ static std::optional<XXH128_hash_t> get_source_file_hash(const ID &id, DeepHashE
     return std::nullopt;
   }
 
-  if (const std::optional<XXH128_hash_t> hash = compute_file_hash(path)) {
+  if (const std::optional<fingerprint::Digest> hash = compute_file_hash(path)) {
     cache.add_overwrite(path, CachedFileHash{stat.st_mtime, *hash});
     return hash;
   }
@@ -117,21 +120,20 @@ static std::optional<XXH128_hash_t> get_source_file_hash(const ID &id, DeepHashE
   return std::nullopt;
 }
 
-static std::optional<XXH128_hash_t> get_id_shallow_hash(const ID &id, DeepHashErrors &r_errors)
+static std::optional<fingerprint::Digest> get_id_shallow_hash(const ID &id,
+                                                              DeepHashErrors &r_errors)
 {
   BLI_assert(ID_IS_LINKED(&id));
   const StringRefNull id_name = id.name;
-  const std::optional<XXH128_hash_t> file_hash = get_source_file_hash(id, r_errors);
+  const std::optional<fingerprint::Digest> file_hash = get_source_file_hash(id, r_errors);
   if (!file_hash) {
     return std::nullopt;
   }
 
-  XXH3_state_t *hash_state = XXH3_createState();
-  XXH3_128bits_reset(hash_state);
-  XXH3_128bits_update(hash_state, id_name.data(), id_name.size());
-  XXH3_128bits_update(hash_state, &*file_hash, sizeof(XXH128_hash_t));
-  XXH128_hash_t shallow_hash = XXH3_128bits_digest(hash_state);
-  XXH3_freeState(hash_state);
+  fingerprint::Hasher hasher;
+  hasher.update(id_name.data(), id_name.size());
+  hasher.update(&*file_hash, sizeof(fingerprint::Digest));
+  fingerprint::Digest shallow_hash = hasher.digest();
   return shallow_hash;
 }
 
@@ -149,15 +151,13 @@ static void compute_deep_hash_recursive(const Main &bmain,
     return;
   }
   current_stack.add(&id);
-  const std::optional<XXH128_hash_t> id_shallow_hash = get_id_shallow_hash(id, r_errors);
+  const std::optional<fingerprint::Digest> id_shallow_hash = get_id_shallow_hash(id, r_errors);
   if (!id_shallow_hash) {
     return;
   }
 
-  XXH3_state_t *hash_state = XXH3_createState();
-  BLI_SCOPED_DEFER([&hash_state]() -> void { XXH3_freeState(hash_state); })
-  XXH3_128bits_reset(hash_state);
-  XXH3_128bits_update(hash_state, &*id_shallow_hash, sizeof(XXH128_hash_t));
+  fingerprint::Hasher hasher;
+  hasher.update(&*id_shallow_hash, sizeof(fingerprint::Digest));
 
   bool success = true;
   BKE_library_foreach_ID_link(
@@ -181,7 +181,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
           /* Need to update the hash even if there is no id. There is a difference between the case
            * where there is no id and the case where this callback is not called at all.*/
           const int random_data = 452942579;
-          XXH3_128bits_update(hash_state, &random_data, sizeof(int));
+          hasher.update(&random_data, sizeof(int));
           return IDWALK_RET_NOP;
         }
         /* All embedded ID usages should already have been excluded above. */
@@ -189,7 +189,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
         if (current_stack.contains(referenced_id)) {
           /* Somehow encode that we had a circular reference here. */
           const int random_data = 234632342;
-          XXH3_128bits_update(hash_state, &random_data, sizeof(int));
+          hasher.update(&random_data, sizeof(int));
           return IDWALK_RET_NOP;
         }
         compute_deep_hash_recursive(bmain, *referenced_id, current_stack, r_hashes, r_errors);
@@ -198,7 +198,7 @@ static void compute_deep_hash_recursive(const Main &bmain,
           success = false;
           return IDWALK_RET_STOP_ITER;
         }
-        XXH3_128bits_update(hash_state, referenced_id_hash->data, sizeof(IDHash));
+        hasher.update(referenced_id_hash->data, sizeof(IDHash));
         return IDWALK_RET_NOP;
       },
       nullptr,
@@ -208,9 +208,9 @@ static void compute_deep_hash_recursive(const Main &bmain,
     return;
   }
   IDHash new_deep_hash;
-  const XXH128_hash_t new_deep_hash_xxh128 = XXH3_128bits_digest(hash_state);
-  static_assert(sizeof(IDHash) == sizeof(XXH128_hash_t));
-  memcpy(new_deep_hash.data, &new_deep_hash_xxh128, sizeof(IDHash));
+  const fingerprint::Digest new_deep_hash_fingerprint = hasher.digest();
+  static_assert(sizeof(IDHash) == sizeof(fingerprint::Digest));
+  memcpy(new_deep_hash.data, &new_deep_hash_fingerprint, sizeof(IDHash));
   r_hashes.add(&id, new_deep_hash);
 }
 
