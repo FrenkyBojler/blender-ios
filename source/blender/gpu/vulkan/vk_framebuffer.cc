@@ -652,9 +652,8 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
             VK_FORMAT_UNDEFINED :
             vk_format);
   }
-  color_attachment_size = max_filled_slot_index + 1;
-  begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = uint32_t(
-      color_attachment_size);
+  color_attachment_size = uint32_t(max_filled_slot_index + 1);
+  begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = color_attachment_size;
   begin_rendering.node_data.vk_rendering_info.pColorAttachments =
       begin_rendering.node_data.color_attachments;
 
