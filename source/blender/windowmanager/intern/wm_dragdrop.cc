@@ -602,7 +602,9 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
 
   wmWindowManager *wm = CTX_wm_manager(C);
   ARegion *region = CTX_wm_region(C);
-  bool any_active = false;
+  /* Set this boolean to true during timer event so that modal cursor won't be changed at the
+   * bottom of the function. */
+  bool any_active = event->type == TIMER;
 
   LISTBASE_FOREACH (wmDrag *, drag, &wm->runtime->drags) {
     wm_drop_update_active(C, drag, event);
@@ -611,7 +613,7 @@ void wm_drags_handle_events(bContext *C, const wmEvent *event)
       any_active = true;
       if (region && drag->drop_state.active_dropbox->on_hover) {
         if (drag->timer == nullptr) {
-          drag->timer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.01);
+          drag->timer = WM_event_timer_add(wm, CTX_wm_window(C), TIMER, 0.001);
         }
         if (drag->timer == event->customdata) {
           WM_event_timer_remove(wm, CTX_wm_window(C), drag->timer);
