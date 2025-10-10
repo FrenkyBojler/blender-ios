@@ -112,7 +112,16 @@ static void subdiv_ccg_eval_grid_element_limit(Subdiv &subdiv,
                                                const int element)
 {
   if (subdiv.displacement_evaluator != nullptr) {
+    printf("%d -> (%d %f %f)\n",
+           element,
+           ptex_face_index,
+           u,
+           v);
     subdiv_ccg.positions[element] = eval_final_point(&subdiv, ptex_face_index, u, v);
+    printf("\t(%f %f %f)\n",
+           subdiv_ccg.positions[element].x,
+           subdiv_ccg.positions[element].y,
+           subdiv_ccg.positions[element].z);
   }
   else if (!subdiv_ccg.normals.is_empty()) {
     eval_limit_point_and_normal(&subdiv,
@@ -403,6 +412,7 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
   subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
   subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
 
+  printf("BKE_subdiv_to_ccg\n");
   if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
     stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
     return nullptr;
@@ -446,6 +456,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
 
 Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
                              Subdiv &subdiv,
+                             Subdiv *temp_subdiv,
                              const SubdivToCCGSettings &settings,
                              Mesh &coarse_mesh,
                              const int delta)
@@ -464,26 +475,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
 
   if (delta < 0) {
-
-    blender::bke::subdiv::Settings subdiv_settings;
-    subdiv_settings.is_adaptive = true;
-    subdiv_settings.is_simple = false;
-    subdiv_settings.level = subdiv.settings.level - delta;
-    subdiv_settings.use_creases = false;
-    subdiv_settings.vtx_boundary_interpolation = blender::bke::subdiv::vtx_boundary_interpolation_from_subsurf(SUBSURF_BOUNDARY_SMOOTH_ALL);
-    subdiv_settings.fvar_linear_interpolation = blender::bke::subdiv::fvar_interpolation_from_uv_smooth(SUBSURF_UV_SMOOTH_NONE);
-
-    Subdiv* temp_subdiv = new_from_mesh(&subdiv_settings, &coarse_mesh);
-    OpenSubdiv_EvaluatorSettings evaluator_settings = {0};
-    blender::bke::subdiv::eval_begin(temp_subdiv,
-                                     blender::bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU,
-                                     nullptr,
-                                     &evaluator_settings);
-    /* TODO: This subdiv needs the displacment evaluator. OR we need the old subdiv_ccg */
-    /* Options:
-     * 1. Introduce global subdivCCG cache?
-     * 2. pass in this displacement earlier? - probably easiest to do this for now.
-     */
+    BLI_assert(temp_subdiv);
 
     SubdivToCCGSettings higher_settings;
     higher_settings.level = settings.level - delta;
@@ -492,6 +484,12 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
     BLI_assert(higher_settings.resolution > settings.resolution);
     higher_settings.need_normal = false;
     higher_settings.need_mask = false;
+    printf("COMPARE SUBDIV_TO_CCGSETTINGS\n");
+    printf("LEVEL %d vs %d\n", settings.level, higher_settings.level);
+    printf("RESOLUTION %d vs %d\n", settings.resolution, higher_settings.resolution);
+    printf("NEED_NORMAL %d vs %d\n", settings.need_normal, higher_settings.need_normal);
+    printf("NEED_MASK %d vs %d\n", settings.need_mask, higher_settings.need_mask);
+    printf("CREATING TEMP SUBDIV CCG\n");
     std::unique_ptr<SubdivCCG> higher_subdiv_ccg = BKE_subdiv_to_ccg(
         *temp_subdiv, higher_settings, coarse_mesh, nullptr);
 

@@ -16,6 +16,7 @@ void BKE_multires_subdiv_settings_init(blender::bke::subdiv::Settings *settings,
 {
   settings->is_simple = false;
   settings->is_adaptive = true;
+  printf("MMD->QUALITY: %d\n", mmd->quality);
   settings->level = settings->is_simple ? 1 : mmd->quality;
   settings->use_creases = (mmd->flags & eMultiresModifierFlag_UseCrease);
   settings->vtx_boundary_interpolation =

@@ -9,6 +9,7 @@ set(INC
   ../editors/include
   ../makesrna
   ../../../intern/eigen
+  ../../../intern/opensubdiv
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -144,6 +145,7 @@ set(LIB
   PRIVATE bf::geometry
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  bf_intern_opensubdiv  # Uses stub when disabled.
   PRIVATE bf::nodes
   PRIVATE bf::render
   PRIVATE bf::windowmanager
@@ -188,6 +190,12 @@ if(WITH_MOD_OCEANSIM)
 endif()
 
 if(WITH_OPENSUBDIV)
+  list(APPEND INC_SYS
+    ${OPENSUBDIV_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${OPENSUBDIV_LIBRARIES}
+  )
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
 

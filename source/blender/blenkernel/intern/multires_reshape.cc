@@ -159,7 +159,7 @@ static void multires_reshape_calculate_object_delta(
   BLI_assert(higher_subdiv_ccg.positions.size() == object_delta.size());
   for (const int i : higher_subdiv_ccg.positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
-    object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position[i];
+    object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
     printf("(%d) (%f %f %f) - (%f %f %f) = (%f %f %f)\n",
            i,
            higher_subdiv_ccg.positions[i].x,

@@ -43,7 +43,11 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "MOD_multires.hh"
+
+#include "BKE_subdiv_eval.hh"
 #include "MOD_ui_common.hh"
+
+#include "opensubdiv_evaluator_capi.hh"
 
 struct MultiresRuntimeData {
   /* Cached subdivision surface descriptor, with topology and settings. */
@@ -201,7 +205,26 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
            delta,
            mmd->sculptlvl);
   }
-  result = BKE_subdiv_to_ccg_mesh(*ctx->object, *subdiv, ccg_settings, *mesh, delta);
+
+  blender::bke::subdiv::Subdiv* temp_subdiv = nullptr;
+  if (delta < 0) {
+    blender::bke::subdiv::Settings temp_subdiv_settings;
+    temp_subdiv_settings.is_adaptive = subdiv->settings.is_adaptive;
+    temp_subdiv_settings.is_simple = subdiv->settings.is_simple;
+    temp_subdiv_settings.level = subdiv->settings.level;
+    temp_subdiv_settings.use_creases = subdiv->settings.use_creases;
+    temp_subdiv_settings.vtx_boundary_interpolation = subdiv->settings.vtx_boundary_interpolation;
+    temp_subdiv_settings.fvar_linear_interpolation = subdiv->settings.fvar_linear_interpolation;
+
+    temp_subdiv = new_from_mesh(&temp_subdiv_settings, mesh);
+    blender::bke::subdiv::displacement_attach_from_multires(temp_subdiv, ctx->object, mesh, mmd);
+    OpenSubdiv_EvaluatorSettings evaluator_settings = {0};
+    blender::bke::subdiv::eval_begin(temp_subdiv,
+                                     blender::bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU,
+                                     nullptr,
+                                     &evaluator_settings);
+  }
+  result = BKE_subdiv_to_ccg_mesh(*ctx->object, *subdiv, temp_subdiv, ccg_settings, *mesh, delta);
 
   /* NOTE: CCG becomes an owner of Subdiv descriptor, so can not share
    * this pointer. Not sure if it's needed, but might have a second look
