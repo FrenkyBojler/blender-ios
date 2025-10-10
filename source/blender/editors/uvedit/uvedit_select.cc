@@ -2609,7 +2609,33 @@ static void uv_select_linked_multi(Scene *scene,
           if ((startv != iterv) && (iterv->separate)) {
             break;
           }
+
           if (!flag[iterv->face_index]) {
+            BMFace *face = BM_face_at_index(bm, iterv->face_index);
+
+            /* Check if faces share an edge */
+            bool shares_non_seam_edge = false;
+            BMLoop *efa_l;
+            BMIter efa_iter;
+            BM_ITER_ELEM (efa_l, &efa_iter, efa, BM_LOOPS_OF_FACE) {
+              BMLoop *face_l;
+              BMIter iter_l;
+              BM_ITER_ELEM (face_l, &iter_l, face, BM_LOOPS_OF_FACE) {
+                if (face_l->e == efa_l->e) {
+                  shares_non_seam_edge = true;
+                  if (BM_elem_flag_test(face_l->e, BM_ELEM_SEAM)) {
+                    shares_non_seam_edge = false;
+                  }
+                  break;
+                }
+              }
+              if (shares_non_seam_edge) {
+                break;
+              }
+            }
+            if (!shares_non_seam_edge) {
+              continue;
+            }
             flag[iterv->face_index] = 1;
             stack[stacksize] = iterv->face_index;
             stacksize++;
