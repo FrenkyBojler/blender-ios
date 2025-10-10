@@ -3600,12 +3600,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 69)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      repair_node_link_node_pointers(*fd, *ntree);
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 71)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->toolsettings->uvsculpt.size *= 2;
@@ -3956,6 +3950,32 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
           node_tree, CMP_NODE_COLORCORRECTION, "Shadows Lift", "Shadows Offset");
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 107)) {
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      /* The flag was actually interpreted as reversed. */
+      material->blend_flag ^= MA_BL_LIGHTPROBE_VOLUME_DOUBLE_SIDED;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 108)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+            sima->iuser.flag &= ~IMA_SHOW_SEQUENCER_SCENE;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 109)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      repair_node_link_node_pointers(*fd, *ntree);
+    }
   }
 
   /**
