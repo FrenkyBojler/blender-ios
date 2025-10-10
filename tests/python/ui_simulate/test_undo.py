@@ -25,6 +25,10 @@ if sys.platform == "darwin":
     _MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS = 1 / 6
 del sys
 
+# FIXME: There is a potential memory leak when splitting or joining areas if
+# Blender is closed before some data is freed. See: #147487
+_ANIMATION_TIMEOUT_HACK_PAUSE_SECONDS = 0.15
+
 # -----------------------------------------------------------------------------
 # Utilities
 
@@ -1076,3 +1080,5 @@ def view3d_edit_mode_multi_window():
     t.assertEqual(len(window_b.view_layer.objects.active.data.vertices), vert_count_b_end)
     t.assertEqual(window_a.view_layer.objects.active.mode, 'OBJECT')
     t.assertEqual(window_b.view_layer.objects.active.mode, 'OBJECT')
+
+    yield datetime.timedelta(seconds=_ANIMATION_TIMEOUT_HACK_PAUSE_SECONDS)
