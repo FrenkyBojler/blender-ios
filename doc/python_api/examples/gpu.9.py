@@ -35,7 +35,7 @@ def draw():
         do_color_management=True)
 
     gpu.state.depth_mask_set(False)
-    draw_texture_2d(offscreen.texture_color, (10, 10), WIDTH, HEIGHT)
+    draw_texture_2d(offscreen.texture_color, (10, 10), WIDTH, HEIGHT, True)
 
 
 bpy.types.SpaceView3D.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL')

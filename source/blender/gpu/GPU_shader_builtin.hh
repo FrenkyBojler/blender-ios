@@ -152,8 +152,16 @@ enum GPUBuiltinShader {
    * \param pos: in vec3
    */
   GPU_SHADER_3D_IMAGE_COLOR,
+  /**
+   * Draw a linear texture in 3D. Take a 3D position and a 2D texture coordinate for each vertex.
+   *
+   * \param image: uniform sampler2D
+   * \param texCoord: in vec2
+   * \param pos: in vec3
+   */
+  GPU_SHADER_3D_IMAGE_LINEAR,
 };
-#define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_3D_IMAGE_COLOR + 1)
+#define GPU_SHADER_BUILTIN_LEN (GPU_SHADER_3D_IMAGE_LINEAR + 1)
 
 /** Support multiple configurations. */
 enum GPUShaderConfig {

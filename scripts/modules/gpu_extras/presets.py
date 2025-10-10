@@ -58,7 +58,7 @@ def draw_circle_2d(position, color, radius, *, segments=None):
         batch.draw(shader)
 
 
-def draw_texture_2d(texture, position, width, height):
+def draw_texture_2d(texture, position, width, height, linear=False):
     """
     Draw a 2d texture.
 
@@ -71,6 +71,8 @@ def draw_texture_2d(texture, position, width, height):
     :type width: float
     :arg height: Height of the image when drawn.
     :type height: float
+    :arg linear: Is the image stored linear (default=False)
+    :type linear: bool
     """
     import gpu
     from . batch import batch_for_shader
@@ -78,7 +80,7 @@ def draw_texture_2d(texture, position, width, height):
     coords = ((0, 0), (1, 0), (1, 1), (0, 1))
     indices = ((0, 1, 2), (2, 3, 0))
 
-    shader = gpu.shader.from_builtin('IMAGE')
+    shader = gpu.shader.from_builtin('IMAGE_LINEAR' if linear else 'IMAGE')
     batch = batch_for_shader(
         shader, 'TRIS',
         {"pos": coords, "texCoord": coords},
@@ -89,7 +91,6 @@ def draw_texture_2d(texture, position, width, height):
         gpu.matrix.translate(position)
         gpu.matrix.scale((width, height))
 
-        shader = gpu.shader.from_builtin('IMAGE')
         shader.uniform_sampler("image", texture)
 
         batch.draw(shader)
