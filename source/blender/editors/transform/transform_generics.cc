@@ -274,7 +274,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
     if ((object_mode & OB_MODE_ALL_PAINT) || (object_mode & OB_MODE_SCULPT_CURVES)) {
       Paint *paint = BKE_paint_get_active_from_context(C);
-      Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+      Brush *brush = BKE_paint_brush(paint);
       if (brush && (brush->flag & BRUSH_CURVE)) {
         t->options |= CTX_PAINT_CURVE;
       }
@@ -1114,11 +1114,13 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
   else if (t->options & CTX_PAINT_CURVE) {
     Paint *paint = BKE_paint_get_active(t->scene, t->view_layer);
     Brush *br = BKE_paint_brush(paint);
-    PaintCurve *pc = br->paint_curve;
-    copy_v3_v3(r_center, pc->points[pc->add_index - 1].bez.vec[1]);
-    BKE_brush_tag_unsaved_changes(br);
-    r_center[2] = 0.0f;
-    return true;
+    if (br) {
+      PaintCurve *pc = br->paint_curve;
+      copy_v3_v3(r_center, pc->points[pc->add_index - 1].bez.vec[1]);
+      BKE_brush_tag_unsaved_changes(br);
+      r_center[2] = 0.0f;
+      return true;
+    }
   }
   else {
     /* Object mode. */

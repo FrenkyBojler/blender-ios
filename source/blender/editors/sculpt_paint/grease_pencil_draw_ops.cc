@@ -93,6 +93,8 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
                                                                          wmOperator *op)
 {
   const Paint *paint = BKE_paint_get_active_from_context(&C);
+  /* We expect to have a context with a valid paint mode. */
+  BLI_assert(paint != nullptr);
   const Brush &brush = *BKE_paint_brush_for_read(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(&C);
   const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
@@ -247,6 +249,9 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
 
   const bool use_duplicate_previous_key = [&]() -> bool {
     const Paint *paint = BKE_paint_get_active_from_context(C);
+    if (!paint) {
+      return false;
+    }
     const Brush &brush = *BKE_paint_brush_for_read(paint);
     const PaintMode mode = BKE_paintmode_get_active_from_context(C);
     const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));

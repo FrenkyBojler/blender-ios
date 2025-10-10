@@ -158,7 +158,7 @@ class Cursor : Overlay {
       else if (state.object_mode & OB_MODE_TEXTURE_PAINT) {
         const Paint *paint = BKE_paint_get_active(const_cast<Scene *>(state.scene),
                                                   const_cast<ViewLayer *>(state.view_layer));
-        const Brush *brush = (paint) ? BKE_paint_brush_for_read(paint) : nullptr;
+        const Brush *brush = BKE_paint_brush_for_read(paint);
 
         if (brush && brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) {
           if ((state.scene->toolsettings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_CLONE) == 0) {

@@ -137,6 +137,9 @@ bool grease_pencil_painting_poll(bContext *C)
   if (!ts || !ts->gp_paint) {
     return false;
   }
+  if (!BKE_paint_get_active_from_context(C)) {
+    return false;
+  }
   return true;
 }
 
@@ -165,6 +168,9 @@ bool grease_pencil_sculpting_poll(bContext *C)
   if (!ts || !ts->gp_sculptpaint) {
     return false;
   }
+  if (!BKE_paint_get_active_from_context(C)) {
+    return false;
+  }
   return true;
 }
 
@@ -181,6 +187,9 @@ bool grease_pencil_weight_painting_poll(bContext *C)
   if (!ts || !ts->gp_weightpaint) {
     return false;
   }
+  if (!BKE_paint_get_active_from_context(C)) {
+    return false;
+  }
   return true;
 }
 
@@ -195,6 +204,9 @@ bool grease_pencil_vertex_painting_poll(bContext *C)
   }
   ToolSettings *ts = CTX_data_tool_settings(C);
   if (!ts || !ts->gp_vertexpaint) {
+    return false;
+  }
+  if (!BKE_paint_get_active_from_context(C)) {
     return false;
   }
   return true;

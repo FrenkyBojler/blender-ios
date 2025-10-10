@@ -55,56 +55,55 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
+  if (!brush) {
+    return OPERATOR_CANCELLED;
+  }
   float scalar = RNA_float_get(op->ptr, "scalar");
 
   /* Grease Pencil brushes in Paint mode do not use unified size. */
   const bool use_unified_size = !(brush && brush->gpencil_settings &&
                                   brush->ob_mode == OB_MODE_PAINT_GREASE_PENCIL);
+  /* Pixel diameter. */
+  {
+    const int old_size = (use_unified_size) ? BKE_brush_size_get(paint, brush) : brush->size;
+    int size = int(scalar * old_size);
 
-  if (brush) {
-    /* Pixel diameter. */
-    {
-      const int old_size = (use_unified_size) ? BKE_brush_size_get(paint, brush) : brush->size;
-      int size = int(scalar * old_size);
-
-      if (abs(old_size - size) < U.pixelsize) {
-        if (scalar > 1) {
-          size += U.pixelsize;
-        }
-        else if (scalar < 1) {
-          size -= U.pixelsize;
-        }
+    if (abs(old_size - size) < U.pixelsize) {
+      if (scalar > 1) {
+        size += U.pixelsize;
       }
-
-      if (use_unified_size) {
-        BKE_brush_size_set(paint, brush, size);
-      }
-      else {
-        brush->size = max_ii(size, 1);
-        BKE_brush_tag_unsaved_changes(brush);
+      else if (scalar < 1) {
+        size -= U.pixelsize;
       }
     }
 
-    /* Unprojected diameter. */
-    {
-      float unprojected_size = scalar * (use_unified_size ?
-                                             BKE_brush_unprojected_size_get(paint, brush) :
-                                             brush->unprojected_size);
-
-      unprojected_size = std::max(unprojected_size, 0.001f);
-
-      if (use_unified_size) {
-        BKE_brush_unprojected_size_set(paint, brush, unprojected_size);
-      }
-      else {
-        brush->unprojected_size = unprojected_size;
-        BKE_brush_tag_unsaved_changes(brush);
-      }
+    if (use_unified_size) {
+      BKE_brush_size_set(paint, brush, size);
     }
-
-    WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
+    else {
+      brush->size = max_ii(size, 1);
+      BKE_brush_tag_unsaved_changes(brush);
+    }
   }
 
+  /* Unprojected diameter. */
+  {
+    float unprojected_size = scalar * (use_unified_size ?
+                                           BKE_brush_unprojected_size_get(paint, brush) :
+                                           brush->unprojected_size);
+
+    unprojected_size = std::max(unprojected_size, 0.001f);
+
+    if (use_unified_size) {
+      BKE_brush_unprojected_size_set(paint, brush, unprojected_size);
+    }
+    else {
+      brush->unprojected_size = unprojected_size;
+      BKE_brush_tag_unsaved_changes(brush);
+    }
+  }
+
+  WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
   return OPERATOR_FINISHED;
 }
 
@@ -129,6 +128,9 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 static wmOperatorStatus palette_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
+  if (!paint) {
+    return OPERATOR_CANCELLED;
+  }
   Main *bmain = CTX_data_main(C);
   Palette *palette;
 

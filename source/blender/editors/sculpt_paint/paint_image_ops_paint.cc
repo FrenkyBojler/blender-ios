@@ -338,6 +338,9 @@ static void paint_stroke_update_step(bContext *C,
 {
   PaintOperation *pop = static_cast<PaintOperation *>(paint_stroke_mode_data(stroke));
   Paint *paint = BKE_paint_get_active_from_context(C);
+  if (!paint) {
+    return;
+  }
   bke::PaintRuntime *paint_runtime = paint->runtime;
   Brush *brush = BKE_paint_brush(paint);
 

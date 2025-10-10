@@ -60,7 +60,7 @@ bool paint_curve_poll(bContext *C)
   }
 
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+  Brush *brush = BKE_paint_brush(paint);
 
   if (brush && (brush->flag & BRUSH_CURVE)) {
     return true;
@@ -157,7 +157,7 @@ static PaintCurve *paintcurve_for_brush_add(Main *bmain, const char *name, const
 static wmOperatorStatus paintcurve_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+  Brush *brush = BKE_paint_brush(paint);
   Main *bmain = CTX_data_main(C);
 
   if (brush) {

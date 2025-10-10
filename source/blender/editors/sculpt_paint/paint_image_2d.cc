@@ -1627,7 +1627,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   s->image = s->sima->image;
   s->symmetry = settings->imapaint.paint.symmetry_flags;
 
-  if (s->image == nullptr) {
+  if (s->image == nullptr || paint == nullptr) {
     MEM_freeN(s);
     return nullptr;
   }
@@ -1829,6 +1829,9 @@ void paint_2d_bucket_fill(const bContext *C,
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
+  if (!paint) {
+    return;
+  }
   Image *ima = sima->image;
 
   ImagePaintState *s = static_cast<ImagePaintState *>(ps);

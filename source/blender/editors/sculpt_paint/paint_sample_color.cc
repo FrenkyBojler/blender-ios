@@ -429,12 +429,12 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
 
-  if ((event->type == data->launch_event) && (event->val == KM_RELEASE)) {
-    if (data->show_cursor) {
+  if (!paint || ((event->type == data->launch_event) && (event->val == KM_RELEASE))) {
+    if (paint && data->show_cursor) {
       paint->flags |= PAINT_SHOW_BRUSH;
     }
 
-    if (data->sample_palette) {
+    if (brush && data->sample_palette) {
       BKE_brush_color_set(paint, brush, data->initcolor);
       RNA_boolean_set(op->ptr, "palette", true);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);

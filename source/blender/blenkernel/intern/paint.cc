@@ -465,9 +465,6 @@ Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer)
           break;
       }
     }
-
-    /* default to image paint */
-    return &ts->imapaint.paint;
   }
 
   return nullptr;
@@ -494,9 +491,8 @@ Paint *BKE_paint_get_active_from_context(const bContext *C)
         return &ts->imapaint.paint;
       }
     }
-    else {
-      return BKE_paint_get_active(sce, view_layer);
-    }
+
+    return BKE_paint_get_active(sce, view_layer);
   }
 
   return nullptr;

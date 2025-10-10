@@ -287,6 +287,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
   if (refresh) {
     ImagePool *pool = nullptr;
     Paint *paint = BKE_paint_get_active_from_context(vc->C);
+    BLI_assert(paint != nullptr);
     /* Stencil is rotated later. */
     const float rotation = (mtex->brush_map_mode != MTEX_MAP_MODE_STENCIL) ? -mtex->rot : 0.0f;
     const float radius = BKE_brush_radius_get(paint, br) * zoom;
@@ -435,6 +436,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 
   if (refresh) {
     Paint *paint = BKE_paint_get_active_from_context(vc->C);
+    BLI_assert(paint != nullptr);
     int s, r;
 
     cursor_snap.zoom = zoom;

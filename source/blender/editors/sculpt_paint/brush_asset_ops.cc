@@ -73,6 +73,9 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
   const bool use_toggle = RNA_boolean_get(op->ptr, "use_toggle");
   AssetWeakReference brush_asset_reference = asset->make_weak_reference();
   Paint *paint = BKE_paint_get_active_from_context(C);
+  if (!paint) {
+    return OPERATOR_CANCELLED;
+  }
   std::optional<AssetWeakReference> asset_to_save;
   if (use_toggle) {
     BLI_assert(paint->brush_asset_reference);
@@ -133,7 +136,7 @@ void BRUSH_OT_asset_activate(wmOperatorType *ot)
 static bool brush_asset_save_as_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+  Brush *brush = BKE_paint_brush(paint);
   if (paint == nullptr || brush == nullptr) {
     return false;
   }
@@ -150,7 +153,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+  Brush *brush = BKE_paint_brush(paint);
 
   /* Determine file path to save to. */
   PropertyRNA *name_prop = RNA_struct_find_property(op->ptr, "name");
@@ -469,7 +472,7 @@ static void visit_active_library_catalogs_catalog_for_search_fn(
 static bool brush_asset_edit_metadata_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+  Brush *brush = BKE_paint_brush(paint);
   if (paint == nullptr || brush == nullptr) {
     return false;
   }
@@ -587,7 +590,7 @@ void BRUSH_OT_asset_load_preview(wmOperatorType *ot)
 static bool brush_asset_delete_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+  Brush *brush = BKE_paint_brush(paint);
   if (paint == nullptr || brush == nullptr) {
     return false;
   }
@@ -746,7 +749,7 @@ void BRUSH_OT_asset_save(wmOperatorType *ot)
 static bool brush_asset_revert_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
+  Brush *brush = BKE_paint_brush(paint);
   if (paint == nullptr || brush == nullptr) {
     return false;
   }

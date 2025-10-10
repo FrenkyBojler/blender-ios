@@ -4689,7 +4689,6 @@ bool cursor_geometry_info_update(bContext *C,
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
-  const Brush &brush = *BKE_paint_brush_for_read(paint);
   bool original = false;
 
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -4702,12 +4701,14 @@ bool cursor_geometry_info_update(bContext *C,
 
   bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
-  if (!pbvh || !vc.rv3d || !BKE_base_is_visible(v3d, base)) {
+  if (!pbvh || !vc.rv3d || !BKE_base_is_visible(v3d, base) || !paint) {
     out->location = float3(0.0f);
     out->normal = float3(0.0f);
     ss.clear_active_elements(false);
     return false;
   }
+
+  const Brush &brush = *BKE_paint_brush_for_read(paint);
 
   /* bke::pbvh::Tree raycast to get active vertex and face normal. */
   float3 ray_start;
@@ -4841,9 +4842,9 @@ static bool stroke_get_location_bvh_ex(bContext *C,
   StrokeCache *cache = ss.cache;
   const bool original = force_original || ((cache) ? !cache->accum : false);
   Paint *paint = BKE_paint_get_active_from_context(C);
-  const Brush &brush = *BKE_paint_brush(paint);
-
-  SCULPT_stroke_modifiers_check(C, ob, brush);
+  if (paint) {
+    SCULPT_stroke_modifiers_check(C, ob, *BKE_paint_brush(paint));
+  }
 
   float3 ray_start;
   float3 ray_end;
@@ -4929,8 +4930,8 @@ static bool stroke_get_location_bvh_ex(bContext *C,
   }
 
   float closest_radius_sq = std::numeric_limits<float>::max();
-  if (limit_closest_radius) {
-    closest_radius_sq = object_space_radius_get(vc, *paint, brush, out);
+  if (limit_closest_radius && paint != nullptr) {
+    closest_radius_sq = object_space_radius_get(vc, *paint, *BKE_paint_brush(paint), out);
     closest_radius_sq *= closest_radius_sq;
   }
 
@@ -4943,7 +4944,7 @@ bool stroke_get_location_bvh(bContext *C,
                              const bool force_original)
 {
   const Brush *brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
-  const bool check_closest = brush->falloff_shape == PAINT_FALLOFF_SHAPE_TUBE;
+  const bool check_closest = brush && (brush->falloff_shape == PAINT_FALLOFF_SHAPE_TUBE);
 
   float3 location;
   const bool result = stroke_get_location_bvh_ex(

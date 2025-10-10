@@ -1486,9 +1486,20 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
                                     PaintStroke **stroke_p)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
+  PaintStroke *stroke = *stroke_p;
+  if (!paint) {
+    /* During modal execution, we cannot assume that the context didn't change.
+     * So make sure to check that this */
+    if (op->type->cancel) {
+      op->type->cancel(C, op);
+    }
+    else {
+      paint_stroke_cancel(C, op, stroke);
+    }
+    return OPERATOR_CANCELLED;
+  }
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
-  PaintStroke *stroke = *stroke_p;
   const Brush *br = stroke->brush = BKE_paint_brush(paint);
   bool first_dab = false;
   bool first_modal = false;

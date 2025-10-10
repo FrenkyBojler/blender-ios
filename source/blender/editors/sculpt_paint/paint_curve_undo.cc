@@ -102,11 +102,10 @@ static bool paintcurve_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoSt
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
-  PaintCurve *pc = paint ? (brush ? brush->paint_curve : nullptr) : nullptr;
-  if (pc == nullptr) {
+  if (!brush) {
     return false;
   }
-
+  PaintCurve *pc = brush->paint_curve;
   PaintCurveUndoStep *us = (PaintCurveUndoStep *)us_p;
   BLI_assert(us->step.data_size == 0);
 

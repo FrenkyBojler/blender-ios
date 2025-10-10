@@ -829,19 +829,20 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
     ofs = -float3(v3d->runtime.ofs_last_center);
   }
 
-  if (ob_act && (ob_act->mode & OB_MODE_ALL_PAINT) &&
+  if (paint && ob_act && (ob_act->mode & OB_MODE_ALL_PAINT) &&
       /* with weight-paint + pose-mode, fall through to using calculateTransformCenter */
       ((ob_act->mode & OB_MODE_WEIGHT_PAINT) && BKE_object_pose_armature_get(ob_act)) == 0)
   {
     BKE_paint_stroke_get_average(paint, ob_act_eval, ofs);
     is_set = true;
   }
-  else if (ob_act && ELEM(ob_act->mode,
-                          OB_MODE_SCULPT_CURVES,
-                          OB_MODE_PAINT_GREASE_PENCIL,
-                          OB_MODE_SCULPT_GREASE_PENCIL,
-                          OB_MODE_VERTEX_GREASE_PENCIL,
-                          OB_MODE_WEIGHT_GREASE_PENCIL))
+  else if (paint && ob_act &&
+           ELEM(ob_act->mode,
+                OB_MODE_SCULPT_CURVES,
+                OB_MODE_PAINT_GREASE_PENCIL,
+                OB_MODE_SCULPT_GREASE_PENCIL,
+                OB_MODE_VERTEX_GREASE_PENCIL,
+                OB_MODE_WEIGHT_GREASE_PENCIL))
   {
     BKE_paint_stroke_get_average(paint, ob_act_eval, ofs);
     is_set = true;

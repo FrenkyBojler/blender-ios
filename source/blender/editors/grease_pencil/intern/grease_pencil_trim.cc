@@ -152,6 +152,9 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
 
   Paint *paint = BKE_paint_get_active_from_context(C);
+  if (!paint) {
+    return OPERATOR_CANCELLED;
+  }
   Brush *brush = BKE_paint_brush(paint);
   if (brush->gpencil_settings == nullptr) {
     BKE_brush_init_gpencil_settings(brush);

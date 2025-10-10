@@ -867,13 +867,12 @@ struct MinDistanceEditData {
   RegionView3D *rv3d;
 };
 
-static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
+static int calculate_points_per_side(const Paint &paint, MinDistanceEditData &op_data)
 {
-  Paint *paint = BKE_paint_get_active_from_context(C);
   ARegion *region = op_data.region;
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
-  const float brush_radius = BKE_brush_radius_get(paint, op_data.brush);
+  const float brush_radius = BKE_brush_radius_get(&paint, op_data.brush);
 
   float3 tangent_x_cu = math::cross(op_data.normal_cu, float3{0, 0, 1});
   if (math::is_zero(tangent_x_cu)) {
@@ -917,6 +916,9 @@ static void min_distance_edit_draw(bContext *C,
                                    void *customdata)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
+  if (!paint) {
+    return;
+  }
   MinDistanceEditData &op_data = *static_cast<MinDistanceEditData *>(customdata);
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
@@ -928,7 +930,7 @@ static void min_distance_edit_draw(bContext *C,
   tangent_x_cu = math::normalize(tangent_x_cu);
   const float3 tangent_y_cu = math::normalize(math::cross(op_data.normal_cu, tangent_x_cu));
 
-  const int points_per_side = calculate_points_per_side(C, op_data);
+  const int points_per_side = calculate_points_per_side(*paint, op_data);
   const int points_per_axis_num = 2 * points_per_side + 1;
 
   Vector<float3> points_wo;
