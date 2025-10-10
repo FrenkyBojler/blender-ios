@@ -132,8 +132,8 @@ struct GWL_LibDecor_Window {
    * \note Accessing the members must lock on `win->frame_pending_mutex`.
    */
   struct {
-    /** When set, ACK configure is expected. */
-    bool ack_configure = false;
+    /** When set, the next update will call libdecor_frame_commit(). */
+    bool needs_commit = false;
     /** The new size to use. */
     int logical_size[2] = {0, 0};
     libdecor_configuration *configuration = nullptr;
@@ -142,20 +142,7 @@ struct GWL_LibDecor_Window {
     bool configuration_needs_free = false;
 #  endif
 
-#  ifdef USE_LIBDECOR_CONFIG_COPY_QUEUE
-    /**
-     * Queue configurations which cannot be applied because the window size isn't know.
-     * All items in this list are allocated.
-     */
-    std::vector<libdecor_configuration *> configuration_queue;
-#  endif
-
   } pending;
-
-  /** The window has been configured (see #xdg_surface_ack_configure). */
-  bool initial_configure_seen = false;
-
-  std::optional<GHOST_TWindowState> initial_configure_state = std::nullopt;
 };
 
 static void gwl_libdecor_window_destroy(GWL_LibDecor_Window *decor)
@@ -167,24 +154,8 @@ static void gwl_libdecor_window_destroy(GWL_LibDecor_Window *decor)
 
 #  endif /* USE_LIBDECOR_CONFIG_COPY_WORKAROUND */
 
-#  ifdef USE_LIBDECOR_CONFIG_COPY_QUEUE
-  for (libdecor_configuration *configuration : decor->pending.configuration_queue) {
-    ghost_wl_libdecor_configuration_free(configuration);
-  }
-  decor->pending.configuration_queue.clear();
-#  endif /* USE_LIBDECOR_CONFIG_COPY_QUEUE */
-
   libdecor_frame_unref(decor->frame);
   delete decor;
-}
-
-static void gwl_libdecor_window_initial_configure_state_set(GWL_LibDecor_Window *decor,
-                                                            const GHOST_TWindowState state_current)
-{
-  xdg_toplevel *toplevel = libdecor_frame_get_xdg_toplevel(decor->frame);
-  GHOST_ASSERT(toplevel, "Expected to be valid!");
-  gwl_window_state_set_for_xdg(toplevel, decor->initial_configure_state.value(), state_current);
-  decor->initial_configure_state = std::nullopt;
 }
 
 #endif /* WITH_GHOST_WAYLAND_LIBDECOR */
@@ -206,8 +177,6 @@ struct GWL_XDG_Decor_Window {
     uint32_t ack_configure_serial = 0;
   } pending;
 
-  /** The window has been configured (see #xdg_surface_ack_configure). */
-  bool initial_configure_seen = false;
   /** The maximum bounds on startup, monitor size minus docs for example. */
   int initial_bounds[2] = {0, 0};
 };
@@ -457,6 +426,9 @@ struct GWL_Window {
   GWL_LibDecor_Window *libdecor = nullptr;
 #endif
   GWL_XDG_Decor_Window *xdg_decor = nullptr;
+
+  /** The window has been configured (see #xdg_surface_ack_configure). */
+  bool initial_configure_seen = false;
 
   /**
    * The current value of frame, copied from `frame_pending` when applying updates.
@@ -977,7 +949,6 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 #endif
 
   const bool dpi_changed = win->frame_pending.fractional_scale != win->frame.fractional_scale;
-  bool surface_needs_commit = false;
   bool surface_needs_resize_for_backend = false;
   bool surface_needs_buffer_scale = false;
 
@@ -986,7 +957,7 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
         (win->frame.size[1] != win->frame_pending.size[1]))
     {
       gwl_window_frame_pending_size_set(win,
-                                        &surface_needs_commit,
+                                        nullptr,
                                         &surface_needs_resize_for_backend,
                                         &surface_needs_buffer_scale);
     }
@@ -994,7 +965,7 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 
   if (win->frame_pending.fractional_scale || win->frame.fractional_scale) {
     gwl_window_frame_pending_fractional_scale_set(
-        win, &surface_needs_commit, &surface_needs_buffer_scale);
+        win, nullptr, &surface_needs_buffer_scale);
   }
   else {
     if (win->frame_pending.buffer_scale != win->frame.buffer_scale) {
@@ -1014,21 +985,11 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
     GWL_LibDecor_Window &decor = *win->libdecor;
-    if (decor.pending.ack_configure) {
-      surface_needs_commit = true;
+    if (decor.pending.needs_commit) {
+      decor.pending.needs_commit = false;
 
-      decor.pending.ack_configure = false;
-
-      libdecor_state *state = libdecor_state_new(UNPACK2(decor.pending.logical_size));
-
-#  ifdef USE_LIBDECOR_CONFIG_COPY_QUEUE
-      GHOST_ASSERT(decor.pending.logical_size[0] != 0 && decor.pending.logical_size[1] != 0, "Invalid size");
-      for (libdecor_configuration *configuration : decor.pending.configuration_queue) {
-        libdecor_frame_commit(decor.frame, state, configuration);
-        ghost_wl_libdecor_configuration_free(configuration);
-      }
-      decor.pending.configuration_queue.clear();
-#  endif
+      libdecor_state *state = libdecor_state_new(decor.pending.logical_size[0],
+                                                 decor.pending.logical_size[1]);
 
       libdecor_frame_commit(decor.frame, state, decor.pending.configuration);
 
@@ -1036,37 +997,6 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 
       decor.pending.logical_size[0] = 0;
       decor.pending.logical_size[1] = 0;
-
-      if (decor.initial_configure_seen == false) {
-        decor.initial_configure_seen = true;
-        if (decor.initial_configure_state) {
-          const GHOST_TWindowState state_current = gwl_window_state_get(win);
-          const GHOST_TWindowState state = decor.initial_configure_state.value();
-
-          gwl_libdecor_window_initial_configure_state_set(&decor, state_current);
-
-          /* An unfortunate hack for GNOME-48 and older.
-           * It's necessary to force the window to refresh,
-           * otherwise the window cannot be interacted with, see: #148142.
-           *
-           * Since there doesn't seem to a be a way to request an
-           * update directly: reset the title to force an update.
-           *
-           * Note that temporarily maximizing the window also works
-           * but this is more likely to flicker on startup.
-           *
-           * Interestingly the other call to #gwl_libdecor_window_initial_configure_state_set
-           * would also suffer from this problem with GNOME-49 but in that case
-           * committing the surface resolves the problem. */
-          if (((state == state_current) && (state == GHOST_kWindowStateNormal))) {
-            /* Ensure the title changes. */
-            const std::string &title = win->title;
-            const char *title_swap = " ";
-            libdecor_frame_set_title(decor.frame, title_swap + (title.empty() ? 0 : 1));
-            libdecor_frame_set_title(decor.frame, title.c_str());
-          }
-        }
-      }
 
 #  ifdef USE_LIBDECOR_CONFIG_COPY_WORKAROUND
       if (decor.pending.configuration_needs_free) {
@@ -1086,23 +1016,13 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
     if (decor.pending.ack_configure) {
       xdg_surface_ack_configure(decor.surface, decor.pending.ack_configure_serial);
       /* The XDG spec states a commit event is required after ACK configure. */
-      surface_needs_commit = true;
 
       decor.pending.ack_configure = false;
       decor.pending.ack_configure_serial = 0;
-
-      decor.initial_configure_seen = true;
     }
   }
 
-  if (surface_needs_commit) {
-#ifdef USE_EVENT_BACKGROUND_THREAD
-    /* Postponing the commit avoids flickering when moving between monitors of different scale. */
-    gwl_window_pending_actions_tag(win, PENDING_WINDOW_SURFACE_COMMIT);
-#else
-    wl_surface_commit(win->wl.surface);
-#endif
-  }
+  win->initial_configure_seen = true;
 
   if (dpi_changed) {
     GHOST_SystemWayland *system = win->ghost_system;
@@ -1135,6 +1055,8 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
   /* Signal not to apply the scale unless it's configured. */
   win->frame_pending.size[0] = 0;
   win->frame_pending.size[1] = 0;
+
+  win->ghost_window->notify_decor_redraw();
 }
 
 [[maybe_unused]] static void gwl_window_frame_update_from_pending(GWL_Window *win)
@@ -1338,7 +1260,7 @@ static void xdg_toplevel_handle_configure_bounds(void *data,
   /* No need to lock as this only runs on window creation. */
   GWL_Window *win = static_cast<GWL_Window *>(data);
   GWL_XDG_Decor_Window &decor = *win->xdg_decor;
-  if (decor.initial_configure_seen == false) {
+  if (win->initial_configure_seen == false) {
     decor.initial_bounds[0] = width;
     decor.initial_bounds[1] = height;
   }
@@ -1535,7 +1457,7 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
     decor.pending.logical_size[0] = logical_size_next[0];
     decor.pending.logical_size[1] = logical_size_next[1];
     decor.pending.configuration = configuration;
-    decor.pending.ack_configure = true;
+    decor.pending.needs_commit = true;
 
 #  ifdef USE_EVENT_BACKGROUND_THREAD
     if (!is_main_thread) {
@@ -1557,25 +1479,6 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
         decor.pending.configuration = ghost_wl_libdecor_configuration_copy(
             decor.pending.configuration);
         decor.pending.configuration_needs_free = true;
-      }
-      /* Transfer ownership to the queue. */
-      decor.pending.configuration_queue.push_back(decor.pending.configuration);
-      decor.pending.configuration = nullptr;
-      decor.pending.configuration_needs_free = false;
-      /* Wait until we have a valid size. */
-      decor.pending.ack_configure = false;
-
-      /* It's important to set this when `ack_configure` is disabled,
-       * otherwise it's possible the window is never called with a valid size `ack_configure`
-       * is never set to true and the `decor.initial_configure_state` is never applied.
-       *
-       * So set the state here, and commit the surface.
-       * Then LIBDECOR is responsible for applying the state. */
-      if (decor.initial_configure_state) {
-        gwl_libdecor_window_initial_configure_state_set(&decor, gwl_window_state_get(win));
-        /* Without the final commit, popup windows such as the preferences wont
-         * update the window frame and the window wont be clickable. */
-        surface_needs_commit_finally = true;
       }
     }
 #  endif /* USE_LIBDECOR_CONFIG_COPY_QUEUE */
@@ -1622,7 +1525,7 @@ static void libdecor_frame_handle_commit(libdecor_frame * /*frame*/, void *data)
 {
   CLOG_DEBUG(LOG, "commit");
 
-#  if 0
+#  if 1
   GWL_Window *win = static_cast<GWL_Window *>(data);
   win->ghost_window->notify_decor_redraw();
 #  else
@@ -1912,26 +1815,16 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 
   gwl_window_title_set(window_, title);
 
+  gwl_window_state_set(window_, state);
+
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   if (use_libdecor) {
     /* Postpone mapping the window until after the app-id & title have been set.
      * While this doesn't seem to be a requirement, LIBDECOR example code does this. */
     libdecor_frame_map(window_->libdecor->frame);
   }
-#endif
-
-  wl_surface_set_user_data(window_->wl.surface, this);
-
-  /* NOTE: the method used for XDG & LIBDECOR initialization (using `initial_configure_seen`)
-   * follows the method used in SDL 3.16. */
-
-  /* Causes a glitch with `libdecor` for some reason. */
-#ifdef WITH_GHOST_WAYLAND_LIBDECOR
-  if (use_libdecor) {
-    /* Pass. */
-  }
   else
-#endif /* WITH_GHOST_WAYLAND_LIBDECOR */
+#endif
   {
     GWL_XDG_Decor_Window &decor = *window_->xdg_decor;
 
@@ -1950,12 +1843,17 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 
     /* Commit needed to so configure callback runs. */
     wl_surface_commit(window_->wl.surface);
+  }
 
-    /* Failure exits with an error, simply prevent an eternal loop. */
-    while (!decor.initial_configure_seen && !ghost_wl_display_report_error_if_set(display)) {
-      wl_display_flush(display);
-      wl_display_dispatch(display);
-    }
+  wl_surface_set_user_data(window_->wl.surface, this);
+
+  /* Synchronously wait for the initial configure before setting up viewport and creating the
+   * graphics context, because they both depend on the configuration sent in the initial
+   * xdg_toplevel.configure event (or libdecor's handle_configure, which is equivalent).
+   */
+  while (!window_->initial_configure_seen && !ghost_wl_display_report_error_if_set(display)) {
+    wl_display_flush(display);
+    wl_display_dispatch(display);
   }
 
   /* If the scale is known early, setup the window scale.
@@ -2074,6 +1972,9 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   }
 #endif
 
+  /* Setting the drawing context indirectly draws and commits via e.g. eglSwapBuffers() so ensure
+   * to not draw before we're configured.
+   */
   /* Drawing context. */
   if (setDrawingContextType(type) == GHOST_kFailure) {
     /* This can happen when repeatedly creating windows, see #123096.
@@ -2083,57 +1984,6 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   else {
     window_->is_valid_setup = true;
   }
-
-  if (window_->is_valid_setup == false) {
-    /* Don't attempt to setup the window if there is no context.
-     * This window is considered invalid and will be removed. */
-  }
-  else
-#ifdef WITH_GHOST_WAYLAND_LIBDECOR
-      if (use_libdecor)
-  {
-    /* Ensuring the XDG window has been created is *not* supported by VULKAN.
-     *
-     * Although this was once supported using a temporary SHM buffer,
-     * a DMA buffer is now required by some drivers which turns out to be
-     * impractical to create here, specially since it's only for a temporary buffer.
-     *
-     * Workaround the problem by postponing changes to the window state.
-     * This causes minor but noticeable glitch when starting maximized,
-     * where a rectangle is first shown before maximizing.
-     * With EGL this also happens however maximizing is almost immediate.
-     *
-     * This can't be avoided at the moment since LIBDECOR requires the window
-     * to be created before it's configured (sigh!).
-     * This can be removed if CSD are implemented, see: #113795. */
-    GWL_LibDecor_Window &decor = *window_->libdecor;
-    decor.initial_configure_state = state;
-
-    /* Set the pending size now, this is an imperfect solution,
-     * it's needed for the following reasons.
-     *
-     * - New windows won't apply their configuration
-     *   (when #GWL_LibDecor_Window::ack_configure is true)
-     *   *unless* there is a valid size.
-     * - In some cases (GNOME 49.0 maybe other versions) the window never gets a valid size.
-     *
-     * So set a size here, it will be used if the window is configured without a size.
-     * Note that this may not match the size used by LIBDECOR, showing a visible
-     * difference between the window and it's frame. This mainly happens when attempting
-     * to use small window sizes (which may be clamped to a larger size). */
-    decor.pending.size[0] = window_->frame.size[0] / window_->frame.buffer_scale;
-    decor.pending.size[1] = window_->frame.size[1] / window_->frame.buffer_scale;
-  }
-  else
-#endif /* WITH_GHOST_WAYLAND_LIBDECOR */
-  {
-    gwl_window_state_set(window_, state);
-  }
-
-  /* Commit after setting the buffer.
-   * While postponing until after the buffer drawing is context is set
-   * isn't essential, it reduces flickering. */
-  wl_surface_commit(window_->wl.surface);
 
 #ifdef WITH_OPENGL_BACKEND
   if (type == GHOST_kDrawingContextTypeOpenGL) {
@@ -2844,6 +2694,7 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
       }
     }
 #endif /* WITH_GHOST_WAYLAND_LIBDECOR */
+
     /* Leave `window_->frame_pending` as-is, so changes are detected and updates are applied. */
     do_frame_resize = false;
     do_frame_update = true;
@@ -2868,6 +2719,9 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
     }
   }
 
+  int orig_logical_size[2] = { window_->frame_pending.size[0],
+                               window_->frame_pending.size[1] };
+
   if (do_frame_resize) {
     /* Resize the window failing to do so results in severe flickering with a
      * multi-monitor setup when multiple monitors have different scales.
@@ -2889,7 +2743,16 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
         gwl_round_int_by(&window_->frame_pending.size[i], window_->frame_pending.buffer_scale);
       }
     }
-    do_frame_update = true;
+    int next_logical_size[2] = { window_->frame_pending.size[0],
+                                 window_->frame_pending.size[1] };
+    if (use_libdecor &&
+        (next_logical_size[0] != orig_logical_size[0] ||
+         next_logical_size[1] != orig_logical_size[1]))
+      {
+        GWL_LibDecor_Window &decor = *window_->libdecor;
+        decor.pending.needs_commit = true;
+        do_frame_update = true;
+      }
   }
 
   if (do_frame_update) {
