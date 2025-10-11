@@ -252,6 +252,38 @@ static int bpy_slot_from_py(BMesh *bm,
       }
       break;
     }
+    case BMO_OP_SLOT_PTR: {
+      if (slot->slot_subtype.ptr == BMO_OP_SLOT_SUBTYPE_PTR_BMESH) {
+        if (value == Py_None) {
+          BMO_slot_ptr_set(bmop->slots_in, slot_name, NULL);
+        }
+        else if (BPy_BMesh_Check(value)) {
+          BPy_BMesh *py_bm_other = (BPy_BMesh *)value;
+          if (py_bm_other->bm == nullptr) {
+            PyErr_SetString(PyExc_RuntimeError, "BMesh data has been freed");
+            return -1;
+          }
+          BMO_slot_ptr_set(bmop->slots_in, slot_name, (void *)py_bm_other->bm);
+        }
+        else {
+          PyErr_Format(PyExc_TypeError,
+                       "%.200s: keyword \"%.200s\" expected a BMesh or None, not %.200s",
+                       opname,
+                       slot_name,
+                       Py_TYPE(value)->tp_name);
+          return -1;
+        }
+      }
+      else {
+        PyErr_Format(PyExc_NotImplementedError,
+                     "%.200s: keyword \"%.200s\" uses an unsupported pointer subtype",
+                     opname,
+                     slot_name);
+        return -1;
+      }
+      break;
+    }
+
     case BMO_OP_SLOT_ELEMENT_BUF: {
       if (slot->slot_subtype.elem & BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE) {
         if (bpy_slot_from_py_elem_check((BPy_BMElem *)value,
@@ -811,6 +843,33 @@ PyObject *BPy_BMO_call(BPy_BMeshOpFunc *self, PyObject *args, PyObject *kw)
 
   BMO_op_exec(bm, &bmop);
 
+  BMesh *bm_dest = nullptr;
+  GSet *new_elems = nullptr;
+
+  if (BMO_slot_exists(bmop.slots_in, "dest")) {
+    bm_dest = static_cast<BMesh *>(BMO_slot_ptr_get(bmop.slots_in, "dest"));
+    if (bm_dest) {
+      GSet *tmp = BLI_gset_ptr_new(__func__);
+      for (int i = 0; bmop.slots_out[i].slot_name; i++) {
+        BMOpSlot *s = &bmop.slots_out[i];
+        if (s->slot_type == BMO_OP_SLOT_ELEMENT_BUF && s->slot_name &&
+            strstr(s->slot_name, ".out"))
+        {
+          void **buf = BMO_SLOT_AS_BUFFER(s);
+          for (int j = 0; j < s->len; j++) {
+            BLI_gset_add(tmp, buf[j]);
+          }
+        }
+      }
+      if (BLI_gset_len(tmp) > 0) {
+        new_elems = tmp;
+      }
+      else {
+        BLI_gset_free(tmp, nullptr);
+      }
+    }
+  }
+
   /* from here until the end of the function, no returns, just set 'ret' */
   if (UNLIKELY(bpy_bm_op_as_py_error(bm) == -1)) {
     ret = nullptr; /* exception raised above */
@@ -830,7 +889,58 @@ PyObject *BPy_BMO_call(BPy_BMeshOpFunc *self, PyObject *args, PyObject *kw)
       PyObject *item;
 
       /* this function doesn't throw exceptions */
-      item = bpy_slot_to_py(bm, slot);
+      if (slot->slot_type == BMO_OP_SLOT_ELEMENT_BUF && bm_dest) {
+        BMesh *wrap_bm = (slot->slot_name && strstr(slot->slot_name, ".out")) ? bm_dest : bm;
+        item = bpy_slot_to_py(wrap_bm, slot);
+      }
+
+      else if (slot->slot_type == BMO_OP_SLOT_MAPPING && bm_dest) {
+        GHash *h = BMO_SLOT_AS_GHASH(slot);
+        item = _PyDict_NewPresized(h ? BLI_ghash_len(h) : 0);
+        if (h) {
+          GHashIterator it;
+          GHASH_ITER (it, h) {
+            BMHeader *k = static_cast<BMHeader *>(BLI_ghashIterator_getKey(&it));
+            void *val_ptr = BLI_ghashIterator_getValue(&it);
+
+            BMesh *bm_k = (new_elems && BLI_gset_haskey(new_elems, k)) ? bm_dest : bm;
+
+            PyObject *py_k = BPy_BMElem_CreatePyObject(bm_k, k);
+            PyObject *py_v = nullptr;
+
+            switch (slot->slot_subtype.map) {
+              case BMO_OP_SLOT_SUBTYPE_MAP_ELEM: {
+                BMHeader *v = static_cast<BMHeader *>(val_ptr);
+                BMesh *bm_v = (new_elems && BLI_gset_haskey(new_elems, v)) ? bm_dest : bm;
+                py_v = BPy_BMElem_CreatePyObject(bm_v, v);
+                break;
+              }
+              case BMO_OP_SLOT_SUBTYPE_MAP_FLT:
+                py_v = PyFloat_FromDouble(*(float *)&val_ptr);
+                break;
+              case BMO_OP_SLOT_SUBTYPE_MAP_INT:
+                py_v = PyLong_FromLong(*(int *)&val_ptr);
+                break;
+              case BMO_OP_SLOT_SUBTYPE_MAP_BOOL:
+                py_v = PyBool_FromLong(*(bool *)&val_ptr);
+                break;
+              case BMO_OP_SLOT_SUBTYPE_MAP_EMPTY:
+              case BMO_OP_SLOT_SUBTYPE_MAP_INTERNAL:
+                py_v = Py_NewRef(Py_None);
+                break;
+            }
+
+            PyDict_SetItem(item, py_k, py_v);
+            Py_DECREF(py_k);
+            Py_DECREF(py_v);
+          }
+        }
+      }
+
+      else {
+        item = bpy_slot_to_py(bm, slot);
+      }
+
       if (item == nullptr) {
         item = Py_NewRef(Py_None);
       }
@@ -850,6 +960,9 @@ PyObject *BPy_BMO_call(BPy_BMeshOpFunc *self, PyObject *args, PyObject *kw)
       PyDict_SetItemString(ret, slot->slot_name, item);
 #endif
       Py_DECREF(item);
+    }
+    if (new_elems) {
+      BLI_gset_free(new_elems, nullptr);
     }
   }
 
