@@ -206,6 +206,10 @@ static void file_refresh(const bContext *C, ScrArea *area)
   FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
   FSMenu *fsmenu = ED_fsmenu_get();
 
+  if (!params->dir[0]) {
+    params->type = FILE_SYSTEM_ROOT;
+  }
+
   fileselect_refresh_params(sfile);
   folder_history_list_ensure_for_active_browse_mode(sfile);
 
@@ -232,7 +236,9 @@ static void file_refresh(const bContext *C, ScrArea *area)
   }
 
   filelist_settype(sfile->files, params->type);
-  filelist_setdir(sfile->files, params->dir);
+  if (params->dir[0]) {
+    filelist_setdir(sfile->files, params->dir);
+  }
   filelist_setrecursion(sfile->files, params->recursion_level);
   filelist_setsorting(sfile->files, params->sort, params->flag & FILE_SORT_INVERT);
   filelist_setlibrary(sfile->files, asset_params ? &asset_params->asset_library_ref : nullptr);
@@ -271,7 +277,11 @@ static void file_refresh(const bContext *C, ScrArea *area)
     filelist_clear_from_reset_tag(sfile->files);
   }
 
-  if (filelist_needs_reading(sfile->files)) {
+  if (params->type == FILE_SYSTEM_ROOT) {
+    filelist_add_system_root_items(sfile->files);
+    params->type = FILE_BLENDER;
+  }
+  else if (filelist_needs_reading(sfile->files)) {
     if (!filelist_pending(sfile->files)) {
       filelist_readjob_start(sfile->files, NC_SPACE | ND_SPACE_FILE_LIST, C);
     }

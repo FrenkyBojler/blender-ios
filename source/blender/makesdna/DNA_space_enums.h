@@ -572,6 +572,7 @@ typedef enum eFileSelectType {
   FILE_UNIX = 8,
   FILE_BLENDER = 8, /* don't display relative paths */
   FILE_SPECIAL = 9,
+  FILE_SYSTEM_ROOT = 10,
 } eFileSelectType;
 
 /**

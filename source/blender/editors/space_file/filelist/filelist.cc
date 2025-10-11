@@ -83,6 +83,8 @@
 #include "../filelist.hh"
 #include "filelist_intern.hh"
 
+#include "../fsmenu.h"
+
 using namespace blender;
 
 static ImBuf *gSpecialFileImages[int(SpecialFileImages::_Max)];
@@ -2996,6 +2998,31 @@ static void filelist_readjob_main_assets_add_items(FileListReadJob *job_params,
     filelist->filelist.entries_num += entries_num;
     filelist->filelist.entries_filtered_num = -1;
   }
+}
+
+void filelist_add_system_root_item(FileList *filelist, FSMenu *menu, FSMenuCategory category)
+{
+  for (FSMenuEntry *fsm_iter = ED_fsmenu_get_category(menu, category); fsm_iter;
+       fsm_iter = fsm_iter->next)
+  {
+    FileListInternEntry *entry = MEM_new<FileListInternEntry>(__func__);
+    entry->relpath = BLI_strdup(fsm_iter->name);
+    entry->name = BLI_strdup(fsm_iter->name);
+    entry->free_name = true;
+    entry->typeflag |= FILE_TYPE_DIR | FILE_TYPE_FOLDER;
+    entry->uid = filelist_uid_generate(filelist);
+    entry->redirection_path = BLI_strdup(fsm_iter->path);
+    BLI_addtail(&filelist->filelist_intern.entries, entry);
+    filelist->filelist.entries_num += 1;
+  }
+}
+
+void filelist_add_system_root_items(FileList *filelist)
+{
+  filelist->filelist.entries_num = 0;
+  FSMenu *menu = ED_fsmenu_get();
+  filelist_add_system_root_item(filelist, menu, FS_CATEGORY_SYSTEM);
+  filelist_add_system_root_item(filelist, menu, FS_CATEGORY_SYSTEM_BOOKMARKS);
 }
 
 /**

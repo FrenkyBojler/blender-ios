@@ -770,8 +770,20 @@ static void file_draw_special_image(const FileDirEntry *file,
                                     const FileLayout *layout,
                                     const bool dimmed)
 {
-  float document_img_col[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-  if (file->typeflag & FILE_TYPE_DIR) {
+  /* Draw large folder or document icon. */
+  int icon_large;
+  if (file_type_icon == ICON_DISK_DRIVE) {
+    icon_large = ICON_DISK_DRIVE_LARGE;
+  }
+  else if (file->typeflag & FILE_TYPE_DIR) {
+    icon_large = ICON_FILE_FOLDER_LARGE;
+  }
+  else {
+    icon_large = ICON_FILE_LARGE;
+  }
+
+  float document_img_col[4];
+  if (icon_large == ICON_FILE_FOLDER_LARGE) {
     UI_GetThemeColor4fv(TH_ICON_FOLDER, document_img_col);
   }
   else {
@@ -789,10 +801,6 @@ static void file_draw_special_image(const FileDirEntry *file,
   const float aspect = icon_aspect / UI_SCALE_FAC;
 
   {
-    /* Draw large folder or document icon. */
-    const int icon_large = (file->typeflag & FILE_TYPE_DIR) ? ICON_FILE_FOLDER_LARGE :
-                                                              ICON_FILE_LARGE;
-
     uchar icon_col[4];
     rgba_float_to_uchar(icon_col, document_img_col);
 
@@ -810,7 +818,7 @@ static void file_draw_special_image(const FileDirEntry *file,
                     UI_NO_ICON_OVERLAY_TEXT);
   }
 
-  if (file_type_icon) {
+  if (!ELEM(file_type_icon, ICON_NONE, ICON_DISK_DRIVE)) {
     /* Small icon in the middle of large image, scaled to fit container and UI scale */
     float icon_opacity = 0.4f;
     uchar icon_color[4] = {0, 0, 0, 255};
