@@ -352,8 +352,10 @@ void multires_reshape_smooth_object_grids(const MultiresReshapeContext *reshape_
 void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *reshape_context,
                                              enum MultiresSubdivideModeType mode);
 void multires_reshape_store_limit_positions(const MultiresReshapeContext *reshape_context,
-                                             enum MultiresSubdivideModeType mode,
-                                             blender::MutableSpan<blender::float3> storage);
+                                            enum MultiresSubdivideModeType mode,
+                                            blender::MutableSpan<blender::float3> deltas,
+                                            blender::MutableSpan<blender::float3x3> tangent_matrices);
+
 
 /* --------------------------------------------------------------------
  * Displacement, space conversion.

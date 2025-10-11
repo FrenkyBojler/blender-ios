@@ -487,7 +487,7 @@ ReshapeGridElement multires_reshape_grid_element_for_grid_coord(
 }
 
 int multires_index_for_grid_coord_for_reshape(const MultiresReshapeContext *reshape_context,
-                                  const GridCoord *grid_coord)
+                                              const GridCoord *grid_coord)
 {
   const int grid_size = reshape_context->reshape.grid_size;
   const int grid_x = lround(grid_coord->u * (grid_size - 1));

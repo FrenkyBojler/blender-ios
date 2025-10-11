@@ -427,7 +427,7 @@ static void foreach_toplevel_grid_coord(
 
 static void foreach_toplevel_grid_coord_single_threaded(
     MultiresReshapeSmoothContext *reshape_smooth_context,
-    blender::FunctionRef<void(const PTexCoord *, int)> callback)
+    blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
 {
   using namespace blender;
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
@@ -453,8 +453,9 @@ static void foreach_toplevel_grid_coord_single_threaded(
             ptex_coord.ptex_face_index = ptex_face_index;
             bke::subdiv::rotate_grid_to_quad(corner, grid_u, grid_v, &ptex_coord.u, &ptex_coord.v);
             const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-            //printf("(%d, %d, %d) -> (%d, %f, %f) -> %d -> (%d, %f, %f)\n", corner, x, y, corner, grid_u, grid_v, element, ptex_face_index, ptex_coord.u, ptex_coord.v);
-            callback(&ptex_coord, element);
+            // printf("(%d, %d, %d) -> (%d, %f, %f) -> %d -> (%d, %f, %f)\n", corner, x, y, corner,
+            // grid_u, grid_v, element, ptex_face_index, ptex_coord.u, ptex_coord.v);
+            callback(&ptex_coord, element, corner);
           }
         }
       }
@@ -1429,17 +1430,27 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
 }
 
 static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape_smooth_context,
-                                           blender::MutableSpan<blender::float3> delta_storage)
+                                           blender::MutableSpan<blender::float3> delta_storage,
+                                           blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
 {
   foreach_toplevel_grid_coord_single_threaded(
-      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx) {
+      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
 
         /* Surface. */
-        const blender::float3 P = blender::bke::subdiv::eval_limit_point(
-            reshape_subdiv, ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v);
+        blender::float3 dPdu;
+        blender::float3 dPdv;
+        blender::float3 P;
+        blender::bke::subdiv::eval_limit_point_and_derivatives(reshape_subdiv,
+                                                               ptex_coord->ptex_face_index,
+                                                               ptex_coord->u,
+                                                               ptex_coord->v,
+                                                               P,
+                                                               dPdu,
+                                                               dPdv);
 
         delta_storage[idx] = P;
+        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner);
       });
 }
 
@@ -1531,22 +1542,17 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
 
 void multires_reshape_store_limit_positions(const MultiresReshapeContext *reshape_context,
                                             const MultiresSubdivideModeType mode,
-                                            blender::MutableSpan<blender::float3> storage)
+                                            blender::MutableSpan<blender::float3> deltas,
+                                            blender::MutableSpan<blender::float3x3> tangent_matrices)
 {
 #ifdef WITH_OPENSUBDIV
-  const int level_difference = (reshape_context->top.level - reshape_context->reshape.level);
-  if (level_difference == 0) {
-    /* Early output. */
-    return;
-  }
-
   MultiresReshapeSmoothContext reshape_smooth_context(reshape_context, mode);
   geometry_create(&reshape_smooth_context);
 
   reshape_subdiv_create(&reshape_smooth_context);
 
-  reshape_subdiv_refine_final(&reshape_smooth_context, storage);
-  evaluate_higher_grid_positions(&reshape_smooth_context, storage);
+  reshape_subdiv_refine_final(&reshape_smooth_context, deltas);
+  evaluate_higher_grid_positions(&reshape_smooth_context, deltas, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif

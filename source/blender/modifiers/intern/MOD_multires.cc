@@ -206,7 +206,7 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
            mmd->sculptlvl);
   }
 
-  blender::bke::subdiv::Subdiv* temp_subdiv = nullptr;
+  blender::bke::subdiv::Subdiv *temp_subdiv = nullptr;
   if (delta != 0) {
     blender::bke::subdiv::Settings temp_subdiv_settings;
     temp_subdiv_settings.is_adaptive = subdiv->settings.is_adaptive;

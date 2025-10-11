@@ -22,6 +22,7 @@
 
 #include "BKE_mesh_types.hh"
 #include "BKE_paint.hh"
+#include "BLI_math_matrix.hh"
 #include "mikk_float3.hh"
 
 static const int multires_grid_tot[] = {
@@ -158,8 +159,7 @@ static blender::MutableSpan<blender::float3> multires_get_delta_storage(Object &
 }
 
 static void multires_reshape_calculate_object_delta(
-    SubdivCCG &higher_subdiv_ccg,
-    blender::MutableSpan<blender::float3> object_delta)
+    SubdivCCG &higher_subdiv_ccg, blender::MutableSpan<blender::float3> object_delta)
 {
   /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
    * object_delta */
@@ -183,9 +183,12 @@ static void multires_reshape_calculate_object_delta(
 }
 
 static void multires_reshape_object_delta_to_tangent_delta(
-    MultiresReshapeContext *reshape_context, blender::MutableSpan<blender::float3> delta_storage)
+    blender::Span <blender::float3x3> tmat_storage,
+    blender::MutableSpan<blender::float3> delta_storage)
 {
-  /* TODO: Convert each object_delta into tangent_delta */
+  for (const int i : delta_storage.index_range()) {
+    delta_storage[i] = blender::math::transform_direction(tmat_storage[i], delta_storage[i]);
+  }
 }
 
 bool multiresModifier_storeHigherLevelDelta(Object &object,
@@ -211,17 +214,22 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
 
   blender::MutableSpan<blender::float3> delta_storage = multires_ensure_delta_storage(
       object, higher_subdiv_ccg, reshape_context.top.level);
+  blender::Array<blender::float3x3> tmat_storage(delta_storage.size());
   BLI_assert(delta_storage.size() == higher_subdiv_ccg.positions.size());
 
-  if (!multires_reshape_assign_final_coords_from_ccg(&reshape_context, &subdiv_ccg, delta_storage)) {
+  if (!multires_reshape_assign_final_coords_from_ccg(&reshape_context, &subdiv_ccg, delta_storage))
+  {
     multires_reshape_context_free(&reshape_context);
     return false;
   }
 
-  printf("SIZES -> HIGHER: %ld, LOWER: %ld, Storage: %ld\n", higher_subdiv_ccg.positions.size(), subdiv_ccg.positions.size(), delta_storage.size());
+  printf("SIZES -> HIGHER: %ld, LOWER: %ld, Storage: %ld\n",
+         higher_subdiv_ccg.positions.size(),
+         subdiv_ccg.positions.size(),
+         delta_storage.size());
 
   multires_reshape_store_limit_positions(
-      &reshape_context, MultiresSubdivideModeType::CatmullClark, delta_storage);
+      &reshape_context, MultiresSubdivideModeType::CatmullClark, delta_storage, tmat_storage);
   printf("STORED LIMIT POS\n");
   for (const int i : delta_storage.index_range()) {
     printf("%f, %f, %f\n", delta_storage[i].x, delta_storage[i].y, delta_storage[i].z);
@@ -237,7 +245,6 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
 
   multires_reshape_context_free(&reshape_context);
 
-
   return true;
 }
 
@@ -246,32 +253,33 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
                                             SubdivCCG &lower_subdiv_ccg,
                                             SubdivCCG &subdiv_ccg)
 {
-    /* When switching to higher levels... */
-    /* Take the stored higher level tangent displacements */
-    blender::MutableSpan<blender::float3> delta_storage = multires_get_delta_storage(object, subdiv_ccg.level);
-    BLI_assert(delta_storage.size() == subdiv_ccg.positions.size());
+  /* When switching to higher levels... */
+  /* Take the stored higher level tangent displacements */
+  blender::MutableSpan<blender::float3> delta_storage = multires_get_delta_storage(
+      object, subdiv_ccg.level);
+  BLI_assert(delta_storage.size() == subdiv_ccg.positions.size());
 
-    MultiresReshapeContext reshape_context;
-    if (!multires_reshape_context_create_from_ccg(
-            &reshape_context, &lower_subdiv_ccg, &coarse_mesh, subdiv_ccg.level))
-    {
-      return false;
-    }
+  MultiresReshapeContext reshape_context;
+  if (!multires_reshape_context_create_from_ccg(
+          &reshape_context, &lower_subdiv_ccg, &coarse_mesh, subdiv_ccg.level))
+  {
+    return false;
+  }
 
-    if (!multires_reshape_assign_final_coords_from_ccg(
-            &reshape_context, &lower_subdiv_ccg, delta_storage))
-    {
-      multires_reshape_context_free(&reshape_context);
-      return false;
-    }
+  if (!multires_reshape_assign_final_coords_from_ccg(
+          &reshape_context, &lower_subdiv_ccg, delta_storage))
+  {
+    multires_reshape_context_free(&reshape_context);
+    return false;
+  }
 
-    /* Convert them to object space */
-    //multires_reshape_object_delta_to_tangent_delta()
+  /* Convert them to object space */
+  // multires_reshape_object_delta_to_tangent_delta()
 
-    /* Re-add them to the new subdiv CCG */
-    //multires_apply_object_delta(delta_storage, subdiv_ccg);
-    /* Delete the data */
-    //multires_clear_delta_storage(object, subdiv_ccg.level);
+  /* Re-add them to the new subdiv CCG */
+  // multires_apply_object_delta(delta_storage, subdiv_ccg);
+  /* Delete the data */
+  // multires_clear_delta_storage(object, subdiv_ccg.level);
 }
 
 /** \} */
