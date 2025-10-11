@@ -4,8 +4,6 @@
 
 """
 This file does not run anything, it's methods are accessed for tests by: ``run.py``.
-
-Small non-functional change to not have an empty diff
 """
 import datetime
 
