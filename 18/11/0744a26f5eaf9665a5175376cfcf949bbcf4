@@ -5,3 +5,4 @@ Referenced by pull request #138666, Fix #138637: EXR Sequencer preview is broken
 Referenced by commit cd70b9d73083db910486dbff57cff8e7fcbabce9, Fix #138637: EXR Sequencer preview is broken
 Referenced by commit 6d1c30fad7c938364f55b83b0946b6fade5a2e08, Fix: VSE preview wrong ImBuf variable used
 Referenced by commit 47925fcb6945db6bb06bc007dd7b46e2a33aef69, Cleanup: VSE scopes drawing number typo
+Referenced by pull request #147892, Fix #147381: VSE preview shows incorrect transparency for masks
