@@ -1529,9 +1529,9 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
 #endif
 }
 
-void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *reshape_context,
-                                             const MultiresSubdivideModeType mode,
-                                             blender::MutableSpan<blender::float3> storage)
+void multires_reshape_store_limit_positions(const MultiresReshapeContext *reshape_context,
+                                            const MultiresSubdivideModeType mode,
+                                            blender::MutableSpan<blender::float3> storage)
 {
 #ifdef WITH_OPENSUBDIV
   const int level_difference = (reshape_context->top.level - reshape_context->reshape.level);

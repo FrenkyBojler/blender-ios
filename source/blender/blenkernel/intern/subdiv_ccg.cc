@@ -498,11 +498,17 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
     higher_subdiv_ccg.reset();
   }
   else if (delta > 0) {
-    /* When switching to higher levels... */
-    /* Take the stored higher level tangent displacements */
-    /* Convert them to object space */
-    /* Re-add them to the new subdiv CCG */
-    /* Delete the data */
+    SubdivToCCGSettings higher_settings;
+    higher_settings.level = settings.level - delta;
+    BLI_assert(higher_settings.level > settings.level);
+    higher_settings.resolution = (1 << higher_settings.level) + 1;
+    BLI_assert(higher_settings.resolution > settings.resolution);
+    higher_settings.need_normal = false;
+    higher_settings.need_mask = false;
+    std::unique_ptr<SubdivCCG> lower_sudbiv_ccg = BKE_subdiv_to_ccg(
+        *subdiv_ccg->subdiv, higher_settings, coarse_mesh, nullptr);
+
+    multireModifier_applyHigherLevelDelta(object, coarse_mesh, *lower_subdiv_ccg, *subdiv_ccg);
   }
 
   if (has_mask) {

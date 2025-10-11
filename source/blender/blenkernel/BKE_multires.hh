@@ -165,7 +165,11 @@ bool multiresModifier_reshapeFromCCG(int tot_level, Mesh *coarse_mesh, SubdivCCG
 bool multiresModifier_storeHigherLevelDelta(Object &object,
                                             Mesh &coarse_mesh,
                                             SubdivCCG &higher_subdiv_ccg,
-                                            SubdivCCG &lower_subdiv_ccg);
+                                            SubdivCCG &subdiv_ccg);
+bool multiresModifier_applyHigherLevelDelta(Object &object,
+                                            Mesh &coarse_mesh,
+                                            SubdivCCG &lower_subdiv_ccg,
+                                            SubdivCCG &subdiv_ccg);
 
 /* Subdivide multi-res displacement once. */
 
