@@ -1692,7 +1692,6 @@ void MTLContext::texture_bind(gpu::MTLTexture *mtl_texture, uint texture_unit, b
 
   /* Bind new texture. */
   resource_bind.texture_resource = mtl_texture;
-  mtl_texture->is_bound_ = true;
 }
 
 void MTLContext::sampler_bind(MTLSamplerState sampler_state, uint sampler_unit)
@@ -1735,9 +1734,6 @@ void MTLContext::texture_unbind(gpu::MTLTexture *mtl_texture,
       }
     }
   }
-
-  /* Locally unbind texture. */
-  mtl_texture->is_bound_ = false;
 }
 
 void MTLContext::texture_unbind_all(bool is_image)
@@ -1747,7 +1743,6 @@ void MTLContext::texture_unbind_all(bool is_image)
     int i = 0;
     for (auto &resource_bind : this->pipeline_state.image_bindings) {
       if (resource_bind.texture_resource) {
-        resource_bind.texture_resource->is_bound_ = false;
         resource_bind.texture_resource = nullptr;
         state_manager->image_formats[i] = TextureWriteFormat::Invalid;
       }
@@ -1757,7 +1752,6 @@ void MTLContext::texture_unbind_all(bool is_image)
   else {
     for (auto &resource_bind : this->pipeline_state.texture_bindings) {
       if (resource_bind.texture_resource) {
-        resource_bind.texture_resource->is_bound_ = false;
         resource_bind.texture_resource = nullptr;
       }
     }
