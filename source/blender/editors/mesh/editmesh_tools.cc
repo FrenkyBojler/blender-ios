@@ -3401,13 +3401,11 @@ static bool merge_target(BMEditMesh *em,
     }
   }
 
-  const bool do_avg_vdata = !use_cursor;
   if (!EDBM_op_callf(em,
                      wmop,
                      "pointmerge verts=%hv merge_co=%v average_vdata=%b",
                      BM_ELEM_SELECT,
-                     co,
-                     do_avg_vdata))
+                     co))
   {
     return false;
   }

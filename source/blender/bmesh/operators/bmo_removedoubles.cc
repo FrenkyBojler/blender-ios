@@ -182,6 +182,14 @@ finally: {
   return nullptr;
 }
 
+/**
+ * Average all vertex group weight values of merged vertices.
+ *
+ * This function takes a destination vertex and all source vertices being merged into it.
+ * It collects their vertex group weights, adds them together for matching groups,
+ * and then divides by the total number of vertices to get an average.
+ * The averaged weights are then written back into the destination vertex.
+ */
 static void average_vertex_group_weights_for_cluster(BMesh *bm,
                                                      BMVert *v_dst,
                                                      const blender::Vector<BMVert *> &srcs)
@@ -290,11 +298,11 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
         cluster->append(v);
       }
       if (average_vdata) {
-        void **gp_p;
-        if (!BLI_ghash_ensure_p(groups_data, v_dst, &gp_p)) {
-          *gp_p = MEM_new<blender::Vector<BMVert *>>(__func__);
+        void **group_p;
+        if (!BLI_ghash_ensure_p(groups_data, v_dst, &group_p)) {
+          *group_p = MEM_new<blender::Vector<BMVert *>>(__func__);
         }
-        blender::Vector<BMVert *> *grp = static_cast<blender::Vector<BMVert *> *>(*gp_p);
+        blender::Vector<BMVert *> *grp = static_cast<blender::Vector<BMVert *> *>(*group_p);
         grp->append(v);
       }
     }
