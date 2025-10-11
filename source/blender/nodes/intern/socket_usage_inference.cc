@@ -2,9 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <iostream>
 #include <optional>
 #include <regex>
 
+#include "BKE_node_tree_dot_export.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
@@ -25,6 +27,7 @@
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 
+#include "BLI_linear_allocator_chunked_list.hh"
 #include "BLI_listbase.h"
 #include "BLI_stack.hh"
 
@@ -546,19 +549,27 @@ class SocketUsageInferencerImpl {
     SocketInContext next_unknown_socket;
     bool any_output_used = false;
     for (const bNodeSocket *dependent_socket_ptr : dependent_outputs) {
-      const SocketInContext dependent_socket{dependent_socket_context, dependent_socket_ptr};
-      const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
-      if (!is_used.has_value()) {
-        if (dependent_socket_ptr->is_output() && !dependent_socket_ptr->is_directly_linked()) {
-          continue;
+      if (all_socket_usages_.lookup_try({dependent_socket_context, dependent_socket_ptr})
+              .value_or(false))
+      {
+        any_output_used = true;
+        break;
+      }
+      for (const bNodeSocket *skip_socket_ptr : this->get_skip_targets(*dependent_socket_ptr)) {
+        const SocketInContext skip_socket{dependent_socket_context, skip_socket_ptr};
+        const std::optional<bool> is_used = all_socket_usages_.lookup_try(skip_socket);
+        if (!is_used.has_value()) {
+          if (!next_unknown_socket) {
+            next_unknown_socket = skip_socket;
+            continue;
+          }
         }
-        if (!next_unknown_socket) {
-          next_unknown_socket = dependent_socket;
-          continue;
+        if (is_used.value_or(false)) {
+          any_output_used = true;
+          break;
         }
       }
-      if (is_used.value_or(false)) {
-        any_output_used = true;
+      if (any_output_used) {
         break;
       }
     }
@@ -736,6 +747,257 @@ class SocketUsageInferencerImpl {
       }
     }
     return nullptr;
+  }
+
+  Span<const bNodeSocket *> get_skip_targets(const bNodeSocket &socket)
+  {
+    const bNodeTree &tree = socket.owner_tree();
+    return get_skip_targets_cached(tree).skip_targets[socket.index_in_tree()];
+  }
+
+  static const bke::bNodeTreeUsageSkipTargets &get_skip_targets_cached(const bNodeTree &tree)
+  {
+    tree.runtime->usage_skip_targets_mutex.ensure(
+        [&]() { tree.runtime->usage_skip_targets = gather_skip_targets(tree); });
+    return tree.runtime->usage_skip_targets;
+  }
+
+  class bNodeTreeToDotOptionsForSkipTargets : public bke::bNodeTreeToDotOptions {
+   private:
+    const bNodeTree &tree_;
+    const bke::bNodeTreeUsageSkipTargets &skip_targets_;
+
+   public:
+    bNodeTreeToDotOptionsForSkipTargets(const bNodeTree &tree,
+                                        const bke::bNodeTreeUsageSkipTargets &skip_targets)
+        : tree_(tree), skip_targets_(skip_targets)
+    {
+    }
+
+    void custom(bke::bNodeTreeDotGraph &graph) const override
+    {
+      for (const bNodeSocket *socket : tree_.all_output_sockets()) {
+        for (const bNodeSocket *skip_target : skip_targets_.skip_targets[socket->index_in_tree()])
+        {
+          if (skip_target == socket) {
+            continue;
+          }
+          dot_export::DirectedEdge &dot_edge = graph.add_directed_edge(*socket, *skip_target);
+          dot_edge.attributes.set("color", "#999999");
+        }
+      }
+    }
+  };
+
+  static bke::bNodeTreeUsageSkipTargets gather_skip_targets(const bNodeTree &ntree)
+  {
+    ntree.ensure_interface_cache();
+    ntree.ensure_topology_cache();
+    BLI_assert(!ntree.has_available_link_cycle());
+
+    constexpr int limit = 2;
+
+    bke::bNodeTreeUsageSkipTargets tree_skip_targets;
+    tree_skip_targets.skip_targets.reinitialize(ntree.all_sockets().size());
+    tree_skip_targets.skip_targets_by_input.reinitialize(ntree.interface_inputs().size());
+
+    for (const bNode *node : ntree.toposort_right_to_left()) {
+      if (is_output_node(*node)) {
+        for (const bNodeSocket *socket : node->input_sockets()) {
+          tree_skip_targets.skip_targets[socket->index_in_tree()].append(socket);
+        }
+        continue;
+      }
+      /* Gather skip targets for output sockets. */
+      for (const bNodeSocket *socket : node->output_sockets()) {
+        tree_skip_targets.skip_targets[socket->index_in_tree()] = [&]() -> bke::SkipTargetsVector {
+          Vector<const bNodeSocket *> skip_targets;
+          for (const bNodeLink *link : socket->directly_linked_links()) {
+            if (!link->is_used()) {
+              continue;
+            }
+            skip_targets.extend_non_duplicates(
+                tree_skip_targets.skip_targets[link->tosock->index_in_tree()]);
+            if (skip_targets.size() > limit) {
+              return {socket};
+            }
+          }
+          return skip_targets;
+        }();
+      }
+      if (node->is_muted()) {
+        for (const bNodeSocket *input_socket : node->input_sockets()) {
+          tree_skip_targets.skip_targets[input_socket->index_in_tree()] =
+              [&]() -> bke::SkipTargetsVector {
+            Vector<const bNodeSocket *> skip_targets;
+            for (const bNodeLink &link : node->internal_links()) {
+              if (link.fromsock == input_socket) {
+                for (const bNodeSocket *skip_socket :
+                     tree_skip_targets.skip_targets[link.tosock->index_in_tree()])
+                {
+                  skip_targets.append_non_duplicates(skip_socket);
+                  if (skip_targets.size() > limit) {
+                    return {input_socket};
+                  }
+                }
+              }
+            }
+            return skip_targets;
+          }();
+        }
+      }
+      else if (node->is_group()) {
+        const bNodeTree *group = id_cast<const bNodeTree *>(node->id);
+        if (!group) {
+          continue;
+        }
+        if (ID_MISSING(group)) {
+          continue;
+        }
+        group->ensure_topology_cache();
+        group->ensure_interface_cache();
+        if (group->has_available_link_cycle()) {
+          continue;
+        }
+        const bke::bNodeTreeUsageSkipTargets &group_skip_targets = get_skip_targets_cached(*group);
+        for (const int input_i : group->interface_inputs().index_range()) {
+          const std::optional<Vector<int>> skip_targets_by_input =
+              group_skip_targets.skip_targets_by_input[input_i];
+          const bNodeSocket &input_socket = node->input_socket(input_i);
+          if (!skip_targets_by_input) {
+            tree_skip_targets.skip_targets[input_socket.index_in_tree()] = {&input_socket};
+            continue;
+          }
+          Vector<const bNodeSocket *> skip_targets;
+          for (const int output_i : *skip_targets_by_input) {
+            const bNodeSocket &output_socket = node->output_socket(output_i);
+            skip_targets.extend_non_duplicates(
+                tree_skip_targets.skip_targets[output_socket.index_in_tree()]);
+            if (skip_targets.size() > limit) {
+              skip_targets = {&input_socket};
+              break;
+            }
+          }
+          tree_skip_targets.skip_targets[input_socket.index_in_tree()] = skip_targets;
+        }
+      }
+      else {
+        const std::optional<Vector<const bNodeSocket *>> output_skip_targets =
+            [&]() -> std::optional<Vector<const bNodeSocket *>> {
+          Vector<const bNodeSocket *> skip_targets;
+          for (const bNodeSocket *socket : node->output_sockets()) {
+            skip_targets.extend_non_duplicates(
+                tree_skip_targets.skip_targets[socket->index_in_tree()]);
+            if (skip_targets.size() > limit) {
+              return std::nullopt;
+            }
+          }
+          return skip_targets;
+        }();
+        for (const bNodeSocket *input_socket : node->input_sockets()) {
+          bke::SkipTargetsVector &skip_targets =
+              tree_skip_targets.skip_targets[input_socket->index_in_tree()];
+          if (has_special_input_usage(*input_socket)) {
+            /* The socket can't be skipped. */
+            skip_targets.append(input_socket);
+          }
+          else if (output_skip_targets.has_value()) {
+            skip_targets = *output_skip_targets;
+          }
+          else {
+            skip_targets.append(input_socket);
+          }
+        }
+      }
+    }
+
+    for (const int group_input_i : ntree.interface_inputs().index_range()) {
+      std::optional<Vector<int>> skip_targets_by_input;
+      skip_targets_by_input.emplace();
+      for (const bNode *group_input_node : ntree.group_input_nodes()) {
+        const bNodeSocket &socket = group_input_node->output_socket(group_input_i);
+        if (!socket.is_directly_linked()) {
+          continue;
+        }
+        for (const bNodeSocket *skip_target :
+             tree_skip_targets.skip_targets[socket.index_in_tree()])
+        {
+          const bNode &skip_target_node = skip_target->owner_node();
+          if (skip_target_node.is_group_output()) {
+            skip_targets_by_input->append_non_duplicates(skip_target->index());
+          }
+          else {
+            skip_targets_by_input.reset();
+            break;
+          }
+        }
+      }
+      tree_skip_targets.skip_targets_by_input[group_input_i] = std::move(skip_targets_by_input);
+    }
+
+    // bNodeTreeToDotOptionsForSkipTargets options(ntree, tree_skip_targets);
+    // std::string dot_str = bke::node_tree_to_dot(ntree, options);
+    // std::cout << "\n\n" << ntree.id.name << "\n" << dot_str << "\n\n";
+
+    return tree_skip_targets;
+  }
+
+  static bool is_output_node(const bNode &node)
+  {
+    switch (node.type_legacy) {
+      case NODE_GROUP_OUTPUT:
+      case SH_NODE_OUTPUT_AOV:
+      case SH_NODE_OUTPUT_LIGHT:
+      case SH_NODE_OUTPUT_WORLD:
+      case SH_NODE_OUTPUT_LINESTYLE:
+      case SH_NODE_OUTPUT_MATERIAL:
+      case CMP_NODE_OUTPUT_FILE:
+      case TEX_NODE_OUTPUT: {
+        return true;
+      }
+      default: {
+        return false;
+      }
+    }
+  }
+
+  static bool has_special_input_usage(const bNodeSocket &socket)
+  {
+    if (const SocketDeclaration *decl = socket.runtime->declaration) {
+      if (decl->usage_inference_fn) {
+        return true;
+      }
+    }
+    const bNode &node = socket.owner_node();
+    switch (node.type_legacy) {
+      case NODE_GROUP:
+      case NODE_CUSTOM_GROUP:
+      case NODE_GROUP_OUTPUT:
+      case GEO_NODE_SWITCH:
+      case GEO_NODE_INDEX_SWITCH:
+      case GEO_NODE_MENU_SWITCH:
+      case SH_NODE_MIX:
+      case SH_NODE_MIX_SHADER:
+      case GEO_NODE_SIMULATION_INPUT:
+      case GEO_NODE_SIMULATION_OUTPUT:
+      case GEO_NODE_REPEAT_INPUT:
+      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT:
+      case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT:
+      case GEO_NODE_CAPTURE_ATTRIBUTE:
+      case SH_NODE_OUTPUT_AOV:
+      case SH_NODE_OUTPUT_LIGHT:
+      case SH_NODE_OUTPUT_WORLD:
+      case SH_NODE_OUTPUT_LINESTYLE:
+      case SH_NODE_OUTPUT_MATERIAL:
+      case CMP_NODE_OUTPUT_FILE:
+      case TEX_NODE_OUTPUT: {
+        return true;
+      }
+    }
+    if (node.is_type("NodeEnableOutput")) {
+      return true;
+    }
+    return false;
   }
 };
 

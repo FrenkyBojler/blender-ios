@@ -13,11 +13,16 @@
 
 #include "DNA_node_types.h"
 
-namespace blender::dot_export {
-class DirectedEdge;
-}
+#include "BLI_dot_export.hh"
 
 namespace blender::bke {
+
+struct bNodeTreeDotGraph {
+  dot_export::DirectedGraph digraph;
+  Map<const bNode *, dot_export::NodeWithSocketsRef> dot_nodes;
+
+  dot_export::DirectedEdge &add_directed_edge(const bNodeSocket &a, const bNodeSocket &b);
+};
 
 /**
  * Allows customizing how the generated dot graph looks like.
@@ -28,6 +33,8 @@ class bNodeTreeToDotOptions {
   virtual std::optional<std::string> socket_font_color(const bNodeSocket &socket) const;
   virtual void add_edge_attributes(const bNodeLink &link,
                                    dot_export::DirectedEdge &dot_edge) const;
+
+  virtual void custom(bNodeTreeDotGraph &graph) const;
 };
 
 /**

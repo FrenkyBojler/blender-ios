@@ -111,6 +111,13 @@ struct LoggedZoneGraphs {
   Map<int, std::string> graph_by_zone_id;
 };
 
+using SkipTargetsVector = Vector<const bNodeSocket *, 2>;
+
+struct bNodeTreeUsageSkipTargets {
+  Array<SkipTargetsVector> skip_targets;
+  Array<std::optional<Vector<int>>> skip_targets_by_input;
+};
+
 /**
  * Runtime data for #bNodeTree from the perspective of execution instructions (rather than runtime
  * data from evaluation of the node tree). Evaluation data is not the responsibility of the node
@@ -221,6 +228,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
 
   CacheMutex tree_zones_cache_mutex;
   std::shared_ptr<bNodeTreeZones> tree_zones;
+
+  CacheMutex usage_skip_targets_mutex;
+  bNodeTreeUsageSkipTargets usage_skip_targets;
 
   /**
    * Same as #tree_zones, but may not be valid anymore. This is used for drawing errors when the
