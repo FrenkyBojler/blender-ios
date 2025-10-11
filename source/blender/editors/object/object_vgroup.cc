@@ -3215,7 +3215,7 @@ static int vertex_group_clean_exec(bContext *C, wmOperator *op)
     const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
         ob, subset_type, &vgroup_tot, &subset_count);
 
-    vgroup_clean_subset(ob, vgroup_validmap, vgroup_tot, subset_count, limit, keep_single);
+    vgroup_clean_subset(ob, vgroup_validmap, vgroup_tot, subset_count, limit + VERTEX_WEIGHT_LOCK_EPSILON, keep_single);
     MEM_freeN((void *)vgroup_validmap);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);

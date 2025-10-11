@@ -26,6 +26,8 @@ class DATA_PT_empty(DataButtonsPanel, Panel):
 
         layout.prop(ob, "empty_display_type", text="Display As")
         layout.prop(ob, "empty_display_size", text="Size")
+        layout.prop(ob, "use_custom_wire_color", text="Use Custom Color")
+        layout.prop(ob, "color", text="")
 
         if ob.empty_display_type == 'IMAGE':
             col = layout.column(align=True)

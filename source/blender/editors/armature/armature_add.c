@@ -98,7 +98,7 @@ EditBone *ED_armature_ebone_add_primitive(Object *obedit_arm, float length, bool
   zero_v3(bone->head);
   zero_v3(bone->tail);
 
-  bone->tail[view_aligned ? 1 : 2] = length;
+  bone->tail[1] = length;
 
   return bone;
 }
@@ -191,7 +191,7 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
     invert_m3_m3(imat, mat);
     mul_m3_v3(imat, newbone->tail);
 
-    newbone->length = len_v3v3(newbone->head, newbone->tail);
+    newbone->length = 1.0f;
     newbone->rad_tail = newbone->length * 0.05f;
     newbone->dist = newbone->length * 0.25f;
   }
@@ -1374,7 +1374,7 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna,
                           "direction",
                           arm_symmetrize_direction_items,
-                          -1,
+                          +1,
                           "Direction",
                           "Which sides to copy from and to (when both are selected)");
 }
@@ -1406,7 +1406,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
     for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
       if (EBONE_VISIBLE(arm, ebone)) {
         if (ebone->flag & BONE_ROOTSEL) {
-          if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
+          if (ebone->parent && (ebone->flag & BONE_RELATIVE_PARENTING)) {
             if (ebone->parent->flag & BONE_TIPSEL) {
               ebone->flag &= ~BONE_ROOTSEL;
             }
@@ -1437,17 +1437,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
           /* we re-use code for mirror editing... */
           flipbone = NULL;
           if (arm->flag & ARM_MIRROR_EDIT) {
-            flipbone = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
-            if (flipbone) {
-              forked_iter = 0; /* we extrude 2 different bones */
-              if (flipbone->flag & (BONE_TIPSEL | BONE_ROOTSEL | BONE_SELECTED)) {
-                /* don't want this bone to be selected... */
-                flipbone->flag &= ~(BONE_TIPSEL | BONE_SELECTED | BONE_ROOTSEL);
-              }
-            }
-            if ((flipbone == NULL) && (forked_iter)) {
-              flipbone = ebone;
-            }
+            //Do nothing. Symmetrical extrude not supported
           }
 
           for (a = 0; a < 2; a++) {
@@ -1464,13 +1454,39 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
             if (do_extrude == true) {
               copy_v3_v3(newbone->head, ebone->tail);
               copy_v3_v3(newbone->tail, newbone->head);
-              newbone->parent = ebone;
 
-              /* copies it, in case mirrored bone */
-              newbone->flag = ebone->flag & (BONE_TIPSEL | BONE_RELATIVE_PARENTING);
+              float diffvec_tail[3];
+              float diffvec_head[3];
+              float new_head[3];
+              float new_tail[3];
+
+              copy_v3_v3(new_head, ebone->tail);
+              copy_v3_v3(new_tail, new_head);
+
+              copy_v3_v3(newbone->tail, ebone->tail);
+              copy_v3_v3(newbone->head, ebone->head);
+
+              sub_v3_v3v3(diffvec_head, new_head, ebone->head);
+              sub_v3_v3v3(diffvec_tail, new_tail, ebone->tail);
+
+              float mat4[4][4];
+              unit_m4(mat4);
+              ED_armature_ebone_to_mat4(newbone, mat4);
+              translate_m4(mat4, 0.0f, diffvec_head[1], 0.0f);
+              translate_m4(mat4, 0.0f, diffvec_tail[1], 0.0f);
+
+              //New joints should not have any scaling
+              orthogonalize_m4_stable(mat4, 1, true);
+
+              ED_armature_ebone_from_mat4(newbone, mat4);
+
+              newbone->parent = ebone;
+              newbone->roll = ebone->roll;
+              newbone->length = 1.0f;
+              newbone->flag = ebone->flag & (BONE_TIPSEL | BONE_ROOTSEL | BONE_RELATIVE_PARENTING);
 
               if (newbone->parent) {
-                newbone->flag |= BONE_CONNECTED;
+                newbone->flag |= BONE_RELATIVE_PARENTING;
               }
             }
             else {
@@ -1478,10 +1494,10 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
               copy_v3_v3(newbone->tail, ebone->head);
               newbone->parent = ebone->parent;
 
-              newbone->flag = BONE_TIPSEL;
+              newbone->flag = BONE_SELECTED;
 
               if (newbone->parent && (ebone->flag & BONE_CONNECTED)) {
-                newbone->flag |= BONE_CONNECTED;
+                newbone->flag |= BONE_RELATIVE_PARENTING;
               }
             }
 
@@ -1512,10 +1528,10 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
             if (flipbone && forked_iter) { /* only set if mirror edit */
               if (strlen(newbone->name) < (MAXBONENAME - 2)) {
                 if (a == 0) {
-                  strcat(newbone->name, "_L");
+                  strcat(newbone->name, "_l");
                 }
                 else {
-                  strcat(newbone->name, "_R");
+                  strcat(newbone->name, "_r");
                 }
               }
             }
@@ -1708,7 +1724,7 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
       newbone->rad_head = ((ebone->rad_head * cutratio) + (ebone->rad_tail * cutratioI));
       ebone->rad_tail = newbone->rad_head;
 
-      newbone->flag |= BONE_CONNECTED;
+      newbone->flag |= BONE_RELATIVE_PARENTING;
 
       newbone->prop = NULL;
 

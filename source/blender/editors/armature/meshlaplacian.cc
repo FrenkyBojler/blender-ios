@@ -5,6 +5,8 @@
  * Algorithms using the mesh laplacian.
  */
 
+#include <math.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_mesh_types.h"
@@ -43,6 +45,12 @@ static void error(const char *str)
 {
   printf("error: %s\n", str);
 }
+/* ************* XXX *************** */
+
+/* --- Function Prototypes --- */
+static void normalize_vertex_weights(Object *ob, bDeformGroup **dgrouplist, int numbones, int v);
+static void build_vertex_adjacency(const Mesh *me, std::vector<std::vector<int>> &adj);
+
 /* ************* XXX *************** */
 
 /************************** Laplacian System *****************************/
@@ -360,9 +368,8 @@ float laplacian_system_get_solution(LaplacianSystem *sys, int v)
  * Ilya Baran and Jovan Popovic, SIGGRAPH 2007 */
 
 #define C_WEIGHT 1.0f
-#define WEIGHT_LIMIT_START 0.05f
-#define WEIGHT_LIMIT_END 0.025f
 #define DISTANCE_EPSILON 1e-4f
+#define VISIBILITY_THRESHOLD 1e-6f
 
 typedef struct BVHCallbackUserData {
   float start[3];
@@ -394,7 +401,7 @@ static void bvh_callback(void *userdata, int index, const BVHTreeRay *ray, BVHTr
     if (dist_test < hit->dist) {
       float n[3];
       normal_tri_v3(n, UNPACK3(vtri_co));
-      if (dot_v3v3(n, data->vec) < -1e-5f) {
+      if (dot_v3v3(n, data->vec) < -VISIBILITY_THRESHOLD) {
         hit->index = index;
         hit->dist = dist_test;
       }
@@ -441,69 +448,127 @@ static void heat_ray_tree_create(LaplacianSystem *sys)
   BLI_bvhtree_balance(sys->heat.bvhtree);
 }
 
+static float closest_to_mid_line_segment_v3(float r_close[3],
+                                           const float p[3],
+                                           const float l1[3],
+                                           const float l2[3])
+{
+    float mid[3], dir[3], h[3], lambda;
+    float dir_sq;
+
+    // Вычисляем середину отрезка
+    mid_v3_v3v3(mid, l1, l2);
+
+    // Вычисляем направление от начала к концу отрезка
+    sub_v3_v3v3(dir, l2, l1);
+
+    // Если отрезок вырожден (точка), возвращаем середину
+    dir_sq = dot_v3v3(dir, dir);
+    if (UNLIKELY(dir_sq < 1e-12f)) {
+        copy_v3_v3(r_close, mid);
+        return 0.5f;
+    }
+
+    // Находим проекцию точки на линию, проходящую через середину параллельно отрезку
+    sub_v3_v3v3(h, p, mid);
+    lambda = dot_v3v3(dir, h) / dir_sq;
+
+    // Ограничиваем проекцию окрестностью середины (±10% длины отрезка)
+    if (lambda > 0.1f) lambda = 0.1f;
+    if (lambda < -0.1f) lambda = -0.1f;
+
+    // Вычисляем ближайшую точку на "срединном" отрезке
+    madd_v3_v3v3fl(r_close, mid, dir, lambda);
+
+    // Возвращаем параметр относительно всего отрезка (0.5 + lambda)
+    return 0.5f + lambda;
+}
+
 static int heat_ray_source_visible(LaplacianSystem *sys, int vertex, int source)
 {
   BVHTreeRayHit hit;
   BVHCallbackUserData data;
   const MLoopTri *lt;
-  float end[3];
+  float end[3], bone_vec[3], cosine, dist;
   int visible;
 
+  // Получаем треугольник, связанный с вершиной
   lt = sys->heat.vltree[vertex];
   if (lt == nullptr) {
-    return 1;
+    return 1;  // Если нет связанного треугольника, считаем вершину видимой
   }
 
+  // Инициализация данных для BVH
   data.sys = sys;
   copy_v3_v3(data.start, sys->heat.verts[vertex]);
 
-  closest_to_line_segment_v3(end, data.start, sys->heat.root[source], sys->heat.tip[source]);
+  // Находим ближайшую точку на сегменте кости к вершине
+  closest_to_mid_line_segment_v3(bone_vec, data.start, sys->heat.root[source], sys->heat.tip[source]);
 
-  sub_v3_v3v3(data.vec, end, data.start);
+  // Вычисляем вектор от кости к вершине
+  sub_v3_v3v3(data.vec, data.start, bone_vec);
+
+  // Смещаем начальную точку луча немного в направлении от кости
   madd_v3_v3v3fl(data.start, data.start, data.vec, 1e-5);
+
+  // Немного укорачиваем вектор луча
   mul_v3_fl(data.vec, 1.0f - 2e-5f);
 
-  /* pass normalized vec + distance to bvh */
+  // Нормализуем вектор и получаем его длину
+  dist = normalize_v3(data.vec);
+
+  // Вычисляем косинус угла между вектором и нормалью вершины
+  cosine = dot_v3v3(data.vec, sys->heat.vert_normals[vertex]);
+
+  // Обрабатываем случаи, когда косинус близок к нулю
+  if (fabsf(cosine) < 1e-3f)
+    cosine = copysignf(1e-3f, cosine);
+  else
+    cosine = fmaxf(fminf(cosine, 1.0f), -1.0f);
+
+  // Вычисляем расстояние для BVH-запроса с учетом угла и экспоненциального затухания
   hit.index = -1;
-  hit.dist = normalize_v3(data.vec);
+  hit.dist = fabsf(dist * expf(dist * 1e-3f) / (0.5f * (cosine + 1.0f + 1e-3f)));
 
-  visible =
-      BLI_bvhtree_ray_cast(
-          sys->heat.bvhtree, data.start, data.vec, 0.0f, &hit, bvh_callback, (void *)&data) == -1;
+  // Выполняем лучевой кастинг через BVH-дерево
+  visible = BLI_bvhtree_ray_cast(
+      sys->heat.bvhtree, data.start, data.vec, 0.0f, &hit, bvh_callback, (void *)&data) == -1;
 
-  return visible;
+  return visible;  // Возвращаем 1, если виден, 0 в противном случае
 }
 
 static float heat_source_distance(LaplacianSystem *sys, int vertex, int source)
 {
-  float closest[3], d[3], dist, cosine;
+  float bone_vec[3], d[3], dist, cosine;
 
-  /* compute Euclidean distance */
-  closest_to_line_segment_v3(
-      closest, sys->heat.verts[vertex], sys->heat.root[source], sys->heat.tip[source]);
+  // Находим ближайшую точку на сегменте кости к вершине
+  closest_to_mid_line_segment_v3(bone_vec, sys->heat.verts[vertex], sys->heat.root[source], sys->heat.tip[source]);
 
-  sub_v3_v3v3(d, sys->heat.verts[vertex], closest);
+  // Вычисляем вектор от кости к вершине
+  sub_v3_v3v3(d, sys->heat.verts[vertex], bone_vec);
+
+  // Нормализуем вектор и получаем его длину
   dist = normalize_v3(d);
 
-  /* if the vertex normal does not point along the bone, increase distance */
+  // Вычисляем косинус угла между вектором и нормалью вершины
   cosine = dot_v3v3(d, sys->heat.vert_normals[vertex]);
 
-  return dist / (0.5f * (cosine + 1.001f));
+  // Обрабатываем случаи, когда косинус близок к нулю
+  if (fabsf(cosine) < 1e-3f)
+    cosine = copysignf(1e-3f, cosine);
+  else
+    cosine = fmaxf(fminf(cosine, 1.0f), -1.0f);
+
+  // Возвращаем эффективное расстояние с учетом угла и экспоненциального затухания
+  return fabsf(dist * expf(dist * 1e-3f) / (0.5f * (cosine + 1.0f + 1e-3f)));
 }
 
 static int heat_source_closest(LaplacianSystem *sys, int vertex, int source)
 {
-  float dist;
+    const float dist = heat_source_distance(sys, vertex, source);
+    const float threshold = sys->heat.mindist[vertex] * (1.0f + DISTANCE_EPSILON);
 
-  dist = heat_source_distance(sys, vertex, source);
-
-  if (dist <= sys->heat.mindist[vertex] * (1.0f + DISTANCE_EPSILON)) {
-    if (heat_ray_source_visible(sys, vertex, source)) {
-      return 1;
-    }
-  }
-
-  return 0;
+    return (dist <= threshold && heat_ray_source_visible(sys, vertex, source)) ? 1 : 0;
 }
 
 static void heat_set_H(LaplacianSystem *sys, int vertex)
@@ -547,7 +612,8 @@ static void heat_set_H(LaplacianSystem *sys, int vertex)
 
 static void heat_calc_vnormals(LaplacianSystem *sys)
 {
-  float fnor[3];
+  float fnor[3], v1_co[3], v2_co[3], v3_co[3];
+  float area, angle_weights[3];
   int a, v1, v2, v3, (*face)[3];
 
   sys->heat.vert_normals = static_cast<float(*)[3]>(
@@ -558,15 +624,38 @@ static void heat_calc_vnormals(LaplacianSystem *sys)
     v2 = (*face)[1];
     v3 = (*face)[2];
 
-    normal_tri_v3(fnor, sys->verts[v1], sys->verts[v2], sys->verts[v3]);
+    /* Get vertex coordinates */
+    copy_v3_v3(v1_co, sys->verts[v1]);
+    copy_v3_v3(v2_co, sys->verts[v2]);
+    copy_v3_v3(v3_co, sys->verts[v3]);
 
-    add_v3_v3(sys->heat.vert_normals[v1], fnor);
-    add_v3_v3(sys->heat.vert_normals[v2], fnor);
-    add_v3_v3(sys->heat.vert_normals[v3], fnor);
+    /* Calculate the normal and area of the face */
+    normal_tri_v3(fnor, v1_co, v2_co, v3_co);
+    area = area_tri_v3(v1_co, v2_co, v3_co);
+
+    /* Calculate the angles at each vertex */
+    angle_weights[0] = angle_v3v3v3(v2_co, v1_co, v3_co); // Angle at v1
+    angle_weights[1] = angle_v3v3v3(v1_co, v2_co, v3_co); // Angle at v2
+    angle_weights[2] = angle_v3v3v3(v1_co, v3_co, v2_co); // Angle at v3
+
+    /* Weighting: normal * area * angle */
+    const float weight_v1 = area * angle_weights[0];
+    const float weight_v2 = area * angle_weights[1];
+    const float weight_v3 = area * angle_weights[2];
+
+    /* Add weighted normals */
+    madd_v3_v3fl(sys->heat.vert_normals[v1], fnor, weight_v1);
+    madd_v3_v3fl(sys->heat.vert_normals[v2], fnor, weight_v2);
+    madd_v3_v3fl(sys->heat.vert_normals[v3], fnor, weight_v3);
   }
 
+  /* Normalization of results */
   for (a = 0; a < sys->verts_num; a++) {
-    normalize_v3(sys->heat.vert_normals[a]);
+    if (UNLIKELY(normalize_v3(sys->heat.vert_normals[a]) == 0.0f)) {
+      /* Backup for zero normals */
+      copy_v3_fl(sys->heat.vert_normals[a], 0.0f);
+      sys->heat.vert_normals[a][2] = 1.0f; // Default direction
+    }
   }
 }
 
@@ -618,16 +707,152 @@ static void heat_system_free(LaplacianSystem *sys)
 
 static float heat_limit_weight(float weight)
 {
-  float t;
+    const float edge0 = 1e-3f;  // Lower boundary
+    const float edge1 = 1.0f;   // Upper boundary
+    float t;
 
-  if (weight < WEIGHT_LIMIT_END) {
-    return 0.0f;
-  }
-  if (weight < WEIGHT_LIMIT_START) {
-    t = (weight - WEIGHT_LIMIT_END) / (WEIGHT_LIMIT_START - WEIGHT_LIMIT_END);
-    return t * WEIGHT_LIMIT_START;
-  }
-  return weight;
+    if (weight < edge0) {
+        return 0.0f;
+    }
+    if (weight >= edge1) {
+        return 1.0f;
+    }
+
+    // Normalize to range [0, 1]
+    t = clamp_f((weight - edge0) / (edge1 - edge0), 0.0f, 1.0f);
+
+    // application of smoothstep
+    t = t * t * (3.0f - 2.0f * t);
+
+    // Return the interpolated value in the original range
+    return edge0 + t * (edge1 - edge0);
+}
+
+
+static void normalize_vertex_weights(Object *ob, Mesh *me, bDeformGroup **dgrouplist,
+                                   int numbones, int hardsurface)
+{
+    const float WEIGHT_THRESHOLD = 1e-3f;
+    const int MAX_INFLUENCES = 4;
+    const int totvert = me->totvert;
+
+    // Выделяем память под веса
+    float *weights = (float *)MEM_mallocN(sizeof(float) * totvert * numbones, "Weights");
+
+    // Заполняем веса
+    #pragma omp parallel for collapse(2)
+    for (int v = 0; v < totvert; ++v) {
+        for (int j = 0; j < numbones; ++j) {
+            weights[v * numbones + j] = ED_vgroup_vert_weight(ob, dgrouplist[j], v);
+        }
+    }
+
+    // Временные массивы для сортировки
+    int *indices = (int *)MEM_mallocN(sizeof(int) * numbones, "SortIndices");
+    float *values = (float *)MEM_mallocN(sizeof(float) * numbones, "SortValues");
+
+    // Обрабатываем вершины
+    for (int v = 0; v < totvert; ++v) {
+        float *vert_weights = &weights[v * numbones];
+        int count = 0;
+        float sum = 0.0f;
+
+        // Фильтрация весов выше порога
+        for (int j = 0; j < numbones; ++j) {
+            if (vert_weights[j] >= WEIGHT_THRESHOLD) {
+                indices[count] = j;
+                values[count] = vert_weights[j];
+                sum += values[count];
+                count++;
+            }
+        }
+
+        // Если нет весов выше порога, находим максимальный
+        if (count == 0) {
+            float max_weight = 0.0f;
+            int max_idx = 0;
+
+            for (int j = 0; j < numbones; ++j) {
+                if (vert_weights[j] > max_weight) {
+                    max_weight = vert_weights[j];
+                    max_idx = j;
+                }
+            }
+
+            if (max_weight > 0.0f) {
+                indices[0] = max_idx;
+                values[0] = max_weight;
+                sum = max_weight;
+                count = 1;
+            }
+        }
+
+        // Сортировка по убыванию веса (пузырьковая сортировка)
+        for (int i = 0; i < count - 1; i++) {
+            for (int j = 0; j < count - i - 1; j++) {
+                if (values[j] < values[j + 1]) {
+                    // Меняем значения
+                    float tmp_val = values[j];
+                    values[j] = values[j + 1];
+                    values[j + 1] = tmp_val;
+
+                    // Меняем индексы
+                    int tmp_idx = indices[j];
+                    indices[j] = indices[j + 1];
+                    indices[j + 1] = tmp_idx;
+                }
+            }
+        }
+
+        // Ограничиваем количество влияний
+        if (count > MAX_INFLUENCES) {
+            count = MAX_INFLUENCES;
+            sum = 0.0f;
+            for (int i = 0; i < count; i++) {
+                sum += values[i];
+            }
+        }
+
+        // Режим hardsurface
+        if (hardsurface == 1 && count > 0) {
+            count = 1;
+            values[0] = 1.0f;
+            sum = 1.0f;
+        }
+
+        // Нормализация весов
+        if (sum > 1e-6f) {
+            float inv_sum = 1.0f / sum;
+            for (int i = 0; i < count; i++) {
+                values[i] *= inv_sum;
+            }
+        }
+
+        // Удаляем старые веса
+        for (int j = 0; j < numbones; ++j) {
+            ED_vgroup_vert_remove(ob, dgrouplist[j], v);
+        }
+
+        // Добавляем новые веса
+        float check_sum = 0.0f;
+        for (int i = 0; i < count; i++) {
+            if (values[i] >= WEIGHT_THRESHOLD) {
+                ED_vgroup_vert_add(ob, dgrouplist[indices[i]], v, values[i], WEIGHT_REPLACE);
+                check_sum += values[i];
+            }
+        }
+
+        // Коррекция ошибок округления
+        if (hardsurface != 1 && count > 0 && fabsf(1.0f - check_sum) >= WEIGHT_THRESHOLD) {
+            ED_vgroup_vert_add(ob, dgrouplist[indices[0]], v,
+                              values[0] + (1.0f - check_sum), WEIGHT_REPLACE);
+        }
+    }
+
+    // Освобождаем память
+    MEM_freeN(weights);
+    MEM_freeN(indices);
+    MEM_freeN(values);
 }
 
 void heat_bone_weighting(Object *ob,
@@ -639,204 +864,210 @@ void heat_bone_weighting(Object *ob,
                          float (*root)[3],
                          float (*tip)[3],
                          const int *selected,
-                         const char **error_str)
+                         const char **error_str,
+                         int hardsurface)
 {
-  LaplacianSystem *sys;
-  MLoopTri *mlooptri;
-  float solution, weight;
-  int *vertsflipped = nullptr, *mask = nullptr;
-  int a, tris_num, j, bbone, firstsegment, lastsegment;
-  bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+    LaplacianSystem *sys;
+    MLoopTri *mlooptri;
+    float solution, weight;
+    int *vertsflipped = NULL, *mask = NULL;
+    int a, tris_num, j, bbone, firstsegment, lastsegment;
+    bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
-  const blender::Span<blender::float3> vert_positions = me->vert_positions();
-  const blender::OffsetIndices polys = me->polys();
-  const blender::Span<int> corner_verts = me->corner_verts();
-  bool use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
-  bool use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
+    const blender::Span<blender::float3> vert_positions = me->vert_positions();
+    const blender::OffsetIndices polys = me->polys();
+    const blender::Span<int> corner_verts = me->corner_verts();
+    bool use_vert_sel = (me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
+    bool use_face_sel = (me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
-  *error_str = nullptr;
+    *error_str = NULL;
 
-  /* bone heat needs triangulated faces */
-  tris_num = poly_to_tri_count(me->totpoly, me->totloop);
+    /* bone heat needs triangulated faces */
+    tris_num = poly_to_tri_count(me->totpoly, me->totloop);
 
-  /* count triangles and create mask */
-  if (ob->mode & OB_MODE_WEIGHT_PAINT && (use_face_sel || use_vert_sel)) {
-    mask = static_cast<int *>(MEM_callocN(sizeof(int) * me->totvert, "heat_bone_weighting mask"));
+    /* count triangles and create mask */
+    if (ob->mode & OB_MODE_WEIGHT_PAINT && (use_face_sel || use_vert_sel)) {
+        mask = (int *)MEM_callocN(sizeof(int) * me->totvert, "heat_bone_weighting mask");
 
-    /*  (added selectedVerts content for vertex mask, they used to just equal 1) */
-    if (use_vert_sel) {
-      const bool *select_vert = (const bool *)CustomData_get_layer_named(
-          &me->vdata, CD_PROP_BOOL, ".select_vert");
-      if (select_vert) {
-        for (const int i : polys.index_range()) {
-          for (const int vert : corner_verts.slice(polys[i])) {
-            mask[vert] = select_vert[vert];
-          }
-        }
-      }
-    }
-    else if (use_face_sel) {
-      const bool *select_poly = (const bool *)CustomData_get_layer_named(
-          &me->pdata, CD_PROP_BOOL, ".select_poly");
-      if (select_poly) {
-        for (const int i : polys.index_range()) {
-          if (select_poly[i]) {
-            for (const int vert : corner_verts.slice(polys[i])) {
-              mask[vert] = 1;
+        if (use_vert_sel) {
+            const bool *select_vert = (const bool *)CustomData_get_layer_named(
+                &me->vdata, CD_PROP_BOOL, ".select_vert");
+            if (select_vert) {
+                for (const int i : polys.index_range()) {
+                    for (const int vert : corner_verts.slice(polys[i])) {
+                        if (select_vert[vert]) {
+                            mask[vert] = 1;
+                        }
+                    }
+                }
             }
-          }
         }
-      }
-    }
-  }
-
-  /* create laplacian */
-  sys = laplacian_system_construct_begin(me->totvert, tris_num, 1);
-
-  sys->heat.tris_num = poly_to_tri_count(me->totpoly, me->totloop);
-  mlooptri = static_cast<MLoopTri *>(
-      MEM_mallocN(sizeof(*sys->heat.mlooptri) * sys->heat.tris_num, __func__));
-
-  blender::bke::mesh::looptris_calc(
-      vert_positions, polys, corner_verts, {mlooptri, sys->heat.tris_num});
-
-  sys->heat.mlooptri = mlooptri;
-  sys->heat.corner_verts = corner_verts;
-  sys->heat.verts_num = me->totvert;
-  sys->heat.verts = verts;
-  sys->heat.root = root;
-  sys->heat.tip = tip;
-  sys->heat.numsource = numbones;
-
-  heat_ray_tree_create(sys);
-  heat_laplacian_create(sys);
-
-  laplacian_system_construct_end(sys);
-
-  if (dgroupflip) {
-    vertsflipped = static_cast<int *>(MEM_callocN(sizeof(int) * me->totvert, "vertsflipped"));
-    for (a = 0; a < me->totvert; a++) {
-      vertsflipped[a] = mesh_get_x_mirror_vert(ob, nullptr, a, use_topology);
-    }
-  }
-
-  /* compute weights per bone */
-  for (j = 0; j < numbones; j++) {
-    if (!selected[j]) {
-      continue;
-    }
-
-    firstsegment = (j == 0 || dgrouplist[j - 1] != dgrouplist[j]);
-    lastsegment = (j == numbones - 1 || dgrouplist[j] != dgrouplist[j + 1]);
-    bbone = !(firstsegment && lastsegment);
-
-    /* clear weights */
-    if (bbone && firstsegment) {
-      for (a = 0; a < me->totvert; a++) {
-        if (mask && !mask[a]) {
-          continue;
-        }
-
-        ED_vgroup_vert_remove(ob, dgrouplist[j], a);
-        if (vertsflipped && dgroupflip[j] && vertsflipped[a] >= 0) {
-          ED_vgroup_vert_remove(ob, dgroupflip[j], vertsflipped[a]);
-        }
-      }
-    }
-
-    /* fill right hand side */
-    laplacian_begin_solve(sys, -1);
-
-    for (a = 0; a < me->totvert; a++) {
-      if (heat_source_closest(sys, a, j)) {
-        laplacian_add_right_hand_side(sys, a, sys->heat.H[a] * sys->heat.p[a]);
-      }
-    }
-
-    /* solve */
-    if (laplacian_system_solve(sys)) {
-      /* load solution into vertex groups */
-      for (a = 0; a < me->totvert; a++) {
-        if (mask && !mask[a]) {
-          continue;
-        }
-
-        solution = laplacian_system_get_solution(sys, a);
-
-        if (bbone) {
-          if (solution > 0.0f) {
-            ED_vgroup_vert_add(ob, dgrouplist[j], a, solution, WEIGHT_ADD);
-          }
-        }
-        else {
-          weight = heat_limit_weight(solution);
-          if (weight > 0.0f) {
-            ED_vgroup_vert_add(ob, dgrouplist[j], a, weight, WEIGHT_REPLACE);
-          }
-          else {
-            ED_vgroup_vert_remove(ob, dgrouplist[j], a);
-          }
-        }
-
-        /* do same for mirror */
-        if (vertsflipped && dgroupflip[j] && vertsflipped[a] >= 0) {
-          if (bbone) {
-            if (solution > 0.0f) {
-              ED_vgroup_vert_add(ob, dgroupflip[j], vertsflipped[a], solution, WEIGHT_ADD);
+        else if (use_face_sel) {
+            const bool *select_poly = (const bool *)CustomData_get_layer_named(
+                &me->pdata, CD_PROP_BOOL, ".select_poly");
+            if (select_poly) {
+                for (const int i : polys.index_range()) {
+                    if (select_poly[i]) {
+                        for (const int vert : corner_verts.slice(polys[i])) {
+                            mask[vert] = 1;
+                        }
+                    }
+                }
             }
-          }
-          else {
-            weight = heat_limit_weight(solution);
-            if (weight > 0.0f) {
-              ED_vgroup_vert_add(ob, dgroupflip[j], vertsflipped[a], weight, WEIGHT_REPLACE);
+        }
+    }
+
+    /* create laplacian */
+    sys = laplacian_system_construct_begin(me->totvert, tris_num, 1);
+
+    sys->heat.tris_num = poly_to_tri_count(me->totpoly, me->totloop);
+    mlooptri = (MLoopTri *)MEM_mallocN(sizeof(*sys->heat.mlooptri) * sys->heat.tris_num, __func__);
+
+    blender::bke::mesh::looptris_calc(
+        vert_positions, polys, corner_verts, {mlooptri, sys->heat.tris_num});
+
+    sys->heat.mlooptri = mlooptri;
+    sys->heat.corner_verts = corner_verts;
+    sys->heat.verts_num = me->totvert;
+    sys->heat.verts = verts;
+    sys->heat.root = root;
+    sys->heat.tip = tip;
+    sys->heat.numsource = numbones;
+
+    heat_ray_tree_create(sys);
+    heat_laplacian_create(sys);
+
+    laplacian_system_construct_end(sys);
+
+    if (dgroupflip) {
+        vertsflipped = (int *)MEM_callocN(sizeof(int) * me->totvert, "vertsflipped");
+        for (a = 0; a < me->totvert; a++) {
+            vertsflipped[a] = mesh_get_x_mirror_vert(ob, NULL, a, use_topology);
+        }
+    }
+
+    /* compute weights per bone */
+    for (j = 0; j < numbones; j++) {
+        if (!selected[j]) {
+            continue;
+        }
+
+        firstsegment = (j == 0 || dgrouplist[j - 1] != dgrouplist[j]);
+        lastsegment = (j == numbones - 1 || dgrouplist[j] != dgrouplist[j + 1]);
+        bbone = !(firstsegment && lastsegment);
+
+        /* clear weights */
+        if (bbone && firstsegment) {
+            for (a = 0; a < me->totvert; a++) {
+                if (mask && !mask[a]) {
+                    continue;
+                }
+
+                ED_vgroup_vert_remove(ob, dgrouplist[j], a);
+                if (vertsflipped && dgroupflip[j] && vertsflipped[a] >= 0) {
+                    ED_vgroup_vert_remove(ob, dgroupflip[j], vertsflipped[a]);
+                }
             }
-            else {
-              ED_vgroup_vert_remove(ob, dgroupflip[j], vertsflipped[a]);
+        }
+
+        /* fill right hand side */
+        laplacian_begin_solve(sys, -1);
+
+        for (a = 0; a < me->totvert; a++) {
+            if (heat_source_closest(sys, a, j)) {
+                laplacian_add_right_hand_side(sys, a, sys->heat.H[a] * sys->heat.p[a]);
             }
-          }
         }
-      }
+
+        /* solve */
+        if (laplacian_system_solve(sys)) {
+            /* load solution into vertex groups */
+            for (a = 0; a < me->totvert; a++) {
+                if (mask && !mask[a]) {
+                    continue;
+                }
+
+                solution = laplacian_system_get_solution(sys, a);
+
+                if (bbone) {
+                    if (solution > 0.0f) {
+                        ED_vgroup_vert_add(ob, dgrouplist[j], a, solution, WEIGHT_ADD);
+                    }
+                }
+                else {
+                    weight = heat_limit_weight(solution);
+                    if (weight > 0.0f) {
+                        ED_vgroup_vert_add(ob, dgrouplist[j], a, weight, WEIGHT_REPLACE);
+                    }
+                    else {
+                        ED_vgroup_vert_remove(ob, dgrouplist[j], a);
+                    }
+                }
+
+                /* do same for mirror */
+                if (vertsflipped && dgroupflip[j] && vertsflipped[a] >= 0) {
+                    if (bbone) {
+                        if (solution > 0.0f) {
+                            ED_vgroup_vert_add(ob, dgroupflip[j], vertsflipped[a], solution, WEIGHT_ADD);
+                        }
+                    }
+                    else {
+                        weight = heat_limit_weight(solution);
+                        if (weight > 0.0f) {
+                            ED_vgroup_vert_add(ob, dgroupflip[j], vertsflipped[a], weight, WEIGHT_REPLACE);
+                        }
+                        else {
+                            ED_vgroup_vert_remove(ob, dgroupflip[j], vertsflipped[a]);
+                        }
+                    }
+                }
+            }
+        }
+        else if (*error_str == NULL) {
+            *error_str = N_("Bone Heat Weighting: failed to find solution for one or more bones");
+            break;
+        }
+
+        /* remove too small vertex weights */
+        if (bbone && lastsegment) {
+            for (a = 0; a < me->totvert; a++) {
+                if (mask && !mask[a]) {
+                    continue;
+                }
+
+                weight = ED_vgroup_vert_weight(ob, dgrouplist[j], a);
+                weight = heat_limit_weight(weight);
+                if (weight <= 0.0f) {
+                    ED_vgroup_vert_remove(ob, dgrouplist[j], a);
+                }
+
+                if (vertsflipped && dgroupflip[j] && vertsflipped[a] >= 0) {
+                    weight = ED_vgroup_vert_weight(ob, dgroupflip[j], vertsflipped[a]);
+                    weight = heat_limit_weight(weight);
+                    if (weight <= 0.0f) {
+                        ED_vgroup_vert_remove(ob, dgroupflip[j], vertsflipped[a]);
+                    }
+                }
+            }
+        }
     }
-    else if (*error_str == nullptr) {
-      *error_str = N_("Bone Heat Weighting: failed to find solution for one or more bones");
-      break;
+
+    normalize_vertex_weights(ob, me, dgrouplist, numbones, hardsurface);
+    if (dgroupflip) {
+        normalize_vertex_weights(ob, me, dgroupflip, numbones, hardsurface);
     }
 
-    /* remove too small vertex weights */
-    if (bbone && lastsegment) {
-      for (a = 0; a < me->totvert; a++) {
-        if (mask && !mask[a]) {
-          continue;
-        }
-
-        weight = ED_vgroup_vert_weight(ob, dgrouplist[j], a);
-        weight = heat_limit_weight(weight);
-        if (weight <= 0.0f) {
-          ED_vgroup_vert_remove(ob, dgrouplist[j], a);
-        }
-
-        if (vertsflipped && dgroupflip[j] && vertsflipped[a] >= 0) {
-          weight = ED_vgroup_vert_weight(ob, dgroupflip[j], vertsflipped[a]);
-          weight = heat_limit_weight(weight);
-          if (weight <= 0.0f) {
-            ED_vgroup_vert_remove(ob, dgroupflip[j], vertsflipped[a]);
-          }
-        }
-      }
+    /* free */
+    if (vertsflipped) {
+        MEM_freeN(vertsflipped);
     }
-  }
+    if (mask) {
+        MEM_freeN(mask);
+    }
 
-  /* free */
-  if (vertsflipped) {
-    MEM_freeN(vertsflipped);
-  }
-  if (mask) {
-    MEM_freeN(mask);
-  }
+    heat_system_free(sys);
 
-  heat_system_free(sys);
-
-  laplacian_system_delete(sys);
+    laplacian_system_delete(sys);
 }
 
 /************************** Harmonic Coordinates ****************************/
@@ -1452,130 +1683,94 @@ static void meshdeform_matrix_add_exterior_phi(
 
 static void meshdeform_matrix_solve(MeshDeformModifierData *mmd, MeshDeformBind *mdb)
 {
-  LinearSolver *context;
-  float vec[3], gridvec[3];
-  int a, b, x, y, z, totvar;
-  char message[256];
+    LinearSolver *context;
+    float vec[3], gridvec[3];
+    int a, b, x, y, z, totvar;
 
-  /* setup variable indices */
-  mdb->varidx = static_cast<int *>(MEM_callocN(sizeof(int) * mdb->size3, "MeshDeformDSvaridx"));
-  for (a = 0, totvar = 0; a < mdb->size3; a++) {
-    mdb->varidx[a] = (mdb->tag[a] == MESHDEFORM_TAG_EXTERIOR) ? -1 : totvar++;
-  }
-
-  if (totvar == 0) {
-    MEM_freeN(mdb->varidx);
-    return;
-  }
-
-  progress_bar(0, "Starting mesh deform solve");
-
-  /* setup linear solver */
-  context = EIG_linear_solver_new(totvar, totvar, 1);
-
-  /* build matrix */
-  for (z = 0; z < mdb->size; z++) {
-    for (y = 0; y < mdb->size; y++) {
-      for (x = 0; x < mdb->size; x++) {
-        meshdeform_matrix_add_cell(mdb, context, x, y, z);
-      }
+    /* setup variable indices */
+    mdb->varidx = (int *)MEM_callocN(sizeof(int) * mdb->size3, "MeshDeformDSvaridx");
+    for (a = 0, totvar = 0; a < mdb->size3; a++) {
+        mdb->varidx[a] = (mdb->tag[a] == MESHDEFORM_TAG_EXTERIOR) ? -1 : totvar++;
     }
-  }
 
-  /* solve for each cage vert */
-  for (a = 0; a < mdb->cage_verts_num; a++) {
-    /* fill in right hand side and solve */
+    if (totvar == 0) {
+        MEM_freeN(mdb->varidx);
+        return;
+    }
+
+    progress_bar(0, "Starting mesh deform solve");
+
+    /* setup linear solver */
+    context = EIG_linear_solver_new(totvar, totvar, 1);
+
+    /* build matrix */
     for (z = 0; z < mdb->size; z++) {
-      for (y = 0; y < mdb->size; y++) {
-        for (x = 0; x < mdb->size; x++) {
-          meshdeform_matrix_add_rhs(mdb, context, x, y, z, a);
+        for (y = 0; y < mdb->size; y++) {
+            for (x = 0; x < mdb->size; x++) {
+                meshdeform_matrix_add_cell(mdb, context, x, y, z);
+            }
         }
-      }
     }
 
-    if (EIG_linear_solver_solve(context)) {
-      for (z = 0; z < mdb->size; z++) {
-        for (y = 0; y < mdb->size; y++) {
-          for (x = 0; x < mdb->size; x++) {
-            meshdeform_matrix_add_semibound_phi(mdb, x, y, z, a);
-          }
+    /* solve for each cage vert */
+    for (a = 0; a < mdb->cage_verts_num; a++) {
+        /* fill in right hand side */
+        for (z = 0; z < mdb->size; z++) {
+            for (y = 0; y < mdb->size; y++) {
+                for (x = 0; x < mdb->size; x++) {
+                    meshdeform_matrix_add_rhs(mdb, context, x, y, z, a);
+                }
+            }
         }
-      }
 
-      for (z = 0; z < mdb->size; z++) {
-        for (y = 0; y < mdb->size; y++) {
-          for (x = 0; x < mdb->size; x++) {
-            meshdeform_matrix_add_exterior_phi(mdb, x, y, z, a);
-          }
+        /* solve system */
+        if (EIG_linear_solver_solve(context)) {
+            /* load solution into phi */
+            for (z = 0; z < mdb->size; z++) {
+                for (y = 0; y < mdb->size; y++) {
+                    for (x = 0; x < mdb->size; x++) {
+                        b = meshdeform_index(mdb, x, y, z, 0);
+                        if (mdb->varidx[b] != -1) {
+                            mdb->phi[b] = EIG_linear_solver_variable_get(context, 0, mdb->varidx[b]);
+                        }
+                    }
+                }
+            }
         }
-      }
 
-      for (b = 0; b < mdb->size3; b++) {
-        if (mdb->tag[b] != MESHDEFORM_TAG_EXTERIOR) {
-          mdb->phi[b] = EIG_linear_solver_variable_get(context, 0, mdb->varidx[b]);
+        /* compute boundary phi for semi-boundary cells */
+        for (z = 0; z < mdb->size; z++) {
+            for (y = 0; y < mdb->size; y++) {
+                for (x = 0; x < mdb->size; x++) {
+                    meshdeform_matrix_add_semibound_phi(mdb, x, y, z, a);
+                }
+            }
         }
-        mdb->totalphi[b] += mdb->phi[b];
-      }
 
-      if (mdb->weights) {
-        /* static bind : compute weights for each vertex */
+        /* compute boundary phi for exterior cells */
+        for (z = 0; z < mdb->size; z++) {
+            for (y = 0; y < mdb->size; y++) {
+                for (x = 0; x < mdb->size; x++) {
+                    meshdeform_matrix_add_exterior_phi(mdb, x, y, z, a);
+                }
+            }
+        }
+
+        /* compute weights for each vertex */
         for (b = 0; b < mdb->verts_num; b++) {
-          if (mdb->inside[b]) {
             copy_v3_v3(vec, mdb->vertexcos[b]);
-            gridvec[0] = (vec[0] - mdb->min[0] - mdb->halfwidth[0]) / mdb->width[0];
-            gridvec[1] = (vec[1] - mdb->min[1] - mdb->halfwidth[1]) / mdb->width[1];
-            gridvec[2] = (vec[2] - mdb->min[2] - mdb->halfwidth[2]) / mdb->width[2];
+            mul_m4_v3(mdb->cagemat, vec);
+
+            gridvec[0] = (vec[0] - mdb->min[0]) / mdb->width[0] - 0.5f;
+            gridvec[1] = (vec[1] - mdb->min[1]) / mdb->width[1] - 0.5f;
+            gridvec[2] = (vec[2] - mdb->min[2]) / mdb->width[2] - 0.5f;
 
             mdb->weights[b * mdb->cage_verts_num + a] = meshdeform_interp_w(mdb, gridvec, vec, a);
-          }
         }
-      }
-      else {
-        MDefBindInfluence *inf;
-
-        /* dynamic bind */
-        for (b = 0; b < mdb->size3; b++) {
-          if (mdb->phi[b] >= MESHDEFORM_MIN_INFLUENCE) {
-            inf = static_cast<MDefBindInfluence *>(
-                BLI_memarena_alloc(mdb->memarena, sizeof(*inf)));
-            inf->vertex = a;
-            inf->weight = mdb->phi[b];
-            inf->next = mdb->dyngrid[b];
-            mdb->dyngrid[b] = inf;
-          }
-        }
-      }
-    }
-    else {
-      BKE_modifier_set_error(
-          mmd->object, &mmd->modifier, "Failed to find bind solution (increase precision?)");
-      error("Mesh Deform: failed to find bind solution.");
-      break;
     }
 
-    SNPRINTF(message, "Mesh deform solve %d / %d       |||", a + 1, mdb->cage_verts_num);
-    progress_bar(float(a + 1) / float(mdb->cage_verts_num), message);
-  }
-
-#if 0
-  /* sanity check */
-  for (b = 0; b < mdb->size3; b++) {
-    if (mdb->tag[b] != MESHDEFORM_TAG_EXTERIOR) {
-      if (fabsf(mdb->totalphi[b] - 1.0f) > 1e-4f) {
-        printf("totalphi deficiency [%s|%d] %d: %.10f\n",
-               (mdb->tag[b] == MESHDEFORM_TAG_INTERIOR) ? "interior" : "boundary",
-               mdb->semibound[b],
-               mdb->varidx[b],
-               mdb->totalphi[b]);
-      }
-    }
-  }
-#endif
-
-  /* free */
-  MEM_freeN(mdb->varidx);
-
-  EIG_linear_solver_delete(context);
+    EIG_linear_solver_delete(context);
+    MEM_freeN(mdb->varidx);
 }
 
 static void harmonic_coordinates_bind(MeshDeformModifierData *mmd, MeshDeformBind *mdb)

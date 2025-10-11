@@ -1128,8 +1128,8 @@ static void trackto_new_data(void *cdata)
 {
   bTrackToConstraint *data = (bTrackToConstraint *)cdata;
 
-  data->reserved1 = TRACK_nZ;
-  data->reserved2 = UP_Y;
+  data->reserved1 = TRACK_Y;
+  data->reserved2 = UP_X;
 }
 
 static void trackto_id_looper(bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -1418,8 +1418,8 @@ static void followpath_new_data(void *cdata)
 {
   bFollowPathConstraint *data = (bFollowPathConstraint *)cdata;
 
-  data->trackflag = TRACK_Y;
-  data->upflag = UP_Z;
+  data->trackflag = TRACK_Z;
+  data->upflag = UP_X;
   data->offset = 0;
   data->followflag = 0;
 }
@@ -2637,7 +2637,7 @@ static void armdef_accumulate_bone(bConstraintTarget *ct,
     /* Blend the matrix. */
     int index;
     float blend;
-    BKE_pchan_bbone_deform_segment_index(pchan, y / bone->length, &index, &blend);
+    BKE_pchan_bbone_deform_segment_index(pchan, y, &index, &blend);
 
     if (r_sum_dq != NULL) {
       /* Compute the object space rest matrix of the segment. */

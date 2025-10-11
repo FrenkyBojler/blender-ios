@@ -94,7 +94,7 @@ static void splineik_init_tree_from_pchan(Scene *UNUSED(scene),
     pchan_chain[segcount] = pchan;
 
     /* If performing rebinding, calculate the length of the bone. */
-    bone_lengths[segcount] = pchan->bone->length;
+    bone_lengths[segcount] = 1.0f;
     totlength += bone_lengths[segcount];
   }
 
@@ -406,7 +406,8 @@ static void splineik_evaluate_bone(
   if (pchan->bone->length < FLT_EPSILON) {
     /* Only move the bone position with zero length bones. */
     float bone_pos[4], rad;
-    BKE_where_on_path(ik_data->tar, state->curve_position, bone_pos, NULL, NULL, &rad, NULL);
+    BKE_where_on_path(
+        ik_data->tar, state->curve_position, bone_pos, NULL, NULL, &rad, NULL);
 
     apply_curve_transform(ik_data, ob, rad, bone_pos, &rad);
 
@@ -429,13 +430,13 @@ static void splineik_evaluate_bone(
 
   /* First, adjust the point positions on the curve. */
   float curveLen = tree->points[index] - tree->points[index + 1];
-  float bone_len = len_v3v3(pose_head, pose_tail);
+  float bone_len = 1.0f;
   float point_start = state->curve_position;
-  float pose_scale = bone_len / pchan->bone->length;
+  float pose_scale = 1.0f;
   float base_scale = 1.0f;
 
+  // Заменяем yScaleMode на xScaleMode для консистентности
   if (ik_data->yScaleMode == CONSTRAINT_SPLINEIK_YS_ORIGINAL) {
-    /* Carry over the bone Y scale to the curve range. */
     base_scale = pose_scale;
   }
 
@@ -446,16 +447,15 @@ static void splineik_evaluate_bone(
   /* Step 1: determine the positions for the endpoints of the bone. */
   if (point_start < 1.0f) {
     float vec[4], rad;
-    radius = 0.0f;
+    radius = 1.0f;
 
     /* Calculate head position. */
     if (point_start == 0.0f) {
-      /* Start of the path. We have no previous tail position to copy. */
       BKE_where_on_path(ik_data->tar, point_start, vec, NULL, NULL, &rad, NULL);
     }
     else {
       copy_v3_v3(vec, state->prev_tail_loc);
-      rad = state->prev_tail_radius;
+      rad = 1.0f;
     }
 
     radius = rad;
@@ -470,11 +470,9 @@ static void splineik_evaluate_bone(
         sphere_radius = bone_len;
       }
       else {
-        /* Don't take bone scale into account. */
-        sphere_radius = pchan->bone->length;
+        sphere_radius = 1.0f;
       }
 
-      /* Calculate the tail position with sphere curve intersection. */
       state->prev_tail_seg_idx = position_tail_on_spline(
           ik_data, vec, sphere_radius, state->prev_tail_seg_idx, pose_tail, &point_end, &rad);
 
@@ -485,7 +483,6 @@ static void splineik_evaluate_bone(
       state->curve_position = point_end;
     }
     else {
-      /* Scale to fit curve end position. */
       if (BKE_where_on_path(ik_data->tar, point_end, vec, NULL, NULL, &rad, NULL)) {
         state->prev_tail_radius = rad;
         copy_v3_v3(state->prev_tail_loc, vec);
@@ -494,13 +491,7 @@ static void splineik_evaluate_bone(
       }
     }
 
-    /* Determine if the bone should still be affected by SplineIK.
-     * This makes it so that the bone slowly becomes poseable again the further it rolls off the
-     * curve. When the whole bone has rolled off the curve, the IK constraint will not influence it
-     * anymore.
-     */
     if (point_end >= 1.0f) {
-      /* Blending factor depends on the amount of the bone still left on the chain. */
       tail_blend_fac = (1.0f - point_start) / (point_end - point_start);
     }
     else {
@@ -508,207 +499,133 @@ static void splineik_evaluate_bone(
     }
   }
 
-  /* Step 2: determine the implied transform from these endpoints.
-   * - splineVec: the vector direction that the spline applies on the bone.
-   * - scaleFac: the factor that the bone length is scaled by to get the desired amount.
-   */
+  /* Step 2: determine the implied transform from these endpoints. */
   sub_v3_v3v3(spline_vec, pose_tail, pose_head);
-  scale_fac = len_v3(spline_vec) / pchan->bone->length;
+  scale_fac = 1.0f;
 
-  /* Step 3: compute the shortest rotation needed
-   * to map from the bone rotation to the current axis.
-   * - this uses the same method as is used for the Damped Track Constraint
-   *   (see the code there for details).
-   */
+  /* Step 3: compute the shortest rotation needed */
   {
     float dmat[3][3], rmat[3][3];
     float raxis[3], rangle;
 
-    /* Compute the raw rotation matrix from the bone's current matrix by extracting only the
-     * orientation-relevant axes, and normalizing them.
-     */
     mul_m3_m4m4(base_pose_mat, state->locrot_offset, pchan->pose_mat);
     normalize_m3_m3(rmat, base_pose_mat);
 
-    /* Also, normalize the orientation imposed by the bone,
-     * now that we've extracted the scale factor. */
     normalize_v3(spline_vec);
 
-    /* Calculate smallest axis-angle rotation necessary for getting from the
-     * current orientation of the bone, to the spline-imposed direction.
-     */
-    cross_v3_v3v3(raxis, rmat[1], spline_vec);
+    // Меняем rmat[1] на rmat[0] для использования оси X вместо Y
+    cross_v3_v3v3(raxis, rmat[0], spline_vec);
 
-    /* Check if the old and new bone direction is parallel to each other.
-     * If they are, then 'raxis' should be near zero and we will have to get the rotation axis in
-     * some other way.
-     */
     float norm = normalize_v3(raxis);
 
     if (norm < FLT_EPSILON) {
-      /* Can't use cross product! */
       int order[3] = {0, 1, 2};
       float tmp_axis[3];
       zero_v3(tmp_axis);
 
       axis_sort_v3(spline_vec, order);
 
-      /* Use the second largest axis as the basis for the rotation axis. */
       tmp_axis[order[1]] = 1.0f;
       cross_v3_v3v3(raxis, tmp_axis, spline_vec);
     }
 
-    rangle = dot_v3v3(rmat[1], spline_vec);
+    // Меняем rmat[1] на rmat[0]
+    rangle = dot_v3v3(rmat[0], spline_vec);
     CLAMP(rangle, -1.0f, 1.0f);
     rangle = acosf(rangle);
 
-    /* Multiply the magnitude of the angle by the influence of the constraint to
-     * control the influence of the SplineIK effect.
-     */
     rangle *= tree->con->enforce * tail_blend_fac;
 
-    /* Construct rotation matrix from the axis-angle rotation found above.
-     * - This call takes care to make sure that the axis provided is a unit vector first.
-     */
     axis_angle_to_mat3(dmat, raxis, rangle);
 
-    /* Combine these rotations so that the y-axis of the bone is now aligned as the
-     * spline dictates, while still maintaining roll control from the existing bone animation. */
     mul_m3_m3m3(pose_mat, dmat, rmat);
-
-    /* Attempt to reduce shearing, though I doubt this will really help too much now. */
     normalize_m3(pose_mat);
 
     mul_m3_m3m3(base_pose_mat, dmat, base_pose_mat);
-
-    /* Apply rotation to the accumulated parent transform. */
     mul_m4_m3m4(state->locrot_offset, dmat, state->locrot_offset);
   }
 
   /* Step 4: Set the scaling factors for the axes. */
+  // Меняем pose_mat[1] на pose_mat[0] для масштабирования по X вместо Y
+  mul_v3_fl(pose_mat[0], scale_fac);
 
-  /* Always multiply the y-axis by the scaling factor to get the correct length. */
-  mul_v3_fl(pose_mat[1], scale_fac);
-
-  /* After that, apply x/z scaling modes. */
   if (ik_data->xzScaleMode != CONSTRAINT_SPLINEIK_XZS_NONE) {
-    /* First, apply the original scale if enabled. */
     if (ik_data->xzScaleMode == CONSTRAINT_SPLINEIK_XZS_ORIGINAL ||
         (ik_data->flag & CONSTRAINT_SPLINEIK_USE_ORIGINAL_SCALE) != 0)
     {
       float scale;
 
-      /* X-axis scale. */
-      scale = len_v3(pchan->pose_mat[0]);
-      mul_v3_fl(pose_mat[0], scale);
-      /* Z-axis scale. */
+      // Меняем индексы: Y и Z теперь масштабируются
+      scale = len_v3(pchan->pose_mat[1]);
+      mul_v3_fl(pose_mat[1], scale);
       scale = len_v3(pchan->pose_mat[2]);
       mul_v3_fl(pose_mat[2], scale);
 
-      /* Adjust the scale factor used for volume preservation
-       * to consider the pre-IK scaling as the initial volume. */
       scale_fac /= pose_scale;
     }
 
-    /* Apply volume preservation. */
     switch (ik_data->xzScaleMode) {
       case CONSTRAINT_SPLINEIK_XZS_INVERSE: {
-        /* Old 'volume preservation' method using the inverse scale. */
         float scale;
 
-        /* Calculate volume preservation factor which is
-         * basically the inverse of the y-scaling factor.
-         */
         if (fabsf(scale_fac) != 0.0f) {
           scale = 1.0f / fabsf(scale_fac);
-
-          /* We need to clamp this within sensible values. */
-          /* NOTE: these should be fine for now, but should get sanitized in future. */
           CLAMP(scale, 0.0001f, 100000.0f);
         }
         else {
           scale = 1.0f;
         }
 
-        /* Apply the scaling. */
-        mul_v3_fl(pose_mat[0], scale);
+        // Масштабируем Y и Z вместо X и Z
+        mul_v3_fl(pose_mat[1], scale);
         mul_v3_fl(pose_mat[2], scale);
         break;
       }
       case CONSTRAINT_SPLINEIK_XZS_VOLUMETRIC: {
-        /* Improved volume preservation based on the Stretch To constraint. */
         float final_scale;
 
-        /* As the basis for volume preservation, we use the inverse scale factor... */
         if (fabsf(scale_fac) != 0.0f) {
-          /* NOTE: The method here is taken wholesale from the Stretch To constraint. */
           float bulge = powf(1.0f / fabsf(scale_fac), ik_data->bulge);
 
-          if (bulge > 1.0f) {
-            if (ik_data->flag & CONSTRAINT_SPLINEIK_USE_BULGE_MAX) {
-              float bulge_max = max_ff(ik_data->bulge_max, 1.0f);
-              float hard = min_ff(bulge, bulge_max);
-
-              float range = bulge_max - 1.0f;
-              float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
-              float soft = 1.0f + range * atanf((bulge - 1.0f) * scale) / (float)M_PI_2;
-
-              bulge = interpf(soft, hard, ik_data->bulge_smooth);
-            }
+          if (bulge > 1.0f && (ik_data->flag & CONSTRAINT_SPLINEIK_USE_BULGE_MAX)) {
+            float bulge_max = max_ff(ik_data->bulge_max, 1.0f);
+            float hard = min_ff(bulge, bulge_max);
+            float range = bulge_max - 1.0f;
+            float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
+            float soft = 1.0f - range * atanf((1.0f - bulge) * scale) / (float)M_PI_2;
+            bulge = interpf(soft, hard, ik_data->bulge_smooth);
           }
-          if (bulge < 1.0f) {
-            if (ik_data->flag & CONSTRAINT_SPLINEIK_USE_BULGE_MIN) {
-              float bulge_min = CLAMPIS(ik_data->bulge_min, 0.0f, 1.0f);
-              float hard = max_ff(bulge, bulge_min);
-
-              float range = 1.0f - bulge_min;
-              float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
-              float soft = 1.0f - range * atanf((1.0f - bulge) * scale) / (float)M_PI_2;
-
-              bulge = interpf(soft, hard, ik_data->bulge_smooth);
-            }
+          if (bulge < 1.0f && (ik_data->flag & CONSTRAINT_SPLINEIK_USE_BULGE_MIN)) {
+            float bulge_min = CLAMPIS(ik_data->bulge_min, 0.0f, 1.0f);
+            float hard = max_ff(bulge, bulge_min);
+            float range = 1.0f - bulge_min;
+            float scale = (range > 0.0f) ? 1.0f / range : 0.0f;
+            float soft = 1.0f - range * atanf((1.0f - bulge) * scale) / (float)M_PI_2;
+            bulge = interpf(soft, hard, ik_data->bulge_smooth);
           }
 
-          /* Compute scale factor for xz axes from this value. */
           final_scale = sqrtf(bulge);
         }
         else {
-          /* No scaling, so scale factor is simple. */
           final_scale = 1.0f;
         }
 
-        /* Apply the scaling (assuming normalized scale). */
-        mul_v3_fl(pose_mat[0], final_scale);
+        // Масштабируем Y и Z вместо X и Z
+        mul_v3_fl(pose_mat[1], final_scale);
         mul_v3_fl(pose_mat[2], final_scale);
         break;
       }
     }
   }
 
-  /* Finally, multiply the x and z scaling by the radius of the curve too,
-   * to allow automatic scales to get tweaked still.
-   */
-  if ((ik_data->flag & CONSTRAINT_SPLINEIK_NO_CURVERAD) == 0) {
-    mul_v3_fl(pose_mat[0], radius);
-    mul_v3_fl(pose_mat[2], radius);
-  }
-
-  /* Blend the scaling of the matrix according to the influence. */
   sub_m3_m3m3(pose_mat, pose_mat, base_pose_mat);
   madd_m3_m3m3fl(pose_mat, base_pose_mat, pose_mat, tree->con->enforce * tail_blend_fac);
 
   /* Step 5: Set the location of the bone in the matrix. */
   if (ik_data->flag & CONSTRAINT_SPLINEIK_NO_ROOT) {
-    /* When the 'no-root' option is affected, the chain can retain
-     * the shape but be moved elsewhere.
-     */
     copy_v3_v3(pose_head, orig_head);
   }
   else if (tree->con->enforce < 1.0f) {
-    /* When the influence is too low:
-     * - Blend the positions for the 'root' bone.
-     * - Stick to the parent for any other.
-     */
     if (index < tree->chainlen - 1) {
       copy_v3_v3(pose_head, orig_head);
     }
@@ -717,20 +634,14 @@ static void splineik_evaluate_bone(
     }
   }
 
-  /* Finally, store the new transform. */
   copy_m4_m3(pchan->pose_mat, pose_mat);
   copy_v3_v3(pchan->pose_mat[3], pose_head);
   copy_v3_v3(pchan->pose_head, pose_head);
 
   mul_v3_mat3_m4v3(orig_tail, state->locrot_offset, pchan->pose_tail);
-
-  /* Recalculate tail, as it's now outdated after the head gets adjusted above! */
-  BKE_pose_where_is_bone_tail(pchan);
-
-  /* Update the offset in the accumulated parent transform. */
+  BKE_pose_where_is_bone_tail(ob, pchan);
   sub_v3_v3v3(state->locrot_offset[3], pchan->pose_tail, orig_tail);
 
-  /* Done! */
   pchan->flag |= POSE_DONE;
 }
 

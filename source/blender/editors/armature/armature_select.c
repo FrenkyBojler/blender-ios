@@ -650,6 +650,7 @@ static EditBone *get_nearest_editbonepoint(
    * this way overlapping bones will cycle selection state as with objects. */
   Object *obedit_orig = vc->obedit;
   EditBone *ebone_active_orig = ((bArmature *)obedit_orig->data)->act_edbone;
+  bArmature *arm = obedit_orig->data;
   if (ebone_active_orig == NULL) {
     use_cycle = false;
   }
@@ -748,7 +749,6 @@ cache_end:
       } cycle_order;
 
       if (use_cycle) {
-        bArmature *arm = obedit_orig->data;
         int ob_index = obedit_orig->runtime.select_id & 0xFFFF;
         int bone_index = BLI_findindex(arm->edbo, ebone_active_orig);
         /* Offset from the current active bone, so we cycle onto the next. */
@@ -848,13 +848,11 @@ cache_end:
       *r_base = result->base;
 
       *r_selmask = 0;
-      if (result->hitresult & BONESEL_ROOT) {
-        *r_selmask |= BONE_ROOTSEL;
-      }
-      if (result->hitresult & BONESEL_TIP) {
+      if (arm->drawtype == ARM_OCTA) {
         *r_selmask |= BONE_TIPSEL;
       }
-      if (result->hitresult & BONESEL_BONE) {
+      else
+      {
         *r_selmask |= BONE_SELECTED;
       }
       MEM_freeN(bases);

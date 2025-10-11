@@ -141,8 +141,8 @@ void ED_operatormacros_armature(void)
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
 
   ot = WM_operatortype_append_macro("ARMATURE_OT_extrude_move",
-                                    "Extrude",
-                                    "Create new bones from the selected joints and move them",
+                                    "Extrude Joints",
+                                    "Create new joints from selected joints. Symmetrical extrude not supported - please use Symmetrize command instead",
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   otmacro = WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
   RNA_boolean_set(otmacro->ptr, "forked", false);

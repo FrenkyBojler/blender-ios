@@ -294,7 +294,7 @@ void MESH_OT_primitive_circle_add(wmOperatorType *ot)
 
   /* props */
   RNA_def_int(ot->srna, "vertices", 32, 3, MESH_ADD_VERTS_MAXI, "Vertices", "", 3, 500);
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   RNA_def_enum(ot->srna, "fill_type", fill_type_items, 0, "Fill Type", "");
 
   ED_object_add_mesh_props(ot);
@@ -369,9 +369,9 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
 
   /* props */
   RNA_def_int(ot->srna, "vertices", 32, 3, MESH_ADD_VERTS_MAXI, "Vertices", "", 3, 500);
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   RNA_def_float_distance(
-      ot->srna, "depth", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.001, 100.00);
+      ot->srna, "depth", 200.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.1, 10000.00);
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Cap Fill Type", "");
 
   ED_object_add_mesh_props(ot);
@@ -447,11 +447,11 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
   /* props */
   RNA_def_int(ot->srna, "vertices", 32, 3, MESH_ADD_VERTS_MAXI, "Vertices", "", 3, 500);
   RNA_def_float_distance(
-      ot->srna, "radius1", 1.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Radius 1", "", 0.001, 100.00);
+      ot->srna, "radius1", 100.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Radius 1", "", 0.1, 10000.00);
   RNA_def_float_distance(
-      ot->srna, "radius2", 0.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Radius 2", "", 0.0, 100.00);
+      ot->srna, "radius2", 0.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Radius 2", "", 0.0, 10000.00);
   RNA_def_float_distance(
-      ot->srna, "depth", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.001, 100.00);
+      ot->srna, "depth", 200.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.1, 10000.00);
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Base Fill Type", "");
 
   ED_object_add_mesh_props(ot);
@@ -662,7 +662,7 @@ void MESH_OT_primitive_uv_sphere_add(wmOperatorType *ot)
   RNA_def_int(ot->srna, "segments", 32, 3, MESH_ADD_VERTS_MAXI / 100, "Segments", "", 3, 500);
   RNA_def_int(ot->srna, "ring_count", 16, 3, MESH_ADD_VERTS_MAXI / 100, "Rings", "", 3, 500);
 
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   ED_object_add_mesh_props(ot);
   ED_object_add_generic_props(ot, true);
 }
@@ -729,7 +729,7 @@ void MESH_OT_primitive_ico_sphere_add(wmOperatorType *ot)
   /* props */
   RNA_def_int(ot->srna, "subdivisions", 2, 1, 10, "Subdivisions", "", 1, 8);
 
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   ED_object_add_mesh_props(ot);
   ED_object_add_generic_props(ot, true);
 }

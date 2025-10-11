@@ -53,7 +53,7 @@
 void ED_armature_edit_transform(bArmature *arm, const float mat[4][4], const bool do_props)
 {
   EditBone *ebone;
-  float scale = mat4_to_scale(mat); /* store the scale of the matrix here to use on envelopes */
+  float scale = 1.0f; /* store the scale of the matrix here to use on envelopes */
   float mat3[3][3];
 
   copy_m3_m4(mat3, mat);
@@ -76,13 +76,13 @@ void ED_armature_edit_transform(bArmature *arm, const float mat[4][4], const boo
     mat3_to_vec_roll(tmat, NULL, &ebone->roll);
 
     if (do_props) {
-      ebone->rad_head *= scale;
-      ebone->rad_tail *= scale;
-      ebone->dist *= scale;
-
+      ebone->rad_head = 1.0f;
+      ebone->rad_tail = 1.0f;
+      ebone->dist = 1.0f;
+      ebone->length = 1.0f;
       /* we could be smarter and scale by the matrix along the x & z axis */
-      ebone->xwidth *= scale;
-      ebone->zwidth *= scale;
+      ebone->xwidth = 1.0f;
+      ebone->zwidth = 1.0f;
     }
   }
 }
@@ -159,37 +159,41 @@ void ED_armature_origin_set(
   }
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Bone Roll Calculate Operator
- * \{ */
-
 float ED_armature_ebone_roll_to_vector(const EditBone *bone,
                                        const float align_axis[3],
                                        const bool axis_only)
 {
   float mat[3][3], nor[3];
   float vec[3], align_axis_proj[3], roll = 0.0f;
+  const float epsilon = 1e-5f; // Более подходящий порог
 
   BLI_ASSERT_UNIT_V3(align_axis);
 
   sub_v3_v3v3(nor, bone->tail, bone->head);
 
-  /* If tail == head or the bone is aligned with the axis... */
-  if (normalize_v3(nor) <= FLT_EPSILON ||
-      (fabsf(dot_v3v3(align_axis, nor)) >= (1.0f - FLT_EPSILON))) {
+  /* Проверка на вырожденные случаи */
+  float nor_len = normalize_v3(nor);
+  if (nor_len <= epsilon ||
+      fabsf(dot_v3v3(align_axis, nor)) >= (1.0f - epsilon))
+  {
     return roll;
   }
 
   vec_roll_to_mat3_normalized(nor, 0.0f, mat);
 
-  /* project the new_up_axis along the normal */
+  /* Проекция align_axis на плоскость, перпендикулярную nor */
   project_v3_v3v3_normalized(vec, align_axis, nor);
   sub_v3_v3v3(align_axis_proj, align_axis, vec);
 
+  /* Проверка на нулевую проекцию */
+  float proj_len = normalize_v3(align_axis_proj);
+  if (proj_len < epsilon) {
+    return roll;
+  }
+
   if (axis_only) {
-    if (angle_v3v3(align_axis_proj, mat[2]) > (float)(M_PI_2)) {
+    float angle = angle_v3v3(align_axis_proj, mat[2]);
+    if (angle > (float)(M_PI_2)) {
       negate_v3(align_axis_proj);
     }
   }
@@ -198,6 +202,7 @@ float ED_armature_ebone_roll_to_vector(const EditBone *bone,
 
   cross_v3_v3v3(vec, mat[2], align_axis_proj);
 
+  /* Проверка направления через векторное произведение */
   if (dot_v3v3(vec, nor) < 0.0f) {
     return -roll;
   }
@@ -667,188 +672,201 @@ static void fill_add_joint(EditBone *ebo, short eb_tail, ListBase *points)
 /* bone adding between selected joints */
 static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  ListBase points = {NULL, NULL};
-  EditBone *newbone = NULL;
-  int count;
-  bool mixed_object_error = false;
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool forked = false;
+  bool changed_multi = false;
 
-  /* loop over all bones, and only consider if visible */
-  bArmature *arm = NULL;
-  CTX_DATA_BEGIN_WITH_ID (C, EditBone *, ebone, visible_bones, bArmature *, arm_iter) {
-    bool check = false;
-    if (!(ebone->flag & BONE_CONNECTED) && (ebone->flag & BONE_ROOTSEL)) {
-      fill_add_joint(ebone, 0, &points);
-      check = true;
-    }
-    if (ebone->flag & BONE_TIPSEL) {
-      fill_add_joint(ebone, 1, &points);
-      check = true;
-    }
+  uint objects_len = 0;
+  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
+    Object *ob = objects[ob_index];
+    bArmature *arm = ob->data;
+    bool forked_iter = forked;
 
-    if (check) {
-      if (arm && (arm != arm_iter)) {
-        mixed_object_error = true;
+    EditBone *newbone = NULL, *ebone, *flipbone, *first = NULL;
+    int a, totbone = 0, do_extrude;
+
+    /* since we allow root extrude too, we have to make sure selection is OK */
+    for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+      if (EBONE_VISIBLE(arm, ebone)) {
+        if (ebone->flag & BONE_ROOTSEL) {
+          if (ebone->parent && (ebone->flag & BONE_RELATIVE_PARENTING)) {
+            if (ebone->parent->flag & BONE_TIPSEL) {
+              ebone->flag &= ~BONE_ROOTSEL;
+            }
+          }
+        }
       }
-      arm = arm_iter;
     }
+
+    /* Duplicate the necessary bones */
+    for (ebone = arm->edbo->first; ((ebone) && (ebone != first)); ebone = ebone->next) {
+      if (EBONE_VISIBLE(arm, ebone)) {
+        /* we extrude per definition the tip */
+        do_extrude = false;
+        if (ebone->flag & (BONE_TIPSEL | BONE_SELECTED)) {
+          do_extrude = true;
+        }
+        else if (ebone->flag & BONE_ROOTSEL) {
+          /* but, a bone with parent deselected we do the root... */
+          if (ebone->parent && (ebone->parent->flag & BONE_TIPSEL)) {
+            /* pass */
+          }
+          else {
+            do_extrude = 2;
+          }
+        }
+
+        if (do_extrude) {
+          /* we re-use code for mirror editing... */
+          flipbone = NULL;
+          if (arm->flag & ARM_MIRROR_EDIT) {
+            //Do nothing. Symmetrical extrude not supported
+          }
+
+          for (a = 0; a < 2; a++) {
+            if (a == 1) {
+              if (flipbone == NULL) {
+                break;
+              }
+              SWAP(EditBone *, flipbone, ebone);
+            }
+
+            totbone++;
+            newbone = MEM_callocN(sizeof(EditBone), "extrudebone");
+
+            if (do_extrude == true) {
+              copy_v3_v3(newbone->head, ebone->tail);
+              copy_v3_v3(newbone->tail, newbone->head);
+
+              float diffvec_tail[3];
+              float diffvec_head[3];
+              float new_head[3];
+              float new_tail[3];
+
+              copy_v3_v3(new_head, ebone->tail);
+              copy_v3_v3(new_tail, new_head);
+
+              copy_v3_v3(newbone->tail, ebone->tail);
+              copy_v3_v3(newbone->head, ebone->head);
+
+              sub_v3_v3v3(diffvec_head, new_head, ebone->head);
+              sub_v3_v3v3(diffvec_tail, new_tail, ebone->tail);
+
+              float mat4[4][4];
+              unit_m4(mat4);
+              ED_armature_ebone_to_mat4(newbone, mat4);
+              translate_m4(mat4, 0.0f, diffvec_head[1], 0.0f);
+              translate_m4(mat4, 0.0f, diffvec_tail[1], 0.0f);
+
+              //New joints should not have any scaling
+              orthogonalize_m4_stable(mat4, 1, true);
+
+              ED_armature_ebone_from_mat4(newbone, mat4);
+
+              newbone->parent = ebone;
+              newbone->roll = ebone->roll;
+              newbone->length = 1.0f;
+              newbone->flag = ebone->flag & (BONE_TIPSEL | BONE_ROOTSEL | BONE_RELATIVE_PARENTING);
+
+              if (newbone->parent) {
+                newbone->flag |= BONE_RELATIVE_PARENTING;
+              }
+            }
+            else {
+              copy_v3_v3(newbone->head, ebone->head);
+              copy_v3_v3(newbone->tail, ebone->head);
+              newbone->parent = ebone->parent;
+
+              newbone->flag = BONE_SELECTED;
+
+              if (newbone->parent && (ebone->flag & BONE_CONNECTED)) {
+                newbone->flag |= BONE_RELATIVE_PARENTING;
+              }
+            }
+
+            newbone->weight = ebone->weight;
+            newbone->dist = ebone->dist;
+            newbone->xwidth = ebone->xwidth;
+            newbone->zwidth = ebone->zwidth;
+            newbone->rad_head = ebone->rad_tail; /* don't copy entire bone. */
+            newbone->rad_tail = ebone->rad_tail;
+            newbone->segments = 1;
+            newbone->layer = ebone->layer;
+
+            /* Bendy-Bone parameters */
+            newbone->roll1 = ebone->roll1;
+            newbone->roll2 = ebone->roll2;
+            newbone->curve_in_x = ebone->curve_in_x;
+            newbone->curve_in_z = ebone->curve_in_z;
+            newbone->curve_out_x = ebone->curve_out_x;
+            newbone->curve_out_z = ebone->curve_out_z;
+            newbone->ease1 = ebone->ease1;
+            newbone->ease2 = ebone->ease2;
+
+            copy_v3_v3(newbone->scale_in, ebone->scale_in);
+            copy_v3_v3(newbone->scale_out, ebone->scale_out);
+
+            STRNCPY(newbone->name, ebone->name);
+
+            if (flipbone && forked_iter) { /* only set if mirror edit */
+              if (strlen(newbone->name) < (MAXBONENAME - 2)) {
+                if (a == 0) {
+                  strcat(newbone->name, "_l");
+                }
+                else {
+                  strcat(newbone->name, "_r");
+                }
+              }
+            }
+            ED_armature_ebone_unique_name(arm->edbo, newbone->name, NULL);
+
+            /* Add the new bone to the list */
+            BLI_addtail(arm->edbo, newbone);
+            if (!first) {
+              first = newbone;
+            }
+
+            /* restore ebone if we were flipping */
+            if (a == 1 && flipbone) {
+              SWAP(EditBone *, flipbone, ebone);
+            }
+          }
+        }
+
+        /* Deselect the old bone */
+        ebone->flag &= ~(BONE_TIPSEL | BONE_SELECTED | BONE_ROOTSEL);
+      }
+    }
+    /* if only one bone, make this one active */
+    if (totbone == 1 && first) {
+      arm->act_edbone = first;
+    }
+    else {
+      arm->act_edbone = newbone;
+    }
+
+    if (totbone == 0) {
+      continue;
+    }
+
+    changed_multi = true;
+
+    /* Transform the endpoints */
+    ED_armature_edit_sync_selection(arm->edbo);
+
+    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+    DEG_id_tag_update(&ob->id, ID_RECALC_SELECT);
   }
-  CTX_DATA_END;
+  MEM_freeN(objects);
 
-  /* the number of joints determines how we fill:
-   *  1) between joint and cursor (joint=head, cursor=tail)
-   *  2) between the two joints (order is dependent on active-bone/hierarchy)
-   *  3+) error (a smarter method involving finding chains needs to be worked out
-   */
-  count = BLI_listbase_count(&points);
-
-  if (count == 0) {
-    BKE_report(op->reports, RPT_ERROR, "No joints selected");
+  if (!changed_multi) {
     return OPERATOR_CANCELLED;
   }
 
-  if (mixed_object_error) {
-    BKE_report(op->reports, RPT_ERROR, "Bones for different objects selected");
-    BLI_freelistN(&points);
-    return OPERATOR_CANCELLED;
-  }
-
-  Object *obedit = NULL;
-  {
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    FOREACH_OBJECT_IN_EDIT_MODE_BEGIN (scene, view_layer, v3d, ob_iter) {
-      if (ob_iter->data == arm) {
-        obedit = ob_iter;
-      }
-    }
-    FOREACH_OBJECT_IN_MODE_END;
-  }
-  BLI_assert(obedit != NULL);
-
-  if (count == 1) {
-    EditBonePoint *ebp;
-    float curs[3];
-
-    /* Get Points - selected joint */
-    ebp = points.first;
-
-    /* Get points - cursor (tail) */
-    invert_m4_m4(obedit->world_to_object, obedit->object_to_world);
-    mul_v3_m4v3(curs, obedit->world_to_object, scene->cursor.location);
-
-    /* Create a bone */
-    newbone = add_points_bone(obedit, ebp->vec, curs);
-  }
-  else if (count == 2) {
-    EditBonePoint *ebp_a, *ebp_b;
-    float head[3], tail[3];
-    short headtail = 0;
-
-    /* check that the points don't belong to the same bone */
-    ebp_a = (EditBonePoint *)points.first;
-    ebp_b = ebp_a->next;
-
-    if (((ebp_a->head_owner == ebp_b->tail_owner) && (ebp_a->head_owner != NULL)) ||
-        ((ebp_a->tail_owner == ebp_b->head_owner) && (ebp_a->tail_owner != NULL)))
-    {
-      BKE_report(op->reports, RPT_ERROR, "Same bone selected...");
-      BLI_freelistN(&points);
-      return OPERATOR_CANCELLED;
-    }
-
-    /* find which one should be the 'head' */
-    if ((ebp_a->head_owner && ebp_b->head_owner) || (ebp_a->tail_owner && ebp_b->tail_owner)) {
-      /* use active, nice predictable */
-      if (arm->act_edbone && ELEM(arm->act_edbone, ebp_a->head_owner, ebp_a->tail_owner)) {
-        headtail = 1;
-      }
-      else if (arm->act_edbone && ELEM(arm->act_edbone, ebp_b->head_owner, ebp_b->tail_owner)) {
-        headtail = 2;
-      }
-      else {
-        /* rule: whichever one is closer to 3d-cursor */
-        float curs[3];
-        float dist_sq_a, dist_sq_b;
-
-        /* get cursor location */
-        invert_m4_m4(obedit->world_to_object, obedit->object_to_world);
-        mul_v3_m4v3(curs, obedit->world_to_object, scene->cursor.location);
-
-        /* get distances */
-        dist_sq_a = len_squared_v3v3(ebp_a->vec, curs);
-        dist_sq_b = len_squared_v3v3(ebp_b->vec, curs);
-
-        /* compare distances - closer one therefore acts as direction for bone to go */
-        headtail = (dist_sq_a < dist_sq_b) ? 2 : 1;
-      }
-    }
-    else if (ebp_a->head_owner) {
-      headtail = 1;
-    }
-    else if (ebp_b->head_owner) {
-      headtail = 2;
-    }
-
-    /* assign head/tail combinations */
-    if (headtail == 2) {
-      copy_v3_v3(head, ebp_a->vec);
-      copy_v3_v3(tail, ebp_b->vec);
-    }
-    else if (headtail == 1) {
-      copy_v3_v3(head, ebp_b->vec);
-      copy_v3_v3(tail, ebp_a->vec);
-    }
-
-    /* add new bone and parent it to the appropriate end */
-    if (headtail) {
-      newbone = add_points_bone(obedit, head, tail);
-
-      /* do parenting (will need to set connected flag too) */
-      if (headtail == 2) {
-        /* ebp tail or head - tail gets priority */
-        if (ebp_a->tail_owner) {
-          newbone->parent = ebp_a->tail_owner;
-        }
-        else {
-          newbone->parent = ebp_a->head_owner;
-        }
-      }
-      else {
-        /* ebp_b tail or head - tail gets priority */
-        if (ebp_b->tail_owner) {
-          newbone->parent = ebp_b->tail_owner;
-        }
-        else {
-          newbone->parent = ebp_b->head_owner;
-        }
-      }
-
-      /* don't set for bone connecting two head points of bones */
-      if (ebp_a->tail_owner || ebp_b->tail_owner) {
-        newbone->flag |= BONE_CONNECTED;
-      }
-    }
-  }
-  else {
-    BKE_reportf(op->reports, RPT_ERROR, "Too many points selected: %d", count);
-    BLI_freelistN(&points);
-    return OPERATOR_CANCELLED;
-  }
-
-  if (newbone) {
-    ED_armature_edit_deselect_all(obedit);
-    arm->act_edbone = newbone;
-    newbone->flag |= BONE_TIPSEL;
-  }
-
-  /* updates */
-  ED_armature_edit_refresh_layer_used(arm);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, obedit);
-  DEG_id_tag_update(&arm->id, ID_RECALC_COPY_ON_WRITE);
-
-  /* free points */
-  BLI_freelistN(&points);
+  ED_outliner_select_sync_from_edit_bone_tag(C);
 
   return OPERATOR_FINISHED;
 }
@@ -856,9 +874,9 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 void ARMATURE_OT_fill(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Fill Between Joints";
+  ot->name = "Extrude Bones";
   ot->idname = "ARMATURE_OT_fill";
-  ot->description = "Add bone between selected joint(s) and/or 3D cursor";
+  ot->description = "Create a new bone going on Y axis from the last selected joint to the mouse position";
 
   /* callbacks */
   ot->exec = armature_fill_bones_exec;
@@ -935,23 +953,11 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
           /* only if selected and editable */
           if (EBONE_VISIBLE(arm, ebo) && EBONE_EDITABLE(ebo)) {
             /* swap head and tail coordinates */
-            swap_v3_v3(ebo->head, ebo->tail);
-
-            /* do parent swapping:
-             * - use 'child' as new parent
-             * - connected flag is only set if points are coincidental
-             */
-            ebo->parent = child;
-            if ((child) && equals_v3v3(ebo->head, child->tail)) {
-              ebo->flag |= BONE_CONNECTED;
-            }
-            else {
-              ebo->flag &= ~BONE_CONNECTED;
-            }
-
-            /* get next bones
-             * - child will become the new parent of next bone
-             */
+            float mat4[4][4];
+            unit_m4(mat4);
+            ED_armature_ebone_to_mat4(ebo, mat4);
+            rotate_m4(mat4, 'X', DEG2RADF(180));
+            ED_armature_ebone_from_mat4(ebo, mat4);
             child = ebo;
           }
           else {
@@ -995,9 +1001,9 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 void ARMATURE_OT_switch_direction(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Switch Direction";
+  ot->name = "Invert Tail";
   ot->idname = "ARMATURE_OT_switch_direction";
-  ot->description = "Change the direction that a chain of bones points in (head and tail swap)";
+  ot->description = "Invert the direction of bone vector";
 
   /* api callbacks */
   ot->exec = armature_switch_direction_exec;

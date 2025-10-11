@@ -129,6 +129,7 @@ typedef struct PoseTree {
   float (*basis_change)[3][3]; /* basis change result from solver */
   int iterations;              /* iterations from the constraint */
   int stretch;                 /* disable stretching */
+  float ikfk_blend;            /* ikfk_blend for Dual IK/FK constraint */
 } PoseTree;
 
 /* Core armature functionality. */
@@ -270,7 +271,7 @@ void BKE_pose_where_is_bone(struct Depsgraph *depsgraph,
 /**
  * Calculate tail of pose-channel.
  */
-void BKE_pose_where_is_bone_tail(struct bPoseChannel *pchan);
+void BKE_pose_where_is_bone_tail(struct Object *ob, struct bPoseChannel *pchan);
 
 /**
  * Evaluate the action and apply it to the pose. If any pose bones are selected, only FCurves that

@@ -107,8 +107,8 @@ const EnumPropertyItem rna_enum_constraint_type_items[] = {
     {CONSTRAINT_TYPE_KINEMATIC,
      "IK",
      ICON_CON_KINEMATIC,
-     "Inverse Kinematics",
-     "Control a chain of bones by specifying the endpoint target (Bones only)"},
+     "Dual IK/FK Solver",
+     "Control a chain of bones by specifying the endpoint target. Works with FK transform too."},
     {CONSTRAINT_TYPE_LOCKTRACK,
      "LOCKED_TRACK",
      ICON_CON_LOCKTRACK,
@@ -1221,7 +1221,7 @@ static void rna_def_constraint_kinematic(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, NULL, "orientweight");
   RNA_def_property_range(prop, 0.01, 1.0f);
   RNA_def_property_ui_text(
-      prop, "Orientation Weight", "For Tree-IK: Weight of orientation control for this target");
+      prop, "IK/FK Weight", "Controls amount of blending between IK and FK chain. 1 = IK, 0 = FK");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "chain_count", PROP_INT, PROP_NONE);
@@ -1268,7 +1268,7 @@ static void rna_def_constraint_kinematic(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_rotation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", CONSTRAINT_IK_ROT);
-  RNA_def_property_ui_text(prop, "Rotation", "Chain follows rotation of target");
+  RNA_def_property_ui_text(prop, "IK/FK Blend + Rotation", "Chain follows rotation of target");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_dependency_update");
 
   prop = RNA_def_property(srna, "lock_rotation_x", PROP_BOOLEAN, PROP_NONE);

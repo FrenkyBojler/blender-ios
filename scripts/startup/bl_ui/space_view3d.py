@@ -2818,6 +2818,14 @@ class VIEW3D_MT_object_apply(Menu):
         layout.separator()
 
         layout.operator(
+            "object.freeze_transformations",
+            text="Freeze Transformations",
+            text_ctxt=i18n_contexts.default,
+        )
+
+        layout.separator()
+
+        layout.operator(
             "object.visual_transform_apply",
             text="Visual Transform",
             text_ctxt=i18n_contexts.default,
@@ -3190,8 +3198,8 @@ class VIEW3D_MT_paint_weight(Menu):
 
         if not is_editmode:
 
-            layout.operator("paint.weight_from_bones", text="Assign Automatic from Bones").type = 'AUTOMATIC'
-            layout.operator("paint.weight_from_bones", text="Assign from Bone Envelopes").type = 'ENVELOPES'
+            layout.operator("paint.weight_from_bones", text="Soft weights from selected joints").type = 'AUTOMATIC'
+            layout.operator("paint.weight_from_bones", text="Hard weights from selected joints").type = 'ENVELOPES'
 
             layout.separator()
 
@@ -5029,7 +5037,7 @@ class VIEW3D_MT_edit_armature(Menu):
             layout.operator("armature.extrude_forked")
 
         layout.operator("armature.duplicate_move")
-        layout.operator("armature.fill")
+        #layout.operator("armature.fill")
 
         layout.separator()
 
@@ -5079,13 +5087,13 @@ class VIEW3D_MT_armature_context_menu(Menu):
         # Add
         layout.operator("armature.subdivide", text="Subdivide")
         layout.operator("armature.duplicate_move", text="Duplicate")
-        layout.operator("armature.extrude_move")
         if arm.use_mirror_x:
             layout.operator("armature.extrude_forked")
 
         layout.separator()
 
-        layout.operator("armature.fill")
+        layout.operator("armature.extrude_move")
+        #layout.operator("armature.fill")
 
         layout.separator()
 

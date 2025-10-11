@@ -1456,23 +1456,23 @@ static void rna_def_armature(BlenderRNA *brna)
   PropertyRNA *parm;
 
   static const EnumPropertyItem prop_drawtype_items[] = {
-      {ARM_OCTA, "OCTAHEDRAL", 0, "Octahedral", "Display bones as octahedral shape (default)"},
+      {ARM_OCTA, "OCTAHEDRAL", 0, "Joints Rotation", "Display bones as joints with 1 unit length"},
       {ARM_LINE, "STICK", 0, "Stick", "Display bones as simple 2D lines with dots"},
       {ARM_B_BONE,
        "BBONE",
        0,
-       "B-Bone",
-       "Display bones as boxes, showing subdivision and B-Splines"},
+       "Joints Align",
+       "Align selected joints to X axis during transform process"},
       {ARM_ENVELOPE,
        "ENVELOPE",
        0,
-       "Envelope",
-       "Display bones as extruded spheres, showing deformation influence volume"},
+       "Joints",
+       "Display bones as bone head only spheres - joints"},
       {ARM_WIRE,
        "WIRE",
        0,
-       "Wire",
-       "Display bones as thin wires, showing subdivision and B-Splines"},
+       "Nothing",
+       "Don't display bones. Show only controllers"},
       {0, NULL, 0, NULL, NULL},
   };
   static const EnumPropertyItem prop_pose_position_items[] = {
@@ -1485,8 +1485,8 @@ static void rna_def_armature(BlenderRNA *brna)
       {0, NULL, 0, NULL, NULL},
   };
   static const EnumPropertyItem prop_relation_lines_items[] = {
-      {0, "TAIL", 0, "Tail", "Draw the relationship line from the parent tail to the child head"},
-      {1, "HEAD", 0, "Head", "Draw the relationship line from the parent head to the child head"},
+      {0, "HEAD", 0, "Head", "Draw the relationship line from the parent head to the child head"},
+      {1, "TAIL", 0, "Tail", "Draw the relationship line from the parent tail to the child head"},
       {0, NULL, 0, NULL, NULL},
   };
 
@@ -1575,12 +1575,12 @@ static void rna_def_armature(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "axes_position", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, NULL, "axes_position");
-  RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_ui_range(prop, 0.0, 1.0, 10, 1);
+  RNA_def_property_range(prop, -1.0, 1.0);
+  RNA_def_property_ui_range(prop, -1.0, 1.0, 10, 1);
   RNA_def_property_ui_text(prop,
-                           "Axes Position",
-                           "The position for the axes on the bone. Increasing the value moves it "
-                           "closer to the tip; decreasing moves it closer to the root");
+                           "Scale",
+                           "The scaling for the axes on the joint. Increasing the value makes "
+                           "joint axes display bigger; decreasing makes joint axes display smaller");
   RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
 
   RNA_define_verify_sdna(false); /* This property does not live in DNA. */

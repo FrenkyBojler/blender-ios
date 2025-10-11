@@ -236,7 +236,7 @@ void ED_armature_ebone_to_mat4(EditBone *ebone, float r_mat[4][4])
 void ED_armature_ebone_from_mat3(EditBone *ebone, const float mat[3][3])
 {
   float vec[3], roll;
-  const float len = len_v3v3(ebone->head, ebone->tail);
+  const float len = 1.0f;
 
   mat3_to_vec_roll(mat, vec, &roll);
 
@@ -355,7 +355,17 @@ void armature_tag_unselect(bArmature *arm)
   }
 }
 
-/* ------------------------------------- */
+bool is_UE_armature(bArmature *arm)
+{
+  EditBone *pelvisBone;
+  pelvisBone = ED_armature_ebone_find_name(arm->edbo, "pelvis");
+  if (pelvisBone) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
 
 void ED_armature_ebone_transform_mirror_update(bArmature *arm, EditBone *ebo, bool check_select)
 {
@@ -373,6 +383,7 @@ void ED_armature_ebone_transform_mirror_update(bArmature *arm, EditBone *ebo, bo
 
       /* Always mirror roll, since it can be changed by moving either head or tail. */
       eboflip->roll = -ebo->roll;
+      eboflip->length = 1.0f;
 
       if (!check_select || ebo->flag & BONE_TIPSEL) {
         /* Mirror tail properties. */
@@ -388,8 +399,7 @@ void ED_armature_ebone_transform_mirror_update(bArmature *arm, EditBone *ebo, bo
         eboflip->roll2 = -ebo->roll2;
 
         /* Also move connected children, in case children's name aren't mirrored properly. */
-        EditBone *children;
-        for (children = arm->edbo->first; children; children = children->next) {
+        LISTBASE_FOREACH (EditBone *, children, arm->edbo) {
           if (children->parent == eboflip && children->flag & BONE_CONNECTED) {
             copy_v3_v3(children->head, eboflip->tail);
             children->rad_head = ebo->rad_tail;
@@ -428,6 +438,21 @@ void ED_armature_ebone_transform_mirror_update(bArmature *arm, EditBone *ebo, bo
         eboflip->segments = ebo->segments;
         eboflip->xwidth = ebo->xwidth;
         eboflip->zwidth = ebo->zwidth;
+      }
+
+
+      float mat4[4][4];
+      unit_m4(mat4);
+
+      if (is_UE_armature(arm) && ebo->flag & BONE_TIPSEL) {
+        ED_armature_ebone_to_mat4(eboflip, mat4);
+        rotate_m4(mat4, 'X', DEG2RADF(180));
+        ED_armature_ebone_from_mat4(eboflip, mat4);
+      }
+      else {
+        /* no rotation */
+        ED_armature_ebone_to_mat4(eboflip, mat4);
+        ED_armature_ebone_from_mat4(eboflip, mat4);
       }
     }
   }
@@ -495,14 +520,14 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
     eBone->roll = curBone->arm_roll;
 
     /* rest of stuff copy */
-    eBone->length = curBone->length;
-    eBone->dist = curBone->dist;
-    eBone->weight = curBone->weight;
-    eBone->xwidth = curBone->xwidth;
-    eBone->zwidth = curBone->zwidth;
-    eBone->rad_head = curBone->rad_head;
-    eBone->rad_tail = curBone->rad_tail;
-    eBone->segments = curBone->segments;
+    eBone->length = 1.0f;
+    eBone->dist = 1.0f;
+    eBone->weight = 1.0f;
+    eBone->xwidth = 1.0f;
+    eBone->zwidth = 1.0f;
+    eBone->rad_head = 1.0f;
+    eBone->rad_tail = 1.0f;
+    eBone->segments = 1.0f;
     eBone->layer = curBone->layer;
 
     /* Bendy-Bone parameters */
@@ -577,33 +602,17 @@ EditBone *make_boneList(ListBase *edbo, ListBase *bones, struct Bone *actBone)
   return active;
 }
 
-/**
- * This function:
- * - Sets local head/tail rest locations using parent bone's arm_mat.
- * - Calls #BKE_armature_where_is_bone() which uses parent's transform (arm_mat)
- *   to define this bone's transform.
- * - Fixes (converts) EditBone roll into Bone roll.
- * - Calls again #BKE_armature_where_is_bone(),
- *   since roll fiddling may have changed things for our bone.
- *
- * \note The order is crucial here, we can only handle child
- * if all its parents in chain have already been handled (this is ensured by recursive process).
- */
 static void armature_finalize_restpose(ListBase *bonelist, ListBase *editbonelist)
 {
   Bone *curBone;
   EditBone *ebone;
 
   for (curBone = bonelist->first; curBone; curBone = curBone->next) {
-    /* Set bone's local head/tail.
-     * Note that it's important to use final parent's restpose (arm_mat) here,
-     * instead of setting those values from editbone's matrix (see #46010). */
+    // Устанавливаем локальные head и tail с учётом родителя
     if (curBone->parent) {
       float parmat_inv[4][4];
-
       invert_m4_m4(parmat_inv, curBone->parent->arm_mat);
 
-      /* Get the new head and tail */
       sub_v3_v3v3(curBone->head, curBone->arm_head, curBone->parent->arm_tail);
       sub_v3_v3v3(curBone->tail, curBone->arm_tail, curBone->parent->arm_tail);
 
@@ -615,11 +624,10 @@ static void armature_finalize_restpose(ListBase *bonelist, ListBase *editbonelis
       copy_v3_v3(curBone->tail, curBone->arm_tail);
     }
 
-    /* Set local matrix and arm_mat (restpose).
-     * Do not recurse into children here, armature_finalize_restpose() is already recursive. */
+    // Устанавливаем локальную матрицу и arm_mat (restpose)
     BKE_armature_where_is_bone(curBone, curBone->parent, false);
 
-    /* Find the associated editbone */
+    // Находим соответствующую edit-кость и корректируем roll
     for (ebone = editbonelist->first; ebone; ebone = ebone->next) {
       if (ebone->temp.bone == curBone) {
         float premat[3][3];
@@ -627,32 +635,27 @@ static void armature_finalize_restpose(ListBase *bonelist, ListBase *editbonelis
         float difmat[3][3];
         float imat[3][3];
 
-        /* Get the ebone premat and its inverse. */
+        // Получаем матрицы edit-кости
         ED_armature_ebone_to_mat3(ebone, premat);
         invert_m3_m3(imat, premat);
-
-        /* Get the bone postmat. */
         copy_m3_m4(postmat, curBone->arm_mat);
 
+        // Вычисляем разницу между матрицами
         mul_m3_m3m3(difmat, imat, postmat);
 
-#if 0
-        printf("Bone %s\n", curBone->name);
-        print_m4("premat", premat);
-        print_m4("postmat", postmat);
-        print_m4("difmat", difmat);
-        printf("Roll = %f\n", RAD2DEGF(-atan2(difmat[2][0], difmat[2][2])));
-#endif
+        // Вычисляем roll с защитой от деления на ноль
+        curBone->roll = -atan2f(difmat[2][0], difmat[2][2] + FLT_EPSILON);
 
-        curBone->roll = -atan2f(difmat[2][0], difmat[2][2]);
+        // Отладочный вывод roll в градусах
+        //printf("Bone %s: roll = %f degrees\n", curBone->name, RAD2DEGF(curBone->roll));
 
-        /* And set rest-position again. */
+        // Повторно устанавливаем restpose
         BKE_armature_where_is_bone(curBone, curBone->parent, false);
         break;
       }
     }
 
-    /* Recurse into children... */
+    // Рекурсивно обрабатываем дочерние кости
     armature_finalize_restpose(&curBone->childbase, editbonelist);
   }
 }

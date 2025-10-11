@@ -155,7 +155,7 @@ float BKE_defvert_multipaint_collective_weight(const struct MDeformVert *dv,
                                                bool is_normalized);
 
 /* This much unlocked weight is considered equivalent to none. */
-#define VERTEX_WEIGHT_LOCK_EPSILON 1e-6f
+#define VERTEX_WEIGHT_LOCK_EPSILON 1e-3f
 
 /**
  * Computes the display weight for the lock relative weight paint mode.

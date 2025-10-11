@@ -490,9 +490,9 @@ void ED_object_parent(Object *ob, Object *par, const int type, const char *subst
 EnumPropertyItem prop_make_parent_types[] = {
     {PAR_OBJECT, "OBJECT", 0, "Object", ""},
     {PAR_ARMATURE, "ARMATURE", 0, "Armature Deform", ""},
-    {PAR_ARMATURE_NAME, "ARMATURE_NAME", 0, "   With Empty Groups", ""},
-    {PAR_ARMATURE_AUTO, "ARMATURE_AUTO", 0, "   With Automatic Weights", ""},
-    {PAR_ARMATURE_ENVELOPE, "ARMATURE_ENVELOPE", 0, "   With Envelope Weights", ""},
+    {PAR_ARMATURE_NAME, "ARMATURE_NAME", 0, "   With Empty Weights", "Create vertex groups for joins without weights"},
+    {PAR_ARMATURE_AUTO, "ARMATURE_AUTO", 0, "   With Automatic Weights", "Skin 3D mesh to joints with raytraced weights"},
+    {PAR_ARMATURE_ENVELOPE, "ARMATURE_ENVELOPE", 0, "   With Hardsurface Weights", "Skin 3D mesh to geometry with binary 1 or 0 hardsurface weights"},
     {PAR_BONE, "BONE", 0, "Bone", ""},
     {PAR_BONE_RELATIVE, "BONE_RELATIVE", 0, "Bone Relative", ""},
     {PAR_CURVE, "CURVE", 0, "Curve Deform", ""},
@@ -721,8 +721,10 @@ bool ED_object_parent_set(ReportList *reports,
           reports, depsgraph, scene, ob, par, ARM_GROUPS_NAME, false);
     }
     else if (partype == PAR_ARMATURE_ENVELOPE) {
+      WM_cursor_wait(true);
       ED_object_vgroup_calc_from_armature(
           reports, depsgraph, scene, ob, par, ARM_GROUPS_ENVELOPE, xmirror);
+      WM_cursor_wait(false);
     }
     else if (partype == PAR_ARMATURE_AUTO) {
       WM_cursor_wait(true);
@@ -1665,8 +1667,8 @@ void OBJECT_OT_make_links_data(wmOperatorType *ot)
       {MAKE_LINKS_ANIMDATA,
        "ANIMATION",
        0,
-       "Link Animation Data",
-       "Replace assigned Animation Data"},
+       "Retarget 3D Animation",
+       "Retarget 3D animation and avoid distortion"},
       {MAKE_LINKS_GROUP, "GROUPS", 0, "Link Collections", "Replace assigned Collections"},
       {MAKE_LINKS_DUPLICOLLECTION,
        "DUPLICOLLECTION",

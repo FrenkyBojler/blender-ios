@@ -655,6 +655,8 @@ enum {
   OB_DRAW_NO_SHADOW_CAST = 1 << 9,
   /* Enable lights for grease pencil. */
   OB_USE_GPENCIL_LIGHTS = 1 << 10,
+  /* Enable custom wire color. */
+  OB_USE_CUSTOM_WIRE_COLOR = 1 << 11,
 };
 
 /** #Object.empty_drawtype: no flags */

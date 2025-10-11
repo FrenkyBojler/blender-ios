@@ -26,46 +26,49 @@
 
 /* Keep alignment. */
 /* clang-format off */
+#define TEMP_STR_SIZE 256  // Сохранено без изменений, если Maya использует аналогичный размер буфера
 
-#define TEMP_STR_SIZE 256
-
-#define SEP_CHR     '#'
+#define SEP_CHR     '#'    // Сохранено, если разделитель не меняется
 #define SEP_STR     "#"
 
-#define EPS 0.001
+#define EPS 0.001          // Точность, оставлена без изменений (может потребоваться корректировка)
 
-#define UN_SC_KM    1000.0f
-#define UN_SC_HM    100.0f
-#define UN_SC_DAM   10.0f
-#define UN_SC_M     1.0f
-#define UN_SC_DM    0.1f
-#define UN_SC_CM    0.01f
-#define UN_SC_MM    0.001f
-#define UN_SC_UM    0.000001f
+// Единицы длины (базовая единица: сантиметр)
+#define UN_SC_KM    100000.0f    // 1 км = 100 000 см
+#define UN_SC_HM    10000.0f     // 1 гектометр = 10 000 см
+#define UN_SC_DAM   1000.0f      // 1 декаметр = 1000 см
+#define UN_SC_M     100.0f       // 1 метр = 100 см
+#define UN_SC_DM    10.0f        // 1 дециметр = 10 см
+#define UN_SC_CM    1.0f         // 1 сантиметр (базовая единица)
+#define UN_SC_MM    0.1f         // 1 миллиметр = 0.1 см
+#define UN_SC_UM    0.0001f      // 1 микрометр = 0.0001 см
 
-#define UN_SC_MI    1609.344f
-#define UN_SC_FUR   201.168f
-#define UN_SC_CH    20.1168f
-#define UN_SC_YD    0.9144f
-#define UN_SC_FT    0.3048f
-#define UN_SC_IN    0.0254f
-#define UN_SC_MIL   0.0000254f
+// Имперские единицы длины (пересчитаны в сантиметры)
+#define UN_SC_MI    160934.4f    // 1 миля = 160 934.4 см
+#define UN_SC_FUR   20116.8f     // 1 фарлонг = 20 116.8 см
+#define UN_SC_CH    2011.68f     // 1 чейн = 2011.68 см
+#define UN_SC_YD    91.44f       // 1 ярд = 91.44 см
+#define UN_SC_FT    30.48f       // 1 фут = 30.48 см
+#define UN_SC_IN    2.54f        // 1 дюйм = 2.54 см
+#define UN_SC_MIL   0.00254f     // 1 мил = 0.00254 см
 
-#define UN_SC_MTON  1000.0f /* Metric ton. */
-#define UN_SC_QL    100.0f
-#define UN_SC_KG    1.0f
-#define UN_SC_HG    0.1f
-#define UN_SC_DAG   0.01f
-#define UN_SC_G     0.001f
-#define UN_SC_MG    0.000001f
+// Метрические единицы массы (базовая единица: килограмм, если Maya использует кг)
+#define UN_SC_MTON  1000.0f      // 1 метрическая тонна = 1000 кг
+#define UN_SC_QL    100.0f       // 1 квинтал = 100 кг
+#define UN_SC_KG    1.0f         // 1 килограмм (базовая единица)
+#define UN_SC_HG    0.1f         // 1 гектограмм = 0.1 кг
+#define UN_SC_DAG   0.01f        // 1 декаграмм = 0.01 кг
+#define UN_SC_G     0.001f       // 1 грамм = 0.001 кг
+#define UN_SC_MG    0.000001f    // 1 миллиграмм = 0.000001 кг
 
-#define UN_SC_ITON  907.18474f /* Imperial ton. */
-#define UN_SC_CWT   45.359237f
-#define UN_SC_ST    6.35029318f
-#define UN_SC_LB    0.45359237f
-#define UN_SC_OZ    0.028349523125f
+// Имперские единицы массы (базовая единица: килограмм)
+#define UN_SC_ITON  907.18474f   // 1 имперская тонна = 907.18474 кг
+#define UN_SC_CWT   45.359237f   // 1 хандредвейт = 45.359237 кг
+#define UN_SC_ST    6.35029318f  // 1 стоун = 6.35029318 кг
+#define UN_SC_LB    0.45359237f  // 1 фунт = 0.45359237 кг
+#define UN_SC_OZ    0.028349523f // 1 унция = 0.028349523 кг
 
-#define UN_SC_FAH   0.555555555555f
+#define UN_SC_FAH   0.555555555555f  // Коэффициент для перевода Фаренгейта в Цельсий
 
 /* clang-format on */
 
@@ -145,7 +148,7 @@ static struct bUnitDef buMetricLenDef[] = {
 #endif
   NULL_UNIT,
 };
-static const struct bUnitCollection buMetricLenCollection = {buMetricLenDef, 3, 0, UNIT_COLLECTION_LENGTH(buMetricLenDef)};
+static const struct bUnitCollection buMetricLenCollection = {buMetricLenDef, 5, 0, UNIT_COLLECTION_LENGTH(buMetricLenDef)};
 
 static struct bUnitDef buImperialLenDef[] = {
   {"mile",    "miles",    "mi",   NULL, "Miles",    "MILES",    UN_SC_MI,  0.0, B_UNIT_DEF_NONE},
@@ -171,7 +174,7 @@ static struct bUnitDef buMetricAreaDef[] = {
   {"square micrometer", "square micrometers", "µm²",  "um2",  "Square Micrometers", NULL, UN_SC_UM * UN_SC_UM,   0.0, B_UNIT_DEF_NONE},
   NULL_UNIT,
 };
-static struct bUnitCollection buMetricAreaCollection = {buMetricAreaDef, 3, 0, UNIT_COLLECTION_LENGTH(buMetricAreaDef)};
+static struct bUnitCollection buMetricAreaCollection = {buMetricAreaDef, 5, 0, UNIT_COLLECTION_LENGTH(buMetricAreaDef)};
 
 static struct bUnitDef buImperialAreaDef[] = {
   {"square mile",    "square miles",    "sq mi", "sq m", "Square Miles",    NULL, UN_SC_MI * UN_SC_MI,   0.0, B_UNIT_DEF_NONE},
@@ -197,7 +200,7 @@ static struct bUnitDef buMetricVolDef[] = {
   {"cubic micrometer", "cubic micrometers", "µm³",  "um3",  "Cubic Micrometers", NULL, UN_SC_UM * UN_SC_UM * UN_SC_UM,    0.0, B_UNIT_DEF_NONE},
   NULL_UNIT,
 };
-static struct bUnitCollection buMetricVolCollection = {buMetricVolDef, 3, 0, UNIT_COLLECTION_LENGTH(buMetricVolDef)};
+static struct bUnitCollection buMetricVolCollection = {buMetricVolDef, 5, 0, UNIT_COLLECTION_LENGTH(buMetricVolDef)};
 
 static struct bUnitDef buImperialVolDef[] = {
   {"cubic mile",    "cubic miles",    "cu mi",  "cu m", "Cubic Miles",    NULL, UN_SC_MI * UN_SC_MI * UN_SC_MI,    0.0, B_UNIT_DEF_NONE},

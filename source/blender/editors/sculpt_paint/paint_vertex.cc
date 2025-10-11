@@ -2237,13 +2237,23 @@ static void do_wpaint_brush_calc_average_weight_cb_ex(void *__restrict userdata,
   const bool use_face_sel = (data->me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (data->me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
 
+  /* Аккумулятор, где len теперь будет суммой планарных falloff-факторов */
   WPaintAverageAccum *accum = (WPaintAverageAccum *)data->custom_data + n;
-  accum->len = 0;
+  accum->len = 0.0f;
   accum->value = 0.0;
 
   SculptBrushTest test;
   SculptBrushTestFn sculpt_brush_test_sq_fn = SCULPT_brush_test_init_with_falloff_shape(
       ss, &test, data->brush->falloff_shape);
+
+  /* Задаем ось направления кисти (например, смотрящую в сторону пользователя) */
+  float brush_dir[3] = {0.0f, 0.0f, 1.0f};
+  normalize_v3(brush_dir);
+
+  /* Центр кисти */
+  const float *brush_center = cache->last_location;
+
+  /* Если нужно учитывать нормали фронтальной поверхности */
   const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
       ss, data->brush->falloff_shape);
 
@@ -2251,24 +2261,44 @@ static void do_wpaint_brush_calc_average_weight_cb_ex(void *__restrict userdata,
   const blender::VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
       ".select_vert", ATTR_DOMAIN_POINT, false);
 
-  /* For each vertex */
   PBVHVertexIter vd;
-  BKE_pbvh_vertex_iter_begin (ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE) {
-    /* Test to see if the vertex coordinates are within the spherical brush region. */
+  BKE_pbvh_vertex_iter_begin(ss->pbvh, data->nodes[n], vd, PBVH_ITER_UNIQUE) {
+    /* Быстрая проверка попадания вершины в сферу кисти */
     if (sculpt_brush_test_sq_fn(&test, vd.co)) {
-      const float angle_cos = (use_normal && vd.no) ? dot_v3v3(sculpt_normal_frontface, vd.no) :
-                                                      1.0f;
-      if (angle_cos > 0.0 &&
-          BKE_brush_curve_strength(data->brush, sqrtf(test.dist), cache->radius) > 0.0)
-      {
+
+      /* Вычисляем вектор от центра кисти к вершине */
+      float vec[3];
+      sub_v3_v3v3(vec, vd.co, brush_center);
+
+      /* Расстояние вдоль направления кисти */
+      float dist_along = dot_v3v3(vec, brush_dir);
+
+      /* Получаем вектор, проецированный на плоскость кисти */
+      float proj[3];
+      copy_v3_v3(proj, brush_dir);
+      mul_v3_fl(proj, dist_along);
+      sub_v3_v3(vec, proj);
+      float planar_dist = len_v3(vec);
+
+      /* Вычисляем falloff по планарному расстоянию */
+      float falloff = BKE_brush_curve_strength(data->brush, planar_dist, cache->radius);
+      if (falloff > 0.0f) {
+        /* Учет нормали: если включено, корректируем falloff на основе угла между нормалью вершины и направлением кисти */
+        if (use_normal && vd.no) {
+          float angle_cos = dot_v3v3(sculpt_normal_frontface, vd.no);
+          if (angle_cos <= 0.0f) {
+            continue;
+          }
+          falloff *= angle_cos;
+        }
+
         const int v_index = has_grids ? ss->corner_verts[vd.grid_indices[vd.g]] :
                                         vd.vert_indices[vd.i];
-
-        /* If the vertex is selected. */
         if (!(use_face_sel || use_vert_sel) || select_vert[v_index]) {
           const MDeformVert *dv = &data->wpi->dvert[v_index];
-          accum->len += 1;
-          accum->value += wpaint_get_active_weight(dv, data->wpi);
+          float vertex_weight = wpaint_get_active_weight(dv, data->wpi);
+          accum->len   += falloff;
+          accum->value += vertex_weight * falloff;
         }
       }
     }
@@ -2284,21 +2314,19 @@ static void calculate_average_weight(SculptThreadedTaskData *data, Span<PBVHNode
 
   TaskParallelSettings settings;
   BKE_pbvh_parallel_range_settings(&settings, true, nodes.size());
-  BLI_task_parallel_range(
-      0, nodes.size(), data, do_wpaint_brush_calc_average_weight_cb_ex, &settings);
+  BLI_task_parallel_range(0, nodes.size(), data, do_wpaint_brush_calc_average_weight_cb_ex, &settings);
 
-  uint accum_len = 0;
-  double accum_weight = 0.0;
+  double total_falloff = 0.0;
+  double weighted_sum = 0.0;
   for (int i = 0; i < nodes.size(); i++) {
-    accum_len += accum[i].len;
-    accum_weight += accum[i].value;
+    total_falloff += accum[i].len;
+    weighted_sum += accum[i].value;
   }
-  if (accum_len != 0) {
-    accum_weight /= accum_len;
-    data->strength = float(accum_weight);
+  if (total_falloff != 0.0) {
+    data->strength = float(weighted_sum / total_falloff);
   }
 
-  MEM_SAFE_FREE(data->custom_data); /* 'accum' */
+  MEM_SAFE_FREE(data->custom_data);
 }
 
 static void wpaint_paint_leaves(bContext *C,

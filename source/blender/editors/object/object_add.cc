@@ -385,18 +385,18 @@ static void view_align_update(struct Main * /*main*/,
 void ED_object_add_unit_props_size(wmOperatorType *ot)
 {
   RNA_def_float_distance(
-      ot->srna, "size", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Size", "", 0.001, 100.00);
+      ot->srna, "size", 200.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Size", "", 0.1, 10000.00);
 }
 
 void ED_object_add_unit_props_radius_ex(wmOperatorType *ot, float default_value)
 {
   RNA_def_float_distance(
-      ot->srna, "radius", default_value, 0.0, OBJECT_ADD_SIZE_MAXF, "Radius", "", 0.001, 100.00);
+      ot->srna, "radius", default_value, 0.0, OBJECT_ADD_SIZE_MAXF, "Radius", "", 0.1, 10000.00);
 }
 
 void ED_object_add_unit_props_radius(wmOperatorType *ot)
 {
-  ED_object_add_unit_props_radius_ex(ot, 1.0f);
+  ED_object_add_unit_props_radius_ex(ot, 200.0f);
 }
 
 void ED_object_add_generic_props(wmOperatorType *ot, bool do_editmode)
@@ -724,7 +724,7 @@ void OBJECT_OT_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   PropertyRNA *prop = RNA_def_enum(ot->srna, "type", rna_enum_object_type_items, 0, "Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
 
@@ -794,7 +794,7 @@ void OBJECT_OT_lightprobe_add(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", lightprobe_type_items, 0, "Type", "");
 
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   ED_object_add_generic_props(ot, true);
 }
 
@@ -910,7 +910,7 @@ void OBJECT_OT_effector_add(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", field_type_items, 0, "Type", "");
 
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   ED_object_add_generic_props(ot, true);
 }
 
@@ -1048,7 +1048,7 @@ void OBJECT_OT_metaball_add(wmOperatorType *ot)
 
   ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_metaelem_type_items, 0, "Primitive", "");
 
-  ED_object_add_unit_props_radius_ex(ot, 2.0f);
+  ED_object_add_unit_props_radius_ex(ot, 200.0f);
   ED_object_add_generic_props(ot, true);
 }
 
@@ -1096,7 +1096,7 @@ void OBJECT_OT_text_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   ED_object_add_generic_props(ot, true);
 }
 
@@ -1167,7 +1167,7 @@ void OBJECT_OT_armature_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 1.0f);
   ED_object_add_generic_props(ot, true);
 }
 
@@ -1216,7 +1216,7 @@ void OBJECT_OT_empty_add(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_object_empty_drawtype_items, 0, "Type", "");
 
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 10.0f);
   ED_object_add_generic_props(ot, false);
 }
 
@@ -1653,7 +1653,7 @@ void OBJECT_OT_light_add(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "type", rna_enum_light_type_items, 0, "Type", "");
   RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_LIGHT);
 
-  ED_object_add_unit_props_radius(ot);
+  ED_object_add_unit_props_radius_ex(ot, 100.0f);
   ED_object_add_generic_props(ot, false);
 }
 

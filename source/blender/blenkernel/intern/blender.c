@@ -105,7 +105,7 @@ static void blender_version_init(void)
     version_cycle = " Release Candidate";
   }
   else if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "release")) {
-    version_cycle = "";
+    version_cycle = " LTS release (https://t.me/BlenderNext)";
   }
   else {
     BLI_assert_msg(0, "Invalid Blender version cycle");

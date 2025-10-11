@@ -120,12 +120,12 @@ static int weight_from_bones_exec(bContext *C, wmOperator *op)
 void PAINT_OT_weight_from_bones(wmOperatorType *ot)
 {
   static const EnumPropertyItem type_items[] = {
-      {ARM_GROUPS_AUTO, "AUTOMATIC", 0, "Automatic", "Automatic weights from bones"},
+      {ARM_GROUPS_AUTO, "AUTOMATIC", 0, "Automatic", "Automatic weights from joints"},
       {ARM_GROUPS_ENVELOPE,
        "ENVELOPES",
        0,
-       "From Envelopes",
-       "Weights from envelopes with user defined radius"},
+       "Maya",
+       "Maya weights from joints"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

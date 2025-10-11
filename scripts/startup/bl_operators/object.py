@@ -763,9 +763,9 @@ class TransformsToDeltas(Operator):
 
 
 class TransformsToDeltasAnim(Operator):
-    """Convert object animation for normal transforms to delta transforms"""
+    """Apply scale to 3D animation and avoid distortion"""
     bl_idname = "object.anim_transforms_to_deltas"
-    bl_label = "Animated Transforms to Deltas"
+    bl_label = "Scale to 3D animation"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -779,7 +779,6 @@ class TransformsToDeltasAnim(Operator):
             "location": "delta_location",
             "rotation_euler": "delta_rotation_euler",
             "rotation_quaternion": "delta_rotation_quaternion",
-            # "rotation_axis_angle" : "delta_rotation_axis_angle",
             "scale": "delta_scale",
         }
         DELTA_PATHS = STANDARD_TO_DELTA_PATHS.values()
@@ -789,67 +788,147 @@ class TransformsToDeltasAnim(Operator):
             adt = obj.animation_data
             if (adt is None) or (adt.action is None):
                 self.report({'WARNING'},
-                            tip_("No animation data to convert on object: %r")
-                            % obj.name)
+                            tip_("No animation data to convert on object: %r") % obj.name)
                 continue
 
-            # first pass over F-Curves: ensure that we don't have conflicting
-            # transforms already (e.g. if this was applied already) #29110.
+            # Сохраняем текущие значения перед преобразованием
+            current_location = obj.location.copy()
+            current_rotation = obj.rotation_euler.copy()
+            current_scale = obj.scale.copy()
+
+            # first pass over F-Curves: ensure that we don't have conflicting transforms already
             existingFCurves = {}
             for fcu in adt.action.fcurves:
-                # get "delta" path - i.e. the final paths which may clash
                 path = fcu.data_path
                 if path in STANDARD_TO_DELTA_PATHS:
-                    # to be converted - conflicts may exist...
                     dpath = STANDARD_TO_DELTA_PATHS[path]
                 elif path in DELTA_PATHS:
-                    # already delta - check for conflicts...
                     dpath = path
                 else:
-                    # non-transform - ignore
                     continue
 
-                # a delta path like this for the same index shouldn't
-                # exist already, otherwise we've got a conflict
+                # Check for conflicts
                 if dpath in existingFCurves:
-                    # ensure that this index hasn't occurred before
                     if fcu.array_index in existingFCurves[dpath]:
-                        # conflict
                         self.report({'ERROR'},
                                     tip_("Object '%r' already has '%r' F-Curve(s). "
                                          "Remove these before trying again") %
                                     (obj.name, dpath))
                         return {'CANCELLED'}
                     else:
-                        # no conflict here
                         existingFCurves[dpath] += [fcu.array_index]
                 else:
-                    # no conflict yet
                     existingFCurves[dpath] = [fcu.array_index]
 
-            # if F-Curve uses standard transform path
-            # just append "delta_" to this path
+            # If F-Curve uses standard transform path, convert it to delta
             for fcu in adt.action.fcurves:
                 if fcu.data_path == "location":
                     fcu.data_path = "delta_location"
-                    obj.location.zero()
+                    for keyframe in fcu.keyframe_points:
+                        keyframe.co[1] = current_location[fcu.array_index]  # Устанавливаем значение
+                    obj.location.zero()  # Сбрасываем позицию
                 elif fcu.data_path == "rotation_euler":
                     fcu.data_path = "delta_rotation_euler"
-                    obj.rotation_euler.zero()
+                    for keyframe in fcu.keyframe_points:
+                        keyframe.co[1] = current_rotation[fcu.array_index]  # Устанавливаем значение
+                    obj.rotation_euler.zero()  # Сбрасываем вращение
                 elif fcu.data_path == "rotation_quaternion":
                     fcu.data_path = "delta_rotation_quaternion"
-                    obj.rotation_quaternion.identity()
-                # XXX: currently not implemented
-                # ~ elif fcu.data_path == "rotation_axis_angle":
-                # ~    fcu.data_path = "delta_rotation_axis_angle"
+                    for keyframe in fcu.keyframe_points:
+                        keyframe.co[1] = current_rotation[fcu.array_index]  # Устанавливаем значение
+                    obj.rotation_quaternion.identity()  # Сбрасываем вращение
                 elif fcu.data_path == "scale":
                     fcu.data_path = "delta_scale"
-                    obj.scale = 1.0, 1.0, 1.0
+                    for keyframe in fcu.keyframe_points:
+                        keyframe.co[1] = current_scale[fcu.array_index]  # Устанавливаем значение
+                    obj.scale = (1.0, 1.0, 1.0)  # Сбрасываем масштаб
 
-        # hack: force animsys flush by changing frame, so that deltas get run
+        # Hack: force animsys flush by changing frame, so that deltas get run
         context.scene.frame_set(context.scene.frame_current)
 
         return {'FINISHED'}
+
+
+class FreezeTransformations(Operator):
+    """Set object location and rotation to 0. Set scale to 1. """ \
+        """Set gizmo for selected object to world center and apply transform"""
+    bl_idname = "object.freeze_transformations"
+    bl_label = "Freeze Transformations"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    mode: EnumProperty(
+        items=(
+            ('ALL', "All Transforms",
+             "Set object location and rotation to 0. Set object scale to 1."),
+        ),
+        name="Mode",
+        description="Which transforms to transfer",
+        default='ALL',
+    )
+    reset_values: BoolProperty(
+        name="Reset Values",
+        description=("Clear transform values after transferring to deltas"),
+        default=True,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obs = context.selected_objects
+        return (obs is not None)
+
+    def execute(self, context):
+        for obj in context.selected_objects:
+            # Transfer data to delta values first
+            self.transfer_location(obj)
+            self.transfer_rotation(obj)
+            self.transfer_scale(obj)
+            # And store them to variable
+            obj_deltaL = obj.delta_location
+            obj_deltaR = obj.delta_rotation_euler
+            obj_deltaS = obj.delta_scale
+            # Assign selected objects location, Euler rotation and scale as delta location, Eurler rotation and scale, Reset delta location and Euler rotation to 0 and scale to 1
+            obj.location = obj_deltaL
+            obj.delta_location = (0, 0, 0)
+            obj.rotation_euler = obj_deltaR
+            obj.delta_rotation_euler = (0, 0, 0)
+            obj.scale = obj_deltaS
+            obj.delta_scale = (1, 1, 1)
+            bpy.ops.object.transform_apply(
+                location=True, rotation=True, scale=True)
+        return {'FINISHED'}
+
+    def transfer_location(self, obj):
+        obj.delta_location += obj.location
+
+        if self.reset_values:
+            obj.location.zero()
+
+    def transfer_rotation(self, obj):
+        # TODO: add transforms together...
+        if obj.rotation_mode == 'QUATERNION':
+            delta = obj.delta_rotation_quaternion.copy()
+            obj.delta_rotation_quaternion = obj.rotation_quaternion
+            obj.delta_rotation_quaternion.rotate(delta)
+
+            if self.reset_values:
+                obj.rotation_quaternion.identity()
+        elif obj.rotation_mode == 'AXIS_ANGLE':
+            pass  # Unsupported
+        else:
+            delta = obj.delta_rotation_euler.copy()
+            obj.delta_rotation_euler = obj.rotation_euler
+            obj.delta_rotation_euler.rotate(delta)
+
+            if self.reset_values:
+                obj.rotation_euler.zero()
+
+    def transfer_scale(self, obj):
+        obj.delta_scale[0] *= obj.scale[0]
+        obj.delta_scale[1] *= obj.scale[1]
+        obj.delta_scale[2] *= obj.scale[2]
+
+        if self.reset_values:
+            obj.scale[:] = (1, 1, 1)
 
 
 class DupliOffsetFromCursor(Operator):
@@ -1033,5 +1112,6 @@ classes = (
     SubdivisionSet,
     TransformsToDeltas,
     TransformsToDeltasAnim,
+    FreezeTransformations,
     OBJECT_OT_assign_property_defaults,
 )

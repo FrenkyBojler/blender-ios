@@ -212,45 +212,56 @@ static void make_dmats(bPoseChannel *pchan)
 
 /* applies IK matrix to pchan, IK is done separated */
 /* formula: pose_mat(b) = pose_mat(b-1) * diffmat(b-1, b) * ik_mat(b) */
-/* to make this work, the diffmats have to be precalculated! Stored in chan_mat */
-static void where_is_ik_bone(bPoseChannel *pchan,
-                             float ik_mat[3][3]) /* nr = to detect if this is first bone */
+static void where_is_ik_bone(Object *ob,
+                             bPoseChannel *pchan,
+                             float ik_mat[3][3],
+                             float ikfk_blend)
 {
-  float vec[3], ikmat[4][4];
+  float vec[3], ikmat[4][4], fk_mat[4][4], blended_mat[4][4], ik_result[4][4];
 
+  /* Преобразуем IK-матрицу 3x3 в 4x4 */
   copy_m4_m3(ikmat, ik_mat);
 
+  /* Вычисляем FK-позу на основе chan_mat */
   if (pchan->parent) {
-    mul_m4_m4m4(pchan->pose_mat, pchan->parent->pose_mat, pchan->chan_mat);
+    mul_m4_m4m4(fk_mat, pchan->parent->pose_mat, pchan->chan_mat);
   }
   else {
-    copy_m4_m4(pchan->pose_mat, pchan->chan_mat);
+    copy_m4_m4(fk_mat, pchan->chan_mat);
   }
 
+  /* Применяем FK как базовую позу */
+  copy_m4_m4(pchan->pose_mat, fk_mat);
+
 #ifdef USE_NONUNIFORM_SCALE
-  /* apply IK mat, but as if the bones have uniform scale since the IK solver
-   * is not aware of non-uniform scale */
+  /* Корректируем для неравномерного масштаба */
   float scale[3];
   mat4_to_size(scale, pchan->pose_mat);
   normalize_v3_length(pchan->pose_mat[0], scale[1]);
   normalize_v3_length(pchan->pose_mat[2], scale[1]);
 #endif
 
-  mul_m4_m4m4(pchan->pose_mat, pchan->pose_mat, ikmat);
+  /* Применяем IK-матрицу к FK-позе для получения IK-результата */
+  mul_m4_m4m4(ik_result, pchan->pose_mat, ikmat);
 
 #ifdef USE_NONUNIFORM_SCALE
   float ik_scale[3];
   mat3_to_size(ik_scale, ik_mat);
-  normalize_v3_length(pchan->pose_mat[0], scale[0] * ik_scale[0]);
-  normalize_v3_length(pchan->pose_mat[2], scale[2] * ik_scale[2]);
+  normalize_v3_length(ik_result[0], scale[0] * ik_scale[0]);
+  normalize_v3_length(ik_result[2], scale[2] * ik_scale[2]);
 #endif
 
-  /* calculate head */
+  /* Смешиваем FK и IK-результат с использованием ikfk_blend */
+  CLAMP(ikfk_blend, 0.0f, 1.0f); /* Ограничиваем ikfk_blend между 0 и 1 */
+  blend_m4_m4m4(blended_mat, fk_mat, ik_result, ikfk_blend);
+  copy_m4_m4(pchan->pose_mat, blended_mat);
+
+  /* Рассчитываем голову и хвост */
   copy_v3_v3(pchan->pose_head, pchan->pose_mat[3]);
-  /* calculate tail */
-  copy_v3_v3(vec, pchan->pose_mat[1]);
-  mul_v3_fl(vec, pchan->bone->length);
-  add_v3_v3v3(pchan->pose_tail, pchan->pose_head, vec);
+  BKE_pose_where_is_bone_tail(ob, pchan);
+
+  /* Обновляем chan_mat для синхронизации FK с текущей позой (Match) */
+  copy_m4_m4(pchan->chan_mat, pchan->pose_mat);
 
   pchan->flag |= POSE_DONE;
 }
@@ -264,9 +275,9 @@ static void execute_posetree(struct Depsgraph *depsgraph,
                              Object *ob,
                              PoseTree *tree)
 {
-  float R_parmat[3][3], identity[3][3];
+  float R_parmat[3][3], R_parmat4[4][4], identity[3][3];
   float iR_parmat[3][3];
-  float R_bonemat[3][3];
+  float R_bonemat[3][3], R_bonemat4[4][4];
   float goalrot[3][3], goalpos[3];
   float rootmat[4][4], imat[4][4];
   float goal[4][4], goalinv[4][4];
@@ -288,6 +299,16 @@ static void execute_posetree(struct Depsgraph *depsgraph,
 
   iktree = MEM_mallocN(sizeof(void *) * tree->totchannel, "ik tree");
 
+  /* Инициализируем ikfk_blend по умолчанию */
+  tree->ikfk_blend = 1.0f; /* Полный IK по умолчанию */
+
+  /* Сохраняем FK-ориентацию для каждого канала */
+  float (*fk_orientations)[4][4] = MEM_mallocN(sizeof(float[4][4]) * tree->totchannel, "fk orientations");
+  for (a = 0; a < tree->totchannel; a++) {
+    pchan = tree->pchan[a];
+    copy_m4_m4(fk_orientations[a], pchan->chan_mat); /* Сохраняем исходную FK-позу */
+  }
+
   for (a = 0; a < tree->totchannel; a++) {
     float length;
     pchan = tree->pchan[a];
@@ -306,7 +327,7 @@ static void execute_posetree(struct Depsgraph *depsgraph,
     }
 
     if (tree->stretch && (pchan->ikstretch > 0.0f)) {
-      flag |= IK_TRANS_YDOF;
+      flag |= IK_TRANS_YDOF; /* Поддержка IK Stretch */
       hasstretch = 1;
     }
 
@@ -322,13 +343,17 @@ static void execute_posetree(struct Depsgraph *depsgraph,
 
     IK_SetParent(seg, parent);
 
+    unit_m4(R_bonemat4);
+    unit_m4(R_parmat4);
+
     /* get the matrix that transforms from prevbone into this bone */
-    copy_m3_m4(R_bonemat, pchan->pose_mat);
+    mul_m4_m4m4(R_bonemat4, ob->object_to_world, pchan->pose_mat);
+    copy_m3_m4(R_bonemat, R_bonemat4);
 
     /* gather transformations for this IK segment */
-
     if (pchan->parent) {
-      copy_m3_m4(R_parmat, pchan->parent->pose_mat);
+      mul_m4_m4m4(R_parmat4, ob->object_to_world, pchan->parent->pose_mat);
+      copy_m3_m4(R_parmat, R_parmat4);
     }
     else {
       unit_m3(R_parmat);
@@ -339,12 +364,11 @@ static void execute_posetree(struct Depsgraph *depsgraph,
       sub_v3_v3v3(start, pchan->pose_head, pchan->parent->pose_tail);
     }
     else {
-      /* only root bone (a = 0) has no parent */
       start[0] = start[1] = start[2] = 0.0f;
     }
 
-    /* change length based on bone size */
-    length = bone->length * len_v3(R_bonemat[1]);
+    /* bone length is fixed */
+    length = 1.0f;
 
     /* basis must be pure rotation */
     normalize_m3(R_bonemat);
@@ -380,7 +404,6 @@ static void execute_posetree(struct Depsgraph *depsgraph,
 
     if (tree->stretch && (pchan->ikstretch > 0.0f)) {
       const float ikstretch_sq = square_f(pchan->ikstretch);
-      /* this function does its own clamping */
       IK_SetStiffness(seg, IK_TRANS_Y, 1.0f - ikstretch_sq);
       IK_SetLimit(seg, IK_TRANS_Y, IK_STRETCH_STIFF_MIN, IK_STRETCH_STIFF_MAX);
     }
@@ -389,16 +412,9 @@ static void execute_posetree(struct Depsgraph *depsgraph,
   solver = IK_CreateSolver(iktree[0]);
 
   /* set solver goals */
-
-  /* first set the goal inverse transform, assuming the root of tree was done ok! */
   pchan = tree->pchan[0];
   if (pchan->parent) {
-    /* transform goal by parent mat, so this rotation is not part of the
-     * segment's basis. otherwise rotation limits do not work on the
-     * local transform of the segment itself. */
     copy_m4_m4(rootmat, pchan->parent->pose_mat);
-    /* However, we do not want to get (i.e. reverse) parent's scale,
-     * as it generates #31008 kind of nasty bugs. */
     normalize_m4(rootmat);
   }
   else {
@@ -407,7 +423,7 @@ static void execute_posetree(struct Depsgraph *depsgraph,
   copy_v3_v3(rootmat[3], pchan->pose_head);
 
   mul_m4_m4m4(imat, ob->object_to_world, rootmat);
-  invert_m4_m4(goalinv, imat);
+  invert_m4_m4_safe(goalinv, imat);
 
   for (target = tree->targets.first; target; target = target->next) {
     float polepos[3];
@@ -415,36 +431,32 @@ static void execute_posetree(struct Depsgraph *depsgraph,
 
     data = (bKinematicConstraint *)target->con->data;
 
-    /* 1.0=ctime, we pass on object for auto-ik (owner-type here is object, even though
-     * strictly speaking, it is a posechannel)
-     */
+    /* Устанавливаем ikfk_blend из data->orientweight */
+    tree->ikfk_blend = data->orientweight; /* Используем orientweight как ikfk_blend */
+
     BKE_constraint_target_matrix_get(
         depsgraph, scene, target->con, 0, CONSTRAINT_OBTYPE_OBJECT, ob, rootmat, 1.0);
 
-    /* and set and transform goal */
     mul_m4_m4m4(goal, goalinv, rootmat);
+    translate_m4(goal, 0.0f, 1.0f, 0.0f);
 
     copy_v3_v3(goalpos, goal[3]);
     copy_m3_m4(goalrot, goal);
     normalize_m3(goalrot);
 
-    /* same for pole vector target */
     if (data->poletar) {
       BKE_constraint_target_matrix_get(
           depsgraph, scene, target->con, 1, CONSTRAINT_OBTYPE_OBJECT, ob, rootmat, 1.0);
 
       if (data->flag & CONSTRAINT_IK_SETANGLE) {
-        /* don't solve IK when we are setting the pole angle */
         break;
       }
 
       mul_m4_m4m4(goal, goalinv, rootmat);
+      translate_m4(goal, 0.0f, 1.0f, 0.0f);
+
       copy_v3_v3(polepos, goal[3]);
       poleconstrain = 1;
-
-      /* for pole targets, we blend the result of the ik solver
-       * instead of the target position, otherwise we can't get
-       * a smooth transition */
       resultblend = 1;
       resultinf = target->con->enforce;
 
@@ -454,25 +466,20 @@ static void execute_posetree(struct Depsgraph *depsgraph,
       }
     }
 
-    /* do we need blending? */
     if (!resultblend && target->con->enforce != 1.0f) {
       float q1[4], q2[4], q[4];
       float fac = target->con->enforce;
       float mfac = 1.0f - fac;
 
       pchan = tree->pchan[target->tip];
-
-      /* end effector in world space */
       copy_m4_m4(end_pose, pchan->pose_mat);
       copy_v3_v3(end_pose[3], pchan->pose_tail);
       mul_m4_series(world_pose, goalinv, ob->object_to_world, end_pose);
 
-      /* blend position */
       goalpos[0] = fac * goalpos[0] + mfac * world_pose[3][0];
       goalpos[1] = fac * goalpos[1] + mfac * world_pose[3][1];
       goalpos[2] = fac * goalpos[2] + mfac * world_pose[3][2];
 
-      /* blend rotation */
       mat3_to_quat(q1, goalrot);
       mat4_to_quat(q2, world_pose);
       interp_qt_qtqt(q, q1, q2, mfac);
@@ -484,18 +491,18 @@ static void execute_posetree(struct Depsgraph *depsgraph,
     if ((data->flag & CONSTRAINT_IK_POS) && data->weight != 0.0f) {
       if (poleconstrain) {
         IK_SolverSetPoleVectorConstraint(
-            solver, iktarget, goalpos, polepos, data->poleangle, (poleangledata == data));
+            solver, iktarget, goalpos, polepos, data->poleangle, (poleangledata == data)); /* Swivel Angle */
       }
       IK_SolverAddGoal(solver, iktarget, goalpos, data->weight);
     }
-    if ((data->flag & CONSTRAINT_IK_ROT) && (data->orientweight != 0.0f)) {
+    if ((data->flag & CONSTRAINT_IK_ROT) && (data->weight != 0.0f)) {
       if ((data->flag & CONSTRAINT_IK_AUTO) == 0) {
-        IK_SolverAddGoalOrientation(solver, iktarget, goalrot, data->orientweight);
+        IK_SolverAddGoalOrientation(solver, iktarget, goalrot, data->weight);
       }
     }
   }
 
-  /* solve */
+  /* Решаем IK */
   IK_Solve(solver, 0.0f, tree->iterations);
 
   if (poleangledata) {
@@ -504,7 +511,7 @@ static void execute_posetree(struct Depsgraph *depsgraph,
 
   IK_FreeSolver(solver);
 
-  /* gather basis changes */
+  /* Сохраняем изменения базиса */
   tree->basis_change = MEM_mallocN(sizeof(float[3][3]) * tree->totchannel, "ik basis change");
   if (hasstretch) {
     ikstretch = MEM_mallocN(sizeof(float) * tree->totchannel, "ik stretch");
@@ -514,26 +521,21 @@ static void execute_posetree(struct Depsgraph *depsgraph,
     IK_GetBasisChange(iktree[a], tree->basis_change[a]);
 
     if (hasstretch) {
-      /* have to compensate for scaling received from parent */
       float parentstretch, stretch;
-
       pchan = tree->pchan[a];
       parentstretch = (tree->parent[a] >= 0) ? ikstretch[tree->parent[a]] : 1.0f;
 
       if (tree->stretch && (pchan->ikstretch > 0.0f)) {
         float trans[3], length;
-
         IK_GetTranslationChange(iktree[a], trans);
-        length = pchan->bone->length * len_v3(pchan->pose_mat[1]);
-
-        ikstretch[a] = (length == 0.0f) ? 1.0f : (trans[1] + length) / length;
+        length = 1.0f; /* Фиксированная длина, можно позже сделать динамической */
+        ikstretch[a] = (length == 0.0f) ? 1.0f : (trans[1] + length) / length; /* IK Stretch */
       }
       else {
         ikstretch[a] = 1.0;
       }
 
       stretch = (parentstretch == 0.0f) ? 1.0f : ikstretch[a] / parentstretch;
-
       mul_v3_fl(tree->basis_change[a][0], stretch);
       mul_v3_fl(tree->basis_change[a][1], stretch);
       mul_v3_fl(tree->basis_change[a][2], stretch);
@@ -551,6 +553,7 @@ static void execute_posetree(struct Depsgraph *depsgraph,
   if (ikstretch) {
     MEM_freeN(ikstretch);
   }
+  MEM_freeN(fk_orientations);
 }
 
 static void free_posetree(PoseTree *tree)
@@ -622,7 +625,7 @@ void iksolver_execute_tree(struct Depsgraph *depsgraph,
 
     for (a = 0; a < tree->totchannel; a++) {
       /* sets POSE_DONE */
-      where_is_ik_bone(tree->pchan[a], tree->basis_change[a]);
+      where_is_ik_bone(ob, tree->pchan[a], tree->basis_change[a], tree->ikfk_blend);
     }
 
     /* 7. and free */

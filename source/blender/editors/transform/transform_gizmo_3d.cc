@@ -644,15 +644,30 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
           if (EBONE_VISIBLE(arm, ebo)) {
             if (ebo->flag & BONE_TIPSEL) {
-              run_coord_with_matrix(ebo->tail, use_mat_local, mat_local);
+              if (arm->drawtype == ARM_OCTA)
+              {
+                run_coord_with_matrix(ebo->tail, use_mat_local, mat_local);
+              }
+              else
+              {
+                run_coord_with_matrix(ebo->head, use_mat_local, mat_local);
+              }
               totsel++;
             }
-            if ((ebo->flag & BONE_ROOTSEL) &&
+            if ((ebo->flag & BONE_SELECTED || ebo->flag & BONE_ROOTSEL) &&
                 /* don't include same point multiple times */
-                ((ebo->flag & BONE_CONNECTED) && (ebo->parent != nullptr) &&
-                 (ebo->parent->flag & BONE_TIPSEL) && EBONE_VISIBLE(arm, ebo->parent)) == 0)
+                ((ebo->flag & BONE_RELATIVE_PARENTING) && (ebo->parent != nullptr) &&
+                 (ebo->flag & BONE_TIPSEL) && EBONE_VISIBLE(arm, ebo->parent)) == 0)
             {
-              run_coord_with_matrix(ebo->head, use_mat_local, mat_local);
+              if (arm->drawtype == ARM_OCTA)
+              {
+                run_coord_with_matrix(ebo->tail, use_mat_local, mat_local);
+              }
+              else
+              {
+                run_coord_with_matrix(ebo->head, use_mat_local, mat_local);
+              }
+
               totsel++;
 
               if (r_drawflags) {

@@ -250,7 +250,7 @@ static void applyarmature_process_selected_recursive(bArmature *arm,
     /* Apply change without inherited unapplied parent transformations. */
     BKE_bone_parent_transform_apply(&invparent, pchan_eval->pose_mat, new_pstate.new_rest_mat);
 
-    copy_v3_fl3(new_tail, 0.0, bone->length, 0.0);
+    copy_v3_fl3(new_tail, 0.0, 1.0f, 0.0);
     mul_m4_v3(new_pstate.new_rest_mat, new_tail);
 
     applyarmature_set_edit_position(

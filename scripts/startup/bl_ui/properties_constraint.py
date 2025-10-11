@@ -945,7 +945,7 @@ class ConstraintButtonsPanel:
             sub.active = con.use_location
             sub.prop(con, "weight", text="", slider=True)
 
-            row = col.row(align=True, heading="Rotation")
+            row = col.row(align=True, heading="IK/FK Blend")
             row.prop(con, "use_rotation", text="")
             sub = row.row(align=True)
             sub.active = con.use_rotation

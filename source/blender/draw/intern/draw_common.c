@@ -275,6 +275,7 @@ int DRW_object_wire_theme_get(Object *ob, ViewLayer *view_layer, float **r_color
 {
   const DRWContextState *draw_ctx = DRW_context_state_get();
   const bool is_edit = (draw_ctx->object_mode & OB_MODE_EDIT) && (ob->mode & OB_MODE_EDIT);
+  const bool is_wire = ELEM(ob->type, OB_LAMP, OB_SPEAKER, OB_CAMERA, OB_EMPTY, OB_LIGHTPROBE);
   BKE_view_layer_synced_ensure(draw_ctx->scene, view_layer);
   const Base *base = BKE_view_layer_active_base_get(view_layer);
   const bool active = base && ((ob->base_flag & BASE_FROM_DUPLI) ?
@@ -326,6 +327,10 @@ int DRW_object_wire_theme_get(Object *ob, ViewLayer *view_layer, float **r_color
   if (r_color != NULL) {
     if (UNLIKELY(ob->base_flag & BASE_FROM_SET)) {
       *r_color = G_draw.block.color_wire;
+    }
+    else if (is_wire && !(ob->base_flag & BASE_SELECTED) && (ob->dtx & OB_USE_CUSTOM_WIRE_COLOR)) {
+      /* Use custom wire color. */
+      *r_color = ob->color;
     }
     else {
       switch (theme_id) {

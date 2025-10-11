@@ -3638,6 +3638,12 @@ static void rna_def_object(BlenderRNA *brna)
       prop, "Empty Display Size", "Size of display for empties in the viewport");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
+  prop = RNA_def_property(srna, "use_custom_wire_color", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "dtx", OB_USE_CUSTOM_WIRE_COLOR);
+  RNA_def_property_ui_text(
+    prop, "Custom Wire Color", "Replace theme wire color with custom wire color");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
   prop = RNA_def_property(srna, "empty_image_offset", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "ima_ofs");
   RNA_def_property_ui_text(prop, "Origin Offset", "Origin offset distance");

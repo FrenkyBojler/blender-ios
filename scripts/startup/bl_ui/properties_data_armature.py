@@ -79,7 +79,7 @@ class DATA_PT_display(ArmatureButtonsPanel, Panel):
         row.prop(arm, "show_axes", text="")
         sub = row.row(align=True)
         sub.active = arm.show_axes
-        sub.prop(arm, "axes_position", text="Position")
+        sub.prop(arm, "axes_position", text="Scale")
 
         sub = col.row(align=True)
         sub.prop(arm, "relation_line_position", text="Relations", expand=True)

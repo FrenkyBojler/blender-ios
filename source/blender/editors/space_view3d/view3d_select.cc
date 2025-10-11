@@ -3803,41 +3803,46 @@ static bool do_armature_box_select(ViewContext *vc, const rcti *rect, const eSel
     changed |= ED_armature_edit_deselect_all_visible_multi_ex(bases, bases_len);
   }
 
+  /* Сброс временных флагов для каждой кости. */
   for (uint base_index = 0; base_index < bases_len; base_index++) {
     Object *obedit = bases[base_index]->object;
     obedit->id.tag &= ~LIB_TAG_DOIT;
-
-    bArmature *arm = static_cast<bArmature *>(obedit->data);
+    bArmature *arm = (bArmature *)obedit->data;
     ED_armature_ebone_listbase_temp_clear(arm->edbo);
   }
 
-  /* first we only check points inside the border */
+  /* Проходим по всем результатам попадания. При первом попадании по кости – помечаем её для полного выбора. */
   for (a = 0; a < hits; a++) {
     const int select_id = buffer[a].id;
-    if (select_id != -1) {
-      if ((select_id & 0xFFFF0000) == 0) {
-        continue;
-      }
+    if (select_id == -1) {
+      continue;
+    }
+    if ((select_id & 0xFFFF0000) == 0) {
+      continue;
+    }
 
-      EditBone *ebone;
-      Base *base_edit = ED_armature_base_and_ebone_from_select_buffer(
-          bases, bases_len, select_id, &ebone);
-      ebone->temp.i |= select_id & BONESEL_ANY;
+    EditBone *ebone;
+    Base *base_edit = ED_armature_base_and_ebone_from_select_buffer(
+        bases, bases_len, select_id, &ebone);
+    if (ebone) {
+      /* Вместо частичного накопления, сразу помечаем кость как выбранную.
+         Для этого можно установить специальное значение в temp.i (например, BONESEL_BONE),
+         которое далее ED_armature_edit_select_op_from_tagged интерпретирует как выбор всей кости. */
+      ebone->temp.i = BONESEL_BONE;
       base_edit->object->id.tag |= LIB_TAG_DOIT;
     }
   }
 
+  /* Применяем операцию выбора для всех костей, помеченных в предыдущем проходе. */
   for (uint base_index = 0; base_index < bases_len; base_index++) {
     Object *obedit = bases[base_index]->object;
     if (obedit->id.tag & LIB_TAG_DOIT) {
       obedit->id.tag &= ~LIB_TAG_DOIT;
-      changed |= ED_armature_edit_select_op_from_tagged(static_cast<bArmature *>(obedit->data),
-                                                        sel_op);
+      changed |= ED_armature_edit_select_op_from_tagged((bArmature *)obedit->data, sel_op);
     }
   }
 
   MEM_freeN(bases);
-
   return changed;
 }
 

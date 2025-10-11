@@ -3255,19 +3255,7 @@ static void ob_parbone(Object *ob, Object *par, float r_mat[4][4])
   }
 
   /* get bone transform */
-  if (pchan->bone->flag & BONE_RELATIVE_PARENTING) {
-    /* the new option uses the root - expected behavior, but differs from old... */
-    /* XXX check on version patching? */
-    copy_m4_m4(r_mat, pchan->chan_mat);
-  }
-  else {
-    copy_m4_m4(r_mat, pchan->pose_mat);
-
-    /* but for backwards compatibility, the child has to move to the tail */
-    copy_v3_v3(vec, r_mat[1]);
-    mul_v3_fl(vec, pchan->bone->length);
-    add_v3_v3(r_mat[3], vec);
-  }
+  copy_m4_m4(r_mat, pchan->chan_mat);
 }
 
 static void give_parvert(Object *par, int nr, float vec[3])

@@ -966,7 +966,7 @@ static void createTransArmatureVerts(bContext *UNUSED(C), TransInfo *t)
       td_old = td;
 
       /* (length == 0.0) on extrude, used for scaling radius of bone points. */
-      ebo->oldlength = ebo->length;
+      ebo->oldlength = 1.0f;
 
       if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
         if (t->mode == TFM_BONE_ENVELOPE) {
@@ -1019,6 +1019,7 @@ static void createTransArmatureVerts(bContext *UNUSED(C), TransInfo *t)
             td->flag = TD_SELECTED;
 
             /* use local bone matrix */
+            ebo->length = 1.0f;
             ED_armature_ebone_to_mat3(ebo, bonemat);
             mul_m3_m3m3(td->mtx, mtx, bonemat);
             invert_m3_m3(td->smtx, td->mtx);
@@ -1073,6 +1074,7 @@ static void createTransArmatureVerts(bContext *UNUSED(C), TransInfo *t)
             copy_m3_m3(td->smtx, smtx);
             copy_m3_m3(td->mtx, mtx);
 
+            ebo->length = 1.0f;
             ED_armature_ebone_to_mat3(ebo, td->axismtx);
 
             if ((ebo->flag & BONE_ROOTSEL) == 0) {
@@ -1098,11 +1100,11 @@ static void createTransArmatureVerts(bContext *UNUSED(C), TransInfo *t)
             copy_m3_m3(td->smtx, smtx);
             copy_m3_m3(td->mtx, mtx);
 
+            ebo->length = 1.0f;
             ED_armature_ebone_to_mat3(ebo, td->axismtx);
 
             td->extra = ebo; /* to fix roll */
             td->ival = ebo->roll;
-
             td->ext = NULL;
             td->val = NULL;
             td->ob = tc->obedit;
@@ -1210,14 +1212,12 @@ static void recalcData_edit_armature(TransInfo *t)
       ebo_parent = (ebo->flag & BONE_CONNECTED) ? ebo->parent : NULL;
 
       if (ebo_parent) {
-        /* If this bone has a parent tip that has been moved. */
         if (EBONE_VISIBLE(arm, ebo_parent) && (ebo_parent->flag & BONE_TIPSEL)) {
           copy_v3_v3(ebo->head, ebo_parent->tail);
           if (t->mode == TFM_BONE_ENVELOPE) {
             ebo->rad_head = ebo_parent->rad_tail;
           }
         }
-        /* If this bone has a parent tip that has NOT been moved */
         else {
           copy_v3_v3(ebo_parent->tail, ebo->head);
           if (t->mode == TFM_BONE_ENVELOPE) {
@@ -1226,8 +1226,9 @@ static void recalcData_edit_armature(TransInfo *t)
         }
       }
 
-      /* on extrude bones, oldlength==0.0f, so we scale radius of points */
-      ebo->length = len_v3v3(ebo->head, ebo->tail);
+      /* Calculate length based on parameter */
+      ebo->length = 1.0f;
+
       if (ebo->oldlength == 0.0f) {
         ebo->rad_head = 0.25f * ebo->length;
         ebo->rad_tail = 0.10f * ebo->length;
@@ -1239,7 +1240,6 @@ static void recalcData_edit_armature(TransInfo *t)
         }
       }
       else if (t->mode != TFM_BONE_ENVELOPE) {
-        /* if bones change length, lets do that for the deform distance as well */
         ebo->dist *= ebo->length / ebo->oldlength;
         ebo->rad_head *= ebo->length / ebo->oldlength;
         ebo->rad_tail *= ebo->length / ebo->oldlength;
@@ -1251,31 +1251,76 @@ static void recalcData_edit_armature(TransInfo *t)
       }
     }
 
+    bool use_align;
+
+    if (arm->drawtype == ARM_B_BONE)
+    {
+      use_align = false;
+    }
+    else
+    {
+      use_align = true;
+    }
+
     if (!ELEM(t->mode, TFM_BONE_ROLL, TFM_BONE_ENVELOPE, TFM_BONE_ENVELOPE_DIST, TFM_BONESIZE)) {
-      /* fix roll */
       for (i = 0; i < tc->data_len; i++, td++) {
         if (td->extra) {
-          float vec[3], up_axis[3];
-          float qrot[4];
-          float roll;
-
           ebo = td->extra;
 
           if (t->state == TRANS_CANCEL) {
-            /* restore roll */
             ebo->roll = td->ival;
           }
           else {
-            copy_v3_v3(up_axis, td->axismtx[2]);
+            float vec[3], up_axis[3];
+            float mat3[3][3];
 
-            sub_v3_v3v3(vec, ebo->tail, ebo->head);
-            normalize_v3(vec);
-            rotation_between_vecs_to_quat(qrot, td->axismtx[1], vec);
-            mul_qt_v3(qrot, up_axis);
+            if (use_align) {
+              /* Second version roll calculation */
+              float qrot[4];
+              float roll;
 
-            /* roll has a tendency to flip in certain orientations - #34283, #33974. */
-            roll = ED_armature_ebone_roll_to_vector(ebo, up_axis, false);
-            ebo->roll = angle_compat_rad(roll, td->ival);
+              copy_v3_v3(up_axis, td->axismtx[2]);
+              sub_v3_v3v3(vec, ebo->tail, ebo->head);
+              normalize_v3(vec);
+              rotation_between_vecs_to_quat(qrot, td->axismtx[1], vec);
+              mul_qt_v3(qrot, up_axis);
+
+              roll = ED_armature_ebone_roll_to_vector(ebo, up_axis, false);
+              ebo->roll = angle_compat_rad(roll, td->ival);
+              ebo->length = 1.0f;
+              ED_armature_ebone_to_mat3(ebo, mat3);
+              orthogonalize_m3_stable(mat3, 1, false);
+            }
+            else {
+              /* First version roll calculation */
+              if (ebo->parent) {
+                sub_v3_v3v3(vec, ebo->head, ebo->parent->head);
+                normalize_v3(vec);
+                float parent_mat[3][3];
+                ED_armature_ebone_to_mat3(ebo->parent, parent_mat);
+                orthogonalize_m3_stable(parent_mat, 1, false);
+                copy_v3_v3(up_axis, parent_mat[2]);
+              }
+              else {
+                vec[0] = 1.0f; vec[1] = 0.0f; vec[2] = 0.0f;
+                up_axis[0] = 0.0f; up_axis[1] = 0.0f; up_axis[2] = 1.0f;
+              }
+
+              float proj[3];
+              project_v3_v3v3(proj, up_axis, vec);
+              sub_v3_v3(up_axis, proj);
+              normalize_v3(up_axis);
+
+              copy_v3_v3(mat3[0], vec);
+              copy_v3_v3(mat3[2], up_axis);
+              cross_v3_v3v3(mat3[1], mat3[2], mat3[0]);
+              normalize_v3(mat3[1]);
+
+              /* Update tail only in first version */
+              madd_v3_v3v3fl(ebo->tail, ebo->head, mat3[1], 1.0f);
+            }
+
+            ED_armature_ebone_from_mat3(ebo, mat3);
           }
         }
       }
@@ -1340,6 +1385,14 @@ static void pose_transform_mirror_update(TransInfo *t, TransDataContainer *tc, O
     pchan->roll2 = pchan_orig->roll2 * -1; /* XXX? */
 
     float pchan_mtx_final[4][4];
+
+    bPoseChannel *pchan_pelvis = BKE_pose_channel_find_name(pose, "pelvis");
+
+    // LuffyTheFox. If armature have Unreal Engine "pelvis" bone
+    if (pchan_pelvis) {
+      rotate_m4(flip_mtx, 'X', DEG2RADF(180));
+    }
+
     BKE_pchan_to_mat4(pchan_orig, pchan_mtx_final);
     mul_m4_m4m4(pchan_mtx_final, pchan_mtx_final, flip_mtx);
     mul_m4_m4m4(pchan_mtx_final, flip_mtx, pchan_mtx_final);

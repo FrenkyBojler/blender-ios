@@ -74,7 +74,7 @@ void ED_armature_ebone_unique_name(ListBase *ebones, char *name, EditBone *bone)
   data.lb = ebones;
   data.bone = bone;
 
-  BLI_uniquename_cb(editbone_unique_check, &data, DATA_("Bone"), '.', name, sizeof(bone->name));
+  BLI_uniquename_cb(editbone_unique_check, &data, DATA_("Bone"), '_', name, sizeof(bone->name));
 }
 
 /** \} */
@@ -91,7 +91,7 @@ static bool bone_unique_check(void *arg, const char *name)
 static void ed_armature_bone_unique_name(bArmature *arm, char *name)
 {
   BLI_uniquename_cb(
-      bone_unique_check, (void *)arm, DATA_("Bone"), '.', name, sizeof(((Bone *)NULL)->name));
+      bone_unique_check, (void *)arm, DATA_("Bone"), '_', name, sizeof(((Bone *)NULL)->name));
 }
 
 /** \} */

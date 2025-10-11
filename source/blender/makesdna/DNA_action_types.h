@@ -423,7 +423,7 @@ typedef enum ePchan_DrawFlag {
 
 /* NOTE: It doesn't take custom_scale_xyz into account. */
 #define PCHAN_CUSTOM_BONE_LENGTH(pchan) \
-  (((pchan)->drawflag & PCHAN_DRAW_NO_CUSTOM_BONE_SIZE) ? 1.0f : (pchan)->bone->length)
+  (((pchan)->drawflag & PCHAN_DRAW_NO_CUSTOM_BONE_SIZE) ? (pchan)->bone->length / 4 : 1.0f)
 
 #ifdef DNA_DEPRECATED_ALLOW
 /* PoseChannel->bboneflag */

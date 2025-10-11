@@ -148,7 +148,7 @@ class AddTorus(Operator, object_utils.AddObjectHelper):
                      "center of the cross sections"),
         soft_min=0.0, soft_max=100.0,
         min=0.0, max=10_000.0,
-        default=1.0,
+        default=100.0,
         subtype='DISTANCE',
         unit='LENGTH',
     )
@@ -157,7 +157,7 @@ class AddTorus(Operator, object_utils.AddObjectHelper):
         description="Radius of the torus' cross section",
         soft_min=0.0, soft_max=100.0,
         min=0.0, max=10_000.0,
-        default=0.25,
+        default=25.0,
         subtype='DISTANCE',
         unit='LENGTH',
     )

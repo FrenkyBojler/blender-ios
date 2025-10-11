@@ -333,56 +333,31 @@ static void add_verts_to_dgroups(ReportList *reports,
     bone = bonelist[j];
     dgroup = dgrouplist[j];
 
-    /* handle bbone */
-    if (heat) {
-      if (segments == 0) {
-        segments = 1;
-        bbone = NULL;
+    /* Calculate root/tip positions */
+    copy_v3_v3(root[j], bone->arm_mat[3]);
+    copy_v3_v3(tip[j], root[j]);
 
-        if ((par->pose) && (pchan = BKE_pose_channel_find_name(par->pose, bone->name))) {
-          if (bone->segments > 1) {
-            segments = bone->segments;
-            BKE_pchan_bbone_spline_setup(pchan, true, false, bbone_array);
-            bbone = bbone_array;
-          }
-        }
-      }
-
-      segments--;
+    if (bone->childbase.first) {
+      Bone *child = (Bone *)bone->childbase.first;
+      copy_v3_v3(tip[j], child->arm_mat[3]);
+    }
+    else
+    {
+      copy_v3_v3(tip[j], bone->arm_mat[3]);
     }
 
-    /* compute root and tip */
-    if (bbone) {
-      mul_v3_m4v3(root[j], bone->arm_mat, bbone[segments].mat[3]);
-      if ((segments + 1) < bone->segments) {
-        mul_v3_m4v3(tip[j], bone->arm_mat, bbone[segments + 1].mat[3]);
-      }
-      else {
-        copy_v3_v3(tip[j], bone->arm_tail);
-      }
-    }
-    else {
-      copy_v3_v3(root[j], bone->arm_head);
-      copy_v3_v3(tip[j], bone->arm_tail);
-    }
-
+    /* Transform to world space */
     mul_m4_v3(par->object_to_world, root[j]);
     mul_m4_v3(par->object_to_world, tip[j]);
 
-    /* set selected */
-    if (wpmode) {
-      if ((arm->layer & bone->layer) && (bone->flag & BONE_SELECTED)) {
-        selected[j] = 1;
-      }
-    }
-    else {
-      selected[j] = 1;
-    }
+    /* Selection logic */
+    selected[j] = wpmode ?
+      ((arm->layer & bone->layer) && (bone->flag & BONE_SELECTED)) :
+      1;
 
-    /* find flipped group */
+    /* Mirror group handling */
     if (dgroup && mirror) {
       char name_flip[MAXBONENAME];
-
       BLI_string_flip_side_name(name_flip, dgroup->name, false, sizeof(name_flip));
       dgroupflip[j] = BKE_object_defgroup_find_name(ob, name_flip);
     }
@@ -418,28 +393,21 @@ static void add_verts_to_dgroups(ReportList *reports,
     mul_m4_v3(ob->object_to_world, verts[i]);
   }
 
-  /* compute the weights based on gathered vertices and bones */
-  if (heat) {
-    const char *error = NULL;
+  const char *error = NULL;
 
+  if (heat)
+  {
     heat_bone_weighting(
-        ob, mesh, verts, numbones, dgrouplist, dgroupflip, root, tip, selected, &error);
-    if (error) {
-      BKE_report(reports, RPT_WARNING, error);
-    }
+        ob, mesh, verts, numbones, dgrouplist, dgroupflip, root, tip, selected, &error, 0);
   }
-  else {
-    envelope_bone_weighting(ob,
-                            mesh,
-                            verts,
-                            numbones,
-                            bonelist,
-                            dgrouplist,
-                            dgroupflip,
-                            root,
-                            tip,
-                            selected,
-                            mat4_to_scale(par->object_to_world));
+  else
+  {
+    heat_bone_weighting(
+        ob, mesh, verts, numbones, dgrouplist, dgroupflip, root, tip, selected, &error, 1);
+  }
+  
+  if (error) {
+    BKE_report(reports, RPT_WARNING, error);
   }
 
   /* only generated in some cases but can call anyway */

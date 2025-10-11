@@ -1123,7 +1123,7 @@ static void BKE_pose_rest(IK_Scene *ikscene)
     bone = pchan->bone;
 
     if (ikchan->jointType & IK_TRANSY) {
-      rot[ikchan->ndof - 1] = bone->length * scale;
+      rot[ikchan->ndof - 1] = scale;
     }
     rot += ikchan->ndof;
     joint += ikchan->ndof;
@@ -1242,7 +1242,7 @@ static IK_Scene *convert_tree(
     KDL::Frame head(brot, bpos);
 
     /* rest pose length of the bone taking scaling into account */
-    length = bone->length * ikscene->blScale;
+    length = ikscene->blScale;
     parent = (a > 0) ? ikscene->channels[tree->parent[a]].tail : root;
     /* first the fixed segment to the bone head */
     if (!(ikchan->pchan->bone->flag & BONE_CONNECTED) || head.M.GetRot().Norm() > KDL::epsilon) {
@@ -1529,12 +1529,12 @@ static IK_Scene *convert_tree(
 
     /* add the end effector
      * estimate the average bone length, used to clamp feedback error */
-    for (bone_count = 0, bone_length = 0.0f, a = iktarget->channel; a >= 0;
+    for (bone_count = 0, bone_length = 1.0f, a = iktarget->channel; a >= 0;
          a = tree->parent[a], bone_count++)
     {
-      bone_length += ikscene->blScale * tree->pchan[a]->bone->length;
+      bone_length += ikscene->blScale;
     }
-    bone_length /= bone_count;
+    bone_length = 1.0f;
 
     /* store the rest pose of the end effector to compute enforce target */
     copy_m4_m4(mat, pchan->bone->arm_mat);
@@ -1579,7 +1579,7 @@ static IK_Scene *convert_tree(
           }
         }
         if (controltype) {
-          iktarget->constraint = new iTaSC::CopyPose(controltype, controltype, bone_length);
+          iktarget->constraint = new iTaSC::CopyPose(controltype, controltype, 1.0f);
           /* set the gain */
           if (controltype & iTaSC::CopyPose::CTL_POSITION) {
             iktarget->constraint->setControlParameter(
@@ -1611,7 +1611,7 @@ static IK_Scene *convert_tree(
         }
         break;
       case CONSTRAINT_IK_DISTANCE:
-        iktarget->constraint = new iTaSC::Distance(bone_length);
+        iktarget->constraint = new iTaSC::Distance(1.0f);
         iktarget->constraint->setControlParameter(
             iTaSC::Distance::ID_DISTANCE, iTaSC::ACT_VALUE, condata->dist);
         iktarget->constraint->registerCallback(distance_callback, iktarget);

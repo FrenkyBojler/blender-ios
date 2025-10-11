@@ -1,10 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
-
-/** \file
- * \ingroup bke
- */
-
 #include <ctype.h>
 #include <float.h>
 #include <math.h>
@@ -52,6 +45,8 @@
 #include "BLO_read_write.h"
 
 #include "CLG_log.h"
+
+#include <float.h>  // для FLT_EPSILON
 
 /* -------------------------------------------------------------------- */
 /** \name Prototypes
@@ -467,89 +462,93 @@ void BKE_armature_copy_bone_transforms(bArmature *armature_dst, const bArmature 
   }
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Armature Transform by 4x4 Matrix
- *
- * \see #ED_armature_edit_transform for the edit-mode version of this function.
- * \{ */
-
-/** Helper for #ED_armature_transform */
 static void armature_transform_recurse(ListBase *bonebase,
                                        const float mat[4][4],
                                        const bool do_props,
-                                       /* Cached from 'mat'. */
                                        const float mat3[3][3],
                                        const float scale,
-                                       /* Child bones. */
                                        const Bone *bone_parent,
                                        const float arm_mat_parent_inv[4][4])
 {
   LISTBASE_FOREACH (Bone *, bone, bonebase) {
-
-    /* Store the initial bone roll in a matrix, this is needed even for child bones
-     * so any change in head/tail doesn't cause the roll to change.
-     *
-     * Logic here is different to edit-mode because
-     * this is calculated in relative to the parent. */
     float roll_mat3_pre[3][3];
-    {
-      float delta[3];
-      sub_v3_v3v3(delta, bone->tail, bone->head);
-      vec_roll_to_mat3(delta, bone->roll, roll_mat3_pre);
-      if (bone->parent == NULL) {
-        mul_m3_m3m3(roll_mat3_pre, mat3, roll_mat3_pre);
-      }
+    float delta[3];
+
+    // Вычисляем разницу между tail и head
+    sub_v3_v3v3(delta, bone->tail, bone->head);
+
+    // Проверка на вырожденную кость (длина близка к нулю)
+    if (len_squared_v3(delta) < FLT_EPSILON) {
+      copy_v3_v3(bone->tail, bone->head);
+      bone->tail[1] += 0.01f; // Задаём минимальную длину по оси Y
+      sub_v3_v3v3(delta, bone->tail, bone->head); // Пересчитываем delta
     }
-    /* Optional, use this for predictable results since the roll is re-calculated below anyway. */
+
+    // Вычисляем матрицу поворота на основе текущего roll
+    vec_roll_to_mat3(delta, bone->roll, roll_mat3_pre);
+    if (bone->parent == NULL) {
+      float tmp[3][3];
+      mul_m3_m3m3(tmp, mat3, roll_mat3_pre);
+      copy_m3_m3(roll_mat3_pre, tmp);
+    }
+
+    // Сбрасываем roll перед пересчётом
     bone->roll = 0.0f;
 
+    // Преобразуем arm_head и arm_tail в новое пространство
     mul_m4_v3(mat, bone->arm_head);
     mul_m4_v3(mat, bone->arm_tail);
 
-    /* Get the new head and tail */
+    // Обновляем локальные head и tail с учётом родителя
     if (bone_parent) {
       sub_v3_v3v3(bone->head, bone->arm_head, bone_parent->arm_tail);
       sub_v3_v3v3(bone->tail, bone->arm_tail, bone_parent->arm_tail);
-
       mul_mat3_m4_v3(arm_mat_parent_inv, bone->head);
       mul_mat3_m4_v3(arm_mat_parent_inv, bone->tail);
+
+      // Отладочный вывод локальных позиций
+      //printf("Bone %s: head = (%f, %f, %f), tail = (%f, %f, %f)\n",
+             //bone->name,
+             //bone->head[0], bone->head[1], bone->head[2],
+             //bone->tail[0], bone->tail[1], bone->tail[2]);
     }
     else {
       copy_v3_v3(bone->head, bone->arm_head);
       copy_v3_v3(bone->tail, bone->arm_tail);
     }
 
-    /* Now the head/tail have been updated, set the roll back, matching 'roll_mat3_pre'. */
+    // Пересчитываем roll с устойчивостью к делению на ноль
     {
       float roll_mat3_post[3][3], delta_mat3[3][3];
-      float delta[3];
-      sub_v3_v3v3(delta, bone->tail, bone->head);
-      vec_roll_to_mat3(delta, 0.0f, roll_mat3_post);
+      float new_delta[3];
+      sub_v3_v3v3(new_delta, bone->tail, bone->head);
+      vec_roll_to_mat3(new_delta, 0.0f, roll_mat3_post);
       invert_m3(roll_mat3_post);
       mul_m3_m3m3(delta_mat3, roll_mat3_post, roll_mat3_pre);
-      bone->roll = atan2f(delta_mat3[2][0], delta_mat3[2][2]);
+      bone->roll = atan2f(delta_mat3[2][0], delta_mat3[2][2] + FLT_EPSILON);
     }
 
+    // Вычисляем дополнительные преобразования кости
     BKE_armature_where_is_bone(bone, bone_parent, false);
 
+    // Обновляем arm_roll
     {
       float arm_mat3[3][3];
       copy_m3_m4(arm_mat3, bone->arm_mat);
+      normalize_m3(arm_mat3);
       mat3_to_vec_roll(arm_mat3, NULL, &bone->arm_roll);
     }
 
+    // Масштабируем свойства, если требуется
     if (do_props) {
       bone->rad_head *= scale;
       bone->rad_tail *= scale;
       bone->dist *= scale;
-
-      /* we could be smarter and scale by the matrix along the x & z axis */
       bone->xwidth *= scale;
       bone->zwidth *= scale;
     }
 
+    // Рекурсивно обрабатываем дочерние кости
     if (!BLI_listbase_is_empty(&bone->childbase)) {
       float arm_mat_inv[4][4];
       invert_m4_m4(arm_mat_inv, bone->arm_mat);
@@ -763,19 +762,19 @@ bool bone_autoside_name(
     /* x-axis - horizontal (left/right) */
     if (IS_EQF(head, 0.0f)) {
       if (tail < 0) {
-        strcpy(extension, "R");
+        strcpy(extension, "r");
       }
       else if (tail > 0) {
-        strcpy(extension, "L");
+        strcpy(extension, "l");
       }
     }
     else {
       if (head < 0) {
-        strcpy(extension, "R");
+        strcpy(extension, "r");
         /* XXX Shouldn't this be simple else, as for z and y axes? */
       }
       else if (head > 0) {
-        strcpy(extension, "L");
+        strcpy(extension, "l");
       }
     }
   }
@@ -789,14 +788,14 @@ bool bone_autoside_name(
 
     while (changed) { /* remove extensions */
       changed = false;
-      if (len > 2 && basename[len - 2] == '.') {
-        if (ELEM(basename[len - 1], 'L', 'R')) { /* L R */
+      if (len > 2 && basename[len - 2] == '_') {
+        if (ELEM(basename[len - 1], 'l', 'r')) { /* L R */
           basename[len - 2] = '\0';
           len -= 2;
           changed = true;
         }
       }
-      else if (len > 3 && basename[len - 3] == '.') {
+      else if (len > 3 && basename[len - 3] == '_') {
         if ((basename[len - 2] == 'F' && basename[len - 1] == 'r') || /* Fr */
             (basename[len - 2] == 'B' && basename[len - 1] == 'k'))   /* Bk */
         {
@@ -805,7 +804,7 @@ bool bone_autoside_name(
           changed = true;
         }
       }
-      else if (len > 4 && basename[len - 4] == '.') {
+      else if (len > 4 && basename[len - 4] == '_') {
         if ((basename[len - 3] == 'T' && basename[len - 2] == 'o' &&
              basename[len - 1] == 'p') || /* Top */
             (basename[len - 3] == 'B' && basename[len - 2] == 'o' &&
@@ -820,7 +819,7 @@ bool bone_autoside_name(
 
     /* Subtract 1 from #MAXBONENAME for the null byte. Add 1 to the extension for the '.' */
     const int basename_maxncpy = (MAXBONENAME - 1) - (1 + strlen(extension));
-    BLI_snprintf(name, MAXBONENAME, "%.*s.%s", basename_maxncpy, basename, extension);
+    BLI_snprintf(name, MAXBONENAME, "%.*s_%s", basename_maxncpy, basename, extension);
 
     return true;
   }
@@ -1677,140 +1676,36 @@ void BKE_bone_parent_transform_calc_from_matrices(int bone_flag,
                                                   const float parent_pose_mat[4][4],
                                                   BoneParentTransform *r_bpt)
 {
+  /* Универсальное решение: всегда используем единичный масштаб. */
   copy_v3_fl(r_bpt->post_scale, 1.0f);
 
   if (parent_pose_mat) {
-    const bool use_rotation = (bone_flag & BONE_HINGE) == 0;
-    const bool full_transform = use_rotation && inherit_scale_mode == BONE_INHERIT_SCALE_FULL;
+    /* В стиле Unreal Engine 5 мы не делаем никаких корректировок – просто используем
+     * родительскую позу как базовый трансформ.
+     * Итоговая матрица вращения/масштаба вычисляется как:
+     *     EffectiveTransform = ParentPose * LocalTransform. */
+    mul_m4_m4m4(r_bpt->rotscale_mat, parent_pose_mat, offs_bone);
 
-    /* Compose the rotscale matrix for this bone. */
-    if (full_transform) {
-      /* Parent pose rotation and scale. */
-      mul_m4_m4m4(r_bpt->rotscale_mat, parent_pose_mat, offs_bone);
+    /* Для матрицы трансляции:
+     * - Если установлен флаг BONE_NO_LOCAL_LOCATION, то сохраняем только трансляцию родителя.
+     * - Иначе, используем полный трансформ, как и для rotscale. */
+    if (bone_flag & BONE_NO_LOCAL_LOCATION) {
+      unit_m4(r_bpt->loc_mat);
+      copy_v3_v3(r_bpt->loc_mat[3], parent_pose_mat[3]);
     }
     else {
-      float tmat[4][4], tscale[3];
-
-      /* If using parent pose rotation: */
-      if (use_rotation) {
-        copy_m4_m4(tmat, parent_pose_mat);
-
-        /* Normalize the matrix when needed. */
-        switch (inherit_scale_mode) {
-          case BONE_INHERIT_SCALE_FULL:
-          case BONE_INHERIT_SCALE_FIX_SHEAR:
-            /* Keep scale and shear. */
-            break;
-
-          case BONE_INHERIT_SCALE_NONE:
-          case BONE_INHERIT_SCALE_AVERAGE:
-            /* Remove scale and shear from parent. */
-            orthogonalize_m4_stable(tmat, 1, true);
-            break;
-
-          case BONE_INHERIT_SCALE_ALIGNED:
-            /* Remove shear and extract scale. */
-            orthogonalize_m4_stable(tmat, 1, false);
-            normalize_m4_ex(tmat, r_bpt->post_scale);
-            break;
-
-          case BONE_INHERIT_SCALE_NONE_LEGACY:
-            /* Remove only scale - bad legacy way. */
-            normalize_m4(tmat);
-            break;
-
-          default:
-            BLI_assert_unreachable();
-        }
-      }
-      /* If removing parent pose rotation: */
-      else {
-        copy_m4_m4(tmat, parent_arm_mat);
-
-        /* Copy the parent scale when needed. */
-        switch (inherit_scale_mode) {
-          case BONE_INHERIT_SCALE_FULL:
-            /* Ignore effects of shear. */
-            mat4_to_size(tscale, parent_pose_mat);
-            rescale_m4(tmat, tscale);
-            break;
-
-          case BONE_INHERIT_SCALE_FIX_SHEAR:
-            /* Take the effects of parent shear into account to get exact volume. */
-            mat4_to_size_fix_shear(tscale, parent_pose_mat);
-            rescale_m4(tmat, tscale);
-            break;
-
-          case BONE_INHERIT_SCALE_ALIGNED:
-            mat4_to_size_fix_shear(r_bpt->post_scale, parent_pose_mat);
-            break;
-
-          case BONE_INHERIT_SCALE_NONE:
-          case BONE_INHERIT_SCALE_AVERAGE:
-          case BONE_INHERIT_SCALE_NONE_LEGACY:
-            /* Keep unscaled. */
-            break;
-
-          default:
-            BLI_assert_unreachable();
-        }
-      }
-
-      /* Apply the average parent scale when needed. */
-      if (inherit_scale_mode == BONE_INHERIT_SCALE_AVERAGE) {
-        mul_mat3_m4_fl(tmat, cbrtf(fabsf(mat4_to_volume_scale(parent_pose_mat))));
-      }
-
-      mul_m4_m4m4(r_bpt->rotscale_mat, tmat, offs_bone);
-
-      /* Remove remaining shear when needed, preserving volume. */
-      if (inherit_scale_mode == BONE_INHERIT_SCALE_FIX_SHEAR) {
-        orthogonalize_m4_stable(r_bpt->rotscale_mat, 1, false);
-      }
-    }
-
-    /* Compose the loc matrix for this bone. */
-    /* NOTE: That version does not modify bone's loc when HINGE/NO_SCALE options are set. */
-
-    /* In this case, use the object's space *orientation*. */
-    if (bone_flag & BONE_NO_LOCAL_LOCATION) {
-      /* XXX I'm sure that code can be simplified! */
-      float bone_loc[4][4], bone_rotscale[3][3], tmat4[4][4], tmat3[3][3];
-      unit_m4(bone_loc);
-      unit_m4(r_bpt->loc_mat);
-      unit_m4(tmat4);
-
-      mul_v3_m4v3(bone_loc[3], parent_pose_mat, offs_bone[3]);
-
-      unit_m3(bone_rotscale);
-      copy_m3_m4(tmat3, parent_pose_mat);
-      mul_m3_m3m3(bone_rotscale, tmat3, bone_rotscale);
-
-      copy_m4_m3(tmat4, bone_rotscale);
-      mul_m4_m4m4(r_bpt->loc_mat, bone_loc, tmat4);
-    }
-    /* Those flags do not affect position, use plain parent transform space! */
-    else if (!full_transform) {
       mul_m4_m4m4(r_bpt->loc_mat, parent_pose_mat, offs_bone);
     }
-    /* Else (i.e. default, usual case),
-     * just use the same matrix for rotation/scaling, and location. */
-    else {
-      copy_m4_m4(r_bpt->loc_mat, r_bpt->rotscale_mat);
-    }
   }
-  /* Root bones. */
   else {
-    /* Rotation/scaling. */
+    /* Для корневых костей просто используем offs_bone. */
     copy_m4_m4(r_bpt->rotscale_mat, offs_bone);
-    /* Translation. */
     if (bone_flag & BONE_NO_LOCAL_LOCATION) {
-      /* Translation of arm_mat, without the rotation. */
       unit_m4(r_bpt->loc_mat);
       copy_v3_v3(r_bpt->loc_mat[3], offs_bone[3]);
     }
     else {
-      copy_m4_m4(r_bpt->loc_mat, r_bpt->rotscale_mat);
+      copy_m4_m4(r_bpt->loc_mat, offs_bone);
     }
   }
 }
@@ -2057,7 +1952,6 @@ void BKE_rotMode_change_values(
  * pose_mat(b)= arm_mat(b) * chan_mat(b)
  *
  * \{ */
-
 void mat3_to_vec_roll(const float mat[3][3], float r_vec[3], float *r_roll)
 {
   if (r_vec) {
@@ -2086,139 +1980,66 @@ void mat3_vec_to_roll(const float mat[3][3], const float vec[3], float *r_roll)
 
 void vec_roll_to_mat3_normalized(const float nor[3], const float roll, float r_mat[3][3])
 {
-  /**
-   * Given `v = (v.x, v.y, v.z)` our (normalized) bone vector, we want the rotation matrix M
-   * from the Y axis (so that `M * (0, 1, 0) = v`).
-   * - The rotation axis a lays on XZ plane, and it is orthonormal to v,
-   *   hence to the projection of v onto XZ plane.
-   * - `a = (v.z, 0, -v.x)`
-   *
-   * We know a is eigenvector of M (so M * a = a).
-   * Finally, we have w, such that M * w = (0, 1, 0)
-   * (i.e. the vector that will be aligned with Y axis once transformed).
-   * We know w is symmetric to v by the Y axis.
-   * - `w = (-v.x, v.y, -v.z)`
-   *
-   * Solving this, we get (x, y and z being the components of v):
-   * <pre>
-   *     ┌ (x^2 * y + z^2) / (x^2 + z^2),   x,   x * z * (y - 1) / (x^2 + z^2) ┐
-   * M = │  x * (y^2 - 1)  / (x^2 + z^2),   y,    z * (y^2 - 1)  / (x^2 + z^2) │
-   *     └ x * z * (y - 1) / (x^2 + z^2),   z,   (x^2 + z^2 * y) / (x^2 + z^2) ┘
-   * </pre>
-   *
-   * This is stable as long as v (the bone) is not too much aligned with +/-Y
-   * (i.e. x and z components are not too close to 0).
-   *
-   * Since v is normalized, we have `x^2 + y^2 + z^2 = 1`,
-   * hence `x^2 + z^2 = 1 - y^2 = (1 - y)(1 + y)`.
-   *
-   * This allows to simplifies M like this:
-   * <pre>
-   *     ┌ 1 - x^2 / (1 + y),   x,     -x * z / (1 + y) ┐
-   * M = │                -x,   y,                   -z │
-   *     └  -x * z / (1 + y),   z,    1 - z^2 / (1 + y) ┘
-   * </pre>
-   *
-   * Written this way, we see the case v = +Y is no more a singularity.
-   * The only one
-   * remaining is the bone being aligned with -Y.
-   *
-   * Let's handle
-   * the asymptotic behavior when bone vector is reaching the limit of y = -1.
-   * Each of the four corner elements can vary from -1 to 1,
-   * depending on the axis a chosen for doing the rotation.
-   * And the "rotation" here is in fact established by mirroring XZ plane by that given axis,
-   * then inversing the Y-axis.
-   * For sufficiently small x and z, and with y approaching -1,
-   * all elements but the four corner ones of M will degenerate.
-   * So let's now focus on these corner elements.
-   *
-   * We rewrite M so that it only contains its four corner elements,
-   * and combine the `1 / (1 + y)` factor:
-   * <pre>
-   *                    ┌ 1 + y - x^2,        -x * z ┐
-   * M* = 1 / (1 + y) * │                            │
-   *                    └      -x * z,   1 + y - z^2 ┘
-   * </pre>
-   *
-   * When y is close to -1, computing 1 / (1 + y) will cause severe numerical instability,
-   * so we use a different approach based on x and z as inputs.
-   * We know `y^2 = 1 - (x^2 + z^2)`, and `y < 0`, hence `y = -sqrt(1 - (x^2 + z^2))`.
-   *
-   * Since x and z are both close to 0, we apply the binomial expansion to the second order:
-   * `y = -sqrt(1 - (x^2 + z^2)) = -1 + (x^2 + z^2) / 2 + (x^2 + z^2)^2 / 8`, which allows
-   * eliminating the problematic `1` constant.
-   *
-   * A first order expansion allows simplifying to this, but second order is more precise:
-   * <pre>
-   *                        ┌  z^2 - x^2,  -2 * x * z ┐
-   * M* = 1 / (x^2 + z^2) * │                         │
-   *                        └ -2 * x * z,   x^2 - z^2 ┘
-   * </pre>
-   *
-   * P.S. In the end, this basically is a heavily optimized version of Damped Track +Y.
-   */
-
-  const float SAFE_THRESHOLD = 6.1e-3f;     /* Theta above this value has good enough precision. */
-  const float CRITICAL_THRESHOLD = 2.5e-4f; /* True singularity if XZ distance is below this. */
+  float bMatrix[3][3];
+  const float SAFE_THRESHOLD = 6.1e-3f;
+  const float CRITICAL_THRESHOLD = 2.5e-4f;
   const float THRESHOLD_SQUARED = CRITICAL_THRESHOLD * CRITICAL_THRESHOLD;
+  const float x = nor[0], y = nor[1], z = nor[2];
+  float theta = 1.0f + y;                /* Remapping y from [-1,+1] to [0,2] */
+  const float theta_alt = x * x + z * z; /* Squared distance in XZ plane */
 
-  const float x = nor[0];
-  const float y = nor[1];
-  const float z = nor[2];
-
-  float theta = 1.0f + y;                /* Remapping Y from [-1,+1] to [0,2]. */
-  const float theta_alt = x * x + z * z; /* Squared distance from origin in x,z plane. */
-  float rMatrix[3][3], bMatrix[3][3];
-
-  BLI_ASSERT_UNIT_V3(nor);
-
-  /* Determine if the input is far enough from the true singularity of this type of
-   * transformation at (0,-1,0), where roll becomes 0/0 undefined without a limit.
-   *
-   * When theta is close to zero (nor is aligned close to negative Y Axis),
-   * we have to check we do have non-null X/Z components as well.
-   * Also, due to float precision errors, nor can be (0.0, -0.99999994, 0.0) which results
-   * in theta being close to zero. This will cause problems when theta is used as divisor.
-   */
   if (theta > SAFE_THRESHOLD || theta_alt > THRESHOLD_SQUARED) {
-    /* nor is *not* aligned to negative Y-axis (0,-1,0). */
-
     bMatrix[0][1] = -x;
     bMatrix[1][0] = x;
     bMatrix[1][1] = y;
     bMatrix[1][2] = z;
     bMatrix[2][1] = -z;
-
     if (theta <= SAFE_THRESHOLD) {
-      /* When nor is close to negative Y axis (0,-1,0) the theta precision is very bad,
-       * so recompute it from x and z instead, using the series expansion for sqrt. */
       theta = theta_alt * 0.5f + theta_alt * theta_alt * 0.125f;
     }
-
-    bMatrix[0][0] = 1 - x * x / theta;
-    bMatrix[2][2] = 1 - z * z / theta;
-    bMatrix[2][0] = bMatrix[0][2] = -x * z / theta;
+    bMatrix[0][0] = 1.0f - (x * x) / theta;
+    bMatrix[2][2] = 1.0f - (z * z) / theta;
+    bMatrix[0][2] = bMatrix[2][0] = -x * z / theta;
   }
   else {
-    /* nor is very close to negative Y axis (0,-1,0): use simple symmetry by Z axis. */
     unit_m3(bMatrix);
-    bMatrix[0][0] = bMatrix[1][1] = -1.0;
+    bMatrix[0][0] = bMatrix[1][1] = -1.0f;
   }
 
-  /* Make Roll matrix */
-  axis_angle_normalized_to_mat3(rMatrix, nor, roll);
+  /* Переводим bMatrix в кватернион Q_b */
+  float q_b[4];
+  mat3_to_quat(q_b, bMatrix);
 
-  /* Combine and output result */
-  mul_m3_m3m3(r_mat, rMatrix, bMatrix);
+  /* Вычисляем кватернион дополнительного поворота вокруг nor на угол roll */
+  float q_roll[4];
+  axis_angle_to_quat(q_roll, nor, roll);
+
+  /* Компонуем: итоговый кватернион Q = Q_roll * Q_b */
+  float q_final[4];
+  mul_qt_qtqt(q_final, q_roll, q_b);
+
+  /* Преобразуем итоговый кватернион в матрицу */
+  quat_to_mat3(r_mat, q_final);
+  orthogonalize_m3_stable(r_mat, 1, false);
 }
 
+/* Преобразует входной вектор и угол roll в матрицу,
+ * сначала нормализуя вектор, если его длина недостаточна – используется ось Y по умолчанию. */
 void vec_roll_to_mat3(const float vec[3], const float roll, float r_mat[3][3])
 {
   float nor[3];
+  const float eps = FLT_EPSILON;
 
-  normalize_v3_v3(nor, vec);
+  if (normalize_v3_v3(nor, vec) < eps) {
+    /* Если вектор слишком мал, выбираем базовую ось Y. */
+    nor[0] = 0.0f;
+    nor[1] = 1.0f;
+    nor[2] = 0.0f;
+  }
   vec_roll_to_mat3_normalized(nor, roll, r_mat);
+
+  /* Ортогоналим матрицу чтобы устранить накопленные численные ошибки */
+  orthogonalize_m3_stable(r_mat, 1, false);
 }
 
 /** \} */
@@ -2468,13 +2289,11 @@ void BKE_pchan_calc_mat(bPoseChannel *pchan)
   BKE_pchan_to_mat4(pchan, pchan->chan_mat);
 }
 
-void BKE_pose_where_is_bone_tail(bPoseChannel *pchan)
+void BKE_pose_where_is_bone_tail(Object *ob, bPoseChannel *pchan)
 {
   float vec[3];
-
   copy_v3_v3(vec, pchan->pose_mat[1]);
-  mul_v3_fl(vec, pchan->bone->length);
-  add_v3_v3v3(pchan->pose_tail, pchan->pose_head, vec);
+  madd_v3_v3v3fl(pchan->pose_tail, pchan->pose_head, vec, 1.0f);
 }
 
 void BKE_pose_where_is_bone(struct Depsgraph *depsgraph,
@@ -2538,7 +2357,7 @@ void BKE_pose_where_is_bone(struct Depsgraph *depsgraph,
   /* calculate head */
   copy_v3_v3(pchan->pose_head, pchan->pose_mat[3]);
   /* calculate tail */
-  BKE_pose_where_is_bone_tail(pchan);
+  BKE_pose_where_is_bone_tail(ob, pchan);
 }
 
 void BKE_pose_where_is(struct Depsgraph *depsgraph, Scene *scene, Object *ob)
