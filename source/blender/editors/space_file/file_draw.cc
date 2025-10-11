@@ -775,6 +775,15 @@ static void file_draw_special_image(const FileDirEntry *file,
   if (file_type_icon == ICON_DISK_DRIVE) {
     icon_large = ICON_DISK_DRIVE_LARGE;
   }
+  else if (file_type_icon == ICON_EXTERNAL_DRIVE) {
+    icon_large = ICON_EXTERNAL_DRIVE_LARGE;
+  }
+  else if (file_type_icon == ICON_NETWORK_DRIVE) {
+    icon_large = ICON_NETWORK_DRIVE_LARGE;
+  }
+  else if (file_type_icon == ICON_DISC) {
+    icon_large = ICON_DISC_LARGE;
+  }
   else if (file->typeflag & FILE_TYPE_DIR) {
     icon_large = ICON_FILE_FOLDER_LARGE;
   }
@@ -818,7 +827,13 @@ static void file_draw_special_image(const FileDirEntry *file,
                     UI_NO_ICON_OVERLAY_TEXT);
   }
 
-  if (!ELEM(file_type_icon, ICON_NONE, ICON_DISK_DRIVE)) {
+  if (!ELEM(file_type_icon,
+            ICON_NONE,
+            ICON_DISK_DRIVE,
+            ICON_EXTERNAL_DRIVE,
+            ICON_NETWORK_DRIVE,
+            ICON_DISC))
+  {
     /* Small icon in the middle of large image, scaled to fit container and UI scale */
     float icon_opacity = 0.4f;
     uchar icon_color[4] = {0, 0, 0, 255};
