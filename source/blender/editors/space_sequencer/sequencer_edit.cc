@@ -2082,6 +2082,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
 
       if (left_handle == rect_frames[1]) {
         seq::transform_translate_strip(scene, strip, offset);
+        strips_translated.add(strip);
       }
       /* Offset every strip on the same channel and right of the cut. */
       else if (left_handle > rect_frames[1] && strip->channel <= int(rectf.ymax) &&
@@ -2105,7 +2106,15 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
       }
       /* TODO: This can lead to strips overlap, handle this in some way. */
       seq::transform_translate_strip(scene, strip, offset);
+      strips_translated.add(strip);
     }
+    /* Fix Overlap? */
+    // VectorSet<Strip *> dependant;
+    // dependant.add_multiple(strips_translated);
+    // dependant.remove_if(
+    //     [&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
+    // seq::transform_handle_overlap(
+    //     scene, ed->current_strips(), strips_translated, dependant, false);
   }
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   return OPERATOR_FINISHED;
