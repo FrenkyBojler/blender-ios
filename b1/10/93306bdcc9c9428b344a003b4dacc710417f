@@ -1,1 +1,1 @@
-Referenced by issue #147487, Memory leak in area highlighting (screen join / split)
+Referenced by issue #147487, Memory leak whren area highlight animation doesn't complete (screen join / split)
