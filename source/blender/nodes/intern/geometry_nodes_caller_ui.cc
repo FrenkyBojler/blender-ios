@@ -17,7 +17,6 @@
 
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_timeit.hh"
 
 #include "BLT_translation.hh"
 
@@ -959,7 +958,6 @@ static void draw_manage_panel(const bContext *C,
 
 void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr, uiLayout &layout)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
   Main *bmain = CTX_data_main(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
   NodesModifierData &nmd = *modifier_ptr->data_as<NodesModifierData>();
