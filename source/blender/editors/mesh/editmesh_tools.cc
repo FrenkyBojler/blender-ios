@@ -3382,9 +3382,11 @@ static bool merge_target(BMEditMesh *em,
       add_v3_v3(cent, v->co);
       i++;
     }
+
     if (!i) {
       return false;
     }
+    
     fac = 1.0f / float(i);
     mul_v3_fl(cent, fac);
     copy_v3_v3(co, cent);
