@@ -659,10 +659,17 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
 {
   Scene *scene = CTX_data_scene(C);
   bNode *node = (bNode *)ptr->data;
+  bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
   int sock_index = 0;
 
   node->id = &scene->id;
   id_us_plus(node->id);
+
+  /* Add input socket for layer name */
+  bNodeSocket *layer_sock = blender::bke::node_add_static_socket(
+      *ntree, *node, SOCK_IN, SOCK_STRING, PROP_NONE, "ViewLayer", "ViewLayer");
+  /* Hide the socket value when not connected */
+  layer_sock->flag |= SOCK_HIDE_VALUE;
 
   for (bNodeSocket *sock = (bNodeSocket *)node->outputs.first; sock;
        sock = sock->next, sock_index++)
@@ -676,7 +683,13 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
 
 static void node_composit_free_rlayers(bNode *node)
 {
-  /* free extra socket info */
+  /* free extra socket info for input sockets */
+  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+    if (sock->storage) {
+      MEM_freeN(sock->storage);
+    }
+  }
+  /* free extra socket info for output sockets */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
     if (sock->storage) {
       MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
@@ -688,7 +701,18 @@ static void node_composit_copy_rlayers(bNodeTree * /*dst_ntree*/,
                                        bNode *dest_node,
                                        const bNode *src_node)
 {
-  /* copy extra socket info */
+  /* copy extra socket info for input sockets */
+  const bNodeSocket *src_input_sock = (bNodeSocket *)src_node->inputs.first;
+  bNodeSocket *dest_input_sock = (bNodeSocket *)dest_node->inputs.first;
+  while (dest_input_sock != nullptr) {
+    if (src_input_sock->storage) {
+      dest_input_sock->storage = MEM_dupallocN(src_input_sock->storage);
+    }
+    src_input_sock = src_input_sock->next;
+    dest_input_sock = dest_input_sock->next;
+  }
+
+  /* copy extra socket info for output sockets */
   const bNodeSocket *src_output_sock = (bNodeSocket *)src_node->outputs.first;
   bNodeSocket *dest_output_sock = (bNodeSocket *)dest_node->outputs.first;
   while (dest_output_sock != nullptr) {
@@ -717,25 +741,46 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
     return;
   }
 
-  col = &layout->column(false);
-  row = &col->row(true);
-  row->prop(ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  /* Check if Layer Name input socket is connected */
+  bNodeSocket *layer_name_sock = (bNodeSocket *)BLI_findstring(
+      &node->inputs, "ViewLayer", offsetof(bNodeSocket, identifier));
 
-  PropertyRNA *prop = RNA_struct_find_property(ptr, "layer");
-  const char *layer_name;
-  if (!RNA_property_enum_identifier(C, ptr, prop, RNA_property_enum_get(ptr, prop), &layer_name)) {
+  if (!layer_name_sock) {
     return;
   }
 
-  PointerRNA scn_ptr;
-  char scene_name[MAX_ID_NAME - 2];
-  scn_ptr = RNA_pointer_get(ptr, "scene");
-  RNA_string_get(&scn_ptr, "name", scene_name);
+  bool is_layer_name_connected = layer_name_sock->flag & SOCK_IS_LINKED;
 
-  PointerRNA op_ptr = row->op(
-      "RENDER_OT_render", "", ICON_RENDER_STILL, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
-  RNA_string_set(&op_ptr, "layer", layer_name);
-  RNA_string_set(&op_ptr, "scene", scene_name);
+  if (is_layer_name_connected) {
+    /* Show the string property when socket is connected so user can enter a value */
+    layer_name_sock->flag &= ~SOCK_HIDE_VALUE;
+  }
+  else {
+    /* Hide the string property when socket is not connected */
+    layer_name_sock->flag |= SOCK_HIDE_VALUE;
+    /* Show layer selector when socket is not connected */
+    col = &layout->column(false);
+    row = &col->row(true);
+    row->prop(ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+
+    PropertyRNA *prop = RNA_struct_find_property(ptr, "layer");
+    const char *layer_name;
+    if (!RNA_property_enum_identifier(
+            C, ptr, prop, RNA_property_enum_get(ptr, prop), &layer_name))
+    {
+      return;
+    }
+
+    PointerRNA scn_ptr;
+    char scene_name[MAX_ID_NAME - 2];
+    scn_ptr = RNA_pointer_get(ptr, "scene");
+    RNA_string_get(&scn_ptr, "name", scene_name);
+
+    PointerRNA op_ptr = row->op(
+        "RENDER_OT_render", "", ICON_RENDER_STILL, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+    RNA_string_set(&op_ptr, "layer", layer_name);
+    RNA_string_set(&op_ptr, "scene", scene_name);
+  }
 }
 
 static void node_extra_info(NodeExtraInfoParams &parameters)
@@ -788,10 +833,33 @@ class RenderLayerOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
+  int get_view_layer_index()
+  {
+    const Scene *scene = reinterpret_cast<const Scene *>(this->bnode().id);
+    if (!scene) {
+      return this->bnode().custom1;
+    }
+
+    const Result &layer_name_input = this->get_input("ViewLayer");
+    if (layer_name_input.is_single_value()) {
+      const std::string layer_name = layer_name_input.get_single_value<std::string>();
+      if (!layer_name.empty()) {
+        int layer_index = 0;
+        LISTBASE_FOREACH_INDEX (ViewLayer *, view_layer, &scene->view_layers, layer_index) {
+          if (STREQ(view_layer->name, layer_name.c_str())) {
+            return layer_index;
+          }
+        }
+      }
+    }
+
+    return this->bnode().custom1;
+  }
+
   void execute() override
   {
     const Scene *scene = reinterpret_cast<const Scene *>(this->bnode().id);
-    const int view_layer = this->bnode().custom1;
+    const int view_layer = this->get_view_layer_index();
 
     Result &image_result = this->get_result("Image");
     Result &alpha_result = this->get_result("Alpha");
