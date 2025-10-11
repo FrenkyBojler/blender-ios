@@ -112,16 +112,20 @@ static void subdiv_ccg_eval_grid_element_limit(Subdiv &subdiv,
                                                const int element)
 {
   if (subdiv.displacement_evaluator != nullptr) {
+    /*
     printf("%d -> (%d %f %f)\n",
            element,
            ptex_face_index,
            u,
            v);
+           */
     subdiv_ccg.positions[element] = eval_final_point(&subdiv, ptex_face_index, u, v);
+    /*
     printf("\t(%f %f %f)\n",
            subdiv_ccg.positions[element].x,
            subdiv_ccg.positions[element].y,
            subdiv_ccg.positions[element].z);
+           */
   }
   else if (!subdiv_ccg.normals.is_empty()) {
     eval_limit_point_and_normal(&subdiv,
@@ -484,12 +488,6 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
     BLI_assert(higher_settings.resolution > settings.resolution);
     higher_settings.need_normal = false;
     higher_settings.need_mask = false;
-    printf("COMPARE SUBDIV_TO_CCGSETTINGS\n");
-    printf("LEVEL %d vs %d\n", settings.level, higher_settings.level);
-    printf("RESOLUTION %d vs %d\n", settings.resolution, higher_settings.resolution);
-    printf("NEED_NORMAL %d vs %d\n", settings.need_normal, higher_settings.need_normal);
-    printf("NEED_MASK %d vs %d\n", settings.need_mask, higher_settings.need_mask);
-    printf("CREATING TEMP SUBDIV CCG\n");
     std::unique_ptr<SubdivCCG> higher_subdiv_ccg = BKE_subdiv_to_ccg(
         *subdiv_ccg->subdiv, higher_settings, coarse_mesh, nullptr);
 

@@ -394,7 +394,7 @@ float3 eval_final_point(Subdiv *subdiv, const int ptex_face_index, const float u
     float3 D;
     eval_limit_point_and_derivatives(subdiv, ptex_face_index, u, v, r_P, dPdu, dPdv);
     eval_displacement(subdiv, ptex_face_index, u, v, dPdu, dPdv, D);
-    printf("eval_final_point: \tLIMIT: (%f %f %f) + DISP: (%f %f %f)\n", r_P.x, r_P.y, r_P.z, D.x, D.y, D.z);
+    //printf("eval_final_point: \tLIMIT: (%f %f %f) + DISP: (%f %f %f)\n", r_P.x, r_P.y, r_P.z, D.x, D.y, D.z);
 #if 0
     std::cout << "Point: " << r_P << "Displacement: " << D << std::endl;
 #endif
