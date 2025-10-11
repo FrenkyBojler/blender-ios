@@ -276,6 +276,25 @@ void mesh_calc_edges(Mesh &mesh,
      * that case. TODO: make this optional. */
     calc_edges::update_edge_indices_in_face_loops(
         faces, corner_verts, edge_maps, parallel_mask, edge_offsets, corner_edges);
+
+    Array<int> edge_map_to_result_index(result_edges_num);
+#ifndef NDEBUG
+    edge_map_to_result_index.as_mutable_span().fill(-1);
+#endif
+
+    threading::parallel_for_each(edge_maps.index_range(), [&](const int map_i) {
+      int edge_map_iter = 0;
+      for (const int edge_i : IndexRange(mesh.edges_num)) {
+        const int edge_map = calc_edges::edge_to_hash_map_i(original_edges[edge_i], parallel_mask);
+        if (map_i != edge_map) {
+          continue;
+        }
+        edge_map_to_result_index[edge_offsets[edge_map][edge_map_iter]] = edge_i;
+        edge_map_iter++;
+      }
+    });
+    array_utils::gather(edge_map_to_result_index.as_span(), corner_edges.as_span(), corner_edges);
+
     BLI_assert(!corner_edges.contains(-1));
     BLI_assert(BKE_mesh_is_valid(&mesh));
     return;
