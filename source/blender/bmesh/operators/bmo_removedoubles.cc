@@ -193,49 +193,35 @@ static void average_vertex_group_weights_for_cluster(BMesh *bm,
 
   MDeformVert *dv_dst = static_cast<MDeformVert *>(BM_ELEM_CD_GET_VOID_P(v_dst, cd_dvert));
 
-  blender::Vector<VGroupAccum> accums;
+  blender::Map<int, float> weight_sums;
 
-  auto accum_from = [&accums](const MDeformVert *dv) {
+  auto accumulate_weights = [&weight_sums](const MDeformVert *dv) {
     if (!dv || dv->totweight == 0) {
       return;
     }
     for (int i = 0; i < dv->totweight; i++) {
-      const int def = dv->dw[i].def_nr;
-      const float w = dv->dw[i].weight;
-      bool found = false;
-      for (int j = 0; j < accums.size(); j++) {
-        if (accums[j].def_nr == def) {
-          accums[j].sum += w;
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        VGroupAccum a{};
-        a.def_nr = def;
-        a.sum = w;
-        accums.append(a);
-      }
+      weight_sums.lookup_or_add(dv->dw[i].def_nr, 0.0f) += dv->dw[i].weight;
     }
   };
 
-  accum_from(dv_dst);
+  accumulate_weights(dv_dst);
   for (BMVert *v_src : srcs) {
     MDeformVert *dv_src = static_cast<MDeformVert *>(BM_ELEM_CD_GET_VOID_P(v_src, cd_dvert));
-    accum_from(dv_src);
+    accumulate_weights(dv_src);
   }
 
   const float inv_count = 1.0f / float(1 + srcs.size());
 
-  for (int i = 0; i < accums.size(); i++) {
-    const int def = accums[i].def_nr;
-    const float avg = accums[i].sum * inv_count;
+  for (const auto item : weight_sums.items()) {
+    const int def_nr = item.key;
+    const float avg = item.value * inv_count;
+
     if (avg > 0.0f) {
-      MDeformWeight *dw = BKE_defvert_ensure_index(dv_dst, def);
+      MDeformWeight *dw = BKE_defvert_ensure_index(dv_dst, def_nr);
       dw->weight = avg;
     }
     else {
-      MDeformWeight *dw = BKE_defvert_find_index(dv_dst, def);
+      MDeformWeight *dw = BKE_defvert_find_index(dv_dst, def_nr);
       if (dw) {
         BKE_defvert_remove_group(dv_dst, dw);
       }
