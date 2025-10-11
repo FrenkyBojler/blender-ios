@@ -183,7 +183,7 @@ static void multires_reshape_calculate_object_delta(
 }
 
 static void multires_reshape_object_delta_to_tangent_delta(
-    blender::Span <blender::float3x3> tmat_storage,
+    blender::Span<blender::float3x3> tmat_storage,
     blender::MutableSpan<blender::float3> delta_storage)
 {
   for (const int i : delta_storage.index_range()) {

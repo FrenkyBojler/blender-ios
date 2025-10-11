@@ -1429,9 +1429,10 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
       });
 }
 
-static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape_smooth_context,
-                                           blender::MutableSpan<blender::float3> delta_storage,
-                                           blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
+static void evaluate_higher_grid_positions(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::MutableSpan<blender::float3> delta_storage,
+    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
 {
   foreach_toplevel_grid_coord_single_threaded(
       reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
@@ -1540,10 +1541,11 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
 #endif
 }
 
-void multires_reshape_store_limit_positions(const MultiresReshapeContext *reshape_context,
-                                            const MultiresSubdivideModeType mode,
-                                            blender::MutableSpan<blender::float3> deltas,
-                                            blender::MutableSpan<blender::float3x3> tangent_matrices)
+void multires_reshape_store_limit_positions(
+    const MultiresReshapeContext *reshape_context,
+    const MultiresSubdivideModeType mode,
+    blender::MutableSpan<blender::float3> deltas,
+    blender::MutableSpan<blender::float3x3> tangent_matrices)
 {
 #ifdef WITH_OPENSUBDIV
   MultiresReshapeSmoothContext reshape_smooth_context(reshape_context, mode);
