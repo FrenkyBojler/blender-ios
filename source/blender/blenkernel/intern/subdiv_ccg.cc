@@ -456,7 +456,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
 
 Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
                              Subdiv &subdiv,
-                             Subdiv *temp_subdiv,
+                             Subdiv *fake_subdiv,
                              const SubdivToCCGSettings &settings,
                              Mesh &coarse_mesh,
                              const int delta)
@@ -475,7 +475,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
 
   if (delta < 0) {
-    BLI_assert(temp_subdiv);
+    BLI_assert(fake_subdiv);
 
     SubdivToCCGSettings higher_settings;
     higher_settings.level = settings.level - delta;
@@ -491,9 +491,12 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
     printf("NEED_MASK %d vs %d\n", settings.need_mask, higher_settings.need_mask);
     printf("CREATING TEMP SUBDIV CCG\n");
     std::unique_ptr<SubdivCCG> higher_subdiv_ccg = BKE_subdiv_to_ccg(
-        *temp_subdiv, higher_settings, coarse_mesh, nullptr);
+        *subdiv_ccg->subdiv, higher_settings, coarse_mesh, nullptr);
 
     multiresModifier_storeHigherLevelDelta(object, coarse_mesh, *higher_subdiv_ccg, *subdiv_ccg);
+    /* FIXME: This is... really not correct, but this lets us share the original known correct
+     * subdiv descriptor */
+    higher_subdiv_ccg->subdiv = fake_subdiv;
     higher_subdiv_ccg.reset();
   }
   else if (delta > 0) {

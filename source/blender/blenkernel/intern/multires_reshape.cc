@@ -156,11 +156,12 @@ static void multires_reshape_calculate_object_delta(
 {
   /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
    * object_delta */
+  printf("(ELEM) SUBDIV - LIMIT = DELTA:\n");
   BLI_assert(higher_subdiv_ccg.positions.size() == object_delta.size());
   for (const int i : higher_subdiv_ccg.positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
     object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
-    printf("(%d) (%f %f %f) - (%f %f %f) = (%f %f %f)\n",
+    printf("\t(%d) (%f %f %f) - (%f %f %f) = (%f %f %f)\n",
            i,
            higher_subdiv_ccg.positions[i].x,
            higher_subdiv_ccg.positions[i].y,

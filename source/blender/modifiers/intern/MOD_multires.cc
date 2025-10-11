@@ -216,6 +216,8 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
     temp_subdiv_settings.vtx_boundary_interpolation = subdiv->settings.vtx_boundary_interpolation;
     temp_subdiv_settings.fvar_linear_interpolation = subdiv->settings.fvar_linear_interpolation;
 
+    /* FIXME: This subdiv descriptor isn't correct and results in odd data. For now, it's only used
+     * so that the original subdiv descriptor doesn't get freed early. */
     temp_subdiv = new_from_mesh(&temp_subdiv_settings, mesh);
     blender::bke::subdiv::displacement_attach_from_multires(temp_subdiv, ctx->object, mesh, mmd);
     OpenSubdiv_EvaluatorSettings evaluator_settings = {0};
