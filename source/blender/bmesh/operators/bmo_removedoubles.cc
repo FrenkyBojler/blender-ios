@@ -28,11 +28,6 @@
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh"
 
-struct VGroupAccum {
-  int def_nr;
-  float sum;
-};
-
 static void remdoubles_splitface(BMFace *f, BMesh *bm, BMOperator *op, BMOpSlot *slot_targetmap)
 {
   BMIter liter;
@@ -581,7 +576,6 @@ void bmo_pointmerge_exec(BMesh *bm, BMOperator *op)
     BMO_ITER (v, &siter, op->slots_in, "verts", BM_VERT) {
       if (!vert_snap) {
         vert_snap = v;
-        copy_v3_v3(vert_snap->co, vec);
       }
       else {
         BMO_slot_map_elem_insert(&weldop, slot_targetmap, v, vert_snap);
@@ -589,12 +583,16 @@ void bmo_pointmerge_exec(BMesh *bm, BMOperator *op)
     }
   }
 
-  if (BMO_slot_exists(op->slots_in, "average_vdata")) {
+  if (!explicit_snap) {
+    BMO_slot_bool_set(weldop.slots_in, "average_vdata", true);
+  }
+  else if (BMO_slot_exists(op->slots_in, "average_vdata")) {
     const bool avg = BMO_slot_bool_get(op->slots_in, "average_vdata");
     BMO_slot_bool_set(weldop.slots_in, "average_vdata", avg);
   }
 
   BMO_op_exec(bm, &weldop);
+  copy_v3_v3(vert_snap->co, vec);
   BMO_op_finish(bm, &weldop);
 }
 

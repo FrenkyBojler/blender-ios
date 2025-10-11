@@ -3401,12 +3401,7 @@ static bool merge_target(BMEditMesh *em,
     }
   }
 
-  if (!EDBM_op_callf(em,
-                     wmop,
-                     "pointmerge verts=%hv merge_co=%v average_vdata=%b",
-                     BM_ELEM_SELECT,
-                     co))
-  {
+  if (!EDBM_op_callf(em, wmop, "pointmerge verts=%hv merge_co=%v", BM_ELEM_SELECT, co)) {
     return false;
   }
 
