@@ -34,6 +34,7 @@ class bNodeTreeToDotOptions {
   virtual void add_edge_attributes(const bNodeLink &link,
                                    dot_export::DirectedEdge &dot_edge) const;
 
+  /** Add additional custom elements to the graph. */
   virtual void custom(bNodeTreeDotGraph &graph) const;
 };
 

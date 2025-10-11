@@ -27,7 +27,6 @@
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
 
-#include "BLI_linear_allocator_chunked_list.hh"
 #include "BLI_listbase.h"
 #include "BLI_stack.hh"
 
@@ -555,6 +554,9 @@ class SocketUsageInferencerImpl {
         any_output_used = true;
         break;
       }
+      /* Instead of checking the dependent outputs directly, use their skip-targets. Those are
+       * precomputed in such a way that if any of them is used, the dependent socket is used as
+       * well. */
       for (const bNodeSocket *skip_socket_ptr : this->get_skip_targets(*dependent_socket_ptr)) {
         const SocketInContext skip_socket{dependent_socket_context, skip_socket_ptr};
         const std::optional<bool> is_used = all_socket_usages_.lookup_try(skip_socket);
@@ -795,6 +797,12 @@ class SocketUsageInferencerImpl {
     ntree.ensure_topology_cache();
     BLI_assert(!ntree.has_available_link_cycle());
 
+    /* This is a bit of a trade off. Larger numbers result in more data being stored per socket. At
+     * the same time it allows for potentially better skipping behavior. Not having a limit could
+     * result in quadratic behavior while the limit keeps it linear.
+     *
+     * If a socket would have more than this amount of skip-targets, those are ignored and the more
+     * general usage inferencing without skipping is used. */
     constexpr int limit = 2;
 
     bke::bNodeTreeUsageSkipTargets tree_skip_targets;
@@ -803,14 +811,16 @@ class SocketUsageInferencerImpl {
 
     for (const bNode *node : ntree.toposort_right_to_left()) {
       if (is_output_node(*node)) {
+        /* Sockets or output nodes are always used. */
         for (const bNodeSocket *socket : node->input_sockets()) {
-          tree_skip_targets.skip_targets[socket->index_in_tree()].append(socket);
+          tree_skip_targets.skip_targets[socket->index_in_tree()] = {socket};
         }
         continue;
       }
       /* Gather skip targets for output sockets. */
       for (const bNodeSocket *socket : node->output_sockets()) {
-        tree_skip_targets.skip_targets[socket->index_in_tree()] = [&]() -> bke::SkipTargetsVector {
+        tree_skip_targets.skip_targets[socket->index_in_tree()] =
+            [&]() -> bke::SkipTargetSocketArray {
           Vector<const bNodeSocket *> skip_targets;
           for (const bNodeLink *link : socket->directly_linked_links()) {
             if (!link->is_used()) {
@@ -822,13 +832,14 @@ class SocketUsageInferencerImpl {
               return {socket};
             }
           }
-          return skip_targets;
+          return bke::SkipTargetSocketArray(skip_targets.as_span());
         }();
       }
       if (node->is_muted()) {
+        /* Muted nodes pass through skip-targets through the internal links. */
         for (const bNodeSocket *input_socket : node->input_sockets()) {
           tree_skip_targets.skip_targets[input_socket->index_in_tree()] =
-              [&]() -> bke::SkipTargetsVector {
+              [&]() -> bke::SkipTargetSocketArray {
             Vector<const bNodeSocket *> skip_targets;
             for (const bNodeLink &link : node->internal_links()) {
               if (link.fromsock == input_socket) {
@@ -842,7 +853,7 @@ class SocketUsageInferencerImpl {
                 }
               }
             }
-            return skip_targets;
+            return bke::SkipTargetSocketArray(skip_targets.as_span());
           }();
         }
       }
@@ -859,6 +870,7 @@ class SocketUsageInferencerImpl {
         if (group->has_available_link_cycle()) {
           continue;
         }
+        /* Group can sometimes be skipped over if they e.g. don't contain switch nodes. */
         const bke::bNodeTreeUsageSkipTargets &group_skip_targets = get_skip_targets_cached(*group);
         for (const int input_i : group->interface_inputs().index_range()) {
           const std::optional<Vector<int>> skip_targets_by_input =
@@ -878,7 +890,7 @@ class SocketUsageInferencerImpl {
               break;
             }
           }
-          tree_skip_targets.skip_targets[input_socket.index_in_tree()] = skip_targets;
+          tree_skip_targets.skip_targets[input_socket.index_in_tree()] = skip_targets.as_span();
         }
       }
       else {
@@ -895,22 +907,27 @@ class SocketUsageInferencerImpl {
           return skip_targets;
         }();
         for (const bNodeSocket *input_socket : node->input_sockets()) {
-          bke::SkipTargetsVector &skip_targets =
+          bke::SkipTargetSocketArray &skip_targets =
               tree_skip_targets.skip_targets[input_socket->index_in_tree()];
           if (has_special_input_usage(*input_socket)) {
             /* The socket can't be skipped. */
-            skip_targets.append(input_socket);
+            skip_targets = {input_socket};
           }
           else if (output_skip_targets.has_value()) {
-            skip_targets = *output_skip_targets;
+            /* The socket is used if any of the outputs is used. */
+            skip_targets = output_skip_targets->as_span();
           }
           else {
-            skip_targets.append(input_socket);
+            /* There are too many potential skip-targets, so fall back to the more general
+             * usage-inferencing for this socket. */
+            skip_targets = {input_socket};
           }
         }
       }
     }
 
+    /* Check if some inputs are used exactly if certain outputs are used. So their usage does not
+     * depend on some internal values like switch nodes etc. */
     for (const int group_input_i : ntree.interface_inputs().index_range()) {
       std::optional<Vector<int>> skip_targets_by_input;
       skip_targets_by_input.emplace();
@@ -935,9 +952,13 @@ class SocketUsageInferencerImpl {
       tree_skip_targets.skip_targets_by_input[group_input_i] = std::move(skip_targets_by_input);
     }
 
-    // bNodeTreeToDotOptionsForSkipTargets options(ntree, tree_skip_targets);
-    // std::string dot_str = bke::node_tree_to_dot(ntree, options);
-    // std::cout << "\n\n" << ntree.id.name << "\n" << dot_str << "\n\n";
+/* Debugging utility. This prints the node tree as dot graph and also contains the skip links for
+ * visual verification. */
+#if 0
+    bNodeTreeToDotOptionsForSkipTargets options(ntree, tree_skip_targets);
+    std::string dot_str = bke::node_tree_to_dot(ntree, options);
+    std::cout << "\n\n" << ntree.id.name << "\n" << dot_str << "\n\n";
+#endif
 
     return tree_skip_targets;
   }
@@ -983,14 +1004,7 @@ class SocketUsageInferencerImpl {
       case GEO_NODE_REPEAT_INPUT:
       case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT:
       case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT:
-      case GEO_NODE_CAPTURE_ATTRIBUTE:
-      case SH_NODE_OUTPUT_AOV:
-      case SH_NODE_OUTPUT_LIGHT:
-      case SH_NODE_OUTPUT_WORLD:
-      case SH_NODE_OUTPUT_LINESTYLE:
-      case SH_NODE_OUTPUT_MATERIAL:
-      case CMP_NODE_OUTPUT_FILE:
-      case TEX_NODE_OUTPUT: {
+      case GEO_NODE_CAPTURE_ATTRIBUTE: {
         return true;
       }
     }

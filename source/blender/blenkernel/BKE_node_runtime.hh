@@ -111,10 +111,29 @@ struct LoggedZoneGraphs {
   Map<int, std::string> graph_by_zone_id;
 };
 
-using SkipTargetsVector = Vector<const bNodeSocket *, 2>;
+using SkipTargetSocketArray = Array<const bNodeSocket *, 2>;
 
 struct bNodeTreeUsageSkipTargets {
-  Array<SkipTargetsVector> skip_targets;
+  /**
+   * For each socket, stores an array sockets such that if any of these sockets is used, the
+   * current socket is used as well (see `socket_usage_inference.cc`). This is used to accelerate
+   * socket usage inferencing to skip over nodes that have no special usage-inferencing behavior
+   * such as switch nodes.
+   *
+   * For some sockets this may also be empty, which means that these sockets are not used by any
+   * output. It may also contain the socket itself, which means that the usage inferencing of this
+   * socket can't be skipped.
+   *
+   * Example: In a simple node group with a single output without any switch nodes (or similar),
+   * each the array for each socket just contains group output socket. That's because each socket
+   * is used exactly if the group output is used.
+   */
+  Array<SkipTargetSocketArray> skip_targets;
+  /**
+   * For each group input, contains a list of group outputs. It is assumed that if any of the group
+   * outputs is used, the group input is used as well.  If the relationship is more complex than
+   * that (e.g. because there are switch nodes), there will be a nullopt.
+   */
   Array<std::optional<Vector<int>>> skip_targets_by_input;
 };
 
@@ -229,6 +248,10 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   CacheMutex tree_zones_cache_mutex;
   std::shared_ptr<bNodeTreeZones> tree_zones;
 
+  /**
+   * Cached data to accelerate socket usage inferencing by skipping over nodes that don't have
+   * "special" behavior.
+   */
   CacheMutex usage_skip_targets_mutex;
   bNodeTreeUsageSkipTargets usage_skip_targets;
 
