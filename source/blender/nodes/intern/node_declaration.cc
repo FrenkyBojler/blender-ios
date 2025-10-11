@@ -604,6 +604,13 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::label_fn(
+    std::function<StringRefNull(bNode)> fn)
+{
+  decl_base_->label_fn = std::move(fn);
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::short_label(std::string value)
 {
   decl_base_->short_label = std::move(value);

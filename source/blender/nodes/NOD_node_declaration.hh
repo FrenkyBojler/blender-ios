@@ -267,6 +267,10 @@ class SocketDeclaration : public ItemDeclaration {
    */
   std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
   /**
+   * Custom label function so a socket can display a different text depending on what it does.
+   */
+  std::function<StringRefNull(bNode)> label_fn;
+  /**
    * Determines whether this socket is used based on other input values and based on which outputs
    * are used.
    */
@@ -431,6 +435,11 @@ class BaseSocketDeclarationBuilder {
    * based on which outputs are used.
    */
   BaseSocketDeclarationBuilder &usage_inference(SocketUsageInferenceFn fn);
+
+  /**
+   * Provide a function that determines the UI label of this socket.
+   */
+  BaseSocketDeclarationBuilder &label_fn(std::function<StringRefNull(bNode)> fn);
 
   /**
    * Utility method for the case when the node has a single menu input and this socket is only used
