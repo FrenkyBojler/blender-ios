@@ -1,1 +1,2 @@
 Referenced by issue #147334, Missing linked node groups don't have output sockets
+Referenced by issue #147878, Looped Connection no longer throw a warning and rather turns out to be buggy
