@@ -40,7 +40,7 @@ namespace blender::seq {
 /* Unlike _update_sound_ functions,
  * these ones take info from audaspace to update sequence length! */
 const SoundModifierWorkerInfo workersSoundModifiers[] = {
-    {seqModifierType_SoundEqualizer, sound_equalizermodifier_recreator}, {0, nullptr}};
+    {eSeqModifierType_SoundEqualizer, sound_equalizermodifier_recreator}, {0, nullptr}};
 
 #ifdef WITH_CONVOLUTION
 static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, ListBase *seqbase)
@@ -184,7 +184,10 @@ EQCurveMappingData *sound_equalizer_add(SoundEqualizerModifierData *semd, float 
   clipr.ymin = 0.0;
   clipr.ymax = 0.0;
 
-  BKE_curvemap_reset(&eqcmd->curve_mapping.cm[0], &clipr, CURVE_PRESET_CONSTANT_MEDIAN, 0);
+  BKE_curvemap_reset(&eqcmd->curve_mapping.cm[0],
+                     &clipr,
+                     CURVE_PRESET_CONSTANT_MEDIAN,
+                     CurveMapSlopeType::Negative);
 
   BLI_addtail(&semd->graphics, eqcmd);
 

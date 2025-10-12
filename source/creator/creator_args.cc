@@ -82,6 +82,12 @@
 /**
  * Support extracting arguments for all platforms (for documentation purposes).
  * These names match the upper case defines.
+ *
+ * \note these build-defines should only be used to exclude arguments
+ * from `--help` when those arguments are not handled at all.
+ * Where using them would be the same as passing in an unknown argument.
+ * It's possible scripts are shared between platforms,
+ * so it's preferable that known arguments are documented.
  */
 struct BuildDefs {
   bool win32;
@@ -383,7 +389,7 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
     }
   }
 
-  int(*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
+  int (*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end_range;
@@ -691,9 +697,9 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   PRINT("Window Options:\n");
   BLI_args_print_arg_doc(ba, "--window-border");
+  BLI_args_print_arg_doc(ba, "--window-maximized");
   BLI_args_print_arg_doc(ba, "--window-fullscreen");
   BLI_args_print_arg_doc(ba, "--window-geometry");
-  BLI_args_print_arg_doc(ba, "--window-maximized");
   BLI_args_print_arg_doc(ba, "--start-console");
   BLI_args_print_arg_doc(ba, "--no-native-pixels");
   BLI_args_print_arg_doc(ba, "--no-window-focus");
@@ -726,6 +732,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--log-show-source");
   BLI_args_print_arg_doc(ba, "--log-show-backtrace");
   BLI_args_print_arg_doc(ba, "--log-file");
+  BLI_args_print_arg_doc(ba, "--log-list-categories");
 
   PRINT("\n");
   PRINT("Debug Options:\n");
@@ -813,11 +820,13 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--help");
   BLI_args_print_arg_doc(ba, "/?");
 
-  /* WIN32 only (ignored for non-WIN32). */
+  /* File type registration (Windows & Linux only). */
   BLI_args_print_arg_doc(ba, "--register");
   BLI_args_print_arg_doc(ba, "--register-allusers");
   BLI_args_print_arg_doc(ba, "--unregister");
   BLI_args_print_arg_doc(ba, "--unregister-allusers");
+  /* Windows only.  */
+  BLI_args_print_arg_doc(ba, "--qos");
 
   BLI_args_print_arg_doc(ba, "--version");
 
@@ -875,7 +884,9 @@ static void print_help(bArgs *ba, bool all)
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
   if (defs.with_opencolorio) {
-    PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
+    PRINT(
+        "  $BLENDER_OCIO              Path to override the OpenColorIO configuration file.\n"
+        "                             If not set, the 'OCIO' environment variable is used.\n");
   }
   if (defs.win32 || all) {
     PRINT("  $TEMP                      Store temporary files here (MS-Windows).\n");
@@ -1302,6 +1313,19 @@ static int arg_handle_log_set(int argc, const char **argv, void * /*data*/)
   return 0;
 }
 
+static const char arg_handle_list_clog_cats_doc[] =
+    "\n"
+    "\tList all available logging categories for '--log', and exit.\n";
+
+static int arg_handle_list_clog_cats(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  auto print_identifier = [](const char *identifier, void *) { printf("%s\n", identifier); };
+  CLG_logref_list_all(print_identifier, nullptr);
+  BKE_blender_atexit();
+  exit(EXIT_SUCCESS);
+  return 0;
+}
+
 static const char arg_handle_debug_mode_set_doc[] =
     "\n"
     "\tTurn debugging on.\n"
@@ -1577,7 +1601,7 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
   const char *backends_supported[3] = {nullptr};
   int backends_supported_num = 0;
 
-  eGPUBackendType gpu_backend = GPU_BACKEND_NONE;
+  GPUBackendType gpu_backend = GPU_BACKEND_NONE;
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (false) {
@@ -1838,19 +1862,19 @@ static int arg_handle_native_pixels_set(int /*argc*/, const char ** /*argv*/, vo
   return 0;
 }
 
-static const char arg_handle_with_borders_doc[] =
+static const char arg_handle_window_border_doc[] =
     "\n\t"
-    "Force opening with borders.";
-static int arg_handle_with_borders(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+    "Force opening with borders, in a normal (non maximized) state.";
+static int arg_handle_window_border(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   WM_init_state_normal_set();
   return 0;
 }
 
-static const char arg_handle_without_borders_doc[] =
+static const char arg_handle_window_fullscreen_doc[] =
     "\n\t"
-    "Force opening in full-screen mode.";
-static int arg_handle_without_borders(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+    "Force opening full-screen.";
+static int arg_handle_window_fullscreen(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   WM_init_state_fullscreen_set();
   return 0;
@@ -1916,11 +1940,13 @@ static int arg_handle_register_extension(int argc, const char **argv, void *data
   CLG_quiet_set(true);
   background_mode_set();
 
-#  if !(defined(WIN32) && defined(__APPLE__))
+#  if !(defined(WIN32) || defined(__APPLE__))
   if (!main_arg_deferred_is_set()) {
     main_arg_deferred_setup(arg_handle_register_extension, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argv, data);
 #  endif
   arg_handle_extension_registration(true, false);
   return argc - 1;
@@ -1934,11 +1960,13 @@ static int arg_handle_register_extension_all(int argc, const char **argv, void *
   CLG_quiet_set(true);
   background_mode_set();
 
-#  if !(defined(WIN32) && defined(__APPLE__))
+#  if !(defined(WIN32) || defined(__APPLE__))
   if (!main_arg_deferred_is_set()) {
     main_arg_deferred_setup(arg_handle_register_extension_all, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argv, data);
 #  endif
   arg_handle_extension_registration(true, true);
   return argc - 1;
@@ -1952,11 +1980,13 @@ static int arg_handle_unregister_extension(int argc, const char **argv, void *da
   CLG_quiet_set(true);
   background_mode_set();
 
-#  if !(defined(WIN32) && defined(__APPLE__))
+#  if !(defined(WIN32) || defined(__APPLE__))
   if (!main_arg_deferred_is_set()) {
     main_arg_deferred_setup(arg_handle_unregister_extension, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argc, argv, data);
 #  endif
   arg_handle_extension_registration(false, false);
   return 0;
@@ -1970,13 +2000,52 @@ static int arg_handle_unregister_extension_all(int argc, const char **argv, void
   CLG_quiet_set(true);
   background_mode_set();
 
-#  if !(defined(WIN32) && defined(__APPLE__))
+#  if !(defined(WIN32) || defined(__APPLE__))
   if (!main_arg_deferred_is_set()) {
     main_arg_deferred_setup(arg_handle_unregister_extension_all, argc, argv, data);
     return argc - 1;
   }
+#  else
+  UNUSED_VARS(argc, argv, data);
 #  endif
   arg_handle_extension_registration(false, true);
+  return 0;
+}
+
+static const char arg_handle_qos_set_doc[] =
+    "<level>\n"
+    "\tSet the Quality of Service (QoS) mode for hybrid CPU architectures (Windows only).\n"
+    "\n"
+    "\tdefault: Uses the default behavior of the OS.\n"
+    "\thigh: Always makes use of performance cores.\n"
+    "\teco: Schedules Blender threads exclusively to efficiency cores.";
+static int arg_handle_qos_set(int argc, const char **argv, void * /*data*/)
+{
+  const char *arg_id = "--qos";
+  if (argc > 1) {
+#  ifdef _WIN32
+    QoSMode qos_mode;
+    if (STRCASEEQ(argv[1], "default")) {
+      qos_mode = QoSMode::DEFAULT;
+    }
+    else if (STRCASEEQ(argv[1], "high")) {
+      qos_mode = QoSMode::HIGH;
+    }
+    else if (STRCASEEQ(argv[1], "eco")) {
+      qos_mode = QoSMode::ECO;
+    }
+    else {
+      fprintf(stderr, "\nError: Invalid QoS level '%s %s'.\n", arg_id, argv[1]);
+      return 1;
+    }
+    BLI_windows_process_set_qos(qos_mode, QoSPrecedence::CMDLINE_ARG);
+#  else
+    UNUSED_VARS(argv);
+    fprintf(stderr, "\nError: '%s' is Windows only.\n", arg_id);
+#  endif
+    return 1;
+  }
+  fprintf(stderr, "\nError: '%s' no args given.\n", arg_id);
   return 0;
 }
 
@@ -2249,7 +2318,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
       Render *re;
       ReportList reports;
 
-      int(*frame_range_arr)[2], frames_range_len;
+      int (*frame_range_arr)[2], frames_range_len;
       if ((frame_range_arr = parse_int_range_relative_clamp_n(argv[1],
                                                               scene->r.sfra,
                                                               scene->r.efra,
@@ -2644,12 +2713,16 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
 
   /* Load the file. */
   ReportList reports;
-  BKE_reports_init(&reports, RPT_PRINT);
+  BKE_reports_init(&reports, RPT_PRINT | RPT_STORE);
+  BKE_report_print_level_set(&reports, RPT_WARNING);
   /* When activating from the command line there isn't an exact equivalent to operator properties.
    * Instead, enabling auto-execution via `--enable-autoexec` causes the auto-execution
    * check to be skipped (if it's set), so it's fine to always enable the check here. */
   const bool use_scripts_autoexec_check = true;
   const bool success = WM_file_read(C, filepath, use_scripts_autoexec_check, &reports);
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  WM_reports_from_reports_move(wm, &reports);
   BKE_reports_free(&reports);
 
   if (success) {
@@ -2811,10 +2884,12 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
    * Also and commands that exit after usage. */
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS);
   BLI_args_add(ba, "-h", "--help", CB(arg_handle_print_help), ba);
+
   /* MS-Windows only. */
   BLI_args_add(ba, "/?", nullptr, CB_EX(arg_handle_print_help, win32), ba);
 
   BLI_args_add(ba, "-v", "--version", CB(arg_handle_print_version), nullptr);
+  BLI_args_add(ba, nullptr, "--log-list-categories", CB(arg_handle_list_clog_cats), nullptr);
 
   BLI_args_add(ba, "-y", "--enable-autoexec", CB_EX(arg_handle_python_set, enable), (void *)true);
   BLI_args_add(
@@ -2834,6 +2909,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(ba, "-b", "--background", CB(arg_handle_background_mode_set), nullptr);
   /* Command implies background mode (defers execution). */
   BLI_args_add(ba, "-c", "--command", CB(arg_handle_command_set), C);
+
+  BLI_args_add(ba, nullptr, "--qos", CB(arg_handle_qos_set), nullptr);
 
   BLI_args_add(ba,
                nullptr,
@@ -3007,8 +3084,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* Pass: Custom Window Stuff. */
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS_GUI);
   BLI_args_add(ba, "-p", "--window-geometry", CB(arg_handle_window_geometry), nullptr);
-  BLI_args_add(ba, "-w", "--window-border", CB(arg_handle_with_borders), nullptr);
-  BLI_args_add(ba, "-W", "--window-fullscreen", CB(arg_handle_without_borders), nullptr);
+  BLI_args_add(ba, "-w", "--window-border", CB(arg_handle_window_border), nullptr);
+  BLI_args_add(ba, "-W", "--window-fullscreen", CB(arg_handle_window_fullscreen), nullptr);
   BLI_args_add(ba, "-M", "--window-maximized", CB(arg_handle_window_maximized), nullptr);
   BLI_args_add(ba, nullptr, "--no-window-focus", CB(arg_handle_no_window_focus), nullptr);
   BLI_args_add(ba, "-con", "--start-console", CB(arg_handle_start_with_console), nullptr);

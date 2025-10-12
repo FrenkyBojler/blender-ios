@@ -33,13 +33,19 @@ namespace blender::nodes::node_composite_stabilize2d_cc {
 static void cmp_node_stabilize2d_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.allow_any_socket_order();
 
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
+      .hide_value()
       .compositor_realization_mode(CompositorInputRealizationMode::None)
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
+  b.add_layout([](uiLayout *layout, bContext *context, PointerRNA *node_pointer) {
+    uiTemplateID(layout, context, node_pointer, "clip", nullptr, "CLIP_OT_open", nullptr);
+  });
+
   b.add_input<decl::Bool>("Invert").default_value(false).description(
       "Invert stabilization to reintroduce motion to the image");
 
@@ -47,14 +53,17 @@ static void cmp_node_stabilize2d_declare(NodeDeclarationBuilder &b)
   sampling_panel.add_input<decl::Menu>("Interpolation")
       .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
+      .optional_label()
       .description("Interpolation method");
   sampling_panel.add_input<decl::Menu>("Extension X")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the X axis");
   sampling_panel.add_input<decl::Menu>("Extension Y")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the Y axis");
 }
 
@@ -65,11 +74,6 @@ static void init(const bContext *C, PointerRNA *ptr)
 
   node->id = (ID *)scene->clip;
   id_us_plus(node->id);
-}
-
-static void node_composit_buts_stabilize2d(uiLayout *layout, bContext *C, PointerRNA *ptr)
-{
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 }
 
 using namespace blender::compositor;
@@ -197,7 +201,6 @@ static void register_node_type_cmp_stabilize2d()
   ntype.enum_name_legacy = "STABILIZE2D";
   ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_stabilize2d_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_stabilize2d;
   ntype.initfunc_api = file_ns::init;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 

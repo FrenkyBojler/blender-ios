@@ -961,8 +961,7 @@ static PyObject *pygpu_shader_from_builtin(PyObject * /*self*/, PyObject *args, 
   }
 
   blender::gpu::Shader *shader = GPU_shader_get_builtin_shader_with_config(
-      eGPUBuiltinShader(pygpu_bultinshader.value_found),
-      eGPUShaderConfig(pygpu_config.value_found));
+      GPUBuiltinShader(pygpu_bultinshader.value_found), GPUShaderConfig(pygpu_config.value_found));
 
   if (shader == nullptr) {
     PyErr_SetString(PyExc_ValueError, "Builtin shader doesn't exist in the requested config");
@@ -1050,6 +1049,11 @@ PyDoc_STRVAR(
     "All built-in shaders have the ``mat4 ModelViewProjectionMatrix`` uniform.\n"
     "\n"
     "Its value must be modified using the :class:`gpu.matrix` module.\n"
+    "\n"
+    ".. important::\n"
+    "\n"
+    "   Shader uniforms must be explicitly initialized to avoid retaining values from previous "
+    "executions.\n"
     "\n" PYDOC_BUILTIN_SHADER_DESCRIPTION);
 static PyModuleDef pygpu_shader_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
