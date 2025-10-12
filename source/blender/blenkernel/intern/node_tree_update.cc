@@ -1342,6 +1342,28 @@ class NodeTreeMainUpdater {
     default_value.runtime_flag &= ~NODE_MENU_ITEMS_CONFLICT;
   }
 
+  bool enum_items_are_compatible(const RuntimeNodeEnumItems *a, const RuntimeNodeEnumItems *b)
+  {
+    if (a == b) {
+      return true;
+    }
+    if (!a || !b) {
+      return false;
+    }
+    if (a->items.size() != b->items.size()) {
+      return false;
+    }
+    for (const int i : a->items.index_range()) {
+      if (a->items[i].identifier != b->items[i].identifier) {
+        return false;
+      }
+      if (a->items[i].name != b->items[i].name) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   void update_socket_enum_definition(bNodeSocketValueMenu &dst, const bNodeSocketValueMenu &src)
   {
     if (dst.has_conflict()) {
@@ -1360,10 +1382,16 @@ class NodeTreeMainUpdater {
       this->set_enum_ptr(dst, src.enum_items);
     }
     else if (src.enum_items && dst.enum_items != src.enum_items) {
-      /* Error if enum ref does not match other connections. */
-      this->reset_enum_ptr(dst);
-      dst.runtime_flag |= NODE_MENU_ITEMS_CONFLICT;
+      /* Check if items are compatible (same identifiers and names in same order). */
+      if (!this->enum_items_are_compatible(dst.enum_items, src.enum_items)) {
+        /* Error if enum items do not match. */
+        this->reset_enum_ptr(dst);
+        dst.runtime_flag |= NODE_MENU_ITEMS_CONFLICT;
+      }
+      /* If items are compatible, keep the existing reference - no action needed. */
     }
+    /* If dst.enum_items == src.enum_items, they're already the same - no action needed.
+     * This allows multiple connections from the same source. */
   }
 
   void reset_enum_ptr(bNodeSocketValueMenu &dst)
@@ -1411,7 +1439,8 @@ class NodeTreeMainUpdater {
         link->flag &= ~NODE_LINK_VALID;
         ntree.runtime->link_errors.add(
             NodeLinkKey{*link},
-            NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
+            NodeLinkError{TIP_("Multiple connections detected: Items should be the same or use "
+                               "node groups to reuse the same menu multiple times")});
         continue;
       }
       const bNode &from_node = *link->fromnode;
