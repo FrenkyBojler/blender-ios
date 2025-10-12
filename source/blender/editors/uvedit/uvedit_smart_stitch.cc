@@ -1325,7 +1325,12 @@ static int stitch_process_data(StitchStateContainer *ssc,
 
         uvfinal_map[element - state->element_map->storage] = i;
 
-        copy_v2_v2(final_position[i].uv, luv);
+        if (ssc->match_target) {
+          int element_index = element - state->element_map->storage;
+          copy_v2_v2(final_position[i].uv, (float*)&state->orig_uv_coords[element_index]);
+        } else {
+          copy_v2_v2(final_position[i].uv, luv);
+        }
         final_position[i].count = 1;
 
         if (ssc->snap_islands && element->island == ssc->static_island && !stitch_midpoints) {
@@ -1339,14 +1344,24 @@ static int stitch_process_data(StitchStateContainer *ssc,
               l = element_iter->l;
               luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
               if (stitch_midpoints) {
-                add_v2_v2(final_position[i].uv, luv);
+                if (ssc->match_target) {
+                  int element_index = element_iter - state->element_map->storage;
+                  add_v2_v2(final_position[i].uv, (float*)&state->orig_uv_coords[element_index]);
+                } else {
+                  add_v2_v2(final_position[i].uv, luv);
+                }
                 final_position[i].count++;
               }
               else if (element_iter->island == ssc->static_island) {
                 /* if multiple uvs on the static island exist,
                  * last checked remains. to disambiguate we need to limit or use
                  * edge stitch */
-                copy_v2_v2(final_position[i].uv, luv);
+                if (ssc->match_target) {
+                  int element_index = element_iter - state->element_map->storage;
+                  copy_v2_v2(final_position[i].uv, (float*)&state->orig_uv_coords[element_index]);
+                } else {
+                  copy_v2_v2(final_position[i].uv, luv);
+                }
               }
             }
           }
@@ -1370,8 +1385,15 @@ static int stitch_process_data(StitchStateContainer *ssc,
         l = state->uvs[edge->uv2]->l;
         luv2 = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
 
-        copy_v2_v2(final_position[edge->uv1].uv, luv1);
-        copy_v2_v2(final_position[edge->uv2].uv, luv2);
+        if (ssc->match_target) {
+          int element_index1 = state->uvs[edge->uv1] - state->element_map->storage;
+          int element_index2 = state->uvs[edge->uv2] - state->element_map->storage;
+          copy_v2_v2(final_position[edge->uv1].uv, (float*)&state->orig_uv_coords[element_index1]);
+          copy_v2_v2(final_position[edge->uv2].uv, (float*)&state->orig_uv_coords[element_index2]);
+        } else {
+          copy_v2_v2(final_position[edge->uv1].uv, luv1);
+          copy_v2_v2(final_position[edge->uv2].uv, luv2);
+        }
         final_position[edge->uv1].count = 1;
         final_position[edge->uv2].count = 1;
 
@@ -1392,14 +1414,30 @@ static int stitch_process_data(StitchStateContainer *ssc,
             luv2 = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
 
             if (stitch_midpoints) {
-              add_v2_v2(final_position[edge->uv1].uv, luv1);
+               if (ssc->match_target) {
+                int element_index1 = state->uvs[edge_iter->uv1] - state->element_map->storage;
+                int element_index2 = state->uvs[edge_iter->uv2] - state->element_map->storage;
+                add_v2_v2(final_position[edge->uv1].uv, (float*)&state->orig_uv_coords[element_index1]);
+                add_v2_v2(final_position[edge->uv2].uv, (float*)&state->orig_uv_coords[element_index2]);
+              }
+              else{
+                add_v2_v2(final_position[edge->uv1].uv, luv1);
+                add_v2_v2(final_position[edge->uv2].uv, luv2);
+              }
+
               final_position[edge->uv1].count++;
-              add_v2_v2(final_position[edge->uv2].uv, luv2);
               final_position[edge->uv2].count++;
             }
             else if (edge_iter->element->island == ssc->static_island) {
-              copy_v2_v2(final_position[edge->uv1].uv, luv1);
-              copy_v2_v2(final_position[edge->uv2].uv, luv2);
+              if (ssc->match_target) {
+                int element_index1 = state->uvs[edge_iter->uv1] - state->element_map->storage;
+                int element_index2 = state->uvs[edge_iter->uv2] - state->element_map->storage;
+                copy_v2_v2(final_position[edge->uv1].uv, (float*)&state->orig_uv_coords[element_index1]);
+                copy_v2_v2(final_position[edge->uv2].uv, (float*)&state->orig_uv_coords[element_index2]);
+              } else {
+                copy_v2_v2(final_position[edge->uv1].uv, luv1);
+                copy_v2_v2(final_position[edge->uv2].uv, luv2);
+              }
             }
           }
         }
