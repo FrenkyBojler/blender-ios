@@ -483,6 +483,10 @@ class ShaderNodesInliner {
       this->handle_output_socket__menu_switch(socket);
       return;
     }
+    if (node->is_type("GeometryNodeIndexSwitch")) {
+      this->handle_output_socket__index_switch(socket);
+      return;
+    }
     this->handle_output_socket__eval(socket);
   }
 
@@ -941,6 +945,41 @@ class ShaderNodesInliner {
     /* Set the value of the mask output. */
     const bool is_selected = selected_index == socket->index() - 1;
     this->store_socket_value(socket, {PrimitiveSocketValue{is_selected}});
+  }
+
+  void handle_output_socket__index_switch(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const auto &storage = *static_cast<const NodeIndexSwitch *>(node->storage);
+
+    const SocketInContext index_input = node.input_socket(0);
+    const SocketValue *index_socket_value = value_by_socket_.lookup_ptr(index_input);
+    if (!index_socket_value) {
+      /* The index value is not known yet, so schedule it for now. */
+      this->schedule_socket(index_input);
+      return;
+    }
+
+    const std::optional<PrimitiveSocketValue> index_value_opt = index_socket_value->to_primitive(
+        *index_input->typeinfo);
+    if (!index_value_opt) {
+      /* Index Switch nodes don't support dynamic evaluation in shaders. */
+      this->store_socket_value_fallback(socket);
+      params_.r_error_messages.append({node.node, TIP_("Index value has to be a constant value")});
+      return;
+    }
+
+    const int index = std::get<int>(index_value_opt->value);
+
+    /* Check if index is within valid range. */
+    if (!IndexRange(storage.items_num).contains(index)) {
+      /* Index out of range, use fallback value. */
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+
+    /* Forward the value from the selected input. */
+    this->forward_value_or_schedule(socket, node.input_socket(index + 1));
   }
 
   /**

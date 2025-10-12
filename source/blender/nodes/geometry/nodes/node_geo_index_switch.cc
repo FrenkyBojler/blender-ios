@@ -29,6 +29,8 @@
 #include "COM_result.hh"
 #include "COM_utilities.hh"
 
+#include "GPU_material.hh"
+
 namespace blender::nodes::node_geo_index_switch_cc {
 
 NODE_STORAGE_FUNCS(NodeIndexSwitch)
@@ -214,12 +216,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 constexpr int value_inputs_start = 1;
 
-class IndexSwitchFunction : public mf::MultiFunction {
+class IndexSwitchFn : public mf::MultiFunction {
   mf::Signature signature_;
   Array<std::string> debug_names_;
 
  public:
-  IndexSwitchFunction(const CPPType &type, const int items_num)
+  IndexSwitchFn(const CPPType &type, const int items_num)
   {
     mf::SignatureBuilder builder{"Index Switch", signature_};
     builder.single_input<int>("Index");
@@ -379,7 +381,7 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
       input_fields.append(input_values[i]->extract<GField>());
     }
 
-    std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFunction>(
+    std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFn>(
         *field_base_type_, values_num);
     GField output_field(FieldOperation::from(std::move(switch_fn), std::move(input_fields)));
 
