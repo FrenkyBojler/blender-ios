@@ -840,6 +840,7 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
                     withName:@"MTL_global_pointsize"];
   }
 
+  bool has_error = false;
   {
     std::string function_name = entry_point_name_get(ShaderStage::VERTEX);
     NSError *error = nullptr;
@@ -849,17 +850,12 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
              constantValues:values
                       error:&error];
     if (error) {
-      bool has_error = (
+      has_error |= (
           [[error localizedDescription] rangeOfString:@"Compilation succeeded"].location ==
           NSNotFound);
 
       const char *errors_c_str = [[error localizedDescription] UTF8String];
       MTL_LOG_ERROR("%s : %s", function_name.c_str(), errors_c_str);
-
-      /* Only exit out if genuine error and not warning */
-      if (has_error) {
-        return nullptr;
-      }
     }
   }
 
@@ -872,21 +868,21 @@ MTLRenderPipelineStateInstance *MTLShader::bake_graphic_pipeline_state(
              constantValues:values
                       error:&error];
     if (error) {
-      bool has_error = (
+      has_error |= (
           [[error localizedDescription] rangeOfString:@"Compilation succeeded"].location ==
           NSNotFound);
 
       const char *errors_c_str = [[error localizedDescription] UTF8String];
       MTL_LOG_ERROR("%s : %s", function_name.c_str(), errors_c_str);
-
-      /* Only exit out if genuine error and not warning */
-      if (has_error) {
-        return nullptr;
-      }
     }
   }
 
   [values release];
+
+  /* Only exit out if genuine error and not warning */
+  if (has_error) {
+    return nullptr;
+  }
 
   /* Setup pixel format state */
   for (int color_attachment = 0; color_attachment < GPU_FB_MAX_COLOR_ATTACHMENT;
