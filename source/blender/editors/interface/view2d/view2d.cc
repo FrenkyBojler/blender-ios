@@ -416,6 +416,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
   /* Keep in sync with `zoomx/zoomy` in #view_zoomstep_apply_ex! */
   curwidth = width = BLI_rctf_size_x(cur);
   curheight = height = BLI_rctf_size_y(cur);
+  const float curcenty = BLI_rctf_cent_y(cur);
 
   /* if zoom is locked, size on the appropriate axis is reset to mask size */
   if (v2d->keepzoom & V2D_LOCKZOOM_X) {
@@ -633,11 +634,10 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
         }
       }
       else {
-        temp = BLI_rctf_cent_y(cur);
         dh = height * 0.5f;
 
-        cur->ymin = temp - dh;
-        cur->ymax = temp + dh;
+        cur->ymin = curcenty - dh;
+        cur->ymax = curcenty + dh;
       }
     }
   }
@@ -1125,6 +1125,7 @@ void UI_view2d_view_ortho(const View2D *v2d)
     curmasked.xmax = floorf(curmasked.xmax) - (eps + xofs);
   }
   if (v2d->flag & V2D_PIXELOFS_Y) {
+    printf("sizey: %i \n", sizey);
     curmasked.ymin = floorf(curmasked.ymin) - (eps + yofs);
     curmasked.ymax = floorf(curmasked.ymax) - (eps + yofs);
   }
