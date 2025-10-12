@@ -44,8 +44,26 @@ TEST(bit_span, Iteration)
     index++;
   }
 
-  for (const int bit_index : span.high_bits()) {
-    EXPECT_EQ(true, ELEM(bit_index, 2, 3));
+  {
+    int i = 0;
+    int result[2] = {-1, -1};
+    int expect[2] = {2, 3};
+    for (const int bit_index : span.high_bits()) {
+      result[i++] = bit_index;
+    }
+    EXPECT_EQ_ARRAY(expect, result, 2);
+  }
+  {
+    uint64_t data2 = 0xFBu;
+    const BitSpan span2(&data2, 8);
+    EXPECT_EQ(span2.size(), 8);
+    int result[7] = {-1, -1, -1, -1, -1, -1, -1};
+    int expect[7] = {0, 1, 3, 4, 5, 6, 7};
+    int i = 0;
+    for (const int bit_index : span2.high_bits()) {
+      result[i++] = bit_index;
+    }
+    EXPECT_EQ_ARRAY(expect, result, 7);
   }
 }
 

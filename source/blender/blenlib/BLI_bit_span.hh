@@ -72,7 +72,8 @@ class HighBitIterator {
   explicit HighBitIterator(const BitInt *data, int min_bit, int max_bit)
       : data_(data), current_bit_(min_bit), max_bit_(max_bit)
   {
-    BLI_assert(max_bit < 64);
+    /* Note: Last bit is never dereferenced. */
+    BLI_assert(max_bit <= 64);
     advance();
   }
 
@@ -97,7 +98,7 @@ class HighBitIterator {
  private:
   void advance()
   {
-    while (((*data_ >> current_bit_) & 1u) == 0 && (current_bit_ != max_bit_)) {
+    while ((current_bit_ != max_bit_) && ((*data_ >> current_bit_) & 1u) == 0) {
       current_bit_++;
     }
   }
@@ -117,11 +118,11 @@ class HighBitSpan {
 
   HighBitIterator begin() const
   {
-    return HighBitIterator(data_, bit_range_.start(), bit_range_.last());
+    return HighBitIterator(data_, bit_range_.start(), bit_range_.one_after_last());
   }
   HighBitIterator end() const
   {
-    return HighBitIterator(data_, bit_range_.last(), bit_range_.last());
+    return HighBitIterator(data_, bit_range_.one_after_last(), bit_range_.one_after_last());
   }
 };
 
