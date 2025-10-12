@@ -533,7 +533,7 @@ static ::MTLFunctionConstantValues *populate_specialization_constant_values(
   for (auto i : shader_constants.types.index_range()) {
     const shader::SpecializationConstant::Value &value = specialization_descriptor.values[i];
 
-    uint index = i + MTL_SHADER_SPECIALIZATION_CONSTANT_BASE_ID;
+    uint index = i + MTL_SPECIALIZATION_CONSTANT_OFFSET;
     switch (shader_constants.types[i]) {
       case Type::int_t:
         [values setConstantValue:&value.i type:MTLDataTypeInt atIndex:index];

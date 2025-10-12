@@ -49,8 +49,6 @@ class MTLContext;
 #  define shader_debug_printf(...) /* Null print. */
 #endif
 
-/* Offset base specialization constant ID for function constants declared in CreateInfo. */
-#define MTL_SHADER_SPECIALIZATION_CONSTANT_BASE_ID 30
 /* Maximum threshold for specialized shader variant count.
  * This is a catch-all to prevent excessive PSO permutations from being created and also catch
  * parameters which should ideally not be used for specialization. */
