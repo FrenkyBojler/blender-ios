@@ -1882,7 +1882,13 @@ static void rna_Mesh_sync_active_uv_across_editmeshes(Main *bmain, Scene *, Poin
     }
     CustomData *ldata2 = &me->runtime->edit_mesh->bm->ldata;
     const int index = CustomData_get_named_layer_index(ldata2, CD_PROP_FLOAT2, uv_name);
+    if (index == -1) {
+      continue;
+    }
     const int base = CustomData_get_layer_index(ldata2, CD_PROP_FLOAT2);
+    if (base == -1) {
+      continue;
+    }
     CustomData_set_layer_active(ldata2, CD_PROP_FLOAT2, index - base);
 
     DEG_id_tag_update(&me->id, 0);
@@ -1898,6 +1904,9 @@ static void rna_Mesh_uv_layer_active_set_sync(PointerRNA *ptr, PointerRNA value,
   }
 
   const int base = CustomData_get_layer_index(data, CD_PROP_FLOAT2);
+  if (base == -1) {
+    return;
+  }
   for (int a = 0; base + a < data->totlayer; a++) {
     CustomDataLayer *layer = data->layers + base + a;
     if (layer == value.data) {
