@@ -749,7 +749,7 @@ static void register_node_type_cmp_expression()
   ntype.ui_name = "Expression";
   ntype.ui_description = "Evaluate mathematical expression on float inputs";
   ntype.enum_name_legacy = "EXPRESSION";
-  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_expression_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_expression;
   ntype.initfunc = file_ns::node_composit_init_expression;
