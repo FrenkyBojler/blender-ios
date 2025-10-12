@@ -1222,9 +1222,21 @@ static int stitch_process_data(StitchStateContainer *ssc,
           BM_elem_flag_disable(efa, BM_ELEM_SELECT);
         }
       }
+      BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+
+      blender::Array<blender::Bounds<blender::float2>> old_bounds(
+          state->element_map->total_islands);
+      for (int i = 0; i < state->element_map->total_islands; i++) {
+        UvElement *element = state->element_map->storage + state->element_map->island_indices[i];
+        INIT_MINMAX2(old_bounds[i].min, old_bounds[i].max);
+        for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
+          float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+          minmax_v2v2_v2(old_bounds[i].min, old_bounds[i].max, luv);
+        }
+      }
 
       UnwrapOptions options{};
-      options.topology_from_uvs = false;
+      options.topology_from_uvs = true;
       options.only_selected_faces = true;
       options.only_selected_uvs = false;
       options.use_abf = true;
@@ -1234,7 +1246,6 @@ static int stitch_process_data(StitchStateContainer *ssc,
       for (BMFace *face : orig_face_sel) {
         BM_elem_flag_enable(face, BM_ELEM_SELECT);
       }
-      BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
       float uv_area = 0.0f;
       float object_area = 0.0f;
       for (int i = 0; i < state->element_map->total_islands; i++) {
@@ -1276,6 +1287,19 @@ static int stitch_process_data(StitchStateContainer *ssc,
             float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
             luv[0] = (luv[0] * scale);
             luv[1] = (luv[1] * scale);
+          }
+          blender::float2 old_center = (old_bounds[i].min + old_bounds[i].max) * 0.5f;
+          blender::Bounds<blender::float2> new_bounds;
+          INIT_MINMAX2(new_bounds.min, new_bounds.max);
+          for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
+            float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+            minmax_v2v2_v2(new_bounds.min, new_bounds.max, luv);
+          }
+          blender::float2 new_center = (new_bounds.min + new_bounds.max) * 0.5f;
+          blender::float2 offset = old_center - new_center;
+          for (int j = 0; j < state->element_map->island_total_uvs[i]; j++) {
+            float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+            add_v2_v2(luv, offset);
           }
         }
       }
