@@ -25,6 +25,7 @@
 #include "BLI_linklist.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_listbase.h"
+#include "BLI_math_bits.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -1542,6 +1543,8 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   uint failed_selection_order_len = 0;
   uint failed_connect_len = 0;
+  bool has_select_history_mixed = false;
+  bool has_select_history_face = false;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
@@ -1560,6 +1563,20 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
       if (!edbm_connect_vert_pair(em, static_cast<Mesh *>(obedit->data), op)) {
         failed_connect_len++;
       }
+      continue;
+    }
+
+    /* Skip mixed selections since path handling only supports uniform types, see #147150. */
+    const char htype_selected = BM_select_history_htype_all(bm);
+    if (count_bits_i(htype_selected) > 1) {
+      has_select_history_mixed = true;
+      failed_selection_order_len++;
+      continue;
+    }
+    /* Faces are not supported, this check is only done to show a more useful error. */
+    if (htype_selected & BM_FACE) {
+      has_select_history_face = true;
+      failed_selection_order_len++;
       continue;
     }
 
@@ -1596,7 +1613,15 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
   }
 
   if (failed_selection_order_len == objects.size()) {
-    BKE_report(op->reports, RPT_ERROR, "Invalid selection order");
+    if (has_select_history_mixed) {
+      BKE_report(op->reports, RPT_ERROR, "Could not connect mixed selection types");
+    }
+    else if (has_select_history_face) {
+      BKE_report(op->reports, RPT_ERROR, "Could not connect a face selection");
+    }
+    else {
+      BKE_report(op->reports, RPT_ERROR, "Invalid selection order");
+    }
     return OPERATOR_CANCELLED;
   }
   if (failed_connect_len == objects.size()) {
@@ -5510,6 +5535,7 @@ static wmOperatorStatus edbm_tris_convert_to_quads_exec(bContext *C, wmOperator 
         EDBM_selectmode_flush_ex(em, em->selectmode);
       }
     }
+    EDBM_uvselect_clear(em);
 
     BM_custom_loop_normals_from_vector_layer(em->bm, false);
 
@@ -5740,6 +5766,7 @@ static wmOperatorStatus edbm_decimate_exec(bContext *C, wmOperator *op)
         selectmode |= SCE_SELECT_EDGE;
       }
       EDBM_selectmode_flush_ex(em, selectmode);
+      EDBM_uvselect_clear(em);
     }
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -6394,6 +6421,7 @@ static wmOperatorStatus edbm_delete_edgeloop_exec(bContext *C, wmOperator *op)
     BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
 
     EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
+    EDBM_uvselect_clear(em);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -7701,7 +7729,9 @@ static wmOperatorStatus edbm_convex_hull_exec(bContext *C, wmOperator *op)
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
     EDBM_selectmode_flush(em);
+    EDBM_uvselect_clear(em);
   }
 
   return OPERATOR_FINISHED;
@@ -7798,7 +7828,9 @@ static wmOperatorStatus mesh_symmetrize_exec(bContext *C, wmOperator *op)
     params.calc_normals = calc_normals;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
     EDBM_selectmode_flush(em);
+    EDBM_uvselect_clear(em);
   }
 
   return OPERATOR_FINISHED;

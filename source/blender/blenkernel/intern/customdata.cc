@@ -3257,17 +3257,17 @@ void CustomData_set_only_copy(const CustomData *data, const eCustomDataMask mask
 }
 
 void CustomData_copy_elements(const eCustomDataType type,
-                              void *src_data_ofs,
-                              void *dst_data_ofs,
+                              const void *src_data,
+                              void *dst_data,
                               const int count)
 {
   const LayerTypeInfo *typeInfo = layerType_getInfo(type);
 
   if (typeInfo->copy) {
-    typeInfo->copy(src_data_ofs, dst_data_ofs, count);
+    typeInfo->copy(src_data, dst_data, count);
   }
   else {
-    memcpy(dst_data_ofs, src_data_ofs, size_t(count) * typeInfo->size);
+    memcpy(dst_data, src_data, size_t(count) * typeInfo->size);
   }
 }
 
@@ -4272,9 +4272,7 @@ int CustomData_name_maxncpy_calc(const blender::StringRef name)
   if (name.startswith(".")) {
     return MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX;
   }
-  for (const blender::StringRef prefix :
-       {"." UV_VERTSEL_NAME, UV_EDGESEL_NAME ".", UV_PINNED_NAME "."})
-  {
+  for (const blender::StringRef prefix : {UV_PINNED_NAME "."}) {
     if (name.startswith(prefix)) {
       return MAX_CUSTOMDATA_LAYER_NAME;
     }
