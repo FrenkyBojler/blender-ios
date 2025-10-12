@@ -1970,6 +1970,9 @@ void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
   ResourceScope scope;
   const Vector<nodes::InferenceValue> group_input_values =
       nodes::get_geometry_nodes_input_inference_values(tree, nmd.settings.properties, scope);
+
+  /* Compute the hash of the input values. This has to be done everytime currently, because there
+   * is no reliable callback yet that is called any of the modifier properties changes. */
   XXH3_state_t *state = XXH3_createState();
   XXH3_64bits_reset(state);
   BLI_SCOPED_DEFER([&]() { XXH3_freeState(state); });
@@ -1986,24 +1989,26 @@ void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
   }
   const uint64_t new_input_values_hash = XXH3_64bits_digest(state);
   if (new_input_values_hash == input_values_hash_) {
-    if (inputs_.size() == tree.interface_inputs().size() &&
-        outputs_.size() == tree.interface_outputs().size())
+    if (this->inputs.size() == tree.interface_inputs().size() &&
+        this->outputs.size() == tree.interface_outputs().size())
     {
+      /* The cache is up to date, so return early. */
       return;
     }
   }
-  inputs_.reinitialize(tree.interface_inputs().size());
-  outputs_.reinitialize(tree.interface_outputs().size());
+  /* Compute the new usage inference result. */
+  this->inputs.reinitialize(tree.interface_inputs().size());
+  this->outputs.reinitialize(tree.interface_outputs().size());
   nodes::socket_usage_inference::infer_group_interface_usage(
-      tree, group_input_values, inputs_, outputs_);
+      tree, group_input_values, inputs, outputs);
   input_values_hash_ = new_input_values_hash;
 }
 
 void NodesModifierUsageInferenceCache::reset()
 {
   input_values_hash_ = 0;
-  inputs_ = {};
-  outputs_ = {};
+  this->inputs = {};
+  this->outputs = {};
 }
 
 static void panel_draw(const bContext *C, Panel *panel)

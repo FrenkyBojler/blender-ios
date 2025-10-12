@@ -36,8 +36,8 @@ class NodesModifierUsageInferenceCache {
   uint64_t input_values_hash_ = 0;
 
  public:
-  Array<nodes::socket_usage_inference::SocketUsage> inputs_;
-  Array<nodes::socket_usage_inference::SocketUsage> outputs_;
+  Array<nodes::socket_usage_inference::SocketUsage> inputs;
+  Array<nodes::socket_usage_inference::SocketUsage> outputs;
 
   void ensure(const NodesModifierData &nmd);
   void reset();
@@ -57,7 +57,10 @@ struct NodesModifierRuntime {
    * used by the evaluated modifier.
    */
   std::shared_ptr<bke::bake::ModifierCache> cache;
-
+  /**
+   * Cache the usage of the node group inputs and outputs to accelerate drawing the UI when no
+   * properties change.
+   */
   NodesModifierUsageInferenceCache usage_cache;
 };
 
