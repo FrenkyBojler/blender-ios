@@ -437,7 +437,8 @@ gpu::FrameBuffer *gpu::MTLTexture::get_blit_framebuffer(int dst_slice, uint dst_
   /* Check if layer has changed. */
   bool update_attachments = false;
   if (!blit_fb_) {
-    blit_fb_ = GPU_framebuffer_create("gpu_blit");
+    std::string fb_name = StringRefNull(this->name_) + "_blit_fb";
+    blit_fb_ = GPU_framebuffer_create(fb_name.c_str());
     update_attachments = true;
   }
 

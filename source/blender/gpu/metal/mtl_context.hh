@@ -513,11 +513,10 @@ class MTLCommandBufferManager {
   bool empty_ = true;
 
   /** Debug groups. */
-  /* Stack tracking all calls to push_debug_group. */
-  std::vector<std::string> debug_group_stack;
-  /* Stack tracking calls resulting in active API calls to pushDebugGroup on the current command
-   * buffer. */
-  std::vector<std::string> debug_group_pushed_stack;
+  /* Copy of the debug stack to keep track of which group have been pushed to the debug layers.
+   * This is needed because we do JIT push and pop the debug groups to better accommodate the
+   * Metal API structure. */
+  DebugStack mtl_debug_stack_;
 
  public:
   MTLCommandBufferManager(MTLContext &context)
@@ -603,14 +602,15 @@ class MTLCommandBufferManager {
     }
   }
 
+  /* Debug group management. To be called before any low-level `pushDebugGroup`. */
+  void unfold_pending_debug_groups();
+
  private:
   /* Begin new command buffer. */
   id<MTLCommandBuffer> ensure_begin();
 
   void register_encoder_counters();
-
-  /* Debug group management. */
-  void unfold_pending_debug_groups();
+  void fold_remaining_debug_groups();
 };
 
 /**

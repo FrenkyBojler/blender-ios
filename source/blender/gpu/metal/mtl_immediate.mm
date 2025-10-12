@@ -90,12 +90,9 @@ void MTLImmediate::end()
 
     /* Debug markers for frame-capture and detailed error messages. */
     if (G.debug & G_DEBUG_GPU) {
-      [rec pushDebugGroup:[NSString stringWithFormat:@"immEnd(verts: %d, shader: %s)",
-                                                     this->vertex_idx,
+      context_->main_command_buffer.unfold_pending_debug_groups();
+      [rec pushDebugGroup:[NSString stringWithFormat:@"immEnd(Shader:%s)",
                                                      active_mtl_shader->name_get().c_str()]];
-      [rec insertDebugSignpost:[NSString stringWithFormat:@"immEnd(verts: %d, shader: %s)",
-                                                          this->vertex_idx,
-                                                          active_mtl_shader->name_get().c_str()]];
     }
 
     /* Populate pipeline state vertex descriptor. */

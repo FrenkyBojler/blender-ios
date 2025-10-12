@@ -47,11 +47,11 @@ namespace blender::gpu {
  * "passes".
  * \{ */
 
-void MTLContext::debug_group_begin(const char *name, int index)
+void MTLContext::debug_group_begin(const char *name, int /*index*/)
 {
-  if (G.debug & G_DEBUG_GPU) {
-    this->main_command_buffer.push_debug_group(name, index);
-  }
+  /* Note: Debug groups are pushed JIT to the command encoders. This avoids splitting and nesting
+   * the command encoders which would make the debugging experience through Xcode more confusing.
+   * See #unfold_pending_debug_groups(). */
 
   if (!G.profile_gpu) {
     return;
@@ -67,9 +67,9 @@ void MTLContext::debug_group_begin(const char *name, int index)
 
 void MTLContext::debug_group_end()
 {
-  if (G.debug & G_DEBUG_GPU) {
-    this->main_command_buffer.pop_debug_group();
-  }
+  /* Note: Debug groups are pushed JIT to the command encoders. This avoids splitting and nesting
+   * the command encoders which would make the debugging experience through Xcode more confusing.
+   * See #unfold_pending_debug_groups(). */
 
   if (!G.profile_gpu) {
     return;

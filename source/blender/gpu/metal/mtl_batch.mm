@@ -279,12 +279,9 @@ id<MTLRenderCommandEncoder> MTLBatch::bind()
 
   /* GPU debug markers. */
   if (G.debug & G_DEBUG_GPU) {
-    [rec pushDebugGroup:[NSString stringWithFormat:@"Draw Commands%@ (Shader: %s)",
-                                                   this->elem ? @"(indexed)" : @"",
+    ctx->main_command_buffer.unfold_pending_debug_groups();
+    [rec pushDebugGroup:[NSString stringWithFormat:@"Batch(Shader:%s)",
                                                    active_shader_->name_get().c_str()]];
-    [rec insertDebugSignpost:[NSString stringWithFormat:@"Draw Commands %@ (Shader: %s)",
-                                                        this->elem ? @"(indexed)" : @"",
-                                                        active_shader_->name_get().c_str()]];
   }
 
   /*** Bind Vertex Buffers and Index Buffers **/

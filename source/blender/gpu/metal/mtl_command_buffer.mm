@@ -4,6 +4,8 @@
 
 #include "DNA_userdef_types.h"
 
+#include "GPU_debug.hh"
+
 #include "intern/GHOST_ContextMTL.hh"
 
 #include "mtl_backend.hh"
@@ -61,6 +63,9 @@ id<MTLCommandBuffer> MTLCommandBufferManager::ensure_begin()
       desc.retainedReferences = YES;
       BLI_assert(context_.queue != nil);
       active_command_buffer_ = [context_.queue commandBufferWithDescriptor:desc];
+
+      std::string group_name = "CmdBuf: " + GPU_debug_get_groups_names({0, 1});
+      [active_command_buffer_ setLabel:@(group_name.c_str())];
       [desc release];
     }
     else {
@@ -76,10 +81,6 @@ id<MTLCommandBuffer> MTLCommandBufferManager::ensure_begin()
 
     /* Reset Command buffer heuristics. */
     this->reset_counters();
-
-    /* Clear debug stacks. */
-    debug_group_stack.clear();
-    debug_group_pushed_stack.clear();
   }
   BLI_assert(active_command_buffer_ != nil);
   return active_command_buffer_;
@@ -237,62 +238,50 @@ MTLFrameBuffer *MTLCommandBufferManager::get_active_framebuffer()
 /* End currently active MTLCommandEncoder. */
 bool MTLCommandBufferManager::end_active_command_encoder(bool retain_framebuffers)
 {
-
   /* End active encoder if one is active. */
-  if (active_command_encoder_type_ != MTL_NO_COMMAND_ENCODER) {
-
-    switch (active_command_encoder_type_) {
-      case MTL_RENDER_COMMAND_ENCODER: {
-        /* Verify a RenderCommandEncoder is active and end. */
-        BLI_assert(active_render_command_encoder_ != nil);
-
-        /* Complete Encoding. */
-        [active_render_command_encoder_ endEncoding];
-        [active_render_command_encoder_ release];
-        active_render_command_encoder_ = nil;
-        active_command_encoder_type_ = MTL_NO_COMMAND_ENCODER;
-
-        /* Reset associated frame-buffer flag. */
-        if (!retain_framebuffers) {
-          active_frame_buffer_ = nullptr;
-          active_pass_descriptor_ = nullptr;
-        }
-        return true;
-      }
-
-      case MTL_BLIT_COMMAND_ENCODER: {
-        /* Verify a RenderCommandEncoder is active and end. */
-        BLI_assert(active_blit_command_encoder_ != nil);
-        [active_blit_command_encoder_ endEncoding];
-        [active_blit_command_encoder_ release];
-        active_blit_command_encoder_ = nil;
-        active_command_encoder_type_ = MTL_NO_COMMAND_ENCODER;
-        return true;
-      }
-
-      case MTL_COMPUTE_COMMAND_ENCODER: {
-        /* Verify a RenderCommandEncoder is active and end. */
-        BLI_assert(active_compute_command_encoder_ != nil);
-        [active_compute_command_encoder_ endEncoding];
-        [active_compute_command_encoder_ release];
-        active_compute_command_encoder_ = nil;
-        active_command_encoder_type_ = MTL_NO_COMMAND_ENCODER;
-        return true;
-      }
-
-      default: {
-        BLI_assert(false && "Invalid command encoder type");
-        return false;
-      }
-    };
-  }
-  else {
+  if (active_command_encoder_type_ == MTL_NO_COMMAND_ENCODER) {
     /* MTL_NO_COMMAND_ENCODER. */
     BLI_assert(active_render_command_encoder_ == nil);
     BLI_assert(active_blit_command_encoder_ == nil);
     BLI_assert(active_compute_command_encoder_ == nil);
     return false;
   }
+
+  if (G.debug & G_DEBUG_GPU) {
+    fold_remaining_debug_groups();
+  }
+
+  switch (active_command_encoder_type_) {
+    case MTL_RENDER_COMMAND_ENCODER:
+      BLI_assert(active_render_command_encoder_ != nil);
+      [active_render_command_encoder_ endEncoding];
+      [active_render_command_encoder_ release];
+      active_render_command_encoder_ = nil;
+      /* Reset associated frame-buffer flag. */
+      if (!retain_framebuffers) {
+        active_frame_buffer_ = nullptr;
+        active_pass_descriptor_ = nullptr;
+      }
+      break;
+    case MTL_BLIT_COMMAND_ENCODER:
+      BLI_assert(active_blit_command_encoder_ != nil);
+      [active_blit_command_encoder_ endEncoding];
+      [active_blit_command_encoder_ release];
+      active_blit_command_encoder_ = nil;
+      break;
+    case MTL_COMPUTE_COMMAND_ENCODER:
+      BLI_assert(active_compute_command_encoder_ != nil);
+      [active_compute_command_encoder_ endEncoding];
+      [active_compute_command_encoder_ release];
+      active_compute_command_encoder_ = nil;
+      break;
+    default: {
+      BLI_assert(false && "Invalid command encoder type");
+      return false;
+    }
+  }
+  active_command_encoder_type_ = MTL_NO_COMMAND_ENCODER;
+  return true;
 }
 
 id<MTLRenderCommandEncoder> MTLCommandBufferManager::ensure_begin_render_command_encoder(
@@ -330,11 +319,6 @@ id<MTLRenderCommandEncoder> MTLCommandBufferManager::ensure_begin_render_command
     /* Ensure we have already cleaned up our previous render command encoder. */
     BLI_assert(active_render_command_encoder_ == nil);
 
-    /* Unroll pending debug groups. */
-    if (G.debug & G_DEBUG_GPU) {
-      unfold_pending_debug_groups();
-    }
-
     /* Create new RenderCommandEncoder based on descriptor (and begin encoding). */
     active_render_command_encoder_ = [cmd_buf
         renderCommandEncoderWithDescriptor:active_pass_descriptor_];
@@ -343,12 +327,13 @@ id<MTLRenderCommandEncoder> MTLCommandBufferManager::ensure_begin_render_command
 
     /* Add debug label. */
     if (G.debug & G_DEBUG_GPU) {
-      std::string debug_name = "RenderCmdEncoder: Unnamed";
-      if (!debug_group_pushed_stack.empty()) {
-        debug_name = "RenderCmdEncoder: " + debug_group_pushed_stack.back();
-      }
-      debug_name += "    (FrameBuffer: " + std::string(active_frame_buffer_->name_get()) + ")";
-      active_render_command_encoder_.label = [NSString stringWithUTF8String:debug_name.c_str()];
+      std::string debug_name = "FrameBuf: " + std::string(active_frame_buffer_->name_get());
+      [active_render_command_encoder_ setLabel:@(debug_name.c_str())];
+    }
+
+    /* Unroll pending debug groups. */
+    if (G.debug & G_DEBUG_GPU) {
+      unfold_pending_debug_groups();
     }
 
     /* Update command buffer encoder heuristics. */
@@ -390,10 +375,6 @@ id<MTLBlitCommandEncoder> MTLCommandBufferManager::ensure_begin_blit_encoder()
 
   /* Begin new Blit Encoder. */
   if (active_blit_command_encoder_ == nil) {
-    /* Unroll pending debug groups. */
-    if (G.debug & G_DEBUG_GPU) {
-      unfold_pending_debug_groups();
-    }
 
     active_blit_command_encoder_ = [cmd_buf blitCommandEncoder];
     BLI_assert(active_blit_command_encoder_ != nil);
@@ -402,11 +383,12 @@ id<MTLBlitCommandEncoder> MTLCommandBufferManager::ensure_begin_blit_encoder()
 
     /* Add debug label. */
     if (G.debug & G_DEBUG_GPU) {
-      std::string debug_name = "BlitCmdEncoder: Unnamed";
-      if (!debug_group_pushed_stack.empty()) {
-        debug_name = "BlitCmdEncoder: " + debug_group_pushed_stack.back();
-      }
-      active_blit_command_encoder_.label = [NSString stringWithUTF8String:debug_name.c_str()];
+      std::string debug_name = GPU_debug_get_groups_names({1, 1});
+      [active_blit_command_encoder_ setLabel:@(debug_name.c_str())];
+    }
+    /* Unroll pending debug groups. */
+    if (G.debug & G_DEBUG_GPU) {
+      unfold_pending_debug_groups();
     }
 
     /* Update command buffer encoder heuristics. */
@@ -429,11 +411,6 @@ id<MTLComputeCommandEncoder> MTLCommandBufferManager::ensure_begin_compute_encod
 
   /* Begin new Compute Encoder. */
   if (active_compute_command_encoder_ == nil) {
-    /* Unroll pending debug groups. */
-    if (G.debug & G_DEBUG_GPU) {
-      unfold_pending_debug_groups();
-    }
-
     active_compute_command_encoder_ = [cmd_buf computeCommandEncoder];
     BLI_assert(active_compute_command_encoder_ != nil);
     [active_compute_command_encoder_ retain];
@@ -441,11 +418,13 @@ id<MTLComputeCommandEncoder> MTLCommandBufferManager::ensure_begin_compute_encod
 
     /* Add debug label. */
     if (G.debug & G_DEBUG_GPU) {
-      std::string debug_name = "ComputeCmdEncoder: Unnamed";
-      if (!debug_group_pushed_stack.empty()) {
-        debug_name = "ComputeCmdEncoder: " + debug_group_pushed_stack.back();
-      }
-      active_compute_command_encoder_.label = [NSString stringWithUTF8String:debug_name.c_str()];
+      std::string debug_name = GPU_debug_get_groups_names({1, 1});
+      [active_compute_command_encoder_ setLabel:@(debug_name.c_str())];
+    }
+
+    /* Unroll pending debug groups. */
+    if (G.debug & G_DEBUG_GPU) {
+      unfold_pending_debug_groups();
     }
 
     /* Update command buffer encoder heuristics. */
@@ -516,13 +495,26 @@ void MTLCommandBufferManager::push_debug_group(const char *name, int /*index*/)
     return;
   }
 
+  if (active_command_buffer_ == nil) {
+    return;
+  }
+
   id<MTLCommandBuffer> cmd = this->ensure_begin();
   if (cmd != nil) {
-    if (active_command_encoder_type_ != MTL_NO_COMMAND_ENCODER) {
-      end_active_command_encoder();
+    switch (active_command_encoder_type_) {
+      case MTL_RENDER_COMMAND_ENCODER:
+        [active_render_command_encoder_ pushDebugGroup:@(name)];
+        break;
+      case MTL_BLIT_COMMAND_ENCODER:
+        [active_blit_command_encoder_ pushDebugGroup:@(name)];
+        break;
+      case MTL_COMPUTE_COMMAND_ENCODER:
+        [active_compute_command_encoder_ pushDebugGroup:@(name)];
+        break;
+      default:
+        // [active_command_buffer_ pushDebugGroup:@(name)];
+        break;
     }
-
-    debug_group_stack.emplace_back(name);
   }
 }
 
@@ -534,30 +526,25 @@ void MTLCommandBufferManager::pop_debug_group()
     return;
   }
 
+  if (active_command_buffer_ == nil) {
+    return;
+  }
+
   id<MTLCommandBuffer> cmd = this->ensure_begin();
   if (cmd != nil) {
-    if (active_command_encoder_type_ != MTL_NO_COMMAND_ENCODER) {
-      end_active_command_encoder();
-    }
-
-#if METAL_DEBUG_CAPTURE_HIDE_EMPTY == 0
-    /* Unfold pending groups to display empty groups. */
-    unfold_pending_debug_groups();
-#endif
-
-    /* If we have pending debug groups, first pop the last pending one. */
-    if (!debug_group_stack.empty()) {
-      debug_group_stack.pop_back();
-    }
-    else {
-      /* Otherwise, close last active pushed group. */
-      if (!debug_group_pushed_stack.empty()) {
-        debug_group_pushed_stack.pop_back();
-
-        if (debug_group_pushed_stack.size() < uint(METAL_DEBUG_CAPTURE_MAX_NESTED_GROUPS)) {
-          [cmd popDebugGroup];
-        }
-      }
+    switch (active_command_encoder_type_) {
+      case MTL_RENDER_COMMAND_ENCODER:
+        [active_render_command_encoder_ popDebugGroup];
+        break;
+      case MTL_BLIT_COMMAND_ENCODER:
+        [active_blit_command_encoder_ popDebugGroup];
+        break;
+      case MTL_COMPUTE_COMMAND_ENCODER:
+        [active_compute_command_encoder_ popDebugGroup];
+        break;
+      default:
+        // [active_command_buffer_ popDebugGroup];
+        break;
     }
   }
 }
@@ -571,13 +558,56 @@ void MTLCommandBufferManager::unfold_pending_debug_groups()
   }
 
   if (active_command_buffer_ != nil) {
-    for (const std::string &name : debug_group_stack) {
-      if (debug_group_pushed_stack.size() < uint(METAL_DEBUG_CAPTURE_MAX_NESTED_GROUPS)) {
-        [active_command_buffer_ pushDebugGroup:[NSString stringWithFormat:@"%s", name.c_str()]];
-      }
-      debug_group_pushed_stack.push_back(name);
+    MTLContext *ctx = MTLContext::get();
+    const DebugStack &gpu_stack = ctx->debug_stack;
+    DebugStack &mtl_stack = mtl_debug_stack_;
+    /* Bottom level group is the label of the command buffer. */
+    Span<StringRef> groups = gpu_stack.as_span().drop_front(1);
+
+    /* Close closed groups. */
+    for ([[maybe_unused]] int i : mtl_stack.index_range().drop_front(groups.size())) {
+      pop_debug_group();
+      mtl_stack.pop_last();
     }
-    debug_group_stack.clear();
+    BLI_assert(mtl_stack.size() <= groups.size());
+    /* Verify all open groups are the same on both stack. */
+    int first_mismatch = 0;
+    for (int i : mtl_stack.index_range()) {
+      if (mtl_stack[i] != groups[i]) {
+        break;
+      }
+      first_mismatch++;
+    }
+    /* Discard the ones that are not. */
+    for ([[maybe_unused]] int i : mtl_stack.index_range().drop_front(first_mismatch)) {
+      pop_debug_group();
+      mtl_stack.pop_last();
+    }
+    BLI_assert(mtl_stack.size() <= groups.size());
+    /* Add new groups not present in the metal stack. */
+    for (const StringRef &name : groups.drop_front(mtl_stack.size())) {
+      std::string s_name = name;
+      push_debug_group(s_name.c_str(), 0);
+      mtl_stack.append(name);
+    }
+    BLI_assert(mtl_stack.size() == groups.size());
+  }
+}
+
+void MTLCommandBufferManager::fold_remaining_debug_groups()
+{
+  /* Only perform this operation if capturing. */
+  MTLCaptureManager *capture_manager = [MTLCaptureManager sharedCaptureManager];
+  if (![capture_manager isCapturing]) {
+    return;
+  }
+
+  if (active_command_buffer_ != nil) {
+    DebugStack &mtl_stack = mtl_debug_stack_;
+    for ([[maybe_unused]] int i : mtl_stack.index_range()) {
+      pop_debug_group();
+      mtl_stack.pop_last();
+    }
   }
 }
 

@@ -40,11 +40,7 @@ using namespace blender::gpu;
 
 /* Fire off a single dispatch per encoder. Can make debugging view clearer for texture resources
  * associated with each dispatch. */
-#if defined(NDEBUG)
-#  define MTL_DEBUG_SINGLE_DISPATCH_PER_ENCODER 0
-#else
-#  define MTL_DEBUG_SINGLE_DISPATCH_PER_ENCODER 1
-#endif
+#define MTL_DEBUG_SINGLE_DISPATCH_PER_ENCODER 0
 
 /* Debug option to bind null buffer for missing UBOs. */
 #define DEBUG_BIND_NULL_BUFFER_FOR_MISSING_UBO 0
@@ -1193,6 +1189,10 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
     pc_buf->tag_dirty();
   }
 
+  if (G.debug & G_DEBUG_GPU) {
+    [rec pushDebugGroup:@"ApplyState"];
+  }
+
   /** Ensure resource bindings. */
   MTLVertexCommandEncoder vert_rec{rec};
   MTLFragmentCommandEncoder frag_rec{rec};
@@ -1339,6 +1339,10 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
     [rec setCullMode:mode];
     this->pipeline_state.dirty_flags = (this->pipeline_state.dirty_flags &
                                         ~MTL_PIPELINE_STATE_CULLMODE_FLAG);
+  }
+
+  if (G.debug & G_DEBUG_GPU) {
+    [rec popDebugGroup];
   }
 
   /* Pipeline state is now good. */
@@ -1540,9 +1544,19 @@ void MTLContext::compute_dispatch(int groups_x_len, int groups_y_len, int groups
     pc_buf->tag_dirty();
   }
 
+  if (G.debug & G_DEBUG_GPU) {
+    main_command_buffer.unfold_pending_debug_groups();
+    [compute_encoder pushDebugGroup:[NSString stringWithFormat:@"Dispatch(Shader:%s)",
+                                                               shader->name_get().c_str()]];
+  }
+
   /* Bind PSO. */
   MTLComputeState &cs = this->main_command_buffer.get_compute_state();
   cs.bind_pso(pipe_state_inst->pso);
+
+  if (G.debug & G_DEBUG_GPU) {
+    [compute_encoder pushDebugGroup:@"ApplyState"];
+  }
 
   /** Ensure resource bindings. */
   MTLComputeCommandEncoder comp_rec{compute_encoder};
@@ -1551,6 +1565,10 @@ void MTLContext::compute_dispatch(int groups_x_len, int groups_y_len, int groups
   if (pc_buf && pc_buf->is_dirty()) {
     ensure_push_constant(*this, *shader, comp_rec, cs.compute_bindings);
     pc_buf->tag_updated();
+  }
+
+  if (G.debug & G_DEBUG_GPU) {
+    [compute_encoder popDebugGroup];
   }
 
   /* Dispatch compute. */
@@ -1562,6 +1580,11 @@ void MTLContext::compute_dispatch(int groups_x_len, int groups_y_len, int groups
                   threadsPerThreadgroup:MTLSizeMake(compute_state_common.threadgroup_x_len,
                                                     compute_state_common.threadgroup_y_len,
                                                     compute_state_common.threadgroup_z_len)];
+
+  if (G.debug & G_DEBUG_GPU) {
+    [compute_encoder popDebugGroup];
+  }
+
 #if MTL_DEBUG_SINGLE_DISPATCH_PER_ENCODER == 1
   GPU_flush();
 #endif
@@ -1590,9 +1613,19 @@ void MTLContext::compute_dispatch_indirect(StorageBuf *indirect_buf)
     pc_buf->tag_dirty();
   }
 
+  if (G.debug & G_DEBUG_GPU) {
+    main_command_buffer.unfold_pending_debug_groups();
+    [compute_encoder pushDebugGroup:[NSString stringWithFormat:@"DispatchIndirect(Shader:%s)",
+                                                               shader->name_get().c_str()]];
+  }
+
   /* Bind PSO. */
   MTLComputeState &cs = this->main_command_buffer.get_compute_state();
   cs.bind_pso(pipe_state_inst->pso);
+
+  if (G.debug & G_DEBUG_GPU) {
+    [compute_encoder pushDebugGroup:@"ApplyState"];
+  }
 
   /** Ensure resource bindings. */
   MTLComputeCommandEncoder comp_rec{compute_encoder};
@@ -1603,12 +1636,19 @@ void MTLContext::compute_dispatch_indirect(StorageBuf *indirect_buf)
     pc_buf->tag_updated();
   }
 
+  if (G.debug & G_DEBUG_GPU) {
+    [compute_encoder popDebugGroup];
+  }
+
   /* Indirect Dispatch compute. */
   MTLStorageBuf *mtlssbo = static_cast<MTLStorageBuf *>(indirect_buf);
   id<MTLBuffer> mtl_indirect_buf = mtlssbo->get_metal_buffer();
   BLI_assert(mtl_indirect_buf != nil);
   if (mtl_indirect_buf == nil) {
     MTL_LOG_WARNING("Metal Indirect Compute dispatch storage buffer does not exist.");
+    if (G.debug & G_DEBUG_GPU) {
+      [compute_encoder popDebugGroup];
+    }
     return;
   }
 
@@ -1621,6 +1661,10 @@ void MTLContext::compute_dispatch_indirect(StorageBuf *indirect_buf)
                        threadsPerThreadgroup:MTLSizeMake(compute_state_common.threadgroup_x_len,
                                                          compute_state_common.threadgroup_y_len,
                                                          compute_state_common.threadgroup_z_len)];
+
+  if (G.debug & G_DEBUG_GPU) {
+    [compute_encoder popDebugGroup];
+  }
 #if MTL_DEBUG_SINGLE_DISPATCH_PER_ENCODER == 1
   GPU_flush();
 #endif

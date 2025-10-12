@@ -382,7 +382,7 @@ void MTLStorageBuf::async_flush_to_host()
   /* Encode event signal and flush command buffer to ensure GPU work is in the pipeline for future
    * reads. */
   ctx->main_command_buffer.encode_signal_event(gpu_write_fence_, ++host_read_signal_value_);
-  GPU_flush();
+  ctx->flush();
 }
 
 void MTLStorageBuf::read(void *data)
