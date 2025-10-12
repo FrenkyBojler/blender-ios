@@ -1865,9 +1865,8 @@ static PointerRNA rna_Mesh_uv_layer_active_get_sync(PointerRNA *ptr)
 
 static void rna_Mesh_sync_active_uv_across_editmeshes(Main *bmain, Scene *, PointerRNA *ptr)
 {
-  Mesh *mesh = rna_mesh(ptr);
   CustomData *ldata = rna_mesh_ldata(ptr);
-  if (!mesh || !ldata) {
+  if (!ldata) {
     return;
   }
 
@@ -1883,23 +1882,16 @@ static void rna_Mesh_sync_active_uv_across_editmeshes(Main *bmain, Scene *, Poin
     }
     CustomData *ldata2 = &me->runtime->edit_mesh->bm->ldata;
     const int index = CustomData_get_named_layer_index(ldata2, CD_PROP_FLOAT2, uv_name);
-    if (index == -1) {
-      continue;
-    }
     const int base = CustomData_get_layer_index(ldata2, CD_PROP_FLOAT2);
     CustomData_set_layer_active(ldata2, CD_PROP_FLOAT2, index - base);
-    BKE_mesh_tessface_clear(me);
 
     DEG_id_tag_update(&me->id, 0);
     WM_main_add_notifier(NC_GEOM | ND_DATA, &me->id);
   }
-
-  rna_Mesh_update_data_legacy_deg_tag_all(bmain, nullptr, ptr);
 }
 
 static void rna_Mesh_uv_layer_active_set_sync(PointerRNA *ptr, PointerRNA value, ReportList *)
 {
-  Mesh *mesh = rna_mesh(ptr);
   CustomData *data = rna_mesh_ldata(ptr);
   if (!data || !value.data) {
     return;
@@ -1910,7 +1902,6 @@ static void rna_Mesh_uv_layer_active_set_sync(PointerRNA *ptr, PointerRNA value,
     CustomDataLayer *layer = data->layers + base + a;
     if (layer == value.data) {
       CustomData_set_layer_active(data, CD_PROP_FLOAT2, a);
-      BKE_mesh_tessface_clear(mesh);
       return;
     }
   }
