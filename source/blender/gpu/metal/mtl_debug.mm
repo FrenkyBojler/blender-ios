@@ -166,6 +166,10 @@ void *MTLContext::debug_capture_scope_create(const char *name)
 
 bool MTLContext::debug_capture_scope_begin(void *scope)
 {
+  if ([((id<MTLCaptureScope>)scope).label isEqual:@(G.gpu_debug_scope_name)]) {
+    debug_capture_begin("Auto Capture");
+  }
+
   /* Declare opening boundary of scope.
    * When scope is selected for capture, GPU commands between begin/end scope will be captured. */
   [(id<MTLCaptureScope>)scope beginScope];
@@ -176,6 +180,10 @@ bool MTLContext::debug_capture_scope_begin(void *scope)
 
 void MTLContext::debug_capture_scope_end(void *scope)
 {
+  if ([((id<MTLCaptureScope>)scope).label isEqual:@(G.gpu_debug_scope_name)]) {
+    debug_capture_end();
+  }
+
   [(id<MTLCaptureScope>)scope endScope];
 }
 
