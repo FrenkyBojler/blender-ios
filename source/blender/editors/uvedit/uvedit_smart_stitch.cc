@@ -17,11 +17,10 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_array.hh"
+#include "BLI_ghash.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_math_vector_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -53,8 +52,6 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "bmesh_class.hh"
-#include "intern/bmesh_inline.hh"
 #include "uvedit_intern.hh"
 
 using blender::Vector;
@@ -173,7 +170,7 @@ struct StitchState {
   StitchPreviewer *stitch_preview;
 
   /* original UV coordinates */
-  blender::Array<blender::float2> orig_uv_coords;
+  blender::float2 *orig_uv_coords;
 };
 
 /* Stitch state container. */
@@ -621,6 +618,9 @@ static void state_delete(StitchState *state)
     if (state->island_is_stitchable) {
       MEM_freeN(state->island_is_stitchable);
     }
+    if (state->orig_uv_coords) {
+      MEM_freeN(state->orig_uv_coords);
+    }
     if (state->element_map) {
       BM_uv_element_map_free(state->element_map);
     }
@@ -647,7 +647,7 @@ static void state_delete(StitchState *state)
     if (state->edge_hash) {
       BLI_ghash_free(state->edge_hash, nullptr, nullptr);
     }
-    MEM_delete(state);
+    MEM_freeN(state);
   }
 }
 
@@ -1280,6 +1280,7 @@ static int stitch_process_data(StitchStateContainer *ssc,
         }
       }
     }
+    /* copy data from UVs to the preview display buffers */
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
       /* just to test if face was added for processing.
        * uvs of unselected vertices will return null */
@@ -1992,7 +1993,7 @@ static StitchState *stitch_init(bContext *C,
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
-  state = MEM_new<StitchState>("stitch state obj");
+  state = MEM_callocN<StitchState>("stitch state obj");
 
   /* initialize state */
   state->obedit = obedit;
@@ -2011,7 +2012,7 @@ static StitchState *stitch_init(bContext *C,
   }
 
   /* Store original UV coordinates */
-  state->orig_uv_coords = blender::Array<blender::float2>(state->element_map->total_uvs);
+  state->orig_uv_coords = MEM_calloc_arrayN<blender::float2>(state->element_map->total_uvs, "orig_uv_coords");
   for (int i = 0; i < state->element_map->total_uvs; i++) {
     UvElement *element = &state->element_map->storage[i];
     float *luv = BM_ELEM_CD_GET_FLOAT_P(element->l, offsets.uv);
