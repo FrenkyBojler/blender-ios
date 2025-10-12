@@ -1125,7 +1125,6 @@ void UI_view2d_view_ortho(const View2D *v2d)
     curmasked.xmax = floorf(curmasked.xmax) - (eps + xofs);
   }
   if (v2d->flag & V2D_PIXELOFS_Y) {
-    printf("sizey: %i \n", sizey);
     curmasked.ymin = floorf(curmasked.ymin) - (eps + yofs);
     curmasked.ymax = floorf(curmasked.ymax) - (eps + yofs);
   }
