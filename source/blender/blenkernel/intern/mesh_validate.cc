@@ -262,13 +262,10 @@ using EdgeMap = VectorSet<OrderedEdge,
 
 static IndexMask find_edges_duplicates(const Mesh &mesh,
                                        const IndexMask &mask,
-                                       IndexMaskMemory &memory)
+                                       IndexMaskMemory &memory,
+                                       EdgeMap &unique_edges)
 {
-  EdgeMap unique_edges;
-  unique_edges.reserve(mask.size());
-
   const Span<int2> edges = mesh.edges();
-
   BitVector<> duplicate_edges(edges.size());
   mask.foreach_index_optimized<int>([&](const int edge_i) {
     const int2 edge = edges[edge_i];
@@ -336,6 +333,54 @@ static IndexMask find_faces_duplicate_verts(const Mesh &mesh,
   });
 }
 
+static void find_faces_bad_edges(const Mesh &mesh,
+                                 const EdgeMap &unique_edges,
+                                 IndexMaskMemory &memory,
+                                 IndexMask &r_faces_missing_edges,
+                                 IndexMask &r_faces_bad_edges,
+                                 Vector<Vector<std::pair<int, int>>> &r_corner_edge_fixes)
+{
+  const IndexRange edges_range(mesh.edges_num);
+  const Span<int2> edges = mesh.edges();
+  const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
+  const Span<int> corner_verts = mesh.corner_verts();
+  const Span<int> corner_edges = mesh.corner_edges();
+
+  BitVector<> invalid_faces(mesh.faces_num, false);
+  BitVector<> faces_with_invalid_edges(mesh.faces_num, false);
+  threading::EnumerableThreadSpecific<Vector<std::pair<int, int>>> all_replaced_corner_edges;
+  threading::parallel_for_aligned(
+      IndexRange(mesh.faces_num), 512, bits::BitsPerInt, [&](const IndexRange range) {
+        Vector<std::pair<int, int>> &replacements = all_replaced_corner_edges.local();
+        for (const int face_i : range) {
+          const IndexRange face = faces[face_i];
+
+          for (const int corner : face) {
+            const int corner_next = mesh::face_corner_next(face, corner);
+            const int vert = corner_verts[corner];
+            const int vert_next = corner_verts[corner_next];
+            const OrderedEdge actual_edge(vert, vert_next);
+            const int actual_edge_index = unique_edges.index_of_try(actual_edge);
+            if (actual_edge_index == -1) {
+              invalid_faces[face_i].set();
+              break;
+            }
+            const int edge_reference = corner_edges[corner];
+            if (!edges_range.contains(edge_reference)) {
+              faces_with_invalid_edges[face_i].set();
+              replacements.append({corner, actual_edge_index});
+            }
+            if (OrderedEdge(edges[edge_reference]) != actual_edge) {
+              faces_with_invalid_edges[face_i].set();
+              replacements.append({corner, actual_edge_index});
+            }
+          }
+        }
+      });
+  r_faces_missing_edges = IndexMask::from_bits(invalid_faces, memory);
+  r_faces_bad_edges = IndexMask::from_bits(faces_with_invalid_edges, memory);
+}
+
 void mesh_validate(Mesh &mesh)
 {
   const IndexRange verts_range(mesh.verts_num);
@@ -349,7 +394,8 @@ void mesh_validate(Mesh &mesh)
   const IndexMask edges_bad_verts = find_edges_bad_verts(mesh, memory);
   valid_edges = IndexMask::from_intersection(valid_edges, edges_bad_verts, memory);
 
-  const IndexMask edges_duplicate = find_edges_duplicates(mesh, valid_edges, memory);
+  EdgeMap unique_edges;
+  const IndexMask edges_duplicate = find_edges_duplicates(mesh, valid_edges, memory, unique_edges);
   valid_edges = IndexMask::from_intersection(valid_edges, edges_duplicate, memory);
 
   IndexMask valid_faces = faces_range;
@@ -371,6 +417,8 @@ void mesh_validate(Mesh &mesh)
   {
     const Span<int> corner_verts = mesh.corner_verts();
     const Span<int> corner_edges = mesh.corner_edges();
+
+    // find_faces_bad_edges(mesh, invalid_faces, faces_with_invalid_edges);
 
     threading::EnumerableThreadSpecific<Vector<std::pair<int, int>>> all_replaced_corner_edges;
     threading::parallel_for_aligned(
@@ -462,7 +510,6 @@ void mesh_validate(Mesh &mesh)
   if (invalid_faces_mask.is_empty()) {
     return;
   }
-  const IndexMask valid_faces = invalid_faces_mask.complement(faces_range, memory);
 
   Vector<int> new_face_offsets(mesh.faces_num + 1);
   invalid_faces_mask.foreach_index(GrainSize(4096), [&](const int face_i, const int pos) {
@@ -555,8 +602,7 @@ void mesh_validate(Mesh &mesh)
     return;
   }
 
-  const IndexMask valid_edges = invalid_edges_mask.complement(edges_range, memory);
-  const int64_t invalid_edges_num = valid_edges.size();
+  const int64_t valid_edges_num = valid_edges.size();
 
   for (CustomDataLayer &layer : MutableSpan(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
     const eCustomDataType cd_type = eCustomDataType(layer.type);
@@ -564,8 +610,8 @@ void mesh_validate(Mesh &mesh)
       const CPPType &type = *bke::custom_data_type_to_cpp_type(cd_type);
       const GSpan src(type, layer.data, mesh.edges_num);
 
-      void *dst_data = MEM_malloc_arrayN(invalid_edges_num, type.size, __func__);
-      GMutableSpan dst(type, dst_data, invalid_edges_num);
+      void *dst_data = MEM_malloc_arrayN(valid_edges_num, type.size, __func__);
+      GMutableSpan dst(type, dst_data, valid_edges_num);
 
       array_utils::gather(src, valid_edges, dst);
 
@@ -576,8 +622,8 @@ void mesh_validate(Mesh &mesh)
     else if (cd_type == CD_ORIGINDEX) {
       const Span src(static_cast<const int *>(layer.data), mesh.edges_num);
 
-      int *dst_data = MEM_malloc_arrayN<int>(invalid_edges_num, __func__);
-      MutableSpan dst(dst_data, invalid_edges_num);
+      int *dst_data = MEM_malloc_arrayN<int>(valid_edges_num, __func__);
+      MutableSpan dst(dst_data, valid_edges_num);
 
       array_utils::gather(src, valid_edges, dst);
 
