@@ -1778,7 +1778,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
       }
     });
 
-    curves.calculate_bezier_auto_handles();
+    curves.calculate_bezier_auto_handles(true);
     curves.tag_topology_changed();
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);

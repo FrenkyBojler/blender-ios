@@ -94,8 +94,53 @@ static float3 calculate_aligned_handle(const float3 &position,
   return position - dir * length;
 }
 
+/* Align handles to each other, length will be preserved (unless zero). The new handles will be on
+ * the same plane as the old ones.*/
+static std::pair<float3, float3> calculate_align_both_handles(const float3 &position,
+                                                              const float3 &left_handle,
+                                                              const float3 &right_handle)
+{
+  const float3 left_dir = left_handle - position;
+  const float3 right_dir = right_handle - position;
+
+  /* Keep track of the lengths of both handles. */
+  const float left_length = math::length(left_dir);
+  const float right_length = math::length(right_dir);
+
+  if (left_length == 0.0f && right_length == 0.0f) {
+    /* All three points are the same, no clear way to fixed it. */
+    return {left_handle, right_handle};
+  }
+  /* If one handle has zero length, use the other as the length and direction. */
+  else if (left_length == 0.0f) {
+    return {position - right_dir, right_handle};
+  }
+  else if (right_length == 0.0f) {
+    return {left_handle, position - left_handle};
+  }
+
+  /* Use the direction halfway between the two directions. */
+  float3 align_dir = math::normalize(left_dir) + math::normalize(right_dir);
+
+  if (math::length_squared(align_dir) == 0.0f) {
+    /* The handles are already aligned. */
+    return {left_handle, right_handle};
+  }
+
+  align_dir = math::normalize(align_dir);
+
+  /* Project the directions onto the plane formed by `align_dir`. */
+  const float3 new_left_dir = left_dir - math::dot(left_dir, align_dir) * align_dir;
+  const float3 new_right_dir = right_dir - math::dot(right_dir, align_dir) * align_dir;
+
+  /* Use the new directions with the old lengths. */
+  return {position + left_length * math::normalize(new_left_dir),
+          position + right_length * math::normalize(new_right_dir)};
+}
+
 static void calculate_point_handles(const HandleType type_left,
                                     const HandleType type_right,
+                                    const bool ensure_aligned,
                                     const float3 position,
                                     const float3 prev_position,
                                     const float3 next_position,
@@ -151,11 +196,14 @@ static void calculate_point_handles(const HandleType type_left,
     right = calculate_vector_handle(position, next_position);
   }
 
+  if (ensure_aligned && type_left == BEZIER_HANDLE_ALIGN && type_right == BEZIER_HANDLE_ALIGN) {
+    const auto [new_left, new_right] = calculate_align_both_handles(position, left, right);
+    left = new_left;
+    right = new_right;
+  }
   /* When one of the handles is "aligned" handle, it must be aligned with the other, i.e. point in
-   * the opposite direction. Don't handle the case of two aligned handles, because code elsewhere
-   * should keep the pair consistent, and the relative locations aren't affected by other points
-   * anyway. */
-  if (type_left == BEZIER_HANDLE_ALIGN && type_right != BEZIER_HANDLE_ALIGN) {
+   * the opposite direction. */
+  else if (type_left == BEZIER_HANDLE_ALIGN && type_right != BEZIER_HANDLE_ALIGN) {
     left = calculate_aligned_handle(position, right, left);
   }
   else if (type_left != BEZIER_HANDLE_ALIGN && type_right == BEZIER_HANDLE_ALIGN) {
@@ -193,6 +241,7 @@ void calculate_aligned_handles(const IndexMask &selection,
 }
 
 void calculate_auto_handles(const bool cyclic,
+                            const bool ensure_aligned,
                             const Span<int8_t> types_left,
                             const Span<int8_t> types_right,
                             const Span<float3> positions,
@@ -206,6 +255,7 @@ void calculate_auto_handles(const bool cyclic,
 
   calculate_point_handles(HandleType(types_left.first()),
                           HandleType(types_right.first()),
+                          ensure_aligned,
                           positions.first(),
                           cyclic ? positions.last() : 2.0f * positions.first() - positions[1],
                           positions[1],
@@ -216,6 +266,7 @@ void calculate_auto_handles(const bool cyclic,
     for (const int i : range) {
       calculate_point_handles(HandleType(types_left[i]),
                               HandleType(types_right[i]),
+                              ensure_aligned,
                               positions[i],
                               positions[i - 1],
                               positions[i + 1],
@@ -226,6 +277,7 @@ void calculate_auto_handles(const bool cyclic,
 
   calculate_point_handles(HandleType(types_left.last()),
                           HandleType(types_right.last()),
+                          ensure_aligned,
                           positions.last(),
                           positions.last(1),
                           cyclic ? positions.first() : 2.0f * positions.last() - positions.last(1),

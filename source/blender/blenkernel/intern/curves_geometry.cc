@@ -1257,7 +1257,7 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   });
 }
 
-void CurvesGeometry::calculate_bezier_auto_handles()
+void CurvesGeometry::calculate_bezier_auto_handles(const bool ensure_aligned)
 {
   if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return;
@@ -1279,6 +1279,7 @@ void CurvesGeometry::calculate_bezier_auto_handles()
       if (types[i_curve] == CURVE_TYPE_BEZIER) {
         const IndexRange points = points_by_curve[i_curve];
         curves::bezier::calculate_auto_handles(cyclic[i_curve],
+                                               ensure_aligned,
                                                types_left.slice(points),
                                                types_right.slice(points),
                                                positions.slice(points),

@@ -463,7 +463,13 @@ class CurvesGeometry : public ::CurvesGeometry {
   void translate(const float3 &translation);
   void transform(const float4x4 &matrix);
 
-  void calculate_bezier_auto_handles();
+  /**
+   * Calculate handle positions for `Auto`, `Vector` and (optional) `Align` handle types.
+   *
+   * \param ensure_aligned: When true ensure that both `Align` type handle position fall on the
+   * same line, both handle will be moved unless the handles are already aligned.
+   */
+  void calculate_bezier_auto_handles(const bool ensure_aligned = false);
 
   void remove_points(const IndexMask &points_to_delete, const AttributeFilter &attribute_filter);
   void remove_curves(const IndexMask &curves_to_delete, const AttributeFilter &attribute_filter);
@@ -724,8 +730,12 @@ float3 calculate_vector_handle(const float3 &point, const float3 &next_point);
  * positions automatically derived from the neighboring control points, and update aligned
  * (#BEZIER_HANDLE_ALIGN) handles to line up with neighboring non-aligned handles. The choices
  * made here are relatively arbitrary, but having standardized behavior is essential.
+ *
+ * \param ensure_aligned: When true ensure that both (#BEZIER_HANDLE_ALIGN) handle position fall on
+ * the same line, both handle will be moved unless the handles are already aligned.
  */
 void calculate_auto_handles(bool cyclic,
+                            bool ensure_aligned,
                             Span<int8_t> types_left,
                             Span<int8_t> types_right,
                             Span<float3> positions,

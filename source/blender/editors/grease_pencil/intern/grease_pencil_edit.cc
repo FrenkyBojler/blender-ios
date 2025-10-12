@@ -4044,7 +4044,7 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
       }
     });
 
-    curves.calculate_bezier_auto_handles();
+    curves.calculate_bezier_auto_handles(true);
     curves.tag_topology_changed();
     info.drawing.tag_topology_changed();
 
