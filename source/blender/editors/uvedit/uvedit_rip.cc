@@ -985,7 +985,7 @@ static wmOperatorStatus uv_rip_invoke(bContext *C, wmOperator *op, const wmEvent
 void UV_OT_rip(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "UV Rip";
+  ot->name = "Rip";
   ot->description = "Rip selected vertices or a selected region";
   ot->idname = "UV_OT_rip";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
