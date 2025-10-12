@@ -416,7 +416,6 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
   /* Keep in sync with `zoomx/zoomy` in #view_zoomstep_apply_ex! */
   curwidth = width = BLI_rctf_size_x(cur);
   curheight = height = BLI_rctf_size_y(cur);
-  const float curcenty = BLI_rctf_cent_y(cur);
 
   /* if zoom is locked, size on the appropriate axis is reset to mask size */
   if (v2d->keepzoom & V2D_LOCKZOOM_X) {
@@ -569,19 +568,6 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
         /* special exception for Outliner (and later channel-lists):
          * - Currently, no actions need to be taken here...
          */
-
-        if (winy < v2d->oldwiny) {
-          const float temp = v2d->oldwiny - winy;
-
-          if (v2d->align & V2D_ALIGN_NO_NEG_Y) {
-            cur->ymin -= temp;
-            cur->ymax -= temp;
-          }
-          else { /* Assume V2D_ALIGN_NO_POS_Y or combination */
-            cur->ymin += temp;
-            cur->ymax += temp;
-          }
-        }
       }
       else {
         /* landscape window: correct for y */
@@ -634,10 +620,11 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
         }
       }
       else {
+        temp = BLI_rctf_cent_y(cur);
         dh = height * 0.5f;
 
-        cur->ymin = curcenty - dh;
-        cur->ymax = curcenty + dh;
+        cur->ymin = temp - dh;
+        cur->ymax = temp + dh;
       }
     }
   }
