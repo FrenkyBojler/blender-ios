@@ -1551,12 +1551,10 @@ static bool transinfo_show_overlay(TransInfo *t, ARegion *region)
   }
 
   if (t->spacetype == SPACE_VIEW3D) {
-    View3D *v3d = static_cast<View3D *>(t->view);
-    if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
-      return true;
-    }
+    const View3D *v3d = static_cast<const View3D *>(t->view);
+    return (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
   }
-  return false;
+  return true;
 }
 
 static void drawTransformView(const bContext * /*C*/, ARegion *region, void *arg)
