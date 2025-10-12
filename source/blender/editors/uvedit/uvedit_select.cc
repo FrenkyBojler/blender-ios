@@ -2462,7 +2462,7 @@ static void uv_select_linked_multi(Scene *scene,
                                    bool deselect,
                                    const bool toggle,
                                    const bool select_faces,
-                                   const bool delimit_seam,
+                                   const bool delimit_seams,
                                    const char hflag)
 {
   if (select_faces) {
@@ -2591,7 +2591,7 @@ static void uv_select_linked_multi(Scene *scene,
       efa = BM_face_at_index(bm, a);
 
       blender::VectorSet<BMEdge *> edges;
-      if (delimit_seam) {
+      if (delimit_seams) {
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           edges.add(l->e);
         }
@@ -2618,7 +2618,7 @@ static void uv_select_linked_multi(Scene *scene,
           }
 
           if (!flag[iterv->face_index]) {
-            if (delimit_seam) {
+            if (delimit_seams) {
               BMFace *iterv_f = BM_face_at_index(bm, iterv->face_index);
               bool shares_non_seam_edge = false;
               BMLoop *iterv_l;
@@ -4053,7 +4053,7 @@ void UV_OT_select_linked_pick(wmOperatorType *ot)
                          "delimit_seams",
                          false,
                          "Delimit Seams",
-                         "Don't cross UV seams when selecting linked UV vertices");
+                         "Delimit seams when selecting linked UVs");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_float_vector(
       ot->srna,
