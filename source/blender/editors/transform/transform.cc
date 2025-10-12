@@ -1554,7 +1554,13 @@ static bool transinfo_show_overlay(TransInfo *t, ARegion *region)
     const View3D *v3d = static_cast<const View3D *>(t->view);
     return (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
   }
-  return true;
+
+  if (t->spacetype == SPACE_IMAGE) {
+    const SpaceImage *sima = static_cast<const SpaceImage *>(t->area->spacedata.first);
+    return (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS) != 0;
+  }
+
+  return false;
 }
 
 static void drawTransformView(const bContext * /*C*/, ARegion *region, void *arg)
