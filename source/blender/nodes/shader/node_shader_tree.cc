@@ -985,6 +985,101 @@ static void ntree_shader_pruned_unused(bNodeTree *ntree, bNode *output_node)
   }
 }
 
+static void compute_zone_depth_set(bNode *node, int16_t depth)
+{
+  if (node->runtime->tmp_flag > depth) {
+    /* Already iterated at this or a greater depth. */
+    return;
+  }
+
+  node->runtime->tmp_flag = depth;
+
+  if (node->type_legacy == GEO_NODE_REPEAT_INPUT) {
+    depth++;
+  }
+  else if (node->type_legacy == GEO_NODE_REPEAT_OUTPUT) {
+    depth--;
+  }
+
+  LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
+    bNodeLink *link = sock->link;
+    if (link == nullptr) {
+      continue;
+    }
+    if ((link->flag & NODE_LINK_VALID) == 0) {
+      /* Skip links marked as cyclic. */
+      continue;
+    }
+    if (link->tonode) {
+      compute_zone_depth_set(node, depth);
+    }
+  }
+}
+
+static void compute_zone_depth(bNodeTree *tree)
+{
+  LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
+    node->runtime->tmp_flag = -1;
+  }
+
+  LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
+    bool is_leaf = true;
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+      bNodeLink *link = sock->link;
+      if (link == nullptr) {
+        continue;
+      }
+      if ((link->flag & NODE_LINK_VALID) == 0) {
+        /* Skip links marked as cyclic. */
+        continue;
+      }
+      if (link->fromnode) {
+        is_leaf = false;
+        break;
+      }
+    }
+
+    if (is_leaf) {
+      compute_zone_depth_set(node, 0);
+    }
+  }
+}
+
+static void zone_depth_sorted_nodes_iter(bNode *node, Vector<bNode *> &r_nodes)
+{
+  Vector<bNode *> inputs;
+
+  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+    bNodeLink *link = sock->link;
+    if (link == nullptr) {
+      continue;
+    }
+    if ((link->flag & NODE_LINK_VALID) == 0) {
+      /* Skip links marked as cyclic. */
+      continue;
+    }
+    if (link->fromnode) {
+      inputs.append(link->fromnode);
+    }
+  }
+
+  std::sort(inputs.begin(), inputs.end(), [](const bNode *a, const bNode *b) {
+    return a->runtime->tmp_flag < b->runtime->tmp_flag;
+  });
+
+  for (bNode *input : inputs) {
+    zone_depth_sorted_nodes_iter(input, r_nodes);
+  }
+
+  r_nodes.append_non_duplicates(node);
+}
+
+static void zone_depth_sorted_nodes(bNodeTree *tree, bNode *output, Vector<bNode *> &r_nodes)
+{
+  compute_zone_depth(tree);
+  zone_depth_sorted_nodes_iter(output, r_nodes);
+}
+
 void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
 {
   bNodeTreeExec *exec;
