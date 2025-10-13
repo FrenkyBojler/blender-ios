@@ -402,7 +402,7 @@ struct GWL_WindowFrame {
    */
   int fractional_scale_preferred = 0;
   /** The scale passed to #wl_surface_set_buffer_scale. */
-  int buffer_scale = 0;
+  int buffer_scale = 1;
 
   /** Scale has been set (for the first time). */
   bool is_scale_init = false;
