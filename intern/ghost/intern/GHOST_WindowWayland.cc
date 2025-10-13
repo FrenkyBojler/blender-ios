@@ -675,9 +675,6 @@ static bool gwl_window_viewport_set(GWL_Window *win,
     return false;
   }
   win->wp.viewport = wp_viewporter_get_viewport(viewporter, win->wl.surface);
-  if (win->wp.viewport == nullptr) {
-    return false;
-  }
 
   /* Set the buffer scale to 1 since a viewport will be used. */
   if (win->frame.buffer_scale != 1) {
