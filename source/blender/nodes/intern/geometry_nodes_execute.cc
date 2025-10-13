@@ -192,7 +192,7 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
       const auto type = GeometryNodesInputType(RNA_enum_get(input_props_ptr, "type"));
       if (type == GeometryNodesInputType::Value) {
         const int value = RNA_enum_get(input_props_ptr, "value");
-        return bke::SocketValueVariant(value);
+        return bke::SocketValueVariant::From(MenuValue(value));
       }
       break;
     }

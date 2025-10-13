@@ -10,6 +10,7 @@
 
 #include <fmt/format.h>
 
+#include "BKE_node_enum.hh"
 #include "DNA_node_types.h"
 
 #include "BLI_color.hh"
@@ -35,6 +36,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
@@ -1347,7 +1349,34 @@ static bke::bNodeSocketType *make_socket_type_menu()
   };
   static SocketValueVariant default_value = SocketValueVariant::From(nodes::MenuValue());
   socktype->geometry_nodes_default_value = &default_value;
-  // TODO: Support socket RNA interface.
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    const auto *data = static_cast<const bNodeSocketValueMenu *>(socket.socket_data);
+    const EnumPropertyItem *items;
+    if (data->has_conflict()) {
+      items = rna_enum_dummy_NULL_items;
+    }
+    else {
+      MutableSpan<EnumPropertyItem> new_items =
+          r_generated.scope.allocator().allocate_array<EnumPropertyItem>(
+              data->enum_items->items.size() + 1);
+      for (const int i : data->enum_items->items.index_range()) {
+        const bke::RuntimeNodeEnumItem &item_data = data->enum_items->items[i];
+        EnumPropertyItem item{};
+        item.value = item_data.identifier;
+        item.identifier = item_data.name.c_str();
+        item.name = item_data.name.c_str();
+        item.description = item_data.description.c_str();
+        new_items[i] = item;
+      }
+      new_items.last() = {};
+      items = new_items.data();
+    }
+    RNA_def_enum(&srna, "value", items, data->value, socket.name, socket.description);
+    make_common_value_props(srna, socket, r_generated);
+  };
   return socktype;
 }
 
