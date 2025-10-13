@@ -295,19 +295,16 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
           VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
 
           const float2 dir = float2(event->mval) - t->mouse.imval;
-          if (math::length_squared(dir) > 1e-16f) {
-            sld->select_edges_by_direction(dir);
-
-            if (slp->op) {
-              PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction");
-              if (pdir) {
-                float tmp[2] = {dir.x, dir.y};
-                RNA_property_float_set_array(slp->op->ptr, pdir, tmp);
-              }
+          sld->select_edges_by_direction(dir);
+          if (slp->op) {
+            PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction");
+            if (pdir) {
+              float tmp[2] = {dir.x, dir.y};
+              RNA_property_float_set_array(slp->op->ptr, pdir, tmp);
             }
-            slp->dir_2d = dir;
-            slp->have_dir = true;
           }
+          slp->dir_2d = dir;
+          slp->have_dir = true;
         }
         calcVertSlideCustomPoints(t);
         break;
@@ -652,7 +649,7 @@ static void initVertSlide_ex(
     if (op) {
       PropertyRNA *pdir = RNA_struct_find_property(op->ptr, "slide_direction");
       if (pdir && RNA_property_is_set(op->ptr, pdir)) {
-        float tmp[2] = {0.0f, 0.0f};
+        float tmp[2];
         RNA_property_float_get_array(op->ptr, pdir, tmp);
         if ((tmp[0] != 0.0f) || (tmp[1] != 0.0f)) {
           slp->dir_2d = float2(tmp[0], tmp[1]);
