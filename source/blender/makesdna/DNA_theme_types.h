@@ -151,6 +151,9 @@ typedef struct ThemeCommonAnim {
       keyframe_jitter_selected[4], keyframe_moving_hold_selected[4],
       keyframe_generated_selected[4];
   unsigned char long_key[4], long_key_selected[4];
+
+  unsigned char scene_strip_range[4];
+  char _pad0[4];
 } ThemeCommonAnim;
 
 typedef struct ThemeCommonCurves {
@@ -211,7 +214,7 @@ typedef struct ThemeUI {
   /* Interface Elements (buttons, menus, icons) */
   uiWidgetColors wcol_regular, wcol_tool, wcol_toolbar_item, wcol_text;
   uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
-  uiWidgetColors wcol_num, wcol_numslider, wcol_tab;
+  uiWidgetColors wcol_num, wcol_numslider, wcol_tab, wcol_curve;
   uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item, wcol_tooltip;
   uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item, wcol_pie_menu;
 
@@ -335,7 +338,8 @@ typedef struct ThemeSpace {
   unsigned char bevel[4], seam[4], sharp[4], crease[4], freestyle[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
-  unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];
+  unsigned char nurb_sel_uline[4], nurb_sel_vline[4];
+  char _pad5[4];
 
   /** Dope-sheet. */
   unsigned char ds_ipoline[4];
@@ -449,9 +453,6 @@ typedef struct ThemeSpace {
   unsigned char info_debug[4], info_debug_text[4];
   unsigned char info_property[4], info_property_text[4];
   unsigned char info_operator[4], info_operator_text[4];
-
-  unsigned char paint_curve_pivot[4];
-  unsigned char paint_curve_handle[4];
 
   unsigned char metadatabg[4];
   unsigned char metadatatext[4];
