@@ -155,7 +155,7 @@ static void compute_zone_depth(const bNode *zone_input)
   };
   blender::Stack<StackNode> stack;
 
-  stack.push({zone_input, 1});
+  stack.push({zone_input, 0});
 
   while (!stack.is_empty()) {
     StackNode stack_node = stack.pop();
