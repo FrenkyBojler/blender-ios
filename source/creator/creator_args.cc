@@ -1548,7 +1548,7 @@ static const char arg_handle_debug_gpu_shader_source_doc[] =
 static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void * /*data*/)
 {
   if (argc > 1) {
-    STRNCPY(G.gpu_debug_scope_name, argv[1]);
+    STRNCPY(G.gpu_debug_shader_source_name, argv[1]);
     return 1;
   }
   fprintf(stderr, "\nError: you must specify a shader name to capture.\n");
