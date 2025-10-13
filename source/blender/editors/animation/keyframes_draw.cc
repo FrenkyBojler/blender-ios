@@ -308,7 +308,9 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
   /* Color for interpolation lines based on their type */
   const float *color;
 
-  if (ab->block.conflict) {
+  constexpr short IPO_FLAGS = ACTKEYBLOCK_FLAG_IPO_OTHER | ACTKEYBLOCK_FLAG_IPO_LINEAR |
+                              ACTKEYBLOCK_FLAG_IPO_CONSTANT;
+  if (ab->block.conflict & IPO_FLAGS) {
     /* This is a summary line that combines multiple interpolation modes. */
     color = ctx->ipo_color_mix;
   }
