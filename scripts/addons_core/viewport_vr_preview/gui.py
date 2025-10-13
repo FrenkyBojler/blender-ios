@@ -17,12 +17,8 @@ from bpy.types import (
     Menu,
     Panel,
     UIList,
+    VIEW3D_PT_object_type_visibility,
 )
-# Add space_view3d.py to module search path for VIEW3D_PT_object_type_visibility import.
-import os.path
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../startup/bl_ui')))
-from space_view3d import VIEW3D_PT_object_type_visibility
 
 
 # Session.
@@ -103,6 +99,10 @@ class VIEW3D_PT_vr_session_view(Panel):
 
 
 class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Selectability & Visibility"
+
     def draw(self, context):
         session_settings = context.window_manager.xr_session_settings
         self.draw_ex(context, session_settings, False)  # Pass session settings instead of 3D view.
@@ -236,7 +236,7 @@ class VIEW3D_PT_vr_viewport_feedback(Panel):
 
 
 # Info.
-class VIEW3D_PT_vr_info(bpy.types.Panel):
+class VIEW3D_PT_vr_info(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "VR"
