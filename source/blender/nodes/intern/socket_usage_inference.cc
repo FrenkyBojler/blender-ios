@@ -875,7 +875,7 @@ class SocketUsageInferencerImpl {
         /* Group can sometimes be skipped over if they e.g. don't contain switch nodes. */
         const bke::bNodeTreeUsageSkipTargets &group_skip_targets = get_skip_targets_cached(*group);
         for (const int input_i : group->interface_inputs().index_range()) {
-          const std::optional<Vector<int>> skip_targets_by_input =
+          const std::optional<Vector<int>> &skip_targets_by_input =
               group_skip_targets.skip_targets_by_input[input_i];
           const bNodeSocket &input_socket = node->input_socket(input_i);
           if (!skip_targets_by_input) {
