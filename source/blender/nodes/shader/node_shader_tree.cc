@@ -987,18 +987,22 @@ static void ntree_shader_pruned_unused(bNodeTree *ntree, bNode *output_node)
 
 static void compute_zone_depth_set(bNode *node, int16_t depth)
 {
-  if (node->runtime->tmp_flag > depth) {
+  if (node->runtime->tmp_flag >= depth) {
     /* Already iterated at this or a greater depth. */
     return;
   }
 
-  node->runtime->tmp_flag = depth;
-
   if (node->type_legacy == GEO_NODE_REPEAT_INPUT) {
     depth++;
   }
-  else if (node->type_legacy == GEO_NODE_REPEAT_OUTPUT) {
+  node->runtime->tmp_flag = depth;
+  if (node->type_legacy == GEO_NODE_REPEAT_OUTPUT) {
     depth--;
+  }
+
+  if (depth == 0) {
+    /* We are outside the zone. */
+    return;
   }
 
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
@@ -1023,23 +1027,7 @@ static void compute_zone_depth(bNodeTree *tree)
   }
 
   LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
-    bool is_leaf = true;
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-      bNodeLink *link = sock->link;
-      if (link == nullptr) {
-        continue;
-      }
-      if ((link->flag & NODE_LINK_VALID) == 0) {
-        /* Skip links marked as cyclic. */
-        continue;
-      }
-      if (link->fromnode) {
-        is_leaf = false;
-        break;
-      }
-    }
-
-    if (is_leaf) {
+    if (node->type_legacy == GEO_NODE_REPEAT_INPUT) {
       compute_zone_depth_set(node, 0);
     }
   }
@@ -1071,13 +1059,21 @@ static void zone_depth_sorted_nodes_iter(bNode *node, Vector<bNode *> &r_nodes)
     zone_depth_sorted_nodes_iter(input, r_nodes);
   }
 
-  r_nodes.append_non_duplicates(node);
+  if (node->runtime->tmp_flag != -2) {
+    r_nodes.append(node);
+    node->runtime->tmp_flag = -2;
+  }
 }
 
 static void zone_depth_sorted_nodes(bNodeTree *tree, bNode *output, Vector<bNode *> &r_nodes)
 {
   compute_zone_depth(tree);
   zone_depth_sorted_nodes_iter(output, r_nodes);
+  LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
+    if (node->type_legacy == SH_NODE_OUTPUT_AOV) {
+      zone_depth_sorted_nodes_iter(node, r_nodes);
+    }
+  }
 }
 
 void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
