@@ -9,6 +9,7 @@
 #include "DNA_node_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_stack.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -145,75 +146,116 @@ static bNodeStack *setup_stack(bNodeStack *stack, bNodeTree *ntree, bNode *node,
   return ns;
 }
 
-static void compute_zone_depth(const bNode *node, int16_t depth)
+static void compute_zone_depth(const bNode *zone_input)
 {
-  if (node->runtime->tmp_flag >= depth) {
-    /* Already iterated at this or a greater depth. */
-    return;
-  }
+  /* Use a stack instead of recursive functions. */
+  struct StackNode {
+    const bNode *node;
+    int16_t depth;
+  };
+  blender::Stack<StackNode> stack;
 
-  /* TODO: is_zone_input/output function? */
-  if (node->type_legacy == GEO_NODE_REPEAT_INPUT) {
-    depth++;
-  }
-  node->runtime->tmp_flag = depth;
-  if (node->type_legacy == GEO_NODE_REPEAT_OUTPUT) {
-    depth--;
-  }
+  stack.push({zone_input, 1});
 
-  if (depth == 0) {
-    /* We are outside the zone. */
-    return;
-  }
+  while (!stack.is_empty()) {
+    StackNode stack_node = stack.pop();
+    const bNode *node = stack_node.node;
+    int16_t depth = stack_node.depth;
 
-  for (const bNodeSocket *sock : node->output_sockets()) {
-    bNodeLink *link = sock->link;
-    if (link == nullptr) {
+    if (node->runtime->tmp_flag >= depth) {
+      /* Already iterated at this or a greater depth. */
       continue;
     }
-    if ((link->flag & NODE_LINK_VALID) == 0) {
-      /* Skip links marked as cyclic. */
+
+    /* TODO: is_zone_input/output function? */
+    if (node->type_legacy == GEO_NODE_REPEAT_INPUT) {
+      depth++;
+    }
+    node->runtime->tmp_flag = depth;
+    if (node->type_legacy == GEO_NODE_REPEAT_OUTPUT) {
+      depth--;
+    }
+
+    if (depth == 0) {
+      /* We are outside the zone. */
       continue;
     }
-    if (link->tonode) {
-      compute_zone_depth(node, depth);
+
+    for (const bNodeSocket *sock : node->output_sockets()) {
+      bNodeLink *link = sock->link;
+      if (link == nullptr) {
+        continue;
+      }
+      if ((link->flag & NODE_LINK_VALID) == 0) {
+        /* Skip links marked as cyclic. */
+        continue;
+      }
+      if (link->tonode) {
+        stack.push({node, depth});
+      }
     }
   }
 }
 
-static void zone_depth_sorted_nodes_iter(bNode *node, blender::Vector<bNode *> &r_nodes)
+static void zone_depth_sorted_nodes_fill(bNodeTree *ntree, blender::Vector<bNode *> &r_nodes)
 {
-  if (node->runtime->tmp_flag == -2) {
-    return;
+  /* Use a stack instead of recursive functions. */
+  struct StackNode {
+    bNode *node;
+    bool ready_to_append;
+  };
+
+  blender::Stack<StackNode> stack;
+  for (bNode *node : ntree->toposort_right_to_left()) {
+    if (node->output_sockets().is_empty()) {
+      /* Output node. */
+      stack.push({node, false});
+    }
   }
 
-  blender::Vector<bNode *> inputs;
-
-  for (bNodeSocket *sock : node->input_sockets()) {
-    bNodeLink *link = sock->link;
-    if (link == nullptr) {
+  while (!stack.is_empty()) {
+    StackNode stack_node = stack.pop();
+    bNode *node = stack_node.node;
+    if (node->runtime->tmp_flag == -2) {
+      /* Already appended. */
       continue;
     }
-    if ((link->flag & NODE_LINK_VALID) == 0) {
-      /* Skip links marked as cyclic. */
+
+    if (stack_node.ready_to_append) {
+      /* We have already iterated and appended the inputs of this node. */
+      r_nodes.append(node);
+      node->runtime->tmp_flag = -2;
       continue;
     }
-    if (link->fromnode) {
-      inputs.append(link->fromnode);
+    else {
+      /* Push to the stack so it's appended after its inputs. */
+      stack.push({node, true});
     }
-  }
 
-  std::sort(inputs.begin(), inputs.end(), [](const bNode *a, const bNode *b) {
-    return a->runtime->tmp_flag < b->runtime->tmp_flag;
-  });
+    blender::Vector<bNode *> inputs;
 
-  for (bNode *input : inputs) {
-    zone_depth_sorted_nodes_iter(input, r_nodes);
-  }
+    for (bNodeSocket *sock : node->input_sockets()) {
+      bNodeLink *link = sock->link;
+      if (link == nullptr) {
+        continue;
+      }
+      if ((link->flag & NODE_LINK_VALID) == 0) {
+        /* Skip links marked as cyclic. */
+        continue;
+      }
+      if (link->fromnode) {
+        inputs.append(link->fromnode);
+      }
+    }
 
-  if (node->runtime->tmp_flag != -2) {
-    r_nodes.append(node);
-    node->runtime->tmp_flag = -2;
+    /* Sort by zone/scope depth. */
+    std::sort(inputs.begin(), inputs.end(), [](const bNode *a, const bNode *b) {
+      return a->runtime->tmp_flag < b->runtime->tmp_flag;
+    });
+
+    while (!inputs.is_empty()) {
+      stack.push({inputs.pop_last(), false});
+    }
   }
 }
 
@@ -224,12 +266,10 @@ static void zone_depth_sorted_nodes(bNodeTree *ntree, blender::Vector<bNode *> &
   }
 
   for (blender::bke::bNodeTreeZone *zone : ntree->zones()->zones) {
-    compute_zone_depth(zone->input_node(), 0);
+    compute_zone_depth(zone->input_node());
   }
 
-  for (bNode *node : ntree->toposort_right_to_left()) {
-    zone_depth_sorted_nodes_iter(node, r_nodes);
-  }
+  zone_depth_sorted_nodes_fill(ntree, r_nodes);
 }
 
 bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
