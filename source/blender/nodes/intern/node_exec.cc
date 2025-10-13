@@ -197,8 +197,16 @@ static void compute_zone_depth(const bNode *zone_input)
   }
 }
 
-static void zone_depth_sorted_nodes_fill(bNodeTree *ntree, blender::Vector<bNode *> &r_nodes)
+static void nodes_sorted_by_zone_depth(bNodeTree *ntree, blender::Vector<bNode *> &r_nodes)
 {
+  for (bNode *node : ntree->all_nodes()) {
+    node->runtime->tmp_flag = -1;
+  }
+
+  for (blender::bke::bNodeTreeZone *zone : ntree->zones()->zones) {
+    compute_zone_depth(zone->input_node());
+  }
+
   /* Use a stack instead of recursive functions. */
   struct StackNode {
     bNode *node;
@@ -259,19 +267,6 @@ static void zone_depth_sorted_nodes_fill(bNodeTree *ntree, blender::Vector<bNode
   }
 }
 
-static void zone_depth_sorted_nodes(bNodeTree *ntree, blender::Vector<bNode *> &r_nodes)
-{
-  for (bNode *node : ntree->all_nodes()) {
-    node->runtime->tmp_flag = -1;
-  }
-
-  for (blender::bke::bNodeTreeZone *zone : ntree->zones()->zones) {
-    compute_zone_depth(zone->input_node());
-  }
-
-  zone_depth_sorted_nodes_fill(ntree, r_nodes);
-}
-
 bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
                                 bNodeTree *ntree,
                                 bNodeInstanceKey parent_key)
@@ -295,7 +290,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
 
   blender::Vector<bNode *> nodelist;
   nodelist.reserve(ntree->all_nodes().size());
-  zone_depth_sorted_nodes(ntree, nodelist);
+  nodes_sorted_by_zone_depth(ntree, nodelist);
 
   /* XXX could let callbacks do this for specialized data */
   exec = MEM_callocN<bNodeTreeExec>("node tree execution data");
