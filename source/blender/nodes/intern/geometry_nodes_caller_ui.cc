@@ -1023,7 +1023,15 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   Main &bmain = *CTX_data_main(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(&bmain);
 
-  DrawGroupInputsContext ctx{C, &tree, tree_log, op.properties, op.ptr, &bmain_ptr};
+  IDProperty *properties_idprops = IDP_GetPropertyFromGroup(op.properties, "properties");
+  if (!properties_idprops) {
+    properties_idprops = bke::idprop::create_group("properties", IDP_FLAG_STATIC_TYPE).release();
+    IDP_AddToGroup(op.properties, properties_idprops);
+  }
+  PointerRNA properties_ptr = RNA_pointer_create_discrete(
+      op.ptr->owner_id, tree.runtime->geometry_nodes_operator_srna, properties_idprops);
+
+  DrawGroupInputsContext ctx{C, &tree, tree_log, &properties_ptr, op.ptr, &bmain_ptr};
   ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
     Panel *root_panel = layout.root_panel();
     LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
@@ -1059,8 +1067,8 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   tree.ensure_interface_cache();
   ctx.input_usages.reinitialize(tree.interface_inputs().size());
   ctx.output_usages.reinitialize(tree.interface_outputs().size());
-  nodes::socket_usage_inference::infer_group_interface_usage(
-      tree, ctx.properties, ctx.input_usages, ctx.output_usages);
+  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+      tree, *ctx.properties_ptr, ctx.input_usages, ctx.output_usages);
   draw_interface_panel_content(ctx, &layout, tree.tree_interface.root_panel);
 }
 

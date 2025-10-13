@@ -537,10 +537,9 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   return output_geometry;
 }
 
-void get_geometry_nodes_input_base_values(const bNodeTree &btree,
-                                          const PointerRNA &properties_ptr,
-                                          ResourceScope &scope,
-                                          MutableSpan<GPointer> r_values)
+Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree &btree,
+                                                                 const PointerRNA &properties_ptr,
+                                                                 ResourceScope &scope)
 {
   /* Assume that all inputs have unknown values by default. */
   Vector<InferenceValue> inference_values(btree.interface_inputs().size(),
