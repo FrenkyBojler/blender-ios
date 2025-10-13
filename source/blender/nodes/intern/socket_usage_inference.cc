@@ -811,7 +811,7 @@ class SocketUsageInferencerImpl {
 
     for (const bNode *node : ntree.toposort_right_to_left()) {
       if (is_output_node(*node)) {
-        /* Sockets or output nodes are always used. */
+        /* Sockets of output nodes are always used. */
         for (const bNodeSocket *socket : node->input_sockets()) {
           tree_skip_targets.skip_targets[socket->index_in_tree()] = {socket};
         }
