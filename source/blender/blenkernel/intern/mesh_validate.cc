@@ -10,6 +10,7 @@
 #include <climits>
 #include <fmt/format.h>
 
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
