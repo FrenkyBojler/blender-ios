@@ -2,3 +2,4 @@ Referenced by issue #147817, 3D Viewport is very choppy with Vulkan
 Referenced by issue #147815, 5.0 Beta Vulkan Viewport Performance Issue
 Referenced by issue #147848, 5.0 beta's Viewport manupulation is lagging and slow
 Referenced by pull request #147959, Fix #147815: Vulkan: Performance NVIDIA
+Referenced by commit d510baa4b8fc239cc096178e4c348bdab2b6f3f8, Fix #147815: Vulkan: Performance NVIDIA
