@@ -2767,7 +2767,7 @@ void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
                "mesh_axis",
                mesh_axis_items,
                int(CopyMirroredMeshAxis::Positive_X),
-               "World Axis",
+               "Mesh Axis",
                "Mirror vertices based on mesh axis");
   RNA_def_enum(ot->srna,
                "world_space",
