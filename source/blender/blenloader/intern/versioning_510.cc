@@ -250,7 +250,7 @@ static void do_version_image_node_frame(bNodeTree *node_tree, bNode *node)
   bNode *frame_node = blender::bke::node_add_node(nullptr, *node_tree, "CompositorNodeSceneTime");
   frame_node->flag |= NODE_COLLAPSED;
   frame_node->parent = node->parent;
-  frame_node->location[0] = node->location[0] - node->width - 20.0f;
+  frame_node->location[0] = node->location[0] - 10.0f;
   frame_node->location[1] = node->location[1];
 
   bNodeSocket *frame_output = blender::bke::node_find_socket(*frame_node, SOCK_OUT, "Frame");
@@ -265,7 +265,7 @@ static void do_version_image_node_frame(bNodeTree *node_tree, bNode *node)
     start_frame_node->flag |= NODE_COLLAPSED;
     start_frame_node->parent = node->parent;
     start_frame_node->location[0] = frame_node->location[0];
-    start_frame_node->location[1] = frame_node->location[1] - 40.0f;
+    start_frame_node->location[1] = frame_node->location[1];
 
     bNodeSocket *start_frame_a_input = blender::bke::node_find_socket(
         *start_frame_node, SOCK_IN, "Value");
@@ -290,7 +290,7 @@ static void do_version_image_node_frame(bNodeTree *node_tree, bNode *node)
     modulo_node->flag |= NODE_COLLAPSED;
     modulo_node->parent = node->parent;
     modulo_node->location[0] = last_node->location[0];
-    modulo_node->location[1] = last_node->location[1] - 40.0f;
+    modulo_node->location[1] = last_node->location[1];
 
     bNodeSocket *modulo_a_input = blender::bke::node_find_socket(*modulo_node, SOCK_IN, "Value");
     bNodeSocket *modulo_b_input = blender::bke::node_find_socket(
@@ -311,7 +311,7 @@ static void do_version_image_node_frame(bNodeTree *node_tree, bNode *node)
     offset_node->flag |= NODE_COLLAPSED;
     offset_node->parent = node->parent;
     offset_node->location[0] = last_node->location[0];
-    offset_node->location[1] = last_node->location[1] - 40.0f;
+    offset_node->location[1] = last_node->location[1];
 
     bNodeSocket *offset_a_input = blender::bke::node_find_socket(*offset_node, SOCK_IN, "Value");
     bNodeSocket *offset_b_input = blender::bke::node_find_socket(
@@ -327,8 +327,21 @@ static void do_version_image_node_frame(bNodeTree *node_tree, bNode *node)
   version_node_add_link(*node_tree, *last_node, *last_output, *node, *frame_input);
 }
 
-void do_versions_after_linking_510(FileData * /*fd*/, Main * /*bmain*/)
+void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 2)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_IMAGE) {
+            do_version_image_node_frame(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -352,19 +365,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == SH_NODE_MIX) {
             do_version_mix_node_mix_mode_geometry(*node_tree, *node);
-          }
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 2)) {
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type == NTREE_COMPOSIT) {
-        LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
-          if (node->type_legacy == CMP_NODE_IMAGE) {
-            do_version_image_node_frame(node_tree, node);
           }
         }
       }
