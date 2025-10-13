@@ -2560,8 +2560,6 @@ static bool uv_copy_mirrored_faces(const Scene *scene,
   BMIter iter;
 
   const int axis = int(mesh_axis) / 2;
-  const int direction = int(mesh_axis) % 2;
-  const int other_uv_axis = (uv_axis) ? 0 : 1;
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
     float3 coordinates = v->co;
     if (use_global_space) {
@@ -2639,6 +2637,8 @@ static bool uv_copy_mirrored_faces(const Scene *scene,
   const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
 
   bool changed = false;
+  const int other_uv_axis = (uv_axis) ? 0 : 1;
+  const int direction = int(mesh_axis) % 2;
   for (const auto &[f_dst, f_src] : face_map.items()) {
 
     /* Skip unless both faces have all their UVs selected. */
