@@ -437,6 +437,7 @@ void remove_selected_points(Span<PointsRange> ranges_selected)
     IndexMaskMemory memory;
     const IndexMask combined_mask = IndexMask::from_union(item.value, memory);
     dst_curves.remove_points(combined_mask, {});
+    item.key->tag_topology_changed();
   }
 }
 
@@ -447,6 +448,9 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
   const int other_points_num = other.points_num();
   const int other_curves_num = other.curves_num();
 
+  const bke::AttributeAccessor src_attributes = other.attributes();
+  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
   dst.resize(initial_points_num + other_points_num, initial_curves_num + other_curves_num);
 
   Array<int> other_raw_offsets{0, other_points_num};
@@ -455,14 +459,14 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
   OffsetIndices<int> other_point_offsets{other_raw_offsets};
   OffsetIndices<int> dst_point_offsets{dst_raw_offsets};
 
-  copy_attributes_group_to_group(other.attributes(),
+  copy_attributes_group_to_group(src_attributes,
                                  bke::AttrDomain::Point,
                                  bke::AttrDomain::Point,
                                  {},
                                  other_point_offsets,
                                  dst_point_offsets,
                                  IndexMask{1},
-                                 dst.attributes_for_write());
+                                 dst_attributes);
 
   other_raw_offsets = {0, other_curves_num};
   dst_raw_offsets = {initial_curves_num, initial_curves_num + other_curves_num};
@@ -470,14 +474,28 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
   OffsetIndices<int> other_curve_offsets{other_raw_offsets};
   OffsetIndices<int> dst_curve_offsets{dst_raw_offsets};
 
-  copy_attributes_group_to_group(other.attributes(),
+  Set<std::string> curve_attributes_to_skip;
+
+  if (dst_attributes.contains("resolution") && !src_attributes.contains("resolution")) {
+    dst.resolution_for_write().slice(dst_curve_offsets[0]).fill(12);
+    curve_attributes_to_skip.add("resolution");
+  }
+  else if (!dst_attributes.contains("resolution") && src_attributes.contains("resolution")) {
+    dst.resolution_for_write().slice(other_curve_offsets[0]).fill(12);
+
+    array_utils::copy(other.resolution(), dst.resolution_for_write().slice(dst_curve_offsets[0]));
+
+    curve_attributes_to_skip.add("resolution");
+  }
+
+  copy_attributes_group_to_group(src_attributes,
                                  bke::AttrDomain::Curve,
                                  bke::AttrDomain::Curve,
-                                 {},
+                                 bke::attribute_filter_from_skip_ref(curve_attributes_to_skip),
                                  other_curve_offsets,
                                  dst_curve_offsets,
                                  IndexMask{1},
-                                 dst.attributes_for_write());
+                                 dst_attributes);
 }
 
 /* -------------------------------------------------------------------- */
