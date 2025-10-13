@@ -261,6 +261,26 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
 
   std::string concat_source = fmt::to_string(fmt::join(sources, "")) + wrapper.second;
 
+  if (this->name_get() == G.gpu_debug_shader_source_name) {
+    NSFileManager *sharedFM = [NSFileManager defaultManager];
+    NSURL *app_bundle_url = [[NSBundle mainBundle] bundleURL];
+    NSURL *shader_dir = [[app_bundle_url URLByDeletingLastPathComponent]
+        URLByAppendingPathComponent:@"Shaders/"
+                        isDirectory:YES];
+
+    [sharedFM createDirectoryAtURL:shader_dir
+        withIntermediateDirectories:YES
+                         attributes:nil
+                              error:nil];
+
+    const char *path_cstr = [shader_dir fileSystemRepresentation];
+
+    std::ofstream output_source_file(std::string(path_cstr) + "/" +
+                                     this->entry_point_name_get(stage) + ".msl");
+    output_source_file << concat_source;
+    output_source_file.close();
+  }
+
   {
     ::MTLCompileOptions *options = get_compile_options(
         !info.subpass_inputs_.is_empty(), bool(info.builtins_ & BuiltinBits::TEXTURE_ATOMIC));
@@ -287,27 +307,6 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
     }
 
     [library release];
-
-#if 1
-    {
-      NSFileManager *sharedFM = [NSFileManager defaultManager];
-      NSURL *app_bundle_url = [[NSBundle mainBundle] bundleURL];
-      NSURL *shader_dir = [[app_bundle_url URLByDeletingLastPathComponent]
-          URLByAppendingPathComponent:@"Shaders/"
-                          isDirectory:YES];
-
-      [sharedFM createDirectoryAtURL:shader_dir
-          withIntermediateDirectories:YES
-                           attributes:nil
-                                error:nil];
-
-      const char *path_cstr = [shader_dir fileSystemRepresentation];
-
-      std::ofstream output_source_file(std::string(path_cstr) + "/" + this->name_get() + ".msl");
-      output_source_file << concat_source;
-      output_source_file.close();
-    }
-#endif
 
     MTLLogParser parser;
     print_log({concat_source}, [error_localized UTF8String], to_string(stage), true, &parser);
