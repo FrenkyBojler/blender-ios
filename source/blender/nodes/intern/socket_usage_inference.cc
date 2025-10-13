@@ -802,7 +802,9 @@ class SocketUsageInferencerImpl {
      * result in quadratic behavior while the limit keeps it linear.
      *
      * If a socket would have more than this amount of skip-targets, those are ignored and the more
-     * general usage inferencing without skipping is used. */
+     * general usage inferencing without skipping is used.
+     *
+     * This is also set so that #SkipTargetSocketArray always uses an inline buffer. */
     constexpr int limit = 2;
 
     bke::bNodeTreeUsageSkipTargets tree_skip_targets;
