@@ -3,3 +3,4 @@ Referenced by commit 9fd6dae7939, Fix T102346: Mouse escapes window during walk 
 Referenced by issue #109968, Regression: Mouse cursor jumps to the left when keep clicking on the colour circle under Windows
 Referenced by issue #102346, Regression: Viewport Walk Navigation : mouse escapes window if it moves too fast
 Referenced by issue #99021, Ghost Wayland: fly mode not operational
+Referenced by pull request #148007, Fix #134818: macOS: Hidden mouse grab not keeping mouse in window
