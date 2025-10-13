@@ -289,7 +289,7 @@ static void node_buts_image_user(uiLayout *layout,
                                  PointerRNA *iuserptr,
                                  const bool show_layer_selection,
                                  const bool show_color_management,
-                                 const bool show_frame)
+                                 const bool show_frame_options)
 {
   Image *image = (Image *)imaptr->data;
   if (!image) {
@@ -303,7 +303,7 @@ static void node_buts_image_user(uiLayout *layout,
 
   const int source = RNA_enum_get(imaptr, "source");
 
-  if (show_frame) {
+  if (show_frame_options) {
     if (source == IMA_SRC_SEQUENCE) {
       /* don't use iuser->framenr directly
        * because it may not be updated if auto-refresh is off */
@@ -379,7 +379,7 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
 static void node_shader_buts_tex_image_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
-  uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, false);
+  uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, false, true);
 }
 
 static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -399,7 +399,7 @@ static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, Poin
 static void node_shader_buts_tex_environment_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
-  uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, false);
+  uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, false, true);
 
   layout->prop(ptr, "interpolation", DEFAULT_FLAGS, IFACE_("Interpolation"), ICON_NONE);
   layout->prop(ptr, "projection", DEFAULT_FLAGS, IFACE_("Projection"), ICON_NONE);
@@ -529,7 +529,7 @@ static void node_composit_buts_image_ex(uiLayout *layout, bContext *C, PointerRN
 
   PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_ImageUser, node->storage);
   layout->context_ptr_set("image_user", &iuserptr);
-  uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, true);
+  uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, true, false);
 }
 
 static void node_composit_buts_huecorrect(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -759,7 +759,7 @@ static void node_texture_buts_image_ex(uiLayout *layout, bContext *C, PointerRNA
 {
   bNode *node = (bNode *)ptr->data;
   PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_ImageUser, node->storage);
-  uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, false);
+  uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, false, true);
 }
 
 static void node_texture_buts_output(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)

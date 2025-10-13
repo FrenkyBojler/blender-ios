@@ -2483,7 +2483,8 @@ void uiTemplateImage(uiLayout *layout,
                      blender::StringRefNull propname,
                      PointerRNA *userptr,
                      bool compact,
-                     bool multiview);
+                     bool multiview,
+                     const bool show_frame_options);
 void uiTemplateImageSettings(uiLayout *layout,
                              bContext *C,
                              PointerRNA *imfptr,

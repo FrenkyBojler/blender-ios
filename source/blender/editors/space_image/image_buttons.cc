@@ -732,7 +732,8 @@ void uiTemplateImage(uiLayout *layout,
                      const blender::StringRefNull propname,
                      PointerRNA *userptr,
                      bool compact,
-                     bool multiview)
+                     bool multiview,
+                     const bool show_frame_options)
 {
   if (!ptr->data) {
     return;
@@ -897,16 +898,18 @@ void uiTemplateImage(uiLayout *layout,
     uiLayout *col = &layout->column(true);
     col->use_property_split_set(true);
 
-    uiLayout *sub = &col->column(true);
-    uiLayout *row = &sub->row(true);
-    row->prop(userptr, "frame_duration", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
-    row->op("IMAGE_OT_match_movie_length", "", ICON_FILE_REFRESH);
+    if (show_frame_options) {
+      uiLayout *sub = &col->column(true);
+      uiLayout *row = &sub->row(true);
+      row->prop(userptr, "frame_duration", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
+      row->op("IMAGE_OT_match_movie_length", "", ICON_FILE_REFRESH);
 
-    sub->prop(userptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
-    sub->prop(userptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      sub->prop(userptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
+      sub->prop(userptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    col->prop(userptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->prop(userptr, "use_auto_refresh", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(userptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(userptr, "use_auto_refresh", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    }
 
     if (ima->source == IMA_SRC_MOVIE && compact == 0) {
       col->prop(&imaptr, "use_deinterlace", UI_ITEM_NONE, IFACE_("Deinterlace"), ICON_NONE);
