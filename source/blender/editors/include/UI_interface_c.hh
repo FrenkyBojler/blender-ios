@@ -2494,7 +2494,8 @@ void uiTemplateImageStereo3d(uiLayout *layout, PointerRNA *stereo3d_format_ptr);
 void uiTemplateImageViews(uiLayout *layout, PointerRNA *imaptr);
 void uiTemplateImageFormatViews(uiLayout *layout, PointerRNA *imfptr, PointerRNA *ptr);
 void uiTemplateImageLayers(uiLayout *layout, bContext *C, Image *ima, ImageUser *iuser);
-void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *iuser);
+void uiTemplateImageInfo(
+    uiLayout *layout, bContext *C, Image *ima, ImageUser *iuser, const bool show_frame);
 void uiTemplateRunningJobs(uiLayout *layout, bContext *C);
 void UI_but_func_operator_search(uiBut *but);
 void uiTemplateOperatorSearch(uiLayout *layout);

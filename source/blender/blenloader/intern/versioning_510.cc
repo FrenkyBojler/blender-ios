@@ -329,7 +329,7 @@ static void do_version_image_node_frame(bNodeTree *node_tree, bNode *node)
 
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 2)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 3)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {

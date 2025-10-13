@@ -784,7 +784,7 @@ void uiTemplateImage(uiLayout *layout,
 
   if (ima->source == IMA_SRC_VIEWER) {
     /* Viewer images. */
-    uiTemplateImageInfo(layout, C, ima, iuser);
+    uiTemplateImageInfo(layout, C, ima, iuser, false);
 
     if (ima->type == IMA_TYPE_COMPOSITE) {
     }
@@ -882,7 +882,7 @@ void uiTemplateImage(uiLayout *layout,
     }
   }
   else if (compact == 0) {
-    uiTemplateImageInfo(layout, C, ima, iuser);
+    uiTemplateImageInfo(layout, C, ima, iuser, show_frame_options);
   }
   if (ima->type == IMA_TYPE_MULTILAYER && ima->rr) {
     layout->separator();
@@ -1209,7 +1209,8 @@ void uiTemplateImageLayers(uiLayout *layout, bContext *C, Image *ima, ImageUser 
   }
 }
 
-void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *iuser)
+void uiTemplateImageInfo(
+    uiLayout *layout, bContext *C, Image *ima, ImageUser *iuser, const bool show_frame)
 {
   if (ima == nullptr || iuser == nullptr) {
     return;
@@ -1262,7 +1263,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
   }
 
   /* Frame number, even if we can't load the image. */
-  if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+  if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE) && show_frame) {
     /* don't use iuser->framenr directly because it may not be updated if auto-refresh is off */
     Scene *scene = CTX_data_scene(C);
     const int framenr = BKE_image_user_frame_get(iuser, scene->r.cfra, nullptr);
