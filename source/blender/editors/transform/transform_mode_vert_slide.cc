@@ -87,10 +87,20 @@ struct VertSlideData {
   /**
    * Run while moving the mouse to slide along the edge matching the mouse direction.
    */
-  void update_active_edges(TransInfo *t, const float2 &mval_fl)
+  /**
+   * Update which edges are active for vertex slide.
+   * If fixed_dir is given, use that as the 2D direction (for redo).
+   * Otherwise, compute direction from current mouse position.
+   */
+  void update_active_edges(TransInfo *t, const float2 *fixed_dir = nullptr)
   {
-    /* First get the direction of the original mouse position. */
-    float2 dir = math::normalize(mval_fl - t->mouse.imval);
+    float2 dir;
+    if (fixed_dir) {
+      dir = math::normalize(*fixed_dir);
+    }
+    else {
+      dir = math::normalize(float2(t->mval) - t->mouse.imval);
+    }
 
     for (TransDataVertSlideVert &sv : this->sv) {
       if (sv.co_link_orig_3d.size() <= 1) {
@@ -108,7 +118,7 @@ struct VertSlideData {
         float2 loc_dst_2d = math::project_point(this->proj_mat, loc_dst).xy();
         float2 tdir = math::normalize(loc_dst_2d - loc_src_2d);
 
-        float dir_dot = math::dot(dir, tdir);
+        const float dir_dot = math::dot(dir, tdir);
         if (dir_dot > dir_dot_best) {
           dir_dot_best = dir_dot;
           co_link_curr_best = j;
@@ -136,38 +146,6 @@ struct VertSlideData {
       if (dist_sq < dist_min_sq) {
         dist_min_sq = dist_sq;
         this->curr_sv_index = i;
-      }
-    }
-  }
-
-  void select_edges_by_direction(const float2 &dir_in)
-  {
-    const float2 dir = math::normalize(dir_in);
-
-    for (TransDataVertSlideVert &sv : this->sv) {
-      if (sv.co_link_orig_3d.size() <= 1) {
-        continue;
-      }
-
-      const float3 v_co_orig = sv.co_orig_3d();
-      float2 loc_src_2d = math::project_point(this->proj_mat, v_co_orig).xy();
-
-      float dir_dot_best = -FLT_MAX;
-      int co_link_curr_best = -1;
-
-      for (int j : sv.co_link_orig_3d.index_range()) {
-        const float3 &loc_dst = sv.co_link_orig_3d[j];
-        float2 loc_dst_2d = math::project_point(this->proj_mat, loc_dst).xy();
-        float2 tdir = math::normalize(loc_dst_2d - loc_src_2d);
-        const float dir_dot = math::dot(dir, tdir);
-        if (dir_dot > dir_dot_best) {
-          dir_dot_best = dir_dot;
-          co_link_curr_best = j;
-        }
-      }
-
-      if (co_link_curr_best != -1) {
-        sv.co_link_curr = co_link_curr_best;
       }
     }
   }
@@ -295,7 +273,7 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
           VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
 
           const float2 dir = float2(event->mval) - t->mouse.imval;
-          sld->select_edges_by_direction(dir);
+          sld->update_active_edges(t, &dir);
           if (slp->op) {
             PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction");
             if (pdir) {
@@ -669,12 +647,7 @@ static void initVertSlide_ex(
       sld->update_active_vert(t, t->mval);
 
       VertSlideParams *slp = static_cast<VertSlideParams *>(t->custom.mode.data);
-      if (slp->have_dir) {
-        sld->select_edges_by_direction(slp->dir_2d);
-      }
-      else {
-        sld->update_active_edges(t, t->mval);
-      }
+      sld->update_active_edges(t, slp->have_dir ? &slp->dir_2d : nullptr);
 
       tc->custom.mode.data = sld;
       tc->custom.mode.free_cb = freeVertSlideVerts;
