@@ -10,10 +10,13 @@
 
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_global.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_node_tree_zones.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -142,6 +145,93 @@ static bNodeStack *setup_stack(bNodeStack *stack, bNodeTree *ntree, bNode *node,
   return ns;
 }
 
+static void compute_zone_depth(const bNode *node, int16_t depth)
+{
+  if (node->runtime->tmp_flag >= depth) {
+    /* Already iterated at this or a greater depth. */
+    return;
+  }
+
+  /* TODO: is_zone_input/output function? */
+  if (node->type_legacy == GEO_NODE_REPEAT_INPUT) {
+    depth++;
+  }
+  node->runtime->tmp_flag = depth;
+  if (node->type_legacy == GEO_NODE_REPEAT_OUTPUT) {
+    depth--;
+  }
+
+  if (depth == 0) {
+    /* We are outside the zone. */
+    return;
+  }
+
+  for (const bNodeSocket *sock : node->output_sockets()) {
+    bNodeLink *link = sock->link;
+    if (link == nullptr) {
+      continue;
+    }
+    if ((link->flag & NODE_LINK_VALID) == 0) {
+      /* Skip links marked as cyclic. */
+      continue;
+    }
+    if (link->tonode) {
+      compute_zone_depth(node, depth);
+    }
+  }
+}
+
+static void zone_depth_sorted_nodes_iter(bNode *node, blender::Vector<bNode *> &r_nodes)
+{
+  if (node->runtime->tmp_flag == -2) {
+    return;
+  }
+
+  blender::Vector<bNode *> inputs;
+
+  for (bNodeSocket *sock : node->input_sockets()) {
+    bNodeLink *link = sock->link;
+    if (link == nullptr) {
+      continue;
+    }
+    if ((link->flag & NODE_LINK_VALID) == 0) {
+      /* Skip links marked as cyclic. */
+      continue;
+    }
+    if (link->fromnode) {
+      inputs.append(link->fromnode);
+    }
+  }
+
+  std::sort(inputs.begin(), inputs.end(), [](const bNode *a, const bNode *b) {
+    return a->runtime->tmp_flag < b->runtime->tmp_flag;
+  });
+
+  for (bNode *input : inputs) {
+    zone_depth_sorted_nodes_iter(input, r_nodes);
+  }
+
+  if (node->runtime->tmp_flag != -2) {
+    r_nodes.append(node);
+    node->runtime->tmp_flag = -2;
+  }
+}
+
+static void zone_depth_sorted_nodes(bNodeTree *ntree, blender::Vector<bNode *> &r_nodes)
+{
+  for (bNode *node : ntree->all_nodes()) {
+    node->runtime->tmp_flag = -1;
+  }
+
+  for (blender::bke::bNodeTreeZone *zone : ntree->zones()->zones) {
+    compute_zone_depth(zone->input_node(), 0);
+  }
+
+  for (bNode *node : ntree->toposort_right_to_left()) {
+    zone_depth_sorted_nodes_iter(node, r_nodes);
+  }
+}
+
 bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
                                 bNodeTree *ntree,
                                 bNodeInstanceKey parent_key)
@@ -162,7 +252,10 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
   BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
 
   ntree->ensure_topology_cache();
-  const Span<bNode *> nodelist = ntree->toposort_left_to_right();
+
+  blender::Vector<bNode *> nodelist;
+  nodelist.reserve(ntree->all_nodes().size());
+  zone_depth_sorted_nodes(ntree, nodelist);
 
   /* XXX could let callbacks do this for specialized data */
   exec = MEM_callocN<bNodeTreeExec>("node tree execution data");
