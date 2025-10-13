@@ -309,7 +309,7 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
   const float *color;
 
   if (ab->block.conflict) {
-    /* Mixed color is used by summary lines that combine multiple keyframe information */
+    /* This is a summary line that combines multiple interpolation modes. */
     color = ctx->ipo_color_mix;
   }
   else {
