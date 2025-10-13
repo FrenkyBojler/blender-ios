@@ -163,6 +163,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
    * height. */
   void set_default_rows(int default_rows);
+  void scroll_active_into_view(bool scroll = false);
 
  protected:
   virtual void build_tree() = 0;
@@ -189,7 +190,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
                            int &visible_item_index) const;
 
   int count_visible_descendants(const AbstractTreeViewItem &parent) const;
-  void scroll_active_into_view();
 };
 
 /** \} */

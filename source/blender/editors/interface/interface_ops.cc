@@ -58,6 +58,7 @@
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
+#include "UI_tree_view.hh"
 
 #include "interface_intern.hh"
 
@@ -2925,6 +2926,44 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
+
+static bool ui_tree_view_focused_poll(bContext* C)
+{
+  AbstractView *view = get_view_focused(C);
+  if (view) {
+    AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
+    return tree_view != nullptr;
+  }
+  return false;
+}
+
+static wmOperatorStatus ui_view_item_active_focus_invoke(bContext *C,
+  wmOperator* /*op*/,
+  const wmEvent* /*event*/)
+{
+  AbstractView *view = get_view_focused(C);
+  AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(
+      view);
+
+  if (tree_view->is_fully_visible()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  tree_view->scroll_active_into_view(true);
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_item_active_focus(wmOperatorType *ot)
+{
+  ot->name = "Delete";
+  ot->idname = "UI_OT_view_item_active_focus";
+  ot->description = "Focus active list item";
+
+  ot->invoke = ui_view_item_active_focus_invoke;
+  ot->poll = ui_tree_view_focused_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -3030,6 +3069,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_view_item_rename);
   WM_operatortype_append(UI_OT_view_item_select);
   WM_operatortype_append(UI_OT_view_item_delete);
+  WM_operatortype_append(UI_OT_view_item_active_focus);
 
   WM_operatortype_append(UI_OT_override_add_button);
   WM_operatortype_append(UI_OT_override_remove_button);
