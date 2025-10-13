@@ -392,13 +392,15 @@ class UpdateAnimatedTransformConstraint(Operator):
 
     use_convert_to_radians: BoolProperty(
         name="Convert to Radians",
-        description="Convert f-curves/drivers affecting rotations to radians.\n"
-                    "Warning: Use this only once",
+        description=(
+            "Convert f-curves/drivers affecting rotations to radians.\n"
+            "Warning: Use this only once"
+        ),
         default=True,
     )
 
     def execute(self, context):
-        import animsys_refactor
+        import _animsys_refactor as animsys_refactor
         from math import radians
         import io
 

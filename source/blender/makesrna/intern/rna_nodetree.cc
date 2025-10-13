@@ -1623,9 +1623,8 @@ static void rna_NodeTree_debug_lazy_function_graph(bNodeTree *tree,
     /* The graph is only stored on the evaluated data. */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
-  }
-  std::lock_guard lock{tree->runtime->geometry_nodes_lazy_function_graph_info_mutex};
-  if (!tree->runtime->geometry_nodes_lazy_function_graph_info) {
+  };
+  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
     return;
   }
   std::string dot_str = tree->runtime->geometry_nodes_lazy_function_graph_info->graph.to_dot();
@@ -1644,8 +1643,7 @@ static void rna_NodeTree_debug_zone_body_lazy_function_graph(
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
   }
-  std::lock_guard lock{tree->runtime->geometry_nodes_lazy_function_graph_info_mutex};
-  if (!tree->runtime->geometry_nodes_lazy_function_graph_info) {
+  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
     return;
   }
   const auto *graph = tree->runtime->geometry_nodes_lazy_function_graph_info
@@ -7311,7 +7309,8 @@ static void rna_def_geo_viewer_item(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Auto Remove", "Remove the item automatically when it is unlinked");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<GeoViewerItemsAccessor>");
 }
 
 static void rna_def_geo_viewer_items(BlenderRNA *brna)
@@ -9437,7 +9436,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_sdna(prop, nullptr, "view_center");
   RNA_def_property_ui_text(
-      prop, "", "The current location (offset) of the view for this Node Tree");
+      prop, "View Center", "The current location (offset) of the view for this Node Tree");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
@@ -10167,6 +10166,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGizmoLinear");
   define("GeometryNode", "GeometryNodeGizmoTransform", rna_def_geo_gizmo_transform);
   define("GeometryNode", "GeometryNodeGreasePencilToCurves");
+  define("GeometryNode", "GeometryNodeGridAdvect");
   define("GeometryNode", "GeometryNodeGridCurl");
   define("GeometryNode", "GeometryNodeGridDivergence");
   define("GeometryNode", "GeometryNodeGridGradient");
