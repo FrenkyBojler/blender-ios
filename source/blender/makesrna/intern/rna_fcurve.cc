@@ -358,6 +358,7 @@ void rna_DriverTarget_id_set(PointerRNA *ptr, PointerRNA value, struct ReportLis
   DriverTarget *data = ptr->data_as<DriverTarget>();
   ID *id = value.data_as<ID>();
   if (!id) {
+    data->id = nullptr;
     return;
   }
   BLI_assert(id == value.owner_id);
