@@ -1049,17 +1049,34 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
     ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, xy[0], xy[1]);
 
     if (actedge) {
+      /* Don't allow moving top edge of screen. */
+      rcti screen_rect;
+      WM_window_screen_rect_calc(win, &screen_rect);
+
+      bool is_movable = true;
       if (screen_geom_edge_is_horizontal(actedge)) {
-        WM_cursor_set(win, WM_CURSOR_Y_MOVE);
+        /* Check if edge is at top of screen (with small threshold 3 pixels). */
+        if (actedge->v1->vec.y >= screen_rect.ymax - 3) {
+          is_movable = false;
+        }
+      }
+
+      if (is_movable) {
+        if (screen_geom_edge_is_horizontal(actedge)) {
+          WM_cursor_set(win, WM_CURSOR_Y_MOVE);
+        }
+        else {
+          WM_cursor_set(win, WM_CURSOR_X_MOVE);
+        }
       }
       else {
-        WM_cursor_set(win, WM_CURSOR_X_MOVE);
+        WM_cursor_set(win, WM_CURSOR_DEFAULT);
       }
     }
     else {
       WM_cursor_set(win, WM_CURSOR_DEFAULT);
     }
-  }
+  }   
 }
 
 void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
