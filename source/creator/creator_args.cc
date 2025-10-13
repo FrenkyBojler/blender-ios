@@ -389,7 +389,7 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
     }
   }
 
-  int (*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
+  int(*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end_range;
@@ -762,6 +762,7 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-gpu-force-workarounds");
   BLI_args_print_arg_doc(ba, "--debug-gpu-compile-shaders");
   BLI_args_print_arg_doc(ba, "--debug-gpu-shader-debug-info");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-shader-source");
   if (defs.with_renderdoc) {
     BLI_args_print_arg_doc(ba, "--debug-gpu-scope-capture");
     BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
@@ -1544,6 +1545,20 @@ static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, v
   return 0;
 }
 
+static const char arg_handle_debug_gpu_shader_source_doc[] =
+    "\n"
+    "\tCapture the GPU commands issued inside the give scope name."
+    "\tFiles are saved in the current working directory inside a folder named \"Shaders\".";
+static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void * /*data*/)
+{
+  if (argc > 1) {
+    STRNCPY(G.gpu_debug_scope_name, argv[1]);
+    return 1;
+  }
+  fprintf(stderr, "\nError: you must specify a shader name to capture.\n");
+  return 0;
+}
+
 static const char arg_handle_debug_gpu_renderdoc_set_doc[] =
     "\n"
     "\tEnable RenderDoc integration for GPU frame grabbing and debugging.";
@@ -2318,7 +2333,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
       Render *re;
       ReportList reports;
 
-      int (*frame_range_arr)[2], frames_range_len;
+      int(*frame_range_arr)[2], frames_range_len;
       if ((frame_range_arr = parse_int_range_relative_clamp_n(argv[1],
                                                               scene->r.sfra,
                                                               scene->r.efra,
@@ -3004,6 +3019,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                "--debug-gpu-compile-shaders",
                CB(arg_handle_debug_gpu_compile_shaders_set),
                nullptr);
+  BLI_args_add(
+      ba, nullptr, "--debug-gpu-shader-source", CB(arg_handle_debug_gpu_shader_source), nullptr);
   if (defs.with_renderdoc) {
     BLI_args_add(ba,
                  nullptr,
