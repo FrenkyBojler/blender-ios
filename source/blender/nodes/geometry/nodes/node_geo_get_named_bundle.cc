@@ -34,11 +34,16 @@ static EnumPropertyItem type_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   b.add_input<decl::Bundle>("Bundle");
-  b.add_input<decl::Menu>("Type").static_items(type_items).optional_label();
-  b.add_input<decl::String>("Name").optional_label();
+  b.add_output<decl::Bundle>("Bundle").align_with_previous();
   b.add_output<decl::Vector>("Item");
   b.add_output<decl::Bool>("Exists");
+  b.add_input<decl::Menu>("Type").static_items(type_items).optional_label();
+  b.add_input<decl::String>("Name").optional_label();
+  b.add_input<decl::Bool>("Remove");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -51,6 +56,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const StringRef name = params.extract_input<std::string>("Name");
+  const bool remove = params.extract_input<bool>("Remove");
+
   if (name.is_empty()) {
     params.set_output("Exists", false);
     params.set_default_remaining_outputs();
@@ -73,6 +80,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+
+  if (remove) {
+  }
+
+  params.set_output("Bundle", std::move(bundle));
   params.set_output("Item", socket_value->value);
   params.set_output("Exists", true);
 }
