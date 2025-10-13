@@ -743,7 +743,6 @@ static const char *glsl_type_from_result_type(ResultType type)
     case ResultType::Float:
       return "float";
     case ResultType::Float2:
-      /* GPUMaterial doesn't support float2, so it is passed as a float2. */
       return "vec2";
     case ResultType::Float3:
       return "vec3";
