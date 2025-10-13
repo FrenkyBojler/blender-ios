@@ -646,8 +646,9 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
   const StringRef panel_name = interface_panel.name;
   if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
     PointerRNA inputs_ptr = RNA_pointer_get(ctx.properties_ptr, "inputs");
+    PointerRNA toggle_ptr = RNA_pointer_get(&inputs_ptr, toggle_socket->identifier);
     panel_layout = layout.panel_prop_with_bool_header(
-        &ctx.C, &panels_ptr, panel_open_name, ctx.properties_ptr, "value", IFACE_(panel_name));
+        &ctx.C, &panels_ptr, panel_open_name, &toggle_ptr, "value", IFACE_(panel_name));
     skip_first = true;
   }
   else {
