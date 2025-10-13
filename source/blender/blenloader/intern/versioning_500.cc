@@ -2586,6 +2586,7 @@ static void do_version_bone_hide_property(
     bArmature *armature, blender::Map<bArmature *, blender::Vector<Object *>> &armature_usage_map)
 {
   using namespace blender::animrig;
+  constexpr char const *rna_path_prefix = "bones[\"";
   constexpr char const *rna_path_suffix = "].hide";
   AnimData *arm_adt = BKE_animdata_from_id(&armature->id);
 
@@ -2606,7 +2607,7 @@ static void do_version_bone_hide_property(
     blender::Vector<FCurve *> drivers_to_fix;
     LISTBASE_FOREACH (FCurve *, fcurve, &arm_adt->drivers) {
       const blender::StringRef rna_path(fcurve->rna_path);
-      if (rna_path.endswith(rna_path_suffix)) {
+      if (rna_path.startswith(rna_path_prefix) && rna_path.endswith(rna_path_suffix)) {
         drivers_to_fix.append(fcurve);
       }
     }
@@ -2638,7 +2639,7 @@ static void do_version_bone_hide_property(
     }
     for (FCurve *fcurve : armature_channelbag->fcurves()) {
       const blender::StringRef rna_path(fcurve->rna_path);
-      if (rna_path.endswith(rna_path_suffix)) {
+      if (rna_path.startswith(rna_path_prefix) && rna_path.endswith(rna_path_suffix)) {
         fcurves_to_fix.append(fcurve);
       }
     }
@@ -2653,25 +2654,25 @@ static void do_version_bone_hide_property(
        * 3. There is no Action on the object: Add a slot to the action of the armature and add
        * the fcurve to it. Assign the action+slot to the object.
        */
-      bAction *target_rna_action;
-      if (ob_adt->action && ob_adt->slot_handle != Slot::unassigned) {
-        target_rna_action = ob_adt->action;
-      }
-      else if (ob_adt->action) {
-        target_rna_action = ob_adt->action;
-        Action &action = target_rna_action->wrap();
-        Slot &slot = action.slot_add_for_id(ob->id);
-        assign_action_and_slot(&action, &slot, ob->id);
+      bAction *target_dna_action;
+      if (ob_adt->action) {
+        target_dna_action = ob_adt->action;
+
+        if (ob_adt->slot_handle == Slot::unassigned) {
+          Action &action = target_dna_action->wrap();
+          Slot &slot = action.slot_add_for_id(ob->id);
+          assign_action_and_slot(&action, &slot, ob->id);
+        }
       }
       else {
         /* The armature has an action in this case. */
         BLI_assert(arm_adt->action && arm_adt->slot_handle != Slot::unassigned);
-        target_rna_action = arm_adt->action;
-        Action &action = target_rna_action->wrap();
+        target_dna_action = arm_adt->action;
+        Action &action = target_dna_action->wrap();
         Slot &slot = action.slot_add_for_id(ob->id);
         assign_action_and_slot(&action, &slot, ob->id);
       }
-      Channelbag &object_channelbag = action_channelbag_ensure(*target_rna_action, ob->id);
+      Channelbag &object_channelbag = action_channelbag_ensure(*target_dna_action, ob->id);
 
       for (FCurve *original : fcurves_to_fix) {
         FCurve *copy = BKE_fcurve_copy(original);
