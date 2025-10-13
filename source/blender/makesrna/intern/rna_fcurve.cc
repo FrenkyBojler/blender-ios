@@ -370,7 +370,7 @@ void rna_DriverTarget_id_set(PointerRNA *ptr, PointerRNA value, struct ReportLis
   if (BKE_idtype_idcode_is_linkable(GS(id->name))) {
     id_lib_extern(id);
   }
-  *(void **)&data->id = id;
+  data->id = id;
 }
 
 static StructRNA *rna_DriverTarget_id_typef(PointerRNA *ptr)
