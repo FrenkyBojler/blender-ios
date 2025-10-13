@@ -2745,37 +2745,63 @@ static void version_bone_hide_property_nla(Main *bmain,
   }
 }
 
-static void do_version_bone_hide_property(
-    bArmature *armature, blender::Map<bArmature *, blender::Vector<Object *>> &armature_usage_map)
+static blender::Map<bAction *, bAction *> do_version_bone_hide_property_actions(Main *bmain)
 {
   using namespace blender::animrig;
 
-  AnimData *arm_adt = BKE_animdata_from_id(&armature->id);
+  blender::Map<bAction *, bAction *> action_version_map;
+  LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
+    /* Will be set once a duplicate is needed. Creating a new action instead of adding a slot
+     * because the slot name should stay the same. */
+    bAction *versioned_action;
+    Action &action = dna_action->wrap();
+    for (Slot *slot : action.slots()) {
+      /* Only versioning armature slots since they have the property in question. */
+      if (slot->idtype != ID_AR) {
+        continue;
+      }
+      Channelbag *armature_channelbag = channelbag_for_action_slot(action, arm_adt->slot_handle);
+      if (!armature_channelbag) {
+        continue;
+      }
+      blender::Vector<FCurve *> hide_fcurves;
+      for (FCurve *fcurve : armature_channelbag->fcurves()) {
+        const blender::StringRef rna_path(fcurve->rna_path);
+        if (rna_path.startswith(hide_prop_prefix) && rna_path.endswith(hide_prop_suffix)) {
+          fcurves_to_fix.append(fcurve);
+        }
+      }
 
-  if (!arm_adt) {
-    return;
+      if (hide_fcurves.is_empty()) {
+        continue;
+      }
+
+      if (!versioned_action) {
+        std::string versioned_name(dna_action->id.name);
+        versioned_name += "_versioned";
+        versioned_action = BKE_action_add(bmain, versioned_name.c_str());
+        action_version_map.add(dna_action, versioned_action);
+        action.layer_keystrip_ensure();
+      }
+
+      Action &new_action = versioned_action->wrap();
+      Slot &object_slot = new_action.slot_add_for_id_type(ID_OB);
+      StripKeyframeData &strip_data = new_action.layer(0)->strip(0)->data<StripKeyframeData>(
+          new_action);
+      Channelbag &object_channelbag = strip_data.channelbag_for_slot_ensure(*slot);
+
+      for (FCurve *original : hide_fcurves) {
+        FCurve *copy = BKE_fcurve_copy(original);
+        char *fixed_path = BLI_string_joinN("pose.", copy->rna_path);
+        MEM_SAFE_FREE(copy->rna_path);
+        copy->rna_path = fixed_path;
+        object_channelbag.fcurve_append(*copy);
+        armature_channelbag->fcurve_remove(*original);
+      }
+    }
   }
 
-  if (!armature_usage_map.contains(armature)) {
-    /* Doing this means it won't be fixed for armatures that are not used by an object
-     * during versioning. However since the driver has to be moved to an object there is no way
-     * to fix it in this case. */
-    return;
-  }
-
-  blender::Vector<Object *> &users = armature_usage_map.lookup_default(armature, {});
-
-  if (!BLI_listbase_is_empty(&arm_adt->drivers)) {
-    version_bone_hide_property_driver(arm_adt, users);
-  }
-
-  if (arm_adt->action && arm_adt->slot_handle != Slot::unassigned) {
-    version_bone_hide_property_action(arm_adt, users);
-  }
-
-  if (!BLI_listbase_is_empty(&arm_adt->nla_tracks)) {
-    version_bone_hide_property_nla(arm_adt, users);
-  }
+  return action_version_map;
 }
 
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
@@ -2899,6 +2925,11 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 109)) {
+    /* Build a map from source actions to their versioned duplicates. Only FCurves with the RNA
+     * path in question and in extent their slots are duplicated. */
+    blender::Map<bAction *, bAction *> action_version_map = do_version_bone_hide_property_actions(
+        bmain);
+
     /* Build map of armature->object to quickly find out afterwards which armature is used by which
      * objects. */
     blender::Map<bArmature *, blender::Vector<Object *>> armature_usage_map;
@@ -2911,8 +2942,21 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
       users.append(ob);
     }
 
-    LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      do_version_bone_hide_property(arm, armature_usage_map);
+    LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
+      AnimData *arm_adt = BKE_animdata_from_id(&armature->id);
+
+      if (!arm_adt) {
+        continue;
+      }
+
+      blender::Vector<Object *> &users = armature_usage_map.lookup_default(armature, {});
+
+      if (!BLI_listbase_is_empty(&arm_adt->drivers) && !users.is_empty()) {
+        /* Checking for `is_empty` means it won't be fixed for armatures that are not used by an
+         * object during versioning. However since the driver has to be moved to an object there is
+         * no way to fix it in this case. */
+        version_bone_hide_property_driver(arm_adt, users);
+      }
     }
   }
 
