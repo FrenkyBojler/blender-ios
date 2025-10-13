@@ -18,7 +18,7 @@ import glob
 from pathlib import PurePath
 
 # XXX Relative import does not work here when used from Blender...
-from bl_i18n_utils import settings as settings_i18n, utils
+from _bl_i18n_utils import settings as settings_i18n, utils
 
 import bpy
 
@@ -31,7 +31,7 @@ filter_message = ignore_reg.match
 
 def init_spell_check(settings, lang="en_US"):
     try:
-        from bl_i18n_utils import utils_spell_check
+        from _bl_i18n_utils import utils_spell_check
         return utils_spell_check.SpellChecker(settings, lang)
     except Exception as ex:
         print("Failed to import utils_spell_check ({})".format(str(ex)))
@@ -820,10 +820,6 @@ def dump_src_messages(msgs, reports, settings):
         return {k: getattr(bpy.app.translations.contexts, n) for k, n in bpy.app.translations.contexts_C_to_py.items()}
 
     contexts = get_contexts()
-
-    # Build regexes to extract messages (with optional contexts) from C source.
-    pygettexts = tuple(re.compile(r).search for r in settings.PYGETTEXT_KEYWORDS)
-
     _clean_str = re.compile(settings.str_clean_re).finditer
 
     def clean_str(s):
@@ -867,8 +863,9 @@ def dump_src_messages(msgs, reports, settings):
         data = ""
         with open(path, encoding="utf8") as f:
             data = f.read()
-        for srch in pygettexts:
-            m = srch(data)
+
+        for keyword in settings.PYGETTEXT_KEYWORDS:
+            m = keyword.search(data)
             line = pos = 0
             while m:
                 d = m.groupdict()
@@ -887,14 +884,14 @@ def dump_src_messages(msgs, reports, settings):
                             process_msg(msgs, msgctxt, msgid, msgsrc, reports, check_ctxt_src, settings)
                             reports["src_messages"].append((msgctxt, msgid, msgsrc))
                     else:
-                        _msgctxt = d.get("ctxt_raw")
+                        _msgctxt = d.get("ctxt_raw", keyword.context_override)
                         msgctxt, msgid = process_entry(_msgctxt, _msgid)
                         process_msg(msgs, msgctxt, msgid, msgsrc, reports, check_ctxt_src, settings)
                         reports["src_messages"].append((msgctxt, msgid, msgsrc))
 
                 pos = m.end()
                 line += data[m.start():pos].count('\n')
-                m = srch(data, pos)
+                m = keyword.search(data, pos)
 
     forbidden = set()
     forced = set()
@@ -1234,7 +1231,7 @@ def dump_messages(do_messages, do_checks, settings):
     # Get strings specific to translations' menu.
     for lng in settings.LANGUAGES:
         process_msg(
-            msgs, settings.DEFAULT_CONTEXT, lng[1], "Languages’ labels from bl_i18n_utils/settings.py",
+            msgs, settings.DEFAULT_CONTEXT, lng[1], "Languages’ labels from _bl_i18n_utils/settings.py",
             reports, None, settings,
         )
 
