@@ -4109,6 +4109,19 @@ static wmOperatorStatus grease_pencil_set_curve_resolution_exec(bContext *C, wmO
     }
 
     index_mask::masked_fill(curves.resolution_for_write(), resolution, editable_strokes);
+
+    /* Prevent nurbs curves from having a resolution of 0. */
+    if (resolution == 0) {
+      VArray<int8_t> curve_types = curves.curve_types();
+      const IndexMask nurbs_strokes = IndexMask::from_predicate(
+          editable_strokes, GrainSize(4096), memory, [&](const int index) {
+            return curve_types[index] == CURVE_TYPE_NURBS;
+          });
+      if (!nurbs_strokes.is_empty()) {
+        index_mask::masked_fill(curves.resolution_for_write(), 1, nurbs_strokes);
+      }
+    }
+
     info.drawing.tag_topology_changed();
     changed = true;
   });

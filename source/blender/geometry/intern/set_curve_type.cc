@@ -624,6 +624,15 @@ static bke::CurvesGeometry convert_curves_to_nurbs(const bke::CurvesGeometry &sr
     attribute.dst.finish();
   }
   bke::curves::nurbs::copy_custom_knots(src_curves, IndexMask(), dst_curves);
+
+  /* Prevent nurbs curves from having a resolution of 0. */
+  MutableSpan<int> resolutions = dst_curves.resolution_for_write();
+  selection.foreach_index(GrainSize(512), [&](const int i) {
+    if (resolutions[i] <= 0) {
+      resolutions[i] = 1;
+    }
+  });
+
   return dst_curves;
 }
 
