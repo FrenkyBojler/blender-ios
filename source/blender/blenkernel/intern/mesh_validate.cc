@@ -134,7 +134,6 @@ static IndexMask find_edges_duplicates(const Mesh &mesh,
       errors.add("Edge {} is a duplicate of {}", edge_i, unique_edges.index_of(edge));
       duplicate_edges[edge_i].set();
     }
-    unique_edges.add_new(edge);
   });
   return IndexMask::from_bits(mask, duplicate_edges, memory);
 }
@@ -494,10 +493,12 @@ static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *m
       const MDeformVert &dvert = dverts[vert];
 
       Vector<std::string> errors;
+      bool invalid = false;
       Vector<MDeformWeight, 64> fixed_weights;
       for (const MDeformWeight &dw : Span(dvert.dw, dvert.totweight)) {
         const uint def_nr = dw.def_nr;
         if (dw.def_nr > INT_MAX) {
+          invalid = true;
           if (verbose) {
             std::lock_guard lock(mutex);
             errors.append(fmt::format("Vertex {} has invalid deform group {}", vert, def_nr));
@@ -505,27 +506,35 @@ static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *m
           continue;
         }
         if (!std::isfinite(dw.weight)) {
+          invalid = true;
           if (verbose) {
             std::lock_guard lock(mutex);
             errors.append(fmt::format(
                 "Vertex {} deform group {} has invalid weight {}", vert, def_nr, dw.weight));
           }
-          fixed_weights.append({def_nr, 0.0f});
+          if (mesh_mut) {
+            fixed_weights.append({def_nr, 0.0f});
+          }
           continue;
         }
         if (dw.weight < 0.0f || dw.weight > 1.0f) {
+          invalid = true;
           if (verbose) {
             std::lock_guard lock(mutex);
             errors.append(fmt::format(
                 "Vertex {} deform group {} has invalid weight {}", vert, def_nr, dw.weight));
           }
-          fixed_weights.append({def_nr, std::clamp(dw.weight, 0.0f, 1.0f)});
+          if (mesh_mut) {
+            fixed_weights.append({def_nr, std::clamp(dw.weight, 0.0f, 1.0f)});
+          }
           continue;
         }
-        fixed_weights.append(dw);
+        if (mesh_mut) {
+          fixed_weights.append(dw);
+        }
       }
 
-      if (fixed_weights.as_span() != Span(dvert.dw, dvert.totweight)) {
+      if (invalid) {
         std::lock_guard lock(mutex);
         replacements.append({vert, std::move(fixed_weights)});
       }
