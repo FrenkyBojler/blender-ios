@@ -1299,6 +1299,18 @@ static void TRANSFORM_OT_vert_slide(wmOperatorType *ot)
                   "Flipped",
                   "When Even mode is active, flips between the two adjacent edge loops");
   RNA_def_boolean(ot->srna, "use_clamp", true, "Clamp", "Clamp within the edge extents");
+  PropertyRNA *prop = RNA_def_float_vector(
+      ot->srna,
+      "slide_direction",
+      2,
+      nullptr,
+      -FLT_MAX,
+      FLT_MAX,
+      "Slide Direction",
+      "Stores the mouse movement direction used for vertex slide redo",
+      -FLT_MAX,
+      FLT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   properties_register(ot, P_MIRROR | P_GEO_SNAP | P_CORRECT_UV);
 }

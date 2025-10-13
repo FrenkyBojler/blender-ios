@@ -139,6 +139,38 @@ struct VertSlideData {
       }
     }
   }
+
+  void select_edges_by_direction(const float2 &dir_in)
+  {
+    const float2 dir = math::normalize(dir_in);
+
+    for (TransDataVertSlideVert &sv : this->sv) {
+      if (sv.co_link_orig_3d.size() <= 1) {
+        continue;
+      }
+
+      const float3 v_co_orig = sv.co_orig_3d();
+      float2 loc_src_2d = math::project_point(this->proj_mat, v_co_orig).xy();
+
+      float dir_dot_best = -FLT_MAX;
+      int co_link_curr_best = -1;
+
+      for (int j : sv.co_link_orig_3d.index_range()) {
+        const float3 &loc_dst = sv.co_link_orig_3d[j];
+        float2 loc_dst_2d = math::project_point(this->proj_mat, loc_dst).xy();
+        float2 tdir = math::normalize(loc_dst_2d - loc_src_2d);
+        const float dir_dot = math::dot(dir, tdir);
+        if (dir_dot > dir_dot_best) {
+          dir_dot_best = dir_dot;
+          co_link_curr_best = j;
+        }
+      }
+
+      if (co_link_curr_best != -1) {
+        sv.co_link_curr = co_link_curr_best;
+      }
+    }
+  }
 };
 
 struct VertSlideParams {
@@ -146,6 +178,8 @@ struct VertSlideParams {
   wmOperator *op;
   bool use_even;
   bool flipped;
+  float2 dir_2d;
+  bool have_dir;
 };
 
 static void vert_slide_update_input(TransInfo *t)
@@ -259,7 +293,21 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
         if (is_clamp) {
           const TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_OK(t);
           VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
-          sld->update_active_edges(t, float2(event->mval));
+
+          const float2 dir = float2(event->mval) - t->mouse.imval;
+          if (math::length_squared(dir) > 1e-16f) {
+            sld->select_edges_by_direction(dir);
+
+            if (slp->op) {
+              PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction");
+              if (pdir) {
+                float tmp[2] = {dir.x, dir.y};
+                RNA_property_float_set_array(slp->op->ptr, pdir, tmp);
+              }
+            }
+            slp->dir_2d = dir;
+            slp->have_dir = true;
+          }
         }
         calcVertSlideCustomPoints(t);
         break;
@@ -601,6 +649,18 @@ static void initVertSlide_ex(
       t->flag |= T_ALT_TRANSFORM;
     }
 
+    if (op) {
+      PropertyRNA *pdir = RNA_struct_find_property(op->ptr, "slide_direction");
+      if (pdir && RNA_property_is_set(op->ptr, pdir)) {
+        float tmp[2] = {0.0f, 0.0f};
+        RNA_property_float_get_array(op->ptr, pdir, tmp);
+        if ((tmp[0] != 0.0f) || (tmp[1] != 0.0f)) {
+          slp->dir_2d = float2(tmp[0], tmp[1]);
+          slp->have_dir = true;
+        }
+      }
+    }
+
     t->custom.mode.data = slp;
     t->custom.mode.use_free = true;
   }
@@ -610,7 +670,14 @@ static void initVertSlide_ex(
     VertSlideData *sld = createVertSlideVerts(t, tc);
     if (sld) {
       sld->update_active_vert(t, t->mval);
-      sld->update_active_edges(t, t->mval);
+
+      VertSlideParams *slp = static_cast<VertSlideParams *>(t->custom.mode.data);
+      if (slp->have_dir) {
+        sld->select_edges_by_direction(slp->dir_2d);
+      }
+      else {
+        sld->update_active_edges(t, t->mval);
+      }
 
       tc->custom.mode.data = sld;
       tc->custom.mode.free_cb = freeVertSlideVerts;
