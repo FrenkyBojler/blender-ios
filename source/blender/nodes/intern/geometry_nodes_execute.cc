@@ -6,6 +6,8 @@
  * \ingroup nodes
  */
 
+#include <cfloat>
+
 #include "BLI_listbase.h"
 #include "BLI_math_euler.hh"
 #include "BLI_string.h"
@@ -474,7 +476,7 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
     const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
     if (socket_type == SOCK_GEOMETRY && i == 0) {
       bke::SocketValueVariant &value = scope.construct<bke::SocketValueVariant>();
-      value.set(input_geometry);
+      value.set(std::move(input_geometry));
       param_inputs[function.inputs.main[0]] = &value;
       continue;
     }
@@ -541,7 +543,8 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
                                           MutableSpan<GPointer> r_values)
 {
   /* Assume that all inputs have unknown values by default. */
-  r_values.fill(nullptr);
+  Vector<InferenceValue> inference_values(btree.interface_inputs().size(),
+                                          InferenceValue::Unknown());
 
   PointerRNA inputs_ptr = RNA_pointer_get(const_cast<PointerRNA *>(&properties_ptr), "inputs");
 
@@ -568,8 +571,9 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
     }
     const GPointer single_value = value.get_single_ptr();
     BLI_assert(single_value.type() == stype->base_cpp_type);
-    r_values[input_i] = single_value;
+    inference_values[input_i] = InferenceValue::from_primitive(single_value.get());
   }
+  return inference_values;
 }
 
 }  // namespace blender::nodes

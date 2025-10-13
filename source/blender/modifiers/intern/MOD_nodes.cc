@@ -116,12 +116,12 @@ static void find_dependencies_from_settings(const NodesModifierData &nmd,
                                             nodes::GeometryNodesEvalDependencies &deps)
 {
   IDP_foreach_property(nmd.settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
-    if (ID *id = IDP_Id(property)) {
+    if (ID *id = IDP_ID_get(property)) {
       deps.add_generic_id_full(id);
     }
   });
   IDP_foreach_property(nmd.group_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
-    if (ID *id = IDP_Id(property)) {
+    if (ID *id = IDP_ID_get(property)) {
       deps.add_generic_id_full(id);
     }
   });
@@ -2215,4 +2215,5 @@ ModifierTypeInfo modifierType_Nodes = {
     /*blend_write*/ blender::blend_write,
     /*blend_read*/ blender::blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

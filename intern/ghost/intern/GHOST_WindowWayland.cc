@@ -371,7 +371,7 @@ enum eGWL_PendingWindowActions {
 
 struct GWL_WindowFrame {
   /**
-   * The frame size (in GHOST window coordinates).
+   * The frame size (in pixels).
    *
    * These must be converted to WAYLAND relative coordinates when the window is scaled
    * by Hi-DPI/fractional scaling.
@@ -1867,12 +1867,16 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     GWL_XDG_Decor_Window &decor = *window_->xdg_decor;
 
     if (system_->xdg_decor_manager_get()) {
+      const bool use_window_frame = system_->use_window_frame_get();
       decor.toplevel_decor = zxdg_decoration_manager_v1_get_toplevel_decoration(
           system_->xdg_decor_manager_get(), decor.toplevel);
       zxdg_toplevel_decoration_v1_add_listener(
           decor.toplevel_decor, &xdg_toplevel_decoration_v1_listener, window_);
+      /* Request client side decorations as a way of disabling decorations. */
       zxdg_toplevel_decoration_v1_set_mode(decor.toplevel_decor,
-                                           ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                                           use_window_frame ?
+                                               ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE :
+                                               ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
     }
 
     /* Commit needed to so configure callback runs. */
@@ -1996,6 +2000,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
      * consider it always enabled. But may still get disabled if Vulkan has no
      * appropriate surface format. */
     hdr_info_.hdr_enabled = true;
+    hdr_info_.wide_gamut_enabled = true;
     hdr_info_.sdr_white_level = 1.0f;
   }
 #endif
@@ -2170,10 +2175,10 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
 }
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
-GHOST_TSuccess GHOST_WindowWayland::swapBuffers()
+GHOST_TSuccess GHOST_WindowWayland::swapBufferRelease()
 {
   GHOST_ASSERT(system_->main_thread_id == std::this_thread::get_id(), "Only from main thread!");
-  return GHOST_Window::swapBuffers();
+  return GHOST_Window::swapBufferRelease();
 }
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 
@@ -2599,6 +2604,8 @@ GHOST_TSuccess GHOST_WindowWayland::close()
 
 GHOST_TSuccess GHOST_WindowWayland::activate()
 {
+  /* When first initializing from the main thread, activation is called directly,
+   * otherwise activation is performed when processing pending events. */
 #ifdef USE_EVENT_BACKGROUND_THREAD
   const bool is_main_thread = system_->main_thread_id == std::this_thread::get_id();
   if (is_main_thread)
@@ -2627,8 +2634,9 @@ GHOST_TSuccess GHOST_WindowWayland::activate()
 
 GHOST_TSuccess GHOST_WindowWayland::deactivate()
 {
+  /* When first initializing from the main thread, deactivation is called directly,
+   * otherwise deactivation is performed when processing pending events. */
 #ifdef USE_EVENT_BACKGROUND_THREAD
-  /* Actual activation is handled when processing pending events. */
   const bool is_main_thread = system_->main_thread_id == std::this_thread::get_id();
   if (is_main_thread)
 #endif

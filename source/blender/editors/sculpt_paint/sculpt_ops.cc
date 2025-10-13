@@ -409,7 +409,7 @@ void object_sculpt_mode_enter(Main &bmain,
   }
 
   Paint *paint = BKE_paint_get_active_from_paintmode(&scene, PaintMode::Sculpt);
-  BKE_paint_init(&bmain, &scene, PaintMode::Sculpt, PAINT_CURSOR_SCULPT);
+  BKE_paint_init(&bmain, &scene, PaintMode::Sculpt);
 
   ED_paint_cursor_start(paint, SCULPT_brush_cursor_poll);
 
@@ -1300,8 +1300,15 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
 
       if (sd && RNA_boolean_get(op->ptr, "use_curve")) {
         PointerRNA sculpt_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Sculpt, sd);
-        uiTemplateCurveMapping(
-            layout, &sculpt_ptr, "automasking_cavity_curve_op", 'v', false, false, false, false);
+        uiTemplateCurveMapping(layout,
+                               &sculpt_ptr,
+                               "automasking_cavity_curve_op",
+                               'v',
+                               false,
+                               false,
+                               false,
+                               false,
+                               false);
       }
       break;
     }

@@ -11,7 +11,8 @@
 #include <cfloat>
 #include <optional>
 
-#include "BLI_listbase.h"  // IWYU pragma: export
+#include "BLI_listbase.h"        // IWYU pragma: export
+#include "BLI_math_constants.h"  // IWYU pragma: export
 
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"  // IWYU pragma: export
@@ -45,6 +46,9 @@ bool sh_node_poll_default(const blender::bke::bNodeType *ntype,
 void sh_node_type_base(blender::bke::bNodeType *ntype,
                        std::string idname,
                        std::optional<int16_t> legacy_type = std::nullopt);
+void sh_geo_node_type_base(blender::bke::bNodeType *ntype,
+                           std::string idname,
+                           std::optional<int16_t> legacy_type = std::nullopt);
 void common_node_type_base(blender::bke::bNodeType *ntype,
                            std::string idname,
                            std::optional<int16_t> legacy_type = std::nullopt);

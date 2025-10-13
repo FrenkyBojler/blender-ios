@@ -169,7 +169,6 @@ static void material_free_data(ID *id)
 static void material_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Material *material = reinterpret_cast<Material *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   /* Node-trees **are owned by IDs**, treat them as mere sub-data and not real ID! */
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
@@ -181,9 +180,21 @@ static void material_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->sima, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->ima, IDWALK_CB_USER);
   }
+}
 
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, material->ipo, IDWALK_CB_USER);
+static void material_foreach_working_space_color(ID *id,
+                                                 const IDTypeForeachColorFunctionCallback &fn)
+{
+  Material *material = reinterpret_cast<Material *>(id);
+
+  fn.single(&material->r);
+  fn.single(&material->specr);
+  fn.single(material->line_col);
+
+  if (material->gp_style) {
+    fn.single(material->gp_style->stroke_rgba);
+    fn.single(material->gp_style->fill_rgba);
+    fn.single(material->gp_style->mix_rgba);
   }
 }
 
@@ -194,6 +205,9 @@ static void material_blend_write(BlendWriter *writer, ID *id, const void *id_add
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   ma->texpaintslot = nullptr;
   BLI_listbase_clear(&ma->gpumaterial);
+
+  /* Set deprecated #use_nodes for forward compatibility. */
+  ma->use_nodes = true;
 
   /* write LibData */
   BLO_write_id_struct(writer, Material, id_address, &ma->id);
@@ -248,6 +262,7 @@ IDTypeInfo IDType_ID_MA = {
     /*foreach_id*/ material_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ material_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ material_blend_write,
@@ -1764,7 +1779,7 @@ bNode *BKE_texpaint_slot_material_find_node(Material *ma, short texpaint_slot)
   return find_data.r_node;
 }
 
-void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
+void ramp_blend(int type, float r_col[4], const float fac, const float col[4])
 {
   float tmp, facm = 1.0f - fac;
 
@@ -1773,6 +1788,7 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
       r_col[0] = facm * (r_col[0]) + fac * col[0];
       r_col[1] = facm * (r_col[1]) + fac * col[1];
       r_col[2] = facm * (r_col[2]) + fac * col[2];
+      r_col[3] = facm * (r_col[3]) + fac * col[3];
       break;
     case MA_RAMP_ADD:
       r_col[0] += fac * col[0];
@@ -2059,7 +2075,6 @@ static void material_default_surface_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket *base_color = blender::bke::node_find_socket(*principled, SOCK_IN, "Base Color");
@@ -2087,7 +2102,6 @@ static void material_default_volume_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(
       nullptr, *ntree, SH_NODE_VOLUME_PRINCIPLED);
@@ -2113,7 +2127,6 @@ static void material_default_holdout_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *holdout = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_HOLDOUT);
   bNode *output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);

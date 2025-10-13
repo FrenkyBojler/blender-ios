@@ -805,8 +805,10 @@ void GeometryManager::device_update(Device *device,
       SubdParams subd_params(mesh);
       subd_params.dicing_rate = mesh->get_subd_dicing_rate();
       subd_params.max_level = mesh->get_subd_max_level();
-      subd_params.objecttoworld = mesh->get_subd_objecttoworld();
-      subd_params.camera = dicing_camera;
+      if (mesh->get_subd_adaptive_space() == Mesh::SUBDIVISION_ADAPTIVE_SPACE_PIXEL) {
+        subd_params.objecttoworld = mesh->get_subd_objecttoworld();
+        subd_params.camera = dicing_camera;
+      }
 
       mesh->tessellate(subd_params);
     }
@@ -954,12 +956,6 @@ void GeometryManager::device_update(Device *device,
         scene->update_stats->geometry.times.add_entry({"device_update (build object BVHs)", time});
       }
     });
-    TaskPool pool;
-
-    /* Work around Embree/oneAPI bug #129596 with BVH updates. */
-    const bool use_multithreaded_build = first_bvh_build ||
-                                         !device->info.contains_device_type(DEVICE_ONEAPI);
-    first_bvh_build = false;
 
     size_t i = 0;
     size_t num_bvh = 0;
@@ -972,19 +968,15 @@ void GeometryManager::device_update(Device *device,
           num_bvh++;
         }
 
-        if (use_multithreaded_build) {
-          pool.push([geom, device, dscene, scene, &progress, i, &num_bvh] {
-            geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
-          });
-        }
-        else {
+        /* Note the use of #bvh_task_pool_, see its definition for details. */
+        bvh_task_pool_.push([geom, device, dscene, scene, &progress, i, &num_bvh] {
           geom->compute_bvh(device, dscene, &scene->params, &progress, i, num_bvh);
-        }
+        });
       }
     }
 
     TaskPool::Summary summary;
-    pool.wait_work(&summary);
+    bvh_task_pool_.wait_work(&summary);
     LOG_DEBUG << "Objects BVH build pool statistics:\n" << summary.full_report();
   }
 
