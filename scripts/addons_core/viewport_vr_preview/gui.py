@@ -18,7 +18,7 @@ from bpy.types import (
     Panel,
     UIList,
 )
-from bl_ui.space_view3d import VIEW3D_PT_object_type_visibility
+from bpy.types import VIEW3D_PT_object_type_visibility
 
 
 # Session.
