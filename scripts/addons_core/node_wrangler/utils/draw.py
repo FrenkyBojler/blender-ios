@@ -233,16 +233,25 @@ def draw_callback_shift_nodes_line(self, context, reverse):
         m1x = self.mouse_path[0][0]
         m1y = self.mouse_path[0][1]
         m2x = self.mouse_path[-1][0]
-        m2y = self.mouse_path[0][1]
+        m2y = self.mouse_path[-1][1]
+
+        if abs(m2x-m1x) > abs(m2y-m1y):
+            m2y = m1y
+            l_offx = 0.0
+            l_offy = 10.0 * prefs_line_width()
+        else:
+            m2x = m1x
+            l_offx = 10.0 * prefs_line_width()
+            l_offy = 0.0
+
 
         draw_line(m1x, m1y, m2x, m2y, 5, col_outer)  # line outline
         draw_line(m1x, m1y, m2x, m2y, 2, col_inner)  # line inner
 
-        l_off = 10.0
-        draw_line(m1x, m1y - l_off, m1x, m1y + l_off, 5, col_outer)  # line outline
-        draw_line(m1x, m1y - l_off, m1x, m1y + l_off, 2, col_inner)  # line inner
+        draw_line(m1x - l_offx, m1y - l_offy, m1x + l_offx, m1y + l_offy, 5, col_outer)  # line outline
+        draw_line(m1x - l_offx, m1y - l_offy, m1x + l_offx, m1y + l_offy, 2, col_inner)  # line inner
 
-        draw_line(m2x, m2y - l_off, m2x, m2y + l_off, 5, col_outer)  # line outline
-        draw_line(m2x, m2y - l_off, m2x, m2y + l_off, 2, col_inner)  # line inner
+        draw_line(m2x - l_offx, m2y - l_offy, m2x + l_offx, m2y + l_offy, 5, col_outer)  # line outline
+        draw_line(m2x - l_offx, m2y - l_offy, m2x + l_offx, m2y + l_offy, 2, col_inner)  # line inner
 
         gpu.state.blend_set("NONE")

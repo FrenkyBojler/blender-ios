@@ -2402,34 +2402,43 @@ class NWShiftNodes(Operator):
     def modal(self, context, event):
         context.area.tag_redraw()
         if event.type == "MOUSEMOVE":
-            current_x, _ = self.__get_local_position(context, event)
-            diff_x = current_x - self.init_x
-            mouse_pos = (event.mouse_region_x, event.mouse_region_y)
+            region_pos = self.__get_local_position(context, event)
+            diff = (region_pos[0] - self.init_region_pos[0], region_pos[1] - self.init_region_pos[1])
+
+            # reset node locations if mouse drag direction changes
+            prev_diff_x = self.prev_region_pos[0] -self.init_region_pos[0]
+            prev_diff_y = self.prev_region_pos[1] -self.init_region_pos[1]
+
+            nodes = context.space_data.edit_tree.nodes
+            axis = int(abs(diff[0]) < abs(diff[1]))
+            if axis != int(abs(prev_diff_x) > abs(prev_diff_y)):
+                for name, location in self.init_node_location.items():
+                    nodes[name].location_absolute = location
+            self.prev_region_pos = region_pos
 
             # snap value when snapping is enabled
+            mouse_pos = (event.mouse_region_x, event.mouse_region_y)
             if context.scene.tool_settings.use_snap_node:
                 GRID_SPACING = 20  # seems to be standard grid spacing
-                diff_x = self.__grid_snap(diff_x, GRID_SPACING)
+                diff = tuple(self.__grid_snap(v, GRID_SPACING) for v in diff)
                 mouse_pos = tuple(self.__grid_snap(v, GRID_SPACING) for v in mouse_pos)
             self.mouse_path.append(mouse_pos)
 
-            nodes = context.space_data.edit_tree.nodes
-            for name, location_x in self.init_node_location.items():
+            for name, location in self.init_node_location.items():
                 if self.reverse:
                     # shift nodes closer together
                     # with mouse dragging left, move all nodes right of the cursor and vice versa
-                    if (current_x < self.init_x and location_x > self.init_x) or (
-                        current_x > self.init_x and location_x < self.init_x
+                    if (region_pos[axis] < self.init_region_pos[axis] and location[axis] > self.init_region_pos[axis]) or (
+                        region_pos[axis] > self.init_region_pos[axis] and location[axis] < self.init_region_pos[axis]
                     ):
-                        nodes[name].location_absolute = (location_x + diff_x, nodes[name].location_absolute.y)
+                        nodes[name].location_absolute[axis] = location[axis] + diff[axis]
                 else:
                     # shift nodes further apart
                     # with mouse dragging left, move all nodes left of the cursor and vice versa
-                    if (current_x < self.init_x and location_x < self.init_x) or (
-                        current_x > self.init_x and location_x > self.init_x
+                    if (region_pos[axis] < self.init_region_pos[axis] and location[axis] < self.init_region_pos[axis]) or (
+                        region_pos[axis] > self.init_region_pos[axis] and location[axis] > self.init_region_pos[axis]
                     ):
-                        nodes[name].location_absolute = (location_x + diff_x, nodes[name].location_absolute.y)
-
+                        nodes[name].location_absolute[axis] = location[axis] + diff[axis]
         # FINISH
         if event.type in ["MIDDLEMOUSE"]:
             bpy.types.SpaceNodeEditor.draw_handler_remove(self._handle, "WINDOW")
@@ -2444,8 +2453,10 @@ class NWShiftNodes(Operator):
     def invoke(self, context, event):
         # save initial position of all nodes except frames
         nodes = context.space_data.edit_tree.nodes
-        self.init_node_location = {node.name: (node.location_absolute.x) for node in nodes if node.type != "FRAME"}
-        self.init_x, _ = self.__get_local_position(context, event)
+        self.init_node_location = {node.name: (node.location_absolute.copy()) for node in nodes if node.type != "FRAME"}
+        self.init_region_pos = self.__get_local_position(context, event)
+        # there is no mouse_prev_region_*
+        self.prev_region_pos = self.init_region_pos
 
         args = (self, context, self.reverse)
 
