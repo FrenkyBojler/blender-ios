@@ -20,7 +20,6 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_index_ranges_builder.hh"
-#include "BLI_map.hh"
 #include "BLI_ordered_edge.hh"
 
 #include "BKE_attribute.hh"
@@ -33,11 +32,49 @@ static CLG_LogRef LOG = {"geom.mesh"};
 
 namespace blender::bke {
 
-static void print_error_with_indices(const StringRef message, const IndexMask &indices)
+/* Helper class to collect error messages in parallel. */
+class ErrorMessages {
+  Mutex mutex_;
+  bool verbose_;
+
+ public:
+  Vector<std::string> messages;
+
+  ErrorMessages(const bool verbose) : verbose_(verbose) {}
+  ~ErrorMessages()
+  {
+    std::sort(messages.begin(), messages.end());
+    for (const std::string &message : messages) {
+      CLOG_ERROR(&LOG, "%s", message.c_str());
+    }
+  }
+
+  void add(std::string message)
+  {
+    if (!verbose_) {
+      return;
+    }
+    std::lock_guard lock(mutex_);
+    this->messages.append(std::move(message));
+  }
+
+  template<typename... T> void add(fmt::format_string<T...> fmt, T &&...args)
+  {
+    if (!verbose_) {
+      return;
+    }
+    this->add(fmt::format(fmt, args...));
+  }
+};
+
+template<typename... T>
+static void print_error_with_indices(const IndexMask &indices,
+                                     fmt::format_string<T...> fmt,
+                                     T &&...args)
 {
   fmt::memory_buffer buffer;
   fmt::appender dst(buffer);
-  fmt::format_to(dst, "{}: ", message);
+  fmt::format_to(dst, fmt, std::forward<T>(args)...);
   indices.foreach_index([&](const int index, const int pos) {
     if (pos != 0) {
       fmt::format_to(dst, ", ");
@@ -47,18 +84,27 @@ static void print_error_with_indices(const StringRef message, const IndexMask &i
   CLOG_ERROR(&LOG, "%s", fmt::to_string(buffer).c_str());
 }
 
-static IndexMask find_edges_bad_verts(const Mesh &mesh, IndexMaskMemory &memory)
+static IndexMask find_edges_bad_verts(const Mesh &mesh,
+                                      IndexMaskMemory &memory,
+                                      const bool verbose)
 {
   const IndexRange verts_range(mesh.verts_num);
   const Span<int2> edges = mesh.edges();
 
+  ErrorMessages errors(verbose);
   return IndexMask::from_predicate(
       edges.index_range(), GrainSize(4096), memory, [&](const int edge_i) {
         const int2 edge = edges[edge_i];
         if (edge[0] == edge[1]) {
+          errors.add("Edge {} has equal vertex indices {}", edge_i, edge[0]);
           return false;
         }
-        if (!verts_range.contains(edge[0]) || !verts_range.contains(edge[1])) {
+        if (!verts_range.contains(edge[0])) {
+          errors.add("Edge {} has out of range vertex {}", edge_i, edge[0]);
+          return false;
+        }
+        if (!verts_range.contains(edge[1])) {
+          errors.add("Edge {} has out of range vertex {}", edge_i, edge[1]);
           return false;
         }
         return true;
@@ -76,26 +122,37 @@ using EdgeMap = VectorSet<OrderedEdge,
 static IndexMask find_edges_duplicates(const Mesh &mesh,
                                        const IndexMask &mask,
                                        IndexMaskMemory &memory,
+                                       const bool verbose,
                                        EdgeMap &unique_edges)
 {
   const Span<int2> edges = mesh.edges();
   BitVector<> duplicate_edges(edges.size());
-  mask.foreach_index_optimized<int>([&](const int edge_i) {
+  ErrorMessages errors(verbose);
+  mask.foreach_index([&](const int edge_i) {
     const int2 edge = edges[edge_i];
     if (!unique_edges.add(edge)) {
+      errors.add("Edge {} is a duplicate of {}", edge_i, unique_edges.index_of(edge));
       duplicate_edges[edge_i].set();
     }
+    unique_edges.add_new(edge);
   });
   return IndexMask::from_bits(mask, duplicate_edges, memory);
 }
 
-static IndexMask find_faces_bad_offsets(const Mesh &mesh, IndexMaskMemory &memory)
+static IndexMask find_faces_bad_offsets(const Mesh &mesh,
+                                        IndexMaskMemory &memory,
+                                        const bool verbose)
 {
   const Span<int> face_offsets = mesh.face_offsets();
+  ErrorMessages errors(verbose);
   if (face_offsets.last() != mesh.corners_num) {
+    errors.add("Face offsets last value is {}, expected {}. Considering all faces invalid",
+               face_offsets.last(),
+               mesh.corners_num);
     return IndexMask(mesh.faces_num);
   }
   if (face_offsets.first() != 0) {
+    errors.add("Faces offsets do not start at 0. Considering all faces invalid");
     return IndexMask(mesh.faces_num);
   }
   return IndexMask::from_predicate(
@@ -103,6 +160,7 @@ static IndexMask find_faces_bad_offsets(const Mesh &mesh, IndexMaskMemory &memor
         const int face_start = face_offsets[face_i];
         const int face_size = face_offsets[face_i + 1] - face_start;
         if (face_size < 3) {
+          errors.add("Face {} has invalid size {}", face_i, face_size);
           return false;
         }
         return true;
@@ -111,15 +169,18 @@ static IndexMask find_faces_bad_offsets(const Mesh &mesh, IndexMaskMemory &memor
 
 static IndexMask find_faces_bad_verts(const Mesh &mesh,
                                       const IndexMask &mask,
-                                      IndexMaskMemory &memory)
+                                      IndexMaskMemory &memory,
+                                      const bool verbose)
 {
   const IndexRange verts_range(mesh.verts_num);
   const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
   const Span<int> corner_verts = mesh.corner_verts();
+  ErrorMessages errors(verbose);
   return IndexMask::from_predicate(mask, GrainSize(512), memory, [&](const int face_i) {
     const IndexRange face = faces[face_i];
     for (const int vert : corner_verts.slice(face)) {
       if (!verts_range.contains(vert)) {
+        errors.add("Face {} has invalid vertex {}", face_i, vert);
         return true;
       }
     }
@@ -129,16 +190,19 @@ static IndexMask find_faces_bad_verts(const Mesh &mesh,
 
 static IndexMask find_faces_duplicate_verts(const Mesh &mesh,
                                             const IndexMask &mask,
-                                            IndexMaskMemory &memory)
+                                            IndexMaskMemory &memory,
+                                            const bool verbose)
 {
   const IndexRange verts_range(mesh.verts_num);
   const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
   const Span<int> corner_verts = mesh.corner_verts();
+  ErrorMessages errors(verbose);
   return IndexMask::from_predicate(mask, GrainSize(512), memory, [&](const int face_i) {
     Set<int, 64> set;
     const IndexRange face = faces[face_i];
     for (const int vert : corner_verts.slice(face)) {
       if (!set.add(vert)) {
+        errors.add("Face {} has duplicate vertex {}", face_i, vert);
         return true;
       }
     }
@@ -149,18 +213,22 @@ static IndexMask find_faces_duplicate_verts(const Mesh &mesh,
 static IndexMask find_faces_missing_edges(const Mesh &mesh,
                                           const IndexMask &mask,
                                           const EdgeMap &unique_edges,
-                                          IndexMaskMemory &memory)
+                                          IndexMaskMemory &memory,
+                                          const bool verbose)
 {
   const IndexRange edges_range(mesh.edges_num);
   const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
   const Span<int> corner_verts = mesh.corner_verts();
 
+  ErrorMessages errors(verbose);
   return IndexMask::from_predicate(mask, GrainSize(1024), memory, [&](const int face_i) {
     const IndexRange face = faces[face_i];
     for (const int corner : face) {
       const int corner_next = mesh::face_corner_next(face, corner);
       const OrderedEdge actual_edge(corner_verts[corner], corner_verts[corner_next]);
       if (!unique_edges.contains(actual_edge)) {
+        errors.add(
+            "Face {} has missing edge ({}, {})", face_i, actual_edge.v_low, actual_edge.v_high);
         return true;
       }
     }
@@ -172,6 +240,7 @@ static IndexMask find_faces_bad_edges(const Mesh &mesh,
                                       const IndexMask &mask,
                                       const EdgeMap &unique_edges,
                                       IndexMaskMemory &memory,
+                                      const bool verbose,
                                       Vector<Vector<std::pair<int, int>>> &r_corner_edge_fixes)
 {
   const IndexRange edges_range(mesh.edges_num);
@@ -180,6 +249,7 @@ static IndexMask find_faces_bad_edges(const Mesh &mesh,
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<int> corner_edges = mesh.corner_edges();
 
+  ErrorMessages errors(verbose);
   threading::EnumerableThreadSpecific<Vector<std::pair<int, int>>> all_replacements;
   IndexMask faces_bad_edges = IndexMask::from_batch_predicate(
       mask,
@@ -196,13 +266,21 @@ static IndexMask find_faces_bad_edges(const Mesh &mesh,
             const int corner_next = mesh::face_corner_next(face, corner);
             const OrderedEdge actual_edge(corner_verts[corner], corner_verts[corner_next]);
             const int actual_edge_index = unique_edges.index_of(actual_edge);
-            const int edge_reference = corner_edges[corner];
-            if (!edges_range.contains(edge_reference)) {
+            const int edge_index = corner_edges[corner];
+            if (!edges_range.contains(edge_index)) {
+              errors.add("Corner {} has out of range edge index {}. Expected {}",
+                         corner,
+                         edge_index,
+                         actual_edge_index);
               replacements.append({corner, actual_edge_index});
               has_invalid_edge = true;
               continue;
             }
-            if (OrderedEdge(edges[edge_reference]) != actual_edge) {
+            if (OrderedEdge(edges[edge_index]) != actual_edge) {
+              errors.add("Corner {} has incorrect edge index {}. Expected {}",
+                         corner,
+                         edge_index,
+                         actual_edge_index);
               replacements.append({corner, actual_edge_index});
               has_invalid_edge = true;
               continue;
@@ -226,7 +304,8 @@ static IndexMask find_faces_bad_edges(const Mesh &mesh,
 
 static IndexMask find_duplicate_faces(const Mesh &mesh,
                                       const IndexMask &mask,
-                                      IndexMaskMemory &memory)
+                                      IndexMaskMemory &memory,
+                                      const bool verbose)
 {
   const OffsetIndices<int> faces(mesh.face_offsets(), offset_indices::NoSortCheck());
   const Span<int> corner_verts = mesh.corner_verts();
@@ -250,9 +329,12 @@ static IndexMask find_duplicate_faces(const Mesh &mesh,
   face_hash.reserve(mesh.faces_num);
 
   BitVector<> duplicate_faces(mesh.faces_num, false);
+  ErrorMessages errors(verbose);
   mask.foreach_index([&](int face_i) {
     const IndexRange face = faces[face_i];
-    if (!face_hash.add(sorted_corner_verts.as_span().slice(face))) {
+    const Span<int> face_verts = sorted_corner_verts.as_span().slice(face);
+    if (!face_hash.add(face_verts)) {
+      errors.add("Face {} is a duplicate of {}", face_i, face_hash.index_of(face_verts));
       duplicate_faces[face_i].set();
     }
   });
@@ -398,29 +480,45 @@ static void remove_invalid_edges(Mesh &mesh, const IndexMask &valid_edges)
   mesh.tag_topology_changed();
 }
 
-static bool validate_vertex_groups(const Mesh &mesh, Mesh *mesh_mut)
+static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
 {
   const Span<MDeformVert> dverts = mesh.deform_verts();
   if (dverts.is_empty()) {
     return true;
   }
-  threading::EnumerableThreadSpecific<Map<int, Vector<MDeformWeight, 0>>> all_replacements;
-  threading::parallel_for(dverts.index_range(), 1024, [&](const IndexRange range) {
-    Map<int, Vector<MDeformWeight, 0>> &replacements = all_replacements.local();
+  Mutex mutex;
+  Vector<std::pair<int, Vector<std::string, 0>>> errors;
+  Vector<std::pair<int, Vector<MDeformWeight, 0>>> replacements;
+  threading::parallel_for(dverts.index_range(), 2048, [&](const IndexRange range) {
     for (const int vert : range) {
       const MDeformVert &dvert = dverts[vert];
 
+      Vector<std::string> errors;
       Vector<MDeformWeight, 64> fixed_weights;
       for (const MDeformWeight &dw : Span(dvert.dw, dvert.totweight)) {
         const uint def_nr = dw.def_nr;
         if (dw.def_nr > INT_MAX) {
+          if (verbose) {
+            std::lock_guard lock(mutex);
+            errors.append(fmt::format("Vertex {} has invalid deform group {}", vert, def_nr));
+          }
           continue;
         }
         if (!std::isfinite(dw.weight)) {
+          if (verbose) {
+            std::lock_guard lock(mutex);
+            errors.append(fmt::format(
+                "Vertex {} deform group {} has invalid weight {}", vert, def_nr, dw.weight));
+          }
           fixed_weights.append({def_nr, 0.0f});
           continue;
         }
         if (dw.weight < 0.0f || dw.weight > 1.0f) {
+          if (verbose) {
+            std::lock_guard lock(mutex);
+            errors.append(fmt::format(
+                "Vertex {} deform group {} has invalid weight {}", vert, def_nr, dw.weight));
+          }
           fixed_weights.append({def_nr, std::clamp(dw.weight, 0.0f, 1.0f)});
           continue;
         }
@@ -428,28 +526,33 @@ static bool validate_vertex_groups(const Mesh &mesh, Mesh *mesh_mut)
       }
 
       if (fixed_weights.as_span() != Span(dvert.dw, dvert.totweight)) {
-        replacements.add(vert, std::move(fixed_weights));
+        std::lock_guard lock(mutex);
+        replacements.append({vert, std::move(fixed_weights)});
       }
     }
   });
 
-  if (mesh_mut) {
-    MutableSpan<MDeformVert> dverts = mesh_mut->deform_verts_for_write();
-    for (Map<int, Vector<MDeformWeight, 0>> &replacements : all_replacements) {
-      for (const auto &[vert, weights] : replacements.items()) {
-        MEM_freeN(dverts[vert].dw);
-        dverts[vert].totweight = weights.size();
-        dverts[vert].dw = weights.release().data;
+  if (verbose) {
+    for (const auto &[vert, errors] : errors) {
+      for (const std::string &error : errors) {
+        CLOG_ERROR(&LOG, "%s", error.c_str());
       }
     }
   }
 
-  return std::none_of(all_replacements.begin(),
-                      all_replacements.end(),
-                      [](const auto &replacements) { return replacements.is_empty(); });
+  if (mesh_mut) {
+    MutableSpan<MDeformVert> dverts = mesh_mut->deform_verts_for_write();
+    for (auto &[vert, weights] : replacements) {
+      MEM_freeN(dverts[vert].dw);
+      dverts[vert].totweight = weights.size();
+      dverts[vert].dw = weights.release().data;
+    }
+  }
+
+  return replacements.is_empty();
 }
 
-static bool validate_material_indices(const Mesh &mesh, Mesh *mesh_mut)
+static bool validate_material_indices(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
 {
   const IndexRange materials_range(mesh.totcol);
   const bke::AttributeAccessor attributes = mesh.attributes();
@@ -469,6 +572,12 @@ static bool validate_material_indices(const Mesh &mesh, Mesh *mesh_mut)
         return !materials_range.contains(index);
       });
 
+  if (verbose) {
+    invalid_indices.foreach_index([&](const int face) {
+      CLOG_ERROR(&LOG, "Face %d has invalid material index %d", face, material_indices_span[face]);
+    });
+  }
+
   if (mesh_mut) {
     bke::MutableAttributeAccessor attributes = mesh_mut->attributes_for_write();
     bke::SpanAttributeWriter material_indices = attributes.lookup_for_write_span<int>(
@@ -481,40 +590,51 @@ static bool validate_material_indices(const Mesh &mesh, Mesh *mesh_mut)
   return !invalid_indices.is_empty();
 }
 
-static bool validate_selection_history(const Mesh &mesh, Mesh *mesh_mut)
+static bool validate_selection_history(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
 {
   if (!mesh.mselect) {
     return true;
   }
   const Span<MSelect> mselect(mesh.mselect, mesh.totselect);
-  const bool valid = std::all_of(mselect.begin(), mselect.end(), [&](const MSelect &msel) {
-    if (msel.index < 0) {
-      return false;
-    }
-    const int domain_size = [&]() {
-      switch (msel.type) {
-        case ME_VSEL:
-          return mesh.verts_num;
-        case ME_ESEL:
-          return mesh.edges_num;
-        case ME_FSEL:
-          return mesh.faces_num;
-      }
-      return 0;
-    }();
-    if (msel.index >= domain_size) {
-      return false;
-    }
+  IndexMaskMemory memory;
+  const IndexMask invalid = IndexMask::from_predicate(
+      mselect.index_range(), GrainSize(4096), memory, [&](const int i) {
+        if (mselect[i].index < 0) {
+          return true;
+        }
+        const int domain_size = [&]() {
+          switch (mselect[i].type) {
+            case ME_VSEL:
+              return mesh.verts_num;
+            case ME_ESEL:
+              return mesh.edges_num;
+            case ME_FSEL:
+              return mesh.faces_num;
+          }
+          return 0;
+        }();
+        if (mselect[i].index >= domain_size) {
+          return true;
+        }
+        return false;
+      });
+  if (invalid.is_empty()) {
     return true;
-  });
-
-  if (mesh_mut) {
-    if (!valid) {
-      MEM_SAFE_FREE(mesh_mut->mselect);
-    }
   }
 
-  return valid;
+  if (verbose) {
+    invalid.foreach_index([&](const int i) {
+      CLOG_ERROR(&LOG,
+                 "Selection element (%d, %d) has invalid index, must not be negative",
+                 mselect[i].type,
+                 mselect[i].index);
+    });
+  }
+  if (mesh_mut) {
+    MEM_SAFE_FREE(mesh_mut->mselect);
+  }
+
+  return false;
 }
 
 static IndexMask get_invalid_float_mask(const Span<float> values, const int floats_per_item)
@@ -538,6 +658,7 @@ template<typename T>
 static void validate_and_fix_float_attribute(const bke::AttributeIter &iter,
                                              const int floats_per_item,
                                              bool &all_attributes_valid,
+                                             const bool verbose,
                                              Mesh *mesh_mut)
 {
   const VArraySpan<T> typed_span = *iter.get<T>();
@@ -546,7 +667,9 @@ static void validate_and_fix_float_attribute(const bke::AttributeIter &iter,
   if (invalid.is_empty()) {
     return;
   }
-
+  if (verbose) {
+    print_error_with_indices(invalid, "Attribute {} has invalid values", iter.name);
+  }
   all_attributes_valid = false;
   if (mesh_mut) {
     bke::MutableAttributeAccessor attributes = mesh_mut->attributes_for_write();
@@ -558,6 +681,7 @@ static void validate_and_fix_float_attribute(const bke::AttributeIter &iter,
 
 static void validate_and_fix_bool_attribute(const bke::AttributeIter &iter,
                                             bool &all_attributes_valid,
+                                            const bool verbose,
                                             Mesh *mesh_mut)
 {
   const VArraySpan<bool> span = *iter.get<bool>();
@@ -570,6 +694,9 @@ static void validate_and_fix_bool_attribute(const bke::AttributeIter &iter,
   if (invalid.is_empty()) {
     return;
   }
+  if (verbose) {
+    print_error_with_indices(invalid, "Attribute {} has invalid values", iter.name);
+  }
   all_attributes_valid = false;
   if (mesh_mut) {
     bke::MutableAttributeAccessor attributes = mesh_mut->attributes_for_write();
@@ -579,13 +706,13 @@ static void validate_and_fix_bool_attribute(const bke::AttributeIter &iter,
   }
 }
 
-static bool validate_generic_attributes(const Mesh &mesh, Mesh *mesh_mut)
+static bool validate_generic_attributes(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
 {
   bool all_attributes_valid = true;
   mesh.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
     switch (iter.data_type) {
       case AttrType::Bool:
-        validate_and_fix_bool_attribute(iter, all_attributes_valid, mesh_mut);
+        validate_and_fix_bool_attribute(iter, all_attributes_valid, verbose, mesh_mut);
         break;
       case AttrType::Int8:
         break;
@@ -596,22 +723,23 @@ static bool validate_generic_attributes(const Mesh &mesh, Mesh *mesh_mut)
       case AttrType::Int32_2D:
         break;
       case AttrType::Float:
-        validate_and_fix_float_attribute<float>(iter, 1, all_attributes_valid, mesh_mut);
+        validate_and_fix_float_attribute<float>(iter, 1, all_attributes_valid, verbose, mesh_mut);
         break;
       case AttrType::Float2:
-        validate_and_fix_float_attribute<float2>(iter, 2, all_attributes_valid, mesh_mut);
+        validate_and_fix_float_attribute<float2>(iter, 2, all_attributes_valid, verbose, mesh_mut);
         break;
       case AttrType::Float3:
-        validate_and_fix_float_attribute<float3>(iter, 3, all_attributes_valid, mesh_mut);
+        validate_and_fix_float_attribute<float3>(iter, 3, all_attributes_valid, verbose, mesh_mut);
         break;
       case AttrType::ColorFloat:
-        validate_and_fix_float_attribute<float4>(iter, 4, all_attributes_valid, mesh_mut);
+        validate_and_fix_float_attribute<float4>(iter, 4, all_attributes_valid, verbose, mesh_mut);
         break;
       case AttrType::Quaternion:
-        validate_and_fix_float_attribute<float4>(iter, 4, all_attributes_valid, mesh_mut);
+        validate_and_fix_float_attribute<float4>(iter, 4, all_attributes_valid, verbose, mesh_mut);
         break;
       case AttrType::Float4x4:
-        validate_and_fix_float_attribute<float4x4>(iter, 16, all_attributes_valid, mesh_mut);
+        validate_and_fix_float_attribute<float4x4>(
+            iter, 16, all_attributes_valid, verbose, mesh_mut);
         break;
       case AttrType::ColorByte:
         break;
@@ -622,39 +750,41 @@ static bool validate_generic_attributes(const Mesh &mesh, Mesh *mesh_mut)
   return all_attributes_valid;
 }
 
-static bool mesh_validate_impl(const Mesh &mesh, Mesh *mesh_mut)
+static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
 {
   IndexMaskMemory memory;
 
   IndexMask valid_edges(mesh.edges_num);
 
-  const IndexMask edges_bad_verts = find_edges_bad_verts(mesh, memory);
+  const IndexMask edges_bad_verts = find_edges_bad_verts(mesh, memory, verbose);
   valid_edges = IndexMask::from_intersection(valid_edges, edges_bad_verts, memory);
 
   EdgeMap unique_edges;
-  const IndexMask edges_duplicate = find_edges_duplicates(mesh, valid_edges, memory, unique_edges);
+  const IndexMask edges_duplicate = find_edges_duplicates(
+      mesh, valid_edges, memory, verbose, unique_edges);
   valid_edges = IndexMask::from_intersection(valid_edges, edges_duplicate, memory);
 
   IndexMask valid_faces(mesh.faces_num);
 
-  const IndexMask faces_bad_offsets = find_faces_bad_offsets(mesh, memory);
+  const IndexMask faces_bad_offsets = find_faces_bad_offsets(mesh, memory, verbose);
   valid_faces = IndexMask::from_intersection(valid_faces, faces_bad_offsets, memory);
 
-  const IndexMask faces_bad_verts = find_faces_bad_verts(mesh, valid_faces, memory);
+  const IndexMask faces_bad_verts = find_faces_bad_verts(mesh, valid_faces, memory, verbose);
   valid_faces = IndexMask::from_intersection(valid_faces, faces_bad_verts, memory);
 
-  const IndexMask faces_duplicate_verts = find_faces_duplicate_verts(mesh, valid_faces, memory);
+  const IndexMask faces_duplicate_verts = find_faces_duplicate_verts(
+      mesh, valid_faces, memory, verbose);
   valid_faces = IndexMask::from_intersection(valid_faces, faces_duplicate_verts, memory);
 
   const IndexMask faces_missing_edges = find_faces_missing_edges(
-      mesh, valid_faces, unique_edges, memory);
+      mesh, valid_faces, unique_edges, memory, verbose);
   valid_faces = IndexMask::from_intersection(valid_faces, faces_missing_edges, memory);
 
-  const IndexMask duplicate_faces = find_duplicate_faces(mesh, valid_faces, memory);
+  const IndexMask duplicate_faces = find_duplicate_faces(mesh, valid_faces, memory, verbose);
   valid_faces = IndexMask::from_intersection(valid_faces, duplicate_faces, memory);
 
   Vector<Vector<std::pair<int, int>>> corner_edge_fixes;
-  find_faces_bad_edges(mesh, valid_faces, unique_edges, memory, corner_edge_fixes);
+  find_faces_bad_edges(mesh, valid_faces, unique_edges, memory, verbose, corner_edge_fixes);
 
   if (mesh_mut) {
     Mesh &mesh = *mesh_mut;
@@ -676,10 +806,10 @@ static bool mesh_validate_impl(const Mesh &mesh, Mesh *mesh_mut)
     }
   }
 
-  const bool dverts_valid = validate_vertex_groups(mesh, mesh_mut);
-  const bool material_indices_valid = validate_material_indices(mesh, mesh_mut);
-  const bool selection_valid = validate_selection_history(mesh, mesh_mut);
-  const bool attributes_valid = validate_generic_attributes(mesh, mesh_mut);
+  const bool dverts_valid = validate_vertex_groups(mesh, verbose, mesh_mut);
+  const bool material_indices_valid = validate_material_indices(mesh, verbose, mesh_mut);
+  const bool selection_valid = validate_selection_history(mesh, verbose, mesh_mut);
+  const bool attributes_valid = validate_generic_attributes(mesh, verbose, mesh_mut);
 
   const bool valid = corner_edge_fixes.is_empty() && valid_edges.size() == mesh.edges_num &&
                      valid_faces.size() == mesh.faces_num && dverts_valid &&
@@ -690,32 +820,32 @@ static bool mesh_validate_impl(const Mesh &mesh, Mesh *mesh_mut)
   return valid;
 }
 
-static bool mesh_validate(Mesh &mesh)
+static bool mesh_validate(Mesh &mesh, const bool verbose)
 {
-  return mesh_validate_impl(mesh, &mesh);
+  return mesh_validate_impl(mesh, verbose, &mesh);
 }
 
-static bool mesh_is_valid(const Mesh &mesh)
+static bool mesh_is_valid(const Mesh &mesh, const bool verbose)
 {
-  return mesh_validate_impl(mesh, nullptr);
+  return mesh_validate_impl(mesh, verbose, nullptr);
 }
 
 }  // namespace blender::bke
 
-bool BKE_mesh_validate(Mesh *mesh, const bool do_verbose, const bool cddata_check_mask)
+bool BKE_mesh_validate(Mesh *mesh, const bool do_verbose, const bool /*cddata_check_mask*/)
 {
   if (do_verbose) {
     CLOG_INFO(&LOG, "Validating Mesh: %s", mesh->id.name + 2);
   }
-  return blender::bke::mesh_validate(*mesh);
+  return blender::bke::mesh_validate(*mesh, true);
 }
 
 bool BKE_mesh_is_valid(Mesh *mesh)
 {
-  return blender::bke::mesh_is_valid(*mesh);
+  return blender::bke::mesh_is_valid(*mesh, true);
 }
 
 bool BKE_mesh_validate_material_indices(Mesh *mesh)
 {
-  return blender::bke::validate_material_indices(*mesh, mesh);
+  return blender::bke::validate_material_indices(*mesh, false, mesh);
 }
