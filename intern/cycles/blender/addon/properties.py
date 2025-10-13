@@ -383,6 +383,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description="Device to use for rendering",
         items=enum_devices,
         default='CPU',
+        update=update_render_passes,
     )
     shading_system: BoolProperty(
         name="Open Shading Language",
