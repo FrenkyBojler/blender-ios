@@ -909,7 +909,7 @@ class SocketUsageInferencerImpl {
         for (const bNodeSocket *input_socket : node->input_sockets()) {
           bke::SkipTargetSocketArray &skip_targets =
               tree_skip_targets.skip_targets[input_socket->index_in_tree()];
-          if (has_special_input_usage(*input_socket)) {
+          if (!socket_is_used_if_any_output_is_used(*input_socket)) {
             /* The socket can't be skipped. */
             skip_targets = {input_socket};
           }
@@ -982,11 +982,11 @@ class SocketUsageInferencerImpl {
     }
   }
 
-  static bool has_special_input_usage(const bNodeSocket &socket)
+  static bool socket_is_used_if_any_output_is_used(const bNodeSocket &socket)
   {
     if (const SocketDeclaration *decl = socket.runtime->declaration) {
       if (decl->usage_inference_fn) {
-        return true;
+        return false;
       }
     }
     const bNode &node = socket.owner_node();
@@ -1005,13 +1005,13 @@ class SocketUsageInferencerImpl {
       case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT:
       case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT:
       case GEO_NODE_CAPTURE_ATTRIBUTE: {
-        return true;
+        return false;
       }
     }
     if (node.is_type("NodeEnableOutput")) {
-      return true;
+      return false;
     }
-    return false;
+    return true;
   }
 };
 
