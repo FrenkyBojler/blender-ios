@@ -158,7 +158,7 @@ static blender::Vector<bNode *> get_node_code_gen_order(bNodeTree &ntree)
     bNode *node = nodes[old_i];
     const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier);
     if (!zone) {
-      /* Zones outside of any zone can stay were they are. */
+      /* Nones outside of any zone can stay where they are. */
       continue;
     }
     if (zone->output_node_id == node->identifier) {
