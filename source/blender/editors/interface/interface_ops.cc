@@ -2941,6 +2941,7 @@ static wmOperatorStatus ui_view_item_active_focus_invoke(bContext *C,
   wmOperator* /*op*/,
   const wmEvent* /*event*/)
 {
+  ARegion *region = CTX_wm_region(C);
   AbstractView *view = get_view_focused(C);
   AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(
       view);
@@ -2950,12 +2951,14 @@ static wmOperatorStatus ui_view_item_active_focus_invoke(bContext *C,
   }
 
   tree_view->scroll_active_into_view(true);
+  ED_region_tag_redraw(region);
+
   return OPERATOR_FINISHED;
 }
 
 static void UI_OT_view_item_active_focus(wmOperatorType *ot)
 {
-  ot->name = "Delete";
+  ot->name = "Auto focus";
   ot->idname = "UI_OT_view_item_active_focus";
   ot->description = "Focus active list item";
 
