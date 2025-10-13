@@ -4701,7 +4701,7 @@ bool cursor_geometry_info_update(bContext *C,
 
   bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
-  if (!pbvh || !vc.rv3d || !BKE_base_is_visible(v3d, base) || !paint) {
+  if (!paint || !pbvh || !vc.rv3d || !BKE_base_is_visible(v3d, base)) {
     out->location = float3(0.0f);
     out->normal = float3(0.0f);
     ss.clear_active_elements(false);
