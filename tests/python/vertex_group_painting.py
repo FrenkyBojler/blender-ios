@@ -12,6 +12,7 @@ import bpy
 blender -b --factory-startup --python tests/python/vertex_group_paint.py -- --testdir tests/files/animation/
 """
 
+
 class NormalizeAllTest(unittest.TestCase):
     """Test for normalizing all vertex groups on a mesh."""
 
