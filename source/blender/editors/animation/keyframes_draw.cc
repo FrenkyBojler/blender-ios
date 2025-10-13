@@ -306,7 +306,7 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
   box.ymax = ypos + ctx->ipo_size;
 
   /* Color for interpolation lines based on their type */
-  const float *color;
+  const float *color = nullptr;
 
   constexpr short IPO_FLAGS = ACTKEYBLOCK_FLAG_IPO_OTHER | ACTKEYBLOCK_FLAG_IPO_LINEAR |
                               ACTKEYBLOCK_FLAG_IPO_CONSTANT;
@@ -324,6 +324,9 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
     else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_CONSTANT) {
       color = ctx->ipo_color_constant;
     }
+  }
+  if (!color) {
+    return;
   }
 
   UI_draw_roundbox_4fv(&box, true, 3.0f, color);
