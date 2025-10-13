@@ -125,9 +125,7 @@ CompositorRuntime::~CompositorRuntime()
 
 SequencerRuntime::~SequencerRuntime()
 {
-  if (depsgraph) {
-    DEG_graph_free(depsgraph);
-  }
+  DEG_graph_free(depsgraph);
 }
 
 CurveMapping *BKE_sculpt_default_cavity_curve()
