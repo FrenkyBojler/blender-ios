@@ -348,9 +348,7 @@ static void draw_keylist_block(const DrawKeylistUIData *ctx, const ActKeyColumn 
         draw_keylist_block_standard(ctx, ab, ypos);
       }
     }
-    if (ctx->show_ipo && actkeyblock_is_valid(ab) &&
-        (ab->block.flag))
-    {
+    if (ctx->show_ipo && actkeyblock_is_valid(ab) && (ab->block.flag)) {
       /* draw an interpolation line */
       draw_keylist_block_interpolation_line(ctx, ab, ypos);
     }

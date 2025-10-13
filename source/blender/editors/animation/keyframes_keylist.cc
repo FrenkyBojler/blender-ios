@@ -880,7 +880,7 @@ static void compute_keyblock_data(ActKeyBlockInfo *info,
       break;
     default:
       /* For automatic bezier interpolations, such as easings (cubic, circular, etc), and dynamic
-        * (back, bounce, elastic). */
+       * (back, bounce, elastic). */
       info->flag |= ACTKEYBLOCK_FLAG_IPO_OTHER;
       break;
   }
