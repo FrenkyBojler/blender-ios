@@ -365,11 +365,6 @@ struct GWL_WindowFrame {
   bool is_active = false;
   /** Disable when the fractional scale is a whole number. */
   int fractional_scale = 0;
-  /**
-   * Store the value of #wp_fractional_scale_v1_listener::preferred_scale
-   * before it's applied.
-   */
-  int fractional_scale_preferred = 0;
   /** The scale passed to #wl_surface_set_buffer_scale. */
   int buffer_scale = 1;
 
@@ -429,6 +424,9 @@ struct GWL_Window {
 
   /** The window has been configured (see #xdg_surface_ack_configure). */
   bool initial_configure_seen = false;
+
+  /** Preferred fractional scale multiplied with 120. */
+  int fractional_scale_preferred = 0;
 
   /**
    * The current value of frame, copied from `frame_pending` when applying updates.
@@ -1340,8 +1338,8 @@ static void wp_fractional_scale_handle_preferred_scale(
 
   GWL_Window *win = static_cast<GWL_Window *>(data);
 
-  if (win->frame_pending.fractional_scale_preferred != int(preferred_scale)) {
-    win->frame_pending.fractional_scale_preferred = preferred_scale;
+  if (win->fractional_scale_preferred != int(preferred_scale)) {
+    win->fractional_scale_preferred = preferred_scale;
     win->ghost_window->outputs_changed_update_scale_tag();
   }
 }
@@ -1862,8 +1860,8 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   int early_fractional_scale = 0;
 
   if (const int test_fractional_scale =
-          fractional_scale_manager ? (window_->frame_pending.fractional_scale_preferred ?
-                                          window_->frame_pending.fractional_scale_preferred :
+          fractional_scale_manager ? (window_->fractional_scale_preferred ?
+                                          window_->fractional_scale_preferred :
                                           scale_fractional_from_output) :
                                      0)
   {
@@ -1883,11 +1881,11 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   if (early_fractional_scale != 0) {
     /* Fractional scale is known. */
 
-    window_->frame.fractional_scale_preferred = early_fractional_scale;
+    window_->fractional_scale_preferred = early_fractional_scale;
     window_->frame.fractional_scale = early_fractional_scale;
     window_->frame.buffer_scale = 1;
 
-    window_->frame_pending.fractional_scale_preferred = early_fractional_scale;
+    window_->fractional_scale_preferred = early_fractional_scale;
     window_->frame_pending.fractional_scale = early_fractional_scale;
     window_->frame_pending.buffer_scale = 1;
 
@@ -2617,8 +2615,8 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
   if (window_->wp.fractional_scale_handle) {
     /* Let the #wp_fractional_scale_v1_listener::preferred_scale callback handle
      * changes to the windows scale. */
-    if (window_->frame_pending.fractional_scale_preferred != 0) {
-      fractional_scale_next = window_->frame_pending.fractional_scale_preferred;
+    if (window_->fractional_scale_preferred != 0) {
+      fractional_scale_next = window_->fractional_scale_preferred;
       scale_next = fractional_scale_next / FRACTIONAL_DENOMINATOR;
     }
   }
