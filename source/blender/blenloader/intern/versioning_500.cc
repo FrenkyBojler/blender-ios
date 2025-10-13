@@ -59,6 +59,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
+#include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -2582,11 +2583,12 @@ static void do_version_lift_gamma_gain_srgb_to_linear(bNodeTree &node_tree, bNod
   version_node_add_link(node_tree, node, *image_output, *gamma_node, *gamma_color_input);
 }
 
+constexpr char const *hide_prop_prefix = "bones[\"";
+constexpr char const *hide_prop_suffix = "].hide";
+
 static void version_bone_hide_property_action(AnimData *arm_adt, blender::Vector<Object *> &users)
 {
   using namespace blender::animrig;
-  constexpr char const *rna_path_prefix = "bones[\"";
-  constexpr char const *rna_path_suffix = "].hide";
   blender::Vector<FCurve *> fcurves_to_fix;
   Action &action = arm_adt->action->wrap();
   Channelbag *armature_channelbag = channelbag_for_action_slot(action, arm_adt->slot_handle);
@@ -2596,12 +2598,12 @@ static void version_bone_hide_property_action(AnimData *arm_adt, blender::Vector
 
   for (FCurve *fcurve : armature_channelbag->fcurves()) {
     const blender::StringRef rna_path(fcurve->rna_path);
-    if (rna_path.startswith(rna_path_prefix) && rna_path.endswith(rna_path_suffix)) {
+    if (rna_path.startswith(hide_prop_prefix) && rna_path.endswith(hide_prop_suffix)) {
       fcurves_to_fix.append(fcurve);
     }
   }
 
-  if (fcurves_to_fix.size() == 0) {
+  if (fcurves_to_fix.is_empty()) {
     return;
   }
 
@@ -2636,8 +2638,15 @@ static void version_bone_hide_property_action(AnimData *arm_adt, blender::Vector
     Channelbag &object_channelbag = action_channelbag_ensure(*target_dna_action, ob->id);
 
     for (FCurve *original : fcurves_to_fix) {
-      FCurve *copy = BKE_fcurve_copy(original);
       char *fixed_path = BLI_string_joinN("pose.", copy->rna_path);
+      if (object_channelbag.fcurve_find({fixed_path, original->array_index})) {
+        /* It is possible to set up a file in such a way that versioning would introduce an FCurve
+         * with the same RNA path multple times into the same action. It is a rare case but we are
+         * guarding against it here nonetheless. */
+        MEM_SAFE_FREE(fixed_path);
+        continue;
+      }
+      FCurve *copy = BKE_fcurve_copy(original);
       MEM_SAFE_FREE(copy->rna_path);
       copy->rna_path = fixed_path;
       object_channelbag.fcurve_append(*copy);
@@ -2652,17 +2661,17 @@ static void version_bone_hide_property_action(AnimData *arm_adt, blender::Vector
 static void version_bone_hide_property_driver(AnimData *arm_adt, blender::Vector<Object *> &users)
 {
   using namespace blender::animrig;
-  constexpr char const *rna_path_prefix = "bones[\"";
-  constexpr char const *rna_path_suffix = "].hide";
+
   blender::Vector<FCurve *> drivers_to_fix;
   LISTBASE_FOREACH (FCurve *, fcurve, &arm_adt->drivers) {
     const blender::StringRef rna_path(fcurve->rna_path);
-    if (rna_path.startswith(rna_path_prefix) && rna_path.endswith(rna_path_suffix)) {
+    if (rna_path.startswith(hide_prop_prefix) && rna_path.endswith(hide_prop_suffix)) {
       drivers_to_fix.append(fcurve);
     }
   }
 
-  if (drivers_to_fix.size() == 0) {
+  if (drivers_to_fix.is_empty()) {
+    return;
   }
 
   for (Object *ob : users) {
@@ -2680,6 +2689,59 @@ static void version_bone_hide_property_driver(AnimData *arm_adt, blender::Vector
   for (FCurve *original : drivers_to_fix) {
     BLI_remlink(&arm_adt->drivers, original);
     BKE_fcurve_free(original);
+  }
+}
+
+static void version_bone_hide_property_nla(Main *bmain,
+                                           AnimData *arm_adt,
+                                           blender::Vector<Object *> &users)
+{
+  using namespace blender::animrig;
+  /* For the NLA we need to copy the tracks and strips for those strips that point to an action
+   * containing a "hide" property. To do this we have to create a new action with the `hide`
+   * property FCurve. */
+  LISTBASE_FOREACH (NlaTrack *, track, &arm_adt->nla_tracks) {
+    /* Storing the created track for each user object. */
+    blender::Map<Object *, NlaTrack *> ob_to_track;
+    LISTBASE_FOREACH (NlaStrip *, strip, track->strips) {
+      if (!strip->act || strip->action_slot_handle == Slot::unassigned) {
+        continue;
+      }
+      Action &action = arm_adt->action->wrap();
+      Channelbag *armature_channelbag = channelbag_for_action_slot(action, arm_adt->slot_handle);
+      if (!armature_channelbag) {
+        continue;
+      }
+
+      blender::Vector<FCurve *> hide_fcurves;
+      for (FCurve *fcurve : armature_channelbag->fcurves()) {
+        const blender::StringRef rna_path(fcurve->rna_path);
+        if (rna_path.startswith(hide_prop_prefix) && rna_path.endswith(hide_prop_suffix)) {
+          fcurves_to_fix.append(fcurve);
+        }
+      }
+
+      if (hide_fcurves.is_empty()) {
+        continue;
+      }
+
+      /* At this point the strip has FCurves that we need to version and move to the object. */
+      for (Object *user : users) {
+        AnimData *ob_adt = BKE_animdata_ensure_id(&ob->id);
+        NlaTrack *ob_track = ob_to_track.lookup_default(user, nullptr);
+        if (!ob_track) {
+          NlaTrack *ob_track = BKE_nlatrack_new_tail(ob_adt->nla_tracks, false);
+          ob_to_track.add(user, ob_track);
+        }
+        std::string act_name(strip->act->id.name);
+        act_name += "_versioned";
+        BKE_action_add(bmain, strip->act)
+      }
+
+      for (FCurve *fcurve : hide_fcurves) {
+        armature_channelbag->fcurve_remove(*fcurve);
+      }
+    }
   }
 }
 
@@ -2701,7 +2763,7 @@ static void do_version_bone_hide_property(
     return;
   }
 
-  blender::Vector<Object *> &users = armature_usage_map.lookup(armature);
+  blender::Vector<Object *> &users = armature_usage_map.lookup_default(armature, {});
 
   if (!BLI_listbase_is_empty(&arm_adt->drivers)) {
     version_bone_hide_property_driver(arm_adt, users);
@@ -2712,7 +2774,7 @@ static void do_version_bone_hide_property(
   }
 
   if (!BLI_listbase_is_empty(&arm_adt->nla_tracks)) {
-    /* For the NLA we need to create a new action if there is an FCurve*/
+    version_bone_hide_property_nla(arm_adt, users);
   }
 }
 
