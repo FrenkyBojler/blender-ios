@@ -366,7 +366,7 @@ void rna_DriverTarget_id_set(PointerRNA *ptr, PointerRNA value, struct ReportLis
   }
   /* Driver targets my be local data referencing unlinkable data like shape keys. These cannot be
    * directly linked.
-   * FIXME: Band-aid, find a better way to handle this.. */
+   * FIXME: Band-aid, find a better way to handle this. */
   if (BKE_idtype_idcode_is_linkable(GS(id->name))) {
     id_lib_extern(id);
   }
