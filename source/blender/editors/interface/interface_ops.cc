@@ -2927,7 +2927,7 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
-static bool ui_tree_view_focused_poll(bContext* C)
+static bool ui_tree_view_focused_poll(bContext *C)
 {
   AbstractView *view = get_view_focused(C);
   if (view) {
@@ -2938,13 +2938,12 @@ static bool ui_tree_view_focused_poll(bContext* C)
 }
 
 static wmOperatorStatus ui_view_item_active_focus_invoke(bContext *C,
-  wmOperator* /*op*/,
-  const wmEvent* /*event*/)
+                                                         wmOperator * /*op*/,
+                                                         const wmEvent * /*event*/)
 {
   ARegion *region = CTX_wm_region(C);
   AbstractView *view = get_view_focused(C);
-  AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(
-      view);
+  AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
 
   if (tree_view->is_fully_visible()) {
     return OPERATOR_CANCELLED;
