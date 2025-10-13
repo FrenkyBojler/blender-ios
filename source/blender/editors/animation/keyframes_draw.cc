@@ -314,18 +314,17 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
     /* This is a summary line that combines multiple interpolation modes. */
     color = ctx->ipo_color_mix;
   }
-  else {
-    if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_OTHER) {
-      color = ctx->ipo_color_other;
-    }
-    else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_LINEAR) {
-      color = ctx->ipo_color_linear;
-    }
-    else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_CONSTANT) {
-      color = ctx->ipo_color_constant;
-    }
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_OTHER) {
+    color = ctx->ipo_color_other;
   }
-  if (!color) {
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_LINEAR) {
+    color = ctx->ipo_color_linear;
+  }
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_CONSTANT) {
+    color = ctx->ipo_color_constant;
+  }
+  else {
+    /* No line to draw. */
     return;
   }
 
