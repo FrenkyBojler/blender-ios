@@ -637,33 +637,21 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
   if (!interface_panel_has_socket(ctx, interface_panel)) {
     return;
   }
-  PanelOpenProperty open_property = ctx.panel_open_property_fn(interface_panel);
+  PointerRNA panels_ptr = RNA_pointer_get(ctx.properties_ptr, "panels");
+  const std::string panel_open_name = fmt::format("open_{}", interface_panel.identifier);
   PanelLayout panel_layout;
   bool skip_first = false;
   /* Check if the panel should have a toggle in the header. */
   const bNodeTreeInterfaceSocket *toggle_socket = interface_panel.header_toggle_socket();
   const StringRef panel_name = interface_panel.name;
   if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
-    const StringRefNull identifier = toggle_socket->identifier;
-    IDProperty *property = IDP_GetPropertyFromGroup_null(ctx.properties, identifier);
-    /* IDProperties can be removed with python, so there could be a situation where
-     * there isn't a property for a socket or it doesn't have the correct type. */
-    if (property == nullptr ||
-        !nodes::id_property_type_matches_socket(*toggle_socket, *property, ctx.use_name_for_ids))
-    {
-      return;
-    }
-    const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(identifier.c_str()));
-    panel_layout = layout.panel_prop_with_bool_header(&ctx.C,
-                                                      &open_property.ptr,
-                                                      open_property.name,
-                                                      ctx.properties_ptr,
-                                                      rna_path,
-                                                      IFACE_(panel_name));
+    PointerRNA inputs_ptr = RNA_pointer_get(ctx.properties_ptr, "inputs");
+    panel_layout = layout.panel_prop_with_bool_header(
+        &ctx.C, &panels_ptr, panel_open_name, ctx.properties_ptr, "value", IFACE_(panel_name));
     skip_first = true;
   }
   else {
-    panel_layout = layout.panel_prop(&ctx.C, &open_property.ptr, open_property.name);
+    panel_layout = layout.panel_prop(&ctx.C, &panels_ptr, panel_open_name);
     panel_layout.header->label(IFACE_(panel_name), ICON_NONE);
   }
   if (!interface_panel_affects_output(ctx, interface_panel)) {
@@ -826,7 +814,7 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
 
 static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, uiLayout *layout)
 {
-  if (!ctx.tree || !ctx.properties) {
+  if (!ctx.tree) {
     return;
   }
   const Span<const bNodeTreeInterfaceSocket *> interface_outputs = ctx.tree->interface_outputs();
@@ -945,13 +933,10 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
   NodesModifierData &nmd = *modifier_ptr->data_as<NodesModifierData>();
   Object &object = *reinterpret_cast<Object *>(modifier_ptr->owner_id);
+  PointerRNA properties_ptr = RNA_pointer_get(modifier_ptr, "properties");
 
-  DrawGroupInputsContext ctx{C,
-                             nmd.node_group,
-                             get_root_tree_log(nmd),
-                             nmd.settings.properties,
-                             modifier_ptr,
-                             &bmain_ptr};
+  DrawGroupInputsContext ctx{
+      C, nmd.node_group, get_root_tree_log(nmd), &properties_ptr, &bmain_ptr};
 
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};
@@ -988,8 +973,8 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
     nmd.node_group->ensure_interface_cache();
     ctx.input_usages.reinitialize(nmd.node_group->interface_inputs().size());
     ctx.output_usages.reinitialize(nmd.node_group->interface_outputs().size());
-    nodes::socket_usage_inference::infer_group_interface_usage(
-        *nmd.node_group, ctx.properties, ctx.input_usages, ctx.output_usages);
+    nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+        *nmd.node_group, *ctx.properties_ptr, ctx.input_usages, ctx.output_usages);
     draw_interface_panel_content(ctx, &layout, nmd.node_group->tree_interface.root_panel);
   }
 
@@ -1031,16 +1016,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       op.ptr->owner_id, tree.runtime->geometry_nodes_operator_srna, properties_idprops);
 
-  DrawGroupInputsContext ctx{C, &tree, tree_log, &properties_ptr, op.ptr, &bmain_ptr};
-  ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
-    Panel *root_panel = layout.root_panel();
-    LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
-        root_panel,
-        "node_operator_panel_" + std::to_string(io_panel.identifier),
-        io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
-    PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
-    return {state_ptr, "is_open"};
-  };
+  DrawGroupInputsContext ctx{C, &tree, tree_log, &properties_ptr, &bmain_ptr};
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};
     OperatorSearchData &operator_search_data = data.search_data.emplace<OperatorSearchData>();
