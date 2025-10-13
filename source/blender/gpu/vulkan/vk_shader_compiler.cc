@@ -219,7 +219,7 @@ static bool compile_ex(shaderc::Compiler &compiler,
 
   std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
 
-  if (this->name_get() == G.gpu_debug_shader_source_name) {
+  if (shader.name_get() == G.gpu_debug_shader_source_name) {
     namespace fs = std::filesystem;
     fs::path shader_dir = fs::current_path() / "Shaders";
     fs::create_directories(shader_dir);

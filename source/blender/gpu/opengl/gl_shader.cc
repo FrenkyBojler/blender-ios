@@ -1283,7 +1283,7 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
 
   std::string concat_source = fmt::to_string(fmt::join(sources, ""));
 
-  std::string full_name = this->name_get() + "_" + stage_name_get(stage);
+  std::string full_name = this->name_get() + "_" + stage_name_get(gl_stage);
 
   if (this->name_get() == G.gpu_debug_shader_source_name) {
     namespace fs = std::filesystem;
