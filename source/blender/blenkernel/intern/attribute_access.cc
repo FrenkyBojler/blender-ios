@@ -219,12 +219,6 @@ bool allow_procedural_attribute_access(StringRef attribute_name)
   if (attribute_name == ".reference_index") {
     return false;
   }
-  if (attribute_name.startswith("." UV_VERTSEL_NAME ".")) {
-    return false;
-  }
-  if (attribute_name.startswith("." UV_EDGESEL_NAME ".")) {
-    return false;
-  }
   if (attribute_name.startswith("." UV_PINNED_NAME ".")) {
     return false;
   }
@@ -939,12 +933,12 @@ fn::GField AttributeValidator::validate_field_if_necessary(const fn::GField &fie
 Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes,
-    const AttrDomainMask domain_mask,
+    Span<AttrDomain> domains,
     const bke::AttributeFilter &attribute_filter)
 {
   Vector<AttributeTransferData> attributes;
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (!(ATTR_DOMAIN_AS_MASK(iter.domain) & domain_mask)) {
+    if (!domains.contains(iter.domain)) {
       return;
     }
     if (iter.data_type == AttrType::String) {

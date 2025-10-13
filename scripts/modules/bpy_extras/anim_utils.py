@@ -14,18 +14,18 @@ __all__ = (
     "BakeOptions",
 )
 
-import bpy
-from bpy.types import (
-    Context, Action, ActionSlot, ActionChannelbag,
-    Object, PoseBone, KeyingSet,
-)
-
 import contextlib
 from dataclasses import dataclass
 from typing import Iterable, Optional, Union, Iterator
 from collections.abc import (
     Mapping,
     Sequence,
+)
+
+import bpy
+from bpy.types import (
+    Context, Action, ActionSlot, ActionChannelbag,
+    Object, PoseBone, KeyingSet,
 )
 
 from rna_prop_ui import (
@@ -341,8 +341,10 @@ def bake_action_iter(
         for name, pbone in obj.pose.bones.items():
             if bake_options.do_visual_keying:
                 # Get the final transform of the bone in its own local space...
-                matrix[name] = obj.convert_space(pose_bone=pbone, matrix=pbone.matrix,
-                                                 from_space='POSE', to_space='LOCAL')
+                matrix[name] = obj.convert_space(
+                    pose_bone=pbone, matrix=pbone.matrix,
+                    from_space='POSE', to_space='LOCAL',
+                )
             else:
                 matrix[name] = pbone.matrix_basis.copy()
 
@@ -461,11 +463,15 @@ def bake_action_iter(
 
     if bake_options.do_pose:
         for f, armature_custom_properties in armature_info:
-            bake_custom_properties(obj, custom_props=armature_custom_properties,
-                                   frame=f, group_name="Armature Custom Properties")
+            bake_custom_properties(
+                obj,
+                custom_props=armature_custom_properties,
+                frame=f,
+                group_name="Armature Custom Properties"
+            )
 
         for name, pbone in obj.pose.bones.items():
-            if bake_options.only_selected and not pbone.bone.select:
+            if bake_options.only_selected and not pbone.select:
                 continue
 
             if bake_options.do_constraint_clear:
@@ -886,8 +892,7 @@ class AutoKeying:
         "Retrieve the lock status for 4D rotation."
         if bone.lock_rotations_4d:
             return [bone.lock_rotation_w, *bone.lock_rotation]
-        else:
-            return [all(bone.lock_rotation)] * 4
+        return [all(bone.lock_rotation)] * 4
 
     @classmethod
     def keyframe_channels(

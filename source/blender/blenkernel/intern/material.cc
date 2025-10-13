@@ -45,6 +45,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_attribute.h"
 #include "BKE_brush.hh"
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
@@ -1779,7 +1780,7 @@ bNode *BKE_texpaint_slot_material_find_node(Material *ma, short texpaint_slot)
   return find_data.r_node;
 }
 
-void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
+void ramp_blend(int type, float r_col[4], const float fac, const float col[4])
 {
   float tmp, facm = 1.0f - fac;
 
@@ -1788,6 +1789,7 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
       r_col[0] = facm * (r_col[0]) + fac * col[0];
       r_col[1] = facm * (r_col[1]) + fac * col[1];
       r_col[2] = facm * (r_col[2]) + fac * col[2];
+      r_col[3] = facm * (r_col[3]) + fac * col[3];
       break;
     case MA_RAMP_ADD:
       r_col[0] += fac * col[0];
