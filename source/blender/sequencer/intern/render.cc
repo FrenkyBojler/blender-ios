@@ -1404,7 +1404,6 @@ static Depsgraph *get_depsgraph_for_scene_strip(Main *bmain, Scene *scene, ViewL
     DEG_graph_tag_relations_update(depsgraph);
   }
 
-  DEG_graph_build_from_view_layer(depsgraph);
   return depsgraph;
 }
 
