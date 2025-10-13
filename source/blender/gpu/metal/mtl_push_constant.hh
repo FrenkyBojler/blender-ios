@@ -23,7 +23,7 @@ class MTLPushConstantBuf {
   uint8_t *data_ = nullptr;
   /* Offset inside buffer for allocating push constants. */
   size_t offset_ = 0;
-  /* Size of the allocated buffer in `data_`. */
+  /* Size of the allocated buffer in `data_`. */
   size_t size_ = 0;
   /* True if the data has been touched and must be resent to GPU. */
   bool is_dirty_ = true;

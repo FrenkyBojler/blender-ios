@@ -21,11 +21,11 @@
  * +-----------------------------+--------+------------+
  * | Type                        | Count  | Slot Range |
  * +-----------------------------+--------+------------+
- * | Vertex Buffers              |     16 |    0..30   |
- * | Storage Buffers             |     16 |    0..15   |
- * | Uniform Buffers             |     13 |   16..28   |
+ * | Vertex Buffers              |     16 |    0..30   |
+ * | Storage Buffers             |     16 |    0..15   |
+ * | Uniform Buffers             |     13 |   16..28   |
  * | Push Constant Buffer        |      1 |   29..29   |
- * | Sampler Argument Buffer     |      1 |   30..30   |
+ * | Sampler Argument Buffer     |      1 |   30..30   |
  * +-----------------------------+--------+------------+
  */
 #define MTL_MAX_SSBO 16
@@ -46,8 +46,8 @@
  * +-----------------------------+--------+------------+
  * | Type                        | Count  | Slot Range |
  * +-----------------------------+--------+------------+
- * | Image Textures              |      8 |    0..7    |
- * | Sampler Textures            |     64 |    8..71   |
+ * | Image Textures              |      8 |    0..7    |
+ * | Sampler Textures            |     64 |    8..71   |
  * +-----------------------------+--------+------------+
  */
 #define MTL_IMAGE_SLOT_OFFSET 0
