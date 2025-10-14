@@ -476,12 +476,16 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
 
   Set<std::string> curve_attributes_to_skip;
 
+  constexpr int resolution_default = 12;
+
   if (dst_attributes.contains("resolution") && !src_attributes.contains("resolution")) {
-    dst.resolution_for_write().slice(dst_curve_offsets[0]).fill(12);
+    dst.resolution_for_write().slice(dst_curve_offsets[0]).fill(resolution_default);
     curve_attributes_to_skip.add("resolution");
   }
   else if (!dst_attributes.contains("resolution") && src_attributes.contains("resolution")) {
-    dst.resolution_for_write().slice(IndexRange::from_begin_end(0, initial_curves_num)).fill(12);
+    dst.resolution_for_write()
+        .slice(IndexRange::from_begin_end(0, initial_curves_num))
+        .fill(resolution_default);
     array_utils::copy(other.resolution(), dst.resolution_for_write().slice(dst_curve_offsets[0]));
     curve_attributes_to_skip.add("resolution");
   }
