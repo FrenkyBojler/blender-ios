@@ -13,6 +13,7 @@
 #include "BLI_vector.hh"
 #include "MEM_guardedalloc.h"
 
+#include <atomic>
 #include <cstring>
 
 #ifndef WIN32
@@ -39,7 +40,8 @@ struct BLI_mmap_file {
    * within the signal handler, which is not part of the normal execution flow. */
   volatile bool io_error;
 
-  /* Used to break out of infinite loops when an error keeps occurring. */
+  /* Used to break out of infinite loops when an error keeps occurring.
+   * See the comments in #try_handle_error_for_address for details. */
   size_t id;
 };
 
@@ -98,18 +100,34 @@ static bool try_handle_error_for_address(const void *address)
 
   /* Check if we already handled this error. */
   if (file->io_error) {
-    /* If `file->io_error` is true, a different thread could have replaced the mapping in parallel,
-     * and execution can continue as is. If the exception is raised again, something else is wrong,
-     * and the exception should be forwarded instead. To detect this and avoid infinitely trying to
-     * continue execution, the most recently handled mapping's ID is stored per thread and compared
-     * to `file->id` when `file->io_error` is true. If `file->id` and `last_handled_file_id` match,
-     * meaning we already tried to continue execution before, the exception is forwarded instead.
-     */
+    /* If `file->io_error` is true, either a different thread has
+     * already replaced the mapping after this thread raised the
+     * exception, but before we got the lock, and execution can
+     * continue, or replacing the mapping did not avoid the current
+     * exception. We need to check if continuing execution fails to
+     * avoid an infinite loop in the second case. To detect such a
+     * situation, the last handled mapping's ID is stored per thread and
+     * compared against it to see if continuing execution was already
+     * tried for this mapping in this thread. If that is the case,
+     * forward the exception instead of continuing execution again. As
+     * multiple threads could encounter an exception for the same
+     * mapping at the same time, a boolean stored in `BLI_mmap_file`
+     * would not work for this detection, as the condition we need to
+     * detect is thread dependent. */
     if (file->id == last_handled_file_id) {
-      print_error("BLI_mmap: Error: Mapped file has already been remapped with zeros.");
+      /* Some possible causes of the error below are:
+       * - Thread safety issues in the error handling code.
+       * - Faulty remapping without having signalled an error in
+       *   `try_map_zeros`.
+       * - Invalid usage of an address in the mapped range, such as
+       *   unaligned access on some platforms.
+       */
+      print_error(
+          "BLI_mmap: Error: Unexpected exception in mapped file which was already remapped with "
+          "zeros.");
       return false;
     }
-    /* Someone else handled it, we can continue execution. */
+    /* Another thread already remapped the range, we can continue execution. */
     last_handled_file_id = file->id;
     return true;
   }
@@ -117,12 +135,12 @@ static bool try_handle_error_for_address(const void *address)
   last_handled_file_id = file->id;
   file->io_error = true;
 
-  if (try_map_zeros(file)) {
-    return true;
+  if (!try_map_zeros(file)) {
+    print_error("BLI_mmap: Error: Could not replace mapped file with zeros.");
+    return false;
   }
 
-  print_error("BLI_mmap: Error: Could not replace mapped file with zeros.");
-  return false;
+  return true;
 }
 
 #ifdef WIN32
@@ -226,7 +244,11 @@ static LONG page_exception_handler(EXCEPTION_POINTERS *ExceptionInfo) noexcept
 /* Ensures that the error handler is set up and ready. */
 static bool ensure_mmap_initialized()
 {
-  static bool initialized = false;
+  static std::atomic_bool initialized = false;
+  if (initialized) {
+    return true;
+  }
+
   std::unique_lock lock(mmap_mutex);
 
   if (!initialized) {
@@ -248,7 +270,7 @@ static bool ensure_mmap_initialized()
   }
   return true;
 }
-#else
+#else  /* !WIN32 */
 static void print_error(const char *message)
 {
   write(STDERR_FILENO, message, strlen(message));
@@ -278,7 +300,12 @@ static void sigbus_handler(int sig, siginfo_t *siginfo, void *ptr) noexcept
     return;
   }
 
-  /* Fall back to other handler if there was one. */
+  /* Fall back to other handler if there was one.
+   *
+   * No lock is needed here, as `try_handle_error_for_address`
+   * unconditionally locks `mmap_mutex`, and as such
+   * `ensure_mmap_initialized` must have finished and `next_handler`
+   * will be set up. */
   if (next_handler.sa_sigaction && (next_handler.sa_flags & SA_SIGINFO)) {
     next_handler.sa_sigaction(sig, siginfo, ptr);
   }
@@ -294,7 +321,10 @@ static void sigbus_handler(int sig, siginfo_t *siginfo, void *ptr) noexcept
 /* Ensures that the error handler is set up and ready. */
 static bool ensure_mmap_initialized()
 {
-  static bool initialized = false;
+  static std::atomic_bool initialized = false;
+  if (initialized) {
+    return true;
+  }
 
   std::unique_lock lock(mmap_mutex);
   if (!initialized) {
@@ -315,7 +345,7 @@ static bool ensure_mmap_initialized()
 
   return true;
 }
-#endif
+#endif /* !WIN32 */
 
 /* Adds a file to the list that the error handler checks. */
 static void error_handler_add(BLI_mmap_file *file)
@@ -352,7 +382,7 @@ BLI_mmap_file *BLI_mmap_open(int fd)
   if (memory == MAP_FAILED) {
     return nullptr;
   }
-#else
+#else  /* WIN32 */
   /* Convert the POSIX-style file descriptor to a Windows handle. */
   void *file_handle = (void *)_get_osfhandle(fd);
 
@@ -407,7 +437,7 @@ BLI_mmap_file *BLI_mmap_open(int fd)
       return nullptr;
     }
   }
-#endif
+#endif /* WIN32 */
 
   /* Now that the mapping was successful, allocate memory and set up the BLI_mmap_file. */
   BLI_mmap_file *file = MEM_callocN<BLI_mmap_file>(__func__);
