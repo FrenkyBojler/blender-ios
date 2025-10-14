@@ -28,10 +28,22 @@ Scene *ED_scene_sequencer_add(Main *bmain, bContext *C, eSceneCopyMethod method)
  * \return true if successful.
  */
 bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene) ATTR_NONNULL();
-bool ED_scene_replace_for_deletion(bContext &C,
-                                   Main &bmain,
-                                   Scene &scene,
-                                   Scene *scene_new = nullptr);
+/**
+ * Replace the given scene (assumed to be an active scene) by another suitable one.
+ *
+ * Ensures that the given active scene can actually be deleted.
+ *
+ * If `scene_new` is non-null, the code will assume that it is a valid replacement for the current
+ * active scene. Otherwise, it will use #BKE_scene_find_replacement() to find one.
+ *
+ * Also ensures that all needed updates in WM and UI code is done.
+ *
+ * \return true if the given active scene was sucessfully replaced and can safely be deleted.
+ */
+bool ED_scene_replace_active_for_deletion(bContext &C,
+                                          Main &bmain,
+                                          Scene &scene,
+                                          Scene *scene_new = nullptr);
 /**
  * Depsgraph updates after scene becomes active in a window.
  */

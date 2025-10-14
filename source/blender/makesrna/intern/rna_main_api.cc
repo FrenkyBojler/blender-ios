@@ -203,7 +203,7 @@ static void rna_Main_scenes_remove(
   if (BKE_scene_can_be_removed(bmain, scene)) {
     if (do_unlink) {
       Scene *scene_new = BKE_scene_find_replacement(*bmain, *scene);
-      if (scene_new && ED_scene_replace_for_deletion(*C, *bmain, *scene, scene_new)) {
+      if (scene_new && ED_scene_replace_active_for_deletion(*C, *bmain, *scene, scene_new)) {
         rna_Main_ID_remove(bmain, reports, scene_ptr, do_unlink, true, true);
         return;
       }

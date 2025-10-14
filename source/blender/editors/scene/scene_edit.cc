@@ -86,7 +86,7 @@ Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod me
   return scene_new;
 }
 
-bool ED_scene_replace_for_deletion(bContext &C, Main &bmain, Scene &scene, Scene *scene_new)
+bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene, Scene *scene_new)
 {
   if (!BKE_scene_can_be_removed(&bmain, &scene)) {
     return false;
@@ -158,7 +158,7 @@ bool ED_scene_replace_for_deletion(bContext &C, Main &bmain, Scene &scene, Scene
 
 bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
 {
-  if (ED_scene_replace_for_deletion(*C, *bmain, *scene)) {
+  if (ED_scene_replace_active_for_deletion(*C, *bmain, *scene)) {
     BKE_id_delete(bmain, scene);
     return true;
   }

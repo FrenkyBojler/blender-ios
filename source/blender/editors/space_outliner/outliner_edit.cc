@@ -520,7 +520,7 @@ static bool id_delete_tag(bContext *C,
       BKE_reportf(reports, RPT_WARNING, "Cannot delete indirectly linked library '%s'", id->name);
       return false;
     }
-    else if (scene_curr->id.lib == lib) {
+    if (scene_curr->id.lib == lib) {
       scene_new = BKE_scene_find_replacement(
           *bmain, *scene_curr, [&lib](const Scene &scene) -> bool {
             return (
@@ -619,7 +619,7 @@ void id_delete_tag_fn(bContext *C,
              (scene_curr_to_replace == scene_new_for_replace));
   if (scene_curr_to_replace && scene_new_for_replace) {
     BLI_assert((scene_new_for_replace->id.tag & ID_TAG_DOIT) == 0);
-    ED_scene_replace_for_deletion(
+    ED_scene_replace_active_for_deletion(
         *C, *CTX_data_main(C), *scene_curr_to_replace, scene_new_for_replace);
   }
 }
@@ -690,7 +690,8 @@ static wmOperatorStatus outliner_id_delete_invoke(bContext *C,
              (scene_curr_to_replace == scene_new_for_replace));
   if (scene_curr_to_replace && scene_new_for_replace) {
     BLI_assert((scene_new_for_replace->id.tag & ID_TAG_DOIT) == 0);
-    ED_scene_replace_for_deletion(*C, *bmain, *scene_curr_to_replace, scene_new_for_replace);
+    ED_scene_replace_active_for_deletion(
+        *C, *bmain, *scene_curr_to_replace, scene_new_for_replace);
   }
 
   BKE_id_multi_tagged_delete(bmain);

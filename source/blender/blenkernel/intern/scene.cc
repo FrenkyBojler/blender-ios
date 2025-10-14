@@ -1998,7 +1998,7 @@ Scene *BKE_scene_find_replacement(const Main &bmain,
 {
   BLI_assert(BLI_findindex(&bmain.scenes, &scene) >= 0);
 
-  /* Simply return a closest neightbor scene, unless a validate callback is provided and it rejects
+  /* Simply return a closest neighbor scene, unless a validate callback is provided and it rejects
    * the iterated scene. */
   for (Scene *scene_iter = static_cast<Scene *>(scene.id.prev); scene_iter != nullptr;
        scene_iter = static_cast<Scene *>(scene_iter->id.prev))
