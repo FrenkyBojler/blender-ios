@@ -1664,7 +1664,7 @@ static bool is_smooth_by_angle_modifier(const ModifierData &md)
     return false;
   }
   char auto_smooth_asset_path[FILE_MAX] = "datafiles/assets/nodes/geometry_nodes_essentials.blend";
-  BLI_path_normalize(auto_smooth_asset_path);
+  BLI_path_slash_native(auto_smooth_asset_path);
   if (!StringRef(library->filepath).endswith(auto_smooth_asset_path)) {
     return false;
   }
