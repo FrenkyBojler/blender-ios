@@ -2,3 +2,4 @@ Referenced by commit bfb0d2ad20a2cf700d85e8f121009cd4cdb795ab, Fix #144846: Mesh
 Referenced by issue #147797, Blender 5.0 Beta FREEZE or CRASH when import USD file
 Referenced by pull request #147872, Fix: Geometry Nodes: Wrong corner edge indices in result of edge generation
 Referenced by issue #147961, dual mesh node crash
+Referenced by pull request #148096, Fix: Mesh boolean redundant transfer of edge attributes
