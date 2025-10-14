@@ -2376,6 +2376,9 @@ static std::optional<std::chrono::nanoseconds> compositor_node_get_execution_tim
   if (const timeit::Nanoseconds *execution_time =
           tree_draw_ctx.compositor_per_node_execution_time->lookup_ptr(key))
   {
+    if (execution_time->count() == 0) {
+      return std::nullopt;
+    }
     return *execution_time;
   }
 
@@ -2873,6 +2876,41 @@ static bool node_undefined_or_unsupported(const bNodeTree &node_tree, const bNod
   return false;
 }
 
+static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
+                                          const bNode &node,
+                                          const int color_id)
+{
+  ColorTheme4f color_header;
+
+  /* The base color of the node header. */
+  if (node_undefined_or_unsupported(ntree, node)) {
+    /* Use warning color to indicate undefined types. */
+    UI_GetThemeColorBlendShade4fv(TH_REDALERT, color_id, 0.1f, -40, color_header);
+  }
+  else if ((node.flag & NODE_COLLAPSED) && (node.flag & NODE_CUSTOM_COLOR)) {
+    rgba_float_args_set(color_header, node.color[0], node.color[1], node.color[2], 1.0f);
+  }
+  else {
+    UI_GetThemeColor4fv(color_id, color_header);
+  }
+
+  /* Draw selected nodes fully opaque. */
+  if (node.flag & SELECT) {
+    color_header.a = 1.0f;
+  }
+
+  /* Muted nodes get a mix of the background with the node color and are drawn slightly
+   * transparent so the wires inside are visible. */
+  if (node.is_muted()) {
+    ColorTheme4f color_background;
+    UI_GetThemeColor4fv(TH_BACK, color_background);
+
+    UI_GetColorPtrBlendAlpha4fv(color_header, color_background, 0.6f, -0.2f, color_header);
+  }
+
+  return color_header;
+}
+
 static void node_header_custom_tooltip(const bNode &node, uiBut &but)
 {
   UI_but_func_tooltip_custom_set(
@@ -2985,18 +3023,7 @@ static void node_draw_basis(const bContext &C,
         rct.ymax + padding,
     };
 
-    float color_header[4];
-
-    /* Muted nodes get a mix of the background with the node color. */
-    if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColorShade4fv(TH_REDALERT, -20, color_header);
-    }
-    else if (node.is_muted()) {
-      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, 0.4f, 0, color_header);
-    }
-    else {
-      UI_GetThemeColor4fv(color_id, color_header);
-    }
+    const ColorTheme4f color_header = node_header_color_get(ntree, node, color_id);
 
     UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
     UI_draw_roundbox_4fv(&rect, true, corner_radius, color_header);
@@ -3213,10 +3240,6 @@ static void node_draw_basis(const bContext &C,
     if (node_undefined_or_unsupported(ntree, node)) {
       UI_GetThemeColorShade4fv(TH_REDALERT, -40, color);
     }
-    /* Muted nodes get a mix of the background with the node color. */
-    else if (node.is_muted()) {
-      UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.2f, color);
-    }
     else if (node.flag & NODE_CUSTOM_COLOR) {
       rgba_float_args_set(color, node.color[0], node.color[1], node.color[2], 1.0f);
     }
@@ -3229,9 +3252,13 @@ static void node_draw_basis(const bContext &C,
       color[3] = 1.0f;
     }
 
-    /* Draw muted nodes slightly transparent so the wires inside are visible. */
+    /* Muted nodes get a mix of the background with the node color and are drawn slightly
+     * transparent so the wires inside are visible. */
     if (node.is_muted()) {
-      color[3] -= 0.2f;
+      float color_background[4];
+      UI_GetThemeColor4fv(TH_BACK, color_background);
+
+      UI_GetColorPtrBlendAlpha4fv(color, color_background, 0.8f, -0.2f, color);
     }
 
     /* Add some padding to prevent transparent gaps with the outline. */
@@ -3369,33 +3396,8 @@ static void node_draw_collapsed(const bContext &C,
   }
 
   /* Body. */
-  float color[4];
+  ColorTheme4f color = node_header_color_get(ntree, node, color_id);
   {
-    if (node_undefined_or_unsupported(ntree, node)) {
-      /* Use warning color to indicate undefined types. */
-      UI_GetThemeColorBlendShade4fv(TH_REDALERT, color_id, 0.1f, -40, color);
-    }
-    else if (node.is_muted()) {
-      /* Muted nodes get a mix of the background with the node color. */
-      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, 0.4f, 0, color);
-    }
-    else if (node.flag & NODE_CUSTOM_COLOR) {
-      rgba_float_args_set(color, node.color[0], node.color[1], node.color[2], 1.0f);
-    }
-    else {
-      UI_GetThemeColor4fv(color_id, color);
-    }
-
-    /* Draw selected nodes fully opaque. */
-    if (node.flag & SELECT) {
-      color[3] = 1.0f;
-    }
-
-    /* Draw muted nodes slightly transparent so the wires inside are visible. */
-    if (node.is_muted()) {
-      color[3] -= 0.2f;
-    }
-
     /* Add some padding to prevent transparent gaps with the outline. */
     const float padding = 0.5f;
     const rctf rect = {
@@ -3425,14 +3427,14 @@ static void node_draw_collapsed(const bContext &C,
 
   /* Collapse/expand icon. */
   {
-    const int but_size = U.widget_unit * 1.0f;
+    const int but_size = 0.8f * U.widget_unit;
     UI_block_emboss_set(&block, ui::EmbossType::None);
 
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
                               0,
                               ICON_RIGHTARROW,
-                              rct.xmin + (NODE_MARGIN_X / 3),
+                              rct.xmin + (NODE_MARGIN_X / 3) + 0.1f * U.widget_unit,
                               centy - but_size / 2,
                               but_size,
                               but_size,
@@ -3499,39 +3501,6 @@ static void node_draw_collapsed(const bContext &C,
   if (node.is_muted()) {
     UI_but_flag_enable(but, UI_BUT_INACTIVE);
   }
-
-  /* Scale widget thing. */
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  GPU_blend(GPU_BLEND_ALPHA);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-  immUniformThemeColorShadeAlpha(TH_TEXT, -40, -180);
-  float dx = 0.5f * U.widget_unit;
-  const float dx2 = 0.15f * U.widget_unit * snode.runtime->aspect;
-  const float dy = 0.2f * U.widget_unit;
-
-  immBegin(GPU_PRIM_LINES, 4);
-  immVertex2f(pos, rct.xmax - dx, centy - dy);
-  immVertex2f(pos, rct.xmax - dx, centy + dy);
-
-  immVertex2f(pos, rct.xmax - dx - dx2, centy - dy);
-  immVertex2f(pos, rct.xmax - dx - dx2, centy + dy);
-  immEnd();
-
-  immUniformThemeColorShadeAlpha(TH_TEXT, 0, -180);
-  dx -= snode.runtime->aspect;
-
-  immBegin(GPU_PRIM_LINES, 4);
-  immVertex2f(pos, rct.xmax - dx, centy - dy);
-  immVertex2f(pos, rct.xmax - dx, centy + dy);
-
-  immVertex2f(pos, rct.xmax - dx - dx2, centy - dy);
-  immVertex2f(pos, rct.xmax - dx - dx2, centy + dy);
-  immEnd();
-
-  immUnbindProgram();
-  GPU_blend(GPU_BLEND_NONE);
 
   node_draw_sockets(C, block, snode, ntree, node);
 
@@ -4146,7 +4115,7 @@ static void reroute_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   const short width = 512;
   const int x = BLI_rctf_cent_x(&node.runtime->draw_bounds) - (width / 2);
-  const int y = node.runtime->draw_bounds.ymax;
+  const int y = node.runtime->draw_bounds.ymax - 4 * UI_SCALE_FAC;
 
   uiBut *label_but = uiDefBut(
       &block, ButType::Label, 0, text, x, y, width, NODE_DY, nullptr, 0, 0, std::nullopt);

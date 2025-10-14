@@ -29,6 +29,7 @@
 #include "BLI_utildefines.h"
 
 #include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 /* ---------------------------------INTERSECTION FUNCTIONS-------------------- */
@@ -352,7 +353,7 @@ PyDoc_STRVAR(
     "   :rtype: :class:`mathutils.Vector`\n");
 static PyObject *M_Geometry_normal(PyObject * /*self*/, PyObject *args)
 {
-  float(*coords)[3];
+  float (*coords)[3];
   int coords_len;
   float n[3];
   PyObject *ret = nullptr;
@@ -1228,7 +1229,7 @@ PyDoc_STRVAR(
 static PyObject *M_Geometry_points_in_planes(PyObject * /*self*/, PyObject *args)
 {
   PyObject *py_planes;
-  float(*planes)[4];
+  float (*planes)[4];
   float eps_coplanar = 1e-4f;
   float eps_isect = 1e-6f;
   uint planes_len;
@@ -1577,7 +1578,7 @@ PyDoc_STRVAR(
     "   :rtype: float\n");
 static PyObject *M_Geometry_box_fit_2d(PyObject * /*self*/, PyObject *pointlist)
 {
-  float(*points)[2];
+  float (*points)[2];
   Py_ssize_t len;
 
   float angle = 0.0f;
@@ -1610,7 +1611,7 @@ PyDoc_STRVAR(
     "   :rtype: list[int]\n");
 static PyObject *M_Geometry_convex_hull_2d(PyObject * /*self*/, PyObject *pointlist)
 {
-  float(*points)[2];
+  float (*points)[2];
   Py_ssize_t len;
 
   PyObject *ret;
@@ -1718,8 +1719,8 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
   int output_type;
   float epsilon;
   bool need_ids = true;
-  float(*in_coords)[2] = nullptr;
-  int(*in_edges)[2] = nullptr;
+  float (*in_coords)[2] = nullptr;
+  int (*in_edges)[2] = nullptr;
   Py_ssize_t vert_coords_len, edges_len;
   PyObject *out_vert_coords = nullptr;
   PyObject *out_edges = nullptr;
