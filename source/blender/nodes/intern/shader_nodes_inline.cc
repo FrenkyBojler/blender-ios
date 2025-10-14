@@ -14,6 +14,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 
+#include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_in_compute_context.hh"
@@ -33,7 +34,7 @@ struct NodeAndSocket {
 };
 
 struct PrimitiveSocketValue {
-  std::variant<int, float, bool, ColorGeometry4f, float3> value;
+  std::variant<int, float, bool, ColorGeometry4f, float3, MenuValue> value;
 
   const void *buffer() const
   {
@@ -62,6 +63,9 @@ struct PrimitiveSocketValue {
     }
     if (type.is<float3>()) {
       return {*static_cast<const float3 *>(value.get())};
+    }
+    if (type.is<MenuValue>()) {
+      return {*static_cast<const MenuValue *>(value.get())};
     }
     BLI_assert_unreachable();
     return {};
@@ -127,6 +131,9 @@ struct SocketValue {
         case SOCK_RGBA:
           return PrimitiveSocketValue{
               ColorGeometry4f(socket.default_value_typed<bNodeSocketValueRGBA>()->value)};
+        case SOCK_MENU:
+          return PrimitiveSocketValue{
+              MenuValue(socket.default_value_typed<bNodeSocketValueMenu>()->value)};
         default:
           return std::nullopt;
       }
@@ -265,23 +272,24 @@ class ShaderNodesInliner {
     return true;
   }
 
-  Vector<SocketInContext> find_final_output_sockets() const
+  Vector<SocketInContext> find_final_output_sockets()
   {
-    const bke::bNodeTreeZones *zones = src_tree_.zones();
-    if (!zones) {
-      return {};
-    }
+    Vector<TreeInContext> trees;
+    this->find_trees_potentially_containing_shader_outputs_recursive(nullptr, src_tree_, trees);
 
     Vector<SocketInContext> output_sockets;
     auto add_output_type = [&](const char *output_type) {
-      for (const bNode *node : src_tree_.nodes_by_type(output_type)) {
-        const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier);
-        if (zone) {
-          params_.r_error_messages.append({node, TIP_("Output node must not be in zone")});
-          continue;
-        }
-        for (const bNodeSocket *socket : node->input_sockets()) {
-          output_sockets.append({nullptr, socket});
+      for (const TreeInContext &tree : trees) {
+        const bke::bNodeTreeZones &zones = *tree->zones();
+        for (const bNode *node : tree->nodes_by_type(output_type)) {
+          const bke::bNodeTreeZone *zone = zones.get_zone_by_node(node->identifier);
+          if (zone) {
+            params_.r_error_messages.append({node, TIP_("Output node must not be in zone")});
+            continue;
+          }
+          for (const bNodeSocket *socket : node->input_sockets()) {
+            output_sockets.append({tree.context, socket});
+          }
         }
       }
     };
@@ -307,6 +315,39 @@ class ShaderNodesInliner {
     }
 
     return output_sockets;
+  }
+
+  void find_trees_potentially_containing_shader_outputs_recursive(const ComputeContext *context,
+                                                                  const bNodeTree &tree,
+                                                                  Vector<TreeInContext> &r_trees)
+  {
+    const bke::bNodeTreeZones *zones = src_tree_.zones();
+    if (!zones) {
+      return;
+    }
+    if (tree.has_available_link_cycle()) {
+      return;
+    }
+    r_trees.append({context, &tree});
+    for (const bNode *group_node : tree.group_nodes()) {
+      if (group_node->is_muted()) {
+        continue;
+      }
+      const bNodeTree *group = id_cast<const bNodeTree *>(group_node->id);
+      if (!group || ID_MISSING(&group->id)) {
+        continue;
+      }
+      group->ensure_topology_cache();
+      const bke::bNodeTreeZone *zone = zones->get_zone_by_node(group_node->identifier);
+      if (zone) {
+        /* Node groups in zones are ignored. */
+        continue;
+      }
+      const ComputeContext &group_context = compute_context_cache_.for_group_node(
+          context, group_node->identifier, &tree);
+      this->find_trees_potentially_containing_shader_outputs_recursive(
+          &group_context, *group, r_trees);
+    }
   }
 
   void handle_socket(const SocketInContext &socket)
@@ -436,6 +477,10 @@ class ShaderNodesInliner {
     }
     if (node->is_type("NodeSeparateBundle")) {
       this->handle_output_socket__separate_bundle(socket);
+      return;
+    }
+    if (node->is_type("GeometryNodeMenuSwitch")) {
+      this->handle_output_socket__menu_switch(socket);
       return;
     }
     this->handle_output_socket__eval(socket);
@@ -572,12 +617,11 @@ class ShaderNodesInliner {
     const std::optional<PrimitiveSocketValue> iterations_value_opt =
         iterations_socket_value->to_primitive(*iterations_input->typeinfo);
     if (!iterations_value_opt) {
-      /* Number of iterations is not a primitive value. */
-      this->store_socket_value_fallback(socket);
       this->add_dynamic_repeat_zone_iterations_error(*repeat_input_node);
-      return;
     }
-    const int iterations = std::get<int>(iterations_value_opt->value);
+    const int iterations = iterations_value_opt.has_value() ?
+                               std::get<int>(iterations_value_opt->value) :
+                               0;
     if (iterations <= 0) {
       /* If the number of iterations is zero, the values are copied directly from the repeat input
        * node. */
@@ -852,6 +896,53 @@ class ShaderNodesInliner {
     this->store_socket_value_fallback(socket);
   }
 
+  void handle_output_socket__menu_switch(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const auto &storage = *static_cast<const NodeMenuSwitch *>(node->storage);
+
+    const SocketInContext menu_input = node.input_socket(0);
+    const SocketValue *menu_socket_value = value_by_socket_.lookup_ptr(menu_input);
+    if (!menu_socket_value) {
+      /* The menu value is not known yet, so schedule it for now. */
+      this->schedule_socket(menu_input);
+      return;
+    }
+
+    const std::optional<PrimitiveSocketValue> menu_value_opt = menu_socket_value->to_primitive(
+        *menu_input->typeinfo);
+    if (!menu_value_opt) {
+      /* This limitation may be lifted in the future. Menu Switch nodes could be supported natively
+       * by render engines or we convert them to a bunch of mix nodes. */
+      this->store_socket_value_fallback(socket);
+      params_.r_error_messages.append({node.node, TIP_("Menu value has to be a constant value")});
+      return;
+    }
+    const MenuValue menu_value = std::get<MenuValue>(menu_value_opt->value);
+    /* Find the selected item index. */
+    std::optional<int> selected_index;
+    for (const int item_i : IndexRange(storage.enum_definition.items_num)) {
+      const NodeEnumItem &item = storage.enum_definition.items_array[item_i];
+      if (MenuValue(item.identifier) == menu_value) {
+        selected_index = item_i;
+        break;
+      }
+    }
+    if (!selected_index.has_value()) {
+      /* The input value does not exist in the menu. */
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    if (socket->index() == 0) {
+      /* Handle forwarding the selected value. */
+      this->forward_value_or_schedule(socket, node.input_socket(*selected_index + 1));
+      return;
+    }
+    /* Set the value of the mask output. */
+    const bool is_selected = selected_index == socket->index() - 1;
+    this->store_socket_value(socket, {PrimitiveSocketValue{is_selected}});
+  }
+
   /**
    * Evaluate a node to compute the value of the given output socket. This may also compute all the
    * other outputs of the node.
@@ -1068,7 +1159,7 @@ class ShaderNodesInliner {
       }
       return;
     }
-    if (params_.dynamic_repeat_zone_iterations_is_error) {
+    if (!params_.allow_preserving_repeat_zones) {
       const bool is_iterations_input = dst_node.inputs.first == &dst_socket &&
                                        dst_node.is_type("GeometryNodeRepeatInput");
       if (is_iterations_input) {

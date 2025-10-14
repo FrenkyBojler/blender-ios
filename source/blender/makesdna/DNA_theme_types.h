@@ -151,6 +151,9 @@ typedef struct ThemeCommonAnim {
       keyframe_jitter_selected[4], keyframe_moving_hold_selected[4],
       keyframe_generated_selected[4];
   unsigned char long_key[4], long_key_selected[4];
+
+  unsigned char scene_strip_range[4];
+  char _pad0[4];
 } ThemeCommonAnim;
 
 typedef struct ThemeCommonCurves {
@@ -335,7 +338,8 @@ typedef struct ThemeSpace {
   unsigned char bevel[4], seam[4], sharp[4], crease[4], freestyle[4];
 
   unsigned char nurb_uline[4], nurb_vline[4];
-  unsigned char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4];
+  unsigned char nurb_sel_uline[4], nurb_sel_vline[4];
+  char _pad5[4];
 
   /** Dope-sheet. */
   unsigned char ds_ipoline[4];

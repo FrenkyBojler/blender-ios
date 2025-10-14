@@ -351,7 +351,7 @@ static bAction *poselib_blend_init_get_action(bContext *C, wmOperator *op)
     }
   }
   else {
-    /* If no explicit asset reference was passed, get asset from context.  */
+    /* If no explicit asset reference was passed, get asset from context. */
     asset = CTX_wm_asset(C);
     if (!asset) {
       BKE_report(op->reports, RPT_ERROR, "No asset in context");
@@ -654,7 +654,7 @@ static bool poselib_blend_poll(bContext *C)
   return true;
 }
 
-/* Operator propreties can set an asset reference to determine the asset to operate on (the pose
+/* Operator properties can set an asset reference to determine the asset to operate on (the pose
  * can then be applied via shortcut too, for example). If this isn't set, an active asset from
  * context is queried. */
 void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)

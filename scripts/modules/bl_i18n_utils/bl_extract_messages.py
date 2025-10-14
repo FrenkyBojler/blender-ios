@@ -677,6 +677,13 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
             ("add_repeat_zone", 1),
             ("add_foreach_geometry_element_zone", 1),
             ("add_closure_zone", 1),
+            ("node_operator", 4),
+            ("node_operator_with_outputs", 6),
+            ("simulation_zone", 2),
+            ("repeat_zone", 2),
+            ("for_each_element_zone", 2),
+            ("closure_zone", 2),
+
     ):
         func_translate_args[func_id] = {"label": (arg_pos, {})}
     # print(func_translate_args)
@@ -813,10 +820,6 @@ def dump_src_messages(msgs, reports, settings):
         return {k: getattr(bpy.app.translations.contexts, n) for k, n in bpy.app.translations.contexts_C_to_py.items()}
 
     contexts = get_contexts()
-
-    # Build regexes to extract messages (with optional contexts) from C source.
-    pygettexts = tuple(re.compile(r).search for r in settings.PYGETTEXT_KEYWORDS)
-
     _clean_str = re.compile(settings.str_clean_re).finditer
 
     def clean_str(s):
@@ -860,8 +863,9 @@ def dump_src_messages(msgs, reports, settings):
         data = ""
         with open(path, encoding="utf8") as f:
             data = f.read()
-        for srch in pygettexts:
-            m = srch(data)
+
+        for keyword in settings.PYGETTEXT_KEYWORDS:
+            m = keyword.search(data)
             line = pos = 0
             while m:
                 d = m.groupdict()
@@ -880,14 +884,14 @@ def dump_src_messages(msgs, reports, settings):
                             process_msg(msgs, msgctxt, msgid, msgsrc, reports, check_ctxt_src, settings)
                             reports["src_messages"].append((msgctxt, msgid, msgsrc))
                     else:
-                        _msgctxt = d.get("ctxt_raw")
+                        _msgctxt = d.get("ctxt_raw", keyword.context_override)
                         msgctxt, msgid = process_entry(_msgctxt, _msgid)
                         process_msg(msgs, msgctxt, msgid, msgsrc, reports, check_ctxt_src, settings)
                         reports["src_messages"].append((msgctxt, msgid, msgsrc))
 
                 pos = m.end()
                 line += data[m.start():pos].count('\n')
-                m = srch(data, pos)
+                m = keyword.search(data, pos)
 
     forbidden = set()
     forced = set()
@@ -964,6 +968,68 @@ def dump_template_messages(msgs, reports, settings):
             )
 
 
+def dump_ocio_config(msgs, reports, settings):
+    # This assumes the default Blender config is used when we extract messages.
+    import PyOpenColorIO as OCIO
+    config = OCIO.GetCurrentConfig()
+
+    for display in config.getDisplays():
+        msgsrc = "Display name from OCIO config"
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, display, msgsrc,
+            reports, None, settings,
+        )
+
+        for view in config.getViews(display):
+            msgsrc = "View name from OCIO display " + display
+            process_msg(
+                msgs, settings.DEFAULT_CONTEXT, view, msgsrc,
+                reports, None, settings,
+            )
+
+            description = config.getDisplayViewDescription(display, view)
+            msgsrc = "View description from OCIO display " + display
+            process_msg(
+                msgs, settings.DEFAULT_CONTEXT, description, msgsrc,
+                reports, None, settings,
+            )
+
+    for look in config.getLookNames():
+        # Some looks include their view's name to have unique names,
+        # we need to keep only the look.
+        if " - " in look:
+            view, name = look.split(" - ")
+            source = "OCIO view " + view
+        else:
+            name = look
+            source = "OCIO config"
+        msgsrc = "Look name from " + source
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, name, msgsrc,
+            reports, None, settings,
+        )
+        msgsrc = "Look description from " + source
+        description = config.getLook(look).getDescription()
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, description, msgsrc,
+            reports, None, settings,
+        )
+
+    for colorspace in config.getColorSpaces():
+        name = colorspace.getName()
+        msgsrc = "Colorspace name from OCIO config"
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, name, msgsrc,
+            reports, None, settings,
+        )
+        description = colorspace.getDescription()
+        msgsrc = "Colorspace description from OCIO config"
+        process_msg(
+            msgs, settings.DEFAULT_CONTEXT, description, msgsrc,
+            reports, None, settings,
+        )
+
+
 def dump_asset_messages(msgs, reports, settings):
     # Where to search for assets, relative to the local user resources.
     assets_dir = os.path.join(bpy.utils.resource_path('LOCAL'), "datafiles", "assets")
@@ -1018,6 +1084,10 @@ def dump_asset_messages(msgs, reports, settings):
                     socket_data = asset_data.setdefault("sockets", [])
                     socket_data.append((interface.name, interface.description))
                 assets.append(asset_data)
+                for node in asset.nodes:
+                    if node.bl_idname == "GeometryNodeWarning" and node.inputs['Message'].default_value:
+                        warning_data = asset_data.setdefault("warnings", [])
+                        warning_data.append(node.inputs['Message'].default_value)
 
     for asset_file in sorted(asset_files):
         for asset in sorted(asset_files[asset_file], key=lambda a: a["name"]):
@@ -1034,7 +1104,7 @@ def dump_asset_messages(msgs, reports, settings):
             )
 
             if "sockets" in asset:
-                for socket_name, socket_description in asset["sockets"]:
+                for socket_name, socket_description in sorted(asset["sockets"]):
                     msgsrc = f"Socket name from node group {name}, file {asset_file}"
                     process_msg(
                         msgs, settings.DEFAULT_CONTEXT, socket_name, msgsrc,
@@ -1043,6 +1113,13 @@ def dump_asset_messages(msgs, reports, settings):
                     msgsrc = f"Socket description from node group {name}, file {asset_file}"
                     process_msg(
                         msgs, settings.DEFAULT_CONTEXT, socket_description, msgsrc,
+                        reports, None, settings,
+                    )
+            if "warnings" in asset:
+                for warning in sorted(asset["warnings"]):
+                    msgsrc = f"Warning from node group {name}, file {asset_file}"
+                    process_msg(
+                        msgs, settings.DEFAULT_CONTEXT, warning, msgsrc,
                         reports, None, settings,
                     )
 
@@ -1157,6 +1234,9 @@ def dump_messages(do_messages, do_checks, settings):
             msgs, settings.DEFAULT_CONTEXT, lng[1], "Languages’ labels from bl_i18n_utils/settings.py",
             reports, None, settings,
         )
+
+    # Get strings from OCIO config.
+    dump_ocio_config(msgs, reports, settings)
 
     # Get strings from asset catalogs and blend files.
     # This loads each asset blend file in turn.

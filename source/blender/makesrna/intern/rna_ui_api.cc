@@ -915,10 +915,12 @@ static void rna_uiLayout_template_node_operator_asset_menu_items(uiLayout *layou
 }
 
 static void rna_uiLayout_template_modifier_asset_menu_items(uiLayout *layout,
-                                                            const char *catalog_path)
+                                                            const char *catalog_path,
+                                                            const bool skip_essentials)
 {
   using namespace blender;
-  ed::object::ui_template_modifier_asset_menu_items(*layout, StringRef(catalog_path));
+  ed::object::ui_template_modifier_asset_menu_items(
+      *layout, StringRef(catalog_path), skip_essentials);
 }
 
 static void rna_uiLayout_template_node_operator_root_items(uiLayout *layout, bContext *C)
@@ -1695,6 +1697,15 @@ void RNA_api_ui_layout(StructRNA *srna)
                "Optionally limit the items which can be selected");
   RNA_def_boolean(func, "hide_buttons", false, "", "Show only list, no buttons");
 
+  func = RNA_def_function(srna, "template_matrix", "uiTemplateMatrix");
+  RNA_def_function_ui_description(
+      func,
+      "Insert a readonly Matrix UI. "
+      "The UI displays the matrix components - translation, rotation and scale. "
+      "The **property** argument must be the identifier of an existing 4x4 float vector "
+      "property of subtype 'MATRIX'.");
+  api_ui_item_rna_common(func);
+
   func = RNA_def_function(srna, "template_any_ID", "rna_uiTemplateAnyID");
   parm = RNA_def_pointer(func, "data", "AnyType", "", "Data from which to take property");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
@@ -1868,6 +1879,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_boolean(func, "brush", false, "", "Show brush options");
   RNA_def_boolean(func, "use_negative_slope", false, "", "Use a negative slope by default");
   RNA_def_boolean(func, "show_tone", false, "", "Show tone options");
+  RNA_def_boolean(func, "show_presets", false, "", "Show preset options");
 
   func = RNA_def_function(srna, "template_curveprofile", "uiTemplateCurveProfile");
   RNA_def_function_ui_description(func, "A profile path editor used for custom profiles");
@@ -2150,6 +2162,7 @@ void RNA_api_ui_layout(StructRNA *srna)
                           "template_modifier_asset_menu_items",
                           "rna_uiLayout_template_modifier_asset_menu_items");
   parm = RNA_def_string(func, "catalog_path", nullptr, 0, "", "");
+  parm = RNA_def_boolean(func, "skip_essentials", false, "", "");
 
   func = RNA_def_function(srna,
                           "template_node_operator_asset_menu_items",
