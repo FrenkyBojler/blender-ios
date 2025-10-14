@@ -265,7 +265,7 @@ static void node_buts_frame_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *p
 {
   layout->prop(ptr, "label_size", DEFAULT_FLAGS, IFACE_("Label Size"), ICON_NONE);
   layout->prop(ptr, "pin", DEFAULT_FLAGS, IFACE_("Pin"), ICON_NONE);
-  layout->prop(ptr, "lock", DEFAULT_FLAGS, IFACE_("Lock"), ICON_NONE);
+  layout->prop(ptr, "freed", DEFAULT_FLAGS, IFACE_("Freed"), ICON_NONE);
   layout->prop(ptr, "shrink", DEFAULT_FLAGS, IFACE_("Shrink"), ICON_NONE);
   layout->prop(ptr, "text", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
 }

@@ -3888,21 +3888,21 @@ static int rna_FrameNode_shrink_editable(const PointerRNA *ptr, const char ** /*
   bNode *node = static_cast<bNode *>(ptr->data);
   NodeFrame *data = static_cast<NodeFrame *>(node->storage);
 
-  /* Shrink cannot be edited when lock is enabled. */
-  if (data->flag & NODE_FRAME_LOCK) {
+  /* Shrink cannot be edited when freed is enabled. */
+  if (data->flag & NODE_FRAME_FREED) {
     return 0;
   }
 
   return 1;
 }
 
-static void rna_FrameNode_lock_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_FrameNode_freed_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
   NodeFrame *data = static_cast<NodeFrame *>(node->storage);
 
-  /* When lock is enabled, disable shrink. */
-  if (data->flag & NODE_FRAME_LOCK) {
+  /* When freed is enabled, disable shrink. */
+  if (data->flag & NODE_FRAME_FREED) {
     data->flag &= ~NODE_FRAME_SHRINK;
   }
 
@@ -4606,11 +4606,13 @@ static void def_frame(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Pin", "Lock the frame position");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
 
-  prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_FRAME_LOCK);
-  RNA_def_property_ui_text(
-      prop, "Lock", "Prevent auto-scaling and constrain children within bounds");
-  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_FrameNode_lock_update");
+  prop = RNA_def_property(srna, "freed", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_FRAME_FREED);
+  RNA_def_property_ui_text(prop,
+                           "Freed",
+                           "Allow user to freely dimension the frame without being constrained by "
+                           "children nodes borders");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_FrameNode_freed_update");
 
   prop = RNA_def_property(srna, "label_size", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "label_size");

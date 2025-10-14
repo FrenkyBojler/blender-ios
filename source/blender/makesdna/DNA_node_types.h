@@ -2607,8 +2607,9 @@ enum {
   NODE_FRAME_RESIZEABLE = 2,
   /** Pin flag, lock the frame position. */
   NODE_FRAME_PIN = 4,
-  /** Lock flag, prevent auto-scaling and constrain children within bounds. */
-  NODE_FRAME_LOCK = 8,
+  /** Freed flag, allow user to freely dimension the frame without being constrained by children
+     nodes borders. */
+  NODE_FRAME_FREED = 8,
 };
 
 /* Proxy node flags. */

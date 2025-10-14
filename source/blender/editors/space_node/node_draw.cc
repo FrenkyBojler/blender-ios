@@ -3715,10 +3715,11 @@ static rctf calc_node_frame_dimensions(const bContext &C,
   data->flag |= NODE_FRAME_RESIZEABLE;
   /* For shrinking bounding box, initialize the rect from first child node. */
   bool bbinit = (data->flag & NODE_FRAME_SHRINK);
-  bool locked = data->flag & NODE_FRAME_LOCK;
+  const bool freed = data->flag & NODE_FRAME_FREED;
+  const bool pinned = data->flag & NODE_FRAME_PIN;
 
-  /* If locked, don't auto-resize the frame. */
-  if (!locked) {
+  /* If freed, don't auto-resize the frame. If pinned, don't move it. */
+  if (!freed && !pinned) {
     /* Fit bounding box to all children. */
     for (bNode *child : node.direct_children_in_frame()) {
       /* Add margin to node rect. */
@@ -3973,7 +3974,7 @@ static void frame_node_draw_overlay(const bContext &C,
   /* Label and text. */
   frame_node_draw_label(tree_draw_ctx, node, snode);
 
-  /* Pin and Lock toggle buttons. */
+  /* Pin and Freed toggle buttons. */
   const NodeFrame *data = (const NodeFrame *)node.storage;
   const rctf &rct = node.runtime->draw_bounds;
   const float but_size = U.widget_unit * 0.8f;
@@ -3986,24 +3987,6 @@ static void frame_node_draw_overlay(const bContext &C,
 
   float offsetx = rct.xmax - but_size - but_padding;
 
-  /* Lock button. */
-  uiDefIconButR_prop(&block,
-                     ButType::IconToggle,
-                     0,
-                     (data->flag & NODE_FRAME_LOCK) ? ICON_LOCKED : ICON_UNLOCKED,
-                     offsetx,
-                     rct.ymax - but_size - but_padding,
-                     but_size,
-                     but_size,
-                     &nodeptr,
-                     RNA_struct_find_property(&nodeptr, "lock"),
-                     0,
-                     0,
-                     0,
-                     nullptr);
-
-  offsetx -= but_size + but_padding;
-
   /* Pin button. */
   uiDefIconButR_prop(&block,
                      ButType::IconToggle,
@@ -4015,6 +3998,24 @@ static void frame_node_draw_overlay(const bContext &C,
                      but_size,
                      &nodeptr,
                      RNA_struct_find_property(&nodeptr, "pin"),
+                     0,
+                     0,
+                     0,
+                     nullptr);
+
+  offsetx -= but_size + but_padding;
+
+  /* Freed button. */
+  uiDefIconButR_prop(&block,
+                     ButType::IconToggle,
+                     0,
+                     (data->flag & NODE_FRAME_FREED) ? ICON_UNLINKED : ICON_LINKED,
+                     offsetx,
+                     rct.ymax - but_size - but_padding,
+                     but_size,
+                     but_size,
+                     &nodeptr,
+                     RNA_struct_find_property(&nodeptr, "freed"),
                      0,
                      0,
                      0,
