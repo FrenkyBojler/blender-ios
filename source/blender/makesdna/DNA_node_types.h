@@ -520,8 +520,7 @@ typedef struct bNode {
   float offsetx_legacy, offsety_legacy;
 
   /** Custom user-defined label. */
-  char label[350];
-  char _pad0[2];
+  char label[256];
 
   /** Custom user-defined color. */
   float color[3];
