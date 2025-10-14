@@ -5392,7 +5392,19 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
     if (!extend) {
       ED_uvedit_deselect_all(scene, obedit, SEL_DESELECT);
     }
+    if (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) {
+      for (Object *obedit : objects) {
+        BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+        const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
 
+        if (cd_loop_uv_offset != -1) {
+          BM_mesh_uvselect_sync_from_mesh_sticky_location(bm, cd_loop_uv_offset);
+        }
+        else {
+          BM_mesh_uvselect_sync_from_mesh_sticky_vert(bm);
+        }
+      }
+    }
     BMIter iter;
     BMFace *efa;
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
