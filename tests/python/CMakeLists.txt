@@ -121,6 +121,10 @@ if(WITH_UI_TESTS)
       # while this could be investigated, use windowed mode instead.
       # Use a window size that balances software GPU rendering with enough room to use the UI.
       --factory-startup
+      # Used so GHOST/Wayland doesn't attempt to load LIBDECOR
+      # which can fail on some systems, causing tests to fail.
+      # On other systems this is harmless.
+      --no-window-frame
       -p 0 0 800 600
       "${EXE_PARAMS}"
       "${ARGN}"
@@ -601,6 +605,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_rigging_symmetrize
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_rigging_symmetrize.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
+    vertex_group_painting
+    --python ${CMAKE_CURRENT_LIST_DIR}/vertex_group_painting.py
     --
     --testdir "${TEST_SRC_DIR}/animation"
   )
