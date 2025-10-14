@@ -5555,6 +5555,14 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
     MEM_freeN(overlap);
   }
 
+  /* Sync UV selection back to mesh selection when sync selection is active. */
+  if (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) {
+    for (Object *obedit : objects) {
+      BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+      BM_mesh_uvselect_sync_to_mesh(bm);
+    }
+  }
+
   for (Object *object : objects) {
     uv_select_tag_update_for_object(depsgraph, scene->toolsettings, object);
   }
