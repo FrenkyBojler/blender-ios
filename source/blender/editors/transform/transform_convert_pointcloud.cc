@@ -14,6 +14,7 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
 
