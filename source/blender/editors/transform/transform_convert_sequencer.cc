@@ -6,6 +6,7 @@
  * \ingroup edtransform
  */
 
+#include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
@@ -308,7 +309,7 @@ static ListBase *seqbase_active_get(const TransInfo *t)
 bool seq_transform_check_overlap(Span<Strip *> transformed_strips)
 {
   for (Strip *strip : transformed_strips) {
-    if (strip->flag & SEQ_OVERLAP) {
+    if (strip->runtime.flag & STRIP_OVERLAP) {
       return true;
     }
   }
@@ -341,7 +342,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 
   for (Strip *strip : transformed_strips) {
     strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
-    strip->flag &= ~SEQ_IGNORE_CHANNEL_LOCK;
+    strip->runtime.flag &= ~STRIP_IGNORE_CHANNEL_LOCK;
   }
 
   if (t->state == TRANS_CANCEL) {
@@ -479,7 +480,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
   VectorSet<Strip *> strips = seq::query_selected_strips(seq::active_seqbase_get(ed));
   for (Strip *strip : strips) {
-    if (!(strip->type & STRIP_TYPE_EFFECT) || seq::effect_get_num_inputs(strip->type) == 0) {
+    if (!strip->is_effect() || seq::effect_get_num_inputs(strip->type) == 0) {
       continue;
     }
     /* If there is an effect strip with no inputs selected, prevent any x-direction movement,
@@ -559,9 +560,12 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   }
 }
 
-static void createTransSeqData(bContext * /*C*/, TransInfo *t)
+static void createTransSeqData(bContext *C, TransInfo *t)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return;
+  }
   Editing *ed = seq::editing_get(scene);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
@@ -585,7 +589,7 @@ static void createTransSeqData(bContext * /*C*/, TransInfo *t)
   tc->custom.type.free_cb = freeSeqData;
   t->frame_side = transform_convert_frame_side_dir_get(t, float(scene->r.cfra));
 
-  count = SeqTransCount(t, ed->seqbasep);
+  count = SeqTransCount(t, ed->current_strips());
 
   /* Allocate memory for data. */
   tc->data_len = count;
@@ -614,7 +618,7 @@ static void createTransSeqData(bContext * /*C*/, TransInfo *t)
   ts->initial_v2d_cur = t->region->v2d.cur;
 
   /* Loop 2: build transdata array. */
-  SeqToTransData_build(t, ed->seqbasep, td, td2d, tdsq);
+  SeqToTransData_build(t, ed->current_strips(), td, td2d, tdsq);
 
   create_trans_seq_clamp_data(t, scene);
 
@@ -704,7 +708,7 @@ static void flushTransSeq(TransInfo *t)
     if (tdsq->sel_flag & SEQ_RIGHTSEL) {
       strip->runtime.flag &= ~STRIP_CLAMPED_RH;
     }
-    if (!seq::transform_single_image_check(strip) && !(strip->type & STRIP_TYPE_EFFECT)) {
+    if (!seq::transform_single_image_check(strip) && !strip->is_effect()) {
       if (offset_clamped[0] > offset[0] && new_frame == seq::time_start_frame_get(strip)) {
         strip->runtime.flag |= STRIP_CLAMPED_LH;
       }
@@ -773,9 +777,9 @@ static void flushTransSeq(TransInfo *t)
 
   for (Strip *strip : transformed_strips) {
     /* Test overlap, displays red outline. */
-    strip->flag &= ~SEQ_OVERLAP;
+    strip->runtime.flag &= ~STRIP_OVERLAP;
     if (seq::transform_test_overlap(scene, seqbasep, strip)) {
-      strip->flag |= SEQ_OVERLAP;
+      strip->runtime.flag |= STRIP_OVERLAP;
     }
   }
 }
@@ -828,7 +832,7 @@ static void special_aftertrans_update__sequencer(bContext *C, TransInfo *t)
   sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
 
   /* #freeSeqData in `transform_conversions.cc` does this
-   * keep here so the else at the end won't run. */
+   * keep here so the `else` at the end won't run. */
   if (t->state == TRANS_CANCEL) {
     return;
   }
@@ -858,9 +862,9 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
   int val[2] = {round_fl_to_int(r_val[0]), round_fl_to_int(r_val[1])};
   bool clamped = false;
 
-  /* Unconditional channel and handle clamping. Should never be ignored. */
+  /* Unconditional channel, retiming key, and handle clamping. Should never be ignored. */
   if (BLI_rcti_clamp_pt_v(&ts->offset_clamp, val)) {
-    r_val[0] = static_cast<float>(val[0]);
+    r_val[0] = float(val[0]);
     r_val[1] = float(val[1]);
     clamped = true;
   }

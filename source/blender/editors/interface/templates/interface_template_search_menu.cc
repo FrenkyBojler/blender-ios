@@ -25,6 +25,7 @@
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -383,7 +384,7 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
       char uiname[256];
       WM_operator_py_idname(idname_as_py, ot->idname);
 
-      SNPRINTF(uiname, "%s " UI_MENU_ARROW_SEP " %s", idname_as_py, ot_ui_name);
+      SNPRINTF_UTF8(uiname, "%s " UI_MENU_ARROW_SEP " %s", idname_as_py, ot_ui_name);
 
       item.drawwstr_full = scope.allocator().copy_string(uiname);
       item.drawstr = ot_ui_name;
@@ -623,10 +624,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           SPACE_MENU_MAP(SPACE_INFO, "INFO_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_SEQ, "SEQUENCER_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_TEXT, "TEXT_MT_editor_menus");
-          SPACE_MENU_MAP(SPACE_ACTION,
-                         (((const SpaceAction *)sl)->mode == SACTCONT_TIMELINE) ?
-                             "TIME_MT_editor_menus" :
-                             "DOPESHEET_MT_editor_menus");
+          SPACE_MENU_MAP(SPACE_ACTION, "DOPESHEET_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_NLA, "NLA_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_NODE, "NODE_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_CONSOLE, "CONSOLE_MT_editor_menus");
@@ -1152,7 +1150,7 @@ void uiTemplateMenuSearch(uiLayout *layout)
   static char search[256] = "";
 
   block = layout->block();
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
 
   but = uiDefSearchBut(
       block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_UNIT_X * 6, UI_UNIT_Y, "");

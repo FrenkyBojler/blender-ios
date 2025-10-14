@@ -250,7 +250,7 @@ char *BLI_sprintfN_with_buffer(
   va_start(args, format);
   retval = vsnprintf(result, size, format, args);
   va_end(args);
-  BLI_assert((size_t)(retval + 1) == size);
+  BLI_assert(size_t(retval + 1) == size);
   UNUSED_VARS_NDEBUG(retval);
   return result;
 }
@@ -283,7 +283,7 @@ char *BLI_vsprintfN_with_buffer(char *fixed_buf,
   const size_t size = size_t(retval) + 1;
   char *result = MEM_malloc_arrayN<char>(size, __func__);
   retval = vsnprintf(result, size, format, args);
-  BLI_assert((size_t)(retval + 1) == size);
+  BLI_assert(size_t(retval + 1) == size);
   UNUSED_VARS_NDEBUG(retval);
   return result;
 }
@@ -508,7 +508,7 @@ char *BLI_str_quoted_substrN(const char *__restrict str, const char *__restrict 
   if (!BLI_str_quoted_substr_range(str, prefix, &start_match_ofs, &end_match_ofs)) {
     return nullptr;
   }
-  const size_t escaped_len = (size_t)(end_match_ofs - start_match_ofs);
+  const size_t escaped_len = size_t(end_match_ofs - start_match_ofs);
   char *result = MEM_malloc_arrayN<char>(escaped_len + 1, __func__);
   const size_t unescaped_len = BLI_str_unescape(result, str + start_match_ofs, escaped_len);
   if (unescaped_len != escaped_len) {
@@ -1188,6 +1188,18 @@ size_t BLI_str_format_uint64_grouped(char dst[BLI_STR_FORMAT_UINT64_GROUPED_SIZE
 
   char src[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
   const int num_len = int(SNPRINTF(src, "%" PRIu64 "", num));
+
+  return BLI_str_format_int_grouped_ex(src, dst, num_len);
+}
+
+size_t BLI_str_format_int64_grouped(char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE], int64_t num)
+{
+  const size_t dst_maxncpy = BLI_STR_FORMAT_INT64_GROUPED_SIZE;
+  BLI_string_debug_size(dst, dst_maxncpy);
+  UNUSED_VARS_NDEBUG(dst_maxncpy);
+
+  char src[BLI_STR_FORMAT_INT64_GROUPED_SIZE];
+  const int num_len = int(SNPRINTF(src, "%" PRId64 "", num));
 
   return BLI_str_format_int_grouped_ex(src, dst, num_len);
 }

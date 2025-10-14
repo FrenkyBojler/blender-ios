@@ -40,8 +40,8 @@
 #include "DRW_gpu_wrapper.hh"
 #include "GPU_batch_utils.hh"
 
-#include "eevee_shader_shared.hh"
 #include "eevee_sync.hh"
+#include "eevee_volume_shared.hh"
 
 namespace blender::eevee {
 
@@ -122,8 +122,10 @@ class VolumeModule {
  public:
   VolumeModule(Instance &inst, VolumesInfoData &data) : inst_(inst), data_(data)
   {
-    dummy_scatter_tx_.ensure_3d(GPU_RGBA8, int3(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(0.0f));
-    dummy_transmit_tx_.ensure_3d(GPU_RGBA8, int3(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(1.0f));
+    dummy_scatter_tx_.ensure_3d(
+        gpu::TextureFormat::UNORM_8_8_8_8, int3(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(0.0f));
+    dummy_transmit_tx_.ensure_3d(
+        gpu::TextureFormat::UNORM_8_8_8_8, int3(1), GPU_TEXTURE_USAGE_SHADER_READ, float4(1.0f));
   };
 
   ~VolumeModule()
@@ -136,7 +138,7 @@ class VolumeModule {
     return enabled_ && use_lights_;
   }
 
-  /* Return a the future value of enabled() that will only be available after end_sync(). */
+  /* Return the future value of enabled() that will only be available after end_sync(). */
   bool will_enable() const;
 
   /* Returns the state of the module. */

@@ -32,6 +32,10 @@
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"gpu.texture"};
+
 using namespace blender::bke::image::partial_update;
 
 /* Prototypes. */
@@ -111,7 +115,13 @@ static blender::gpu::Texture *gpu_texture_create_tile_mapping(Image *ima, const 
   }
 
   blender::gpu::Texture *tex = GPU_texture_create_1d_array(
-      ima->id.name + 2, width, 2, 1, GPU_RGBA32F, GPU_TEXTURE_USAGE_SHADER_READ, data);
+      ima->id.name + 2,
+      width,
+      2,
+      1,
+      blender::gpu::TextureFormat::SFLOAT_32_32_32_32,
+      GPU_TEXTURE_USAGE_SHADER_READ,
+      data);
   GPU_texture_mipmap_mode(tex, false, false);
 
   MEM_freeN(data);
@@ -275,7 +285,7 @@ static blender::gpu::Texture **get_image_gpu_texture_ptr(Image *ima,
 
 static blender::gpu::Texture *image_gpu_texture_error_create(eGPUTextureTarget textarget)
 {
-  fprintf(stderr, "blender::gpu::Texture: Blender Texture Not Loaded!\n");
+  CLOG_ERROR(&LOG, "Failed to create GPU texture from Blender image");
   switch (textarget) {
     case TEXTARGET_2D_ARRAY:
       return GPU_texture_create_error(2, true);

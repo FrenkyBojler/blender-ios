@@ -20,7 +20,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_geom.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -270,12 +270,12 @@ static void draw_movieclip_notes(SpaceClip *sc, ARegion *region)
   bool full_redraw = false;
 
   if (tracking->stats) {
-    STRNCPY(str, tracking->stats->message);
+    STRNCPY_UTF8(str, tracking->stats->message);
     full_redraw = true;
   }
   else {
     if (sc->flag & SC_LOCK_SELECTION) {
-      STRNCPY(str, "Locked");
+      STRNCPY_UTF8(str, "Locked");
     }
   }
 
@@ -1101,23 +1101,23 @@ static void draw_marker_texts(SpaceClip *sc,
   pos[1] = pos[1] * zoomy - fontsize;
 
   if (marker->flag & MARKER_DISABLED) {
-    STRNCPY(state, "disabled");
+    STRNCPY_UTF8(state, "disabled");
   }
   else if (marker->framenr != ED_space_clip_get_clip_frame_number(sc)) {
-    STRNCPY(state, "estimated");
+    STRNCPY_UTF8(state, "estimated");
   }
   else if (marker->flag & MARKER_TRACKED) {
-    STRNCPY(state, "tracked");
+    STRNCPY_UTF8(state, "tracked");
   }
   else {
-    STRNCPY(state, "keyframed");
+    STRNCPY_UTF8(state, "keyframed");
   }
 
   if (state[0]) {
-    SNPRINTF(str, "%s: %s", track->name, state);
+    SNPRINTF_UTF8(str, "%s: %s", track->name, state);
   }
   else {
-    STRNCPY(str, track->name);
+    STRNCPY_UTF8(str, track->name);
   }
 
   BLF_position(fontid, pos[0], pos[1], 0.0f);
@@ -1125,7 +1125,7 @@ static void draw_marker_texts(SpaceClip *sc,
   pos[1] -= fontsize;
 
   if (track->flag & TRACK_HAS_BUNDLE) {
-    SNPRINTF(str, "Average error: %.2f px", track->error);
+    SNPRINTF_UTF8(str, "Average error: %.2f px", track->error);
     BLF_position(fontid, pos[0], pos[1], 0.0f);
     BLF_draw(fontid, str, sizeof(str));
     pos[1] -= fontsize;
@@ -1223,13 +1223,14 @@ static void draw_plane_marker_image(Scene *scene,
         GPU_blend(GPU_BLEND_ALPHA);
       }
 
-      blender::gpu::Texture *texture = GPU_texture_create_2d("plane_marker_image",
-                                                             ibuf->x,
-                                                             ibuf->y,
-                                                             1,
-                                                             GPU_RGBA8,
-                                                             GPU_TEXTURE_USAGE_SHADER_READ,
-                                                             nullptr);
+      blender::gpu::Texture *texture = GPU_texture_create_2d(
+          "plane_marker_image",
+          ibuf->x,
+          ibuf->y,
+          1,
+          blender::gpu::TextureFormat::UNORM_8_8_8_8,
+          GPU_TEXTURE_USAGE_SHADER_READ,
+          nullptr);
       GPU_texture_update(texture, GPU_DATA_UBYTE, display_buffer);
       GPU_texture_filter_mode(texture, false);
 
@@ -1732,7 +1733,7 @@ static void draw_distortion(SpaceClip *sc,
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* grid */
-  if (sc->flag & SC_SHOW_GRID) {
+  if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->flag & SC_SHOW_GRID) {
     float val[4][2], idx[4][2];
     float min[2], max[2];
 
@@ -1965,7 +1966,8 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region)
 
   if (width && height) {
     draw_stabilization_border(sc, region, width, height, zoomx, zoomy);
-    draw_tracking_tracks(sc, scene, region, clip, width, height, zoomx, zoomy);
+    if (sc->overlay.flag & SC_SHOW_OVERLAYS)
+      draw_tracking_tracks(sc, scene, region, clip, width, height, zoomx, zoomy);
     draw_distortion(sc, region, clip, width, height, zoomx, zoomy);
   }
 }

@@ -71,11 +71,15 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "CLG_log.h"
+
 #include "interface_intern.hh"
 
 using blender::StringRef;
 using blender::StringRefNull;
 using blender::Vector;
+
+static CLG_LogRef LOG = {"ui"};
 
 /* prototypes. */
 static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p);
@@ -260,6 +264,13 @@ void ui_region_to_window(const ARegion *region, int *x, int *y)
   *y += region->winrct.ymin;
 }
 
+void ui_region_to_window(
+    const ARegion *region, int region_x, int region_y, int *r_window_x, int *r_window_y)
+{
+  *r_window_x = region_x + region->winrct.xmin;
+  *r_window_y = region_y + region->winrct.ymin;
+}
+
 int uiBlock::but_index(const uiBut *but) const
 {
   BLI_assert(!buttons.is_empty() && but);
@@ -315,7 +326,7 @@ static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
 
   rcti rect;
   ui_but_to_pixelrect(&rect, region, block, block->buttons.last().get());
-  const float buttons_width = std::ceil(float(rect.xmax) + UI_HEADER_OFFSET);
+  const float buttons_width = std::ceil(float(rect.xmax) + 8.0f * UI_SCALE_FAC);
   const float region_width = float(region->winx);
 
   if (region_width <= buttons_width) {
@@ -961,6 +972,7 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
   /* Move tooltip from new to old. */
   std::swap(oldbut->tip_func, but->tip_func);
   std::swap(oldbut->tip_arg, but->tip_arg);
+  std::swap(oldbut->tip_custom_func, but->tip_custom_func);
   std::swap(oldbut->tip_arg_free, but->tip_arg_free);
   std::swap(oldbut->tip_quick_func, but->tip_quick_func);
 
@@ -2289,12 +2301,6 @@ void UI_block_draw(const bContext *C, uiBlock *block)
       continue;
     }
 
-    /* Don't draw buttons that are wider than available space. */
-    const int width = BLI_rcti_size_x(&rect);
-    if ((width > U.widget_unit * 2.5f / block->aspect) && width > region->winx) {
-      continue;
-    }
-
     /* XXX: figure out why invalid coordinates happen when closing render window */
     /* and material preview is redrawn in main window (temp fix for bug #23848) */
     if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
@@ -2508,7 +2514,7 @@ void ui_but_v3_get(uiBut *but, float vec[3])
   }
   else {
     if (but->editvec == nullptr) {
-      fprintf(stderr, "%s: can't get color, should never happen\n", __func__);
+      CLOG_WARN(&LOG, "%s: cannot get color, should never happen", __func__);
       zero_v3(vec);
     }
   }
@@ -2573,7 +2579,7 @@ void ui_but_v4_get(uiBut *but, float vec[4])
   }
   else {
     if (but->editvec == nullptr) {
-      fprintf(stderr, "%s: can't get color, should never happen\n", __func__);
+      CLOG_WARN(&LOG, "%s: can't get color, should never happen", __func__);
       zero_v4(vec);
     }
   }
@@ -3084,7 +3090,12 @@ void ui_but_string_get_ex(uiBut *but,
   }
   else if (ELEM(but->type, ButType::Text, ButType::SearchMenu)) {
     /* string */
-    BLI_strncpy(str, but->poin, str_maxncpy);
+    if (UI_but_is_utf8(but)) {
+      BLI_strncpy_utf8(str, but->poin, str_maxncpy);
+    }
+    else {
+      BLI_strncpy(str, but->poin, str_maxncpy);
+    }
     return;
   }
   else if (ui_but_anim_expression_get(but, str, str_maxncpy)) {
@@ -3114,17 +3125,17 @@ void ui_but_string_get_ex(uiBut *but,
       }
       else if (subtype == PROP_FACTOR) {
         if (U.factor_display_type == USER_FACTOR_AS_FACTOR) {
-          BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
+          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
         }
         else {
-          BLI_snprintf(str, str_maxncpy, "%.*f", std::max(0, prec - 2), value * 100);
+          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", std::max(0, prec - 2), value * 100);
         }
       }
       else {
         const int int_digits_num = integer_digits_f(value);
         if (use_exp_float) {
           if (int_digits_num < -6 || int_digits_num > 12) {
-            BLI_snprintf(str, str_maxncpy, "%.*g", prec, value);
+            BLI_snprintf_utf8(str, str_maxncpy, "%.*g", prec, value);
             if (r_use_exp_float) {
               *r_use_exp_float = true;
             }
@@ -3132,18 +3143,18 @@ void ui_but_string_get_ex(uiBut *but,
           else {
             prec -= int_digits_num;
             CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
-            BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
+            BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
           }
         }
         else {
           prec -= int_digits_num;
           CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
-          BLI_snprintf(str, str_maxncpy, "%.*f", prec, value);
+          BLI_snprintf_utf8(str, str_maxncpy, "%.*f", prec, value);
         }
       }
     }
     else {
-      BLI_snprintf(str, str_maxncpy, "%d", int(value));
+      BLI_snprintf_utf8(str, str_maxncpy, "%d", int(value));
     }
   }
 }
@@ -3407,7 +3418,12 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
   }
   else if (but->type == ButType::SearchMenu) {
     /* string */
-    BLI_strncpy(but->poin, str, but->hardmax);
+    if (UI_but_is_utf8(but)) {
+      BLI_strncpy_utf8(but->poin, str, but->hardmax);
+    }
+    else {
+      BLI_strncpy(but->poin, str, but->hardmax);
+    }
     return true;
   }
   else if (ui_but_anim_expression_set(but, str)) {
@@ -3849,7 +3865,7 @@ uiBlock *UI_block_begin(const bContext *C,
      * would slow down redraw, so only lookup for actual transform when it's indeed
      * needed
      */
-    STRNCPY(block->display_device, scene->display_settings.display_device);
+    STRNCPY_UTF8(block->display_device, scene->display_settings.display_device);
 
     /* Copy to avoid crash when scene gets deleted with UI still open. */
     UnitSettings *unit = MEM_callocN<UnitSettings>(__func__);
@@ -3857,7 +3873,7 @@ uiBlock *UI_block_begin(const bContext *C,
     block->unit = unit;
   }
   else {
-    STRNCPY(block->display_device, IMB_colormanagement_display_get_default_name());
+    STRNCPY_UTF8(block->display_device, IMB_colormanagement_display_get_default_name());
   }
 
   block->name = std::move(name);
@@ -3945,7 +3961,7 @@ static void ui_but_build_drawstr_float(uiBut *but, double value)
     const int prec = ui_but_calc_float_precision(but, value);
     but->drawstr = fmt::format("{}{:.{}f}%", but->str, value, prec);
   }
-  else if (subtype == PROP_PIXEL) {
+  else if (ELEM(subtype, PROP_PIXEL, PROP_PIXEL_DIAMETER)) {
     const int prec = ui_but_calc_float_precision(but, value);
     but->drawstr = fmt::format("{}{:.{}f} px", but->str, value, prec);
   }
@@ -3982,7 +3998,7 @@ static void ui_but_build_drawstr_int(uiBut *but, int value)
   if (subtype == PROP_PERCENTAGE) {
     but->drawstr += "%";
   }
-  else if (subtype == PROP_PIXEL) {
+  else if (ELEM(subtype, PROP_PIXEL, PROP_PIXEL_DIAMETER)) {
     but->drawstr += " px";
   }
 }
@@ -4496,7 +4512,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
                                     &free);
 
   /* We don't want nested rows, cols in menus. */
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
 
   int totitems = 0;
   int categories = 0;
@@ -4567,7 +4583,8 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     rows = totitems;
   }
 
-  const char *title = RNA_property_ui_name(but->rnaprop);
+  const char *title = RNA_property_ui_name(
+      but->rnaprop, RNA_pointer_is_null(&but->rnapoin) ? nullptr : &but->rnapoin);
 
   /* Is there a non-blank label before this button on the same row? */
   uiBut *but_prev = but->block->prev_but(but);
@@ -4681,8 +4698,6 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
                                      UI_UNIT_X * 5,
                                      UI_UNIT_Y,
                                      &handle->retvalue,
-                                     item->value,
-                                     0.0,
                                      description_static);
       }
       else {
@@ -4703,6 +4718,9 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
         item_but->flag |= UI_SELECT_DRAW;
       }
 
+      /* "hardmin" is used to store the value of the enum item. */
+      item_but->hardmin = float(item->value);
+
       if (use_enum_copy_description) {
         if (item->description && item->description[0]) {
           char *description_copy = BLI_strdup(item->description);
@@ -4718,7 +4736,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     }
   }
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
 
   if (free) {
     MEM_freeN(item_array);
@@ -4762,7 +4780,7 @@ static void ui_def_but_rna__menu_type(bContext *C, uiLayout *layout, void *but_p
   }
   else {
     char msg[256];
-    SNPRINTF(msg, RPT_("Missing Menu: %s"), menu_type);
+    SNPRINTF_UTF8(msg, RPT_("Missing Menu: %s"), menu_type);
     layout->label(msg, ICON_NONE);
   }
 }
@@ -5090,6 +5108,11 @@ uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short 
 {
   ImBuf *ibuf = UI_icon_alert_imbuf_get((eAlertIcon)icon, float(width));
   if (ibuf) {
+    if (icon == ALERT_ICON_ERROR) {
+      uchar color[4];
+      UI_GetThemeColor4ubv(TH_ERROR, color);
+      return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, color);
+    }
     bTheme *btheme = UI_GetTheme();
     return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, btheme->tui.wcol_menu_back.text);
   }
@@ -5177,7 +5200,7 @@ void UI_autocomplete_update_name(AutoComplete *autocpl, const StringRef name)
     }
     else {
       /* remove from truncate what is not in bone->name */
-      for (int a = 0; a < autocpl->maxncpy - 1; a++) {
+      for (int a = 0; a < std::min<size_t>(name.size(), autocpl->maxncpy) - 1; a++) {
         if (name[a] == 0) {
           truncate[a] = 0;
           break;
@@ -5834,12 +5857,10 @@ uiBut *uiDefIconTextBut(uiBlock *block,
                         short width,
                         short height,
                         void *poin,
-                        float min,
-                        float max,
                         const std::optional<StringRef> tip)
 {
   uiBut *but = ui_def_but(
-      block, but_and_ptr_type, retval, str, x, y, width, height, poin, min, max, tip);
+      block, but_and_ptr_type, retval, str, x, y, width, height, poin, 0.0f, 0.0f, tip);
   ui_but_update_and_icon_set(but, icon);
   but->drawflag |= UI_BUT_ICON_LEFT;
   return but;
@@ -5854,8 +5875,6 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                          short width,
                          short height,
                          int *poin,
-                         float min,
-                         float max,
                          const std::optional<StringRef> tip)
 {
   return uiDefIconTextBut(block,
@@ -5868,8 +5887,6 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                           width,
                           height,
                           (void *)poin,
-                          min,
-                          max,
                           tip);
 }
 uiBut *uiDefIconTextButS(uiBlock *block,
@@ -5882,8 +5899,6 @@ uiBut *uiDefIconTextButS(uiBlock *block,
                          short width,
                          short height,
                          short *poin,
-                         float min,
-                         float max,
                          const std::optional<StringRef> tip)
 {
   return uiDefIconTextBut(block,
@@ -5896,8 +5911,6 @@ uiBut *uiDefIconTextButS(uiBlock *block,
                           width,
                           height,
                           (void *)poin,
-                          min,
-                          max,
                           tip);
 }
 
@@ -5913,12 +5926,10 @@ uiBut *uiDefIconTextButR(uiBlock *block,
                          PointerRNA *ptr,
                          blender::StringRefNull propname,
                          int index,
-                         float min,
-                         float max,
                          const std::optional<StringRef> tip)
 {
   uiBut *but = ui_def_but_rna_propname(
-      block, type, retval, str, x, y, width, height, ptr, propname, index, min, max, tip);
+      block, type, retval, str, x, y, width, height, ptr, propname, index, 0.0f, 0.0f, tip);
   ui_but_update_and_icon_set(but, icon);
   but->drawflag |= UI_BUT_ICON_LEFT;
   return but;
@@ -6718,7 +6729,7 @@ void UI_but_icon_indicator_number_set(uiBut *but, const int indicator_number)
 
 void UI_but_icon_indicator_set(uiBut *but, const char *string)
 {
-  STRNCPY(but->icon_overlay_text.text, string);
+  STRNCPY_UTF8(but->icon_overlay_text.text, string);
 }
 
 void UI_but_icon_indicator_color_set(uiBut *but, const uchar color[4])

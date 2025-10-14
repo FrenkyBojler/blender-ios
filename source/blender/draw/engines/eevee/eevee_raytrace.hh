@@ -12,13 +12,16 @@
 
 #include "DNA_scene_types.h"
 
+#include "DRW_gpu_wrapper.hh"
 #include "DRW_render.hh"
 
-#include "eevee_shader_shared.hh"
+#include "eevee_raytrace_shared.hh"
 
 namespace blender::eevee {
 
 class Instance;
+
+using RayTraceTileBuf = draw::StorageArrayBuffer<uint, 1024, true>;
 
 /* -------------------------------------------------------------------- */
 /** \name Ray-tracing Buffers
@@ -69,7 +72,9 @@ struct RayTraceBuffer {
   gpu::Texture *feedback_ensure(bool is_dummy, int2 extent)
   {
     eGPUTextureUsage usage_rw = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
-    if (radiance_feedback_tx.ensure_2d(GPU_RGBA16F, is_dummy ? int2(1) : extent, usage_rw)) {
+    if (radiance_feedback_tx.ensure_2d(
+            gpu::TextureFormat::SFLOAT_16_16_16_16, is_dummy ? int2(1) : extent, usage_rw))
+    {
       radiance_feedback_tx.clear(float4(0.0f));
     }
     return radiance_feedback_tx;
@@ -92,9 +97,9 @@ class RayTraceResultTexture {
 
  public:
   RayTraceResultTexture() = default;
-  RayTraceResultTexture(TextureFromPool &result) : result_(result.ptr()), tx_(result){};
+  RayTraceResultTexture(TextureFromPool &result) : result_(result.ptr()), tx_(result) {};
   RayTraceResultTexture(TextureFromPool &result, Texture &history)
-      : result_(result.ptr()), tx_(result), history_(history.ptr()){};
+      : result_(result.ptr()), tx_(result), history_(history.ptr()) {};
 
   operator gpu::Texture *() const
   {
@@ -233,7 +238,7 @@ class RayTraceModule {
   RayTraceData &data_;
 
  public:
-  RayTraceModule(Instance &inst, RayTraceData &data) : inst_(inst), data_(data){};
+  RayTraceModule(Instance &inst, RayTraceData &data) : inst_(inst), data_(data) {};
 
   void init();
 
@@ -273,7 +278,7 @@ class RayTraceModule {
   RayTraceResult alloc_dummy(RayTraceBuffer &rt_buffer);
 
   void debug_pass_sync();
-  void debug_draw(View &view, GPUFrameBuffer *view_fb);
+  void debug_draw(View &view, gpu::FrameBuffer *view_fb);
 
   bool use_raytracing() const
   {

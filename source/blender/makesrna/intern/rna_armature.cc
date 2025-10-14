@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 
+#include "BLI_math_constants.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.hh"
@@ -119,7 +120,7 @@ static void rna_Armature_act_bone_set(PointerRNA *ptr, PointerRNA value, ReportL
       Object *ob = (Object *)value.owner_id;
 
       if (GS(ob->id.name) != ID_OB || (ob->data != arm)) {
-        printf("ERROR: armature set active bone - new active doesn't come from this armature\n");
+        printf("ERROR: armature set active bone - new active does not come from this armature\n");
         return;
       }
     }
@@ -720,11 +721,9 @@ static void rna_Bone_hide_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA
 {
   bArmature *arm = (bArmature *)ptr->owner_id;
   Bone *bone = (Bone *)ptr->data;
-
-  if (bone->flag & (BONE_HIDDEN_P | BONE_UNSELECTABLE)) {
+  if (bone->flag & (BONE_HIDDEN_A | BONE_UNSELECTABLE)) {
     bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
-
   WM_main_add_notifier(NC_OBJECT | ND_POSE, arm);
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
 }
@@ -738,43 +737,6 @@ static void rna_Bone_update_renamed(Main * /*bmain*/, Scene * /*scene*/, Pointer
   WM_main_add_notifier(NC_GEOM | ND_DATA | NA_RENAME, id);
 
   /* update animation channels */
-  WM_main_add_notifier(NC_ANIMATION | ND_ANIMCHAN, id);
-}
-
-static void rna_Bone_select_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
-{
-  ID *id = ptr->owner_id;
-
-  /* 1) special updates for cases where rigs try to hook into armature drawing stuff
-   *    e.g. Mask Modifier - 'Armature' option
-   * 2) tag armature for copy-on-evaluation, so that selection status (set by addons)
-   *    will update properly, like standard tools do already
-   */
-  if (id) {
-    if (GS(id->name) == ID_AR) {
-      bArmature *arm = (bArmature *)id;
-
-      if (arm->flag & ARM_HAS_VIZ_DEPS) {
-        DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-      }
-
-      DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
-    }
-    else if (GS(id->name) == ID_OB) {
-      Object *ob = (Object *)id;
-      bArmature *arm = (bArmature *)ob->data;
-
-      if (arm->flag & ARM_HAS_VIZ_DEPS) {
-        DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-      }
-
-      DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
-    }
-  }
-
-  WM_main_add_notifier(NC_GEOM | ND_DATA, id);
-
-  /* spaces that show animation data of the selected bone need updating */
   WM_main_add_notifier(NC_ANIMATION | ND_ANIMCHAN, id);
 }
 
@@ -935,13 +897,13 @@ static void rna_EditBone_parent_set(PointerRNA *ptr, PointerRNA value, ReportLis
 static void rna_EditBone_matrix_get(PointerRNA *ptr, float *values)
 {
   EditBone *ebone = (EditBone *)(ptr->data);
-  ED_armature_ebone_to_mat4(ebone, (float(*)[4])values);
+  ED_armature_ebone_to_mat4(ebone, (float (*)[4])values);
 }
 
 static void rna_EditBone_matrix_set(PointerRNA *ptr, const float *values)
 {
   EditBone *ebone = (EditBone *)(ptr->data);
-  ED_armature_ebone_from_mat4(ebone, (float(*)[4])values);
+  ED_armature_ebone_from_mat4(ebone, (float (*)[4])values);
 }
 
 static float rna_EditBone_length_get(PointerRNA *ptr)
@@ -1128,7 +1090,7 @@ static bool rna_Armature_is_editmode_get(PointerRNA *ptr)
 
 static void rna_Armature_transform(bArmature *arm, const float mat[16])
 {
-  ED_armature_transform(arm, (const float(*)[4])mat, true);
+  ED_armature_transform(arm, (const float (*)[4])mat, true);
 }
 
 static int rna_Armature_relation_line_position_get(PointerRNA *ptr)
@@ -1512,8 +1474,7 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
   RNA_def_property_ui_text(
       prop,
       "Cyclic Offset",
-      "When bone doesn't have a parent, it receives cyclic offset effects (Deprecated)");
-  //                         "When bone doesn't have a parent, it receives cyclic offset effects");
+      "When bone does not have a parent, it receives cyclic offset effects (Deprecated)");
   RNA_def_property_update(prop, 0, "rna_Armature_update_data");
 
   prop = RNA_def_property(srna, "hide_select", PROP_BOOLEAN, PROP_NONE);
@@ -1779,36 +1740,11 @@ static void rna_def_bone(BlenderRNA *brna)
 
   RNA_define_lib_overridable(true);
 
-  /* XXX should we define this in PoseChannel wrapping code instead?
-   *     But PoseChannels directly get some of their flags from here... */
   prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_HIDDEN_P);
-  RNA_def_property_ui_text(
-      prop,
-      "Hide",
-      "Bone is not visible when it is not in Edit Mode (i.e. in Object or Pose Modes)");
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_HIDDEN_A);
+  RNA_def_property_ui_text(prop, "Hide", "Bone is not visible when it is in Edit Mode");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
   RNA_def_property_update(prop, 0, "rna_Bone_hide_update");
-
-  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_SELECTED);
-  RNA_def_property_ui_text(prop, "Select", "");
-  RNA_def_property_clear_flag(
-      prop,
-      PROP_ANIMATABLE); /* XXX: review whether this could be used for interesting effects... */
-  RNA_def_property_update(prop, 0, "rna_Bone_select_update");
-
-  prop = RNA_def_property(srna, "select_head", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_ROOTSEL);
-  RNA_def_property_ui_text(prop, "Select Head", "");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
-
-  prop = RNA_def_property(srna, "select_tail", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_TIPSEL);
-  RNA_def_property_ui_text(prop, "Select Tail", "");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
 
   /* XXX better matrix descriptions possible (Arystan) */
   prop = RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);

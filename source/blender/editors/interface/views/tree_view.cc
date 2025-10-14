@@ -393,6 +393,36 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
+void AbstractTreeView::scroll_active_into_view()
+{
+  int index = 0;
+  const std::optional<int> visible_row_count = tot_visible_row_count();
+
+  if (!custom_height_) {
+    return;
+  }
+
+  if (!visible_row_count.has_value()) {
+    return;
+  }
+
+  if (scroll_active_into_view_on_draw_) {
+    if (!scroll_value_) {
+      scroll_value_ = std::make_unique<int>(0);
+    }
+    foreach_item(
+        [&, this](AbstractTreeViewItem &item) {
+          if (item.is_active_) {
+            *scroll_value_ = std::max(0, index - *visible_row_count + 1);
+            return;
+          }
+          index++;
+        },
+        AbstractTreeView::IterOptions::SkipCollapsed |
+            AbstractTreeView::IterOptions::SkipFiltered);
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 
 TreeViewItemDropTarget::TreeViewItemDropTarget(AbstractTreeViewItem &view_item,
@@ -489,7 +519,7 @@ void AbstractTreeViewItem::add_indent(uiLayout &row) const
   }
 
   /* Restore. */
-  UI_block_layout_set_current(block, &row);
+  block_layout_set_current(block, &row);
 }
 
 void AbstractTreeViewItem::collapse_chevron_click_fn(bContext *C,
@@ -541,7 +571,7 @@ void AbstractTreeViewItem::add_rename_button(uiLayout &row)
   AbstractViewItem::add_rename_button(*block);
 
   UI_block_emboss_set(block, previous_emboss);
-  UI_block_layout_set_current(block, &row);
+  block_layout_set_current(block, &row);
 }
 
 bool AbstractTreeViewItem::has_active_child() const
@@ -643,9 +673,9 @@ bool AbstractTreeViewItem::set_state_active()
 bool AbstractTreeViewItem::is_hovered() const
 {
   BLI_assert_msg(get_tree_view().is_reconstructed(),
-                 "State can't be queried until reconstruction is completed");
+                 "State cannot be queried until reconstruction is completed");
   BLI_assert_msg(view_item_but_ != nullptr,
-                 "Hovered state can't be queried before the tree row is being built");
+                 "Hovered state cannot be queried before the tree row is being built");
 
   /* The new layout hasn't finished construction yet, so the final state of the button is unknown.
    * Get the matching button from the previous redraw instead. */
@@ -657,7 +687,7 @@ bool AbstractTreeViewItem::is_hovered() const
 bool AbstractTreeViewItem::is_collapsed() const
 {
   BLI_assert_msg(get_tree_view().is_reconstructed(),
-                 "State can't be queried until reconstruction is completed");
+                 "State cannot be queried until reconstruction is completed");
   return this->is_collapsible() && !is_open_;
 }
 
@@ -720,7 +750,12 @@ bool AbstractTreeViewItem::is_collapsible() const
 
 void AbstractTreeViewItem::change_state_delayed()
 {
+  const bool prev_active_state = is_active();
   AbstractViewItem::change_state_delayed();
+
+  if (prev_active_state != is_active()) {
+    this->get_tree_view().scroll_active_into_view_on_draw_ = true;
+  }
 
   const std::optional<bool> should_be_collapsed = this->should_be_collapsed();
   if (should_be_collapsed.has_value()) {
@@ -814,6 +849,10 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   /* Column for the tree view. */
   row->column(true);
 
+  if (tree_view.scroll_active_into_view_on_draw_) {
+    tree_view.scroll_active_into_view();
+  }
+
   /* Clamp scroll-value to valid range. */
   if (tree_view.scroll_value_ && visible_row_count) {
     *tree_view.scroll_value_ = std::clamp(
@@ -858,7 +897,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       but_scroll->visual_height = *visible_row_count;
     }
 
-    UI_block_layout_set_current(block, col);
+    block_layout_set_current(block, col);
     uiDefIconButI(block,
                   ButType::Grip,
                   0,
@@ -873,7 +912,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   "");
   }
 
-  UI_block_layout_set_current(block, &parent_layout);
+  block_layout_set_current(block, &parent_layout);
 }
 
 void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
@@ -929,7 +968,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   uiLayoutListItemAddPadding(row);
 
   UI_block_emboss_set(&block_, previous_emboss);
-  UI_block_layout_set_current(&block_, &prev_layout);
+  block_layout_set_current(&block_, &prev_layout);
 }
 
 uiBlock &TreeViewLayoutBuilder::block() const
@@ -987,7 +1026,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   ensure_min_rows_items(tree_view);
 
   /* Ensure the given layout is actually active. */
-  UI_block_layout_set_current(&block, &layout);
+  block_layout_set_current(&block, &layout);
 
   TreeViewLayoutBuilder builder(layout);
   builder.add_box_ = add_box;

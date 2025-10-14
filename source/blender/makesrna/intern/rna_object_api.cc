@@ -106,7 +106,7 @@ static void rna_Object_select_set(
     if (select) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Object '%s' can't be selected because it is not in View Layer '%s'!",
+                  "Object '%s' cannot be selected because it is not in View Layer '%s'!",
                   ob->id.name + 2,
                   view_layer->name);
     }
@@ -141,7 +141,7 @@ static void rna_Object_hide_set(
     if (hide) {
       BKE_reportf(reports,
                   RPT_ERROR,
-                  "Object '%s' can't be hidden because it is not in View Layer '%s'!",
+                  "Object '%s' cannot be hidden because it is not in View Layer '%s'!",
                   ob->id.name + 2,
                   view_layer->name);
     }
@@ -285,7 +285,7 @@ static void rna_Object_mat_convert_space(Object *ob,
                                          int from,
                                          int to)
 {
-  copy_m4_m4((float(*)[4])mat_ret, (float(*)[4])mat);
+  copy_m4_m4((float (*)[4])mat_ret, (float (*)[4])mat);
 
   BLI_assert(!ELEM(from, CONSTRAINT_SPACE_OWNLOCAL));
   BLI_assert(!ELEM(to, CONSTRAINT_SPACE_OWNLOCAL));
@@ -331,7 +331,7 @@ static void rna_Object_mat_convert_space(Object *ob,
     return;
   }
 
-  BKE_constraint_mat_convertspace(ob, pchan, nullptr, (float(*)[4])mat_ret, from, to, false);
+  BKE_constraint_mat_convertspace(ob, pchan, nullptr, (float (*)[4])mat_ret, from, to, false);
 }
 
 static void rna_Object_calc_matrix_camera(Object *ob,
@@ -353,7 +353,7 @@ static void rna_Object_calc_matrix_camera(Object *ob,
   BKE_camera_params_compute_viewplane(&params, width, height, scalex, scaley);
   BKE_camera_params_compute_matrix(&params);
 
-  copy_m4_m4((float(*)[4])mat_ret, params.winmat);
+  copy_m4_m4((float (*)[4])mat_ret, params.winmat);
 }
 
 static void rna_Object_camera_fit_coords(Object *ob,
@@ -364,7 +364,7 @@ static void rna_Object_camera_fit_coords(Object *ob,
                                          float *scale_ret)
 {
   BKE_camera_view_frame_fit_to_coords(
-      depsgraph, (const float(*)[3])cos, cos_num / 3, ob, co_ret, scale_ret);
+      depsgraph, (const float (*)[3])cos, cos_num / 3, ob, co_ret, scale_ret);
 }
 
 static void rna_Object_crazyspace_eval(Object *object,
@@ -458,6 +458,10 @@ static PointerRNA rna_Object_shape_key_add(
   KeyBlock *kb = nullptr;
 
   if ((kb = BKE_object_shapekey_insert(bmain, ob, name, from_mix))) {
+    /* Set the initial blend value. */
+    kb->curval = 1.0f;
+    CLAMP(kb->curval, kb->slidermin, kb->slidermax);
+
     PointerRNA keyptr = RNA_pointer_create_discrete(
         (ID *)BKE_key_from_object(ob), &RNA_ShapeKey, kb);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -613,9 +617,9 @@ static void rna_Object_ray_cast(Object *ob,
   float direction_unit[3];
   normalize_v3_v3(direction_unit, direction);
 
-  if ((isect_ray_aabb_v3_simple(
-           origin, direction_unit, bounds->min, bounds->max, &distmin, nullptr) &&
-       distmin <= distance))
+  if (isect_ray_aabb_v3_simple(
+          origin, direction_unit, bounds->min, bounds->max, &distmin, nullptr) &&
+      distmin <= distance)
   {
 
     /* No need to managing allocation or freeing of the BVH data.

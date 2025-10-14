@@ -21,6 +21,7 @@
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -215,6 +216,53 @@ void NODE_OT_group_edit(wmOperatorType *ot)
 
   PropertyRNA *prop = RNA_def_boolean(ot->srna, "exit", false, "Exit", "");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Enter group at cursor, or exit when not hovering any node.
+ * \{ */
+
+static wmOperatorStatus node_group_enter_exit_invoke(bContext *C,
+                                                     wmOperator * /*op*/,
+                                                     const wmEvent *event)
+{
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  ARegion &region = *CTX_wm_region(C);
+
+  float2 cursor;
+  UI_view2d_region_to_view(&region.v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
+  bNode *node = node_under_mouse_get(snode, cursor);
+
+  if (!node || node->is_frame()) {
+    ED_node_tree_pop(&region, &snode);
+    return OPERATOR_FINISHED;
+  }
+  if (!node->is_group()) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  if (node->is_custom_group()) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  bNodeTree *group = id_cast<bNodeTree *>(node->id);
+  if (!group || ID_MISSING(group)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  ED_node_tree_push(&region, &snode, group, node);
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_group_enter_exit(wmOperatorType *ot)
+{
+  ot->name = "Enter/Exit Group";
+  ot->description = "Enter or exit node group based on cursor location";
+  ot->idname = "NODE_OT_group_enter_exit";
+
+  ot->invoke = node_group_enter_exit_invoke;
+  ot->poll = node_group_operator_active_poll;
+
+  ot->flag = OPTYPE_REGISTER;
 }
 
 /** \} */
@@ -530,7 +578,8 @@ static bool node_group_separate_selected(
   for (bNode *node : nodes_to_move) {
     bNode *newnode;
     if (make_copy) {
-      newnode = bke::node_copy_with_mapping(&ntree, *node, LIB_ID_COPY_DEFAULT, true, socket_map);
+      newnode = bke::node_copy_with_mapping(
+          &ntree, *node, LIB_ID_COPY_DEFAULT, std::nullopt, std::nullopt, socket_map);
       node_identifier_map.add(node->identifier, newnode->identifier);
     }
     else {
@@ -1319,6 +1368,7 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
 
   bNodeTree *dst_group = bke::node_tree_add_tree(
       &bmain, bke::node_label(src_tree, src_node), src_tree.idname);
+  dst_group->color_tag = int(bke::node_color_tag(src_node));
 
   const nodes::NodeDeclaration &node_decl = *src_node.declaration();
   for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
@@ -1329,7 +1379,10 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
   /* Add the node that make up the wrapper node group. */
   bNode &input_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_INPUT);
   bNode &output_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_OUTPUT);
-  bNode &inner_node = *bke::node_copy(dst_group, src_node, 0, true);
+
+  Map<const bNodeSocket *, bNodeSocket *> inner_node_socket_mapping;
+  bNode &inner_node = *bke::node_copy_with_mapping(
+      dst_group, src_node, 0, std::nullopt, std::nullopt, inner_node_socket_mapping);
 
   /* Position nodes. */
   input_node.location[0] = -300 - input_node.width;
@@ -1393,7 +1446,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
 
   /* Create a group node. */
   bNode *gnode = bke::node_add_node(&C, ntree, node_idname);
-  STRNCPY(gnode->name, BKE_id_name(wrapper_group->id));
+  STRNCPY_UTF8(gnode->name, BKE_id_name(wrapper_group->id));
   bke::node_unique_name(ntree, *gnode);
 
   /* Assign the newly created wrapper group to the new group node. */

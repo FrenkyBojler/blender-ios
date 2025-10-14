@@ -52,7 +52,7 @@ void node_get_stack(bNode *node, bNodeStack *stack, bNodeStack **in, bNodeStack 
 
 static void node_init_input_index(bNodeSocket *sock, int *index)
 {
-  /* Only consider existing link if from socket is valid! */
+  /* Only consider existing link when the `from` socket is valid! */
   if (sock->link && !(sock->link->flag & NODE_LINK_MUTED) && sock->link->fromsock &&
       sock->link->fromsock->stack_index >= 0)
   {
@@ -122,6 +122,12 @@ static bNodeStack *setup_stack(bNodeStack *stack, bNodeTree *ntree, bNode *node,
   ns->sockettype = sock->type;
 
   switch (sock->type) {
+    case SOCK_INT:
+      ns->vec[0] = node_socket_get_int(ntree, node, sock);
+      break;
+    case SOCK_BOOLEAN:
+      ns->vec[0] = node_socket_get_bool(ntree, node, sock);
+      break;
     case SOCK_FLOAT:
       ns->vec[0] = node_socket_get_float(ntree, node, sock);
       break;

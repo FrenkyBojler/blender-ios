@@ -32,15 +32,16 @@ static Array<Array<float4>> extract_tan_init_common(const MeshRenderData &mr,
 
   const CustomData *cd_ldata = (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->ldata :
                                                                              &mr.mesh->corner_data;
-  uint32_t tan_layers = cache.cd_used.tan;
-  bool use_orco_tan = cache.cd_used.tan_orco != 0;
+  VectorSet<std::string> tan_layers = cache.cd_used.tan;
+  bool use_orco_tan = cache.cd_used.tan_orco;
+
+  const StringRef active_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2);
+  const StringRef default_name = CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2);
 
   /* FIXME(#91838): This is to avoid a crash when orco tangent was requested but there are valid
    * uv layers. It would be better to fix the root cause. */
-  if (tan_layers == 0 && use_orco_tan &&
-      CustomData_get_layer_index(cd_ldata, CD_PROP_FLOAT2) != -1)
-  {
-    tan_layers = 1;
+  if (tan_layers.is_empty() && use_orco_tan && !default_name.is_empty()) {
+    tan_layers.add(default_name);
     use_orco_tan = false;
   }
 
@@ -88,24 +89,23 @@ static Array<Array<float4>> extract_tan_init_common(const MeshRenderData &mr,
   }
 
   Vector<StringRef> uv_names;
-  for (int i = 0; i < MAX_MTFACE; i++) {
-    if (tan_layers & (1 << i)) {
+  for (const StringRef name : tan_layers.as_span().take_front(MAX_MTFACE)) {
+    if (tan_layers.contains(name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
-      GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
+      GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
       /* Tangent layer name. */
       SNPRINTF(attr_name, "t%s", attr_safe_name);
       GPU_vertformat_attr_add(format, attr_name, gpu_attr_type);
       /* Active render layer name. */
-      if (i == CustomData_get_render_layer(cd_ldata, CD_PROP_FLOAT2)) {
+      if (name == default_name) {
         GPU_vertformat_alias_add(format, "t");
       }
       /* Active display layer name. */
-      if (i == CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2)) {
+      if (name == active_name) {
         GPU_vertformat_alias_add(format, "at");
       }
 
-      uv_names.append(layer_name);
+      uv_names.append(name);
     }
   }
 
@@ -156,32 +156,34 @@ gpu::VertBufPtr extract_tangents(const MeshRenderData &mr,
   GPUVertFormat format = {0};
   const Array<Array<float4>> tangents = extract_tan_init_common(mr, cache, &format, gpu_attr_type);
 
-  const int vbo_size = tangents.size() * mr.corners_num;
-
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
-  GPU_vertbuf_data_alloc(*vbo, vbo_size);
+  GPU_vertbuf_data_alloc(*vbo, mr.corners_num);
 
   if (use_hq) {
-    short4 *tan_data = vbo->data<short4>().data();
+    MutableSpan tan_data = vbo->data<short4>();
+    int vbo_index = 0;
     for (const int i : tangents.index_range()) {
       const Span<float4> layer_data = tangents[i];
       for (int corner = 0; corner < mr.corners_num; corner++) {
-        *tan_data = gpu::convert_normal<short4>(float3(layer_data[corner]));
-        (*tan_data)[3] = (layer_data[corner][3] > 0.0f) ? SHRT_MAX : SHRT_MIN;
-        tan_data++;
+        tan_data[vbo_index] = gpu::convert_normal<short4>(float3(layer_data[corner]));
+        tan_data[vbo_index].w = (layer_data[corner][3] > 0.0f) ? SHRT_MAX : SHRT_MIN;
+        vbo_index++;
       }
     }
+    BLI_assert(vbo_index == tan_data.size());
   }
   else {
-    gpu::PackedNormal *tan_data = vbo->data<gpu::PackedNormal>().data();
+    MutableSpan tan_data = vbo->data<gpu::PackedNormal>();
+    int vbo_index = 0;
     for (const int i : tangents.index_range()) {
       const Span<float4> layer_data = tangents[i];
       for (int corner = 0; corner < mr.corners_num; corner++) {
-        *tan_data = gpu::convert_normal<gpu::PackedNormal>(float3(layer_data[corner]));
-        tan_data->w = (layer_data[corner][3] > 0.0f) ? 1 : -2;
-        tan_data++;
+        tan_data[vbo_index] = gpu::convert_normal<gpu::PackedNormal>(float3(layer_data[corner]));
+        tan_data[vbo_index].w = (layer_data[corner][3] > 0.0f) ? 1 : -2;
+        vbo_index++;
       }
     }
+    BLI_assert(vbo_index == tan_data.size());
   }
 
   return vbo;
@@ -202,15 +204,13 @@ gpu::VertBufPtr extract_tangents_subdiv(const MeshRenderData &mr,
   GPUVertFormat format = {0};
   const Array<Array<float4>> tangents = extract_tan_init_common(mr, cache, &format, gpu_attr_type);
 
-  const int coarse_vbo_size = tangents.size() * mr.corners_num;
-
   gpu::VertBufPtr vbo = gpu::VertBufPtr(
       GPU_vertbuf_create_on_device(format, subdiv_cache.num_subdiv_loops));
 
   gpu::VertBuf *coarse_vbo = GPU_vertbuf_calloc();
   /* Dynamic as we upload and interpolate layers one at a time. */
   GPU_vertbuf_init_with_format_ex(*coarse_vbo, get_coarse_tan_format(), GPU_USAGE_DYNAMIC);
-  GPU_vertbuf_data_alloc(*coarse_vbo, coarse_vbo_size);
+  GPU_vertbuf_data_alloc(*coarse_vbo, mr.corners_num);
 
   /* Index of the tangent layer in the compact buffer. Used layers are stored in a single buffer.
    */

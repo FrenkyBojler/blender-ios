@@ -127,7 +127,6 @@ enum eUSDSceneUnits {
 struct USDExportParams {
   bool export_animation = false;
   bool selected_objects_only = false;
-  bool visible_objects_only = true;
 
   bool export_meshes = true;
   bool export_lights = true;
@@ -152,7 +151,7 @@ struct USDExportParams {
   bool use_instancing = false;
   bool export_custom_properties = true;
   bool author_blender_name = true;
-  bool allow_unicode = false;
+  bool allow_unicode = true;
 
   eSubdivExportMode export_subdiv = USD_SUBDIV_BEST_MATCH;
   enum eEvaluationMode evaluation_mode = DAG_EVAL_VIEWPORT;
@@ -198,6 +197,7 @@ struct USDImportParams {
   bool is_sequence;
   int sequence_len;
   int offset;
+  bool relative_path;
 
   bool import_defined_only;
   bool import_visible_only;
@@ -321,7 +321,7 @@ struct USDHook {
   /* Identifier used as label. */
   char name[64];
   /* Short help/description. */
-  char description[1024]; /* #RNA_DYN_DESCR_MAX */
+  char description[/*RNA_DYN_DESCR_MAX*/ 1024];
 
   /* rna_ext.data points to the USDHook class PyObject. */
   ExtensionRNA rna_ext;

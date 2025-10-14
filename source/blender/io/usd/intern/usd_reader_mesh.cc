@@ -14,6 +14,7 @@
 #include "usd_skel_convert.hh"
 #include "usd_utils.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
@@ -238,7 +239,7 @@ void USDMeshReader::read_object_data(Main *bmain, const pxr::UsdTimeCode time)
 bool USDMeshReader::topology_changed(const Mesh *existing_mesh, const pxr::UsdTimeCode time)
 {
   /* TODO(makowalski): Is it the best strategy to cache the mesh
-   * geometry in this function?  This needs to be revisited. */
+   * geometry in this function? This needs to be revisited. */
 
   mesh_prim_.GetFaceVertexIndicesAttr().Get(&face_indices_, time);
   mesh_prim_.GetFaceVertexCountsAttr().Get(&face_counts_, time);

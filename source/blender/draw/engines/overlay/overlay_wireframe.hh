@@ -81,7 +81,7 @@ class Wireframe : Overlay {
       res.select_bind(pass);
 
       auto shader_pass =
-          [&](GPUShader *shader, const char *name, bool use_coloring, float wire_threshold) {
+          [&](gpu::Shader *shader, const char *name, bool use_coloring, float wire_threshold) {
             auto &sub = pass.sub(name);
             if (res.shaders->wireframe_mesh.get() == shader) {
               sub.specialize_constant(shader, "use_custom_depth_bias", do_smooth_lines);
@@ -260,7 +260,7 @@ class Wireframe : Overlay {
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
     int2 render_size = int2(depth_tx.size());
-    tmp_depth_tx_.acquire(render_size, GPU_DEPTH32F_STENCIL8, usage);
+    tmp_depth_tx_.acquire(render_size, gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8, usage);
 
     /* WORKAROUND: Nasty framebuffer copy.
      * We should find a way to have nice wireframe without this. */

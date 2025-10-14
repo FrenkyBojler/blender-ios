@@ -10,7 +10,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_collection_types.h"
@@ -446,8 +446,7 @@ void COLLECTION_OT_create(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(
-      ot->srna, "name", "Collection", MAX_ID_NAME - 2, "Name", "Name of the new collection");
+  RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "Name of the new collection");
 }
 
 static bool collection_exporter_common_check(const Collection *collection)
@@ -871,8 +870,8 @@ static void collection_exporter_menu_draw(const bContext * /*C*/, Menu *menu)
 void collection_exporter_register()
 {
   MenuType *mt = MEM_callocN<MenuType>(__func__);
-  STRNCPY(mt->idname, "COLLECTION_MT_exporter_add");
-  STRNCPY(mt->label, N_("Add Exporter"));
+  STRNCPY_UTF8(mt->idname, "COLLECTION_MT_exporter_add");
+  STRNCPY_UTF8(mt->label, N_("Add Exporter"));
   mt->draw = collection_exporter_menu_draw;
 
   WM_menutype_add(mt);

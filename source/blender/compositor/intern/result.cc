@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <variant>
 
 #include "MEM_guardedalloc.h"
@@ -35,7 +36,7 @@ Result::Result(Context &context, ResultType type, ResultPrecision precision)
 {
 }
 
-Result::Result(Context &context, eGPUTextureFormat format)
+Result::Result(Context &context, blender::gpu::TextureFormat format)
     : context_(&context), type_(Result::type(format)), precision_(Result::precision(format))
 {
 }
@@ -51,8 +52,9 @@ bool Result::is_single_value_only_type(ResultType type)
     case ResultType::Int:
     case ResultType::Int2:
     case ResultType::Bool:
-      return false;
     case ResultType::Menu:
+      return false;
+    case ResultType::String:
       return true;
   }
 
@@ -60,30 +62,34 @@ bool Result::is_single_value_only_type(ResultType type)
   return true;
 }
 
-eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision precision)
+blender::gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision precision)
 {
   switch (precision) {
     case ResultPrecision::Half:
       switch (type) {
         case ResultType::Float:
-          return GPU_R16F;
+          return blender::gpu::TextureFormat::SFLOAT_16;
         case ResultType::Color:
         case ResultType::Float4:
-          return GPU_RGBA16F;
+          return blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
         case ResultType::Float3:
           /* RGB textures are not fully supported by hardware, so we store Float3 results in RGBA
            * textures. */
-          return GPU_RGBA16F;
+          return blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
         case ResultType::Float2:
-          return GPU_RG16F;
+          return blender::gpu::TextureFormat::SFLOAT_16_16;
         case ResultType::Int:
-          return GPU_R16I;
+          return blender::gpu::TextureFormat::SINT_16;
         case ResultType::Int2:
-          return GPU_RG16I;
+          return blender::gpu::TextureFormat::SINT_16_16;
         case ResultType::Bool:
           /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
-          return GPU_R8I;
+          return blender::gpu::TextureFormat::SINT_8;
         case ResultType::Menu:
+          /* Menu values are technically stored in 32-bit integers, but 8 is sufficient in
+           * practice. */
+          return blender::gpu::TextureFormat::SINT_8;
+        case ResultType::String:
           /* Single only types do not support GPU code path. */
           BLI_assert(Result::is_single_value_only_type(type));
           BLI_assert_unreachable();
@@ -93,24 +99,28 @@ eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision pr
     case ResultPrecision::Full:
       switch (type) {
         case ResultType::Float:
-          return GPU_R32F;
+          return blender::gpu::TextureFormat::SFLOAT_32;
         case ResultType::Color:
         case ResultType::Float4:
-          return GPU_RGBA32F;
+          return blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
         case ResultType::Float3:
           /* RGB textures are not fully supported by hardware, so we store Float3 results in RGBA
            * textures. */
-          return GPU_RGBA32F;
+          return blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
         case ResultType::Float2:
-          return GPU_RG32F;
+          return blender::gpu::TextureFormat::SFLOAT_32_32;
         case ResultType::Int:
-          return GPU_R32I;
+          return blender::gpu::TextureFormat::SINT_32;
         case ResultType::Int2:
-          return GPU_RG32I;
+          return blender::gpu::TextureFormat::SINT_32_32;
         case ResultType::Bool:
           /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
-          return GPU_R8I;
+          return blender::gpu::TextureFormat::SINT_8;
         case ResultType::Menu:
+          /* Menu values are technically stored in 32-bit integers, but 8 is sufficient in
+           * practice. */
+          return blender::gpu::TextureFormat::SINT_8;
+        case ResultType::String:
           /* Single only types do not support GPU storage. */
           BLI_assert(Result::is_single_value_only_type(type));
           BLI_assert_unreachable();
@@ -120,7 +130,7 @@ eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision pr
   }
 
   BLI_assert_unreachable();
-  return GPU_RGBA32F;
+  return blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
 }
 
 eGPUDataFormat Result::gpu_data_format(ResultType type)
@@ -135,8 +145,9 @@ eGPUDataFormat Result::gpu_data_format(ResultType type)
     case ResultType::Int:
     case ResultType::Int2:
     case ResultType::Bool:
-      return GPU_DATA_INT;
     case ResultType::Menu:
+      return GPU_DATA_INT;
+    case ResultType::String:
       /* Single only types do not support GPU storage. */
       BLI_assert(Result::is_single_value_only_type(type));
       BLI_assert_unreachable();
@@ -147,36 +158,37 @@ eGPUDataFormat Result::gpu_data_format(ResultType type)
   return GPU_DATA_FLOAT;
 }
 
-eGPUTextureFormat Result::gpu_texture_format(eGPUTextureFormat format, ResultPrecision precision)
+blender::gpu::TextureFormat Result::gpu_texture_format(blender::gpu::TextureFormat format,
+                                                       ResultPrecision precision)
 {
   switch (precision) {
     case ResultPrecision::Half:
       switch (format) {
         /* Already half precision, return the input format. */
-        case GPU_R16F:
-        case GPU_RG16F:
-        case GPU_RGB16F:
-        case GPU_RGBA16F:
-        case GPU_R16I:
-        case GPU_RG16I:
+        case blender::gpu::TextureFormat::SFLOAT_16:
+        case blender::gpu::TextureFormat::SFLOAT_16_16:
+        case blender::gpu::TextureFormat::SFLOAT_16_16_16:
+        case blender::gpu::TextureFormat::SFLOAT_16_16_16_16:
+        case blender::gpu::TextureFormat::SINT_16:
+        case blender::gpu::TextureFormat::SINT_16_16:
           return format;
 
         /* Used to store booleans where precision doesn't matter. */
-        case GPU_R8I:
+        case blender::gpu::TextureFormat::SINT_8:
           return format;
 
-        case GPU_R32F:
-          return GPU_R16F;
-        case GPU_RG32F:
-          return GPU_RG16F;
-        case GPU_RGB32F:
-          return GPU_RGB16F;
-        case GPU_RGBA32F:
-          return GPU_RGBA16F;
-        case GPU_R32I:
-          return GPU_R16I;
-        case GPU_RG32I:
-          return GPU_RG16I;
+        case blender::gpu::TextureFormat::SFLOAT_32:
+          return blender::gpu::TextureFormat::SFLOAT_16;
+        case blender::gpu::TextureFormat::SFLOAT_32_32:
+          return blender::gpu::TextureFormat::SFLOAT_16_16;
+        case blender::gpu::TextureFormat::SFLOAT_32_32_32:
+          return blender::gpu::TextureFormat::SFLOAT_16_16_16;
+        case blender::gpu::TextureFormat::SFLOAT_32_32_32_32:
+          return blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
+        case blender::gpu::TextureFormat::SINT_32:
+          return blender::gpu::TextureFormat::SINT_16;
+        case blender::gpu::TextureFormat::SINT_32_32:
+          return blender::gpu::TextureFormat::SINT_16_16;
         default:
           break;
       }
@@ -184,30 +196,30 @@ eGPUTextureFormat Result::gpu_texture_format(eGPUTextureFormat format, ResultPre
     case ResultPrecision::Full:
       switch (format) {
         /* Already full precision, return the input format. */
-        case GPU_R32F:
-        case GPU_RG32F:
-        case GPU_RGB32F:
-        case GPU_RGBA32F:
-        case GPU_R32I:
-        case GPU_RG32I:
+        case blender::gpu::TextureFormat::SFLOAT_32:
+        case blender::gpu::TextureFormat::SFLOAT_32_32:
+        case blender::gpu::TextureFormat::SFLOAT_32_32_32:
+        case blender::gpu::TextureFormat::SFLOAT_32_32_32_32:
+        case blender::gpu::TextureFormat::SINT_32:
+        case blender::gpu::TextureFormat::SINT_32_32:
           return format;
 
         /* Used to store booleans where precision doesn't matter. */
-        case GPU_R8I:
+        case blender::gpu::TextureFormat::SINT_8:
           return format;
 
-        case GPU_R16F:
-          return GPU_R32F;
-        case GPU_RG16F:
-          return GPU_RG32F;
-        case GPU_RGB16F:
-          return GPU_RGB32F;
-        case GPU_RGBA16F:
-          return GPU_RGBA32F;
-        case GPU_R16I:
-          return GPU_R32I;
-        case GPU_RG16I:
-          return GPU_RG32I;
+        case blender::gpu::TextureFormat::SFLOAT_16:
+          return blender::gpu::TextureFormat::SFLOAT_32;
+        case blender::gpu::TextureFormat::SFLOAT_16_16:
+          return blender::gpu::TextureFormat::SFLOAT_32_32;
+        case blender::gpu::TextureFormat::SFLOAT_16_16_16:
+          return blender::gpu::TextureFormat::SFLOAT_32_32_32;
+        case blender::gpu::TextureFormat::SFLOAT_16_16_16_16:
+          return blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
+        case blender::gpu::TextureFormat::SINT_16:
+          return blender::gpu::TextureFormat::SINT_32;
+        case blender::gpu::TextureFormat::SINT_16_16:
+          return blender::gpu::TextureFormat::SINT_32_32;
         default:
           break;
       }
@@ -218,25 +230,25 @@ eGPUTextureFormat Result::gpu_texture_format(eGPUTextureFormat format, ResultPre
   return format;
 }
 
-ResultPrecision Result::precision(eGPUTextureFormat format)
+ResultPrecision Result::precision(blender::gpu::TextureFormat format)
 {
   switch (format) {
-    case GPU_R16F:
-    case GPU_RG16F:
-    case GPU_RGB16F:
-    case GPU_RGBA16F:
-    case GPU_R16I:
-    case GPU_RG16I:
+    case blender::gpu::TextureFormat::SFLOAT_16:
+    case blender::gpu::TextureFormat::SFLOAT_16_16:
+    case blender::gpu::TextureFormat::SFLOAT_16_16_16:
+    case blender::gpu::TextureFormat::SFLOAT_16_16_16_16:
+    case blender::gpu::TextureFormat::SINT_16:
+    case blender::gpu::TextureFormat::SINT_16_16:
       return ResultPrecision::Half;
-    case GPU_R32F:
-    case GPU_RG32F:
-    case GPU_RGB32F:
-    case GPU_RGBA32F:
-    case GPU_R32I:
-    case GPU_RG32I:
+    case blender::gpu::TextureFormat::SFLOAT_32:
+    case blender::gpu::TextureFormat::SFLOAT_32_32:
+    case blender::gpu::TextureFormat::SFLOAT_32_32_32:
+    case blender::gpu::TextureFormat::SFLOAT_32_32_32_32:
+    case blender::gpu::TextureFormat::SINT_32:
+    case blender::gpu::TextureFormat::SINT_32_32:
       return ResultPrecision::Full;
     /* Used to store booleans where precision doesn't matter. */
-    case GPU_R8I:
+    case blender::gpu::TextureFormat::SINT_8:
       return ResultPrecision::Full;
     default:
       break;
@@ -246,28 +258,28 @@ ResultPrecision Result::precision(eGPUTextureFormat format)
   return ResultPrecision::Full;
 }
 
-ResultType Result::type(eGPUTextureFormat format)
+ResultType Result::type(blender::gpu::TextureFormat format)
 {
   switch (format) {
-    case GPU_R16F:
-    case GPU_R32F:
+    case blender::gpu::TextureFormat::SFLOAT_16:
+    case blender::gpu::TextureFormat::SFLOAT_32:
       return ResultType::Float;
-    case GPU_RG16F:
-    case GPU_RG32F:
+    case blender::gpu::TextureFormat::SFLOAT_16_16:
+    case blender::gpu::TextureFormat::SFLOAT_32_32:
       return ResultType::Float2;
-    case GPU_RGB16F:
-    case GPU_RGB32F:
+    case blender::gpu::TextureFormat::SFLOAT_16_16_16:
+    case blender::gpu::TextureFormat::SFLOAT_32_32_32:
       return ResultType::Float3;
-    case GPU_RGBA16F:
-    case GPU_RGBA32F:
+    case blender::gpu::TextureFormat::SFLOAT_16_16_16_16:
+    case blender::gpu::TextureFormat::SFLOAT_32_32_32_32:
       return ResultType::Color;
-    case GPU_R16I:
-    case GPU_R32I:
+    case blender::gpu::TextureFormat::SINT_16:
+    case blender::gpu::TextureFormat::SINT_32:
       return ResultType::Int;
-    case GPU_RG16I:
-    case GPU_RG32I:
+    case blender::gpu::TextureFormat::SINT_16_16:
+    case blender::gpu::TextureFormat::SINT_32_32:
       return ResultType::Int2;
-    case GPU_R8I:
+    case blender::gpu::TextureFormat::SINT_8:
       return ResultType::Bool;
     default:
       break;
@@ -316,7 +328,9 @@ const CPPType &Result::cpp_type(const ResultType type)
     case ResultType::Bool:
       return CPPType::get<bool>();
     case ResultType::Menu:
-      return CPPType::get<int32_t>();
+      return CPPType::get<nodes::MenuValue>();
+    case ResultType::String:
+      return CPPType::get<std::string>();
   }
 
   BLI_assert_unreachable();
@@ -344,6 +358,8 @@ const char *Result::type_name(const ResultType type)
       return "bool";
     case ResultType::Menu:
       return "menu";
+    case ResultType::String:
+      return "string";
   }
 
   BLI_assert_unreachable();
@@ -360,7 +376,7 @@ const CPPType &Result::get_cpp_type() const
   return Result::cpp_type(this->type());
 }
 
-eGPUTextureFormat Result::get_gpu_texture_format() const
+blender::gpu::TextureFormat Result::get_gpu_texture_format() const
 {
   return Result::gpu_texture_format(type_, precision_);
 }
@@ -430,7 +446,10 @@ void Result::allocate_single_value()
       this->set_single_value(false);
       break;
     case ResultType::Menu:
-      this->set_single_value(0);
+      this->set_single_value(nodes::MenuValue(0));
+      break;
+    case ResultType::String:
+      this->set_single_value(std::string(""));
       break;
   }
 }
@@ -440,7 +459,7 @@ void Result::allocate_invalid()
   this->allocate_single_value();
 }
 
-Result Result::upload_to_gpu(const bool from_pool)
+Result Result::upload_to_gpu(const bool from_pool) const
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
   BLI_assert(this->is_allocated());
@@ -452,7 +471,20 @@ Result Result::upload_to_gpu(const bool from_pool)
   return result;
 }
 
-void Result::bind_as_texture(GPUShader *shader, const char *texture_name) const
+Result Result::download_to_cpu() const
+{
+  BLI_assert(storage_type_ == ResultStorageType::GPU);
+  BLI_assert(this->is_allocated());
+
+  Result result = Result(*context_, this->type(), this->precision());
+  GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+  void *data = GPU_texture_read(*this, this->get_gpu_data_format(), 0);
+  result.steal_data(data, this->domain().size);
+
+  return result;
+}
+
+void Result::bind_as_texture(gpu::Shader *shader, const char *texture_name) const
 {
   BLI_assert(storage_type_ == ResultStorageType::GPU);
 
@@ -463,7 +495,7 @@ void Result::bind_as_texture(GPUShader *shader, const char *texture_name) const
   GPU_texture_bind(this->gpu_texture(), texture_image_unit);
 }
 
-void Result::bind_as_image(GPUShader *shader, const char *image_name, bool read) const
+void Result::bind_as_image(gpu::Shader *shader, const char *image_name, bool read) const
 {
   BLI_assert(storage_type_ == ResultStorageType::GPU);
 
@@ -519,6 +551,17 @@ void Result::steal_data(Result &source)
   source = Result(*context_, type_, precision_);
 }
 
+void Result::steal_data(void *data, int2 size)
+{
+  BLI_assert(!this->is_allocated());
+
+  const int64_t array_size = int64_t(size.x) * int64_t(size.y);
+  cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
+  storage_type_ = ResultStorageType::CPU;
+  domain_ = Domain(size);
+  data_reference_count_ = new int(1);
+}
+
 /* Returns true if the given GPU texture is compatible with the type and precision of the given
  * result. */
 [[maybe_unused]] static bool is_compatible_texture(const blender::gpu::Texture *texture,
@@ -527,7 +570,9 @@ void Result::steal_data(Result &source)
   /* Float3 types are an exception, see the documentation on the get_gpu_texture_format method for
    * more information. */
   if (result.type() == ResultType::Float3) {
-    if (GPU_texture_format(texture) == Result::gpu_texture_format(GPU_RGB32F, result.precision()))
+    if (GPU_texture_format(texture) ==
+        Result::gpu_texture_format(blender::gpu::TextureFormat::SFLOAT_32_32_32,
+                                   result.precision()))
     {
       return true;
     }
@@ -732,6 +777,16 @@ int Result::reference_count() const
   return reference_count_;
 }
 
+int64_t Result::size_in_bytes() const
+{
+  const int64_t pixel_size = this->get_cpp_type().size;
+  if (this->is_single_value()) {
+    return pixel_size;
+  }
+  const int2 image_size = this->domain().size;
+  return pixel_size * image_size.x * image_size.y;
+}
+
 GPointer Result::single_value() const
 {
   return std::visit([](const auto &value) { return GPointer(&value); }, single_value_);
@@ -757,6 +812,7 @@ void Result::update_single_value_data()
         case ResultType::Int:
         case ResultType::Int2:
         case ResultType::Bool:
+        case ResultType::Menu:
           GPU_texture_update(
               this->gpu_texture(), this->get_gpu_data_format(), this->single_value().get());
           break;
@@ -767,7 +823,7 @@ void Result::update_single_value_data()
           GPU_texture_update(this->gpu_texture(), GPU_DATA_FLOAT, vector_value);
           break;
         }
-        case ResultType::Menu:
+        case ResultType::String:
           /* Single only types do not support GPU storage. */
           BLI_assert(Result::is_single_value_only_type(this->type()));
           BLI_assert_unreachable();
@@ -792,7 +848,7 @@ void Result::allocate_data(const int2 size,
     storage_type_ = ResultStorageType::GPU;
     is_from_pool_ = from_pool;
 
-    const eGPUTextureFormat format = this->get_gpu_texture_format();
+    const blender::gpu::TextureFormat format = this->get_gpu_texture_format();
     const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
     if (from_pool) {
       gpu_texture_ = gpu::TexturePool::get().acquire_texture(size.x, size.y, format, usage);

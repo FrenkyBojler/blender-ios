@@ -133,6 +133,15 @@ struct bAnimContext {
   Depsgraph *depsgraph;
   /** active object */
   Object *obact;
+
+  /**
+   * Active Action, only set when the Dope Sheet shows a single Action (in its
+   * Action and Shape Key modes).
+   */
+  bAction *active_action;
+  /** The ID that is animated by `active_action`, and that was used to obtain the pointer. */
+  ID *active_action_user;
+
   /** active set of markers */
   ListBase *markers;
 
@@ -598,6 +607,11 @@ void ANIM_animdata_freelist(ListBase *anim_data);
  */
 bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type);
 
+bAction *ANIM_active_action_from_area(Scene *scene,
+                                      ViewLayer *view_layer,
+                                      const ScrArea *area,
+                                      ID **r_action_user = nullptr);
+
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */
 /* anim_channels_*.c */
@@ -866,6 +880,11 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag);
  * Draw preview range 'curtains' for highlighting where the animation data is.
  */
 void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width);
+
+/**
+ * Draw range of the current sequencer scene strip when using scene time syncing.
+ */
+void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d);
 
 /** \} */
 
@@ -1216,6 +1235,14 @@ void ED_animedit_unlink_action(
  * \note Currently called from window-manager.
  */
 void ED_drivers_editor_init(bContext *C, ScrArea *area);
+
+/**
+ * Delete an F-Curve from its owner.
+ *
+ * This can delete an F-Curve from an Action (both directly assigned and via an
+ * NLA strip), Drivers, and NLA control curves.
+ */
+void ED_anim_ale_fcurve_delete(bAnimContext &ac, bAnimListElem &ale);
 
 /* ************************************************ */
 

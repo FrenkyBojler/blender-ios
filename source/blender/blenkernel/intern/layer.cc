@@ -569,7 +569,7 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
     for (bNode *node : scene->compositing_node_group->all_nodes()) {
       if (node->type_legacy == CMP_NODE_R_LAYERS && node->id == nullptr) {
         if (node->custom1 == index) {
-          STRNCPY(node->name, view_layer->name);
+          STRNCPY_UTF8(node->name, view_layer->name);
         }
       }
     }
@@ -583,7 +583,7 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
   if (wm) {
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       if (win->scene == scene && STREQ(win->view_layer_name, oldname)) {
-        STRNCPY(win->view_layer_name, view_layer->name);
+        STRNCPY_UTF8(win->view_layer_name, view_layer->name);
       }
     }
   }
@@ -988,34 +988,52 @@ void BKE_view_layer_need_resync_tag(ViewLayer *view_layer)
   view_layer->flag |= VIEW_LAYER_OUT_OF_SYNC;
 }
 
-void BKE_view_layer_synced_ensure(const Scene *scene, ViewLayer *view_layer)
+bool BKE_view_layer_synced_ensure(const Scene *scene, ViewLayer *view_layer)
 {
   BLI_assert(scene);
   BLI_assert(view_layer);
 
+  bool is_all_resynced = true;
   if (view_layer->flag & VIEW_LAYER_OUT_OF_SYNC) {
-    BKE_layer_collection_sync(scene, view_layer);
-    view_layer->flag &= ~VIEW_LAYER_OUT_OF_SYNC;
+    if (BKE_layer_collection_sync(scene, view_layer)) {
+      view_layer->flag &= ~VIEW_LAYER_OUT_OF_SYNC;
+    }
+    else {
+      is_all_resynced = false;
+    }
   }
+
+  return is_all_resynced;
 }
 
-void BKE_scene_view_layers_synced_ensure(const Scene *scene)
+bool BKE_scene_view_layers_synced_ensure(const Scene *scene)
 {
+  bool is_all_resynced = true;
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    if (!BKE_view_layer_synced_ensure(scene, view_layer)) {
+      is_all_resynced = false;
+    }
   }
+  return is_all_resynced;
 }
 
-void BKE_main_view_layers_synced_ensure(const Main *bmain)
+bool BKE_main_view_layers_synced_ensure(const Main *bmain)
 {
+  bool is_all_resynced = true;
   for (const Scene *scene = static_cast<const Scene *>(bmain->scenes.first); scene;
        scene = static_cast<const Scene *>(scene->id.next))
   {
-    BKE_scene_view_layers_synced_ensure(scene);
+    if (!BKE_scene_view_layers_synced_ensure(scene)) {
+      is_all_resynced = false;
+    }
   }
 
   /* NOTE: This is not (yet?) covered by the dirty tag and deferred re-sync system. */
-  BKE_layer_collection_local_sync_all(bmain);
+  if (!BKE_layer_collection_local_sync_all(bmain)) {
+    is_all_resynced = false;
+  }
+
+  return is_all_resynced;
 }
 
 static void layer_collection_objects_sync(ViewLayer *view_layer,
@@ -1306,15 +1324,15 @@ void BKE_layer_collection_doversion_2_80(const Scene *scene, ViewLayer *view_lay
   }
 }
 
-void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
+bool BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
 {
   if (no_resync > 0) {
-    return;
+    return false;
   }
 
   if (!scene->master_collection) {
     /* Happens for old files that don't have versioning applied yet. */
-    return;
+    return false;
   }
 
   if (BLI_listbase_is_empty(&view_layer->layer_collections)) {
@@ -1415,23 +1433,27 @@ void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
     view_layer->active_collection = static_cast<LayerCollection *>(
         view_layer->layer_collections.first);
   }
+
+  return true;
 }
 
-void BKE_scene_collection_sync(const Scene *scene)
+bool BKE_scene_collection_sync(const Scene *scene)
 {
   if (no_resync > 0) {
-    return;
+    return false;
   }
 
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
     BKE_view_layer_need_resync_tag(view_layer);
   }
+
+  return true;
 }
 
-void BKE_main_collection_sync(const Main *bmain)
+bool BKE_main_collection_sync(const Main *bmain)
 {
   if (no_resync > 0) {
-    return;
+    return false;
   }
 
   /* TODO: if a single collection changed, figure out which
@@ -1439,19 +1461,25 @@ void BKE_main_collection_sync(const Main *bmain)
 
   /* TODO: optimize for file load so only linked collections get checked? */
 
+  bool is_all_resynced = true;
   for (const Scene *scene = static_cast<const Scene *>(bmain->scenes.first); scene;
        scene = static_cast<const Scene *>(scene->id.next))
   {
-    BKE_scene_collection_sync(scene);
+    if (!BKE_scene_collection_sync(scene)) {
+      is_all_resynced = false;
+    }
   }
 
-  BKE_layer_collection_local_sync_all(bmain);
+  if (!BKE_layer_collection_local_sync_all(bmain)) {
+    is_all_resynced = false;
+  }
+  return is_all_resynced;
 }
 
-void BKE_main_collection_sync_remap(const Main *bmain)
+bool BKE_main_collection_sync_remap(const Main *bmain)
 {
   if (no_resync > 0) {
-    return;
+    return false;
   }
 
   /* On remapping of object or collection pointers free caches. */
@@ -1486,7 +1514,7 @@ void BKE_main_collection_sync_remap(const Main *bmain)
     DEG_id_tag_update_ex((Main *)bmain, &collection->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
-  BKE_main_collection_sync(bmain);
+  return BKE_main_collection_sync(bmain);
 }
 
 /** \} */
@@ -1777,10 +1805,10 @@ static void layer_collection_local_sync(const Scene *scene,
   }
 }
 
-void BKE_layer_collection_local_sync(const Scene *scene, ViewLayer *view_layer, const View3D *v3d)
+bool BKE_layer_collection_local_sync(const Scene *scene, ViewLayer *view_layer, const View3D *v3d)
 {
   if (no_resync > 0) {
-    return;
+    return false;
   }
 
   const ushort local_collections_uid = v3d->local_collections_uid;
@@ -1794,14 +1822,17 @@ void BKE_layer_collection_local_sync(const Scene *scene, ViewLayer *view_layer, 
   LISTBASE_FOREACH (LayerCollection *, layer_collection, &view_layer->layer_collections) {
     layer_collection_local_sync(scene, view_layer, layer_collection, local_collections_uid, true);
   }
+
+  return true;
 }
 
-void BKE_layer_collection_local_sync_all(const Main *bmain)
+bool BKE_layer_collection_local_sync_all(const Main *bmain)
 {
   if (no_resync > 0) {
-    return;
+    return false;
   }
 
+  bool is_all_resynced = true;
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
       LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
@@ -1811,12 +1842,16 @@ void BKE_layer_collection_local_sync_all(const Main *bmain)
           }
           View3D *v3d = static_cast<View3D *>(area->spacedata.first);
           if (v3d->flag & V3D_LOCAL_COLLECTIONS) {
-            BKE_layer_collection_local_sync(scene, view_layer, v3d);
+            if (!BKE_layer_collection_local_sync(scene, view_layer, v3d)) {
+              is_all_resynced = false;
+            }
           }
         }
       }
     }
   }
+
+  return is_all_resynced;
 }
 
 void BKE_layer_collection_isolate_local(
@@ -2721,7 +2756,7 @@ int BKE_lightgroup_membership_get(const LightgroupMembership *lgm, char *name)
     name[0] = '\0';
     return 0;
   }
-  return BLI_strncpy_rlen(name, lgm->name, sizeof(lgm->name));
+  return BLI_strncpy_utf8_rlen(name, lgm->name, sizeof(lgm->name));
 }
 
 int BKE_lightgroup_membership_length(const LightgroupMembership *lgm)
@@ -2738,7 +2773,7 @@ void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name)
     if (*lgm == nullptr) {
       *lgm = MEM_callocN<LightgroupMembership>(__func__);
     }
-    BLI_strncpy((*lgm)->name, name, sizeof((*lgm)->name));
+    BLI_strncpy_utf8((*lgm)->name, name, sizeof((*lgm)->name));
   }
   else {
     if (*lgm != nullptr) {

@@ -7,7 +7,7 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -157,7 +157,7 @@ void modifier_grease_pencil_curve_panel_draw(const bContext * /*C*/, Panel *pane
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiTemplateCurveMapping(layout, ptr, "curve", 0, false, false, false, false);
+  uiTemplateCurveMapping(layout, ptr, "curve", 0, false, false, false, false, false);
 }
 
 /**
@@ -302,6 +302,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
                         blender::wm::OpCallContext::InvokeDefault,
                         UI_ITEM_NONE);
     layout->prop(&ptr, "show_group_selector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(&ptr, "show_manage_panel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -408,7 +409,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   if (!ELEM(md->type, eModifierType_Collision, eModifierType_Surface)) {
     if (mti->flags & eModifierTypeFlag_SupportsEditmode) {
       sub = &row->row(true);
-      sub->active_set((md->mode & eModifierMode_Realtime));
+      sub->active_set(md->mode & eModifierMode_Realtime);
       sub->prop(ptr, "show_in_editmode", UI_ITEM_NONE, "", ICON_NONE);
       buttons_number++;
     }
@@ -467,11 +468,11 @@ PanelType *modifier_panel_register(ARegionType *region_type, ModifierType type, 
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BKE_modifier_type_panel_id(type, panel_type->idname);
-  STRNCPY(panel_type->label, "");
-  STRNCPY(panel_type->context, "modifier");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  STRNCPY(panel_type->active_property, "is_active");
-  STRNCPY(panel_type->pin_to_last_property, "use_pin_to_last");
+  STRNCPY_UTF8(panel_type->label, "");
+  STRNCPY_UTF8(panel_type->context, "modifier");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(panel_type->active_property, "is_active");
+  STRNCPY_UTF8(panel_type->pin_to_last_property, "use_pin_to_last");
 
   panel_type->draw_header = modifier_panel_header;
   panel_type->draw = draw;
@@ -499,18 +500,18 @@ PanelType *modifier_subpanel_register(ARegionType *region_type,
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
-  SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);
-  STRNCPY(panel_type->label, label);
-  STRNCPY(panel_type->context, "modifier");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  STRNCPY(panel_type->active_property, "is_active");
+  SNPRINTF_UTF8(panel_type->idname, "%s_%s", parent->idname, name);
+  STRNCPY_UTF8(panel_type->label, label);
+  STRNCPY_UTF8(panel_type->context, "modifier");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(panel_type->active_property, "is_active");
 
   panel_type->draw_header = draw_header;
   panel_type->draw = draw;
   panel_type->poll = modifier_ui_poll;
   panel_type->flag = PANEL_TYPE_DEFAULT_CLOSED;
 
-  STRNCPY(panel_type->parent_id, parent->idname);
+  STRNCPY_UTF8(panel_type->parent_id, parent->idname);
   panel_type->parent = parent;
   BLI_addtail(&parent->children, BLI_genericNodeN(panel_type));
   BLI_addtail(&region_type->paneltypes, panel_type);

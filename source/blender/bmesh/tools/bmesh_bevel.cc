@@ -154,7 +154,7 @@ struct Profile {
   float *prof_co;
   /** Like prof_co, but for seg power of 2 >= seg. */
   float *prof_co_2;
-  /** Mark a special case so the these parameters aren't reset with others. */
+  /** Mark a special case so these parameters aren't reset with others. */
   bool special_params;
 };
 #define PRO_SQUARE_R 1e4f
@@ -814,24 +814,19 @@ static void bevel_merge_uvs(BevelParams *bp, BMesh *bm)
     int uv_data_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, i);
     for (Vector<UVVertBucket> &uv_vert_buckets : bp->uv_vert_maps[i].values()) {
       for (UVVertBucket &uv_vert_bucket : uv_vert_buckets) {
-        /* Using face weights instead of mean average because it produces slightly better results,
-         * although this is purely empirical and subjective. */
-        float weight_sum = 0.0f;
+        int num_uv_verts = uv_vert_bucket.size();
+        if (num_uv_verts <= 1) {
+          continue;
+        }
         float uv[2] = {0.0f, 0.0f};
         for (BMLoop *l : uv_vert_bucket) {
           float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-          float weighted_luv[2] = {0.0f, 0.0f};
-          float face_area = BM_face_calc_area(l->f);
-          mul_v2_v2fl(weighted_luv, luv, face_area);
-          add_v2_v2(uv, weighted_luv);
-          weight_sum += face_area;
+          add_v2_v2(uv, luv);
         }
-        if (uv_vert_bucket.size() > 1 && weight_sum > 0.0f) {
-          mul_v2_fl(uv, 1.0f / weight_sum);
-          for (BMLoop *l : uv_vert_bucket) {
-            float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-            copy_v2_v2(luv, uv);
-          }
+        mul_v2_fl(uv, 1.0f / float(num_uv_verts));
+        for (BMLoop *l : uv_vert_bucket) {
+          float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
+          copy_v2_v2(luv, uv);
         }
       }
     }
@@ -926,7 +921,7 @@ static BMFace *bev_create_ngon(BevelParams *bp,
     return nullptr;
   }
 
-  if ((facerep || (face_arr && face_arr[0]))) {
+  if (facerep || (face_arr && face_arr[0])) {
     BM_elem_attrs_copy(bm, facerep ? facerep : face_arr[0], f);
     if (do_interp) {
       int i = 0;
@@ -1216,7 +1211,7 @@ static void math_layer_info_init(BevelParams *bp, BMesh *bm)
 static BMFace *choose_rep_face(BevelParams *bp, BMFace **face, int nfaces)
 {
 #define VEC_VALUE_LEN 6
-  float(*value_vecs)[VEC_VALUE_LEN] = nullptr;
+  float (*value_vecs)[VEC_VALUE_LEN] = nullptr;
   int num_viable = 0;
 
   value_vecs = BLI_array_alloca(value_vecs, nfaces);
@@ -2088,7 +2083,7 @@ static void move_weld_profile_planes(BevVert *bv, BoundVert *bndv1, BoundVert *b
   float l2 = normalize_v3(no2);
   cross_v3_v3v3(no3, d2, bndv2->profile.proj_dir);
   float l3 = normalize_v3(no3);
-  if (l1 > BEVEL_EPSILON && (l2 > BEVEL_EPSILON || l3 > BEVEL_EPSILON)) {
+  if (l1 != 0.0f && (l2 != 0.0f || l3 != 0.0f)) {
     float dot1 = fabsf(dot_v3v3(no, no2));
     float dot2 = fabsf(dot_v3v3(no, no3));
     if (fabsf(dot1 - 1.0f) > BEVEL_EPSILON) {
@@ -2541,7 +2536,7 @@ static void check_edge_data_seam_sharp_edges(BevVert *bv, int flag)
 
 static void bevel_extend_edge_data_ex(BevVert *bv, int flag)
 {
-  BLI_assert(flag == BM_ELEM_SEAM || flag == BM_ELEM_SMOOTH);
+  BLI_assert(ELEM(flag, BM_ELEM_SEAM, BM_ELEM_SMOOTH));
   VMesh *vm = bv->vmesh;
 
   BoundVert *bcur = bv->vmesh->boundstart, *start = bcur;
@@ -2673,6 +2668,12 @@ static void bevel_harden_normals(BevelParams *bp, BMesh *bm)
 
   if (cd_clnors_offset == -1) {
     cd_clnors_offset = CustomData_get_offset_named(&bm->ldata, CD_PROP_INT16_2D, "custom_normal");
+  }
+
+  /* If the custom normals attribute still hasn't been added with the correct type, at least don't
+   * crash. */
+  if (cd_clnors_offset == -1) {
+    return;
   }
 
   BMIter fiter;
@@ -4968,7 +4969,7 @@ static float projected_boundary_area(BevVert *bv, BMFace *f)
 {
   BMEdge *e1, *e2;
   VMesh *vm = bv->vmesh;
-  float(*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
+  float (*proj_co)[2] = BLI_array_alloca(proj_co, vm->count);
   float axis_mat[3][3];
   axis_dominant_v3_to_m3(axis_mat, f->no);
   get_incident_edges(f, bv->v, &e1, &e2);

@@ -9,12 +9,13 @@
 #include <cmath>
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_half.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 
@@ -662,7 +663,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   /* safety border */
   if (ca && (v3d->flag2 & V3D_SHOW_CAMERA_GUIDES)) {
     GPU_blend(GPU_BLEND_ALPHA);
-    immUniformThemeColorAlpha(TH_VIEW_OVERLAY, 0.75f);
+    immUniformColor4fv(ca->composition_guide_color);
 
     if (ca->dtx & CAM_DTX_CENTER) {
       float x3, y3;
@@ -723,6 +724,9 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       margins_rect.xmax = x2;
       margins_rect.ymin = y1;
       margins_rect.ymax = y2;
+
+      /* draw */
+      immUniformThemeColorAlpha(TH_VIEW_OVERLAY, 0.75f);
 
       UI_draw_safe_areas(
           shdr_pos, &margins_rect, scene->safe_areas.title, scene->safe_areas.action);
@@ -1375,7 +1379,7 @@ static void draw_selected_name(
    * - 1 marker name `(MAX_NAME + 3)`.
    */
 
-  SNPRINTF(info_buffers.frame, "(%d)", cfra);
+  SNPRINTF_UTF8(info_buffers.frame, "(%d)", cfra);
   info_array[i++] = info_buffers.frame;
 
   if ((ob == nullptr) || (ob->mode == OB_MODE_OBJECT)) {
@@ -1462,7 +1466,7 @@ static void draw_selected_name(
     if (blender::animrig::id_frame_has_keyframe((ID *)ob,
                                                 /* BKE_scene_ctime_get(scene) */ float(cfra)))
     {
-      UI_FontThemeColor(font_id, TH_TIME_KEYFRAME);
+      UI_FontThemeColor(font_id, TH_KEYTYPE_KEYFRAME_SELECT);
     }
   }
 
@@ -1502,7 +1506,8 @@ static void draw_grid_unit_name(
     if (grid_unit) {
       char numstr[32] = "";
       if (v3d->grid != 1.0f) {
-        SNPRINTF(numstr, "%s " BLI_STR_UTF8_MULTIPLICATION_SIGN " %.4g", grid_unit, v3d->grid);
+        SNPRINTF_UTF8(
+            numstr, "%s " BLI_STR_UTF8_MULTIPLICATION_SIGN " %.4g", grid_unit, v3d->grid);
       }
 
       *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
@@ -1558,10 +1563,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
   BLF_batch_draw_begin();
 
-  bScreen *screen = CTX_wm_screen(C);
-  if ((v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)) ||
-      screen->state == SCREENFULL)
-  {
+  if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)) {
     /* pass */
   }
   else {
@@ -1576,7 +1578,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     }
   }
 
-  if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 && screen->state != SCREENFULL) {
+  if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
     int xoffset = rect->xmin + (0.5f * U.widget_unit);
     int yoffset = rect->ymax - (0.1f * U.widget_unit);
 
@@ -1882,6 +1884,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      const float winmat[4][4],
                                      float clip_start,
                                      float clip_end,
+                                     float vignette_aperture,
                                      bool is_xr_surface,
                                      bool is_image_render,
                                      bool draw_background,
@@ -1963,6 +1966,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
   v3d.clip_end = clip_end;
   /* Actually not used since we pass in the projection matrix. */
   v3d.lens = 0;
+  v3d.vignette_aperture = vignette_aperture;
 
   /* WORKAROUND: Disable overscan because it is not supported for arbitrary input matrices.
    * The proper fix to this would be to support arbitrary matrices in `eevee::Camera::sync()`. */
@@ -2014,7 +2018,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   float winmat[4][4];
 
   /* Guess format based on output buffer. */
-  eGPUTextureFormat desired_format = (imbuf_flag & IB_float_data) ? GPU_RGBA16F : GPU_RGBA8;
+  blender::gpu::TextureFormat desired_format =
+      (imbuf_flag & IB_float_data) ? blender::gpu::TextureFormat::SFLOAT_16_16_16_16 :
+                                     blender::gpu::TextureFormat::UNORM_8_8_8_8;
 
   if (ofs && ((GPU_offscreen_width(ofs) != sizex) || (GPU_offscreen_height(ofs) != sizey))) {
     /* If offscreen has already been created, recreate with the same format. */
@@ -2023,7 +2029,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
     ofs = nullptr;
   }
 
-  GPUFrameBuffer *old_fb = GPU_framebuffer_active_get();
+  blender::gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
 
   if (old_fb) {
     GPU_framebuffer_restore();
@@ -2355,7 +2361,7 @@ static void view3d_gpu_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *da
 {
   blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
 
-  GPUFrameBuffer *depth_read_fb = nullptr;
+  blender::gpu::FrameBuffer *depth_read_fb = nullptr;
   GPU_framebuffer_ensure_config(&depth_read_fb,
                                 {
                                     GPU_ATTACHMENT_TEXTURE(depth_tx),
@@ -2383,7 +2389,7 @@ void ED_view3d_select_id_validate(const ViewContext *vc)
 
 int ED_view3d_backbuf_sample_size_clamp(ARegion *region, const float dist)
 {
-  return int(min_ff(ceilf(dist), float(max_ii(region->winx, region->winx))));
+  return int(min_ff(ceilf(dist), float(max_ii(region->winx, region->winy))));
 }
 
 /** \} */
@@ -2762,10 +2768,10 @@ void ED_scene_draw_fps(const Scene *scene, int xoffset, int *yoffset)
   }
 
   if (show_fractional) {
-    SNPRINTF(printable, IFACE_("fps: %.2f"), state.fps_average);
+    SNPRINTF_UTF8(printable, IFACE_("fps: %.2f"), state.fps_average);
   }
   else {
-    SNPRINTF(printable, IFACE_("fps: %i"), int(state.fps_average + 0.5f));
+    SNPRINTF_UTF8(printable, IFACE_("fps: %i"), int(state.fps_average + 0.5f));
   }
 
   BLF_draw_default(xoffset, *yoffset, 0.0f, printable, sizeof(printable));
@@ -2857,8 +2863,13 @@ bool ViewportColorSampleSession::init(ARegion *region)
    * copy that back to the host.
    * Since color picking is a fairly rare operation, the inefficiency here doesn't really
    * matter, and it means the viewport doesn't need HOST_READ. */
-  tex = GPU_texture_create_2d(
-      "copy_tex", tex_w, tex_h, 1, GPU_RGBA16F, GPU_TEXTURE_USAGE_HOST_READ, nullptr);
+  tex = GPU_texture_create_2d("copy_tex",
+                              tex_w,
+                              tex_h,
+                              1,
+                              blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+                              GPU_TEXTURE_USAGE_HOST_READ,
+                              nullptr);
   if (tex == nullptr) {
     return false;
   }

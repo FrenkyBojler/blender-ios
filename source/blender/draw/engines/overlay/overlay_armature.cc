@@ -128,7 +128,18 @@ class UnifiedBonePtr {
 
   eBone_Flag flag() const
   {
-    return static_cast<eBone_Flag>(is_editbone_ ? eBone_->flag : pchan_->bone->flag);
+    if (is_editbone_) {
+      return static_cast<eBone_Flag>(eBone_->flag);
+    }
+    /* Making sure the select flag is set correctly since it moved to the pose channel. */
+    eBone_Flag flag = static_cast<eBone_Flag>(pchan_->bone->flag);
+    if (pchan_->flag & POSE_SELECTED) {
+      flag |= BONE_SELECTED;
+    }
+    else {
+      flag &= ~BONE_SELECTED;
+    }
+    return flag;
   }
 
   /** Return the pose bone's constraint flags, or 0 if not a pose bone. */
@@ -466,7 +477,7 @@ static void drw_shgroup_bone_custom_solid(const Armatures::DrawContext *ctx,
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(custom);
   if (mesh != nullptr) {
     drw_shgroup_bone_custom_solid_mesh(ctx,
-                                       *mesh,
+                                       DRW_mesh_get_for_drawing(*mesh),
                                        bone_mat,
                                        bone_color,
                                        hint_color,
@@ -498,7 +509,8 @@ static void drw_shgroup_bone_custom_wire(const Armatures::DrawContext *ctx,
   /* See comments in #drw_shgroup_bone_custom_solid. */
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(custom);
   if (mesh != nullptr) {
-    drw_shgroup_bone_custom_mesh_wire(ctx, *mesh, bone_mat, color, wire_width, select_id, *custom);
+    drw_shgroup_bone_custom_mesh_wire(
+        ctx, DRW_mesh_get_for_drawing(*mesh), bone_mat, color, wire_width, select_id, *custom);
     return;
   }
 
@@ -937,9 +949,9 @@ static void draw_bone_update_disp_matrix_default(UnifiedBonePtr bone)
 {
   float ebmat[4][4];
   float bone_scale[3];
-  float(*bone_mat)[4];
-  float(*disp_mat)[4] = bone.disp_mat();
-  float(*disp_tail_mat)[4] = bone.disp_tail_mat();
+  float (*bone_mat)[4];
+  float (*disp_mat)[4] = bone.disp_mat();
+  float (*disp_tail_mat)[4] = bone.disp_tail_mat();
 
   /* TODO: This should be moved to depsgraph or armature refresh
    * and not be tied to the draw pass creation.
@@ -967,9 +979,9 @@ static void draw_bone_update_disp_matrix_default(UnifiedBonePtr bone)
 static void draw_bone_update_disp_matrix_custom_shape(UnifiedBonePtr bone)
 {
   float bone_scale[3];
-  float(*bone_mat)[4];
-  float(*disp_mat)[4];
-  float(*disp_tail_mat)[4];
+  float (*bone_mat)[4];
+  float (*disp_mat)[4];
+  float (*disp_tail_mat)[4];
   float rot_mat[3][3];
 
   /* Custom bone shapes are only supported in pose mode for now. */
@@ -1131,7 +1143,7 @@ static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone)
 {
   float s[4][4], ebmat[4][4];
   float length, xwidth, zwidth;
-  float(*bone_mat)[4];
+  float (*bone_mat)[4];
   short bbone_segments;
 
   /* TODO: This should be moved to depsgraph or armature refresh
@@ -1180,7 +1192,7 @@ static void draw_bone_update_disp_matrix_bbone(UnifiedBonePtr bone)
   }
   else {
     EditBone *eBone = bone.as_editbone();
-    float(*bbones_mat)[4][4] = eBone->disp_bbone_mat;
+    float (*bbones_mat)[4][4] = eBone->disp_bbone_mat;
 
     if (bbone_segments > 1) {
       ebone_spline_preview(eBone, bbones_mat);
@@ -1295,7 +1307,7 @@ static void draw_points(const Armatures::DrawContext *ctx,
     }
   }
 
-  /*  Draw tip point */
+  /* Draw tip point. */
   if (is_envelope_draw) {
     drw_shgroup_bone_envelope(ctx,
                               bone.disp_mat(),
@@ -1324,7 +1336,7 @@ static void bone_draw_custom_shape(const Armatures::DrawContext *ctx,
   const float *col_solid = get_bone_solid_color(ctx, boneflag);
   const float *col_wire = get_bone_wire_color(ctx, boneflag);
   const float *col_hint = get_bone_hint_color(ctx, boneflag);
-  const float(*disp_mat)[4] = bone.disp_mat();
+  const float (*disp_mat)[4] = bone.disp_mat();
 
   auto sel_id = ctx->res->select_id(*ctx->ob_ref, select_id | BONESEL_BONE);
 
@@ -1682,8 +1694,8 @@ static bool should_draw_relation_to_parent(const UnifiedBonePtr bone, const eBon
     /* Only draw if bone or its parent is selected - reduces viewport
      * complexity with complex rigs */
     const bPoseChannel *pchan = bone.as_posebone();
-    return (boneflag & BONE_SELECTED) ||
-           (pchan->parent->bone && (pchan->parent->bone->flag & BONE_SELECTED));
+    return (pchan->flag & POSE_SELECTED) ||
+           (pchan->parent && (pchan->parent->flag & POSE_SELECTED));
   }
 
   return false;
@@ -1806,7 +1818,7 @@ static void draw_bone_relations(const Armatures::DrawContext *ctx,
       /* Draw a line to IK root bone if bone is selected. */
       if (ctx->draw_mode == ARM_DRAW_MODE_POSE) {
         if (pchan->constflag & (PCHAN_HAS_IK | PCHAN_HAS_SPLINEIK)) {
-          if (boneflag & BONE_SELECTED) {
+          if (pchan->flag & POSE_SELECTED) {
             pchan_draw_ik_lines(ctx, pchan, !ctx->do_relations);
           }
         }
@@ -1815,9 +1827,7 @@ static void draw_bone_relations(const Armatures::DrawContext *ctx,
   }
 }
 
-static void draw_bone_name(const Armatures::DrawContext *ctx,
-                           const UnifiedBonePtr bone,
-                           const eBone_Flag boneflag)
+static void draw_bone_name(const Armatures::DrawContext *ctx, const UnifiedBonePtr bone)
 {
   uchar color[4];
   float vec[3];
@@ -1829,7 +1839,7 @@ static void draw_bone_name(const Armatures::DrawContext *ctx,
 
   /* TODO: make this look at `boneflag` only. */
   bool highlight = (is_pose && ctx->draw_mode == ARM_DRAW_MODE_POSE &&
-                    (boneflag & BONE_SELECTED)) ||
+                    (pchan->flag & POSE_SELECTED)) ||
                    (!is_pose && (eBone->flag & BONE_SELECTED));
 
   /* Color Management: Exception here as texts are drawn in sRGB space directly. */
@@ -1897,7 +1907,7 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
        eBone;
        eBone = eBone->next, index += 0x10000)
   {
-    if (!blender::animrig::bone_is_visible_editbone(&arm, eBone)) {
+    if (!blender::animrig::bone_is_visible(&arm, eBone)) {
       continue;
     }
 
@@ -1905,7 +1915,7 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
 
     /* catch exception for bone with hidden parent */
     eBone_Flag boneflag = eBone_Flag(eBone->flag);
-    if ((eBone->parent) && !blender::animrig::bone_is_visible_editbone(&arm, eBone->parent)) {
+    if ((eBone->parent) && !blender::animrig::bone_is_visible(&arm, eBone->parent)) {
       boneflag &= ~BONE_CONNECTED;
     }
 
@@ -1933,7 +1943,7 @@ void Armatures::draw_armature_edit(Armatures::DrawContext *ctx)
 
     if (!is_select) {
       if (show_text && (arm.flag & ARM_DRAWNAMES)) {
-        draw_bone_name(ctx, bone, boneflag);
+        draw_bone_name(ctx, bone);
       }
 
       if (arm.flag & ARM_DRAWAXES) {
@@ -2022,14 +2032,14 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
   for (bPoseChannel *pchan = static_cast<bPoseChannel *>(ob->pose->chanbase.first); pchan;
        pchan = pchan->next, index += 0x10000)
   {
-    Bone *bone = pchan->bone;
-    if (!blender::animrig::bone_is_visible(&arm, bone)) {
+    if (!blender::animrig::bone_is_visible(&arm, pchan)) {
       continue;
     }
 
+    Bone *bone = pchan->bone;
     const bool draw_dofs = !is_pose_select && ctx->show_relations &&
                            (ctx->draw_mode == ARM_DRAW_MODE_POSE) &&
-                           (bone->flag & BONE_SELECTED) &&
+                           (pchan->flag & POSE_SELECTED) &&
                            ((ob->base_flag & BASE_FROM_DUPLI) == 0) &&
                            (pchan->ikflag & (BONE_IK_XLIMIT | BONE_IK_ZLIMIT));
     const int select_id = is_pose_select ? index : uint(-1);
@@ -2041,8 +2051,8 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
       set_ctx_bcolor(ctx, bone_ptr);
     }
 
-    eBone_Flag boneflag = eBone_Flag(bone->flag);
-    if (bone->parent && !blender::animrig::bone_is_visible(&arm, bone->parent)) {
+    eBone_Flag boneflag = bone_ptr.flag();
+    if (pchan->parent && !blender::animrig::bone_is_visible(&arm, pchan->parent)) {
       /* Avoid drawing connection line to hidden parent. */
       boneflag &= ~BONE_CONNECTED;
     }
@@ -2074,7 +2084,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
       draw_bone_degrees_of_freedom(ctx, pchan);
     }
     if (show_text && (arm.flag & ARM_DRAWNAMES)) {
-      draw_bone_name(ctx, bone_ptr, boneflag);
+      draw_bone_name(ctx, bone_ptr);
     }
     if (arm.flag & ARM_DRAWAXES) {
       draw_axes(ctx, bone_ptr, arm);
