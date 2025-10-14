@@ -3715,34 +3715,39 @@ static rctf calc_node_frame_dimensions(const bContext &C,
   data->flag |= NODE_FRAME_RESIZEABLE;
   /* For shrinking bounding box, initialize the rect from first child node. */
   bool bbinit = (data->flag & NODE_FRAME_SHRINK);
-  /* Fit bounding box to all children. */
-  for (bNode *child : node.direct_children_in_frame()) {
-    /* Add margin to node rect. */
-    rctf noderect = calc_node_frame_dimensions(C, tree_draw_ctx, snode, *child);
+  bool locked = data->flag & NODE_FRAME_LOCK;
 
-    noderect.xmin -= frame_layout.margin;
-    noderect.xmax += frame_layout.margin;
-    noderect.ymin -= frame_layout.margin;
-    noderect.ymax += frame_layout.margin_top;
+  /* If locked, don't auto-resize the frame. */
+  if (!locked) {
+    /* Fit bounding box to all children. */
+    for (bNode *child : node.direct_children_in_frame()) {
+      /* Add margin to node rect. */
+      rctf noderect = calc_node_frame_dimensions(C, tree_draw_ctx, snode, *child);
 
-    /* First child initializes frame. */
-    if (bbinit) {
-      bbinit = false;
-      rect = noderect;
-      data->flag &= ~NODE_FRAME_RESIZEABLE;
+      noderect.xmin -= frame_layout.margin;
+      noderect.xmax += frame_layout.margin;
+      noderect.ymin -= frame_layout.margin;
+      noderect.ymax += frame_layout.margin_top;
+
+      /* First child initializes frame. */
+      if (bbinit) {
+        bbinit = false;
+        rect = noderect;
+        data->flag &= ~NODE_FRAME_RESIZEABLE;
+      }
+      else {
+        BLI_rctf_union(&rect, &noderect);
+      }
     }
-    else {
-      BLI_rctf_union(&rect, &noderect);
-    }
+
+    /* Now adjust the frame size from view-space bounding box. */
+    const float2 min = node_from_view({rect.xmin, rect.ymin});
+    const float2 max = node_from_view({rect.xmax, rect.ymax});
+    node.location[0] = min.x;
+    node.location[1] = max.y;
+    node.width = max.x - min.x;
+    node.height = max.y - min.y;
   }
-
-  /* Now adjust the frame size from view-space bounding box. */
-  const float2 min = node_from_view({rect.xmin, rect.ymin});
-  const float2 max = node_from_view({rect.xmax, rect.ymax});
-  node.location[0] = min.x;
-  node.location[1] = max.y;
-  node.width = max.x - min.x;
-  node.height = max.y - min.y;
 
   node.runtime->draw_bounds = rect;
   return rect;
@@ -3949,6 +3954,7 @@ static void frame_node_draw_overlay(const bContext &C,
                                     TreeDrawContext &tree_draw_ctx,
                                     const ARegion &region,
                                     const SpaceNode &snode,
+                                    const bNodeTree &ntree,
                                     const bNode &node,
                                     uiBlock &block)
 {
@@ -3966,6 +3972,54 @@ static void frame_node_draw_overlay(const bContext &C,
 
   /* Label and text. */
   frame_node_draw_label(tree_draw_ctx, node, snode);
+
+  /* Pin and Lock toggle buttons. */
+  const NodeFrame *data = (const NodeFrame *)node.storage;
+  const rctf &rct = node.runtime->draw_bounds;
+  const float but_size = U.widget_unit * 0.8f;
+  const float but_padding = U.widget_unit * 0.2f;
+
+  PointerRNA nodeptr = RNA_pointer_create_discrete(const_cast<ID *>(&ntree.id), &RNA_NodeFrame, const_cast<bNode *>(&node));
+
+  UI_block_emboss_set(&block, ui::EmbossType::None);
+
+  float offsetx = rct.xmax - but_size - but_padding;
+
+  /* Lock button. */
+  uiDefIconButR_prop(&block,
+                     ButType::IconToggle,
+                     0,
+                     (data->flag & NODE_FRAME_LOCK) ? ICON_LOCKED : ICON_UNLOCKED,
+                     offsetx,
+                     rct.ymax - but_size - but_padding,
+                     but_size,
+                     but_size,
+                     &nodeptr,
+                     RNA_struct_find_property(&nodeptr, "lock"),
+                     0,
+                     0,
+                     0,
+                     nullptr);
+
+  offsetx -= but_size + but_padding;
+
+  /* Pin button. */
+  uiDefIconButR_prop(&block,
+                     ButType::IconToggle,
+                     0,
+                     (data->flag & NODE_FRAME_PIN) ? ICON_PINNED : ICON_UNPINNED,
+                     offsetx,
+                     rct.ymax - but_size - but_padding,
+                     but_size,
+                     but_size,
+                     &nodeptr,
+                     RNA_struct_find_property(&nodeptr, "pin"),
+                     0,
+                     0,
+                     0,
+                     nullptr);
+
+  UI_block_emboss_set(&block, ui::EmbossType::Emboss);
 
   node_draw_extra_info_panel(C, tree_draw_ctx, snode, node, nullptr, block);
 
@@ -4485,7 +4539,7 @@ static void draw_frame_overlays(const bContext &C,
                                 Span<uiBlock *> blocks)
 {
   for (const bNode *node : ntree.nodes_by_type("NodeFrame")) {
-    frame_node_draw_overlay(C, tree_draw_ctx, region, snode, *node, *blocks[node->index()]);
+    frame_node_draw_overlay(C, tree_draw_ctx, region, snode, ntree, *node, *blocks[node->index()]);
   }
 }
 

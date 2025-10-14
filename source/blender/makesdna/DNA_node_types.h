@@ -520,13 +520,15 @@ typedef struct bNode {
   float offsetx_legacy, offsety_legacy;
 
   /** Custom user-defined label. */
-  char label[/*MAX_NAME*/ 64];
+  char label[350];
+  char _pad0[2];
 
   /** Custom user-defined color. */
   float color[3];
 
   /** Panel states for this node instance. */
   int num_panel_states;
+  char _pad1[8];
   bNodePanelState *panel_states_array;
 
   bNodeRuntimeHandle *runtime;
@@ -2604,6 +2606,10 @@ enum {
   NODE_FRAME_SHRINK = 1,
   /** Test flag, if frame can be resized by user. */
   NODE_FRAME_RESIZEABLE = 2,
+  /** Pin flag, lock the frame position. */
+  NODE_FRAME_PIN = 4,
+  /** Lock flag, prevent auto-scaling and constrain children within bounds. */
+  NODE_FRAME_LOCK = 8,
 };
 
 /* Proxy node flags. */

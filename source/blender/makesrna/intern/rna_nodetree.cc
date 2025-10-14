@@ -3883,6 +3883,32 @@ static void rna_FrameNode_label_size_update(Main *bmain, Scene *scene, PointerRN
   rna_Node_update(bmain, scene, ptr);
 }
 
+static int rna_FrameNode_shrink_editable(const PointerRNA *ptr, const char ** /*r_info*/)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeFrame *data = static_cast<NodeFrame *>(node->storage);
+
+  /* Shrink cannot be edited when lock is enabled. */
+  if (data->flag & NODE_FRAME_LOCK) {
+    return 0;
+  }
+
+  return 1;
+}
+
+static void rna_FrameNode_lock_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  NodeFrame *data = static_cast<NodeFrame *>(node->storage);
+
+  /* When lock is enabled, disable shrink. */
+  if (data->flag & NODE_FRAME_LOCK) {
+    data->flag &= ~NODE_FRAME_SHRINK;
+  }
+
+  rna_Node_update(bmain, scene, ptr);
+}
+
 static void rna_ShaderNodeTexIES_mode_set(PointerRNA *ptr, int value)
 {
   bNode *node = ptr->data_as<bNode>();
@@ -4572,11 +4598,22 @@ static void def_frame(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "shrink", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_FRAME_SHRINK);
   RNA_def_property_ui_text(prop, "Shrink", "Shrink the frame to minimal bounding box");
+  RNA_def_property_editable_func(prop, "rna_FrameNode_shrink_editable");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
+
+  prop = RNA_def_property(srna, "pin", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_FRAME_PIN);
+  RNA_def_property_ui_text(prop, "Pin", "Lock the frame position");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, nullptr);
+
+  prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_FRAME_LOCK);
+  RNA_def_property_ui_text(prop, "Lock", "Prevent auto-scaling and constrain children within bounds");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_FrameNode_lock_update");
 
   prop = RNA_def_property(srna, "label_size", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "label_size");
-  RNA_def_property_range(prop, 8, 64);
+  RNA_def_property_range(prop, 8, 350);
   RNA_def_property_ui_text(prop, "Label Font Size", "Font size to use for displaying the label");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_FrameNode_label_size_update");
 }

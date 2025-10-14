@@ -108,6 +108,12 @@ static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transfo
     const NodeFrame *data = static_cast<const NodeFrame *>(node->storage);
     const bool shrinking = data->flag & NODE_FRAME_SHRINK;
     const bool is_parent = !node->direct_children_in_frame().is_empty();
+    const bool pinned = data->flag & NODE_FRAME_PIN;
+
+    /* Pinned frames should not be transformed. */
+    if (pinned) {
+      return true;
+    }
 
     if (is_parent && shrinking) {
       return true;
