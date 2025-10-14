@@ -19,7 +19,7 @@
 
 #include <fmt/format.h>
 
-namespace blender::nodes::node_geo_get_named_bundle_cc {
+namespace blender::nodes::node_geo_get_bundle_item_cc {
 
 typedef enum NodeMenu {
   GEO_NODE_1 = 0,
@@ -93,8 +93,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "NodeGetNamedBundle");
-  ntype.ui_name = "Get Named Bundle";
+  geo_node_type_base(&ntype, "NodeGetBundleItem");
+  ntype.ui_name = "Get Bundle Item";
   ntype.ui_description = "Retrieve a bundle item by name.";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
@@ -103,4 +103,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_get_named_bundle_cc
+}  // namespace blender::nodes::node_geo_get_bundle_item_cc

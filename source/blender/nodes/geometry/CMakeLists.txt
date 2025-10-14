@@ -219,8 +219,8 @@ set(SRC
   nodes/node_geo_sdf_grid_offset.cc
   nodes/node_geo_self_object.cc
   nodes/node_geo_separate_bundle.cc
-  nodes/node_geo_get_named_bundle.cc
-  nodes/node_geo_store_named_bundle.cc
+  nodes/node_geo_get_bundle_item.cc
+  nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_separate_components.cc
   nodes/node_geo_separate_geometry.cc
   nodes/node_geo_set_curve_handles.cc
