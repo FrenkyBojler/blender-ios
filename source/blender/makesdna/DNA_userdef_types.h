@@ -242,7 +242,7 @@ typedef struct UserDef_Experimental {
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
   char use_blender_projects;
-  char _pad[0];
+  char _pad[5];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
