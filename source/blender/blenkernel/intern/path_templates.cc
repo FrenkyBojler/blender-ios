@@ -278,7 +278,7 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
     const blender::bke::BlenderProject &project = BKE_blender_project();
     if (project.data.has_value()) {
       variables.add_string("project_name", project.data->get_name());
-      variables.add_string("project_root", project.data->get_root_path());
+      variables.add_filepath("project_root", project.data->get_root_path());
     }
   }
 
