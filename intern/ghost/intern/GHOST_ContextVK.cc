@@ -1367,9 +1367,11 @@ void GHOST_ContextVK::destroySwapchainPresentFences(VkSwapchainKHR swapchain)
 {
   GHOST_DeviceVK &device_vk = vulkan_instance.value().device.value();
   const std::vector<VkFence> &fences = present_fences_[swapchain];
-  vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
-  for (VkFence fence : fences) {
-    vkDestroyFence(device_vk.vk_device, fence, nullptr);
+  if (!fences.empty()) {
+    vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
+    for (VkFence fence : fences) {
+      vkDestroyFence(device_vk.vk_device, fence, nullptr);
+    }
   }
   present_fences_.erase(swapchain);
 }
