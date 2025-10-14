@@ -318,7 +318,7 @@ add_blender_test(
 # Generate BLENDFILE_VERSIONING_SPLIT_RANGE instances of the test,
 # each processing their own subset of the whole set of blendfiles.
 if(TEST_SRC_DIR_EXISTS)
-  set(BLENDFILE_VERSIONING_SPLIT_RANGE 32)
+  set(BLENDFILE_VERSIONING_SPLIT_RANGE 128)
   math(EXPR BLENDFILE_VERSIONING_SPLIT_RANGE_CMAKE "${BLENDFILE_VERSIONING_SPLIT_RANGE} - 1")
   foreach(idx RANGE ${BLENDFILE_VERSIONING_SPLIT_RANGE_CMAKE})
     add_blender_test(
@@ -348,16 +348,12 @@ if(TEST_SRC_DIR_EXISTS)
     --output-dir ${TEST_OUT_DIR}/blendfile_io/
   )
 
-# This test is intermittently failing. Disable it for now to avoid other work
-# being incorrectly flagged as broken. Once issue #146221 is resolved this
-# test must be re-enabled.
-#
-#  add_blender_test(
-#    blendfile_library_overrides
-#    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
-#    --output-dir ${TEST_OUT_DIR}/blendfile_io/
-#    --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
-#  )
+  add_blender_test(
+    blendfile_library_overrides
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
+    --output-dir ${TEST_OUT_DIR}/blendfile_io/
+    --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
+  )
 
   add_blender_test(
     blendfile_header
@@ -605,6 +601,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_rigging_symmetrize
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_rigging_symmetrize.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
+    vertex_group_painting
+    --python ${CMAKE_CURRENT_LIST_DIR}/vertex_group_painting.py
     --
     --testdir "${TEST_SRC_DIR}/animation"
   )
@@ -1181,6 +1184,7 @@ if(WITH_ALEMBIC AND TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_alembic_io_test.py
     --
     --testdir "${TEST_SRC_DIR}/alembic"
+    --outdir "${TEST_OUT_DIR}/io_alembic"
   )
 endif()
 
@@ -1409,6 +1413,7 @@ if(WITH_UI_TESTS)
     test_workspace.sanity_check_general
     test_workspace.sanity_check_2d_animation
     test_workspace.sanity_check_sculpting
+    test_workspace.sanity_check_storyboarding
     test_workspace.sanity_check_vfx
     test_workspace.sanity_check_video_editing
   )
