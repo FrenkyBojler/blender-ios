@@ -63,7 +63,6 @@ void AbstractView::update_from_old(uiBlock &new_block)
    * pointer to identify itself over redraws. */
   rename_buffer_ = std::move(old_view->rename_buffer_);
   old_view->rename_buffer_ = nullptr;
-  search_string_ = std::move(old_view->search_string_);
 
   this->update_children_from_old(*old_view);
 
@@ -256,20 +255,6 @@ void AbstractView::allow_multiselect_items()
 bool AbstractView::is_multiselect_supported() const
 {
   return is_multiselect_supported_;
-}
-
-std::string AbstractView::get_search_string()
-{
-  return search_string_;
-}
-
-void AbstractView::set_serach_string(char *search_string)
-{
-  search_string_.assign(search_string);
-  if (search_string_ != nullptr && !search_string_.empty()) {
-    search_string_.insert(0, "*");
-    search_string_.push_back('*');
-  }
 }
 /** \} */
 

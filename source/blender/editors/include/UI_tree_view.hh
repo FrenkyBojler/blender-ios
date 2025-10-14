@@ -134,6 +134,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool scroll_active_into_view_on_draw_ = false;
   bool is_filtering_collapsed_ = true;
+  std::shared_ptr<std::string> search_string_ = nullptr;
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
@@ -169,6 +170,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   void filter(std::optional<StringRef> filter_str) override;
   void save_filtering_state(bool value);
   void toggle_filtering_collapsed();
+  void set_serach_string(char *search_string);
 
  protected:
   virtual void build_tree() = 0;
