@@ -1028,7 +1028,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
     if (!tree_view.is_filtering_collapsed_) {
       block_layout_set_current(block, col);
-      static char search[256] = "";
       uiBut *but = uiDefBut(block,
                             ButType::Text,
                             1,
@@ -1157,7 +1156,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   tree_view.update_from_old(block);
   tree_view.change_state_delayed();
   if (tree_view.search_string_ == nullptr) {
-    tree_view.search_string_ = std::make_unique<std::string>("");
+    tree_view.search_string_ = std::make_shared<std::string>();
   }
   tree_view.filter(*tree_view.search_string_);
 
