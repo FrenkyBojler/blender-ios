@@ -37,9 +37,6 @@
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 
-#include "RNA_access.hh"
-#include "RNA_types.hh"
-
 namespace blender::io::usd {
 
 USDHierarchyIterator::USDHierarchyIterator(Main *bmain,
@@ -456,22 +453,15 @@ void USDHierarchyIterator::add_usd_skel_export_mapping(const Object *obj, const 
   }
 }
 
-blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> USDHierarchyIterator::
+const blender::Map<pxr::SdfPath, blender::Vector<ID *>> &USDHierarchyIterator::
     get_exported_prim_map() const
 {
-  blender::Map<pxr::SdfPath, blender::Vector<PointerRNA>> prim_map;
+  return exported_prim_map_;
+}
 
-  exported_prim_map_.foreach_item(
-      [&](const pxr::SdfPath &usd_path,
-          const blender::Vector<std::pair<std::string, int16_t>> &id_infos) {
-        for (const auto &[obj_name, obj_type] : id_infos) {
-          if (ID *id = BKE_libblock_find_name(bmain_, obj_type, obj_name.c_str())) {
-            prim_map.lookup_or_add_default(usd_path).append(RNA_id_pointer_create(id));
-          }
-        }
-      });
-
-  return prim_map;
+pxr::UsdStageRefPtr USDHierarchyIterator::get_stage() const
+{
+  return stage_;
 }
 
 void USDHierarchyIterator::add_to_prim_map(const pxr::SdfPath &usd_path, const ID *id) const
@@ -479,9 +469,10 @@ void USDHierarchyIterator::add_to_prim_map(const pxr::SdfPath &usd_path, const I
   if (!id) {
     return;
   }
-  const std::string id_name = id->name + 2;
-  const int16_t id_type = GS(id->name);
-  exported_prim_map_.lookup_or_add_default(usd_path).append(std::make_pair(id_name, id_type));
+  ID *local_id = BKE_libblock_find_name(bmain_, GS(id->name), id->name + 2);
+  if (local_id) {
+    exported_prim_map_.lookup_or_add_default(usd_path).append(local_id);
+  }
 }
 
 USDExporterContext USDHierarchyIterator::create_point_instancer_context(

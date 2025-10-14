@@ -591,8 +591,7 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
     process_scene_graph_instances(params, usd_stage);
   }
 
-  const auto prim_map = iter.get_exported_prim_map();
-  call_export_hooks(usd_stage, depsgraph, prim_map, params.worker_status->reports);
+  call_export_hooks(depsgraph, &iter, params.worker_status->reports);
 
   worker_status->progress = 0.88f;
   worker_status->do_update = true;
