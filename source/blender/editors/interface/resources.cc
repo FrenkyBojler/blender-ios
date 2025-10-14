@@ -793,7 +793,13 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = btheme->common.anim.channels_sub;
           break;
         case TH_DOPESHEET_IPOLINE:
-          cp = ts->ds_ipoline;
+          cp = ts->anim_interpolation_linear;
+          break;
+        case TH_DOPESHEET_IPOCONST:
+          cp = ts->anim_interpolation_constant;
+          break;
+        case TH_DOPESHEET_IPOOTHER:
+          cp = ts->anim_interpolation_other;
           break;
 
         case TH_PREVIEW_BACK:
@@ -914,6 +920,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_ANIM_PREVIEW_RANGE:
           cp = btheme->common.anim.preview_range;
+          break;
+        case TH_ANIM_SCENE_STRIP_RANGE:
+          cp = btheme->common.anim.scene_strip_range;
           break;
 
         case TH_NLA_TWEAK:

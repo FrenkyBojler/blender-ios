@@ -2182,7 +2182,7 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "icon_collection");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Collection", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "icon_object", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "icon_object");
@@ -2380,6 +2380,12 @@ static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "preview_range");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Preview Range", "Color of preview range overlay");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "scene_strip_range", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "scene_strip_range");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Scene Strip Range", "Color of scene strip range overlay");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Channel properties */
@@ -3907,11 +3913,22 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Summary", "Color of summary channel");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "interpolation_line", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "ds_ipoline");
+  prop = RNA_def_property(srna, "anim_interpolation_linear", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
-      prop, "Interpolation Line", "Color of lines showing non-Bézier interpolation modes");
+      prop, "Linear Interpolation", "Color of lines showing linear interpolation mode");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "anim_interpolation_constant", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(
+      prop, "Constant Interpolation", "Color of lines showing constant interpolation mode");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "anim_interpolation_other", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(
+      prop, "Other Interpolation", "Color of lines showing easings & dynamic interpolation mode");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "simulated_frames", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -4080,7 +4097,7 @@ static void rna_def_userdef_theme_collection_color(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "color");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Color", "Collection Color Tag");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 }
 
 static void rna_def_userdef_theme_strip_color(BlenderRNA *brna)
@@ -5334,6 +5351,8 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   /* Language. */
 
   prop = RNA_def_property(srna, "language", PROP_ENUM, PROP_NONE);
+  /* Set this flag so scripts can access language information at run-time via `enum_items`. */
+  RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
   RNA_def_property_enum_items(prop, rna_enum_language_default_items);
 #  ifdef WITH_INTERNATIONAL
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_lang_enum_properties_itemf");

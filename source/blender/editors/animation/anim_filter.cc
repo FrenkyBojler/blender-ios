@@ -1026,7 +1026,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
 
         /* can only add this F-Curve if it is selected */
         if (ac->ads->filterflag & ADS_FILTER_ONLYSEL) {
-          if ((pchan->bone->flag & BONE_SELECTED) == 0) {
+          if ((pchan->flag & POSE_SELECTED) == 0) {
             return true;
           }
         }
@@ -1332,7 +1332,12 @@ static size_t animfilter_fcurves(bAnimContext *ac,
        * except we need to set some stuff differently */
       ANIMCHANNEL_NEW_CHANNEL_FULL(ac->bmain, fcu, ANIMTYPE_NLACURVE, owner_id, fcurve_owner_id, {
         ale->owner = owner; /* strip */
-        ale->adt = nullptr; /* to prevent time mapping from causing problems */
+        /* Since #130440 landed, this should now in theory be something like
+         * `ale->adt = BKE_animdata_from_id(owner_id)`, rather than a nullptr.
+         * However, at the moment the nullptr doesn't hurt, and it helps us
+         * catch bugs like #147803 via the assert in `fcurve_to_keylist()`. If
+         * the nullptr does start to hurt at some point, please change it! */
+        ale->adt = nullptr;
       });
     }
     else {

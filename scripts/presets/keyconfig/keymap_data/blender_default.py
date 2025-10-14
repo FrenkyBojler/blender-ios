@@ -829,6 +829,10 @@ def km_screen(params):
          {"properties": [("use_viewport", True)]}),
         ("render.render", {"type": 'F12', "value": 'PRESS', "ctrl": True},
          {"properties": [("animation", True), ("use_viewport", True)]}),
+        ("render.render", {"type": 'F12', "value": 'PRESS', "alt": True},
+         {"properties": [("use_sequencer_scene", True), ("use_viewport", True)]}),
+        ("render.render", {"type": 'F12', "value": 'PRESS', "ctrl": True, "alt": True},
+         {"properties": [("animation", True), ("use_sequencer_scene", True), ("use_viewport", True)]}),
         ("render.view_cancel", {"type": 'ESC', "value": 'PRESS'}, None),
         ("render.view_show", {"type": 'F11', "value": 'PRESS'}, None),
         ("render.play_rendered_anim", {"type": 'F11', "value": 'PRESS', "ctrl": True}, None),
@@ -876,9 +880,11 @@ def km_screen(params):
 
 def km_screen_editing(params):
     items = []
-    keymap = ("Screen Editing",
-              {"space_type": 'EMPTY', "region_type": 'WINDOW'},
-              {"items": items})
+    keymap = (
+        "Screen Editing",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        {"items": items},
+    )
 
     items.extend([
         # Action zones
@@ -1422,7 +1428,7 @@ def km_uv_editor(params):
             (
                 "uv.move_on_axis",
                 {"type": key, "value": 'PRESS', **mod_dict},
-                {"properties": [("axis", axis), ("type", move_type), ("distance", distance)]}
+                {"properties": [("axis", axis), ("type", move_type), ("distance", distance)]},
             )
             for mod_dict, move_type in (
                 ({"ctrl": True}, 'DYNAMIC'),
@@ -4206,8 +4212,12 @@ def km_grease_pencil_sculpt_mode(params):
         op_menu("GREASE_PENCIL_MT_layer_active", {"type": 'Y', "value": 'PRESS'}),
 
         # Auto-masking menu.
-        op_menu_pie("VIEW3D_MT_grease_pencil_sculpt_automasking_pie", {
-                    "type": 'A', "value": 'PRESS', "shift": True, "alt": True}),
+        op_menu_pie(
+            "VIEW3D_MT_grease_pencil_sculpt_automasking_pie",
+            {"type": 'A', "value": 'PRESS', "shift": True, "alt": True},
+        ),
+        ("wm.context_menu_enum", {"type": 'E', "value": 'PRESS', "alt": True},
+         {"properties": [("data_path", "tool_settings.gpencil_sculpt_paint.brush.stroke_method")]}),
 
         *_template_paint_radial_control("gpencil_sculpt_paint"),
         *_template_asset_shelf_popup("VIEW3D_AST_brush_gpencil_sculpt", params.spacebar_action),
@@ -4325,6 +4335,7 @@ def km_grease_pencil_vertex_paint(params):
          {"properties": [("data_path", "scene.tool_settings.use_gpencil_vertex_select_mask_segment")]}),
         # Flip primary and secondary color
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
+        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
 
         # Edit Lines overlay
         ("wm.context_toggle", {"type": 'Q', "value": 'PRESS', "shift": True},
