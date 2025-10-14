@@ -63,6 +63,9 @@ static std::optional<SocketValueVariant> try_get_named_grid(
   }
   /* Increment user count before removing from volume. */
   grid->add_user();
+  if (remove_grid) {
+    BKE_volume_grid_remove(&volume, grid);
+  }
   SocketValueVariant value_variant = SocketValueVariant::From(bke::GVolumeGrid(grid));
   if (current_socket_type != desired_socket_type) {
     std::optional<SocketValueVariant> converted_value = implicitly_convert_socket_value(
@@ -74,9 +77,6 @@ static std::optional<SocketValueVariant> try_get_named_grid(
     }
     params.error_message_add(NodeWarningType::Info, "Implicit grid type conversion");
     value_variant = std::move(*converted_value);
-  }
-  if (remove_grid) {
-    BKE_volume_grid_remove(&volume, grid);
   }
   return value_variant;
 }
