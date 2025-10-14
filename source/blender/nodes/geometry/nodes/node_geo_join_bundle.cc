@@ -7,6 +7,7 @@
 #include "NOD_geometry_nodes_bundle.hh"
 
 #include "node_geometry_util.hh"
+#include "shader/node_shader_util.hh"
 
 namespace blender::nodes::node_geo_join_bundle {
 
@@ -76,7 +77,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "NodeJoinBundle");
+  common_node_type_base(&ntype, "NodeJoinBundle");
   ntype.ui_name = "Join Bundle";
   ntype.ui_description = "Join multiple bundles together";
   ntype.nclass = NODE_CLASS_CONVERTER;

@@ -348,6 +348,20 @@ class NODE_MT_shader_node_texture_base(node_add_menu.NodeMenu):
         self.draw_assets_for_catalog(layout, self.bl_label)
 
 
+class NODE_MT_shader_node_bundle_base(node_add_menu.NodeMenu):
+    bl_label = "Bundle"
+    menu_path = "Utilities/Bundle"
+
+    def draw(self, context):
+        layout = self.layout
+
+        self.node_operator(layout, "NodeCombineBundle")
+        self.node_operator(layout, "NodeSeparateBundle")
+        self.node_operator(layout, "NodeJoinBundle")
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
+
+
 class NODE_MT_shader_node_vector_base(node_add_menu.NodeMenu):
     bl_label = "Vector"
     menu_path = "Utilities/Vector"
@@ -416,12 +430,11 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
         self.draw_menu(layout, "Utilities/Math")
         self.draw_menu(layout, "Utilities/Vector")
         layout.separator()
+        self.draw_menu(layout, "Utilities/Bundle")
         self.repeat_zone(layout, label="Repeat")
         layout.separator()
         self.closure_zone(layout, label="Closure")
         self.node_operator(layout, "NodeEvaluateClosure")
-        self.node_operator(layout, "NodeCombineBundle")
-        self.node_operator(layout, "NodeSeparateBundle")
         layout.separator()
         self.node_operator(layout, "GeometryNodeMenuSwitch")
         if cycles_shader_nodes_poll(context):
@@ -467,6 +480,7 @@ add_menus = {
     "NODE_MT_category_shader_shader": NODE_MT_shader_node_shader_base,
     "NODE_MT_category_shader_texture": NODE_MT_shader_node_texture_base,
     "NODE_MT_category_shader_displacement": NODE_MT_shader_node_displacement_base,
+    "NODE_MT_category_shader_bundle_base": NODE_MT_shader_node_bundle_base,
     "NODE_MT_category_shader_vector": NODE_MT_shader_node_vector_base,
     "NODE_MT_category_shader_math": NODE_MT_shader_node_math_base,
     "NODE_MT_category_shader_utilities": NODE_MT_shader_node_utilities_base,
@@ -487,6 +501,7 @@ swap_menus = {
     "NODE_MT_shader_node_shader_swap": NODE_MT_shader_node_shader_base,
     "NODE_MT_shader_node_texture_swap": NODE_MT_shader_node_texture_base,
     "NODE_MT_shader_node_displacement_swap": NODE_MT_shader_node_displacement_base,
+    "NODE_MT_shader_node_bundle_base": NODE_MT_shader_node_bundle_base,
     "NODE_MT_shader_node_vector_swap": NODE_MT_shader_node_vector_base,
     "NODE_MT_shader_node_math_swap": NODE_MT_shader_node_math_base,
     "NODE_MT_shader_node_utilities_swap": NODE_MT_shader_node_utilities_base,
