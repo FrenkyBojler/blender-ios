@@ -86,21 +86,17 @@ struct VertSlideData {
 
   /**
    * Run while moving the mouse to slide along the edge matching the mouse direction.
-   */
-  /**
-   * Update which edges are active for vertex slide.
-   * If fixed_dir is given, use that as the 2D direction (for redo).
-   * Otherwise, compute direction from current mouse position.
-   */
-  void update_active_edges(TransInfo *t, const float2 *fixed_dir = nullptr)
+
+ * Update which edges are active for vertex slide using a world-space direction.
+ */
+  void update_active_edges(TransInfo * /*t*/,
+                           const TransDataContainer *tc,
+                           const float3 &dir_world)
   {
-    float2 dir;
-    if (fixed_dir) {
-      dir = math::normalize(*fixed_dir);
-    }
-    else {
-      dir = math::normalize(float2(t->mval) - t->mouse.imval);
-    }
+    const float3 dir = math::normalize(dir_world);
+
+    const float4x4 obmat = (tc && tc->obedit) ? tc->obedit->object_to_world() :
+                                                float4x4::identity();
 
     for (TransDataVertSlideVert &sv : this->sv) {
       if (sv.co_link_orig_3d.size() <= 1) {
@@ -108,15 +104,21 @@ struct VertSlideData {
       }
 
       const float3 v_co_orig = sv.co_orig_3d();
-      float2 loc_src_2d = math::project_point(this->proj_mat, v_co_orig).xy();
 
       float dir_dot_best = -FLT_MAX;
       int co_link_curr_best = -1;
 
       for (int j : sv.co_link_orig_3d.index_range()) {
         const float3 &loc_dst = sv.co_link_orig_3d[j];
-        float2 loc_dst_2d = math::project_point(this->proj_mat, loc_dst).xy();
-        float2 tdir = math::normalize(loc_dst_2d - loc_src_2d);
+
+        float3 tdir = loc_dst - v_co_orig;
+
+        float ev[3] = {tdir.x, tdir.y, tdir.z};
+        mul_mat3_m4_v3(const_cast<float (*)[4]>(obmat.ptr()), ev);
+        tdir = float3(ev[0], ev[1], ev[2]);
+
+        const float len2 = len_squared_v3(tdir);
+        tdir *= 1.0f / math::sqrt(len2);
 
         const float dir_dot = math::dot(dir, tdir);
         if (dir_dot > dir_dot_best) {
@@ -156,7 +158,7 @@ struct VertSlideParams {
   wmOperator *op;
   bool use_even;
   bool flipped;
-  float2 dir_2d;
+  float3 dir_3d;
   bool have_dir;
 };
 
@@ -231,6 +233,24 @@ static void freeVertSlideVerts(TransInfo * /*t*/,
   custom_data->data = nullptr;
 }
 
+static float3 mouse_delta_to_world_dir(const TransInfo *t, const float2 &delta)
+{
+  if (t->spacetype == SPACE_VIEW3D) {
+    if (!(t->region && t->region->regiondata)) {
+      return float3(0.0f, 0.0f, 0.0f);
+    }
+    const RegionView3D *rv3d = static_cast<const RegionView3D *>(t->region->regiondata);
+    float v[3] = {delta.x, delta.y, 0.0f};
+    mul_mat3_m4_v3(const_cast<float (*)[4]>(rv3d->viewinv), v);
+    const float3 dir(v[0], v[1], v[2]);
+
+    return math::normalize(dir);
+  }
+
+  const float3 dir(delta.x, delta.y, 0.0f);
+  return math::normalize(dir);
+}
+
 static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
 {
   if (t->redraw && event->type != MOUSEMOVE) {
@@ -272,17 +292,20 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
           const TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_OK(t);
           VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
 
-          const float2 dir = float2(event->mval) - t->mouse.imval;
-          sld->update_active_edges(t, &dir);
-          if (slp->op) {
-            PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction");
-            if (pdir) {
-              float tmp[2] = {dir.x, dir.y};
-              RNA_property_float_set_array(slp->op->ptr, pdir, tmp);
+          const float2 delta = float2(event->mval) - t->mouse.imval;
+          if (!(delta.x == 0.0f && delta.y == 0.0f)) {
+            const float3 dir3 = mouse_delta_to_world_dir(t, delta);
+            sld->update_active_edges(t, tc, dir3);
+
+            if (slp->op) {
+              if (PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction")) {
+                float tmp[3] = {dir3.x, dir3.y, dir3.z};
+                RNA_property_float_set_array(slp->op->ptr, pdir, tmp);
+              }
             }
+            slp->dir_3d = dir3;
+            slp->have_dir = true;
           }
-          slp->dir_2d = dir;
-          slp->have_dir = true;
         }
         calcVertSlideCustomPoints(t);
         break;
@@ -627,12 +650,11 @@ static void initVertSlide_ex(
     if (op) {
       PropertyRNA *pdir = RNA_struct_find_property(op->ptr, "slide_direction");
       if (pdir && RNA_property_is_set(op->ptr, pdir)) {
-        float tmp[2];
+        float tmp[3];
         RNA_property_float_get_array(op->ptr, pdir, tmp);
-        if ((tmp[0] != 0.0f) || (tmp[1] != 0.0f)) {
-          slp->dir_2d = float2(tmp[0], tmp[1]);
-          slp->have_dir = true;
-        }
+        const float3 d(tmp[0], tmp[1], tmp[2]);
+        slp->dir_3d = math::normalize(d);
+        slp->have_dir = true;
       }
     }
 
@@ -643,16 +665,28 @@ static void initVertSlide_ex(
   bool ok = false;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     VertSlideData *sld = createVertSlideVerts(t, tc);
-    if (sld) {
-      sld->update_active_vert(t, t->mval);
-
-      VertSlideParams *slp = static_cast<VertSlideParams *>(t->custom.mode.data);
-      sld->update_active_edges(t, slp->have_dir ? &slp->dir_2d : nullptr);
-
-      tc->custom.mode.data = sld;
-      tc->custom.mode.free_cb = freeVertSlideVerts;
-      ok = true;
+    if (!sld) {
+      continue;
     }
+
+    sld->update_active_vert(t, t->mval);
+
+    VertSlideParams *slp_local = static_cast<VertSlideParams *>(t->custom.mode.data);
+
+    float3 init_dir;
+    if (slp_local->have_dir) {
+      init_dir = slp_local->dir_3d;
+    }
+    else {
+      const float2 delta = float2(t->mval) - t->mouse.imval;
+      init_dir = mouse_delta_to_world_dir(t, delta);
+    }
+
+    sld->update_active_edges(t, tc, init_dir);
+
+    tc->custom.mode.data = sld;
+    tc->custom.mode.free_cb = freeVertSlideVerts;
+    ok = true;
   }
 
   if (ok == false) {
