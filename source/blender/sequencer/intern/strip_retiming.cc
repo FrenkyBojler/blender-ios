@@ -601,8 +601,9 @@ SeqRetimingKey *retiming_add_freeze_frame(const Scene *scene,
   }
 
   freeze_keys.first->flag |= SEQ_FREEZE_FRAME_IN;
-  freeze_keys.second->retiming_factor = orig_retiming_factor;
   freeze_keys.second->flag |= SEQ_FREEZE_FRAME_OUT;
+  freeze_keys.first->retiming_factor = orig_retiming_factor;
+  freeze_keys.second->retiming_factor = orig_retiming_factor;
   return freeze_keys.second;
 }
 
