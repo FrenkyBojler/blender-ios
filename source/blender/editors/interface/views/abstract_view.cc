@@ -64,7 +64,6 @@ void AbstractView::update_from_old(uiBlock &new_block)
   rename_buffer_ = std::move(old_view->rename_buffer_);
   old_view->rename_buffer_ = nullptr;
   search_string_ = std::move(old_view->search_string_);
-  filtering_collapsed_state = old_view->filtering_collapsed_state;
 
   this->update_children_from_old(*old_view);
 
@@ -271,16 +270,6 @@ void AbstractView::set_serach_string(char *search_string)
     search_string_.insert(0, "*");
     search_string_.push_back('*');
   }
-}
-
-void AbstractView::set_filtering_collapsed()
-{
-  this->filtering_collapsed_state = !this->filtering_collapsed_state;
-}
-
-bool AbstractView::is_filtering_collapsed() const
-{
-  return this->filtering_collapsed_state;
 }
 /** \} */
 

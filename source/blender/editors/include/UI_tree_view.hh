@@ -133,6 +133,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   int last_tot_items_ = 0;
 
   bool scroll_active_into_view_on_draw_ = false;
+  bool is_filtering_collapsed_ = true;
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
@@ -167,12 +168,14 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   void filter(std::optional<StringRef> filter_str) override;
   void save_filtering_state(bool value);
+  void toggle_filtering_collapsed();
 
  protected:
   virtual void build_tree() = 0;
 
   std::optional<uiViewState> persistent_state() const override;
   void persistent_state_apply(const uiViewState &state) override;
+  void update_from_old(uiBlock &new_block) override;
 
  private:
   void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const final;

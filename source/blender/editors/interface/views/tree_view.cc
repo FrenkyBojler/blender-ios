@@ -172,7 +172,27 @@ void AbstractTreeView::filter(std::optional<StringRef> filter_str)
 
 void AbstractTreeView::save_filtering_state(bool value)
 {
-  this->filtering_collapsed_state = value;
+  is_filtering_collapsed_ = value;
+}
+
+void AbstractTreeView::toggle_filtering_collapsed()
+{
+  is_filtering_collapsed_ = !is_filtering_collapsed_;
+}
+
+void AbstractTreeView::update_from_old(uiBlock &new_block)
+{
+  AbstractView::update_from_old(new_block);
+  uiBlock *old_block = new_block.oldblock;
+  if (!old_block) {
+    return;
+  }
+
+  if (AbstractView *old_view = ui_block_view_find_matching_in_old_block(new_block, *this)) {
+    if (AbstractTreeView *old_tree_view = dynamic_cast<AbstractTreeView *>(old_view)) {
+      is_filtering_collapsed_ = old_tree_view->is_filtering_collapsed_;
+    }
+  }
 }
 
 std::optional<uiViewState> AbstractTreeView::persistent_state() const
@@ -189,7 +209,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
   }
-  state.filtering_collapsed_state = is_filtering_collapsed();
+  state.filtering_collapsed_state = is_filtering_collapsed_;
 
   return state;
 }
@@ -889,8 +909,11 @@ static void set_filtering_collapsed_fn(bContext *C, void * /*but_arg1*/, void * 
   if (!region) {
     return;
   }
+
   if (AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, 2 * UI_UNIT_Y)) {
-    view->set_filtering_collapsed();
+    if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
+      tree_view->toggle_filtering_collapsed();
+    }
   }
 }
 
@@ -973,7 +996,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     /* Bottom */
     uiLayout *bottom = &col->row(false);
     UI_block_emboss_set(block, ui::EmbossType::None);
-    int icon = tree_view.is_filtering_collapsed() ? ICON_DISCLOSURE_TRI_RIGHT :
+    int icon = tree_view.is_filtering_collapsed_ ? ICON_DISCLOSURE_TRI_RIGHT :
                                                     ICON_DISCLOSURE_TRI_DOWN;
     uiBut *but = uiDefIconBut(
         block, ButType::IconToggle, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.3, nullptr, 0, 0, "");
@@ -994,7 +1017,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   0,
                   "");
 
-    if (!tree_view.is_filtering_collapsed()) {
+    if (!tree_view.is_filtering_collapsed_) {
       block_layout_set_current(block, col);
       static char search[256] = "";
       uiBut *but = uiDefBut(block,

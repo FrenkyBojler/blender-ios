@@ -157,11 +157,8 @@ class AbstractView {
 
   std::string get_search_string();
   void set_serach_string(char *search_string);
-  void set_filtering_collapsed();
-  bool is_filtering_collapsed() const;
 
  protected:
-  bool filtering_collapsed_state = true;
   bool needs_filtering_ = true;
   AbstractView() = default;
 
@@ -182,7 +179,7 @@ class AbstractView {
    * #AbstractViewItem.update_from_old().
    * After this, reconstruction is complete (see #is_reconstructed()).
    */
-  void update_from_old(uiBlock &new_block);
+  virtual void update_from_old(uiBlock &new_block);
   /**
    * Check if the view is fully (re-)constructed. That means, both the build function and
    * #update_from_old() have finished.
