@@ -25,6 +25,7 @@
 #include "ED_asset_menu_utils.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 namespace blender::ed::asset {
 
@@ -53,6 +54,13 @@ void operator_asset_reference_props_set(const asset_system::AssetRepresentation 
   RNA_enum_set(&ptr, "asset_library_type", weak_ref.asset_library_type);
   RNA_string_set(&ptr, "asset_library_identifier", weak_ref.asset_library_identifier);
   RNA_string_set(&ptr, "relative_asset_identifier", weak_ref.relative_asset_identifier);
+}
+
+bool operator_asset_reference_props_is_set(PointerRNA &ptr)
+{
+  return RNA_struct_property_is_set(&ptr, "asset_library_type") &&
+         RNA_struct_property_is_set(&ptr, "asset_library_identifier") &&
+         RNA_struct_property_is_set(&ptr, "relative_asset_identifier");
 }
 
 /**
@@ -140,7 +148,18 @@ void draw_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
                            uiLayout &layout)
 {
   uiLayout *col = &layout.column(false);
-  uiLayoutSetContextString(col, "asset_catalog_path", item.catalog_path().c_str());
+  col->context_string_set("asset_catalog_path", item.catalog_path().c_str());
+  col->menu(menu_name, IFACE_(item.get_name()), ICON_NONE);
+}
+
+void draw_node_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
+                                const StringRefNull operator_id,
+                                const StringRefNull menu_name,
+                                uiLayout &layout)
+{
+  uiLayout *col = &layout.column(false);
+  col->context_string_set("asset_catalog_path", item.catalog_path().c_str());
+  col->context_string_set("operator_id", operator_id);
   col->menu(menu_name, IFACE_(item.get_name()), ICON_NONE);
 }
 

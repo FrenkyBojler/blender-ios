@@ -6,6 +6,7 @@
 
 #include "DNA_attribute_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_storage.hh"
 
@@ -18,6 +19,9 @@ struct GreasePencil;
 struct Mesh;
 
 namespace blender::bke {
+
+const CPPType *custom_data_type_to_cpp_type(eCustomDataType type);
+eCustomDataType cpp_type_to_custom_data_type(const CPPType &type);
 
 /**
  * Convert a custom data type to an attribute type. May return `std::nullopt` if the custom data
@@ -44,20 +48,11 @@ void mesh_convert_storage_to_customdata(Mesh &mesh);
  */
 void mesh_convert_customdata_to_storage(Mesh &mesh);
 
-/** See #mesh_convert_storage_to_customdata. */
-void curves_convert_storage_to_customdata(CurvesGeometry &curves);
-
 /** See #mesh_convert_customdata_to_storage. */
 void curves_convert_customdata_to_storage(CurvesGeometry &curves);
 
-/** See #mesh_convert_storage_to_customdata. */
-void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud);
-
 /** See #mesh_convert_customdata_to_storage. */
 void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud);
-
-/** See #mesh_convert_storage_to_customdata. */
-void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil);
 
 /** See #mesh_convert_customdata_to_storage. */
 void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil);

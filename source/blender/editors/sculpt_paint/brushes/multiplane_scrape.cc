@@ -164,12 +164,15 @@ static void sample_node_surface_mesh(const Depsgraph &depsgraph,
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
   filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   const MutableSpan normals = gather_data_mesh(vert_normals, verts, tls.normals);
 
@@ -207,12 +210,15 @@ static void sample_node_surface_grids(const Depsgraph &depsgraph,
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
   filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   tls.local_positions.resize(positions.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   tls.normals.resize(positions.size());
   MutableSpan<float3> normals = tls.normals;
@@ -253,12 +259,15 @@ static void sample_node_surface_bmesh(const Depsgraph &depsgraph,
   calc_brush_distances(ss, positions, eBrushFalloffShape(brush.falloff_shape), distances);
   filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   tls.normals.resize(verts.size());
   MutableSpan<float3> normals = tls.normals;
@@ -386,13 +395,16 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   if (angle >= 0.0f) {
     filter_plane_side_factors(positions, local_positions, scrape_planes, factors);
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
@@ -446,13 +458,16 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(positions.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   if (angle >= 0.0f) {
     filter_plane_side_factors(positions, local_positions, scrape_planes, factors);
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
@@ -505,13 +520,16 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  transform_positions(positions, mat, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   if (angle >= 0.0f) {
     filter_plane_side_factors(positions, local_positions, scrape_planes, factors);
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);

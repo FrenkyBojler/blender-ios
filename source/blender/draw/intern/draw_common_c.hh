@@ -10,12 +10,12 @@
 
 struct FluidModifierData;
 struct GPUMaterial;
-struct GPUTexture;
-struct GPUUniformBuf;
 
 namespace blender::gpu {
+class Texture;
+class UniformBuf;
 class VertBuf;
-}
+}  // namespace blender::gpu
 struct ModifierData;
 struct Object;
 struct ParticleSystem;
@@ -28,30 +28,12 @@ class Manager;
 struct CurvesModule;
 struct PointCloudModule;
 struct VolumeModule;
-struct ObjectRef;
+class ObjectRef;
 }  // namespace blender::draw
-
-/* draw_hair.cc */
-
-/**
- * \note Only valid after #DRW_curves_update().
- */
-blender::gpu::VertBuf *DRW_hair_pos_buffer_get(Object *object,
-                                               ParticleSystem *psys,
-                                               ModifierData *md);
-void DRW_hair_duplimat_get(const blender::draw::ObjectRef &ob_ref,
-                           ParticleSystem *psys,
-                           ModifierData *md,
-                           float (*dupli_mat)[4]);
 
 /* draw_curves.cc */
 
 namespace blender::draw {
-
-/**
- * \note Only valid after #DRW_curves_update().
- */
-gpu::VertBuf *DRW_curves_pos_buffer_get(Object *object);
 
 /* If drw_data is nullptr, DST global is accessed to get it. */
 void DRW_curves_init(DRWData *drw_data = nullptr);

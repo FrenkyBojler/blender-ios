@@ -9,6 +9,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
@@ -55,7 +56,6 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Main *bmain = CTX_data_main(&C);
-  Scene *scene = CTX_data_scene(&C);
   Brush *current_brush = BKE_paint_brush(paint);
 
   if (current_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
@@ -72,11 +72,11 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
   init_brush(*smooth_brush);
 
   saved_active_brush_ = current_brush;
-  saved_smooth_size_ = BKE_brush_size_get(scene, smooth_brush);
+  saved_smooth_size_ = BKE_brush_size_get(paint, smooth_brush);
 
-  const int current_brush_size = BKE_brush_size_get(scene, current_brush);
-  BKE_brush_size_set(scene, smooth_brush, current_brush_size);
-  BKE_curvemapping_init(smooth_brush->curve);
+  const int current_brush_size = BKE_brush_size_get(paint, current_brush);
+  BKE_brush_size_set(paint, smooth_brush, current_brush_size);
+  BKE_curvemapping_init(smooth_brush->curve_distance_falloff);
 }
 
 void SmoothOperation::toggle_smooth_brush_off(const bContext &C)
@@ -92,8 +92,7 @@ void SmoothOperation::toggle_smooth_brush_off(const bContext &C)
   /* If saved_active_brush is not set, brush was not switched/affected in
    * toggle_temp_on(). */
   if (saved_active_brush_) {
-    Scene *scene = CTX_data_scene(&C);
-    BKE_brush_size_set(scene, &brush, saved_smooth_size_);
+    BKE_brush_size_set(paint, &brush, saved_smooth_size_);
     BKE_paint_brush_set(paint, saved_active_brush_);
     saved_active_brush_ = nullptr;
   }
@@ -114,15 +113,14 @@ void SmoothOperation::on_stroke_begin(const bContext &C, const InputSample &star
 
 void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
-  const Scene &scene = *CTX_data_scene(&C);
+  Paint &paint = *BKE_paint_get_active_from_context(&C);
   const Brush &brush = [&]() -> const Brush & {
     if (temp_smooth_) {
       const Brush *brush = BKE_paint_brush_from_essentials(
-          CTX_data_main(&C), OB_MODE_SCULPT_GREASE_PENCIL, "Smooth");
+          CTX_data_main(&C), PaintMode::SculptGPencil, "Smooth");
       BLI_assert(brush != nullptr);
       return *brush;
     }
-    Paint &paint = *BKE_paint_get_active_from_context(&C);
     return *BKE_paint_brush(&paint);
   }();
   const int sculpt_mode_flag = brush.gpencil_settings->sculpt_mode_flag;
@@ -136,9 +134,9 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
         const VArray<bool> cyclic = curves.cyclic();
         const int iterations = 2;
 
-        const VArray<float> influences = VArray<float>::ForFunc(
+        const VArray<float> influences = VArray<float>::from_func(
             view_positions.size(), [&](const int64_t point_) {
-              return brush_point_influence(scene,
+              return brush_point_influence(paint,
                                            brush,
                                            view_positions[point_],
                                            extension_sample,
@@ -146,20 +144,18 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
             });
         Array<bool> selection_array(curves.points_num());
         point_mask.to_bools(selection_array);
-        const VArray<bool> selection_varray = VArray<bool>::ForSpan(selection_array);
+        const VArray<bool> selection_varray = VArray<bool>::from_span(selection_array);
 
         bool changed = false;
         if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_POSITION) {
-          MutableSpan<float3> positions = curves.positions_for_write();
-          geometry::smooth_curve_attribute(curves.curves_range(),
-                                           points_by_curve,
+          geometry::smooth_curve_positions(curves,
+                                           curves.curves_range(),
                                            selection_varray,
-                                           cyclic,
                                            iterations,
                                            influences,
                                            false,
-                                           false,
-                                           positions);
+                                           false);
+
           params.drawing.tag_positions_changed();
           changed = true;
         }

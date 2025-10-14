@@ -21,7 +21,7 @@
 #  include "DNA_modifier_types.h"
 #  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"
-#  include "DNA_space_types.h"
+#  include "DNA_space_enums.h"
 
 #  include "BKE_context.hh"
 #  include "BKE_file_handler.hh"
@@ -29,7 +29,7 @@
 #  include "BKE_report.hh"
 
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 #  include "BLI_utildefines.h"
 #  include "BLI_vector.hh"
 
@@ -54,8 +54,13 @@
 #  include "io_utils.hh"
 
 #  include "ABC_alembic.h"
+#  include "UI_interface_layout.hh"
 
-const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
+#  include "CLG_log.h"
+
+static CLG_LogRef LOG = {"io.alembic"};
+
+static const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
     {DAG_EVAL_RENDER,
      "RENDER",
      0,
@@ -114,7 +119,6 @@ static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
   params.apply_subdiv = RNA_boolean_get(op->ptr, "apply_subdiv");
   params.curves_as_mesh = RNA_boolean_get(op->ptr, "curves_as_mesh");
   params.flatten_hierarchy = RNA_boolean_get(op->ptr, "flatten");
-  params.visible_objects_only = RNA_boolean_get(op->ptr, "visible_objects_only");
   params.face_sets = RNA_boolean_get(op->ptr, "face_sets");
   params.use_subdiv_schema = RNA_boolean_get(op->ptr, "subdiv_schema");
   params.export_hair = RNA_boolean_get(op->ptr, "export_hair");
@@ -148,8 +152,8 @@ static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
 
 static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "ABC_export_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -159,7 +163,6 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
     if (CTX_wm_space_file(C)) {
       uiLayout *sub = &col->column(true, IFACE_("Include"));
       sub->prop(ptr, "selected", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
-      sub->prop(ptr, "visible_objects_only", UI_ITEM_NONE, IFACE_("Visible Only"), ICON_NONE);
     }
   }
 
@@ -200,7 +203,7 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
     col->prop(ptr, "uvs", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     uiLayout *row = &col->row(false);
-    uiLayoutSetActive(row, RNA_boolean_get(ptr, "uvs"));
+    row->active_set(RNA_boolean_get(ptr, "uvs"));
     row->prop(ptr, "packuv", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     col->prop(ptr, "normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -218,7 +221,7 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
     col = &panel->column(false);
     col->prop(ptr, "triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     sub = &col->column(false);
-    uiLayoutSetActive(sub, RNA_boolean_get(ptr, "triangulate"));
+    sub->active_set(RNA_boolean_get(ptr, "triangulate"));
     sub->prop(ptr, "quad_method", UI_ITEM_NONE, IFACE_("Method Quads"), ICON_NONE);
     sub->prop(ptr, "ngon_method", UI_ITEM_NONE, IFACE_("Polygons"), ICON_NONE);
   }
@@ -352,18 +355,12 @@ void WM_OT_alembic_export(wmOperatorType *ot)
       ot->srna, "selected", false, "Selected Objects Only", "Export only selected objects");
 
   RNA_def_boolean(ot->srna,
-                  "visible_objects_only",
-                  false,
-                  "Visible Objects Only",
-                  "Export only objects that are visible");
-
-  RNA_def_boolean(ot->srna,
                   "flatten",
                   false,
                   "Flatten Hierarchy",
                   "Do not preserve objects' parent/children relationship");
 
-  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_IDPROP_NAME, "Collection", nullptr);
+  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
   RNA_def_boolean(ot->srna, "uvs", true, "UV Coordinates", "Export UV coordinates");
@@ -507,10 +504,10 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
   DIR *dir = opendir(dirpath);
   if (dir == nullptr) {
-    fprintf(stderr,
-            "Error opening directory '%s': %s\n",
-            dirpath,
-            errno ? strerror(errno) : "unknown error");
+    CLOG_ERROR(&LOG,
+               "Error opening directory '%s': %s",
+               dirpath,
+               errno ? strerror(errno) : "unknown error");
     return -1;
   }
 
@@ -565,8 +562,8 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
 static void ui_alembic_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "ABC_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -726,11 +723,11 @@ namespace blender::ed::io {
 void alembic_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_alembic");
-  STRNCPY(fh->import_operator, "WM_OT_alembic_import");
-  STRNCPY(fh->export_operator, "WM_OT_alembic_export");
-  STRNCPY(fh->label, "Alembic");
-  STRNCPY(fh->file_extensions_str, ".abc");
+  STRNCPY_UTF8(fh->idname, "IO_FH_alembic");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_alembic_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_alembic_export");
+  STRNCPY_UTF8(fh->label, "Alembic");
+  STRNCPY_UTF8(fh->file_extensions_str, ".abc");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

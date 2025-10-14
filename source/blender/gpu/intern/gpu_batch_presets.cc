@@ -52,6 +52,7 @@ static struct {
 } g_presets_2d = {{nullptr}};
 
 static ListBase presets_list = {nullptr, nullptr};
+static ListBase buffer_list = {nullptr, nullptr};
 
 /** \} */
 
@@ -64,9 +65,9 @@ static GPUVertFormat &preset_3d_format()
   if (g_presets_3d.format.attr_len == 0) {
     GPUVertFormat *format = &g_presets_3d.format;
     g_presets_3d.attr_id.pos = GPU_vertformat_attr_add(
-        format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+        format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
     g_presets_3d.attr_id.nor = GPU_vertformat_attr_add(
-        format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+        format, "nor", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   }
   return g_presets_3d.format;
 }
@@ -76,9 +77,9 @@ static GPUVertFormat &preset_2d_format()
   if (g_presets_2d.format.attr_len == 0) {
     GPUVertFormat *format = &g_presets_2d.format;
     g_presets_2d.attr_id.pos = GPU_vertformat_attr_add(
-        format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     g_presets_2d.attr_id.col = GPU_vertformat_attr_add(
-        format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+        format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   }
   return g_presets_2d.format;
 }
@@ -252,19 +253,11 @@ void gpu_batch_presets_register(blender::gpu::Batch *preset_batch)
   BLI_mutex_unlock(&g_presets_3d.mutex);
 }
 
-bool gpu_batch_presets_unregister(blender::gpu::Batch *preset_batch)
+void gpu_batch_storage_buffer_register(blender::gpu::StorageBuf *preset_buffer)
 {
   BLI_mutex_lock(&g_presets_3d.mutex);
-  LISTBASE_FOREACH_BACKWARD (LinkData *, link, &presets_list) {
-    if (preset_batch == link->data) {
-      BLI_remlink(&presets_list, link);
-      BLI_mutex_unlock(&g_presets_3d.mutex);
-      MEM_freeN(link);
-      return true;
-    }
-  }
+  BLI_addtail(&buffer_list, BLI_genericNodeN(preset_buffer));
   BLI_mutex_unlock(&g_presets_3d.mutex);
-  return false;
 }
 
 void gpu_batch_presets_exit()
@@ -272,6 +265,12 @@ void gpu_batch_presets_exit()
   while (LinkData *link = static_cast<LinkData *>(BLI_pophead(&presets_list))) {
     blender::gpu::Batch *preset = static_cast<blender::gpu::Batch *>(link->data);
     GPU_batch_discard(preset);
+    MEM_freeN(link);
+  }
+
+  while (LinkData *link = static_cast<LinkData *>(BLI_pophead(&buffer_list))) {
+    blender::gpu::StorageBuf *preset = static_cast<blender::gpu::StorageBuf *>(link->data);
+    GPU_storagebuf_free(preset);
     MEM_freeN(link);
   }
 

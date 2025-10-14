@@ -23,6 +23,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
@@ -70,8 +71,8 @@ namespace blender::draw {
 
 void DRW_vertbuf_create_wiredata(gpu::VertBuf *vbo, const int vert_len)
 {
-  static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "wd", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  static const GPUVertFormat format = GPU_vertformat_from_attribute("wd",
+                                                                    gpu::VertAttrType::SFLOAT_32);
   GPU_vertbuf_init_with_format(*vbo, format);
   GPU_vertbuf_data_alloc(*vbo, vert_len);
   vbo->data<float>().fill(1.0f);
@@ -167,6 +168,12 @@ gpu::Batch *DRW_cache_mesh_all_verts_get(Object *ob)
   return DRW_mesh_batch_cache_get_all_verts(DRW_object_get_data_for_drawing<Mesh>(*ob));
 }
 
+gpu::Batch *DRW_cache_mesh_paint_overlay_verts_get(Object *ob)
+{
+  BLI_assert(ob->type == OB_MESH);
+  return DRW_mesh_batch_cache_get_paint_overlay_verts(DRW_object_get_data_for_drawing<Mesh>(*ob));
+}
+
 gpu::Batch *DRW_cache_mesh_all_edges_get(Object *ob)
 {
   BLI_assert(ob->type == OB_MESH);
@@ -192,10 +199,17 @@ gpu::Batch *DRW_cache_mesh_surface_get(Object *ob)
   return DRW_mesh_batch_cache_get_surface(DRW_object_get_data_for_drawing<Mesh>(*ob));
 }
 
-gpu::Batch *DRW_cache_mesh_surface_edges_get(Object *ob)
+gpu::Batch *DRW_cache_mesh_paint_overlay_surface_get(Object *ob)
 {
   BLI_assert(ob->type == OB_MESH);
-  return DRW_mesh_batch_cache_get_surface_edges(DRW_object_get_data_for_drawing<Mesh>(*ob));
+  return DRW_mesh_batch_cache_get_paint_overlay_surface(
+      DRW_object_get_data_for_drawing<Mesh>(*ob));
+}
+
+gpu::Batch *DRW_cache_mesh_paint_overlay_edges_get(Object *ob)
+{
+  BLI_assert(ob->type == OB_MESH);
+  return DRW_mesh_batch_cache_get_paint_overlay_edges(DRW_object_get_data_for_drawing<Mesh>(*ob));
 }
 
 Span<gpu::Batch *> DRW_cache_mesh_surface_shaded_get(Object *ob,
@@ -530,11 +544,11 @@ void drw_batch_cache_generate_requested_evaluated_mesh_or_curve(Object *ob, Task
 
   Mesh *mesh = BKE_object_get_evaluated_mesh_no_subsurf_unchecked(ob);
   /* Try getting the mesh first and if that fails, try getting the curve data.
-   * If the curves are surfaces or have certain modifiers applied to them, the will have mesh data
-   * of the final result.
-   */
+   * If the curves are surfaces or have certain modifiers applied to them,
+   * they will have mesh data of the final result. */
   if (mesh != nullptr) {
-    DRW_mesh_batch_cache_create_requested(task_graph, *ob, *mesh, *scene, is_paint_mode, use_hide);
+    DRW_mesh_batch_cache_create_requested(
+        task_graph, *ob, DRW_mesh_get_for_drawing(*mesh), *scene, is_paint_mode, use_hide);
   }
   else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
     DRW_curve_batch_cache_create_requested(ob, scene);
@@ -572,7 +586,7 @@ void DRW_batch_cache_free_old(Object *ob, int ctime)
 
 void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
-                                  const int data_type,
+                                  const bke::AttrType data_type,
                                   const StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer)
@@ -590,7 +604,7 @@ void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
 
   /* Active render layer name. */
   if (is_active_render) {
-    GPU_vertformat_alias_add(format, data_type == CD_PROP_FLOAT2 ? "a" : base_name);
+    GPU_vertformat_alias_add(format, data_type == bke::AttrType::Float2 ? "a" : base_name);
   }
 
   /* Active display layer name. */

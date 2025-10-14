@@ -14,9 +14,10 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
+#include "BKE_idtype.hh"
 #include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -48,7 +49,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = shaderfx_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "rim_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "mask_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -70,7 +71,7 @@ static void blur_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = shaderfx_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   /* Add the X, Y labels manually because blur is a #PROP_PIXEL. */
   col = &layout->column(true);
@@ -85,6 +86,14 @@ static void panel_register(ARegionType *region_type)
 {
   PanelType *panel_type = shaderfx_panel_register(region_type, eShaderFxType_Rim, panel_draw);
   shaderfx_subpanel_register(region_type, "blur", "Blur", nullptr, blur_panel_draw, panel_type);
+}
+
+static void foreach_working_space_color(ShaderFxData *fx,
+                                        const IDTypeForeachColorFunctionCallback &fn)
+{
+  RimShaderFxData *gpfx = (RimShaderFxData *)fx;
+  fn.single(gpfx->rim_rgb);
+  fn.single(gpfx->mask_rgb);
 }
 
 ShaderFxTypeInfo shaderfx_Type_Rim = {
@@ -102,5 +111,6 @@ ShaderFxTypeInfo shaderfx_Type_Rim = {
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
     /*foreach_ID_link*/ nullptr,
+    /*foreach_working_space_color*/ foreach_working_space_color,
     /*panel_register*/ panel_register,
 };

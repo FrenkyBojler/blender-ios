@@ -111,7 +111,8 @@ static void gizmo_primitive_draw_geom(PrimitiveGizmo3D *gz_prim,
                                       const bool draw_inner,
                                       const bool select)
 {
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   const bool use_polyline_shader = gz_prim->gizmo.line_width > 1.0f;
 
   if (draw_inner || !use_polyline_shader) {
@@ -279,6 +280,8 @@ static void GIZMO_GT_primitive_3d(wmGizmoType *gzt)
   RNA_def_property_enum_funcs_runtime(prop,
                                       gizmo_primitive_rna__draw_style_get_fn,
                                       gizmo_primitive_rna__draw_style_set_fn,
+                                      nullptr,
+                                      nullptr,
                                       nullptr);
 
   prop = RNA_def_float_factor(
@@ -286,11 +289,16 @@ static void GIZMO_GT_primitive_3d(wmGizmoType *gzt)
   RNA_def_property_float_funcs_runtime(prop,
                                        gizmo_primitive_rna__arc_inner_factor_get_fn,
                                        gizmo_primitive_rna__arc_inner_factor_set_fn,
+                                       nullptr,
+                                       nullptr,
                                        nullptr);
 
   prop = RNA_def_boolean(gzt->srna, "draw_inner", true, "Draw Inner", "");
-  RNA_def_property_boolean_funcs_runtime(
-      prop, gizmo_primitive_rna__draw_inner_get_fn, gizmo_primitive_rna__draw_inner_set_fn);
+  RNA_def_property_boolean_funcs_runtime(prop,
+                                         gizmo_primitive_rna__draw_inner_get_fn,
+                                         gizmo_primitive_rna__draw_inner_set_fn,
+                                         nullptr,
+                                         nullptr);
 }
 
 void ED_gizmotypes_primitive_3d()

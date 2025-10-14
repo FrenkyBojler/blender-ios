@@ -89,6 +89,9 @@ void version_node_output_socket_name(bNodeTree *ntree,
                                      const char *old_name,
                                      const char *new_name);
 
+/**
+ * Find the base socket name for an idname that may include a subtype.
+ */
 blender::StringRef legacy_socket_idname_to_socket_type(blender::StringRef idname);
 
 /**
@@ -101,8 +104,23 @@ blender::StringRef legacy_socket_idname_to_socket_type(blender::StringRef idname
  * code generally expects to get the sockets that the node had at the time of writing the
  * versioning code. Changing the declaration later can break the versioning code in ways that are
  * hard to detect.
+ *
+ * When adding new nodes in versioning code that replace or belong to existing nodes, they should
+ * be positioned so that it overlaps the existing node with just a slight offset. This is better
+ * than putting them next to each other they way one would do it manually, because it messes up
+ * more complex node trees significantly. In simple tests, putting the nodes next to each other
+ * looks better, but in actual user-files it looks way worse and makes it less obvious what was
+ * changed by versioning code.
  */
 bNode &version_node_add_empty(bNodeTree &ntree, const char *idname);
+
+/**
+ * Removes a node for versioning purposes:
+ * - Animation data (#AnimData) are not removed, because they might be using #bAction.id which
+ *   is not be available before linking.
+ * - User count is not updated. This is ensured after blend file reading is done.
+ */
+void version_node_remove(bNodeTree &ntree, bNode &node);
 bNodeSocket &version_node_add_socket(bNodeTree &ntree,
                                      bNode &node,
                                      eNodeSocketInOut in_out,
@@ -194,11 +212,20 @@ void version_update_node_input(
     FunctionRef<void(bNode *, bNodeSocket *, bNode *, bNodeSocket *)> update_input_link);
 
 bNode *version_eevee_output_node_get(bNodeTree *ntree, int16_t node_type);
+
+/**
+ * Allow 5.0+ to 'convert' older blendfiles' system properties storage.
+ */
+void version_system_idprops_generate(Main *bmain);
+void version_system_idprops_nodes_generate(Main *bmain);
+
 bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines);
 
-/* Adjust the values of the given FCurve key frames by applying the given function. The function is
+/**
+ * Adjust the values of the given FCurve key frames by applying the given function. The function is
  * expected to get and return a float representing the value of the key frame. The FCurve is
- * potentially changed to have the given property type, if not already the case. */
+ * potentially changed to have the given property type, if not already the case.
+ */
 template<typename Function>
 static void adjust_fcurve_key_frame_values(FCurve *fcurve,
                                            const PropertyType property_type,
@@ -236,3 +263,8 @@ static void adjust_fcurve_key_frame_values(FCurve *fcurve,
   /* Recalculate the automatic handles of the FCurve after adjustments. */
   BKE_fcurve_handles_recalc(fcurve);
 }
+
+/* Gets the compositing node tree of the given scene. The deprecated node-tree member is returned
+ * for older versions before reusable node trees were introduced in bd61e69be5, while the new
+ * compositing_node_group is returned otherwise. */
+bNodeTree *version_get_scene_compositor_node_tree(Main *bmain, Scene *scene);

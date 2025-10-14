@@ -18,6 +18,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
@@ -38,7 +39,6 @@
 #include "IMB_imbuf.hh"
 
 #include <cmath>
-#include <cstdlib>
 
 namespace blender::ed::sculpt_paint::color {
 
@@ -352,8 +352,7 @@ static void do_color_smooth_task(const Depsgraph &depsgraph,
   }
 }
 
-static void do_paint_brush_task(const Scene &scene,
-                                const Depsgraph &depsgraph,
+static void do_paint_brush_task(const Depsgraph &depsgraph,
                                 Object &object,
                                 const Span<float3> vert_positions,
                                 const Span<float3> vert_normals,
@@ -374,7 +373,7 @@ static void do_paint_brush_task(const Scene &scene,
   const StrokeCache &cache = *ss.cache;
 
   const float bstrength = fabsf(ss.cache->bstrength);
-  const float alpha = BKE_brush_alpha_get(&scene, &brush);
+  const float alpha = BKE_brush_alpha_get(&paint, &brush);
 
   const Span<int> verts = node.verts();
 
@@ -403,7 +402,11 @@ static void do_paint_brush_task(const Scene &scene,
   }
   filter_distances_with_radius(radius, distances, factors);
   apply_hardness_to_distances(radius, cache.hardness, distances);
-  calc_brush_strength_factors(cache, brush, distances, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   MutableSpan<float> auto_mask;
   if (cache.automasking) {
@@ -431,14 +434,11 @@ static void do_paint_brush_task(const Scene &scene,
     }
   }
 
-  float3 brush_color_rgb = ss.cache->invert ?
-                               BKE_brush_secondary_color_get(&scene, &paint, &brush) :
-                               BKE_brush_color_get(&scene, &paint, &brush);
-
-  IMB_colormanagement_srgb_to_scene_linear_v3(brush_color_rgb, brush_color_rgb);
+  float3 brush_color_rgb = ss.cache->invert ? BKE_brush_secondary_color_get(&paint, &brush) :
+                                              BKE_brush_color_get(&paint, &brush);
 
   const std::optional<BrushColorJitterSettings> color_jitter_settings =
-      BKE_brush_color_jitter_get_settings(&scene, &paint, &brush);
+      BKE_brush_color_jitter_get_settings(&paint, &brush);
   if (color_jitter_settings) {
     brush_color_rgb = BKE_paint_randomize_color(*color_jitter_settings,
                                                 *ss.cache->initial_hsv_jitter,
@@ -556,8 +556,7 @@ static void do_sample_wet_paint_task(const Object &object,
   }
 }
 
-void do_paint_brush(const Scene &scene,
-                    const Depsgraph &depsgraph,
+void do_paint_brush(const Depsgraph &depsgraph,
                     PaintModeSettings &paint_mode_settings,
                     const Sculpt &sd,
                     Object &ob,
@@ -565,7 +564,7 @@ void do_paint_brush(const Scene &scene,
                     const IndexMask &texnode_mask)
 {
   if (SCULPT_use_image_paint_brush(paint_mode_settings, ob)) {
-    SCULPT_do_paint_brush_image(scene, depsgraph, paint_mode_settings, sd, ob, texnode_mask);
+    SCULPT_do_paint_brush_image(depsgraph, paint_mode_settings, sd, ob, texnode_mask);
     return;
   }
 
@@ -582,7 +581,7 @@ void do_paint_brush(const Scene &scene,
     return;
   }
 
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   float4x4 mat;
 
@@ -686,8 +685,7 @@ void do_paint_brush(const Scene &scene,
   threading::EnumerableThreadSpecific<ColorPaintLocalData> all_tls;
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
     ColorPaintLocalData &tls = all_tls.local();
-    do_paint_brush_task(scene,
-                        depsgraph,
+    do_paint_brush_task(depsgraph,
                         ob,
                         vert_positions,
                         vert_normals,
@@ -911,7 +909,7 @@ void do_smear_brush(const Depsgraph &depsgraph,
     });
   }
 
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   /* Smooth colors mode. */
   if (ss.cache->alt_smooth) {

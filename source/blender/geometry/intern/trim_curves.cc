@@ -700,8 +700,8 @@ static void trim_bezier_curves(const bke::CurvesGeometry &src_curves,
   const Span<float3> src_positions = src_curves.positions();
   const VArraySpan<int8_t> src_types_l{src_curves.handle_types_left()};
   const VArraySpan<int8_t> src_types_r{src_curves.handle_types_right()};
-  const Span<float3> src_handles_l = src_curves.handle_positions_left();
-  const Span<float3> src_handles_r = src_curves.handle_positions_right();
+  const Span<float3> src_handles_l = *src_curves.handle_positions_left();
+  const Span<float3> src_handles_r = *src_curves.handle_positions_right();
 
   const OffsetIndices dst_points_by_curve = dst_curves.points_by_curve();
   MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
@@ -975,7 +975,7 @@ bke::CurvesGeometry trim_curves(const bke::CurvesGeometry &src_curves,
   Vector<bke::AttributeTransferData> transfer_attributes = bke::retrieve_attributes_for_transfer(
       src_attributes,
       dst_attributes,
-      ATTR_DOMAIN_MASK_POINT,
+      {bke::AttrDomain::Point},
       bke::attribute_filter_with_skip_ref(attribute_filter,
                                           {"position",
                                            "handle_left",

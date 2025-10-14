@@ -14,7 +14,6 @@
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "node_composite_util.hh"
@@ -25,14 +24,13 @@ namespace blender::nodes::node_composite_pixelate_cc {
 
 static void cmp_node_pixelate_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Color").compositor_domain_priority(0);
-  b.add_input<decl::Int>("Size")
-      .default_value(1)
-      .min(1)
-      .description("The number of pixels that correspond to the same output pixel")
-      .compositor_expects_single_value();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Color>("Color").structure_type(StructureType::Dynamic).hide_value();
+  b.add_output<decl::Color>("Color").structure_type(StructureType::Dynamic).align_with_previous();
 
-  b.add_output<decl::Color>("Color");
+  b.add_input<decl::Int>("Size").default_value(1).min(1).description(
+      "The number of pixels that correspond to the same output pixel");
 }
 
 using namespace blender::compositor;
@@ -61,7 +59,7 @@ class PixelateOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_pixelate");
+    gpu::Shader *shader = context().get_shader("compositor_pixelate");
     GPU_shader_bind(shader);
 
     const int pixel_size = get_pixel_size();

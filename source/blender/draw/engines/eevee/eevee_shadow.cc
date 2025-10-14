@@ -157,7 +157,7 @@ ShadowTileMapPool::ShadowTileMapPool()
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
                            GPU_TEXTURE_USAGE_ATTACHMENT;
-  tilemap_tx.ensure_2d(GPU_R32UI, extent, usage);
+  tilemap_tx.ensure_2d(gpu::TextureFormat::UINT_32, extent, usage);
   tilemap_tx.clear(uint4(0));
 }
 
@@ -333,6 +333,11 @@ IndexRange ShadowDirectional::cascade_level_range(const Light &light, const Came
     min_diagonal_tilemap_size *= cam_data.clip_far / cam_data.clip_near;
   }
 
+  /* TODO(fclem): Zoomed in camera can have very small diagonal size which will then result in
+   * negative lod_level. Since negative ranges are not supported inside `IndexRange` we have to
+   * ensure this doesn't happen. */
+  min_diagonal_tilemap_size = max(min_diagonal_tilemap_size, 0.5f);
+
   /* Level of detail (or size) of every tile-maps of this light. */
   /* TODO(fclem): Add support for lod bias from light. */
   int lod_level = ceil(log2(max_ff(min_depth_tilemap_size, min_diagonal_tilemap_size)) + 0.5);
@@ -418,7 +423,7 @@ IndexRange ShadowDirectional::clipmap_level_range(const Camera &cam)
   max_level = max(min_level, max_level) + 1;
   IndexRange range(min_level, max_level - min_level + 1);
   /* 32 to be able to pack offset into a single int2.
-   * The maximum level count is bounded by the mantissa of a 32bit float.  */
+   * The maximum level count is bounded by the mantissa of a 32bit float. */
   const int max_tilemap_per_shadows = 24;
   /* Take top-most level to still cover the whole view. */
   range = range.take_back(max_tilemap_per_shadows);
@@ -750,7 +755,7 @@ void ShadowModule::begin_sync()
 
 void ShadowModule::sync_object(const Object *ob,
                                const ObjectHandle &handle,
-                               const ResourceHandle &resource_handle,
+                               const ResourceHandleRange &resource_handle,
                                bool is_alpha_blend,
                                bool has_transparent_shadows)
 {
@@ -761,24 +766,24 @@ void ShadowModule::sync_object(const Object *ob,
 
   ShadowObject &shadow_ob = objects_.lookup_or_add_default(handle.object_key);
   shadow_ob.used = true;
-  const bool is_initialized = shadow_ob.resource_handle.raw != 0;
+  const bool is_initialized = shadow_ob.resource_handle.is_valid();
   const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
   if (is_shadow_caster && (handle.recalc || !is_initialized || has_jittered_transparency)) {
     if (handle.recalc && is_initialized) {
-      past_casters_updated_.append(shadow_ob.resource_handle.raw);
+      past_casters_updated_.append(shadow_ob.resource_handle.raw());
     }
 
     if (has_jittered_transparency) {
-      jittered_transparent_casters_.append(resource_handle.raw);
+      jittered_transparent_casters_.append(resource_handle.raw());
     }
     else {
-      curr_casters_updated_.append(resource_handle.raw);
+      curr_casters_updated_.append(resource_handle.raw());
     }
   }
   shadow_ob.resource_handle = resource_handle;
 
   if (is_shadow_caster) {
-    curr_casters_.append(resource_handle.raw);
+    curr_casters_.append(resource_handle.raw());
   }
 
   if (is_alpha_blend && !inst_.is_baking()) {
@@ -827,7 +832,7 @@ void ShadowModule::end_sync()
     /* Do not discard casters in baking mode. See WORKAROUND in `surfels_create`. */
     if (!shadow_ob.used && !inst_.is_baking()) {
       /* May not be a caster, but it does not matter, be conservative. */
-      past_casters_updated_.append(shadow_ob.resource_handle.raw);
+      past_casters_updated_.append(shadow_ob.resource_handle.raw());
       objects_.remove(it);
     }
     else {
@@ -1116,7 +1121,7 @@ void ShadowModule::debug_end_sync()
     return;
   }
 
-  ObjectKey object_key(DEG_get_original(object_active));
+  ObjectKey object_key(ObjectRef(DEG_get_original(object_active)));
 
   if (inst_.lights.light_map_.contains(object_key) == false) {
     return;
@@ -1250,7 +1255,7 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
   GPU_storagebuf_clear(visibility_buf_, data);
 
   if (do_visibility_) {
-    GPUShader *shader = inst_.shaders.static_shader_get(SHADOW_VIEW_VISIBILITY);
+    gpu::Shader *shader = inst_.shaders.static_shader_get(SHADOW_VIEW_VISIBILITY);
     GPU_shader_bind(shader);
     GPU_shader_uniform_1i(shader, "resource_len", resource_len);
     GPU_shader_uniform_1i(shader, "view_len", view_len_);
@@ -1277,7 +1282,7 @@ void ShadowModule::set_view(View &view, int2 extent)
 
   input_depth_extent_ = extent;
 
-  GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
   dispatch_depth_scan_size_ = int3(math::divide_ceil(extent, int2(SHADOW_DEPTH_SCAN_GROUP_SIZE)),
                                    1);
@@ -1301,8 +1306,10 @@ void ShadowModule::set_view(View &view, int2 extent)
   }
   else if (shadow_technique == ShadowTechnique::TILE_COPY) {
     /* Create memoryless depth attachment for on-tile surface depth accumulation. */
-    shadow_depth_fb_tx_.ensure_2d_array(GPU_DEPTH_COMPONENT32F, fb_size, fb_layers, usage);
-    shadow_depth_accum_tx_.ensure_2d_array(GPU_R32F, fb_size, fb_layers, usage);
+    shadow_depth_fb_tx_.ensure_2d_array(
+        gpu::TextureFormat::SFLOAT_32_DEPTH, fb_size, fb_layers, usage);
+    shadow_depth_accum_tx_.ensure_2d_array(
+        gpu::TextureFormat::SFLOAT_32, fb_size, fb_layers, usage);
     render_fb_.ensure(GPU_ATTACHMENT_TEXTURE(shadow_depth_fb_tx_),
                       GPU_ATTACHMENT_TEXTURE(shadow_depth_accum_tx_));
   }
@@ -1371,7 +1378,7 @@ void ShadowModule::set_view(View &view, int2 extent)
       }
 
       GPU_framebuffer_multi_viewports_set(render_fb_,
-                                          reinterpret_cast<int(*)[4]>(multi_viewports_.data()));
+                                          reinterpret_cast<int (*)[4]>(multi_viewports_.data()));
 
       inst_.pipelines.shadow.render(shadow_multi_view_);
 
@@ -1392,7 +1399,7 @@ void ShadowModule::set_view(View &view, int2 extent)
   }
 }
 
-void ShadowModule::debug_draw(View &view, GPUFrameBuffer *view_fb)
+void ShadowModule::debug_draw(View &view, gpu::FrameBuffer *view_fb)
 {
   if (!ELEM(inst_.debug_mode,
             eDebugMode::DEBUG_SHADOW_TILEMAPS,

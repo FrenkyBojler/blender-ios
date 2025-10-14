@@ -16,6 +16,7 @@
 #include "BKE_tracking.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -27,16 +28,25 @@
 
 #include "node_composite_util.hh"
 
-/* **************** Translate  ******************** */
-
 namespace blender::nodes::node_composite_moviedistortion_cc {
+
+static const EnumPropertyItem type_items[] = {
+    {int(compositor::DistortionType::Distort), "UNDISTORT", 0, N_("Undistort"), ""},
+    {int(compositor::DistortionType::Undistort), "DISTORT", 0, N_("Distort"), ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 static void cmp_node_moviedistortion_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Menu>("Type")
+      .default_value(compositor::DistortionType::Distort)
+      .static_items(type_items)
+      .optional_label();
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void init(const bContext *C, PointerRNA *ptr)
@@ -66,15 +76,7 @@ static void storage_copy(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNod
 
 static void node_composit_buts_moviedistortion(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-
   uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
-
-  if (!node->id) {
-    return;
-  }
-
-  layout->prop(ptr, "distortion_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -110,7 +112,7 @@ class MovieDistortionOperation : public NodeOperation {
 
   void execute_gpu(const Result &distortion_grid)
   {
-    GPUShader *shader = context().get_shader("compositor_movie_distortion");
+    gpu::Shader *shader = context().get_shader("compositor_movie_distortion");
     GPU_shader_bind(shader);
 
     Result &input_image = get_input("Image");
@@ -147,7 +149,10 @@ class MovieDistortionOperation : public NodeOperation {
 
   DistortionType get_distortion_type()
   {
-    return bnode().custom1 == 0 ? DistortionType::Distort : DistortionType::Undistort;
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(DistortionType::Distort);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<DistortionType>(menu_value.value);
   }
 
   MovieClip *get_movie_clip()

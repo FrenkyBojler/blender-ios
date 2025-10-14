@@ -25,12 +25,12 @@ function(add_node_discovery
       ${output_file}
     COMMAND
       ${PYTHON_EXECUTABLE}
-        ${DISCOVER_NODES_PATH}
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${output_file}
-        ${output_function}
-        ${sources}
-        ${extra_args}
+      ${DISCOVER_NODES_PATH}
+      ${CMAKE_CURRENT_SOURCE_DIR}
+      ${output_file}
+      ${output_function}
+      ${sources}
+      ${extra_args}
     DEPENDS
       ${SRC}
       ${DISCOVER_NODES_PATH}
@@ -78,10 +78,12 @@ set(SRC
   intern/geometry_nodes_foreach_geometry_element_zone.cc
   intern/geometry_nodes_gizmos.cc
   intern/geometry_nodes_lazy_function.cc
+  intern/geometry_nodes_list.cc
   intern/geometry_nodes_log.cc
   intern/geometry_nodes_repeat_zone.cc
   intern/geometry_nodes_warning.cc
   intern/inverse_eval.cc
+  intern/list_function_eval.cc
   intern/math_functions.cc
   intern/node_common.cc
   intern/node_declaration.cc
@@ -94,8 +96,12 @@ set(SRC
   intern/node_socket_declarations.cc
   intern/node_util.cc
   intern/partial_eval.cc
+  intern/shader_nodes_inline.cc
   intern/socket_search_link.cc
   intern/socket_usage_inference.cc
+  intern/socket_value_inference.cc
+  intern/sync_sockets.cc
+  intern/trace_values.cc
   intern/value_elem.cc
   intern/volume_grid_function_eval.cc
 
@@ -106,22 +112,29 @@ set(SRC
   NOD_geometry_exec.hh
   NOD_geometry_nodes_bundle.hh
   NOD_geometry_nodes_bundle_fwd.hh
+  NOD_geometry_nodes_bundle_signature.hh
   NOD_geometry_nodes_caller_ui.hh
   NOD_geometry_nodes_closure.hh
   NOD_geometry_nodes_closure_eval.hh
   NOD_geometry_nodes_closure_fwd.hh
   NOD_geometry_nodes_closure_location.hh
+  NOD_geometry_nodes_closure_signature.hh
   NOD_geometry_nodes_dependencies.hh
   NOD_geometry_nodes_execute.hh
   NOD_geometry_nodes_gizmos.hh
   NOD_geometry_nodes_lazy_function.hh
+  NOD_geometry_nodes_list.hh
+  NOD_geometry_nodes_list_fwd.hh
   NOD_geometry_nodes_log.hh
+  NOD_geometry_nodes_values.hh
   NOD_geometry_nodes_warning.hh
   NOD_inverse_eval_params.hh
   NOD_inverse_eval_path.hh
   NOD_inverse_eval_run.hh
   NOD_math_functions.hh
+  NOD_menu_value.hh
   NOD_multi_function.hh
+  NOD_nested_node_id.hh
   NOD_node_declaration.hh
   NOD_node_extra_info.hh
   NOD_node_in_compute_context.hh
@@ -129,6 +142,7 @@ set(SRC
   NOD_register.hh
   NOD_rna_define.hh
   NOD_shader.h
+  NOD_shader_nodes_inline.hh
   NOD_socket.hh
   NOD_socket_declarations.hh
   NOD_socket_declarations_geometry.hh
@@ -139,9 +153,13 @@ set(SRC
   NOD_socket_search_link.hh
   NOD_socket_usage_inference.hh
   NOD_socket_usage_inference_fwd.hh
+  NOD_socket_value_inference.hh
+  NOD_sync_sockets.hh
   NOD_texture.h
+  NOD_trace_values.hh
   NOD_value_elem.hh
   NOD_value_elem_eval.hh
+  intern/list_function_eval.hh
   intern/node_common.h
   intern/node_exec.hh
   intern/node_util.hh
@@ -216,16 +234,6 @@ if(WITH_GMP)
   )
 endif()
 
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-endif()
-
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::nodes ALIAS bf_nodes)
 
@@ -236,6 +244,7 @@ if(WITH_GTESTS)
   set(TEST_INC
   )
   set(TEST_SRC
+    intern/geometry_nodes_bundle_tests.cc
     intern/node_iterator_tests.cc
   )
   set(TEST_LIB

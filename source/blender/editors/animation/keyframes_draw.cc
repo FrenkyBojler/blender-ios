@@ -190,7 +190,10 @@ struct DrawKeylistUIData {
   float unsel_color[4];
   float sel_mhcol[4];
   float unsel_mhcol[4];
-  float ipo_color[4];
+
+  float ipo_color_linear[4];
+  float ipo_color_constant[4];
+  float ipo_color_other[4];
   float ipo_color_mix[4];
 
   /* Show interpolation and handle type? */
@@ -216,20 +219,24 @@ static void channel_ui_data_init(DrawKeylistUIData *ctx,
 
   ctx->show_ipo = (saction_flag & SACTION_SHOW_INTERPOLATION) != 0;
 
-  UI_GetThemeColor4fv(TH_STRIP_SELECT, ctx->sel_color);
-  UI_GetThemeColor4fv(TH_STRIP, ctx->unsel_color);
-  UI_GetThemeColor4fv(TH_DOPESHEET_IPOLINE, ctx->ipo_color);
+  UI_GetThemeColor4fv(TH_LONGKEY_SELECT, ctx->sel_color);
+  UI_GetThemeColor4fv(TH_LONGKEY, ctx->unsel_color);
+  UI_GetThemeColor4fv(TH_DOPESHEET_IPOLINE, ctx->ipo_color_linear);
+  UI_GetThemeColor4fv(TH_DOPESHEET_IPOCONST, ctx->ipo_color_constant);
+  UI_GetThemeColor4fv(TH_DOPESHEET_IPOOTHER, ctx->ipo_color_other);
+  UI_GetThemeColor4fv(TH_KEYTYPE_KEYFRAME, ctx->ipo_color_mix);
 
   ctx->sel_color[3] *= ctx->alpha;
   ctx->unsel_color[3] *= ctx->alpha;
-  ctx->ipo_color[3] *= ctx->alpha;
+  ctx->ipo_color_linear[3] *= ctx->alpha;
+  ctx->ipo_color_constant[3] *= ctx->alpha;
+  ctx->ipo_color_other[3] *= ctx->alpha;
+  ctx->ipo_color_mix[3] *= ctx->alpha * 0.5f;
 
   copy_v4_v4(ctx->sel_mhcol, ctx->sel_color);
   ctx->sel_mhcol[3] *= 0.8f;
   copy_v4_v4(ctx->unsel_mhcol, ctx->unsel_color);
   ctx->unsel_mhcol[3] *= 0.8f;
-  copy_v4_v4(ctx->ipo_color_mix, ctx->ipo_color);
-  ctx->ipo_color_mix[3] *= 0.5f;
 }
 
 static void draw_keylist_block_gpencil(const DrawKeylistUIData *ctx,
@@ -298,11 +305,30 @@ static void draw_keylist_block_interpolation_line(const DrawKeylistUIData *ctx,
   box.ymin = ypos - ctx->ipo_size;
   box.ymax = ypos + ctx->ipo_size;
 
-  UI_draw_roundbox_4fv(&box,
-                       true,
-                       3.0f,
-                       (ab->block.conflict & ACTKEYBLOCK_FLAG_NON_BEZIER) ? ctx->ipo_color_mix :
-                                                                            ctx->ipo_color);
+  /* Color for interpolation lines based on their type */
+  const float *color = nullptr;
+
+  constexpr short IPO_FLAGS = ACTKEYBLOCK_FLAG_IPO_OTHER | ACTKEYBLOCK_FLAG_IPO_LINEAR |
+                              ACTKEYBLOCK_FLAG_IPO_CONSTANT;
+  if (ab->block.conflict & IPO_FLAGS) {
+    /* This is a summary line that combines multiple interpolation modes. */
+    color = ctx->ipo_color_mix;
+  }
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_OTHER) {
+    color = ctx->ipo_color_other;
+  }
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_LINEAR) {
+    color = ctx->ipo_color_linear;
+  }
+  else if (ab->block.flag & ACTKEYBLOCK_FLAG_IPO_CONSTANT) {
+    color = ctx->ipo_color_constant;
+  }
+  else {
+    /* No line to draw. */
+    return;
+  }
+
+  UI_draw_roundbox_4fv(&box, true, 3.0f, color);
 }
 
 static void draw_keylist_block(const DrawKeylistUIData *ctx, const ActKeyColumn *ab, float ypos)
@@ -326,9 +352,7 @@ static void draw_keylist_block(const DrawKeylistUIData *ctx, const ActKeyColumn 
         draw_keylist_block_standard(ctx, ab, ypos);
       }
     }
-    if (ctx->show_ipo && actkeyblock_is_valid(ab) &&
-        (ab->block.flag & ACTKEYBLOCK_FLAG_NON_BEZIER))
-    {
+    if (ctx->show_ipo && actkeyblock_is_valid(ab) && (ab->block.flag)) {
       /* draw an interpolation line */
       draw_keylist_block_interpolation_line(ctx, ab, ypos);
     }
@@ -617,13 +641,16 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d)
   GPUVertFormat *format = immVertexFormat();
   KeyframeShaderBindings sh_bindings;
 
-  sh_bindings.pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  sh_bindings.size_id = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  sh_bindings.pos_id = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  sh_bindings.size_id = GPU_vertformat_attr_add(
+      format, "size", blender::gpu::VertAttrType::SFLOAT_32);
   sh_bindings.color_id = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
   sh_bindings.outline_color_id = GPU_vertformat_attr_add(
-      format, "outlineColor", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
-  sh_bindings.flags_id = GPU_vertformat_attr_add(format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
+      format, "outlineColor", blender::gpu::VertAttrType::UNORM_8_8_8_8);
+  sh_bindings.flags_id = GPU_vertformat_attr_add(
+      format, "flags", blender::gpu::VertAttrType::UINT_32);
 
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);

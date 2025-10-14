@@ -283,7 +283,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   /* handle shape keys */
   totshape = CustomData_number_of_layers(&result->vert_data, CD_SHAPEKEY);
   for (a = 0; a < totshape; a++) {
-    float(*cos)[3] = static_cast<float(*)[3]>(
+    float (*cos)[3] = static_cast<float (*)[3]>(
         CustomData_get_layer_n_for_write(&result->vert_data, CD_SHAPEKEY, a, result->verts_num));
     for (int i = src_verts_num; i < result->verts_num; i++) {
       mul_m4_v3(mtx, cos[i]);
@@ -359,36 +359,36 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     const int totuv = CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2);
 
     for (a = 0; a < totuv; a++) {
-      float(*dmloopuv)[2] = static_cast<float(*)[2]>(CustomData_get_layer_n_for_write(
+      float (*uv_map)[2] = static_cast<float (*)[2]>(CustomData_get_layer_n_for_write(
           &result->corner_data, CD_PROP_FLOAT2, a, result->corners_num));
       int j = src_loops_num;
-      dmloopuv += j; /* second set of loops only */
-      for (; j-- > 0; dmloopuv++) {
+      uv_map += j; /* second set of loops only */
+      for (; j-- > 0; uv_map++) {
         if (do_mirr_u) {
-          float u = (*dmloopuv)[0];
+          float u = (*uv_map)[0];
           if (do_mirr_udim) {
-            (*dmloopuv)[0] = ceilf(u) - fmodf(u, 1.0f) + mmd->uv_offset[0];
+            (*uv_map)[0] = ceilf(u) - fmodf(u, 1.0f) + mmd->uv_offset[0];
           }
           else {
-            (*dmloopuv)[0] = 1.0f - u + mmd->uv_offset[0];
+            (*uv_map)[0] = 1.0f - u + mmd->uv_offset[0];
           }
         }
         if (do_mirr_v) {
-          float v = (*dmloopuv)[1];
+          float v = (*uv_map)[1];
           if (do_mirr_udim) {
-            (*dmloopuv)[1] = ceilf(v) - fmodf(v, 1.0f) + mmd->uv_offset[1];
+            (*uv_map)[1] = ceilf(v) - fmodf(v, 1.0f) + mmd->uv_offset[1];
           }
           else {
-            (*dmloopuv)[1] = 1.0f - v + mmd->uv_offset[1];
+            (*uv_map)[1] = 1.0f - v + mmd->uv_offset[1];
           }
         }
-        (*dmloopuv)[0] += mmd->uv_offset_copy[0];
-        (*dmloopuv)[1] += mmd->uv_offset_copy[1];
+        (*uv_map)[0] += mmd->uv_offset_copy[0];
+        (*uv_map)[1] += mmd->uv_offset_copy[1];
       }
     }
   }
 
-  /* handle custom split normals */
+  /* handle custom normals */
   bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::GAttributeWriter custom_normals = attributes.lookup_for_write("custom_normal");
   if (ob->type == OB_MESH && custom_normals && custom_normals.domain == bke::AttrDomain::Corner &&
@@ -445,7 +445,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
 
   /* handle vgroup stuff */
   if (BKE_object_supports_vertex_groups(ob)) {
-    if ((mmd->flag & MOD_MIR_VGROUP) && CustomData_has_layer(&result->vert_data, CD_MDEFORMVERT)) {
+    if ((mmd->flag & MOD_MIR_VGROUP) && !result->deform_verts().is_empty()) {
       MDeformVert *dvert = result->deform_verts_for_write().data() + src_verts_num;
       int flip_map_len = 0;
       int *flip_map = BKE_object_defgroup_flip_map(ob, false, &flip_map_len);

@@ -21,6 +21,7 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_camera.h"
 #include "BKE_customdata.hh"
@@ -28,7 +29,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_uvproject.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -303,10 +304,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiItemPointerR(
-      layout, ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
+  layout->prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
   /* Aspect and Scale are only used for camera projectors. */
   bool has_camera = false;
@@ -320,12 +320,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   RNA_END;
 
   sub = &layout->column(true);
-  uiLayoutSetActive(sub, has_camera);
+  sub->active_set(has_camera);
   sub->prop(ptr, "aspect_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   sub->prop(ptr, "aspect_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
   sub = &layout->column(true);
-  uiLayoutSetActive(sub, has_camera);
+  sub->active_set(has_camera);
   sub->prop(ptr, "scale_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   sub->prop(ptr, "scale_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
@@ -377,4 +377,5 @@ ModifierTypeInfo modifierType_UVProject = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

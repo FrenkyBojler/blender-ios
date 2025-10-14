@@ -289,7 +289,7 @@ bool BM_vert_is_edge_pair_manifold(const BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR
  *
  * \return true when only 2 verts are found.
  */
-bool BM_vert_edge_pair(BMVert *v, BMEdge **r_e_a, BMEdge **r_e_b);
+bool BM_vert_edge_pair(const BMVert *v, BMEdge **r_e_a, BMEdge **r_e_b);
 /**
  * Return true if the vertex is connected to _any_ faces.
  *
@@ -639,7 +639,7 @@ BMVert *BM_edge_share_vert(BMEdge *e1, BMEdge *e2) ATTR_WARN_UNUSED_RESULT ATTR_
 /**
  * \brief Return the Loop Shared by Edge and Vert
  *
- * Finds the loop used which uses \a  in face loop \a l
+ * Finds the loop used which uses \a v in face loop \a l
  *
  * \note this function takes a loop rather than an edge
  * so we can select the face that the loop should be from.

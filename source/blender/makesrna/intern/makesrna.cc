@@ -758,7 +758,7 @@ static char *rna_def_property_get_func(
     /* Check log scale sliders for negative range. */
     if (prop->type == PROP_FLOAT) {
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-      /* NOTE: UI_BTYPE_NUM_SLIDER can't have a softmin of zero. */
+      /* NOTE: ButType::NumSlider can't have a softmin of zero. */
       if ((fprop->ui_scale_type == PROP_SCALE_LOG) && (fprop->hardmin < 0 || fprop->softmin < 0)) {
         CLOG_ERROR(
             &LOG, "\"%s.%s\", range for log scale < 0.", srna->identifier, prop->identifier);
@@ -768,7 +768,7 @@ static char *rna_def_property_get_func(
     }
     if (prop->type == PROP_INT) {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-      /* Only UI_BTYPE_NUM_SLIDER is implemented and that one can't have a softmin of zero. */
+      /* Only ButType::NumSlider is implemented and that one can't have a softmin of zero. */
       if ((iprop->ui_scale_type == PROP_SCALE_LOG) && (iprop->hardmin <= 0 || iprop->softmin <= 0))
       {
         CLOG_ERROR(
@@ -2050,7 +2050,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
 
       if (!(prop->flag & PROP_EDITABLE) &&
-          (bprop->set || bprop->set_ex || bprop->setarray || bprop->setarray_ex))
+          (bprop->set || bprop->set_ex || bprop->set_transform || bprop->setarray ||
+           bprop->setarray_ex || bprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
@@ -2060,7 +2061,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       }
 
       if (!prop->arraydimension &&
-          (bprop->getarray || bprop->getarray_ex || bprop->setarray || bprop->setarray_ex))
+          (bprop->getarray || bprop->getarray_ex || bprop->getarray_transform || bprop->setarray ||
+           bprop->setarray_ex || bprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is not an array but defines an array callback.",
@@ -2091,7 +2093,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
 
       if (!(prop->flag & PROP_EDITABLE) &&
-          (iprop->set || iprop->set_ex || iprop->setarray || iprop->setarray_ex))
+          (iprop->set || iprop->set_ex || iprop->set_transform || iprop->setarray ||
+           iprop->setarray_ex || iprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
@@ -2101,7 +2104,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       }
 
       if (!prop->arraydimension &&
-          (iprop->getarray || iprop->getarray_ex || iprop->setarray || iprop->setarray_ex))
+          (iprop->getarray || iprop->getarray_ex || iprop->getarray_transform || iprop->setarray ||
+           iprop->setarray_ex || iprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is not an array but defines an array callback.",
@@ -2136,7 +2140,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
 
       if (!(prop->flag & PROP_EDITABLE) &&
-          (fprop->set || fprop->set_ex || fprop->setarray || fprop->setarray_ex))
+          (fprop->set || fprop->set_ex || fprop->set_transform || fprop->setarray ||
+           fprop->setarray_ex || fprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
@@ -2146,7 +2151,8 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       }
 
       if (!prop->arraydimension &&
-          (fprop->getarray || fprop->getarray_ex || fprop->setarray || fprop->setarray_ex))
+          (fprop->getarray || fprop->getarray_ex || fprop->getarray_transform || fprop->setarray ||
+           fprop->setarray_ex || fprop->setarray_transform))
       {
         CLOG_ERROR(&LOG,
                    "%s.%s, is not an array but defines an array callback.",
@@ -2180,7 +2186,19 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
     case PROP_ENUM: {
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 
-      if (!(prop->flag & PROP_EDITABLE) && (eprop->set || eprop->set_ex)) {
+      if (dp->enumbitflags && eprop->item_fn &&
+          !(eprop->item != rna_enum_dummy_NULL_items || eprop->set || eprop->set_ex ||
+            eprop->set_transform))
+      {
+        CLOG_ERROR(&LOG,
+                   "%s.%s, bitflag enum should not define an `item` callback function, unless "
+                   "they also define a static list of items, or a custom `set` callback.",
+                   srna->identifier,
+                   prop->identifier);
+        DefRNA.error = true;
+      }
+
+      if (!(prop->flag & PROP_EDITABLE) && (eprop->set || eprop->set_ex || eprop->set_transform)) {
         CLOG_ERROR(&LOG,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
@@ -2201,7 +2219,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
     case PROP_STRING: {
       StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 
-      if (!(prop->flag & PROP_EDITABLE) && (sprop->set || sprop->set_ex)) {
+      if (!(prop->flag & PROP_EDITABLE) && (sprop->set || sprop->set_ex || sprop->set_transform)) {
         CLOG_ERROR(&LOG,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
@@ -2916,7 +2934,10 @@ static void rna_def_struct_function_call_impl_cpp(FILE *f, StructRNA *srna, Func
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
     WRITE_COMMA;
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "this->ptr");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "(::%s *) this->ptr.data", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3170,7 +3191,10 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
   }
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "\tstruct PointerRNA _self;\n");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "\tstruct %s *_self;\n", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3251,7 +3275,10 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
   }
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "\t_self = *_ptr;\n");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "\t_self = (struct %s *)_ptr->data;\n", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3522,7 +3549,11 @@ static void rna_auto_types()
             pprop->type = (StructRNA *)rna_find_type(dp->dnatype);
           }
 
-          if (pprop->type) {
+          /* Only automatically define `PROP_ID_REFCOUNT` if it was not already explicitly set or
+           * cleared by calls to `RNA_def_property_flag` or `RNA_def_property_clear_flag`. */
+          if ((pprop->property.flag_internal & PROP_INTERN_PTR_ID_REFCOUNT_FORCED) == 0 &&
+              pprop->type)
+          {
             type = rna_find_struct((const char *)pprop->type);
             if (type && (type->flag & STRUCT_ID_REFCOUNT)) {
               pprop->property.flag |= PROP_ID_REFCOUNT;
@@ -3597,6 +3628,8 @@ static const char *rna_property_subtypename(PropertySubType type)
       return "PROP_DIRPATH";
     case PROP_PIXEL:
       return "PROP_PIXEL";
+    case PROP_PIXEL_DIAMETER:
+      return "PROP_PIXEL_DIAMETER";
     case PROP_BYTESTRING:
       return "PROP_BYTESTRING";
     case PROP_UNSIGNED:
@@ -3613,6 +3646,8 @@ static const char *rna_property_subtypename(PropertySubType type)
       return "PROP_TIME_ABSOLUTE";
     case PROP_DISTANCE:
       return "PROP_DISTANCE";
+    case PROP_DISTANCE_DIAMETER:
+      return "PROP_DISTANCE_DIAMETER";
     case PROP_DISTANCE_CAMERA:
       return "PROP_DISTANCE_CAMERA";
     case PROP_COLOR:
@@ -3904,7 +3939,10 @@ static void rna_generate_static_parameter_prototypes(FILE *f,
     if (!first) {
       fprintf(f, ", ");
     }
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "struct PointerRNA _self");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "struct %s *_self", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -4118,6 +4156,17 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     freenest = true;
   }
 
+  if (prop->deprecated) {
+    fprintf(f,
+            "static const DeprecatedRNA rna_%s%s_%s_deprecated = {\n\t",
+            srna->identifier,
+            strnest,
+            prop->identifier);
+    rna_print_c_string(f, prop->deprecated->note);
+    fprintf(f, ",\n\t%d, %d,\n", prop->deprecated->version, prop->deprecated->removal_version);
+    fprintf(f, "};\n\n");
+  }
+
   switch (prop->type) {
     case PROP_ENUM: {
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
@@ -4187,10 +4236,11 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
         else {
           if (!defaultfound && !(eprop->item_fn && eprop->item == rna_enum_dummy_NULL_items)) {
             CLOG_ERROR(&LOG,
-                       "%s%s.%s, enum default is not in items.",
+                       "%s%s.%s, enum default '%d' is not in items.",
                        srna->identifier,
                        errnest,
-                       prop->identifier);
+                       prop->identifier,
+                       eprop->defaultvalue);
             DefRNA.error = true;
           }
         }
@@ -4357,7 +4407,15 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
   fprintf(f, ",\n\t");
   fprintf(f, "%d, ", prop->icon);
   rna_print_c_string(f, prop->translation_context);
-  fprintf(f, ",\n");
+  fprintf(f, ",\n\t");
+
+  if (prop->deprecated) {
+    fprintf(f, "&rna_%s%s_%s_deprecated,", srna->identifier, strnest, prop->identifier);
+  }
+  else {
+    fprintf(f, "nullptr,\n");
+  }
+
   fprintf(f,
           "\t%s, PropertySubType(int(%s) | int(%s)), %s, %u, {%u, %u, %u}, %u,\n",
           RNA_property_typename(prop->type),
@@ -4370,13 +4428,14 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
           prop->arraylength[2],
           prop->totarraylength);
   fprintf(f,
-          "\t%s%s, %d, %s, %s, %s, %s, %s,\n",
+          "\t%s%s, %d, %s, %s, %s, %s, %s, %s,\n",
           /* NOTE: void cast is needed to quiet function cast warning in C++. */
           (prop->flag & PROP_CONTEXT_UPDATE) ? "(UpdateFunc)(void *)" : "",
           rna_function_string(prop->update),
           prop->noteflag,
           rna_function_string(prop->editable),
           rna_function_string(prop->itemeditable),
+          rna_function_string(prop->ui_name_func),
           rna_function_string(prop->override_diff),
           rna_function_string(prop->override_store),
           rna_function_string(prop->override_apply));
@@ -4402,7 +4461,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_BOOLEAN: {
       BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, ",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, ",
               rna_function_string(bprop->get),
               rna_function_string(bprop->set),
               rna_function_string(bprop->getarray),
@@ -4411,6 +4470,10 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(bprop->set_ex),
               rna_function_string(bprop->getarray_ex),
               rna_function_string(bprop->setarray_ex),
+              rna_function_string(bprop->get_transform),
+              rna_function_string(bprop->set_transform),
+              rna_function_string(bprop->getarray_transform),
+              rna_function_string(bprop->setarray_transform),
               rna_function_string(bprop->get_default),
               rna_function_string(bprop->get_default_array),
               bprop->defaultvalue);
@@ -4425,7 +4488,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_INT: {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\n\t",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\n\t",
               rna_function_string(iprop->get),
               rna_function_string(iprop->set),
               rna_function_string(iprop->getarray),
@@ -4435,7 +4498,11 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(iprop->set_ex),
               rna_function_string(iprop->getarray_ex),
               rna_function_string(iprop->setarray_ex),
-              rna_function_string(iprop->range_ex));
+              rna_function_string(iprop->range_ex),
+              rna_function_string(iprop->get_transform),
+              rna_function_string(iprop->set_transform),
+              rna_function_string(iprop->getarray_transform),
+              rna_function_string(iprop->setarray_transform));
       fprintf(f, "%s", rna_ui_scale_type_string(iprop->ui_scale_type));
       fprintf(f, ", ");
       rna_int_print(f, iprop->softmin);
@@ -4466,7 +4533,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_FLOAT: {
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
               rna_function_string(fprop->get),
               rna_function_string(fprop->set),
               rna_function_string(fprop->getarray),
@@ -4476,7 +4543,11 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(fprop->set_ex),
               rna_function_string(fprop->getarray_ex),
               rna_function_string(fprop->setarray_ex),
-              rna_function_string(fprop->range_ex));
+              rna_function_string(fprop->range_ex),
+              rna_function_string(fprop->get_transform),
+              rna_function_string(fprop->set_transform),
+              rna_function_string(fprop->getarray_transform),
+              rna_function_string(fprop->setarray_transform));
       fprintf(f, "%s, ", rna_ui_scale_type_string(fprop->ui_scale_type));
       rna_float_print(f, fprop->softmin);
       fprintf(f, ", ");
@@ -4508,13 +4579,15 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_STRING: {
       StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, %s, eStringPropertySearchFlag(%d), %s, %d, ",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, eStringPropertySearchFlag(%d), %s, %d, ",
               rna_function_string(sprop->get),
               rna_function_string(sprop->length),
               rna_function_string(sprop->set),
               rna_function_string(sprop->get_ex),
               rna_function_string(sprop->length_ex),
               rna_function_string(sprop->set_ex),
+              rna_function_string(sprop->get_transform),
+              rna_function_string(sprop->set_transform),
               rna_function_string(sprop->search),
               int(sprop->search_flag),
               rna_function_string(sprop->path_filter),
@@ -4526,12 +4599,15 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_ENUM: {
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, ",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, ",
               rna_function_string(eprop->get),
               rna_function_string(eprop->set),
               rna_function_string(eprop->item_fn),
               rna_function_string(eprop->get_ex),
-              rna_function_string(eprop->set_ex));
+              rna_function_string(eprop->set_ex),
+              rna_function_string(eprop->get_transform),
+              rna_function_string(eprop->set_transform),
+              rna_function_string(eprop->get_default));
       if (eprop->item) {
         const char *item_global_id = rna_enum_id_from_pointer(eprop->item);
         if (item_global_id != nullptr) {
@@ -4785,6 +4861,7 @@ static void rna_generate_struct(BlenderRNA * /*brna*/, StructRNA *srna, FILE *f)
   fprintf(f, "\t%s,\n", rna_function_string(srna->unreg));
   fprintf(f, "\t%s,\n", rna_function_string(srna->instance));
   fprintf(f, "\t%s,\n", rna_function_string(srna->idproperties));
+  fprintf(f, "\t%s,\n", rna_function_string(srna->system_idproperties));
 
   if (srna->reg && !srna->refine) {
     CLOG_ERROR(
@@ -5615,7 +5692,7 @@ static void make_bad_file(const char *file, int line)
 {
   FILE *fp = fopen(file, "w");
   fprintf(fp,
-          "#error \"Error! can't make correct RNA file from %s:%d, "
+          "#error \"Error! cannot make correct RNA file from %s:%d, "
           "check DNA properties.\"\n",
           __FILE__,
           line);
@@ -5834,7 +5911,7 @@ int main(int argc, char **argv)
 
   /* Some useful defaults since this runs standalone. */
   CLG_output_use_basename_set(true);
-  CLG_level_set(debugSRNA);
+  CLG_level_set(debugSRNA ? CLG_LEVEL_DEBUG : CLG_LEVEL_WARN);
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s outdirectory [public header outdirectory]/\n", argv[0]);

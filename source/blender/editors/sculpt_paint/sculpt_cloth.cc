@@ -45,7 +45,6 @@
 
 #include "ED_sculpt.hh"
 
-#include "brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_face_set.hh"
@@ -62,12 +61,9 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
-#include "UI_interface.hh"
-
 #include "bmesh.hh"
 
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 
 namespace blender::ed::sculpt_paint::cloth {
@@ -808,6 +804,7 @@ static void calc_forces_mesh(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -918,6 +915,7 @@ static void calc_forces_grids(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -1026,6 +1024,7 @@ static void calc_forces_bmesh(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -1126,7 +1125,7 @@ static void cloth_brush_collision_cb(void *userdata,
   ClothBrushCollision *col = (ClothBrushCollision *)userdata;
   CollisionModifierData *col_data = col->col_data;
   const int3 vert_tri = col_data->vert_tris[index];
-  float(*positions)[3] = col_data->x;
+  float (*positions)[3] = col_data->x;
   float *tri[3], no[3], co[3];
 
   tri[0] = positions[vert_tri[0]];
@@ -2396,7 +2395,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
 
   const View3D *v3d = CTX_wm_view3d(C);
@@ -2428,7 +2427,9 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
                      RNA_float_get(op->ptr, "area_normal_radius"),
                      RNA_float_get(op->ptr, "strength"));
 
-  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  }
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");

@@ -36,14 +36,14 @@ namespace blender::bke {
 enum class AttrDomain : int8_t;
 }
 
-/* These names are used as prefixes for UV layer names to find the associated boolean
+/**
+ * These names are used as prefixes for UV layer names to find the associated boolean
  * layers. They should never be longer than 2 chars, as #MAX_CUSTOMDATA_LAYER_NAME
  * has 4 extra bytes above what can be used for the base layer name, and these
  * prefixes are placed between 2 '.'s at the start of the layer name.
  * For example The uv vert selection layer of a layer named `UVMap.001`
- * will be called `.vs.UVMap.001`. */
-#define UV_VERTSEL_NAME "vs"
-#define UV_EDGESEL_NAME "es"
+ * will be called `.pn.UVMap.001`.
+ */
 #define UV_PINNED_NAME "pn"
 
 /**
@@ -53,12 +53,13 @@ enum class AttrDomain : int8_t;
  */
 struct BMUVOffsets {
   int uv;
-  int select_vert;
-  int select_edge;
   int pin;
 };
 
-/* A data type large enough to hold 1 element from any custom-data layer type. */
+/** All values reference none layers. */
+#define BMUVOFFSETS_NONE {-1, -1}
+
+/** A data type large enough to hold 1 element from any custom-data layer type. */
 struct CDBlockBytes {
   unsigned char data[64];
 };
@@ -70,10 +71,10 @@ extern const CustomData_MeshMasks CD_MASK_DERIVEDMESH;
 extern const CustomData_MeshMasks CD_MASK_BMESH;
 extern const CustomData_MeshMasks CD_MASK_EVERYTHING;
 
-/* for ORIGINDEX layer type, indicates no original index for this element */
+/** For ORIGINDEX layer type, indicates no original index for this element. */
 #define ORIGINDEX_NONE -1
 
-/* initializes a CustomData object with the same layer setup as source and
+/* Initializes a CustomData object with the same layer setup as source and
  * memory space for totelem elements. mask must be an array of length
  * CD_NUMTYPES elements, that indicate if a layer can be copied. */
 
@@ -88,12 +89,14 @@ enum eCDAllocType {
   CD_CONSTRUCT = 5,
 };
 
-#define CD_TYPE_AS_MASK(_type) (eCustomDataMask)((eCustomDataMask)1 << (eCustomDataMask)(_type))
+inline eCustomDataMask CD_TYPE_AS_MASK(eCustomDataType type)
+{
+  return eCustomDataMask(1) << eCustomDataMask(type);
+}
 
 void customData_mask_layers__print(const CustomData_MeshMasks *mask);
 
-using cd_interp = void (*)(
-    const void **sources, const float *weights, const float *sub_weights, int count, void *dest);
+using cd_interp = void (*)(const void **sources, const float *weights, int count, void *dest);
 using cd_copy = void (*)(const void *source, void *dest, int count);
 using cd_set_default_value = void (*)(void *data, int count);
 using cd_free = void (*)(void *data, int count);
@@ -128,15 +131,15 @@ bool CustomData_has_interp(const CustomData *data);
 bool CustomData_bmesh_has_free(const CustomData *data);
 
 /**
- * Copies the "value" (e.g. `mloopuv` UV or `mloopcol` colors) from one block to
+ * Copies the "value" (e.g. `uv_map` UV or `mloopcol` colors) from one block to
  * another, while not overwriting anything else (e.g. flags).  probably only
- * implemented for `mloopuv/mloopcol`, for now.
+ * implemented for `uv_map/mloopcol`, for now.
  */
 void CustomData_data_copy_value(eCustomDataType type, const void *source, void *dest);
 void CustomData_data_set_default_value(eCustomDataType type, void *elem);
 
 /**
- * Mixes the "value" (e.g. `mloopuv` UV or `mloopcol` colors) from one block into
+ * Mixes the "value" (e.g. `uv_map` UV or `mloopcol` colors) from one block into
  * another, while not overwriting anything else (e.g. flags).
  */
 void CustomData_data_mix_value(
@@ -178,7 +181,9 @@ void CustomData_init_layout_from(const CustomData *source,
                                  eCDAllocType alloctype,
                                  int totelem);
 
-/* BMESH_TODO, not really a public function but `readfile.cc` needs it. */
+/**
+ * \note Ideally this would not be a public function but versioning needs it.
+ */
 void CustomData_update_typemap(CustomData *data);
 
 /**
@@ -327,7 +332,7 @@ void CustomData_set_only_copy(const CustomData *data, eCustomDataMask mask);
  * NOTE: It's expected that the destination layers are mutable
  * (#CustomData_ensure_layers_are_mutable). These copy-functions could ensure that internally, but
  * that would cause additional overhead when copying few elements at a time. It would also be
- * necessary to pass the total size of the destination layers as parameter if to make them mutable
+ * necessary to pass the total size of the destination layers as parameter to make them mutable
  * though. In most cases, these functions are used right after creating a new geometry, in which
  * case there are no shared layers anyway.
  */
@@ -340,11 +345,9 @@ void CustomData_copy_data_layer(const CustomData *source,
                                 int src_index,
                                 int dst_index,
                                 int count);
-void CustomData_copy_data_named(
-    const CustomData *source, CustomData *dest, int source_index, int dest_index, int count);
 void CustomData_copy_elements(eCustomDataType type,
-                              void *src_data_ofs,
-                              void *dst_data_ofs,
+                              const void *src_data,
+                              void *dst_data,
                               int count);
 
 /**
@@ -420,8 +423,6 @@ void CustomData_free_elem(CustomData *data, int index, int count);
  * \param src_indices: Indices of every source items to interpolate into the destination one.
  * \param weights: The weight to apply to each source value individually. If NULL, they will be
  * averaged.
- * \param sub_weights: The weights of sub-items, only used to affect each corners of a
- * tessellated face data (should always be and array of four values).
  * \param count: The number of source items to interpolate.
  * \param dest_index: Index of the destination item, in which to put the result of the
  * interpolation.
@@ -430,7 +431,6 @@ void CustomData_interp(const CustomData *source,
                        CustomData *dest,
                        const int *src_indices,
                        const float *weights,
-                       const float *sub_weights,
                        int count,
                        int dest_index);
 /**
@@ -440,16 +440,11 @@ void CustomData_interp(const CustomData *source,
 void CustomData_bmesh_interp_n(CustomData *data,
                                const void **src_blocks,
                                const float *weights,
-                               const float *sub_weights,
                                int count,
                                void *dst_block_ofs,
                                int n);
-void CustomData_bmesh_interp(CustomData *data,
-                             const void **src_blocks,
-                             const float *weights,
-                             const float *sub_weights,
-                             int count,
-                             void *dst_block);
+void CustomData_bmesh_interp(
+    CustomData *data, const void **src_blocks, const float *weights, int count, void *dst_block);
 
 /**
  * Swap data inside each item, for all layers.

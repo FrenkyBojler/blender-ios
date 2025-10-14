@@ -236,13 +236,43 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
       break;
     }
     case SOCK_VECTOR: {
-      const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
-      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float3>>(value);
+      switch (input->default_value_typed<bNodeSocketValueVector>()->dimensions) {
+        case 2: {
+          const float2 value = float2(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float2>>(value);
+          break;
+        }
+        case 3: {
+          const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float3>>(value);
+          break;
+        }
+        case 4: {
+          const float4 value = float4(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
       break;
     }
     case SOCK_RGBA: {
       const float4 value = float4(input->default_value_typed<bNodeSocketValueRGBA>()->value);
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
+      break;
+    }
+    case SOCK_MENU: {
+      const int32_t value = input->default_value_typed<bNodeSocketValueMenu>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<nodes::MenuValue>>(
+          value);
+      break;
+    }
+    case SOCK_STRING: {
+      const std::string value = input->default_value_typed<bNodeSocketValueString>()->value;
+      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<std::string>>(
+          value);
       break;
     }
     default:
@@ -268,7 +298,7 @@ mf::Variable *MultiFunctionProcedureOperation::get_implicit_input_variable(
   input_descriptor.implicit_input = implicit_input;
 
   /* An input was already declared for that implicit input, so no need to declare it again and we
-   * just return its variable.  */
+   * just return its variable. */
   if (implicit_input_to_variable_map_.contains(implicit_input)) {
     /* But first we update the domain priority of the input descriptor to be the higher priority of
      * the existing descriptor and the descriptor of the new input socket. That's because the same
@@ -303,7 +333,7 @@ mf::Variable *MultiFunctionProcedureOperation::get_multi_function_input_variable
     DInputSocket input_socket, DOutputSocket output_socket)
 {
   /* An input was already declared for that same output socket, so no need to declare it again and
-   * we just return its variable.  */
+   * we just return its variable. */
   if (output_to_variable_map_.contains(output_socket)) {
     /* But first we update the domain priority of the input descriptor to be the higher priority of
      * the existing descriptor and the descriptor of the new input socket. That's because the same
@@ -414,6 +444,7 @@ void MultiFunctionProcedureOperation::populate_operation_result(DOutputSocket ou
 mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *variable,
                                                                 const mf::DataType expected_type)
 {
+  /* Conversion not needed. */
   const mf::DataType variable_type = variable->data_type();
   if (variable_type == expected_type) {
     return variable;
@@ -422,6 +453,16 @@ mf::Variable *MultiFunctionProcedureOperation::convert_variable(mf::Variable *va
   const bke::DataTypeConversions &conversion_table = bke::get_implicit_type_conversions();
   const mf::MultiFunction *function = conversion_table.get_conversion_multi_function(
       variable_type, expected_type);
+
+  /* Conversion is not possible, return a default variable instead. */
+  if (!function) {
+    const mf::MultiFunction &constant_function =
+        procedure_.construct_function<mf::CustomMF_GenericConstant>(
+            expected_type.single_type(), expected_type.single_type().default_value(), false);
+    mf::Variable *constant_variable = procedure_builder_.add_call<1>(constant_function)[0];
+    implicit_variables_.append(constant_variable);
+    return constant_variable;
+  }
 
   mf::Variable *converted_variable = procedure_builder_.add_call<1>(*function, {variable})[0];
   implicit_variables_.append(converted_variable);

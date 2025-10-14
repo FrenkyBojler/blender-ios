@@ -52,14 +52,6 @@ static const EnumPropertyItem DT_layer_items[] = {
      0,
      "Vertex Group(s)",
      "Transfer active or all vertex groups"},
-#if 0 /* XXX For now, would like to finish/merge work from 2014 GSOC first. */
-    {DT_TYPE_SHAPEKEY, "SHAPEKEYS", 0, "Shapekey(s)", "Transfer active or all shape keys"},
-#endif
-/* XXX When SkinModifier is enabled,
- * it seems to erase its own CD_MVERT_SKIN layer from final DM :( */
-#if 0
-    {DT_TYPE_SKIN, "SKIN", 0, "Skin Weight", "Transfer skin weights"},
-#endif
     {DT_TYPE_BWEIGHT_VERT, "BEVEL_WEIGHT_VERT", 0, "Bevel Weight", "Transfer bevel weights"},
     {DT_TYPE_MPROPCOL_VERT | DT_TYPE_MLOOPCOL_VERT,
      "COLOR_VERTEX",
@@ -175,9 +167,6 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
       tmp_item.identifier = tmp_item.name = dg->name;
       RNA_enum_item_add(&item, &totitem, &tmp_item);
     }
-  }
-  else if (data_type == DT_TYPE_SHAPEKEY) {
-    /* TODO */
   }
   else if (data_type == DT_TYPE_UV) {
     const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -530,7 +519,11 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      invalid_count++;
+      /* Selected objects contains the active object, in this case `ob_src` is the same as
+       * `ob_dst`, so we don't treat this case as invalid. */
+      if (ob_src != ob_dst) {
+        invalid_count++;
+      }
     }
 
     if (reverse_transfer) {
@@ -790,7 +783,8 @@ void OBJECT_OT_data_transfer(wmOperatorType *ot)
                       DT_LAYERS_ACTIVE_SRC,
                       "Source Layers Selection",
                       "Which layers to transfer, in case of multi-layers types");
-  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, dt_layers_select_itemf);
+  RNA_def_property_enum_funcs_runtime(
+      prop, nullptr, nullptr, dt_layers_select_itemf, nullptr, nullptr);
 
   prop = RNA_def_enum(ot->srna,
                       "layers_select_dst",
@@ -798,7 +792,8 @@ void OBJECT_OT_data_transfer(wmOperatorType *ot)
                       DT_LAYERS_ACTIVE_DST,
                       "Destination Layers Matching",
                       "How to match source and destination layers");
-  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, dt_layers_select_itemf);
+  RNA_def_property_enum_funcs_runtime(
+      prop, nullptr, nullptr, dt_layers_select_itemf, nullptr, nullptr);
 
   prop = RNA_def_enum(ot->srna,
                       "mix_mode",
@@ -806,7 +801,7 @@ void OBJECT_OT_data_transfer(wmOperatorType *ot)
                       CDT_MIX_TRANSFER,
                       "Mix Mode",
                       "How to affect destination elements with source values");
-  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, dt_mix_mode_itemf);
+  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, dt_mix_mode_itemf, nullptr, nullptr);
   RNA_def_float(
       ot->srna,
       "mix_factor",
@@ -955,7 +950,8 @@ void OBJECT_OT_datalayout_transfer(wmOperatorType *ot)
                       DT_LAYERS_ACTIVE_SRC,
                       "Source Layers Selection",
                       "Which layers to transfer, in case of multi-layers types");
-  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, dt_layers_select_src_itemf);
+  RNA_def_property_enum_funcs_runtime(
+      prop, nullptr, nullptr, dt_layers_select_src_itemf, nullptr, nullptr);
 
   prop = RNA_def_enum(ot->srna,
                       "layers_select_dst",
@@ -963,7 +959,8 @@ void OBJECT_OT_datalayout_transfer(wmOperatorType *ot)
                       DT_LAYERS_ACTIVE_DST,
                       "Destination Layers Matching",
                       "How to match source and destination layers");
-  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, dt_layers_select_dst_itemf);
+  RNA_def_property_enum_funcs_runtime(
+      prop, nullptr, nullptr, dt_layers_select_dst_itemf, nullptr, nullptr);
 }
 
 }  // namespace blender::ed::object

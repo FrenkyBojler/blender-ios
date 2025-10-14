@@ -85,7 +85,7 @@ float2 RealizeOnDomainOperation::compute_corrective_translation()
 
 void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_transformation)
 {
-  GPUShader *shader = this->context().get_shader(this->get_realization_shader_name());
+  gpu::Shader *shader = this->context().get_shader(this->get_realization_shader_name());
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_mat3_as_mat4(shader, "inverse_transformation", inverse_transformation.ptr());
@@ -98,17 +98,12 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   const bool use_bilinear = ELEM(
       realization_options.interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
   GPU_texture_filter_mode(input, use_bilinear);
+  GPU_texture_anisotropic_filter(input, false);
 
-  /* If the input repeats, set a repeating extend mode for out-of-bound texture access. Otherwise,
-   * make out-of-bound texture access return zero by setting a clamp to border extend mode. */
   GPU_texture_extend_mode_x(input,
-                            realization_options.repeat_x ?
-                                GPU_SAMPLER_EXTEND_MODE_REPEAT :
-                                GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+                            map_extension_mode_to_extend_mode(realization_options.extension_x));
   GPU_texture_extend_mode_y(input,
-                            realization_options.repeat_y ?
-                                GPU_SAMPLER_EXTEND_MODE_REPEAT :
-                                GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+                            map_extension_mode_to_extend_mode(realization_options.extension_y));
 
   input.bind_as_texture(shader, "input_tx");
 
@@ -134,11 +129,17 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Float3:
       case ResultType::Float4:
         return "compositor_realize_on_domain_bicubic_float4";
+      case ResultType::Float2:
+        return "compositor_realize_on_domain_bicubic_float2";
       case ResultType::Int:
       case ResultType::Int2:
-      case ResultType::Float2:
       case ResultType::Bool:
-        /* Realization does not support internal image types. */
+      case ResultType::Menu:
+        /* Not supported. */
+      case ResultType::String:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
+        BLI_assert_unreachable();
         break;
     }
   }
@@ -150,11 +151,17 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Float3:
       case ResultType::Float4:
         return "compositor_realize_on_domain_float4";
+      case ResultType::Float2:
+        return "compositor_realize_on_domain_float2";
       case ResultType::Int:
       case ResultType::Int2:
-      case ResultType::Float2:
       case ResultType::Bool:
-        /* Realization does not support internal image types. */
+      case ResultType::Menu:
+        /* Not supported. */
+      case ResultType::String:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
+        BLI_assert_unreachable();
         break;
     }
   }
@@ -186,21 +193,10 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
     const int2 input_size = input.domain().size;
     float2 normalized_coordinates = coordinates / float2(input_size);
 
-    float4 sample;
-    switch (realization_options.interpolation) {
-      case Interpolation::Nearest:
-        sample = input.sample_nearest_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-      case Interpolation::Bilinear:
-        sample = input.sample_bilinear_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-      case Interpolation::Bicubic:
-        sample = input.sample_cubic_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-    }
+    float4 sample = input.sample(normalized_coordinates,
+                                 realization_options.interpolation,
+                                 realization_options.extension_x,
+                                 realization_options.extension_y);
     output.store_pixel_generic_type(texel, sample);
   });
 }
@@ -214,16 +210,19 @@ Domain RealizeOnDomainOperation::compute_domain()
  * realization shouldn't be needed. */
 static constexpr float transformation_tolerance = 10e-6f;
 
-Domain RealizeOnDomainOperation::compute_realized_transformation_domain(Context &context,
-                                                                        const Domain &domain)
+Domain RealizeOnDomainOperation::compute_realized_transformation_domain(
+    Context &context, const Domain &domain, const bool realize_translation)
 {
   const int2 size = domain.size;
 
   /* If the domain is only infinitesimally rotated or scaled, return a domain with just the
-   * translation component. */
+   * translation component if not realizing translation. */
   if (math::is_equal(
           float2x2(domain.transformation), float2x2::identity(), transformation_tolerance))
   {
+    if (realize_translation) {
+      return Domain(size);
+    }
     return Domain(size, math::from_location<float3x3>(domain.transformation.location()));
   }
 
@@ -233,12 +232,13 @@ Domain RealizeOnDomainOperation::compute_realized_transformation_domain(Context 
   const float2 upper_left_corner = float2(0.0f, size.y);
   const float2 upper_right_corner = float2(size);
 
-  /* Eliminate the translation component of the transformation and create a centered
-   * transformation with the image center as the origin. Translation is ignored since it has no
-   * effect on the size of the domain and will be restored later. */
-  const float2 center = float2(float2(size) / 2.0f);
+  /* Eliminate the translation component of the transformation. Translation is ignored since it has
+   * no effect on the size of the domain and will be restored later. */
   const float3x3 transformation = float3x3(float2x2(domain.transformation));
-  const float3x3 centered_transformation = math::from_origin_transform(transformation, center);
+
+  /* Translate the input such that it is centered in the virtual compositing space. */
+  const float2 center_translation = -float2(size) / 2.0f;
+  const float3x3 centered_transformation = math::translate(transformation, center_translation);
 
   /* Transform each of the 4 corners of the image by the centered transformation. */
   const float2 transformed_lower_left_corner = math::transform_point(centered_transformation,
@@ -270,7 +270,10 @@ Domain RealizeOnDomainOperation::compute_realized_transformation_domain(Context 
   const int2 safe_size = math::clamp(new_size, int2(1), int2(max_size));
 
   /* Create a domain from the new safe size and just the translation component of the
-   * transformation, */
+   * transformation if not realizing translation. */
+  if (realize_translation) {
+    return Domain(safe_size);
+  }
   return Domain(safe_size, math::from_location<float3x3>(domain.transformation.location()));
 }
 
@@ -302,8 +305,11 @@ SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
                                     InputRealizationMode::OperationDomain;
   const Domain target_domain = use_operation_domain ? operation_domain : input_result.domain();
 
+  const bool should_realize_translation = input_descriptor.realization_mode ==
+                                          InputRealizationMode::Transforms;
   const Domain realized_target_domain =
-      RealizeOnDomainOperation::compute_realized_transformation_domain(context, target_domain);
+      RealizeOnDomainOperation::compute_realized_transformation_domain(
+          context, target_domain, should_realize_translation);
 
   /* The input have an almost identical domain to the realized target domain, so no need to realize
    * it and the operation is not needed. */

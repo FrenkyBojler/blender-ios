@@ -20,6 +20,7 @@ struct TextVars;
 
 namespace blender::seq {
 
+struct SeqRenderState;
 struct RenderData;
 
 enum class StripEarlyOut {
@@ -27,16 +28,6 @@ enum class StripEarlyOut {
   DoEffect = 0,  /* No early out (do the effect). */
   UseInput1 = 1, /* Output = input1. */
   UseInput2 = 2, /* Output = input2. */
-};
-
-/* Wipe effect */
-enum {
-  DO_SINGLE_WIPE,
-  DO_DOUBLE_WIPE,
-  /* DO_BOX_WIPE, */   /* UNUSED */
-  /* DO_CROSS_WIPE, */ /* UNUSED */
-  DO_IRIS_WIPE,
-  DO_CLOCK_WIPE,
 };
 
 struct EffectHandle {
@@ -68,6 +59,7 @@ struct EffectHandle {
 
   /* execute the effect */
   ImBuf *(*execute)(const RenderData *context,
+                    SeqRenderState *state,
                     Strip *strip,
                     float timeline_frame,
                     float fac,
@@ -85,7 +77,7 @@ bool effects_can_render_text(const Strip *strip);
 
 struct CharInfo {
   int index = 0;
-  const char *str_ptr = nullptr;
+  int offset = 0; /* Offset in bytes within text buffer. */
   int byte_length = 0;
   float2 position{0.0f, 0.0f};
   int advance_x = 0;

@@ -32,11 +32,11 @@
 
 namespace blender::gpu::shader {
 
-using CreateInfoDictionnary = Map<StringRef, ShaderCreateInfo *>;
-using InterfaceDictionnary = Map<StringRef, StageInterfaceInfo *>;
+using CreateInfoDictionary = Map<StringRef, ShaderCreateInfo *>;
+using InterfaceDictionary = Map<StringRef, StageInterfaceInfo *>;
 
-static CreateInfoDictionnary *g_create_infos = nullptr;
-static InterfaceDictionnary *g_interfaces = nullptr;
+static CreateInfoDictionary *g_create_infos = nullptr;
+static InterfaceDictionary *g_interfaces = nullptr;
 
 /* -------------------------------------------------------------------- */
 /** \name Check Backend Support
@@ -96,6 +96,22 @@ bool ShaderCreateInfo::is_vulkan_compatible() const
 
 /** \} */
 
+void ShaderCreateInfo::resource_guard_defines(std::string &defines) const
+{
+  if (name_.startswith("MA") || name_.startswith("WO")) {
+    defines += "#define CREATE_INFO_Material\n";
+  }
+  else {
+    defines += "#define CREATE_INFO_" + name_ + "\n";
+  }
+  for (const auto &info_name : additional_infos_) {
+    const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
+        gpu_shader_create_info_get(info_name.c_str()));
+
+    info.resource_guard_defines(defines);
+  }
+}
+
 void ShaderCreateInfo::finalize(const bool recursive)
 {
   if (finalized_) {
@@ -133,6 +149,8 @@ void ShaderCreateInfo::finalize(const bool recursive)
     subpass_inputs_.extend_non_duplicates(info.subpass_inputs_);
     specialization_constants_.extend_non_duplicates(info.specialization_constants_);
     compilation_constants_.extend_non_duplicates(info.compilation_constants_);
+
+    shared_variables_.extend(info.shared_variables_);
 
     validate_vertex_attributes(&info);
 
@@ -200,6 +218,23 @@ void ShaderCreateInfo::finalize(const bool recursive)
     if (!info.compute_source_.is_empty()) {
       assert_no_overlap(compute_source_.is_empty(), "Compute source already existing");
       compute_source_ = info.compute_source_;
+    }
+
+    if (info.vertex_entry_fn_ != "main") {
+      assert_no_overlap(vertex_entry_fn_ == "main", "Vertex function already existing");
+      vertex_entry_fn_ = info.vertex_entry_fn_;
+    }
+    if (info.geometry_entry_fn_ != "main") {
+      assert_no_overlap(geometry_entry_fn_ == "main", "Geometry function already existing");
+      geometry_entry_fn_ = info.geometry_entry_fn_;
+    }
+    if (info.fragment_entry_fn_ != "main") {
+      assert_no_overlap(fragment_entry_fn_ == "main", "Fragment function already existing");
+      fragment_entry_fn_ = info.fragment_entry_fn_;
+    }
+    if (info.compute_entry_fn_ != "main") {
+      assert_no_overlap(compute_entry_fn_ == "main", "Compute function already existing");
+      compute_entry_fn_ = info.compute_entry_fn_;
     }
   }
 
@@ -323,6 +358,16 @@ std::string ShaderCreateInfo::check_error() const
       if (compilation_constants_[i].name == compilation_constants_[j].name) {
         error += this->name_ + " contains two compilation constants with the name: " +
                  std::string(compilation_constants_[i].name);
+      }
+    }
+  }
+
+  /* Validate shared variables. */
+  for (int i = 0; i < shared_variables_.size(); i++) {
+    for (int j = i + 1; j < shared_variables_.size(); j++) {
+      if (shared_variables_[i].name == shared_variables_[j].name) {
+        error += this->name_ + " contains two specialization constants with the name: " +
+                 std::string(shared_variables_[i].name);
       }
     }
   }
@@ -455,8 +500,8 @@ using namespace blender::gpu::shader;
 #endif
 void gpu_shader_create_info_init()
 {
-  g_create_infos = new CreateInfoDictionnary();
-  g_interfaces = new InterfaceDictionnary();
+  g_create_infos = new CreateInfoDictionary();
+  g_interfaces = new InterfaceDictionary();
 
 #define GPU_SHADER_NAMED_INTERFACE_INFO(_interface, _inst_name) \
   StageInterfaceInfo *ptr_##_interface = new StageInterfaceInfo(#_interface, #_inst_name); \
@@ -481,13 +526,13 @@ void gpu_shader_create_info_init()
 #define GPU_SHADER_CREATE_END() ;
 
 /* Declare, register and construct the infos. */
-#include "gpu_shader_create_info_list.hh"
-
-  /* WORKAROUND: Replace the use of gpu_BaseInstance by an instance attribute. */
-  if (GPU_shader_draw_parameters_support() == false) {
-    draw_resource_id = draw_resource_id_fallback;
-    draw_resource_with_custom_id = draw_resource_with_custom_id_fallback;
-  }
+#include "glsl_compositor_infos_list.hh"
+#include "glsl_draw_infos_list.hh"
+#include "glsl_gpu_infos_list.hh"
+#include "glsl_ocio_infos_list.hh"
+#ifdef WITH_OPENSUBDIV
+#  include "glsl_osd_infos_list.hh"
+#endif
 
   if (GPU_stencil_clasify_buffer_workaround()) {
     /* WORKAROUND: Adding a dummy buffer that isn't used fixes a bug inside the Qualcomm driver. */
@@ -496,6 +541,8 @@ void gpu_shader_create_info_init()
   }
 
   for (ShaderCreateInfo *info : g_create_infos->values()) {
+    info->is_generated_ = false;
+
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->vertex_source_);
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->fragment_source_);
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->geometry_source_);
@@ -574,16 +621,8 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
     }
   }
 
-  Vector<GPUShader *> result;
-  if (GPU_use_parallel_compilation() == false) {
-    for (const GPUShaderCreateInfo *info : infos) {
-      result.append(GPU_shader_create_from_info(info));
-    }
-  }
-  else {
-    BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
-    result = GPU_shader_batch_finalize(batch);
-  }
+  BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
+  Vector<blender::gpu::Shader *> result = GPU_shader_batch_finalize(batch);
 
   for (int i : result.index_range()) {
     const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(infos[i]);
@@ -595,7 +634,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
 #if 0 /* TODO(fclem): This is too verbose for now. Make it a cmake option. */
         /* Test if any resource is optimized out and print a warning if that's the case. */
         /* TODO(fclem): Limit this to OpenGL backend. */
-        const ShaderInterface *interface = unwrap(shader)->interface;
+        const ShaderInterface *interface = shader->interface;
 
         blender::Vector<ShaderCreateInfo::Resource> all_resources = info->resources_get_all_();
 

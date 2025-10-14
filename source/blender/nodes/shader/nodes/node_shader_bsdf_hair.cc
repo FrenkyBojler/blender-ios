@@ -4,7 +4,7 @@
 
 #include "node_shader_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_bsdf_hair_cc {
@@ -40,7 +40,7 @@ static int node_shader_gpu_bsdf_hair(GPUMaterial *mat,
                                      GPUNodeStack *in,
                                      GPUNodeStack *out)
 {
-  GPU_material_flag_set(mat, GPU_MATFLAG_DIFFUSE | GPU_MATFLAG_GLOSSY);
+  GPU_material_flag_set(mat, GPU_MATFLAG_DIFFUSE);
 
   return GPU_stack_link(mat, node, "node_bsdf_hair", in, out);
 }

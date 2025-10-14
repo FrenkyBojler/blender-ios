@@ -8,9 +8,9 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_array.hh"
+#include "BLI_color.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
@@ -109,7 +109,7 @@ static bool vertex_paint_from_weight(Object &ob)
   const GVArray vertex_group = *attributes.lookup(
       deform_group->name,
       bke::AttrDomain::Point,
-      bke::cpp_type_to_custom_data_type(color_attribute.varray.type()));
+      bke::cpp_type_to_attribute_type(color_attribute.varray.type()));
   if (!vertex_group) {
     BLI_assert_unreachable();
     return false;
@@ -285,9 +285,10 @@ static void transform_active_color_data(
               color_attribute.varray.set_by_copy(i, &color);
             }
             else if constexpr (std::is_same_v<T, ColorGeometry4b>) {
-              ColorGeometry4f color = color_attribute.varray.get<ColorGeometry4b>(i).decode();
+              ColorGeometry4f color = color::decode(
+                  color_attribute.varray.get<ColorGeometry4b>(i));
               transform_fn(color);
-              ColorGeometry4b color_encoded = color.encode();
+              ColorGeometry4b color_encoded = color::encode(color);
               color_attribute.varray.set_by_copy(i, &color_encoded);
             }
           }

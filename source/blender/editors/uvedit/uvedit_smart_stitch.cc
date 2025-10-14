@@ -34,8 +34,6 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "UI_interface.hh"
-
 #include "ED_mesh.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -922,7 +920,7 @@ static void stitch_propagate_uv_final_position(Scene *scene,
       if (final) {
         copy_v2_v2(luv, final_position[index].uv);
 
-        uvedit_uv_select_enable(scene, state->em->bm, l, offsets);
+        uvedit_uv_select_enable(scene, state->em->bm, l);
       }
       else {
         int face_preview_pos =
@@ -1691,7 +1689,7 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
     static GPUVertFormat format = {0};
     static uint pos_id;
     if (format.attr_len == 0) {
-      pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      pos_id = GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     }
 
     GPU_blend(GPU_BLEND_ALPHA);
@@ -1909,7 +1907,7 @@ static StitchState *stitch_init(bContext *C,
 
   counter = 0;
   /* Now, on to generate our uv connectivity data */
-  const bool face_selected = !(ts->uv_flag & UV_SYNC_SELECTION);
+  const bool face_selected = !(ts->uv_flag & UV_FLAG_SELECT_SYNC);
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
     if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
       continue;
@@ -2083,7 +2081,7 @@ static StitchState *stitch_init(bContext *C,
 
       BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
         BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
-          if (uvedit_uv_select_test(scene, l, offsets)) {
+          if (uvedit_uv_select_test(scene, em->bm, l, offsets)) {
             UvElement *element = BM_uv_element_get(state->element_map, l);
             if (element) {
               stitch_select_uv(element, state, 1);
@@ -2098,14 +2096,14 @@ static StitchState *stitch_init(bContext *C,
                       "uv_stitch_selection_stack"));
 
       BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-        if (!(ts->uv_flag & UV_SYNC_SELECTION) &&
+        if (!(ts->uv_flag & UV_FLAG_SELECT_SYNC) &&
             (BM_elem_flag_test(efa, BM_ELEM_HIDDEN) || !BM_elem_flag_test(efa, BM_ELEM_SELECT)))
         {
           continue;
         }
 
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-          if (uvedit_edge_select_test(scene, l, offsets)) {
+          if (uvedit_edge_select_test(scene, em->bm, l, offsets)) {
             UvEdge *edge = uv_edge_get(l, state);
             if (edge) {
               stitch_select_edge(edge, state, true);
@@ -2219,7 +2217,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
     ssc->mode = RNA_enum_get(op->ptr, "mode");
   }
   else {
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (ts->selectmode & SCE_SELECT_VERTEX) {
         ssc->mode = STITCH_VERT;
       }
@@ -2228,7 +2226,7 @@ static int stitch_init_all(bContext *C, wmOperator *op)
       }
     }
     else {
-      if (ts->uv_selectmode & UV_SELECT_VERTEX) {
+      if (ts->uv_selectmode & UV_SELECT_VERT) {
         ssc->mode = STITCH_VERT;
       }
       else {
@@ -2343,7 +2341,7 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
 
   Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   StitchStateContainer *ssc = (StitchStateContainer *)op->customdata;
 
@@ -2427,7 +2425,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
   ED_region_draw_cb_exit(CTX_wm_region(C)->runtime->type, ssc->draw_handle);
 
   ToolSettings *ts = scene->toolsettings;
-  const bool synced_selection = (ts->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     StitchState *state = ssc->states[ob_index];

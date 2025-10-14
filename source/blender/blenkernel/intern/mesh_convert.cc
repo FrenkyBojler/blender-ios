@@ -60,7 +60,7 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::StringRefNull;
 
-static CLG_LogRef LOG = {"bke.mesh_convert"};
+static CLG_LogRef LOG = {"geom.mesh.convert"};
 
 static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispbase)
 {
@@ -821,8 +821,28 @@ static Mesh *mesh_new_from_mesh_object_with_layers(Depsgraph *depsgraph,
     mask.lmask |= CD_MASK_ORIGINDEX;
     mask.pmask |= CD_MASK_ORIGINDEX;
   }
+
   Mesh *result = blender::bke::mesh_create_eval_final(depsgraph, scene, &object_for_eval, &mask);
-  return (ensure_subdivision) ? BKE_mesh_wrapper_ensure_subdivision(result) : result;
+
+  if (ensure_subdivision) {
+    /* Returns a borrowed reference which is still owned by `result`.
+     * Steal the reference from `result` which can then be freed. */
+    Mesh *result_maybe_subdiv = BKE_mesh_wrapper_ensure_subdivision(result);
+    if (result != result_maybe_subdiv) {
+      /* Expected, but assert this is the case. */
+      BLI_assert(result->runtime->mesh_eval == result_maybe_subdiv);
+      if (result->runtime->mesh_eval == result_maybe_subdiv) {
+        result->runtime->mesh_eval = nullptr;
+        BKE_id_free(nullptr, result);
+        result = result_maybe_subdiv;
+        /* Don't inherit shape keys, they are not valid anymore.
+         * See #mesh_build_data for why they are on the subdiv wrapper at all. */
+        result->key = nullptr;
+      }
+    }
+  }
+
+  return result;
 }
 
 static Mesh *mesh_new_from_mesh_object(Depsgraph *depsgraph,
@@ -1062,7 +1082,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
   }
 }
 
-void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob)
+void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool process_shape_keys)
 {
   using namespace blender::bke;
   BLI_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
@@ -1102,16 +1122,18 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob)
 
   /* For original meshes, shape key data is stored in the #Key data-block, so it
    * must be moved from the storage in #CustomData layers used for evaluation. */
-  if (Key *key_dst = mesh_dst->key) {
-    if (CustomData_has_layer(&mesh_src->vert_data, CD_SHAPEKEY)) {
-      /* If no object, set to -1 so we don't mess up any shapekey layers. */
-      const int uid_active = ob ? find_object_active_key_uid(*key_dst, *ob) : -1;
-      move_shapekey_layers_to_keyblocks(*mesh_dst, mesh_src->vert_data, *key_dst, uid_active);
-    }
-    else if (verts_num_changed) {
-      CLOG_WARN(&LOG, "Shape key data lost when replacing mesh '%s' in Main", mesh_src->id.name);
-      id_us_min(&mesh_dst->key->id);
-      mesh_dst->key = nullptr;
+  if (process_shape_keys) {
+    if (Key *key_dst = mesh_dst->key) {
+      if (CustomData_has_layer(&mesh_src->vert_data, CD_SHAPEKEY)) {
+        /* If no object, set to -1 so we don't mess up any shapekey layers. */
+        const int uid_active = ob ? find_object_active_key_uid(*key_dst, *ob) : -1;
+        move_shapekey_layers_to_keyblocks(*mesh_dst, mesh_src->vert_data, *key_dst, uid_active);
+      }
+      else if (verts_num_changed) {
+        CLOG_WARN(&LOG, "Shape key data lost when replacing mesh '%s' in Main", mesh_src->id.name);
+        id_us_min(&mesh_dst->key->id);
+        mesh_dst->key = nullptr;
+      }
     }
   }
 

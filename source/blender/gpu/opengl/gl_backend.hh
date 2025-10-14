@@ -9,9 +9,14 @@
 #pragma once
 
 #include "GPU_capabilities.hh"
+#include "GPU_platform.hh"
+
 #include "gpu_backend.hh"
 
+#include "BLI_threads.h"
 #include "BLI_vector.hh"
+
+#include "gpu_capabilities_private.hh"
 
 #ifdef WITH_RENDERDOC
 #  include "renderdoc_api.hh"
@@ -56,7 +61,7 @@ class GLBackend : public GPUBackend {
 
   void init_resources() override
   {
-    if (GPU_use_parallel_compilation()) {
+    if (GCaps.use_subprocess_shader_compilations) {
       compiler_ = MEM_new<GLSubprocessShaderCompiler>(__func__);
     }
     else {
@@ -173,9 +178,9 @@ class GLBackend : public GPUBackend {
   }
 
   /* Render Frame Coordination */
-  void render_begin() override{};
-  void render_end() override{};
-  void render_step(bool /*force_resource_release*/) override{};
+  void render_begin() override {};
+  void render_end() override {};
+  void render_step(bool /*force_resource_release*/) override {};
 
   bool debug_capture_begin(const char *title);
   void debug_capture_end();

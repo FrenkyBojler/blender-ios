@@ -234,7 +234,7 @@ static void blender_camera_from_object(BlenderCamera *bcam,
       float fstop = b_camera.dof().aperture_fstop();
       fstop = max(fstop, 1e-5f);
 
-      if (bcam->type == CAMERA_ORTHOGRAPHIC) {
+      if (bcam->type == CAMERA_ORTHOGRAPHIC || bcam->type == CAMERA_CUSTOM) {
         bcam->aperturesize = 1.0f / (2.0f * fstop);
       }
       else {
@@ -397,8 +397,9 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
   bool get_float(ustring name, vector<float> &data) override
   {
     PropertyRNA *prop = get_prop(name);
-    if (!prop)
+    if (!prop) {
       return false;
+    }
     if (RNA_property_array_check(prop)) {
       data.resize(RNA_property_array_length(&custom_props, prop));
       RNA_property_float_get_array(&custom_props, prop, data.data());
@@ -413,9 +414,9 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
   bool get_int(ustring name, vector<int> &data) override
   {
     PropertyRNA *prop = get_prop(name);
-    if (!prop)
+    if (!prop) {
       return false;
-
+    }
     int array_len = 0;
     if (RNA_property_array_check(prop)) {
       array_len = RNA_property_array_length(&custom_props, prop);
@@ -434,6 +435,16 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
         data.push_back(RNA_property_boolean_get(&custom_props, prop));
       }
     }
+    else if (RNA_property_type(prop) == PROP_ENUM) {
+      const char *identifier = "";
+      const int value = RNA_property_enum_get(&custom_props, prop);
+      if (RNA_property_enum_identifier(nullptr, &custom_props, prop, value, &identifier)) {
+        data.push_back(atoi(identifier));
+      }
+      else {
+        data.push_back(value);
+      }
+    }
     else {
       if (array_len > 0) {
         data.resize(array_len);
@@ -449,8 +460,9 @@ class BlenderCameraParamQuery : public OSLCameraParamQuery {
   bool get_string(ustring name, string &data) override
   {
     PropertyRNA *prop = get_prop(name);
-    if (!prop)
+    if (!prop) {
       return false;
+    }
     data = RNA_property_string_get(&custom_props, prop);
     return true;
   }
@@ -646,7 +658,6 @@ static MotionPosition blender_motion_blur_position_type_to_cycles(
 }
 
 void BlenderSync::sync_camera(BL::RenderSettings &b_render,
-                              BL::Object &b_override,
                               const int width,
                               const int height,
                               const char *viewname)
@@ -680,11 +691,7 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
   }
 
   /* camera object */
-  BL::Object b_ob = b_scene.camera();
-
-  if (b_override) {
-    b_ob = b_override;
-  }
+  BL::Object b_ob = get_camera_object(PointerRNA_NULL, PointerRNA_NULL);
 
   if (b_ob) {
     BL::Array<float, 16> b_ob_matrix;
@@ -715,6 +722,33 @@ void BlenderSync::sync_camera(BL::RenderSettings &b_render,
   else {
     *scene->dicing_camera = *cam;
   }
+}
+
+BL::Object BlenderSync::get_camera_object(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d)
+{
+  BL::Object b_camera_override = b_engine.camera_override();
+  if (b_camera_override) {
+    return b_camera_override;
+  }
+
+  if (b_v3d && b_rv3d && b_rv3d.view_perspective() == BL::RegionView3D::view_perspective_CAMERA &&
+      b_v3d.use_local_camera())
+  {
+    return b_v3d.camera();
+  }
+
+  return b_scene.camera();
+}
+
+BL::Object BlenderSync::get_dicing_camera_object(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d)
+{
+  PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
+  BL::Object b_ob = BL::Object(RNA_pointer_get(&cscene, "dicing_camera"));
+  if (b_ob) {
+    return b_ob;
+  }
+
+  return get_camera_object(b_v3d, b_rv3d);
 }
 
 void BlenderSync::sync_camera_motion(BL::RenderSettings &b_render,
@@ -762,7 +796,7 @@ void BlenderSync::sync_camera_motion(BL::RenderSettings &b_render,
     /* TODO(sergey): De-duplicate calculation with camera sync. */
     const float fov = 2.0f * atanf((0.5f * sensor_size) / bcam.lens / aspectratio);
     if (fov != cam->get_fov()) {
-      VLOG_WORK << "Camera " << b_ob.name() << " FOV change detected.";
+      LOG_DEBUG << "Camera " << b_ob.name() << " FOV change detected.";
       if (motion_time == 0.0f) {
         cam->set_fov(fov);
       }

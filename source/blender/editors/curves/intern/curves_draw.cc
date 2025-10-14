@@ -387,7 +387,7 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
   }
 
   if (stroke_len > 1) {
-    float(*coord_array)[3] = static_cast<float(*)[3]>(
+    float (*coord_array)[3] = static_cast<float (*)[3]>(
         MEM_mallocN(sizeof(*coord_array) * stroke_len, __func__));
 
     {
@@ -404,7 +404,8 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
 
     {
       GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      uint pos = GPU_vertformat_attr_add(
+          format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_depth_test(GPU_DEPTH_NONE);

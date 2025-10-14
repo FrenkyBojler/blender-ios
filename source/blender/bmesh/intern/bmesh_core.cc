@@ -147,7 +147,7 @@ BMEdge *BM_edge_create(
 #endif
 
   e->head.htype = BM_EDGE;
-  e->head.hflag = BM_ELEM_SMOOTH | BM_ELEM_DRAW;
+  e->head.hflag = BM_ELEM_SMOOTH;
   e->head.api_flag = 0;
 
   /* allocate flags */
@@ -160,7 +160,9 @@ BMEdge *BM_edge_create(
   e->v2 = v2;
   e->l = nullptr;
 
-  memset(&e->v1_disk_link, 0, sizeof(BMDiskLink[2]));
+  memset(&e->v1_disk_link, 0, sizeof(BMDiskLink));
+  memset(&e->v2_disk_link, 0, sizeof(BMDiskLink));
+
   /* --- done --- */
 
   bmesh_disk_edge_append(e, e->v1);
@@ -1328,7 +1330,7 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del,
     /* handle multi-res data */
     if (cd_loop_mdisp_offset != -1) {
       float f_center[3];
-      float(*faces_center)[3] = BLI_array_alloca(faces_center, totface);
+      float (*faces_center)[3] = BLI_array_alloca(faces_center, totface);
 
       BM_face_calc_center_median(f_new, f_center);
       for (i = 0; i < totface; i++) {

@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_edge)
 
@@ -28,6 +28,9 @@ VertIn input_assembly(uint in_vertex_id)
   vert_in.lP = gpu_attr_load_float3(pos, gpu_attr_0, v_i);
   if (gpu_attr_1.x == 1) {
     vert_in.lN = gpu_attr_load_uint_1010102_snorm(vnor, gpu_attr_1, v_i).xyz;
+  }
+  else if (gpu_attr_1.x == 2) {
+    vert_in.lN = gpu_attr_load_short4_snorm(vnor, gpu_attr_1, v_i).xyz;
   }
   else {
     vert_in.lN.x = uintBitsToFloat(vnor[gpu_attr_load_index(v_i, gpu_attr_1) + 0]);

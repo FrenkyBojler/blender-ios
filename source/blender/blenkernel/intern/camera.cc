@@ -115,11 +115,10 @@ static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, camera->ipo, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->dof_ob, IDWALK_CB_NOP);
   }
 
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->custom_shader, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->custom_shader, IDWALK_CB_USER);
 }
 
 static void camera_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -151,7 +150,7 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
 
   auto cycles_property_int_set = [](IDProperty *idprop, const char *name, int value) {
     if (IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_INT)) {
-      IDP_Int(prop) = value;
+      IDP_int_set(prop, value);
     }
     else {
       IDP_AddToGroup(idprop, blender::bke::idprop::create(name, value).release());
@@ -160,7 +159,7 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
 
   auto cycles_property_float_set = [](IDProperty *idprop, const char *name, float value) {
     if (IDProperty *prop = IDP_GetPropertyTypeFromGroup(idprop, name, IDP_FLOAT)) {
-      IDP_Float(prop) = value;
+      IDP_float_set(prop, value);
     }
     else {
       IDP_AddToGroup(idprop, blender::bke::idprop::create(name, value).release());
@@ -169,9 +168,10 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
 
   /* For forward compatibility, still write panoramic properties as ID properties for
    * previous blender versions. */
-  IDProperty *idprop_prev = IDP_GetProperties(id);
+  IDProperty *idprop_prev = IDP_ID_system_properties_get(id);
   /* Make a copy to avoid modifying the original. */
-  IDProperty *idprop_temp = idprop_prev ? IDP_CopyProperty(idprop_prev) : IDP_EnsureProperties(id);
+  IDProperty *idprop_temp = idprop_prev ? IDP_CopyProperty(idprop_prev) :
+                                          IDP_ID_system_properties_ensure(id);
 
   Camera *cam = (Camera *)id;
   IDProperty *cycles_cam = cycles_data_ensure(idprop_temp);
@@ -188,7 +188,7 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
   cycles_property_float_set(cycles_cam, "fisheye_polynomial_k3", cam->fisheye_polynomial_k3);
   cycles_property_float_set(cycles_cam, "fisheye_polynomial_k4", cam->fisheye_polynomial_k4);
 
-  id->properties = idprop_temp;
+  id->system_properties = idprop_temp;
 
   return {idprop_prev, idprop_temp};
 }
@@ -196,7 +196,7 @@ static CameraCyclesCompatibilityData camera_write_cycles_compatibility_data_crea
 static void camera_write_cycles_compatibility_data_clear(ID *id,
                                                          CameraCyclesCompatibilityData &data)
 {
-  id->properties = data.idprop_prev;
+  id->system_properties = data.idprop_prev;
   data.idprop_prev = nullptr;
 
   if (data.idprop_temp) {
@@ -269,6 +269,7 @@ IDTypeInfo IDType_ID_CA = {
     /*foreach_id*/ camera_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ camera_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ camera_blend_write,
@@ -721,7 +722,7 @@ static void camera_frame_fit_data_init(const Scene *scene,
   BKE_camera_params_compute_matrix(params);
 
   /* initialize callback data */
-  copy_m3_m4(data->camera_rotmat, (float(*)[4])ob->object_to_world().ptr());
+  copy_m3_m4(data->camera_rotmat, (float (*)[4])ob->object_to_world().ptr());
   normalize_m3(data->camera_rotmat);
   /* To transform a plane which is in its homogeneous representation (4d vector),
    * we need the inverse of the transpose of the transform matrix... */
@@ -1245,7 +1246,8 @@ CameraBGImage *BKE_camera_background_image_new(Camera *cam)
   bgpic->scale = 1.0f;
   bgpic->alpha = 0.5f;
   bgpic->iuser.flag |= IMA_ANIM_ALWAYS;
-  bgpic->flag |= CAM_BGIMG_FLAG_EXPANDED | CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL;
+  bgpic->flag |= CAM_BGIMG_FLAG_EXPANDED | CAM_BGIMG_FLAG_CAMERA_ASPECT |
+                 CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL;
 
   BLI_addtail(&cam->bg_images, bgpic);
 

@@ -146,7 +146,7 @@ static void animchan_sync_group(bAnimContext *ac, bAnimListElem *ale, bActionGro
 
       if (pchan) {
         /* if one matches, sync the selection status */
-        if ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED)) {
+        if ((pchan->bone) && (pchan->flag & POSE_SELECTED)) {
           agrp->flag |= AGRP_SELECTED;
         }
         else {
@@ -198,7 +198,7 @@ static void animchan_sync_fcurve_scene(bAnimListElem *ale)
      * strip, or even the sequencer itself. */
     return;
   }
-  strip = blender::seq::get_strip_by_name(ed->seqbasep, strip_name, false);
+  strip = blender::seq::get_strip_by_name(ed->current_strips(), strip_name, false);
   if (strip == nullptr) {
     return;
   }
@@ -336,6 +336,7 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_SHAPEKEY:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:

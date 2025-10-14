@@ -275,7 +275,7 @@ struct BMOpSlot {
 #define BMO_SLOT_AS_INT(slot) ((slot)->data.i)
 #define BMO_SLOT_AS_FLOAT(slot) ((slot)->data.f)
 #define BMO_SLOT_AS_VECTOR(slot) ((slot)->data.vec)
-#define BMO_SLOT_AS_MATRIX(slot) ((float(*)[4])((slot)->data.p))
+#define BMO_SLOT_AS_MATRIX(slot) ((float (*)[4])((slot)->data.p))
 #define BMO_SLOT_AS_BUFFER(slot) ((slot)->data.buf)
 #define BMO_SLOT_AS_GHASH(slot) ((slot)->data.ghash)
 
@@ -327,6 +327,11 @@ struct BMOpDefine {
   const char *opname;
   BMOSlotType slot_types_in[BMO_OP_MAX_SLOTS];
   BMOSlotType slot_types_out[BMO_OP_MAX_SLOTS];
+  /**
+   * Optional initialize function.
+   * Can be used for setting defaults.
+   */
+  void (*init)(BMOperator *op);
   void (*exec)(BMesh *bm, BMOperator *op);
   BMOpTypeFlag type_flag;
 };

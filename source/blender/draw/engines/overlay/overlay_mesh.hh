@@ -134,7 +134,7 @@ class Meshes : Overlay {
      * Doing so lets us distinguish back-faces from front-faces. */
     DRWState face_culling = (show_retopology_) ? DRW_STATE_CULL_BACK : DRWState(0);
 
-    GPUTexture **depth_tex = (state.xray_flag_enabled) ? &res.depth_tx : &res.dummy_depth_tx;
+    gpu::Texture **depth_tex = (state.xray_flag_enabled) ? &res.depth_tx : &res.dummy_depth_tx;
 
     {
       auto &pass = edit_mesh_prepass_ps_;
@@ -164,7 +164,7 @@ class Meshes : Overlay {
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
       pass.state_set(pass_state, state.clipping_plane_count);
 
-      auto shader_pass = [&](GPUShader *shader, const char *name) {
+      auto shader_pass = [&](gpu::Shader *shader, const char *name) {
         auto &sub = pass.sub(name);
         sub.shader_set(shader);
         sub.bind_texture("depth_tx", depth_tex);
@@ -306,7 +306,7 @@ class Meshes : Overlay {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     Object *ob = ob_ref.object;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
@@ -604,9 +604,11 @@ class MeshUVs : Overlay {
         const bool hide_faces = space_image->flag & SI_NO_DRAWFACES;
         select_face_ = !show_mesh_analysis_ && !hide_faces;
 
-        if (tool_setting->uv_flag & UV_SYNC_SELECTION) {
+        /* FIXME: Always showing verts in edge mode when `uv_select_sync_valid`.
+         * needs investigation. */
+        if (tool_setting->uv_flag & UV_FLAG_SELECT_SYNC) {
           const char sel_mode_3d = tool_setting->selectmode;
-          if (tool_setting->uv_sticky == SI_STICKY_VERTEX) {
+          if (tool_setting->uv_sticky == UV_STICKY_VERT) {
             /* NOTE: Ignore #SCE_SELECT_VERTEX because a single selected edge
              * on the mesh may cause single UV vertices to be selected. */
             select_vert_ = true;
@@ -634,10 +636,11 @@ class MeshUVs : Overlay {
       /* Wireframe UV Overlay. */
       const bool show_wireframe_uv_edit = space_image->flag & SI_DRAWSHADOW;
       const bool show_wireframe_uv_guide = !(space_image->flag & SI_NO_DRAW_UV_GUIDE) &&
-                                           space_mode_is_paint;
+                                           (space_mode_is_paint || space_mode_is_uv);
 
       if (space_mode_is_uv && object_mode_is_edit) {
         show_wireframe_ = show_wireframe_uv_edit;
+        show_face_overlay_ = !(space_image->flag & SI_NO_DRAWFACES);
       }
       else {
         show_wireframe_ = show_wireframe_uv_guide;
@@ -683,7 +686,7 @@ class MeshUVs : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
                      DRW_STATE_BLEND_ALPHA);
 
-      GPUShader *sh = res.shaders->uv_edit_edge.get();
+      gpu::Shader *sh = res.shaders->uv_edit_edge.get();
       pass.specialize_constant(sh, "use_edge_select", select_edge_);
       pass.shader_set(sh);
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
@@ -783,10 +786,10 @@ class MeshUVs : Overlay {
     const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
                                                                      CD_PROP_FLOAT2) != -1;
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     if (show_wireframe_ && has_active_object_uvmap) {
-      gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(*ob, mesh);
+      gpu::Batch *geom = DRW_mesh_batch_cache_get_all_uv_wireframe(*ob, mesh);
       wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
     }
     if (show_face_overlay_ && has_active_object_uvmap && space_image->uv_face_opacity > 0.0f) {
@@ -807,17 +810,26 @@ class MeshUVs : Overlay {
     Object &ob = *ob_ref.object;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(ob);
 
+    const Object *ob_orig = DEG_get_original(ob_ref.object);
+    const Mesh &mesh_orig = ob_orig->type == OB_MESH ? *static_cast<Mesh *>(ob_orig->data) : mesh;
+
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
     const bool is_uv_editable = is_edit_object && space_image->mode == SI_MODE_UV;
+    /* Sculpt is left out here because selection does not exist in it. */
+    const bool is_paint_mode = ELEM(
+        state.ctx_mode, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
+    const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
+    const bool is_face_selectable = (is_edit_object || (is_paint_mode && use_face_selection));
     const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
                                                                      CD_PROP_FLOAT2) != -1;
     const bool has_active_edit_uvmap = is_edit_object && (CustomData_get_active_layer(
                                                               &mesh.runtime->edit_mesh->bm->ldata,
                                                               CD_PROP_FLOAT2) != -1);
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
+    /* Fully editable UVs in the UV Editor. */
     if (has_active_edit_uvmap && is_uv_editable) {
       if (show_uv_edit_) {
         gpu::Batch *geom = DRW_mesh_batch_cache_get_edituv_edges(ob, mesh);
@@ -855,11 +867,28 @@ class MeshUVs : Overlay {
 
         analysis_ps_.draw(geom, res_handle);
       }
+      return;
     }
 
-    if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable) {
+    /* Selectable faces in 3D viewport that sync with image editor paint mode. */
+    if ((has_active_object_uvmap || has_active_edit_uvmap) && is_face_selectable) {
       if (show_wireframe_) {
         gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_wireframe(ob, mesh);
+        wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
+      }
+      if ((show_face_overlay_ && space_image->uv_face_opacity > 0.0f) || select_face_) {
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_uv_faces(ob, mesh);
+        faces_ps_.draw(geom, res_handle);
+      }
+      return;
+    }
+
+    /* Non-selectable & non-editable faces in image editor paint mode. */
+    if ((has_active_object_uvmap || has_active_edit_uvmap) && !is_uv_editable &&
+        !is_face_selectable)
+    {
+      if (show_wireframe_) {
+        gpu::Batch *geom = DRW_mesh_batch_cache_get_all_uv_wireframe(ob, mesh);
         wireframe_ps_.draw_expand(geom, GPU_PRIM_TRIS, 2, 1, res_handle);
       }
       if (show_face_overlay_ && space_image->uv_face_opacity > 0.0f) {
@@ -1034,7 +1063,7 @@ class MeshUVs : Overlay {
     GPU_debug_group_end();
   }
 
-  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view) final
+  void draw_on_render(gpu::FrameBuffer *framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -1085,7 +1114,8 @@ class MeshUVs : Overlay {
     BKE_maskrasterize_handle_free(handle);
 
     mask_texture_.free();
-    mask_texture_.ensure_2d(GPU_R16F, int2(width, height), GPU_TEXTURE_USAGE_SHADER_READ, buffer);
+    mask_texture_.ensure_2d(
+        gpu::TextureFormat::SFLOAT_16, int2(width, height), GPU_TEXTURE_USAGE_SHADER_READ, buffer);
 
     MEM_freeN(buffer);
   }

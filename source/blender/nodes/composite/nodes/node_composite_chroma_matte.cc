@@ -18,7 +18,6 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -31,7 +30,13 @@ namespace blender::nodes::node_composite_chroma_matte_cc {
 
 static void cmp_node_chroma_matte_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.is_function_node();
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
+  b.add_output<decl::Float>("Matte");
+
   b.add_input<decl::Color>("Key Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Minimum")
       .default_value(DEG2RADF(10.0f))
@@ -53,17 +58,6 @@ static void cmp_node_chroma_matte_declare(NodeDeclarationBuilder &b)
       .description(
           "Controls the falloff between keyed and non-keyed values. 0 means completely sharp and "
           "1 means completely smooth");
-
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Matte");
-}
-
-static void node_composit_init_chroma_matte(bNodeTree * /*ntree*/, bNode *node)
-{
-  /* All members are deprecated and needn't be set, but the data is still allocated for forward
-   * compatibility. */
-  NodeChroma *c = MEM_callocN<NodeChroma>(__func__);
-  node->storage = c;
 }
 
 using namespace blender::compositor;
@@ -154,11 +148,9 @@ static void register_node_type_cmp_chroma_matte()
   ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_chroma_matte_declare;
   ntype.flag |= NODE_PREVIEW;
-  ntype.initfunc = file_ns::node_composit_init_chroma_matte;
-  blender::bke::node_type_storage(
-      ntype, "NodeChroma", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
+  blender::bke::node_type_size(ntype, 155, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

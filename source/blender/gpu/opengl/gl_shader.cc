@@ -35,6 +35,16 @@
 
 #include <sstream>
 #include <stdio.h>
+
+#include <fmt/format.h>
+
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdio.h>
+#include <string>
+
 #ifdef WIN32
 #  define popen _popen
 #  define pclose _pclose
@@ -43,8 +53,6 @@
 using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
-
-extern "C" char datatoc_glsl_shader_defines_glsl[];
 
 /* -------------------------------------------------------------------- */
 /** \name Creation / Destruction
@@ -77,16 +85,10 @@ void GLShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
 
   /* NOTE: This is not threadsafe with regards to the specialization constants state access.
    * The shader creation must be externally synchronized. */
-  main_program_ = &program_cache_.lookup_or_add_default(constants->values);
-  if (!main_program_->program_id) {
-    main_program_->program_id = glCreateProgram();
-    debug::object_label(GL_PROGRAM, main_program_->program_id, name);
-  }
-}
-
-void GLShader::init()
-{
-  main_program_ = &program_cache_.lookup_or_add_default(constants->values);
+  main_program_ = program_cache_
+                      .lookup_or_add_cb(constants->values,
+                                        []() { return std::make_unique<GLProgram>(); })
+                      .get();
   if (!main_program_->program_id) {
     main_program_->program_id = glCreateProgram();
     debug::object_label(GL_PROGRAM, main_program_->program_id, name);
@@ -225,72 +227,72 @@ static Type UNUSED_FUNCTION(to_component_type)(const Type &type)
   return Type::float_t;
 }
 
-static const char *to_string(const eGPUTextureFormat &type)
+static const char *to_string(const TextureFormat &type)
 {
   switch (type) {
-    case GPU_RGBA8UI:
+    case TextureFormat::UINT_8_8_8_8:
       return "rgba8ui";
-    case GPU_RGBA8I:
+    case TextureFormat::SINT_8_8_8_8:
       return "rgba8i";
-    case GPU_RGBA8:
+    case TextureFormat::UNORM_8_8_8_8:
       return "rgba8";
-    case GPU_RGBA32UI:
+    case TextureFormat::UINT_32_32_32_32:
       return "rgba32ui";
-    case GPU_RGBA32I:
+    case TextureFormat::SINT_32_32_32_32:
       return "rgba32i";
-    case GPU_RGBA32F:
+    case TextureFormat::SFLOAT_32_32_32_32:
       return "rgba32f";
-    case GPU_RGBA16UI:
+    case TextureFormat::UINT_16_16_16_16:
       return "rgba16ui";
-    case GPU_RGBA16I:
+    case TextureFormat::SINT_16_16_16_16:
       return "rgba16i";
-    case GPU_RGBA16F:
+    case TextureFormat::SFLOAT_16_16_16_16:
       return "rgba16f";
-    case GPU_RGBA16:
+    case TextureFormat::UNORM_16_16_16_16:
       return "rgba16";
-    case GPU_RG8UI:
+    case TextureFormat::UINT_8_8:
       return "rg8ui";
-    case GPU_RG8I:
+    case TextureFormat::SINT_8_8:
       return "rg8i";
-    case GPU_RG8:
+    case TextureFormat::UNORM_8_8:
       return "rg8";
-    case GPU_RG32UI:
+    case TextureFormat::UINT_32_32:
       return "rg32ui";
-    case GPU_RG32I:
+    case TextureFormat::SINT_32_32:
       return "rg32i";
-    case GPU_RG32F:
+    case TextureFormat::SFLOAT_32_32:
       return "rg32f";
-    case GPU_RG16UI:
+    case TextureFormat::UINT_16_16:
       return "rg16ui";
-    case GPU_RG16I:
+    case TextureFormat::SINT_16_16:
       return "rg16i";
-    case GPU_RG16F:
+    case TextureFormat::SFLOAT_16_16:
       return "rg16f";
-    case GPU_RG16:
+    case TextureFormat::UNORM_16_16:
       return "rg16";
-    case GPU_R8UI:
+    case TextureFormat::UINT_8:
       return "r8ui";
-    case GPU_R8I:
+    case TextureFormat::SINT_8:
       return "r8i";
-    case GPU_R8:
+    case TextureFormat::UNORM_8:
       return "r8";
-    case GPU_R32UI:
+    case TextureFormat::UINT_32:
       return "r32ui";
-    case GPU_R32I:
+    case TextureFormat::SINT_32:
       return "r32i";
-    case GPU_R32F:
+    case TextureFormat::SFLOAT_32:
       return "r32f";
-    case GPU_R16UI:
+    case TextureFormat::UINT_16:
       return "r16ui";
-    case GPU_R16I:
+    case TextureFormat::SINT_16:
       return "r16i";
-    case GPU_R16F:
+    case TextureFormat::SFLOAT_16:
       return "r16f";
-    case GPU_R16:
+    case TextureFormat::UNORM_16:
       return "r16";
-    case GPU_R11F_G11F_B10F:
+    case TextureFormat::UFLOAT_11_11_10:
       return "r11f_g11f_b10f";
-    case GPU_RGB10_A2:
+    case TextureFormat::UNORM_10_10_10_2:
       return "rgb10_a2";
     default:
       return "unknown";
@@ -611,6 +613,10 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
         break;
     }
   }
+  ss << "\n/* Shared Variables. */\n";
+  for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
+    ss << "shared " << to_string(sv.type) << " " << sv.name << ";\n";
+  }
   /* NOTE: We define macros in GLSL to trigger compilation error if the resource names
    * are reused for local variables. This is to match other backend behavior which needs accessors
    * macros. */
@@ -751,7 +757,7 @@ std::string GLShader::vertex_interface_declare(const ShaderCreateInfo &info) con
     }
   }
   if (bool(info.builtins_ & BuiltinBits::CLIP_CONTROL)) {
-    if (GLContext::clip_control_support && !has_geometry_stage) {
+    if (!has_geometry_stage) {
       /* Assume clip range is set to 0..1 and remap the range just like Vulkan and Metal.
        * If geometry stage is needed, do that remapping inside the geometry shader stage. */
       post_main += "gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;\n";
@@ -958,13 +964,10 @@ std::string GLShader::compute_layout_declare(const ShaderCreateInfo &info) const
 {
   std::stringstream ss;
   ss << "\n/* Compute Layout. */\n";
-  ss << "layout(local_size_x = " << info.compute_layout_.local_size_x;
-  if (info.compute_layout_.local_size_y != -1) {
-    ss << ", local_size_y = " << info.compute_layout_.local_size_y;
-  }
-  if (info.compute_layout_.local_size_z != -1) {
-    ss << ", local_size_z = " << info.compute_layout_.local_size_z;
-  }
+  ss << "layout(";
+  ss << "  local_size_x = " << info.compute_layout_.local_size_x;
+  ss << ", local_size_y = " << info.compute_layout_.local_size_y;
+  ss << ", local_size_z = " << info.compute_layout_.local_size_z;
   ss << ") in;\n";
   ss << "\n";
   return ss.str();
@@ -1030,10 +1033,8 @@ std::string GLShader::workaround_geometry_shader_source_create(
     }
     ss << "  gl_Position = gl_in[" << i << "].gl_Position;\n";
     if (bool(info.builtins_ & BuiltinBits::CLIP_CONTROL)) {
-      if (GLContext::clip_control_support) {
-        /* Assume clip range is set to 0..1 and remap the range just like Vulkan and Metal. */
-        ss << "gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;\n";
-      }
+      /* Assume clip range is set to 0..1 and remap the range just like Vulkan and Metal. */
+      ss << "gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;\n";
     }
     if (do_layer_output) {
       ss << "  gl_Layer = gpu_Layer[" << i << "];\n";
@@ -1078,24 +1079,18 @@ static StringRefNull glsl_patch_vertex_get()
 
     /* Enable extensions for features that are not part of our base GLSL version
      * don't use an extension for something already available! */
-    if (GLContext::shader_draw_parameters_support) {
+    {
+      /* Required extension. */
       ss << "#extension GL_ARB_shader_draw_parameters : enable\n";
       ss << "#define GPU_ARB_shader_draw_parameters\n";
       ss << "#define gpu_BaseInstance gl_BaseInstanceARB\n";
+      ss << "#define GPU_ARB_clip_control\n";
     }
     if (GLContext::layered_rendering_support) {
       ss << "#extension GL_ARB_shader_viewport_layer_array: enable\n";
     }
     if (GLContext::native_barycentric_support) {
       ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
-    }
-    if (GLContext::clip_control_support) {
-      ss << "#define GPU_ARB_clip_control\n";
-    }
-
-    /* Fallbacks. */
-    if (!GLContext::shader_draw_parameters_support) {
-      ss << "uniform int gpu_BaseInstance;\n";
     }
 
     /* Vulkan GLSL compatibility. */
@@ -1106,10 +1101,11 @@ static StringRefNull glsl_patch_vertex_get()
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_VERTEX_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1128,19 +1124,18 @@ static StringRefNull glsl_patch_geometry_get()
     if (GLContext::native_barycentric_support) {
       ss << "#extension GL_AMD_shader_explicit_vertex_parameter: enable\n";
     }
-    if (GLContext::clip_control_support) {
-      ss << "#define GPU_ARB_clip_control\n";
-    }
+    ss << "#define GPU_ARB_clip_control\n";
 
     /* Array compatibility. */
     ss << "#define gpu_Array(_type) _type[]\n";
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_GEOMETRY_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1166,19 +1161,18 @@ static StringRefNull glsl_patch_fragment_get()
       ss << "#extension GL_ARB_shader_stencil_export: enable\n";
       ss << "#define GPU_ARB_shader_stencil_export\n";
     }
-    if (GLContext::clip_control_support) {
-      ss << "#define GPU_ARB_clip_control\n";
-    }
+    ss << "#define GPU_ARB_clip_control\n";
 
     /* Array compatibility. */
     ss << "#define gpu_Array(_type) _type[]\n";
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_FRAGMENT_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1197,13 +1191,12 @@ static StringRefNull glsl_patch_compute_get()
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_COMPUTE_SHADER\n";
 
-    if (GLContext::clip_control_support) {
-      ss << "#define GPU_ARB_clip_control\n";
-    }
+    ss << "#define GPU_ARB_clip_control\n";
 
-    ss << datatoc_glsl_shader_defines_glsl;
-
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1223,6 +1216,21 @@ StringRefNull GLShader::glsl_patch_get(GLenum gl_stage)
     return glsl_patch_compute_get();
   }
   BLI_assert_unreachable();
+  return "";
+}
+
+static StringRefNull stage_name_get(GLenum gl_stage)
+{
+  switch (gl_stage) {
+    case GL_VERTEX_SHADER:
+      return "vertex";
+    case GL_GEOMETRY_SHADER:
+      return "geometry";
+    case GL_FRAGMENT_SHADER:
+      return "fragment";
+    case GL_COMPUTE_SHADER:
+      return "compute";
+  }
   return "";
 }
 
@@ -1254,21 +1262,7 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
 
   if (DEBUG_LOG_SHADER_SRC_ON_ERROR) {
     /* Store the generated source for printing in case the link fails. */
-    StringRefNull source_type;
-    switch (gl_stage) {
-      case GL_VERTEX_SHADER:
-        source_type = "VertShader";
-        break;
-      case GL_GEOMETRY_SHADER:
-        source_type = "GeomShader";
-        break;
-      case GL_FRAGMENT_SHADER:
-        source_type = "FragShader";
-        break;
-      case GL_COMPUTE_SHADER:
-        source_type = "ComputeShader";
-        break;
-    }
+    StringRefNull source_type = stage_name_get(gl_stage);
 
     debug_source += "\n\n----------" + source_type + "----------\n\n";
     for (StringRefNull source : sources) {
@@ -1287,11 +1281,35 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
     return 0;
   }
 
-  Array<const char *, 16> c_str_sources(sources.size());
-  for (const int i : sources.index_range()) {
-    c_str_sources[i] = sources[i].c_str();
+  std::string concat_source = fmt::to_string(fmt::join(sources, ""));
+
+  std::string full_name = this->name_get() + "_" + stage_name_get(gl_stage);
+
+  if (this->name_get() == G.gpu_debug_shader_source_name) {
+    namespace fs = std::filesystem;
+    fs::path shader_dir = fs::current_path() / "Shaders";
+    fs::create_directories(shader_dir);
+    fs::path file_path = shader_dir / (full_name + ".glsl");
+
+    std::ofstream output_source_file(file_path);
+    if (output_source_file) {
+      output_source_file << concat_source;
+      output_source_file.close();
+    }
+    else {
+      std::cerr << "Shader Source Debug: Failed to open file: " << file_path << "\n";
+    }
   }
-  glShaderSource(shader, c_str_sources.size(), c_str_sources.data(), nullptr);
+
+  /* Patch line directives so that we can make error reporting consistent. */
+  size_t start_pos = 0;
+  while ((start_pos = concat_source.find("#line ", start_pos)) != std::string::npos) {
+    concat_source[start_pos] = '/';
+    concat_source[start_pos + 1] = '/';
+  }
+
+  const char *str_ptr = concat_source.c_str();
+  glShaderSource(shader, 1, &str_ptr, nullptr);
   glCompileShader(shader);
 
   GLint status;
@@ -1568,12 +1586,13 @@ size_t GLSourcesBaked::size()
 
 GLShader::GLProgram::~GLProgram()
 {
+  /* This can run from any thread even without a GLContext bound. */
   /* Invalid handles are silently ignored. */
-  glDeleteShader(vert_shader);
-  glDeleteShader(geom_shader);
-  glDeleteShader(frag_shader);
-  glDeleteShader(compute_shader);
-  glDeleteProgram(program_id);
+  GLContext::shader_free(vert_shader);
+  GLContext::shader_free(geom_shader);
+  GLContext::shader_free(frag_shader);
+  GLContext::shader_free(compute_shader);
+  GLContext::program_free(program_id);
 }
 
 void GLShader::GLProgram::program_link(StringRefNull shader_name)
@@ -1612,7 +1631,8 @@ GLShader::GLProgram &GLShader::program_get(const shader::SpecializationConstants
 
   program_cache_mutex_.lock();
 
-  GLProgram &program = program_cache_.lookup_or_add_default(constants_state->values);
+  GLProgram &program = *program_cache_.lookup_or_add_cb(
+      constants_state->values, []() { return std::make_unique<GLProgram>(); });
 
   program_cache_mutex_.unlock();
 
@@ -1652,6 +1672,13 @@ GLShader::GLProgram &GLShader::program_get(const shader::SpecializationConstants
 
   program.program_link(name);
 
+  /* Ensure the specialization compiled correctly.
+   * Specialization compilation should never fail, but adding this check seems to bypass an
+   * internal Nvidia driver issue (See #142046). */
+  GLint status;
+  glGetProgramiv(program.program_id, GL_LINK_STATUS, &status);
+  BLI_assert(status);
+
   GPU_debug_group_end();
   GPU_debug_group_end();
 
@@ -1676,7 +1703,7 @@ GLSourcesBaked GLShader::get_sources()
 
 void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 {
-  dynamic_cast<GLShader *>(unwrap(specialization.shader))->program_get(&specialization.constants);
+  dynamic_cast<GLShader *>(specialization.shader)->program_get(&specialization.constants);
 }
 
 /** \} */
@@ -1877,11 +1904,10 @@ Shader *GLSubprocessShaderCompiler::compile_shader(const shader::ShaderCreateInf
   GPU_debug_group_begin("Subprocess Compilation");
 
   /* This path is always called for the default shader compilation. Not for specialization.
-   * Use the default constant template.*/
-  const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(
-      wrap(shader));
+   * Use the default constant template. */
+  const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(shader);
 
-  if (!worker->load_program_binary(shader->program_cache_.lookup(constants.values).program_id) ||
+  if (!worker->load_program_binary(shader->program_cache_.lookup(constants.values)->program_id) ||
       !shader->post_finalize(&info))
   {
     /* Compilation failed, try to compile it locally. */
@@ -1904,11 +1930,11 @@ void GLSubprocessShaderCompiler::specialize_shader(ShaderSpecialization &special
 {
   static std::mutex mutex;
 
-  GLShader *shader = static_cast<GLShader *>(unwrap(specialization.shader));
+  GLShader *shader = static_cast<GLShader *>(specialization.shader);
 
   auto program_get = [&]() -> GLShader::GLProgram * {
     if (shader->program_cache_.contains(specialization.constants.values)) {
-      return &shader->program_cache_.lookup(specialization.constants.values);
+      return shader->program_cache_.lookup(specialization.constants.values).get();
     }
     return nullptr;
   };
@@ -1925,7 +1951,7 @@ void GLSubprocessShaderCompiler::specialize_shader(ShaderSpecialization &special
     std::lock_guard lock(mutex);
 
     if (program_get()) {
-      /*Already compiled*/
+      /* Already compiled. */
       return;
     }
 

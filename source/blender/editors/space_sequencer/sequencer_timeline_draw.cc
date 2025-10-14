@@ -11,16 +11,19 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -80,7 +83,7 @@ constexpr float ICON_SIZE = 12.0f;
 
 Vector<Strip *> sequencer_visible_strips_get(const bContext *C)
 {
-  return sequencer_visible_strips_get(CTX_data_scene(C), UI_view2d_fromcontext(C));
+  return sequencer_visible_strips_get(CTX_data_sequencer_scene(C), UI_view2d_fromcontext(C));
 }
 
 Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d)
@@ -88,7 +91,7 @@ Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v
   const Editing *ed = seq::editing_get(scene);
   Vector<Strip *> strips;
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     if (min_ii(seq::time_left_handle_frame_get(scene, strip), seq::time_start_frame_get(strip)) >
         v2d->cur.xmax)
     {
@@ -116,18 +119,18 @@ static TimelineDrawContext timeline_draw_context_get(const bContext *C, SeqQuads
 
   ctx.C = C;
   ctx.region = CTX_wm_region(C);
-  ctx.scene = CTX_data_scene(C);
+  ctx.scene = CTX_data_sequencer_scene(C);
   ctx.sseq = CTX_wm_space_seq(C);
   ctx.v2d = UI_view2d_fromcontext(C);
 
-  ctx.ed = seq::editing_get(ctx.scene);
+  ctx.ed = ctx.scene ? seq::editing_get(ctx.scene) : nullptr;
   ctx.channels = ctx.ed ? seq::channels_displayed_get(ctx.ed) : nullptr;
 
   ctx.viewport = WM_draw_region_get_viewport(ctx.region);
   ctx.framebuffer_overlay = GPU_viewport_framebuffer_overlay_get(ctx.viewport);
 
-  ctx.pixely = BLI_rctf_size_y(&ctx.v2d->cur) / BLI_rcti_size_y(&ctx.v2d->mask);
-  ctx.pixelx = BLI_rctf_size_x(&ctx.v2d->cur) / BLI_rcti_size_x(&ctx.v2d->mask);
+  ctx.pixely = BLI_rctf_size_y(&ctx.v2d->cur) / (BLI_rcti_size_y(&ctx.v2d->mask) + 1);
+  ctx.pixelx = BLI_rctf_size_x(&ctx.v2d->cur) / (BLI_rcti_size_x(&ctx.v2d->mask) + 1);
 
   ctx.retiming_selection = seq::retiming_selection_get(ctx.ed);
 
@@ -221,7 +224,8 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Strip *
 
   if (strip->type == STRIP_TYPE_SOUND_RAM && strip->sound != nullptr) {
     /* Visualize sub-frame sound offsets. */
-    const double sound_offset = (strip->sound->offset_time + strip->sound_offset) * FPS;
+    const double sound_offset = (strip->sound->offset_time + strip->sound_offset) *
+                                scene->frames_per_second();
     strip_ctx.content_start += sound_offset;
     strip_ctx.content_end += sound_offset;
   }
@@ -361,7 +365,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       break;
 
     /* Effects. */
-    case STRIP_TYPE_TRANSFORM:
     case STRIP_TYPE_SPEED:
     case STRIP_TYPE_ADD:
     case STRIP_TYPE_SUB:
@@ -405,9 +408,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       }
       else if (strip->type == STRIP_TYPE_SPEED) {
         rgb_byte_set_hue_float_offset(r_col, 0.72);
-      }
-      else if (strip->type == STRIP_TYPE_TRANSFORM) {
-        rgb_byte_set_hue_float_offset(r_col, 0.75);
       }
       else if (strip->type == STRIP_TYPE_MULTICAM) {
         rgb_byte_set_hue_float_offset(r_col, 0.85);
@@ -482,7 +482,7 @@ static void draw_seq_waveform_overlay(TimelineDrawContext *timeline_ctx,
                            SEQ_TIMELINE_WAVEFORMS_HALF) != 0;
 
   const float frames_per_pixel = BLI_rctf_size_x(&v2d->cur) / timeline_ctx->region->winx;
-  const float samples_per_frame = SOUND_WAVE_SAMPLES_PER_SECOND / FPS;
+  const float samples_per_frame = SOUND_WAVE_SAMPLES_PER_SECOND / scene->frames_per_second();
   const float samples_per_pixel = samples_per_frame * frames_per_pixel;
   const float bottom = strip_ctx->bottom + timeline_ctx->pixely * 2.0f;
   const float top = strip_ctx->strip_content_top;
@@ -499,8 +499,8 @@ static void draw_seq_waveform_overlay(TimelineDrawContext *timeline_ctx,
   const float draw_end_frame = min_ff(v2d->cur.xmax,
                                       strip_ctx->right_handle - timeline_ctx->pixelx * 3.0f);
   /* Offset must be also aligned, otherwise waveform flickers when moving left handle. */
-  float sample_start_frame = draw_start_frame -
-                             (strip->sound->offset_time + strip->sound_offset) * FPS;
+  float sample_start_frame = draw_start_frame - (strip->sound->offset_time + strip->sound_offset) *
+                                                    scene->frames_per_second();
 
   const int pixels_to_draw = round_fl_to_int((draw_end_frame - draw_start_frame) /
                                              frames_per_pixel);
@@ -746,7 +746,7 @@ static void draw_handle_transform_text(const TimelineDrawContext *timeline_ctx,
   BLF_set_default();
 
   /* Calculate if strip is wide enough for showing the labels. */
-  size_t numstr_len = SNPRINTF_RLEN(
+  size_t numstr_len = SNPRINTF_UTF8_RLEN(
       numstr, "%d%d", int(strip_ctx->left_handle), int(strip_ctx->right_handle));
   const float tot_width = BLF_width(BLF_default(), numstr, numstr_len);
 
@@ -760,11 +760,11 @@ static void draw_handle_transform_text(const TimelineDrawContext *timeline_ctx,
   float text_x = strip_ctx->left_handle;
 
   if (handle == STRIP_HANDLE_LEFT) {
-    numstr_len = SNPRINTF_RLEN(numstr, "%d", int(strip_ctx->left_handle));
+    numstr_len = SNPRINTF_UTF8_RLEN(numstr, "%d", int(strip_ctx->left_handle));
     text_x += text_margin;
   }
   else {
-    numstr_len = SNPRINTF_RLEN(numstr, "%d", int(strip_ctx->right_handle - 1));
+    numstr_len = SNPRINTF_UTF8_RLEN(numstr, "%d", int(strip_ctx->right_handle - 1));
     text_x = strip_ctx->right_handle -
              (text_margin + timeline_ctx->pixelx * BLF_width(BLF_default(), numstr, numstr_len));
   }
@@ -773,12 +773,10 @@ static void draw_handle_transform_text(const TimelineDrawContext *timeline_ctx,
 
 float strip_handle_draw_size_get(const Scene *scene, Strip *strip, const float pixelx)
 {
-  const bool use_thin_handle = (U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) != 0;
-  const float handle_size = use_thin_handle ? 5.0f : 8.0f;
-  const float maxhandle = (pixelx * handle_size) * U.pixelsize;
+  const float handle_size = pixelx * (5.0f * U.pixelsize);
 
-  /* Ensure that handle is not wider, than quarter of strip. */
-  return min_ff(maxhandle,
+  /* Ensure that the handle is not wider than a quarter of the strip. */
+  return min_ff(handle_size,
                 (float(seq::time_right_handle_frame_get(scene, strip) -
                        seq::time_left_handle_frame_get(scene, strip)) /
                  4.0f));
@@ -807,43 +805,43 @@ static void draw_seq_text_get_source(const Strip *strip, char *r_source, size_t 
     }
     case STRIP_TYPE_SOUND_RAM: {
       if (strip->sound != nullptr) {
-        BLI_strncpy(r_source, strip->sound->filepath, source_maxncpy);
+        BLI_strncpy_utf8(r_source, strip->sound->filepath, source_maxncpy);
       }
       break;
     }
     case STRIP_TYPE_MULTICAM: {
-      BLI_snprintf(r_source, source_maxncpy, "Channel: %d", strip->multicam_source);
+      BLI_snprintf_utf8(r_source, source_maxncpy, "Channel: %d", strip->multicam_source);
       break;
     }
     case STRIP_TYPE_TEXT: {
       const TextVars *textdata = static_cast<TextVars *>(strip->effectdata);
-      BLI_strncpy(r_source, textdata->text, source_maxncpy);
+      BLI_strncpy_utf8(r_source, textdata->text_ptr, source_maxncpy);
       break;
     }
     case STRIP_TYPE_SCENE: {
       if (strip->scene != nullptr) {
         if (strip->scene_camera != nullptr) {
-          BLI_snprintf(r_source,
-                       source_maxncpy,
-                       "%s (%s)",
-                       strip->scene->id.name + 2,
-                       strip->scene_camera->id.name + 2);
+          BLI_snprintf_utf8(r_source,
+                            source_maxncpy,
+                            "%s (%s)",
+                            strip->scene->id.name + 2,
+                            strip->scene_camera->id.name + 2);
         }
         else {
-          BLI_strncpy(r_source, strip->scene->id.name + 2, source_maxncpy);
+          BLI_strncpy_utf8(r_source, strip->scene->id.name + 2, source_maxncpy);
         }
       }
       break;
     }
     case STRIP_TYPE_MOVIECLIP: {
       if (strip->clip != nullptr) {
-        BLI_strncpy(r_source, strip->clip->id.name + 2, source_maxncpy);
+        BLI_strncpy_utf8(r_source, strip->clip->id.name + 2, source_maxncpy);
       }
       break;
     }
     case STRIP_TYPE_MASK: {
       if (strip->mask != nullptr) {
-        BLI_strncpy(r_source, strip->mask->id.name + 2, source_maxncpy);
+        BLI_strncpy_utf8(r_source, strip->mask->id.name + 2, source_maxncpy);
       }
       break;
     }
@@ -878,7 +876,7 @@ static size_t draw_seq_text_get_overlay_string(TimelineDrawContext *timeline_ctx
 
   char strip_duration_text[16];
   if (timeline_ctx->sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_DURATION) {
-    SNPRINTF(strip_duration_text, "%d", int(strip_ctx->strip_length));
+    SNPRINTF_UTF8(strip_duration_text, "%d", int(strip_ctx->strip_length));
     if (i != 0) {
       text_array[i++] = text_sep;
     }
@@ -1074,7 +1072,7 @@ static void draw_strip_offsets(TimelineDrawContext *timeline_ctx,
   }
   if ((timeline_ctx->sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_OFFSETS) == 0 &&
       (strip_ctx->strip != special_preview_get()) &&
-      (strip_ctx->strip->flag & SEQ_SHOW_OFFSETS) == 0)
+      (strip_ctx->strip->runtime.flag & STRIP_SHOW_OFFSETS) == 0)
   {
     return;
   }
@@ -1226,7 +1224,8 @@ static void draw_seq_timeline_channels(TimelineDrawContext *ctx)
 {
   View2D *v2d = ctx->v2d;
   UI_view2d_view_ortho(v2d);
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_blend(GPU_BLEND_ALPHA);
   immUniformThemeColor(TH_ROW_ALTERNATE);
@@ -1260,7 +1259,7 @@ static void visible_strips_ordered_get(TimelineDrawContext *timeline_ctx,
 
   for (Strip *strip : strips) {
     StripDrawContext strip_ctx = strip_draw_context_get(timeline_ctx, strip);
-    if ((strip->flag & SEQ_OVERLAP) == 0) {
+    if ((strip->runtime.flag & STRIP_OVERLAP) == 0) {
       r_bottom_layer.append(strip_ctx);
     }
     else {
@@ -1411,22 +1410,25 @@ static void strip_data_outline_params_set(const StripDrawContext &strip,
     UI_GetThemeColorShade3ubv(TH_BACK, -40, col);
   }
 
+  const bool translating = (G.moving & G_TRANSFORM_SEQ);
+
   const eSeqOverlapMode overlap_mode = seq::tool_settings_overlap_mode_get(timeline_ctx->scene);
   const bool use_overwrite = overlap_mode == SEQ_OVERLAP_OVERWRITE;
-  const bool overlaps = (strip.strip->flag & SEQ_OVERLAP) && (G.moving & G_TRANSFORM_SEQ);
+  const bool overlaps = (strip.strip->runtime.flag & STRIP_OVERLAP) && translating;
 
-  /* Outline while translating strips:
-   *  - Slightly lighter.
-   *  - Red when overlapping with other strips. */
-  if (G.moving & G_TRANSFORM_SEQ) {
-    if (overlaps && !use_overwrite) {
-      col[0] = 255;
-      col[1] = col[2] = 33;
-      data.flags |= GPU_SEQ_FLAG_OVERLAP;
-    }
-    else if (selected) {
-      UI_GetColorPtrShade3ubv(col, 70, col);
-    }
+  const bool clamped_l = (strip.strip->runtime.flag & STRIP_CLAMPED_LH);
+  const bool clamped_r = (strip.strip->runtime.flag & STRIP_CLAMPED_RH);
+
+  /* Strip outline is:
+   *  - Red when overlapping with other strips or handles are clamped.
+   *  - Slightly lighter while translating strips. */
+  if ((translating && overlaps && !use_overwrite) || clamped_l || clamped_r) {
+    col[0] = 255;
+    col[1] = col[2] = 33;
+    data.flags |= GPU_SEQ_FLAG_OVERLAP;
+  }
+  else if (translating && selected) {
+    UI_GetColorPtrShade3ubv(col, 70, col);
   }
 
   data.col_outline = color_pack(col);
@@ -1455,21 +1457,12 @@ static void strip_data_handle_flags_set(const StripDrawContext &strip,
 {
   const Scene *scene = timeline_ctx->scene;
   const bool selected = strip.strip->flag & SELECT;
-  const bool show_handles = (U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0;
   /* Handles on left/right side. */
   if (!seq::transform_is_locked(timeline_ctx->channels, strip.strip) &&
       can_select_handle(scene, strip.strip, timeline_ctx->v2d))
   {
     const bool selected_l = selected && handle_is_selected(strip.strip, STRIP_HANDLE_LEFT);
     const bool selected_r = selected && handle_is_selected(strip.strip, STRIP_HANDLE_RIGHT);
-    const bool show_l = show_handles || selected_l;
-    const bool show_r = show_handles || selected_r;
-    if (show_l) {
-      data.flags |= GPU_SEQ_FLAG_DRAW_LH;
-    }
-    if (show_r) {
-      data.flags |= GPU_SEQ_FLAG_DRAW_RH;
-    }
     if (selected_l) {
       data.flags |= GPU_SEQ_FLAG_SELECTED_LH;
     }
@@ -1500,9 +1493,9 @@ static void draw_strips_foreground(TimelineDrawContext *timeline_ctx,
     data.flags |= GPU_SEQ_FLAG_BORDER;
     strip_data_missing_media_flags_set(strip, data);
     strip_data_lock_flags_set(strip, timeline_ctx, data);
+    strip_data_handle_flags_set(strip, timeline_ctx, data);
     strip_data_outline_params_set(strip, timeline_ctx, data);
     strip_data_highlight_flags_set(strip, timeline_ctx, data);
-    strip_data_handle_flags_set(strip, timeline_ctx, data);
   }
 
   strips_batch.flush_batch();
@@ -1600,6 +1593,9 @@ static void draw_seq_strips(TimelineDrawContext *timeline_ctx, StripsDrawBatch &
 static void draw_timeline_sfra_efra(TimelineDrawContext *ctx)
 {
   const Scene *scene = ctx->scene;
+  if (!scene) {
+    return;
+  }
   const View2D *v2d = ctx->v2d;
   const Editing *ed = seq::editing_get(scene);
   const int frame_sta = scene->r.sfra;
@@ -1607,7 +1603,8 @@ static void draw_timeline_sfra_efra(TimelineDrawContext *ctx)
 
   GPU_blend(GPU_BLEND_ALPHA);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Draw overlay outside of frame range. */
@@ -1717,7 +1714,7 @@ static void draw_cache_stripe(const Scene *scene,
 
 static void draw_cache_background(const bContext *C, CacheDrawData *draw_data)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
   const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
@@ -1756,7 +1753,7 @@ static void draw_cache_background(const bContext *C, CacheDrawData *draw_data)
 
 static void draw_cache_view(const bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
   const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
@@ -1799,7 +1796,8 @@ static void draw_overlap_frame_indicator(const Scene *scene, const View2D *v2d)
                           scene->ed->overlay_frame_abs :
                           scene->r.cfra + scene->ed->overlay_frame_ofs;
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
   float viewport_size[4];
   GPU_viewport_size_get_f(viewport_size);
@@ -1827,14 +1825,24 @@ static void draw_timeline_grid(TimelineDrawContext *ctx)
   }
 
   U.v2d_min_gridsize *= 3;
+
+  const Scene *scene = ctx->scene;
+  if (scene == nullptr) {
+    /* If we don't have a scene available, pick what we defined as default for framerate to show
+     * *something*. */
+    scene = DNA_struct_default_get(Scene);
+  }
   UI_view2d_draw_lines_x__discrete_frames_or_seconds(
-      ctx->v2d, ctx->scene, (ctx->sseq->flag & SEQ_DRAWFRAMES) == 0, false);
+      ctx->v2d, scene, (ctx->sseq->flag & SEQ_DRAWFRAMES) == 0, false);
   U.v2d_min_gridsize /= 3;
 }
 
 static void draw_timeline_markers(TimelineDrawContext *ctx)
 {
   if ((ctx->sseq->flag & SEQ_SHOW_MARKERS) == 0) {
+    return;
+  }
+  if (ctx->scene == nullptr) {
     return;
   }
 
@@ -1879,19 +1887,31 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
   draw_timeline_grid(&ctx);
   draw_timeline_sfra_efra(&ctx);
   draw_seq_strips(&ctx, strips_batch);
-  draw_timeline_markers(&ctx);
+  if (region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
+    draw_timeline_markers(&ctx);
+  }
   UI_view2d_view_ortho(ctx.v2d);
-  ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);
+  if (ctx.scene) {
+    ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);
+  }
   draw_timeline_gizmos(&ctx);
   draw_timeline_post_view_callbacks(&ctx);
-  ED_time_scrub_draw(region, ctx.scene, !(ctx.sseq->flag & SEQ_DRAWFRAMES), true);
+  if (ctx.scene) {
+    const int fps = round_db_to_int(ctx.scene->frames_per_second());
+    ED_time_scrub_draw(region, ctx.scene, !(ctx.sseq->flag & SEQ_DRAWFRAMES), true, fps);
+  }
 
-  seq_prefetch_wm_notify(C, ctx.scene);
+  if (ctx.scene) {
+    seq_prefetch_wm_notify(C, ctx.scene);
+  }
 }
 
 void draw_timeline_seq_display(const bContext *C, ARegion *region)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return;
+  }
   const SpaceSeq *sseq = CTX_wm_space_seq(C);
   View2D *v2d = &region->v2d;
 
@@ -1908,11 +1928,14 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region)
       region, scene, !(sseq->flag & SEQ_DRAWFRAMES), region->winy >= UI_ANIM_MINY);
 
   if (region->winy > UI_ANIM_MINY) {
-    const ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
-    seq::timeline_boundbox(scene, seqbase, &v2d->tot);
-    const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
-    region->v2d.scroll |= V2D_SCROLL_BOTTOM;
-    UI_view2d_scrollers_draw(v2d, &scroller_mask);
+    const Editing *ed = seq::editing_get(scene);
+    if (ed) {
+      const ListBase *seqbase = seq::active_seqbase_get(ed);
+      seq::timeline_boundbox(scene, seqbase, &v2d->tot);
+      const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
+      region->v2d.scroll |= V2D_SCROLL_BOTTOM;
+      UI_view2d_scrollers_draw(v2d, &scroller_mask);
+    }
   }
   else {
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;

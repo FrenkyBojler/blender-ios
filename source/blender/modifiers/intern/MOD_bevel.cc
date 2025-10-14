@@ -18,6 +18,7 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_curveprofile.h"
 #include "BKE_deform.hh"
@@ -25,6 +26,7 @@
 #include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -86,7 +88,7 @@ static std::string ensure_weight_attribute_meta_data(Mesh &mesh,
     r_attr_converted = false;
     return name;
   }
-  if (meta_data->domain == domain && meta_data->data_type == CD_PROP_FLOAT) {
+  if (meta_data->domain == domain && meta_data->data_type == bke::AttrType::Float) {
     r_attr_converted = false;
     return name;
   }
@@ -96,7 +98,7 @@ static std::string ensure_weight_attribute_meta_data(Mesh &mesh,
   const std::string new_name = BKE_attribute_calc_unique_name(AttributeOwner::from_id(&mesh.id),
                                                               name);
   attributes.add<float>(
-      new_name, domain, bke::AttributeInitVArray(VArray<float>::ForSpan(weight)));
+      new_name, domain, bke::AttributeInitVArray(VArray<float>::from_span(weight)));
   r_attr_converted = true;
   return new_name;
 }
@@ -292,7 +294,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout->prop(ptr, "affect", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   col = &layout->column(false);
   col->prop(ptr, "offset_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -312,7 +314,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   int limit_method = RNA_enum_get(ptr, "limit_method");
   if (limit_method == MOD_BEVEL_ANGLE) {
     sub = &col->column(false);
-    uiLayoutSetActive(sub, edge_bevel);
+    sub->active_set(edge_bevel);
     col->prop(ptr, "angle_limit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (limit_method == MOD_BEVEL_WEIGHT) {
@@ -340,15 +342,14 @@ static void profile_panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout->prop(ptr, "profile_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   if (ELEM(profile_type, MOD_BEVEL_PROFILE_SUPERELLIPSE, MOD_BEVEL_PROFILE_CUSTOM)) {
     row = &layout->row(false);
-    uiLayoutSetActive(
-        row,
+    row->active_set(
         profile_type == MOD_BEVEL_PROFILE_SUPERELLIPSE ||
-            (profile_type == MOD_BEVEL_PROFILE_CUSTOM && edge_bevel &&
-             !((miter_inner == MOD_BEVEL_MITER_SHARP) && (miter_outer == MOD_BEVEL_MITER_SHARP))));
+        (profile_type == MOD_BEVEL_PROFILE_CUSTOM && edge_bevel &&
+         !((miter_inner == MOD_BEVEL_MITER_SHARP) && (miter_outer == MOD_BEVEL_MITER_SHARP))));
     row->prop(ptr,
               "profile",
               UI_ITEM_R_SLIDER,
@@ -358,7 +359,7 @@ static void profile_panel_draw(const bContext * /*C*/, Panel *panel)
 
     if (profile_type == MOD_BEVEL_PROFILE_CUSTOM) {
       uiLayout *sub = &layout->column(false);
-      uiLayoutSetPropDecorate(sub, false);
+      sub->use_property_decorate_set(false);
       uiTemplateCurveProfile(sub, ptr, "custom_profile");
     }
   }
@@ -373,27 +374,27 @@ static void geometry_panel_draw(const bContext * /*C*/, Panel *panel)
 
   bool edge_bevel = RNA_enum_get(ptr, "affect") != MOD_BEVEL_AFFECT_VERTICES;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   row = &layout->row(false);
-  uiLayoutSetActive(row, edge_bevel);
+  row->active_set(edge_bevel);
   row->prop(ptr, "miter_outer", UI_ITEM_NONE, IFACE_("Miter Outer"), ICON_NONE);
   row = &layout->row(false);
-  uiLayoutSetActive(row, edge_bevel);
+  row->active_set(edge_bevel);
   row->prop(ptr, "miter_inner", UI_ITEM_NONE, IFACE_("Inner"), ICON_NONE);
   if (RNA_enum_get(ptr, "miter_inner") == BEVEL_MITER_ARC) {
     row = &layout->row(false);
-    uiLayoutSetActive(row, edge_bevel);
+    row->active_set(edge_bevel);
     row->prop(ptr, "spread", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   layout->separator();
 
   row = &layout->row(false);
-  uiLayoutSetActive(row, edge_bevel);
+  row->active_set(edge_bevel);
   row->prop(ptr, "vmesh_method", UI_ITEM_NONE, IFACE_("Intersections"), ICON_NONE);
   layout->prop(ptr, "use_clamp_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row = &layout->row(false);
-  uiLayoutSetActive(row, edge_bevel);
+  row->active_set(edge_bevel);
   row->prop(ptr, "loop_slide", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
@@ -406,12 +407,12 @@ static void shading_panel_draw(const bContext * /*C*/, Panel *panel)
 
   bool edge_bevel = RNA_enum_get(ptr, "affect") != MOD_BEVEL_AFFECT_VERTICES;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "harden_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = &layout->column(true, IFACE_("Mark"));
-  uiLayoutSetActive(col, edge_bevel);
+  col->active_set(edge_bevel);
   col->prop(ptr, "mark_seam", UI_ITEM_NONE, IFACE_("Seam"), ICON_NONE);
   col->prop(ptr, "mark_sharp", UI_ITEM_NONE, IFACE_("Sharp"), ICON_NONE);
 
@@ -482,4 +483,5 @@ ModifierTypeInfo modifierType_Bevel = {
     /*blend_write*/ blend_write,
     /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -1725,7 +1725,8 @@ static void annotation_draw_eraser(bContext * /*C*/,
 
   if (p->paintmode == GP_PAINTMODE_ERASER) {
     GPUVertFormat *format = immVertexFormat();
-    const uint shdr_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    const uint shdr_pos = GPU_vertformat_attr_add(
+        format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     GPU_line_smooth(true);
@@ -1795,7 +1796,7 @@ static void annotation_draw_stabilizer(bContext *C,
   const tGPspoint *pt = &points[totpoints - 1];
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -2478,8 +2479,11 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
        * - Since this operator is non-modal, we can just call it here, and keep going...
        * - This operator is especially useful when animating
        */
-      WM_operator_name_call(
-          C, "GPENCIL_OT_layer_annotation_add", WM_OP_EXEC_DEFAULT, nullptr, event);
+      WM_operator_name_call(C,
+                            "GPENCIL_OT_layer_annotation_add",
+                            blender::wm::OpCallContext::ExecDefault,
+                            nullptr,
+                            event);
       estate = OPERATOR_RUNNING_MODAL;
     }
     else {

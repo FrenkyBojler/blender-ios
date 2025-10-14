@@ -11,9 +11,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
@@ -59,6 +61,8 @@ struct SeqDropCoords {
   float start_frame, channel;
   int strip_len, channel_len;
   float playback_rate;
+  float audio_length;
+  bool only_audio = false;
   bool in_use = false;
   bool has_read_mouse_pos = false;
   bool is_intersecting;
@@ -172,7 +176,7 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
 {
   SeqDropCoords *coords = &g_drop_coords;
   ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   View2D *v2d = &region->v2d;
 
   /* Update the position were we would place the strip if we complete the drag and drop action.
@@ -190,6 +194,10 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   if (coords->playback_rate != 0.0f) {
     float scene_playback_rate = float(scene->r.frs_sec) / scene->r.frs_sec_base;
     strip_len = coords->strip_len / (coords->playback_rate / scene_playback_rate);
+  }
+  else if (coords->only_audio) {
+    float scene_playback_rate = float(scene->r.frs_sec) / scene->r.frs_sec_base;
+    strip_len = coords->audio_length * scene_playback_rate;
   }
   else {
     strip_len = coords->strip_len;
@@ -231,7 +239,8 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   Editing *ed = seq::editing_ensure(scene);
 
   for (int i = 0; i < coords->channel_len && !coords->is_intersecting; i++) {
-    coords->is_intersecting = seq::transform_test_overlap(scene, ed->seqbasep, &dummy_strip);
+    coords->is_intersecting = seq::transform_test_overlap(
+        scene, ed->current_strips(), &dummy_strip);
     seq::strip_channel_set(&dummy_strip, dummy_strip.channel + 1);
   }
 
@@ -265,7 +274,7 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
   else {
     /* We are dropped inside the preview region. Put the strip on top of the
      * current displayed frame. */
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(C);
     Editing *ed = seq::editing_ensure(scene);
     ListBase *seqbase = seq::active_seqbase_get(ed);
     ListBase *channels = seq::channels_displayed_get(ed);
@@ -359,7 +368,7 @@ static void get_drag_path(const bContext *C, wmDrag *drag, char r_path[FILE_MAX]
   }
 }
 
-static void draw_seq_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, const int xy[2])
+static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, const int xy[2])
 {
   SeqDropCoords *coords = &g_drop_coords;
   if (!coords->in_use) {
@@ -396,8 +405,8 @@ static void draw_seq_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, cons
   uchar strip_color[4];
   strip_color[3] = 255;
   uchar text_color[4] = {255, 255, 255, 255};
-  float pixelx = BLI_rctf_size_x(&region->v2d.cur) / BLI_rcti_size_x(&region->v2d.mask);
-  float pixely = BLI_rctf_size_y(&region->v2d.cur) / BLI_rcti_size_y(&region->v2d.mask);
+  float pixelx = BLI_rctf_size_x(&region->v2d.cur) / (BLI_rcti_size_x(&region->v2d.mask) + 1);
+  float pixely = BLI_rctf_size_y(&region->v2d.cur) / (BLI_rcti_size_y(&region->v2d.mask) + 1);
 
   StripsDrawBatch batch(&region->v2d);
 
@@ -438,12 +447,12 @@ static void draw_seq_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, cons
     strip_color[3] = 204;
     data.col_outline = color_pack(strip_color);
 
-    const bool use_thin_handle = (U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) != 0;
-    const float handle_size = use_thin_handle ? 5.0f : 8.0f;
+    /* Taken from strip_handle_draw_size_get(). */
+    const float handle_size = pixelx * (5.0f * U.pixelsize);
 
     /* Calculate height needed for drawing text on strip. */
     float text_margin_y = y2 - min_ff(0.40f, 20 * UI_SCALE_FAC * pixely);
-    float text_margin_x = 2.0f * (pixelx * handle_size) * U.pixelsize;
+    float text_margin_x = 2.0f * handle_size;
 
     rctf rect;
     rect.xmin = x1 + text_margin_x;
@@ -482,17 +491,18 @@ static void draw_seq_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, cons
     }
 
     if (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_DURATION) {
-      SNPRINTF(strip_duration_text, "%d", int(x2 - x1));
+      SNPRINTF_UTF8(strip_duration_text, "%d", int(x2 - x1));
       text_array[len_text_arr++] = text_sep;
       text_array[len_text_arr++] = strip_duration_text;
     }
 
     BLI_assert(len_text_arr <= ARRAY_SIZE(text_array));
 
-    BLI_string_join_array(text_display, FILE_MAX, text_array, len_text_arr);
+    const size_t text_display_len = BLI_string_join_array(
+        text_display, FILE_MAX, text_array, len_text_arr);
 
     UI_view2d_text_cache_add_rectf(
-        &region->v2d, &rect, text_display, strlen(text_display), text_color);
+        &region->v2d, &rect, text_display, text_display_len, text_color);
   }
   batch.flush_batch();
 
@@ -525,7 +535,6 @@ struct DropJobData {
    */
   char path[FILE_MAX];
   bool only_audio;
-  float scene_fps;
 };
 
 static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_status*/)
@@ -540,16 +549,22 @@ static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_sta
 
       AUD_SoundInfo info = AUD_getInfo(sound);
       if ((eSoundChannels)info.specs.channels != SOUND_CHANNELS_INVALID) {
-        g_drop_coords.strip_len = max_ii(1, round((info.length) * job_data->scene_fps));
+        g_drop_coords.audio_length = info.length;
       }
+      /* The playback rate is defined by the scene. This will be computed later in
+       * #update_overlay_strip_position_data, when we know the scene from the context. So set it to
+       * 0 for now. */
+      g_drop_coords.playback_rate = 0.0f;
       AUD_Sound_free(sound);
       return;
     }
 #endif
   }
 
+  /* The movie reader is not used to access pixel data here, so avoid internal colorspace
+   * conversions that ensures typical color pipeline in Blender as they might be expensive. */
   char colorspace[/*MAX_COLORSPACE_NAME*/ 64] = "\0";
-  MovieReader *anim = openanim(job_data->path, IB_byte_data, 0, colorspace);
+  MovieReader *anim = openanim(job_data->path, IB_byte_data, 0, true, colorspace);
 
   if (anim != nullptr) {
     g_drop_coords.strip_len = MOV_get_duration_frames(anim, IMB_TC_NONE);
@@ -582,17 +597,19 @@ static void start_audio_video_job(bContext *C, wmDrag *drag, bool only_audio)
   g_drop_coords.channel_len = 1;
 
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = CTX_data_scene(C);
 
-  wmJob *wm_job = WM_jobs_get(
-      wm, win, nullptr, "Load Previews", eWM_JobFlag(0), WM_JOB_TYPE_SEQ_DRAG_DROP_PREVIEW);
+  wmJob *wm_job = WM_jobs_get(wm,
+                              nullptr,
+                              nullptr,
+                              "Loading previews...",
+                              eWM_JobFlag(0),
+                              WM_JOB_TYPE_SEQ_DRAG_DROP_PREVIEW);
 
   DropJobData *job_data = MEM_mallocN<DropJobData>("SeqDragDropPreviewData");
   get_drag_path(C, drag, job_data->path);
 
   job_data->only_audio = only_audio;
-  job_data->scene_fps = FPS;
+  g_drop_coords.only_audio = only_audio;
 
   WM_jobs_customdata_set(wm_job, job_data, free_prefetch_data_fn);
   WM_jobs_timer(wm_job, 0.1, NC_WINDOW, NC_WINDOW);
@@ -667,7 +684,7 @@ static void sequencer_dropboxes_add_to_lb(ListBase *lb)
   drop = WM_dropbox_add(
       lb, "SEQUENCER_OT_image_strip_add", image_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
-  drop->draw_in_view = draw_seq_in_view;
+  drop->draw_in_view = draw_strip_in_view;
   drop->on_enter = image_drop_on_enter;
   drop->on_exit = sequencer_drop_on_exit;
 
@@ -676,7 +693,7 @@ static void sequencer_dropboxes_add_to_lb(ListBase *lb)
   drop = WM_dropbox_add(
       lb, "SEQUENCER_OT_movie_strip_add", movie_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
-  drop->draw_in_view = draw_seq_in_view;
+  drop->draw_in_view = draw_strip_in_view;
   drop->on_enter = movie_drop_on_enter;
   drop->on_exit = sequencer_drop_on_exit;
 
@@ -685,7 +702,7 @@ static void sequencer_dropboxes_add_to_lb(ListBase *lb)
   drop = WM_dropbox_add(
       lb, "SEQUENCER_OT_sound_strip_add", sound_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
-  drop->draw_in_view = draw_seq_in_view;
+  drop->draw_in_view = draw_strip_in_view;
   drop->on_enter = sound_drop_on_enter;
   drop->on_exit = sequencer_drop_on_exit;
 }

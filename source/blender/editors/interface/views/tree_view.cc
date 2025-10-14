@@ -18,7 +18,7 @@
 
 #include "interface_intern.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "WM_api.hh"
@@ -33,6 +33,7 @@
 namespace blender::ui {
 
 #define UI_TREEVIEW_INDENT short(0.7f * UI_UNIT_X)
+#define MIN_ROWS 4
 
 static int unpadded_item_height()
 {
@@ -138,6 +139,9 @@ AbstractTreeViewItem *AbstractTreeView::find_hovered(const ARegion &region, cons
 
 void AbstractTreeView::set_default_rows(int default_rows)
 {
+  BLI_assert_msg(default_rows >= MIN_ROWS,
+                 "Default value is smaller than the minimum rows. Limit is required to prevent "
+                 "resizing below specific height.");
   custom_height_ = std::make_unique<int>(default_rows * padded_item_height());
 }
 
@@ -162,7 +166,8 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
 void AbstractTreeView::persistent_state_apply(const uiViewState &state)
 {
   if (state.custom_height) {
-    set_default_rows(round_fl_to_int(state.custom_height * UI_SCALE_FAC) / padded_item_height());
+    set_default_rows(std::max(
+        MIN_ROWS, round_fl_to_int(state.custom_height * UI_SCALE_FAC) / padded_item_height()));
   }
   if (state.scroll_offset) {
     scroll_value_ = std::make_shared<int>(state.scroll_offset);
@@ -253,7 +258,7 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
 static uiButViewItem *find_first_view_item_but(const uiBlock &block, const AbstractTreeView &view)
 {
   for (const std::unique_ptr<uiBut> &but : block.buttons) {
-    if (but->type != UI_BTYPE_VIEW_ITEM) {
+    if (but->type != ButType::ViewItem) {
       continue;
     }
     uiButViewItem *view_item_but = static_cast<uiButViewItem *>(but.get());
@@ -284,7 +289,7 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorAlpha(TH_TEXT, 0.2f);
 
@@ -364,10 +369,9 @@ std::optional<int> AbstractTreeView::tot_visible_row_count() const
   if (!custom_height_) {
     return {};
   }
-  if (*custom_height_ < UI_UNIT_Y) {
-    return 1;
-  }
-  return round_fl_to_int(float(*custom_height_) / padded_item_height());
+  const int calculate_rows = round_fl_to_int(float(*custom_height_) / padded_item_height());
+  /* Clamp value to prevent resizing below minimum number of rows. */
+  return math::max(MIN_ROWS, calculate_rows);
 }
 
 bool AbstractTreeView::supports_scrolling() const
@@ -387,6 +391,36 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   }
   /* Scroll value will be sanitized/clamped when drawing. */
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
+}
+
+void AbstractTreeView::scroll_active_into_view()
+{
+  int index = 0;
+  const std::optional<int> visible_row_count = tot_visible_row_count();
+
+  if (!custom_height_) {
+    return;
+  }
+
+  if (!visible_row_count.has_value()) {
+    return;
+  }
+
+  if (scroll_active_into_view_on_draw_) {
+    if (!scroll_value_) {
+      scroll_value_ = std::make_unique<int>(0);
+    }
+    foreach_item(
+        [&, this](AbstractTreeViewItem &item) {
+          if (item.is_active_) {
+            *scroll_value_ = std::max(0, index - *visible_row_count + 1);
+            return;
+          }
+          index++;
+        },
+        AbstractTreeView::IterOptions::SkipCollapsed |
+            AbstractTreeView::IterOptions::SkipFiltered);
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -444,19 +478,11 @@ std::optional<DropLocation> TreeViewItemDropTarget::choose_drop_location(
 
 /* ---------------------------------------------------------------------- */
 
-void AbstractTreeViewItem::tree_row_click_fn(bContext *C, void *but_arg1, void * /*arg2*/)
-{
-  uiButViewItem *item_but = (uiButViewItem *)but_arg1;
-  AbstractTreeViewItem &tree_item = reinterpret_cast<AbstractTreeViewItem &>(*item_but->view_item);
-
-  tree_item.activate(*C);
-}
-
 void AbstractTreeViewItem::add_treerow_button(uiBlock &block)
 {
   /* For some reason a width > (UI_UNIT_X * 2) make the layout system use all available width. */
   view_item_but_ = reinterpret_cast<uiButViewItem *>(uiDefBut(&block,
-                                                              UI_BTYPE_VIEW_ITEM,
+                                                              ButType::ViewItem,
                                                               0,
                                                               "",
                                                               0,
@@ -470,7 +496,6 @@ void AbstractTreeViewItem::add_treerow_button(uiBlock &block)
 
   view_item_but_->view_item = this;
   view_item_but_->draw_height = unpadded_item_height();
-  UI_but_func_set(view_item_but_, tree_row_click_fn, view_item_but_, nullptr);
 }
 
 int AbstractTreeViewItem::indent_width() const
@@ -480,21 +505,21 @@ int AbstractTreeViewItem::indent_width() const
 
 void AbstractTreeViewItem::add_indent(uiLayout &row) const
 {
-  uiBlock *block = uiLayoutGetBlock(&row);
+  uiBlock *block = row.block();
   uiLayout *subrow = &row.row(true);
-  uiLayoutSetFixedSize(subrow, true);
+  subrow->fixed_size_set(true);
 
-  uiDefBut(block, UI_BTYPE_SEPR, 0, "", 0, 0, this->indent_width(), 0, nullptr, 0.0, 0.0, "");
+  uiDefBut(block, ButType::Sepr, 0, "", 0, 0, this->indent_width(), 0, nullptr, 0.0, 0.0, "");
 
   const bool is_flat_list = root_ && root_->is_flat_;
   if (!is_flat_list && !this->is_collapsible()) {
     /* Indent items without collapsing icon some more within their parent. Makes it clear that they
      * are actually nested and not just a row at the same level without a chevron. */
-    uiDefBut(block, UI_BTYPE_SEPR, 0, "", 0, 0, UI_TREEVIEW_INDENT, 0, nullptr, 0.0, 0.0, "");
+    uiDefBut(block, ButType::Sepr, 0, "", 0, 0, UI_TREEVIEW_INDENT, 0, nullptr, 0.0, 0.0, "");
   }
 
   /* Restore. */
-  UI_block_layout_set_current(block, &row);
+  block_layout_set_current(block, &row);
 }
 
 void AbstractTreeViewItem::collapse_chevron_click_fn(bContext *C,
@@ -528,35 +553,25 @@ void AbstractTreeViewItem::add_collapse_chevron(uiBlock &block) const
   }
 
   const BIFIconID icon = this->is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT;
-  uiBut *but = uiDefIconBut(&block,
-                            UI_BTYPE_BUT_TOGGLE,
-                            0,
-                            icon,
-                            0,
-                            0,
-                            UI_TREEVIEW_INDENT,
-                            UI_UNIT_Y,
-                            nullptr,
-                            0,
-                            0,
-                            "");
+  uiBut *but = uiDefIconBut(
+      &block, ButType::ButToggle, 0, icon, 0, 0, UI_TREEVIEW_INDENT, UI_UNIT_Y, nullptr, 0, 0, "");
   UI_but_func_set(but, collapse_chevron_click_fn, nullptr, nullptr);
   UI_but_flag_disable(but, UI_BUT_UNDO);
 }
 
 void AbstractTreeViewItem::add_rename_button(uiLayout &row)
 {
-  uiBlock *block = uiLayoutGetBlock(&row);
-  blender::ui::EmbossType previous_emboss = UI_block_emboss_get(block);
+  uiBlock *block = row.block();
+  EmbossType previous_emboss = UI_block_emboss_get(block);
 
   row.row(false);
   /* Enable emboss for the text button. */
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  UI_block_emboss_set(block, EmbossType::Emboss);
 
   AbstractViewItem::add_rename_button(*block);
 
   UI_block_emboss_set(block, previous_emboss);
-  UI_block_layout_set_current(block, &row);
+  block_layout_set_current(block, &row);
 }
 
 bool AbstractTreeViewItem::has_active_child() const
@@ -658,9 +673,9 @@ bool AbstractTreeViewItem::set_state_active()
 bool AbstractTreeViewItem::is_hovered() const
 {
   BLI_assert_msg(get_tree_view().is_reconstructed(),
-                 "State can't be queried until reconstruction is completed");
+                 "State cannot be queried until reconstruction is completed");
   BLI_assert_msg(view_item_but_ != nullptr,
-                 "Hovered state can't be queried before the tree row is being built");
+                 "Hovered state cannot be queried before the tree row is being built");
 
   /* The new layout hasn't finished construction yet, so the final state of the button is unknown.
    * Get the matching button from the previous redraw instead. */
@@ -672,7 +687,7 @@ bool AbstractTreeViewItem::is_hovered() const
 bool AbstractTreeViewItem::is_collapsed() const
 {
   BLI_assert_msg(get_tree_view().is_reconstructed(),
-                 "State can't be queried until reconstruction is completed");
+                 "State cannot be queried until reconstruction is completed");
   return this->is_collapsible() && !is_open_;
 }
 
@@ -735,7 +750,12 @@ bool AbstractTreeViewItem::is_collapsible() const
 
 void AbstractTreeViewItem::change_state_delayed()
 {
+  const bool prev_active_state = is_active();
   AbstractViewItem::change_state_delayed();
+
+  if (prev_active_state != is_active()) {
+    this->get_tree_view().scroll_active_into_view_on_draw_ = true;
+  }
 
   const std::optional<bool> should_be_collapsed = this->should_be_collapsed();
   if (should_be_collapsed.has_value()) {
@@ -795,9 +815,7 @@ class TreeViewLayoutBuilder {
   TreeViewLayoutBuilder(uiLayout &layout);
 };
 
-TreeViewLayoutBuilder::TreeViewLayoutBuilder(uiLayout &layout) : block_(*uiLayoutGetBlock(&layout))
-{
-}
+TreeViewLayoutBuilder::TreeViewLayoutBuilder(uiLayout &layout) : block_(*layout.block()) {}
 
 static int count_visible_items(AbstractTreeView &tree_view)
 {
@@ -811,7 +829,7 @@ static int count_visible_items(AbstractTreeView &tree_view)
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 {
   uiLayout &parent_layout = this->current_layout();
-  uiBlock *block = uiLayoutGetBlock(&parent_layout);
+  uiBlock *block = parent_layout.block();
 
   uiLayout *col = nullptr;
   if (add_box_) {
@@ -830,6 +848,10 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   /* Column for the tree view. */
   row->column(true);
+
+  if (tree_view.scroll_active_into_view_on_draw_) {
+    tree_view.scroll_active_into_view();
+  }
 
   /* Clamp scroll-value to valid range. */
   if (tree_view.scroll_value_ && visible_row_count) {
@@ -860,7 +882,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     if (visible_row_count && (tot_items > *visible_row_count)) {
       row->column(false);
       uiBut *but = uiDefButI(block,
-                             UI_BTYPE_SCROLL,
+                             ButType::Scroll,
                              0,
                              "",
                              0,
@@ -875,9 +897,9 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       but_scroll->visual_height = *visible_row_count;
     }
 
-    UI_block_layout_set_current(block, col);
+    block_layout_set_current(block, col);
     uiDefIconButI(block,
-                  UI_BTYPE_GRIP,
+                  ButType::Grip,
                   0,
                   ICON_GRIP,
                   0,
@@ -890,7 +912,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   "");
   }
 
-  UI_block_layout_set_current(block, &parent_layout);
+  block_layout_set_current(block, &parent_layout);
 }
 
 void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
@@ -898,28 +920,34 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   uiBlock &block_ = block();
 
   uiLayout &prev_layout = current_layout();
-  blender::ui::EmbossType previous_emboss = UI_block_emboss_get(&block_);
+
+  const int width = prev_layout.width();
+  if (width < int(40 * UI_SCALE_FAC)) {
+    return;
+  }
+
+  EmbossType previous_emboss = UI_block_emboss_get(&block_);
 
   uiLayout *overlap = &prev_layout.overlap();
 
   if (!item.is_interactive_) {
-    uiLayoutSetActive(overlap, false);
+    overlap->active_set(false);
   }
 
   uiLayout *row = &overlap->row(false);
   /* Enable emboss for mouse hover highlight. */
-  uiLayoutSetEmboss(row, blender::ui::EmbossType::Emboss);
+  row->emboss_set(EmbossType::Emboss);
   /* Every item gets one! Other buttons can be overlapped on top. */
   item.add_treerow_button(block_);
 
   /* After adding tree-row button (would disable hover highlighting). */
-  UI_block_emboss_set(&block_, blender::ui::EmbossType::NoneOrStatus);
+  UI_block_emboss_set(&block_, EmbossType::NoneOrStatus);
 
   /* Add little margin to align actual contents vertically. */
   uiLayout *content_col = &overlap->column(true);
   const int margin_top = (padded_item_height() - unpadded_item_height()) / 2;
   if (margin_top > 0) {
-    uiDefBut(&block_, UI_BTYPE_LABEL, 0, "", 0, 0, UI_UNIT_X, margin_top, nullptr, 0, 0, "");
+    uiDefBut(&block_, ButType::Label, 0, "", 0, 0, UI_UNIT_X, margin_top, nullptr, 0, 0, "");
   }
   row = &content_col->row(true);
 
@@ -932,12 +960,15 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   }
   else {
     item.build_row(*row);
+    if (item.is_active_) {
+      ui_layout_list_set_labels_active(row);
+    }
   }
 
   uiLayoutListItemAddPadding(row);
 
   UI_block_emboss_set(&block_, previous_emboss);
-  UI_block_layout_set_current(&block_, &prev_layout);
+  block_layout_set_current(&block_, &prev_layout);
 }
 
 uiBlock &TreeViewLayoutBuilder::block() const
@@ -980,7 +1011,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
                                       std::optional<StringRef> search_string,
                                       const bool add_box)
 {
-  uiBlock &block = *uiLayoutGetBlock(&layout);
+  uiBlock &block = *layout.block();
 
   const ARegion *region = CTX_wm_region_popup(&C) ? CTX_wm_region_popup(&C) : CTX_wm_region(&C);
   if (region) {
@@ -995,7 +1026,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   ensure_min_rows_items(tree_view);
 
   /* Ensure the given layout is actually active. */
-  UI_block_layout_set_current(&block, &layout);
+  block_layout_set_current(&block, &layout);
 
   TreeViewLayoutBuilder builder(layout);
   builder.add_box_ = add_box;

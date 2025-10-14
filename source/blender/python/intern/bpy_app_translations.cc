@@ -11,8 +11,11 @@
  */
 
 #include <Python.h>
+
 /* XXX Why bloody hell isn't that included in Python.h???? */
 #include <structmember.h>
+
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BLI_utildefines.h"
 
@@ -29,8 +32,8 @@
 #ifdef WITH_INTERNATIONAL
 
 #  include "BLI_map.hh"
-#  include "BLI_string.h"
 #  include "BLI_string_ref.hh"
+#  include "BLI_string_utf8.h"
 
 using blender::StringRef;
 using blender::StringRefNull;
@@ -272,7 +275,7 @@ std::optional<StringRefNull> BPY_app_translations_py_pgettext(const StringRef ms
     /* This function may be called from C (i.e. outside of python interpreter 'context'). */
     PyGILState_STATE _py_state = PyGILState_Ensure();
 
-    STRNCPY(locale, tmp);
+    STRNCPY_UTF8(locale, tmp);
 
     /* Locale changed or cache does not exist, refresh the whole cache! */
     _build_translations_cache(_translations->py_messages, locale);
@@ -471,11 +474,10 @@ PyDoc_STRVAR(
     "   Never use a (new) context starting with \"" BLT_I18NCONTEXT_DEFAULT_BPYRNA
     "\", it would be internally\n"
     "   assimilated as the default one!\n");
-
 PyDoc_STRVAR(
     /* Wrap. */
     app_translations_contexts_C_to_py_doc,
-    "A readonly dict mapping contexts' C-identifiers to their py-identifiers.");
+    "A readonly dict mapping contexts' C-identifiers to their py-identifiers.\n");
 
 static PyMemberDef app_translations_members[] = {
     {"contexts",
@@ -527,7 +529,7 @@ static PyObject *app_translations_locales_get(PyObject * /*self*/, void * /*user
   if (items) {
     for (it = items; it->identifier; it++) {
       if (it->value) {
-        PyTuple_SET_ITEM(ret, pos++, PyUnicode_FromString(it->description));
+        PyTuple_SET_ITEM(ret, pos++, PyUnicode_FromString(it->identifier));
       }
     }
   }
@@ -613,21 +615,23 @@ static PyObject *app_translations_pgettext(BlenderAppTranslations * /*self*/,
   return _py_pgettext(args, kw, BLT_pgettext);
 }
 
-PyDoc_STRVAR(app_translations_pgettext_n_doc,
-             ".. method:: pgettext_n(msgid, msgctxt=None)\n"
-             "\n"
-             "   Extract the given msgid to translation files. This is a no-op function that will "
-             "only mark the string to extract, but not perform the actual translation.\n"
-             "\n"
-             "   .. note::\n"
-             "      See :func:`pgettext` notes.\n"
-             "\n"
-             "   :arg msgid: The string to extract.\n"
-             "   :type msgid: str\n"
-             "   :arg msgctxt: The translation context (defaults to BLT_I18NCONTEXT_DEFAULT).\n"
-             "   :type msgctxt: str | None\n"
-             "   :return: The original string.\n"
-             "\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    app_translations_pgettext_n_doc,
+    ".. method:: pgettext_n(msgid, msgctxt=None)\n"
+    "\n"
+    "   Extract the given msgid to translation files. This is a no-op function that will "
+    "only mark the string to extract, but not perform the actual translation.\n"
+    "\n"
+    "   .. note::\n"
+    "      See :func:`pgettext` notes.\n"
+    "\n"
+    "   :arg msgid: The string to extract.\n"
+    "   :type msgid: str\n"
+    "   :arg msgctxt: The translation context (defaults to BLT_I18NCONTEXT_DEFAULT).\n"
+    "   :type msgctxt: str | None\n"
+    "   :return: The original string.\n"
+    "\n");
 static PyObject *app_translations_pgettext_n(BlenderAppTranslations * /*self*/,
                                              PyObject *args,
                                              PyObject *kw)
@@ -982,7 +986,7 @@ PyObject *BPY_app_translations_struct()
   /* prevent user from creating new instances */
   BlenderAppTranslationsType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppTranslationsType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppTranslationsType.tp_hash = (hashfunc)Py_HashPointer;
 
   return ret;
 }

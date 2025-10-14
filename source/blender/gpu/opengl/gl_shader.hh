@@ -85,19 +85,6 @@ class GLShader : public Shader {
     std::mutex compilation_mutex;
 
     GLProgram() {}
-    GLProgram(GLProgram &&other)
-    {
-      program_id = other.program_id;
-      vert_shader = other.vert_shader;
-      geom_shader = other.geom_shader;
-      frag_shader = other.frag_shader;
-      compute_shader = other.compute_shader;
-      other.program_id = 0;
-      other.vert_shader = 0;
-      other.geom_shader = 0;
-      other.frag_shader = 0;
-      other.compute_shader = 0;
-    }
     ~GLProgram();
 
     void program_link(StringRefNull shader_name);
@@ -105,7 +92,7 @@ class GLShader : public Shader {
 
   using GLProgramCacheKey = Vector<shader::SpecializationConstant::Value>;
   /** Contains all specialized shader variants. */
-  Map<GLProgramCacheKey, GLProgram> program_cache_;
+  Map<GLProgramCacheKey, std::unique_ptr<GLProgram>> program_cache_;
 
   std::mutex program_cache_mutex_;
 
@@ -146,7 +133,6 @@ class GLShader : public Shader {
   ~GLShader();
 
   void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) override;
-  void init() override;
 
   /** Return true on success. */
   void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
@@ -155,7 +141,7 @@ class GLShader : public Shader {
   void compute_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
   bool finalize(const shader::ShaderCreateInfo *info = nullptr) override;
   bool post_finalize(const shader::ShaderCreateInfo *info = nullptr);
-  void warm_cache(int /*limit*/) override{};
+  void warm_cache(int /*limit*/) override {};
 
   std::string resources_declare(const shader::ShaderCreateInfo &info) const override;
   std::string constants_declare(const shader::SpecializationConstants &constants_state) const;
@@ -211,8 +197,9 @@ class GLShader : public Shader {
 
 class GLShaderCompiler : public ShaderCompiler {
  public:
-  GLShaderCompiler(uint32_t threads_count = 1)
-      : ShaderCompiler(threads_count, GPUWorker::ContextType::PerThread, true){};
+  GLShaderCompiler()
+      : ShaderCompiler(GPU_max_parallel_compilations(), GPUWorker::ContextType::PerThread, true) {
+        };
 
   virtual void specialize_shader(ShaderSpecialization &specialization) override;
 };
@@ -228,7 +215,7 @@ class GLCompilerWorker {
   std::unique_ptr<SharedSemaphore> start_semaphore_;
   std::unique_ptr<SharedSemaphore> end_semaphore_;
   std::unique_ptr<SharedSemaphore> close_semaphore_;
-  enum eState {
+  enum State {
     /* The worker has been acquired and the compilation has been requested. */
     COMPILATION_REQUESTED,
     /* The shader binary result is ready to be read. */
@@ -238,7 +225,7 @@ class GLCompilerWorker {
     /* The worker is not currently in use and can be acquired. */
     AVAILABLE
   };
-  std::atomic<eState> state_ = AVAILABLE;
+  std::atomic<State> state_ = AVAILABLE;
   double compilation_start = 0;
 
   GLCompilerWorker();
@@ -264,7 +251,8 @@ class GLSubprocessShaderCompiler : public ShaderCompiler {
 
  public:
   GLSubprocessShaderCompiler()
-      : ShaderCompiler(GPU_max_parallel_compilations(), GPUWorker::ContextType::PerThread, true){};
+      : ShaderCompiler(GPU_max_parallel_compilations(), GPUWorker::ContextType::PerThread, true) {
+        };
   virtual ~GLSubprocessShaderCompiler() override;
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info) override;

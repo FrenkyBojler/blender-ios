@@ -340,14 +340,10 @@ void add_armature_envelope_weights(Scene &scene, Object &object, const Object &o
     const float4x4 layer_to_world = layer.to_world_space(object);
 
     CurvesGeometry &curves = info.drawing.strokes_for_write();
-    const Span<float3> src_positions = curves.positions();
+
     /* Get all the positions in world space. */
     Array<float3> positions(curves.points_num());
-    threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
-      for (const int i : range) {
-        positions[i] = math::transform_point(layer_to_world, src_positions[i]);
-      }
-    });
+    math::transform_points(curves.positions(), layer_to_world, positions);
 
     for (const int bone_i : skinnable_bones.index_range()) {
       const Bone *bone = skinnable_bones[bone_i];
@@ -411,14 +407,10 @@ void add_armature_automatic_weights(Scene &scene, Object &object, const Object &
     const float4x4 layer_to_world = layer.to_world_space(object);
 
     CurvesGeometry &curves = info.drawing.strokes_for_write();
-    const Span<float3> src_positions = curves.positions();
+
     /* Get all the positions in world space. */
     Array<float3> positions(curves.points_num());
-    threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
-      for (const int i : range) {
-        positions[i] = math::transform_point(layer_to_world, src_positions[i]);
-      }
-    });
+    math::transform_points(curves.positions(), layer_to_world, positions);
 
     for (const int bone_i : skinnable_bones.index_range()) {
       const char *deform_group_name = deform_group_names[bone_i].c_str();
@@ -494,7 +486,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
           /* Get deformation by modifiers. */
           bke::crazyspace::GeometryDeformation deformation =
               bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                  ob_eval, *vc.obact, info.layer_index, info.frame_number);
+                  ob_eval, *vc.obact, info.drawing);
 
           IndexMaskMemory memory;
           const IndexMask points = retrieve_visible_points(*vc.obact, info.drawing, memory);
@@ -539,7 +531,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
   /* Set the new brush weight. */
   const ToolSettings *ts = vc.scene->toolsettings;
   Brush *brush = BKE_paint_brush(&ts->gp_weightpaint->paint);
-  BKE_brush_weight_set(vc.scene, brush, new_weight);
+  BKE_brush_weight_set(&ts->gp_weightpaint->paint, brush, new_weight);
 
   /* Update brush settings in UI. */
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, nullptr);
@@ -724,7 +716,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
           object_defgroup->name);
       geometry::smooth_curve_attribute(curves.curves_range(),
                                        curves.points_by_curve(),
-                                       VArray<bool>::ForSingle(true, curves.points_num()),
+                                       VArray<bool>::from_single(true, curves.points_num()),
                                        curves.cyclic(),
                                        repeat,
                                        smooth_factor,

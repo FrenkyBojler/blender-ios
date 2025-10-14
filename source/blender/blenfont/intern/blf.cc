@@ -317,28 +317,31 @@ void BLF_addref_id(int fontid)
   }
 }
 
-void BLF_enable(int fontid, int option)
+void BLF_enable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags |= option;
+    font->flags |= flag;
   }
 }
 
-void BLF_disable(int fontid, int option)
+void BLF_disable(int fontid, FontFlags flag)
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    font->flags &= ~option;
+    font->flags &= ~flag;
   }
 }
 
 bool BLF_is_builtin(int fontid)
 {
   FontBLF *font = blf_get(fontid);
-  return font ? (font->flags & BLF_DEFAULT) : false;
+  if (font) {
+    return font->flags & BLF_DEFAULT;
+  }
+  return false;
 }
 
 void BLF_character_weight(int fontid, int weight)
@@ -590,10 +593,6 @@ void BLF_draw(int fontid, const char *str, const size_t str_len, ResultBLF *r_in
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-
-    /* Avoid bgl usage to corrupt BLF drawing. */
-    GPU_bgl_end();
-
     blf_draw_gpu__start(font);
     if (font->flags & BLF_WORD_WRAP) {
       blf_font_draw__wrap(font, str, str_len, r_info);
@@ -635,8 +634,6 @@ void BLF_draw_svg_icon(uint icon_id,
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];
   if (font) {
-    /* Avoid bgl usage to corrupt BLF drawing. */
-    GPU_bgl_end();
     blf_draw_gpu__start(font);
     blf_draw_svg_icon(font, icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
     blf_draw_gpu__end(font);
@@ -894,6 +891,15 @@ int BLF_ascender(int fontid)
   return 0.0f;
 }
 
+bool BLF_bounds_max(int fontid, rctf *r_bounds)
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return blf_font_bounds_max(font, r_bounds);
+  }
+  return false;
+}
+
 void BLF_rotation(int fontid, float angle)
 {
   FontBLF *font = blf_get(fontid);
@@ -947,8 +953,7 @@ void BLF_shadow_offset(int fontid, int x, int y)
   }
 }
 
-void BLF_buffer(
-    int fontid, float *fbuf, uchar *cbuf, int w, int h, const ColorManagedDisplay *display)
+void BLF_buffer(int fontid, float *fbuf, uchar *cbuf, int w, int h, const ColorSpace *colorspace)
 {
   FontBLF *font = blf_get(fontid);
 
@@ -957,7 +962,7 @@ void BLF_buffer(
     font->buf_info.cbuf = cbuf;
     font->buf_info.dims[0] = w;
     font->buf_info.dims[1] = h;
-    font->buf_info.display = display;
+    font->buf_info.colorspace = colorspace;
   }
 }
 
@@ -1007,12 +1012,12 @@ void BLF_buffer_state_free(BLFBufferState *buffer_state)
   MEM_delete(buffer_state);
 }
 
-void BLF_buffer_col(int fontid, const float rgba[4])
+void BLF_buffer_col(int fontid, const float srgb_color[4])
 {
   FontBLF *font = blf_get(fontid);
 
   if (font) {
-    copy_v4_v4(font->buf_info.col_init, rgba);
+    copy_v4_v4(font->buf_info.col_init, srgb_color);
   }
 }
 
@@ -1020,14 +1025,19 @@ void blf_draw_buffer__start(FontBLF *font)
 {
   FontBufInfoBLF *buf_info = &font->buf_info;
 
-  rgba_float_to_uchar(buf_info->col_char, buf_info->col_init);
+  /* This will be written to scene linear image buffer, so convert to that. */
+  IMB_colormanagement_srgb_to_scene_linear_v3(buf_info->col_float, buf_info->col_init);
+  buf_info->col_float[3] = buf_info->col_init[3];
 
-  if (buf_info->display) {
-    copy_v4_v4(buf_info->col_float, buf_info->col_init);
-    IMB_colormanagement_display_to_scene_linear_v3(buf_info->col_float, buf_info->display);
+  /* Convert to the colorspace of the byte image buffer, assumed sRGB if not specified. */
+  if (buf_info->colorspace) {
+    float col_char[4];
+    copy_v4_v4(col_char, buf_info->col_float);
+    IMB_colormanagement_scene_linear_to_colorspace_v3(col_char, buf_info->colorspace);
+    rgba_float_to_uchar(buf_info->col_char, col_char);
   }
   else {
-    srgb_to_linearrgb_v4(buf_info->col_float, buf_info->col_init);
+    rgba_float_to_uchar(buf_info->col_char, buf_info->col_init);
   }
 }
 void blf_draw_buffer__end() {}
@@ -1133,14 +1143,18 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
   return true;
 }
 
-float BLF_character_to_curves(
-    int fontid, uint unicode, ListBase *nurbsbase, const float scale, bool use_fallback)
+bool BLF_character_to_curves(int fontid,
+                             uint unicode,
+                             ListBase *nurbsbase,
+                             const float scale,
+                             bool use_fallback,
+                             float *r_advance)
 {
   FontBLF *font = blf_get(fontid);
   if (!font) {
-    return 0.0f;
+    return false;
   }
-  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback);
+  return blf_character_to_curves(font, unicode, nurbsbase, scale, use_fallback, r_advance);
 }
 
 #ifndef NDEBUG

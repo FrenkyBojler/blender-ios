@@ -51,10 +51,11 @@ def draw_circle_2d(position, color, radius, *, segments=None):
         vbo = GPUVertBuf(len=len(verts), format=fmt)
         vbo.attr_fill(id=pos_id, data=verts)
         batch = GPUBatch(type='LINE_STRIP', buf=vbo)
-        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-        batch.program_set(shader)
+        shader = gpu.shader.from_builtin('POLYLINE_UNIFORM_COLOR')
+        shader.uniform_float("viewportSize", gpu.state.viewport_get()[2:])
+        shader.uniform_float("lineWidth", gpu.state.line_width_get())
         shader.uniform_float("color", color)
-        batch.draw()
+        batch.draw(shader)
 
 
 def draw_texture_2d(texture, position, width, height):
@@ -89,14 +90,6 @@ def draw_texture_2d(texture, position, width, height):
         gpu.matrix.scale((width, height))
 
         shader = gpu.shader.from_builtin('IMAGE')
-
-        if isinstance(texture, int):
-            # Call the legacy bgl to not break the existing API
-            import bgl
-            bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, texture)
-            shader.uniform_int("image", 0)
-        else:
-            shader.uniform_sampler("image", texture)
+        shader.uniform_sampler("image", texture)
 
         batch.draw(shader)

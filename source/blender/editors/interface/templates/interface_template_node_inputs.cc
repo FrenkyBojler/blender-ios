@@ -21,6 +21,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 /* -------------------------------------------------------------------- */
@@ -69,7 +70,8 @@ static void draw_node_input(bContext *C,
 
   PointerRNA socket_ptr = RNA_pointer_create_discrete(
       node_ptr->owner_id, &RNA_NodeSocket, &socket);
-  const StringRefNull text(IFACE_(bke::node_socket_label(socket).c_str()));
+  const StringRef text = CTX_IFACE_(bke::node_socket_translation_context(socket),
+                                    bke::node_socket_label(socket));
   uiLayout *row = &layout->row(true);
   socket.typeinfo->draw(C, row, &socket_ptr, node_ptr, text);
 }
@@ -106,7 +108,7 @@ static void draw_node_inputs_recursive(bContext *C,
   const std::string panel_idname = "NodePanel" + std::to_string(panel_decl.identifier);
   PanelLayout panel = layout->panel(C, panel_idname, panel_decl.default_collapsed);
   const bool has_used_inputs = panel_has_used_inputs(node, panel_decl);
-  uiLayoutSetActive(panel.header, has_used_inputs);
+  panel.header->active_set(has_used_inputs);
 
   const char *panel_translation_context = (panel_decl.translation_context.has_value() ?
                                                panel_decl.translation_context->c_str() :
@@ -159,8 +161,21 @@ void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr)
         blender::ui::nodes::draw_node_inputs_recursive(C, layout, node, ptr, *panel_decl);
       }
       else if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
-        if (socket_decl->in_out == SOCK_IN) {
-          blender::ui::nodes::draw_node_input(C, layout, ptr, node.socket_by_decl(*socket_decl));
+        bNodeSocket &socket = node.socket_by_decl(*socket_decl);
+        if (socket_decl->custom_draw_fn) {
+          uiLayout &row = layout->row(false);
+          CustomSocketDrawParams params{
+              *C,
+              row,
+              tree,
+              node,
+              socket,
+              *ptr,
+              RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, &socket)};
+          (*socket_decl->custom_draw_fn)(params);
+        }
+        else if (socket_decl->in_out == SOCK_IN) {
+          blender::ui::nodes::draw_node_input(C, layout, ptr, socket);
         }
       }
       else if (const auto *layout_decl = dynamic_cast<const LayoutDeclaration *>(item_decl)) {

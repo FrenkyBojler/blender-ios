@@ -14,8 +14,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_span.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -300,6 +301,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_NLAACTION: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
@@ -382,6 +384,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_NLAACTION: {
         /* need to verify that this data is valid for now */
         if (ale && ale->adt) {
@@ -438,6 +441,7 @@ bool ANIM_is_active_channel(bAnimListElem *ale)
     case ANIMTYPE_DSHAIR:
     case ANIMTYPE_DSPOINTCLOUD:
     case ANIMTYPE_DSVOLUME:
+    case ANIMTYPE_DSLIGHTPROBE:
     case ANIMTYPE_NLAACTION: {
       return ale->adt && (ale->adt->flag & ADT_UI_ACTIVE);
     }
@@ -599,6 +603,7 @@ static eAnimChannels_SetFlag anim_channels_selection_flag_for_toggle(const ListB
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_NLAACTION: {
         if ((ale->adt) && (ale->adt->flag & ADT_UI_SELECTED)) {
           return ACHANNEL_SETFLAG_CLEAR;
@@ -771,6 +776,7 @@ static void anim_channels_select_set(bAnimContext *ac,
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_NLAACTION: {
         /* need to verify that this data is valid for now */
         if (ale->adt) {
@@ -1630,7 +1636,7 @@ static void split_groups_action_temp(bAction *act, bActionGroup *tgrp)
   *tgrp = bActionGroup{};
   tgrp->cs = ThemeWireColor{};
   tgrp->flag |= (AGRP_EXPANDED | AGRP_TEMP | AGRP_EXPANDED_G);
-  STRNCPY(tgrp->name, "#TempGroup");
+  STRNCPY_UTF8(tgrp->name, "#TempGroup");
 
   /* Move any action-channels not already moved, to the temp group */
   if (act->curves.first) {
@@ -2878,6 +2884,7 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_SHAPEKEY:
       case ANIMTYPE_GPLAYER:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
@@ -2896,6 +2903,55 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
   ANIM_animdata_freelist(&anim_data);
 
   return has_skipped_group;
+}
+
+void ED_anim_ale_fcurve_delete(bAnimContext &ac, bAnimListElem &ale)
+{
+  UNUSED_VARS_NDEBUG(ac);
+  BLI_assert(ELEM(ale.type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE));
+
+  switch (ale.type) {
+    case ANIMTYPE_FCURVE: {
+      AnimData *adt = ale.adt;
+      FCurve *fcu = static_cast<FCurve *>(ale.data);
+
+      BLI_assert_msg((fcu->driver != nullptr) == (ac.datatype == ANIMCONT_DRIVERS),
+                     "Expecting only driver F-Curves in the drivers editor");
+
+      if (ale.fcurve_owner_id && GS(ale.fcurve_owner_id->name) == ID_AC) {
+        /* F-Curves can be owned by Actions assigned to NLA strips, which
+         * `animrig::animdata_fcurve_delete()` (below) cannot handle. */
+        BLI_assert_msg(!fcu->driver, "Drivers are not expected to be owned by Actions");
+        blender::animrig::Action &action =
+            reinterpret_cast<bAction *>(ale.fcurve_owner_id)->wrap();
+        BLI_assert(!action.is_action_legacy());
+        action_fcurve_remove(action, *fcu);
+      }
+      else if (fcu->driver || adt->action) {
+        /* This function only works for drivers & directly-assigned Actions: */
+        blender::animrig::animdata_fcurve_delete(adt, fcu);
+      }
+      else {
+        BLI_assert_unreachable();
+      }
+      break;
+    }
+    case ANIMTYPE_NLACURVE: {
+      /* NLA Control Curve. */
+      NlaStrip *strip = static_cast<NlaStrip *>(ale.owner);
+      FCurve *fcu = static_cast<FCurve *>(ale.data);
+      if (!BKE_nlastrip_controlcurve_remove(strip, fcu)) {
+        printf("ERROR: Trying to delete NLA Control Curve for unknown property '%s'\n",
+               fcu->rna_path);
+      }
+      break;
+    }
+
+    default:
+      BLI_assert_unreachable();
+  }
+
+  tag_update_animation_element(&ale);
 }
 
 static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
@@ -2920,8 +2976,9 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
    * the same loop. */
   if (ac.datatype != ANIMCONT_DRIVERS) {
     /* Keep deleting container-like channels until there are no more to delete. */
-    while (animchannels_delete_containers(C, &ac))
-      ;
+    while (animchannels_delete_containers(C, &ac)) {
+      /* Pass. */
+    }
   }
 
   /* filter data */
@@ -2933,40 +2990,11 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
   /* delete selected data channels */
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     switch (ale->type) {
-      case ANIMTYPE_FCURVE: {
-        /* F-Curves if we can identify its parent */
-        AnimData *adt = ale->adt;
-        FCurve *fcu = static_cast<FCurve *>(ale->data);
-
-        /* try to free F-Curve */
-        BLI_assert_msg((fcu->driver != nullptr) == (ac.datatype == ANIMCONT_DRIVERS),
-                       "Expecting only driver F-Curves in the drivers editor");
-        blender::animrig::animdata_fcurve_delete(adt, fcu);
-        tag_update_animation_element(ale);
+      case ANIMTYPE_FCURVE:
+      case ANIMTYPE_NLACURVE:
+        ED_anim_ale_fcurve_delete(ac, *ale);
         break;
-      }
-      case ANIMTYPE_NLACURVE: {
-        /* NLA Control Curve - Deleting it should disable the corresponding setting... */
-        NlaStrip *strip = static_cast<NlaStrip *>(ale->owner);
-        FCurve *fcu = static_cast<FCurve *>(ale->data);
 
-        if (STREQ(fcu->rna_path, "strip_time")) {
-          strip->flag &= ~NLASTRIP_FLAG_USR_TIME;
-        }
-        else if (STREQ(fcu->rna_path, "influence")) {
-          strip->flag &= ~NLASTRIP_FLAG_USR_INFLUENCE;
-        }
-        else {
-          printf("ERROR: Trying to delete NLA Control Curve for unknown property '%s'\n",
-                 fcu->rna_path);
-        }
-
-        /* unlink and free the F-Curve */
-        BLI_remlink(&strip->fcurves, fcu);
-        BKE_fcurve_free(fcu);
-        tag_update_animation_element(ale);
-        break;
-      }
       case ANIMTYPE_GPLAYER: {
         /* Grease Pencil layer */
         bGPdata *gpd = reinterpret_cast<bGPdata *>(ale->id);
@@ -3038,6 +3066,7 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_SHAPEKEY:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
@@ -3867,6 +3896,7 @@ static void box_select_anim_channels(bAnimContext *ac, const rcti &rect, short s
         case ANIMTYPE_DSHAIR:
         case ANIMTYPE_DSPOINTCLOUD:
         case ANIMTYPE_DSVOLUME:
+        case ANIMTYPE_DSLIGHTPROBE:
         case ANIMTYPE_SHAPEKEY:
         case ANIMTYPE_GPLAYER:
         case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
@@ -4485,6 +4515,10 @@ static int click_select_channel_shapekey(bAnimContext *ac,
                                          const short /* eEditKeyframes_Select or -1 */ selectmode)
 {
   KeyBlock *kb = static_cast<KeyBlock *>(ale->data);
+  Key *key = reinterpret_cast<Key *>(ale->id);
+  Object &ob = *ac->obact;
+
+  ob.shapenr = BLI_findindex(&key->block, kb) + 1;
 
   /* select/deselect */
   if (selectmode == SELECT_INVERT) {
@@ -4549,7 +4583,6 @@ static int click_select_channel_gplayer(bContext *C,
                             ANIMTYPE_GPLAYER);
     /* update other layer status */
     BKE_gpencil_layer_active_set(gpd, gpl);
-    BKE_gpencil_layer_autolock_set(gpd, false);
     DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY);
   }
 
@@ -4734,6 +4767,7 @@ static int mouse_anim_channels(bContext *C,
     case ANIMTYPE_DSHAIR:
     case ANIMTYPE_DSPOINTCLOUD:
     case ANIMTYPE_DSVOLUME:
+    case ANIMTYPE_DSLIGHTPROBE:
       notifierFlags |= click_select_channel_dummy(ac, ale, selectmode);
       break;
     case ANIMTYPE_GROUP:
@@ -5412,7 +5446,7 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
   Main *bmain = CTX_data_main(C);
   if (slots.size() == 1) {
     char actname[MAX_ID_NAME - 2];
-    SNPRINTF(actname, DATA_("%sAction"), slots[0].first->identifier + 2);
+    SNPRINTF_UTF8(actname, DATA_("%sAction"), slots[0].first->identifier + 2);
     target_action = &action_add(*bmain, actname);
   }
   else {
@@ -5437,15 +5471,16 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
 
 static bool slot_channels_move_to_new_action_poll(bContext *C)
 {
-  SpaceAction *space_action = CTX_wm_space_action(C);
-  if (!space_action) {
-    return false;
-  }
-  if (!space_action->action) {
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ScrArea *area = CTX_wm_area(C);
+  bAction *action = ANIM_active_action_from_area(scene, view_layer, area);
+
+  if (!action) {
     CTX_wm_operator_poll_msg_set(C, "No active action to operate on");
     return false;
   }
-  if (!space_action->action->wrap().is_action_layered()) {
+  if (!action->wrap().is_action_layered()) {
     CTX_wm_operator_poll_msg_set(C, "Active action is not layered");
     return false;
   }
@@ -5480,7 +5515,7 @@ static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
   while (action->slot_array_num) {
     Slot *slot = action->slot(action->slot_array_num - 1);
     char actname[MAX_ID_NAME - 2];
-    SNPRINTF(actname, DATA_("%sAction"), slot->identifier + 2);
+    SNPRINTF_UTF8(actname, DATA_("%sAction"), slot->identifier + 2);
     Action &target_action = action_add(*bmain, actname);
     created_actions++;
     Layer &layer = target_action.layer_add(std::nullopt);

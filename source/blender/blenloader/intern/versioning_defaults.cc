@@ -23,6 +23,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_camera_types.h"
@@ -60,6 +61,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
@@ -75,9 +77,12 @@
 static bool blo_is_builtin_template(const char *app_template)
 {
   /* For all builtin templates shipped with Blender. */
-  return (
-      !app_template ||
-      STR_ELEM(app_template, N_("2D_Animation"), N_("Sculpting"), N_("VFX"), N_("Video_Editing")));
+  return (!app_template || STR_ELEM(app_template,
+                                    N_("2D_Animation"),
+                                    N_("Storyboarding"),
+                                    N_("Sculpting"),
+                                    N_("VFX"),
+                                    N_("Video_Editing")));
 }
 
 static void blo_update_defaults_screen(bScreen *screen,
@@ -216,6 +221,8 @@ static void blo_update_defaults_screen(bScreen *screen,
       v3d->overlay.normals_constant_screen_size = 7.0f;
       /* Always enable Grease Pencil vertex color overlay by default. */
       v3d->overlay.gpencil_vertex_paint_opacity = 1.0f;
+      /* Always use theme color for wireframe by default. */
+      v3d->shading.wire_color_type = V3D_SHADING_SINGLE_COLOR;
 
       /* Level out the 3D Viewport camera rotation, see: #113751. */
       constexpr float viewports_to_level[][4] = {
@@ -343,15 +350,79 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
       }
     }
   }
+  /* For Video Editing template. */
+  if (STRPREFIX(workspace->id.name + 2, "Video Editing")) {
+    LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
+      bScreen *screen = layout->screen;
+      if (screen) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+            if (sl->spacetype == SPACE_SEQ) {
+              if (((SpaceSeq *)sl)->view == SEQ_VIEW_PREVIEW) {
+                continue;
+              }
+              ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                     &sl->regionbase;
+              ARegion *sidebar = BKE_region_find_in_listbase_by_type(regionbase, RGN_TYPE_UI);
+              sidebar->flag |= RGN_FLAG_HIDDEN;
+            }
+            if (sl->spacetype == SPACE_PROPERTIES) {
+              SpaceProperties *properties = reinterpret_cast<SpaceProperties *>(sl);
+              properties->mainb = properties->mainbo = properties->mainbuser = BCONTEXT_STRIP;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+static void blo_update_defaults_paint(Paint *paint)
+{
+  if (!paint) {
+    return;
+  }
+
+  /* Ensure input_samples has a correct default value of 1. */
+  if (paint->unified_paint_settings.input_samples == 0) {
+    paint->unified_paint_settings.input_samples = 1;
+  }
+
+  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  paint->unified_paint_settings.size = default_ups.size;
+  paint->unified_paint_settings.input_samples = default_ups.input_samples;
+  paint->unified_paint_settings.unprojected_size = default_ups.unprojected_size;
+  paint->unified_paint_settings.alpha = default_ups.alpha;
+  paint->unified_paint_settings.weight = default_ups.weight;
+  paint->unified_paint_settings.flag = default_ups.flag;
+  copy_v3_v3(paint->unified_paint_settings.color, default_ups.color);
+  copy_v3_v3(paint->unified_paint_settings.secondary_color, default_ups.secondary_color);
+
+  if (paint->unified_paint_settings.curve_rand_hue == nullptr) {
+    paint->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (paint->unified_paint_settings.curve_rand_saturation == nullptr) {
+    paint->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (paint->unified_paint_settings.curve_rand_value == nullptr) {
+    paint->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
+}
+
+static void blo_update_defaults_windowmanager(wmWindowManager *wm)
+{
+  wm->xr.session_settings.fly_speed = 3.0f;
 }
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
 
-  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
+  STRNCPY_UTF8(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 
   scene->r.cfra = 1.0f;
+  scene->r.im_format.exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
+  scene->r.bake.im_format.exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
 
   /* Don't enable compositing nodes. */
   if (scene->nodetree) {
@@ -367,20 +438,26 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Disable Z pass by default. */
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-    view_layer->passflag &= ~SCE_PASS_Z;
+    view_layer->passflag &= ~SCE_PASS_DEPTH;
+    view_layer->eevee.ambient_occlusion_distance = 10.0f;
   }
 
-  /* Display missing media by default. */
   if (scene->ed) {
+    /* Display missing media by default. */
     scene->ed->show_missing_media_flag |= SEQ_EDIT_SHOW_MISSING_MEDIA;
+    /* Turn on frame pre-fetching per default. */
+    scene->ed->cache_flag |= SEQ_CACHE_PREFETCH_ENABLE;
   }
 
   /* New EEVEE defaults. */
   scene->eevee.motion_blur_shutter_deprecated = 0.5f;
+  scene->eevee.flag &= ~SCE_EEVEE_VOLUME_CUSTOM_RANGE;
 
   copy_v3_v3(scene->display.light_direction, blender::float3(M_SQRT1_3));
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
   copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
+
+  ts->uv_flag |= UV_FLAG_SELECT_SYNC;
 
   /* Default Rotate Increment. */
   const float default_snap_angle_increment = DEG2RADF(5.0f);
@@ -398,7 +475,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     BKE_curvemap_reset(gp_falloff_curve->cm,
                        &gp_falloff_curve->clipr,
                        CURVE_PRESET_GAUSS,
-                       CURVEMAP_SLOPE_POSITIVE);
+                       CurveMapSlopeType::Positive);
   }
   if (ts->gp_sculpt.cur_primitive == nullptr) {
     ts->gp_sculpt.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -407,7 +484,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     BKE_curvemap_reset(gp_primitive_curve->cm,
                        &gp_primitive_curve->clipr,
                        CURVE_PRESET_BELL,
-                       CURVEMAP_SLOPE_POSITIVE);
+                       CurveMapSlopeType::Positive);
   }
 
   if (ts->sculpt) {
@@ -425,9 +502,9 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
         {0.125, 0.50}, {0.375, 0.50}, {0.375, 0.75}, {0.125, 0.75}, {0.375, 0.50}, {0.625, 0.50},
         {0.625, 0.75}, {0.375, 0.75}, {0.375, 0.25}, {0.625, 0.25}, {0.625, 0.50}, {0.375, 0.50},
     };
-    float(*mloopuv)[2] = static_cast<float(*)[2]>(
+    float (*uv_map)[2] = static_cast<float (*)[2]>(
         CustomData_get_layer_for_write(&mesh->corner_data, CD_PROP_FLOAT2, mesh->corners_num));
-    memcpy(mloopuv, uv_values, sizeof(float[2]) * mesh->corners_num);
+    memcpy(uv_map, uv_values, sizeof(float[2]) * mesh->corners_num);
   }
 
   /* Make sure that the curve profile is initialized */
@@ -452,8 +529,8 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
   ts->unified_paint_settings.flag = default_ups.flag;
-  copy_v3_v3(ts->unified_paint_settings.rgb, default_ups.rgb);
-  copy_v3_v3(ts->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+  copy_v3_v3(ts->unified_paint_settings.color, default_ups.color);
+  copy_v3_v3(ts->unified_paint_settings.secondary_color, default_ups.secondary_color);
 
   if (ts->unified_paint_settings.curve_rand_hue == nullptr) {
     ts->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
@@ -464,6 +541,18 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   if (ts->unified_paint_settings.curve_rand_value == nullptr) {
     ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
+
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->vpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->wpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->sculpt));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_paint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_vertexpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_sculptpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->curves_sculpt));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(&ts->imapaint));
+
+  /* Weight Paint settings */
+  ts->weightuser = OB_DRAW_GROUPUSER_ACTIVE;
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
@@ -564,6 +653,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
   /* Work-spaces. */
   LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+    blo_update_defaults_windowmanager(wm);
+
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {
         WorkSpaceLayout *layout = BKE_workspace_active_layout_for_workspace_get(
@@ -594,12 +685,12 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
     if (app_template && STR_ELEM(app_template, "Video_Editing", "2D_Animation")) {
       /* Filmic is too slow, use standard until it is optimized. */
-      STRNCPY(scene->view_settings.view_transform, "Standard");
-      STRNCPY(scene->view_settings.look, "None");
+      STRNCPY_UTF8(scene->view_settings.view_transform, "Standard");
+      STRNCPY_UTF8(scene->view_settings.look, "None");
     }
     else {
       /* Default to AgX view transform. */
-      STRNCPY(scene->view_settings.view_transform, "AgX");
+      STRNCPY_UTF8(scene->view_settings.view_transform, "AgX");
     }
 
     if (app_template && STREQ(app_template, "Video_Editing")) {
@@ -758,6 +849,16 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           }
         }
       }
+    }
+  }
+
+  /* Grease Pencil Anti-Aliasing. */
+  {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->grease_pencil_settings.smaa_threshold = 1.0f;
+      scene->grease_pencil_settings.smaa_threshold_render = 0.25f;
+      scene->grease_pencil_settings.aa_samples = 8;
+      scene->grease_pencil_settings.motion_blur_steps = 8;
     }
   }
 }
