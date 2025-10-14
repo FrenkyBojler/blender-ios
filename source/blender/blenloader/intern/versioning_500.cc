@@ -16,7 +16,6 @@
 #define DNA_GENFILE_VERSIONING_MACROS
 
 #include "DNA_ID.h"
-#include "DNA_action_defaults.h"
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curves_types.h"
@@ -60,7 +59,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
-#include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -85,8 +83,6 @@
 #include "AS_asset_library.hh"
 
 #include "ANIM_action.hh"
-#include "ANIM_action_iterators.hh"
-#include "ANIM_nla.hh"
 
 #include "readfile.hh"
 
@@ -2585,56 +2581,11 @@ static void do_version_lift_gamma_gain_srgb_to_linear(bNodeTree &node_tree, bNod
   version_node_add_link(node_tree, node, *image_output, *gamma_node, *gamma_color_input);
 }
 
-constexpr char const *hide_prop_prefix = "bones[\"";
-constexpr char const *hide_prop_suffix = "].hide";
-
-static void copy_hide_fcurve_from_to_slot(AnimData *arm_adt, Object *ob)
-{
-  using namespace blender::animrig;
-
-  AnimData *ob_adt = BKE_animdata_from_id(&ob->id);
-  BLI_assert(arm_adt->action && ob_adt && ob_adt->action);
-
-  bAction *armature_dna_action = arm_adt->action;
-  Action &armature_action = armature_dna_action->wrap();
-  Channelbag *armature_channelbag = channelbag_for_action_slot(armature_action,
-                                                               arm_adt->slot_handle);
-  if (!armature_channelbag) {
-    return;
-  }
-
-  blender::Vector<FCurve *> fcurves_to_copy;
-  for (FCurve *fcurve : armature_channelbag->fcurves()) {
-    const blender::StringRef rna_path(fcurve->rna_path);
-    if (rna_path.startswith(hide_prop_prefix) && rna_path.endswith(hide_prop_suffix)) {
-      fcurves_to_copy.append(fcurve);
-    }
-  }
-
-  if (fcurves_to_copy.is_empty()) {
-    return;
-  }
-
-  Channelbag &object_channelbag = action_channelbag_ensure(*ob_adt->action, ob->id);
-
-  for (FCurve *original : fcurves_to_copy) {
-    char *fixed_path = BLI_string_joinN("pose.", original->rna_path);
-    if (object_channelbag.fcurve_find({fixed_path, original->array_index})) {
-      /* It is possible to set up a file in such a way that multiple armature objects use the
-       * same slot. In that case versioning may visit the same channelbag twice. */
-      MEM_SAFE_FREE(fixed_path);
-      continue;
-    }
-    FCurve *copy = BKE_fcurve_copy(original);
-    MEM_SAFE_FREE(copy->rna_path);
-    copy->rna_path = fixed_path;
-    object_channelbag.fcurve_append(*copy);
-  }
-}
-
 static void version_bone_hide_property_driver(AnimData *arm_adt, blender::Vector<Object *> &users)
 {
   using namespace blender::animrig;
+  constexpr char const *hide_prop_prefix = "bones[\"";
+  constexpr char const *hide_prop_suffix = "].hide";
 
   blender::Vector<FCurve *> drivers_to_fix;
   LISTBASE_FOREACH (FCurve *, fcurve, &arm_adt->drivers) {
