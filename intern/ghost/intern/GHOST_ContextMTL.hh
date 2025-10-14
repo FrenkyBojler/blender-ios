@@ -135,8 +135,7 @@ class GHOST_ContextMTL : public GHOST_Context {
    */
   void metalRegisterPresentCallback(void (*callback)(
       MTLRenderPassDescriptor *, id<MTLRenderPipelineState>, id<MTLTexture>, id<CAMetalDrawable>));
-  void metalRegisterXrBlitCallback(void (*callback)(id<MTLTexture>,
-                                                GHOST_XrDrawViewInfo));
+  void metalRegisterXrBlitCallback(void (*callback)(id<MTLTexture>, GHOST_XrDrawViewInfo));
 
  private:
   /** Metal state */

@@ -1857,9 +1857,9 @@ void MTLFrameBuffer::blit(uint read_slot,
   }
   MTLContext *mtl_context = MTLContext::get();
 
-  const bool do_color = (blit_buffers & GPU_COLOR_BIT); // TRUE
-  const bool do_depth = (blit_buffers & GPU_DEPTH_BIT); // FALSE
-  const bool do_stencil = (blit_buffers & GPU_STENCIL_BIT); // FALSE
+  const bool do_color = (blit_buffers & GPU_COLOR_BIT);
+  const bool do_depth = (blit_buffers & GPU_DEPTH_BIT);
+  const bool do_stencil = (blit_buffers & GPU_STENCIL_BIT);
 
   /* Early exit if there is no blit to do. */
   if (!(do_color || do_depth || do_stencil)) {

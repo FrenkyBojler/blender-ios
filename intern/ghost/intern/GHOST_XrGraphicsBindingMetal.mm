@@ -6,8 +6,8 @@
  * \ingroup GHOST
  */
 
-#include "GHOST_ContextMTL.hh"
 #include "GHOST_XrGraphicsBindingMetal.h"
+#include "GHOST_ContextMTL.hh"
 
 static std::optional<int64_t> choose_swapchain_format_from_candidates(
     const std::vector<int64_t> &gpu_binding_formats, const std::vector<int64_t> &runtime_formats)
