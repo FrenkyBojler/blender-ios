@@ -277,6 +277,7 @@ void AbstractView::set_filtering_collapsed()
 {
   this->filtering_collapsed_state = !this->filtering_collapsed_state;
 }
+
 bool AbstractView::is_filtering_collapsed() const
 {
   return this->filtering_collapsed_state;

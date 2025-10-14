@@ -352,6 +352,8 @@ typedef struct uiViewState {
    *   scrolled out of view).
    */
   int scroll_offset;
+  uint8_t filtering_collapsed_state;
+  char _pad[7];
 } uiViewState;
 
 /**

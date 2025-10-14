@@ -76,7 +76,6 @@ class AbstractView {
   bool popup_keep_open_ = false;
   bool is_multiselect_supported_ = false;
   std::string search_string_;
-  bool filtering_collapsed_state = true;
 
  public:
   virtual ~AbstractView() = default;
@@ -162,6 +161,7 @@ class AbstractView {
   bool is_filtering_collapsed() const;
 
  protected:
+  bool filtering_collapsed_state = true;
   bool needs_filtering_ = true;
   AbstractView() = default;
 

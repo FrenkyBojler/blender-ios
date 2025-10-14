@@ -170,6 +170,11 @@ void AbstractTreeView::filter(std::optional<StringRef> filter_str)
   });
 }
 
+void AbstractTreeView::save_filtering_state(bool value)
+{
+  this->filtering_collapsed_state = value;
+}
+
 std::optional<uiViewState> AbstractTreeView::persistent_state() const
 {
   if (!custom_height_ && !scroll_value_) {
@@ -184,6 +189,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
   }
+  state.filtering_collapsed_state = is_filtering_collapsed();
 
   return state;
 }
@@ -197,6 +203,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
   if (state.scroll_offset) {
     scroll_value_ = std::make_shared<int>(state.scroll_offset);
   }
+  save_filtering_state(state.filtering_collapsed_state);
 }
 
 int AbstractTreeView::count_visible_descendants(const AbstractTreeViewItem &parent) const
