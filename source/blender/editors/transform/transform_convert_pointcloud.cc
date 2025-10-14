@@ -8,13 +8,12 @@
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_span.hh"
 
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
 
