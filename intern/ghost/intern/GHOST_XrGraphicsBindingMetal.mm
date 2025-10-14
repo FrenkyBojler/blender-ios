@@ -6,63 +6,8 @@
  * \ingroup GHOST
  */
 
-#include "GPU_framebuffer.hh"
-#include "GPU_texture.hh"
-#include "gpu_framebuffer_private.hh"
-
-#include "mtl_context.hh"
-#include "mtl_framebuffer.hh"
-#include "mtl_texture.hh"
-
 #include "GHOST_ContextMTL.hh"
-#include "GHOST_XrException.hh"
 #include "GHOST_XrGraphicsBindingMetal.h"
-
-static MTLPixelFormat ghost_format_to_mtl_format(GHOST_TXrSwapchainFormat ghost_format,
-                                                 bool expects_srgb_buffer)
-{
-  MTLPixelFormat format = MTLPixelFormatInvalid;
-
-  switch (ghost_format) {
-    case GHOST_kXrSwapchainFormatRGBA8:
-      format = expects_srgb_buffer ? MTLPixelFormatRGBA8Unorm_sRGB : MTLPixelFormatRGBA8Unorm;
-      break;
-    case GHOST_kXrSwapchainFormatRGBA16:
-      format = MTLPixelFormatRGBA16Unorm;
-      break;
-    case GHOST_kXrSwapchainFormatRGBA16F:
-      format = MTLPixelFormatRGBA16Float;
-      break;
-    case GHOST_kXrSwapchainFormatRGB10_A2:
-      format = MTLPixelFormatRGB10A2Unorm;
-      break;
-  }
-
-  if (format == MTLPixelFormatInvalid) {
-    throw GHOST_XrException("No supported DirectX swapchain format found.");
-  }
-
-  return format;
-}
-
-static blender::gpu::TextureFormat ghost_format_to_gpu_format(
-    GHOST_TXrSwapchainFormat ghost_format)
-{
-  using namespace blender::gpu;
-
-  switch (ghost_format) {
-    case GHOST_kXrSwapchainFormatRGBA8:
-      /* TODO: Assume SRGB for now, storing the proper SRGB info in draw_info has bad side-effects.
-       *       Will be fixed separately after dropping the use of the GPU backend. */
-      return TextureFormat::SRGBA_8_8_8_8;
-    case GHOST_kXrSwapchainFormatRGBA16:
-      return TextureFormat::UNORM_16_16_16_16;
-    case GHOST_kXrSwapchainFormatRGBA16F:
-      return TextureFormat::SFLOAT_16_16_16_16;
-    case GHOST_kXrSwapchainFormatRGB10_A2:
-      return TextureFormat::UNORM_10_10_10_2;
-  }
-}
 
 static std::optional<int64_t> choose_swapchain_format_from_candidates(
     const std::vector<int64_t> &gpu_binding_formats, const std::vector<int64_t> &runtime_formats)
@@ -201,33 +146,11 @@ void GHOST_XrGraphicsBindingMetal::submitToSwapchainBegin() {}
 void GHOST_XrGraphicsBindingMetal::submitToSwapchainImage(
     XrSwapchainImageBaseHeader &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
-  // TODO: Potentially rewrite using the barebone Obj-C GHOST Metal Backend
   XrSwapchainImageMetalKHR &metal_swapchain_image = reinterpret_cast<XrSwapchainImageMetalKHR &>(
       swapchain_image);
-
   id<MTLTexture> metal_xr_texture = static_cast<id<MTLTexture>>(metal_swapchain_image.texture);
 
-  using namespace blender;
-
-  const gpu::TextureFormat tex_format = ghost_format_to_gpu_format(draw_info.swapchain_format);
-  gpu::MTLTexture metal_gpu_texture = gpu::MTLTexture(
-      "xr_swapchain_tex", tex_format, gpu::GPU_TEXTURE_2D, metal_xr_texture);
-
-  gpu::MTLContext *ctx = gpu::MTLContext::get();
-
-  gpu::MTLFrameBuffer *source_framebuffer = ctx->get_current_framebuffer();
-  gpu::MTLFrameBuffer target_framebuffer = gpu::MTLFrameBuffer(ctx, "xr_target_fb");
-
-  const int source_slot = 0;
-  const int target_slot = 0;
-
-  target_framebuffer.add_color_attachment(&metal_gpu_texture, target_slot, 0, 0);
-  source_framebuffer->blit_to(GPU_COLOR_BIT,
-                              source_slot,
-                              static_cast<gpu::FrameBuffer *>(&target_framebuffer),
-                              target_slot,
-                              draw_info.ofsx,
-                              draw_info.ofsy);
+  ghost_metal_ctx_->xrBlitCallback(metal_xr_texture, draw_info);
 }
 
 void GHOST_XrGraphicsBindingMetal::submitToSwapchainEnd() {}

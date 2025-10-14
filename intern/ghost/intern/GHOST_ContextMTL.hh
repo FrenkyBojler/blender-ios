@@ -9,6 +9,7 @@
 #pragma once
 
 #include "GHOST_Context.hh"
+#include "GHOST_Types.h"
 
 #include <Cocoa/Cocoa.h>
 #include <Metal/Metal.h>
@@ -130,10 +131,12 @@ class GHOST_ContextMTL : public GHOST_Context {
   MTLDevice *metalDevice();
 
   /**
-   * Register present callback
+   * Callback registration.
    */
   void metalRegisterPresentCallback(void (*callback)(
       MTLRenderPassDescriptor *, id<MTLRenderPipelineState>, id<MTLTexture>, id<CAMetalDrawable>));
+  void metalRegisterXrBlitCallback(void (*callback)(id<MTLTexture>,
+                                                GHOST_XrDrawViewInfo));
 
  private:
   /** Metal state */
@@ -165,6 +168,8 @@ class GHOST_ContextMTL : public GHOST_Context {
                                  id<MTLRenderPipelineState>,
                                  id<MTLTexture>,
                                  id<CAMetalDrawable>);
+  /* XR Blit callback. */
+  void (*xrBlitCallback)(id<MTLTexture>, GHOST_XrDrawViewInfo);
 
   int mtl_SwapInterval;
 

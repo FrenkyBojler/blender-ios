@@ -20,6 +20,7 @@
 #include "intern/GHOST_Context.hh"
 #include "intern/GHOST_ContextMTL.hh"
 #include "intern/GHOST_Window.hh"
+#include "GHOST_Types.h"
 
 #include "mtl_backend.hh"
 #include "mtl_capabilities.hh"
@@ -1012,10 +1013,12 @@ class MTLContext : public Context {
   void set_ghost_window(GHOST_WindowHandle ghostWinHandle);
 };
 
-/* GHOST Context callback and present. */
+/* GHOST Context callbacks. */
 void present(MTLRenderPassDescriptor *blit_descriptor,
              id<MTLRenderPipelineState> blit_pso,
              id<MTLTexture> swapchain_texture,
              id<CAMetalDrawable> drawable);
+
+void xr_blit(id<MTLTexture> swapchain_texture, GHOST_XrDrawViewInfo swapchain_format);
 
 }  // namespace blender::gpu

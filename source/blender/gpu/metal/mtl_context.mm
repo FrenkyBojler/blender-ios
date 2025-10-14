@@ -241,6 +241,7 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
 
   /* Register present callback. */
   this->ghost_context_->metalRegisterPresentCallback(&present);
+  this->ghost_context_->metalRegisterXrBlitCallback(&xr_blit);
 
   /* Create FrameBuffer handles. */
   MTLFrameBuffer *mtl_front_left = new MTLFrameBuffer(this, "front_left");
@@ -2742,6 +2743,54 @@ void present(MTLRenderPassDescriptor *blit_descriptor,
       BLI_assert(false);
     }
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Xr blitting from GHOST.
+ * \{ */
+
+static blender::gpu::TextureFormat ghost_format_to_gpu_format(
+    GHOST_TXrSwapchainFormat ghost_format)
+{
+  using namespace blender::gpu;
+
+  switch (ghost_format) {
+    case GHOST_kXrSwapchainFormatRGBA8:
+      /* TODO: Assume SRGB for now, storing the proper SRGB info in draw_info has bad side-effects.
+       *       Will be fixed separately after dropping the use of the GPU backend. */
+      return TextureFormat::SRGBA_8_8_8_8;
+    case GHOST_kXrSwapchainFormatRGBA16:
+      return TextureFormat::UNORM_16_16_16_16;
+    case GHOST_kXrSwapchainFormatRGBA16F:
+      return TextureFormat::SFLOAT_16_16_16_16;
+    case GHOST_kXrSwapchainFormatRGB10_A2:
+      return TextureFormat::UNORM_10_10_10_2;
+  }
+}
+
+void xr_blit(id<MTLTexture> metal_xr_texture, GHOST_XrDrawViewInfo draw_info)
+{
+  const gpu::TextureFormat tex_format = ghost_format_to_gpu_format(draw_info.swapchain_format);
+  gpu::MTLTexture metal_gpu_texture = gpu::MTLTexture(
+      "xr_swapchain_tex", tex_format, gpu::GPU_TEXTURE_2D, metal_xr_texture);
+
+  gpu::MTLContext *ctx = gpu::MTLContext::get();
+
+  gpu::MTLFrameBuffer *source_framebuffer = ctx->get_current_framebuffer();
+  gpu::MTLFrameBuffer target_framebuffer = gpu::MTLFrameBuffer(ctx, "xr_target_fb");
+
+  const int source_slot = 0;
+  const int target_slot = 0;
+
+  target_framebuffer.add_color_attachment(&metal_gpu_texture, target_slot, 0, 0);
+  source_framebuffer->blit_to(GPU_COLOR_BIT,
+                              source_slot,
+                              static_cast<gpu::FrameBuffer *>(&target_framebuffer),
+                              target_slot,
+                              draw_info.ofsx,
+                              draw_info.ofsy);
 }
 
 /** \} */

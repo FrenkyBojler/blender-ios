@@ -573,11 +573,6 @@ if(WITH_XR_OPENXR)
 
       intern/GHOST_XrGraphicsBindingMetal.h
     )
-    list(APPEND INC
-      ../../source/blender/gpu/metal
-      ../../source/blender/gpu/intern
-      ../../source/blender/blenkernel
-    )
   endif()
 
   if(WIN32)
