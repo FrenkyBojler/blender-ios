@@ -880,7 +880,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
   using namespace blender::animrig;
   bool changed = false;
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   blender::Vector<PointerRNA> selection;
   blender::Vector<std::string> selected_strips_rna_paths;
@@ -1021,7 +1021,7 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
 static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   const float cfra = BKE_scene_frame_get(scene);
 
   blender::Vector<PointerRNA> selection;
@@ -1108,7 +1108,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
 static wmOperatorStatus delete_key_vse_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   KeyingSet *ks = blender::animrig::scene_get_active_keyingset(scene);
 
   if (ks == nullptr) {
