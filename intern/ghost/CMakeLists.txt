@@ -571,7 +571,7 @@ if(WITH_XR_OPENXR)
     list(APPEND SRC
       intern/GHOST_XrGraphicsBindingMetal.mm
 
-      intern/GHOST_XrGraphicsBindingMetal.h
+      intern/GHOST_XrGraphicsBindingMetal.hh
     )
   endif()
 

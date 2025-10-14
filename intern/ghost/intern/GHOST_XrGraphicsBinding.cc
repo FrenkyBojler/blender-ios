@@ -33,7 +33,7 @@
 #  include "GHOST_XrGraphicsBindingVulkan.hh"
 #endif
 #ifdef WITH_METAL_BACKEND
-#  include "GHOST_XrGraphicsBindingMetal.h"
+#  include "GHOST_XrGraphicsBindingMetal.hh"
 #endif
 
 #include "GHOST_C-api.h"
