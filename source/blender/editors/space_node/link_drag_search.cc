@@ -166,7 +166,7 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
                                                Vector<SocketLinkOperation> &search_link_ops)
 {
   const AssetMetaData &asset_data = asset.get_metadata();
-  const StringRef asset_name = asset.get_name();
+  const StringRef asset_name = CTX_IFACE_(BLT_I18NCONTEXT_ASSET, asset.get_name());
   const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&asset_data, "type");
   if (tree_type == nullptr || IDP_int_get(tree_type) != node_tree.type) {
     return;
@@ -204,8 +204,9 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
       continue;
     }
     const StringRefNull identifier = socket_property.name;
-    const StringRefNull name =
-        IDP_group_lookup_string(socket_property, "name").value_or(identifier);
+    const StringRef name = IFACE_(
+        IDP_group_lookup_string(socket_property, "name").value_or(identifier));
+
     if (!socket_names.add(name)) {
       /* See comment in #search_link_ops_for_declarations. */
       continue;
