@@ -45,14 +45,14 @@
   "``IMAGE_LINEAR``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image\n" \
-  "   :Note: Expect texture to be in scene referred linear color space\n" \
+  "   :Note: Expect texture to be in scene linear color space\n" \
   "``IMAGE_COLOR``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image, vec4 color\n" \
   "``IMAGE_COLOR_LINEAR``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image, vec4 color\n" \
-  "   :Note: Expect texture to be in scene referred linear color space\n" \
+  "   :Note: Expect texture to be in scene linear color space\n" \
   "``SMOOTH_COLOR``\n" \
   "   :Attributes: vec3 pos, vec4 color\n" \
   "   :Uniforms: none\n" \

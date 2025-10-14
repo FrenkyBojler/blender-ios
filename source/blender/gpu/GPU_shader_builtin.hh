@@ -145,7 +145,7 @@ enum GPUBuiltinShader {
    */
   GPU_SHADER_3D_IMAGE,
   /**
-   * Draw a scene referred linear color space texture in 3D.
+   * Draw a scene linear color space texture in 3D.
    * Take a 3D position and a 2D texture coordinate for each vertex.
    *
    * \param image: uniform sampler2D
@@ -164,7 +164,7 @@ enum GPUBuiltinShader {
    */
   GPU_SHADER_3D_IMAGE_COLOR,
   /**
-   * Draw a scene referred linear color space texture in 3D.
+   * Draw a scene linear color space texture in 3D.
    * Take a 3D position and color for each vertex with linear interpolation in window space.
    *
    * \param color: uniform vec4

@@ -11,7 +11,7 @@ FRAGMENT_SHADER_CREATE_INFO(gpu_shader_3D_image)
 void main()
 {
   fragColor = texture(image, texCoord_interp);
-  if (is_scene_referred_linear_image) {
+  if (is_scene_linear_image) {
     fragColor = blender_scene_linear_to_framebuffer_space(fragColor);
   }
   else {

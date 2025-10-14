@@ -21,7 +21,10 @@ uniform bool srgbTarget = false;
 /* Input is sRGB with Rec.709 primaries. Output is Rec.709 linear or sRGB. */
 float4 blender_srgb_to_framebuffer_space(float4 in_color)
 {
-  /** IMPORTANT: srgbTarget denote that the output is expected to be in __linear__ space. */
+  /**
+   * IMPORTANT: srgbTarget denote that the output is expected to be in __linear__ space.
+   * https://wikis.khronos.org/opengl/framebuffer#Colorspace
+   */
   if (srgbTarget) {
     float3 c = max(in_color.rgb, float3(0.0f));
     float3 c1 = c * (1.0f / 12.92f);
@@ -31,10 +34,13 @@ float4 blender_srgb_to_framebuffer_space(float4 in_color)
   return in_color;
 }
 
-/* Input is scene referred linear. Output is Rec.709 linear or sRGB. */
+/* Input is scene linear. Output is Rec.709 linear or sRGB. */
 float4 blender_scene_linear_to_framebuffer_space(float4 in_color)
 {
-  /** IMPORTANT: srgbTarget denote that the output is expected to be in __linear__ space. */
+  /**
+   * IMPORTANT: srgbTarget denote that the output is expected to be in __linear__ space.
+   * https://wikis.khronos.org/opengl/framebuffer#Colorspace
+   */
   if (!srgbTarget) {
     /* TODO(fclem): There should be a matrix transform here to adjust primaries. */
     float3 c = max(in_color.rgb, float3(0.0f));
