@@ -528,7 +528,6 @@ typedef struct bNode {
 
   /** Panel states for this node instance. */
   int num_panel_states;
-  char _pad1[8];
   bNodePanelState *panel_states_array;
 
   bNodeRuntimeHandle *runtime;

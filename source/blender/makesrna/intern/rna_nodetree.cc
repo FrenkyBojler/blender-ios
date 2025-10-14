@@ -4608,7 +4608,8 @@ static void def_frame(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_FRAME_LOCK);
-  RNA_def_property_ui_text(prop, "Lock", "Prevent auto-scaling and constrain children within bounds");
+  RNA_def_property_ui_text(
+      prop, "Lock", "Prevent auto-scaling and constrain children within bounds");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_FrameNode_lock_update");
 
   prop = RNA_def_property(srna, "label_size", PROP_INT, PROP_NONE);

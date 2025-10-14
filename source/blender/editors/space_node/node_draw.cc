@@ -3979,7 +3979,8 @@ static void frame_node_draw_overlay(const bContext &C,
   const float but_size = U.widget_unit * 0.8f;
   const float but_padding = U.widget_unit * 0.2f;
 
-  PointerRNA nodeptr = RNA_pointer_create_discrete(const_cast<ID *>(&ntree.id), &RNA_NodeFrame, const_cast<bNode *>(&node));
+  PointerRNA nodeptr = RNA_pointer_create_discrete(
+      const_cast<ID *>(&ntree.id), &RNA_NodeFrame, const_cast<bNode *>(&node));
 
   UI_block_emboss_set(&block, ui::EmbossType::None);
 
