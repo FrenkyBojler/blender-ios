@@ -1248,7 +1248,7 @@ static void merge_out_faces(Vector<OutFace> &faces)
   }
 }
 
-/** Return true if the ponts p0, p1, p2 are approximately in a straight line. */
+/** Return true if the points p0, p1, p2 are approximately in a straight line. */
 static inline bool approx_in_line(const float3 &p0, const float3 &p1, const float3 &p2)
 {
   float cos_ang = math::dot(math::normalize(p1 - p0), math::normalize(p2 - p1));
@@ -1561,7 +1561,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
           const Span<int> out_face_verts = output_corner_verts.slice(out_face);
           weights.resize(in_face_size);
           cos_2d.resize(in_face_size);
-          float(*cos_2d_p)[2] = reinterpret_cast<float(*)[2]>(cos_2d.data());
+          float (*cos_2d_p)[2] = reinterpret_cast<float (*)[2]>(cos_2d.data());
           const float3 axis_dominant = bke::mesh::face_normal_calc(input_vert_positions,
                                                                    in_face_verts);
           axis_dominant_v3_to_m3(axis_mat.ptr(), axis_dominant);
@@ -1824,13 +1824,6 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     });
   }
 
-  {
-#  ifdef DEBUG_TIME
-    timeit::ScopedTimer timer_e("calculating edges");
-#  endif
-    bke::mesh_calc_edges(*mesh, false, false);
-  }
-
   /* Set the vertex positions, using implicit sharing to avoid copying any data. */
   {
 #  ifdef DEBUG_TIME
@@ -1844,6 +1837,15 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     output_attrs.add<float3>("position", bke::AttrDomain::Point, init);
     sharing_info->remove_user_and_delete_if_last();
   }
+
+  {
+#  ifdef DEBUG_TIME
+    timeit::ScopedTimer timer_e("calculating edges");
+#  endif
+    bke::mesh_calc_edges(*mesh, false, false);
+  }
+
+  BLI_assert(BKE_mesh_is_valid(mesh));
 
   OutToInMaps out_to_in(&ma, joined_mesh, mesh, &mesh_offsets);
 

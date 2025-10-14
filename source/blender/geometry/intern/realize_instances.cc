@@ -212,84 +212,6 @@ struct AllPointCloudsInfo {
   bool create_radius_attribute = false;
 };
 
-static bke::AttrDomain normal_domain_to_domain(bke::MeshNormalDomain domain)
-{
-  switch (domain) {
-    case bke::MeshNormalDomain::Point:
-      return bke::AttrDomain::Point;
-    case bke::MeshNormalDomain::Face:
-      return bke::AttrDomain::Face;
-    case bke::MeshNormalDomain::Corner:
-      return bke::AttrDomain::Corner;
-  }
-  BLI_assert_unreachable();
-  return bke::AttrDomain::Point;
-}
-
-constexpr bke::AttributeMetaData CORNER_FAN_META_DATA{bke::AttrDomain::Corner,
-                                                      bke::AttrType::Int16_2D};
-
-/** Tracks the storage format for the resulting mesh based on the combination of input meshes. */
-struct MeshNormalInfo {
-  enum class Output : int8_t { None, CornerFan, Free };
-  Output result_type = Output::None;
-  std::optional<bke::AttrDomain> result_domain;
-
-  void add_no_custom_normals(const bke::MeshNormalDomain domain)
-  {
-    this->add_domain(normal_domain_to_domain(domain));
-  }
-
-  void add_corner_fan_normals()
-  {
-    this->add_domain(bke::AttrDomain::Corner);
-    if (this->result_type == Output::None) {
-      this->result_type = Output::CornerFan;
-    }
-  }
-
-  void add_domain(const bke::AttrDomain domain)
-  {
-    if (this->result_domain) {
-      /* Any combination of point/face domains puts the result normals on the corner domain. */
-      if (this->result_domain != domain) {
-        this->result_domain = bke::AttrDomain::Corner;
-      }
-    }
-    else {
-      this->result_domain = domain;
-    }
-  }
-
-  void add_free_normals(const bke::AttrDomain domain)
-  {
-    this->add_domain(domain);
-    this->result_type = Output::Free;
-  }
-
-  void add_mesh(const Mesh &mesh)
-  {
-    const bke::AttributeAccessor attributes = mesh.attributes();
-    const std::optional<bke::AttributeMetaData> custom_normal = attributes.lookup_meta_data(
-        "custom_normal");
-    if (!custom_normal) {
-      this->add_no_custom_normals(mesh.normals_domain());
-      return;
-    }
-    if (custom_normal->data_type == bke::AttrType::Float3) {
-      if (custom_normal->domain == bke::AttrDomain::Edge) {
-        /* Skip invalid storage on the edge domain. */
-        this->add_no_custom_normals(mesh.normals_domain());
-        return;
-      }
-      this->add_free_normals(custom_normal->domain);
-    }
-    else if (*custom_normal == CORNER_FAN_META_DATA) {
-      this->add_corner_fan_normals();
-    }
-  }
-};
-
 struct AllMeshesInfo {
   /** Ordering of all attributes that are propagated to the output mesh generically. */
   OrderedAttributes attributes;
@@ -301,7 +223,7 @@ struct AllMeshesInfo {
   VectorSet<Material *> materials;
   bool create_id_attribute = false;
   bool create_material_index_attribute = false;
-  MeshNormalInfo custom_normal_info;
+  bke::mesh::NormalJoinInfo custom_normal_info;
 
   /** True if we know that there are no loose edges in any of the input meshes. */
   bool no_loose_edges_hint = false;
@@ -610,9 +532,11 @@ static void gather_realize_tasks_for_instances(GatherTasksInfo &gather_info,
 
   Span<int> stored_instance_ids;
   if (gather_info.create_id_attribute_on_any_component) {
-    bke::AttributeReader ids = instances.attributes().lookup<int>("id");
-    if (ids) {
-      stored_instance_ids = ids.varray.get_internal_span();
+    bke::GAttributeReader ids = instances.attributes().lookup("id");
+    if (ids && ids.domain == bke::AttrDomain::Instance && ids.varray.type().is<int>() &&
+        ids.varray.is_span())
+    {
+      stored_instance_ids = ids.varray.get_internal_span().typed<int>();
     }
   }
 
@@ -911,7 +835,7 @@ static void gather_attribute_propagation_components_with_custom_depths(
   }
 }
 
-static Map<StringRef, AttributeDomainAndType> gather_attributes_to_propagate(
+static bke::GeometrySet::GatheredAttributes gather_attributes_to_propagate(
     const bke::GeometrySet &geometry,
     const bke::GeometryComponent::Type component_type,
     const RealizeInstancesOptions &options,
@@ -941,7 +865,7 @@ static Map<StringRef, AttributeDomainAndType> gather_attributes_to_propagate(
   }
 
   /* Actually gather the attributes to propagate from the found components. */
-  Map<StringRef, AttributeDomainAndType> attributes_to_propagate;
+  bke::GeometrySet::GatheredAttributes attributes_to_propagate;
   for (const bke::GeometryComponentPtr &component : components) {
     const bke::AttributeAccessor attributes = *component->attributes();
     attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -980,16 +904,7 @@ static Map<StringRef, AttributeDomainAndType> gather_attributes_to_propagate(
           dst_domain = AttrDomain::Point;
         }
       }
-      auto add = [&](AttributeDomainAndType *kind) {
-        kind->domain = dst_domain;
-        kind->data_type = iter.data_type;
-      };
-      auto modify = [&](AttributeDomainAndType *kind) {
-        kind->domain = bke::attribute_domain_highest_priority({kind->domain, dst_domain});
-        kind->data_type = bke::attribute_data_type_highest_complexity(
-            {kind->data_type, iter.data_type});
-      };
-      attributes_to_propagate.add_or_modify(iter.name, add, modify);
+      attributes_to_propagate.add(iter.name, AttributeDomainAndType{dst_domain, iter.data_type});
     });
   }
 
@@ -1007,13 +922,15 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
     const RealizeInstancesOptions &options,
     const VariedDepthOptions &varied_depth_option)
 {
-  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
+  bke::GeometrySet::GatheredAttributes attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Instance, options, varied_depth_option);
-  attributes_to_propagate.pop_try("id");
   OrderedAttributes ordered_attributes;
-  for (const auto item : attributes_to_propagate.items()) {
-    ordered_attributes.ids.add_new(item.key);
-    ordered_attributes.kinds.append(item.value);
+  for (const int i : attributes_to_propagate.names.index_range()) {
+    if (attributes_to_propagate.names[i] == "id") {
+      continue;
+    }
+    ordered_attributes.ids.add_new(attributes_to_propagate.names[i]);
+    ordered_attributes.kinds.append(attributes_to_propagate.kinds[i]);
   }
   return ordered_attributes;
 }
@@ -1123,15 +1040,23 @@ static OrderedAttributes gather_generic_pointcloud_attributes_to_propagate(
     bool &r_create_radii,
     bool &r_create_id)
 {
-  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
+  bke::GeometrySet::GatheredAttributes attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::PointCloud, options, varied_depth_option);
-  attributes_to_propagate.remove("position");
-  r_create_id = attributes_to_propagate.pop_try("id").has_value();
-  r_create_radii = attributes_to_propagate.pop_try("radius").has_value();
   OrderedAttributes ordered_attributes;
-  for (const auto item : attributes_to_propagate.items()) {
-    ordered_attributes.ids.add_new(item.key);
-    ordered_attributes.kinds.append(item.value);
+  for (const int i : attributes_to_propagate.names.index_range()) {
+    if (attributes_to_propagate.names[i] == "position") {
+      continue;
+    }
+    if (attributes_to_propagate.names[i] == "id") {
+      r_create_id = true;
+      continue;
+    }
+    if (attributes_to_propagate.names[i] == "radius") {
+      r_create_radii = true;
+      continue;
+    }
+    ordered_attributes.ids.add_new(attributes_to_propagate.names[i]);
+    ordered_attributes.kinds.append(attributes_to_propagate.kinds[i]);
   }
   return ordered_attributes;
 }
@@ -1183,7 +1108,9 @@ static AllPointCloudsInfo preprocess_pointclouds(const bke::GeometrySet &geometr
     }
     if (info.create_id_attribute) {
       bke::GAttributeReader ids_attribute = attributes.lookup("id");
-      if (ids_attribute) {
+      if (ids_attribute && ids_attribute.domain == bke::AttrDomain::Point &&
+          ids_attribute.varray.type().is<int>() && ids_attribute.varray.is_span())
+      {
         pointcloud_info.stored_ids = ids_attribute.varray.get_internal_span().typed<int>();
       }
     }
@@ -1352,19 +1279,29 @@ static OrderedAttributes gather_generic_mesh_attributes_to_propagate(
     bool &r_create_id,
     bool &r_create_material_index)
 {
-  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
+  bke::GeometrySet::GatheredAttributes attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Mesh, options, varied_depth_option);
-  attributes_to_propagate.remove("position");
-  attributes_to_propagate.remove(".edge_verts");
-  attributes_to_propagate.remove(".corner_vert");
-  attributes_to_propagate.remove(".corner_edge");
-  attributes_to_propagate.remove("custom_normal");
-  r_create_id = attributes_to_propagate.pop_try("id").has_value();
-  r_create_material_index = attributes_to_propagate.pop_try("material_index").has_value();
   OrderedAttributes ordered_attributes;
-  for (const auto item : attributes_to_propagate.items()) {
-    ordered_attributes.ids.add_new(item.key);
-    ordered_attributes.kinds.append(item.value);
+  for (const int i : attributes_to_propagate.names.index_range()) {
+    if (ELEM(attributes_to_propagate.names[i],
+             "position",
+             ".edge_verts",
+             ".corner_vert",
+             ".corner_edge",
+             "custom_normal"))
+    {
+      continue;
+    }
+    if (attributes_to_propagate.names[i] == "id") {
+      r_create_id = true;
+      continue;
+    }
+    if (attributes_to_propagate.names[i] == "material_index") {
+      r_create_material_index = true;
+      continue;
+    }
+    ordered_attributes.ids.add_new(attributes_to_propagate.names[i]);
+    ordered_attributes.kinds.append(attributes_to_propagate.kinds[i]);
   }
   return ordered_attributes;
 }
@@ -1453,7 +1390,9 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
     }
     if (info.create_id_attribute) {
       bke::GAttributeReader ids_attribute = attributes.lookup("id");
-      if (ids_attribute) {
+      if (ids_attribute && ids_attribute.domain == bke::AttrDomain::Point &&
+          ids_attribute.varray.type().is<int>() && ids_attribute.varray.is_span())
+      {
         mesh_info.stored_vertex_ids = ids_attribute.varray.get_internal_span().typed<int>();
       }
     }
@@ -1461,17 +1400,20 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
         "material_index", bke::AttrDomain::Face, 0);
 
     switch (info.custom_normal_info.result_type) {
-      case MeshNormalInfo::Output::None: {
+      case bke::mesh::NormalJoinInfo::Output::None: {
         break;
       }
-      case MeshNormalInfo::Output::CornerFan: {
-        if (attributes.lookup_meta_data("custom_normal") == CORNER_FAN_META_DATA) {
-          mesh_info.custom_normal = *attributes.lookup<short2>("custom_normal",
-                                                               bke::AttrDomain::Corner);
+      case bke::mesh::NormalJoinInfo::Output::CornerFan: {
+        if (const bke::GAttributeReader custom_normal = attributes.lookup("custom_normal")) {
+          const bke::AttributeMetaData meta_data{
+              custom_normal.domain, bke::cpp_type_to_attribute_type(custom_normal.varray.type())};
+          if (bke::mesh::is_corner_fan_normals(meta_data)) {
+            mesh_info.custom_normal = custom_normal.varray.typed<short2>();
+          }
         }
         break;
       }
-      case MeshNormalInfo::Output::Free: {
+      case bke::mesh::NormalJoinInfo::Output::Free: {
         switch (*info.custom_normal_info.result_domain) {
           case bke::AttrDomain::Point:
             mesh_info.custom_normal = VArray<float3>::from_span(mesh->vert_normals());
@@ -1745,15 +1687,15 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
 
   GSpanAttributeWriter custom_normals;
   switch (all_meshes_info.custom_normal_info.result_type) {
-    case MeshNormalInfo::Output::None: {
+    case bke::mesh::NormalJoinInfo::Output::None: {
       break;
     }
-    case MeshNormalInfo::Output::CornerFan: {
+    case bke::mesh::NormalJoinInfo::Output::CornerFan: {
       custom_normals = dst_attributes.lookup_or_add_for_write_only_span(
           "custom_normal", bke::AttrDomain::Corner, bke::AttrType::Int16_2D);
       break;
     }
-    case MeshNormalInfo::Output::Free: {
+    case bke::mesh::NormalJoinInfo::Output::Free: {
       const bke::AttrDomain domain = *all_meshes_info.custom_normal_info.result_domain;
       custom_normals = dst_attributes.lookup_or_add_for_write_only_span(
           "custom_normal", domain, bke::AttrType::Float3);
@@ -1836,18 +1778,25 @@ static OrderedAttributes gather_generic_curve_attributes_to_propagate(
     const VariedDepthOptions &varied_depth_option,
     bool &r_create_id)
 {
-  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
+  bke::GeometrySet::GatheredAttributes attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Curve, options, varied_depth_option);
-  attributes_to_propagate.remove("position");
-  attributes_to_propagate.remove("radius");
-  attributes_to_propagate.remove("handle_right");
-  attributes_to_propagate.remove("handle_left");
-  attributes_to_propagate.remove("custom_normal");
-  r_create_id = attributes_to_propagate.pop_try("id").has_value();
   OrderedAttributes ordered_attributes;
-  for (const auto item : attributes_to_propagate.items()) {
-    ordered_attributes.ids.add_new(item.key);
-    ordered_attributes.kinds.append(item.value);
+  for (const int i : attributes_to_propagate.names.index_range()) {
+    if (ELEM(attributes_to_propagate.names[i],
+             "position",
+             "radius",
+             "handle_left",
+             "handle_right",
+             "custom_normal"))
+    {
+      continue;
+    }
+    if (attributes_to_propagate.names[i] == "id") {
+      r_create_id = true;
+      continue;
+    }
+    ordered_attributes.ids.add_new(attributes_to_propagate.names[i]);
+    ordered_attributes.kinds.append(attributes_to_propagate.kinds[i]);
   }
   return ordered_attributes;
 }
@@ -1897,7 +1846,9 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
     }
     if (info.create_id_attribute) {
       bke::GAttributeReader id_attribute = attributes.lookup("id");
-      if (id_attribute) {
+      if (id_attribute && id_attribute.domain == bke::AttrDomain::Point &&
+          id_attribute.varray.type().is<int>() && id_attribute.varray.is_span())
+      {
         curve_info.stored_ids = id_attribute.varray.get_internal_span().typed<int>();
       }
     }
@@ -2191,12 +2142,12 @@ static OrderedAttributes gather_generic_grease_pencil_attributes_to_propagate(
     const RealizeInstancesOptions &options,
     const VariedDepthOptions &varied_depth_options)
 {
-  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
+  bke::GeometrySet::GatheredAttributes attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::GreasePencil, options, varied_depth_options);
   OrderedAttributes ordered_attributes;
-  for (auto &&item : attributes_to_propagate.items()) {
-    ordered_attributes.ids.add_new(item.key);
-    ordered_attributes.kinds.append(item.value);
+  for (const int i : attributes_to_propagate.names.index_range()) {
+    ordered_attributes.ids.add_new(attributes_to_propagate.names[i]);
+    ordered_attributes.kinds.append(attributes_to_propagate.kinds[i]);
   }
   return ordered_attributes;
 }

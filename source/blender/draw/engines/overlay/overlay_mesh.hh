@@ -604,9 +604,11 @@ class MeshUVs : Overlay {
         const bool hide_faces = space_image->flag & SI_NO_DRAWFACES;
         select_face_ = !show_mesh_analysis_ && !hide_faces;
 
-        if (tool_setting->uv_flag & UV_FLAG_SYNC_SELECT) {
+        /* FIXME: Always showing verts in edge mode when `uv_select_sync_valid`.
+         * needs investigation. */
+        if (tool_setting->uv_flag & UV_FLAG_SELECT_SYNC) {
           const char sel_mode_3d = tool_setting->selectmode;
-          if (tool_setting->uv_sticky == SI_STICKY_VERTEX) {
+          if (tool_setting->uv_sticky == UV_STICKY_VERT) {
             /* NOTE: Ignore #SCE_SELECT_VERTEX because a single selected edge
              * on the mesh may cause single UV vertices to be selected. */
             select_vert_ = true;
@@ -807,8 +809,9 @@ class MeshUVs : Overlay {
 
     Object &ob = *ob_ref.object;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(ob);
-    const Mesh &mesh_orig = DRW_object_get_data_for_drawing<Mesh>(
-        *DEG_get_original(ob_ref.object));
+
+    const Object *ob_orig = DEG_get_original(ob_ref.object);
+    const Mesh &mesh_orig = ob_orig->type == OB_MESH ? *static_cast<Mesh *>(ob_orig->data) : mesh;
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
@@ -1060,7 +1063,7 @@ class MeshUVs : Overlay {
     GPU_debug_group_end();
   }
 
-  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view) final
+  void draw_on_render(gpu::FrameBuffer *framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;

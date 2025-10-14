@@ -353,7 +353,7 @@ bool paint_use_opacity_masking(const Paint *paint, const Brush *brush)
                        IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
                   (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
                   (brush->flag & BRUSH_USE_GRADIENT) ||
-                  (BKE_brush_color_jitter_get_settings(paint, brush)) ||
+                  BKE_brush_color_jitter_get_settings(paint, brush) ||
                   (brush->mtex.tex && !ELEM(brush->mtex.brush_map_mode,
                                             MTEX_MAP_MODE_TILED,
                                             MTEX_MAP_MODE_STENCIL,
@@ -468,9 +468,9 @@ static void toggle_paint_cursor(Scene &scene, bool enable)
   ToolSettings *settings = scene.toolsettings;
   Paint &p = settings->imapaint.paint;
 
-  if (p.paint_cursor && !enable) {
-    WM_paint_cursor_end(static_cast<wmPaintCursor *>(p.paint_cursor));
-    p.paint_cursor = nullptr;
+  if (p.runtime->paint_cursor && !enable) {
+    WM_paint_cursor_end(static_cast<wmPaintCursor *>(p.runtime->paint_cursor));
+    p.runtime->paint_cursor = nullptr;
     paint_cursor_delete_textures();
   }
   else if (enable) {
@@ -497,7 +497,7 @@ void ED_space_image_paint_update(Main *bmain, wmWindowManager *wm, Scene *scene)
   }
 
   if (enabled) {
-    BKE_paint_init(bmain, scene, PaintMode::Texture2D, PAINT_CURSOR_TEXTURE_PAINT);
+    BKE_paint_init(bmain, scene, PaintMode::Texture2D);
 
     ED_paint_cursor_start(&imapaint->paint, ED_image_tools_paint_poll);
   }
@@ -734,7 +734,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
 
   ob.mode |= OB_MODE_TEXTURE_PAINT;
 
-  BKE_paint_init(&bmain, &scene, PaintMode::Texture3D, PAINT_CURSOR_TEXTURE_PAINT);
+  BKE_paint_init(&bmain, &scene, PaintMode::Texture3D);
 
   BKE_paint_brushes_validate(&bmain, &imapaint.paint);
 
