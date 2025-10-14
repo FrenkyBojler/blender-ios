@@ -4,3 +4,4 @@ Referenced by issue #109968, Regression: Mouse cursor jumps to the left when kee
 Referenced by issue #102346, Regression: Viewport Walk Navigation : mouse escapes window if it moves too fast
 Referenced by issue #99021, Ghost Wayland: fly mode not operational
 Referenced by pull request #148007, Fix #134818: macOS: Hidden mouse grab not keeping mouse in window
+Referenced by commit e6064b2be378fcd5e1f4fc879c0b0e85fa2d75ac, Fix #134818: macOS: Hidden mouse grab not keeping mouse in window
