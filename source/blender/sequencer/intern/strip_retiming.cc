@@ -559,13 +559,13 @@ static std::pair<SeqRetimingKey *, SeqRetimingKey *> freeze_key_pair_create(cons
    * add keys after last one. */
   if (retiming_is_last_key(strip, key)) {
     const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
-    const float fame_index_offset = tml_frame_offset *
-                                    time_media_playback_rate_factor_get(strip, scene_fps);
-    key->strip_frame_index += fame_index_offset;
+    const float frame_index_offset = tml_frame_offset *
+                                     time_media_playback_rate_factor_get(strip, scene_fps);
+    key->strip_frame_index += frame_index_offset;
     SeqRetimingKey *freeze_start = retiming_add_key(scene, strip, orig_timeline_frame);
 
     if (freeze_start == nullptr) {
-      key->strip_frame_index -= fame_index_offset;
+      key->strip_frame_index -= frame_index_offset;
       return {nullptr, nullptr};
     }
     return {freeze_start, freeze_start + 1};
