@@ -150,7 +150,7 @@ void node_tex_sky_hosekwilkie(float3 co,
 
 void node_tex_sky_nishita(float3 co,
                           float sky_type,
-                          float sun_rotation,
+                          float sun_azimuth,
                           float3 xyz_to_r,
                           float3 xyz_to_g,
                           float3 xyz_to_b,
@@ -161,7 +161,7 @@ void node_tex_sky_nishita(float3 co,
   float3 spherical = sky_spherical_coordinates(co);
   float3 xyz;
   float dir_elevation = M_PI_2 - spherical.x;
-  float x = (spherical.y + M_PI + sun_rotation) / (2.0f * M_PI);
+  float x = (spherical.y + M_PI + sun_azimuth) / (2.0f * M_PI);
   float fade = 1.0f;
   float y;
 

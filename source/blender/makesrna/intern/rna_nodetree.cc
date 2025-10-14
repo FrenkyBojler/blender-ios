@@ -5045,12 +5045,12 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "sun_elevation", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_ui_text(prop, "Sun Elevation", "Sun angle from horizon");
+  RNA_def_property_ui_text(prop, "Sun Elevation", "Longitudinal Sun rotation");
   RNA_def_property_float_default(prop, M_PI_2);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "sun_rotation", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_ui_text(prop, "Sun Rotation", "Rotation of sun around zenith");
+  prop = RNA_def_property(srna, "sun_azimuth", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_ui_text(prop, "Sun Azimuth", "Latitudinal Sun rotation");
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 

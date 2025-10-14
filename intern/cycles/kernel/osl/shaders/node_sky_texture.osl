@@ -134,12 +134,12 @@ color sky_radiance_nishita(vector dir, float sky_data[11], string filename, stri
   color pixel_bottom = color(sky_data[0], sky_data[1], sky_data[2]);
   color pixel_top = color(sky_data[3], sky_data[4], sky_data[5]);
   float sun_elevation = sky_data[6];
-  float sun_rotation = sky_data[7];
+  float sun_azimuth = sky_data[7];
   float angular_diameter = sky_data[8];
   float sun_intensity = sky_data[9];
   float earth_intersection_angle = sky_data[10];
   int sun_disc = angular_diameter > 0;
-  vector sun_dir = spherical_to_direction(sun_elevation, sun_rotation + M_PI_2);
+  vector sun_dir = spherical_to_direction(sun_elevation, sun_azimuth + M_PI_2);
   float sun_dir_angle = precise_angle(dir, sun_dir);
   float half_angular = angular_diameter * 0.5;
   float alpha = 1.0;
@@ -159,7 +159,7 @@ color sky_radiance_nishita(vector dir, float sky_data[11], string filename, stri
     float limb_darkening = (1.0 - 0.6 * (1.0 - sqrt(1.0 - angle_fraction * angle_fraction)));
     rgb_sun = xyz_to_rgb(xyz[0], xyz[1], xyz[2]) * limb_darkening;
   }
-  float x = (direction[1] + M_PI + sun_rotation) / M_2PI;
+  float x = (direction[1] + M_PI + sun_azimuth) / M_2PI;
   if (x > 1.0) {
     x = x - 1.0;
   }

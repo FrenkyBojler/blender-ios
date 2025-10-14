@@ -181,6 +181,7 @@ DNA_STRUCT_RENAME_MEMBER(NodeCompositorFileOutput, active_input, active_item_ind
 DNA_STRUCT_RENAME_MEMBER(NodeGeometryAttributeCapture, data_type, data_type_legacy)
 DNA_STRUCT_RENAME_MEMBER(NodeGeometryViewer, data_type, data_type_legacy)
 DNA_STRUCT_RENAME_MEMBER(NodeTexSky, dust_density, aerosol_density)
+DNA_STRUCT_RENAME_MEMBER(NodeTexSky, sun_rotation, sun_azimuth)
 DNA_STRUCT_RENAME_MEMBER(NodesModifierData, simulation_bake_directory, bake_directory)
 DNA_STRUCT_RENAME_MEMBER(Object, col, color)
 DNA_STRUCT_RENAME_MEMBER(Object, dup_group, instance_collection)

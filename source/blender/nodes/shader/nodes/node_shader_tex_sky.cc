@@ -55,7 +55,7 @@ static void node_shader_buts_tex_sky(uiLayout *layout, bContext *C, PointerRNA *
 
     col = &layout->column(true);
     col->prop(ptr, "sun_elevation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    col->prop(ptr, "sun_rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    col->prop(ptr, "sun_azimuth", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
     layout->prop(ptr, "altitude", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
@@ -80,7 +80,7 @@ static void node_shader_init_tex_sky(bNodeTree * /*ntree*/, bNode *node)
   tex->sun_size = DEG2RADF(0.545f);
   tex->sun_intensity = 1.0f;
   tex->sun_elevation = DEG2RADF(15.0f);
-  tex->sun_rotation = 0.0f;
+  tex->sun_azimuth = 0.0f;
   tex->altitude = 100.0f;
   tex->air_density = 1.0f;
   tex->aerosol_density = 1.0f;
@@ -252,11 +252,11 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                                                tex->ozone_density);
   }
 
-  float sun_rotation = fmodf(tex->sun_rotation, 2.0f * M_PI);
-  if (sun_rotation < 0.0f) {
-    sun_rotation += 2.0f * M_PI;
+  float sun_azimuth = fmodf(tex->sun_azimuth, 2.0f * M_PI);
+  if (sun_azimuth < 0.0f) {
+    sun_azimuth += 2.0f * M_PI;
   }
-  sun_rotation = 2.0f * M_PI - sun_rotation;
+  sun_azimuth = 2.0f * M_PI - sun_azimuth;
 
   XYZ_to_RGB xyz_to_rgb;
   get_XYZ_to_RGB_for_gpu(&xyz_to_rgb);
@@ -275,7 +275,7 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                         in,
                         out,
                         GPU_constant(&sky_type),
-                        GPU_constant(&sun_rotation),
+                        GPU_constant(&sun_azimuth),
                         GPU_uniform(xyz_to_rgb.r),
                         GPU_uniform(xyz_to_rgb.g),
                         GPU_uniform(xyz_to_rgb.b),
