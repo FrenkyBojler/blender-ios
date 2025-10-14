@@ -58,7 +58,7 @@ def draw_circle_2d(position, color, radius, *, segments=None):
         batch.draw(shader)
 
 
-def draw_texture_2d(texture, position, width, height, linear=False):
+def draw_texture_2d(texture, position, width, height, linear=True):
     """
     Draw a 2d texture.
 
@@ -71,7 +71,9 @@ def draw_texture_2d(texture, position, width, height, linear=False):
     :type width: float
     :arg height: Height of the image when drawn.
     :type height: float
-    :arg linear: Is the image stored linear (default=False)
+    :arg linear: True if the image is stored in scene referred linear color space
+        (true for textures acquired from :class:`bpy.types.Image`).
+        Otherwise the color space is assumed to be Rec.709 sRGB. (default=True)
     :type linear: bool
     """
     import gpu

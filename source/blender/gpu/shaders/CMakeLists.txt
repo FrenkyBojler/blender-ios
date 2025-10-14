@@ -62,7 +62,6 @@ set(SRC_GLSL_FRAG
   gpu_shader_image_color_frag.glsl
   gpu_shader_image_desaturate_frag.glsl
   gpu_shader_image_frag.glsl
-  gpu_shader_image_linear_frag.glsl
   gpu_shader_image_overlays_merge_frag.glsl
   gpu_shader_image_overlays_stereo_merge_frag.glsl
   gpu_shader_image_shuffle_color_frag.glsl

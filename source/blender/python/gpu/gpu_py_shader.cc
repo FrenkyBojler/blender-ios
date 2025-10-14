@@ -42,9 +42,17 @@
   "``IMAGE``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image\n" \
+  "``IMAGE_LINEAR``\n" \
+  "   :Attributes: vec3 pos, vec2 texCoord\n" \
+  "   :Uniforms: sampler2D image\n" \
+  "   :Note: Expect texture to be in scene referred linear color space\n" \
   "``IMAGE_COLOR``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image, vec4 color\n" \
+  "``IMAGE_COLOR_LINEAR``\n" \
+  "   :Attributes: vec3 pos, vec2 texCoord\n" \
+  "   :Uniforms: sampler2D image, vec4 color\n" \
+  "   :Note: Expect texture to be in scene referred linear color space\n" \
   "``SMOOTH_COLOR``\n" \
   "   :Attributes: vec3 pos, vec4 color\n" \
   "   :Uniforms: none\n" \
@@ -70,8 +78,9 @@
 static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_FLAT_COLOR, "FLAT_COLOR"},
     {GPU_SHADER_3D_IMAGE, "IMAGE"},
-    {GPU_SHADER_3D_IMAGE_COLOR, "IMAGE_COLOR"},
     {GPU_SHADER_3D_IMAGE_LINEAR, "IMAGE_LINEAR"},
+    {GPU_SHADER_3D_IMAGE_COLOR, "IMAGE_COLOR"},
+    {GPU_SHADER_3D_IMAGE_COLOR_LINEAR, "IMAGE_COLOR_LINEAR"},
     {GPU_SHADER_3D_SMOOTH_COLOR, "SMOOTH_COLOR"},
     {GPU_SHADER_3D_UNIFORM_COLOR, "UNIFORM_COLOR"},
     {GPU_SHADER_3D_POLYLINE_FLAT_COLOR, "POLYLINE_FLAT_COLOR"},

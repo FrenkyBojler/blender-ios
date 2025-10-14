@@ -2,14 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/gpu_shader_2D_image_rect_color_infos.hh"
+#include "infos/gpu_shader_3D_image_infos.hh"
 
-FRAGMENT_SHADER_CREATE_INFO(gpu_shader_2D_image_rect_color)
+FRAGMENT_SHADER_CREATE_INFO(gpu_shader_3D_image_color_linear)
 
 #include "gpu_shader_colorspace_lib.glsl"
 
 void main()
 {
   fragColor = texture(image, texCoord_interp) * color;
-  fragColor = blender_srgb_to_framebuffer_space(fragColor);
+  if (is_scene_referred_linear_image) {
+    fragColor = blender_scene_linear_to_framebuffer_space(fragColor);
+  }
+  else {
+    fragColor = blender_srgb_to_framebuffer_space(fragColor);
+  }
 }
