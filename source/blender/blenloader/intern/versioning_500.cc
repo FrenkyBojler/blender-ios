@@ -2112,7 +2112,7 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
         *ntree, new_output_cycles, SOCK_IN, "NodeSocketVector", "Displacement");
     version_node_add_socket(*ntree, new_output_cycles, SOCK_IN, "NodeSocketFloat", "Thickness");
     /* We don't activate the output explicitly to avoid having two active outputs. We assume
-     * `node_tree.get_output_node('Cycles')` will return this node.  */
+     * `node_tree.get_output_node('Cycles')` will return this node. */
     new_output_cycles.custom1 = SHD_OUTPUT_CYCLES;
 
     bNode &shader_cycles = *blender::bke::node_add_static_node(
@@ -2683,6 +2683,39 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
         sequencer_substitute_transform_effects(scene);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 100)) {
+    /* Note: this HAS to happen in the 'after linking' stage, because
+     * #do_version_area_change_space_to_space_action() basically performs the opposite operation
+     * and is called from #do_versions_after_linking_280(). */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (!ELEM(sl->spacetype, SPACE_ACTION)) {
+            continue;
+          }
+          SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
+          const eAnimEdit_Context dopesheet_mode = eAnimEdit_Context(saction->mode);
+          if (dopesheet_mode != SACTCONT_TIMELINE) {
+            continue;
+          }
+          /* Switching to dopesheet since that is the closest to the timeline view. */
+          saction->mode = SACTCONT_DOPESHEET;
+          /* The multiplication by 2 assumes that the time control footer has the same size as the
+           * header. The header is only shown if there is enough space for both. */
+          const bool show_header = area->winy > (HEADERY * UI_SCALE_FAC) * 2;
+          LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+            if (!show_header && region->regiontype == RGN_TYPE_HEADER) {
+              region->flag |= RGN_FLAG_HIDDEN;
+            }
+            if (region->regiontype == RGN_TYPE_FOOTER) {
+              region->flag &= ~RGN_FLAG_HIDDEN;
+            }
+          }
+        }
       }
     }
   }
@@ -3833,35 +3866,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 99)) {
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       wm->xr.session_settings.fly_speed = 3.0f;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 100)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (!ELEM(sl->spacetype, SPACE_ACTION)) {
-            continue;
-          }
-          SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
-          if (saction->mode != SACTCONT_TIMELINE) {
-            continue;
-          }
-          /* Switching to dopesheet since that is the closest to the timeline view. */
-          saction->mode = SACTCONT_DOPESHEET;
-          /* The multiplication by 2 assumes that the time control footer has the same size as the
-           * header. The header is only shown if there is enough space for both. */
-          const bool show_header = area->winy > (HEADERY * UI_SCALE_FAC) * 2;
-          LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-            if (!show_header && region->regiontype == RGN_TYPE_HEADER) {
-              region->flag |= RGN_FLAG_HIDDEN;
-            }
-            if (region->regiontype == RGN_TYPE_FOOTER) {
-              region->flag &= ~RGN_FLAG_HIDDEN;
-            }
-          }
-        }
-      }
     }
   }
 
