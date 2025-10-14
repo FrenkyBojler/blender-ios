@@ -2,6 +2,7 @@ import unittest
 import bpy
 import sys
 
+
 class TestMeshValidate(unittest.TestCase):
 
     def setUp(self):
@@ -20,7 +21,7 @@ class TestMeshValidate(unittest.TestCase):
 
     def test_invalid_edge_vertex_indices(self):
         verts = [(0, 0, 0), (1, 1, 1)]
-        edges = [(0, 99)] # Invalid vertex 99
+        edges = [(0, 99)]  # Invalid vertex 99
 
         mesh = bpy.data.meshes.new("test_mesh")
         mesh.from_pydata(verts, edges, [])
@@ -50,7 +51,8 @@ class TestMeshValidate(unittest.TestCase):
         mesh = obj.data
 
         # Object has 0 material slots, so index 1 is invalid
-        mesh.polygons[0].material_index = 1
+        attr = mesh.attributes.new(name="material_index", type='INT', domain='FACE')
+        attr.data[0].value = 1
 
         self.assertTrue(mesh.validate(verbose=True))
 
@@ -62,21 +64,6 @@ class TestMeshValidate(unittest.TestCase):
         mesh.from_pydata(verts, [], faces)
 
         self.assertTrue(mesh.validate(verbose=True))
-
-    # def test_bad_vertex_group_data(self):
-    #     bpy.ops.mesh.primitive_cube_add()
-    #     obj = bpy.context.active_object
-    #     mesh = obj.data
-
-    #     # Create a vertex group and assign a vertex to it
-    #     vgroup = obj.vertex_groups.new(name="TestGroup")
-    #     vgroup.add([0], 1.0, 'REPLACE')
-
-    #     # Now, remove the vertex group from the object
-    #     obj.vertex_groups.remove(vgroup)
-
-    #     # The vertex weight data now points to an invalid group index
-    #     self.assertTrue(mesh.validate(verbose=True))
 
     def test_invalid_float_attributes(self):
         bpy.ops.mesh.primitive_plane_add()
@@ -97,12 +84,14 @@ class TestMeshValidate(unittest.TestCase):
 
     def test_faces_with_bad_edge_references(self):
         verts = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
-        # The edge connecting vertex 3 back to vertex 0 is missing
-        edges = [(0, 1), (1, 2), (2, 3)]
+        edges = []
         faces = [(0, 1, 2, 3)]
 
         mesh = bpy.data.meshes.new("test_mesh")
         mesh.from_pydata(verts, edges, faces)
+
+        corner_edges = mesh.attributes[".corner_edge"].data
+        corner_edges[2].value = 0
 
         self.assertTrue(mesh.validate(verbose=True))
 
