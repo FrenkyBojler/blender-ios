@@ -2,6 +2,30 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/**
+ * As per GPU API design, all framebuffers with SRGBA_8_8_8_8 attachments will always enable SRGB
+ * rendering. In this mode the shader output is expected to be in a linear color space (values are
+ * distribute linearly). This allows to do the alpha blending with linear values (more correct) and
+ * then store the result in 8bpc keeping accurate colors.
+ *
+ * To ensure consistent result (blending excluded) between a framebuffer using SRGBA_8_8_8_8 and
+ * one using RGBA_8_8_8_8, we assume the same destination color space (e.g. Rec.709 sRGB). For
+ * shaders that are known to use sRGB encoded values as inputs, we need to do the sRGB > linear
+ * conversion to counteract the hardware encoding during rasterization.
+ *
+ * All builtin GPUShaders are expected to output Rec.709 sRGB and be rendered onto the same color
+ * space. The exception is the scene linear image shaders which expect scene linear input. These
+ * need to be converted to Rec.709 linear before being fed to #blender_linear_to_framebuffer_space.
+ *
+ * Note that the resulting SRGBA_8_8_8_8 texture will always be sampled with a sRGB > linear
+ * conversion which might or might not need to be compensated.
+ *
+ * This is **NOT** a color management step. Color management should be applied to the input in
+ * order to match the framebuffer color space.
+ *
+ * For reference:  https://wikis.khronos.org/opengl/framebuffer#Colorspace
+ */
+
 #pragma once
 
 #include "infos/gpu_srgb_to_framebuffer_space_infos.hh"
@@ -11,42 +35,44 @@ SHADER_LIBRARY_CREATE_INFO(gpu_srgb_to_framebuffer_space)
 /* Undefine the macro that avoids compilation errors. */
 #undef blender_srgb_to_framebuffer_space
 
-/* Raw python shaders don't have create infos and thus don't generate the needed `srgbTarget`
- * uniform automatically. For API compatibility, we sill define this loose uniform, but it will
- * not be parsed by the Metal or Vulkan backend. */
-#ifdef GPU_RAW_PYTHON_SHADER
-uniform bool srgbTarget = false;
-#endif
-
-/* Input is sRGB with Rec.709 primaries. Output is Rec.709 linear or sRGB. */
-float4 blender_srgb_to_framebuffer_space(float4 in_color)
+/* Input is sRGB. Output is linear or sRGB. */
+float4 blender_srgb_to_framebuffer_space(float4 srgb_color)
 {
   /**
    * IMPORTANT: srgbTarget denote that the output is expected to be in __linear__ space.
    * https://wikis.khronos.org/opengl/framebuffer#Colorspace
    */
   if (srgbTarget) {
-    float3 c = max(in_color.rgb, float3(0.0f));
+    /* Note that this is simply counteracting the hardware Linear > sRGB conversion. */
+    float3 c = max(srgb_color.rgb, float3(0.0f));
     float3 c1 = c * (1.0f / 12.92f);
     float3 c2 = pow((c + 0.055f) * (1.0f / 1.055f), float3(2.4f));
-    in_color.rgb = mix(c1, c2, step(float3(0.04045f), c));
+    float4 linear_color;
+    linear_color.rgb = mix(c1, c2, step(float3(0.04045f), c));
+    linear_color.a = srgb_color.a;
+    return linear_color;
   }
-  return in_color;
+  /* Input should already be in sRGB. */
+  return srgb_color;
 }
 
-/* Input is scene linear. Output is Rec.709 linear or sRGB. */
-float4 blender_scene_linear_to_framebuffer_space(float4 in_color)
+/* Input is linear. Output is linear or sRGB. */
+float4 blender_linear_to_framebuffer_space(float4 linear_color)
 {
   /**
    * IMPORTANT: srgbTarget denote that the output is expected to be in __linear__ space.
    * https://wikis.khronos.org/opengl/framebuffer#Colorspace
    */
-  if (!srgbTarget) {
-    /* TODO(fclem): There should be a matrix transform here to adjust primaries. */
-    float3 c = max(in_color.rgb, float3(0.0f));
-    float3 c1 = c * 12.92f;
-    float3 c2 = 1.055f * pow(c, float3(1.0f / 2.4f)) - 0.055f;
-    in_color.rgb = mix(c1, c2, step(float3(0.0031308f), c));
+  if (srgbTarget) {
+    /* Input should already be in Linear. */
+    return linear_color;
   }
-  return in_color;
+  /* Note that this is simply counteracting the *missing* hardware Linear > sRGB conversion. */
+  float3 c = max(linear_color.rgb, float3(0.0f));
+  float3 c1 = c * 12.92f;
+  float3 c2 = 1.055f * pow(c, float3(1.0f / 2.4f)) - 0.055f;
+  float4 srgb_color;
+  srgb_color.rgb = mix(c1, c2, step(float3(0.0031308f), c));
+  srgb_color.a = linear_color.a;
+  return srgb_color;
 }

@@ -249,7 +249,7 @@ void ViewportEngine::render()
   render_task_delegate_->unbind();
 
   GPU_framebuffer_bind(view_framebuffer);
-  gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE);
+  gpu::Shader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_3D_IMAGE_LINEAR);
   GPU_shader_bind(shader);
 
   pxr::GfVec4d draw_viewport(view_settings.border[0],

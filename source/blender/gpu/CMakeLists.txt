@@ -516,6 +516,7 @@ set(GLSL_SRC
   shaders/gpu_shader_image_desaturate_frag.glsl
   shaders/gpu_shader_image_overlays_merge_frag.glsl
   shaders/gpu_shader_image_overlays_stereo_merge_frag.glsl
+  shaders/gpu_shader_image_passthrough_frag.glsl
   shaders/gpu_shader_image_shuffle_color_frag.glsl
   shaders/gpu_shader_image_color_frag.glsl
   shaders/gpu_shader_3D_image_vert.glsl

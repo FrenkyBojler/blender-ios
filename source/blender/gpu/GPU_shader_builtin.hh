@@ -136,8 +136,20 @@ enum GPUBuiltinShader {
   GPU_SHADER_3D_POINT_UNIFORM_COLOR,
 
   /**
-   * Draw a sRGB color space (with Rec.709 primaries) texture in 3D.
-   * Draw a texture in 3D. Take a 3D position and a 2D texture coordinate for each vertex.
+   * Draw a texture in 3D without any color adjustment.
+   * Texture color space needs to match the framebuffer color space.
+   * Not to be used with hardware sRGB framebuffer.
+   * Take a 3D position and a 2D texture coordinate for each vertex.
+   *
+   * \param image: uniform sampler2D
+   * \param texCoord: in vec2
+   * \param pos: in vec3
+   */
+  GPU_SHADER_3D_IMAGE_PASSTHROUGH,
+  /**
+   * Draw a sRGB color space texture in 3D.
+   * Texture color space is assumed to match the framebuffer.
+   * Take a 3D position and a 2D texture coordinate for each vertex.
    *
    * \param image: uniform sampler2D
    * \param texCoord: in vec2
@@ -146,13 +158,14 @@ enum GPUBuiltinShader {
   GPU_SHADER_3D_IMAGE,
   /**
    * Draw a scene linear color space texture in 3D.
+   * Texture value is transformed to the color space of the framebuffer. (TODO)
    * Take a 3D position and a 2D texture coordinate for each vertex.
    *
    * \param image: uniform sampler2D
    * \param texCoord: in vec2
    * \param pos: in vec3
    */
-  GPU_SHADER_3D_IMAGE_LINEAR,
+  GPU_SHADER_3D_IMAGE_SCENE_LINEAR,
   /**
    * Draw a sRGB color space (with Rec.709 primaries) texture in 3D.
    * Take a 3D position and color for each vertex with linear interpolation in window space.
@@ -165,6 +178,7 @@ enum GPUBuiltinShader {
   GPU_SHADER_3D_IMAGE_COLOR,
   /**
    * Draw a scene linear color space texture in 3D.
+   * Texture value is transformed to the color space of the framebuffer. (TODO)
    * Take a 3D position and color for each vertex with linear interpolation in window space.
    *
    * \param color: uniform vec4

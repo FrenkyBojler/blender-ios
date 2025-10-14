@@ -12,7 +12,8 @@ void main()
 {
   fragColor = texture(image, texCoord_interp);
   if (is_scene_linear_image) {
-    fragColor = blender_scene_linear_to_framebuffer_space(fragColor);
+    /* TODO(fclem): Add color transform here to convert scene linear to Rec.709 linear. */
+    fragColor = blender_linear_to_framebuffer_space(fragColor);
   }
   else {
     fragColor = blender_srgb_to_framebuffer_space(fragColor);
