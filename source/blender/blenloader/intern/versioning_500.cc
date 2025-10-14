@@ -2632,70 +2632,6 @@ static void copy_hide_fcurve_from_to_slot(AnimData *arm_adt, Object *ob)
   }
 }
 
-static void version_bone_hide_property_animation(
-    Main *bmain,
-    AnimData *arm_adt,
-    blender::Vector<Object *> &users,
-    blender::Map<bAction *, bAction *> action_version_map)
-{
-  using namespace blender::animrig;
-  if (arm_adt->action) {
-    bAction *versioned_dna_action = action_version_map.lookup_default(arm_adt->action, nullptr);
-    if (versioned_dna_action) {
-      for (Object *user : users) {
-        AnimData *ob_adt = BKE_animdata_ensure_id(&user->id);
-        /**
-         * There are 2 scenarios when moving the fcurve from the armature to the object.
-         * Either the object is animated or not. The object is animated if the action and the
-         * slot are assigned. In that case we need to copy the `hide` property FCurve into the
-         * existing action + slot.
-         */
-        if (!ob_adt->action || ob_adt->slot_handle == Slot::unassigned) {
-          const bool success = assign_action(versioned_dna_action, user->id);
-          BLI_assert(success);
-          UNUSED_VARS_NDEBUG(success);
-          continue;
-        }
-        copy_hide_fcurve_from_to_slot(arm_adt, user);
-      }
-    }
-  }
-
-  /* For the NLA we need to copy the tracks and strips for those strips that point to an action
-   * containing a "hide" property. To do this we have to create a new action with the `hide`
-   * property FCurve. */
-  LISTBASE_FOREACH (NlaTrack *, track, &arm_adt->nla_tracks) {
-    /* Storing the created track for each user object. */
-    blender::Map<Object *, NlaTrack *> ob_to_track;
-    LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-      if (!strip->act || strip->action_slot_handle == Slot::unassigned) {
-        continue;
-      }
-
-      bAction *versioned_dna_action = action_version_map.lookup_default(strip->act, nullptr);
-      if (!versioned_dna_action) {
-        /* Not having a versioned actions means that versioning is not required. */
-        continue;
-      }
-
-      for (Object *user : users) {
-        AnimData *ob_adt = BKE_animdata_ensure_id(&user->id);
-        NlaTrack *ob_track = ob_to_track.lookup_default(user, nullptr);
-        if (!ob_track) {
-          NlaTrack *ob_track = BKE_nlatrack_new_tail(&ob_adt->nla_tracks, false);
-          ob_to_track.add(user, ob_track);
-        }
-        /* We need to pass `true` to indicate we want to reuse the same action at first because
-         * otherwise the action is copied! */
-        NlaStrip *ob_strip = BKE_nlastrip_copy(bmain, strip, true, 0);
-        BKE_nlastrips_add_strip(&ob_track->strips, ob_strip);
-        Action &versioned_action = versioned_dna_action->wrap();
-        nla::assign_action(*ob_strip, versioned_action, user->id);
-      }
-    }
-  }
-}
-
 static void version_bone_hide_property_driver(AnimData *arm_adt, blender::Vector<Object *> &users)
 {
   using namespace blender::animrig;
@@ -2728,77 +2664,6 @@ static void version_bone_hide_property_driver(AnimData *arm_adt, blender::Vector
     BLI_remlink(&arm_adt->drivers, original);
     BKE_fcurve_free(original);
   }
-}
-
-static blender::Map<bAction *, bAction *> do_version_bone_hide_property_actions(Main *bmain)
-{
-  using namespace blender::animrig;
-  /* Creating a new vector because the bmain->actions list will be modified by the loop below. */
-  blender::Vector<bAction *> actions;
-  LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
-    actions.append(dna_action);
-  }
-
-  blender::Map<bAction *, bAction *> action_version_map;
-  for (bAction *dna_action : actions) {
-    Action &action = dna_action->wrap();
-    if (action.layers().is_empty() || action.layer(0)->strips().is_empty()) {
-      /* No animation in that action. */
-      continue;
-    }
-    /* Will be set once a duplicate is needed. Creating a new action instead of adding a slot
-     * because the slot name should stay the same. */
-    bAction *versioned_dna_action = nullptr;
-    for (Slot *slot : action.slots()) {
-      /* Only versioning armature slots since they have the property in question. */
-      if (slot->idtype != ID_AR) {
-        continue;
-      }
-      Channelbag *armature_channelbag = channelbag_for_action_slot(action, slot->handle);
-      if (!armature_channelbag) {
-        continue;
-      }
-      blender::Vector<FCurve *> hide_fcurves;
-      for (FCurve *fcurve : armature_channelbag->fcurves()) {
-        const blender::StringRef rna_path(fcurve->rna_path);
-        if (rna_path.startswith(hide_prop_prefix) && rna_path.endswith(hide_prop_suffix)) {
-          hide_fcurves.append(fcurve);
-        }
-      }
-
-      if (hide_fcurves.is_empty()) {
-        continue;
-      }
-
-      if (!versioned_dna_action) {
-        std::string versioned_name(dna_action->id.name + 2);
-        versioned_name += DATA_("_versioned");
-        versioned_dna_action = BKE_action_add(bmain, versioned_name.c_str());
-        id_us_clear_real(&versioned_dna_action->id);
-        action_version_map.add(dna_action, versioned_dna_action);
-        Action &versioned_action = versioned_dna_action->wrap();
-        versioned_action.last_slot_handle = DNA_DEFAULT_ACTION_LAST_SLOT_HANDLE;
-        versioned_action.layer_keystrip_ensure();
-      }
-
-      Action &versioned_action = versioned_dna_action->wrap();
-      Slot &object_slot = versioned_action.slot_add_for_id_type(ID_OB);
-      StripKeyframeData &strip_data = versioned_action.layer(0)->strip(0)->data<StripKeyframeData>(
-          versioned_action);
-      Channelbag &object_channelbag = strip_data.channelbag_for_slot_ensure(object_slot);
-
-      for (FCurve *original : hide_fcurves) {
-        FCurve *copy = BKE_fcurve_copy(original);
-        char *fixed_path = BLI_string_joinN("pose.", copy->rna_path);
-        MEM_SAFE_FREE(copy->rna_path);
-        copy->rna_path = fixed_path;
-        object_channelbag.fcurve_append(*copy);
-        armature_channelbag->fcurve_remove(*original);
-      }
-    }
-  }
-
-  return action_version_map;
 }
 
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
@@ -2922,11 +2787,6 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 110)) {
-    /* Build a map from source actions to their versioned duplicates. Only FCurves with the RNA
-     * path in question and in extent their slots are duplicated. */
-    blender::Map<bAction *, bAction *> action_version_map = do_version_bone_hide_property_actions(
-        bmain);
-
     /* Build map of armature->object to quickly find out afterwards which armature is used by which
      * objects. */
     blender::Map<bArmature *, blender::Vector<Object *>> armature_usage_map;
@@ -2942,25 +2802,19 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
       AnimData *arm_adt = BKE_animdata_from_id(&armature->id);
 
-      if (!arm_adt) {
+      if (!arm_adt || BLI_listbase_is_empty(&arm_adt->drivers)) {
         continue;
       }
 
       blender::Vector<Object *> *users = armature_usage_map.lookup_ptr(armature);
       if (!users || users->is_empty()) {
         /* Checking for `is_empty` means it won't be fixed for armatures that are not used by an
-         * object during versioning. However since the driver or animation has to be moved to an
+         * object during versioning. However since the driver has to be moved to an
          * object there is no way to fix it in this case. */
         continue;
       }
 
-      if (!BLI_listbase_is_empty(&arm_adt->drivers)) {
-        version_bone_hide_property_driver(arm_adt, *users);
-      }
-
-      if (arm_adt->action) {
-        version_bone_hide_property_animation(bmain, arm_adt, *users, action_version_map);
-      }
+      version_bone_hide_property_driver(arm_adt, *users);
     }
   }
 
