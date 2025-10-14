@@ -670,15 +670,15 @@ static IndexMask get_invalid_float_mask(const Span<float> values,
       });
 }
 
-template<typename T>
 static void validate_float_attribute(const bke::AttributeIter &iter,
                                      const int floats_per_item,
                                      const bool verbose,
                                      bool &all_attributes_valid,
                                      Mesh *mesh_mut)
 {
-  const VArraySpan<T> typed_span = *iter.get<T>();
-  const Span<float> float_span = typed_span.template cast<float>();
+  const GVArraySpan span = *iter.get();
+  const Span<float> float_span(static_cast<const float *>(span.data()),
+                               span.size_in_bytes() / sizeof(float));
   IndexMaskMemory memory;
   const IndexMask invalid = get_invalid_float_mask(float_span, floats_per_item, memory);
   if (invalid.is_empty()) {
@@ -741,22 +741,22 @@ static bool validate_generic_attributes(const Mesh &mesh, const bool verbose, Me
       case AttrType::Int32_2D:
         break;
       case AttrType::Float:
-        validate_float_attribute<float>(iter, 1, verbose, all_attributes_valid, mesh_mut);
+        validate_float_attribute(iter, 1, verbose, all_attributes_valid, mesh_mut);
         break;
       case AttrType::Float2:
-        validate_float_attribute<float2>(iter, 2, verbose, all_attributes_valid, mesh_mut);
+        validate_float_attribute(iter, 2, verbose, all_attributes_valid, mesh_mut);
         break;
       case AttrType::Float3:
-        validate_float_attribute<float3>(iter, 3, verbose, all_attributes_valid, mesh_mut);
+        validate_float_attribute(iter, 3, verbose, all_attributes_valid, mesh_mut);
         break;
       case AttrType::ColorFloat:
-        validate_float_attribute<float4>(iter, 4, verbose, all_attributes_valid, mesh_mut);
+        validate_float_attribute(iter, 4, verbose, all_attributes_valid, mesh_mut);
         break;
       case AttrType::Quaternion:
-        validate_float_attribute<float4>(iter, 4, verbose, all_attributes_valid, mesh_mut);
+        validate_float_attribute(iter, 4, verbose, all_attributes_valid, mesh_mut);
         break;
       case AttrType::Float4x4:
-        validate_float_attribute<float4x4>(iter, 16, verbose, all_attributes_valid, mesh_mut);
+        validate_float_attribute(iter, 16, verbose, all_attributes_valid, mesh_mut);
         break;
       case AttrType::ColorByte:
         break;
