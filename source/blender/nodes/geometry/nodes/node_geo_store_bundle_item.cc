@@ -21,17 +21,6 @@
 
 namespace blender::nodes::node_geo_store_bundle_item_cc {
 
-typedef enum NodeMenu {
-  GEO_NODE_1 = 0,
-  GEO_NODE_2 = 1,
-} NodeMenu;
-
-static EnumPropertyItem type_items[] = {
-    {GEO_NODE_1, "VECTOR", 0, N_("Vector"), N_("Vector 1")},
-    {GEO_NODE_2, "MATRIX", 0, N_("Matrix"), N_("Matrix 2")},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -39,7 +28,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Bundle>("Bundle");
   b.add_output<decl::Bundle>("Bundle").align_with_previous();
-  b.add_input<decl::Menu>("Type").static_items(type_items).optional_label();
   b.add_input<decl::String>("Name").optional_label();
   b.add_input<decl::Vector>("Item");
 }
