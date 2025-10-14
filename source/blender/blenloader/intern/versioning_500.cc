@@ -82,8 +82,6 @@
 
 #include "AS_asset_library.hh"
 
-#include "ANIM_action.hh"
-
 #include "readfile.hh"
 
 #include "versioning_common.hh"
