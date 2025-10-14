@@ -30,11 +30,10 @@ BVHHIPRT::BVHHIPRT(const BVHParams &params,
 
 BVHHIPRT::~BVHHIPRT()
 {
-  HIPRTDevice *hiprt_device = static_cast<HIPRTDevice *>(device);
   custom_primitive_bound.free();
   triangle_index.free();
   vertex_data.free();
-  hiprt_device->track_bvh(this);
+  device->release_bvh(this);
 }
 
 CCL_NAMESPACE_END

@@ -46,7 +46,7 @@ class HIPRTDevice : public HIPDevice {
 
   void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
 
-  void track_bvh(BVHHIPRT *bvh);
+  void release_bvh(BVH *bvh) override;
 
   hiprtContext get_hiprt_context()
   {
@@ -74,15 +74,15 @@ class HIPRTDevice : public HIPDevice {
   hiprtFuncTable functions_table;
 
   thread_mutex hiprt_mutex;
-  
+
   size_t scratch_buffer_size;
   device_vector<char> scratch_buffer;
 
-// This vector tracks the hiprt_geom members of BVHRT so that device memory
-// can be managed/released in HIPRTDevice .
-// Even if synchronization occurs before memory release, a GPU job may still
-// launch between synchronization and release, potentially causing the GPU
-// to access unmapped memory.
+  // This vector tracks the hiprt_geom members of BVHRT so that device memory
+  // can be managed/released in HIPRTDevice .
+  // Even if synchronization occurs before memory release, a GPU job may still
+  // launch between synchronization and release, potentially causing the GPU
+  // to access unmapped memory.
 
   vector<hiprtGeometry> stale_bvh;
 
