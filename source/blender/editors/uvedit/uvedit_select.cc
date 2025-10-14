@@ -5392,6 +5392,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
     if (!extend) {
       ED_uvedit_deselect_all(scene, obedit, SEL_DESELECT);
     }
+
     BMIter iter;
     BMFace *efa;
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
