@@ -815,6 +815,35 @@ class ANIM_OT_slot_unassign_from_constraint(generic_slot_unassign_mixin, Operato
     context_property_name = "constraint"
 
 
+# This is for the versioning from 4.5 to 5.0 and can be removed in 6.0.
+class ANIM_OT_version_bone_hide_property(Operator):
+    bl_idname = "anim.version_bone_hide_property"
+    bl_label = "Version Bone Hide Property"
+    bl_description = "Moves any F-Curves for the `hide` property of selected armatures into the action of the object"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+
+        if len(context.selected_objects) == 0:
+            cls.poll_message_set("No objects selected")
+            return False
+        return True
+
+    def execute(self, context):
+        selected_armatures = []
+        for ob in context.selected_objects:
+            if ob.type == 'ARMATURE' and ob.data:
+                selected_armatures.append(ob)
+        if not selected_armatures:
+            self.report(
+                {'WARNING'},
+                rpt_("No armatures selected"),
+            )
+            return {'CANCELLED'}
+        return {'FINISHED'}
+
+
 classes = (
     ANIM_OT_keying_set_export,
     NLA_OT_bake,
@@ -828,4 +857,5 @@ classes = (
     ANIM_OT_slot_unassign_from_id,
     ANIM_OT_slot_unassign_from_nla_strip,
     ANIM_OT_slot_unassign_from_constraint,
+    ANIM_OT_version_bone_hide_property,
 )
