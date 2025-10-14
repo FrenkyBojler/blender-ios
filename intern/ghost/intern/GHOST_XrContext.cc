@@ -103,9 +103,7 @@ void GHOST_XrContext::createOpenXRInstance(
 
   std::string("Blender").copy(create_info.applicationInfo.applicationName,
                               XR_MAX_APPLICATION_NAME_SIZE);
-
-  // TODO: Apparentely, Meta XR Simulator v71 doesn't support OpenXR > 1.0, while v77 does.
-  create_info.applicationInfo.apiVersion = XR_API_VERSION_1_0;
+  create_info.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
 
   getAPILayersToEnable(enabled_layers_);
   getExtensionsToEnable(graphics_binding_types, enabled_extensions_);
