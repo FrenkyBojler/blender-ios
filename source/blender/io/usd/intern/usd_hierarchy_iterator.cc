@@ -471,7 +471,10 @@ void USDHierarchyIterator::add_to_prim_map(const pxr::SdfPath &usd_path, const I
   }
   ID *local_id = BKE_libblock_find_name(bmain_, GS(id->name), id->name + 2);
   if (local_id) {
-    exported_prim_map_.lookup_or_add_default(usd_path).append(local_id);
+    Vector<ID *> &id_list = exported_prim_map_.lookup_or_add_default(usd_path);
+    if (!id_list.contains(local_id)) {
+      id_list.append(local_id);
+    }
   }
 }
 
