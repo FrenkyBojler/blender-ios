@@ -177,7 +177,7 @@ static wmOperatorStatus insert_key_with_keyingset(bContext *C, wmOperator *op, K
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
-    return false;
+    return OPERATOR_CANCELLED;
   }
   Object *obedit = CTX_data_edit_object(C);
   bool ob_edit_mode = false;
@@ -419,7 +419,7 @@ static wmOperatorStatus insert_key_exec(bContext *C, wmOperator *op)
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
-    return false;
+    return OPERATOR_CANCELLED;
   }
   /* Use the active keying set if there is one. */
   const int type = RNA_enum_get(op->ptr, "type");
@@ -472,7 +472,7 @@ static wmOperatorStatus keyframe_insert_with_keyingset_exec(bContext *C, wmOpera
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
-    return false;
+    return OPERATOR_CANCELLED;
   }
   KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
   if (ks == nullptr) {
@@ -518,7 +518,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
-    return false;
+    return OPERATOR_CANCELLED;
   }
 
   /* When there is an active keying set and no request to prompt, keyframe immediately. */
@@ -611,7 +611,7 @@ static wmOperatorStatus delete_key_exec(bContext *C, wmOperator *op)
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
-    return false;
+    return OPERATOR_CANCELLED;
   }
   KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
   if (ks == nullptr) {
@@ -626,7 +626,7 @@ static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op,
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
-    return false;
+    return OPERATOR_CANCELLED;
   }
   float cfra = BKE_scene_frame_get(scene);
   int num_channels;
@@ -1302,7 +1302,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
-    return false;
+    return OPERATOR_CANCELLED;
   }
   ToolSettings *ts = scene->toolsettings;
   PointerRNA ptr = {};
@@ -1462,7 +1462,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
-    return false;
+    return OPERATOR_CANCELLED;
   }
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
