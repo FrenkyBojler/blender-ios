@@ -10,6 +10,7 @@
 #include "BLI_assert.h"
 #include "BLI_fileops.h"
 #include "BLI_mutex.hh"
+#include "BLI_string_utils.hh"
 #include "BLI_vector.hh"
 #include "MEM_guardedalloc.h"
 
@@ -123,8 +124,7 @@ static bool try_handle_error_for_address(const void *address)
        *   unaligned access on some platforms.
        */
       print_error(
-          "BLI_mmap: Error: Unexpected exception in mapped file which was already remapped with "
-          "zeros.");
+          "Error: Unexpected exception in mapped file which was already remapped with zeros.");
       return false;
     }
     /* Another thread already remapped the range, we can continue execution. */
@@ -136,7 +136,7 @@ static bool try_handle_error_for_address(const void *address)
   file->io_error = true;
 
   if (!try_map_zeros(file)) {
-    print_error("BLI_mmap: Error: Could not replace mapped file with zeros.");
+    print_error("Error: Could not replace mapped file with zeros.");
     return false;
   }
 
@@ -171,9 +171,10 @@ static VirtualAlloc2Fn mmap_VirtualAlloc2 = nullptr;
 
 static void print_error(const char *message)
 {
+  char buffer[256];
+  size_t length = BLI_string_join(buffer, sizeof(buffer), "BLI_mmap: ", message, "\r\n");
   HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
-  WriteFile(stderr_handle, message, strlen(message), nullptr, nullptr);
-  WriteFile(stderr_handle, "\r\n", 2, nullptr, nullptr);
+  WriteFile(stderr_handle, buffer, length, nullptr, nullptr);
 }
 
 static bool try_map_zeros(BLI_mmap_file *file)
@@ -273,8 +274,9 @@ static bool ensure_mmap_initialized()
 #else  /* !WIN32 */
 static void print_error(const char *message)
 {
-  write(STDERR_FILENO, message, strlen(message));
-  write(STDERR_FILENO, "\n", 1);
+  char buffer[256];
+  size_t length = BLI_string_join(buffer, sizeof(buffer), "BLI_mmap: ", message, "\n");
+  write(STDERR_FILENO, buffer, length);
 }
 
 static bool try_map_zeros(BLI_mmap_file *file)
