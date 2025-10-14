@@ -101,7 +101,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   if (!grid_name.empty()) {
-    params.error_message_add(NodeWarningType::Warning, "No grid found with the given name");
+    params.error_message_add(NodeWarningType::Warning,
+                             "No supported grid found with the given name");
   }
   if (std::optional<VolumeGridType> grid_type = bke::socket_type_to_grid_type(socket_type)) {
     params.set_output("Grid", bke::GVolumeGrid(*grid_type));
