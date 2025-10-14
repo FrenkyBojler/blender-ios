@@ -288,14 +288,7 @@ static float strip_retiming_evaluate_arc_segment(const SeqRetimingKey *key,
 
 float strip_retiming_evaluate(const Strip *strip, const float frame_index)
 {
-
-  SeqRetimingKey *start_key;
-  if (frame_index == 0) {
-    start_key = &retiming_keys_get(strip).first();
-  }
-  else {
-    start_key = retiming_find_segment_start_key(strip, frame_index);
-  }
+  const SeqRetimingKey *start_key = retiming_find_segment_start_key(strip, frame_index);
 
   const int start_key_index = start_key - strip->retiming_keys;
   BLI_assert(start_key_index < strip->retiming_keys_num);
