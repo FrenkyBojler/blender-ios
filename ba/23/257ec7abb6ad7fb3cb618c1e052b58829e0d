@@ -1,1 +1,2 @@
 Referenced by issue #147921, Cycles: WDAS cloud benchmark files renders significantly slower in Blender 5.0 on some GPUs
+Referenced by pull request #147989, WIP: Fix Cycles volume performance issue on Nvidia
