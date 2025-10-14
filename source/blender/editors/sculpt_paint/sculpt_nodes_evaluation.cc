@@ -249,8 +249,8 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
           mf::build::exec_presets::AllSpanOrSingle());
 
       fn::Field<float> input_factors(std::make_shared<FactorsFieldInput>());
-      fn::Field<float> final_factor{fn::FieldOperation::Create(
-          multiply_fn, {std::move(converted), std::move(input_factors)})};
+      fn::Field<float> final_factor{
+          fn::FieldOperation::from(multiply_fn, {std::move(converted), std::move(input_factors)})};
       output->field = std::move(final_factor);
       break;
     }
@@ -320,14 +320,14 @@ class MeshSculptFieldContext : public fn::FieldContext {
   {
     Array<float3> positions(verts_.size());
     gather_data_mesh(vert_positions_, verts_, positions.as_mutable_span());
-    return VArray<float3>::ForContainer(std::move(positions));
+    return VArray<float3>::from_container(std::move(positions));
   }
 
   VArray<float3> normals() const
   {
     Array<float3> normals(verts_.size());
     gather_data_mesh(vert_normals_, verts_, normals.as_mutable_span());
-    return VArray<float3>::ForContainer(std::move(normals));
+    return VArray<float3>::from_container(std::move(normals));
   }
 
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
@@ -343,7 +343,7 @@ class MeshSculptFieldContext : public fn::FieldContext {
       {
         GArray<> compressed(attribute.varray.type(), verts_.size());
         bke::attribute_math::gather(attribute.varray, verts_, compressed.as_mutable_span());
-        return GVArray::ForGArray(std::move(compressed));
+        return GVArray::from_garray(std::move(compressed));
       }
       return {};
     }
@@ -351,18 +351,18 @@ class MeshSculptFieldContext : public fn::FieldContext {
       return this->normals();
     }
     if (dynamic_cast<const fn::IndexFieldInput *>(&field_input)) {
-      return VArray<int>::ForSpan(verts_);
+      return VArray<int>::from_span(verts_);
     }
     if (dynamic_cast<const bke::IDAttributeFieldInput *>(&field_input)) {
       if (const VArray<int> id = *mesh_.attributes().lookup<int>("id", bke::AttrDomain::Point)) {
         Array<int> compressed(verts_.size());
         array_utils::gather(id, verts_, compressed.as_mutable_span());
-        return VArray<int>::ForContainer(std::move(compressed));
+        return VArray<int>::from_container(std::move(compressed));
       }
-      return VArray<int>::ForSpan(verts_);
+      return VArray<int>::from_span(verts_);
     }
     if (dynamic_cast<const FactorsFieldInput *>(&field_input)) {
-      return VArray<float>::ForSpan(factors_);
+      return VArray<float>::from_span(factors_);
     }
     return field_input.get_varray_for_context(*this, mask, scope);
   }
@@ -428,7 +428,7 @@ class GridsSculptFieldContext : public fn::FieldContext {
     const int verts_num = grids_.size() * subdiv_ccg_.grid_area;
     Array<float3> normals(verts_num);
     gather_grids_normals(subdiv_ccg_, grids_, normals);
-    return VArray<float3>::ForContainer(std::move(normals));
+    return VArray<float3>::from_container(std::move(normals));
   }
 
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
@@ -437,14 +437,14 @@ class GridsSculptFieldContext : public fn::FieldContext {
   {
     if (const auto *attr = dynamic_cast<const bke::AttributeFieldInput *>(&field_input)) {
       if (attr->attribute_name() == "position") {
-        return VArray<float3>::ForSpan(positions_);
+        return VArray<float3>::from_span(positions_);
       }
     }
     if (dynamic_cast<const bke::NormalFieldInput *>(&field_input)) {
       return this->normals();
     }
     if (dynamic_cast<const FactorsFieldInput *>(&field_input)) {
-      return VArray<float>::ForSpan(factors_);
+      return VArray<float>::from_span(factors_);
     }
     return field_input.get_varray_for_context(*this, mask, scope);
   }
@@ -501,7 +501,7 @@ class BMeshSculptFieldContext : public fn::FieldContext {
   {
     Array<float3> normals(verts_.size());
     gather_bmesh_normals(verts_, normals);
-    return VArray<float3>::ForContainer(std::move(normals));
+    return VArray<float3>::from_container(std::move(normals));
   }
 
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
@@ -510,14 +510,14 @@ class BMeshSculptFieldContext : public fn::FieldContext {
   {
     if (const auto *attr = dynamic_cast<const bke::AttributeFieldInput *>(&field_input)) {
       if (attr->attribute_name() == "position") {
-        return VArray<float3>::ForSpan(positions_);
+        return VArray<float3>::from_span(positions_);
       }
     }
     if (dynamic_cast<const bke::NormalFieldInput *>(&field_input)) {
       return this->normals();
     }
     if (dynamic_cast<const FactorsFieldInput *>(&field_input)) {
-      return VArray<float>::ForSpan(factors_);
+      return VArray<float>::from_span(factors_);
     }
     return field_input.get_varray_for_context(*this, mask, scope);
   }
