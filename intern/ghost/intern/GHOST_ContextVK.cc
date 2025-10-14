@@ -716,7 +716,10 @@ GHOST_ContextVK::~GHOST_ContextVK()
     GHOST_InstanceVK &instance_vk = vulkan_instance.value();
     GHOST_DeviceVK &device_vk = instance_vk.device.value();
     device_vk.wait_idle();
-
+    for (VkFence fence : fence_pile_) {
+      vkDestroyFence(device_vk.vk_device, fence, nullptr);
+    }
+    fence_pile_.clear();
     destroySwapchain();
 
     if (surface_ != VK_NULL_HANDLE) {
