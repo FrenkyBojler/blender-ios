@@ -567,7 +567,7 @@ static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *m
 
 static bool validate_material_indices(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
 {
-  const IndexRange materials_range(mesh.totcol);
+  const IndexRange materials_range(std::max(int(mesh.totcol), 1));
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArray material_indices = *attributes.lookup<int>("material_index", bke::AttrDomain::Face);
   if (!material_indices) {
