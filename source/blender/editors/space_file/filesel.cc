@@ -906,9 +906,10 @@ bool file_attribute_column_type_enabled(const FileSelectParams *params,
       return true;
     case COLUMN_DATETIME:
       return ((params->details_flags & FILE_DETAILS_DATETIME) != 0) &&
-             !FILE_LAYOUT_HIDE_DATE(layout);
+             !FILE_LAYOUT_HIDE_DATE(layout) && params->type != FILE_SYSTEM_ROOT;
     case COLUMN_SIZE:
-      return ((params->details_flags & FILE_DETAILS_SIZE) != 0) && !FILE_LAYOUT_HIDE_SIZE(layout);
+      return ((params->details_flags & FILE_DETAILS_SIZE) != 0) &&
+             !FILE_LAYOUT_HIDE_SIZE(layout) && params->type != FILE_SYSTEM_ROOT;
     default:
       return false;
   }

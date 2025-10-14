@@ -209,6 +209,9 @@ static void file_refresh(const bContext *C, ScrArea *area)
   if (!params->dir[0]) {
     params->type = FILE_SYSTEM_ROOT;
   }
+  else if (params->type == FILE_SYSTEM_ROOT) {
+    params->type = FILE_BLENDER;
+  }
 
   fileselect_refresh_params(sfile);
   folder_history_list_ensure_for_active_browse_mode(sfile);
@@ -279,7 +282,6 @@ static void file_refresh(const bContext *C, ScrArea *area)
 
   if (params->type == FILE_SYSTEM_ROOT) {
     filelist_add_system_root_items(sfile->files);
-    params->type = FILE_BLENDER;
   }
   else if (filelist_needs_reading(sfile->files)) {
     if (!filelist_pending(sfile->files)) {

@@ -290,23 +290,25 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
       free_imbuf = true;
     }
 
-    char date_str[FILELIST_DIRENTRY_DATE_LEN], time_str[FILELIST_DIRENTRY_TIME_LEN];
-    bool is_today, is_yesterday;
-    std::string day_string;
-    BLI_filelist_entry_datetime_to_string(
-        nullptr, file->time, false, time_str, date_str, &is_today, &is_yesterday);
-    if (is_today || is_yesterday) {
-      day_string = (is_today ? N_("Today") : N_("Yesterday")) + std::string(" ");
+    if (file->time > 0) {
+      char date_str[FILELIST_DIRENTRY_DATE_LEN], time_str[FILELIST_DIRENTRY_TIME_LEN];
+      bool is_today, is_yesterday;
+      std::string day_string;
+      BLI_filelist_entry_datetime_to_string(
+          nullptr, file->time, false, time_str, date_str, &is_today, &is_yesterday);
+      if (is_today || is_yesterday) {
+        day_string = (is_today ? N_("Today") : N_("Yesterday")) + std::string(" ");
+      }
+      UI_tooltip_text_field_add(tip,
+                                fmt::format("{}: {}{}{}",
+                                            N_("Modified"),
+                                            day_string,
+                                            (is_today || is_yesterday) ? "" : date_str,
+                                            (is_today || is_yesterday) ? time_str : ""),
+                                {},
+                                UI_TIP_STYLE_NORMAL,
+                                UI_TIP_LC_NORMAL);
     }
-    UI_tooltip_text_field_add(tip,
-                              fmt::format("{}: {}{}{}",
-                                          N_("Modified"),
-                                          day_string,
-                                          (is_today || is_yesterday) ? "" : date_str,
-                                          (is_today || is_yesterday) ? time_str : ""),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_NORMAL);
 
     if (!(file->typeflag & FILE_TYPE_DIR) && file->size > 0) {
       char size[16];
@@ -1127,7 +1129,7 @@ static void draw_columnheader_columns(const FileSelectParams *params,
     const FileAttributeColumn *column = &layout->attribute_columns[column_type];
 
     /* Active sort type triangle */
-    if (params->sort == column->sort_type) {
+    if (params->sort == column->sort_type && params->type != FILE_SYSTEM_ROOT) {
       float tri_color[4];
 
       rgba_uchar_to_float(tri_color, text_col);

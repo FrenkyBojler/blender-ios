@@ -294,7 +294,19 @@ static int filelist_geticon_file_type_ex(const FileList *filelist,
     if (typeflag & FILE_TYPE_BLENDER) {
       return ICON_FILE_BLEND;
     }
+
     if (is_main) {
+      if (filelist->type == FILE_SYSTEM_ROOT) {
+        /* If this path is in System list or path cache then use that icon. */
+        FSMenu *fsmenu = ED_fsmenu_get();
+        FSMenuEntry *tfsm = ED_fsmenu_get_category(fsmenu, FS_CATEGORY_SYSTEM);
+        for (; tfsm; tfsm = tfsm->next) {
+          if (STREQ(tfsm->path, file->redirection_path)) {
+            return tfsm->icon;
+          }
+        }
+      }
+
       /* Do not return icon for folders if icons are not 'main' draw type
        * (e.g. when used over previews). */
       return (file->attributes & FILE_ATTR_ANY_LINK) ? ICON_FOLDER_REDIRECT : ICON_FILE_FOLDER;

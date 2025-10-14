@@ -2293,19 +2293,21 @@ static wmOperatorStatus file_parent_exec(bContext *C, wmOperator * /*unused*/)
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   if (params) {
-    if (BLI_path_parent_dir(params->dir) && params->dir[0]) {
-      BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
-      BLI_path_normalize_dir(params->dir, sizeof(params->dir));
-      ED_file_change_dir(C);
+    if (BLI_path_parent_dir(params->dir)) {
+      if (params->dir[0]) {
+        BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
+        BLI_path_normalize_dir(params->dir, sizeof(params->dir));
+        ED_file_change_dir(C);
+      }
       if (params->recursion_level > 1) {
         /* Disable `dirtree` recursion when going up in tree. */
         params->recursion_level = 0;
         filelist_setrecursion(sfile->files, params->recursion_level);
       }
+      WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
     }
   }
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
   return OPERATOR_FINISHED;
 }
 
