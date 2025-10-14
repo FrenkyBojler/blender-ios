@@ -1,1 +1,2 @@
 Referenced by issue #148015, OpenVDB 12 is required, but configure accepts OpenVDB 11
+Referenced by pull request #148080, Build: support OpenVDB < 12
