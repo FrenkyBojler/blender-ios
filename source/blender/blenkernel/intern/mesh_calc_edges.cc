@@ -302,7 +302,8 @@ void mesh_calc_edges(Mesh &mesh,
 #ifndef NDEBUG
     edge_map_to_result_index.as_mutable_span().fill(-1);
 #endif
-    calc_edges::map_edge_to_span_index(original_edges, edge_maps, parallel_mask, edge_offsets, edge_map_to_result_index);
+    calc_edges::map_edge_to_span_index(
+        original_edges, edge_maps, parallel_mask, edge_offsets, edge_map_to_result_index);
     array_utils::gather(edge_map_to_result_index.as_span(), corner_edges.as_span(), corner_edges);
 
     BLI_assert(!corner_edges.contains(-1));
@@ -348,7 +349,11 @@ void mesh_calc_edges(Mesh &mesh,
     if (original_edges_are_distinct) {
       /* TODO: Do we can group edges by .low vertex? Or by hash, but with Span<int> of edges by
        * group?... */
-      calc_edges::map_edge_to_span_index(original_edges.take_front(mesh.edges_num), edge_maps, parallel_mask, edge_offsets, edge_map_to_result_index);
+      calc_edges::map_edge_to_span_index(original_edges.take_front(mesh.edges_num),
+                                         edge_maps,
+                                         parallel_mask,
+                                         edge_offsets,
+                                         edge_map_to_result_index);
     }
     else {
       src_to_dst_mask.foreach_index(
