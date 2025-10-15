@@ -448,9 +448,6 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
   const int other_points_num = other.points_num();
   const int other_curves_num = other.curves_num();
 
-  const bke::AttributeAccessor src_attributes = other.attributes();
-  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
-
   dst.resize(initial_points_num + other_points_num, initial_curves_num + other_curves_num);
 
   Array<int> other_raw_offsets{0, other_points_num};
@@ -459,14 +456,14 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
   OffsetIndices<int> other_point_offsets{other_raw_offsets};
   OffsetIndices<int> dst_point_offsets{dst_raw_offsets};
 
-  copy_attributes_group_to_group(src_attributes,
+  copy_attributes_group_to_group(other.attributes(),
                                  bke::AttrDomain::Point,
                                  bke::AttrDomain::Point,
                                  {},
                                  other_point_offsets,
                                  dst_point_offsets,
                                  IndexMask{1},
-                                 dst_attributes);
+                                 dst.attributes_for_write());
 
   other_raw_offsets = {0, other_curves_num};
   dst_raw_offsets = {initial_curves_num, initial_curves_num + other_curves_num};
@@ -474,16 +471,14 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
   OffsetIndices<int> other_curve_offsets{other_raw_offsets};
   OffsetIndices<int> dst_curve_offsets{dst_raw_offsets};
 
-  Set<std::string> curve_attributes_to_skip;
-
-  copy_attributes_group_to_group(src_attributes,
+  copy_attributes_group_to_group(other.attributes(),
                                  bke::AttrDomain::Curve,
                                  bke::AttrDomain::Curve,
-                                 bke::attribute_filter_from_skip_ref(curve_attributes_to_skip),
+                                 {},
                                  other_curve_offsets,
                                  dst_curve_offsets,
                                  IndexMask{1},
-                                 dst_attributes);
+                                 dst.attributes_for_write());
 }
 
 /* -------------------------------------------------------------------- */
