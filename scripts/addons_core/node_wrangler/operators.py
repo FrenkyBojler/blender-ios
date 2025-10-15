@@ -513,6 +513,13 @@ class NWReloadImages(Operator):
                     and node.image is not None):
                 node.image.reload()
                 num_reloaded += 1
+            else:
+                # For Geometry Nodes, check each input since images can be defined in non-image nodes.
+                for sock in node.inputs:
+                    if (sock.bl_idname == 'NodeSocketImage'
+                            and sock.default_value is not None):
+                        sock.default_value.reload()
+                        num_reloaded += 1
 
         if num_reloaded:
             self.report({'INFO'}, "Reloaded images")
