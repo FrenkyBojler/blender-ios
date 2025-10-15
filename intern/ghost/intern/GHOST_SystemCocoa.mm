@@ -1752,8 +1752,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
                                                       GHOST_kEventWheelAxisVertical :
                                                       GHOST_kEventWheelAxisHorizontal;
 
-          pushEvent(new GHOST_EventWheel(
-              event.timestamp * 1000, window, direction, delta));
+          pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, direction, delta));
         }
         /* Vertical scrolling. */
         if (event.deltaY != 0.0) {
