@@ -497,24 +497,22 @@ class NWReloadImages(Operator):
         """Disabled for custom nodes."""
         return (nw_check(cls, context)
                 and nw_check_space_type(cls, context, {'ShaderNodeTree', 'CompositorNodeTree',
-                                        'TextureNodeTree', 'GeometryNodeTree'}))
+                                                       'TextureNodeTree', 'GeometryNodeTree'}))
 
     def execute(self, context):
         nodes, links = get_nodes_links(context)
-        image_types = ["IMAGE", "TEX_IMAGE", "TEX_ENVIRONMENT", "TEXTURE"]
         num_reloaded = 0
         for node in nodes:
-            if node.type in image_types:
-                if node.type == "TEXTURE":
-                    if node.texture:  # node has texture assigned
-                        if node.texture.type in ['IMAGE', 'ENVIRONMENT_MAP']:
-                            if node.texture.image:  # texture has image assigned
-                                node.texture.image.reload()
-                                num_reloaded += 1
-                else:
-                    if node.image:
-                        node.image.reload()
-                        num_reloaded += 1
+            if (node.type == "TEXTURE"
+                    and node.texture is not None  # Node has texture assigned.
+                    and node.texture.type == 'IMAGE'
+                    and node.texture.image is not None):  # Texture has image assigned.
+                node.texture.image.reload()
+                num_reloaded += 1
+            elif (node.type in {"IMAGE", "TEX_IMAGE", "TEX_ENVIRONMENT"}
+                    and node.image is not None):
+                node.image.reload()
+                num_reloaded += 1
 
         if num_reloaded:
             self.report({'INFO'}, "Reloaded images")
