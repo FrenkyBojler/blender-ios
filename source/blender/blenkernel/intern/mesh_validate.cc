@@ -565,9 +565,13 @@ static bool validate_vertex_groups(const Mesh &mesh, const bool verbose, Mesh *m
   return false;
 }
 
-static bool validate_material_indices(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
+static bool validate_material_indices(const Mesh &mesh,
+                                      const bool only_check_negative,
+                                      const bool verbose,
+                                      Mesh *mesh_mut)
 {
-  const IndexRange materials_range(std::max(int(mesh.totcol), 1));
+  const IndexRange materials_range(only_check_negative ? std::numeric_limits<int>::max() :
+                                                         std::max(int(mesh.totcol), 1));
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArray material_indices = *attributes.lookup<int>("material_index", bke::AttrDomain::Face);
   if (!material_indices) {
@@ -827,7 +831,7 @@ static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_
   }
 
   valid &= validate_vertex_groups(mesh, verbose, mesh_mut);
-  valid &= validate_material_indices(mesh, verbose, mesh_mut);
+  valid &= validate_material_indices(mesh, true, verbose, mesh_mut);
   valid &= validate_selection_history(mesh, verbose, mesh_mut);
   valid &= validate_generic_attributes(mesh, verbose, mesh_mut);
 
@@ -859,7 +863,7 @@ bool BKE_mesh_validate(Mesh *mesh, const bool do_verbose, const bool /*cddata_ch
   if (do_verbose) {
     CLOG_INFO(&LOG, "Validating Mesh: %s", mesh->id.name + 2);
   }
-  return !blender::bke::mesh_validate(*mesh, true);
+  return !blender::bke::mesh_validate(*mesh, do_verbose);
 }
 
 bool BKE_mesh_is_valid(Mesh *mesh)
@@ -869,5 +873,5 @@ bool BKE_mesh_is_valid(Mesh *mesh)
 
 bool BKE_mesh_validate_material_indices(Mesh *mesh)
 {
-  return !blender::bke::validate_material_indices(*mesh, false, mesh);
+  return !blender::bke::validate_material_indices(*mesh, false, false, mesh);
 }

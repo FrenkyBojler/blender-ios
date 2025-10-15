@@ -55,9 +55,8 @@ class TestMeshValidate(unittest.TestCase):
         obj = bpy.context.active_object
         mesh = obj.data
 
-        # Object has 0 material slots, so index 1 is invalid
         attr = mesh.attributes.new(name="material_index", type='INT', domain='FACE')
-        attr.data[0].value = 1
+        attr.data[0].value = -4
 
         self.assertTrue(mesh.validate(verbose=True))
 
