@@ -152,23 +152,22 @@ static void node_geo_exec(GeoNodeExecParams params)
       closure_params.outputs.append({items[item_i].name, socket_type_ptr, &closure_results[i]});
     }
 
-    for (const int64_t i : range) {
-      BLI_assert(i < std::numeric_limits<int>::max());
+    for (const int64_t out_i : range) {
+      BLI_assert(out_i < std::numeric_limits<int>::max());
       *static_cast<int *>(
-          const_cast<void *>(closure_params.inputs[0].value.get_single_ptr_raw())) = int(i);
+          const_cast<void *>(closure_params.inputs[0].value.get_single_ptr_raw())) = int(out_i);
 
       for (bke::SocketValueVariant &value : closure_results) {
         value.~SocketValueVariant();
       }
       evaluate_closure_eagerly(*closure, closure_params);
-      for (const int list_i : required_items.index_range()) {
-        if (closure_results[list_i].is_context_dependent_field()) {
-          cpp_types[list_i]->value_initialize(list_values[list_i][i]);
+      for (const int i : required_items.index_range()) {
+        if (closure_results[i].is_context_dependent_field()) {
+          cpp_types[i]->value_initialize(list_values[i][out_i]);
           continue;
         }
-        cpp_types[list_i]->move_construct(
-            const_cast<void *>(closure_results[list_i].get_single_ptr_raw()),
-            list_values[list_i][i]);
+        cpp_types[i]->move_construct(            const_cast<void *>(closure_results[i].get_single_ptr_raw()),
+            list_values[i][out_i]);
       }
     }
   });
