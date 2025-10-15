@@ -3188,7 +3188,7 @@ class _defs_sequencer_generic:
 
             layout.separator()
 
-            props = tool.operator_properties("sequencer.box_cut")
+            props = tool.operator_properties("sequencer.box_blade")
             layout.prop(props, "remove_gaps", expand=True)
             layout.prop(props, "ignore_selection", expand=True)
         return dict(

@@ -8666,7 +8666,7 @@ def km_sequencer_tool_blade(_params):
                  ("ignore_selection", True),
                  ("ignore_connections", True),
              ]}),
-            ("sequencer.box_cut", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
+            ("sequencer.box_blade", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
              {"properties": [
                  ("remove_gaps"),
                  ("ignore_selection"),

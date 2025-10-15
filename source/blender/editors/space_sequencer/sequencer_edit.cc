@@ -1977,7 +1977,7 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 /** \name Box Cut Strips Operator
  * \{ */
 
-static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -2120,7 +2120,7 @@ static wmOperatorStatus sequencer_box_cut_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void sequencer_box_cut_ui(bContext * /*C*/, wmOperator *op)
+static void sequencer_box_blade_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
   layout->use_property_split_set(true);
@@ -2130,7 +2130,7 @@ static void sequencer_box_cut_ui(bContext * /*C*/, wmOperator *op)
   layout->prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static wmOperatorStatus sequencer_box_cut_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sequencer_box_blade_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
 
@@ -2147,19 +2147,19 @@ static wmOperatorStatus sequencer_box_cut_modal(bContext *C, wmOperator *op, con
   return gesture_return;
 }
 
-void SEQUENCER_OT_box_cut(wmOperatorType *ot)
+void SEQUENCER_OT_box_blade(wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Box Cut Strips";
-  ot->idname = "SEQUENCER_OT_box_cut";
-  ot->description = "Split the selected strips in two";
+  ot->name = "Box Blade";
+  ot->idname = "SEQUENCER_OT_box_blade";
+  ot->description = "Draw a box around the parts of strips you want to cut away.";
 
   /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
-  ot->exec = sequencer_box_cut_exec;
-  ot->modal = sequencer_box_cut_modal;
+  ot->exec = sequencer_box_blade_exec;
+  ot->modal = sequencer_box_blade_modal;
   ot->poll = sequencer_edit_poll;
-  ot->ui = sequencer_box_cut_ui;
+  ot->ui = sequencer_box_blade_ui;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
