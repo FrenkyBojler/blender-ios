@@ -98,6 +98,7 @@ set(SRC
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
+  nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_curl.cc
   nodes/node_geo_grid_divergence.cc
   nodes/node_geo_grid_gradient.cc
@@ -212,6 +213,12 @@ set(SRC
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
   nodes/node_geo_sdf_grid_boolean.cc
+  nodes/node_geo_sdf_grid_fillet.cc
+  nodes/node_geo_sdf_grid_laplacian.cc
+  nodes/node_geo_sdf_grid_mean.cc
+  nodes/node_geo_sdf_grid_mean_curvature.cc
+  nodes/node_geo_sdf_grid_median.cc
+  nodes/node_geo_sdf_grid_offset.cc
   nodes/node_geo_self_object.cc
   nodes/node_geo_separate_bundle.cc
   nodes/node_geo_separate_components.cc

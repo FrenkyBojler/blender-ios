@@ -118,7 +118,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
 
-  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+  layout->op("node.sockets_sync", IFACE_("Sync"), ICON_FILE_REFRESH);
   layout->prop(ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
@@ -129,7 +129,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
+          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
         });
   }
   if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
@@ -140,7 +140,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, "Shape", ICON_NONE);
+          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
         });
   }
 }
@@ -214,7 +214,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "NodeEvaluateClosure", NODE_EVALUATE_CLOSURE);
+  sh_geo_node_type_base(&ntype, "NodeEvaluateClosure", NODE_EVALUATE_CLOSURE);
   ntype.ui_name = "Evaluate Closure";
   ntype.ui_description = "Execute a given closure";
   ntype.nclass = NODE_CLASS_CONVERTER;
