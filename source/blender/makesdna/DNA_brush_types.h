@@ -304,9 +304,6 @@ typedef struct Brush {
   /** Active curves sculpt brush type (#eBrushCurvesSculptType). */
   char curves_sculpt_brush_type;
 
-  /* Scene Project brush */
-  int8_t project_ray_direction_type;
-
   char _pad1[2];
 
   float autosmooth_factor;
@@ -395,6 +392,10 @@ typedef struct Brush {
 
   /* slide/relax */
   int slide_deform_type;
+
+  /* Scene Project brush */
+  int8_t project_ray_direction_type;
+  char _pad2[7];
 
   /* overlay */
   int texture_overlay_alpha;
