@@ -2164,7 +2164,7 @@ int UI_icon_from_object_type(const short object_type)
       return ICON_OUTLINER_OB_VOLUME;
     case OB_EMPTY:
       return ICON_OUTLINER_OB_EMPTY;
-    }
+  }
   return ICON_OBJECT_DATA;
 }
 
