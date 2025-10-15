@@ -114,6 +114,7 @@ HIPRTDevice::HIPRTDevice(const DeviceInfo &info,
 HIPRTDevice::~HIPRTDevice()
 {
   HIPContextScope scope(this);
+  free_bvh();
   user_instance_id.free();
   prim_visibility.free();
   hiprt_blas_ptr.free();
@@ -127,7 +128,6 @@ HIPRTDevice::~HIPRTDevice()
 
   hiprtDestroyGlobalStackBuffer(hiprt_context, global_stack_buffer);
   hiprtDestroyFuncTable(hiprt_context, functions_table);
-  hiprtDestroyScene(hiprt_context, scene);
   hiprtDestroyContext(hiprt_context);
 }
 
@@ -1150,6 +1150,26 @@ hiprtScene HIPRTDevice::build_tlas(BVHHIPRT *bvh,
   return scene;
 }
 
+void HIPRTDevice::free_bvh()
+{
+  for (int bvh_index = 0; bvh_index < stale_bvh.size(); bvh_index++) {
+    hiprtGeometry hiprt_geom = stale_bvh[bvh_index];
+    hiprtDestroyGeometry(hiprt_context, hiprt_geom);
+    hiprt_geom = nullptr;
+  }
+  stale_bvh.clear();
+  hiprtDestroyScene(hiprt_context, scene);
+  scene = nullptr;
+}
+
+void HIPRTDevice::release_bvh(BVH *bvh)
+{
+  BVHHIPRT *current_bvh = static_cast<BVHHIPRT *>(bvh);
+  thread_scoped_lock lock(hiprt_mutex);
+  /* Tracks BLAS pointers whose BVH destructors have been called. */
+  stale_bvh.push_back(current_bvh->hiprt_geom);
+}
+
 void HIPRTDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 {
   if (have_error()) {
@@ -1170,10 +1190,7 @@ void HIPRTDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
     build_blas(bvh_rt, geometry[0], options);
   }
   else {
-
-    if (scene) {
-      hiprtDestroyScene(hiprt_context, scene);
-    }
+    free_bvh();
     scene = build_tlas(bvh_rt, bvh_rt->objects, options, refit);
   }
 }
