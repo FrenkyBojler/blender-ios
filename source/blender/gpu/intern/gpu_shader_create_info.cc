@@ -526,7 +526,13 @@ void gpu_shader_create_info_init()
 #define GPU_SHADER_CREATE_END() ;
 
 /* Declare, register and construct the infos. */
-#include "gpu_shader_create_info_list.hh"
+#include "glsl_compositor_infos_list.hh"
+#include "glsl_draw_infos_list.hh"
+#include "glsl_gpu_infos_list.hh"
+#include "glsl_ocio_infos_list.hh"
+#ifdef WITH_OPENSUBDIV
+#  include "glsl_osd_infos_list.hh"
+#endif
 
   if (GPU_stencil_clasify_buffer_workaround()) {
     /* WORKAROUND: Adding a dummy buffer that isn't used fixes a bug inside the Qualcomm driver. */
@@ -535,6 +541,8 @@ void gpu_shader_create_info_init()
   }
 
   for (ShaderCreateInfo *info : g_create_infos->values()) {
+    info->is_generated_ = false;
+
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->vertex_source_);
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->fragment_source_);
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->geometry_source_);

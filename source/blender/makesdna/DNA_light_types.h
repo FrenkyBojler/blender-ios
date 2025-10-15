@@ -16,7 +16,6 @@
 #endif
 
 struct AnimData;
-struct Ipo;
 struct bNodeTree;
 
 typedef struct Light {
@@ -99,7 +98,6 @@ typedef struct Light {
   struct bNodeTree *nodetree;
 
   /* Deprecated. */
-  struct Ipo *ipo DNA_DEPRECATED; /* Old animation system. */
   float energy_deprecated DNA_DEPRECATED;
   float _pad2;
 } Light;

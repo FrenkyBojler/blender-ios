@@ -29,6 +29,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
@@ -63,6 +64,7 @@
 /* For menu, popup, icons, etc. */
 #include "ED_fileselect.hh"
 #include "ED_numinput.hh"
+#include "ED_object.hh"
 #include "ED_scene.hh"
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
@@ -293,7 +295,7 @@ static bool sequencer_effect_poll(bContext *C)
 
   if (ed) {
     Strip *active_strip = seq::select_active_get(scene);
-    if (active_strip && (active_strip->type & STRIP_TYPE_EFFECT)) {
+    if (active_strip && active_strip->is_effect()) {
       return true;
     }
   }
@@ -359,28 +361,20 @@ static Scene *get_sequencer_scene_for_time_sync(const bContext &C)
   return nullptr;
 }
 
-void sync_active_scene_and_time_with_scene_strip(bContext &C)
+const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene)
 {
   using namespace blender;
-  Scene *sequence_scene = get_sequencer_scene_for_time_sync(C);
-  if (!sequence_scene) {
-    return;
-  }
-
-  wmWindow *win = CTX_wm_window(&C);
-  Scene *active_scene = WM_window_get_active_scene(win);
-
-  Editing *ed = seq::editing_get(sequence_scene);
+  const Editing *ed = seq::editing_get(sequencer_scene);
   if (!ed) {
-    return;
+    return nullptr;
   }
   ListBase *seqbase = seq::active_seqbase_get(ed);
   const ListBase *channels = seq::channels_displayed_get(ed);
   VectorSet<Strip *> query_strips = seq::query_strips_recursive_at_frame(
-      sequence_scene, seqbase, sequence_scene->r.cfra);
+      sequencer_scene, seqbase, sequencer_scene->r.cfra);
   /* Ignore effect strips, sound strips and muted strips. */
   query_strips.remove_if([&](const Strip *strip) {
-    return (strip->type & STRIP_TYPE_EFFECT) != 0 || strip->type == STRIP_TYPE_SOUND_RAM ||
+    return strip->is_effect() || strip->type == STRIP_TYPE_SOUND_RAM ||
            seq::render_is_muted(channels, strip);
   });
   Vector<Strip *> strips = query_strips.extract_vector();
@@ -389,20 +383,35 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     return a->channel > b->channel;
   });
   /* Get the top-most scene strip. */
-  const Strip *scene_strip = [&]() -> const Strip * {
-    for (const Strip *strip : strips) {
-      if (strip->type == STRIP_TYPE_SCENE) {
-        return strip;
-      }
+  for (const Strip *strip : strips) {
+    if (strip->type == STRIP_TYPE_SCENE) {
+      return strip;
     }
-    return nullptr;
-  }();
+  }
+  return nullptr;
+}
+
+void sync_active_scene_and_time_with_scene_strip(bContext &C)
+{
+  using namespace blender;
+  Scene *sequencer_scene = get_sequencer_scene_for_time_sync(C);
+  if (!sequencer_scene) {
+    return;
+  }
+
+  wmWindow *win = CTX_wm_window(&C);
+  const Strip *scene_strip = get_scene_strip_for_time_sync(sequencer_scene);
   if (!scene_strip || !scene_strip->scene) {
     /* No scene strip with scene found. Switch to pinned scene. */
     Main *bmain = CTX_data_main(&C);
-    WM_window_set_active_scene(bmain, &C, win, sequence_scene);
+    WM_window_set_active_scene(bmain, &C, win, sequencer_scene);
     return;
   }
+
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *prev_obact = BKE_view_layer_active_object_get(view_layer);
+
+  Scene *active_scene = WM_window_get_active_scene(win);
   if (active_scene != scene_strip->scene) {
     /* Sync active scene in window. */
     Main *bmain = CTX_data_main(&C);
@@ -436,7 +445,8 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
 
   /* Compute the scene time based on the scene strip. */
   const float frame_index = seq::give_frame_index(
-      sequence_scene, scene_strip, sequence_scene->r.cfra);
+                                sequencer_scene, scene_strip, sequencer_scene->r.cfra) +
+                            active_scene->r.sfra;
   if (active_scene->r.flag & SCER_SHOW_SUBFRAME) {
     active_scene->r.cfra = int(frame_index);
     active_scene->r.subframe = frame_index - int(frame_index);
@@ -446,6 +456,14 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     active_scene->r.subframe = 0.0f;
   }
   FRAMENUMBER_MIN_CLAMP(active_scene->r.cfra);
+
+  /* Try to sync the object mode of the active object. */
+  if (prev_obact) {
+    Object *obact = CTX_data_active_object(&C);
+    if (obact && prev_obact->type == obact->type) {
+      ed::object::mode_set(&C, eObjectMode(prev_obact->mode));
+    }
+  }
 
   DEG_id_tag_update(&active_scene->id, ID_RECALC_FRAME_CHANGE);
   WM_event_add_notifier(&C, NC_WINDOW, nullptr);
@@ -588,7 +606,7 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
 
   /* Recalculate bounds of effect strips, offsetting the keyframes if not snapping any handle. */
   LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-    if (strip->type & STRIP_TYPE_EFFECT) {
+    if (strip->is_effect()) {
       const bool either_handle_selected = (strip->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0;
 
       if (strip->input1 && (strip->input1->flag & SELECT)) {
@@ -768,7 +786,7 @@ static void slip_update_header(const Scene *scene,
 
 static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_get(scene);
   const View2D *v2d = UI_view2d_fromcontext(C);
 
@@ -796,6 +814,7 @@ static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent
     return (seq::transform_single_image_check(strip) || seq::transform_is_locked(channels, strip));
   });
   if (strips.is_empty()) {
+    MEM_SAFE_DELETE(data);
     return nullptr;
   }
   data->strips = strips;
@@ -1597,6 +1616,12 @@ static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *
   seq::strip_lookup_invalidate(scene->ed);
   seq::time_left_handle_frame_set(scene, input1, seq::time_left_handle_frame_get(scene, input1));
 
+  Editing *ed = seq::editing_get(scene);
+  ListBase *active_seqbase = seq::active_seqbase_get(ed);
+  if (seq::transform_test_overlap(scene, active_seqbase, active_strip)) {
+    seq::transform_seqbase_shuffle(active_seqbase, active_strip, scene);
+  }
+
   seq::relations_invalidate_cache(scene, active_strip);
   seq::offset_animdata(scene, active_strip, (active_strip->start - old_start));
 
@@ -1631,7 +1656,7 @@ static wmOperatorStatus sequencer_swap_inputs_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *active_strip = seq::select_active_get(scene);
 
-  if (!(active_strip->type & STRIP_TYPE_EFFECT)) {
+  if (!active_strip->is_effect()) {
     BKE_report(op->reports, RPT_ERROR, "Active strip is not an effect strip");
     return OPERATOR_CANCELLED;
   }
@@ -1737,6 +1762,7 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   const int split_side = sequence_split_side_for_exec_get(op);
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
+  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
 
   seq::prefetch_stop(scene);
 
@@ -1747,9 +1773,14 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
 
     if (ignore_selection || strip->flag & SELECT) {
       const char *error_msg = nullptr;
-      if (seq::edit_strip_split(
-              bmain, scene, ed->current_strips(), strip, split_frame, method, &error_msg) !=
-          nullptr)
+      if (seq::edit_strip_split(bmain,
+                                scene,
+                                ed->current_strips(),
+                                strip,
+                                split_frame,
+                                method,
+                                ignore_connections,
+                                &error_msg) != nullptr)
       {
         changed = true;
       }
@@ -1827,6 +1858,13 @@ static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, cons
     UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
     if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
       split_frame = round_fl_to_int(mouseloc[0]);
+      Strip *strip = strip_under_mouse_get(scene, v2d, event->mval);
+      if (strip == nullptr || split_frame == seq::time_left_handle_frame_get(scene, strip) ||
+          split_frame == seq::time_right_handle_frame_get(scene, strip))
+      {
+        /* Do not pass through to selection. */
+        return OPERATOR_CANCELLED;
+      }
     }
     RNA_int_set(op->ptr, "channel", mouseloc[1]);
   }
@@ -1854,6 +1892,10 @@ static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
   if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
     layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
+
+  layout->separator();
+
+  layout->prop(op->ptr, "ignore_connections", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void SEQUENCER_OT_split(wmOperatorType *ot)
@@ -1921,6 +1963,12 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
       "Make cut even if strip is not selected preserving selection state after cut");
 
   RNA_def_property_flag(prop, PROP_HIDDEN);
+
+  RNA_def_boolean(ot->srna,
+                  "ignore_connections",
+                  false,
+                  "Ignore Connections",
+                  "Don't propagate split to connected strips");
 }
 
 /** \} */
@@ -1950,7 +1998,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op
   if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C)) {
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       if (strip->type == STRIP_TYPE_SOUND_RAM || strip->flag & SEQ_MUTE ||
-          !(seq::time_strip_intersects_frame(scene, strip, scene->r.cfra)))
+          !seq::time_strip_intersects_frame(scene, strip, scene->r.cfra))
       {
         strip->flag &= ~STRIP_ALLSEL;
       }
@@ -2154,7 +2202,7 @@ static wmOperatorStatus sequencer_offset_clear_exec(bContext *C, wmOperator * /*
       continue;
     }
 
-    if ((strip->type & STRIP_TYPE_EFFECT) == 0 && (strip->flag & SELECT)) {
+    if (!strip->is_effect() && (strip->flag & SELECT)) {
       strip->startofs = strip->endofs = 0;
     }
   }
@@ -2169,7 +2217,7 @@ static wmOperatorStatus sequencer_offset_clear_exec(bContext *C, wmOperator * /*
   for (strip = static_cast<Strip *>(ed->current_strips()->first); strip;
        strip = static_cast<Strip *>(strip->next))
   {
-    if ((strip->type & STRIP_TYPE_EFFECT) == 0 && (strip->flag & SELECT)) {
+    if (!strip->is_effect() && (strip->flag & SELECT)) {
       if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
       }
@@ -2719,7 +2767,7 @@ static wmOperatorStatus sequencer_swap_exec(bContext *C, wmOperator *op)
 
     /* Do this in a new loop since both effects need to be calculated first. */
     LISTBASE_FOREACH (Strip *, istrip, seqbase) {
-      if ((istrip->type & STRIP_TYPE_EFFECT) &&
+      if (istrip->is_effect() &&
           (strip_is_parent(istrip, active_strip) || strip_is_parent(istrip, strip)))
       {
         /* This may now overlap. */
@@ -2854,6 +2902,7 @@ void SEQUENCER_OT_paste(wmOperatorType *ot)
   ot->description = "Paste strips from the internal clipboard";
 
   /* API callbacks. */
+  ot->invoke = sequencer_clipboard_paste_invoke;
   ot->exec = sequencer_clipboard_paste_exec;
   ot->poll = ED_operator_sequencer_active;
 
@@ -2868,6 +2917,10 @@ void SEQUENCER_OT_paste(wmOperatorType *ot)
       "Keep Offset",
       "Keep strip offset relative to the current frame when pasting");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -2950,7 +3003,6 @@ const EnumPropertyItem sequencer_prop_effect_types[] = {
     {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", "Multiply color channels from two videos"},
     {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", "Sweep a transition line across the frame"},
     {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", "Add blur and brightness to light areas"},
-    {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", "Apply scale, rotation, or translation"},
     {STRIP_TYPE_COLOR, "COLOR", 0, "Color", "Add a simple color strip"},
     {STRIP_TYPE_SPEED, "SPEED", 0, "Speed", "Timewarp video strips, modifying playback speed"},
     {STRIP_TYPE_MULTICAM, "MULTICAM", 0, "Multicam Selector", "Control active camera angles"},
@@ -2971,7 +3023,7 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
   /* Free previous effect and init new effect. */
   seq::EffectHandle sh;
 
-  if ((strip->type & STRIP_TYPE_EFFECT) == 0) {
+  if (!strip->is_effect()) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3349,7 +3401,7 @@ static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator 
 
   if (ed != nullptr) {
     Seq_get_text_cb_data cb_data = {&text_seq, scene};
-    seq::for_each_callback(&ed->seqbase, strip_get_text_strip_cb, &cb_data);
+    seq::foreach_strip(&ed->seqbase, strip_get_text_strip_cb, &cb_data);
   }
 
   if (BLI_listbase_is_empty(&text_seq)) {

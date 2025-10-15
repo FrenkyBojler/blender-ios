@@ -45,6 +45,7 @@
 #  include <AUD_Sequence.h>
 #  include <AUD_Sound.h>
 #  include <AUD_Special.h>
+#  include <AUD_Types.h>
 #endif
 
 #include "BKE_bpath.hh"
@@ -86,7 +87,6 @@ static void sound_copy_data(Main * /*bmain*/,
   BLI_spin_init(static_cast<SpinLock *>(sound_dst->spinlock));
 
   /* Just to be sure, should not have any value actually after reading time. */
-  sound_dst->ipo = nullptr;
   sound_dst->newpackedfile = nullptr;
 
   if (sound_src->packedfile != nullptr) {
@@ -115,16 +115,6 @@ static void sound_free_data(ID *id)
     /* The void cast is needed when building without TBB. */
     MEM_freeN((void *)static_cast<SpinLock *>(sound->spinlock));
     sound->spinlock = nullptr;
-  }
-}
-
-static void sound_foreach_id(ID *id, LibraryForeachIDData *data)
-{
-  bSound *sound = reinterpret_cast<bSound *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, sound->ipo, IDWALK_CB_USER);
   }
 }
 
@@ -219,9 +209,10 @@ IDTypeInfo IDType_ID_SO = {
     /*copy_data*/ sound_copy_data,
     /*free_data*/ sound_free_data,
     /*make_local*/ nullptr,
-    /*foreach_id*/ sound_foreach_id,
+    /*foreach_id*/ nullptr,
     /*foreach_cache*/ sound_foreach_cache,
     /*foreach_path*/ sound_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ sound_blend_write,
@@ -367,6 +358,31 @@ struct GlobalState {
 
   int num_device_users = 0;
   std::chrono::time_point<std::chrono::steady_clock> last_user_disconnect_time_point;
+
+  ~GlobalState()
+  {
+    /* Ensure that we don't end up in a deadlock if the global state is being cleaned up
+     * before BKE_sound_exit_once has been called. (For example if someone called exit()
+     * to quickly close the program without cleaning up)
+     *
+     * If we don't do this, we could end up in a state where this destructor is waiting for
+     * other threads to let go of delayed_close_cv forever. See #146640.
+     */
+    exit_threads();
+  }
+
+  void exit_threads()
+  {
+    {
+      std::unique_lock lock(sound_device_mutex);
+      need_exit = true;
+    }
+
+    if (delayed_close_thread.joinable()) {
+      delayed_close_cv.notify_all();
+      delayed_close_thread.join();
+    }
+  }
 };
 
 GlobalState g_state;
@@ -411,6 +427,11 @@ static void sound_device_use_begin()
 
 static void sound_device_use_end_after(const std::chrono::milliseconds after_ms)
 {
+  BLI_assert(g_state.num_device_users > 0);
+  if (g_state.num_device_users == 0) {
+    return;
+  }
+
   --g_state.num_device_users;
   if (g_state.num_device_users == 0) {
     g_state.last_user_disconnect_time_point = std::chrono::steady_clock::now() + after_ms;
@@ -538,15 +559,7 @@ void BKE_sound_exit()
 
 void BKE_sound_exit_once()
 {
-  {
-    std::unique_lock lock(g_state.sound_device_mutex);
-    g_state.need_exit = true;
-  }
-
-  if (g_state.delayed_close_thread.joinable()) {
-    g_state.delayed_close_cv.notify_one();
-    g_state.delayed_close_thread.join();
-  }
+  g_state.exit_threads();
 
   std::lock_guard lock(g_state.sound_device_mutex);
   sound_device_close_no_lock();
@@ -1521,6 +1534,32 @@ bool BKE_sound_stream_info_get(Main *main,
   return true;
 }
 
+#  ifdef WITH_RUBBERBAND
+void *BKE_sound_add_time_stretch_effect(void *sound_handle, float fps)
+{
+  return AUD_Sound_animateableTimeStretchPitchScale(
+      sound_handle, fps, 1.0, 1.0, AUD_STRETCHER_QUALITY_HIGH, false);
+}
+void BKE_sound_set_scene_sound_time_stretch_at_frame(void *handle,
+                                                     int frame,
+                                                     float time_stretch,
+                                                     char animated)
+{
+  AUD_Sound_animateableTimeStretchPitchScale_setAnimationData(
+      handle, AUD_AP_TIME_STRETCH, frame, &time_stretch, animated);
+}
+void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
+                                                           int frame_start,
+                                                           int frame_end,
+                                                           float time_stretch)
+{
+  frame_start = max_ii(0, frame_start);
+  frame_end = max_ii(0, frame_end);
+  AUD_Sound_animateableTimeStretchPitchScale_setConstantRangeAnimationData(
+      handle, AUD_AP_TIME_STRETCH, frame_start, frame_end, &time_stretch);
+}
+#  endif /* WITH_RUBBERBAND */
+
 #else /* WITH_AUDASPACE */
 
 #  include "BLI_utildefines.h"
@@ -1589,6 +1628,7 @@ void BKE_sound_read_waveform(Main *bmain,
 {
   UNUSED_VARS(sound, stop, bmain);
 }
+
 void BKE_sound_update_sequencer(Main * /*main*/, bSound * /*sound*/) {}
 void BKE_sound_update_scene(Depsgraph * /*depsgraph*/, Scene * /*scene*/) {}
 void BKE_sound_update_scene_sound(void * /*handle*/, bSound * /*sound*/) {}
@@ -1645,6 +1685,26 @@ bool BKE_sound_stream_info_get(Main * /*main*/,
 }
 
 #endif /* WITH_AUDASPACE */
+
+#if !defined(WITH_AUDASPACE) || !defined(WITH_RUBBERBAND)
+void *BKE_sound_add_time_stretch_effect(void * /*sound_handle*/, float /*fps*/)
+{
+  return nullptr;
+}
+
+void BKE_sound_set_scene_sound_time_stretch_at_frame(void * /*handle*/,
+                                                     int /*frame*/,
+                                                     float /*time_stretch*/,
+                                                     char /*animated*/)
+{
+}
+void BKE_sound_set_scene_sound_time_stretch_constant_range(void * /*handle*/,
+                                                           int /*frame_start*/,
+                                                           int /*frame_end*/,
+                                                           float /*time_stretch*/)
+{
+}
+#endif
 
 void BKE_sound_reset_scene_runtime(Scene *scene)
 {

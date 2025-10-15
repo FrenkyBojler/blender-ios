@@ -192,7 +192,7 @@ DRWContext::~DRWContext()
   g_context = nullptr;
 }
 
-GPUFrameBuffer *DRWContext::default_framebuffer()
+blender::gpu::FrameBuffer *DRWContext::default_framebuffer()
 {
   return view_data_active->dfbl.default_fb;
 }
@@ -679,9 +679,20 @@ ObjectRef::ObjectRef(Object &ob, Object *dupli_parent, const VectorList<DupliObj
 
 namespace blender::draw {
 
-static bool supports_handle_ranges(Object *ob)
+static bool supports_handle_ranges(DupliObject *dupli, Object *parent)
 {
-  if (ob->type == OB_MESH) {
+  int ob_type = dupli->ob_data ? BKE_object_obdata_to_type(dupli->ob_data) : OB_EMPTY;
+  if (!ELEM(ob_type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_POINTCLOUD, OB_GREASE_PENCIL))
+  {
+    return false;
+  }
+
+  Object *ob = dupli->ob;
+  if (min(ob->dt, parent->dt) == OB_BOUNDBOX) {
+    return false;
+  }
+
+  if (ob_type == OB_MESH) {
     /* Hair drawing doesn't support handle ranges. */
     LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       const int draw_as = (psys->part->draw_as == PART_DRAW_REND) ? psys->part->ren_as :
@@ -693,7 +704,8 @@ static bool supports_handle_ranges(Object *ob)
     /* Smoke drawing doesn't support handle ranges. */
     return !BKE_modifiers_findby_type(ob, eModifierType_Fluid);
   }
-  return ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_POINTCLOUD, OB_GREASE_PENCIL);
+
+  return true;
 }
 
 enum class InstancesFlags : uint8_t {
@@ -731,29 +743,6 @@ struct InstancesKey {
   uint64_t hash() const
   {
     return hash_value;
-  }
-
-  bool operator<(const InstancesKey &k) const
-  {
-    if (hash_value != k.hash_value) {
-      return hash_value < k.hash_value;
-    }
-    if (object != k.object) {
-      return object < k.object;
-    }
-    if (ob_data != k.ob_data) {
-      return ob_data < k.ob_data;
-    }
-    if (flags != k.flags) {
-      return flags < k.flags;
-    }
-    if (preview_base_geometry != k.preview_base_geometry) {
-      return preview_base_geometry < k.preview_base_geometry;
-    }
-    if (preview_instance_index != k.preview_instance_index) {
-      return preview_instance_index < k.preview_instance_index;
-    }
-    return false;
   }
 
   bool operator==(const InstancesKey &k) const
@@ -816,8 +805,17 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
     if (ob_visible && should_draw_object_cb(*ob)) {
-      ObjectRef ob_ref(ob);
+      /* NOTE: object_duplilist_preview is still handled by DEG_OBJECT_ITER,
+       * dupli_parent and dupli_object_current won't be null for these. */
+      ObjectRef ob_ref(ob, data_.dupli_parent, data_.dupli_object_current);
       draw_object_cb(ob_ref);
+    }
+
+    bool is_preview_dupli = data_.dupli_parent && data_.dupli_object_current;
+    if (is_preview_dupli) {
+      /* Don't create duplis from temporary preview objects, object_duplilist_preview already takes
+       * care of everything. (See #146194, #146211) */
+      continue;
     }
 
     bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) &&
@@ -852,7 +850,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       }
 #endif
 
-      if (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob)) {
+      if (!engines_support_handle_ranges || !supports_handle_ranges(&dupli, ob)) {
         /* Sync the dupli as a single object. */
         if (!evil::DEG_iterator_temp_object_from_dupli(
                 ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
@@ -1787,7 +1785,7 @@ void DRW_custom_pipeline_end(DRWContext &draw_ctx)
    * resources as the main thread (viewport) may lead to data
    * races and undefined behavior on certain drivers. Using
    * GPU_finish to sync seems to fix the issue. (see #62997) */
-  eGPUBackendType type = GPU_backend_get_type();
+  GPUBackendType type = GPU_backend_get_type();
   if (type == GPU_BACKEND_OPENGL) {
     GPU_finish();
   }
@@ -1814,7 +1812,7 @@ void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, 
 }
 
 static struct DRWSelectBuffer {
-  GPUFrameBuffer *framebuffer_depth_only;
+  blender::gpu::FrameBuffer *framebuffer_depth_only;
   blender::gpu::Texture *texture_depth;
 } g_select_buffer = {nullptr};
 
@@ -1872,6 +1870,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   Object *obedit = use_obedit_skip ? nullptr : OBEDIT_FROM_OBACT(obact);
 
   bool use_obedit = false;
+  const ToolSettings *ts = scene->toolsettings;
+
   /* obedit_ctx_mode is used for selecting the right draw engines */
   // eContextObjectMode obedit_ctx_mode;
   /* object_mode is used for filtering objects in the depsgraph */
@@ -1889,7 +1889,13 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       // obedit_ctx_mode = CTX_MODE_EDIT_ARMATURE;
     }
   }
-  if (v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) {
+
+  if ((v3d->overlay.flag & V3D_OVERLAY_BONE_SELECT) &&
+      /* Only restrict selection to bones when the user turns on "Lock Object Modes".
+       * If the lock is off, skip this so other objects can still be selected.
+       * See #66950 & #125822. */
+      (ts->object_flag & SCE_OBJECT_MODE_LOCK))
+  {
     if (!(v3d->flag2 & V3D_HIDE_OVERLAYS)) {
       /* NOTE: don't use "BKE_object_pose_armature_get" here, it breaks selection. */
       Object *obpose = OBPOSE_FROM_OBACT(obact);
@@ -1940,11 +1946,13 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
        * as pose-bones have their own selection restriction flag. */
       const bool use_pose_exception = (draw_ctx.object_pose != nullptr);
 
-      const int object_type_exclude_select = (v3d->object_type_exclude_viewport |
-                                              v3d->object_type_exclude_select);
+      const int object_type_exclude_select = v3d->object_type_exclude_select;
       bool filter_exclude = false;
 
       auto should_draw_object = [&](Object &ob) {
+        if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+          return false;
+        }
         if (use_pose_exception && (ob.mode & OB_MODE_POSE)) {
           if ((ob.base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
             return false;
@@ -2054,7 +2062,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
 
   /* Setup frame-buffer. */
   blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
-  GPUFrameBuffer *depth_fb = nullptr;
+  blender::gpu::FrameBuffer *depth_fb = nullptr;
   GPU_framebuffer_ensure_config(&depth_fb,
                                 {
                                     GPU_ATTACHMENT_TEXTURE(depth_tx),

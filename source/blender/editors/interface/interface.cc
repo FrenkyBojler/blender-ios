@@ -264,6 +264,13 @@ void ui_region_to_window(const ARegion *region, int *x, int *y)
   *y += region->winrct.ymin;
 }
 
+void ui_region_to_window(
+    const ARegion *region, int region_x, int region_y, int *r_window_x, int *r_window_y)
+{
+  *r_window_x = region_x + region->winrct.xmin;
+  *r_window_y = region_y + region->winrct.ymin;
+}
+
 int uiBlock::but_index(const uiBut *but) const
 {
   BLI_assert(!buttons.is_empty() && but);
@@ -319,7 +326,7 @@ static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
 
   rcti rect;
   ui_but_to_pixelrect(&rect, region, block, block->buttons.last().get());
-  const float buttons_width = std::ceil(float(rect.xmax) + UI_HEADER_OFFSET);
+  const float buttons_width = std::ceil(float(rect.xmax) + 8.0f * UI_SCALE_FAC);
   const float region_width = float(region->winx);
 
   if (region_width <= buttons_width) {
@@ -331,7 +338,7 @@ static void ui_update_flexible_spacing(const ARegion *region, uiBlock *block)
   for (const std::unique_ptr<uiBut> &but : block->buttons) {
     if (but->type == ButType::SeprSpacer) {
       ui_but_to_pixelrect(&rect, region, block, but.get());
-      spacers_pos.append(rect.xmax + UI_HEADER_OFFSET);
+      spacers_pos.append(rect.xmax + int(8.0f * UI_SCALE_FAC));
     }
   }
 
@@ -965,6 +972,7 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
   /* Move tooltip from new to old. */
   std::swap(oldbut->tip_func, but->tip_func);
   std::swap(oldbut->tip_arg, but->tip_arg);
+  std::swap(oldbut->tip_custom_func, but->tip_custom_func);
   std::swap(oldbut->tip_arg_free, but->tip_arg_free);
   std::swap(oldbut->tip_quick_func, but->tip_quick_func);
 
@@ -3953,7 +3961,7 @@ static void ui_but_build_drawstr_float(uiBut *but, double value)
     const int prec = ui_but_calc_float_precision(but, value);
     but->drawstr = fmt::format("{}{:.{}f}%", but->str, value, prec);
   }
-  else if (subtype == PROP_PIXEL) {
+  else if (ELEM(subtype, PROP_PIXEL, PROP_PIXEL_DIAMETER)) {
     const int prec = ui_but_calc_float_precision(but, value);
     but->drawstr = fmt::format("{}{:.{}f} px", but->str, value, prec);
   }
@@ -3990,7 +3998,7 @@ static void ui_but_build_drawstr_int(uiBut *but, int value)
   if (subtype == PROP_PERCENTAGE) {
     but->drawstr += "%";
   }
-  else if (subtype == PROP_PIXEL) {
+  else if (ELEM(subtype, PROP_PIXEL, PROP_PIXEL_DIAMETER)) {
     but->drawstr += " px";
   }
 }
@@ -4575,7 +4583,8 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     rows = totitems;
   }
 
-  const char *title = RNA_property_ui_name(but->rnaprop);
+  const char *title = RNA_property_ui_name(
+      but->rnaprop, RNA_pointer_is_null(&but->rnapoin) ? nullptr : &but->rnapoin);
 
   /* Is there a non-blank label before this button on the same row? */
   uiBut *but_prev = but->block->prev_but(but);

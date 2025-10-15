@@ -27,7 +27,6 @@ class MTLShaderInterface;
 
 struct VertexBufferID {
   uint32_t id : 16;
-  uint32_t is_instance : 15;
   uint32_t used : 1;
 };
 
@@ -56,7 +55,7 @@ class MTLBatch : public Batch {
     uint32_t cache_life_index_ = 0;
 
    public:
-    MTLVertexDescriptorCache(MTLBatch *batch) : batch_(batch){};
+    MTLVertexDescriptorCache(MTLBatch *batch) : batch_(batch) {};
     VertexDescriptorShaderInterfacePair *find(const ShaderInterface *interface);
     bool insert(VertexDescriptorShaderInterfacePair &data);
 
@@ -104,10 +103,6 @@ class MTLBatch : public Batch {
   {
     return static_cast<MTLVertBuf *>(verts[index]);
   }
-  MTLVertBuf *inst_(const int index) const
-  {
-    return static_cast<MTLVertBuf *>(inst[index]);
-  }
   MTLShader *active_shader_get() const
   {
     return active_shader_;
@@ -119,8 +114,7 @@ class MTLBatch : public Batch {
   int prepare_vertex_binding(MTLVertBuf *verts,
                              MTLRenderPipelineStateDescriptor &desc,
                              const MTLShaderInterface *interface,
-                             uint16_t &attr_mask,
-                             bool instanced);
+                             uint16_t &attr_mask);
 
   id<MTLBuffer> get_emulated_toplogy_buffer(GPUPrimType &in_out_prim_type, uint32_t &v_count);
 

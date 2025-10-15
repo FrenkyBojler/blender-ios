@@ -119,7 +119,7 @@ float object_space_radius_get(const ViewContext &vc,
 {
   if (!BKE_brush_use_locked_size(&paint, &brush)) {
     return paint_calc_object_space_radius(
-        vc, location, BKE_brush_size_get(&paint, &brush) * scale_factor);
+        vc, location, BKE_brush_radius_get(&paint, &brush) * scale_factor);
   }
   return BKE_brush_unprojected_radius_get(&paint, &brush) * scale_factor;
 }
@@ -2183,7 +2183,9 @@ static float brush_strength(const Sculpt &sd,
   /* Primary strength input; square it to make lower values more sensitive. */
   const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   const float alpha = root_alpha * root_alpha;
-  const float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
+  const float pressure = BKE_brush_use_alpha_pressure(&brush) ?
+                             BKE_curvemapping_evaluateF(brush.curve_strength, 0, cache.pressure) :
+                             1.0f;
   float overlap = paint_runtime.overlap_factor;
   /* Spacing is integer percentage of radius, divide by 50 to get
    * normalized diameter. */
@@ -3420,7 +3422,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
       brush.autosmooth_factor > 0)
   {
-    if (brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
+    if (bke::brush::supports_auto_smooth_pressure(brush) &&
+        brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE)
+    {
       brushes::do_smooth_brush(
           depsgraph, sd, ob, node_mask, brush.autosmooth_factor * (1.0f - ss.cache->pressure));
     }
@@ -3900,7 +3904,7 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
 
   cache->saved_smooth_size = BKE_brush_size_get(paint, smooth_brush);
   BKE_brush_size_set(paint, smooth_brush, cur_brush_size);
-  BKE_curvemapping_init(smooth_brush->curve);
+  BKE_curvemapping_init(smooth_brush->curve_distance_falloff);
 }
 
 static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
@@ -4080,17 +4084,19 @@ static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
                                     float initial_size)
 {
+  const float pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache.pressure);
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_CLAY:
-      return max_ff(initial_size * 0.20f, initial_size * pow3f(cache.pressure));
+      return max_ff(initial_size * 0.20f, initial_size * pow3f(pressure_eval));
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
-      return max_ff(initial_size * 0.30f, initial_size * powf(cache.pressure, 1.5f));
+      return max_ff(initial_size * 0.30f, initial_size * powf(pressure_eval, 1.5f));
     case SCULPT_BRUSH_TYPE_CLAY_THUMB: {
       float clay_stabilized_pressure = brushes::clay_thumb_get_stabilized_pressure(cache);
-      return initial_size * clay_stabilized_pressure;
+      return initial_size *
+             BKE_curvemapping_evaluateF(brush.curve_size, 0, clay_stabilized_pressure);
     }
     default:
-      return initial_size * cache.pressure;
+      return initial_size * pressure_eval;
   }
 }
 
@@ -4286,7 +4292,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
 static void cache_paint_invariants_update(StrokeCache &cache, const Brush &brush)
 {
   cache.hardness = brush.hardness;
-  if (brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE) {
+  if (bke::brush::supports_hardness_pressure(brush) &&
+      brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE)
+  {
     cache.hardness *= brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE_INVERT ?
                           1.0f - cache.pressure :
                           cache.pressure;
@@ -4364,7 +4372,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
     cache.initial_radius = object_space_radius_get(*cache.vc, paint, brush, cache.location);
 
     if (!BKE_brush_use_locked_size(&paint, &brush)) {
-      BKE_brush_unprojected_radius_set(&paint, &brush, cache.initial_radius);
+      BKE_brush_unprojected_size_set(&paint, &brush, cache.initial_radius);
     }
   }
 
@@ -5026,11 +5034,7 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
   }
 
   /* Restore the mesh before continuing with anchored stroke. */
-  if ((brush->flag & BRUSH_ANCHORED) ||
-      (ELEM(brush->sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) &&
-       BKE_brush_use_size_pressure(brush)) ||
-      (brush->flag & BRUSH_DRAG_DOT))
-  {
+  if (brush->flag & BRUSH_ANCHORED || brush->flag & BRUSH_DRAG_DOT) {
 
     undo::restore_from_undo_step(depsgraph, sd, ob);
 
@@ -7181,8 +7185,11 @@ void calc_brush_strength_factors(const StrokeCache &cache,
                                  const Span<float> distances,
                                  const MutableSpan<float> factors)
 {
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               cache.radius,
+                               factors);
 }
 
 void calc_brush_texture_factors(const SculptSession &ss,
@@ -7550,24 +7557,6 @@ void translations_from_new_positions(const Span<float3> new_positions,
   BLI_assert(new_positions.size() == old_positions.size());
   for (const int i : new_positions.index_range()) {
     translations[i] = new_positions[i] - old_positions[i];
-  }
-}
-
-void transform_positions(const Span<float3> src,
-                         const float4x4 &transform,
-                         const MutableSpan<float3> dst)
-{
-  BLI_assert(src.size() == dst.size());
-
-  for (const int i : src.index_range()) {
-    dst[i] = math::transform_point(transform, src[i]);
-  }
-}
-
-void transform_positions(const float4x4 &transform, const MutableSpan<float3> positions)
-{
-  for (const int i : positions.index_range()) {
-    positions[i] = math::transform_point(transform, positions[i]);
   }
 }
 

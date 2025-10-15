@@ -38,7 +38,6 @@ DEF_ENUM(rna_enum_space_sequencer_view_type_items)
 DEF_ENUM(rna_enum_space_type_items)
 DEF_ENUM(rna_enum_space_image_mode_items)
 DEF_ENUM(rna_enum_space_image_mode_all_items)
-DEF_ENUM(rna_enum_space_action_mode_items)
 DEF_ENUM(rna_enum_fileselect_params_sort_items)
 DEF_ENUM(rna_enum_region_type_items)
 DEF_ENUM(rna_enum_object_modifier_type_items)
@@ -148,8 +147,6 @@ DEF_ENUM(rna_enum_rigidbody_constraint_type_items)
 
 DEF_ENUM(rna_enum_object_axis_items)
 
-DEF_ENUM(rna_enum_render_pass_type_items)
-
 DEF_ENUM(rna_enum_bake_pass_type_items)
 DEF_ENUM(rna_enum_bake_pass_filter_type_items)
 
@@ -186,13 +183,14 @@ DEF_ENUM(rna_enum_node_math_items)
 DEF_ENUM(rna_enum_mapping_type_items)
 DEF_ENUM(rna_enum_node_vec_math_items)
 DEF_ENUM(rna_enum_node_boolean_math_items)
-DEF_ENUM(rna_enum_node_float_compare_items)
 DEF_ENUM(rna_enum_node_compare_operation_items)
-DEF_ENUM(rna_enum_node_filter_items)
 DEF_ENUM(rna_enum_node_integer_math_items)
 DEF_ENUM(rna_enum_node_float_to_int_items)
 DEF_ENUM(rna_enum_node_map_range_items)
 DEF_ENUM(rna_enum_node_clamp_items)
+
+DEF_ENUM(rna_enum_node_compositor_extension_items)
+DEF_ENUM(rna_enum_node_compositor_interpolation_items)
 
 DEF_ENUM(rna_enum_ramp_blend_items)
 
@@ -282,6 +280,9 @@ DEF_ENUM(rna_enum_nla_mode_blend_items)
 DEF_ENUM(rna_enum_keyblock_type_items)
 
 DEF_ENUM(rna_enum_asset_library_type_items)
+
+/* Defined in source/blender/python/intern/bpy_rna_id_collection.cc */
+DEF_ENUM(rna_enum_file_path_foreach_flag_items)
 
 #endif
 

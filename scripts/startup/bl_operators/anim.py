@@ -114,7 +114,7 @@ class ANIM_OT_keying_set_export(Operator):
 
                 if not found:
                     self.report(
-                        {'WARN'},
+                        {'WARNING'},
                         rpt_("Could not find material or light using Shader Node Tree - {:s}").format(str(ksp.id)),
                     )
             elif ksp.id.bl_rna.identifier.startswith("CompositorNodeTree"):
@@ -126,7 +126,7 @@ class ANIM_OT_keying_set_export(Operator):
                         break
                 else:
                     self.report(
-                        {'WARN'},
+                        {'WARNING'},
                         rpt_("Could not find scene using Compositor Node Tree - {:s}").format(str(ksp.id)),
                     )
             elif ksp.id.bl_rna.name == "Key":
@@ -352,6 +352,16 @@ class ClearUselessActions(Operator):
     def poll(cls, _context):
         return bool(bpy.data.actions)
 
+    @staticmethod
+    def has_fcurves(action: bpy.types.Action) -> bool:
+        for layer in action.layers:
+            for strip in layer.strips:
+                assert strip.type == 'KEYFRAME'
+                for channelbag in strip.channelbags:
+                    if channelbag.fcurves:
+                        return True
+        return False
+
     def execute(self, _context):
         removed = 0
 
@@ -365,7 +375,7 @@ class ClearUselessActions(Operator):
                 # if it has F-Curves, then it's a "action library"
                 # (i.e. walk, wave, jump, etc.)
                 # and should be left alone as that's what fake users are for!
-                if not action.fcurves:
+                if not self.has_fcurves(action):
                     # mark action for deletion
                     action.user_clear()
                     removed += 1
@@ -382,13 +392,15 @@ class UpdateAnimatedTransformConstraint(Operator):
 
     use_convert_to_radians: BoolProperty(
         name="Convert to Radians",
-        description="Convert f-curves/drivers affecting rotations to radians.\n"
-                    "Warning: Use this only once",
+        description=(
+            "Convert f-curves/drivers affecting rotations to radians.\n"
+            "Warning: Use this only once"
+        ),
         default=True,
     )
 
     def execute(self, context):
-        import animsys_refactor
+        import _animsys_refactor as animsys_refactor
         from math import radians
         import io
 
@@ -530,8 +542,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
         if num_pose_color_overrides:
             self.report(
                 {'INFO'},
-                "Bone colors were synced; "
-                "for {:d} bones this will not be visible due to pose bone color overrides".format(
+                rpt_("Bone colors were synced; "
+                     "for {:d} bones this will not be visible due to pose bone color overrides").format(
                     num_pose_color_overrides,
                 ),
             )
@@ -670,7 +682,10 @@ class ARMATURE_OT_collection_remove_unused(Operator):
             armature.collections.remove(bcoll)
 
         self.report(
-            {'INFO'}, "Removed {:d} of {:d} bone collections".format(num_bcolls_to_remove, num_bcolls_before_removal),
+            {'INFO'},
+            rpt_("Removed {:d} of {:d} bone collections").format(
+                num_bcolls_to_remove,
+                num_bcolls_before_removal),
         )
 
 

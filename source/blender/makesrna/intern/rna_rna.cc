@@ -64,6 +64,7 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
 
 #define RNA_ENUM_PROPERTY_SUBTYPE_NUMBER_ITEMS \
   {PROP_PIXEL, "PIXEL", 0, "Pixel", "A distance on screen"}, \
+  {PROP_PIXEL_DIAMETER, "PIXEL_DIAMETER", 0, "Pixel", "A distance on screen, specifically representing a diameter value"}, \
   {PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned", ""}, \
   {PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", "A percentage between 0 and 100"}, \
   {PROP_FACTOR, "FACTOR", 0, "Factor", "A factor between 0.0 and 1.0"}, \
@@ -73,6 +74,7 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
   {PROP_TIME_ABSOLUTE, "TIME_ABSOLUTE", 0, "Time (Absolute)", \
    "Time specified in seconds, independent of the scene"}, \
   {PROP_DISTANCE, "DISTANCE", 0, "Distance", "A distance between two points"}, \
+  {PROP_DISTANCE_DIAMETER, "DISTANCE_DIAMETER", 0, "Distance", "A distance between two points, specifically representing a diameter value"}, \
   {PROP_DISTANCE_CAMERA, "DISTANCE_CAMERA", 0, "Camera Distance", ""}, \
   {PROP_POWER, "POWER", 0, "Power", ""}, \
   {PROP_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""}, \
@@ -157,6 +159,7 @@ const EnumPropertyItem rna_enum_property_unit_items[] = {
 };
 
 /* Descriptions for rna_enum_property_flag_items and rna_enum_property_flag_enum_items. */
+static constexpr auto PROP_READ_ONLY_DESCR = "When set, the property cannot be edited";
 static constexpr auto PROP_HIDDEN_DESCR =
     "For operators: hide from places in the user interface where Blender would add the property "
     "automatically, like Adjust Last Operation. Also this property is not written to presets.";
@@ -181,6 +184,19 @@ static constexpr auto PROP_PATH_SUPPORTS_TEMPLATES_DESCR =
 static constexpr auto PROP_ENUM_FLAG_DESCR = "";
 
 const EnumPropertyItem rna_enum_property_flag_items[] = {
+    /* NOTE: This is used only in the `bpy.props` module to define runtime RNA properties.
+     * The value of this 'READ_ONLY' enum item is logically inverted compared to the
+     * `PROP_EDITABLE` used everywhere else in RNA-related code.
+     *
+     * This inversion logic is handled by the bpy property definition code (see
+     * #bpy_prop_assign_flag), and does not affect any other code area.
+     *
+     * This special handling is done to allow python property definitions to create by default
+     * editable properties, without having to specify the `options={'EDITABLE', ...}` parameter all
+     * the time.
+     */
+    {PROP_EDITABLE, "READ_ONLY", 0, "Read Only", PROP_READ_ONLY_DESCR},
+
     {PROP_HIDDEN, "HIDDEN", 0, "Hidden", PROP_HIDDEN_DESCR},
     {PROP_SKIP_SAVE, "SKIP_SAVE", 0, "Skip Save", PROP_SKIP_SAVE_DESCR},
     {PROP_SKIP_PRESET, "SKIP_PRESET", 0, "Skip Preset", PROP_SKIP_PRESET_DESCR},
@@ -212,6 +228,19 @@ const EnumPropertyItem rna_enum_property_flag_items[] = {
 
 /** Only for enum type properties. */
 const EnumPropertyItem rna_enum_property_flag_enum_items[] = {
+    /* NOTE: This is used only in the `bpy.props` module to define runtime RNA properties.
+     * The value of this 'READ_ONLY' enum item is logically inverted compared to the
+     * `PROP_EDITABLE` used everywhere else in RNA-related code.
+     *
+     * This inversion logic is handled by the bpy property definition code (see
+     * #bpy_prop_assign_flag), and does not affect any other code area.
+     *
+     * This special handling is done to allow python property definitions to create by default
+     * editable properties, without having to specify the `options={'EDITABLE', ...}` parameter all
+     * the time.
+     */
+    {PROP_EDITABLE, "READ_ONLY", 0, "Read Only", PROP_READ_ONLY_DESCR},
+
     {PROP_HIDDEN, "HIDDEN", 0, "Hidden", PROP_HIDDEN_DESCR},
     {PROP_SKIP_SAVE, "SKIP_SAVE", 0, "Skip Save", PROP_SKIP_SAVE_DESCR},
     {PROP_ANIMATABLE, "ANIMATABLE", 0, "Animatable", PROP_ANIMATABLE_DESCR},
@@ -1813,9 +1842,17 @@ static void rna_property_override_diff_propptr(Main *bmain,
     }
   }
   else {
-    /* We could also use is_diff_pointer, but then we potentially lose the greater-than/less-than
-     * info - and don't think performances are critical here for now anyway. */
-    ptrdiff_ctx.rnadiff_ctx.comparison = !RNA_struct_equals(bmain, propptr_a, propptr_b, mode);
+    if (no_ownership || is_null || is_type_diff || !is_valid_for_diffing) {
+      /* In case this pointer prop does not own its data (or one is nullptr), do not compare
+       * structs! This is a quite safe path to infinite loop, among other nasty issues. Instead,
+       * just compare pointers themselves. */
+      ptrdiff_ctx.rnadiff_ctx.comparison = (propptr_a->data != propptr_b->data);
+    }
+    else {
+      /* We could also use is_diff_pointer, but then we potentially lose the greater-than/less-than
+       * info - and don't think performances are critical here for now anyway. */
+      ptrdiff_ctx.rnadiff_ctx.comparison = !RNA_struct_equals(bmain, propptr_a, propptr_b, mode);
+    }
   }
 }
 
@@ -2168,8 +2205,11 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
         RNACompareOverrideDiffPropPtrContext ptrdiff_ctx(rnadiff_ctx);
         ptrdiff_ctx.owner_id_a = ptr_a->owner_id;
         ptrdiff_ctx.owner_id_b = ptr_b->owner_id;
-        ptrdiff_ctx.propptr_a = RNA_property_pointer_get(ptr_a, rawprop_a);
-        ptrdiff_ctx.propptr_b = RNA_property_pointer_get(ptr_b, rawprop_b);
+        /* Do not create empty IDPGroup properties here. This is not only a totally useless
+         * overhead, but it also remains unsafe in parallelized context, despite the usage of a
+         * mutex in #property_pointer_get(). See also #146221. */
+        ptrdiff_ctx.propptr_a = RNA_property_pointer_get_never_create(ptr_a, rawprop_a);
+        ptrdiff_ctx.propptr_b = RNA_property_pointer_get_never_create(ptr_b, rawprop_b);
         ptrdiff_ctx.no_prop_name = true;
         ptrdiff_ctx.no_ownership = no_ownership;
         ptrdiff_ctx.property_type = PROP_POINTER;
@@ -2178,7 +2218,7 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
         if (prop_a->is_idprop || prop_a->is_rna_storage_idprop || prop_a->rnaprop->override_apply)
         {
           BLI_assert(prop_a->is_idprop == prop_b->is_idprop);
-          BLI_assert(prop_a->rnaprop->override_apply == prop_b->rnaprop->override_apply);
+          BLI_assert(prop_a->is_rna_storage_idprop == prop_b->is_rna_storage_idprop);
           BLI_assert(prop_a->rnaprop->override_apply == prop_b->rnaprop->override_apply);
           ptrdiff_ctx.has_liboverride_apply_cb = true;
         }

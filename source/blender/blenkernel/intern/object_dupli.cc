@@ -213,7 +213,7 @@ static bool copy_dupli_context(DupliContext *r_ctx,
   r_ctx->object = ob;
   r_ctx->instance_stack = ctx->instance_stack;
   if (mat) {
-    mul_m4_m4m4(r_ctx->space_mat, (float(*)[4])ctx->space_mat, mat);
+    mul_m4_m4m4(r_ctx->space_mat, (float (*)[4])ctx->space_mat, mat);
   }
   r_ctx->persistent_id[r_ctx->level] = index;
   r_ctx->instance_idx[r_ctx->level] = instance_index;
@@ -279,7 +279,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 
   dob->ob = ob;
   dob->ob_data = const_cast<ID *>(object_data);
-  mul_m4_m4m4(dob->mat, (float(*)[4])ctx->space_mat, mat);
+  mul_m4_m4m4(dob->mat, (float (*)[4])ctx->space_mat, mat);
   dob->type = ctx->gen == nullptr ? 0 : ctx->dupli_gen_type_stack->last();
   dob->preview_base_geometry = ctx->preview_base_geometry;
   dob->preview_instance_index = ctx->preview_instance_index;
@@ -328,7 +328,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
   dob->random_id = BLI_hash_string(dob->ob->id.name + 2);
 
   if (dob->persistent_id[0] != INT_MAX) {
-    for (i = 0; i < MAX_DUPLI_RECUR; i++) {
+    for (i = 0; i < ctx->level + 1; i++) {
       dob->random_id = BLI_hash_int_2d(dob->random_id, uint(dob->persistent_id[i]));
     }
   }
@@ -779,7 +779,7 @@ static void make_duplis_verts(const DupliContext *ctx)
     vdd.totvert = mesh_eval->verts_num;
     vdd.vert_positions = mesh_eval->vert_positions();
     vdd.vert_normals = mesh_eval->vert_normals();
-    vdd.orco = (const float(*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
+    vdd.orco = (const float (*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
 
     make_child_duplis(ctx, &vdd, make_child_duplis_verts_from_mesh);
   }
@@ -837,7 +837,7 @@ static void make_duplis_font(const DupliContext *ctx)
   Object *ob;
   Curve *cu = (Curve *)par->data;
   CharTrans *ct, *chartransdata = nullptr;
-  float vec[3], obmat[4][4], pmat[4][4], fsize, xof, yof;
+  float vec[3], obmat[4][4], pmat[4][4];
   int text_len, a;
   size_t family_len;
   const char32_t *text = nullptr;
@@ -854,9 +854,8 @@ static void make_duplis_font(const DupliContext *ctx)
     return;
   }
 
-  fsize = cu->fsize;
-  xof = cu->xof;
-  yof = cu->yof;
+  const float fsize = cu->fsize;
+  const blender::float2 cu_offset = {cu->xof, cu->yof};
 
   ct = chartransdata;
 
@@ -881,8 +880,8 @@ static void make_duplis_font(const DupliContext *ctx)
     }
 
     if (ob) {
-      vec[0] = fsize * (ct->xof - xof);
-      vec[1] = fsize * (ct->yof - yof);
+      vec[0] = fsize * (ct->offset.x - cu_offset.x);
+      vec[1] = fsize * (ct->offset.y - cu_offset.y);
       vec[2] = 0.0;
 
       mul_m4_v3(pmat, vec);
@@ -1113,7 +1112,7 @@ struct FaceDupliData_Mesh {
   Span<int> corner_verts;
   Span<float3> vert_positions;
   const float (*orco)[3];
-  const float2 *mloopuv;
+  const float2 *uv_map;
 };
 
 struct FaceDupliData_EditMesh {
@@ -1150,7 +1149,7 @@ static void get_dupliface_transform_from_coords(Span<float3> coords,
   /* Scale. */
   float scale;
   if (use_scale) {
-    const float area = area_poly_v3((const float(*)[3])coords.data(), uint(coords.size()));
+    const float area = area_poly_v3((const float (*)[3])coords.data(), uint(coords.size()));
     scale = sqrtf(area) * scale_fac;
   }
   else {
@@ -1256,8 +1255,8 @@ static void make_child_duplis_faces_from_mesh(const DupliContext *ctx,
                                               Object *inst_ob)
 {
   FaceDupliData_Mesh *fdd = (FaceDupliData_Mesh *)userdata;
-  const float(*orco)[3] = fdd->orco;
-  const float2 *mloopuv = fdd->mloopuv;
+  const float (*orco)[3] = fdd->orco;
+  const float2 *uv_map = fdd->uv_map;
   const int totface = fdd->totface;
   const bool use_scale = fdd->params.use_scale;
 
@@ -1286,9 +1285,9 @@ static void make_child_duplis_faces_from_mesh(const DupliContext *ctx,
         madd_v3_v3fl(dob->orco, orco[face_verts[j]], w);
       }
     }
-    if (mloopuv) {
+    if (uv_map) {
       for (int j = 0; j < face.size(); j++) {
-        madd_v2_v2fl(dob->uv, mloopuv[face[j]], w);
+        madd_v2_v2fl(dob->uv, uv_map[face[j]], w);
       }
     }
   }
@@ -1369,10 +1368,10 @@ static void make_duplis_faces(const DupliContext *ctx)
     fdd.faces = mesh_eval->faces();
     fdd.corner_verts = mesh_eval->corner_verts();
     fdd.vert_positions = mesh_eval->vert_positions();
-    fdd.mloopuv = (uv_idx != -1) ? (const float2 *)CustomData_get_layer_n(
-                                       &mesh_eval->corner_data, CD_PROP_FLOAT2, uv_idx) :
-                                   nullptr;
-    fdd.orco = (const float(*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
+    fdd.uv_map = (uv_idx != -1) ? (const float2 *)CustomData_get_layer_n(
+                                      &mesh_eval->corner_data, CD_PROP_FLOAT2, uv_idx) :
+                                  nullptr;
+    fdd.orco = (const float (*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
 
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_mesh);
   }
@@ -1862,12 +1861,14 @@ void object_duplilist_preview(Depsgraph *depsgraph,
     if (const geo_log::ViewerNodeLog *viewer_log =
             geo_log::GeoNodesLog::find_viewer_node_log_for_path(*viewer_path))
     {
-      ctx.preview_base_geometry = &viewer_log->geometry;
-      make_duplis_geometry_set_impl(&ctx,
-                                    viewer_log->geometry,
-                                    ob_eval->object_to_world().ptr(),
-                                    true,
-                                    ob_eval->type == OB_CURVES);
+      if (const blender::bke::GeometrySet *viewer_geometry = viewer_log->main_geometry()) {
+        ctx.preview_base_geometry = &*viewer_geometry;
+        make_duplis_geometry_set_impl(&ctx,
+                                      *viewer_geometry,
+                                      ob_eval->object_to_world().ptr(),
+                                      true,
+                                      ob_eval->type == OB_CURVES);
+      }
     }
   }
 }

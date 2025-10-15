@@ -867,8 +867,8 @@ void uiTemplateImage(uiLayout *layout,
     col->use_property_split_set(true);
 
     uiLayout *sub = &col->column(true);
-    sub->prop(&imaptr, "generated_width", UI_ITEM_NONE, "X", ICON_NONE);
-    sub->prop(&imaptr, "generated_height", UI_ITEM_NONE, "Y", ICON_NONE);
+    sub->prop(&imaptr, "generated_width", UI_ITEM_NONE, IFACE_("X"), ICON_NONE);
+    sub->prop(&imaptr, "generated_height", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
     col->prop(&imaptr, "use_generated_float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -1031,6 +1031,9 @@ void uiTemplateImageSettings(uiLayout *layout,
       col->prop(imfptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
+  if (imf->imtype == R_IMF_IMTYPE_MULTILAYER) {
+    col->prop(imfptr, "use_exr_interleave", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   if (is_render_out && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
     col->prop(imfptr, "use_preview", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1066,8 +1069,6 @@ void uiTemplateImageSettings(uiLayout *layout,
 
   /* Override color management */
   if (color_management) {
-    col->separator_spacer();
-
     if (uiLayout *panel = col->panel(C,
                                      panel_idname ? panel_idname : "settings_color_management",
                                      true,
