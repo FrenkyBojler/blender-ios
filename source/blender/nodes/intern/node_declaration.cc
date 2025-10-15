@@ -810,7 +810,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_single_menu
     bNodeSocketValueMenu *value = socket.default_value_typed<bNodeSocketValueMenu>();
     value->value = menu_value;
   });
-  this->usage_inference([menu_value](const socket_usage_inference::InputSocketUsageParams &params)
+  this->usage_inference([menu_value](const socket_usage_inference::SocketUsageParams &params)
                             -> std::optional<bool> {
     const bNodeSocket &socket = find_single_menu_input(params.node);
     if (params.socket.is_input()) {
@@ -852,7 +852,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
   });
   this->usage_inference(
       [menu_input_identifier, menu_values](
-          const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
         if (params.socket.is_input()) {
           if (const std::optional<bool> any_output_used = params.any_output_is_used()) {
             if (!*any_output_used) {

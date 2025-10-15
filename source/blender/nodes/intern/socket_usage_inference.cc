@@ -33,7 +33,7 @@ namespace blender::nodes::socket_usage_inference {
 /** Utility class to simplify passing global state into all the functions during inferencing. */
 class SocketUsageInferencerImpl {
  private:
-  friend InputSocketUsageParams;
+  friend SocketUsageParams;
 
   bke::ComputeContextCache &compute_context_cache_;
 
@@ -397,20 +397,6 @@ class SocketUsageInferencerImpl {
 
   void usage_task__output(const SocketInContext &socket)
   {
-    const SocketDeclaration *socket_declaration = socket->runtime->declaration;
-    if (socket_declaration && socket_declaration->usage_inference_fn) {
-      InputSocketUsageParams params{
-          *owner_, socket.context, socket->owner_tree(), socket->owner_node(), *socket};
-      const std::optional<bool> is_used = (*socket_declaration->usage_inference_fn)(params);
-      if (!is_used.has_value()) {
-        /* Some value was requested, come back later when that value is available. */
-        return;
-      }
-      if (!*is_used) {
-        all_socket_usages_.add_new(socket, false);
-      }
-    }
-
     /* An output socket is used if any of the sockets it is connected to is used. */
     Vector<const bNodeSocket *> dependent_sockets;
     for (const bNodeLink *link : socket->directly_linked_links()) {
@@ -500,7 +486,7 @@ class SocketUsageInferencerImpl {
           socket, socket->owner_node().output_sockets(), {}, socket.context);
       return;
     }
-    InputSocketUsageParams params{
+    SocketUsageParams params{
         *owner_, socket.context, socket->owner_tree(), socket->owner_node(), *socket};
     const std::optional<bool> is_used = (*socket_decl->usage_inference_fn)(params);
     if (!is_used.has_value()) {
@@ -673,7 +659,7 @@ class SocketUsageInferencerImpl {
 
         const SocketDeclaration *socket_declaration = socket->runtime->declaration;
         if (socket_declaration && socket_declaration->usage_inference_fn) {
-          InputSocketUsageParams params{
+          SocketUsageParams params{
               *owner_, socket.context, socket->owner_tree(), socket->owner_node(), *socket};
           const std::optional<bool> is_used = (*socket_declaration->usage_inference_fn)(params);
           if (!is_used.has_value()) {
@@ -999,11 +985,11 @@ void infer_group_interface_usage(const bNodeTree &group,
       group, group_input_values, r_input_usages, r_output_usages);
 }
 
-InputSocketUsageParams::InputSocketUsageParams(SocketUsageInferencer &inferencer,
-                                               const ComputeContext *compute_context,
-                                               const bNodeTree &tree,
-                                               const bNode &node,
-                                               const bNodeSocket &socket)
+SocketUsageParams::SocketUsageParams(SocketUsageInferencer &inferencer,
+                                     const ComputeContext *compute_context,
+                                     const bNodeTree &tree,
+                                     const bNode &node,
+                                     const bNodeSocket &socket)
     : inferencer_(inferencer),
       compute_context_(compute_context),
       tree(tree),
@@ -1012,13 +998,13 @@ InputSocketUsageParams::InputSocketUsageParams(SocketUsageInferencer &inferencer
 {
 }
 
-InferenceValue InputSocketUsageParams::get_input(const StringRef identifier) const
+InferenceValue SocketUsageParams::get_input(const StringRef identifier) const
 {
   const SocketInContext input_socket{compute_context_, this->node.input_by_identifier(identifier)};
   return inferencer_.impl_.get_socket_value(input_socket);
 }
 
-std::optional<bool> InputSocketUsageParams::any_output_is_used() const
+std::optional<bool> SocketUsageParams::any_output_is_used() const
 {
   const bNodeSocket *first_missing = nullptr;
   for (const bNodeSocket *output_socket : this->node.output_sockets()) {
@@ -1040,8 +1026,7 @@ std::optional<bool> InputSocketUsageParams::any_output_is_used() const
   return false;
 }
 
-bool InputSocketUsageParams::menu_input_may_be(const StringRef identifier,
-                                               const int enum_value) const
+bool SocketUsageParams::menu_input_may_be(const StringRef identifier, const int enum_value) const
 {
   BLI_assert(this->node.input_by_identifier(identifier)->type == SOCK_MENU);
   const InferenceValue value = this->get_input(identifier);

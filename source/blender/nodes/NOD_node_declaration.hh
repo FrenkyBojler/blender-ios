@@ -197,8 +197,8 @@ struct CustomSocketDrawParams {
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
-using SocketUsageInferenceFn = std::function<std::optional<bool>(
-    const socket_usage_inference::InputSocketUsageParams &params)>;
+using SocketUsageInferenceFn =
+    std::function<std::optional<bool>(const socket_usage_inference::SocketUsageParams &params)>;
 
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.
