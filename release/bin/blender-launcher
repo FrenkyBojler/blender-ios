@@ -2,6 +2,37 @@
 BF_DIST_BIN=$(dirname "$(readlink -f "$0")")
 BF_PROGRAM="blender"
 
+# Attempt to preload system TBB library if it is newer than the one we bundled.
+# This solves problems with the Intel ray-tracing library using this newer TBB
+# while Blender is already using an older one.
+
+# Library name with major version that we needed.
+TBB_LIB_NAME=$(basename $(readlink ${BF_DIST_BIN}/lib/libtbb.so))
+
+# Get absolute path from LD_DEBUG output trying to preload this library.
+# We have not found a better alternative that takes into account LD_LIBRARY_PATH.
+# TODO: relying on particular LD_DEBUG output syntax is weak
+TBB_LD_OUTPUT=$(LD_DEBUG=versions LD_PRELOAD="$TBB_LIB_NAME" /bin/true 2>&1 >/dev/null)
+# TODO: Can we rely on the existence of sed?
+TBB_LIB_PATH=$(echo "$TBB_LD_OUTPUT" |
+	grep "calling init:" |
+	grep "$TBB_LIB_NAME" |
+	sed -n "s/.*calling init: \([^[:space:]]\+\).*\/$TBB_LIB_NAME$/\1/p")
+
+if [ -n "$TBB_LIB_PATH" ]; then
+	# If the library exists, compare its version to the one we bundle.
+	TBB_SYSTEM_NAME=$(basename $(readlink $TBB_LIB_PATH/$TBB_LIB_NAME))
+	TBB_BUNDLED_NAME=$(basename $(readlink $BF_DIST_BIN/lib/$TBB_LIB_NAME))
+	# TODO: Relying on GNU sort is not portable, especially since this script may also run on BSD.
+	TBB_NEWEST_NAME=$(printf "%s\n%s\n" "$TBB_SYSTEM_NAME" "$TBB_BUNDLED_NAME" | sort -V | tail -n 1)
+
+	# If the system TBB version is newer, preload it.
+	if [ "$TBB_SYSTEM_NAME" = "$TBB_NEWEST_NAME" ]; then
+		LD_PRELOAD=$TBB_LIB_PATH/$TBB_LIB_NAME:${LD_PRELOAD}
+		export LD_PRELOAD
+	fi
+fi
+
 # Add own lib folder first, because Steam or other environments may set an
 # $LD_LIBRARY_PATH that has priority over the run-path in the Blender executable,
 # but contains incompatible libraries.
