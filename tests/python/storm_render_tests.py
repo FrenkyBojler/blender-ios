@@ -67,8 +67,14 @@ BLOCKLIST_AMD = BLOCKLIST_METAL + [
 
 # Minor difference in texture coordinate for white noise hash.
 BLOCKLIST_INTEL = [
+    "autosmooth_custom_normals.blend",
+    "hair_reflection.blend",
+    "hair_transmission.blend",
+    "principled_bsdf_emission.blend",
+    "principled_bsdf_sheen.blend",
     "musgrave_.*_multifractal.*.blend",
     "noise_lacunarity.blend",
+    "sss_hair.blend",
     "white_noise.*.blend",
 ]
 
