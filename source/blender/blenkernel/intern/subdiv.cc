@@ -130,7 +130,7 @@ Subdiv *new_from_converter(const Settings *settings, OpenSubdiv_Converter *conve
 
 Subdiv *new_from_mesh(const Settings *settings, const Mesh *mesh)
 {
-  if (mesh->faces_num == 0) {
+  if (mesh->verts_num == 0) {
     return nullptr;
   }
   OpenSubdiv_Converter converter;
@@ -178,9 +178,6 @@ Subdiv *update_from_converter(Subdiv *subdiv,
 
 Subdiv *update_from_mesh(Subdiv *subdiv, const Settings *settings, const Mesh *mesh)
 {
-  if (mesh->faces_num == 0) {
-    return nullptr;
-  }
   OpenSubdiv_Converter converter;
   converter_init_for_mesh(&converter, settings, mesh);
   subdiv = update_from_converter(subdiv, settings, &converter);
