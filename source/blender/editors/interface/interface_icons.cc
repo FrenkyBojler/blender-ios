@@ -1917,6 +1917,9 @@ int ui_id_icon_get(const bContext *C, ID *id, const bool big)
     case ID_GR:
       iconid = UI_icon_color_from_collection((Collection *)id);
       break;
+    case ID_OB:
+      iconid = UI_icon_from_object_type(((Object *)id)->type);
+      break;
     default:
       break;
   }
@@ -2123,6 +2126,46 @@ int UI_icon_from_object_mode(const int mode)
       return ICON_GREASEPENCIL;
   }
   return ICON_NONE;
+}
+
+int UI_icon_from_object_type(const short object_type)
+{
+  switch ((ObjectType)object_type) {
+    case OB_MESH:
+      return ICON_OUTLINER_OB_MESH;
+    case OB_CURVES_LEGACY:
+      return ICON_OUTLINER_OB_CURVE;
+    case OB_SURF:
+      return ICON_OUTLINER_OB_SURFACE;
+    case OB_FONT:
+      return ICON_OUTLINER_OB_FONT;
+    case OB_MBALL:
+      return ICON_OUTLINER_OB_META;
+    case OB_LAMP:
+      return ICON_OUTLINER_OB_LIGHT;
+    case OB_CAMERA:
+      return ICON_OUTLINER_OB_CAMERA;
+    case OB_SPEAKER:
+      return ICON_OUTLINER_OB_SPEAKER;
+    case OB_LIGHTPROBE:
+      return ICON_OUTLINER_OB_LIGHTPROBE;
+    case OB_LATTICE:
+      return ICON_OUTLINER_OB_LATTICE;
+    case OB_ARMATURE:
+      return ICON_OUTLINER_OB_ARMATURE;
+    case OB_GPENCIL_LEGACY:
+    case OB_GREASE_PENCIL:
+      return ICON_OUTLINER_OB_GREASEPENCIL;
+    case OB_CURVES:
+      return ICON_OUTLINER_OB_CURVES;
+    case OB_POINTCLOUD:
+      return ICON_OUTLINER_OB_POINTCLOUD;
+    case OB_VOLUME:
+      return ICON_OUTLINER_OB_VOLUME;
+    case OB_EMPTY:
+      return ICON_OUTLINER_OB_EMPTY;
+    }
+  return ICON_OBJECT_DATA;
 }
 
 int UI_icon_color_from_collection(const Collection *collection)
