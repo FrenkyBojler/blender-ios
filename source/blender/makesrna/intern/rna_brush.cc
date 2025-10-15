@@ -27,10 +27,6 @@
 
 #include "WM_types.hh"
 
-#ifdef RNA_RUNTIME
-#  include "DNA_material_types.h"
-#endif
-
 static const EnumPropertyItem prop_direction_items[] = {
     {0, "ADD", ICON_ADD, "Add", "Add effect of brush"},
     {BRUSH_DIR_IN, "SUBTRACT", ICON_REMOVE, "Subtract", "Subtract effect of brush"},
@@ -367,6 +363,8 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
 #endif
 
 #ifdef RNA_RUNTIME
+
+#  include "DNA_material_types.h"
 
 #  include "RNA_access.hh"
 
