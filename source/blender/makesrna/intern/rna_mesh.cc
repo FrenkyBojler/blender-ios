@@ -15,8 +15,6 @@
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
 
-#include "BLI_listbase.h"
-
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
