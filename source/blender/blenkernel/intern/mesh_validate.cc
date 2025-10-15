@@ -100,12 +100,8 @@ static IndexMask find_edges_bad_verts(const Mesh &mesh,
           errors.add("Edge {} has equal vertex indices {}", edge_i, edge[0]);
           return true;
         }
-        if (!verts_range.contains(edge[0])) {
-          errors.add("Edge {} has out of range vertex {}", edge_i, edge[0]);
-          return true;
-        }
-        if (!verts_range.contains(edge[1])) {
-          errors.add("Edge {} has out of range vertex {}", edge_i, edge[1]);
+        if (!verts_range.contains(edge[0]) || !verts_range.contains(edge[1])) {
+          errors.add("Edge {} has out of range vertex ({}, {})", edge_i, edge[0], edge[1]);
           return true;
         }
         return false;
