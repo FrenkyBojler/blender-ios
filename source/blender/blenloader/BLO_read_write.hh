@@ -233,6 +233,11 @@ void BLO_write_shared(BlendWriter *writer,
                       blender::FunctionRef<void()> write_fn);
 
 /**
+ * Needs to be called if the pointer is somewhere written before the call to #BLO_write_shared.
+ */
+void BLO_write_shared_tag(BlendWriter *writer, const void *data);
+
+/**
  * Sometimes different data is written depending on whether the file is saved to disk or used for
  * undo. This function returns true when the current file-writing is done for undo.
  */

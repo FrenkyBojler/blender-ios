@@ -2248,6 +2248,21 @@ void BLO_write_string(BlendWriter *writer, const char *data_ptr)
   }
 }
 
+void BLO_write_shared_tag(BlendWriter *writer, const void *data)
+{
+  if (!data) {
+    return;
+  }
+  if (!BLO_write_is_undo(writer)) {
+    return;
+  }
+  /* TODO: Handle collisions. */
+  /* Check that the pointer has not been written before it was tagged as being shared. */
+  BLI_assert(writer->wd->stable_address_ids.pointer_map.lookup_default(data, uint64_t(data)) ==
+             uint64_t(data));
+  writer->wd->stable_address_ids.pointer_map.add(data, uint64_t(data));
+}
+
 void BLO_write_shared(BlendWriter *writer,
                       const void *data,
                       const size_t approximate_size_in_bytes,
@@ -2256,6 +2271,9 @@ void BLO_write_shared(BlendWriter *writer,
 {
   if (data == nullptr) {
     return;
+  }
+  if (sharing_info) {
+    BLO_write_shared_tag(writer, data);
   }
   const uint64_t address_id = get_address_id_int(*writer->wd, data);
   if (BLO_write_is_undo(writer)) {
