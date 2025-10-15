@@ -658,9 +658,6 @@ static void initVertSlide_ex(
   bool ok = false;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     VertSlideData *sld = createVertSlideVerts(t, tc);
-    if (!sld) {
-      continue;
-    }
 
     sld->update_active_vert(t, t->mval);
 
