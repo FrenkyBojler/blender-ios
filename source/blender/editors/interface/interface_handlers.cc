@@ -9167,7 +9167,8 @@ void ui_but_semi_modal_state_free(const bContext *C, uiBut *but)
 }
 
 /* returns the active button with an optional checking function */
-static uiBut *ui_context_button_active(const ARegion *region, bool (*but_check_cb)(const uiBut *))
+static uiBut *ui_context_button_active(const ARegion *region,
+                                       blender::FunctionRef<bool(const uiBut *)> but_check_cb)
 {
   uiBut *but_found = nullptr;
 
@@ -9204,7 +9205,7 @@ static uiBut *ui_context_button_active(const ARegion *region, bool (*but_check_c
       activebut = active_but_last;
     }
 
-    if (activebut && (but_check_cb == nullptr || but_check_cb(activebut))) {
+    if (activebut && (!but_check_cb || but_check_cb(activebut))) {
       uiHandleButtonData *data = activebut->active;
 
       but_found = activebut;
@@ -9234,7 +9235,11 @@ uiBut *UI_context_active_but_get(const bContext *C)
 uiBut *UI_context_active_but_get_respect_popup(const bContext *C)
 {
   ARegion *region_popup = CTX_wm_region_popup(C);
-  return ui_context_button_active(region_popup ? region_popup : CTX_wm_region(C), nullptr);
+  return ui_context_button_active(
+      region_popup ? region_popup : CTX_wm_region(C),
+      /* Filter out buttons that are only interactive for the purpose of displaying tooltips (like
+       * labels with a tooltip). */
+      [&](const uiBut *but) { return ui_but_is_interactive_ex(but, false, false); });
 }
 
 uiBut *UI_region_active_but_get(const ARegion *region)
