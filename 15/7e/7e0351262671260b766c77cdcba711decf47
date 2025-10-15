@@ -4,3 +4,4 @@ Referenced by pull request #147872, Fix: Geometry Nodes: Wrong corner edge indic
 Referenced by issue #147961, dual mesh node crash
 Referenced by pull request #148096, Fix: Mesh boolean redundant transfer of edge attributes
 Referenced by commit 2deba209121a43972e4d07401c944ce9ddc98590, Fix: Mesh boolean redundant transfer of edge attributes
+Referenced by commit 7b3737f1e989b6fed42056318fe90f5fc125af55, Fix: Mesh: Wrong corner edge indices in result of edge generation
