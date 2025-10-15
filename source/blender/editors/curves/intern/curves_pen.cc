@@ -1207,7 +1207,8 @@ wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEv
   this->xy = float2(event->xy);
   this->prev_xy = float2(event->prev_xy);
 
-  if (event->type == EVENT_NONE) {
+  /* TIMER event is passed whenever there's a UI animation being drawn. */
+  if (event->type == EVENT_NONE || event->type == TIMER) {
     return OPERATOR_RUNNING_MODAL;
   }
 
