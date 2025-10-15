@@ -1891,11 +1891,6 @@ classes = (
 )
 
 
-# -------------------------------------------------------------------
-# UV Sync Auto-Update (Tariq)
-# -------------------------------------------------------------------
-
-
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class
     for cls in classes:
