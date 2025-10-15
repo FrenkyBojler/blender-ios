@@ -2,10 +2,22 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+"""
+Asset Browser and Library operators.
+
+This module contains operators for:
+- Asset Browser (ASSET_OT_*): Tag management and asset file operations
+- Outliner Libraries (OUTLINER_OT_*): Library blend file operations
+
+Both ASSET_OT and OUTLINER_OT operators are kept together as they share
+common functionality for opening blend files in new Blender instances.
+"""
+
 from __future__ import annotations
 
 import bpy
 from bpy.types import Operator
+from bpy.props import StringProperty
 from bpy.app.translations import (
     pgettext_data as data_,
     pgettext_rpt as rpt_,
@@ -15,6 +27,52 @@ from bpy.app.translations import (
 from bpy_extras.asset_utils import (
     SpaceAssetInfo,
 )
+
+
+class BlendFileOpener:
+    """Base class for operators that open blend files in new Blender instances"""
+
+    _process = None  # Optional[subprocess.Popen]
+
+    def open_in_new_blender(self, filepath):
+        """Open a blend file in a new Blender instance"""
+        import subprocess
+        cli_args = [bpy.app.binary_path, str(filepath)]
+        self._process = subprocess.Popen(cli_args)
+
+    def modal(self, context, event):
+        """Monitor the subprocess until it completes"""
+        if event.type != 'TIMER':
+            return {'PASS_THROUGH'}
+
+        if self._process is None:
+            self.report({'ERROR'}, "Unable to find any running process")
+            self.cancel(context)
+            return {'CANCELLED'}
+
+        returncode = self._process.poll()
+        if returncode is None:
+            # Process is still running
+            return {'RUNNING_MODAL'}
+
+        if returncode:
+            self.report({'WARNING'},
+                        rpt_("Blender sub-process exited with error code {:d}").format(returncode))
+
+        # Allow subclasses to add cleanup logic
+        self.on_process_finished(context)
+
+        self.cancel(context)
+        return {'FINISHED'}
+
+    def cancel(self, context):
+        """Clean up timer when operation is cancelled"""
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)
+
+    def on_process_finished(self, context):
+        """Override in subclass to add cleanup logic after process finishes"""
+        pass
 
 
 class AssetBrowserMetadataOperator:
@@ -73,14 +131,12 @@ class ASSET_OT_tag_remove(AssetBrowserMetadataOperator, Operator):
         return {'FINISHED'}
 
 
-class ASSET_OT_open_containing_blend_file(Operator):
+class ASSET_OT_open_containing_blend_file(BlendFileOpener, Operator):
     """Open the blend file that contains the active asset"""
 
     bl_idname = "asset.open_containing_blend_file"
     bl_label = "Open Blend File"
     bl_options = {'REGISTER'}
-
-    _process = None  # Optional[subprocess.Popen]
 
     @classmethod
     def poll(cls, context):
@@ -119,42 +175,59 @@ class ASSET_OT_open_containing_blend_file(Operator):
 
         return {'RUNNING_MODAL'}
 
-    def modal(self, context, event):
-        if event.type != 'TIMER':
-            return {'PASS_THROUGH'}
-
-        if self._process is None:
-            self.report({'ERROR'}, "Unable to find any running process")
-            self.cancel(context)
-            return {'CANCELLED'}
-
-        returncode = self._process.poll()
-        if returncode is None:
-            # Process is still running.
-            return {'RUNNING_MODAL'}
-
-        if returncode:
-            self.report({'WARNING'}, rpt_("Blender sub-process exited with error code {:d}").format(returncode))
-
+    def on_process_finished(self, context):
+        """Refresh asset library after opening the file"""
         if bpy.ops.asset.library_refresh.poll():
             bpy.ops.asset.library_refresh()
 
-        self.cancel(context)
-        return {'FINISHED'}
 
-    def cancel(self, context):
+class OUTLINER_OT_library_open_blend_file(BlendFileOpener, Operator):
+    """Open the blend file of the selected library in a new Blender instance
+
+    This is a parametrized operator that accepts filepath via property.
+    Unlike ASSET_OT_open_containing_blend_file which gets path from context.asset,
+    this operator is designed to be called from multiple places (UI and C++)
+    with filepath passed as a parameter.
+    """
+
+    bl_idname = "outliner.library_open_blend_file"
+    bl_label = "Open Blend File"
+    bl_options = {'REGISTER', 'INTERNAL'}
+
+    filepath: StringProperty(
+        name="Library Path",
+        description="Path to the library blend file",
+        subtype='FILE_PATH'
+    )
+
+    @classmethod
+    def poll(cls, context):
+        # Operator is available when called with filepath parameter
+        return True
+
+    def execute(self, context):
+        if not self.filepath:
+            self.report({'ERROR'}, "No library filepath provided")
+            return {'CANCELLED'}
+
+        # Check if file exists
+        import os
+        if not os.path.exists(self.filepath):
+            self.report({'ERROR'}, f"Library file not found: {self.filepath}")
+            return {'CANCELLED'}
+
+        self.open_in_new_blender(self.filepath)
+
         wm = context.window_manager
-        wm.event_timer_remove(self._timer)
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
 
-    def open_in_new_blender(self, filepath):
-        import subprocess
-
-        cli_args = [bpy.app.binary_path, str(filepath)]
-        self._process = subprocess.Popen(cli_args)
+        return {'RUNNING_MODAL'}
 
 
 classes = (
     ASSET_OT_tag_add,
     ASSET_OT_tag_remove,
     ASSET_OT_open_containing_blend_file,
+    OUTLINER_OT_library_open_blend_file,
 )

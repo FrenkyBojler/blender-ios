@@ -19,6 +19,24 @@ def has_selected_ids_in_context(context):
     return False
 
 
+def get_library_from_context(context):
+    """Get a Library object from the outliner context"""
+    id_data = getattr(context, "id", None)
+    if id_data is not None:
+        bl_rna = getattr(id_data, "bl_rna", None)
+        if bl_rna is not None and bl_rna.identifier == 'Library':
+            return id_data
+
+    selected_ids = getattr(context, "selected_ids", None)
+    if selected_ids:
+        for selected_id in selected_ids:
+            bl_rna = getattr(selected_id, "bl_rna", None)
+            if bl_rna is not None and bl_rna.identifier == 'Library':
+                return selected_id
+
+    return None
+
+
 class OUTLINER_HT_header(Header):
     bl_space_type = 'OUTLINER'
 
@@ -112,12 +130,18 @@ class OUTLINER_MT_context_menu(Menu):
     bl_label = "Outliner"
 
     @staticmethod
-    def draw_common_operators(layout):
+    def draw_common_operators(layout, context):
         layout.menu_contents("OUTLINER_MT_asset")
 
         layout.separator()
 
         layout.menu("OUTLINER_MT_liboverride", icon='LIBRARY_DATA_OVERRIDE')
+
+        library = get_library_from_context(context)
+        if library is not None:
+            layout.operator("outliner.library_open_blend_file",
+                            text="Open Blend File",
+                            icon='FILE_BLEND').filepath = library.filepath
 
         layout.separator()
 
@@ -136,7 +160,7 @@ class OUTLINER_MT_context_menu(Menu):
             OUTLINER_MT_collection_new.draw_without_context_menu(context, layout)
             layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout)
+        OUTLINER_MT_context_menu.draw_common_operators(layout, context)
 
 
 class OUTLINER_MT_context_menu_view(Menu):
@@ -292,7 +316,7 @@ class OUTLINER_MT_collection(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout)
+        OUTLINER_MT_context_menu.draw_common_operators(layout, context)
 
 
 class OUTLINER_MT_collection_new(Menu):
@@ -310,7 +334,7 @@ class OUTLINER_MT_collection_new(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout)
+        OUTLINER_MT_context_menu.draw_common_operators(layout, context)
 
 
 class OUTLINER_MT_object(Menu):
@@ -349,7 +373,7 @@ class OUTLINER_MT_object(Menu):
 
         layout.separator()
 
-        OUTLINER_MT_context_menu.draw_common_operators(layout)
+        OUTLINER_MT_context_menu.draw_common_operators(layout, context)
 
 
 class OUTLINER_MT_asset(Menu):
