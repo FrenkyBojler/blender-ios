@@ -819,7 +819,9 @@ class ANIM_OT_slot_unassign_from_constraint(generic_slot_unassign_mixin, Operato
 class ANIM_OT_version_bone_hide_property(Operator):
     bl_idname = "anim.version_bone_hide_property"
     bl_label = "Version Bone Hide Property"
-    bl_description = "Moves any F-Curves for the `hide` property of selected armatures into the action of the object"
+    bl_description = "Moves any F-Curves for the `hide` property of selected armatures " \
+        "into the action of the object. This will only operate on the first layer " \
+        "and strip of the action"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -830,17 +832,93 @@ class ANIM_OT_version_bone_hide_property(Operator):
             return False
         return True
 
+    @staticmethod
+    def find_property_fcurves(channelbag):
+        fcurves = []
+        for fcurve in channelbag.fcurves:
+            if fcurve.data_path.startswith("bones[") and fcurve.data_path.endswith("].hide"):
+                fcurves.append(fcurve)
+        return fcurves
+
+    @staticmethod
+    def get_channelbag_for_slot(action, slot):
+        if not action.layers:
+            return None
+        layer = action.layers[0]
+        if not layer.strips:
+            return None
+        return layer.strips[0].channelbag(slot, ensure=False)
+
     def execute(self, context):
+        from bpy_extras import anim_utils
         selected_armatures = []
-        for ob in context.selected_objects:
-            if ob.type == 'ARMATURE' and ob.data:
-                selected_armatures.append(ob)
+        for arm_ob in context.selected_objects:
+            if arm_ob.type != 'ARMATURE' or not arm_ob.data:
+                continue
+            armature = arm_ob.data
+            if (not armature.animation_data
+                or not armature.animation_data.action
+                    or not armature.animation_data.action_slot):
+                # Armature not animated. Cannot have the FCurve we need.
+                continue
+            selected_armatures.append(arm_ob)
+
         if not selected_armatures:
-            self.report(
-                {'WARNING'},
-                rpt_("No armatures selected"),
-            )
+            self.report({'WARNING'}, rpt_("No animated armatures selected"))
             return {'CANCELLED'}
+
+        warn = True
+        modified_armatures = []
+        # The objects also have to be animated -> have an assigned action + slot.
+        # This means we know with certainty which action to move the data into.
+        for arm_ob in selected_armatures:
+            ob_adt = arm_ob.animation_data
+            arm_adt = arm_ob.data.animation_data
+            if warn and (not ob_adt or not ob_adt.action or not ob_adt.action_slot):
+                self.report({'WARNING'}, rpt_("Not all armatures have an action and slot assigned"))
+                # Only warn once.
+                warn = False
+                continue
+
+            # Only armatures with an action and slot are added to `selected_armatures`.
+            assert arm_adt is not None
+            armature_channelbag = self.get_channelbag_for_slot(arm_adt.action, arm_adt.action_slot)
+            if not armature_channelbag:
+                continue
+
+            fcurves = self.find_property_fcurves(armature_channelbag)
+
+            if not fcurves:
+                # No FCurves for the hide property found.
+                continue
+
+            # An action + slot is assigned, but that doesn't mean there is a layer and a strip.
+            ob_channelbag = anim_utils.action_ensure_channelbag_for_slot(ob_adt.action, ob_adt.action_slot)
+            copy_attrs = ["co", "handle_left", "handle_right", "handle_left_type", "handle_right_type", "interpolation"]
+            for fcurve in fcurves:
+                attrs = {}
+                for attr in copy_attrs:
+                    data_length = 1 if attr in ["handle_left_type", "handle_right_type", "interpolation"] else 2
+                    array = [0] * (data_length * len(fcurve.keyframe_points))
+                    fcurve.keyframe_points.foreach_get(attr, array)
+                    attrs[attr] = array
+
+                new_fcurve = ob_channelbag.fcurves.new(
+                    "pose." + fcurve.data_path,
+                    index=fcurve.array_index,
+                    group_name=fcurve.group.name if fcurve.group else "")
+                new_fcurve.keyframe_points.add(count=len(fcurve.keyframe_points))
+
+                for attr in copy_attrs:
+                    new_fcurve.keyframe_points.foreach_set(attr, attrs[attr])
+
+            modified_armatures.append(arm_ob)
+
+        if modified_armatures:
+            self.report({'INFO'}, rpt_(f"Modified {len(modified_armatures)} armatures"))
+        else:
+            self.report({'WARNING'}, rpt_("No armatures were modified"))
+
         return {'FINISHED'}
 
 
