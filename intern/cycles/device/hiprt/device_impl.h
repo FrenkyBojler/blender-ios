@@ -67,7 +67,7 @@ class HIPRTDevice : public HIPDevice {
                         const vector<Object *> &objects,
                         hiprtBuildOptions options,
                         bool refit);
-  void free_bvh();
+  void free_bvh_memory_delayed();
   hiprtContext hiprt_context;
   hiprtScene scene;
   hiprtFuncTable functions_table;
