@@ -49,7 +49,7 @@ typedef struct Light {
   float photometric_luminous_exitance;
   float photometric_luminance;
   float exposure;
-  float _pad4;
+  float efficacy;
   // float energy_conversion_factor;
 
   /* Point light. */

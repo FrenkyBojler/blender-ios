@@ -19,6 +19,8 @@
 
 #include "DNA_light_types.h"
 
+#include "BKE_light.h"
+
 #include "IMB_colormanagement.hh"
 
 #ifdef RNA_RUNTIME
@@ -385,6 +387,18 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_light_photometric_unit_items);
   RNA_def_property_enum_funcs(prop, nullptr, "rna_Light_photometric_unit_set", nullptr);
   RNA_def_property_ui_text(prop, "Photometric Unit", "Unit used for photometric mode");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
+
+  prop = RNA_def_property(srna, "efficacy", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "efficacy");
+  RNA_def_property_range(prop, 0.0f, BKE_LIGHT_LUMINOUS_EFFICACY_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, BKE_LIGHT_LUMINOUS_EFFICACY_MAX, 1.0f, 2);
+  RNA_def_property_ui_text(
+      prop,
+      "Luminous Efficacy",
+      "Maximum luminous efficacy for radiometric to photometric conversion (lm/W). "
+      "Only used in photometric mode");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LIGHT);
   RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 

@@ -213,26 +213,27 @@ float BKE_light_power(const Light &light)
 
 float BKE_light_radiometric_to_photometric_power(const Light &light, const float power)
 {
+  /* Use custom efficacy if in photometric mode, otherwise use max efficacy */
+  const float efficacy = (light.unit_system == LA_PHOTOMETRIC) ? light.efficacy :
+                                                                 BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
+
   switch (light.type) {
     case LA_SPOT: {
       const float half_angle = light.spotsize * 0.5f;
       const float solid_angle = 1.0f - cosf(half_angle);
-      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
-      const float compensation = 1.0f / (max_efficacy * solid_angle) * 2.0f;
+      const float compensation = 1.0f / (efficacy * solid_angle) * 2.0f;
       return power * compensation;
     }
     case LA_AREA: {
       const float area_angle = DEG2RADF(155.0f);
       const float half_angle = area_angle * 0.5f;
       const float solid_angle = 1.0f - cosf(half_angle);
-      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
-      const float compensation = 1.0f / (max_efficacy * 2.0f * solid_angle);
+      const float compensation = 1.0f / (efficacy * 2.0f * solid_angle);
       return power * compensation;
     }
     case LA_LOCAL:
     case LA_SUN: {
-      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
-      const float compensation = 1.0f / max_efficacy;
+      const float compensation = 1.0f / efficacy;
       return power * compensation;
     }
     default:
@@ -242,26 +243,27 @@ float BKE_light_radiometric_to_photometric_power(const Light &light, const float
 
 float BKE_light_photometric_to_radiometric_power(const Light &light, const float power)
 {
+  /* Use custom efficacy if in photometric mode, otherwise use max efficacy */
+  const float efficacy = (light.unit_system == LA_PHOTOMETRIC) ? light.efficacy :
+                                                                 BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
+
   switch (light.type) {
     case LA_SPOT: {
       const float half_angle = light.spotsize * 0.5f;
       const float solid_angle = 1.0f - cosf(half_angle);
-      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
-      const float compensation = max_efficacy * solid_angle / 2.0f;
+      const float compensation = efficacy * solid_angle / 2.0f;
       return power * compensation;
     }
     case LA_AREA: {
       const float area_angle = DEG2RADF(155.0f);
       const float half_angle = area_angle * 0.5f;
       const float solid_angle = 1.0f - cosf(half_angle);
-      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
-      const float compensation = max_efficacy * 2.0f * solid_angle;
+      const float compensation = efficacy * 2.0f * solid_angle;
       return power * compensation;
     }
     case LA_LOCAL:
     case LA_SUN: {
-      const float max_efficacy = BKE_LIGHT_LUMINOUS_EFFICACY_MAX;
-      const float compensation = max_efficacy;
+      const float compensation = efficacy;
       return power * compensation;
     }
     default:

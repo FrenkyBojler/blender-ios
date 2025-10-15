@@ -21,6 +21,7 @@
     .b = 1.0f, \
     .temperature = 6500.0f, \
     .energy = 10.0f, \
+    .efficacy = 683.0f, \
     .energy_deprecated = 10.0f, \
     .spotsize = DEG2RADF(45.0f), \
     .spotblend = 0.15f, \

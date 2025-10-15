@@ -366,6 +366,13 @@ class DATA_PT_light_advanced(DataButtonsPanel, Panel):
         col.prop(light, "use_compensate_power", text="Compensate Power")
         col.prop(light, "use_scene_conversion", text="Scene Conversion")
 
+        # Efficacy property - always visible but only enabled in photometric mode
+        row = layout.row()
+        row.use_property_split = True
+        row.active = light.use_advanced
+        row.enabled = (light.unit_system == 'PHOTOMETRIC')
+        row.prop(light, "efficacy")
+
 
 class DATA_PT_light_animation(DataButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
     COMPAT_ENGINES = {

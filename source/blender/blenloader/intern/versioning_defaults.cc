@@ -724,6 +724,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     /* Fix lights defaults. */
     light->clipsta = 0.05f;
     light->att_dist = 40.0f;
+    light->efficacy = 683.0f;
   }
 
   /* Materials */

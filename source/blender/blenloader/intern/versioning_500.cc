@@ -16,6 +16,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -2428,6 +2429,15 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Palette *, palette, &bmain->palettes) {
       LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
         srgb_to_linearrgb_v3_v3(color->color, color->rgb);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 66)) {
+    /* Initialize efficacy for existing lights. */
+    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+      if (light->efficacy == 0.0f) {
+        light->efficacy = 683.0f;
       }
     }
   }
