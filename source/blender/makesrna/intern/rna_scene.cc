@@ -2539,7 +2539,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
   Scene *scene = (Scene *)ptr->owner_id;
   Object *camera = scene->camera;
 
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::Rendered);
 
   if (camera && (camera->type == OB_CAMERA)) {
     DEG_id_tag_update(&camera->id, ID_RECALC_GEOMETRY);
@@ -2548,7 +2548,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
 static void rna_SceneSequencer_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  blender::seq::cache_cleanup((Scene *)ptr->owner_id);
+  blender::seq::cache_cleanup((Scene *)ptr->owner_id, blender::seq::CacheCleanup::Rendered);
 }
 
 static std::optional<std::string> rna_ToolSettings_path(const PointerRNA * /*ptr*/)

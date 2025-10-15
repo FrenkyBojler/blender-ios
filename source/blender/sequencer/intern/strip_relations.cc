@@ -46,13 +46,21 @@ bool relation_is_effect_of_strip(const Strip *effect, const Strip *input)
   return ELEM(input, effect->input1, effect->input2);
 }
 
-void cache_cleanup(Scene *scene)
+void cache_cleanup(Scene *scene, CacheCleanup mode)
 {
-  thumbnail_cache_clear(scene);
-  source_image_cache_clear(scene);
-  final_image_cache_clear(scene);
-  intra_frame_cache_invalidate(scene);
-  preview_cache_invalidate(scene);
+  if ((mode & CacheCleanup::Thumbnails) != CacheCleanup::None) {
+    thumbnail_cache_clear(scene);
+  }
+  if ((mode & CacheCleanup::SourceImage) != CacheCleanup::None) {
+    source_image_cache_clear(scene);
+  }
+  if ((mode & CacheCleanup::FinalImage) != CacheCleanup::None) {
+    final_image_cache_clear(scene);
+  }
+  if ((mode & CacheCleanup::SingleFrame) != CacheCleanup::None) {
+    intra_frame_cache_invalidate(scene);
+    preview_cache_invalidate(scene);
+  }
 }
 
 void cache_settings_changed(Scene *scene)
@@ -214,7 +222,6 @@ void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
     return;
   }
 
-  cache_cleanup(scene);
   prefetch_stop(scene);
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {

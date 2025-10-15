@@ -10,6 +10,8 @@
 
 #include <cstddef>
 
+#include "BLI_utildefines.h"
+
 struct ListBase;
 struct Main;
 struct MovieClip;
@@ -74,7 +76,24 @@ void relations_check_uids_unique_and_report(const Scene *scene);
  */
 void relations_session_uid_generate(Strip *strip);
 
-void cache_cleanup(Scene *scene);
+enum class CacheCleanup {
+  None = 0,
+
+  FinalImage = (1 << 0),
+  SourceImage = (1 << 1),
+  Thumbnails = (1 << 2),
+  SingleFrame = (1 << 3),
+
+  /* All cache types. */
+  All = FinalImage | SourceImage | Thumbnails | SingleFrame,
+  /* Typical "what gets rendered" cache types: final frame
+   * cache, plus various intra-frame cached things. */
+  Rendered = FinalImage | SingleFrame,
+};
+ENUM_OPERATORS(CacheCleanup, CacheCleanup::SingleFrame);
+
+void cache_cleanup(Scene *scene, CacheCleanup mode);
+
 void cache_settings_changed(Scene *scene);
 bool is_cache_full(const Scene *scene);
 bool evict_caches_if_full(Scene *scene);
