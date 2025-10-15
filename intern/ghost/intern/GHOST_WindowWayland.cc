@@ -120,6 +120,12 @@ static const xdg_activation_token_v1_listener *xdg_activation_listener_get();
 
 static constexpr size_t base_dpi = 96;
 
+/* NOTE: The limit is in points (not pixels) so Hi-DPI will limit to larger number of pixels.
+ * This has the advantage that the size limit is the same when moving the window between monitors
+ * with different scales set. If it was important to limit in pixels it could be re-calculated
+ * when the `window_->frame.buffer_scale` changed. */
+static constexpr int32_t size_min[2] = {320, 240};
+
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
 /* Access `use_libdecor` in #GHOST_SystemWayland. */
 #  define use_libdecor GHOST_SystemWayland::use_libdecor_runtime()
@@ -964,6 +970,16 @@ static int outputs_max_scale_or_default(const std::vector<GWL_Output *> &outputs
   return scale_default;
 }
 
+static void clamp_to_min_size(GWL_WindowFrame &frame)
+{
+  for (int i = 0; i < 2; i++) {
+    if (frame.size_logical[i] < size_min[i]) {
+      frame.size_logical[i] = size_min[i];
+      frame.size[i] = gwl_window_from_logical(frame, size_min[i]);
+    }
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1507,12 +1523,6 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
         window_->wp.fractional_scale_handle, &wp_fractional_scale_listener, window_);
   }
 
-  /* NOTE: The limit is in points (not pixels) so Hi-DPI will limit to larger number of pixels.
-   * This has the advantage that the size limit is the same when moving the window between monitors
-   * with different scales set. If it was important to limit in pixels it could be re-calculated
-   * when the `window_->frame.buffer_scale` changed. */
-  const int32_t size_min[2] = {320, 240};
-
   const char *xdg_app_id = GHOST_SystemWayland::xdg_app_id_get();
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
@@ -1640,6 +1650,8 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
                  decor.initial_bounds[1] * window_->frame.buffer_scale);
     }
   }
+
+  clamp_to_min_size(window_->frame_pending);
 
   gwl_window_frame_update_from_pending_no_lock(window_);
 
@@ -1968,6 +1980,8 @@ GHOST_TSuccess GHOST_WindowWayland::setClientSize(const uint32_t width, const ui
                                                               frame_pending.size[0]);
   frame_pending.size_logical[1] = gwl_window_to_logical_round(window_->frame,
                                                               frame_pending.size[1]);
+
+  clamp_to_min_size(frame_pending);
 
   gwl_window_frame_update_from_pending_no_lock(window_);
 
