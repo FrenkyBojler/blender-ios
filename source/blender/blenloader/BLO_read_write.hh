@@ -222,6 +222,10 @@ void BLO_write_string(BlendWriter *writer, const char *data_ptr);
  * user count of the sharing-info is increased making the data immutable. The provided callback
  * should serialize the potentially shared data. It is only called when necessary.
  *
+ * This should be called before the data is referenced in other written data (there is an assert
+ * that checks for this). If that's not possible, at least #BLO_write_shared_tag needs to be called
+ * before the pointer is first written.
+ *
  * \param approximate_size_in_bytes: Used to be able to approximate how large the undo step is in
  * total.
  * \param write_fn: Use the #BlendWrite to serialize the potentially shared data.
