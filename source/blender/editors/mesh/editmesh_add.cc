@@ -26,6 +26,7 @@
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "mesh_intern.hh" /* own include */
 
@@ -92,6 +93,12 @@ static void make_prim_finish(bContext *C,
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
 }
 
+void WM_operator_view3d_unit_defaults_with_context(bContext *C, wmOperator *op)
+{
+  ED_view3d_context_activate(C);
+  WM_operator_view3d_unit_defaults(C, op);
+}
+
 static wmOperatorStatus add_primitive_plane_exec(bContext *C, wmOperator *op)
 {
   MakePrimitiveData creation_data;
@@ -102,7 +109,7 @@ static wmOperatorStatus add_primitive_plane_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
@@ -168,7 +175,7 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
@@ -243,7 +250,7 @@ static wmOperatorStatus add_primitive_circle_exec(bContext *C, wmOperator *op)
   cap_end = RNA_enum_get(op->ptr, "fill_type");
   cap_tri = (cap_end == 2);
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
@@ -317,7 +324,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
   const bool cap_tri = (end_fill_type == 2);
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
@@ -394,7 +401,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
   const bool cap_tri = (end_fill_type == 2);
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
@@ -471,7 +478,7 @@ static wmOperatorStatus add_primitive_grid_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
@@ -545,7 +552,7 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Y', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
@@ -611,7 +618,7 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
   ushort local_view_bits;
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
@@ -682,7 +689,7 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
   ushort local_view_bits;
   const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults_with_context(C, op);
   blender::ed::object::add_generic_get_opts(
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
