@@ -195,8 +195,8 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
       continue;
     }
 
-    const StringRef asset_name = IFACE_(asset.get_name());
-    const StringRef socket_name = IFACE_(socket_property->name);
+    const StringRef asset_name = asset.get_name();
+    const StringRef socket_name = socket_property->name;
 
     search_link_ops.append(
         {asset_name + " " + UI_MENU_ARROW_SEP + socket_name,
