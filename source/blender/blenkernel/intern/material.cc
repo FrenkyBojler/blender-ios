@@ -45,6 +45,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_attribute.h"
 #include "BKE_brush.hh"
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
@@ -205,6 +206,9 @@ static void material_blend_write(BlendWriter *writer, ID *id, const void *id_add
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   ma->texpaintslot = nullptr;
   BLI_listbase_clear(&ma->gpumaterial);
+
+  /* Set deprecated #use_nodes for forward compatibility. */
+  ma->use_nodes = true;
 
   /* write LibData */
   BLO_write_id_struct(writer, Material, id_address, &ma->id);
@@ -1776,7 +1780,7 @@ bNode *BKE_texpaint_slot_material_find_node(Material *ma, short texpaint_slot)
   return find_data.r_node;
 }
 
-void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
+void ramp_blend(int type, float r_col[4], const float fac, const float col[4])
 {
   float tmp, facm = 1.0f - fac;
 
@@ -1785,6 +1789,7 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
       r_col[0] = facm * (r_col[0]) + fac * col[0];
       r_col[1] = facm * (r_col[1]) + fac * col[1];
       r_col[2] = facm * (r_col[2]) + fac * col[2];
+      r_col[3] = facm * (r_col[3]) + fac * col[3];
       break;
     case MA_RAMP_ADD:
       r_col[0] += fac * col[0];
@@ -2071,7 +2076,6 @@ static void material_default_surface_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket *base_color = blender::bke::node_find_socket(*principled, SOCK_IN, "Base Color");
@@ -2099,7 +2103,6 @@ static void material_default_volume_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(
       nullptr, *ntree, SH_NODE_VOLUME_PRINCIPLED);
@@ -2125,7 +2128,6 @@ static void material_default_holdout_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *holdout = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_HOLDOUT);
   bNode *output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);

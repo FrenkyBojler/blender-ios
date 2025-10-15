@@ -46,6 +46,7 @@
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
+#include "GPU_platform.hh"
 #include "GPU_state.hh"
 
 #include "BLF_api.hh"
@@ -513,7 +514,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   ED_region_pixelspace(region);
 
   /* Remove sRGB override by rebinding the framebuffer. */
-  GPUFrameBuffer *fb = GPU_framebuffer_active_get();
+  blender::gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
   GPU_framebuffer_bind(fb);
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_PIXEL);
@@ -1060,20 +1061,20 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
       /* Bottom-left. */
       {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + UI_HEADER_OFFSET,
+       area->totrct.xmin + UI_AZONESPOTW_LEFT,
        float(area->totrct.ymin + ED_area_headersize())},
       /* Bottom-right. */
-      {area->totrct.xmax - UI_AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW_RIGHT,
        area->totrct.ymin - U.pixelsize,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymin + UI_AZONESPOTH},
       /* Top-left. */
       {area->totrct.xmin - U.pixelsize,
        float(area->totrct.ymax - ED_area_headersize()),
-       area->totrct.xmin + UI_HEADER_OFFSET,
+       area->totrct.xmin + UI_AZONESPOTW_LEFT,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
-      {area->totrct.xmax - UI_AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW_RIGHT,
        area->totrct.ymax - UI_AZONESPOTH,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymax + U.pixelsize},
@@ -3333,6 +3334,10 @@ void ED_region_panels_layout_ex(const bContext *C,
       {
         continue;
       }
+      if (!panel_add_check(C, workspace, contexts, category_override, panel->type)) {
+        continue;
+      }
+
       const int width = panel_draw_width_from_max_width_get(region, panel->type, max_panel_width);
 
       if (UI_panel_is_dragging(panel)) {
@@ -3898,6 +3903,13 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
 {
   /* clear */
   ED_region_clear(C, region, region_background_color_id(C, region));
+
+  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE, GPU_BACKEND_OPENGL))
+  {
+    /* WORKAROUND: Driver bug. Fixes invalid glyph being rendered (see #147168). */
+    BLF_batch_discard();
+  }
+
   region_draw_blocks_in_view2d(C, region);
   ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 }

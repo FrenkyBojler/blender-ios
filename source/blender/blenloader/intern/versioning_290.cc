@@ -823,7 +823,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
           BKE_mesh_legacy_convert_polys_to_offsets(me);
           BKE_mesh_validate_arrays(
               me,
-              reinterpret_cast<float(*)[3]>(me->vert_positions_for_write().data()),
+              reinterpret_cast<float (*)[3]>(me->vert_positions_for_write().data()),
               me->verts_num,
               me->edges_for_write().data(),
               me->edges_num,
@@ -913,7 +913,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
               tex->sun_rotation = 0.0f;
               tex->altitude = 0.0f;
               tex->air_density = 1.0f;
-              tex->dust_density = 1.0f;
+              tex->aerosol_density = 1.0f;
               tex->ozone_density = 1.0f;
             }
           }

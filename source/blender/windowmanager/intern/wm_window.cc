@@ -132,6 +132,7 @@ static struct WMInitStruct {
   GHOST_TWindowState windowstate = GHOST_WINDOW_STATE_DEFAULT;
   eWinOverrideFlag override_flag;
 
+  bool window_frame = true;
   bool window_focus = true;
   bool native_pixels = true;
 } wm_init_state;
@@ -574,7 +575,7 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
    * from the server - exiting immediately. */
   const char *filepath = (OS_MAC || OS_WINDOWS) ?
                              filepath_as_bytes :
-                             BLI_str_utf8_invalid_substitute_as_needed(filepath_as_bytes,
+                             BLI_str_utf8_invalid_substitute_if_needed(filepath_as_bytes,
                                                                        strlen(filepath_as_bytes),
                                                                        '?',
                                                                        _filepath_utf8_buf,
@@ -918,7 +919,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     gpu_settings.flags |= GHOST_gpuDebugContext;
   }
 
-  eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   gpu_settings.preferred_device.index = U.gpu_preferred_index;
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
@@ -1324,10 +1325,10 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   const bool mm_placement = WM_capabilities_flag() & WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
 
   if (bounds_valid && mm_placement) {
-    rect.xmin = (int)(stored_bounds->xmin * UI_SCALE_FAC);
-    rect.ymin = (int)(stored_bounds->ymin * UI_SCALE_FAC);
-    rect.xmax = (int)(stored_bounds->xmax * UI_SCALE_FAC);
-    rect.ymax = (int)(stored_bounds->ymax * UI_SCALE_FAC);
+    rect.xmin = int(stored_bounds->xmin * UI_SCALE_FAC);
+    rect.ymin = int(stored_bounds->ymin * UI_SCALE_FAC);
+    rect.xmax = int(stored_bounds->xmax * UI_SCALE_FAC);
+    rect.ymax = int(stored_bounds->ymax * UI_SCALE_FAC);
     align = WIN_ALIGN_ABSOLUTE;
   }
   else {
@@ -2116,6 +2117,7 @@ void wm_ghost_init(bContext *C)
   consumer = GHOST_CreateEventConsumer(ghost_event_proc, C);
 
   GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+  GHOST_UseWindowFrame(wm_init_state.window_frame);
 
   g_system = GHOST_CreateSystem();
   GPU_backend_ghost_system_set(g_system);
@@ -2188,7 +2190,7 @@ const char *WM_ghost_backend()
 #endif
 }
 
-GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gpu_backend)
+GHOST_TDrawingContextType wm_ghost_drawing_context_type(const GPUBackendType gpu_backend)
 {
   switch (gpu_backend) {
     case GPU_BACKEND_NONE:
@@ -2814,6 +2816,16 @@ void WM_init_state_maximized_set()
   wm_init_state.override_flag |= WIN_OVERRIDE_WINSTATE;
 }
 
+bool WM_init_window_frame_get()
+{
+  return wm_init_state.window_frame;
+}
+
+void WM_init_window_frame_set(bool do_it)
+{
+  wm_init_state.window_frame = do_it;
+}
+
 void WM_init_window_focus_set(bool do_it)
 {
   wm_init_state.window_focus = do_it;
@@ -3226,7 +3238,7 @@ void *WM_system_gpu_context_create()
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
   GHOST_GPUSettings gpu_settings = {0};
-  const eGPUBackendType gpu_backend = GPU_backend_type_selection_get();
+  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
   if (G.debug & G_DEBUG_GPU) {
     gpu_settings.flags |= GHOST_gpuDebugContext;
