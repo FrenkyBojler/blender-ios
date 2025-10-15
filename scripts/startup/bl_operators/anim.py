@@ -903,6 +903,11 @@ class ANIM_OT_version_bone_hide_property(Operator):
                     fcurve.keyframe_points.foreach_get(attr, array)
                     attrs[attr] = array
 
+                new_path = "pose." + fcurve.data_path
+                if ob_channelbag.fcurves.find(new_path):
+                    # FCurve for that property already exists.
+                    continue
+
                 new_fcurve = ob_channelbag.fcurves.new(
                     "pose." + fcurve.data_path,
                     index=fcurve.array_index,
