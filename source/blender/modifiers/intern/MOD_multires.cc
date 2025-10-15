@@ -100,6 +100,11 @@ static blender::bke::subdiv::Subdiv *subdiv_descriptor_ensure(
     const blender::bke::subdiv::Settings *subdiv_settings,
     const Mesh *mesh)
 {
+  if (mesh->faces_num == 0) {
+    /* Multires (and by extension the SubdivCCG) is less tolerant to loose geometry than the Subdiv
+     * modifier. */
+    return nullptr;
+  }
   MultiresRuntimeData *runtime_data = (MultiresRuntimeData *)mmd->modifier.runtime;
   blender::bke::subdiv::Subdiv *subdiv = blender::bke::subdiv::update_from_mesh(
       runtime_data->subdiv, subdiv_settings, mesh);
