@@ -616,8 +616,9 @@ void id_delete_tag_fn(bContext *C,
   id_delete_tag(C, reports, te, tselem, &scene_curr_to_replace, &scene_new_for_replace);
 
   BLI_assert((scene_curr_to_replace && scene_new_for_replace) ||
-             (scene_curr_to_replace == scene_new_for_replace));
+             (!scene_curr_to_replace && !scene_new_for_replace));
   if (scene_curr_to_replace && scene_new_for_replace) {
+    BLI_assert(scene_curr_to_replace != scene_new_for_replace);
     BLI_assert((scene_new_for_replace->id.tag & ID_TAG_DOIT) == 0);
     ED_scene_replace_active_for_deletion(
         *C, *CTX_data_main(C), *scene_curr_to_replace, scene_new_for_replace);
@@ -687,8 +688,9 @@ static wmOperatorStatus outliner_id_delete_invoke(bContext *C,
   }
 
   BLI_assert((scene_curr_to_replace && scene_new_for_replace) ||
-             (scene_curr_to_replace == scene_new_for_replace));
+             (!scene_curr_to_replace && !scene_new_for_replace));
   if (scene_curr_to_replace && scene_new_for_replace) {
+    BLI_assert(scene_curr_to_replace != scene_new_for_replace);
     BLI_assert((scene_new_for_replace->id.tag & ID_TAG_DOIT) == 0);
     ED_scene_replace_active_for_deletion(
         *C, *bmain, *scene_curr_to_replace, scene_new_for_replace);

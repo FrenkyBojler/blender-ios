@@ -137,9 +137,10 @@ bool BKE_scene_can_be_removed(const Main *bmain, const Scene *scene);
  * possible).
  *
  * If a validation callback is provided, only a scene which returns `true` when passed to this
- * callback will be returned. All scenes before the given one are checked first.
+ * callback will be returned. Scenes before the given one are checked first, in reversed order (so
+ * starting from the given one).
  *
- * \returns A valid replacement scene, or nullptr.
+ * \returns A valid replacement scene, or nullptr if no suitable replacement scene was found.
  */
 Scene *BKE_scene_find_replacement(
     const Main &bmain,

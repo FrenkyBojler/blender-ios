@@ -216,7 +216,7 @@ static void rna_Main_scenes_remove(
 
   BKE_reportf(reports,
               RPT_ERROR,
-              "Scene '%s' cannot be removed, e.g. it may be the last local one",
+              "Scene '%s' cannot be removed, maybe because it is the last local one",
               scene->id.name + 2);
 }
 
