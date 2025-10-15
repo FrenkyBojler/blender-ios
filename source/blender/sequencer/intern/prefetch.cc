@@ -69,7 +69,6 @@ struct PrefetchJob {
   /* context */
   RenderData context = {};
   RenderData context_cpy = {};
-  SeqRenderState state = {};
 
   /* prefetch area */
   int cfra = 0;
@@ -481,8 +480,7 @@ static bool seq_prefetch_scene_strip_is_rendered(const Scene *scene,
 static bool seq_prefetch_must_skip_frame(PrefetchJob *pfjob, ListBase *channels, ListBase *seqbase)
 {
   /* Pass in state to check for infinite recursion of "sequencer-type" scene strips. */
-  SeqRenderState state = pfjob->state;
-  state.strips_rendering_seqbase.clear();
+  SeqRenderState state = {};
 
   blender::VectorSet<Strip *> scene_strips = query_scene_strips(seqbase);
   if (seq_prefetch_scene_strip_is_rendered(
