@@ -61,11 +61,14 @@ BLOCKLIST_METAL = [
 
 # AMD seems to have similar limitations as Metal for transparency.
 BLOCKLIST_AMD = BLOCKLIST_METAL + [
+    "musgrave_.*_multifractal.*.blend",
     "noise_lacunarity.blend",
 ]
 
 # Minor difference in texture coordinate for white noise hash.
 BLOCKLIST_INTEL = [
+    "musgrave_.*_multifractal.*.blend",
+    "noise_lacunarity.blend",
     "white_noise.*.blend",
 ]
 
