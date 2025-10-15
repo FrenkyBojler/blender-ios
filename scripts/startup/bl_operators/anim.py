@@ -916,6 +916,9 @@ class ANIM_OT_version_bone_hide_property(Operator):
 
         if modified_armatures:
             self.report({'INFO'}, rpt_(f"Modified {len(modified_armatures)} armatures"))
+            for screen in bpy.data.screens:
+                for area in screen.areas:
+                    area.tag_redraw()
         else:
             self.report({'WARNING'}, rpt_("No armatures were modified"))
 
