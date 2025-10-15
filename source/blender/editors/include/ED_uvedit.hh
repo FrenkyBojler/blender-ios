@@ -389,3 +389,5 @@ int bm_mesh_calc_uv_islands(const Scene *scene,
  * Returns true if UV coordinates lie on a valid tile in UDIM grid or tiled image.
  */
 bool uv_coords_isect_udim(const Image *image, const int udim_grid[2], const float coords[2]);
+/* Syncs meshes to the UV map name active in the UV Editor. */
+void ED_uvedit_sync_active_uv(SpaceImage *sima, const bContext *C);

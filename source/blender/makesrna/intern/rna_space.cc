@@ -1784,6 +1784,15 @@ static void rna_SpaceImageEditor_mode_update(Main *bmain, Scene *scene, PointerR
   }
 }
 
+static void rna_SpaceImageEditor_uv_sync_name_update(Main * /*bmain*/,
+                                                     Scene * /*scene*/,
+                                                     PointerRNA *ptr)
+{
+  SpaceImage *sima = static_cast<SpaceImage *>(ptr->data);
+  sima->needs_uv_sync = true;
+  WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
+}
+
 static void rna_SpaceImageEditor_show_stereo_set(PointerRNA *ptr, bool value)
 {
   SpaceImage *sima = (SpaceImage *)(ptr->data);
@@ -6205,6 +6214,11 @@ static void rna_def_space_image(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(prop, "rna_SpaceImage_overlay_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(
       prop, "Overlay Settings", "Settings for display of overlays in the UV/Image editor");
+
+  prop = RNA_def_string(
+      srna, "uv_sync_name", NULL, MAX_NAME, "Active UV Map layer", "Active UV Map layer");
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_IMAGE, "rna_SpaceImageEditor_uv_sync_name_update");
 
   rna_def_space_image_uv(brna);
   rna_def_space_image_overlay(brna);

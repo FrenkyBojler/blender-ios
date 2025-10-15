@@ -928,7 +928,8 @@ class IMAGE_HT_header(Header):
 
         if show_uvedit:
             mesh = context.edit_object.data
-            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
+            sima = context.space_data
+            layout.prop_search(sima, "uv_sync_name", mesh, "uv_layers", text="")
 
         if ima:
             seq_scene = context.sequencer_scene
@@ -1888,6 +1889,11 @@ classes = (
     IMAGE_PT_overlay_mask,
     IMAGE_AST_brush_paint,
 )
+
+
+# -------------------------------------------------------------------
+# UV Sync Auto-Update (Tariq)
+# -------------------------------------------------------------------
 
 
 if __name__ == "__main__":  # only for live edit.

@@ -8,6 +8,7 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_mask_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -24,6 +25,7 @@
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
+#include "BLI_string.h"
 
 #include "IMB_imbuf_types.hh"
 
@@ -319,6 +321,34 @@ void ED_image_get_uv_aspect(Image *ima, ImageUser *iuser, float *r_aspx, float *
   else {
     *r_aspx = 1.0f;
     *r_aspy = 1.0f;
+  }
+}
+
+/* Keep the UV Editor and mesh in sync.
+ * If the mesh has an active UV map, update the UV Editor to show it.
+ * If syncing is needed, apply the UV Editor's active map back to the mesh
+ * and refresh the viewport.
+ */
+void ED_space_image_sync_active_uv(const bContext *C, SpaceImage *sima)
+{
+  if (sima->uv_sync_name[0] == '\0') {
+    Object *obedit = CTX_data_edit_object(C);
+    if (obedit && obedit->type == OB_MESH) {
+      Mesh *me = static_cast<Mesh *>(obedit->data);
+      const int active_index = CustomData_get_active_layer_index(&me->corner_data, CD_PROP_FLOAT2);
+      if (active_index != -1) {
+        const CustomDataLayer *layer = &me->corner_data.layers[active_index];
+        STRNCPY(sima->uv_sync_name, layer->name);
+        sima->needs_uv_sync = true;
+        WM_main_add_notifier(NC_SPACE | ND_SPACE_IMAGE, nullptr);
+      }
+    }
+  }
+
+  if (sima->needs_uv_sync && sima->uv_sync_name[0] != '\0') {
+    sima->needs_uv_sync = false;
+    ED_uvedit_sync_active_uv(sima, C);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
   }
 }
 

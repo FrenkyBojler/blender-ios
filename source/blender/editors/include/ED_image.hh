@@ -95,6 +95,7 @@ void ED_space_image_scopes_update(const bContext *C,
 void ED_space_image_paint_update(Main *bmain, wmWindowManager *wm, Scene *scene);
 
 void ED_image_get_uv_aspect(Image *ima, ImageUser *iuser, float *r_aspx, float *r_aspy);
+void ED_space_image_sync_active_uv(const bContext *C, SpaceImage *sima);
 /** Takes `event->mval`. */
 void ED_image_mouse_pos(SpaceImage *sima, const ARegion *region, const int mval[2], float co[2]);
 void ED_image_view_center_to_point(SpaceImage *sima, float x, float y);

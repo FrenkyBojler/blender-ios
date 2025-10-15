@@ -681,6 +681,10 @@ typedef struct SpaceImage {
   float uv_face_opacity;
   char _pad2[4];
 
+  char uv_sync_name[64];
+  char needs_uv_sync;
+  char _pad_sync[7];
+
   float stretch_opacity;
 
   int tile_grid_shape[2];

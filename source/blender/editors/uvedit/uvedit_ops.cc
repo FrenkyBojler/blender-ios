@@ -2721,6 +2721,57 @@ void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
               16);
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Sync Active UV Layer Operator
+ * \{ */
+
+void ED_uvedit_sync_active_uv(SpaceImage *sima, const bContext *C)
+{
+  Vector<PointerRNA> selected_editable_bases;
+  CTX_data_selected_editable_bases(C, &selected_editable_bases);
+
+  for (const PointerRNA &ptr : selected_editable_bases) {
+    Base *base = static_cast<Base *>(ptr.data);
+    Object *ob = base->object;
+    if (ob->type != OB_MESH || ob->mode != OB_MODE_EDIT) {
+      continue;
+    }
+
+    BMEditMesh *em = BKE_editmesh_from_object(ob);
+    CustomData *ldata = &em->bm->ldata;
+    const int index = CustomData_get_named_layer_index(ldata, CD_PROP_FLOAT2, sima->uv_sync_name);
+    if (index == -1) {
+      continue;
+    }
+
+    const int base_i = CustomData_get_layer_index(ldata, CD_PROP_FLOAT2);
+    if (base_i == -1) {
+      continue;
+    }
+
+    CustomData_set_layer_active(ldata, CD_PROP_FLOAT2, index - base_i);
+    DEG_id_tag_update(&ob->id, 0);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, &ob->id);
+  }
+}
+
+static wmOperatorStatus uv_sync_active_uv_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceImage *sima = CTX_wm_space_image(C);
+  ED_uvedit_sync_active_uv(sima, C);
+  return OPERATOR_FINISHED;
+}
+
+void UV_OT_sync_active_uv(wmOperatorType *ot)
+{
+  ot->name = "Sync Active UV Layer";
+  ot->idname = "UV_OT_sync_active_uv";
+  ot->description = "Match active UV layer across selected meshes";
+
+  ot->exec = uv_sync_active_uv_exec;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_INTERNAL;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2784,6 +2835,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_cursor_set);
   WM_operatortype_append(UV_OT_copy_mirrored_faces);
   WM_operatortype_append(UV_OT_move_on_axis);
+  WM_operatortype_append(UV_OT_sync_active_uv);
 }
 
 void ED_operatormacros_uvedit()

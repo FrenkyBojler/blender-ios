@@ -286,6 +286,10 @@ static void image_refresh(const bContext *C, ScrArea *area)
   ima = ED_space_image(sima);
   BKE_image_user_frame_calc(ima, &sima->iuser, scene->r.cfra);
 
+  if (sima->mode == SI_MODE_UV && CTX_data_edit_object(C)) {
+    ED_space_image_sync_active_uv(C, sima);
+  }
+
   /* Check if we have to set the image from the edit-mesh. */
   if (ima && (ima->source == IMA_SRC_VIEWER && sima->mode == SI_MODE_MASK)) {
     if (scene->compositing_node_group) {
