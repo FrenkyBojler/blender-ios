@@ -366,7 +366,10 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             draw_shape_key_properties(context, layout)
 
         if ob.type == 'MESH':
-            layout.prop(ob, "add_rest_position_attribute")
+            row = layout.row(align=True)
+            row.use_property_split = False
+            row.alignment = 'LEFT'
+            row.prop(ob, "add_rest_position_attribute")
 
 
 class DATA_PT_uv_texture(MeshButtonsPanel, Panel):
