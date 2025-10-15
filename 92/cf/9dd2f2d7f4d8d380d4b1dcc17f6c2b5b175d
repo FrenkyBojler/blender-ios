@@ -1,2 +1,3 @@
 Referenced by commit 3cf1c795ff3, Fix assertion when creating an override of a enum custom property.
 Referenced by pull request #148109, Fix: crash printing integers in IDP_reprN
+Referenced by commit be43077b1be49eab4e7362cebe0ffbaa18bd54b7, Fix: crash printing integers in IDP_reprN
