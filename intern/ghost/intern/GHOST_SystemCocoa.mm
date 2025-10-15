@@ -1747,7 +1747,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
           const int32_t delta = event.deltaX > 0.0 ? 1 : -1;
           /* On macOS, shift + vertical scroll events will be transformed into shift + horizontal
            * events by the OS input layer. Counteract this behavior by transforming them back into
-           * shift + vertical scroll event. */
+           * shift + vertical scroll event. See PR #148122 for more details. */
           const GHOST_TEventWheelAxis direction = modifier_mask_ & NSEventModifierFlagShift ?
                                                       GHOST_kEventWheelAxisVertical :
                                                       GHOST_kEventWheelAxisHorizontal;
