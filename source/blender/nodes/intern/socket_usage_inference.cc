@@ -397,6 +397,20 @@ class SocketUsageInferencerImpl {
 
   void usage_task__output(const SocketInContext &socket)
   {
+    const SocketDeclaration *socket_declaration = socket->runtime->declaration;
+    if (socket_declaration && socket_declaration->usage_inference_fn) {
+      InputSocketUsageParams params{
+          *owner_, socket.context, socket->owner_tree(), socket->owner_node(), *socket};
+      const std::optional<bool> is_used = (*socket_declaration->usage_inference_fn)(params);
+      if (!is_used.has_value()) {
+        /* Some value was requested, come back later when that value is available. */
+        return;
+      }
+      if (!*is_used) {
+        all_socket_usages_.add_new(socket, false);
+      }
+    }
+
     /* An output socket is used if any of the sockets it is connected to is used. */
     Vector<const bNodeSocket *> dependent_sockets;
     for (const bNodeLink *link : socket->directly_linked_links()) {
@@ -656,6 +670,22 @@ class SocketUsageInferencerImpl {
           this->disabled_output_task__output__enable_output_node(socket);
           break;
         }
+
+        const SocketDeclaration *socket_declaration = socket->runtime->declaration;
+        if (socket_declaration && socket_declaration->usage_inference_fn) {
+          InputSocketUsageParams params{
+              *owner_, socket.context, socket->owner_tree(), socket->owner_node(), *socket};
+          const std::optional<bool> is_used = (*socket_declaration->usage_inference_fn)(params);
+          if (!is_used.has_value()) {
+            /* Some value was requested, come back later when that value is available. */
+            return;
+          }
+          if (!*is_used) {
+            all_socket_disable_states_.add_new(socket, true);
+            break;
+          }
+        }
+
         /* By default, all output sockets are enabled unless they are explicitly disabled by some
          * rule above. */
         all_socket_disable_states_.add_new(socket, false);

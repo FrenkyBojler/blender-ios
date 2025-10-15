@@ -197,7 +197,7 @@ struct CustomSocketDrawParams {
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
-using InputSocketUsageInferenceFn = std::function<std::optional<bool>(
+using SocketUsageInferenceFn = std::function<std::optional<bool>(
     const socket_usage_inference::InputSocketUsageParams &params)>;
 
 /**
@@ -267,10 +267,10 @@ class SocketDeclaration : public ItemDeclaration {
    */
   std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
   /**
-   * Determines whether this input socket is used based on other input values and based on which
-   * outputs are used.
+   * Determines whether this socket is used based on other input values and based on which outputs
+   * are used.
    */
-  std::unique_ptr<InputSocketUsageInferenceFn> usage_inference_fn;
+  std::unique_ptr<SocketUsageInferenceFn> usage_inference_fn;
 
   friend NodeDeclarationBuilder;
   friend class BaseSocketDeclarationBuilder;
@@ -427,10 +427,10 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &custom_draw(CustomSocketDrawFn fn);
 
   /**
-   * Provide a function that determines whether this input socket is used based on other input
-   * values and based on which outputs are used.
+   * Provide a function that determines whether this socket is used based on other input values and
+   * based on which outputs are used.
    */
-  BaseSocketDeclarationBuilder &usage_inference(InputSocketUsageInferenceFn fn);
+  BaseSocketDeclarationBuilder &usage_inference(SocketUsageInferenceFn fn);
 
   /**
    * Utility method for the case when the node has a single menu input and this socket is only used
