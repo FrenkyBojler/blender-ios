@@ -130,8 +130,16 @@ void version_system_idprops_generate(Main *bmain)
     for (BoneCollection *bcoll : armature->collections_span()) {
       idprops_process(bcoll->prop, &bcoll->system_properties);
     }
-    LISTBASE_FOREACH (Bone *, bone, &armature->bonebase) {
+    /* There is no way to iterate directly over all bones of an armature currently, use a recursive
+     * approach instead. */
+    auto process_bone_recursive = [](const auto &process_bone_recursive, Bone *bone) -> void {
       idprops_process(bone->prop, &bone->system_properties);
+      LISTBASE_FOREACH (Bone *, bone_it, &bone->childbase) {
+        process_bone_recursive(process_bone_recursive, bone_it);
+      }
+    };
+    LISTBASE_FOREACH (Bone *, bone_it, &armature->bonebase) {
+      process_bone_recursive(process_bone_recursive, bone_it);
     }
   }
 }
@@ -144,6 +152,29 @@ void version_system_idprops_nodes_generate(Main *bmain)
     }
   }
   FOREACH_NODETREE_END;
+}
+/* Separate callback for non-root bones, because they were missed in the initial implementation. */
+void version_system_idprops_children_bones_generate(Main *bmain)
+{
+  LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
+    /* There is no way to iterate directly over all bones of an armature currently, use a recursive
+     * approach instead. */
+    auto process_bone_recursive = [](const auto &process_bone_recursive, Bone *bone) -> void {
+      /* Do not overwrite children bones' system properties if they were already defined by some
+       * scripts or add-on e.g. */
+      if (bone->system_properties == nullptr) {
+        idprops_process(bone->prop, &bone->system_properties);
+      }
+      LISTBASE_FOREACH (Bone *, bone_it, &bone->childbase) {
+        process_bone_recursive(process_bone_recursive, bone_it);
+      }
+    };
+    LISTBASE_FOREACH (Bone *, bone_it, &armature->bonebase) {
+      LISTBASE_FOREACH (Bone *, bone_child_it, &bone_it->childbase) {
+        process_bone_recursive(process_bone_recursive, bone_child_it);
+      }
+    }
+  }
 }
 
 static CustomDataLayer *find_old_seam_layer(CustomData &custom_data, const blender::StringRef name)
@@ -2507,7 +2538,7 @@ static void do_version_lift_gamma_gain_srgb_to_linear(bNodeTree &node_tree, bNod
   bNodeSocket *type_input = blender::bke::node_find_socket(node, SOCK_IN, "Type");
   bNodeSocket *image_output = blender::bke::node_find_socket(node, SOCK_OUT, "Image");
 
-  /* Find the links going into and out of of the node. */
+  /* Find the links going into and out of the node. */
   bNodeLink *image_input_link = nullptr;
   bNodeLink *type_input_link = nullptr;
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
@@ -2683,6 +2714,39 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
         sequencer_substitute_transform_effects(scene);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 100)) {
+    /* Note: this HAS to happen in the 'after linking' stage, because
+     * #do_version_area_change_space_to_space_action() basically performs the opposite operation
+     * and is called from #do_versions_after_linking_280(). */
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (!ELEM(sl->spacetype, SPACE_ACTION)) {
+            continue;
+          }
+          SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
+          const eAnimEdit_Context dopesheet_mode = eAnimEdit_Context(saction->mode);
+          if (dopesheet_mode != SACTCONT_TIMELINE) {
+            continue;
+          }
+          /* Switching to dopesheet since that is the closest to the timeline view. */
+          saction->mode = SACTCONT_DOPESHEET;
+          /* The multiplication by 2 assumes that the time control footer has the same size as the
+           * header. The header is only shown if there is enough space for both. */
+          const bool show_header = area->winy > (HEADERY * UI_SCALE_FAC) * 2;
+          LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+            if (!show_header && region->regiontype == RGN_TYPE_HEADER) {
+              region->flag |= RGN_FLAG_HIDDEN;
+            }
+            if (region->regiontype == RGN_TYPE_FOOTER) {
+              region->flag &= ~RGN_FLAG_HIDDEN;
+            }
+          }
+        }
       }
     }
   }
@@ -3287,39 +3351,12 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 46)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype != SPACE_NODE) {
-            continue;
-          }
-          const SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
-          if (!STREQ(snode->tree_idname, "CompositorNodeTree")) {
-            continue;
-          }
-
-          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                 &sl->regionbase;
-
-          if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
-                  regionbase,
-                  RGN_TYPE_ASSET_SHELF,
-                  "Asset shelf for compositing (versioning)",
-                  RGN_TYPE_HEADER))
-          {
-            new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
-          }
-          if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
-                  regionbase,
-                  RGN_TYPE_ASSET_SHELF_HEADER,
-                  "Asset shelf header for compositing (versioning)",
-                  RGN_TYPE_ASSET_SHELF))
-          {
-            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
-          }
-        }
-      }
-    }
+    /* Versioning from 0a0dd4ca37 was wrong, it only created asset shelf regions for Node Editors
+     * that are Compositors. If you change a non-Node Editor (e.g. an Image Editor) to a Compositor
+     * Editor, all is fine (SpaceLink *node_create gets called, the regions set up correctly), but
+     * changing an existing Node Editor (e.g. Shader or Geometry Nodes) to a Compositor, no new
+     * Space gets set up (rightfully so) and we are then missing the regions. Now corrected below
+     * (version bump in 5.1 since that is also affected). */
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 48)) {
@@ -3600,12 +3637,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 69)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      repair_node_link_node_pointers(*fd, *ntree);
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 71)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->toolsettings->uvsculpt.size *= 2;
@@ -3869,35 +3900,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 100)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (!ELEM(sl->spacetype, SPACE_ACTION)) {
-            continue;
-          }
-          SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
-          if (saction->mode != SACTCONT_TIMELINE) {
-            continue;
-          }
-          /* Switching to dopesheet since that is the closest to the timeline view. */
-          saction->mode = SACTCONT_DOPESHEET;
-          /* The multiplication by 2 assumes that the time control footer has the same size as the
-           * header. The header is only shown if there is enough space for both. */
-          const bool show_header = area->winy > (HEADERY * UI_SCALE_FAC) * 2;
-          LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-            if (!show_header && region->regiontype == RGN_TYPE_HEADER) {
-              region->flag |= RGN_FLAG_HIDDEN;
-            }
-            if (region->regiontype == RGN_TYPE_FOOTER) {
-              region->flag &= ~RGN_FLAG_HIDDEN;
-            }
-          }
-        }
-      }
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 102)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->r.time_jump_delta = 1.0f;
@@ -3916,6 +3918,104 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 104)) {
+    /* Dope Sheet Editor: toggle overlays on. */
+    if (!DNA_struct_exists(fd->filesdna, "SpaceActionOverlays")) {
+      LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, space, &area->spacedata) {
+            if (space->spacetype == SPACE_ACTION) {
+              SpaceAction *space_action = (SpaceAction *)space;
+              space_action->overlays.flag |= ADS_OVERLAY_SHOW_OVERLAYS;
+              space_action->overlays.flag |= ADS_SHOW_SCENE_STRIP_FRAME_RANGE;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 105)) {
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      bke::mesh_uv_select_to_single_attribute(*mesh);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 106)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      version_node_input_socket_name(
+          node_tree, CMP_NODE_COLORCORRECTION, "Master Lift", "Master Offset");
+      version_node_input_socket_name(
+          node_tree, CMP_NODE_COLORCORRECTION, "Highlights Lift", "Highlights Offset");
+      version_node_input_socket_name(
+          node_tree, CMP_NODE_COLORCORRECTION, "Midtones Lift", "Midtones Offset");
+      version_node_input_socket_name(
+          node_tree, CMP_NODE_COLORCORRECTION, "Shadows Lift", "Shadows Offset");
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 107)) {
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      /* The flag was actually interpreted as reversed. */
+      material->blend_flag ^= MA_BL_LIGHTPROBE_VOLUME_DOUBLE_SIDED;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 108)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+            sima->iuser.flag &= ~IMA_SHOW_SEQUENCER_SCENE;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 109)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      repair_node_link_node_pointers(*fd, *ntree);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 2)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_NODE) {
+            continue;
+          }
+
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+
+          if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF,
+                  "Asset shelf for compositing (versioning)",
+                  RGN_TYPE_HEADER))
+          {
+            new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
+          }
+          if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF_HEADER,
+                  "Asset shelf header for compositing (versioning)",
+                  RGN_TYPE_ASSET_SHELF))
+          {
+            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
+          }
+        }
+      }
+    }
   }
 
   /**
