@@ -145,7 +145,6 @@ static void markerToTransDataInit(TransformInitContext *init_context,
   memset(td->axismtx, 0, sizeof(td->axismtx));
   td->axismtx[2][2] = 1.0f;
 
-  td->ext = nullptr;
   td->val = nullptr;
 
   td->flag |= TD_SELECTED;
@@ -268,7 +267,6 @@ static void planeMarkerToTransDataInit(TransformInitContext *init_context,
   memset(td->axismtx, 0, sizeof(td->axismtx));
   td->axismtx[2][2] = 1.0f;
 
-  td->ext = nullptr;
   td->val = nullptr;
 
   td->flag |= TD_SELECTED;
@@ -491,7 +489,7 @@ static void flushTransTracking(TransInfo *t)
             float d[2], d2[2];
 
             if (!tdt->smarkers) {
-              tdt->smarkers = static_cast<float(*)[2]>(MEM_callocN(
+              tdt->smarkers = static_cast<float (*)[2]>(MEM_callocN(
                   sizeof(*tdt->smarkers) * tdt->markersnr, "flushTransTracking markers"));
               for (int a = 0; a < tdt->markersnr; a++) {
                 copy_v2_v2(tdt->smarkers[a], tdt->markers[a].pos);
@@ -606,7 +604,7 @@ static void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
       BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
     }
   }
-  if (t->scene->nodetree != nullptr) {
+  if (t->scene->compositing_node_group != nullptr) {
     /* Tracks can be used for stabilization nodes,
      * flush update for such nodes.
      */

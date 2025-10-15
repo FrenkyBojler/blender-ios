@@ -45,6 +45,8 @@ static void eevee_render(RenderEngine *engine, Depsgraph *depsgraph)
     const char *viewname = RE_GetActiveRenderView(engine->re);
     int size[2] = {engine->resolution_x, engine->resolution_y};
 
+    /* Avoid leaking in the case of multiview. (see #145743) */
+    delete instance;
     /* WORKAROUND: Fails if created in the parent scope. Must be because of lack of active
      * `DRWContext`. To be revisited. */
     instance = new Instance();
@@ -75,7 +77,7 @@ static void eevee_render_update_passes(RenderEngine *engine, Scene *scene, ViewL
 RenderEngineType DRW_engine_viewport_eevee_type = {
     /*next*/ nullptr,
     /*prev*/ nullptr,
-    /*idname*/ "BLENDER_EEVEE_NEXT",
+    /*idname*/ "BLENDER_EEVEE",
     /*name*/ N_("EEVEE"),
     /*flag*/ RE_INTERNAL | RE_USE_PREVIEW | RE_USE_STEREO_VIEWPORT | RE_USE_GPU_CONTEXT,
     /*update*/ nullptr,

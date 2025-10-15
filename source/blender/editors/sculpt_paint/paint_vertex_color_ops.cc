@@ -8,9 +8,9 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_array.hh"
+#include "BLI_color.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
@@ -109,7 +109,7 @@ static bool vertex_paint_from_weight(Object &ob)
   const GVArray vertex_group = *attributes.lookup(
       deform_group->name,
       bke::AttrDomain::Point,
-      bke::cpp_type_to_custom_data_type(color_attribute.varray.type()));
+      bke::cpp_type_to_attribute_type(color_attribute.varray.type()));
   if (!vertex_group) {
     BLI_assert_unreachable();
     return false;
@@ -142,7 +142,7 @@ void PAINT_OT_vertex_color_from_weight(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vertex_color_from_weight";
   ot->description = "Convert active weight into gray scale vertex colors";
 
-  /* api callback */
+  /* API callbacks. */
   ot->exec = vertex_paint_from_weight_exec;
   ot->poll = vertex_weight_paint_mode_poll;
 
@@ -236,7 +236,7 @@ void PAINT_OT_vertex_color_smooth(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vertex_color_smooth";
   ot->description = "Smooth colors across vertices";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vertex_color_smooth_exec;
   ot->poll = vertex_paint_mode_poll;
 
@@ -285,9 +285,10 @@ static void transform_active_color_data(
               color_attribute.varray.set_by_copy(i, &color);
             }
             else if constexpr (std::is_same_v<T, ColorGeometry4b>) {
-              ColorGeometry4f color = color_attribute.varray.get<ColorGeometry4b>(i).decode();
+              ColorGeometry4f color = color::decode(
+                  color_attribute.varray.get<ColorGeometry4b>(i));
               transform_fn(color);
-              ColorGeometry4b color_encoded = color.encode();
+              ColorGeometry4b color_encoded = color::encode(color);
               color_attribute.varray.set_by_copy(i, &color_encoded);
             }
           }
@@ -374,7 +375,7 @@ void PAINT_OT_vertex_color_brightness_contrast(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vertex_color_brightness_contrast";
   ot->description = "Adjust vertex color brightness/contrast";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vertex_color_brightness_contrast_exec;
   ot->poll = vertex_paint_mode_poll;
 
@@ -430,7 +431,7 @@ void PAINT_OT_vertex_color_hsv(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vertex_color_hsv";
   ot->description = "Adjust vertex color Hue/Saturation/Value";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vertex_color_hsv_exec;
   ot->poll = vertex_paint_mode_poll;
 
@@ -470,7 +471,7 @@ void PAINT_OT_vertex_color_invert(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vertex_color_invert";
   ot->description = "Invert RGB values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vertex_color_invert_exec;
   ot->poll = vertex_paint_mode_poll;
 
@@ -510,7 +511,7 @@ void PAINT_OT_vertex_color_levels(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vertex_color_levels";
   ot->description = "Adjust levels of vertex colors";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vertex_color_levels_exec;
   ot->poll = vertex_paint_mode_poll;
 

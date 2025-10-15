@@ -35,11 +35,11 @@
 #include "../space_file/file_indexer.hh"
 #include "../space_file/filelist.hh"
 
-#include "ED_asset_handle.hh"
 #include "ED_asset_indexer.hh"
 #include "ED_asset_list.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
+
 #include "asset_library_reference.hh"
 
 namespace blender::ed::asset::list {
@@ -98,12 +98,9 @@ class AssetList : NonCopyable {
   void clear(wmWindowManager *wm);
   void clear_current_file_assets(wmWindowManager *wm);
 
-  AssetHandle asset_get_by_index(int index) const;
-
   bool needs_refetch() const;
   bool is_loaded() const;
   asset_system::AssetLibrary *asset_library() const;
-  void iterate(AssetListIndexIterFn fn) const;
   void iterate(AssetListIterFn fn) const;
   int size() const;
   void tag_main_data_dirty() const;
@@ -136,7 +133,7 @@ void AssetList::setup()
       "",
       "");
 
-  const bool use_asset_indexer = !USER_EXPERIMENTAL_TEST(&U, no_asset_indexing);
+  const bool use_asset_indexer = !USER_DEVELOPER_TOOL_TEST(&U, no_asset_indexing);
   filelist_setindexer(files, use_asset_indexer ? &index::file_indexer_asset : &file_indexer_noop);
 
   char dirpath[FILE_MAX_LIBEXTRA] = "";
@@ -195,24 +192,6 @@ asset_system::AssetLibrary *AssetList::asset_library() const
   return reinterpret_cast<asset_system::AssetLibrary *>(filelist_asset_library(filelist_));
 }
 
-void AssetList::iterate(AssetListIndexIterFn fn) const
-{
-  FileList *files = filelist_;
-  int numfiles = filelist_files_ensure(files);
-
-  for (int i = 0; i < numfiles; i++) {
-    asset_system::AssetRepresentation *asset = filelist_entry_get_asset_representation(files, i);
-    if (!asset) {
-      continue;
-    }
-
-    if (!fn(*asset, i)) {
-      /* If the callback returns false, we stop iterating. */
-      break;
-    }
-  }
-}
-
 void AssetList::iterate(AssetListIterFn fn) const
 {
   FileList *files = filelist_;
@@ -255,11 +234,6 @@ void AssetList::clear_current_file_assets(wmWindowManager *wm)
   filelist_clear_from_reset_tag(files);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST, nullptr);
-}
-
-AssetHandle AssetList::asset_get_by_index(int index) const
-{
-  return {filelist_file(filelist_, index)};
 }
 
 /**
@@ -553,14 +527,6 @@ bool has_asset_browser_storage_for_library(const AssetLibraryReference *library_
   return has_asset_browser;
 }
 
-void iterate(const AssetLibraryReference &library_reference, AssetListIndexIterFn fn)
-{
-  AssetList *list = lookup_list(library_reference);
-  if (list) {
-    list->iterate(fn);
-  }
-}
-
 void iterate(const AssetLibraryReference &library_reference, AssetListIterFn fn)
 {
   AssetList *list = lookup_list(library_reference);
@@ -577,20 +543,6 @@ asset_system::AssetLibrary *library_get_once_available(
     return nullptr;
   }
   return list->asset_library();
-}
-
-AssetHandle asset_handle_get_by_index(const AssetLibraryReference *library_reference,
-                                      int asset_index)
-{
-  const AssetList *list = lookup_list(*library_reference);
-  return list->asset_get_by_index(asset_index);
-}
-
-asset_system::AssetRepresentation *asset_get_by_index(
-    const AssetLibraryReference &library_reference, int asset_index)
-{
-  AssetHandle asset_handle = asset_handle_get_by_index(&library_reference, asset_index);
-  return reinterpret_cast<asset_system::AssetRepresentation *>(asset_handle.file_data->asset);
 }
 
 bool listen(const wmNotifier *notifier)

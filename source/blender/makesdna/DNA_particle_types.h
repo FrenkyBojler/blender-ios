@@ -272,16 +272,13 @@ typedef struct ParticleSettings {
   /* hair dynamics */
   float bending_random;
 
-  /** MAX_MTEX. */
-  struct MTex *mtex[18];
+  struct MTex *mtex[/*MAX_MTEX*/ 18];
 
   struct Collection *instance_collection;
   struct ListBase instance_weights;
   struct Collection *force_group DNA_DEPRECATED; /* deprecated */
   struct Object *instance_object;
   struct Object *bb_ob;
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
   struct PartDeflect *pd;
   struct PartDeflect *pd2;
 
@@ -301,7 +298,6 @@ typedef struct ParticleSettings {
   float rad_root, rad_tip, rad_scale;
 
   struct CurveMapping *twistcurve;
-  void *_pad7;
 } ParticleSettings;
 
 typedef struct ParticleSystem {
@@ -349,8 +345,8 @@ typedef struct ParticleSystem {
   /** Used for keyed and boid physics. */
   struct ListBase targets;
 
-  /** Particle system name, MAX_NAME. */
-  char name[64];
+  /** Particle system name. */
+  char name[/*MAX_NAME*/ 64];
 
   /** Used for instancing. */
   float imat[4][4];
@@ -364,8 +360,8 @@ typedef struct ParticleSystem {
   short target_psys, totkeyed, bakespace;
   char _pad1[6];
 
-  /** Billboard uv name, MAX_CUSTOMDATA_LAYER_NAME. */
-  char bb_uvname[3][68] DNA_DEPRECATED;
+  /** Billboard UV name. */
+  char bb_uvname[3][/*MAX_CUSTOMDATA_LAYER_NAME*/ 68] DNA_DEPRECATED;
 
   char _pad2[4];
   /* if you change these remember to update array lengths to PSYS_TOT_VG! */

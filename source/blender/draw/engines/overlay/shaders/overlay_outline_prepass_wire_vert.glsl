@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_outline_info.hh"
+#include "infos/overlay_outline_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_outline_prepass_wire)
 
@@ -91,10 +91,14 @@ void geometry_main(VertOut geom_in[4],
   float fac0 = dot(view_vec, n0);
   float fac3 = dot(view_vec, n3);
 
-  /* If both adjacent verts are facing the camera the same way,
-   * then it isn't an outline edge. */
-  if (sign(fac0) == sign(fac3)) {
-    return;
+  /* If one of the face is perpendicular to the view,
+   * consider it an outline edge. */
+  if (abs(fac0) > 1e-5f && abs(fac3) > 1e-5f) {
+    /* If both adjacent verts are facing the camera the same way,
+     * then it isn't an outline edge. */
+    if (sign(fac0) == sign(fac3)) {
+      return;
+    }
   }
 
   VertOut export_vert = (out_vertex_id == 0) ? geom_in[1] : geom_in[2];
@@ -109,22 +113,22 @@ void main()
   /* Line adjacency list primitive. */
   constexpr uint input_primitive_vertex_count = 4u;
   /* Line list primitive. */
-  constexpr uint ouput_primitive_vertex_count = 2u;
-  constexpr uint ouput_primitive_count = 1u;
-  constexpr uint ouput_invocation_count = 1u;
-  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                      ouput_primitive_vertex_count;
+  constexpr uint output_primitive_vertex_count = 2u;
+  constexpr uint output_primitive_count = 1u;
+  constexpr uint output_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = output_primitive_count *
+                                                      output_primitive_vertex_count;
   constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                           ouput_invocation_count;
+                                                           output_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
 
-  uint out_vertex_id = uint(gl_VertexID) % ouput_primitive_vertex_count;
-  uint out_primitive_id = (uint(gl_VertexID) / ouput_primitive_vertex_count) %
-                          ouput_primitive_count;
+  uint out_vertex_id = uint(gl_VertexID) % output_primitive_vertex_count;
+  uint out_primitive_id = (uint(gl_VertexID) / output_primitive_vertex_count) %
+                          output_primitive_count;
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
-                           ouput_invocation_count;
+                           output_invocation_count;
 
   VertIn vert_in[input_primitive_vertex_count];
   vert_in[0] = input_assembly(in_primitive_first_vertex + 0u);

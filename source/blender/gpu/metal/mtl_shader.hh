@@ -220,6 +220,11 @@ class MTLShader : public Shader {
   /* Set to true when batch compiling */
   bool async_compilation_ = false;
 
+  /* If greater than one, use argument buffer to support arbitrary number of samplers. */
+  int arg_buf_samplers_vert_ = 0;
+  int arg_buf_samplers_frag_ = 0;
+  int arg_buf_samplers_comp_ = 0;
+
   bool finalize_shader(const shader::ShaderCreateInfo *info = nullptr);
 
  public:
@@ -282,7 +287,7 @@ class MTLShader : public Shader {
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
 
-  void bind() override;
+  void bind(const shader::SpecializationConstants *constants_state) override;
   void unbind() override;
 
   void uniform_float(int location, int comp_len, int array_size, const float *data) override;
@@ -331,7 +336,7 @@ class MTLShaderCompiler : public ShaderCompiler {
 
 /* Vertex format conversion.
  * Determines whether it is possible to resize a vertex attribute type
- * during input assembly. A conversion is implied by the  difference
+ * during input assembly. A conversion is implied by the difference
  * between the input vertex descriptor (from MTLBatch/MTLImmediate)
  * and the type specified in the shader source.
  *
@@ -421,9 +426,6 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
     case GPU_FETCH_FLOAT: \
       BLI_assert_msg(0, "Invalid fetch mode for integer attribute"); \
       break; \
-    case GPU_FETCH_INT_TO_FLOAT: \
-      /* Fallback to manual conversion */ \
-      break; \
   } \
   break;
 
@@ -435,7 +437,6 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
       BLI_assert_msg(0, "Invalid fetch mode for integer attribute"); \
       break; \
     case GPU_FETCH_INT_TO_FLOAT_UNIT: \
-    case GPU_FETCH_INT_TO_FLOAT: \
       /* Fallback to manual conversion */ \
       break; \
   } \
@@ -461,7 +462,6 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
           break;
         case GPU_FETCH_INT:
         case GPU_FETCH_INT_TO_FLOAT_UNIT:
-        case GPU_FETCH_INT_TO_FLOAT:
           BLI_assert_msg(0, "Invalid fetch mode for float attribute");
           break;
       }
@@ -471,7 +471,6 @@ inline MTLVertexFormat to_mtl(GPUVertCompType component_type,
           return MTLVertexFormatInt1010102Normalized;
         case GPU_FETCH_FLOAT:
         case GPU_FETCH_INT:
-        case GPU_FETCH_INT_TO_FLOAT:
           BLI_assert_msg(0, "Invalid fetch mode for compressed attribute");
           break;
       }

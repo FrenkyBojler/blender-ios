@@ -22,7 +22,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Path")
       .subtype(PROP_FILEPATH)
       .path_filter("*.csv")
-      .hide_label()
+      .optional_label()
       .description("Path to a CSV file");
   b.add_input<decl::String>("Delimiter").default_value(",");
 
@@ -42,7 +42,6 @@ class LoadCsvCache : public memory_cache::CachedValue {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-#ifdef WITH_IO_CSV
   const std::optional<std::string> path = params.ensure_absolute_path(
       params.extract_input<std::string>("Path"));
   if (!path) {
@@ -91,11 +90,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   params.set_output("Point Cloud", cached_value->geometry);
-#else
-  params.error_message_add(NodeWarningType::Error,
-                           TIP_("Disabled, Blender was compiled without CSV I/O"));
-  params.set_default_remaining_outputs();
-#endif
 }
 
 static void node_register()

@@ -17,11 +17,16 @@ namespace blender::bke {
 struct ImageRuntime;
 }  // namespace blender::bke
 using ImageRuntimeHandle = blender::bke::ImageRuntime;
+
+namespace blender::gpu {
+class Texture;
+}  // namespace blender::gpu
+using GPUTexture = blender::gpu::Texture;
 #else
 typedef struct ImageRuntimeHandle ImageRuntimeHandle;
+typedef struct GPUTexture GPUTexture;
 #endif
 
-struct GPUTexture;
 struct MovieReader;
 struct MovieCache;
 struct PackedFile;
@@ -63,10 +68,8 @@ typedef struct ImageAnim {
 
 typedef struct ImageView {
   struct ImageView *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char name[/*MAX_NAME*/ 64];
+  char filepath[/*FILE_MAX*/ 1024];
 } ImageView;
 
 typedef struct ImagePackedFile {
@@ -77,14 +80,12 @@ typedef struct ImagePackedFile {
    * respectively when creating their ImagePackedFile. Must be provided for each packed image. */
   int view;
   int tile_number;
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 } ImagePackedFile;
 
 typedef struct RenderSlot {
   struct RenderSlot *next, *prev;
-  /** 64 = MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   struct RenderResult *render;
 } RenderSlot;
 
@@ -114,7 +115,7 @@ typedef struct ImageTile {
 /** #ImageUser::flag */
 enum {
   IMA_ANIM_ALWAYS = 1 << 0,
-  // IMA_UNUSED_1 = 1 << 1,
+  IMA_SHOW_SEQUENCER_SCENE = 1 << 1,
   // IMA_UNUSED_2 = 1 << 2,
   IMA_NEED_FRAME_RECALC = 1 << 3,
   IMA_SHOW_STEREO = 1 << 4,
@@ -124,9 +125,9 @@ enum {
 /* Used to get the correct gpu texture from an Image datablock. */
 typedef enum eGPUTextureTarget {
   TEXTARGET_2D = 0,
-  TEXTARGET_2D_ARRAY,
-  TEXTARGET_TILE_MAPPING,
-  TEXTARGET_COUNT,
+  TEXTARGET_2D_ARRAY = 1,
+  TEXTARGET_TILE_MAPPING = 2,
+  TEXTARGET_COUNT = 3,
 } eGPUTextureTarget;
 
 typedef struct Image {
@@ -138,13 +139,13 @@ typedef struct Image {
   ID id;
   struct AnimData *adt;
 
-  /** File path, 1024 = FILE_MAX. */
-  char filepath[1024];
+  /** File path. */
+  char filepath[/*FILE_MAX*/ 1024];
 
   /** Not written in file. */
   struct MovieCache *cache;
-  /** Not written in file 3 = TEXTARGET_COUNT, 2 = stereo eyes. */
-  struct GPUTexture *gputexture[3][2];
+  /** Not written in file, 2 = stereo eyes. */
+  GPUTexture *gputexture[/*TEXTARGET_COUNT*/ 3][2];
 
   /* sources from: */
   ListBase anims;

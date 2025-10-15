@@ -1224,7 +1224,7 @@ static void rna_Fluid_flowtype_set(PointerRNA *ptr, int value)
     /* Use some surface emission when switching to a gas emitter. Gases should by default emit a
      * bit around surface. */
     if (prev_value == FLUID_FLOW_TYPE_LIQUID) {
-      settings->surface_distance = 1.5f;
+      settings->surface_distance = 1.0f;
     }
   }
 }
@@ -1270,7 +1270,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
       {FLUID_DOMAIN_CACHE_ALL, "ALL", 0, "All", "Bake all simulation settings at once"},
       {0, nullptr, 0, nullptr, nullptr}};
 
-  /*  OpenVDB data depth - generated dynamically based on domain type */
+  /* OpenVDB data depth - generated dynamically based on domain type. */
   static const EnumPropertyItem fluid_data_depth_items[] = {
       {0, "NONE", 0, "", ""},
       {0, nullptr, 0, nullptr, nullptr},
@@ -1307,7 +1307,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  /*  Cache type - generated dynamically based on domain type */
+  /* Cache type - generated dynamically based on domain type. */
   static const EnumPropertyItem cache_file_type_items[] = {
       {FLUID_DOMAIN_FILE_UNI, "UNI", 0, "Uni Cache", "Uni file format (.uni)"},
       {FLUID_DOMAIN_FILE_OPENVDB, "OPENVDB", 0, "OpenVDB", "OpenVDB file format (.vdb)"},
@@ -1573,11 +1573,11 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "adapt_threshold", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_ui_range(prop, 0.0, 1.0, 0.02, 6);
-  RNA_def_property_ui_text(
-      prop,
-      "Threshold",
-      "Minimum amount of fluid a cell can contain before it is considered empty");
+  RNA_def_property_ui_range(prop, 0.0, 1.0, 0.002, 6);
+  RNA_def_property_ui_text(prop,
+                           "Threshold",
+                           "Minimum amount of fluid grid values (smoke density, fuel and heat) a "
+                           "cell can contain, before it is considered empty");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
 
   prop = RNA_def_property(srna, "use_adaptive_domain", PROP_BOOLEAN, PROP_NONE);
@@ -1899,7 +1899,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
       "Maximum number of fluid particles that are allowed in this simulation");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
 
-  /* viscosity options */
+  /* Viscosity options. */
 
   prop = RNA_def_property(srna, "use_viscosity", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", FLUID_DOMAIN_USE_VISCOSITY);
@@ -1917,7 +1917,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_datacache_reset");
 
-  /*  diffusion options */
+  /* Diffusion options. */
 
   prop = RNA_def_property(srna, "use_diffusion", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", FLUID_DOMAIN_USE_DIFFUSION);
@@ -2022,7 +2022,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
                            "particles). Needs to be adjusted after changing the mesh scale.");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_meshcache_reset");
 
-  /*  secondary particles options */
+  /* Secondary particles options. */
 
   prop = RNA_def_property(srna, "sndparticle_potential_min_wavecrest", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "sndparticle_tau_min_wc");
@@ -2641,7 +2641,7 @@ static void rna_def_fluid_domain_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Upper Bound", "Upper bound of the highlighting range");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, nullptr);
 
-  prop = RNA_def_property(srna, "gridlines_range_color", PROP_FLOAT, PROP_COLOR);
+  prop = RNA_def_property(srna, "gridlines_range_color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "gridlines_range_color");
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Color", "Color used to highlight the range");
@@ -2684,7 +2684,7 @@ static void rna_def_fluid_flow_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  /*  Flow source - generated dynamically based on flow type */
+  /* Flow source - generated dynamically based on flow type. */
   static const EnumPropertyItem flow_sources[] = {
       {0, "NONE", 0, "", ""},
       {0, nullptr, 0, nullptr, nullptr},
@@ -2819,10 +2819,12 @@ static void rna_def_fluid_flow_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "surface_distance", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.0, 10.0);
   RNA_def_property_ui_range(prop, 0.0, 10.0, 0.05, 5);
-  RNA_def_property_ui_text(prop,
-                           "Surface Emission",
-                           "Controls fluid emission from the mesh surface (higher value results "
-                           "in emission further away from the mesh surface");
+  RNA_def_property_ui_text(
+      prop,
+      "Surface Emission",
+      "Height (in domain grid units) of fluid emission above the mesh surface. Higher values "
+      "result in emission further away from the mesh surface. If this value and the emitter size "
+      "are smaller than the domain grid unit, fluid will not be created");
   RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Fluid_flow_reset");
 
   prop = RNA_def_property(srna, "use_plane_init", PROP_BOOLEAN, PROP_NONE);

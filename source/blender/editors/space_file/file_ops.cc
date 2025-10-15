@@ -9,8 +9,10 @@
 #include "BLI_fileops.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
@@ -32,6 +34,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "MEM_guardedalloc.h"
@@ -537,7 +540,7 @@ void FILE_OT_select_box(wmOperatorType *ot)
   ot->description = "Activate/select the file(s) contained in the border";
   ot->idname = "FILE_OT_select_box";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = file_box_select_exec;
   ot->modal = file_box_select_modal;
@@ -657,7 +660,7 @@ void FILE_OT_select(wmOperatorType *ot)
   ot->idname = "FILE_OT_select";
   ot->description = "Handle mouse clicks to select and activate items";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_generic_select_invoke;
   ot->exec = file_select_exec;
   ot->modal = WM_generic_select_modal;
@@ -943,7 +946,7 @@ void FILE_OT_select_walk(wmOperatorType *ot)
   ot->description = "Select/Deselect files by walking through them";
   ot->idname = "FILE_OT_select_walk";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = file_walk_select_invoke;
   /* Operator works for file or asset browsing */
   ot->poll = ED_operator_file_active;
@@ -1032,7 +1035,7 @@ void FILE_OT_select_all(wmOperatorType *ot)
   ot->description = "Select or deselect all files";
   ot->idname = "FILE_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_select_all_exec;
   /* Operator works for file or asset browsing */
   ot->poll = ED_operator_file_active;
@@ -1059,12 +1062,15 @@ static wmOperatorStatus file_view_selected_exec(bContext *C, wmOperator * /*op*/
   }
 
   /* Extend the selection area with the active file, as it may not be selected but still is
-   * important to have in view. */
-  if (sel.first == -1 || params->active_file < sel.first) {
-    sel.first = params->active_file;
-  }
-  if (sel.last == -1 || params->active_file > sel.last) {
-    sel.last = params->active_file;
+   * important to have in view. NOTE: active_file gets -1 after a search has been cleared/updated.
+   */
+  if (params->active_file != -1) {
+    if (sel.first == -1 || params->active_file < sel.first) {
+      sel.first = params->active_file;
+    }
+    if (sel.last == -1 || params->active_file > sel.last) {
+      sel.last = params->active_file;
+    }
   }
 
   ScrArea *area = CTX_wm_area(C);
@@ -1085,7 +1091,7 @@ void FILE_OT_view_selected(wmOperatorType *ot)
   ot->description = "Scroll the selected files into view";
   ot->idname = "FILE_OT_view_selected";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_view_selected_exec;
   /* Operator works for file or asset browsing */
   ot->poll = ED_operator_file_active;
@@ -1128,7 +1134,7 @@ void FILE_OT_select_bookmark(wmOperatorType *ot)
   ot->description = "Select a bookmarked directory";
   ot->idname = "FILE_OT_select_bookmark";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bookmark_select_exec;
   /* Bookmarks are for file browsing only (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active;
@@ -1167,7 +1173,7 @@ void FILE_OT_bookmark_add(wmOperatorType *ot)
   ot->description = "Add a bookmark for the selected/active directory";
   ot->idname = "FILE_OT_bookmark_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bookmark_add_exec;
   /* Bookmarks are for file browsing only (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active;
@@ -1206,7 +1212,7 @@ void FILE_OT_bookmark_delete(wmOperatorType *ot)
   ot->description = "Delete selected bookmark";
   ot->idname = "FILE_OT_bookmark_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bookmark_delete_exec;
   /* Bookmarks are for file browsing only (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active;
@@ -1244,7 +1250,6 @@ static wmOperatorStatus bookmark_cleanup_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     fsmenu_write_file_and_refresh_or_report_error(fsmenu, area, op->reports);
-    fsmenu_refresh_bookmarks_status(CTX_wm_manager(C), fsmenu);
   }
 
   return OPERATOR_FINISHED;
@@ -1257,7 +1262,7 @@ void FILE_OT_bookmark_cleanup(wmOperatorType *ot)
   ot->description = "Delete all invalid bookmarks";
   ot->idname = "FILE_OT_bookmark_cleanup";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bookmark_cleanup_exec;
   /* Bookmarks are for file browsing only (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active;
@@ -1352,7 +1357,7 @@ void FILE_OT_bookmark_move(wmOperatorType *ot)
   ot->idname = "FILE_OT_bookmark_move";
   ot->description = "Move the active bookmark up/down in the list";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bookmark_move_exec;
   ot->poll = file_bookmark_move_poll;
 
@@ -1394,7 +1399,7 @@ void FILE_OT_reset_recent(wmOperatorType *ot)
   ot->description = "Reset recent files";
   ot->idname = "FILE_OT_reset_recent";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = reset_recent_exec;
   /* File browsing only operator (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active;
@@ -1477,7 +1482,7 @@ void FILE_OT_highlight(wmOperatorType *ot)
   ot->description = "Highlight selected file(s)";
   ot->idname = "FILE_OT_highlight";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = file_highlight_invoke;
   /* Operator works for file or asset browsing */
   ot->poll = ED_operator_file_active;
@@ -1530,7 +1535,7 @@ void FILE_OT_sort_column_ui_context(wmOperatorType *ot)
   ot->description = "Change sorting to use column under cursor";
   ot->idname = "FILE_OT_sort_column_ui_context";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = file_column_sort_ui_context_invoke;
   /* Operator works for file or asset browsing */
   ot->poll = ED_operator_file_active;
@@ -1576,7 +1581,7 @@ void FILE_OT_cancel(wmOperatorType *ot)
   ot->description = "Cancel file operation";
   ot->idname = "FILE_OT_cancel";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_cancel_exec;
   ot->poll = file_operator_poll;
 }
@@ -1825,15 +1830,52 @@ static const EnumPropertyItem file_external_operation[] = {
 
 static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op)
 {
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "filepath");
-  char filepath[FILE_MAX];
-  RNA_property_string_get(op->ptr, prop, filepath);
+  if (!ED_operator_file_browsing_active(C)) {
+    /* File browsing only operator (not asset browsing). */
+    return OPERATOR_CANCELLED;
+  }
+
+  SpaceFile *sfile = CTX_wm_space_file(C);
+  FileSelectParams *params = ED_fileselect_get_active_params(sfile);
+  if (!sfile || !params) {
+    return OPERATOR_CANCELLED;
+  }
+  char dir[FILE_MAX_LIBEXTRA];
+  if (filelist_islibrary(sfile->files, dir, nullptr)) {
+    return OPERATOR_CANCELLED;
+  }
+  int numfiles = filelist_files_ensure(sfile->files);
+  FileDirEntry *fileentry = nullptr;
+  int num_selected = 0;
+  for (int i = 0; i < numfiles; i++) {
+    if (filelist_entry_select_index_get(sfile->files, i, CHECK_ALL)) {
+      fileentry = filelist_file(sfile->files, i);
+      num_selected++;
+    }
+  }
+  if (!fileentry || num_selected > 1) {
+    return OPERATOR_CANCELLED;
+  }
+
+  char filepath[FILE_MAX_LIBEXTRA];
+  filelist_file_get_full_path(sfile->files, fileentry, filepath);
 
   WM_cursor_set(CTX_wm_window(C), WM_CURSOR_WAIT);
 
 #ifdef WIN32
   const FileExternalOperation operation = (FileExternalOperation)RNA_enum_get(op->ptr,
                                                                               "operation");
+
+  if (!(fileentry->typeflag & FILE_TYPE_DIR) &&
+      ELEM(operation, FILE_EXTERNAL_OPERATION_FOLDER_OPEN, FILE_EXTERNAL_OPERATION_FOLDER_CMD))
+  {
+    /* Not a folder path, so for these operations use the root. */
+    const char *root = filelist_dir(sfile->files);
+    if (BLI_file_external_operation_execute(root, operation)) {
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
+      return OPERATOR_FINISHED;
+    }
+  }
   if (BLI_file_external_operation_execute(filepath, operation)) {
     WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
     return OPERATOR_FINISHED;
@@ -1844,7 +1886,7 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
   WM_operator_properties_create_ptr(&op_props, ot);
   RNA_string_set(&op_props, "filepath", filepath);
   const wmOperatorStatus retval = WM_operator_name_call_ptr(
-      C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+      C, ot, blender::wm::OpCallContext::InvokeDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   if (retval == OPERATOR_FINISHED) {
@@ -1870,14 +1912,12 @@ static std::string file_external_operation_get_description(bContext * /*C*/,
 
 void FILE_OT_external_operation(wmOperatorType *ot)
 {
-  PropertyRNA *prop;
-
   /* identifiers */
   ot->name = "External File Operation";
   ot->idname = "FILE_OT_external_operation";
   ot->description = "Perform external operation on a file or folder";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_external_operation_exec;
   ot->get_description = file_external_operation_get_description;
 
@@ -1885,16 +1925,12 @@ void FILE_OT_external_operation(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER; /* No undo! */
 
   /* properties */
-  prop = RNA_def_string(ot->srna, "filepath", nullptr, FILE_MAX, "File or folder path", "");
-  RNA_def_property_subtype(prop, PROP_FILEPATH);
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-
   RNA_def_enum(ot->srna,
                "operation",
                file_external_operation,
                FILE_EXTERNAL_OPERATION_OPEN,
                "Operation",
-               "Operation to perform on the file or path");
+               "Operation to perform on the selected file or path");
 }
 
 static void file_os_operations_menu_item(uiLayout *layout,
@@ -1907,6 +1943,7 @@ static void file_os_operations_menu_item(uiLayout *layout,
     return;
   }
 #else
+  UNUSED_VARS(path);
   if (!ELEM(operation, FILE_EXTERNAL_OPERATION_OPEN, FILE_EXTERNAL_OPERATION_FOLDER_OPEN)) {
     return;
   }
@@ -1915,19 +1952,9 @@ static void file_os_operations_menu_item(uiLayout *layout,
   const char *title = "";
   RNA_enum_name(file_external_operation, operation, &title);
 
-  PointerRNA props_ptr;
-  uiItemFullO_ptr(layout,
-                  ot,
-                  IFACE_(title),
-                  ICON_NONE,
-                  nullptr,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  &props_ptr);
-  RNA_string_set(&props_ptr, "filepath", path);
-  if (operation) {
-    RNA_enum_set(&props_ptr, "operation", operation);
-  }
+  PointerRNA props_ptr = layout->op(
+      ot, IFACE_(title), ICON_NONE, blender::wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+  RNA_enum_set(&props_ptr, "operation", operation);
 }
 
 static void file_os_operations_menu_draw(const bContext *C_const, Menu *menu)
@@ -1970,7 +1997,7 @@ static void file_os_operations_menu_draw(const bContext *C_const, Menu *menu)
   const char *root = filelist_dir(sfile->files);
 
   uiLayout *layout = menu->layout;
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   wmOperatorType *ot = WM_operatortype_find("FILE_OT_external_operation", true);
 
   if (fileentry->typeflag & FILE_TYPE_DIR) {
@@ -2041,9 +2068,9 @@ void file_external_operations_menu_register()
   MenuType *mt;
 
   mt = MEM_callocN<MenuType>("spacetype file menu file operations");
-  STRNCPY(mt->idname, "FILEBROWSER_MT_operations_menu");
-  STRNCPY(mt->label, N_("External"));
-  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(mt->idname, "FILEBROWSER_MT_operations_menu");
+  STRNCPY_UTF8(mt->label, N_("External"));
+  STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = file_os_operations_menu_draw;
   mt->poll = file_os_operations_menu_poll;
   WM_menutype_add(mt);
@@ -2154,7 +2181,7 @@ void FILE_OT_execute(wmOperatorType *ot)
   ot->idname = "FILE_OT_execute";
   ot->get_description = file_execute_get_description;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_exec;
   /* Important since handler is on window level.
    *
@@ -2212,7 +2239,7 @@ void FILE_OT_mouse_execute(wmOperatorType *ot)
       "Perform the current execute action for the file under the cursor (e.g. open the file)";
   ot->idname = "FILE_OT_mouse_execute";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = file_execute_mouse_invoke;
   ot->poll = ED_operator_file_browsing_active;
 
@@ -2236,9 +2263,6 @@ static wmOperatorStatus file_refresh_exec(bContext *C, wmOperator * /*unused*/)
   /* refresh system directory menu */
   fsmenu_refresh_system_category(fsmenu);
 
-  /* Update bookmarks 'valid' state. */
-  fsmenu_refresh_bookmarks_status(wm, fsmenu);
-
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
 
   return OPERATOR_FINISHED;
@@ -2251,7 +2275,7 @@ void FILE_OT_refresh(wmOperatorType *ot)
   ot->description = "Refresh the file list";
   ot->idname = "FILE_OT_refresh";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_refresh_exec;
   ot->poll = ED_operator_file_browsing_active; /* <- important, handler is on window level */
 }
@@ -2292,7 +2316,7 @@ void FILE_OT_parent(wmOperatorType *ot)
   ot->description = "Move to parent directory";
   ot->idname = "FILE_OT_parent";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_parent_exec;
   /* File browsing only operator (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active; /* <- important, handler is on window level */
@@ -2328,7 +2352,7 @@ void FILE_OT_previous(wmOperatorType *ot)
   ot->description = "Move to previous folder";
   ot->idname = "FILE_OT_previous";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_previous_exec;
   /* File browsing only operator (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active; /* <- important, handler is on window level */
@@ -2365,7 +2389,7 @@ void FILE_OT_next(wmOperatorType *ot)
   ot->description = "Move to next folder";
   ot->idname = "FILE_OT_next";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_next_exec;
   /* File browsing only operator (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active; /* <- important, handler is on window level */
@@ -2482,7 +2506,7 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
                               (min_curr_scroll - min_tot_scroll < 1.0f) &&
                               (middle_offset - min_middle_offset < items_block_size));
   /* OR edited item must be towards the end, and we are scrolled fully to the end.
-   * This one is crucial (unlike the one for the beginning), because without it we won't scroll
+   * This one is crucial (unlike the one for the beginning), because without it scrolling
    * fully to the end, and last column or row will end up only partially drawn. */
   const bool is_full_end = ((sfile->scroll_offset > max_middle_offset) &&
                             (max_tot_scroll - max_curr_scroll < 1.0f) &&
@@ -2543,7 +2567,8 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
   RNA_int_set(&op_ptr, "deltax", deltax);
   RNA_int_set(&op_ptr, "deltay", deltay);
 
-  WM_operator_name_call(C, "VIEW2D_OT_pan", WM_OP_EXEC_DEFAULT, &op_ptr, event);
+  WM_operator_name_call(
+      C, "VIEW2D_OT_pan", blender::wm::OpCallContext::ExecDefault, &op_ptr, event);
   WM_operator_properties_free(&op_ptr);
 
   ED_region_tag_redraw(region);
@@ -2561,7 +2586,7 @@ void FILE_OT_smoothscroll(wmOperatorType *ot)
   ot->idname = "FILE_OT_smoothscroll";
   ot->description = "Smooth scroll to make editable file visible";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = file_smoothscroll_invoke;
   /* Operator works for file or asset browsing */
   ot->poll = ED_operator_file_active;
@@ -2638,7 +2663,7 @@ static bool new_folder_path(const char *parent,
    * add number to the name. Check length of generated name to avoid
    * crazy case of huge number of folders each named 'New Folder (x)' */
   while (BLI_exists(r_dirpath_full) && (len < FILE_MAXFILE)) {
-    len = BLI_snprintf(r_dirname, FILE_MAXFILE, "New Folder(%d)", i);
+    len = BLI_snprintf_utf8(r_dirname, FILE_MAXFILE, "New Folder(%d)", i);
     BLI_path_join(r_dirpath_full, FILE_MAX, parent, r_dirname);
     i++;
   }
@@ -2756,7 +2781,7 @@ void FILE_OT_directory_new(wmOperatorType *ot)
   ot->description = "Create a new directory";
   ot->idname = "FILE_OT_directory_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = file_directory_new_invoke;
   ot->exec = file_directory_new_exec;
   /* File browsing only operator (not asset browsing). */
@@ -2843,7 +2868,7 @@ static bool can_create_dir_from_user_input(const char dir[FILE_MAX_LIBEXTRA])
    * in the would immediately be created (if possible) which isn't good, see: #128567.
    *
    * The reason to treat user input differently here is the user could input anything,
-   * Values such as a single space for e.g. this resolves to the current-working-directory:
+   * e.g. values such as a single space. This resolves to the current-working-directory:
    * `$PWD/ ` which is a valid path name and could be created
    * (this was in fact the behavior until v4.4).
    *
@@ -2968,7 +2993,7 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void * /*ar
         STRNCPY(params->dir, lastdir);
       }
 
-      WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+      WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
       WM_operator_properties_free(&ptr);
     }
   }
@@ -3054,7 +3079,7 @@ void FILE_OT_hidedot(wmOperatorType *ot)
   ot->description = "Toggle hide hidden dot files";
   ot->idname = "FILE_OT_hidedot";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_hidedot_exec;
   /* File browsing only operator (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active; /* <- important, handler is on window level */
@@ -3132,7 +3157,7 @@ void FILE_OT_filenum(wmOperatorType *ot)
   ot->description = "Increment number in filename";
   ot->idname = "FILE_OT_filenum";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_filenum_exec;
   ot->poll = file_filenum_poll;
 
@@ -3189,7 +3214,7 @@ void FILE_OT_rename(wmOperatorType *ot)
   ot->description = "Rename file or file directory";
   ot->idname = "FILE_OT_rename";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_rename_exec;
   /* File browsing only operator (not asset browsing). */
   ot->poll = ED_operator_file_browsing_active;
@@ -3290,7 +3315,7 @@ void FILE_OT_delete(wmOperatorType *ot)
   ot->description = "Move selected files to the trash or recycle bin";
   ot->idname = "FILE_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = file_delete_invoke;
   ot->exec = file_delete_exec;
   ot->poll = file_delete_poll; /* <- important, handler is on window level */
@@ -3326,7 +3351,7 @@ void FILE_OT_start_filter(wmOperatorType *ot)
   ot->description = "Start entering filter text";
   ot->idname = "FILE_OT_start_filter";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_start_filter_exec;
   /* Operator works for file or asset browsing */
   ot->poll = ED_operator_file_active;
@@ -3362,7 +3387,7 @@ void FILE_OT_edit_directory_path(wmOperatorType *ot)
   ot->description = "Start editing directory field";
   ot->idname = "FILE_OT_edit_directory_path";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = file_edit_directory_path_exec;
   ot->poll = ED_operator_file_active;
 }

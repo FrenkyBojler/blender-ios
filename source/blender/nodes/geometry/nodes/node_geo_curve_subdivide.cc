@@ -5,6 +5,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_subdivide_curves.hh"
 
 #include "node_geometry_util.hh"
@@ -15,8 +16,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description("Curves to subdivide");
   b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Int>("Cuts").default_value(1).min(0).max(1000).field_on_all().description(
       "The number of control points to create on the segment following each point");
@@ -87,7 +89,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Curve");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
       const Curves &src_curves_id = *geometry_set.get_curves();
       Curves *dst_curves_id = subdivide_curves(src_curves_id, cuts_field, attribute_filter);

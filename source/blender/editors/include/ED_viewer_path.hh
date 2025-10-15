@@ -26,7 +26,10 @@ namespace blender::ed::viewer_path {
  * Activates the given node in the context provided by the editor. This indirectly updates all
  * non-pinned viewer paths in other editors (spreadsheet and 3d view).
  */
-void activate_geometry_node(Main &bmain, SpaceNode &snode, bNode &node);
+void activate_geometry_node(Main &bmain,
+                            SpaceNode &snode,
+                            bNode &node,
+                            std::optional<int> item_identifier = std::nullopt);
 
 /**
  * Returns the object referenced by the viewer path. This only returns something if the viewer path
@@ -39,7 +42,8 @@ Object *parse_object_only(const ViewerPath &viewer_path);
  */
 struct ViewerPathForGeometryNodesViewer {
   Object *object;
-  blender::StringRefNull modifier_name;
+  /** #ModifierData.persistent_uid. */
+  int modifier_uid;
   /** Contains only group node and simulation zone elements. */
   blender::Vector<const ViewerPathElem *> node_path;
   int32_t viewer_node_id;

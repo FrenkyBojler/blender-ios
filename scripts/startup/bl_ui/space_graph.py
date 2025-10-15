@@ -3,11 +3,42 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from bpy.types import Header, Menu, Panel
-from bpy.app.translations import contexts as i18n_contexts
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+    contexts as i18n_contexts,
+)
 from bl_ui.space_dopesheet import (
     DopesheetFilterPopoverBase,
     dopesheet_filter,
 )
+from bl_ui.space_time import playback_controls
+
+
+def drivers_editor_footer(layout, context):
+    act_fcurve = context.active_editable_fcurve
+    if not act_fcurve:
+        return
+
+    act_driver = act_fcurve.driver
+    if not act_driver:
+        return
+
+    layout.separator_spacer()
+    layout.label(
+        text=iface_("Driver: {:s} ({:s})").format(
+            act_fcurve.id_data.name,
+            act_fcurve.data_path,
+        ),
+        translate=False,
+    )
+
+    if act_driver.variables:
+        layout.separator(type='LINE')
+        layout.label(text=iface_("Variables: {:d}").format(len(act_driver.variables)), translate=False)
+
+    if act_driver.type == 'SCRIPTED' and act_driver.expression:
+        layout.separator(type='LINE')
+        layout.label(text=iface_("Expression: {:s}").format(act_driver.expression), translate=False)
 
 
 class GRAPH_HT_header(Header):
@@ -77,6 +108,20 @@ class GRAPH_HT_header(Header):
             icon_only=True,
             panel="GRAPH_PT_proportional_edit",
         )
+
+
+class GRAPH_HT_playback_controls(Header):
+    bl_space_type = 'GRAPH_EDITOR'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+        is_drivers_editor = context.space_data.mode == 'DRIVERS'
+
+        if is_drivers_editor:
+            drivers_editor_footer(layout, context)
+        else:
+            playback_controls(layout, context)
 
 
 class GRAPH_PT_proportional_edit(Panel):
@@ -170,6 +215,7 @@ class GRAPH_MT_view(Menu):
         layout.prop(st, "show_region_ui")
         layout.prop(st, "show_region_hud")
         layout.prop(st, "show_region_channels")
+        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
         layout.operator("graph.view_selected")
@@ -225,11 +271,11 @@ class GRAPH_MT_select(Menu):
 
         layout.separator()
 
-        layout.operator("graph.select_box")
+        layout.operator("graph.select_box", text="Box Select (Include Handles)")
         props = layout.operator("graph.select_box", text="Box Select (Axis Range)")
         props.axis_range = True
-        props = layout.operator("graph.select_box", text="Box Select (Include Handles)")
-        props.include_handles = True
+        props = layout.operator("graph.select_box")
+        props.include_handles = False
         layout.operator("graph.select_circle")
         layout.operator_menu_enum("graph.select_lasso", "mode")
 
@@ -340,7 +386,7 @@ class GRAPH_MT_key_density(Menu):
     bl_label = "Density"
 
     def draw(self, _context):
-        from bl_ui_utils.layout import operator_context
+        from _bl_ui_utils.layout import operator_context
         layout = self.layout
         layout.operator("graph.decimate", text="Decimate (Ratio)").mode = 'RATIO'
         # Using the modal operation doesn't make sense for this variant
@@ -541,6 +587,7 @@ class GRAPH_MT_snap_pie(Menu):
 
 classes = (
     GRAPH_HT_header,
+    GRAPH_HT_playback_controls,
     GRAPH_PT_proportional_edit,
     GRAPH_MT_editor_menus,
     GRAPH_MT_view,

@@ -26,6 +26,7 @@ set(INC
 
 set(INC_SYS
   ${ZLIB_INCLUDE_DIRS}
+  ${ZSTD_INCLUDE_DIRS}
 
   # For `vfontdata_freetype.cc`.
   ${FREETYPE_INCLUDE_DIRS}
@@ -33,14 +34,12 @@ set(INC_SYS
 
 set(SRC
   ${CMAKE_SOURCE_DIR}/release/datafiles/userdef/userdef_default.c
-  intern/CCGSubSurf.cc
-  intern/CCGSubSurf_legacy.cc
-  intern/CCGSubSurf_util.cc
   intern/action.cc
   intern/action_bones.cc
   intern/action_mirror.cc
   intern/addon.cc
   intern/anim_data.cc
+  intern/anim_data_bmain_utils.cc
   intern/anim_path.cc
   intern/anim_sys.cc
   intern/anim_visualization.cc
@@ -56,8 +55,9 @@ set(SRC
   intern/attribute.cc
   intern/attribute_access.cc
   intern/attribute_legacy_convert.cc
-  intern/attribute_storage.cc
   intern/attribute_math.cc
+  intern/attribute_storage.cc
+  intern/attribute_storage_access.cc
   intern/autoexec.cc
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
@@ -147,6 +147,7 @@ set(SRC
   intern/grease_pencil_vertex_groups.cc
   intern/icons.cc
   intern/icons_rasterize.cc
+  intern/id_hash.cc
   intern/idprop.cc
   intern/idprop_create.cc
   intern/idprop_serialize.cc
@@ -160,7 +161,6 @@ set(SRC
   intern/image_save.cc
   intern/instances.cc
   intern/instances_attributes.cc
-  intern/ipo.cc
   intern/kelvinlet.cc
   intern/key.cc
   intern/keyconfig.cc
@@ -202,7 +202,6 @@ set(SRC
   intern/mesh_flip_faces.cc
   intern/mesh_iterators.cc
   intern/mesh_legacy_convert.cc
-  intern/mesh_legacy_derived_mesh.cc
   intern/mesh_mapping.cc
   intern/mesh_merge_customdata.cc
   intern/mesh_mirror.cc
@@ -238,6 +237,7 @@ set(SRC
   intern/node_tree_field_inferencing.cc
   intern/node_tree_interface.cc
   intern/node_tree_reference_lifetimes.cc
+  intern/node_tree_structure_type_inferencing.cc
   intern/node_tree_update.cc
   intern/node_tree_zones.cc
   intern/object.cc
@@ -250,6 +250,7 @@ set(SRC
   intern/packedFile.cc
   intern/paint.cc
   intern/paint_canvas.cc
+  intern/paint_runtime.cc
   intern/particle.cc
   intern/particle_child.cc
   intern/particle_distribute.cc
@@ -290,7 +291,6 @@ set(SRC
   intern/subdiv_modifier.cc
   intern/subdiv_stats.cc
   intern/subdiv_topology.cc
-  intern/subsurf_ccg.cc
   intern/text.cc
   intern/text_suggestions.cc
   intern/texture.cc
@@ -312,6 +312,7 @@ set(SRC
   intern/viewer_path.cc
   intern/volume.cc
   intern/volume_grid.cc
+  intern/volume_grid_fields.cc
   intern/volume_grid_file_cache.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
@@ -419,6 +420,7 @@ set(SRC
   BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
   BKE_icons.h
+  BKE_id_hash.hh
   BKE_idprop.hh
   BKE_idtype.hh
   BKE_image.hh
@@ -427,7 +429,6 @@ set(SRC
   BKE_image_save.hh
   BKE_image_wrappers.hh
   BKE_instances.hh
-  BKE_ipo.h
   BKE_kelvinlet.h
   BKE_key.hh
   BKE_keyconfig.h
@@ -455,7 +456,6 @@ set(SRC
   BKE_mesh_fair.hh
   BKE_mesh_iterators.hh
   BKE_mesh_legacy_convert.hh
-  BKE_mesh_legacy_derived_mesh.hh
   BKE_mesh_mapping.hh
   BKE_mesh_mirror.hh
   BKE_mesh_remap.hh
@@ -475,6 +475,7 @@ set(SRC
   BKE_node_legacy_types.hh
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
+  BKE_node_socket_value_fwd.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
   BKE_node_tree_reference_lifetimes.hh
@@ -489,6 +490,7 @@ set(SRC
   BKE_paint.hh
   BKE_paint_bvh.hh
   BKE_paint_bvh_pixels.hh
+  BKE_paint_types.hh
   BKE_particle.h
   BKE_path_templates.hh
   BKE_pointcache.h
@@ -515,7 +517,6 @@ set(SRC
   BKE_subdiv_mesh.hh
   BKE_subdiv_modifier.hh
   BKE_subdiv_topology.hh
-  BKE_subsurf.hh
   BKE_text.h
   BKE_text_suggestions.h
   BKE_texture.h
@@ -530,8 +531,10 @@ set(SRC
   BKE_volume.hh
   BKE_volume_enums.hh
   BKE_volume_grid.hh
+  BKE_volume_grid_fields.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh
+  BKE_volume_grid_process.hh
   BKE_volume_grid_type_traits.hh
   BKE_volume_openvdb.hh
   BKE_volume_render.hh
@@ -544,10 +547,8 @@ set(SRC
   particle_private.h
   tracking_private.h
 
-  intern/CCGSubSurf.h
-  intern/CCGSubSurf_inline.h
-  intern/CCGSubSurf_intern.h
   intern/attribute_access_intern.hh
+  intern/attribute_storage_access.hh
   intern/data_transfer_intern.hh
   intern/lib_intern.hh
   intern/multires_inline.hh
@@ -581,6 +582,7 @@ set(LIB
   PRIVATE bf::intern::clog
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
+  PUBLIC bf::intern::optional::openvdb  # Contains intern-openvdb items in public headers
   bf_intern_libmv  # Uses stub when disabled.
   bf_intern_mikktspace
   bf_intern_opensubdiv  # Uses stub when disabled.
@@ -626,6 +628,10 @@ if(WITH_AUDASPACE)
     )
   endif()
   add_definitions(-DWITH_AUDASPACE)
+
+  if(WITH_RUBBERBAND)
+    add_definitions(-DWITH_RUBBERBAND)
+  endif()
 endif()
 
 if(WITH_BULLET)
@@ -708,36 +714,6 @@ if(WITH_JACK)
   add_definitions(-DWITH_JACK)
 endif()
 
-if(WITH_LZO)
-  if(WITH_SYSTEM_LZO)
-    list(APPEND INC_SYS
-      ${LZO_INCLUDE_DIR}
-    )
-    list(APPEND LIB
-      ${LZO_LIBRARIES}
-    )
-    add_definitions(-DWITH_SYSTEM_LZO)
-  else()
-    list(APPEND INC_SYS
-      ../../../extern/lzo/minilzo
-    )
-    list(APPEND LIB
-      extern_minilzo
-    )
-  endif()
-  add_definitions(-DWITH_LZO)
-endif()
-
-if(WITH_LZMA)
-  list(APPEND INC_SYS
-    ../../../extern/lzma
-  )
-  list(APPEND LIB
-    extern_lzma
-  )
-  add_definitions(-DWITH_LZMA)
-endif()
-
 if(WITH_LIBMV)
   add_definitions(-DWITH_LIBMV)
 endif()
@@ -780,20 +756,6 @@ if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-endif()
-
 if(WITH_QUADRIFLOW)
   list(APPEND INC
     ../../../intern/quadriflow
@@ -806,6 +768,10 @@ endif()
 
 if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
+endif()
+
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
 endif()
 
 # # Warnings as errors, this is too strict!
@@ -823,16 +789,20 @@ add_dependencies(bf_blenkernel bf_rna)
 if(WITH_GTESTS)
   set(TEST_SRC
     intern/action_test.cc
-    intern/attribute_storage_test.cc
+    intern/armature_deform_test.cc
     intern/armature_test.cc
     intern/asset_metadata_test.cc
+    intern/attribute_storage_test.cc
     intern/bpath_test.cc
+    intern/brush_test.cc
     intern/cryptomatte_test.cc
     intern/curves_geometry_test.cc
+    intern/deform_test.cc
     intern/fcurve_test.cc
     intern/file_handler_test.cc
     intern/grease_pencil_test.cc
     intern/idprop_serialize_test.cc
+    intern/idprop_test.cc
     intern/image_partial_update_test.cc
     intern/image_test.cc
     intern/lattice_deform_test.cc

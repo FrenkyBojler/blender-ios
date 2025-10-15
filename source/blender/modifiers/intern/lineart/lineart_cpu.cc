@@ -10,6 +10,7 @@
 
 #include "MOD_lineart.hh"
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -29,7 +30,6 @@
 #include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
@@ -1216,7 +1216,7 @@ void lineart_main_cull_triangles(LineartData *ld, bool clip_far)
 {
   LineartTriangle *tri;
   LineartElementLinkNode *v_eln, *t_eln, *e_eln;
-  double(*m_view_projection)[4] = ld->conf.view_projection;
+  double (*m_view_projection)[4] = ld->conf.view_projection;
   int i;
   int v_count = 0, t_count = 0, e_count = 0;
   Object *ob;
@@ -1495,9 +1495,9 @@ struct EdgeFeatData {
   float crease_threshold;
   bool use_auto_smooth;
   bool use_freestyle_face;
-  int freestyle_face_index;
+  blender::VArray<bool> freestyle_face;
   bool use_freestyle_edge;
-  int freestyle_edge_index;
+  blender::VArray<bool> freestyle_edge;
   LineartEdgeNeighbor *edge_nabr;
 };
 
@@ -1520,7 +1520,6 @@ static void lineart_identify_corner_tri_feature_edges(void *__restrict userdata,
 {
   EdgeFeatData *e_feat_data = (EdgeFeatData *)userdata;
   EdgeFeatReduceData *reduce_data = (EdgeFeatReduceData *)tls->userdata_chunk;
-  Mesh *mesh = e_feat_data->mesh;
   Object *ob_eval = e_feat_data->ob_eval;
   LineartEdgeNeighbor *edge_nabr = e_feat_data->edge_nabr;
   const blender::Span<int3> corner_tris = e_feat_data->corner_tris;
@@ -1540,13 +1539,15 @@ static void lineart_identify_corner_tri_feature_edges(void *__restrict userdata,
                            e_feat_data->ld->conf.filter_face_mark);
   bool only_contour = false;
   if (enable_face_mark) {
-    FreestyleFace *ff1, *ff2;
-    int index = e_feat_data->freestyle_face_index;
-    if (index > -1) {
-      ff1 = &((FreestyleFace *)mesh->face_data.layers[index].data)[tri_faces[i / 3]];
+    bool ff1 = false;
+    bool ff2 = false;
+    if (const blender::VArray<bool> &freestyle_face = e_feat_data->freestyle_face) {
+      if (freestyle_face[tri_faces[i / 3]]) {
+        ff1 = true;
+      }
     }
-    if (edge_nabr[i].e > -1) {
-      ff2 = &((FreestyleFace *)mesh->face_data.layers[index].data)[tri_faces[edge_nabr[i].e / 3]];
+    if (edge_nabr[i].e > -1 && e_feat_data->freestyle_face) {
+      ff2 = e_feat_data->freestyle_face[tri_faces[edge_nabr[i].e / 3]];
     }
     else {
       /* Handle mesh boundary cases: We want mesh boundaries to respect
@@ -1557,12 +1558,12 @@ static void lineart_identify_corner_tri_feature_edges(void *__restrict userdata,
     if (e_feat_data->ld->conf.filter_face_mark_boundaries ^
         e_feat_data->ld->conf.filter_face_mark_invert)
     {
-      if ((ff1->flag & FREESTYLE_FACE_MARK) || (ff2->flag & FREESTYLE_FACE_MARK)) {
+      if (ff1 || ff2) {
         face_mark_filtered = true;
       }
     }
     else {
-      if ((ff1->flag & FREESTYLE_FACE_MARK) && (ff2->flag & FREESTYLE_FACE_MARK) && (ff2 != ff1)) {
+      if (ff1 && ff2 && (ff2 != ff1)) {
         face_mark_filtered = true;
       }
     }
@@ -1707,10 +1708,7 @@ static void lineart_identify_corner_tri_feature_edges(void *__restrict userdata,
     }
 
     if (ld->conf.use_edge_marks && e_feat_data->use_freestyle_edge) {
-      FreestyleEdge *fe;
-      int index = e_feat_data->freestyle_edge_index;
-      fe = &((FreestyleEdge *)mesh->edge_data.layers[index].data)[real_edges[i % 3]];
-      if (fe->flag & FREESTYLE_EDGE_MARK) {
+      if (e_feat_data->freestyle_edge[real_edges[i % 3]]) {
         edge_flag_result |= MOD_LINEART_EDGE_FLAG_EDGE_MARK;
       }
     }
@@ -1979,19 +1977,6 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   const AttributeAccessor attributes = mesh->attributes();
   const VArraySpan material_indices = *attributes.lookup<int>("material_index", AttrDomain::Face);
 
-  /* Check if we should look for custom data tags like Freestyle edges or faces. */
-  bool can_find_freestyle_edge = false;
-  int layer_index = CustomData_get_active_layer_index(&mesh->edge_data, CD_FREESTYLE_EDGE);
-  if (layer_index != -1) {
-    can_find_freestyle_edge = true;
-  }
-
-  bool can_find_freestyle_face = false;
-  layer_index = CustomData_get_active_layer_index(&mesh->face_data, CD_FREESTYLE_FACE);
-  if (layer_index != -1) {
-    can_find_freestyle_face = true;
-  }
-
   /* If we allow duplicated edges, one edge should get added multiple times if is has been
    * classified as more than one edge type. This is so we can create multiple different line type
    * chains containing the same edge. */
@@ -2128,16 +2113,10 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   edge_feat_data.v_array = la_v_arr;
   edge_feat_data.crease_threshold = crease_angle;
   edge_feat_data.use_auto_smooth = use_auto_smooth;
-  edge_feat_data.use_freestyle_face = can_find_freestyle_face;
-  edge_feat_data.use_freestyle_edge = can_find_freestyle_edge;
-  if (edge_feat_data.use_freestyle_face) {
-    edge_feat_data.freestyle_face_index = CustomData_get_layer_index(&mesh->face_data,
-                                                                     CD_FREESTYLE_FACE);
-  }
-  if (edge_feat_data.use_freestyle_edge) {
-    edge_feat_data.freestyle_edge_index = CustomData_get_layer_index(&mesh->edge_data,
-                                                                     CD_FREESTYLE_EDGE);
-  }
+  edge_feat_data.freestyle_face = *attributes.lookup<bool>("freestyle_face", AttrDomain::Face);
+  edge_feat_data.freestyle_edge = *attributes.lookup<bool>("freestyle_edge", AttrDomain::Edge);
+  edge_feat_data.use_freestyle_face = bool(edge_feat_data.freestyle_face);
+  edge_feat_data.use_freestyle_edge = bool(edge_feat_data.freestyle_edge);
 
   BLI_task_parallel_range(0,
                           total_edges,
@@ -2433,13 +2412,12 @@ static bool lineart_geometry_check_visible(double model_view_proj[4][4],
   if (!bounds.has_value()) {
     return false;
   }
-  BoundBox bb;
-  BKE_boundbox_init_from_minmax(&bb, bounds.value().min, bounds.value().max);
+  const std::array<float3, 8> corners = blender::bounds::corners(*bounds);
 
   double co[8][4];
   double tmp[3];
   for (int i = 0; i < 8; i++) {
-    copy_v3db_v3fl(co[i], bb.vec[i]);
+    copy_v3db_v3fl(co[i], corners[i]);
     copy_v3_v3_db(tmp, co[i]);
     mul_v4_m4v3_db(co[i], model_view_proj, tmp);
     co[i][0] -= shift_x * 2 * co[i][3];
@@ -2490,11 +2468,11 @@ static void lineart_object_load_single_instance(LineartData *ld,
   obi->obindex = obindex << LRT_OBINDEX_SHIFT;
 
   /* Prepare the matrix used for transforming this specific object (instance). This has to be
-   * done before mesh boundbox check because the function needs that. */
+   * done before mesh bound-box check because the function needs that. */
   mul_m4db_m4db_m4fl(obi->model_view_proj, ld->conf.view_projection, use_mat);
   mul_m4db_m4db_m4fl(obi->model_view, ld->conf.view, use_mat);
 
-  if (!ELEM(ob->type, OB_MESH, OB_MBALL, OB_CURVES_LEGACY, OB_SURF, OB_FONT)) {
+  if (!ELEM(ob->type, OB_MESH, OB_MBALL, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_CURVES)) {
     return;
   }
   if (ob->type == OB_MESH) {
@@ -2626,7 +2604,7 @@ void lineart_main_load_geometries(Depsgraph *depsgraph,
 
     /* DEG_OBJECT_ITER_BEGIN will include the instanced mesh of these curve object types, so don't
      * load them twice. */
-    if (allow_duplicates && ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
+    if (allow_duplicates && ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_CURVES)) {
       continue;
     }
 

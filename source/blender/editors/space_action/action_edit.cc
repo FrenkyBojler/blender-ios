@@ -13,6 +13,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -65,8 +66,8 @@
 
 /* ensure that there is:
  * 1) an active action editor
- * 2) that the mode will have an active action available
- * 3) that the set of markers being shown are the scene markers, not the list we're merging
+ * 2) that the set of markers being shown are the scene markers, not the list we're merging
+ * 3) that the mode will have an active action available
  * 4) that there are some selected markers
  */
 static bool act_markers_make_local_poll(bContext *C)
@@ -79,15 +80,14 @@ static bool act_markers_make_local_poll(bContext *C)
   }
 
   /* 2) */
-  if (ELEM(sact->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY) == 0) {
-    return false;
-  }
-  if (sact->action == nullptr) {
+  if (sact->flag & SACTION_POSEMARKERS_SHOW) {
     return false;
   }
 
   /* 3) */
-  if (sact->flag & SACTION_POSEMARKERS_SHOW) {
+  bAction *active_action = ANIM_active_action_from_area(
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
+  if (!active_action) {
     return false;
   }
 
@@ -98,9 +98,8 @@ static bool act_markers_make_local_poll(bContext *C)
 static wmOperatorStatus act_markers_make_local_exec(bContext *C, wmOperator * /*op*/)
 {
   ListBase *markers = ED_context_get_markers(C);
-
-  SpaceAction *sact = CTX_wm_space_action(C);
-  bAction *act = (sact) ? sact->action : nullptr;
+  bAction *act = ANIM_active_action_from_area(
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
 
   TimeMarker *marker, *markern = nullptr;
 
@@ -122,6 +121,7 @@ static wmOperatorStatus act_markers_make_local_exec(bContext *C, wmOperator * /*
 
   /* Now enable the "show pose-markers only" setting,
    * so that we can see that something did happen. */
+  SpaceAction *sact = CTX_wm_space_action(C);
   sact->flag |= SACTION_POSEMARKERS_SHOW;
 
   /* notifiers - both sets, as this change affects both */
@@ -298,7 +298,7 @@ void ACTION_OT_previewrange_set(wmOperatorType *ot)
   ot->idname = "ACTION_OT_previewrange_set";
   ot->description = "Set Preview Range based on extents of selected Keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = actkeys_previewrange_exec;
   ot->poll = ED_operator_action_active;
 
@@ -455,7 +455,7 @@ void ACTION_OT_view_all(wmOperatorType *ot)
   ot->idname = "ACTION_OT_view_all";
   ot->description = "Reset viewable area to show full keyframe range";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = actkeys_viewall_exec;
   ot->poll = ED_operator_action_active;
 
@@ -470,7 +470,7 @@ void ACTION_OT_view_selected(wmOperatorType *ot)
   ot->idname = "ACTION_OT_view_selected";
   ot->description = "Reset viewable area to show selected keyframes range";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = actkeys_viewsel_exec;
   ot->poll = ED_operator_action_active;
 
@@ -499,7 +499,7 @@ void ACTION_OT_view_frame(wmOperatorType *ot)
   ot->idname = "ACTION_OT_view_frame";
   ot->description = "Move the view to the current frame";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = actkeys_view_frame_exec;
   ot->poll = ED_operator_action_active;
 
@@ -648,7 +648,7 @@ void ACTION_OT_copy(wmOperatorType *ot)
   ot->idname = "ACTION_OT_copy";
   ot->description = "Copy selected keyframes to the internal clipboard";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = actkeys_copy_exec;
   ot->poll = ED_operator_action_active;
 
@@ -751,7 +751,7 @@ void ACTION_OT_paste(wmOperatorType *ot)
       "current "
       "frame";
 
-  /* api callbacks */
+  /* API callbacks. */
   //  ot->invoke = WM_operator_props_popup; /* Better wait for action redo panel. */
   ot->get_description = actkeys_paste_get_description;
   ot->exec = actkeys_paste_exec;
@@ -859,7 +859,7 @@ static void insert_fcurve_key(bAnimContext *ac,
   ToolSettings *ts = scene->toolsettings;
 
   /* These asserts are ensuring that the fcurve we're keying lives on an Action,
-   * rather than being an fcurve for e.g. a driver or NLA Strip. This should
+   * rather than being e.g. an fcurve a driver or NLA Strip. This should
    * always hold true for this function, since all the other cases take
    * different code paths before getting here. */
   BLI_assert(ale->owner == nullptr);
@@ -1011,7 +1011,7 @@ void ACTION_OT_keyframe_insert(wmOperatorType *ot)
   ot->idname = "ACTION_OT_keyframe_insert";
   ot->description = "Insert keyframes for the specified channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_insertkey_exec;
   ot->poll = ED_operator_action_active;
@@ -1099,7 +1099,7 @@ void ACTION_OT_duplicate(wmOperatorType *ot)
   ot->idname = "ACTION_OT_duplicate";
   ot->description = "Make a copy of all selected keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = actkeys_duplicate_exec;
   ot->poll = ED_operator_action_active;
 
@@ -1144,15 +1144,11 @@ static bool delete_action_keys(bAnimContext *ac)
       changed = ED_masklayer_frames_delete((MaskLayer *)ale->data);
     }
     else {
-      FCurve *fcu = (FCurve *)ale->key_data;
-      AnimData *adt = ale->adt;
-
-      /* delete selected keyframes only */
+      FCurve *fcu = static_cast<FCurve *>(ale->key_data);
       changed = BKE_fcurve_delete_keys_selected(fcu);
 
-      /* Only delete curve too if it won't be doing anything anymore */
-      if (BKE_fcurve_is_empty(fcu)) {
-        blender::animrig::animdata_fcurve_delete(adt, fcu);
+      if (changed && BKE_fcurve_is_empty(fcu)) {
+        ED_anim_ale_fcurve_delete(*ac, *ale);
         ale->key_data = nullptr;
       }
     }
@@ -1214,7 +1210,7 @@ void ACTION_OT_delete(wmOperatorType *ot)
   ot->idname = "ACTION_OT_delete";
   ot->description = "Remove all selected keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = actkeys_delete_invoke;
   ot->exec = actkeys_delete_exec;
   ot->poll = ED_operator_action_active;
@@ -1295,7 +1291,7 @@ void ACTION_OT_clean(wmOperatorType *ot)
   ot->idname = "ACTION_OT_clean";
   ot->description = "Simplify F-Curves by removing closely spaced keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   // ot->invoke =  /* XXX we need that number popup for this! */
   ot->exec = actkeys_clean_exec;
   ot->poll = ED_operator_action_active;
@@ -1369,7 +1365,7 @@ void ACTION_OT_bake_keys(wmOperatorType *ot)
   ot->idname = "ACTION_OT_bake_keys";
   ot->description = "Add keyframes on every frame between the selected keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = actkeys_bake_exec;
   ot->poll = ED_operator_action_active;
 
@@ -1404,7 +1400,7 @@ static const EnumPropertyItem prop_actkeys_expo_types[] = {
      "MAKE_CYCLIC",
      0,
      "Make Cyclic (F-Modifier)",
-     "Add Cycles F-Modifier if one doesn't exist already"},
+     "Add Cycles F-Modifier if one does not exist already"},
     {CLEAR_CYCLIC_EXPO,
      "CLEAR_CYCLIC",
      0,
@@ -1500,7 +1496,7 @@ void ACTION_OT_extrapolation_type(wmOperatorType *ot)
   ot->idname = "ACTION_OT_extrapolation_type";
   ot->description = "Set extrapolation mode for selected F-Curves";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_expo_exec;
   ot->poll = ED_operator_action_active;
@@ -1557,7 +1553,7 @@ void ACTION_OT_interpolation_type(wmOperatorType *ot)
   ot->description =
       "Set interpolation mode for the F-Curve segments starting from the selected keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_ipo_exec;
   ot->poll = ED_operator_action_active;
@@ -1611,7 +1607,7 @@ void ACTION_OT_easing_type(wmOperatorType *ot)
   ot->description =
       "Set easing type for the F-Curve segments starting from the selected keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_easing_exec;
   ot->poll = ED_operator_action_active;
@@ -1700,7 +1696,7 @@ void ACTION_OT_handle_type(wmOperatorType *ot)
   ot->idname = "ACTION_OT_handle_type";
   ot->description = "Set type of handle for selected keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_handletype_exec;
   ot->poll = ED_operator_action_active;
@@ -1794,7 +1790,7 @@ void ACTION_OT_keyframe_type(wmOperatorType *ot)
   ot->idname = "ACTION_OT_keyframe_type";
   ot->description = "Set type of keyframe for the selected keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_keytype_exec;
   ot->poll = ED_operator_action_active;
@@ -1907,7 +1903,7 @@ void ACTION_OT_frame_jump(wmOperatorType *ot)
   ot->idname = "ACTION_OT_frame_jump";
   ot->description = "Set the current frame to the average frame value of selected keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = actkeys_framejump_exec;
   ot->poll = actkeys_framejump_poll;
 
@@ -2041,7 +2037,7 @@ void ACTION_OT_snap(wmOperatorType *ot)
   ot->idname = "ACTION_OT_snap";
   ot->description = "Snap selected keyframes to the times specified";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_snap_exec;
   ot->poll = ED_operator_action_active;
@@ -2175,7 +2171,7 @@ void ACTION_OT_mirror(wmOperatorType *ot)
   ot->idname = "ACTION_OT_mirror";
   ot->description = "Flip selected keyframes over the selected mirror line";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = actkeys_mirror_exec;
   ot->poll = ED_operator_action_active;

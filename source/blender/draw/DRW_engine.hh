@@ -31,6 +31,10 @@ struct ViewLayer;
 struct bContext;
 struct rcti;
 
+namespace blender::bke {
+enum class AttrType : int16_t;
+}
+
 void DRW_engines_register();
 void DRW_engines_free();
 
@@ -121,12 +125,20 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 void DRW_render_context_enable(Render *render);
 void DRW_render_context_disable(Render *render);
 
-/* Critical section for GPUShader usage. Can be removed when we have threadsafe GPUShader class. */
+void DRW_mutexes_init();
+void DRW_mutexes_exit();
+
+/* Mutex to lock the drw manager and avoid concurrent context usage.
+ * Equivalent to the old DST lock.
+ * Brought back to 4.5 due to unforeseen issues causing data races and race conditions with Images
+ * and GPUTextures. (See #141253) */
+void DRW_lock_start();
+void DRW_lock_end();
+
+/* Critical section for gpu::Shader usage. Can be removed when we have threadsafe gpu::Shader
+ * class. */
 void DRW_submission_start();
 void DRW_submission_end();
-
-void DRW_submission_mutex_init();
-void DRW_submission_mutex_exit();
 
 void DRW_gpu_context_create();
 void DRW_gpu_context_destroy();
@@ -140,6 +152,10 @@ void DRW_gpu_context_enable();
  * Returns true on success, false if the draw GPU context does not exists.
  */
 bool DRW_gpu_context_try_enable();
+/**
+ * Returns true if the DRW_gpu_context is enabled on the calling thread.
+ */
+bool DRW_gpu_context_is_enabled();
 void DRW_gpu_context_disable();
 
 #ifdef WITH_XR_OPENXR
@@ -150,30 +166,28 @@ void DRW_xr_drawing_begin();
 void DRW_xr_drawing_end();
 #endif
 
-/* For garbage collection */
+/** For garbage collection. */
 void DRW_cache_free_old_batches(Main *bmain);
 
 namespace blender::draw {
 
-/* Free garbage collected subdivision data. */
+/** Free garbage collected subdivision data. */
 void DRW_cache_free_old_subdiv();
 
 }  // namespace blender::draw
 
-/* Never use this. Only for closing blender. */
+/** Never use this. Only for closing blender. */
 void DRW_gpu_context_enable_ex(bool restore);
 void DRW_gpu_context_disable_ex(bool restore);
 
 /* Render pipeline GPU context control.
  * Enable system context first, then enable blender context,
  * then disable blender context, then disable system context. */
+
 void DRW_system_gpu_render_context_enable(void *re_system_gpu_context);
 void DRW_system_gpu_render_context_disable(void *re_system_gpu_context);
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
 void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
-
-void DRW_deferred_shader_remove(GPUMaterial *mat);
-void DRW_deferred_shader_optimize_remove(GPUMaterial *mat);
 
 DRWData *DRW_viewport_data_create();
 void DRW_viewport_data_free(DRWData *drw_data);
@@ -181,9 +195,13 @@ void DRW_viewport_data_free(DRWData *drw_data);
 bool DRW_gpu_context_release();
 void DRW_gpu_context_activate(bool drw_state);
 
+namespace blender::draw {
+
 void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
-                                  int data_type,
+                                  bke::AttrType data_type,
                                   blender::StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer);
+
+}

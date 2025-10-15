@@ -31,6 +31,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+static size_t str_utf8_truncate_at_size_unchecked(char *str, const size_t str_size);
+
 /* -------------------------------------------------------------------- */
 /** \name UTF8 Character Decoding (Skip & Mask Lookup)
  *
@@ -149,7 +151,7 @@ BLI_INLINE uint utf8_char_decode(const char *p, const char mask, const int len, 
 
 ptrdiff_t BLI_str_utf8_invalid_byte(const char *str, size_t str_len)
 {
-  /* NOTE(@ideasman42): from libswish3, originally called u8_isvalid(),
+  /* NOTE(@ideasman42): from libswish3, originally called `u8_isvalid()`,
    * modified to return the index of the bad character (byte index not UTF).
    * http://svn.swish-e.org/libswish3/trunk/src/libswish3/utf8.c r3044.
    *
@@ -165,9 +167,9 @@ ptrdiff_t BLI_str_utf8_invalid_byte(const char *str, size_t str_len)
 
   for (p = (const uchar *)str; p < pend; p++, str_len--) {
     c = *p;
-    perr = p; /* Erroneous char is always the first of an invalid utf8 sequence... */
+    perr = p; /* Erroneous char is always the first of an invalid UTF8 sequence... */
     if (ELEM(c, 0xfe, 0xff, 0x00)) {
-      /* Those three values are not allowed in utf8 string. */
+      /* Those three values are not allowed in UTF8 string. */
       goto utf8_error;
     }
     if (c < 128) {
@@ -178,8 +180,8 @@ ptrdiff_t BLI_str_utf8_invalid_byte(const char *str, size_t str_len)
     }
 
     /* Note that since we always increase p (and decrease length) by one byte in main loop,
-     * we only add/subtract extra utf8 bytes in code below
-     * (ab number, aka number of bytes remaining in the utf8 sequence after the initial one). */
+     * we only add/subtract extra UTF8 bytes in code below
+     * (ab number, aka number of bytes remaining in the UTF8 sequence after the initial one). */
     ab = utf8_char_compute_skip(c) - 1;
     if (str_len <= size_t(ab)) {
       goto utf8_error;
@@ -206,7 +208,7 @@ ptrdiff_t BLI_str_utf8_invalid_byte(const char *str, size_t str_len)
         if (c == 0xe0 && (*p & 0x20) == 0) {
           goto utf8_error;
         }
-        /* Some special cases, see section 5 of utf-8 decoder stress-test by Markus Kuhn
+        /* Some special cases, see section 5 of UTF8 decoder stress-test by Markus Kuhn
          * (https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt). */
         /* From section 5.1 (and 5.2) */
         if (c == 0xed) {
@@ -307,6 +309,59 @@ int BLI_str_utf8_invalid_strip(char *str, size_t str_len)
   return tot;
 }
 
+int BLI_str_utf8_invalid_substitute(char *str, size_t str_len, const char substitute)
+{
+  BLI_assert(substitute);
+  ptrdiff_t bad_char;
+  int tot = 0;
+
+  BLI_assert(str[str_len] == '\0');
+
+  while ((bad_char = BLI_str_utf8_invalid_byte(str, str_len)) != -1) {
+    str[bad_char] = substitute;
+    bad_char += 1; /* Step over the bad character. */
+    str += bad_char;
+    str_len -= size_t(bad_char);
+    tot++;
+  }
+
+  return tot;
+}
+
+const char *BLI_str_utf8_invalid_substitute_if_needed(const char *str,
+                                                      const size_t str_len,
+                                                      const char substitute,
+                                                      char *buf,
+                                                      const size_t buf_maxncpy)
+{
+  BLI_assert(str[str_len] == '\0');
+  const ptrdiff_t bad_char = BLI_str_utf8_invalid_byte(str, str_len);
+  if (LIKELY(bad_char == -1)) {
+    return str;
+  }
+  BLI_assert(bad_char >= 0);
+
+  /* In the case a bad character is outside the buffer limit,
+   * simply perform a truncating UTF8 copy into the buffer and return that. */
+  if (UNLIKELY(size_t(bad_char) >= buf_maxncpy)) {
+    BLI_strncpy_utf8(buf, str, buf_maxncpy);
+    return buf;
+  }
+
+  size_t buf_len;
+  if (str_len < buf_maxncpy) {
+    memcpy(buf, str, str_len + 1);
+    buf_len = str_len;
+  }
+  else {
+    buf_len = BLI_strncpy_rlen(buf, str, buf_maxncpy);
+  }
+
+  /* Skip the good characters. */
+  BLI_str_utf8_invalid_substitute(buf + bad_char, buf_len - size_t(bad_char), substitute);
+  return buf;
+}
+
 /**
  * Internal utility for implementing #BLI_strncpy_utf8 / #BLI_strncpy_utf8_rlen.
  *
@@ -315,7 +370,7 @@ int BLI_str_utf8_invalid_strip(char *str, size_t str_len)
  * \param dst_maxncpy: The maximum number of bytes to copy. This does not include the null
  *   terminator.
  *
- * \note currently we don't attempt to deal with invalid utf8 chars.
+ * \note currently we don't attempt to deal with invalid UTF8 chars.
  * See #BLI_str_utf8_invalid_strip for if that is needed.
  *
  * \note the caller is responsible for null terminating the string.
@@ -379,7 +434,7 @@ size_t BLI_strncpy_utf8_rlen_unterminated(char *__restrict dst,
 }
 
 /* -------------------------------------------------------------------- */
-/* wchar_t / utf8 functions */
+/* wchar_t / UTF8 functions */
 
 size_t BLI_strncpy_wchar_as_utf8(char *__restrict dst,
                                  const wchar_t *__restrict src,
@@ -490,8 +545,82 @@ size_t BLI_strncpy_wchar_from_utf8(wchar_t *__restrict dst_w,
 #endif
 }
 
-/* end wchar_t / utf8 functions */
+/* End wchar_t / UTF8 functions. */
 /* -------------------------------------------------------------------- */
+
+size_t BLI_vsnprintf_utf8(char *__restrict dst,
+                          size_t dst_maxncpy,
+                          const char *__restrict format,
+                          va_list arg)
+{
+  /* NOTE: a clone of #BLI_vsnprintf that trims the end. */
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  BLI_assert(dst != nullptr);
+  BLI_assert(dst_maxncpy > 0);
+  BLI_assert(format != nullptr);
+
+  const size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
+  if (n < dst_maxncpy) {
+    dst[n] = '\0';
+  }
+  else {
+    str_utf8_truncate_at_size_unchecked(dst, dst_maxncpy);
+  }
+
+  return n;
+}
+
+size_t BLI_vsnprintf_utf8_rlen(char *__restrict dst,
+                               size_t dst_maxncpy,
+                               const char *__restrict format,
+                               va_list arg)
+{
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  BLI_assert(dst != nullptr);
+  BLI_assert(dst_maxncpy > 0);
+  BLI_assert(format != nullptr);
+
+  size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
+  if (n < dst_maxncpy) {
+    dst[n] = '\0';
+  }
+  else {
+    n = str_utf8_truncate_at_size_unchecked(dst, dst_maxncpy);
+  }
+  return n;
+}
+
+size_t BLI_snprintf_utf8(char *__restrict dst,
+                         size_t dst_maxncpy,
+                         const char *__restrict format,
+                         ...)
+{
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  va_list arg;
+  va_start(arg, format);
+  const size_t n = BLI_vsnprintf_utf8(dst, dst_maxncpy, format, arg);
+  va_end(arg);
+
+  return n;
+}
+
+size_t BLI_snprintf_utf8_rlen(char *__restrict dst,
+                              size_t dst_maxncpy,
+                              const char *__restrict format,
+                              ...)
+{
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  va_list arg;
+  va_start(arg, format);
+  const size_t n = BLI_vsnprintf_utf8_rlen(dst, dst_maxncpy, format, arg);
+  va_end(arg);
+
+  return n;
+}
 
 int BLI_wcwidth_or_error(char32_t ucs)
 {
@@ -1167,7 +1296,7 @@ size_t BLI_str_partition_ex_utf8(const char *str,
     end = str + str_len;
   }
 
-  /* Note that here, we assume end points to a valid utf8 char! */
+  /* Note that here, we assume end points to a valid UTF8 char! */
   BLI_assert((end >= str) && (BLI_str_utf8_as_unicode_or_error(end) != BLI_UTF8_ERR));
 
   char *suf = (char *)(str + str_len);
@@ -1200,6 +1329,30 @@ size_t BLI_str_partition_ex_utf8(const char *str,
   return str_len;
 }
 
+/**
+ * It's always assumed trimming is needed, otherwise call #BLI_str_utf8_truncate_at_size.
+ */
+static size_t str_utf8_truncate_at_size_unchecked(char *str, const size_t str_size)
+{
+  BLI_assert(str_size > 0);
+  BLI_assert(!std::memchr(str, '\0', str_size - 1));
+  size_t str_len_trim;
+  BLI_strnlen_utf8_ex(str, str_size - 1, &str_len_trim);
+  str[str_len_trim] = '\0';
+  return str_len_trim;
+}
+
+bool BLI_str_utf8_truncate_at_size(char *str, const size_t str_size)
+{
+  BLI_assert(str_size > 0);
+  if (std::memchr(str, '\0', str_size)) {
+    return false;
+  }
+
+  str_utf8_truncate_at_size_unchecked(str, str_size);
+  return true;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Offset Conversion in Strings
  *
@@ -1216,7 +1369,7 @@ int BLI_str_utf8_offset_to_index(const char *str, const size_t str_len, const in
   const size_t offset_target_as_size = size_t(offset_target);
   size_t offset = 0;
   int index = 0;
-  /* Note that `offset != offset_target_as_size` works for valid utf8 strings. */
+  /* Note that `offset != offset_target_as_size` works for valid UTF8 strings. */
   while ((offset < str_len) && (offset < offset_target_as_size)) {
     /* Use instead of #BLI_str_utf8_size_safe to match behavior when limiting the string length. */
     const uint code = BLI_str_utf8_as_unicode_step_safe(str, str_len, &offset);
@@ -1305,6 +1458,11 @@ int BLI_str_utf8_offset_from_column_with_tabs(const char *str,
     offset = offset_next;
   }
   return int(offset);
+}
+
+int BLI_str_utf8_column_count(const char *str, size_t str_len)
+{
+  return BLI_str_utf8_offset_to_column(str, str_len, int(str_len));
 }
 
 /** \} */

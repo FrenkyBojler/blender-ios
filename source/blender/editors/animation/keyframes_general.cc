@@ -635,27 +635,46 @@ void ED_ANIM_get_1d_gauss_kernel(const float sigma, const int kernel_size, doubl
 
 void smooth_fcurve_segment(FCurve *fcu,
                            FCurveSegment *segment,
+                           const float *original_values,
                            float *samples,
+                           const int sample_count,
                            const float factor,
                            const int kernel_size,
                            const double *kernel)
 {
   const int segment_end_index = segment->start_index + segment->length;
   const float segment_start_x = fcu->bezt[segment->start_index].vec[1][0];
-  for (int i = segment->start_index; i < segment_end_index; i++) {
-    /* Using round() instead of (int). The latter would create stepping on x-values that are just
-     * below a full frame. */
-    const int sample_index = round(fcu->bezt[i].vec[1][0] - segment_start_x) + kernel_size;
+  float *filtered_samples = static_cast<float *>(MEM_dupallocN(samples));
+  for (int i = kernel_size; i < sample_count - kernel_size; i++) {
     /* Apply the kernel. */
-    double filter_result = samples[sample_index] * kernel[0];
+    double filter_result = samples[i] * kernel[0];
     for (int j = 1; j <= kernel_size; j++) {
       const double kernel_value = kernel[j];
-      filter_result += samples[sample_index + j] * kernel_value;
-      filter_result += samples[sample_index - j] * kernel_value;
+      filter_result += samples[i + j] * kernel_value;
+      filter_result += samples[i - j] * kernel_value;
     }
-    const float key_y_value = interpf(float(filter_result), samples[sample_index], factor);
+    filtered_samples[i] = filter_result;
+  }
+
+  for (int i = segment->start_index; i < segment_end_index; i++) {
+    const float sample_index_f = (fcu->bezt[i].vec[1][0] - segment_start_x) + kernel_size;
+    /* Using round() instead of (int). The latter would create stepping on x-values that are just
+     * below a full frame. */
+    const int sample_index = round(sample_index_f);
+    /* Sampling the two closest indices to support subframe keys. This can end up being the same
+     * index as sample_index, in which case the interpolation will happen between two identical
+     * values. */
+    const int secondary_index = clamp_i(
+        sample_index + signum_i(sample_index_f - sample_index), 0, sample_count - 1);
+
+    const float filter_result = interpf(filtered_samples[secondary_index],
+                                        filtered_samples[sample_index],
+                                        std::abs(sample_index_f - sample_index));
+    const float key_y_value = interpf(
+        filter_result, original_values[i - segment->start_index], factor);
     BKE_fcurve_keyframe_move_value_with_handles(&fcu->bezt[i], key_y_value);
   }
+  MEM_freeN(filtered_samples);
 }
 /* ---------------- */
 
@@ -869,7 +888,7 @@ void shear_fcurve_segment(FCurve *fcu,
   }
 
   for (int i = segment->start_index; i < segment->start_index + segment->length; i++) {
-    /* For easy calculation of the curve, the  values are normalized. */
+    /* For easy calculation of the curve, the values are normalized. */
     float normalized_x;
     if (direction == SHEAR_FROM_LEFT) {
       normalized_x = (fcu->bezt[i].vec[1][0] - left_key->vec[1][0]) / key_x_range;
@@ -1490,7 +1509,7 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
              * F-Curve and the copy, and I want the compiler to help distinguish those. */
             const_cast<FCurve *>(fcu),
             nullptr,
-            ANIM_editkeyframes_ok(BEZT_OK_SELECTED),
+            ANIM_editkeyframes_ok(BEZT_OK_SELECTED_KEY),
             nullptr) == 0)
     {
       continue;
@@ -1519,7 +1538,8 @@ bool copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
     int bezt_index = 0;
     BezTriple *bezt = fcu->bezt;
     for (; bezt_index < fcu->totvert; bezt_index++, bezt++) {
-      if (!BEZT_ISSEL_ANY(bezt)) {
+      /* Don't copy if only a handle is selected. */
+      if (!BEZT_ISSEL_IDX(bezt, 1)) {
         continue;
       }
 
@@ -1691,7 +1711,7 @@ static const FCurve *pastebuf_find_matching_copybuf_item(const pastebuf_match_fu
     BLI_assert(ale_slot);
   }
 
-  /* NASTYNESS: this code shouldn't have to care about which slots are currently visible in
+  /* NASTINESS: this code shouldn't have to care about which slots are currently visible in
    * the channel list. But since selection state is only relevant when they CAN actually be
    * selected, it does matter. This code assumes:
    *   1. because SELECTION or SELECTION_AND_IDENTIFIER was returned, slot selection is a
@@ -2137,8 +2157,12 @@ eKeyPasteError paste_animedit_keys(bAnimContext *ac,
 
     offset[1] = paste_get_y_offset(
         ac, fcurve_in_copy_buffer, ale, paste_context.value_offset_mode);
+
+    ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, false, false);
     paste_animedit_keys_fcurve(
         fcu, fcurve_in_copy_buffer, offset, paste_context.merge_mode, false);
+    ANIM_nla_mapping_apply_if_needed_fcurve(ale, fcu, true, false);
+
     ale->update |= ANIM_UPDATE_DEFAULT;
 
     ANIM_animdata_update(ac, anim_data);

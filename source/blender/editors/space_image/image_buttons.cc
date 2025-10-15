@@ -17,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -46,6 +47,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "image_intern.hh"
@@ -69,37 +71,44 @@ ImageUser *ntree_get_active_iuser(bNodeTree *ntree)
 
 /* ********************* callbacks for standard image buttons *************** */
 
-static void ui_imageuser_slot_menu(bContext * /*C*/, uiLayout *layout, void *image_p)
+static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = static_cast<Image *>(image_p);
+
+  /* The scene isn't expected to be null, check since it's not a requirement
+   * for the value to be non-null for this function to work.
+   * It's OK if `has_active_render` is false. */
+  Scene *scene = CTX_data_scene(C);
+  bool has_active_render = scene && (RE_GetSceneRender(scene) != nullptr);
 
   int slot_id;
   LISTBASE_FOREACH_INDEX (RenderSlot *, slot, &image->renderslots, slot_id) {
     char str[64];
     if (slot->name[0] != '\0') {
-      STRNCPY(str, slot->name);
+      STRNCPY_UTF8(str, slot->name);
     }
     else {
-      SNPRINTF(str, IFACE_("Slot %d"), slot_id + 1);
+      SNPRINTF_UTF8(str, IFACE_("Slot %d"), slot_id + 1);
     }
-    uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
-              B_NOP,
-              str,
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_X,
-              &image->render_slot,
-              float(slot_id),
-              0.0,
-              "");
+    /* Default to "blank" for nicer alignment. */
+    int icon = ICON_BLANK1;
+    if (slot_id == image->last_render_slot) {
+      if (has_active_render) {
+        icon = ICON_RENDER_RESULT;
+      }
+    }
+    else if (slot->render != nullptr) {
+      icon = ICON_DOT;
+    }
+    uiBut *but = uiDefIconTextBut(
+        block, ButType::ButMenu, B_NOP, icon, str, 0, 0, UI_UNIT_X * 5, UI_UNIT_X, nullptr, "");
+    UI_but_func_set(but, [image, slot_id](bContext & /*C*/) { image->render_slot = slot_id; });
   }
 
-  uiItemS(layout);
+  layout->separator();
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("Slot"),
            0,
@@ -157,7 +166,7 @@ static ImageUI_Data *ui_imageuser_data_copy(const ImageUI_Data *rnd_pt_src)
 static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   Scene *scene = iuser->scene;
@@ -169,13 +178,13 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
     return;
   }
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   const char *fake_name = ui_imageuser_layer_fake_name(rr);
   if (fake_name) {
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               fake_name,
               0,
@@ -191,7 +200,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
   int nr = fake_name ? 1 : 0;
   for (RenderLayer *rl = static_cast<RenderLayer *>(rr->layers.first); rl; rl = rl->next, nr++) {
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               rl->name,
               0,
@@ -204,9 +213,9 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
               "");
   }
 
-  uiItemS(layout);
+  layout->separator();
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("Layer"),
            0,
@@ -224,7 +233,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
 static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   /* (rpass_index == -1) means composite result */
@@ -244,7 +253,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
 
   rl = static_cast<RenderLayer *>(BLI_findlink(&rr->layers, rpass_index));
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   nr = (rl == nullptr) ? 1 : 0;
@@ -264,7 +273,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
     BLI_addtail(&added_passes, BLI_genericNodeN(rpass->name));
 
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               IFACE_(rpass->name),
               0,
@@ -277,9 +286,9 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
               "");
   }
 
-  uiItemS(layout);
+  layout->separator();
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("Pass"),
            0,
@@ -300,7 +309,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
 static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   RenderResult *rr;
@@ -315,11 +324,11 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
     return;
   }
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("View"),
            0,
@@ -331,14 +340,14 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
            0.0,
            "");
 
-  uiItemS(layout);
+  layout->separator();
 
   nr = (rr ? BLI_listbase_count(&rr->views) : 0) - 1;
   for (rview = static_cast<RenderView *>(rr ? rr->views.last : nullptr); rview;
        rview = rview->prev, nr--)
   {
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               IFACE_(rview->name),
               0,
@@ -357,17 +366,17 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
 static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   int nr;
   ImageView *iv;
 
-  UI_block_layout_set_current(block, layout);
+  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   uiDefBut(block,
-           UI_BTYPE_LABEL,
+           ButType::Label,
            0,
            IFACE_("View"),
            0,
@@ -379,12 +388,12 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
            0.0,
            "");
 
-  uiItemS(layout);
+  layout->separator();
 
   nr = BLI_listbase_count(&image->views) - 1;
   for (iv = static_cast<ImageView *>(image->views.last); iv; iv = iv->prev, nr--) {
     uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
+              ButType::ButMenu,
               B_NOP,
               IFACE_(iv->name),
               0,
@@ -489,8 +498,7 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
     return false;
   }
 
-  /* NOTE: this looks reversed, but matches menu direction. */
-  if (direction == -1) {
+  if (direction == 1) {
     RenderPass *rp;
     int rp_index = iuser->pass + 1;
 
@@ -502,7 +510,7 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
       }
     }
   }
-  else if (direction == 1) {
+  else if (direction == -1) {
     RenderPass *rp;
     int rp_index = 0;
 
@@ -552,7 +560,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout,
                                        const short *render_slot)
 {
   ImageUI_Data rnd_pt_local, *rnd_pt = nullptr;
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but;
   RenderLayer *rl = nullptr;
   int wmenu1, wmenu2, wmenu3, wmenu4;
@@ -578,13 +586,13 @@ static void uiblock_layer_pass_buttons(uiLayout *layout,
 
   /* menu buts */
   if (render_slot) {
-    char str[64];
     RenderSlot *slot = BKE_image_get_renderslot(image, *render_slot);
+    char str[sizeof(slot->name)];
     if (slot && slot->name[0] != '\0') {
-      STRNCPY(str, slot->name);
+      STRNCPY_UTF8(str, slot->name);
     }
     else {
-      SNPRINTF(str, IFACE_("Slot %d"), *render_slot + 1);
+      SNPRINTF_UTF8(str, IFACE_("Slot %d"), *render_slot + 1);
     }
 
     rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
@@ -747,7 +755,7 @@ void uiTemplateImage(uiLayout *layout,
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   PointerRNA imaptr = RNA_property_pointer_get(ptr, prop);
   Image *ima = static_cast<Image *>(imaptr.data);
@@ -756,8 +764,8 @@ void uiTemplateImage(uiLayout *layout,
   Scene *scene = CTX_data_scene(C);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
-  uiLayoutSetContextPointer(layout, "edit_image", &imaptr);
-  uiLayoutSetContextPointer(layout, "edit_image_user", userptr);
+  layout->context_ptr_set("edit_image", &imaptr);
+  layout->context_ptr_set("edit_image_user", userptr);
 
   SpaceImage *space_image = CTX_wm_space_image(C);
   if (!compact && (space_image == nullptr || iuser != &space_image->iuser)) {
@@ -765,7 +773,7 @@ void uiTemplateImage(uiLayout *layout,
         layout, C, ptr, propname, ima ? nullptr : "IMAGE_OT_new", "IMAGE_OT_open", nullptr);
 
     if (ima != nullptr) {
-      uiItemS(layout);
+      layout->separator();
     }
   }
 
@@ -810,19 +818,19 @@ void uiTemplateImage(uiLayout *layout,
   const bool is_dirty = BKE_image_is_dirty(ima);
   if (is_dirty) {
     uiLayout *row = &layout->row(true);
-    uiItemO(row, IFACE_("Save"), ICON_NONE, "image.save");
-    uiItemO(row, IFACE_("Discard"), ICON_NONE, "image.reload");
-    uiItemS(layout);
+    row->op("image.save", IFACE_("Save"), ICON_NONE);
+    row->op("image.reload", IFACE_("Discard"), ICON_NONE);
+    layout->separator();
   }
 
   layout = &layout->column(false);
-  uiLayoutSetEnabled(layout, !is_dirty);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->enabled_set(!is_dirty);
+  layout->use_property_decorate_set(false);
 
   /* Image source */
   {
     uiLayout *col = &layout->column(false);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
     col->prop(&imaptr, "source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
@@ -831,40 +839,40 @@ void uiTemplateImage(uiLayout *layout,
   const bool no_filepath = is_packed && !BKE_image_has_filepath(ima);
 
   if ((ima->source != IMA_SRC_GENERATED) && !no_filepath) {
-    uiItemS(layout);
+    layout->separator();
 
     uiLayout *row = &layout->row(true);
     if (is_packed) {
-      uiItemO(row, "", ICON_PACKAGE, "image.unpack");
+      row->op("image.unpack", "", ICON_PACKAGE);
     }
     else {
-      uiItemO(row, "", ICON_UGLYPACKAGE, "image.pack");
+      row->op("image.pack", "", ICON_UGLYPACKAGE);
     }
 
     row = &row->row(true);
-    uiLayoutSetEnabled(row, is_packed == false);
+    row->enabled_set(is_packed == false);
 
     prop = RNA_struct_find_property(&imaptr, "filepath");
     uiDefAutoButR(block, &imaptr, prop, -1, "", ICON_NONE, 0, 0, 200, UI_UNIT_Y);
-    uiItemO(row, "", ICON_FILEBROWSER, "image.file_browse");
-    uiItemO(row, "", ICON_FILE_REFRESH, "image.reload");
+    row->op("image.file_browse", "", ICON_FILEBROWSER);
+    row->op("image.reload", "", ICON_FILE_REFRESH);
   }
 
   /* Image layers and Info */
   if (ima->source == IMA_SRC_GENERATED) {
-    uiItemS(layout);
+    layout->separator();
 
     /* Generated */
     uiLayout *col = &layout->column(false);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
 
     uiLayout *sub = &col->column(true);
-    sub->prop(&imaptr, "generated_width", UI_ITEM_NONE, "X", ICON_NONE);
-    sub->prop(&imaptr, "generated_height", UI_ITEM_NONE, "Y", ICON_NONE);
+    sub->prop(&imaptr, "generated_width", UI_ITEM_NONE, IFACE_("X"), ICON_NONE);
+    sub->prop(&imaptr, "generated_height", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
     col->prop(&imaptr, "use_generated_float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiItemS(col);
+    col->separator();
 
     col->prop(&imaptr, "generated_type", UI_ITEM_R_EXPAND, IFACE_("Type"), ICON_NONE);
     ImageTile *base_tile = BKE_image_get_tile(ima, 0);
@@ -876,7 +884,7 @@ void uiTemplateImage(uiLayout *layout,
     uiTemplateImageInfo(layout, C, ima, iuser);
   }
   if (ima->type == IMA_TYPE_MULTILAYER && ima->rr) {
-    uiItemS(layout);
+    layout->separator();
 
     const float dpi_fac = UI_SCALE_FAC;
     uiblock_layer_pass_buttons(layout, ima, ima->rr, iuser, 230 * dpi_fac, nullptr);
@@ -884,15 +892,15 @@ void uiTemplateImage(uiLayout *layout,
 
   if (BKE_image_is_animated(ima)) {
     /* Animation */
-    uiItemS(layout);
+    layout->separator();
 
     uiLayout *col = &layout->column(true);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
 
     uiLayout *sub = &col->column(true);
     uiLayout *row = &sub->row(true);
     row->prop(userptr, "frame_duration", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
-    uiItemO(row, "", ICON_FILE_REFRESH, "IMAGE_OT_match_movie_length");
+    row->op("IMAGE_OT_match_movie_length", "", ICON_FILE_REFRESH);
 
     sub->prop(userptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
     sub->prop(userptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -908,10 +916,10 @@ void uiTemplateImage(uiLayout *layout,
   /* Multiview */
   if (multiview && compact == 0) {
     if ((scene->r.scemode & R_MULTIVIEW) != 0) {
-      uiItemS(layout);
+      layout->separator();
 
       uiLayout *col = &layout->column(false);
-      uiLayoutSetPropSep(col, true);
+      col->use_property_split_set(true);
       col->prop(&imaptr, "use_multiview", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       if (RNA_boolean_get(&imaptr, "use_multiview")) {
@@ -922,10 +930,10 @@ void uiTemplateImage(uiLayout *layout,
 
   /* Color-space and alpha. */
   {
-    uiItemS(layout);
+    layout->separator();
 
     uiLayout *col = &layout->column(false);
-    uiLayoutSetPropSep(col, true);
+    col->use_property_split_set(true);
     uiTemplateColorspaceSettings(col, &imaptr, "colorspace_settings");
 
     if (compact == 0) {
@@ -935,7 +943,7 @@ void uiTemplateImage(uiLayout *layout,
           sub->prop(&imaptr, "alpha_mode", UI_ITEM_NONE, IFACE_("Alpha"), ICON_NONE);
 
           bool is_data = IMB_colormanagement_space_name_is_data(ima->colorspace_settings.name);
-          uiLayoutSetActive(sub, !is_data);
+          sub->active_set(!is_data);
         }
 
         if (ima && iuser) {
@@ -957,7 +965,11 @@ void uiTemplateImage(uiLayout *layout,
   UI_block_funcN_set(block, nullptr, nullptr, nullptr);
 }
 
-void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_management)
+void uiTemplateImageSettings(uiLayout *layout,
+                             bContext *C,
+                             PointerRNA *imfptr,
+                             bool color_management,
+                             const char *panel_idname)
 {
   ImageFormatData *imf = static_cast<ImageFormatData *>(imfptr->data);
   ID *id = imfptr->owner_id;
@@ -972,10 +984,20 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
 
   col = &layout->column(false);
 
-  uiLayoutSetPropSep(col, true);
-  uiLayoutSetPropDecorate(col, false);
+  col->use_property_split_set(true);
+  col->use_property_decorate_set(false);
 
-  col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  /* The file output node draws the media type itself. */
+  const bool is_file_output = (id && GS(id->name) == ID_NT);
+  if (!is_file_output) {
+    col->prop(imfptr, "media_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  /* Multi layer images and video media types only have a single supported format,
+   * so we needn't draw the format enum. */
+  if (imf->media_type == MEDIA_TYPE_IMAGE) {
+    col->prop(imfptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   /* Multi-layer always saves raw unmodified channels. */
   if (imf->imtype != R_IMF_IMTYPE_MULTILAYER) {
@@ -1008,6 +1030,9 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
     if (ELEM(imf->exr_codec & OPENEXR_CODEC_MASK, R_IMF_EXR_CODEC_DWAA, R_IMF_EXR_CODEC_DWAB)) {
       col->prop(imfptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
+  }
+  if (imf->imtype == R_IMF_IMTYPE_MULTILAYER) {
+    col->prop(imfptr, "use_exr_interleave", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (is_render_out && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
@@ -1044,18 +1069,28 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
 
   /* Override color management */
   if (color_management) {
-    uiItemS(col);
-    col->prop(imfptr, "color_management", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    if (uiLayout *panel = col->panel(C,
+                                     panel_idname ? panel_idname : "settings_color_management",
+                                     true,
+                                     IFACE_("Color Management")))
+    {
+      panel->separator();
+      panel->row(true).prop(imfptr, "color_management", UI_ITEM_R_EXPAND, " ", ICON_NONE);
 
-    if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
+      uiLayout *color_settings = &panel->column(true);
       if (BKE_imtype_requires_linear_float(imf->imtype)) {
-        PointerRNA linear_settings_ptr = RNA_pointer_get(imfptr, "linear_colorspace_settings");
-        col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+        if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
+          PointerRNA linear_settings_ptr = RNA_pointer_get(imfptr, "linear_colorspace_settings");
+          color_settings->prop(
+              &linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+        }
       }
       else {
         PointerRNA display_settings_ptr = RNA_pointer_get(imfptr, "display_settings");
-        col->prop(&display_settings_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-        uiTemplateColormanagedViewSettings(col, nullptr, imfptr, "view_settings");
+        color_settings->prop(
+            &display_settings_ptr, "display_device", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        uiTemplateColormanagedViewSettings(color_settings, nullptr, imfptr, "view_settings");
+        color_settings->enabled_set(imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE);
       }
     }
   }
@@ -1099,8 +1134,8 @@ static void uiTemplateViewsFormat(uiLayout *layout,
 
   col = &layout->column(false);
 
-  uiLayoutSetPropSep(col, true);
-  uiLayoutSetPropDecorate(col, false);
+  col->use_property_split_set(true);
+  col->use_property_decorate_set(false);
 
   col->prop(ptr, "views_format", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
@@ -1182,43 +1217,43 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
 
   uiLayout *col = &layout->column(true);
-  uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_RIGHT);
+  col->alignment_set(blender::ui::LayoutAlign::Right);
 
   if (ibuf == nullptr) {
-    col->label(RPT_("Can't Load Image"), ICON_NONE);
+    col->label(RPT_("Cannot Load Image"), ICON_NONE);
   }
   else {
     char str[MAX_IMAGE_INFO_LEN] = {0};
     const int len = MAX_IMAGE_INFO_LEN;
     int ofs = 0;
 
-    ofs += BLI_snprintf_rlen(str + ofs, len - ofs, RPT_("%d \u00D7 %d, "), ibuf->x, ibuf->y);
+    ofs += BLI_snprintf_utf8_rlen(str + ofs, len - ofs, RPT_("%d \u00D7 %d, "), ibuf->x, ibuf->y);
 
     if (ibuf->float_buffer.data) {
       if (ibuf->channels != 4) {
-        ofs += BLI_snprintf_rlen(
+        ofs += BLI_snprintf_utf8_rlen(
             str + ofs, len - ofs, RPT_("%d float channel(s)"), ibuf->channels);
       }
       else if (ibuf->planes == R_IMF_PLANES_RGBA) {
-        ofs += BLI_strncpy_rlen(str + ofs, RPT_(" RGBA float"), len - ofs);
+        ofs += BLI_strncpy_utf8_rlen(str + ofs, RPT_(" RGBA float"), len - ofs);
       }
       else {
-        ofs += BLI_strncpy_rlen(str + ofs, RPT_(" RGB float"), len - ofs);
+        ofs += BLI_strncpy_utf8_rlen(str + ofs, RPT_(" RGB float"), len - ofs);
       }
     }
     else {
       if (ibuf->planes == R_IMF_PLANES_RGBA) {
-        ofs += BLI_strncpy_rlen(str + ofs, RPT_(" RGBA byte"), len - ofs);
+        ofs += BLI_strncpy_utf8_rlen(str + ofs, RPT_(" RGBA byte"), len - ofs);
       }
       else {
-        ofs += BLI_strncpy_rlen(str + ofs, RPT_(" RGB byte"), len - ofs);
+        ofs += BLI_strncpy_utf8_rlen(str + ofs, RPT_(" RGB byte"), len - ofs);
       }
     }
 
-    eGPUTextureFormat texture_format = IMB_gpu_get_texture_format(
+    blender::gpu::TextureFormat texture_format = IMB_gpu_get_texture_format(
         ibuf, ima->flag & IMA_HIGH_BITDEPTH, ibuf->planes >= 8);
     const char *texture_format_description = GPU_texture_format_name(texture_format);
-    ofs += BLI_snprintf_rlen(str + ofs, len - ofs, RPT_(", %s"), texture_format_description);
+    ofs += BLI_snprintf_utf8_rlen(str + ofs, len - ofs, RPT_(", %s"), texture_format_description);
 
     col->label(str, ICON_NONE);
   }
@@ -1240,16 +1275,16 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
 
     if (duration > 0) {
       /* Movie duration */
-      SNPRINTF(str, RPT_("Frame %d / %d"), framenr, duration);
+      SNPRINTF_UTF8(str, RPT_("Frame %d / %d"), framenr, duration);
     }
     else if (ima->source == IMA_SRC_SEQUENCE && ibuf) {
       /* Image sequence frame number + filename */
       const char *filename = BLI_path_basename(ibuf->filepath);
-      SNPRINTF(str, RPT_("Frame %d: %s"), framenr, filename);
+      SNPRINTF_UTF8(str, RPT_("Frame %d: %s"), framenr, filename);
     }
     else {
       /* Frame number */
-      SNPRINTF(str, RPT_("Frame %d"), framenr);
+      SNPRINTF_UTF8(str, RPT_("Frame %d"), framenr);
     }
 
     col->label(str, ICON_NONE);
@@ -1283,10 +1318,10 @@ void image_buttons_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype image panel metadata");
-  STRNCPY(pt->idname, "IMAGE_PT_metadata");
-  STRNCPY(pt->label, N_("Metadata"));
-  STRNCPY(pt->category, "Image");
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "IMAGE_PT_metadata");
+  STRNCPY_UTF8(pt->label, N_("Metadata"));
+  STRNCPY_UTF8(pt->category, "Image");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->order = 10;
   pt->poll = metadata_panel_context_poll;
   pt->draw = metadata_panel_context_draw;

@@ -26,8 +26,8 @@
 #include "eevee_instance.hh"
 // #include "eevee_renderpasses.hh"
 #include "eevee_shader.hh"
-#include "eevee_shader_shared.hh"
 #include "eevee_velocity.hh"
+#include "eevee_velocity_shared.hh"
 
 #include "draw_common.hh"
 
@@ -76,7 +76,7 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
   }
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
-  ResourceHandle resource_handle(0);
+  ResourceHandleRange resource_handle = {};
   ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
@@ -86,7 +86,7 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
       inst.velocity.step_object_sync(
           hair_handle.object_key, ob_ref, hair_handle.recalc, resource_handle, &md, &particle_sys);
     };
-    foreach_hair_particle_handle(ob_ref.object, ob_handle, sync_hair);
+    foreach_hair_particle_handle(inst, ob_ref, ob_handle, sync_hair);
   };
 
   if (object_is_visible) {
@@ -127,7 +127,7 @@ void VelocityModule::step_camera_sync()
 bool VelocityModule::step_object_sync(ObjectKey &object_key,
                                       const ObjectRef &object_ref,
                                       int /*IDRecalcFlag*/ recalc,
-                                      ResourceHandle resource_handle,
+                                      ResourceHandleRange resource_handle,
                                       ModifierData *modifier_data /*=nullptr*/,
                                       ParticleSystem *particle_sys /*=nullptr*/)
 {
@@ -178,22 +178,12 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
     auto add_cb = [&]() {
       VelocityGeometryData data;
       if (particle_sys) {
-        if (inst_.is_viewport()) {
-          data.pos_buf = DRW_hair_pos_buffer_get(ob, particle_sys, modifier_data);
-        }
-        else {
-          data.pos_buf = draw::hair_pos_buffer_get(inst_.scene, ob, particle_sys, modifier_data);
-        }
+        data.pos_buf = draw::hair_pos_buffer_get(inst_.scene, ob, particle_sys, modifier_data);
         return data;
       }
       switch (ob->type) {
         case OB_CURVES:
-          if (inst_.is_viewport()) {
-            data.pos_buf = DRW_curves_pos_buffer_get(ob);
-          }
-          else {
-            data.pos_buf = draw::curves_pos_buffer_get(inst_.scene, ob);
-          }
+          data.pos_buf = draw::curves_pos_buffer_get(ob);
           break;
         case OB_POINTCLOUD:
           data.pos_buf = DRW_pointcloud_position_and_radius_buffer_get(ob);
@@ -207,7 +197,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
 
     const VelocityGeometryData &data = geometry_map.lookup_or_add_cb(vel.id, add_cb);
 
-    if (!data.pos_buf_get()) {
+    if (!data.has_data()) {
       has_deform = false;
     }
   }

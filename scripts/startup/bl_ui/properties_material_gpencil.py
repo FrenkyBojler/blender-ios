@@ -13,7 +13,7 @@ from bl_ui.properties_grease_pencil_common import (
 )
 
 
-class GPENCIL_MT_material_context_menu(Menu):
+class GREASE_PENCIL_MT_material_context_menu(Menu):
     bl_label = "Material Specials"
 
     def draw(self, _context):
@@ -48,33 +48,28 @@ class GPENCIL_UL_matslots(UIList):
         slot = item
         ma = slot.material
 
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            row = layout.row(align=True)
-            row.label(text="", icon_value=icon)
+        row = layout.row(align=True)
+        row.label(text="", icon_value=icon)
 
-            if ma is None:
-                return
+        if ma is None:
+            return
 
-            if (gpcolor := ma.grease_pencil) is None:
-                return
+        if (gpcolor := ma.grease_pencil) is None:
+            return
 
-            row = layout.row(align=True)
-            row.enabled = not gpcolor.lock
-            row.prop(ma, "name", text="", emboss=False, icon='NONE')
+        row = layout.row(align=True)
+        row.enabled = not gpcolor.lock
+        row.prop(ma, "name", text="", emboss=False, icon='NONE')
 
-            row = layout.row(align=True)
+        row = layout.row(align=True)
 
-            if gpcolor.ghost is True:
-                icon = 'ONIONSKIN_OFF'
-            else:
-                icon = 'ONIONSKIN_ON'
-            row.prop(gpcolor, "ghost", text="", icon=icon, emboss=False)
-            row.prop(gpcolor, "hide", text="", emboss=False)
-            row.prop(gpcolor, "lock", text="", emboss=False)
-
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="", icon_value=icon)
+        if gpcolor.ghost is True:
+            icon = 'ONIONSKIN_OFF'
+        else:
+            icon = 'ONIONSKIN_ON'
+        row.prop(gpcolor, "ghost", text="", icon=icon, emboss=False)
+        row.prop(gpcolor, "hide", text="", emboss=False)
+        row.prop(gpcolor, "lock", text="", emboss=False)
 
 
 class GPMaterialButtonsPanel:
@@ -258,7 +253,7 @@ class MATERIAL_PT_gpencil_material_presets(PresetPanel, Panel):
 
 classes = (
     GPENCIL_UL_matslots,
-    GPENCIL_MT_material_context_menu,
+    GREASE_PENCIL_MT_material_context_menu,
     MATERIAL_PT_gpencil_slots,
     MATERIAL_PT_gpencil_preview,
     MATERIAL_PT_gpencil_material_presets,

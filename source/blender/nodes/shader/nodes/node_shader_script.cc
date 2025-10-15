@@ -10,7 +10,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_script_cc {
@@ -31,12 +31,12 @@ static void node_shader_buts_script(uiLayout *layout, bContext * /*C*/, PointerR
     row->prop(ptr, "filepath", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
 
-  uiItemO(row, "", ICON_FILE_REFRESH, "node.shader_script_update");
+  row->op("node.shader_script_update", "", ICON_FILE_REFRESH);
 }
 
 static void node_shader_buts_script_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  uiItemS(layout);
+  layout->separator();
 
   node_shader_buts_script(layout, C, ptr);
 

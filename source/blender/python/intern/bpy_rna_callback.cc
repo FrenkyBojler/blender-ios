@@ -60,7 +60,6 @@ static void cb_region_draw(const bContext *C, ARegion * /*region*/, void *custom
   }
   else {
     PyErr_Print();
-    PyErr_Clear();
   }
 
   bpy_context_clear((bContext *)C, &gilstate);
@@ -109,7 +108,6 @@ static void cb_wm_cursor_draw(bContext *C,
   }
   else {
     PyErr_Print();
-    PyErr_Clear();
   }
 
   bpy_context_clear(C, &gilstate);
@@ -173,7 +171,7 @@ PyObject *pyrna_callback_remove(BPy_StructRNA *self, PyObject *args)
 
   if (handle == nullptr) {
     PyErr_SetString(PyExc_ValueError,
-                    "callback_remove(handle): nullptr handle given, invalid or already removed");
+                    "callback_remove(handle): null handle given, invalid or already removed");
     return nullptr;
   }
 
@@ -388,7 +386,7 @@ PyObject *pyrna_callback_classmethod_remove(PyObject * /*self*/, PyObject *args)
   handle = PyCapsule_GetPointer(py_handle, rna_capsual_id);
   if (handle == nullptr) {
     PyErr_SetString(PyExc_ValueError,
-                    "callback_remove(handler): nullptr handler given, invalid or already removed");
+                    "callback_remove(handler): null handler given, invalid or already removed");
     return nullptr;
   }
 

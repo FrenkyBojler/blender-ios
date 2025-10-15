@@ -13,7 +13,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_image_texture_cc {
@@ -22,9 +22,9 @@ NODE_STORAGE_FUNCS(NodeGeometryImageTexture)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Image>("Image").hide_label();
+  b.add_input<decl::Image>("Image").optional_label();
   b.add_input<decl::Vector>("Vector")
-      .implicit_field(implicit_field_inputs::position)
+      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description("Texture coordinates from 0 to 1");
   b.add_input<decl::Int>("Frame").min(0).max(MAXFRAMEF);
   b.add_output<decl::Color>("Color").no_muted_links().dependent_field().reference_pass_all();
@@ -407,12 +407,21 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  Field<float3> vector_field = params.extract_input<Field<float3>>("Vector");
+  auto sample_uv = params.extract_input<bke::SocketValueVariant>("Vector");
 
-  auto image_op = FieldOperation::Create(std::move(image_fn), {std::move(vector_field)});
+  std::string error_message;
+  bke::SocketValueVariant color;
+  bke::SocketValueVariant alpha;
+  if (!execute_multi_function_on_value_variant(
+          std::move(image_fn), {&sample_uv}, {&color, &alpha}, params.user_data(), error_message))
+  {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
 
-  params.set_output("Color", Field<ColorGeometry4f>(image_op, 0));
-  params.set_output("Alpha", Field<float>(image_op, 1));
+  params.set_output("Color", std::move(color));
+  params.set_output("Alpha", std::move(alpha));
 }
 
 static void node_register()

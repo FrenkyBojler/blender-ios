@@ -14,6 +14,7 @@
 #include "BKE_node.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 struct ARegion;
@@ -116,6 +117,14 @@ struct SpaceNode_Runtime {
    * Stored with a shared pointer so that it can be forward declared.
    */
   std::shared_ptr<asset::AssetItemTree> assets_for_menu;
+
+  /**
+   * Caches the sockets of which nodes can be synced. This can occasionally be expensive to compute
+   * because it needs to traverse the tree. Also, we don't want to check whether syncing is
+   * necessary for all nodes eagerly but only if a relevant node is visible to the user. The cache
+   * is reset when something changes that may affect what nodes need to be synced.
+   */
+  Map<int, bool> node_can_sync_states;
 };
 
 enum NodeResizeDirection {
@@ -128,7 +137,6 @@ enum NodeResizeDirection {
 ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
 
 /* Nodes draw without DPI - the view zoom is flexible. */
-#define HIDDEN_RAD (0.75f * U.widget_unit)
 #define BASIS_RAD (0.2f * U.widget_unit)
 #define NODE_DYS (U.widget_unit / 2)
 #define NODE_DY U.widget_unit
@@ -162,8 +170,6 @@ void node_socket_color_get(const bContext &C,
                            const bNodeSocket &sock,
                            float r_color[4]);
 
-const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_label);
-
 void node_draw_space(const bContext &C, ARegion &region);
 
 void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, uiLayout &layout);
@@ -193,6 +199,7 @@ void node_keymap(wmKeyConfig *keyconf);
 
 rctf node_frame_rect_inside(const SpaceNode &snode, const bNode &node);
 bool node_or_socket_isect_event(const bContext &C, const wmEvent &event);
+bNode *node_under_mouse_get(const SpaceNode &snode, const float2 mouse);
 
 bool node_deselect_all(bNodeTree &node_tree);
 void node_socket_select(bNode *node, bNodeSocket &sock);
@@ -245,8 +252,8 @@ void UI_node_socket_draw_cache_flush();
 void nodesocket_batch_start();
 void nodesocket_batch_end();
 
-void nodelink_batch_start(SpaceNode &snode);
-void nodelink_batch_end(SpaceNode &snode);
+void nodelink_batch_start(const SpaceNode &snode);
+void nodelink_batch_end(const SpaceNode &snode);
 
 /**
  * \note this is used for fake links in groups too.
@@ -299,16 +306,22 @@ void NODE_OT_add_mask(wmOperatorType *ot);
 void NODE_OT_add_material(wmOperatorType *ot);
 void NODE_OT_add_color(wmOperatorType *ot);
 void NODE_OT_add_import_node(wmOperatorType *ot);
+void NODE_OT_swap_group_asset(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
+void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
+void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot);
+void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type);
+void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
 /* `node_group.cc` */
 
-StringRef node_group_idname(bContext *C);
+StringRef node_group_idname(const bContext *C);
 void NODE_OT_group_make(wmOperatorType *ot);
 void NODE_OT_group_insert(wmOperatorType *ot);
 void NODE_OT_group_ungroup(wmOperatorType *ot);
 void NODE_OT_group_separate(wmOperatorType *ot);
 void NODE_OT_group_edit(wmOperatorType *ot);
+void NODE_OT_group_enter_exit(wmOperatorType *ot);
 
 void NODE_OT_default_group_width_set(wmOperatorType *ot);
 
@@ -329,6 +342,7 @@ void NODE_OT_parent_set(wmOperatorType *ot);
 void NODE_OT_join(wmOperatorType *ot);
 void NODE_OT_attach(wmOperatorType *ot);
 void NODE_OT_detach(wmOperatorType *ot);
+void NODE_OT_join_nodes(wmOperatorType *ot);
 
 void NODE_OT_link_viewer(wmOperatorType *ot);
 
@@ -368,20 +382,18 @@ void NODE_OT_delete_reconnect(wmOperatorType *ot);
 void NODE_OT_resize(wmOperatorType *ot);
 
 void NODE_OT_mute_toggle(wmOperatorType *ot);
-void NODE_OT_hide_toggle(wmOperatorType *ot);
+void NODE_OT_collapse_toggle(wmOperatorType *ot);
 void NODE_OT_hide_socket_toggle(wmOperatorType *ot);
 void NODE_OT_preview_toggle(wmOperatorType *ot);
 void NODE_OT_options_toggle(wmOperatorType *ot);
 void NODE_OT_node_copy_color(wmOperatorType *ot);
 void NODE_OT_deactivate_viewer(wmOperatorType *ot);
 void NODE_OT_activate_viewer(wmOperatorType *ot);
+void NODE_OT_toggle_viewer(wmOperatorType *ot);
+void NODE_OT_test_inlining_shader_nodes(wmOperatorType *ot);
 
 void NODE_OT_read_viewlayers(wmOperatorType *ot);
 void NODE_OT_render_changed(wmOperatorType *ot);
-
-void NODE_OT_output_file_add_socket(wmOperatorType *ot);
-void NODE_OT_output_file_remove_active_socket(wmOperatorType *ot);
-void NODE_OT_output_file_move_active_socket(wmOperatorType *ot);
 
 /**
  * \note clipboard_cut is a simple macro of copy + delete.
@@ -401,10 +413,11 @@ void NODE_OT_cryptomatte_layer_remove(wmOperatorType *ot);
 
 void NODE_GGT_backdrop_transform(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_crop(wmGizmoGroupType *gzgt);
-void NODE_GGT_backdrop_sun_beams(wmGizmoGroupType *gzgt);
+void NODE_GGT_backdrop_glare(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt);
+void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt);
 
 /* `node_geometry_attribute_search.cc` */
 
@@ -412,7 +425,7 @@ void node_geometry_add_attribute_search_button(const bContext &C,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
                                                uiLayout &layout,
-                                               StringRefNull placeholder = "");
+                                               StringRef placeholder = "");
 
 /* `node_geometry_layer_search.cc` */
 
@@ -420,7 +433,14 @@ void node_geometry_add_layer_search_button(const bContext &C,
                                            const bNode &node,
                                            PointerRNA &socket_ptr,
                                            uiLayout &layout,
-                                           StringRefNull placeholder = "");
+                                           StringRef placeholder = "");
+/* `node_geometry_volume_grid_search.cc` */
+
+void node_geometry_add_volume_grid_search_button(const bContext &C,
+                                                 const bNode &node,
+                                                 PointerRNA &socket_ptr,
+                                                 uiLayout &layout,
+                                                 StringRef placeholder = "");
 
 /* `node_context_path.cc` */
 
@@ -435,8 +455,26 @@ void invoke_node_link_drag_add_menu(bContext &C,
 
 /* `add_menu_assets.cc` */
 
-MenuType add_catalog_assets_menu_type();
-MenuType add_unassigned_assets_menu_type();
+MenuType catalog_assets_menu_type();
+MenuType unassigned_assets_menu_type();
 MenuType add_root_catalogs_menu_type();
+
+MenuType swap_root_catalogs_menu_type();
+
+/* `node_sync_sockets.cc` */
+
+void NODE_OT_sockets_sync(wmOperatorType *ot);
+
+/* node_socket_tooltip.cc */
+
+void build_socket_tooltip(uiTooltipData &tip_data,
+                          bContext &C,
+                          uiBut *but,
+                          const bNodeTree &tree,
+                          const bNodeSocket &socket);
+
+/** node_tree_interface_ui.cc */
+
+void node_tree_interface_panel_register(ARegionType *art);
 
 }  // namespace blender::ed::space_node

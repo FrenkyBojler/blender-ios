@@ -34,7 +34,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 /* Maximum width for a Status Bar report */
@@ -60,7 +60,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
   }
 
   uiLayout *ui_abs = &layout->absolute(false);
-  uiBlock *block = uiLayoutGetBlock(ui_abs);
+  uiBlock *block = ui_abs->block();
   blender::ui::EmbossType previous_emboss = UI_block_emboss_get(block);
 
   uchar report_icon_color[4];
@@ -88,7 +88,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 
   /* Background for icon. */
   but = uiDefBut(block,
-                 UI_BTYPE_ROUNDBOX,
+                 ButType::Roundbox,
                  0,
                  "",
                  0,
@@ -99,12 +99,12 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
                  0.0f,
                  0.0f,
                  "");
-  /* #UI_BTYPE_ROUNDBOX's background color is set in `but->col`. */
+  /* #ButType::Roundbox's background color is set in `but->col`. */
   copy_v4_v4_uchar(but->col, report_icon_color);
 
   /* Background for the rest of the message. */
   but = uiDefBut(block,
-                 UI_BTYPE_ROUNDBOX,
+                 ButType::Roundbox,
                  0,
                  "",
                  UI_UNIT_X + (6 * UI_SCALE_FAC),
@@ -124,9 +124,9 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 
   /* The report icon itself. */
   but = uiDefIconButO(block,
-                      UI_BTYPE_BUT,
+                      ButType::But,
                       "SCREEN_OT_info_log_show",
-                      WM_OP_INVOKE_REGION_WIN,
+                      blender::wm::OpCallContext::InvokeRegionWin,
                       UI_icon_from_report_type(report->type),
                       (3 * UI_SCALE_FAC),
                       0,
@@ -137,9 +137,9 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 
   /* The report message. */
   but = uiDefButO(block,
-                  UI_BTYPE_BUT,
+                  ButType::But,
                   "SCREEN_OT_info_log_show",
-                  WM_OP_INVOKE_REGION_WIN,
+                  blender::wm::OpCallContext::InvokeRegionWin,
                   report->message,
                   UI_UNIT_X,
                   0,
@@ -154,26 +154,26 @@ static bool uiTemplateInputStatusAzone(uiLayout *layout, const AZone *az, const 
 {
   if (az->type == AZONE_AREA) {
     layout->label(nullptr, ICON_MOUSE_LMB_DRAG);
-    uiItemS_ex(layout, -0.2f);
+    layout->separator(-0.2f);
     layout->label(IFACE_("Split/Dock"), ICON_NONE);
-    uiItemS_ex(layout, 0.6f);
+    layout->separator(0.6f);
     layout->label("", ICON_EVENT_SHIFT);
-    uiItemS_ex(layout, -0.4f);
+    layout->separator(-0.4f);
     layout->label(nullptr, ICON_MOUSE_LMB_DRAG);
-    uiItemS_ex(layout, -0.2f);
+    layout->separator(-0.2f);
     layout->label(IFACE_("Duplicate into Window"), ICON_NONE);
-    uiItemS_ex(layout, 0.6f);
+    layout->separator(0.6f);
     layout->label("", ICON_EVENT_CTRL);
-    uiItemS_ex(layout, ui_event_icon_offset(ICON_EVENT_CTRL));
+    layout->separator(ui_event_icon_offset(ICON_EVENT_CTRL));
     layout->label(nullptr, ICON_MOUSE_LMB_DRAG);
-    uiItemS_ex(layout, -0.2f);
+    layout->separator(-0.2f);
     layout->label(IFACE_("Swap Areas"), ICON_NONE);
     return true;
   }
 
   if (az->type == AZONE_REGION) {
     layout->label(nullptr, ICON_MOUSE_LMB_DRAG);
-    uiItemS_ex(layout, -0.2f);
+    layout->separator(-0.2f);
     layout->label((region->runtime->visible) ? IFACE_("Resize Region") :
                                                IFACE_("Show Hidden Region"),
                   ICON_NONE);
@@ -196,12 +196,12 @@ static bool uiTemplateInputStatusBorder(wmWindow *win, uiLayout *row)
     if (BLI_rcti_isect_pt_v(&win_rect, win->eventstate->xy)) {
       /* No resize at top and bottom. */
       row->label(nullptr, ICON_MOUSE_LMB_DRAG);
-      uiItemS_ex(row, -0.2f);
+      row->separator(-0.2f);
       row->label(IFACE_("Resize"), ICON_NONE);
-      uiItemS_ex(row, 0.6f);
+      row->separator(0.6f);
     }
     row->label(nullptr, ICON_MOUSE_RMB);
-    uiItemS_ex(row, -0.9f);
+    row->separator(-0.9f);
     row->label(IFACE_("Options"), ICON_NONE);
     return true;
   }
@@ -215,11 +215,11 @@ static bool uiTemplateInputStatusHeader(ARegion *region, uiLayout *row)
   }
   /* Over a header region. */
   row->label(nullptr, ICON_MOUSE_MMB_DRAG);
-  uiItemS_ex(row, -0.2f);
+  row->separator(-0.2f);
   row->label(IFACE_("Pan"), ICON_NONE);
-  uiItemS_ex(row, 0.6f);
+  row->separator(0.6f);
   row->label(nullptr, ICON_MOUSE_RMB);
-  uiItemS_ex(row, -0.9f);
+  row->separator(-0.9f);
   row->label(IFACE_("Options"), ICON_NONE);
   return true;
 }
@@ -232,24 +232,24 @@ static bool uiTemplateInputStatus3DView(bContext *C, uiLayout *row)
   }
 
   if (is_negative_m4(ob->object_to_world().ptr())) {
-    uiItemS_ex(row, 1.0f);
+    row->separator(1.0f);
     row->label("", ICON_ERROR);
-    uiItemS_ex(row, -0.2f);
+    row->separator(-0.2f);
     row->label(IFACE_("Active object has negative scale"), ICON_NONE);
-    uiItemS_ex(row, 0.5f, LayoutSeparatorType::Line);
-    uiItemS_ex(row, 0.5f);
+    row->separator(0.5f, LayoutSeparatorType::Line);
+    row->separator(0.5f);
     /* Return false to allow other items to be added after. */
     return false;
   }
 
   if (!(fabsf(ob->scale[0] - ob->scale[1]) < 1e-4f && fabsf(ob->scale[1] - ob->scale[2]) < 1e-4f))
   {
-    uiItemS_ex(row, 1.0f);
+    row->separator(1.0f);
     row->label("", ICON_ERROR);
-    uiItemS_ex(row, -0.2f);
+    row->separator(-0.2f);
     row->label(IFACE_("Active object has non-uniform scale"), ICON_NONE);
-    uiItemS_ex(row, 0.5f, LayoutSeparatorType::Line);
-    uiItemS_ex(row, 0.5f);
+    row->separator(0.5f, LayoutSeparatorType::Line);
+    row->separator(0.5f);
     /* Return false to allow other items to be added after. */
     return false;
   }
@@ -267,7 +267,7 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
     uiLayout *row = &layout->row(true);
     for (const blender::bke::WorkSpaceStatusItem &item : workspace->runtime->status) {
       if (item.space_factor != 0.0f) {
-        uiItemS_ex(row, item.space_factor);
+        row->separator(item.space_factor);
       }
       else {
         uiBut *but = uiItemL_ex(row, item.text, item.icon, false, false);
@@ -276,7 +276,7 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
         }
         const float offset = ui_event_icon_offset(item.icon);
         if (offset != 0.0f) {
-          uiItemS_ex(row, offset);
+          row->separator(offset);
         }
       }
     }
@@ -344,7 +344,7 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
 
   /* Otherwise should cursor keymap status. */
   for (int i = 0; i < 3; i++) {
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_LEFT);
+    row->alignment_set(blender::ui::LayoutAlign::Left);
 
     const char *msg = CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT,
                                  WM_window_cursor_keymap_status_get(win, i, 0));
@@ -353,16 +353,16 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
 
     if (msg) {
       row->label("", (ICON_MOUSE_LMB + i));
-      uiItemS_ex(row, -0.9f);
+      row->separator(-0.9f);
       row->label(msg, ICON_NONE);
-      uiItemS_ex(row, 0.6f);
+      row->separator(0.6f);
     }
 
     if (msg_drag) {
       row->label("", (ICON_MOUSE_LMB_DRAG + i));
-      uiItemS_ex(row, -0.4f);
+      row->separator(-0.4f);
       row->label(msg_drag, ICON_NONE);
-      uiItemS_ex(row, 0.6f);
+      row->separator(0.6f);
     }
   }
 }
@@ -388,6 +388,13 @@ static std::string ui_template_status_tooltip(bContext *C,
     }
     tooltip_message += RPT_(
         "This file is managed by the Blender asset system and cannot be overridden");
+  }
+  if (bmain->colorspace.is_missing_opencolorio_config) {
+    if (!tooltip_message.empty()) {
+      tooltip_message += "\n\n";
+    }
+    tooltip_message += RPT_(
+        "Displays, views or color spaces in this file were missing and have been changed");
   }
 
   return tooltip_message;
@@ -416,14 +423,14 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
     /* Special case, always show an alert for any blocked extensions. */
     if (wm->extensions_blocked > 0) {
       if (has_status_info) {
-        uiItemS_ex(row, -0.5f);
+        row->separator(-0.5f);
         row->label("|", ICON_NONE);
-        uiItemS_ex(row, -0.5f);
+        row->separator(-0.5f);
       }
-      uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
+      row->emboss_set(blender::ui::EmbossType::None);
       /* This operator also works fine for blocked extensions. */
-      uiItemO(row, "", ICON_ERROR, "EXTENSIONS_OT_userpref_show_for_update");
-      uiBut *but = uiLayoutGetBlock(layout)->buttons.last().get();
+      row->op("EXTENSIONS_OT_userpref_show_for_update", "", ICON_ERROR);
+      uiBut *but = layout->block()->buttons.last().get();
       uchar color[4];
       UI_GetThemeColor4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
@@ -431,30 +438,30 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
       BLI_str_format_integer_unit(but->icon_overlay_text.text, wm->extensions_blocked);
       UI_but_icon_indicator_color_set(but, color);
 
-      uiItemS_ex(row, 1.0f);
+      row->separator(1.0f);
       has_status_info = true;
     }
 
     if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
       if (has_status_info) {
-        uiItemS_ex(row, -0.5f);
+        row->separator(-0.5f);
         row->label("|", ICON_NONE);
-        uiItemS_ex(row, -0.5f);
+        row->separator(-0.5f);
       }
 
       if ((G.f & G_FLAG_INTERNET_OVERRIDE_PREF_OFFLINE) != 0) {
         row->label("", ICON_INTERNET_OFFLINE);
       }
       else {
-        uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
-        uiItemO(row, "", ICON_INTERNET_OFFLINE, "EXTENSIONS_OT_userpref_show_online");
-        uiBut *but = uiLayoutGetBlock(layout)->buttons.last().get();
+        row->emboss_set(blender::ui::EmbossType::None);
+        row->op("EXTENSIONS_OT_userpref_show_online", "", ICON_INTERNET_OFFLINE);
+        uiBut *but = layout->block()->buttons.last().get();
         uchar color[4];
         UI_GetThemeColor4ubv(TH_TEXT, color);
         copy_v4_v4_uchar(but->col, color);
       }
 
-      uiItemS_ex(row, 1.0f);
+      row->separator(1.0f);
       has_status_info = true;
     }
     else if ((wm->extensions_updates > 0) ||
@@ -466,13 +473,13 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
       }
 
       if (has_status_info) {
-        uiItemS_ex(row, -0.5f);
+        row->separator(-0.5f);
         row->label("|", ICON_NONE);
-        uiItemS_ex(row, -0.5f);
+        row->separator(-0.5f);
       }
-      uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
-      uiItemO(row, "", icon, "EXTENSIONS_OT_userpref_show_for_update");
-      uiBut *but = uiLayoutGetBlock(layout)->buttons.last().get();
+      row->emboss_set(blender::ui::EmbossType::None);
+      row->op("EXTENSIONS_OT_userpref_show_for_update", "", icon);
+      uiBut *but = layout->block()->buttons.last().get();
       uchar color[4];
       UI_GetThemeColor4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
@@ -482,7 +489,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
         UI_but_icon_indicator_color_set(but, color);
       }
 
-      uiItemS_ex(row, 1.0f);
+      row->separator(1.0f);
       has_status_info = true;
     }
   }
@@ -490,9 +497,9 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
   if (!BKE_main_has_issues(bmain)) {
     if (U.statusbar_flag & STATUSBAR_SHOW_VERSION) {
       if (has_status_info) {
-        uiItemS_ex(row, -0.5f);
+        row->separator(-0.5f);
         row->label("|", ICON_NONE);
-        uiItemS_ex(row, -0.5f);
+        row->separator(-0.5f);
       }
       const char *status_info_d_txt = ED_info_statusbar_string_ex(
           bmain, scene, view_layer, STATUSBAR_SHOW_VERSION);
@@ -503,7 +510,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
 
   blender::StringRefNull version_string = ED_info_statusbar_string_ex(
       bmain, scene, view_layer, STATUSBAR_SHOW_VERSION);
-  blender::StringRefNull warning_message;
+  std::string warning_message;
 
   /* Blender version part is shown as warning area when there are forward compatibility issues with
    * currently loaded .blend file. */
@@ -517,9 +524,17 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
     }
   }
 
+  /* Color space warning. */
+  if (bmain->colorspace.is_missing_opencolorio_config) {
+    if (!warning_message.empty()) {
+      warning_message = warning_message + " ";
+    }
+    warning_message = warning_message + RPT_("Color Management");
+  }
+
   const uiStyle *style = UI_style_get();
   uiLayout *ui_abs = &layout->absolute(false);
-  uiBlock *block = uiLayoutGetBlock(ui_abs);
+  uiBlock *block = ui_abs->block();
   blender::ui::EmbossType previous_emboss = UI_block_emboss_get(block);
 
   UI_fontstyle_set(&style->widget);
@@ -531,7 +546,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
 
   /* Background for icon. */
   uiBut *but = uiDefBut(block,
-                        UI_BTYPE_ROUNDBOX,
+                        ButType::Roundbox,
                         0,
                         "",
                         0,
@@ -542,13 +557,13 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
                         0.0f,
                         0.0f,
                         "");
-  /*# UI_BTYPE_ROUNDBOX's background color is set in `but->col`. */
+  /*# ButType::Roundbox's background color is set in `but->col`. */
   UI_GetThemeColor4ubv(TH_WARNING, but->col);
 
-  if (!warning_message.is_empty()) {
+  if (!warning_message.empty()) {
     /* Background for the rest of the message. */
     but = uiDefBut(block,
-                   UI_BTYPE_ROUNDBOX,
+                   ButType::Roundbox,
                    0,
                    "",
                    UI_UNIT_X + (6 * UI_SCALE_FAC),
@@ -570,7 +585,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
 
   /* The warning icon itself. */
   but = uiDefIconBut(block,
-                     UI_BTYPE_BUT,
+                     ButType::But,
                      0,
                      ICON_ERROR,
                      int(3 * UI_SCALE_FAC),
@@ -586,9 +601,9 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
   but->col[3] = 255; /* This theme color is RBG only, so have to set alpha here. */
 
   /* The warning message, if any. */
-  if (!warning_message.is_empty()) {
+  if (!warning_message.empty()) {
     but = uiDefBut(block,
-                   UI_BTYPE_BUT,
+                   ButType::But,
                    0,
                    warning_message.c_str(),
                    UI_UNIT_X,

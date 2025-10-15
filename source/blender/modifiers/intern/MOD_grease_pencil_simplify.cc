@@ -26,7 +26,7 @@
 #include "GEO_resample_curves.hh"
 #include "GEO_simplify_curves.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "MOD_grease_pencil_util.hh"
@@ -137,7 +137,7 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
     }
     case MOD_GREASE_PENCIL_SIMPLIFY_SAMPLE: {
       drawing.strokes_for_write() = geometry::resample_to_length(
-          curves, strokes, VArray<float>::ForSingle(mmd.length, curves.curves_num()), {});
+          curves, strokes, VArray<float>::from_single(mmd.length, curves.curves_num()), {});
       break;
     }
     case MOD_GREASE_PENCIL_SIMPLIFY_MERGE: {
@@ -202,7 +202,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   int mode = RNA_enum_get(ptr, "mode");
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -227,7 +227,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -272,4 +272,5 @@ ModifierTypeInfo modifierType_GreasePencilSimplify = {
     /*blend_write*/ blender::blend_write,
     /*blend_read*/ blender::blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

@@ -13,6 +13,8 @@
 
 #include "BKE_idprop.hh"
 
+#include "NOD_socket_value_inference.hh"
+
 struct bNodeTree;
 struct bNodeTreeInterfaceSocket;
 namespace blender::bke {
@@ -22,7 +24,7 @@ struct IDProperty;
 namespace blender::nodes {
 struct GeoNodesCallData;
 namespace geo_eval_log {
-class GeoModifierLog;
+class GeoNodesLog;
 }  // namespace geo_eval_log
 }  // namespace blender::nodes
 
@@ -38,14 +40,7 @@ struct IDPropNameGetter {
   }
 };
 
-/**
- * Use a #VectorSet to store properties for constant time lookup, to avoid slowdown with many
- * inputs.
- */
-using PropertiesVectorSet = CustomIDVectorSet<IDProperty *, IDPropNameGetter, 16>;
-PropertiesVectorSet build_properties_vector_set(const IDProperty *properties);
-
-std::optional<StringRef> input_attribute_name_get(const PropertiesVectorSet &properties,
+std::optional<StringRef> input_attribute_name_get(const IDProperty *properties,
                                                   const bNodeTreeInterfaceSocket &io_input);
 
 /**
@@ -64,10 +59,12 @@ bool id_property_type_matches_socket(const bNodeTreeInterfaceSocket &socket,
                                      bool use_name_for_ids = false);
 
 std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_from_socket(
-    const bNodeTreeInterfaceSocket &socket, bool use_name_for_ids);
+    const bNodeTreeInterfaceSocket &socket,
+    nodes::StructureType structure_type,
+    bool use_name_for_ids);
 
 bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
-                                                    const PropertiesVectorSet &properties_set,
+                                                    const IDProperty *properties,
                                                     const ComputeContext &base_compute_context,
                                                     GeoNodesCallData &call_data,
                                                     bke::GeometrySet input_geometry);
@@ -82,14 +79,12 @@ void update_output_properties_from_node_tree(const bNodeTree &tree,
                                              IDProperty &properties);
 
 /**
- * Get the "base" input values that are passed into geometry nodes. In this context, "base" means
- * that the retrieved input types are #bNodeSocketType::base_cpp_type (e.g. `float` for float
- * sockets). If the input value can't be represented as base value, null is returned instead (e.g.
- * for attribute inputs).
+ * Get input values for the node tree for static value/usage inferencing. Inferencing does not
+ * fully evaluate the node tree (would be way to slow), and does not support all socket types. So
+ * this function may return #InferenceValue::Unknown for some sockets.
  */
-void get_geometry_nodes_input_base_values(const bNodeTree &btree,
-                                          const PropertiesVectorSet &properties,
-                                          ResourceScope &scope,
-                                          MutableSpan<GPointer> r_values);
+Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree &btree,
+                                                                 const IDProperty *properties,
+                                                                 ResourceScope &scope);
 
 }  // namespace blender::nodes

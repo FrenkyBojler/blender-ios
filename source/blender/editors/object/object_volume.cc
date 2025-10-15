@@ -9,6 +9,7 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
+#include "BLI_math_constants.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -59,7 +60,7 @@ void OBJECT_OT_volume_add(wmOperatorType *ot)
   ot->description = "Add a volume object to the scene";
   ot->idname = "OBJECT_OT_volume_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_volume_add_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -125,6 +126,8 @@ static wmOperatorStatus volume_import_exec(bContext *C, wmOperator *op)
     BKE_volume_unload(volume);
 
     imported = true;
+
+    BLI_freelistN(&range->frames);
   }
   BLI_freelistN(&ranges);
 
@@ -152,7 +155,7 @@ void OBJECT_OT_volume_import(wmOperatorType *ot)
   ot->description = "Import OpenVDB volume file";
   ot->idname = "OBJECT_OT_volume_import";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = volume_import_exec;
   ot->invoke = volume_import_invoke;
 

@@ -79,12 +79,27 @@ using Alembic::AbcMaterial::IMaterial;
 
 using namespace blender::io::alembic;
 
-BLI_INLINE ArchiveReader *archive_from_handle(CacheArchiveHandle *handle)
+struct AlembicArchiveData {
+  ArchiveReader *archive_reader = nullptr;
+  ImportSettings *settings = nullptr;
+
+  AlembicArchiveData() = default;
+  ~AlembicArchiveData()
+  {
+    delete archive_reader;
+    delete settings;
+  }
+
+  AlembicArchiveData(const AlembicArchiveData &) = delete;
+  AlembicArchiveData &operator==(const AlembicArchiveData &) = delete;
+};
+
+BLI_INLINE AlembicArchiveData *archive_from_handle(CacheArchiveHandle *handle)
 {
-  return reinterpret_cast<ArchiveReader *>(handle);
+  return reinterpret_cast<AlembicArchiveData *>(handle);
 }
 
-BLI_INLINE CacheArchiveHandle *handle_from_archive(ArchiveReader *archive)
+BLI_INLINE CacheArchiveHandle *handle_from_archive(AlembicArchiveData *archive)
 {
   return reinterpret_cast<CacheArchiveHandle *>(archive);
 }
@@ -181,7 +196,11 @@ CacheArchiveHandle *ABC_create_handle(const Main *bmain,
     gather_objects_paths(archive->getTop(), object_paths);
   }
 
-  return handle_from_archive(archive);
+  AlembicArchiveData *archive_data = new AlembicArchiveData();
+  archive_data->archive_reader = archive;
+  archive_data->settings = new ImportSettings();
+
+  return handle_from_archive(archive_data);
 }
 
 void ABC_free_handle(CacheArchiveHandle *handle)
@@ -470,7 +489,6 @@ static void sort_readers(blender::MutableSpan<AbcObjectReader *> readers)
 static void import_file(ImportJobData *data, const char *filepath, float progress_factor)
 {
   blender::timeit::TimePoint start_time = blender::timeit::Clock::now();
-  SCOPE_TIMER("Alembic import, objects reading and creation");
 
   ArchiveReader *archive = ArchiveReader::get(data->bmain, {filepath});
 
@@ -596,8 +614,8 @@ static void set_frame_range(ImportJobData *data)
     scene->r.cfra = scene->r.sfra;
   }
   else if (data->min_time < data->max_time) {
-    scene->r.sfra = int(round(data->min_time * FPS));
-    scene->r.efra = int(round(data->max_time * FPS));
+    scene->r.sfra = int(round(data->min_time * scene->frames_per_second()));
+    scene->r.efra = int(round(data->max_time * scene->frames_per_second()));
     scene->r.cfra = scene->r.sfra;
   }
 }
@@ -610,7 +628,7 @@ static void import_startjob(void *user_data, wmJobWorkerStatus *worker_status)
   data->progress = &worker_status->progress;
   data->start_time = blender::timeit::Clock::now();
 
-  WM_set_locked_interface(data->wm, true);
+  WM_locked_interface_set(data->wm, true);
   float file_progress_factor = 1.0f / float(data->paths.size());
   for (int idx : data->paths.index_range()) {
     import_file(data, data->paths[idx].c_str(), file_progress_factor);
@@ -627,8 +645,6 @@ static void import_startjob(void *user_data, wmJobWorkerStatus *worker_status)
 
 static void import_endjob(void *user_data)
 {
-  SCOPE_TIMER("Alembic import, cleanup");
-
   ImportJobData *data = static_cast<ImportJobData *>(user_data);
 
   /* Delete objects on cancellation. */
@@ -692,7 +708,7 @@ static void import_endjob(void *user_data)
     }
   }
 
-  WM_set_locked_interface(data->wm, false);
+  WM_locked_interface_set(data->wm, false);
 
   switch (data->error_code) {
     default:
@@ -748,7 +764,7 @@ bool ABC_import(bContext *C, const AlembicImportParams *params, bool as_backgrou
     wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                                 CTX_wm_window(C),
                                 job->scene,
-                                "Alembic Import",
+                                "Importing Alembic...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_ALEMBIC_IMPORT);
 
@@ -888,8 +904,12 @@ CacheReader *CacheReader_open_alembic_object(CacheArchiveHandle *handle,
     return reader;
   }
 
-  ArchiveReader *archive = archive_from_handle(handle);
+  AlembicArchiveData *archive_data = archive_from_handle(handle);
+  if (!archive_data) {
+    return reader;
+  }
 
+  ArchiveReader *archive = archive_data->archive_reader;
   if (!archive || !archive->valid()) {
     return reader;
   }
@@ -901,10 +921,11 @@ CacheReader *CacheReader_open_alembic_object(CacheArchiveHandle *handle,
     ABC_CacheReader_free(reader);
   }
 
-  ImportSettings settings;
-  settings.is_sequence = is_sequence;
-  settings.blender_archive_version_prior_44 = archive->is_blender_archive_version_prior_44();
-  AbcObjectReader *abc_reader = create_reader(iobject, settings);
+  archive_data->settings->is_sequence = is_sequence;
+  archive_data->settings->blender_archive_version_prior_44 =
+      archive->is_blender_archive_version_prior_44();
+
+  AbcObjectReader *abc_reader = create_reader(iobject, *archive_data->settings);
   if (abc_reader == nullptr) {
     /* This object is not supported */
     return nullptr;

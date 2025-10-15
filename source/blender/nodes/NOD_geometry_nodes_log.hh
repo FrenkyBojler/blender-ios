@@ -10,8 +10,8 @@
  * search, node warnings, socket inspection and the viewer node.
  *
  * This file provides the system for logging data during evaluation and accessing the data after
- * evaluation. Geometry nodes is executed by a modifier, therefore the "root" of logging is
- * #GeoModifierLog which will contain all data generated in a modifier.
+ * evaluation. At the root of the logging data is a #GeoNodesLog which is created by the code that
+ * invokes Geometry Nodes (e.g. the Geometry Nodes modifier).
  *
  * The system makes a distinction between "loggers" and the "log":
  * - Logger (#GeoTreeLogger): Is used during geometry nodes evaluation. Each thread logs data
@@ -30,6 +30,7 @@
 
 #include <chrono>
 
+#include "BLI_cache_mutex.hh"
 #include "BLI_compute_context.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_generic_pointer.hh"
@@ -38,11 +39,13 @@
 #include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node.hh"
+#include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_volume_grid_fwd.hh"
 
 #include "NOD_geometry_nodes_closure_location.hh"
-#include "NOD_socket_interface_key.hh"
+#include "NOD_geometry_nodes_list.hh"
+#include "NOD_geometry_nodes_warning.hh"
 
 #include "FN_field.hh"
 
@@ -55,16 +58,6 @@ struct Report;
 namespace blender::nodes::geo_eval_log {
 
 using fn::GField;
-
-/** These values are also written to .blend files, so don't change them lightly. */
-enum class NodeWarningType {
-  Error = 0,
-  Warning = 1,
-  Info = 2,
-};
-
-int node_warning_type_icon(NodeWarningType type);
-int node_warning_type_severity(NodeWarningType type);
 
 struct NodeWarning {
   NodeWarningType type;
@@ -139,7 +132,12 @@ struct GeometryAttributeInfo {
   std::string name;
   /** Can be empty when #name does not actually exist on a geometry yet. */
   std::optional<bke::AttrDomain> domain;
-  std::optional<eCustomDataType> data_type;
+  std::optional<bke::AttrType> data_type;
+};
+
+struct VolumeGridInfo {
+  std::string name;
+  VolumeGridType grid_type;
 };
 
 /**
@@ -175,10 +173,7 @@ class GeometryInfoLog : public ValueLog {
     int gizmo_transforms_num = 0;
   };
   struct VolumeInfo {
-    int grids_num;
-  };
-  struct GridInfo {
-    bool is_empty;
+    Vector<VolumeGridInfo> grids;
   };
 
   std::optional<MeshInfo> mesh_info;
@@ -188,17 +183,22 @@ class GeometryInfoLog : public ValueLog {
   std::optional<InstancesInfo> instances_info;
   std::optional<EditDataInfo> edit_data_info;
   std::optional<VolumeInfo> volume_info;
-  std::optional<GridInfo> grid_info;
 
   GeometryInfoLog(const bke::GeometrySet &geometry_set);
-  GeometryInfoLog(const bke::GVolumeGrid &grid);
+};
+
+class GridInfoLog : public ValueLog {
+ public:
+  bool is_empty = false;
+
+  GridInfoLog(const bke::GVolumeGrid &grid);
 };
 
 class BundleValueLog : public ValueLog {
  public:
   struct Item {
-    SocketInterfaceKey key;
-    const bke::bNodeSocketType *type;
+    std::string key;
+    std::variant<const bke::bNodeSocketType *, StringRefNull> type;
   };
 
   Vector<Item> items;
@@ -209,7 +209,7 @@ class BundleValueLog : public ValueLog {
 class ClosureValueLog : public ValueLog {
  public:
   struct Item {
-    SocketInterfaceKey key;
+    std::string key;
     const bke::bNodeSocketType *type;
   };
 
@@ -234,13 +234,37 @@ class ClosureValueLog : public ValueLog {
                   std::shared_ptr<ClosureEvalLog> eval_log);
 };
 
+class ListInfoLog : public ValueLog {
+ public:
+  int64_t size;
+
+  ListInfoLog(const List *list);
+};
+
 /**
- * Data logged by a viewer node when it is executed. In this case, we do want to log the entire
- * geometry.
+ * Data logged by a viewer node when it is executed.
  */
 class ViewerNodeLog {
+  mutable CacheMutex main_geometry_cache_mutex_;
+  mutable std::optional<bke::GeometrySet> main_geometry_cache_;
+
  public:
-  bke::GeometrySet geometry;
+  struct Item {
+    int identifier;
+    std::string name;
+    bke::SocketValueVariant value;
+  };
+
+  struct ItemIdentifierGetter {
+    int operator()(const Item &item) const
+    {
+      return item.identifier;
+    }
+  };
+
+  CustomIDVectorSet<Item, ItemIdentifierGetter> items;
+
+  const bke::GeometrySet *main_geometry() const;
 };
 
 using Clock = std::chrono::steady_clock;
@@ -310,7 +334,6 @@ class GeoTreeLogger {
   ~GeoTreeLogger();
 
   void log_value(const bNode &node, const bNodeSocket &socket, GPointer value);
-  void log_viewer_node(const bNode &viewer_node, bke::GeometrySet geometry);
 };
 
 /**
@@ -339,7 +362,7 @@ class GeoNodeLog {
   ~GeoNodeLog();
 };
 
-class GeoModifierLog;
+class GeoNodesLog;
 
 /**
  * Contains data that has been logged for a specific node group in a context. If the same node
@@ -350,7 +373,7 @@ class GeoModifierLog;
  */
 class GeoTreeLog {
  private:
-  GeoModifierLog *modifier_log_;
+  GeoNodesLog *root_log_;
   Vector<GeoTreeLogger *> tree_loggers_;
   VectorSet<ComputeContextHash> children_hashes_;
   bool reduced_node_warnings_ = false;
@@ -373,7 +396,7 @@ class GeoTreeLog {
   Set<int> evaluated_gizmo_nodes;
   Vector<std::string> all_layer_names;
 
-  GeoTreeLog(GeoModifierLog *modifier_log, Vector<GeoTreeLogger *> tree_loggers);
+  GeoTreeLog(GeoNodesLog *root_log, Vector<GeoTreeLogger *> tree_loggers);
   ~GeoTreeLog();
 
   /**
@@ -435,11 +458,11 @@ class ContextualGeoTreeLogs {
 };
 
 /**
- * There is one #GeoModifierLog for every modifier that evaluates geometry nodes. It contains all
+ * There is one #GeoNodesLog for every modifier that evaluates geometry nodes. It contains all
  * the loggers that are used during evaluation as well as the preprocessed logs that are used by UI
  * code.
  */
-class GeoModifierLog {
+class GeoNodesLog {
  private:
   /** Data that is stored for each thread. */
   struct LocalData {
@@ -460,8 +483,8 @@ class GeoModifierLog {
   Map<ComputeContextHash, std::unique_ptr<GeoTreeLog>> tree_logs_;
 
  public:
-  GeoModifierLog();
-  ~GeoModifierLog();
+  GeoNodesLog();
+  ~GeoNodesLog();
 
   /**
    * Get a thread-local logger for the current node tree.

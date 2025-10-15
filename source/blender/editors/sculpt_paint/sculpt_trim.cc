@@ -274,15 +274,9 @@ static void calculate_depth(gesture::GestureData &gesture_data,
 
       Sculpt *sd = CTX_data_tool_settings(vc.C)->sculpt;
       Brush *brush = BKE_paint_brush(&sd->paint);
-      Scene *scene = CTX_data_scene(vc.C);
 
-      if (!BKE_brush_use_locked_size(scene, brush)) {
-        depth_radius = paint_calc_object_space_radius(
-            vc, trim_operation->initial_location, BKE_brush_size_get(scene, brush));
-      }
-      else {
-        depth_radius = BKE_brush_unprojected_radius_get(scene, brush);
-      }
+      depth_radius = object_space_radius_get(
+          vc, sd->paint, *brush, trim_operation->initial_location);
     }
 
     depth_front = mid_point_depth - depth_radius;
@@ -364,7 +358,7 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   get_origin_and_normal(gesture_data, shape_origin, shape_normal);
   plane_from_point_normal_v3(shape_plane, shape_origin, shape_normal);
 
-  const float(*ob_imat)[4] = vc.obact->world_to_object().ptr();
+  const float (*ob_imat)[4] = vc.obact->world_to_object().ptr();
 
   /* Write vertices coordinates OperationType::Difference for the front face. */
   MutableSpan<float3> positions = trim_operation->mesh->vert_positions_for_write();
@@ -450,7 +444,7 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   /* Get the triangulation for the front/back poly. */
   const int face_tris_num = bke::mesh::face_triangles_num(screen_points.size());
   Array<uint3> tris(face_tris_num);
-  BLI_polyfill_calc(reinterpret_cast<const float(*)[2]>(screen_points.data()),
+  BLI_polyfill_calc(reinterpret_cast<const float (*)[2]>(screen_points.data()),
                     screen_points.size(),
                     0,
                     reinterpret_cast<uint(*)[3]>(tris.data()));
@@ -759,19 +753,19 @@ static void initialize_cursor_info(bContext &C,
 {
   Object &ob = *CTX_data_active_object(&C);
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   int mval[2];
   RNA_int_get_array(op.ptr, "location", mval);
 
-  SculptCursorGeometryInfo sgi;
+  CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(mval[0]), float(mval[1])};
 
   TrimOperation *trim_operation = (TrimOperation *)gesture_data.operation;
-  trim_operation->initial_hit = SCULPT_cursor_geometry_info_update(&C, &sgi, mval_fl, false);
+  trim_operation->initial_hit = cursor_geometry_info_update(&C, &cgi, mval_fl, false);
   if (trim_operation->initial_hit) {
-    copy_v3_v3(trim_operation->initial_location, sgi.location);
-    copy_v3_v3(trim_operation->initial_normal, sgi.normal);
+    copy_v3_v3(trim_operation->initial_location, cgi.location);
+    copy_v3_v3(trim_operation->initial_normal, cgi.normal);
   }
 }
 
