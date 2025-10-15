@@ -348,15 +348,11 @@ static IndexMask find_duplicate_faces(const Mesh &mesh,
 static void remove_invalid_faces(Mesh &mesh, const IndexMask &valid_faces)
 {
   const int valid_faces_num = valid_faces.size();
-  Vector<int> new_face_offsets(valid_faces_num + 1);
   const OffsetIndices<int> old_faces(mesh.face_offsets(), offset_indices::NoSortCheck());
 
-  valid_faces.foreach_index(GrainSize(4096), [&](const int face_i, const int pos) {
-    const IndexRange face = old_faces[face_i];
-    new_face_offsets[pos] = face.size();
-  });
-
-  const OffsetIndices new_faces = offset_indices::accumulate_counts_to_offsets(new_face_offsets);
+  Vector<int> new_face_offsets(valid_faces_num + 1);
+  const OffsetIndices new_faces = offset_indices::gather_selected_offsets(
+      old_faces, valid_faces, new_face_offsets);
 
   for (CustomDataLayer &layer : MutableSpan(mesh.face_data.layers, mesh.face_data.totlayer)) {
     const eCustomDataType cd_type = eCustomDataType(layer.type);
