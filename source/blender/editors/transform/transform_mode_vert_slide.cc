@@ -113,13 +113,6 @@ struct VertSlideData {
 
         float3 tdir = loc_dst - v_co_orig;
 
-        float ev[3] = {tdir.x, tdir.y, tdir.z};
-        mul_mat3_m4_v3(const_cast<float (*)[4]>(obmat.ptr()), ev);
-        tdir = float3(ev[0], ev[1], ev[2]);
-
-        const float len2 = len_squared_v3(tdir);
-        tdir *= 1.0f / math::sqrt(len2);
-
         const float dir_dot = math::dot(dir, tdir);
         if (dir_dot > dir_dot_best) {
           dir_dot_best = dir_dot;
@@ -246,7 +239,7 @@ static float3 mouse_delta_to_world_dir(const TransInfo *t, const float2 &delta)
 
     return math::normalize(dir);
   }
-
+  /* In 2D views(UV Editor), use the mouse movement directly on the XY plane. */
   const float3 dir(delta.x, delta.y, 0.0f);
   return math::normalize(dir);
 }
