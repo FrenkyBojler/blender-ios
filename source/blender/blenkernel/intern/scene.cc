@@ -114,12 +114,18 @@
 
 using blender::bke::CompositorRuntime;
 using blender::bke::SceneRuntime;
+using blender::bke::SequencerRuntime;
 
 CompositorRuntime::~CompositorRuntime()
 {
   if (preview_depsgraph) {
     DEG_graph_free(preview_depsgraph);
   }
+}
+
+SequencerRuntime::~SequencerRuntime()
+{
+  DEG_graph_free(depsgraph);
 }
 
 CurveMapping *BKE_sculpt_default_cavity_curve()
@@ -319,7 +325,7 @@ static void scene_copy_data(Main *bmain,
   BKE_curvemapping_copy_data(&scene_dst->r.mblur_shutter_curve, &scene_src->r.mblur_shutter_curve);
 
   /* tool settings */
-  scene_dst->toolsettings = BKE_toolsettings_copy(scene_dst->toolsettings, flag_subdata);
+  scene_dst->toolsettings = BKE_toolsettings_copy(scene_src->toolsettings, flag_subdata);
 
   if (scene_src->display.shading.prop) {
     scene_dst->display.shading.prop = IDP_CopyProperty(scene_src->display.shading.prop);
@@ -807,6 +813,8 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
+  /* TODO: This could use `seq::foreach_strip_modifier_id`, but because `FOREACHID_PROCESS_IDSUPER`
+   * doesn't take IDs but "ID supers", it makes it a bit more cumbersome. */
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
     if (smd->type == eSeqModifierType_Compositor) {
@@ -846,8 +854,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   }
   if (scene->ed) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-        data,
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
+        data, blender::seq::foreach_strip(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
   }
 
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
@@ -978,7 +985,7 @@ static void scene_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Scene *scene = (Scene *)id;
   if (scene->ed != nullptr) {
-    blender::seq::for_each_callback(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
+    blender::seq::foreach_strip(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
   }
 }
 
@@ -2284,14 +2291,19 @@ const char *BKE_scene_find_last_marker_name(const Scene *scene, int frame)
   return best_marker ? best_marker->name : nullptr;
 }
 
-int BKE_scene_frame_snap_by_seconds(Scene *scene, double interval_in_seconds, int frame)
+float BKE_scene_frame_snap_by_seconds(const Scene *scene,
+                                      const double interval_in_seconds,
+                                      const float frame)
 {
-  const int fps = round_db_to_int(scene->frames_per_second() * interval_in_seconds);
-  const int second_prev = frame - mod_i(frame, fps);
-  const int second_next = second_prev + fps;
-  const int delta_prev = frame - second_prev;
-  const int delta_next = second_next - frame;
-  return (delta_prev < delta_next) ? second_prev : second_next;
+  BLI_assert(interval_in_seconds > 0);
+  BLI_assert(scene->frames_per_second() > 0);
+
+  const double interval_in_frames = scene->frames_per_second() * interval_in_seconds;
+  const double second_prev = interval_in_frames * floor(frame / interval_in_frames);
+  const double second_next = second_prev + ceil(interval_in_frames);
+  const double delta_prev = frame - second_prev;
+  const double delta_next = second_next - frame;
+  return float((delta_prev < delta_next) ? second_prev : second_next);
 }
 
 void BKE_scene_remove_rigidbody_object(Main *bmain, Scene *scene, Object *ob, const bool free_us)

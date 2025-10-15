@@ -88,6 +88,8 @@
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
 
+#include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_utils.hh"
 
@@ -1024,7 +1026,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
 
         /* can only add this F-Curve if it is selected */
         if (ac->ads->filterflag & ADS_FILTER_ONLYSEL) {
-          if ((pchan->bone->flag & BONE_SELECTED) == 0) {
+          if ((pchan->flag & POSE_SELECTED) == 0) {
             return true;
           }
         }
@@ -1330,7 +1332,12 @@ static size_t animfilter_fcurves(bAnimContext *ac,
        * except we need to set some stuff differently */
       ANIMCHANNEL_NEW_CHANNEL_FULL(ac->bmain, fcu, ANIMTYPE_NLACURVE, owner_id, fcurve_owner_id, {
         ale->owner = owner; /* strip */
-        ale->adt = nullptr; /* to prevent time mapping from causing problems */
+        /* Since #130440 landed, this should now in theory be something like
+         * `ale->adt = BKE_animdata_from_id(owner_id)`, rather than a nullptr.
+         * However, at the moment the nullptr doesn't hurt, and it helps us
+         * catch bugs like #147803 via the assert in `fcurve_to_keylist()`. If
+         * the nullptr does start to hurt at some point, please change it! */
+        ale->adt = nullptr;
       });
     }
     else {
@@ -3444,6 +3451,7 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
   BEGIN_ANIMFILTER_SUBCHANNELS (EXPANDED_SCEC(sce)) {
     bNodeTree *ntree = sce->compositing_node_group;
     World *wo = sce->world;
+    Editing *ed = sce->ed;
 
     /* Action, Drivers, or NLA for Scene */
     if ((ac->ads->filterflag & ADS_FILTER_NOSCE) == 0) {
@@ -3459,6 +3467,23 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
     if ((ntree) && !(ac->ads->filterflag & ADS_FILTER_NONTREE)) {
       tmp_items += animdata_filter_ds_nodetree(
           ac, &tmp_data, reinterpret_cast<ID *>(sce), ntree, filter_mode);
+    }
+
+    /* Strip modifier node trees. */
+    if (ed && !(ac->ads->filterflag & ADS_FILTER_NONTREE)) {
+      VectorSet<ID *> node_trees;
+      seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+        seq::foreach_strip_modifier_id(strip, [&](ID *id) {
+          if (GS(id->name) == ID_NT) {
+            node_trees.add(id);
+          }
+        });
+        return true;
+      });
+      for (ID *node_tree : node_trees) {
+        tmp_items += animdata_filter_ds_nodetree(
+            ac, &tmp_data, &sce->id, reinterpret_cast<bNodeTree *>(node_tree), filter_mode);
+      }
     }
 
     /* line styles */
