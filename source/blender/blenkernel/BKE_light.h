@@ -28,6 +28,8 @@ void BKE_light_eval(Depsgraph *depsgraph, Light *la);
 float BKE_light_power(const Light &light);
 float BKE_light_radiometric_to_photometric_power(const Light &light, float power);
 float BKE_light_photometric_to_radiometric_power(const Light &light, float power);
+float BKE_light_candela_to_lumen(const Light &light, float candela);
+float BKE_light_lumen_to_candela(const Light &light, float lumen);
 blender::float3 BKE_light_color(const Light &light);
 blender::float3 BKE_light_color_normalize(const blender::float3 &color);
 float BKE_light_area(const Light &light, const blender::float4x4 &object_to_world);

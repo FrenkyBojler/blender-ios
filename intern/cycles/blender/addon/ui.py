@@ -1569,6 +1569,35 @@ class CYCLES_LIGHT_PT_light(CyclesButtonsPanel, Panel):
                 sub.prop(light, "size_y", text="Y")
 
 
+class CYCLES_PT_light_advanced(CyclesButtonsPanel, Panel):
+    bl_label = "Advanced"
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        return context.light and CyclesButtonsPanel.poll(context)
+
+    def draw_header(self, context):
+        light = context.light
+        # Disable the checkbox when unit_system is NONE
+        is_enabled = (light.unit_system != 'NONE')
+        self.layout.enabled = is_enabled
+        self.layout.prop(light, "use_advanced", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        light = context.light
+
+        col = layout.column(align=True)
+        col.active = light.use_advanced
+        col.prop(light, "normalize_color", text="Normalize Color")
+        col.prop(light, "use_compensate_power", text="Compensate Power")
+        col.prop(light, "use_scene_conversion", text="Scene Conversion")
+
+
 class CYCLES_LIGHT_PT_settings(CyclesButtonsPanel, Panel):
     bl_label = "Settings"
     bl_context = "data"
@@ -2464,6 +2493,7 @@ def get_panels():
         'DATA_PT_camera_dof',
         'DATA_PT_falloff_curve',
         'DATA_PT_light',
+        'DATA_PT_light_advanced',
         'DATA_PT_preview',
         'DATA_PT_spot',
         'MATERIAL_PT_context_material',
@@ -2552,6 +2582,7 @@ classes = (
     CYCLES_OBJECT_PT_visibility_culling,
     CYCLES_LIGHT_PT_preview,
     CYCLES_LIGHT_PT_light,
+    CYCLES_PT_light_advanced,
     CYCLES_LIGHT_PT_settings,
     CYCLES_LIGHT_PT_nodes,
     CYCLES_LIGHT_PT_beam_shape,

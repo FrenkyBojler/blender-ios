@@ -90,6 +90,8 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(light, "unit_system")
+        if light.unit_system == 'PHOTOMETRIC' and light.type in {'POINT', 'AREA', 'SPOT'}:
+            col.prop(light, "photometric_unit")
 
         layout.separator()
 
@@ -121,29 +123,51 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
 
         col = layout.column()
 
-        # Mapping table : (unit_system, normalize) -> {light_type: prop}
+        # Mapping table : (unit_system, normalize, photometric_unit) -> {light_type: prop}
         # Sun is always normalized, so no units when normalize is False
         prop_map = {
-            ('RADIOMETRIC', True): {
+            ('RADIOMETRIC', True, 'LUMEN'): {
                 'SUN': "radiometric_irradiance",
                 'POINT': "radiometric_power",
                 'AREA': "radiometric_power",
                 'SPOT': "radiometric_intensity",
             },
-            ('RADIOMETRIC', False): {
+            ('RADIOMETRIC', True, 'CANDELA'): {
+                'SUN': "radiometric_irradiance",
+                'POINT': "radiometric_power",
+                'AREA': "radiometric_power",
+                'SPOT': "radiometric_intensity",
+            },
+            ('RADIOMETRIC', False, 'LUMEN'): {
                 'POINT': "radiometric_radiosity",
                 'AREA': "radiometric_radiosity",
                 'SPOT': "radiometric_radiance",
             },
-            ('PHOTOMETRIC', True): {
+            ('RADIOMETRIC', False, 'CANDELA'): {
+                'POINT': "radiometric_radiosity",
+                'AREA': "radiometric_radiosity",
+                'SPOT': "radiometric_radiance",
+            },
+            ('PHOTOMETRIC', True, 'LUMEN'): {
                 'SUN': "photometric_illuminance",
                 'POINT': "photometric_power",
                 'AREA': "photometric_power",
-                'SPOT': "photometric_intensity",
+                'SPOT': "photometric_power",
             },
-            ('PHOTOMETRIC', False): {
+            ('PHOTOMETRIC', False, 'LUMEN'): {
                 'POINT': "photometric_luminous_exitance",
                 'AREA': "photometric_luminous_exitance",
+                'SPOT': "photometric_luminance",
+            },
+            ('PHOTOMETRIC', True, 'CANDELA'): {
+                'SUN': "photometric_illuminance",
+                'POINT': "photometric_intensity",
+                'AREA': "photometric_intensity",
+                'SPOT': "photometric_intensity",
+            },
+            ('PHOTOMETRIC', False, 'CANDELA'): {
+                'POINT': "photometric_luminance",
+                'AREA': "photometric_luminance",
                 'SPOT': "photometric_luminance",
             },
         }
@@ -151,9 +175,16 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
         if light.unit_system == 'NONE':
             prop = "energy"
         else:
-            prop = prop_map.get((light.unit_system, light.normalize), {}).get(light.type, "energy")
+            prop = prop_map.get(
+                (light.unit_system,
+                 light.normalize,
+                 light.photometric_unit),
+                {}).get(
+                light.type,
+                "energy")
 
-        col.prop(light, prop) # light energy/power properties
+        # Light energy/power property
+        col.prop(light, prop)
         col.prop(light, "exposure")
         if light.type != "SUN":
             col.prop(light, "normalize")
@@ -303,16 +334,18 @@ class DATA_PT_spot(DataButtonsPanel, Panel):
 
         col.prop(light, "show_cone")
 
+
 class DATA_PT_light_advanced(DataButtonsPanel, Panel):
     bl_label = "Advanced"
     COMPAT_ENGINES = {
-        'BLENDER_RENDER',
         'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
+
     @classmethod
     def poll(cls, context):
         return (context.engine in cls.COMPAT_ENGINES)
+
     def draw_header(self, context):
         light = context.light
         # Disable the checkbox when unit_system is NONE
@@ -332,6 +365,7 @@ class DATA_PT_light_advanced(DataButtonsPanel, Panel):
         col.prop(light, "normalize_color", text="Normalize Color")
         col.prop(light, "use_compensate_power", text="Compensate Power")
         col.prop(light, "use_scene_conversion", text="Scene Conversion")
+
 
 class DATA_PT_light_animation(DataButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
     COMPAT_ENGINES = {

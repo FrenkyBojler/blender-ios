@@ -31,7 +31,7 @@ typedef struct Light {
   struct AnimData *adt;
 
   /* Type and flags. */
-  short type, flag, unit_system, _pad3;
+  short type, flag, unit_system, photometric_unit;
   int mode;
 
   /* Color, temperature and energy. */
@@ -168,7 +168,8 @@ enum {
   LA_USE_ADVANCED = 1 << 26,
   LA_USE_NORMALIZE_COLOR = 1 << 27,
   LA_USE_COMPENSED_POWER = 1 << 28,
-  LA_USE_UNIT_CONVERSION = 1 <<29,
+  LA_USE_UNIT_CONVERSION = 1 << 29,
+  LA_USE_CANDELA = 1 << 30,
 };
 
 /** #Light::falloff_type */
@@ -189,4 +190,10 @@ enum {
   // LA_AREA_BOX = 3,  /* Deprecated. */
   LA_AREA_DISK = 4,
   LA_AREA_ELLIPSE = 5,
+};
+
+/** #Light::photometric_unit */
+enum {
+  LA_PHOTOMETRIC_UNIT_LUMEN = 0,
+  LA_PHOTOMETRIC_UNIT_CANDELA = 1,
 };

@@ -269,6 +269,48 @@ float BKE_light_photometric_to_radiometric_power(const Light &light, const float
   }
 }
 
+float BKE_light_candela_to_lumen(const Light &light, const float candela)
+{
+  switch (light.type) {
+    case LA_LOCAL: {
+      return candela * (4.0f * float(M_PI));
+    }
+    case LA_SPOT: {
+      const float half_angle = light.spotsize * 0.5f;
+      const float solid_angle = 2.0f * float(M_PI) * (1.0f - cosf(half_angle));
+      return candela * solid_angle;
+    }
+    case LA_AREA: {
+      const float half_angle = light.area_spread * 0.5f;
+      const float solid_angle = 2.0f * float(M_PI) * (1.0f - cosf(half_angle));
+      return candela * solid_angle;
+    }
+    default:
+      return candela;
+  }
+}
+
+float BKE_light_lumen_to_candela(const Light &light, const float lumen)
+{
+  switch (light.type) {
+    case LA_LOCAL: {
+      return lumen / (4.0f * float(M_PI));
+    }
+    case LA_SPOT: {
+      const float half_angle = light.spotsize * 0.5f;
+      const float solid_angle = 2.0f * float(M_PI) * (1.0f - cosf(half_angle));
+      return lumen / solid_angle;
+    }
+    case LA_AREA: {
+      const float half_angle = light.area_spread * 0.5f;
+      const float solid_angle = 2.0f * float(M_PI) * (1.0f - cosf(half_angle));
+      return lumen / solid_angle;
+    }
+    default:
+      return lumen;
+  }
+}
+
 blender::float3 BKE_light_color(const Light &light)
 {
   blender::float3 color(&light.r);

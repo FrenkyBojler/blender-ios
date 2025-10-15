@@ -193,7 +193,7 @@ enum PropertyUnit {
   PROP_UNIT_PHOTOMETRIC_INTENSITY = (18 << 16),         /* cd */
   PROP_UNIT_PHOTOMETRIC_ILLUMINANCE = (19 << 16),       /* lx */
   PROP_UNIT_PHOTOMETRIC_LUMINOUS_EXITANCE = (20 << 16), /* lm/m^2 */
-  PROP_UNIT_PHOTOMETRIC_LUMINANCE = (21 << 16),              /* cd/m^2 */
+  PROP_UNIT_PHOTOMETRIC_LUMINANCE = (21 << 16),         /* cd/m^2 */
   /* Others */
   PROP_UNIT_TEMPERATURE = (22 << 16),       /* C */
   PROP_UNIT_WAVELENGTH = (23 << 16),        /* `nm` (independent of scene). */
