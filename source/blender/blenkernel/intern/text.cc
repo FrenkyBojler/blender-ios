@@ -243,6 +243,7 @@ IDTypeInfo IDType_ID_TXT = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ text_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ text_blend_write,
@@ -1445,7 +1446,7 @@ char *txt_to_buf(Text *text, size_t *r_buf_strlen)
     *buf_step++ = '\n';
   }
   /* Remove the trailing new-line so a round-trip doesn't add a newline:
-   * Python for e.g. `text.from_string(text.as_string())`. */
+   * Python for example `text.from_string(text.as_string())`. */
   if (has_data) {
     buf_step--;
   }

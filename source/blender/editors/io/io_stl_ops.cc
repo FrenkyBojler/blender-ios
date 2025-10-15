@@ -13,6 +13,7 @@
 #  include "BKE_report.hh"
 
 #  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "WM_api.hh"
 #  include "WM_types.hh"
@@ -28,6 +29,7 @@
 #  include "BLT_translation.hh"
 
 #  include "UI_interface.hh"
+#  include "UI_interface_layout.hh"
 #  include "UI_resources.hh"
 
 #  include "IO_stl.hh"
@@ -80,8 +82,8 @@ static void wm_stl_export_draw(bContext *C, wmOperator *op)
   uiLayout *layout = op->layout;
   PointerRNA *ptr = op->ptr;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "STL_export_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -169,7 +171,7 @@ void WM_OT_stl_export(wmOperatorType *ot)
   prop = RNA_def_string(ot->srna,
                         "collection",
                         nullptr,
-                        MAX_IDPROP_NAME,
+                        MAX_ID_NAME - 2,
                         "Source Collection",
                         "Export only objects from this collection (and its children)");
   RNA_def_property_flag(prop, PROP_HIDDEN);
@@ -242,8 +244,8 @@ static bool wm_stl_import_check(bContext * /*C*/, wmOperator *op)
 
 static void ui_stl_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "STL_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -320,11 +322,11 @@ namespace blender::ed::io {
 void stl_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_stl");
-  STRNCPY(fh->import_operator, "WM_OT_stl_import");
-  STRNCPY(fh->export_operator, "WM_OT_stl_export");
-  STRNCPY(fh->label, "STL");
-  STRNCPY(fh->file_extensions_str, ".stl");
+  STRNCPY_UTF8(fh->idname, "IO_FH_stl");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_stl_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_stl_export");
+  STRNCPY_UTF8(fh->label, "STL");
+  STRNCPY_UTF8(fh->file_extensions_str, ".stl");
   fh->poll_drop = poll_file_object_drop;
   bke::file_handler_add(std::move(fh));
 }

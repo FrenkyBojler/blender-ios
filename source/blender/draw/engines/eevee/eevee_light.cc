@@ -14,10 +14,11 @@
 
 #include "eevee_light.hh"
 
-#include "BLI_math_rotation.h"
-
 #include "DNA_defaults.h"
+#include "DNA_light_types.h"
 #include "DNA_sdna_type_ids.hh"
+
+#include "BKE_light.h"
 
 namespace blender::eevee {
 
@@ -68,7 +69,10 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  this->color = float3(&la->r) * la->energy;
+  this->color = BKE_light_power(*la) * BKE_light_color(*la);
+  if (la->mode & LA_UNNORMALIZED) {
+    this->color *= BKE_light_area(*la, object_to_world);
+  }
 
   float3 scale;
   object_to_world.view<3, 3>() = normalize_and_get_size(object_to_world.view<3, 3>(), scale);
@@ -175,7 +179,8 @@ void Light::shape_parameters_set(const ::Light *la,
 
   /* Compute influence radius first. Can be amended by shape later. */
   if (is_local_light(this->type)) {
-    const float max_power = reduce_max(float3(&la->r)) * fabsf(la->energy / 100.0f);
+    const float max_power = reduce_max(BKE_light_color(*la)) *
+                            fabsf(BKE_light_power(*la) / 100.0f);
     const float surface_max_power = max(la->diff_fac, la->spec_fac) * max_power;
     const float volume_max_power = la->volume_fac * max_power;
 
@@ -613,7 +618,7 @@ void LightModule::set_view(View &view, const int2 extent)
   inst_.manager->submit(update_ps_, view);
 }
 
-void LightModule::debug_draw(View &view, GPUFrameBuffer *view_fb)
+void LightModule::debug_draw(View &view, gpu::FrameBuffer *view_fb)
 {
   if (inst_.debug_mode == eDebugMode::DEBUG_LIGHT_CULLING) {
     inst_.info_append("Debug Mode: Light Culling Validation");

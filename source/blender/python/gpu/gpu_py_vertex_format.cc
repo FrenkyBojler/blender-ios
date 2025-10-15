@@ -12,7 +12,7 @@
 #include <Python.h>
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "gpu_py.hh"
 #include "gpu_py_vertex_format.hh" /* own include */
@@ -59,6 +59,16 @@ static PyObject *pygpu_vertformat__tp_new(PyTypeObject * /*type*/, PyObject *arg
   return BPyGPUVertFormat_CreatePyObject(nullptr);
 }
 
+static uint attr_size(GPUVertCompType type, int len)
+{
+  if (type == GPU_COMP_I10) {
+    return 4; /* Always packed as 10_10_10_2. */
+  }
+  BLI_assert(type <= GPU_COMP_F32); /* Other types have irregular sizes (not bytes). */
+  const uint sizes[] = {1, 1, 2, 2, 4, 4, 4};
+  return len * sizes[type];
+}
+
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_vertformat_attr_add_doc,
@@ -66,10 +76,11 @@ PyDoc_STRVAR(
     "\n"
     "   Add a new attribute to the format.\n"
     "\n"
-    "   :arg id: Name the attribute. Often `position`, `normal`, ...\n"
+    "   :arg id: Name the attribute. Often ``position``, ``normal``, ...\n"
     "   :type id: str\n"
     "   :arg comp_type: The data type that will be used store the value in memory.\n"
-    "      Possible values are `I8`, `U8`, `I16`, `U16`, `I32`, `U32`, `F32` and `I10`.\n"
+    "      Possible values are ``I8``, ``U8``, ``I16``, ``U16``, ``I32``, ``U32``, ``F32`` & "
+    "``I10``.\n"
     "   :type comp_type: str\n"
     "   :arg len: How many individual values the attribute consists of\n"
     "      (e.g. 2 for uv coordinates).\n"
@@ -78,7 +89,7 @@ PyDoc_STRVAR(
     "      This is mainly useful for memory optimizations when you want to store values with\n"
     "      reduced precision. E.g. you can store a float in only 1 byte but it will be\n"
     "      converted to a normal 4 byte float when used.\n"
-    "      Possible values are `FLOAT`, `INT`, `INT_TO_FLOAT_UNIT`.\n"
+    "      Possible values are ``FLOAT``, ``INT`` or ``INT_TO_FLOAT_UNIT``.\n"
     "   :type fetch_mode: str\n");
 static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *args, PyObject *kwds)
 {
@@ -117,11 +128,27 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
     return nullptr;
   }
 
-  uint attr_id = GPU_vertformat_attr_add(&self->fmt,
-                                         id,
-                                         GPUVertCompType(comp_type.value_found),
-                                         len,
-                                         GPUVertFetchMode(fetch_mode.value_found));
+  GPUVertCompType comp_type_enum = GPUVertCompType(comp_type.value_found);
+  GPUVertFetchMode fetch_mode_enum = GPUVertFetchMode(fetch_mode.value_found);
+
+  if (len > 4) {
+    PyErr_WarnEx(
+        PyExc_DeprecationWarning,
+        "Using GPUVertFormat.attr_add(...) with component count greater than 4 is deprecated. "
+        "Use several attributes for each matrix columns instead.",
+        1);
+  }
+
+  if (attr_size(comp_type_enum, len) % 4 != 0) {
+    PyErr_WarnEx(PyExc_DeprecationWarning,
+                 "Using GPUVertFormat.attr_add(...) with a format that is not 4 bytes aligned is "
+                 "deprecated. Add padding components and/or higher precision integers.",
+                 1);
+  }
+
+  uint attr_id = GPU_vertformat_attr_add_legacy(
+      &self->fmt, id, comp_type_enum, len, fetch_mode_enum);
+
   return PyLong_FromLong(attr_id);
 }
 

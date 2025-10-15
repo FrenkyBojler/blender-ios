@@ -338,12 +338,10 @@ typedef struct SpaceSeq {
 
   /** Deprecated: offset for drawing the image preview. */
   float xof DNA_DEPRECATED, yof DNA_DEPRECATED;
-  /** Weird name for the sequencer subtype (seq, image, luma... etc). */
-  short mainb;
-  /** ESpaceSeq_Proxy_RenderSize. */
-  short render_size;
+  short mainb; /* eSpaceSeq_RegionType; strange name for view type (image, histogram, ...). */
+  short render_size; /* eSpaceSeq_Proxy_RenderSize. */
   short chanshown;
-  short zebra;
+  short zebra; /* Show overexposed. 0=disabled; otherwise as percentage of "pure white". */
   int flag;
   /** Deprecated, handled by View2D now. */
   float zoom DNA_DEPRECATED;
@@ -394,13 +392,15 @@ typedef struct FileSelectParams {
   /** Title, also used for the text of the execute button. */
   char title[96];
   /**
-   * Directory, FILE_MAX_LIBEXTRA, 1024 + 66, this is for extreme case when 1023 length path
-   * needs to be linked in, where foo.blend/Armature need adding
+   * Directory.
+   *
+   * \note #FILE_MAX_LIBEXTRA == `1024 + 258`, this is for extreme case when 1023 length path
+   * needs to be linked in, where `foo.blend/Armature` need adding.
    */
-  char dir[1090];
-  char file[256];
+  char dir[/*FILE_MAX_LIBEXTRA*/ 1282];
+  char file[/*FILE_MAXFILE*/ 256];
 
-  char renamefile[256];
+  char renamefile[/*FILE_MAXFILE*/ 256];
   short rename_flag;
   char _pad[4];
   /** An ID that was just renamed. Used to identify a renamed asset file over re-reads, similar to
@@ -409,15 +409,16 @@ typedef struct FileSelectParams {
   const ID *rename_id;
   void *_pad3;
 
-  /** List of file-types to filter (#FILE_MAXFILE). */
-  char filter_glob[256];
+  /** List of file-types to filter. */
+  char filter_glob[/*FILE_MAXFILE*/ 256];
 
   /** Text items name must match to be shown. */
   char filter_search[64];
   /** Same as filter, but for ID types (aka library groups). */
   uint64_t filter_id;
 
-  /** Active file used for keyboard navigation. */
+  /** Active file used for keyboard navigation. -1 means no active file (cleared e.g. after
+   * directory change or search update). */
   int active_file;
   /** File under cursor. */
   int highlight_file;
@@ -608,8 +609,7 @@ typedef struct FileDirEntryArr {
   int entries_num;
   int entries_filtered_num;
 
-  /** FILE_MAX. */
-  char root[1024];
+  char root[/*FILE_MAX*/ 1024];
 } FileDirEntryArr;
 
 /** \} */
@@ -622,7 +622,7 @@ typedef struct FileDirEntryArr {
 
 typedef struct SpaceImageOverlay {
   int flag;
-  char _pad[4];
+  float passepartout_alpha;
 } SpaceImageOverlay;
 
 typedef struct SpaceImage {
@@ -737,10 +737,8 @@ typedef struct SpaceText {
   char live_edit;
   char _pad2[1];
 
-  /** ST_MAX_FIND_STR. */
-  char findstr[256];
-  /** ST_MAX_FIND_STR. */
-  char replacestr[256];
+  char findstr[/*ST_MAX_FIND_STR*/ 256];
+  char replacestr[/*ST_MAX_FIND_STR*/ 256];
 
   /** Column number to show right margin at. */
   short margin_column;
@@ -771,10 +769,8 @@ typedef struct Script {
    * Store the script file here so we can re-run it on loading blender,
    * if "Enable Scripts" is on
    */
-  /** 1024 = FILE_MAX. */
-  char scriptname[1024];
-  /** 1024 = FILE_MAX. */
-  char scriptarg[256];
+  char scriptname[/*FILE_MAX*/ 1024];
+  char scriptarg[/*FILE_MAXFILE*/ 256];
 } Script;
 #define SCRIPT_SET_NULL(_script) \
   _script->py_draw = _script->py_event = _script->py_button = _script->py_browsercallback = \
@@ -815,9 +811,8 @@ typedef struct bNodeTreePath {
   /** V2d center point, so node trees can have different offsets in editors. */
   float view_center[2];
 
-  /** MAX_NAME. */
-  char node_name[64];
-  char display_name[64];
+  char node_name[/*MAX_NAME*/ 64];
+  char display_name[/*MAX_NAME*/ 64];
 } bNodeTreePath;
 
 typedef struct SpaceNodeOverlay {
@@ -877,20 +872,24 @@ typedef struct SpaceNode {
   /** Shader from object or world (#eSpaceNode_ShaderFrom). */
   char shaderfrom;
   /**
-   * Whether to edit any geometry node group, or follow the active modifier context.
-   * #SpaceNodeGeometryNodesType.
+   * The sub type of the node tree being edited.
+   * #SpaceNodeGeometryNodesType or #SpaceNodeCompositorNodesType.
    */
-  char geometry_nodes_type;
+  char node_tree_sub_type;
 
   /**
-   * Used as the editor's top-level node group for #SNODE_GEOMETRY_TOOL. This is stored in the
-   * node editor because it isn't part of the context otherwise, and it isn't meant to be set
-   * separately from the editor's regular node group.
+   * Used as the editor's top-level node group for node trees that are not part of the context and
+   * thus needs to be stored in the node editor. For instance #SNODE_GEOMETRY_MODIFIER is part of
+   * the context since it is stored on the active modifier, while #SNODE_GEOMETRY_TOOL is not part
+   * of the context.
    */
-  struct bNodeTree *geometry_nodes_tool_tree;
+  struct bNodeTree *selected_node_group;
 
   /** Grease-pencil data. */
   struct bGPdata *gpd;
+
+  char gizmo_flag;
+  char _pad2[7];
 
   SpaceNodeOverlay overlay;
 
@@ -976,6 +975,12 @@ typedef struct SpaceUserPref {
 /** \name Motion Tracking
  * \{ */
 
+typedef struct SpaceClipOverlay {
+  /* eSpaceClipOverlay_Flag */
+  int flag;
+  char _pad0[4];
+} SpaceClipOverlay;
+
 /** Clip Editor. */
 typedef struct SpaceClip {
   SpaceLink *next, *prev;
@@ -1038,6 +1043,7 @@ typedef struct SpaceClip {
   float cursor[2];
 
   MaskSpaceInfo mask_info;
+  struct SpaceClipOverlay overlay;
 } SpaceClip;
 
 /** \} */
@@ -1083,7 +1089,6 @@ typedef struct SpreadsheetColumnID {
 } SpreadsheetColumnID;
 
 typedef struct SpreadsheetColumn {
-  struct SpreadsheetColumn *next, *prev;
   /**
    * Identifies the data in the column.
    * This is a pointer instead of a struct to make it easier if we want to "subclass"
@@ -1097,8 +1102,16 @@ typedef struct SpreadsheetColumn {
    */
   uint8_t data_type;
   char _pad0[3];
+  /** #eSpreadsheetColumnFlag. */
+  uint32_t flag;
   /** Width in SPREADSHEET_WIDTH_UNIT. */
   float width;
+
+  /**
+   * A logical time set when the column is used. This is used to be able to remove long-unused
+   * columns when there are too many. This is set from #SpreadsheetTable.column_use_clock.
+   */
+  uint32_t last_used;
 
   /**
    * The final column name generated by the data source, also just
@@ -1107,11 +1120,100 @@ typedef struct SpreadsheetColumn {
   char *display_name;
 
   SpreadsheetColumnRuntime *runtime;
+
+#ifdef __cplusplus
+  bool is_available() const
+  {
+    return !(flag & SPREADSHEET_COLUMN_FLAG_UNAVAILABLE);
+  }
+#endif
 } SpreadsheetColumn;
 
 typedef struct SpreadsheetInstanceID {
   int reference_index;
+
+#ifdef __cplusplus
+  uint64_t hash() const;
+  friend bool operator==(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b);
+  friend bool operator!=(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b);
+#endif
 } SpreadsheetInstanceID;
+
+typedef struct SpreadsheetTableID {
+  /** #eSpreadsheetTableIDType. */
+  int type;
+} SpreadsheetTableID;
+
+typedef struct SpreadsheetBundlePathElem {
+  char *identifier;
+#ifdef __cplusplus
+  friend bool operator==(const SpreadsheetBundlePathElem &a, const SpreadsheetBundlePathElem &b);
+  friend bool operator!=(const SpreadsheetBundlePathElem &a, const SpreadsheetBundlePathElem &b);
+#endif
+} SpreadsheetBundlePathElem;
+
+typedef enum SpreadsheetClosureInputOutput {
+  SPREADSHEET_CLOSURE_NONE = 0,
+  SPREADSHEET_CLOSURE_INPUT = 1,
+  SPREADSHEET_CLOSURE_OUTPUT = 2,
+} SpreadsheetClosureInputOutput;
+
+typedef struct SpreadsheetTableIDGeometry {
+  SpreadsheetTableID base;
+  char _pad0[4];
+  /**
+   * Context that is displayed in the editor. This is usually a either a single object (in
+   * original/evaluated mode) or path to a viewer node. This is retrieved from the workspace but
+   * can be pinned so that it stays constant even when the active node changes.
+   */
+  ViewerPath viewer_path;
+
+  int viewer_item_identifier;
+
+  int bundle_path_num;
+  SpreadsheetBundlePathElem *bundle_path;
+
+  /** #SpreadsheetClosureInputOutput. */
+  int8_t closure_input_output;
+
+  char _pad3[7];
+
+  /**
+   * The "path" to the currently active instance reference. This is needed when viewing nested
+   * instances.
+   */
+  SpreadsheetInstanceID *instance_ids;
+  int instance_ids_num;
+  /** #GeometryComponent::Type. */
+  uint8_t geometry_component_type;
+  /** #AttrDomain. */
+  uint8_t attribute_domain;
+  /** #eSpaceSpreadsheet_ObjectEvalState. */
+  uint8_t object_eval_state;
+  char _pad1[5];
+  /** Grease Pencil layer index for grease pencil component. */
+  int layer_index;
+} SpreadsheetTableIDGeometry;
+
+typedef struct SpreadsheetTable {
+  SpreadsheetTableID *id;
+  /** All the columns in the table. */
+  SpreadsheetColumn **columns;
+  int num_columns;
+  /** #eSpreadsheetTableFlag. */
+  uint32_t flag;
+  /**
+   * A logical time set when the table is used. This is used to be able to remove long-unused
+   * tables when there are too many. This is set from #SpaceSpreadsheet.table_use_clock.
+   */
+  uint32_t last_used;
+
+  /**
+   * This is increased whenever a new column is used. It allows for some garbage collection of
+   * long-unused columns when there are too many.
+   */
+  uint32_t column_use_clock;
+} SpreadsheetTable;
 
 typedef struct SpaceSpreadsheet {
   SpaceLink *next, *prev;
@@ -1122,40 +1224,31 @@ typedef struct SpaceSpreadsheet {
   char _pad0[6];
   /* End 'SpaceLink' header. */
 
-  /* List of #SpreadsheetColumn. */
-  ListBase columns;
+  /** The current table and persisted state of previously displayed tables. */
+  SpreadsheetTable **tables;
+  int num_tables;
+  char _pad1[3];
 
-  /* SpreadsheetRowFilter. */
-  ListBase row_filters;
-
-  /**
-   * Context that is currently displayed in the editor. This is usually a either a single object
-   * (in original/evaluated mode) or path to a viewer node. This is retrieved from the workspace
-   * but can be pinned so that it stays constant even when the active node changes.
-   */
-  ViewerPath viewer_path;
-
-  /**
-   * The "path" to the currently active instance reference. This is needed when viewing nested
-   * instances.
-   */
-  SpreadsheetInstanceID *instance_ids;
-  int instance_ids_num;
-
-  /* eSpaceSpreadsheet_FilterFlag. */
+  /** #eSpaceSpreadsheet_FilterFlag. */
   uint8_t filter_flag;
 
-  /* #GeometryComponent::Type. */
-  uint8_t geometry_component_type;
-  /* #AttrDomain. */
-  uint8_t attribute_domain;
-  /* eSpaceSpreadsheet_ObjectEvalState. */
-  uint8_t object_eval_state;
-  /* Active grease pencil layer index for grease pencil component. */
-  int active_layer_index;
+  /** #SpreadsheetRowFilter. */
+  ListBase row_filters;
+
+  /** The currently active geometry data. This is used to look up the active table from #tables. */
+  SpreadsheetTableIDGeometry geometry_id;
 
   /* eSpaceSpreadsheet_Flag. */
   uint32_t flag;
+  /**
+   * This is increased whenever a new table is used. It allows for some garbage collection of
+   * long-unused tables when there are too many.
+   */
+  uint32_t table_use_clock;
+
+  /** Index of the active viewer path element in the Data Source panel. */
+  int active_viewer_path_index;
+  char _pad2[4];
 
   SpaceSpreadsheet_Runtime *runtime;
 } SpaceSpreadsheet;
@@ -1163,17 +1256,18 @@ typedef struct SpaceSpreadsheet {
 typedef struct SpreadsheetRowFilter {
   struct SpreadsheetRowFilter *next, *prev;
 
-  char column_name[64]; /* MAX_NAME. */
+  char column_name[/*MAX_NAME*/ 64];
 
   /* eSpreadsheetFilterOperation. */
   uint8_t operation;
   /* eSpaceSpreadsheet_RowFilterFlag. */
   uint8_t flag;
 
-  char _pad0[2];
+  char _pad0[6];
 
   int value_int;
   int value_int2[2];
+  int value_int3[3];
   char *value_string;
   float value_float;
   float threshold;

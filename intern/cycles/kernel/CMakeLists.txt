@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-remove_extra_strict_flags()
-
 set(INC
   ..
 )
@@ -64,6 +62,7 @@ set(SRC_KERNEL_DEVICE_CPU_HEADERS
   device/cpu/kernel_arch_impl.h
 )
 set(SRC_KERNEL_DEVICE_GPU_HEADERS
+  device/gpu/block_sizes.h
   device/gpu/image.h
   device/gpu/kernel.h
   device/gpu/parallel_active_index.h
@@ -211,8 +210,9 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/normal.h
   svm/ramp.h
   svm/ramp_util.h
+  svm/radial_tiling.h
+  svm/radial_tiling_shared.h
   svm/sepcomb_color.h
-  svm/sepcomb_hsv.h
   svm/sepcomb_vector.h
   svm/sky.h
   svm/tex_coord.h
@@ -223,7 +223,6 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/vector_rotate.h
   svm/vector_transform.h
   svm/voronoi.h
-  svm/voxel.h
   svm/wave.h
   svm/white_noise.h
   svm/vertex_color.h
@@ -286,6 +285,7 @@ set(SRC_KERNEL_FILM_HEADERS
   film/aov_passes.h
   film/data_passes.h
   film/denoising_passes.h
+  film/volume_guiding_denoise.h
   film/cryptomatte_passes.h
   film/light_passes.h
   film/read.h
@@ -356,6 +356,7 @@ set(SRC_KERNEL_UTIL_HEADERS
   util/ies.h
   util/lookup_table.h
   util/nanovdb.h
+  util/texture_3d.h
   util/profiler.h
 )
 
@@ -388,6 +389,7 @@ set(SRC_UTIL_HEADERS
   ../util/atomic.h
   ../util/color.h
   ../util/defines.h
+  ../util/guiding.h
   ../util/half.h
   ../util/hash.h
   ../util/math.h
@@ -402,6 +404,7 @@ set(SRC_UTIL_HEADERS
   ../util/math_int3.h
   ../util/math_int4.h
   ../util/math_int8.h
+  ../util/math_dual.h
   ../util/projection.h
   ../util/projection_inverse.h
   ../util/rect.h
@@ -419,6 +422,7 @@ set(SRC_UTIL_HEADERS
   ../util/types_int4.h
   ../util/types_int8.h
   ../util/types_spectrum.h
+  ../util/types_rgbe.h
   ../util/types_uchar2.h
   ../util/types_uchar3.h
   ../util/types_uchar4.h
@@ -426,6 +430,7 @@ set(SRC_UTIL_HEADERS
   ../util/types_uint3.h
   ../util/types_uint4.h
   ../util/types_ushort4.h
+  ../util/types_dual.h
 )
 
 set(LIB
@@ -530,14 +535,18 @@ if(WITH_CYCLES_CUDA_BINARIES)
     endif()
 
     if(WITH_CYCLES_DEBUG)
-      set(cuda_flags ${cuda_flags} -D WITH_CYCLES_DEBUG)
-      set(cuda_flags ${cuda_flags} --ptxas-options="-v")
+      set(cuda_flags ${cuda_flags}
+        -D WITH_CYCLES_DEBUG
+        --ptxas-options="-v")
     endif()
 
-    if(${cuda_version} GREATER_EQUAL 110)
-      # Helps with compatibility when using recent clang host compiler.
-      set(cuda_flags ${cuda_flags} -std=c++17)
+    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${cuda_version}" GREATER_EQUAL 129)
+      set(cuda_flags ${cuda_flags}
+        --split-compile=0)
     endif()
+
+    # Helps with compatibility when using recent clang host compiler.
+    set(cuda_flags ${cuda_flags} -std=c++17)
 
     set(_cuda_nvcc_args
       -arch=${arch}
@@ -573,38 +582,23 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
   set(prev_arch "none")
   foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})
-    if(${arch} MATCHES ".*_2.")
+    if(${arch} MATCHES ".*_3.")
       message(STATUS "CUDA binaries for ${arch} are no longer supported, skipped.")
-    elseif(${arch} MATCHES ".*_30")
-      if(DEFINED CUDA10_NVCC_EXECUTABLE)
-        set(cuda_nvcc_executable ${CUDA10_NVCC_EXECUTABLE})
-        set(cuda_toolkit_root_dir ${CUDA10_TOOLKIT_ROOT_DIR})
-        set(cuda_version 100)
-      elseif("${CUDA_VERSION}" LESS 110) # Support for sm_30 was removed in CUDA 11
-        set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
-        set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
-        set(cuda_version ${CUDA_VERSION})
-      else()
-        message(STATUS "CUDA binaries for ${arch} require CUDA 10 or earlier, skipped.")
-      endif()
-    elseif(${arch} MATCHES ".*_3.")
-      if(DEFINED CUDA11_NVCC_EXECUTABLE)
-        set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
-        set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
-        set(cuda_version 110)
-      elseif("${CUDA_VERSION}" LESS 120) # Support for sm_35, sm_37 was removed in CUDA 12
-        set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
-        set(cuda_toolkit_root_dir ${CUDA_TOOLKIT_ROOT_DIR})
-        set(cuda_version ${CUDA_VERSION})
-      else()
-        message(STATUS "CUDA binaries for ${arch} require CUDA 11 or earlier, skipped.")
-      endif()
     elseif(${arch} MATCHES "compute_7." AND DEFINED CUDA11_NVCC_EXECUTABLE)
       # Use CUDA 11 if available for the default PTX kernel. This allows us to
       # keep the driver requirements for user machines low.
       set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
       set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
       set(cuda_version 110)
+    elseif((${arch} MATCHES ".*_5." OR ${arch} MATCHES ".*_6." OR ${arch} MATCHES ".*_70") AND "${CUDA_VERSION}" GREATER_EQUAL 130)
+      # Support for Maxwell, Pascal and Volta was dropped in CUDA 13
+      if(DEFINED CUDA11_NVCC_EXECUTABLE)
+        set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
+        set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
+        set(cuda_version 110)
+      else()
+        message(STATUS "CUDA binaries for ${arch} are no longer supported with CUDA 13.0+, skipped.")
+      endif()
     elseif(${arch} MATCHES ".*_7." AND "${CUDA_VERSION}" LESS 100)
       message(STATUS "CUDA binaries for ${arch} require CUDA 10.0+, skipped.")
     elseif(${arch} MATCHES ".*_8.")
@@ -651,21 +645,6 @@ endif()
 
 # HIP module
 
-# Workaround for SDK 6.3.42560-881c2d702 compiler bug on RDNA2
-# Issue #136138
-function(get_hip_math_flag arch math_flag)
-  if(WIN32 AND (${arch} MATCHES "gfx1030|gfx1031|gfx1032|gfx1033|gfx1034|gfx1035|gfx1036"))
-    set(result
-      -fhip-fp32-correctly-rounded-divide-sqrt
-      -fno-gpu-approx-transcendentals
-      -fgpu-flush-denormals-to-zero
-      -ffp-contract=off)
-  else()
-    set(result "")
-  endif()
-  set(${math_flag} "${result}" PARENT_SCOPE)
-endfunction()
-
 if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
   # build for each arch
   set(hip_sources device/hip/kernel.cpp
@@ -706,8 +685,6 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       set(hip_opt_flags)
     endif()
 
-    get_hip_math_flag(${arch} math_flag)
-
     set(hip_flags
       ${hip_flags}
       --offload-arch=${arch}
@@ -723,7 +700,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       -Wno-parentheses-equality
       -Wno-unused-value
       -ffast-math
-      ${math_flag}
+      -std=c++17
       ${hip_opt_flags}
       -o ${CMAKE_CURRENT_BINARY_DIR}/${hip_file})
 
@@ -819,12 +796,10 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
 
   set(hiprt_hipfb)
   foreach(arch ${CYCLES_HIP_BINARIES_ARCH})
-    get_hip_math_flag(${arch} math_flag)
     set(hiprt_file ${CMAKE_CURRENT_BINARY_DIR}/kernel_rt_${arch}.hipfb)
     set(hiprt_file_compressed ${hiprt_file}.zst)
     set(hiprt_flags
     ${hiprt_compile_flags}
-    ${math_flag}
     --offload-arch=${arch}
     -o ${hiprt_file})
 
@@ -848,7 +823,7 @@ endif()
 
 # OptiX PTX modules
 
-if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
+if(WITH_CYCLES_CUDA_BINARIES AND WITH_CYCLES_DEVICE_OPTIX)
   macro(cycles_optix_kernel_add name input flags)
     set(output "${CMAKE_CURRENT_BINARY_DIR}/${name}.ptx")
     set(output_compressed "${output}.zst")
@@ -877,7 +852,26 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
     endif()
 
     if(WITH_CYCLES_DEBUG)
-      set(cuda_flags ${cuda_flags} -D WITH_CYCLES_DEBUG)
+      set(cuda_flags ${cuda_flags}
+        -D WITH_CYCLES_DEBUG)
+    endif()
+
+    set(arch compute_50)
+    set(cuda_nvcc_executable ${CUDA_NVCC_EXECUTABLE})
+    set(cuda_version ${CUDA_VERSION})
+    if("${CUDA_VERSION}" GREATER_EQUAL 130) # Support for Maxwell, Pascal and Volta was dropped in CUDA 13
+      if(DEFINED CUDA11_NVCC_EXECUTABLE)
+        # Use CUDA 11 for the OptiX PTX kernel, to retain support for older architectures.
+        set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
+        set(cuda_version 110)
+      else()
+        set(arch compute_75)
+      endif()
+    endif()
+
+    if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${cuda_version}" GREATER_EQUAL 129)
+      set(cuda_flags ${cuda_flags}
+        --split-compile=0)
     endif()
 
     add_custom_command(
@@ -891,14 +885,17 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
         ${SRC_KERNEL_DEVICE_OPTIX_HEADERS}
         ${SRC_UTIL_HEADERS}
       COMMAND
-        ${CUDA_NVCC_EXECUTABLE}
+        ${cuda_nvcc_executable}
         --ptx
-        -arch=sm_50
+        -std=c++17
+        -arch=${arch}
         ${cuda_flags}
         ${input}
       WORKING_DIRECTORY
         "${CMAKE_CURRENT_SOURCE_DIR}"
     )
+
+    unset(cuda_nvcc_executable)
 
     add_custom_command(
       OUTPUT ${output_compressed}
@@ -1132,25 +1129,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       -D_CRT_SECURE_NO_DEPRECATE
       -DONEAPI_EXPORT
     )
-
-    string(REPLACE /Redist/ /Tools/ MSVC_TOOLS_DIR ${MSVC_REDIST_DIR})
-    # Version Folder between Redist and Tools can mismatch sometimes
-    if(NOT EXISTS ${MSVC_TOOLS_DIR})
-      get_filename_component(cmake_ar_dir ${CMAKE_AR} DIRECTORY)
-      get_filename_component(MSVC_TOOLS_DIR "${cmake_ar_dir}/../../../" ABSOLUTE)
-    endif()
-    if(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
-      set(WINDOWS_KIT_DIR ${WINDOWS_KITS_DIR}/Lib/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION})
-    else() # case for Ninja on Windows
-      get_filename_component(cmake_mt_dir ${CMAKE_MT} DIRECTORY)
-      string(REPLACE /bin/ /Lib/ WINDOWS_KIT_DIR ${cmake_mt_dir})
-      get_filename_component(WINDOWS_KIT_DIR "${WINDOWS_KIT_DIR}/../" ABSOLUTE)
-    endif()
-    list(APPEND sycl_compiler_flags
-      -L"${MSVC_TOOLS_DIR}/lib/x64"
-      -L"${WINDOWS_KIT_DIR}/um/x64"
-      -L"${WINDOWS_KIT_DIR}/ucrt/x64"
-    )
   else() # Add Linux specific compiler flags.
     list(APPEND sycl_compiler_flags -fPIC)
     list(APPEND sycl_compiler_flags -fvisibility=hidden)
@@ -1182,11 +1160,15 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       -nostdlib
       -Xclang --dependent-lib=msvcrtd
     )
+
+    list(APPEND sycl_compiler_flags
+      -L"${sycl_compiler_root}/../lib" # To find sycl.lib
+      -L"${sycl_compiler_root}/../compiler/lib/intel64_win" # To find libircmt.lib (when using `icpx`)
+    )
+
     add_custom_command(
       OUTPUT ${cycles_kernel_oneapi_lib} ${cycles_kernel_oneapi_linker_lib}
       COMMAND ${CMAKE_COMMAND} -E env
-        # Set `LIB` for the compiler to find `sycl.lib` and in case of `icpx`, `libircmt.lib`.
-        "LIB=${sycl_compiler_root}/../lib\;${sycl_compiler_root}/../compiler/lib/intel64_win"
         "PATH=${OCLOC_INSTALL_DIR}\;${sycl_compiler_root}"
         ${SYCL_COMPILER}
         "$<$<CONFIG:Release>:${sycl_compiler_flags_Release}>"

@@ -43,7 +43,6 @@ struct Collection;
 struct Curve;
 struct FluidsimSettings;
 struct ImageUser;
-struct Ipo;
 struct LightgroupMembership;
 struct Material;
 struct Object;
@@ -57,8 +56,7 @@ struct bGPdata;
 /** Vertex Groups - Name Info */
 typedef struct bDeformGroup {
   struct bDeformGroup *next, *prev;
-  /** MAX_VGROUP_NAME. */
-  char name[64];
+  char name[/*MAX_VGROUP_NAME*/ 64];
   /* need this flag for locking weights */
   char flag, _pad0[7];
 } bDeformGroup;
@@ -66,8 +64,7 @@ typedef struct bDeformGroup {
 #ifdef DNA_DEPRECATED_ALLOW
 typedef struct bFaceMap {
   struct bFaceMap *next, *prev;
-  /** MAX_VGROUP_NAME. */
-  char name[64];
+  char name[/*MAX_VGROUP_NAME*/ 64];
   char flag;
   char _pad0[7];
 } bFaceMap;
@@ -208,17 +205,14 @@ typedef struct Object {
   short partype;
   /** Can be vertex indices. */
   int par1, par2, par3;
-  /** String describing sub-object info, `MAX_ID_NAME - 2`. */
-  char parsubstr[64];
+  /** String describing sub-object info. */
+  char parsubstr[/*MAX_NAME*/ 64];
   struct Object *parent, *track;
   /* Proxy pointer are deprecated, only kept for conversion to liboverrides. */
   struct Object *proxy DNA_DEPRECATED;
   struct Object *proxy_group DNA_DEPRECATED;
   struct Object *proxy_from DNA_DEPRECATED;
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
   // struct Path *path;
-  struct bAction *action DNA_DEPRECATED;  /* XXX deprecated... old animation system */
   struct bAction *poselib DNA_DEPRECATED; /* Pre-Blender 3.0 pose library, deprecated in 3.5. */
   /** Pose data, armature objects only. */
   struct bPose *pose;
@@ -233,12 +227,10 @@ typedef struct Object {
   bAnimVizSettings avs;
   /** Motion path cache for this object. */
   bMotionPath *mpath;
-  void *_pad0;
 
-  ListBase constraintChannels DNA_DEPRECATED; /* XXX deprecated... old animation system */
-  ListBase effect DNA_DEPRECATED;             /* XXX deprecated... keep for readfile */
-  ListBase defbase DNA_DEPRECATED;            /* Only for versioning, moved to object data. */
-  ListBase fmaps DNA_DEPRECATED;              /* For versioning, moved to generic attributes. */
+  ListBase effect DNA_DEPRECATED;  /* XXX deprecated... keep for readfile */
+  ListBase defbase DNA_DEPRECATED; /* Only for versioning, moved to object data. */
+  ListBase fmaps DNA_DEPRECATED;   /* For versioning, moved to generic attributes. */
   /** List of ModifierData structures. */
   ListBase modifiers;
   /** List of GpencilModifierData structures. */
@@ -257,7 +249,7 @@ typedef struct Object {
   char *matbits;
   /** Copy of mesh, curve & meta struct member of same name (keep in sync). */
   int totcol;
-  /** Currently selected material in the UI. */
+  /** Currently selected material in the UI (one-based). */
   int actcol;
 
   /* rot en drot have to be together! (transform('r' en 's')) */
@@ -349,8 +341,7 @@ typedef struct Object {
 
   /** Object constraints. */
   ListBase constraints;
-  ListBase nlastrips DNA_DEPRECATED; /* XXX deprecated... old animation system */
-  ListBase hooks DNA_DEPRECATED;     /* XXX deprecated... old animation system */
+  ListBase hooks DNA_DEPRECATED;
   /** Particle systems. */
   ListBase particlesystem;
 
@@ -422,8 +413,7 @@ typedef struct ObHook {
   /** If not zero, falloff is distance where influence zero. */
   float falloff;
 
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   int *indexar;
   /** Curindex is cache for fast lookup. */
@@ -680,9 +670,8 @@ enum {
   /** Unknown state, clear before use. */
   OB_DONE = 1 << 10,
   OB_FLAG_USE_SIMULATION_CACHE = 1 << 11,
-#ifdef DNA_DEPRECATED_ALLOW
-  OB_FLAG_UNUSED_12 = 1 << 12, /* cleared */
-#endif
+  /** Used for the clipboard to mark the active object. */
+  OB_FLAG_ACTIVE_CLIPBOARD = 1 << 12,
 };
 
 /** #Object.visibility_flag */

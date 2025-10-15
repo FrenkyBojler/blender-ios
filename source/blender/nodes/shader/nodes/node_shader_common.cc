@@ -56,7 +56,7 @@ static void group_gpu_move_outputs(bNode *gnode, GPUNodeStack *out, bNodeStack *
     bNodeStack *ns = node_get_socket_stack(gstack, sock);
     if (ns) {
       /* convert the node stack data result back to gpu stack */
-      node_gpu_stack_from_data(&out[a], sock->type, ns);
+      node_gpu_stack_from_data(&out[a], sock, ns);
     }
   }
 }
@@ -97,7 +97,8 @@ void register_node_type_sh_group()
   BLI_assert(ntype.rna_ext.srna != nullptr);
   RNA_struct_blender_type_set(ntype.rna_ext.srna, &ntype);
 
-  blender::bke::node_type_size(ntype, 140, 60, 400);
+  blender::bke::node_type_size(
+      ntype, GROUP_NODE_DEFAULT_WIDTH, GROUP_NODE_MIN_WIDTH, GROUP_NODE_MAX_WIDTH);
   ntype.labelfunc = node_group_label;
   ntype.declare = blender::nodes::node_group_declare;
   ntype.gpu_fn = gpu_group_execute;

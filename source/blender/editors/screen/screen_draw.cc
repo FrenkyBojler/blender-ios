@@ -20,8 +20,10 @@
 #include "BLF_api.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_time.h"
 
 #include "BLT_translation.hh"
 
@@ -66,7 +68,7 @@ static blender::gpu::Batch *batch_screen_edges_get(int *corner_len)
 
   if (screen_edges_batch == nullptr) {
     GPUVertFormat format = {0};
-    uint pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
     GPU_vertbuf_data_alloc(*vbo, CORNER_RESOLUTION * 2 * 4 + 2);
@@ -198,11 +200,14 @@ void ED_screen_draw_edges(wmWindow *win)
   float outline1[4];
   float outline2[4];
   rctf bounds;
+  /* Outset by 1/2 pixel, regardless of UI scale or pixel size. #141550. */
+  const float padding = 0.5f;
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, outline1);
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, outline2);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     BLI_rctf_rcti_copy(&bounds, &area->totrct);
+    BLI_rctf_pad(&bounds, padding, padding);
     UI_draw_roundbox_4fv_ex(&bounds,
                             nullptr,
                             nullptr,
@@ -216,7 +221,10 @@ void ED_screen_draw_edges(wmWindow *win)
   GPU_scissor_test(false);
 }
 
-void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxis dir_axis)
+void screen_draw_move_highlight(const wmWindow *win,
+                                bScreen *screen,
+                                eScreenAxis dir_axis,
+                                float anim_factor)
 {
   rctf rect = {SHRT_MAX, SHRT_MIN, SHRT_MAX, SHRT_MIN};
 
@@ -235,39 +243,21 @@ void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxi
     };
   }
 
-  /* Pull in ends not at window edges. */
   rcti window_rect;
   WM_window_screen_rect_calc(win, &window_rect);
   const float offset = U.border_width * UI_SCALE_FAC;
+  const float width = std::min(2.0f * offset, 5.0f * UI_SCALE_FAC);
   if (dir_axis == SCREEN_AXIS_H) {
-    if (rect.xmin > (window_rect.xmin + 2)) {
-      rect.xmin += offset;
-    }
-    if (rect.xmax < (window_rect.xmax - 2)) {
-      rect.xmax -= offset;
-    }
+    BLI_rctf_pad(&rect, -offset, width);
   }
   else {
-    if (rect.ymin > (window_rect.ymin + 2)) {
-      rect.ymin += offset;
-    }
-    if (rect.ymax < (window_rect.ymax - 2)) {
-      rect.ymax -= offset;
-    }
+    BLI_rctf_pad(&rect, width, -offset);
   }
 
-  const float width = std::min(2.0f * U.border_width * UI_SCALE_FAC, 5.0f * UI_SCALE_FAC);
-
-  if (dir_axis == SCREEN_AXIS_H) {
-    BLI_rctf_pad(&rect, 0.0f, width);
-  }
-  else {
-    BLI_rctf_pad(&rect, width, 0.0f);
-  }
-
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
   float outline[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, outline);
+  outline[3] *= anim_factor;
 
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   UI_draw_roundbox_4fv_ex(
@@ -376,21 +366,23 @@ static void screen_draw_area_drag_tip(
   BLF_draw(fstyle->uifont_id, area_name, BLF_DRAW_STR_DUMMY_MAX);
 }
 
-static void screen_draw_area_closed(int xmin, int xmax, int ymin, int ymax)
+static void screen_draw_area_closed(int xmin, int xmax, int ymin, int ymax, float anim_factor)
 {
   /* Darken the area. */
   rctf rect = {float(xmin), float(xmax), float(ymin), float(ymax)};
-  float darken[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+  float darken[4] = {0.0f, 0.0f, 0.0f, 0.7f * anim_factor};
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   UI_draw_roundbox_4fv_ex(&rect, darken, nullptr, 1.0f, nullptr, U.pixelsize, EDITORRADIUS);
 }
 
-void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir)
+void screen_draw_join_highlight(
+    const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir, float anim_factor)
 {
   if (dir == SCREEN_DIR_NONE || !sa2) {
-    /* Darken source if docking. Done here because it might be a different window. */
+    /* Darken source if docking. Done here because it might be a different window.
+     * Do not animate this as we don't want to reset every time we change areas. */
     screen_draw_area_closed(
-        sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax);
+        sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax, 1.0f);
     return;
   }
 
@@ -414,45 +406,45 @@ void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2,
     if (vertical) {
       if (sa1->totrct.xmin < combined.xmin) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, combined.xmin, sa1->totrct.ymin, sa1->totrct.ymax);
+            sa1->totrct.xmin, combined.xmin, sa1->totrct.ymin, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.xmin < combined.xmin) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, combined.xmin, sa2->totrct.ymin, sa2->totrct.ymax);
+            sa2->totrct.xmin, combined.xmin, sa2->totrct.ymin, sa2->totrct.ymax, anim_factor);
       }
       if (sa1->totrct.xmax > combined.xmax) {
         screen_draw_area_closed(
-            combined.xmax, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax);
+            combined.xmax, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.xmax > combined.xmax) {
         screen_draw_area_closed(
-            combined.xmax, sa2->totrct.xmax, sa2->totrct.ymin, sa2->totrct.ymax);
+            combined.xmax, sa2->totrct.xmax, sa2->totrct.ymin, sa2->totrct.ymax, anim_factor);
       }
     }
     else {
       if (sa1->totrct.ymin < combined.ymin) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, combined.ymin);
+            sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, combined.ymin, anim_factor);
       }
       if (sa2->totrct.ymin < combined.ymin) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, sa2->totrct.xmax, sa2->totrct.ymin, combined.ymin);
+            sa2->totrct.xmin, sa2->totrct.xmax, sa2->totrct.ymin, combined.ymin, anim_factor);
       }
       if (sa1->totrct.ymax > combined.ymax) {
         screen_draw_area_closed(
-            sa1->totrct.xmin, sa1->totrct.xmax, combined.ymax, sa1->totrct.ymax);
+            sa1->totrct.xmin, sa1->totrct.xmax, combined.ymax, sa1->totrct.ymax, anim_factor);
       }
       if (sa2->totrct.ymax > combined.ymax) {
         screen_draw_area_closed(
-            sa2->totrct.xmin, sa2->totrct.xmax, combined.ymax, sa2->totrct.ymax);
+            sa2->totrct.xmin, sa2->totrct.xmax, combined.ymax, sa2->totrct.ymax, anim_factor);
       }
     }
   }
 
   /* Outline the combined area. */
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
-  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f * anim_factor};
   UI_draw_roundbox_4fv_ex(&combined, inner, nullptr, 1.0f, outline, U.pixelsize, EDITORRADIUS);
 
   screen_draw_area_drag_tip(
@@ -462,7 +454,8 @@ void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2,
 static void rounded_corners(rctf rect, float color[4], int corners)
 {
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   const float rad = EDITORRADIUS;
 
@@ -532,16 +525,18 @@ void screen_draw_dock_preview(const wmWindow *win,
                               AreaDockTarget dock_target,
                               float factor,
                               int x,
-                              int y)
+                              int y,
+                              float anim_factor)
 {
   if (dock_target == AreaDockTarget::None) {
     return;
   }
 
-  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f * anim_factor};
   float border[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, border);
+  border[3] *= anim_factor;
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   float half_line_width = float(U.border_width) * UI_SCALE_FAC;
 
@@ -665,4 +660,88 @@ void screen_draw_split_preview(ScrArea *area, const eScreenAxis dir_axis, const 
     rect.xmax = x + half_line_width;
   }
   UI_draw_roundbox_4fv(&rect, true, 0.0f, border);
+}
+
+struct AreaAnimateHighlightData {
+  wmWindow *win;
+  bScreen *screen;
+  rctf rect;
+  float inner[4];
+  float outline[4];
+  double start_time;
+  double end_time;
+  void *draw_callback;
+};
+
+static void area_animate_highlight_cb(const wmWindow * /*win*/, void *userdata)
+{
+  const AreaAnimateHighlightData *data = static_cast<const AreaAnimateHighlightData *>(userdata);
+
+  double now = BLI_time_now_seconds();
+  if (now > data->end_time) {
+    WM_draw_cb_exit(data->win, data->draw_callback);
+    MEM_freeN(const_cast<AreaAnimateHighlightData *>(data));
+    data = nullptr;
+    return;
+  }
+
+  const float factor = pow((now - data->start_time) / (data->end_time - data->start_time), 2);
+  const bool do_inner = data->inner[3] > 0.0f;
+  const bool do_outline = data->outline[3] > 0.0f;
+
+  float inner_color[4];
+  if (do_inner) {
+    inner_color[0] = data->inner[0];
+    inner_color[1] = data->inner[1];
+    inner_color[2] = data->inner[2];
+    inner_color[3] = (1.0f - factor) * data->inner[3];
+  }
+
+  float outline_color[4];
+  if (do_outline) {
+    outline_color[0] = data->outline[0];
+    outline_color[1] = data->outline[1];
+    outline_color[2] = data->outline[2];
+    outline_color[3] = (1.0f - factor) * data->outline[3];
+  }
+
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  UI_draw_roundbox_4fv_ex(&data->rect,
+                          do_inner ? inner_color : nullptr,
+                          nullptr,
+                          1.0f,
+                          do_outline ? outline_color : nullptr,
+                          U.pixelsize,
+                          EDITORRADIUS);
+
+  data->screen->do_refresh = true;
+}
+
+void screen_animate_area_highlight(wmWindow *win,
+                                   bScreen *screen,
+                                   const rcti *rect,
+                                   float inner[4],
+                                   float outline[4],
+                                   float seconds)
+{
+  /* Disabling for now, see #147487. This can cause memory leaks since the
+   * data is only freed when the animation completes, which might not happen
+   * during automated tests. Freeing wmWindow->drawcalls on window close might
+   * be enough, but will have to be investigated. */
+  return;
+
+  AreaAnimateHighlightData *data = MEM_callocN<AreaAnimateHighlightData>(
+      "screen_animate_area_highlight");
+  data->win = win;
+  data->screen = screen;
+  BLI_rctf_rcti_copy(&data->rect, rect);
+  if (inner) {
+    copy_v4_v4(data->inner, inner);
+  }
+  if (outline) {
+    copy_v4_v4(data->outline, outline);
+  }
+  data->start_time = BLI_time_now_seconds();
+  data->end_time = data->start_time + seconds;
+  data->draw_callback = WM_draw_cb_activate(win, area_animate_highlight_cb, data);
 }

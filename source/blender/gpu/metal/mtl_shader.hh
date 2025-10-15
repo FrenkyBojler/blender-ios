@@ -220,6 +220,11 @@ class MTLShader : public Shader {
   /* Set to true when batch compiling */
   bool async_compilation_ = false;
 
+  /* If greater than one, use argument buffer to support arbitrary number of samplers. */
+  int arg_buf_samplers_vert_ = 0;
+  int arg_buf_samplers_frag_ = 0;
+  int arg_buf_samplers_comp_ = 0;
+
   bool finalize_shader(const shader::ShaderCreateInfo *info = nullptr);
 
  public:
@@ -331,7 +336,7 @@ class MTLShaderCompiler : public ShaderCompiler {
 
 /* Vertex format conversion.
  * Determines whether it is possible to resize a vertex attribute type
- * during input assembly. A conversion is implied by the  difference
+ * during input assembly. A conversion is implied by the difference
  * between the input vertex descriptor (from MTLBatch/MTLImmediate)
  * and the type specified in the shader source.
  *

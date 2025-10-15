@@ -38,6 +38,7 @@
 #include "UI_interface.hh"
 
 #include "ED_asset.hh"
+#include "ED_asset_menu_utils.hh"
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
 #include "ED_util.hh"
@@ -48,6 +49,7 @@
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
 #include "ANIM_pose.hh"
+#include "ANIM_rna.hh"
 
 #include "armature_intern.hh"
 
@@ -133,38 +135,44 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
 
     bPose *pose = ob->pose;
     bAction *act = poselib_action_to_blend(pbd);
-
-    KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene,
-                                                                   ANIM_KS_WHOLE_CHARACTER_ID);
-    blender::Vector<PointerRNA> sources;
-
-    /* start tagging/keying */
     const bArmature *armature = static_cast<const bArmature *>(ob->data);
-    for (bActionGroup *agrp : blender::animrig::legacy::channel_groups_all(act)) {
-      /* Only for selected bones unless there aren't any selected, in which case all are included.
-       */
-      bPoseChannel *pchan = BKE_pose_channel_find_name(pose, agrp->name);
-      if (pchan == nullptr) {
-        continue;
-      }
 
+    blender::animrig::Slot &slot = blender::animrig::get_best_pose_slot_for_id(ob->id,
+                                                                               act->wrap());
+
+    /* Storing which pose bones were already keyed since multiple FCurves will probably exist per
+     * pose bone. */
+    blender::Set<bPoseChannel *> keyed_pose_bones;
+    auto autokey_pose_bones = [&](FCurve * /* fcu */, const char *bone_name) {
+      bPoseChannel *pchan = BKE_pose_channel_find_name(pose, bone_name);
+      if (!pchan) {
+        /* This bone cannot be found any more. This is fine, this can happen
+         * when F-Curves for a bone are included in a pose asset, and later the
+         * bone itself was renamed or removed. */
+        return;
+      }
       if (BKE_pose_backup_is_selection_relevant(pbd->pose_backup) &&
-          !PBONE_SELECTED(armature, pchan->bone))
+          !blender::animrig::bone_is_selected(armature, pchan))
       {
-        continue;
+        return;
       }
-
-      /* Add data-source override for the PoseChannel, to be used later. */
-      blender::animrig::relative_keyingset_add_source(sources, &ob->id, &RNA_PoseBone, pchan);
-    }
-
-    if (adt->action) {
-      blender::animrig::action_deselect_keys(adt->action->wrap());
-    }
-
-    /* Perform actual auto-keying. */
-    blender::animrig::apply_keyingset(
-        C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, float(scene->r.cfra));
+      if (keyed_pose_bones.contains(pchan)) {
+        return;
+      }
+      /* This mimics the Whole Character Keying Set that was used here previously. In the future we
+       * could only key rna paths of FCurves that are actually in the applied pose. */
+      PointerRNA pose_bone_pointer = RNA_pointer_create_discrete(&ob->id, &RNA_PoseBone, pchan);
+      blender::Vector<RNAPath> rna_paths = blender::animrig::get_keyable_id_property_paths(
+          pose_bone_pointer);
+      rna_paths.append({"location"});
+      const blender::StringRef rotation_mode_path = blender::animrig::get_rotation_mode_path(
+          eRotationModes(pchan->rotmode));
+      rna_paths.append({rotation_mode_path});
+      rna_paths.append({"scale"});
+      blender::animrig::autokeyframe_pose_channel(C, scene, ob, pchan, rna_paths, 0);
+      keyed_pose_bones.add(pchan);
+    };
+    blender::bke::BKE_action_find_fcurves_with_bones(act, slot.handle, autokey_pose_bones);
   }
 
   /* send notifiers for this */
@@ -327,7 +335,37 @@ static void poselib_tempload_exit(PoseBlendData *pbd)
 static bAction *poselib_blend_init_get_action(bContext *C, wmOperator *op)
 {
   using namespace blender::ed;
-  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
+
+  const blender::asset_system::AssetRepresentation *asset = nullptr;
+
+  if (asset::operator_asset_reference_props_is_set(*op->ptr)) {
+    asset = asset::operator_asset_reference_props_get_asset_from_all_library(
+        *C, *op->ptr, op->reports);
+    if (!asset) {
+      /* Explicit asset reference passed, but cannot be found. Error out. */
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Asset not found: '%s'",
+                  RNA_string_get(op->ptr, "relative_asset_identifier").c_str());
+      return nullptr;
+    }
+  }
+  else {
+    /* If no explicit asset reference was passed, get asset from context. */
+    asset = CTX_wm_asset(C);
+    if (!asset) {
+      BKE_report(op->reports, RPT_ERROR, "No asset in context");
+      return nullptr;
+    }
+  }
+
+  if (asset->get_id_type() != ID_AC) {
+    BKE_reportf(op->reports,
+                RPT_ERROR,
+                "Asset ('%s') is not an action data-block",
+                asset->get_name().c_str());
+    return nullptr;
+  }
 
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
 
@@ -345,11 +383,11 @@ static bAction *flip_pose(bContext *C, blender::Span<Object *> objects, bAction 
    * pose, which can cause unwanted visual glitches. */
   wmWindowManager *wm = CTX_wm_manager(C);
   const bool interface_was_locked = CTX_wm_interface_locked(C);
-  WM_set_locked_interface(wm, true);
+  WM_locked_interface_set(wm, true);
 
   BKE_action_flip_with_pose(action_copy, objects);
 
-  WM_set_locked_interface(wm, interface_was_locked);
+  WM_locked_interface_set(wm, interface_was_locked);
   return action_copy;
 }
 
@@ -371,6 +409,9 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
 
   pbd->act = poselib_blend_init_get_action(C, op);
   if (pbd->act == nullptr) {
+    /* No report here. The poll function cannot check if the operator properties have an asset
+     * reference to determine the asset to operate on, in which case we fallback to getting the
+     * asset from context. */
     return false;
   }
   if (pbd->act->wrap().slots().size() == 0) {
@@ -378,7 +419,9 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
     return false;
   }
 
-  pbd->is_flipped = RNA_boolean_get(op->ptr, "flipped");
+  pbd->is_flipped = RNA_struct_property_is_set(op->ptr, "flipped") ?
+                        RNA_boolean_get(op->ptr, "flipped") :
+                        (event && (event->modifier & KM_CTRL));
   pbd->blend_factor = RNA_float_get(op->ptr, "blend_factor");
 
   /* Only construct the flipped pose if there is a chance it's actually needed. */
@@ -561,6 +604,20 @@ static wmOperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const w
   return operator_result;
 }
 
+static wmOperatorStatus poselib_apply_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!poselib_blend_init_data(C, op, event)) {
+    poselib_blend_free(op);
+    return OPERATOR_CANCELLED;
+  }
+
+  poselib_blend_apply(C, op);
+
+  PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
+  pbd->state = POSE_BLEND_CONFIRM;
+  return poselib_blend_exit(C, op);
+}
+
 /* Modal Operator init. */
 static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -582,23 +639,7 @@ static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const 
 /* Single-shot apply. */
 static wmOperatorStatus poselib_blend_exec(bContext *C, wmOperator *op)
 {
-  if (!poselib_blend_init_data(C, op, nullptr)) {
-    poselib_blend_free(op);
-    return OPERATOR_CANCELLED;
-  }
-
-  poselib_blend_apply(C, op);
-
-  PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
-  pbd->state = POSE_BLEND_CONFIRM;
-  return poselib_blend_exit(C, op);
-}
-
-static bool poselib_asset_in_context(bContext *C)
-{
-  /* Check whether the context provides the asset data needed to add a pose. */
-  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
-  return asset && (asset->get_id_type() == ID_AC);
+  return poselib_apply_invoke(C, op, nullptr);
 }
 
 /* Poll callback for operators that require existing PoseLib data (with poses) to work. */
@@ -610,9 +651,12 @@ static bool poselib_blend_poll(bContext *C)
     return false;
   }
 
-  return poselib_asset_in_context(C);
+  return true;
 }
 
+/* Operator properties can set an asset reference to determine the asset to operate on (the pose
+ * can then be applied via shortcut too, for example). If this isn't set, an active asset from
+ * context is queried. */
 void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -623,13 +667,14 @@ void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)
   ot->description = "Apply the given Pose Action to the rig";
 
   /* Callbacks: */
-  ot->exec = poselib_blend_exec;
+  ot->invoke = poselib_apply_invoke;
   ot->poll = poselib_blend_poll;
 
   /* Flags: */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Properties: */
+  blender::ed::asset::operator_asset_reference_props_register(*ot->srna);
   RNA_def_float_factor(ot->srna,
                        "blend_factor",
                        1.0f,
@@ -648,6 +693,7 @@ void POSELIB_OT_apply_pose_asset(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+/* See comment on #POSELIB_OT_apply_pose_asset. */
 void POSELIB_OT_blend_pose_asset(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -668,6 +714,7 @@ void POSELIB_OT_blend_pose_asset(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
 
   /* Properties: */
+  blender::ed::asset::operator_asset_reference_props_register(*ot->srna);
   prop = RNA_def_float_factor(ot->srna,
                               "blend_factor",
                               0.0f,

@@ -26,6 +26,7 @@
 #include "BKE_node.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_undo_system.hh"
 
 #include "../depsgraph/DEG_depsgraph.hh"
@@ -94,8 +95,18 @@ static bool memfile_undosys_step_encode(bContext * /*C*/, Main *bmain, UndoStep 
 static int memfile_undosys_step_id_reused_cb(LibraryIDLinkCallbackData *cb_data)
 {
   ID *self_id = cb_data->self_id;
+  ID *owner_id = cb_data->owner_id;
   ID **id_pointer = cb_data->id_pointer;
-  BLI_assert((self_id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) != 0);
+  /* Embedded IDs do not get tagged with #ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED currently (could be,
+   * but would add extra processing, and by definition they always share that state with their
+   * owner, as they are stored as 'regular data' in blend-files, not as independent IDs).
+   *
+   * NOTE: It seems that local IDs using embedded ones are never 'reused unchanged', this was
+   * never caught before. However, if using `self_id` here, this assert gets triggered with
+   * upcoming packed data. Probably because while packed data remains unchanged, it is handled like
+   * regular local data by undo code, and like regular linked data. */
+  BLI_assert((owner_id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) != 0);
+  UNUSED_VARS_NDEBUG(owner_id);
 
   ID *id = *id_pointer;
   if (id != nullptr && !ID_IS_LINKED(id) && (id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) == 0) {
@@ -157,7 +168,7 @@ static void memfile_undosys_step_decode(
 
   bool use_old_bmain_data = true;
 
-  if (USER_EXPERIMENTAL_TEST(&U, use_undo_legacy) || !(U.uiflag & USER_GLOBALUNDO)) {
+  if (USER_DEVELOPER_TOOL_TEST(&U, use_undo_legacy) || !(U.uiflag & USER_GLOBALUNDO)) {
     use_old_bmain_data = false;
   }
   else if (undo_direction == STEP_REDO) {
@@ -228,6 +239,17 @@ static void memfile_undosys_step_decode(
       if (id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) {
         BKE_library_foreach_ID_link(
             bmain, id, memfile_undosys_step_id_reused_cb, nullptr, IDWALK_READONLY);
+      }
+
+      if (GS(id->name) == ID_SCE) {
+        Scene *scene = reinterpret_cast<Scene *>(id);
+        if (scene->compositing_node_group) {
+          /* Ensure undo calls from the UI update the interactive compositor preview depsgraph, see
+           * #compo_initjob. */
+          blender::bke::CompositorRuntime &compositor_runtime = scene->runtime->compositor;
+          DEG_graph_free(compositor_runtime.preview_depsgraph);
+          compositor_runtime.preview_depsgraph = nullptr;
+        }
       }
 
       /* NOTE: Tagging `ID_RECALC_SYNC_TO_EVAL` here should not be needed in practice, since

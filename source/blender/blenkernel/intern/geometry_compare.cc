@@ -18,6 +18,9 @@
 
 #include "BKE_geometry_compare.hh"
 
+#include "DNA_curve_types.h"
+#include "DNA_lattice_types.h"
+
 namespace blender::bke::compare_geometry {
 
 enum class GeoMismatch : int8_t {
@@ -256,18 +259,42 @@ static bool values_different(const T value1,
   if constexpr (std::is_same_v<T, float>) {
     return compare_threshold_relative(value1, value2, threshold);
   }
-  if constexpr (is_same_any_v<T, float2, float3, ColorGeometry4f>) {
+
+  /* GCC 15.x triggers an array-bounds warning unless `component_i` is assumed to be in range. */
+#if (defined(__GNUC__) && (__GNUC__ >= 15) && !defined(__clang__))
+#  define ASSERT_AND_ASSUME(expr) \
+    BLI_assert(expr); \
+    [[assume(expr)]];
+#else
+#  define ASSERT_AND_ASSUME(expr) BLI_assert(expr);
+#endif
+
+  if constexpr (is_same_any_v<T, float2>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 2);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, float3>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 3);
+    return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
+  }
+  if constexpr (is_same_any_v<T, ColorGeometry4f>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     return compare_threshold_relative(value1[component_i], value2[component_i], threshold);
   }
   if constexpr (std::is_same_v<T, math::Quaternion>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     const float4 value1_f = float4(value1);
     const float4 value2_f = float4(value2);
     return compare_threshold_relative(value1_f[component_i], value2_f[component_i], threshold);
   }
   if constexpr (std::is_same_v<T, float4x4>) {
+    ASSERT_AND_ASSUME(component_i >= 0 && component_i < 4);
     return compare_threshold_relative(
         value1.base_ptr()[component_i], value2.base_ptr()[component_i], threshold);
   }
+
+#undef ASSERT_AND_ASSUME
+
   BLI_assert_unreachable();
 }
 
@@ -281,7 +308,7 @@ static bool update_set_ids(MutableSpan<int> set_ids,
                            const Span<T> values1,
                            const Span<T> values2,
                            const Span<int> sorted_to_values1,
-                           MutableSpan<int> sorted_to_values2,
+                           const Span<int> sorted_to_values2,
                            const float threshold,
                            const int component_i)
 {
@@ -499,8 +526,8 @@ static bool sort_faces_based_on_corners(const IndexMapping &corners,
   return true;
 }
 
-/*
- * The uv selection / pin layers are ignored in the comparisons because
+/**
+ * The UV selection & pin layers are ignored in the comparisons because
  * the original flags they replace were ignored as well. Because of the
  * lazy creation of these layers it would need careful handling of the
  * test files to compare these layers. For now it has been decided to
@@ -508,8 +535,8 @@ static bool sort_faces_based_on_corners(const IndexMapping &corners,
  */
 static bool ignored_attribute(const StringRef id)
 {
-  return attribute_name_is_anonymous(id) || id.startswith(".vs.") || id.startswith(".es.") ||
-         id.startswith(".pn.");
+  return attribute_name_is_anonymous(id) || id.startswith(".pn.") ||
+         ELEM(id, ".uv_select_vert", ".uv_select_edge", ".uv_select_face");
 }
 
 /**
@@ -1015,6 +1042,37 @@ std::optional<GeoMismatch> compare_curves(const CurvesGeometry &curves1,
   for (const int sorted_i : curves.from_sorted1.index_range()) {
     if (curves.from_sorted1[sorted_i] != curves.from_sorted2[sorted_i]) {
       return GeoMismatch::Indices;
+    }
+  }
+
+  /* No mismatches found. */
+  return std::nullopt;
+}
+
+std::optional<GeoMismatch> compare_lattices(const Lattice &lattice1,
+                                            const Lattice &lattice2,
+                                            float threshold)
+{
+  if (lattice1.pntsu != lattice2.pntsu) {
+    return GeoMismatch::NumPoints;
+  }
+  if (lattice1.pntsv != lattice2.pntsv) {
+    return GeoMismatch::NumPoints;
+  }
+  if (lattice1.pntsw != lattice2.pntsw) {
+    return GeoMismatch::NumPoints;
+  }
+
+  const int num_points = lattice1.pntsu * lattice1.pntsv * lattice1.pntsw;
+  const Span<BPoint> bpoints1 = {lattice1.def, num_points};
+  const Span<BPoint> bpoints2 = {lattice2.def, num_points};
+  for (const int i : IndexRange(num_points)) {
+    const float3 co1 = bpoints1[i].vec;
+    const float3 co2 = bpoints2[i].vec;
+    for (const int component : IndexRange(3)) {
+      if (values_different(co1, co2, threshold, component)) {
+        return GeoMismatch::PointAttributes;
+      }
     }
   }
 

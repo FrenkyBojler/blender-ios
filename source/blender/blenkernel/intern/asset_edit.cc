@@ -125,6 +125,11 @@ static std::string asset_blendfile_path_for_save(const bUserAssetLibrary &user_l
               std::min(sizeof(base_name_filesafe), size_t(base_name.size() + 1)));
   BLI_path_make_safe_filename(base_name_filesafe);
 
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * This already does not respect the FILE_MAXFILE max length of filenames for the final filepath
+   * it seems?
+   */
   {
     const std::string filepath = root_path + SEP + base_name_filesafe + BLENDER_ASSET_FILE_SUFFIX;
     if (!BLI_is_file(filepath.c_str())) {
@@ -155,7 +160,10 @@ static bool asset_write_in_library(Main &bmain,
 
   ID &id = const_cast<ID &>(id_const);
 
-  PartialWriteContext lib_write_ctx{BKE_main_blendfile_path(&bmain)};
+  /* This is not expected to ever happen currently from this codepath. */
+  BLI_assert(!ID_IS_PACKED(&id));
+
+  PartialWriteContext lib_write_ctx{bmain};
   ID *new_id = lib_write_ctx.id_add(&id,
                                     {(PartialWriteContext::IDAddOperations::MAKE_LOCAL |
                                       PartialWriteContext::IDAddOperations::SET_FAKE_USER |

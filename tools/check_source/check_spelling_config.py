@@ -158,6 +158,7 @@ dict_custom = {
     "discretizes",
     "distributable",
     "downcasting",
+    "downloader",
     "downsample",
     "downsampled",
     "downsampler",
@@ -308,6 +309,7 @@ dict_custom = {
     "prepend",
     "prepending",
     "preprocess",
+    "preprocesses",
     "preprocessing",
     "preprocessor",
     "preprocessors",
@@ -341,8 +343,10 @@ dict_custom = {
     "redistributions",
     "registerable",
     "reimplement",
+    "reimplementation",
     "reimplemented",
     "reimplementing",
+    "reimport",
     "relink",
     "relinked",
     "relinking",
@@ -903,6 +907,8 @@ dict_ignore_hyphenated_suffix = {
 }
 
 files_ignore = {
+    "scripts/modules/_bl_i18n_utils/utils_spell_check.py",  # UI spelling, doesn't always match code spelling.
+    "tools/utils/git_data_canonical_authors.py",  # Too many names which aren't in the dictionary.
     "tools/utils_doc/rna_manual_reference_updater.py",  # Contains language ID references.
 
     # Maintained by 3rd parties.

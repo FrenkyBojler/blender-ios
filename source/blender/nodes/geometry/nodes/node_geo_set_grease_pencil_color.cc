@@ -5,9 +5,12 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
+
+#include "GEO_foreach_geometry.hh"
 
 #include "RNA_enum_types.hh"
 
@@ -27,13 +30,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
   b.add_input<decl::Geometry>("Grease Pencil")
       .supported_type(GeometryComponent::Type::GreasePencil)
-      .align_with_previous();
+      .align_with_previous()
+      .description("Grease Pencil to change the color of");
   b.add_output<decl::Geometry>("Grease Pencil").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Color>("Color")
       .default_value(ColorGeometry4f(1.0f, 1.0f, 1.0f, 1.0f))
       .field_on_all()
-      .hide_label();
+      .optional_label();
   b.add_input<decl::Float>("Opacity").default_value(1.0f).min(0.0f).max(1.0f).field_on_all();
 }
 
@@ -60,7 +64,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const StringRef color_attr_name = domain == AttrDomain::Point ? "vertex_color" : "fill_color";
   const StringRef opacity_attr_name = domain == AttrDomain::Point ? "opacity" : "fill_opacity";
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
     if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
       using namespace bke::greasepencil;
       for (const int layer_index : grease_pencil->layers().index_range()) {
@@ -78,11 +82,10 @@ static void node_geo_exec(GeoNodeExecParams params)
          * to initialize the attribute manually.
          * TODO: Avoid doing this if the selection is false. */
         if (!curves.attributes().contains(opacity_attr_name)) {
-          curves.attributes_for_write().add(
+          curves.attributes_for_write().add<float>(
               opacity_attr_name,
               domain,
-              CD_PROP_FLOAT,
-              bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, domain_size)));
+              bke::AttributeInitVArray(VArray<float>::from_single(1.0f, domain_size)));
         }
         bke::try_capture_fields_on_geometry(curves.attributes_for_write(),
                                             layer_field_context,

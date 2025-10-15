@@ -18,7 +18,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -39,10 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Value").supports_field().hide_value().is_default_link_socket();
-    b.add_output(data_type, "Value")
-        .field_source_reference_all()
-        .dependent_field()
-        .align_with_previous();
+    b.add_output(data_type, "Value").field_source_reference_all().align_with_previous();
   }
   b.add_input<decl::Int>("Iterations")
       .default_value(1)
@@ -392,11 +389,11 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
 
     /* Blurring does not make sense with a less than 2 elements. */
     if (domain_size <= 1) {
-      return GVArray::ForGArray(std::move(buffer_a));
+      return GVArray::from_garray(std::move(buffer_a));
     }
 
     if (iterations_ <= 0) {
-      return GVArray::ForGArray(std::move(buffer_a));
+      return GVArray::from_garray(std::move(buffer_a));
     }
 
     VArraySpan<float> neighbor_weights = evaluator.get_evaluated<float>(1);
@@ -427,9 +424,9 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
 
     BLI_assert(ELEM(result_buffer.data(), buffer_a.data(), buffer_b.data()));
     if (result_buffer.data() == buffer_a.data()) {
-      return GVArray::ForGArray(std::move(buffer_a));
+      return GVArray::from_garray(std::move(buffer_a));
     }
-    return GVArray::ForGArray(std::move(buffer_b));
+    return GVArray::from_garray(std::move(buffer_b));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override

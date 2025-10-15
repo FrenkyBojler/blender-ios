@@ -11,7 +11,6 @@
 
 #include <optional>
 
-#include "BLI_buffer.h"
 #include "BLI_compiler_attrs.h"
 #include "BLI_map.hh"
 #include "BLI_ordered_edge.hh"
@@ -84,7 +83,7 @@ typedef struct SPHData {
   ParticleSystem *psys[10];
   ParticleData *pa;
   float mass;
-  std::optional<blender::Map<blender::OrderedEdge, int>> eh;
+  const blender::Map<blender::OrderedEdge, int> *eh;
 
   /** The gravity as a `float[3]`, may also be null when the simulation doesn't use gravity. */
   const float *gravity;
@@ -97,7 +96,7 @@ typedef struct SPHData {
   float flow[3];
 
   /* Temporary thread-local buffer for springs created during this step. */
-  BLI_Buffer new_springs;
+  blender::Vector<ParticleSpring> new_springs;
 
   /* Integrator callbacks. This allows different SPH implementations. */
   void (*force_cb)(void *sphdata_v, ParticleKey *state, float *force, float *impulse);
@@ -343,7 +342,7 @@ bool psys_render_simplify_params(struct ParticleSystem *psys,
                                  struct ChildParticle *cpa,
                                  float *params);
 
-void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float uvco[2]);
+void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float r_uv[2]);
 void psys_interpolate_mcol(const struct MCol *mcol, int quad, const float w[4], struct MCol *mc);
 
 void copy_particle_key(struct ParticleKey *to, struct ParticleKey *from, int time);
@@ -449,7 +448,6 @@ void psys_apply_child_modifiers(struct ParticleThreadContext *ctx,
                                 struct ParticleCacheKey *parent_keys,
                                 const float parent_orco[3]);
 
-void psys_sph_init(struct ParticleSimulationData *sim, struct SPHData *sphdata);
 void psys_sph_finalize(struct SPHData *sphdata);
 /**
  * Sample the density field at a point in space.

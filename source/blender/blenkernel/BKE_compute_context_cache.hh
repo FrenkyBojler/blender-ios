@@ -31,6 +31,7 @@ class ComputeContextCache {
   Map<std::pair<const ComputeContext *, int>, const ModifierComputeContext *>
       modifier_contexts_cache_;
   Map<const ComputeContext *, const OperatorComputeContext *> operator_contexts_cache_;
+  Map<const ComputeContext *, const ShaderComputeContext *> shader_contexts_cache_;
   Map<std::pair<const ComputeContext *, int32_t>, const GroupNodeComputeContext *>
       group_node_contexts_cache_;
   Map<std::pair<const ComputeContext *, int32_t>, const SimulationZoneComputeContext *>
@@ -51,10 +52,11 @@ class ComputeContextCache {
   const OperatorComputeContext &for_operator(const ComputeContext *parent);
   const OperatorComputeContext &for_operator(const ComputeContext *parent, const bNodeTree &tree);
 
-  const GroupNodeComputeContext &for_group_node(const ComputeContext *parent, int32_t node_id);
+  const ShaderComputeContext &for_shader(const ComputeContext *parent, const bNodeTree *tree);
+
   const GroupNodeComputeContext &for_group_node(const ComputeContext *parent,
-                                                const bNode &caller_group_node,
-                                                const bNodeTree &caller_tree);
+                                                int32_t node_id,
+                                                const bNodeTree *tree = nullptr);
 
   const SimulationZoneComputeContext &for_simulation_zone(const ComputeContext *parent,
                                                           int output_node_id);
@@ -73,13 +75,11 @@ class ComputeContextCache {
   const ForeachGeometryElementZoneComputeContext &for_foreach_geometry_element_zone(
       const ComputeContext *parent, const bNode &output_node, int index);
 
-  const EvaluateClosureComputeContext &for_evaluate_closure(const ComputeContext *parent,
-                                                            int32_t node_id);
   const EvaluateClosureComputeContext &for_evaluate_closure(
       const ComputeContext *parent,
-      int32_t evaluate_node_id,
-      const bNode *evaluate_node,
-      const std::optional<nodes::ClosureSourceLocation> &closure_source_location);
+      int32_t node_id,
+      const bNodeTree *tree = nullptr,
+      const std::optional<nodes::ClosureSourceLocation> &closure_source_location = std::nullopt);
 
   /**
    * A fallback that does not use caching and can be used for any compute context.

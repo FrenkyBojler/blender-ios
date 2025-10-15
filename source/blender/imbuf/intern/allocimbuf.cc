@@ -28,31 +28,11 @@
 
 #include "GPU_texture.hh"
 
+#include "CLG_log.h"
+
 #include "atomic_ops.h"
 
-#ifndef WIN32
-static SpinLock mmap_spin;
-
-void imb_mmap_lock_init()
-{
-  BLI_spin_init(&mmap_spin);
-}
-
-void imb_mmap_lock_exit()
-{
-  BLI_spin_end(&mmap_spin);
-}
-
-void imb_mmap_lock()
-{
-  BLI_spin_lock(&mmap_spin);
-}
-
-void imb_mmap_unlock()
-{
-  BLI_spin_unlock(&mmap_spin);
-}
-#endif
+static CLG_LogRef LOG = {"image.buffer"};
 
 /* Free the specified buffer storage, freeing memory when needed and restoring the state of the
  * buffer to its defaults. */
@@ -161,32 +141,12 @@ auto imb_steal_buffer_data(BufferType &buffer) -> decltype(BufferType::data)
   return nullptr;
 }
 
-void IMB_free_mipmaps(ImBuf *ibuf)
-{
-  int a;
-
-  /* Do not trust ibuf->miptot, in some cases IMB_remakemipmap can leave unfreed unused levels,
-   * leading to memory leaks... */
-  for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
-    if (ibuf->mipmap[a] != nullptr) {
-      IMB_freeImBuf(ibuf->mipmap[a]);
-      ibuf->mipmap[a] = nullptr;
-    }
-  }
-
-  ibuf->miptot = 0;
-}
-
 void IMB_free_float_pixels(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
     return;
   }
-
   imb_free_buffer(ibuf->float_buffer);
-
-  IMB_free_mipmaps(ibuf);
-
   ibuf->flags &= ~IB_float_data;
 }
 
@@ -195,11 +155,7 @@ void IMB_free_byte_pixels(ImBuf *ibuf)
   if (ibuf == nullptr) {
     return;
   }
-
   imb_free_buffer(ibuf->byte_buffer);
-
-  IMB_free_mipmaps(ibuf);
-
   ibuf->flags &= ~IB_byte_data;
 }
 
@@ -312,7 +268,7 @@ bool imb_enlargeencodedbufferImBuf(ImBuf *ibuf)
   }
 
   if (ibuf->encoded_buffer_size < ibuf->encoded_size) {
-    printf("%s: error in parameters\n", __func__);
+    CLOG_ERROR(&LOG, "%s: error in parameters\n", __func__);
     return false;
   }
 
@@ -359,11 +315,8 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, const uint channels, bool initialize_pi
     return false;
   }
 
-  /* NOTE: Follows the historical code.
-   * Is unclear if it is desired or not to free mipmaps. If mipmaps are to be preserved a simple
-   * `imb_free_buffer(ibuf->float_buffer)` can be used instead. */
   if (ibuf->float_buffer.data) {
-    IMB_free_float_pixels(ibuf); /* frees mipmap too, hrm */
+    IMB_free_float_pixels(ibuf);
   }
 
   if (!imb_alloc_buffer(
@@ -386,8 +339,6 @@ bool IMB_alloc_byte_pixels(ImBuf *ibuf, bool initialize_pixels)
     return false;
   }
 
-  /* Don't call IMB_free_byte_pixels, it frees mipmaps,
-   * this call is used only too give float buffers display. */
   imb_free_buffer(ibuf->byte_buffer);
 
   if (!imb_alloc_buffer(
@@ -600,7 +551,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
 {
   ImBuf *ibuf2, tbuf;
   int flags = IB_uninitialized_pixels;
-  int a, x, y;
+  int x, y;
 
   if (ibuf1 == nullptr) {
     return nullptr;
@@ -656,9 +607,6 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   tbuf.byte_buffer = ibuf2->byte_buffer;
   tbuf.float_buffer = ibuf2->float_buffer;
   tbuf.encoded_buffer = ibuf2->encoded_buffer;
-  for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
-    tbuf.mipmap[a] = nullptr;
-  }
   tbuf.dds_data.data = nullptr;
 
   /* Set `malloc` flag. */
@@ -686,7 +634,6 @@ size_t IMB_get_pixel_count(const ImBuf *ibuf)
 
 size_t IMB_get_size_in_memory(const ImBuf *ibuf)
 {
-  int a;
   size_t size = 0, channel_size = 0;
 
   size += sizeof(ImBuf);
@@ -700,14 +647,6 @@ size_t IMB_get_size_in_memory(const ImBuf *ibuf)
   }
 
   size += channel_size * IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
-
-  if (ibuf->miptot) {
-    for (a = 0; a < ibuf->miptot; a++) {
-      if (ibuf->mipmap[a]) {
-        size += IMB_get_size_in_memory(ibuf->mipmap[a]);
-      }
-    }
-  }
 
   return size;
 }

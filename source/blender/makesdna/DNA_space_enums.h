@@ -108,6 +108,8 @@ typedef enum eSpaceButtons_Context {
   BCONTEXT_SHADERFX = 15,
   BCONTEXT_OUTPUT = 16,
   BCONTEXT_COLLECTION = 17,
+  BCONTEXT_STRIP = 18,
+  BCONTEXT_STRIP_MODIFIER = 19,
 
   /* Keep last. */
   BCONTEXT_TOT,
@@ -441,7 +443,7 @@ typedef enum eSpaceSeq_Proxy_RenderSize {
   SEQ_RENDER_SIZE_PROXY_50 = 50,
   SEQ_RENDER_SIZE_PROXY_75 = 75,
   SEQ_RENDER_SIZE_PROXY_100 = 99,
-  SEQ_RENDER_SIZE_FULL = 100,
+  SEQ_RENDER_SIZE_FULL_DEPRECATED = 100, /* deprecated, for versioning only */
 } eSpaceSeq_Proxy_RenderSize;
 
 /** #SpaceSeq.gizmo_flag */
@@ -477,6 +479,11 @@ typedef enum eFileAssetImportMethod {
   FILE_ASSET_IMPORT_APPEND_REUSE = 2,
   /** Default: Follow the preference setting for this asset library. */
   FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
+  /**
+   * Link the data-block, but also pack it in the current file to keep it working even if the
+   * source file is not available anymore.
+   */
+  FILE_ASSET_IMPORT_PACK = 4,
 } eFileAssetImportMethod;
 
 typedef enum eFileAssetImportFlags {
@@ -632,7 +639,7 @@ typedef enum eFileSel_File_Types {
   /** represents folders for filtering */
   FILE_TYPE_FOLDER = (1 << 11),
   FILE_TYPE_BTX = (1 << 12),
-  FILE_TYPE_COLLADA = (1 << 13),
+  FILE_TYPE_UNUSED_13 = (1 << 13), /* Was FILE_TYPE_COLLADA */
   /** from filter_glob operator property */
   FILE_TYPE_OPERATOR = (1 << 14),
   FILE_TYPE_BUNDLE = (1 << 15),
@@ -651,7 +658,7 @@ ENUM_OPERATORS(eFileSel_File_Types, FILE_TYPE_BLENDERLIB);
 
 /** Selection Flags #FileList::selection_state. */
 typedef enum eDirEntry_SelectFlag {
-  /*  FILE_SEL_ACTIVE         = (1 << 1), */ /* UNUSED */
+  // FILE_SEL_ACTIVE = (1 << 1), /* UNUSED */
   FILE_SEL_HIGHLIGHTED = (1 << 2),
   FILE_SEL_SELECTED = (1 << 3),
   FILE_SEL_EDITING = (1 << 4),
@@ -770,6 +777,8 @@ typedef enum eSpaceImage_Flag {
 typedef enum eSpaceImageOverlay_Flag {
   SI_OVERLAY_SHOW_OVERLAYS = (1 << 0),
   SI_OVERLAY_SHOW_GRID_BACKGROUND = (1 << 1),
+  SI_OVERLAY_DRAW_RENDER_REGION = (1 << 2),
+  SI_OVERLAY_DRAW_TEXT_INFO = (1 << 3),
 } eSpaceImageOverlay_Flag;
 
 /** #SpaceImage.gizmo_flag */
@@ -849,6 +858,13 @@ typedef enum eSpaceNode_Flag {
   SNODE_FLAG_UNUSED_12 = (1 << 13),
 } eSpaceNode_Flag;
 
+/** #SpaceNode.gizmo_flag */
+enum {
+  /** All gizmos. */
+  SNODE_GIZMO_HIDE = (1 << 0),
+  SNODE_GIZMO_HIDE_ACTIVE_NODE = (1 << 1),
+};
+
 /** #SpaceNode.texfrom */
 typedef enum eSpaceNode_TexFrom {
   /* SNODE_TEX_OBJECT   = 0, */
@@ -864,11 +880,17 @@ typedef enum eSpaceNode_ShaderFrom {
   SNODE_SHADER_LINESTYLE = 2,
 } eSpaceNode_ShaderFrom;
 
-/** #SpaceNode.geometry_nodes_type */
+/** #SpaceNode.nodes_type */
 typedef enum SpaceNodeGeometryNodesType {
   SNODE_GEOMETRY_MODIFIER = 0,
   SNODE_GEOMETRY_TOOL = 1,
 } SpaceNodeGeometryNodesType;
+
+/** #SpaceNode.nodes_type */
+typedef enum SpaceNodeCompositorNodesType {
+  SNODE_COMPOSITOR_SCENE = 0,
+  SNODE_COMPOSITOR_SEQUENCER = 1,
+} SpaceNodeCompositorNodesType;
 
 /** #SpaceNode.insert_ofs_dir */
 enum {
@@ -897,6 +919,12 @@ typedef enum eConsoleLine_Type {
 /** \name Motion Tracking
  * \{ */
 
+/** #SpaceClipOverlay.flag */
+typedef enum eSpaceClipOverlay_Flag {
+  SC_SHOW_OVERLAYS = (1 << 0),
+  SC_SHOW_CURSOR = (1 << 1),
+} eSpaceClipOverlay_Flag;
+
 /** #SpaceClip.flag */
 typedef enum eSpaceClip_Flag {
   SC_SHOW_MARKER_PATTERN = (1 << 0),
@@ -915,7 +943,7 @@ typedef enum eSpaceClip_Flag {
   SC_SHOW_FILTERS = (1 << 13),
   SC_SHOW_GRAPH_FRAMES = (1 << 14),
   SC_SHOW_GRAPH_TRACKS_MOTION = (1 << 15),
-  /*  SC_SHOW_PYRAMID_LEVELS      = (1 << 16), */ /* UNUSED */
+  // SC_SHOW_PYRAMID_LEVELS = (1 << 16), /* UNUSED */
   SC_LOCK_TIMECURSOR = (1 << 17),
   SC_SHOW_SECONDS = (1 << 18),
   SC_SHOW_GRAPH_SEL_ONLY = (1 << 19),
@@ -959,8 +987,17 @@ enum {
  * \{ */
 
 typedef enum eSpaceSpreadsheet_Flag {
+  /**
+   * Spreadsheet context is pinned and does not does not change when the context changes (unless
+   * the pinned context does not exist anymore).
+   */
   SPREADSHEET_FLAG_PINNED = (1 << 0),
-  SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED = (1 << 1),
+  /**
+   * Not used anymore, just kept so the flag is not accidentally reused without clearing it in
+   * versioning first.
+   */
+  SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED_LEGACY = (1 << 1),
+  SPREADSHEET_FLAG_SHOW_INTERNAL_ATTRIBUTES = (1 << 2),
 } eSpaceSpreadsheet_Flag;
 
 typedef enum eSpaceSpreadsheet_FilterFlag {
@@ -1007,7 +1044,32 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_INT32_2D = 10,
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
+  SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM = 13,
+  SPREADSHEET_VALUE_TYPE_INT64 = 14,
+  SPREADSHEET_VALUE_TYPE_INT32_3D = 15,
 } eSpreadsheetColumnValueType;
+
+typedef enum eSpreadsheetColumnFlag {
+  /**
+   * There is no data for this column currently, so it's not displayed. However, it is still kept
+   * around so that the column remembers its position and width when the data becomes available
+   * again.
+   */
+  SPREADSHEET_COLUMN_FLAG_UNAVAILABLE = (1 << 0),
+} eSpreadsheetColumnFlag;
+
+typedef enum eSpreadsheetTableIDType {
+  /** This table uses the #SpreadsheetTableIDGeometry key. */
+  SPREADSHEET_TABLE_ID_TYPE_GEOMETRY = 0,
+} eSpreadsheetTableType;
+
+typedef enum eSpreadsheetTableFlag {
+  /**
+   * If a generated table has never been manually edited (e.g. changing column order), it can be
+   * discarded when it's no longer displayed.
+   */
+  SPREADSHEET_TABLE_FLAG_MANUALLY_EDITED = (1 << 0),
+} eSpreadsheetTableFlag;
 
 /**
  * We can't just use UI_UNIT_X, because it does not take `widget.points` into account, which

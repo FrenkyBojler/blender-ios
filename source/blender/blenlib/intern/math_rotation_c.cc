@@ -881,7 +881,7 @@ void interp_dot_slerp(const float t, const float cosom, float r_w[2])
     r_w[1] = sinf(t * omega) / sinom;
   }
   else {
-    /* fallback to lerp */
+    /* fall back to lerp */
     r_w[0] = 1.0f - t;
     r_w[1] = t;
   }
@@ -2090,7 +2090,7 @@ void add_weighted_dq_dq(DualQuat *dq_sum, const DualQuat *dq, float weight)
       weight = -weight;
     }
 
-    copy_m4_m4(wmat, (float(*)[4])dq->scale);
+    copy_m4_m4(wmat, (float (*)[4])dq->scale);
     mul_m4_fl(wmat, weight);
     add_m4_m4m4(dq_sum->scale, dq_sum->scale, wmat);
     dq_sum->scale_weight += weight;

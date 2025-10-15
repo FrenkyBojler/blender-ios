@@ -25,6 +25,7 @@
 
 #include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"
+#include "SEQ_preview_cache.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_thumbnail_cache.hh"
@@ -51,6 +52,19 @@ void cache_cleanup(Scene *scene)
   source_image_cache_clear(scene);
   final_image_cache_clear(scene);
   intra_frame_cache_invalidate(scene);
+  preview_cache_invalidate(scene);
+}
+
+void cache_settings_changed(Scene *scene)
+{
+  if (!(scene->ed->cache_flag & SEQ_CACHE_STORE_RAW)) {
+    /* RAW caches has been disabled, clear them out. */
+    source_image_cache_clear(scene);
+  }
+  if (!(scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT)) {
+    /* Final caches has been disabled, clear them out. */
+    final_image_cache_clear(scene);
+  }
 }
 
 bool is_cache_full(const Scene *scene)
@@ -58,6 +72,52 @@ bool is_cache_full(const Scene *scene)
   size_t cache_limit = size_t(U.memcachelimit) * 1024 * 1024;
   return source_image_cache_calc_memory_size(scene) + final_image_cache_calc_memory_size(scene) >
          cache_limit;
+}
+
+bool evict_caches_if_full(Scene *scene)
+{
+  if (!is_cache_full(scene)) {
+    /* Cache is not full, we don't have to evict anything. */
+    return false;
+  }
+
+  /* Cache is full, so we want to remove some images. We always try to remove one final image,
+   * and some amount of source images for each final image, so that ratio of cached images
+   * stays the same. Depending on the frame composition complexity, there can be lots of
+   * source images cached for a single final frame; if we only removed one source image
+   * we'd eventually have the cache still filled only with source images. */
+  bool evicted_final = false;
+  bool evicted_source = false;
+  do {
+    const size_t count_final = final_image_cache_get_image_count(scene);
+    const size_t count_source = source_image_cache_get_image_count(scene);
+    evicted_final = false;
+    evicted_source = false;
+    const bool final_active = scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT;
+    /* Evict one final item, and as much from source as needed to maintain ratio. */
+    if (count_final != 0) {
+      evicted_final = final_image_cache_evict(scene);
+    }
+    /* Only remove source images if there's more of them than final ones. */
+    if (count_source != 0 && (!final_active || count_source > count_final)) {
+      evicted_source = source_image_cache_evict(scene);
+      /* Only try to enforce the ratio when the final cache is active. */
+      if (evicted_source && final_active) {
+        const size_t items = divide_ceil_ul(count_source, std::max<size_t>(count_final, 1));
+        /* Start at "1" to make sure we only try to evict more frames if the ratio is above 1:1. */
+        for (size_t i = 1; i < items; i++) {
+          if (!source_image_cache_evict(scene)) {
+            /* Can't evict any more frames, stop. */
+            break;
+          }
+        }
+      }
+    }
+
+  } while (is_cache_full(scene) && (evicted_final || evicted_source));
+
+  /* Did we evict anything to free up the cache? */
+  return !(evicted_final || evicted_source);
 }
 
 static void invalidate_final_cache_strip_range(Scene *scene, const Strip *strip)
@@ -85,10 +145,6 @@ void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 
 void relations_invalidate_cache(Scene *scene, Strip *strip)
 {
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
-    return;
-  }
-
   if (strip->effectdata && strip->type == STRIP_TYPE_SPEED) {
     strip_effect_speed_rebuild_map(scene, strip);
   }
@@ -97,33 +153,32 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
 
   invalidate_final_cache_strip_range(scene, strip);
   intra_frame_cache_invalidate(scene, strip);
+  preview_cache_invalidate(scene);
   invalidate_raw_cache_of_parent_meta(scene, strip);
 
+  /* Needed to update VSE sound. */
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   prefetch_stop(scene);
 }
 
-static void invalidate_scene_strips(Scene *scene, Scene *scene_target, ListBase *seqbase)
+void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_target)
 {
-  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next)
-  {
-    if (strip->scene == scene_target) {
-      relations_invalidate_cache_raw(scene, strip);
-    }
-
-    if (strip->seqbase.first != nullptr) {
-      invalidate_scene_strips(scene, scene_target, &strip->seqbase);
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      for (Strip *strip : lookup_strips_by_scene(editing_get(scene), scene_target)) {
+        relations_invalidate_cache_raw(scene, strip);
+      }
     }
   }
 }
 
-void relations_invalidate_scene_strips(Main *bmain, Scene *scene_target)
+void relations_invalidate_compositor_modifiers(const Main *bmain, const bNodeTree *node_tree)
 {
-  for (Scene *scene = static_cast<Scene *>(bmain->scenes.first); scene != nullptr;
-       scene = static_cast<Scene *>(scene->id.next))
-  {
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     if (scene->ed != nullptr) {
-      invalidate_scene_strips(scene, scene_target, &scene->ed->seqbase);
+      for (Strip *strip : lookup_strips_by_compositor_node_group(editing_get(scene), node_tree)) {
+        relations_invalidate_cache(scene, strip);
+      }
     }
   }
 }
@@ -353,7 +408,7 @@ void relations_check_uids_unique_and_report(const Scene *scene)
   GSet *used_uids = BLI_gset_new(
       BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
 
-  for_each_callback(&scene->ed->seqbase, get_uids_cb, used_uids);
+  foreach_strip(&scene->ed->seqbase, get_uids_cb, used_uids);
 
   BLI_gset_free(used_uids, nullptr);
 }

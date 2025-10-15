@@ -16,7 +16,6 @@
 #include "DNA_listBase.h"
 
 struct AnimData;
-struct Ipo;
 
 /**
  * The struct that holds the data for an individual Shape Key. Depending on which object owns the
@@ -51,10 +50,10 @@ typedef struct KeyBlock {
   /** Array of shape key values, size is `(Key::elemsize * KeyBlock->totelem)`.
    * E.g. meshes use float3. */
   void *data;
-  /** MAX_NAME (unique name, user assigned). */
-  char name[64];
-  /** MAX_VGROUP_NAME (optional vertex group), array gets allocated into 'weights' when set. */
-  char vgroup[64];
+  /** Unique name, user assigned. */
+  char name[/*MAX_NAME*/ 64];
+  /** Optional vertex group, array gets allocated into 'weights' when set. */
+  char vgroup[/*MAX_VGROUP_NAME*/ 64];
 
   /** Ranges, for RNA and UI only to clamp 'curval'. */
   float slidermin;
@@ -90,8 +89,6 @@ typedef struct Key {
 
   /** A list of KeyBlock's. */
   ListBase block;
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
 
   ID *from;
 

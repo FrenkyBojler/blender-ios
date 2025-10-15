@@ -13,7 +13,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 static void keymap_item_modified(bContext * /*C*/, void *kmi_p, void * /*unused*/)
@@ -49,7 +49,7 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
     }
 
     uiLayout *box = &flow->box();
-    uiLayoutSetActive(box, is_set);
+    box->active_set(is_set);
     uiLayout *row = &box->row(false);
 
     /* property value */
@@ -57,12 +57,12 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
 
     if (is_set) {
       /* unset operator */
-      uiBlock *block = uiLayoutGetBlock(row);
+      uiBlock *block = row->block();
       UI_block_emboss_set(block, blender::ui::EmbossType::None);
       but = uiDefIconButO(block,
-                          UI_BTYPE_BUT,
+                          ButType::But,
                           "UI_OT_unset_property_button",
-                          WM_OP_EXEC_DEFAULT,
+                          blender::wm::OpCallContext::ExecDefault,
                           ICON_X,
                           0,
                           0,
@@ -82,8 +82,8 @@ void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr)
   PointerRNA propptr = RNA_pointer_get(ptr, "properties");
 
   if (propptr.data) {
-    uiBlock *block = uiLayoutGetBlock(layout);
-    int i = uiLayoutGetBlock(layout)->buttons.size() - 1;
+    uiBlock *block = layout->block();
+    int i = layout->block()->buttons.size() - 1;
 
     WM_operator_properties_sanitize(&propptr, false);
     template_keymap_item_properties(layout, nullptr, &propptr);

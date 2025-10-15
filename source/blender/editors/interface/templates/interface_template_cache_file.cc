@@ -7,8 +7,8 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
@@ -25,7 +25,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 using blender::StringRefNull;
@@ -37,65 +37,10 @@ void uiTemplateCacheFileVelocity(uiLayout *layout, PointerRNA *fileptr)
   }
 
   /* Ensure that the context has a CacheFile as this may not be set inside of modifiers panels. */
-  uiLayoutSetContextPointer(layout, "edit_cachefile", fileptr);
+  layout->context_ptr_set("edit_cachefile", fileptr);
 
   layout->prop(fileptr, "velocity_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(fileptr, "velocity_unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-}
-
-void uiTemplateCacheFileProcedural(uiLayout *layout, const bContext *C, PointerRNA *fileptr)
-{
-  if (RNA_pointer_is_null(fileptr)) {
-    return;
-  }
-
-  /* Ensure that the context has a CacheFile as this may not be set inside of modifiers panels. */
-  uiLayoutSetContextPointer(layout, "edit_cachefile", fileptr);
-
-  uiLayout *row, *sub;
-
-  /* Only enable render procedural option if the active engine supports it. */
-  const RenderEngineType *engine_type = CTX_data_engine_type(C);
-
-  Scene *scene = CTX_data_scene(C);
-  const bool engine_supports_procedural = RE_engine_supports_alembic_procedural(engine_type,
-                                                                                scene);
-  CacheFile *cache_file = static_cast<CacheFile *>(fileptr->data);
-  CacheFile *cache_file_eval = DEG_get_evaluated(CTX_data_depsgraph_pointer(C), cache_file);
-  bool is_alembic = cache_file_eval->type == CACHEFILE_TYPE_ALEMBIC;
-
-  if (!is_alembic) {
-    row = &layout->row(false);
-    row->label(RPT_("Only Alembic Procedurals supported"), ICON_INFO);
-  }
-  else if (!engine_supports_procedural) {
-    row = &layout->row(false);
-    /* For Cycles, verify that experimental features are enabled. */
-    if (BKE_scene_uses_cycles(scene) && !BKE_scene_uses_cycles_experimental_features(scene)) {
-      row->label(
-          RPT_(
-              "The Cycles Alembic Procedural is only available with the experimental feature set"),
-          ICON_INFO);
-    }
-    else {
-      row->label(RPT_("The active render engine does not have an Alembic Procedural"), ICON_INFO);
-    }
-  }
-
-  row = &layout->row(false);
-  uiLayoutSetActive(row, is_alembic && engine_supports_procedural);
-  row->prop(fileptr, "use_render_procedural", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-  const bool use_render_procedural = RNA_boolean_get(fileptr, "use_render_procedural");
-  const bool use_prefetch = RNA_boolean_get(fileptr, "use_prefetch");
-
-  row = &layout->row(false);
-  uiLayoutSetEnabled(row, use_render_procedural);
-  row->prop(fileptr, "use_prefetch", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-  sub = &layout->row(false);
-  uiLayoutSetEnabled(sub, use_prefetch && use_render_procedural);
-  sub->prop(fileptr, "prefetch_cache_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void uiTemplateCacheFileTimeSettings(uiLayout *layout, PointerRNA *fileptr)
@@ -105,7 +50,7 @@ void uiTemplateCacheFileTimeSettings(uiLayout *layout, PointerRNA *fileptr)
   }
 
   /* Ensure that the context has a CacheFile as this may not be set inside of modifiers panels. */
-  uiLayoutSetContextPointer(layout, "edit_cachefile", fileptr);
+  layout->context_ptr_set("edit_cachefile", fileptr);
 
   uiLayout *row, *sub, *subsub;
 
@@ -114,16 +59,16 @@ void uiTemplateCacheFileTimeSettings(uiLayout *layout, PointerRNA *fileptr)
 
   row = &layout->row(true, IFACE_("Override Frame"));
   sub = &row->row(true);
-  uiLayoutSetPropDecorate(sub, false);
+  sub->use_property_decorate_set(false);
   sub->prop(fileptr, "override_frame", UI_ITEM_NONE, "", ICON_NONE);
   subsub = &sub->row(true);
-  uiLayoutSetActive(subsub, RNA_boolean_get(fileptr, "override_frame"));
+  subsub->active_set(RNA_boolean_get(fileptr, "override_frame"));
   subsub->prop(fileptr, "frame", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemDecoratorR(row, fileptr, "frame", 0);
+  row->decorator(fileptr, "frame", 0);
 
   row = &layout->row(false);
   row->prop(fileptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiLayoutSetActive(row, !RNA_boolean_get(fileptr, "is_sequence"));
+  row->active_set(!RNA_boolean_get(fileptr, "is_sequence"));
 }
 
 static void cache_file_layer_item(uiList * /*ui_list*/,
@@ -146,7 +91,7 @@ uiListType *UI_UL_cache_file_layers()
 {
   uiListType *list_type = (uiListType *)MEM_callocN(sizeof(*list_type), __func__);
 
-  STRNCPY(list_type->idname, "UI_UL_cache_file_layers");
+  STRNCPY_UTF8(list_type->idname, "UI_UL_cache_file_layers");
   list_type->draw_item = cache_file_layer_item;
 
   return list_type;
@@ -159,7 +104,7 @@ void uiTemplateCacheFileLayers(uiLayout *layout, const bContext *C, PointerRNA *
   }
 
   /* Ensure that the context has a CacheFile as this may not be set inside of modifiers panels. */
-  uiLayoutSetContextPointer(layout, "edit_cachefile", fileptr);
+  layout->context_ptr_set("edit_cachefile", fileptr);
 
   uiLayout *row = &layout->row(false);
   uiLayout *col = &row->column(true);
@@ -233,7 +178,7 @@ void uiTemplateCacheFile(uiLayout *layout,
 
   CacheFile *file = static_cast<CacheFile *>(fileptr.data);
 
-  uiLayoutSetContextPointer(layout, "edit_cachefile", &fileptr);
+  layout->context_ptr_set("edit_cachefile", &fileptr);
 
   uiTemplateID(layout, C, ptr, propname, nullptr, "CACHEFILE_OT_open", nullptr);
 
@@ -245,7 +190,7 @@ void uiTemplateCacheFile(uiLayout *layout,
 
   uiLayout *row, *sub;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   row = &layout->row(true);
   row->prop(&fileptr, "filepath", UI_ITEM_NONE, std::nullopt, ICON_NONE);

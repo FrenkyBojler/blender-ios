@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -18,8 +17,7 @@
 #include "DNA_color_types.h"
 
 #include "BKE_colortools.hh"
-
-#include "UI_interface.hh"
+#include "BKE_node.hh"
 
 #include "GPU_material.hh"
 
@@ -34,10 +32,10 @@ namespace blender::nodes::node_composite_time_curves_cc {
 
 static void cmp_node_time_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("Start Frame").default_value(1).compositor_expects_single_value();
-  b.add_input<decl::Int>("End Frame").default_value(250).compositor_expects_single_value();
+  b.add_input<decl::Int>("Start Frame").default_value(1);
+  b.add_input<decl::Int>("End Frame").default_value(250);
 
-  b.add_output<decl::Float>("Fac");
+  b.add_output<decl::Float>("Factor", "Fac");
 }
 
 static void node_composit_init_curves_time(bNodeTree * /*ntree*/, bNode *node)
@@ -125,133 +123,22 @@ static void register_node_type_cmp_curve_time()
 }
 NOD_REGISTER_NODE(register_node_type_cmp_curve_time)
 
-/* **************** CURVE VEC  ******************** */
-
-namespace blender::nodes::node_composite_vector_curves_cc {
-
-static void cmp_node_curve_vec_declare(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Vector>("Vector")
-      .default_value({0.0f, 0.0f, 0.0f})
-      .min(-1.0f)
-      .max(1.0f)
-      .compositor_domain_priority(0);
-  b.add_output<decl::Vector>("Vector");
-}
-
-static void node_composit_init_curve_vec(bNodeTree * /*ntree*/, bNode *node)
-{
-  node->storage = BKE_curvemapping_add(3, -1.0f, -1.0f, 1.0f, 1.0f);
-}
-
-static void node_buts_curvevec(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiTemplateCurveMapping(layout, ptr, "mapping", 'v', false, false, false, false);
-}
-
-using namespace blender::compositor;
-
-static CurveMapping *get_curve_mapping(const bNode &node)
-{
-  return static_cast<CurveMapping *>(node.storage);
-}
-
-static int node_gpu_material(GPUMaterial *material,
-                             bNode *node,
-                             bNodeExecData * /*execdata*/,
-                             GPUNodeStack *inputs,
-                             GPUNodeStack *outputs)
-{
-  CurveMapping *curve_mapping = get_curve_mapping(*node);
-
-  BKE_curvemapping_init(curve_mapping);
-  float *band_values;
-  int band_size;
-  BKE_curvemapping_table_RGBA(curve_mapping, &band_values, &band_size);
-  float band_layer;
-  GPUNodeLink *band_texture = GPU_color_band(material, band_size, band_values, &band_layer);
-
-  float start_slopes[CM_TOT];
-  float end_slopes[CM_TOT];
-  BKE_curvemapping_compute_slopes(curve_mapping, start_slopes, end_slopes);
-  float range_minimums[CM_TOT];
-  BKE_curvemapping_get_range_minimums(curve_mapping, range_minimums);
-  float range_dividers[CM_TOT];
-  BKE_curvemapping_compute_range_dividers(curve_mapping, range_dividers);
-
-  return GPU_stack_link(material,
-                        node,
-                        "curves_vector",
-                        inputs,
-                        outputs,
-                        band_texture,
-                        GPU_constant(&band_layer),
-                        GPU_uniform(range_minimums),
-                        GPU_uniform(range_dividers),
-                        GPU_uniform(start_slopes),
-                        GPU_uniform(end_slopes));
-}
-
-static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
-{
-  CurveMapping *curve_mapping = get_curve_mapping(builder.node());
-  BKE_curvemapping_init(curve_mapping);
-
-  builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI1_SO<float3, float3>(
-        "Vector Curves",
-        [=](const float3 &vector) -> float3 {
-          float3 output_vector = float3(0.0f);
-          BKE_curvemapping_evaluate3F(curve_mapping, output_vector, vector);
-          return output_vector;
-        },
-        mf::build::exec_presets::AllSpanOrSingle());
-  });
-}
-
-}  // namespace blender::nodes::node_composite_vector_curves_cc
-
-static void register_node_type_cmp_curve_vec()
-{
-  namespace file_ns = blender::nodes::node_composite_vector_curves_cc;
-
-  static blender::bke::bNodeType ntype;
-
-  cmp_node_type_base(&ntype, "CompositorNodeCurveVec", CMP_NODE_CURVE_VEC);
-  ntype.ui_name = "Vector Curves";
-  ntype.ui_description = "Map input vector components with curves";
-  ntype.enum_name_legacy = "CURVE_VEC";
-  ntype.nclass = NODE_CLASS_OP_VECTOR;
-  ntype.declare = file_ns::cmp_node_curve_vec_declare;
-  ntype.draw_buttons = file_ns::node_buts_curvevec;
-  blender::bke::node_type_size(ntype, 200, 140, 320);
-  ntype.initfunc = file_ns::node_composit_init_curve_vec;
-  blender::bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
-  ntype.gpu_fn = file_ns::node_gpu_material;
-  ntype.build_multi_function = file_ns::node_build_multi_function;
-  ntype.gather_link_search_ops = nullptr;
-
-  blender::bke::node_register_type(ntype);
-}
-NOD_REGISTER_NODE(register_node_type_cmp_curve_vec)
-
 /* **************** CURVE RGB  ******************** */
 
 namespace blender::nodes::node_composite_rgb_curves_cc {
 
 static void cmp_node_rgbcurves_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Fac")
+  b.is_function_node();
+  b.add_input<decl::Color>("Image")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .description("Image/Color input on which RGB color transformation will be applied");
+  b.add_input<decl::Float>("Factor", "Fac")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(1)
       .description("Amount of influence the node exerts on the image");
-  b.add_input<decl::Color>("Image")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0)
-      .description("Image/Color input on which RGB color transformation will be applied");
   b.add_input<decl::Color>("Black Level")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
       .description("Input color that should be mapped to black");
@@ -299,7 +186,7 @@ static int node_gpu_material(GPUMaterial *material,
   if (curve_mapping->tone == CURVE_TONE_FILMLIKE) {
     return GPU_stack_link(material,
                           node,
-                          "curves_film_like",
+                          "curves_film_like_compositor",
                           inputs,
                           outputs,
                           band_texture,
@@ -326,7 +213,7 @@ static int node_gpu_material(GPUMaterial *material,
   {
     return GPU_stack_link(material,
                           node,
-                          "curves_combined_only",
+                          "curves_combined_only_compositor",
                           inputs,
                           outputs,
                           band_texture,
@@ -339,7 +226,7 @@ static int node_gpu_material(GPUMaterial *material,
 
   return GPU_stack_link(material,
                         node,
-                        "curves_combined_rgb",
+                        "curves_combined_rgb_compositor",
                         inputs,
                         outputs,
                         band_texture,
@@ -357,9 +244,9 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   BKE_curvemapping_premultiply(curve_mapping, false);
 
   builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI4_SO<float, float4, float4, float4, float4>(
+    return mf::build::SI4_SO<float4, float, float4, float4, float4>(
         "RGB Curves",
-        [=](const float factor, const float4 &color, const float4 &black, const float4 &white)
+        [=](const float4 &color, const float factor, const float4 &black, const float4 &white)
             -> float4 {
           float3 black_white_scale;
           BKE_curvemapping_set_black_white_ex(black, white, black_white_scale);
@@ -370,7 +257,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
           return float4(math::interpolate(color.xyz(), result, math::clamp(factor, 0.0f, 1.0f)),
                         color.w);
         },
-        mf::build::exec_presets::SomeSpanOrSingle<1>());
+        mf::build::exec_presets::SomeSpanOrSingle<0>());
   });
 }
 

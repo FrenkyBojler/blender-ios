@@ -12,6 +12,7 @@
 #include "BKE_texture.h"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
+#include "BKE_volume_grid_process.hh"
 #include "BKE_volume_openvdb.hh"
 
 #include "BLT_translation.hh"
@@ -24,6 +25,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "MOD_ui_common.hh"
@@ -97,7 +99,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   VolumeDisplaceModifierData *vdmd = static_cast<VolumeDisplaceModifierData *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
   layout->prop(ptr, "texture_map_mode", UI_ITEM_NONE, IFACE_("Texture Mapping"), ICON_NONE);
@@ -204,7 +206,7 @@ struct DisplaceGridOp {
     typename GridType::Ptr temp_grid = grid.deepCopy();
 
     /* Dilate grid, because the currently inactive cells might become active during the displace
-     * operation. The quality of the approximation of the has a big impact on performance. */
+     * operation. The quality of the approximation of this has a big impact on performance. */
     const float max_voxel_side_length = get_max_voxel_side_length(grid);
     const float sample_radius = vdmd.texture_sample_radius * std::abs(vdmd.strength) /
                                 max_voxel_side_length / 2.0f;
@@ -234,7 +236,7 @@ struct DisplaceGridOp {
      * slowing down subsequent operations. */
     typename GridType::ValueType prune_tolerance{0};
     openvdb::tools::deactivate(*temp_grid, temp_grid->background(), prune_tolerance);
-    openvdb::tools::prune(temp_grid->tree());
+    blender::bke::volume_grid::prune_inactive(*temp_grid);
 
     /* Overwrite the old volume grid with the new grid. */
     grid.clear();
@@ -289,6 +291,7 @@ static void displace_volume(ModifierData *md, const ModifierEvalContext *ctx, Vo
 
     DisplaceGridOp displace_grid_op{grid, *vdmd, *ctx};
     BKE_volume_grid_type_operation(grid_type, displace_grid_op);
+    volume_grid->tag_tree_modified();
   }
 
 #else
@@ -340,4 +343,5 @@ ModifierTypeInfo modifierType_VolumeDisplace = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

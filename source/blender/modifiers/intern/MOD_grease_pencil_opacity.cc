@@ -17,7 +17,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -134,7 +134,7 @@ static void modify_fill_color(const GreasePencilOpacityModifierData &omd,
   bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
       "fill_opacity",
       bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, curves.curves_num())));
+      bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, omd.influence);
 
@@ -230,7 +230,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   const GreasePencilModifierColorMode color_mode = GreasePencilModifierColorMode(
       RNA_enum_get(ptr, "color_mode"));
@@ -248,11 +248,11 @@ static void panel_draw(const bContext *C, Panel *panel)
     const char *text = (use_uniform_opacity) ? IFACE_("Opacity") : IFACE_("Opacity Factor");
 
     uiLayout *row = &layout->row(true);
-    uiLayoutSetActive(row, !use_weight_as_factor || use_uniform_opacity);
+    row->active_set(!use_weight_as_factor || use_uniform_opacity);
     row->prop(ptr, "color_factor", UI_ITEM_NONE, text, ICON_NONE);
     if (!use_uniform_opacity) {
       uiLayout *sub = &row->row(true);
-      uiLayoutSetActive(sub, true);
+      sub->active_set(true);
       row->prop(ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
     }
   }
@@ -325,4 +325,5 @@ ModifierTypeInfo modifierType_GreasePencilOpacity = {
     /*blend_write*/ blender::blend_write,
     /*blend_read*/ blender::blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

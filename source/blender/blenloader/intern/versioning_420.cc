@@ -28,6 +28,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_anim_data.hh"
 #include "BKE_colortools.hh"
@@ -37,6 +38,7 @@
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_report.hh"
 
 #include "MOV_enums.hh"
 
@@ -350,7 +352,7 @@ static bool versioning_eevee_material_blend_mode_settings(bNodeTree *ntree, floa
 
       bNode *math_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMath");
       math_node->custom1 = NODE_MATH_GREATER_THAN;
-      math_node->flag |= NODE_HIDDEN;
+      math_node->flag |= NODE_COLLAPSED;
       math_node->parent = to_node->parent;
       math_node->locx_legacy = to_node->locx_legacy - math_node->width - 30;
       math_node->locy_legacy = min_ff(to_node->locy_legacy, from_node->locy_legacy);
@@ -446,7 +448,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
   /* Add mix node for mixing between original material, and transparent BSDF for shadows */
   bNode *mix_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeMixShader");
   STRNCPY(mix_node->label, "Disable Shadow");
-  mix_node->flag |= NODE_HIDDEN;
+  mix_node->flag |= NODE_COLLAPSED;
   mix_node->parent = output_node->parent;
   mix_node->locx_legacy = output_node->locx_legacy;
   mix_node->locy_legacy = output_node->locy_legacy - output_node->height - 120;
@@ -468,7 +470,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
 
   /* Add light path node to control shadow visibility */
   bNode *lp_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeLightPath");
-  lp_node->flag |= NODE_HIDDEN;
+  lp_node->flag |= NODE_COLLAPSED;
   lp_node->parent = output_node->parent;
   lp_node->locx_legacy = output_node->locx_legacy;
   lp_node->locy_legacy = mix_node->locy_legacy + 35;
@@ -483,7 +485,7 @@ static void versioning_eevee_material_shadow_none(Material *material)
 
   /* Add transparent BSDF to make shadows transparent. */
   bNode *bsdf_node = blender::bke::node_add_node(nullptr, *ntree, "ShaderNodeBsdfTransparent");
-  bsdf_node->flag |= NODE_HIDDEN;
+  bsdf_node->flag |= NODE_COLLAPSED;
   bsdf_node->parent = output_node->parent;
   bsdf_node->locx_legacy = output_node->locx_legacy;
   bsdf_node->locy_legacy = mix_node->locy_legacy - 35;
@@ -580,19 +582,14 @@ void do_versions_after_linking_420(FileData *fd, Main *bmain)
       }
     }
   }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 52)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      if (STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE)) {
-        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
-      }
-    }
-  }
 }
 
 static void image_settings_avi_to_ffmpeg(Scene *scene)
 {
-  if (ELEM(scene->r.im_format.imtype, R_IMF_IMTYPE_AVIRAW, R_IMF_IMTYPE_AVIJPEG)) {
+  /* R_IMF_IMTYPE_AVIRAW and R_IMF_IMTYPE_AVIJPEG. */
+  constexpr char deprecated_avi_raw_imtype = 15;
+  constexpr char deprecated_avi_jpeg_imtype = 16;
+  if (ELEM(scene->r.im_format.imtype, deprecated_avi_raw_imtype, deprecated_avi_jpeg_imtype)) {
     scene->r.im_format.imtype = R_IMF_IMTYPE_FFMPEG;
   }
 }
@@ -619,7 +616,7 @@ static void hue_correct_set_wrapping(CurveMapping *curve_mapping)
 static bool strip_hue_correct_set_wrapping(Strip *strip, void * /*user_data*/)
 {
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-    if (smd->type == seqModifierType_HueCorrect) {
+    if (smd->type == eSeqModifierType_HueCorrect) {
       HueCorrectModifierData *hcmd = (HueCorrectModifierData *)smd;
       CurveMapping *cumap = (CurveMapping *)&hcmd->curve_mapping;
       hue_correct_set_wrapping(cumap);
@@ -753,17 +750,20 @@ static void convert_grease_pencil_stroke_hardness_to_softness(GreasePencil *grea
     }
     bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
     const int layer_index = CustomData_get_named_layer_index(
-        &drawing.geometry.curve_data, CD_PROP_FLOAT, "hardness");
+        &drawing.geometry.curve_data_legacy, CD_PROP_FLOAT, "hardness");
     if (layer_index == -1) {
       continue;
     }
-    float *data = static_cast<float *>(CustomData_get_layer_named_for_write(
-        &drawing.geometry.curve_data, CD_PROP_FLOAT, "hardness", drawing.geometry.curve_num));
+    float *data = static_cast<float *>(
+        CustomData_get_layer_named_for_write(&drawing.geometry.curve_data_legacy,
+                                             CD_PROP_FLOAT,
+                                             "hardness",
+                                             drawing.geometry.curve_num));
     for (const int i : IndexRange(drawing.geometry.curve_num)) {
       data[i] = 1.0f - data[i];
     }
     /* Rename the layer. */
-    STRNCPY(drawing.geometry.curve_data.layers[layer_index].name, "softness");
+    STRNCPY_UTF8(drawing.geometry.curve_data_legacy.layers[layer_index].name, "softness");
   }
 }
 
@@ -881,7 +881,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 10)) {
     if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "gtao_resolution")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.gtao_resolution = 2;
+        scene->eevee.fast_gi_resolution = 2;
       }
     }
   }
@@ -894,8 +894,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
 
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_hue_correct_set_wrapping, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_hue_correct_set_wrapping, nullptr);
       }
     }
   }
@@ -960,18 +959,6 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
         scene->ed->show_missing_media_flag |= SEQ_EDIT_SHOW_MISSING_MEDIA;
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 23)) {
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *ts = scene->toolsettings;
-      if (!ts->uvsculpt.strength_curve) {
-        ts->uvsculpt.size = 50;
-        ts->uvsculpt.strength = 1.0f;
-        ts->uvsculpt.curve_preset = BRUSH_CURVE_SMOOTH;
-        ts->uvsculpt.strength_curve = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
       }
     }
   }
@@ -1054,8 +1041,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 28)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_proxies_timecode_update, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_proxies_timecode_update, nullptr);
       }
     }
 
@@ -1068,7 +1054,7 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 29)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_text_data_update, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_text_data_update, nullptr);
       }
     }
   }
@@ -1172,8 +1158,8 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
         /* Use the `Scene` radius unit by default (confusingly named `BRUSH_LOCK_SIZE`).
          * Convert the radius to be the same visual size as in GPv2. */
         brush->flag |= BRUSH_LOCK_SIZE;
-        brush->unprojected_radius = brush->size *
-                                    blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+        brush->unprojected_size = brush->size *
+                                  blender::bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
       }
     }
   }
@@ -1396,5 +1382,30 @@ void blo_do_versions_420(FileData *fd, Library * /*lib*/, Main *bmain)
                                          MA_SURFACE_METHOD_DEFERRED;
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 65)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+        if (node->type_legacy == CMP_NODE_DENOISE) {
+          if (node->storage == nullptr) {
+            /* Some known files were saved without a valid storage. These are likely corrupt files
+             * that have been produced by a non official blender release. The node type will be set
+             * to Undefined during linking, see #ntree_set_typeinfo. However, a valid storage might
+             * be needed for future versioning (before linking), see
+             * #do_version_denoise_menus_to_inputs so we set a valid storage at this stage such
+             * that the node becomes well defined. */
+            NodeDenoise *ndg = MEM_callocN<NodeDenoise>(__func__);
+            ndg->hdr = true;
+            ndg->prefilter = CMP_NODE_DENOISE_PREFILTER_ACCURATE;
+            node->storage = ndg;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 }

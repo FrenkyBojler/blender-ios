@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_bounds.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_string_utf8.h"
@@ -159,12 +160,13 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   BKE_mesh_nomain_to_mesh(new_mesh, mesh, ob);
+  /* Spatially organize the mesh after remesh. */
+  blender::bke::mesh_apply_spatial_organization(*mesh);
 
   if (ob->mode == OB_MODE_SCULPT) {
     sculpt_paint::undo::geometry_end(*ob);
     BKE_sculptsession_free_pbvh(*ob);
   }
-
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
@@ -271,7 +273,8 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
 
-  uint pos3d = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos3d = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_matrix_push();
   GPU_matrix_mul(cd->active_object->object_to_world().ptr());
@@ -447,15 +450,12 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
   cd->active_object = active_object;
   cd->init_mval[0] = event->mval[0];
   cd->init_mval[1] = event->mval[1];
-  cd->init_voxel_size = mesh->remesh_voxel_size;
-  cd->voxel_size = mesh->remesh_voxel_size;
   cd->slow_mode = false;
   op->customdata = cd;
 
   /* Select the front facing face of the mesh bounding box. */
   const Bounds<float3> bounds = *mesh->bounds_min_max();
-  BoundBox bb;
-  BKE_boundbox_init_from_minmax(&bb, bounds.min, bounds.max);
+  const std::array<float3, 8> bounds_box = bounds::corners(bounds);
 
   /* Indices of the Bounding Box faces. */
   const int BB_faces[6][4] = {
@@ -467,10 +467,10 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
       {2, 3, 7, 6},
   };
 
-  copy_v3_v3(cd->preview_plane[0], bb.vec[BB_faces[0][0]]);
-  copy_v3_v3(cd->preview_plane[1], bb.vec[BB_faces[0][1]]);
-  copy_v3_v3(cd->preview_plane[2], bb.vec[BB_faces[0][2]]);
-  copy_v3_v3(cd->preview_plane[3], bb.vec[BB_faces[0][3]]);
+  copy_v3_v3(cd->preview_plane[0], bounds_box[BB_faces[0][0]]);
+  copy_v3_v3(cd->preview_plane[1], bounds_box[BB_faces[0][1]]);
+  copy_v3_v3(cd->preview_plane[2], bounds_box[BB_faces[0][2]]);
+  copy_v3_v3(cd->preview_plane[3], bounds_box[BB_faces[0][3]]);
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -494,16 +494,18 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
 
   /* Check if there is a face that is more aligned towards the view. */
   for (int i = 0; i < 6; i++) {
-    normal_tri_v3(
-        current_normal, bb.vec[BB_faces[i][0]], bb.vec[BB_faces[i][1]], bb.vec[BB_faces[i][2]]);
+    normal_tri_v3(current_normal,
+                  bounds_box[BB_faces[i][0]],
+                  bounds_box[BB_faces[i][1]],
+                  bounds_box[BB_faces[i][2]]);
     current_dot = dot_v3v3(current_normal, view_normal);
 
     if (current_dot < min_dot) {
       min_dot = current_dot;
-      copy_v3_v3(cd->preview_plane[0], bb.vec[BB_faces[i][0]]);
-      copy_v3_v3(cd->preview_plane[1], bb.vec[BB_faces[i][1]]);
-      copy_v3_v3(cd->preview_plane[2], bb.vec[BB_faces[i][2]]);
-      copy_v3_v3(cd->preview_plane[3], bb.vec[BB_faces[i][3]]);
+      copy_v3_v3(cd->preview_plane[0], bounds_box[BB_faces[i][0]]);
+      copy_v3_v3(cd->preview_plane[1], bounds_box[BB_faces[i][1]]);
+      copy_v3_v3(cd->preview_plane[2], bounds_box[BB_faces[i][2]]);
+      copy_v3_v3(cd->preview_plane[3], bounds_box[BB_faces[i][3]]);
     }
   }
 
@@ -513,6 +515,9 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
                               len_v3v3(cd->preview_plane[3], cd->preview_plane[0])) *
                        0.5f;
   cd->voxel_size_min = cd->voxel_size_max / VOXEL_SIZE_EDIT_MAX_GRIDS_LINES;
+  cd->init_voxel_size = clamp_f(
+      mesh->remesh_voxel_size, max_ff(cd->voxel_size_min, 0.0001f), cd->voxel_size_max);
+  cd->voxel_size = cd->init_voxel_size;
 
   /* Matrix calculation to position the text in 3D space. */
   float text_pos[3];
@@ -910,7 +915,6 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
     sculpt_paint::undo::geometry_end(*ob);
     BKE_sculptsession_free_pbvh(*ob);
   }
-
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
 
   worker_status->do_update = true;
@@ -924,12 +928,14 @@ static void quadriflow_end_job(void *customdata)
   Object *ob = qj->owner;
 
   if (qj->is_nonblocking_job) {
-    WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
+    WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
   }
 
   ReportList *reports = qj->worker_status->reports;
   switch (qj->status) {
     case QUADRIFLOW_STATUS_SUCCESS:
+      /* Spatially organize the mesh after remesh. */
+      bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       BKE_reportf(reports, RPT_INFO, "QuadriFlow: Remeshing completed");
       break;
@@ -1007,7 +1013,7 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
     wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                                 CTX_wm_window(C),
                                 CTX_data_scene(C),
-                                "QuadriFlow Remesh",
+                                "Remeshing with QuadriFlow...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_QUADRIFLOW_REMESH);
 
@@ -1015,7 +1021,7 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
     WM_jobs_timer(wm_job, 0.1, NC_GEOM | ND_DATA, NC_GEOM | ND_DATA);
     WM_jobs_callbacks(wm_job, quadriflow_start_job, nullptr, nullptr, quadriflow_end_job);
 
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_locked_interface_set(CTX_wm_manager(C), true);
 
     WM_jobs_start(CTX_wm_manager(C), wm_job);
   }

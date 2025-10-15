@@ -25,6 +25,7 @@ set(SRC
   spreadsheet_panels.cc
   spreadsheet_row_filter.cc
   spreadsheet_row_filter_ui.cc
+  spreadsheet_table.cc
 
   spreadsheet_column.hh
   spreadsheet_column_values.hh
@@ -36,6 +37,7 @@ set(SRC
   spreadsheet_layout.hh
   spreadsheet_row_filter.hh
   spreadsheet_row_filter_ui.hh
+  spreadsheet_table.hh
 )
 
 set(LIB
@@ -54,19 +56,6 @@ set(LIB
   PRIVATE bf::nodes
   PRIVATE bf::windowmanager
 )
-
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-endif()
 
 blender_add_lib(bf_editor_space_spreadsheet "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 

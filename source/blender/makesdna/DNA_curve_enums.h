@@ -119,7 +119,7 @@ enum {
   CU_PRIM_CURVE = 0x100,
   /* 8 points circle */
   CU_PRIM_CIRCLE = 0x200,
-  /* 4x4 patch Nurb */
+  /* 4x4 patch NURB. */
   CU_PRIM_PATCH = 0x300,
   CU_PRIM_TUBE = 0x400,
   CU_PRIM_SPHERE = 0x500,
@@ -213,19 +213,20 @@ typedef enum eBezTriple_KeyframeType {
 
 /* *************** CHARINFO **************** */
 
-/** #CharInfo.flag */
+/**
+ * #CharInfo.flag
+ *
+ * \note This must *not* be used for run-time / evaluation flags.
+ * If this is needed, see: #CharTrans.
+ */
 enum {
-  /* NOTE: CU_CHINFO_WRAP, CU_CHINFO_SMALLCAPS_TEST and CU_CHINFO_TRUNCATE are set dynamically. */
   CU_CHINFO_BOLD = 1 << 0,
   CU_CHINFO_ITALIC = 1 << 1,
   CU_CHINFO_UNDERLINE = 1 << 2,
-  /** Word-wrap occurred here. */
-  CU_CHINFO_WRAP = 1 << 3,
+  CU_CHINFO_UNUSED_3 = 1 << 3, /* Dirty. */
   CU_CHINFO_SMALLCAPS = 1 << 4,
-  /** Set at runtime, checks if case switching is needed. */
-  CU_CHINFO_SMALLCAPS_CHECK = 1 << 5,
-  /** Set at runtime, indicates char that doesn't fit in text boxes. */
-  CU_CHINFO_OVERFLOW = 1 << 6,
+  CU_CHINFO_UNUSED_5 = 1 << 5, /* Dirty. */
+  CU_CHINFO_UNUSED_6 = 1 << 6, /* Dirty. */
 };
 
 /** User adjustable as styles (not relating to run-time layout calculation). */

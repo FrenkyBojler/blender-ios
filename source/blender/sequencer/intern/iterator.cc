@@ -39,9 +39,31 @@ static bool strip_for_each_recursive(ListBase *seqbase, ForEachFunc callback, vo
   return true;
 }
 
-void for_each_callback(ListBase *seqbase, ForEachFunc callback, void *user_data)
+static bool strip_for_each_recursive(ListBase *seqbase,
+                                     blender::FunctionRef<bool(Strip *)> callback)
+{
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (!callback(strip)) {
+      /* Callback signaled stop, return. */
+      return false;
+    }
+    if (strip->type == STRIP_TYPE_META) {
+      if (!strip_for_each_recursive(&strip->seqbase, callback)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void foreach_strip(ListBase *seqbase, ForEachFunc callback, void *user_data)
 {
   strip_for_each_recursive(seqbase, callback, user_data);
+}
+
+void foreach_strip(ListBase *seqbase, blender::FunctionRef<bool(Strip *)> callback)
+{
+  strip_for_each_recursive(seqbase, callback);
 }
 
 VectorSet<Strip *> query_by_reference(Strip *strip_reference,
@@ -93,6 +115,31 @@ VectorSet<Strip *> query_all_strips_recursive(const ListBase *seqbase)
   return strips;
 }
 
+static void query_strips_recursive_at_frame(const Scene *scene,
+                                            const ListBase *seqbase,
+                                            const int timeline_frame,
+                                            VectorSet<Strip *> &strips)
+{
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (!time_strip_intersects_frame(scene, strip, timeline_frame)) {
+      continue;
+    }
+    if (strip->type == STRIP_TYPE_META) {
+      query_strips_recursive_at_frame(scene, &strip->seqbase, timeline_frame, strips);
+    }
+    strips.add(strip);
+  }
+}
+
+VectorSet<Strip *> query_strips_recursive_at_frame(const Scene *scene,
+                                                   const ListBase *seqbase,
+                                                   const int timeline_frame)
+{
+  VectorSet<Strip *> strips;
+  query_strips_recursive_at_frame(scene, seqbase, timeline_frame, strips);
+  return strips;
+}
+
 VectorSet<Strip *> query_all_strips(ListBase *seqbase)
 {
   VectorSet<Strip *> strips;
@@ -129,25 +176,23 @@ static VectorSet<Strip *> query_strips_at_frame(const Scene *scene,
 
 static void collection_filter_channel_up_to_incl(VectorSet<Strip *> &strips, const int channel)
 {
-  strips.remove_if([&](Strip *strip) { return strip->machine > channel; });
+  strips.remove_if([&](Strip *strip) { return strip->channel > channel; });
 }
 
 /* Check if strip must be rendered. This depends on whole stack in some cases, not only strip
  * itself. Order of applying these conditions is important. */
-static bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
+bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
 {
   bool strip_have_effect_in_stack = false;
   for (Strip *strip_iter : strips) {
     /* Strips is below another strip with replace blending are not rendered. */
-    if (strip_iter->blend_mode == SEQ_BLEND_REPLACE && strip->machine < strip_iter->machine) {
+    if (strip_iter->blend_mode == STRIP_BLEND_REPLACE && strip->channel < strip_iter->channel) {
       return false;
     }
 
-    if ((strip_iter->type & STRIP_TYPE_EFFECT) != 0 &&
-        relation_is_effect_of_strip(strip_iter, strip))
-    {
+    if (strip_iter->is_effect() && relation_is_effect_of_strip(strip_iter, strip)) {
       /* Strips in same channel or higher than its effect are rendered. */
-      if (strip->machine >= strip_iter->machine) {
+      if (strip->channel >= strip_iter->channel) {
         return true;
       }
       /* Mark that this strip has effect in stack, that is above the strip. */
@@ -156,7 +201,7 @@ static bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip)
   }
 
   /* All non-generator effects are rendered (with respect to conditions above). */
-  if ((strip->type & STRIP_TYPE_EFFECT) != 0 && effect_get_num_inputs(strip->type) != 0) {
+  if (strip->is_effect() && effect_get_num_inputs(strip->type) != 0) {
     return true;
   }
 
@@ -218,7 +263,7 @@ void query_strip_effect_chain(const Scene *scene,
   r_strips.add(reference_strip);
 
   /* Find all input strips for `reference_strip`. */
-  if (reference_strip->type & STRIP_TYPE_EFFECT) {
+  if (reference_strip->is_effect()) {
     if (reference_strip->input1) {
       query_strip_effect_chain(scene, reference_strip->input1, seqbase, r_strips);
     }

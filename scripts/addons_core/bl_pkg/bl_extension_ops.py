@@ -36,7 +36,6 @@ from bpy.app.translations import (
     pgettext_iface as iface_,
     pgettext_tip as tip_,
     pgettext_rpt as rpt_,
-
 )
 
 from . import (
@@ -388,12 +387,16 @@ def extension_url_find_repo_index_and_pkg_id(url):
     repos_all = extension_repos_read()
     repo_cache_store = repo_cache_store_ensure()
 
+    # Regarding `ignore_missing`, set to True, otherwise a user-repository
+    # or a new repository that has not yet been initialize will report errors.
+    # It's OK to silently ignore these.
+
     for repo_index, (
             pkg_manifest_local,
             pkg_manifest_remote,
     ) in enumerate(zip(
-        repo_cache_store.pkg_manifest_from_local_ensure(error_fn=print),
-        repo_cache_store.pkg_manifest_from_remote_ensure(error_fn=print),
+        repo_cache_store.pkg_manifest_from_local_ensure(error_fn=print, ignore_missing=True),
+        repo_cache_store.pkg_manifest_from_remote_ensure(error_fn=print, ignore_missing=True),
         strict=True,
     )):
         # It's possible the remote repo could not be connected to when syncing.
@@ -465,7 +468,7 @@ def lock_result_any_failed_with_report(op, lock_result, report_type='ERROR'):
         print("Error locking repository \"{:s}\": {:s}".format(repo_name, lock_result_for_repo))
         op.report(
             {report_type},
-            "Repository \"{:s}\": {:s}{:s}".format(
+            rpt_("Repository \"{:s}\": {:s}{:s}").format(
                 repo_name,
                 lock_result_for_repo,
                 "" if any_errors else unlock_hint_text,
@@ -1916,10 +1919,10 @@ class EXTENSIONS_OT_repo_unlock(Operator):
 
         repo_name, repo_directory, _lock_age, _lock_error = self._repo_vars
         if (error := bl_extension_utils.repo_lock_directory_force_unlock(repo_directory)):
-            self.report({'ERROR'}, "Force unlock failed: {:s}".format(error))
+            self.report({'ERROR'}, rpt_("Force unlock failed: {:s}").format(error))
             return {'CANCELLED'}
 
-        self.report({'INFO'}, "Unlocked: {:s}".format(repo_name))
+        self.report({'INFO'}, rpt_("Unlocked: {:s}").format(repo_name))
         return {'FINISHED'}
 
     def draw(self, _context):
@@ -2736,7 +2739,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
         # - If it's a "local" repository, use it.
         # - If it's a "remote" repository, reset.
         # This is done because installing a file into a remote repository is a corner-case supported so
-        # it's possible to download large extensions before installing or to down-grade to older versions.
+        # it's possible to download large extensions before installing as well as down-grading to older versions.
         # Installing into a remote repository should be intentional, not the default.
         # This could be annoying to users if they want to install many files into a remote repository,
         # in this case they would be better off using the file selector "Install from disk"
@@ -2815,7 +2818,7 @@ class EXTENSIONS_OT_package_install_files(Operator, _ExtCmdMixIn):
                 return {'CANCELLED'}
 
             if isinstance(result := pkg_manifest_dict_from_archive_or_error(filepath), str):
-                self.report({'ERROR'}, "Error in manifest {:s}".format(result))
+                self.report({'ERROR'}, rpt_("Error in manifest {:s}").format(result))
                 return {'CANCELLED'}
 
             pkg_id = result["id"]
@@ -3157,7 +3160,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
                     if python_version
                 ],
         ), str):
-            self.report({'ERROR'}, iface_("The extension is incompatible with this system:\n{:s}").format(error))
+            self.report({'ERROR'}, rpt_("The extension is incompatible with this system:\n{:s}").format(error))
             return {'CANCELLED'}
         del error
 
@@ -3212,12 +3215,12 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
 
         _repo_index, repo_name, _pkg_id, item_remote = self._drop_variables
 
-        layout.label(text="Do you want to install the following {:s}?".format(item_remote.type))
+        layout.label(text=iface_("Do you want to install the following {:s}?").format(item_remote.type), translate=False)
 
         col = layout.column(align=True)
-        col.label(text="Name: {:s}".format(item_remote.name))
-        col.label(text="Repository: {:s}".format(repo_name))
-        col.label(text="Size: {:s}".format(size_as_fmt_string(item_remote.archive_size, precision=0)))
+        col.label(text=iface_("Name: {:s}").format(item_remote.name), translate=False)
+        col.label(text=iface_("Repository: {:s}").format(repo_name), translate=False)
+        col.label(text=iface_("Size: {:s}").format(size_as_fmt_string(item_remote.archive_size, precision=0)), translate=False)
         del col
 
         layout.separator()
@@ -3416,7 +3419,7 @@ class EXTENSIONS_OT_package_install(Operator, _ExtCmdMixIn):
             *,
             remote_url,
     ):
-        # Skip the URL prefix scheme, e.g. `https://` for less "noisy" outpout.
+        # Skip the URL prefix scheme, e.g. `https://` for less "noisy" output.
         url_split = remote_url.partition("://")
         url_for_display = url_split[2] if url_split[2] else remote_url
 
@@ -3852,7 +3855,7 @@ class EXTENSIONS_OT_repo_lock_all(Operator):
             lock_handle.release()
             return {'CANCELLED'}
 
-        self.report({'INFO'}, "Locked {:d} repos(s)".format(len(lock_result)))
+        self.report({'INFO'}, rpt_("Locked {:d} repos(s)").format(len(lock_result)))
         EXTENSIONS_OT_repo_lock_all.lock = lock_handle
         return {'FINISHED'}
 
@@ -3876,7 +3879,7 @@ class EXTENSIONS_OT_repo_unlock_all(Operator):
             # This isn't canceled, but there were issues unlocking.
             return {'FINISHED'}
 
-        self.report({'INFO'}, "Unlocked {:d} repos(s)".format(len(lock_result)))
+        self.report({'INFO'}, rpt_("Unlocked {:d} repos(s)").format(len(lock_result)))
         return {'FINISHED'}
 
 
@@ -4033,7 +4036,7 @@ class EXTENSIONS_OT_userpref_allow_online_popup(Operator):
             )
         else:
             lines = (
-                rpt_("Please turn Online Access on in the System settings."),
+                rpt_("Please enable Online Access from the System settings."),
                 "",
                 rpt_("Internet access is required to install extensions from the internet."),
             )

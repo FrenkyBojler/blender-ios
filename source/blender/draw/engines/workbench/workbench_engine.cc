@@ -13,6 +13,7 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_particle.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -178,20 +179,16 @@ class Instance : public DrawEngine {
       }
     }
 
-    ResourceHandle emitter_handle(0);
+    ResourceHandleRange emitter_handle = {};
 
     if (is_object_data_visible) {
       if (object_state.sculpt_pbvh) {
-        const Bounds<float3> bounds = bke::pbvh::bounds_get(
-            *bke::object::pbvh_get(*ob_ref.object));
-        const float3 center = math::midpoint(bounds.min, bounds.max);
-        const float3 half_extent = bounds.max - center;
-        ResourceHandle handle = manager.resource_handle(ob_ref, nullptr, &center, &half_extent);
+        ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
         this->sculpt_sync(ob_ref, handle, object_state);
         emitter_handle = handle;
       }
       else if (ob->type == OB_MESH) {
-        ResourceHandle handle = manager.resource_handle(ob_ref);
+        ResourceHandleRange handle = manager.unique_handle(ob_ref);
         this->mesh_sync(ob_ref, handle, object_state);
         emitter_handle = handle;
       }
@@ -259,7 +256,7 @@ class Instance : public DrawEngine {
   void draw_mesh(ObjectRef &ob_ref,
                  Material &material,
                  gpu::Batch *batch,
-                 ResourceHandle handle,
+                 ResourceHandleRange handle,
                  const MaterialTexture *texture = nullptr,
                  bool show_missing_texture = false)
   {
@@ -275,7 +272,7 @@ class Instance : public DrawEngine {
     });
   }
 
-  void mesh_sync(ObjectRef &ob_ref, ResourceHandle handle, const ObjectState &object_state)
+  void mesh_sync(ObjectRef &ob_ref, ResourceHandleRange handle, const ObjectState &object_state)
   {
     bool has_transparent_material = false;
 
@@ -341,7 +338,7 @@ class Instance : public DrawEngine {
     }
   }
 
-  void sculpt_sync(ObjectRef &ob_ref, ResourceHandle handle, const ObjectState &object_state)
+  void sculpt_sync(ObjectRef &ob_ref, ResourceHandleRange handle, const ObjectState &object_state)
   {
     SculptBatchFeature features = SCULPT_BATCH_DEFAULT;
     if (object_state.color_type == V3D_SHADING_VERTEX_COLOR) {
@@ -381,7 +378,7 @@ class Instance : public DrawEngine {
 
   void pointcloud_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
-    ResourceHandle handle = manager.resource_handle(ob_ref);
+    ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
     Material mat = this->get_material(ob_ref, object_state.color_type);
     resources_.material_buf.append(mat);
@@ -397,13 +394,13 @@ class Instance : public DrawEngine {
 
   void hair_sync(Manager &manager,
                  ObjectRef &ob_ref,
-                 ResourceHandle emitter_handle,
+                 ResourceHandleRange emitter_handle,
                  const ObjectState &object_state,
                  ParticleSystem *psys,
                  ModifierData *md)
   {
-    /* Skip frustum culling. */
-    ResourceHandle handle = manager.resource_handle(ob_ref.object->object_to_world());
+    ResourceHandleRange handle = manager.resource_handle_for_psys(
+        ob_ref, ob_ref.object->object_to_world());
 
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;
@@ -416,7 +413,7 @@ class Instance : public DrawEngine {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::CURVES, &texture).sub("Hair SubPass");
-      pass.push_constant("emitter_object_id", int(emitter_handle.raw));
+      pass.push_constant("emitter_object_id", int(emitter_handle.raw()));
       gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref, psys, md);
       pass.draw(batch, handle, material_index);
     });
@@ -424,8 +421,7 @@ class Instance : public DrawEngine {
 
   void curves_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
-    /* Skip frustum culling. */
-    ResourceHandle handle = manager.resource_handle(ob_ref.object->object_to_world());
+    ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
     Material mat = this->get_material(ob_ref, object_state.color_type);
     resources_.material_buf.append(mat);
@@ -439,9 +435,9 @@ class Instance : public DrawEngine {
   }
 
   void draw(Manager &manager,
-            GPUTexture *depth_tx,
-            GPUTexture *depth_in_front_tx,
-            GPUTexture *color_tx)
+            gpu::Texture *depth_tx,
+            gpu::Texture *depth_in_front_tx,
+            gpu::Texture *color_tx)
   {
     int2 resolution = scene_state_.resolution;
 
@@ -471,8 +467,10 @@ class Instance : public DrawEngine {
 
     GPUAttachment id_attachment = GPU_ATTACHMENT_NONE;
     if (scene_state_.draw_object_id) {
-      resources_.object_id_tx.acquire(
-          resolution, GPU_R16UI, GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
+      resources_.object_id_tx.acquire(resolution,
+                                      gpu::TextureFormat::UINT_16,
+                                      GPU_TEXTURE_USAGE_SHADER_READ |
+                                          GPU_TEXTURE_USAGE_ATTACHMENT);
       id_attachment = GPU_ATTACHMENT_TEXTURE(resources_.object_id_tx);
     }
     resources_.clear_fb.ensure(GPU_ATTACHMENT_TEXTURE(resources_.depth_tx),
@@ -480,7 +478,7 @@ class Instance : public DrawEngine {
                                id_attachment);
     resources_.clear_fb.bind();
     float4 clear_colors[2] = {scene_state_.background_color, float4(0.0f)};
-    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float(*)[4]>(clear_colors));
+    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float (*)[4]>(clear_colors));
     GPU_framebuffer_clear_depth_stencil(resources_.clear_fb, 1.0f, 0x00);
 
     opaque_ps_.draw(
@@ -497,9 +495,9 @@ class Instance : public DrawEngine {
   }
 
   void draw_viewport(Manager &manager,
-                     GPUTexture *depth_tx,
-                     GPUTexture *depth_in_front_tx,
-                     GPUTexture *color_tx)
+                     gpu::Texture *depth_tx,
+                     gpu::Texture *depth_in_front_tx,
+                     gpu::Texture *color_tx)
   {
     this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
 
@@ -523,9 +521,9 @@ class Instance : public DrawEngine {
   }
 
   void draw_image_render(Manager &manager,
-                         GPUTexture *depth_tx,
-                         GPUTexture *depth_in_front_tx,
-                         GPUTexture *color_tx,
+                         gpu::Texture *depth_tx,
+                         gpu::Texture *depth_in_front_tx,
+                         gpu::Texture *color_tx,
                          RenderEngine *engine = nullptr)
   {
     if (scene_state_.render_finished) {
@@ -592,11 +590,21 @@ static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
     BLI_assert(dtxl->depth == nullptr);
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
     dtxl->color = GPU_texture_create_2d(
-        "txl.color", size.x, size.y, 1, GPU_RGBA16F, usage, nullptr);
-    dtxl->depth = GPU_texture_create_2d(
-        "txl.depth", size.x, size.y, 1, GPU_DEPTH24_STENCIL8, usage, nullptr);
-    dtxl->depth_in_front = GPU_texture_create_2d(
-        "txl.depth_in_front", size.x, size.y, 1, GPU_DEPTH24_STENCIL8, usage, nullptr);
+        "txl.color", size.x, size.y, 1, gpu::TextureFormat::SFLOAT_16_16_16_16, usage, nullptr);
+    dtxl->depth = GPU_texture_create_2d("txl.depth",
+                                        size.x,
+                                        size.y,
+                                        1,
+                                        gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                        usage,
+                                        nullptr);
+    dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
+                                                 size.x,
+                                                 size.y,
+                                                 1,
+                                                 gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                                 usage,
+                                                 nullptr);
   }
 
   if (!(dtxl->depth && dtxl->color && dtxl->depth_in_front)) {
@@ -622,7 +630,7 @@ static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
 
 static void write_render_color_output(RenderLayer *layer,
                                       const char *viewname,
-                                      GPUFrameBuffer *fb,
+                                      gpu::FrameBuffer *fb,
                                       const rcti *rect)
 {
   RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_COMBINED, viewname);
@@ -642,11 +650,11 @@ static void write_render_color_output(RenderLayer *layer,
 
 static void write_render_z_output(RenderLayer *layer,
                                   const char *viewname,
-                                  GPUFrameBuffer *fb,
+                                  gpu::FrameBuffer *fb,
                                   const rcti *rect,
                                   const float4x4 &winmat)
 {
-  RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_Z, viewname);
+  RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_DEPTH, viewname);
   if (rp) {
     GPU_framebuffer_bind(fb);
     GPU_framebuffer_read_depth(fb,
@@ -755,8 +763,8 @@ static void workbench_render_update_passes(RenderEngine *engine,
   if (view_layer->passflag & SCE_PASS_COMBINED) {
     RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_COMBINED, 4, "RGBA", SOCK_RGBA);
   }
-  if (view_layer->passflag & SCE_PASS_Z) {
-    RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_Z, 1, "Z", SOCK_FLOAT);
+  if (view_layer->passflag & SCE_PASS_DEPTH) {
+    RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_DEPTH, 1, "Z", SOCK_FLOAT);
   }
 }
 
