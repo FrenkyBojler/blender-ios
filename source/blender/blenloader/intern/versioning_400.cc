@@ -4361,7 +4361,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
              * be needed for future versioning (before linking), see
              * #do_version_denoise_menus_to_inputs so we set a valid storage at this stage such
              * that the node becomes well defined. */
-            NodeDenoise *ndg = MEM_callocN<NodeDenoise>(__func__);
+            NodeDenoise *ndg = (NodeDenoise *)MEM_callocN(sizeof(NodeDenoise), (__func__));
             ndg->hdr = true;
             ndg->prefilter = CMP_NODE_DENOISE_PREFILTER_ACCURATE;
             node->storage = ndg;
