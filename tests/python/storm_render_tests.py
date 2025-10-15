@@ -69,6 +69,7 @@ BLOCKLIST_INTEL = [
     "white_noise.*.blend",
 ]
 
+
 def setup():
     import bpy
     import addon_utils
