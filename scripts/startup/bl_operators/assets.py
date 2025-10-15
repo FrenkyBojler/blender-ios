@@ -182,13 +182,7 @@ class ASSET_OT_open_containing_blend_file(BlendFileOpener, Operator):
 
 
 class OUTLINER_OT_library_open_blend_file(BlendFileOpener, Operator):
-    """Open the blend file of the selected library in a new Blender instance
-
-    This is a parametrized operator that accepts filepath via property.
-    Unlike ASSET_OT_open_containing_blend_file which gets path from context.asset,
-    this operator is designed to be called from multiple places (UI and C++)
-    with filepath passed as a parameter.
-    """
+    """Open the blend file of the selected library in a new Blender instance"""
 
     bl_idname = "outliner.library_open_blend_file"
     bl_label = "Open Blend File"
