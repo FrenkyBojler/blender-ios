@@ -2,3 +2,4 @@ Referenced by issue #118550, Vertical Scrollbar sensitivity and difference to Ho
 Referenced by issue #117835, Wrong values on Opacity slider
 Referenced by issue #117813, Regression: broken UI drawing of custom property values with slider=True.
 Referenced by commit f86c04272473f07e2e1d473f1c179a2326b0fd48, Fix: Undefined behavior when using UI list or tree-view scrollbar
+Referenced by commit ba71402e24632448dc9ac7b469dfee9164e5f7c9, Fix: Undefined behavior when using UI list or tree-view scrollbar
