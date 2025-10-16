@@ -32,6 +32,7 @@ class TestMeshValidate(unittest.TestCase):
         mesh.from_pydata(verts, edges, [])
 
         self.assertTrue(mesh.validate(verbose=True))
+        self.assertFalse(mesh.validate(verbose=True))
 
     def test_duplicate_edge_vertex_indices(self):
         verts = [(0, 0, 0), (1, 1, 1)]
@@ -41,6 +42,7 @@ class TestMeshValidate(unittest.TestCase):
         mesh.from_pydata(verts, edges, [])
 
         self.assertTrue(mesh.validate(verbose=True))
+        self.assertFalse(mesh.validate(verbose=True))
 
     def test_bad_face_offsets(self):
         bpy.ops.mesh.primitive_cube_add()
@@ -49,6 +51,7 @@ class TestMeshValidate(unittest.TestCase):
         mesh.polygons[0].loop_start = 100
 
         self.assertTrue(mesh.validate(verbose=True))
+        self.assertFalse(mesh.validate(verbose=True))
 
     def test_bad_material_indices(self):
         bpy.ops.mesh.primitive_plane_add()
@@ -59,6 +62,7 @@ class TestMeshValidate(unittest.TestCase):
         attr.data[0].value = -4
 
         self.assertTrue(mesh.validate(verbose=True))
+        self.assertFalse(mesh.validate(verbose=True))
 
     def test_duplicate_faces(self):
         verts = [(0, 0, 0), (1, 0, 0), (1, 1, 0)]
@@ -68,6 +72,7 @@ class TestMeshValidate(unittest.TestCase):
         mesh.from_pydata(verts, [], faces)
 
         self.assertTrue(mesh.validate(verbose=True))
+        self.assertFalse(mesh.validate(verbose=True))
 
     def test_invalid_float_attributes(self):
         bpy.ops.mesh.primitive_plane_add()
@@ -76,6 +81,7 @@ class TestMeshValidate(unittest.TestCase):
         mesh.vertices[0].co.x = float('nan')
 
         self.assertTrue(mesh.validate(verbose=True))
+        self.assertFalse(mesh.validate(verbose=True))
 
     def test_duplicate_edges(self):
         verts = [(0, 0, 0), (1, 1, 1)]
@@ -85,6 +91,7 @@ class TestMeshValidate(unittest.TestCase):
         mesh.from_pydata(verts, edges, [])
 
         self.assertTrue(mesh.validate(verbose=True))
+        self.assertFalse(mesh.validate(verbose=True))
 
     def test_faces_with_bad_edge_references(self):
         verts = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
@@ -98,6 +105,7 @@ class TestMeshValidate(unittest.TestCase):
         corner_edges[2].value = 0
 
         self.assertTrue(mesh.validate(verbose=True))
+        self.assertFalse(mesh.validate(verbose=True))
 
 
 if __name__ == '__main__':
