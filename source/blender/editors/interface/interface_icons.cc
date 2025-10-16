@@ -1917,9 +1917,9 @@ int ui_id_icon_get(const bContext *C, ID *id, const bool big)
       break;
     case ID_OB:
       iconid = UI_icon_from_object_type((Object *)id);
+      break;
     case ID_GR:
       iconid = UI_icon_color_from_collection((Collection *)id);
-      break;
       break;
     default:
       break;
