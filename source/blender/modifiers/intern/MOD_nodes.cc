@@ -2221,6 +2221,10 @@ static void free_data(ModifierData *md)
     IDP_FreeProperty_ex(nmd->settings.properties, false);
     nmd->settings.properties = nullptr;
   }
+  if (nmd->group_properties != nullptr) {
+    IDP_FreeProperty_ex(nmd->group_properties, false);
+    nmd->group_properties = nullptr;
+  }
 
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
     nodes_modifier_bake_destruct(&bake, false);
