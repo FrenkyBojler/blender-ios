@@ -245,6 +245,18 @@ class NodeSwapOperator(NodeOperator):
         "operation",
         "domain",
         "data_type",
+        "image",
+        "interpolation",
+    )
+
+    image_user_settings = (
+        'frame_current',
+        'frame_duration',
+        'frame_offset',
+        'frame_start',
+        'tile',
+        'use_auto_refresh',
+        'use_cyclic',
     )
 
     @classmethod
@@ -268,6 +280,22 @@ class NodeSwapOperator(NodeOperator):
                     setattr(new_node, attr, getattr(old_node, attr))
                 except (TypeError, ValueError):
                     pass
+
+    # NOTE: Node.image_user is read-only, so its properties are copied over one-by-one.
+    def transfer_image_user_settings(self, old_node, new_node):
+        image_user_attr = "image_user"
+
+        if not (hasattr(old_node, image_user_attr) and hasattr(new_node, image_user_attr)):
+            return
+        
+        old_image_user = getattr(old_node, image_user_attr)
+        new_image_user = getattr(new_node, image_user_attr)
+
+        for attr in self.image_user_settings:
+            try:
+                setattr(new_image_user, attr, getattr(old_image_user, attr))
+            except (AttributeError, KeyError, TypeError):
+                pass
 
     def transfer_input_values(self, old_node, new_node):
         if (old_node.bl_idname in math_nodes) and (new_node.bl_idname in math_nodes):
@@ -504,6 +532,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                     nodes_to_delete.add(node)
             else:
                 self.transfer_node_properties(old_node, new_node)
+                self.transfer_image_user_settings(old_node, new_node)
 
                 if (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes):
                     self.transfer_switch_data(old_node, new_node)
