@@ -275,7 +275,9 @@ static void print_error(const char *message)
 {
   char buffer[256];
   size_t length = BLI_string_join(buffer, sizeof(buffer), "BLI_mmap: ", message, "\n");
-  write(STDERR_FILENO, buffer, length);
+  if (write(STDERR_FILENO, buffer, length) < 0) {
+    /* Ignore errors */
+  }
 }
 
 static bool try_map_zeros(BLI_mmap_file *file)
