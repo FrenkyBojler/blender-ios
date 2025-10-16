@@ -1833,10 +1833,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   /* The points, use aspect to make them visible on edges. */
   format = immVertexFormat();
   pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  const uint col = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-  const uint size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
 
   GPU_program_point_size(true);
 
@@ -1850,37 +1847,78 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   cmp = cuma->curve;
   const float point_size = max_ff(U.pixelsize * 2.0f,
-                                  min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
+                                  min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
+
+  int selected = 0;
+  for (int a = 0; a < cuma->totpoint; a++) {
+    if (cmp[a].flag & CUMA_SELECT) {
+    selected++;
+    }
+  }
+
   GPU_blend(GPU_BLEND_ALPHA);
 
   /* Curve widgets using a gradient background (such as Hue Correct), draw
    * an additional point in the back, forming an outline so they stand out. */
   if (but_cumap->gradient_type == UI_GRAD_H) {
-    immBegin(GPU_PRIM_POINTS, cuma->totpoint);
+    immUniform4fv("color", color_point_outline);
+    immUniform1f("size", point_size * 1.4f);
+    immBegin(GPU_PRIM_POINTS, cuma->totpoint - selected);
     for (int a = 0; a < cuma->totpoint; a++) {
+      if (cmp[a].flag & CUMA_SELECT) {
+        continue;
+      }
       const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
       const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-      const float size_factor = (cmp[a].flag & CUMA_SELECT) ? 1.4f : 1.2f;
+      immVertex2f(pos, fx, fy);
+    }
+    immEnd();
+    /* Draw selected outlines a bit larger. */
+    if (selected > 0) {
+      immUniform1f("size", point_size * 1.8f);
+      immBegin(GPU_PRIM_POINTS, selected);
+      for (int a = 0; a < cuma->totpoint; a++) {
+        if (!(cmp[a].flag & CUMA_SELECT)) {
+          continue;
+        }
+        const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
+        const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
+        immVertex2f(pos, fx, fy);
+      }
+      immEnd();
+    }
+  }
 
-      /* First the point the back, slightly larger so it makes an outline. */
-      immAttr4fv(col, color_point_outline);
-      immAttr1f(size, point_size * size_factor);
+  immUniform1f("size", point_size);
+  immUniform4fv("color", color_point);
+  immBegin(GPU_PRIM_POINTS, cuma->totpoint - selected);
+  for (int a = 0; a < cuma->totpoint; a++) {
+    if (cmp[a].flag & CUMA_SELECT) {
+      continue;
+    }
+    const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
+    const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
+    /* Unselected point in front. */
+    immVertex2f(pos, fx, fy);
+  }
+  immEnd();
+
+  if (selected > 0) {
+    immUniform1f("size", point_size * 1.2f);
+    immUniform4fv("color", color_point_select);
+    immBegin(GPU_PRIM_POINTS, selected);
+    for (int a = 0; a < cuma->totpoint; a++) {
+      if (!(cmp[a].flag & CUMA_SELECT)) {
+        continue;
+      }
+      const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
+      const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
+      /* Selected point in front. */
       immVertex2f(pos, fx, fy);
     }
     immEnd();
   }
 
-  immBegin(GPU_PRIM_POINTS, cuma->totpoint);
-  for (int a = 0; a < cuma->totpoint; a++) {
-    const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
-    const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-
-    /* The point in front. */
-    immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_point_select : color_point);
-    immAttr1f(size, point_size);
-    immVertex2f(pos, fx, fy);
-  }
-  immEnd();
   immUnbindProgram();
   GPU_blend(GPU_BLEND_NONE);
 
