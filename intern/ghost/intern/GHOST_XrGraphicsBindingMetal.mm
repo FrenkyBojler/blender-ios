@@ -30,7 +30,6 @@ static std::optional<int64_t> choose_swapchain_format_from_candidates(
 
 GHOST_XrGraphicsBindingMetal::GHOST_XrGraphicsBindingMetal(GHOST_Context &ghost_ctx)
 {
-  /* TODO: Pass the context to submitToSwapchainImage instead of storing a reference here. */
   ghost_metal_ctx_ = dynamic_cast<GHOST_ContextMTL *>(&ghost_ctx);
 }
 

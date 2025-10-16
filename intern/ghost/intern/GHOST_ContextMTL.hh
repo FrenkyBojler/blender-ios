@@ -167,7 +167,7 @@ class GHOST_ContextMTL : public GHOST_Context {
                                  id<MTLRenderPipelineState>,
                                  id<MTLTexture>,
                                  id<CAMetalDrawable>);
-  /* XR Blit callback. */
+  /* XR texture blitting callback. */
   void (*xrBlitCallback)(id<MTLTexture>, GHOST_XrDrawViewInfo);
 
   int mtl_SwapInterval;
