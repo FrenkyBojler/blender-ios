@@ -591,7 +591,6 @@ class NodeTreeMainUpdater {
         }
         /* TODO: Need to check that no one else is referencing this data still? */
         ntree.runtime->geometry_nodes_srna_data->structs.clear();
-        ntree.runtime->geometry_nodes_srna_data->inputs_map.clear();
         ntree.runtime->geometry_nodes_srna_data.reset();
         ntree.runtime->geometry_nodes_modifier_srna = nullptr;
       }

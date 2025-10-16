@@ -31,7 +31,6 @@ extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
   Vector<StructRNA *> structs;
-  Map<StringRef, StructRNA *> inputs_map;
 };
 
 StructRNA *get_geometry_nodes_interface_srna_for_modifier(const bNodeTree &tree,
