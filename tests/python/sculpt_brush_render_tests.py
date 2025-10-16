@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: 2025 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+# Simple change to not have empty diff
 
 import argparse
 import os
