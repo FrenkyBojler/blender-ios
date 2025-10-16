@@ -1289,19 +1289,17 @@ static bke::bNodeSocketType *make_socket_type_rgba()
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
-    PropertyRNA *prop;
-    const auto *data = static_cast<const bNodeSocketValueVector *>(socket.socket_data);
-    prop = RNA_def_float_color(&srna,
-                               "value",
-                               4,
-                               data->value,
-                               -FLT_MAX,
-                               FLT_MAX,
-                               socket.name,
-                               socket.description,
-                               data->min,
-                               data->max);
-    RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+    const auto *data = static_cast<const bNodeSocketValueRGBA *>(socket.socket_data);
+    RNA_def_float_color(&srna,
+                        "value",
+                        4,
+                        data->value,
+                        -FLT_MAX,
+                        FLT_MAX,
+                        socket.name,
+                        socket.description,
+                        -FLT_MAX,
+                        FLT_MAX);
     make_common_value_and_attribute_props(srna, socket, r_generated);
   };
   return socktype;
