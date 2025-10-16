@@ -2435,7 +2435,6 @@ typedef struct GeometryNodeFieldToListItem {
 } GeometryNodeFieldToListItem;
 
 typedef struct GeometryNodeFieldToList {
-  /** #eNodeSocketDatatype. */
   char _pad[4];
   int next_identifier;
   GeometryNodeFieldToListItem *items;
@@ -2446,13 +2445,14 @@ typedef struct GeometryNodeFieldToList {
 typedef struct GeometryNodeClosureToListItem {
   /** #eNodeSocketDatatype. */
   int8_t socket_type;
-  char _pad[3];
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type;
+  char _pad[2];
   int identifier;
   char *name;
 } GeometryNodeClosureToListItem;
 
 typedef struct GeometryNodeClosureToList {
-  /** #eNodeSocketDatatype. */
   char _pad[4];
   int next_identifier;
   GeometryNodeClosureToListItem *items;

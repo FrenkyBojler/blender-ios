@@ -490,7 +490,7 @@ const EnumPropertyItem *rna_NodeSocket_structure_type_item_filter(
                                blender::nodes::socket_type_supports_fields(socket_type);
   const bool supports_grids = is_geometry_nodes &&
                               blender::nodes::socket_type_supports_grids(socket_type);
-  const bool supports_lists = is_geometry_nodes && supports_fields;
+  const bool supports_lists = is_geometry_nodes;
 
   *r_free = true;
   EnumPropertyItem *items = nullptr;

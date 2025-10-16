@@ -3806,6 +3806,72 @@ static const EnumPropertyItem *rna_Node_ItemArray_structure_type_itemf(bContext 
   return rna_NodeSocket_structure_type_item_filter(ntree, socket_type, r_free);
 }
 
+/** Similar to #rna_NodeSocket_structure_type_item_filter. */
+static const EnumPropertyItem *rna_GeometryNodeClosureToListItem_structure_type_itemf(
+    bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
+{
+  const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
+  const auto &item = *static_cast<const GeometryNodeClosureToListItem *>(ptr->data);
+  const auto socket_type = eNodeSocketDatatype(item.socket_type);
+
+  if (!ntree) {
+    return rna_enum_dummy_NULL_items;
+  }
+  const bool is_geometry_nodes = ntree->type == NTREE_GEOMETRY;
+  const bool supports_fields = is_geometry_nodes &&
+                               blender::nodes::socket_type_supports_fields(socket_type);
+  const bool supports_grids = is_geometry_nodes &&
+                              blender::nodes::socket_type_supports_grids(socket_type);
+  /* Lists of lists are sort of arbitrarily not supported yet. */
+  const bool supports_lists = false;
+
+  *r_free = true;
+  EnumPropertyItem *items = nullptr;
+  int items_count = 0;
+
+  for (const EnumPropertyItem *item = rna_enum_node_socket_structure_type_items; item->identifier;
+       item++)
+  {
+    switch (NodeSocketInterfaceStructureType(item->value)) {
+      case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE: {
+        RNA_enum_item_add(&items, &items_count, item);
+        break;
+      }
+      case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO: {
+        break;
+      }
+      case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC: {
+        if (supports_fields || supports_grids) {
+          RNA_enum_item_add(&items, &items_count, item);
+        }
+        break;
+      }
+      case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD: {
+        if (supports_fields) {
+          RNA_enum_item_add(&items, &items_count, item);
+        }
+        break;
+      }
+      case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID: {
+        if (supports_grids) {
+          RNA_enum_item_add(&items, &items_count, item);
+        }
+        break;
+      }
+      case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST: {
+        if (U.experimental.use_geometry_nodes_lists) {
+          if (supports_lists) {
+            RNA_enum_item_add(&items, &items_count, item);
+          }
+        }
+        break;
+      }
+    }
+  }
+  RNA_enum_item_end(&items, &items_count);
+  return items;
+}
+
 static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *bmain)
 {
   IndexSwitchItem *new_item = blender::nodes::socket_items::add_item<IndexSwitchItemsAccessor>(
@@ -8109,6 +8175,11 @@ static void rna_def_geo_closure_to_list_item(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "GeometryNodeClosureToListItem");
 
   rna_def_node_item_array_socket_item_common(srna, "ClosureToListItemsAccessor", true);
+
+  prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, nullptr, "rna_GeometryNodeClosureToListItem_structure_type_itemf");
 
   prop = RNA_def_property(srna, "identifier", PROP_INT, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

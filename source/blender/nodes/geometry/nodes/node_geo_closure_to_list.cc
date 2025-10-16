@@ -42,7 +42,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     const GeometryNodeClosureToListItem &item = items[i];
     const std::string output_identifier = ItemsAccessor::output_socket_identifier_for_item(item);
     const auto type = eNodeSocketDatatype(item.socket_type);
-    signature->outputs.add({item.name, bke::node_socket_type_find_static(type)});
+    signature->outputs.add({item.name,
+                            bke::node_socket_type_find_static(type),
+                            NodeSocketInterfaceStructureType(item.structure_type)});
     b.add_output(type, item.name, output_identifier).structure_type(StructureType::List);
   }
 
@@ -61,6 +63,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
       panel->use_property_split_set(true);
       panel->use_property_decorate_set(false);
       panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
     });
   }
 }
@@ -106,6 +109,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const GeometryNodeClosureToList &storage = node_storage(params.node());
   const Span<GeometryNodeClosureToListItem> items(storage.items, storage.items_num);
 
+  ClosurePtr closure = params.extract_input<ClosurePtr>("Closure");
+  if (!closure) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
   Vector<int> required_items;
   for (const int i : items.index_range()) {
     if (params.output_is_required(ItemsAccessor::output_socket_identifier_for_item(items[i]))) {
@@ -113,25 +122,25 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  Vector<ListPtr> lists(required_items.size());
+  Array<const CPPType *> cpp_types(required_items.size());
   for (const int i : required_items.index_range()) {
     const int item_i = required_items[i];
     const auto type = eNodeSocketDatatype(items[item_i].socket_type);
-    const CPPType &cpp_type = *bke::socket_type_to_geo_nodes_base_cpp_type(type);
-    lists[i] = List::create(cpp_type, List::ArrayData::ForUninitialized(cpp_type, count), count);
+    const auto structure_type = StructureType(items[item_i].structure_type);
+    if (structure_type == StructureType::Single) {
+      cpp_types[i] = bke::socket_type_to_geo_nodes_base_cpp_type(type);
+    }
+    else {
+      cpp_types[i] = &CPPType::get<bke::SocketValueVariant>();
+    }
   }
 
-  Array<const CPPType *> cpp_types(lists.size());
+  Vector<ListPtr> lists(required_items.size());
   Array<GMutableSpan> list_values(lists.size());
-  for (const int i : lists.index_range()) {
-    cpp_types[i] = &lists[i]->cpp_type();
+  for (const int i : required_items.index_range()) {
+    const CPPType &type = *cpp_types[i];
+    lists[i] = List::create(type, List::ArrayData::ForUninitialized(type, count), count);
     list_values[i] = {cpp_types[i], std::get<List::ArrayData>(lists[i]->data()).data, count};
-  }
-
-  ClosurePtr closure = params.extract_input<ClosurePtr>("Closure");
-  if (!closure) {
-    params.set_default_remaining_outputs();
-    return;
   }
 
   /* The grain size is completely arbitrary since we don't know how expensive the closure is.
@@ -156,18 +165,19 @@ static void node_geo_exec(GeoNodeExecParams params)
       BLI_assert(out_i < std::numeric_limits<int>::max());
       *static_cast<int *>(
           const_cast<void *>(closure_params.inputs[0].value.get_single_ptr_raw())) = int(out_i);
-
       for (bke::SocketValueVariant &value : closure_results) {
         value.~SocketValueVariant();
       }
       evaluate_closure_eagerly(*closure, closure_params);
+
       for (const int i : required_items.index_range()) {
-        if (closure_results[i].is_context_dependent_field()) {
-          cpp_types[i]->value_initialize(list_values[i][out_i]);
-          continue;
+        if (cpp_types[i]->is<bke::SocketValueVariant>()) {
+          cpp_types[i]->move_construct(&closure_results[i], list_values[i][out_i]);
         }
-        cpp_types[i]->move_construct(            const_cast<void *>(closure_results[i].get_single_ptr_raw()),
-            list_values[i][out_i]);
+        else {
+          cpp_types[i]->move_construct(const_cast<void *>(closure_results[i].get_single_ptr_raw()),
+                                       list_values[i][out_i]);
+        }
       }
     }
   });
