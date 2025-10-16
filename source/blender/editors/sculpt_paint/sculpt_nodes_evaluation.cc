@@ -134,7 +134,7 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
   }
 
   const bNodeTreeInterfaceSocket *first_output = tree->interface_outputs()[0];
-  const eNodeSocketDatatype type = (eNodeSocketDatatype)first_output->socket_typeinfo()->type;
+  const eNodeSocketDatatype type = first_output->socket_typeinfo()->type;
 
   /* Output type is unsupported. TODO: warn user? */
   if (!is_socket_type_supported(type)) {
@@ -147,9 +147,10 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
   Array<std::optional<lf::ValueUsage>> param_input_usages(num_inputs);
   Array<lf::ValueUsage> param_output_usages(num_outputs);
 
-  MutableSpan<GMutablePointer> param_outputs = output->scope.construct<Array<GMutablePointer>>(
+  ResourceScope &scope = output->scope;
+  MutableSpan<GMutablePointer> param_outputs = scope.construct<Array<GMutablePointer>>(
       num_outputs);
-  MutableSpan<bool> param_set_outputs = output->scope.construct<Array<bool>>(num_outputs, false);
+  MutableSpan<bool> param_set_outputs = scope.construct<Array<bool>>(num_outputs, false);
 
   /* We want to evaluate the main outputs, but don't care about which inputs are used for now. */
   param_output_usages.as_mutable_span().slice(function.outputs.main).fill(lf::ValueUsage::Used);
@@ -186,7 +187,7 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
   user_data.call_data = &call_data;
   user_data.compute_context = &compute_context;
 
-  LinearAllocator<> &allocator = output->scope.allocator();
+  LinearAllocator<> &allocator = scope.allocator();
   Vector<GMutablePointer> inputs_to_destruct;
 
   tree->ensure_interface_cache();
@@ -196,15 +197,11 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
     const bNodeTreeInterfaceSocket &interface_socket = *tree->interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
 
-    const CPPType *type = typeinfo->geometry_nodes_cpp_type;
-    BLI_assert(type != nullptr);
-    void *value = allocator.allocate(*type);
-
     /* Initialiaze with default values, Group Input is not supported for now. */
-    typeinfo->get_geometry_nodes_cpp_value(interface_socket.socket_data, value);
-
-    param_inputs[function.inputs.main[i]] = {type, value};
-    inputs_to_destruct.append({type, value});
+    bke::SocketValueVariant value = typeinfo->get_geometry_nodes_cpp_value(
+        interface_socket.socket_data);
+    param_inputs[function.inputs.main[i]] = &scope.construct<bke::SocketValueVariant>(
+        std::move(value));
   }
 
   /* Prepare used-outputs inputs. */

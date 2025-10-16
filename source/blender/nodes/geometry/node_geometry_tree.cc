@@ -45,7 +45,7 @@ static void geometry_node_tree_get_from_context(const bContext *C,
     *r_ntree = nullptr;
     return;
   }
-  if (snode->geometry_nodes_type == SNODE_GEOMETRY_BRUSH) {
+  if (snode->node_tree_sub_type == SNODE_GEOMETRY_BRUSH) {
     if (Paint *paint = BKE_paint_get_active_from_context(C)) {
       if (Brush *brush = BKE_paint_brush(paint)) {
         *r_ntree = brush->node_group;

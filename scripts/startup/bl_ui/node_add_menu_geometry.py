@@ -353,7 +353,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
-        if context.space_data.node_tree_sub_type != 'MODIFIER':
+        if context.space_data.node_tree_sub_type in {'TOOL', 'BRUSH'}:
             self.node_operator(layout, "GeometryNodeTool3DCursor")
         self.node_operator(layout, "GeometryNodeInputActiveCamera")
         self.node_operator_with_outputs(
@@ -375,7 +375,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeCollectionInfo")
         self.node_operator(layout, "GeometryNodeImageInfo")
         self.node_operator(layout, "GeometryNodeIsViewport")
-        if context.space_data.node_tree_sub_type != 'MODIFIER':
+        if context.space_data.node_tree_sub_type in {'TOOL', 'BRUSH'}:
             self.node_operator_with_outputs(
                 context, layout, "GeometryNodeToolMousePosition",
                 ["Mouse X", "Mouse Y", "Region Width", "Region Height"],
@@ -383,7 +383,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeObjectInfo")
         self.node_operator_with_outputs(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
         self.node_operator(layout, "GeometryNodeSelfObject")
-        if context.space_data.node_tree_sub_type != 'MODIFIER':
+        if context.space_data.node_tree_sub_type in {'TOOL', 'BRUSH'}:
             self.node_operator_with_outputs(
                 context, layout, "GeometryNodeViewportTransform",
                 ["Projection", "View", "Is Orthographic"],
@@ -597,11 +597,12 @@ class NODE_MT_gn_output_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "NodeGroupOutput")
+        self.node_operator(layout, "NodeGroupOutput")
         if context.space_data.node_tree_sub_type == 'MODIFIER':
-            node_add_menu.add_node_type(layout, "GeometryNodeViewer")
-        node_add_menu.add_node_type_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
-        node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
+            self.node_operator(layout, "GeometryNodeViewer")
+        self.node_operator_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
+
+        self.draw_assets_for_catalog(layout, self.bl_label)
 
 
 class NODE_MT_gn_point_base(node_add_menu.NodeMenu):

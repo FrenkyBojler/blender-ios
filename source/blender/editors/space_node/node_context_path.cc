@@ -226,7 +226,7 @@ static void get_context_path_node_geometry(const bContext &C,
   if (snode.flag & SNODE_PIN || snode.node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
     context_path_add_node_tree_and_node_groups(snode, path);
   }
-  else if (snode.geometry_nodes_type == SNODE_GEOMETRY_BRUSH) {
+  else if (snode.node_tree_sub_type == SNODE_GEOMETRY_BRUSH) {
     if (Paint *paint = BKE_paint_get_active_from_context(&C)) {
       if (Brush *brush = const_cast<Brush *>(BKE_paint_brush_for_read(paint))) {
         ui::context_path_add_generic(path, RNA_Brush, brush, ICON_BRUSH_DATA);

@@ -4345,6 +4345,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   Brush &brush = *BKE_paint_brush(&sd.paint);
+  const Scene &scene = *CTX_data_scene(C);
   const ARegion &region = *CTX_wm_region(C);
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(cache) ||
