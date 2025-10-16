@@ -14,6 +14,7 @@
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_geom.h"
@@ -524,22 +525,21 @@ void retiming_remove_key(Strip *strip, SeqRetimingKey *key)
   strip_retiming_remove_key_ex(strip, key);
 }
 
-static std::pair<float, float> strip_retiming_clamp_bounds_get(const Scene *scene,
-                                                               const Strip *strip,
-                                                               SeqRetimingKey *key)
+static Bounds<float> strip_retiming_clamp_bounds_get(const Scene *scene,
+                                                     const Strip *strip,
+                                                     SeqRetimingKey *key)
 {
-  std::pair<float, float> max_tml_frame_offset = {std::numeric_limits<float>::min(),
-                                                  std::numeric_limits<float>::max()};
+  Bounds<float> max_tml_frame_offset = {MINAFRAMEF, MAXFRAMEF};
 
   if (key->strip_frame_index != 0) {
     SeqRetimingKey *prev_key = key - 1;
-    max_tml_frame_offset.first = retiming_key_timeline_frame_get(scene, strip, prev_key) -
-                                 retiming_key_timeline_frame_get(scene, strip, key);
+    max_tml_frame_offset.min = retiming_key_timeline_frame_get(scene, strip, prev_key) -
+                               retiming_key_timeline_frame_get(scene, strip, key);
   }
   if (!retiming_is_last_key(strip, key)) {
     SeqRetimingKey *next_key = key + 1;
-    max_tml_frame_offset.second = retiming_key_timeline_frame_get(scene, strip, next_key) -
-                                  retiming_key_timeline_frame_get(scene, strip, key);
+    max_tml_frame_offset.max = retiming_key_timeline_frame_get(scene, strip, next_key) -
+                               retiming_key_timeline_frame_get(scene, strip, key);
   }
   return max_tml_frame_offset;
 }
@@ -551,8 +551,8 @@ static std::pair<SeqRetimingKey *, SeqRetimingKey *> freeze_key_pair_create(cons
                                                                             const int offset)
 {
 
-  std::pair<float, float> max_offset = strip_retiming_clamp_bounds_get(scene, strip, key);
-  const float tml_frame_offset = math::clamp(float(offset), max_offset.first, max_offset.second);
+  Bounds<float> max_offset = strip_retiming_clamp_bounds_get(scene, strip, key);
+  const float tml_frame_offset = math::clamp(float(offset), max_offset.min, max_offset.max);
   const int orig_timeline_frame = retiming_key_timeline_frame_get(scene, strip, key);
 
   /* Offset last key first, then add a freeze start key before it, because it is not possible to
@@ -626,8 +626,8 @@ SeqRetimingKey *retiming_add_transition(const Scene *scene,
     return nullptr;
   }
 
-  std::pair<float, float> max_offset = strip_retiming_clamp_bounds_get(scene, strip, key);
-  float clamped_offset = math::clamp(offset, max_offset.first, max_offset.second);
+  Bounds<float> max_offset = strip_retiming_clamp_bounds_get(scene, strip, key);
+  float clamped_offset = math::clamp(offset, max_offset.min, max_offset.max);
 
   const int orig_key_index = retiming_key_index_get(strip, key);
   const float orig_frame_index = key->strip_frame_index;
