@@ -115,9 +115,7 @@ std::optional<int64_t> GHOST_XrGraphicsBindingMetal::chooseSwapchainFormat(
       break;
   }
 
-  // TODO: Setting the proper srgb format value here causes side-effects for now, fix separately.
-  // r_is_srgb_format = (*result == MTLPixelFormatRGBA8Unorm_sRGB);
-  r_is_srgb_format = false;
+   r_is_srgb_format = (*result == MTLPixelFormatRGBA8Unorm_sRGB);
 
   return result;
 }
