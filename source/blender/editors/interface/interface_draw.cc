@@ -1827,7 +1827,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   /* Reset state for fill & line. */
   GPU_line_smooth(false);
-  GPU_blend(GPU_BLEND_NONE);
+  GPU_blend(GPU_BLEND_ALPHA);
   immUnbindProgram();
 
   /* The points, use aspect to make them visible on edges. */
@@ -1850,18 +1850,18 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
                                   min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
 
   int selected = 0;
+  /* Find the total number of selected points. */
   for (int i = 0; i < cuma->totpoint; i++) {
     if (cmp[i].flag & CUMA_SELECT) {
       selected++;
     }
   }
 
-  GPU_blend(GPU_BLEND_ALPHA);
-
   /* Curve widgets using a gradient background (such as Hue Correct), draw
    * an additional point in the back, forming an outline so they stand out. */
   if (but_cumap->gradient_type == UI_GRAD_H) {
     if ((cuma->totpoint - selected) > 0) {
+      /* Background (outline) for unselected points. */
       immUniform4fv("color", color_point_outline);
       immUniform1f("size", point_size * 1.4f);
       immBegin(GPU_PRIM_POINTS, cuma->totpoint - selected);
@@ -1875,8 +1875,8 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
       }
       immEnd();
     }
-    /* Draw selected outlines a bit larger. */
     if (selected > 0) {
+      /* Background (outline) for selected points. */
       immUniform1f("size", point_size * 1.8f);
       immBegin(GPU_PRIM_POINTS, selected);
       for (int a = 0; a < cuma->totpoint; a++) {
@@ -1892,6 +1892,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   }
 
   if ((cuma->totpoint - selected) > 0) {
+    /* Unselected points. */
     immUniform1f("size", point_size);
     immUniform4fv("color", color_point);
     immBegin(GPU_PRIM_POINTS, cuma->totpoint - selected);
@@ -1901,13 +1902,13 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
       }
       const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
       const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-      /* Unselected point in front. */
       immVertex2f(pos, fx, fy);
     }
     immEnd();
   }
 
   if (selected > 0) {
+    /* Selected points. */
     immUniform1f("size", point_size * 1.2f);
     immUniform4fv("color", color_point_select);
     immBegin(GPU_PRIM_POINTS, selected);
@@ -1917,7 +1918,6 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
       }
       const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
       const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-      /* Selected point in front. */
       immVertex2f(pos, fx, fy);
     }
     immEnd();
@@ -2162,8 +2162,6 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   color_sample[2] = float(wcol->item[2]) / 255.0f;
   color_sample[3] = float(wcol->item[3]) / 255.0f;
 
-  float point_size;
-
   int selected = 0;
   for (int i = 0; i < path_len; i++) {
     if (pts[i].flag & PROF_SELECT) {
@@ -2174,9 +2172,11 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   /* Draw the control points. */
   GPU_line_smooth(false);
   GPU_blend(GPU_BLEND_ALPHA);
+  const float point_size = max_ff(U.pixelsize * 2.0f,
+                                  min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
+
   if ((path_len - selected) > 0) {
-    point_size = max_ff(U.pixelsize * 2.0f,
-                        min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
+    /* Unselected control points. */
     immUniform4fv("color", color_point);
     immUniform1f("size", point_size);
     immBegin(GPU_PRIM_POINTS, path_len - selected);
@@ -2191,10 +2191,9 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
     immEnd();
   }
   if (selected > 0) {
-    point_size = max_ff(U.pixelsize * 2.0f,
-                        min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
+    /* Selected control points. */
     immUniform4fv("color", color_point_select);
-    immUniform1f("size", point_size * 1.5f);
+    immUniform1f("size", point_size * 1.2f);
     immBegin(GPU_PRIM_POINTS, selected);
     for (int i = 0; i < path_len; i++) {
       if (!(pts[i].flag & PROF_SELECT)) {
@@ -2207,7 +2206,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
     immEnd();
   }
 
-  /* Draw the handle points. */
+  /* Find the total number of selected handles. */
   selected = 0;
   for (int i = 0; i < path_len; i++) {
     if (point_draw_handles(&pts[i])) {
@@ -2221,11 +2220,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   }
 
   if (((selected_free_points * 2) - selected) > 0) {
-    GPU_line_smooth(false);
-    GPU_blend(GPU_BLEND_ALPHA);
-    point_size = max_ff(U.pixelsize * 2.0f,
-                        min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
-
+    /* Unselected handles. */
     immUniform4fv("color", color_point);
     immUniform1f("size", point_size);
     immBegin(GPU_PRIM_POINTS, (selected_free_points * 2) - selected);
@@ -2247,10 +2242,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   }
 
   if (selected > 0) {
-    GPU_line_smooth(false);
-    GPU_blend(GPU_BLEND_ALPHA);
-    point_size = max_ff(U.pixelsize * 2.0f,
-                        min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
+    /* Selected Handles. */
     immUniform4fv("color", color_point_select);
     immUniform1f("size", point_size * 1.2f);
     immBegin(GPU_PRIM_POINTS, selected);
@@ -2275,7 +2267,6 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   pts = profile->segments;
   const int segments_len = uint(profile->segments_len);
   if (segments_len > 0 && pts) {
-    point_size = max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 3.0f, 3.0f));
     immUniform4fv("color", color_sample);
     immUniform1f("size", point_size);
     immBegin(GPU_PRIM_POINTS, segments_len);
@@ -2299,6 +2290,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   immUniformColor3ubv((const uchar *)wcol->outline);
   imm_draw_box_wire_2d(pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
   immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 void ui_draw_but_TRACKPREVIEW(ARegion *region,
