@@ -3,26 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * As per GPU API design, all framebuffers with SRGBA_8_8_8_8 attachments will always enable SRGB
- * rendering. In this mode the shader output is expected to be in a linear color space (values are
- * distribute linearly). This allows to do the alpha blending with linear values (more correct) and
- * then store the result in 8bpc keeping accurate colors.
- *
- * To ensure consistent result (blending excluded) between a framebuffer using SRGBA_8_8_8_8 and
- * one using RGBA_8_8_8_8, we need to do the sRGB > linear conversion to counteract the hardware
- * encoding during rasterization.
- *
- * All builtin GPUShaders are expected to output Rec.709 sRGB and be rendered onto the same color
- * space. The exception is the scene linear image shaders which expect scene linear input. These
- * need to be converted to Rec.709 linear before being fed to #blender_linear_to_framebuffer_space.
- *
- * Note that the resulting SRGBA_8_8_8_8 texture will always be sampled with a sRGB > linear
- * conversion which might or might not need to be compensated.
- *
- * This is **NOT** a color management step. Color management should be applied to the input in
- * order to match the framebuffer color space.
- *
- * For reference:  https://wikis.khronos.org/opengl/framebuffer#Colorspace
+
  */
 
 #pragma once
@@ -38,6 +19,17 @@ SHADER_LIBRARY_CREATE_INFO(gpu_srgb_to_framebuffer_space)
  * Input is Rec.709 sRGB.
  * Output is Rec.709 linear if hardware will add a Linear to sRGB comversion, noop otherwise.
  * NOTE: Old naming convention, but avoids breaking compatibility for python shaders.
+ *
+ * As per GPU API design, all framebuffers with SRGBA_8_8_8_8 attachments will always enable SRGB
+ * rendering. In this mode the shader output is expected to be in a linear color space. This allows
+ * to do the blending stage with linear values (more correct) and then store the result in 8bpc
+ * keeping accurate colors.
+ *
+ * To ensure consistent result (blending excluded) between a framebuffer using SRGBA_8_8_8_8 and
+ * one using RGBA_8_8_8_8, we need to do the sRGB > linear conversion to counteract the hardware
+ * encoding during rasterization.
+ *
+ * For reference:  https://wikis.khronos.org/opengl/framebuffer#Colorspace
  */
 float4 blender_srgb_to_framebuffer_space(float4 srgb_color)
 {
