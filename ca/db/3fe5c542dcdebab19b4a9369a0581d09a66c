@@ -1,3 +1,4 @@
 Referenced by issue #127706, Blendfile: Improve Stability of Pointer Values
 Referenced by issue #148032, Vertex / Weight Paint: Undo broken on first file load
 Referenced by pull request #148144, Fix #148032: vertex/weight paint undo broken
+Referenced by commit 7ed85bfe17878d73700b213c840b487f1d250d40, Fix #148032: vertex/weight paint undo broken
