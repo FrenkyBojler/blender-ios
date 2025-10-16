@@ -1614,13 +1614,13 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   }
 
   /* calculate offset and zoom */
-  const float zoomx = (BLI_rcti_size_x(rect) - 2.0f) / clip_size_x;
-  const float zoomy = (BLI_rcti_size_y(rect) - 2.0f) / clip_size_y;
+  const float zoomx = (BLI_rcti_size_x(rect) - 1.0f) / clip_size_x;
+  const float zoomy = (BLI_rcti_size_y(rect) - 1.0f) / clip_size_y;
   const float offsx = cumap->curr.xmin - (1.0f / zoomx);
   const float offsy = cumap->curr.ymin - (1.0f / zoomy);
 
   /* exit early if too narrow */
-  if (zoomx == 0.0f) {
+  if (zoomx <= 0.0f) {
     return;
   }
 
@@ -1962,13 +1962,13 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
                                                                    but_profile->edit_profile;
 
   /* Calculate offset and zoom. */
-  const float zoomx = (BLI_rcti_size_x(rect) - 2.0f) / BLI_rctf_size_x(&profile->view_rect);
-  const float zoomy = (BLI_rcti_size_y(rect) - 2.0f) / BLI_rctf_size_y(&profile->view_rect);
+  const float zoomx = (BLI_rcti_size_x(rect) - 1.0f) / BLI_rctf_size_x(&profile->view_rect);
+  const float zoomy = (BLI_rcti_size_y(rect) - 1.0f) / BLI_rctf_size_y(&profile->view_rect);
   const float offsx = profile->view_rect.xmin - (1.0f / zoomx);
   const float offsy = profile->view_rect.ymin - (1.0f / zoomy);
 
   /* Exit early if too narrow. */
-  if (zoomx == 0.0f) {
+  if (zoomx <= 0.0f) {
     return;
   }
 
