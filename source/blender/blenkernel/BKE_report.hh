@@ -41,7 +41,7 @@ enum eReportType : uint16_t {
   RPT_ERROR_INVALID_CONTEXT = (1 << 7),
   RPT_ERROR_OUT_OF_MEMORY = (1 << 8),
 };
-ENUM_OPERATORS(eReportType, RPT_ERROR_OUT_OF_MEMORY)
+ENUM_OPERATORS(eReportType)
 
 #define RPT_DEBUG_ALL (RPT_DEBUG)
 #define RPT_INFO_ALL (RPT_INFO)

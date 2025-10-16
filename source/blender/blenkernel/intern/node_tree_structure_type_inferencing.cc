@@ -340,7 +340,7 @@ enum class ZoneInOutChange {
   In = (1 << 1),
   Out = (1 << 2),
 };
-ENUM_OPERATORS(ZoneInOutChange, ZoneInOutChange::Out);
+ENUM_OPERATORS(ZoneInOutChange);
 
 static ZoneInOutChange simulation_zone_requirements_propagate(
     const bNode &input_node,

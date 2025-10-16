@@ -3036,7 +3036,7 @@ enum class eNTreeDoVersionErrors : int8_t {
   NTREE_DOVERSION_NEED_OUTPUT = (1 << 0),
   NTREE_DOVERSION_TRANSPARENCY_EMISSION = (1 << 1),
 };
-ENUM_OPERATORS(eNTreeDoVersionErrors, ~int8_t{});
+ENUM_OPERATORS(eNTreeDoVersionErrors);
 
 /* NOLINTNEXTLINE: readability-function-size */
 void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)

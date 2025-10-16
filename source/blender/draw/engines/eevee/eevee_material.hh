@@ -138,7 +138,7 @@ enum eClosureBits : uint32_t {
 
   CLOSURE_TRANSMISSION = CLOSURE_SSS | CLOSURE_REFRACTION | CLOSURE_TRANSLUCENT,
 };
-ENUM_OPERATORS(eClosureBits, CLOSURE_CLEARCOAT)
+ENUM_OPERATORS(eClosureBits)
 
 static inline eClosureBits shader_closure_bits_from_flag(const GPUMaterial *gpumat)
 {

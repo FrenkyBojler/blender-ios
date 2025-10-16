@@ -550,7 +550,7 @@ enum BMeshElemErrorFlag {
   IS_FACE_LOOP_DUPE_EDGE = (1 << 25),
   IS_FACE_WRONG_LENGTH = (1 << 26),
 };
-ENUM_OPERATORS(BMeshElemErrorFlag, IS_FACE_WRONG_LENGTH)
+ENUM_OPERATORS(BMeshElemErrorFlag)
 
 int bmesh_elem_check(void *element, const char htype)
 {

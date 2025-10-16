@@ -36,7 +36,7 @@ enum RenderGraphFlushFlags {
   SUBMIT = 1 << 1,
   WAIT_FOR_COMPLETION = 1 << 2,
 };
-ENUM_OPERATORS(RenderGraphFlushFlags, RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
+ENUM_OPERATORS(RenderGraphFlushFlags);
 
 class VKContext : public Context, NonCopyable {
   friend class VKDevice;

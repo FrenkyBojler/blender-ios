@@ -491,7 +491,7 @@ enum eUVEndPointPrecedence {
   UVEP_SELECTED = (1 << 0),
   UVEP_PINNED = (1 << 1), /* i.e. Pinned verts are preferred to selected. */
 };
-ENUM_OPERATORS(eUVEndPointPrecedence, UVEP_PINNED);
+ENUM_OPERATORS(eUVEndPointPrecedence);
 
 static eUVEndPointPrecedence uvedit_line_update_get_precedence(const bool pinned)
 {

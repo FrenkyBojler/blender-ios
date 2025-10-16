@@ -134,7 +134,7 @@ enum class ItemInternalFlag : uint8_t {
   PropDecorate = 1 << 5,
   PropDecorateNoPad = 1 << 6,
 };
-ENUM_OPERATORS(ItemInternalFlag, ItemInternalFlag::PropDecorateNoPad)
+ENUM_OPERATORS(ItemInternalFlag)
 
 /** Helper internal struct to provide #uiItem private/protected access. */
 struct ItemInternal {

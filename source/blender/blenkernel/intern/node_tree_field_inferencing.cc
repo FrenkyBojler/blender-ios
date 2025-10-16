@@ -283,7 +283,7 @@ enum class FieldStateSyncResult : int8_t {
   /* State B has been modified. */
   CHANGED_B = (1 << 1),
 };
-ENUM_OPERATORS(FieldStateSyncResult, FieldStateSyncResult::CHANGED_B)
+ENUM_OPERATORS(FieldStateSyncResult)
 
 /**
  * Compare both field states and select the most compatible.

@@ -128,7 +128,7 @@ enum SkinNodeFlag {
   SEAM_FRAME = 4,
   FLIP_NORMAL = 8,
 };
-ENUM_OPERATORS(SkinNodeFlag, FLIP_NORMAL);
+ENUM_OPERATORS(SkinNodeFlag);
 
 struct Frame {
   /* Index in the vertex array */
@@ -1815,7 +1815,7 @@ enum eSkinErrorFlag {
   SKIN_ERROR_NO_VALID_ROOT = (1 << 0),
   SKIN_ERROR_HULL = (1 << 1),
 };
-ENUM_OPERATORS(eSkinErrorFlag, SKIN_ERROR_HULL);
+ENUM_OPERATORS(eSkinErrorFlag);
 
 static BMesh *build_skin(SkinNode *skin_nodes,
                          int verts_num,

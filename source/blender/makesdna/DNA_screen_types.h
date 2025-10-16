@@ -894,7 +894,7 @@ typedef struct RegionAssetShelf {
 typedef enum AssetShelfSettings_DisplayFlag {
   ASSETSHELF_SHOW_NAMES = (1 << 0),
 } AssetShelfSettings_DisplayFlag;
-ENUM_OPERATORS(AssetShelfSettings_DisplayFlag, ASSETSHELF_SHOW_NAMES);
+ENUM_OPERATORS(AssetShelfSettings_DisplayFlag);
 
 /* #AssetShelfSettings.instance_flag */
 typedef enum AssetShelf_InstanceFlag {
@@ -905,7 +905,7 @@ typedef enum AssetShelf_InstanceFlag {
    */
   ASSETSHELF_REGION_IS_HIDDEN = (1 << 0),
 } AssetShelf_InstanceFlag;
-ENUM_OPERATORS(AssetShelf_InstanceFlag, ASSETSHELF_REGION_IS_HIDDEN);
+ENUM_OPERATORS(AssetShelf_InstanceFlag);
 
 typedef struct FileHandler {
   DNA_DEFINE_CXX_METHODS(FileHandler)

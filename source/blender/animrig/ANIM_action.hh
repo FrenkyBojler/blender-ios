@@ -691,7 +691,6 @@ class Layer : public ::ActionLayer {
   enum class Flags : uint8_t {
     /* Set by default, cleared to mute. */
     Enabled = (1 << 0),
-    /* When adding/removing a flag, also update the ENUM_OPERATORS() invocation below. */
   };
 
   Flags flags() const
@@ -752,7 +751,7 @@ class Layer : public ::ActionLayer {
 static_assert(sizeof(Layer) == sizeof(::ActionLayer),
               "DNA struct and its C++ wrapper must have the same size");
 
-ENUM_OPERATORS(Layer::Flags, Layer::Flags::Enabled);
+ENUM_OPERATORS(Layer::Flags);
 
 /**
  * Identifier for a sub-set of the animation data inside an Action.
@@ -875,8 +874,6 @@ class Slot : public ::ActionSlot {
     Selected = (1 << 1),
     /** The active Slot for this Action. Set via a method on the Action. */
     Active = (1 << 2),
-    /* When adding/removing a flag, also update the ENUM_OPERATORS() invocation,
-     * all the way below the Slot class. */
   };
   Flags flags() const;
   bool is_expanded() const;
@@ -962,7 +959,7 @@ class Slot : public ::ActionSlot {
 };
 static_assert(sizeof(Slot) == sizeof(::ActionSlot),
               "DNA struct and its C++ wrapper must have the same size");
-ENUM_OPERATORS(Slot::Flags, Slot::Flags::Active);
+ENUM_OPERATORS(Slot::Flags);
 
 /**
  * Keyframe animation data for a keyframe strip.

@@ -50,4 +50,4 @@ typedef enum eDupli_ID_Flags {
   /* Duplicate (and hence make local) linked data. */
   USER_DUP_LINKED_ID = (1 << 30),
 } eDupli_ID_Flags;
-ENUM_OPERATORS(eDupli_ID_Flags, USER_DUP_LINKED_ID)
+ENUM_OPERATORS(eDupli_ID_Flags)

@@ -470,7 +470,7 @@ enum eLibIDDuplicateFlags {
   LIB_ID_DUPLICATE_IS_ROOT_ID = 1 << 1,
 };
 
-ENUM_OPERATORS(eLibIDDuplicateFlags, LIB_ID_DUPLICATE_IS_ROOT_ID)
+ENUM_OPERATORS(eLibIDDuplicateFlags)
 
 /* `lib_remap.cc` (keep here since they're general functions) */
 /**

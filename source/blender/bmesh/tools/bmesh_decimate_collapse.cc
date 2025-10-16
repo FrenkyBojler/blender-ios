@@ -62,7 +62,7 @@ enum CD_UseFlag {
   CD_DO_EDGE = (1 << 1),
   CD_DO_LOOP = (1 << 2),
 };
-ENUM_OPERATORS(CD_UseFlag, CD_DO_LOOP)
+ENUM_OPERATORS(CD_UseFlag)
 
 /* BMesh Helper Functions
  * ********************** */

@@ -341,7 +341,7 @@ typedef enum eNodeSocketInOut {
   SOCK_IN = 1 << 0,
   SOCK_OUT = 1 << 1,
 } eNodeSocketInOut;
-ENUM_OPERATORS(eNodeSocketInOut, SOCK_OUT);
+ENUM_OPERATORS(eNodeSocketInOut);
 
 /** #bNodeSocket.flag, first bit is selection. */
 typedef enum eNodeSocketFlag {
@@ -1072,7 +1072,7 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_PAINT = (1 << 10),
   GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL = (1 << 11),
 } GeometryNodeAssetTraitFlag;
-ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL);
+ENUM_OPERATORS(GeometryNodeAssetTraitFlag);
 
 /* Data structs, for `node->storage`. */
 

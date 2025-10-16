@@ -39,7 +39,7 @@ enum wmOperatorStatus {
   } \
   ((void)0)
 
-ENUM_OPERATORS(wmOperatorStatus, OPERATOR_INTERFACE);
+ENUM_OPERATORS(wmOperatorStatus);
 
 /** #wmOperator.flag */
 enum {

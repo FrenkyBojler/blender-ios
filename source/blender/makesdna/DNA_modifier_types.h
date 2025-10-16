@@ -146,7 +146,7 @@ typedef enum ModifierMode {
   eModifierMode_ApplyOnSpline = (1 << 6),
   eModifierMode_DisableTemporary = (1u << 31),
 } ModifierMode;
-ENUM_OPERATORS(ModifierMode, eModifierMode_DisableTemporary);
+ENUM_OPERATORS(ModifierMode);
 
 typedef struct ModifierData {
   struct ModifierData *next, *prev;

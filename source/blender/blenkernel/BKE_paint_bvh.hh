@@ -115,7 +115,7 @@ class Node : NonCopyable {
   const Bounds<float3> &bounds_orig() const;
 };
 
-ENUM_OPERATORS(Node::Flags, Node::Flags::TopologyUpdated);
+ENUM_OPERATORS(Node::Flags);
 
 struct MeshNode : public Node {
   /**
@@ -479,7 +479,7 @@ enum PBVHTopologyUpdateMode {
   PBVH_Subdivide = 1,
   PBVH_Collapse = 2,
 };
-ENUM_OPERATORS(PBVHTopologyUpdateMode, PBVH_Collapse);
+ENUM_OPERATORS(PBVHTopologyUpdateMode);
 
 namespace blender::bke::pbvh {
 

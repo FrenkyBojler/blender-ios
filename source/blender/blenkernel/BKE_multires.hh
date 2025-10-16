@@ -57,7 +57,7 @@ enum class MultiresFlags : uint8_t {
   AllocPaintMask = 4,
   IgnoreSimplify = 8,
 };
-ENUM_OPERATORS(MultiresFlags, MultiresFlags::IgnoreSimplify);
+ENUM_OPERATORS(MultiresFlags);
 
 MultiresModifierData *find_multires_modifier_before(Scene *scene, ModifierData *lastmd);
 /**

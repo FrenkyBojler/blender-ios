@@ -62,7 +62,7 @@ enum GPUNodeTag {
   GPU_NODE_TAG_COMPOSITOR = (1 << 6),
 };
 
-ENUM_OPERATORS(GPUNodeTag, GPU_NODE_TAG_COMPOSITOR)
+ENUM_OPERATORS(GPUNodeTag)
 
 struct GPUNode {
   GPUNode *next, *prev;

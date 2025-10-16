@@ -102,7 +102,7 @@ enum eUndoPushReturn {
   UNDO_PUSH_RET_SUCCESS = (1 << 0),
   UNDO_PUSH_RET_OVERRIDE_CHANGED = (1 << 1),
 };
-ENUM_OPERATORS(eUndoPushReturn, UNDO_PUSH_RET_OVERRIDE_CHANGED)
+ENUM_OPERATORS(eUndoPushReturn)
 
 using UndoTypeForEachIDRefFn = void (*)(void *user_data, UndoRefID *id_ref);
 

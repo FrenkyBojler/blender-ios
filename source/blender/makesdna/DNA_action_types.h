@@ -510,7 +510,7 @@ typedef enum ePchan_ConstFlag {
   PCHAN_HAS_SPLINEIK = (1 << 5),     /* Has Spline IK constraint. */
   PCHAN_INFLUENCED_BY_IK = (1 << 6), /* Is part of a (non-spline) IK chain. */
 } ePchan_ConstFlag;
-ENUM_OPERATORS(ePchan_ConstFlag, PCHAN_INFLUENCED_BY_IK);
+ENUM_OPERATORS(ePchan_ConstFlag);
 
 /* PoseChannel->ikflag */
 typedef enum ePchan_IkFlag {

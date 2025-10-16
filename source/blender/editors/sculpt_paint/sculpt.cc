@@ -1360,7 +1360,7 @@ enum class AverageDataFlags : uint8_t {
 
   All = Position | Normal
 };
-ENUM_OPERATORS(AverageDataFlags, AverageDataFlags::Normal);
+ENUM_OPERATORS(AverageDataFlags);
 
 static void calc_area_normal_and_center_node_mesh(const Object &object,
                                                   const Span<float3> vert_positions,

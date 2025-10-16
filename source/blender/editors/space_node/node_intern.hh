@@ -135,7 +135,7 @@ enum NodeResizeDirection {
   NODE_RESIZE_RIGHT = (1 << 2),
   NODE_RESIZE_LEFT = (1 << 3),
 };
-ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
+ENUM_OPERATORS(NodeResizeDirection);
 
 /* Nodes draw without DPI - the view zoom is flexible. */
 #define BASIS_RAD (0.2f * U.widget_unit)

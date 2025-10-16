@@ -105,7 +105,7 @@ enum class CollisionComponentFlag : uint8_t {
   /** #DEG_OB_COMP_EVAL_POSE is set. */
   EvalPose = 1 << 2,
 };
-ENUM_OPERATORS(CollisionComponentFlag, CollisionComponentFlag::EvalPose);
+ENUM_OPERATORS(CollisionComponentFlag);
 
 void DEG_add_collision_relations(DepsNodeHandle *handle,
                                  Object *object,

@@ -72,8 +72,6 @@ class TreeViewItemContainer {
     None = 0,
     SkipCollapsed = 1 << 0,
     SkipFiltered = 1 << 1,
-
-    /* Keep ENUM_OPERATORS() below updated! */
   };
   using ItemIterFn = FunctionRef<void(AbstractTreeViewItem &)>;
 
@@ -102,8 +100,7 @@ class TreeViewItemContainer {
   void foreach_parent(ItemIterFn iter_fn) const;
 };
 
-ENUM_OPERATORS(TreeViewItemContainer::IterOptions,
-               TreeViewItemContainer::IterOptions::SkipCollapsed);
+ENUM_OPERATORS(TreeViewItemContainer::IterOptions);
 
 /**
  * The container class is the base for both the tree-view and the items. This alias gives it a

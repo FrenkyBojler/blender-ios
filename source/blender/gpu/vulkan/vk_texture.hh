@@ -28,7 +28,7 @@ enum class VKImageViewFlags {
   DEFAULT = 0,
   NO_SWIZZLING = 1 << 0,
 };
-ENUM_OPERATORS(VKImageViewFlags, VKImageViewFlags::NO_SWIZZLING)
+ENUM_OPERATORS(VKImageViewFlags)
 
 class VKTexture : public Texture {
   friend class VKDescriptorSetUpdator;

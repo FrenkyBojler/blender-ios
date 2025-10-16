@@ -544,7 +544,7 @@ struct WPGradient_vertStore {
   float weight_orig;
   Flag flag;
 };
-ENUM_OPERATORS(WPGradient_vertStore::Flag, WPGradient_vertStore::VGRAD_STORE_IS_MODIFIED);
+ENUM_OPERATORS(WPGradient_vertStore::Flag);
 
 struct WPGradient_vertStoreBase {
   WPaintPrev wpp;

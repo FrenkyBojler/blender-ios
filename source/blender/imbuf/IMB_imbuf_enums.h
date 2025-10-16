@@ -47,4 +47,4 @@ enum IMB_Proxy_Size {
   IMB_PROXY_100 = 8,
   IMB_PROXY_MAX_SLOT = 4,
 };
-ENUM_OPERATORS(IMB_Proxy_Size, IMB_PROXY_100);
+ENUM_OPERATORS(IMB_Proxy_Size);

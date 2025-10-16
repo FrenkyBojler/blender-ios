@@ -214,7 +214,7 @@ enum DegIterFlag {
   DEG_ITER_OBJECT_FLAG_VISIBLE = (1 << 3),
   DEG_ITER_OBJECT_FLAG_DUPLI = (1 << 4),
 };
-ENUM_OPERATORS(DegIterFlag, DEG_ITER_OBJECT_FLAG_DUPLI)
+ENUM_OPERATORS(DegIterFlag)
 
 struct DEGObjectIterSettings {
   Depsgraph *depsgraph;

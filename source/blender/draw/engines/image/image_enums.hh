@@ -20,6 +20,6 @@ enum class ImageDrawFlags {
   SHUFFLING = (1 << 2),
   DEPTH = (1 << 3)
 };
-ENUM_OPERATORS(ImageDrawFlags, ImageDrawFlags::DEPTH);
+ENUM_OPERATORS(ImageDrawFlags);
 
 }  // namespace blender::image_engine

@@ -86,7 +86,7 @@ enum eGPencil_PaintFlags {
   GP_PAINTFLAG_USE_STABILIZER = (1 << 7),
   GP_PAINTFLAG_USE_STABILIZER_TEMP = (1 << 8),
 };
-ENUM_OPERATORS(eGPencil_PaintFlags, GP_PAINTFLAG_USE_STABILIZER_TEMP)
+ENUM_OPERATORS(eGPencil_PaintFlags)
 
 /* Temporary 'Stroke' Operation data
  *   "p" = op->customdata

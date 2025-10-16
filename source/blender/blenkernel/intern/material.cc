@@ -1526,7 +1526,7 @@ enum ePaintSlotFilter {
   PAINT_SLOT_IMAGE = 1 << 0,
   PAINT_SLOT_COLOR_ATTRIBUTE = 1 << 1,
 };
-ENUM_OPERATORS(ePaintSlotFilter, PAINT_SLOT_COLOR_ATTRIBUTE)
+ENUM_OPERATORS(ePaintSlotFilter)
 
 using ForEachTexNodeCallback = bool (*)(bNode *node, void *userdata);
 static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,

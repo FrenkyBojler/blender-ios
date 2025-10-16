@@ -38,7 +38,7 @@ enum GPUTextureFormatFlag {
   GPU_FORMAT_DEPTH_STENCIL = (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL),
 };
 
-ENUM_OPERATORS(GPUTextureFormatFlag, GPU_FORMAT_SIGNED)
+ENUM_OPERATORS(GPUTextureFormatFlag)
 
 enum GPUTextureType {
   GPU_TEXTURE_1D = (1 << 0),
@@ -53,7 +53,7 @@ enum GPUTextureType {
   GPU_TEXTURE_CUBE_ARRAY = (GPU_TEXTURE_CUBE | GPU_TEXTURE_ARRAY),
 };
 
-ENUM_OPERATORS(GPUTextureType, GPU_TEXTURE_BUFFER)
+ENUM_OPERATORS(GPUTextureType)
 
 /* Format types for samplers within the shader.
  * This covers the sampler format type permutations within GLSL/MSL. */
@@ -66,7 +66,7 @@ enum GPUSamplerFormat {
   GPU_SAMPLER_TYPE_MAX = 4
 };
 
-ENUM_OPERATORS(GPUSamplerFormat, GPU_SAMPLER_TYPE_UINT)
+ENUM_OPERATORS(GPUSamplerFormat)
 
 #ifndef NDEBUG
 #  define DEBUG_NAME_LEN 64

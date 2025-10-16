@@ -598,7 +598,7 @@ enum class MenuTypeFlag {
    */
   SearchOnKeyPress = (1 << 1),
 };
-ENUM_OPERATORS(MenuTypeFlag, MenuTypeFlag::ContextDependent)
+ENUM_OPERATORS(MenuTypeFlag)
 
 struct MenuType {
   MenuType *next, *prev;
@@ -648,10 +648,8 @@ enum AssetShelfTypeFlag {
    * highlighting the asset as active.
    */
   ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU = (1 << 3),
-
-  ASSET_SHELF_TYPE_FLAG_MAX
 };
-ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_MAX);
+ENUM_OPERATORS(AssetShelfTypeFlag);
 
 #define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 64
 

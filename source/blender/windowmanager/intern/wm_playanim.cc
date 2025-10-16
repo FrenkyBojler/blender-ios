@@ -171,7 +171,7 @@ enum eWS_Qual {
   WS_QUAL_RMOUSE = (1 << 18),
 #define WS_QUAL_MOUSE (WS_QUAL_LMOUSE | WS_QUAL_MMOUSE | WS_QUAL_RMOUSE)
 };
-ENUM_OPERATORS(eWS_Qual, WS_QUAL_RMOUSE)
+ENUM_OPERATORS(eWS_Qual)
 
 struct GhostData {
   GHOST_SystemHandle system;

@@ -67,7 +67,7 @@ struct ResourceWithStamp {
  * Enum containing the different resource types that are being tracked.
  */
 enum class VKResourceType { NONE = (0 << 0), IMAGE = (1 << 0), BUFFER = (1 << 1) };
-ENUM_OPERATORS(VKResourceType, VKResourceType::BUFFER);
+ENUM_OPERATORS(VKResourceType);
 
 /**
  * State being tracked for a resource.

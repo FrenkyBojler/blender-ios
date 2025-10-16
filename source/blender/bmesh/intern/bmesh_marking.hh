@@ -33,7 +33,7 @@ enum class BMSelectFlushFlag : uint8_t {
    */
   Down = (1 << 3),
 };
-ENUM_OPERATORS(BMSelectFlushFlag, BMSelectFlushFlag::Down)
+ENUM_OPERATORS(BMSelectFlushFlag)
 
 #define BMSelectFlushFlag_All \
   (BMSelectFlushFlag::RecalcLenVert | BMSelectFlushFlag::RecalcLenEdge | \

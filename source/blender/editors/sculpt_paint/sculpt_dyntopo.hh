@@ -29,7 +29,7 @@ enum WarnFlag {
   LDATA = (1 << 2),
   MODIFIER = (1 << 3),
 };
-ENUM_OPERATORS(WarnFlag, MODIFIER);
+ENUM_OPERATORS(WarnFlag);
 
 /** Enable dynamic topology; mesh will be triangulated */
 void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob);

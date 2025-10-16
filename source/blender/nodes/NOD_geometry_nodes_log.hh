@@ -81,7 +81,7 @@ enum class NamedAttributeUsage {
   Write = 1 << 1,
   Remove = 1 << 2,
 };
-ENUM_OPERATORS(NamedAttributeUsage, NamedAttributeUsage::Remove);
+ENUM_OPERATORS(NamedAttributeUsage);
 
 /**
  * Values of different types are logged differently. This is necessary because some types are so

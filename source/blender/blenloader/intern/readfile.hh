@@ -63,7 +63,7 @@ enum eFileDataFlag {
    */
   FD_FLAGS_HAS_INVALID_ID_NAMES = 1 << 6,
 };
-ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
+ENUM_OPERATORS(eFileDataFlag)
 
 /* Disallow since it's 32bit on ms-windows. */
 #ifdef __GNUC__

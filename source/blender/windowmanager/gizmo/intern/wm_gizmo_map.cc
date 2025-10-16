@@ -75,7 +75,7 @@ enum eWM_GizmoFlagGroupTypeGlobalFlag {
   WM_GIZMOTYPE_GLOBAL_REINIT_ALL = (1 << 3),
 
 };
-ENUM_OPERATORS(eWM_GizmoFlagGroupTypeGlobalFlag, WM_GIZMOTYPE_GLOBAL_REINIT_ALL)
+ENUM_OPERATORS(eWM_GizmoFlagGroupTypeGlobalFlag)
 
 static eWM_GizmoFlagGroupTypeGlobalFlag wm_gzmap_type_update_flag =
     eWM_GizmoFlagGroupTypeGlobalFlag(0);

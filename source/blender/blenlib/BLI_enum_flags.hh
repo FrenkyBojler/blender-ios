@@ -14,19 +14,21 @@
 /* Use for enum classes that represent bit flags.
  * Defines logical operators to combine and mask the flag values.
  *
- * `_max_enum_value` needs to be the largest individual bit value present in the enum. */
-#  define ENUM_OPERATORS(_enum_type, _max_enum_value) \
-    inline constexpr _enum_type operator|(_enum_type a, _enum_type b) \
+ * Note that negation/inversion operator (~) flips all the bits, so the result can contain
+ * set bits that are not part of the enum values. However that is fine in typical
+ * inversion operator usage, which is often for masking out bits (`a & ~b`). */
+#  define ENUM_OPERATORS(_enum_type) \
+    [[nodiscard]] inline constexpr _enum_type operator|(_enum_type a, _enum_type b) \
     { \
       return (_enum_type)(uint64_t(a) | uint64_t(b)); \
     } \
-    inline constexpr _enum_type operator&(_enum_type a, _enum_type b) \
+    [[nodiscard]] inline constexpr _enum_type operator&(_enum_type a, _enum_type b) \
     { \
       return (_enum_type)(uint64_t(a) & uint64_t(b)); \
     } \
-    inline constexpr _enum_type operator~(_enum_type a) \
+    [[nodiscard]] inline constexpr _enum_type operator~(_enum_type a) \
     { \
-      return (_enum_type)(~uint64_t(a) & (2 * uint64_t(_max_enum_value) - 1)); \
+      return (_enum_type)(~uint64_t(a)); \
     } \
     inline _enum_type &operator|=(_enum_type &a, _enum_type b) \
     { \
@@ -43,6 +45,6 @@
 
 #else
 
-#  define ENUM_OPERATORS(_enum_type, _max_enum_value)
+#  define ENUM_OPERATORS(_enum_type)
 
 #endif

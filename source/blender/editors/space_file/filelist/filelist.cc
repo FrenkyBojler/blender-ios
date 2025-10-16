@@ -2252,7 +2252,7 @@ enum ListLibOptions {
   /* Add given root as result. */
   LIST_LIB_ADD_PARENT = (1 << 2),
 };
-ENUM_OPERATORS(ListLibOptions, LIST_LIB_ADD_PARENT);
+ENUM_OPERATORS(ListLibOptions);
 
 static FileListInternEntry *filelist_readjob_list_lib_group_create(
     const FileListReadJob *job_params, const int idcode, const char *group_name)

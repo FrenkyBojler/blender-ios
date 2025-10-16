@@ -27,7 +27,7 @@ enum class ParamFlag {
    */
   SupportsUnusedOutput = 1 << 0,
 };
-ENUM_OPERATORS(ParamFlag, ParamFlag::SupportsUnusedOutput);
+ENUM_OPERATORS(ParamFlag);
 
 struct Signature {
   struct ParamInfo {

@@ -711,7 +711,7 @@ static bool supports_handle_ranges(DupliObject *dupli, Object *parent)
 enum class InstancesFlags : uint8_t {
   IsNegativeScale = 1 << 0,
 };
-ENUM_OPERATORS(InstancesFlags, InstancesFlags::IsNegativeScale);
+ENUM_OPERATORS(InstancesFlags);
 
 struct InstancesKey {
   uint64_t hash_value;

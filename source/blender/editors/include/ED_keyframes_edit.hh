@@ -163,7 +163,7 @@ enum eKeyframeIterFlags {
   /* Represents "Show Handles" option (SIPO_NOHANDLES). */
   KEYFRAME_ITER_HANDLES_INVISIBLE = (1 << 4),
 };
-ENUM_OPERATORS(eKeyframeIterFlags, KEYFRAME_ITER_HANDLES_DEFAULT_INVISIBLE)
+ENUM_OPERATORS(eKeyframeIterFlags)
 
 /** \} */
 

@@ -107,7 +107,7 @@ enum eWinOverrideFlag {
   WIN_OVERRIDE_GEOM = (1 << 0),
   WIN_OVERRIDE_WINSTATE = (1 << 1),
 };
-ENUM_OPERATORS(eWinOverrideFlag, WIN_OVERRIDE_WINSTATE)
+ENUM_OPERATORS(eWinOverrideFlag)
 
 #define GHOST_WINDOW_STATE_DEFAULT GHOST_kWindowStateMaximized
 

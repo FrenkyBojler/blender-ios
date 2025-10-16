@@ -48,7 +48,7 @@ enum class StripDuplicate : uint8_t {
   /* If this is set, duplicate all strips. If not set, duplicate selected strips. */
   All = (1 << 3),
 };
-ENUM_OPERATORS(StripDuplicate, StripDuplicate::All);
+ENUM_OPERATORS(StripDuplicate);
 
 SequencerToolSettings *tool_settings_init();
 SequencerToolSettings *tool_settings_ensure(Scene *scene);

@@ -93,7 +93,7 @@ enum ePaintOverlayControlFlags {
   PAINT_OVERLAY_OVERRIDE_PRIMARY = (1 << 5),
   PAINT_OVERLAY_OVERRIDE_SECONDARY = (1 << 6),
 };
-ENUM_OPERATORS(ePaintOverlayControlFlags, PAINT_OVERLAY_OVERRIDE_SECONDARY);
+ENUM_OPERATORS(ePaintOverlayControlFlags);
 
 #define PAINT_OVERRIDE_MASK \
   (PAINT_OVERLAY_OVERRIDE_SECONDARY | PAINT_OVERLAY_OVERRIDE_PRIMARY | \
@@ -111,7 +111,7 @@ enum ePaintSymmetryAreas {
   PAINT_SYMM_AREA_Y = (1 << 1),
   PAINT_SYMM_AREA_Z = (1 << 2),
 };
-ENUM_OPERATORS(ePaintSymmetryAreas, PAINT_SYMM_AREA_Z);
+ENUM_OPERATORS(ePaintSymmetryAreas);
 
 #define PAINT_SYMM_AREAS 8
 

@@ -198,7 +198,7 @@ enum ShaderGroups : uint32_t {
   MATERIAL_SHADERS = 1 << 20,
   VOLUME_PROBE_SHADERS = 1 << 21,
 };
-ENUM_OPERATORS(ShaderGroups, VOLUME_PROBE_SHADERS)
+ENUM_OPERATORS(ShaderGroups)
 
 /**
  * Shader module. shared between instances.
