@@ -17,11 +17,11 @@ class TestMeshValidate(unittest.TestCase):
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.delete()
 
-        for mesh in [mesh for mesh in bpy.data.meshes]:
+        for mesh in list(bpy.data.meshes):
             bpy.data.meshes.remove(mesh)
 
     def tearDown(self):
-        for mesh in [mesh for mesh in bpy.data.meshes]:
+        for mesh in list(bpy.data.meshes):
             bpy.data.meshes.remove(mesh)
 
     def test_invalid_edge_vertex_indices(self):
