@@ -1142,17 +1142,21 @@ void copy_attributes_group_to_group(const AttributeAccessor src_attributes,
       return;
     }
     if (!dst_already_exists) {
-      const CPPType &type = dst.span.type();
-      if (dst_attributes.is_builtin(iter.name)) {
-        if (const GPointer value = dst_attributes.get_builtin_default(iter.name)) {
-          type.fill_construct_n(value.get(), dst.span.data(), dst.span.size());
+      /* Skip filling with the default value if all of the data is going to be fill. */
+      if (!(dst_offsets.total_size() == dst.span.size() && selection.size() == dst_offsets.size()))
+      {
+        const CPPType &type = dst.span.type();
+        if (dst_attributes.is_builtin(iter.name)) {
+          if (const GPointer value = dst_attributes.get_builtin_default(iter.name)) {
+            type.fill_construct_n(value.get(), dst.span.data(), dst.span.size());
+          }
+          else {
+            type.fill_construct_n(type.default_value(), dst.span.data(), dst.span.size());
+          }
         }
         else {
           type.fill_construct_n(type.default_value(), dst.span.data(), dst.span.size());
         }
-      }
-      else {
-        type.fill_construct_n(type.default_value(), dst.span.data(), dst.span.size());
       }
     }
     array_utils::copy_group_to_group(src_offsets, dst_offsets, selection, src, dst.span);
