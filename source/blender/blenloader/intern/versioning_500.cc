@@ -3986,6 +3986,21 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 111)) {
+    /* Copy the description from node group assets to the node group itself. */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (!ntree->id.asset_data) {
+        continue;
+      }
+      if (!ntree->id.asset_data->description) {
+        continue;
+      }
+      MEM_SAFE_FREE(ntree->description);
+      ntree->description = BLI_strdup(ntree->id.asset_data->description);
+    }
+    FOREACH_NODETREE_END;
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 2)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
