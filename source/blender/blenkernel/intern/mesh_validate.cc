@@ -12,13 +12,13 @@
 
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
-#include "BLI_array_utils.hh"
-#include "BLI_enumerable_thread_specific.hh"
 #include "CLG_log.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
+#include "BLI_array_utils.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_ranges_builder.hh"
 #include "BLI_ordered_edge.hh"
 
@@ -197,7 +197,7 @@ static IndexMask find_faces_duplicate_verts(const Mesh &mesh,
   const Span<int> corner_verts = mesh.corner_verts();
   ErrorMessages errors(verbose);
   return IndexMask::from_predicate(mask, GrainSize(512), memory, [&](const int face_i) {
-    Set<int, 64> set;
+    Set<int, 16> set;
     const IndexRange face = faces[face_i];
     for (const int vert : corner_verts.slice(face)) {
       if (!set.add(vert)) {
