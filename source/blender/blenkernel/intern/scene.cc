@@ -114,12 +114,18 @@
 
 using blender::bke::CompositorRuntime;
 using blender::bke::SceneRuntime;
+using blender::bke::SequencerRuntime;
 
 CompositorRuntime::~CompositorRuntime()
 {
   if (preview_depsgraph) {
     DEG_graph_free(preview_depsgraph);
   }
+}
+
+SequencerRuntime::~SequencerRuntime()
+{
+  DEG_graph_free(depsgraph);
 }
 
 CurveMapping *BKE_sculpt_default_cavity_curve()
@@ -877,7 +883,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
 
     /* FIXME: Although ideally this should always have access to synced data, this is not always
      * the case (FOREACH_ID can be called in context where re-syncing is blocked, while effectively
-     * modifying the viewlayer or collections data, see e.g. #id_delete code which remaps all
+     * modifying the view-layer or collections data, see e.g. #id_delete code which remaps all
      * deleted ID usages to null).
      *
      * There is no obvious solution to this problem, so for now working around with some 'band-aid'
@@ -889,7 +895,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
     if (!is_synced) {
       BLI_assert_msg((flag & IDWALK_RECURSE) == 0,
                      "foreach_id should never recurse in case it cannot ensure that all "
-                     "viewlayers are in synced with their collections");
+                     "view-layers are in synced with their collections");
     }
     LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_unsynced_get(view_layer)) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(
@@ -2300,14 +2306,19 @@ const char *BKE_scene_find_last_marker_name(const Scene *scene, int frame)
   return best_marker ? best_marker->name : nullptr;
 }
 
-int BKE_scene_frame_snap_by_seconds(Scene *scene, double interval_in_seconds, int frame)
+float BKE_scene_frame_snap_by_seconds(const Scene *scene,
+                                      const double interval_in_seconds,
+                                      const float frame)
 {
-  const int fps = round_db_to_int(scene->frames_per_second() * interval_in_seconds);
-  const int second_prev = frame - mod_i(frame, fps);
-  const int second_next = second_prev + fps;
-  const int delta_prev = frame - second_prev;
-  const int delta_next = second_next - frame;
-  return (delta_prev < delta_next) ? second_prev : second_next;
+  BLI_assert(interval_in_seconds > 0);
+  BLI_assert(scene->frames_per_second() > 0);
+
+  const double interval_in_frames = scene->frames_per_second() * interval_in_seconds;
+  const double second_prev = interval_in_frames * floor(frame / interval_in_frames);
+  const double second_next = second_prev + ceil(interval_in_frames);
+  const double delta_prev = frame - second_prev;
+  const double delta_next = second_next - frame;
+  return float((delta_prev < delta_next) ? second_prev : second_next);
 }
 
 void BKE_scene_remove_rigidbody_object(Main *bmain, Scene *scene, Object *ob, const bool free_us)
