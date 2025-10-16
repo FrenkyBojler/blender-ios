@@ -229,9 +229,7 @@ static wmOperatorStatus node_group_enter_exit_invoke(bContext *C,
                                                      const wmEvent *event)
 {
   /* Don't interfer when the mouse is interacting with some button. See #147282. */
-  if (ISMOUSE_BUTTON(event->type) && !CTX_wm_region_popup(C) &&
-      UI_context_active_but_get_respect_popup(C))
-  {
+  if (ISMOUSE_BUTTON(event->type) && UI_context_active_but_get_respect_popup(C)) {
     return OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED;
   }
 
