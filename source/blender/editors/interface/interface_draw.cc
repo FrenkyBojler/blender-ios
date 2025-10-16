@@ -1850,9 +1850,9 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
                                   min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
 
   int selected = 0;
-  for (int a = 0; a < cuma->totpoint; a++) {
-    if (cmp[a].flag & CUMA_SELECT) {
-    selected++;
+  for (int i = 0; i < cuma->totpoint; i++) {
+    if (cmp[i].flag & CUMA_SELECT) {
+      selected++;
     }
   }
 
@@ -2148,17 +2148,15 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   /* New GPU instructions for control points and sampled points. */
   format = immVertexFormat();
   pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  const uint col = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
-  const uint size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
 
   GPU_program_point_size(true);
 
-  float color_point[4], color_point_select[4], color_point_outline[4], color_sample[4];
+  float color_point[4], color_point_select[4], color_sample[4];
   rgba_uchar_to_float(color_point, wcol->text);
+  color_point[3] = 1.0f;
   rgba_uchar_to_float(color_point_select, wcol->text_sel);
-  rgba_uchar_to_float(color_point_outline, wcol->inner_sel);
+  color_point_select[3] = 1.0f;
   color_sample[0] = float(wcol->item[0]) / 255.0f;
   color_sample[1] = float(wcol->item[1]) / 255.0f;
   color_sample[2] = float(wcol->item[2]) / 255.0f;
@@ -2166,44 +2164,108 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
 
   float point_size;
 
+  int selected = 0;
+  for (int i = 0; i < path_len; i++) {
+    if (pts[i].flag & PROF_SELECT) {
+      selected++;
+    }
+  }
+
   /* Draw the control points. */
   GPU_line_smooth(false);
-  if (path_len > 0) {
-    GPU_blend(GPU_BLEND_NONE);
+  GPU_blend(GPU_BLEND_ALPHA);
+  if ((path_len - selected) > 0) {
     point_size = max_ff(U.pixelsize * 2.0f,
-                        min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
-
-    immBegin(GPU_PRIM_POINTS, path_len);
+                        min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
+    immUniform4fv("color", color_point);
+    immUniform1f("size", point_size);
+    immBegin(GPU_PRIM_POINTS, path_len - selected);
     for (int i = 0; i < path_len; i++) {
+      if (pts[i].flag & PROF_SELECT) {
+        continue;
+      }
       fx = rect->xmin + zoomx * (pts[i].x - offsx);
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
-      const float size_factor = (pts[i].flag & PROF_SELECT) ? 1.5f : 1.0f;
-
-      immAttr1f(size, point_size * size_factor);
-      immAttr4fv(col, (pts[i].flag & PROF_SELECT) ? color_point_select : color_point);
+      immVertex2f(pos, fx, fy);
+    }
+    immEnd();
+  }
+  if (selected > 0) {
+    point_size = max_ff(U.pixelsize * 2.0f,
+                        min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
+    immUniform4fv("color", color_point_select);
+    immUniform1f("size", point_size * 1.5f);
+    immBegin(GPU_PRIM_POINTS, selected);
+    for (int i = 0; i < path_len; i++) {
+      if (!(pts[i].flag & PROF_SELECT)) {
+        continue;
+      }
+      fx = rect->xmin + zoomx * (pts[i].x - offsx);
+      fy = rect->ymin + zoomy * (pts[i].y - offsy);
       immVertex2f(pos, fx, fy);
     }
     immEnd();
   }
 
   /* Draw the handle points. */
-  if (selected_free_points > 0) {
+  selected = 0;
+  for (int i = 0; i < path_len; i++) {
+    if (point_draw_handles(&pts[i])) {
+      if (pts[i].flag & PROF_H1_SELECT) {
+        selected++;
+      }
+      if (pts[i].flag & PROF_H2_SELECT) {
+        selected++;
+      }
+    }
+  }
+
+  if (((selected_free_points * 2) - selected) > 0) {
     GPU_line_smooth(false);
-    GPU_blend(GPU_BLEND_NONE);
+    GPU_blend(GPU_BLEND_ALPHA);
     point_size = max_ff(U.pixelsize * 2.0f,
                         min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
-    immBegin(GPU_PRIM_POINTS, selected_free_points * 2);
+
+    immUniform4fv("color", color_point);
+    immUniform1f("size", point_size);
+    immBegin(GPU_PRIM_POINTS, (selected_free_points * 2) - selected);
     for (int i = 0; i < path_len; i++) {
       if (point_draw_handles(&pts[i])) {
-        fx = rect->xmin + zoomx * (pts[i].h1_loc[0] - offsx);
-        fy = rect->ymin + zoomy * (pts[i].h1_loc[1] - offsy);
-        immAttr1f(size, point_size);
-        immAttr4fv(col, (pts[i].flag & PROF_H1_SELECT) ? color_point_select : color_point);
-        immVertex2f(pos, fx, fy);
-        fx = rect->xmin + zoomx * (pts[i].h2_loc[0] - offsx);
-        fy = rect->ymin + zoomy * (pts[i].h2_loc[1] - offsy);
-        immAttr4fv(col, (pts[i].flag & PROF_H2_SELECT) ? color_point_select : color_point);
-        immVertex2f(pos, fx, fy);
+        if (!(pts[i].flag & PROF_H1_SELECT)) {
+          fx = rect->xmin + zoomx * (pts[i].h1_loc[0] - offsx);
+          fy = rect->ymin + zoomy * (pts[i].h1_loc[1] - offsy);
+          immVertex2f(pos, fx, fy);
+        }
+        if (!(pts[i].flag & PROF_H2_SELECT)) {
+          fx = rect->xmin + zoomx * (pts[i].h2_loc[0] - offsx);
+          fy = rect->ymin + zoomy * (pts[i].h2_loc[1] - offsy);
+          immVertex2f(pos, fx, fy);
+        }
+      }
+    }
+    immEnd();
+  }
+
+  if (selected > 0) {
+    GPU_line_smooth(false);
+    GPU_blend(GPU_BLEND_ALPHA);
+    point_size = max_ff(U.pixelsize * 2.0f,
+                        min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 20.0f));
+    immUniform4fv("color", color_point_select);
+    immUniform1f("size", point_size * 1.2f);
+    immBegin(GPU_PRIM_POINTS, selected);
+    for (int i = 0; i < path_len; i++) {
+      if (point_draw_handles(&pts[i])) {
+        if (pts[i].flag & PROF_H1_SELECT) {
+          fx = rect->xmin + zoomx * (pts[i].h1_loc[0] - offsx);
+          fy = rect->ymin + zoomy * (pts[i].h1_loc[1] - offsy);
+          immVertex2f(pos, fx, fy);
+        }
+        if (pts[i].flag & PROF_H2_SELECT) {
+          fx = rect->xmin + zoomx * (pts[i].h2_loc[0] - offsx);
+          fy = rect->ymin + zoomy * (pts[i].h2_loc[1] - offsy);
+          immVertex2f(pos, fx, fy);
+        }
       }
     }
     immEnd();
@@ -2214,12 +2276,12 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   const int segments_len = uint(profile->segments_len);
   if (segments_len > 0 && pts) {
     point_size = max_ff(2.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 3.0f, 3.0f));
+    immUniform4fv("color", color_sample);
+    immUniform1f("size", point_size);
     immBegin(GPU_PRIM_POINTS, segments_len);
     for (int i = 0; i < segments_len; i++) {
       fx = rect->xmin + zoomx * (pts[i].x - offsx);
       fy = rect->ymin + zoomy * (pts[i].y - offsy);
-      immAttr1f(size, point_size);
-      immAttr4fv(col, color_sample);
       immVertex2f(pos, fx, fy);
     }
     immEnd();
