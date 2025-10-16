@@ -862,6 +862,15 @@ static uint64_t get_next_stable_address_id(WriteData &wd)
   return stable_id;
 }
 
+/**
+ * When writing an undo step, implicitly shared pointers do not use stable-pointers because that
+ * would lead to incorrect detection if a data-block has been changed between undo steps. That's
+ * because different shared data could be mapped to the same stable pointer, leading to
+ * #is_memchunk_identical to being true even if the referenced data is actually different.
+ *
+ * Another way to look at it is that implicit-sharing is a system for stable pointers (at runtime)
+ * itself. So it does not need an additional layer of stable pointers on top.
+ */
 static uint64_t get_address_id_for_implicit_sharing_data(const void *data)
 {
   BLI_assert(data != nullptr);
