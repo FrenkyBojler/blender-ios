@@ -325,11 +325,12 @@ static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bma
         &changed_scene->adt->action->id == id)
     {
       blender::seq::prefetch_stop(changed_scene);
-      blender::seq::cache_cleanup(changed_scene);
+      blender::seq::cache_cleanup_intra(changed_scene);
+      blender::seq::cache_cleanup_final(changed_scene);
     }
   }
 
-  /* Invalidate cache for strips that use this compositing tree as a modifier.  */
+  /* Invalidate cache for strips that use this compositing tree as a modifier. */
   if (GS(id->name) == ID_NT) {
     const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(id);
     if (node_tree->type == NTREE_COMPOSIT) {

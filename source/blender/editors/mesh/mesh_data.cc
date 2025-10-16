@@ -15,6 +15,7 @@
 #include "BLI_math_constants.h"
 #include "BLI_string.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"

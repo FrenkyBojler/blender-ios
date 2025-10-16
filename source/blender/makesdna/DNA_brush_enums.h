@@ -104,13 +104,13 @@ typedef enum eGPDbrush_Flag {
 } eGPDbrush_Flag;
 
 typedef enum eGPDbrush_Flag2 {
-  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE  */
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE */
   /* Brush use random Hue at stroke level */
   GP_BRUSH_USE_HUE_AT_STROKE = (1 << 0),
-  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE  */
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE */
   /* Brush use random Saturation at stroke level */
   GP_BRUSH_USE_SAT_AT_STROKE = (1 << 1),
-  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE  */
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE */
   /* Brush use random Value at stroke level */
   GP_BRUSH_USE_VAL_AT_STROKE = (1 << 2),
   /* Brush use random Pressure at stroke level */
@@ -119,13 +119,13 @@ typedef enum eGPDbrush_Flag2 {
   GP_BRUSH_USE_STRENGTH_AT_STROKE = (1 << 4),
   /* Brush use random UV at stroke level */
   GP_BRUSH_USE_UV_AT_STROKE = (1 << 5),
-  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS  */
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS */
   /* Brush use Hue random pressure */
   GP_BRUSH_USE_HUE_RAND_PRESS = (1 << 6),
-  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS  */
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS */
   /* Brush use Saturation random pressure */
   GP_BRUSH_USE_SAT_RAND_PRESS = (1 << 7),
-  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS  */
+  /* DEPRECATED: replaced with BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS */
   /* Brush use Value random pressure */
   GP_BRUSH_USE_VAL_RAND_PRESS = (1 << 8),
   /* Brush use Pressure random pressure */
@@ -173,16 +173,26 @@ typedef enum eGP_BrushMode {
   GP_BRUSH_MODE_VERTEXCOLOR = 2,
 } eGP_BrushMode;
 
+/* Brush.curve_preset */
 typedef enum eBrushCurvePreset {
   BRUSH_CURVE_CUSTOM = 0,
+  /** Corresponds to CURVE_PRESET_SMOOTH */
   BRUSH_CURVE_SMOOTH = 1,
+  /** Corresponds to CURVE_PRESET_ROUND */
   BRUSH_CURVE_SPHERE = 2,
+  /** Corresponds to CURVE_PRESET_ROOT */
   BRUSH_CURVE_ROOT = 3,
+  /** Corresponds to CURVE_PRESET_SHARP */
   BRUSH_CURVE_SHARP = 4,
+  /** Corresponds to CURVE_PRESET_LINE */
   BRUSH_CURVE_LIN = 5,
+  /** No corresponding CurveMapping.preset */
   BRUSH_CURVE_POW4 = 6,
+  /** No corresponding CurveMapping.preset */
   BRUSH_CURVE_INVSQUARE = 7,
+  /** Corresponds to CURVE_PRESET_MAX */
   BRUSH_CURVE_CONSTANT = 8,
+  /** No corresponding CurveMapping.preset */
   BRUSH_CURVE_SMOOTHER = 9,
 } eBrushCurvePreset;
 
