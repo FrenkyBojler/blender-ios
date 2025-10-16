@@ -6,6 +6,7 @@
  * \ingroup spseq
  */
 
+#include "BLI_dynstr.h"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -1977,6 +1978,54 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 /** \name Duplicate Strips Operator
  * \{ */
 
+static void sequencer_report_duplicates(wmOperator *op, ListBase *duplicated_strips)
+{
+  int num_scenes = 0, num_movieclips = 0, num_masks = 0;
+  LISTBASE_FOREACH (Strip *, strip, duplicated_strips) {
+    switch (strip->type) {
+      case STRIP_TYPE_SCENE:
+        num_scenes++;
+        break;
+      case STRIP_TYPE_MOVIECLIP:
+        num_movieclips++;
+        break;
+      case STRIP_TYPE_MASK:
+        num_masks++;
+        break;
+      default:
+        break;
+    }
+  }
+  if (num_scenes || num_movieclips || num_masks) {
+    DynStr *ds = BLI_dynstr_new();
+    const char *sep = "";
+
+    if (num_scenes) {
+      BLI_dynstr_appendf(
+          ds, "%s%d %s", sep, num_scenes, (num_scenes == 1) ? IFACE_("scene") : IFACE_("scenes"));
+      sep = ", ";
+    }
+    if (num_movieclips) {
+      BLI_dynstr_appendf(ds,
+                         "%s%d %s",
+                         sep,
+                         num_movieclips,
+                         (num_movieclips == 1) ? IFACE_("movie clip") : IFACE_("movie clips"));
+      sep = ", ";
+    }
+    if (num_masks) {
+      BLI_dynstr_appendf(
+          ds, "%s%d %s", sep, num_masks, (num_masks == 1) ? IFACE_("mask") : IFACE_("masks"));
+    }
+
+    char *report = BLI_dynstr_get_cstring(ds);
+    BLI_dynstr_free(ds);
+
+    BKE_reportf(op->reports, RPT_INFO, IFACE_("Duplicated %s"), report);
+    MEM_freeN(report);
+  }
+}
+
 static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -2014,6 +2063,11 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op
 
   if (duplicated_strips.first == nullptr) {
     return OPERATOR_CANCELLED;
+  }
+
+  /* Report all the newly created datablocks in the status bar. */
+  if (!linked) {
+    sequencer_report_duplicates(op, &duplicated_strips);
   }
 
   /* Duplicate animation.
