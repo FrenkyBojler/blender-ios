@@ -9167,8 +9167,7 @@ void ui_but_semi_modal_state_free(const bContext *C, uiBut *but)
 }
 
 /* returns the active button with an optional checking function */
-static uiBut *ui_context_button_active(const ARegion *region,
-                                       blender::FunctionRef<bool(const uiBut *)> but_check_cb)
+static uiBut *ui_context_button_active(const ARegion *region, bool (*but_check_cb)(const uiBut *))
 {
   uiBut *but_found = nullptr;
 
@@ -9205,7 +9204,7 @@ static uiBut *ui_context_button_active(const ARegion *region,
       activebut = active_but_last;
     }
 
-    if (activebut && (!but_check_cb || but_check_cb(activebut))) {
+    if (activebut && (but_check_cb == nullptr || but_check_cb(activebut))) {
       uiHandleButtonData *data = activebut->active;
 
       but_found = activebut;
@@ -9235,11 +9234,7 @@ uiBut *UI_context_active_but_get(const bContext *C)
 uiBut *UI_context_active_but_get_respect_popup(const bContext *C)
 {
   ARegion *region_popup = CTX_wm_region_popup(C);
-  return ui_context_button_active(
-      region_popup ? region_popup : CTX_wm_region(C),
-      /* Filter out buttons that are only interactive for the purpose of displaying tooltips (like
-       * labels with a tooltip). */
-      [&](const uiBut *but) { return ui_but_is_interactive_ex(but, false, false); });
+  return ui_context_button_active(region_popup ? region_popup : CTX_wm_region(C), nullptr);
 }
 
 uiBut *UI_region_active_but_get(const ARegion *region)
@@ -9713,7 +9708,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
       }
 #endif
       case MOUSEMOVE: {
-        uiBut *but_other = ui_but_find_mouse_over(region, event);
+        uiBut *but_other = UI_but_find_mouse_over(region, event);
         bool exit = false;
 
         /* always deactivate button for pie menus,
@@ -9875,7 +9870,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
           }
         }
 
-        bt = ui_but_find_mouse_over(region, event);
+        bt = UI_but_find_mouse_over(region, event);
 
         if (bt && bt->active != data) {
           if (but->type != ButType::Color) { /* exception */
@@ -9887,7 +9882,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
       }
       case RIGHTMOUSE: {
         if (event->val == KM_PRESS) {
-          uiBut *bt = ui_but_find_mouse_over(region, event);
+          uiBut *bt = UI_but_find_mouse_over(region, event);
           if (bt && bt->active == data) {
             button_activate_state(C, bt, BUTTON_STATE_HIGHLIGHT);
           }
@@ -9956,7 +9951,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
        * it stays active while the mouse is over it.
        * This avoids adding mouse-moves, see: #33466. */
       if (ELEM(state_orig, BUTTON_STATE_INIT, BUTTON_STATE_HIGHLIGHT, BUTTON_STATE_WAIT_DRAG)) {
-        if (ui_but_find_mouse_over(region, event) == but) {
+        if (UI_but_find_mouse_over(region, event) == but) {
           button_activate_init(C, region, but, BUTTON_ACTIVATE_OVER);
         }
       }
@@ -12132,7 +12127,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
         (ui_region_find_active_but(data->menu->region) == nullptr) &&
         /* make sure mouse isn't inside another menu (see #43247) */
         (ui_screen_region_find_mouse_over(screen, event) == nullptr) &&
-        (but_other = ui_but_find_mouse_over(region, event)) &&
+        (but_other = UI_but_find_mouse_over(region, event)) &&
         ui_can_activate_other_menu(but, but_other, event) &&
         /* Hover-opening menu's doesn't work well for buttons over one another
          * along the same axis the menu is opening on (see #71719). */
