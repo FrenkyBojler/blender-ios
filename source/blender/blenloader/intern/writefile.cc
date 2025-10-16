@@ -830,6 +830,9 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
   mywrite(wd, &bh, sizeof(bh));
 }
 
+/** This bit is used to mark address ids that use implicit sharing during undo. */
+constexpr uint64_t implicit_sharing_address_id_flag = uint64_t(1) << 63;
+
 static uint64_t stable_id_from_hint(const uint64_t hint)
 {
   /* Add a stride. This is not strictly necessary but may help with debugging later on because it's
@@ -839,6 +842,8 @@ static uint64_t stable_id_from_hint(const uint64_t hint)
     /* Null values are reserved for nullptr. */
     stable_id = (1 << 4);
   }
+  /* Remove the first bit as it reserved for pointers for implicit sharing.*/
+  stable_id &= ~implicit_sharing_address_id_flag;
   return stable_id;
 }
 
@@ -855,6 +860,17 @@ static uint64_t get_next_stable_address_id(WriteData &wd)
   }
   wd.stable_address_ids.next_id_hint++;
   return stable_id;
+}
+
+static uint64_t get_address_id_for_implicit_sharing_data(const void *data)
+{
+  BLI_assert(data != nullptr);
+  /* Assuming that the given pointer is an actual pointer, it will stay unique when the
+   * #implicit_sharing_address_id_flag bit is set. That's because the upper bits of the pointer
+   * are effectively unused nowadays. */
+  uint64_t address_id = uint64_t(data);
+  address_id |= implicit_sharing_address_id_flag;
+  return address_id;
 }
 
 static uint64_t get_address_id_int(WriteData &wd, const void *address)
@@ -2256,11 +2272,11 @@ void BLO_write_shared_tag(BlendWriter *writer, const void *data)
   if (!BLO_write_is_undo(writer)) {
     return;
   }
-  /* TODO: Handle collisions. */
+  const uint64_t address_id = get_address_id_for_implicit_sharing_data(data);
   /* Check that the pointer has not been written before it was tagged as being shared. */
-  BLI_assert(writer->wd->stable_address_ids.pointer_map.lookup_default(data, uint64_t(data)) ==
-             uint64_t(data));
-  writer->wd->stable_address_ids.pointer_map.add(data, uint64_t(data));
+  BLI_assert(writer->wd->stable_address_ids.pointer_map.lookup_default(data, address_id) ==
+             address_id);
+  writer->wd->stable_address_ids.pointer_map.add(data, address_id);
 }
 
 void BLO_write_shared(BlendWriter *writer,
