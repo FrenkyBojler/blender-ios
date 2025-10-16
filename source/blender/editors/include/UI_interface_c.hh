@@ -13,10 +13,10 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8_symbols.h"
 #include "BLI_sys_types.h" /* size_t */
-#include "BLI_utildefines.h"
 
 #include "DNA_userdef_types.h"
 

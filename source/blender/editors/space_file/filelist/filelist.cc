@@ -30,6 +30,7 @@
 
 #include "BLF_api.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_fileops_types.h"
 #include "BLI_ghash.h"
@@ -42,7 +43,6 @@
 #include "BLI_string_utils.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"

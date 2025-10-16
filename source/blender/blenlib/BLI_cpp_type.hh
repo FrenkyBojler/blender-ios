@@ -72,6 +72,7 @@
  *    pointers to virtual member functions.
  */
 
+#include "BLI_enum_flags.hh"
 #include "BLI_hash.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_map.hh"

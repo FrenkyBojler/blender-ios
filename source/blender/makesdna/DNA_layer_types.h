@@ -11,7 +11,7 @@
 #include "DNA_freestyle_types.h"
 #include "DNA_listBase.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 /**
  * Render-passes for EEVEE.

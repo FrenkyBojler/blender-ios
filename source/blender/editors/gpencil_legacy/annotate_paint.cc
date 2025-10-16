@@ -13,11 +13,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 

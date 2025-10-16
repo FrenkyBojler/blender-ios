@@ -16,6 +16,8 @@
 #include "DNA_texture_types.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
+#include "BLI_enum_flags.hh"
+
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
 #  include <string>

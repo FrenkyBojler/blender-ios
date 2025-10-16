@@ -10,8 +10,8 @@
 
 #include "BKE_nla.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"

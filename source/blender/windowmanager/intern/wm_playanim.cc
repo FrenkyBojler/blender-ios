@@ -30,6 +30,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
@@ -39,7 +40,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"

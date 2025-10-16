@@ -11,8 +11,8 @@
 
 #include "../gpu/GPU_texture.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_utildefines.h"
 
 #include "IMB_imbuf_types.hh"
 

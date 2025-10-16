@@ -18,8 +18,8 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_index_range.hh"
-#include "BLI_utildefines.h"
 
 #include "GPU_index_buffer.hh"
 #include "GPU_shader.hh"

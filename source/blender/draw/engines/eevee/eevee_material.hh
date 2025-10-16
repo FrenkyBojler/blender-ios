@@ -12,8 +12,10 @@
 
 #include "DRW_render.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
+
 #include "GPU_material.hh"
 
 #include "draw_pass.hh"

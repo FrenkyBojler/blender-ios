@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_compute_context.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_node.hh"

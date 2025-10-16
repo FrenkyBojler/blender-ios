@@ -20,6 +20,8 @@
 #include "DNA_vec_types.h"
 #include "DNA_view2d_types.h"
 
+#include "BLI_enum_flags.hh"
+
 #ifdef __cplusplus
 #  include <type_traits>
 #endif

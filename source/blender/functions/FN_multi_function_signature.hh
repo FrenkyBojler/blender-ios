@@ -13,6 +13,7 @@
 
 #include "FN_multi_function_param_type.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_vector.hh"
 
 namespace blender::fn::multi_function {

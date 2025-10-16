@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_math_base.h"
 #include "BLI_set.hh"
 

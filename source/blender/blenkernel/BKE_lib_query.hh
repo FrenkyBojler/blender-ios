@@ -21,6 +21,7 @@
 
 #include "DNA_ID.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 
 #include <array>

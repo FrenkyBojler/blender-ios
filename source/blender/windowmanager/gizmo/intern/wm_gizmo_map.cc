@@ -8,6 +8,7 @@
 
 #include <cstring>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"

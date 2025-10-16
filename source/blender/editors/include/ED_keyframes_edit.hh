@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "ED_anim_api.hh" /* for enum eAnimFilter_Flags */

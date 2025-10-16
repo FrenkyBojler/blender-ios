@@ -13,9 +13,7 @@
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #ifdef __cplusplus
 #  include "BLI_span.hh"

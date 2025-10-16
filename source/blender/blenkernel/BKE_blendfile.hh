@@ -9,6 +9,7 @@
 
 #include "BKE_main.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"

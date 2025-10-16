@@ -27,6 +27,8 @@
 #include "GPU_common_types.hh"
 #include "GPU_texture.hh"
 
+#include "BLI_enum_flags.hh"
+
 namespace blender::gpu {
 class Texture;
 class FrameBuffer;

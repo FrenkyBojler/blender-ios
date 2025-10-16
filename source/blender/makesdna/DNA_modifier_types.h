@@ -8,8 +8,8 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_implicit_sharing.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"

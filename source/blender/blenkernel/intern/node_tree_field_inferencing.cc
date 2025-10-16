@@ -10,6 +10,7 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"

@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 struct ID;
 struct Main;

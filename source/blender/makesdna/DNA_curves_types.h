@@ -13,7 +13,7 @@
 #include "DNA_customdata_types.h"
 #include "DNA_listBase.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #ifdef __cplusplus
 namespace blender::bke {

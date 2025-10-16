@@ -10,6 +10,8 @@
 
 #include "DNA_defs.h"
 
+#include "BLI_enum_flags.hh"
+
 /**
  * Check for cyclic set-scene.
  * Libraries can cause this case which is normally prevented, see (#42009).
@@ -2558,12 +2560,7 @@ typedef enum eSnapMode {
   SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
   SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
 } eSnapMode;
-
-/* Due to dependency conflicts with Cycles, header cannot directly include `BLI_utildefines.h`. */
-/* TODO: move this macro to a more general place. */
-#ifdef ENUM_OPERATORS
 ENUM_OPERATORS(eSnapMode, SCE_SNAP_INDIVIDUAL_PROJECT)
-#endif
 
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 

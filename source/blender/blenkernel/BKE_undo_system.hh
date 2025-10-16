@@ -7,8 +7,8 @@
  * \ingroup bke
  */
 
+#include "BLI_enum_flags.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_utildefines.h"
 
 #include "DNA_ID.h"
 #include "DNA_listBase.h"

@@ -10,6 +10,8 @@
 
 #include "DNA_scene_types.h"
 
+#include "BLI_enum_flags.hh"
+
 struct BlendDataReader;
 struct BlendWriter;
 struct Depsgraph;

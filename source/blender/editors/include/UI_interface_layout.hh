@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"

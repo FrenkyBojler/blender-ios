@@ -9,9 +9,9 @@
 #pragma once
 
 #include "BLI_bounds_types.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
 

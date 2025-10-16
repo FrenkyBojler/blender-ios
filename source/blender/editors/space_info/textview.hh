@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #include "DNA_vec_types.h"
 

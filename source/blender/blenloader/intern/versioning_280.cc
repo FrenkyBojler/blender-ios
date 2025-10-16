@@ -13,12 +13,12 @@
 #include <cfloat>
 #include <cstring>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS

@@ -5,8 +5,8 @@
 #include "BLI_array_utils.hh"
 #include "BLI_bit_span_ops.hh"
 #include "BLI_bit_vector.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_stack.hh"
-#include "BLI_utildefines.h"
 
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"

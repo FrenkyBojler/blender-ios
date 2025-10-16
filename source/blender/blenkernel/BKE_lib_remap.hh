@@ -21,11 +21,11 @@
  */
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
-#include "BLI_utildefines.h"
 
 struct ID;
 struct Main;

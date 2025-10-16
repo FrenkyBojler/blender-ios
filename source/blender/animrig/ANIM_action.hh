@@ -18,6 +18,7 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"

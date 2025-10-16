@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
 

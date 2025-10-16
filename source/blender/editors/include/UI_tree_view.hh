@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"

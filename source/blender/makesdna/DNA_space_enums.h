@@ -7,7 +7,7 @@
  * Enums for space type in the user interface.
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #pragma once
 

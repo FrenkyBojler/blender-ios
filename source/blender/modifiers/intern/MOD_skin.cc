@@ -40,10 +40,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-
 #include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_heap_simple.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"

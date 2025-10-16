@@ -16,6 +16,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_filereader.h"
 #include "BLI_map.hh"

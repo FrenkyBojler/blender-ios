@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
+
 #include "bmesh_class.hh"
 
 struct BMEditSelection {

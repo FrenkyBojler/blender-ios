@@ -19,8 +19,8 @@
 #include <limits.h> /* for PATH_MAX */
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops_types.h"
-#include "BLI_utildefines.h"
 
 #ifndef PATH_MAX
 #  define PATH_MAX 4096

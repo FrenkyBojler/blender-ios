@@ -6,7 +6,7 @@
 
 #include "GPU_state.hh"
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 /** \file
  * \ingroup draw

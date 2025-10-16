@@ -11,6 +11,7 @@
 #include <functional>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"

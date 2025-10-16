@@ -110,7 +110,7 @@ struct wmWindowManager;
 #include <string>
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_listBase.h"

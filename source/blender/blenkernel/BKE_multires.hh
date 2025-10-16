@@ -9,8 +9,8 @@
  */
 
 #include "BLI_array.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_utildefines.h"
 
 struct Depsgraph;
 struct MDisps;

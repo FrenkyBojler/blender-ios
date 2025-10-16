@@ -18,13 +18,13 @@
 
 #include "BLI_array.hh"
 #include "BLI_dynstr.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 

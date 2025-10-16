@@ -10,10 +10,10 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_iterator.h"
 #include "BLI_set.hh"
-#include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"

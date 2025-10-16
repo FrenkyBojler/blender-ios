@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 

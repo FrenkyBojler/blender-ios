@@ -10,6 +10,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -21,7 +22,6 @@
 #include "BLI_sys_types.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #include "BLF_api.hh"
 

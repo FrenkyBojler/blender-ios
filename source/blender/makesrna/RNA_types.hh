@@ -13,9 +13,9 @@
 #include <optional>
 #include <string>
 
+#include "../blenlib/BLI_enum_flags.hh"
 #include "../blenlib/BLI_function_ref.hh"
 #include "../blenlib/BLI_sys_types.h"
-#include "../blenlib/BLI_utildefines.h"
 #include "../blenlib/BLI_vector.hh"
 
 struct BlenderRNA;

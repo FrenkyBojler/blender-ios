@@ -14,6 +14,7 @@
 #pragma once
 
 #if !defined(GPU_SHADER)
+#  include "BLI_enum_flags.hh"
 #  include "BLI_hash.hh"
 #  include "BLI_string_ref.hh"
 #  include "BLI_utildefines_variadic.h"

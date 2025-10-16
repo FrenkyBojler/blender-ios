@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_vector.hh"

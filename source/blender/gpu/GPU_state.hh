@@ -8,7 +8,8 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
+#include "BLI_sys_types.h"
 
 /** Opaque type hiding blender::gpu::Fence. */
 struct GPUFence;

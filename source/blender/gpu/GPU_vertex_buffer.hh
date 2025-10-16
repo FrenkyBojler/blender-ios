@@ -10,9 +10,9 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_math_base.h"
 #include "BLI_span.hh"
-#include "BLI_utildefines.h"
 #include "BLI_virtual_array.hh"
 
 #include "GPU_common.hh"

@@ -14,6 +14,8 @@
 #include "vk_image_view.hh"
 #include "vk_memory.hh"
 
+#include "BLI_enum_flags.hh"
+
 namespace blender::gpu {
 
 class VKSampler;

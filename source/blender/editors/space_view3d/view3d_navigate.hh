@@ -13,8 +13,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bounds_types.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_utildefines.h"
 
 #include "DNA_windowmanager_enums.h"
 

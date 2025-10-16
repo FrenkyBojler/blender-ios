@@ -18,6 +18,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
 #include "BLI_dial_2d.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_axis_angle.hh"
@@ -30,7 +31,6 @@
 #include "BLI_span.hh"
 #include "BLI_task.h"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
 #include "DNA_brush_types.h"

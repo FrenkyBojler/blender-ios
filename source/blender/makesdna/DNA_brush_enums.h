@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 /* BrushGpencilSettings->preset_type.
  * Use a range for each group and not continuous values. */

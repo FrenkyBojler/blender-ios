@@ -36,11 +36,11 @@
 #include "DNA_volume_types.h"
 
 #include "BLI_array_utils.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 

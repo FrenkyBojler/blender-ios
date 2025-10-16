@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_listBase.h"

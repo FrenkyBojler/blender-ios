@@ -15,7 +15,7 @@
 #include <string>
 
 #include "BLI_assert.h"
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #include "GPU_format.hh"
 

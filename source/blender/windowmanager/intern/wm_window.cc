@@ -29,6 +29,7 @@
 
 #include "GHOST_C-api.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -38,7 +39,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 

@@ -10,6 +10,7 @@
 
 #include "intern/depsgraph_physics.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 
 #include "BKE_collision.h"
