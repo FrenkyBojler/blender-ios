@@ -1861,18 +1861,20 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   /* Curve widgets using a gradient background (such as Hue Correct), draw
    * an additional point in the back, forming an outline so they stand out. */
   if (but_cumap->gradient_type == UI_GRAD_H) {
-    immUniform4fv("color", color_point_outline);
-    immUniform1f("size", point_size * 1.4f);
-    immBegin(GPU_PRIM_POINTS, cuma->totpoint - selected);
-    for (int a = 0; a < cuma->totpoint; a++) {
-      if (cmp[a].flag & CUMA_SELECT) {
-        continue;
+    if ((cuma->totpoint - selected) > 0) {
+      immUniform4fv("color", color_point_outline);
+      immUniform1f("size", point_size * 1.4f);
+      immBegin(GPU_PRIM_POINTS, cuma->totpoint - selected);
+      for (int a = 0; a < cuma->totpoint; a++) {
+        if (cmp[a].flag & CUMA_SELECT) {
+          continue;
+        }
+        const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
+        const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
+        immVertex2f(pos, fx, fy);
       }
-      const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
-      const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-      immVertex2f(pos, fx, fy);
+      immEnd();
     }
-    immEnd();
     /* Draw selected outlines a bit larger. */
     if (selected > 0) {
       immUniform1f("size", point_size * 1.8f);
@@ -1889,19 +1891,21 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
     }
   }
 
-  immUniform1f("size", point_size);
-  immUniform4fv("color", color_point);
-  immBegin(GPU_PRIM_POINTS, cuma->totpoint - selected);
-  for (int a = 0; a < cuma->totpoint; a++) {
-    if (cmp[a].flag & CUMA_SELECT) {
-      continue;
+  if ((cuma->totpoint - selected) > 0) {
+    immUniform1f("size", point_size);
+    immUniform4fv("color", color_point);
+    immBegin(GPU_PRIM_POINTS, cuma->totpoint - selected);
+    for (int a = 0; a < cuma->totpoint; a++) {
+      if (cmp[a].flag & CUMA_SELECT) {
+        continue;
+      }
+      const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
+      const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
+      /* Unselected point in front. */
+      immVertex2f(pos, fx, fy);
     }
-    const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
-    const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
-    /* Unselected point in front. */
-    immVertex2f(pos, fx, fy);
+    immEnd();
   }
-  immEnd();
 
   if (selected > 0) {
     immUniform1f("size", point_size * 1.2f);
