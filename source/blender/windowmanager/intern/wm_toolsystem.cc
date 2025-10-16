@@ -362,7 +362,7 @@ static void toolsystem_brush_activate_from_toolref_for_object_particle(const Mai
 }
 
 std::optional<AssetWeakReference> WM_toolsystem_last_brush_asset_from_brush_type(
-    const Scene *scene, const int brush_type, const PaintMode paint_mode)
+    Scene *scene, const int brush_type, const PaintMode paint_mode)
 {
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, paint_mode);
   if (!paint) {
