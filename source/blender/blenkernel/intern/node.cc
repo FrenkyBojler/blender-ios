@@ -1989,6 +1989,14 @@ static void node_tree_asset_pre_save(void *asset_ptr, AssetMetaData * /*asset_da
 {
   bNodeTree &ntree = *static_cast<bNodeTree *>(asset_ptr);
   node_update_asset_metadata(ntree);
+
+  if (AssetMetaData *asset_data = ntree.id.asset_data) {
+    /* Copy description from the asset data to the node tree. */
+    if (asset_data->description) {
+      MEM_SAFE_FREE(ntree.description);
+      ntree.description = BLI_strdup(asset_data->description);
+    }
+  }
 }
 
 static void node_tree_asset_on_mark_asset(void *asset_ptr, AssetMetaData *asset_data)
