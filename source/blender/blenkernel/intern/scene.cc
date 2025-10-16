@@ -1033,12 +1033,6 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   Scene *sce = (Scene *)id;
   const bool is_write_undo = BLO_write_is_undo(writer);
 
-  if (is_write_undo) {
-    /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
-    /* XXX This UI data should not be stored in Scene at all... */
-    sce->cursor = View3DCursor{};
-  }
-
   /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not initialize the
    * address of `scene->nodetree` anymore. */
   if (sce->compositing_node_group && !is_write_undo) {
@@ -1512,7 +1506,6 @@ static void scene_undo_preserve(BlendLibReader *reader, ID *id_new, ID *id_old)
   Scene *scene_new = (Scene *)id_new;
   Scene *scene_old = (Scene *)id_old;
 
-  std::swap(scene_old->cursor, scene_new->cursor);
   if (scene_new->toolsettings != nullptr && scene_old->toolsettings != nullptr) {
     /* First try to restore ID pointers that can be and should be preserved (like brushes or
      * palettes), and counteract the swap of the whole ToolSettings structs below for the others
