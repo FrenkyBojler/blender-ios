@@ -237,7 +237,7 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
   multires_reshape_calculate_object_delta(higher_subdiv_ccg, delta_storage);
   printf("STORED HIGHER POS - LIMIT POS\n");
 
-  multires_reshape_object_delta_to_tangent_delta(&reshape_context, delta_storage);
+  multires_reshape_object_delta_to_tangent_delta(tmat_storage, delta_storage);
   for (const int i : delta_storage.index_range()) {
     printf("%f, %f, %f\n", delta_storage[i].x, delta_storage[i].y, delta_storage[i].z);
   }
@@ -280,6 +280,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   // multires_apply_object_delta(delta_storage, subdiv_ccg);
   /* Delete the data */
   // multires_clear_delta_storage(object, subdiv_ccg.level);
+  return true;
 }
 
 /** \} */
