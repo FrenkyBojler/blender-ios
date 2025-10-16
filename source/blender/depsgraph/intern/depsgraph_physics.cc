@@ -164,21 +164,21 @@ void DEG_add_collision_relations(DepsNodeHandle *handle,
             CollisionComponentFlag &update_flag = object_component_map->lookup_or_add_default(ob);
             {
               constexpr CollisionComponentFlag test_flag = CollisionComponentFlag::Transform;
-              if ((update_flag & test_flag) == CollisionComponentFlag::None) {
+              if (!flag_is_set(update_flag, test_flag)) {
                 update_flag |= test_flag;
                 DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_TRANSFORM, name);
               }
             }
             if (update_mesh) {
               constexpr CollisionComponentFlag test_flag = CollisionComponentFlag::Geometry;
-              if ((update_flag & test_flag) == CollisionComponentFlag::None) {
+              if (!flag_is_set(update_flag, test_flag)) {
                 update_flag |= test_flag;
                 DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_GEOMETRY, name);
               }
             }
             if (ob->type == OB_ARMATURE) {
               constexpr CollisionComponentFlag test_flag = CollisionComponentFlag::EvalPose;
-              if ((update_flag & test_flag) == CollisionComponentFlag::None) {
+              if (!flag_is_set(update_flag, test_flag)) {
                 update_flag |= test_flag;
                 DEG_add_object_pointcache_relation(handle, ob, DEG_OB_COMP_EVAL_POSE, name);
               }

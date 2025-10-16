@@ -41,6 +41,10 @@
     inline _enum_type &operator^=(_enum_type &a, _enum_type b) \
     { \
       return a = (_enum_type)(uint64_t(a) ^ uint64_t(b)); \
+    } \
+    [[nodiscard]] inline constexpr bool flag_is_set(_enum_type flags, _enum_type flag_to_test) \
+    { \
+      return (uint64_t(flags) & uint64_t(flag_to_test)) != 0; \
     }
 
 #else

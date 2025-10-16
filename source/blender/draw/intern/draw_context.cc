@@ -896,8 +896,9 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       }
 
       tmp_object.light_linking = ob->light_linking;
-      SET_FLAG_FROM_TEST(
-          tmp_object.transflag, bool(key.flags & InstancesFlags::IsNegativeScale), OB_NEG_SCALE);
+      SET_FLAG_FROM_TEST(tmp_object.transflag,
+                         flag_is_set(key.flags, InstancesFlags::IsNegativeScale),
+                         OB_NEG_SCALE);
       /* Should use DrawInstances data instead. */
       tmp_object.runtime->object_to_world = float4x4();
       tmp_object.runtime->world_to_object = float4x4();

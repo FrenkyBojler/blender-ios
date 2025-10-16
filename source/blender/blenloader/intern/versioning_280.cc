@@ -3129,9 +3129,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_NEED_OUTPUT)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");
@@ -3141,9 +3139,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           "nodes.\n");
     }
 
-    if ((error & eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION) !=
-        eNTreeDoVersionErrors::NTREE_DOVERSION_NO_ERROR)
-    {
+    if (flag_is_set(error, eNTreeDoVersionErrors::NTREE_DOVERSION_TRANSPARENCY_EMISSION)) {
       BKE_report(fd->reports != nullptr ? fd->reports->reports : nullptr,
                  RPT_ERROR,
                  "Eevee material conversion problem. Error in console");

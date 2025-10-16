@@ -145,12 +145,12 @@ struct ItemInternal {
 
   [[nodiscard]] static bool use_property_decorate_no_pad(const uiItem *item)
   {
-    return bool(item->flag_ & ItemInternalFlag::PropDecorateNoPad);
+    return flag_is_set(item->flag_, ItemInternalFlag::PropDecorateNoPad);
   };
 
   [[nodiscard]] static bool box_item(const uiItem *item)
   {
-    return bool(item->flag_ & ItemInternalFlag::BoxItem);
+    return flag_is_set(item->flag_, ItemInternalFlag::BoxItem);
   }
   static void box_item_set(uiItem *item, bool box_item)
   {
@@ -159,7 +159,7 @@ struct ItemInternal {
 
   [[nodiscard]] static bool auto_fixed_size(const uiItem *item)
   {
-    return bool(item->flag_ & ItemInternalFlag::AutoFixedSize);
+    return flag_is_set(item->flag_, ItemInternalFlag::AutoFixedSize);
   }
   static void auto_fixed_size_set(uiItem *item, bool auto_fixed_size)
   {
@@ -1936,7 +1936,7 @@ void uiLayout::prop(PointerRNA *ptr,
   uiBlock *block = this->block();
   char namestr[UI_MAX_NAME_STR];
   const bool use_prop_sep = this->use_property_split();
-  const bool inside_prop_sep = bool(flag_ & uiItemInternalFlag::InsidePropSep);
+  const bool inside_prop_sep = flag_is_set(flag_, uiItemInternalFlag::InsidePropSep);
   /* Columns can define a heading to insert. If the first item added to a split layout doesn't have
    * a label to display in the first column, the heading is inserted there. Otherwise it's inserted
    * as a new row before the first item. */
@@ -5052,7 +5052,7 @@ void uiLayout::emboss_set(blender::ui::EmbossType emboss)
 
 bool uiLayout::use_property_split() const
 {
-  return bool(flag_ & uiItemInternalFlag::PropSep);
+  return flag_is_set(flag_, uiItemInternalFlag::PropSep);
 }
 
 void uiLayout::use_property_split_set(bool is_sep)
@@ -5062,7 +5062,7 @@ void uiLayout::use_property_split_set(bool is_sep)
 
 bool uiLayout::use_property_decorate() const
 {
-  return bool(flag_ & uiItemInternalFlag::PropDecorate);
+  return flag_is_set(flag_, uiItemInternalFlag::PropDecorate);
 }
 
 void uiLayout::use_property_decorate_set(bool is_sep)
@@ -5621,7 +5621,7 @@ void uiItem::fixed_size_set(bool fixed_size)
 
 bool uiItem::fixed_size() const
 {
-  return bool(flag_ & uiItemInternalFlag::FixedSize);
+  return flag_is_set(flag_, uiItemInternalFlag::FixedSize);
 }
 
 void uiLayout::operator_context_set(blender::wm::OpCallContext opcontext)
@@ -5857,7 +5857,7 @@ void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout)
   }
 
   uiBlock *block = layout->block();
-  if (bool(mt->flag & MenuTypeFlag::SearchOnKeyPress)) {
+  if (flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress)) {
     UI_block_flag_enable(block, UI_BLOCK_NO_ACCELERATOR_KEYS);
   }
   if (mt->listener) {

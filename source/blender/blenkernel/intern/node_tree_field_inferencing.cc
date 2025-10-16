@@ -366,7 +366,7 @@ static bool propagate_special_data_requirements(
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const FieldStateSyncResult sync_result = simulation_nodes_field_state_sync(
             node, *output_node, field_state_by_socket_id);
-        if (bool(sync_result & FieldStateSyncResult::CHANGED_B)) {
+        if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_B)) {
           need_update = true;
         }
       }
@@ -378,7 +378,7 @@ static bool propagate_special_data_requirements(
         if (node.identifier == data.output_node_id) {
           const FieldStateSyncResult sync_result = simulation_nodes_field_state_sync(
               *input_node, node, field_state_by_socket_id);
-          if (bool(sync_result & FieldStateSyncResult::CHANGED_A)) {
+          if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_A)) {
             need_update = true;
           }
         }
@@ -390,7 +390,7 @@ static bool propagate_special_data_requirements(
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
         const FieldStateSyncResult sync_result = repeat_field_state_sync(
             node, *output_node, field_state_by_socket_id);
-        if (bool(sync_result & FieldStateSyncResult::CHANGED_B)) {
+        if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_B)) {
           need_update = true;
         }
       }
@@ -402,7 +402,7 @@ static bool propagate_special_data_requirements(
         if (node.identifier == data.output_node_id) {
           const FieldStateSyncResult sync_result = repeat_field_state_sync(
               *input_node, node, field_state_by_socket_id);
-          if (bool(sync_result & FieldStateSyncResult::CHANGED_A)) {
+          if (flag_is_set(sync_result, FieldStateSyncResult::CHANGED_A)) {
             need_update = true;
           }
         }
