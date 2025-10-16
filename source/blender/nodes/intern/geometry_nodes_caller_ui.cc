@@ -971,7 +971,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   }
 
   if (nmd.node_group != nullptr) {
-    nmd.runtime->usage_cache.ensure(nmd);
+    nmd.runtime->usage_cache.ensure(object, nmd);
     ctx.input_usages = nmd.runtime->usage_cache.inputs;
     ctx.output_usages = nmd.runtime->usage_cache.outputs;
     draw_interface_panel_content(ctx, &layout, nmd.node_group->tree_interface.root_panel);

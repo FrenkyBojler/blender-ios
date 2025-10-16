@@ -1885,7 +1885,7 @@ static void modify_geometry_set(ModifierData *md,
   modifyGeometry(md, ctx, *geometry_set);
 }
 
-void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
+void NodesModifierUsageInferenceCache::ensure(const Object &object, const NodesModifierData &nmd)
 {
   if (!nmd.node_group) {
     this->reset();
@@ -1898,9 +1898,14 @@ void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
   const bNodeTree &tree = *nmd.node_group;
   tree.ensure_interface_cache();
   tree.ensure_topology_cache();
+
+  PointerRNA nmd_ptr = RNA_pointer_create_discrete(
+      const_cast<ID *>(&object.id), &RNA_NodesModifier, const_cast<NodesModifierData *>(&nmd));
+  PointerRNA properties_ptr = RNA_pointer_get(&nmd_ptr, "properties");
+
   ResourceScope scope;
   const Vector<nodes::InferenceValue> group_input_values =
-      nodes::get_geometry_nodes_input_inference_values(tree, nmd.settings.properties, scope);
+      nodes::get_geometry_nodes_input_inference_values(tree, properties_ptr, scope);
 
   /* Compute the hash of the input values. This has to be done everytime currently, because there
    * is no reliable callback yet that is called any of the modifier properties changes. */
