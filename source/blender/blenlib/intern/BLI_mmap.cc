@@ -276,7 +276,7 @@ static void print_error(const char *message)
   char buffer[256];
   size_t length = BLI_string_join(buffer, sizeof(buffer), "BLI_mmap: ", message, "\n");
   if (write(STDERR_FILENO, buffer, length) < 0) {
-    /* Ignore errors */
+    /* If writing to stderr fails, there is nowhere to write an error about that. */
   }
 }
 
