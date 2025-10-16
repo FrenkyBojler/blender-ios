@@ -2,12 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
-#include <cmath>
-
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -22,160 +16,241 @@
 
 namespace blender::nodes::node_composite_levels_cc {
 
-static const EnumPropertyItem channel_items[] = {
-    {CMP_NODE_LEVLES_LUMINANCE, "COMBINED_RGB", 0, N_("Combined"), N_("Combined RGB")},
-    {CMP_NODE_LEVLES_RED, "RED", 0, N_("Red"), N_("Red Channel")},
-    {CMP_NODE_LEVLES_GREEN, "GREEN", 0, N_("Green"), N_("Green Channel")},
-    {CMP_NODE_LEVLES_BLUE, "BLUE", 0, N_("Blue"), N_("Blue Channel")},
-    {CMP_NODE_LEVLES_LUMINANCE_BT709, "LUMINANCE", 0, N_("Luminance"), N_("Luminance Channel")},
+enum class DataType : uint8_t {
+  Float = 0,
+  Color = 1,
+};
+
+static const EnumPropertyItem data_type_items[] = {
+    {int(DataType::Float), "FLOAT", 0, N_("Float"), N_("The input is a float")},
+    {int(DataType::Color), "COLOR", 0, N_("Color"), N_("The input is a color")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void cmp_node_levels_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Float>("Image", "Float Image")
+      .default_value(0.0f)
+      .structure_type(StructureType::Dynamic)
+      .usage_by_single_menu(int(DataType::Float))
+      .hide_value();
+  b.add_input<decl::Color>("Image", "Color Image")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
-      .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Menu>("Channel")
-      .default_value(CMP_NODE_LEVLES_LUMINANCE)
-      .static_items(channel_items)
+      .structure_type(StructureType::Dynamic)
+      .usage_by_single_menu(int(DataType::Color))
+      .hide_value();
+  b.add_input<decl::Menu>("Data Type")
+      .default_value(DataType::Float)
+      .static_items(data_type_items)
       .optional_label();
 
-  b.add_output<decl::Float>("Mean");
-  b.add_output<decl::Float>("Standard Deviation");
+  b.add_output<decl::Float>("Minimum", "Float Minimum").usage_by_single_menu(int(DataType::Float));
+  b.add_output<decl::Float>("Maximum", "Float Maximum").usage_by_single_menu(int(DataType::Float));
+  b.add_output<decl::Float>("Sum", "Float Sum").usage_by_single_menu(int(DataType::Float));
+  b.add_output<decl::Float>("Mean", "Float Mean").usage_by_single_menu(int(DataType::Float));
+  b.add_output<decl::Float>("Standard Deviation", "Float Standard Deviation")
+      .usage_by_single_menu(int(DataType::Float));
+
+  b.add_output<decl::Color>("Minimum", "Color Minimum").usage_by_single_menu(int(DataType::Color));
+  b.add_output<decl::Color>("Maximum", "Color Maximum").usage_by_single_menu(int(DataType::Color));
+  b.add_output<decl::Color>("Sum", "Color Sum").usage_by_single_menu(int(DataType::Color));
+  b.add_output<decl::Color>("Mean", "Color Mean").usage_by_single_menu(int(DataType::Color));
+  b.add_output<decl::Color>("Standard Deviation", "Color Standard Deviation")
+      .usage_by_single_menu(int(DataType::Color));
 }
 
 using namespace blender::compositor;
 
 class LevelsOperation : public NodeOperation {
- private:
-  constexpr static float luminance_coefficients_bt709_[3] = {0.2126f, 0.7152f, 0.0722f};
-
  public:
   using NodeOperation::NodeOperation;
 
   void execute() override
   {
-    if (get_input("Image").is_single_value()) {
-      execute_single_value();
+    switch (this->get_data_type()) {
+      case DataType::Float:
+        this->execute_float();
+        break;
+      case DataType::Color:
+        this->execute_color();
+        break;
+    }
+  }
+
+  void execute_float()
+  {
+    const Result &input = this->get_input("Float Image");
+    if (input.is_single_value()) {
+      this->execute_single_value_float();
       return;
     }
 
-    const float mean = compute_mean();
-
-    Result &mean_result = get_result("Mean");
-    if (mean_result.should_compute()) {
-      mean_result.allocate_single_value();
-      mean_result.set_single_value(mean);
+    Result &minimum_output = this->get_result("Float Minimum");
+    if (minimum_output.should_compute()) {
+      const float minimum = minimum_float(this->context(), input);
+      minimum_output.allocate_single_value();
+      minimum_output.set_single_value(minimum);
     }
 
-    Result &standard_deviation_result = get_result("Standard Deviation");
-    if (standard_deviation_result.should_compute()) {
-      const float standard_deviation = compute_standard_deviation(mean);
-      standard_deviation_result.allocate_single_value();
-      standard_deviation_result.set_single_value(standard_deviation);
+    Result &maximum_output = this->get_result("Float Maximum");
+    if (maximum_output.should_compute()) {
+      const float maximum = maximum_float(this->context(), input);
+      maximum_output.allocate_single_value();
+      maximum_output.set_single_value(maximum);
+    }
+
+    Result &sum_output = this->get_result("Float Sum");
+    Result &mean_output = this->get_result("Float Mean");
+    Result &standard_deviation_output = this->get_result("Float Standard Deviation");
+    if (sum_output.should_compute() || mean_output.should_compute() ||
+        standard_deviation_output.should_compute())
+    {
+      const float sum = sum_float(this->context(), input);
+      if (sum_output.should_compute()) {
+        sum_output.allocate_single_value();
+        sum_output.set_single_value(sum);
+      }
+
+      if (mean_output.should_compute()) {
+        const float mean = sum / math::reduce_mul(input.domain().size);
+        mean_output.allocate_single_value();
+        mean_output.set_single_value(mean);
+      }
+
+      if (standard_deviation_output.should_compute()) {
+        const float mean = sum / math::reduce_mul(input.domain().size);
+        const float sum_of_squared_difference_to_mean = sum_squared_difference_float(
+            this->context(), input, mean);
+        const float mean_squared_difference_to_mean = sum_of_squared_difference_to_mean /
+                                                      math::reduce_mul(input.domain().size);
+        const float standard_deviation = math::sqrt(mean_squared_difference_to_mean);
+        standard_deviation_output.allocate_single_value();
+        standard_deviation_output.set_single_value(standard_deviation);
+      }
     }
   }
 
-  void execute_single_value()
+  void execute_single_value_float()
   {
-    Result &standard_deviation_result = get_result("Standard Deviation");
-    if (standard_deviation_result.should_compute()) {
-      standard_deviation_result.allocate_single_value();
-      standard_deviation_result.set_single_value(0.0f);
+    const Result &input = this->get_input("Float Image");
+    Result &minimum_output = this->get_result("Float Minimum");
+    Result &maximum_output = this->get_result("Float Maximum");
+    Result &sum_output = this->get_result("Float Sum");
+    Result &mean_output = this->get_result("Float Mean");
+    Result &standard_deviation_output = this->get_result("Float Standard Deviation");
+
+    if (minimum_output.should_compute()) {
+      minimum_output.share_data(input);
     }
 
-    Result &mean_result = get_result("Mean");
-    if (!mean_result.should_compute()) {
+    if (maximum_output.should_compute()) {
+      maximum_output.share_data(input);
+    }
+
+    if (sum_output.should_compute()) {
+      sum_output.share_data(input);
+    }
+
+    if (mean_output.should_compute()) {
+      mean_output.share_data(input);
+    }
+
+    if (standard_deviation_output.should_compute()) {
+      standard_deviation_output.allocate_single_value();
+      standard_deviation_output.set_single_value(0.0f);
+    }
+  }
+
+  void execute_color()
+  {
+    const Result &input = this->get_input("Color Image");
+    if (input.is_single_value()) {
+      this->execute_single_value_color();
       return;
     }
 
-    mean_result.allocate_single_value();
-    const float3 input = float3(get_input("Image").get_single_value<float4>());
+    Result &minimum_output = this->get_result("Color Minimum");
+    if (minimum_output.should_compute()) {
+      const float4 minimum = minimum_color(this->context(), input);
+      minimum_output.allocate_single_value();
+      minimum_output.set_single_value(minimum);
+    }
 
-    switch (get_channel()) {
-      case CMP_NODE_LEVLES_RED:
-        mean_result.set_single_value(input.x);
-        break;
-      case CMP_NODE_LEVLES_GREEN:
-        mean_result.set_single_value(input.y);
-        break;
-      case CMP_NODE_LEVLES_BLUE:
-        mean_result.set_single_value(input.z);
-        break;
-      case CMP_NODE_LEVLES_LUMINANCE_BT709:
-        mean_result.set_single_value(math::dot(input, float3(luminance_coefficients_bt709_)));
-        break;
-      case CMP_NODE_LEVLES_LUMINANCE: {
-        float luminance_coefficients[3];
-        IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
-        mean_result.set_single_value(math::dot(input, float3(luminance_coefficients)));
-        break;
+    Result &maximum_output = this->get_result("Color Maximum");
+    if (maximum_output.should_compute()) {
+      const float4 maximum = maximum_color(this->context(), input);
+      maximum_output.allocate_single_value();
+      maximum_output.set_single_value(maximum);
+    }
+
+    Result &sum_output = this->get_result("Color Sum");
+    Result &mean_output = this->get_result("Color Mean");
+    Result &standard_deviation_output = this->get_result("Color Standard Deviation");
+    if (sum_output.should_compute() || mean_output.should_compute() ||
+        standard_deviation_output.should_compute())
+    {
+      const float4 sum = sum_color(this->context(), input);
+      if (sum_output.should_compute()) {
+        sum_output.allocate_single_value();
+        sum_output.set_single_value(sum);
+      }
+
+      if (mean_output.should_compute()) {
+        const float4 mean = sum / math::reduce_mul(input.domain().size);
+        mean_output.allocate_single_value();
+        mean_output.set_single_value(mean);
+      }
+
+      if (standard_deviation_output.should_compute()) {
+        const float4 mean = sum / math::reduce_mul(input.domain().size);
+        const float4 sum_of_squared_difference_to_mean = sum_squared_difference_color(
+            this->context(), input, mean);
+        const float4 mean_squared_difference_to_mean = sum_of_squared_difference_to_mean /
+                                                       math::reduce_mul(input.domain().size);
+        const float4 standard_deviation = math::sqrt(mean_squared_difference_to_mean);
+        standard_deviation_output.allocate_single_value();
+        standard_deviation_output.set_single_value(standard_deviation);
       }
     }
   }
 
-  float compute_mean()
+  void execute_single_value_color()
   {
-    const Result &input = get_input("Image");
-    const float4 mean = mean_color(this->context(), input);
+    const Result &input = this->get_input("Color Image");
+    Result &minimum_output = this->get_result("Color Minimum");
+    Result &maximum_output = this->get_result("Color Maximum");
+    Result &sum_output = this->get_result("Color Sum");
+    Result &mean_output = this->get_result("Color Mean");
+    Result &standard_deviation_output = this->get_result("Color Standard Deviation");
 
-    switch (this->get_channel()) {
-      case CMP_NODE_LEVLES_RED:
-        return mean.x;
-      case CMP_NODE_LEVLES_GREEN:
-        return mean.y;
-      case CMP_NODE_LEVLES_BLUE:
-        return mean.z;
-      case CMP_NODE_LEVLES_LUMINANCE_BT709:
-        return math::dot(mean.xyz(), float3(luminance_coefficients_bt709_));
-      case CMP_NODE_LEVLES_LUMINANCE: {
-        float luminance_coefficients[3];
-        IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
-        return math::dot(mean.xyz(), float3(luminance_coefficients));
-      }
+    if (minimum_output.should_compute()) {
+      minimum_output.share_data(input);
     }
 
-    return 0.0f;
-  }
-
-  float compute_standard_deviation(float mean)
-  {
-    const Result &input = get_input("Image");
-    const float sum = compute_sum_squared_difference(mean);
-    return std::sqrt(sum / (input.domain().size.x * input.domain().size.y));
-  }
-
-  float compute_sum_squared_difference(float subtrahend)
-  {
-    const Result &input = get_input("Image");
-    switch (get_channel()) {
-      case CMP_NODE_LEVLES_RED:
-        return sum_red_squared_difference(context(), input, subtrahend);
-      case CMP_NODE_LEVLES_GREEN:
-        return sum_green_squared_difference(context(), input, subtrahend);
-      case CMP_NODE_LEVLES_BLUE:
-        return sum_blue_squared_difference(context(), input, subtrahend);
-      case CMP_NODE_LEVLES_LUMINANCE_BT709:
-        return sum_luminance_squared_difference(
-            context(), input, float3(luminance_coefficients_bt709_), subtrahend);
-      case CMP_NODE_LEVLES_LUMINANCE: {
-        float luminance_coefficients[3];
-        IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
-        return sum_luminance_squared_difference(
-            context(), input, float3(luminance_coefficients), subtrahend);
-      }
+    if (maximum_output.should_compute()) {
+      maximum_output.share_data(input);
     }
 
-    return 0.0f;
+    if (sum_output.should_compute()) {
+      sum_output.share_data(input);
+    }
+
+    if (mean_output.should_compute()) {
+      mean_output.share_data(input);
+    }
+
+    if (standard_deviation_output.should_compute()) {
+      standard_deviation_output.allocate_single_value();
+      standard_deviation_output.set_single_value(float4(0.0f));
+    }
   }
 
-  CMPNodeLevelsChannel get_channel()
+  DataType get_data_type()
   {
-    const Result &input = this->get_input("Channel");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_LEVLES_LUMINANCE);
+    const Result &input = this->get_input("Data Type");
+    const MenuValue default_menu_value = MenuValue(DataType::Float);
     const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeLevelsChannel>(menu_value.value);
+    return static_cast<DataType>(menu_value.value);
   }
 };
 
@@ -184,23 +259,20 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
   return new LevelsOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_levels_cc
-
-static void register_node_type_cmp_view_levels()
+static void register_node()
 {
-  namespace file_ns = blender::nodes::node_composite_levels_cc;
-
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeLevels", CMP_NODE_VIEW_LEVELS);
   ntype.ui_name = "Levels";
   ntype.ui_description = "Compute average and standard deviation of pixel values";
   ntype.enum_name_legacy = "LEVELS";
-  ntype.nclass = NODE_CLASS_OUTPUT;
-  ntype.declare = file_ns::cmp_node_levels_declare;
-  ntype.flag |= NODE_PREVIEW;
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
+  ntype.get_compositor_operation = get_compositor_operation;
 
   blender::bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_view_levels)
+NOD_REGISTER_NODE(register_node)
+
+}  // namespace blender::nodes::node_composite_levels_cc

@@ -682,10 +682,6 @@ static void write_legacy_properties(bNodeTree &ntree)
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Type");
           node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
-        else if (node->type_legacy == CMP_NODE_VIEW_LEVELS) {
-          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Channel");
-          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
-        }
         else if (node->type_legacy == CMP_NODE_DILATEERODE) {
           const bNodeSocket *type_socket = node_find_socket(*node, SOCK_IN, "Type");
           node->custom1 = type_socket->default_value_typed<bNodeSocketValueMenu>()->value;

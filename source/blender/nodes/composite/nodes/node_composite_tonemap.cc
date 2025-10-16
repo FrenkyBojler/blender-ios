@@ -374,7 +374,8 @@ class ToneMapOperation : public NodeOperation {
     float luminance_coefficients[3];
     IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
     const Result &input = get_input("Image");
-    const float4 mean = mean_color(this->context(), input);
+    const float4 sum = sum_color(this->context(), input);
+    const float4 mean = sum / math::reduce_mul(input.domain().size);
     return math::dot(mean.xyz(), float3(luminance_coefficients));
   }
 
