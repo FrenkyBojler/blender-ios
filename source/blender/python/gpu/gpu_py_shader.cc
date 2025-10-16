@@ -42,14 +42,14 @@
   "``IMAGE``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image\n" \
-  "``IMAGE_SCENE_LINEAR_TO_REC709_SRG``\n" \
+  "``IMAGE_SCENE_LINEAR_TO_REC709_SRGB``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image\n" \
   "   :Note: Expect texture to be in scene linear color space\n" \
   "``IMAGE_COLOR``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image, vec4 color\n" \
-  "``IMAGE_COLOR_SCENE_LINEAR_TO_REC709_SRG``\n" \
+  "``IMAGE_COLOR_SCENE_LINEAR_TO_REC709_SRGB``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image, vec4 color\n" \
   "   :Note: Expect texture to be in scene linear color space\n" \
