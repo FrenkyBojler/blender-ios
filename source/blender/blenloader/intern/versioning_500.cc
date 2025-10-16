@@ -2613,13 +2613,31 @@ static void do_version_lift_gamma_gain_srgb_to_linear(bNodeTree &node_tree, bNod
 static void version_bone_hide_property_driver(AnimData *arm_adt, blender::Vector<Object *> &users)
 {
   using namespace blender::animrig;
-  constexpr char const *hide_prop_prefix = "bones[\"";
+  constexpr char const *hide_prop_prefix = "bones[";
   constexpr char const *hide_prop_suffix = "].hide";
+  constexpr int prefix_len = 6;
+  constexpr int suffix_len = 6;
 
   blender::Vector<FCurve *> drivers_to_fix;
   LISTBASE_FOREACH (FCurve *, fcurve, &arm_adt->drivers) {
     const blender::StringRef rna_path(fcurve->rna_path);
-    if (rna_path.startswith(hide_prop_prefix) && rna_path.endswith(hide_prop_suffix)) {
+    if (!rna_path.endswith(hide_prop_suffix) || !rna_path.startswith(hide_prop_prefix)) {
+      continue;
+    }
+    /* There is still the possibility that the rna_path is `bones["foo"]["bar"].hide`. That means,
+     * not only does the prefix and suffix need to match, but also inbetween we cannot have square
+     * brackets and dots. */
+    bool is_valid = true;
+    for (int i = prefix_len + 1; i < rna_path.size() - (suffix_len + 1); i++) {
+      /* If there is another double quote that is not escaped we have hit the case
+       * described above. Note that bone names can have '"' in their name, but the rna path
+       * will always have those characters escaped. */
+      if (fcurve->rna_path[i] == '\"' && fcurve->rna_path[i - 1] != '\\') {
+        is_valid = false;
+        break;
+      }
+    }
+    if (is_valid) {
       drivers_to_fix.append(fcurve);
     }
   }
@@ -2820,10 +2838,11 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
       }
 
       blender::Vector<Object *> *users = armature_usage_map.lookup_ptr(armature);
-      if (!users || users->is_empty()) {
-        /* Checking for `is_empty` means it won't be fixed for armatures that are not used by an
-         * object during versioning. However since the driver has to be moved to an
-         * object there is no way to fix it in this case. */
+      if (!users) {
+        /* If `users` is a nullptr that means there is no user of that armature. That means the
+         * property won't be fixed for armatures that are not used by an object during versioning.
+         * However since the driver has to be moved to an object there is no way to fix it in this
+         * case. */
         continue;
       }
 
