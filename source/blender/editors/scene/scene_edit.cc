@@ -377,8 +377,8 @@ static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   wmWindow *win = CTX_wm_window(C);
   WorkSpace *workspace = CTX_wm_workspace(C);
-  Scene *scene_old = workspace->sequencer_scene ? workspace->sequencer_scene :
-                                                  WM_window_get_active_scene(win);
+  /* Note: Can be nullptr. */
+  Scene *scene_old = workspace->sequencer_scene;
   int type = RNA_enum_get(op->ptr, "type");
 
   Scene *new_scene = scene_add(bmain, scene_old, eSceneCopyMethod(type));
@@ -390,6 +390,18 @@ static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus new_sequencer_scene_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
+{
+  if (CTX_data_sequencer_scene(C) == nullptr) {
+    /* When there is no sequencer scene set, just create a new one. The default "type" is
+     * SCE_COPY_NEW in this case. */
+    return new_sequencer_scene_exec(C, op);
+  }
+  return WM_menu_invoke(C, op, event);
+}
+
 static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
 {
   /* identifiers */
@@ -399,7 +411,7 @@ static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = new_sequencer_scene_exec;
-  ot->invoke = WM_menu_invoke;
+  ot->invoke = new_sequencer_scene_invoke;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
