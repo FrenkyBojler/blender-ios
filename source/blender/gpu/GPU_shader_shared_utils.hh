@@ -73,6 +73,7 @@
 #  ifndef GPU_SHADER /* Avoid parsing this into shader code. */
 
 #    include "BLI_assert.h"
+#    include "BLI_enum_flags.hh"
 #    include "BLI_sys_types.h"
 
 #    include <math.h>
