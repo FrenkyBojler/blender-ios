@@ -9,9 +9,8 @@
  * then store the result in 8bpc keeping accurate colors.
  *
  * To ensure consistent result (blending excluded) between a framebuffer using SRGBA_8_8_8_8 and
- * one using RGBA_8_8_8_8, we assume the same destination color space (e.g. Rec.709 sRGB). For
- * shaders that are known to use sRGB encoded values as inputs, we need to do the sRGB > linear
- * conversion to counteract the hardware encoding during rasterization.
+ * one using RGBA_8_8_8_8, we need to do the sRGB > linear conversion to counteract the hardware
+ * encoding during rasterization.
  *
  * All builtin GPUShaders are expected to output Rec.709 sRGB and be rendered onto the same color
  * space. The exception is the scene linear image shaders which expect scene linear input. These
@@ -35,44 +34,55 @@ SHADER_LIBRARY_CREATE_INFO(gpu_srgb_to_framebuffer_space)
 /* Undefine the macro that avoids compilation errors. */
 #undef blender_srgb_to_framebuffer_space
 
-/* Input is sRGB. Output is linear or sRGB. */
+/**
+ * Input is Rec.709 sRGB.
+ * Output is Rec.709 linear if hardware will add a Linear to sRGB comversion, noop otherwise.
+ * NOTE: Old naming convention, but avoids breaking compatibility for python shaders.
+ */
 float4 blender_srgb_to_framebuffer_space(float4 srgb_color)
 {
   /**
    * IMPORTANT: srgbTarget denote that the output is expected to be in __linear__ space.
    * https://wikis.khronos.org/opengl/framebuffer#Colorspace
    */
-  if (srgbTarget) {
-    /* Note that this is simply counteracting the hardware Linear > sRGB conversion. */
-    float3 c = max(srgb_color.rgb, float3(0.0f));
-    float3 c1 = c * (1.0f / 12.92f);
-    float3 c2 = pow((c + 0.055f) * (1.0f / 1.055f), float3(2.4f));
-    float4 linear_color;
-    linear_color.rgb = mix(c1, c2, step(float3(0.04045f), c));
-    linear_color.a = srgb_color.a;
-    return linear_color;
+  if (!srgbTarget) {
+    /* Input should already be in sRGB. */
+    return srgb_color;
   }
-  /* Input should already be in sRGB. */
-  return srgb_color;
+  /* Note that this is simply counteracting the hardware Linear > sRGB conversion. */
+  float3 c = max(srgb_color.rgb, float3(0.0f));
+  float3 c1 = c * (1.0f / 12.92f);
+  float3 c2 = pow((c + 0.055f) * (1.0f / 1.055f), float3(2.4f));
+  float4 linear_color;
+  linear_color.rgb = mix(c1, c2, step(float3(0.04045f), c));
+  linear_color.a = srgb_color.a;
+  return linear_color;
 }
 
-/* Input is linear. Output is linear or sRGB. */
-float4 blender_linear_to_framebuffer_space(float4 linear_color)
+/**
+ * Input is Rec.709 sRGB.
+ * Output is Rec.709 linear if hardware will add a Linear to sRGB comversion, noop otherwise.
+ */
+float4 blender_rec709_srgb_to_output_space(float4 srgb_color)
 {
-  /**
-   * IMPORTANT: srgbTarget denote that the output is expected to be in __linear__ space.
-   * https://wikis.khronos.org/opengl/framebuffer#Colorspace
-   */
-  if (srgbTarget) {
-    /* Input should already be in Linear. */
-    return linear_color;
-  }
-  /* Note that this is simply counteracting the *missing* hardware Linear > sRGB conversion. */
-  float3 c = max(linear_color.rgb, float3(0.0f));
+  return blender_srgb_to_framebuffer_space(srgb_color);
+}
+
+/* Input is Blender Scene Linear. Output is Rec.709 sRGB. */
+float4 blender_scene_linear_to_rec709_srgb(float3x3 scene_linear_to_rec709,
+                                           float4 scene_linear_color)
+{
+  float3 rec709_linear = scene_linear_to_rec709 * scene_linear_color.rgb;
+
+  /* TODO(fclem): For wide gamut (extended sRGB), we need to encode negative values in a certain
+   * way here. */
+
+  /* Linear to sRGB transform. */
+  float3 c = max(rec709_linear, float3(0.0f));
   float3 c1 = c * 12.92f;
   float3 c2 = 1.055f * pow(c, float3(1.0f / 2.4f)) - 0.055f;
   float4 srgb_color;
   srgb_color.rgb = mix(c1, c2, step(float3(0.0031308f), c));
-  srgb_color.a = linear_color.a;
+  srgb_color.a = scene_linear_color.a;
   return srgb_color;
 }

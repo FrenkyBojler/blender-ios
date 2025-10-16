@@ -11,11 +11,8 @@ FRAGMENT_SHADER_CREATE_INFO(gpu_shader_3D_image)
 void main()
 {
   fragColor = texture(image, texCoord_interp);
-  if (is_scene_linear_image) {
-    /* TODO(fclem): Add color transform here to convert scene linear to Rec.709 linear. */
-    fragColor = blender_linear_to_framebuffer_space(fragColor);
-  }
-  else {
-    fragColor = blender_srgb_to_framebuffer_space(fragColor);
-  }
+#ifdef BLENDER_SCENE_LINEAR_TO_REC709
+  fragColor = blender_scene_linear_to_rec709_srgb(gpu_scene_linear_to_rec709, fragColor);
+#endif
+  fragColor = blender_rec709_srgb_to_output_space(fragColor);
 }
