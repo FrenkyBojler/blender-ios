@@ -314,8 +314,8 @@ ccl_device_noinline Extrema<float> volume_estimate_extrema(KernelGlobals kg,
 )
 {
 #  ifdef __KERNEL_HIP__
-  const Interval<float> t = octree.t;
-  const VolumeStack entry = octree.entry;
+  const ccl_private Interval<float> &t = octree.t;
+  const ccl_private VolumeStack &entry = octree.entry;
 #  endif
   const bool homogeneous = volume_is_homogeneous(kg, entry);
   const int samples = homogeneous ? 1 : 4;
