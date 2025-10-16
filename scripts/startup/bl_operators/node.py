@@ -287,7 +287,7 @@ class NodeSwapOperator(NodeOperator):
 
         if not (hasattr(old_node, image_user_attr) and hasattr(new_node, image_user_attr)):
             return
-        
+
         old_image_user = getattr(old_node, image_user_attr)
         new_image_user = getattr(new_node, image_user_attr)
 
