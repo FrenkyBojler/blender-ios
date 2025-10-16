@@ -650,10 +650,40 @@ static int acf_object_icon(bAnimListElem *ale)
 
   /* icon depends on object-type */
   switch (ob->type) {
+    case OB_LAMP:
+      return ICON_OUTLINER_OB_LIGHT;
+    case OB_MESH:
+      return ICON_OUTLINER_OB_MESH;
+    case OB_CAMERA:
+      return ICON_OUTLINER_OB_CAMERA;
+    case OB_CURVES_LEGACY:
+      return ICON_OUTLINER_OB_CURVE;
+    case OB_MBALL:
+      return ICON_OUTLINER_OB_META;
+    case OB_LATTICE:
+      return ICON_OUTLINER_OB_LATTICE;
+    case OB_SPEAKER:
+      return ICON_OUTLINER_OB_SPEAKER;
+    case OB_LIGHTPROBE:
+      return ICON_OUTLINER_OB_LIGHTPROBE;
+    case OB_ARMATURE:
+      return ICON_OUTLINER_OB_ARMATURE;
+    case OB_FONT:
+      return ICON_OUTLINER_OB_FONT;
+    case OB_SURF:
+      return ICON_OUTLINER_OB_SURFACE;
+    case OB_CURVES:
+      return ICON_OUTLINER_OB_CURVES;
+    case OB_POINTCLOUD:
+      return ICON_OUTLINER_OB_POINTCLOUD;
+    case OB_VOLUME:
+      return ICON_OUTLINER_OB_VOLUME;
     case OB_EMPTY:
       return ICON_OUTLINER_OB_EMPTY;
+    case OB_GREASE_PENCIL:
+      return ICON_OUTLINER_OB_GREASEPENCIL;
     default:
-      return UI_icon_from_object_type(ob);
+      return ICON_OBJECT_DATA;
   }
 }
 
