@@ -1852,19 +1852,19 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
   /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
   ID_NEW_SET(sce, sce_copy);
 
+  if (!is_subprocess) {
+    BKE_main_id_newptr_and_tag_clear(bmain);
+  }
+
+  if (is_root_id) {
+    /* In case root duplicated ID is linked, assume we want to get a local copy of it and
+     * duplicate all expected linked data. */
+    if (ID_IS_LINKED(sce)) {
+      duplicate_flags = (duplicate_flags | USER_DUP_LINKED_ID);
+    }
+  }
+
   if (type == SCE_COPY_FULL) {
-    if (!is_subprocess) {
-      BKE_main_id_newptr_and_tag_clear(bmain);
-    }
-
-    if (is_root_id) {
-      /* In case root duplicated ID is linked, assume we want to get a local copy of it and
-       * duplicate all expected linked data. */
-      if (ID_IS_LINKED(sce)) {
-        duplicate_flags = (duplicate_flags | USER_DUP_LINKED_ID);
-      }
-    }
-
     /* Copy Freestyle LineStyle datablocks. */
     LISTBASE_FOREACH (ViewLayer *, view_layer_dst, &sce_copy->view_layers) {
       LISTBASE_FOREACH (FreestyleLineSet *, lineset, &view_layer_dst->freestyle_config.linesets) {
