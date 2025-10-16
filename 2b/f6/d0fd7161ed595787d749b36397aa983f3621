@@ -1,1 +1,2 @@
 Referenced by pull request #148227, Fix: Stack-buffer-overflow when running the "Save System Info" operator
+Referenced by commit 8b6a0f677f816f9021b9bd58f924bb03726714ad, Fix: Stack-buffer-overflow when running the "Save System Info" operator
