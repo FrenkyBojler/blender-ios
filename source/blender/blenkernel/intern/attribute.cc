@@ -148,39 +148,17 @@ struct DomainInfo {
   int length = 0;
 };
 
-static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(const AttributeOwner &owner)
+static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(BMesh *bm)
 {
   std::array<DomainInfo, ATTR_DOMAIN_NUM> info;
-
-  switch (owner.type()) {
-    case AttributeOwnerType::Curves:
-    case AttributeOwnerType::GreasePencil:
-    case AttributeOwnerType::GreasePencilDrawing:
-    case AttributeOwnerType::PointCloud: {
-      /* This should be implemented with #AttributeStorage instead. */
-      BLI_assert_unreachable();
-      break;
-    }
-    case AttributeOwnerType::Mesh: {
-      Mesh *mesh = owner.get_mesh();
-      if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-        BMesh *bm = em->bm;
-        info[int(AttrDomain::Point)].customdata = &bm->vdata;
-        info[int(AttrDomain::Point)].length = bm->totvert;
-        info[int(AttrDomain::Edge)].customdata = &bm->edata;
-        info[int(AttrDomain::Edge)].length = bm->totedge;
-        info[int(AttrDomain::Corner)].customdata = &bm->ldata;
-        info[int(AttrDomain::Corner)].length = bm->totloop;
-        info[int(AttrDomain::Face)].customdata = &bm->pdata;
-        info[int(AttrDomain::Face)].length = bm->totface;
-      }
-      else {
-        BLI_assert_unreachable();
-      }
-      break;
-    }
-  }
-
+  info[int(AttrDomain::Point)].customdata = &bm->vdata;
+  info[int(AttrDomain::Point)].length = bm->totvert;
+  info[int(AttrDomain::Edge)].customdata = &bm->edata;
+  info[int(AttrDomain::Edge)].length = bm->totedge;
+  info[int(AttrDomain::Corner)].customdata = &bm->ldata;
+  info[int(AttrDomain::Corner)].length = bm->totloop;
+  info[int(AttrDomain::Face)].customdata = &bm->pdata;
+  info[int(AttrDomain::Face)].length = bm->totface;
   return info;
 }
 
@@ -531,9 +509,9 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
   }
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(owner);
     Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);
       for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
         if (CustomData *data = info[domain].customdata) {
           const std::string name_copy = name;
@@ -798,30 +776,33 @@ std::optional<blender::StringRefNull> BKE_attributes_active_name_get(AttributeOw
     return std::nullopt;
   }
   if (owner.type() == AttributeOwnerType::Mesh) {
-    if (active_index > BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL)) {
-      active_index = 0;
-    }
-    const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(owner);
-    int index = 0;
-    for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
-      CustomData *customdata = info[domain].customdata;
-      if (customdata == nullptr) {
-        continue;
+    const Mesh *mesh = owner.get_mesh();
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);
+      if (active_index > BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL)) {
+        active_index = 0;
       }
-      for (int i = 0; i < customdata->totlayer; i++) {
-        CustomDataLayer *layer = &customdata->layers[i];
-        if (CD_MASK_PROP_ALL & CD_TYPE_AS_MASK(eCustomDataType(layer->type))) {
-          if (index == active_index) {
-            if (blender::bke::allow_procedural_attribute_access(layer->name)) {
-              return layer->name;
+      int index = 0;
+      for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
+        CustomData *customdata = info[domain].customdata;
+        if (customdata == nullptr) {
+          continue;
+        }
+        for (int i = 0; i < customdata->totlayer; i++) {
+          CustomDataLayer *layer = &customdata->layers[i];
+          if (CD_MASK_PROP_ALL & CD_TYPE_AS_MASK(eCustomDataType(layer->type))) {
+            if (index == active_index) {
+              if (blender::bke::allow_procedural_attribute_access(layer->name)) {
+                return layer->name;
+              }
+              return std::nullopt;
             }
-            return std::nullopt;
+            index++;
           }
-          index++;
         }
       }
+      return std::nullopt;
     }
-    return std::nullopt;
   }
 
   bke::AttributeStorage &storage = *owner.get_storage();
