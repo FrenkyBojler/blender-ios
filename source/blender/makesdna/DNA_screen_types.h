@@ -339,6 +339,11 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   uiListDyn *dyn_data;
 } uiList;
 
+typedef enum uiViewStateflag {
+  /** Preview needs re-rendering, handled in #ED_preview_draw(). */
+  UI_VIEW_COLLAPSE_FILTER_OPTIONS = (1 << 0),
+} uiViewStateflag;
+
 /** See #uiViewStateLink. */
 typedef struct uiViewState {
   /**
@@ -352,7 +357,7 @@ typedef struct uiViewState {
    *   scrolled out of view).
    */
   int scroll_offset;
-  uint8_t filtering_collapsed_state;
+  uint8_t flag; /* #uiViewStateflag */
   char _pad[7];
 } uiViewState;
 

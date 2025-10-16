@@ -27,6 +27,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_multi_value_map.hh"
+#include "BLI_string.h"
 
 #include "UI_tree_view.hh"
 
@@ -170,23 +171,14 @@ void AbstractTreeView::filter(std::optional<StringRef> filter_str)
   });
 }
 
-void AbstractTreeView::save_filtering_state(bool value)
+void AbstractTreeView::set_show_display_options(bool value)
 {
-  is_filtering_collapsed_ = value;
+  show_display_options_ = value;
 }
 
 void AbstractTreeView::toggle_filtering_collapsed()
 {
-  is_filtering_collapsed_ = !is_filtering_collapsed_;
-}
-
-void AbstractTreeView::set_serach_string(char *search_string)
-{
-  search_string_->assign(search_string);
-  if (search_string_ != nullptr && !search_string_->empty()) {
-    search_string_->insert(0, "*");
-    search_string_->push_back('*');
-  }
+  show_display_options_ = !show_display_options_;
 }
 
 void AbstractTreeView::update_from_old(uiBlock &new_block)
@@ -199,8 +191,9 @@ void AbstractTreeView::update_from_old(uiBlock &new_block)
 
   if (AbstractView *old_view = ui_block_view_find_matching_in_old_block(new_block, *this)) {
     if (AbstractTreeView *old_tree_view = dynamic_cast<AbstractTreeView *>(old_view)) {
-      is_filtering_collapsed_ = old_tree_view->is_filtering_collapsed_;
-      search_string_ = old_tree_view->search_string_;
+      show_display_options_ = old_tree_view->show_display_options_;
+      search_string_ = std::move(old_tree_view->search_string_);
+      old_tree_view->search_string_ = nullptr;
     }
   }
 }
@@ -219,8 +212,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
   }
-  state.filtering_collapsed_state = is_filtering_collapsed_;
-
+  SET_FLAG_FROM_TEST(state.flag, show_display_options_, UI_VIEW_COLLAPSE_FILTER_OPTIONS);
   return state;
 }
 
@@ -233,7 +225,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
   if (state.scroll_offset) {
     scroll_value_ = std::make_shared<int>(state.scroll_offset);
   }
-  save_filtering_state(state.filtering_collapsed_state);
+  set_show_display_options(state.flag & UI_VIEW_COLLAPSE_FILTER_OPTIONS);
 }
 
 int AbstractTreeView::count_visible_descendants(const AbstractTreeViewItem &parent) const
@@ -888,26 +880,6 @@ static int count_visible_items(AbstractTreeView &tree_view)
   return item_count;
 }
 
-static void search_fn(bContext *C, void * /*arg1*/, void *arg2)
-{
-  const wmWindow *win = CTX_wm_window(C);
-  if (!(win && win->eventstate)) {
-    return;
-  }
-
-  const ARegion *region = CTX_wm_region(C);
-  if (!region) {
-    return;
-  }
-
-  if (AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, UI_UNIT_Y)) {
-    if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
-      char *string = static_cast<char *>(arg2);
-      tree_view->set_serach_string(string);
-    }
-  }
-}
-
 static void set_filtering_collapsed_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
 {
   const wmWindow *win = CTX_wm_window(C);
@@ -967,7 +939,9 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   tree_view.foreach_item(
       [&, this](AbstractTreeViewItem &item) {
         if ((index >= first_visible_index) && (index <= max_visible_index)) {
-          if (tree_view.search_string_->empty() || item.is_filtered_visible()) {
+          if (!tree_view.search_string_ || tree_view.search_string_->empty() ||
+              item.is_filtered_visible())
+          {
             this->build_row(item);
           }
         }
@@ -1005,8 +979,8 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     /* Bottom */
     uiLayout *bottom = &col->row(false);
     UI_block_emboss_set(block, ui::EmbossType::None);
-    int icon = tree_view.is_filtering_collapsed_ ? ICON_DISCLOSURE_TRI_RIGHT :
-                                                   ICON_DISCLOSURE_TRI_DOWN;
+    int icon = tree_view.show_display_options_ ? ICON_DISCLOSURE_TRI_RIGHT :
+                                                 ICON_DISCLOSURE_TRI_DOWN;
     uiBut *but = uiDefIconBut(
         block, ButType::IconToggle, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.3, nullptr, 0, 0, "");
     UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
@@ -1026,7 +1000,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   0,
                   "");
 
-    if (!tree_view.is_filtering_collapsed_) {
+    if (!tree_view.show_display_options_) {
       block_layout_set_current(block, col);
       uiBut *but = uiDefBut(block,
                             ButType::Text,
@@ -1042,7 +1016,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                             "");
       UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
       ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
-      UI_but_func_set(but, search_fn, nullptr, tree_view.search_string_.get());
     }
   }
 
@@ -1155,11 +1128,16 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   tree_view.build_tree();
   tree_view.update_from_old(block);
   tree_view.change_state_delayed();
-  if (tree_view.search_string_ == nullptr) {
-    tree_view.search_string_ = std::make_shared<std::string>();
+  {
+    /* Setup search string to filter out elements with matching characters. */
+    if (tree_view.search_string_ == nullptr) {
+      tree_view.search_string_ =
+          std::make_unique<decltype(tree_view.search_string_)::element_type>();
+    }
+    char string[MAX_NAME + 2];
+    BLI_strncpy_ensure_pad(string, tree_view.search_string_->data(), '*', sizeof(string));
+    tree_view.filter(string);
   }
-  tree_view.filter(*tree_view.search_string_);
-
   ensure_min_rows_items(tree_view);
 
   /* Ensure the given layout is actually active. */
