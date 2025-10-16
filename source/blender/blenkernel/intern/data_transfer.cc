@@ -1028,9 +1028,6 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
     return false;
   }
   else if (elem_type == ME_LOOP) {
-    const bke::AttrDomain domain = bke::AttrDomain::Corner;
-    const int src_domain_size = me_src->corners_num;
-    const int dst_domain_size = me_dst->corners_num;
     if (cddata_type == CD_FAKE_UV) {
       cddata_type = CD_PROP_FLOAT2;
     }
