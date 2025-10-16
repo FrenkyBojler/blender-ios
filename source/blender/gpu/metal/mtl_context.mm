@@ -2771,8 +2771,7 @@ void xr_blit(id<MTLTexture> metal_xr_texture, GHOST_XrDrawViewInfo draw_info)
                       toTexture:metal_xr_texture
                destinationSlice:0
                destinationLevel:0
-              destinationOrigin:origin
-  ];
+              destinationOrigin:origin];
 }
 
 /** \} */

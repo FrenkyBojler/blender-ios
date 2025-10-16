@@ -7,6 +7,7 @@
  */
 
 #include "GHOST_ContextMTL.hh"
+
 #include "GHOST_XrGraphicsBindingMetal.hh"
 
 static std::optional<int64_t> choose_swapchain_format_from_candidates(
@@ -115,7 +116,7 @@ std::optional<int64_t> GHOST_XrGraphicsBindingMetal::chooseSwapchainFormat(
       break;
   }
 
-   r_is_srgb_format = (*result == MTLPixelFormatRGBA8Unorm_sRGB);
+  r_is_srgb_format = (*result == MTLPixelFormatRGBA8Unorm_sRGB);
 
   return result;
 }
