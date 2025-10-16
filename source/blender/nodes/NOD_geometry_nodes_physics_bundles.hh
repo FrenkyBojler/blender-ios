@@ -92,6 +92,7 @@ class EdgeLengthXPBDConstraintBundle : public NestedBundleCommon {
   std::string filter;
   fn::Field<bool> selection;
   fn::Field<float> compliance;
+  std::string lambda_attribute_name;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<EdgeLengthXPBDConstraintBundle> parse(const Bundle &bundle,
@@ -104,6 +105,7 @@ class CurveSegmentXPBDConstraintBundle : public NestedBundleCommon {
 
   std::string filter;
   fn::Field<float> compliance;
+  std::string lambda_attribute_name;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<CurveSegmentXPBDConstraintBundle> parse(const Bundle &bundle,
@@ -181,6 +183,7 @@ class RodStretchAndShearXPBDConstraintBundle : public NestedBundleCommon {
 
   std::string filter;
   fn::Field<float> compliance;
+  fn::Field<float> rest_length;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<RodStretchAndShearXPBDConstraintBundle> parse(const Bundle &bundle,
@@ -193,6 +196,7 @@ class RodBendAndTwistXPBDConstraintBundle : public NestedBundleCommon {
 
   std::string filter;
   fn::Field<float> compliance;
+  fn::Field<math::Quaternion> rest_rotation;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<RodBendAndTwistXPBDConstraintBundle> parse(const Bundle &bundle,
@@ -236,6 +240,7 @@ class DistanceBasedEdgeBendingConstraintBundle : public NestedBundleCommon {
   std::string filter;
   fn::Field<bool> selection;
   fn::Field<float> compliance;
+  std::string lambda_attribute_name;
 
   static const FlatBundleTypePtr &get_bundle_type();
   static std::optional<DistanceBasedEdgeBendingConstraintBundle> parse(

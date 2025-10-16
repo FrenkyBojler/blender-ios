@@ -183,6 +183,7 @@ const FlatBundleTypePtr &EdgeLengthXPBDConstraintBundle::get_bundle_type()
     b.add<decl::String>("filter");
     b.add<decl::Bool>("selection").default_value(true).supports_field();
     b.add<decl::Float>("compliance").min(0.0f).supports_field();
+    b.add<decl::String>("lambda_attribute_name");
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -197,6 +198,7 @@ std::optional<EdgeLengthXPBDConstraintBundle> EdgeLengthXPBDConstraintBundle::pa
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
   bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
   bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
+  bundle_parse_member(bundle, "lambda_attribute_name", behavior.lambda_attribute_name, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }
@@ -209,6 +211,7 @@ const FlatBundleTypePtr &CurveSegmentXPBDConstraintBundle::get_bundle_type()
     FlatBundleTypeBuilder b(CurveSegmentXPBDConstraintBundle::name);
     b.add<decl::String>("filter");
     b.add<decl::Float>("compliance").default_value(true).supports_field();
+    b.add<decl::String>("lambda_attribute_name");
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -222,6 +225,7 @@ std::optional<CurveSegmentXPBDConstraintBundle> CurveSegmentXPBDConstraintBundle
   CurveSegmentXPBDConstraintBundle behavior;
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
   bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
+  bundle_parse_member(bundle, "lambda_attribute_name", behavior.lambda_attribute_name, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }
@@ -369,6 +373,7 @@ const FlatBundleTypePtr &RodStretchAndShearXPBDConstraintBundle::get_bundle_type
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(RodStretchAndShearXPBDConstraintBundle::name);
     b.add<decl::String>("filter");
+    b.add<decl::Float>("rest_length").default_value(1.0f).min(0.0f);
     b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
@@ -382,6 +387,7 @@ std::optional<RodStretchAndShearXPBDConstraintBundle> RodStretchAndShearXPBDCons
 {
   RodStretchAndShearXPBDConstraintBundle behavior;
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "rest_length", behavior.rest_length, r_errors);
   bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
@@ -394,6 +400,7 @@ const FlatBundleTypePtr &RodBendAndTwistXPBDConstraintBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(RodBendAndTwistXPBDConstraintBundle::name);
     b.add<decl::String>("filter");
+    b.add<decl::Rotation>("rest_rotation");
     b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
@@ -407,6 +414,7 @@ std::optional<RodBendAndTwistXPBDConstraintBundle> RodBendAndTwistXPBDConstraint
 {
   RodBendAndTwistXPBDConstraintBundle behavior;
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
+  bundle_parse_member(bundle, "rest_rotation", behavior.rest_rotation, r_errors);
   bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
@@ -490,6 +498,7 @@ const FlatBundleTypePtr &DistanceBasedEdgeBendingConstraintBundle::get_bundle_ty
     b.add<decl::String>("filter");
     b.add<decl::Bool>("selection").default_value(true).supports_field();
     b.add<decl::Float>("compliance").min(0.0f).supports_field();
+    b.add<decl::String>("lambda_attribute_name");
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -504,6 +513,7 @@ std::optional<DistanceBasedEdgeBendingConstraintBundle> DistanceBasedEdgeBending
   bundle_parse_member(bundle, "filter", behavior.filter, r_errors);
   bundle_parse_member(bundle, "selection", behavior.selection, r_errors);
   bundle_parse_member(bundle, "compliance", behavior.compliance, r_errors);
+  bundle_parse_member(bundle, "lambda_attribute_name", behavior.lambda_attribute_name, r_errors);
   if (r_errors.has_error()) {
     return std::nullopt;
   }

@@ -12,6 +12,7 @@
 namespace blender::xpbd {
 
 struct DistanceConstraintResult {
+  float lambda = 0.0f;
   float3 offset0 = float3(0.0f);
   float3 offset1 = float3(0.0f);
 };
@@ -36,7 +37,7 @@ inline DistanceConstraintResult evaluate_distance_constraint(const float3 &p0,
   const float3 offset0 = lambda * inv_m0 * normalized_dir;
   const float3 offset1 = -lambda * inv_m1 * normalized_dir;
 
-  return {offset0, offset1};
+  return {lambda, offset0, offset1};
 }
 
 struct AlignRotationsConstraintResult {
@@ -228,17 +229,20 @@ class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSe
   Span<int2> point_pairs_;
   Span<float> distances_;
   Span<float> compliance_terms_;
+  MutableSpan<float> lambdas_;
 
  public:
   DistanceConstraintSet(const int geo_i,
                         const Span<int2> point_pairs,
                         const Span<float> distances,
-                        const Span<float> compliance_terms)
+                        const Span<float> compliance_terms,
+                        MutableSpan<float> lambdas)
       : TemplatedConstraintSet<DistanceConstraintSet>(point_pairs.size(), {geo_i}),
         geo_i_(geo_i),
         point_pairs_(point_pairs),
         distances_(distances),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        lambdas_(lambdas)
   {
     BLI_assert(point_pairs.size() == distances.size());
   }
@@ -258,6 +262,7 @@ class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSe
         params.inverse_mass(geo_i_, point_i1),
         distances_[constraint_i],
         compliance_terms_[constraint_i]);
+    lambdas_[constraint_i] = result.lambda;
     updater.update_position(geo_i_, point_i0, result.offset0);
     updater.update_position(geo_i_, point_i1, result.offset1);
   }
