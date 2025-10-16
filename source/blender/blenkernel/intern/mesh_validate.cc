@@ -256,8 +256,7 @@ static IndexMask find_faces_bad_edges(const Mesh &mesh,
       memory,
       [&](const IndexMaskSegment universe_segment, IndexRangesBuilder<int16_t> &builder) {
         Vector<std::pair<int, int>> &replacements = all_replacements.local();
-        for (const int16_t i : universe_segment.base_span()) {
-          const int face_i = int(universe_segment.offset() + i);
+        for (const int face_i : universe_segment) {
           const IndexRange face = faces[face_i];
 
           bool has_invalid_edge = false;
