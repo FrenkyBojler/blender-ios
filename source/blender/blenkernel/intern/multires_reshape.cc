@@ -232,14 +232,14 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
       &reshape_context, MultiresSubdivideModeType::CatmullClark, delta_storage, tmat_storage);
   printf("STORED LIMIT POS\n");
   for (const int i : delta_storage.index_range()) {
-    printf("%f, %f, %f\n", delta_storage[i].x, delta_storage[i].y, delta_storage[i].z);
+    printf("%d - (%f, %f, %f) - %f\n", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
   multires_reshape_calculate_object_delta(higher_subdiv_ccg, delta_storage);
   printf("STORED HIGHER POS - LIMIT POS\n");
 
   multires_reshape_object_delta_to_tangent_delta(tmat_storage, delta_storage);
   for (const int i : delta_storage.index_range()) {
-    printf("%f, %f, %f\n", delta_storage[i].x, delta_storage[i].y, delta_storage[i].z);
+    printf("%d - (%f, %f, %f) - %f\n", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
   printf("CONVERTED TO TANGENT SPACE\n");
 
@@ -274,7 +274,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   }
 
   /* Convert them to object space */
-  // multires_reshape_object_delta_to_tangent_delta()
+  multires_reshape_object_delta_to_tangent_delta()
 
   /* Re-add them to the new subdiv CCG */
   // multires_apply_object_delta(delta_storage, subdiv_ccg);

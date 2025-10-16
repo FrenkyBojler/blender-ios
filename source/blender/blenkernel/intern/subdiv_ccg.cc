@@ -497,18 +497,21 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
     higher_subdiv_ccg->subdiv = fake_subdiv;
     higher_subdiv_ccg.reset();
   }
-  else if (delta > 0) {
-    SubdivToCCGSettings higher_settings;
-    higher_settings.level = settings.level - delta;
-    BLI_assert(higher_settings.level > settings.level);
-    higher_settings.resolution = (1 << higher_settings.level) + 1;
-    BLI_assert(higher_settings.resolution > settings.resolution);
-    higher_settings.need_normal = false;
-    higher_settings.need_mask = false;
+  else if (delta > 0 && settings.level != 0) {
+    SubdivToCCGSettings lower_settings;
+    lower_settings.level = settings.level - delta;
+    BLI_assert(lower_settings.level < settings.level);
+    lower_settings.resolution = (1 << lower_settings.level) + 1;
+    BLI_assert(lower_settings.resolution < settings.resolution);
+    lower_settings.need_normal = false;
+    lower_settings.need_mask = false;
     std::unique_ptr<SubdivCCG> lower_subdiv_ccg = BKE_subdiv_to_ccg(
-        *subdiv_ccg->subdiv, higher_settings, coarse_mesh, nullptr);
+        *subdiv_ccg->subdiv, lower_settings, coarse_mesh, nullptr);
 
     multiresModifier_applyHigherLevelDelta(object, coarse_mesh, *lower_subdiv_ccg, *subdiv_ccg);
+
+    lower_subdiv_ccg->subdiv = fake_subdiv;
+    lower_subdiv_ccg.reset();
   }
 
   if (has_mask) {
