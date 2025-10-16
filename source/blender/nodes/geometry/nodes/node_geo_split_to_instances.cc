@@ -20,6 +20,8 @@
 
 #include "BLI_array_utils.hh"
 
+#include "GEO_transform.hh"
+
 namespace blender::nodes::node_geo_split_to_instances_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -32,6 +34,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Geometry to split into instances");
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Int>("Group ID").field_on_all().hide_value();
+  b.add_input<decl::Vector>("Center").field_on_all().hide_value();
   b.add_output<decl::Geometry>("Instances")
       .propagate_all()
       .description("All geometry groups as separate instances");
@@ -74,7 +77,9 @@ struct SplitGroups {
     const AttrDomain domain,
     const Field<bool> &selection_field,
     const Field<int> &group_id_field,
+    const Field<float3> &center_field,
     Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id,
+    Map<int, float3> &r_center_by_group_id,
     SplitGroups &r_groups)
 {
   const int domain_size = src_component.attribute_domain_size(domain);
@@ -84,6 +89,7 @@ struct SplitGroups {
                                                                      domain_size);
   field_evaluator.set_selection(selection_field);
   field_evaluator.add(group_id_field);
+  field_evaluator.add(center_field);
   field_evaluator.evaluate();
 
   const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
@@ -91,8 +97,19 @@ struct SplitGroups {
     return true;
   }
 
+  const VArray<float3> centers = field_evaluator.get_evaluated<float3>(1);
+
   r_groups.group_masks = IndexMask::from_group_ids(
       selection, field_evaluator.get_evaluated<int>(0), r_groups.memory, r_groups.group_ids);
+
+  for (const int i : r_groups.group_ids.index_range()) {
+    const int group_id = r_groups.group_ids[i];
+    const IndexMask &mask = r_groups.group_masks[i];
+    if (!mask.is_empty()) {
+      const int first_index_in_mask = mask.first();
+      r_center_by_group_id.add_overwrite(group_id, centers[first_index_in_mask]);
+    }
+  }
 
   ensure_group_geometries(geometry_by_group_id, r_groups.group_ids);
   return false;
@@ -102,12 +119,20 @@ static void split_mesh_groups(const MeshComponent &component,
                               const AttrDomain domain,
                               const Field<bool> &selection_field,
                               const Field<int> &group_id_field,
+                              const Field<float3> &center_field,
                               const AttributeFilter &attribute_filter,
-                              Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id)
+                              Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id,
+                              Map<int, float3> &center_by_group_id)
 {
   SplitGroups split_groups;
-  if (do_common_split(
-          component, domain, selection_field, group_id_field, geometry_by_group_id, split_groups))
+  if (do_common_split(component,
+                      domain,
+                      selection_field,
+                      group_id_field,
+                      center_field,
+                      geometry_by_group_id,
+                      center_by_group_id,
+                      split_groups))
   {
     return;
   }
@@ -153,15 +178,19 @@ static void split_mesh_groups(const MeshComponent &component,
 static void split_pointcloud_groups(const PointCloudComponent &component,
                                     const Field<bool> &selection_field,
                                     const Field<int> &group_id_field,
+                                    const Field<float3> &center_field,
                                     const AttributeFilter &attribute_filter,
-                                    Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id)
+                                    Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id,
+                                    Map<int, float3> &center_by_group_id)
 {
   SplitGroups split_groups;
   if (do_common_split(component,
                       AttrDomain::Point,
                       selection_field,
                       group_id_field,
+                      center_field,
                       geometry_by_group_id,
+                      center_by_group_id,
                       split_groups))
   {
     return;
@@ -193,12 +222,20 @@ static void split_curve_groups(const bke::CurveComponent &component,
                                const AttrDomain domain,
                                const Field<bool> &selection_field,
                                const Field<int> &group_id_field,
+                               const Field<float3> &center_field,
                                const AttributeFilter &attribute_filter,
-                               Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id)
+                               Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id,
+                               Map<int, float3> &center_by_group_id)
 {
   SplitGroups split_groups;
-  if (do_common_split(
-          component, domain, selection_field, group_id_field, geometry_by_group_id, split_groups))
+  if (do_common_split(component,
+                      domain,
+                      selection_field,
+                      group_id_field,
+                      center_field,
+                      geometry_by_group_id,
+                      center_by_group_id,
+                      split_groups))
   {
     return;
   }
@@ -225,15 +262,19 @@ static void split_curve_groups(const bke::CurveComponent &component,
 static void split_instance_groups(const InstancesComponent &component,
                                   const Field<bool> &selection_field,
                                   const Field<int> &group_id_field,
+                                  const Field<float3> &center_field,
                                   const AttributeFilter &attribute_filter,
-                                  Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id)
+                                  Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id,
+                                  Map<int, float3> &center_by_group_id)
 {
   SplitGroups split_groups;
   if (do_common_split(component,
                       AttrDomain::Instance,
                       selection_field,
                       group_id_field,
+                      center_field,
                       geometry_by_group_id,
+                      center_by_group_id,
                       split_groups))
   {
     return;
@@ -273,10 +314,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet src_geometry = params.extract_input<GeometrySet>("Geometry");
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<int> group_id_field = params.extract_input<Field<int>>("Group ID");
+  const Field<float3> center_field = params.extract_input<Field<float3>>("Center");
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Instances");
 
   Map<int, std::unique_ptr<GeometrySet>> geometry_by_group_id;
+  Map<int, float3> center_by_group_id;
 
   if (src_geometry.has_mesh() &&
       ELEM(domain, AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face))
@@ -286,13 +329,20 @@ static void node_geo_exec(GeoNodeExecParams params)
                       domain,
                       selection_field,
                       group_id_field,
+                      center_field,
                       attribute_filter,
-                      geometry_by_group_id);
+                      geometry_by_group_id,
+                      center_by_group_id);
   }
   if (src_geometry.has_pointcloud() && domain == AttrDomain::Point) {
     const auto &component = *src_geometry.get_component<PointCloudComponent>();
-    split_pointcloud_groups(
-        component, selection_field, group_id_field, attribute_filter, geometry_by_group_id);
+    split_pointcloud_groups(component,
+                            selection_field,
+                            group_id_field,
+                            center_field,
+                            attribute_filter,
+                            geometry_by_group_id,
+                            center_by_group_id);
   }
   if (src_geometry.has_curves() && ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
     const auto &component = *src_geometry.get_component<bke::CurveComponent>();
@@ -300,13 +350,20 @@ static void node_geo_exec(GeoNodeExecParams params)
                        domain,
                        selection_field,
                        group_id_field,
+                       center_field,
                        attribute_filter,
-                       geometry_by_group_id);
+                       geometry_by_group_id,
+                       center_by_group_id);
   }
   if (src_geometry.has_instances() && domain == AttrDomain::Instance) {
     const auto &component = *src_geometry.get_component<bke::InstancesComponent>();
-    split_instance_groups(
-        component, selection_field, group_id_field, attribute_filter, geometry_by_group_id);
+    split_instance_groups(component,
+                          selection_field,
+                          group_id_field,
+                          center_field,
+                          attribute_filter,
+                          geometry_by_group_id,
+                          center_by_group_id);
   }
 
   bke::Instances *dst_instances = new bke::Instances();
@@ -314,23 +371,41 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int total_groups_num = geometry_by_group_id.size();
   dst_instances->resize(total_groups_num);
 
+  /* Get an ordered list of group IDs. This order will define the order of the final instances. */
+  // const Array<int> group_ids = geometry_by_group_id.keys();
+  // const Array<int> group_ids(geometry_by_group_id.keys());
+  Array<int> group_ids(geometry_by_group_id.size());
+  int i = 0;
+  for (const auto &item : geometry_by_group_id.items()) {
+    // group_ids.append(item.key);
+    group_ids[i++] = item.key;
+  }
   std::optional<std::string> dst_group_id_attribute_id =
       params.get_output_anonymous_attribute_id_if_needed("Group ID");
   if (dst_group_id_attribute_id) {
     SpanAttributeWriter<int> dst_group_id =
         dst_instances->attributes_for_write().lookup_or_add_for_write_span<int>(
             *dst_group_id_attribute_id, AttrDomain::Instance);
-    std::copy(geometry_by_group_id.keys().begin(),
-              geometry_by_group_id.keys().end(),
-              dst_group_id.span.begin());
+    /* Use the ordered list of group IDs to fill the output attribute. */
+    std::copy(group_ids.begin(), group_ids.end(), dst_group_id.span.begin());
     dst_group_id.finish();
   }
 
-  dst_instances->transforms_for_write().fill(float4x4::identity());
+  MutableSpan<float4x4> dst_transforms = dst_instances->transforms_for_write();
+  // MutableSpan<int> dst_reference_handles = dst_instances->reference_handles_for_write();
   array_utils::fill_index_range(dst_instances->reference_handles_for_write());
 
-  for (auto item : geometry_by_group_id.items()) {
-    std::unique_ptr<GeometrySet> &group_geometry = item.value;
+  for (const int i : group_ids.index_range()) {
+    const int group_id = group_ids[i];
+    std::unique_ptr<GeometrySet> &group_geometry = geometry_by_group_id.lookup(group_id);
+
+    const float3 *center = center_by_group_id.lookup_ptr(group_id);
+    const float3 pivot = center ? *center : float3(0.0f);
+
+    dst_transforms[i] = math::from_location<float4x4>(pivot);
+
+    geometry::translate_geometry(*group_geometry, -pivot);
+
     dst_instances->add_reference(std::move(group_geometry));
   }
 
