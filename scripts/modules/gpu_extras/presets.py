@@ -85,7 +85,7 @@ def draw_texture_2d(texture, position, width, height, is_scene_linear_with_rec70
     coords = ((0, 0), (1, 0), (1, 1), (0, 1))
     indices = ((0, 1, 2), (2, 3, 0))
 
-    shader = gpu.shader.from_builtin('IMAGE_SCENE_LINEAR_TO_SRG' if is_scene_linear_with_rec709_srgb_target else 'IMAGE')
+    shader = gpu.shader.from_builtin('IMAGE_SCENE_LINEAR_TO_REC709_SRGB' if is_scene_linear_with_rec709_srgb_target else 'IMAGE')
     batch = batch_for_shader(
         shader, 'TRIS',
         {"pos": coords, "texCoord": coords},

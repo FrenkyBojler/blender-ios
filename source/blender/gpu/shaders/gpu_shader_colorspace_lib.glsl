@@ -27,7 +27,7 @@ SHADER_LIBRARY_CREATE_INFO(gpu_srgb_to_framebuffer_space)
  *
  * To ensure consistent result (blending excluded) between a framebuffer using SRGBA_8_8_8_8 and
  * one using RGBA_8_8_8_8, we need to do the sRGB > linear conversion to counteract the hardware
- * encoding during rasterization.
+ * encoding during framebuffer output.
  *
  * For reference:  https://wikis.khronos.org/opengl/framebuffer#Colorspace
  */
