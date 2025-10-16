@@ -798,7 +798,6 @@ static void bone_collection_select(bContext *C,
     LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
       Bone *bone = member->bone;
       bPoseChannel *pose_bone = BKE_pose_channel_find_name(active_object->pose, bone->name);
-      /* This shouldn't happen because it is covered by the poll function. */
       BLI_assert_msg(pose_bone != nullptr, "The pose bones and armature bones are out of sync");
       if (!blender::animrig::bone_is_visible(armature, pose_bone)) {
         continue;
