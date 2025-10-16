@@ -29,7 +29,8 @@ static EnumPropertyItem method_items[] = {
      "MINIMUM_STRETCH",
      0,
      N_("Minimum Stretch"),
-     N_("Uses SLIM (Scalable Locally Injective Mapping). Minimizes distortion in areas and angles.")},
+     N_("Uses SLIM (Scalable Locally Injective Mapping). Minimizes distortion in areas and "
+        "angles.")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -56,7 +57,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_single_menu(GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH)
       .description("Number of iterations to run the SLIM solver for");
   b.add_input<decl::Bool>("No Flip")
-      .default_value(false)
       .usage_by_single_menu(GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH)
       .description("Prevents flipping UVs");
   b.add_output<decl::Vector>("UV").field_source_reference_all().description(
