@@ -163,7 +163,7 @@ static std::unique_ptr<NodeFieldEvalData> prepare_field_eval_data(const Scene &s
   sculpt_data.depsgraph_extra = depsgraph_extra;
   sculpt_data.self_object = &object;
 
-  const RegionView3D &rv3d = reinterpret_cast<const RegionView3D &>(region.regiondata);
+  const RegionView3D &rv3d = *reinterpret_cast<const RegionView3D *>(region.regiondata);
 
   sculpt_data.view_matrix = float4x4(rv3d.viewmat);
   sculpt_data.projection_matrix = float4x4(rv3d.winmat);
