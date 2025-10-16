@@ -1636,7 +1636,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
         case GHOST_kGrabWrap: {
           /* Wrap cursor at area/window boundaries. */
           const NSTimeInterval timestamp = event.timestamp;
-          if (timestamp < (last_warp_timestamp_ + 0.003f)) {
+          const NSTimeInterval repeat_threshold = 0.003;
+          if (timestamp < (last_warp_timestamp_ + repeat_threshold)) {
             /* After warping, we can still receive unwrapped mouse events at very close timestamps,
              * causing the wrapping to be applied a second time, leading to a visual jump.
              * Ignore these events by returning early. */
