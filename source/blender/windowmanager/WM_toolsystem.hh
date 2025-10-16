@@ -7,6 +7,8 @@
  * \ingroup wm
  */
 
+#include "BKE_paint_types.hh"
+
 struct Brush;
 struct IDProperty;
 struct Main;
