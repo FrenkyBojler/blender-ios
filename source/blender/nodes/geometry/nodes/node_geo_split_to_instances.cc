@@ -6,6 +6,7 @@
 
 #include "GEO_mesh_copy_selection.hh"
 #include "GEO_randomize.hh"
+#include "GEO_transform.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
@@ -20,7 +21,6 @@
 
 #include "BLI_array_utils.hh"
 
-#include "GEO_transform.hh"
 
 namespace blender::nodes::node_geo_split_to_instances_cc {
 
@@ -390,11 +390,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   int i = 0;
   for (auto item : geometry_by_group_id.items()) {
     std::unique_ptr<GeometrySet> &group_geometry = item.value;
-
     const float3 &center = center_by_group_id.lookup(item.key);
     dst_transforms[i++] = math::from_location<float4x4>(center);
     geometry::translate_geometry(*group_geometry, -center);
-
     dst_instances->add_reference(std::move(group_geometry));
   }
 
