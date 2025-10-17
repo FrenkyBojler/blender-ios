@@ -544,7 +544,6 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
   ignore_window_sized_messages_ = false;
   ignore_momentum_scroll_ = false;
   multi_touch_scroll_ = false;
-  last_warp_timestamp_ = 0;
 }
 
 GHOST_SystemCocoa::~GHOST_SystemCocoa()
@@ -1635,15 +1634,6 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
         }
         case GHOST_kGrabWrap: {
           /* Wrap cursor at area/window boundaries. */
-          const NSTimeInterval timestamp = event.timestamp;
-          const NSTimeInterval repeat_threshold = 0.003;
-          if (timestamp < (last_warp_timestamp_ + repeat_threshold)) {
-            /* After warping, we can still receive unwrapped mouse events at very close timestamps,
-             * causing the wrapping to be applied a second time, leading to a visual jump.
-             * Ignore these events by returning early. */
-            break;
-          }
-
           GHOST_Rect bounds, windowBounds, correctedBounds;
 
           /* fall back to window bounds */
@@ -1663,7 +1653,10 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
           int32_t x_accum, y_accum;
           window->getCursorGrabAccum(x_accum, y_accum);
 
-          const NSPoint mousePos = event.locationInWindow;
+          /* Get the current software mouse pointer location, unaffected by pending events that may
+           * still be referring to a location before warping, which would cause the warping logic
+           * to be applied multiple times. */
+          const NSPoint mousePos = event.window.mouseLocationOutsideOfEventStream;
           /* Casting. */
           const int32_t x_mouse = mousePos.x;
           const int32_t y_mouse = mousePos.y;
@@ -1681,9 +1674,6 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
             setMouseCursorPosition(warped_x, warped_y); /* wrap */
             window->setCursorGrabAccum(x_accum + (x_mouse - warped_x_mouse),
                                        y_accum + (y_mouse - warped_y_mouse));
-
-            /* This is the current time that matches NSEvent timestamp. */
-            last_warp_timestamp_ = [[NSProcessInfo processInfo] systemUptime];
           }
 
           /* Generate event. */
