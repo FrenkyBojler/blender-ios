@@ -2546,7 +2546,7 @@ typedef enum eSnapMode {
   /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode */
   SCE_SNAP_TO_POINT = (1 << 0),
   SCE_SNAP_TO_EDGE_MIDPOINT = (1 << 1),
-  SCE_SNAP_FACE_CENTER = (1 << 2),
+  SCE_SNAP_TO_EDGE_ENDPOINT = (1 << 2),
   SCE_SNAP_TO_EDGE_PERPENDICULAR = (1 << 3),
   SCE_SNAP_TO_EDGE = (1 << 4),
   SCE_SNAP_TO_FACE = (1 << 5),
@@ -2557,6 +2557,9 @@ typedef enum eSnapMode {
   /** For snap individual elements. */
   SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
   SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
+
+  /* Would have loved to include this in toolsettings snap mode but shifting bits will break compatibility*/
+  SCE_SNAP_FACE_CENTER = (1 << 11) 
 } eSnapMode;
 
 /* Due to dependency conflicts with Cycles, header cannot directly include `BLI_utildefines.h`. */
