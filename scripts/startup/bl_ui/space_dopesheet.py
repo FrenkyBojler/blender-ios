@@ -219,7 +219,6 @@ class DOPESHEET_HT_editor_buttons:
         st = context.space_data
 
         if st.mode == 'TIMELINE':
-            # layout.separator_spacer()
             playback_controls(layout, context)
             layout.separator()
             cls._draw_overlay_selector(context, layout)
