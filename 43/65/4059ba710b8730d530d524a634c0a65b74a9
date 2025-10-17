@@ -6,3 +6,4 @@ Referenced by issue #147804, Weird frame indicator in latest 5.0 Beta
 Referenced by issue #147875, Vulkan: All of Blender runs incredibly slow in a every area (Windows)
 Referenced by issue #140763, Crash on undo with HIP-RT enabled
 Referenced by issue #144736, Crash on visibility toggle with HIP-RT in rendered view
+Referenced by issue #148274, Regression, Wayland: Window decorations are broken when un-maximizing a Blender window
