@@ -490,11 +490,12 @@ int multires_index_for_grid_coord_for_reshape(const MultiresReshapeContext *resh
                                               const GridCoord *grid_coord)
 {
   const int grid_size = reshape_context->reshape.grid_size;
+  const int grid_area = grid_size * grid_size;
   const int grid_x = lround(grid_coord->u * (grid_size - 1));
   const int grid_y = lround(grid_coord->v * (grid_size - 1));
   const int grid_element_index = grid_y * grid_size + grid_x;
 
-  return grid_coord->grid_index * grid_size + grid_element_index;
+  return grid_coord->grid_index * grid_area + grid_element_index;
 }
 
 int multires_index_for_grid_coord(const MultiresReshapeContext *reshape_context,
