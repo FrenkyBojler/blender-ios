@@ -553,7 +553,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
 }
 
 /* LPE pattern matching with operator support
- * Handles: | (OR), - (SUBTRACT), ! (NEGATE) operators with " | " and " - " spacing requirement
+ * Handles: () (GROUPING), | (OR), - (SUBTRACT), ! (NEGATE) operators
+ * Operators | and - require spacing: " | " and " - "
  */
 ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char *path,
                                                          ccl_private const char *pattern)
@@ -575,29 +576,86 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
   bool result = false;
   bool first_pattern = true;
   char last_operator = '\0';
+  int paren_depth = 0;
 
   while (pattern[pos] != '\0') {
-    /* Check for operator with spaces: " | " or " - " */
-    if (pattern[pos] == ' ' && pattern[pos + 1] != '\0' && pattern[pos + 2] == ' ') {
+    /* Handle parentheses - extract and evaluate recursively */
+    if (pattern[pos] == '(' && paren_depth == 0) {
+      /* Find matching closing parenthesis */
+      int paren_start = pos + 1;
+      int depth = 1;
+      pos++;
+
+      while (pattern[pos] != '\0' && depth > 0) {
+        if (pattern[pos] == '(') {
+          depth++;
+        }
+        else if (pattern[pos] == ')') {
+          depth--;
+        }
+        pos++;
+      }
+
+      /* Extract content between parentheses */
+      int paren_len = pos - paren_start - 1;
+      char paren_content[LPE_MAX_EXPRESSION_LENGTH];
+      for (int i = 0; i < paren_len && i < LPE_MAX_EXPRESSION_LENGTH - 1; i++) {
+        paren_content[i] = pattern[paren_start + i];
+      }
+      paren_content[paren_len] = '\0';
+
+      /* Evaluate parenthesized expression recursively */
+      bool paren_result = kernel_lpe_matches_with_operators(path, paren_content);
+
+      /* Treat parenthesized result as a sub-pattern result */
+      if (first_pattern) {
+        result = paren_result;
+        first_pattern = false;
+      }
+      else {
+        if (last_operator == '|') {
+          result = result || paren_result;
+        }
+        else if (last_operator == '-') {
+          result = result && !paren_result;
+        }
+      }
+
+      /* Check if there's an operator after the closing paren */
+      if (pattern[pos] == ' ' && pattern[pos + 1] != '\0' && pattern[pos + 2] == ' ') {
+        char op = pattern[pos + 1];
+        if (op == '|' || op == '-') {
+          last_operator = op;
+          pos += 3;
+        }
+      }
+
+      continue;
+    }
+
+    /* Check for operator with spaces: " | " or " - " (only outside parentheses) */
+    if (paren_depth == 0 && pattern[pos] == ' ' && pattern[pos + 1] != '\0' && pattern[pos + 2] == ' ') {
       char op = pattern[pos + 1];
       if (op == '|' || op == '-') {
         /* Terminate current sub-pattern */
         sub_pattern[sub_pos] = '\0';
 
-        /* Match current sub-pattern */
-        bool current = kernel_lpe_matches(path, sub_pattern);
+        /* Match current sub-pattern only if it's not empty */
+        if (sub_pos > 0) {
+          bool current = kernel_lpe_matches(path, sub_pattern);
 
-        /* Apply operator */
-        if (first_pattern) {
-          result = current;
-          first_pattern = false;
-        }
-        else {
-          if (last_operator == '|') {
-            result = result || current; /* Union */
+          /* Apply operator */
+          if (first_pattern) {
+            result = current;
+            first_pattern = false;
           }
-          else if (last_operator == '-') {
-            result = result && !current; /* Difference */
+          else {
+            if (last_operator == '|') {
+              result = result || current; /* Union */
+            }
+            else if (last_operator == '-') {
+              result = result && !current; /* Difference */
+            }
           }
         }
 
@@ -611,6 +669,14 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
       }
     }
 
+    /* Track parenthesis depth (for nested handling in future) */
+    if (pattern[pos] == '(') {
+      paren_depth++;
+    }
+    else if (pattern[pos] == ')') {
+      paren_depth--;
+    }
+
     /* Build current sub-pattern */
     if (sub_pos < LPE_MAX_EXPRESSION_LENGTH - 1) {
       sub_pattern[sub_pos++] = pattern[pos];
@@ -618,19 +684,21 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
     pos++;
   }
 
-  /* Match final sub-pattern */
-  sub_pattern[sub_pos] = '\0';
-  bool current = kernel_lpe_matches(path, sub_pattern);
+  /* Match final sub-pattern if not empty */
+  if (sub_pos > 0) {
+    sub_pattern[sub_pos] = '\0';
+    bool current = kernel_lpe_matches(path, sub_pattern);
 
-  if (first_pattern) {
-    result = current;
-  }
-  else {
-    if (last_operator == '|') {
-      result = result || current;
+    if (first_pattern) {
+      result = current;
     }
-    else if (last_operator == '-') {
-      result = result && !current;
+    else {
+      if (last_operator == '|') {
+        result = result || current;
+      }
+      else if (last_operator == '-') {
+        result = result && !current;
+      }
     }
   }
 
