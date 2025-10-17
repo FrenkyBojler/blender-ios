@@ -1161,6 +1161,13 @@ static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *resh
   reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
 }
 
+static void reshape_subdiv_refine_final_v2(const MultiresReshapeSmoothContext *reshape_smooth_context,
+                                        blender::Span<blender::float3> storage)
+{
+  printf("SETTING SUBDIV COARSE VERTS\n");
+  reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
+}
+
 static void reshape_subdiv_evaluate_limit_at_grid(
     const MultiresReshapeSmoothContext *reshape_smooth_context,
     const PTexCoord *ptex_coord,
@@ -1544,6 +1551,25 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
 void multires_reshape_store_limit_positions(
     const MultiresReshapeContext *reshape_context,
     const MultiresSubdivideModeType mode,
+    blender::MutableSpan<blender::float3> deltas,
+    blender::MutableSpan<blender::float3x3> tangent_matrices)
+{
+#ifdef WITH_OPENSUBDIV
+  MultiresReshapeSmoothContext reshape_smooth_context(reshape_context, mode);
+  geometry_create(&reshape_smooth_context);
+
+  reshape_subdiv_create(&reshape_smooth_context);
+
+  reshape_subdiv_refine_final(&reshape_smooth_context, deltas);
+  evaluate_higher_grid_positions(&reshape_smooth_context, deltas, tangent_matrices);
+#else
+  UNUSED_VARS(reshape_context, mode);
+#endif
+}
+
+void multires_reshape_store_tangent_matrices(
+    const MultiresReshapeContext *reshape_context,
+    MultiresSubdivideModeType mode,
     blender::MutableSpan<blender::float3> deltas,
     blender::MutableSpan<blender::float3x3> tangent_matrices)
 {

@@ -353,7 +353,13 @@ void multires_reshape_smooth_object_grids_v2(const MultiresReshapeContext *resha
                                              enum MultiresSubdivideModeType mode);
 void multires_reshape_store_limit_positions(
     const MultiresReshapeContext *reshape_context,
-    enum MultiresSubdivideModeType mode,
+    MultiresSubdivideModeType mode,
+    blender::MutableSpan<blender::float3> deltas,
+    blender::MutableSpan<blender::float3x3> tangent_matrices);
+
+void multires_reshape_store_tangent_matrices(
+    const MultiresReshapeContext *reshape_context,
+    MultiresSubdivideModeType mode,
     blender::MutableSpan<blender::float3> deltas,
     blender::MutableSpan<blender::float3x3> tangent_matrices);
 

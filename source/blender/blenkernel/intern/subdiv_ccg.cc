@@ -497,7 +497,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
     higher_subdiv_ccg->subdiv = fake_subdiv;
     higher_subdiv_ccg.reset();
   }
-  else if (delta > 0 && settings.level != 0) {
+  else if (delta > 0) {
     SubdivToCCGSettings lower_settings;
     lower_settings.level = settings.level - delta;
     BLI_assert(lower_settings.level < settings.level);

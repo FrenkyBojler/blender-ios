@@ -158,7 +158,13 @@ static blender::MutableSpan<blender::float3> multires_get_delta_storage(Object &
   return ss.multires.runtime.disp_at_level[level - 1];
 }
 
-static void multires_reshape_calculate_object_delta(
+static void multires_clear_delta_storage(Object &object, const int level)
+{
+  SculptSession &ss = *object.sculpt;
+  ss.multires.runtime.disp_at_level[level - 1].clear_and_shrink();
+}
+
+static void multires_level_calc_object_delta(
     SubdivCCG &higher_subdiv_ccg, blender::MutableSpan<blender::float3> object_delta)
 {
   /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
@@ -182,7 +188,7 @@ static void multires_reshape_calculate_object_delta(
   }
 }
 
-static void multires_reshape_object_delta_to_tangent_delta(
+static void multires_level_object_delta_to_tangent_delta(
     blender::Span<blender::float3x3> tmat_storage,
     blender::MutableSpan<blender::float3> delta_storage)
 {
@@ -234,10 +240,10 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
   for (const int i : delta_storage.index_range()) {
     printf("%d - (%f, %f, %f) - %f\n", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
-  multires_reshape_calculate_object_delta(higher_subdiv_ccg, delta_storage);
+  multires_level_calc_object_delta(higher_subdiv_ccg, delta_storage);
   printf("STORED HIGHER POS - LIMIT POS\n");
 
-  multires_reshape_object_delta_to_tangent_delta(tmat_storage, delta_storage);
+  multires_level_object_delta_to_tangent_delta(tmat_storage, delta_storage);
   for (const int i : delta_storage.index_range()) {
     printf("%d - (%f, %f, %f) - %f\n", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
@@ -248,6 +254,25 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
   return true;
 }
 
+static void multires_level_tangent_delta_to_object_delta(
+    blender::MutableSpan<blender::float3> delta_storage,
+    blender::Span<blender::float3x3> tmat_storage)
+{
+  for (const int i : delta_storage.index_range()) {
+    delta_storage[i] = blender::math::transform_direction(blender::math::invert(tmat_storage[i]),
+                                                          delta_storage[i]);
+  }
+}
+
+static void multires_level_apply_object_delta(blender::Span<blender::float3> delta_storage,
+                                        SubdivCCG &subdiv_ccg)
+{
+  BLI_assert(subdiv_ccg.positions.size() == delta_storage.size());
+  for (const int i : subdiv_ccg.positions.index_range()) {
+    subdiv_ccg.positions[i] += delta_storage[i];
+  }
+}
+
 bool multiresModifier_applyHigherLevelDelta(Object &object,
                                             Mesh &coarse_mesh,
                                             SubdivCCG &lower_subdiv_ccg,
@@ -255,8 +280,10 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
 {
   /* When switching to higher levels... */
   /* Take the stored higher level tangent displacements */
+  blender::Array<blender::float3> ccg_storage(lower_subdiv_ccg.positions.size());
   blender::MutableSpan<blender::float3> delta_storage = multires_get_delta_storage(
       object, subdiv_ccg.level);
+  blender::Array<blender::float3x3> tmat_storage(delta_storage.size());
   BLI_assert(delta_storage.size() == subdiv_ccg.positions.size());
 
   MultiresReshapeContext reshape_context;
@@ -267,19 +294,27 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   }
 
   if (!multires_reshape_assign_final_coords_from_ccg(
-          &reshape_context, &lower_subdiv_ccg, delta_storage))
+          &reshape_context, &lower_subdiv_ccg, ccg_storage))
   {
     multires_reshape_context_free(&reshape_context);
     return false;
   }
 
+  multires_reshape_store_tangent_matrices(
+      &reshape_context, MultiresSubdivideModeType::CatmullClark, ccg_storage, tmat_storage);
+
   /* Convert them to object space */
-  multires_reshape_object_delta_to_tangent_delta()
+  multires_level_tangent_delta_to_object_delta(delta_storage, tmat_storage);
 
   /* Re-add them to the new subdiv CCG */
-  // multires_apply_object_delta(delta_storage, subdiv_ccg);
+  multires_level_apply_object_delta(delta_storage, subdiv_ccg);
+  /* TODO: do we need to recalculate normals? */
+
   /* Delete the data */
-  // multires_clear_delta_storage(object, subdiv_ccg.level);
+  multires_clear_delta_storage(object, subdiv_ccg.level);
+
+  multires_reshape_context_free(&reshape_context);
+
   return true;
 }
 
