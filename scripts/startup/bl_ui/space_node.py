@@ -1158,7 +1158,6 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_options = {'DEFAULT_VISIBLE'}
-    bl_default_preview_size = 48
 
     @classmethod
     def poll(cls, context):
