@@ -1616,7 +1616,7 @@ static void do_render_full_pipeline(Render *re)
 
   re->i.starttime = BLI_time_now_seconds();
 
-  /* ensure no images are in memory from previous animated sequences */
+  /* ensure no rendered results are cached from previous animated sequences */
   BKE_image_all_free_anim_ibufs(re->main, re->r.cfra);
   blender::seq::cache_cleanup(re->scene, blender::seq::CacheCleanup::FinalAndIntra);
 
