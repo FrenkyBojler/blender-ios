@@ -2546,7 +2546,7 @@ typedef enum eSnapMode {
   /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode */
   SCE_SNAP_TO_POINT = (1 << 0),
   SCE_SNAP_TO_EDGE_MIDPOINT = (1 << 1),
-  SCE_SNAP_TO_EDGE_ENDPOINT = (1 << 2),
+  SCE_SNAP_FACE_CENTER = (1 << 2),
   SCE_SNAP_TO_EDGE_PERPENDICULAR = (1 << 3),
   SCE_SNAP_TO_EDGE = (1 << 4),
   SCE_SNAP_TO_FACE = (1 << 5),
