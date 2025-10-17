@@ -20,14 +20,22 @@
 namespace blender::nodes::node_composite_channel_matte_cc {
 
 static const EnumPropertyItem color_space_items[] = {
-    {CMP_NODE_CHANNEL_MATTE_CS_RGB, "RGB", 0, "RGB", "RGB (Red, Green, Blue) color space"},
-    {CMP_NODE_CHANNEL_MATTE_CS_HSV, "HSV", 0, "HSV", "HSV (Hue, Saturation, Value) color space"},
-    {CMP_NODE_CHANNEL_MATTE_CS_YUV, "YUV", 0, "YUV", "YUV (Y - luma, U V - chroma) color space"},
+    {CMP_NODE_CHANNEL_MATTE_CS_RGB, "RGB", 0, N_("RGB"), N_("RGB (Red, Green, Blue) color space")},
+    {CMP_NODE_CHANNEL_MATTE_CS_HSV,
+     "HSV",
+     0,
+     N_("HSV"),
+     N_("HSV (Hue, Saturation, Value) color space")},
+    {CMP_NODE_CHANNEL_MATTE_CS_YUV,
+     "YUV",
+     0,
+     N_("YUV"),
+     N_("YUV (Y - luma, U V - chroma) color space")},
     {CMP_NODE_CHANNEL_MATTE_CS_YCC,
      "YCC",
      0,
-     "YCbCr",
-     "YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space"},
+     N_("YCbCr"),
+     N_("YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -173,7 +181,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
             CMP_NODE_CHANNEL_MATTE_CS_RGB;
       })
       .usage_inference(
-          [](const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
             return params.menu_input_may_be("Limit Method",
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_RGB);
@@ -195,7 +203,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
             CMP_NODE_CHANNEL_MATTE_CS_HSV;
       })
       .usage_inference(
-          [](const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
             return params.menu_input_may_be("Limit Method",
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_HSV);
@@ -217,7 +225,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
             CMP_NODE_CHANNEL_MATTE_CS_YUV;
       })
       .usage_inference(
-          [](const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
             return params.menu_input_may_be("Limit Method",
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_YUV);
@@ -239,7 +247,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
             CMP_NODE_CHANNEL_MATTE_CS_YCC;
       })
       .usage_inference(
-          [](const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
             return params.menu_input_may_be("Limit Method",
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_YCC);

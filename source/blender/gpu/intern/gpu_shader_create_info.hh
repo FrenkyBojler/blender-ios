@@ -14,6 +14,7 @@
 #pragma once
 
 #if !defined(GPU_SHADER)
+#  include "BLI_enum_flags.hh"
 #  include "BLI_hash.hh"
 #  include "BLI_string_ref.hh"
 #  include "BLI_utildefines_variadic.h"
@@ -485,7 +486,7 @@ enum class BuiltinBits {
   /* Shader source needs to be implemented at runtime. */
   RUNTIME_GENERATED = (1 << 30),
 };
-ENUM_OPERATORS(BuiltinBits, BuiltinBits::USE_DEBUG_DRAW);
+ENUM_OPERATORS(BuiltinBits);
 
 /**
  * Follow convention described in:
@@ -582,7 +583,7 @@ enum class Qualifier {
   read_write = read | write,
   QUALIFIER_MAX = (write << 1) - 1,
 };
-ENUM_OPERATORS(Qualifier, Qualifier::QUALIFIER_MAX);
+ENUM_OPERATORS(Qualifier);
 
 /** Maps to different descriptor sets. */
 enum class Frequency {
@@ -641,7 +642,7 @@ struct StageInterfaceInfo {
   Vector<InOut> inouts;
 
   StageInterfaceInfo(const char *name_, const char *instance_name_ = "")
-      : name(name_), instance_name(instance_name_){};
+      : name(name_), instance_name(instance_name_) {};
   ~StageInterfaceInfo() = default;
 
   using Self = StageInterfaceInfo;
@@ -899,7 +900,7 @@ struct ShaderCreateInfo {
       StorageBuf storagebuf;
     };
 
-    Resource(BindType type, int _slot) : bind_type(type), slot(_slot){};
+    Resource(BindType type, int _slot) : bind_type(type), slot(_slot) {};
 
     bool operator==(const Resource &b) const
     {
@@ -1002,7 +1003,7 @@ struct ShaderCreateInfo {
 #  endif
 
  public:
-  ShaderCreateInfo(const char *name) : name_(name){};
+  ShaderCreateInfo(const char *name) : name_(name) {};
   ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;

@@ -5,9 +5,7 @@
 set(INC_GLSL
   .
   ..
-
   ./library
-
   ../../gpu
   ../../gpu/intern
   ../../gpu/shaders

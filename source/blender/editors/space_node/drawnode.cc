@@ -201,7 +201,9 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
                                               const int x,
                                               const int y)
 {
-  const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f);
+  const bool node_is_collapsed = node->flag & NODE_COLLAPSED;
+  const float size = NODE_RESIZE_MARGIN * math::max(snode.runtime->aspect, 1.0f) *
+                     (node_is_collapsed ? 3.0f : 1.0f);
 
   if (node->is_frame()) {
     NodeFrame *data = (NodeFrame *)node->storage;
@@ -231,17 +233,6 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
     return dir;
   }
 
-  if (node->flag & NODE_COLLAPSED) {
-    /* right part of node */
-    rctf bounds = node->runtime->draw_bounds;
-    bounds.xmin = node->runtime->draw_bounds.xmax - 1.0f * U.widget_unit;
-    if (BLI_rctf_isect_pt(&bounds, x, y)) {
-      return NODE_RESIZE_RIGHT;
-    }
-
-    return NODE_RESIZE_NONE;
-  }
-
   const rctf &bounds = node->runtime->draw_bounds;
   NodeResizeDirection dir = NODE_RESIZE_NONE;
 
@@ -250,6 +241,15 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
   }
   if (x >= bounds.xmin && x < bounds.xmin + size && y >= bounds.ymin && y < bounds.ymax) {
     dir |= NODE_RESIZE_LEFT;
+
+    if (node_is_collapsed) {
+      /* Prevent conflict with the collapse/expand icon. */
+      if ((abs(y - BLI_rctf_cent_y(&bounds)) < 0.4f * U.widget_unit) &&
+          (x > (bounds.xmin + 0.4f * U.widget_unit)))
+      {
+        dir = NODE_RESIZE_NONE;
+      }
+    }
   }
   return dir;
 }
@@ -1743,7 +1743,7 @@ static void nodesocket_cache_flush()
         batch,
         "parameters",
         4,
-        reinterpret_cast<const float(*)[4]>(g_batch_nodesocket().params.data()));
+        reinterpret_cast<const float (*)[4]>(g_batch_nodesocket().params.data()));
     GPU_batch_draw(batch);
   }
   else {
@@ -1752,7 +1752,7 @@ static void nodesocket_cache_flush()
         batch,
         "parameters",
         MAX_SOCKET_PARAMETERS * MAX_SOCKET_INSTANCE,
-        reinterpret_cast<const float(*)[4]>(g_batch_nodesocket().params.data()));
+        reinterpret_cast<const float (*)[4]>(g_batch_nodesocket().params.data()));
     GPU_batch_draw_instance_range(batch, 0, g_batch_nodesocket().params.size());
   }
   g_batch_nodesocket().params.clear();
@@ -1788,7 +1788,7 @@ static void draw_node_socket_batch(const NodeSocketShaderParameters &socket_para
     gpu::Batch *batch = nodesocket_batch_init();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_NODE_SOCKET);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_SOCKET_PARAMETERS, (const float(*)[4])(&socket_params));
+        batch, "parameters", MAX_SOCKET_PARAMETERS, (const float (*)[4])(&socket_params));
     GPU_batch_draw(batch);
   }
 }
@@ -2336,7 +2336,7 @@ void node_draw_link_dragged(const bContext &C,
   const std::array<float2, 4> points = node_link_bezier_points_dragged(snode, link);
 
   const NodeLinkDrawConfig draw_config = nodelink_get_draw_config(
-      C, v2d, snode, link, TH_ACTIVE, TH_ACTIVE, TH_WIRE, true);
+      C, v2d, snode, link, TH_WIRE_INNER, TH_WIRE_INNER, TH_WIRE, true);
   /* End marker outline. */
   node_draw_link_end_markers(link, draw_config, points, true);
   /* Link. */
