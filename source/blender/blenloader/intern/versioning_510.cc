@@ -15,7 +15,9 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_sys_types.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_main.hh"
 #include "BKE_node.hh"
@@ -220,6 +222,93 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   }
 }
 
+/* The levels node previously had a Channel menu input that specifies which channel should have its
+ * levels computed, while now, we compute the levels for all channel at the same time, so we need
+ * to add a separate RGBA node to access the required channel. Additionally, a special "channel" is
+ * the luminance, which is TODO. */
+static void do_version_updated_levels_node(bNodeTree &node_tree, bNode &node)
+{
+  bNodeSocket *channel_input = blender::bke::node_find_socket(node, SOCK_IN, "Channel");
+  bNodeSocket *image_input = blender::bke::node_find_socket(node, SOCK_IN, "Image");
+  bNodeSocket *mean_output = blender::bke::node_find_socket(node, SOCK_OUT, "Mean");
+  bNodeSocket *standard_deviation_output = blender::bke::node_find_socket(
+      node, SOCK_OUT, "Standard Deviation");
+
+  bNodeSocket &data_type_input = version_node_add_socket(
+      node_tree, node, SOCK_IN, "NodeSocketMenu", "Data Type");
+  constexpr int float_data_type = 0;
+  data_type_input.default_value_typed<bNodeSocketValueMenu>()->value = float_data_type;
+
+  STRNCPY(image_input->identifier, "Float Image");
+  STRNCPY(mean_output->identifier, "Float Mean");
+  STRNCPY(standard_deviation_output->identifier, "Float Standard Deviation");
+
+  /* Find the link going into the input of the node. */
+  bNodeLink *image_link = nullptr;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
+    if (link->tosock == image_input) {
+      image_link = link;
+    }
+  }
+
+  enum {
+    CMP_NODE_LEVLES_LUMINANCE = 1,
+    CMP_NODE_LEVLES_RED = 2,
+    CMP_NODE_LEVLES_GREEN = 3,
+    CMP_NODE_LEVLES_BLUE = 4,
+  };
+
+  /* The remaining channel type is luminance, which will be computed as an implicit conversion, so
+   * no need to extract a channel. */
+  if (!ELEM(channel_input->default_value_typed<bNodeSocketValueMenu>()->value,
+            CMP_NODE_LEVLES_RED,
+            CMP_NODE_LEVLES_GREEN,
+            CMP_NODE_LEVLES_BLUE))
+  {
+    return;
+  }
+
+  bNode &separate_node = version_node_add_empty(node_tree, "CompositorNodeSeparateColor");
+  separate_node.parent = node.parent;
+  separate_node.location[0] = node.location[0] - 10.0f;
+  separate_node.location[1] = node.location[1];
+  NodeCMPCombSepColor *storage = MEM_callocN<NodeCMPCombSepColor>(__func__);
+  storage->mode = CMP_NODE_COMBSEP_COLOR_RGB;
+  separate_node.storage = storage;
+
+  bNodeSocket &separate_input = version_node_add_socket(
+      node_tree, separate_node, SOCK_IN, "NodeSocketColor", "Image");
+
+  copy_v4_v4(separate_input.default_value_typed<bNodeSocketValueRGBA>()->value,
+             image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+  if (image_link) {
+    version_node_add_link(
+        node_tree, *image_link->fromnode, *image_link->fromsock, separate_node, separate_input);
+    blender::bke::node_remove_link(&node_tree, *image_link);
+  }
+
+  switch (channel_input->default_value_typed<bNodeSocketValueMenu>()->value) {
+    case CMP_NODE_LEVLES_RED: {
+      bNodeSocket &output = version_node_add_socket(
+          node_tree, separate_node, SOCK_OUT, "NodeSocketFloat", "Red");
+      version_node_add_link(node_tree, separate_node, output, node, *image_input);
+      break;
+    }
+    case CMP_NODE_LEVLES_GREEN: {
+      bNodeSocket &output = version_node_add_socket(
+          node_tree, separate_node, SOCK_OUT, "NodeSocketFloat", "Green");
+      version_node_add_link(node_tree, separate_node, output, node, *image_input);
+      break;
+    }
+    case CMP_NODE_LEVLES_BLUE: {
+      bNodeSocket &output = version_node_add_socket(
+          node_tree, separate_node, SOCK_OUT, "NodeSocketFloat", "Blue");
+      version_node_add_link(node_tree, separate_node, output, node, *image_input);
+      break;
+    }
+  }
+}
+
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -266,6 +355,19 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == SH_NODE_MIX) {
             do_version_mix_node_mix_mode_geometry(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_VIEW_LEVELS) {
+            do_version_updated_levels_node(*node_tree, *node);
           }
         }
       }

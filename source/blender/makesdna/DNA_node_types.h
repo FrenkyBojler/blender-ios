@@ -3128,15 +3128,6 @@ typedef enum CMPNodeFilterMethod {
   CMP_NODE_FILTER_SHARP_DIAMOND = 7,
 } CMPNodeFilterMethod;
 
-/* Levels Node. Stored in custom1. */
-typedef enum CMPNodeLevelsChannel {
-  CMP_NODE_LEVLES_LUMINANCE = 1,
-  CMP_NODE_LEVLES_RED = 2,
-  CMP_NODE_LEVLES_GREEN = 3,
-  CMP_NODE_LEVLES_BLUE = 4,
-  CMP_NODE_LEVLES_LUMINANCE_BT709 = 5,
-} CMPNodeLevelsChannel;
-
 /* Tone Map Node. Stored in NodeTonemap.type. */
 typedef enum CMPNodeToneMapType {
   CMP_NODE_TONE_MAP_SIMPLE = 0,
