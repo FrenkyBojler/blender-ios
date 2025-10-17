@@ -1142,7 +1142,7 @@ void copy_attributes_group_to_group(const AttributeAccessor src_attributes,
       return;
     }
     if (!dst_already_exists) {
-      /* Skip filling with the default value if all of the data is going to be fill. */
+      /* Skip filling with the default value if all of the data is going to be filled. */
       if (!(dst_offsets.total_size() == dst.span.size() && selection.size() == dst_offsets.size()))
       {
         const CPPType &type = dst.span.type();
