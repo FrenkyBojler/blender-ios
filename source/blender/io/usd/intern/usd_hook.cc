@@ -121,7 +121,7 @@ class USDSceneExportContext {
   const USDHierarchyIterator *hierarchy_iterator_;
 
  public:
-  USDSceneExportContext() = default;
+  USDSceneExportContext() : hierarchy_iterator_(nullptr) {}
 
   USDSceneExportContext(const USDHierarchyIterator *iter, Depsgraph *depsgraph)
       : stage_(iter->get_stage()), hierarchy_iterator_(iter)
