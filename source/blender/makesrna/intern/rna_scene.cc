@@ -145,7 +145,7 @@ const EnumPropertyItem rna_enum_mesh_select_mode_uv_items[] = {
   {SCE_SNAP_TO_VOLUME, "VOLUME", ICON_SNAP_VOLUME, "Volume", "Snap to volume"}, \
   {SCE_SNAP_TO_EDGE_MIDPOINT, "EDGE_MIDPOINT", ICON_SNAP_MIDPOINT, "Edge Center", "Snap to the middle of edges"}, \
   {SCE_SNAP_TO_EDGE_PERPENDICULAR, "EDGE_PERPENDICULAR", ICON_SNAP_PERPENDICULAR, "Edge Perpendicular", "Snap to the nearest point on an edge"}, \
-  {SCE_SNAP_FACE_CENTER, "FACE_CENTER", ICON_SNAP_MIDPOINT,"Face Center","Snap to the middle of faces"}
+  {SCE_SNAP_FACE_CENTER, "FACE_CENTER", ICON_SNAP_MIDPOINT,"Face Center","Snap to the middle of faces"} /*Todo(tariq):I have to make an icon for face center. */
 /* clang-format on */
 
 const EnumPropertyItem rna_enum_snap_element_items[] = {

@@ -363,18 +363,36 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
                             eSnapMode snap_to_flag,
                             int face_index)
 {
-  eSnapMode elem = SCE_SNAP_TO_NONE;
-
   const Mesh *mesh_eval = reinterpret_cast<const Mesh *>(id);
 
   SnapData_Mesh nearest2d(sctx, mesh_eval, obmat);
   nearest2d.clip_planes_enable(sctx, ob_eval);
 
+  const IndexRange face = mesh_eval->faces()[face_index];
+
+  if (snap_to_flag & SCE_SNAP_FACE_CENTER) {
+    float3 center(0.0f);
+    const int *face_verts = &nearest2d.corner_verts[face.start()];
+    for (int i = 0; i < face.size(); i++) {
+      center += float3(nearest2d.vert_positions[face_verts[i]]);
+    }
+    if (face.size() > 0) {
+      center *= 1.0f / float(face.size());
+    }
+
+    copy_v3_v3(nearest2d.nearest_point.co, center);
+    copy_v3_v3(nearest2d.nearest_point.no, mesh_eval->face_normals()[face_index]);
+    nearest2d.nearest_point.index = face_index;
+
+    nearest2d.register_result(sctx, ob_eval, id);
+
+    return SCE_SNAP_FACE_CENTER;
+  }
+
+  eSnapMode elem = SCE_SNAP_TO_NONE;
   BVHTreeNearest nearest{};
   nearest.index = -1;
   nearest.dist_sq = sctx->ret.dist_px_sq;
-
-  const IndexRange face = mesh_eval->faces()[face_index];
 
   if (snap_to_flag &
       (SCE_SNAP_TO_EDGE | SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR))
@@ -439,7 +457,8 @@ static eSnapMode mesh_snap_mode_supported(const Mesh *mesh, bool skip_hidden)
   eSnapMode snap_mode_supported = (skip_hidden || mesh->loose_verts().count) ? SCE_SNAP_TO_POINT :
                                                                                SCE_SNAP_TO_NONE;
   if (mesh->faces_num) {
-    snap_mode_supported |= SCE_SNAP_TO_FACE | SCE_SNAP_INDIVIDUAL_NEAREST | SNAP_TO_EDGE_ELEMENTS;
+    snap_mode_supported |= SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER | SCE_SNAP_INDIVIDUAL_NEAREST |
+                           SNAP_TO_EDGE_ELEMENTS;
   }
   else if (mesh->edges_num) {
     snap_mode_supported |= SNAP_TO_EDGE_ELEMENTS;
@@ -614,8 +633,11 @@ eSnapMode snap_object_mesh(SnapObjectContext *sctx,
     }
   }
 
-  if (snap_to_flag & SCE_SNAP_TO_FACE) {
+  if (snap_to_flag & (SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER)) {
     if (raycastMesh(sctx, ob_eval, mesh_eval, obmat, sctx->runtime.object_index++, skip_hidden)) {
+      if (snap_to_flag & SCE_SNAP_FACE_CENTER) {
+        return SCE_SNAP_FACE_CENTER;
+      }
       return SCE_SNAP_TO_FACE;
     }
   }

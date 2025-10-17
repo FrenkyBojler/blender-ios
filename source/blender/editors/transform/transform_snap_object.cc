@@ -578,7 +578,7 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
                                 bool /*is_object_active*/,
                                 bool use_hide)
 {
-  bool retval = false;
+  eSnapMode retval = SCE_SNAP_TO_NONE;
 
   if (ob_data == nullptr) {
     if ((sctx->runtime.occlusion_test_edit == SNAP_OCCLUSION_AS_SEEM) &&
@@ -588,9 +588,8 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
       return SCE_SNAP_TO_NONE;
     }
     if (ob_eval->type == OB_MESH) {
-      if (snap_object_editmesh(sctx, ob_eval, nullptr, obmat, SCE_SNAP_TO_FACE, use_hide)) {
-        retval = true;
-      }
+      retval = snap_object_editmesh(
+          sctx, ob_eval, nullptr, obmat, sctx->runtime.snap_to_flag, use_hide);
     }
     else {
       return SCE_SNAP_TO_NONE;
@@ -615,13 +614,10 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
     return SCE_SNAP_TO_NONE;
   }
   else {
-    retval = snap_object_mesh(sctx, ob_eval, ob_data, obmat, SCE_SNAP_TO_FACE, use_hide);
+    retval = snap_object_mesh(sctx, ob_eval, ob_data, obmat, sctx->runtime.snap_to_flag, use_hide);
   }
 
-  if (retval) {
-    return SCE_SNAP_TO_FACE;
-  }
-  return SCE_SNAP_TO_NONE;
+  return retval;
 }
 
 /**
@@ -1328,7 +1324,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (use_occlusion_plane || (snap_to_flag & SCE_SNAP_TO_FACE) ||
+  if (use_occlusion_plane || (snap_to_flag & (SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER)) ||
       /* Snap to Grid requires `ray_start` and `ray_dir`. */
       (snap_to_flag & SCE_SNAP_TO_GRID))
   {
@@ -1355,7 +1351,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
         ray_depth_max = math::dot(ray_end - sctx->runtime.ray_start, sctx->runtime.ray_dir);
       }
       else {
-        snap_to_flag &= ~SCE_SNAP_TO_FACE;
+        snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER);
         use_occlusion_plane = false;
       }
     }
@@ -1401,7 +1397,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (use_occlusion_plane || (snap_to_flag & SCE_SNAP_TO_FACE)) {
+  if (use_occlusion_plane || (snap_to_flag & ((SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER)))) {
     has_hit = raycastObjects(sctx);
 
     if (has_hit) {
@@ -1409,7 +1405,15 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
         copy_v3_v3(r_face_nor, sctx->ret.no);
       }
 
-      if (snap_to_flag & SCE_SNAP_TO_FACE) {
+      if (snap_to_flag & SCE_SNAP_FACE_CENTER) {
+        if (snap_polygon(sctx, SCE_SNAP_FACE_CENTER) != SCE_SNAP_TO_NONE) {
+          retval = SCE_SNAP_FACE_CENTER;
+        }
+        else if (snap_to_flag & SCE_SNAP_TO_FACE) {
+          retval |= SCE_SNAP_TO_FACE;
+        }
+      }
+      else if (snap_to_flag & SCE_SNAP_TO_FACE) {
         retval |= SCE_SNAP_TO_FACE;
       }
     }
@@ -1419,7 +1423,8 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     eSnapMode elem_test, elem = SCE_SNAP_TO_NONE;
 
     /* Remove what has already been computed. */
-    sctx->runtime.snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_INDIVIDUAL_NEAREST);
+    sctx->runtime.snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER |
+                                    SCE_SNAP_INDIVIDUAL_NEAREST);
 
     SnapObjectContext::Output ret_bak{};
     if (!(sctx->runtime.snap_to_flag & SCE_SNAP_TO_EDGE) &&
@@ -1432,7 +1437,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
 
     if (use_occlusion_plane && has_hit) {
-      /* Compute the new clip_pane but do not add it yet. */
+      /* Compute the new clip plane but do not add it yet. */
       BLI_ASSERT_UNIT_V3(sctx->ret.no);
       sctx->runtime.occlusion_plane = occlusion_plane_create(
           sctx->runtime.ray_dir, sctx->ret.loc, sctx->ret.no);
