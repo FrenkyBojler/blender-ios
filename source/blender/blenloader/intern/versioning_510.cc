@@ -224,8 +224,8 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
 
 /* The levels node previously had a Channel menu input that specifies which channel should have its
  * levels computed, while now, we compute the levels for all channel at the same time, so we need
- * to add a separate RGBA node to access the required channel. Additionally, a special "channel" is
- * the luminance, which is TODO. */
+ * to add a separate RGBA node to access the required channel. Additionally, the special luminance
+ * "channel" is implicitly computed due to implicit conversion. */
 static void do_version_updated_levels_node(bNodeTree &node_tree, bNode &node)
 {
   bNodeSocket *channel_input = blender::bke::node_find_socket(node, SOCK_IN, "Channel");
