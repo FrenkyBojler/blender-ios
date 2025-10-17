@@ -1115,7 +1115,7 @@ typedef enum eAnimEdit_Context {
   SACTCONT_MASK = 4,
   /** Cache file */
   SACTCONT_CACHEFILE = 5,
-  /** Timeline - replacement for the standalone "timeline editor". */
+  /** Timeline. */
   SACTCONT_TIMELINE = 6,
 } eAnimEdit_Context;
 

@@ -142,13 +142,11 @@ bAction *ANIM_active_action_from_area(Scene *scene,
     case SACTCONT_DOPESHEET:
     case SACTCONT_MASK:
     case SACTCONT_CACHEFILE:
+    case SACTCONT_TIMELINE:
       if (r_action_user) {
         *r_action_user = nullptr;
       }
       return nullptr;
-    case SACTCONT_TIMELINE:
-      BLI_assert_unreachable();
-      break;
   }
 
   BLI_assert_unreachable();
@@ -523,7 +521,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
   { \
     if ((id)->adt) { \
       if (!(filter_mode & ANIMFILTER_CURVE_VISIBLE) || \
-          !((id)->adt->flag & ADT_CURVES_NOT_VISIBLE)) { \
+          !((id)->adt->flag & ADT_CURVES_NOT_VISIBLE)) \
+      { \
         if (filter_mode & ANIMFILTER_ANIMDATA) { \
           adtOk \
         } \

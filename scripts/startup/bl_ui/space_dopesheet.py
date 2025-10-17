@@ -272,19 +272,7 @@ class DOPESHEET_HT_editor_buttons:
                 text="",
             )
 
-        row = layout.row(align=True)
-        row.prop(tool_settings, "use_proportional_action", text="", icon_only=True)
-        sub = row.row(align=True)
-        sub.active = tool_settings.use_proportional_action
-        sub.prop_with_popover(
-            tool_settings,
-            "proportional_edit_falloff",
-            text="",
-            icon_only=True,
-            panel="DOPESHEET_PT_proportional_edit",
-        )
         overlays = st.overlays
-
         row = layout.row(align=True)
         row.prop(overlays, "show_overlays", text="", icon='OVERLAY')
         sub = row.row(align=True)
@@ -337,6 +325,11 @@ class DOPESHEET_HT_playback_controls(Header):
     def draw(self, context):
         layout = self.layout
 
+        st = context.space_data
+        if st.mode == 'TIMELINE':
+            layout.template_header()
+            layout.prop(st, "ui_mode", text="")
+
         playback_controls(layout, context)
 
 
@@ -384,6 +377,9 @@ class DOPESHEET_MT_editor_menus(Menu):
         layout.menu("DOPESHEET_MT_select")
         if st.show_markers:
             layout.menu("DOPESHEET_MT_marker")
+
+        if st.mode == 'TIMELINE':
+            return
 
         if st.mode == 'DOPESHEET' or (st.mode == 'ACTION' and active_action is not None):
             layout.menu("DOPESHEET_MT_channel")

@@ -236,6 +236,8 @@ const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
    ICON_FILE, \
    "Cache File", \
    "Edit timings for Cache File data-blocks"}
+#define SACT_ITEM_TIMELINE \
+  {SACTCONT_TIMELINE, "TIMELINE", ICON_TIME, "Timeline", "Time and Playback Controls"}
 
 #ifndef RNA_RUNTIME
 /* XXX: action-editor is currently for object-level only actions,
@@ -247,6 +249,7 @@ static EnumPropertyItem rna_enum_space_action_mode_all_items[] = {
     SACT_ITEM_GPENCIL,
     SACT_ITEM_MASK,
     SACT_ITEM_CACHEFILE,
+    SACT_ITEM_TIMELINE,
     {0, nullptr, 0, nullptr, nullptr},
 };
 static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
@@ -256,6 +259,7 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
     SACT_ITEM_GPENCIL,
     SACT_ITEM_MASK,
     SACT_ITEM_CACHEFILE,
+    SACT_ITEM_TIMELINE,
     {0, nullptr, 0, nullptr, nullptr},
 };
 #endif
@@ -266,6 +270,7 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
 #undef SACT_ITEM_GPENCIL
 #undef SACT_ITEM_MASK
 #undef SACT_ITEM_CACHEFILE
+#undef SACT_ITEM_TIMELINE
 
 #define SI_ITEM_VIEW(identifier, name, icon) \
   {SI_MODE_VIEW, identifier, icon, name, "Inspect images or render results"}
@@ -2313,8 +2318,8 @@ static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
   ConsoleLine *ci = (ConsoleLine *)ptr->data;
   size_t len = strlen(value);
 
-  if ((len >= size_t(ci->len_alloc)) || (len * 2 < size_t(ci->len_alloc)))
-  { /* allocate a new string */
+  if ((len >= size_t(ci->len_alloc)) ||
+      (len * 2 < size_t(ci->len_alloc))) { /* allocate a new string */
     MEM_freeN(ci->line);
     ci->line = MEM_malloc_arrayN<char>(len + 1, "rna_consoleline");
     ci->len_alloc = int(len + 1);
