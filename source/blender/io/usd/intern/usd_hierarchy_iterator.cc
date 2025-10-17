@@ -31,8 +31,6 @@
 #include "BKE_report.hh"
 
 #include "BLI_assert.h"
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
