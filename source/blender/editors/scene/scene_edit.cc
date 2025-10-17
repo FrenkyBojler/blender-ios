@@ -375,11 +375,9 @@ static void SCENE_OT_new_sequencer(wmOperatorType *ot)
 static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  wmWindow *win = CTX_wm_window(C);
   WorkSpace *workspace = CTX_wm_workspace(C);
-  /* Note: Can be nullptr. */
-  Scene *scene_old = workspace->sequencer_scene;
-  int type = RNA_enum_get(op->ptr, "type");
+  Scene *scene_old = CTX_data_sequencer_scene(C);
+  const int type = RNA_enum_get(op->ptr, "type");
 
   Scene *new_scene = scene_add(bmain, scene_old, eSceneCopyMethod(type));
   blender::seq::editing_ensure(new_scene);
@@ -395,8 +393,8 @@ static wmOperatorStatus new_sequencer_scene_invoke(bContext *C,
                                                    const wmEvent *event)
 {
   if (CTX_data_sequencer_scene(C) == nullptr) {
-    /* When there is no sequencer scene set, just create a new one. The default "type" is
-     * SCE_COPY_NEW in this case. */
+    /* When there is no sequencer scene set, create a blank new one. */
+    RNA_enum_set(op->ptr, "type", SCE_COPY_NEW);
     return new_sequencer_scene_exec(C, op);
   }
   return WM_menu_invoke(C, op, event);
@@ -419,6 +417,7 @@ static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(ot->srna, "type", scene_new_items, SCE_COPY_NEW, "Type", "");
   RNA_def_property_translation_context(ot->prop, BLT_I18NCONTEXT_ID_SCENE);
+  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
