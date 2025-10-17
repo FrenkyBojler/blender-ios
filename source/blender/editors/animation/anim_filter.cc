@@ -3935,10 +3935,8 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
 
     /* If summary is collapsed, don't show other channels beneath this - this check is put inside
      * the summary check so that it doesn't interfere with normal operation.
-     *
-     * For the Timeline mode: if the ANIMFILTER_LIST_CHANNELS
      */
-    if ((filter_mode & ANIMFILTER_LIST_CHANNELS) || ads->flag & ADS_FLAG_SUMMARY_COLLAPSED) {
+    if (ads->flag & ADS_FLAG_SUMMARY_COLLAPSED) {
       return 0;
     }
   }
