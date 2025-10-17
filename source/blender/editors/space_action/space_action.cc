@@ -765,6 +765,13 @@ static void action_footer_region_listener(const wmRegionListenerParams *params)
   }
 }
 
+static bool action_region_poll_hide_in_timeline(const RegionPollParams *params)
+{
+  BLI_assert(params->area->spacetype == SPACE_ACTION);
+  const SpaceAction *saction = static_cast<const SpaceAction *>(params->area->spacedata.first);
+  return saction->mode != SACTCONT_TIMELINE;
+}
+
 /* add handlers, stuff you only do once or on area/region changes */
 static void action_buttons_area_init(wmWindowManager *wm, ARegion *region)
 {
@@ -936,6 +943,7 @@ void ED_spacetype_action()
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER | ED_KEYMAP_FRAMES;
   art->init = action_header_region_init;
+  art->poll = action_region_poll_hide_in_timeline;
   art->draw = action_header_region_draw;
   art->listener = action_footer_region_listener;
 
@@ -949,6 +957,7 @@ void ED_spacetype_action()
 
   art->init = action_channel_region_init;
   art->draw = action_channel_region_draw;
+  art->poll = action_region_poll_hide_in_timeline;
   art->listener = action_channel_region_listener;
   art->message_subscribe = saction_channel_region_message_subscribe;
 
@@ -962,6 +971,7 @@ void ED_spacetype_action()
   art->listener = action_region_listener;
   art->init = action_buttons_area_init;
   art->draw = action_buttons_area_draw;
+  art->poll = action_region_poll_hide_in_timeline;
 
   BLI_addhead(&st->regiontypes, art);
 

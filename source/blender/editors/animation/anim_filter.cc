@@ -249,6 +249,13 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
       ac->data = &saction->ads;
       return true;
 
+    case SACTCONT_TIMELINE:
+      saction->ads.source = reinterpret_cast<ID *>(ac->scene);
+
+      ac->datatype = ANIMCONT_TIMELINE;
+      ac->data = &saction->ads;
+      return true;
+
     default: /* unhandled yet */
       ac->datatype = ANIMCONT_NONE;
       ac->data = nullptr;
@@ -3721,33 +3728,30 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
   /* augment the filter-flags with settings based on the dopesheet filterflags
    * so that some temp settings can get added automagically...
    */
-  if (ac->ads->filterflag & ADS_FILTER_SELEDIT) {
+  const bool is_timeline = ac->dopesheet_mode == SACTCONT_TIMELINE;
+  const bool use_only_selected = is_timeline || (ac->ads->filterflag & ADS_FILTER_ONLYSEL);
+
+  if (is_timeline || ac->ads->filterflag & ADS_FILTER_SELEDIT) {
     /* only selected F-Curves should get their keyframes considered for editability */
     filter_mode |= ANIMFILTER_SELEDIT;
   }
 
   /* Cache files level animations (frame duration and such). */
-  if (!(ac->ads->filterflag2 & ADS_FILTER_NOCACHEFILES) &&
-      !(ac->ads->filterflag & ADS_FILTER_ONLYSEL))
-  {
+  if (!use_only_selected && !(ac->ads->filterflag2 & ADS_FILTER_NOCACHEFILES)) {
     LISTBASE_FOREACH (CacheFile *, cache_file, &ac->bmain->cachefiles) {
       items += animdata_filter_ds_cachefile(ac, anim_data, cache_file, filter_mode);
     }
   }
 
-  /* Annotations are always shown if "Only Show Selected" is disabled. This works in the Timeline
-   * as well as in the Dope Sheet. */
-  if (!(ac->ads->filterflag & ADS_FILTER_ONLYSEL) && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL))
-  {
+  /* Annotations are always shown if "Only Show Selected" is disabled. */
+  if (!use_only_selected && !(ac->ads->filterflag & ADS_FILTER_NOGPENCIL)) {
     LISTBASE_FOREACH (bGPdata *, gp_data, &ac->bmain->gpencils) {
       items += animdata_filter_ds_gpencil(ac, anim_data, gp_data, filter_mode);
     }
   }
 
   /* movie clip's animation */
-  if (!(ac->ads->filterflag2 & ADS_FILTER_NOMOVIECLIPS) &&
-      !(ac->ads->filterflag & ADS_FILTER_ONLYSEL))
-  {
+  if (!use_only_selected && !(ac->ads->filterflag2 & ADS_FILTER_NOMOVIECLIPS)) {
     items += animdata_filter_dopesheet_movieclips(ac, anim_data, filter_mode);
   }
 
@@ -3828,11 +3832,15 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
     return 1;
   }
 
-  /* dopesheet summary
+  /* Dope Sheet summary:
+   * - Timeline mode always shows the summary, regardless of filter options.
    * - only for drawing and/or selecting keyframes in channels, but not for real editing
    * - only useful for DopeSheet/Action/etc. editors where it is actually useful
    */
-  if ((filter_mode & ANIMFILTER_LIST_CHANNELS) && (ac->ads->filterflag & ADS_FILTER_SUMMARY)) {
+  const bool is_timeline = ac->dopesheet_mode == SACTCONT_TIMELINE;
+  if ((filter_mode & ANIMFILTER_LIST_CHANNELS) &&
+      (is_timeline || ac->ads->filterflag & ADS_FILTER_SUMMARY))
+  {
     bAnimListElem *ale = make_new_animlistelem(ac->bmain, ac, ANIMTYPE_SUMMARY, nullptr, nullptr);
     if (ale) {
       BLI_addtail(anim_data, ale);
@@ -3841,8 +3849,12 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
 
     /* If summary is collapsed, don't show other channels beneath this - this check is put inside
      * the summary check so that it doesn't interfere with normal operation.
+     *
+     * For the Timeline mode: if the ANIMFILTER_LIST_CHANNELS
      */
-    if (ads->flag & ADS_FLAG_SUMMARY_COLLAPSED) {
+    if ((is_timeline && (filter_mode & ANIMFILTER_LIST_CHANNELS)) ||
+        ads->flag & ADS_FLAG_SUMMARY_COLLAPSED)
+    {
       return 0;
     }
   }
@@ -4076,7 +4088,6 @@ size_t ANIM_animdata_filter(bAnimContext *ac,
        * want to keep this assertion in place. */
       BLI_assert_msg(ac->ads == data, "ANIMCONT_TIMELINE");
 
-      /* the DopeSheet editor is the primary place where the DopeSheet summaries are useful */
       if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items)) {
         items += animdata_filter_dopesheet(ac, anim_data, filter_mode);
       }

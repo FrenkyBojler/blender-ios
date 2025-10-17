@@ -237,7 +237,12 @@ const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
    "Cache File", \
    "Edit timings for Cache File data-blocks"}
 #define SACT_ITEM_TIMELINE \
-  {SACTCONT_TIMELINE, "TIMELINE", ICON_TIME, "Timeline", "Time and Playback Controls"}
+  {SACTCONT_TIMELINE, \
+   "TIMELINE", \
+   ICON_TIME, \
+   "Timeline", \
+   "Simple timeline view with playback controls in the header, without channel list, " \
+   "side-panel, or footer"}
 
 #ifndef RNA_RUNTIME
 /* XXX: action-editor is currently for object-level only actions,

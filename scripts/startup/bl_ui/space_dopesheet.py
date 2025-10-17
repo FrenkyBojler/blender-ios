@@ -217,7 +217,13 @@ class DOPESHEET_HT_editor_buttons:
     @classmethod
     def draw_header(cls, context, layout):
         st = context.space_data
-        tool_settings = context.tool_settings
+
+        if st.mode == 'TIMELINE':
+            # layout.separator_spacer()
+            playback_controls(layout, context)
+            layout.separator()
+            cls._draw_overlay_selector(context, layout)
+            return
 
         if st.mode in {'ACTION', 'SHAPEKEY'} and context.object:
             layout.separator_spacer()
@@ -265,12 +271,18 @@ class DOPESHEET_HT_editor_buttons:
         # Grease Pencil mode doesn't need snapping, as it's frame-aligned only
         if st.mode != 'GPENCIL':
             row = layout.row(align=True)
-            row.prop(tool_settings, "use_snap_anim", text="")
+            row.prop(context.tool_settings, "use_snap_anim", text="")
             sub = row.row(align=True)
             sub.popover(
                 panel="DOPESHEET_PT_snapping",
                 text="",
             )
+
+        cls._draw_overlay_selector(context, layout)
+
+    @classmethod
+    def _draw_overlay_selector(cls, context, layout):
+        st = context.space_data
 
         overlays = st.overlays
         row = layout.row(align=True)
@@ -324,11 +336,6 @@ class DOPESHEET_HT_playback_controls(Header):
 
     def draw(self, context):
         layout = self.layout
-
-        st = context.space_data
-        if st.mode == 'TIMELINE':
-            layout.template_header()
-            layout.prop(st, "ui_mode", text="")
 
         playback_controls(layout, context)
 

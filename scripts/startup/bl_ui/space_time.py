@@ -109,9 +109,9 @@ def playback_controls(layout, context):
         sub = row.row(align=True)
         sub.popover(panel="TIME_PT_playhead_snapping", text="")
 
-    layout.separator_spacer()
-
     if scene:
+        layout.separator_spacer()
+
         row = layout.row()
         if scene.show_subframe:
             row.scale_x = 1.15
