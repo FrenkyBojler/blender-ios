@@ -21,7 +21,6 @@
 #include "DNA_ID.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_customdata_types.h"
 #include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
@@ -1582,8 +1581,24 @@ struct FillTexPaintSlotsData {
   int slot_len;
 };
 
+static bool is_color_attribute(const blender::bke::AttributeMetaData &meta_data)
+{
+  return ELEM(meta_data.domain,
+              blender::bke::AttrDomain::Point,
+              blender::bke::AttrDomain::Corner) &&
+         ELEM(meta_data.data_type,
+              blender::bke::AttrType::ColorByte,
+              blender::bke::AttrType::ColorFloat);
+}
+
+static bool is_color_attribute(const std::optional<blender::bke::AttributeMetaData> &meta_data)
+{
+  return meta_data && is_color_attribute(*meta_data);
+}
+
 static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
 {
+  using namespace blender;
   FillTexPaintSlotsData *fill_data = static_cast<FillTexPaintSlotsData *>(userdata);
 
   Material *ma = fill_data->ma;
@@ -1623,8 +1638,15 @@ static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
       slot->attribute_name = storage->name;
       if (storage->type == SHD_ATTRIBUTE_GEOMETRY) {
         const Mesh *mesh = (const Mesh *)fill_data->ob->data;
-        const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id, storage->name);
-        slot->valid = layer != nullptr;
+        if (mesh->runtime->edit_mesh) {
+          const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm,
+                                                              storage->name);
+          slot->valid = attr && is_color_attribute({attr.domain, attr.type});
+        }
+        else {
+          const bke::AttributeAccessor attributes = mesh->attributes();
+          slot->valid = is_color_attribute(attributes.lookup_meta_data(storage->name));
+        }
       }
 
       /* Do not show unsupported attributes. */

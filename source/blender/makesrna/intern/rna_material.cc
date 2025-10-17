@@ -148,6 +148,21 @@ static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, Pointe
       iter, ptr, (void *)ma->texpaintslot, sizeof(TexPaintSlot), ma->tot_slots, 0, nullptr);
 }
 
+static bool is_color_attribute(const blender::bke::AttributeMetaData &meta_data)
+{
+  return ELEM(meta_data.domain,
+              blender::bke::AttrDomain::Point,
+              blender::bke::AttrDomain::Corner) &&
+         ELEM(meta_data.data_type,
+              blender::bke::AttrType::ColorByte,
+              blender::bke::AttrType::ColorFloat);
+}
+
+static bool is_color_attribute(const std::optional<blender::bke::AttributeMetaData> &meta_data)
+{
+  return meta_data && is_color_attribute(*meta_data);
+}
+
 static void rna_Material_active_paint_texture_index_update(bContext *C, PointerRNA *ptr)
 {
   Main *bmain = CTX_data_main(C);
@@ -173,10 +188,18 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
       Object *ob = CTX_data_active_object(C);
       if (ob != nullptr && ob->type == OB_MESH) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
-        const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id,
-                                                                    slot->attribute_name);
-        if (layer != nullptr) {
-          BKE_id_attributes_active_color_set(&mesh->id, layer->name);
+        if (mesh->runtime->edit_mesh) {
+          if (const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm,
+                                                                  storage->name))
+          {
+            BKE_id_attributes_active_color_set(&mesh->id, layer->name);
+          }
+        }
+        else {
+          const bke::AttributeAccessor attributes = mesh->attributes();
+          if (is_color_attribute(attributes.lookup_meta_data(storage->name))) {
+            BKE_id_attributes_active_color_set(&mesh->id, layer->name);
+          }
         }
         DEG_id_tag_update(&ob->id, 0);
         WM_main_add_notifier(NC_GEOM | ND_DATA, &ob->id);

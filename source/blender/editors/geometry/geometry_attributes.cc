@@ -21,6 +21,7 @@
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
@@ -214,13 +215,19 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
   }
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-    if (ELEM(layer->type, CD_PROP_STRING, CD_PROP_FLOAT4X4, CD_PROP_QUATERNION)) {
-      CTX_wm_operator_poll_msg_set(&C, "The active attribute has an unsupported type");
-      return false;
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, *name);
+      if (ELEM(attr.type,
+               bke::AttrType::String,
+               bke::AttrType::Float4x4,
+               bke::AttrType::Quaternion))
+      {
+        CTX_wm_operator_poll_msg_set(&C, "The active attribute has an unsupported type");
+        return false;
+      }
+      return true;
     }
-    return true;
   }
 
   bke::AttributeAccessor attributes = *owner.get_accessor();
@@ -445,6 +452,21 @@ void GEOMETRY_OT_attribute_remove(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static bool is_color_attribute(const blender::bke::AttributeMetaData &meta_data)
+{
+  return ELEM(meta_data.domain,
+              blender::bke::AttrDomain::Point,
+              blender::bke::AttrDomain::Corner) &&
+         ELEM(meta_data.data_type,
+              blender::bke::AttrType::ColorByte,
+              blender::bke::AttrType::ColorFloat);
+}
+
+static bool is_color_attribute(const std::optional<blender::bke::AttributeMetaData> &meta_data)
+{
+  return meta_data && is_color_attribute(*meta_data);
 }
 
 static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperator *op)
@@ -718,17 +740,30 @@ static wmOperatorStatus geometry_color_attribute_set_render_exec(bContext *C, wm
 
   char name[MAX_NAME];
   RNA_string_get(op->ptr, "name", name);
-
-  if (BKE_id_attributes_color_find(id, name)) {
+  Mesh *mesh = id_cast<Mesh *>(id);
+  if (mesh->runtime->edit_mesh) {
+    const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name);
+    if (!attr) {
+      return OPERATOR_CANCELLED;
+    }
+    if (!is_color_attribute({attr.domain, attr.type})) {
+      return OPERATOR_CANCELLED;
+    }
     BKE_id_attributes_default_color_set(id, name);
-
     DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GEOM | ND_DATA, id);
-
-    return OPERATOR_FINISHED;
+  }
+  else {
+    const bke::AttributeAccessor attributes = mesh->attributes();
+    if (!is_color_attribute(attributes.lookup_meta_data(name))) {
+      return OPERATOR_CANCELLED;
+    }
+    BKE_id_attributes_default_color_set(id, name);
+    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, id);
   }
 
-  return OPERATOR_CANCELLED;
+  return OPERATOR_FINISHED;
 }
 
 void GEOMETRY_OT_color_attribute_render_set(wmOperatorType *ot)

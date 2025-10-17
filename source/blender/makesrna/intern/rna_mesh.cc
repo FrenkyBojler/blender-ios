@@ -1747,17 +1747,14 @@ static PointerRNA rna_Mesh_vertex_color_new(Mesh *mesh,
 {
   CustomData *ldata;
   CustomDataLayer *cdl = nullptr;
-  int index = ED_mesh_color_add(mesh, name, false, do_init, reports);
+  std::string name = ED_mesh_color_add(mesh, name, false, do_init, reports);
 
-  if (index != -1) {
-    ldata = rna_mesh_ldata_helper(mesh);
-    cdl = &ldata->layers[CustomData_get_layer_index_n(ldata, CD_PROP_BYTE_COLOR, index)];
-
+  if (!name.empty()) {
     if (!mesh->active_color_attribute) {
-      mesh->active_color_attribute = BLI_strdup(cdl->name);
+      mesh->active_color_attribute = BLI_strdup(name.c_str());
     }
     if (!mesh->default_color_attribute) {
-      mesh->default_color_attribute = BLI_strdup(cdl->name);
+      mesh->default_color_attribute = BLI_strdup(name.c_str());
     }
   }
 
