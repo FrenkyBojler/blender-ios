@@ -2558,8 +2558,9 @@ typedef enum eSnapMode {
   SCE_SNAP_INDIVIDUAL_NEAREST = (1 << 9),
   SCE_SNAP_INDIVIDUAL_PROJECT = (1 << 10),
 
-  /* Would have loved to include this in toolsettings snap mode but shifting bits will break compatibility*/
-  SCE_SNAP_FACE_CENTER = (1 << 11) 
+  /* Would have loved to include this in toolsettings snap mode but shifting bits will break
+     compatibility*/
+  SCE_SNAP_FACE_CENTER = (1 << 11)
 } eSnapMode;
 
 /* Due to dependency conflicts with Cycles, header cannot directly include `BLI_utildefines.h`. */
@@ -2571,8 +2572,8 @@ ENUM_OPERATORS(eSnapMode, SCE_SNAP_INDIVIDUAL_PROJECT)
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
 #define SCE_SNAP_TO_GEOM \
-  (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_EDGE_MIDPOINT | \
-   SCE_SNAP_TO_EDGE_PERPENDICULAR)
+  (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE | \
+   SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR)
 
 /** #SequencerToolSettings::snap_mode */
 enum {

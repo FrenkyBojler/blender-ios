@@ -551,9 +551,9 @@ static bool transform_snap_mixed_is_active(const TransInfo *t)
     return false;
   }
 
-  return (t->tsnap.mode &
-          (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_VOLUME |
-           SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_TO_GRID)) != 0;
+  return (t->tsnap.mode & (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE |
+                           SCE_SNAP_FACE_CENTER | SCE_SNAP_TO_VOLUME | SCE_SNAP_TO_EDGE_MIDPOINT |
+                           SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_TO_GRID)) != 0;
 }
 
 void transform_snap_mixed_apply(TransInfo *t, float *vec)
