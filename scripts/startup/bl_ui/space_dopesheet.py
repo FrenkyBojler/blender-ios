@@ -380,13 +380,25 @@ class DOPESHEET_MT_editor_menus(Menu):
         st = context.space_data
         active_action = context.active_action
 
+        if st.mode == 'TIMELINE':
+            # Draw the 'timeline' menus, which are simpler. Most importantly, the
+            # 'selected only' toggle is in the menu, and actually stored as a scene
+            # flag instead of the space data.
+            horizontal = (layout.direction == 'VERTICAL')
+            if horizontal:
+                row = layout.row()
+                sub = row.row(align=True)
+            else:
+                sub = layout
+            sub.menu("TIME_MT_view")
+            if st.show_markers:
+                sub.menu("DOPESHEET_MT_marker")
+            return
+
         layout.menu("DOPESHEET_MT_view")
         layout.menu("DOPESHEET_MT_select")
         if st.show_markers:
             layout.menu("DOPESHEET_MT_marker")
-
-        if st.mode == 'TIMELINE':
-            return
 
         if st.mode == 'DOPESHEET' or (st.mode == 'ACTION' and active_action is not None):
             layout.menu("DOPESHEET_MT_channel")

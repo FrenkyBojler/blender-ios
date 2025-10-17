@@ -979,6 +979,7 @@ typedef enum eDopeSheet_FilterFlag {
                          ADS_FILTER_NOSPK | ADS_FILTER_NOMODIFIERS),
 #endif
 } eDopeSheet_FilterFlag;
+ENUM_OPERATORS(eDopeSheet_FilterFlag, ADS_FILTER_ONLY_ERRORS);
 
 /* DopeSheet filter-flags - Overflow (filterflag2) */
 typedef enum eDopeSheet_FilterFlag2 {
@@ -993,6 +994,7 @@ typedef enum eDopeSheet_FilterFlag2 {
 
   ADS_FILTER_NOLIGHTPROBE = (1 << 7),
 } eDopeSheet_FilterFlag2;
+ENUM_OPERATORS(eDopeSheet_FilterFlag2, ADS_FILTER_NOLIGHTPROBE);
 
 /* DopeSheet general flags */
 typedef enum eDopeSheet_Flag {
