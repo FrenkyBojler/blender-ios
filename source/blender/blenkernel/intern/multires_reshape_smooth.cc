@@ -1458,6 +1458,31 @@ static void evaluate_higher_grid_positions(
                                                                dPdv);
 
         delta_storage[idx] = P;
+        printf("\t->(%f, %f, %f)\n", P.x, P.y, P.z);
+        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner);
+      });
+}
+
+static void evaluate_higher_grid_derivatives(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
+{
+  foreach_toplevel_grid_coord_single_threaded(
+      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
+        blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
+
+        /* Surface. */
+        blender::float3 dPdu;
+        blender::float3 dPdv;
+        blender::float3 P;
+        blender::bke::subdiv::eval_limit_point_and_derivatives(reshape_subdiv,
+                                                               ptex_coord->ptex_face_index,
+                                                               ptex_coord->u,
+                                                               ptex_coord->v,
+                                                               P,
+                                                               dPdu,
+                                                               dPdv);
+
         BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner);
       });
 }
@@ -1580,7 +1605,7 @@ void multires_reshape_store_tangent_matrices(
   reshape_subdiv_create(&reshape_smooth_context);
 
   reshape_subdiv_refine_final(&reshape_smooth_context, deltas);
-  evaluate_higher_grid_positions(&reshape_smooth_context, deltas, tangent_matrices);
+  evaluate_higher_grid_derivatives(&reshape_smooth_context, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif
