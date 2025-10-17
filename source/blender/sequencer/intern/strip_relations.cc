@@ -48,16 +48,16 @@ bool relation_is_effect_of_strip(const Strip *effect, const Strip *input)
 
 void cache_cleanup(Scene *scene, CacheCleanup mode)
 {
-  if ((mode & CacheCleanup::Thumbnails) != CacheCleanup::None) {
+  if (flag_is_set(mode, CacheCleanup::Thumbnails)) {
     thumbnail_cache_clear(scene);
   }
-  if ((mode & CacheCleanup::SourceImage) != CacheCleanup::None) {
+  if (flag_is_set(mode, CacheCleanup::SourceImage)) {
     source_image_cache_clear(scene);
   }
-  if ((mode & CacheCleanup::FinalImage) != CacheCleanup::None) {
+  if (flag_is_set(mode, CacheCleanup::FinalImage)) {
     final_image_cache_clear(scene);
   }
-  if ((mode & CacheCleanup::SingleFrame) != CacheCleanup::None) {
+  if (flag_is_set(mode, CacheCleanup::IntraFrame)) {
     intra_frame_cache_invalidate(scene);
     preview_cache_invalidate(scene);
   }

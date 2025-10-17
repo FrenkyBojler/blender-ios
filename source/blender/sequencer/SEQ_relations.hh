@@ -77,18 +77,17 @@ void relations_check_uids_unique_and_report(const Scene *scene);
 void relations_session_uid_generate(Strip *strip);
 
 enum class CacheCleanup {
-  None = 0,
-
   FinalImage = (1 << 0),
   SourceImage = (1 << 1),
   Thumbnails = (1 << 2),
-  SingleFrame = (1 << 3),
+  IntraFrame = (1 << 3),
 
   /* All cache types. */
-  All = FinalImage | SourceImage | Thumbnails | SingleFrame,
+  All = FinalImage | SourceImage | Thumbnails | IntraFrame,
+
   /* Typical "what gets rendered" cache types: final frame
    * cache, plus various intra-frame cached things. */
-  Rendered = FinalImage | SingleFrame,
+  FinalAndIntra = FinalImage | IntraFrame,
 };
 ENUM_OPERATORS(CacheCleanup);
 
