@@ -3922,7 +3922,6 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
   }
 
   /* dopesheet summary
-   * - Timeline mode always shows the summary, regardless of filter options.
    * - only for drawing and/or selecting keyframes in channels, but not for real editing
    * - only useful for DopeSheet/Action/etc. editors where it is actually useful
    */
@@ -4200,8 +4199,8 @@ size_t ANIM_animdata_filter(bAnimContext *ac,
 
       if ((filter_mode & ANIMFILTER_LIST_CHANNELS) == 0) {
         /* If the caller doesn't want "channels", this call is to get the actual animation data,
-         * and not just the summary line. This can be the actual "get the things to summarize"
-         * call, or a tool that wants to know which data to operate on. */
+         * and not just the summary line. This can be the "get the things to summarize" call, or a
+         * tool that wants to know which data to operate on. */
         BLI_assert(filter_mode & ANIMFILTER_DATA_VISIBLE);
         items += animdata_filter_timeline(ac, anim_data, filter_mode);
       }
