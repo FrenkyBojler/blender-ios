@@ -35,7 +35,8 @@ function(cuda_add_common_flags cuda_version arch in_flags out_flags)
     # Helps with compatibility when using recent clang host compiler.
     "-std=c++17"
     --use_fast_math
-    -Wno-deprecated-gpu-targets)
+    -Wno-deprecated-gpu-targets
+    -allow-unsupported-compiler)
 
   if(WITH_CYCLES_DEBUG)
     set(flags ${flags}
@@ -116,6 +117,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
       -D CCL_NAMESPACE_BEGIN=
       -D CCL_NAMESPACE_END=
       -D NVCC
+      -D _ALLOW_COMPILER_AND_STL_VERSION_MISMATCH
       -m ${CUDA_BITS}
       -I ${CMAKE_CURRENT_SOURCE_DIR}/../../..
       -o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_file})
