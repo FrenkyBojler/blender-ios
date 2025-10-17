@@ -184,6 +184,8 @@ typedef struct ModifierData {
 
   char *error;
 
+  struct IDProperty *system_properties;
+
   /** Runtime field which contains runtime data which is specific to a modifier type. */
   void *runtime;
 } ModifierData;
@@ -2554,7 +2556,6 @@ typedef struct NodesModifierData {
   ModifierData modifier;
   struct bNodeTree *node_group;
   struct NodesModifierSettings settings;
-  struct IDProperty *group_properties;
   /**
    * Directory where baked simulation states are stored. This may be relative to the .blend file.
    */

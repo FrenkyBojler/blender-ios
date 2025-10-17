@@ -1930,10 +1930,10 @@ static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
   return nmd->node_group->runtime->geometry_nodes_modifier_srna;
 }
 
-static IDProperty **rna_NodesModifierProperties_idprops(PointerRNA *ptr)
+static IDProperty **rna_Modifier_idprops(PointerRNA *ptr)
 {
-  auto *nmd = ptr->data_as<NodesModifierData>();
-  return &nmd->group_properties;
+  auto *md = ptr->data_as<ModifierData>();
+  return &md->system_properties;
 }
 
 static PointerRNA rna_NodesModifierProperties_get(PointerRNA *ptr)
@@ -8060,7 +8060,7 @@ static void rna_def_modifier_nodes_properties(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "NodesModifierProperties", nullptr);
   RNA_def_struct_ui_text(srna, "Geometry Nodes Modifier Properties", "");
   RNA_def_struct_refine_func(srna, "rna_NodesModifierProperties_refine");
-  RNA_def_struct_system_idprops_func(srna, "rna_NodesModifierProperties_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_Modifier_idprops");
 }
 
 static void rna_def_modifier_nodes(BlenderRNA *brna)

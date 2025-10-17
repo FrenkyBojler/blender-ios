@@ -121,11 +121,12 @@ static void find_dependencies_from_settings(const NodesModifierData &nmd,
       deps.add_generic_id_full(id);
     }
   });
-  IDP_foreach_property(nmd.group_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
-    if (ID *id = IDP_ID_get(property)) {
-      deps.add_generic_id_full(id);
-    }
-  });
+  IDP_foreach_property(
+      nmd.modifier.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
+        if (ID *id = IDP_ID_get(property)) {
+          deps.add_generic_id_full(id);
+        }
+      });
 }
 
 /* We don't know exactly what attributes from the other object we will need. */
@@ -266,9 +267,6 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   walk(user_data, ob, (ID **)&nmd->node_group, IDWALK_CB_USER);
 
   IDP_foreach_property(nmd->settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
-    walk(user_data, ob, (ID **)&id_prop->data.pointer, IDWALK_CB_USER);
-  });
-  IDP_foreach_property(nmd->group_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
     walk(user_data, ob, (ID **)&id_prop->data.pointer, IDWALK_CB_USER);
   });
 
@@ -436,8 +434,9 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
 void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
 {
   using namespace blender;
-  if (!nmd->group_properties) {
-    nmd->group_properties = bke::idprop::create_group("NodesModifierProperties").release();
+  if (!nmd->modifier.system_properties) {
+    nmd->modifier.system_properties =
+        bke::idprop::create_group("NodesModifierProperties").release();
   }
   /* TODO: Update new properties according struct rna (while keeping old values). */
   update_bakes_from_node_group(*nmd);
@@ -1989,10 +1988,6 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     IDP_BlendWrite(writer, nmd->settings.properties);
   }
 
-  if (nmd->group_properties) {
-    IDP_BlendWrite(writer, nmd->group_properties);
-  }
-
   BLO_write_struct_array(writer, NodesModifierBake, nmd->bakes_num, nmd->bakes);
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
     BLO_write_string(writer, bake.directory);
@@ -2055,9 +2050,6 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
     BLO_read_struct(reader, IDProperty, &nmd->settings.properties);
     IDP_BlendDataRead(reader, &nmd->settings.properties);
   }
-
-  BLO_read_struct(reader, IDProperty, &nmd->group_properties);
-  IDP_BlendDataRead(reader, &nmd->group_properties);
 
   BLO_read_struct_array(reader, NodesModifierBake, nmd->bakes_num, &nmd->bakes);
 
@@ -2178,9 +2170,6 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   if (nmd->settings.properties != nullptr) {
     tnmd->settings.properties = IDP_CopyProperty_ex(nmd->settings.properties, flag);
   }
-  if (nmd->group_properties) {
-    tnmd->group_properties = IDP_CopyProperty_ex(nmd->group_properties, flag);
-  }
 }
 
 void nodes_modifier_packed_bake_free(NodesModifierPackedBake *packed_bake)
@@ -2220,10 +2209,6 @@ static void free_data(ModifierData *md)
   if (nmd->settings.properties != nullptr) {
     IDP_FreeProperty_ex(nmd->settings.properties, false);
     nmd->settings.properties = nullptr;
-  }
-  if (nmd->group_properties != nullptr) {
-    IDP_FreeProperty_ex(nmd->group_properties, false);
-    nmd->group_properties = nullptr;
   }
 
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
