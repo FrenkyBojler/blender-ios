@@ -142,9 +142,6 @@ class USDSceneExportContext {
   PYTHON_NS::dict get_prim_map()
   {
     PYTHON_NS::dict result;
-    if (!hierarchy_iterator_) {
-      return result;
-    }
 
     const auto &exported_prim_map = hierarchy_iterator_->get_exported_prim_map();
     exported_prim_map.foreach_item([&](const pxr::SdfPath &path, const Vector<ID *> &ids) {
