@@ -21,7 +21,6 @@
 
 #include "BLI_array_utils.hh"
 
-
 namespace blender::nodes::node_geo_split_to_instances_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
