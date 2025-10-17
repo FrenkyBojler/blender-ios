@@ -1996,9 +1996,9 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
 
   bool changed = false;
-  /* Make two split logic runs so the newly created strips can get split by the second foreach
-   * run.*/
   int max_left_offset = INT_MAX;
+  /* Make two runs of the split logic so the newly created strips from the first run get split by
+   * the second foreach run.*/
   for (int axis : {0, 1}) {
     LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
       if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
