@@ -451,10 +451,19 @@ static void foreach_toplevel_grid_coord_single_threaded(
             const float grid_u = x * grid_size_1_inv;
             PTexCoord ptex_coord;
             ptex_coord.ptex_face_index = ptex_face_index;
-            bke::subdiv::rotate_grid_to_quad(corner, grid_u, grid_v, &ptex_coord.u, &ptex_coord.v);
+            bke::subdiv::grid_uv_to_ptex_face_uv(grid_u, grid_v, &ptex_coord.u, &ptex_coord.v);
             const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-            // printf("(%d, %d, %d) -> (%d, %f, %f) -> %d -> (%d, %f, %f)\n", corner, x, y, corner,
-            // grid_u, grid_v, element, ptex_face_index, ptex_coord.u, ptex_coord.v);
+            printf("RAW: (%d, %d, %d) -> CCG: (%d, %f, %f) -> %d -> PTEX: (%d, %f, %f)\n",
+                   corner,
+                   x,
+                   y,
+                   corner,
+                   grid_u,
+                   grid_v,
+                   element,
+                   ptex_face_index,
+                   ptex_coord.u,
+                   ptex_coord.v);
             callback(&ptex_coord, element, corner);
           }
         }
@@ -1147,7 +1156,14 @@ static void reshape_subdiv_refine_final_P(
   }
 
   const int idx = multires_index_for_grid_coord_for_reshape(reshape_context, grid_coord);
-  printf("\t%d -> %f %f %f\n", idx, storage[idx].x, storage[idx].y, storage[idx].z);
+  printf("CB: %d (%f %f) -> %d -> %f %f %f\n",
+         grid_coord->grid_index,
+         grid_coord->u,
+         grid_coord->v,
+         idx,
+         storage[idx].x,
+         storage[idx].y,
+         storage[idx].z);
 
   /* NOTE: At this point in reshape/propagate pipeline grid displacement is actually storing object
    * vertices coordinates. */
