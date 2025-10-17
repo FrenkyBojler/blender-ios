@@ -1,1 +1,1 @@
-Referenced by pull request #147247, [Cycles][HIP-RT] Move BVH device memory management to Device class
+Referenced by pull request #147247, Fix: Cyles HIP-RT random crashes editing the scene
