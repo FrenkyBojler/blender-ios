@@ -160,20 +160,12 @@ void AbstractTreeView::set_default_rows(int default_rows)
 void AbstractTreeView::filter(std::optional<StringRef> filter_str)
 {
   needs_filtering_ = false;
-  if (!filter_str.has_value()) {
-    return;
-  }
 
-  const bool is_empty = filter_str->is_empty();
+  const bool is_empty = !filter_str.has_value() || filter_str->is_empty();
   this->foreach_filter_item([&](AbstractTreeViewItem &item) {
     item.is_filtered_visible_ = is_empty ||
                                 item.should_be_filtered_visible(StringRefNull(*filter_str));
   });
-}
-
-void AbstractTreeView::set_show_display_options(bool value)
-{
-  show_display_options_ = value;
 }
 
 void AbstractTreeView::toggle_filtering_collapsed()
@@ -228,7 +220,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
     scroll_value_ = std::make_shared<int>(state.scroll_offset);
   }
 
-  set_show_display_options(state.flag & UI_VIEW_COLLAPSE_FILTER_OPTIONS);
+  show_display_options_ = state.flag & UI_VIEW_COLLAPSE_FILTER_OPTIONS;
   if (state.search_string && state.search_string[0] != '\0') {
     if (!search_string_) {
       search_string_ = std::make_unique<decltype(search_string_)::element_type>();
@@ -920,7 +912,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   else {
     col = &parent_layout.column(true);
   }
-
   /* Row for the tree-view and the scroll bar. */
   uiLayout *row = &col->row(false);
 
@@ -948,8 +939,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   tree_view.foreach_item(
       [&, this](AbstractTreeViewItem &item) {
         if ((index >= first_visible_index) && (index <= max_visible_index)) {
-          if (!tree_view.search_string_ || tree_view.search_string_->empty() ||
-              item.is_filtered_visible())
+          if (item.is_filtered_visible())
           {
             this->build_row(item);
           }
@@ -1024,6 +1014,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                             sizeof(tree_view.search_string_.get()),
                             "");
       UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
+      UI_but_flag_enable(but, UI_BUT_UNDO);
       ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
     }
   }

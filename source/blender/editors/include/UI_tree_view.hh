@@ -168,7 +168,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   void set_default_rows(int default_rows);
 
   void filter(std::optional<StringRef> filter_str) override;
-  void set_show_display_options(bool value);
   void toggle_filtering_collapsed();
 
  protected:
