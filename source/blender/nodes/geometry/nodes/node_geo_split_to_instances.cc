@@ -79,7 +79,7 @@ struct SplitGroups {
     const Field<int> &group_id_field,
     const Field<float3> &center_field,
     Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id,
-    Map<int, float3> &r_center_by_group_id,
+    Map<int, float3> &center_by_group_id,
     SplitGroups &r_groups)
 {
   const int domain_size = src_component.attribute_domain_size(domain);
@@ -97,17 +97,18 @@ struct SplitGroups {
     return true;
   }
 
-  const VArray<float3> centers = field_evaluator.get_evaluated<float3>(1);
-
   r_groups.group_masks = IndexMask::from_group_ids(
       selection, field_evaluator.get_evaluated<int>(0), r_groups.memory, r_groups.group_ids);
 
+  // todo 如果 网格点 和 点云点 分到一起了, 每组第一个值不一样怎么办
+  const VArray<float3> centers = field_evaluator.get_evaluated<float3>(1);
   for (const int i : r_groups.group_ids.index_range()) {
     const int group_id = r_groups.group_ids[i];
     const IndexMask &mask = r_groups.group_masks[i];
     if (!mask.is_empty()) {
       const int first_index_in_mask = mask.first();
-      r_center_by_group_id.add_overwrite(group_id, centers[first_index_in_mask]);
+      // center_by_group_id.add_overwrite(group_id, centers[first_index_in_mask]);
+      center_by_group_id.lookup_or_add(group_id, centers[first_index_in_mask]);
     }
   }
 
@@ -371,40 +372,28 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int total_groups_num = geometry_by_group_id.size();
   dst_instances->resize(total_groups_num);
 
-  /* Get an ordered list of group IDs. This order will define the order of the final instances. */
-  // const Array<int> group_ids = geometry_by_group_id.keys();
-  // const Array<int> group_ids(geometry_by_group_id.keys());
-  Array<int> group_ids(geometry_by_group_id.size());
-  int i = 0;
-  for (const auto &item : geometry_by_group_id.items()) {
-    // group_ids.append(item.key);
-    group_ids[i++] = item.key;
-  }
   std::optional<std::string> dst_group_id_attribute_id =
       params.get_output_anonymous_attribute_id_if_needed("Group ID");
   if (dst_group_id_attribute_id) {
     SpanAttributeWriter<int> dst_group_id =
         dst_instances->attributes_for_write().lookup_or_add_for_write_span<int>(
             *dst_group_id_attribute_id, AttrDomain::Instance);
-    /* Use the ordered list of group IDs to fill the output attribute. */
-    std::copy(group_ids.begin(), group_ids.end(), dst_group_id.span.begin());
+    std::copy(geometry_by_group_id.keys().begin(),
+              geometry_by_group_id.keys().end(),
+              dst_group_id.span.begin());
     dst_group_id.finish();
   }
 
   MutableSpan<float4x4> dst_transforms = dst_instances->transforms_for_write();
-  // MutableSpan<int> dst_reference_handles = dst_instances->reference_handles_for_write();
   array_utils::fill_index_range(dst_instances->reference_handles_for_write());
 
-  for (const int i : group_ids.index_range()) {
-    const int group_id = group_ids[i];
-    std::unique_ptr<GeometrySet> &group_geometry = geometry_by_group_id.lookup(group_id);
+  int i = 0;
+  for (auto item : geometry_by_group_id.items()) {
+    std::unique_ptr<GeometrySet> &group_geometry = item.value;
 
-    const float3 *center = center_by_group_id.lookup_ptr(group_id);
-    const float3 pivot = center ? *center : float3(0.0f);
-
-    dst_transforms[i] = math::from_location<float4x4>(pivot);
-
-    geometry::translate_geometry(*group_geometry, -pivot);
+    const float3 &center = center_by_group_id.lookup(item.key);
+    dst_transforms[i++] = math::from_location<float4x4>(center);
+    geometry::translate_geometry(*group_geometry, -center);
 
     dst_instances->add_reference(std::move(group_geometry));
   }
