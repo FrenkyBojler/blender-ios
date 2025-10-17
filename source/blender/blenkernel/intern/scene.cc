@@ -1840,17 +1840,10 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
   id_us_min(&sce_copy->id);
   id_us_ensure_real(&sce_copy->id);
 
-  BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
-
-  /* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks. */
-
   /* Scene duplication is always root of duplication currently. */
   const bool is_subprocess = false;
   const bool is_root_id = true;
   const int copy_flags = LIB_ID_COPY_DEFAULT;
-
-  /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
-  ID_NEW_SET(sce, sce_copy);
 
   if (!is_subprocess) {
     BKE_main_id_newptr_and_tag_clear(bmain);
@@ -1863,6 +1856,13 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
       duplicate_flags = (duplicate_flags | USER_DUP_LINKED_ID);
     }
   }
+
+  /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
+  ID_NEW_SET(sce, sce_copy);
+
+  /* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks. */
+
+  BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
 
   if (type == SCE_COPY_FULL) {
     /* Copy Freestyle LineStyle datablocks. */
