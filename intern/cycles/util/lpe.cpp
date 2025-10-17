@@ -43,6 +43,7 @@ bool LPEParser::parse_tokens()
 
     LPEToken token;
     token.event_mask = 0;
+    token.is_negated = false;
 
     /* Check for wildcards */
     if (*ptr == '*') {
@@ -69,10 +70,16 @@ bool LPEParser::parse_tokens()
       ptr++;
       continue;
     }
-    /* Character sets [DGS] */
+    /* Character sets [DGS] or negated [^DGS] */
     else if (*ptr == '[') {
       ptr++;
       token.type = LPE_TOKEN_EVENT;
+
+      /* Check for negation */
+      if (*ptr == '^') {
+        token.is_negated = true;
+        ptr++;
+      }
 
       while (*ptr && *ptr != ']') {
         int event = char_to_event(*ptr);
@@ -85,6 +92,22 @@ bool LPEParser::parse_tokens()
 
       if (*ptr == ']') {
         ptr++;
+      }
+
+      /* Invert mask if negated */
+      if (token.is_negated && token.event_mask != 0) {
+        /* Create mask with all valid event bits set */
+        const int all_events_mask = (1 << 0) |  /* C */
+                                    (1 << 1) |  /* R */
+                                    (1 << 2) |  /* T */
+                                    (1 << 3) |  /* V */
+                                    (1 << 4) |  /* L */
+                                    (1 << 5) |  /* O */
+                                    (1 << 6) |  /* B */
+                                    (1 << 8) |  /* D */
+                                    (1 << 9) |  /* G */
+                                    (1 << 10); /* S */
+        token.event_mask = all_events_mask & ~token.event_mask;
       }
 
       if (token.event_mask != 0) {

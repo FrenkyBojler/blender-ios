@@ -38,6 +38,7 @@ struct LPEToken {
   LPETokenType type;
   int event_mask;      /* Bitmask of allowed events for sets/specific events */
   vector<char> events; /* For character sets */
+  bool is_negated;     /* For negated character sets [^...] */
 };
 
 class LPEParser {

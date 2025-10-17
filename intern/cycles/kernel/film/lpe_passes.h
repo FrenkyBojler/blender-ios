@@ -162,13 +162,20 @@ ccl_device_inline void kernel_lpe_extract_path(ccl_global IntegratorState state,
   path_str[len] = '\0';
 }
 
-/* Check if character matches a character class [ABC] */
+/* Check if character matches a character class [ABC] or negated [^ABC] */
 ccl_device_inline bool kernel_lpe_matches_char_class(char c,
                                                      ccl_private const char *pattern,
                                                      int *class_end)
 {
   int i = 0;
   bool found = false;
+  bool is_negated = false;
+
+  /* Check for negation */
+  if (pattern[i] == '^') {
+    is_negated = true;
+    i++;
+  }
 
   while (pattern[i] != '\0' && pattern[i] != ']') {
     if (pattern[i] == c) {
@@ -179,7 +186,9 @@ ccl_device_inline bool kernel_lpe_matches_char_class(char c,
 
   /* class_end points after the ']' */
   *class_end = (pattern[i] == ']') ? i + 1 : i;
-  return found;
+
+  /* Invert result if negated */
+  return is_negated ? !found : found;
 }
 
 /* Parse quantifier {n} or {n,m} and return min/max counts
