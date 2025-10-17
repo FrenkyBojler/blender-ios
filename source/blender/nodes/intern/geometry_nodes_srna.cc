@@ -55,6 +55,11 @@ const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_lay
 
 static const ModifierData *find_modifier_data_from_system_property(const PointerRNA *ptr)
 {
+  for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
+    if (RNA_struct_is_a(ancestor.type, &RNA_Modifier)) {
+      return static_cast<const ModifierData *>(ancestor.data);
+    }
+  }
   const Object *object = id_cast<const Object *>(ptr->owner_id);
   LISTBASE_FOREACH (const ModifierData *, md, &object->modifiers) {
     bool found = false;
