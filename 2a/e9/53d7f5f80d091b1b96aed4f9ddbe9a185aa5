@@ -2,3 +2,4 @@ Referenced by issue #147742, Anim: Assert when opening older files
 Referenced by issue #147951, Timeine is miss Blender 5.0.0 beta
 Referenced by pull request #148021, Fix #147993: Space bar not playing on Playback Controls footer
 Referenced by commit a5618366cbfaa08b4dcb8b1a57a398e5311e6d34, Fix #147993: Space bar not playing on Playback Controls footer
+Referenced by pull request #148278, Anim: Bring back Timeline as mode of the Dope Sheet
