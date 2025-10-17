@@ -192,11 +192,14 @@ void AbstractTreeView::update_from_old(uiBlock &new_block)
 
 std::optional<uiViewState> AbstractTreeView::persistent_state() const
 {
+  uiViewState state{0};
+
+  SET_FLAG_FROM_TEST(state.flag, show_display_options_, UI_VIEW_COLLAPSE_FILTER_OPTIONS);
+  state.search_string = search_string_ ? BLI_strdup(search_string_->data()) : nullptr;
+
   if (!custom_height_ && !scroll_value_) {
     return {};
   }
-
-  uiViewState state{0};
 
   if (custom_height_) {
     state.custom_height = *custom_height_ * UI_INV_SCALE_FAC;
@@ -204,8 +207,6 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
   }
-  SET_FLAG_FROM_TEST(state.flag, show_display_options_, UI_VIEW_COLLAPSE_FILTER_OPTIONS);
-  state.search_string = search_string_ ? BLI_strdup(search_string_->data()) : nullptr;
 
   return state;
 }
