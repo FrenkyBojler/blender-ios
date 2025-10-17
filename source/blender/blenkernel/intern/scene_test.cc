@@ -94,7 +94,7 @@ TEST_F(SceneTest, linked_copy_id_remapping)
   bAction *action_src = BKE_id_new<bAction>(bmain, "Scene_source_action");
   BKE_animdata_set_action(nullptr, &scene_src->id, action_src);
   AnimData *animdata_src = BKE_animdata_from_id(&scene_src->id);
-  EXPECT_NE(animdata_src, nullptr);
+  ASSERT_NE(animdata_src, nullptr);
   EXPECT_EQ(animdata_src->action, action_src);
 
   constexpr blender::StringRef idp_scene2scene_name = "scene2scene";
@@ -132,21 +132,21 @@ TEST_F(SceneTest, linked_copy_id_remapping)
 
   EXPECT_NE(scene_copy, scene_src);
   AnimData *animdata_copy = BKE_animdata_from_id(&scene_copy->id);
-  EXPECT_NE(animdata_copy, nullptr);
+  ASSERT_NE(animdata_copy, nullptr);
   EXPECT_NE(animdata_copy, animdata_src);
   bAction *action_copy = animdata_copy->action;
-  EXPECT_NE(action_copy, nullptr);
+  ASSERT_NE(action_copy, nullptr);
   EXPECT_NE(action_copy, action_src);
 
   IDProperty *scene_idgroup_copy = IDP_GetProperties(&scene_copy->id);
-  EXPECT_NE(scene_idgroup_copy, nullptr);
+  ASSERT_NE(scene_idgroup_copy, nullptr);
   EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_copy, idp_scene2scene_name)),
             &scene_copy->id);
   EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(scene_idgroup_copy, idp_scene2action_name)),
             &action_copy->id);
 
   IDProperty *action_idgroup_copy = IDP_GetProperties(&action_copy->id);
-  EXPECT_NE(action_idgroup_copy, nullptr);
+  ASSERT_NE(action_idgroup_copy, nullptr);
   EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_copy, idp_action2scene_name)),
             &scene_copy->id);
   EXPECT_EQ(IDP_ID_get(IDP_GetPropertyFromGroup(action_idgroup_copy, idp_action2action_name)),

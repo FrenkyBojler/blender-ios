@@ -1840,7 +1840,14 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
   id_us_min(&sce_copy->id);
   id_us_ensure_real(&sce_copy->id);
 
-  /* Scene duplication is always root of duplication currently. */
+  /* Scene duplication is always root of duplication currently, and never a subprocess.
+   *
+   * Keep these around though, as this allow the rest of the duplication code to stay in sync with
+   * the layout and behavior as the other duplicate functions (see e.g. #BKE_collection_duplicate
+   * or #BKE_object_duplicate).
+   *
+   * TOOD: At some point it would be nice to deduplicate this logic and move common behavior into
+   * generic ID management code, with IDType callbacks for specific duplication behavior only. */
   const bool is_subprocess = false;
   const bool is_root_id = true;
   const int copy_flags = LIB_ID_COPY_DEFAULT;
