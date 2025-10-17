@@ -148,8 +148,8 @@ struct SimConstraintsData {
    * and serves as a quality indicator. */
   GPointer residual_rms;
 
-  // /* Attributes defining constraint behavior. */
-  // Map<StringRef, GArray<>> attributes;
+  /* Attributes defining constraint behavior. */
+  Map<StringRef, GArray<>> attributes;
 };
 
 /* Defines a set of constraints acting on a set of points.
@@ -421,6 +421,21 @@ class XPBDState {
     }
     return data.lambdas.as_mutable_span().typed<T>();
   }
+
+  template<typename T>
+  MutableSpan<T> ensure_constraint_data(const SimConstraintsKey &key,
+                                        const int constraints_num,
+                                        const StringRef name)
+  {
+    SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
+    BLI_assert(data.persistent_ids.is_empty() || data.persistent_ids.size() == constraints_num);
+    GArray<> &array = data.attributes.lookup_or_add(name, GArray(CPPType::get<T>()));
+    BLI_assert(array.type() == CPPType::get<T>());
+    if (array.size() != constraints_num) {
+      array.reinitialize(constraints_num);
+    }
+    return array.as_mutable_span().typed<T>();
+  }
 };
 
 class XPBDStateOwner : public BundleItemInternalValueMixin {
@@ -562,18 +577,21 @@ struct TorqueFieldsData {
 };
 
 struct InfinitePlaneColliderData {
-  int key_i;
+  int geo_key_i;
+  int constraints_key_i;
   float3 position;
   float3 normal;
   float friction;
 };
 
 struct SphericalSelfCollisionData {
-  int key_i;
+  int geo_key_i;
+  int constraints_key_i;
 };
 
 struct ExternelMeshColliderData {
-  int key_i;
+  int geo_key_i;
+  int constraints_key_i;
   ExternalColliderKey collider_key;
   const Mesh *mesh;
   float4x4 transform;
@@ -1302,8 +1320,8 @@ struct DynamicSphereContacts {
 };
 
 struct Contacts {
-  Map<SimPointsKey, StaticPlaneContacts> static_plane_contacts;
-  Map<SimPointsKey, DynamicSphereContacts> dynamic_sphere_contacts;
+  Map<SimConstraintsKey, StaticPlaneContacts> static_plane_contacts;
+  Map<SimConstraintsKey, DynamicSphereContacts> dynamic_sphere_contacts;
 };
 
 PROFILE_FUNCTION static void gather_ground_plane_contacts(
@@ -1513,33 +1531,39 @@ static float get_max_search_distance(const float delta_time)
 }
 
 PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
-    const int key_i,
+    const int geo_key_i,
     const IndexRange curves_range,
     const OffsetIndices<int> points_by_curve,
     const XPBDState &state,
     const WorldPreprocessData &world_info,
-    const Span<SimPointsKey> keys,
+    const Span<SimPointsKey> points_keys,
     const SimPointsWorldProperties &props,
     const float substep_factor,
     const float delta_time)
 {
   Contacts contacts;
-  const SimPointsKey &key = keys[key_i];
-  const SimPoints &sim_points = state.sim_points.lookup(key);
+  const Span<SimConstraintsKey> constraints_keys = world_info.constraints_keys;
+  const SimPointsKey &points_key = points_keys[geo_key_i];
+  const SimPoints &sim_points = state.sim_points.lookup(points_key);
   const IndexRange points_range = points_by_curve[curves_range];
 
-  StaticPlaneContacts plane_contacts;
   for (const InfinitePlaneColliderData &collider : world_info.infinite_plane_colliders) {
-    if (collider.key_i != key_i) {
+    if (collider.geo_key_i != geo_key_i) {
       continue;
     }
+    StaticPlaneContacts plane_contacts;
     gather_ground_plane_contacts(
         sim_points, points_range, collider, props.frictions, props.inverse_masses, plane_contacts);
+    if (!plane_contacts.indices.is_empty()) {
+      const SimConstraintsKey &constraints_key = constraints_keys[collider.constraints_key_i];
+      contacts.static_plane_contacts.add_new(constraints_key, std::move(plane_contacts));
+    }
   }
   for (const ExternelMeshColliderData &collider : world_info.mesh_colliders) {
-    if (collider.key_i != key_i) {
+    if (collider.geo_key_i != geo_key_i) {
       continue;
     }
+    StaticPlaneContacts plane_contacts;
     gather_mesh_contacts(state,
                          sim_points,
                          points_range,
@@ -1550,9 +1574,10 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
                          substep_factor,
                          delta_time,
                          plane_contacts);
-  }
-  if (!plane_contacts.indices.is_empty()) {
-    contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
+    if (!plane_contacts.indices.is_empty()) {
+      const SimConstraintsKey &constraints_key = constraints_keys[collider.constraints_key_i];
+      contacts.static_plane_contacts.add_new(constraints_key, std::move(plane_contacts));
+    }
   }
   return contacts;
 }
@@ -1563,28 +1588,29 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
     const WorldPreprocessData &world_info,
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
-    const Span<SimPointsKey> keys,
+    const Span<SimPointsKey> points_keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
     const float substep_factor,
     const float delta_time)
 {
+  const Span<SimConstraintsKey> constraints_keys = world_info.constraints_keys;
   Contacts contacts;
-  for (const int key_i : key_group) {
-    const SimPointsKey &key = keys[key_i];
-    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
-    const bke::GeometryComponent::Type type = key.type;
+  for (const int geo_key_i : key_group) {
+    const SimPointsKey &points_key = points_keys[geo_key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(points_key.path);
+    const bke::GeometryComponent::Type type = points_key.type;
     const bke::GeometryComponent *component = applied_geometries[geometry_bundle_i].get_component(
         type);
-    const SimPoints &sim_points = state.sim_points.lookup(key);
+    const SimPoints &sim_points = state.sim_points.lookup(points_key);
     if (!component) {
       continue;
     }
-    const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+    const SimPointsWorldProperties &props = sim_points_props.lookup(points_key);
 
     {
       StaticPlaneContacts plane_contacts;
       for (const InfinitePlaneColliderData &collider : world_info.infinite_plane_colliders) {
-        if (collider.key_i != key_i) {
+        if (collider.geo_key_i != geo_key_i) {
           continue;
         }
         gather_ground_plane_contacts(sim_points,
@@ -1593,9 +1619,13 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
                                      props.frictions,
                                      props.inverse_masses,
                                      plane_contacts);
+        if (!plane_contacts.indices.is_empty()) {
+          const SimConstraintsKey &constraints_key = constraints_keys[collider.constraints_key_i];
+          contacts.static_plane_contacts.add_new(constraints_key, std::move(plane_contacts));
+        }
       }
       for (const ExternelMeshColliderData &collider : world_info.mesh_colliders) {
-        if (collider.key_i != key_i) {
+        if (collider.geo_key_i != geo_key_i) {
           continue;
         }
         gather_mesh_contacts(state,
@@ -1608,9 +1638,10 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
                              substep_factor,
                              delta_time,
                              plane_contacts);
-      }
-      if (!plane_contacts.indices.is_empty()) {
-        contacts.static_plane_contacts.add_new(key, std::move(plane_contacts));
+        if (!plane_contacts.indices.is_empty()) {
+          const SimConstraintsKey &constraints_key = constraints_keys[collider.constraints_key_i];
+          contacts.static_plane_contacts.add_new(constraints_key, std::move(plane_contacts));
+        }
       }
     }
 
@@ -1632,15 +1663,17 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
     }
     if (radii.has_value()) {
       const VArraySpan<float> radii_span = *radii;
-      DynamicSphereContacts sphere_contacts;
       for (const SphericalSelfCollisionData &constraint : world_info.spherical_self_collisions) {
-        if (constraint.key_i != key_i) {
+        if (constraint.geo_key_i != geo_key_i) {
           continue;
         }
+        DynamicSphereContacts sphere_contacts;
         gather_sphere_contacts(sim_points, radii_span, sphere_contacts);
-      }
-      if (!sphere_contacts.indices.is_empty()) {
-        contacts.dynamic_sphere_contacts.add_new(key, std::move(sphere_contacts));
+        if (!sphere_contacts.indices.is_empty()) {
+          const SimConstraintsKey &constraints_key =
+              constraints_keys[constraint.constraints_key_i];
+          contacts.dynamic_sphere_contacts.add_new(constraints_key, std::move(sphere_contacts));
+        }
       }
     }
   }
@@ -1649,23 +1682,27 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
 
 PROFILE_FUNCTION static void generate_collision_constraint_sets(
     ResourceScope &scope,
+    XPBDState &state,
     const Contacts &contacts,
     const VectorSet<SimPointsKey> &keys,
     const float delta_time,
     xpbd::ConstraintSetCollector &r_constraints)
 {
   for (auto item : contacts.static_plane_contacts.items()) {
-    const int key_i = keys.index_of(item.key);
+    const int key_i = keys.index_of(item.key.points_key);
     const StaticPlaneContacts &plane_contacts = item.value;
+    MutableSpan<bool> active_states = state.ensure_constraint_data<bool>(
+        item.key, plane_contacts.indices.size(), "active");
     r_constraints.general.append(
         &scope.construct<xpbd::CollisionPlaneConstraintSet>(key_i,
                                                             plane_contacts.indices,
                                                             plane_contacts.contact_points_on_plane,
                                                             plane_contacts.separating_axes,
-                                                            plane_contacts.compliance_terms));
+                                                            plane_contacts.compliance_terms,
+                                                            active_states));
   }
   for (auto item : contacts.dynamic_sphere_contacts.items()) {
-    const int key_i = keys.index_of(item.key);
+    const int key_i = keys.index_of(item.key.points_key);
     const DynamicSphereContacts &sphere_contacts = item.value;
     const float compliance_term = math::safe_divide(1e-4f, pow2f(delta_time));
     r_constraints.general.append(&scope.construct<xpbd::MinimumDistanceConstraintSet>(
@@ -2256,17 +2293,20 @@ PROFILE_FUNCTION static void prepare_evaluation__pressure_constraints(
 PROFILE_FUNCTION static void prepare_evaluation__infinite_plane_colliders(
     WorldPreprocessData &world_info,
     const WorldBundles &world_bundles,
-    const VectorSet<SimPointsKey> &keys)
+    const VectorSet<SimPointsKey> &points_keys)
 {
-  for (const int key_i : keys.index_range()) {
-    const SimPointsKey &key = keys[key_i];
+  for (const int geo_key_i : points_keys.index_range()) {
+    const SimPointsKey &points_key = points_keys[geo_key_i];
     const Vector constraint_bundles = filter_bundles_for_path<InfiniteGroundPlaneBundle>(
-        world_bundles.infinite_ground_planes, key.path);
+        world_bundles.infinite_ground_planes, points_key.path);
     for (const InfiniteGroundPlaneBundle *constraint_bundle : constraint_bundles) {
       if (math::is_zero(constraint_bundle->normal)) {
         continue;
       }
-      world_info.infinite_plane_colliders.append({key_i,
+      const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
+          {constraint_bundle->self_path, points_key});
+      world_info.infinite_plane_colliders.append({geo_key_i,
+                                                  constraints_key_i,
                                                   constraint_bundle->position,
                                                   constraint_bundle->normal,
                                                   constraint_bundle->friction});
@@ -2292,17 +2332,21 @@ PROFILE_FUNCTION static void prepare_evaluation__spherical_self_collisions(
   }
 }
 
-PROFILE_FUNCTION static void prepare_evaluation__colliders(WorldPreprocessData &world_info,
-                                                           const WorldBundles &world_bundles,
-                                                           const VectorSet<SimPointsKey> &keys)
+PROFILE_FUNCTION static void prepare_evaluation__colliders(
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const VectorSet<SimPointsKey> &points_keys)
 {
-  for (const int key_i : keys.index_range()) {
-    const SimPointsKey &key = keys[key_i];
+  for (const int geo_key_i : points_keys.index_range()) {
+    const SimPointsKey &points_key = points_keys[geo_key_i];
     const Vector constraint_bundles = filter_bundles_for_path<ColliderBundle>(
-        world_bundles.colliders, key.path);
+        world_bundles.colliders, points_key.path);
     for (const ColliderBundle *constraint_bundle : constraint_bundles) {
       if (const Mesh *mesh = constraint_bundle->geometry.get_mesh()) {
-        world_info.mesh_colliders.append({key_i,
+        const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
+            {constraint_bundle->self_path, points_key});
+        world_info.mesh_colliders.append({geo_key_i,
+                                          constraints_key_i,
                                           ExternalColliderKey{constraint_bundle->self_path},
                                           mesh,
                                           float4x4::identity(),
@@ -2324,8 +2368,11 @@ PROFILE_FUNCTION static void prepare_evaluation__colliders(WorldPreprocessData &
           GeometrySet reference_geo;
           reference.to_geometry_set(reference_geo);
           if (const Mesh *mesh = reference_geo.get_mesh()) {
+            const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
+                {constraint_bundle->self_path, points_key});
             world_info.mesh_colliders.append(
-                {key_i,
+                {geo_key_i,
+                 constraints_key_i,
                  ExternalColliderKey{constraint_bundle->self_path, {instance_id}},
                  mesh,
                  transforms[instance_i],
@@ -3150,7 +3197,7 @@ PROFILE_FUNCTION static void apply_friction(const Span<int> key_group,
                                             const Span<xpbd::GeometryRef> geometry_refs)
 {
   for (const auto item : contacts.static_plane_contacts.items()) {
-    const int key_i = keys.index_of(item.key);
+    const int key_i = keys.index_of(item.key.points_key);
     const int key_in_group_i = key_group.first_index(key_i);
     const Span<float3> prev_positions = all_prev_positions[key_in_group_i];
     apply_static_plane_contact_friction(
@@ -3611,7 +3658,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
                                         sub_delta_time);
       xpbd::ConstraintSetCollector dynamic_constraint_sets;
       generate_collision_constraint_sets(
-          scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+          scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
 
       /* Combine static and dynamic constraint sets. */
       const Vector<xpbd::ConstraintSet *> current_constraint_sets =
@@ -3729,7 +3776,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
                                                    sub_delta_time);
             xpbd::ConstraintSetCollector dynamic_constraint_sets;
             generate_collision_constraint_sets(
-                scope, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+                scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
 
             xpbd::SolveStrategy solve_strategy{
                 get_solve_strategy_type(solver_type), geometry_refs, key_i, points_range};
@@ -3746,11 +3793,11 @@ PROFILE_FUNCTION static void simulate_curve_local(
 
           if (sub_delta_time > 0.0f) {
             /* Apply friction by updating current positions before the new velocity is computed.*/
-            if (const StaticPlaneContacts *plane_contacts =
-                    contacts.static_plane_contacts.lookup_ptr(key))
-            {
-              apply_static_plane_contact_friction(
-                  *plane_contacts, prev_positions, points_range.start(), sim_points.positions);
+            for (const auto &item : contacts.static_plane_contacts.items()) {
+              if (item.key.points_key == key) {
+                apply_static_plane_contact_friction(
+                    item.value, prev_positions, points_range.start(), sim_points.positions);
+              }
             }
           }
 
@@ -3789,7 +3836,7 @@ static bool supports_curve_local_evaluation(const Span<int> key_group,
     return false;
   }
   for (const SphericalSelfCollisionData &constraint : world_info.spherical_self_collisions) {
-    if (constraint.key_i == key_i) {
+    if (constraint.geo_key_i == key_i) {
       /* Spherical self collisions are not curve-local. */
       return false;
     }

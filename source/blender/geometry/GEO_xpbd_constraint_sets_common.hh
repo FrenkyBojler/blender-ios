@@ -280,19 +280,22 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   Span<float3> contact_points_on_plane_;
   Span<float3> separating_axes_;
   Span<float> compliance_terms_;
+  MutableSpan<bool> active_states_;
 
  public:
   CollisionPlaneConstraintSet(const int geo_i,
                               const Span<int> points,
                               const Span<float3> contact_points_on_plane,
                               const Span<float3> separating_axes,
-                              const Span<float> compliance_terms)
+                              const Span<float> compliance_terms,
+                              MutableSpan<bool> active_states)
       : TemplatedConstraintSet<CollisionPlaneConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
         contact_points_on_plane_(contact_points_on_plane),
         separating_axes_(separating_axes),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        active_states_(active_states)
   {
   }
 
@@ -309,11 +312,13 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     const float3 diff = pos - plane_pos;
     const float axis_distance = math::dot(diff, axis);
     if (axis_distance >= 0.0f) {
+      active_states_[constraint_i] = false;
       return;
     }
     const float inv_m = params.inverse_mass(geo_i_, point_i);
     if (inv_m <= 0.0f) {
       /* Points with infinite mass are pinned and don't collide dynamically. */
+      active_states_[constraint_i] = false;
       return;
     }
 
@@ -321,12 +326,16 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     const float lambda = -axis_distance / (inv_m + compliance_term);
     const float3 offset = lambda * inv_m * axis / math::length_squared(axis);
     updater.update_position(geo_i_, point_i, offset);
+    active_states_[constraint_i] = true;
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
   {
     return unary_constraints_to_independent_masks(points_, memory);
   }
+    attributes.add<bool>("active",
+                         bke::AttrDomain::Point,
+                         bke::AttributeInitVArray(GVArray::from_span(active_states_)));
 };
 
 class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistanceConstraintSet> {
