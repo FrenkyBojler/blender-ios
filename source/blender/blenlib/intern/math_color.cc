@@ -324,20 +324,24 @@ void rgb_to_hsv_compat(float r, float g, float b, float *r_h, float *r_s, float 
 {
   const float orig_h = *r_h;
   const float orig_s = *r_s;
+  const float threshold = 1e-5f;
 
   rgb_to_hsv(r, g, b, r_h, r_s, r_v);
 
-  if (*r_v <= 1e-8) {
+  if (*r_v <= threshold) {
     /* Very low V values will affect the HS values, correct them in post. */
     *r_h = orig_h;
     *r_s = orig_s;
   }
-  else if (*r_s <= 1e-8) {
+  else if (*r_s <= threshold) {
     *r_h = orig_h;
   }
 
-  if (*r_h == 0.0f && orig_h >= 1.0f) {
+  if (fabsf(*r_h) <= threshold && fabsf(orig_h - 1.0f) <= threshold) {
     *r_h = 1.0f;
+  }
+  else if (fabsf(*r_h - 1.0f) <= threshold && fabsf(orig_h) <= threshold) {
+    *r_h = 0.0f;
   }
 }
 
