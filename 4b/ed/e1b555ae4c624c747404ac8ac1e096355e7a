@@ -2,3 +2,4 @@ Referenced by issue #135111, Image Mask Editor: Add missing Toolbar
 Referenced by issue #145987, Blender crashes selecting a paint brush in mask editor
 Referenced by issue #146080, Mask Editor: transform gizmos do not shown correctly
 Referenced by pull request #146292, Fix #146251: Moving masks via transform system does not update gizmos
+Referenced by commit 77819d77d2d76e28d1f42858582a28b7651b9a77, Fix #146251: Moving masks via transform system does not update gizmos
