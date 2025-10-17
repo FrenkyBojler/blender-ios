@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "NOD_geometry_nodes_srna.hh"
@@ -11,6 +12,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 
+#include "BKE_idprop.hh"
 #include "BKE_node_runtime.hh"
 
 #include "RNA_access.hh"
@@ -51,13 +53,29 @@ const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_lay
     {0},
 };
 
+static const ModifierData *find_modifier_data_from_system_property(const PointerRNA *ptr)
+{
+  const Object *object = id_cast<const Object *>(ptr->owner_id);
+  LISTBASE_FOREACH (const ModifierData *, md, &object->modifiers) {
+    bool found = false;
+    IDP_foreach_property(md->system_properties, 0, [&](IDProperty *id_prop) {
+      if (id_prop == ptr->data) {
+        found = true;
+      }
+    });
+    if (found) {
+      return md;
+    }
+  }
+  return nullptr;
+}
+
 static std::optional<std::string> rna_NodesModifierPropertyInput_path(const PointerRNA *ptr)
 {
   StructRNA *srna = ptr->type;
   const char *identifier = RNA_struct_identifier(srna);
-  const auto *nmd = ptr->data_as<NodesModifierData>();
-  BLI_assert(nmd != nullptr);
-  std::string name_esc = BLI_str_escape(nmd->modifier.name);
+  const ModifierData *md = find_modifier_data_from_system_property(ptr);
+  std::string name_esc = BLI_str_escape(md->name);
   return fmt::format("modifiers[\"{}\"].properties.inputs.{}", name_esc, identifier);
 }
 
@@ -111,9 +129,8 @@ static std::optional<std::string> rna_NodesModifierPropertyOutput_path(const Poi
 {
   StructRNA *srna = ptr->type;
   const char *identifier = RNA_struct_identifier(srna);
-  const auto *nmd = ptr->data_as<NodesModifierData>();
-  BLI_assert(nmd != nullptr);
-  std::string name_esc = BLI_str_escape(nmd->modifier.name);
+  const ModifierData *md = find_modifier_data_from_system_property(ptr);
+  std::string name_esc = BLI_str_escape(md->name);
   return fmt::format("modifiers[\"{}\"].properties.outputs.{}", name_esc, identifier);
 }
 
