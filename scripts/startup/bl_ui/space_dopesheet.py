@@ -268,15 +268,29 @@ class DOPESHEET_HT_editor_buttons:
             icon='FILTER',
         )
 
+        tool_settings = context.tool_settings
+
         # Grease Pencil mode doesn't need snapping, as it's frame-aligned only
         if st.mode != 'GPENCIL':
             row = layout.row(align=True)
-            row.prop(context.tool_settings, "use_snap_anim", text="")
+            row.prop(tool_settings, "use_snap_anim", text="")
             sub = row.row(align=True)
             sub.popover(
                 panel="DOPESHEET_PT_snapping",
                 text="",
             )
+
+        row = layout.row(align=True)
+        row.prop(tool_settings, "use_proportional_action", text="", icon_only=True)
+        sub = row.row(align=True)
+        sub.active = tool_settings.use_proportional_action
+        sub.prop_with_popover(
+            tool_settings,
+            "proportional_edit_falloff",
+            text="",
+            icon_only=True,
+            panel="DOPESHEET_PT_proportional_edit",
+        )
 
         cls._draw_overlay_selector(context, layout)
 
