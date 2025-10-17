@@ -1699,6 +1699,8 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
                                                             plane_contacts.contact_points_on_plane,
                                                             plane_contacts.separating_axes,
                                                             plane_contacts.compliance_terms,
+                                                            plane_contacts.static_frictions,
+                                                            plane_contacts.dynamic_frictions,
                                                             active_states));
   }
   for (auto item : contacts.dynamic_sphere_contacts.items()) {
@@ -3161,49 +3163,50 @@ PROFILE_FUNCTION static void solve_constraints(const SolverType solver_type,
   }
 }
 
-PROFILE_FUNCTION static void apply_static_plane_contact_friction(
-    const StaticPlaneContacts &plane_contacts,
-    const Span<float3> prev_positions,
-    const int prev_positions_offset,
-    const MutableSpan<float3> new_positions)
-{
-  for (const int contact_i : plane_contacts.indices.index_range()) {
-    const int point_i = plane_contacts.indices[contact_i];
-    const float3 &axis = plane_contacts.separating_axes[contact_i];
-    const float static_friction = plane_contacts.static_frictions[contact_i];
-    const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
-    const float depth = plane_contacts.depths[contact_i];
-    const float3 pos_diff = new_positions[point_i] -
-                            prev_positions[point_i - prev_positions_offset];
-    const float axis_distance = math::dot(pos_diff, axis);
-    if (axis_distance >= 0.0f) {
-      continue;
-    }
-    const float3 tangential_pos_diff = pos_diff -
-                                       axis * axis_distance / math::length_squared(axis);
-    float3 offset = tangential_pos_diff;
-    const float tangential_dist = math::length(tangential_pos_diff);
-    if (tangential_dist >= static_friction * depth) {
-      offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
-    }
-    new_positions[point_i] -= offset;
-  }
-}
+// PROFILE_FUNCTION static void apply_static_plane_contact_friction(
+//     const StaticPlaneContacts &plane_contacts,
+//     const Span<float3> prev_positions,
+//     const int prev_positions_offset,
+//     const MutableSpan<float3> new_positions)
+// {
+//   for (const int contact_i : plane_contacts.indices.index_range()) {
+//     const int point_i = plane_contacts.indices[contact_i];
+//     const float3 &axis = plane_contacts.separating_axes[contact_i];
+//     const float static_friction = plane_contacts.static_frictions[contact_i];
+//     const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
+//     const float depth = plane_contacts.depths[contact_i];
+//     const float3 pos_diff = new_positions[point_i] -
+//                             prev_positions[point_i - prev_positions_offset];
+//     const float axis_distance = math::dot(pos_diff, axis);
+//     if (axis_distance >= 0.0f) {
+//       continue;
+//     }
+//     const float3 tangential_pos_diff = pos_diff -
+//                                        axis * axis_distance / math::length_squared(axis);
+//     float3 offset = tangential_pos_diff;
+//     const float tangential_dist = math::length(tangential_pos_diff);
+//     if (tangential_dist >= static_friction * depth) {
+//       offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
+//     }
+//     new_positions[point_i] -= offset;
+//   }
+// }
 
-PROFILE_FUNCTION static void apply_friction(const Span<int> key_group,
-                                            const Contacts &contacts,
-                                            const VectorSet<SimPointsKey> &keys,
-                                            const Span<Array<float3>> all_prev_positions,
-                                            const Span<xpbd::GeometryRef> geometry_refs)
-{
-  for (const auto item : contacts.static_plane_contacts.items()) {
-    const int key_i = keys.index_of(item.key.points_key);
-    const int key_in_group_i = key_group.first_index(key_i);
-    const Span<float3> prev_positions = all_prev_positions[key_in_group_i];
-    apply_static_plane_contact_friction(
-        item.value, prev_positions, 0, geometry_refs[key_i].positions);
-  }
-}
+// PROFILE_FUNCTION static void apply_friction(const Span<int> key_group,
+//                                             const Contacts &contacts,
+//                                             const XPBDState &state,
+//                                             const VectorSet<SimPointsKey> &keys,
+//                                             const Span<Array<float3>> all_prev_positions,
+//                                             const Span<xpbd::GeometryRef> geometry_refs)
+// {
+//   for (const auto item : contacts.static_plane_contacts.items()) {
+//     const int key_i = keys.index_of(item.key.points_key);
+//     const int key_in_group_i = key_group.first_index(key_i);
+//     const Span<float3> prev_positions = all_prev_positions[key_in_group_i];
+//     apply_static_plane_contact_friction(
+//         item.value, prev_positions, 0, geometry_refs[key_i].positions);
+//   }
+// }
 
 PROFILE_FUNCTION static void update_linear_velocities(const float delta_time,
                                                       const IndexRange range,
@@ -3562,6 +3565,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
 
   Array<Array<float3>> all_prev_positions(keys_in_group_num);
   Array<Array<math::Quaternion>> all_prev_rotations(keys_in_group_num);
+  Array<xpbd::GeometryRef> geometry_refs_local(geometry_refs);
   for (const int key_in_group_i : key_group.index_range()) {
     const int key_i = key_group[key_in_group_i];
     const SimPointsKey &key = keys[key_i];
@@ -3570,6 +3574,8 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     if (sim_points.has_rotation) {
       all_prev_rotations[key_in_group_i].reinitialize(sim_points.points_num);
     }
+    geometry_refs_local[key_i].prev_positions = all_prev_positions[key_in_group_i];
+    geometry_refs_local[key_i].prev_rotations = all_prev_rotations[key_in_group_i];
   }
 
   /* Instead of doing various stages like remembering old positions and updating velocities one
@@ -3667,14 +3673,14 @@ PROFILE_FUNCTION static void simulate_key_group_global(
 
       /* Actually solve the constraints. */
       for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
-        solve_constraints(solver_type, geometry_refs, current_constraint_sets);
+        solve_constraints(solver_type, geometry_refs_local, current_constraint_sets);
       }
     }
 
-    if (sub_delta_time > 0.0f) {
-      /* Apply friction by updating current positions before the new velocity is computed. */
-      apply_friction(key_group, contacts, keys, all_prev_positions, geometry_refs);
-    }
+    // if (sub_delta_time > 0.0f) {
+    //   /* Apply friction by updating current positions before the new velocity is computed. */
+    //   apply_friction(key_group, contacts, state, keys, all_prev_positions, geometry_refs);
+    // }
 
     /* Does remaining per-point updates at the end of this time step (like updating velocities) and
      * also does the beginning of the next timestep already unless this is the last substep. */
@@ -3740,9 +3746,14 @@ PROFILE_FUNCTION static void simulate_curve_local(
         ResourceScope &scope = tls.local_resource_scope();
         const IndexRange points_range = points_by_curve[curves_range];
         const int points_num = points_range.size();
+
         Array<float3, 1024> prev_positions(points_num);
         Array<math::Quaternion, 1024> prev_rotations(sim_points.has_rotation ? points_num : 0);
-        xpbd::ConstraintSetParams params{geometry_refs};
+        Array<xpbd::GeometryRef> geometry_refs_local(geometry_refs);
+        geometry_refs_local[key_i].prev_positions = prev_positions;
+        geometry_refs_local[key_i].prev_rotations = prev_rotations;
+
+        xpbd::ConstraintSetParams params{geometry_refs_local};
         for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
           const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
           pre_solve_per_point_steps(
@@ -3779,7 +3790,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
                 scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
 
             xpbd::SolveStrategy solve_strategy{
-                get_solve_strategy_type(solver_type), geometry_refs, key_i, points_range};
+                get_solve_strategy_type(solver_type), geometry_refs_local, key_i, points_range};
             for (xpbd::CurveLocalConstraintSet *constraint_set :
                  filtered_static_constraint_sets.curve_local)
             {
@@ -3791,15 +3802,15 @@ PROFILE_FUNCTION static void simulate_curve_local(
             solve_strategy.apply();
           }
 
-          if (sub_delta_time > 0.0f) {
-            /* Apply friction by updating current positions before the new velocity is computed.*/
-            for (const auto &item : contacts.static_plane_contacts.items()) {
-              if (item.key.points_key == key) {
-                apply_static_plane_contact_friction(
-                    item.value, prev_positions, points_range.start(), sim_points.positions);
-              }
-            }
-          }
+          // if (sub_delta_time > 0.0f) {
+          //   /* Apply friction by updating current positions before the new velocity is
+          //   computed.*/ for (const auto &item : contacts.static_plane_contacts.items()) {
+          //     if (item.key.points_key == key) {
+          //       apply_static_plane_contact_friction(
+          //           item.value, prev_positions, points_range.start(), sim_points.positions);
+          //     }
+          //   }
+          // }
 
           post_solve_per_point_steps(
               sub_delta_time,
@@ -3867,6 +3878,7 @@ PROFILE_FUNCTION static void simulate_key_group(
   xpbd::ConstraintSetCollector filtered_constraint_sets;
   for (xpbd::ConstraintSet *constraint_set : static_constraint_sets.general) {
     const Span<int> affected_keys = constraint_set->get_affected_geo_indices();
+    BLI_assert(affected_keys.size() == 1);
     if (key_group.contains(affected_keys[0])) {
       filtered_constraint_sets.general.append(constraint_set);
     }

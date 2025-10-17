@@ -280,6 +280,8 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   Span<float3> contact_points_on_plane_;
   Span<float3> separating_axes_;
   Span<float> compliance_terms_;
+  Span<float> static_frictions_;
+  Span<float> dynamic_frictions_;
   MutableSpan<bool> active_states_;
 
  public:
@@ -288,6 +290,8 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
                               const Span<float3> contact_points_on_plane,
                               const Span<float3> separating_axes,
                               const Span<float> compliance_terms,
+                              const Span<float> static_frictions,
+                              const Span<float> dynamic_frictions,
                               MutableSpan<bool> active_states)
       : TemplatedConstraintSet<CollisionPlaneConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
@@ -295,6 +299,8 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
         contact_points_on_plane_(contact_points_on_plane),
         separating_axes_(separating_axes),
         compliance_terms_(compliance_terms),
+        static_frictions_(static_frictions),
+        dynamic_frictions_(dynamic_frictions),
         active_states_(active_states)
   {
   }
@@ -307,11 +313,12 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     const int point_i = points_[constraint_i];
     const float3 &pos = params.position(geo_i_, point_i);
     const float3 &plane_pos = contact_points_on_plane_[constraint_i];
-    const float3 &axis = separating_axes_[constraint_i];
+    const float3 &axis = math::normalize(separating_axes_[constraint_i]);
+    const float compliance_term = compliance_terms_[constraint_i];
 
     const float3 diff = pos - plane_pos;
-    const float axis_distance = math::dot(diff, axis);
-    if (axis_distance >= 0.0f) {
+    const float normal_distance = math::dot(diff, axis);
+    if (normal_distance >= 0.0f) {
       active_states_[constraint_i] = false;
       return;
     }
@@ -321,21 +328,35 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
       active_states_[constraint_i] = false;
       return;
     }
-
-    const float compliance_term = compliance_terms_[constraint_i];
-    const float lambda = -axis_distance / (inv_m + compliance_term);
-    const float3 offset = lambda * inv_m * axis / math::length_squared(axis);
-    updater.update_position(geo_i_, point_i, offset);
     active_states_[constraint_i] = true;
+
+    /* Positional correction for penetration. */
+    const float lambda_normal = -normal_distance / (inv_m + compliance_term);
+    float3 offset = lambda_normal * inv_m * axis;
+
+    /* Apply static friction as a direct positional update. */
+    const float static_friction = static_frictions_[constraint_i];
+    // const float dynamic_friction = dynamic_frictions_[constraint_i];
+    const float3 &prev_pos = params.prev_position(geo_i_, point_i);
+    /* TODO Subtract collider velocity to get true relative velocity. */
+    const float3 velocity = pos - prev_pos;
+    const float3 velocity_tangent = velocity - math::dot(velocity, axis) * axis;
+    const float lambda_tangent = math::length(velocity_tangent) / (inv_m + compliance_term);
+    if (lambda_tangent < static_friction * lambda_normal) {
+      offset -= velocity_tangent * inv_m / (inv_m + compliance_term);
+      // if (tangential_dist >= static_friction * depth) {
+      //   offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
+      // }
+      // new_positions[point_i] -= offset;
+    }
+
+    updater.update_position(geo_i_, point_i, offset);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override
   {
     return unary_constraints_to_independent_masks(points_, memory);
   }
-    attributes.add<bool>("active",
-                         bke::AttrDomain::Point,
-                         bke::AttributeInitVArray(GVArray::from_span(active_states_)));
 };
 
 class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistanceConstraintSet> {

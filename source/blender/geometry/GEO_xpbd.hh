@@ -23,11 +23,15 @@ namespace blender::xpbd {
 struct GeometryRef {
   /** The position of each points. */
   MutableSpan<float3> positions;
+  /** Positions before time integration. */
+  Span<float3> prev_positions;
   /* Inverse mass of each point. This is expected to be zero for pinned points. */
   Span<float> inverse_masses;
 
   /** Optional rotation data. */
   MutableSpan<math::Quaternion> rotations;
+  /** Rotations before time integration. */
+  Span<math::Quaternion> prev_rotations;
   Span<float3> inertias;
   Span<float3> inverse_inertias;
 
@@ -44,9 +48,13 @@ class ConstraintSetParams {
 
   const float3 &position(int geo_i, int point_i) const;
   const math::Quaternion &rotation(int geo_i, int point_i) const;
+  const float3 &prev_position(int geo_i, int point_i) const;
+  const math::Quaternion &prev_rotation(int geo_i, int point_i) const;
 
   Span<float3> positions(int geo_i) const;
   Span<math::Quaternion> rotations(int geo_i) const;
+  Span<float3> prev_positions(int geo_i) const;
+  Span<math::Quaternion> prev_rotations(int geo_i) const;
 
   float inverse_mass(int geo_i, int point_i) const;
   Span<float> inverse_masses(int geo_i) const;
@@ -257,6 +265,17 @@ inline const math::Quaternion &ConstraintSetParams::rotation(const int geo_i,
   return geometry_refs_[geo_i].rotations[point_i];
 }
 
+inline const float3 &ConstraintSetParams::prev_position(const int geo_i, const int point_i) const
+{
+  return geometry_refs_[geo_i].prev_positions[point_i];
+}
+
+inline const math::Quaternion &ConstraintSetParams::prev_rotation(const int geo_i,
+                                                                  const int point_i) const
+{
+  return geometry_refs_[geo_i].prev_rotations[point_i];
+}
+
 inline Span<float3> ConstraintSetParams::positions(const int geo_i) const
 {
   return geometry_refs_[geo_i].positions;
@@ -265,6 +284,16 @@ inline Span<float3> ConstraintSetParams::positions(const int geo_i) const
 inline Span<math::Quaternion> ConstraintSetParams::rotations(const int geo_i) const
 {
   return geometry_refs_[geo_i].rotations;
+}
+
+inline Span<float3> ConstraintSetParams::prev_positions(const int geo_i) const
+{
+  return geometry_refs_[geo_i].prev_positions;
+}
+
+inline Span<math::Quaternion> ConstraintSetParams::prev_rotations(const int geo_i) const
+{
+  return geometry_refs_[geo_i].prev_rotations;
 }
 
 inline float ConstraintSetParams::inverse_mass(const int geo_i, const int point_i) const
