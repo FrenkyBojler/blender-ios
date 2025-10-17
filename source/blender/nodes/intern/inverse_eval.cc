@@ -547,10 +547,10 @@ static bool set_modifier_value(bContext &C,
                                const SocketValueVariant &value_variant)
 {
   DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
-
-  const std::string main_prop_rna_path = fmt::format("modifiers[\"{}\"].properties.{}",
-                                                     BLI_str_escape(nmd.modifier.name),
-                                                     interface_socket.identifier);
+  const std::string main_prop_rna_path = fmt::format(
+      "modifiers[\"{}\"].properties.inputs.{}.value",
+      BLI_str_escape(nmd.modifier.name),
+      interface_socket.identifier);
 
   switch (interface_socket.socket_typeinfo()->type) {
     case SOCK_FLOAT: {

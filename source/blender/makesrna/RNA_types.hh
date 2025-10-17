@@ -769,6 +769,8 @@ using PointerPropertyGetFunc = PointerRNA (*)(PointerRNA *ptr);
 using PointerPropertySetFunc = void (*)(PointerRNA *ptr, PointerRNA value, ReportList *reports);
 using PointerPropertyTypeFunc = StructRNA *(*)(PointerRNA * ptr);
 
+using StructPathFunc = std::optional<std::string> (*)(const PointerRNA *ptr);
+
 struct StringPropertySearchVisitParams {
   /** Text being searched for. */
   std::string text;

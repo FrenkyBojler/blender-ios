@@ -1293,6 +1293,11 @@ void RNA_def_struct_path_func(StructRNA *srna, const char *path)
   }
 }
 
+void RNA_def_struct_path_func_runtime(StructRNA *srna, StructPathFunc path_fn)
+{
+  srna->path = path_fn;
+}
+
 void RNA_def_struct_identifier(BlenderRNA *brna, StructRNA *srna, const char *identifier)
 {
   if (DefRNA.preprocess) {

@@ -4,8 +4,11 @@
 
 #include <fmt/format.h>
 
+#include "BLI_string.h"
+
 #include "NOD_geometry_nodes_srna.hh"
 
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 
 #include "BKE_node_runtime.hh"
@@ -48,6 +51,16 @@ const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_lay
     {0},
 };
 
+static std::optional<std::string> rna_NodesModifierPropertyInput_path(const PointerRNA *ptr)
+{
+  StructRNA *srna = ptr->type;
+  const char *identifier = RNA_struct_identifier(srna);
+  const auto *nmd = ptr->data_as<NodesModifierData>();
+  BLI_assert(nmd != nullptr);
+  std::string name_esc = BLI_str_escape(nmd->modifier.name);
+  return fmt::format("modifiers[\"{}\"].properties.inputs.{}", name_esc, identifier);
+}
+
 static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
                                               const bNodeTreeInterfaceSocket &socket,
                                               GeneratedTreeSrnaData &r_generated)
@@ -56,13 +69,17 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &tree,
   if (!stype) {
     return nullptr;
   }
+  // TODO: Why was this code using the socket type idname as part of the struct identifier?
+  // const StringRefNull srna_identifier = r_generated.scope.allocator().copy_string(
+  //     fmt::format("{}_{}", stype->idname, socket.identifier));
+  // TODO: Does this actually need to copy the string?
   const StringRefNull srna_identifier = r_generated.scope.allocator().copy_string(
-      fmt::format("{}_{}", stype->idname, socket.identifier));
+      socket.identifier);
 
   StructRNA *srna = RNA_def_struct_ptr(&BLENDER_RNA, srna_identifier.c_str(), &RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
   r_generated.structs.append(srna);
-
+  RNA_def_struct_path_func_runtime(srna, rna_NodesModifierPropertyInput_path);
   if (stype->make_geometry_nodes_input_srna) {
     stype->make_geometry_nodes_input_srna(tree, *srna, socket, r_generated);
   }
@@ -90,6 +107,16 @@ static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
   return srna;
 }
 
+static std::optional<std::string> rna_NodesModifierPropertyOutput_path(const PointerRNA *ptr)
+{
+  StructRNA *srna = ptr->type;
+  const char *identifier = RNA_struct_identifier(srna);
+  const auto *nmd = ptr->data_as<NodesModifierData>();
+  BLI_assert(nmd != nullptr);
+  std::string name_esc = BLI_str_escape(nmd->modifier.name);
+  return fmt::format("modifiers[\"{}\"].properties.outputs.{}", name_esc, identifier);
+}
+
 static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
@@ -101,6 +128,7 @@ static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDa
       &BLENDER_RNA, "GeometryNodesInterfaceOutputAttribute", &RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(output_srna));
   RNA_def_string(output_srna, "attribute_name", nullptr, 0, "Attribute Name", "");
+  RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
 
   for (const bNodeTreeInterfaceSocket *socket : tree.interface_outputs()) {
     RNA_def_pointer_runtime(

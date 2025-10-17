@@ -55,7 +55,6 @@ using EditableFunc = int (*)(const PointerRNA *ptr, const char **r_info);
 using ItemEditableFunc = int (*)(const PointerRNA *ptr, int index);
 using IDPropertiesFunc = IDProperty **(*)(PointerRNA * ptr);
 using StructRefineFunc = StructRNA *(*)(PointerRNA * ptr);
-using StructPathFunc = std::optional<std::string> (*)(const PointerRNA *ptr);
 using PropUINameFunc = const char *(*)(const PointerRNA *ptr,
                                        const PropertyRNA *prop,
                                        bool do_translate);
