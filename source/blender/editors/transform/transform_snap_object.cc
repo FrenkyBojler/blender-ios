@@ -578,7 +578,7 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
                                 bool /*is_object_active*/,
                                 bool use_hide)
 {
-  eSnapMode retval = SCE_SNAP_TO_NONE;
+  bool retval = false;
 
   if (ob_data == nullptr) {
     if ((sctx->runtime.occlusion_test_edit == SNAP_OCCLUSION_AS_SEEM) &&
@@ -588,8 +588,9 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
       return SCE_SNAP_TO_NONE;
     }
     if (ob_eval->type == OB_MESH) {
-      retval = snap_object_editmesh(
-          sctx, ob_eval, nullptr, obmat, sctx->runtime.snap_to_flag, use_hide);
+      if (snap_object_editmesh(sctx, ob_eval, nullptr, obmat, SCE_SNAP_TO_FACE, use_hide)) {
+        retval = true;
+      }
     }
     else {
       return SCE_SNAP_TO_NONE;
@@ -614,10 +615,13 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
     return SCE_SNAP_TO_NONE;
   }
   else {
-    retval = snap_object_mesh(sctx, ob_eval, ob_data, obmat, sctx->runtime.snap_to_flag, use_hide);
+    retval = snap_object_mesh(sctx, ob_eval, ob_data, obmat, SCE_SNAP_TO_FACE, use_hide);
   }
 
-  return retval;
+  if (retval) {
+    return SCE_SNAP_TO_FACE;
+  }
+  return SCE_SNAP_TO_NONE;
 }
 
 /**
