@@ -35,8 +35,7 @@ function(cuda_add_common_flags cuda_version arch in_flags out_flags)
     # Helps with compatibility when using recent clang host compiler.
     "-std=c++17"
     --use_fast_math
-    -Wno-deprecated-gpu-targets
-    -allow-unsupported-compiler)
+    -Wno-deprecated-gpu-targets)
 
   if(WITH_CYCLES_DEBUG)
     set(flags ${flags}
