@@ -1867,16 +1867,16 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
   /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
   ID_NEW_SET(sce, sce_copy);
 
-  /* Exception for the compositor; Before 5.0, creating a linked copy of the scene created a new
-   * compositing node tree with a Render Layers node that referred to the new scene.
-   * To preserve this behavior, we make a deep copy when creating a linked copy as well as a full
-   * copy of the scene.*/
-  BKE_id_copy_for_duplicate(
-      bmain, reinterpret_cast<ID *>(sce->compositing_node_group), duplicate_flags, copy_flags);
-
   /* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks. */
 
   BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
+
+  /* Exception for the compositor; Before 5.0, creating a linked copy of the scene created a new
+   * compositing node tree with a Render Layers node that referred to the new scene.
+   * To preserve this behavior, we make a full copy when creating a linked copy as well as a full
+   * copy of the scene.*/
+  BKE_id_copy_for_duplicate(
+      bmain, reinterpret_cast<ID *>(sce->compositing_node_group), duplicate_flags, copy_flags);
 
   if (type == SCE_COPY_FULL) {
     /* Copy Freestyle LineStyle datablocks. */
