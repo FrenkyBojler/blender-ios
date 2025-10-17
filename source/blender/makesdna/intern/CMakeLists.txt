@@ -89,6 +89,21 @@ setup_platform_linker_flags(makesdna)
 setup_platform_linker_libs(makesdna)
 blender_target_include_dirs(makesdna ${INC})
 blender_target_include_dirs_sys(makesdna ${INC_SYS})
+
+# if(WITH_TBB_MALLOC_PROXY)
+#   # target_link_libraries(${target} PRIVATE ${TBB_MALLOC_PROXY_LIBRARIES})
+#   # target_link_libraries(${target} PRIVATE ${TBB_MALLOC_LIBRARIES})
+#   # list(APPEND lIB
+#     # PRIVATE ${TBB_MALLOC_LIBRARIES}
+#     # PRIVATE ${TBB_MALLOC_PROXY_LIBRARIES}
+#   # )
+#   target_link_libraries(makesdna
+#     PRIVATE ${TBB_MALLOC_LIBRARIES}
+#     PRIVATE ${TBB_MALLOC_PROXY_LIBRARIES}
+#   )
+# endif()
+
+
 target_link_libraries(makesdna ${LIB})
 
 if(WIN32 AND NOT UNIX)
