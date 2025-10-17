@@ -359,6 +359,8 @@ typedef struct uiViewState {
   int scroll_offset;
   uint8_t flag; /* #uiViewStateflag */
   char _pad[7];
+
+  char *search_string;
 } uiViewState;
 
 /**
