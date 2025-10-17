@@ -2,3 +2,4 @@ Referenced by commit 83e91485d09, GPU: Fix NOT ~ operator for eGPUSamplerState
 Referenced by issue #81572, Viewport Shading Cavity Glitch
 Referenced by issue #81340, UBSan: several runtime errors at launch.
 Referenced by pull request #148230, Cleanup: BLI ENUM_OPERATORS cleanup/robustness
+Referenced by commit facb17b0e3be420d7b8a6eecb9a62a07f6fa8986, Cleanup: BLI ENUM_OPERATORS cleanup/robustness
