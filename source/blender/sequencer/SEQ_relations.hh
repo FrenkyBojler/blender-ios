@@ -10,7 +10,7 @@
 
 #include <cstddef>
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 struct ListBase;
 struct Main;
@@ -90,7 +90,7 @@ enum class CacheCleanup {
    * cache, plus various intra-frame cached things. */
   Rendered = FinalImage | SingleFrame,
 };
-ENUM_OPERATORS(CacheCleanup, CacheCleanup::SingleFrame);
+ENUM_OPERATORS(CacheCleanup);
 
 void cache_cleanup(Scene *scene, CacheCleanup mode);
 

@@ -532,30 +532,38 @@ const EnumPropertyItem rna_enum_node_compositor_extension_items[] = {
     {CMP_NODE_EXTENSION_MODE_CLIP,
      "CLIP",
      0,
-     "Clip",
-     "Areas outside of the image are filled with zero"},
+     N_("Clip"),
+     N_("Areas outside of the image are filled with zero")},
     {CMP_NODE_EXTENSION_MODE_EXTEND,
      "EXTEND",
      0,
-     "Extend",
-     "Areas outside of the image are filled with the closest boundary pixel in the image"},
+     N_("Extend"),
+     N_("Areas outside of the image are filled with the closest boundary pixel in the image")},
     {CMP_NODE_EXTENSION_MODE_REPEAT,
      "REPEAT",
      0,
-     "Repeat",
-     "Areas outside of the image are filled with repetitions of the image"},
+     N_("Repeat"),
+     N_("Areas outside of the image are filled with repetitions of the image")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 const EnumPropertyItem rna_enum_node_compositor_interpolation_items[] = {
-    {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, "Nearest", "Use Nearest interpolation"},
-    {CMP_NODE_INTERPOLATION_BILINEAR, "BILINEAR", 0, "Bilinear", "Use Bilinear interpolation"},
-    {CMP_NODE_INTERPOLATION_BICUBIC, "BICUBIC", 0, "Bicubic", "Use Cubic B-Spline interpolation"},
+    {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, N_("Nearest"), N_("Use Nearest interpolation")},
+    {CMP_NODE_INTERPOLATION_BILINEAR,
+     "BILINEAR",
+     0,
+     N_("Bilinear"),
+     N_("Use Bilinear interpolation")},
+    {CMP_NODE_INTERPOLATION_BICUBIC,
+     "BICUBIC",
+     0,
+     N_("Bicubic"),
+     N_("Use Cubic B-Spline interpolation")},
     {CMP_NODE_INTERPOLATION_ANISOTROPIC,
      "ANISOTROPIC",
      0,
-     "Anisotropic",
-     "Use Anisotropic interpolation"},
+     N_("Anisotropic"),
+     N_("Use Anisotropic interpolation")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -9387,7 +9395,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_sdna(prop, nullptr, "view_center");
   RNA_def_property_ui_text(
-      prop, "", "The current location (offset) of the view for this Node Tree");
+      prop, "View Center", "The current location (offset) of the view for this Node Tree");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
