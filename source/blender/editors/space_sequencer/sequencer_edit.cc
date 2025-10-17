@@ -2067,7 +2067,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   }
 
   /* Close gaps. */
-  VectorSet<Strip *> strips_translated;
+  VectorSet<Strip *> transformed_strips;
   VectorSet<Strip *> strips_connected;
   if (remove_gaps) {
     int offset = rect_frames[0] - rect_frames[1];
@@ -2082,14 +2082,14 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
       if (left_handle == rect_frames[1]) {
         seq::transform_translate_strip(scene, strip, offset);
-        strips_translated.add(strip);
+        transformed_strips.add(strip);
       }
       /* Offset every strip on the same channel and right of the cut. */
       else if (left_handle > rect_frames[1] && strip->channel <= int(rectf.ymax) &&
                strip->channel >= int(rectf.ymin))
       {
         seq::transform_translate_strip(scene, strip, offset);
-        strips_translated.add(strip);
+        transformed_strips.add(strip);
         /* Also offset connected strips, this is important for the case that for example audio gets
          * cut -> cut gets propageded to connected video -> audio on the same channel moves to the
          * left to close the gap(video not). When not offsetting connected strips in this case the
@@ -2099,22 +2099,21 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       }
     }
     /* I don't offset and add the connected strips directly in the FOREACH above to the
-     * strips_translated for now because it lead to some bugs. Might investigate this later. */
+     * transformed_strips for now because it lead to some bugs. Might investigate this later. */
     for (Strip *strip : strips_connected) {
-      if (strips_translated.contains(strip)) {
+      if (transformed_strips.contains(strip)) {
         continue;
       }
-      /* TODO: This can lead to strips overlap, handle this in some way. */
+      /* This can lead to strips overlap. */
       seq::transform_translate_strip(scene, strip, offset);
-      strips_translated.add(strip);
+      transformed_strips.add(strip);
     }
-    /* Fix Overlap? */
-    // VectorSet<Strip *> dependant;
-    // dependant.add_multiple(strips_translated);
-    // dependant.remove_if(
-    //     [&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
-    // seq::transform_handle_overlap(
-    //     scene, ed->current_strips(), strips_translated, dependant, false);
+    /* Handle overlap by moving strip up. */
+    for (Strip *strip : transformed_strips) {
+      if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
+        seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
+      }
+    }
   }
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   return OPERATOR_FINISHED;
@@ -2130,7 +2129,9 @@ static void sequencer_box_blade_ui(bContext * /*C*/, wmOperator *op)
   layout->prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static wmOperatorStatus sequencer_box_blade_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
 
