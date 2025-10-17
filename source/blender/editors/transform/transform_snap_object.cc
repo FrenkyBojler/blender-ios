@@ -1324,7 +1324,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (use_occlusion_plane || (snap_to_flag & (SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER)) ||
+  if (use_occlusion_plane || (snap_to_flag & (SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT)) ||
       /* Snap to Grid requires `ray_start` and `ray_dir`. */
       (snap_to_flag & SCE_SNAP_TO_GRID))
   {
@@ -1351,7 +1351,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
         ray_depth_max = math::dot(ray_end - sctx->runtime.ray_start, sctx->runtime.ray_dir);
       }
       else {
-        snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER);
+        snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT);
         use_occlusion_plane = false;
       }
     }
@@ -1397,7 +1397,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (use_occlusion_plane || (snap_to_flag & ((SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER)))) {
+  if (use_occlusion_plane || (snap_to_flag & ((SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT)))) {
     has_hit = raycastObjects(sctx);
 
     if (has_hit) {
@@ -1405,9 +1405,9 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
         copy_v3_v3(r_face_nor, sctx->ret.no);
       }
 
-      if (snap_to_flag & SCE_SNAP_FACE_CENTER) {
-        if (snap_polygon(sctx, SCE_SNAP_FACE_CENTER) != SCE_SNAP_TO_NONE) {
-          retval = SCE_SNAP_FACE_CENTER;
+      if (snap_to_flag & SCE_SNAP_TO_FACE_MIDPOINT) {
+        if (snap_polygon(sctx, SCE_SNAP_TO_FACE_MIDPOINT) != SCE_SNAP_TO_NONE) {
+          retval = SCE_SNAP_TO_FACE_MIDPOINT;
         }
         else if (snap_to_flag & SCE_SNAP_TO_FACE) {
           retval |= SCE_SNAP_TO_FACE;
@@ -1423,7 +1423,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     eSnapMode elem_test, elem = SCE_SNAP_TO_NONE;
 
     /* Remove what has already been computed. */
-    sctx->runtime.snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_FACE_CENTER |
+    sctx->runtime.snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT |
                                     SCE_SNAP_INDIVIDUAL_NEAREST);
 
     SnapObjectContext::Output ret_bak{};

@@ -411,7 +411,7 @@ static void cursor_point_draw(
       immVertex3f(attr_pos, +size_b, -size_b, 0.0f);
       immEnd();
       break;
-    case SCE_SNAP_FACE_CENTER:
+    case SCE_SNAP_TO_FACE_MIDPOINT:
       imm_draw_circle_wire_3d(attr_pos, 0.0f, 0.0f, 1.0f, 24);
       break;
     case SCE_SNAP_TO_FACE:
@@ -809,7 +809,7 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
   {
     snap_elem_index[1] = index;
   }
-  else if (snap_elem & SCE_SNAP_FACE_CENTER) {
+  else if (snap_elem & SCE_SNAP_TO_FACE_MIDPOINT) {
     snap_elem_index[2] = index;
   }
   else if (snap_elem == SCE_SNAP_TO_FACE) {
