@@ -174,7 +174,7 @@ static void multires_level_calc_object_delta(
   for (const int i : higher_subdiv_ccg.positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
     object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
-    printf("\t(%d) (%f %f %f) - (%f %f %f) = (%f %f %f)\n",
+    printf("\t(%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)\n",
            i,
            higher_subdiv_ccg.positions[i].x,
            higher_subdiv_ccg.positions[i].y,
@@ -184,7 +184,8 @@ static void multires_level_calc_object_delta(
            limit_surf_position.z,
            object_delta[i].x,
            object_delta[i].y,
-           object_delta[i].z);
+           object_delta[i].z,
+           blender::math::length(object_delta[i]));
   }
 }
 

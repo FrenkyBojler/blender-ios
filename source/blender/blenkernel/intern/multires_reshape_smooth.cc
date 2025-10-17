@@ -430,13 +430,13 @@ static blender::float2 ccg_uv_corner_to_ptex_uv(blender::float2 uv, int corner) 
     return blender::float2(1.0f - uv.y, 1.0f - uv.x);
   }
   if (corner == 1) {
-    return blender::float2(uv.y, 1.0f - uv.x);
+    return blender::float2(uv.x, 1.0f - uv.y);
   }
   if (corner == 2) {
     return blender::float2(uv.y, uv.x);
   }
   BLI_assert(corner == 3);
-  return blender::float2(1.0f - uv.y, uv.x);
+  return blender::float2(1.0f - uv.x, uv.y);
 }
 
 static void foreach_toplevel_grid_coord_single_threaded(
