@@ -269,6 +269,12 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
 };
 #endif
 
+const EnumPropertyItem rna_enum_space_action_mode_items[] = {
+    SACT_ITEM_DOPESHEET,
+    SACT_ITEM_TIMELINE,
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #undef SACT_ITEM_DOPESHEET
 #undef SACT_ITEM_ACTION
 #undef SACT_ITEM_SHAPEKEY
