@@ -282,7 +282,14 @@ ccl_device_inline int kernel_lpe_count_event(ccl_private const char *path, char 
   return count;
 }
 
-/* Advanced LPE pattern matching with wildcard support
+/* LPE pattern matching with operator support
+ * Supports: | (OR), - (SUBTRACT), ! (NEGATE), and all basic wildcards
+ * This is the main entry point for LPE matching
+ */
+ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char *path,
+                                                         ccl_private const char *pattern);
+
+/* Advanced LPE pattern matching with wildcard support (single pattern)
  * Supports:
  * - . : matches any single character
  * - * : zero or more of the preceding character/class
@@ -291,7 +298,7 @@ ccl_device_inline int kernel_lpe_count_event(ccl_private const char *path, char 
  * - {n,m} : between n and m repetitions (inclusive)
  * - {n,} : n or more repetitions
  * - {EVENT=N} : count constraint - path must have exactly N occurrences of EVENT
- * - [ABC] : character class (matches any char in the set)
+ * - [ABC] or [^ABC] : character class or negated character class
  * - Literal characters
  */
 ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
@@ -545,6 +552,96 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
   return path[path_pos] == '\0';
 }
 
+/* LPE pattern matching with operator support
+ * Handles: | (OR), - (SUBTRACT), ! (NEGATE) operators with " | " and " - " spacing requirement
+ */
+ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char *path,
+                                                         ccl_private const char *pattern)
+{
+  /* Check for leading negation operator ! */
+  bool has_negation = false;
+  int pos = 0;
+
+  if (pattern[pos] == '!') {
+    has_negation = true;
+    pos++;
+    while (pattern[pos] == ' ')
+      pos++; /* Skip spaces after ! */
+  }
+
+  /* Parse and match patterns with operators */
+  char sub_pattern[LPE_MAX_EXPRESSION_LENGTH];
+  int sub_pos = 0;
+  bool result = false;
+  bool first_pattern = true;
+  char last_operator = '\0';
+
+  while (pattern[pos] != '\0') {
+    /* Check for operator with spaces: " | " or " - " */
+    if (pattern[pos] == ' ' && pattern[pos + 1] != '\0' && pattern[pos + 2] == ' ') {
+      char op = pattern[pos + 1];
+      if (op == '|' || op == '-') {
+        /* Terminate current sub-pattern */
+        sub_pattern[sub_pos] = '\0';
+
+        /* Match current sub-pattern */
+        bool current = kernel_lpe_matches(path, sub_pattern);
+
+        /* Apply operator */
+        if (first_pattern) {
+          result = current;
+          first_pattern = false;
+        }
+        else {
+          if (last_operator == '|') {
+            result = result || current; /* Union */
+          }
+          else if (last_operator == '-') {
+            result = result && !current; /* Difference */
+          }
+        }
+
+        /* Save operator for next iteration */
+        last_operator = op;
+
+        /* Reset for next sub-pattern */
+        sub_pos = 0;
+        pos += 3; /* Skip " op " */
+        continue;
+      }
+    }
+
+    /* Build current sub-pattern */
+    if (sub_pos < LPE_MAX_EXPRESSION_LENGTH - 1) {
+      sub_pattern[sub_pos++] = pattern[pos];
+    }
+    pos++;
+  }
+
+  /* Match final sub-pattern */
+  sub_pattern[sub_pos] = '\0';
+  bool current = kernel_lpe_matches(path, sub_pattern);
+
+  if (first_pattern) {
+    result = current;
+  }
+  else {
+    if (last_operator == '|') {
+      result = result || current;
+    }
+    else if (last_operator == '-') {
+      result = result && !current;
+    }
+  }
+
+  /* Apply negation if present */
+  if (has_negation) {
+    result = !result;
+  }
+
+  return result;
+}
+
 /* Decompress LPE expression from lookup table */
 ccl_device_inline void kernel_lpe_decompress_expression(ccl_global const float *lpe_data,
                                                         ccl_private char *expression)
@@ -597,7 +694,7 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
     char expression[LPE_MAX_EXPRESSION_LENGTH];
     kernel_lpe_decompress_expression(lpe_data, expression);
 
-    if (kernel_lpe_matches(path_str, expression)) {
+    if (kernel_lpe_matches_with_operators(path_str, expression)) {
       film_write_pass_spectrum(buffer + current_lpe_offset, contribution);
     }
 
@@ -656,7 +753,7 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
     char expression[LPE_MAX_EXPRESSION_LENGTH];
     kernel_lpe_decompress_expression(lpe_data, expression);
 
-    if (kernel_lpe_matches(path_str, expression)) {
+    if (kernel_lpe_matches_with_operators(path_str, expression)) {
       film_write_pass_spectrum(buffer + current_lpe_offset, contribution);
     }
 

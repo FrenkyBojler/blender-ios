@@ -34,11 +34,25 @@ enum LPETokenType {
   LPE_TOKEN_END        /* End of expression */
 };
 
+/* LPE operators for combining expressions */
+enum LPEOperator {
+  LPE_OP_NONE,     /* No operator */
+  LPE_OP_OR,       /* | - Union of two patterns */
+  LPE_OP_SUBTRACT, /* - - Set difference (A - B) */
+  LPE_OP_NEGATE    /* ! - Negation of entire expression */
+};
+
 struct LPEToken {
   LPETokenType type;
   int event_mask;      /* Bitmask of allowed events for sets/specific events */
   vector<char> events; /* For character sets */
   bool is_negated;     /* For negated character sets [^...] */
+};
+
+/* Single pattern (e.g., CDL or C.*L) */
+struct LPEPattern {
+  vector<LPEToken> tokens;
+  string pattern_str; /* Original pattern string for this sub-pattern */
 };
 
 class LPEParser {
@@ -73,14 +87,20 @@ class LPEParser {
  private:
   string expression_;
   bool is_valid_;
-  vector<LPEToken> tokens_;
+  vector<LPEToken> tokens_;        /* For backward compatibility - single pattern */
+  vector<LPEPattern> patterns_;    /* Multiple patterns for OR/SUBTRACT operations */
+  vector<LPEOperator> operators_;  /* Operators between patterns */
+  bool has_negation_;              /* Leading ! operator */
 
   /* Parse helpers */
   bool parse_tokens();
+  bool parse_pattern(const string &pattern_str, LPEPattern &pattern);
   int char_to_event(char c) const;
 
   /* Matching helpers */
   bool match_recursive(const char *path, size_t token_idx) const;
+  bool match_recursive(const char *path, size_t token_idx, const vector<LPEToken> &tokens) const;
+  bool match_pattern(const char *path, const LPEPattern &pattern) const;
   bool char_matches_token(char c, const LPEToken &token) const;
 };
 

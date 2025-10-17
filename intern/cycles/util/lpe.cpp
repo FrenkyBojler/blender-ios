@@ -7,7 +7,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-LPEParser::LPEParser() : is_valid_(false) {}
+LPEParser::LPEParser() : is_valid_(false), has_negation_(false) {}
 
 LPEParser::~LPEParser() {}
 
@@ -15,24 +15,73 @@ bool LPEParser::compile(const string &expression)
 {
   expression_ = expression;
   tokens_.clear();
+  patterns_.clear();
+  operators_.clear();
+  has_negation_ = false;
 
   if (expression.empty()) {
     is_valid_ = false;
     return false;
   }
 
-  if (!parse_tokens()) {
-    is_valid_ = false;
-    return false;
+  /* Check for leading negation operator ! */
+  const char *ptr = expression.c_str();
+  if (*ptr == '!') {
+    has_negation_ = true;
+    ptr++;
+    while (*ptr == ' ')
+      ptr++; /* Skip spaces after ! */
+  }
+
+  string expr_without_negation = has_negation_ ? string(ptr) : expression;
+
+  /* Split expression by | and - operators (with surrounding spaces) */
+  vector<string> parts;
+  string current;
+  ptr = expr_without_negation.c_str();
+
+  while (*ptr) {
+    /* Check for operator with spaces: " | " or " - " */
+    if (*ptr == ' ' && *(ptr + 1) != '\0' && *(ptr + 2) == ' ') {
+      char op = *(ptr + 1);
+      if (op == '|' || op == '-') {
+        parts.push_back(current);
+        operators_.push_back(op == '|' ? LPE_OP_OR : LPE_OP_SUBTRACT);
+        current.clear();
+        ptr += 3; /* Skip " op " */
+        continue;
+      }
+    }
+    current += *ptr;
+    ptr++;
+  }
+  parts.push_back(current);
+
+  /* Parse each sub-pattern */
+  for (size_t i = 0; i < parts.size(); i++) {
+    LPEPattern pattern;
+    if (!parse_pattern(parts[i], pattern)) {
+      is_valid_ = false;
+      return false;
+    }
+    patterns_.push_back(pattern);
+  }
+
+  /* For backward compatibility: if single pattern, populate tokens_ */
+  if (patterns_.size() == 1 && !has_negation_) {
+    tokens_ = patterns_[0].tokens;
   }
 
   is_valid_ = true;
   return true;
 }
 
-bool LPEParser::parse_tokens()
+bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
 {
-  const char *ptr = expression_.c_str();
+  pattern.pattern_str = pattern_str;
+  pattern.tokens.clear();
+
+  const char *ptr = pattern_str.c_str();
 
   while (*ptr) {
     /* Skip spaces */
@@ -48,25 +97,25 @@ bool LPEParser::parse_tokens()
     /* Check for wildcards */
     if (*ptr == '*') {
       token.type = LPE_TOKEN_STAR;
-      tokens_.push_back(token);
+      pattern.tokens.push_back(token);
       ptr++;
       continue;
     }
     else if (*ptr == '+') {
       token.type = LPE_TOKEN_PLUS;
-      tokens_.push_back(token);
+      pattern.tokens.push_back(token);
       ptr++;
       continue;
     }
     else if (*ptr == '?') {
       token.type = LPE_TOKEN_OPTIONAL;
-      tokens_.push_back(token);
+      pattern.tokens.push_back(token);
       ptr++;
       continue;
     }
     else if (*ptr == '.') {
       token.type = LPE_TOKEN_ANY;
-      tokens_.push_back(token);
+      pattern.tokens.push_back(token);
       ptr++;
       continue;
     }
@@ -111,7 +160,7 @@ bool LPEParser::parse_tokens()
       }
 
       if (token.event_mask != 0) {
-        tokens_.push_back(token);
+        pattern.tokens.push_back(token);
       }
       continue;
     }
@@ -122,10 +171,10 @@ bool LPEParser::parse_tokens()
         token.type = LPE_TOKEN_EVENT;
         token.event_mask = (1 << event);
         token.events.push_back(*ptr);
-        tokens_.push_back(token);
+        pattern.tokens.push_back(token);
       }
       else {
-        LOG_WARNING << "Invalid character '" << *ptr << "' in LPE expression: " << expression_;
+        LOG_WARNING << "Invalid character '" << *ptr << "' in LPE pattern: " << pattern_str;
         return false;
       }
       ptr++;
@@ -136,7 +185,8 @@ bool LPEParser::parse_tokens()
   LPEToken end_token;
   end_token.type = LPE_TOKEN_END;
   end_token.event_mask = 0;
-  tokens_.push_back(end_token);
+  end_token.is_negated = false;
+  pattern.tokens.push_back(end_token);
 
   return true;
 }
@@ -173,21 +223,71 @@ int LPEParser::char_to_event(char c) const
 
 bool LPEParser::match(const string &path) const
 {
-  if (!is_valid_ || tokens_.empty()) {
+  if (!is_valid_) {
     return false;
   }
 
-  return match_recursive(path.c_str(), 0);
+  /* For simple single-pattern expressions (backward compatibility) */
+  if (patterns_.empty() && !tokens_.empty()) {
+    return match_recursive(path.c_str(), 0);
+  }
+
+  /* For multi-pattern expressions with operators */
+  if (patterns_.empty()) {
+    return false;
+  }
+
+  /* Match first pattern */
+  bool result = match_pattern(path.c_str(), patterns_[0]);
+
+  /* Apply operators */
+  for (size_t i = 0; i < operators_.size(); i++) {
+    bool next = match_pattern(path.c_str(), patterns_[i + 1]);
+
+    switch (operators_[i]) {
+      case LPE_OP_OR:
+        result = result || next; /* Union */
+        break;
+      case LPE_OP_SUBTRACT:
+        result = result && !next; /* Difference */
+        break;
+      default:
+        break;
+    }
+  }
+
+  /* Apply negation if present */
+  if (has_negation_) {
+    result = !result;
+  }
+
+  return result;
+}
+
+bool LPEParser::match_pattern(const char *path, const LPEPattern &pattern) const
+{
+  if (pattern.tokens.empty()) {
+    return false;
+  }
+
+  return match_recursive(path, 0, pattern.tokens);
 }
 
 bool LPEParser::match_recursive(const char *path, size_t token_idx) const
 {
+  return match_recursive(path, token_idx, tokens_);
+}
+
+bool LPEParser::match_recursive(const char *path,
+                                size_t token_idx,
+                                const vector<LPEToken> &tokens) const
+{
   /* End of tokens */
-  if (token_idx >= tokens_.size()) {
+  if (token_idx >= tokens.size()) {
     return *path == '\0';
   }
 
-  const LPEToken &token = tokens_[token_idx];
+  const LPEToken &token = tokens[token_idx];
 
   /* End token */
   if (token.type == LPE_TOKEN_END) {
@@ -197,15 +297,15 @@ bool LPEParser::match_recursive(const char *path, size_t token_idx) const
   /* Star operator: match zero or more characters */
   if (token.type == LPE_TOKEN_STAR) {
     /* Try matching zero characters (skip this token) */
-    if (match_recursive(path, token_idx + 1)) {
+    if (match_recursive(path, token_idx + 1, tokens)) {
       return true;
     }
 
     /* Try matching one or more characters */
     const char *p = path;
-    while (*p && (token_idx > 0 && char_matches_token(*p, tokens_[token_idx - 1]))) {
+    while (*p && (token_idx > 0 && char_matches_token(*p, tokens[token_idx - 1]))) {
       p++;
-      if (match_recursive(p, token_idx + 1)) {
+      if (match_recursive(p, token_idx + 1, tokens)) {
         return true;
       }
     }
@@ -215,19 +315,19 @@ bool LPEParser::match_recursive(const char *path, size_t token_idx) const
   /* Plus operator: match one or more characters */
   if (token.type == LPE_TOKEN_PLUS) {
     /* Must match at least one character */
-    if (*path == '\0' || (token_idx > 0 && !char_matches_token(*path, tokens_[token_idx - 1]))) {
+    if (*path == '\0' || (token_idx > 0 && !char_matches_token(*path, tokens[token_idx - 1]))) {
       return false;
     }
 
     const char *p = path + 1;
-    if (match_recursive(p, token_idx + 1)) {
+    if (match_recursive(p, token_idx + 1, tokens)) {
       return true;
     }
 
     /* Try matching more characters */
-    while (*p && (token_idx > 0 && char_matches_token(*p, tokens_[token_idx - 1]))) {
+    while (*p && (token_idx > 0 && char_matches_token(*p, tokens[token_idx - 1]))) {
       p++;
-      if (match_recursive(p, token_idx + 1)) {
+      if (match_recursive(p, token_idx + 1, tokens)) {
         return true;
       }
     }
@@ -237,13 +337,13 @@ bool LPEParser::match_recursive(const char *path, size_t token_idx) const
   /* Optional operator: match zero or one character */
   if (token.type == LPE_TOKEN_OPTIONAL) {
     /* Try matching zero characters */
-    if (match_recursive(path, token_idx + 1)) {
+    if (match_recursive(path, token_idx + 1, tokens)) {
       return true;
     }
 
     /* Try matching one character */
-    if (*path && (token_idx > 0 && char_matches_token(*path, tokens_[token_idx - 1]))) {
-      return match_recursive(path + 1, token_idx + 1);
+    if (*path && (token_idx > 0 && char_matches_token(*path, tokens[token_idx - 1]))) {
+      return match_recursive(path + 1, token_idx + 1, tokens);
     }
     return false;
   }
@@ -255,13 +355,13 @@ bool LPEParser::match_recursive(const char *path, size_t token_idx) const
 
   /* Match any single character */
   if (token.type == LPE_TOKEN_ANY) {
-    return match_recursive(path + 1, token_idx + 1);
+    return match_recursive(path + 1, token_idx + 1, tokens);
   }
 
   /* Match specific event or character set */
   if (token.type == LPE_TOKEN_EVENT) {
     if (char_matches_token(*path, token)) {
-      return match_recursive(path + 1, token_idx + 1);
+      return match_recursive(path + 1, token_idx + 1, tokens);
     }
     return false;
   }
