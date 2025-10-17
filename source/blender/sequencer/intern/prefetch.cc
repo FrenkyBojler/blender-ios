@@ -38,6 +38,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "SEQ_channels.hh"
+#include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
@@ -411,12 +412,10 @@ void seq_prefetch_free(Scene *scene)
 
 static blender::VectorSet<Strip *> query_scene_strips(ListBase *seqbase)
 {
-  blender::VectorSet<Strip *> strips;
-  LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (strip->type == STRIP_TYPE_SCENE && (strip->flag & SEQ_SCENE_STRIPS) == 0) {
-      strips.add(strip);
-    }
-  }
+  blender::VectorSet<Strip *> strips = query_all_strips_recursive(seqbase);
+  strips.remove_if([](Strip *strip) {
+    return (strip->type != STRIP_TYPE_SCENE || (strip->flag & SEQ_SCENE_STRIPS) != 0);
+  });
   return strips;
 }
 
