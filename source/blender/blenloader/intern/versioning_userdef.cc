@@ -391,7 +391,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   /* Reset the theme due to compatibility breaking changes in 5.0. */
-  if (!USER_VERSION_ATLEAST(500, 109)) {
+  if (!USER_VERSION_ATLEAST(500, 111)) {
     MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);
     /* Update text styles to match. */
     LISTBASE_FOREACH (uiStyle *, style, &userdef->uistyles) {
