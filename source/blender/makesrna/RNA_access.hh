@@ -17,6 +17,7 @@
 #include "RNA_types.hh"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
 
@@ -961,7 +962,7 @@ enum eRNAOverrideMatch {
   /** Tag for restoration of property's value(s) to reference ones, if needed and possible. */
   RNA_OVERRIDE_COMPARE_TAG_FOR_RESTORE = 1 << 18,
 };
-ENUM_OPERATORS(eRNAOverrideMatch, RNA_OVERRIDE_COMPARE_TAG_FOR_RESTORE)
+ENUM_OPERATORS(eRNAOverrideMatch)
 
 enum eRNAOverrideMatchResult {
   RNA_OVERRIDE_MATCH_RESULT_INIT = 0,
@@ -979,7 +980,7 @@ enum eRNAOverrideMatchResult {
   /** Some properties were reset to reference values. */
   RNA_OVERRIDE_MATCH_RESULT_RESTORED = 1 << 2,
 };
-ENUM_OPERATORS(eRNAOverrideMatchResult, RNA_OVERRIDE_MATCH_RESULT_RESTORED)
+ENUM_OPERATORS(eRNAOverrideMatchResult)
 
 enum eRNAOverrideStatus {
   /** The property is overridable. */
@@ -991,7 +992,7 @@ enum eRNAOverrideStatus {
   /** The override status of this property is locked. */
   RNA_OVERRIDE_STATUS_LOCKED = 1 << 3,
 };
-ENUM_OPERATORS(eRNAOverrideStatus, RNA_OVERRIDE_STATUS_LOCKED)
+ENUM_OPERATORS(eRNAOverrideStatus)
 
 /**
  * Check whether reference and local overridden data match (are the same),
