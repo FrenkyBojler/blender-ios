@@ -1993,7 +1993,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   const bool remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
-  int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
+  const int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
 
   bool changed = false;
   int max_left_offset = INT_MAX;
