@@ -16,6 +16,7 @@ set(INC
 )
 
 set(INC_SYS
+  ${ZSTD_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -73,6 +74,7 @@ set(SRC
   paint_image_proj.cc
   paint_mask.cc
   paint_ops.cc
+  paint_sample_color.cc
   paint_stroke.cc
   paint_utils.cc
   paint_vertex.cc
@@ -209,6 +211,7 @@ if(WITH_GTESTS)
     mesh_brush_common_tests.cc
     paint_test.cc
     sculpt_detail_test.cc
+    sculpt_undo_test.cc
   )
   set(TEST_INC
   )

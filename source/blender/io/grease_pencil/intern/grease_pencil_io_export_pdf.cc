@@ -7,6 +7,8 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_scene.hh"
 
+#include "BLI_math_color.h"
+
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_grease_pencil_types.h"
@@ -72,6 +74,11 @@ bool PDFExporter::export_scene(Scene &scene, StringRefNull filepath)
     case ExportParams::FrameMode::Selected: {
       case ExportParams::FrameMode::Scene:
         const bool only_selected = (params_.frame_mode == ExportParams::FrameMode::Selected);
+        if (only_selected && ob_eval.type != OB_GREASE_PENCIL) {
+          /* For exporting "Selected Frames", the active object is required to be a grease pencil
+           * object, from which we will read selected frames from. */
+          break;
+        }
         const int orig_frame = scene.r.cfra;
         for (int frame_number = scene.r.sfra; frame_number <= scene.r.efra; frame_number++) {
           GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
@@ -139,7 +146,10 @@ void PDFExporter::export_grease_pencil_layer(const Object &object,
   const float4x4 layer_to_world = layer.to_world_space(object);
 
   auto write_stroke = [&](const Span<float3> positions,
+                          const Span<float3> /*positions_left*/,
+                          const Span<float3> /*positions_right*/,
                           const bool cyclic,
+                          const int8_t /*type*/,
                           const ColorGeometry4f &color,
                           const float opacity,
                           const std::optional<float> width,

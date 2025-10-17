@@ -119,7 +119,7 @@ class USDExportTest(AbstractUSDTest):
         bounds = bboxcache.ComputeWorldBound(scenePrim)
         bound_min = bounds.GetRange().GetMin()
         bound_max = bounds.GetRange().GetMax()
-        self.compareVec3d(bound_min, Gf.Vec3d(-5.752975881, -1, -2.798513651))
+        self.compareVec3d(bound_min, Gf.Vec3d(-5.76875186, -1, -2.798513651))
         self.compareVec3d(bound_max, Gf.Vec3d(1, 2.9515805244, 2.7985136508))
 
         # validate the locally authored extents
@@ -134,10 +134,10 @@ class USDExportTest(AbstractUSDTest):
         prim = stage.GetPrimAtPath("/root/scene/Volume/Volume")
         extent = UsdGeom.Boundable(prim).GetExtentAttr().Get()
         self.compareVec3d(
-            Gf.Vec3d(extent[0]), Gf.Vec3d(-0.7313742, -0.68043584, -0.5801515)
+            Gf.Vec3d(extent[0]), Gf.Vec3d(-0.74715018, -0.69621181, -0.59592748)
         )
         self.compareVec3d(
-            Gf.Vec3d(extent[1]), Gf.Vec3d(0.7515701, 0.5500924, 0.9027928)
+            Gf.Vec3d(extent[1]), Gf.Vec3d(0.76734608, 0.56586843, 0.91856879)
         )
 
     def test_material_transforms(self):
@@ -895,9 +895,10 @@ class USDExportTest(AbstractUSDTest):
             self.assertEqual(self.round_vector(usd_extent[0]), extent[0])
             self.assertEqual(self.round_vector(usd_extent[1]), extent[1])
 
-        def check_nurbs_curve(prim, cyclic, orders, vert_counts, knots_count, extent):
+        def check_nurbs_curve(prim, cyclic, orders, vert_counts, weights, knots_count, extent):
             self.assertEqual(prim.GetOrderAttr().Get(), orders)
             self.assertEqual(prim.GetCurveVertexCountsAttr().Get(), vert_counts)
+            self.assertEqual(self.round_vector(prim.GetPointWeightsAttr().Get()), weights)
             self.assertEqual(prim.GetWidthsInterpolation(), "vertex")
             knots = prim.GetKnotsAttr().Get()
             usd_extent = prim.GetExtentAttr().Get()
@@ -936,11 +937,14 @@ class USDExportTest(AbstractUSDTest):
 
         # Contains 2 NURBS curves
         curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCurve/NurbsCurve"))
-        check_nurbs_curve(curve, False, [4, 4], [6, 6], 10, [[-1.75, -2.6891, -1.0117], [3.0896, 1.9583, 1.0293]])
+        weights = [1] * 12
+        check_nurbs_curve(
+            curve, False, [4, 4], [6, 6], weights, 10, [[-1.75, -2.6891, -1.0117], [3.0896, 1.9583, 1.0293]])
 
         # Contains 1 NURBS curve
         curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCircle/NurbsCircle"))
-        check_nurbs_curve(curve, True, [3], [8], 13, [[-2.0, -2.0, -1.0], [2.0, 2.0, 1.0]])
+        weights = self.round_vector([1, math.sqrt(2) / 2] * 5)
+        check_nurbs_curve(curve, True, [3], [10], weights, 13, [[-2, -2, -1], [2, 2, 1]])
 
     def test_export_animation(self):
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_anim_test.blend"))
@@ -1093,7 +1097,7 @@ class USDExportTest(AbstractUSDTest):
         vol_mesh2vol = UsdVol.Volume(stage.GetPrimAtPath("/root/vol_mesh2vol/vol_mesh2vol"))
         density = UsdVol.OpenVDBAsset(stage.GetPrimAtPath("/root/vol_mesh2vol/vol_mesh2vol/density"))
         self.assertEqual(vol_mesh2vol.GetExtentAttr().GetTimeSamples(),
-                         [6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0])
+                         [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
         self.assertEqual(density.GetFieldNameAttr().GetTimeSamples(), [])
         self.assertEqual(density.GetFilePathAttr().GetTimeSamples(),
                          [4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0])
@@ -1253,7 +1257,11 @@ class USDExportTest(AbstractUSDTest):
         # Create a simple scene with 1 object and 1 material
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
         material = bpy.data.materials.new(name="test_material")
-        material.use_nodes = True
+        node_tree = material.node_tree
+        node_tree.nodes.clear()
+        bsdf = node_tree.nodes.new("ShaderNodeBsdfPrincipled")
+        output = node_tree.nodes.new("ShaderNodeOutputMaterial")
+        node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
         bpy.ops.mesh.primitive_plane_add()
         bpy.data.objects[0].data.materials.append(material)
 
@@ -1736,28 +1744,42 @@ class USDExportTest(AbstractUSDTest):
              'mesh_count': 3,
              'instancer_count': 1,
              'total_instances': 16,
-             'total_prototypes': 1},
+             'total_prototypes': 1,
+             'extent': {
+                 "/root/Plane/Mesh": [Gf.Vec3f(-1.0999999, -1.0999999, -0.1),
+                                      Gf.Vec3f(1.1, 1.1, 0.1)]}},
             # collection reference from single point instancer
             {'input_file': str(self.testdir / "usd_point_instancer_collection_ref.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_collection_ref.usda",
              'mesh_count': 5,
              'instancer_count': 1,
              'total_instances': 32,
-             'total_prototypes': 2},
+             'total_prototypes': 2,
+             'extent': {
+                 "/root/Plane/Mesh": [Gf.Vec3f(-1.1758227, -1.1, -0.1),
+                                      Gf.Vec3f(1.1, 1.1526861, 0.14081651)]}},
             # collection references in nested point instancer
             {'input_file': str(self.testdir / "usd_point_instancer_nested.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_nested.usda",
              'mesh_count': 9,
              'instancer_count': 3,
              'total_instances': 14,
-             'total_prototypes': 4},
+             'total_prototypes': 4,
+             'extent': {
+                 "/root/Triangle/Triangle": [Gf.Vec3f(-0.976631, -1.2236981, -0.7395363),
+                                             Gf.Vec3f(1.8081428, 3.371673, 1.2604637)],
+                 "/root/Plane/Plane": [Gf.Vec3f(-1.164238, -3.5953712, -0.2883494),
+                                       Gf.Vec3f(-0.68365526, -3.1147888, -0.18980181)]}},
             # object reference coming from a collection with separate children
             {'input_file': str(self.testdir / "../render/shader/texture_coordinate_camera.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_separate_children.usda",
              'mesh_count': 9,
              'instancer_count': 1,
              'total_instances': 4,
-             'total_prototypes': 2}
+             'total_prototypes': 2,
+             'extent': {
+                 "/root/Rotated_and_Scaled_Instances/Cube_003": [Gf.Vec3f(-8.488519, -6.1219244, -6.964829),
+                                                                 Gf.Vec3f(3.2331002, 5.4789553, 7.095813)]}}
         ]
 
         for scenario in point_instance_test_scenarios:
@@ -1777,6 +1799,51 @@ class USDExportTest(AbstractUSDTest):
             self.assertEqual(scenario['instancer_count'], instancer_count, "Unexpected number of point instancers")
             self.assertEqual(scenario['total_instances'], instance_count, "Unexpected number of total instances")
             self.assertEqual(scenario['total_prototypes'], proto_count, "Unexpected number of total prototypes")
+            if 'extent' in scenario:
+                for prim_path, (expected_min, expected_max) in scenario['extent'].items():
+                    prim = stage.GetPrimAtPath(prim_path)
+                    self.assertTrue(prim.IsValid(), f"Prim {prim_path} not found on stage")
+
+                    boundable = UsdGeom.Boundable(prim)
+                    extent_attr = boundable.GetExtentAttr()
+                    self.assertTrue(extent_attr.HasAuthoredValue(), f"Prim {prim_path} has no authored extent")
+
+                    extent = extent_attr.Get()
+                    self.assertIsNotNone(extent, f"Extent on {prim_path} could not be retrieved")
+
+                    self.compareVec3d(Gf.Vec3d(extent[0]), expected_min)
+                    self.compareVec3d(Gf.Vec3d(extent[1]), expected_max)
+
+    def test_export_usdz(self):
+        """Validate USDZ files are packaged correctly."""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usdz_export_test.blend"))
+        export_path = str(self.tempdir / "output_こんにちは.usdz")
+
+        # USDZ export will not create the output directory if it does not already exist
+        self.tempdir.mkdir()
+
+        # USDZ export will modify the working directory during the export process, but it should
+        # return to normal once complete
+        original_cwd = pathlib.Path.cwd()
+        self.export_and_validate(filepath=export_path)
+        final_cwd = pathlib.Path.cwd()
+
+        self.assertEqual(original_cwd, final_cwd)
+
+        # Validate stage content
+        stage = Usd.Stage.Open(export_path)
+        self.assertTrue(stage.GetPrimAtPath("/root/Cube/Cube").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Cylinder/Cylinder").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Icosphere/Icosphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Sphere/Sphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/env_light").IsValid())
+
+        # Validate that the archive itself contains what we expect (it is just a ZIP file)
+        import zipfile
+        with zipfile.ZipFile(export_path, 'r') as zfile:
+            file_list = zfile.namelist()
+            self.assertIn('textures/color_0C0C0C.exr', file_list)
 
 
 class USDHookBase:

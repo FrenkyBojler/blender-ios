@@ -7,6 +7,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_volume.hh"
 
@@ -26,7 +27,7 @@ void USDVolumeReader::create_object(Main *bmain)
   object_->data = volume;
 }
 
-void USDVolumeReader::read_object_data(Main *bmain, const double motionSampleTime)
+void USDVolumeReader::read_object_data(Main *bmain, const pxr::UsdTimeCode time)
 {
   Volume *volume = static_cast<Volume *>(object_->data);
 
@@ -46,10 +47,14 @@ void USDVolumeReader::read_object_data(Main *bmain, const double motionSampleTim
 
     if (filepathAttr.IsAuthored()) {
       pxr::SdfAssetPath fp;
-      filepathAttr.Get(&fp, motionSampleTime);
+      filepathAttr.Get(&fp, time);
 
       const std::string filepath = fp.GetResolvedPath();
       STRNCPY(volume->filepath, filepath.c_str());
+
+      if (import_params_.relative_path && !BLI_path_is_rel(volume->filepath)) {
+        BLI_path_rel(volume->filepath, BKE_main_blendfile_path_from_global());
+      }
 
       if (filepathAttr.ValueMightBeTimeVarying()) {
         std::vector<double> filePathTimes;
@@ -70,7 +75,7 @@ void USDVolumeReader::read_object_data(Main *bmain, const double motionSampleTim
     }
   }
 
-  USDXformReader::read_object_data(bmain, motionSampleTime);
+  USDXformReader::read_object_data(bmain, time);
 }
 
 }  // namespace blender::io::usd

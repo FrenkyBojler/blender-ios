@@ -13,7 +13,7 @@
 
 #include "node_function_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_fn_hash_value_cc {
@@ -177,6 +177,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeHashValue", FN_NODE_HASH_VALUE);
   ntype.ui_name = "Hash Value";
+  ntype.ui_description = "Generate a randomized integer using the given input value as a seed";
   ntype.enum_name_legacy = "HASH_VALUE";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

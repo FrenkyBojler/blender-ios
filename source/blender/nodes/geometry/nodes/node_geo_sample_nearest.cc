@@ -11,7 +11,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -57,7 +57,8 @@ namespace blender::nodes::node_geo_sample_nearest_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry")
-      .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud});
+      .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud})
+      .description("Mesh or point cloud to find the nearest point on");
   b.add_input<decl::Vector>("Sample Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_output<decl::Int>("Index").dependent_field({1});
 }
@@ -310,10 +311,23 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  Field<float3> positions = params.extract_input<Field<float3>>("Sample Position");
-  auto fn = std::make_shared<SampleNearestFunction>(std::move(geometry), domain);
-  auto op = FieldOperation::Create(std::move(fn), {std::move(positions)});
-  params.set_output<Field<int>>("Index", Field<int>(std::move(op)));
+  auto sample_position = params.extract_input<bke::SocketValueVariant>("Sample Position");
+
+  std::string error_message;
+  bke::SocketValueVariant index;
+  if (!execute_multi_function_on_value_variant(
+          std::make_shared<SampleNearestFunction>(std::move(geometry), domain),
+          {&sample_position},
+          {&index},
+          params.user_data(),
+          error_message))
+  {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
+
+  params.set_output("Index", std::move(index));
 }
 
 static void node_rna(StructRNA *srna)

@@ -18,12 +18,11 @@ namespace blender::nodes::node_composite_normalize_cc {
 
 static void cmp_node_normalize_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Value")
-      .default_value(1.0f)
-      .min(0.0f)
-      .max(1.0f)
-      .compositor_domain_priority(0);
-  b.add_output<decl::Float>("Value");
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Float>("Value").default_value(1.0f).min(0.0f).max(1.0f).structure_type(
+      StructureType::Dynamic);
+  b.add_output<decl::Float>("Value").structure_type(StructureType::Dynamic).align_with_previous();
 }
 
 using namespace blender::compositor;
@@ -63,7 +62,7 @@ class NormalizeOperation : public NodeOperation {
 
   void execute_gpu(const float minimum, const float scale)
   {
-    GPUShader *shader = this->context().get_shader("compositor_normalize");
+    gpu::Shader *shader = this->context().get_shader("compositor_normalize");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "minimum", minimum);

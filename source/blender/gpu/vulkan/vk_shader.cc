@@ -86,72 +86,72 @@ static const char *to_string(const Type &type)
   }
 }
 
-static const char *to_string(const eGPUTextureFormat &type)
+static const char *to_string(const TextureFormat &type)
 {
   switch (type) {
-    case GPU_RGBA8UI:
+    case TextureFormat::UINT_8_8_8_8:
       return "rgba8ui";
-    case GPU_RGBA8I:
+    case TextureFormat::SINT_8_8_8_8:
       return "rgba8i";
-    case GPU_RGBA8:
+    case TextureFormat::UNORM_8_8_8_8:
       return "rgba8";
-    case GPU_RGBA32UI:
+    case TextureFormat::UINT_32_32_32_32:
       return "rgba32ui";
-    case GPU_RGBA32I:
+    case TextureFormat::SINT_32_32_32_32:
       return "rgba32i";
-    case GPU_RGBA32F:
+    case TextureFormat::SFLOAT_32_32_32_32:
       return "rgba32f";
-    case GPU_RGBA16UI:
+    case TextureFormat::UINT_16_16_16_16:
       return "rgba16ui";
-    case GPU_RGBA16I:
+    case TextureFormat::SINT_16_16_16_16:
       return "rgba16i";
-    case GPU_RGBA16F:
+    case TextureFormat::SFLOAT_16_16_16_16:
       return "rgba16f";
-    case GPU_RGBA16:
+    case TextureFormat::UNORM_16_16_16_16:
       return "rgba16";
-    case GPU_RG8UI:
+    case TextureFormat::UINT_8_8:
       return "rg8ui";
-    case GPU_RG8I:
+    case TextureFormat::SINT_8_8:
       return "rg8i";
-    case GPU_RG8:
+    case TextureFormat::UNORM_8_8:
       return "rg8";
-    case GPU_RG32UI:
+    case TextureFormat::UINT_32_32:
       return "rg32ui";
-    case GPU_RG32I:
+    case TextureFormat::SINT_32_32:
       return "rg32i";
-    case GPU_RG32F:
+    case TextureFormat::SFLOAT_32_32:
       return "rg32f";
-    case GPU_RG16UI:
+    case TextureFormat::UINT_16_16:
       return "rg16ui";
-    case GPU_RG16I:
+    case TextureFormat::SINT_16_16:
       return "rg16i";
-    case GPU_RG16F:
+    case TextureFormat::SFLOAT_16_16:
       return "rg16f";
-    case GPU_RG16:
+    case TextureFormat::UNORM_16_16:
       return "rg16";
-    case GPU_R8UI:
+    case TextureFormat::UINT_8:
       return "r8ui";
-    case GPU_R8I:
+    case TextureFormat::SINT_8:
       return "r8i";
-    case GPU_R8:
+    case TextureFormat::UNORM_8:
       return "r8";
-    case GPU_R32UI:
+    case TextureFormat::UINT_32:
       return "r32ui";
-    case GPU_R32I:
+    case TextureFormat::SINT_32:
       return "r32i";
-    case GPU_R32F:
+    case TextureFormat::SFLOAT_32:
       return "r32f";
-    case GPU_R16UI:
+    case TextureFormat::UINT_16:
       return "r16ui";
-    case GPU_R16I:
+    case TextureFormat::SINT_16:
       return "r16i";
-    case GPU_R16F:
+    case TextureFormat::SFLOAT_16:
       return "r16f";
-    case GPU_R16:
+    case TextureFormat::UNORM_16:
       return "r16";
-    case GPU_R11F_G11F_B10F:
+    case TextureFormat::UFLOAT_11_11_10:
       return "r11f_g11f_b10f";
-    case GPU_RGB10_A2:
+    case TextureFormat::UNORM_10_10_10_2:
       return "rgb10_a2";
     default:
       return "unknown";
@@ -335,13 +335,13 @@ static void print_image_type(std::ostream &os,
 
 static std::ostream &print_qualifier(std::ostream &os, const Qualifier &qualifiers)
 {
-  if (bool(qualifiers & Qualifier::no_restrict) == false) {
+  if (!flag_is_set(qualifiers, Qualifier::no_restrict)) {
     os << "restrict ";
   }
-  if (bool(qualifiers & Qualifier::read) == false) {
+  if (!flag_is_set(qualifiers, Qualifier::read)) {
     os << "writeonly ";
   }
-  if (bool(qualifiers & Qualifier::write) == false) {
+  if (!flag_is_set(qualifiers, Qualifier::write)) {
     os << "readonly ";
   }
   return os;
@@ -485,21 +485,7 @@ static std::string main_function_wrapper(std::string &pre_main, std::string &pos
 
 static std::string combine_sources(Span<StringRefNull> sources)
 {
-  std::string result = fmt::to_string(fmt::join(sources, ""));
-  /* Renderdoc step-by-step debugger cannot be used when using the #line directive. The indexed
-   * based is not supported as it doesn't make sense in Vulkan and Blender misuses this to store a
-   * hash. The filename based directive cannot be used as it cannot find the actual file on disk
-   * and state is set incorrectly.
-   *
-   * When running in renderdoc we scramble `#line` into `//ine` to work around these limitation. */
-  if (G.debug & G_DEBUG_GPU_RENDERDOC) {
-    size_t start_pos = 0;
-    while ((start_pos = result.find("#line ", start_pos)) != std::string::npos) {
-      result[start_pos] = '/';
-      result[start_pos + 1] = '/';
-    }
-  }
-  return result;
+  return fmt::to_string(fmt::join(sources, ""));
 }
 
 VKShader::VKShader(const char *name) : Shader(name)
@@ -537,7 +523,7 @@ void VKShader::build_shader_module(MutableSpan<StringRefNull> sources,
 {
   r_shader_module.is_ready = false;
   const VKDevice &device = VKBackend::get().device;
-  const char *source_patch = nullptr;
+  std::string source_patch;
 
   switch (stage) {
     case shaderc_vertex_shader:
@@ -640,9 +626,6 @@ bool VKShader::finalize_post()
    * compiled to a shader program that can be executed by the device. Depending on the driver this
    * can take some time as well. If this is done inside the main thread it will stall user
    * interactivity.
-   *
-   * TODO: We should check if VK_EXT_graphics_pipeline_library can improve the pipeline creation
-   * step for graphical shaders.
    */
   if (result && is_compute_shader_) {
     /* This is only done for the first shader compilation (not specialization).
@@ -806,6 +789,11 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
     }
   }
 
+  ss << "\n/* Shared Variables. */\n";
+  for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
+    ss << "shared " << to_string(sv.type) << " " << sv.name << ";\n";
+  }
+
   ss << "\n/* Pass Resources. */\n";
   for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
     print_resource(ss, vk_interface, res);
@@ -870,8 +858,8 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
 
   const bool has_geometry_stage = do_geometry_shader_injection(&info) ||
                                   !info.geometry_source_.is_empty();
-  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
-  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  const bool do_layer_output = flag_is_set(info.builtins_, BuiltinBits::LAYER);
+  const bool do_viewport_output = flag_is_set(info.builtins_, BuiltinBits::VIEWPORT_INDEX);
   if (has_geometry_stage) {
     if (do_layer_output) {
       ss << "layout(location=" << (location++) << ") out int gpu_Layer;\n ";
@@ -965,15 +953,15 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
   for (const StageInterfaceInfo *iface : in_interfaces) {
     print_interface(ss, "in", *iface, location);
   }
-  if (bool(info.builtins_ & BuiltinBits::LAYER)) {
+  if (flag_is_set(info.builtins_, BuiltinBits::LAYER)) {
     ss << "#define gpu_Layer gl_Layer\n";
   }
-  if (bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX)) {
+  if (flag_is_set(info.builtins_, BuiltinBits::VIEWPORT_INDEX)) {
     ss << "#define gpu_ViewportIndex gl_ViewportIndex\n";
   }
 
   if (!extensions.fragment_shader_barycentric &&
-      bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD))
+      flag_is_set(info.builtins_, BuiltinBits::BARYCENTRIC_COORD))
   {
     ss << "layout(location=" << (location++) << ") smooth in vec3 gpu_BaryCoord;\n";
     ss << "layout(location=" << (location++) << ") noperspective in vec3 gpu_BaryCoordNoPersp;\n";
@@ -991,7 +979,6 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
   ss << "\n/* Sub-pass Inputs. */\n";
   const VKShaderInterface &interface = interface_get();
   const bool use_local_read = extensions.dynamic_rendering_local_read;
-  const bool use_dynamic_rendering = extensions.dynamic_rendering;
 
   if (use_local_read) {
     uint32_t subpass_input_binding_index = 0;
@@ -1029,7 +1016,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
       pre_main += ss_pre.str();
     }
   }
-  else if (use_dynamic_rendering) {
+  else {
     for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
       std::string image_name = "gpu_subpass_img_";
       image_name += std::to_string(input.index);
@@ -1039,7 +1026,7 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
 
       /* IMPORTANT: We assume that the frame-buffer will be layered or not based on the layer
        * built-in flag. */
-      bool is_layered_fb = bool(info.builtins_ & BuiltinBits::LAYER);
+      bool is_layered_fb = flag_is_set(info.builtins_, BuiltinBits::LAYER);
       bool is_layered_input = ELEM(
           input.img_type, ImageType::Uint2DArray, ImageType::Int2DArray, ImageType::Float2DArray);
       /* Declare image. */
@@ -1071,57 +1058,10 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
       pre_main += ss_pre.str();
     }
   }
-  else {
-    /* Use subpass passes input attachments when dynamic rendering isn't available. */
-    for (const ShaderCreateInfo::SubpassIn &input : info.subpass_inputs_) {
-      using Resource = ShaderCreateInfo::Resource;
-      Resource res(Resource::BindType::SAMPLER, input.index);
-      const VKDescriptorSet::Location location = interface.descriptor_set_location(res);
-
-      std::string image_name = "gpu_subpass_img_" + std::to_string(input.index);
-
-      /* Declare global for input. */
-      ss << to_string(input.type) << " " << input.name << ";\n";
-      /* Declare subpass input. */
-      ss << "layout(input_attachment_index=" << input.index << ", set=0, binding=" << location
-         << ") uniform ";
-      switch (to_component_type(input.type)) {
-        case Type::int_t:
-          ss << "isubpassInput";
-          break;
-        case Type::uint_t:
-          ss << "usubpassInput";
-          break;
-        case Type::float_t:
-        default:
-          ss << "subpassInput";
-          break;
-      }
-      ss << " " << image_name << ";";
-
-      /* Read data from subpass input. */
-      char swizzle[] = "xyzw";
-      swizzle[to_component_count(input.type)] = '\0';
-      std::stringstream ss_pre;
-      ss_pre << "  " << input.name << " = subpassLoad(" << image_name << ")." << swizzle << ";\n";
-      pre_main += ss_pre.str();
-    }
-  }
 
   ss << "\n/* Outputs. */\n";
-  int fragment_out_location = 0;
   for (const ShaderCreateInfo::FragOut &output : info.fragment_outputs_) {
-    /* When using dynamic rendering the attachment location doesn't change. When using render
-     * passes and sub-passes the location refers to the color attachment of the sub-pass.
-     *
-     * LIMITATION: dual source blending cannot be used together with sub-passes.
-     */
-    const bool use_dual_blending = output.blend != DualBlend::NONE;
-    BLI_assert_msg(!(use_dual_blending && !info.subpass_inputs_.is_empty()),
-                   "Dual source blending are not supported with subpass inputs when using render "
-                   "passes. It can be supported, but wasn't for code readability.");
-    const int location = (use_dynamic_rendering || use_dual_blending) ? output.index :
-                                                                        fragment_out_location++;
+    const int location = output.index;
     ss << "layout(location = " << location;
     switch (output.blend) {
       case DualBlend::SRC_0:
@@ -1215,13 +1155,10 @@ std::string VKShader::compute_layout_declare(const shader::ShaderCreateInfo &inf
 {
   std::stringstream ss;
   ss << "\n/* Compute Layout. */\n";
-  ss << "layout(local_size_x = " << info.compute_layout_.local_size_x;
-  if (info.compute_layout_.local_size_y != -1) {
-    ss << ", local_size_y = " << info.compute_layout_.local_size_y;
-  }
-  if (info.compute_layout_.local_size_z != -1) {
-    ss << ", local_size_z = " << info.compute_layout_.local_size_z;
-  }
+  ss << "layout(";
+  ss << "  local_size_x = " << info.compute_layout_.local_size_x;
+  ss << ", local_size_y = " << info.compute_layout_.local_size_y;
+  ss << ", local_size_z = " << info.compute_layout_.local_size_z;
   ss << ") in;\n";
   ss << "\n";
   return ss.str();
@@ -1238,10 +1175,11 @@ std::string VKShader::workaround_geometry_shader_source_create(
   std::stringstream ss;
   const VKExtensions &extensions = VKBackend::get().device.extensions_get();
 
-  const bool do_layer_output = bool(info.builtins_ & BuiltinBits::LAYER);
-  const bool do_viewport_output = bool(info.builtins_ & BuiltinBits::VIEWPORT_INDEX);
+  const bool do_layer_output = flag_is_set(info.builtins_, BuiltinBits::LAYER);
+  const bool do_viewport_output = flag_is_set(info.builtins_, BuiltinBits::VIEWPORT_INDEX);
   const bool do_barycentric_workaround = !extensions.fragment_shader_barycentric &&
-                                         bool(info.builtins_ & BuiltinBits::BARYCENTRIC_COORD);
+                                         flag_is_set(info.builtins_,
+                                                     BuiltinBits::BARYCENTRIC_COORD);
 
   shader::ShaderCreateInfo info_modified = info;
   info_modified.geometry_out_interfaces_ = info_modified.vertex_out_interfaces_;
@@ -1305,13 +1243,17 @@ bool VKShader::do_geometry_shader_injection(const shader::ShaderCreateInfo *info
 {
   const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   BuiltinBits builtins = info->builtins_;
-  if (!extensions.fragment_shader_barycentric && bool(builtins & BuiltinBits::BARYCENTRIC_COORD)) {
+  if (!extensions.fragment_shader_barycentric &&
+      flag_is_set(builtins, BuiltinBits::BARYCENTRIC_COORD))
+  {
     return true;
   }
-  if (!extensions.shader_output_layer && bool(builtins & BuiltinBits::LAYER)) {
+  if (!extensions.shader_output_layer && flag_is_set(builtins, BuiltinBits::LAYER)) {
     return true;
   }
-  if (!extensions.shader_output_viewport_index && bool(builtins & BuiltinBits::VIEWPORT_INDEX)) {
+  if (!extensions.shader_output_viewport_index &&
+      flag_is_set(builtins, BuiltinBits::VIEWPORT_INDEX))
+  {
     return true;
   }
   return false;
@@ -1381,7 +1323,6 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   graphics_info.fragment_shader.scissors.clear();
   framebuffer.vk_render_areas_append(graphics_info.fragment_shader.scissors);
 
-  graphics_info.fragment_out.vk_render_pass = framebuffer.vk_render_pass;
   graphics_info.fragment_out.depth_attachment_format = framebuffer.depth_attachment_format_get();
   graphics_info.fragment_out.stencil_attachment_format =
       framebuffer.stencil_attachment_format_get();

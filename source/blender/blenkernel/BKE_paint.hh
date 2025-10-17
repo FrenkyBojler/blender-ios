@@ -12,6 +12,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
@@ -65,6 +66,7 @@ struct MultiresModifierData;
 struct Object;
 struct Paint;
 struct PaintCurve;
+enum class PaintMode : int8_t;
 struct PaintModeSettings;
 struct Palette;
 struct PaletteColor;
@@ -82,35 +84,6 @@ struct bContext;
 struct bToolRef;
 struct tPaletteColorHSV;
 
-extern const uchar PAINT_CURSOR_SCULPT[3];
-extern const uchar PAINT_CURSOR_VERTEX_PAINT[3];
-extern const uchar PAINT_CURSOR_WEIGHT_PAINT[3];
-extern const uchar PAINT_CURSOR_TEXTURE_PAINT[3];
-extern const uchar PAINT_CURSOR_SCULPT_CURVES[3];
-extern const uchar PAINT_CURSOR_PAINT_GREASE_PENCIL[3];
-extern const uchar PAINT_CURSOR_SCULPT_GREASE_PENCIL[3];
-
-enum class PaintMode : int8_t {
-  Sculpt = 0,
-  /** Vertex color. */
-  Vertex = 1,
-  Weight = 2,
-  /** 3D view (projection painting). */
-  Texture3D = 3,
-  /** Image space (2D painting). */
-  Texture2D = 4,
-  GPencil = 6,
-  /* Grease Pencil Vertex Paint */
-  VertexGPencil = 7,
-  SculptGPencil = 8,
-  WeightGPencil = 9,
-  /** Curves. */
-  SculptCurves = 10,
-
-  /** Keep last. */
-  Invalid = 11,
-};
-
 /* overlay invalidation */
 enum ePaintOverlayControlFlags {
   PAINT_OVERLAY_INVALID_TEXTURE_PRIMARY = 1,
@@ -120,7 +93,7 @@ enum ePaintOverlayControlFlags {
   PAINT_OVERLAY_OVERRIDE_PRIMARY = (1 << 5),
   PAINT_OVERLAY_OVERRIDE_SECONDARY = (1 << 6),
 };
-ENUM_OPERATORS(ePaintOverlayControlFlags, PAINT_OVERLAY_OVERRIDE_SECONDARY);
+ENUM_OPERATORS(ePaintOverlayControlFlags);
 
 #define PAINT_OVERRIDE_MASK \
   (PAINT_OVERLAY_OVERRIDE_SECONDARY | PAINT_OVERLAY_OVERRIDE_PRIMARY | \
@@ -138,7 +111,7 @@ enum ePaintSymmetryAreas {
   PAINT_SYMM_AREA_Y = (1 << 1),
   PAINT_SYMM_AREA_Z = (1 << 2),
 };
-ENUM_OPERATORS(ePaintSymmetryAreas, PAINT_SYMM_AREA_Z);
+ENUM_OPERATORS(ePaintSymmetryAreas);
 
 #define PAINT_SYMM_AREAS 8
 
@@ -160,11 +133,14 @@ bool BKE_palette_is_empty(const Palette *palette);
 void BKE_palette_color_remove(Palette *palette, PaletteColor *color);
 void BKE_palette_clear(Palette *palette);
 
+void BKE_palette_color_set(PaletteColor *color, const float rgb[3]);
+void BKE_palette_color_sync_legacy(PaletteColor *color);
+
 void BKE_palette_sort_hsv(tPaletteColorHSV *color_array, int totcol);
 void BKE_palette_sort_svh(tPaletteColorHSV *color_array, int totcol);
 void BKE_palette_sort_vhs(tPaletteColorHSV *color_array, int totcol);
 void BKE_palette_sort_luminance(tPaletteColorHSV *color_array, int totcol);
-bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, bool linear);
+bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name);
 
 /* Paint curves. */
 
@@ -177,8 +153,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint);
 /**
  * \param ensure_brushes: Call #BKE_paint_brushes_ensure().
  */
-void BKE_paint_init(
-    Main *bmain, Scene *sce, PaintMode mode, const uchar col[3], bool ensure_brushes = true);
+void BKE_paint_init(Main *bmain, Scene *sce, PaintMode mode, bool ensure_brushes = true);
 void BKE_paint_free(Paint *paint);
 /**
  * Called when copying scene settings, so even if 'src' and 'tar' are the same still do a
@@ -186,6 +161,12 @@ void BKE_paint_free(Paint *paint);
  * value should decrease the existing user count as with #paint_brush_set()
  */
 void BKE_paint_copy(const Paint *src, Paint *dst, int flag);
+
+/**
+ * Iterate over all paint settings in a scene.
+ */
+void BKE_paint_settings_foreach_mode(ToolSettings *ts,
+                                     blender::FunctionRef<void(Paint *paint)> fn);
 
 void BKE_paint_cavity_curve_preset(Paint *paint, int preset);
 
@@ -200,19 +181,19 @@ Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref);
-bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint *paint);
+bool BKE_paint_use_unified_color(const Paint *paint);
 
 /* Paint brush retrieval and assignment. */
 
 Brush *BKE_paint_brush(Paint *paint);
 const Brush *BKE_paint_brush_for_read(const Paint *paint);
-Brush *BKE_paint_brush_from_essentials(Main *bmain, eObjectMode ob_mode, const char *name);
+Brush *BKE_paint_brush_from_essentials(Main *bmain, PaintMode paint_mode, const char *name);
 
 /**
  * Check if brush \a brush may be set/activated for \a paint. Passing null for \a brush will return
  * true.
  */
-bool BKE_paint_brush_poll(const Paint *paint, const Brush *brush);
+bool BKE_paint_can_use_brush(const Paint *paint, const Brush *brush);
 
 /**
  * Activates \a brush for painting, and updates #Paint.brush_asset_reference so the brush can be
@@ -231,10 +212,12 @@ bool BKE_paint_brush_set(Paint *paint, Brush *brush);
 /**
  * Version of #BKE_paint_brush_set() that takes an asset reference instead of a brush, importing
  * the brush if necessary.
+ *
+ * \return False if unable to set the brush to the provided asset reference. True otherwise.
  */
 bool BKE_paint_brush_set(Main *bmain,
                          Paint *paint,
-                         const AssetWeakReference *brush_asset_reference);
+                         const AssetWeakReference &brush_asset_reference);
 bool BKE_paint_brush_set_default(Main *bmain, Paint *paint);
 bool BKE_paint_brush_set_essentials(Main *bmain, Paint *paint, const char *name);
 void BKE_paint_previous_asset_reference_set(Paint *paint,
@@ -242,7 +225,7 @@ void BKE_paint_previous_asset_reference_set(Paint *paint,
 void BKE_paint_previous_asset_reference_clear(Paint *paint);
 
 std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(
-    eObjectMode ob_mode, std::optional<int> brush_type);
+    PaintMode paint_mode, std::optional<int> brush_type);
 void BKE_paint_brushes_set_default_references(ToolSettings *ts);
 /**
  * Make sure the active brush asset is available as active brush, importing it if necessary. If
@@ -263,7 +246,7 @@ Brush *BKE_paint_eraser_brush(Paint *paint);
 const Brush *BKE_paint_eraser_brush_for_read(const Paint *paint);
 
 bool BKE_paint_eraser_brush_set(Paint *paint, Brush *brush);
-Brush *BKE_paint_eraser_brush_from_essentials(Main *bmain, eObjectMode ob_mode, const char *name);
+Brush *BKE_paint_eraser_brush_from_essentials(Main *bmain, PaintMode paint_mode, const char *name);
 bool BKE_paint_eraser_brush_set_default(Main *bmain, Paint *paint);
 bool BKE_paint_eraser_brush_set_essentials(Main *bmain, Paint *paint, const char *name);
 
@@ -319,16 +302,14 @@ void BKE_paint_face_set_overlay_color_get(int face_set, int seed, uchar r_color[
  * gets a different starting point in the perlin noise. */
 blender::float3 seed_hsv_jitter();
 
-bool paint_calculate_rake_rotation(UnifiedPaintSettings &ups,
+bool paint_calculate_rake_rotation(Paint &paint,
                                    const Brush &brush,
                                    const float mouse_pos[2],
                                    PaintMode paint_mode,
                                    bool stroke_has_started);
-void paint_update_brush_rake_rotation(UnifiedPaintSettings &ups,
-                                      const Brush &brush,
-                                      float rotation);
+void paint_update_brush_rake_rotation(Paint &paint, const Brush &brush, float rotation);
 
-void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float stroke[3]);
+void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3]);
 
 blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
                                           const blender::float3 &initial_hsv_jitter,

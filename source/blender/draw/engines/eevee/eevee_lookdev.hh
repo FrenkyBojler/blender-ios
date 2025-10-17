@@ -21,7 +21,6 @@
 
 #include "DRW_gpu_wrapper.hh"
 
-#include "draw_manager.hh"
 #include "draw_pass.hh"
 
 struct bNode;
@@ -35,7 +34,7 @@ class LookdevView;
 
 using blender::draw::Framebuffer;
 using blender::draw::PassSimple;
-using blender::draw::ResourceHandle;
+using blender::draw::ResourceHandleRange;
 using blender::draw::Texture;
 using blender::draw::View;
 
@@ -165,7 +164,10 @@ class LookdevModule {
   void display();
 
  private:
-  void sync_pass(PassSimple &pass, gpu::Batch *geom, ::Material *mat, ResourceHandle res_handle);
+  void sync_pass(PassSimple &pass,
+                 gpu::Batch *geom,
+                 ::Material *mat,
+                 ResourceHandleRange res_handle);
   void sync_display();
 
   float calc_viewport_scale();

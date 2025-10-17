@@ -9,13 +9,14 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
+#include <cfloat>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_mempool.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -61,6 +62,8 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   ListBase *lb;
   wmKeyMap *keymap;
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* make sure we keep the hide flags */
   region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
   region->v2d.scroll &= ~(V2D_SCROLL_LEFT | V2D_SCROLL_TOP); /* prevent any noise of past */
@@ -75,7 +78,7 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* Add dropboxes */
@@ -105,6 +108,8 @@ static void outliner_main_region_draw(const bContext *C, ARegion *region)
 
   /* reset view matrix */
   UI_view2d_view_restore(C);
+
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 
   /* scrollers */
   UI_view2d_scrollers_draw(v2d, nullptr);
@@ -509,13 +514,13 @@ static void outliner_foreach_id(SpaceLink *space_link, LibraryForeachIDData *dat
     /* Do not try to restore non-ID pointers (drivers/sequence/etc.). */
     if (TSE_IS_REAL_ID(tselem)) {
       /* NOTE: Outliner ID pointers are never `IDWALK_CB_DIRECT_WEAK_LINK`, they should never
-       * enforce keeping a reference to some linked data. */
-      const LibraryForeachIDCallbackFlag cb_flag = (tselem->id != nullptr &&
-                                                    allow_pointer_access &&
-                                                    (tselem->id->flag & ID_FLAG_EMBEDDED_DATA) !=
-                                                        0) ?
-                                                       IDWALK_CB_EMBEDDED_NOT_OWNING :
-                                                       IDWALK_CB_NOP;
+       * enforce keeping a reference to some linked data. They do need to be explicitely ignored by
+       * writefile code though. */
+      const LibraryForeachIDCallbackFlag cb_flag =
+          IDWALK_CB_WRITEFILE_IGNORE | ((tselem->id != nullptr && allow_pointer_access &&
+                                         (tselem->id->flag & ID_FLAG_EMBEDDED_DATA) != 0) ?
+                                            IDWALK_CB_EMBEDDED_NOT_OWNING :
+                                            IDWALK_CB_NOP);
       BKE_LIB_FOREACHID_PROCESS_ID(data, tselem->id, cb_flag);
     }
     else if (!is_readonly) {
@@ -659,7 +664,7 @@ void ED_spacetype_outliner()
   ARegionType *art;
 
   st->spaceid = SPACE_OUTLINER;
-  STRNCPY(st->name, "Outliner");
+  STRNCPY_UTF8(st->name, "Outliner");
 
   st->create = outliner_create;
   st->free = outliner_free;

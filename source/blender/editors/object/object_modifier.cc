@@ -28,6 +28,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -105,7 +106,7 @@
 
 namespace blender::ed::object {
 
-static CLG_LogRef LOG = {"ed.object"};
+static CLG_LogRef LOG = {"object"};
 
 static void modifier_skin_customdata_delete(Object *ob);
 
@@ -627,7 +628,7 @@ bool modifier_copy_to_object(Main *bmain,
     return false;
   }
 
-  WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob_dst);
+  WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_ADDED, ob_dst);
   DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
   DEG_relations_tag_update(bmain);
   return true;
@@ -1373,7 +1374,7 @@ bool modifier_copy(
   ModifierData *nmd = BKE_modifier_new(md->type);
   BKE_modifier_copydata(md, nmd);
   BLI_insertlinkafter(&ob->modifiers, md, nmd);
-  STRNCPY(nmd->name, md->name);
+  STRNCPY_UTF8(nmd->name, md->name);
   BKE_modifier_unique_name(&ob->modifiers, nmd);
   BKE_modifiers_persistent_uid_init(*ob, *nmd);
   BKE_object_modifier_set_active(ob, nmd);
@@ -1427,7 +1428,7 @@ static wmOperatorStatus modifier_add_exec(bContext *C, wmOperator *op)
       continue;
     }
     changed = true;
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
   }
   if (!changed) {
     return OPERATOR_CANCELLED;
@@ -1708,7 +1709,7 @@ static wmOperatorStatus modifier_remove_exec(bContext *C, wmOperator *op)
 
     changed = true;
 
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_REMOVED, ob);
 
     /* if cloth/softbody was removed, particle mode could be cleared */
     if (mode_orig & OB_MODE_PARTICLE_EDIT) {
@@ -2279,7 +2280,7 @@ static wmOperatorStatus modifier_copy_exec(bContext *C, wmOperator *op)
     changed = true;
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     DEG_relations_tag_update(bmain);
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
   }
 
   if (!changed) {
@@ -2344,6 +2345,18 @@ static wmOperatorStatus modifier_set_active_invoke(bContext *C,
   return retval;
 }
 
+static bool modifier_set_active_poll(bContext *C)
+{
+  /* Only make this operator work in the Modifiers tab of the Properties editor.
+   * Otherwise it may eat up too many mouse click events. */
+  SpaceProperties *space_properties = CTX_wm_space_properties(C);
+  if (!(space_properties && space_properties->mainb == BCONTEXT_MODIFIER)) {
+    return false;
+  }
+
+  return ED_operator_object_active_only(C);
+}
+
 void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 {
   ot->name = "Set Active Modifier";
@@ -2352,7 +2365,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = ED_operator_object_active_only;
+  ot->poll = modifier_set_active_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
@@ -2769,7 +2782,7 @@ static void skin_armature_bone_create(Object *skin_ob,
     copy_v3_v3(bone->head, positions[parent_v]);
     copy_v3_v3(bone->tail, positions[v]);
     bone->rad_head = bone->rad_tail = 0.25;
-    SNPRINTF(bone->name, "Bone.%.2d", endx);
+    SNPRINTF_UTF8(bone->name, "Bone.%.2d", endx);
 
     /* add bDeformGroup */
     bDeformGroup *dg = BKE_object_defgroup_add_name(skin_ob, bone->name);
@@ -2796,7 +2809,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
   const Span<float3> positions_eval = me_eval_deform->vert_positions();
 
   /* add vertex weights to original mesh */
-  CustomData_add_layer(&mesh->vert_data, CD_MDEFORMVERT, CD_SET_DEFAULT, mesh->verts_num);
+  mesh->deform_verts_for_write();
 
   Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
@@ -2941,7 +2954,7 @@ static wmOperatorStatus correctivesmooth_bind_exec(bContext *C, wmOperator *op)
 
   const bool is_bind = (csmd->bind_coords != nullptr);
 
-  MEM_SAFE_FREE(csmd->bind_coords);
+  implicit_sharing::free_shared_data(&csmd->bind_coords, &csmd->bind_coords_sharing_info);
   MEM_SAFE_FREE(csmd->delta_cache.deltas);
 
   if (is_bind) {
@@ -3005,6 +3018,7 @@ static bool meshdeform_poll(bContext *C)
 
 static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *ob = context_active_object(C);
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)edit_modifier_property_get(
@@ -3015,12 +3029,12 @@ static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
   }
 
   if (mmd->bindcagecos != nullptr) {
-    MEM_SAFE_FREE(mmd->bindcagecos);
-    MEM_SAFE_FREE(mmd->dyngrid);
-    MEM_SAFE_FREE(mmd->dyninfluences);
-    MEM_SAFE_FREE(mmd->bindinfluences);
-    MEM_SAFE_FREE(mmd->bindoffsets);
-    MEM_SAFE_FREE(mmd->dynverts);
+    implicit_sharing::free_shared_data(&mmd->bindcagecos, &mmd->bindcagecos_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dyngrid, &mmd->dyngrid_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dyninfluences, &mmd->dyninfluences_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->bindinfluences, &mmd->bindinfluences_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->bindoffsets, &mmd->bindoffsets_sharing_info);
+    implicit_sharing::free_shared_data(&mmd->dynverts, &mmd->dynverts_sharing_info);
     MEM_SAFE_FREE(mmd->bindweights); /* Deprecated */
     MEM_SAFE_FREE(mmd->bindcos);     /* Deprecated */
     mmd->verts_num = 0;
@@ -3283,7 +3297,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               scene,
-                              "Ocean Simulation",
+                              "Simulating ocean...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_OCEAN);
   OceanBakeJob *oj = MEM_callocN<OceanBakeJob>("ocean bake job");
@@ -3367,10 +3381,13 @@ static wmOperatorStatus laplaciandeform_bind_exec(bContext *C, wmOperator *op)
    * happening for binding or not. So we copy all the required data here. */
   lmd->verts_num = lmd_eval->verts_num;
   if (lmd_eval->vertexco == nullptr) {
-    MEM_SAFE_FREE(lmd->vertexco);
+    implicit_sharing::free_shared_data(&lmd->vertexco, &lmd->vertexco_sharing_info);
   }
   else {
-    lmd->vertexco = static_cast<float *>(MEM_dupallocN(lmd_eval->vertexco));
+    implicit_sharing::copy_shared_pointer(lmd_eval->vertexco,
+                                          lmd_eval->vertexco_sharing_info,
+                                          &lmd->vertexco,
+                                          &lmd->vertexco_sharing_info);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -3505,10 +3522,10 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   }
 
   if (use_attribute->type == IDP_INT) {
-    IDP_Int(use_attribute) = !IDP_Int(use_attribute);
+    IDP_int_set(use_attribute, !IDP_int_get(use_attribute));
   }
   else if (use_attribute->type == IDP_BOOLEAN) {
-    IDP_Bool(use_attribute) = !IDP_Bool(use_attribute);
+    IDP_bool_set(use_attribute, !IDP_bool_get(use_attribute));
   }
   else {
     return OPERATOR_CANCELLED;
@@ -3577,8 +3594,9 @@ static wmOperatorStatus geometry_node_tree_copy_assign_exec(bContext *C, wmOpera
 
 void OBJECT_OT_geometry_node_tree_copy_assign(wmOperatorType *ot)
 {
-  ot->name = "Copy Geometry Node Group";
-  ot->description = "Copy the active geometry node group and assign it to the active modifier";
+  ot->name = "New Geometry Node Group";
+  ot->description =
+      "Duplicate the active geometry node group and assign it to the active modifier";
   ot->idname = "OBJECT_OT_geometry_node_tree_copy_assign";
 
   ot->exec = geometry_node_tree_copy_assign_exec;

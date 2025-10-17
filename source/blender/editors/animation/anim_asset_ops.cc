@@ -9,7 +9,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_preferences.h"
 #include "BKE_report.hh"
@@ -122,10 +122,21 @@ static blender::animrig::Action &extract_pose(Main &bmain,
     BLI_assert(pose_object->pose);
     Slot &slot = action.slot_add_for_id(pose_object->id);
     const bArmature *armature = static_cast<bArmature *>(pose_object->data);
+
+    Set<RNAPath> existing_paths;
+    if (pose_object->adt && pose_object->adt->action &&
+        pose_object->adt->slot_handle != Slot::unassigned)
+    {
+      Action &pose_object_action = pose_object->adt->action->wrap();
+      const slot_handle_t pose_object_slot = pose_object->adt->slot_handle;
+      foreach_fcurve_in_action_slot(pose_object_action, pose_object_slot, [&](FCurve &fcurve) {
+        RNAPath existing_path = {fcurve.rna_path, std::nullopt, fcurve.array_index};
+        existing_paths.add(existing_path);
+      });
+    }
+
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object->pose->chanbase) {
-      if (!(pose_bone->bone->flag & BONE_SELECTED) ||
-          !blender::animrig::bone_is_visible(armature, pose_bone->bone))
-      {
+      if (!blender::animrig::bone_is_selected(armature, pose_bone)) {
         continue;
       }
       PointerRNA bone_pointer = RNA_pointer_create_discrete(
@@ -147,6 +158,12 @@ static blender::animrig::Action &extract_pose(Main &bmain,
           continue;
         }
         for (const int i : values.index_range()) {
+          if (RNA_property_is_idprop(resolved_property) &&
+              !existing_paths.contains({rna_path_id_to_prop.value(), std::nullopt, i}))
+          {
+            /* Skipping custom properties without animation. */
+            continue;
+          }
           strip_data.keyframe_insert(
               &bmain, slot, {rna_path_id_to_prop.value(), i}, {1, values[i]}, key_settings);
         }
@@ -156,10 +173,12 @@ static blender::animrig::Action &extract_pose(Main &bmain,
   return action;
 }
 
-/* Check that the newly created asset is visible SOMEWHERE in Blender. If not already visible,
+/**
+ * Check that the newly created asset is visible SOMEWHERE in Blender. If not already visible,
  * open the asset shelf on the current 3D view. The reason for not always doing that is that it
  * might be annoying in case you have 2 3D viewports open, but you want the asset shelf on only one
- * of them, or you work out of the asset browser.*/
+ * of them, or you work out of the asset browser.
+ */
 static void ensure_asset_ui_visible(bContext &C)
 {
   ScrArea *current_area = CTX_wm_area(&C);
@@ -408,6 +427,7 @@ void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
   ot->name = "Create Pose Asset...";
   ot->description = "Create a new asset from the selected bones in the scene";
   ot->idname = "POSELIB_OT_create_pose_asset";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   ot->exec = pose_asset_create_exec;
   ot->invoke = pose_asset_create_invoke;
@@ -424,15 +444,6 @@ void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
       ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "Catalog to use for the new asset");
   RNA_def_property_string_search_func_runtime(
       prop, visit_library_prop_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
-
-  /* This property is just kept to have backwards compatibility and has no functionality. It should
-   * be removed in the 5.0 release. */
-  prop = RNA_def_boolean(ot->srna,
-                         "activate_new_action",
-                         false,
-                         "Activate New Action",
-                         "This property is deprecated and will be removed in the future");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 enum AssetModifyMode {
@@ -495,9 +506,7 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
   Vector<PathValue> path_values;
   const bArmature *armature = static_cast<bArmature *>(pose_object.data);
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object.pose->chanbase) {
-    if (!(pose_bone->bone->flag & BONE_SELECTED) ||
-        !blender::animrig::bone_is_visible(armature, pose_bone->bone))
-    {
+    if (!blender::animrig::bone_is_selected(armature, pose_bone)) {
       continue;
     }
     PointerRNA bone_pointer = RNA_pointer_create_discrete(
@@ -638,6 +647,9 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
 {
   bAction *action = get_action_of_selected_asset(C);
   BLI_assert_msg(action, "Poll should have checked action exists");
+  /* Get asset now. Asset browser might get tagged for refreshing through operations below, and not
+   * allow querying items from context until refreshed, see #140781. */
+  const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
 
   Main *bmain = CTX_data_main(C);
   Object *pose_object = CTX_data_active_object(C);
@@ -655,7 +667,7 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
   }
 
-  asset::refresh_asset_library_from_asset(C, *CTX_wm_asset(C));
+  asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -696,7 +708,7 @@ static std::string pose_asset_modify_description(bContext * /* C */,
                                                  PointerRNA *ptr)
 {
   const int mode = RNA_enum_get(ptr, "mode");
-  return std::string(prop_asset_overwrite_modes[mode].description);
+  return TIP_(std::string(prop_asset_overwrite_modes[mode].description));
 }
 
 /* Calling it overwrite instead of save because we aren't actually saving an opened asset. */

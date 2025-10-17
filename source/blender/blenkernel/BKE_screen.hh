@@ -11,6 +11,7 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
@@ -198,6 +199,14 @@ struct RegionPollParams {
   const bContext *context;
 };
 
+/* #ARegionType::lock */
+enum ARegionDrawLockFlags {
+  REGION_DRAW_LOCK_NONE = 0,
+  REGION_DRAW_LOCK_RENDER = (1 << 0),
+  REGION_DRAW_LOCK_BAKING = (1 << 1),
+  REGION_DRAW_LOCK_ALL = (REGION_DRAW_LOCK_RENDER | REGION_DRAW_LOCK_BAKING)
+};
+
 struct ARegionType {
   ARegionType *next, *prev;
   /** Unique identifier within this space, defines `RGN_TYPE_xxxx`. */
@@ -267,7 +276,7 @@ struct ARegionType {
    * performed.
    *
    * This callback is not called on indirect changes of the current viewport (which could happen
-   * when the `v2d->tot is changed and `cur` is adopted accordingly).
+   * when the `v2d->tot` is changed and `cur` is adopted accordingly).
    */
   void (*on_view2d_changed)(const bContext *C, ARegion *region);
 
@@ -288,7 +297,8 @@ struct ARegionType {
   int keymapflag;
   /**
    * Return without drawing.
-   * lock is set by region definition, and copied to do_lock by render. can become flag.
+   * lock is set by region definition, and copied to do_lock by render.
+   * Set as bitflag value in #ARegionDrawLockFlags.
    */
   short do_lock, lock;
   /** Don't handle gizmos events behind #uiBlock's with #UI_BLOCK_CLIP_EVENTS flag set. */
@@ -588,7 +598,7 @@ enum class MenuTypeFlag {
    */
   SearchOnKeyPress = (1 << 1),
 };
-ENUM_OPERATORS(MenuTypeFlag, MenuTypeFlag::ContextDependent)
+ENUM_OPERATORS(MenuTypeFlag)
 
 struct MenuType {
   MenuType *next, *prev;
@@ -632,10 +642,14 @@ enum AssetShelfTypeFlag {
   ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG = (1 << 0),
   ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE = (1 << 1),
   ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS = (1 << 2),
-
-  ASSET_SHELF_TYPE_FLAG_MAX
+  /**
+   * When spawning a context menu for an asset, activate the asset and call the activate operator
+   * (`bl_activate_operator`/#AssetShelfType.activate_operator) if present, rather than just
+   * highlighting the asset as active.
+   */
+  ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU = (1 << 3),
 };
-ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_MAX);
+ENUM_OPERATORS(AssetShelfTypeFlag);
 
 #define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 64
 
@@ -647,6 +661,8 @@ struct AssetShelfType {
 
   /** Operator to call when activating a grid view item. */
   std::string activate_operator;
+  /** Operator to call when dragging a grid view item. */
+  std::string drag_operator;
 
   AssetShelfTypeFlag flag;
 
@@ -695,10 +711,11 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src);
 /**
  * Facility to set locks for drawing to survive (render) threads accessing drawing data.
  *
- * \note Lock can become bit-flag too.
  * \note Should be replaced in future by better local data handling for threads.
+ * \note Effect of multiple calls to this function is not accumulative. The locking flags
+ * will be set to by the last call.
  */
-void BKE_spacedata_draw_locks(bool set);
+void BKE_spacedata_draw_locks(ARegionDrawLockFlags lock_flags);
 
 /**
  * Version of #BKE_area_find_region_type that also works if \a slink

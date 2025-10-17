@@ -11,7 +11,7 @@
 #include "DNA_freestyle_types.h"
 #include "DNA_listBase.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 /**
  * Render-passes for EEVEE.
@@ -19,7 +19,7 @@
  */
 typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_COMBINED = (1 << 0),
-  EEVEE_RENDER_PASS_Z = (1 << 1),
+  EEVEE_RENDER_PASS_DEPTH = (1 << 1),
   EEVEE_RENDER_PASS_MIST = (1 << 2),
   EEVEE_RENDER_PASS_NORMAL = (1 << 3),
   EEVEE_RENDER_PASS_DIFFUSE_LIGHT = (1 << 4),
@@ -48,7 +48,7 @@ typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_POSITION = (1 << 21),
 } eViewLayerEEVEEPassType;
 #define EEVEE_RENDER_PASS_MAX_BIT 21
-ENUM_OPERATORS(eViewLayerEEVEEPassType, 1 << EEVEE_RENDER_PASS_MAX_BIT)
+ENUM_OPERATORS(eViewLayerEEVEEPassType)
 
 /* #ViewLayer::grease_pencil_flags */
 typedef enum eViewLayerGreasePencilFlags {
@@ -73,7 +73,7 @@ typedef enum eViewLayerCryptomatteFlags {
   VIEW_LAYER_CRYPTOMATTE_ASSET = (1 << 2),
   VIEW_LAYER_CRYPTOMATTE_ACCURATE = (1 << 3),
 } eViewLayerCryptomatteFlags;
-ENUM_OPERATORS(eViewLayerCryptomatteFlags, VIEW_LAYER_CRYPTOMATTE_ACCURATE)
+ENUM_OPERATORS(eViewLayerCryptomatteFlags)
 #define VIEW_LAYER_CRYPTOMATTE_ALL \
   (VIEW_LAYER_CRYPTOMATTE_OBJECT | VIEW_LAYER_CRYPTOMATTE_MATERIAL | VIEW_LAYER_CRYPTOMATTE_ASSET)
 
@@ -176,24 +176,19 @@ typedef struct ViewLayer {
 
   struct Material *mat_override;
   struct World *world_override;
-  /** Equivalent to data-blocks ID properties. */
+  /** Equivalent to data-blocks user-defined ID properties. */
   struct IDProperty *id_properties;
-  /**
-   * Equivalent to data-blocks system-defined ID properties.
-   *
-   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
-   * management consistency.
-   */
+  /** Equivalent to data-blocks system-defined ID properties. */
   struct IDProperty *system_properties;
 
   struct FreestyleConfig freestyle_config;
   struct ViewLayerEEVEE eevee;
 
-  /* List containing the `ViewLayerAOV`s */
+  /** List containing #ViewLayerAOV. */
   ListBase aovs;
   ViewLayerAOV *active_aov;
 
-  /* List containing the 'ViewLayerLightgroup`s */
+  /** List containing #ViewLayerLightgroup. */
   ListBase lightgroups;
   ViewLayerLightgroup *active_lightgroup;
 

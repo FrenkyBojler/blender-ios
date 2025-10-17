@@ -21,11 +21,16 @@ namespace blender::nodes::node_composite_flip_cc {
 
 static void cmp_node_flip_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Bool>("Flip X").default_value(false).compositor_expects_single_value();
-  b.add_input<decl::Bool>("Flip Y").default_value(false).compositor_expects_single_value();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Color>("Image")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
 
-  b.add_output<decl::Color>("Image");
+  b.add_input<decl::Bool>("Flip X").default_value(false);
+  b.add_input<decl::Bool>("Flip Y").default_value(false);
 }
 
 using namespace blender::compositor;
@@ -53,7 +58,7 @@ class FlipOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_flip");
+    gpu::Shader *shader = context().get_shader("compositor_flip");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1b(shader, "flip_x", this->get_flip_x());

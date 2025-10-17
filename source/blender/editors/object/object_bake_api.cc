@@ -23,10 +23,12 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
@@ -97,7 +99,7 @@ struct BakeAPIRender {
   int normal_space;
   eBakeNormalSwizzle normal_swizzle[3];
 
-  char uv_layer[MAX_CUSTOMDATA_LAYER_NAME];
+  std::string uv_layer;
   char custom_cage[MAX_NAME];
 
   /* Settings for external image saving. */
@@ -220,7 +222,7 @@ static bool write_internal_bake_pixels(Image *image,
                                        const bool is_noncolor,
                                        const bool is_tangent_normal,
                                        Mesh const *mesh_eval,
-                                       char const *uv_layer,
+                                       const StringRef uv_layer,
                                        const float uv_offset[2])
 {
   ImBuf *ibuf;
@@ -368,7 +370,7 @@ static bool write_external_bake_pixels(const char *filepath,
                                        const bool is_noncolor,
                                        const bool is_tangent_normal,
                                        Mesh const *mesh_eval,
-                                       char const *uv_layer,
+                                       const StringRef uv_layer,
                                        const float uv_offset[2])
 {
   ImBuf *ibuf = nullptr;
@@ -454,7 +456,7 @@ static bool write_external_bake_pixels(const char *filepath,
 static bool is_noncolor_pass(eScenePassType pass_type)
 {
   return ELEM(pass_type,
-              SCE_PASS_Z,
+              SCE_PASS_DEPTH,
               SCE_PASS_POSITION,
               SCE_PASS_NORMAL,
               SCE_PASS_VECTOR,
@@ -518,6 +520,11 @@ static bool bake_object_check(const Scene *scene,
       Image *image;
       ED_object_get_active_image(ob, mat_nr, &image, nullptr, &node, &ntree);
 
+      /* Don't bake to unselected images. */
+      if (node && !(node->flag & NODE_SELECT)) {
+        image = nullptr;
+      }
+
       if (image) {
 
         if (node) {
@@ -561,7 +568,8 @@ static bool bake_object_check(const Scene *scene,
         if (mat != nullptr) {
           BKE_reportf(reports,
                       RPT_INFO,
-                      "No active image found in material \"%s\" (%d) for object \"%s\"",
+                      "No active and selected image texture node found in material \"%s\" (%d) "
+                      "for object \"%s\"",
                       mat->id.name + 2,
                       i,
                       ob->id.name + 2);
@@ -606,14 +614,14 @@ static bool bake_pass_filter_check(eScenePassType pass_type,
 
         BKE_report(reports,
                    RPT_ERROR,
-                   "Combined bake pass requires Emit, or a light pass with "
+                   "Combined bake pass requires Emission, or a light pass with "
                    "Direct or Indirect contributions enabled");
 
         return false;
       }
       BKE_report(reports,
                  RPT_ERROR,
-                 "Combined bake pass requires Emit, or a light pass with "
+                 "Combined bake pass requires Emission, or a light pass with "
                  "Direct or Indirect contributions enabled");
       return false;
     case SCE_PASS_DIFFUSE_COLOR:
@@ -668,7 +676,7 @@ static bool bake_objects_check(Main *bmain,
       if (ELEM(ob_iter->type, OB_MESH, OB_FONT, OB_CURVES_LEGACY, OB_SURF, OB_MBALL) == false) {
         BKE_reportf(reports,
                     RPT_ERROR,
-                    "Object \"%s\" is not a mesh or can't be converted to a mesh (Curve, Text, "
+                    "Object \"%s\" is not a mesh or cannot be converted to a mesh (Curve, Text, "
                     "Surface or Metaball)",
                     ob_iter->id.name + 2);
         return false;
@@ -756,7 +764,13 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
 
   for (int i = 0; i < materials_num; i++) {
     Image *image;
-    ED_object_get_active_image(ob, i + 1, &image, nullptr, nullptr, nullptr);
+    const bNode *node = nullptr;
+    ED_object_get_active_image(ob, i + 1, &image, nullptr, &node, nullptr);
+
+    /* Don't bake to unselected images. */
+    if (node && !(node->flag & NODE_SELECT)) {
+      image = nullptr;
+    }
 
     targets->material_to_image[i] = image;
 
@@ -947,14 +961,14 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
       else {
         /* if everything else fails, use the material index */
         char tmp[5];
-        SNPRINTF(tmp, "%d", i % 1000);
+        SNPRINTF_UTF8(tmp, "%d", i % 1000);
         BLI_path_suffix(filepath, FILE_MAX, tmp, "_");
       }
     }
 
     if (bk_image->tile_number) {
       char tmp[12];
-      SNPRINTF(tmp, "%d", bk_image->tile_number);
+      SNPRINTF_UTF8(tmp, "%d", bk_image->tile_number);
       BLI_path_suffix(filepath, FILE_MAX, tmp, "_");
     }
 
@@ -1440,13 +1454,16 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
     goto cleanup;
   }
 
-  if (bkr->uv_layer[0] != '\0') {
+  if (!bkr->uv_layer.empty()) {
     Mesh *mesh = (Mesh *)ob_low->data;
-    if (CustomData_get_named_layer(&mesh->corner_data, CD_PROP_FLOAT2, bkr->uv_layer) == -1) {
+    const bke::AttributeAccessor attributes = mesh->attributes();
+    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+        bkr->uv_layer);
+    if (meta_data != bke::AttributeMetaData{bke::AttrDomain::Corner, bke::AttrType::Float2}) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "No UV layer named \"%s\" found in the object \"%s\"",
-                  bkr->uv_layer,
+                  bkr->uv_layer.c_str(),
                   ob_low->id.name + 2);
       goto cleanup;
     }
@@ -1892,7 +1909,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
   bkr->height = RNA_int_get(op->ptr, "height");
   bkr->identifier = "";
 
-  RNA_string_get(op->ptr, "uv_layer", bkr->uv_layer);
+  bkr->uv_layer = RNA_string_get(op->ptr, "uv_layer");
 
   RNA_string_get(op->ptr, "cage_object", bkr->custom_cage);
 
@@ -2190,7 +2207,7 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        scene,
-                       "Texture Bake",
+                       "Baking texture...",
                        WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
                        WM_JOB_TYPE_OBJECT_BAKE);
   WM_jobs_customdata_set(wm_job, bkr, bake_freejob);
@@ -2236,13 +2253,12 @@ void OBJECT_OT_bake(wmOperatorType *ot)
       SCE_PASS_COMBINED,
       "Type",
       "Type of pass to bake, some of them may not be supported by the current render engine");
-  prop = RNA_def_enum(ot->srna,
-                      "pass_filter",
-                      rna_enum_bake_pass_filter_type_items,
-                      R_BAKE_PASS_FILTER_NONE,
-                      "Pass Filter",
-                      "Filter to combined, diffuse, glossy, transmission and subsurface passes");
-  RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+  RNA_def_enum_flag(ot->srna,
+                    "pass_filter",
+                    rna_enum_bake_pass_filter_type_items,
+                    R_BAKE_PASS_FILTER_NONE,
+                    "Pass Filter",
+                    "Filter to combined, diffuse, glossy, transmission and subsurface passes");
   RNA_def_string_file_path(ot->srna,
                            "filepath",
                            nullptr,

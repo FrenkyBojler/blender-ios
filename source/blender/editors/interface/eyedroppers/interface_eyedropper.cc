@@ -15,8 +15,6 @@
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
-#include "UI_interface.hh"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -119,7 +117,7 @@ uiBut *eyedropper_get_property_button_under_mouse(bContext *C, const wmEvent *ev
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
   const ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
 
-  uiBut *but = ui_but_find_mouse_over(region, event);
+  uiBut *but = UI_but_find_mouse_over(region, event);
 
   if (ELEM(nullptr, but, but->rnapoin.data, but->rnaprop)) {
     return nullptr;

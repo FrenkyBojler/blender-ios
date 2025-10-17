@@ -648,7 +648,7 @@ static void cage2d_draw_rect_corner_handles(const rctf *r,
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor3fv(color);
 
-  /* should  really divide by two, but looks too bulky. */
+  /* Should really divide by two, but looks too bulky. */
   {
     imm_draw_point_aspect_2d(pos, r->xmin, r->ymin, rad[0], rad[1], solid);
     imm_draw_point_aspect_2d(pos, r->xmax, r->ymin, rad[0], rad[1], solid);
@@ -1360,7 +1360,6 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
 
   /* tag the region for redraw */
   ED_region_tag_redraw_editor_overlays(CTX_wm_region(C));
-  WM_event_add_mousemove(CTX_wm_window(C));
 
   return OPERATOR_RUNNING_MODAL;
 }

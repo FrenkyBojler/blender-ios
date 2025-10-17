@@ -50,8 +50,7 @@ enum RenderEngineTypeFlag {
   RE_USE_GPU_CONTEXT = (1 << 7),
   RE_USE_CUSTOM_FREESTYLE = (1 << 8),
   RE_USE_NO_IMAGE_SAVE = (1 << 9),
-  RE_USE_ALEMBIC_PROCEDURAL = (1 << 10),
-  RE_USE_MATERIALX = (1 << 11),
+  RE_USE_MATERIALX = (1 << 10),
 };
 
 /** #RenderEngine.flag */
@@ -70,8 +69,8 @@ extern ListBase R_engines;
 struct RenderEngineType {
   struct RenderEngineType *next, *prev;
 
-  /* type info */
-  char idname[64]; /* best keep the same size as BKE_ST_MAXNAME. */
+  /* Type info. */
+  char idname[/*BKE_ST_MAXNAME*/ 64];
   char name[64];
   int flag;
 
@@ -137,7 +136,7 @@ struct RenderEngine {
 
   struct Render *re;
   ListBase fullresult;
-  char text[512]; /* IMA_MAX_RENDER_TEXT_SIZE */
+  char text[/*IMA_MAX_RENDER_TEXT_SIZE*/ 512];
 
   int resolution_x, resolution_y;
 
@@ -274,12 +273,6 @@ void RE_engine_gpu_context_unlock(struct RenderEngine *engine);
 void RE_engines_init(void);
 void RE_engines_exit(void);
 void RE_engines_register(RenderEngineType *render_type);
-
-/**
- * Return true if the RenderEngineType has native support for direct loading of Alembic data. For
- * Cycles, this also checks that the experimental feature set is enabled.
- */
-bool RE_engine_supports_alembic_procedural(const RenderEngineType *render_type, Scene *scene);
 
 RenderEngineType *RE_engines_find(const char *idname);
 

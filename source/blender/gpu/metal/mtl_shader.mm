@@ -14,6 +14,7 @@
 #include "BLI_time.h"
 
 #include <algorithm>
+#include <fmt/format.h>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -40,8 +41,6 @@
 #include "mtl_vertex_buffer.hh"
 
 #include "GHOST_C-api.h"
-
-extern const char datatoc_mtl_shader_common_msl[];
 
 using namespace blender;
 using namespace blender::gpu;
@@ -337,7 +336,7 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
 #if defined(MAC_OS_VERSION_14_0)
     if (@available(macOS 14.00, *)) {
       /* Texture atomics require Metal 3.1. */
-      if (bool(info->builtins_ & BuiltinBits::TEXTURE_ATOMIC)) {
+      if (flag_is_set(info->builtins_, BuiltinBits::TEXTURE_ATOMIC)) {
         options.languageVersion = MTLLanguageVersion3_1;
       }
     }
@@ -352,20 +351,50 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     uint8_t total_stages = (is_compute) ? 1 : 2;
 
     for (int stage_count = 0; stage_count < total_stages; stage_count++) {
+      int arg_buf_samplers_size = 0;
+      switch (src_stage) {
+        case ShaderStage::VERTEX:
+          source_to_compile = shd_builder_->msl_source_vert_;
+          arg_buf_samplers_size = arg_buf_samplers_vert_;
+          break;
+        case ShaderStage::FRAGMENT:
+          source_to_compile = shd_builder_->msl_source_frag_;
+          arg_buf_samplers_size = arg_buf_samplers_frag_;
+          break;
+        case ShaderStage::COMPUTE:
+          source_to_compile = shd_builder_->msl_source_compute_;
+          arg_buf_samplers_size = arg_buf_samplers_comp_;
+          break;
+        default:
+          BLI_assert_unreachable();
+          break;
+      };
 
-      source_to_compile = (src_stage == ShaderStage::VERTEX) ?
-                              shd_builder_->msl_source_vert_ :
-                              ((src_stage == ShaderStage::COMPUTE) ?
-                                   shd_builder_->msl_source_compute_ :
-                                   shd_builder_->msl_source_frag_);
+      std::stringstream ss;
+      /* Inject constant work group sizes. */
+      if (src_stage == ShaderStage::COMPUTE) {
+        ss << "#define MTL_WORKGROUP_SIZE_X " << info->compute_layout_.local_size_x << "\n";
+        ss << "#define MTL_WORKGROUP_SIZE_Y " << info->compute_layout_.local_size_y << "\n";
+        ss << "#define MTL_WORKGROUP_SIZE_Z " << info->compute_layout_.local_size_z << "\n";
+      }
+      ss << "#define MTL_ARGUMENT_BUFFER_NUM_SAMPLERS " << arg_buf_samplers_size << "\n";
+
+      if (flag_is_set(info->builtins_, BuiltinBits::TEXTURE_ATOMIC) &&
+          MTLBackend::get_capabilities().supports_texture_atomics)
+      {
+        ss << "#define MTL_SUPPORTS_TEXTURE_ATOMICS 1\n";
+      }
+
+      shader::GeneratedSource defines_src{"gpu_shader_msl_defines.msl", {}, ss.str()};
+      shader::GeneratedSourceList generated_sources{defines_src};
 
       /* Concatenate common source. */
-      NSString *str = [NSString stringWithUTF8String:datatoc_mtl_shader_common_msl];
-      NSString *source_with_header_a = [str stringByAppendingString:source_to_compile];
+      Vector<StringRefNull> compatibility_src = gpu_shader_dependency_get_resolved_source(
+          "gpu_shader_compat_msl.msl", generated_sources);
+      std::string compatibility_concat = fmt::to_string(fmt::join(compatibility_src, ""));
 
-      /* Inject unique context ID to avoid cross-context shader cache collisions.
-       * Required on macOS 11.0. */
-      NSString *source_with_header = source_with_header_a;
+      std::string final_src = compatibility_concat + [source_to_compile UTF8String];
+      NSString *source_with_header = [NSString stringWithUTF8String:final_src.c_str()];
       [source_with_header retain];
 
       /* Prepare Shader Library. */
@@ -379,8 +408,7 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
             NSNotFound)
         {
           const char *errors_c_str = [[error localizedDescription] UTF8String];
-          const StringRefNull source = (is_compute) ? shd_builder_->glsl_compute_source_ :
-                                                      shd_builder_->glsl_fragment_source_;
+          const StringRefNull source = [source_to_compile UTF8String];
 
           MTLLogParser parser;
           print_log({source}, errors_c_str, to_string(src_stage), true, &parser);
@@ -1074,8 +1102,8 @@ MTLRenderPipelineStateInstance *MTLShader::bake_pipeline_state(
             }
             using_null_buffer = true;
 #if MTL_DEBUG_SHADER_ATTRIBUTES == 1
-            MTL_LOG_INFO("Setting up buffer binding for null attribute with buffer index %d",
-                         null_buffer_index);
+            MTL_LOG_DEBUG("Setting up buffer binding for null attribute with buffer index %d",
+                          null_buffer_index);
 #endif
           }
         }
@@ -1463,14 +1491,14 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
      * worst-case allocation and increasing thread occupancy.
      *
      * NOTE: This is only enabled on Apple M1 and M2 GPUs. Apple M3 GPUs feature dynamic caching
-     * which controls register allocation dynamically based on the runtime state.  */
+     * which controls register allocation dynamically based on the runtime state. */
     const MTLCapabilities &capabilities = MTLBackend::get_capabilities();
     if (ELEM(capabilities.gpu, APPLE_GPU_M1, APPLE_GPU_M2)) {
       if (maxTotalThreadsPerThreadgroup_Tuning_ > 0) {
         desc.maxTotalThreadsPerThreadgroup = this->maxTotalThreadsPerThreadgroup_Tuning_;
-        MTL_LOG_INFO("Using custom parameter for shader %s value %u\n",
-                     this->name,
-                     maxTotalThreadsPerThreadgroup_Tuning_);
+        MTL_LOG_DEBUG("Using custom parameter for shader %s value %u\n",
+                      this->name,
+                      maxTotalThreadsPerThreadgroup_Tuning_);
       }
     }
 
@@ -1485,7 +1513,7 @@ MTLComputePipelineStateInstance *MTLShader::bake_compute_pipeline_state(
      * ideally the source shader should be modified to reduce local register pressure, or, local
      * work-group size should be reduced.
      * Similarly, the custom tuning parameter "mtl_max_total_threads_per_threadgroup" can be
-     * specified to a sufficiently large value to avoid this.  */
+     * specified to a sufficiently large value to avoid this. */
     if (pso) {
       uint num_required_threads_per_threadgroup = compute_pso_common_state_.threadgroup_x_len *
                                                   compute_pso_common_state_.threadgroup_y_len *
@@ -1568,7 +1596,7 @@ Shader *MTLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
 
 void MTLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 {
-  MTLShader *shader = static_cast<MTLShader *>(unwrap(specialization.shader));
+  MTLShader *shader = static_cast<MTLShader *>(specialization.shader);
 
   BLI_assert_msg(shader->is_valid(),
                  "Shader must be finalized before precompiling specializations");

@@ -72,7 +72,7 @@ void *node_initexec_curves(bNodeExecContext * /*context*/, bNode *node, bNodeIns
 
 void node_sock_label(bNodeSocket *sock, const char *name)
 {
-  STRNCPY(sock->label, name);
+  STRNCPY_UTF8(sock->label, name);
 }
 
 void node_sock_label_clear(bNodeSocket *sock)
@@ -181,7 +181,7 @@ void node_blend_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_ramp_blend_items, node->custom1, &name);
   if (!enum_label) {
-    name = IFACE_("Unknown");
+    name = N_("Unknown");
   }
   BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
@@ -206,7 +206,7 @@ void node_math_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_math_items, node->custom1, &name);
   if (!enum_label) {
-    name = IFACE_("Unknown");
+    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
   BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
@@ -219,22 +219,9 @@ void node_vector_math_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_vec_math_items, node->custom1, &name);
   if (!enum_label) {
-    name = IFACE_("Unknown");
+    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
   BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
-}
-
-void node_filter_label(const bNodeTree * /*ntree*/,
-                       const bNode *node,
-                       char *label,
-                       int label_maxncpy)
-{
-  const char *name;
-  bool enum_label = RNA_enum_name(rna_enum_node_filter_items, node->custom1, &name);
-  if (!enum_label) {
-    name = IFACE_("Unknown");
-  }
-  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
 
 void node_combsep_color_label(const ListBase *sockets, NodeCombSepColorMode mode)
@@ -276,9 +263,7 @@ void node_combsep_color_label(const ListBase *sockets, NodeCombSepColorMode mode
 /** \name Link Insertion
  * \{ */
 
-bool node_insert_link_default(bNodeTree * /*ntree*/,
-                              bNode * /*node*/,
-                              bNodeLink * /*inserted_link*/)
+bool node_insert_link_default(blender::bke::NodeInsertLinkParams & /*params*/)
 {
   return true;
 }
@@ -288,6 +273,30 @@ bool node_insert_link_default(bNodeTree * /*ntree*/,
 /* -------------------------------------------------------------------- */
 /** \name Default value RNA access
  * \{ */
+
+int node_socket_get_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  return RNA_int_get(&ptr, "default_value");
+}
+
+void node_socket_set_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, int value)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  RNA_int_set(&ptr, "default_value", value);
+}
+
+bool node_socket_get_bool(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  return RNA_boolean_get(&ptr, "default_value");
+}
+
+void node_socket_set_bool(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, bool value)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  RNA_boolean_set(&ptr, "default_value", value);
+}
 
 float node_socket_get_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
 {

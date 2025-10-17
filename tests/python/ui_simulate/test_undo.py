@@ -12,9 +12,20 @@ import datetime
 # are handled. This isn't great but seems not to be a problem for users?
 _MENU_CONFIRM_HACK = True
 
+# FIXME: When running multi window tests, the view layer in the new window
+# may not be updated after a single event loop. This fixed delay is to allow
+# the corresponding tests to run as expected. See: #136012.
+_MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS = 1 / 60
+
+# WARNING: macOS and windows require an extra delay (it's unclear why), see: #146143.
+import sys
+if sys.platform in {"darwin", "win32"}:
+    _MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS = 1 / 6
+del sys
 
 # -----------------------------------------------------------------------------
 # Utilities
+
 
 def _keep_open():
     """
@@ -287,6 +298,39 @@ def text_editor_edit_mode_mix():
     yield e.ctrl.shift.z(4 * 3)
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8 * 4)
     t.assertEqual(text.as_string(), "AABBCC")
+
+# -----------------------------------------------------------------------------
+# Node Editor
+
+
+def _compositor_startup_area(e):
+    """
+    Set up the compositor node editor
+    """
+    yield e.shift.f3(2)                # Compositor
+#    yield e.ctrl.alt.space()           # Full-screen.
+
+
+def compositor_make_group():
+    import bpy
+    e, t = _test_vars(window := _test_window())
+    yield from _compositor_startup_area(e)
+
+    # Create a node tree with multiple nodes and select all nodes.
+    # TODO: Node tree should be created through the UI
+    node_group = bpy.data.node_groups.new(name="comp ntree", type="CompositorNodeTree")
+    window.scene.compositing_node_group = node_group
+    yield from _call_menu(e, "Add -> Color -> Alpha Convert")
+    yield e.ret()  # Confirm adding node.
+    yield from _call_menu(e, "Add -> Filter -> Filter")
+    yield e.ret()
+    yield e.a()  # Select all.
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
+    yield e.ctrl.g()  # Make group.
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 1)
+    yield e.ctrl.z()
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
+    yield e.ctrl.z(5)  # Revert to original state
 
 
 # -----------------------------------------------------------------------------
@@ -753,7 +797,7 @@ def view3d_multi_mode_multi_window():
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
         # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
-        yield datetime.timedelta(seconds=1 / 60)
+        yield datetime.timedelta(seconds=_MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS)
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
@@ -912,7 +956,7 @@ def view3d_edit_mode_multi_window():
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
         # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
-        yield datetime.timedelta(seconds=1 / 60)
+        yield datetime.timedelta(seconds=_MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS)
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 

@@ -23,6 +23,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_tree_view.hh"
 
@@ -51,7 +52,7 @@ class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
                                            bNodeTree &tree);
   ~NodeTreeInterfaceDragController() override = default;
 
-  eWM_DragDataType get_drag_type() const override;
+  std::optional<eWM_DragDataType> get_drag_type() const override;
 
   void *create_drag_data() const override;
 };
@@ -104,12 +105,10 @@ class NodeSocketViewItem : public BasicTreeViewItem {
       row.enabled_set(false);
     }
 
-    uiLayoutSetPropDecorate(&row, false);
+    row.use_property_decorate_set(false);
 
     uiLayout *input_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_INPUT) {
-      /* XXX Socket template only draws in embossed layouts (Julian). */
-      input_socket_layout->emboss_set(blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(input_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -122,8 +121,6 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
     uiLayout *output_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-      /* XXX Socket template only draws in embossed layouts (Julian). */
-      output_socket_layout->emboss_set(blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(output_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -153,7 +150,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     MEM_SAFE_FREE(socket_.name);
 
     socket_.name = BLI_strdup(new_name.c_str());
-    nodetree_.tree_interface.tag_items_changed();
+    nodetree_.tree_interface.tag_item_property_changed();
     BKE_main_ensure_invariants(*CTX_data_main(&C), nodetree_.id);
     ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
     return true;
@@ -161,6 +158,15 @@ class NodeSocketViewItem : public BasicTreeViewItem {
   StringRef get_rename_string() const override
   {
     return socket_.name;
+  }
+
+  void delete_item(bContext *C) override
+  {
+    Main *bmain = CTX_data_main(C);
+    nodetree_.tree_interface.remove_item(socket_.item);
+    BKE_main_ensure_invariants(*bmain, nodetree_.id);
+    WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
+    ED_undo_push(C, "Delete Node Interface Socket");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
@@ -196,8 +202,6 @@ class NodePanelViewItem : public BasicTreeViewItem {
     /* Add boolean socket if panel has a toggle. */
     if (toggle_ != nullptr) {
       uiLayout *toggle_layout = &row.row(true);
-      /* XXX Socket template only draws in embossed layouts (Julian). */
-      toggle_layout->emboss_set(blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(toggle_layout, /*C*/ nullptr, toggle_->socket_color());
     }
@@ -205,7 +209,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
     this->add_label(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
   }
 
  protected:
@@ -217,6 +221,20 @@ class NodePanelViewItem : public BasicTreeViewItem {
     }
 
     return &panel_ == &other_item->panel_;
+  }
+
+  std::optional<bool> should_be_collapsed() const override
+  {
+    return panel_.flag & NODE_INTERFACE_PANEL_IS_COLLAPSED;
+  }
+
+  bool set_collapsed(const bool collapsed) override
+  {
+    if (!AbstractTreeViewItem::set_collapsed(collapsed)) {
+      return false;
+    }
+    SET_FLAG_FROM_TEST(panel_.flag, collapsed, NODE_INTERFACE_PANEL_IS_COLLAPSED);
+    return true;
   }
 
   bool supports_renaming() const override
@@ -235,6 +253,15 @@ class NodePanelViewItem : public BasicTreeViewItem {
   StringRef get_rename_string() const override
   {
     return panel_.name;
+  }
+
+  void delete_item(bContext *C) override
+  {
+    Main *bmain = CTX_data_main(C);
+    nodetree_.tree_interface.remove_item(panel_.item);
+    BKE_main_ensure_invariants(*bmain, nodetree_.id);
+    WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
+    ED_undo_push(C, "Delete Node Interface Panel");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
@@ -332,7 +359,7 @@ NodeTreeInterfaceDragController::NodeTreeInterfaceDragController(NodeTreeInterfa
 {
 }
 
-eWM_DragDataType NodeTreeInterfaceDragController::get_drag_type() const
+std::optional<eWM_DragDataType> NodeTreeInterfaceDragController::get_drag_type() const
 {
   return WM_DRAG_NODE_TREE_INTERFACE;
 }
@@ -533,7 +560,7 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 
 }  // namespace blender::ui::nodes
 
-void uiTemplateNodeTreeInterface(uiLayout *layout, bContext *C, PointerRNA *ptr)
+void uiTemplateNodeTreeInterface(uiLayout *layout, const bContext *C, PointerRNA *ptr)
 {
   if (!ptr->data) {
     return;

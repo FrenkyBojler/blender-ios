@@ -6,7 +6,7 @@
 
 #include "NOD_geometry_nodes_gizmos.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_fn_input_vector_cc {
@@ -15,7 +15,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Vector>("Vector").custom_draw([](CustomSocketDrawParams &params) {
     uiLayout &row = params.layout.row(true);
-    row.column(true).prop(&params.node_ptr, "vector", UI_ITEM_NONE, "", ICON_NONE);
+    row.column(true).prop(&params.node_ptr, "vector", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
     if (gizmos::value_node_has_gizmo(params.tree, params.node)) {
       row.prop(&params.socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
     }
@@ -42,6 +42,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeInputVector", FN_NODE_INPUT_VECTOR);
   ntype.ui_name = "Vector";
+  ntype.ui_description = "Provide a vector value that can be connected to other nodes in the tree";
   ntype.enum_name_legacy = "INPUT_VECTOR";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;

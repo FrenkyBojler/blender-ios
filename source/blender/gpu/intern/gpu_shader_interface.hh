@@ -18,9 +18,11 @@
 #include "BLI_hash.h"
 #include "BLI_sys_types.h"
 
+#include "GPU_format.hh"
 #include "GPU_shader.hh"
 #include "GPU_vertex_format.hh" /* GPU_VERT_ATTR_MAX_LEN */
 #include "gpu_shader_create_info.hh"
+#include "gpu_texture_private.hh"
 
 namespace blender::gpu {
 
@@ -76,6 +78,9 @@ class ShaderInterface {
    * Use `ShaderInput::location` to identify the `Type`.
    */
   uint8_t attr_types_[GPU_VERT_ATTR_MAX_LEN];
+
+  /* Formats of all image units. */
+  std::array<TextureWriteFormat, GPU_MAX_IMAGE> image_formats_;
 
   ShaderInterface();
   virtual ~ShaderInterface();
@@ -144,6 +149,8 @@ class ShaderInterface {
     return builtin_blocks_[builtin];
   }
 
+  inline uint valid_bindings_get(const ShaderInput *const inputs, const uint inputs_len) const;
+
  protected:
   static inline const char *builtin_uniform_name(GPUUniformBuiltin u);
   static inline const char *builtin_uniform_block_name(GPUUniformBlockBuiltin u);
@@ -158,6 +165,8 @@ class ShaderInterface {
    * Finalize interface construction by sorting the #ShaderInputs for faster lookups.
    */
   void sort_inputs();
+
+  void set_image_formats_from_info(const shader::ShaderCreateInfo &info);
 
  private:
   inline const ShaderInput *input_lookup(const ShaderInput *const inputs,
@@ -211,6 +220,8 @@ inline const char *ShaderInterface::builtin_uniform_name(GPUUniformBuiltin u)
       return "drw_ResourceID";
     case GPU_UNIFORM_SRGB_TRANSFORM:
       return "srgbTarget";
+    case GPU_UNIFORM_SCENE_LINEAR_XFORM:
+      return "gpu_scene_linear_to_rec709";
 
     default:
       return nullptr;
@@ -310,6 +321,19 @@ inline const ShaderInput *ShaderInterface::input_lookup(const ShaderInput *const
     }
   }
   return nullptr; /* not found */
+}
+
+inline uint ShaderInterface::valid_bindings_get(const ShaderInput *const inputs,
+                                                const uint inputs_len) const
+{
+  /* Simple linear search for now. */
+  int valid_bindings = 0;
+  for (int i = inputs_len - 1; i >= 0; i--) {
+    if (inputs[i].binding > -1) {
+      valid_bindings++;
+    }
+  }
+  return valid_bindings;
 }
 
 }  // namespace blender::gpu

@@ -31,10 +31,10 @@ using ForEachFunc = bool (*)(Strip *strip, void *user_data);
  * \param callback: query function callback, returns false if iteration should stop.
  * \param user_data: pointer to user data that can be used in the callback function.
  */
-void for_each_callback(ListBase *seqbase, ForEachFunc callback, void *user_data);
+void foreach_strip(ListBase *seqbase, ForEachFunc callback, void *user_data);
 
 /** Same as above, but using a more modern FunctionRef as callback. */
-void for_each_callback(ListBase *seqbase, blender::FunctionRef<bool(Strip *)> callback);
+void foreach_strip(ListBase *seqbase, blender::FunctionRef<bool(Strip *)> callback);
 
 /**
  * Expand set by running `strip_query_func()` for each strip, which will be used as reference.
@@ -97,6 +97,17 @@ blender::VectorSet<Strip *> query_all_strips(ListBase *seqbase);
 blender::VectorSet<Strip *> query_all_strips_recursive(const ListBase *seqbase);
 
 /**
+ * Query strips at \a timeline_frame in seqbase and nested meta strips.
+ *
+ * \param seqbase: ListBase in which strips are queried
+ * \param timeline_frame: viewed frame
+ * \return set of strips
+ */
+blender::VectorSet<Strip *> query_strips_recursive_at_frame(const Scene *scene,
+                                                            const ListBase *seqbase,
+                                                            int timeline_frame);
+
+/**
  * Query all effect strips that are directly or indirectly connected to strip_reference.
  * This includes all effects of strip_reference, strips used by another inputs and their effects,
  * so that whole chain is fully independent of other strips.
@@ -137,4 +148,5 @@ blender::VectorSet<Strip *> query_rendered_strips(const Scene *scene,
                                                   int timeline_frame,
                                                   int displayed_channel);
 
+bool must_render_strip(const VectorSet<Strip *> &strips, Strip *strip);
 }  // namespace blender::seq

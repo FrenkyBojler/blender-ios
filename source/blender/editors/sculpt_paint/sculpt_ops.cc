@@ -33,6 +33,7 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -57,22 +58,20 @@
 #include "sculpt_automask.hh"
 #include "sculpt_color.hh"
 #include "sculpt_dyntopo.hh"
-#include "sculpt_face_set.hh"
 #include "sculpt_flood_fill.hh"
 #include "sculpt_intern.hh"
-#include "sculpt_islands.hh"
 #include "sculpt_undo.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "bmesh.hh"
 
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 
 namespace blender::ed::sculpt_paint {
@@ -124,7 +123,7 @@ static wmOperatorStatus set_persistent_base_exec(bContext *C, wmOperator * /*op*
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(*depsgraph, ob);
       attributes.add<float3>(".sculpt_persistent_no",
                              bke::AttrDomain::Point,
-                             bke::AttributeInitVArray(VArray<float3>::ForSpan(vert_normals)));
+                             bke::AttributeInitVArray(VArray<float3>::from_span(vert_normals)));
       break;
     }
     case bke::pbvh::Type::Grids: {
@@ -358,9 +357,9 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
   }
 }
 
-void ensure_valid_pivot(const Object &ob, Scene &scene)
+void ensure_valid_pivot(const Object &ob, Paint &paint)
 {
-  UnifiedPaintSettings &ups = scene.toolsettings->unified_paint_settings;
+  bke::PaintRuntime &paint_runtime = *paint.runtime;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
   /* Account for the case where no objects are evaluated. */
@@ -369,16 +368,16 @@ void ensure_valid_pivot(const Object &ob, Scene &scene)
   }
 
   /* No valid pivot? Use bounding box center. */
-  if (ups.average_stroke_counter == 0 || !ups.last_stroke_valid) {
+  if (paint_runtime.average_stroke_counter == 0 || !paint_runtime.last_stroke_valid) {
     const Bounds<float3> bounds = bke::pbvh::bounds_get(*pbvh);
     const float3 center = math::midpoint(bounds.min, bounds.max);
     const float3 location = math::transform_point(ob.object_to_world(), center);
 
-    copy_v3_v3(ups.average_stroke_accum, location);
-    ups.average_stroke_counter = 1;
+    copy_v3_v3(paint_runtime.average_stroke_accum, location);
+    paint_runtime.average_stroke_counter = 1;
 
     /* Update last stroke position. */
-    ups.last_stroke_valid = true;
+    paint_runtime.last_stroke_valid = true;
   }
 }
 
@@ -410,7 +409,7 @@ void object_sculpt_mode_enter(Main &bmain,
   }
 
   Paint *paint = BKE_paint_get_active_from_paintmode(&scene, PaintMode::Sculpt);
-  BKE_paint_init(&bmain, &scene, PaintMode::Sculpt, PAINT_CURSOR_SCULPT);
+  BKE_paint_init(&bmain, &scene, PaintMode::Sculpt);
 
   ED_paint_cursor_start(paint, SCULPT_brush_cursor_poll);
 
@@ -451,7 +450,7 @@ void object_sculpt_mode_enter(Main &bmain,
     if ((message_unsupported == nullptr) || force_dyntopo) {
       /* Needed because we may be entering this mode before the undo system loads. */
       wmWindowManager *wm = static_cast<wmWindowManager *>(bmain.wm.first);
-      const bool has_undo = wm->undo_stack != nullptr;
+      const bool has_undo = wm->runtime->undo_stack != nullptr;
       /* Undo push is needed to prevent memory leak. */
       if (has_undo) {
         undo::push_begin_ex(scene, ob, "Dynamic topology enable");
@@ -469,7 +468,7 @@ void object_sculpt_mode_enter(Main &bmain,
     }
   }
 
-  ensure_valid_pivot(ob, scene);
+  ensure_valid_pivot(ob, *paint);
 
   /* Flush object mode. */
   DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
@@ -555,16 +554,6 @@ static wmOperatorStatus sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 
   if (!is_mode_set) {
     if (!object::mode_compat_set(C, &ob, eObjectMode(mode_flag), op->reports)) {
-      return OPERATOR_CANCELLED;
-    }
-
-    /* Being in sculpt mode on an invisible object is a confusing state; while switching the
-     * visibility of the current object shouldn't inherently change the mode, we prevent entering
-     * sculpt mode on an object that is already invisible to better align with how the mode toggle
-     * works currently. */
-    const View3D *v3d = CTX_wm_view3d(C);
-    const Base *base = CTX_data_active_base(C);
-    if (!BKE_base_is_visible(v3d, base)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -661,9 +650,7 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
                                                 std::get<int>(ss.active_vert()));
   }
 
-  float color_srgb[3];
-  IMB_colormanagement_scene_linear_to_srgb_v3(color_srgb, active_vertex_color);
-  BKE_brush_color_set(&scene, &sd.paint, &brush, color_srgb);
+  BKE_brush_color_set(&sd.paint, &brush, active_vertex_color);
 
   WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, &brush);
 
@@ -1206,7 +1193,7 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
   /* Set up automasking settings. */
-  Sculpt scene_copy = sd;
+  Sculpt scene_copy = dna::shallow_copy(sd);
 
   MaskSettingsSource src = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
   switch (src) {
@@ -1294,8 +1281,8 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   MaskSettingsSource source = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
 
   if (!sd) {
@@ -1313,8 +1300,15 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
 
       if (sd && RNA_boolean_get(op->ptr, "use_curve")) {
         PointerRNA sculpt_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Sculpt, sd);
-        uiTemplateCurveMapping(
-            layout, &sculpt_ptr, "automasking_cavity_curve_op", 'v', false, false, false, false);
+        uiTemplateCurveMapping(layout,
+                               &sculpt_ptr,
+                               "automasking_cavity_curve_op",
+                               'v',
+                               false,
+                               false,
+                               false,
+                               false,
+                               false);
       }
       break;
     }
@@ -1400,7 +1394,7 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
   /* Set up automasking settings. */
-  Sculpt scene_copy = sd;
+  Sculpt scene_copy = dna::shallow_copy(sd);
 
   MaskSettingsSource src = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
   switch (src) {
@@ -1476,8 +1470,8 @@ static void mask_from_boundary_ui(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   MaskSettingsSource source = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
 
   if (!sd) {

@@ -24,7 +24,7 @@
 #include "BLT_translation.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -38,6 +38,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_anim_api.hh"
@@ -164,9 +165,9 @@ static PanelType *fmodifier_panel_register(ARegionType *region_type,
 
   /* Intentionally leave the label field blank. The header is filled with buttons. */
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
-  SNPRINTF(panel_type->idname, "%s_PT_%s", id_prefix, fmi->name);
-  STRNCPY(panel_type->category, "Modifiers");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  SNPRINTF_UTF8(panel_type->idname, "%s_PT_%s", id_prefix, fmi->name);
+  STRNCPY_UTF8(panel_type->category, "Modifiers");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 
   panel_type->draw_header = fmodifier_panel_header;
   panel_type->draw = draw;
@@ -201,17 +202,17 @@ static PanelType *fmodifier_subpanel_register(ARegionType *region_type,
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
-  SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);
-  STRNCPY(panel_type->label, label);
-  STRNCPY(panel_type->category, "Modifiers");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  SNPRINTF_UTF8(panel_type->idname, "%s_%s", parent->idname, name);
+  STRNCPY_UTF8(panel_type->label, label);
+  STRNCPY_UTF8(panel_type->category, "Modifiers");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 
   panel_type->draw_header = draw_header;
   panel_type->draw = draw;
   panel_type->poll = poll;
   panel_type->flag = PANEL_TYPE_DEFAULT_CLOSED;
 
-  STRNCPY(panel_type->parent_id, parent->idname);
+  STRNCPY_UTF8(panel_type->parent_id, parent->idname);
   panel_type->parent = parent;
   BLI_addtail(&parent->children, BLI_genericNodeN(panel_type));
   BLI_addtail(&region_type->paneltypes, panel_type);
@@ -278,8 +279,8 @@ static void fmodifier_frame_range_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
   layout->active_set(fcm->flag & FMODIFIER_FLAG_RANGERESTRICT);
@@ -326,7 +327,7 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
 
   /* Delete button. */
   uiBut *but = uiDefIconBut(block,
-                            UI_BTYPE_BUT,
+                            ButType::But,
                             B_REDR,
                             ICON_X,
                             0,
@@ -364,8 +365,8 @@ static void generator_panel_draw(const bContext *C, Panel *panel)
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->prop(ptr, "use_additive", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -380,11 +381,11 @@ static void generator_panel_draw(const bContext *C, Panel *panel)
       char xval[32];
 
       /* The first value gets a "Coefficient" label. */
-      STRNCPY(xval, N_("Coefficient"));
+      STRNCPY_UTF8(xval, N_("Coefficient"));
 
       for (int i = 0; i < data->arraysize; i++) {
         col->prop(ptr, prop, i, 0, UI_ITEM_NONE, IFACE_(xval), ICON_NONE);
-        SNPRINTF(xval, "x^%d", i + 1);
+        SNPRINTF_UTF8(xval, "x^%d", i + 1);
       }
       break;
     }
@@ -447,8 +448,8 @@ static void fn_generator_panel_draw(const bContext *C, Panel *panel)
 
   layout->prop(ptr, "function_type", UI_ITEM_NONE, "", ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   col = &layout->column(false);
   col->prop(ptr, "use_additive", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -490,8 +491,8 @@ static void cycles_panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* Before. */
   col = &layout->column(false);
@@ -534,8 +535,8 @@ static void noise_panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->prop(ptr, "blend_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -672,8 +673,8 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
   FMod_Envelope *env = static_cast<FMod_Envelope *>(fcm->data);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* General settings. */
   col = &layout->column(true);
@@ -687,7 +688,7 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
   uiBlock *block = row->block();
 
   uiBut *but = uiDefBut(block,
-                        UI_BTYPE_BUT,
+                        ButType::But,
                         B_FMODIFIER_REDRAW,
                         IFACE_("Add Control Point"),
                         0,
@@ -701,7 +702,7 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
   UI_but_func_set(but, fmod_envelope_addpoint_cb, env, nullptr);
 
   col = &layout->column(false);
-  uiLayoutSetPropSep(col, false);
+  col->use_property_split_set(false);
 
   FCM_EnvelopeData *fed = env->data;
   for (int i = 0; i < env->totvert; i++, fed++) {
@@ -717,7 +718,7 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
     row->prop(&ctrl_ptr, "max", UI_ITEM_NONE, IFACE_("Max"), ICON_NONE);
 
     but = uiDefIconBut(block,
-                       UI_BTYPE_BUT,
+                       ButType::But,
                        B_FMODIFIER_REDRAW,
                        ICON_X,
                        0,
@@ -763,8 +764,8 @@ static void limits_panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* Minimums. */
   col = &layout->column(false);
@@ -825,8 +826,8 @@ static void stepped_panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* Stepping Settings. */
   col = &layout->column(false);

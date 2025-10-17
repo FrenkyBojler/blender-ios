@@ -21,10 +21,11 @@
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
@@ -91,11 +92,11 @@ static void deform_verts(ModifierData *md,
   LatticeModifierData *lmd = (LatticeModifierData *)md;
 
   /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<const float(*)[3]>(positions.data()));
+  MOD_previous_vcos_store(md, reinterpret_cast<const float (*)[3]>(positions.data()));
 
   BKE_lattice_deform_coords_with_mesh(lmd->object,
                                       ctx->object,
-                                      reinterpret_cast<float(*)[3]>(positions.data()),
+                                      reinterpret_cast<float (*)[3]>(positions.data()),
                                       positions.size(),
                                       lmd->flag,
                                       lmd->name,
@@ -117,11 +118,11 @@ static void deform_verts_EM(ModifierData *md,
   LatticeModifierData *lmd = (LatticeModifierData *)md;
 
   /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<const float(*)[3]>(positions.data()));
+  MOD_previous_vcos_store(md, reinterpret_cast<const float (*)[3]>(positions.data()));
 
   BKE_lattice_deform_coords_with_editmesh(lmd->object,
                                           ctx->object,
-                                          reinterpret_cast<float(*)[3]>(positions.data()),
+                                          reinterpret_cast<float (*)[3]>(positions.data()),
                                           positions.size(),
                                           lmd->flag,
                                           lmd->name,
@@ -136,7 +137,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -186,4 +187,5 @@ ModifierTypeInfo modifierType_Lattice = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

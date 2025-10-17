@@ -26,6 +26,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
 #include "DNA_material_types.h"
@@ -249,7 +250,7 @@ static pxr::TfToken get_source_color_space(const pxr::UsdShadeShader &usd_shader
 
   pxr::VtValue color_space_val;
   if (color_space_input.Get(&color_space_val) && color_space_val.IsHolding<pxr::TfToken>()) {
-    return color_space_val.Get<pxr::TfToken>();
+    return color_space_val.UncheckedGet<pxr::TfToken>();
   }
 
   return pxr::TfToken();
@@ -272,7 +273,7 @@ static int get_image_extension(const pxr::UsdShadeShader &usd_shader, const int 
     return default_value;
   }
 
-  pxr::TfToken wrap_val = wrap_input_val.Get<pxr::TfToken>();
+  pxr::TfToken wrap_val = wrap_input_val.UncheckedGet<pxr::TfToken>();
 
   if (wrap_val == usdtokens::repeat) {
     return SHD_IMAGE_EXTENSION_REPEAT;
@@ -329,6 +330,8 @@ static void set_viewport_material_props(Material *mtl, const pxr::UsdShadeShader
         diffuse_color_input.GetAttr().Get(&val) && val.IsHolding<pxr::GfVec3f>())
     {
       pxr::GfVec3f color = val.UncheckedGet<pxr::GfVec3f>();
+      /* Note: The material is expected to be rendered by the Workbench render engine (Viewport
+       * Display), so no need to define a material node tree. */
       mtl->r = color[0];
       mtl->g = color[1];
       mtl->b = color[2];
@@ -340,7 +343,7 @@ static void set_viewport_material_props(Material *mtl, const pxr::UsdShadeShader
     if (metallic_input.GetAttr().HasAuthoredValue() && metallic_input.GetAttr().Get(&val) &&
         val.IsHolding<float>())
     {
-      mtl->metallic = val.Get<float>();
+      mtl->metallic = val.UncheckedGet<float>();
     }
   }
 
@@ -349,7 +352,7 @@ static void set_viewport_material_props(Material *mtl, const pxr::UsdShadeShader
     if (roughness_input.GetAttr().HasAuthoredValue() && roughness_input.GetAttr().Get(&val) &&
         val.IsHolding<float>())
     {
-      mtl->roughness = val.Get<float>();
+      mtl->roughness = val.UncheckedGet<float>();
     }
   }
 }
@@ -453,7 +456,9 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
 
   /* Create the material. */
   Material *mtl = BKE_material_add(&bmain_, mtl_name.c_str());
-  id_us_min(&mtl->id);
+  mtl->nodetree = blender::bke::node_tree_add_tree_embedded(
+      &bmain_, &mtl->id, "USD Material Node Tree", "ShaderNodeTree");
+  // id_us_min(&mtl->id);
 
   if (read_usd_preview) {
     import_usd_preview(mtl, usd_material);
@@ -494,9 +499,11 @@ void USDMaterialReader::import_usd_preview_nodes(Material *mtl,
    * and output shaders. */
 
   /* Add the node tree. */
-  bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
-      nullptr, &mtl->id, "Shader Nodetree", "ShaderNodeTree");
-  mtl->use_nodes = true;
+  bNodeTree *ntree = mtl->nodetree;
+  if (mtl->nodetree == nullptr) {
+    ntree = blender::bke::node_tree_add_tree_embedded(
+        nullptr, &mtl->id, "Shader Nodetree", "ShaderNodeTree");
+  }
 
   /* Create the Principled BSDF shader node. */
   bNode *principled = add_node(ntree, SH_NODE_BSDF_PRINCIPLED, {0.0f, 300.0f});
@@ -1291,7 +1298,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
     return;
   }
 
-  const pxr::SdfAssetPath &asset_path = file_val.Get<pxr::SdfAssetPath>();
+  const pxr::SdfAssetPath &asset_path = file_val.UncheckedGet<pxr::SdfAssetPath>();
   std::string file_path = asset_path.GetResolvedPath();
 
   if (file_path.empty()) {
@@ -1333,7 +1340,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
                                                              USD_TEX_NAME_COLLISION_OVERWRITE :
                                                              params_.tex_name_collision_mode;
 
-    file_path = import_asset(file_path.c_str(), textures_dir, name_collision_mode, reports());
+    file_path = import_asset(file_path, textures_dir, name_collision_mode, reports());
   }
 
   /* If this is a UDIM texture, this will store the
@@ -1376,13 +1383,13 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   if (color_space == usdtokens::auto_) {
     /* If it's auto, determine whether to apply color correction based
      * on incoming connection (passed in from outer functions). */
-    STRNCPY(image->colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(
-                extra.is_color_corrected ? COLOR_ROLE_DEFAULT_BYTE : COLOR_ROLE_DATA));
+    STRNCPY_UTF8(image->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(
+                     extra.is_color_corrected ? COLOR_ROLE_DEFAULT_BYTE : COLOR_ROLE_DATA));
   }
 
   else if (color_space == usdtokens::sRGB) {
-    STRNCPY(image->colorspace_settings.name, IMB_colormanagement_srgb_colorspace_name_get());
+    STRNCPY_UTF8(image->colorspace_settings.name, IMB_colormanagement_srgb_colorspace_name_get());
   }
 
   /*
@@ -1391,8 +1398,8 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
    * On write, we are *only* using the correct, lower-case "raw" token.
    */
   else if (ELEM(color_space, usdtokens::RAW, usdtokens::raw)) {
-    STRNCPY(image->colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
+    STRNCPY_UTF8(image->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
   }
 
   NodeTexImage *storage = static_cast<NodeTexImage *>(tex_image->storage);

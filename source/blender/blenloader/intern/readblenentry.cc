@@ -75,6 +75,40 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem,
   return bh;
 }
 
+blender::int3 BLO_blendhandle_get_version(const BlendHandle *bh)
+{
+  const FileData *fd = reinterpret_cast<const FileData *>(bh);
+  return blender::int3(fd->fileversion / 100, fd->fileversion % 100, fd->filesubversion);
+}
+
+/* Return `false` if the block should be skipped because it is either an invalid block, or it does
+ * not meet to required conditions. */
+static bool blendhandle_load_id_data_and_validate(FileData *fd,
+                                                  BHead *bhead,
+                                                  bool use_assets_only,
+                                                  const char *&r_idname,
+                                                  short &r_idflag,
+                                                  AssetMetaData *&r_asset_meta_data)
+{
+  r_idname = blo_bhead_id_name(fd, bhead);
+  if (!r_idname || r_idname[0] == '\0') {
+    return false;
+  }
+  r_idflag = blo_bhead_id_flag(fd, bhead);
+  /* Do not list (and therefore allow direct linking of) packed data.
+   * While supporting this is conceptually possible, it would require significant changes in
+   * the UI (file browser) and UX (link operation) to convey this concept and handle it
+   * correctly. */
+  if (r_idflag & ID_FLAG_LINKED_AND_PACKED) {
+    return false;
+  }
+  r_asset_meta_data = blo_bhead_id_asset_data_address(fd, bhead);
+  if (use_assets_only && r_asset_meta_data == nullptr) {
+    return false;
+  }
+  return true;
+}
+
 LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
                                               int ofblocktype,
                                               const bool use_assets_only,
@@ -87,11 +121,12 @@ LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
 
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == ofblocktype) {
-      const char *idname = blo_bhead_id_name(fd, bhead);
-      if (!idname) {
-        continue;
-      }
-      if (use_assets_only && blo_bhead_id_asset_data_address(fd, bhead) == nullptr) {
+      const char *idname;
+      short idflag;
+      AssetMetaData *asset_meta_data;
+      if (!blendhandle_load_id_data_and_validate(
+              fd, bhead, use_assets_only, idname, idflag, asset_meta_data))
+      {
         continue;
       }
 
@@ -126,18 +161,16 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
     if (bhead->code == ofblocktype) {
       BHead *id_bhead = bhead;
 
-      const char *idname = blo_bhead_id_name(fd, bhead);
-      if (!idname) {
+      const char *idname;
+      short idflag;
+      AssetMetaData *asset_meta_data;
+      if (!blendhandle_load_id_data_and_validate(
+              fd, id_bhead, use_assets_only, idname, idflag, asset_meta_data))
+      {
         continue;
       }
-      const char *name = idname + 2;
-      AssetMetaData *asset_meta_data = blo_bhead_id_asset_data_address(fd, bhead);
 
-      const bool is_asset = asset_meta_data != nullptr;
-      const bool skip_datablock = use_assets_only && !is_asset;
-      if (skip_datablock) {
-        continue;
-      }
+      const char *name = idname + 2;
       BLODataBlockInfo *info = MEM_mallocN<BLODataBlockInfo>(__func__);
 
       /* Lastly, read asset data from the following blocks. */
@@ -349,7 +382,6 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
 {
   BlendFileData *bfd = nullptr;
   FileData *fd;
-  ListBase old_mainlist;
   BlendFileReadReport bf_reports{};
   bf_reports.reports = reports;
 
@@ -361,9 +393,11 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
     /* Build old ID map for all old IDs. */
     blo_make_old_idmap_from_main(fd, oldmain);
 
-    /* Separate linked data from old main. */
-    blo_split_main(&old_mainlist, oldmain);
-    fd->old_mainlist = &old_mainlist;
+    /* Separate linked data from old main.
+     * WARNING: Do not split out packed IDs here, as these are handled similarly as local IDs in
+     * undo context. */
+    blo_split_main(oldmain, false);
+    fd->old_bmain = oldmain;
 
     /* Removed packed data from this trick - it's internal data that needs saves. */
 
@@ -379,13 +413,15 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain,
     /* Ensure relinked caches are not freed together with their old IDs. */
     blo_cache_storage_old_bmain_clear(fd, oldmain);
 
-    /* Still in-use libraries have already been moved from oldmain to new mainlist,
-     * but oldmain itself shall *never* be 'transferred' to new mainlist! */
-    BLI_assert(old_mainlist.first == oldmain);
+    /* Still in-use libraries have already been moved from oldmain to new main
+     * (fd->bmain->split_mains), but oldmain itself shall *never* be 'transferred' to the new
+     * split_mains!
+     */
+    BLI_assert(oldmain->split_mains && (*oldmain->split_mains)[0] == oldmain);
 
     /* That way, libraries (aka mains) we did not reuse in new undone/redone state
      * will be cleared together with `oldmain`. */
-    blo_join_main(&old_mainlist);
+    blo_join_main(oldmain);
 
     blo_filedata_free(fd);
   }

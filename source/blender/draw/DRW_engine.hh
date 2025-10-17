@@ -31,6 +31,10 @@ struct ViewLayer;
 struct bContext;
 struct rcti;
 
+namespace blender::bke {
+enum class AttrType : int16_t;
+}
+
 void DRW_engines_register();
 void DRW_engines_free();
 
@@ -128,12 +132,20 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 void DRW_render_context_enable(Render *render);
 void DRW_render_context_disable(Render *render);
 
-/* Critical section for GPUShader usage. Can be removed when we have threadsafe GPUShader class. */
+void DRW_mutexes_init();
+void DRW_mutexes_exit();
+
+/* Mutex to lock the drw manager and avoid concurrent context usage.
+ * Equivalent to the old DST lock.
+ * Brought back to 4.5 due to unforeseen issues causing data races and race conditions with Images
+ * and GPUTextures. (See #141253) */
+void DRW_lock_start();
+void DRW_lock_end();
+
+/* Critical section for gpu::Shader usage. Can be removed when we have threadsafe gpu::Shader
+ * class. */
 void DRW_submission_start();
 void DRW_submission_end();
-
-void DRW_submission_mutex_init();
-void DRW_submission_mutex_exit();
 
 void DRW_gpu_context_create();
 void DRW_gpu_context_destroy();
@@ -147,6 +159,10 @@ void DRW_gpu_context_enable();
  * Returns true on success, false if the draw GPU context does not exists.
  */
 bool DRW_gpu_context_try_enable();
+/**
+ * Returns true if the DRW_gpu_context is enabled on the calling thread.
+ */
+bool DRW_gpu_context_is_enabled();
 void DRW_gpu_context_disable();
 
 #ifdef WITH_XR_OPENXR
@@ -190,7 +206,7 @@ namespace blender::draw {
 
 void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
-                                  int data_type,
+                                  bke::AttrType data_type,
                                   blender::StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer);

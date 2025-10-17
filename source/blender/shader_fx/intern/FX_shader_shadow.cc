@@ -13,12 +13,13 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
+#include "BKE_idtype.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -82,7 +83,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = shaderfx_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "shadow_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -109,7 +110,7 @@ static void blur_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = shaderfx_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   /* Add the X, Y labels manually because size is a #PROP_PIXEL. */
   col = &layout->column(true);
@@ -135,7 +136,7 @@ static void wave_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = shaderfx_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->active_set(RNA_boolean_get(ptr, "use_wave"));
 
@@ -153,6 +154,13 @@ static void panel_register(ARegionType *region_type)
       region_type, "wave", "", wave_header_draw, wave_panel_draw, panel_type);
 }
 
+static void foreach_working_space_color(ShaderFxData *fx,
+                                        const IDTypeForeachColorFunctionCallback &fn)
+{
+  ShadowShaderFxData *fxd = (ShadowShaderFxData *)fx;
+  fn.single(fxd->shadow_rgba);
+}
+
 ShaderFxTypeInfo shaderfx_Type_Shadow = {
     /*name*/ N_("Shadow"),
     /*struct_name*/ "ShadowShaderFxData",
@@ -168,5 +176,6 @@ ShaderFxTypeInfo shaderfx_Type_Shadow = {
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_working_space_color*/ foreach_working_space_color,
     /*panel_register*/ panel_register,
 };

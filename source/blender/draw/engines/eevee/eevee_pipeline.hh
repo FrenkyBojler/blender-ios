@@ -17,8 +17,10 @@
 #include "DRW_render.hh"
 
 #include "eevee_lut.hh"
+#include "eevee_material.hh"
 #include "eevee_raytrace.hh"
 #include "eevee_subsurface.hh"
+#include "eevee_uniform_shared.hh"
 
 struct Camera;
 
@@ -41,7 +43,7 @@ class BackgroundPipeline {
   PassSimple world_ps_ = {"World.Background"};
 
  public:
-  BackgroundPipeline(Instance &inst) : inst_(inst){};
+  BackgroundPipeline(Instance &inst) : inst_(inst) {};
 
   void sync(GPUMaterial *gpumat, float background_opacity, float background_blur);
   void clear(View &view);
@@ -69,7 +71,7 @@ class WorldPipeline {
   PassSimple cubemap_face_ps_ = {"World.Probe"};
 
  public:
-  WorldPipeline(Instance &inst) : inst_(inst){};
+  WorldPipeline(Instance &inst) : inst_(inst) {};
 
   void sync(GPUMaterial *gpumat);
   void render(View &view);
@@ -91,7 +93,7 @@ class WorldVolumePipeline {
   PassSimple world_ps_ = {"World.Volume"};
 
  public:
-  WorldVolumePipeline(Instance &inst) : inst_(inst){};
+  WorldVolumePipeline(Instance &inst) : inst_(inst) {};
 
   void sync(GPUMaterial *gpumat);
   void render(View &view);
@@ -115,7 +117,7 @@ class ShadowPipeline {
   PassMain::Sub *surface_single_sided_ps_ = nullptr;
 
  public:
-  ShadowPipeline(Instance &inst) : inst_(inst){};
+  ShadowPipeline(Instance &inst) : inst_(inst) {};
 
   PassMain::Sub *surface_material_add(::Material *material, GPUMaterial *gpumat);
 
@@ -153,7 +155,7 @@ class ForwardPipeline {
   bool has_transparent_ = false;
 
  public:
-  ForwardPipeline(Instance &inst) : inst_(inst){};
+  ForwardPipeline(Instance &inst) : inst_(inst) {};
 
   void sync();
 
@@ -227,14 +229,8 @@ struct DeferredLayerBase {
   /* Return the amount of gbuffer layer needed. */
   int closure_layer_count() const
   {
-    /* Diffuse and translucent require only one layer. */
-    int count = count_bits_i(closure_bits_ & (CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
-    /* SSS require an additional layer compared to diffuse. */
-    count += count_bits_i(closure_bits_ & CLOSURE_SSS);
-    /* Reflection and refraction can have at most two layers. */
-    count += 2 * count_bits_i(closure_bits_ &
-                              (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_CLEARCOAT));
-    return count;
+    /* Always allocate 2 layer per closure for interleaved closure data packing in the gbuffer. */
+    return 2 * to_gbuffer_bin_count(closure_bits_);
   }
 
   /* Return the amount of gbuffer layer needed. */
@@ -242,10 +238,8 @@ struct DeferredLayerBase {
   {
     /* TODO(fclem): We could count the number of different tangent frame in the shader and use
      * min(tangent_frame_count, closure_count) once we have the normal reuse optimization.
-     * For now, allocate a split normal layer for each Closure. */
-    int count = count_bits_i(closure_bits_ &
-                             (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_CLEARCOAT |
-                              CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
+     * For now, allocate a custom normal layer for each Closure. */
+    int count = to_gbuffer_bin_count(closure_bits_);
     /* Count the additional information layer needed by some closures. */
     count += count_bits_i(closure_bits_ &
                           (CLOSURE_SSS | CLOSURE_TRANSLUCENT | CLOSURE_REFRACTION));
@@ -292,7 +286,7 @@ class DeferredLayer : DeferredLayerBase {
   /* Used when there is no indirect radiance buffer. */
   Texture dummy_black = {"dummy_black"};
   /* Reference to ray-tracing results. */
-  GPUTexture *radiance_feedback_tx_ = nullptr;
+  gpu::Texture *radiance_feedback_tx_ = nullptr;
 
   /**
    * Tile texture containing several bool per tile indicating presence of feature.
@@ -315,7 +309,7 @@ class DeferredLayer : DeferredLayerBase {
   DeferredLayer(Instance &inst) : inst_(inst)
   {
     float4 data(0.0f);
-    dummy_black.ensure_2d(RAYTRACE_RADIANCE_FORMAT,
+    dummy_black.ensure_2d(gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT,
                           int2(1),
                           GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE,
                           data);
@@ -343,14 +337,14 @@ class DeferredLayer : DeferredLayerBase {
   static bool do_split_direct_indirect_radiance(const Instance &inst);
 
   /* Returns the radiance buffer to feed the next layer. */
-  GPUTexture *render(View &main_view,
-                     View &render_view,
-                     Framebuffer &prepass_fb,
-                     Framebuffer &combined_fb,
-                     Framebuffer &gbuffer_fb,
-                     int2 extent,
-                     RayTraceBuffer &rt_buffer,
-                     GPUTexture *radiance_behind_tx);
+  gpu::Texture *render(View &main_view,
+                       View &render_view,
+                       Framebuffer &prepass_fb,
+                       Framebuffer &combined_fb,
+                       Framebuffer &gbuffer_fb,
+                       int2 extent,
+                       RayTraceBuffer &rt_buffer,
+                       gpu::Texture *radiance_behind_tx);
 };
 
 class DeferredPipeline {
@@ -369,7 +363,7 @@ class DeferredPipeline {
 
  public:
   DeferredPipeline(Instance &inst)
-      : opaque_layer_(inst), refraction_layer_(inst), volumetric_layer_(inst){};
+      : opaque_layer_(inst), refraction_layer_(inst), volumetric_layer_(inst) {};
 
   void begin_sync();
   void end_sync();
@@ -404,7 +398,7 @@ class DeferredPipeline {
     return max_ii(opaque_layer_.normal_layer_count(), refraction_layer_.normal_layer_count());
   }
 
-  void debug_draw(draw::View &view, GPUFrameBuffer *combined_fb);
+  void debug_draw(draw::View &view, gpu::FrameBuffer *combined_fb);
 
   bool is_empty() const
   {
@@ -494,7 +488,7 @@ class VolumePipeline {
   bool has_absorption_ = false;
 
  public:
-  VolumePipeline(Instance &inst) : inst_(inst){};
+  VolumePipeline(Instance &inst) : inst_(inst) {};
 
   void sync();
   void render(View &view, Texture &occupancy_tx);
@@ -545,7 +539,7 @@ class DeferredProbePipeline {
   PassSimple eval_light_ps_ = {"EvalLights"};
 
  public:
-  DeferredProbePipeline(Instance &inst) : inst_(inst){};
+  DeferredProbePipeline(Instance &inst) : inst_(inst) {};
 
   void begin_sync();
   void end_sync();
@@ -591,7 +585,7 @@ class PlanarProbePipeline : DeferredLayerBase {
   PassSimple eval_light_ps_ = {"EvalLights"};
 
  public:
-  PlanarProbePipeline(Instance &inst) : inst_(inst){};
+  PlanarProbePipeline(Instance &inst) : inst_(inst) {};
 
   void begin_sync();
   void end_sync();
@@ -600,7 +594,7 @@ class PlanarProbePipeline : DeferredLayerBase {
   PassMain::Sub *material_add(::Material *blender_mat, GPUMaterial *gpumat);
 
   void render(View &view,
-              GPUTexture *depth_layer_tx,
+              gpu::Texture *depth_layer_tx,
               Framebuffer &gbuffer,
               Framebuffer &combined_fb,
               int2 extent);
@@ -620,7 +614,7 @@ class CapturePipeline {
   PassMain surface_ps_ = {"Capture.Surface"};
 
  public:
-  CapturePipeline(Instance &inst) : inst_(inst){};
+  CapturePipeline(Instance &inst) : inst_(inst) {};
 
   PassMain::Sub *surface_material_add(::Material *blender_mat, GPUMaterial *gpumat);
 
@@ -648,7 +642,7 @@ class UtilityTexture : public Texture {
  public:
   UtilityTexture()
       : Texture("UtilityTx",
-                GPU_RGBA16F,
+                gpu::TextureFormat::SFLOAT_16_16_16_16,
                 GPU_TEXTURE_USAGE_SHADER_READ,
                 int2(lut_size),
                 layer_count,
@@ -741,7 +735,7 @@ class PipelineModule {
         shadow(inst),
         volume(inst),
         capture(inst),
-        data(data){};
+        data(data) {};
 
   void begin_sync()
   {

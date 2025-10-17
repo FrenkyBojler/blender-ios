@@ -36,11 +36,18 @@ bool geo_node_poll_default(const blender::bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);
 
+/* Same as geo_node_type_base but allows node use in the compositor by allowing compositor node
+ * trees in the poll function. */
+void geo_cmp_node_type_base(blender::bke::bNodeType *ntype,
+                            std::string idname,
+                            std::optional<int16_t> legacy_type = std::nullopt);
+
 namespace blender::nodes {
 
 bool check_tool_context_and_error(GeoNodeExecParams &params);
 void search_link_ops_for_tool_node(GatherLinkSearchOpParams &params);
-void search_link_ops_for_volume_grid_node(GatherLinkSearchOpParams &params);
+
+void node_geo_sdf_grid_error_not_levelset(GeoNodeExecParams &params);
 
 void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             const VArray<float3> &positions,
@@ -50,8 +57,8 @@ void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             MutableSpan<float3> r_positions);
 
 void mix_baked_data_item(eNodeSocketDatatype socket_type,
-                         void *prev,
-                         const void *next,
+                         SocketValueVariant &prev,
+                         const SocketValueVariant &next,
                          const float factor);
 
 namespace enums {
