@@ -425,6 +425,20 @@ static void foreach_toplevel_grid_coord(
   });
 }
 
+static blender::float2 ccg_uv_corner_to_ptex_uv(blender::float2 uv, int corner) {
+  if (corner == 0) {
+    return blender::float2(1.0f - uv.y, 1.0f - uv.x);
+  }
+  if (corner == 1) {
+    return blender::float2(uv.y, 1.0f - uv.x);
+  }
+  if (corner == 2) {
+    return blender::float2(uv.y, uv.x);
+  }
+  BLI_assert(corner == 3);
+  return blender::float2(1.0f - uv.y, uv.x);
+}
+
 static void foreach_toplevel_grid_coord_single_threaded(
     MultiresReshapeSmoothContext *reshape_smooth_context,
     blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
@@ -451,7 +465,9 @@ static void foreach_toplevel_grid_coord_single_threaded(
             const float grid_u = x * grid_size_1_inv;
             PTexCoord ptex_coord;
             ptex_coord.ptex_face_index = ptex_face_index;
-            bke::subdiv::grid_uv_to_ptex_face_uv(grid_u, grid_v, &ptex_coord.u, &ptex_coord.v);
+            const float2 ptex_face_uv = ccg_uv_corner_to_ptex_uv(float2(grid_u, grid_v), corner);
+            ptex_coord.u = ptex_face_uv.x;
+            ptex_coord.v = ptex_face_uv.y;
             const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
             printf("RAW: (%d, %d, %d) -> CCG: (%d, %f, %f) -> %d -> PTEX: (%d, %f, %f)\n",
                    corner,
