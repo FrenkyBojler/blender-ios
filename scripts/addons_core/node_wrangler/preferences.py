@@ -347,6 +347,8 @@ kmi_defs = (
     # Align Nodes
     (operators.NWAlignNodes.bl_idname, 'EQUAL', 'PRESS', False, True,
      False, None, n_("Align selected nodes neatly in a row/column")),
+    # Center Nodes
+    (operators.NWCenterNodes.bl_idname, 'G', 'PRESS', False, False, True, None, n_("Move nodes to editor's center")),
     # Reset Nodes (Back Space)
     (operators.NWResetNodes.bl_idname, 'BACK_SPACE', 'PRESS', False, False,
      False, None, n_("Revert node back to default state, but keep connections")),

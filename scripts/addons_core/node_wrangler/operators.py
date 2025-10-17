@@ -31,7 +31,7 @@ from .interface import NWConnectionListInputs, NWConnectionListOutputs
 from .utils.constants import blend_types, geo_combine_operations, operations, navs, get_texture_node_types, rl_outputs
 from .utils.draw import draw_callback_nodeoutline
 from .utils.paths import match_files_to_socket_names, split_into_components
-from .utils.nodes import (node_mid_pt, autolink, node_at_pos, get_nodes_links,
+from .utils.nodes import (node_mid_pt, autolink, abs_node_location, node_at_pos, get_nodes_links,
                           force_update, nw_check,
                           nw_check_not_empty, nw_check_selected, nw_check_active, nw_check_space_type,
                           nw_check_node_type, nw_check_visible_outputs, get_viewer_image, nw_check_viewer_node, NWBase,
@@ -1890,6 +1890,43 @@ class NWAlignNodes(Operator, NWBase):
         return {'FINISHED'}
 
 
+class NWCenterNodes(Operator, NWBase):
+    """Move nodes to editor's center"""
+    bl_idname = "node.nw_center_nodes"
+    bl_label = "Center Nodes"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return nw_check(cls, context) and nw_check_selected(cls, context)
+
+    def execute(self, context):
+        nodes, links = get_nodes_links(context)
+
+        selection = []
+        for node in nodes:
+            if node.select and node.type != 'FRAME':
+                selection.append(node)
+
+        # Get bound center of selected nodes
+        abs_x_locs = [abs_node_location(n).x + (n.dimensions.x / 2) for n in selection]
+        abs_y_locs = [abs_node_location(n).y - (n.dimensions.y / 2) for n in selection]
+        mid_x = (max(abs_x_locs) + min(abs_x_locs)) / 2
+        mid_y = (max(abs_y_locs) + min(abs_y_locs)) / 2
+
+        if len(selection) == 1 and selection[0].type == 'REROUTE':
+            selection[0].location.x -= abs_node_location(selection[0]).x
+            selection[0].location.y -= abs_node_location(selection[0]).y
+        else:
+            for node in selection:
+                node.location.x -= mid_x
+                node.location.y -= mid_y
+
+        self.report({'INFO'}, rpt_("Centered {} nodes").format(len(selection)))
+
+        return {'FINISHED'}
+
+
 class NWSelectParentChildren(Operator, NWBase):
     bl_idname = "node.nw_select_parent_child"
     bl_label = "Select Parent or Children"
@@ -2395,6 +2432,7 @@ classes = (
     NWAddReroutes,
     NWLinkActiveToSelected,
     NWAlignNodes,
+    NWCenterNodes,
     NWSelectParentChildren,
     NWDetachOutputs,
     NWLinkToOutputNode,
