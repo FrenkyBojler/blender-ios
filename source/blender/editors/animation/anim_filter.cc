@@ -3749,13 +3749,13 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
   /* augment the filter-flags with settings based on the dopesheet filterflags
    * so that some temp settings can get added automagically...
    */
-  const bool use_only_selected = (ac->filters.flag & ADS_FILTER_ONLYSEL);
   if (ac->filters.flag & ADS_FILTER_SELEDIT) {
     /* only selected F-Curves should get their keyframes considered for editability */
     filter_mode |= ANIMFILTER_SELEDIT;
   }
 
   /* Cache files level animations (frame duration and such). */
+  const bool use_only_selected = (ac->filters.flag & ADS_FILTER_ONLYSEL);
   if (!use_only_selected && !(ac->filters.flag2 & ADS_FILTER_NOCACHEFILES)) {
     LISTBASE_FOREACH (CacheFile *, cache_file, &ac->bmain->cachefiles) {
       items += animdata_filter_ds_cachefile(ac, anim_data, cache_file, filter_mode);
@@ -3921,15 +3921,12 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
     return 1;
   }
 
-  /* Dope Sheet summary:
+  /* dopesheet summary
    * - Timeline mode always shows the summary, regardless of filter options.
    * - only for drawing and/or selecting keyframes in channels, but not for real editing
    * - only useful for DopeSheet/Action/etc. editors where it is actually useful
    */
-  const bool is_timeline = ac->dopesheet_mode == SACTCONT_TIMELINE;
-  if ((filter_mode & ANIMFILTER_LIST_CHANNELS) &&
-      (is_timeline || ac->filters.flag & ADS_FILTER_SUMMARY))
-  {
+  if ((filter_mode & ANIMFILTER_LIST_CHANNELS) && (ac->filters.flag & ADS_FILTER_SUMMARY)) {
     bAnimListElem *ale = make_new_animlistelem(ac->bmain, ac, ANIMTYPE_SUMMARY, nullptr, nullptr);
     if (ale) {
       BLI_addtail(anim_data, ale);
@@ -3941,9 +3938,7 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
      *
      * For the Timeline mode: if the ANIMFILTER_LIST_CHANNELS
      */
-    if ((is_timeline && (filter_mode & ANIMFILTER_LIST_CHANNELS)) ||
-        ads->flag & ADS_FLAG_SUMMARY_COLLAPSED)
-    {
+    if ((filter_mode & ANIMFILTER_LIST_CHANNELS) || ads->flag & ADS_FLAG_SUMMARY_COLLAPSED) {
       return 0;
     }
   }
