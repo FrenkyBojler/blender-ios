@@ -353,10 +353,10 @@ static void flushTransNodes(TransInfo *t)
     }
 
     /* Handle intersection with noodles. */
-    if (tc->data_len == 1) {
-      space_node::node_insert_on_link_flags_set(
-          *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
-    }
+    // if (tc->data_len == 1) {
+    space_node::node_insert_on_link_flags_set(
+        *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
+    // }
     space_node::node_insert_on_frame_flag_set(*t->context, *snode, int2(t->mval));
   }
 }
