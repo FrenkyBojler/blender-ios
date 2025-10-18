@@ -2040,18 +2040,19 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     strip_rectf(scene, strip, &rq);
     const float left_handle = seq::time_left_handle_frame_get(scene, strip);
     const float right_handle = seq::time_right_handle_frame_get(scene, strip);
-    /* Invalidate cache of strips that could be effected by the deletion or transform of the blade
-     * box. These are only strips with a right_handle right of the most left frame of the box. */
+    /* Invalidate cache of strips that could be effected by the deletion or transform by the box
+     * blade. Effect only strips with a right_handle right of the most left frame of the box. */
     if (right_handle >= rect_frames[0]) {
       seq::relations_invalidate_cache(scene, strip);
     }
+
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
       /* Check if left and right handle are in the rect. */
       if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
           right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
       {
         seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
-        /* Propagate selection to connected strips. */
+        /* Propagate removal to connected strips. */
         blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
         for (Strip *c_strip : connected_strips) {
           seq::edit_flag_for_removal(scene, ed->current_strips(), c_strip);
@@ -2104,7 +2105,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       if (transformed_strips.contains(strip)) {
         continue;
       }
-      /* This can lead to strips overlap. */
+      /* This can lead strips to overlap when a strip is in front of the connected strip. */
       seq::transform_translate_strip(scene, strip, offset);
       transformed_strips.add(strip);
     }
