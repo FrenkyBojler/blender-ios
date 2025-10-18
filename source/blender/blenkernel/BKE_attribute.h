@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
@@ -42,7 +43,7 @@ typedef enum AttrDomainMask {
   ATTR_DOMAIN_MASK_GREASE_PENCIL_LAYER = (1 << 6),
   ATTR_DOMAIN_MASK_ALL = (1 << 7) - 1
 } AttrDomainMask;
-ENUM_OPERATORS(AttrDomainMask, ATTR_DOMAIN_MASK_ALL);
+ENUM_OPERATORS(AttrDomainMask);
 
 enum class AttributeOwnerType {
   Mesh,
@@ -161,9 +162,5 @@ bool BKE_color_attribute_supported(const struct Mesh &mesh, blender::StringRef n
 
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, blender::StringRef name);
 
-[[nodiscard]] blender::StringRef BKE_uv_map_vert_select_name_get(blender::StringRef uv_map_name,
-                                                                 char *buffer);
-[[nodiscard]] blender::StringRef BKE_uv_map_edge_select_name_get(blender::StringRef uv_map_name,
-                                                                 char *buffer);
 [[nodiscard]] blender::StringRef BKE_uv_map_pin_name_get(blender::StringRef uv_map_name,
                                                          char *buffer);

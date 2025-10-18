@@ -765,10 +765,8 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
           if (wmn->reference == snode->id || snode->id == nullptr) {
             node_area_tag_tree_recalc(snode, area);
           }
-          /* Redraw context path if modifier was added or removed. */
-          if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
-            ED_area_tag_redraw(area);
-          }
+          /* Redraw context path or modifier dependent information. */
+          ED_area_tag_redraw(area);
         }
       }
       break;
@@ -1562,6 +1560,7 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
     if (snode->treepath.last) {
       path = (bNodeTreePath *)snode->treepath.last;
       snode->edittree = path->nodetree;
+      ED_node_set_active_viewer_key(snode);
     }
     else {
       snode->edittree = nullptr;

@@ -30,14 +30,13 @@ class SocketUsageInferencer {
  private:
   SocketUsageInferencerImpl &impl_;
 
-  friend class InputSocketUsageParams;
+  friend class SocketUsageParams;
 
  public:
   SocketUsageInferencer(const bNodeTree &tree,
-                        std::optional<Span<InferenceValue>> tree_input_values,
                         ResourceScope &scope,
+                        SocketValueInferencer &value_inferencer,
                         bke::ComputeContextCache &compute_context_cache,
-                        std::optional<Span<bool>> top_level_ignored_inputs = std::nullopt,
                         bool ignore_top_level_node_muting = false);
 
   bool is_socket_used(const SocketInContext &socket);
@@ -52,7 +51,7 @@ class SocketUsageInferencer {
   void mark_top_level_node_outputs_as_used();
 };
 
-class InputSocketUsageParams {
+class SocketUsageParams {
  private:
   SocketUsageInferencer &inferencer_;
   const ComputeContext *compute_context_ = nullptr;
@@ -62,11 +61,11 @@ class InputSocketUsageParams {
   const bNode &node;
   const bNodeSocket &socket;
 
-  InputSocketUsageParams(SocketUsageInferencer &inferencer,
-                         const ComputeContext *compute_context,
-                         const bNodeTree &tree,
-                         const bNode &node,
-                         const bNodeSocket &socket);
+  SocketUsageParams(SocketUsageInferencer &inferencer,
+                    const ComputeContext *compute_context,
+                    const bNodeTree &tree,
+                    const bNode &node,
+                    const bNodeSocket &socket);
 
   /**
    * Get an the statically known input value for the given socket identifier. The value may be

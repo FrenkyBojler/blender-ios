@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_compute_context.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_node.hh"
@@ -134,7 +135,7 @@ enum NodeResizeDirection {
   NODE_RESIZE_RIGHT = (1 << 2),
   NODE_RESIZE_LEFT = (1 << 3),
 };
-ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
+ENUM_OPERATORS(NodeResizeDirection);
 
 /* Nodes draw without DPI - the view zoom is flexible. */
 #define BASIS_RAD (0.2f * U.widget_unit)
@@ -169,8 +170,6 @@ void node_socket_color_get(const bContext &C,
                            PointerRNA &node_ptr,
                            const bNodeSocket &sock,
                            float r_color[4]);
-
-const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_label);
 
 void node_draw_space(const bContext &C, ARegion &region);
 

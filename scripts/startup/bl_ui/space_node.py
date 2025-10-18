@@ -167,7 +167,8 @@ class NODE_HT_header(Header):
                     row.template_ID(
                         active_modifier,
                         "node_group",
-                        new="node.new_compositor_sequencer_node_group")
+                        new="node.new_compositor_sequencer_node_group",
+                    )
                 else:
                     row.enabled = False
                     row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_node_group")
@@ -351,9 +352,13 @@ class NODE_MT_view(Menu):
         layout = self.layout
 
         snode = context.space_data
+        is_compositor = snode.tree_type == 'CompositorNodeTree'
 
         layout.prop(snode, "show_region_toolbar")
         layout.prop(snode, "show_region_ui")
+
+        if is_compositor:
+            layout.prop(snode, "show_region_asset_shelf")
 
         layout.separator()
 
@@ -443,6 +448,7 @@ class NODE_MT_node(Menu):
         layout.operator("node.join", text="Join in New Frame")
         layout.operator("node.detach", text="Remove from Frame")
         layout.operator("node.join_nodes", text="Join Group Inputs")
+        layout.operator("node.join_named")
 
         layout.separator()
         props = layout.operator("wm.call_panel", text="Rename...")
@@ -1016,6 +1022,19 @@ class NODE_MT_node_tree_interface_context_menu(Menu):
             layout.operator("node.interface_item_unlink_panel_toggle")
 
 
+class NODE_MT_node_tree_interface_new_item(Menu):
+    bl_label = "New Item"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator_enum("node.interface_item_new", "item_type")
+
+        active_item = context.space_data.edit_tree.interface.active
+
+        if active_item.item_type == 'PANEL':
+            layout.operator("node.interface_item_new_panel_toggle", text="Panel Toggle")
+
+
 class NODE_PT_node_tree_properties(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
@@ -1139,6 +1158,7 @@ def node_panel(cls):
 class NODE_AST_compositor(bpy.types.AssetShelf):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
+    bl_options = {'DEFAULT_VISIBLE'}
 
     @classmethod
     def poll(cls, context):
@@ -1169,6 +1189,7 @@ classes = (
     NODE_PT_geometry_node_tool_options,
     NODE_PT_node_color_presets,
     NODE_PT_node_tree_properties,
+    NODE_MT_node_tree_interface_new_item,
     NODE_MT_node_tree_interface_context_menu,
     NODE_PT_node_tree_animation,
     NODE_PT_active_node_generic,
