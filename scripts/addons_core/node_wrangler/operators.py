@@ -530,8 +530,7 @@ class NWReloadImages(Operator):
                         num_reloaded += 1
 
         if num_reloaded:
-            self.report({'INFO'}, "Reloaded images")
-            print("Reloaded " + str(num_reloaded) + " images")
+            self.report({'INFO'}, rpt_("Reloaded {:d} image(s)").format(num_reloaded))
             force_update(context)
             return {'FINISHED'}
         else:
