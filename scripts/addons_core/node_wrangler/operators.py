@@ -1909,8 +1909,11 @@ class NWCenterNodes(Operator, NWBase):
                 selection.append(node)
 
         # Get bound center of selected nodes
-        abs_x_locs = [abs_node_location(n).x + (n.dimensions.x / 2) for n in selection]
-        abs_y_locs = [abs_node_location(n).y - (n.dimensions.y / 2) for n in selection]
+        abs_x_locs = []
+        abs_y_locs = []
+        for n in selection:
+            abs_x_locs.append(abs_node_location(n).x + (n.dimensions.x / 2))
+            abs_y_locs.append(abs_node_location(n).y - (n.dimensions.y / 2))
         mid_x = (max(abs_x_locs) + min(abs_x_locs)) / 2
         mid_y = (max(abs_y_locs) + min(abs_y_locs)) / 2
 
