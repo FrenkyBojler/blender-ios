@@ -1,1 +1,2 @@
 Referenced by issue #148145, RDNA3 Linux fails many Cycles GPU tests
+Referenced by pull request #148225, Fix #148145: HIP performance issue after recent transparency fix
