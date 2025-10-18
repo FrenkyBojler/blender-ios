@@ -367,7 +367,15 @@ struct PersistentMultiresData {
 };
 
 struct MultiresRuntime {
+  /* Tagged vertices that have been changed - only these vertices should have the extra
+   * displacement added. */
+  blender::Vector<blender::BitVector<>> modified_at_level;
+
+  /* Actual displacement per level */
   blender::Vector<blender::Vector<blender::float3>> disp_at_level;
+
+  /* Used as shortcut to completely avoid MDisps for most cases. */
+  blender::Vector<blender::Vector<blender::float3>> positions_at_level;
 };
 
 struct SculptSession : blender::NonCopyable, blender::NonMovable {

@@ -1627,7 +1627,8 @@ void multires_reshape_store_limit_positions(
 void multires_reshape_store_tangent_matrices(
     const MultiresReshapeContext *reshape_context,
     MultiresSubdivideModeType mode,
-    blender::MutableSpan<blender::float3> deltas,
+    blender::MutableSpan<blender::float3> positions,
+    blender::MutableSpan<blender::float3> new_positions,
     blender::MutableSpan<blender::float3x3> tangent_matrices)
 {
 #ifdef WITH_OPENSUBDIV
@@ -1636,8 +1637,8 @@ void multires_reshape_store_tangent_matrices(
 
   reshape_subdiv_create(&reshape_smooth_context);
 
-  reshape_subdiv_refine_final(&reshape_smooth_context, deltas);
-  evaluate_higher_grid_derivatives(&reshape_smooth_context, tangent_matrices);
+  reshape_subdiv_refine_final(&reshape_smooth_context, positions);
+  evaluate_higher_grid_positions(&reshape_smooth_context, new_positions, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif

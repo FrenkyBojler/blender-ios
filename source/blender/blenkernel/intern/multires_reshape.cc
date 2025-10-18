@@ -265,12 +265,15 @@ static void multires_level_tangent_delta_to_object_delta(
   }
 }
 
-static void multires_level_apply_object_delta(blender::Span<blender::float3> delta_storage,
-                                        SubdivCCG &subdiv_ccg)
+static void multires_level_apply_object_delta(blender::Span<blender::float3> position_storage,
+                                              blender::Span<blender::float3> delta_storage,
+                                              SubdivCCG &subdiv_ccg)
 {
   BLI_assert(subdiv_ccg.positions.size() == delta_storage.size());
+  BLI_assert(subdiv_ccg.positions.size() == position_storage.size());
+
   for (const int i : subdiv_ccg.positions.index_range()) {
-    subdiv_ccg.positions[i] += delta_storage[i];
+    subdiv_ccg.positions[i] = position_storage[i] + delta_storage[i];
   }
 }
 
@@ -284,6 +287,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   blender::Array<blender::float3> ccg_storage(lower_subdiv_ccg.positions.size());
   blender::MutableSpan<blender::float3> delta_storage = multires_get_delta_storage(
       object, subdiv_ccg.level);
+  blender::Array<blender::float3> position_storage(delta_storage.size());
   blender::Array<blender::float3x3> tmat_storage(delta_storage.size());
   BLI_assert(delta_storage.size() == subdiv_ccg.positions.size());
 
@@ -302,13 +306,13 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   }
 
   multires_reshape_store_tangent_matrices(
-      &reshape_context, MultiresSubdivideModeType::CatmullClark, ccg_storage, tmat_storage);
+      &reshape_context, MultiresSubdivideModeType::CatmullClark, ccg_storage, position_storage, tmat_storage);
 
   /* Convert them to object space */
   multires_level_tangent_delta_to_object_delta(delta_storage, tmat_storage);
 
   /* Re-add them to the new subdiv CCG */
-  multires_level_apply_object_delta(delta_storage, subdiv_ccg);
+  multires_level_apply_object_delta(position_storage, delta_storage, subdiv_ccg);
   /* TODO: do we need to recalculate normals? */
 
   /* Delete the data */
