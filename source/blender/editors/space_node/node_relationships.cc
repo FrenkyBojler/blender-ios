@@ -2562,73 +2562,44 @@ struct NodesEndpoint {
 /**
  * @brief 检查选中的节点是否形成一个无分叉的线性链条, 并返回链条的起始和结束节点.
  *
- * 这个函数会遍历所有选中的节点, 验证它们是否满足以下条件:
  * 1. 链条中必须有且只有一个“起始节点” (没有来自其他选中节点的输入).
  * 2. 链条中必须有且只有一个“结束节点” (没有输出到其他选中节点的连接).
  * 3. 所有中间节点的输入和输出都必须连接到其他选中的节点上.
- * 4. 允许单个节点被选中, 此时它既是起点也是终点.
- *
- * @param node_tree 当前正在操作的节点树.
- * @return NodesEndpoint 结构体. 如果构成线性链条, 则包含起始和结束节点指针;
- * 否则两个指针都为 nullptr.
+ * todo: 特殊情况: 选择了两个没连线的节点,是区域输入和输出
  */
 static NodesEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &node_tree)
 {
-  NodesEndpoint result = {};
+  NodesEndpoint result{};
   rctf bounds{};
 
-  bool first_node = false;
-  // --- 步骤 1: 收集所有选中的节点 ---
+  bool find_first = false;
   Vector<bNode *> selected_nodes;
   for (bNode *node : node_tree.all_nodes()) {
-    if (node->flag & SELECT) {
-      selected_nodes.append(node);
-      if (!first_node) {
-        result.bounds = node->runtime->draw_bounds;
-        first_node = true;
-      }
-      else {
-        BLI_rctf_union(&result.bounds, &node->runtime->draw_bounds);
-      }
+    if (!(node->flag & SELECT)) {
+      continue;
+    }
+    selected_nodes.append(node);
+    if (!find_first) {
+      result.bounds = node->runtime->draw_bounds;
+      find_first = true;
+    }
+    else {
+      // todo 是否有更简单的凸包算法,一句线段和凸包是否相交
+      BLI_rctf_union(&result.bounds, &node->runtime->draw_bounds);
     }
   }
-
-  // 应该始终有选中节点才会触发吧
   if (selected_nodes.is_empty()) {
     return {};
   }
-  if (selected_nodes.size() == 1) {
-    bNode *node = selected_nodes[0];
-    if (node->input_sockets().is_empty() || node->output_sockets().is_empty()) {
-      return {};
-    }
-    result.start_node = node;
-    result.end_node = node;
-    return result;
-  }
 
   // --- 步骤 2: 识别链条的起始节点和结束节点 ---
-  Vector<bNode *> start_candidates;  // 起始节点的候选者
-  Vector<bNode *> end_candidates;    // 结束节点的候选者
+  Vector<bNode *> start_candidates;
+  Vector<bNode *> end_candidates;
 
+  // todo 先判断终点 主接口的类型(如Geo), 当只有一个终点时,再查找起点时,
+  // todo 设置位置除了Geo都连线了,也应该考虑为起始
+  // todo 或者第一个输入接口没连线的节点也应该加进候选, 但是最高优先级的只应该有一个
   for (bNode *node : selected_nodes) {
-    bool has_input_from_selected = false;
-    // 检查当前节点的输入是否连接了【其他被选中的】节点
-    for (bNodeSocket *sock_in : node->input_sockets()) {
-      for (bNodeSocket *linked_sock : sock_in->directly_linked_sockets()) {
-        if (selected_nodes.contains(&linked_sock->owner_node())) {
-          has_input_from_selected = true;
-          break;
-        }
-      }
-      if (has_input_from_selected) {
-        break;
-      }
-    }
-    // 如果一个节点的输入端【没有】连接任何其他被选中的节点, 它就是一个潜在的“起始节点”
-    if (!has_input_from_selected) {
-      start_candidates.append(node);
-    }
 
     bool has_output_to_selected = false;
     // 检查当前节点的输出是否连接了【其他被选中的】节点
@@ -2647,14 +2618,32 @@ static NodesEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &node_t
     if (!has_output_to_selected) {
       end_candidates.append(node);
     }
+
+    bool has_input_from_selected = false;
+    // 检查当前节点的输入是否连接了【其他被选中的】节点
+    for (bNodeSocket *sock_in : node->input_sockets()) {
+      for (bNodeSocket *linked_sock : sock_in->directly_linked_sockets()) {
+        if (selected_nodes.contains(&linked_sock->owner_node())) {
+          has_input_from_selected = true;
+          break;
+        }
+      }
+      if (has_input_from_selected) {
+        break;
+      }
+    }
+    // 如果一个节点的输入端【没有】连接任何其他被选中的节点, 它就是一个潜在的“起始节点”
+    if (!has_input_from_selected) {
+      start_candidates.append(node);
+    }
   }
 
   // --- 步骤 3: 验证链条的唯一性和合法性 ---
   // 如果起始或结束节点不是唯一的, 返回空
+  // todo 或者说终点一个,起点多个,找到最佳的起点
   if (start_candidates.size() != 1 || end_candidates.size() != 1) {
     return {};
   }
-
   bNode *start_node = start_candidates[0];
   bNode *end_node = end_candidates[0];
   if (start_node->input_sockets().is_empty() || end_node->output_sockets().is_empty()) {
@@ -2828,7 +2817,6 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   /* Find link to insert on. */
   bNodeTree &ntree = *snode.edittree;
   bNodeLink *old_link = nullptr;
-  // todo 排除选中节点里的连线
   LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
     if (link->flag & NODE_LINK_INSERT_TARGET) {
       if (!(link->flag & NODE_LINK_INSERT_TARGET_INVALID)) {
