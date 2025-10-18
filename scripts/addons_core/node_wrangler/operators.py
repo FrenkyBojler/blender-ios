@@ -1891,7 +1891,7 @@ class NWAlignNodes(Operator, NWBase):
 
 
 class NWCenterNodes(Operator, NWBase):
-    """Move nodes to editor's center"""
+    """Move selected nodes to the center of the node editor"""
     bl_idname = "node.nw_center_nodes"
     bl_label = "Center Nodes"
     bl_options = {'REGISTER', 'UNDO'}
