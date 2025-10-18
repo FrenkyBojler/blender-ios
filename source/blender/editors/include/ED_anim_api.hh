@@ -10,8 +10,8 @@
 
 #include "BKE_nla.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -259,7 +259,7 @@ enum eAnim_Update_Flags {
   /** Recalculate handles. */
   ANIM_UPDATE_HANDLES = (1 << 2),
 };
-ENUM_OPERATORS(eAnim_Update_Flags, ANIM_UPDATE_HANDLES);
+ENUM_OPERATORS(eAnim_Update_Flags);
 
 /* used for most tools which change keyframes (flushed by ANIM_animdata_update) */
 #define ANIM_UPDATE_DEFAULT (ANIM_UPDATE_DEPS | ANIM_UPDATE_ORDER | ANIM_UPDATE_HANDLES)
@@ -411,7 +411,7 @@ enum eAnimFilter_Flags {
   ANIMFILTER_TMP_IGNORE_ONLYSEL = (1u << 31),
 
 };
-ENUM_OPERATORS(eAnimFilter_Flags, ANIMFILTER_TMP_IGNORE_ONLYSEL);
+ENUM_OPERATORS(eAnimFilter_Flags);
 
 /** \} */
 
@@ -880,6 +880,11 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag);
  * Draw preview range 'curtains' for highlighting where the animation data is.
  */
 void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width);
+
+/**
+ * Draw range of the current sequencer scene strip when using scene time syncing.
+ */
+void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d);
 
 /** \} */
 

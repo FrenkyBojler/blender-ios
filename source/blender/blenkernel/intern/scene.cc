@@ -114,12 +114,18 @@
 
 using blender::bke::CompositorRuntime;
 using blender::bke::SceneRuntime;
+using blender::bke::SequencerRuntime;
 
 CompositorRuntime::~CompositorRuntime()
 {
   if (preview_depsgraph) {
     DEG_graph_free(preview_depsgraph);
   }
+}
+
+SequencerRuntime::~SequencerRuntime()
+{
+  DEG_graph_free(depsgraph);
 }
 
 CurveMapping *BKE_sculpt_default_cavity_curve()
@@ -319,7 +325,7 @@ static void scene_copy_data(Main *bmain,
   BKE_curvemapping_copy_data(&scene_dst->r.mblur_shutter_curve, &scene_src->r.mblur_shutter_curve);
 
   /* tool settings */
-  scene_dst->toolsettings = BKE_toolsettings_copy(scene_dst->toolsettings, flag_subdata);
+  scene_dst->toolsettings = BKE_toolsettings_copy(scene_src->toolsettings, flag_subdata);
 
   if (scene_src->display.shading.prop) {
     scene_dst->display.shading.prop = IDP_CopyProperty(scene_src->display.shading.prop);
@@ -807,6 +813,8 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
+  /* TODO: This could use `seq::foreach_strip_modifier_id`, but because `FOREACHID_PROCESS_IDSUPER`
+   * doesn't take IDs but "ID supers", it makes it a bit more cumbersome. */
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
     if (smd->type == eSeqModifierType_Compositor) {
@@ -846,8 +854,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   }
   if (scene->ed) {
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-        data,
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
+        data, blender::seq::foreach_strip(&scene->ed->seqbase, strip_foreach_member_id_cb, data));
   }
 
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(data,
@@ -874,8 +881,23 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
               BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
             }));
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+    /* FIXME: Although ideally this should always have access to synced data, this is not always
+     * the case (FOREACH_ID can be called in context where re-syncing is blocked, while effectively
+     * modifying the view-layer or collections data, see e.g. #id_delete code which remaps all
+     * deleted ID usages to null).
+     *
+     * There is no obvious solution to this problem, so for now working around with some 'band-aid'
+     * special code and asserts.
+     *
+     * In the future, there may be need for a new `IDWALK_CB` flag to mark existing pointer values
+     * as unsafe to access in such cases. */
+    const bool is_synced = BKE_view_layer_synced_ensure(scene, view_layer);
+    if (!is_synced) {
+      BLI_assert_msg((flag & IDWALK_RECURSE) == 0,
+                     "foreach_id should never recurse in case it cannot ensure that all "
+                     "view-layers are in synced with their collections");
+    }
+    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_unsynced_get(view_layer)) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(
           data,
           base->object,
@@ -978,7 +1000,7 @@ static void scene_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Scene *scene = (Scene *)id;
   if (scene->ed != nullptr) {
-    blender::seq::for_each_callback(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
+    blender::seq::foreach_strip(&scene->ed->seqbase, strip_foreach_path_callback, bpath_data);
   }
 }
 
@@ -1833,31 +1855,38 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
   id_us_min(&sce_copy->id);
   id_us_ensure_real(&sce_copy->id);
 
-  BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
+  /* Scene duplication is always root of duplication currently, and never a subprocess.
+   *
+   * Keep these around though, as this allow the rest of the duplication code to stay in sync with
+   * the layout and behavior as the other duplicate functions (see e.g. #BKE_collection_duplicate
+   * or #BKE_object_duplicate).
+   *
+   * TOOD: At some point it would be nice to deduplicate this logic and move common behavior into
+   * generic ID management code, with IDType callbacks for specific duplication behavior only. */
+  const bool is_subprocess = false;
+  const bool is_root_id = true;
+  const int copy_flags = LIB_ID_COPY_DEFAULT;
+
+  if (!is_subprocess) {
+    BKE_main_id_newptr_and_tag_clear(bmain);
+  }
+
+  if (is_root_id) {
+    /* In case root duplicated ID is linked, assume we want to get a local copy of it and
+     * duplicate all expected linked data. */
+    if (ID_IS_LINKED(sce)) {
+      duplicate_flags = (duplicate_flags | USER_DUP_LINKED_ID);
+    }
+  }
+
+  /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
+  ID_NEW_SET(sce, sce_copy);
 
   /* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks. */
 
+  BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
+
   if (type == SCE_COPY_FULL) {
-    /* Scene duplication is always root of duplication currently. */
-    const bool is_subprocess = false;
-    const bool is_root_id = true;
-    const int copy_flags = LIB_ID_COPY_DEFAULT;
-
-    if (!is_subprocess) {
-      BKE_main_id_newptr_and_tag_clear(bmain);
-    }
-
-    /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
-    ID_NEW_SET(sce, sce_copy);
-
-    if (is_root_id) {
-      /* In case root duplicated ID is linked, assume we want to get a local copy of it and
-       * duplicate all expected linked data. */
-      if (ID_IS_LINKED(sce)) {
-        duplicate_flags = (duplicate_flags | USER_DUP_LINKED_ID);
-      }
-    }
-
     /* Copy Freestyle LineStyle datablocks. */
     LISTBASE_FOREACH (ViewLayer *, view_layer_dst, &sce_copy->view_layers) {
       LISTBASE_FOREACH (FreestyleLineSet *, lineset, &view_layer_dst->freestyle_config.linesets) {
@@ -1904,39 +1933,41 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
                                  LIB_ID_DUPLICATE_IS_SUBPROCESS);
       }
     }
-
-    if (!is_subprocess) {
-      /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-      /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if
-       * its obdata contains edit mode runtime data. This can be the case of all newly duplicated
-       * objects, as even though duplicate code move the object back in Object mode, they are still
-       * using the original obdata ID, leading to them being falsely detected as being in Edit
-       * mode, and therefore not remapping their obdata to the newly duplicated one. See #139715.
-       */
-      BKE_libblock_relink_to_newid(
-          bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
-
-#ifndef NDEBUG
-      /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those
-       * flags. */
-      ID *id_iter;
-      FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
-        BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
-      }
-      FOREACH_MAIN_ID_END;
-#endif
-
-      /* Cleanup. */
-      BKE_main_id_newptr_and_tag_clear(bmain);
-
-      BKE_main_collection_sync(bmain);
-    }
   }
   else {
     /* Remove sequencer if not full copy */
     /* XXX Why in Hell? :/ */
     remove_sequencer_fcurves(sce_copy);
     blender::seq::editing_free(sce_copy, true);
+  }
+
+  /* The final step is to ensure that all of the newly duplicated IDs are used by other newly
+   * duplicated IDs, and some standard cleanup & updates. */
+  if (!is_subprocess) {
+    /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
+    /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if
+     * its obdata contains edit mode runtime data. This can be the case of all newly duplicated
+     * objects, as even though duplicate code move the object back in Object mode, they are still
+     * using the original obdata ID, leading to them being falsely detected as being in Edit
+     * mode, and therefore not remapping their obdata to the newly duplicated one. See #139715.
+     */
+    BKE_libblock_relink_to_newid(
+        bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
+
+#ifndef NDEBUG
+    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those
+     * flags. */
+    ID *id_iter;
+    FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+      BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
+    }
+    FOREACH_MAIN_ID_END;
+#endif
+
+    /* Cleanup. */
+    BKE_main_id_newptr_and_tag_clear(bmain);
+
+    BKE_main_collection_sync(bmain);
   }
 
   return sce_copy;
@@ -2284,14 +2315,19 @@ const char *BKE_scene_find_last_marker_name(const Scene *scene, int frame)
   return best_marker ? best_marker->name : nullptr;
 }
 
-int BKE_scene_frame_snap_by_seconds(Scene *scene, double interval_in_seconds, int frame)
+float BKE_scene_frame_snap_by_seconds(const Scene *scene,
+                                      const double interval_in_seconds,
+                                      const float frame)
 {
-  const int fps = round_db_to_int(scene->frames_per_second() * interval_in_seconds);
-  const int second_prev = frame - mod_i(frame, fps);
-  const int second_next = second_prev + fps;
-  const int delta_prev = frame - second_prev;
-  const int delta_next = second_next - frame;
-  return (delta_prev < delta_next) ? second_prev : second_next;
+  BLI_assert(interval_in_seconds > 0);
+  BLI_assert(scene->frames_per_second() > 0);
+
+  const double interval_in_frames = scene->frames_per_second() * interval_in_seconds;
+  const double second_prev = interval_in_frames * floor(frame / interval_in_frames);
+  const double second_next = second_prev + ceil(interval_in_frames);
+  const double delta_prev = frame - second_prev;
+  const double delta_next = second_next - frame;
+  return float((delta_prev < delta_next) ? second_prev : second_next);
 }
 
 void BKE_scene_remove_rigidbody_object(Main *bmain, Scene *scene, Object *ob, const bool free_us)
