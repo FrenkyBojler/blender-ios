@@ -522,7 +522,7 @@ class NWReloadImages(Operator):
             elif node.bl_idname in {'GeometryNodeGroup',
                                     'GeometryNodeImageInfo',
                                     'GeometryNodeImageTexture'}:
-                # For select Geometry Nodes, check each input since images can be defined in non-image nodes.
+                # For these Geometry Nodes, check each input since images can be defined in sockets.
                 for sock in node.inputs:
                     if (sock.bl_idname == 'NodeSocketImage'
                             and sock.default_value is not None):
