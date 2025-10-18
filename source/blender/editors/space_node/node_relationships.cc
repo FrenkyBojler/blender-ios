@@ -2542,11 +2542,12 @@ static bNode *get_selected_node_for_insertion(bNodeTree &node_tree)
 }
 
 // 定义一个结构体, 用于返回结果, 这样比返回数组更清晰、类型安全.
-struct SelectedNodeEndpoint {
-  bNode *start_node = nullptr;  // 链条的起始节点
-  bNode *end_node = nullptr;    // 链条的结束节点
+struct NodesEndpoint {
+  bNode *start_node = nullptr;
+  bNode *end_node = nullptr;
+  rctf bounds{};
 
-  // 一个辅助函数, 判断结果是否有效
+  // 选中的节点是否构成一个合法的链条
   bool is_valid() const
   {
     return start_node != nullptr && end_node != nullptr;
@@ -2568,41 +2569,53 @@ struct SelectedNodeEndpoint {
  * 4. 允许单个节点被选中, 此时它既是起点也是终点.
  *
  * @param node_tree 当前正在操作的节点树.
- * @return SelectedNodeEndpoint 结构体. 如果构成线性链条, 则包含起始和结束节点指针;
+ * @return NodesEndpoint 结构体. 如果构成线性链条, 则包含起始和结束节点指针;
  * 否则两个指针都为 nullptr.
  */
-static SelectedNodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &node_tree)
+static NodesEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &node_tree)
 {
+  NodesEndpoint result = {};
+  rctf bounds{};
+
+  bool first_node = false;
   // --- 步骤 1: 收集所有选中的节点 ---
   Vector<bNode *> selected_nodes;
   for (bNode *node : node_tree.all_nodes()) {
-    if (node->flag & NODE_SELECT) {  // 使用 NODE_SELECT 标志
+    if (node->flag & SELECT) {
       selected_nodes.append(node);
+      if (!first_node) {
+        result.bounds = node->runtime->draw_bounds;
+        first_node = true;
+      }
+      else {
+        BLI_rctf_union(&result.bounds, &node->runtime->draw_bounds);
+      }
     }
   }
 
-  // 如果没有选中节点, 或者只选中了一个节点
+  // 应该始终有选中节点才会触发吧
   if (selected_nodes.is_empty()) {
-    return {};  // 返回一个空的结构体
+    return {};
   }
   if (selected_nodes.size() == 1) {
     bNode *node = selected_nodes[0];
-    // 检查单个节点是否同时有输入和输出接口, 这是能被插入的基本条件
-    if (!node->input_sockets().is_empty() && !node->output_sockets().is_empty()) {
-      return {node, node};  // 它既是起点也是终点
+    if (node->input_sockets().is_empty() || node->output_sockets().is_empty()) {
+      return {};
     }
-    return {};  // 不满足条件, 返回空
+    result.start_node = node;
+    result.end_node = node;
+    return result;
   }
 
   // --- 步骤 2: 识别链条的起始节点和结束节点 ---
   Vector<bNode *> start_candidates;  // 起始节点的候选者
   Vector<bNode *> end_candidates;    // 结束节点的候选者
 
-  for (bNode *current_node : selected_nodes) {
+  for (bNode *node : selected_nodes) {
     bool has_input_from_selected = false;
     // 检查当前节点的输入是否连接了【其他被选中的】节点
-    for (bNodeSocket *socket_in : current_node->input_sockets()) {
-      for (bNodeSocket *linked_sock : socket_in->directly_linked_sockets()) {
+    for (bNodeSocket *sock_in : node->input_sockets()) {
+      for (bNodeSocket *linked_sock : sock_in->directly_linked_sockets()) {
         if (selected_nodes.contains(&linked_sock->owner_node())) {
           has_input_from_selected = true;
           break;
@@ -2614,13 +2627,13 @@ static SelectedNodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree 
     }
     // 如果一个节点的输入端【没有】连接任何其他被选中的节点, 它就是一个潜在的“起始节点”
     if (!has_input_from_selected) {
-      start_candidates.append(current_node);
+      start_candidates.append(node);
     }
 
     bool has_output_to_selected = false;
     // 检查当前节点的输出是否连接了【其他被选中的】节点
-    for (bNodeSocket *socket_out : current_node->output_sockets()) {
-      for (bNodeSocket *linked_sock : socket_out->directly_linked_sockets()) {
+    for (bNodeSocket *sock_out : node->output_sockets()) {
+      for (bNodeSocket *linked_sock : sock_out->directly_linked_sockets()) {
         if (selected_nodes.contains(&linked_sock->owner_node())) {
           has_output_to_selected = true;
           break;
@@ -2632,33 +2645,28 @@ static SelectedNodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree 
     }
     // 如果一个节点的输出端【没有】连接任何其他被选中的节点, 它就是一个潜在的“结束节点”
     if (!has_output_to_selected) {
-      end_candidates.append(current_node);
+      end_candidates.append(node);
     }
   }
 
   // --- 步骤 3: 验证链条的唯一性和合法性 ---
-  // 一个线性的、无分叉的链条, 必须有【且仅有】一个起始节点和一个结束节点.
-  // 这就是排除图片一那种复杂情况的关键!
+  // 如果起始或结束节点不是唯一的, 返回空
   if (start_candidates.size() != 1 || end_candidates.size() != 1) {
-    return {};  // 如果起始或结束节点不是唯一的, 说明存在分叉或汇合, 返回空
+    return {};
   }
 
   bNode *start_node = start_candidates[0];
   bNode *end_node = end_candidates[0];
-
-  // 最终检查: 确保起始节点有输入接口, 结束节点有输出接口, 这样才能被插入
   if (start_node->input_sockets().is_empty() || end_node->output_sockets().is_empty()) {
     return {};
   }
-
-  // (可选的附加检查) 可以在这里从 start_node 开始进行一次遍历, 确保所有选中的节点都能被访问到,
-  // 从而排除选中了两个不相干链条的情况. 但对于大多数情况, 上面的检查已经足够.
-
-  return {start_node, end_node};
+  result.start_node = start_node;
+  result.end_node = end_node;
+  return result;
 }
 
 static bool node_can_be_inserted_on_link(bNodeTree &tree,
-                                         SelectedNodeEndpoint &endpoint,
+                                         NodesEndpoint &endpoint,
                                          const bNodeLink &link)
 {
   const bNodeSocket *main_input = get_main_socket(tree, *endpoint.start_node, SOCK_IN);
@@ -2695,13 +2703,8 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   node_insert_on_link_flags_clear(node_tree);
 
-  // bNode *node_to_insert = get_selected_node_for_insertion(node_tree);
-  // if (!node_to_insert) {
-  //   return;
-  // }
-  SelectedNodeEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree);
+  NodesEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree);
   if (!endpoint.is_valid()) {
-    // 如果选中的节点不构成一个合法的链条, 就直接返回
     return;
   }
 
@@ -2723,8 +2726,10 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
       continue;
     }
-    if (ELEM(endpoint.start_node, link->fromnode, link->tonode)) {
-      /* Don't insert on a link that is connected to the node already. */
+    /* Don't insert on a link that is connected to selected nodees already. */
+    if ((link->fromnode && link->fromnode->flag & SELECT) ||
+        (link->tonode && link->tonode->flag & SELECT))
+    {
       continue;
     }
     if (is_new_node && !already_linked_sockets.is_empty()) {
@@ -2746,15 +2751,13 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     node_link_bezier_points_evaluated(*link, coords);
     float dist = FLT_MAX;
 
-    rctf bounds = endpoint.start_node->runtime->draw_bounds;
-    BLI_rctf_union(&bounds, &endpoint.end_node->runtime->draw_bounds);
     /* Loop over link coords to find shortest dist to upper left node edge of a intersected line
      * segment. */
     for (int i = 0; i < NODE_LINK_RESOL; i++) {
       /* Check if the node rectangle intersects the line from this point to next one. */
-      if (BLI_rctf_isect_segment(&bounds, coords[i], coords[i + 1])) {
+      if (BLI_rctf_isect_segment(&endpoint.bounds, coords[i], coords[i + 1])) {
         /* Store the shortest distance to the upper left edge of all intersections found so far. */
-        const float node_xy[] = {bounds.xmin, bounds.ymax};
+        const float node_xy[] = {endpoint.bounds.xmin, endpoint.bounds.ymax};
 
         /* To be precise coords should be clipped by `select->draw_bounds`, but not done since
          * there's no real noticeable difference. */
@@ -2817,7 +2820,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 {
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
-  SelectedNodeEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree);
+  NodesEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree);
   if (!endpoint.is_valid()) {
     return;
   }
@@ -2825,6 +2828,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   /* Find link to insert on. */
   bNodeTree &ntree = *snode.edittree;
   bNodeLink *old_link = nullptr;
+  // todo 排除选中节点里的连线
   LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
     if (link->flag & NODE_LINK_INSERT_TARGET) {
       if (!(link->flag & NODE_LINK_INSERT_TARGET_INVALID)) {
@@ -2912,6 +2916,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     iofsd->insert = endpoint.end_node;
     iofsd->prev = from_node;
     iofsd->next = to_node;
+    // iofsd->offset_x = ;
 
     snode.runtime->iofsd = iofsd;
   }
