@@ -726,6 +726,13 @@ bool UI_block_can_add_separator(const uiBlock *block);
  */
 bool UI_block_has_active_default_button(const uiBlock *block);
 
+/**
+ * Find a button under the mouse cursor, ignoring non-interactive ones (like labels). Holding Ctrl
+ * over a label button that can be Ctrl-Clicked to turn into an edit button will return that.
+ * Labels that are only interactive for the sake of displaying a tooltip are ignored too.
+ */
+uiBut *UI_but_find_mouse_over(const ARegion *region, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+
 uiList *UI_list_find_mouse_over(const ARegion *region, const wmEvent *event);
 
 /* `interface_region_menu_popup.cc` */
@@ -2213,8 +2220,9 @@ void UI_update_text_styles();
 #define UI_HEADER_OFFSET \
   ((void)0, ((U.uiflag & USER_AREA_CORNER_HANDLE) ? 16.0f : 8.0f) * UI_SCALE_FAC)
 
-#define UI_AZONESPOTW UI_HEADER_OFFSET       /* Width of corner action zone #AZone. */
-#define UI_AZONESPOTH (0.6f * U.widget_unit) /* Height of corner action zone #AZone. */
+#define UI_AZONESPOTW_LEFT UI_HEADER_OFFSET       /* Width of left-side corner #AZone. */
+#define UI_AZONESPOTW_RIGHT (8.0f * UI_SCALE_FAC) /* Width of right-side corner #AZone. */
+#define UI_AZONESPOTH (0.6f * U.widget_unit)      /* Height of corner action zone #AZone. */
 
 /* uiLayoutOperatorButs flags */
 enum {
