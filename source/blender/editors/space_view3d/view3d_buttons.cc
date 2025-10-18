@@ -637,8 +637,8 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
 
   CurvesSelectionStatus status;
 
-  if (const VArray<float> aspect_ratios = *attributes.lookup<float>("aspect_ratio",
-                                                                    bke::AttrDomain::Curve))
+  if (const VArray aspect_ratios = *attributes.lookup<float>("aspect_ratio",
+                                                             bke::AttrDomain::Curve))
   {
     status = threading::parallel_reduce(
         curves.curves_range(),
@@ -662,9 +662,7 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
     status.aspect_ratio_max = std::max(status.aspect_ratio_max, default_value);
   }
 
-  if (const VArray<float> softnesses = *attributes.lookup<float>("softness",
-                                                                 bke::AttrDomain::Curve))
-  {
+  if (const VArray softnesses = *attributes.lookup<float>("softness", bke::AttrDomain::Curve)) {
     status = threading::parallel_reduce(
         curves.curves_range(),
         512,
@@ -687,8 +685,7 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
     status.softness_max = std::max(status.softness_max, default_value);
   }
 
-  if (const VArray<float> u_scales = *attributes.lookup<float>("u_scale", bke::AttrDomain::Curve))
-  {
+  if (const VArray u_scales = *attributes.lookup<float>("u_scale", bke::AttrDomain::Curve)) {
     status = threading::parallel_reduce(
         curves.curves_range(),
         512,
@@ -711,8 +708,8 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
     status.u_scale_max = std::max(status.u_scale_max, default_value);
   }
 
-  if (const VArray<float> fill_opacities = *attributes.lookup<float>("fill_opacity",
-                                                                     bke::AttrDomain::Curve))
+  if (const VArray fill_opacities = *attributes.lookup<float>("fill_opacity",
+                                                              bke::AttrDomain::Curve))
   {
     status = threading::parallel_reduce(
         curves.curves_range(),
@@ -736,7 +733,7 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
     status.fill_opacity_max = std::max(status.fill_opacity_max, default_value);
   }
 
-  if (const VArray<int> end_caps = *attributes.lookup<int>("end_cap", bke::AttrDomain::Curve)) {
+  if (const VArray end_caps = *attributes.lookup<int>("end_cap", bke::AttrDomain::Curve)) {
     status = threading::parallel_reduce(
         curves.curves_range(),
         512,
@@ -759,8 +756,7 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
     status.end_cap_max = std::max(status.end_cap_max, default_value);
   }
 
-  if (const VArray<int> start_caps = *attributes.lookup<int>("start_cap", bke::AttrDomain::Curve))
-  {
+  if (const VArray start_caps = *attributes.lookup<int>("start_cap", bke::AttrDomain::Curve)) {
     status = threading::parallel_reduce(
         curves.curves_range(),
         512,
