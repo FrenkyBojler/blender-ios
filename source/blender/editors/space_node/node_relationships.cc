@@ -2750,7 +2750,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     BLI_rctf_union(&bounds, &endpoint.end_node->runtime->draw_bounds);
     /* Loop over link coords to find shortest dist to upper left node edge of a intersected line
      * segment. */
-    for (int i = 0; i < coords.size() - 1; i++) {
+    for (int i = 0; i < NODE_LINK_RESOL; i++) {
       /* Check if the node rectangle intersects the line from this point to next one. */
       if (BLI_rctf_isect_segment(&bounds, coords[i], coords[i + 1])) {
         /* Store the shortest distance to the upper left edge of all intersections found so far. */
@@ -2892,7 +2892,8 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     BKE_ntree_update_tag_link_changed(&ntree);
   }
   else {
-    bke::node_remove_link(&ntree, *old_link);  // 不应删旧线,应设INVALID,如Geo接口添加了采样编号
+    // todo不应删旧线,应设INVALID,如Geo接口添加了采样编号
+    bke::node_remove_link(&ntree, *old_link);
   }
 
   if (best_input != nullptr) {
