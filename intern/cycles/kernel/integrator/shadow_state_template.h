@@ -66,7 +66,15 @@ KERNEL_STRUCT_MEMBER(shadow_path,
                      bsdf_eval_average,
                      KernelFeatureRequest(KERNEL_FEATURE_PATH_TRACING, KERNEL_FEATURE_LIGHT_TREE))
 /* Light Path Expression event tracking. */
-KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events, KERNEL_FEATURE_NODE_AOV)
+/* 8 chunks of uint64_t allow up to 64 events (8 chunks x 8 events per chunk). */
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events_0, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events_1, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events_2, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events_3, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events_4, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events_5, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events_6, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events_7, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_MEMBER(shadow_path, uint8_t, lpe_event_count, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_MEMBER(shadow_path, uint16_t, lpe_lightgroup_id, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_MEMBER(shadow_path, int, lpe_object_id, KERNEL_FEATURE_NODE_AOV)

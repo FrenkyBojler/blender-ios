@@ -32,8 +32,9 @@ CCL_NAMESPACE_BEGIN
  *                "CRDL" = Camera -> Reflection+Diffuse -> Light
  */
 
-#define LPE_MAX_EVENTS 8             /* 64 bits / 8 bits per char = 8 events */
-#define LPE_MAX_EXPRESSION_LENGTH 32 /* Maximum length for an LPE expression string */
+#define LPE_MAX_EVENTS 64            /* 8 x 64 bits / 8 bits per char = 64 events */
+#define LPE_EVENT_CHUNKS 8           /* Number of uint64_t chunks to store events (8 chunks x 8 events = 64) */
+#define LPE_MAX_EXPRESSION_LENGTH 64 /* Maximum length for an LPE expression string (increased for complex paths) */
 #define LPE_MAX_PASSES 32            /* Maximum number of LPE passes (increased for flexibility) */
 
 /* Event character codes matching the parser */
@@ -48,6 +49,65 @@ CCL_NAMESPACE_BEGIN
 #define LPE_EVENT_GLOSSY 'G'
 #define LPE_EVENT_SINGULAR 'S'
 
+/* Helper functions to access chunked lpe_events array */
+ccl_device_inline uint64_t kernel_lpe_get_chunk(ccl_global IntegratorState state, int chunk_idx)
+{
+  switch (chunk_idx) {
+    case 0: return INTEGRATOR_STATE(state, path, lpe_events_0);
+    case 1: return INTEGRATOR_STATE(state, path, lpe_events_1);
+    case 2: return INTEGRATOR_STATE(state, path, lpe_events_2);
+    case 3: return INTEGRATOR_STATE(state, path, lpe_events_3);
+    case 4: return INTEGRATOR_STATE(state, path, lpe_events_4);
+    case 5: return INTEGRATOR_STATE(state, path, lpe_events_5);
+    case 6: return INTEGRATOR_STATE(state, path, lpe_events_6);
+    case 7: return INTEGRATOR_STATE(state, path, lpe_events_7);
+    default: return 0;
+  }
+}
+
+ccl_device_inline void kernel_lpe_set_chunk(ccl_global IntegratorState state, int chunk_idx, uint64_t value)
+{
+  switch (chunk_idx) {
+    case 0: INTEGRATOR_STATE_WRITE(state, path, lpe_events_0) = value; break;
+    case 1: INTEGRATOR_STATE_WRITE(state, path, lpe_events_1) = value; break;
+    case 2: INTEGRATOR_STATE_WRITE(state, path, lpe_events_2) = value; break;
+    case 3: INTEGRATOR_STATE_WRITE(state, path, lpe_events_3) = value; break;
+    case 4: INTEGRATOR_STATE_WRITE(state, path, lpe_events_4) = value; break;
+    case 5: INTEGRATOR_STATE_WRITE(state, path, lpe_events_5) = value; break;
+    case 6: INTEGRATOR_STATE_WRITE(state, path, lpe_events_6) = value; break;
+    case 7: INTEGRATOR_STATE_WRITE(state, path, lpe_events_7) = value; break;
+  }
+}
+
+ccl_device_inline uint64_t kernel_lpe_get_shadow_chunk(IntegratorShadowState state, int chunk_idx)
+{
+  switch (chunk_idx) {
+    case 0: return INTEGRATOR_STATE(state, shadow_path, lpe_events_0);
+    case 1: return INTEGRATOR_STATE(state, shadow_path, lpe_events_1);
+    case 2: return INTEGRATOR_STATE(state, shadow_path, lpe_events_2);
+    case 3: return INTEGRATOR_STATE(state, shadow_path, lpe_events_3);
+    case 4: return INTEGRATOR_STATE(state, shadow_path, lpe_events_4);
+    case 5: return INTEGRATOR_STATE(state, shadow_path, lpe_events_5);
+    case 6: return INTEGRATOR_STATE(state, shadow_path, lpe_events_6);
+    case 7: return INTEGRATOR_STATE(state, shadow_path, lpe_events_7);
+    default: return 0;
+  }
+}
+
+ccl_device_inline void kernel_lpe_set_shadow_chunk(IntegratorShadowState state, int chunk_idx, uint64_t value)
+{
+  switch (chunk_idx) {
+    case 0: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_0) = value; break;
+    case 1: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_1) = value; break;
+    case 2: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_2) = value; break;
+    case 3: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_3) = value; break;
+    case 4: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_4) = value; break;
+    case 5: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_5) = value; break;
+    case 6: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_6) = value; break;
+    case 7: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_7) = value; break;
+  }
+}
+
 /* Add an event character to the LPE path string */
 ccl_device_inline void kernel_lpe_add_event(ccl_global IntegratorState state, char event_char)
 {
@@ -58,19 +118,26 @@ ccl_device_inline void kernel_lpe_add_event(ccl_global IntegratorState state, ch
     return;
   }
 
-  /* Store event character in packed field (8 bits per event) */
-  uint64_t events = INTEGRATOR_STATE(state, path, lpe_events);
-  events |= ((uint64_t)event_char << (event_count * 8));
+  /* Calculate which chunk and bit offset within that chunk */
+  const int chunk_idx = event_count / 8;  /* Each chunk holds 8 events */
+  const int bit_offset = (event_count % 8) * 8;  /* 8 bits per event */
 
-  INTEGRATOR_STATE_WRITE(state, path, lpe_events) = events;
+  /* Get current chunk, add event, and write back */
+  uint64_t events = kernel_lpe_get_chunk(state, chunk_idx);
+  events |= ((uint64_t)event_char << bit_offset);
+  kernel_lpe_set_chunk(state, chunk_idx, events);
+
   INTEGRATOR_STATE_WRITE(state, path, lpe_event_count) = event_count + 1;
 }
 
 /* Initialize LPE state for a camera ray */
 ccl_device_inline void kernel_lpe_init_camera_ray(ccl_global IntegratorState state)
 {
-  /* Initialize LPE path tracking for camera ray (C) */
-  INTEGRATOR_STATE_WRITE(state, path, lpe_events) = 0;
+  /* Initialize all LPE event chunks to zero */
+  for (int i = 0; i < LPE_EVENT_CHUNKS; i++) {
+    kernel_lpe_set_chunk(state, i, 0);
+  }
+
   INTEGRATOR_STATE_WRITE(state, path, lpe_event_count) = 0;
   INTEGRATOR_STATE_WRITE(state, path, lpe_lightgroup_id) = 0;
   INTEGRATOR_STATE_WRITE(state, path, lpe_object_id) = OBJECT_NONE;
@@ -164,11 +231,14 @@ ccl_device_inline void kernel_lpe_extract_path(ccl_global IntegratorState state,
                                                int max_len)
 {
   const uint event_count = INTEGRATOR_STATE(state, path, lpe_event_count);
-  const uint64_t events = INTEGRATOR_STATE(state, path, lpe_events);
+  const int len = min((int)event_count, max_len - 1);
 
-  int len = min((int)event_count, max_len - 1);
+  /* Extract events from all chunks */
   for (int i = 0; i < len; i++) {
-    path_str[i] = (char)((events >> (i * 8)) & 0xFF);
+    const int chunk_idx = i / 8;
+    const int bit_offset = (i % 8) * 8;
+    const uint64_t chunk = kernel_lpe_get_chunk(state, chunk_idx);
+    path_str[i] = (char)((chunk >> bit_offset) & 0xFF);
   }
   path_str[len] = '\0';
 }
@@ -920,7 +990,10 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
   }
 
   /* Save current event state to restore later */
-  const uint64_t saved_events = INTEGRATOR_STATE(state, path, lpe_events);
+  uint64_t saved_events[LPE_EVENT_CHUNKS];
+  for (int i = 0; i < LPE_EVENT_CHUNKS; i++) {
+    saved_events[i] = kernel_lpe_get_chunk(state, i);
+  }
   const uint8_t saved_count = INTEGRATOR_STATE(state, path, lpe_event_count);
 
   /* Add final event for matching (Light, Background, or Emission) */
@@ -959,7 +1032,9 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
   }
 
   /* Restore original event state */
-  INTEGRATOR_STATE_WRITE(state, path, lpe_events) = saved_events;
+  for (int i = 0; i < LPE_EVENT_CHUNKS; i++) {
+    kernel_lpe_set_chunk(state, i, saved_events[i]);
+  }
   INTEGRATOR_STATE_WRITE(state, path, lpe_event_count) = saved_count;
 }
 
@@ -974,24 +1049,33 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
     return;
   }
 
-  const uint64_t saved_events = INTEGRATOR_STATE(state, shadow_path, lpe_events);
+  /* Save current event state to restore later */
+  uint64_t saved_events[LPE_EVENT_CHUNKS];
+  for (int i = 0; i < LPE_EVENT_CHUNKS; i++) {
+    saved_events[i] = kernel_lpe_get_shadow_chunk(state, i);
+  }
   const uint8_t saved_count = INTEGRATOR_STATE(state, shadow_path, lpe_event_count);
 
+  /* Add final event using chunked storage */
   uint8_t event_count = INTEGRATOR_STATE(state, shadow_path, lpe_event_count);
   if (event_count < LPE_MAX_EVENTS) {
-    uint64_t events = INTEGRATOR_STATE(state, shadow_path, lpe_events);
-    events |= ((uint64_t)final_event << (event_count * 8));
-    INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events) = events;
+    const int chunk_idx = event_count / 8;
+    const int bit_offset = (event_count % 8) * 8;
+    uint64_t chunk = kernel_lpe_get_shadow_chunk(state, chunk_idx);
+    chunk |= ((uint64_t)final_event << bit_offset);
+    kernel_lpe_set_shadow_chunk(state, chunk_idx, chunk);
     INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_event_count) = event_count + 1;
   }
 
+  /* Extract path string from all chunks */
   char path_str[LPE_MAX_EVENTS + 1];
   event_count = INTEGRATOR_STATE(state, shadow_path, lpe_event_count);
-  const uint64_t events = INTEGRATOR_STATE(state, shadow_path, lpe_events);
-
   int len = min((int)event_count, LPE_MAX_EVENTS);
   for (int i = 0; i < len; i++) {
-    path_str[i] = (char)((events >> (i * 8)) & 0xFF);
+    const int chunk_idx = i / 8;
+    const int bit_offset = (i % 8) * 8;
+    const uint64_t chunk = kernel_lpe_get_shadow_chunk(state, chunk_idx);
+    path_str[i] = (char)((chunk >> bit_offset) & 0xFF);
   }
   path_str[len] = '\0';
 
@@ -1023,7 +1107,10 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
     current_lpe_offset += 3;
   }
 
-  INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events) = saved_events;
+  /* Restore original event state */
+  for (int i = 0; i < LPE_EVENT_CHUNKS; i++) {
+    kernel_lpe_set_shadow_chunk(state, i, saved_events[i]);
+  }
   INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_event_count) = saved_count;
 }
 

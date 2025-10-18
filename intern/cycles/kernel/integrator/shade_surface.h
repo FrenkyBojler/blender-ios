@@ -300,8 +300,10 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
 
   /* Copy LPE events for light path expression matching */
   if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
-    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_events) = INTEGRATOR_STATE(
-        state, path, lpe_events);
+    /* Copy all LPE event chunks */
+    for (int i = 0; i < LPE_EVENT_CHUNKS; i++) {
+      kernel_lpe_set_shadow_chunk(shadow_state, i, kernel_lpe_get_chunk(state, i));
+    }
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_event_count) = INTEGRATOR_STATE(
         state, path, lpe_event_count);
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_lightgroup_id) = INTEGRATOR_STATE(
@@ -317,9 +319,11 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
     if (lpe_event != '\0') {
       uint8_t event_count = INTEGRATOR_STATE(shadow_state, shadow_path, lpe_event_count);
       if (event_count < LPE_MAX_EVENTS) {
-        uint64_t events = INTEGRATOR_STATE(shadow_state, shadow_path, lpe_events);
-        events |= ((uint64_t)lpe_event << (event_count * 8));
-        INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_events) = events;
+        const int chunk_idx = event_count / 8;
+        const int bit_offset = (event_count % 8) * 8;
+        uint64_t chunk = kernel_lpe_get_shadow_chunk(shadow_state, chunk_idx);
+        chunk |= ((uint64_t)lpe_event << bit_offset);
+        kernel_lpe_set_shadow_chunk(shadow_state, chunk_idx, chunk);
         INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_event_count) = event_count + 1;
       }
     }

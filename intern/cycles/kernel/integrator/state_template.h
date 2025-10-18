@@ -70,9 +70,16 @@ KERNEL_STRUCT_MEMBER(path, uint32_t, shader_sort_key, KERNEL_FEATURE_PATH_TRACIN
 /* Light Path Expression event tracking. */
 /* Compact representation of path events for LPE matching.
  * Each event is stored as 8-bit character (C, R, T, V, L, O, B, D, G, S).
- * This allows up to 8 events in a 64-bit field. */
-KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events, KERNEL_FEATURE_NODE_AOV)
-/* Number of events currently stored in lpe_events (max 8) */
+ * 8 chunks of uint64_t allow up to 64 events (8 chunks x 8 events per chunk). */
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events_0, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events_1, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events_2, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events_3, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events_4, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events_5, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events_6, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events_7, KERNEL_FEATURE_NODE_AOV)
+/* Number of events currently stored in lpe_events (max 64) */
 KERNEL_STRUCT_MEMBER(path, uint8_t, lpe_event_count, KERNEL_FEATURE_NODE_AOV)
 /* Current light group ID for LPE matching */
 KERNEL_STRUCT_MEMBER(path, uint16_t, lpe_lightgroup_id, KERNEL_FEATURE_NODE_AOV)
