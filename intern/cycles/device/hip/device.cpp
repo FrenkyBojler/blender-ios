@@ -64,7 +64,7 @@ bool device_hip_init()
     else if (hipew_result == HIPEW_ERROR_OLD_DRIVER) {
       LOG_WARNING
           << "HIPEW initialization failed: Driver version too old, requires AMD Radeon Pro "
-             "24.Q2 driver or newer";
+             "24.Q4 driver or newer";
     }
     else {
       LOG_WARNING << "HIPEW initialization failed: Error opening HIP dynamic library";
