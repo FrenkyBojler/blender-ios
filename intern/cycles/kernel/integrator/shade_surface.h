@@ -306,6 +306,10 @@ integrate_direct_light_shadow_init_common(KernelGlobals kg,
         state, path, lpe_event_count);
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_lightgroup_id) = INTEGRATOR_STATE(
         state, path, lpe_lightgroup_id);
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_object_id) = INTEGRATOR_STATE(
+        state, path, lpe_object_id);
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_material_id) = INTEGRATOR_STATE(
+        state, path, lpe_material_id);
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_pass_id) = INTEGRATOR_STATE(
         state, path, lpe_pass_id);
 
@@ -796,6 +800,11 @@ ccl_device int integrate_surface(KernelGlobals kg,
   ShaderData sd;
   integrate_surface_shader_setup(kg, state, &sd);
   PROFILING_SHADER(sd.object, sd.shader);
+
+  /* Record object and material IDs for LPE filtering */
+  if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
+    kernel_lpe_record_surface_interaction(state, sd.object, sd.shader);
+  }
 
   int continue_path_label = 0;
 

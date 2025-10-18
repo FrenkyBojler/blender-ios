@@ -2535,6 +2535,10 @@ ccl_device_forceinline void integrate_volume_direct_light(
         state, path, lpe_events);
     INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_event_count) = INTEGRATOR_STATE(
         state, path, lpe_event_count);
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_object_id) = INTEGRATOR_STATE(
+        state, path, lpe_object_id);
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, lpe_material_id) = INTEGRATOR_STATE(
+        state, path, lpe_material_id);
 
     /* Add volume scatter event */
     uint8_t event_count = INTEGRATOR_STATE(shadow_state, shadow_path, lpe_event_count);

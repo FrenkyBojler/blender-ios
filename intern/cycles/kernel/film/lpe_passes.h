@@ -73,6 +73,8 @@ ccl_device_inline void kernel_lpe_init_camera_ray(ccl_global IntegratorState sta
   INTEGRATOR_STATE_WRITE(state, path, lpe_events) = 0;
   INTEGRATOR_STATE_WRITE(state, path, lpe_event_count) = 0;
   INTEGRATOR_STATE_WRITE(state, path, lpe_lightgroup_id) = 0;
+  INTEGRATOR_STATE_WRITE(state, path, lpe_object_id) = OBJECT_NONE;
+  INTEGRATOR_STATE_WRITE(state, path, lpe_material_id) = SHADER_NONE;
   INTEGRATOR_STATE_WRITE(state, path, lpe_pass_id) = -1;
 
   /* Add camera event as first event */
@@ -137,6 +139,15 @@ ccl_device_inline void kernel_lpe_record_emission_event(ccl_global IntegratorSta
 ccl_device_inline void kernel_lpe_record_background_hit(ccl_global IntegratorState state)
 {
   kernel_lpe_add_event(state, LPE_EVENT_BACKGROUND);
+}
+
+/* Record object and material IDs for LPE tag filtering */
+ccl_device_inline void kernel_lpe_record_surface_interaction(ccl_global IntegratorState state,
+                                                             int object_id,
+                                                             int material_id)
+{
+  INTEGRATOR_STATE_WRITE(state, path, lpe_object_id) = object_id;
+  INTEGRATOR_STATE_WRITE(state, path, lpe_material_id) = (material_id & SHADER_MASK);
 }
 
 /* Record bounce from a specific closure (stub - events already recorded in path_state_next) */
@@ -282,12 +293,162 @@ ccl_device_inline int kernel_lpe_count_event(ccl_private const char *path, char 
   return count;
 }
 
+/* Check if a tag <...> in the pattern matches the current context
+ * Returns tag length if matched (to skip), 0 if no tag or doesn't match
+ * Tag formats:
+ * - <#ID> or <^#ID> for light groups (after L/O/B events)
+ * - <object:#ID> or <obj:#ID> for objects (after R/T/D/G/S events)
+ * - <material:#ID> or <mat:#ID> for materials (after any surface event)
+ * - <*> for wildcard (matches any)
+ */
+ccl_device_inline int kernel_lpe_check_tag(ccl_private const char *pattern,
+                                           uint16_t current_lightgroup_id,
+                                           int current_object_id,
+                                           int current_material_id,
+                                           char event_char)
+{
+  if (pattern[0] != '<') {
+    return 0;
+  }
+
+  int pos = 1;
+  bool is_negated = false;
+
+  /* Check for negation <^...> */
+  if (pattern[pos] == '^') {
+    is_negated = true;
+    pos++;
+  }
+
+  /* Check for wildcard <*> */
+  if (pattern[pos] == '*' && pattern[pos + 1] == '>') {
+    /* Wildcard matches any light group/object/material */
+    return pos + 2;
+  }
+
+  /* Parse tag type prefix (object:, obj:, material:, mat:, lightgroup:, lgroup:, lgp:) */
+  enum TagType { TAG_LIGHTGROUP, TAG_OBJECT, TAG_MATERIAL, TAG_UNKNOWN };
+  TagType tag_type = TAG_UNKNOWN;
+
+  /* Check for explicit tag type prefix */
+  if (pattern[pos] == 'o' && pattern[pos + 1] == 'b' && pattern[pos + 2] == 'j' &&
+      pattern[pos + 3] == ':')
+  {
+    tag_type = TAG_OBJECT;
+    pos += 4;
+  }
+  else if (pattern[pos] == 'o' && pattern[pos + 1] == 'b' && pattern[pos + 2] == 'j' &&
+           pattern[pos + 3] == 'e' && pattern[pos + 4] == 'c' && pattern[pos + 5] == 't' &&
+           pattern[pos + 6] == ':')
+  {
+    tag_type = TAG_OBJECT;
+    pos += 7;
+  }
+  else if (pattern[pos] == 'm' && pattern[pos + 1] == 'a' && pattern[pos + 2] == 't' &&
+           pattern[pos + 3] == ':')
+  {
+    tag_type = TAG_MATERIAL;
+    pos += 4;
+  }
+  else if (pattern[pos] == 'm' && pattern[pos + 1] == 'a' && pattern[pos + 2] == 't' &&
+           pattern[pos + 3] == 'e' && pattern[pos + 4] == 'r' && pattern[pos + 5] == 'i' &&
+           pattern[pos + 6] == 'a' && pattern[pos + 7] == 'l' && pattern[pos + 8] == ':')
+  {
+    tag_type = TAG_MATERIAL;
+    pos += 9;
+  }
+  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'g' && pattern[pos + 2] == 'p' &&
+           pattern[pos + 3] == ':')
+  {
+    tag_type = TAG_LIGHTGROUP;
+    pos += 4;
+  }
+  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'g' && pattern[pos + 2] == 'r' &&
+           pattern[pos + 3] == 'o' && pattern[pos + 4] == 'u' && pattern[pos + 5] == 'p' &&
+           pattern[pos + 6] == ':')
+  {
+    tag_type = TAG_LIGHTGROUP;
+    pos += 7;
+  }
+  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'i' && pattern[pos + 2] == 'g' &&
+           pattern[pos + 3] == 'h' && pattern[pos + 4] == 't' && pattern[pos + 5] == 'g' &&
+           pattern[pos + 6] == 'r' && pattern[pos + 7] == 'o' && pattern[pos + 8] == 'u' &&
+           pattern[pos + 9] == 'p' && pattern[pos + 10] == ':')
+  {
+    tag_type = TAG_LIGHTGROUP;
+    pos += 11;
+  }
+  /* If no prefix and starts with #, infer type from event character */
+  else if (pattern[pos] == '#') {
+    /* Infer tag type based on previous event:
+     * - L/O/B → light group
+     * - R/T/D/G/S → object (for now, could also be material) */
+    if (event_char == 'L' || event_char == 'O' || event_char == 'B') {
+      tag_type = TAG_LIGHTGROUP;
+    }
+    else {
+      tag_type = TAG_OBJECT;
+    }
+  }
+
+  /* Parse numeric ID after # */
+  if (pattern[pos] == '#') {
+    pos++;
+    int tag_id = 0;
+
+    /* Parse integer ID */
+    while (pattern[pos] >= '0' && pattern[pos] <= '9') {
+      tag_id = tag_id * 10 + (pattern[pos] - '0');
+      pos++;
+    }
+
+    if (pattern[pos] == '>') {
+      pos++; /* Skip closing > */
+
+      /* Match ID based on tag type */
+      bool matches = false;
+      if (tag_type == TAG_LIGHTGROUP) {
+        matches = (tag_id == (int)current_lightgroup_id);
+      }
+      else if (tag_type == TAG_OBJECT) {
+        matches = (tag_id == current_object_id);
+      }
+      else if (tag_type == TAG_MATERIAL) {
+        matches = (tag_id == current_material_id);
+      }
+
+      if (is_negated) {
+        matches = !matches;
+      }
+
+      if (matches) {
+        return pos; /* Tag matched, return length to skip */
+      }
+      else {
+        return -1; /* Tag present but doesn't match - fail entire pattern */
+      }
+    }
+  }
+
+  /* Skip unknown/unsupported tag format */
+  while (pattern[pos] != '\0' && pattern[pos] != '>') {
+    pos++;
+  }
+  if (pattern[pos] == '>') {
+    pos++;
+  }
+  return pos; /* Skip tag */
+}
+
 /* LPE pattern matching with operator support
  * Supports: | (OR), - (SUBTRACT), ! (NEGATE), and all basic wildcards
  * This is the main entry point for LPE matching
  */
 ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char *path,
-                                                         ccl_private const char *pattern);
+                                                         ccl_private const char *pattern,
+                                                         uint16_t lightgroup_id,
+                                                         int object_id,
+                                                         int material_id);
 
 /* Advanced LPE pattern matching with wildcard support (single pattern)
  * Supports:
@@ -299,10 +460,16 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
  * - {n,} : n or more repetitions
  * - {EVENT=N} : count constraint - path must have exactly N occurrences of EVENT
  * - [ABC] or [^ABC] : character class or negated character class
+ * - <#ID> or <^ID> : light group tag filtering (after L/O/B events)
+ * - <object:#ID> or <obj:#ID> : object tag filtering
+ * - <material:#ID> or <mat:#ID> : material tag filtering
  * - Literal characters
  */
 ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
-                                          ccl_private const char *pattern)
+                                          ccl_private const char *pattern,
+                                          uint16_t lightgroup_id,
+                                          int object_id,
+                                          int material_id)
 {
   int path_pos = 0;
   int pattern_pos = 0;
@@ -380,7 +547,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
           /* Try matching between min_count and max_count (or unlimited if max_count == -1) */
           int max_additional = (max_count == -1) ? 100 : (max_count - min_count);
           for (int extra = 0; extra <= max_additional && path[path_pos] != '\0'; extra++) {
-            if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+            if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
               return true;
             }
             /* Try one more match */
@@ -392,7 +559,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
               break;
             }
           }
-          return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+          return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
         }
       }
       /* Handle * quantifier */
@@ -401,7 +568,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         const int class_start = pattern_pos + 1; /* Save position of class content */
         pattern_pos += 2 + class_end;
         while (path[path_pos] != '\0') {
-          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
             return true;
           }
           int tmp = 0;
@@ -412,7 +579,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             break;
           }
         }
-        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
       }
       /* Handle + quantifier */
       else if (quantifier == '+') {
@@ -425,7 +592,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         pattern_pos += 2 + class_end;
 
         while (path[path_pos] != '\0') {
-          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
             return true;
           }
           int tmp = 0;
@@ -436,7 +603,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             break;
           }
         }
-        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
       }
       else {
         /* [ABC] - single match */
@@ -479,7 +646,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         /* Try matching between min_count and max_count (or unlimited if max_count == -1) */
         int max_additional = (max_count == -1) ? 100 : (max_count - min_count);
         for (int extra = 0; extra <= max_additional && path[path_pos] != '\0'; extra++) {
-          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
             return true;
           }
           /* Try one more match */
@@ -490,7 +657,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             break;
           }
         }
-        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
       }
     }
     /* Handle X* - zero or more X */
@@ -498,7 +665,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
       pattern_pos += 2;
 
       while (path[path_pos] != '\0') {
-        if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+        if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
           return true;
         }
         if (p == '.' || path[path_pos] == p) {
@@ -508,7 +675,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
           break;
         }
       }
-      return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+      return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
     }
     /* Handle X+ - one or more X */
     else if (next_p == '+') {
@@ -520,7 +687,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
       pattern_pos += 2;
 
       while (path[path_pos] != '\0') {
-        if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos])) {
+        if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
           return true;
         }
         if (p == '.' || path[path_pos] == p) {
@@ -530,7 +697,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
           break;
         }
       }
-      return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos]);
+      return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
     }
     /* Match single character */
     else {
@@ -543,8 +710,22 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         return false;
       }
 
+      /* Advance positions */
       path_pos++;
       pattern_pos++;
+
+      /* Check for tag filter after any event (except C which is always first) */
+      if (p != 'C' && pattern[pattern_pos] == '<') {
+        int tag_len = kernel_lpe_check_tag(&pattern[pattern_pos], lightgroup_id, object_id, material_id, p);
+        if (tag_len < 0) {
+          /* Tag present but doesn't match - pattern fails */
+          return false;
+        }
+        else if (tag_len > 0) {
+          /* Tag matched - skip it in pattern */
+          pattern_pos += tag_len;
+        }
+      }
     }
   }
 
@@ -557,7 +738,10 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
  * Operators | and - require spacing: " | " and " - "
  */
 ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char *path,
-                                                         ccl_private const char *pattern)
+                                                         ccl_private const char *pattern,
+                                                         uint16_t lightgroup_id,
+                                                         int object_id,
+                                                         int material_id)
 {
   /* Check for leading negation operator ! */
   bool has_negation = false;
@@ -605,7 +789,7 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
       paren_content[paren_len] = '\0';
 
       /* Evaluate parenthesized expression recursively */
-      bool paren_result = kernel_lpe_matches_with_operators(path, paren_content);
+      bool paren_result = kernel_lpe_matches_with_operators(path, paren_content, lightgroup_id, object_id, material_id);
 
       /* Treat parenthesized result as a sub-pattern result */
       if (first_pattern) {
@@ -642,7 +826,7 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
 
         /* Match current sub-pattern only if it's not empty */
         if (sub_pos > 0) {
-          bool current = kernel_lpe_matches(path, sub_pattern);
+          bool current = kernel_lpe_matches(path, sub_pattern, lightgroup_id, object_id, material_id);
 
           /* Apply operator */
           if (first_pattern) {
@@ -687,7 +871,7 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
   /* Match final sub-pattern if not empty */
   if (sub_pos > 0) {
     sub_pattern[sub_pos] = '\0';
-    bool current = kernel_lpe_matches(path, sub_pattern);
+    bool current = kernel_lpe_matches(path, sub_pattern, lightgroup_id, object_id, material_id);
 
     if (first_pattern) {
       result = current;
@@ -752,6 +936,11 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
   /* Get LPE expression data from lookup tables */
   const int lpe_offset = kernel_data.film.lpe_expressions_offset;
 
+  /* Get current light group, object, and material IDs from state */
+  const uint16_t lightgroup_id = INTEGRATOR_STATE(state, path, lpe_lightgroup_id);
+  const int object_id = INTEGRATOR_STATE(state, path, lpe_object_id);
+  const int material_id = INTEGRATOR_STATE(state, path, lpe_material_id);
+
   /* Current buffer offset - starts at first LPE pass and increments by 3 for each pass */
   int current_lpe_offset = kernel_data.film.pass_lpe;
 
@@ -762,7 +951,7 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
     char expression[LPE_MAX_EXPRESSION_LENGTH];
     kernel_lpe_decompress_expression(lpe_data, expression);
 
-    if (kernel_lpe_matches_with_operators(path_str, expression)) {
+    if (kernel_lpe_matches_with_operators(path_str, expression, lightgroup_id, object_id, material_id)) {
       film_write_pass_spectrum(buffer + current_lpe_offset, contribution);
     }
 
@@ -812,6 +1001,12 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
   ccl_global float *buffer = render_buffer + render_buffer_offset;
 
   const int lpe_offset = kernel_data.film.lpe_expressions_offset;
+
+  /* Get current light group, object, and material IDs from shadow state */
+  const uint16_t lightgroup_id = INTEGRATOR_STATE(state, shadow_path, lpe_lightgroup_id);
+  const int object_id = INTEGRATOR_STATE(state, shadow_path, lpe_object_id);
+  const int material_id = INTEGRATOR_STATE(state, shadow_path, lpe_material_id);
+
   int current_lpe_offset = kernel_data.film.pass_lpe;
 
   for (int pass_id = 0; pass_id < kernel_data.film.num_lpe_passes; pass_id++) {
@@ -821,7 +1016,7 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
     char expression[LPE_MAX_EXPRESSION_LENGTH];
     kernel_lpe_decompress_expression(lpe_data, expression);
 
-    if (kernel_lpe_matches_with_operators(path_str, expression)) {
+    if (kernel_lpe_matches_with_operators(path_str, expression, lightgroup_id, object_id, material_id)) {
       film_write_pass_spectrum(buffer + current_lpe_offset, contribution);
     }
 

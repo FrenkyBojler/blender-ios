@@ -171,13 +171,69 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
         token.type = LPE_TOKEN_EVENT;
         token.event_mask = (1 << event);
         token.events.push_back(*ptr);
+        ptr++;
+
+        /* Check for tag filter <type:name> or <name> */
+        if (*ptr == '<') {
+          ptr++;
+
+          /* Check for negation <^name> */
+          if (*ptr == '^') {
+            token.tag.is_negated = true;
+            ptr++;
+          }
+
+          /* Check for wildcard <*> */
+          if (*ptr == '*' && *(ptr + 1) == '>') {
+            token.tag.is_wildcard = true;
+            ptr += 2;
+          }
+          else {
+            /* Parse tag content until > */
+            string tag_content;
+            while (*ptr && *ptr != '>') {
+              tag_content += *ptr;
+              ptr++;
+            }
+
+            if (*ptr == '>') {
+              ptr++;
+            }
+
+            /* Parse type:name or just name */
+            size_t colon = tag_content.find(':');
+            if (colon != string::npos) {
+              string type_str = tag_content.substr(0, colon);
+              token.tag.name = tag_content.substr(colon + 1);
+
+              if (type_str == "lightgroup" || type_str == "lgroup" || type_str == "lgp") {
+                token.tag.type = LPE_TAG_LIGHT_GROUP;
+              }
+              else if (type_str == "object" || type_str == "obj") {
+                token.tag.type = LPE_TAG_OBJECT;
+              }
+              else if (type_str == "material" || type_str == "mat") {
+                token.tag.type = LPE_TAG_MATERIAL;
+              }
+              else {
+                LOG_WARNING << "Unknown tag type '" << type_str << "' in LPE pattern: " << pattern_str;
+              }
+            }
+            else {
+              /* No prefix: assume light group for L tokens, object for others */
+              token.tag.name = tag_content;
+              char event_char = token.events.empty() ? '\0' : token.events[0];
+              token.tag.type = (event_char == 'L') ? LPE_TAG_LIGHT_GROUP : LPE_TAG_OBJECT;
+            }
+          }
+        }
+
         pattern.tokens.push_back(token);
       }
       else {
         LOG_WARNING << "Invalid character '" << *ptr << "' in LPE pattern: " << pattern_str;
         return false;
       }
-      ptr++;
     }
   }
 

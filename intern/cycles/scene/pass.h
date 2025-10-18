@@ -16,6 +16,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+class Scene;
+
 const char *pass_type_as_string(const PassType type);
 
 enum class PassMode {
@@ -78,6 +80,9 @@ class Pass : public Node {
   }
   bool compile_lpe_expression();
   bool is_lpe_expression_valid() const;
+
+  /* Resolve tag names to IDs in LPE expression */
+  string resolve_lpe_tags(const Scene *scene) const;
 
  protected:
   /* This has been created automatically as a requirement to various rendering functionality

@@ -455,7 +455,8 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 
   for (const Pass *pass : scene->passes) {
     if (pass->get_type() == PASS_LPE && !pass->lpe_expression.empty() && pass->is_written()) {
-      const string expr = pass->lpe_expression.string();
+      /* Resolve tag names (lightgroups, objects, materials) to IDs */
+      const string expr = pass->resolve_lpe_tags(scene);
 
       /* Pack string into uint32 values (4 chars per uint) */
       for (int i = 0; i < LPE_MAX_EXPRESSION_LENGTH; i += 4) {

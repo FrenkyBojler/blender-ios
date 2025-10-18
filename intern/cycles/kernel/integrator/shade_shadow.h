@@ -193,6 +193,11 @@ ccl_device void integrator_shade_shadow(KernelGlobals kg,
   /* Write LPE passes with Light event. */
   if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
     const Spectrum throughput = INTEGRATOR_STATE(state, shadow_path, throughput);
+
+    /* Store light group for LPE matching (decode from unsigned to signed) */
+    const int lightgroup = (int)(INTEGRATOR_STATE(state, shadow_path, lightgroup)) - 1;
+    INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_lightgroup_id) = (lightgroup != LIGHTGROUP_NONE) ? lightgroup : 0;
+
     kernel_lpe_write_pass(kg, state, render_buffer, throughput, LPE_EVENT_LIGHT);
   }
 

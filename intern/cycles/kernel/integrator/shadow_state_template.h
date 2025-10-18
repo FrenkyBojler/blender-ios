@@ -69,6 +69,8 @@ KERNEL_STRUCT_MEMBER(shadow_path,
 KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, lpe_events, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_MEMBER(shadow_path, uint8_t, lpe_event_count, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_MEMBER(shadow_path, uint16_t, lpe_lightgroup_id, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, int, lpe_object_id, KERNEL_FEATURE_NODE_AOV)
+KERNEL_STRUCT_MEMBER(shadow_path, int, lpe_material_id, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_MEMBER(shadow_path, int16_t, lpe_pass_id, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_END(shadow_path)
 

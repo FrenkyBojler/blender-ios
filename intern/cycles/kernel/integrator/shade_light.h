@@ -70,6 +70,10 @@ ccl_device_inline void integrate_light_forward(KernelGlobals kg,
   film_write_surface_emission(
       kg, state, eval, mis_weight, render_buffer, object_lightgroup(kg, klight->object_id));
 
+  /* Store light group for LPE matching. */
+  INTEGRATOR_STATE_WRITE(state, path, lpe_lightgroup_id) = object_lightgroup(
+      kg, klight->object_id);
+
   /* Write LPE passes with Light event. */
   kernel_lpe_write_pass(kg, state, render_buffer, eval * mis_weight, LPE_EVENT_LIGHT);
 }

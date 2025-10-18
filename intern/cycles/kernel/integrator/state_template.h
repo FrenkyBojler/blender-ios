@@ -76,6 +76,10 @@ KERNEL_STRUCT_MEMBER(path, uint64_t, lpe_events, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_MEMBER(path, uint8_t, lpe_event_count, KERNEL_FEATURE_NODE_AOV)
 /* Current light group ID for LPE matching */
 KERNEL_STRUCT_MEMBER(path, uint16_t, lpe_lightgroup_id, KERNEL_FEATURE_NODE_AOV)
+/* Current object ID for LPE matching */
+KERNEL_STRUCT_MEMBER(path, int, lpe_object_id, KERNEL_FEATURE_NODE_AOV)
+/* Current material ID (shader) for LPE matching */
+KERNEL_STRUCT_MEMBER(path, int, lpe_material_id, KERNEL_FEATURE_NODE_AOV)
 /* Current matched LPE pass ID (-1 if no match yet) */
 KERNEL_STRUCT_MEMBER(path, int16_t, lpe_pass_id, KERNEL_FEATURE_NODE_AOV)
 KERNEL_STRUCT_END(path)

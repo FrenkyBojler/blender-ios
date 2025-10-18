@@ -42,11 +42,30 @@ enum LPEOperator {
   LPE_OP_NEGATE    /* ! - Negation of entire expression */
 };
 
+/* LPE tag types for filtering by light group, object, or material */
+enum LPETagType {
+  LPE_TAG_NONE,
+  LPE_TAG_LIGHT_GROUP,
+  LPE_TAG_OBJECT,
+  LPE_TAG_MATERIAL
+};
+
+/* LPE tag for filtering events (e.g., <lgroup:key>, <obj:Floor>) */
+struct LPETag {
+  LPETagType type;
+  string name;
+  bool is_negated;  /* For <^name> */
+  bool is_wildcard; /* For <*> */
+
+  LPETag() : type(LPE_TAG_NONE), is_negated(false), is_wildcard(false) {}
+};
+
 struct LPEToken {
   LPETokenType type;
   int event_mask;      /* Bitmask of allowed events for sets/specific events */
   vector<char> events; /* For character sets */
   bool is_negated;     /* For negated character sets [^...] */
+  LPETag tag;          /* Optional tag filter */
 };
 
 /* Single pattern (e.g., CDL or C.*L) */
