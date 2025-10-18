@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="svg3"
+   height="1600"
+   viewBox="0 0 1100 1600"
+   width="1100"
+   version="1.1"
+   sodipodi:docname="usb_drive.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     pagecolor="#303030"
+     showgrid="true"
+     id="namedview1"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.17964932"
+     inkscape:cx="896.19044"
+     inkscape:cy="119.67761"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg3"
+     showguides="true">
+    <inkscape:grid
+       id="grid5"
+       units="px"
+       spacingx="100"
+       spacingy="100"
+       color="#4772b3"
+       opacity="0.2"
+       visible="true"
+       originx="0"
+       originy="0" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1" />
+  <path
+     style="fill:#ffffff;fill-opacity:0.2;stroke-width:242.281;stroke-opacity:0.6"
+     d="m 300.17317,200.04251 499.93233,0.17395 V 599.95358 H 300.17317 Z"
+     id="path5"
+     sodipodi:nodetypes="ccccc" />
+  <g
+     id="g1"
+     transform="translate(-28.446956,5.5664005)" />
+  <path
+     id="path2"
+     style="fill:#ffffff;fill-opacity:1;stroke-width:242.281;stroke-opacity:0.6"
+     d="m 200.11436,99.901938 -0.14983,499.999722 -99.90544,0.12373 -0.0937,747.04691 c -0.0107,66.5316 61.08658,152.6265 153.71094,152.6672 L 846.17484,1500 c 97.8928,0.043 153.92976,-85.8154 153.92536,-151.9277 l -0.055,-748.04691 -100.1864,-0.0553 0.1029,-499.95628 z m 99.891,100.086982 500.16574,0.015 -0.14674,400.00667 -499.99408,-0.13327 z"
+     sodipodi:nodetypes="ccccsscccccccccc" />
+  <path
+     style="fill:#ffffff;fill-opacity:1;stroke-width:242.281;stroke-opacity:0.6"
+     d="m 400.36838,300.06376 h 99.67336 v 99.84731 h -99.84731 z"
+     id="path3"
+     sodipodi:nodetypes="ccccc" />
+  <path
+     style="fill:#ffffff;fill-opacity:1;stroke-width:242.281;stroke-opacity:0.6"
+     d="m 600.06299,300.06376 100.02125,0.17395 -0.17395,99.67336 h -99.67335 z"
+     id="path4"
+     sodipodi:nodetypes="ccccc" />
+</svg>
