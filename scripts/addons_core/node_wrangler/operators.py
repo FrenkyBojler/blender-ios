@@ -503,18 +503,26 @@ class NWReloadImages(Operator):
         nodes, links = get_nodes_links(context)
         num_reloaded = 0
         for node in nodes:
-            if (node.type == "TEXTURE"
-                    and node.texture is not None  # Node has texture assigned.
+            if (node.bl_idname == 'TextureNodeTexture'
+                    and node.texture is not None
                     and node.texture.type == 'IMAGE'
-                    and node.texture.image is not None):  # Texture has image assigned.
+                    and node.texture.image is not None):
+                # Legacy texture nodes.
                 node.texture.image.reload()
                 num_reloaded += 1
-            elif (node.type in {"IMAGE", "TEX_IMAGE", "TEX_ENVIRONMENT"}
+            elif (node.bl_idname in {'CompositorNodeImage',
+                                     'GeometryNodeInputImage',
+                                     'ShaderNodeTexEnvironment',
+                                     'ShaderNodeTexImage',
+                                     'TextureNodeImage'}
                     and node.image is not None):
+                # Image and environment textures.
                 node.image.reload()
                 num_reloaded += 1
-            else:
-                # For Geometry Nodes, check each input since images can be defined in non-image nodes.
+            elif node.bl_idname in {'GeometryNodeGroup',
+                                    'GeometryNodeImageInfo',
+                                    'GeometryNodeImageTexture'}:
+                # For select Geometry Nodes, check each input since images can be defined in non-image nodes.
                 for sock in node.inputs:
                     if (sock.bl_idname == 'NodeSocketImage'
                             and sock.default_value is not None):
