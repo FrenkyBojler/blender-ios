@@ -41,7 +41,7 @@ class NODE_OT_save_viewer_image(Operator, ExportHelper):
                ('.hdr', 'HDR', ""),
                ('.tif', 'TIFF', ""),
                ('.webp', 'WEBP', ""),
-              ),
+               ),
         default='.png',
     )
 

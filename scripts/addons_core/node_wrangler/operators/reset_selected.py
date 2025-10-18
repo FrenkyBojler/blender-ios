@@ -39,8 +39,8 @@ class NODE_OT_reset_selected(Operator):
     # It's possible to handle zones by using the `paired_output` function of an input node
     # and reconstruct the zone using the `pair_with_output` function.
     zone_node_types = {"GeometryNodeRepeatInput", "GeometryNodeRepeatOutput", "NodeClosureInput",
-                        "NodeClosureOutput", "GeometryNodeSimulationInput", "GeometryNodeSimulationOutput",
-                        "GeometryNodeForeachGeometryElementInput", "GeometryNodeForeachGeometryElementOutput"}
+                       "NodeClosureOutput", "GeometryNodeSimulationInput", "GeometryNodeSimulationOutput",
+                       "GeometryNodeForeachGeometryElementInput", "GeometryNodeForeachGeometryElementOutput"}
     node_ignore = group_node_types | zone_node_types | {"NodeFrame", "NodeReroute"}
 
     @classmethod
