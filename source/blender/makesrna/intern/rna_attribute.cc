@@ -113,7 +113,7 @@ const EnumPropertyItem rna_enum_attribute_domain_items[] = {
      "Attribute on instance"},
     {int(AttrDomain::Layer),
      "LAYER",
-     ICON_OUTLINER_DATA_GREASEPENCIL,
+     ICON_OUTLINER_DATA_GP_LAYER,
      "Layer",
      "Attribute on Grease Pencil layer"},
     {0, nullptr, 0, nullptr, nullptr},
