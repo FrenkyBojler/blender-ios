@@ -99,7 +99,6 @@ class TreeViewItemContainer {
  protected:
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
-  void foreach_filter_item(ItemIterFn iter_fn);
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions,
@@ -133,7 +132,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   int last_tot_items_ = 0;
 
   bool scroll_active_into_view_on_draw_ = false;
-  bool show_display_options_ = true;
+  bool show_display_options_ = false;
   std::unique_ptr<std::array<char, MAX_NAME>> search_string_ = nullptr;
 
   friend class AbstractTreeViewItem;
@@ -166,9 +165,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
    * height. */
   void set_default_rows(int default_rows);
-
-  void filter(std::optional<StringRef> filter_str) override;
-  void toggle_filtering_collapsed();
+  void toggle_show_display_options();
 
  protected:
   virtual void build_tree() = 0;
@@ -287,6 +284,8 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   bool is_collapsible() const;
 
   int count_parents() const;
+
+  void on_filter_change() override;
 
  protected:
   /** See AbstractViewItem::get_rename_string(). */

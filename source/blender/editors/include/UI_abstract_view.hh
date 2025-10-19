@@ -182,7 +182,7 @@ class AbstractView {
    */
   bool is_reconstructed() const;
 
-  virtual void filter(std::optional<StringRef> filter_str);
+  void filter(std::optional<StringRef> filter_str);
   const AbstractViewItem *search_highlight_item() const;
 };
 
@@ -296,7 +296,6 @@ class AbstractViewItem {
   virtual std::optional<std::string> debug_name() const;
 
   bool is_filtered_visible() const;
-  void set_filtered_visible();
 
   /** Get the view this item is registered for using #AbstractView::register_item(). */
   AbstractView &get_view() const;
@@ -364,6 +363,7 @@ class AbstractViewItem {
   void rename_apply(const bContext &C);
 
   virtual void delete_item(bContext *C);
+  virtual void on_filter_change();
 
  protected:
   AbstractViewItem() = default;

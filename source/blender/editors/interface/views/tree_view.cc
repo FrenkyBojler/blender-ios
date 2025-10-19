@@ -98,17 +98,6 @@ void TreeViewItemContainer::foreach_parent(ItemIterFn iter_fn) const
   }
 }
 
-void TreeViewItemContainer::foreach_filter_item(ItemIterFn iter_fn)
-{
-  for (const auto &child : children_) {
-    iter_fn(*child);
-    if (child->is_filtered_visible()) {
-      child->foreach_parent([&](AbstractTreeViewItem &item) { item.set_filtered_visible(); });
-    }
-    child->foreach_filter_item(iter_fn);
-  }
-}
-
 /* ---------------------------------------------------------------------- */
 
 void AbstractTreeView::foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const
@@ -157,18 +146,7 @@ void AbstractTreeView::set_default_rows(int default_rows)
   custom_height_ = std::make_unique<int>(default_rows * padded_item_height());
 }
 
-void AbstractTreeView::filter(std::optional<StringRef> filter_str)
-{
-  needs_filtering_ = false;
-
-  const bool is_empty = !filter_str.has_value() || filter_str->is_empty();
-  this->foreach_filter_item([&](AbstractTreeViewItem &item) {
-    item.is_filtered_visible_ = is_empty ||
-                                item.should_be_filtered_visible(StringRefNull(*filter_str));
-  });
-}
-
-void AbstractTreeView::toggle_filtering_collapsed()
+void AbstractTreeView::toggle_show_display_options()
 {
   show_display_options_ = !show_display_options_;
 }
@@ -226,7 +204,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
     if (!search_string_) {
       search_string_ = std::make_unique<decltype(search_string_)::element_type>();
     }
-    BLI_strncpy(search_string_->data(), state.search_string, sizeof(search_string_->data()));
+    BLI_strncpy(search_string_->data(), state.search_string, search_string_->size());
   }
 }
 
@@ -851,6 +829,16 @@ bool AbstractTreeViewItem::matches(const AbstractViewItem &other) const
   return true;
 }
 
+void AbstractTreeViewItem::on_filter_change()
+{
+  if (is_filtered_visible_) {
+    foreach_parent([&](AbstractTreeViewItem &item) {
+      item.is_filtered_visible_ = true;
+      item.set_collapsed(false);
+    });
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 
 class TreeViewLayoutBuilder {
@@ -895,7 +883,7 @@ static void set_filtering_collapsed_fn(bContext *C, void * /*but_arg1*/, void * 
 
   if (AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, 2 * UI_UNIT_Y)) {
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
-      tree_view->toggle_filtering_collapsed();
+      tree_view->toggle_show_display_options();
     }
   }
 }
@@ -940,8 +928,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   tree_view.foreach_item(
       [&, this](AbstractTreeViewItem &item) {
         if ((index >= first_visible_index) && (index <= max_visible_index)) {
-          if (item.is_filtered_visible())
-          {
+          if (item.is_filtered_visible()) {
             this->build_row(item);
           }
         }
@@ -1012,7 +999,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                             UI_UNIT_Y,
                             tree_view.search_string_.get(),
                             0,
-                            sizeof(tree_view.search_string_.get()),
+                            tree_view.search_string_->size(),
                             "");
       UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
       UI_but_flag_enable(but, UI_BUT_UNDO);

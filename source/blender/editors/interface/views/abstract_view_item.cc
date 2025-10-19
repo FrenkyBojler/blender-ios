@@ -258,6 +258,11 @@ void AbstractViewItem::delete_item(bContext * /*C*/)
   /* No deletion by default. Needs type specific implementation. */
 }
 
+void AbstractViewItem::on_filter_change()
+{
+  /* No action by default. Needs type specific implementation. */
+}
+
 /** \} */
 
 /* ---------------------------------------------------------------------- */
@@ -285,11 +290,6 @@ bool AbstractViewItem::is_filtered_visible() const
 {
   BLI_assert(get_view().needs_filtering_ == false);
   return is_filtered_visible_;
-}
-
-void AbstractViewItem::set_filtered_visible()
-{
-  is_filtered_visible_ = true;
 }
 
 /** \} */
