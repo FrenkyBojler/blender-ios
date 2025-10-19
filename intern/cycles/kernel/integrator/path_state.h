@@ -231,7 +231,12 @@ ccl_device_inline void path_state_next(KernelGlobals kg,
       }
       /* Record LPE transmission bounce event */
       if (kernel_data.kernel_features & KERNEL_FEATURE_NODE_AOV) {
-        kernel_lpe_record_transmission_bounce(state);
+        if (label & LABEL_TRANSMIT_TRANSPARENT) {
+          kernel_lpe_record_straight_bounce(state);
+        }
+        else {
+          kernel_lpe_record_transmission_bounce(state);
+        }
       }
     }
 

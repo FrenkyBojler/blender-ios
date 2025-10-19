@@ -486,7 +486,36 @@ ccl_device
       lpe_event = LPE_EVENT_GLOSSY;
     }
     else if (transmission_avg > 0.0f) {
-      lpe_event = LPE_EVENT_TRANSMISSION;
+      /* Check if this is a straight transparent transmission.
+       * This matches the logic in bsdf_sample() that sets LABEL_TRANSMIT_TRANSPARENT
+       * for transmissions with low roughness (below transparent_roughness_squared_threshold). */
+      bool is_straight = false;
+      const float threshold_squared = kernel_data.background.transparent_roughness_squared_threshold;
+
+      if (threshold_squared >= 0.0f) {
+        for (int i = 0; i < sd->num_closure; i++) {
+          const ccl_private ShaderClosure *sc = &sd->closure[i];
+
+          /* Check for transparent BSDF */
+          if (CLOSURE_IS_BSDF_TRANSPARENT(sc->type)) {
+            is_straight = true;
+            break;
+          }
+
+          /* Check for transmission BSDFs with low roughness */
+          if (CLOSURE_IS_BSDF(sc->type)) {
+            const int label = bsdf_label(kg, sc, ls.D);
+            if ((label & LABEL_TRANSMIT) && !(label & LABEL_DIFFUSE)) {
+              if (bsdf_get_specular_roughness_squared(sc) <= threshold_squared) {
+                is_straight = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      lpe_event = is_straight ? LPE_EVENT_STRAIGHT : LPE_EVENT_TRANSMISSION;
     }
   }
 

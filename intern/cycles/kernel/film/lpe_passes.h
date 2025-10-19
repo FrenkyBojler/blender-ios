@@ -25,11 +25,13 @@ CCL_NAMESPACE_BEGIN
  * - B: Background
  * - D: Diffuse scatter
  * - G: Glossy scatter
- * - S: Singular/Specular scatter
+ * - S: Singular/Specular scatter (sharp reflection/refraction)
+ * - s: Straight transmission (transparent, no direction change)
  *
  * Each event is stored as a single character in path string.
  * Path examples: "CDL" = Camera -> Diffuse -> Light
  *                "CRDL" = Camera -> Reflection+Diffuse -> Light
+ *                "CsL" = Camera -> Straight (transparent) -> Light
  */
 
 #define LPE_MAX_EVENTS 64            /* 8 x 64 bits / 8 bits per char = 64 events */
@@ -48,6 +50,7 @@ CCL_NAMESPACE_BEGIN
 #define LPE_EVENT_DIFFUSE 'D'
 #define LPE_EVENT_GLOSSY 'G'
 #define LPE_EVENT_SINGULAR 'S'
+#define LPE_EVENT_STRAIGHT 's'
 
 /* Helper functions to access chunked lpe_events array */
 ccl_device_inline uint64_t kernel_lpe_get_chunk(ccl_global IntegratorState state, int chunk_idx)
@@ -179,6 +182,13 @@ ccl_device_inline void kernel_lpe_record_singular_bounce(ccl_global IntegratorSt
 {
   /* For OSL LPE, singular/specular reflection is 'S' */
   kernel_lpe_add_event(state, LPE_EVENT_SINGULAR);
+}
+
+/* Record a straight transparent transmission */
+ccl_device_inline void kernel_lpe_record_straight_bounce(ccl_global IntegratorState state)
+{
+  /* For OSL LPE, straight/transparent transmission is 's' */
+  kernel_lpe_add_event(state, LPE_EVENT_STRAIGHT);
 }
 
 /* Record a transmission bounce (diffuse) */

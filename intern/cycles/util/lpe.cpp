@@ -155,7 +155,8 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
                                     (1 << 6) |  /* B */
                                     (1 << 8) |  /* D */
                                     (1 << 9) |  /* G */
-                                    (1 << 10); /* S */
+                                    (1 << 10) | /* S */
+                                    (1 << 11); /* s */
         token.event_mask = all_events_mask & ~token.event_mask;
       }
 
@@ -272,6 +273,8 @@ int LPEParser::char_to_event(char c) const
       return 9; /* Glossy scatter */
     case 'S':
       return 10; /* Singular scatter */
+    case 's':
+      return 11; /* Straight/transparent transmission */
     default:
       return -1;
   }
