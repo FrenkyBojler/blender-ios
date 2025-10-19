@@ -498,9 +498,19 @@ static void id_delete_tag(bContext *C, ReportList *reports, TreeElement *te, Tre
     }
   }
 
-  if (te->idcode == ID_LI && ((Library *)id)->runtime->parent != nullptr) {
-    BKE_reportf(reports, RPT_WARNING, "Cannot delete indirectly linked library '%s'", id->name);
-    return;
+  if (te->idcode == ID_LI) {
+    Library *lib = blender::id_cast<Library *>(id);
+    if (lib->runtime->parent != nullptr) {
+      BKE_reportf(reports, RPT_WARNING, "Cannot delete indirectly linked library '%s'", id->name);
+      return;
+    }
+    if (CTX_data_scene(C)->id.lib == lib) {
+      BKE_reportf(reports,
+                  RPT_WARNING,
+                  "Cannot delete library '%s', as it contains the currently active Scene",
+                  id->name);
+      return;
+    }
   }
   if (id->tag & ID_TAG_INDIRECT) {
     BKE_reportf(reports, RPT_WARNING, "Cannot delete indirectly linked id '%s'", id->name);
@@ -817,6 +827,11 @@ static int outliner_id_copy_tag(SpaceOutliner *space_outliner,
 
     /* Add selected item and all of its dependencies to the copy buffer. */
     if (tselem->flag & TSE_SELECTED && ELEM(tselem->type, TSE_SOME_ID, TSE_LAYER_COLLECTION)) {
+      if (ID_IS_PACKED(tselem->id)) {
+        /* Direct link/append of packed IDs is not supported currently, so neither is their
+         * copy/pasting. */
+        continue;
+      }
       copybuffer.id_add(tselem->id,
                         PartialWriteContext::IDAddOptions{
                             (PartialWriteContext::IDAddOperations::SET_FAKE_USER |
@@ -839,7 +854,7 @@ static wmOperatorStatus outliner_id_copy_exec(bContext *C, wmOperator *op)
 
   Main *bmain = CTX_data_main(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  PartialWriteContext copybuffer{BKE_main_blendfile_path(bmain)};
+  PartialWriteContext copybuffer{*bmain};
 
   const int num_ids = outliner_id_copy_tag(space_outliner, &space_outliner->tree, copybuffer);
   if (num_ids == 0) {

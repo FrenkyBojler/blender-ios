@@ -53,8 +53,8 @@ void MTLBackend::delete_resources()
   MEM_delete(compiler_);
 }
 
-void MTLBackend::samplers_update(){
-    /* Placeholder -- Handled in MTLContext. */
+void MTLBackend::samplers_update() {
+  /* Placeholder -- Handled in MTLContext. */
 };
 
 Context *MTLBackend::context_alloc(void *ghost_window, void *ghost_context)
@@ -534,6 +534,7 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.max_shader_storage_buffer_bindings = 14;
   GCaps.max_compute_shader_storage_blocks = 14;
   GCaps.max_storage_buffer_size = size_t(ctx->device.maxBufferLength);
+  GCaps.max_uniform_buffer_size = size_t(ctx->device.maxBufferLength);
   GCaps.storage_buffer_alignment = 256; /* TODO(fclem): But also unused. */
 
   GCaps.max_work_group_count[0] = 65535;

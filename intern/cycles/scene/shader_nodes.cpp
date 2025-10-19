@@ -2339,6 +2339,9 @@ NODE_DEFINE(MetallicBsdfNode)
   SOCKET_IN_FLOAT(anisotropy, "Anisotropy", 0.0f);
   SOCKET_IN_FLOAT(rotation, "Rotation", 0.0f);
 
+  SOCKET_IN_FLOAT(thin_film_thickness, "Thin Film Thickness", 0.0f);
+  SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.33f);
+
   SOCKET_OUT_CLOSURE(BSDF, "BSDF");
 
   return type;
@@ -2386,6 +2389,9 @@ void MetallicBsdfNode::compile(SVMCompiler &compiler)
                                      compiler.stack_assign(input("Extinction")) :
                                      compiler.stack_assign(input("Edge Tint"));
 
+  const int thin_film_thickness_offset = compiler.stack_assign(input("Thin Film Thickness"));
+  const int thin_film_ior_offset = compiler.stack_assign(input("Thin Film IOR"));
+
   ShaderInput *roughness_in = input("Roughness");
   ShaderInput *anisotropy_in = input("Anisotropy");
 
@@ -2404,7 +2410,7 @@ void MetallicBsdfNode::compile(SVMCompiler &compiler)
       normal_offset,
       compiler.encode_uchar4(
           base_color_ior_offset, edge_tint_k_offset, rotation_offset, tangent_offset),
-      distribution);
+      compiler.encode_uchar4(distribution, thin_film_thickness_offset, thin_film_ior_offset));
 }
 
 void MetallicBsdfNode::compile(OSLCompiler &compiler)
@@ -7646,6 +7652,55 @@ void NormalMapNode::compile(OSLCompiler &compiler)
 
   compiler.parameter(this, "space");
   compiler.add(this, "node_normal_map");
+}
+
+/* Radial Tiling */
+
+NODE_DEFINE(RadialTilingNode)
+{
+  NodeType *type = NodeType::add("radial_tiling", create, NodeType::SHADER);
+
+  SOCKET_BOOLEAN(use_normalize, "Normalize", false);
+  SOCKET_IN_POINT(vector, "Vector", zero_float3());
+  SOCKET_IN_FLOAT(r_gon_sides, "Sides", 5.0f);
+  SOCKET_IN_FLOAT(r_gon_roundness, "Roundness", 0.0f);
+
+  SOCKET_OUT_POINT(segment_coordinates, "Segment Coordinates");
+  SOCKET_OUT_FLOAT(segment_id, "Segment ID");
+  SOCKET_OUT_FLOAT(max_unit_parameter, "Segment Width");
+  SOCKET_OUT_FLOAT(x_axis_A_angle_bisector, "Segment Rotation");
+
+  return type;
+}
+
+RadialTilingNode::RadialTilingNode() : ShaderNode(get_node_type()) {}
+
+void RadialTilingNode::compile(SVMCompiler &compiler)
+{
+  ShaderInput *vector_in = input("Vector");
+  ShaderInput *r_gon_sides_in = input("Sides");
+  ShaderInput *r_gon_roundness_in = input("Roundness");
+
+  ShaderOutput *segment_coordinates_out = output("Segment Coordinates");
+  ShaderOutput *segment_id_out = output("Segment ID");
+  ShaderOutput *max_unit_parameter_out = output("Segment Width");
+  ShaderOutput *x_axis_A_angle_bisector_out = output("Segment Rotation");
+
+  compiler.add_node(NODE_RADIAL_TILING,
+                    use_normalize,
+                    compiler.encode_uchar4(compiler.stack_assign(vector_in),
+                                           compiler.stack_assign(r_gon_sides_in),
+                                           compiler.stack_assign(r_gon_roundness_in),
+                                           compiler.stack_assign(segment_coordinates_out)),
+                    compiler.encode_uchar4(compiler.stack_assign(segment_id_out),
+                                           compiler.stack_assign(max_unit_parameter_out),
+                                           compiler.stack_assign(x_axis_A_angle_bisector_out)));
+}
+
+void RadialTilingNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "use_normalize");
+  compiler.add(this, "node_radial_tiling");
 }
 
 /* Tangent */
