@@ -140,7 +140,6 @@ static std::pair<float3, float3> calculate_align_both_handles(const float3 &posi
 
 static void calculate_point_handles(const HandleType type_left,
                                     const HandleType type_right,
-                                    const bool ensure_aligned,
                                     const float3 position,
                                     const float3 prev_position,
                                     const float3 next_position,
@@ -196,14 +195,11 @@ static void calculate_point_handles(const HandleType type_left,
     right = calculate_vector_handle(position, next_position);
   }
 
-  if (ensure_aligned && type_left == BEZIER_HANDLE_ALIGN && type_right == BEZIER_HANDLE_ALIGN) {
-    const auto [new_left, new_right] = calculate_align_both_handles(position, left, right);
-    left = new_left;
-    right = new_right;
-  }
   /* When one of the handles is "aligned" handle, it must be aligned with the other, i.e. point in
-   * the opposite direction. */
-  else if (type_left == BEZIER_HANDLE_ALIGN && type_right != BEZIER_HANDLE_ALIGN) {
+   * the opposite direction. Don't handle the case of two aligned handles, because code elsewhere
+   * should keep the pair consistent, and the relative locations aren't affected by other points
+   * anyway. */
+  if (type_left == BEZIER_HANDLE_ALIGN && type_right != BEZIER_HANDLE_ALIGN) {
     left = calculate_aligned_handle(position, right, left);
   }
   else if (type_left != BEZIER_HANDLE_ALIGN && type_right == BEZIER_HANDLE_ALIGN) {
@@ -229,10 +225,10 @@ void set_handle_position(const float3 &position,
   }
 }
 
-void calculate_aligned_handles(const IndexMask &selection,
-                               const Span<float3> positions,
-                               const Span<float3> align_with,
-                               MutableSpan<float3> align_handles)
+void calculate_single_aligned_handles(const IndexMask &selection,
+                                      const Span<float3> positions,
+                                      const Span<float3> align_with,
+                                      MutableSpan<float3> align_handles)
 {
   selection.foreach_index_optimized<int>(GrainSize(4096), [&](const int point) {
     align_handles[point] = calculate_aligned_handle(
@@ -240,8 +236,22 @@ void calculate_aligned_handles(const IndexMask &selection,
   });
 }
 
+void calculate_aligned_handles(const IndexMask &selection,
+                               const Span<float3> positions,
+                               const Span<float3> handles_left,
+                               const Span<float3> handles_right,
+                               MutableSpan<float3> align_handles_left,
+                               MutableSpan<float3> align_handles_right)
+{
+  selection.foreach_index_optimized<int>(GrainSize(4096), [&](const int point) {
+    const auto [new_left, new_right] = calculate_align_both_handles(
+        positions[point], handles_left[point], handles_right[point]);
+    align_handles_left[point] = new_left;
+    align_handles_right[point] = new_right;
+  });
+}
+
 void calculate_auto_handles(const bool cyclic,
-                            const bool ensure_aligned,
                             const Span<int8_t> types_left,
                             const Span<int8_t> types_right,
                             const Span<float3> positions,
@@ -255,7 +265,6 @@ void calculate_auto_handles(const bool cyclic,
 
   calculate_point_handles(HandleType(types_left.first()),
                           HandleType(types_right.first()),
-                          ensure_aligned,
                           positions.first(),
                           cyclic ? positions.last() : 2.0f * positions.first() - positions[1],
                           positions[1],
@@ -266,7 +275,6 @@ void calculate_auto_handles(const bool cyclic,
     for (const int i : range) {
       calculate_point_handles(HandleType(types_left[i]),
                               HandleType(types_right[i]),
-                              ensure_aligned,
                               positions[i],
                               positions[i - 1],
                               positions[i + 1],
@@ -277,7 +285,6 @@ void calculate_auto_handles(const bool cyclic,
 
   calculate_point_handles(HandleType(types_left.last()),
                           HandleType(types_right.last()),
-                          ensure_aligned,
                           positions.last(),
                           positions.last(1),
                           cyclic ? positions.first() : 2.0f * positions.last() - positions.last(1),

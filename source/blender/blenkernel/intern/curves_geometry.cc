@@ -1257,7 +1257,7 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   });
 }
 
-void CurvesGeometry::calculate_bezier_auto_handles(const bool ensure_aligned)
+void CurvesGeometry::calculate_bezier_auto_handles()
 {
   if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return;
@@ -1279,7 +1279,6 @@ void CurvesGeometry::calculate_bezier_auto_handles(const bool ensure_aligned)
       if (types[i_curve] == CURVE_TYPE_BEZIER) {
         const IndexRange points = points_by_curve[i_curve];
         curves::bezier::calculate_auto_handles(cyclic[i_curve],
-                                               ensure_aligned,
                                                types_left.slice(points),
                                                types_right.slice(points),
                                                positions.slice(points),
@@ -1288,6 +1287,32 @@ void CurvesGeometry::calculate_bezier_auto_handles(const bool ensure_aligned)
       }
     }
   });
+}
+
+void CurvesGeometry::calculate_bezier_aligned_handles()
+{
+  if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    return;
+  }
+  if (!this->handle_positions_left() || !this->handle_positions_right()) {
+    return;
+  }
+  const VArraySpan<int8_t> types_left = this->handle_types_left();
+  const VArraySpan<int8_t> types_right = this->handle_types_right();
+  const Span<float3> positions = this->positions();
+  MutableSpan<float3> positions_left = this->handle_positions_left_for_write();
+  MutableSpan<float3> positions_right = this->handle_positions_right_for_write();
+
+  IndexMaskMemory memory;
+  const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+      *this, CURVE_TYPE_BEZIER, memory);
+  const IndexMask selection = IndexMask::from_predicate(
+      bezier_points, GrainSize(4096), memory, [&](const int64_t i) {
+        return types_left[i] == BEZIER_HANDLE_ALIGN && types_right[i] == BEZIER_HANDLE_ALIGN;
+      });
+
+  curves::bezier::calculate_aligned_handles(
+      selection, positions, positions_left, positions_right, positions_left, positions_right);
 }
 
 void CurvesGeometry::translate(const float3 &translation)

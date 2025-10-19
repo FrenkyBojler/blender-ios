@@ -271,7 +271,7 @@ static void subdivide_bezier_positions(const Span<float3> src_positions,
 
   /* TODO: It would be possible to avoid calling this for all segments besides vector segments. */
   bke::curves::bezier::calculate_auto_handles(
-      cyclic, false, dst_types_l, dst_types_r, dst_positions, dst_handles_l, dst_handles_r);
+      cyclic, dst_types_l, dst_types_r, dst_positions, dst_handles_l, dst_handles_r);
 }
 
 bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
