@@ -112,10 +112,10 @@ static std::pair<float3, float3> calculate_align_both_handles(const float3 &posi
     return {left_handle, right_handle};
   }
   /* If one handle has zero length, use the other as the length and direction. */
-  else if (left_length == 0.0f) {
+  if (left_length == 0.0f) {
     return {position - right_dir, right_handle};
   }
-  else if (right_length == 0.0f) {
+  if (right_length == 0.0f) {
     return {left_handle, position - left_handle};
   }
 
