@@ -224,6 +224,7 @@ if(WITH_BLENDER)
       back
       blank1
       blender
+      blender_logo_color
       blender_logo_large
       boids
       bold
@@ -944,6 +945,10 @@ if(WITH_BLENDER)
       vpaint_hlt
       warning_large
       window
+      window_close
+      window_max
+      window_min
+      window_restore
       wordwrap_off
       wordwrap_on
       workspace

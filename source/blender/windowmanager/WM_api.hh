@@ -319,6 +319,8 @@ bool WM_window_is_main_top_level(const wmWindow *win);
 bool WM_window_is_fullscreen(const wmWindow *win);
 bool WM_window_is_maximized(const wmWindow *win);
 
+int WM_window_decoration_height(const wmWindow *win);
+
 /*
  * Support for wide gamut and HDR colors.
  */

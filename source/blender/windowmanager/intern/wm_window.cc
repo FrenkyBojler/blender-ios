@@ -2923,10 +2923,108 @@ void WM_window_native_pixel_coords(const wmWindow *win, int *x, int *y)
   *y *= fac;
 }
 
+int WM_window_decoration_height(const wmWindow *win)
+{
+  return 30;
+}
+
+void ED_window_decoration(wmWindow *win)
+{
+  const int height = WM_window_decoration_height(win);
+  if (height == 0) {
+    return;
+  }
+  rcti window;
+  WM_window_rect_calc(win, &window);
+  rctf titlebar = {window.xmin, window.xmax, window.ymax - 1, window.ymax + height};
+  float bg_color[4];
+  float text_color[4];
+  UI_SetTheme(SPACE_TOPBAR, RGN_TYPE_HEADER);
+  UI_GetThemeColor4fv(TH_BACK, bg_color);
+  UI_GetThemeColor4fv(TH_TEXT, text_color);
+
+  if (win->active == 0) {
+    text_color[3] = 0.5f;
+    /* We'd need need a paint after deactivation to see this. */
+  }
+
+  UI_draw_roundbox_4fv(&titlebar, true, 0.0f, bg_color);
+  UI_SetTheme(0, 0);
+
+  /* Blurry without doing this. */
+  wmWindowViewport_ex(win, 0.0f);
+
+  /* Logo icon. */
+  UI_icon_draw_ex(
+      5, titlebar.ymin + 6, ICON_BLENDER_LOGO_COLOR, 0.9f, 1.0f, 0.0f, nullptr, false, nullptr, false);
+
+  /* Title. */
+  GHOST_WindowHandle handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
+  const char *title = GHOST_GetTitle(handle);
+  int fontid = BLF_default();
+  BLF_size(fontid, 11.0f);
+  BLF_color4fv(fontid, text_color);
+  BLF_position(fontid, 29.0f, float(titlebar.ymin + 11), 0.0f);
+  BLF_draw(fontid, title, strlen(title));
+
+  /* Buttons. */
+  rctf button = titlebar;
+  button.xmin = titlebar.xmax - 45;
+  if (BLI_rctf_isect_pt(&button, float(win->eventstate->xy[0]), float(win->eventstate->xy[1])))
+  {
+    float red_bg[4] = {0.769f, 0.169f, 0.110f, 1.0f};
+    UI_draw_roundbox_4fv(&button, true, 0.0f, red_bg);
+  }
+  UI_icon_draw_ex(titlebar.xmax - 31,
+                  titlebar.ymin + 6,
+                  ICON_WINDOW_CLOSE,
+                  1.0f,
+                  1.0f,
+                  0.0f,
+                  nullptr,
+                  false,
+                  nullptr,
+                  false);
+
+
+  BLI_rctf_translate(&button, -45.0f, 0);
+  if (BLI_rctf_isect_pt(&button, float(win->eventstate->xy[0]), float(win->eventstate->xy[1]))) {
+    float button_bg[4] = {text_color[0], text_color[1], text_color[2], 0.09f};
+    UI_draw_roundbox_4fv(&button, true, 0.0f, button_bg);
+  }
+  UI_icon_draw_ex(titlebar.xmax - 77,
+                  titlebar.ymin + 6,
+                  WM_window_is_maximized(win) ? ICON_WINDOW_RESTORE : ICON_WINDOW_MAX,
+                  1.0f,
+                  1.0f,
+                  0.0f,
+                  nullptr,
+                  false,
+                  nullptr,
+                  false);
+
+  BLI_rctf_translate(&button, -45.0f, 0);
+  if (BLI_rctf_isect_pt(&button, float(win->eventstate->xy[0]), float(win->eventstate->xy[1]))) {
+    float button_bg[4] = {text_color[0], text_color[1], text_color[2], 0.09f};
+    UI_draw_roundbox_4fv(&button, true, 0.0f, button_bg);
+  }
+  UI_icon_draw_ex(titlebar.xmax - 122,
+                  titlebar.ymin + 6,
+                  ICON_WINDOW_MIN,
+                  1.0f,
+                  1.0f,
+                  0.0f,
+                  nullptr,
+                  false,
+                  nullptr,
+                  false);
+}
+
 void WM_window_rect_calc(const wmWindow *win, rcti *r_rect)
 {
+  const int titlebar = WM_window_decoration_height(win);
   const blender::int2 win_size = WM_window_native_pixel_size(win);
-  BLI_rcti_init(r_rect, 0, win_size[0], 0, win_size[1]);
+  BLI_rcti_init(r_rect, 0, win_size[0], 0, win_size[1] - titlebar);
 }
 void WM_window_screen_rect_calc(const wmWindow *win, rcti *r_rect)
 {

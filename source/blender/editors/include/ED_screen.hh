@@ -321,6 +321,8 @@ void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm);
  */
 void ED_screen_draw_edges(wmWindow *win);
 
+void ED_window_decoration(wmWindow *win);
+
 /**
  * Make this screen usable.
  * for file read and first use, for scaling window, area moves.

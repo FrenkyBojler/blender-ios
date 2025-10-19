@@ -4161,6 +4161,59 @@ void wm_event_do_handlers(bContext *C)
       /* Active screen might change during handlers, update pointer. */
       screen = WM_window_get_active_screen(win);
 
+      const int titlebar_height = WM_window_decoration_height(win);
+      if (titlebar_height > 0) {
+        rcti titlebar;
+        WM_window_rect_calc(win, &titlebar);
+        titlebar.ymin = titlebar.ymax;
+        titlebar.ymax += titlebar_height;
+        static bool is_dragging = false;
+        if (BLI_rcti_isect_pt_v(&titlebar, event->xy)) {
+          rcti close = titlebar;
+          close.xmin = close.xmax - 45;
+          rcti max = close;
+          BLI_rcti_translate(&max, -45, 0);
+          rcti min = max;
+          BLI_rcti_translate(&min, -45, 0);
+          rcti nc = titlebar;
+          nc.xmax = min.xmin;
+
+          if (event->type == MOUSEMOVE) {
+            if (is_dragging && !WM_window_is_maximized(win) && BLI_rcti_isect_pt_v(&nc, event->xy))
+            {
+              int move_x = event->xy[0] - event->prev_press_xy[0];
+              int move_y = event->xy[1] - event->prev_press_xy[1];
+              /* I don't think we currently support window moving from here. */
+            }
+          }
+          else if (event->type == LEFTMOUSE) {
+            if (event->val == KM_PRESS) {
+              is_dragging = true;
+            }
+            if (event->val == KM_RELEASE) {
+              is_dragging = false;
+              if (BLI_rcti_isect_pt_v(&max, event->xy)) {
+                GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                     WM_window_is_maximized(win) ? GHOST_kWindowStateNormal :
+                                                                   GHOST_kWindowStateMaximized);
+              }
+              if (BLI_rcti_isect_pt_v(&close, event->xy)) {
+                wm_window_close(C, wm, win);
+              }
+              if (BLI_rcti_isect_pt_v(&min, event->xy)) {
+                GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                     GHOST_kWindowStateMinimized);
+              }
+            }
+          }
+          if (event->val == KM_DBL_CLICK && BLI_rcti_isect_pt_v(&nc, event->xy)) {
+            GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                 WM_window_is_maximized(win) ? GHOST_kWindowStateNormal :
+                                                               GHOST_kWindowStateMaximized);
+          }
+        }
+      }
+
       if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS) && !ISMOUSE_MOTION(event->type)) {
         printf("\n%s: Handling event\n", __func__);
         WM_event_print(event);
