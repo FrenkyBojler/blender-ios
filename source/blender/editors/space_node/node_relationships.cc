@@ -2541,14 +2541,12 @@ static bNode *get_selected_node_for_insertion(bNodeTree &node_tree)
   return selected_node;
 }
 
-// 定义一个结构体, 用于返回结果, 这样比返回数组更清晰、类型安全.
 struct NodeEndpoint {
   bNode *start_node = nullptr;
   bNode *end_node = nullptr;
   rctf bounds{};
   bool main_in_from_selected = false;
 
-  // 选中的节点是否构成一个合法的链条
   bool is_valid() const
   {
     return start_node != nullptr && end_node != nullptr;
@@ -2596,6 +2594,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     if (!(node->flag & SELECT)) {
       continue;
     }
+    // todo 节点没被选中,但节点框被选中了
     selected_nodes.append(node);
     if (!find_first) {
       result.bounds = node->runtime->draw_bounds;
@@ -2606,6 +2605,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
       BLI_rctf_union(&result.bounds, &node->runtime->draw_bounds);
     }
 
+    // ! todo 如果只选了链条的起始和结束节点, 会被判定为正常啊
     bool all_output_not_linked = false;
     for (bNodeSocket *sock_out : node->output_sockets()) {
       all_output_not_linked = sock_out->directly_linked_sockets().is_empty();
@@ -2624,10 +2624,6 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   bNode *end_node = end_candidates[0];
   const bNodeSocket *main_output = get_main_socket(tree, *end_node, SOCK_OUT);
 
-  // --- 步骤 2: 识别链条的起始节点和结束节点 ---
-
-  // todo 先判断终点 主接口的类型(如Geo), 当只有一个终点时,再查找起点时,
-  // todo 设置位置除了Geo都连线了,也应该考虑为起始
   // todo 或者第一个输入接口没连线的节点也应该加进候选, 但是最高优先级的只应该有一个
   for (bNode *node : selected_nodes) {
     const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
@@ -2637,7 +2633,6 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     bool valid_start;
     if (!is_new_node) {
       valid_start = !main_input->is_directly_linked();
-      // 好像也不需要, 改进, 如果有输入接口连线了,连线的起始节点也应该是选中的, 且 main_input 没连线, 这种情况才有效
     }
     else {
       valid_start = true;
@@ -2719,7 +2714,16 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   /* Find link to select/highlight. */
   bNodeLink *selink = nullptr;
   float dist_best = FLT_MAX;
-  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
+
+  // !服了啊,真是奇怪的问题,为什么无效
+  // float2 view_cursor;
+  // UI_view2d_region_to_view(&region.v2d, cursor.x, cursor.y, &view_cursor.x, &view_cursor.y);
+  // float node_xy[2] = {view_cursor.x, view_cursor.y};
+  // BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
+  float node_xy[2] = {endpoint.bounds.xmax, endpoint.bounds.ymin};
+
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links)
+  {
     if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
       continue;
     }
@@ -2755,10 +2759,6 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
       if (BLI_rctf_isect_segment(&endpoint.bounds, coords[i], coords[i + 1])) {
         /* Store the shortest distance to the upper left edge of all intersections found so
          * far. */
-        float2 view_cursor;
-        UI_view2d_region_to_view(&region.v2d, cursor.x, cursor.y, &view_cursor.x, &view_cursor.y);
-        float node_xy[2] = {view_cursor.x, view_cursor.y};
-        BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
 
         /* To be precise coords should be clipped by `select->draw_bounds`, but not done
          * since there's no real noticeable difference. */
