@@ -2690,7 +2690,7 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
        N_("Edit any geometry node group for use as an operator")},
       {SNODE_GEOMETRY_BRUSH,
        "BRUSH",
-       0,
+       ICON_BRUSH_DATA,
        N_("Brush"),
        N_("Edit the node group used by the active brush")},
       {0, nullptr, 0, nullptr, nullptr},
