@@ -357,10 +357,20 @@ typedef struct uiViewState {
    *   scrolled out of view).
    */
   int scroll_offset;
-  uint8_t flag; /* #uiViewStateflag */
-  char _pad[7];
+  uint16_t flag; /* #uiViewStateflag */
+  char _pad[6];
 
   char *search_string;
+
+#ifdef __cplusplus
+  uiViewState() = default;
+  uiViewState(const uiViewState &other);
+  uiViewState(uiViewState &&other);
+  ~uiViewState() = default;
+  uiViewState &operator=(const uiViewState &other);
+  uiViewState &operator=(uiViewState &&other);
+#endif
+
 } uiViewState;
 
 /**
