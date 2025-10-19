@@ -1,3 +1,4 @@
 Referenced by commit eac1ade9566, Fix #132077: Prevent stack-use-after-return inside USD_create_handle
 Referenced by issue #132095, Fix #132077: Prevent stack-use-after-return inside USD_create_handle
 Referenced by commit db88381e7533858a8c13db98b7262f8809fd8d69, Docs: Include `get_prim_map()` in `bpy.types.USDHook` example code
+Referenced by commit 61da6403beb116f542afd46b71c9020fc1ab5029, USD: Add new `get_prim_map` API for the `on_export` hook
