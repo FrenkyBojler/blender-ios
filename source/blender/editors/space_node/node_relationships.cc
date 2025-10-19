@@ -2542,10 +2542,11 @@ static bNode *get_selected_node_for_insertion(bNodeTree &node_tree)
 }
 
 // 定义一个结构体, 用于返回结果, 这样比返回数组更清晰、类型安全.
-struct NodesEndpoint {
+struct NodeEndpoint {
   bNode *start_node = nullptr;
   bNode *end_node = nullptr;
   rctf bounds{};
+  bool main_in_from_selected = false;
 
   // 选中的节点是否构成一个合法的链条
   bool is_valid() const
@@ -2559,22 +2560,39 @@ struct NodesEndpoint {
   }
 };
 
+static bool endpoint_are_compatible(bNodeTree &tree,
+                                    const bNodeSocket &input,
+                                    const bNodeSocket &output)
+{
+  // const bNodeSocket *main_input = get_main_socket(tree, start_node, SOCK_IN);
+  // const bNodeSocket *main_output = get_main_socket(tree, end_node, SOCK_OUT);
+  // if (ELEM(nullptr, main_input, main_output)) {
+  //   return false;
+  // }
+  if (tree.typeinfo->validate_link &&
+      tree.typeinfo->validate_link(eNodeSocketDatatype(input.type),
+                                   eNodeSocketDatatype(output.type)))
+  {
+    return true;
+  }
+  return false;
+}
+
 /**
  * @brief 检查选中的节点是否形成一个无分叉的线性链条, 并返回链条的起始和结束节点.
- *
- * 1. 链条中必须有且只有一个“起始节点” (没有来自其他选中节点的输入).
- * 2. 链条中必须有且只有一个“结束节点” (没有输出到其他选中节点的连接).
- * 3. 所有中间节点的输入和输出都必须连接到其他选中的节点上.
+ * 1. 起始节点,结束节点,各一个
  * todo: 特殊情况: 选择了两个没连线的节点,是区域输入和输出
  */
-static NodesEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &node_tree)
+static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, bool is_new_node)
 {
-  NodesEndpoint result{};
+  NodeEndpoint result{};
   rctf bounds{};
+  Vector<bNode *> start_candidates;
+  Vector<bNode *> end_candidates;
 
   bool find_first = false;
   Vector<bNode *> selected_nodes;
-  for (bNode *node : node_tree.all_nodes()) {
+  for (bNode *node : tree.all_nodes()) {
     if (!(node->flag & SELECT)) {
       continue;
     }
@@ -2584,79 +2602,100 @@ static NodesEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &node_t
       find_first = true;
     }
     else {
-      // todo 是否有更简单的凸包算法,一句线段和凸包是否相交
+      // todo 是否有更简单的凸包算法,线段和凸包是否相交
       BLI_rctf_union(&result.bounds, &node->runtime->draw_bounds);
     }
+
+    bool all_output_not_linked = false;
+    for (bNodeSocket *sock_out : node->output_sockets()) {
+      all_output_not_linked = sock_out->directly_linked_sockets().is_empty();
+      if (!all_output_not_linked) {
+        break;
+      }
+    }
+    if (all_output_not_linked) {
+      end_candidates.append(node);
+    }
   }
-  if (selected_nodes.is_empty()) {
+  // todo 应该是最高优先级的只有一个?
+  if (selected_nodes.is_empty() || end_candidates.size() != 1) {
     return {};
   }
+  bNode *end_node = end_candidates[0];
+  const bNodeSocket *main_output = get_main_socket(tree, *end_node, SOCK_OUT);
 
   // --- 步骤 2: 识别链条的起始节点和结束节点 ---
-  Vector<bNode *> start_candidates;
-  Vector<bNode *> end_candidates;
 
   // todo 先判断终点 主接口的类型(如Geo), 当只有一个终点时,再查找起点时,
   // todo 设置位置除了Geo都连线了,也应该考虑为起始
   // todo 或者第一个输入接口没连线的节点也应该加进候选, 但是最高优先级的只应该有一个
+  // for (bNode *node : selected_nodes) {
+  //   const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
+  //   if (main_input == nullptr) {
+  //     continue;
+  //   }
+  //   if (!is_new_node && !main_input->is_directly_linked() &&
+  //       endpoint_are_compatible(tree, *main_input, *main_output))
+  //   {
+  //     start_candidates.append(node);
+  //   }
+  //   if (is_new_node) {
+  //     bool main_in_from_selected = false;
+  //     for (const bNodeSocket *linked_sock : main_input->directly_linked_sockets()) {
+  //       main_in_from_selected = linked_sock->owner_node().flag & SELECT;
+  //       if (main_in_from_selected) {
+  //         break;
+  //       }
+  //     }
+  //     if (!main_in_from_selected &&
+  //         endpoint_are_compatible(tree, *main_input, *main_output))
+  //     {
+  //       start_candidates.append(node);
+  //     }
+  //   }
+  // }
+
   for (bNode *node : selected_nodes) {
-
-    bool has_output_to_selected = false;
-    // 检查当前节点的输出是否连接了【其他被选中的】节点
-    for (bNodeSocket *sock_out : node->output_sockets()) {
-      for (bNodeSocket *linked_sock : sock_out->directly_linked_sockets()) {
-        if (selected_nodes.contains(&linked_sock->owner_node())) {
-          has_output_to_selected = true;
+    const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
+    if (main_input == nullptr) {
+      continue;
+    }
+    if (!is_new_node && main_input->is_directly_linked()) {
+      continue;
+    }
+    if (is_new_node) {
+      bool main_in_from_selected = false;
+      for (const bNodeSocket *linked_sock : main_input->directly_linked_sockets()) {
+        main_in_from_selected = linked_sock->owner_node().flag & SELECT;
+        if (main_in_from_selected) {
           break;
         }
       }
-      if (has_output_to_selected) {
-        break;
+      if (main_in_from_selected) {
+        continue;
       }
     }
-    // 如果一个节点的输出端【没有】连接任何其他被选中的节点, 它就是一个潜在的“结束节点”
-    if (!has_output_to_selected) {
-      end_candidates.append(node);
-    }
-
-    bool has_input_from_selected = false;
-    // 检查当前节点的输入是否连接了【其他被选中的】节点
-    for (bNodeSocket *sock_in : node->input_sockets()) {
-      for (bNodeSocket *linked_sock : sock_in->directly_linked_sockets()) {
-        if (selected_nodes.contains(&linked_sock->owner_node())) {
-          has_input_from_selected = true;
-          break;
-        }
-      }
-      if (has_input_from_selected) {
-        break;
-      }
-    }
-    // 如果一个节点的输入端【没有】连接任何其他被选中的节点, 它就是一个潜在的“起始节点”
-    if (!has_input_from_selected) {
+    if (endpoint_are_compatible(tree, *main_input, *main_output)) {
       start_candidates.append(node);
     }
   }
 
-  // --- 步骤 3: 验证链条的唯一性和合法性 ---
-  // 如果起始或结束节点不是唯一的, 返回空
-  // todo 或者说终点一个,起点多个,找到最佳的起点
-  if (start_candidates.size() != 1 || end_candidates.size() != 1) {
+  if (start_candidates.size() != 1) {
     return {};
   }
-  bNode *start_node = start_candidates[0];
-  bNode *end_node = end_candidates[0];
-  if (start_node->input_sockets().is_empty() || end_node->output_sockets().is_empty()) {
-    return {};
-  }
-  result.start_node = start_node;
+  // bNode *start_node = start_candidates[0];
+  // if (start_node->input_sockets().is_empty() || end_node->output_sockets().is_empty()) {
+  //   return {};
+  // }
+  result.start_node = start_candidates[0];
   result.end_node = end_node;
+  // result.main_in_from_selected = main_in_from_selected;
   return result;
 }
 
-static bool node_can_be_inserted_on_link(bNodeTree &tree,
-                                         NodesEndpoint &endpoint,
-                                         const bNodeLink &link)
+static bool node_endpoint_can_be_inserted_on_link(bNodeTree &tree,
+                                                  NodeEndpoint &endpoint,
+                                                  const bNodeLink &link)
 {
   const bNodeSocket *main_input = get_main_socket(tree, *endpoint.start_node, SOCK_IN);
   const bNodeSocket *main_output = get_main_socket(tree, *endpoint.end_node, SOCK_OUT);
@@ -2692,7 +2731,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   node_insert_on_link_flags_clear(node_tree);
 
-  NodesEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree);
+  NodeEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree, is_new_node);
   if (!endpoint.is_valid()) {
     return;
   }
@@ -2704,9 +2743,10 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   for (bNodeSocket *socket : endpoint.end_node->output_sockets()) {
     already_linked_sockets.extend(socket->directly_linked_sockets());
   }
-  if (!is_new_node && !already_linked_sockets.is_empty()) {
-    return;
-  }
+  // if (!is_new_node && !already_linked_sockets.is_empty()) {
+  // // if (!is_new_node && endpoint.main_in_from_selected) {
+  //   return;
+  // }
 
   /* Find link to select/highlight. */
   bNodeLink *selink = nullptr;
@@ -2740,16 +2780,17 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     node_link_bezier_points_evaluated(*link, coords);
     float dist = FLT_MAX;
 
-    /* Loop over link coords to find shortest dist to upper left node edge of a intersected line
-     * segment. */
+    /* Loop over link coords to find shortest dist to upper left node edge of a intersected
+     * line segment. */
     for (int i = 0; i < NODE_LINK_RESOL; i++) {
       /* Check if the node rectangle intersects the line from this point to next one. */
       if (BLI_rctf_isect_segment(&endpoint.bounds, coords[i], coords[i + 1])) {
-        /* Store the shortest distance to the upper left edge of all intersections found so far. */
+        /* Store the shortest distance to the upper left edge of all intersections found so
+         * far. */
         const float node_xy[] = {endpoint.bounds.xmin, endpoint.bounds.ymax};
 
-        /* To be precise coords should be clipped by `select->draw_bounds`, but not done since
-         * there's no real noticeable difference. */
+        /* To be precise coords should be clipped by `select->draw_bounds`, but not done
+         * since there's no real noticeable difference. */
         dist = min_ff(dist_squared_to_line_segment_v2(node_xy, coords[i], coords[i + 1]), dist);
       }
     }
@@ -2763,7 +2804,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
-    if (!attach_enabled || !node_can_be_inserted_on_link(node_tree, endpoint, *selink)) {
+    if (!attach_enabled || !node_endpoint_can_be_inserted_on_link(node_tree, endpoint, *selink)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2809,7 +2850,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 {
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
-  NodesEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree);
+  NodeEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree, is_new_node);
   if (!endpoint.is_valid()) {
     return;
   }
