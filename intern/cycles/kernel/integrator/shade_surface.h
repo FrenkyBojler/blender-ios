@@ -490,7 +490,8 @@ ccl_device
        * This matches the logic in bsdf_sample() that sets LABEL_TRANSMIT_TRANSPARENT
        * for transmissions with low roughness (below transparent_roughness_squared_threshold). */
       bool is_straight = false;
-      const float threshold_squared = kernel_data.background.transparent_roughness_squared_threshold;
+      const float threshold_squared =
+          kernel_data.background.transparent_roughness_squared_threshold;
 
       if (threshold_squared >= 0.0f) {
         for (int i = 0; i < sd->num_closure; i++) {

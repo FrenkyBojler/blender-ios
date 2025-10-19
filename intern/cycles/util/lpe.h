@@ -43,12 +43,7 @@ enum LPEOperator {
 };
 
 /* LPE tag types for filtering by light group, object, or material */
-enum LPETagType {
-  LPE_TAG_NONE,
-  LPE_TAG_LIGHT_GROUP,
-  LPE_TAG_OBJECT,
-  LPE_TAG_MATERIAL
-};
+enum LPETagType { LPE_TAG_NONE, LPE_TAG_LIGHT_GROUP, LPE_TAG_OBJECT, LPE_TAG_MATERIAL };
 
 /* LPE tag for filtering events (e.g., <lgroup:key>, <obj:Floor>) */
 struct LPETag {
@@ -106,10 +101,10 @@ class LPEParser {
  private:
   string expression_;
   bool is_valid_;
-  vector<LPEToken> tokens_;        /* For backward compatibility - single pattern */
-  vector<LPEPattern> patterns_;    /* Multiple patterns for OR/SUBTRACT operations */
-  vector<LPEOperator> operators_;  /* Operators between patterns */
-  bool has_negation_;              /* Leading ! operator */
+  vector<LPEToken> tokens_;       /* For backward compatibility - single pattern */
+  vector<LPEPattern> patterns_;   /* Multiple patterns for OR/SUBTRACT operations */
+  vector<LPEOperator> operators_; /* Operators between patterns */
+  bool has_negation_;             /* Leading ! operator */
 
   /* Parse helpers */
   bool parse_tokens();

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/pass.h"
-#include "scene/scene.h"
 #include "scene/object.h"
+#include "scene/scene.h"
 #include "scene/shader.h"
 
 #include "util/log.h"
@@ -620,8 +620,8 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
             }
             else {
               /* Keep original if not found */
-              LOG_WARNING << "Light group '" << tag_name << "' not found in LPE expression: "
-                          << expr;
+              LOG_WARNING << "Light group '" << tag_name
+                          << "' not found in LPE expression: " << expr;
               result += tag_content;
             }
           }

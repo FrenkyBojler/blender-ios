@@ -156,7 +156,7 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
                                     (1 << 8) |  /* D */
                                     (1 << 9) |  /* G */
                                     (1 << 10) | /* S */
-                                    (1 << 11); /* s */
+                                    (1 << 11);  /* s */
         token.event_mask = all_events_mask & ~token.event_mask;
       }
 
@@ -217,7 +217,8 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
                 token.tag.type = LPE_TAG_MATERIAL;
               }
               else {
-                LOG_WARNING << "Unknown tag type '" << type_str << "' in LPE pattern: " << pattern_str;
+                LOG_WARNING << "Unknown tag type '" << type_str
+                            << "' in LPE pattern: " << pattern_str;
               }
             }
             else {

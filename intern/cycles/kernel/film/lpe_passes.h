@@ -34,10 +34,12 @@ CCL_NAMESPACE_BEGIN
  *                "CsL" = Camera -> Straight (transparent) -> Light
  */
 
-#define LPE_MAX_EVENTS 64            /* 8 x 64 bits / 8 bits per char = 64 events */
-#define LPE_EVENT_CHUNKS 8           /* Number of uint64_t chunks to store events (8 chunks x 8 events = 64) */
-#define LPE_MAX_EXPRESSION_LENGTH 64 /* Maximum length for an LPE expression string (increased for complex paths) */
-#define LPE_MAX_PASSES 32            /* Maximum number of LPE passes (increased for flexibility) */
+#define LPE_MAX_EVENTS 64 /* 8 x 64 bits / 8 bits per char = 64 events */
+#define LPE_EVENT_CHUNKS \
+  8 /* Number of uint64_t chunks to store events (8 chunks x 8 events = 64) */
+#define LPE_MAX_EXPRESSION_LENGTH \
+  64 /* Maximum length for an LPE expression string (increased for complex paths) */
+#define LPE_MAX_PASSES 32 /* Maximum number of LPE passes (increased for flexibility) */
 
 /* Event character codes matching the parser */
 #define LPE_EVENT_CAMERA 'C'
@@ -56,58 +58,112 @@ CCL_NAMESPACE_BEGIN
 ccl_device_inline uint64_t kernel_lpe_get_chunk(ccl_global IntegratorState state, int chunk_idx)
 {
   switch (chunk_idx) {
-    case 0: return INTEGRATOR_STATE(state, path, lpe_events_0);
-    case 1: return INTEGRATOR_STATE(state, path, lpe_events_1);
-    case 2: return INTEGRATOR_STATE(state, path, lpe_events_2);
-    case 3: return INTEGRATOR_STATE(state, path, lpe_events_3);
-    case 4: return INTEGRATOR_STATE(state, path, lpe_events_4);
-    case 5: return INTEGRATOR_STATE(state, path, lpe_events_5);
-    case 6: return INTEGRATOR_STATE(state, path, lpe_events_6);
-    case 7: return INTEGRATOR_STATE(state, path, lpe_events_7);
-    default: return 0;
+    case 0:
+      return INTEGRATOR_STATE(state, path, lpe_events_0);
+    case 1:
+      return INTEGRATOR_STATE(state, path, lpe_events_1);
+    case 2:
+      return INTEGRATOR_STATE(state, path, lpe_events_2);
+    case 3:
+      return INTEGRATOR_STATE(state, path, lpe_events_3);
+    case 4:
+      return INTEGRATOR_STATE(state, path, lpe_events_4);
+    case 5:
+      return INTEGRATOR_STATE(state, path, lpe_events_5);
+    case 6:
+      return INTEGRATOR_STATE(state, path, lpe_events_6);
+    case 7:
+      return INTEGRATOR_STATE(state, path, lpe_events_7);
+    default:
+      return 0;
   }
 }
 
-ccl_device_inline void kernel_lpe_set_chunk(ccl_global IntegratorState state, int chunk_idx, uint64_t value)
+ccl_device_inline void kernel_lpe_set_chunk(ccl_global IntegratorState state,
+                                            int chunk_idx,
+                                            uint64_t value)
 {
   switch (chunk_idx) {
-    case 0: INTEGRATOR_STATE_WRITE(state, path, lpe_events_0) = value; break;
-    case 1: INTEGRATOR_STATE_WRITE(state, path, lpe_events_1) = value; break;
-    case 2: INTEGRATOR_STATE_WRITE(state, path, lpe_events_2) = value; break;
-    case 3: INTEGRATOR_STATE_WRITE(state, path, lpe_events_3) = value; break;
-    case 4: INTEGRATOR_STATE_WRITE(state, path, lpe_events_4) = value; break;
-    case 5: INTEGRATOR_STATE_WRITE(state, path, lpe_events_5) = value; break;
-    case 6: INTEGRATOR_STATE_WRITE(state, path, lpe_events_6) = value; break;
-    case 7: INTEGRATOR_STATE_WRITE(state, path, lpe_events_7) = value; break;
+    case 0:
+      INTEGRATOR_STATE_WRITE(state, path, lpe_events_0) = value;
+      break;
+    case 1:
+      INTEGRATOR_STATE_WRITE(state, path, lpe_events_1) = value;
+      break;
+    case 2:
+      INTEGRATOR_STATE_WRITE(state, path, lpe_events_2) = value;
+      break;
+    case 3:
+      INTEGRATOR_STATE_WRITE(state, path, lpe_events_3) = value;
+      break;
+    case 4:
+      INTEGRATOR_STATE_WRITE(state, path, lpe_events_4) = value;
+      break;
+    case 5:
+      INTEGRATOR_STATE_WRITE(state, path, lpe_events_5) = value;
+      break;
+    case 6:
+      INTEGRATOR_STATE_WRITE(state, path, lpe_events_6) = value;
+      break;
+    case 7:
+      INTEGRATOR_STATE_WRITE(state, path, lpe_events_7) = value;
+      break;
   }
 }
 
 ccl_device_inline uint64_t kernel_lpe_get_shadow_chunk(IntegratorShadowState state, int chunk_idx)
 {
   switch (chunk_idx) {
-    case 0: return INTEGRATOR_STATE(state, shadow_path, lpe_events_0);
-    case 1: return INTEGRATOR_STATE(state, shadow_path, lpe_events_1);
-    case 2: return INTEGRATOR_STATE(state, shadow_path, lpe_events_2);
-    case 3: return INTEGRATOR_STATE(state, shadow_path, lpe_events_3);
-    case 4: return INTEGRATOR_STATE(state, shadow_path, lpe_events_4);
-    case 5: return INTEGRATOR_STATE(state, shadow_path, lpe_events_5);
-    case 6: return INTEGRATOR_STATE(state, shadow_path, lpe_events_6);
-    case 7: return INTEGRATOR_STATE(state, shadow_path, lpe_events_7);
-    default: return 0;
+    case 0:
+      return INTEGRATOR_STATE(state, shadow_path, lpe_events_0);
+    case 1:
+      return INTEGRATOR_STATE(state, shadow_path, lpe_events_1);
+    case 2:
+      return INTEGRATOR_STATE(state, shadow_path, lpe_events_2);
+    case 3:
+      return INTEGRATOR_STATE(state, shadow_path, lpe_events_3);
+    case 4:
+      return INTEGRATOR_STATE(state, shadow_path, lpe_events_4);
+    case 5:
+      return INTEGRATOR_STATE(state, shadow_path, lpe_events_5);
+    case 6:
+      return INTEGRATOR_STATE(state, shadow_path, lpe_events_6);
+    case 7:
+      return INTEGRATOR_STATE(state, shadow_path, lpe_events_7);
+    default:
+      return 0;
   }
 }
 
-ccl_device_inline void kernel_lpe_set_shadow_chunk(IntegratorShadowState state, int chunk_idx, uint64_t value)
+ccl_device_inline void kernel_lpe_set_shadow_chunk(IntegratorShadowState state,
+                                                   int chunk_idx,
+                                                   uint64_t value)
 {
   switch (chunk_idx) {
-    case 0: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_0) = value; break;
-    case 1: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_1) = value; break;
-    case 2: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_2) = value; break;
-    case 3: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_3) = value; break;
-    case 4: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_4) = value; break;
-    case 5: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_5) = value; break;
-    case 6: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_6) = value; break;
-    case 7: INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_7) = value; break;
+    case 0:
+      INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_0) = value;
+      break;
+    case 1:
+      INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_1) = value;
+      break;
+    case 2:
+      INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_2) = value;
+      break;
+    case 3:
+      INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_3) = value;
+      break;
+    case 4:
+      INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_4) = value;
+      break;
+    case 5:
+      INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_5) = value;
+      break;
+    case 6:
+      INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_6) = value;
+      break;
+    case 7:
+      INTEGRATOR_STATE_WRITE(state, shadow_path, lpe_events_7) = value;
+      break;
   }
 }
 
@@ -122,8 +178,8 @@ ccl_device_inline void kernel_lpe_add_event(ccl_global IntegratorState state, ch
   }
 
   /* Calculate which chunk and bit offset within that chunk */
-  const int chunk_idx = event_count / 8;  /* Each chunk holds 8 events */
-  const int bit_offset = (event_count % 8) * 8;  /* 8 bits per event */
+  const int chunk_idx = event_count / 8;        /* Each chunk holds 8 events */
+  const int bit_offset = (event_count % 8) * 8; /* 8 bits per event */
 
   /* Get current chunk, add event, and write back */
   uint64_t events = kernel_lpe_get_chunk(state, chunk_idx);
@@ -627,7 +683,9 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
           /* Try matching between min_count and max_count (or unlimited if max_count == -1) */
           int max_additional = (max_count == -1) ? 100 : (max_count - min_count);
           for (int extra = 0; extra <= max_additional && path[path_pos] != '\0'; extra++) {
-            if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
+            if (kernel_lpe_matches(
+                    &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id))
+            {
               return true;
             }
             /* Try one more match */
@@ -639,7 +697,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
               break;
             }
           }
-          return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
+          return kernel_lpe_matches(
+              &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
         }
       }
       /* Handle * quantifier */
@@ -648,7 +707,9 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         const int class_start = pattern_pos + 1; /* Save position of class content */
         pattern_pos += 2 + class_end;
         while (path[path_pos] != '\0') {
-          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
+          if (kernel_lpe_matches(
+                  &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id))
+          {
             return true;
           }
           int tmp = 0;
@@ -659,7 +720,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             break;
           }
         }
-        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
+        return kernel_lpe_matches(
+            &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
       }
       /* Handle + quantifier */
       else if (quantifier == '+') {
@@ -672,7 +734,9 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         pattern_pos += 2 + class_end;
 
         while (path[path_pos] != '\0') {
-          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
+          if (kernel_lpe_matches(
+                  &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id))
+          {
             return true;
           }
           int tmp = 0;
@@ -683,7 +747,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             break;
           }
         }
-        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
+        return kernel_lpe_matches(
+            &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
       }
       else {
         /* [ABC] - single match */
@@ -726,7 +791,9 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         /* Try matching between min_count and max_count (or unlimited if max_count == -1) */
         int max_additional = (max_count == -1) ? 100 : (max_count - min_count);
         for (int extra = 0; extra <= max_additional && path[path_pos] != '\0'; extra++) {
-          if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
+          if (kernel_lpe_matches(
+                  &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id))
+          {
             return true;
           }
           /* Try one more match */
@@ -737,7 +804,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             break;
           }
         }
-        return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
+        return kernel_lpe_matches(
+            &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
       }
     }
     /* Handle X* - zero or more X */
@@ -745,7 +813,9 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
       pattern_pos += 2;
 
       while (path[path_pos] != '\0') {
-        if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
+        if (kernel_lpe_matches(
+                &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id))
+        {
           return true;
         }
         if (p == '.' || path[path_pos] == p) {
@@ -755,7 +825,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
           break;
         }
       }
-      return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
+      return kernel_lpe_matches(
+          &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
     }
     /* Handle X+ - one or more X */
     else if (next_p == '+') {
@@ -767,7 +838,9 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
       pattern_pos += 2;
 
       while (path[path_pos] != '\0') {
-        if (kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id)) {
+        if (kernel_lpe_matches(
+                &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id))
+        {
           return true;
         }
         if (p == '.' || path[path_pos] == p) {
@@ -777,7 +850,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
           break;
         }
       }
-      return kernel_lpe_matches(&path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
+      return kernel_lpe_matches(
+          &path[path_pos], &pattern[pattern_pos], lightgroup_id, object_id, material_id);
     }
     /* Match single character */
     else {
@@ -796,7 +870,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
 
       /* Check for tag filter after any event (except C which is always first) */
       if (p != 'C' && pattern[pattern_pos] == '<') {
-        int tag_len = kernel_lpe_check_tag(&pattern[pattern_pos], lightgroup_id, object_id, material_id, p);
+        int tag_len = kernel_lpe_check_tag(
+            &pattern[pattern_pos], lightgroup_id, object_id, material_id, p);
         if (tag_len < 0) {
           /* Tag present but doesn't match - pattern fails */
           return false;
@@ -869,7 +944,8 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
       paren_content[paren_len] = '\0';
 
       /* Evaluate parenthesized expression recursively */
-      bool paren_result = kernel_lpe_matches_with_operators(path, paren_content, lightgroup_id, object_id, material_id);
+      bool paren_result = kernel_lpe_matches_with_operators(
+          path, paren_content, lightgroup_id, object_id, material_id);
 
       /* Treat parenthesized result as a sub-pattern result */
       if (first_pattern) {
@@ -898,7 +974,9 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
     }
 
     /* Check for operator with spaces: " | " or " - " (only outside parentheses) */
-    if (paren_depth == 0 && pattern[pos] == ' ' && pattern[pos + 1] != '\0' && pattern[pos + 2] == ' ') {
+    if (paren_depth == 0 && pattern[pos] == ' ' && pattern[pos + 1] != '\0' &&
+        pattern[pos + 2] == ' ')
+    {
       char op = pattern[pos + 1];
       if (op == '|' || op == '-') {
         /* Terminate current sub-pattern */
@@ -906,7 +984,8 @@ ccl_device_inline bool kernel_lpe_matches_with_operators(ccl_private const char 
 
         /* Match current sub-pattern only if it's not empty */
         if (sub_pos > 0) {
-          bool current = kernel_lpe_matches(path, sub_pattern, lightgroup_id, object_id, material_id);
+          bool current = kernel_lpe_matches(
+              path, sub_pattern, lightgroup_id, object_id, material_id);
 
           /* Apply operator */
           if (first_pattern) {
@@ -1034,7 +1113,9 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
     char expression[LPE_MAX_EXPRESSION_LENGTH];
     kernel_lpe_decompress_expression(lpe_data, expression);
 
-    if (kernel_lpe_matches_with_operators(path_str, expression, lightgroup_id, object_id, material_id)) {
+    if (kernel_lpe_matches_with_operators(
+            path_str, expression, lightgroup_id, object_id, material_id))
+    {
       film_write_pass_spectrum(buffer + current_lpe_offset, contribution);
     }
 
@@ -1110,7 +1191,9 @@ ccl_device_inline void kernel_lpe_write_pass(KernelGlobals kg,
     char expression[LPE_MAX_EXPRESSION_LENGTH];
     kernel_lpe_decompress_expression(lpe_data, expression);
 
-    if (kernel_lpe_matches_with_operators(path_str, expression, lightgroup_id, object_id, material_id)) {
+    if (kernel_lpe_matches_with_operators(
+            path_str, expression, lightgroup_id, object_id, material_id))
+    {
       film_write_pass_spectrum(buffer + current_lpe_offset, contribution);
     }
 
