@@ -2955,8 +2955,16 @@ void ED_window_decoration(wmWindow *win)
   wmWindowViewport_ex(win, 0.0f);
 
   /* Logo icon. */
-  UI_icon_draw_ex(
-      5, titlebar.ymin + 6, ICON_BLENDER_LOGO_COLOR, 0.9f, 1.0f, 0.0f, nullptr, false, nullptr, false);
+  UI_icon_draw_ex(5,
+                  titlebar.ymin + 6,
+                  ICON_BLENDER_LOGO_COLOR,
+                  0.9f,
+                  1.0f,
+                  0.0f,
+                  nullptr,
+                  false,
+                  nullptr,
+                  false);
 
   /* Title. */
   GHOST_WindowHandle handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
@@ -2970,8 +2978,7 @@ void ED_window_decoration(wmWindow *win)
   /* Buttons. */
   rctf button = titlebar;
   button.xmin = titlebar.xmax - 45;
-  if (BLI_rctf_isect_pt(&button, float(win->eventstate->xy[0]), float(win->eventstate->xy[1])))
-  {
+  if (BLI_rctf_isect_pt(&button, float(win->eventstate->xy[0]), float(win->eventstate->xy[1]))) {
     float red_bg[4] = {0.769f, 0.169f, 0.110f, 1.0f};
     UI_draw_roundbox_4fv(&button, true, 0.0f, red_bg);
   }
@@ -2985,7 +2992,6 @@ void ED_window_decoration(wmWindow *win)
                   false,
                   nullptr,
                   false);
-
 
   BLI_rctf_translate(&button, -45.0f, 0);
   if (BLI_rctf_isect_pt(&button, float(win->eventstate->xy[0]), float(win->eventstate->xy[1]))) {
