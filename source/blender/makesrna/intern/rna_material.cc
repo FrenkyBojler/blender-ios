@@ -65,6 +65,7 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"
 
+#  include "BKE_attribute.h"
 #  include "BKE_attribute.hh"
 #  include "BKE_colorband.hh"
 #  include "BKE_context.hh"
@@ -1110,7 +1111,11 @@ void RNA_def_material(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes to render the material");
   RNA_def_property_boolean_funcs(prop, "rna_Material_use_nodes_get", "rna_Material_use_nodes_set");
-  RNA_def_property_deprecated(prop, "Unused", 500, 600);
+  RNA_def_property_deprecated(prop,
+                              "Unused but kept for compatibility reasons. Setting the property "
+                              "has no effect, and getting it always returns True.",
+                              500,
+                              600);
 
   /* common */
   rna_def_animdata_common(srna);
