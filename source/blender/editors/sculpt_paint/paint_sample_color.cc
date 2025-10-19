@@ -293,7 +293,7 @@ static void paint_sample_color(bContext *C,
                 rgba_f = math::clamp(rgba_f, 0.0f, 1.0f);
                 straight_to_premul_v4(rgba_f);
 
-                paint_set_color(C, data, float3(rgba_f), use_palette);
+                paint_set_color(C, data, rgba_f.xyz(), use_palette);
               }
               else {
                 uchar4 rgba = interp == SHD_INTERP_CLOSEST ?
