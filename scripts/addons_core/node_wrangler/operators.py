@@ -1901,31 +1901,40 @@ class NWCenterNodes(Operator, NWBase):
         return nw_check(cls, context) and nw_check_selected(cls, context)
 
     def execute(self, context):
-        nodes, links = get_nodes_links(context)
+        selection = context.selected_nodes
 
-        selection = []
+        # Pick non-parent nodes
+        parents = []
+        for node in selection:
+            parent = node.parent
+            if parent and parent not in parents:
+                parents.append(parent)
+        nodes = [node for node in selection if node not in parents]
+
+        # Get bound center of picked nodes
+        nodes_x = []
+        nodes_y = []
+        nodes_right = []
+        nodes_bottom = []
+        for n in nodes:
+            loc_abs = abs_node_location(n)
+            nodes_x.append(loc_abs.x)
+            nodes_y.append(loc_abs.y)
+            if n.type == 'FRAME':
+                nodes_right.append(loc_abs.x + n.width)
+                nodes_bottom.append(loc_abs.y - n.height)
+            elif n.type == 'REROUTE':
+                nodes_right.append(loc_abs.x)
+                nodes_bottom.append(loc_abs.y)
+            else:
+                nodes_right.append(loc_abs.x + n.width)
+                nodes_bottom.append(loc_abs.y - n.dimensions.y)
+        mid_x = (min(nodes_x) + max(nodes_right)) / 2
+        mid_y = (max(nodes_y) + min(nodes_bottom)) / 2
+
         for node in nodes:
-            if node.select and node.type != 'FRAME':
-                selection.append(node)
-
-        # Get bound center of selected nodes
-        abs_x_locs = []
-        abs_y_locs = []
-        for n in selection:
-            abs_x_locs.append(abs_node_location(n).x + (n.dimensions.x / 2))
-            abs_y_locs.append(abs_node_location(n).y - (n.dimensions.y / 2))
-        mid_x = (max(abs_x_locs) + min(abs_x_locs)) / 2
-        mid_y = (max(abs_y_locs) + min(abs_y_locs)) / 2
-
-        if len(selection) == 1 and selection[0].type == 'REROUTE':
-            selection[0].location.x -= abs_node_location(selection[0]).x
-            selection[0].location.y -= abs_node_location(selection[0]).y
-        else:
-            for node in selection:
-                node.location.x -= mid_x
-                node.location.y -= mid_y
-
-        self.report({'INFO'}, rpt_("Centered {} nodes").format(len(selection)))
+            node.location.x -= mid_x
+            node.location.y -= mid_y
 
         return {'FINISHED'}
 
