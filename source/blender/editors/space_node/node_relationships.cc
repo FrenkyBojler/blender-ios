@@ -56,9 +56,10 @@ struct NodeInsertOfsData {
 
   wmTimer *anim_timer;
 
+  rctf total_rct;
   float offset_x; /* Offset to apply to node chain. */
   float bound_width;
-  int insert_count;
+  bool is_insert_chain;
 };
 
 namespace blender::ed::space_node {
@@ -2636,6 +2637,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     }
     bool valid_start;
     if (!is_new_node) {
+      // 不确定是改这里,还是改合并字符串让多输入优先级更高
       valid_start = !main_input->is_directly_linked();
     }
     else {
@@ -2647,6 +2649,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
         }
       }
     }
+    // todo 不知哪里导致采样编号无法插入到几何数据线上了,或许不应是替换而是新建线?
     if (valid_start && endpoint_are_compatible(tree, *main_input, *main_output)) {
       start_candidates.append(node);
     }
@@ -2720,13 +2723,10 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   bNodeLink *selink = nullptr;
   float dist_best = FLT_MAX;
 
-  // !服了啊,真是奇怪的问题,为什么无效
   float2 local_cursor;
   UI_view2d_region_to_view(&region.v2d, cursor.x, cursor.y, &local_cursor.x, &local_cursor.y);
   float node_xy[2] = {local_cursor.x, local_cursor.y};
   BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
-  // float node_xy[2] = {endpoint.bounds.xmax, endpoint.bounds.ymin};
-  // float node_xy[2] = {endpoint.bounds.xmin, endpoint.bounds.ymax};
 
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links)
   {
@@ -2742,6 +2742,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     if (is_new_node && !already_linked_sockets.is_empty()) {
       /* Only allow links coming from or going to the already linked socket after
        * link-drag-search. */
+      // 支持多输入的话还要考虑不要造成循环线
       bool is_linked_to_linked = false;
       for (const bNodeSocket *socket : already_linked_sockets) {
         if (ELEM(socket, link->fromsock, link->tosock)) {
@@ -2924,7 +2925,8 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     iofsd->prev = from_node;
     iofsd->next = to_node;
     iofsd->bound_width = endpoint.bounds.xmax - endpoint.bounds.xmin;
-    iofsd->insert_count= endpoint.selected_count;
+    iofsd->is_insert_chain = endpoint.selected_count > 1;
+    iofsd->total_rct = endpoint.bounds;
 
     snode.runtime->iofsd = iofsd;
   }
@@ -3063,9 +3065,8 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   bNode *init_parent = insert.parent; /* store old insert.parent for restoring later */
 
   const float min_margin = U.node_margin * UI_SCALE_FAC;
-
-  const float width = iofsd->insert_count > 1 ? iofsd->bound_width * UI_SCALE_FAC : NODE_WIDTH(insert);
-
+  const float width = iofsd->is_insert_chain ? iofsd->bound_width * UI_SCALE_FAC :
+                                               NODE_WIDTH(insert);
   const bool needs_alignment = (next->runtime->draw_bounds.xmin -
                                 prev->runtime->draw_bounds.xmax) < (width + (min_margin * 2.0f));
 
@@ -3076,13 +3077,15 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
   /* `insert.draw_bounds` isn't updated yet,
    * so `totr_insert` is used to get the correct world-space coords. */
-  rctf totr_insert;
-  node_to_updated_rect(insert, totr_insert);
-  if (iofsd->insert_count > 1) {
-    rctf start_node_bound;
-    node_to_updated_rect(start_insert, start_node_bound);
-    BLI_rctf_union(&totr_insert, &start_node_bound);
-  }
+  // rctf totr_insert;
+  // node_to_updated_rect(insert, totr_insert);
+  // // todo 只考虑了起始和结束节点边界框,应该考虑整体? 直接用传递来的边界好像也行
+  // if (iofsd->is_insert_chain) {
+  //   rctf start_node_bound;
+  //   node_to_updated_rect(start_insert, start_node_bound);
+  //   BLI_rctf_union(&totr_insert, &start_node_bound);
+  // }
+  rctf totr_insert = iofsd->total_rct;
 
   /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
    * later. */
@@ -3129,7 +3132,6 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
 
-    // ! todo 移动节点,移动框,会不会冲突?
     for (bNode *node : ntree->all_nodes()) {
       if (node->flag & SELECT) {
         node_offset_apply(*node, addval);
@@ -3151,17 +3153,11 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     if (needs_alignment) {
       bNode *offs_node = right_alignment ? next : prev;
       node_offset_apply(*offs_node, addval);
-      // for (bNode *node : ntree->all_nodes()) {
-      //   if (node->flag & SELECT) {
-      //     node_offset_apply(*node, addval);
-      //   }
-      // }
       margin = addval;
     }
     /* enough room is available, but we want to ensure the min margin at the right */
     else {
       /* offset inserted node so that min margin is kept at the right */
-      // ! todo 移动节点,移动框,会不会冲突?
       for (bNode *node : ntree->all_nodes()) {
         if (node->flag & SELECT) {
           node_offset_apply(*node, -addval);
