@@ -419,11 +419,11 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
         break;
     }
 
-    if (value == GPU_BLEND_MIN) {
+    if (graphics_info.state.blend == GPU_BLEND_MIN) {
       att_state.alphaBlendOp = VK_BLEND_OP_MIN;
       att_state.colorBlendOp = VK_BLEND_OP_MIN;
     }
-    else if (value == GPU_BLEND_MAX) {
+    else if (graphics_info.state.blend == GPU_BLEND_MAX) {
       att_state.alphaBlendOp = VK_BLEND_OP_MAX;
       att_state.colorBlendOp = VK_BLEND_OP_MAX;
     }
