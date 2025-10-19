@@ -50,12 +50,15 @@
 
 struct NodeInsertOfsData {
   bNodeTree *ntree;
-  bNode *insert;      /* Inserted node. */
-  bNode *prev, *next; /* Previous/next node in the chain. */
+  bNode *insert;       /* Inserted node. */
+  bNode *start_insert; /* Inserted node. */
+  bNode *prev, *next;  /* Previous/next node in the chain. */
 
   wmTimer *anim_timer;
 
   float offset_x; /* Offset to apply to node chain. */
+  float bound_width;
+  int insert_count;
 };
 
 namespace blender::ed::space_node {
@@ -2546,6 +2549,7 @@ struct NodeEndpoint {
   bNode *end_node = nullptr;
   rctf bounds{};
   bool main_in_from_selected = false;
+  int selected_count = 1;
 
   bool is_valid() const
   {
@@ -2653,6 +2657,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   }
   result.start_node = start_candidates[0];
   result.end_node = end_node;
+  result.selected_count = selected_nodes.size();
   return result;
 }
 
@@ -2716,11 +2721,12 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   float dist_best = FLT_MAX;
 
   // !服了啊,真是奇怪的问题,为什么无效
-  // float2 view_cursor;
-  // UI_view2d_region_to_view(&region.v2d, cursor.x, cursor.y, &view_cursor.x, &view_cursor.y);
-  // float node_xy[2] = {view_cursor.x, view_cursor.y};
-  // BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
-  float node_xy[2] = {endpoint.bounds.xmax, endpoint.bounds.ymin};
+  float2 local_cursor;
+  UI_view2d_region_to_view(&region.v2d, cursor.x, cursor.y, &local_cursor.x, &local_cursor.y);
+  float node_xy[2] = {local_cursor.x, local_cursor.y};
+  BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
+  // float node_xy[2] = {endpoint.bounds.xmax, endpoint.bounds.ymin};
+  // float node_xy[2] = {endpoint.bounds.xmin, endpoint.bounds.ymax};
 
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links)
   {
@@ -2914,9 +2920,11 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     NodeInsertOfsData *iofsd = MEM_callocN<NodeInsertOfsData>(__func__);
 
     iofsd->insert = endpoint.end_node;
+    iofsd->start_insert = endpoint.start_node;
     iofsd->prev = from_node;
     iofsd->next = to_node;
-    // iofsd->offset_x = ;
+    iofsd->bound_width = endpoint.bounds.xmax - endpoint.bounds.xmin;
+    iofsd->insert_count= endpoint.selected_count;
 
     snode.runtime->iofsd = iofsd;
   }
@@ -3049,11 +3057,15 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 {
   bNodeTree *ntree = iofsd->ntree;
   bNode &insert = *iofsd->insert;
+  // bNode &end_insert = *iofsd->end_insert;
+  bNode &start_insert = *iofsd->start_insert;
   bNode *prev = iofsd->prev, *next = iofsd->next;
   bNode *init_parent = insert.parent; /* store old insert.parent for restoring later */
 
   const float min_margin = U.node_margin * UI_SCALE_FAC;
-  const float width = NODE_WIDTH(insert);
+
+  const float width = iofsd->insert_count > 1 ? iofsd->bound_width * UI_SCALE_FAC : NODE_WIDTH(insert);
+
   const bool needs_alignment = (next->runtime->draw_bounds.xmin -
                                 prev->runtime->draw_bounds.xmax) < (width + (min_margin * 2.0f));
 
@@ -3066,6 +3078,11 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
    * so `totr_insert` is used to get the correct world-space coords. */
   rctf totr_insert;
   node_to_updated_rect(insert, totr_insert);
+  if (iofsd->insert_count > 1) {
+    rctf start_node_bound;
+    node_to_updated_rect(start_insert, start_node_bound);
+    BLI_rctf_union(&totr_insert, &start_node_bound);
+  }
 
   /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
    * later. */
@@ -3112,7 +3129,12 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
 
-    node_offset_apply(insert, addval);
+    // ! todo 移动节点,移动框,会不会冲突?
+    for (bNode *node : ntree->all_nodes()) {
+      if (node->flag & SELECT) {
+        node_offset_apply(*node, addval);
+      }
+    }
 
     totr_insert.xmin += addval;
     totr_insert.xmax += addval;
@@ -3129,12 +3151,22 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     if (needs_alignment) {
       bNode *offs_node = right_alignment ? next : prev;
       node_offset_apply(*offs_node, addval);
+      // for (bNode *node : ntree->all_nodes()) {
+      //   if (node->flag & SELECT) {
+      //     node_offset_apply(*node, addval);
+      //   }
+      // }
       margin = addval;
     }
     /* enough room is available, but we want to ensure the min margin at the right */
     else {
       /* offset inserted node so that min margin is kept at the right */
-      node_offset_apply(insert, -addval);
+      // ! todo 移动节点,移动框,会不会冲突?
+      for (bNode *node : ntree->all_nodes()) {
+        if (node->flag & SELECT) {
+          node_offset_apply(*node, -addval);
+        }
+      }
     }
   }
 
@@ -3142,7 +3174,11 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     iofsd->offset_x = margin;
 
     /* flag all parents of insert as offset to prevent them from being offset */
-    bke::node_parents_iterator(&insert, node_parents_offset_flag_enable_cb, nullptr);
+    for (bNode *node : ntree->all_nodes()) {
+      if (node->flag & NODE_SELECT) {
+        bke::node_parents_iterator(node, node_parents_offset_flag_enable_cb, nullptr);
+      }
+    }
     /* iterate over entire chain and apply offsets */
     bke::node_chain_iterator(ntree,
                              right_alignment ? next : prev,
