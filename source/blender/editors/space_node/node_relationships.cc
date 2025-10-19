@@ -2617,7 +2617,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
       end_candidates.append(node);
     }
   }
-  // todo 应该是最高优先级的只有一个?
+  // todo 或许可以有多个,但只考虑最高优先级且只有一个?
   if (selected_nodes.is_empty() || end_candidates.size() != 1) {
     return {};
   }
@@ -2629,53 +2629,26 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   // todo 先判断终点 主接口的类型(如Geo), 当只有一个终点时,再查找起点时,
   // todo 设置位置除了Geo都连线了,也应该考虑为起始
   // todo 或者第一个输入接口没连线的节点也应该加进候选, 但是最高优先级的只应该有一个
-  // for (bNode *node : selected_nodes) {
-  //   const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
-  //   if (main_input == nullptr) {
-  //     continue;
-  //   }
-  //   if (!is_new_node && !main_input->is_directly_linked() &&
-  //       endpoint_are_compatible(tree, *main_input, *main_output))
-  //   {
-  //     start_candidates.append(node);
-  //   }
-  //   if (is_new_node) {
-  //     bool main_in_from_selected = false;
-  //     for (const bNodeSocket *linked_sock : main_input->directly_linked_sockets()) {
-  //       main_in_from_selected = linked_sock->owner_node().flag & SELECT;
-  //       if (main_in_from_selected) {
-  //         break;
-  //       }
-  //     }
-  //     if (!main_in_from_selected &&
-  //         endpoint_are_compatible(tree, *main_input, *main_output))
-  //     {
-  //       start_candidates.append(node);
-  //     }
-  //   }
-  // }
-
   for (bNode *node : selected_nodes) {
     const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
     if (main_input == nullptr) {
       continue;
     }
-    if (!is_new_node && main_input->is_directly_linked()) {
-      continue;
+    bool valid_start;
+    if (!is_new_node) {
+      valid_start = !main_input->is_directly_linked();
+      // 好像也不需要, 改进, 如果有输入接口连线了,连线的起始节点也应该是选中的, 且 main_input 没连线, 这种情况才有效
     }
-    if (is_new_node) {
-      bool main_in_from_selected = false;
+    else {
+      valid_start = true;
       for (const bNodeSocket *linked_sock : main_input->directly_linked_sockets()) {
-        main_in_from_selected = linked_sock->owner_node().flag & SELECT;
-        if (main_in_from_selected) {
+        if (linked_sock->owner_node().flag & SELECT) {
+          valid_start = false;
           break;
         }
       }
-      if (main_in_from_selected) {
-        continue;
-      }
     }
-    if (endpoint_are_compatible(tree, *main_input, *main_output)) {
+    if (valid_start && endpoint_are_compatible(tree, *main_input, *main_output)) {
       start_candidates.append(node);
     }
   }
@@ -2683,13 +2656,8 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   if (start_candidates.size() != 1) {
     return {};
   }
-  // bNode *start_node = start_candidates[0];
-  // if (start_node->input_sockets().is_empty() || end_node->output_sockets().is_empty()) {
-  //   return {};
-  // }
   result.start_node = start_candidates[0];
   result.end_node = end_node;
-  // result.main_in_from_selected = main_in_from_selected;
   return result;
 }
 
