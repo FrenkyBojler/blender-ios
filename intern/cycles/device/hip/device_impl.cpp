@@ -4,10 +4,10 @@
 
 #ifdef WITH_HIP
 
-#  include <climits>
 #  include <cstdio>
 #  include <cstdlib>
 #  include <cstring>
+#  include <iomanip>
 
 #  include "device/hip/device_impl.h"
 
@@ -25,6 +25,8 @@
 #  endif
 
 #  include "kernel/device/hip/globals.h"
+
+#  include "session/display_driver.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -46,9 +48,8 @@ void HIPDevice::set_error(const string &error)
   Device::set_error(error);
 
   if (first_error) {
-    fprintf(stderr, "\nRefer to the Cycles GPU rendering documentation for possible solutions:\n");
-    fprintf(stderr,
-            "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n\n");
+    LOG_ERROR << "Refer to the Cycles GPU rendering documentation for possible solutions:\n"
+                 "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n";
     first_error = false;
   }
 }
@@ -243,9 +244,9 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   /* Attempt to use kernel provided with Blender. */
   if (!use_adaptive_compilation()) {
     const string fatbin = path_get(string_printf("lib/%s_%s.fatbin.zst", name, arch.c_str()));
-    VLOG_INFO << "Testing for pre-compiled kernel " << fatbin << ".";
+    LOG_INFO << "Testing for pre-compiled kernel " << fatbin << ".";
     if (path_exists(fatbin)) {
-      VLOG_INFO << "Using precompiled kernel.";
+      LOG_INFO << "Using precompiled kernel.";
       return fatbin;
     }
   }
@@ -261,7 +262,7 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   const string kernel_md5 = util_md5_string(source_md5 + common_cflags);
 
   const char *const kernel_ext = "genco";
-  std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math";
+  std::string options = "-Wno-parentheses-equality -Wno-unused-value -ffast-math -std=c++17";
 
 #  ifndef NDEBUG
   options.append(" -save-temps");
@@ -276,9 +277,9 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
   const string fatbin_file = string_printf(
       "cycles_%s_%s_%s", name, arch.c_str(), kernel_md5.c_str());
   const string fatbin = path_cache_get(path_join("kernels", fatbin_file));
-  VLOG_INFO << "Testing for locally compiled kernel " << fatbin << ".";
+  LOG_INFO << "Testing for locally compiled kernel " << fatbin << ".";
   if (path_exists(fatbin)) {
-    VLOG_INFO << "Using locally compiled kernel.";
+    LOG_INFO << "Using locally compiled kernel.";
     return fatbin;
   }
 
@@ -311,17 +312,8 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
     return string();
   }
 
-#  ifdef WITH_HIP_SDK_5
-  int hip_major_ver = hipRuntimeVersion / 10000000;
-  if (hip_major_ver > 5) {
-    set_error(string_printf(
-        "HIP Runtime version %d does not work with kernels compiled with HIP SDK 5\n",
-        hip_major_ver));
-    return string();
-  }
-#  endif
   const int hipcc_hip_version = hipewCompilerVersion();
-  VLOG_INFO << "Found hipcc " << hipcc << ", HIP version " << hipcc_hip_version << ".";
+  LOG_INFO << "Found hipcc " << hipcc << ", HIP version " << hipcc_hip_version << ".";
 
   double starttime = time_dt();
 
@@ -339,9 +331,8 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
                                  fatbin.c_str(),
                                  common_cflags.c_str());
 
-  printf("Compiling %sHIP kernel ...\n%s\n",
-         (use_adaptive_compilation()) ? "adaptive " : "",
-         command.c_str());
+  LOG_INFO_IMPORTANT << "Compiling " << ((use_adaptive_compilation()) ? "adaptive " : "")
+                     << "HIP kernel ... " << command;
 
 #  ifdef _WIN32
   command = "call " + command;
@@ -361,7 +352,8 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
     return string();
   }
 
-  printf("Kernel compilation finished in %.2lfs.\n", time_dt() - starttime);
+  LOG_INFO_IMPORTANT << "Kernel compilation finished in " << std::fixed << std::setprecision(2)
+                     << time_dt() - starttime << "s";
 
   return fatbin;
 }
@@ -374,7 +366,7 @@ bool HIPDevice::load_kernels(const uint kernel_features)
    */
   if (hipModule) {
     if (use_adaptive_compilation()) {
-      VLOG_INFO << "Skipping HIP kernel reload for adaptive compilation, not currently supported.";
+      LOG_INFO << "Skipping HIP kernel reload for adaptive compilation, not currently supported.";
     }
     return true;
   }
@@ -462,8 +454,8 @@ void HIPDevice::reserve_local_memory(const uint kernel_features)
     hipMemGetInfo(&free_after, &total);
   }
 
-  VLOG_INFO << "Local memory reserved " << string_human_readable_number(free_before - free_after)
-            << " bytes. (" << string_human_readable_size(free_before - free_after) << ")";
+  LOG_INFO << "Local memory reserved " << string_human_readable_number(free_before - free_after)
+           << " bytes. (" << string_human_readable_size(free_before - free_after) << ")";
 
 #  if 0
   /* For testing mapped host memory, fill up device memory. */
@@ -499,7 +491,7 @@ void HIPDevice::free_device(void *device_pointer)
   hip_assert(hipFree((hipDeviceptr_t)device_pointer));
 }
 
-bool HIPDevice::alloc_host(void *&shared_pointer, const size_t size)
+bool HIPDevice::shared_alloc(void *&shared_pointer, const size_t size)
 {
   HIPContextScope scope(this);
 
@@ -509,18 +501,20 @@ bool HIPDevice::alloc_host(void *&shared_pointer, const size_t size)
   return mem_alloc_result == hipSuccess;
 }
 
-void HIPDevice::free_host(void *shared_pointer)
+void HIPDevice::shared_free(void *shared_pointer)
 {
   HIPContextScope scope(this);
 
   hipHostFree(shared_pointer);
 }
 
-void HIPDevice::transform_host_pointer(void *&device_pointer, void *&shared_pointer)
+void *HIPDevice::shared_to_device_pointer(const void *shared_pointer)
 {
   HIPContextScope scope(this);
-
-  hip_assert(hipHostGetDevicePointer((hipDeviceptr_t *)&device_pointer, shared_pointer, 0));
+  void *device_pointer = nullptr;
+  hip_assert(
+      hipHostGetDevicePointer((hipDeviceptr_t *)&device_pointer, (void *)shared_pointer, 0));
+  return device_pointer;
 }
 
 void HIPDevice::copy_host_to_device(void *device_pointer, void *host_pointer, const size_t size)
@@ -546,6 +540,25 @@ void HIPDevice::mem_alloc(device_memory &mem)
 void HIPDevice::mem_copy_to(device_memory &mem)
 {
   if (mem.type == MEM_GLOBAL) {
+    global_copy_to(mem);
+  }
+  else if (mem.type == MEM_TEXTURE) {
+    tex_copy_to((device_texture &)mem);
+  }
+  else {
+    if (!mem.device_pointer) {
+      generic_alloc(mem);
+      generic_copy_to(mem);
+    }
+    else if (mem.is_resident(this)) {
+      generic_copy_to(mem);
+    }
+  }
+}
+
+void HIPDevice::mem_move_to_host(device_memory &mem)
+{
+  if (mem.type == MEM_GLOBAL) {
     global_free(mem);
     global_alloc(mem);
   }
@@ -554,10 +567,7 @@ void HIPDevice::mem_copy_to(device_memory &mem)
     tex_alloc((device_texture &)mem);
   }
   else {
-    if (!mem.device_pointer) {
-      generic_alloc(mem);
-    }
-    generic_copy_to(mem);
+    assert(!"mem_move_to_host only supported for texture and global memory");
   }
 }
 
@@ -591,10 +601,7 @@ void HIPDevice::mem_zero(device_memory &mem)
     return;
   }
 
-  /* If use_mapped_host of mem is false, mem.device_pointer currently refers to device memory
-   * regardless of mem.host_pointer and mem.shared_pointer. */
-  thread_scoped_lock lock(device_mem_map_mutex);
-  if (!device_mem_map[&mem].use_mapped_host || mem.host_pointer != mem.shared_pointer) {
+  if (!(mem.is_shared(this) && mem.host_pointer == mem.shared_pointer)) {
     const HIPContextScope scope(this);
     hip_assert(hipMemsetD8((hipDeviceptr_t)mem.device_pointer, 0, mem.memory_size()));
   }
@@ -652,6 +659,19 @@ void HIPDevice::global_alloc(device_memory &mem)
   const_copy_to(mem.name, &mem.device_pointer, sizeof(mem.device_pointer));
 }
 
+void HIPDevice::global_copy_to(device_memory &mem)
+{
+  if (!mem.device_pointer) {
+    generic_alloc(mem);
+    generic_copy_to(mem);
+  }
+  else if (mem.is_resident(this)) {
+    generic_copy_to(mem);
+  }
+
+  const_copy_to(mem.name, &mem.device_pointer, sizeof(mem.device_pointer));
+}
+
 void HIPDevice::global_free(device_memory &mem)
 {
   if (mem.is_resident(this) && mem.device_pointer) {
@@ -659,12 +679,34 @@ void HIPDevice::global_free(device_memory &mem)
   }
 }
 
+static size_t tex_src_pitch(const device_texture &mem)
+{
+  return mem.data_width * datatype_size(mem.data_type) * mem.data_elements;
+}
+
+static hip_Memcpy2D tex_2d_copy_param(const device_texture &mem, const int pitch_alignment)
+{
+  /* 2D texture using pitch aligned linear memory. */
+  const size_t src_pitch = tex_src_pitch(mem);
+  const size_t dst_pitch = align_up(src_pitch, pitch_alignment);
+
+  hip_Memcpy2D param;
+  memset(&param, 0, sizeof(param));
+  param.dstMemoryType = hipMemoryTypeDevice;
+  param.dstDevice = mem.device_pointer;
+  param.dstPitch = dst_pitch;
+  param.srcMemoryType = hipMemoryTypeHost;
+  param.srcHost = mem.host_pointer;
+  param.srcPitch = src_pitch;
+  param.WidthInBytes = param.srcPitch;
+  param.Height = mem.data_height;
+
+  return param;
+}
+
 void HIPDevice::tex_alloc(device_texture &mem)
 {
   HIPContextScope scope(this);
-
-  size_t dsize = datatype_size(mem.data_type);
-  size_t size = mem.memory_size();
 
   hipTextureAddressMode address_mode = hipAddressModeWrap;
   switch (mem.info.extension) {
@@ -720,87 +762,23 @@ void HIPDevice::tex_alloc(device_texture &mem)
   }
 
   Mem *cmem = nullptr;
-  hArray array_3d = nullptr;
-  size_t src_pitch = mem.data_width * dsize * mem.data_elements;
-  size_t dst_pitch = src_pitch;
 
   if (!mem.is_resident(this)) {
     thread_scoped_lock lock(device_mem_map_mutex);
     cmem = &device_mem_map[&mem];
     cmem->texobject = 0;
-
-    if (mem.data_depth > 1) {
-      array_3d = (hArray)mem.device_pointer;
-      cmem->array = reinterpret_cast<arrayMemObject>(array_3d);
-    }
-    else if (mem.data_height > 0) {
-      dst_pitch = align_up(src_pitch, pitch_alignment);
-    }
-  }
-  else if (mem.data_depth > 1) {
-    /* 3D texture using array, there is no API for linear memory. */
-    HIP_ARRAY3D_DESCRIPTOR desc;
-
-    desc.Width = mem.data_width;
-    desc.Height = mem.data_height;
-    desc.Depth = mem.data_depth;
-    desc.Format = format;
-    desc.NumChannels = mem.data_elements;
-    desc.Flags = 0;
-
-    VLOG_WORK << "Array 3D allocate: " << mem.name << ", "
-              << string_human_readable_number(mem.memory_size()) << " bytes. ("
-              << string_human_readable_size(mem.memory_size()) << ")";
-
-    hip_assert(hipArray3DCreate((hArray *)&array_3d, &desc));
-
-    if (!array_3d) {
-      return;
-    }
-
-    HIP_MEMCPY3D param;
-    memset(&param, 0, sizeof(HIP_MEMCPY3D));
-    param.dstMemoryType = hipMemoryTypeArray;
-    param.dstArray = array_3d;
-    param.srcMemoryType = hipMemoryTypeHost;
-    param.srcHost = mem.host_pointer;
-    param.srcPitch = src_pitch;
-    param.WidthInBytes = param.srcPitch;
-    param.Height = mem.data_height;
-    param.Depth = mem.data_depth;
-
-    hip_assert(hipDrvMemcpy3D(&param));
-
-    mem.device_pointer = (device_ptr)array_3d;
-    mem.device_size = size;
-    stats.mem_alloc(size);
-
-    thread_scoped_lock lock(device_mem_map_mutex);
-    cmem = &device_mem_map[&mem];
-    cmem->texobject = 0;
-    cmem->array = reinterpret_cast<arrayMemObject>(array_3d);
   }
   else if (mem.data_height > 0) {
     /* 2D texture, using pitch aligned linear memory. */
-    dst_pitch = align_up(src_pitch, pitch_alignment);
-    size_t dst_size = dst_pitch * mem.data_height;
+    const size_t dst_pitch = align_up(tex_src_pitch(mem), pitch_alignment);
+    const size_t dst_size = dst_pitch * mem.data_height;
 
     cmem = generic_alloc(mem, dst_size - mem.memory_size());
     if (!cmem) {
       return;
     }
 
-    hip_Memcpy2D param;
-    memset(&param, 0, sizeof(param));
-    param.dstMemoryType = hipMemoryTypeDevice;
-    param.dstDevice = mem.device_pointer;
-    param.dstPitch = dst_pitch;
-    param.srcMemoryType = hipMemoryTypeHost;
-    param.srcHost = mem.host_pointer;
-    param.srcPitch = src_pitch;
-    param.WidthInBytes = param.srcPitch;
-    param.Height = mem.data_height;
-
+    const hip_Memcpy2D param = tex_2d_copy_param(mem, pitch_alignment);
     hip_assert(hipDrvMemcpy2DUnaligned(&param));
   }
   else {
@@ -810,36 +788,20 @@ void HIPDevice::tex_alloc(device_texture &mem)
       return;
     }
 
-    hip_assert(hipMemcpyHtoD(mem.device_pointer, mem.host_pointer, size));
-  }
-
-  /* Resize once */
-  const uint slot = mem.slot;
-  if (slot >= texture_info.size()) {
-    /* Allocate some slots in advance, to reduce amount
-     * of re-allocations. */
-    texture_info.resize(slot + 128);
+    hip_assert(hipMemcpyHtoD(mem.device_pointer, mem.host_pointer, mem.memory_size()));
   }
 
   /* Set Mapping and tag that we need to (re-)upload to device */
-  texture_info[slot] = mem.info;
-  need_texture_info = true;
+  TextureInfo tex_info = mem.info;
 
-  if (mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FLOAT &&
-      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FLOAT3 &&
-      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FPN &&
-      mem.info.data_type != IMAGE_DATA_TYPE_NANOVDB_FP16)
-  {
+  if (!is_nanovdb_type(mem.info.data_type)) {
     /* Bindless textures. */
     hipResourceDesc resDesc;
     memset(&resDesc, 0, sizeof(resDesc));
 
-    if (array_3d) {
-      resDesc.resType = hipResourceTypeArray;
-      resDesc.res.array.h_Array = array_3d;
-      resDesc.flags = 0;
-    }
-    else if (mem.data_height > 0) {
+    if (mem.data_height > 0) {
+      const size_t dst_pitch = align_up(tex_src_pitch(mem), pitch_alignment);
+
       resDesc.resType = hipResourceTypePitch2D;
       resDesc.res.pitch2D.devPtr = mem.device_pointer;
       resDesc.res.pitch2D.format = format;
@@ -873,43 +835,95 @@ void HIPDevice::tex_alloc(device_texture &mem)
           "exceeded.");
     }
 
-    texture_info[slot].data = (uint64_t)cmem->texobject;
+    tex_info.data = (uint64_t)cmem->texobject;
   }
   else {
-    texture_info[slot].data = (uint64_t)mem.device_pointer;
+    tex_info.data = (uint64_t)mem.device_pointer;
+  }
+
+  {
+    /* Update texture info. */
+    thread_scoped_lock lock(texture_info_mutex);
+    const uint slot = mem.slot;
+    if (slot >= texture_info.size()) {
+      /* Allocate some slots in advance, to reduce amount of re-allocations. */
+      texture_info.resize(slot + 128);
+    }
+    texture_info[slot] = tex_info;
+    need_texture_info = true;
+  }
+}
+
+void HIPDevice::tex_copy_to(device_texture &mem)
+{
+  if (!mem.device_pointer) {
+    /* Not yet allocated on device. */
+    tex_alloc(mem);
+  }
+  else if (!mem.is_resident(this)) {
+    /* Peering with another device, may still need to create texture info and object. */
+    bool texture_allocated = false;
+    {
+      thread_scoped_lock lock(texture_info_mutex);
+      texture_allocated = mem.slot < texture_info.size() && texture_info[mem.slot].data != 0;
+    }
+    if (!texture_allocated) {
+      tex_alloc(mem);
+    }
+  }
+  else {
+    /* Resident and fully allocated, only copy. */
+    if (mem.data_height > 0) {
+      HIPContextScope scope(this);
+      const hip_Memcpy2D param = tex_2d_copy_param(mem, pitch_alignment);
+      hip_assert(hipDrvMemcpy2DUnaligned(&param));
+    }
+    else {
+      generic_copy_to(mem);
+    }
   }
 }
 
 void HIPDevice::tex_free(device_texture &mem)
 {
-  if (mem.device_pointer) {
-    HIPContextScope scope(this);
-    thread_scoped_lock lock(device_mem_map_mutex);
-    DCHECK(device_mem_map.find(&mem) != device_mem_map.end());
-    const Mem &cmem = device_mem_map[&mem];
+  HIPContextScope scope(this);
+  thread_scoped_lock lock(device_mem_map_mutex);
 
-    if (cmem.texobject) {
-      /* Free bindless texture. */
-      hipTexObjectDestroy(cmem.texobject);
-    }
+  /* Check if the memory was allocated for this device. */
+  auto it = device_mem_map.find(&mem);
+  if (it == device_mem_map.end()) {
+    return;
+  }
 
-    if (!mem.is_resident(this)) {
-      /* Do not free memory here, since it was allocated on a different device. */
-      device_mem_map.erase(device_mem_map.find(&mem));
-    }
-    else if (cmem.array) {
-      /* Free array. */
-      hipArrayDestroy(reinterpret_cast<hArray>(cmem.array));
-      stats.mem_free(mem.device_size);
-      mem.device_pointer = 0;
-      mem.device_size = 0;
+  const Mem &cmem = it->second;
 
-      device_mem_map.erase(device_mem_map.find(&mem));
-    }
-    else {
-      lock.unlock();
-      generic_free(mem);
-    }
+  /* Always clear texture info and texture object, regardless of residency. */
+  {
+    thread_scoped_lock lock(texture_info_mutex);
+    texture_info[mem.slot] = TextureInfo();
+  }
+
+  if (cmem.texobject) {
+    /* Free bindless texture. */
+    hipTexObjectDestroy(cmem.texobject);
+  }
+
+  if (!mem.is_resident(this)) {
+    /* Do not free memory here, since it was allocated on a different device. */
+    device_mem_map.erase(device_mem_map.find(&mem));
+  }
+  else if (cmem.array) {
+    /* Free array. */
+    hipArrayDestroy(reinterpret_cast<hArray>(cmem.array));
+    stats.mem_free(mem.device_size);
+    mem.device_pointer = 0;
+    mem.device_size = 0;
+
+    device_mem_map.erase(device_mem_map.find(&mem));
+  }
+  else {
+    lock.unlock();
+    generic_free(mem);
   }
 }
 
@@ -918,41 +932,64 @@ unique_ptr<DeviceQueue> HIPDevice::gpu_queue_create()
   return make_unique<HIPDeviceQueue>(this);
 }
 
-bool HIPDevice::should_use_graphics_interop()
+bool HIPDevice::should_use_graphics_interop(const GraphicsInteropDevice &interop_device,
+                                            const bool log)
 {
-  /* Check whether this device is part of OpenGL context.
-   *
-   * Using HIP device for graphics interoperability which is not part of the OpenGL context is
-   * possible, but from the empiric measurements it can be considerably slower than using naive
-   * pixels copy. */
-
   if (headless) {
     /* Avoid any call which might involve interaction with a graphics backend when we know that
      * we don't have active graphics context. This avoids potential crash in the driver. */
     return false;
   }
 
-  /* Disable graphics interop for now, because of driver bug in 21.40. See #92972 */
-#  if 0
   HIPContextScope scope(this);
 
-  int num_all_devices = 0;
-  hip_assert(hipGetDeviceCount(&num_all_devices));
+  switch (interop_device.type) {
+    case GraphicsInteropDevice::OPENGL: {
+      /* Disable graphics interop for now, because of driver bug in 21.40. See #92972.
+       * Also missing Vulkan support which is needed now. */
+      return false;
 
-  if (num_all_devices == 0) {
-    return false;
-  }
+      /* Check whether this device is part of OpenGL context.
+       *
+       * Using HIP device for graphics interoperability which is not part of the OpenGL context is
+       * possible, but from the empiric measurements with CUDA it can be considerably slower than
+       * using naive pixels copy. */
+      int num_all_devices = 0;
+      hip_assert(hipGetDeviceCount(&num_all_devices));
 
-  vector<hipDevice_t> gl_devices(num_all_devices);
-  uint num_gl_devices = 0;
-  hipGLGetDevices(&num_gl_devices, gl_devices.data(), num_all_devices, hipGLDeviceListAll);
+      if (num_all_devices == 0) {
+        return false;
+      }
 
-  for (hipDevice_t gl_device : gl_devices) {
-    if (gl_device == hipDevice) {
-      return true;
+      vector<hipDevice_t> gl_devices(num_all_devices);
+      uint num_gl_devices = 0;
+      hipGLGetDevices(&num_gl_devices, gl_devices.data(), num_all_devices, hipGLDeviceListAll);
+
+      bool found = false;
+      for (hipDevice_t gl_device : gl_devices) {
+        if (gl_device == hipDevice) {
+          found = true;
+          break;
+        }
+      }
+
+      if (log) {
+        if (found) {
+          LOG_INFO << "Graphics interop: found matching OpenGL device for HIP";
+        }
+        else {
+          LOG_INFO << "Graphics interop: no matching OpenGL device for HIP";
+        }
+      }
+
+      return found;
     }
+    case GraphicsInteropDevice::VULKAN:
+    case GraphicsInteropDevice::METAL:
+    case GraphicsInteropDevice::NONE:
+      /* TODO: Implement Vulkan support. */
+      return false;
   }
-#  endif
 
   return false;
 }

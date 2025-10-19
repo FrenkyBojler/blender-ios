@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_assert.h"
-#include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -26,7 +25,7 @@ static void sum_causal_and_non_causal_results_gpu(Context &context,
                                                   const Result &non_causal_input,
                                                   Result &output)
 {
-  GPUShader *shader = context.get_shader("compositor_deriche_gaussian_blur_sum");
+  gpu::Shader *shader = context.get_shader("compositor_deriche_gaussian_blur_sum");
   GPU_shader_bind(shader);
 
   causal_input.bind_as_texture(shader, "causal_input_tx");
@@ -97,7 +96,7 @@ static void blur_pass_gpu(Context &context,
                           Result &non_causal_result,
                           const float sigma)
 {
-  GPUShader *shader = context.get_shader("compositor_deriche_gaussian_blur");
+  gpu::Shader *shader = context.get_shader("compositor_deriche_gaussian_blur");
   GPU_shader_bind(shader);
 
   const DericheGaussianCoefficients &coefficients =
@@ -258,7 +257,10 @@ static void blur_pass(Context &context, const Result &input, Result &output, con
   non_causal_result.release();
 }
 
-void deriche_gaussian_blur(Context &context, Result &input, Result &output, float2 sigma)
+void deriche_gaussian_blur(Context &context,
+                           const Result &input,
+                           Result &output,
+                           const float2 &sigma)
 {
   BLI_assert_msg(math::reduce_max(sigma) >= 3.0f,
                  "Deriche filter is slower and less accurate than direct convolution for sigma "

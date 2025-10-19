@@ -14,6 +14,8 @@
 
 #include "BKE_curves.hh"
 
+#include "FN_multi_function_builder.hh"
+
 #include "GEO_randomize.hh"
 
 namespace blender::nodes::node_geo_interpolate_curves_cc {
@@ -466,8 +468,8 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    const eCustomDataType type = iter.data_type;
-    if (type == CD_PROP_STRING) {
+    const bke::AttrType type = iter.data_type;
+    if (type == bke::AttrType::String) {
       return;
     }
     if (iter.is_builtin && !ELEM(iter.name, "radius", "tilt", "resolution", "cyclic")) {
@@ -601,7 +603,7 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
 
@@ -813,9 +815,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   /* Normalize up fields so that is done as part of field evaluation. */
   Field<float3> guides_up_field(
-      FieldOperation::Create(normalize_fn, {params.extract_input<Field<float3>>("Guide Up")}));
+      FieldOperation::from(normalize_fn, {params.extract_input<Field<float3>>("Guide Up")}));
   Field<float3> points_up_field(
-      FieldOperation::Create(normalize_fn, {params.extract_input<Field<float3>>("Point Up")}));
+      FieldOperation::from(normalize_fn, {params.extract_input<Field<float3>>("Point Up")}));
 
   Field<int> guide_group_field = params.extract_input<Field<int>>("Guide Group ID");
   Field<int> point_group_field = params.extract_input<Field<int>>("Point Group ID");
@@ -879,7 +881,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

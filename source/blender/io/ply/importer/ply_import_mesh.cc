@@ -6,10 +6,10 @@
  * \ingroup ply
  */
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 
 #include "GEO_mesh_merge_by_distance.hh"
 
@@ -116,7 +116,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
       attributes.add<float3>(
           "normal",
           bke::AttrDomain::Point,
-          bke::AttributeInitVArray(VArray<float3>::ForSpan(data.vertex_normals)));
+          bke::AttributeInitVArray(VArray<float3>::from_span(data.vertex_normals)));
     }
   }
   else {
@@ -129,7 +129,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
     for (const PlyCustomAttribute &attr : data.vertex_custom_attr) {
       attributes.add<float>(attr.name,
                             bke::AttrDomain::Point,
-                            bke::AttributeInitVArray(VArray<float>::ForSpan(attr.data)));
+                            bke::AttributeInitVArray(VArray<float>::from_span(attr.data)));
     }
   }
 

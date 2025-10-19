@@ -20,7 +20,7 @@ TEST_F(VKRenderGraphTestTransfer, fill_and_read_back)
   resources.add_buffer(buffer);
   VKFillBufferNode::CreateInfo fill_buffer = {buffer, 1024, 42};
   render_graph->add_node(fill_buffer);
-  render_graph->submit_for_read();
+  submit(render_graph, command_buffer);
 
   EXPECT_EQ(1, log.size());
   EXPECT_EQ("fill_buffer(dst_buffer=0x1, dst_offset=0, size=1024, data=42)", log[0]);
@@ -47,7 +47,7 @@ TEST_F(VKRenderGraphTestTransfer, fill_transfer_and_read_back)
   copy_buffer.region.size = 1024;
   render_graph->add_node(copy_buffer);
 
-  render_graph->submit_for_read();
+  submit(render_graph, command_buffer);
 
   EXPECT_EQ(3, log.size());
   EXPECT_EQ("fill_buffer(dst_buffer=0x1, dst_offset=0, size=1024, data=42)", log[0]);
@@ -79,7 +79,7 @@ TEST_F(VKRenderGraphTestTransfer, fill_fill_read_back)
   render_graph->add_node(fill_buffer_1);
   VKFillBufferNode::CreateInfo fill_buffer_2 = {buffer, 1024, 42};
   render_graph->add_node(fill_buffer_2);
-  render_graph->submit_for_read();
+  submit(render_graph, command_buffer);
 
   EXPECT_EQ(3, log.size());
   EXPECT_EQ("fill_buffer(dst_buffer=0x1, dst_offset=0, size=1024, data=0)", log[0]);
@@ -104,8 +104,8 @@ TEST_F(VKRenderGraphTestTransfer, clear_clear_copy_and_read_back)
   VkHandle<VkImage> dst_image(2u);
   VkHandle<VkBuffer> staging_buffer(3u);
 
-  resources.add_image(src_image, 1);
-  resources.add_image(dst_image, 1);
+  resources.add_image(src_image, false);
+  resources.add_image(dst_image, false);
   resources.add_buffer(staging_buffer);
   VkClearColorValue color_white = {};
   color_white.float32[0] = 1.0f;
@@ -142,7 +142,7 @@ TEST_F(VKRenderGraphTestTransfer, clear_clear_copy_and_read_back)
   render_graph->add_node(clear_color_image_dst);
   render_graph->add_node(copy_image);
   render_graph->add_node(copy_dst_image_to_buffer);
-  render_graph->submit_for_read();
+  submit(render_graph, command_buffer);
 
   EXPECT_EQ(8, log.size());
   EXPECT_EQ(
@@ -245,8 +245,8 @@ TEST_F(VKRenderGraphTestTransfer, clear_blit_copy_and_read_back)
   VkHandle<VkImage> dst_image(2u);
   VkHandle<VkBuffer> staging_buffer(3u);
 
-  resources.add_image(src_image, 1);
-  resources.add_image(dst_image, 1);
+  resources.add_image(src_image, false);
+  resources.add_image(dst_image, false);
   resources.add_buffer(staging_buffer);
   VkClearColorValue color_black = {};
   color_black.float32[0] = 0.0f;
@@ -268,7 +268,7 @@ TEST_F(VKRenderGraphTestTransfer, clear_blit_copy_and_read_back)
   VKBlitImageNode::CreateInfo blit_image = {src_image, dst_image, vk_image_blit, VK_FILTER_LINEAR};
   render_graph->add_node(blit_image);
   render_graph->add_node(copy_dst_image_to_buffer);
-  render_graph->submit_for_read();
+  submit(render_graph, command_buffer);
 
   EXPECT_EQ(6, log.size());
   EXPECT_EQ(
@@ -339,6 +339,36 @@ TEST_F(VKRenderGraphTestTransfer, clear_blit_copy_and_read_back)
           endl() + "    x=0, y=0, z=0  , image_extent=" + endl() +
           "    width=0, height=0, depth=0  )" + endl() + ")",
       log[5]);
+}
+
+/**
+ * Modify a previous added copy buffer command.
+ */
+TEST_F(VKRenderGraphTestTransfer, copy_buffer_modify_data)
+{
+  VkHandle<VkBuffer> buffer_src(1u);
+  VkHandle<VkBuffer> buffer_dst(2u);
+
+  resources.add_buffer(buffer_src);
+  resources.add_buffer(buffer_dst);
+  VKCopyBufferNode::CreateInfo copy_buffer = {buffer_src, buffer_dst, {0, 0, 32}};
+  NodeHandle copy_buffer_handle = render_graph->add_node(copy_buffer);
+  VKCopyBufferNode::Data &copy_buffer_data = render_graph->get_node_data(copy_buffer_handle);
+  copy_buffer_data.region.size = 64;
+  submit(render_graph, command_buffer);
+
+  EXPECT_EQ(2, log.size());
+  EXPECT_EQ(
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, "
+      "dst_stage_mask=VK_PIPELINE_STAGE_TRANSFER_BIT" +
+          endl() +
+          " - buffer_barrier(src_access_mask=, dst_access_mask=VK_ACCESS_TRANSFER_READ_BIT, "
+          "buffer=0x1, offset=0, size=18446744073709551615)" +
+          endl() + ")",
+      log[0]);
+  EXPECT_EQ("copy_buffer(src_buffer=0x1, dst_buffer=0x2" + endl() +
+                " - region(src_offset=0, dst_offset=0, size=64)" + endl() + ")",
+            log[1]);
 }
 
 }  // namespace blender::gpu::render_graph

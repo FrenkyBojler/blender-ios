@@ -10,21 +10,72 @@ from pathlib import Path
 
 # Unsupported or broken scenarios for the Storm render engine
 BLOCKLIST_HYDRA = [
-    # Corrupted output
-    "image_half.*.blend",
-    "image_packed_float.*.blend",
-    "image_packed_half.*.blend",
+    # Corrupted output around borders
+    "image.*_half.*.blend",
+    "image.*_float.*.blend",
     # Differences between devices/drivers causing this to fail
     "image.blend",
+    # VDB rendering is incorrect on Metal
+    "overlapping_octrees.blend",
 ]
 
 BLOCKLIST_USD = [
-    # Corrupted output
-    "image_half.*.blend",
-    "image_packed_float.*.blend",
-    "image_packed_half.*.blend",
+    # Corrupted output around borders
+    "image.*_half.*.blend",
+    "image.*_float.*.blend",
     # Nondeterministic exporting of lights in the scene
     "light_tree_node_subtended_angle.blend",
+    # VDB rendering is incorrect on Metal
+    "overlapping_octrees.blend",
+]
+
+# Metal support in Storm is no as good as OpenGL, though this needs to be
+# retested with newer OpenUSD versions as there are improvements.
+BLOCKLIST_METAL = [
+    # Thinfilm
+    "principled.*thinfilm.*.blend",
+    "metallic.*thinfilm.*.blend",
+    # Transparency
+    "transparent.blend",
+    "transparent_shadow.blend",
+    "transparent_shadow_hair.blend",
+    "transparent_shadow_hair_blur.blend",
+    "shadow_all_max_bounces.blend",
+    "underwater_caustics.blend",
+    "shadow_link_transparency.blend",
+    "principled_bsdf_transmission.blend",
+    "light_path_is_shadow_ray.blend",
+    "light_path_is_transmission_ray.blend",
+    "light_path_ray_depth.blend",
+    "light_path_ray_length.blend",
+    "transparent_spatial_splits.blend",
+    # Volume
+    "light_link_surface_in_volume.blend",
+    "openvdb.*.blend",
+    "principled_bsdf_interior",
+    # Other
+    "white_noise.*.blend",
+    "musgrave_multifractal.*.blend",
+    "autosmooth_custom_normals.blend",
+]
+
+# AMD seems to have similar limitations as Metal for transparency.
+BLOCKLIST_AMD = BLOCKLIST_METAL + [
+    "musgrave_.*_multifractal.*.blend",
+    "noise_lacunarity.blend",
+]
+
+# Minor difference in texture coordinate for white noise hash.
+BLOCKLIST_INTEL = [
+    "autosmooth_custom_normals.blend",
+    "hair_reflection.blend",
+    "hair_transmission.blend",
+    "principled_bsdf_emission.blend",
+    "principled_bsdf_sheen.blend",
+    "musgrave_.*_multifractal.*.blend",
+    "noise_lacunarity.blend",
+    "sss_hair.blend",
+    "white_noise.*.blend",
 ]
 
 
@@ -79,7 +130,6 @@ def create_argparse():
     parser.add_argument("--oiiotool", required=True)
     parser.add_argument("--export_method", required=True)
     parser.add_argument('--batch', default=False, action='store_true')
-    parser.add_argument('--fail-silently', default=False, action='store_true')
     return parser
 
 
@@ -89,12 +139,23 @@ def main():
 
     from modules import render_report
 
+    if sys.platform == "darwin":
+        blocklist = BLOCKLIST_METAL
+    else:
+        gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+        if gpu_vendor == "AMD":
+            blocklist = BLOCKLIST_AMD
+        elif gpu_vendor == "INTEL":
+            blocklist = BLOCKLIST_INTEL
+        else:
+            blocklist = []
+
     if args.export_method == 'HYDRA':
-        report = render_report.Report("Storm Hydra", args.outdir, args.oiiotool, blocklist=BLOCKLIST_HYDRA)
+        report = render_report.Report("Storm Hydra", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_HYDRA)
         report.set_reference_dir("storm_hydra_renders")
         report.set_compare_engine('cycles', 'CPU')
     else:
-        report = render_report.Report("Storm USD", args.outdir, args.oiiotool, blocklist=BLOCKLIST_USD)
+        report = render_report.Report("Storm USD", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_USD)
         report.set_reference_dir("storm_usd_renders")
         report.set_compare_engine('storm_hydra')
 
@@ -113,7 +174,7 @@ def main():
 
     os.environ['BLENDER_HYDRA_EXPORT_METHOD'] = args.export_method
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch, fail_silently=args.fail_silently)
+    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
     sys.exit(not ok)
 

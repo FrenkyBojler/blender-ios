@@ -9,6 +9,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 
@@ -23,7 +24,6 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 
-#include "brushes/types.hh"
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
 #include "sculpt_automask.hh"
@@ -130,7 +130,7 @@ static bool is_vert_in_editable_boundary_bmesh(BMVert &initial_vert)
   int neighbor_count = 0;
   int boundary_vertex_count = 0;
 
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
   for (BMVert *neighbor : vert_neighbors_get_bmesh(initial_vert, neighbors)) {
     if (!BM_elem_flag_test(neighbor, BM_ELEM_HIDDEN)) {
       neighbor_count++;
@@ -695,7 +695,7 @@ static void edit_data_init_bmesh(BMesh *bm,
 
       const int from_v_i = BM_elem_index_get(from_v);
 
-      Vector<BMVert *, 64> neighbors;
+      BMeshNeighborVerts neighbors;
       for (BMVert *neighbor : vert_neighbors_get_bmesh(*from_v, neighbors)) {
         const int neighbor_idx = BM_elem_index_get(neighbor);
         if (BM_elem_flag_test(neighbor, BM_ELEM_HIDDEN) ||
@@ -1361,7 +1361,7 @@ static void do_bend_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -1643,7 +1643,7 @@ static void do_slide_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -1908,7 +1908,7 @@ static void do_inflate_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2179,7 +2179,7 @@ static void do_grab_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2458,7 +2458,7 @@ static void do_twist_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2820,7 +2820,7 @@ static void do_smooth_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /* -------------------------------------------------------------------- */
@@ -2891,7 +2891,7 @@ static void init_falloff_mesh(const Span<float> mask,
              boundary.edit_info.strength_factor.size());
 
   const int num_elements = boundary.edit_info.strength_factor.size();
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   for (const int i : IndexRange(num_elements)) {
     if (boundary.edit_info.propagation_steps_num[i] != BOUNDARY_STEPS_NONE) {
@@ -2937,7 +2937,7 @@ static void init_falloff_grids(const SubdivCCG &subdiv_ccg,
 
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   for (const int grid : IndexRange(subdiv_ccg.grids_num)) {
     for (const int index : bke::ccg::grid_range(key, grid)) {
@@ -2986,7 +2986,7 @@ static void init_falloff_bmesh(BMesh *bm,
 
   const int num_elements = boundary.edit_info.strength_factor.size();
 
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   for (const int i : IndexRange(num_elements)) {
     if (boundary.edit_info.propagation_steps_num[i] != BOUNDARY_STEPS_NONE) {
@@ -3499,7 +3499,7 @@ std::unique_ptr<SculptBoundary> data_init_bmesh(Object &object,
 {
   SculptSession &ss = *object.sculpt;
 
-  SCULPT_vertex_random_access_ensure(object);
+  vert_random_access_ensure(object);
   boundary::ensure_boundary_info(object);
 
   const std::optional<BMVert *> boundary_initial_vert = get_closest_boundary_vert_bmesh(

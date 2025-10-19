@@ -72,9 +72,7 @@ static void mesh_render_data_edge_flag(const MeshRenderData &mr,
   }
 #ifdef WITH_FREESTYLE
   if (mr.freestyle_edge_ofs != -1) {
-    const FreestyleEdge *fed = (const FreestyleEdge *)BM_ELEM_CD_GET_VOID_P(eed,
-                                                                            mr.freestyle_edge_ofs);
-    if (fed->flag & FREESTYLE_EDGE_MARK) {
+    if (BM_ELEM_CD_GET_BOOL(eed, mr.freestyle_edge_ofs)) {
       eattr.e_flag |= VFLAG_EDGE_FREESTYLE;
     }
   }
@@ -102,12 +100,13 @@ static void mesh_render_data_vert_flag(const MeshRenderData &mr,
 
 static const GPUVertFormat &get_edit_data_format()
 {
-  static GPUVertFormat format = {0};
-  if (format.attr_len == 0) {
+  static const GPUVertFormat format = []() {
+    GPUVertFormat format{};
     /* WARNING: Adjust #EditLoopData struct accordingly. */
-    GPU_vertformat_attr_add(&format, "data", GPU_COMP_U8, 4, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "data", gpu::VertAttrType::UINT_8_8_8_8);
     GPU_vertformat_alias_add(&format, "flag");
-  }
+    return format;
+  }();
   return format;
 }
 
@@ -117,6 +116,7 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
   MutableSpan loose_edge_data = vbo_data.slice(mr.corners_num, mr.loose_edges.size() * 2);
   MutableSpan loose_vert_data = vbo_data.take_back(mr.loose_verts.size());
 
+  const BMUVOffsets uv_offsets_none = BMUVOFFSETS_NONE;
   const OffsetIndices faces = mr.faces;
   const Span<int> corner_verts = mr.corner_verts;
   const Span<int> corner_edges = mr.corner_edges;
@@ -126,7 +126,7 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
         EditLoopData &value = corners_data[corner];
         value = {};
         if (const BMFace *bm_face = bm_original_face_get(mr, face)) {
-          mesh_render_data_face_flag(mr, bm_face, {-1, -1, -1, -1}, value);
+          mesh_render_data_face_flag(mr, bm_face, uv_offsets_none, value);
         }
         if (const BMVert *bm_vert = bm_original_vert_get(mr, corner_verts[corner])) {
           mesh_render_data_vert_flag(mr, bm_vert, value);
@@ -180,6 +180,7 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
   MutableSpan loose_vert_data = vbo_data.take_back(mr.loose_verts.size());
 
   const BMesh &bm = *mr.bm;
+  const BMUVOffsets uv_offsets_none = BMUVOFFSETS_NONE;
 
   threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
     for (const int face_index : range) {
@@ -189,7 +190,7 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
         const int index = BM_elem_index_get(loop);
         EditLoopData &value = corners_data[index];
         value = {};
-        mesh_render_data_face_flag(mr, &face, {-1, -1, -1, -1}, corners_data[index]);
+        mesh_render_data_face_flag(mr, &face, uv_offsets_none, corners_data[index]);
         mesh_render_data_edge_flag(mr, loop->e, corners_data[index]);
         mesh_render_data_vert_flag(mr, loop->v, corners_data[index]);
         loop = loop->next;
@@ -221,24 +222,26 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
   });
 }
 
-void extract_edit_data(const MeshRenderData &mr, gpu::VertBuf &vbo)
+gpu::VertBufPtr extract_edit_data(const MeshRenderData &mr)
 {
-  GPU_vertbuf_init_with_format(vbo, get_edit_data_format());
+  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(get_edit_data_format()));
   const int size = mr.corners_num + mr.loose_indices_num;
-  GPU_vertbuf_data_alloc(vbo, size);
-  MutableSpan vbo_data = vbo.data<EditLoopData>();
+  GPU_vertbuf_data_alloc(*vbo, size);
+  MutableSpan vbo_data = vbo->data<EditLoopData>();
   if (mr.extract_type == MeshExtractType::Mesh) {
     extract_edit_data_mesh(mr, vbo_data);
   }
   else {
     extract_edit_data_bm(mr, vbo_data);
   }
+  return vbo;
 }
 
 static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
                                           const DRWSubdivCache &subdiv_cache,
                                           MutableSpan<EditLoopData> vbo_data)
 {
+  const BMUVOffsets uv_offsets_none = BMUVOFFSETS_NONE;
   const int corners_num = subdiv_cache.num_subdiv_loops;
   const int loose_edges_num = mr.loose_edges.size();
   const int verts_per_edge = subdiv_verts_per_coarse_edge(subdiv_cache);
@@ -259,7 +262,7 @@ static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
         value = {};
 
         if (const BMFace *bm_face = bm_original_face_get(mr, coarse_face)) {
-          mesh_render_data_face_flag(mr, bm_face, {-1, -1, -1, -1}, value);
+          mesh_render_data_face_flag(mr, bm_face, uv_offsets_none, value);
         }
 
         const int vert_origindex = subdiv_loop_vert_index[subdiv_corner];
@@ -317,6 +320,7 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
                                         const DRWSubdivCache &subdiv_cache,
                                         MutableSpan<EditLoopData> vbo_data)
 {
+  const BMUVOffsets uv_offsets_none = BMUVOFFSETS_NONE;
   const int corners_num = subdiv_cache.num_subdiv_loops;
   const int loose_edges_num = mr.loose_edges.size();
   const int verts_per_edge = subdiv_verts_per_coarse_edge(subdiv_cache);
@@ -337,7 +341,7 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
         EditLoopData &value = corners_data[subdiv_corner];
         value = {};
 
-        mesh_render_data_face_flag(mr, bm_face, {-1, -1, -1, -1}, value);
+        mesh_render_data_face_flag(mr, bm_face, uv_offsets_none, value);
 
         const int vert_origindex = subdiv_loop_vert_index[subdiv_corner];
         if (vert_origindex != -1) {
@@ -377,20 +381,20 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
   });
 }
 
-void extract_edit_data_subdiv(const MeshRenderData &mr,
-                              const DRWSubdivCache &subdiv_cache,
-                              gpu::VertBuf &vbo)
+gpu::VertBufPtr extract_edit_data_subdiv(const MeshRenderData &mr,
+                                         const DRWSubdivCache &subdiv_cache)
 {
-  GPU_vertbuf_init_with_format(vbo, get_edit_data_format());
+  gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(get_edit_data_format()));
   const int size = subdiv_full_vbo_size(mr, subdiv_cache);
-  GPU_vertbuf_data_alloc(vbo, size);
-  MutableSpan vbo_data = vbo.data<EditLoopData>();
+  GPU_vertbuf_data_alloc(*vbo, size);
+  MutableSpan vbo_data = vbo->data<EditLoopData>();
   if (mr.extract_type == MeshExtractType::Mesh) {
     extract_edit_subdiv_data_mesh(mr, subdiv_cache, vbo_data);
   }
   else {
     extract_edit_subdiv_data_bm(mr, subdiv_cache, vbo_data);
   }
+  return vbo;
 }
 
 }  // namespace blender::draw

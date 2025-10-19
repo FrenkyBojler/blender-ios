@@ -114,18 +114,19 @@ class ANIM_OT_keying_set_export(Operator):
 
                 if not found:
                     self.report(
-                        {'WARN'},
+                        {'WARNING'},
                         rpt_("Could not find material or light using Shader Node Tree - {:s}").format(str(ksp.id)),
                     )
             elif ksp.id.bl_rna.identifier.startswith("CompositorNodeTree"):
                 # Find compositor node-tree using this node tree.
                 for scene in bpy.data.scenes:
-                    if scene.node_tree == ksp.id:
-                        id_bpy_path = "bpy.data.scenes[\"{:s}\"].node_tree".format(escape_identifier(scene.name))
+                    if scene.compositing_node_group == ksp.id:
+                        id_bpy_path = "bpy.data.scenes[\"{:s}\"].compositing_node_group".format(
+                            escape_identifier(scene.name))
                         break
                 else:
                     self.report(
-                        {'WARN'},
+                        {'WARNING'},
                         rpt_("Could not find scene using Compositor Node Tree - {:s}").format(str(ksp.id)),
                     )
             elif ksp.id.bl_rna.name == "Key":
@@ -223,7 +224,10 @@ class NLA_OT_bake(Operator):
     )
     clear_constraints: BoolProperty(
         name="Clear Constraints",
-        description="Remove all constraints from keyed object/bones. To get a correct bake with this setting Visual Keying should be enabled",
+        description=(
+            "Remove all constraints from keyed object/bones. "
+            "To get a correct bake with this setting Visual Keying should be enabled"
+        ),
         default=False,
     )
     clear_parents: BoolProperty(
@@ -348,6 +352,16 @@ class ClearUselessActions(Operator):
     def poll(cls, _context):
         return bool(bpy.data.actions)
 
+    @staticmethod
+    def has_fcurves(action: bpy.types.Action) -> bool:
+        for layer in action.layers:
+            for strip in layer.strips:
+                assert strip.type == 'KEYFRAME'
+                for channelbag in strip.channelbags:
+                    if channelbag.fcurves:
+                        return True
+        return False
+
     def execute(self, _context):
         removed = 0
 
@@ -361,7 +375,7 @@ class ClearUselessActions(Operator):
                 # if it has F-Curves, then it's a "action library"
                 # (i.e. walk, wave, jump, etc.)
                 # and should be left alone as that's what fake users are for!
-                if not action.fcurves:
+                if not self.has_fcurves(action):
                     # mark action for deletion
                     action.user_clear()
                     removed += 1
@@ -378,13 +392,15 @@ class UpdateAnimatedTransformConstraint(Operator):
 
     use_convert_to_radians: BoolProperty(
         name="Convert to Radians",
-        description="Convert f-curves/drivers affecting rotations to radians.\n"
-                    "Warning: Use this only once",
+        description=(
+            "Convert f-curves/drivers affecting rotations to radians.\n"
+            "Warning: Use this only once"
+        ),
         default=True,
     )
 
     def execute(self, context):
-        import animsys_refactor
+        import _animsys_refactor as animsys_refactor
         from math import radians
         import io
 
@@ -450,7 +466,7 @@ class UpdateAnimatedTransformConstraint(Operator):
             print(log)
             text = bpy.data.texts.new("UpdateAnimatedTransformConstraint Report")
             text.from_string(log)
-            self.report({'INFO'}, rpt_("Complete report available on '{:s}' text datablock").format(text.name))
+            self.report({'INFO'}, rpt_("Complete report available on '{:s}' text data-block").format(text.name))
         return {'FINISHED'}
 
 
@@ -497,7 +513,7 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
 
             # Anything else:
             case _:
-                self.report({'ERROR'}, "Cannot do anything in mode {!r}".format(context.mode))
+                self.report({'ERROR'}, rpt_("Cannot do anything in mode {!r}").format(context.mode))
                 return {'CANCELLED'}
 
         if not bone_source:
@@ -526,8 +542,8 @@ class ARMATURE_OT_copy_bone_color_to_selected(Operator):
         if num_pose_color_overrides:
             self.report(
                 {'INFO'},
-                "Bone colors were synced; "
-                "for {:d} bones this will not be visible due to pose bone color overrides".format(
+                rpt_("Bone colors were synced; "
+                     "for {:d} bones this will not be visible due to pose bone color overrides").format(
                     num_pose_color_overrides,
                 ),
             )
@@ -666,7 +682,10 @@ class ARMATURE_OT_collection_remove_unused(Operator):
             armature.collections.remove(bcoll)
 
         self.report(
-            {'INFO'}, "Removed {:d} of {:d} bone collections".format(num_bcolls_to_remove, num_bcolls_before_removal),
+            {'INFO'},
+            rpt_("Removed {:d} of {:d} bone collections").format(
+                num_bcolls_to_remove,
+                num_bcolls_before_removal),
         )
 
 
@@ -676,6 +695,10 @@ class ANIM_OT_slot_new_for_id(Operator):
     Note that _which_ ID should get this slot must be set in the 'animated_id' context pointer, using:
 
     >>> layout.context_pointer_set("animated_id", animated_id)
+
+    When the ID already has a slot assigned, the newly-created slot will be
+    named after it (ensuring uniqueness with a numerical suffix) and any
+    animation data of the assigned slot will be duplicated for the new slot.
     """
     bl_idname = "anim.slot_new_for_id"
     bl_label = "New Slot"
@@ -700,10 +723,15 @@ class ANIM_OT_slot_new_for_id(Operator):
 
     def execute(self, context):
         animated_id = context.animated_id
+        adt = animated_id.animation_data
 
-        action = animated_id.animation_data.action
-        slot = action.slots.new(animated_id.id_type, animated_id.name)
-        animated_id.animation_data.action_slot = slot
+        if adt.action_slot:
+            slot = adt.action_slot.duplicate()
+        else:
+            slot_name = adt.last_slot_identifier[2:] or animated_id.name
+            slot = adt.action.slots.new(animated_id.id_type, slot_name)
+
+        adt.action_slot = slot
         return {'FINISHED'}
 
 
@@ -736,7 +764,7 @@ class ANIM_OT_slot_unassign_from_id(Operator):
         return {'FINISHED'}
 
 
-class generic_slot_unassign_mixin():
+class generic_slot_unassign_mixin:
     context_property_name = ""
     """Which context attribute to use to get the to-be-manipulated data-block."""
 

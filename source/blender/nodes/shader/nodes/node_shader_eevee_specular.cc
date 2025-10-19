@@ -4,6 +4,8 @@
 
 #include "node_shader_util.hh"
 
+#include "BLI_math_base.h"
+
 namespace blender::nodes::node_shader_eevee_specular_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -93,5 +95,5 @@ void register_node_type_sh_eevee_specular()
   ntype.add_ui_poll = object_eevee_shader_nodes_poll;
   ntype.gpu_fn = file_ns::node_shader_gpu_eevee_specular;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

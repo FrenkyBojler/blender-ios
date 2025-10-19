@@ -31,17 +31,6 @@ PixelOperation::PixelOperation(Context &context,
 {
 }
 
-PixelOperation *PixelOperation::create_operation(Context &context,
-                                                 PixelCompileUnit &compile_unit,
-                                                 const Schedule &schedule)
-{
-  if (context.use_gpu()) {
-    return new ShaderOperation(context, compile_unit, schedule);
-  }
-
-  return new MultiFunctionProcedureOperation(context, compile_unit, schedule);
-}
-
 int PixelOperation::maximum_number_of_outputs(Context &context)
 {
   if (context.use_gpu()) {
@@ -74,6 +63,16 @@ Map<std::string, DOutputSocket> &PixelOperation::get_inputs_to_linked_outputs_ma
   return inputs_to_linked_outputs_map_;
 }
 
+Map<ImplicitInput, std::string> &PixelOperation::get_implicit_inputs_to_input_identifiers_map()
+{
+  return implicit_inputs_to_input_identifiers_map_;
+}
+
+int PixelOperation::get_internal_input_reference_count(const StringRef &identifier)
+{
+  return inputs_to_reference_counts_map_.lookup(identifier);
+}
+
 void PixelOperation::compute_results_reference_counts(const Schedule &schedule)
 {
   for (const auto item : output_sockets_to_output_identifiers_map_.items()) {
@@ -89,14 +88,7 @@ void PixelOperation::compute_results_reference_counts(const Schedule &schedule)
       reference_count++;
     }
 
-    get_result(item.value).set_initial_reference_count(reference_count);
-  }
-}
-
-void PixelOperation::release_inputs()
-{
-  for (const auto item : inputs_to_reference_counts_map_.items()) {
-    this->get_input(item.key).release(item.value);
+    get_result(item.value).set_reference_count(reference_count);
   }
 }
 

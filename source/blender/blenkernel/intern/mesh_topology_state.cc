@@ -2,9 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_mesh_types.h"
+
 #include "BKE_attribute.hh"
-#include "BKE_mesh.hh"
 #include "BKE_mesh_topology_state.hh"
+#include "BKE_mesh_types.hh"
 
 namespace blender::bke {
 
@@ -32,7 +34,7 @@ MeshTopologyState::MeshTopologyState(const Mesh &mesh)
   edge_verts_ = attribute_reader_to_array_state(attributes.lookup<int2>(".edge_verts"));
   corner_verts_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_vert"));
   corner_edges_ = attribute_reader_to_array_state(attributes.lookup<int>(".corner_edge"));
-  face_offset_indices_ = ArrayState<int>(VArray<int>::ForSpan(mesh.face_offsets()),
+  face_offset_indices_ = ArrayState<int>(VArray<int>::from_span(mesh.face_offsets()),
                                          mesh.runtime->face_offsets_sharing_info);
 }
 
@@ -50,7 +52,7 @@ bool MeshTopologyState::same_topology_as(const Mesh &mesh) const
   {
     return false;
   }
-  if (!face_offset_indices_.same_as(VArray<int>::ForSpan(mesh.face_offsets()),
+  if (!face_offset_indices_.same_as(VArray<int>::from_span(mesh.face_offsets()),
                                     mesh.runtime->face_offsets_sharing_info))
   {
     return false;

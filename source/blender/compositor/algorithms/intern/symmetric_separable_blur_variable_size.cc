@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_assert.h"
-#include "BLI_math_base.hh"
-#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "GPU_shader.hh"
@@ -70,7 +68,7 @@ static Result horizontal_pass_gpu(Context &context,
                                   const int weights_resolution,
                                   const int filter_type)
 {
-  GPUShader *shader = context.get_shader("compositor_symmetric_separable_blur_variable_size");
+  gpu::Shader *shader = context.get_shader("compositor_symmetric_separable_blur_variable_size");
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_1b(shader, "is_vertical_pass", false);
@@ -159,7 +157,7 @@ static void vertical_pass_gpu(Context &context,
                               const int weights_resolution,
                               const int filter_type)
 {
-  GPUShader *shader = context.get_shader("compositor_symmetric_separable_blur_variable_size");
+  gpu::Shader *shader = context.get_shader("compositor_symmetric_separable_blur_variable_size");
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_1b(shader, "is_vertical_pass", true);

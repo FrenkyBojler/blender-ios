@@ -16,10 +16,6 @@
 
 #include "BLI_threads.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct GHash;
 struct MovieTracking;
 struct MovieTrackingMarker;
@@ -101,8 +97,8 @@ void tracking_principal_point_pixel_to_normalized(const float principal_point_pi
 /**
  * Place a disabled marker before or after specified ref_marker.
  *
- * If before is truth, disabled marker is placed before reference
- * one, and it's placed after it otherwise.
+ * If `before` is true, disabled marker is placed before reference one,
+ * and it's placed after it otherwise.
  *
  * If there's already a marker at the frame where disabled one is expected to be placed,
  * nothing will happen if overwrite is false.
@@ -184,7 +180,3 @@ TrackingImageAccessor *tracking_image_accessor_new(MovieClip *clips[MAX_ACCESSOR
                                                    MovieTrackingTrack **tracks,
                                                    int num_tracks);
 void tracking_image_accessor_destroy(TrackingImageAccessor *accessor);
-
-#ifdef __cplusplus
-}
-#endif

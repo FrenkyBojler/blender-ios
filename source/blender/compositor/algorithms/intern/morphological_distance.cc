@@ -8,7 +8,6 @@
 #include "BLI_math_vector_types.hh"
 
 #include "GPU_shader.hh"
-#include "GPU_texture.hh"
 
 #include "COM_context.hh"
 #include "COM_result.hh"
@@ -31,7 +30,7 @@ static void morphological_distance_gpu(Context &context,
                                        Result &output,
                                        const int distance)
 {
-  GPUShader *shader = context.get_shader(get_shader_name(distance));
+  gpu::Shader *shader = context.get_shader(get_shader_name(distance));
   GPU_shader_bind(shader);
 
   /* Pass the absolute value of the distance. We have specialized shaders for each sign. */

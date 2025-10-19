@@ -11,7 +11,6 @@
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_texture_types.h"
 
 #include "BLI_math_rotation.h"
 
@@ -60,11 +59,13 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 #  include "MEM_guardedalloc.h"
 
 #  include "DNA_gpencil_legacy_types.h"
+#  include "DNA_meshdata_types.h"
 #  include "DNA_node_types.h"
 #  include "DNA_object_types.h"
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"
 
+#  include "BKE_attribute.h"
 #  include "BKE_attribute.hh"
 #  include "BKE_colorband.hh"
 #  include "BKE_context.hh"
@@ -144,7 +145,7 @@ static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, Pointe
 {
   Material *ma = (Material *)ptr->data;
   rna_iterator_array_begin(
-      iter, (void *)ma->texpaintslot, sizeof(TexPaintSlot), ma->tot_slots, 0, nullptr);
+      iter, ptr, (void *)ma->texpaintslot, sizeof(TexPaintSlot), ma->tot_slots, 0, nullptr);
 }
 
 static void rna_Material_active_paint_texture_index_update(bContext *C, PointerRNA *ptr)
@@ -152,11 +153,11 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
   Main *bmain = CTX_data_main(C);
   Material *ma = (Material *)ptr->owner_id;
 
-  if (ma->use_nodes && ma->nodetree) {
+  if (ma->nodetree) {
     bNode *node = BKE_texpaint_slot_material_find_node(ma, ma->paint_active_slot);
 
     if (node) {
-      blender::bke::node_set_active(ma->nodetree, node);
+      blender::bke::node_set_active(*ma->nodetree, *node);
     }
   }
 
@@ -237,18 +238,18 @@ static void rna_Material_transparent_shadow_set(PointerRNA *ptr, bool new_value)
   material->blend_shadow = new_value ? MA_BS_HASHED : MA_BS_SOLID;
 }
 
-static void rna_Material_use_nodes_update(bContext *C, PointerRNA *ptr)
+static bool rna_Material_use_nodes_get(PointerRNA * /*ptr*/)
 {
-  Material *ma = (Material *)ptr->data;
-  Main *bmain = CTX_data_main(C);
+  /* #use_nodes is deprecated. All materials now use nodes. */
+  return true;
+}
 
-  if (ma->use_nodes && ma->nodetree == nullptr) {
-    ED_node_shader_default(C, &ma->id);
-  }
-
-  DEG_id_tag_update(&ma->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(bmain);
-  rna_Material_draw_update(bmain, CTX_data_scene(C), ptr);
+static void rna_Material_use_nodes_set(PointerRNA * /*ptr*/, bool /*new_value*/)
+{
+  /* #use_nodes is deprecated. Setting the property has no effect.
+   * Note: Users will get a warning through the RNA deprecation warning, so no need to log a
+   * warning here. */
+  return;
 }
 
 MTex *rna_mtex_texture_slots_add(ID *self_id, bContext *C, ReportList *reports)
@@ -333,7 +334,7 @@ static void rna_TexPaintSlot_uv_layer_set(PointerRNA *ptr, const char *value)
   TexPaintSlot *data = (TexPaintSlot *)(ptr->data);
 
   if (data->uvname != nullptr) {
-    BLI_strncpy_utf8(data->uvname, value, 64);
+    BLI_strncpy_utf8(data->uvname, value, MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX);
   }
 }
 
@@ -442,7 +443,7 @@ static void rna_def_material_display(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Diffuse Color", "Diffuse color of the material");
   /* See #82514 for details, for now re-define defaults here. Keep in sync with
    * #DNA_material_defaults.h */
-  static float diffuse_color_default[4] = {0.8f, 0.8f, 0.8f, 1.0f};
+  static const float diffuse_color_default[4] = {0.8f, 0.8f, 0.8f, 1.0f};
   RNA_def_property_float_array_default(prop, diffuse_color_default);
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
@@ -495,7 +496,7 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   PropertyRNA *prop;
 
   /* mode type styles */
-  static EnumPropertyItem gpcolordata_mode_types_items[] = {
+  static const EnumPropertyItem gpcolordata_mode_types_items[] = {
       {GP_MATERIAL_MODE_LINE, "LINE", 0, "Line", "Draw strokes using a continuous line"},
       {GP_MATERIAL_MODE_DOT, "DOTS", 0, "Dots", "Draw strokes using separated dots"},
       {GP_MATERIAL_MODE_SQUARE, "BOX", 0, "Squares", "Draw strokes using separated squares"},
@@ -503,14 +504,14 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   };
 
   /* stroke styles */
-  static EnumPropertyItem stroke_style_items[] = {
+  static const EnumPropertyItem stroke_style_items[] = {
       {GP_MATERIAL_STROKE_STYLE_SOLID, "SOLID", 0, "Solid", "Draw strokes with solid color"},
       {GP_MATERIAL_STROKE_STYLE_TEXTURE, "TEXTURE", 0, "Texture", "Draw strokes using texture"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* fill styles */
-  static EnumPropertyItem fill_style_items[] = {
+  static const EnumPropertyItem fill_style_items[] = {
       {GP_MATERIAL_FILL_STYLE_SOLID, "SOLID", 0, "Solid", "Fill area with solid color"},
       {GP_MATERIAL_FILL_STYLE_GRADIENT,
        "GRADIENT",
@@ -521,13 +522,13 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem fill_gradient_items[] = {
+  static const EnumPropertyItem fill_gradient_items[] = {
       {GP_MATERIAL_GRADIENT_LINEAR, "LINEAR", 0, "Linear", "Fill area with gradient color"},
       {GP_MATERIAL_GRADIENT_RADIAL, "RADIAL", 0, "Radial", "Fill area with radial gradient"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem alignment_draw_items[] = {
+  static const EnumPropertyItem alignment_draw_items[] = {
       {GP_MATERIAL_FOLLOW_PATH,
        "PATH",
        0,
@@ -827,7 +828,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_eevee_volume_isect_method_items[] = {
+  static const EnumPropertyItem prop_eevee_volume_isect_method_items[] = {
       {MA_VOLUME_ISECT_FAST,
        "FAST",
        0,
@@ -844,7 +845,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_eevee_thickness_method_items[] = {
+  static const EnumPropertyItem prop_eevee_thickness_method_items[] = {
       {MA_THICKNESS_SPHERE,
        "SPHERE",
        0,
@@ -860,7 +861,7 @@ void RNA_def_material(BlenderRNA *brna)
   };
 
 #  if 1 /* Delete this section once we remove old eevee. */
-  static EnumPropertyItem prop_eevee_blend_items[] = {
+  static const EnumPropertyItem prop_eevee_blend_items[] = {
       {MA_BM_SOLID, "OPAQUE", 0, "Opaque", "Render surface without transparency"},
       {MA_BM_CLIP,
        "CLIP",
@@ -881,7 +882,7 @@ void RNA_def_material(BlenderRNA *brna)
   };
 #  endif
 
-  static EnumPropertyItem prop_eevee_surface_render_method_items[] = {
+  static const EnumPropertyItem prop_eevee_surface_render_method_items[] = {
       {MA_SURFACE_METHOD_DEFERRED,
        "DITHERED",
        0,
@@ -897,7 +898,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_displacement_method_items[] = {
+  static const EnumPropertyItem prop_displacement_method_items[] = {
       {MA_DISPLACEMENT_BUMP,
        "BUMP",
        0,
@@ -1108,9 +1109,13 @@ void RNA_def_material(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes to render the material");
-  RNA_def_property_update(prop, 0, "rna_Material_use_nodes_update");
+  RNA_def_property_boolean_funcs(prop, "rna_Material_use_nodes_get", "rna_Material_use_nodes_set");
+  RNA_def_property_deprecated(prop,
+                              "Unused but kept for compatibility reasons. Setting the property "
+                              "has no effect, and getting it always returns True.",
+                              500,
+                              600);
 
   /* common */
   rna_def_animdata_common(srna);
@@ -1247,7 +1252,8 @@ static void rna_def_tex_slot(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Icon", "Paint slot icon");
 
   prop = RNA_def_property(srna, "uv_layer", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_maxlength(prop, 64); /* else it uses the pointer size! */
+  RNA_def_property_string_maxlength(
+      prop, MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX); /* Else it uses the pointer size! */
   RNA_def_property_string_sdna(prop, nullptr, "uvname");
   RNA_def_property_string_funcs(prop,
                                 "rna_TexPaintSlot_uv_layer_get",
