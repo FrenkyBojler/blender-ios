@@ -122,12 +122,14 @@ static std::pair<float3, float3> calculate_align_both_handles(const float3 &posi
   /* Use the direction halfway between the two directions. */
   float3 align_dir = math::normalize(left_dir) + math::normalize(right_dir);
 
-  if (math::length_squared(align_dir) == 0.0f) {
+  const float align_length = math::length(align_dir);
+  if (align_length <= 0.0001f * (left_length + right_length)) {
     /* The handles are already aligned. */
     return {left_handle, right_handle};
   }
 
-  align_dir = math::normalize(align_dir);
+  /* Normalize. */
+  align_dir = align_dir / align_length;
 
   /* Project the directions onto the plane formed by `align_dir`. */
   const float3 new_left_dir = left_dir - math::dot(left_dir, align_dir) * align_dir;
