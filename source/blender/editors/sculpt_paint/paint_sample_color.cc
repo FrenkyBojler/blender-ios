@@ -172,10 +172,16 @@ static void paint_set_color(bContext *C,
                             const blender::float3 &rgb_f,
                             const bool use_palette)
 {
-  data->accum_color += rgb_f;
-  data->num_samples++;
+  blender::float3 average_color;
+  if (data == nullptr) {
+    average_color = rgb_f;
+  }
+  else {
+    data->accum_color += rgb_f;
+    data->num_samples++;
 
-  const blender::float3 average_color = data->accum_color / float(data->num_samples);
+    average_color = data->accum_color / float(data->num_samples);
+  }
 
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
