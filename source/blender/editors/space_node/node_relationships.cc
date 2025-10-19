@@ -2692,7 +2692,8 @@ static bool node_endpoint_can_be_inserted_on_link(bNodeTree &tree,
 void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,
                                    const bool attach_enabled,
-                                   const bool is_new_node)
+                                   const bool is_new_node,
+                                   const int2 &cursor)
 {
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
@@ -2712,7 +2713,6 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     already_linked_sockets.extend(socket->directly_linked_sockets());
   }
   // if (!is_new_node && !already_linked_sockets.is_empty()) {
-  // // if (!is_new_node && endpoint.main_in_from_selected) {
   //   return;
   // }
 
@@ -2755,7 +2755,10 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
       if (BLI_rctf_isect_segment(&endpoint.bounds, coords[i], coords[i + 1])) {
         /* Store the shortest distance to the upper left edge of all intersections found so
          * far. */
-        const float node_xy[] = {endpoint.bounds.xmin, endpoint.bounds.ymax};
+        float2 view_cursor;
+        UI_view2d_region_to_view(&region.v2d, cursor.x, cursor.y, &view_cursor.x, &view_cursor.y);
+        float node_xy[2] = {view_cursor.x, view_cursor.y};
+        BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
 
         /* To be precise coords should be clipped by `select->draw_bounds`, but not done
          * since there's no real noticeable difference. */

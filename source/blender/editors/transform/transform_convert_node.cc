@@ -167,7 +167,7 @@ static void createTransNodeData(bContext *C, TransInfo *t)
   customdata->is_new_node = t->remove_on_cancel;
 
   space_node::node_insert_on_link_flags_set(
-      *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
+      *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node, int2(t->mval));
   space_node::node_insert_on_frame_flag_set(*C, *snode, int2(t->mval));
 
   t->custom.type.data = customdata;
@@ -354,8 +354,11 @@ static void flushTransNodes(TransInfo *t)
 
     /* Handle intersection with noodles. */
     // if (tc->data_len == 1) {
-    space_node::node_insert_on_link_flags_set(
-        *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
+    space_node::node_insert_on_link_flags_set(*snode,
+                                              *t->region,
+                                              t->modifiers & MOD_NODE_ATTACH,
+                                              customdata->is_new_node,
+                                              int2(t->mval));
     // }
     space_node::node_insert_on_frame_flag_set(*t->context, *snode, int2(t->mval));
   }
