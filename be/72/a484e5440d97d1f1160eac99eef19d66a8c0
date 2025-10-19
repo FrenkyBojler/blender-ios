@@ -1,2 +1,3 @@
 Referenced by issue #139182, Invalid Material Index. Impossible to delete material slot
 Referenced by pull request #143196, Fix #139182: Cannot remove material slot in certain case
+Referenced by issue #148313, "Remove Unused Material Slots" in 3D viewport while there are no active objects leads to crash
