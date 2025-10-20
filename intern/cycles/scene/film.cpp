@@ -450,7 +450,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   /* LPE expressions table */
   /* Build table by iterating passes in order, not sorted map */
   int num_lpe = 0;
-  const int LPE_MAX_EXPRESSION_LENGTH = 32;
+  const int LPE_MAX_EXPRESSION_LENGTH = 64;
   vector<float> lpe_table;
 
   for (const Pass *pass : scene->passes) {
