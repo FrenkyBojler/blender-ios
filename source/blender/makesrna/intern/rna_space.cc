@@ -220,7 +220,7 @@ const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
   {SACTCONT_SHAPEKEY, \
    "SHAPEKEY", \
    ICON_SHAPEKEY_DATA, \
-   "Shape Key", \
+   "Shape Key Editor", \
    "Edit keyframes in active object's Shape Keys action"}
 #define SACT_ITEM_GPENCIL \
   {SACTCONT_GPENCIL, \
