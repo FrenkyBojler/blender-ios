@@ -1745,21 +1745,21 @@ static PointerRNA rna_Mesh_vertex_color_new(Mesh *mesh,
                                             const char *name,
                                             const bool do_init)
 {
-  CustomData *ldata;
-  CustomDataLayer *cdl = nullptr;
-  std::string name = ED_mesh_color_add(mesh, name, false, do_init, reports);
-
-  if (!name.empty()) {
-    if (!mesh->active_color_attribute) {
-      mesh->active_color_attribute = BLI_strdup(name.c_str());
-    }
-    if (!mesh->default_color_attribute) {
-      mesh->default_color_attribute = BLI_strdup(name.c_str());
-    }
+  std::string new_name = ED_mesh_color_add(mesh, name, false, do_init, reports);
+  if (new_name.empty()) {
+    return {};
   }
 
-  PointerRNA ptr = RNA_pointer_create_discrete(&mesh->id, &RNA_MeshLoopColorLayer, cdl);
-  return ptr;
+  if (!mesh->active_color_attribute) {
+    mesh->active_color_attribute = BLI_strdup(new_name.c_str());
+  }
+  if (!mesh->default_color_attribute) {
+    mesh->default_color_attribute = BLI_strdup(new_name.c_str());
+  }
+  CustomData *ldata = rna_mesh_ldata_helper(mesh);
+  const int layer_index = CustomData_get_named_layer_index(ldata, CD_PROP_BYTE_COLOR, new_name);
+  CustomDataLayer *cdl = &ldata->layers[layer_index];
+  return RNA_pointer_create_discrete(&mesh->id, &RNA_MeshLoopColorLayer, cdl);
 }
 
 static void rna_Mesh_vertex_color_remove(Mesh *mesh, ReportList *reports, CustomDataLayer *layer)
@@ -1790,9 +1790,9 @@ static void rna_Mesh_uv_layers_remove(Mesh *mesh, ReportList *reports, CustomDat
 {
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  if (mesh->runtime.edit_mesh) {
-    BMesh &bm = *mesh->runtime.edit_mesh->bm;
-    if (!CustomData_has_layer_named(&bm->ldata, CD_PROP_FLOAT2, layer->name)) {
+  if (mesh->runtime->edit_mesh) {
+    BMesh &bm = *mesh->runtime->edit_mesh->bm;
+    if (!CustomData_has_layer_named(&bm.ldata, CD_PROP_FLOAT2, layer->name)) {
       BKE_reportf(reports, RPT_ERROR, "UV map '%s' not found", layer->name);
       return;
     }
