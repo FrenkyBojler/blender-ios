@@ -190,8 +190,9 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
   }
 
   if (features & SCULPT_BATCH_UV) {
-    if (const char *name = mesh->active_uv_map_attribute) {
-      attrs.append(pbvh::GenericRequest(name));
+    const StringRef uv_name = mesh->active_uv_map_name();
+    if (!uv_name.is_empty()) {
+      attrs.append(pbvh::GenericRequest(uv_name));
     }
   }
 

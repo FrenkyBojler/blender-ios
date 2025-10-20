@@ -1646,7 +1646,7 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
     /* get uv map */
     const StringRef uvname = mesh->uv_map_names().contains(surface->init_layername) ?
                                  surface->init_layername :
-                                 mesh->active_uv_map_attribute;
+                                 mesh->active_uv_map_name();
     const VArraySpan uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
 
     if (uv_map.is_empty()) {
@@ -2864,7 +2864,7 @@ int dynamicPaint_createUVSurface(Scene *scene,
   if (!uv_map_names.is_empty()) {
     const StringRef uvname = mesh->uv_map_names().contains(surface->uvlayer_name) ?
                                  surface->uvlayer_name :
-                                 mesh->active_uv_map_attribute;
+                                 mesh->active_uv_map_name();
     const bke::AttributeAccessor attributes = mesh->attributes();
     uv_map = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
   }

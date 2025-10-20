@@ -1351,7 +1351,7 @@ static void make_duplis_faces(const DupliContext *ctx)
 
   if (em != nullptr) {
     const int uv_offset = CustomData_get_offset_named(
-        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->default_uv_map_attribute);
+        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->default_uv_map_name());
     FaceDupliData_EditMesh fdd{};
     fdd.params = fdd_params;
     fdd.em = em;
@@ -1363,7 +1363,7 @@ static void make_duplis_faces(const DupliContext *ctx)
   }
   else {
     const bke::AttributeAccessor attributes = mesh_eval->attributes();
-    const VArraySpan uv_map = *attributes.lookup<float2>(mesh_eval->default_uv_map_attribute,
+    const VArraySpan uv_map = *attributes.lookup<float2>(mesh_eval->default_uv_map_name(),
                                                          bke::AttrDomain::Corner);
     FaceDupliData_Mesh fdd{};
     fdd.params = fdd_params;

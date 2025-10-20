@@ -5257,7 +5257,7 @@ static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
     Mesh &mesh = *static_cast<Mesh *>(obedit->data);
     BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
 
-    const char *active_uv_name = mesh.active_uv_map_attribute;
+    const blender::StringRef active_uv_name = mesh.active_uv_map_name();
     if (!BM_uv_map_attr_pin_exists(bm, active_uv_name)) {
       continue;
     }

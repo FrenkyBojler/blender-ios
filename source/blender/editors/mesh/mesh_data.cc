@@ -209,7 +209,7 @@ static void reset_uv_map(Mesh *mesh, const StringRef name)
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh)
 {
-  reset_uv_map(mesh, mesh->active_uv_map_attribute);
+  reset_uv_map(mesh, mesh->active_uv_map_name());
 
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 }
@@ -258,9 +258,10 @@ int ED_mesh_uv_add(
       return -1;
     }
 
-    if (mesh->active_uv_map_attribute && do_init) {
+    const StringRef active_name = mesh->active_uv_map_name();
+    if (!active_name.is_empty() && do_init) {
       const VArray<float2> active_uv_map = *attributes.lookup_or_default<float2>(
-          mesh->active_uv_map_attribute, bke::AttrDomain::Corner, float2(0));
+          active_name, bke::AttrDomain::Corner, float2(0));
       attributes.add<float2>(
           unique_name, bke::AttrDomain::Corner, bke::AttributeInitVArray(active_uv_map));
 

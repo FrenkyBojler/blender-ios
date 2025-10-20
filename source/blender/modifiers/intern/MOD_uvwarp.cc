@@ -192,7 +192,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   /* make sure we're using an existing layer */
   const blender::StringRef uvname = mesh->uv_map_names().contains(umd->uvlayer_name) ?
                                         umd->uvlayer_name :
-                                        mesh->active_uv_map_attribute;
+                                        mesh->active_uv_map_name();
 
   const blender::OffsetIndices faces = mesh->faces();
   const blender::Span<int> corner_verts = mesh->corner_verts();

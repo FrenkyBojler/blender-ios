@@ -72,7 +72,7 @@ static void rna_Mesh_calc_tangents(Mesh *mesh, ReportList *reports, const char *
   }
 
   if (!uvmap) {
-    uvmap = mesh->active_uv_map_attribute;
+    uvmap = mesh->active_uv_map_name().c_str();
   }
 
   const bke::AttributeAccessor attributes = mesh->attributes();

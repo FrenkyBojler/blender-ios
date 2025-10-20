@@ -93,7 +93,7 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
       BLI_bitmap *done = BLI_BITMAP_NEW(verts_num, __func__);
       const StringRef uvname = uv_map_names.contains(dmd->uvlayer_name) ?
                                    dmd->uvlayer_name :
-                                   mesh->active_uv_map_attribute;
+                                   mesh->active_uv_map_name();
       const bke::AttributeAccessor attributes = mesh->attributes();
       const VArraySpan uv_map = *attributes.lookup_or_default<float2>(
           uvname, bke::AttrDomain::Corner, float2(0));

@@ -148,7 +148,7 @@ void USDGenericMeshWriter::write_custom_data(const Object *obj,
 {
   const bke::AttributeAccessor attributes = mesh->attributes();
 
-  const StringRef active_uvmap_name = mesh->default_uv_map_attribute;
+  const StringRef active_uvmap_name = mesh->default_uv_map_name();
 
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     /* Skip "internal" Blender properties and attributes processed elsewhere.

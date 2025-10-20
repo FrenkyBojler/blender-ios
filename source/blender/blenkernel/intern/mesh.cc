@@ -1196,6 +1196,16 @@ blender::bke::MutableAttributeAccessor Mesh::attributes_for_write()
                                                 blender::bke::mesh_attribute_accessor_functions());
 }
 
+blender::StringRefNull Mesh::active_uv_map_name() const
+{
+  return this->active_uv_map_attribute;
+}
+
+blender::StringRefNull Mesh::default_uv_map_name() const
+{
+  return this->default_uv_map_attribute;
+}
+
 Mesh *BKE_mesh_new_nomain(const int verts_num,
                           const int edges_num,
                           const int faces_num,

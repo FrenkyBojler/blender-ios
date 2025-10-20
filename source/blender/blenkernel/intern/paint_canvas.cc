@@ -91,10 +91,10 @@ std::optional<blender::StringRef> BKE_paint_canvas_uvmap_name_get(
       }
 
       const Mesh *mesh = static_cast<Mesh *>(ob->data);
-      if (!has_uv_map_attribute(*mesh, mesh->active_uv_map_attribute)) {
+      if (!has_uv_map_attribute(*mesh, mesh->active_uv_map_name())) {
         return std::nullopt;
       }
-      return mesh->active_uv_map_attribute;
+      return mesh->active_uv_map_name();
     }
     case PAINT_CANVAS_SOURCE_MATERIAL: {
       /* Use uv map of the canvas. */

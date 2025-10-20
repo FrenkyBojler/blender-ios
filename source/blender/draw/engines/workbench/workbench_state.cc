@@ -272,12 +272,12 @@ static bool mesh_has_uv_map_attribute(const Mesh &mesh)
 {
   if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
     const BMesh &bm = *mesh.runtime->edit_mesh->bm;
-    const BMDataLayerLookup attr = BM_data_layer_lookup(bm, mesh.active_uv_map_attribute);
+    const BMDataLayerLookup attr = BM_data_layer_lookup(bm, mesh.active_uv_map_name());
     return attr && bke::mesh::is_uv_map(bke::AttributeMetaData{attr.domain, attr.type});
   }
   const bke::AttributeAccessor attributes = mesh.attributes();
   const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
-      mesh.active_uv_map_attribute);
+      mesh.active_uv_map_name());
   return bke::mesh::is_uv_map(*meta_data);
 }
 

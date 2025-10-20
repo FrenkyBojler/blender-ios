@@ -304,6 +304,9 @@ typedef struct Mesh {
   blender::bke::AttributeAccessor attributes() const;
   blender::bke::MutableAttributeAccessor attributes_for_write();
 
+  blender::StringRefNull active_uv_map_name() const;
+  blender::StringRefNull default_uv_map_name() const;
+
   /**
    * Vertex group data, encoded as an array of indices and weights for every vertex.
    * \warning: May be empty.

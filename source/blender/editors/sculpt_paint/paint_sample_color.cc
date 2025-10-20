@@ -102,8 +102,7 @@ static blender::float2 imapaint_pick_uv(const Mesh *mesh_eval,
   }
 
   if (uv_map.is_empty()) {
-    uv_map = *attributes.lookup<float2>(mesh_eval->active_uv_map_attribute,
-                                        bke::AttrDomain::Corner);
+    uv_map = *attributes.lookup<float2>(mesh_eval->active_uv_map_name(), bke::AttrDomain::Corner);
   }
 
   return bke::mesh_surface_sample::sample_corner_attribute_with_bary_coords(

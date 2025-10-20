@@ -94,7 +94,7 @@ static blender::bke::SpanAttributeWriter<blender::float2> get_uv_attribute(
   using namespace blender;
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (md_name.is_empty()) {
-    const StringRef name = mesh.active_uv_map_attribute;
+    const StringRef name = mesh.active_uv_map_name();
     return attributes.lookup_or_add_for_write_span<float2>(name.is_empty() ? "Float2" : name,
                                                            bke::AttrDomain::Corner);
   }
