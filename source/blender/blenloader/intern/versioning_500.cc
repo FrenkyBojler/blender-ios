@@ -2614,30 +2614,18 @@ static void version_bone_hide_property_driver(AnimData *arm_adt, blender::Vector
 {
   using namespace blender::animrig;
   constexpr char const *hide_prop_prefix = "bones[";
-  constexpr char const *hide_prop_suffix = "].hide";
+  constexpr char const *hide_prop_suffix = "\"].hide";
   constexpr int prefix_len = 6;
   constexpr int suffix_len = 6;
 
   blender::Vector<FCurve *> drivers_to_fix;
   LISTBASE_FOREACH (FCurve *, fcurve, &arm_adt->drivers) {
     const blender::StringRef rna_path(fcurve->rna_path);
-    if (!rna_path.endswith(hide_prop_suffix) || !rna_path.startswith(hide_prop_prefix)) {
-      continue;
-    }
-    /* There is still the possibility that the rna_path is `bones["foo"]["bar"].hide`. That means,
-     * not only does the prefix and suffix need to match, but also inbetween we cannot have square
-     * brackets and dots. */
-    bool is_valid = true;
-    for (int i = prefix_len + 1; i < rna_path.size() - (suffix_len + 1); i++) {
-      /* If there is another double quote that is not escaped we have hit the case
-       * described above. Note that bone names can have '"' in their name, but the rna path
-       * will always have those characters escaped. */
-      if (fcurve->rna_path[i] == '\"' && fcurve->rna_path[i - 1] != '\\') {
-        is_valid = false;
-        break;
-      }
-    }
-    if (is_valid) {
+    int quoted_bone_name_start = 0;
+    int quoted_bone_name_end = 0;
+    const bool is_prefix_found = BLI_str_quoted_substr_range(
+        fcurve->rna_path, hide_prop_prefix, &quoted_bone_name_start, &quoted_bone_name_end);
+    if (is_prefix_found && STREQ(fcurve->rna_path + quoted_bone_name_end, hide_prop_suffix)) {
       drivers_to_fix.append(fcurve);
     }
   }
