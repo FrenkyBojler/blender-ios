@@ -236,6 +236,11 @@ struct SequencesAllIterator {
   int index;
 };
 
+static std::optional<std::string> rna_SequenceEditor_path(const PointerRNA * /*ptr*/)
+{
+  return "sequence_editor";
+}
+
 static void rna_SequenceEditor_sequences_all_begin(CollectionPropertyIterator *iter,
                                                    PointerRNA *ptr)
 {
@@ -2390,6 +2395,7 @@ static void rna_def_editor(BlenderRNA *brna)
   };
   srna = RNA_def_struct(brna, "SequenceEditor", nullptr);
   RNA_def_struct_ui_text(srna, "Sequence Editor", "Sequence editing data for a Scene data-block");
+  RNA_def_struct_path_func(srna, "rna_SequenceEditor_path");
   RNA_def_struct_ui_icon(srna, ICON_SEQUENCE);
   RNA_def_struct_sdna(srna, "Editing");
 
@@ -2682,16 +2688,6 @@ static void rna_def_effect_inputs(StructRNA *srna, int count)
     RNA_def_property_pointer_funcs(prop, nullptr, "rna_Sequence_input_2_set", nullptr, nullptr);
     RNA_def_property_ui_text(prop, "Input 2", "Second input for the effect strip");
   }
-
-#  if 0
-  if (count == 3) {
-    /* Not used by any effects (perhaps one day plugins?). */
-    prop = RNA_def_property(srna, "input_3", PROP_POINTER, PROP_NONE);
-    RNA_def_property_pointer_sdna(prop, nullptr, "seq3");
-    RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_NULL);
-    RNA_def_property_ui_text(prop, "Input 3", "Third input for the effect strip");
-  }
-#  endif
 }
 
 static void rna_def_color_management(StructRNA *srna)
