@@ -88,6 +88,7 @@ Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod me
 
 bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene, Scene *scene_new)
 {
+  BLI_assert(!scene_new || &scene != scene_new);
   if (!BKE_scene_can_be_removed(&bmain, &scene)) {
     return false;
   }
@@ -98,6 +99,9 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
   if (!scene_new) {
     return false;
   }
+
+  /* NOTE: Usages of BPy_..._ALLOW_THREADS macros below are necessary because this code is also
+   * called from RNA (and therefore BPY). */
 
   /* Cancel animation playback. */
   if (bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(&C))) {

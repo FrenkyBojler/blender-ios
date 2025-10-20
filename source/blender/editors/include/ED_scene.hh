@@ -31,14 +31,14 @@ bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene) ATTR_NONNULL();
 /**
  * Replace the given scene (assumed to be an active scene) by another suitable one.
  *
- * Ensures that the given active scene can actually be deleted.
- *
- * If `scene_new` is non-null, the code will assume that it is a valid replacement for the current
- * active scene. Otherwise, it will use #BKE_scene_find_replacement() to find one.
+ * Checks if the given active scene can actually be deleted.
  *
  * Also ensures that all needed updates in WM and UI code is done.
  *
- * \return true if the given active scene was sucessfully replaced and can safely be deleted.
+ * \param scene: The scene to be replaced, often the active scene but may be any scene.
+ * \param scene_new: When non-null, this scene is used as a replacement for `scene`.
+ *                   Otherwise, #BKE_scene_find_replacement() is used to find a replacement.
+ * \return true if the given `scene` was successfully replaced and can safely be deleted.
  */
 bool ED_scene_replace_active_for_deletion(bContext &C,
                                           Main &bmain,

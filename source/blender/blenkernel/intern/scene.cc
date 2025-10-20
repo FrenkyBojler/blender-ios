@@ -1989,13 +1989,13 @@ bool BKE_scene_can_be_removed(const Main *bmain, const Scene *scene)
   }
   /* Local scenes can only be removed, when there is at least one local scene left. */
   LISTBASE_FOREACH (Scene *, other_scene, &bmain->scenes) {
-    if (other_scene != scene && !ID_IS_LINKED(other_scene)) {
-      return true;
-    }
     if (ID_IS_LINKED(other_scene)) {
       /* Once the first linked scene is reached, there is no more local ones to check, so at this
        * point there is no other local scene and the given one cannot be deleted. */
-      return false;
+      break;
+    }
+    if (other_scene != scene) {
+      return true;
     }
   }
   return false;
