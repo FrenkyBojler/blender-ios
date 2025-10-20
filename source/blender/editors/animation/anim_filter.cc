@@ -3851,11 +3851,18 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
     return 1;
   }
 
+  if ((filter_mode & ANIMFILTER_LIST_CHANNELS) == 0) {
+    /* Without ANIMFILTER_LIST_CHANNELS flag, summary channels should not be created.
+     * Sub-channels of this summary should still be visited. */
+    return 1;
+  }
+
   /* dopesheet summary
    * - only for drawing and/or selecting keyframes in channels, but not for real editing
    * - only useful for DopeSheet/Action/etc. editors where it is actually useful
    */
-  if ((filter_mode & ANIMFILTER_LIST_CHANNELS) && (ac->filters.flag & ADS_FILTER_SUMMARY)) {
+  const bool is_timeline = ac->dopesheet_mode == SACTCONT_TIMELINE;
+  if (is_timeline || (ac->filters.flag & ADS_FILTER_SUMMARY)) {
     bAnimListElem *ale = make_new_animlistelem(ac->bmain, ac, ANIMTYPE_SUMMARY, nullptr, nullptr);
     if (ale) {
       BLI_addtail(anim_data, ale);
