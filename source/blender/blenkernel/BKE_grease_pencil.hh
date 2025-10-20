@@ -953,6 +953,7 @@ class GreasePencilRuntime {
 class GreasePencilDrawingEditHints {
  public:
   const greasepencil::Drawing *drawing_orig;
+  /* Evaluated positions for original points. */
   ImplicitSharingPtrAndData positions_data;
 
   /**
