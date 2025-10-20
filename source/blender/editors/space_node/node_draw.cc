@@ -1763,10 +1763,17 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
   }
 
   /* How far it extends down and narrows. */
+  const bool is_collapsed = node.flag & NODE_COLLAPSED;
   const float offset = 2.8f * UI_SCALE_FAC;
-  const float alpha_selected = is_selected ? .33f : .0f;
-  const float shadow_width = 0.25f * U.widget_unit;
-  const float shadow_alpha = 0.15f;
+  const float shadow_width = 0.2f * U.widget_unit;
+  const float shadow_alpha = 0.2f;
+  const float dim_collapsed = is_collapsed ? 0.3f : 0.0f;
+  float color_copy[4];
+  copy_v4_v4(color_copy, color);
+
+  if (is_selected) {
+    UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_copy);
+  }
 
   UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
 
@@ -1783,9 +1790,7 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
         &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
 
     /* Use the node (or header) color but slightly transparent. */
-    float color_copy[4];
-    copy_v4_v4(color_copy, color);
-    color_copy[3] *= 0.2f + alpha_selected;
+    color_copy[3] = (is_selected ? 0.5f : 0.7f) - dim_collapsed;
     UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
   }
 
@@ -1801,9 +1806,7 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
     ui_draw_dropshadow(
         &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
 
-    float color_copy[4];
-    copy_v4_v4(color_copy, color);
-    color_copy[3] *= 0.5f + alpha_selected;
+    color_copy[3] = (is_selected ? 0.7f : 0.9f) - dim_collapsed;
     UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
   }
 
@@ -1817,7 +1820,7 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
 
     /* Use the body color as base, and lighten it a bit. */
     uchar color_line[4];
-    rgba_float_to_uchar(color_line, color);
+    rgba_float_to_uchar(color_line, color_copy);
     color_line[0] = min_ii(color_line[0] + 40, 255);
     color_line[1] = min_ii(color_line[1] + 40, 255);
     color_line[2] = min_ii(color_line[2] + 40, 255);
