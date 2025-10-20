@@ -1,2 +1,3 @@
 Referenced by issue #139422, macOS: unable to change navigation speed while holding shift
 Referenced by pull request #148122, Fix #139422: macOS: Counteract OS scrolling axis change when using shift
+Referenced by commit 5ccdc2a19cd3806bb03472059d836241f20ac93a, Fix #139422: macOS: Counteract OS scrolling axis change when using shift
