@@ -413,6 +413,9 @@ static void cursor_point_draw(
       break;
     case SCE_SNAP_TO_FACE_MIDPOINT:
       imm_draw_circle_wire_3d(attr_pos, 0.0f, 0.0f, 1.0f, 24);
+      immBegin(GPU_PRIM_POINTS, 1);
+      immVertex3f(attr_pos, 0.0f, 0.0f, 0.0f);
+      immEnd();
       break;
     case SCE_SNAP_TO_FACE:
     default:
