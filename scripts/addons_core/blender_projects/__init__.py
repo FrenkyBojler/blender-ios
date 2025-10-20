@@ -40,9 +40,7 @@ def read_project_config(root_path: Path) -> dict | None:
         with open(config_path, "rb") as f:
             return tomllib.load(f)
     except FileNotFoundError:
-        pass
-
-    return None
+        return None
 
 
 @bpy.app.handlers.persistent
@@ -79,6 +77,8 @@ def on_blend_load(blend_path: str) -> None:
 
 @bpy.app.handlers.persistent
 def on_blend_save(blend_path: str) -> None:
+    # This is needed due to cases like a fresh new blend file being saved for
+    # the first time in a project.
     on_blend_load(blend_path)
 
 
