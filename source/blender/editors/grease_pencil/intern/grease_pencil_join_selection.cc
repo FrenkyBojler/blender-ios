@@ -404,13 +404,12 @@ void clear_selection_attribute(Span<PointsRange> ranges_selected,
   for (const PointsRange &range : ranges_selected) {
     bke::CurvesGeometry &curves = range.from_drawing->strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
-        ".selection", selection_domain);
-    const IndexMask mask = selection_domain == bke::AttrDomain::Point ?
-                               IndexMask{curves.points_num()} :
-                               IndexMask{curves.curves_num()};
-    masked_fill(selection.span, false, mask);
-    selection.finish();
+    if (bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
+            ".selection", selection_domain))
+    {
+      selection.span.slice(range.range).fill(false);
+      selection.finish();
+    }
     if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection_left"))
     {
       ed::curves::fill_selection_false(selection.span);
