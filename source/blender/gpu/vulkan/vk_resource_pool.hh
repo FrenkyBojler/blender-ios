@@ -128,7 +128,7 @@ class VKDiscardPool {
   {
     return mutex_;
   }
-  void destroy_discarded_resources(VKDevice &device, uint64_t current_timeline);
+  void destroy_discarded_resources(VKDevice &device, TimelineValue current_timeline);
 
   /**
    * Returns the discard pool for the current thread.

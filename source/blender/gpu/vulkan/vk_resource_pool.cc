@@ -84,7 +84,7 @@ void VKDiscardPool::discard_descriptor_pool_for_reuse(VkDescriptorPool vk_descri
   descriptor_pools_.append_timeline(timeline_, std::pair(vk_descriptor_pool, descriptor_pools));
 }
 
-void VKDiscardPool::destroy_discarded_resources(VKDevice &device, uint64_t current_timeline)
+void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue current_timeline)
 {
   std::scoped_lock mutex(mutex_);
 
