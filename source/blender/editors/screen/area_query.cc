@@ -8,6 +8,8 @@
  * Query functions for area/region.
  */
 
+#include "BKE_screen.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
@@ -48,7 +50,7 @@ bool ED_region_overlap_isect_xy(const ARegion *region, const int event_xy[2])
 bool ED_region_overlap_isect_any_xy(const ScrArea *area, const int event_xy[2])
 {
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if ((region->flag & (RGN_FLAG_POLL_FAILED | RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) != 0) {
+    if (!region->runtime->visible) {
       continue;
     }
     if (ED_region_is_overlap(area->spacetype, region->regiontype)) {
