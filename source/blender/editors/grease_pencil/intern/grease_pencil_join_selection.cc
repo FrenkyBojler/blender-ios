@@ -407,7 +407,7 @@ void clear_selection_attribute(Span<PointsRange> ranges_selected,
     if (bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
             ".selection", selection_domain))
     {
-      selection.span.slice(range.range).fill(false);
+      selection.span.fill(false);
       selection.finish();
     }
     if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection_left"))
