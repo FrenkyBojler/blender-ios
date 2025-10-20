@@ -2650,7 +2650,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     }
     else {
       valid_start = true;
-      for (const bNodeLink  *link : main_input->directly_linked_links()) {
+      for (const bNodeLink *link : main_input->directly_linked_links()) {
         if (selected_nodes.contains(link->fromnode)) {
           valid_start = false;
           break;
