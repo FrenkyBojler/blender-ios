@@ -7,6 +7,7 @@
  */
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_interface.hh"
 
@@ -101,7 +102,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    if (ID_IS_LINKED(&nodetree_)) {
+    if (!ID_IS_EDITABLE(&nodetree_.id)) {
       row.enabled_set(false);
     }
 
