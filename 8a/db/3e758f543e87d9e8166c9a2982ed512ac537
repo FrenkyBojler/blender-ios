@@ -9,3 +9,4 @@ Referenced by issue #145758, Regression: EEVEE: Volume is just white bounding bo
 Referenced by commit f8303efd573192fc1b30eb6e4e5c6fdcd8ff47b6, Revert "Draw: Use ResourceHandleRange"
 Referenced by issue #148254, Collection Instance shows inverted Faces when Instance Empty is scaled negatively and Backface Culling is disabled in Solid Shading
 Referenced by issue #148253, Collection Instance shows inverted Cavity when Instance Empty is scaled negatively in Solid Shading
+Referenced by pull request #148411, Fix #148254: Broken negative scale instances
