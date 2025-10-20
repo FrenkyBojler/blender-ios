@@ -1,1 +1,1 @@
-Referenced by pull request #148434, Fix #148429: assert due to uncleared pointers
+Referenced by pull request #148434, Fix #148429: assert due to legacy mesh pointers
