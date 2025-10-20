@@ -86,7 +86,8 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
 
   /* UVs need special handling, since they come from faces */
   if (texmapping == MOD_DISP_MAP_UV) {
-    if (CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
+    VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+    if (!uv_map_names.is_empty()) {
       const OffsetIndices faces = mesh->faces();
       const Span<int> corner_verts = mesh->corner_verts();
       BLI_bitmap *done = BLI_BITMAP_NEW(verts_num, __func__);

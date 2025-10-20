@@ -250,7 +250,8 @@ int ED_mesh_uv_add(
     }
   }
   else {
-    layernum_dst = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
+    bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+    layernum_dst = mesh->uv_map_names().size();
     if (layernum_dst >= MAX_MTFACE) {
       BKE_reportf(reports, RPT_WARNING, "Cannot add more than %i UV maps", MAX_MTFACE);
       return -1;

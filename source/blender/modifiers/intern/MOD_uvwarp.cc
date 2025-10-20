@@ -133,7 +133,6 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   UVWarpModifierData *umd = (UVWarpModifierData *)md;
   const MDeformVert *dvert;
   int defgrp_index;
-  char uvname[MAX_CUSTOMDATA_LAYER_NAME];
   float warp_mat[4][4];
   const int axis_u = umd->axis_u;
   const int axis_v = umd->axis_v;

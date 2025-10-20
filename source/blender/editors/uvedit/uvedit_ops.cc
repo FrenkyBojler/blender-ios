@@ -1731,7 +1731,8 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     bool changed = false;
 

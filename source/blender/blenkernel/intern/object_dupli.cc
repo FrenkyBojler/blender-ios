@@ -1356,10 +1356,8 @@ static void make_duplis_faces(const DupliContext *ctx)
     fdd.em = em;
     fdd.vert_positions_deform = vert_positions_deform;
     fdd.has_orco = !vert_positions_deform.is_empty();
-    fdd.has_uvs = (uv_idx != -1);
-    fdd.cd_loop_uv_offset = (uv_idx != -1) ?
-                                CustomData_get_n_offset(&em->bm->ldata, CD_PROP_FLOAT2, uv_idx) :
-                                -1;
+    fdd.has_uvs = (uv_offset != -1);
+    fdd.cd_loop_uv_offset = uv_offset;
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_editmesh);
   }
   else {
@@ -1372,9 +1370,7 @@ static void make_duplis_faces(const DupliContext *ctx)
     fdd.faces = mesh_eval->faces();
     fdd.corner_verts = mesh_eval->corner_verts();
     fdd.vert_positions = mesh_eval->vert_positions();
-    fdd.uv_map = (uv_idx != -1) ? (const float2 *)CustomData_get_layer_n(
-                                      &mesh_eval->corner_data, CD_PROP_FLOAT2, uv_idx) :
-                                  nullptr;
+    fdd.uv_map = uv_map.is_empty() ? nullptr : uv_map.data();
     fdd.orco = (const float (*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
 
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_mesh);
