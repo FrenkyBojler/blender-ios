@@ -1,2 +1,3 @@
 Referenced by pull request #134197, Fix: Geometry Nodes: heap-use-after-free
 Referenced by issue #148251, Grease Pencil: Resample Curve node no longer works
+Referenced by commit f2a55c863be7830c73685f36d7738892c99a6b06, Fix #148251: Resample Curve node broken for Grease Pencil
