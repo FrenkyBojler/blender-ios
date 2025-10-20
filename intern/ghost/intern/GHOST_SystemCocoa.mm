@@ -1675,7 +1675,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
              * second time, leading to a visual jump. Ignore these events by returning early.
              * See PR #148158 for details. */
             const NSTimeInterval timestamp = event.timestamp;
-            const NSTimeInterval stale_event_threshold = 0.005;
+            const NSTimeInterval stale_event_threshold = 0.003;
             if (timestamp < (last_warp_timestamp_ + stale_event_threshold)) {
               break;
             }
