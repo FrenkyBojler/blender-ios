@@ -1014,7 +1014,6 @@ void ED_spacetype_action()
 
   art->init = action_channel_region_init;
   art->draw = action_channel_region_draw;
-  art->poll = action_region_poll_hide_in_timeline;
   art->listener = action_channel_region_listener;
   art->message_subscribe = saction_channel_region_message_subscribe;
 

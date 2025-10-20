@@ -3944,8 +3944,9 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
   return 1;
 }
 
-/* Summary channel for DopeSheet in Timeline mode. */
-static void animdata_filter_timeline_summary(bAnimContext *ac,
+/* Summary channel for DopeSheet in Timeline mode.
+ * Returns whether the sub-channels should be visited. */
+static bool animdata_filter_timeline_summary(bAnimContext *ac,
                                              ListBase *anim_data,
                                              const eAnimFilter_Flags filter_mode,
                                              size_t *items)
@@ -3954,8 +3955,9 @@ static void animdata_filter_timeline_summary(bAnimContext *ac,
   BLI_assert(ac->dopesheet_mode == SACTCONT_TIMELINE);
 
   if ((filter_mode & ANIMFILTER_LIST_CHANNELS) == 0) {
-    /* Don't return a summary line when the caller indicates it doesn't want "channels". */
-    return;
+    /* Don't return a summary line when the caller indicates it doesn't want "channels". That does
+     * mean the caller wants other data, so sub-channels should be visited. */
+    return true;
   }
 
   bAnimListElem *ale = make_new_animlistelem(ac->bmain, ac, ANIMTYPE_SUMMARY, nullptr, nullptr);
@@ -3963,6 +3965,8 @@ static void animdata_filter_timeline_summary(bAnimContext *ac,
 
   BLI_addtail(anim_data, ale);
   (*items)++;
+
+  return (ac->ads->flag & ADS_FLAG_SUMMARY_COLLAPSED) == 0;
 }
 
 /* ......................... */
@@ -4194,17 +4198,9 @@ size_t ANIM_animdata_filter(bAnimContext *ac,
        * can access it via `ac->ads`. Because the anim filtering code is quite complex, I (Sybren)
        * want to keep this assertion in place. */
       BLI_assert_msg(ac->ads == data, "ANIMCONT_TIMELINE");
-
-      animdata_filter_timeline_summary(ac, anim_data, filter_mode, &items);
-
-      if ((filter_mode & ANIMFILTER_LIST_CHANNELS) == 0) {
-        /* If the caller doesn't want "channels", this call is to get the actual animation data,
-         * and not just the summary line. This can be the "get the things to summarize" call, or a
-         * tool that wants to know which data to operate on. */
-        BLI_assert(filter_mode & ANIMFILTER_DATA_VISIBLE);
+      if (animdata_filter_timeline_summary(ac, anim_data, filter_mode, &items)) {
         items += animdata_filter_timeline(ac, anim_data, filter_mode);
       }
-
       break;
     }
 
