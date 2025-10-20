@@ -264,7 +264,6 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
     SACT_ITEM_GPENCIL,
     SACT_ITEM_MASK,
     SACT_ITEM_CACHEFILE,
-    SACT_ITEM_TIMELINE,
     {0, nullptr, 0, nullptr, nullptr},
 };
 #endif
