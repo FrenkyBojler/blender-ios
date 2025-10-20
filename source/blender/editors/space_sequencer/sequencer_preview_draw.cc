@@ -1658,8 +1658,13 @@ static void sequencer_preview_draw_overlays(const bContext *C,
         space_sequencer, view_settings, display_settings, *input_ibuf, timeline_frame);
   }
   if (has_gpu_scope) {
-    update_gpu_scopes(
-        input_ibuf, current_texture, view_settings, display_settings, space_sequencer, scene, timeline_frame);
+    update_gpu_scopes(input_ibuf,
+                      current_texture,
+                      view_settings,
+                      display_settings,
+                      space_sequencer,
+                      scene,
+                      timeline_frame);
   }
 
   preview_draw_overlay_begin(region);

@@ -78,7 +78,9 @@ gpu::Texture *preview_cache_get_gpu_texture(Scene *scene, int timeline_frame, in
   }
   cache->tick_count++;
   for (PreviewCacheItem &item : cache->items) {
-    if (item.timeline_frame == timeline_frame && item.display_channel == display_channel && item.texture != nullptr) {
+    if (item.timeline_frame == timeline_frame && item.display_channel == display_channel &&
+        item.texture != nullptr)
+    {
       item.last_used = cache->tick_count;
       return item.texture;
     }
@@ -86,7 +88,9 @@ gpu::Texture *preview_cache_get_gpu_texture(Scene *scene, int timeline_frame, in
   return nullptr;
 }
 
-gpu::Texture *preview_cache_get_gpu_display_texture(Scene *scene, int timeline_frame, int display_channel)
+gpu::Texture *preview_cache_get_gpu_display_texture(Scene *scene,
+                                                    int timeline_frame,
+                                                    int display_channel)
 {
   PreviewCache *cache = query_preview_cache(scene);
   if (cache == nullptr) {
@@ -94,7 +98,9 @@ gpu::Texture *preview_cache_get_gpu_display_texture(Scene *scene, int timeline_f
   }
   cache->tick_count++;
   for (PreviewCacheItem &item : cache->items) {
-    if (item.timeline_frame == timeline_frame && item.display_channel == display_channel && item.display_texture != nullptr) {
+    if (item.timeline_frame == timeline_frame && item.display_channel == display_channel &&
+        item.display_texture != nullptr)
+    {
       item.last_used = cache->tick_count;
       return item.display_texture;
     }
@@ -130,7 +136,10 @@ static PreviewCacheItem *find_slot(PreviewCache *cache, int timeline_frame, int 
   return best_slot;
 }
 
-void preview_cache_set_gpu_texture(Scene *scene, int timeline_frame, int display_channel, gpu::Texture *texture)
+void preview_cache_set_gpu_texture(Scene *scene,
+                                   int timeline_frame,
+                                   int display_channel,
+                                   gpu::Texture *texture)
 {
   PreviewCache *cache = ensure_preview_cache(scene);
   if (cache == nullptr || texture == nullptr) {
@@ -150,7 +159,10 @@ void preview_cache_set_gpu_texture(Scene *scene, int timeline_frame, int display
   slot->texture = texture;
 }
 
-void preview_cache_set_gpu_display_texture(Scene *scene, int timeline_frame, int display_channel, gpu::Texture *texture)
+void preview_cache_set_gpu_display_texture(Scene *scene,
+                                           int timeline_frame,
+                                           int display_channel,
+                                           gpu::Texture *texture)
 {
   PreviewCache *cache = ensure_preview_cache(scene);
   if (cache == nullptr || texture == nullptr) {
