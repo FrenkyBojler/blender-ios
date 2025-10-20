@@ -1635,15 +1635,6 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
         }
         case GHOST_kGrabWrap: {
           /* Wrap cursor at area/window boundaries. */
-          const NSTimeInterval timestamp = event.timestamp;
-          const NSTimeInterval repeat_threshold = 0.003;
-          if (timestamp < (last_warp_timestamp_ + repeat_threshold)) {
-            /* After warping, we can still receive unwrapped mouse events at very close timestamps,
-             * causing the wrapping to be applied a second time, leading to a visual jump.
-             * Ignore these events by returning early. */
-            break;
-          }
-
           GHOST_Rect bounds, windowBounds, correctedBounds;
 
           /* fall back to window bounds */
@@ -1663,9 +1654,9 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
           int32_t x_accum, y_accum;
           window->getCursorGrabAccum(x_accum, y_accum);
 
-          /* Get the current software mouse pointer location, unaffected by pending events that may
-           * still be referring to a location before warping, which would cause the warping logic
-           * to be applied multiple times. */
+          /* Get the current software mouse pointer location, theoretically unaffected by pending
+           * events that may still be referring to a location before warping. In practice extra
+           * logic still need to be used to prevent interferences from stale events. */
           const NSPoint mousePos = event.window.mouseLocationOutsideOfEventStream;
           /* Casting. */
           const int32_t x_mouse = mousePos.x;
@@ -1679,6 +1670,16 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 
           /* Set new cursor position. */
           if (x_mouse != warped_x_mouse || y_mouse != warped_y_mouse) {
+            /* After warping, we can still receive unwrapped mouse that occured slightly before or
+             * after the current event at close timestamps, causing the wrapping to be applied a
+             * second time, leading to a visual jump. Ignore these events by returning early.
+             * See PR #148158 for details. */
+            const NSTimeInterval timestamp = event.timestamp;
+            const NSTimeInterval stale_event_threshold = 0.005;
+            if (timestamp < (last_warp_timestamp_ + stale_event_threshold)) {
+              break;
+            }
+
             int32_t warped_x, warped_y;
             window->clientToScreenIntern(warped_x_mouse, warped_y_mouse, warped_x, warped_y);
             setMouseCursorPosition(warped_x, warped_y); /* wrap */
