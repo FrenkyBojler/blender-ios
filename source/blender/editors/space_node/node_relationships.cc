@@ -2555,27 +2555,52 @@ struct NodeEndpoint {
   {
     return start_node != nullptr && end_node != nullptr;
   }
-  // todo 起点和终点转接点可能不兼容, 目前是兼容的转接点才被加入候选
-  bool are_reroute() const
+
+  bool is_reroute() const
   {
-    return start_node->is_reroute() && end_node->is_reroute();
+    return start_node->is_reroute() && start_node == end_node;
   }
 };
 
-static bool endpoint_are_compatible(bNodeTree &tree,
-                                    const bNodeSocket &input,
-                                    const bNodeSocket &output)
+static bool is_selected_valid_chain(VectorSet<bNode *> &selected_nodes,
+                                    bNode &start_node,
+                                    bNode &end_node)
 {
-  if (tree.typeinfo->validate_link &&
-      tree.typeinfo->validate_link(eNodeSocketDatatype(input.type),
-                                   eNodeSocketDatatype(output.type)))
-  {
-    return true;
+  if (&start_node == &end_node) {
+    return true;  // 如果起点和终点是同一个节点, 路径当然存在.
   }
+
+  Vector<bNode *> to_visit;  // 待访问的节点 "栈"
+  to_visit.append(&start_node);
+
+  VectorSet<bNode *> visited;  // 已经访问过的节点, 防止死循环
+  visited.add(&start_node);
+
+  while (!to_visit.is_empty()) {
+    bNode *current_node = to_visit.pop_last();
+
+    for (bNodeSocket *out_sock : current_node->output_sockets()) {
+      for (bNodeSocket *linked_sock : out_sock->directly_linked_sockets()) {
+        bNode &next_node = linked_sock->owner_node();
+        // 如果下一个节点就是终点, 我们成功了!
+        if (&next_node == &end_node) {
+          return true;
+        }
+        // 关键检查: 下一个节点必须在允许的 "选中节点" 集合里.
+        if (!selected_nodes.contains(&next_node)) {
+          continue;  // 如果不在, 这条路不通, 换下一条.
+        }
+        // 如果下一个节点合法且没被访问过, 就加入待访问列表.
+        if (visited.add(&next_node)) {
+          to_visit.append(&next_node);
+        }
+      }
+    }
+  }
+
   return false;
 }
 
-// todo: 特殊情况: 选择了两个没连线的节点,是区域输入和输出
 static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, bool is_new_node)
 {
   NodeEndpoint result{};
@@ -2584,23 +2609,17 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   Vector<bNode *> end_candidates;
 
   bool find_first = false;
-  Vector<bNode *> selected_nodes;
-  for (bNode *node : tree.all_nodes()) {
-    if (!(node->flag & SELECT)) {
-      continue;
-    }
-    selected_nodes.append(node);
+
+  VectorSet<bNode *> selected_nodes = transform::get_transformed_nodes(tree);
+  for (bNode *node : selected_nodes) {
     if (!find_first) {
       result.bounds = node->runtime->draw_bounds;
       find_first = true;
     }
     else {
-      // todo 是否有更简单的凸包算法,线段和凸包是否相交
       BLI_rctf_union(&result.bounds, &node->runtime->draw_bounds);
     }
 
-    // ! todo 如果只选了链条的起始和结束,中间虽然没选 也会被判定为正常啊
-    // ! todo 节点没被选中,但节点框被选中了
     bool all_output_not_linked = false;
     for (bNodeSocket *sock_out : node->output_sockets()) {
       all_output_not_linked = sock_out->directly_linked_sockets().is_empty();
@@ -2617,10 +2636,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     return {};
   }
   bNode *end_node = end_candidates[0];
-  // const bNodeSocket *main_output = get_main_socket(tree, *end_node, SOCK_OUT);
 
-  // todo 或者第一个输入接口没连线的节点也应该加进候选, 但是最高优先级的只应该有一个
-  // todo 但是终点多个同高优先级,如果有区域输出,那就是它了
   int max_priority = INT_MIN;
   for (bNode *node : selected_nodes) {
     const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
@@ -2629,20 +2645,18 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     }
     bool valid_start;
     if (!is_new_node) {
-      // 不确定是改这里,还是改合并字符串让多输入优先级更高
+      // ? todo 和 main in 同类型的 接口也要没连线
       valid_start = !main_input->is_directly_linked();
     }
     else {
       valid_start = true;
-      for (const bNodeSocket *linked_sock : main_input->directly_linked_sockets()) {
-        if (linked_sock->owner_node().flag & SELECT) {
+      for (const bNodeLink  *link : main_input->directly_linked_links()) {
+        if (selected_nodes.contains(link->fromnode)) {
           valid_start = false;
           break;
         }
       }
     }
-    // todo 不知哪里导致采样编号无法插入到几何数据线上了,或许不应是替换而是新建线?
-    // if (valid_start && endpoint_are_compatible(tree, *main_input, *main_output)) {
     if (valid_start) {
       int priority = get_main_socket_priority(main_input);
       start_candidates_by_priority.lookup_or_add_default(priority).append(node);
@@ -2657,50 +2671,47 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   if (start_candidates.size() != 1) {
     return {};
   }
-  result.start_node = start_candidates[0];
+
+  bNode *start_node = start_candidates[0];
+  if (!is_selected_valid_chain(selected_nodes, *start_node, *end_node)) {
+    return {};
+  }
+
+  result.start_node = start_node;
   result.end_node = end_node;
   result.selected_count = selected_nodes.size();
   return result;
 }
 
-static bool node_endpoint_can_be_inserted_on_link(bNodeTree &tree,
-                                                  NodeEndpoint &endpoint,
-                                                  const bNodeLink &link)
+static bool endpoint_start_is_compatible_to_link(bNodeTree &tree,
+                                                 NodeEndpoint &endpoint,
+                                                 const bNodeLink &link)
 {
   const bNodeSocket *main_input = get_main_socket(tree, *endpoint.start_node, SOCK_IN);
-  // ! todo 原先采样编号可以插入然后替换连线,但我改成 SOCK_OUT 了
-  const bNodeSocket *main_output = get_main_socket(tree, *endpoint.end_node, SOCK_OUT);
-  if (ELEM(nullptr, main_input, main_output)) {
+  if (main_input == nullptr) {
     return false;
   }
-  if (endpoint.are_reroute()) {
+  if (endpoint.is_reroute()) {
     return true;
   }
-  if (!tree.typeinfo->validate_link) {
-    return true;
-  }
-  if (!tree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
-                                    eNodeSocketDatatype(main_input->type)))
+  if (tree.typeinfo->validate_link &&
+      tree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
+                                   eNodeSocketDatatype(main_input->type)))
   {
-    return false;
+    return true;
   }
-  // if (!tree.typeinfo->validate_link(eNodeSocketDatatype(main_output->type),
-  //                                   eNodeSocketDatatype(link.tosock->type)))
-  // {
-  //   return false;
-  // }
-  return true;
+  return false;
 }
 
-static bool end_node_can_be_inserted_on_link(bNodeTree &tree,
-                                             NodeEndpoint &endpoint,
-                                             const bNodeLink &link)
+static bool endpoint_end_is_compatible_to_link(bNodeTree &tree,
+                                               NodeEndpoint &endpoint,
+                                               const bNodeLink &link)
 {
   const bNodeSocket *main_output = get_main_socket(tree, *endpoint.end_node, SOCK_OUT);
   if (main_output == nullptr) {
     return false;
   }
-  if (endpoint.are_reroute()) {
+  if (endpoint.is_reroute()) {
     return true;
   }
   if (tree.typeinfo->validate_link &&
@@ -2735,9 +2746,6 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   for (bNodeSocket *socket : endpoint.end_node->output_sockets()) {
     already_linked_sockets.extend(socket->directly_linked_sockets());
   }
-  // if (!is_new_node && !already_linked_sockets.is_empty()) {
-  //   return;
-  // }
 
   /* Find link to select/highlight. */
   bNodeLink *selink = nullptr;
@@ -2748,21 +2756,21 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   float node_xy[2] = {local_cursor.x, local_cursor.y};
   BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
 
-  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links)
-  {
+  VectorSet<bNode *> nodes = transform::get_transformed_nodes(node_tree);
+
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
     if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
       continue;
     }
-    /* Don't insert on a link that is connected to selected nodees already. */
-    if ((link->fromnode && link->fromnode->flag & SELECT) ||
-        (link->tonode && link->tonode->flag & SELECT))
+    /* Don't insert on a link that is connected to selected nodes already. */
+    if ((link->fromnode && nodes.contains(link->fromnode)) ||
+        (link->tonode && nodes.contains(link->tonode)))
     {
       continue;
     }
     if (is_new_node && !already_linked_sockets.is_empty()) {
       /* Only allow links coming from or going to the already linked socket after
        * link-drag-search. */
-      // todo 支持多输入的话还要考虑不要造成循环线
       bool is_linked_to_linked = false;
       for (const bNodeSocket *socket : already_linked_sockets) {
         if (ELEM(socket, link->fromsock, link->tosock)) {
@@ -2782,9 +2790,9 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     /* Loop over link coords to find shortest dist to upper left node edge of a intersected
      * line segment. */
     for (int i = 0; i < NODE_LINK_RESOL; i++) {
-      /* Check if the node rectangle intersects the line from this point to next one. */
+      /* Check if the nodes total bounds intersects the line from this point to next one. */
       if (BLI_rctf_isect_segment(&endpoint.bounds, coords[i], coords[i + 1])) {
-        /* Store the shortest distance to the upper left edge of all intersections found so
+        /* Store the shortest distance to the cursor position of all intersections found so
          * far. */
 
         /* To be precise coords should be clipped by `select->draw_bounds`, but not done
@@ -2802,10 +2810,11 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
-    if (!attach_enabled || !node_endpoint_can_be_inserted_on_link(node_tree, endpoint, *selink)) {
+    if (!attach_enabled || !endpoint_start_is_compatible_to_link(node_tree, endpoint, *selink)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
-    if (is_new_node && !end_node_can_be_inserted_on_link(node_tree, endpoint, *selink)) {
+    // 匹配的输入端已经连了线了
+    if (is_new_node && !endpoint_end_is_compatible_to_link(node_tree, endpoint, *selink)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2897,7 +2906,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     best_output = get_main_socket(ntree, *endpoint.end_node, SOCK_OUT);
   }
 
-  if (!endpoint.are_reroute()) {
+  if (!endpoint.is_reroute()) {
     /* Ignore main sockets when the types don't match. */
     if (best_input != nullptr && ntree.typeinfo->validate_link != nullptr &&
         !ntree.typeinfo->validate_link(eNodeSocketDatatype(old_link->fromsock->type),
@@ -2924,10 +2933,6 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     old_link->fromnode = endpoint.end_node;
     old_link->fromsock = best_output;
     BKE_ntree_update_tag_link_changed(&ntree);
-  }
-  else {
-    // todo不应删旧线,应设INVALID,如Geo接口添加了采样编号
-    // bke::node_remove_link(&ntree, *old_link);
   }
 
   if (best_input != nullptr) {
@@ -3099,7 +3104,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
    * so `totr_insert` is used to get the correct world-space coords. */
   // rctf totr_insert;
   // node_to_updated_rect(insert, totr_insert);
-  // todo 考虑整体? 直接用传递来的边界好像也行
+  // todo: do like seems no problem
   rctf totr_insert = iofsd->total_rct;
 
   /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
@@ -3186,7 +3191,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
     /* flag all parents of insert as offset to prevent them from being offset */
     for (bNode *node : ntree->all_nodes()) {
-      if (node->flag & NODE_SELECT) {
+      if (node->flag & SELECT) {
         bke::node_parents_iterator(node, node_parents_offset_flag_enable_cb, nullptr);
       }
     }

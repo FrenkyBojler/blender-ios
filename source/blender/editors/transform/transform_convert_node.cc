@@ -128,7 +128,7 @@ static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transfo
   return false;
 }
 
-static VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree)
+VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree)
 {
   VectorSet<bNode *> nodes = node_tree.all_nodes();
 

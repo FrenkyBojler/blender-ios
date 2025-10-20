@@ -11,7 +11,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_input<decl::String>("Delimiter");
-  b.add_input<decl::String>("Strings").multi_input().hide_value();
+  b.add_input<decl::String>("Strings").multi_input().hide_value().is_default_link_socket();
   b.add_output<decl::String>("String").align_with_previous();
 }
 

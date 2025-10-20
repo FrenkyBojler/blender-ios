@@ -38,6 +38,12 @@ namespace blender::bke {
 class bNodeTreeZone;
 }
 
+namespace blender::ed::transform {
+
+VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree);
+
+}  // namespace blender::ed::transform
+
 namespace blender::ed::space_node {
 
 void tree_update(const bContext *C);
@@ -51,8 +57,8 @@ void snode_set_context(const bContext &C);
 VectorSet<bNode *> get_selected_nodes(bNodeTree &node_tree);
 
 /**
- * \param is_new_node: If the node was just inserted, it is allowed to be inserted in a link, even
- * if it is linked already (after link-drag-search).
+ * \param is_new_node: If the node was just inserted, it is allowed to be inserted in a link,
+ * even if it is linked already (after link-drag-search).
  */
 void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,
