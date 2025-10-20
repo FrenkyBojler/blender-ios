@@ -379,7 +379,7 @@ inline int edge_other_vert(const int2 edge, const int vert)
 
 /** \} */
 
-bool is_uv_map(AttributeMetaData &meta_data);
+bool is_uv_map(const AttributeMetaData &meta_data);
 bool is_uv_map(const std::optional<AttributeMetaData> &meta_data);
 
 }  // namespace mesh
