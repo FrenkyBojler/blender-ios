@@ -265,7 +265,21 @@ static const CustomData *get_vert_custom_data(const Mesh *mesh)
     BLI_assert(mesh->runtime->edit_mesh->bm != nullptr);
     return &mesh->runtime->edit_mesh->bm->vdata;
   }
-  return &mesh->vert_data;
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  return bke::mesh::is_color_attribute(attributes.lookup_meta_data(mesh.active_color_attribute));
+}
+
+static bool mesh_has_uv_map_attribute(const Mesh &mesh)
+{
+  if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
+    const BMesh &bm = *mesh.runtime->edit_mesh->bm;
+    const BMDataLayerLookup attr = BM_data_layer_lookup(bm, mesh.active_uv_map_name());
+    return attr && bke::mesh::is_uv_map(bke::AttributeMetaData{attr.domain, attr.type});
+  }
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+      mesh.active_uv_map_name());
+  return bke::mesh::is_uv_map(*meta_data);
 }
 
 ObjectState::ObjectState(const DRWContext *draw_ctx,

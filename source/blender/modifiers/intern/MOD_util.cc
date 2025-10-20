@@ -90,9 +90,9 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
       const OffsetIndices faces = mesh->faces();
       const Span<int> corner_verts = mesh->corner_verts();
       BLI_bitmap *done = BLI_BITMAP_NEW(verts_num, __func__);
-      char uvname[MAX_CUSTOMDATA_LAYER_NAME];
-      CustomData_validate_layer_name(
-          &mesh->corner_data, CD_PROP_FLOAT2, dmd->uvlayer_name, uvname);
+      const StringRef uvname = uv_map_names.contains(dmd->uvlayer_name) ?
+                                   dmd->uvlayer_name :
+                                   mesh->active_uv_map_name();
       const bke::AttributeAccessor attributes = mesh->attributes();
       const VArraySpan uv_map = *attributes.lookup_or_default<float2>(
           uvname, bke::AttrDomain::Corner, float2(0));

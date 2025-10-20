@@ -83,7 +83,12 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
                                                                              &mr.mesh->corner_data;
   int v_len = mr.corners_num;
   const VectorSet<StringRef> uv_layers = mesh_extract_uv_format_init(
-      &format, cache, cd_ldata, mr.extract_type);
+      &format,
+      cache,
+      (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->ldata : &mr.mesh->corner_data,
+      mr.mesh->active_uv_map_name(),
+      mr.mesh->default_uv_map_name(),
+      mr.extract_type);
   if (uv_layers.is_empty()) {
     /* VBO will not be used, only allocate minimum of memory. */
     v_len = 1;
@@ -143,7 +148,12 @@ gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
   GPUVertFormat format = {0};
 
   const VectorSet<StringRef> uv_layers = mesh_extract_uv_format_init(
-      &format, cache, &coarse_mesh->corner_data, MeshExtractType::Mesh);
+      &format,
+      cache,
+      &coarse_mesh->corner_data,
+      coarse_mesh->active_uv_map_name(),
+      coarse_mesh->default_uv_map_name(),
+      MeshExtractType::Mesh);
 
   uint v_len = subdiv_cache.num_subdiv_loops;
   if (uv_layers.is_empty()) {

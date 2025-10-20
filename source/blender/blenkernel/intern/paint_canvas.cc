@@ -83,7 +83,10 @@ int BKE_paint_canvas_uvmap_layer_index_get(const PaintModeSettings *settings, Ob
       }
 
       const Mesh *mesh = static_cast<Mesh *>(ob->data);
-      return CustomData_get_active_layer_index(&mesh->corner_data, CD_PROP_FLOAT2);
+      if (!has_uv_map_attribute(*mesh, mesh->active_uv_map_name())) {
+        return std::nullopt;
+      }
+      return mesh->active_uv_map_name();
     }
     case PAINT_CANVAS_SOURCE_MATERIAL: {
       /* Use uv map of the canvas. */

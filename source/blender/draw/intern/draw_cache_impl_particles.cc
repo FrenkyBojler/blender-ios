@@ -782,8 +782,8 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   uint *col_id = nullptr;
   int num_uv_layers = 0;
   int num_col_layers = 0;
-  int active_uv = 0;
-  int active_col = 0;
+  const StringRef active_uv = psmd->mesh_final->default_uv_map_name();
+  const char *active_col = psmd->mesh_final->active_color_attribute;
   const MTFace **mtfaces = nullptr;
   const MCol **mcols = nullptr;
   float (**parent_uvs)[2] = nullptr;

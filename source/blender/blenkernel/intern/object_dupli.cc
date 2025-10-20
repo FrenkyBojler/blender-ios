@@ -1334,6 +1334,7 @@ static void make_child_duplis_faces_from_editmesh(const DupliContext *ctx,
 
 static void make_duplis_faces(const DupliContext *ctx)
 {
+  using namespace blender;
   Object *parent = ctx->object;
 
   /* Gather mesh info. */
@@ -1348,7 +1349,8 @@ static void make_duplis_faces(const DupliContext *ctx)
   FaceDupliData_Params fdd_params = {ctx, (parent->transflag & OB_DUPLIFACES_SCALE) != 0};
 
   if (em != nullptr) {
-    const int uv_idx = CustomData_get_render_layer(&em->bm->ldata, CD_PROP_FLOAT2);
+    const int uv_offset = CustomData_get_offset_named(
+        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->default_uv_map_name());
     FaceDupliData_EditMesh fdd{};
     fdd.params = fdd_params;
     fdd.em = em;
@@ -1361,7 +1363,9 @@ static void make_duplis_faces(const DupliContext *ctx)
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_editmesh);
   }
   else {
-    const int uv_idx = CustomData_get_render_layer(&mesh_eval->corner_data, CD_PROP_FLOAT2);
+    const bke::AttributeAccessor attributes = mesh_eval->attributes();
+    const VArraySpan uv_map = *attributes.lookup<float2>(mesh_eval->default_uv_map_name(),
+                                                         bke::AttrDomain::Corner);
     FaceDupliData_Mesh fdd{};
     fdd.params = fdd_params;
     fdd.totface = mesh_eval->faces_num;

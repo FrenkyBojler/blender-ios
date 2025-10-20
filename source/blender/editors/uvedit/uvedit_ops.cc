@@ -1735,7 +1735,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
 
     bool changed = false;
 
-    const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    const StringRef active_uv_name = mesh.active_uv_map_name();
     if (em->bm->totvertsel == 0) {
       continue;
     }
