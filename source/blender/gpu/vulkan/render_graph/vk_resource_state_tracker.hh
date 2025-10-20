@@ -188,6 +188,7 @@ class VKResourceStateTracker {
    * the resource state can be tracked during its lifetime.
    */
   void add_image(VkImage vk_image, bool use_subresource_tracking, const char *name = nullptr);
+  void add_swapchain_image(VkImage vk_image, const char *name = nullptr);
 
   /**
    * Remove an registered image.
