@@ -1094,6 +1094,7 @@ class NODE_PT_node_tree_properties(Panel):
                 col = body.column(align=True)
                 col.prop(group, "is_modifier")
                 col.prop(group, "is_tool")
+                col.prop(group, "is_brush")
 
 
 class NODE_PT_node_tree_animation(Panel):

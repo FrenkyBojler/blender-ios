@@ -673,6 +673,9 @@ static bool rna_Brush_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
   if (ntree->type != NTREE_GEOMETRY) {
     return false;
   }
+  if (!RNA_boolean_get(&value, "is_brush")) {
+    return false;
+  }
   return true;
 }
 

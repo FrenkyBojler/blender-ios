@@ -2643,7 +2643,12 @@ static bool space_node_node_geometry_nodes_poll(const SpaceNode &snode, const bN
       }
       return true;
     case SNODE_GEOMETRY_BRUSH:
-      // TODO: Add some filtering based on asset traits.
+      if (!ntree.geometry_node_asset_traits) {
+        return false;
+      }
+      if ((ntree.geometry_node_asset_traits->flag & GEO_NODE_ASSET_BRUSH) == 0) {
+        return false;
+      }
       return true;
   }
   return false;

@@ -978,6 +978,9 @@ static bNodeTree *node_group_add_for_brush(Main *bmain,
     float_data->value = 1.0f;
   }
 
+  PointerRNA brush_rna_ptr = RNA_id_pointer_create(&node_group->id);
+  RNA_boolean_set(&brush_rna_ptr, "is_brush", true);
+
   bke::node_add_node(nullptr, *node_group, "NodeGroupOutput");
   BKE_ntree_update_after_single_tree_change(*bmain, *node_group);
   return node_group;
