@@ -411,7 +411,7 @@ void seq_prefetch_free(Scene *scene)
 
 static blender::VectorSet<Strip *> query_scene_strips(Editing *ed)
 {
-  blender::Map<const Scene *, VectorSet<Strip *>> strips_by_scene = lookup_strips_by_scene_map_get(
+  blender::Map<const Scene *, VectorSet<Strip *>> &strips_by_scene = lookup_strips_by_scene_map_get(
       ed);
 
   VectorSet<Strip *> scene_strips;
