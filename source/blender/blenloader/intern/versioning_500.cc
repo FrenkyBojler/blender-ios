@@ -3987,7 +3987,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 112)) {
-    /* The ownership of those pointers was moved to #CustomData in #customdata_version_242 and they
+    /* The ownership of these pointers was moved to #CustomData in #customdata_version_242 and they
      * became deprecated in 05952aa94d33ee when we started using implicit-sharing. However, they
      * were never cleared and became dangling pointers. */
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
