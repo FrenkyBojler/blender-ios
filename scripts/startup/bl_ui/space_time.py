@@ -40,6 +40,7 @@ class TIME_PT_playhead_snapping(Panel):
 def playback_controls(layout, context):
     st = context.space_data
     is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+    is_timeline = st.type == 'DOPESHEET_EDITOR' and st.mode == 'TIMELINE'
 
     scene = context.scene if not is_sequencer else context.sequencer_scene
     tool_settings = scene.tool_settings if scene else None
@@ -51,7 +52,8 @@ def playback_controls(layout, context):
             text="Playback",
         )
 
-    if tool_settings:
+    if tool_settings and not is_timeline:
+        # The Keyframe settings are not exposed in the Timeline view.
         icon_keytype = 'KEYTYPE_{:s}_VEC'.format(tool_settings.keyframe_type)
         layout.popover(
             panel="TIME_PT_keyframing_settings",
@@ -154,7 +156,6 @@ class TIME_MT_view(Menu):
         layout.prop(st, "show_locked_time")
         layout.separator()
         layout.prop(scene, "show_keys_from_selected_only")
-        layout.prop(st.dopesheet, "show_only_errors")
         layout.separator()
         layout.menu("DOPESHEET_MT_cache")
         layout.separator()
