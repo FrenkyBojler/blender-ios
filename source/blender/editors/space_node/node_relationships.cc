@@ -2581,7 +2581,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
 {
   NodeEndpoint result{};
   rctf bounds{};
-  Vector<bNode *> start_candidates;
+  Map<int, Vector<bNode *>> start_candidates_by_priority;
   Vector<bNode *> end_candidates;
 
   bool find_first = false;
@@ -2618,9 +2618,11 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     return {};
   }
   bNode *end_node = end_candidates[0];
-  const bNodeSocket *main_output = get_main_socket(tree, *end_node, SOCK_OUT);
+  // const bNodeSocket *main_output = get_main_socket(tree, *end_node, SOCK_OUT);
 
   // todo 或者第一个输入接口没连线的节点也应该加进候选, 但是最高优先级的只应该有一个
+  // todo 但是终点多个同高优先级,如果有区域输出,那就是它了
+  int max_priority = INT_MIN;
   for (bNode *node : selected_nodes) {
     const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
     if (main_input == nullptr) {
@@ -2641,11 +2643,18 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
       }
     }
     // todo 不知哪里导致采样编号无法插入到几何数据线上了,或许不应是替换而是新建线?
-    if (valid_start && endpoint_are_compatible(tree, *main_input, *main_output)) {
-      start_candidates.append(node);
+    // if (valid_start && endpoint_are_compatible(tree, *main_input, *main_output)) {
+    if (valid_start) {
+      int priority = get_main_socket_priority(main_input);
+      start_candidates_by_priority.lookup_or_add_default(priority).append(node);
+      max_priority = max_ii(max_priority, priority);
     }
   }
 
+  if (start_candidates_by_priority.is_empty()) {
+    return {};
+  }
+  const Vector<bNode *> &start_candidates = start_candidates_by_priority.lookup(max_priority);
   if (start_candidates.size() != 1) {
     return {};
   }
@@ -2660,6 +2669,7 @@ static bool node_endpoint_can_be_inserted_on_link(bNodeTree &tree,
                                                   const bNodeLink &link)
 {
   const bNodeSocket *main_input = get_main_socket(tree, *endpoint.start_node, SOCK_IN);
+  // ! todo 原先采样编号可以插入然后替换连线,但我改成 SOCK_OUT 了
   const bNodeSocket *main_output = get_main_socket(tree, *endpoint.end_node, SOCK_OUT);
   if (ELEM(nullptr, main_input, main_output)) {
     return false;
@@ -2675,12 +2685,32 @@ static bool node_endpoint_can_be_inserted_on_link(bNodeTree &tree,
   {
     return false;
   }
-  if (!tree.typeinfo->validate_link(eNodeSocketDatatype(main_output->type),
-                                    eNodeSocketDatatype(link.tosock->type)))
-  {
+  // if (!tree.typeinfo->validate_link(eNodeSocketDatatype(main_output->type),
+  //                                   eNodeSocketDatatype(link.tosock->type)))
+  // {
+  //   return false;
+  // }
+  return true;
+}
+
+static bool end_node_can_be_inserted_on_link(bNodeTree &tree,
+                                             NodeEndpoint &endpoint,
+                                             const bNodeLink &link)
+{
+  const bNodeSocket *main_output = get_main_socket(tree, *endpoint.end_node, SOCK_OUT);
+  if (main_output == nullptr) {
     return false;
   }
-  return true;
+  if (endpoint.are_reroute()) {
+    return true;
+  }
+  if (tree.typeinfo->validate_link &&
+      tree.typeinfo->validate_link(eNodeSocketDatatype(main_output->type),
+                                   eNodeSocketDatatype(link.tosock->type)))
+  {
+    return true;
+  }
+  return false;
 }
 
 void node_insert_on_link_flags_set(SpaceNode &snode,
@@ -2774,6 +2804,9 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
     if (!attach_enabled || !node_endpoint_can_be_inserted_on_link(node_tree, endpoint, *selink)) {
+      selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
+    }
+    if (is_new_node && !end_node_can_be_inserted_on_link(node_tree, endpoint, *selink)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2895,7 +2928,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   }
   else {
     // todo不应删旧线,应设INVALID,如Geo接口添加了采样编号
-    bke::node_remove_link(&ntree, *old_link);
+    // bke::node_remove_link(&ntree, *old_link);
   }
 
   if (best_input != nullptr) {
@@ -2932,7 +2965,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 /** \name Node Insert Offset Operator
  * \{ */
 
-static int get_main_socket_priority(const bNodeSocket *socket)
+int get_main_socket_priority(const bNodeSocket *socket)
 {
   switch (eNodeSocketDatatype(socket->type)) {
     case SOCK_CUSTOM:
@@ -3052,6 +3085,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   bNodeTree *ntree = iofsd->ntree;
   // bNode &end_insert = *iofsd->end_insert;
   bNode &insert = *iofsd->insert;
+  // ! 好像用不到啊
   bNode &start_insert = *iofsd->start_insert;
   bNode *prev = iofsd->prev, *next = iofsd->next;
   bNode *init_parent = insert.parent; /* store old insert.parent for restoring later */
