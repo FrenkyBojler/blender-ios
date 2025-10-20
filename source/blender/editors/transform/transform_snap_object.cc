@@ -378,6 +378,13 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
     }
   }
 
+  /* For curves in edit mode, return the original curve data */
+  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT) &&
+      BKE_object_is_in_editmode(ob_eval))
+  {
+    return static_cast<const ID *>(ob_eval->data);
+  }
+
   /* Get evaluated mesh including subdivision. This may come from a mesh object,
    * or another object type that has modifiers producing a mesh. */
   if (Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval)) {
