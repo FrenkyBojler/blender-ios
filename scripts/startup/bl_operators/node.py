@@ -8,6 +8,7 @@ import bpy
 from bpy.types import (
     FileHandler,
     Operator,
+    NodeTree,
     PropertyGroup,
 )
 from bpy.props import (
@@ -15,6 +16,7 @@ from bpy.props import (
     CollectionProperty,
     EnumProperty,
     FloatVectorProperty,
+    PointerProperty,
     StringProperty,
     IntProperty,
 )
@@ -911,6 +913,13 @@ class NodeInterfaceOperator():
             return False
         return True
 
+    @classmethod
+    def get_node_tree(cls, context):
+        if hasattr(context, "node_tree_to_edit"):
+            return context.node_tree_to_edit
+        else:
+            return context.space_data.edit_tree
+
 
 class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
     """Add a new item to the interface"""
@@ -948,8 +957,8 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
             types_to_check.extend(t.__subclasses__())
 
     def execute(self, context):
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = self.get_node_tree(context)
+
         interface = tree.interface
 
         # Remember active item and position to determine target position.
@@ -976,7 +985,7 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
         return {'FINISHED'}
 
 
-class NODE_OT_interface_item_new_panel_toggle(Operator):
+class NODE_OT_interface_item_new_panel_toggle(NodeInterfaceOperator, Operator):
     '''Add a checkbox to the currently selected panel'''
     bl_idname = "node.interface_item_new_panel_toggle"
     bl_label = "New Panel Toggle"
@@ -994,8 +1003,7 @@ class NODE_OT_interface_item_new_panel_toggle(Operator):
     @classmethod
     def poll(cls, context):
         try:
-            snode = context.space_data
-            tree = snode.edit_tree
+            tree = cls.get_node_tree(context)
             interface = tree.interface
 
             active_item = interface.active
@@ -1013,8 +1021,7 @@ class NODE_OT_interface_item_new_panel_toggle(Operator):
             return False
 
     def execute(self, context):
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = self.get_node_tree(context)
 
         interface = tree.interface
         active_panel = interface.active
@@ -1036,14 +1043,12 @@ class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
         if not super().poll(context):
             return False
 
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = cls.get_node_tree(context)
         interface = tree.interface
         return interface.active is not None
 
     def execute(self, context):
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = self.get_node_tree(context)
         interface = tree.interface
         item = interface.active
 
@@ -1061,8 +1066,7 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = self.get_node_tree(context)
         interface = tree.interface
         item = interface.active
 
@@ -1095,8 +1099,7 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         if not super().poll(context):
             return False
 
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = cls.get_node_tree(context)
         interface = tree.interface
         active_item = interface.active
         if not active_item:
@@ -1118,8 +1121,7 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         return True
 
     def execute(self, context):
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = self.get_node_tree(context)
         interface = tree.interface
         active_item = interface.active
 
@@ -1153,8 +1155,7 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
         if not super().poll(context):
             return False
 
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = cls.get_node_tree(context)
         interface = tree.interface
         active_item = interface.active
         if not active_item or active_item.item_type != 'PANEL':
@@ -1166,8 +1167,7 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
         return first_item.is_panel_toggle
 
     def execute(self, context):
-        snode = context.space_data
-        tree = snode.edit_tree
+        tree = self.get_node_tree(context)
         interface = tree.interface
         active_item = interface.active
 
@@ -1188,6 +1188,50 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
         interface.active = first_item
 
         return {'FINISHED'}
+
+
+class NODE_OT_default_group_width_from_selected(Operator):
+    '''Set the default group width based on the width of currently selected nodes'''
+    bl_idname = "node.default_group_width_from_selected"
+    bl_label = "Set Default Group Width from Selected"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @staticmethod
+    def editable_nodes(context):
+        for node in context.selected_nodes:
+            if not hasattr(node, "node_tree"):
+                continue
+
+            tree = node.node_tree
+
+            if tree.is_editable and not tree.is_embedded_data:
+                yield node
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            return len(tuple(cls.editable_nodes(context)))
+
+        except AttributeError:
+            return False
+
+    def execute(self, context):
+        nodes = tuple(self.editable_nodes(context))
+        old_widths = tuple(n.node_tree.default_group_node_width for n in nodes)
+
+        for node in nodes:
+            tree = node.node_tree
+            tree.default_group_node_width = int(node.width)
+
+        new_widths = (n.node_tree.default_group_node_width for n in nodes)
+        updated_count = sum((old_width != new_width) for old_width, new_width in zip(old_widths, new_widths))
+
+        if updated_count > 0:
+            self.report({"INFO"}, f"Succesfully updated the default width of {updated_count} node groups.")
+            return {'FINISHED'}
+        else:
+            self.report({"WARNING"}, "Default node group widths are already up-to-date.")
+            return {'CANCELLED'}
 
 
 class NODE_OT_viewer_shortcut_set(Operator):
@@ -1336,6 +1380,7 @@ classes = (
     NODE_OT_interface_item_remove,
     NODE_OT_interface_item_make_panel_toggle,
     NODE_OT_interface_item_unlink_panel_toggle,
+    NODE_OT_default_group_width_from_selected,
     NODE_OT_tree_path_parent,
     NODE_OT_viewer_shortcut_get,
     NODE_OT_viewer_shortcut_set,

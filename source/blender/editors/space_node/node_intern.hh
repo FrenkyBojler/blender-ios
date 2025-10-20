@@ -477,5 +477,6 @@ void build_socket_tooltip(uiTooltipData &tip_data,
 /** node_tree_interface_ui.cc */
 
 void node_tree_interface_panel_register(ARegionType *art);
+void group_node_tree_interface_panel_register(ARegionType *art);
 
 }  // namespace blender::ed::space_node

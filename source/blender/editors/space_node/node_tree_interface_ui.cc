@@ -134,4 +134,42 @@ void node_tree_interface_panel_register(ARegionType *art)
   BLI_addtail(&art->paneltypes, pt);
 }
 
+static bool group_node_tree_interface_panel_poll(const bContext *C, PanelType *pt)
+{
+  if (!node_tree_interface_panel_poll(C, pt)) {
+    return false;
+  }
+
+  bNodeTree *ntree = CTX_wm_space_node(C)->edittree;
+  bNode *active_node = bke::node_get_active(*ntree);
+  return (active_node && active_node->is_group() && active_node->id);
+}
+
+static void group_node_tree_interface_panel_draw(const bContext *C, Panel *panel)
+{
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  bNodeTree &tree = *snode.edittree;
+  uiLayout &layout = *panel->layout;
+
+  bNode *active_node = bke::node_get_active(tree);
+  bNodeTree *node_tree = reinterpret_cast<bNodeTree *>(active_node->id);
+
+  PointerRNA tree_ptr = RNA_pointer_create_discrete(&node_tree->id, &RNA_NodeTree, node_tree);
+  UI_panel_context_pointer_set(panel, "node_tree_to_edit", &tree_ptr);
+  node_tree_interface_draw(const_cast<bContext &>(*C), layout, *node_tree);
+}
+
+void group_node_tree_interface_panel_register(ARegionType *art)
+{
+  PanelType *pt = MEM_callocN<PanelType>("NODE_PT_group_node_tree_interface");
+  STRNCPY_UTF8(pt->idname, "NODE_PT_group_node_tree_interface");
+  STRNCPY_UTF8(pt->label, N_("Group Sockets"));
+  STRNCPY_UTF8(pt->category, "Node");
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  pt->draw = group_node_tree_interface_panel_draw;
+  pt->poll = group_node_tree_interface_panel_poll;
+  pt->order = 10;
+  BLI_addtail(&art->paneltypes, pt);
+}
+
 }  // namespace blender::ed::space_node
