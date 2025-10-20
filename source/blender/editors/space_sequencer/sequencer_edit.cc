@@ -6,7 +6,6 @@
  * \ingroup spseq
  */
 
-#include "BLI_dynstr.h"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -30,6 +29,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_idtype.hh"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -81,6 +81,7 @@
 /* Own include. */
 #include "sequencer_intern.hh"
 #include <cstddef>
+#include <fmt/format.h>
 
 namespace blender::ed::vse {
 
@@ -1996,34 +1997,39 @@ static void sequencer_report_duplicates(wmOperator *op, ListBase *duplicated_str
         break;
     }
   }
-  if (num_scenes || num_movieclips || num_masks) {
-    DynStr *ds = BLI_dynstr_new();
-    const char *sep = "";
 
-    if (num_scenes) {
-      BLI_dynstr_appendf(
-          ds, "%s%d %s", sep, num_scenes, (num_scenes == 1) ? IFACE_("scene") : IFACE_("scenes"));
-      sep = ", ";
-    }
-    if (num_movieclips) {
-      BLI_dynstr_appendf(ds,
-                         "%s%d %s",
-                         sep,
-                         num_movieclips,
-                         (num_movieclips == 1) ? IFACE_("movie clip") : IFACE_("movie clips"));
-      sep = ", ";
-    }
-    if (num_masks) {
-      BLI_dynstr_appendf(
-          ds, "%s%d %s", sep, num_masks, (num_masks == 1) ? IFACE_("mask") : IFACE_("masks"));
-    }
-
-    char *report = BLI_dynstr_get_cstring(ds);
-    BLI_dynstr_free(ds);
-
-    BKE_reportf(op->reports, RPT_INFO, IFACE_("Duplicated %s"), report);
-    MEM_freeN(report);
+  if (num_scenes == 0 && num_movieclips == 0 && num_masks == 0) {
+    return;
   }
+
+  std::string report;
+  std::string sep;
+  if (num_scenes) {
+    report += fmt::format("{}{} {}",
+                          sep,
+                          num_scenes,
+                          (num_scenes > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_SCE)) :
+                                             RPT_(BKE_idtype_idcode_to_name(ID_SCE)));
+    sep = ", ";
+  }
+  if (num_movieclips) {
+    report += fmt::format("{}{} {}",
+                          sep,
+                          num_movieclips,
+                          (num_movieclips > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_MC)) :
+                                                 RPT_(BKE_idtype_idcode_to_name(ID_MC)));
+    sep = ", ";
+  }
+  if (num_masks) {
+    report += fmt::format("{}{} {}",
+                          sep,
+                          num_masks,
+                          (num_masks > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_MSK)) :
+                                            RPT_(BKE_idtype_idcode_to_name(ID_MSK)));
+    sep = ", ";
+  }
+
+  BKE_reportf(op->reports, RPT_INFO, RPT_("Duplicated %s"), report.c_str());
 }
 
 static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op)
