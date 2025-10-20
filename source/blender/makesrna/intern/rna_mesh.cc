@@ -1790,9 +1790,19 @@ static void rna_Mesh_uv_layers_remove(Mesh *mesh, ReportList *reports, CustomDat
 {
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  if (!BKE_attribute_find(owner, layer->name, CD_PROP_FLOAT2, bke::AttrDomain::Corner)) {
-    BKE_reportf(reports, RPT_ERROR, "UV map '%s' not found", layer->name);
-    return;
+  if (mesh->runtime.edit_mesh) {
+    BMesh &bm = *mesh->runtime.edit_mesh->bm;
+    if (!CustomData_has_layer_named(&bm->ldata, CD_PROP_FLOAT2, layer->name)) {
+      BKE_reportf(reports, RPT_ERROR, "UV map '%s' not found", layer->name);
+      return;
+    }
+  }
+  else {
+    bke::AttributeAccessor attributes = *owner.get_accessor();
+    if (!attributes.contains(layer->name)) {
+      BKE_reportf(reports, RPT_ERROR, "UV map '%s' not found", layer->name);
+      return;
+    }
   }
   BKE_attribute_remove(owner, layer->name, reports);
 }
