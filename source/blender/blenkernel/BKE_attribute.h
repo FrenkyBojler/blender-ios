@@ -87,7 +87,7 @@ class AttributeOwner {
 /**
  * Create a new attribute layer.
  */
-struct CustomDataLayer *BKE_attribute_new(AttributeOwner &owner,
+struct CustomDataLayer *BKE_attribute_new(Mesh &mesh,
                                           blender::StringRef name,
                                           eCustomDataType type,
                                           blender::bke::AttrDomain domain,

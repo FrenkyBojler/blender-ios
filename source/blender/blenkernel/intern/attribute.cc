@@ -365,14 +365,19 @@ std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const St
   return storage.unique_name_calc(name);
 }
 
-CustomDataLayer *BKE_attribute_new(AttributeOwner &owner,
+CustomDataLayer *BKE_attribute_new(Mesh &mesh,
                                    const StringRef name,
                                    const eCustomDataType type,
                                    const AttrDomain domain,
                                    ReportList *reports)
 {
   using namespace blender::bke;
-  const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(owner);
+  if (!mesh.runtime->edit_mesh) {
+    BLI_assert_unreachable();
+    return nullptr;
+  }
+  BMesh &bm = *mesh.runtime->edit_mesh->bm;
+  const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(&bm);
 
   CustomData *customdata = info[int(domain)].customdata;
   if (customdata == nullptr) {
@@ -380,35 +385,14 @@ CustomDataLayer *BKE_attribute_new(AttributeOwner &owner,
     return nullptr;
   }
 
-  std::string uniquename = BKE_attribute_calc_unique_name(owner, name);
+  std::string uniquename = BKE_attribute_calc_unique_name(AttributeOwner::from_id(&mesh.id), name);
 
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    Mesh *mesh = owner.get_mesh();
-    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      if (!mesh_attribute_valid(
-              *mesh, name, domain, *custom_data_type_to_attr_type(type), reports))
-      {
-        return nullptr;
-      }
-      BM_data_layer_add_named(em->bm, customdata, type, uniquename.c_str());
-      const int index = CustomData_get_named_layer_index(customdata, type, uniquename);
-      return (index == -1) ? nullptr : &(customdata->layers[index]);
-    }
-  }
-
-  std::optional<MutableAttributeAccessor> attributes = owner.get_accessor();
-  if (!attributes) {
+  if (!mesh_attribute_valid(mesh, name, domain, *custom_data_type_to_attr_type(type), reports)) {
     return nullptr;
   }
 
-  attributes->add(
-      uniquename, domain, *custom_data_type_to_attr_type(type), AttributeInitDefaultValue());
-
+  BM_data_layer_add_named(&bm, customdata, type, uniquename.c_str());
   const int index = CustomData_get_named_layer_index(customdata, type, uniquename);
-  if (index == -1) {
-    BKE_reportf(reports, RPT_WARNING, "Layer '%s' could not be created", uniquename.c_str());
-  }
-
   return (index == -1) ? nullptr : &(customdata->layers[index]);
 }
 
