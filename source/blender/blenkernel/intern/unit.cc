@@ -1664,12 +1664,14 @@ static size_t unit_as_string(char *str,
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
    * to replace 'scientific notation' in those cases. */
-  prec -= integer_digits_d(value_conv);
+  const int num_digits = (fabs(value_conv) < 1) ? 0 : integer_digits_d(value_conv) - 1;
+  prec -= num_digits;
 
   CLAMP(prec, 0, 6);
 
   /* Convert to a string. */
-  size_t len = BLI_snprintf_rlen(str, str_maxncpy, "%.*f", prec, value_conv);
+  size_t len = BLI_snprintf_rlen(
+      str, str_maxncpy, value_conv < 0 ? "%.*f" : "\u2007%.*f", prec, value_conv);
 
   /* Add unit prefix and strip zeros. */
 
@@ -1860,7 +1862,11 @@ static size_t unit_as_string_main(char *str,
     if (length >= 0) {
       return length;
     }
+//    printf("split!\n");
   }
+//  else {
+//    printf("no split!\n");
+//  }
 
   return unit_as_string(
       str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit, pad ? ' ' : '\0');
