@@ -1208,9 +1208,12 @@ blender::StringRefNull Mesh::active_uv_map_name() const
    * #Mesh::active_uv_map_attribute, this logic can be removed. This function's only purpose is to
    * ease that transition. */
   if (this->runtime->edit_mesh) {
-    return CustomData_get_active_layer_name(&this->runtime->edit_mesh->bm->ldata, CD_PROP_FLOAT2);
+    const char *name = CustomData_get_active_layer_name(&this->runtime->edit_mesh->bm->ldata,
+                                                        CD_PROP_FLOAT2);
+    return name ? name : "";
   }
-  return CustomData_get_active_layer_name(&this->corner_data, CD_PROP_FLOAT2);
+  const char *name = CustomData_get_active_layer_name(&this->corner_data, CD_PROP_FLOAT2);
+  return name ? name : "";
 }
 
 blender::StringRefNull Mesh::default_uv_map_name() const
@@ -1219,9 +1222,12 @@ blender::StringRefNull Mesh::default_uv_map_name() const
    * #Mesh::default_uv_map_attribute, this logic can be removed. This function's only purpose is to
    * ease that transition. */
   if (this->runtime->edit_mesh) {
-    return CustomData_get_render_layer_name(&this->runtime->edit_mesh->bm->ldata, CD_PROP_FLOAT2);
+    const char *name = CustomData_get_render_layer_name(&this->runtime->edit_mesh->bm->ldata,
+                                                        CD_PROP_FLOAT2);
+    return name ? name : "";
   }
-  return CustomData_get_render_layer_name(&this->corner_data, CD_PROP_FLOAT2);
+  const char *name = CustomData_get_render_layer_name(&this->corner_data, CD_PROP_FLOAT2);
+  return name ? name : "";
 }
 
 Mesh *BKE_mesh_new_nomain(const int verts_num,
