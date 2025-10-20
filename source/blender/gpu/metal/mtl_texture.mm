@@ -505,6 +505,29 @@ void gpu::MTLTexture::update_sub(
   BLI_assert(mip < texture_.mipmapLevelCount);
   BLI_assert(texture_.mipmapLevelCount >= mip_max_);
 
+  std::unique_ptr<uint16_t, MEM_freeN_smart_ptr_deleter> clamped_half_buffer = nullptr;
+
+  if (data != nullptr && type == GPU_DATA_FLOAT && !is_full_float(format_)) {
+    size_t pixel_count = extent[0] * extent[1] * extent[2];
+    size_t total_component_count = to_component_len(format_) * pixel_count;
+
+    clamped_half_buffer.reset(
+        (uint16_t *)MEM_mallocN_aligned(sizeof(uint16_t) * total_component_count, 128, __func__));
+
+    /* Doing float to half conversion manually to avoid implementation specific behavior regarding
+     * Inf and NaNs. */
+    blender::math::float_to_half_array(
+        static_cast<const float *>(data), clamped_half_buffer.get(), total_component_count);
+    /* Inf values can have been added during conversion for values above half max.
+     * This can cause unexpected black pixels on certain implementation. For platform parity we
+     * clamp these infinite values to finite values. */
+    blender::math::clamp_half_inf_to_half_max_array(clamped_half_buffer.get(),
+                                                    total_component_count);
+
+    data = clamped_half_buffer.get();
+    type = GPU_DATA_HALF_FLOAT;
+  }
+
   /* DEPTH FLAG - Depth formats cannot use direct BLIT - pass off to their own routine which will
    * do a depth-only render. */
   bool is_depth_format = (format_flag_ & GPU_FORMAT_DEPTH);

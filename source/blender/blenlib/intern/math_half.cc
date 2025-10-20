@@ -7,6 +7,7 @@
  */
 
 #include "BLI_math_half.hh"
+#include "BLI_task.hh"
 
 #if defined(__ARM_NEON)
 /* Use ARM FP16 conversion instructions */
@@ -290,6 +291,25 @@ void blender::math::half_to_float_array(const uint16_t *src, float *dst, size_t 
   }
 }
 
+void blender::math::clamp_half_inf_to_half_max_array(uint16_t *half_array, size_t length)
+{
+  /* TODO(fclem): Ideally this should be a flag inside the float_to_half_array implementation to
+   * clamp instead of promoting to infinity. */
+  threading::parallel_for(IndexRange(length), 256, [&](const IndexRange range) {
+    constexpr uint16_t pos_half_inf = 0x7C00;
+    constexpr uint16_t neg_half_inf = 0xFC00;
+    constexpr uint16_t pos_half_max = 0x7BFF;
+    constexpr uint16_t neg_half_max = 0xFBFF;
+    for (const int i : range) {
+      if (half_array[i] == pos_half_inf) {
+        half_array[i] = pos_half_max;
+      }
+      else if (half_array[i] == neg_half_inf) {
+        half_array[i] = neg_half_max;
+      }
+    }
+  });
+}
 #ifdef USE_HARDWARE_FP16_NEON
 #  undef USE_HARDWARE_FP16_NEON
 #endif

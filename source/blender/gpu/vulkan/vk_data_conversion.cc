@@ -1081,6 +1081,11 @@ static void convert_buffer(void *dst_memory,
       blender::math::float_to_half_array(static_cast<const float *>(src_memory),
                                          static_cast<uint16_t *>(dst_memory),
                                          to_component_len(device_format) * buffer_size);
+      /* Inf values can have been added during conversion for values above half max.
+       * This can cause unexpected black pixels on certain implementation. For platform parity we
+       * clamp these infinite values to finite values. */
+      blender::math::clamp_half_inf_to_half_max_array(
+          static_cast<uint16_t *>(dst_memory), to_component_len(device_format) * buffer_size);
       break;
     case ConversionType::HALF_TO_FLOAT:
       blender::math::half_to_float_array(static_cast<const uint16_t *>(src_memory),
