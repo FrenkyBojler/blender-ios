@@ -200,7 +200,7 @@ void GLTexture::update_sub(
 
   std::unique_ptr<uint16_t, MEM_freeN_smart_ptr_deleter> clamped_half_buffer = nullptr;
 
-  if (data != nullptr && type == GPU_DATA_FLOAT && !is_full_float(format_)) {
+  if (data != nullptr && type == GPU_DATA_FLOAT && is_half_float(format_)) {
     size_t pixel_count = extent[0] * extent[1] * extent[2];
     size_t total_component_count = to_component_len(format_) * pixel_count;
 

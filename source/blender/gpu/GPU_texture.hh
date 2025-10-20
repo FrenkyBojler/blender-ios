@@ -128,18 +128,6 @@ inline constexpr DataFormat to_data_format(TextureFormat format)
   return DataFormat(int(format));
 }
 
-inline bool is_full_float(TextureFormat format)
-{
-  switch (format) {
-    case TextureFormat::SFLOAT_32_32_32_32:
-    case TextureFormat::SFLOAT_32_32:
-    case TextureFormat::SFLOAT_32:
-      return true;
-    default:
-      return false;
-  }
-}
-
 /**
  * Formats compatible with frame-buffer attachments.
  */
