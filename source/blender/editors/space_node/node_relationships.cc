@@ -50,9 +50,8 @@
 
 struct NodeInsertOfsData {
   bNodeTree *ntree;
-  bNode *insert;       /* End node in the inserted chain. */
-  bNode *start_insert; /* Start node in the inserted chain. */
-  bNode *prev, *next;  /* Previous/next node in the chain. */
+  bNode *insert;      /* Inserted node. */
+  bNode *prev, *next; /* Previous/next node in the chain. */
 
   wmTimer *anim_timer;
 
@@ -2944,9 +2943,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     BLI_assert(snode.runtime->iofsd == nullptr);
     NodeInsertOfsData *iofsd = MEM_callocN<NodeInsertOfsData>(__func__);
 
-    // todo insert 改成 end_insert ?
     iofsd->insert = endpoint.end_node;
-    iofsd->start_insert = endpoint.start_node;
     iofsd->prev = from_node;
     iofsd->next = to_node;
     iofsd->bound_width = endpoint.bounds.xmax - endpoint.bounds.xmin;
@@ -3083,10 +3080,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
                                           const bool right_alignment)
 {
   bNodeTree *ntree = iofsd->ntree;
-  // bNode &end_insert = *iofsd->end_insert;
   bNode &insert = *iofsd->insert;
-  // ! 好像用不到啊
-  bNode &start_insert = *iofsd->start_insert;
   bNode *prev = iofsd->prev, *next = iofsd->next;
   bNode *init_parent = insert.parent; /* store old insert.parent for restoring later */
 
