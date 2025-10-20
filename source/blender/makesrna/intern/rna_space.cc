@@ -2675,7 +2675,7 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
     bContext * /*context*/,
     PointerRNA *space_node_pointer,
     PropertyRNA * /*property*/,
-    bool * /*r_free*/)
+    bool *r_free)
 {
   static const EnumPropertyItem geometry_nodes_sub_type_items[] = {
       {SNODE_GEOMETRY_MODIFIER,
@@ -2712,7 +2712,18 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
 
   SpaceNode *space_node = space_node_pointer->data_as<SpaceNode>();
   if (ED_node_is_geometry(space_node)) {
-    return geometry_nodes_sub_type_items;
+    EnumPropertyItem *items = nullptr;
+    int items_num = 0;
+    for (const EnumPropertyItem &item : geometry_nodes_sub_type_items) {
+      if (!U.experimental.use_brush_geometry_nodes) {
+        if (item.value == SNODE_GEOMETRY_BRUSH) {
+          continue;
+        }
+      }
+      RNA_enum_item_add(&items, &items_num, &item);
+    }
+    *r_free = true;
+    return items;
   }
   else {
     return compositor_sub_type_items;

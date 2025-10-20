@@ -372,6 +372,9 @@ void nodes_evaluate_translations_mesh(const Depsgraph &depsgraph,
                                       const Span<int> verts,
                                       const MutableSpan<float3> translations)
 {
+  if (!U.experimental.use_brush_geometry_nodes) {
+    return;
+  }
   if (!cache.node_field_eval_data) {
     return;
   }
@@ -390,6 +393,9 @@ void nodes_evaluate_factors_mesh(const Depsgraph &depsgraph,
                                  const Span<int> verts,
                                  const MutableSpan<float> factors)
 {
+  if (!U.experimental.use_brush_geometry_nodes) {
+    return;
+  }
   if (!cache.node_field_eval_data) {
     return;
   }
@@ -453,6 +459,9 @@ void nodes_evaluate_factors_grids(const StrokeCache &cache,
                                   const Span<float3> positions,
                                   const MutableSpan<float> factors)
 {
+  if (!U.experimental.use_brush_geometry_nodes) {
+    return;
+  }
   if (!cache.node_field_eval_data) {
     return;
   }
@@ -470,6 +479,9 @@ void nodes_evaluate_translations_grids(const StrokeCache &cache,
                                        const Span<float3> positions,
                                        const MutableSpan<float3> translations)
 {
+  if (!U.experimental.use_brush_geometry_nodes) {
+    return;
+  }
   if (!cache.node_field_eval_data) {
     return;
   }
@@ -525,6 +537,9 @@ void nodes_evaluate_factors_bmesh(const StrokeCache &cache,
                                   const Span<float3> positions,
                                   const MutableSpan<float> factors)
 {
+  if (!U.experimental.use_brush_geometry_nodes) {
+    return;
+  }
   if (!cache.node_field_eval_data) {
     return;
   }
@@ -541,6 +556,9 @@ void nodes_evaluate_translations_bmesh(const StrokeCache &cache,
                                        const Span<float3> positions,
                                        const MutableSpan<float3> translations)
 {
+  if (!U.experimental.use_brush_geometry_nodes) {
+    return;
+  }
   if (!cache.node_field_eval_data) {
     return;
   }

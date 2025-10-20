@@ -1308,10 +1308,11 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         use_accumulate = capabilities.has_accumulate
         use_frontface = True
 
-        if capabilities.has_node_group:
-            row = layout.row()
-            row.template_ID(brush, "node_group", new="brush.new_node_group", text="Node Group")
-            layout.separator()
+        if context.preferences.experimental.use_brush_geometry_nodes:
+            if capabilities.has_node_group:
+                row = layout.row()
+                row.template_ID(brush, "node_group", new="brush.new_node_group", text="Node Group")
+                layout.separator()
 
         col = layout.column(heading="Auto-Masking", align=True)
 
