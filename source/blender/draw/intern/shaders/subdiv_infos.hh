@@ -64,6 +64,7 @@ ADDITIONAL_INFO(subdiv_patch_evaluation_basis)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_verts)
+DO_STATIC_COMPILATION()
 DEFINE("VERTS_EVALUATION")
 STORAGE_BUF(PATCH_EVALUATION_OUTPUT_POS_BUF_SLOT, write, Position, positions[])
 ADDITIONAL_INFO(subdiv_patch_evaluation_basis)
