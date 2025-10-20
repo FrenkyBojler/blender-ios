@@ -10,3 +10,4 @@ Referenced by commit f8303efd573192fc1b30eb6e4e5c6fdcd8ff47b6, Revert "Draw: Use
 Referenced by issue #148254, Collection Instance shows inverted Faces when Instance Empty is scaled negatively and Backface Culling is disabled in Solid Shading
 Referenced by issue #148253, Collection Instance shows inverted Cavity when Instance Empty is scaled negatively in Solid Shading
 Referenced by pull request #148411, Fix #148254: Broken negative scale instances
+Referenced by commit 0ddf51daa5df9ae21359d9788f9d6cd4a39b350b, Fix #148254: Broken negative scale instances
