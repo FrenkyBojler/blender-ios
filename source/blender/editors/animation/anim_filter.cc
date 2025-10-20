@@ -3827,70 +3827,6 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
   return items;
 }
 
-static size_t animdata_filter_timeline(bAnimContext *ac,
-                                       ListBase *anim_data,
-                                       eAnimFilter_Flags filter_mode)
-{
-  BLI_assert(ac->dopesheet_mode == SACTCONT_TIMELINE);
-
-  bDopeSheet *ads = ac->ads;
-  Scene *scene = reinterpret_cast<Scene *>(ads->source);
-  ViewLayer *view_layer = ac->view_layer;
-  size_t items = 0;
-
-  /* Check that we do indeed have a scene. */
-  if ((ads->source == nullptr) || (GS(ads->source->name) != ID_SCE)) {
-    printf("Dope Sheet Error: No scene!\n");
-    if (G.debug & G_DEBUG) {
-      printf("\tPointer = %p, Name = '%s'\n",
-             (void *)ads->source,
-             (ads->source) ? ads->source->name : nullptr);
-    }
-    return 0;
-  }
-
-  const bool use_only_selected = ac->filters.flag & ADS_FILTER_ONLYSEL;
-  if (use_only_selected) {
-    /* only selected F-Curves should get their keyframes considered for editability */
-    filter_mode |= ANIMFILTER_SELEDIT;
-  }
-  else {
-    /* Cache files level animations (frame duration and such). */
-    LISTBASE_FOREACH (CacheFile *, cache_file, &ac->bmain->cachefiles) {
-      items += animdata_filter_ds_cachefile(ac, anim_data, cache_file, filter_mode);
-    }
-
-    /* Annotations are always shown if "Only Show Selected" is disabled. */
-    LISTBASE_FOREACH (bGPdata *, gp_data, &ac->bmain->gpencils) {
-      items += animdata_filter_ds_gpencil(ac, anim_data, gp_data, filter_mode);
-    }
-
-    /* movie clip's animation */
-    items += animdata_filter_dopesheet_movieclips(ac, anim_data, filter_mode);
-  }
-
-  /* Scene-linked animation - e.g. world, compositing nodes, scene anim
-   * (including sequencer currently). */
-  items += animdata_filter_dopesheet_scene(ac, anim_data, scene, filter_mode);
-
-  /* These don't have to be sorted by name (compared to the Dope Sheet mode code), because this
-   * data is only for summaries and operations anyway, and won't be displayed as individual
-   * channels. */
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  ListBase *object_bases = BKE_view_layer_object_bases_get(view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-  const eObjectMode object_mode = (obact != nullptr) ? eObjectMode(obact->mode) : OB_MODE_OBJECT;
-  LISTBASE_FOREACH (Base *, base, object_bases) {
-    if (animdata_filter_base_is_ok(ac, base, object_mode, filter_mode)) {
-      /* since we're still here, this object should be usable */
-      items += animdata_filter_dopesheet_ob(ac, anim_data, base, filter_mode);
-    }
-  }
-
-  /* return the number of items in the list */
-  return items;
-}
-
 /* Summary track for DopeSheet/Action Editor
  * - return code is whether the summary lets the other channels get drawn
  */
@@ -3938,31 +3874,6 @@ static short animdata_filter_dopesheet_summary(bAnimContext *ac,
   return 1;
 }
 
-/* Summary channel for DopeSheet in Timeline mode.
- * Returns whether the sub-channels should be visited. */
-static bool animdata_filter_timeline_summary(bAnimContext *ac,
-                                             ListBase *anim_data,
-                                             const eAnimFilter_Flags filter_mode,
-                                             size_t *items)
-{
-  BLI_assert(ac->spacetype == SPACE_ACTION);
-  BLI_assert(ac->dopesheet_mode == SACTCONT_TIMELINE);
-
-  if ((filter_mode & ANIMFILTER_LIST_CHANNELS) == 0) {
-    /* Without ANIMFILTER_LIST_CHANNELS flag, summary channels should not be created.
-     * Sub-channels of this summary should still be visited. */
-    return true;
-  }
-
-  bAnimListElem *ale = make_new_animlistelem(ac->bmain, ac, ANIMTYPE_SUMMARY, nullptr, nullptr);
-  BLI_assert(ale);
-
-  BLI_addtail(anim_data, ale);
-  (*items)++;
-
-  return (ac->ads->flag & ADS_FLAG_SUMMARY_COLLAPSED) == 0;
-}
-
 /* ......................... */
 
 /* filter data associated with a channel - usually for handling summary-channels in DopeSheet */
@@ -3977,12 +3888,7 @@ static size_t animdata_filter_animchan(bAnimContext *ac,
   /* NOTE: only common channel-types have been handled for now. More can be added as necessary */
   switch (channel->type) {
     case ANIMTYPE_SUMMARY:
-      if (ac->dopesheet_mode == SACTCONT_TIMELINE) {
-        items += animdata_filter_timeline(ac, anim_data, filter_mode);
-      }
-      else {
-        items += animdata_filter_dopesheet(ac, anim_data, filter_mode);
-      }
+      items += animdata_filter_dopesheet(ac, anim_data, filter_mode);
       break;
 
     case ANIMTYPE_SCENE:
@@ -4192,8 +4098,8 @@ size_t ANIM_animdata_filter(bAnimContext *ac,
        * can access it via `ac->ads`. Because the anim filtering code is quite complex, I (Sybren)
        * want to keep this assertion in place. */
       BLI_assert_msg(ac->ads == data, "ANIMCONT_TIMELINE");
-      if (animdata_filter_timeline_summary(ac, anim_data, filter_mode, &items)) {
-        items += animdata_filter_timeline(ac, anim_data, filter_mode);
+      if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items)) {
+        items += animdata_filter_dopesheet(ac, anim_data, filter_mode);
       }
       break;
     }
