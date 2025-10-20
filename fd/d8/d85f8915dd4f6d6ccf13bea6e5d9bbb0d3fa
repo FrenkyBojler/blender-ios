@@ -1,1 +1,2 @@
 Referenced by issue #146885, Principled BSDF material renders incorrect when not fully metallic
+Referenced by issue #148382, EEVEE: Specular color input causes roughness to stop working
