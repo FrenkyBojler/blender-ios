@@ -3827,12 +3827,6 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
   return items;
 }
 
-/**
- * The channels returned here should never be shown in the Timeline directly, because that only
- * shows the summary line. The data returned here determines what is summarized.
- *
- * This is just a simplified version of #animdata_filter_dopesheet() above.
- */
 static size_t animdata_filter_timeline(bAnimContext *ac,
                                        ListBase *anim_data,
                                        eAnimFilter_Flags filter_mode)

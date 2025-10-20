@@ -880,11 +880,6 @@ static void action_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
   }
 }
 
-/**
- * \note Used for splitting out a subset of modes is more involved,
- * The previous non-timeline mode is stored so switching back to the
- * dope-sheet doesn't always reset the sub-mode.
- */
 static int action_space_subtype_get(ScrArea *area)
 {
   SpaceAction *sact = static_cast<SpaceAction *>(area->spacedata.first);
