@@ -1581,21 +1581,6 @@ struct FillTexPaintSlotsData {
   int slot_len;
 };
 
-static bool is_color_attribute(const blender::bke::AttributeMetaData &meta_data)
-{
-  return ELEM(meta_data.domain,
-              blender::bke::AttrDomain::Point,
-              blender::bke::AttrDomain::Corner) &&
-         ELEM(meta_data.data_type,
-              blender::bke::AttrType::ColorByte,
-              blender::bke::AttrType::ColorFloat);
-}
-
-static bool is_color_attribute(const std::optional<blender::bke::AttributeMetaData> &meta_data)
-{
-  return meta_data && is_color_attribute(*meta_data);
-}
-
 static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
 {
   using namespace blender;
@@ -1641,11 +1626,11 @@ static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
         if (mesh->runtime->edit_mesh) {
           const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm,
                                                               storage->name);
-          slot->valid = attr && is_color_attribute({attr.domain, attr.type});
+          slot->valid = attr && bke::mesh::is_color_attribute({attr.domain, attr.type});
         }
         else {
           const bke::AttributeAccessor attributes = mesh->attributes();
-          slot->valid = is_color_attribute(attributes.lookup_meta_data(storage->name));
+          slot->valid = bke::mesh::is_color_attribute(attributes.lookup_meta_data(storage->name));
         }
       }
 

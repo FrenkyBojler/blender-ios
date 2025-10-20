@@ -244,21 +244,6 @@ int BKE_object_data_transfer_dttype_to_srcdst_index(const int dtdata_type)
 
 /* ********** */
 
-static bool is_color_attribute(const blender::bke::AttributeMetaData &meta_data)
-{
-  return ELEM(meta_data.domain,
-              blender::bke::AttrDomain::Point,
-              blender::bke::AttrDomain::Corner) &&
-         ELEM(meta_data.data_type,
-              blender::bke::AttrType::ColorByte,
-              blender::bke::AttrType::ColorFloat);
-}
-
-static bool is_color_attribute(const std::optional<blender::bke::AttributeMetaData> &meta_data)
-{
-  return meta_data && is_color_attribute(*meta_data);
-}
-
 /**
  * When transferring color attributes, also transfer the active color attribute string.
  * If a match can't be found, use the first color layer that can be found (to ensure a valid string
@@ -277,11 +262,11 @@ static void transfer_active_color_string(Mesh *mesh_dst,
   const bke::AttributeAccessor attributes_src = mesh_src->attributes();
   const bke::AttributeAccessor attributes_dst = mesh_dst->attributes();
 
-  if (!is_color_attribute(attributes_src.lookup_meta_data(name))) {
+  if (!bke::mesh::is_color_attribute(attributes_src.lookup_meta_data(name))) {
     return;
   }
 
-  if (is_color_attribute(attributes_dst.lookup_meta_data(name))) {
+  if (bke::mesh::is_color_attribute(attributes_dst.lookup_meta_data(name))) {
     mesh_dst->active_color_attribute = BLI_strdupn(name.data(), name.size());
   }
   else {
@@ -312,11 +297,11 @@ static void transfer_default_color_string(Mesh *mesh_dst,
   const bke::AttributeAccessor attributes_src = mesh_src->attributes();
   const bke::AttributeAccessor attributes_dst = mesh_dst->attributes();
 
-  if (!is_color_attribute(attributes_src.lookup_meta_data(name))) {
+  if (!bke::mesh::is_color_attribute(attributes_src.lookup_meta_data(name))) {
     return;
   }
 
-  if (is_color_attribute(attributes_dst.lookup_meta_data(name))) {
+  if (bke::mesh::is_color_attribute(attributes_dst.lookup_meta_data(name))) {
     mesh_dst->default_color_attribute = BLI_strdupn(name.data(), name.size());
   }
   else {

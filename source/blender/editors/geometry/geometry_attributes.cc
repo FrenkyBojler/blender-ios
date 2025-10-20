@@ -454,21 +454,6 @@ void GEOMETRY_OT_attribute_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static bool is_color_attribute(const blender::bke::AttributeMetaData &meta_data)
-{
-  return ELEM(meta_data.domain,
-              blender::bke::AttrDomain::Point,
-              blender::bke::AttrDomain::Corner) &&
-         ELEM(meta_data.data_type,
-              blender::bke::AttrType::ColorByte,
-              blender::bke::AttrType::ColorFloat);
-}
-
-static bool is_color_attribute(const std::optional<blender::bke::AttributeMetaData> &meta_data)
-{
-  return meta_data && is_color_attribute(*meta_data);
-}
-
 static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob = object::context_object(C);
@@ -746,7 +731,7 @@ static wmOperatorStatus geometry_color_attribute_set_render_exec(bContext *C, wm
     if (!attr) {
       return OPERATOR_CANCELLED;
     }
-    if (!is_color_attribute({attr.domain, attr.type})) {
+    if (!bke::mesh::is_color_attribute({attr.domain, attr.type})) {
       return OPERATOR_CANCELLED;
     }
     BKE_id_attributes_default_color_set(id, name);
@@ -755,7 +740,7 @@ static wmOperatorStatus geometry_color_attribute_set_render_exec(bContext *C, wm
   }
   else {
     const bke::AttributeAccessor attributes = mesh->attributes();
-    if (!is_color_attribute(attributes.lookup_meta_data(name))) {
+    if (!bke::mesh::is_color_attribute(attributes.lookup_meta_data(name))) {
       return OPERATOR_CANCELLED;
     }
     BKE_id_attributes_default_color_set(id, name);
