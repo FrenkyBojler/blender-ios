@@ -208,7 +208,10 @@ class Texture {
       r_size[1] = max_ii(1, h_ / div);
     }
 
-    if (type_ & (GPU_TEXTURE_ARRAY | GPU_TEXTURE_CUBE)) {
+    if (type_ == GPU_TEXTURE_1D_ARRAY) {
+      r_size[2] = 1;
+    }
+    else if (type_ & (GPU_TEXTURE_ARRAY | GPU_TEXTURE_CUBE)) {
       r_size[2] = d_;
     }
     else if (d_ > 0) {
