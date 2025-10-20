@@ -1328,7 +1328,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (use_occlusion_plane || (snap_to_flag & (SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT)) ||
+  if (use_occlusion_plane || (snap_to_flag & SCE_SNAP_TO_FACE) ||
       /* Snap to Grid requires `ray_start` and `ray_dir`. */
       (snap_to_flag & SCE_SNAP_TO_GRID))
   {
@@ -1355,7 +1355,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
         ray_depth_max = math::dot(ray_end - sctx->runtime.ray_start, sctx->runtime.ray_dir);
       }
       else {
-        snap_to_flag &= ~(SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT);
+        snap_to_flag &= ~SCE_SNAP_TO_FACE;
         use_occlusion_plane = false;
       }
     }
@@ -1401,7 +1401,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (use_occlusion_plane || (snap_to_flag & ((SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT)))) {
+  if (use_occlusion_plane || (snap_to_flag & SCE_SNAP_TO_FACE)) {
     has_hit = raycastObjects(sctx);
 
     if (has_hit) {
