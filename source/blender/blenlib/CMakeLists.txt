@@ -14,7 +14,6 @@ set(INC
 set(INC_SYS
   ../../../extern/wcwidth
   ../../../extern/json/include
-  ../../../extern/efsw/include
 
   ${ZLIB_INCLUDE_DIRS}
   ${ZSTD_INCLUDE_DIRS}
@@ -437,9 +436,6 @@ set(LIB
   ${ZLIB_LIBRARIES}
   ${ZSTD_LIBRARIES}
 )
-
-# Link efsw library
-list(APPEND LIB bf_intern_efsw)
 
 if(NOT WITH_PYTHON_MODULE)
   list(APPEND SRC

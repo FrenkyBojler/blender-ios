@@ -109,6 +109,3 @@ endif()
 if(WITH_VULKAN_BACKEND)
   add_subdirectory(vulkan_memory_allocator)
 endif()
-
-# Add efsw library
-add_subdirectory(efsw)
