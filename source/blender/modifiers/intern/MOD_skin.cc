@@ -40,10 +40,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-
 #include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_heap_simple.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -130,7 +129,7 @@ enum SkinNodeFlag {
   SEAM_FRAME = 4,
   FLIP_NORMAL = 8,
 };
-ENUM_OPERATORS(SkinNodeFlag, FLIP_NORMAL);
+ENUM_OPERATORS(SkinNodeFlag);
 
 struct Frame {
   /* Index in the vertex array */
@@ -1819,7 +1818,7 @@ enum eSkinErrorFlag {
   SKIN_ERROR_NO_VALID_ROOT = (1 << 0),
   SKIN_ERROR_HULL = (1 << 1),
 };
-ENUM_OPERATORS(eSkinErrorFlag, SKIN_ERROR_HULL);
+ENUM_OPERATORS(eSkinErrorFlag);
 
 static BMesh *build_skin(SkinNode *skin_nodes,
                          int verts_num,

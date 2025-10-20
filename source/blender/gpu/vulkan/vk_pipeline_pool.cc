@@ -278,9 +278,6 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
       graphics_info.vertex_in.bindings.size();
 
   /* Rasterization state */
-  vk_pipeline_rasterization_state_create_info_.frontFace = graphics_info.state.invert_facing ?
-                                                               VK_FRONT_FACE_COUNTER_CLOCKWISE :
-                                                               VK_FRONT_FACE_CLOCKWISE;
   vk_pipeline_rasterization_state_create_info_.cullMode = to_vk_cull_mode_flags(
       static_cast<GPUFaceCullTest>(graphics_info.state.culling_test));
   if (graphics_info.state.shadow_bias) {
@@ -361,6 +358,9 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
         att_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         break;
 
+        /* Factors are not use in min or max mode, but avoid uninitialized values. */;
+      case GPU_BLEND_MIN:
+      case GPU_BLEND_MAX:
       case GPU_BLEND_SUBTRACT:
       case GPU_BLEND_ADDITIVE_PREMULT:
         att_state.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -419,7 +419,15 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
         break;
     }
 
-    if (graphics_info.state.blend == GPU_BLEND_SUBTRACT) {
+    if (graphics_info.state.blend == GPU_BLEND_MIN) {
+      att_state.alphaBlendOp = VK_BLEND_OP_MIN;
+      att_state.colorBlendOp = VK_BLEND_OP_MIN;
+    }
+    else if (graphics_info.state.blend == GPU_BLEND_MAX) {
+      att_state.alphaBlendOp = VK_BLEND_OP_MAX;
+      att_state.colorBlendOp = VK_BLEND_OP_MAX;
+    }
+    else if (graphics_info.state.blend == GPU_BLEND_SUBTRACT) {
       att_state.alphaBlendOp = VK_BLEND_OP_REVERSE_SUBTRACT;
       att_state.colorBlendOp = VK_BLEND_OP_REVERSE_SUBTRACT;
     }

@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 struct bContext;
 struct BMesh;
@@ -28,7 +28,7 @@ enum WarnFlag {
   ATTRIBUTES = (1 << 1),
   MODIFIER = (1 << 2),
 };
-ENUM_OPERATORS(WarnFlag, MODIFIER);
+ENUM_OPERATORS(WarnFlag);
 
 /** Enable dynamic topology; mesh will be triangulated */
 void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob);
