@@ -3955,8 +3955,8 @@ static bool animdata_filter_timeline_summary(bAnimContext *ac,
   BLI_assert(ac->dopesheet_mode == SACTCONT_TIMELINE);
 
   if ((filter_mode & ANIMFILTER_LIST_CHANNELS) == 0) {
-    /* Don't return a summary line when the caller indicates it doesn't want "channels". That does
-     * mean the caller wants other data, so sub-channels should be visited. */
+    /* Without ANIMFILTER_LIST_CHANNELS flag, summary channels should not be created.
+     * Sub-channels of this summary should still be visited. */
     return true;
   }
 
