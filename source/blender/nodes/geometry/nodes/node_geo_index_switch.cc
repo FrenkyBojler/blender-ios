@@ -5,7 +5,6 @@
 #include <fmt/format.h>
 
 #include "node_geometry_util.hh"
-#include "shader/node_shader_util.hh"
 
 #include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
@@ -216,12 +215,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 constexpr int value_inputs_start = 1;
 
-class IndexSwitchFn : public mf::MultiFunction {
+class IndexSwitchFunction : public mf::MultiFunction {
   mf::Signature signature_;
   Array<std::string> debug_names_;
 
  public:
-  IndexSwitchFn(const CPPType &type, const int items_num)
+  IndexSwitchFunction(const CPPType &type, const int items_num)
   {
     mf::SignatureBuilder builder{"Index Switch", signature_};
     builder.single_input<int>("Index");
@@ -381,7 +380,7 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
       input_fields.append(input_values[i]->extract<GField>());
     }
 
-    std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFn>(
+    std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFunction>(
         *field_base_type_, values_num);
     GField output_field(FieldOperation::from(std::move(switch_fn), std::move(input_fields)));
 
@@ -400,7 +399,7 @@ class IndexSwitchOperation : public NodeOperation {
   void execute() override
   {
     Result &output = this->get_result("Output");
-    const int index = this->get_input("Index").get_single_value<int>();
+    const int index = this->get_input("Index").get_single_value_default(0);
     const NodeIndexSwitch &storage = node_storage(bnode());
 
     if (!IndexRange(storage.items_num).contains(index)) {
@@ -494,7 +493,7 @@ static void register_node()
 {
   static blender::bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "GeometryNodeIndexSwitch", GEO_NODE_INDEX_SWITCH);
+  geo_cmp_node_type_base(&ntype, "GeometryNodeIndexSwitch", GEO_NODE_INDEX_SWITCH);
   ntype.ui_name = "Index Switch";
   ntype.ui_description = "Choose between an arbitrary number of values with an index";
   ntype.enum_name_legacy = "INDEX_SWITCH";
