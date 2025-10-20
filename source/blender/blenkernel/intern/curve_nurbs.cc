@@ -13,12 +13,17 @@
 
 namespace blender::bke::curves::nurbs {
 
-bool check_valid_num_and_order(const int points_num,
-                               const int8_t order,
-                               const bool cyclic,
-                               const KnotsMode knots_mode)
+bool check_valid_num_order_and_resolution(const int points_num,
+                                          const int8_t order,
+                                          const bool cyclic,
+                                          const KnotsMode knots_mode,
+                                          const int resolution)
 {
   if (points_num < order) {
+    return false;
+  }
+
+  if (resolution < 1) {
     return false;
   }
 
@@ -82,7 +87,7 @@ int calculate_evaluated_num(const int points_num,
                             const KnotsMode knots_mode,
                             const Span<float> knots)
 {
-  if (!check_valid_num_and_order(points_num, order, cyclic, knots_mode)) {
+  if (!check_valid_num_order_and_resolution(points_num, order, cyclic, knots_mode, resolution)) {
     return points_num;
   }
   const int nonzero_span_num = knots_mode == KnotsMode::NURBS_KNOT_MODE_CUSTOM &&
@@ -254,7 +259,7 @@ void calculate_basis_cache(const int points_num,
    * knots, with multiplicity > 1, only the rightmost is considered a breakpoint
    * as the spans between repeated knot values are zero length!
    */
-  const int breakpoint_num = (evaluated_num - !cyclic) / resolution;
+  const int breakpoint_num = (evaluated_num - !cyclic) / std::max(resolution, 1);
   Array<int, 20> span_offsets(breakpoint_num);
 
   int breakpoint_count = 0;
@@ -269,13 +274,13 @@ void calculate_basis_cache(const int points_num,
   threading::parallel_for(span_offsets.index_range(), 4096, [&](const IndexRange range) {
     for (const int index : range) {
       const int span_index = span_offsets[index];
-      int eval_point = index * resolution;
+      int eval_point = index * std::max(resolution, 1);
 
       const float knot_delta = knots[span_index + 1] - knots[span_index];
-      const float knot_step = knot_delta / resolution;
+      const float knot_step = knot_delta / std::max(resolution, 1);
       BLI_assert(knot_delta > 0.0f);
 
-      for (const int step : IndexRange::from_begin_size(0, resolution)) {
+      for (const int step : IndexRange::from_begin_size(0, std::max(resolution, 1))) {
         const float parameter = knots[span_index] + step * knot_step;
         calculate_basis_for_point(knots,
                                   degree,
