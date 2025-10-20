@@ -46,6 +46,8 @@
 
 #include "SEQ_time.hh"
 
+#include <utility>
+
 /* *************************************************** */
 /* CURRENT FRAME DRAWING */
 
@@ -152,7 +154,7 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d)
 
   /* This can happen when the strip time is reversed. */
   if (start_frame > end_frame) {
-    SWAP(float, start_frame, end_frame);
+    std::swap(start_frame, end_frame);
   }
 
   immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, start_frame, v2d->cur.ymax);
