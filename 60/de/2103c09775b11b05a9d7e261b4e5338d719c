@@ -1,2 +1,3 @@
 Referenced by issue #141659, Setting sequence channel to a negative index causes crash in 4.2 LTS
 Referenced by pull request #148375, Fix: VSE: Infinite loop when setting strip channel
+Referenced by commit 8de16b9bdf05132651446b4a17febf859df69ddf, Fix: VSE: Infinite loop when setting strip channel
