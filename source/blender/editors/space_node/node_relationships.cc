@@ -50,8 +50,8 @@
 
 struct NodeInsertOfsData {
   bNodeTree *ntree;
-  bNode *insert;       /* Inserted node. */
-  bNode *start_insert; /* Inserted node. */
+  bNode *insert;       /* End node in the inserted chain. */
+  bNode *start_insert; /* Start node in the inserted chain. */
   bNode *prev, *next;  /* Previous/next node in the chain. */
 
   wmTimer *anim_timer;
@@ -2556,7 +2556,7 @@ struct NodeEndpoint {
   {
     return start_node != nullptr && end_node != nullptr;
   }
-  // todo 起点转接点和终点转接点可能不兼容
+  // todo 起点和终点转接点可能不兼容, 目前是兼容的转接点才被加入候选
   bool are_reroute() const
   {
     return start_node->is_reroute() && end_node->is_reroute();
@@ -2567,11 +2567,6 @@ static bool endpoint_are_compatible(bNodeTree &tree,
                                     const bNodeSocket &input,
                                     const bNodeSocket &output)
 {
-  // const bNodeSocket *main_input = get_main_socket(tree, start_node, SOCK_IN);
-  // const bNodeSocket *main_output = get_main_socket(tree, end_node, SOCK_OUT);
-  // if (ELEM(nullptr, main_input, main_output)) {
-  //   return false;
-  // }
   if (tree.typeinfo->validate_link &&
       tree.typeinfo->validate_link(eNodeSocketDatatype(input.type),
                                    eNodeSocketDatatype(output.type)))
@@ -2581,11 +2576,7 @@ static bool endpoint_are_compatible(bNodeTree &tree,
   return false;
 }
 
-/**
- * @brief 检查选中的节点是否形成一个无分叉的线性链条, 并返回链条的起始和结束节点.
- * 1. 起始节点,结束节点,各一个
- * todo: 特殊情况: 选择了两个没连线的节点,是区域输入和输出
- */
+// todo: 特殊情况: 选择了两个没连线的节点,是区域输入和输出
 static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, bool is_new_node)
 {
   NodeEndpoint result{};
@@ -2599,7 +2590,6 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     if (!(node->flag & SELECT)) {
       continue;
     }
-    // todo 节点没被选中,但节点框被选中了
     selected_nodes.append(node);
     if (!find_first) {
       result.bounds = node->runtime->draw_bounds;
@@ -2610,7 +2600,8 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
       BLI_rctf_union(&result.bounds, &node->runtime->draw_bounds);
     }
 
-    // ! todo 如果只选了链条的起始和结束节点, 会被判定为正常啊
+    // ! todo 如果只选了链条的起始和结束,中间虽然没选 也会被判定为正常啊
+    // ! todo 节点没被选中,但节点框被选中了
     bool all_output_not_linked = false;
     for (bNodeSocket *sock_out : node->output_sockets()) {
       all_output_not_linked = sock_out->directly_linked_sockets().is_empty();
@@ -2742,7 +2733,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     if (is_new_node && !already_linked_sockets.is_empty()) {
       /* Only allow links coming from or going to the already linked socket after
        * link-drag-search. */
-      // 支持多输入的话还要考虑不要造成循环线
+      // todo 支持多输入的话还要考虑不要造成循环线
       bool is_linked_to_linked = false;
       for (const bNodeSocket *socket : already_linked_sockets) {
         if (ELEM(socket, link->fromsock, link->tosock)) {
@@ -2920,6 +2911,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     BLI_assert(snode.runtime->iofsd == nullptr);
     NodeInsertOfsData *iofsd = MEM_callocN<NodeInsertOfsData>(__func__);
 
+    // todo insert 改成 end_insert ?
     iofsd->insert = endpoint.end_node;
     iofsd->start_insert = endpoint.start_node;
     iofsd->prev = from_node;
@@ -3058,8 +3050,8 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
                                           const bool right_alignment)
 {
   bNodeTree *ntree = iofsd->ntree;
-  bNode &insert = *iofsd->insert;
   // bNode &end_insert = *iofsd->end_insert;
+  bNode &insert = *iofsd->insert;
   bNode &start_insert = *iofsd->start_insert;
   bNode *prev = iofsd->prev, *next = iofsd->next;
   bNode *init_parent = insert.parent; /* store old insert.parent for restoring later */
@@ -3079,12 +3071,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
    * so `totr_insert` is used to get the correct world-space coords. */
   // rctf totr_insert;
   // node_to_updated_rect(insert, totr_insert);
-  // // todo 只考虑了起始和结束节点边界框,应该考虑整体? 直接用传递来的边界好像也行
-  // if (iofsd->is_insert_chain) {
-  //   rctf start_node_bound;
-  //   node_to_updated_rect(start_insert, start_node_bound);
-  //   BLI_rctf_union(&totr_insert, &start_node_bound);
-  // }
+  // todo 考虑整体? 直接用传递来的边界好像也行
   rctf totr_insert = iofsd->total_rct;
 
   /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
