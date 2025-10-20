@@ -31,16 +31,14 @@ GPU_SHADER_CREATE_END()
 /** \name Patch evaluation
  * \{ */
 
+GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_basis)
 #ifdef __APPLE__
 /* Match definition from OPenSubdiv which defines OSD_PATCH_BASIS_METAL as 1. Matching it here
  * avoids possible re-definition warning at runtime. */
-#  define SUBDIV_PATCH_EVALUATION_BASIS_DEFINES() DEFINE_VALUE("OSD_PATCH_BASIS_METAL", "1")
+DEFINE_VALUE("OSD_PATCH_BASIS_METAL", "1")
 #else
-#  define SUBDIV_PATCH_EVALUATION_BASIS_DEFINES() DEFINE("OSD_PATCH_BASIS_GLSL")
+DEFINE("OSD_PATCH_BASIS_GLSL")
 #endif
-
-GPU_SHADER_CREATE_INFO(subdiv_patch_evaluation_basis)
-SUBDIV_PATCH_EVALUATION_BASIS_DEFINES()
 DEFINE("OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES")
 TYPEDEF_SOURCE("osd_patch_basis.glsl")
 COMPUTE_SOURCE("subdiv_patch_evaluation_comp.glsl")
