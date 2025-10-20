@@ -16,6 +16,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_blender.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_report.hh"
 
 #include "RNA_access.hh"
@@ -667,6 +668,15 @@ static FCurve *rna_Channelbag_fcurve_new(ActionChannelbag *dna_channelbag,
     return nullptr;
   }
   return fcurve;
+}
+
+static FCurve *rna_Channelbag_fcurve_new_from_fcurve(ActionChannelbag *dna_channelbag,
+                                                     FCurve *source)
+{
+  FCurve *copy = BKE_fcurve_copy(source);
+  animrig::Channelbag &self = dna_channelbag->wrap();
+  self.fcurve_append(*copy);
+  return copy;
 }
 
 static FCurve *rna_Channelbag_fcurve_ensure(ActionChannelbag *dna_channelbag,
@@ -2143,6 +2153,14 @@ static void rna_def_channelbag_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
       sizeof(bActionGroup::name),
       "Group Name",
       "Name of the Group for this F-Curve, will be created if it does not exist yet");
+  parm = RNA_def_pointer(func, "fcurve", "FCurve", "", "Newly created F-Curve");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "new_from_fcurve", "rna_Channelbag_fcurve_new_from_fcurve");
+  RNA_def_function_ui_description(
+      func, "Copy an F-Curve into the channelbag. The original F-Curve is unchanged");
+  parm = RNA_def_pointer(func, "source", "FCurve", "Source F-Curve", "The F-Curve to copy");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_pointer(func, "fcurve", "FCurve", "", "Newly created F-Curve");
   RNA_def_function_return(func, parm);
 
