@@ -1294,7 +1294,7 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
     float panel_backcolor[4];
     UI_draw_roundbox_corner_set(is_open ? UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT : UI_CNR_ALL);
     if (!has_header) {
-      UI_GetThemeColor4fv(TH_BACK, panel_backcolor);
+      UI_GetThemeColor4fv(TH_PANEL_BACK, panel_backcolor);
     }
     else {
       UI_GetThemeColor4fv((is_subpanel ? TH_PANEL_SUB_BACK : TH_PANEL_BACK), panel_backcolor);
