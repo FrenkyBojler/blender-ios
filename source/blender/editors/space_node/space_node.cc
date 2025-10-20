@@ -113,7 +113,9 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
   snode->from = from;
 
   ED_node_set_active_viewer_key(snode);
-  snode->runtime->node_can_sync_states.clear();
+  if (snode->runtime) {
+    snode->runtime->node_can_sync_states.clear();
+  }
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -153,7 +155,9 @@ void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNod
   snode->edittree = ntree;
 
   ED_node_set_active_viewer_key(snode);
-  snode->runtime->node_can_sync_states.clear();
+  if (snode->runtime) {
+    snode->runtime->node_can_sync_states.clear();
+  }
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
@@ -180,7 +184,9 @@ void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
   }
 
   ED_node_set_active_viewer_key(snode);
-  snode->runtime->node_can_sync_states.clear();
+  if (snode->runtime) {
+    snode->runtime->node_can_sync_states.clear();
+  }
 
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
