@@ -4642,6 +4642,12 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       return;
     }
 
+    /* Prevent the selected curves from having a resolution of 0 or less. */
+    MutableSpan<int> resolutions = curves.resolution_for_write();
+    strokes.foreach_index_optimized<int>(GrainSize(512), [&](const int curve_i) {
+      resolutions[curve_i] = math::max(resolutions[curve_i], 1);
+    });
+
     switch (dst_type) {
       case CURVE_TYPE_CATMULL_ROM:
         convert_to_catmull_rom(curves, strokes, threshold);
