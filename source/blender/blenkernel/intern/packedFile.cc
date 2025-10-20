@@ -58,9 +58,9 @@ static CLG_LogRef LOG = {"lib.packedfile"};
 
 using namespace blender;
 
-int BKE_packedfile_seek(PackedFile *pf, int offset, int whence)
+int64_t BKE_packedfile_seek(PackedFile *pf, int64_t offset, int whence)
 {
-  int oldseek = -1, seek = 0;
+  int64_t oldseek = -1, seek = 0;
 
   if (pf) {
     oldseek = pf->seek;
@@ -95,7 +95,7 @@ void BKE_packedfile_rewind(PackedFile *pf)
   BKE_packedfile_seek(pf, 0, SEEK_SET);
 }
 
-int BKE_packedfile_read(PackedFile *pf, void *data, int size)
+int64_t BKE_packedfile_read(PackedFile *pf, void *data, int64_t size)
 {
   if ((pf != nullptr) && (size >= 0) && (data != nullptr)) {
     if (size + pf->seek > pf->size) {
@@ -205,7 +205,7 @@ PackedFile *BKE_packedfile_duplicate(const PackedFile *pf_src)
 }
 
 PackedFile *BKE_packedfile_new_from_memory(const void *mem,
-                                           int memlen,
+                                           const int64_t memlen,
                                            const blender::ImplicitSharingInfo *sharing_info)
 {
   BLI_assert(mem != nullptr);
@@ -448,8 +448,8 @@ enum ePF_FileCompare BKE_packedfile_compare_to_file(const char *ref_file_name,
     else {
       ret_val = PF_CMP_EQUAL;
 
-      for (int i = 0; i < pf->size; i += sizeof(buf)) {
-        int len = pf->size - i;
+      for (int64_t i = 0; i < pf->size; i += sizeof(buf)) {
+        int64_t len = pf->size - i;
         len = std::min<ulong>(len, sizeof(buf));
 
         if (BLI_read(file, buf, len) != len) {

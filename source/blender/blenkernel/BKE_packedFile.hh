@@ -48,7 +48,7 @@ PackedFile *BKE_packedfile_new(ReportList *reports,
                                const char *filepath_rel,
                                const char *basepath);
 PackedFile *BKE_packedfile_new_from_memory(
-    const void *mem, int memlen, const blender::ImplicitSharingInfo *sharing_info = nullptr);
+    const void *mem, int64_t memlen, const blender::ImplicitSharingInfo *sharing_info = nullptr);
 
 /**
  * No libraries for now.
@@ -138,9 +138,9 @@ ePF_FileCompare BKE_packedfile_compare_to_file(const char *ref_file_name,
 
 /* Read. */
 
-int BKE_packedfile_seek(PackedFile *pf, int offset, int whence);
+int64_t BKE_packedfile_seek(PackedFile *pf, int64_t offset, int whence);
 void BKE_packedfile_rewind(PackedFile *pf);
-int BKE_packedfile_read(PackedFile *pf, void *data, int size);
+int64_t BKE_packedfile_read(PackedFile *pf, void *data, int64_t size);
 
 /**
  * ID should be not NULL, return true if there's a packed file.

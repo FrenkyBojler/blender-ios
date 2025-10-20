@@ -9,10 +9,11 @@
 #pragma once
 
 #include "BLI_implicit_sharing.h"
+#include "BLI_sys_types.h"
 
 typedef struct PackedFile {
-  int size;
-  int seek;
+  int64_t size;
+  int64_t seek;
   /**
    * Raw data from the shared file. This data is const because it uses implicit sharing and may be
    * shared with e.g. the undo system.
