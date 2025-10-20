@@ -840,15 +840,6 @@ class ANIM_OT_version_bone_hide_property(Operator):
                 fcurves.append(fcurve)
         return fcurves
 
-    @staticmethod
-    def get_channelbag_for_slot(action, slot):
-        if not action.layers:
-            return None
-        layer = action.layers[0]
-        if not layer.strips:
-            return None
-        return layer.strips[0].channelbag(slot, ensure=False)
-
     def execute(self, context):
         from bpy_extras import anim_utils
         selected_armatures = []
@@ -856,9 +847,8 @@ class ANIM_OT_version_bone_hide_property(Operator):
             if arm_ob.type != 'ARMATURE' or not arm_ob.data:
                 continue
             armature = arm_ob.data
-            if (not armature.animation_data
-                or not armature.animation_data.action
-                    or not armature.animation_data.action_slot):
+            assigned_channelbag = anim_utils.animdata_get_channelbag_for_assigned_slot(armature.animation_data)
+            if not assigned_channelbag:
                 # Armature not animated. Cannot have the FCurve we need.
                 continue
             selected_armatures.append(arm_ob)
@@ -875,14 +865,14 @@ class ANIM_OT_version_bone_hide_property(Operator):
             ob_adt = arm_ob.animation_data
             arm_adt = arm_ob.data.animation_data
             if warn and (not ob_adt or not ob_adt.action or not ob_adt.action_slot):
-                self.report({'WARNING'}, rpt_("Not all armatures have an action and slot assigned"))
+                self.report({'WARNING'}, rpt_("Not all armature objects have an action and slot assigned"))
                 # Only warn once.
                 warn = False
                 continue
 
             # Only armatures with an action and slot are added to `selected_armatures`.
             assert arm_adt is not None
-            armature_channelbag = self.get_channelbag_for_slot(arm_adt.action, arm_adt.action_slot)
+            armature_channelbag = anim_utils.action_get_channelbag_for_slot(arm_adt.action, arm_adt.action_slot)
             if not armature_channelbag:
                 continue
 
@@ -919,13 +909,14 @@ class ANIM_OT_version_bone_hide_property(Operator):
 
             modified_armatures.append(arm_ob)
 
-        if modified_armatures:
-            self.report({'INFO'}, rpt_(f"Modified {len(modified_armatures)} armatures"))
-            for screen in bpy.data.screens:
-                for area in screen.areas:
-                    area.tag_redraw()
-        else:
+        if not modified_armatures:
             self.report({'WARNING'}, rpt_("No armatures were modified"))
+            return {'CANCELLED'}
+
+        self.report({'INFO'}, rpt_(f"Modified {len(modified_armatures)} armatures"))
+        for screen in bpy.data.screens:
+            for area in screen.areas:
+                area.tag_redraw()
 
         return {'FINISHED'}
 
