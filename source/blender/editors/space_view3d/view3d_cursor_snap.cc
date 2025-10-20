@@ -809,10 +809,7 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
   {
     snap_elem_index[1] = index;
   }
-  else if (snap_elem & SCE_SNAP_TO_FACE_MIDPOINT) {
-    snap_elem_index[2] = index;
-  }
-  else if (snap_elem == SCE_SNAP_TO_FACE) {
+  else if (snap_elem & (SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT)) {
     snap_elem_index[2] = index;
   }
 
