@@ -62,11 +62,23 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   saction = MEM_callocN<SpaceAction>("initaction");
   saction->spacetype = SPACE_ACTION;
 
+  const eAnimEdit_Context desired_mode = eAnimEdit_Context(area ? area->butspacetype_subtype :
+                                                                  SACTCONT_DOPESHEET);
+  const bool is_timeline = (desired_mode == SACTCONT_TIMELINE);
+
+  /* This should always set to SACTCONT_DOPESHEET, regardless of what the desired_mode is set to.
+   * Not for fundamental reasons, but to make it safe to call this function with an invalid value
+   * in desired_mode. I (Sybren) have no idea if that's ever going to happen, but in this case I'm
+   * sticking as close as possible to what Blender 4.5 was already doing. Once this function
+   * returns, ED_area_newspace() will call action_space_subtype_set() to set the sub-type. */
   saction->mode = SACTCONT_DOPESHEET;
   saction->mode_prev = SACTCONT_DOPESHEET;
   saction->flag = SACTION_SHOW_INTERPOLATION | SACTION_SHOW_MARKERS;
 
   saction->ads.filterflag |= ADS_FILTER_SUMMARY;
+  if (is_timeline) {
+    saction->ads.filterflag |= ADS_FLAG_SUMMARY_COLLAPSED;
+  }
 
   saction->cache_display = TIME_CACHE_DISPLAY | TIME_CACHE_SOFTBODY | TIME_CACHE_PARTICLES |
                            TIME_CACHE_CLOTH | TIME_CACHE_SMOKE | TIME_CACHE_DYNAMICPAINT |
@@ -93,6 +105,8 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   BLI_addtail(&saction->regionbase, region);
   region->regiontype = RGN_TYPE_CHANNELS;
   region->alignment = RGN_ALIGN_LEFT;
+  /* Channel list is hidden by default in timeline mode, and visible in other modes. */
+  region->flag |= is_timeline ? RGN_FLAG_HIDDEN : 0;
 
   /* Only need to set scroll settings, as this will use `listview` v2d configuration. */
   region->v2d.scroll = V2D_SCROLL_BOTTOM;
