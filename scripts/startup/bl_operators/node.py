@@ -301,12 +301,15 @@ class NodeSwapOperator(NodeOperator):
                 else:
                     continue
 
-            if hasattr(new_node, prop_name):
-                setattr(new_node, prop_name, prop)
-            else:
-                socket = new_node.inputs.get(socket_name)
-                if socket is not None:
-                    socket.default_value = prop
+            try:
+                if hasattr(new_node, prop_name):
+                    setattr(new_node, prop_name, prop)
+                else:
+                    socket = new_node.inputs.get(socket_name)
+                    if socket is not None:
+                        socket.default_value = prop
+            except (TypeError, ValueError):
+                continue
 
     # NOTE: Node.image_user is read-only, so its properties are copied over one-by-one.
     def transfer_image_user_settings(self, old_node, new_node):
