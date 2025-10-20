@@ -1196,7 +1196,7 @@ blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
   blender::VectorSet<blender::StringRefNull> names;
   this->attributes().foreach_attribute([&](const blender::bke::AttributeIter &iter) {
     if (blender::bke::mesh::is_uv_map({iter.domain, iter.data_type})) {
-      return;
+      names.add_new(iter.name);
     }
   });
   return names;
