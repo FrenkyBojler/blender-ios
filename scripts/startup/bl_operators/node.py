@@ -259,6 +259,13 @@ class NodeSwapOperator(NodeOperator):
         'use_cyclic',
     )
 
+    id_prop_names = (
+        'collection',
+        'image',
+        'material',
+        'object',
+    )
+
     @classmethod
     def poll(cls, context):
         if (context.area is None) or (context.area.type != "NODE_EDITOR"):
@@ -280,6 +287,26 @@ class NodeSwapOperator(NodeOperator):
                     setattr(new_node, attr, getattr(old_node, attr))
                 except (TypeError, ValueError):
                     pass
+
+    def transfer_datablock_properties(self, old_node, new_node):
+        for prop_name in self.id_prop_names:
+            socket_name = prop_name.title()
+
+            if hasattr(old_node, prop_name):
+                prop = getattr(old_node, prop_name)
+            else:
+                socket = old_node.inputs.get(socket_name)
+                if socket is not None:
+                    prop = socket.default_value
+                else:
+                    continue
+
+            if hasattr(new_node, prop_name):
+                setattr(new_node, prop_name, prop)
+            else:
+                socket = new_node.inputs.get(socket_name)
+                if socket is not None:
+                    socket.default_value = prop
 
     # NOTE: Node.image_user is read-only, so its properties are copied over one-by-one.
     def transfer_image_user_settings(self, old_node, new_node):
@@ -532,6 +559,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                     nodes_to_delete.add(node)
             else:
                 self.transfer_node_properties(old_node, new_node)
+                self.transfer_datablock_properties(old_node, new_node)
                 self.transfer_image_user_settings(old_node, new_node)
 
                 if (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes):
