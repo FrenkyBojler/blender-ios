@@ -3844,7 +3844,7 @@ static size_t animdata_filter_timeline(bAnimContext *ac,
   ViewLayer *view_layer = ac->view_layer;
   size_t items = 0;
 
-  /* check that we do indeed have a scene */
+  /* Check that we do indeed have a scene. */
   if ((ads->source == nullptr) || (GS(ads->source->name) != ID_SCE)) {
     printf("Dope Sheet Error: No scene!\n");
     if (G.debug & G_DEBUG) {
