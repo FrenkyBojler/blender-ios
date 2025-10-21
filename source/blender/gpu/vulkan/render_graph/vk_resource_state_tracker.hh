@@ -261,6 +261,11 @@ class VKResourceStateTracker {
   void debug_print() const;
 
  private:
+  void add_image(VkImage vk_image,
+                 bool use_subresource_tracking,
+                 VKResourceBarrierState barrier_state,
+                 const char *name = nullptr);
+
   /**
    * Get the current stamp of the resource.
    */
