@@ -1755,24 +1755,25 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
                                            const bNode &node,
                                            const rctf &rect,
                                            const float radius,
-                                           const float color[4],
-                                           const bool is_selected)
+                                           const float color[4])
 {
   if (node.type_legacy != NODE_GROUP) {
     return;
   }
 
   /* How far it extends down and narrows. */
+  const bool is_selected = node.flag & NODE_SELECT;
   const bool is_collapsed = node.flag & NODE_COLLAPSED;
-  const float offset = 2.8f * UI_SCALE_FAC;
+  const float offset = 2.6f * UI_SCALE_FAC;
   const float shadow_width = 0.2f * U.widget_unit;
-  const float shadow_alpha = 0.2f;
-  const float dim_collapsed = is_collapsed ? 0.3f : 0.0f;
-  float color_copy[4];
-  copy_v4_v4(color_copy, color);
+  const float shadow_alpha = is_selected ? 0.4f : 0.2f;
+  const float dim_collapsed = is_collapsed ? 0.2f : 0.0f;
 
+  const float outline_width = is_selected ? 1.0f : 0.5f;
+  float outline_color[4];
+  copy_v4_v4(outline_color, color);
   if (is_selected) {
-    UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, color_copy);
+    UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, outline_color);
   }
 
   UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
@@ -1782,16 +1783,28 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
     const rctf rect_group_copy = {
         rect.xmin + offset * 4,
         rect.xmax - offset * 4,
-        rect.ymin - offset * 2,
-        rect.ymin - offset,
+        rect.ymin - (offset * 2) - (is_selected ? U.pixelsize : 0.0f),
+        rect.ymin - offset + (U.pixelsize * 2),
     };
 
     ui_draw_dropshadow(
-        &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
+        &rect_group_copy, radius * 1.33f, shadow_width, snode.runtime->aspect, shadow_alpha);
 
-    /* Use the node (or header) color but slightly transparent. */
-    color_copy[3] = (is_selected ? 0.5f : 0.7f) - dim_collapsed;
-    UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
+    /* Use the node color (or header color when collapsed) but slightly darker. */
+    float fill_color_front[4], outline_color_front[4];
+    copy_v4_v4(fill_color_front, color);
+    mul_v3_fl(fill_color_front, 0.85f - dim_collapsed);
+
+    copy_v4_v4(outline_color_front, outline_color);
+    mul_v3_fl(outline_color_front, (is_selected ? 0.5f : 1.0f) - dim_collapsed);
+
+    UI_draw_roundbox_4fv_ex(&rect_group_copy,
+                            fill_color_front,
+                            nullptr,
+                            0.0f,
+                            outline_color_front,
+                            outline_width,
+                            radius);
   }
 
   /* Draw the first copy in the front. */
@@ -1799,60 +1812,27 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
     const rctf rect_group_copy = {
         rect.xmin + offset * 2,
         rect.xmax - offset * 2,
-        rect.ymin - offset,
-        rect.ymin,
+        rect.ymin - offset - (is_selected ? U.pixelsize : 0.0f),
+        rect.ymin + (U.pixelsize * 2),
     };
 
     ui_draw_dropshadow(
-        &rect_group_copy, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
+        &rect_group_copy, radius * 1.33f, shadow_width, snode.runtime->aspect, shadow_alpha);
 
-    color_copy[3] = (is_selected ? 0.7f : 0.9f) - dim_collapsed;
-    UI_draw_roundbox_4fv(&rect_group_copy, true, radius * 0.66f, color_copy);
-  }
+    float fill_color_back[4], outline_color_back[4];
+    copy_v4_v4(fill_color_back, color);
+    mul_v3_fl(fill_color_back, 0.95f - dim_collapsed);
 
-  /* Draw highlight lines. */
-  {
-    const uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    copy_v4_v4(outline_color_back, outline_color);
+    mul_v3_fl(outline_color_back, (is_selected ? 0.7f : 1.1f) - dim_collapsed);
 
-    const float padding = 4.0f * U.pixelsize;
-
-    /* Use the body color as base, and lighten it a bit. */
-    uchar color_line[4];
-    rgba_float_to_uchar(color_line, color_copy);
-    color_line[0] = min_ii(color_line[0] + 40, 255);
-    color_line[1] = min_ii(color_line[1] + 40, 255);
-    color_line[2] = min_ii(color_line[2] + 40, 255);
-
-    GPU_blend(GPU_BLEND_ALPHA);
-    GPU_line_width(1.0f);
-    immBegin(GPU_PRIM_LINES, 6);
-
-    /* Bottom-most lines. */
-    /* Draw the lines three times, each with slightly less wide, for a fade effect. */
-    immUniformColor3ubvAlpha(color_line, 40);
-    immVertex2f(pos, rect.xmin + offset * 6, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmax - offset * 6, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmin + offset * 6 + padding, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmax - offset * 6 - padding, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmin + offset * 6 + padding * 2, rect.ymin - offset * 2);
-    immVertex2f(pos, rect.xmax - offset * 6 - padding * 2, rect.ymin - offset * 2);
-    immEnd();
-
-    /* Middle lines. */
-    immBegin(GPU_PRIM_LINES, 6);
-    immUniformColor3ubvAlpha(color_line, 50);
-    immVertex2f(pos, rect.xmin + offset * 4, rect.ymin - offset);
-    immVertex2f(pos, rect.xmax - offset * 4, rect.ymin - offset);
-    immVertex2f(pos, rect.xmin + offset * 4 + padding, rect.ymin - offset);
-    immVertex2f(pos, rect.xmax - offset * 4 - padding, rect.ymin - offset);
-    immVertex2f(pos, rect.xmin + offset * 4 + padding * 2, rect.ymin - offset);
-    immVertex2f(pos, rect.xmax - offset * 4 - padding * 2, rect.ymin - offset);
-    immEnd();
-
-    GPU_blend(GPU_BLEND_NONE);
-    immUnbindProgram();
+    UI_draw_roundbox_4fv_ex(&rect_group_copy,
+                            fill_color_back,
+                            nullptr,
+                            0.0f,
+                            outline_color_back,
+                            outline_width,
+                            radius);
   }
 }
 
@@ -3274,7 +3254,7 @@ static void node_draw_basis(const bContext &C,
 
     /* Node Group indicator. */
     if (draw_node_details(snode)) {
-      node_draw_node_group_indicator(snode, node, rect, corner_radius, color, node.flag & SELECT);
+      node_draw_node_group_indicator(snode, node, rect, corner_radius, color);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
@@ -3302,7 +3282,7 @@ static void node_draw_basis(const bContext &C,
       UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.6f, color_body);
     }
     else {
-      UI_GetThemeColorShade4fv(TH_NODE, 20, color_body);
+      UI_GetThemeColorShade4fv(TH_NODE, 10, color_body);
     }
     UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
     UI_draw_roundbox_4fv(&rect_body, false, BASIS_RAD, color_body);
@@ -3322,7 +3302,7 @@ static void node_draw_basis(const bContext &C,
       UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.6f, color_header);
     }
     else {
-      UI_GetThemeColorShade4fv(color_id, 20, color_header);
+      UI_GetThemeColorShade4fv(color_id, 10, color_header);
     }
     UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
     UI_draw_roundbox_4fv(&rect_header, false, BASIS_RAD, color_header);
@@ -3346,7 +3326,7 @@ static void node_draw_basis(const bContext &C,
       color_outline[3] = 1.0f;
     }
     else {
-      UI_GetThemeColorShade4fv(TH_NODE, 20, color_outline);
+      UI_GetThemeColorShade4fv(TH_NODE, 10, color_outline);
       color_outline[3] = 0.0f;
     }
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
@@ -3412,8 +3392,7 @@ static void node_draw_collapsed(const bContext &C,
 
     /* Node Group indicator. */
     if (draw_node_details(snode)) {
-      node_draw_node_group_indicator(
-          snode, node, rect, BASIS_RAD + padding, color, node.flag & SELECT);
+      node_draw_node_group_indicator(snode, node, rect, BASIS_RAD + padding, color);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
@@ -3494,7 +3473,7 @@ static void node_draw_collapsed(const bContext &C,
     }
     else {
       /* Use a mix of the backdrop and node type color, slightly lighter. */
-      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, .8f, 20, color_outline);
+      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, .8f, 10, color_outline);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
