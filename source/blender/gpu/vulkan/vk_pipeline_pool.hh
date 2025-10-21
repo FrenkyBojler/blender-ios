@@ -295,6 +295,14 @@ class VKPipelinePool : public NonCopyable {
    *
    * When vk_pipeline_base is a valid pipeline handle, the pipeline base will be used to speed up
    * pipeline creation process.
+   *
+   * \param compute_info:     Description of the pipeline to compile.
+   * \param is_static_shader: Pipelines from static pipelines are cached between Blender sessions.
+   *                          Pipelines from dynamic shaders are only cached for the duration of a
+   *                          single Blender session.
+   * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
+   *                          compiling the pipeline.
+   * \returns The handle of the compiled pipeline.
    */
   VkPipeline get_or_create_compute_pipeline(VKComputeInfo &compute_info,
                                             bool is_static_shader,

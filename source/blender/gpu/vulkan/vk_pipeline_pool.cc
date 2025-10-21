@@ -187,12 +187,35 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(VKComputeInfo &compute
                                                           VkPipeline vk_pipeline_base,
                                                           StringRefNull name)
 {
-  std::scoped_lock lock(mutex_);
-  const VkPipeline *found_pipeline = compute_pipelines_.lookup_ptr(compute_info);
-  if (found_pipeline) {
-    VkPipeline result = *found_pipeline;
-    BLI_assert(result != VK_NULL_HANDLE);
-    return result;
+  /* Perform strategic of this function based on the compilation state. */
+  bool do_pipeline_building = false;
+  bool wait_for_pipeline = false;
+  {
+    std::scoped_lock lock(mutex_);
+    const VkPipeline *found_pipeline = compute_pipelines_.lookup_ptr(compute_info);
+    if (found_pipeline) {
+      if (*found_pipeline == VK_NULL_HANDLE) {
+        wait_for_pipeline = true;
+      }
+      else {
+        /* Early exit: compute_info found and has a valid pipeline. */
+        return *found_pipeline;
+      }
+    }
+    else {
+      compute_pipelines_.add_new(compute_info, VK_NULL_HANDLE);
+      do_pipeline_building = true;
+    }
+  }
+
+  if (wait_for_pipeline) {
+    // TODO: use thread notification.
+    while (true) {
+    std::scoped_lock lock(mutex_);
+    const VkPipeline *found_pipeline = compute_pipelines_.lookup_ptr(compute_info);
+    if (*found_pipeline) {
+
+    }
   }
 
   vk_compute_pipeline_create_info_.layout = compute_info.vk_pipeline_layout;
