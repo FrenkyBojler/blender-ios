@@ -13,11 +13,11 @@
 
 namespace blender::bke::curves::nurbs {
 
-bool check_valid_num_order_and_resolution(const int points_num,
-                                          const int8_t order,
-                                          const bool cyclic,
-                                          const KnotsMode knots_mode,
-                                          const int resolution)
+bool check_valid_eval_params(const int points_num,
+                             const int8_t order,
+                             const bool cyclic,
+                             const KnotsMode knots_mode,
+                             const int resolution)
 {
   if (points_num < order) {
     return false;
@@ -87,7 +87,7 @@ int calculate_evaluated_num(const int points_num,
                             const KnotsMode knots_mode,
                             const Span<float> knots)
 {
-  if (!check_valid_num_order_and_resolution(points_num, order, cyclic, knots_mode, resolution)) {
+  if (!check_valid_eval_params(points_num, order, cyclic, knots_mode, resolution)) {
     return points_num;
   }
   const int nonzero_span_num = knots_mode == KnotsMode::NURBS_KNOT_MODE_CUSTOM &&

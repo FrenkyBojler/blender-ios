@@ -59,7 +59,7 @@ struct BasisCache {
   Vector<int> start_indices;
 
   /**
-   * The result of #check_valid_num_order_and_resolution, to avoid retrieving its inputs later on.
+   * The result of #check_valid_eval_params, to avoid retrieving its inputs later on.
    * If this is true, the data above will be invalid, and original data should be copied
    * to the evaluated result.
    */
@@ -850,7 +850,7 @@ namespace nurbs {
 /**
  * Checks the conditions that a NURBS curve needs to evaluate.
  */
-bool check_valid_num_order_and_resolution(
+bool check_valid_eval_params(
     int points_num, int8_t order, bool cyclic, KnotsMode knots_mode, int resolution);
 
 /**
