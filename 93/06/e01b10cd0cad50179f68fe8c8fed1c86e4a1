@@ -1,2 +1,3 @@
 Referenced by issue #82870, Continuous grab is broken 2.92.0 Alpha macOS
 Referenced by pull request #148158, Fix #145624: macOS: Screen jump when using continuous grab
+Referenced by commit 4b91f73644f07a8569aad61826da4bf34ff03c59, Fix #145624: macOS: Screen jump when using continuous grab
