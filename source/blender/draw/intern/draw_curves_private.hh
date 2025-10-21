@@ -216,6 +216,7 @@ struct CurvesEvalCache {
                                        const bke::CurvesGeometry &curves,
                                        int face_per_segment);
 
+  /* Returns nullptr if reaching hardware limit. */
   gpu::Batch *batch_get(int evaluated_point_count,
                         int curve_count,
                         int face_per_segment,
