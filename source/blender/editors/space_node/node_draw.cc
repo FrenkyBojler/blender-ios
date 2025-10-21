@@ -2173,6 +2173,7 @@ static std::string node_errors_tooltip_fn(const Span<geo_log::NodeWarning> warni
 }
 
 #define NODE_HEADER_ICON_SIZE (0.8f * U.widget_unit)
+#define NODE_HEADER_GROUP_ICON_OFFSET (NODE_HEADER_ICON_SIZE + (NODE_MARGIN_X / 3))
 
 static uiBut *add_error_message_button(uiBlock &block,
                                        const rctf &rect,
@@ -2937,6 +2938,16 @@ static void node_header_custom_tooltip(const bNode &node, uiBut &but)
       nullptr);
 }
 
+static const bool node_header_group_icon_show(const bNode &node)
+{
+  const bool is_node_group = node.type_legacy == NODE_GROUP;
+  const bool is_packed = (node.id && ID_IS_PACKED(node.id));
+  const bool show_node_options = node.flag & NODE_OPTIONS;
+  const bool show_node_group_icon = is_node_group && show_node_options && !is_packed;
+
+  return show_node_group_icon;
+}
+
 static void node_draw_basis(const bContext &C,
                             TreeDrawContext &tree_draw_ctx,
                             const View2D &v2d,
@@ -3027,6 +3038,32 @@ static void node_draw_basis(const bContext &C,
 
     UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
     UI_draw_roundbox_4fv(&rect, true, corner_radius, color_header);
+  }
+
+  /* Icons. */
+  const bool show_node_group_icon = node_header_group_icon_show(node);
+  if (show_node_group_icon) {
+    UI_block_emboss_set(&block, ui::EmbossType::None);
+    uiBut *but = uiDefIconBut(&block,
+                              ButType::ButToggle,
+                              0,
+                              ICON_NODETREE,
+                              rct.xmin + NODE_HEADER_GROUP_ICON_OFFSET,
+                              rct.ymax - NODE_DY,
+                              iconbutw,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              "");
+    UI_but_func_set(but,
+                    node_toggle_button_cb,
+                    POINTER_FROM_INT(node.identifier),
+                    (void *)"NODE_OT_group_edit");
+    if (node.id) {
+      UI_but_icon_indicator_number_set(but, ID_REAL_USERS(node.id));
+    }
+    UI_block_emboss_set(&block, ui::EmbossType::Emboss);
   }
 
   /* Show/hide icons. */
@@ -3210,12 +3247,16 @@ static void node_draw_basis(const bContext &C,
   }
 
   const std::string showname = bke::node_label(ntree, node);
+  const float node_label_offset = (show_node_group_icon ?
+                                       NODE_HEADER_GROUP_ICON_OFFSET - (0.15f * U.widget_unit) :
+                                       0.0f);
+  const float node_label_left = round_fl_to_int(rct.xmin + NODE_MARGIN_X) + node_label_offset;
 
   uiBut *but = uiDefBut(&block,
                         ButType::Label,
                         0,
                         showname,
-                        round_fl_to_int(rct.xmin + NODE_MARGIN_X),
+                        node_label_left,
                         int(rct.ymax - NODE_DY),
                         short(iconofs - rct.xmin - NODE_MARGIN_X),
                         NODE_DY,
