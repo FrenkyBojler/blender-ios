@@ -448,6 +448,13 @@ typedef struct FileSelectParams {
   short recursion_level;
 
   char _pad2[2];
+
+  /** Directory path with template variables (unresolved). */
+  char dir_variable[/*FILE_MAX_LIBEXTRA*/ 1282];
+  /** Directory path preview (resolved template variables). */
+  char dir_preview[/*FILE_MAX_LIBEXTRA*/ 1282];
+  
+  char _pad4[4];
 } FileSelectParams;
 
 /**

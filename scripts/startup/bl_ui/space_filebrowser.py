@@ -452,7 +452,13 @@ class FILEBROWSER_PT_directory_path(Panel):
         subsubrow.operator_context = 'EXEC_DEFAULT'
         subsubrow.operator("file.directory_new", icon='NEWFOLDER', text="")
 
-        subrow.template_file_select_path(params)
+        use_path_variables = True  # TODO make this not hardcoded
+        if use_path_variables:
+            path_column = subrow.column()
+            path_column.template_file_select_path_variable(params)
+            path_column.template_file_select_path_preview(params)
+        else:
+            subrow.template_file_select_path(params)
 
         subrow = flow.row()
 

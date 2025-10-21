@@ -42,6 +42,7 @@
 
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
@@ -96,6 +97,36 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
   }
 }
 
+/** 
+ * Update file browser template paths: variable (unresolved) and preview (resolved).
+ */
+static void fileselect_update_template_paths(FileSelectParams *params)
+{
+  /* Always preserve original path in variable field */
+  STRNCPY(params->dir_variable, params->dir);
+  
+  if (!BKE_path_contains_template_syntax(params->dir)) {
+    STRNCPY(params->dir_preview, params->dir);
+    return;
+  }
+
+  /* Resolve templates directly into preview path */
+  BLI_strncpy(params->dir_preview, params->dir, sizeof(params->dir_preview));
+  
+  /* Build and apply template variables from current scene */
+  blender::bke::path_templates::VariableMap variables;
+  const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
+  
+  BKE_add_template_variables_general(variables, scene ? &scene->id : nullptr);
+  if (scene) {
+    BKE_add_template_variables_for_render_path(variables, *scene);
+  }
+  
+  BKE_path_apply_template(params->dir_preview, sizeof(params->dir_preview), variables);
+  STRNCPY(params->dir, params->dir_preview);
+}
+}
+
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
@@ -139,8 +170,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
  * \note #RNA_struct_property_is_set_ex is used here because we want
  * the previously used settings to be used here rather than overriding them.
  */
-static FileSelectParams *fileselect_ensure_updated_file_params(
-    SpaceFile *sfile, bool preserve_template_filename = false)
+static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
@@ -164,6 +194,10 @@ static FileSelectParams *fileselect_ensure_updated_file_params(
     sfile->params->filter_id = U_default.file_space_data.filter_id;
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
+    
+    /* Initialize template paths */
+    STRNCPY(sfile->params->dir_variable, sfile->params->dir);
+    STRNCPY(sfile->params->dir_preview, sfile->params->dir);
   }
 
   params = sfile->params;
@@ -197,45 +231,18 @@ static FileSelectParams *fileselect_ensure_updated_file_params(
       else {
         BLI_path_split_dir_file(
             filepath, params->dir, sizeof(params->dir), params->file, sizeof(params->file));
-
-        /* Check if template filename preservation is enabled and restore original template
-         * filename */
-        if (preserve_template_filename && op->customdata) {
-          struct FileBrowseOp {
-            PointerRNA ptr;
-            PropertyRNA *prop;
-            bool is_undo;
-            bool is_userdef;
-          };
-
-          FileBrowseOp *fbo = static_cast<FileBrowseOp *>(op->customdata);
-          if (fbo->prop && (RNA_property_flag(fbo->prop) & PROP_PATH_SUPPORTS_TEMPLATES)) {
-            /* Get the original un-evaluated property value */
-            char *original_path = RNA_property_string_get_alloc(
-                &fbo->ptr, fbo->prop, nullptr, 0, nullptr);
-
-            /* If original path contains templates, extract and restore filename */
-            if (BKE_path_contains_template_syntax(original_path)) {
-              const char *original_filename = BLI_path_basename(original_path);
-              if (original_filename[0] != '\0') {
-                STRNCPY(params->file, original_filename);
-              }
-            }
-
-            MEM_freeN(original_path);
-          }
-        }
       }
     }
-    else {
-      if (is_directory && RNA_struct_property_is_set_ex(op->ptr, "directory", false)) {
-        RNA_string_get(op->ptr, "directory", params->dir);
-        params->file[0] = '\0';
-      }
 
-      if (is_filename && RNA_struct_property_is_set_ex(op->ptr, "filename", false)) {
-        RNA_string_get(op->ptr, "filename", params->file);
-      }
+    if (is_directory && RNA_struct_property_is_set_ex(op->ptr, "directory", false)) {
+      char operator_dir[FILE_MAX_LIBEXTRA];
+      RNA_string_get(op->ptr, "directory", operator_dir);
+      STRNCPY(params->dir, operator_dir);
+      params->file[0] = '\0';
+    }
+
+    if (is_filename && RNA_struct_property_is_set_ex(op->ptr, "filename", false)) {
+      RNA_string_get(op->ptr, "filename", params->file);
     }
 
     if (params->dir[0]) {
@@ -382,6 +389,10 @@ static FileSelectParams *fileselect_ensure_updated_file_params(
     params->filter_glob[0] = '\0';
   }
 
+  /* Always apply minimal template path handling
+  TODO make not hardcoded to always use path templates*/
+  fileselect_update_template_paths(params);
+
   fileselect_initialize_params_common(sfile, params);
 
   return params;
@@ -392,11 +403,7 @@ FileSelectParams *ED_fileselect_ensure_active_params(SpaceFile *sfile)
   switch ((eFileBrowse_Mode)sfile->browse_mode) {
     case FILE_BROWSE_MODE_FILES:
       if (!sfile->params) {
-        bool preserve_templates = false;
-        if (sfile->op && RNA_struct_find_property(sfile->op->ptr, "preserve_template_filename")) {
-          preserve_templates = RNA_boolean_get(sfile->op->ptr, "preserve_template_filename");
-        }
-        fileselect_ensure_updated_file_params(sfile, preserve_templates);
+        fileselect_ensure_updated_file_params(sfile);
       }
       return sfile->params;
     case FILE_BROWSE_MODE_ASSETS:

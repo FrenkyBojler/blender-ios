@@ -309,15 +309,36 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
         BKE_build_template_variables_for_prop(C, &ptr, prop);
     BLI_assert(variables.has_value());
 
-    const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-        path, FILE_MAX, *variables);
-    if (!errors.is_empty()) {
-      BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
-      return OPERATOR_CANCELLED;
-    }
+    /* Check if path contains templates and preserve them for file browser */
+    if (BKE_path_contains_template_syntax(path)) {
+      /* Set flag to preserve template filenames in file browser */
+      RNA_boolean_set(op->ptr, "preserve_template_filename", true);
+      
+      /* Store the original unresolved path for the file browser */
+      char *original_path = BLI_strdup(path);
+      RNA_string_set(op->ptr, "original_template_path", original_path);
+      MEM_freeN(original_path);
 
-    /* Set flag to preserve template filenames in file browser */
-    RNA_boolean_set(op->ptr, "preserve_template_filename", true);
+      /* Only resolve for validation, don't use resolved path */
+      char temp_path[FILE_MAX];
+      STRNCPY(temp_path, path);
+      const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+          temp_path, FILE_MAX, *variables);
+      if (!errors.is_empty()) {
+        BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
+        return OPERATOR_CANCELLED;
+      }
+      /* Don't overwrite path with resolved version - keep the template */
+    }
+    else {
+      /* No templates, resolve normally */
+      const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+          path, FILE_MAX, *variables);
+      if (!errors.is_empty()) {
+        BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
+        return OPERATOR_CANCELLED;
+      }
+    }
   }
 
   /* Useful yet irritating feature, Shift+Click to open the file
@@ -488,6 +509,14 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
                          false,
                          "Preserve Template Filename",
                          "Preserve template variable filenames in the file browser");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  prop = RNA_def_string(ot->srna,
+                        "original_template_path",
+                        nullptr,
+                        0,
+                        "Original Template Path",
+                        "Original path with template variables before resolution");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 

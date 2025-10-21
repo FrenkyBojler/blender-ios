@@ -7,19 +7,26 @@
  */
 
 #include "BKE_library.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_math_color.h"
 #include "BLI_string_ref.hh"
 
+#include "BLT_translation.hh"
+
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
 
 #include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
+
+#include "../space_file/file_intern.hh"
+#include "../space_file/filelist.hh"
 
 using blender::StringRefNull;
 
@@ -309,6 +316,85 @@ void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *p
   SpaceFile *sfile = CTX_wm_space_file(C);
 
   ED_file_path_button(screen, sfile, params, layout->block());
+}
+
+/* Minimal callback for variable path changes */
+static void file_directory_variable_enter_handle(bContext *C, void *, void *)
+{
+  SpaceFile *sfile = CTX_wm_space_file(C);
+  if (!sfile) return;
+
+  FileSelectParams *params = ED_fileselect_get_active_params(sfile);
+  if (!params) return;
+
+  STRNCPY(params->dir, params->dir_preview);
+  ED_file_change_dir(C);
+}
+
+/* Common helper for creating file path buttons */
+static uiBut *create_file_path_button(uiLayout *layout,
+                                      bContext *C,
+                                      FileSelectParams *params,
+                                      const char *prop_name,
+                                      const char *tooltip,
+                                      bool read_only)
+{
+  bScreen *screen = CTX_wm_screen(C);
+  SpaceFile *sfile = CTX_wm_space_file(C);
+
+  PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
+      &screen->id, &RNA_FileSelectParams, params);
+
+  UI_block_func_set(layout->block(), file_draw_check_cb, nullptr, nullptr);
+
+  uiBut *but = uiDefButR(layout->block(),
+                         ButType::Text,
+                         -1,
+                         "",
+                         0,
+                         0,
+                         UI_UNIT_X * 10,
+                         UI_UNIT_Y,
+                         &params_rna_ptr,
+                         prop_name,
+                         0,
+                         0.0f,
+                         float(FILE_MAX),
+                         tooltip);
+
+  if (read_only) {
+    UI_but_flag_enable(but, UI_BUT_DISABLED);
+  }
+  else {
+    UI_but_func_complete_set(but, autocomplete_directory, nullptr);
+    UI_but_funcN_set(but, file_directory_variable_enter_handle, nullptr, nullptr);
+  }
+
+  /* Disable if library is loaded */
+  if (sfile && sfile->files && filelist_lib(sfile->files)) {
+    UI_but_flag_enable(but, UI_BUT_DISABLED);
+  }
+
+  UI_block_func_set(layout->block(), nullptr, nullptr, nullptr);
+  return but;
+}
+
+void uiTemplateFileSelectPathVariable(uiLayout *layout, bContext *C, FileSelectParams *params)
+{
+  BLI_assert_msg(params != nullptr, "File select parameters not set.");
+  create_file_path_button(layout,
+                          C,
+                          params,
+                          "directory_variable",
+                          TIP_("Variable file path with template syntax"),
+                          false);
+}
+
+void uiTemplateFileSelectPathPreview(uiLayout *layout, bContext *C, FileSelectParams *params)
+{
+  BLI_assert_msg(params != nullptr, "File select parameters not set.");
+  create_file_path_button(
+      layout, C, params, "directory_preview", TIP_("Resolved file path preview"), true);
 }
 
 /** \} */

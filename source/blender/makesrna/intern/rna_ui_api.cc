@@ -2249,6 +2249,20 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 
+  func = RNA_def_function(srna, "template_file_select_path_variable", "uiTemplateFileSelectPathVariable");
+  RNA_def_function_ui_description(
+      func, "Item. A text button to set the active file browser path with template variables.");
+  parm = RNA_def_pointer(func, "params", "FileSelectParams", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+
+  func = RNA_def_function(srna, "template_file_select_path_preview", "uiTemplateFileSelectPathPreview");
+  RNA_def_function_ui_description(
+      func, "Item. A text button showing the resolved file browser path preview.");
+  parm = RNA_def_pointer(func, "params", "FileSelectParams", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+
   func = RNA_def_function(
       srna, "template_event_from_keymap_item", "rna_uiTemplateEventFromKeymapItem");
   RNA_def_function_ui_description(func, "Display keymap item as icons/text");

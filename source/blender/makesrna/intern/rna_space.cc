@@ -16,6 +16,7 @@
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_movieclip.h"
+#include "BKE_path_templates.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
@@ -3086,6 +3087,26 @@ static void rna_FileSelectPrams_filter_glob_set(PointerRNA *ptr, const char *val
 static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_with_parent(*ptr, &RNA_FileSelectIDFilter, ptr->data);
+}
+
+static void rna_FileSelectParams_directory_variable_set(PointerRNA *ptr, const char *value)
+{
+  FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
+  
+  /* Set the variable directory */
+  STRNCPY(params->dir_variable, value);
+  
+  /* Update the preview by resolving templates */
+  char resolved_path[FILE_MAX];
+  STRNCPY(resolved_path, value);
+  
+  /* Apply template variables for path resolution */
+  blender::bke::path_templates::VariableMap template_variables;
+  BKE_add_template_variables_general(template_variables, nullptr);
+  BKE_path_apply_template(resolved_path, sizeof(resolved_path), template_variables);
+  
+  /* Store the resolved preview path */
+  STRNCPY(params->dir_preview, resolved_path);
 }
 
 static int rna_FileAssetSelectParams_asset_library_get(PointerRNA *ptr)
@@ -7378,6 +7399,18 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_BYTESTRING);
   RNA_def_property_string_sdna(prop, nullptr, "dir");
   RNA_def_property_ui_text(prop, "Directory", "Directory displayed in the file browser");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
+
+  prop = RNA_def_property(srna, "directory_variable", PROP_STRING, PROP_BYTESTRING);
+  RNA_def_property_string_sdna(prop, nullptr, "dir_variable");
+  RNA_def_property_ui_text(prop, "Directory Variable", "Directory path with template variables (unresolved)");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_FileSelectParams_directory_variable_set");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
+
+  prop = RNA_def_property(srna, "directory_preview", PROP_STRING, PROP_BYTESTRING);
+  RNA_def_property_string_sdna(prop, nullptr, "dir_preview");
+  RNA_def_property_ui_text(prop, "Directory Preview", "Directory path preview (resolved template variables)");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
   prop = RNA_def_property(srna, "filename", PROP_STRING, PROP_FILENAME);
