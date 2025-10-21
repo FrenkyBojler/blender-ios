@@ -8,6 +8,8 @@
  * Query functions for area/region.
  */
 
+#include "BKE_screen.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
@@ -24,7 +26,7 @@ bool ED_region_overlap_isect_x(const ARegion *region, const int event_x)
   if (region->v2d.mask.xmin == region->v2d.mask.xmax) {
     return false;
   }
-  return BLI_rctf_isect_x(&region->v2d.tot,
+  return BLI_rctf_isect_x(&region->v2d.cur,
                           UI_view2d_region_to_view_x(&region->v2d, event_x - region->winrct.xmin));
 }
 
@@ -35,7 +37,7 @@ bool ED_region_overlap_isect_y(const ARegion *region, const int event_y)
   if (region->v2d.mask.ymin == region->v2d.mask.ymax) {
     return false;
   }
-  return BLI_rctf_isect_y(&region->v2d.tot,
+  return BLI_rctf_isect_y(&region->v2d.cur,
                           UI_view2d_region_to_view_y(&region->v2d, event_y - region->winrct.ymin));
 }
 
@@ -48,6 +50,9 @@ bool ED_region_overlap_isect_xy(const ARegion *region, const int event_xy[2])
 bool ED_region_overlap_isect_any_xy(const ScrArea *area, const int event_xy[2])
 {
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    if (!region->runtime->visible) {
+      continue;
+    }
     if (ED_region_is_overlap(area->spacetype, region->regiontype)) {
       if (ED_region_overlap_isect_xy(region, event_xy)) {
         return true;
@@ -98,8 +103,8 @@ bool ED_region_overlap_isect_x_with_margin(const ARegion *region,
     return false;
   }
   int region_x = event_x - region->winrct.xmin;
-  return ((region->v2d.tot.xmin <= UI_view2d_region_to_view_x(&region->v2d, region_x + margin)) &&
-          (region->v2d.tot.xmax >= UI_view2d_region_to_view_x(&region->v2d, region_x - margin)));
+  return ((region->v2d.cur.xmin <= UI_view2d_region_to_view_x(&region->v2d, region_x + margin)) &&
+          (region->v2d.cur.xmax >= UI_view2d_region_to_view_x(&region->v2d, region_x - margin)));
 }
 
 bool ED_region_overlap_isect_y_with_margin(const ARegion *region,
@@ -112,8 +117,8 @@ bool ED_region_overlap_isect_y_with_margin(const ARegion *region,
     return false;
   }
   int region_y = event_y - region->winrct.ymin;
-  return ((region->v2d.tot.ymin <= UI_view2d_region_to_view_y(&region->v2d, region_y + margin)) &&
-          (region->v2d.tot.ymax >= UI_view2d_region_to_view_y(&region->v2d, region_y - margin)));
+  return ((region->v2d.cur.ymin <= UI_view2d_region_to_view_y(&region->v2d, region_y + margin)) &&
+          (region->v2d.cur.ymax >= UI_view2d_region_to_view_y(&region->v2d, region_y - margin)));
 }
 
 bool ED_region_overlap_isect_xy_with_margin(const ARegion *region,
