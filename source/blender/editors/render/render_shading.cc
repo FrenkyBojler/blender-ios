@@ -713,7 +713,7 @@ static wmOperatorStatus material_slot_remove_unused_exec(bContext *C, wmOperator
 
   BKE_reportf(op->reports, RPT_INFO, "Removed %d slots", removed);
 
-  if (ob_active->mode & OB_MODE_TEXTURE_PAINT) {
+  if (ob_active && ob_active->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
