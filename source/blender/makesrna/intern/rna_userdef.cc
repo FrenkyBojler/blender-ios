@@ -3197,6 +3197,19 @@ static void rna_def_userdef_theme_space_userpref(BlenderRNA *brna)
   rna_def_userdef_theme_spaces_main(srna);
 }
 
+static void rna_def_userdef_theme_space_project(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  /* space_project */
+
+  srna = RNA_def_struct(brna, "ThemeProject", nullptr);
+  RNA_def_struct_sdna(srna, "ThemeSpace");
+  RNA_def_struct_ui_text(srna, "Theme Project", "Theme settings for the Blender Project editor");
+
+  rna_def_userdef_theme_spaces_main(srna);
+}
+
 static void rna_def_userdef_theme_space_console(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -4274,6 +4287,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
       {5, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", ""},
       {12, "OUTLINER", ICON_OUTLINER, "Outliner", ""},
       {14, "PREFERENCES", ICON_PREFERENCES, "Preferences", ""},
+      {27, "PROJECT", ICON_NONE /* TODO */, "Project", ""},
       {11, "PROPERTIES", ICON_PROPERTIES, "Properties", ""},
       {17, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
       {23, "SPREADSHEET", ICON_SPREADSHEET, "Spreadsheet"},
@@ -4404,6 +4418,12 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, nullptr, "space_preferences");
   RNA_def_property_struct_type(prop, "ThemePreferences");
   RNA_def_property_ui_text(prop, "Preferences", "");
+
+  prop = RNA_def_property(srna, "project", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_pointer_sdna(prop, nullptr, "space_project");
+  RNA_def_property_struct_type(prop, "ThemeProject");
+  RNA_def_property_ui_text(prop, "Project", "");
 
   prop = RNA_def_property(srna, "console", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -4668,6 +4688,7 @@ static void rna_def_userdef_dothemes(BlenderRNA *brna)
   rna_def_userdef_theme_space_outliner(brna);
   rna_def_userdef_theme_space_info(brna);
   rna_def_userdef_theme_space_userpref(brna);
+  rna_def_userdef_theme_space_project(brna);
   rna_def_userdef_theme_space_console(brna);
   rna_def_userdef_theme_space_clip(brna);
   rna_def_userdef_theme_space_topbar(brna);

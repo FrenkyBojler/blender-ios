@@ -989,6 +989,7 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeNodeEditor",
         "ThemeOutliner",
         "ThemePreferences",
+        "ThemeProject",
         "ThemeProperties",
         "ThemeRegions",
         "ThemeRegionsAssetShelf",
