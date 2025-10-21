@@ -1,1 +1,2 @@
 Referenced by issue #81922, The Graph Editor doesn't show any curve of the Armature (if in Pose mode, but armature unselected, with box/circle/lasso tools)
+Referenced by pull request #148491, Fix #147996: Shift selecting in the outliner can cause the Dope Sheet to only show the summary
