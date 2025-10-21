@@ -126,11 +126,12 @@ class PROJECT_PT_navigation_bar(Panel):
 # Main Area
 
 
-class PROJECT_PT_main(Panel):
-    bl_label = "Project"
+class PROJECT_PT_main_1(Panel):
+    bl_label = "Project La La"
     bl_space_type = 'PROJECT'
     bl_region_type = 'WINDOW'
-    bl_options = {'HIDE_HEADER'}
+    #bl_options = {'HIDE_HEADER'}
+    bl_category = "Test 1"
 
     @classmethod
     def poll(cls, context):
@@ -150,13 +151,33 @@ class PROJECT_PT_main(Panel):
             col.prop(project.data, "root_path")
             col.operator("project.write_project")
 
+class PROJECT_PT_main_2(Panel):
+    bl_label = "Project Ba Ba"
+    bl_space_type = 'PROJECT'
+    bl_region_type = 'WINDOW'
+    #bl_options = {'HIDE_HEADER'}
+    bl_category = "Test 2"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        project = context.project
+
+        col = layout.column()
+
+        col.label(text="Hi there!!!")
+
 
 classes = (
     PROJECT_HT_header,
     PROJECT_MT_editor_menus,
     PROJECT_MT_view,
     PROJECT_PT_navigation_bar,
-    PROJECT_PT_main,
+    PROJECT_PT_main_1,
+    PROJECT_PT_main_2,
     PROJECT_OP_NewProject,
     PROJECT_OP_WriteProject
 )

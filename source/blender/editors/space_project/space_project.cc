@@ -97,12 +97,22 @@ static void project_main_region_init(wmWindowManager *wm, ARegion *region)
 
 static void project_main_region_layout(const bContext *C, ARegion *region)
 {
-  ED_region_panels_layout(C, region);
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
+  /* TODO: determine this dynamically from the navigation bar. */
+  const char *active_category = "Test 2";
+
+  ED_region_panels_layout_ex(C,
+                             region,
+                             &region->runtime->type->paneltypes,
+                             blender::wm::OpCallContext::InvokeRegionWin,
+                             nullptr,
+                             active_category);
 }
 
 static void project_main_region_draw(const bContext *C, ARegion *region)
 {
-  ED_region_panels(C, region);
+  ED_region_panels_draw(C, region);
 }
 
 static void project_main_region_listener(const wmRegionListenerParams * /*params*/) {}
@@ -126,6 +136,7 @@ static void project_header_region_listener(const wmRegionListenerParams * /*para
 static void project_navigation_region_init(wmWindowManager *wm, ARegion *region)
 {
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 
   ED_region_panels_init(wm, region);
 }

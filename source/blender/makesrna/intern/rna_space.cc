@@ -16,17 +16,20 @@
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_movieclip.h"
+#include "BKE_screen.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
 #include "ED_spreadsheet.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
 
 #include "DNA_action_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
@@ -626,12 +629,6 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
      "Table contains geometry data"},
     {0, nullptr, 0, nullptr, nullptr},
 
-};
-
-const EnumPropertyItem rna_enum_project_section_items[] = {
-    {PROJECT_SECTION_GENERAL, "GENERAL", 0, "General", ""},
-    {PROJECT_SECTION_VARIABLES, "VARIABLES", 0, "Variables", ""},
-    {0, NULL, 0, NULL, NULL},
 };
 
 #ifdef RNA_RUNTIME
@@ -3774,6 +3771,39 @@ static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
     }
   }
   RNA_enum_item_end(&items, &items_num);
+  *r_free = true;
+  return items;
+}
+
+static const EnumPropertyItem *rna_project_active_section_itemf(bContext *C,
+                                                               PointerRNA *ptr,
+                                                               PropertyRNA * /*prop*/,
+                                                               bool *r_free)
+{
+  EnumPropertyItem *items = nullptr;
+  int time_count = 0;
+  int i = 0;
+
+  if (!C) {
+    return nullptr;
+  }
+
+  ScrArea *area = CTX_wm_area(C);
+  if (!area || area->spacetype != SPACE_PROJECT) {
+    return nullptr;
+  }
+
+  LISTBASE_FOREACH(ARegion *, area_region, &area->regionbase) {
+    LISTBASE_FOREACH(Panel *, panel, &area_region->panels) {
+      const char *category = panel->type->category;
+      // Make enum.
+      EnumPropertyItem item = {i, category, ICON_NONE, category, nullptr};
+      RNA_enum_item_add(&items, &time_count, &item);
+    }
+  }
+
+  RNA_enum_item_end(&items, &time_count);
+
   *r_free = true;
   return items;
 }
@@ -9125,7 +9155,7 @@ static void rna_def_space_project(BlenderRNA *brna)
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "active_section", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_project_section_items);
+  RNA_def_property_enum_funcs_runtime(prop, nullptr, nullptr, rna_project_active_section_itemf, nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Active Section", "Choose the category of options to display");
 }
 
