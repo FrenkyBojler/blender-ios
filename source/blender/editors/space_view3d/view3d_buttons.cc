@@ -623,9 +623,9 @@ static CurvesSelectionStatus init_curves_selection_status(
 }
 
 template<typename T>
-static StatusValue<T> init_status_from_attribute(const blender::VArray<T> attribute,
+static StatusValue<T> init_status_from_attribute(const blender::VArray<T> &attribute,
                                                  const blender::IndexMask &selection,
-                                                 const T default_value)
+                                                 const T &default_value)
 {
   using namespace blender;
   if (!attribute) {
@@ -2664,7 +2664,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
         [&](const IndexRange range, const CurvesSelectionStatus &acc) {
           CurvesSelectionStatus value = acc;
           for (const int drawing : range) {
-            const bke::CurvesGeometry curves = drawings[drawing].drawing.strokes();
+            const bke::CurvesGeometry &curves = drawings[drawing].drawing.strokes();
             value = CurvesSelectionStatus::sum(value, init_curves_selection_status(curves));
             value = CurvesSelectionStatus::sum(value, init_grease_pencil_selection_status(curves));
           }
