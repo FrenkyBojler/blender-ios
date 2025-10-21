@@ -1673,7 +1673,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
             /* After warping, we can still receive unwrapped mouse that occured slightly before or
              * after the current event at close timestamps, causing the wrapping to be applied a
              * second time, leading to a visual jump. Ignore these events by returning early.
-             * See PR #148158 for details. */
+             * Using a small empirical future covering threshold, see PR #148158 for details. */
             const NSTimeInterval timestamp = event.timestamp;
             const NSTimeInterval stale_event_threshold = 0.003;
             if (timestamp < (last_warp_timestamp_ + stale_event_threshold)) {
