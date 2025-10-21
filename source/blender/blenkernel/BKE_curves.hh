@@ -925,6 +925,7 @@ void calculate_basis_cache(int points_num,
                            int8_t order,
                            int resolution,
                            bool cyclic,
+                           KnotsMode knots_mode,
                            Span<float> knots,
                            BasisCache &basis_cache);
 

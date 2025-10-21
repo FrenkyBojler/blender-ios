@@ -807,6 +807,7 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
                                              order,
                                              resolution,
                                              is_cyclic,
+                                             mode,
                                              knots,
                                              r_data[curve_index]);
       }

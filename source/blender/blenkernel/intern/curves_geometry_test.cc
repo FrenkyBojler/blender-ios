@@ -541,8 +541,14 @@ TEST(curves_geometry, BasisCacheBezierSegmentDeg2)
   EXPECT_EQ(evaluated_num, resolution + 1);
 
   curves::nurbs::BasisCache cache;
-  curves::nurbs::calculate_basis_cache(
-      point_count, evaluated_num, order, resolution, is_cyclic, knots, cache);
+  curves::nurbs::calculate_basis_cache(point_count,
+                                       evaluated_num,
+                                       order,
+                                       resolution,
+                                       is_cyclic,
+                                       KnotsMode::NURBS_KNOT_MODE_CUSTOM,
+                                       knots,
+                                       cache);
   EXPECT_EQ_SPAN<float>(expectation, cache.weights);
 }
 
@@ -603,8 +609,14 @@ TEST(curves_geometry, BasisCacheNonUniformDeg2)
   EXPECT_EQ(evaluated_num, 5 * resolution + 1);
 
   curves::nurbs::BasisCache cache;
-  curves::nurbs::calculate_basis_cache(
-      point_count, evaluated_num, order, resolution, is_cyclic, knots, cache);
+  curves::nurbs::calculate_basis_cache(point_count,
+                                       evaluated_num,
+                                       order,
+                                       resolution,
+                                       is_cyclic,
+                                       KnotsMode::NURBS_KNOT_MODE_CUSTOM,
+                                       knots,
+                                       cache);
   EXPECT_NEAR_SPAN<float>(expectation, cache.weights, 1e-6f);
 }
 

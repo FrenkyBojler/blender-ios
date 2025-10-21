@@ -234,6 +234,7 @@ void calculate_basis_cache(const int points_num,
                            const int8_t order,
                            const int resolution,
                            const bool cyclic,
+                           const KnotsMode knots_mode,
                            const Span<float> knots,
                            BasisCache &basis_cache)
 {
@@ -249,6 +250,10 @@ void calculate_basis_cache(const int points_num,
     return;
   }
 
+  if (!check_valid_eval_params(points_num, order, cyclic, knots_mode, resolution)) {
+    return;
+  }
+
   MutableSpan<float> basis_weights(basis_cache.weights);
   MutableSpan<int> basis_start_indices(basis_cache.start_indices);
 
@@ -259,7 +264,7 @@ void calculate_basis_cache(const int points_num,
    * knots, with multiplicity > 1, only the rightmost is considered a breakpoint
    * as the spans between repeated knot values are zero length!
    */
-  const int breakpoint_num = (evaluated_num - !cyclic) / std::max(resolution, 1);
+  const int breakpoint_num = (evaluated_num - !cyclic) / resolution;
   Array<int, 20> span_offsets(breakpoint_num);
 
   int breakpoint_count = 0;
@@ -274,13 +279,13 @@ void calculate_basis_cache(const int points_num,
   threading::parallel_for(span_offsets.index_range(), 4096, [&](const IndexRange range) {
     for (const int index : range) {
       const int span_index = span_offsets[index];
-      int eval_point = index * std::max(resolution, 1);
+      int eval_point = index * resolution;
 
       const float knot_delta = knots[span_index + 1] - knots[span_index];
-      const float knot_step = knot_delta / std::max(resolution, 1);
+      const float knot_step = knot_delta / resolution;
       BLI_assert(knot_delta > 0.0f);
 
-      for (const int step : IndexRange::from_begin_size(0, std::max(resolution, 1))) {
+      for (const int step : IndexRange::from_begin_size(0, resolution)) {
         const float parameter = knots[span_index] + step * knot_step;
         calculate_basis_for_point(knots,
                                   degree,
