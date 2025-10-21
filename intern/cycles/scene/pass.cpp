@@ -610,8 +610,8 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
               tag_type = LPE_TAG_LIGHT_GROUP;
             }
             else {
-              /* For R, T, D, G, S, s or other events, assume object */
-              tag_type = LPE_TAG_OBJECT;
+              /* For R, T, D, G, S, s or other events, search in both object and material maps */
+              tag_type = LPE_TAG_NONE; /* Will be determined by lookup */
             }
           }
 
@@ -650,6 +650,36 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
             else {
               /* Keep original if not found */
               LOG_WARNING << "Material '" << tag_name << "' not found in LPE expression: " << expr;
+              result += tag_content;
+            }
+          }
+          else if (tag_type == LPE_TAG_NONE) {
+            /* Implicit type inference: search in both object and material maps */
+            auto obj_it = object_map.find(ustring(tag_name));
+            auto mat_it = material_map.find(ustring(tag_name));
+
+            bool found_object = (obj_it != object_map.end());
+            bool found_material = (mat_it != material_map.end());
+
+            if (found_object && found_material) {
+              /* Ambiguous: found in both maps - prioritize object and warn */
+              LOG_WARNING << "Ambiguous tag '" << tag_name
+                          << "' matches both object and material in LPE expression: " << expr
+                          << " (using object)";
+              result += "object:#" + to_string(obj_it->second);
+            }
+            else if (found_object) {
+              /* Found only in object map */
+              result += "object:#" + to_string(obj_it->second);
+            }
+            else if (found_material) {
+              /* Found only in material map */
+              result += "material:#" + to_string(mat_it->second);
+            }
+            else {
+              /* Not found in either map */
+              LOG_WARNING << "Tag '" << tag_name
+                          << "' not found as object or material in LPE expression: " << expr;
               result += tag_content;
             }
           }
