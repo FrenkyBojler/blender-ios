@@ -378,9 +378,10 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
     }
   }
 
-  /* For curves in edit mode, return the original curve data */
-  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT) &&
-      BKE_object_is_in_editmode(ob_eval))
+  /* For curves and surfaces in edit mode, use their original data when snapping.
+   * Only use the evaluated mesh when snapping to the final geometry */
+  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_SURF) && BKE_object_is_in_editmode(ob_eval) &&
+      edit_mode_type != SNAP_GEOM_FINAL)
   {
     return static_cast<const ID *>(ob_eval->data);
   }
