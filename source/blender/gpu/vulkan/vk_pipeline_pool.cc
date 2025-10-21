@@ -10,6 +10,7 @@
 
 #include "BLI_fileops.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_time.h"
 
 #include "CLG_log.h"
 
@@ -209,14 +210,20 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(VKComputeInfo &compute
   }
 
   if (wait_for_pipeline) {
-    // TODO: use thread notification.
+    // TODO: use thread notification. and a max elapse time.
     while (true) {
-    std::scoped_lock lock(mutex_);
-    const VkPipeline *found_pipeline = compute_pipelines_.lookup_ptr(compute_info);
-    if (*found_pipeline) {
-
+      BLI_time_sleep_ms(1);
+      {
+        std::scoped_lock lock(mutex_);
+        const VkPipeline *found_pipeline = compute_pipelines_.lookup_ptr(compute_info);
+        if (*found_pipeline != VK_NULL_HANDLE) {
+          return *found_pipeline;
+        }
+      }
     }
   }
+
+  /* TODO: move all create infos on the stack. */
 
   vk_compute_pipeline_create_info_.layout = compute_info.vk_pipeline_layout;
   vk_compute_pipeline_create_info_.stage.module = compute_info.vk_shader_module;
@@ -236,7 +243,12 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(VKComputeInfo &compute
                            nullptr,
                            &pipeline);
   debug::object_label(pipeline, name);
-  compute_pipelines_.add(compute_info, pipeline);
+
+  {
+    std::scoped_lock lock(mutex_);
+    VkPipeline &pipeline_item = compute_pipelines_.lookup(compute_info);
+    pipeline_item = pipeline;
+  }
 
   /* Reset values to initial value. */
   vk_compute_pipeline_create_info_.flags = 0;
