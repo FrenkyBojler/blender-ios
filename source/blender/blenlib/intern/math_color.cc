@@ -332,7 +332,7 @@ void rgb_to_hsl_v(const float rgb[3], float r_hsl[3])
 
 void rgb_to_hsv_compat(float r, float g, float b, float *r_h, float *r_s, float *r_v)
 {
-  /* Convert RGB to HSV, while staying as close as possible to existing HSL values.
+  /* Convert RGB to HSV, while staying as close as possible to existing HSV values.
    * Uses a threshold as there can be small errors introduced by color space conversions
    * or other operations. */
   const float orig_h = *r_h;
