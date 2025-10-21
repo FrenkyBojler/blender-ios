@@ -119,7 +119,7 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
       ptr++;
       continue;
     }
-    /* Character sets [DGS] or negated [^DGS] */
+    /* Character sets [DGS] or negated [^DGS] or tags [^'label'] */
     else if (*ptr == '[') {
       ptr++;
       token.type = LPE_TOKEN_EVENT;
@@ -130,22 +130,58 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
         ptr++;
       }
 
-      while (*ptr && *ptr != ']') {
-        int event = char_to_event(*ptr);
-        if (event >= 0) {
-          token.event_mask |= (1 << event);
-          token.events.push_back(*ptr);
+      /* Check if this is a tag in character set [^'label'] */
+      if (*ptr == '\'') {
+        ptr++; /* Skip opening ' */
+
+        /* Check for wildcard '*' */
+        if (*ptr == '*' && *(ptr + 1) == '\'') {
+          token.tag.is_wildcard = true;
+          token.tag.is_negated = token.is_negated;
+          ptr += 2; /* Skip '* */
         }
-        ptr++;
-      }
+        else {
+          /* Parse tag content until closing ' */
+          string tag_content;
+          while (*ptr && *ptr != '\'') {
+            tag_content += *ptr;
+            ptr++;
+          }
 
-      if (*ptr == ']') {
-        ptr++;
-      }
+          if (*ptr == '\'') {
+            ptr++; /* Skip closing ' */
+          }
 
-      /* Invert mask if negated */
-      if (token.is_negated && token.event_mask != 0) {
-        /* Create mask with all valid event bits set */
+          /* Parse type:name or just name */
+          size_t colon = tag_content.find(':');
+          if (colon != string::npos) {
+            string type_str = tag_content.substr(0, colon);
+            token.tag.name = tag_content.substr(colon + 1);
+
+            if (type_str == "lightgroup" || type_str == "lgroup" || type_str == "lgp") {
+              token.tag.type = LPE_TAG_LIGHT_GROUP;
+            }
+            else if (type_str == "object" || type_str == "obj") {
+              token.tag.type = LPE_TAG_OBJECT;
+            }
+            else if (type_str == "material" || type_str == "mat") {
+              token.tag.type = LPE_TAG_MATERIAL;
+            }
+            else {
+              LOG_WARNING << "Unknown tag type '" << type_str
+                          << "' in LPE pattern: " << pattern_str;
+            }
+          }
+          else {
+            /* No prefix: this is a tag name, type will be inferred from context */
+            token.tag.name = tag_content;
+            token.tag.type = LPE_TAG_NONE; /* Will be inferred during matching */
+          }
+
+          token.tag.is_negated = token.is_negated;
+        }
+
+        /* For tags in character sets, match all event types */
         const int all_events_mask = (1 << 0) |  /* C */
                                     (1 << 1) |  /* R */
                                     (1 << 2) |  /* T */
@@ -157,10 +193,43 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
                                     (1 << 9) |  /* G */
                                     (1 << 10) | /* S */
                                     (1 << 11);  /* s */
-        token.event_mask = all_events_mask & ~token.event_mask;
+        token.event_mask = all_events_mask;
+        token.is_negated = false; /* Negation is on the tag, not the event mask */
+      }
+      else {
+        /* Regular character set with event types */
+        while (*ptr && *ptr != ']') {
+          int event = char_to_event(*ptr);
+          if (event >= 0) {
+            token.event_mask |= (1 << event);
+            token.events.push_back(*ptr);
+          }
+          ptr++;
+        }
+
+        /* Invert mask if negated */
+        if (token.is_negated && token.event_mask != 0) {
+          /* Create mask with all valid event bits set */
+          const int all_events_mask = (1 << 0) |  /* C */
+                                      (1 << 1) |  /* R */
+                                      (1 << 2) |  /* T */
+                                      (1 << 3) |  /* V */
+                                      (1 << 4) |  /* L */
+                                      (1 << 5) |  /* O */
+                                      (1 << 6) |  /* B */
+                                      (1 << 8) |  /* D */
+                                      (1 << 9) |  /* G */
+                                      (1 << 10) | /* S */
+                                      (1 << 11);  /* s */
+          token.event_mask = all_events_mask & ~token.event_mask;
+        }
       }
 
-      if (token.event_mask != 0) {
+      if (*ptr == ']') {
+        ptr++;
+      }
+
+      if (token.event_mask != 0 || token.tag.type != LPE_TAG_NONE || token.tag.is_wildcard) {
         pattern.tokens.push_back(token);
       }
       continue;
@@ -174,30 +243,24 @@ bool LPEParser::parse_pattern(const string &pattern_str, LPEPattern &pattern)
         token.events.push_back(*ptr);
         ptr++;
 
-        /* Check for tag filter <type:name> or <name> */
-        if (*ptr == '<') {
+        /* Check for tag filter 'type:name' or 'name' */
+        if (*ptr == '\'') {
           ptr++;
 
-          /* Check for negation <^name> */
-          if (*ptr == '^') {
-            token.tag.is_negated = true;
-            ptr++;
-          }
-
-          /* Check for wildcard <*> */
-          if (*ptr == '*' && *(ptr + 1) == '>') {
+          /* Check for wildcard '*' */
+          if (*ptr == '*' && *(ptr + 1) == '\'') {
             token.tag.is_wildcard = true;
             ptr += 2;
           }
           else {
-            /* Parse tag content until > */
+            /* Parse tag content until closing ' */
             string tag_content;
-            while (*ptr && *ptr != '>') {
+            while (*ptr && *ptr != '\'') {
               tag_content += *ptr;
               ptr++;
             }
 
-            if (*ptr == '>') {
+            if (*ptr == '\'') {
               ptr++;
             }
 

@@ -309,14 +309,164 @@ ccl_device_inline void kernel_lpe_extract_path(ccl_global IntegratorState state,
   path_str[len] = '\0';
 }
 
-/* Check if character matches a character class [ABC] or negated [^ABC] */
+/* Check if a tag '...' in the pattern matches the current context
+ * Returns tag length if matched (to skip), 0 if no tag or doesn't match
+ * Tag formats:
+ * - '#ID' for light groups (after L/O/B events)
+ * - 'object:#ID' or 'obj:#ID' for objects (after R/T/D/G/S events)
+ * - 'material:#ID' or 'mat:#ID' for materials (after any surface event)
+ * - '*' for wildcard (matches any)
+ * Note: Negation is handled via character sets [^'...']
+ */
+ccl_device_inline int kernel_lpe_check_tag(ccl_private const char *pattern,
+                                           uint16_t current_lightgroup_id,
+                                           int current_object_id,
+                                           int current_material_id,
+                                           char event_char,
+                                           bool is_negated)
+{
+  if (pattern[0] != '\'') {
+    return 0;
+  }
+
+  int pos = 1;
+
+  /* Check for wildcard '*' */
+  if (pattern[pos] == '*' && pattern[pos + 1] == '\'') {
+    /* Wildcard matches any light group/object/material */
+    return pos + 2;
+  }
+
+  /* Parse tag type prefix (object:, obj:, material:, mat:, lightgroup:, lgroup:, lgp:) */
+  enum TagType { TAG_LIGHTGROUP, TAG_OBJECT, TAG_MATERIAL, TAG_UNKNOWN };
+  TagType tag_type = TAG_UNKNOWN;
+
+  /* Check for explicit tag type prefix */
+  if (pattern[pos] == 'o' && pattern[pos + 1] == 'b' && pattern[pos + 2] == 'j' &&
+      pattern[pos + 3] == ':')
+  {
+    tag_type = TAG_OBJECT;
+    pos += 4;
+  }
+  else if (pattern[pos] == 'o' && pattern[pos + 1] == 'b' && pattern[pos + 2] == 'j' &&
+           pattern[pos + 3] == 'e' && pattern[pos + 4] == 'c' && pattern[pos + 5] == 't' &&
+           pattern[pos + 6] == ':')
+  {
+    tag_type = TAG_OBJECT;
+    pos += 7;
+  }
+  else if (pattern[pos] == 'm' && pattern[pos + 1] == 'a' && pattern[pos + 2] == 't' &&
+           pattern[pos + 3] == ':')
+  {
+    tag_type = TAG_MATERIAL;
+    pos += 4;
+  }
+  else if (pattern[pos] == 'm' && pattern[pos + 1] == 'a' && pattern[pos + 2] == 't' &&
+           pattern[pos + 3] == 'e' && pattern[pos + 4] == 'r' && pattern[pos + 5] == 'i' &&
+           pattern[pos + 6] == 'a' && pattern[pos + 7] == 'l' && pattern[pos + 8] == ':')
+  {
+    tag_type = TAG_MATERIAL;
+    pos += 9;
+  }
+  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'g' && pattern[pos + 2] == 'p' &&
+           pattern[pos + 3] == ':')
+  {
+    tag_type = TAG_LIGHTGROUP;
+    pos += 4;
+  }
+  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'g' && pattern[pos + 2] == 'r' &&
+           pattern[pos + 3] == 'o' && pattern[pos + 4] == 'u' && pattern[pos + 5] == 'p' &&
+           pattern[pos + 6] == ':')
+  {
+    tag_type = TAG_LIGHTGROUP;
+    pos += 7;
+  }
+  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'i' && pattern[pos + 2] == 'g' &&
+           pattern[pos + 3] == 'h' && pattern[pos + 4] == 't' && pattern[pos + 5] == 'g' &&
+           pattern[pos + 6] == 'r' && pattern[pos + 7] == 'o' && pattern[pos + 8] == 'u' &&
+           pattern[pos + 9] == 'p' && pattern[pos + 10] == ':')
+  {
+    tag_type = TAG_LIGHTGROUP;
+    pos += 11;
+  }
+  /* If no prefix and starts with #, infer type from event character */
+  else if (pattern[pos] == '#') {
+    /* Infer tag type based on previous event:
+     * - L/O/B → light group
+     * - R/T/D/G/S → object (for now, could also be material) */
+    if (event_char == 'L' || event_char == 'O' || event_char == 'B') {
+      tag_type = TAG_LIGHTGROUP;
+    }
+    else {
+      tag_type = TAG_OBJECT;
+    }
+  }
+
+  /* Parse numeric ID after # */
+  if (pattern[pos] == '#') {
+    pos++;
+    int tag_id = 0;
+
+    /* Parse integer ID */
+    while (pattern[pos] >= '0' && pattern[pos] <= '9') {
+      tag_id = tag_id * 10 + (pattern[pos] - '0');
+      pos++;
+    }
+
+    if (pattern[pos] == '\'') {
+      pos++; /* Skip closing ' */
+
+      /* Match ID based on tag type */
+      bool matches = false;
+      if (tag_type == TAG_LIGHTGROUP) {
+        matches = (tag_id == (int)current_lightgroup_id);
+      }
+      else if (tag_type == TAG_OBJECT) {
+        matches = (tag_id == current_object_id);
+      }
+      else if (tag_type == TAG_MATERIAL) {
+        matches = (tag_id == current_material_id);
+      }
+
+      if (is_negated) {
+        matches = !matches;
+      }
+
+      if (matches) {
+        return pos; /* Tag matched, return length to skip */
+      }
+      else {
+        return -1; /* Tag present but doesn't match - fail entire pattern */
+      }
+    }
+  }
+
+  /* Skip unknown/unsupported tag format */
+  while (pattern[pos] != '\0' && pattern[pos] != '\'') {
+    pos++;
+  }
+  if (pattern[pos] == '\'') {
+    pos++;
+  }
+  return pos; /* Skip tag */
+}
+
+/* Check if character matches a character class [ABC] or negated [^ABC] or tag [^'label']
+ * Also handles tag matching within character sets for negation
+ */
 ccl_device_inline bool kernel_lpe_matches_char_class(char c,
                                                      ccl_private const char *pattern,
-                                                     int *class_end)
+                                                     int *class_end,
+                                                     uint16_t lightgroup_id,
+                                                     int object_id,
+                                                     int material_id,
+                                                     char event_char)
 {
   int i = 0;
   bool found = false;
   bool is_negated = false;
+  bool has_tag = false;
+  bool tag_matches = false;
 
   /* Check for negation */
   if (pattern[i] == '^') {
@@ -324,17 +474,47 @@ ccl_device_inline bool kernel_lpe_matches_char_class(char c,
     i++;
   }
 
-  while (pattern[i] != '\0' && pattern[i] != ']') {
-    if (pattern[i] == c) {
-      found = true;
+  /* Check for tag in character set: [^'label'] or ['label'] */
+  if (pattern[i] == '\'') {
+    has_tag = true;
+    /* Find the end of the tag */
+    int tag_len = kernel_lpe_check_tag(&pattern[i], lightgroup_id, object_id, material_id, event_char, is_negated);
+    if (tag_len > 0) {
+      tag_matches = true;
+      i += tag_len;
     }
-    i++;
+    else if (tag_len < 0) {
+      /* Tag present but doesn't match */
+      tag_matches = false;
+      /* Skip to end of tag */
+      i++; /* Skip opening ' */
+      while (pattern[i] != '\0' && pattern[i] != '\'') {
+        i++;
+      }
+      if (pattern[i] == '\'') {
+        i++;
+      }
+    }
+  }
+  else {
+    /* Regular character class */
+    while (pattern[i] != '\0' && pattern[i] != ']') {
+      if (pattern[i] == c) {
+        found = true;
+      }
+      i++;
+    }
   }
 
   /* class_end points after the ']' */
   *class_end = (pattern[i] == ']') ? i + 1 : i;
 
-  /* Invert result if negated */
+  /* For tags in character sets, return tag match result (negation already handled in kernel_lpe_check_tag) */
+  if (has_tag) {
+    return tag_matches;
+  }
+
+  /* For regular character classes, invert result if negated */
   return is_negated ? !found : found;
 }
 
@@ -429,153 +609,6 @@ ccl_device_inline int kernel_lpe_count_event(ccl_private const char *path, char 
   return count;
 }
 
-/* Check if a tag <...> in the pattern matches the current context
- * Returns tag length if matched (to skip), 0 if no tag or doesn't match
- * Tag formats:
- * - <#ID> or <^#ID> for light groups (after L/O/B events)
- * - <object:#ID> or <obj:#ID> for objects (after R/T/D/G/S events)
- * - <material:#ID> or <mat:#ID> for materials (after any surface event)
- * - <*> for wildcard (matches any)
- */
-ccl_device_inline int kernel_lpe_check_tag(ccl_private const char *pattern,
-                                           uint16_t current_lightgroup_id,
-                                           int current_object_id,
-                                           int current_material_id,
-                                           char event_char)
-{
-  if (pattern[0] != '<') {
-    return 0;
-  }
-
-  int pos = 1;
-  bool is_negated = false;
-
-  /* Check for negation <^...> */
-  if (pattern[pos] == '^') {
-    is_negated = true;
-    pos++;
-  }
-
-  /* Check for wildcard <*> */
-  if (pattern[pos] == '*' && pattern[pos + 1] == '>') {
-    /* Wildcard matches any light group/object/material */
-    return pos + 2;
-  }
-
-  /* Parse tag type prefix (object:, obj:, material:, mat:, lightgroup:, lgroup:, lgp:) */
-  enum TagType { TAG_LIGHTGROUP, TAG_OBJECT, TAG_MATERIAL, TAG_UNKNOWN };
-  TagType tag_type = TAG_UNKNOWN;
-
-  /* Check for explicit tag type prefix */
-  if (pattern[pos] == 'o' && pattern[pos + 1] == 'b' && pattern[pos + 2] == 'j' &&
-      pattern[pos + 3] == ':')
-  {
-    tag_type = TAG_OBJECT;
-    pos += 4;
-  }
-  else if (pattern[pos] == 'o' && pattern[pos + 1] == 'b' && pattern[pos + 2] == 'j' &&
-           pattern[pos + 3] == 'e' && pattern[pos + 4] == 'c' && pattern[pos + 5] == 't' &&
-           pattern[pos + 6] == ':')
-  {
-    tag_type = TAG_OBJECT;
-    pos += 7;
-  }
-  else if (pattern[pos] == 'm' && pattern[pos + 1] == 'a' && pattern[pos + 2] == 't' &&
-           pattern[pos + 3] == ':')
-  {
-    tag_type = TAG_MATERIAL;
-    pos += 4;
-  }
-  else if (pattern[pos] == 'm' && pattern[pos + 1] == 'a' && pattern[pos + 2] == 't' &&
-           pattern[pos + 3] == 'e' && pattern[pos + 4] == 'r' && pattern[pos + 5] == 'i' &&
-           pattern[pos + 6] == 'a' && pattern[pos + 7] == 'l' && pattern[pos + 8] == ':')
-  {
-    tag_type = TAG_MATERIAL;
-    pos += 9;
-  }
-  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'g' && pattern[pos + 2] == 'p' &&
-           pattern[pos + 3] == ':')
-  {
-    tag_type = TAG_LIGHTGROUP;
-    pos += 4;
-  }
-  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'g' && pattern[pos + 2] == 'r' &&
-           pattern[pos + 3] == 'o' && pattern[pos + 4] == 'u' && pattern[pos + 5] == 'p' &&
-           pattern[pos + 6] == ':')
-  {
-    tag_type = TAG_LIGHTGROUP;
-    pos += 7;
-  }
-  else if (pattern[pos] == 'l' && pattern[pos + 1] == 'i' && pattern[pos + 2] == 'g' &&
-           pattern[pos + 3] == 'h' && pattern[pos + 4] == 't' && pattern[pos + 5] == 'g' &&
-           pattern[pos + 6] == 'r' && pattern[pos + 7] == 'o' && pattern[pos + 8] == 'u' &&
-           pattern[pos + 9] == 'p' && pattern[pos + 10] == ':')
-  {
-    tag_type = TAG_LIGHTGROUP;
-    pos += 11;
-  }
-  /* If no prefix and starts with #, infer type from event character */
-  else if (pattern[pos] == '#') {
-    /* Infer tag type based on previous event:
-     * - L/O/B → light group
-     * - R/T/D/G/S → object (for now, could also be material) */
-    if (event_char == 'L' || event_char == 'O' || event_char == 'B') {
-      tag_type = TAG_LIGHTGROUP;
-    }
-    else {
-      tag_type = TAG_OBJECT;
-    }
-  }
-
-  /* Parse numeric ID after # */
-  if (pattern[pos] == '#') {
-    pos++;
-    int tag_id = 0;
-
-    /* Parse integer ID */
-    while (pattern[pos] >= '0' && pattern[pos] <= '9') {
-      tag_id = tag_id * 10 + (pattern[pos] - '0');
-      pos++;
-    }
-
-    if (pattern[pos] == '>') {
-      pos++; /* Skip closing > */
-
-      /* Match ID based on tag type */
-      bool matches = false;
-      if (tag_type == TAG_LIGHTGROUP) {
-        matches = (tag_id == (int)current_lightgroup_id);
-      }
-      else if (tag_type == TAG_OBJECT) {
-        matches = (tag_id == current_object_id);
-      }
-      else if (tag_type == TAG_MATERIAL) {
-        matches = (tag_id == current_material_id);
-      }
-
-      if (is_negated) {
-        matches = !matches;
-      }
-
-      if (matches) {
-        return pos; /* Tag matched, return length to skip */
-      }
-      else {
-        return -1; /* Tag present but doesn't match - fail entire pattern */
-      }
-    }
-  }
-
-  /* Skip unknown/unsupported tag format */
-  while (pattern[pos] != '\0' && pattern[pos] != '>') {
-    pos++;
-  }
-  if (pattern[pos] == '>') {
-    pos++;
-  }
-  return pos; /* Skip tag */
-}
-
 /* LPE pattern matching with operator support
  * Supports: | (OR), - (SUBTRACT), ! (NEGATE), and all basic wildcards
  * This is the main entry point for LPE matching
@@ -635,9 +668,29 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
 
     /* Handle character class [ABC] */
     if (p == '[') {
-      int class_end = 0;
-      bool matched = kernel_lpe_matches_char_class(
-          path[path_pos], &pattern[pattern_pos + 1], &class_end);
+      /* Check if this is a post-event tag modifier [^'label'] or ['label'] */
+      /* In that case, skip this section and let the single character handler deal with it */
+      int peek = pattern_pos + 1;
+      bool is_tag_modifier = false;
+
+      if (pattern[peek] == '^' && pattern[peek + 1] == '\'') {
+        is_tag_modifier = true;
+      }
+      else if (pattern[peek] == '\'') {
+        is_tag_modifier = true;
+      }
+
+      /* If it's a tag modifier following an event we just matched, skip to single char handler */
+      if (is_tag_modifier && path_pos > 0) {
+        /* This will be handled by the post-event tag filter in the single character section */
+        /* Do nothing here - fall through to single character matching */
+      }
+      else {
+        /* Regular character class matching */
+        int class_end = 0;
+        bool matched = kernel_lpe_matches_char_class(
+            path[path_pos], &pattern[pattern_pos + 1], &class_end,
+            lightgroup_id, object_id, material_id, path[path_pos]);
 
       /* Check for quantifiers after character class */
       char quantifier = pattern[pattern_pos + 1 + class_end];
@@ -667,7 +720,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
               return false;
             }
             int tmp = 0;
-            if (!kernel_lpe_matches_char_class(path[path_pos], &pattern[pattern_pos + 1], &tmp)) {
+            if (!kernel_lpe_matches_char_class(path[path_pos], &pattern[pattern_pos + 1], &tmp,
+                                              lightgroup_id, object_id, material_id, path[path_pos])) {
               return false;
             }
             path_pos++;
@@ -690,7 +744,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             }
             /* Try one more match */
             int tmp = 0;
-            if (kernel_lpe_matches_char_class(path[path_pos], &pattern[save_pos + 1], &tmp)) {
+            if (kernel_lpe_matches_char_class(path[path_pos], &pattern[save_pos + 1], &tmp,
+                                             lightgroup_id, object_id, material_id, path[path_pos])) {
               path_pos++;
             }
             else {
@@ -713,7 +768,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             return true;
           }
           int tmp = 0;
-          if (kernel_lpe_matches_char_class(path[path_pos], &pattern[class_start], &tmp)) {
+          if (kernel_lpe_matches_char_class(path[path_pos], &pattern[class_start], &tmp,
+                                           lightgroup_id, object_id, material_id, path[path_pos])) {
             path_pos++;
           }
           else {
@@ -740,7 +796,8 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
             return true;
           }
           int tmp = 0;
-          if (kernel_lpe_matches_char_class(path[path_pos], &pattern[class_start], &tmp)) {
+          if (kernel_lpe_matches_char_class(path[path_pos], &pattern[class_start], &tmp,
+                                           lightgroup_id, object_id, material_id, path[path_pos])) {
             path_pos++;
           }
           else {
@@ -757,6 +814,7 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         }
         path_pos++;
         pattern_pos += 1 + class_end;
+      }
       }
     }
     /* Handle {n} or {n,m} after single character */
@@ -869,9 +927,9 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
       pattern_pos++;
 
       /* Check for tag filter after any event (except C which is always first) */
-      if (p != 'C' && pattern[pattern_pos] == '<') {
+      if (p != 'C' && pattern[pattern_pos] == '\'') {
         int tag_len = kernel_lpe_check_tag(
-            &pattern[pattern_pos], lightgroup_id, object_id, material_id, p);
+            &pattern[pattern_pos], lightgroup_id, object_id, material_id, p, false);
         if (tag_len < 0) {
           /* Tag present but doesn't match - pattern fails */
           return false;
@@ -879,6 +937,37 @@ ccl_device_inline bool kernel_lpe_matches(ccl_private const char *path,
         else if (tag_len > 0) {
           /* Tag matched - skip it in pattern */
           pattern_pos += tag_len;
+        }
+      }
+      /* Check for character set tag filter [^'label'] or ['label'] after event */
+      else if (p != 'C' && pattern[pattern_pos] == '[') {
+        /* Peek ahead to see if this is a tag filter */
+        int peek = pattern_pos + 1;
+        bool is_negated = false;
+
+        if (pattern[peek] == '^') {
+          is_negated = true;
+          peek++;
+        }
+
+        /* If it's a tag (starts with '), treat it as a post-event modifier */
+        if (pattern[peek] == '\'') {
+          /* Skip the [ and optional ^ */
+          int tag_start = peek;
+          int tag_len = kernel_lpe_check_tag(
+              &pattern[tag_start], lightgroup_id, object_id, material_id, p, is_negated);
+
+          if (tag_len < 0) {
+            /* Tag present but doesn't match - pattern fails */
+            return false;
+          }
+          else if (tag_len > 0) {
+            /* Tag matched - skip [, optional ^, tag, and ] */
+            pattern_pos = tag_start + tag_len;
+            if (pattern[pattern_pos] == ']') {
+              pattern_pos++;
+            }
+          }
         }
       }
     }

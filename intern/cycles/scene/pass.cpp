@@ -544,53 +544,54 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
   string result;
   const string expr = lpe_expression.string();
   const char *ptr = expr.c_str();
+  char last_event_char = '\0'; /* Track last event character for type inference */
 
   while (*ptr) {
-    /* Check for tag <...> */
-    if (*ptr == '<') {
+    /* Track event characters (C, R, T, V, L, O, B, D, G, S, s) */
+    if ((*ptr >= 'A' && *ptr <= 'Z') || *ptr == 's') {
+      /* Check if it's a valid LPE event character */
+      if (*ptr == 'C' || *ptr == 'R' || *ptr == 'T' || *ptr == 'V' || *ptr == 'L' ||
+          *ptr == 'O' || *ptr == 'B' || *ptr == 'D' || *ptr == 'G' || *ptr == 'S' ||
+          *ptr == 's')
+      {
+        last_event_char = *ptr;
+      }
+    }
+
+    /* Check for tag '...' or [^'...'] */
+    if (*ptr == '\'') {
       result += *ptr;
       ptr++;
 
       /* Parse tag content */
       string tag_content;
-      bool is_negated = false;
       bool is_wildcard = false;
 
-      /* Check for negation <^name> */
-      if (*ptr == '^') {
-        is_negated = true;
-        tag_content += *ptr;
-        ptr++;
-      }
-
-      /* Check for wildcard <*> */
-      if (*ptr == '*' && *(ptr + 1) == '>') {
+      /* Check for wildcard '*' */
+      if (*ptr == '*' && *(ptr + 1) == '\'') {
         is_wildcard = true;
         tag_content += '*';
         ptr++;
       }
       else {
-        /* Parse until > */
-        while (*ptr && *ptr != '>') {
+        /* Parse until closing ' */
+        while (*ptr && *ptr != '\'') {
           tag_content += *ptr;
           ptr++;
         }
       }
 
-      if (*ptr == '>') {
+      if (*ptr == '\'') {
         /* Process the tag */
         if (!is_wildcard && !tag_content.empty()) {
-          /* Skip negation character for name lookup */
-          string lookup_name = is_negated ? tag_content.substr(1) : tag_content;
-
           /* Parse type:name or just name */
-          size_t colon = lookup_name.find(':');
+          size_t colon = tag_content.find(':');
           LPETagType tag_type = LPE_TAG_NONE;
           string tag_name;
 
           if (colon != string::npos) {
-            string type_str = lookup_name.substr(0, colon);
-            tag_name = lookup_name.substr(colon + 1);
+            string type_str = tag_content.substr(0, colon);
+            tag_name = tag_content.substr(colon + 1);
 
             if (type_str == "lightgroup" || type_str == "lgroup" || type_str == "lgp") {
               tag_type = LPE_TAG_LIGHT_GROUP;
@@ -603,9 +604,15 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
             }
           }
           else {
-            tag_name = lookup_name;
-            /* Assume light group by default */
-            tag_type = LPE_TAG_LIGHT_GROUP;
+            tag_name = tag_content;
+            /* Infer type from last event character (OSL-style) */
+            if (last_event_char == 'L' || last_event_char == 'O' || last_event_char == 'B') {
+              tag_type = LPE_TAG_LIGHT_GROUP;
+            }
+            else {
+              /* For R, T, D, G, S, s or other events, assume object */
+              tag_type = LPE_TAG_OBJECT;
+            }
           }
 
           /* Resolve name to ID */
@@ -613,9 +620,6 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
             auto it = scene->lightgroups.find(ustring(tag_name));
             if (it != scene->lightgroups.end()) {
               /* Replace name with #ID */
-              if (is_negated) {
-                result += "^";
-              }
               result += "lightgroup:#" + to_string(it->second);
             }
             else {
@@ -629,9 +633,6 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
             auto it = object_map.find(ustring(tag_name));
             if (it != object_map.end()) {
               /* Replace name with object:#ID */
-              if (is_negated) {
-                result += "^";
-              }
               result += "object:#" + to_string(it->second);
             }
             else {
@@ -644,9 +645,6 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
             auto it = material_map.find(ustring(tag_name));
             if (it != material_map.end()) {
               /* Replace name with material:#ID */
-              if (is_negated) {
-                result += "^";
-              }
               result += "material:#" + to_string(it->second);
             }
             else {
@@ -665,7 +663,7 @@ string Pass::resolve_lpe_tags(const Scene *scene) const
           result += tag_content;
         }
 
-        result += *ptr; /* Add closing > */
+        result += *ptr; /* Add closing ' */
         ptr++;
       }
     }
