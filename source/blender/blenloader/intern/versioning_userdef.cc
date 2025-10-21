@@ -416,6 +416,19 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_action.anim_interpolation_linear);
   }
 
+  if (!USER_VERSION_ATLEAST(501, 4)) {
+    FROM_DEFAULT_V4_UCHAR(space_project.back);
+    FROM_DEFAULT_V4_UCHAR(space_project.title);
+    FROM_DEFAULT_V4_UCHAR(space_project.text);
+    FROM_DEFAULT_V4_UCHAR(space_project.text_hi);
+    FROM_DEFAULT_V4_UCHAR(space_project.header);
+    FROM_DEFAULT_V4_UCHAR(space_project.header_text);
+    FROM_DEFAULT_V4_UCHAR(space_project.header_text_hi);
+    btheme->space_project.vertex_size = U_theme_default.space_project.vertex_size;
+    btheme->space_project.outline_width = U_theme_default.space_project.outline_width;
+    btheme->space_project.facedot_size = U_theme_default.space_project.facedot_size;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
