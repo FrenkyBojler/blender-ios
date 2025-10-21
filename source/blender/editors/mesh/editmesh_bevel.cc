@@ -427,6 +427,7 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
     if ((em->selectmode & SCE_SELECT_FACE) == 0) {
       EDBM_selectmode_flush(em);
     }
+    EDBM_uvselect_clear(em);
   }
 
   if (opdata->is_modal) {
@@ -1141,9 +1142,10 @@ void MESH_OT_bevel(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna, "loop_slide", true, "Loop Slide", "Prefer sliding along edges to even widths");
 
-  RNA_def_boolean(ot->srna, "mark_seam", false, "Mark Seams", "Mark Seams along beveled edges");
-
-  RNA_def_boolean(ot->srna, "mark_sharp", false, "Mark Sharp", "Mark beveled edges as sharp");
+  RNA_def_boolean(
+      ot->srna, "mark_seam", false, "Mark Seams", "Preserve seams along beveled edges");
+  RNA_def_boolean(
+      ot->srna, "mark_sharp", false, "Mark Sharp", "Preserve sharp edges along beveled edges");
 
   RNA_def_int(ot->srna,
               "material",

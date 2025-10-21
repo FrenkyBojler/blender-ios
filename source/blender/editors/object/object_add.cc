@@ -50,6 +50,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_armature.hh"
+#include "BKE_attribute.h"
 #include "BKE_camera.h"
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
@@ -4249,6 +4250,18 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   if (selected_editable_bases.is_empty()) {
     BKE_report(op->reports, RPT_INFO, "No editable objects to convert");
     return OPERATOR_CANCELLED;
+  }
+
+  /* Disallow conversion if any selected editable object is in Edit Mode.
+   * This could be supported in the future, but it's a rare corner case
+   * typically triggered only by Python scripts, see #147387. */
+  for (const PointerRNA &ptr : selected_editable_bases) {
+    const Object *ob = ((const Base *)ptr.data)->object;
+    if (ob->mode & OB_MODE_EDIT) {
+      BKE_report(
+          op->reports, RPT_ERROR, "Cannot convert selected objects while they are in edit mode");
+      return OPERATOR_CANCELLED;
+    }
   }
 
   /* don't forget multiple users! */

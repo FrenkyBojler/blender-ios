@@ -24,6 +24,7 @@
 #include "BLI_task.h"
 
 #include "bmesh.hh"
+#include "bmesh_query_uv.hh"
 #include "bmesh_structure.hh"
 
 /* For '_FLAG_OVERLAP'. */
@@ -238,6 +239,17 @@ static bool bm_edge_is_face_visible_any(const BMEdge *e)
 }
 
 /** \} */
+
+bool BM_mesh_select_is_mixed(const BMesh *bm)
+{
+  if (bm->selectmode & SCE_SELECT_VERTEX) {
+    return !ELEM(bm->totvertsel, 0, bm->totvert);
+  }
+  if (bm->selectmode & SCE_SELECT_EDGE) {
+    return !ELEM(bm->totedgesel, 0, bm->totedge);
+  }
+  return !ELEM(bm->totfacesel, 0, bm->totface);
+}
 
 void BM_mesh_select_mode_clean_ex(BMesh *bm, const short selectmode)
 {
@@ -487,7 +499,7 @@ static void bm_mesh_select_mode_flush_face_to_vert_and_edge(BMesh *bm)
 
 void BM_mesh_select_mode_flush_ex(BMesh *bm, const short selectmode, BMSelectFlushFlag flag)
 {
-  const bool flush_down = bool(flag & BMSelectFlushFlag::Down);
+  const bool flush_down = flag_is_set(flag, BMSelectFlushFlag::Down);
   if (flush_down) {
     if (selectmode & SCE_SELECT_VERTEX) {
       /* Pass. */
@@ -514,13 +526,13 @@ void BM_mesh_select_mode_flush_ex(BMesh *bm, const short selectmode, BMSelectFlu
   /* Remove any deselected elements from the BMEditSelection */
   BM_select_history_validate(bm);
 
-  if (bool(flag & BMSelectFlushFlag::RecalcLenVert)) {
+  if (flag_is_set(flag, BMSelectFlushFlag::RecalcLenVert)) {
     recount_totvertsel(bm);
   }
-  if (bool(flag & BMSelectFlushFlag::RecalcLenEdge)) {
+  if (flag_is_set(flag, BMSelectFlushFlag::RecalcLenEdge)) {
     recount_totedgesel(bm);
   }
-  if (bool(flag & BMSelectFlushFlag::RecalcLenFace)) {
+  if (flag_is_set(flag, BMSelectFlushFlag::RecalcLenFace)) {
     recount_totfacesel(bm);
   }
   BLI_assert(recount_totsels_are_ok(bm));

@@ -29,6 +29,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_idtype.hh"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -80,6 +81,7 @@
 /* Own include. */
 #include "sequencer_intern.hh"
 #include <cstddef>
+#include <fmt/format.h>
 
 namespace blender::ed::vse {
 
@@ -361,27 +363,17 @@ static Scene *get_sequencer_scene_for_time_sync(const bContext &C)
   return nullptr;
 }
 
-void sync_active_scene_and_time_with_scene_strip(bContext &C)
+const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene)
 {
   using namespace blender;
-  Scene *sequence_scene = get_sequencer_scene_for_time_sync(C);
-  if (!sequence_scene) {
-    return;
-  }
-
-  wmWindow *win = CTX_wm_window(&C);
-  Scene *active_scene = WM_window_get_active_scene(win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  Object *prev_obact = BKE_view_layer_active_object_get(view_layer);
-
-  Editing *ed = seq::editing_get(sequence_scene);
+  const Editing *ed = seq::editing_get(sequencer_scene);
   if (!ed) {
-    return;
+    return nullptr;
   }
   ListBase *seqbase = seq::active_seqbase_get(ed);
   const ListBase *channels = seq::channels_displayed_get(ed);
   VectorSet<Strip *> query_strips = seq::query_strips_recursive_at_frame(
-      sequence_scene, seqbase, sequence_scene->r.cfra);
+      sequencer_scene, seqbase, sequencer_scene->r.cfra);
   /* Ignore effect strips, sound strips and muted strips. */
   query_strips.remove_if([&](const Strip *strip) {
     return strip->is_effect() || strip->type == STRIP_TYPE_SOUND_RAM ||
@@ -393,20 +385,35 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     return a->channel > b->channel;
   });
   /* Get the top-most scene strip. */
-  const Strip *scene_strip = [&]() -> const Strip * {
-    for (const Strip *strip : strips) {
-      if (strip->type == STRIP_TYPE_SCENE) {
-        return strip;
-      }
+  for (const Strip *strip : strips) {
+    if (strip->type == STRIP_TYPE_SCENE) {
+      return strip;
     }
-    return nullptr;
-  }();
+  }
+  return nullptr;
+}
+
+void sync_active_scene_and_time_with_scene_strip(bContext &C)
+{
+  using namespace blender;
+  Scene *sequencer_scene = get_sequencer_scene_for_time_sync(C);
+  if (!sequencer_scene) {
+    return;
+  }
+
+  wmWindow *win = CTX_wm_window(&C);
+  const Strip *scene_strip = get_scene_strip_for_time_sync(sequencer_scene);
   if (!scene_strip || !scene_strip->scene) {
     /* No scene strip with scene found. Switch to pinned scene. */
     Main *bmain = CTX_data_main(&C);
-    WM_window_set_active_scene(bmain, &C, win, sequence_scene);
+    WM_window_set_active_scene(bmain, &C, win, sequencer_scene);
     return;
   }
+
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  Object *prev_obact = BKE_view_layer_active_object_get(view_layer);
+
+  Scene *active_scene = WM_window_get_active_scene(win);
   if (active_scene != scene_strip->scene) {
     /* Sync active scene in window. */
     Main *bmain = CTX_data_main(&C);
@@ -440,7 +447,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
 
   /* Compute the scene time based on the scene strip. */
   const float frame_index = seq::give_frame_index(
-                                sequence_scene, scene_strip, sequence_scene->r.cfra) +
+                                sequencer_scene, scene_strip, sequencer_scene->r.cfra) +
                             active_scene->r.sfra;
   if (active_scene->r.flag & SCER_SHOW_SUBFRAME) {
     active_scene->r.cfra = int(frame_index);
@@ -1972,6 +1979,59 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 /** \name Duplicate Strips Operator
  * \{ */
 
+static void sequencer_report_duplicates(wmOperator *op, ListBase *duplicated_strips)
+{
+  int num_scenes = 0, num_movieclips = 0, num_masks = 0;
+  LISTBASE_FOREACH (Strip *, strip, duplicated_strips) {
+    switch (strip->type) {
+      case STRIP_TYPE_SCENE:
+        num_scenes++;
+        break;
+      case STRIP_TYPE_MOVIECLIP:
+        num_movieclips++;
+        break;
+      case STRIP_TYPE_MASK:
+        num_masks++;
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (num_scenes == 0 && num_movieclips == 0 && num_masks == 0) {
+    return;
+  }
+
+  std::string report;
+  std::string sep;
+  if (num_scenes) {
+    report += fmt::format("{}{} {}",
+                          sep,
+                          num_scenes,
+                          (num_scenes > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_SCE)) :
+                                             RPT_(BKE_idtype_idcode_to_name(ID_SCE)));
+    sep = ", ";
+  }
+  if (num_movieclips) {
+    report += fmt::format("{}{} {}",
+                          sep,
+                          num_movieclips,
+                          (num_movieclips > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_MC)) :
+                                                 RPT_(BKE_idtype_idcode_to_name(ID_MC)));
+    sep = ", ";
+  }
+  if (num_masks) {
+    report += fmt::format("{}{} {}",
+                          sep,
+                          num_masks,
+                          (num_masks > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_MSK)) :
+                                            RPT_(BKE_idtype_idcode_to_name(ID_MSK)));
+    sep = ", ";
+  }
+
+  BKE_reportf(op->reports, RPT_INFO, RPT_("Duplicated %s"), report.c_str());
+}
+
 static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -2009,6 +2069,11 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op
 
   if (duplicated_strips.first == nullptr) {
     return OPERATOR_CANCELLED;
+  }
+
+  /* Report all the newly created datablocks in the status bar. */
+  if (!linked) {
+    sequencer_report_duplicates(op, &duplicated_strips);
   }
 
   /* Duplicate animation.
