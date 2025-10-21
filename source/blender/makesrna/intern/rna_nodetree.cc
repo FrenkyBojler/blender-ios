@@ -3388,14 +3388,6 @@ static void rna_Node_view_layer_update(Main *bmain, Scene *scene, PointerRNA *pt
   }
 }
 
-static void rna_Image_Node_update_id(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-  bNode *node = ptr->data_as<bNode>();
-
-  blender::bke::node_tag_update_id(*node);
-  rna_Node_update_relations(bmain, scene, ptr);
-}
-
 /* --------------------------------------------------------------------
  * White Balance Node.
  */
@@ -6293,7 +6285,7 @@ static void def_cmp_image(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Image", "");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Image_Node_update_id");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update_relations");
 
   /* NOTE: Image user properties used in the UI are redefined in def_node_image_user,
    * to trigger correct updates of the node editor. RNA design problem that prevents

@@ -381,9 +381,6 @@ class bNodeRuntime : NonCopyable, NonMovable {
   /** Used at runtime when iterating over node branches. */
   char iter_flag = 0;
 
-  /** Update flags. */
-  int update = 0;
-
   /** Offset that will be added to #bNode::locx for insert offset animation. */
   float anim_ofsx;
 
