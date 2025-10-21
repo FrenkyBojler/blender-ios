@@ -1,2 +1,3 @@
 Referenced by issue #148497, Blender closes with an error message "Not freed memory blocks: 1" in the terminal
 Referenced by issue #140408, "Exact" Boolean union deletes part of geometry
+Referenced by issue #148520, Edit mode with multires modifier keeps allocating system memory
