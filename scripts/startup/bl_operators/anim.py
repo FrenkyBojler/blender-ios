@@ -884,28 +884,14 @@ class ANIM_OT_version_bone_hide_property(Operator):
 
             # An action + slot is assigned, but that doesn't mean there is a layer and a strip.
             ob_channelbag = anim_utils.action_ensure_channelbag_for_slot(ob_adt.action, ob_adt.action_slot)
-            copy_attrs = ["co", "handle_left", "handle_right", "handle_left_type", "handle_right_type", "interpolation"]
-            for fcurve in fcurves:
-                attrs = {}
-                for attr in copy_attrs:
-                    data_length = 1 if attr in ["handle_left_type", "handle_right_type", "interpolation"] else 2
-                    array = [0] * (data_length * len(fcurve.keyframe_points))
-                    fcurve.keyframe_points.foreach_get(attr, array)
-                    attrs[attr] = array
 
+            for fcurve in fcurves:
                 new_path = "pose." + fcurve.data_path
                 if ob_channelbag.fcurves.find(new_path):
                     # FCurve for that property already exists.
                     continue
 
-                new_fcurve = ob_channelbag.fcurves.new(
-                    "pose." + fcurve.data_path,
-                    index=fcurve.array_index,
-                    group_name=fcurve.group.name if fcurve.group else "")
-                new_fcurve.keyframe_points.add(count=len(fcurve.keyframe_points))
-
-                for attr in copy_attrs:
-                    new_fcurve.keyframe_points.foreach_set(attr, attrs[attr])
+                ob_channelbag.fcurves.new_from_fcurve(fcurve, new_path)
 
             modified_armatures.append(arm_ob)
 
