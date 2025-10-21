@@ -3,3 +3,4 @@ Referenced by commit b8458b85a52e8b3cd2b054ebf58c762fadd770a4, Fix #141614: Cras
 Referenced by issue #141780, Images rotate bacwards
 Referenced by pull request #141782, Fix #141780: Images rotate bacwards in VSE
 Referenced by commit cadbf9702b95b48547a80c22adcb825bcc0c13f3, Fix #141780: Images rotate bacwards in VSE
+Referenced by commit 98325a7a2109921e7b8390953c9b558462fce975, Fix #148292: Snap Base rotates in opposite direction
