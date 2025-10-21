@@ -4,3 +4,4 @@ Referenced by commit 87f0d3c695e965f41427aebf67a8bb22dc7b6bb0, Fix #147014: Cras
 Referenced by issue #147042, Changing Object Dimensions in N-Panel Causes Blender Crash
 Referenced by issue #148000, Open BlendFile Asset button is disabled.
 Referenced by pull request #148351, Fix #148000: Open BlendFile Asset button is disabled
+Referenced by commit 9c2e2db498d7fd3575d28050d05318ac69935431, Fix #148000: Open BlendFile Asset button is disabled
