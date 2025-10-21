@@ -113,6 +113,26 @@ TEST(curves_geometry, CyclicOffsets)
   }
 }
 
+TEST(curves_geometry, InvalidResolution)
+{
+  CurvesGeometry curves = create_basic_curves(40, 4);
+  curves.curve_types_for_write().copy_from({
+      CURVE_TYPE_BEZIER,
+      CURVE_TYPE_NURBS,
+      CURVE_TYPE_CATMULL_ROM,
+      CURVE_TYPE_POLY,
+  });
+  curves.update_curve_types();
+  curves.resolution_for_write().fill(0);
+
+  static const Array<int> expected_offsets{0, 10, 20, 30, 40};
+
+  OffsetIndices<int> actual_offsets = curves.evaluated_points_by_curve();
+  for (const int i : actual_offsets.index_range()) {
+    EXPECT_EQ(expected_offsets[i], actual_offsets.data()[i]);
+  }
+}
+
 TEST(curves_geometry, CatmullRomEvaluation)
 {
   CurvesGeometry curves(4, 1);
