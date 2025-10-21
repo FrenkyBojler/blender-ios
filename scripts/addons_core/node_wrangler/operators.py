@@ -1868,7 +1868,7 @@ class NWAlignNodes(Operator, NWBase):
                 current_pos += current_margin + node.dimensions.x
                 node.location.y = mid_y + (node.dimensions.y / 2)
             else:
-                hide_offset = (node.dimensions.y - (node.bl_height_min + 4)) / 2 if node.hide else 0
+                hide_offset = (node.dimensions.y - (node.bl_height_min + 6)) / 2 if node.hide else 0
                 node.location.y = current_pos - hide_offset # hidden nodes center their sockets around the label instead of below
                 current_pos -= (current_margin * 0.3) + node.dimensions.y  # use half-margin for vertical alignment
                 node.location.x = mid_x - (node.dimensions.x / 2)
