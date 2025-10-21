@@ -173,8 +173,6 @@ static void translate_dist_to_str(char *r_str,
   }
 }
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "UnusedValue"
 static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_DRAW_STR])
 {
   size_t ofs = 0;
@@ -300,7 +298,7 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
                                       "Dx: %s   Dy: %s (%s)%s",
                                       dvec_str[0],
                                       dvec_str[1],
-                                      dist_str + 1,
+                                      dist_str,
                                       t->con.text);
       }
       else {
@@ -310,13 +308,12 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
                                       dvec_str[0],
                                       dvec_str[1],
                                       dvec_str[2],
-                                      dist_str + 1,
+                                      dist_str,
                                       t->con.text);
       }
     }
   }
 }
-#pragma clang diagnostic pop
 
 /** \} */
 
