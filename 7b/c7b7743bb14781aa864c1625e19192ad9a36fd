@@ -1,3 +1,4 @@
 Referenced by issue #148189, Linking broken in production files
 Referenced by pull request #148193, Fix #148189: linking relative paths fails to resolve path
 Referenced by commit 31035ae19f3f9f957287ee92349f3a28e4557d8f, Fix #148189: linking relative paths fails to resolve path
+Referenced by issue #148481, UDIM detection doesn't work with relative paths in Blender 5.0
