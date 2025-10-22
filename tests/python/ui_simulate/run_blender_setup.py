@@ -91,7 +91,7 @@ def main():
 
     if sys.platform == "linux" and gpu_device == "AMD":
         # All tests are broken
-        return
+        on_exit()
 
     if sys.platform == "linux":
         BLOCKLIST += [
@@ -106,12 +106,12 @@ def main():
 
     is_first = True
     for test_id in args.tests:
+        if test_id in BLOCKLIST:
+            continue
+
         if not is_first:
             bpy.ops.wm.read_homefile()
         is_first = False
-
-        if test_id in BLOCKLIST:
-            continue
 
         mod_name, fn_name = test_id.partition(".")[0::2]
         mod = __import__(mod_name)
@@ -133,6 +133,10 @@ def main():
             on_step_command_pre=args.step_command_pre,
             on_step_command_post=args.step_command_post,
         )
+
+    if is_first:
+        # No test ran
+        on_exit()
 
 
 if __name__ == "__main__":
