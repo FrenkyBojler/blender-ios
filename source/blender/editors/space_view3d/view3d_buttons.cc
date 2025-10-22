@@ -629,6 +629,9 @@ static StatusValue<T> init_status_from_attribute(const blender::VArray<T> &attri
 {
   using namespace blender;
   if (!attribute) {
+    if (selection.is_empty()) {
+      return {T(0), T(0)};
+    }
     return {T(default_value * selection.size()), default_value};
   }
 
