@@ -4108,6 +4108,21 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 114)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_GEOMETRY) {
+        version_node_input_socket_name(node_tree, GEO_NODE_DUPLICATE_ELEMENTS, "Amount", "Number");
+        version_node_input_socket_name(
+            node_tree, GEO_NODE_MESH_TO_VOLUME, "Voxel Amount", "Voxel Number");
+        version_node_input_socket_name(
+            node_tree, GEO_NODE_VOLUME_TO_MESH, "Voxel Amount", "Voxel Number");
+        version_node_input_socket_name(
+            node_tree, GEO_NODE_POINTS_TO_VOLUME, "Voxel Amount", "Voxel Number");
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
