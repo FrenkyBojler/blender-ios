@@ -162,10 +162,13 @@ static void transdata_elem_translate(const TransInfo *t,
 static void translate_dist_to_str(char *r_str,
                                   const int r_str_maxncpy,
                                   const float val,
-                                  const UnitSettings *unit)
+                                  const UnitSettings *unit,
+                                  const bool high_precision)
 {
+  const int precision = high_precision ? 7 : 5;
   if (unit && (unit->system != USER_UNIT_NONE)) {
-    BKE_unit_value_as_string_scaled(r_str, r_str_maxncpy, val, -5, B_UNIT_LENGTH, *unit, false);
+    BKE_unit_value_as_string_scaled(
+        r_str, r_str_maxncpy, val, precision * -1, B_UNIT_LENGTH, *unit, false);
   }
   else {
     /* Check range to prevent string buffer overflow. */
@@ -229,16 +232,21 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
     for (int i = 0; i < 3; i++) {
       char temp_vec_str[NUM_STR_REP_LEN];
 
-      translate_dist_to_str(temp_vec_str, sizeof(temp_vec_str), dvec[i], unit);
+      translate_dist_to_str(temp_vec_str,
+                            sizeof(temp_vec_str),
+                            dvec[i],
+                            unit,
+                            t->modifiers & MOD_PRECISION);
       STRNCPY_UTF8(dvec_str[i], BLI_string_pad_number_sign(temp_vec_str).c_str());
     }
   }
 
-  translate_dist_to_str(dist_str, sizeof(dist_str), dist, unit);
+  translate_dist_to_str(dist_str, sizeof(dist_str), dist, unit, t->modifiers & MOD_PRECISION);
 
   if (t->flag & T_PROP_EDIT_ALL) {
     char prop_str[NUM_STR_REP_LEN];
-    translate_dist_to_str(prop_str, sizeof(prop_str), t->prop_size, unit);
+    translate_dist_to_str(
+        prop_str, sizeof(prop_str), t->prop_size, unit, t->modifiers & MOD_PRECISION);
 
     ofs += BLI_snprintf_utf8_rlen(str + ofs,
                                   UI_MAX_DRAW_STR - ofs,
