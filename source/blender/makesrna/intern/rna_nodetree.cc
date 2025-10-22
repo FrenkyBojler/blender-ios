@@ -2599,7 +2599,7 @@ static void rna_Node_mute_set(PointerRNA *ptr, bool value)
 {
   bNode *node = ptr->data_as<bNode>();
   if (!node->typeinfo->no_muting) {
-    SET_FLAG_FROM_TEST(node.flag, value, NODE_MUTED);
+    SET_FLAG_FROM_TEST(node->flag, value, NODE_MUTED);
   }
 }
 
