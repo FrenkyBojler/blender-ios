@@ -15,6 +15,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 
 #include "BKE_image.hh"
@@ -226,7 +227,10 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
     dist = len_v3(dvec);
 
     for (int i = 0; i < 3; i++) {
-      translate_dist_to_str(dvec_str[i], sizeof(dvec_str[i]), dvec[i], unit);
+      char temp_vec_str[NUM_STR_REP_LEN];
+
+      translate_dist_to_str(temp_vec_str, sizeof(temp_vec_str), dvec[i], unit);
+      STRNCPY_UTF8(dvec_str[i], BLI_string_pad_number_sign(temp_vec_str).c_str());
     }
   }
 
