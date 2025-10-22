@@ -2487,6 +2487,7 @@ static void handle_curves_aspect_ratio(bContext *C, void *, void *)
                 bke::AttrDomain::Curve,
                 bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
         index_mask::masked_fill(aspect_ratio.span, modified_state.aspect_ratio, selection);
+        aspect_ratio.finish();
       });
 }
 
@@ -2503,6 +2504,7 @@ static void handle_curves_softness(bContext *C, void *, void *)
         bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
             "softness", bke::AttrDomain::Curve);
         index_mask::masked_fill(softness.span, modified_state.softness, selection);
+        softness.finish();
       });
 }
 
@@ -2521,6 +2523,7 @@ static void handle_curves_u_scale(bContext *C, void *, void *)
             bke::AttrDomain::Curve,
             bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
         index_mask::masked_fill(u_scale.span, modified_state.u_scale, selection);
+        u_scale.finish();
       });
 }
 
@@ -2540,6 +2543,7 @@ static void handle_curves_fill_opacity(bContext *C, void *, void *)
                 bke::AttrDomain::Curve,
                 bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
         index_mask::masked_fill(fill_opacity.span, modified_state.fill_opacity, selection);
+        fill_opacity.finish();
       });
 }
 
@@ -2559,6 +2563,7 @@ static void handle_curves_end_cap(bContext *C, void *, void *)
             bke::AttributeInitVArray(
                 VArray<int>::from_single(GP_STROKE_CAP_TYPE_ROUND, curves.curves_num())));
         index_mask::masked_fill(end_cap.span, modified_state.end_cap, selection);
+        end_cap.finish();
       });
 }
 
@@ -2578,6 +2583,7 @@ static void handle_curves_start_cap(bContext *C, void *, void *)
             bke::AttributeInitVArray(
                 VArray<int>::from_single(GP_STROKE_CAP_TYPE_ROUND, curves.curves_num())));
         index_mask::masked_fill(start_cap.span, modified_state.start_cap, selection);
+        start_cap.finish();
       });
 }
 
