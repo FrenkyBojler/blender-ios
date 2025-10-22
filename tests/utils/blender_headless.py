@@ -51,7 +51,6 @@ import sys
 import signal
 import os
 import tempfile
-import gpu
 
 from typing import (
     Any,
@@ -70,9 +69,6 @@ def environ_nonzero(var: str) -> bool:
 
 
 BLENDER_BIN = os.environ.get("BLENDER_BIN", "blender")
-
-# Whether or not the blocklist should be respected
-TEST_IGNORE_BLOCKLIST = environ_nonzero("BLENDER_TEST_IGNORE_BLOCKLIST")
 
 # Skips starting a display server, run Blender in the user's environment.
 PASS_THROUGH = environ_nonzero("PASS_THROUGH")
@@ -111,11 +107,6 @@ class backend_base:
 class backend_passthrough(backend_base):
     @staticmethod
     def run(blender_args: Sequence[str]) -> int:
-        if not TEST_IGNORE_BLOCKLIST and sys.platform == "linux" and gpu.platform.device_type_get() == "AMD":
-            if VERBOSE:
-                print("Skipping tests due to bad buildbot configuration.")
-            return 0
-
         with tempfile.TemporaryDirectory() as empty_user_dir:
             blender_env = {**os.environ, "BLENDER_USER_RESOURCES": empty_user_dir}
 
@@ -287,11 +278,6 @@ class backend_wayland(backend_base):
 
     @staticmethod
     def run(blender_args: Sequence[str]) -> int:
-        if not TEST_IGNORE_BLOCKLIST and sys.platform == "linux" and gpu.platform.device_type_get() == "AMD":
-            if VERBOSE:
-                print("Skipping tests due to bad buildbot configuration.")
-            return 0
-
         # Use the PID to support running multiple tests at once.
         socket = "wl-blender-{:d}".format(os.getpid())
 
