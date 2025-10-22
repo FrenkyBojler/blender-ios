@@ -30,6 +30,7 @@ ANIM_KS_SCALING_ID = "Scaling"
 ANIM_KS_LOC_ROT_SCALE_ID = "LocRotScale"
 ANIM_KS_LOC_ROT_SCALE_CPROP_ID = "LocRotScaleCProp"
 ANIM_KS_AVAILABLE_ID = "Available"
+ANIM_KS_VISUAL_AVAILABLE_ID = "Visual Available"
 ANIM_KS_WHOLE_CHARACTER_ID = "WholeCharacter"
 ANIM_KS_WHOLE_CHARACTER_SELECTED_ID = "WholeCharacterSelected"
 
@@ -340,6 +341,26 @@ class BUILTIN_KSI_VisualRotScale(KeyingSetInfo):
         keyingsets_utils.RKS_GEN_rotation(self, context, ks, data)
         # scaling
         keyingsets_utils.RKS_GEN_scaling(self, context, ks, data)
+
+
+# VisualAvailable
+class BUILTIN_KSI_VisualAvailable(KeyingSetInfo):
+    """Insert a visual keyframe on each of the already existing F-Curves"""
+    bl_idname = ANIM_KS_VISUAL_AVAILABLE_ID
+    bl_label = "Visual Available"
+
+    bl_options = {'INSERTKEY_VISUAL'}
+
+    def poll(self, context):
+        # Skip checking for available channels to prevent hotkeys from
+        # getting mixed up in the Insert Keyframe Menu (see #127175).
+        return bool(context.selected_objects)
+
+    # iterator - use callback for selected bones/objects
+    iterator = keyingsets_utils.RKS_ITER_selected_item
+
+    # generator
+    generate = keyingsets_utils.RKS_GEN_available
 
 # ------------
 
@@ -657,6 +678,7 @@ classes = (
     BUILTIN_KSI_DeltaLocation,
     BUILTIN_KSI_DeltaRotation,
     BUILTIN_KSI_DeltaScale,
+    BUILTIN_KSI_VisualAvailable,
     BUILTIN_KSI_VisualLoc,
     BUILTIN_KSI_VisualRot,
     BUILTIN_KSI_VisualScaling,

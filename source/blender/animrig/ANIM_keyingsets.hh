@@ -30,6 +30,7 @@ static constexpr const char *ANIM_KS_SCALING_ID = "Scaling";
 static constexpr const char *ANIM_KS_LOC_ROT_SCALE_ID = "LocRotScale";
 static constexpr const char *ANIM_KS_LOC_ROT_SCALE_CPROP_ID = "LocRotScaleCProp";
 static constexpr const char *ANIM_KS_AVAILABLE_ID = "Available";
+static constexpr const char *ANIM_KS_VISUAL_AVAILABLE_ID = "Visual Available";
 static constexpr const char *ANIM_KS_WHOLE_CHARACTER_ID = "WholeCharacter";
 static constexpr const char *ANIM_KS_WHOLE_CHARACTER_SELECTED_ID = "WholeCharacterSelected";
 
