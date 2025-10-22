@@ -3,3 +3,4 @@ Referenced by pull request #148193, Fix #148189: linking relative paths fails to
 Referenced by commit 31035ae19f3f9f957287ee92349f3a28e4557d8f, Fix #148189: linking relative paths fails to resolve path
 Referenced by issue #148481, UDIM detection doesn't work with relative paths in Blender 5.0
 Referenced by commit cb1235cd4660e21d5e271f4a4ee6a4bdd72a538f, Fix #148481: UDIM detection doesn't work with relative paths
+Referenced by pull request #148533, Fix #148481: UDIM detection doesn't work with relative paths in Blender 5.0
