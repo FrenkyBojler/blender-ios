@@ -249,23 +249,15 @@ void SceneState::init(const DRWContext *context,
   draw_object_id = (draw_outline || draw_curvature);
 };
 
-static bool is_color_attribute(const bke::AttributeMetaData &meta_data)
-{
-  return ELEM(meta_data.domain, bke::AttrDomain::Point, bke::AttrDomain::Corner) &&
-         ELEM(meta_data.data_type, bke::AttrType::ColorByte, bke::AttrType::ColorFloat);
-}
-
 static bool mesh_has_color_attribute(const Mesh &mesh)
 {
   if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
     const BMesh &bm = *mesh.runtime->edit_mesh->bm;
     const BMDataLayerLookup attr = BM_data_layer_lookup(bm, mesh.active_color_attribute);
-    return attr && is_color_attribute(bke::AttributeMetaData{attr.domain, attr.type});
+    return attr && bke::mesh::is_color_attribute(bke::AttributeMetaData{attr.domain, attr.type});
   }
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
-      mesh.active_color_attribute);
-  return meta_data && is_color_attribute(*meta_data);
+  return bke::mesh::is_color_attribute(*attributes.lookup_meta_data(mesh.active_color_attribute));
 }
 
 static bool mesh_has_uv_map_attribute(const Mesh &mesh)
@@ -276,9 +268,7 @@ static bool mesh_has_uv_map_attribute(const Mesh &mesh)
     return attr && bke::mesh::is_uv_map(bke::AttributeMetaData{attr.domain, attr.type});
   }
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
-      mesh.active_uv_map_name());
-  return bke::mesh::is_uv_map(*meta_data);
+  return bke::mesh::is_uv_map(attributes.lookup_meta_data(mesh.active_uv_map_name()));
 }
 
 ObjectState::ObjectState(const DRWContext *draw_ctx,

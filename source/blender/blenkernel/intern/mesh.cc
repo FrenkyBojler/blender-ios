@@ -1160,20 +1160,6 @@ MutableSpan<MDeformVert> Mesh::deform_verts_for_write()
           this->verts_num};
 }
 
-blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
-{
-  using namespace blender;
-  using namespace blender::bke;
-  const AttributeAccessor attributes = this->attributes();
-  VectorSet<StringRefNull> result;
-  attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (mesh::is_uv_map(AttributeMetaData{iter.domain, iter.data_type})) {
-      result.add(iter.name);
-    }
-  });
-  return result;
-}
-
 void Mesh::count_memory(blender::MemoryCounter &memory) const
 {
   memory.add_shared(this->runtime->face_offsets_sharing_info,
@@ -1196,14 +1182,25 @@ blender::bke::MutableAttributeAccessor Mesh::attributes_for_write()
                                                 blender::bke::mesh_attribute_accessor_functions());
 }
 
+blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
+{
+  blender::VectorSet<blender::StringRefNull> names;
+  this->attributes().foreach_attribute([&](const blender::bke::AttributeIter &iter) {
+    if (blender::bke::mesh::is_uv_map({iter.domain, iter.data_type})) {
+      names.add_new(iter.name);
+    }
+  });
+  return names;
+}
+
 blender::StringRefNull Mesh::active_uv_map_name() const
 {
-  return this->active_uv_map_attribute;
+  return this->active_uv_map_attribute ? this->active_uv_map_attribute : "";
 }
 
 blender::StringRefNull Mesh::default_uv_map_name() const
 {
-  return this->default_uv_map_attribute;
+  return this->default_uv_map_attribute ? this->default_uv_map_attribute : "";
 }
 
 Mesh *BKE_mesh_new_nomain(const int verts_num,

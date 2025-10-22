@@ -2860,7 +2860,7 @@ int dynamicPaint_createUVSurface(Scene *scene,
   const blender::Span<int3> corner_tris = mesh->corner_tris();
 
   /* get uv map */
-  VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+  const VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
   if (!uv_map_names.is_empty()) {
     const StringRef uvname = mesh->uv_map_names().contains(surface->uvlayer_name) ?
                                  surface->uvlayer_name :

@@ -86,7 +86,7 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
 
   /* UVs need special handling, since they come from faces */
   if (texmapping == MOD_DISP_MAP_UV) {
-    VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+    const VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
     if (!uv_map_names.is_empty()) {
       const OffsetIndices faces = mesh->faces();
       const Span<int> corner_verts = mesh->corner_verts();
