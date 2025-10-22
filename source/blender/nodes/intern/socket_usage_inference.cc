@@ -675,6 +675,7 @@ class SocketUsageInferencerImpl {
                                                      {socket.context, internal_link.fromsock});
       return;
     }
+    all_socket_disable_states_.add_new(socket, false);
   }
 
   void disabled_output_task__output__group_node(const SocketInContext &socket)
@@ -766,6 +767,10 @@ Array<SocketUsage> infer_all_sockets_usage(const bNodeTree &tree)
   const Span<const bNodeSocket *> all_input_sockets = tree.all_input_sockets();
   const Span<const bNodeSocket *> all_output_sockets = tree.all_output_sockets();
   Array<SocketUsage> all_usages(tree.all_sockets().size());
+
+  if (tree.has_available_link_cycle()) {
+    return all_usages;
+  }
 
   ResourceScope scope;
   bke::ComputeContextCache compute_context_cache;

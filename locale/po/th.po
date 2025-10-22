@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'2b3706e29f27')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-10-20 08:46+0000\n"
 "PO-Revision-Date: 2025-07-23 15:06+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -1853,40 +1853,44 @@ msgid "Mask"
 msgstr "หน้ากาก"
 
 
+msgid "Metaball"
+msgstr "เมตาบอล"
+
+
+msgid "Light"
+msgstr "แสง"
+
+
 msgid "Add Image"
 msgstr "เพิ่มภาพ"
-
-
-msgid "Import"
-msgstr "นำเข้า"
 
 
 msgid "Apply"
 msgstr "นำไปใช้"
 
 
-msgid "Text"
-msgstr "ช้อความ"
-
-
 msgid "Track"
 msgstr "แทร็ค"
-
-
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Hooks"
 msgstr "ตะขอ"
 
 
+msgid "Layout"
+msgstr "เค้าโครง"
+
+
+msgid "Keying"
+msgstr "คีย์"
+
+
 msgid "Names"
 msgstr "ชื่อ"
+
+
+msgid "Math"
+msgstr "คณิตศาสตร์"
 
 
 msgid "Face Data"
@@ -1897,12 +1901,8 @@ msgid "Merge"
 msgstr "ผสาน"
 
 
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Layout"
-msgstr "เค้าโครง"
+msgid "Text"
+msgstr "ช้อความ"
 
 
 msgid "Pivot Point"
@@ -1921,8 +1921,8 @@ msgid "Mask Edit"
 msgstr "การแก้ไขหน้ากาก"
 
 
-msgid "Keying"
-msgstr "คีย์"
+msgid "Import"
+msgstr "นำเข้า"
 
 
 msgid "Mirror"
@@ -1941,6 +1941,10 @@ msgid "Navigation"
 msgstr "การนำทาง"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Align View"
 msgstr "จัดมุมมอง"
 
@@ -1951,10 +1955,6 @@ msgstr "จัดมุมมองไปยังที่วัตถุใช
 
 msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
-
-
-msgid "Light"
-msgstr "แสง"
 
 
 msgid "Zoom"
@@ -2077,10 +2077,6 @@ msgstr "ตัวอย่าง"
 
 msgid "Intersect"
 msgstr "ตัดกัน"
-
-
-msgid "UV Select"
-msgstr "เลือก UV"
 
 
 msgid "Active Element"
@@ -4357,11 +4353,6 @@ msgstr "เรนเดอร์ภาพ"
 msgctxt "Operator"
 msgid "Operator Search..."
 msgstr "ค้นหาตัวดำเนินการ..."
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "สอนวิธีใช้งาน"
 
 
 msgctxt "Operator"
