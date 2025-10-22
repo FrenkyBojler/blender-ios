@@ -783,6 +783,16 @@ static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  bArmature *armature = static_cast<bArmature *>(ob->data);
+  BLI_assert_msg(armature, "If an armature object has a pose, it should have armature data");
+  /* Taking off the selection flag in case bones are hidden so they are not
+   * applied when pasting.  */
+  LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob->pose->chanbase) {
+    if (!blender::animrig::bone_is_visible(armature, pose_bone)) {
+      pose_bone->flag &= ~POSE_SELECTED;
+    }
+  }
+
   PartialWriteContext copybuffer{*bmain};
   copybuffer.id_add(
       &ob->id,
