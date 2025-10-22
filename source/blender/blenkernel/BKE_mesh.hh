@@ -22,7 +22,6 @@ enum class AttrDomain : int8_t;
 enum class AttrType : int16_t;
 struct AttributeMetaData;
 struct AttributeAccessorFunctions;
-struct AttributeMetaData;
 
 struct AttributeFilter;
 
