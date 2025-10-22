@@ -164,8 +164,9 @@ static void multires_clear_delta_storage(Object &object, const int level)
   ss.multires.runtime.disp_at_level[level - 1].clear_and_shrink();
 }
 
-static void multires_level_calc_object_delta(
-    SubdivCCG &higher_subdiv_ccg, blender::MutableSpan<blender::float3> object_delta)
+static void multires_level_calc_object_delta(SubdivCCG &higher_subdiv_ccg,
+                                             blender::MutableSpan<blender::float3> object_delta,
+                                             blender::BitSpan modified_grids)
 {
   /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
    * object_delta */
@@ -173,19 +174,25 @@ static void multires_level_calc_object_delta(
   BLI_assert(higher_subdiv_ccg.positions.size() == object_delta.size());
   for (const int i : higher_subdiv_ccg.positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
-    object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
-    printf("\t(%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)\n",
-           i,
-           higher_subdiv_ccg.positions[i].x,
-           higher_subdiv_ccg.positions[i].y,
-           higher_subdiv_ccg.positions[i].z,
-           limit_surf_position.x,
-           limit_surf_position.y,
-           limit_surf_position.z,
-           object_delta[i].x,
-           object_delta[i].y,
-           object_delta[i].z,
-           blender::math::length(object_delta[i]));
+    if (modified_grids[i]) {
+      object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
+      printf("M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)\n",
+             i,
+             higher_subdiv_ccg.positions[i].x,
+             higher_subdiv_ccg.positions[i].y,
+             higher_subdiv_ccg.positions[i].z,
+             limit_surf_position.x,
+             limit_surf_position.y,
+             limit_surf_position.z,
+             object_delta[i].x,
+             object_delta[i].y,
+             object_delta[i].z,
+             blender::math::length(object_delta[i]));
+    }
+    else {
+      object_delta[i] = blender::float3(0.0f);
+      printf("U - (%d) \n", i);
+    }
   }
 }
 
@@ -241,7 +248,7 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
   for (const int i : delta_storage.index_range()) {
     printf("%d - (%f, %f, %f) - %f\n", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
-  multires_level_calc_object_delta(higher_subdiv_ccg, delta_storage);
+  multires_level_calc_object_delta(higher_subdiv_ccg, delta_storage, object.sculpt->multires.runtime.modified_at_level[reshape_context.top.level - 1]);
   printf("STORED HIGHER POS - LIMIT POS\n");
 
   multires_level_object_delta_to_tangent_delta(tmat_storage, delta_storage);
@@ -260,8 +267,10 @@ static void multires_level_tangent_delta_to_object_delta(
     blender::Span<blender::float3x3> tmat_storage)
 {
   for (const int i : delta_storage.index_range()) {
-    delta_storage[i] = blender::math::transform_direction(blender::math::invert(tmat_storage[i]),
-                                                          delta_storage[i]);
+    if (!blender::math::is_zero(delta_storage[i])) {
+      delta_storage[i] = blender::math::transform_direction(blender::math::invert(tmat_storage[i]),
+                                                            delta_storage[i]);
+    }
   }
 }
 
@@ -272,8 +281,20 @@ static void multires_level_apply_object_delta(blender::Span<blender::float3> pos
   BLI_assert(subdiv_ccg.positions.size() == delta_storage.size());
   BLI_assert(subdiv_ccg.positions.size() == position_storage.size());
 
+  printf("APPLY OBJ DELTA\n");
   for (const int i : subdiv_ccg.positions.index_range()) {
     subdiv_ccg.positions[i] = position_storage[i] + delta_storage[i];
+    printf("(%d) (%f %f %f) = (%f %f %f) + (%f %f %f)\n",
+           i,
+           subdiv_ccg.positions[i].x,
+           subdiv_ccg.positions[i].y,
+           subdiv_ccg.positions[i].z,
+           position_storage[i].x,
+           position_storage[i].y,
+           position_storage[i].z,
+           delta_storage[i].x,
+           delta_storage[i].y,
+           delta_storage[i].z);
   }
 }
 
@@ -298,22 +319,38 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
     return false;
   }
 
+  /*
   if (!multires_reshape_assign_final_coords_from_ccg(
           &reshape_context, &lower_subdiv_ccg, ccg_storage))
   {
     multires_reshape_context_free(&reshape_context);
     return false;
   }
+  */
+
+  printf("Retrieving old positions: \n");
+  blender::Span<blender::float3> old_positions = object.sculpt->multires.runtime.positions_at_level[lower_subdiv_ccg.level - 1];
+  for (const int i : old_positions.index_range()) {
+    printf("(%d) - %f %f %f\n", i, old_positions[i].x, old_positions[i].y, old_positions[i].z);
+  }
 
   multires_reshape_store_tangent_matrices(
-      &reshape_context, MultiresSubdivideModeType::CatmullClark, ccg_storage, position_storage, tmat_storage);
+      &reshape_context,
+      MultiresSubdivideModeType::CatmullClark,
+      object.sculpt->multires.runtime.positions_at_level[lower_subdiv_ccg.level - 1],
+      position_storage,
+      tmat_storage);
 
   /* Convert them to object space */
   multires_level_tangent_delta_to_object_delta(delta_storage, tmat_storage);
 
   /* Re-add them to the new subdiv CCG */
   multires_level_apply_object_delta(position_storage, delta_storage, subdiv_ccg);
-  /* TODO: do we need to recalculate normals? */
+  for (const int i : subdiv_ccg.positions.index_range()) {
+    printf("(%d) - %f %f %f\n", i, subdiv_ccg.positions[i].x, subdiv_ccg.positions[i].y, subdiv_ccg.positions[i].z);
+  }
+
+  BKE_subdiv_ccg_recalc_normals(subdiv_ccg);
 
   /* Delete the data */
   multires_clear_delta_storage(object, subdiv_ccg.level);
@@ -447,6 +484,12 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   BLI_assert(level_idx >= 0);
   if (top_level > multires_runtime.disp_at_level.size()) {
     multires_runtime.disp_at_level.resize(top_level);
+  }
+  if (top_level > multires_runtime.positions_at_level.size()) {
+    multires_runtime.positions_at_level.resize(top_level);
+  }
+  if (top_level > multires_runtime.modified_at_level.size()) {
+    multires_runtime.modified_at_level.resize(top_level);
   }
 
   /* NOTE: Subdivision happens from the top level of the existing multires modifier. If it is set

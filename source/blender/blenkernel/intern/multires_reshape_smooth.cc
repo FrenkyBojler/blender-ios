@@ -425,7 +425,8 @@ static void foreach_toplevel_grid_coord(
   });
 }
 
-static blender::float2 ccg_uv_corner_to_ptex_uv(blender::float2 uv, int corner) {
+static blender::float2 ccg_uv_corner_to_ptex_uv(blender::float2 uv, int corner)
+{
   if (corner == 0) {
     return blender::float2(1.0f - uv.y, 1.0f - uv.x);
   }
@@ -456,7 +457,8 @@ static void foreach_toplevel_grid_coord_single_threaded(
     const IndexRange face = faces[face_index];
     if (face.size() == 4) {
       for (int corner = 0; corner < face.size(); ++corner) {
-        const int ptex_face_index = face_ptex_offset[face_index] + corner;
+        /* TODO: This indexing is weird and will clearly not work for non-regular meshes*/
+        const int ptex_face_index = face_ptex_offset[face_index] * 4 + corner;
         const int grid_index = face.start() + corner;
         const IndexRange range = bke::ccg::grid_range(grid_area, grid_index);
         for (int y = 0; y < grid_size; ++y) {
@@ -469,7 +471,8 @@ static void foreach_toplevel_grid_coord_single_threaded(
             ptex_coord.u = ptex_face_uv.x;
             ptex_coord.v = ptex_face_uv.y;
             const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-            printf("RAW: (%d, %d, %d) -> CCG: (%d, %f, %f) -> %d -> PTEX: (%d, %f, %f)\n",
+            printf("RAW: (%d, %d, %d, %d) -> CCG: (%d, %f, %f) -> %d -> PTEX: (%d, %d, %f, %f)\n",
+                   face_index,
                    corner,
                    x,
                    y,
@@ -477,6 +480,7 @@ static void foreach_toplevel_grid_coord_single_threaded(
                    grid_u,
                    grid_v,
                    element,
+                   face_ptex_offset[face_index],
                    ptex_face_index,
                    ptex_coord.u,
                    ptex_coord.v);
@@ -1193,8 +1197,9 @@ static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *resh
   reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
 }
 
-static void reshape_subdiv_refine_final_v2(const MultiresReshapeSmoothContext *reshape_smooth_context,
-                                        blender::Span<blender::float3> storage)
+static void reshape_subdiv_refine_final_v2(
+    const MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::Span<blender::float3> storage)
 {
   printf("SETTING SUBDIV COARSE VERTS\n");
   reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);

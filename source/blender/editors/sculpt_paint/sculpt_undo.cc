@@ -782,7 +782,7 @@ static void restore_mask_mesh(Object &object, Node &unode, const MutableSpan<boo
 static void restore_mask_grids(Object &object, Node &unode, const MutableSpan<bool> modified_grids)
 {
   SculptSession &ss = *object.sculpt;
-  SubdivCCG *subdiv_ccg = ss.subdiv_ccg;
+  SubdivCCG *subdiv_ccg = ss.subdiv_ccg.get();
   MutableSpan<float> masks = subdiv_ccg->masks;
 
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*subdiv_ccg);
@@ -1338,7 +1338,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
 
       restore_geometry(step_data, object);
       BKE_sculptsession_free_deformMats(&ss);
-      if (SubdivCCG *subdiv_ccg = ss.subdiv_ccg) {
+      if (SubdivCCG *subdiv_ccg = ss.subdiv_ccg.get()) {
         refine_subdiv(depsgraph, ss, object, subdiv_ccg->subdiv);
       }
       break;

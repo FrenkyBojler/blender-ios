@@ -68,6 +68,7 @@
 #include "BKE_paint_types.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
+#include "BLI_array_utils.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -2601,7 +2602,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
     ss.multires.level = 0;
   }
 
-  ss.subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
+  ss.subdiv_ccg = mesh_eval->runtime->subdiv_ccg;
 
   pbvh::Tree &pbvh = object::pbvh_ensure(*depsgraph, *ob);
 
@@ -2713,6 +2714,13 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
     return;
   }
 
+  const Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
+  const Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
+  printf("Orig Mesh: %p vs Eval Mesh: %p vs Sculpt: %p\n",
+         mesh_orig->runtime->subdiv_ccg.get(),
+         mesh_eval->runtime->subdiv_ccg.get(),
+         ob_orig->sculpt->subdiv_ccg.get());
+
   bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob_orig);
 
   if (!ss->cache && !ss->filter_cache && !ss->expand_cache) {
@@ -2734,6 +2742,8 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
 
     /* In vertex/weight paint, force maps to be rebuilt. */
     BKE_sculptsession_free_vwpaint_data(ss);
+
+    BKE_sculpt_copy_multires_positions(ob_orig);
   }
   else if (pbvh) {
     IndexMaskMemory memory;
@@ -2973,6 +2983,24 @@ void BKE_sculpt_sync_face_visibility_to_grids(const Mesh &mesh, SubdivCCG &subdi
       }
     }
   });
+}
+
+void BKE_sculpt_copy_multires_positions(Object *object)
+{
+  SculptSession *ss = object->sculpt;
+  if (!ss) {
+    return;
+  }
+
+  printf("COPYING MULTIRES POSITIONS\n");
+
+  if (ss->subdiv_ccg) {
+    ss->multires.runtime.positions_at_level[ss->subdiv_ccg->level - 1].reinitialize(
+        ss->subdiv_ccg->positions.size());
+    blender::array_utils::copy(
+        ss->subdiv_ccg->positions.as_span(),
+        ss->multires.runtime.positions_at_level[ss->subdiv_ccg->level - 1].as_mutable_span());
+  }
 }
 
 namespace blender::bke {

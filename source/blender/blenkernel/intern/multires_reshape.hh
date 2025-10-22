@@ -308,6 +308,9 @@ bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext 
 bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext *reshape_context,
                                                    SubdivCCG *subdiv_ccg,
                                                    blender::MutableSpan<blender::float3> storage);
+bool multires_reshape_assign_final_coords_from_span(const MultiresReshapeContext *reshape_context,
+                                                    blender::Span<blender::float3> *positions,
+                                                    blender::MutableSpan<blender::float3> storage);
 
 /* --------------------------------------------------------------------
  * Functions specific to reshaping from MDISPS.

@@ -101,7 +101,7 @@ static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *
   int totvert, totedge, totface, totloop;
 
   /* Get multires stats. */
-  if (const std::unique_ptr<SubdivCCG> &subdiv_ccg = mesh_eval->runtime->subdiv_ccg) {
+  if (const std::shared_ptr<SubdivCCG> &subdiv_ccg = mesh_eval->runtime->subdiv_ccg) {
     BKE_subdiv_ccg_topology_counters(*subdiv_ccg, totvert, totedge, totface, totloop);
   }
   else {

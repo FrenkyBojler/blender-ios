@@ -284,7 +284,7 @@ void multires_flush_sculpt_updates(Object *object)
     return;
   }
 
-  SubdivCCG *subdiv_ccg = sculpt_session->subdiv_ccg;
+  SubdivCCG *subdiv_ccg = sculpt_session->subdiv_ccg.get();
   if (subdiv_ccg == nullptr) {
     return;
   }
@@ -318,7 +318,7 @@ void multires_flush_sculpt_updates(Object *object)
   }
 
   multiresModifier_reshapeFromCCG(
-      sculpt_session->multires.modifier->totlvl, mesh, sculpt_session->subdiv_ccg);
+      sculpt_session->multires.modifier->totlvl, mesh, sculpt_session->subdiv_ccg.get());
 
   subdiv_ccg->dirty.coords = false;
   subdiv_ccg->dirty.hidden = false;
@@ -556,7 +556,7 @@ void multires_stitch_grids(Object *ob)
   if (sculpt_session == nullptr) {
     return;
   }
-  SubdivCCG *subdiv_ccg = sculpt_session->subdiv_ccg;
+  SubdivCCG *subdiv_ccg = sculpt_session->subdiv_ccg.get();
   if (subdiv_ccg == nullptr) {
     return;
   }

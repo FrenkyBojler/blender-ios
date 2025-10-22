@@ -63,6 +63,9 @@ MeshRuntime::MeshRuntime() = default;
 
 MeshRuntime::~MeshRuntime()
 {
+  if (this->subdiv_ccg.get() != nullptr) {
+    printf("FREEING SUBDIV_CCG\n");
+  }
   free_mesh_eval(*this);
   free_batch_cache(*this);
 }
@@ -312,6 +315,7 @@ void BKE_mesh_runtime_clear_cache(Mesh *mesh)
 
 void BKE_mesh_runtime_clear_geometry(Mesh *mesh)
 {
+  printf("CLEAR GEOMETRY\n");
   /* Tagging shared caches dirty will free the allocated data if there is only one user. */
   free_bvh_caches(*mesh->runtime);
   mesh->runtime->subdiv_ccg.reset();

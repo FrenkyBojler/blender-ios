@@ -223,7 +223,7 @@ struct MeshRuntime {
    * corresponds to the unsubdivided base mesh; it is conceptually replaced with the limited
    * data stored in the grids.
    */
-  std::unique_ptr<SubdivCCG> subdiv_ccg;
+  std::shared_ptr<SubdivCCG> subdiv_ccg;
   int subdiv_ccg_tot_level = 0;
 
   /** Set by modifier stack if only deformed from original. */

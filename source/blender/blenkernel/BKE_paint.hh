@@ -405,7 +405,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   BMLog *bm_log = nullptr;
 
   /* Limit surface/grids. */
-  SubdivCCG *subdiv_ccg = nullptr;
+  std::shared_ptr<SubdivCCG> subdiv_ccg = {};
 
   /* BVH tree acceleration structure */
   std::unique_ptr<blender::bke::pbvh::Tree> pbvh;
@@ -626,6 +626,8 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
 void BKE_sculpt_toolsettings_data_ensure(Main *bmain, Scene *scene);
 
 void BKE_sculpt_sync_face_visibility_to_grids(const Mesh &mesh, SubdivCCG &subdiv_ccg);
+
+void BKE_sculpt_copy_multires_positions(Object *object);
 
 /**
  * Test if blender::bke::pbvh::Tree can be used directly for drawing, which is faster than

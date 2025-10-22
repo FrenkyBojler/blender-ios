@@ -4731,7 +4731,7 @@ bool cursor_geometry_info_update(bContext *C,
     srd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
   }
   else if (pbvh->type() == bke::pbvh::Type::Grids) {
-    srd.subdiv_ccg = ss.subdiv_ccg;
+    srd.subdiv_ccg = ss.subdiv_ccg.get();
   }
   vert_random_access_ensure(ob);
   srd.ray_start = ray_start;
@@ -4870,7 +4870,7 @@ static bool stroke_get_location_bvh_ex(bContext *C,
       rd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
     }
     else if (pbvh.type() == bke::pbvh::Type::Grids) {
-      rd.subdiv_ccg = ss.subdiv_ccg;
+      rd.subdiv_ccg = ss.subdiv_ccg.get();
     }
     vert_random_access_ensure(ob);
     rd.depth = depth;
@@ -4908,7 +4908,7 @@ static bool stroke_get_location_bvh_ex(bContext *C,
     fntrd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
   }
   else if (pbvh.type() == bke::pbvh::Type::Grids) {
-    fntrd.subdiv_ccg = ss.subdiv_ccg;
+    fntrd.subdiv_ccg = ss.subdiv_ccg.get();
   }
   fntrd.ray_start = ray_start;
   fntrd.ray_normal = ray_normal;
@@ -5207,6 +5207,8 @@ void flush_update_done(const bContext *C, Object &ob, const UpdateType update_ty
       BKE_pbvh_bmesh_after_stroke(*ss.bm, pbvh);
     }
   }
+
+  BKE_sculpt_copy_multires_positions(&ob);
 
   if (need_tag) {
     DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
@@ -6163,7 +6165,7 @@ bool vertex_is_occluded(const Depsgraph &depsgraph,
     srd.corner_tris = mesh.corner_tris();
   }
   else if (pbvh.type() == bke::pbvh::Type::Grids) {
-    srd.subdiv_ccg = ss.subdiv_ccg;
+    srd.subdiv_ccg = ss.subdiv_ccg.get();
   }
   vert_random_access_ensure(const_cast<Object &>(object));
 
@@ -7292,6 +7294,30 @@ void apply_translations(const Span<float3> translations,
     MutableSpan<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grids[i]));
     for (const int offset : grid_positions.index_range()) {
       grid_positions[offset] += grid_translations[offset];
+    }
+  }
+}
+
+void apply_translations(const Span<float3> translations,
+                        const Span<int> grids,
+                        SubdivCCG &subdiv_ccg,
+                        MutableBitSpan modified_grids)
+{
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+  MutableSpan<float3> positions = subdiv_ccg.positions;
+  BLI_assert(modified_grids.size() == positions.size());
+  BLI_assert(grids.size() * key.grid_area == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
+
+  for (const int i : grids.index_range()) {
+    const Span<float3> grid_translations = translations.slice(bke::ccg::grid_range(key, i));
+    MutableSpan<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grids[i]));
+    MutableBitSpan grid_flags = modified_grids.slice(bke::ccg::grid_range(key, grids[i]));
+    for (const int offset : grid_positions.index_range()) {
+      grid_positions[offset] += grid_translations[offset];
+      if (!blender::math::is_zero(grid_translations[offset])) {
+        grid_flags[offset].set();
+      }
     }
   }
 }
