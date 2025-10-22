@@ -799,6 +799,19 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
   }
   dst_material_indices.finish();
 
+  /* Remove edge attributes so they're not processed by #mesh_calc_edges. They are propagated
+   * separately afterwards, and yet they exist because #BKE_mesh_new_nomain_from_template created
+   * them. */
+  Set<std::string> edge_attributes;
+  result->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain == bke::AttrDomain::Edge) {
+      edge_attributes.add(iter.name);
+    }
+  });
+  for (const StringRef attribute : edge_attributes) {
+    result->attributes_for_write().remove(attribute);
+  }
+
   bke::mesh_calc_edges(*result, false, false);
   merge_edge_customdata_layers(result, mim);
 
@@ -906,7 +919,7 @@ static Mesh *mesh_boolean_mesh_arr(Span<const Mesh *> meshes,
  * \{ */
 
 /* has no meaning for faces, do this so we can tell which face is which */
-#define BM_FACE_TAG BM_ELEM_DRAW
+#define BM_FACE_TAG BM_ELEM_SELECT_UV
 
 /**
  * Function use to say what operand a face is part of, based on the `BM_FACE_TAG`
