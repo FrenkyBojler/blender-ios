@@ -183,11 +183,11 @@ void Camera::sync()
     data.winmat = math::projection::perspective(-0.1f, 0.1f, -0.1f, 0.1f, 0.1f, 1.0f);
   }
 
-  /* Compute a part of the frustrum planes. In some cases (#134320, #148258) 
+  /* Compute a part of the frustrum planes. In some cases (#134320, #148258)
    * the window matrix becomes degenerate during render or draw_view.
    * Simply fall back to something we can render with. */
   float bottom = (-data.winmat.w.y - 1.f) / data.winmat.y.y;
-  if (std::isnan(bottom) || std::isinf(std::abs(bottom))) {
+  if (std::isnan(bottom) || std::isinf(std::abs(bottom))) { 
     data.winmat = math::projection::orthographic(0.01f, 0.01f, 0.01f, 0.01f, -1000.0f, +1000.0f);
   }
 
