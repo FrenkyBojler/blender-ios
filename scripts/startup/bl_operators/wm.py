@@ -2887,13 +2887,28 @@ class WM_OT_batch_rename(Operator):
                     iface_("Collection(s)"),
                 )
             elif data_type == 'BONE':
-                from bpy.types import Armature
                 if only_selected:
-                    arms_sel = cls._selected_ids_from_outliner_by_type_for_object_data(context, Armature)
-                    seq = [bone for arm in arms_sel for bone in arm.bones]
+                    if mode == 'POSE':
+                        data = (
+                            [pchan.bone for pchan in context.selected_pose_bones],
+                            "name",
+                            iface_("Bone(s)"),
+                        )
+                    elif mode == 'EDIT_ARMATURE':
+                        data = (
+                            context.selected_editable_bones,
+                            "name",
+                            iface_("Edit Bone(s)"),
+                        )
+                    else:
+                        data = ([], "name", iface_("Bone(s)"))
                 else:
-                    seq = [bone for arm in bpy.data.armatures if arm.is_editable for bone in arm.bones]
-                data = (seq, "name", iface_("Bone(s)"))
+                    obj = context.object
+                    if obj and obj.type == 'ARMATURE' and obj.data.is_editable:
+                        bones = obj.data.bones
+                    else:
+                        bones = []
+                    data = (bones, "name", iface_("Bone(s)"))
         else:
             if mode == 'POSE' or (mode == 'WEIGHT_PAINT' and context.pose_object):
                 data_type_test = 'BONE'
