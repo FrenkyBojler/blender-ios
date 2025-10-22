@@ -8326,6 +8326,13 @@ static bool point_normals_init(bContext *C, wmOperator *op)
   BKE_editmesh_lnorspace_update(em);
   BMLoopNorEditDataArray *lnors_ed_arr = BM_loop_normal_editdata_array_init(bm, false);
 
+  if (lnors_ed_arr && lnors_ed_arr->totloop > 0) {
+    BMLoopNorEditData *ed = lnors_ed_arr->lnor_editdata;
+    for (int i = 0; i < lnors_ed_arr->totloop; i++, ed++) {
+      copy_v3_v3(ed->niloc, ed->nloc);
+    }
+  }
+
   op->customdata = lnors_ed_arr;
 
   return (lnors_ed_arr->totloop != 0);
@@ -8662,14 +8669,10 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
     point_normals_cancel(C, op);
   }
 
-  /* If we allow other tools to run, we can't be sure if they will re-allocate
-   * the data this operator uses, see: #68159.
-   * Free the data here, then use #point_normals_ensure to add it back on demand. */
-  if (ret == OPERATOR_PASS_THROUGH) {
-    /* Don't free on mouse-move, causes creation/freeing of the loop data in an inefficient way. */
-    if (!ISMOUSE_MOTION(event->type)) {
-      point_normals_free(op);
-    }
+  /* Keep the normal data active while the operator is running,
+   * and only free it when the operation ends or is canceled. */
+  if (ELEM(ret, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    point_normals_free(op);
   }
   return ret;
 }
