@@ -599,27 +599,6 @@ void POSE_OT_visual_transform_apply(wmOperatorType *ot)
 /** \name Copy/Paste Utilities
  * \{ */
 
-/* This function is used to indicate that a bone is selected
- * and needs to be included in copy buffer (used to be for inserting keys)
- */
-static void set_pose_keys(Object *ob)
-{
-  bArmature *arm = static_cast<bArmature *>(ob->data);
-
-  if (ob->pose) {
-    LISTBASE_FOREACH (bPoseChannel *, chan, &ob->pose->chanbase) {
-      if ((chan->flag & POSE_SELECTED) && chan->bone &&
-          ANIM_bone_in_visible_collection(arm, chan->bone))
-      {
-        chan->flag |= POSE_KEY;
-      }
-      else {
-        chan->flag &= ~POSE_KEY;
-      }
-    }
-  }
-}
-
 /**
  * Perform paste pose, for a single bone.
  *
@@ -803,8 +782,6 @@ static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "Cannot copy/paste packed data");
     return OPERATOR_CANCELLED;
   }
-  /* Sets chan->flag to POSE_KEY if bone selected. */
-  set_pose_keys(ob);
 
   PartialWriteContext copybuffer{*bmain};
   copybuffer.id_add(
@@ -909,7 +886,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
    * existing pose.
    */
   LISTBASE_FOREACH (bPoseChannel *, chan, &pose_from->chanbase) {
-    if (chan->flag & POSE_KEY) {
+    if (chan->flag & POSE_SELECTED) {
       /* Try to perform paste on this bone. */
       bPoseChannel *pchan = pose_bone_do_paste(ob, chan, selOnly, flip);
       if (pchan != nullptr) {
