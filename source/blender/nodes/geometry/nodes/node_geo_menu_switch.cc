@@ -75,6 +75,10 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
   else if (data_type == SOCK_GEOMETRY) {
     output.propagate_all();
   }
+  else if (data_type == SOCK_BUNDLE) {
+    output.propagate_all();
+    output.reference_pass_all();
+  }
   output.structure_type(value_structure_type);
 
   b.add_default_layout();

@@ -42,6 +42,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (socket_type == SOCK_GEOMETRY) {
     output_decl.propagate_all();
   }
+  else if (socket_type == SOCK_BUNDLE) {
+    output_decl.propagate_all();
+    output_decl.reference_pass_all();
+  }
 
   const StructureType structure_type = socket_type_always_single(socket_type) ?
                                            StructureType::Single :

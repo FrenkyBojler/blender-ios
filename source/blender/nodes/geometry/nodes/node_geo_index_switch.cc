@@ -110,6 +110,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   else if (data_type == SOCK_GEOMETRY) {
     output.propagate_all();
   }
+  else if (data_type == SOCK_BUNDLE) {
+    output.propagate_all();
+    output.reference_pass_all();
+  }
   output.structure_type(structure_type);
 
   b.add_input<decl::Extend>("", "__extend__").custom_draw([](CustomSocketDrawParams &params) {
