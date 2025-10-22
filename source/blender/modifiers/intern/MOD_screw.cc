@@ -231,8 +231,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   uint *vert_loop_map = nullptr; /* orig vert to orig loop */
 
   /* UV Coords */
-  VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
-  blender::Vector<bke::SpanAttributeWriter<float2>> uv_map_layers(uv_map_names.size());
+  const VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+  blender::Array<bke::SpanAttributeWriter<float2>> uv_map_layers(uv_map_names.size());
   float uv_u_scale;
   float uv_v_minmax[2] = {FLT_MAX, -FLT_MAX};
   float uv_v_range_inv;
@@ -1001,6 +1001,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   sharp_faces.finish();
   dst_material_index.finish();
+  for (bke::SpanAttributeWriter<float2> &uv_map : uv_map_layers) {
+    uv_map.finish();
+  }
 
   if (edge_face_map) {
     MEM_freeN(edge_face_map);

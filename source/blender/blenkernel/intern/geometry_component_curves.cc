@@ -4,7 +4,6 @@
 
 #include "BLI_task.hh"
 
-#include "DNA_ID_enums.h"
 #include "DNA_curve_types.h"
 
 #include "BKE_curves.hh"
