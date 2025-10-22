@@ -89,20 +89,21 @@ def main():
     # Skip broken tests.
     BLOCKLIST = []
 
-    if sys.platform == "linux" and gpu_device == "AMD":
-        # All tests are broken
-        on_exit()
+    if os.getenv('BLENDER_TEST_IGNORE_BLOCKLIST') is None:
+        if sys.platform == "linux" and gpu_device == "AMD":
+            # All tests are broken
+            on_exit()
 
-    if sys.platform == "linux":
-        BLOCKLIST += [
-            "ui_test_undo.view3d_edit_mode_multi_window",
-            "ui_test_undo.view3d_multi_mode_multi_window"
-        ]
+        if sys.platform == "linux":
+            BLOCKLIST += [
+                "ui_test_undo.view3d_edit_mode_multi_window",
+                "ui_test_undo.view3d_multi_mode_multi_window"
+            ]
 
-    if sys.platform == "win32" and gpu_device == "INTEL":
-        BLOCKLIST += [
-            "test_workspace"
-        ]
+        if sys.platform == "win32" and gpu_device == "INTEL":
+            BLOCKLIST += [
+                "test_workspace"
+            ]
 
     is_first = True
     for test_id in args.tests:

@@ -18,17 +18,6 @@
 
 #include "gpu_shader_create_info.hh"
 
-#define SKIP_BROKEN_TESTS 1
-
-#if SKIP_BROKEN_TESTS
-#  define SKIP_TEST(device_type, os_type, backend_type) \
-    if (GPU_type_matches_ex(device_type, os_type, GPU_DRIVER_ANY, backend_type)) { \
-      return; \
-    }
-#else
-#  define SKIP_TEST(device_type, os_type, backend_type)
-#endif
-
 namespace blender::gpu::tests {
 
 static void test_framebuffer_clear_color_single_attachment()
@@ -208,7 +197,7 @@ GPU_TEST(framebuffer_scissor_test);
 /* Color each side of a cube-map with a different color. */
 static void test_framebuffer_cube()
 {
-  SKIP_TEST(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_BACKEND_VULKAN)
+  BLOCK_GPU_TEST_ON(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY, GPU_BACKEND_VULKAN)
 
   const int SIZE = 32;
   GPU_render_begin();
