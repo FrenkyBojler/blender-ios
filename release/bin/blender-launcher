@@ -28,7 +28,9 @@ if [ -n "$TBB_LIB_PATH" ]; then
 
 	# If the system TBB version is newer, preload it.
 	if [ "$TBB_SYSTEM_NAME" = "$TBB_NEWEST_NAME" ]; then
+		BLENDER_RESTORE_LD_PRELOAD=${LD_PRELOAD}
 		LD_PRELOAD=$TBB_LIB_PATH/$TBB_LIB_NAME:${LD_PRELOAD}
+		export BLENDER_RESTORE_LD_PRELOAD
 		export LD_PRELOAD
 	fi
 fi
