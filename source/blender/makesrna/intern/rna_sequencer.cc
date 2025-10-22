@@ -1004,7 +1004,6 @@ static PointerRNA rna_SequenceEditor_meta_stack_get(CollectionPropertyIterator *
 static void rna_Strip_filepath_set(PointerRNA *ptr, const char *value)
 {
   Strip *strip = (Strip *)(ptr->data);
-
   BLI_path_split_dir_file(value,
                           strip->data->dirpath,
                           sizeof(strip->data->dirpath),
