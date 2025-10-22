@@ -284,7 +284,8 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
     @classmethod
     def poll(cls, context):
         session_is_running = bpy.types.XrSessionState.is_running(context)
-        viewfinder_enable = context.window_manager.xr_session_settings.viewfinder_enable
+        xr_settings = context.window_manager.xr_session_settings
+        viewfinder_enable = xr_settings.viewfinder_enable
 
         return session_is_running and viewfinder_enable
 
@@ -292,19 +293,24 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         scene = context.scene
         landmarks = scene.vr_landmarks
 
+        wm = context.window_manager
+        xr_settings = wm.xr_session_settings
+        xr_state = wm.xr_session_state
+
         lm = landmarks.add()
         lm.type = "CUSTOM"
         lm.name = "Viewfinder Landmark"
         scene.vr_landmarks_selected = len(landmarks) - 1
 
-        wm = context.window_manager
-        loc = wm.xr_session_state.viewfinder_location
-        rot = wm.xr_session_state.viewfinder_rotation
+        loc = xr_state.viewfinder_location
+        rot = xr_state.viewfinder_rotation
 
         lm.base_pose_location = loc  # Used as viewfinder position
         lm.base_pose_angle = rot.to_euler()[2]  # Only filled in for Landmark Viewport Feedback to work
         lm.viewfinder_quat = rot
         lm.viewfinder_lens = scene.camera.data.lens
+
+        xr_settings.viewfinder_capture_flash = 0  # Internal value, 0 is flash, 1 is no flash. Fades up over time
 
         return {'FINISHED'}
 

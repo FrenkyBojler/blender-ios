@@ -39,6 +39,7 @@ typedef struct XrSessionSettings {
   char viewfinder_active_action_playback; /* #eXrViewfinderPlaybackButtonState */
 
   float viewfinder_width;
+  float viewfinder_capture_flash;
 
   /** Clipping distance. */
   float clip_start, clip_end;
@@ -51,7 +52,6 @@ typedef struct XrSessionSettings {
 
   /** Fly speed. */
   float fly_speed;
-  float padding;
 } XrSessionSettings;
 
 typedef enum eXrSessionFlag {

@@ -2120,6 +2120,9 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Viewfinder Width", "Width of the viewfinder");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
+  prop = RNA_def_property(srna, "viewfinder_capture_flash", PROP_FLOAT, PROP_NONE); /* Internal */
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
   prop = RNA_def_property(srna, "viewfinder_active_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, viewfinder_modes);
