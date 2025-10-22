@@ -155,6 +155,7 @@ blender::StringRef BLT_translate_do_new_dataname(blender::StringRef msgctxt,
 #define BLT_I18NCONTEXT_CONSTRAINT "Constraint"
 #define BLT_I18NCONTEXT_MODIFIER "Modifier"
 #define BLT_I18NCONTEXT_NAVIGATION "Navigation"
+#define BLT_I18NCONTEXT_NUMBER "Number"
 #define BLT_I18NCONTEXT_RENDER_LAYER "Render Layer"
 #define BLT_I18NCONTEXT_TIME "Time"
 #define BLT_I18NCONTEXT_UNIT "Unit"
@@ -228,6 +229,7 @@ struct BLT_i18n_contexts_descriptor {
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_CONSTRAINT, "constraint"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_MODIFIER, "modifier"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_NAVIGATION, "navigation"), \
+        BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_NUMBER, "number"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_RENDER_LAYER, "render_layer"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_TIME, "time"), \
         BLT_I18NCONTEXTS_ITEM(BLT_I18NCONTEXT_UNIT, "unit"), \
