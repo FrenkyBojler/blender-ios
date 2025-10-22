@@ -2376,6 +2376,9 @@ static std::optional<std::chrono::nanoseconds> compositor_node_get_execution_tim
   if (const timeit::Nanoseconds *execution_time =
           tree_draw_ctx.compositor_per_node_execution_time->lookup_ptr(key))
   {
+    if (execution_time->count() == 0) {
+      return std::nullopt;
+    }
     return *execution_time;
   }
 
@@ -2463,13 +2466,13 @@ static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const S
     const geo_log::NamedAttributeUsage usage = attribute.usage;
     fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("  \u2022 \"{}\": ")), name);
     Vector<std::string> usages;
-    if ((usage & geo_log::NamedAttributeUsage::Read) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Read)) {
       usages.append(TIP_("read"));
     }
-    if ((usage & geo_log::NamedAttributeUsage::Write) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Write)) {
       usages.append(TIP_("write"));
     }
-    if ((usage & geo_log::NamedAttributeUsage::Remove) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Remove)) {
       usages.append(TIP_("remove"));
     }
     for (const int i : usages.index_range()) {
@@ -3263,7 +3266,7 @@ static void node_draw_basis(const bContext &C,
         rct.xmin - padding,
         rct.xmax + padding,
         rct.ymin - padding,
-        rct.ymax - (NODE_DY + outline_width) + padding,
+        rct.ymax - NODE_DY + padding,
     };
 
     /* Node Group indicator. */
@@ -3279,49 +3282,8 @@ static void node_draw_basis(const bContext &C,
     }
   }
 
-  /* Outlines. */
+  /* Outline around the entire node to highlight selection, alert, or for simulation zones. */
   {
-    /* Body outline. */
-    const rctf rect_body = {
-        rct.xmin - 0,
-        rct.xmax + 0,
-        rct.ymin,
-        rct.ymax - (NODE_DY),
-    };
-    float color_body[4];
-    if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_body);
-    }
-    else if (node.is_muted()) {
-      UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.6f, color_body);
-    }
-    else {
-      UI_GetThemeColorShade4fv(TH_NODE, 20, color_body);
-    }
-    UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
-    UI_draw_roundbox_4fv(&rect_body, false, BASIS_RAD, color_body);
-
-    /* Header outline. */
-    const rctf rect_header = {
-        rct.xmin,
-        rct.xmax,
-        rct.ymax - (NODE_DY + outline_width),
-        rct.ymax,
-    };
-    float color_header[4];
-    if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_header);
-    }
-    else if (node.is_muted()) {
-      UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.6f, color_header);
-    }
-    else {
-      UI_GetThemeColorShade4fv(color_id, 20, color_header);
-    }
-    UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
-    UI_draw_roundbox_4fv(&rect_header, false, BASIS_RAD, color_header);
-
-    /* Outline around the entire node to highlight selection, alert, or for simulation zones. */
     const rctf rect_node = {
         rct.xmin - outline_width,
         rct.xmax + outline_width,
@@ -3340,8 +3302,7 @@ static void node_draw_basis(const bContext &C,
       color_outline[3] = 1.0f;
     }
     else {
-      UI_GetThemeColorShade4fv(TH_NODE, 20, color_outline);
-      color_outline[3] = 0.0f;
+      UI_GetThemeColor4fv(TH_NODE_OUTLINE, color_outline);
     }
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
     UI_draw_roundbox_4fv(&rect_node, false, BASIS_RAD + outline_width, color_outline);
@@ -3424,14 +3385,14 @@ static void node_draw_collapsed(const bContext &C,
 
   /* Collapse/expand icon. */
   {
-    const int but_size = U.widget_unit * 1.0f;
+    const int but_size = 0.8f * U.widget_unit;
     UI_block_emboss_set(&block, ui::EmbossType::None);
 
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
                               0,
                               ICON_RIGHTARROW,
-                              rct.xmin + (NODE_MARGIN_X / 3),
+                              rct.xmin + (NODE_MARGIN_X / 3) + 0.1f * U.widget_unit,
                               centy - but_size / 2,
                               but_size,
                               but_size,
@@ -3487,8 +3448,7 @@ static void node_draw_collapsed(const bContext &C,
       UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, .4f, 10, color_outline);
     }
     else {
-      /* Use a mix of the backdrop and node type color, slightly lighter. */
-      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, .8f, 20, color_outline);
+      UI_GetThemeColor4fv(TH_NODE_OUTLINE, color_outline);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
@@ -3498,39 +3458,6 @@ static void node_draw_collapsed(const bContext &C,
   if (node.is_muted()) {
     UI_but_flag_enable(but, UI_BUT_INACTIVE);
   }
-
-  /* Scale widget thing. */
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  GPU_blend(GPU_BLEND_ALPHA);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-  immUniformThemeColorShadeAlpha(TH_TEXT, -40, -180);
-  float dx = 0.5f * U.widget_unit;
-  const float dx2 = 0.15f * U.widget_unit * snode.runtime->aspect;
-  const float dy = 0.2f * U.widget_unit;
-
-  immBegin(GPU_PRIM_LINES, 4);
-  immVertex2f(pos, rct.xmax - dx, centy - dy);
-  immVertex2f(pos, rct.xmax - dx, centy + dy);
-
-  immVertex2f(pos, rct.xmax - dx - dx2, centy - dy);
-  immVertex2f(pos, rct.xmax - dx - dx2, centy + dy);
-  immEnd();
-
-  immUniformThemeColorShadeAlpha(TH_TEXT, 0, -180);
-  dx -= snode.runtime->aspect;
-
-  immBegin(GPU_PRIM_LINES, 4);
-  immVertex2f(pos, rct.xmax - dx, centy - dy);
-  immVertex2f(pos, rct.xmax - dx, centy + dy);
-
-  immVertex2f(pos, rct.xmax - dx - dx2, centy - dy);
-  immVertex2f(pos, rct.xmax - dx - dx2, centy + dy);
-  immEnd();
-
-  immUnbindProgram();
-  GPU_blend(GPU_BLEND_NONE);
 
   node_draw_sockets(C, block, snode, ntree, node);
 
@@ -4145,7 +4072,7 @@ static void reroute_node_draw_label(TreeDrawContext &tree_draw_ctx,
 
   const short width = 512;
   const int x = BLI_rctf_cent_x(&node.runtime->draw_bounds) - (width / 2);
-  const int y = node.runtime->draw_bounds.ymax;
+  const int y = node.runtime->draw_bounds.ymax - 4 * UI_SCALE_FAC;
 
   uiBut *label_but = uiDefBut(
       &block, ButType::Label, 0, text, x, y, width, NODE_DY, nullptr, 0, 0, std::nullopt);

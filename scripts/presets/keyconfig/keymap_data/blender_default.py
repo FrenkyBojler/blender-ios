@@ -880,9 +880,11 @@ def km_screen(params):
 
 def km_screen_editing(params):
     items = []
-    keymap = ("Screen Editing",
-              {"space_type": 'EMPTY', "region_type": 'WINDOW'},
-              {"items": items})
+    keymap = (
+        "Screen Editing",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        {"items": items},
+    )
 
     items.extend([
         # Action zones
@@ -1426,7 +1428,7 @@ def km_uv_editor(params):
             (
                 "uv.move_on_axis",
                 {"type": key, "value": 'PRESS', **mod_dict},
-                {"properties": [("axis", axis), ("type", move_type), ("distance", distance)]}
+                {"properties": [("axis", axis), ("type", move_type), ("distance", distance)]},
             )
             for mod_dict, move_type in (
                 ({"ctrl": True}, 'DYNAMIC'),
@@ -2089,18 +2091,6 @@ def km_image(params):
         ("image.view_zoom", {"type": 'TRACKPADZOOM', "value": 'ANY'}, None),
         ("image.view_zoom", {"type": 'TRACKPADPAN', "value": 'ANY', "ctrl": True}, None),
         ("image.view_zoom_border", {"type": 'B', "value": 'PRESS', "shift": True}, None),
-        ("image.view_zoom_ratio", {"type": 'NUMPAD_8', "value": 'PRESS', "ctrl": True},
-         {"properties": [("ratio", 8.0)]}),
-        ("image.view_zoom_ratio", {"type": 'NUMPAD_4', "value": 'PRESS', "ctrl": True},
-         {"properties": [("ratio", 4.0)]}),
-        ("image.view_zoom_ratio", {"type": 'NUMPAD_2', "value": 'PRESS', "ctrl": True},
-         {"properties": [("ratio", 2.0)]}),
-        ("image.view_zoom_ratio", {"type": 'NUMPAD_8', "value": 'PRESS', "shift": True},
-         {"properties": [("ratio", 8.0)]}),
-        ("image.view_zoom_ratio", {"type": 'NUMPAD_4', "value": 'PRESS', "shift": True},
-         {"properties": [("ratio", 4.0)]}),
-        ("image.view_zoom_ratio", {"type": 'NUMPAD_2', "value": 'PRESS', "shift": True},
-         {"properties": [("ratio", 2.0)]}),
         ("image.view_zoom_ratio", {"type": 'NUMPAD_1', "value": 'PRESS'},
          {"properties": [("ratio", 1.0)]}),
         ("image.view_zoom_ratio", {"type": 'NUMPAD_2', "value": 'PRESS'},
@@ -2109,6 +2099,22 @@ def km_image(params):
          {"properties": [("ratio", 0.25)]}),
         ("image.view_zoom_ratio", {"type": 'NUMPAD_8', "value": 'PRESS'},
          {"properties": [("ratio", 0.125)]}),
+        ("image.view_zoom_ratio", {"type": 'NUMPAD_8', "value": 'PRESS', "ctrl": True},
+         {"properties": [("ratio", 8.0)]}),
+        ("image.view_zoom_ratio", {"type": 'NUMPAD_4', "value": 'PRESS', "ctrl": True},
+         {"properties": [("ratio", 4.0)]}),
+        ("image.view_zoom_ratio", {"type": 'NUMPAD_2', "value": 'PRESS', "ctrl": True},
+         {"properties": [("ratio", 2.0)]}),
+        ("image.view_zoom_ratio", {"type": 'NUMPAD_1', "value": 'PRESS', "ctrl": True},
+         {"properties": [("ratio", 1.0)]}),
+        ("image.view_zoom_ratio", {"type": 'NUMPAD_8', "value": 'PRESS', "shift": True},
+         {"properties": [("ratio", 8.0)]}),
+        ("image.view_zoom_ratio", {"type": 'NUMPAD_4', "value": 'PRESS', "shift": True},
+         {"properties": [("ratio", 4.0)]}),
+        ("image.view_zoom_ratio", {"type": 'NUMPAD_2', "value": 'PRESS', "shift": True},
+         {"properties": [("ratio", 2.0)]}),
+        ("image.view_zoom_ratio", {"type": 'NUMPAD_1', "value": 'PRESS', "shift": True},
+         {"properties": [("ratio", 1.0)]}),
         ("image.change_frame", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
         ("image.sample", {"type": params.action_mouse, "value": 'PRESS'}, None),
         ("image.curves_point_set", {"type": params.action_mouse, "value": 'PRESS', "ctrl": True},
@@ -4210,8 +4216,10 @@ def km_grease_pencil_sculpt_mode(params):
         op_menu("GREASE_PENCIL_MT_layer_active", {"type": 'Y', "value": 'PRESS'}),
 
         # Auto-masking menu.
-        op_menu_pie("VIEW3D_MT_grease_pencil_sculpt_automasking_pie", {
-                    "type": 'A', "value": 'PRESS', "shift": True, "alt": True}),
+        op_menu_pie(
+            "VIEW3D_MT_grease_pencil_sculpt_automasking_pie",
+            {"type": 'A', "value": 'PRESS', "shift": True, "alt": True},
+        ),
         ("wm.context_menu_enum", {"type": 'E', "value": 'PRESS', "alt": True},
          {"properties": [("data_path", "tool_settings.gpencil_sculpt_paint.brush.stroke_method")]}),
 
@@ -4331,6 +4339,7 @@ def km_grease_pencil_vertex_paint(params):
          {"properties": [("data_path", "scene.tool_settings.use_gpencil_vertex_select_mask_segment")]}),
         # Flip primary and secondary color
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
+        ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
 
         # Edit Lines overlay
         ("wm.context_toggle", {"type": 'Q', "value": 'PRESS', "shift": True},

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'2b3706e29f27')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-10-20 08:46+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -1371,14 +1371,6 @@ msgid "Parent bone (in same Armature)"
 msgstr "Родитељска кост (у истом костуру)"
 
 
-msgid "Select Head"
-msgstr "Изабери главу"
-
-
-msgid "Select Tail"
-msgstr "Изабери реп"
-
-
 msgid "Tail"
 msgstr "Реп"
 
@@ -2589,6 +2581,10 @@ msgstr "3D позиција"
 
 msgid "Undistort"
 msgstr "Неизобличено"
+
+
+msgid "Attribute Name"
+msgstr "Име атрибута"
 
 
 msgid "Kinematic Constraint"
@@ -5010,10 +5006,6 @@ msgid "Constant"
 msgstr "Константно"
 
 
-msgid "Direction"
-msgstr "Смер"
-
-
 msgid "Add effect of brush"
 msgstr "Додај ефекат четкице"
 
@@ -7030,10 +7022,6 @@ msgid "Active Movie Clip"
 msgstr "Активни филмски исечак"
 
 
-msgid "Mirror Object"
-msgstr "Објекат као огледало"
-
-
 msgid "Inverse"
 msgstr "Обрнуто"
 
@@ -7976,6 +7964,10 @@ msgid "Control key pressed"
 msgstr "Тастер контрол је притиснут"
 
 
+msgid "Direction"
+msgstr "Смер"
+
+
 msgid "North"
 msgstr "Север"
 
@@ -8505,16 +8497,20 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
+msgid "Metaball"
+msgstr "Мета лопта"
+
+
+msgid "Light"
+msgstr "Светлост"
+
+
 msgid "Relations"
 msgstr "Односи"
 
 
 msgid "Rigid Body"
 msgstr "Круто тело"
-
-
-msgid "Import"
-msgstr "Увоз"
 
 
 msgid "Apply"
@@ -8533,14 +8529,6 @@ msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Hooks"
 msgstr "Удице"
 
@@ -8557,12 +8545,24 @@ msgid "Propagate"
 msgstr "Пренеси"
 
 
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
 msgid "Names"
 msgstr "Имена"
 
 
+msgid "Tracking"
+msgstr "Праћење"
+
+
 msgid "Toggle Bone Options"
 msgstr "Мање/више информација"
+
+
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Enable Bone Options"
@@ -8585,10 +8585,6 @@ msgid "Special Characters"
 msgstr "Специјални знаци"
 
 
-msgid "Metaball"
-msgstr "Мета лопта"
-
-
 msgid "Bone Roll"
 msgstr "Ролна костију"
 
@@ -8597,12 +8593,8 @@ msgid "Snap"
 msgstr "Лепљење"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
-msgid "Tracking"
-msgstr "Праћење"
+msgid "Import"
+msgstr "Увоз"
 
 
 msgid "Mirror"
@@ -8621,16 +8613,16 @@ msgid "Navigation"
 msgstr "Навигација"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Align View"
 msgstr "Поравнај поглед"
 
 
 msgid "Select Linked"
 msgstr "Изабери повезано"
-
-
-msgid "Light"
-msgstr "Светлост"
 
 
 msgid "Basic"
@@ -8940,10 +8932,6 @@ msgstr "Изобличење"
 
 msgid "UV Pinned"
 msgstr "Закачен UV"
-
-
-msgid "UV Select"
-msgstr "Изабран UV"
 
 
 msgid "Set the map as active for display and editing"
@@ -9667,6 +9655,10 @@ msgstr "Користи време из сцене"
 
 msgid "Time Mode"
 msgstr "Мод времена"
+
+
+msgid "Mirror Object"
+msgstr "Објекат као огледало"
 
 
 msgid "Object to use as mirror"
@@ -10843,10 +10835,6 @@ msgstr "Додај сенчење"
 
 msgid "Ambient Occlusion"
 msgstr "Амбијентално сенчење"
-
-
-msgid "Attribute Name"
-msgstr "Име атрибута"
 
 
 msgid "Background"
@@ -17044,10 +17032,6 @@ msgid "Render"
 msgstr "Рендеринг"
 
 
-msgid "Render active scene"
-msgstr "Рендерује активну сцену"
-
-
 msgid "Render Layer"
 msgstr "Рендеруј слој"
 
@@ -21455,18 +21439,6 @@ msgid "Blend Opacity"
 msgstr "Провидност прелаза"
 
 
-msgid "Cross"
-msgstr "Укрштење"
-
-
-msgid "Alpha Under"
-msgstr "Провидност испод"
-
-
-msgid "Gamma Cross"
-msgstr "Укрштање гаме"
-
-
 msgctxt "Sequence"
 msgid "Image"
 msgstr "Слика"
@@ -24790,6 +24762,10 @@ msgstr "Камен (поломљен)"
 
 msgid "Timber"
 msgstr "Дрво"
+
+
+msgid "Render active scene"
+msgstr "Рендерује активну сцену"
 
 
 msgid "Scene has no camera"

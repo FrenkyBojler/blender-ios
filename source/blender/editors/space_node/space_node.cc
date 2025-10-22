@@ -557,6 +557,7 @@ const ComputeContext *compute_context_for_edittree_node(
 static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
   SpaceNode *snode = MEM_callocN<SpaceNode>(__func__);
+  snode->runtime = MEM_new<SpaceNode_Runtime>(__func__);
   snode->spacetype = SPACE_NODE;
 
   snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
@@ -647,22 +648,12 @@ static void node_free(SpaceLink *sl)
 }
 
 /* spacetype; init callback */
-static void node_init(wmWindowManager * /*wm*/, ScrArea *area)
-{
-  SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
-
-  if (snode->runtime == nullptr) {
-    snode->runtime = MEM_new<SpaceNode_Runtime>(__func__);
-  }
-}
+static void node_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static void node_exit(wmWindowManager *wm, ScrArea *area)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
-
-  if (snode->runtime) {
-    free_previews(*wm, *snode);
-  }
+  free_previews(*wm, *snode);
 }
 
 static bool any_node_uses_id(const bNodeTree *ntree, const ID *id)
@@ -1560,6 +1551,7 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
     if (snode->treepath.last) {
       path = (bNodeTreePath *)snode->treepath.last;
       snode->edittree = path->nodetree;
+      ED_node_set_active_viewer_key(snode);
     }
     else {
       snode->edittree = nullptr;
@@ -1747,7 +1739,7 @@ static void node_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 
   BLO_read_struct_list(reader, bNodeTreePath, &snode->treepath);
   snode->edittree = nullptr;
-  snode->runtime = nullptr;
+  snode->runtime = MEM_new<SpaceNode_Runtime>(__func__);
 }
 
 static void node_space_blend_write(BlendWriter *writer, SpaceLink *sl)
