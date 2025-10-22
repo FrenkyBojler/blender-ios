@@ -1,1 +1,2 @@
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
+Referenced by pull request #148547, Fix #138695: Backport - Pasting single keyframes not taking NLA offset into account
