@@ -42,7 +42,7 @@ static void declare_single_layer(NodeDeclarationBuilder &b)
  * image such that becomes valid again. */
 static void declare_existing(NodeDeclarationBuilder &b, const bNode *node)
 {
-  for (const bNodeSocket *output : node->output_sockets()) {
+  LISTBASE_FOREACH (const bNodeSocket *, output, &node->outputs) {
     if (output->type == SOCK_VECTOR) {
       const int dimensions = output->default_value_typed<bNodeSocketValueVector>()->dimensions;
       b.add_output<decl::Vector>(output->name)
@@ -98,35 +98,16 @@ static void node_declare_multi_layer(NodeDeclarationBuilder &b,
                                      const ImageUser *image_user,
                                      const bNode *node)
 {
-  /* Create a copy of image user that represents the structure of the image at the first frame. We
-   * do not support a temporally changing image structure, since that changes the topology of the
-   * node tree. */
-  const int image_start_frame_offset = BKE_image_sequence_guess_offset(image);
-  ImageUser initial_frame_image_user = *image_user;
-  initial_frame_image_user.framenr = image_start_frame_offset;
-
-  /* We can't retrieve the passes yet, because we need the render result structure of the image to
-   * be initialized. So we first acquire a dummy image buffer since it initializes the image render
-   * result as a side effect. We also use that as a mean of validation, since we can early exit if
-   * the returned image buffer is nullptr. This image buffer can be immediately released. Since it
-   * carries no important information. */
-  ImBuf *initial_image_buffer = BKE_image_acquire_ibuf(image, &initial_frame_image_user, nullptr);
-  BKE_image_release_ibuf(image, initial_image_buffer, nullptr);
-  if (!initial_image_buffer) {
-    declare_existing(b, node);
-    return;
-  }
-
   RenderResult *render_result = BKE_image_acquire_renderresult(nullptr, image);
   BLI_SCOPED_DEFER([&]() { BKE_image_release_renderresult(nullptr, image, render_result); });
 
-  if (!image->rr) {
+  if (!render_result) {
     declare_existing(b, node);
     return;
   }
 
   RenderLayer *render_layer = static_cast<RenderLayer *>(
-      BLI_findlink(&image->rr->layers, image_user->layer));
+      BLI_findlink(&render_result->layers, image_user->layer));
   if (!render_layer) {
     declare_existing(b, node);
     return;
@@ -135,6 +116,24 @@ static void node_declare_multi_layer(NodeDeclarationBuilder &b,
   LISTBASE_FOREACH (RenderPass *, pass, &render_layer->passes) {
     declare_pass(b, *pass);
   }
+}
+
+/* The image may not necessary have its type initialized correctly yet, so we can't identify if it
+ * is multi-layer or not. Further, the render result structure for multi-layer images may also not
+ * be initialized yet, so we can't retrieve the passes. So this function prepares the image by
+ * acquiring a dummy image buffer since it initializes the necessary data we need as a side effect.
+ * This image buffer can be immediately released. Since it carries no important information. */
+static void prepare_image(Image *image, const ImageUser *image_user)
+{
+  /* Create a copy of image user that represents the structure of the image at the first frame. We
+   * do not support a temporally changing image structure, since that changes the topology of the
+   * node tree. */
+  const int image_start_frame_offset = BKE_image_sequence_guess_offset(image);
+  ImageUser initial_frame_image_user = *image_user;
+  initial_frame_image_user.framenr = image_start_frame_offset;
+
+  ImBuf *initial_image_buffer = BKE_image_acquire_ibuf(image, &initial_frame_image_user, nullptr);
+  BKE_image_release_ibuf(image, initial_image_buffer, nullptr);
 }
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -151,6 +150,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     declare_default(b);
     return;
   }
+
+  prepare_image(image, image_user);
 
   if (!BKE_image_is_multilayer(image)) {
     declare_single_layer(b);
