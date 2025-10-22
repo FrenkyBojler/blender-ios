@@ -60,7 +60,6 @@ def main():
     if "bpy" not in sys.modules:
         raise Exception("This must run inside Blender")
     import bpy
-    import gpu
 
     parser = create_parser()
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
@@ -84,38 +83,13 @@ def main():
         else:
             bpy.app.use_event_simulate = False
 
-    gpu_device = gpu.platform.device_type_get()
-
-    # Skip broken tests.
-    BLOCKLIST = []
-
-    if os.getenv('BLENDER_TEST_IGNORE_BLOCKLIST') is None:
-        if sys.platform == "linux" and gpu_device == "AMD":
-            # All tests are broken
-            on_exit()
-
-        if sys.platform == "linux":
-            BLOCKLIST += [
-                "ui_test_undo.view3d_edit_mode_multi_window",
-                "ui_test_undo.view3d_multi_mode_multi_window"
-            ]
-
-        if sys.platform == "win32" and gpu_device == "INTEL":
-            BLOCKLIST += [
-                "test_workspace"
-            ]
-
     is_first = True
     for test_id in args.tests:
-        mod_name, fn_name = test_id.partition(".")[0::2]
-
-        if test_id in BLOCKLIST or mod_name in BLOCKLIST:
-            continue
-
         if not is_first:
             bpy.ops.wm.read_homefile()
         is_first = False
 
+        mod_name, fn_name = test_id.partition(".")[0::2]
         mod = __import__(mod_name)
         test_fn = getattr(mod, fn_name)
 
@@ -135,10 +109,6 @@ def main():
             on_step_command_pre=args.step_command_pre,
             on_step_command_post=args.step_command_post,
         )
-
-    if is_first:
-        # No test ran
-        on_exit()
 
 
 if __name__ == "__main__":
