@@ -1642,7 +1642,7 @@ static size_t unit_as_string(char *str,
                              int str_maxncpy,
                              double value,
                              int prec,
-                             const bool do_rstrip_zero,
+                             const bool use_variable_width,
                              const bUnitCollection *usys,
                              /* Non exposed options. */
                              const bUnitDef *unit,
@@ -1664,8 +1664,13 @@ static size_t unit_as_string(char *str,
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
    * to replace 'scientific notation' in those cases. */
-  const int num_digits = (fabs(value_conv) < 1) ? 1 : integer_digits_d(value_conv);
-  prec -= num_digits;
+  int prec_adjust = integer_digits_d(value_conv);
+  if (!use_variable_width && fabs(value_conv) < 1) {
+    /* Adjust precision to account for the leading "0." in numbers with magnitude below 1 while
+     * maintaining consistent decimal count. */
+    prec_adjust = 1;
+  }
+  prec -= prec_adjust;
 
   CLAMP(prec, 0, 6);
 
@@ -1680,7 +1685,7 @@ static size_t unit_as_string(char *str,
   size_t i = len - 1;
 
   if (prec > 0) {
-    if (do_rstrip_zero) {
+    if (use_variable_width) {
       while (i > 0 && str[i] == '0') { /* 4.300 -> 4.3 */
         str[i--] = pad;
       }
@@ -1745,7 +1750,7 @@ static size_t unit_as_string_split_pair(char *str,
                                         int str_maxncpy,
                                         double value,
                                         int prec,
-                                        const bool do_rstrip_zero,
+                                        const bool use_variable_width,
                                         const bUnitCollection *usys,
                                         const bUnitDef *main_unit)
 {
@@ -1769,7 +1774,7 @@ static size_t unit_as_string_split_pair(char *str,
 
       /* Use low precision since this is a smaller unit. */
       i += unit_as_string(
-          str + i, str_maxncpy - i, value_b, prec, do_rstrip_zero, usys, unit_b, '\0');
+          str + i, str_maxncpy - i, value_b, prec, use_variable_width, usys, unit_b, '\0');
     }
     return i;
   }
@@ -1848,15 +1853,15 @@ static size_t unit_as_string_main(char *str,
     main_unit = get_preferred_display_unit_if_used(type, units);
   }
 
-  bool do_rstrip_zero = true;
+  bool use_variable_width = true;
   if (prec < 0) {
     prec = -prec;
-    do_rstrip_zero = false;
+    use_variable_width = false;
   }
 
   if (split && unit_should_be_split(type)) {
     int length = unit_as_string_split_pair(
-        str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit);
+        str, str_maxncpy, value, prec, use_variable_width, usys, main_unit);
     /* Split failed when length is negative, fall back to no split. */
     if (length >= 0) {
       return length;
@@ -1864,7 +1869,7 @@ static size_t unit_as_string_main(char *str,
   }
 
   return unit_as_string(
-      str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit, pad ? ' ' : '\0');
+      str, str_maxncpy, value, prec, use_variable_width, usys, main_unit, pad ? ' ' : '\0');
 }
 
 size_t BKE_unit_value_as_string_adaptive(
