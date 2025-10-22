@@ -2942,8 +2942,10 @@ static const bool node_header_group_icon_show(const bNode &node)
 {
   const bool is_node_group = node.type_legacy == NODE_GROUP;
   const bool is_packed = (node.id && ID_IS_PACKED(node.id));
+  const bool is_asset = (node.id && ID_IS_ASSET(node.id));
   const bool show_node_options = node.flag & NODE_OPTIONS;
-  const bool show_node_group_icon = is_node_group && show_node_options && !is_packed;
+  const bool show_node_group_icon = (is_node_group || is_asset) && !show_node_options &&
+                                    !is_packed;
 
   return show_node_group_icon;
 }
