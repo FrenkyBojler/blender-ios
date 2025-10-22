@@ -3,3 +3,4 @@ Referenced by issue #145447, Crash when double clicking on a Grease Pencil Layer
 Referenced by issue #145635, Tree View: Selection not working
 Referenced by issue #145655, Shape Keys impossible to select
 Referenced by issue #147159, Crash selecting brush asset from current file after renaming it
+Referenced by issue #148530, "Apply Pose" from asset browser context menu gives "ERROR Invalid operator call 'POSELIB_OT_apply_pose_asset'"
