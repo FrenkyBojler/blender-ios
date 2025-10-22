@@ -1613,12 +1613,15 @@ void outliner_scroll_to_active(const bContext *C,
   View2D *v2d = &region->v2d;
   TreeElement *active_te = outliner_show_active_get_element(
       const_cast<bContext *>(C), space_outliner, tvc->scene, tvc->view_layer);
+
   if (active_te->store_elem->flag & TSE_FOCUS) {
-    outliner_show_active(space_outliner, region, active_te, TREESTORE(active_te)->id);
-    int size_y = BLI_rcti_size_y(&v2d->mask) + 1;
-    int ytop = (active_te->ys + (size_y / 2));
-    int delta_y = ytop - v2d->cur.ymax;
-    outliner_scroll_view(space_outliner, region, delta_y);
+    if (!BLI_rctf_isect_y(&v2d->cur, active_te->ys)) {
+      outliner_show_active(space_outliner, region, active_te, TREESTORE(active_te)->id);
+      int size_y = BLI_rcti_size_y(&v2d->mask) + 1;
+      int ytop = (active_te->ys + (size_y / 2));
+      int delta_y = ytop - v2d->cur.ymax;
+      outliner_scroll_view(space_outliner, region, delta_y);
+    }
     active_te->store_elem->flag &= ~TSE_FOCUS;
   }
 }
