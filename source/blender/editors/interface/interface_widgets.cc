@@ -5804,6 +5804,17 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   int max_hint_width = INT_MAX;
   char *cpoin = nullptr;
 
+  int icon_width = 0;
+  if (id) {
+    icon_width += int(1.0f * UI_UNIT_X);
+  }
+  if (id && ID_MISSING(id)) {
+    icon_width += int(0.85f * UI_UNIT_X);
+  }
+  if (id && ID_IS_OVERRIDE_LIBRARY(id)) {
+    icon_width += int(0.85f * UI_UNIT_X);
+  }
+
   uiWidgetStateInfo state = {0};
   state.but_flag = but_flag;
 
@@ -5819,17 +5830,6 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   rect->xmin;
   if (iconid) {
     rect->xmin += row_height; /* Use square area for icon. */
-  }
-
-  int icon_width = 0;
-  if (id) {
-    icon_width += int(1.0f * UI_UNIT_X);
-  }
-  if (id && ID_MISSING(id)) {
-    icon_width += int(0.85f * UI_UNIT_X);
-  }
-  if (id && ID_IS_OVERRIDE_LIBRARY(id)) {
-    icon_width += int(0.85f * UI_UNIT_X);
   }
 
   /* cut string in 2 parts? */

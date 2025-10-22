@@ -1775,6 +1775,7 @@ bool UI_search_item_add(uiSearchItems *items,
                         int but_flag,
                         uint8_t name_prefix_offset,
                         ID *id = nullptr);
+
 /**
  * \note The item-pointer (referred to below) is a per search item user pointer
  * passed to #UI_search_item_add (stored in  #uiSearchItems.pointers).

@@ -25,7 +25,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
