@@ -107,14 +107,15 @@ def main():
 
     is_first = True
     for test_id in args.tests:
-        if test_id in BLOCKLIST:
+        mod_name, fn_name = test_id.partition(".")[0::2]
+
+        if test_id in BLOCKLIST or mod_name in BLOCKLIST:
             continue
 
         if not is_first:
             bpy.ops.wm.read_homefile()
         is_first = False
 
-        mod_name, fn_name = test_id.partition(".")[0::2]
         mod = __import__(mod_name)
         test_fn = getattr(mod, fn_name)
 
