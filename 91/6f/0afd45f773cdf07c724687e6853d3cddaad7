@@ -1,2 +1,3 @@
 Referenced by issue #147810, Theme setting for Nodes outline color and visibility is missing
 Referenced by pull request #148532, UI: Theme: Add Node Outline theme setting
+Referenced by commit d2ea3598b7c5e05c00a9fde7b264103fc94a0c82, Fix #147810: Node outline missing theme setting
