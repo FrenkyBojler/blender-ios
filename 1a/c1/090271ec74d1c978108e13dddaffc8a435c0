@@ -1,2 +1,3 @@
 Referenced by issue #148531, Shader Editor + Geometry Nodes: Unexpected curve offset after "Reset Curve" in "Vector Curves" node
 Referenced by pull request #148545, Fix #148531: Vector Curves node 'Reset Curve' option applies offset
+Referenced by commit 6cbbb54d8c18f532d76a8f972d37da4160da262a, Fix #148531: Vector Curves node 'Reset Curve' option applies offset
