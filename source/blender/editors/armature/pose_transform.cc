@@ -662,7 +662,6 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
    */
   copy_v3_v3(pchan->loc, chan->loc);
   copy_v3_v3(pchan->scale, chan->scale);
-  pchan->flag = chan->flag;
 
   /* check if rotation modes are compatible (i.e. do they need any conversions) */
   if (pchan->rotmode == chan->rotmode) {
