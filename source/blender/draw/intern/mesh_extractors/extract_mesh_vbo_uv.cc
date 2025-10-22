@@ -78,7 +78,6 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
 {
   GPUVertFormat format = {0};
 
-  // TODO_MESH_ATTR
   int v_len = mr.corners_num;
   const VectorSet<StringRef> uv_layers = mesh_extract_uv_format_init(
       &format,
