@@ -51,47 +51,10 @@ ccl_device_forceinline float3 integrate_surface_ray_offset(KernelGlobals kg,
     return ray_P;
   }
 
-  /* Self intersection tests already account for the case where a ray hits the
-   * same primitive. However precision issues can still cause neighboring
-   * triangles to be hit. Here we test if the ray-triangle intersection with
-   * the same primitive would miss, implying that a neighboring triangle would
-   * be hit instead.
-   *
-   * This relies on triangle intersection to be watertight, and the object inverse
-   * object transform to match the one used by ray intersection exactly.
-   *
-   * Potential improvements:
-   * - It appears this happens when either barycentric coordinates are small,
-   *   or dot(sd->Ng, ray_D)  is small. Detect such cases and skip test?
-   * - Instead of ray offset, can we tweak P to lie within the triangle?
-   */
-
-  /* TODO: Investigate if there are better ray offsetting algorithms for each BVH.
-   * Cycles and Custom BVH triangle tests aren't numerically identical, meaning
-   * this method isn't ideal for them. */
-
-  float3 verts[3];
-  if (sd->type == PRIMITIVE_TRIANGLE) {
-    triangle_vertices(kg, sd->prim, verts);
-  }
-  else {
-    kernel_assert(sd->type == PRIMITIVE_MOTION_TRIANGLE);
-    motion_triangle_vertices(kg, sd->object, sd->prim, sd->time, verts);
-  }
-
-  float3 local_ray_P = ray_P;
-  float3 local_ray_D = ray_D;
-
-  if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-    const Transform itfm = object_get_inverse_transform(kg, sd);
-    local_ray_P = transform_point(&itfm, local_ray_P);
-    local_ray_D = transform_direction(&itfm, local_ray_D);
-  }
-
-  if (ray_triangle_intersect_self(local_ray_P, local_ray_D, verts)) {
-    return ray_P;
-  }
-  return ray_offset(ray_P, sd->Ng);
+  /* To ensure that the ray origin is offset to the correct side of the plane, we flip the normal
+   * in the case of transmission. */
+  const bool is_transmission = dot(ray_D, sd->Ng) < 0.0f;
+  return ray_offset(ray_P, is_transmission ? -sd->Ng : sd->Ng);
 }
 
 ccl_device_forceinline bool integrate_surface_holdout(KernelGlobals kg,
