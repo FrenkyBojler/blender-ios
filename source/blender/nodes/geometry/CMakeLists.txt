@@ -160,6 +160,7 @@ set(SRC
   nodes/node_geo_list.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
+  nodes/node_geo_list_sort.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
