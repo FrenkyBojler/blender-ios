@@ -1653,7 +1653,7 @@ class PARTICLE_PT_draw(ParticleButtonsPanel, Panel):
 
         if path:
             col.prop(part, "display_step", text="Strand Steps")
-        col.prop(part, "display_percentage", slider=True, text="Amount")
+        col.prop(part, "display_percentage", slider=True, text="Percentage")
         if part.display_method != 'RENDER' or part.render_type == 'HALO':
             col.prop(part, "display_size", text="Size")
 
@@ -1703,8 +1703,8 @@ class PARTICLE_PT_children(ParticleButtonsPanel, Panel):
         col = layout.column()
 
         sub = col.column(align=True)
-        sub.prop(part, "child_percent", text="Display Amount")
-        sub.prop(part, "rendered_child_count", text="Render Amount")
+        sub.prop(part, "child_percent", text="Display Number")
+        sub.prop(part, "rendered_child_count", text="Render Number")
 
         col.separator()
 

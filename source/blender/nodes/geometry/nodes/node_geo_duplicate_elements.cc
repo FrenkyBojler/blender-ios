@@ -36,7 +36,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry").description("Geometry to duplicate elements of");
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>("Amount").min(0).default_value(1).field_on_all().description(
+  b.add_input<decl::Int>("Number").min(0).default_value(1).field_on_all().description(
       "The number of duplicates to create for each element");
 
   b.add_output<decl::Geometry>("Geometry")
@@ -1193,7 +1193,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       [](int value) { return std::max(0, value); },
       mf::build::exec_presets::AllSpanOrSingle());
   Field<int> count_field(
-      FieldOperation::from(max_zero_fn, {params.extract_input<Field<int>>("Amount")}));
+      FieldOperation::from(max_zero_fn, {params.extract_input<Field<int>>("Number")}));
 
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   IndexAttributes attribute_outputs;

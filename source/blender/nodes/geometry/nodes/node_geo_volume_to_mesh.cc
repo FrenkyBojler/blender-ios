@@ -27,7 +27,7 @@ static EnumPropertyItem resolution_mode_items[] = {
     {VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT,
      "VOXEL_AMOUNT",
      0,
-     N_("Amount"),
+     N_("Number"),
      N_("Desired number of voxels along one axis")},
     {VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE,
      "VOXEL_SIZE",
@@ -53,7 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.01f)
       .subtype(PROP_DISTANCE)
       .usage_by_single_menu(VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE);
-  b.add_input<decl::Float>("Voxel Amount")
+  b.add_input<decl::Float>("Voxel Number")
       .default_value(64.0f)
       .min(0.0f)
       .usage_by_single_menu(VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT);
@@ -77,7 +77,7 @@ static bke::VolumeToMeshResolution get_resolution_param(const GeoNodeExecParams 
   bke::VolumeToMeshResolution resolution;
   resolution.mode = params.get_input<VolumeToMeshResolutionMode>("Resolution Mode");
   if (resolution.mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT) {
-    resolution.settings.voxel_amount = std::max(params.get_input<float>("Voxel Amount"), 0.0f);
+    resolution.settings.voxel_amount = std::max(params.get_input<float>("Voxel Number"), 0.0f);
   }
   else if (resolution.mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE) {
     resolution.settings.voxel_size = std::max(params.get_input<float>("Voxel Size"), 0.0f);

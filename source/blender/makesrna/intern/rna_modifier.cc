@@ -4572,7 +4572,10 @@ static void rna_def_modifier_particleinstance(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "particle_amount", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.0, 1.0);
-  RNA_def_property_ui_text(prop, "Particle Amount", "Amount of particles to use for instancing");
+  RNA_def_property_ui_text(
+      prop,
+      "Particle Factor",
+      "Number of particles to use for instancing, as a factor of the particle system");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "particle_offset", PROP_FLOAT, PROP_FACTOR);

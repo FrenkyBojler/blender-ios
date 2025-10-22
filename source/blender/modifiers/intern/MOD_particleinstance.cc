@@ -563,7 +563,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   row->prop(ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
   row->prop(ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "particle_amount", UI_ITEM_NONE, IFACE_("Amount"), ICON_NONE);
+  layout->prop(ptr, "particle_amount", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
   layout->prop(ptr, "particle_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
 
   layout->separator();

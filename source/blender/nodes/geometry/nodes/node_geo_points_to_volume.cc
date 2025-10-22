@@ -98,7 +98,7 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
     voxel_size = params.get_input<float>("Voxel Size");
   }
   else if (resolution_mode == GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT) {
-    const float voxel_amount = params.get_input<float>("Voxel Amount");
+    const float voxel_amount = params.get_input<float>("Voxel Number");
     const float max_radius = *std::max_element(radii.begin(), radii.end());
     voxel_size = compute_voxel_size_from_amount(voxel_amount, positions, max_radius);
   }
@@ -128,7 +128,7 @@ static EnumPropertyItem resolution_mode_items[] = {
     {GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT,
      "VOXEL_AMOUNT",
      0,
-     N_("Amount"),
+     N_("Number"),
      N_("Specify the approximate number of voxels along the diagonal")},
     {GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_SIZE,
      "VOXEL_SIZE",
@@ -152,7 +152,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.01f)
       .subtype(PROP_DISTANCE)
       .usage_by_single_menu(GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_SIZE);
-  b.add_input<decl::Float>("Voxel Amount")
+  b.add_input<decl::Float>("Voxel Number")
       .default_value(64.0f)
       .min(0.0f)
       .usage_by_single_menu(GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT);

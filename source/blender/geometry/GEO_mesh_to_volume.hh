@@ -36,7 +36,7 @@ struct MeshToVolumeResolution {
 
 /**
  * \param bounds_fn: Return the bounds of the mesh positions,
- * used for deciding the voxel size in "Amount" mode.
+ * used for deciding the voxel size in "Number" mode.
  */
 float volume_compute_voxel_size(const Depsgraph *depsgraph,
                                 FunctionRef<Bounds<float3>()> bounds_fn,
