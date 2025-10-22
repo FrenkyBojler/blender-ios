@@ -1664,7 +1664,7 @@ static size_t unit_as_string(char *str,
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
    * to replace 'scientific notation' in those cases. */
-  const int num_digits = (fabs(value_conv) < 1) ? 0 : integer_digits_d(value_conv) - 1;
+  const int num_digits = (fabs(value_conv) < 1) ? 1 : integer_digits_d(value_conv);
   prec -= num_digits;
 
   CLAMP(prec, 0, 6);
