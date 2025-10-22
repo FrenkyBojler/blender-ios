@@ -185,6 +185,36 @@ class NodeMenu(Menu):
         return operators
 
     @classmethod
+    def node_operator_with_searchable_enum_filtered(cls, context, layout, node_idname, property_name, excluded_enum_names, search_weight=0.0):
+        operators = []
+        operators.append(cls.node_operator(layout, node_idname, search_weight=search_weight))
+        
+        if getattr(context, "is_menu_search", False):
+            node_type = getattr(bpy.types, node_idname)
+            translation_context = node_type.bl_rna.properties[property_name].translation_context
+            for item in node_type.bl_rna.properties[property_name].enum_items_static:
+                if item.identifier not in excluded_enum_names:
+                    props = cls.node_operator(
+                        layout,
+                        node_idname,
+                        label="{:s} \u25B8 {:s}".format(
+                            iface_(node_type.bl_rna.name),
+                            iface_(item.name, translation_context),
+                        ),
+                        translate=False,
+                        search_weight=search_weight,
+                    )
+                    prop = props.settings.add()
+                    prop.name = property_name
+                    prop.value = repr(item.identifier)
+                    operators.append(props)
+        for props in operators:
+            if hasattr(props, "use_transform"):
+                props.use_transform = cls.use_transform
+
+        return operators
+
+    @classmethod
     def node_operator_with_searchable_enum_socket(
             cls,
             context,
