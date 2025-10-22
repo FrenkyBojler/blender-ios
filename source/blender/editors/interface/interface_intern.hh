@@ -1362,7 +1362,8 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                        int iconid,
                        int but_flag,
                        uiMenuItemSeparatorType separator_type,
-                       int *r_xmax);
+                       int *r_xmax,
+                       ID *id = nullptr);
 void ui_draw_preview_item(const uiFontStyle *fstyle,
                           rcti *rect,
                           float zoom,

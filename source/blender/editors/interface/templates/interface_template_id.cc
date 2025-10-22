@@ -103,33 +103,14 @@ static bool id_search_allows_id(TemplateID *template_ui, const int flag, ID *id,
 
 static bool id_search_add(const bContext *C, TemplateID *template_ui, uiSearchItems *items, ID *id)
 {
-  /* +1 is needed because BKE_id_ui_prefix used 3 letter prefix
-   * followed by ID_NAME-2 characters from id->name
-   */
   char name_ui[MAX_ID_FULL_NAME_UI];
+  BKE_id_full_name_get(name_ui, id, UI_SEP_CHAR);
   int iconid = ui_id_icon_get(C, id, template_ui->preview);
-  const bool use_lib_prefix = template_ui->preview || iconid;
-  const bool has_sep_char = ID_IS_LINKED(id);
-
-  /* When using previews, the library hint (linked, overridden, missing) is added with a
-   * character prefix, otherwise we can use a icon. */
-  int name_prefix_offset;
-  BKE_id_full_name_ui_prefix_get(name_ui, id, use_lib_prefix, UI_SEP_CHAR, &name_prefix_offset);
-  if (!use_lib_prefix) {
+  if (iconid == ICON_NONE) {
     iconid = UI_icon_from_library(id);
   }
-
-  if (!UI_search_item_add(items,
-                          name_ui,
-                          id,
-                          iconid,
-                          has_sep_char ? int(UI_BUT_HAS_SEP_CHAR) : 0,
-                          name_prefix_offset))
-  {
-    return false;
-  }
-
-  return true;
+  return UI_search_item_add(
+      items, name_ui, id, iconid, ID_IS_LINKED(id) ? int(UI_BUT_HAS_SEP_CHAR) : 0, 0, id);
 }
 
 /* ID Search browse menu, do the search */

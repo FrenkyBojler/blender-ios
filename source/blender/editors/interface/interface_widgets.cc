@@ -5795,13 +5795,13 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                        int iconid,
                        int but_flag,
                        uiMenuItemSeparatorType separator_type,
-                       int *r_xmax)
+                       int *r_xmax,
+                       ID *id)
 {
   uiWidgetType *wt = widget_type(use_unpadded ? UI_WTYPE_MENU_ITEM_UNPADDED : UI_WTYPE_MENU_ITEM);
   const rcti _rect = *rect;
   const int row_height = BLI_rcti_size_y(rect);
   int max_hint_width = INT_MAX;
-  int padding = 0.25f * row_height;
   char *cpoin = nullptr;
 
   uiWidgetStateInfo state = {0};
@@ -5816,9 +5816,20 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   UI_fontstyle_set(fstyle);
 
   /* text location offset */
-  rect->xmin += padding;
+  rect->xmin;
   if (iconid) {
     rect->xmin += row_height; /* Use square area for icon. */
+  }
+
+  int icon_width = 0;
+  if (id) {
+    icon_width += int(1.0f * UI_UNIT_X);
+  }
+  if (id && ID_MISSING(id)) {
+    icon_width += int(0.85f * UI_UNIT_X);
+  }
+  if (id && ID_IS_OVERRIDE_LIBRARY(id)) {
+    icon_width += int(0.85f * UI_UNIT_X);
   }
 
   /* cut string in 2 parts? */
@@ -5838,9 +5849,9 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
         /* Determine max-width for the hint string to leave the name string un-clipped (if there's
          * enough space to display it). */
 
-        const int available_width = BLI_rcti_size_x(rect) - padding;
+        const int available_width = BLI_rcti_size_x(rect) - icon_width;
         const int name_width = BLF_width(fstyle->uifont_id, name, INT_MAX);
-        const int hint_width = BLF_width(fstyle->uifont_id, cpoin + 1, INT_MAX) + padding;
+        const int hint_width = BLF_width(fstyle->uifont_id, cpoin + 1, INT_MAX);
 
         if ((name_width + hint_width) > available_width) {
           /* Clipping width for hint string. */
@@ -5859,7 +5870,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
 
   {
     char drawstr[UI_MAX_DRAW_STR];
-    const float okwidth = float(BLI_rcti_size_x(rect));
+    const float okwidth = float(BLI_rcti_size_x(rect) - icon_width);
     const size_t max_len = sizeof(drawstr);
     const float minwidth = UI_ICON_SIZE;
 
@@ -5915,12 +5926,60 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
         }
       }
 
-      rect->xmax = _rect.xmax - padding;
+      rect->xmax = _rect.xmax - icon_width - int(0.2f * UI_UNIT_X);
       uiFontStyleDraw_Params params{};
       params.align = UI_STYLE_TEXT_RIGHT;
       UI_fontstyle_draw(fstyle, rect, hint_drawstr, sizeof(hint_drawstr), wt->wcol.text, &params);
       *cpoin = UI_SEP_CHAR;
     }
+  }
+
+  /* restore rect, was messed with */
+  *rect = _rect;
+  int xs = rect->xmax - icon_width;
+  int ys = rect->ymin + 0.1f * BLI_rcti_size_y(rect);
+  if (id) {
+    float aspect = ICON_DEFAULT_HEIGHT / ICON_SIZE_FROM_BUTRECT(rect);
+    GPU_blend(GPU_BLEND_ALPHA);
+    if (ID_IS_OVERRIDE_LIBRARY(id)) {
+      UI_icon_draw_ex(xs,
+                      ys,
+                      ICON_LIBRARY_DATA_OVERRIDE,
+                      aspect,
+                      1.0f,
+                      0.0f,
+                      wt->wcol.text,
+                      false,
+                      UI_NO_ICON_OVERLAY_TEXT);
+      xs += int(0.85f * UI_UNIT_X);
+    }
+    if (ID_MISSING(id)) {
+      UI_icon_draw_ex(xs,
+                      ys,
+                      ICON_LIBRARY_DATA_BROKEN,
+                      aspect,
+                      1.0f,
+                      0.0f,
+                      wt->wcol.text,
+                      false,
+                      UI_NO_ICON_OVERLAY_TEXT);
+      xs += int(0.85f * UI_UNIT_X);
+    }
+    IconTextOverlay overlay;
+    BLI_str_format_integer_unit(overlay.text, id->us);
+    if (id->us < 1) {
+      rgba_uchar_args_set(overlay.color, 255, 60, 60, 255);
+    }
+    UI_icon_draw_ex(xs,
+                    ys,
+                    id->flag & ID_FLAG_FAKEUSER ? ICON_FAKE_USER_ON : ICON_FAKE_USER_OFF,
+                    aspect,
+                    1.0f,
+                    0.0f,
+                    wt->wcol.text,
+                    false,
+                    &overlay);
+    GPU_blend(GPU_BLEND_NONE);
   }
 }
 

@@ -25,6 +25,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -59,6 +60,7 @@ struct uiSearchItems {
 
   char **names;
   void **pointers;
+  ID **ids;
   int *icons;
   int *but_flags;
   uint8_t *name_prefix_offsets;
@@ -106,7 +108,8 @@ bool UI_search_item_add(uiSearchItems *items,
                         void *poin,
                         int iconid,
                         const int but_flag,
-                        const uint8_t name_prefix_offset)
+                        const uint8_t name_prefix_offset,
+                        ID *id)
 {
   /* hijack for autocomplete */
   if (items->autocpl) {
@@ -146,6 +149,9 @@ bool UI_search_item_add(uiSearchItems *items,
   }
   if (items->icons) {
     items->icons[items->totitem] = iconid;
+  }
+  if (id && items->ids) {
+    items->ids[items->totitem] = id;
   }
 
   if (name_prefix_offset != 0) {
@@ -716,6 +722,7 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
         const char *name = data->items.names[a];
         int icon = data->items.icons[a];
         char *name_sep_test = nullptr;
+        ID *id = data->items.ids[a];
 
         uiMenuItemSeparatorType separator_type = UI_MENU_ITEM_SEPARATOR_NONE;
         if (data->use_shortcut_sep) {
@@ -747,7 +754,8 @@ static void ui_searchbox_region_draw_fn(const bContext *C, ARegion *region)
                             icon,
                             but_flag,
                             separator_type,
-                            nullptr);
+                            nullptr,
+                            id);
         }
         else {
           /* Split menu item, faded text before the separator. */
@@ -832,6 +840,7 @@ static void ui_searchbox_region_free_fn(ARegion *region)
   }
   MEM_freeN(data->items.names);
   MEM_freeN(data->items.pointers);
+  MEM_freeN(data->items.ids);
   MEM_freeN(data->items.icons);
   MEM_freeN(data->items.but_flags);
 
@@ -1039,6 +1048,7 @@ static ARegion *ui_searchbox_create_generic_ex(bContext *C,
   data->items.totitem = 0;
   data->items.names = (char **)MEM_callocN(data->items.maxitem * sizeof(void *), __func__);
   data->items.pointers = (void **)MEM_callocN(data->items.maxitem * sizeof(void *), __func__);
+  data->items.ids = (ID **)MEM_callocN(data->items.maxitem * sizeof(void *), __func__);
   data->items.icons = MEM_calloc_arrayN<int>(data->items.maxitem, __func__);
   data->items.but_flags = MEM_calloc_arrayN<int>(data->items.maxitem, __func__);
   data->items.name_prefix_offsets = nullptr; /* Lazy initialized as needed. */
