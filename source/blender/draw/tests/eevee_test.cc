@@ -199,6 +199,8 @@ DRAW_TEST(eevee_shadow_shift)
 
 static void test_eevee_shadow_tag_update()
 {
+  BLOCK_GPU_TEST_ON(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL);
+
   GPU_render_begin();
   using namespace blender::math;
   StorageVectorBuffer<uint, 128> past_casters_updated = {"PastCastersUpdated"};
