@@ -26,53 +26,60 @@ namespace blender::nodes::node_composite_image_cc {
 /* Default declaration for contextless static declarations and when the image is not assigned. */
 static void declare_default(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Alpha");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
 }
 
 /* Declaration for simple single layer images. */
 static void declare_single_layer(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Alpha");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
 }
 
+/* Declares the already existing outputs. This is done in cases where the passes can not be read
+ * due to an invalid image to retain the links and give the user the opportunity to update the
+ * image such that becomes valid again. */
 static void declare_existing(NodeDeclarationBuilder &b, const bNode *node)
 {
   for (const bNodeSocket *output : node->output_sockets()) {
     if (output->type == SOCK_VECTOR) {
       const int dimensions = output->default_value_typed<bNodeSocketValueVector>()->dimensions;
-      b.add_output<decl::Vector>(output->name).dimensions(dimensions);
+      b.add_output<decl::Vector>(output->name)
+          .dimensions(dimensions)
+          .structure_type(StructureType::Dynamic);
     }
     else {
-      b.add_output(eNodeSocketDatatype(output->type), output->name);
+      b.add_output(eNodeSocketDatatype(output->type), output->name)
+          .structure_type(StructureType::Dynamic);
     }
   }
 }
 
+/* Declares an output that matches the type of the given pass. */
 static void declare_pass(NodeDeclarationBuilder &b, const RenderPass &pass)
 {
   switch (pass.channels) {
     case 1:
-      b.add_output<decl::Float>(pass.name);
+      b.add_output<decl::Float>(pass.name).structure_type(StructureType::Dynamic);
       break;
     case 2:
-      b.add_output<decl::Vector>(pass.name).dimensions(2);
+      b.add_output<decl::Vector>(pass.name).dimensions(2).structure_type(StructureType::Dynamic);
       break;
     case 3:
       if (STR_ELEM(pass.chan_id, "RGB", "rgb")) {
-        b.add_output<decl::Color>(pass.name);
+        b.add_output<decl::Color>(pass.name).structure_type(StructureType::Dynamic);
       }
       else {
-        b.add_output<decl::Vector>(pass.name).dimensions(3);
+        b.add_output<decl::Vector>(pass.name).dimensions(3).structure_type(StructureType::Dynamic);
       }
       break;
     case 4:
       if (STR_ELEM(pass.chan_id, "RGBA", "rgba")) {
-        b.add_output<decl::Color>(pass.name);
+        b.add_output<decl::Color>(pass.name).structure_type(StructureType::Dynamic);
       }
       else {
-        b.add_output<decl::Vector>(pass.name).dimensions(4);
+        b.add_output<decl::Vector>(pass.name).dimensions(4).structure_type(StructureType::Dynamic);
       }
       break;
     default:
@@ -80,8 +87,9 @@ static void declare_pass(NodeDeclarationBuilder &b, const RenderPass &pass)
       break;
   }
 
+  /* The Alpha pass is generated based on the combined pass. */
   if (STREQ(pass.name, RE_PASSNAME_COMBINED)) {
-    b.add_output<decl::Float>("Alpha");
+    b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
   }
 }
 
@@ -184,10 +192,11 @@ class ImageOperation : public NodeOperation {
       return;
     }
 
-    // const StringRef pass_name = this->get_pass_name(identifier);
-    const StringRef pass_name = identifier;
+    /* Alpha is not an actual pass, but one that is extracted from the combined pass. */
+    const bool is_generated_alpha = identifier == "Alpha";
+    const char *pass_name = is_generated_alpha ? RE_PASSNAME_COMBINED : identifier.data();
     Result cached_image = this->context().cache_manager().cached_images.get(
-        this->context(), this->get_image(), this->get_image_user(), pass_name.data());
+        this->context(), this->get_image(), this->get_image_user(), pass_name);
 
     Result &result = this->get_result(identifier);
     if (!cached_image.is_allocated()) {
@@ -195,8 +204,7 @@ class ImageOperation : public NodeOperation {
       return;
     }
 
-    /* Alpha is not an actual pass, but one that is extracted from the combined pass. */
-    if (identifier == "Alpha" && pass_name == RE_PASSNAME_COMBINED) {
+    if (is_generated_alpha) {
       extract_alpha(this->context(), cached_image, result);
     }
     else {
@@ -204,13 +212,6 @@ class ImageOperation : public NodeOperation {
       result.set_precision(cached_image.precision());
       result.wrap_external(cached_image);
     }
-  }
-
-  /* Get the name of the pass corresponding to the output with the given identifier. */
-  const char *get_pass_name(StringRef identifier)
-  {
-    DOutputSocket output = this->node().output_by_identifier(identifier);
-    return static_cast<NodeImageLayer *>(output->storage)->pass_name;
   }
 
   Image *get_image()
