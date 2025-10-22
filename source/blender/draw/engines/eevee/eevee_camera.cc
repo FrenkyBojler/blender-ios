@@ -187,7 +187,7 @@ void Camera::sync()
    * the window matrix becomes degenerate during render or draw_view.
    * Simply fall back to something we can render with. */
   float bottom = (-data.winmat.w.y - 1.f) / data.winmat.y.y;
-  if (std::isnan(bottom) || std::isinf(std::abs(bottom))) { 
+  if (std::isnan(bottom) || std::isinf(std::abs(bottom))) {
     data.winmat = math::projection::orthographic(0.01f, 0.01f, 0.01f, 0.01f, -1000.0f, +1000.0f);
   }
 
