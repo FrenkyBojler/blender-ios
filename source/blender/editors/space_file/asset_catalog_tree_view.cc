@@ -279,7 +279,7 @@ void AssetCatalogTreeViewItem::on_activate(bContext & /*C*/)
 
 void AssetCatalogTreeViewItem::build_row(uiLayout &row)
 {
-  const std::string label_override = catalog_item_.has_unsaved_changes() ? (label_ + "*") : label_;
+  const std::string label_override = catalog_item_.has_unsaved_changes() ? ("*" + label_) : label_;
   this->add_label(row, label_override);
 
   if (!is_hovered()) {
