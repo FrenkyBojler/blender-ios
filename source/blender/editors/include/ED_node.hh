@@ -40,7 +40,7 @@ class bNodeTreeZone;
 
 namespace blender::ed::transform {
 
-VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree);
+VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree, bool remove_tied = true);
 
 }  // namespace blender::ed::transform
 

@@ -2562,7 +2562,8 @@ struct NodeEndpoint {
   }
 };
 
-static bool is_selected_valid_chain(VectorSet<bNode *> &selected_nodes,
+// static bool is_valid_selected_chain(VectorSet<bNode *> &selected_nodes,
+static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
                                     bNode &start_node,
                                     bNode &end_node)
 {
@@ -2601,6 +2602,8 @@ static bool is_selected_valid_chain(VectorSet<bNode *> &selected_nodes,
   return false;
 }
 
+static int get_main_socket_priority(const bNodeSocket *socket);
+
 static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, bool is_new_node)
 {
   NodeEndpoint result{};
@@ -2610,7 +2613,8 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
 
   bool find_first = false;
 
-  VectorSet<bNode *> selected_nodes = transform::get_transformed_nodes(tree);
+  // VectorSet<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false);
+  Vector<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false).extract_vector();
   for (bNode *node : selected_nodes) {
     if (!find_first) {
       result.bounds = node->runtime->draw_bounds;
@@ -2645,7 +2649,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     }
     bool valid_start;
     if (!is_new_node) {
-      // ? todo 和 main in 同类型的 接口也要没连线
+      // ? 如果 main_input 和 end 不兼容呢? 如果 main_in上面的第一个接口连线里,main没连线呢?
       valid_start = !main_input->is_directly_linked();
     }
     else {
@@ -2667,13 +2671,16 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   if (start_candidates_by_priority.is_empty()) {
     return {};
   }
+  // ! 或许应该找和end兼容的优先级?
+  // 变换方向和投影点无法插入到矢量连线,变换点可以
+  // 变换方向和投影点可以插入到矩阵连线,变换点不行
   const Vector<bNode *> &start_candidates = start_candidates_by_priority.lookup(max_priority);
   if (start_candidates.size() != 1) {
     return {};
   }
 
   bNode *start_node = start_candidates[0];
-  if (!is_selected_valid_chain(selected_nodes, *start_node, *end_node)) {
+  if (!is_valid_selected_chain(selected_nodes, *start_node, *end_node)) {
     return {};
   }
 
@@ -2756,8 +2763,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   float node_xy[2] = {local_cursor.x, local_cursor.y};
   BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
 
-  VectorSet<bNode *> nodes = transform::get_transformed_nodes(node_tree);
-
+  VectorSet<bNode *> nodes = transform::get_transformed_nodes(node_tree, false);
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
     if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
       continue;
@@ -2967,7 +2973,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 /** \name Node Insert Offset Operator
  * \{ */
 
-int get_main_socket_priority(const bNodeSocket *socket)
+static int get_main_socket_priority(const bNodeSocket *socket)
 {
   switch (eNodeSocketDatatype(socket->type)) {
     case SOCK_CUSTOM:
@@ -3104,12 +3110,14 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
    * so `totr_insert` is used to get the correct world-space coords. */
   // rctf totr_insert;
   // node_to_updated_rect(insert, totr_insert);
-  // todo: do like seems no problem
+  // todo: do like this seems no problem
   rctf totr_insert = iofsd->total_rct;
 
   /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
    * later. */
-  insert.parent = node_find_frame_to_attach(*region, *ntree, mouse_xy);
+  if (!iofsd->is_insert_chain) {
+    insert.parent = node_find_frame_to_attach(*region, *ntree, mouse_xy);
+  }
 
   /* This makes sure nodes are also correctly offset when inserting a node on top of a frame
    * without actually making it a part of the frame (because mouse isn't intersecting it)
@@ -3152,10 +3160,8 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
 
-    for (bNode *node : ntree->all_nodes()) {
-      if (node->flag & SELECT) {
+    for (bNode *node : transform::get_transformed_nodes(*ntree, false)) {
         node_offset_apply(*node, addval);
-      }
     }
 
     totr_insert.xmin += addval;
@@ -3178,10 +3184,8 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     /* enough room is available, but we want to ensure the min margin at the right */
     else {
       /* offset inserted node so that min margin is kept at the right */
-      for (bNode *node : ntree->all_nodes()) {
-        if (node->flag & SELECT) {
+      for (bNode *node : transform::get_transformed_nodes(*ntree, false)) {
           node_offset_apply(*node, -addval);
-        }
       }
     }
   }
@@ -3190,10 +3194,8 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     iofsd->offset_x = margin;
 
     /* flag all parents of insert as offset to prevent them from being offset */
-    for (bNode *node : ntree->all_nodes()) {
-      if (node->flag & SELECT) {
-        bke::node_parents_iterator(node, node_parents_offset_flag_enable_cb, nullptr);
-      }
+    for (bNode *node : transform::get_transformed_nodes(*ntree, false)) {
+      bke::node_parents_iterator(node, node_parents_offset_flag_enable_cb, nullptr);
     }
     /* iterate over entire chain and apply offsets */
     bke::node_chain_iterator(ntree,

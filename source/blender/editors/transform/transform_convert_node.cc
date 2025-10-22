@@ -128,7 +128,7 @@ static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transfo
   return false;
 }
 
-VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree)
+VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree, bool remove_tied)
 {
   VectorSet<bNode *> nodes = node_tree.all_nodes();
 
@@ -139,9 +139,10 @@ VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree)
     return (!node_selected && !parent_selected);
   });
 
-  /* Remove nodes that are transformed together with their parent or child nodes. */
-  nodes.remove_if([&](bNode *node) { return transform_tied_to_other_node(node, nodes); });
-
+  if (remove_tied) {
+    /* Remove nodes that are transformed together with their parent or child nodes. */
+    nodes.remove_if([&](bNode *node) { return transform_tied_to_other_node(node, nodes); });
+  }
   return nodes;
 }
 
@@ -353,13 +354,11 @@ static void flushTransNodes(TransInfo *t)
     }
 
     /* Handle intersection with noodles. */
-    // if (tc->data_len == 1) {
     space_node::node_insert_on_link_flags_set(*snode,
                                               *t->region,
                                               t->modifiers & MOD_NODE_ATTACH,
                                               customdata->is_new_node,
                                               int2(t->mval));
-    // }
     space_node::node_insert_on_frame_flag_set(*t->context, *snode, int2(t->mval));
   }
 }
