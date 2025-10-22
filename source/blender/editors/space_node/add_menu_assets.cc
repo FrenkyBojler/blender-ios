@@ -201,7 +201,7 @@ static void node_catalog_assets_draw(const bContext *C, Menu *menu)
       add_separator = false;
     }
     PointerRNA op_ptr = layout->op(*operator_id,
-                                   IFACE_(asset->get_name()),
+                                   CTX_IFACE_(BLT_I18NCONTEXT_ASSET, asset->get_name()),
                                    ICON_NONE,
                                    wm::OpCallContext::InvokeRegionWin,
                                    UI_ITEM_NONE);
@@ -243,7 +243,7 @@ static void node_unassigned_assets_draw(const bContext *C, Menu *menu)
   asset::AssetItemTree &tree = *snode.runtime->assets_for_menu;
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
     PointerRNA op_ptr = menu->layout->op(*operator_id,
-                                         IFACE_(asset->get_name()),
+                                         CTX_IFACE_(BLT_I18NCONTEXT_ASSET, asset->get_name()),
                                          ICON_NONE,
                                          wm::OpCallContext::InvokeRegionWin,
                                          UI_ITEM_NONE);

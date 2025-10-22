@@ -95,8 +95,10 @@ void node_group_label(const bNodeTree * /*ntree*/,
                       char *label,
                       int label_maxncpy)
 {
-  BLI_strncpy(
-      label, (node->id) ? node->id->name + 2 : IFACE_("Missing Data-Block"), label_maxncpy);
+  BLI_strncpy(label,
+              (node->id) ? CTX_IFACE_(BLT_I18NCONTEXT_ASSET, node->id->name + 2) :
+                           IFACE_("Missing Data-Block"),
+              label_maxncpy);
 }
 
 int node_group_ui_class(const bNode *node)

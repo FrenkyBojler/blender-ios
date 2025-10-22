@@ -159,7 +159,7 @@ void draw_node_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
   ui::Layout &col = layout.column(false);
   col.context_string_set("asset_catalog_path", item.catalog_path().c_str());
   col.context_string_set("operator_id", operator_id);
-  col.menu(menu_name, IFACE_(item.get_name()), ICON_NONE);
+  col.menu(menu_name, CTX_IFACE_(BLT_I18NCONTEXT_ASSET, item.get_name()), ICON_NONE);
 }
 
 }  // namespace blender::ed::asset

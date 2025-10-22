@@ -9,6 +9,8 @@
 #include "BLF_api.hh"
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
@@ -68,7 +70,7 @@ void template_breadcrumbs(Layout &layout, Span<ContextPathItem> context_path)
     }
     Button *but;
     int icon = context_path[i].icon;
-    std::string name = context_path[i].name;
+    std::string name = CTX_IFACE_(BLT_I18NCONTEXT_ASSET, context_path[i].name);
     if (context_path[i].handle_func) {
       but = sub_row.button(name.c_str(), icon, context_path[i].handle_func);
     }
