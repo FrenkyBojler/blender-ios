@@ -369,7 +369,7 @@ static void outliner_select_sync_from_object(const Scene *scene,
   const bool is_selected = (base != nullptr) && ((base->flag & BASE_SELECTED) != 0);
 
   if (base && (ob == obact)) {
-    tselem->flag |= TSE_ACTIVE;
+    tselem->flag |= (TSE_ACTIVE | TSE_FOCUS);
   }
   else {
     tselem->flag &= ~TSE_ACTIVE;
