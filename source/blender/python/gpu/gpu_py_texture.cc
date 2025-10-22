@@ -83,6 +83,22 @@ const PyC_StringEnumItems pygpu_textureformat_items[] = {
     {0, nullptr},
 };
 
+const PyC_StringEnumItems pygpu_textureextendmode_items[] = {
+  {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_EXTEND), "EXTEND"},
+  {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_REPEAT), "REPEAT"},
+  {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_MIRRORED_REPEAT), "MIRRORED_REPEAT"},
+  {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER), "CLAMP_TO_BORDER"},
+  {0, nullptr},
+};
+
+const PyC_StringEnumItems pygpu_texturefiltering_items[] = {
+  {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_DEFAULT), "DEFAULT"},
+  {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_LINEAR), "LINEAR"},
+  {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_MIPMAP), "MIPMAP"},
+  {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_ANISOTROPIC), "ANISOTROPIC"},
+  {0, nullptr},
+};
+
 static int pygpu_texture_valid_check(BPyGPUTexture *bpygpu_tex)
 {
   if (UNLIKELY(bpygpu_tex->tex == nullptr)) {
@@ -344,6 +360,62 @@ static PyObject *pygpu_texture_format_get(BPyGPUTexture *self, void * /*type*/)
   blender::gpu::TextureFormat format = GPU_texture_format(self->tex);
   return PyUnicode_FromString(
       PyC_StringEnum_FindIDFromValue(pygpu_textureformat_items, int(format)));
+}
+
+static PyObject *pygpu_texture_extend_mode_x_set(BPyGPUTexture *self, PyObject *value)
+{
+  BPYGPU_TEXTURE_CHECK_OBJ(self);
+
+  PyC_StringEnum pygpu_extend = {pygpu_textureextendmode_items};
+  if (!PyC_ParseStringEnum(value, &pygpu_extend)) {
+    return nullptr;
+  }
+
+  GPU_texture_extend_mode_x(self->tex, GPUSamplerExtendMode(pygpu_extend.value_found));
+  Py_RETURN_NONE;
+}
+
+static PyObject *pygpu_texture_extend_mode_y_set(BPyGPUTexture *self, PyObject *value)
+{
+  BPYGPU_TEXTURE_CHECK_OBJ(self);
+
+  PyC_StringEnum pygpu_extend = {pygpu_textureextendmode_items};
+  if (!PyC_ParseStringEnum(value, &pygpu_extend)) {
+    return nullptr;
+  }
+
+  GPU_texture_extend_mode_y(self->tex, GPUSamplerExtendMode(pygpu_extend.value_found));
+  Py_RETURN_NONE;
+}
+
+static PyObject *pygpu_texture_extend_mode_set(BPyGPUTexture *self, PyObject *value)
+{
+  BPYGPU_TEXTURE_CHECK_OBJ(self);
+
+  PyC_StringEnum pygpu_extend = {pygpu_textureextendmode_items};
+  if (!PyC_ParseStringEnum(value, &pygpu_extend)) {
+    return nullptr;
+  }
+  
+  GPU_texture_extend_mode(self->tex, GPUSamplerExtendMode(pygpu_extend.value_found));
+  Py_RETURN_NONE;
+}
+
+static PyObject *pygpu_texture_filter_mode_set(BPyGPUTexture *self, PyObject *value)
+{
+  BPYGPU_TEXTURE_CHECK_OBJ(self);
+
+  PyC_StringEnum pygpu_filtering = {pygpu_texturefiltering_items};
+  if (!PyC_ParseStringEnum(value, &pygpu_filtering)) {
+    return nullptr;
+  }
+
+  if (GPUSamplerFiltering(pygpu_filtering.value_found) == GPUSamplerFiltering::GPU_SAMPLER_FILTERING_DEFAULT) {
+    GPU_texture_filter_mode(self->tex, false);
+  } else {
+    GPU_texture_filter_mode(self->tex, true);
+  }
+  Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(
