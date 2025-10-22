@@ -146,6 +146,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
   bf_intern_opensubdiv  # Uses stub when disabled.
+  PRIVATE bf::extern::xxhash
   PRIVATE bf::nodes
   PRIVATE bf::render
   PRIVATE bf::windowmanager

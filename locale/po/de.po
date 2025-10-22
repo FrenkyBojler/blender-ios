@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'2b3706e29f27')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-10-20 08:46+0000\n"
 "PO-Revision-Date: 2025-07-23 15:02+0000\n"
 "Last-Translator: Thomas Radeke <rahdick@gmx.de>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -3381,14 +3381,6 @@ msgid "Parent bone (in same Armature)"
 msgstr "Elternknochen (im selben Skelett)"
 
 
-msgid "Select Head"
-msgstr "Kopf auswählen"
-
-
-msgid "Select Tail"
-msgstr "Ende auswählen"
-
-
 msgid "Display Wire"
 msgstr "Draht anzeigen"
 
@@ -6463,6 +6455,10 @@ msgstr "3D Position"
 
 msgid "Undistort"
 msgstr "Entzerrt"
+
+
+msgid "Attribute Name"
+msgstr "Eigenschaftsname"
 
 
 msgid "Kinematic Constraint"
@@ -11749,10 +11745,6 @@ msgid "Brush deforms the mesh by deforming the constraints of a cloth simulation
 msgstr "Pinsel deformiert die Schleife indem eine Deformation, der Bedingung, einer Gewebesimulation durchgeführt wird"
 
 
-msgid "Direction"
-msgstr "Richtung"
-
-
 msgid "Add effect of brush"
 msgstr "Hinzufügen-Effekt des Pinsels"
 
@@ -15186,10 +15178,6 @@ msgid "Active Movie Clip"
 msgstr "Aktiver Filmclip"
 
 
-msgid "Mirror Object"
-msgstr "Spiegel-Objekt"
-
-
 msgid "Distance Model"
 msgstr "Entfernungsmodell"
 
@@ -16630,6 +16618,10 @@ msgstr "Strg"
 
 msgid "Control key pressed"
 msgstr "Gedrückte Strg-Taste"
+
+
+msgid "Direction"
+msgstr "Richtung"
 
 
 msgid "North"
@@ -18714,44 +18706,40 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
+msgid "Assign Material"
+msgstr "Material zuweisen"
+
+
+msgid "Select More/Less"
+msgstr "Mehr/weniger anzeigen"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Light"
+msgstr "Licht"
+
+
+msgid "Light Probe"
+msgstr "Lichtsonde"
+
+
 msgid "Add Image"
 msgstr "Bild hinzufügen"
-
-
-msgid "Read"
-msgstr "Lesen"
 
 
 msgid "Relations"
 msgstr "Beziehungen"
 
 
-msgid "Sample"
-msgstr "Beispiel"
-
-
-msgid "Write"
-msgstr "Schreiben"
-
-
-msgid "Primitives"
-msgstr "Grundkörper"
-
-
 msgid "Rigid Body"
 msgstr "Rigid Body"
 
 
-msgid "Import"
-msgstr "Importieren"
-
-
 msgid "Apply"
 msgstr "Anwenden"
-
-
-msgid "Text"
-msgstr "Text"
 
 
 msgid "Track"
@@ -18782,20 +18770,16 @@ msgid "Convert"
 msgstr "Konvertieren"
 
 
-msgid "Math"
-msgstr "Mathematisch"
-
-
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Hooks"
 msgstr "Haken"
 
 
 msgid "Vertex Group Locks"
 msgstr "Punktgruppen sperren"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Random Mask"
@@ -18810,12 +18794,24 @@ msgid "In-Betweens"
 msgstr "Dazwischen"
 
 
+msgid "Keying"
+msgstr "Schlüsselbilder"
+
+
 msgid "Names"
 msgstr "Namen"
 
 
+msgid "Tracking"
+msgstr "Verfolgen"
+
+
 msgid "Toggle Bone Options"
 msgstr "Knochen-Optionen umschalten"
+
+
+msgid "Math"
+msgstr "Mathematisch"
 
 
 msgid "Enable Bone Options"
@@ -18846,16 +18842,28 @@ msgid "Kerning"
 msgstr "Kerning"
 
 
-msgid "Metaball"
-msgstr "Metaball"
+msgid "Text"
+msgstr "Text"
 
 
-msgid "Layout"
-msgstr "Layout"
+msgid "Read"
+msgstr "Lesen"
+
+
+msgid "Sample"
+msgstr "Beispiel"
+
+
+msgid "Write"
+msgstr "Schreiben"
 
 
 msgid "Pivot Point"
 msgstr "Drehpunkt"
+
+
+msgid "Primitives"
+msgstr "Grundkörper"
 
 
 msgid "Snap"
@@ -18870,12 +18878,12 @@ msgid "Mask Edit"
 msgstr "Maskenbearbeitung"
 
 
-msgid "Keying"
-msgstr "Schlüsselbilder"
+msgid "Instances"
+msgstr "Instanzen"
 
 
-msgid "Tracking"
-msgstr "Verfolgen"
+msgid "Import"
+msgstr "Importieren"
 
 
 msgid "Mirror"
@@ -18894,6 +18902,10 @@ msgid "Navigation"
 msgstr "Navigation"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Align View"
 msgstr "Ansicht ausrichten"
 
@@ -18904,10 +18916,6 @@ msgstr "Ansicht auf Aktiv ausrichten"
 
 msgid "View Regions"
 msgstr "Vierfenster Ansicht"
-
-
-msgid "Select More/Less"
-msgstr "Mehr/weniger anzeigen"
 
 
 msgid "Select Similar"
@@ -18924,22 +18932,6 @@ msgstr "Verknüpfte auswählen"
 
 msgid "Select Loops"
 msgstr "Schleifen auswählen"
-
-
-msgid "Assign Material"
-msgstr "Material zuweisen"
-
-
-msgid "Light"
-msgstr "Licht"
-
-
-msgid "Light Probe"
-msgstr "Lichtsonde"
-
-
-msgid "Instances"
-msgstr "Instanzen"
 
 
 msgid "Assets"
@@ -19433,14 +19425,6 @@ msgstr "Verzerrung"
 
 msgid "UV Pinned"
 msgstr "UV angepinnt"
-
-
-msgid "UV Select"
-msgstr "UV Auswahl"
-
-
-msgid "UV Edge Select"
-msgstr "UV Kantenauswahl"
 
 
 msgid "Active Clone"
@@ -20896,6 +20880,10 @@ msgstr "Spiegel Modifikator"
 
 msgid "Mirroring modifier"
 msgstr "Spiegel-Modifikator"
+
+
+msgid "Mirror Object"
+msgstr "Spiegel-Objekt"
 
 
 msgid "Object to use as mirror"
@@ -23749,10 +23737,6 @@ msgstr "Ambient Occlusion"
 
 msgid "Only Local"
 msgstr "Nur Lokal"
-
-
-msgid "Attribute Name"
-msgstr "Eigenschaftsname"
 
 
 msgid "Attribute Type"
@@ -34976,10 +34960,6 @@ msgid "Render"
 msgstr "Rendern"
 
 
-msgid "Render active scene"
-msgstr "Aktive Szene rendern"
-
-
 msgid "Render Layer"
 msgstr "Renderebene"
 
@@ -38920,12 +38900,12 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
+msgid "Auto-Masking"
+msgstr "Automatisches Maskieren"
+
+
 msgid "VR"
 msgstr "VR"
-
-
-msgid "Global Transform"
-msgstr "Globales transformieren"
 
 
 msgid "Active Tool"
@@ -39002,10 +38982,6 @@ msgstr "Zwiebelhaut"
 
 msgid "Stereoscopy"
 msgstr "Stereoskopie"
-
-
-msgid "Auto-Masking"
-msgstr "Automatisches Maskieren"
 
 
 msgid "Chain Scaling"
@@ -39759,6 +39735,10 @@ msgstr "Benutzeroberfläche"
 
 msgid "Gradient Colors"
 msgstr "Malfarbe"
+
+
+msgid "Global Transform"
+msgstr "Globales transformieren"
 
 
 msgid "Brush Presets"
@@ -45607,10 +45587,6 @@ msgid "Stereo Mode"
 msgstr "Stereomodus"
 
 
-msgid "Cross"
-msgstr "Kreuz"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Y-Position des Sequenzstreifens"
 
@@ -48622,11 +48598,6 @@ msgstr ":"
 msgctxt "Operator"
 msgid "Report a Bug"
 msgstr "Fehler melden"
-
-
-msgctxt "Operator"
-msgid "Paste and Bake"
-msgstr "Einfügen und backen"
 
 
 msgid "Denoising completed"
@@ -51969,11 +51940,6 @@ msgid "Release Notes"
 msgstr "Herausgabehinweise"
 
 
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Tutorials"
-
-
 msgid "No active item"
 msgstr "Kein aktives Element"
 
@@ -53504,6 +53470,11 @@ msgstr "Lichtleistung einstellen"
 
 msgid "Distance Min"
 msgstr "Distanz Minimum"
+
+
+msgctxt "Operator"
+msgid "Paste and Bake"
+msgstr "Einfügen und backen"
 
 
 msgid "Affect Only"
@@ -55631,6 +55602,10 @@ msgid "Timber"
 msgstr "Holz"
 
 
+msgid "Render active scene"
+msgstr "Aktive Szene rendern"
+
+
 msgid "Scene has no camera"
 msgstr "Szene hat keine Kamera"
 
@@ -57042,6 +57017,10 @@ msgid "Unable to create socket"
 msgstr "Buchse kann nicht erstellt werden"
 
 
+msgid "Anisotropic"
+msgstr "Anisotropisch"
+
+
 msgid "Same input/output direction of sockets"
 msgstr "Gleiche Eingangs-/Ausgangsrichtung von Sockeln"
 
@@ -57730,10 +57709,6 @@ msgstr "Zufällige Rauheit"
 
 msgid "Subsurface IOR"
 msgstr "Oberfläche IOR"
-
-
-msgid "Anisotropic"
-msgstr "Anisotropisch"
 
 
 msgid "Anisotropic Rotation"
