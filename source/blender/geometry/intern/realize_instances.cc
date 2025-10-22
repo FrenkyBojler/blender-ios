@@ -76,7 +76,7 @@ struct PointCloudRealizeInfo {
 
 struct RealizePointCloudTask {
   /** Starting index in the final realized point cloud. */
-  int start_index;
+  int64_t start_index;
   /** Preprocessed information about the point cloud. */
   const PointCloudRealizeInfo *pointcloud_info;
   /** Transformation that is applied to all positions. */
@@ -165,9 +165,9 @@ struct RealizeCurveInfo {
 
 /** Start indices in the final output curves data-block. */
 struct CurvesElementStartIndices {
-  int point = 0;
-  int curve = 0;
-  int custom_knot = 0;
+  int64_t point = 0;
+  int64_t curve = 0;
+  int64_t custom_knot = 0;
 };
 
 struct RealizeCurveTask {
@@ -191,7 +191,7 @@ struct GreasePencilRealizeInfo {
 
 struct RealizeGreasePencilTask {
   /** Index where the first layer is realized in the final grease pencil. */
-  int start_index;
+  int64_t start_index;
   const GreasePencilRealizeInfo *grease_pencil_info;
   float4x4 transform;
   AttributeFallbacksArray attribute_fallbacks;
@@ -344,6 +344,11 @@ struct InstanceContext {
     // empty
   }
 };
+
+static bool valid_int_num(const int64_t num)
+{
+  return num >= 0 && num <= INT32_MAX;
+}
 
 static int64_t get_final_points_num(const GatherTasks &tasks)
 {
@@ -1187,7 +1192,7 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
                                              const AllPointCloudsInfo &all_pointclouds_info,
                                              const Span<RealizePointCloudTask> tasks,
                                              const OrderedAttributes &ordered_attributes,
-                                             bke::GeometrySet &r_realized_geometry)
+                                             RealizeInstancesResult &r_result)
 {
   if (tasks.is_empty()) {
     return;
@@ -1202,17 +1207,22 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
     }
     add_instance_attributes_to_single_geometry(
         ordered_attributes, task.attribute_fallbacks, new_points->attributes_for_write());
-    r_realized_geometry.replace_pointcloud(new_points);
+    r_result.geometry.replace_pointcloud(new_points);
     return;
   }
 
   const RealizePointCloudTask &last_task = tasks.last();
   const PointCloud &last_pointcloud = *last_task.pointcloud_info->pointcloud;
-  const int tot_points = last_task.start_index + last_pointcloud.totpoint;
+  const int64_t tot_points = last_task.start_index + last_pointcloud.totpoint;
+
+  if (!valid_int_num(tot_points)) {
+    r_result.errors.append(RPT_("Realized point cloud is too large."));
+    return;
+  }
 
   /* Allocate new point cloud. */
   PointCloud *dst_pointcloud = BKE_pointcloud_new_nomain(tot_points);
-  r_realized_geometry.replace_pointcloud(dst_pointcloud);
+  r_result.geometry.replace_pointcloud(dst_pointcloud);
   bke::MutableAttributeAccessor dst_attributes = dst_pointcloud->attributes_for_write();
 
   const RealizePointCloudTask &first_task = tasks.first();
@@ -1647,9 +1657,8 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   const int64_t tot_loops = last_task.start_indices.loop + last_mesh.corners_num;
   const int64_t tot_faces = last_task.start_indices.face + last_mesh.faces_num;
 
-  const IndexRange allowed_range(0, INT32_MAX);
-  if (!allowed_range.contains(tot_vertices) || !allowed_range.contains(tot_edges) ||
-      !allowed_range.contains(tot_loops) || !allowed_range.contains(tot_faces))
+  if (!valid_int_num(tot_vertices) || !valid_int_num(tot_edges) || !valid_int_num(tot_loops) ||
+      !valid_int_num(tot_faces))
   {
     r_result.errors.append(RPT_("Realized mesh is too large."));
     return;
@@ -2021,7 +2030,7 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
                                         const AllCurvesInfo &all_curves_info,
                                         const Span<RealizeCurveTask> tasks,
                                         const OrderedAttributes &ordered_attributes,
-                                        bke::GeometrySet &r_realized_geometry)
+                                        RealizeInstancesResult &r_result)
 {
   if (tasks.is_empty()) {
     return;
@@ -2036,16 +2045,22 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     add_instance_attributes_to_single_geometry(ordered_attributes,
                                                task.attribute_fallbacks,
                                                new_curves->geometry.wrap().attributes_for_write());
-    r_realized_geometry.replace_curves(new_curves);
+    r_result.geometry.replace_curves(new_curves);
     return;
   }
 
   const RealizeCurveTask &last_task = tasks.last();
   const Curves &last_curves = *last_task.curve_info->curves;
-  const int points_num = last_task.start_indices.point + last_curves.geometry.point_num;
-  const int curves_num = last_task.start_indices.curve + last_curves.geometry.curve_num;
-  const int custom_knot_num = last_task.start_indices.custom_knot +
-                              last_curves.geometry.custom_knot_num;
+  const int64_t points_num = last_task.start_indices.point + last_curves.geometry.point_num;
+  const int64_t curves_num = last_task.start_indices.curve + last_curves.geometry.curve_num;
+  const int64_t custom_knot_num = last_task.start_indices.custom_knot +
+                                  last_curves.geometry.custom_knot_num;
+
+  if (!valid_int_num(points_num) || !valid_int_num(curves_num) || !valid_int_num(custom_knot_num))
+  {
+    r_result.errors.append(RPT_("Realized curves data is too large."));
+    return;
+  }
 
   /* Allocate new curves data-block. */
   Curves *dst_curves_id = bke::curves_new_nomain(points_num, curves_num);
@@ -2054,7 +2069,7 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     dst_curves.nurbs_custom_knots_resize(custom_knot_num);
   }
   dst_curves.offsets_for_write().last() = points_num;
-  r_realized_geometry.replace_curves(dst_curves_id);
+  r_result.geometry.replace_curves(dst_curves_id);
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
   /* Copy settings from the first input geometry set with curves. */
@@ -2280,7 +2295,7 @@ static void execute_realize_grease_pencil_tasks(
     const AllGreasePencilsInfo &all_grease_pencils_info,
     const Span<RealizeGreasePencilTask> tasks,
     const OrderedAttributes &ordered_attributes,
-    bke::GeometrySet &r_realized_geometry)
+    RealizeInstancesResult &r_result)
 {
   if (tasks.is_empty()) {
     return;
@@ -2294,19 +2309,23 @@ static void execute_realize_grease_pencil_tasks(
     }
     add_instance_attributes_to_single_geometry(
         ordered_attributes, task.attribute_fallbacks, new_gp->attributes_for_write());
-    r_realized_geometry.replace_grease_pencil(new_gp);
+    r_result.geometry.replace_grease_pencil(new_gp);
     return;
   }
 
   const RealizeGreasePencilTask &last_task = tasks.last();
-  const int new_layers_num = last_task.start_index +
-                             last_task.grease_pencil_info->grease_pencil->layers().size();
+  const int64_t new_layers_num = last_task.start_index +
+                                 last_task.grease_pencil_info->grease_pencil->layers().size();
+  if (!valid_int_num(new_layers_num)) {
+    r_result.errors.append(RPT_("Realized grease pencil has too many layers."));
+    return;
+  }
 
   /* Allocate new grease pencil. */
   GreasePencil *dst_grease_pencil = BKE_grease_pencil_new_nomain();
   BKE_grease_pencil_copy_parameters(*tasks.first().grease_pencil_info->grease_pencil,
                                     *dst_grease_pencil);
-  r_realized_geometry.replace_grease_pencil(dst_grease_pencil);
+  r_result.geometry.replace_grease_pencil(dst_grease_pencil);
 
   /* Allocate all layers. */
   dst_grease_pencil->add_layers_with_empty_drawings_for_eval(new_layers_num);
@@ -2515,7 +2534,7 @@ RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
                                      all_pointclouds_info,
                                      gather_info.r_tasks.pointcloud_tasks,
                                      all_pointclouds_info.attributes,
-                                     result.geometry);
+                                     result);
     execute_realize_mesh_tasks(options,
                                all_meshes_info,
                                gather_info.r_tasks.mesh_tasks,
@@ -2526,11 +2545,11 @@ RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
                                 all_curves_info,
                                 gather_info.r_tasks.curve_tasks,
                                 all_curves_info.attributes,
-                                result.geometry);
+                                result);
     execute_realize_grease_pencil_tasks(all_grease_pencils_info,
                                         gather_info.r_tasks.grease_pencil_tasks,
                                         all_grease_pencils_info.attributes,
-                                        result.geometry);
+                                        result);
     execute_realize_edit_data_tasks(gather_info.r_tasks.edit_data_tasks, result.geometry);
   });
   if (gather_info.r_tasks.first_volume) {
