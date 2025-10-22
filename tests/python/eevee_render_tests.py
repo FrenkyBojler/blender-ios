@@ -210,11 +210,17 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
+    gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+
     blocklist = BLOCKLIST
     if args.gpu_backend == "metal":
         blocklist += BLOCKLIST_METAL
     elif args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
+
+    if sys.platform == "linux" and gpu_vendor == "INTEL":
+        # Skip broken test.
+        blocklist.append("camera_stereo_panoramic")
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":

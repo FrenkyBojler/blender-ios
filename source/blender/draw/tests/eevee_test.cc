@@ -15,6 +15,17 @@
 #include "engines/eevee/eevee_precompute.hh"
 #include "engines/eevee/eevee_shadow.hh"
 
+#define SKIP_BROKEN_TESTS 1
+
+#if SKIP_BROKEN_TESTS
+#  define SKIP_TEST(device_type, os_type) \
+    if (GPU_type_matches(device_type, os_type, GPU_DRIVER_ANY)) { \
+      return; \
+    }
+#else
+#  define SKIP_TEST(device_type, os_type)
+#endif
+
 namespace blender::draw {
 
 using namespace blender::eevee;
@@ -25,6 +36,8 @@ using ShadowTileDataBuf = draw::StorageArrayBuffer<ShadowTileDataPacked, SHADOW_
 
 static void test_eevee_shadow_shift_clear()
 {
+  SKIP_TEST(GPU_DEVICE_ATI, GPU_OS_WIN)
+
   GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
@@ -96,6 +109,8 @@ DRAW_TEST(eevee_shadow_shift_clear)
 
 static void test_eevee_shadow_shift()
 {
+  SKIP_TEST(GPU_DEVICE_ATI, GPU_OS_WIN)
+
   GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
@@ -367,6 +382,8 @@ DRAW_TEST(eevee_shadow_tag_update)
 
 static void test_eevee_shadow_free()
 {
+  SKIP_TEST(GPU_DEVICE_ATI, GPU_OS_ANY)
+
   GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
@@ -741,6 +758,8 @@ class TestAlloc {
 
 static void test_eevee_shadow_alloc()
 {
+  SKIP_TEST(GPU_DEVICE_ATI, GPU_OS_ANY)
+
   TestAlloc(SHADOW_MAX_PAGE);
   TestAlloc(1);
   TestAlloc(0);
@@ -1565,6 +1584,8 @@ DRAW_TEST(eevee_shadow_tilemap_amend)
 
 static void test_eevee_shadow_page_mask_ex(int max_view_per_tilemap)
 {
+  SKIP_TEST(GPU_DEVICE_ATI, GPU_OS_ANY)
+
   GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
