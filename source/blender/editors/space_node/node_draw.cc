@@ -3043,6 +3043,7 @@ static void node_draw_basis(const bContext &C,
   }
 
   /* Icons. */
+  float iconofs = rct.xmax - 0.35f * U.widget_unit;
   const bool show_node_group_icon = node_header_group_icon_show(node);
   if (show_node_group_icon) {
     UI_block_emboss_set(&block, ui::EmbossType::None);
@@ -3070,8 +3071,6 @@ static void node_draw_basis(const bContext &C,
   }
 
   /* Show/hide icons. */
-  float iconofs = rct.xmax - 0.35f * U.widget_unit;
-
   if (nodes::node_can_sync_sockets(C, ntree, node)) {
     iconofs -= iconbutw;
     UI_block_emboss_set(&block, ui::EmbossType::None);
@@ -3254,6 +3253,7 @@ static void node_draw_basis(const bContext &C,
                                        NODE_HEADER_GROUP_ICON_OFFSET - (0.15f * U.widget_unit) :
                                        0.0f);
   const float node_label_left = round_fl_to_int(rct.xmin + NODE_MARGIN_X) + node_label_offset;
+  iconofs -= show_node_group_icon ? iconbutw : 0.0f;
 
   uiBut *but = uiDefBut(&block,
                         ButType::Label,
@@ -3452,13 +3452,43 @@ static void node_draw_collapsed(const bContext &C,
     UI_block_emboss_set(&block, ui::EmbossType::Emboss);
   }
 
+  const bool show_node_group_icon = node_header_group_icon_show(node);
+  if (show_node_group_icon) {
+    UI_block_emboss_set(&block, ui::EmbossType::None);
+    uiBut *but = uiDefIconBut(&block,
+                              ButType::ButToggle,
+                              0,
+                              (node.id && ID_IS_ASSET(node.id)) ? ICON_ASSET_MANAGER :
+                                                                  ICON_NODETREE,
+                              rct.xmin + NODE_HEADER_GROUP_ICON_OFFSET,
+                              round_fl_to_int(centy - NODE_DY * 0.5f),
+                              NODE_HEADER_ICON_SIZE,
+                              UI_UNIT_Y,
+                              nullptr,
+                              0,
+                              0,
+                              "");
+    UI_but_func_set(but,
+                    node_toggle_button_cb,
+                    POINTER_FROM_INT(node.identifier),
+                    (void *)"NODE_OT_group_edit");
+    if (node.id) {
+      UI_but_icon_indicator_number_set(but, ID_REAL_USERS(node.id));
+    }
+    UI_block_emboss_set(&block, ui::EmbossType::Emboss);
+  }
+
   const std::string showname = bke::node_label(ntree, node);
+  const float node_label_offset = (show_node_group_icon ?
+                                       NODE_HEADER_GROUP_ICON_OFFSET - (0.15f * U.widget_unit) :
+                                       0.0f);
+  const float node_label_left = round_fl_to_int(rct.xmin + NODE_MARGIN_X) + node_label_offset;
 
   uiBut *but = uiDefBut(&block,
                         ButType::Label,
                         0,
                         showname,
-                        round_fl_to_int(rct.xmin + NODE_MARGIN_X),
+                        node_label_left,
                         round_fl_to_int(centy - NODE_DY * 0.5f),
                         short(BLI_rctf_size_x(&rct) - (2 * U.widget_unit)),
                         NODE_DY,
