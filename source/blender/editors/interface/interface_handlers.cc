@@ -10809,7 +10809,12 @@ static int ui_handle_menu_event(bContext *C,
 
     /* first block own event func */
     if (block->block_event_func && block->block_event_func(C, block, event)) {
-      /* pass */
+      if (inside == false && !(U.flag & USER_MENU_CLOSE_LEAVE) &&
+          (ISMOUSE_BUTTON(event->type) || ISMOUSE_WHEEL(event->type)))
+      {
+        menu->menuretval = UI_RETURN_OK;
+        retval = WM_UI_HANDLER_BREAK;
+      }
     } /* events not for active search menu button */
     else {
       int act = 0;
