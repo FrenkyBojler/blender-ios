@@ -91,8 +91,7 @@ static bool uvedit_ensure_uvs(Object *obedit)
     return true;
   }
 
-  Mesh &mesh = *static_cast<Mesh *>(obedit->data);
-  BMEditMesh *em = mesh.runtime->edit_mesh.get();
+  BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMFace *efa;
   BMIter iter;
 

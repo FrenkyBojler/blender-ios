@@ -14,8 +14,6 @@
 #include <ctime>
 #include <memory.h>
 
-#include "BKE_subdiv.hh"
-#include "BKE_subdiv_modifier.hh"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -39,7 +37,6 @@
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_deform.hh"
-#include "BKE_subdiv_mesh.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -1384,7 +1381,6 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd,
                                float (*vertexCos)[3],
                                int numVerts)
 {
-  using namespace blender;
   ShrinkwrapCalcData calc = NULL_ShrinkwrapCalcData;
   blender::Array<blender::float3> subdivided_positions;
 

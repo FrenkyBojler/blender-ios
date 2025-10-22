@@ -13,7 +13,6 @@
 
 #include <fmt/format.h>
 
-#include "BKE_customdata.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"

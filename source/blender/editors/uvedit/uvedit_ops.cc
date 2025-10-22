@@ -1970,8 +1970,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
-    Mesh &mesh = *static_cast<Mesh *>(ob->data);
-    BMEditMesh *em = mesh.runtime->edit_mesh.get();
+    BMEditMesh *em = BKE_editmesh_from_object(ob);
     BMFace *efa;
     BMLoop *l;
     BMIter iter, liter;
@@ -2131,8 +2130,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
-    Mesh &mesh = *static_cast<Mesh *>(ob->data);
-    BMEditMesh *em = mesh.runtime->edit_mesh.get();
+    BMEditMesh *em = BKE_editmesh_from_object(ob);
     BMFace *efa;
     BMLoop *l;
     BMIter iter, liter;

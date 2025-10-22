@@ -2204,8 +2204,7 @@ static void uv_select_edgeloop_single_side_tag(const Scene *scene,
 static int uv_select_edgeloop(Scene *scene, Object *obedit, UvNearestHit *hit, const bool extend)
 {
   const ToolSettings *ts = scene->toolsettings;
-  Mesh &mesh = *static_cast<Mesh *>(obedit->data);
-  BMesh *bm = mesh.runtime->edit_mesh->bm;
+  BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
   bool select;
 
   /* NOTE: this is a special case, even when sync select is enabled,
@@ -4621,8 +4620,7 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
 
   /* don't indent to avoid diff noise! */
   for (Object *obedit : objects) {
-    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
-    BMesh *bm = mesh.runtime->edit_mesh->bm;
+    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
 
     bool changed = false;
 
@@ -5624,10 +5622,8 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       const UVOverlapData *o_b = &overlap_data[overlap[i].indexB];
       Object *obedit_a = objects[o_a->ob_index];
       Object *obedit_b = objects[o_b->ob_index];
-      Mesh &mesh_a = *static_cast<Mesh *>(obedit_a->data);
-      Mesh &mesh_b = *static_cast<Mesh *>(obedit_b->data);
-      BMesh *bm_a = mesh_a.runtime->edit_mesh->bm;
-      BMesh *bm_b = mesh_b.runtime->edit_mesh->bm;
+      BMesh *bm_a = BKE_editmesh_from_object(obedit_a)->bm;
+      BMesh *bm_b = BKE_editmesh_from_object(obedit_b)->bm;
       BMFace *face_a = bm_a->ftable[o_a->face_index];
       BMFace *face_b = bm_b->ftable[o_b->face_index];
 
