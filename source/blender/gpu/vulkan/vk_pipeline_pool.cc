@@ -214,7 +214,6 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(VKComputeInfo &compute
 
     /* Notify other threads that a new pipeline is available. */
     {
-      CLOG_TRACE(&LOG, "Notifying other threads that a new pipeline was added");
       compute_.new_pipeline_added.notify_all();
     }
     return pipeline;
@@ -266,7 +265,7 @@ VkPipeline VKPipelinePool::create_compute_pipeline(VKComputeInfo &compute_info,
   VKBackend &backend = VKBackend::get();
   VKDevice &device = backend.device;
 
-  CLOG_TRACE(&LOG, "Start compiling compute pipeline %s", name.c_str());
+  double start_time = BLI_time_now_seconds();
   VkPipeline pipeline = VK_NULL_HANDLE;
   vkCreateComputePipelines(device.vk_handle(),
                            is_static_shader ? vk_pipeline_cache_static_ :
@@ -275,8 +274,12 @@ VkPipeline VKPipelinePool::create_compute_pipeline(VKComputeInfo &compute_info,
                            &vk_compute_pipeline_create_info,
                            nullptr,
                            &pipeline);
+  double end_time = BLI_time_now_seconds();
   debug::object_label(pipeline, name);
-  CLOG_TRACE(&LOG, "Finished compiling compute pipeline %s", name.c_str());
+  CLOG_DEBUG(&LOG,
+             "Compiled compute pipeline %s in %fms ",
+             name.c_str(),
+             (end_time - start_time) * 1000.0);
 
   return pipeline;
 }
@@ -293,7 +296,6 @@ VkPipeline VKPipelinePool::wait_for_compute_pipeline(VKComputeInfo &compute_info
       std::scoped_lock lock(compute_.mutex);
       const VkPipeline *found_pipeline = compute_.pipelines.lookup_ptr(compute_info);
       if (*found_pipeline != VK_NULL_HANDLE) {
-        CLOG_TRACE(&LOG, "Another thread finished compiling compute pipeline %s.", name.c_str());
         return *found_pipeline;
       }
     }
