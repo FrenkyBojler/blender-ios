@@ -3091,27 +3091,27 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 }
 
 /* Helper to check if params should use template version */
-static bool params_has_template(const FileSelectParams *params)
+static bool params_has_template_syntax(const FileSelectParams *params)
 {
-  return blender::ed::file::file_path_template_has_template(params);
+  return blender::ed::file::path_template_nav_contains_syntax(params);
 }
 
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  strcpy(value, params_has_template(params) ? params->dir_template : params->dir);
+  strcpy(value, params_has_template_syntax(params) ? params->dir_template : params->dir);
 }
 
 static int rna_FileSelectParams_directory_length(PointerRNA *ptr)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  return params_has_template(params) ? strlen(params->dir_template) : strlen(params->dir);
+  return params_has_template_syntax(params) ? strlen(params->dir_template) : strlen(params->dir);
 }
 
 static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  blender::ed::file::file_path_template_handle_input(params, value);
+  blender::ed::file::path_template_nav_handle_text(params, value);
 }
 
 static int rna_FileAssetSelectParams_asset_library_get(PointerRNA *ptr)

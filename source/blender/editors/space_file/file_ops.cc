@@ -1600,9 +1600,9 @@ void file_sfile_to_operator_ex(
   char dir[FILE_MAX];
 
   /* Use template version if available, otherwise resolved version */
-  BLI_strncpy(dir, 
-              blender::ed::file::file_path_template_has_template(params) ? 
-                params->dir_template : params->dir, 
+  BLI_strncpy(dir,
+              blender::ed::file::path_template_nav_contains_syntax(params) ? params->dir_template :
+                                                                             params->dir,
               FILE_MAX);
   BLI_path_slash_ensure(dir, FILE_MAX);
 
@@ -1622,9 +1622,9 @@ void file_sfile_to_operator_ex(
   }
 
   /* Use utility function to reduce repetition */
-  blender::ed::file::file_path_template_set_operator_property(C, op, "filename", params->file);
-  blender::ed::file::file_path_template_set_operator_property(C, op, "directory", dir);
-  blender::ed::file::file_path_template_set_operator_property(C, op, "filepath", filepath);
+  blender::ed::file::path_template_nav_set_operator_property(C, op, "filename", params->file);
+  blender::ed::file::path_template_nav_set_operator_property(C, op, "directory", dir);
+  blender::ed::file::path_template_nav_set_operator_property(C, op, "filepath", filepath);
 
   /* some ops have multiple files to select */
   /* this is called on operators check() so clear collections first since

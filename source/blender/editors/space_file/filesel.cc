@@ -219,7 +219,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
           STRNCPY(params->file, template_file);
           
           /* Use centralized template handling for directory paths */
-          blender::ed::file::file_path_template_handle_input(params, template_dir);
+          blender::ed::file::path_template_nav_handle_text(params, template_dir);
         }
         else {
           BLI_path_split_dir_file(
@@ -382,7 +382,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   }
 
   /* Initialize path template handler now that all operator processing is complete */
-  blender::ed::file::file_path_template_initialize(params);
+  blender::ed::file::path_template_nav_initialize(params);
 
   fileselect_initialize_params_common(sfile, params);
 
@@ -1201,7 +1201,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
     }
 
     /* Update template paths when directory changes */
-    blender::ed::file::file_path_template_handle_navigation(params, params->dir);
+    blender::ed::file::path_template_nav_handle_browse(params, params->dir);
 
     filelist_setdir(sfile->files, params->dir);
 

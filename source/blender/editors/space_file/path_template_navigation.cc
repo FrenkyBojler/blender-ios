@@ -183,25 +183,48 @@ static bool update_template_on_navigation(const char *original_template,
 /** \name Public API
  * \{ */
 
-void file_path_template_handle_input(FileSelectParams *params, const char *input_path)
+void path_template_nav_initialize(FileSelectParams *params)
+{
+  if (BKE_path_contains_template_syntax(params->dir)) {
+    char resolved_path[FILE_MAX];
+    BLI_strncpy(resolved_path, params->dir, sizeof(resolved_path));
+    resolve_template_variables(resolved_path, sizeof(resolved_path));
+
+    BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
+    BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
+    BLI_strncpy(params->dir_resolved, resolved_path, sizeof(params->dir_resolved));
+  }
+  else {
+    /* No templates - initialize empty fields with current dir */
+    const char *dir_to_use = params->dir;
+    if (params->dir_template[0] == '\0') {
+      BLI_strncpy(params->dir_template, dir_to_use, sizeof(params->dir_template));
+    }
+    if (params->dir_resolved[0] == '\0') {
+      BLI_strncpy(params->dir_resolved, dir_to_use, sizeof(params->dir_resolved));
+    }
+  }
+}
+
+void path_template_nav_handle_text(FileSelectParams *params, const char *input_path)
 {
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
-  
+
   if (BKE_path_contains_template_syntax(resolved_path)) {
     resolve_template_variables(resolved_path, sizeof(resolved_path));
   }
-  
+
   /* Update all three path fields directly */
   BLI_strncpy(params->dir_template, input_path, sizeof(params->dir_template));
   BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
   BLI_strncpy(params->dir_resolved, resolved_path, sizeof(params->dir_resolved));
 }
 
-void file_path_template_handle_navigation(FileSelectParams *params, const char *new_directory)
+void path_template_nav_handle_browse(FileSelectParams *params, const char *new_directory)
 {
   /* Try to preserve template if we were using one */
-  if (file_path_template_has_template(params) && 
+  if (path_template_nav_contains_syntax(params) &&
       is_within_template_bounds(params->dir_template, new_directory))
   {
     char updated_template[FILE_MAX];
@@ -228,39 +251,16 @@ void file_path_template_handle_navigation(FileSelectParams *params, const char *
   BLI_strncpy(params->dir_resolved, new_directory, sizeof(params->dir_resolved));
 }
 
-void file_path_template_initialize(FileSelectParams *params)
-{
-  if (BKE_path_contains_template_syntax(params->dir)) {
-    char resolved_path[FILE_MAX];
-    BLI_strncpy(resolved_path, params->dir, sizeof(resolved_path));
-    resolve_template_variables(resolved_path, sizeof(resolved_path));
-
-    BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
-    BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
-    BLI_strncpy(params->dir_resolved, resolved_path, sizeof(params->dir_resolved));
-  }
-  else {
-    /* No templates - initialize empty fields with current dir */
-    const char *dir_to_use = params->dir;
-    if (params->dir_template[0] == '\0') {
-      BLI_strncpy(params->dir_template, dir_to_use, sizeof(params->dir_template));
-    }
-    if (params->dir_resolved[0] == '\0') {
-      BLI_strncpy(params->dir_resolved, dir_to_use, sizeof(params->dir_resolved));
-    }
-  }
-}
-
-bool file_path_template_has_template(const FileSelectParams *params)
+bool path_template_nav_contains_syntax(const FileSelectParams *params)
 {
   return params->dir_template[0] != '\0' &&
          BKE_path_contains_template_syntax(params->dir_template);
 }
 
-void file_path_template_set_operator_property(bContext *C,
-                                              wmOperator *op,
-                                              const char *prop_name,
-                                              const char *new_value)
+void path_template_nav_set_operator_property(bContext *C,
+                                             wmOperator *op,
+                                             const char *prop_name,
+                                             const char *new_value)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, prop_name);
   if (!prop) {

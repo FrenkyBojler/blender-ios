@@ -331,7 +331,7 @@ static void file_directory_variable_enter_handle(bContext *C, void *, void *)
   }
 
   /* Handle template path input and update all fields */
-  blender::ed::file::file_path_template_handle_input(params, params->dir_template);
+  blender::ed::file::path_template_nav_handle_text(params, params->dir_template);
 
   ED_file_change_dir(C);
 }
