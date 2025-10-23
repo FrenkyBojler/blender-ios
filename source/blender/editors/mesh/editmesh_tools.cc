@@ -8543,7 +8543,6 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
 
       case EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR:
         new_mode = EDBM_CLNOR_POINTTO_MODE_COORDINATES;
-        ED_view3d_cursor3d_update(C, event->mval, false, V3D_CURSOR_ORIENT_NONE);
         copy_v3_v3(target, scene->cursor.location);
         ret = OPERATOR_RUNNING_MODAL;
         break;
