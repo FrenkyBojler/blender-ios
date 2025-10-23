@@ -1764,14 +1764,16 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
   /* How far it extends down and narrows. */
   const bool is_selected = node.flag & NODE_SELECT;
   const bool is_collapsed = node.flag & NODE_COLLAPSED;
-  const float offset = 2.6f * UI_SCALE_FAC;
+  const float offset_x = 3.6f * UI_SCALE_FAC;
+  const float offset_y = 2.4f * UI_SCALE_FAC;
   const float shadow_width = 0.2f * U.widget_unit;
   const float shadow_alpha = is_selected ? 0.4f : 0.2f;
   const float dim_collapsed = is_collapsed ? 0.2f : 0.0f;
 
   const float outline_width = is_selected ? 1.0f : 0.5f;
   float outline_color[4];
-  copy_v4_v4(outline_color, color);
+  UI_GetThemeColor4fv(TH_NODE_OUTLINE, outline_color);
+
   if (is_selected) {
     UI_GetThemeColor4fv((node.flag & NODE_ACTIVE) ? TH_ACTIVE : TH_SELECT, outline_color);
   }
@@ -1780,25 +1782,35 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
 
   /* Start with the last copy. */
   {
-    const rctf rect_group_copy = {
-        rect.xmin + offset * 4,
-        rect.xmax - offset * 4,
-        rect.ymin - (offset * 2) - (is_selected ? U.pixelsize : 0.0f),
-        rect.ymin - offset + (U.pixelsize * 2),
+    const rctf rect_group_front = {
+        rect.xmin + offset_x * 4,
+        rect.xmax - offset_x * 4,
+        rect.ymin - (offset_y * 2) - U.pixelsize,
+        rect.ymin - offset_y + (U.pixelsize * 2),
     };
 
-    ui_draw_dropshadow(
-        &rect_group_copy, radius * 1.33f, shadow_width, snode.runtime->aspect, shadow_alpha);
+    const rctf rect_group_front_shadow = {
+        rect_group_front.xmin + outline_width,
+        rect_group_front.xmax - outline_width,
+        rect_group_front.ymin + outline_width,
+        rect_group_front.ymax - outline_width,
+    };
+
+    ui_draw_dropshadow(&rect_group_front_shadow,
+                       radius + outline_width,
+                       shadow_width,
+                       snode.runtime->aspect,
+                       shadow_alpha);
 
     /* Use the node color (or header color when collapsed) but slightly darker. */
     float fill_color_front[4], outline_color_front[4];
     copy_v4_v4(fill_color_front, color);
-    mul_v3_fl(fill_color_front, 0.85f - dim_collapsed);
+    mul_v3_fl(fill_color_front, 0.8f - dim_collapsed);
 
     copy_v4_v4(outline_color_front, outline_color);
     mul_v3_fl(outline_color_front, (is_selected ? 0.5f : 1.0f) - dim_collapsed);
 
-    UI_draw_roundbox_4fv_ex(&rect_group_copy,
+    UI_draw_roundbox_4fv_ex(&rect_group_front,
                             fill_color_front,
                             nullptr,
                             0.0f,
@@ -1809,24 +1821,34 @@ static void node_draw_node_group_indicator(const SpaceNode &snode,
 
   /* Draw the first copy in the front. */
   {
-    const rctf rect_group_copy = {
-        rect.xmin + offset * 2,
-        rect.xmax - offset * 2,
-        rect.ymin - offset - (is_selected ? U.pixelsize : 0.0f),
+    const rctf rect_group_back = {
+        rect.xmin + offset_x * 2,
+        rect.xmax - offset_x * 2,
+        rect.ymin - offset_y - U.pixelsize,
         rect.ymin + (U.pixelsize * 2),
     };
 
-    ui_draw_dropshadow(
-        &rect_group_copy, radius * 1.33f, shadow_width, snode.runtime->aspect, shadow_alpha);
+    const rctf rect_group_back_shadow = {
+        rect_group_back.xmin + outline_width,
+        rect_group_back.xmax - outline_width,
+        rect_group_back.ymin + outline_width,
+        rect_group_back.ymax - outline_width,
+    };
+
+    ui_draw_dropshadow(&rect_group_back_shadow,
+                       radius + outline_width,
+                       shadow_width,
+                       snode.runtime->aspect,
+                       shadow_alpha);
 
     float fill_color_back[4], outline_color_back[4];
     copy_v4_v4(fill_color_back, color);
-    mul_v3_fl(fill_color_back, 0.95f - dim_collapsed);
+    mul_v3_fl(fill_color_back, 0.9f - dim_collapsed);
 
     copy_v4_v4(outline_color_back, outline_color);
     mul_v3_fl(outline_color_back, (is_selected ? 0.7f : 1.1f) - dim_collapsed);
 
-    UI_draw_roundbox_4fv_ex(&rect_group_copy,
+    UI_draw_roundbox_4fv_ex(&rect_group_back,
                             fill_color_back,
                             nullptr,
                             0.0f,
