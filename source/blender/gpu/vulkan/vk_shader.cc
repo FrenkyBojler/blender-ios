@@ -493,7 +493,7 @@ VKShader::VKShader(const char *name) : Shader(name)
   context_ = VKContext::get();
 }
 
-void VKShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
+void VKShader::init(const shader::ShaderCreateInfo &info, bool /*is_batch_compilation*/)
 {
   VKShaderInterface *vk_interface = new VKShaderInterface();
   vk_interface->init(info);
@@ -575,10 +575,6 @@ void VKShader::warm_cache(int /*limit*/)
 
 bool VKShader::finalize(const shader::ShaderCreateInfo *info)
 {
-  compilation_finished = true;
-  if (compilation_failed) {
-    return false;
-  }
   /* Add-ons that still use old API will crash as the shader create info isn't available.
    * See #130555 */
   if (info == nullptr) {
@@ -650,11 +646,6 @@ bool VKShader::finalize_shader_module(VKShaderModule &shader_module, const char 
   shader_module.compilation_result = {};
   shader_module.spirv_binary.clear();
   return compilation_succeeded;
-}
-
-bool VKShader::is_ready() const
-{
-  return compilation_finished;
 }
 
 bool VKShader::finalize_pipeline_layout(VKDevice &device,
