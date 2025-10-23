@@ -3091,6 +3091,12 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 }
 
 /* Helper to check if params should use template version */
+
+static bool params_has_template_syntax(const FileSelectParams *params)
+{
+  return blender::ed::file::path_template_nav_contains_syntax(params);
+}
+
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
@@ -3101,11 +3107,6 @@ static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *valu
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
   blender::ed::file::path_template_nav_handle_text(params, value);
-}
-
-static bool params_has_template_syntax(const FileSelectParams *params)
-{
-  return blender::ed::file::path_template_nav_contains_syntax(params);
 }
 
 static int rna_FileSelectParams_directory_length(PointerRNA *ptr)
