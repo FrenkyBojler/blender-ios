@@ -84,8 +84,16 @@ static bool is_bone_dropper_valid(BoneDropper *bone_dropper)
   }
 
   PointerRNA owner_ptr = RNA_id_pointer_create(bone_dropper->search_ptr.owner_id);
-  if (RNA_type_to_ID_code(owner_ptr.type) != ID_AR) {
-    return false;
+
+  if (GS(owner_ptr.owner_id->name) == ID_OB) {
+    Object *ob = reinterpret_cast<Object *>(owner_ptr.owner_id);
+    if (ob->type == OB_ARMATURE && ob->data) {
+      return true;
+    }
+  }
+
+  if (GS(owner_ptr.owner_id->name) == ID_AR) {
+    return true;
   }
 
   return true;
@@ -187,7 +195,15 @@ static BoneSampleData sample_data_from_3d_view(bContext *C,
       }
       Object *ob = base->object;
       bArmature *armature = (bArmature *)ob->data;
-      if (!armature || &armature->id != bdr.search_ptr.owner_id) {
+      /* Special case for pose bones. Because they are not stored in the Armature, the IDs of the
+       * search property and the picked result might not match since the comparison would be
+       * between armature and object. */
+      if (bdr.search_ptr.type == &RNA_Object && &ob->id != bdr.search_ptr.owner_id) {
+        return {SampleResult::WRONG_ARMATURE};
+      }
+      if (bdr.search_ptr.type == &RNA_Armature &&
+          (!armature || &armature->id != bdr.search_ptr.owner_id))
+      {
         return {SampleResult::WRONG_ARMATURE};
       }
 
@@ -535,7 +551,7 @@ static bool bonedropper_poll(bContext *C)
   const StructRNA *type = RNA_property_pointer_type(&search_but->rnasearchpoin,
                                                     search_but->rnasearchprop);
 
-  return type == &RNA_Bone || type == &RNA_EditBone;
+  return type == &RNA_Bone || type == &RNA_EditBone || type == &RNA_PoseBone;
 }
 
 void UI_OT_eyedropper_bone(wmOperatorType *ot)
