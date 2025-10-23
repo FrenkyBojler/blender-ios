@@ -21,7 +21,7 @@ namespace blender::geometry::boolean {
  * number of meshes, so that the last value of each gives the
  * total number of elements.
  */
-struct MeshOffsets {
+struct MeshOffsets : NonCopyable, NonMovable {
   Array<int> vert_start;
   Array<int> face_start;
   Array<int> edge_start;

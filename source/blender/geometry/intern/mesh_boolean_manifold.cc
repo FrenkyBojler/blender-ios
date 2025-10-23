@@ -1621,7 +1621,7 @@ void set_material_from_map(const Span<int> out_to_in_map,
                            const MutableSpan<int> dst)
 {
   BLI_assert(material_remaps.size() > 0);
-  Array<VArray<int>> material_varrays;
+  Array<VArray<int>> material_varrays(meshes.size());
   for (const int i : meshes.index_range()) {
     bke::AttributeAccessor input_attrs = meshes[i]->attributes();
     material_varrays[i] = *input_attrs.lookup_or_default<int>(

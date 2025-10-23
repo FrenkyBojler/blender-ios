@@ -115,6 +115,8 @@ class MeshesToIMeshInfo {
    * the material slots in the first mesh. */
   Span<Array<short>> material_remaps;
 
+  MeshesToIMeshInfo(Span<const Mesh *> meshes) : mesh_offsets(meshes) {}
+
   int input_mesh_for_imesh_vert(int imesh_v) const;
   int input_mesh_for_imesh_edge(int imesh_e) const;
   int input_mesh_for_imesh_face(int imesh_f) const;
@@ -180,7 +182,6 @@ static meshintersect::IMesh meshes_to_imesh(Span<const Mesh *> meshes,
                                             meshintersect::IMeshArena &arena,
                                             MeshesToIMeshInfo *r_info)
 {
-  r_info->mesh_offsets = MeshOffsets(meshes);
   int nmeshes = meshes.size();
   BLI_assert(nmeshes > 0);
   r_info->meshes = meshes;
@@ -333,14 +334,11 @@ static int fill_orig_loops(const meshintersect::Face *f,
   if (orig_me_index != mim.input_mesh_for_imesh_vert(first_orig_v)) {
     return 0;
   }
-  int orig_me_vert_offset = mim.mesh_offsets.vert_offsets[orig_me_index].start();
-  int first_orig_v_in_orig_me = first_orig_v - orig_me_vert_offset;
-  BLI_assert(0 <= first_orig_v_in_orig_me && first_orig_v_in_orig_me < orig_me->verts_num);
   /* Assume all vertices in each face is unique. */
   int offset = -1;
   for (int i = 0; i < orig_mplen; ++i) {
     int loop_i = i + orig_face.start();
-    if (orig_corner_verts[loop_i] == first_orig_v_in_orig_me) {
+    if (orig_corner_verts[loop_i] == first_orig_v) {
       offset = i;
       break;
     }
@@ -354,7 +352,6 @@ static int fill_orig_loops(const meshintersect::Face *f,
     const int vert_i = orig_corner_verts[orig_face.start() + orig_mp_loop_index];
     int fv_orig = f->vert[mp_loop_index]->orig;
     if (fv_orig != meshintersect::NO_INDEX) {
-      fv_orig -= orig_me_vert_offset;
       if (!orig_mesh_verts_range.contains(fv_orig)) {
         fv_orig = meshintersect::NO_INDEX;
       }
@@ -364,7 +361,6 @@ static int fill_orig_loops(const meshintersect::Face *f,
           orig_corner_verts[orig_face.start() + ((orig_mp_loop_index + 1) % orig_mplen)];
       int fvnext_orig = f->vert[(mp_loop_index + 1) % orig_mplen]->orig;
       if (fvnext_orig != meshintersect::NO_INDEX) {
-        fvnext_orig -= orig_me_vert_offset;
         if (!orig_mesh_verts_range.contains(fvnext_orig)) {
           fvnext_orig = meshintersect::NO_INDEX;
         }
@@ -517,7 +513,7 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
       }
     });
 
-    Array<int> dst_to_src_face(result->verts_num);
+    Array<int> dst_to_src_face(out_faces_num);
     threading::parallel_for(im->face_index_range(), 4096, [&](const IndexRange range) {
       for (const int face : range) {
         const meshintersect::Face *f = im->face(face);
@@ -615,7 +611,8 @@ static Mesh *mesh_boolean_mesh_arr(Span<const Mesh *> meshes,
   if (dbg_level > 0) {
     std::cout << "\nOLD_MESH_INTERSECT, nmeshes = " << meshes.size() << "\n";
   }
-  MeshesToIMeshInfo mim;
+  MeshesToIMeshInfo mim(meshes);
+  mim.joined_mesh = joined_mesh;
   meshintersect::IMeshArena arena;
   meshintersect::IMesh m_in = meshes_to_imesh(meshes, transforms, material_remaps, arena, &mim);
   const auto shape_fn = [&](int f) { return mesh_id_for_face(f, mim.mesh_offsets); };
