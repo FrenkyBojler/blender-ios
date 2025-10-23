@@ -376,10 +376,7 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
     for (int i = 0; i < face.size(); i++) {
       center += float3(nearest2d.vert_positions[face_verts[i]]);
     }
-    if (face.size() > 0) {
-      center *= 1.0f / float(face.size());
-    }
-
+    center *= 1.0f / float(face.size());
     copy_v3_v3(nearest2d.nearest_point.co, center);
     copy_v3_v3(nearest2d.nearest_point.no, mesh_eval->face_normals()[face_index]);
     nearest2d.nearest_point.index = face_index;
