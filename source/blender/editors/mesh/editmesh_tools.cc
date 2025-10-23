@@ -8228,6 +8228,7 @@ enum {
   EDBM_CLNOR_MODAL_POINTTO_USE_OBJECT = 112,
   EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR = 113,
   EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED = 114,
+  EDBM_CLNOR_MODAL_POINTTO_USE_3DCURSOR_IN_PLACE = 115,
 };
 
 wmKeyMap *point_normals_modal_keymap(wmKeyConfig *keyconf)
@@ -8270,6 +8271,11 @@ wmKeyMap *point_normals_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Set and Use 3D Cursor",
        "Set new 3D cursor position and use it"},
+      {EDBM_CLNOR_MODAL_POINTTO_USE_3DCURSOR_IN_PLACE,
+       "USE_3DCURSOR_IN_PLACE",
+       0,
+       "Use 3D Cursor",
+       "Use current 3D cursor position"},
       {EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED,
        "SET_USE_SELECTED",
        0,
@@ -8384,6 +8390,8 @@ static void point_normals_update_statusbar(bContext *C, wmOperator *op)
   status.opmodal(IFACE_("Use Object"), op->type, EDBM_CLNOR_MODAL_POINTTO_USE_OBJECT);
   status.opmodal(
       IFACE_("Set and use 3D cursor"), op->type, EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR);
+  status.opmodal(
+      IFACE_("Use 3D cursor"), op->type, EDBM_CLNOR_MODAL_POINTTO_USE_3DCURSOR_IN_PLACE);
   status.opmodal(
       IFACE_("Select and use mesh item"), op->type, EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED);
 }
@@ -8542,6 +8550,13 @@ static wmOperatorStatus edbm_point_normals_modal(bContext *C, wmOperator *op, co
         break;
 
       case EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR:
+        new_mode = EDBM_CLNOR_POINTTO_MODE_COORDINATES;
+        ED_view3d_cursor3d_update(C, event->mval, false, V3D_CURSOR_ORIENT_NONE);
+        copy_v3_v3(target, scene->cursor.location);
+        ret = OPERATOR_RUNNING_MODAL;
+        break;
+
+      case EDBM_CLNOR_MODAL_POINTTO_USE_3DCURSOR_IN_PLACE:
         new_mode = EDBM_CLNOR_POINTTO_MODE_COORDINATES;
         copy_v3_v3(target, scene->cursor.location);
         ret = OPERATOR_RUNNING_MODAL;

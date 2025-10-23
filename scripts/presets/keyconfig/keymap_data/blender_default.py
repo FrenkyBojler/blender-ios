@@ -6331,6 +6331,7 @@ def km_custom_normals_modal_map(_params):
         ("USE_PIVOT", {"type": 'L', "value": 'PRESS'}, None),
         ("USE_OBJECT", {"type": 'O', "value": 'PRESS'}, None),
         ("SET_USE_3DCURSOR", {"type": 'LEFTMOUSE', "value": 'CLICK', "ctrl": True}, None),
+        ("USE_3DCURSOR_IN_PLACE", {"type": 'C', "value": 'PRESS'}, None),
         ("SET_USE_SELECTED", {"type": 'RIGHTMOUSE', "value": 'CLICK', "ctrl": True}, None),
     ])
 
