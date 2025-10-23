@@ -469,7 +469,7 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
 
   /* Set the vertex coordinate values and other data. */
   MutableSpan<float3> positions = result->vert_positions_for_write();
-  threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
+  threading::parallel_for(im->vert_index_range(), 4096, [&](const IndexRange range) {
     for (const int vert : range) {
       const meshintersect::Vert *v = im->vert(vert);
       copy_v3fl_v3db(positions[vert], v->co);
@@ -521,8 +521,8 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
       }
     });
     gather_attributes_with_check(mim.joined_mesh->attributes(),
-                                 bke::AttrDomain::Point,
-                                 bke::AttrDomain::Point,
+                                 bke::AttrDomain::Face,
+                                 bke::AttrDomain::Face,
                                  bke::attribute_filter_from_skip_ref({"material_index"}),
                                  dst_to_src_face,
                                  dst_attributes);
