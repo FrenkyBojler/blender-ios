@@ -836,13 +836,13 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
     return batch;
   }
 
-  int segment_count = 0;
-  int vert_per_segment = 0;
+  int64_t segment_count = 0;
+  int64_t vert_per_segment = 0;
   GPUPrimType prim_type = GPU_PRIM_NONE;
 
   if (face_per_segment == 0) {
     /* Add one point per curve to restart the primitive. */
-    segment_count = evaluated_point_count + curve_count;
+    segment_count = int64_t(evaluated_point_count) + curve_count;
     if (use_cyclic) {
       segment_count += curve_count;
     }
@@ -851,7 +851,7 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
   }
   else if (face_per_segment == 1) {
     /* Add one point per curve to restart the primitive. */
-    segment_count = evaluated_point_count + curve_count;
+    segment_count = int64_t(evaluated_point_count) + curve_count;
     if (use_cyclic) {
       segment_count += curve_count;
     }
@@ -859,7 +859,7 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
     prim_type = GPU_PRIM_TRI_STRIP;
   }
   else if (face_per_segment >= 2) {
-    segment_count = evaluated_point_count - curve_count;
+    segment_count = int64_t(evaluated_point_count) - curve_count;
     if (use_cyclic) {
       segment_count += curve_count;
     }
@@ -868,12 +868,14 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
     prim_type = GPU_PRIM_TRI_STRIP;
   }
 
-  int texel_buffer_limit = GPU_max_buffer_texture_size();
   /* Since we rely on buffer textures for reading the indirection buffer we have to abide by their
    * size limit. This size is low enough on NVidia to discard strands after 130,000,000 points.
    * We detect this case and display an error message in the viewport. */
-  if (segment_count > texel_buffer_limit) {
-    segment_count = texel_buffer_limit;
+  uint32_t texel_buffer_limit = GPU_max_buffer_texture_size();
+  /* We are also limited by the number of vertices in a batch, which is INT_MAX. */
+  int64_t segment_limit = std::min(int64_t(texel_buffer_limit), int64_t(INT_MAX));
+  if (segment_count > segment_limit) {
+    segment_count = segment_limit;
     r_over_limit = true;
   }
   r_over_limit = false;
