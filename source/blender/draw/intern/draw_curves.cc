@@ -539,7 +539,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   if (batch == nullptr) {
     r_error = RPT_(
         "Error: Curves object contains too many points. "
-        "Reduce spline resolution or spline count to fix this issue.\n");
+        "Reduce curve resolution or curve count to fix this issue.\n");
   }
   return batch;
 }
