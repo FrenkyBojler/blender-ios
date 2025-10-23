@@ -977,7 +977,7 @@ class IMAGE_MT_editor_menus(Menu):
 
         if ima and ima.is_dirty:
             # Show "*" to the left for consistency with unsaved files in the title bar.
-            layout.menu("IMAGE_MT_image", text="*Image")
+            layout.menu("IMAGE_MT_image", text="* Image")
         else:
             layout.menu("IMAGE_MT_image", text="Image")
 
