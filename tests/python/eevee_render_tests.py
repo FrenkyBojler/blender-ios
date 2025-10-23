@@ -210,8 +210,6 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
-
     blocklist = BLOCKLIST
     if args.gpu_backend == "metal":
         blocklist += BLOCKLIST_METAL
