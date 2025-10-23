@@ -96,6 +96,7 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
   const Brush &brush = *BKE_paint_brush_for_read(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(&C);
   const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
+  const bool fill_guide = RNA_boolean_get(op->ptr, "fill_guide");
 
   if (mode == PaintMode::GPencil) {
     if (eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
@@ -113,7 +114,7 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
         return greasepencil::new_erase_operation();
       case GPAINT_BRUSH_TYPE_FILL:
         /* Fill tool keymap uses the paint operator to draw fill guides. */
-        return greasepencil::new_paint_operation(/* do_fill_guides = */ true);
+        return greasepencil::new_paint_operation(fill_guide);
       case GPAINT_BRUSH_TYPE_TINT:
         return greasepencil::new_tint_operation(stroke_mode == BRUSH_STROKE_ERASE);
     }
@@ -309,6 +310,8 @@ static void grease_pencil_brush_stroke_cancel(bContext *C, wmOperator *op)
 
 static void GREASE_PENCIL_OT_brush_stroke(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   ot->name = "Grease Pencil Draw";
   ot->idname = "GREASE_PENCIL_OT_brush_stroke";
   ot->description = "Draw a new stroke in the active Grease Pencil object";
@@ -321,6 +324,10 @@ static void GREASE_PENCIL_OT_brush_stroke(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   paint_stroke_operator_properties(ot);
+
+  prop = RNA_def_boolean(
+      ot->srna, "fill_guide", false, "Fill Guide", "New stroke will be a fill guide");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
