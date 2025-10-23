@@ -3,3 +3,4 @@ Referenced by issue #87621, The Blender File Open dialog triggers OneDrive Files
 Referenced by issue #85710, macOS todo list
 Referenced by issue #75147, Object Tracker Constraint - Improper scale/placement, objects won't follow if tracks scaled in movie clip editior
 Referenced by issue #60682, macOS alias folders not visible in file browser
+Referenced by issue #141186, File open dialog resolves symlinks to their final location
