@@ -515,7 +515,8 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
 
   if (curves.curves_num() == 0) {
     /* Nothing to draw. Just return an empty drawcall that will be skipped. */
-    return curves_cache.batch_get(0, 0, face_per_segment, false);
+    bool unused_error = false;
+    return curves_cache.batch_get(0, 0, face_per_segment, false, unused_error);
   }
 
   CurvesModule &module = *drw_get().data->curves_module;
@@ -532,10 +533,12 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   curves_bind_resources(
       sub_ps, module, curves_cache, face_per_segment, gpu_material, indirection_buf, uv_name);
 
+  bool error = false;
   gpu::Batch *batch = curves_cache.batch_get(curves.evaluated_points_num(),
                                              curves.curves_num(),
                                              face_per_segment,
-                                             curves.has_cyclic_curve());
+                                             curves.has_cyclic_curve(),
+                                             error);
   if (batch == nullptr) {
     r_error = RPT_(
         "Error: Curves object contains too many points. "

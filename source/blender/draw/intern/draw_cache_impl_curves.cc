@@ -828,15 +828,16 @@ gpu::VertBufPtr &CurvesEvalCache::indirection_buf_get(CurvesModule &module,
 gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
                                        const int curve_count,
                                        const int face_per_segment,
-                                       const bool use_cyclic)
+                                       const bool use_cyclic,
+                                       bool &r_over_limit)
 {
   gpu::Batch *&batch = this->batch[face_per_segment];
   if (batch) {
     return batch;
   }
 
-  uint32_t vertex_count = 0;
   int segment_count = 0;
+  int vert_per_segment = 0;
   GPUPrimType prim_type = GPU_PRIM_NONE;
 
   if (face_per_segment == 0) {
@@ -845,7 +846,7 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
     if (use_cyclic) {
       segment_count += curve_count;
     }
-    vertex_count = segment_count;
+    vert_per_segment = 1;
     prim_type = GPU_PRIM_LINE_STRIP;
   }
   else if (face_per_segment == 1) {
@@ -854,8 +855,7 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
     if (use_cyclic) {
       segment_count += curve_count;
     }
-    /* Add one point per curve to restart the primitive. */
-    vertex_count = segment_count * 2;
+    vert_per_segment = 2;
     prim_type = GPU_PRIM_TRI_STRIP;
   }
   else if (face_per_segment >= 2) {
@@ -864,19 +864,21 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
       segment_count += curve_count;
     }
     /* Add one vertex per segment to restart the primitive. */
-    int vert_per_segment = (face_per_segment + 1) * 2 + 1;
-    vertex_count = segment_count * vert_per_segment;
+    vert_per_segment = (face_per_segment + 1) * 2 + 1;
     prim_type = GPU_PRIM_TRI_STRIP;
   }
 
   int texel_buffer_limit = GPU_max_buffer_texture_size();
   /* Since we rely on buffer textures for reading the indirection buffer we have to abide by their
    * size limit. This size is low enough on NVidia to discard strands after 130,000,000 points.
-   * In this case, it is better to not draw anything and let the user tweak their scene. */
+   * We detect this case and display an error message in the viewport. */
   if (segment_count > texel_buffer_limit) {
-    return nullptr;
+    segment_count = texel_buffer_limit;
+    r_over_limit = true;
   }
+  r_over_limit = false;
 
+  uint32_t vertex_count = segment_count * vert_per_segment;
   batch = GPU_batch_create_procedural(prim_type, vertex_count);
   return batch;
 }
