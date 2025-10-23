@@ -3072,7 +3072,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
 
           new_footer->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
                                                                     RGN_ALIGN_BOTTOM;
-          if (ELEM(sl->spacetype, SPACE_ACTION, SPACE_SEQ)) {
+          if (ELEM(sl->spacetype, SPACE_GRAPH, SPACE_NLA)) {
             new_footer->flag |= RGN_FLAG_HIDDEN;
           }
         }
