@@ -1913,26 +1913,32 @@ ScrArea *ED_screen_temp_space_open(
       bScreen *ctx_screen = CTX_wm_screen(C);
 
       if (ctx_screen->state == SCREENMAXIMIZED) {
-        /* Find the maximized area, check if it has the same type as the one we want to create. */
+        /* Find the currently maximized area, manually iterate the screen area list since
+         * it may not always be current context area (when opening a new space from the topbar
+         * for example). */
+        ScrArea *maximized_area;
         LISTBASE_FOREACH (ScrArea *, screen_area, &ctx_screen->areabase) {
-          if (screen_area->full && screen_area->spacetype == space_type) {
-            /* Return the existing area instead of recreating an area on top, which would make the
-             * "Back to Previous" button seem ineffective. */
-            return screen_area;
+          if (screen_area->full) {
+            maximized_area = screen_area;
           }
         }
+
+        /* Check if the current maximized area has the same type as the one we're opening. */
+        if (maximized_area->spacetype == space_type) {
+          /* Return the existing area instead of recreating an area on top, which would make the
+           * "Back to Previous" button seem ineffective. */
+          return maximized_area;
+        }
+
+        /* The current area is already fullscreen, stack the new area on top of it. */
+        ED_area_newspace(C, maximized_area, space_type, true);
+        maximized_area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
+        ((SpaceLink *)maximized_area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
+
+        return maximized_area;
       }
 
       ScrArea *ctx_area = CTX_wm_area(C);
-
-      /* The current area is already fullscreen, stack the new area on top of it. */
-      if (ctx_area != nullptr && ctx_area->full) {
-        ScrArea *area = ctx_area;
-        ED_area_newspace(C, ctx_area, space_type, true);
-        area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
-        ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
-        return area;
-      }
 
       /* Create a new fullscreen area. */
       ScrArea *area = ED_screen_full_newspace(C, ctx_area, int(space_type));
