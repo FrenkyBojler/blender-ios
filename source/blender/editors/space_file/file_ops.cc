@@ -19,7 +19,6 @@
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_main.hh"
-#include "BKE_path_templates.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 

@@ -17,7 +17,6 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
 #include "BKE_movieclip.h"
-#include "BKE_path_templates.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
