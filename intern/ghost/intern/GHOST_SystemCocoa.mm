@@ -1614,7 +1614,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
         }
 
         /* Switch back to Cocoa coordinates orientation
-           * (y=0 at bottom, the same as blender internal BTW!), and to client coordinates. */
+         * (y=0 at bottom, the same as blender internal BTW!), and to client coordinates. */
         window->getClientBounds(windowBounds);
         window->screenToClient(bounds.l_, bounds.b_, correctedBounds.l_, correctedBounds.t_);
         window->screenToClient(bounds.r_, bounds.t_, correctedBounds.r_, correctedBounds.b_);
@@ -1626,8 +1626,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
         window->getCursorGrabAccum(x_accum, y_accum);
 
         /* Get the current software mouse pointer location, theoretically unaffected by pending
-           * events that may still be referring to a location before warping. In practice extra
-           * logic still need to be used to prevent interferences from stale events. */
+         * events that may still be referring to a location before warping. In practice extra
+         * logic still need to be used to prevent interferences from stale events. */
         const NSPoint mousePos = event.window.mouseLocationOutsideOfEventStream;
         /* Casting. */
         const int32_t x_mouse = mousePos.x;
@@ -1636,15 +1636,14 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
         /* Warp mouse cursor if needed. */
         int32_t warped_x_mouse = x_mouse;
         int32_t warped_y_mouse = y_mouse;
-        correctedBounds.wrapPoint(
-            warped_x_mouse, warped_y_mouse, 4, window->getCursorGrabAxis());
+        correctedBounds.wrapPoint(warped_x_mouse, warped_y_mouse, 4, window->getCursorGrabAxis());
 
         /* Set new cursor position. */
         if (x_mouse != warped_x_mouse || y_mouse != warped_y_mouse) {
           /* After warping, we can still receive unwrapped mouse that occured slightly before or
-             * after the current event at close timestamps, causing the wrapping to be applied a
-             * second time, leading to a visual jump. Ignore these events by returning early.
-             * Using a small empirical future covering threshold, see PR #148158 for details. */
+           * after the current event at close timestamps, causing the wrapping to be applied a
+           * second time, leading to a visual jump. Ignore these events by returning early.
+           * Using a small empirical future covering threshold, see PR #148158 for details. */
           const NSTimeInterval timestamp = event.timestamp;
           const NSTimeInterval stale_event_threshold = 0.003;
           if (timestamp < (last_warp_timestamp_ + stale_event_threshold)) {
@@ -1670,7 +1669,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
                                         x,
                                         y,
                                         window->GetCocoaTabletData()));
-      } else {
+      }
+      else {
         /* Normal cursor operation: send mouse position in window. */
         const NSPoint mousePos = event.locationInWindow;
         int32_t x, y;
