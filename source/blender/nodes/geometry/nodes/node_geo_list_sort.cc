@@ -94,21 +94,17 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  /* Extract weights (can be single, list, or field). */
   bke::SocketValueVariant weights_variant = params.extract_input<bke::SocketValueVariant>(
       "Weights");
 
   ListPtr weights_list;
   if (weights_variant.is_context_dependent_field()) {
-    /* Evaluate field for the list size. */
     fn::GField field = weights_variant.extract<fn::GField>();
     weights_list = evaluate_field_to_list(std::move(field), list_size);
   }
   else if (weights_variant.is_list()) {
-    /* Direct list input. */
     weights_list = weights_variant.get<ListPtr>();
     if (!weights_list) {
-      /* Empty weights, return list unchanged. */
       params.set_output("List", std::move(list));
       return;
     }
@@ -122,35 +118,29 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   else if (weights_variant.is_single()) {
-    /* Single weight value - all items get the same weight, so no sorting needed. */
     params.set_output("List", std::move(list));
     return;
   }
   else {
-    /* No weights provided, return unchanged. */
     params.set_output("List", std::move(list));
     return;
   }
 
-  /* Extract weights into a span for sorting. */
   Array<float> weights(list_size);
   const VArray<float> weights_varray = weights_list->varray<float>();
   for (int i = 0; i < list_size; i++) {
     weights[i] = weights_varray[i];
   }
 
-  /* Create indices array for sorting. */
   Array<int> indices(list_size);
   for (int i : indices.index_range()) {
     indices[i] = i;
   }
 
-  /* Sort indices based on weights. */
   const auto comparator = [&](const int index_a, const int index_b) {
     const float weight_a = weights[index_a];
     const float weight_b = weights[index_b];
     if (UNLIKELY(weight_a == weight_b)) {
-      /* Make it stable. */
       return index_a < index_b;
     }
     return weight_a < weight_b;
@@ -158,17 +148,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   parallel_sort(indices.begin(), indices.end(), comparator);
 
-  /* Create sorted list by gathering elements in sorted order. */
   const CPPType &type = list->cpp_type();
   const List::DataVariant &list_data = list->data();
 
   if (std::get_if<List::SingleData>(&list_data)) {
-    /* If all values are the same, just return the same list. */
     params.set_output("List", std::move(list));
     return;
   }
 
-  /* Create array data for sorted list. */
   List::ArrayData sorted_array_data = List::ArrayData::ForUninitialized(type, list_size);
 
   if (const auto *array_data = std::get_if<List::ArrayData>(&list_data)) {

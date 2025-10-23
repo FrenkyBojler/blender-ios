@@ -77,7 +77,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  /* Filter out null lists and find the first valid one. */
   Vector<ListPtr> valid_lists;
   const CPPType *common_type = nullptr;
 
@@ -105,7 +104,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  /* Calculate total size. */
   int64_t total_size = 0;
   for (const ListPtr &list : valid_lists) {
     total_size += list->size();
@@ -144,7 +142,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  /* Create joined array. */
   List::ArrayData joined_data = List::ArrayData::ForUninitialized(*common_type, total_size);
   GMutableSpan dst_span(*common_type, joined_data.data, total_size);
 

@@ -88,7 +88,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int list_size = list->size();
 
   if (list_size == 0) {
-    /* Empty input: return empty lists. */
     const CPPType &type = list->cpp_type();
     List::ArrayData empty_data = List::ArrayData::ForDefaultValue(type, 0);
     ListPtr empty_list = List::create(type, std::move(empty_data), 0);
@@ -104,18 +103,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   const CPPType &type = list->cpp_type();
   const GVArray input_varray = list->varray();
 
-  /* Store unique values and their indices. */
-  Vector<int> unique_indices;            /* Index in original list of first occurrence. */
-  Vector<int> unique_counts;             /* Count for each unique value. */
-  Array<int> inverse_indices(list_size); /* Maps original index to unique index. */
+  Vector<int> unique_indices;
+  Vector<int> unique_counts;
+  Array<int> inverse_indices(list_size);
 
-  /* Temporary buffer for element comparison. */
   BUFFER_FOR_CPP_TYPE_VALUE(type, element_buffer);
 
   for (int i = 0; i < list_size; i++) {
     input_varray.get_to_uninitialized(i, element_buffer);
 
-    /* Check if this value already exists in our unique set. */
     int unique_index = -1;
     for (int j = 0; j < unique_indices.size(); j++) {
       BUFFER_FOR_CPP_TYPE_VALUE(type, unique_element_buffer);
@@ -130,13 +126,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     if (unique_index == -1) {
-      /* New unique value. */
       unique_index = unique_indices.size();
       unique_indices.append(i);
       unique_counts.append(1);
     }
     else {
-      /* Increment count for existing unique value. */
       unique_counts[unique_index]++;
     }
 
@@ -146,7 +140,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int unique_count = unique_indices.size();
 
-  /* Create unique values list. */
   List::ArrayData unique_data = List::ArrayData::ForUninitialized(type, unique_count);
   GMutableSpan unique_span(type, unique_data.data, unique_count);
 
@@ -157,7 +150,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   ListPtr unique_list = List::create(type, std::move(unique_data), unique_count);
   params.set_output("Unique", std::move(unique_list));
 
-  /* Create counts list. */
   const CPPType &int_type = CPPType::get<int>();
   List::ArrayData counts_data = List::ArrayData::ForUninitialized(int_type, unique_count);
   GMutableSpan counts_span(int_type, counts_data.data, unique_count);
@@ -169,7 +161,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   ListPtr counts_list = List::create(int_type, std::move(counts_data), unique_count);
   params.set_output("Counts", std::move(counts_list));
 
-  /* Create inverse indices list. */
   List::ArrayData inverse_data = List::ArrayData::ForUninitialized(int_type, list_size);
   GMutableSpan inverse_span(int_type, inverse_data.data, list_size);
 
@@ -204,7 +195,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeListUnique");
-  ntype.ui_name = "List Unique";
+  ntype.ui_name = "Unique List";
   ntype.ui_description = "Find unique values in a list with counts and inverse mapping";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;

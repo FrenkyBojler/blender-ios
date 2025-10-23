@@ -104,32 +104,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const CPPType &type = list->cpp_type();
 
-  /* Extract index(es). */
   bke::SocketValueVariant index_variant = params.extract_input<bke::SocketValueVariant>("Index");
 
   Vector<int> indices;
   if (index_variant.is_single()) {
-    /* Single index. */
     int index = index_variant.get<int>();
-    /* Handle negative indices. */
     if (index < 0) {
       index = list_size + index;
     }
-    /* Clamp to valid range. */
     index = std::clamp(index, 0, list_size - 1);
     indices.append(index);
   }
   else if (index_variant.is_list()) {
-    /* List of indices. */
     ListPtr index_list = index_variant.get<ListPtr>();
     const VArray<int> index_varray = index_list->varray<int>();
     for (int i = 0; i < index_list->size(); i++) {
       int index = index_varray[i];
-      /* Handle negative indices. */
       if (index < 0) {
         index = list_size + index;
       }
-      /* Clamp to valid range. */
       index = std::clamp(index, 0, list_size - 1);
       indices.append(index);
     }
@@ -145,39 +138,30 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  /* Extract value(s). */
   bke::SocketValueVariant value_variant = params.extract_input<bke::SocketValueVariant>("Value");
 
   ListPtr value_list;
   if (value_variant.is_context_dependent_field()) {
-    /* Evaluate field for the entire list size. */
     GField field = value_variant.extract<GField>();
     value_list = evaluate_field_to_list(std::move(field), list_size);
   }
   else {
-    /* Convert to single or list. */
     value_variant.convert_to_single();
     const void *single_value = value_variant.get_single_ptr_raw();
-
-    /* Create a temporary list with the single value repeated. */
     List::SingleData single_data = List::SingleData::ForValue(GPointer(type, single_value));
     value_list = List::create(type, std::move(single_data), list_size);
   }
 
-  /* Create result array. */
   List::ArrayData result_data = List::ArrayData::ForUninitialized(type, list_size);
   GMutableSpan dst_span(type, result_data.data, list_size);
 
-  /* Copy original list. */
   const GVArray src_varray = list->varray();
   for (int i = 0; i < list_size; i++) {
     src_varray.get_to_uninitialized(i, dst_span[i]);
   }
 
-  /* Set values at specified indices. */
   const GVArray value_varray = value_list->varray();
   for (const int index : indices) {
-    /* Destruct old value and copy new one. */
     type.destruct(dst_span[index]);
     value_varray.get_to_uninitialized(index, dst_span[index]);
   }

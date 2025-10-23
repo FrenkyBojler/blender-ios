@@ -64,7 +64,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int list_size = bool_list->size();
 
-  /* Find all indices where boolean is true. */
   Vector<int> matching_indices;
   const VArray<bool> bool_varray = bool_list->varray<bool>();
 
@@ -76,17 +75,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int count = matching_indices.size();
 
-  /* Create output list of indices. */
   if (params.output_is_required("Indices")) {
     const CPPType &int_type = CPPType::get<int>();
     if (count == 0) {
-      /* Empty list. */
       List::ArrayData indices_data = List::ArrayData::ForDefaultValue(int_type, 0);
       ListPtr indices_list = List::create(int_type, std::move(indices_data), 0);
       params.set_output("Indices", std::move(indices_list));
     }
     else {
-      /* Create list from matching indices. */
       List::ArrayData indices_data = List::ArrayData::ForUninitialized(int_type, count);
       MutableSpan<int> indices_span(static_cast<int *>(indices_data.data), count);
       indices_span.copy_from(matching_indices);
@@ -104,7 +100,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeListFind");
-  ntype.ui_name = "List Find";
+  ntype.ui_name = "Find in List";
   ntype.ui_description = "Find indices where a boolean list is true";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;

@@ -87,7 +87,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   int start = params.extract_input<int>("Start");
   int end = params.extract_input<int>("End");
 
-  /* Handle negative indices Python-style. */
   if (start < 0) {
     start = list_size + start;
   }
@@ -95,13 +94,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     end = list_size + end + 1;
   }
 
-  /* Clamp to valid range. */
   start = std::clamp(start, 0, list_size);
   end = std::clamp(end, 0, list_size);
 
-  /* Ensure start <= end. */
   if (start >= end) {
-    /* Return empty list. */
     const CPPType &type = list->cpp_type();
     List::ArrayData empty_data = List::ArrayData::ForDefaultValue(type, 0);
     ListPtr empty_list = List::create(type, std::move(empty_data), 0);
@@ -111,7 +107,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int slice_size = end - start;
 
-  /* If slicing the entire list, return as-is. */
   if (start == 0 && end == list_size) {
     params.set_output("List", std::move(list));
     return;
@@ -121,7 +116,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   const List::DataVariant &list_data = list->data();
 
   if (const auto *single_data = std::get_if<List::SingleData>(&list_data)) {
-    /* For single data, create a list with the same value. */
     List::SingleData slice_data = List::SingleData::ForValue(GPointer(type, single_data->value));
     ListPtr sliced_list = List::create(type, std::move(slice_data), slice_size);
     params.set_output("List", std::move(sliced_list));
@@ -165,7 +159,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeListSlice");
-  ntype.ui_name = "List Slice";
+  ntype.ui_name = "Slice List";
   ntype.ui_description = "Extract a portion of a list";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;

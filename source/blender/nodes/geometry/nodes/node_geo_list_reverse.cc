@@ -72,7 +72,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int list_size = list->size();
 
   if (list_size <= 1) {
-    /* Nothing to reverse. */
     params.set_output("List", std::move(list));
     return;
   }
@@ -81,7 +80,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   const List::DataVariant &list_data = list->data();
 
   if (std::get_if<List::SingleData>(&list_data)) {
-    /* All values are the same, return as-is. */
     params.set_output("List", std::move(list));
     return;
   }
