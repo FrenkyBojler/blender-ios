@@ -10,6 +10,7 @@
 #include <variant>
 
 #include "BLI_assert.h"
+#include "BLI_color_types.hh"
 #include "BLI_compiler_compat.h"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
@@ -39,9 +40,9 @@ enum class ResultType : uint8_t {
   Float2,
   Float3,
   Float4,
+  Color,
   Int,
   Int2,
-  Color,
   Bool,
   Menu,
 
@@ -62,6 +63,8 @@ enum class ResultStorageType : uint8_t {
   /* Stored as a buffer on the CPU and wrapped in a GMutableSpan. */
   CPU,
 };
+
+using Color = ColorSceneLinear4f<eAlpha::Premultiplied>;
 
 /* ------------------------------------------------------------------------------------------------
  * Result
@@ -135,7 +138,16 @@ class Result {
    * which will be identical to that stored in the data_ member. The active variant member depends
    * on the type of the result. This member is uninitialized and should not be used if the result
    * is not a single value. */
-  std::variant<float, float2, float3, float4, int32_t, int2, bool, std::string, nodes::MenuValue>
+  std::variant<float,
+               float2,
+               float3,
+               float4,
+               Color,
+               int32_t,
+               int2,
+               bool,
+               nodes::MenuValue,
+               std::string>
       single_value_ = 0.0f;
   /* The domain of the result. This only matters if the result was not a single value. See the
    * discussion in COM_domain.hh for more information. */
