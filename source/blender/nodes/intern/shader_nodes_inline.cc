@@ -441,7 +441,10 @@ class ShaderNodesInliner {
       return;
     }
     if (node->is_muted()) {
-      this->handle_output_socket__muted(socket);
+      if (!this->handle_output_socket__internal_links(socket)) {
+        /* The output socket does not have a corresponding input, so the value is ignored. */
+        this->store_socket_value_dangling(socket);
+      }
       return;
     }
     if (node->is_group()) {
@@ -507,7 +510,8 @@ class ShaderNodesInliner {
     this->forward_value_or_schedule(socket, input_socket);
   }
 
-  void handle_output_socket__muted(const SocketInContext &socket)
+  /* Returns whether the socket was handled. */
+  [[nodiscard]] bool handle_output_socket__internal_links(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     for (const bNodeLink &internal_link : node->internal_links()) {
@@ -520,14 +524,13 @@ class ShaderNodesInliner {
               socket,
               this->handle_implicit_conversion(
                   *value, *internal_link.fromsock->typeinfo, *internal_link.tosock->typeinfo));
-          return;
+          return true;
         }
         this->schedule_socket(src_socket);
-        return;
+        return true;
       }
     }
-    /* The output socket does not have a corresponding input, so the value is ignored. */
-    this->store_socket_value_dangling(socket);
+    return false;
   }
 
   void handle_output_socket__group(const SocketInContext &socket)
@@ -767,7 +770,9 @@ class ShaderNodesInliner {
         &closure_input_value->value);
     if (!closure_zone_value) {
       /* If the closure is null, the node behaves as if it is muted. */
-      this->handle_output_socket__muted(socket);
+      if (!this->handle_output_socket__internal_links(socket)) {
+        this->store_socket_value_fallback(socket);
+      }
       return;
     }
     const auto *evaluate_closure_storage = static_cast<const NodeEvaluateClosure *>(
