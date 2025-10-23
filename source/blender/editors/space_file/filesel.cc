@@ -99,8 +99,6 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
   }
 }
 
-
-
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
@@ -140,6 +138,8 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   fileselect_initialize_params_common(sfile, base_params);
 }
 
+/* Template resolution handled inline using BKE functions */
+
 /**
  * \note #RNA_struct_property_is_set_ex is used here because we want
  * the previously used settings to be used here rather than overriding them.
@@ -169,12 +169,18 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
     
-    /* Initialize template paths */
-    STRNCPY(sfile->params->dir_variable, sfile->params->dir);
-    STRNCPY(sfile->params->dir_preview, sfile->params->dir);
+    /* Initialize template paths - will be set properly by operator processing if needed */
+    if (sfile->params->dir_variable[0] == '\0') {
+      STRNCPY(sfile->params->dir_variable, sfile->params->dir);
+      STRNCPY(sfile->params->dir_preview, sfile->params->dir);
+    }
+    else {
+      if (sfile->params->dir_preview[0] == '\0') {
+        STRNCPY(sfile->params->dir_preview, sfile->params->dir);
+      }
+    }
     
-    /* Initialize path template handler */
-    blender::editor::file::initialize_template_paths(sfile->params);
+    /* Don't initialize path template handler yet - wait until after operator processing */
   }
 
   params = sfile->params;
@@ -201,20 +207,37 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     if (is_filepath && RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
       char filepath[FILE_MAX];
       RNA_string_get(op->ptr, "filepath", filepath);
+      
       if (params->type == FILE_LOADLIB) {
         STRNCPY(params->dir, filepath);
         params->file[0] = '\0';
       }
       else {
-        BLI_path_split_dir_file(
-            filepath, params->dir, sizeof(params->dir), params->file, sizeof(params->file));
+        /* Check if filepath contains template variables before splitting */
+        if (BKE_path_contains_template_syntax(filepath)) {
+          /* Split filepath while preserving template variables */
+          char template_dir[FILE_MAX];
+          char template_file[FILE_MAX];
+          BLI_path_split_dir_file(filepath, template_dir, sizeof(template_dir), template_file, sizeof(template_file));
+          
+          /* Store template versions */
+          STRNCPY(params->dir_variable, template_dir);
+          STRNCPY(params->file, template_file);
+          
+          /* Resolve template for regular dir and preview using centralized function */
+          STRNCPY(params->dir, template_dir);
+          blender::editor::file::resolve_path_templates(params->dir, sizeof(params->dir));
+          STRNCPY(params->dir_preview, params->dir);
+        }
+        else {
+          BLI_path_split_dir_file(
+              filepath, params->dir, sizeof(params->dir), params->file, sizeof(params->file));
+        }
       }
     }
 
     if (is_directory && RNA_struct_property_is_set_ex(op->ptr, "directory", false)) {
-      char operator_dir[FILE_MAX_LIBEXTRA];
-      RNA_string_get(op->ptr, "directory", operator_dir);
-      STRNCPY(params->dir, operator_dir);
+      RNA_string_get(op->ptr, "directory", params->dir);
       params->file[0] = '\0';
     }
 
@@ -366,8 +389,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     params->filter_glob[0] = '\0';
   }
 
-  /* Always apply minimal template path handling
-  TODO make not hardcoded to always use path templates*/
+  /* Initialize path template handler now that all operator processing is complete */
   blender::editor::file::initialize_template_paths(params);
 
   fileselect_initialize_params_common(sfile, params);
@@ -1166,16 +1188,13 @@ FileLayout *ED_fileselect_get_layout(SpaceFile *sfile, ARegion *region)
 
 void ED_file_change_dir_ex(bContext *C, ScrArea *area)
 {
-  printf("DEBUG: ED_file_change_dir_ex() - Called\n");
   /* May happen when manipulating non-active spaces. */
   if (UNLIKELY(area->spacetype != SPACE_FILE)) {
-    printf("DEBUG: ED_file_change_dir_ex() - Not a file space, returning\n");
     return;
   }
   SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   if (params) {
-    printf("DEBUG: ED_file_change_dir_ex() - Got params, current dir='%s'\n", params->dir);
     wmWindowManager *wm = CTX_wm_manager(C);
     ED_fileselect_clear(wm, sfile);
 

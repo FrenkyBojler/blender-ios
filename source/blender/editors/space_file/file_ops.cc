@@ -23,6 +23,8 @@
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
+#include "path_template_utils.hh"
+
 #include "BLT_translation.hh"
 
 #ifdef WIN32
@@ -1601,7 +1603,7 @@ void file_sfile_to_operator_ex(
   char dir[FILE_MAX];
 
   /* Use template version if available, otherwise resolved version */
-  if (params->dir_variable[0] != '\0' && BKE_path_contains_template_syntax(params->dir_variable)) {
+  if (blender::editor::file::should_use_template_path(params)) {
     BLI_strncpy(dir, params->dir_variable, FILE_MAX);
   }
   else {
@@ -1609,9 +1611,8 @@ void file_sfile_to_operator_ex(
   }
   BLI_path_slash_ensure(dir, FILE_MAX);
 
-  /* XXX, not real length */
+  /* Build filepath */
   if (params->file[0]) {
-    /* For filepath, use the template version if available */
     BLI_path_join(filepath, FILE_MAX, dir, params->file);
   }
   else {
@@ -1625,28 +1626,10 @@ void file_sfile_to_operator_ex(
     }
   }
 
-  char value[FILE_MAX];
-  if ((prop = RNA_struct_find_property(op->ptr, "filename"))) {
-    RNA_property_string_get(op->ptr, prop, value);
-    RNA_property_string_set(op->ptr, prop, params->file);
-    if (RNA_property_update_check(prop) && !STREQ(params->file, value)) {
-      RNA_property_update(C, op->ptr, prop);
-    }
-  }
-  if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
-    RNA_property_string_get(op->ptr, prop, value);
-    RNA_property_string_set(op->ptr, prop, dir);
-    if (RNA_property_update_check(prop) && !STREQ(dir, value)) {
-      RNA_property_update(C, op->ptr, prop);
-    }
-  }
-  if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
-    RNA_property_string_get(op->ptr, prop, value);
-    RNA_property_string_set(op->ptr, prop, filepath);
-    if (RNA_property_update_check(prop) && !STREQ(filepath, value)) {
-      RNA_property_update(C, op->ptr, prop);
-    }
-  }
+  /* Use utility function to reduce repetition */
+  blender::editor::file::set_operator_string_property(C, op, "filename", params->file);
+  blender::editor::file::set_operator_string_property(C, op, "directory", dir);
+  blender::editor::file::set_operator_string_property(C, op, "filepath", filepath);
 
   /* some ops have multiple files to select */
   /* this is called on operators check() so clear collections first since

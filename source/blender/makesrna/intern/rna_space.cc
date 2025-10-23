@@ -3093,12 +3093,18 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
   return RNA_pointer_create_with_parent(*ptr, &RNA_FileSelectIDFilter, ptr->data);
 }
 
+/* Helper to check if params should use template version */
+static bool params_should_use_template(const FileSelectParams *params)
+{
+  return blender::editor::file::should_use_template_path(params);
+}
+
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
   
   /* Return the template version if it has template variables, otherwise the resolved version */
-  if (params->dir_variable[0] != '\0' && BKE_path_contains_template_syntax(params->dir_variable)) {
+  if (params_should_use_template(params)) {
     strcpy(value, params->dir_variable);
   }
   else {
@@ -3110,13 +3116,7 @@ static int rna_FileSelectParams_directory_length(PointerRNA *ptr)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
   
-  /* Return length of template version if it has template variables, otherwise resolved version */
-  if (params->dir_variable[0] != '\0' && BKE_path_contains_template_syntax(params->dir_variable)) {
-    return strlen(params->dir_variable);
-  }
-  else {
-    return strlen(params->dir);
-  }
+  return params_should_use_template(params) ? strlen(params->dir_variable) : strlen(params->dir);
 }
 
 static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *value)

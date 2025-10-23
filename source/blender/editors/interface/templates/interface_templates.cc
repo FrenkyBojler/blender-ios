@@ -6,9 +6,7 @@
  * \ingroup edinterface
  */
 
-#include "BKE_global.hh"
 #include "BKE_library.hh"
-#include "BKE_path_templates.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_math_color.h"
@@ -324,14 +322,18 @@ void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *p
 static void file_directory_variable_enter_handle(bContext *C, void *, void *)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
-  if (!sfile) return;
+  if (!sfile) {
+    return;
+  }
 
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  if (!params) return;
+  if (!params) {
+    return;
+  }
 
   /* Handle template path input and update all fields */
   blender::editor::file::handle_template_path_input(params, params->dir_variable);
-  
+
   ED_file_change_dir(C);
 }
 
@@ -381,6 +383,7 @@ static uiBut *create_file_path_button(uiLayout *layout,
   }
 
   UI_block_func_set(layout->block(), nullptr, nullptr, nullptr);
+  
   return but;
 }
 

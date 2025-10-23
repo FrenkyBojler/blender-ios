@@ -309,17 +309,8 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
         BKE_build_template_variables_for_prop(C, &ptr, prop);
     BLI_assert(variables.has_value());
 
-    /* Check if path contains templates and preserve them for file browser */
+    /* Validate template by resolving to a temporary path, but keep original template path */
     if (BKE_path_contains_template_syntax(path)) {
-      /* Set flag to preserve template filenames in file browser */
-      RNA_boolean_set(op->ptr, "preserve_template_filename", true);
-      
-      /* Store the original unresolved path for the file browser */
-      char *original_path = BLI_strdup(path);
-      RNA_string_set(op->ptr, "original_template_path", original_path);
-      MEM_freeN(original_path);
-
-      /* Only resolve for validation, don't use resolved path */
       char temp_path[FILE_MAX];
       STRNCPY(temp_path, path);
       const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
@@ -502,21 +493,6 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
   PropertyRNA *prop;
 
   prop = RNA_def_string(ot->srna, "filter_glob", nullptr, 0, "Glob Filter", "Custom filter");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-
-  prop = RNA_def_boolean(ot->srna,
-                         "preserve_template_filename",
-                         false,
-                         "Preserve Template Filename",
-                         "Preserve template variable filenames in the file browser");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-
-  prop = RNA_def_string(ot->srna,
-                        "original_template_path",
-                        nullptr,
-                        0,
-                        "Original Template Path",
-                        "Original path with template variables before resolution");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 

@@ -9,7 +9,13 @@
 
 #pragma once
 
+#include <cstddef>
+
+struct bContext;
 struct FileSelectParams;
+struct PointerRNA;
+struct PropertyRNA;
+struct wmOperator;
 
 namespace blender::editor::file {
 
@@ -38,5 +44,31 @@ void handle_template_navigation(FileSelectParams *params, const char *new_direct
  * \param params: FileSelectParams to initialize
  */
 void initialize_template_paths(FileSelectParams *params);
+
+/**
+ * Resolve template variables in a path string.
+ * Utility function for direct template resolution.
+ * 
+ * \param path: Path string to resolve (modified in place)
+ * \param path_maxlen: Maximum length of path buffer
+ */
+void resolve_path_templates(char *path, size_t path_maxlen);
+
+/**
+ * Check if params should use template path (has non-empty dir_variable with template syntax).
+ * Consolidates common conditional pattern used throughout the codebase.
+ */
+bool should_use_template_path(const FileSelectParams *params);
+
+/**
+ * Helper function to set RNA string property with update notification if changed.
+ * Consolidates common pattern used throughout file operations.
+ * 
+ * \param C: Blender context for property updates
+ * \param op: Operator pointer to set property on  
+ * \param prop_name: Name of the property to set
+ * \param new_value: New string value to set
+ */
+void set_operator_string_property(bContext *C, wmOperator *op, const char *prop_name, const char *new_value);
 
 }  // namespace blender::editor::file
