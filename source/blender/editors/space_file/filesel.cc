@@ -98,33 +98,46 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 }
 
 /** 
- * Update file browser template paths: variable (unresolved) and preview (resolved).
+ * Helper function to resolve template variables in a path.
  */
-static void fileselect_update_template_paths(FileSelectParams *params)
+static void resolve_template_path(char *path, size_t path_maxlen)
 {
-  /* Always preserve original path in variable field */
-  STRNCPY(params->dir_variable, params->dir);
-  
-  if (!BKE_path_contains_template_syntax(params->dir)) {
-    STRNCPY(params->dir_preview, params->dir);
-    return;
-  }
-
-  /* Resolve templates directly into preview path */
-  BLI_strncpy(params->dir_preview, params->dir, sizeof(params->dir_preview));
-  
-  /* Build and apply template variables from current scene */
   blender::bke::path_templates::VariableMap variables;
   const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
-  
   BKE_add_template_variables_general(variables, scene ? &scene->id : nullptr);
   if (scene) {
     BKE_add_template_variables_for_render_path(variables, *scene);
   }
-  
-  BKE_path_apply_template(params->dir_preview, sizeof(params->dir_preview), variables);
-  STRNCPY(params->dir, params->dir_preview);
+  BKE_path_apply_template(path, path_maxlen, variables);
 }
+
+/** 
+ * Update file browser template paths: variable (unresolved) and preview (resolved).
+ */
+static void fileselect_update_template_paths(FileSelectParams *params)
+{
+  /* Update dir_variable: preserve templates only if they resolve to current directory */
+  if (params->dir_variable[0] != '\0' && BKE_path_contains_template_syntax(params->dir_variable)) {
+    char resolved_path[FILE_MAX];
+    STRNCPY(resolved_path, params->dir_variable);
+    resolve_template_path(resolved_path, sizeof(resolved_path));
+
+    /* Clear template if user navigated away */
+    if (!STREQ(params->dir, resolved_path)) {
+      STRNCPY(params->dir_variable, params->dir);
+    }
+  }
+  else {
+    /* Empty or non-template: sync with current directory */
+    STRNCPY(params->dir_variable, params->dir);
+  }
+
+  /* Update preview: resolve templates or copy as-is */
+  STRNCPY(params->dir_preview, params->dir);
+  if (BKE_path_contains_template_syntax(params->dir)) {
+    resolve_template_path(params->dir_preview, sizeof(params->dir_preview));
+    STRNCPY(params->dir, params->dir_preview);
+  }
 }
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
@@ -1189,13 +1202,16 @@ FileLayout *ED_fileselect_get_layout(SpaceFile *sfile, ARegion *region)
 
 void ED_file_change_dir_ex(bContext *C, ScrArea *area)
 {
+  printf("DEBUG: ED_file_change_dir_ex() - Called\n");
   /* May happen when manipulating non-active spaces. */
   if (UNLIKELY(area->spacetype != SPACE_FILE)) {
+    printf("DEBUG: ED_file_change_dir_ex() - Not a file space, returning\n");
     return;
   }
   SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   if (params) {
+    printf("DEBUG: ED_file_change_dir_ex() - Got params, current dir='%s'\n", params->dir);
     wmWindowManager *wm = CTX_wm_manager(C);
     ED_fileselect_clear(wm, sfile);
 
@@ -1208,6 +1224,10 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
       STRNCPY(params->dir, filelist_dir(sfile->files));
       /* could return but just refresh the current dir */
     }
+
+    /* Update template paths when directory changes */
+    fileselect_update_template_paths(params);
+
     filelist_setdir(sfile->files, params->dir);
 
     if (folderlist_clear_next(sfile)) {

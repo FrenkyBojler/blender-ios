@@ -6,6 +6,7 @@
  * \ingroup edinterface
  */
 
+#include "BKE_global.hh"
 #include "BKE_library.hh"
 #include "BKE_path_templates.hh"
 #include "BKE_screen.hh"
@@ -318,7 +319,7 @@ void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *p
   ED_file_path_button(screen, sfile, params, layout->block());
 }
 
-/* Minimal callback for variable path changes */
+/* Simplified callback for variable path changes */
 static void file_directory_variable_enter_handle(bContext *C, void *, void *)
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -327,7 +328,24 @@ static void file_directory_variable_enter_handle(bContext *C, void *, void *)
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   if (!params) return;
 
-  STRNCPY(params->dir, params->dir_preview);
+  /* Resolve template if present */
+  char resolved_path[FILE_MAX];
+  STRNCPY(resolved_path, params->dir_variable);
+  
+  if (BKE_path_contains_template_syntax(params->dir_variable)) {
+    blender::bke::path_templates::VariableMap variables;
+    const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
+    BKE_add_template_variables_general(variables, scene ? &scene->id : nullptr);
+    if (scene) {
+      BKE_add_template_variables_for_render_path(variables, *scene);
+    }
+    BKE_path_apply_template(resolved_path, sizeof(resolved_path), variables);
+  }
+  
+  /* Update directory and preview */
+  STRNCPY(params->dir, resolved_path);
+  STRNCPY(params->dir_preview, resolved_path);
+  
   ED_file_change_dir(C);
 }
 
@@ -337,7 +355,8 @@ static uiBut *create_file_path_button(uiLayout *layout,
                                       FileSelectParams *params,
                                       const char *prop_name,
                                       const char *tooltip,
-                                      bool read_only)
+                                      bool read_only,
+                                      uiButHandleFunc enter_callback)
 {
   bScreen *screen = CTX_wm_screen(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
@@ -367,7 +386,7 @@ static uiBut *create_file_path_button(uiLayout *layout,
   }
   else {
     UI_but_func_complete_set(but, autocomplete_directory, nullptr);
-    UI_but_funcN_set(but, file_directory_variable_enter_handle, nullptr, nullptr);
+    UI_but_funcN_set(but, enter_callback, nullptr, nullptr);
   }
 
   /* Disable if library is loaded */
@@ -387,14 +406,15 @@ void uiTemplateFileSelectPathVariable(uiLayout *layout, bContext *C, FileSelectP
                           params,
                           "directory_variable",
                           TIP_("Variable file path with template syntax"),
-                          false);
+                          false,
+                          file_directory_variable_enter_handle);
 }
 
 void uiTemplateFileSelectPathPreview(uiLayout *layout, bContext *C, FileSelectParams *params)
 {
   BLI_assert_msg(params != nullptr, "File select parameters not set.");
   create_file_path_button(
-      layout, C, params, "directory_preview", TIP_("Resolved file path preview"), true);
+      layout, C, params, "directory_preview", TIP_("Resolved file path preview"), true, nullptr);
 }
 
 /** \} */
