@@ -463,32 +463,6 @@ void gather_attributes_with_check(const bke::AttributeAccessor src_attributes,
   });
 }
 
-static void set_material_from_map(const Span<int> out_to_in_map,
-                                  const Span<Array<short>> material_remaps,
-                                  const Span<const Mesh *> meshes,
-                                  const MeshOffsets &mesh_offsets,
-                                  const MutableSpan<int> dst)
-{
-  BLI_assert(material_remaps.size() > 0);
-  Array<VArray<int>> material_varrays;
-  for (const int i : meshes.index_range()) {
-    bke::AttributeAccessor input_attrs = meshes[i]->attributes();
-    material_varrays[i] = *input_attrs.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Face, 0);
-  }
-  threading::parallel_for(out_to_in_map.index_range(), 8192, [&](const IndexRange range) {
-    for (const int out_f : range) {
-      const int in_f = out_to_in_map[out_f];
-      const int mesh_id = mesh_id_for_face(in_f, mesh_offsets);
-      const int in_f_local = in_f - mesh_offsets.face_start[mesh_id];
-      const int orig = material_varrays[mesh_id][in_f_local];
-      const Array<short> &map = material_remaps[mesh_id];
-      dst[out_f] = (orig >= 0 && orig < map.size()) ? map[orig] : orig;
-      ;
-    }
-  });
-}
-
 /**
  * Convert the output IMesh im to a Blender Mesh,
  * using the information in mim to get all the attributes right.
@@ -576,7 +550,7 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
           "material_index", bke::AttrDomain::Face);
       if (mim.material_remaps.is_empty()) {
         const VArraySpan src = *mim.joined_mesh->attributes().lookup<int>("material_index");
-        gather_with_check(src, dst_to_src_face, dst_indices.span);
+        copy_attribute_using_map(src, dst_to_src_face, dst_indices.span);
       }
       else {
         set_material_from_map(

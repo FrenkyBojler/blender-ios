@@ -1614,16 +1614,11 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
   }
 }
 
-/**
- * The \a dst span should be the material_index property of the result.
- * Rather than using the attribute from the joined mesh, we want to take
- * the original face and map it using \a material_remaps.
- */
-static void set_material_from_map(const Span<int> out_to_in_map,
-                                  const Span<Array<short>> material_remaps,
-                                  const Span<const Mesh *> meshes,
-                                  const MeshOffsets &mesh_offsets,
-                                  const MutableSpan<int> dst)
+void set_material_from_map(const Span<int> out_to_in_map,
+                           const Span<Array<short>> material_remaps,
+                           const Span<const Mesh *> meshes,
+                           const MeshOffsets &mesh_offsets,
+                           const MutableSpan<int> dst)
 {
   BLI_assert(material_remaps.size() > 0);
   Array<VArray<int>> material_varrays;
