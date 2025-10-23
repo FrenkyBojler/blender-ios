@@ -12,6 +12,8 @@
 
 #include <fmt/format.h>
 
+#include "CLG_log.h"
+
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -27,6 +29,7 @@
 #include "eevee_ambient_occlusion.hh"
 #include "eevee_camera.hh"
 #include "eevee_cryptomatte.hh"
+#include "eevee_debug_shared.hh"
 #include "eevee_depth_of_field.hh"
 #include "eevee_film.hh"
 #include "eevee_gbuffer.hh"
@@ -53,9 +56,11 @@
 
 namespace blender::eevee {
 
+using UniformDataBuf = draw::UniformBuffer<UniformData>;
+
 /* Combines data from several modules to avoid wasting binding slots. */
 struct UniformDataModule {
-  UniformDataBuf data;
+  UniformDataBuf data = {"UniformDataBuf"};
 
   void push_update()
   {
@@ -119,6 +124,8 @@ class Instance : public DrawEngine {
   VolumeProbeModule volume_probes;
   LightProbeModule light_probes;
   VolumeModule volume;
+
+  static CLG_LogRef log;
 
   /** Input data. */
   Depsgraph *depsgraph;
@@ -198,8 +205,8 @@ class Instance : public DrawEngine {
         planar_probes(*this),
         volume_probes(*this),
         light_probes(*this),
-        volume(*this, uniform_data.data.volumes){};
-  ~Instance(){};
+        volume(*this, uniform_data.data.volumes) {};
+  ~Instance() {};
 
   blender::StringRefNull name_get() final
   {

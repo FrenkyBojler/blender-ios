@@ -452,10 +452,17 @@ class OutToInMaps {
   const MeshAssembly *mesh_assembly_;
   const Mesh *joined_mesh_;
   const Mesh *output_mesh_;
+  const MeshOffsets *mesh_offsets_;
 
  public:
-  OutToInMaps(const MeshAssembly *mesh_assembly, const Mesh *joined_mesh, const Mesh *output_mesh)
-      : mesh_assembly_(mesh_assembly), joined_mesh_(joined_mesh), output_mesh_(output_mesh)
+  OutToInMaps(const MeshAssembly *mesh_assembly,
+              const Mesh *joined_mesh,
+              const Mesh *output_mesh,
+              const MeshOffsets *mesh_offsets)
+      : mesh_assembly_(mesh_assembly),
+        joined_mesh_(joined_mesh),
+        output_mesh_(output_mesh),
+        mesh_offsets_(mesh_offsets)
   {
   }
 
@@ -588,6 +595,34 @@ static bool same_dir(const float3 &p1, const float3 &p2, const float3 &q1, const
   return (math::abs(abs_cos_pq - 1.0f) <= 1e-5f);
 }
 
+/**
+ * What mesh_id corresponds to a given face_id, assuming that the face_id
+ * is in one of the ranges of mesh_offsets.face_offsets.
+ */
+static inline int mesh_id_for_face(const int face_id, const MeshOffsets &mesh_offsets)
+{
+  for (const int mesh_id : mesh_offsets.face_offsets.index_range()) {
+    if (mesh_offsets.face_offsets[mesh_id].contains(face_id)) {
+      return mesh_id;
+    }
+  }
+  return -1;
+}
+
+/**
+ * What is the vertex index range for the face \a face_id, assuming that face_id is one of the
+ * ranges of mesh_offsets.face_offsets.
+ */
+static IndexRange vertex_range_for_face(const int face_id, const MeshOffsets &mesh_offsets)
+{
+  const int mesh_id = mesh_id_for_face(face_id, mesh_offsets);
+  if (mesh_id == -1) {
+    return IndexRange();
+  }
+  return IndexRange::from_begin_end(mesh_offsets.vert_start[mesh_id],
+                                    mesh_offsets.vert_start[mesh_id + 1]);
+}
+
 Span<int> OutToInMaps::ensure_edge_map()
 {
   constexpr int dbg_level = 0;
@@ -637,6 +672,7 @@ Span<int> OutToInMaps::ensure_edge_map()
   for (const int out_face_index : IndexRange(output_mesh_->faces_num)) {
     const int in_face_index = face_map[out_face_index];
     const IndexRange in_face = in_faces[in_face_index];
+    const IndexRange in_face_vert_range = vertex_range_for_face(in_face_index, *mesh_offsets_);
     if (dbg_level > 0) {
       std::cout << "process out_face = " << out_face_index << ", in_face = " << in_face_index
                 << "\n";
@@ -689,8 +725,8 @@ Span<int> OutToInMaps::ensure_edge_map()
         }
         edge_rep = in_e;
       }
-      else if (vert_map[out_e_v[1]] == -1) {
-        /* Here the "ends at" vertex of the output edge is a new vertex.
+      else if (!in_face_vert_range.contains(vert_map[out_e_v[1]])) {
+        /* Here the "ends at" vertex of the output edge is a new vertex or in a different mesh.
          * Does the edge at least go in the same direction as in_e?
          */
         if (same_dir(out_positions[out_e_v[0]],
@@ -1212,7 +1248,7 @@ static void merge_out_faces(Vector<OutFace> &faces)
   }
 }
 
-/** Return true if the ponts p0, p1, p2 are approximately in a straight line. */
+/** Return true if the points p0, p1, p2 are approximately in a straight line. */
 static inline bool approx_in_line(const float3 &p0, const float3 &p1, const float3 &p2)
 {
   float cos_ang = math::dot(math::normalize(p1 - p0), math::normalize(p2 - p1));
@@ -1525,7 +1561,7 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
           const Span<int> out_face_verts = output_corner_verts.slice(out_face);
           weights.resize(in_face_size);
           cos_2d.resize(in_face_size);
-          float(*cos_2d_p)[2] = reinterpret_cast<float(*)[2]>(cos_2d.data());
+          float (*cos_2d_p)[2] = reinterpret_cast<float (*)[2]>(cos_2d.data());
           const float3 axis_dominant = bke::mesh::face_normal_calc(input_vert_positions,
                                                                    in_face_verts);
           axis_dominant_v3_to_m3(axis_mat.ptr(), axis_dominant);
@@ -1579,20 +1615,6 @@ static void interpolate_corner_attributes(bke::MutableAttributeAccessor &output_
   for (bke::GSpanAttributeWriter &writer : writers) {
     writer.finish();
   }
-}
-
-/**
- * What mesh_id corresponds to a given face_id, assuming that the face_id
- * is in one of the ranges of mesh_offsets.face_offsets.
- */
-static inline int mesh_id_for_face(int face_id, const MeshOffsets &mesh_offsets)
-{
-  for (const int mesh_id : mesh_offsets.face_offsets.index_range()) {
-    if (mesh_offsets.face_offsets[mesh_id].contains(face_id)) {
-      return mesh_id;
-    }
-  }
-  return -1;
 }
 
 /**
@@ -1802,13 +1824,6 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     });
   }
 
-  {
-#  ifdef DEBUG_TIME
-    timeit::ScopedTimer timer_e("calculating edges");
-#  endif
-    bke::mesh_calc_edges(*mesh, false, false);
-  }
-
   /* Set the vertex positions, using implicit sharing to avoid copying any data. */
   {
 #  ifdef DEBUG_TIME
@@ -1823,7 +1838,16 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     sharing_info->remove_user_and_delete_if_last();
   }
 
-  OutToInMaps out_to_in(&ma, joined_mesh, mesh);
+  {
+#  ifdef DEBUG_TIME
+    timeit::ScopedTimer timer_e("calculating edges");
+#  endif
+    bke::mesh_calc_edges(*mesh, false, false);
+  }
+
+  BLI_assert(BKE_mesh_is_valid(mesh));
+
+  OutToInMaps out_to_in(&ma, joined_mesh, mesh, &mesh_offsets);
 
   {
 #  ifdef DEBUG_TIME

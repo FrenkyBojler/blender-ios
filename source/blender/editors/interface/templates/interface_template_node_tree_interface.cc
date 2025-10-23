@@ -7,6 +7,7 @@
  */
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_interface.hh"
 
@@ -52,7 +53,7 @@ class NodeTreeInterfaceDragController : public AbstractViewItemDragController {
                                            bNodeTree &tree);
   ~NodeTreeInterfaceDragController() override = default;
 
-  eWM_DragDataType get_drag_type() const override;
+  std::optional<eWM_DragDataType> get_drag_type() const override;
 
   void *create_drag_data() const override;
 };
@@ -223,6 +224,20 @@ class NodePanelViewItem : public BasicTreeViewItem {
     return &panel_ == &other_item->panel_;
   }
 
+  std::optional<bool> should_be_collapsed() const override
+  {
+    return panel_.flag & NODE_INTERFACE_PANEL_IS_COLLAPSED;
+  }
+
+  bool set_collapsed(const bool collapsed) override
+  {
+    if (!AbstractTreeViewItem::set_collapsed(collapsed)) {
+      return false;
+    }
+    SET_FLAG_FROM_TEST(panel_.flag, collapsed, NODE_INTERFACE_PANEL_IS_COLLAPSED);
+    return true;
+  }
+
   bool supports_renaming() const override
   {
     return !ID_IS_LINKED(&nodetree_);
@@ -318,6 +333,9 @@ class NodeTreeInterfaceView : public AbstractTreeView {
 
 std::unique_ptr<AbstractViewItemDragController> NodeSocketViewItem::create_drag_controller() const
 {
+  if (!ID_IS_EDITABLE(&nodetree_.id)) {
+    return nullptr;
+  }
   return std::make_unique<NodeTreeInterfaceDragController>(
       static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), socket_.item, nodetree_);
 }
@@ -329,6 +347,9 @@ std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
 
 std::unique_ptr<AbstractViewItemDragController> NodePanelViewItem::create_drag_controller() const
 {
+  if (!ID_IS_EDITABLE(&nodetree_.id)) {
+    return nullptr;
+  }
   return std::make_unique<NodeTreeInterfaceDragController>(
       static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), panel_.item, nodetree_);
 }
@@ -345,7 +366,7 @@ NodeTreeInterfaceDragController::NodeTreeInterfaceDragController(NodeTreeInterfa
 {
 }
 
-eWM_DragDataType NodeTreeInterfaceDragController::get_drag_type() const
+std::optional<eWM_DragDataType> NodeTreeInterfaceDragController::get_drag_type() const
 {
   return WM_DRAG_NODE_TREE_INTERFACE;
 }
@@ -546,7 +567,7 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 
 }  // namespace blender::ui::nodes
 
-void uiTemplateNodeTreeInterface(uiLayout *layout, bContext *C, PointerRNA *ptr)
+void uiTemplateNodeTreeInterface(uiLayout *layout, const bContext *C, PointerRNA *ptr)
 {
   if (!ptr->data) {
     return;

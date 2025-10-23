@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <complex>
+#include <cstdint>
 #include <limits>
 
 #include "MEM_guardedalloc.h"
@@ -29,17 +30,14 @@
 #include "BLI_noise.hh"
 #include "BLI_task.hh"
 
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
-
-#include "RNA_access.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
 
+#include "COM_algorithm_convolve.hh"
 #include "COM_algorithm_symmetric_separable_blur.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
@@ -51,15 +49,58 @@
 
 namespace blender::nodes::node_composite_glare_cc {
 
-NODE_STORAGE_FUNCS(NodeGlare)
+static const EnumPropertyItem type_items[] = {
+    {CMP_NODE_GLARE_BLOOM, "BLOOM", 0, N_("Bloom"), ""},
+    {CMP_NODE_GLARE_GHOST, "GHOSTS", 0, N_("Ghosts"), ""},
+    {CMP_NODE_GLARE_STREAKS, "STREAKS", 0, N_("Streaks"), ""},
+    {CMP_NODE_GLARE_FOG_GLOW, "FOG_GLOW", 0, N_("Fog Glow"), ""},
+    {CMP_NODE_GLARE_SIMPLE_STAR, "SIMPLE_STAR", 0, N_("Simple Star"), ""},
+    {CMP_NODE_GLARE_SUN_BEAMS, "SUN_BEAMS", 0, N_("Sun Beams"), ""},
+    {CMP_NODE_GLARE_KERNEL, "KERNEL", 0, N_("Kernel"), ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem quality_items[] = {
+    {CMP_NODE_GLARE_QUALITY_HIGH, "HIGH", 0, N_("High"), ""},
+    {CMP_NODE_GLARE_QUALITY_MEDIUM, "MEDIUM", 0, N_("Medium"), ""},
+    {CMP_NODE_GLARE_QUALITY_LOW, "LOW", 0, N_("Low"), ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+enum class KernelDataType : uint8_t {
+  Float = 0,
+  Color = 1,
+};
+
+static const EnumPropertyItem kernel_data_type_items[] = {
+    {int(KernelDataType::Float),
+     "FLOAT",
+     0,
+     N_("Float"),
+     N_("The kernel is a float and will be convolved with all input channels")},
+    {int(KernelDataType::Color),
+     "COLOR",
+     0,
+     N_("Color"),
+     N_("The kernel is a color and each channel of the kernel will be convolved with each "
+        "respective channel in the input")},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
+  b.add_input<decl::Color>("Image")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
+      .structure_type(StructureType::Dynamic);
   b.add_output<decl::Color>("Image")
       .structure_type(StructureType::Dynamic)
-      .description("The image with the generated glare added");
+      .description("The image with the generated glare added")
+      .align_with_previous();
+
   b.add_output<decl::Color>("Glare")
       .structure_type(StructureType::Dynamic)
       .description("The generated glare");
@@ -67,21 +108,14 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic)
       .description("The extracted highlights from which the glare was generated");
 
-  b.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
-#ifndef WITH_FFTW3
-    const int glare_type = RNA_enum_get(ptr, "glare_type");
-    if (glare_type == CMP_NODE_GLARE_FOG_GLOW) {
-      layout->label(RPT_("Disabled, built without FFTW"), ICON_ERROR);
-    }
-#endif
-
-    layout->prop(ptr, "glare_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-    layout->prop(ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  });
-
-  b.add_input<decl::Color>("Image")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Menu>("Type")
+      .default_value(CMP_NODE_GLARE_STREAKS)
+      .static_items(type_items)
+      .optional_label();
+  b.add_input<decl::Menu>("Quality")
+      .default_value(CMP_NODE_GLARE_QUALITY_MEDIUM)
+      .static_items(quality_items)
+      .optional_label();
 
   PanelDeclarationBuilder &highlights_panel = b.add_panel("Highlights").default_closed(true);
   highlights_panel.add_input<decl::Float>("Threshold", "Highlights Threshold")
@@ -132,19 +166,28 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
+      .usage_by_menu("Type",
+                     {CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM, CMP_NODE_GLARE_SUN_BEAMS})
       .description(
           "The size of the glare relative to the image. 1 means the glare covers the entire "
           "image, 0.5 means the glare covers half the image, and so on");
-  glare_panel.add_input<decl::Int>("Streaks").default_value(4).min(1).max(16).description(
-      "The number of streaks");
+  glare_panel.add_input<decl::Int>("Streaks")
+      .default_value(4)
+      .min(1)
+      .max(16)
+      .usage_by_menu("Type", CMP_NODE_GLARE_STREAKS)
+      .description("The number of streaks");
   glare_panel.add_input<decl::Float>("Streaks Angle")
       .default_value(0.0f)
       .subtype(PROP_ANGLE)
+      .usage_by_menu("Type", CMP_NODE_GLARE_STREAKS)
       .description("The angle that the first streak makes with the horizontal axis");
   glare_panel.add_input<decl::Int>("Iterations")
       .default_value(3)
       .min(2)
       .max(5)
+      .usage_by_menu("Type",
+                     {CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS})
       .description(
           "The number of ghosts for Ghost glare or the quality and spread of Glare for Streaks "
           "and Simple Star");
@@ -153,15 +196,18 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .min(0.75f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
+      .usage_by_menu("Type", {CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_STREAKS})
       .description("Streak fade-out factor");
   glare_panel.add_input<decl::Float>("Color Modulation")
       .default_value(0.25)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
+      .usage_by_menu("Type", {CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS})
       .description("Modulates colors of streaks and ghosts for a spectral dispersion effect");
   glare_panel.add_input<decl::Bool>("Diagonal", "Diagonal Star")
       .default_value(true)
+      .usage_by_menu("Type", CMP_NODE_GLARE_SIMPLE_STAR)
       .description("Align the star diagonally");
   glare_panel.add_input<decl::Vector>("Sun Position")
       .subtype(PROP_FACTOR)
@@ -169,6 +215,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value({0.5f, 0.5f})
       .min(0.0f)
       .max(1.0f)
+      .usage_by_menu("Type", CMP_NODE_GLARE_SUN_BEAMS)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
@@ -177,64 +224,32 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0)
       .subtype(PROP_FACTOR)
+      .usage_by_menu("Type", CMP_NODE_GLARE_SUN_BEAMS)
       .description(
           "The amount of jitter to introduce while computing rays, higher jitter can be faster "
           "but can produce grainy or noisy results");
+  glare_panel.add_input<decl::Menu>("Kernel Data Type")
+      .default_value(KernelDataType::Float)
+      .static_items(kernel_data_type_items)
+      .usage_by_menu("Type", CMP_NODE_GLARE_KERNEL)
+      .optional_label();
+  glare_panel.add_input<decl::Float>("Kernel", "Float Kernel")
+      .hide_value()
+      .structure_type(StructureType::Dynamic)
+      .usage_by_menu("Kernel Data Type", int(KernelDataType::Float))
+      .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
+  glare_panel.add_input<decl::Color>("Kernel", "Color Kernel")
+      .hide_value()
+      .structure_type(StructureType::Dynamic)
+      .usage_by_menu("Kernel Data Type", int(KernelDataType::Color))
+      .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
 {
+  /* Unused, but kept for forward compatibility. */
   NodeGlare *ndg = MEM_callocN<NodeGlare>(__func__);
-  ndg->quality = 1;
-  ndg->type = CMP_NODE_GLARE_STREAKS;
   node->storage = ndg;
-}
-
-static void node_update(bNodeTree *ntree, bNode *node)
-{
-  const CMPNodeGlareType glare_type = static_cast<CMPNodeGlareType>(node_storage(*node).type);
-
-  bNodeSocket *size_input = bke::node_find_socket(*node, SOCK_IN, "Size");
-  blender::bke::node_set_socket_availability(
-      *ntree,
-      *size_input,
-      ELEM(glare_type, CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM, CMP_NODE_GLARE_SUN_BEAMS));
-
-  bNodeSocket *iterations_input = bke::node_find_socket(*node, SOCK_IN, "Iterations");
-  blender::bke::node_set_socket_availability(
-      *ntree,
-      *iterations_input,
-      ELEM(glare_type, CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS));
-
-  bNodeSocket *fade_input = bke::node_find_socket(*node, SOCK_IN, "Fade");
-  blender::bke::node_set_socket_availability(
-      *ntree, *fade_input, ELEM(glare_type, CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_STREAKS));
-
-  bNodeSocket *color_modulation_input = bke::node_find_socket(*node, SOCK_IN, "Color Modulation");
-  blender::bke::node_set_socket_availability(
-      *ntree,
-      *color_modulation_input,
-      ELEM(glare_type, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS));
-
-  bNodeSocket *streaks_input = bke::node_find_socket(*node, SOCK_IN, "Streaks");
-  blender::bke::node_set_socket_availability(
-      *ntree, *streaks_input, glare_type == CMP_NODE_GLARE_STREAKS);
-
-  bNodeSocket *streaks_angle_input = bke::node_find_socket(*node, SOCK_IN, "Streaks Angle");
-  blender::bke::node_set_socket_availability(
-      *ntree, *streaks_angle_input, glare_type == CMP_NODE_GLARE_STREAKS);
-
-  bNodeSocket *diagonal_star_input = bke::node_find_socket(*node, SOCK_IN, "Diagonal Star");
-  blender::bke::node_set_socket_availability(
-      *ntree, *diagonal_star_input, glare_type == CMP_NODE_GLARE_SIMPLE_STAR);
-
-  bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Sun Position");
-  blender::bke::node_set_socket_availability(
-      *ntree, *source_input, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
-
-  bNodeSocket *jitter_steps = bke::node_find_socket(*node, SOCK_IN, "Jitter");
-  blender::bke::node_set_socket_availability(
-      *ntree, *jitter_steps, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 }
 
 class SocketSearchOp {
@@ -243,7 +258,8 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("CompositorNodeGlare");
-    node_storage(node).type = this->type;
+    bNodeSocket &type_socket = *blender::bke::node_find_socket(node, SOCK_IN, "Type");
+    type_socket.default_value_typed<bNodeSocketValueMenu>()->value = this->type;
     params.update_and_connect_available_socket(node, "Image");
   }
 };
@@ -261,6 +277,7 @@ static void gather_link_searches(GatherLinkSearchOpParams &params)
   params.add_item(IFACE_("Ghost"), SocketSearchOp{CMP_NODE_GLARE_GHOST});
   params.add_item(IFACE_("Bloom"), SocketSearchOp{CMP_NODE_GLARE_BLOOM});
   params.add_item(IFACE_("Sun Beams"), SocketSearchOp{CMP_NODE_GLARE_SUN_BEAMS});
+  params.add_item(IFACE_("Kernel"), SocketSearchOp{CMP_NODE_GLARE_KERNEL});
 }
 
 using namespace blender::compositor;
@@ -334,7 +351,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_1f(shader, "threshold", this->get_threshold());
     GPU_shader_uniform_1f(shader, "highlights_smoothness", this->get_highlights_smoothness());
     GPU_shader_uniform_1f(shader, "max_brightness", this->get_maximum_brightness());
-    GPU_shader_uniform_1i(shader, "quality", node_storage(bnode()).quality);
+    GPU_shader_uniform_1i(shader, "quality", this->get_quality());
 
     const Result &input_image = get_input("Image");
     GPU_texture_filter_mode(input_image, true);
@@ -366,8 +383,7 @@ class GlareOperation : public NodeOperation {
     Result output = context().create_result(ResultType::Color);
     output.allocate_texture(highlights_size);
 
-    const CMPNodeGlareQuality quality = static_cast<CMPNodeGlareQuality>(
-        node_storage(bnode()).quality);
+    const CMPNodeGlareQuality quality = this->get_quality();
     const int2 input_size = input.domain().size;
 
     parallel_for(highlights_size, [&](const int2 texel) {
@@ -597,7 +613,7 @@ class GlareOperation : public NodeOperation {
       return this->context().create_result(ResultType::Color);
     }
 
-    switch (node_storage(bnode()).type) {
+    switch (this->get_type()) {
       case CMP_NODE_GLARE_SIMPLE_STAR:
         return this->execute_simple_star(highlights_result);
       case CMP_NODE_GLARE_FOG_GLOW:
@@ -610,10 +626,11 @@ class GlareOperation : public NodeOperation {
         return this->execute_bloom(highlights_result);
       case CMP_NODE_GLARE_SUN_BEAMS:
         return this->execute_sun_beams(highlights_result);
-      default:
-        BLI_assert_unreachable();
-        return this->context().create_result(ResultType::Color);
+      case CMP_NODE_GLARE_KERNEL:
+        return this->execute_kernel(highlights_result);
     }
+
+    return this->execute_simple_star(highlights_result);
   }
 
   /* Glare should be computed either because the glare output is needed directly or the image
@@ -1395,7 +1412,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_4fv_array(shader,
                                  "color_modulators",
                                  color_modulators.size(),
-                                 (const float(*)[4])color_modulators.data());
+                                 (const float (*)[4])color_modulators.data());
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
@@ -2387,6 +2404,124 @@ class GlareOperation : public NodeOperation {
   }
 
   /* ----------
+   * Kernel.
+   * ---------- */
+
+  Result execute_kernel(const Result &highlights)
+  {
+    const Result &kernel = this->get_kernel_input();
+    Result kernel_result = this->context().create_result(ResultType::Color);
+
+    if (kernel.is_single_value()) {
+      kernel_result.allocate_texture(highlights.domain());
+      if (this->context().use_gpu()) {
+        GPU_texture_copy(kernel_result, highlights);
+      }
+      else {
+        parallel_for(kernel_result.domain().size, [&](const int2 texel) {
+          kernel_result.store_pixel(texel, highlights.load_pixel<float4>(texel));
+        });
+      }
+      return kernel_result;
+    }
+
+    if (this->get_quality() == CMP_NODE_GLARE_QUALITY_HIGH) {
+      convolve(this->context(), highlights, kernel, kernel_result, true);
+    }
+    else {
+      Result downsampled_kernel = this->downsample_kernel(kernel);
+      convolve(this->context(), highlights, downsampled_kernel, kernel_result, true);
+      downsampled_kernel.release();
+    }
+
+    return kernel_result;
+  }
+
+  Result downsample_kernel(const Result &kernel)
+  {
+    if (this->context().use_gpu()) {
+      return this->downsample_kernel_gpu(kernel);
+    }
+
+    return this->downsample_kernel_cpu(kernel);
+  }
+
+  Result downsample_kernel_cpu(const Result &kernel)
+  {
+    Result downsampled_kernel = this->context().create_result(kernel.type());
+    const int2 size = kernel.domain().size / this->get_quality_factor();
+    downsampled_kernel.allocate_texture(size);
+
+    if (kernel.type() == ResultType::Float) {
+      parallel_for(size, [&](const int2 texel) {
+        const float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(size);
+        downsampled_kernel.store_pixel(texel,
+                                       kernel.sample_bilinear_extended(normalized_coordinates).x);
+      });
+    }
+    else {
+      parallel_for(size, [&](const int2 texel) {
+        const float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(size);
+        downsampled_kernel.store_pixel(texel,
+                                       kernel.sample_bilinear_extended(normalized_coordinates));
+      });
+    }
+
+    return downsampled_kernel;
+  }
+
+  Result downsample_kernel_gpu(const Result &kernel)
+  {
+    Result downsampled_kernel = this->context().create_result(kernel.type());
+    const int2 size = kernel.domain().size / this->get_quality_factor();
+    downsampled_kernel.allocate_texture(size);
+
+    gpu::Shader *shader = context().get_shader(this->get_kernel_downsample_shader_name(kernel));
+    GPU_shader_bind(shader);
+
+    GPU_texture_filter_mode(kernel, true);
+    kernel.bind_as_texture(shader, "input_tx");
+
+    downsampled_kernel.bind_as_image(shader, "output_img");
+
+    compute_dispatch_threads_at_least(shader, size);
+
+    GPU_shader_unbind();
+    kernel.unbind_as_texture();
+    downsampled_kernel.unbind_as_image();
+
+    return downsampled_kernel;
+  }
+
+  const char *get_kernel_downsample_shader_name(const Result &kernel)
+  {
+    if (kernel.type() == ResultType::Float) {
+      return "compositor_glare_kernel_downsample_float";
+    }
+    return "compositor_glare_kernel_downsample_color";
+  }
+
+  const Result &get_kernel_input()
+  {
+    switch (this->get_kernel_data_type()) {
+      case KernelDataType::Float:
+        return this->get_input("Float Kernel");
+      case KernelDataType::Color:
+        return this->get_input("Color Kernel");
+    }
+
+    return this->get_input("Float Kernel");
+  }
+
+  KernelDataType get_kernel_data_type()
+  {
+    const Result &input = this->get_input("Kernel Data Type");
+    const MenuValue default_menu_value = MenuValue(KernelDataType::Float);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<KernelDataType>(menu_value.value);
+  }
+
+  /* ----------
    * Glare Mix.
    * ---------- */
 
@@ -2540,7 +2675,7 @@ class GlareOperation : public NodeOperation {
    * strength anyways. */
   float get_normalization_scale()
   {
-    switch (static_cast<CMPNodeGlareType>(node_storage(bnode()).type)) {
+    switch (this->get_type()) {
       case CMP_NODE_GLARE_BLOOM:
         /* Bloom adds a number of passes equal to the chain length, if the input is constant, each
          * of those passes will hold the same constant, so we need to normalize by the chain
@@ -2553,14 +2688,24 @@ class GlareOperation : public NodeOperation {
       case CMP_NODE_GLARE_STREAKS:
       case CMP_NODE_GLARE_GHOST:
       case CMP_NODE_GLARE_SUN_BEAMS:
+      case CMP_NODE_GLARE_KERNEL:
         return 1.0f;
     }
+
     return 1.0f;
   }
 
   /* -------
    * Common.
    * ------- */
+
+  CMPNodeGlareType get_type()
+  {
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_GLARE_STREAKS);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeGlareType>(menu_value.value);
+  }
 
   float get_strength()
   {
@@ -2624,7 +2769,15 @@ class GlareOperation : public NodeOperation {
    * factor. */
   int get_quality_factor()
   {
-    return 1 << node_storage(bnode()).quality;
+    return 1 << this->get_quality();
+  }
+
+  CMPNodeGlareQuality get_quality()
+  {
+    const Result &input = this->get_input("Quality");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_GLARE_QUALITY_MEDIUM);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeGlareQuality>(menu_value.value);
   }
 };
 
@@ -2647,7 +2800,6 @@ static void register_node_type_cmp_glare()
   ntype.enum_name_legacy = "GLARE";
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_glare_declare;
-  ntype.updatefunc = file_ns::node_update;
   ntype.initfunc = file_ns::node_composit_init_glare;
   ntype.gather_link_search_ops = file_ns::gather_link_searches;
   blender::bke::node_type_storage(

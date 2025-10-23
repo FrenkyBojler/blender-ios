@@ -115,6 +115,7 @@ class Shader {
     return parent_shader_;
   }
 
+  static void set_scene_linear_to_xyz_uniform(gpu::Shader *shader);
   static void set_srgb_uniform(Context *ctx, gpu::Shader *shader);
   static void set_framebuffer_srgb_target(int use_srgb_to_linear);
 
@@ -273,7 +274,7 @@ class ShaderCompiler {
   Shader *compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation);
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);
-  virtual void specialize_shader(ShaderSpecialization & /*specialization*/){};
+  virtual void specialize_shader(ShaderSpecialization & /*specialization*/) {};
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos,
                             CompilationPriority priority);
@@ -301,7 +302,7 @@ struct LogCursor {
   int source = -1;
   int row = -1;
   int column = -1;
-  StringRef file_name_and_error_line = {};
+  std::string file_name_and_error_line;
 };
 
 struct GPULogItem {
@@ -326,6 +327,10 @@ class GPULogParser {
   bool at_number(const char *log_line) const;
   bool at_any(const char *log_line, const StringRef chars) const;
   int parse_number(const char *log_line, const char **r_new_position) const;
+
+  static size_t line_start_get(StringRefNull source_combined, size_t target_line);
+  static StringRef filename_get(StringRefNull source_combined, size_t pos);
+  static size_t source_line_get(StringRefNull source_combined, size_t pos);
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GPULogParser");
 };

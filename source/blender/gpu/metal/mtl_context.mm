@@ -609,8 +609,8 @@ id<MTLBuffer> MTLContext::get_null_attribute_buffer()
   return null_attribute_buffer_;
 }
 
-gpu::MTLTexture *MTLContext::get_dummy_texture(eGPUTextureType type,
-                                               eGPUSamplerFormat sampler_format)
+gpu::MTLTexture *MTLContext::get_dummy_texture(GPUTextureType type,
+                                               GPUSamplerFormat sampler_format)
 {
   /* Decrement 1 from texture type as they start from 1 and go to 32 (inclusive). Remap to 0..31 */
   gpu::MTLTexture *dummy_tex = dummy_textures_[sampler_format][type - 1];
@@ -849,7 +849,7 @@ void MTLContext::set_viewports(int count, const int (&viewports)[GPU_MAX_VIEWPOR
   BLI_assert(this);
   bool changed = (this->pipeline_state.num_active_viewports != count);
   for (int v = 0; v < count; v++) {
-    const int(&viewport_info)[4] = viewports[v];
+    const int (&viewport_info)[4] = viewports[v];
 
     BLI_assert(viewport_info[0] >= 0);
     BLI_assert(viewport_info[1] >= 0);
@@ -2408,7 +2408,9 @@ void MTLContext::sampler_bind(MTLSamplerState sampler_state, uint sampler_unit)
   this->pipeline_state.sampler_bindings[sampler_unit] = {true, sampler_state};
 }
 
-void MTLContext::texture_unbind(gpu::MTLTexture *mtl_texture, bool is_image)
+void MTLContext::texture_unbind(gpu::MTLTexture *mtl_texture,
+                                bool is_image,
+                                StateManager *state_manager)
 {
   BLI_assert(mtl_texture);
 
@@ -2422,6 +2424,9 @@ void MTLContext::texture_unbind(gpu::MTLTexture *mtl_texture, bool is_image)
     if (resource_bind_table[i].texture_resource == mtl_texture) {
       resource_bind_table[i].texture_resource = nullptr;
       resource_bind_table[i].used = false;
+      if (is_image) {
+        state_manager->image_formats[i] = TextureWriteFormat::Invalid;
+      }
     }
   }
 

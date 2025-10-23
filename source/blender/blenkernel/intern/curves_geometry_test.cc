@@ -89,33 +89,47 @@ TEST(curves_geometry, CyclicOffsets)
 {
   CurvesGeometry curves = create_basic_curves(100, 10);
   {
-    const std::optional<Span<int>> cyclic_offsets = curves.cyclic_offsets();
-    EXPECT_FALSE(cyclic_offsets.has_value());
+    EXPECT_FALSE(curves.has_cyclic_curve());
   }
   {
     curves.cyclic_for_write().fill(true);
     curves.tag_topology_changed();
-    const std::optional<Span<int>> cyclic_offsets = curves.cyclic_offsets();
-    EXPECT_TRUE(cyclic_offsets.has_value());
-    EXPECT_EQ_SPAN<int>(*cyclic_offsets, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    EXPECT_TRUE(curves.has_cyclic_curve());
   }
   {
     curves.cyclic_for_write().fill(false);
     curves.tag_topology_changed();
-    const std::optional<Span<int>> cyclic_offsets = curves.cyclic_offsets();
-    EXPECT_FALSE(cyclic_offsets.has_value());
+    EXPECT_FALSE(curves.has_cyclic_curve());
   }
   {
     curves.attributes_for_write().remove("cyclic");
-    const std::optional<Span<int>> cyclic_offsets = curves.cyclic_offsets();
-    EXPECT_FALSE(cyclic_offsets.has_value());
+    EXPECT_FALSE(curves.has_cyclic_curve());
   }
   {
     curves.cyclic_for_write().copy_from(
         {false, true, false, true, false, false, false, false, true, false});
     curves.tag_topology_changed();
-    const std::optional<Span<int>> cyclic_offsets = curves.cyclic_offsets();
-    EXPECT_EQ_SPAN<int>(*cyclic_offsets, {0, 0, 1, 1, 2, 2, 2, 2, 2, 3, 3});
+    EXPECT_TRUE(curves.has_cyclic_curve());
+  }
+}
+
+TEST(curves_geometry, InvalidResolution)
+{
+  CurvesGeometry curves = create_basic_curves(40, 4);
+  curves.curve_types_for_write().copy_from({
+      CURVE_TYPE_BEZIER,
+      CURVE_TYPE_NURBS,
+      CURVE_TYPE_CATMULL_ROM,
+      CURVE_TYPE_POLY,
+  });
+  curves.update_curve_types();
+  curves.resolution_for_write().fill(0);
+
+  static const Array<int> expected_offsets{0, 10, 20, 30, 40};
+
+  OffsetIndices<int> actual_offsets = curves.evaluated_points_by_curve();
+  for (const int i : actual_offsets.index_range()) {
+    EXPECT_EQ(expected_offsets[i], actual_offsets.data()[i]);
   }
 }
 
@@ -547,8 +561,14 @@ TEST(curves_geometry, BasisCacheBezierSegmentDeg2)
   EXPECT_EQ(evaluated_num, resolution + 1);
 
   curves::nurbs::BasisCache cache;
-  curves::nurbs::calculate_basis_cache(
-      point_count, evaluated_num, order, resolution, is_cyclic, knots, cache);
+  curves::nurbs::calculate_basis_cache(point_count,
+                                       evaluated_num,
+                                       order,
+                                       resolution,
+                                       is_cyclic,
+                                       KnotsMode::NURBS_KNOT_MODE_CUSTOM,
+                                       knots,
+                                       cache);
   EXPECT_EQ_SPAN<float>(expectation, cache.weights);
 }
 
@@ -609,8 +629,14 @@ TEST(curves_geometry, BasisCacheNonUniformDeg2)
   EXPECT_EQ(evaluated_num, 5 * resolution + 1);
 
   curves::nurbs::BasisCache cache;
-  curves::nurbs::calculate_basis_cache(
-      point_count, evaluated_num, order, resolution, is_cyclic, knots, cache);
+  curves::nurbs::calculate_basis_cache(point_count,
+                                       evaluated_num,
+                                       order,
+                                       resolution,
+                                       is_cyclic,
+                                       KnotsMode::NURBS_KNOT_MODE_CUSTOM,
+                                       knots,
+                                       cache);
   EXPECT_NEAR_SPAN<float>(expectation, cache.weights, 1e-6f);
 }
 

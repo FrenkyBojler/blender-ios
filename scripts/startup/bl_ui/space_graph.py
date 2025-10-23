@@ -3,19 +3,15 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from bpy.types import Header, Menu, Panel
-from bpy.app.translations import contexts as i18n_contexts
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+    contexts as i18n_contexts,
+)
 from bl_ui.space_dopesheet import (
     DopesheetFilterPopoverBase,
     dopesheet_filter,
 )
 from bl_ui.space_time import playback_controls
-from bl_ui.utils import (
-    PlayheadSnappingPanel,
-)
-
-
-class GRAPH_PT_playhead_snapping(PlayheadSnappingPanel, Panel):
-    bl_space_type = 'GRAPH_EDITOR'
 
 
 def drivers_editor_footer(layout, context):
@@ -28,15 +24,21 @@ def drivers_editor_footer(layout, context):
         return
 
     layout.separator_spacer()
-    layout.label(text="Driver: {:s} ({:s})".format(act_fcurve.id_data.name, act_fcurve.data_path))
+    layout.label(
+        text=iface_("Driver: {:s} ({:s})").format(
+            act_fcurve.id_data.name,
+            act_fcurve.data_path,
+        ),
+        translate=False,
+    )
 
     if act_driver.variables:
         layout.separator(type='LINE')
-        layout.label(text="Variables: {:d}".format(len(act_driver.variables)))
+        layout.label(text=iface_("Variables: {:d}").format(len(act_driver.variables)), translate=False)
 
     if act_driver.type == 'SCRIPTED' and act_driver.expression:
         layout.separator(type='LINE')
-        layout.label(text="Expression: {:s}".format(act_driver.expression))
+        layout.label(text=iface_("Expression: {:s}").format(act_driver.expression), translate=False)
 
 
 class GRAPH_HT_header(Header):
@@ -94,11 +96,6 @@ class GRAPH_HT_header(Header):
                 panel="GRAPH_PT_snapping",
                 text="",
             )
-
-            row = layout.row(align=True)
-            row.prop(tool_settings, "use_snap_playhead", text="")
-            sub = row.row(align=True)
-            sub.popover(panel="GRAPH_PT_playhead_snapping", text="")
 
         row = layout.row(align=True)
         row.prop(tool_settings, "use_proportional_fcurve", text="", icon_only=True)
@@ -218,7 +215,7 @@ class GRAPH_MT_view(Menu):
         layout.prop(st, "show_region_ui")
         layout.prop(st, "show_region_hud")
         layout.prop(st, "show_region_channels")
-        layout.prop(st, "show_region_footer")
+        layout.prop(st, "show_region_footer", text="Playback Controls")
         layout.separator()
 
         layout.operator("graph.view_selected")
@@ -389,7 +386,7 @@ class GRAPH_MT_key_density(Menu):
     bl_label = "Density"
 
     def draw(self, _context):
-        from bl_ui_utils.layout import operator_context
+        from _bl_ui_utils.layout import operator_context
         layout = self.layout
         layout.operator("graph.decimate", text="Decimate (Ratio)").mode = 'RATIO'
         # Using the modal operation doesn't make sense for this variant
@@ -611,7 +608,6 @@ classes = (
     GRAPH_PT_filters,
     GRAPH_PT_snapping,
     GRAPH_PT_driver_snapping,
-    GRAPH_PT_playhead_snapping,
 )
 
 if __name__ == "__main__":  # only for live edit.

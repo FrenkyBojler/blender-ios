@@ -11,6 +11,7 @@
 #include <functional>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -147,9 +148,6 @@ extern const short ui_radial_dir_to_angle[8];
 
 /** Split number-buttons by ':' and align left/right. */
 #define USE_NUMBUTS_LR_ALIGN
-
-/** Use new 'align' computation code. */
-#define USE_UIBUT_SPATIAL_ALIGN
 
 /** #PieMenuData.flags */
 enum {
@@ -507,11 +505,19 @@ struct ColorPicker {
   bool is_init;
 
   /**
-   * HSV or HSL color in scene linear color space value used for number
-   * buttons. This is scene linear so that there is a clear correspondence
-   * to the scene linear RGB values.
+   * HSV or HSL in color picker space used for number sliders.
    */
-  float hsv_scene_linear[3];
+  float hsv_perceptual_slider[3];
+  float hsv_linear_slider[3];
+
+  /*
+   * RGB in color picker used for number sliders, when the space is not scene linear.
+   * When it is linear, the RNA property is used directly so that keyframing works.
+   */
+  float rgb_perceptual_slider[3];
+
+  /* Hex Color string */
+  char hexcol[128];
 
   /** Cubic saturation for the color wheel. */
   bool use_color_cubic;
@@ -559,7 +565,7 @@ enum uiButtonGroupFlag {
   /** The buttons in this group are inside a panel header. */
   UI_BUTTON_GROUP_PANEL_HEADER = (1 << 1),
 };
-ENUM_OPERATORS(uiButtonGroupFlag, UI_BUTTON_GROUP_PANEL_HEADER);
+ENUM_OPERATORS(uiButtonGroupFlag);
 
 /**
  * A group of button references, used by property search to keep track of sets of buttons that
@@ -751,6 +757,8 @@ void ui_window_to_region(const ARegion *region, int *x, int *y);
 void ui_window_to_region_rcti(const ARegion *region, rcti *rect_dst, const rcti *rct_src);
 void ui_window_to_region_rctf(const ARegion *region, rctf *rect_dst, const rctf *rct_src);
 void ui_region_to_window(const ARegion *region, int *x, int *y);
+void ui_region_to_window(
+    const ARegion *region, int region_x, int region_y, int *r_window_x, int *r_window_y);
 /**
  * Popups will add a margin to #ARegion.winrct for shadow,
  * for interactivity (point-inside tests for eg), we want the winrct without the margin added.
@@ -904,7 +912,7 @@ struct uiKeyNavLock {
   blender::int2 event_xy = blender::int2(0);
 };
 
-using uiBlockHandleCreateFunc = uiBlock *(*)(bContext *C, uiPopupBlockHandle *handle, void *arg1);
+using uiBlockHandleCreateFunc = uiBlock *(*)(bContext * C, uiPopupBlockHandle *handle, void *arg1);
 
 struct uiPopupBlockCreate {
   uiBlockCreateFunc create_func = nullptr;
@@ -1143,7 +1151,11 @@ void ui_layout_panel_popup_scroll_apply(Panel *panel, const float dy);
 /**
  * Draws in resolution of 48x4 colors.
  */
-void ui_draw_gradient(const rcti *rect, const float hsv[3], eButGradientType type, float alpha);
+void ui_draw_gradient(const rcti *rect,
+                      const float hsv[3],
+                      eButGradientType type,
+                      float alpha,
+                      const ColorManagedDisplay *display);
 
 /**
  * Draws rounded corner segments but inverted. Imagine each corner like a filled right triangle,
@@ -1538,7 +1550,6 @@ uiBut *ui_but_find_mouse_over_ex(const ARegion *region,
                                  const uiButFindPollFn find_poll,
                                  const void *find_custom_data)
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
-uiBut *ui_but_find_mouse_over(const ARegion *region, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 uiBut *ui_but_find_rect_over(const ARegion *region, const rcti *rect_px) ATTR_WARN_UNUSED_RESULT;
 
 uiBut *ui_list_find_mouse_over_ex(const ARegion *region, const int xy[2])

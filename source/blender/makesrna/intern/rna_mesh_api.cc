@@ -72,7 +72,7 @@ static void rna_Mesh_calc_tangents(Mesh *mesh, ReportList *reports, const char *
   }
 
   if (!uvmap) {
-    uvmap = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2);
+    uvmap = mesh->active_uv_map_name().c_str();
   }
 
   const bke::AttributeAccessor attributes = mesh->attributes();
@@ -314,8 +314,9 @@ void RNA_api_mesh(StructRNA *srna)
       "",
       "Also consider different smoothgroups sharing only vertices (but without any common edge) "
       "as neighbors, preventing them from sharing the same bitflag value. Only effective when "
-      "`use_bitflags` is set. WARNING: Will overflow (run out of available bits) easily with some "
-      "types of topology, e.g. large fans of sharp edges");
+      "``use_bitflags`` is set. "
+      "WARNING: Will overflow (run out of available bits) easily with some types of topology, "
+      "e.g. large fans of sharp edges");
   /* return values */
   parm = RNA_def_int_array(func, "poly_groups", 1, nullptr, 0, 0, "", "Smooth Groups", 0, 0);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_OUTPUT);
