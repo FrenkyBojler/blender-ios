@@ -1,2 +1,3 @@
 Referenced by commit 850882e4d2cd744877be0f0ad44d71280dd74bdb, Fix: uninitialized variable use
 Referenced by issue #148249, UV No Sync Selection: Vertices of not selected Face in UV Face element mode are display selected and are transformable
+Referenced by commit e98c62560fc15db614a74435137cd8dc6176b1c0, Fix #148557: UV edge selection with shared-vertices fails
