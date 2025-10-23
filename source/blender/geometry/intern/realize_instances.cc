@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLT_translation.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
 
@@ -23,6 +22,8 @@
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_type_conversions.hh"
+
+#include "BLT_translation.hh"
 
 namespace blender::geometry {
 
@@ -76,7 +77,7 @@ struct PointCloudRealizeInfo {
 
 struct RealizePointCloudTask {
   /** Starting index in the final realized point cloud. */
-  int64_t start_index;
+  int start_index;
   /** Preprocessed information about the point cloud. */
   const PointCloudRealizeInfo *pointcloud_info;
   /** Transformation that is applied to all positions. */
@@ -88,10 +89,10 @@ struct RealizePointCloudTask {
 
 /** Start indices in the final output mesh. */
 struct MeshElementStartIndices {
-  int64_t vertex = 0;
-  int64_t edge = 0;
-  int64_t face = 0;
-  int64_t loop = 0;
+  int vertex = 0;
+  int edge = 0;
+  int face = 0;
+  int loop = 0;
 };
 
 struct MeshRealizeInfo {
@@ -165,9 +166,9 @@ struct RealizeCurveInfo {
 
 /** Start indices in the final output curves data-block. */
 struct CurvesElementStartIndices {
-  int64_t point = 0;
-  int64_t curve = 0;
-  int64_t custom_knot = 0;
+  int point = 0;
+  int curve = 0;
+  int custom_knot = 0;
 };
 
 struct RealizeCurveTask {
@@ -191,7 +192,7 @@ struct GreasePencilRealizeInfo {
 
 struct RealizeGreasePencilTask {
   /** Index where the first layer is realized in the final grease pencil. */
-  int64_t start_index;
+  int start_index;
   const GreasePencilRealizeInfo *grease_pencil_info;
   float4x4 transform;
   AttributeFallbacksArray attribute_fallbacks;
@@ -280,10 +281,19 @@ struct GatherTasks {
 
 /** Current offsets while during the gather operation. */
 struct GatherOffsets {
-  int pointcloud_offset = 0;
-  MeshElementStartIndices mesh_offsets;
-  CurvesElementStartIndices curves_offsets;
-  int grease_pencil_layer_offset = 0;
+  int64_t pointcloud_offset = 0;
+  struct {
+    int64_t vertex = 0;
+    int64_t edge = 0;
+    int64_t face = 0;
+    int64_t corner = 0;
+  } mesh_offsets;
+  struct {
+    int64_t point = 0;
+    int64_t curve = 0;
+    int64_t custom_knot = 0;
+  } curves_offsets;
+  int64_t grease_pencil_layer_offset = 0;
 };
 
 struct GatherTasksInfo {
@@ -635,14 +645,17 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
         if (mesh != nullptr && mesh->verts_num > 0) {
           const int mesh_index = gather_info.meshes.order.index_of(mesh);
           const MeshRealizeInfo &mesh_info = gather_info.meshes.realize_info[mesh_index];
-          gather_info.r_tasks.mesh_tasks.append({gather_info.r_offsets.mesh_offsets,
+          gather_info.r_tasks.mesh_tasks.append({{int(gather_info.r_offsets.mesh_offsets.vertex),
+                                                  int(gather_info.r_offsets.mesh_offsets.edge),
+                                                  int(gather_info.r_offsets.mesh_offsets.face),
+                                                  int(gather_info.r_offsets.mesh_offsets.corner)},
                                                  &mesh_info,
                                                  base_transform,
                                                  base_instance_context.meshes,
                                                  base_instance_context.id});
           gather_info.r_offsets.mesh_offsets.vertex += mesh->verts_num;
           gather_info.r_offsets.mesh_offsets.edge += mesh->edges_num;
-          gather_info.r_offsets.mesh_offsets.loop += mesh->corners_num;
+          gather_info.r_offsets.mesh_offsets.corner += mesh->corners_num;
           gather_info.r_offsets.mesh_offsets.face += mesh->faces_num;
         }
         break;
@@ -655,11 +668,12 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
           const int pointcloud_index = gather_info.pointclouds.order.index_of(pointcloud);
           const PointCloudRealizeInfo &pointcloud_info =
               gather_info.pointclouds.realize_info[pointcloud_index];
-          gather_info.r_tasks.pointcloud_tasks.append({gather_info.r_offsets.pointcloud_offset,
-                                                       &pointcloud_info,
-                                                       base_transform,
-                                                       base_instance_context.pointclouds,
-                                                       base_instance_context.id});
+          gather_info.r_tasks.pointcloud_tasks.append(
+              {int(gather_info.r_offsets.pointcloud_offset),
+               &pointcloud_info,
+               base_transform,
+               base_instance_context.pointclouds,
+               base_instance_context.id});
           gather_info.r_offsets.pointcloud_offset += pointcloud->totpoint;
         }
         break;
@@ -670,11 +684,14 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
         if (curves != nullptr && curves->geometry.curve_num > 0) {
           const int curve_index = gather_info.curves.order.index_of(curves);
           const RealizeCurveInfo &curve_info = gather_info.curves.realize_info[curve_index];
-          gather_info.r_tasks.curve_tasks.append({gather_info.r_offsets.curves_offsets,
-                                                  &curve_info,
-                                                  base_transform,
-                                                  base_instance_context.curves,
-                                                  base_instance_context.id});
+          gather_info.r_tasks.curve_tasks.append(
+              {{int(gather_info.r_offsets.curves_offsets.point),
+                int(gather_info.r_offsets.curves_offsets.curve),
+                int(gather_info.r_offsets.curves_offsets.custom_knot)},
+               &curve_info,
+               base_transform,
+               base_instance_context.curves,
+               base_instance_context.id});
           gather_info.r_offsets.curves_offsets.point += curves->geometry.point_num;
           gather_info.r_offsets.curves_offsets.curve += curves->geometry.curve_num;
           gather_info.r_offsets.curves_offsets.custom_knot += curves->geometry.custom_knot_num;
@@ -690,7 +707,7 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
           const GreasePencilRealizeInfo &grease_pencil_info =
               gather_info.grease_pencils.realize_info[grease_pencil_index];
           gather_info.r_tasks.grease_pencil_tasks.append(
-              {gather_info.r_offsets.grease_pencil_layer_offset,
+              {int(gather_info.r_offsets.grease_pencil_layer_offset),
                &grease_pencil_info,
                base_transform,
                base_instance_context.grease_pencils});
@@ -1189,6 +1206,7 @@ static void add_instance_attributes_to_single_geometry(
   }
 }
 static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &options,
+                                             const GatherOffsets &offsets,
                                              const AllPointCloudsInfo &all_pointclouds_info,
                                              const Span<RealizePointCloudTask> tasks,
                                              const OrderedAttributes &ordered_attributes,
@@ -1211,10 +1229,7 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
     return;
   }
 
-  const RealizePointCloudTask &last_task = tasks.last();
-  const PointCloud &last_pointcloud = *last_task.pointcloud_info->pointcloud;
-  const int64_t tot_points = last_task.start_index + last_pointcloud.totpoint;
-
+  const int64_t tot_points = offsets.pointcloud_offset;
   if (!valid_int_num(tot_points)) {
     r_result.errors.append(RPT_("Realized point cloud is too large."));
     return;
@@ -1496,7 +1511,7 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
 
   threading::parallel_for(src_edges.index_range(), 1024, [&](const IndexRange edge_range) {
     for (const int i : edge_range) {
-      dst_edges[i] = src_edges[i] + int(task.start_indices.vertex);
+      dst_edges[i] = src_edges[i] + task.start_indices.vertex;
     }
   });
   threading::parallel_for(src_corner_verts.index_range(), 1024, [&](const IndexRange loop_range) {
@@ -1628,6 +1643,7 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
 }
 
 static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
+                                       const GatherOffsets &offsets,
                                        const AllMeshesInfo &all_meshes_info,
                                        const Span<RealizeMeshTask> tasks,
                                        const OrderedAttributes &ordered_attributes,
@@ -1650,12 +1666,10 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     return;
   }
 
-  const RealizeMeshTask &last_task = tasks.last();
-  const Mesh &last_mesh = *last_task.mesh_info->mesh;
-  const int64_t tot_vertices = last_task.start_indices.vertex + last_mesh.verts_num;
-  const int64_t tot_edges = last_task.start_indices.edge + last_mesh.edges_num;
-  const int64_t tot_loops = last_task.start_indices.loop + last_mesh.corners_num;
-  const int64_t tot_faces = last_task.start_indices.face + last_mesh.faces_num;
+  const int64_t tot_vertices = offsets.mesh_offsets.vertex;
+  const int64_t tot_edges = offsets.mesh_offsets.edge;
+  const int64_t tot_loops = offsets.mesh_offsets.corner;
+  const int64_t tot_faces = offsets.mesh_offsets.face;
 
   if (!valid_int_num(tot_vertices) || !valid_int_num(tot_edges) || !valid_int_num(tot_loops) ||
       !valid_int_num(tot_faces))
@@ -2027,6 +2041,7 @@ static void copy_vertex_group_names(CurvesGeometry &dst_curve,
 }
 
 static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
+                                        const GatherOffsets &offsets,
                                         const AllCurvesInfo &all_curves_info,
                                         const Span<RealizeCurveTask> tasks,
                                         const OrderedAttributes &ordered_attributes,
@@ -2049,12 +2064,9 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     return;
   }
 
-  const RealizeCurveTask &last_task = tasks.last();
-  const Curves &last_curves = *last_task.curve_info->curves;
-  const int64_t points_num = last_task.start_indices.point + last_curves.geometry.point_num;
-  const int64_t curves_num = last_task.start_indices.curve + last_curves.geometry.curve_num;
-  const int64_t custom_knot_num = last_task.start_indices.custom_knot +
-                                  last_curves.geometry.custom_knot_num;
+  const int64_t points_num = offsets.curves_offsets.point;
+  const int64_t curves_num = offsets.curves_offsets.curve;
+  const int64_t custom_knot_num = offsets.curves_offsets.custom_knot;
 
   if (!valid_int_num(points_num) || !valid_int_num(curves_num) || !valid_int_num(custom_knot_num))
   {
@@ -2293,6 +2305,7 @@ static void transform_grease_pencil_layers(Span<bke::greasepencil::Layer *> laye
 
 static void execute_realize_grease_pencil_tasks(
     const AllGreasePencilsInfo &all_grease_pencils_info,
+    const GatherOffsets &offsets,
     const Span<RealizeGreasePencilTask> tasks,
     const OrderedAttributes &ordered_attributes,
     RealizeInstancesResult &r_result)
@@ -2313,9 +2326,7 @@ static void execute_realize_grease_pencil_tasks(
     return;
   }
 
-  const RealizeGreasePencilTask &last_task = tasks.last();
-  const int64_t new_layers_num = last_task.start_index +
-                                 last_task.grease_pencil_info->grease_pencil->layers().size();
+  const int64_t new_layers_num = offsets.grease_pencil_layer_offset;
   if (!valid_int_num(new_layers_num)) {
     r_result.errors.append(RPT_("Realized grease pencil has too many layers."));
     return;
@@ -2528,25 +2539,28 @@ RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
   /* This doesn't have to be exact at all, it's just a rough estimate to make decisions about
    * multi-threading (overhead). */
   const int64_t approximate_used_bytes_num = total_points_num * 32;
-
   threading::memory_bandwidth_bound_task(approximate_used_bytes_num, [&]() {
     execute_realize_pointcloud_tasks(options,
+                                     gather_info.r_offsets,
                                      all_pointclouds_info,
                                      gather_info.r_tasks.pointcloud_tasks,
                                      all_pointclouds_info.attributes,
                                      result);
     execute_realize_mesh_tasks(options,
+                               gather_info.r_offsets,
                                all_meshes_info,
                                gather_info.r_tasks.mesh_tasks,
                                all_meshes_info.attributes,
                                all_meshes_info.materials,
                                result);
     execute_realize_curve_tasks(options,
+                                gather_info.r_offsets,
                                 all_curves_info,
                                 gather_info.r_tasks.curve_tasks,
                                 all_curves_info.attributes,
                                 result);
     execute_realize_grease_pencil_tasks(all_grease_pencils_info,
+                                        gather_info.r_offsets,
                                         gather_info.r_tasks.grease_pencil_tasks,
                                         all_grease_pencils_info.attributes,
                                         result);
