@@ -180,7 +180,7 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(VKComputeInfo &compute
   bool wait_for_pipeline = false;
   bool do_compile_pipeline = false;
   {
-    std::unique_lock lock(compute_.mutex);
+    std::scoped_lock lock(compute_.mutex);
     const VkPipeline *found_pipeline = compute_.pipelines.lookup_ptr(compute_info);
     if (found_pipeline) {
       if (*found_pipeline == VK_NULL_HANDLE) {
@@ -215,7 +215,6 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(VKComputeInfo &compute
     /* Notify other threads that a new pipeline is available. */
     {
       CLOG_TRACE(&LOG, "Notifying other threads that a new pipeline was added");
-      std::unique_lock<Mutex> lock(compute_.new_pipeline_added_mutex);
       compute_.new_pipeline_added.notify_all();
     }
     return pipeline;
