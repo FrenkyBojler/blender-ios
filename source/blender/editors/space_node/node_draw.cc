@@ -2940,12 +2940,16 @@ static void node_header_custom_tooltip(const bNode &node, uiBut &but)
 
 static const bool node_header_group_icon_show(const bNode &node)
 {
-  const bool is_node_group = node.type_legacy == NODE_GROUP;
-  const bool is_packed = (node.id && ID_IS_PACKED(node.id));
-  const bool is_asset = (node.id && ID_IS_ASSET(node.id));
+  /* Show the Node Group icon in the header if:
+   * - It's collapsed.
+   * - It's a regular node group, not asset.
+   * - It's not packed (built-in assets). */
+  const bool is_regular_group = (node.type_legacy == NODE_GROUP) &&
+                                !(node.id && ID_IS_ASSET(node.id)) &&
+                                !(node.id && ID_IS_PACKED(node.id));
+  const bool is_collapsed = node.flag & NODE_COLLAPSED;
   const bool show_node_options = node.flag & NODE_OPTIONS;
-  const bool show_node_group_icon = (is_node_group || is_asset) && !show_node_options &&
-                                    !is_packed;
+  const bool show_node_group_icon = (is_regular_group && (is_collapsed || !show_node_options));
 
   return show_node_group_icon;
 }
@@ -3050,8 +3054,7 @@ static void node_draw_basis(const bContext &C,
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
                               0,
-                              (node.id && ID_IS_ASSET(node.id)) ? ICON_ASSET_MANAGER :
-                                                                  ICON_NODETREE,
+                              ICON_NODETREE,
                               rct.xmin + NODE_HEADER_GROUP_ICON_OFFSET,
                               rct.ymax - NODE_DY,
                               iconbutw,
@@ -3458,8 +3461,7 @@ static void node_draw_collapsed(const bContext &C,
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
                               0,
-                              (node.id && ID_IS_ASSET(node.id)) ? ICON_ASSET_MANAGER :
-                                                                  ICON_NODETREE,
+                              ICON_NODETREE,
                               rct.xmin + NODE_HEADER_GROUP_ICON_OFFSET,
                               round_fl_to_int(centy - NODE_DY * 0.5f),
                               NODE_HEADER_ICON_SIZE,
