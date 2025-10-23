@@ -438,9 +438,7 @@ void SyncModule::sync_curves(Object *ob,
       if (error) {
         inst_.info_append(error);
       }
-      else {
-        sub_pass.draw(geometry, res_handle);
-      }
+      sub_pass.draw(geometry, res_handle);
     }
   };
 

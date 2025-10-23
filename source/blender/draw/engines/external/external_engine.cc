@@ -164,8 +164,7 @@ class Prepass {
       case OB_CURVES: {
         const char *error = nullptr;
         /* We choose to ignore the error here as the external engine can display them properly.
-         * The overlays can still be broken but it should be enough to be detected in solid mode.
-         */
+         * The overlays can still be broken but it should be detected in solid mode. */
         geom_single = curves_sub_pass_setup(*curves_ps_, draw_ctx.scene, ob_ref.object, error);
         pass = curves_ps_;
         break;

@@ -440,9 +440,7 @@ class Instance : public DrawEngine {
       if (error) {
         hair_buffer_overflow_error_ = error;
       }
-      else {
-        pass.draw(batch, handle, material_index);
-      }
+      pass.draw(batch, handle, material_index);
     });
   }
 
