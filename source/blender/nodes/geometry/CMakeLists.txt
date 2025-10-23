@@ -166,6 +166,7 @@ set(SRC
   nodes/node_geo_list_set_item.cc
   nodes/node_geo_list_slice.cc
   nodes/node_geo_list_sort.cc
+  nodes/node_geo_list_unique.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
   nodes/node_geo_menu_switch.cc
