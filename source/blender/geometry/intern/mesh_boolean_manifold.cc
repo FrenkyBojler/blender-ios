@@ -1935,8 +1935,8 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
   return mesh;
 }
 
-static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
-                                                    const Span<float4x4> transforms)
+bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
+                                             const Span<float4x4> transforms)
 {
 #  ifdef DEBUG_TIME
   timeit::ScopedTimer jtimer(__func__);

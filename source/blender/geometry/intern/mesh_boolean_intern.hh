@@ -7,6 +7,7 @@
 #include "DNA_mesh_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_geometry_set.hh"
 
 #include "BLI_span.hh"
 
@@ -40,5 +41,8 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
                                    const Mesh *input_mesh,
                                    Span<int> out_to_in_corner_map,
                                    Span<int> out_to_in_face_map);
+
+bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
+                                             const Span<float4x4> transforms);
 
 }  // namespace blender::geometry::boolean

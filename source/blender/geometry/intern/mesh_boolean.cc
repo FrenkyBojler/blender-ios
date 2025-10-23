@@ -657,30 +657,6 @@ static meshintersect::BoolOpType operation_to_mesh_arr_mode(const Operation oper
   return meshintersect::BoolOpType::None;
 }
 
-static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
-                                                    const Span<float4x4> transforms)
-{
-#  ifdef DEBUG_TIME
-  timeit::ScopedTimer jtimer(__func__);
-#  endif
-  bke::Instances instances;
-  instances.resize(meshes.size());
-  instances.transforms_for_write().copy_from(transforms);
-  MutableSpan<int> handles = instances.reference_handles_for_write();
-
-  Map<const Mesh *, int> handle_by_mesh;
-  for (const int i : meshes.index_range()) {
-    handles[i] = handle_by_mesh.lookup_or_add_cb(meshes[i], [&]() {
-      bke::GeometrySet geometry = bke::GeometrySet::from_mesh(
-          const_cast<Mesh *>(meshes[i]), bke::GeometryOwnershipType::ReadOnly);
-      return instances.add_new_reference(std::move(geometry));
-    });
-  }
-  return geometry::realize_instances(
-      bke::GeometrySet::from_instances(&instances, bke::GeometryOwnershipType::Editable),
-      geometry::RealizeInstancesOptions());
-}
-
 static Mesh *mesh_boolean_mesh_arr(Span<const Mesh *> meshes,
                                    Span<float4x4> transforms,
                                    Span<Array<short>> material_remaps,
