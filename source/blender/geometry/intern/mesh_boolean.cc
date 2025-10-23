@@ -7,27 +7,20 @@
 #include "BKE_attribute.hh"
 #include "BKE_attribute_filters.hh"
 #include "BKE_attribute_math.hh"
-#include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
-#include "BLI_alloca.h"
 #include "BLI_array.hh"
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_mesh_boolean.hh"
 #include "BLI_mesh_intersect.hh"
 #include "BLI_span.hh"
-#include "BLI_string.h"
 #include "BLI_task.hh"
-#include "BLI_threads.h"
 #include "BLI_virtual_array.hh"
-
-#include "DNA_node_types.h"
 
 #include "GEO_mesh_boolean.hh"
 #include "GEO_realize_instances.hh"
@@ -428,29 +421,6 @@ static int fill_orig_loops(const meshintersect::Face *f,
     }
   }
   return num_orig_loops_found;
-}
-
-/* Fill `cos_2d` with the 2d coordinates found by projection face `face` along
- * its normal. Also fill in r_axis_mat with the matrix that does that projection.
- * But before projecting, also transform the 3d coordinate by multiplying by trans_mat.
- * `cos_2d` should have room for `face.size()` entries. */
-static void get_poly2d_cos(const Span<float3> positions,
-                           const Span<int> corner_verts,
-                           const IndexRange face,
-                           float (*cos_2d)[2],
-                           const float4x4 &trans_mat,
-                           float r_axis_mat[3][3])
-{
-  const Span<int> face_verts = corner_verts.slice(face);
-
-  /* Project coordinates to 2d in cos_2d, using normal as projection axis. */
-  const float3 axis_dominant = bke::mesh::face_normal_calc(positions, face_verts);
-  axis_dominant_v3_to_m3(r_axis_mat, axis_dominant);
-  for (const int i : face_verts.index_range()) {
-    float3 co = positions[face_verts[i]];
-    co = math::transform_point(trans_mat, co);
-    *reinterpret_cast<float2 *>(&cos_2d[i]) = (float3x3(r_axis_mat) * co).xy();
-  }
 }
 
 static int mesh_id_for_face(const int face_id, const MeshOffsets &mesh_offsets)
