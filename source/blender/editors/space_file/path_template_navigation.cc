@@ -4,10 +4,10 @@
 
 /** \file
  * \ingroup spfile
- * \brief Path variable handling implementation - supports template syntax in file browser paths.
+ * \brief Path template handling implementation - preserves template variables during file browser navigation.
  */
 
-#include "file_path_variables.hh"
+#include "path_template_navigation.hh"
 
 #include "BKE_global.hh"
 #include "BKE_main.hh"
@@ -25,9 +25,12 @@
 
 #include <cstring>
 
-namespace blender::editor::file {
+namespace blender::editor::file::path_templates {
 
-/* Centralized template variable resolution function - used by all template operations */
+/* -------------------------------------------------------------------- */
+/** \name Internal Helper Functions
+ * \{ */
+
 static void resolve_template_variables(char *path, size_t path_maxlen)
 {
   if (!BKE_path_contains_template_syntax(path)) {
@@ -44,7 +47,7 @@ static void resolve_template_variables(char *path, size_t path_maxlen)
 }
 
 /* Helper to normalize a path in place */
-static void normalize_path(char *path, size_t buffer_size)
+static void normalize_path(char *path)
 {
   BLI_path_normalize(path);
   BLI_path_slash_rstrip(path);
@@ -59,11 +62,17 @@ static void resolve_and_normalize_paths(const char *template_path,
 {
   BLI_strncpy(resolved_template, template_path, buffer_size);
   resolve_template_variables(resolved_template, buffer_size);
-  normalize_path(resolved_template, buffer_size);
+  normalize_path(resolved_template);
 
   BLI_strncpy(normalized_current, current_path, buffer_size);
-  normalize_path(normalized_current, buffer_size);
+  normalize_path(normalized_current);
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Template Boundary and Navigation Helpers
+ * \{ */
 
 /* Check if current path is within a resolved template directory */
 static bool is_within_template_bounds(const char *template_path, const char *current_path)
@@ -91,7 +100,15 @@ static bool is_within_template_bounds(const char *template_path, const char *cur
          (resolved_template[min_len] == '/' || normalized_current[min_len] == '/');
 }
 
-/* Update template path when navigating within template directory */
+/**
+ * Update template path when navigating within template directory.
+ *
+ * Algorithm: Compares resolved template with current path to determine if navigation
+ * stayed within template bounds, then reconstructs appropriate template syntax:
+ * - Exact match: Return original template unchanged
+ * - Going deeper: Append extra path components to template
+ * - Going up: Remove directory levels from template path
+ */
 static bool update_template_on_navigation(const char *original_template,
                                           const char *current_path,
                                           char *result,
@@ -160,7 +177,13 @@ static bool update_template_on_navigation(const char *original_template,
   return false;
 }
 
-void handle_path_input(FileSelectParams *params, const char *input_path)
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Public API
+ * \{ */
+
+void handle_input(FileSelectParams *params, const char *input_path)
 {
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
@@ -178,8 +201,7 @@ void handle_path_input(FileSelectParams *params, const char *input_path)
 void handle_navigation(FileSelectParams *params, const char *new_directory)
 {
   /* Try to preserve template if we were using one */
-  if (has_template_path(params) &&
-      is_within_template_bounds(params->dir_template, new_directory))
+  if (has_template(params) && is_within_template_bounds(params->dir_template, new_directory))
   {
     char updated_template[FILE_MAX];
     if (update_template_on_navigation(
@@ -205,7 +227,7 @@ void handle_navigation(FileSelectParams *params, const char *new_directory)
   BLI_strncpy(params->dir_resolved, new_directory, sizeof(params->dir_resolved));
 }
 
-void initialize_path_fields(FileSelectParams *params)
+void initialize(FileSelectParams *params)
 {
   if (BKE_path_contains_template_syntax(params->dir)) {
     char resolved_path[FILE_MAX];
@@ -228,7 +250,7 @@ void initialize_path_fields(FileSelectParams *params)
   }
 }
 
-bool has_template_path(const FileSelectParams *params)
+bool has_template(const FileSelectParams *params)
 {
   return params->dir_template[0] != '\0' &&
          BKE_path_contains_template_syntax(params->dir_template);
@@ -253,4 +275,6 @@ void set_operator_string_property(bContext *C,
   }
 }
 
-}  // namespace blender::editor::file
+/** \} */
+
+}  // namespace blender::editor::file::path_templates

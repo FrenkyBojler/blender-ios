@@ -23,7 +23,7 @@
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
-#include "file_path_templates.hh"
+#include "path_template_navigation.hh"
 
 #include "BLT_translation.hh"
 

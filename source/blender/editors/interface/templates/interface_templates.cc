@@ -26,7 +26,7 @@
 
 #include "../space_file/file_intern.hh"
 #include "../space_file/filelist.hh"
-#include "../space_file/file_path_templates.hh"
+#include "../space_file/path_template_navigation.hh"
 
 using blender::StringRefNull;
 

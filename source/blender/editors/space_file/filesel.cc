@@ -48,7 +48,7 @@
 #include "BKE_path_templates.hh"
 #include "BKE_preferences.h"
 
-#include "file_path_templates.hh"
+#include "path_template_navigation.hh"
 
 #include "BLO_userdef_default.h"
 

@@ -24,7 +24,7 @@
 #include "ED_fileselect.hh"
 #include "ED_spreadsheet.hh"
 
-#include "../editors/space_file/file_path_templates.hh"
+#include "../editors/space_file/path_template_navigation.hh"
 
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
