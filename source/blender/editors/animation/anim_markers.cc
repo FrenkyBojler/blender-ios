@@ -536,6 +536,7 @@ static void draw_markers_background(const rctf *rect, const float alpha)
 
   uchar shade[4];
   UI_GetThemeColor4ubv(TH_TIME_SCRUB_BACKGROUND, shade);
+  shade[3] *= alpha;
 
   immUniformColor4ubv(shade);
 
