@@ -337,7 +337,7 @@ static void file_directory_variable_enter_handle(bContext *C, void *, void *)
 }
 
 /* Common helper for creating file path buttons */
-static uiBut *create_file_path_button(uiLayout *layout,
+static uiBut *create_path_input_field(uiLayout *layout,
                                       bContext *C,
                                       FileSelectParams *params,
                                       const char *prop_name,
@@ -389,7 +389,7 @@ static uiBut *create_file_path_button(uiLayout *layout,
 void uiTemplateFileSelectPathVariable(uiLayout *layout, bContext *C, FileSelectParams *params)
 {
   BLI_assert_msg(params != nullptr, "File select parameters not set.");
-  create_file_path_button(layout,
+  create_path_input_field(layout,
                           C,
                           params,
                           "directory_template",
@@ -401,7 +401,7 @@ void uiTemplateFileSelectPathVariable(uiLayout *layout, bContext *C, FileSelectP
 void uiTemplateFileSelectPathPreview(uiLayout *layout, bContext *C, FileSelectParams *params)
 {
   BLI_assert_msg(params != nullptr, "File select parameters not set.");
-  create_file_path_button(
+  create_path_input_field(
       layout, C, params, "directory_resolved", TIP_("Resolved file path"), true, nullptr);
 }
 
