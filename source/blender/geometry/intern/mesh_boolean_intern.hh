@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "DNA_mesh_types.h"
+
 #include "BKE_attribute.hh"
 
 #include "BLI_span.hh"
@@ -11,6 +13,26 @@
 struct Mesh;
 
 namespace blender::geometry::boolean {
+
+/**
+ * Holds cumulative offsets for the given elements of a number
+ * of concatenated Meshes. The sizes are one greater than the
+ * number of meshes, so that the last value of each gives the
+ * total number of elements.
+ */
+struct MeshOffsets {
+  Array<int> vert_start;
+  Array<int> face_start;
+  Array<int> edge_start;
+  Array<int> corner_start;
+  OffsetIndices<int> vert_offsets;
+  OffsetIndices<int> face_offsets;
+  OffsetIndices<int> edge_offsets;
+  OffsetIndices<int> corner_offsets;
+
+  MeshOffsets() = default;
+  explicit MeshOffsets(Span<const Mesh *> meshes);
+};
 
 void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
                                    bke::AttributeAccessor input_attrs,

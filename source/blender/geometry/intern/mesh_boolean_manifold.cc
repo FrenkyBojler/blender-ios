@@ -206,25 +206,6 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
   }
 }
 
-/**
- * Holds cumulative offsets for the given elements of a number
- * of concatenated Meshes. The sizes are one greater than the
- * number of meshes, so that the last value of each gives the
- * total number of elements.
- */
-struct MeshOffsets {
-  Array<int> vert_start;
-  Array<int> face_start;
-  Array<int> edge_start;
-  Array<int> corner_start;
-  OffsetIndices<int> vert_offsets;
-  OffsetIndices<int> face_offsets;
-  OffsetIndices<int> edge_offsets;
-  OffsetIndices<int> corner_offsets;
-
-  MeshOffsets(Span<const Mesh *> meshes);
-};
-
 MeshOffsets::MeshOffsets(Span<const Mesh *> meshes)
 {
   const int meshes_num = meshes.size();

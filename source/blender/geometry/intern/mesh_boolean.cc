@@ -92,37 +92,6 @@ static float3 clean_float3(const float3 &co)
   return cleaned;
 }
 
-struct MeshOffsets {
-  Array<int> vert_start;
-  Array<int> face_start;
-  Array<int> edge_start;
-  Array<int> corner_start;
-  OffsetIndices<int> vert_offsets;
-  OffsetIndices<int> face_offsets;
-  OffsetIndices<int> edge_offsets;
-  OffsetIndices<int> corner_offsets;
-
-  MeshOffsets() = default;
-  explicit MeshOffsets(Span<const Mesh *> meshes)
-  {
-    const int meshes_num = meshes.size();
-    this->vert_start.reinitialize(meshes_num + 1);
-    this->face_start.reinitialize(meshes_num + 1);
-    this->edge_start.reinitialize(meshes_num + 1);
-    this->corner_start.reinitialize(meshes_num + 1);
-    for (const int i : meshes.index_range()) {
-      this->vert_start[i] = meshes[i]->verts_num;
-      this->face_start[i] = meshes[i]->faces_num;
-      this->edge_start[i] = meshes[i]->edges_num;
-      this->corner_start[i] = meshes[i]->corners_num;
-    }
-    this->vert_offsets = offset_indices::accumulate_counts_to_offsets(this->vert_start);
-    this->face_offsets = offset_indices::accumulate_counts_to_offsets(this->face_start);
-    this->edge_offsets = offset_indices::accumulate_counts_to_offsets(this->edge_start);
-    this->corner_offsets = offset_indices::accumulate_counts_to_offsets(this->corner_start);
-  }
-};
-
 /* `MeshesToIMeshInfo` keeps track of information used when combining a number
  * of `Mesh`es into a single `IMesh` for doing boolean on.
  * Mostly this means keeping track of the index offsets for various mesh elements. */
