@@ -498,6 +498,35 @@ class VKPipelinePool : public NonCopyable {
   void write_to_disk();
 
  private:
+  /**
+   * Create a new compute pipeline based on the provided ComputeInfo.
+   *
+   * When vk_pipeline_base is a valid pipeline handle, the pipeline base will be used to speed up
+   * pipeline creation process.
+   *
+   * \param compute_info:     Description of the pipeline to compile.
+   * \param is_static_shader: Pipelines from static pipelines are cached between Blender sessions.
+   *                          Pipelines from dynamic shaders are only cached for the duration of a
+   *                          single Blender session.
+   * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
+   *                          compiling the pipeline.
+   * \param name:             Name to give as a debug label when creating a pipeline.
+   * \returns The handle of the compiled pipeline.
+   */
+  VkPipeline create_compute_pipeline(VKComputeInfo &compute_info,
+                                     bool is_static_shader,
+                                     VkPipeline vk_pipeline_base,
+                                     StringRefNull name);
+  /**
+   * The needed compute pipeline can be compiled by another thread. In this case we wait until the
+   * thread is finished.
+   *
+   * \param compute_info:     Description of the pipeline to request.
+   * \param name:             Name to give as a debug label when creating a pipeline.
+   * \returns The handle of the compiled pipeline.
+   */
+  VkPipeline wait_for_compute_pipeline(VKComputeInfo &compute_info, StringRefNull name);
+
   VkSpecializationInfo *specialization_info_update(
       Span<shader::SpecializationConstant::Value> specialization_constants);
   void specialization_info_reset();
