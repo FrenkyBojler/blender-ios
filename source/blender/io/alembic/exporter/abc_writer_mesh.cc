@@ -126,10 +126,7 @@ bool ABCGenericMeshWriter::export_as_subdivision_surface(Object *ob_eval) const
 
 bool ABCGenericMeshWriter::is_supported(const HierarchyContext *context) const
 {
-  if (args_.export_params->visible_objects_only) {
-    return context->is_object_visible(args_.export_params->evaluation_mode);
-  }
-  return true;
+  return context->is_object_visible(args_.export_params->evaluation_mode);
 }
 
 void ABCGenericMeshWriter::do_write(HierarchyContext &context)
@@ -373,7 +370,7 @@ bool ABCGenericMeshWriter::get_velocities(Mesh *mesh, std::vector<Imath::V3f> &v
   }
 
   const int totverts = mesh->verts_num;
-  const float(*mesh_velocities)[3] = reinterpret_cast<float(*)[3]>(velocity_layer->data);
+  const float (*mesh_velocities)[3] = reinterpret_cast<float (*)[3]>(velocity_layer->data);
 
   vels.clear();
   vels.resize(totverts);

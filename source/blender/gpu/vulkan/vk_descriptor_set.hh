@@ -18,7 +18,6 @@
 #include "vk_buffer.hh"
 #include "vk_common.hh"
 #include "vk_descriptor_set_layouts.hh"
-#include "vk_resource_tracker.hh"
 #include "vk_uniform_buffer.hh"
 
 namespace blender::gpu {
@@ -82,7 +81,7 @@ class VKDescriptorSet : NonCopyable {
 
 class VKDescriptorSetUpdator {
  public:
-  virtual ~VKDescriptorSetUpdator(){};
+  virtual ~VKDescriptorSetUpdator() {};
 
   virtual void allocate_new_descriptor_set(VKDevice &device,
                                            VKContext &context,
@@ -235,8 +234,6 @@ class VKDescriptorSetTracker {
 
   /**
    * Upload all descriptor sets to the device.
-   *
-   * NOTE: Caller should discard the associated descriptor pools. (VKDescriptorPools::discard)
    */
   void upload_descriptor_sets();
 

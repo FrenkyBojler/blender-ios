@@ -101,7 +101,7 @@ static void strip_add_set_name(Scene *scene, Strip *strip, LoadData *load_data)
     else if (strip->type == STRIP_TYPE_MASK) {
       edit_strip_name_set(scene, strip, load_data->mask->id.name + 2);
     }
-    else if ((strip->type & STRIP_TYPE_EFFECT) != 0) {
+    else if (strip->is_effect()) {
       edit_strip_name_set(scene, strip, strip_give_name(strip));
     }
     else { /* Image, sound and movie. */
@@ -172,7 +172,7 @@ Strip *add_effect_strip(Scene *scene, ListBase *seqbase, LoadData *load_data)
   EffectHandle sh = strip_effect_handle_get(strip);
   sh.init(strip);
 
-  if (seq::effect_get_num_inputs(strip->type) != 0) {
+  if (effect_get_num_inputs(strip->type) != 0) {
     strip->input1 = load_data->effect.input1;
     strip->input2 = load_data->effect.input2;
   }
@@ -350,6 +350,9 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 
     /* Turn on Display Waveform by default. */
     strip->flag |= SEQ_AUDIO_DRAW_WAVEFORM;
+
+    /* Turn on Preserve Pitch by default. */
+    strip->flag |= SEQ_AUDIO_PITCH_CORRECTION;
   }
 
   strip_add_set_name(scene, strip, load_data);

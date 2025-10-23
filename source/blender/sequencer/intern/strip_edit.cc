@@ -58,12 +58,12 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
     }
 
     /* disallow effects to swap with non-effects strips */
-    if ((strip_a->type & STRIP_TYPE_EFFECT) != (strip_b->type & STRIP_TYPE_EFFECT)) {
+    if (strip_a->is_effect() != strip_b->is_effect()) {
       *r_error_str = N_("Strips were not compatible");
       return false;
     }
 
-    if ((strip_a->type & STRIP_TYPE_EFFECT) && (strip_b->type & STRIP_TYPE_EFFECT)) {
+    if (strip_a->is_effect() && strip_b->is_effect()) {
       if (effect_get_num_inputs(strip_a->type) != effect_get_num_inputs(strip_b->type)) {
         *r_error_str = N_("Strips must have the same number of inputs");
         return false;
@@ -90,6 +90,8 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
   std::swap(strip_a->channel, strip_b->channel);
   strip_time_effect_range_set(scene, strip_a);
   strip_time_effect_range_set(scene, strip_b);
+
+  strip_lookup_invalidate(editing_get(scene));
 
   return true;
 }
@@ -356,14 +358,14 @@ static bool seq_edit_split_effect_inputs_intersect(const Scene *scene,
   bool input_does_intersect = false;
   if (strip->input1) {
     input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input1, timeline_frame);
-    if ((strip->input1->type & STRIP_TYPE_EFFECT) != 0) {
+    if (strip->input1->is_effect()) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
           scene, strip->input1, timeline_frame);
     }
   }
   if (strip->input2) {
     input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input2, timeline_frame);
-    if ((strip->input1->type & STRIP_TYPE_EFFECT) != 0) {
+    if (strip->input2->is_effect()) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
           scene, strip->input2, timeline_frame);
     }
@@ -382,7 +384,7 @@ static bool seq_edit_split_operation_permitted_check(const Scene *scene,
       *r_error = "Strip is locked.";
       return false;
     }
-    if ((strip->type & STRIP_TYPE_EFFECT) == 0) {
+    if (!strip->is_effect()) {
       continue;
     }
     if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
@@ -409,6 +411,7 @@ Strip *edit_strip_split(Main *bmain,
                         Strip *strip,
                         const int timeline_frame,
                         const eSplitMethod method,
+                        const bool ignore_connections,
                         const char **r_error)
 {
   if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
@@ -418,21 +421,11 @@ Strip *edit_strip_split(Main *bmain,
   /* Whole strip effect chain must be duplicated in order to preserve relationships. */
   blender::VectorSet<Strip *> strips;
   strips.add(strip);
-  iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
-
-  /* All connected strips (that are selected and at the cut frame) must also be duplicated. */
-  blender::VectorSet<Strip *> strips_old(strips);
-  for (Strip *strip : strips_old) {
-    blender::VectorSet<Strip *> connections = connected_strips_get(strip);
-    connections.remove_if([&](Strip *connection) {
-      return !(connection->flag & SELECT) ||
-             !seq_edit_split_intersect_check(scene, connection, timeline_frame);
-    });
-    strips.add_multiple(connections.as_span());
-  }
-
-  /* In case connected strips had effects, duplicate those too: */
-  iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
+  iterator_set_expand(scene,
+                      seqbase,
+                      strips,
+                      ignore_connections ? query_strip_effect_chain :
+                                           query_strip_connected_and_effect_chain);
 
   if (!seq_edit_split_operation_permitted_check(scene, strips, timeline_frame, r_error)) {
     return nullptr;
@@ -447,6 +440,10 @@ Strip *edit_strip_split(Main *bmain,
     /* Move strips in collection from seqbase to new ListBase. */
     BLI_remlink(seqbase, strip_iter);
     BLI_addtail(&left_strips, strip_iter);
+
+    if (ignore_connections) {
+      seq::disconnect(strip_iter);
+    }
 
     /* Duplicate curves from backup, so they can be renamed along with split strips. */
     animation_duplicate_backup_to_scene(scene, strip_iter, &animation_backup);

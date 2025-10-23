@@ -1050,7 +1050,7 @@ bool BKE_mesh_validate(Mesh *mesh, const bool do_verbose, const bool cddata_chec
       CustomData_get_layer_for_write(&mesh->vert_data, CD_MDEFORMVERT, mesh->verts_num));
   BKE_mesh_validate_arrays(
       mesh,
-      reinterpret_cast<float(*)[3]>(positions.data()),
+      reinterpret_cast<float (*)[3]>(positions.data()),
       positions.size(),
       edges.data(),
       edges.size(),
@@ -1107,7 +1107,7 @@ bool BKE_mesh_is_valid(Mesh *mesh)
       CustomData_get_layer_for_write(&mesh->vert_data, CD_MDEFORMVERT, mesh->verts_num));
   is_valid &= BKE_mesh_validate_arrays(
       mesh,
-      reinterpret_cast<float(*)[3]>(positions.data()),
+      reinterpret_cast<float (*)[3]>(positions.data()),
       positions.size(),
       edges.data(),
       edges.size(),
@@ -1163,6 +1163,7 @@ void strip_loose_faces_corners(Mesh *mesh, blender::BitSpan faces_to_remove)
 {
   /* Ensure layers are mutable so that #CustomData_copy_data can be used. */
   CustomData_ensure_layers_are_mutable(&mesh->face_data, mesh->faces_num);
+  CustomData_ensure_layers_are_mutable(&mesh->corner_data, mesh->corners_num);
 
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_edges = mesh->corner_edges_for_write();

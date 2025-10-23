@@ -16,11 +16,9 @@
 #include <sys/types.h>
 
 #include "BLI_path_utils.hh"
-#include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_task.hh"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
@@ -123,29 +121,20 @@ static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_
   }
 
 #ifdef WITH_FFMPEG
-  const AVColorTransferCharacteristic color_trc = anim->pCodecCtx->color_trc;
-  const AVColorSpace colorspace = anim->pCodecCtx->colorspace;
-  const AVColorPrimaries color_primaries = anim->pCodecCtx->color_primaries;
+  /* Note that the ffmpeg enums are documented to match CICP codes. */
+  const int cicp[4] = {anim->pCodecCtx->color_primaries,
+                       anim->pCodecCtx->color_trc,
+                       anim->pCodecCtx->colorspace,
+                       anim->pCodecCtx->color_range};
+  const ColorSpace *colorspace = IMB_colormanagement_space_from_cicp(
+      cicp, ColorManagedFileOutput::Video);
 
-  if (color_trc == AVCOL_TRC_ARIB_STD_B67 && color_primaries == AVCOL_PRI_BT2020 &&
-      colorspace == AVCOL_SPC_BT2020_NCL)
-  {
-    const char *hlg_name = IMB_colormanagement_get_rec2100_hlg_display_colorspace();
-    if (hlg_name) {
-      BLI_strncpy_utf8(r_colorspace_name, hlg_name, IM_MAX_SPACE);
-    }
+  if (colorspace == nullptr) {
     return;
   }
 
-  if (color_trc == AVCOL_TRC_SMPTEST2084 && color_primaries == AVCOL_PRI_BT2020 &&
-      colorspace == AVCOL_SPC_BT2020_NCL)
-  {
-    const char *pq_name = IMB_colormanagement_get_rec2100_pq_display_colorspace();
-    if (pq_name) {
-      BLI_strncpy_utf8(r_colorspace_name, pq_name, IM_MAX_SPACE);
-    }
-    return;
-  }
+  BLI_strncpy_utf8(
+      r_colorspace_name, IMB_colormanagement_colorspace_get_name(colorspace), IM_MAX_SPACE);
 #endif /* WITH_FFMPEG */
 }
 
@@ -406,7 +395,7 @@ static int startffmpeg(MovieReader *anim)
     pCodecCtx->thread_count = 0;
   }
   else {
-    pCodecCtx->thread_count = BLI_system_thread_count();
+    pCodecCtx->thread_count = MOV_thread_count();
   }
 
   if (pCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
@@ -1340,7 +1329,8 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
        * It might not be the most optimal thing to do from the playback performance in the
        * sequencer perspective, but it ensures that other areas in Blender do not run into obscure
        * color space mismatches. */
-      colormanage_imbuf_make_linear(cur_frame_final, anim->colorspace);
+      colormanage_imbuf_make_linear(
+          cur_frame_final, anim->colorspace, ColorManagedFileOutput::Video);
     }
   }
   else {

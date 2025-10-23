@@ -25,6 +25,7 @@
 
 #include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"
+#include "SEQ_preview_cache.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_thumbnail_cache.hh"
@@ -51,6 +52,17 @@ void cache_cleanup(Scene *scene)
   source_image_cache_clear(scene);
   final_image_cache_clear(scene);
   intra_frame_cache_invalidate(scene);
+  preview_cache_invalidate(scene);
+}
+
+void cache_cleanup_intra(Scene *scene)
+{
+  intra_frame_cache_invalidate(scene);
+}
+
+void cache_cleanup_final(Scene *scene)
+{
+  final_image_cache_clear(scene);
 }
 
 void cache_settings_changed(Scene *scene)
@@ -151,6 +163,7 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
 
   invalidate_final_cache_strip_range(scene, strip);
   intra_frame_cache_invalidate(scene, strip);
+  preview_cache_invalidate(scene);
   invalidate_raw_cache_of_parent_meta(scene, strip);
 
   /* Needed to update VSE sound. */
@@ -164,6 +177,17 @@ void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_tar
     if (scene->ed != nullptr) {
       for (Strip *strip : lookup_strips_by_scene(editing_get(scene), scene_target)) {
         relations_invalidate_cache_raw(scene, strip);
+      }
+    }
+  }
+}
+
+void relations_invalidate_compositor_modifiers(const Main *bmain, const bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      for (Strip *strip : lookup_strips_by_compositor_node_group(editing_get(scene), node_tree)) {
+        relations_invalidate_cache(scene, strip);
       }
     }
   }
@@ -394,7 +418,7 @@ void relations_check_uids_unique_and_report(const Scene *scene)
   GSet *used_uids = BLI_gset_new(
       BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
 
-  for_each_callback(&scene->ed->seqbase, get_uids_cb, used_uids);
+  foreach_strip(&scene->ed->seqbase, get_uids_cb, used_uids);
 
   BLI_gset_free(used_uids, nullptr);
 }

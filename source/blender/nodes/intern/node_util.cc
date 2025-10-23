@@ -224,19 +224,6 @@ void node_vector_math_label(const bNodeTree * /*ntree*/,
   BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
 
-void node_filter_label(const bNodeTree * /*ntree*/,
-                       const bNode *node,
-                       char *label,
-                       int label_maxncpy)
-{
-  const char *name;
-  bool enum_label = RNA_enum_name(rna_enum_node_filter_items, node->custom1, &name);
-  if (!enum_label) {
-    name = N_("Unknown");
-  }
-  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
-}
-
 void node_combsep_color_label(const ListBase *sockets, NodeCombSepColorMode mode)
 {
   bNodeSocket *sock1 = (bNodeSocket *)sockets->first;
@@ -286,6 +273,30 @@ bool node_insert_link_default(blender::bke::NodeInsertLinkParams & /*params*/)
 /* -------------------------------------------------------------------- */
 /** \name Default value RNA access
  * \{ */
+
+int node_socket_get_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  return RNA_int_get(&ptr, "default_value");
+}
+
+void node_socket_set_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, int value)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  RNA_int_set(&ptr, "default_value", value);
+}
+
+bool node_socket_get_bool(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  return RNA_boolean_get(&ptr, "default_value");
+}
+
+void node_socket_set_bool(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, bool value)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  RNA_boolean_set(&ptr, "default_value", value);
+}
 
 float node_socket_get_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
 {
