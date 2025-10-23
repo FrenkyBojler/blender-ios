@@ -52,9 +52,4 @@ void float_to_half_array(const float *src, uint16_t *dst, size_t length);
 void float_to_half_make_finite_array(const float *src, uint16_t *dst, size_t length);
 void half_to_float_array(const uint16_t *src, float *dst, size_t length);
 
-/**
- * Removes infinity values from a half float array and clamp them to finite values.
- */
-void clamp_half_inf_to_half_max_array(uint16_t *half_array, size_t length);
-
 }  // namespace blender::math
