@@ -1541,8 +1541,8 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
               const GSpan src = srcs[attr_index];
               GMutableSpan dst = dsts[attr_index];
               const CPPType &type = dst.type();
-              for (const int i : out_face.index_range()) {
-                type.copy_construct(src[in_face[i]], dst[out_face[i]]);
+              for (const int dst_corner : out_face) {
+                type.copy_construct(src[out_to_in_corner_map[dst_corner]], dst[dst_corner]);
               }
             }
             continue;
@@ -1577,6 +1577,12 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
           for (const int out_c : out_face) {
             const int in_c = out_to_in_corner_map[out_c];
             if (in_c != -1) {
+              for (const int attr_index : dsts.index_range()) {
+                const GSpan src = srcs[attr_index];
+                GMutableSpan dst = dsts[attr_index];
+                const CPPType &type = dst.type();
+                type.copy_construct(src[in_c], dst[out_c]);
+              }
               continue;
             }
             const int out_v = output_corner_verts[out_c];
