@@ -697,9 +697,9 @@ static void print_help(bArgs *ba, bool all)
   PRINT("\n");
   PRINT("Window Options:\n");
   BLI_args_print_arg_doc(ba, "--window-border");
+  BLI_args_print_arg_doc(ba, "--window-maximized");
   BLI_args_print_arg_doc(ba, "--window-fullscreen");
   BLI_args_print_arg_doc(ba, "--window-geometry");
-  BLI_args_print_arg_doc(ba, "--window-maximized");
   BLI_args_print_arg_doc(ba, "--start-console");
   BLI_args_print_arg_doc(ba, "--no-native-pixels");
   BLI_args_print_arg_doc(ba, "--no-window-focus");
@@ -1862,19 +1862,19 @@ static int arg_handle_native_pixels_set(int /*argc*/, const char ** /*argv*/, vo
   return 0;
 }
 
-static const char arg_handle_with_borders_doc[] =
+static const char arg_handle_window_border_doc[] =
     "\n\t"
-    "Force opening with borders.";
-static int arg_handle_with_borders(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+    "Force opening with borders, in a normal (non maximized) state.";
+static int arg_handle_window_border(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   WM_init_state_normal_set();
   return 0;
 }
 
-static const char arg_handle_without_borders_doc[] =
+static const char arg_handle_window_fullscreen_doc[] =
     "\n\t"
-    "Force opening in full-screen mode.";
-static int arg_handle_without_borders(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+    "Force opening full-screen.";
+static int arg_handle_window_fullscreen(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   WM_init_state_fullscreen_set();
   return 0;
@@ -2130,6 +2130,7 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
       LISTBASE_FOREACH (RenderEngineType *, type, &R_engines) {
         printf("\t%s\n", type->idname);
       }
+      WM_exit_ex(C, false, false);
       exit(0);
     }
     else {
@@ -2146,6 +2147,7 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
         }
         else {
           fprintf(stderr, "\nError: engine not found '%s'\n", engine_name);
+          WM_exit_ex(C, false, false);
           exit(1);
         }
       }
@@ -3084,8 +3086,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   /* Pass: Custom Window Stuff. */
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS_GUI);
   BLI_args_add(ba, "-p", "--window-geometry", CB(arg_handle_window_geometry), nullptr);
-  BLI_args_add(ba, "-w", "--window-border", CB(arg_handle_with_borders), nullptr);
-  BLI_args_add(ba, "-W", "--window-fullscreen", CB(arg_handle_without_borders), nullptr);
+  BLI_args_add(ba, "-w", "--window-border", CB(arg_handle_window_border), nullptr);
+  BLI_args_add(ba, "-W", "--window-fullscreen", CB(arg_handle_window_fullscreen), nullptr);
   BLI_args_add(ba, "-M", "--window-maximized", CB(arg_handle_window_maximized), nullptr);
   BLI_args_add(ba, nullptr, "--no-window-focus", CB(arg_handle_no_window_focus), nullptr);
   BLI_args_add(ba, "-con", "--start-console", CB(arg_handle_start_with_console), nullptr);

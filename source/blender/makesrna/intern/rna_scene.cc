@@ -2151,6 +2151,11 @@ static void rna_Scene_uv_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
   ED_uvedit_selectmode_clean_multi(C);
 }
 
+static void rna_Scene_uv_select_sync_update(bContext *C, PointerRNA * /*ptr*/)
+{
+  ED_uvedit_select_sync_multi(C);
+}
+
 static void rna_Scene_uv_sticky_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
 {
   /* Some changes to sticky select mode require rebuilding. */
@@ -4250,7 +4255,8 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "UV Sync Selection", "Keep UV and edit mode mesh selection in sync");
   RNA_def_property_ui_icon(prop, ICON_UV_SYNC_SELECT, 0);
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_select_sync_update");
 
   prop = RNA_def_property(srna, "use_uv_select_island", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SELECT_ISLAND);
@@ -8767,6 +8773,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, time_jump_unit_items);
   RNA_def_property_ui_text(
       prop, "Time Jump Unit", "Which unit to use for time jumps in the timeline");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
 
   prop = RNA_def_property(srna, "time_jump_delta", PROP_FLOAT, PROP_TIME);

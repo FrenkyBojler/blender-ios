@@ -236,6 +236,13 @@ const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
    ICON_FILE, \
    "Cache File", \
    "Edit timings for Cache File data-blocks"}
+#define SACT_ITEM_TIMELINE \
+  {SACTCONT_TIMELINE, \
+   "TIMELINE", \
+   ICON_TIME, \
+   "Timeline", \
+   "Simple timeline view with playback controls in the header, without channel list, " \
+   "side-panel, or footer"}
 
 #ifndef RNA_RUNTIME
 /* XXX: action-editor is currently for object-level only actions,
@@ -247,6 +254,7 @@ static EnumPropertyItem rna_enum_space_action_mode_all_items[] = {
     SACT_ITEM_GPENCIL,
     SACT_ITEM_MASK,
     SACT_ITEM_CACHEFILE,
+    SACT_ITEM_TIMELINE,
     {0, nullptr, 0, nullptr, nullptr},
 };
 static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
@@ -260,12 +268,19 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
 };
 #endif
 
+const EnumPropertyItem rna_enum_space_action_mode_items[] = {
+    SACT_ITEM_DOPESHEET,
+    SACT_ITEM_TIMELINE,
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #undef SACT_ITEM_DOPESHEET
 #undef SACT_ITEM_ACTION
 #undef SACT_ITEM_SHAPEKEY
 #undef SACT_ITEM_GPENCIL
 #undef SACT_ITEM_MASK
 #undef SACT_ITEM_CACHEFILE
+#undef SACT_ITEM_TIMELINE
 
 #define SI_ITEM_VIEW(identifier, name, icon) \
   {SI_MODE_VIEW, identifier, icon, name, "Inspect images or render results"}
@@ -2678,13 +2693,13 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
       {SNODE_GEOMETRY_MODIFIER,
        "MODIFIER",
        ICON_MODIFIER_DATA,
-       "Modifier",
-       "Edit node group from active object's active modifier"},
+       N_("Modifier"),
+       N_("Edit node group from active object's active modifier")},
       {SNODE_GEOMETRY_TOOL,
        "TOOL",
        ICON_TOOL_SETTINGS,
-       "Tool",
-       "Edit any geometry node group for use as an operator"},
+       N_("Tool"),
+       N_("Edit any geometry node group for use as an operator")},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2692,13 +2707,13 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
       {SNODE_COMPOSITOR_SCENE,
        "SCENE",
        ICON_SCENE_DATA,
-       "Scene",
-       "Edit compositing node group for the current scene"},
+       N_("Scene"),
+       N_("Edit compositing node group for the current scene")},
       {SNODE_COMPOSITOR_SEQUENCER,
        "SEQUENCER",
        ICON_SEQUENCE,
-       "Sequencer",
-       "Edit compositing node group for Sequencer strip modifiers"},
+       N_("Sequencer"),
+       N_("Edit compositing node group for Sequencer strip modifiers")},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -8117,7 +8132,6 @@ static void rna_def_space_node(BlenderRNA *brna)
   RNA_def_property_enum_funcs(
       prop, nullptr, nullptr, "rna_SpaceNodeEditor_node_tree_sub_type_itemf");
   RNA_def_property_ui_text(prop, "Node Tree Sub-Type", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_node_tree_sub_type_update");
 

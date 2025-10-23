@@ -1183,6 +1183,11 @@ static bool surfacedeformBind(Object *ob,
   uint tedges_num = target->edges_num;
   int adj_result;
 
+  if (target->faces_num == 0) {
+    BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Target has no faces");
+    return false;
+  }
+
   SDefAdjacencyArray *vert_edges = MEM_calloc_arrayN<SDefAdjacencyArray>(target_verts_num,
                                                                          "SDefVertEdgeMap");
   if (vert_edges == nullptr) {
@@ -1206,7 +1211,7 @@ static bool surfacedeformBind(Object *ob,
     return false;
   }
 
-  smd_orig->verts = MEM_malloc_arrayN<SDefVert>(size_t(verts_num), "SDefBindVerts");
+  smd_orig->verts = MEM_calloc_arrayN<SDefVert>(size_t(verts_num), "SDefBindVerts");
   if (smd_orig->verts == nullptr) {
     BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Out of memory");
     freeAdjacencyMap(vert_edges, adj_array, edge_polys);
@@ -1647,8 +1652,6 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
     }
   }
 
-  BLO_write_struct_at_address(writer, SurfaceDeformModifierData, md, &smd);
-
   if (smd.verts != nullptr) {
     BLO_write_shared(
         writer, smd.verts, sizeof(SDefVert) * smd.bind_verts_num, smd.verts_sharing_info, [&]() {
@@ -1679,6 +1682,8 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
           }
         });
   }
+
+  BLO_write_struct_at_address(writer, SurfaceDeformModifierData, md, &smd);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
