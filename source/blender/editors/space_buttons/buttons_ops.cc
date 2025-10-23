@@ -309,26 +309,19 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
         BKE_build_template_variables_for_prop(C, &ptr, prop);
     BLI_assert(variables.has_value());
 
-    /* Validate template by resolving to a temporary path, but keep original template path */
-    if (BKE_path_contains_template_syntax(path)) {
-      char temp_path[FILE_MAX];
-      STRNCPY(temp_path, path);
-      const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-          temp_path, FILE_MAX, *variables);
-      if (!errors.is_empty()) {
-        BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
-        return OPERATOR_CANCELLED;
-      }
-      /* Don't overwrite path with resolved version - keep the template */
+    /* Validate template by resolving to a temporary path */
+    char temp_path[FILE_MAX];
+    const bool has_template = BKE_path_contains_template_syntax(path);
+    BLI_strncpy(temp_path, path, FILE_MAX);
+    const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+        temp_path, FILE_MAX, *variables);
+    if (!errors.is_empty()) {
+      BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
+      return OPERATOR_CANCELLED;
     }
-    else {
-      /* No templates, resolve normally */
-      const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-          path, FILE_MAX, *variables);
-      if (!errors.is_empty()) {
-        BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
-        return OPERATOR_CANCELLED;
-      }
+    /* Keep original template path if it had templates, otherwise use resolved */
+    if (!has_template) {
+      BLI_strncpy(path, temp_path, FILE_MAX);
     }
   }
 

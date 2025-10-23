@@ -29,7 +29,7 @@ set(SRC
   folder_history.cc
   fsmenu.cc
   fsmenu_system.cc
-  path_template_utils.cc
+  file_path_templates.cc
   space_file.cc
 
   file_indexer.hh
@@ -37,7 +37,7 @@ set(SRC
   filelist.hh
   filelist/filelist_intern.hh
   fsmenu.h
-  path_template_utils.hh
+  file_path_templates.hh
 )
 
 set(LIB

@@ -26,7 +26,7 @@
 
 #include "../space_file/file_intern.hh"
 #include "../space_file/filelist.hh"
-#include "../space_file/path_template_utils.hh"
+#include "../space_file/file_path_templates.hh"
 
 using blender::StringRefNull;
 
@@ -332,7 +332,7 @@ static void file_directory_variable_enter_handle(bContext *C, void *, void *)
   }
 
   /* Handle template path input and update all fields */
-  blender::editor::file::handle_template_path_input(params, params->dir_variable);
+  blender::editor::file::path_templates::handle_input(params, params->dir_template);
 
   ED_file_change_dir(C);
 }
@@ -393,8 +393,8 @@ void uiTemplateFileSelectPathVariable(uiLayout *layout, bContext *C, FileSelectP
   create_file_path_button(layout,
                           C,
                           params,
-                          "directory_variable",
-                          TIP_("Variable file path with template syntax"),
+                          "directory_template",
+                          TIP_("File path with template variables"),
                           false,
                           file_directory_variable_enter_handle);
 }
@@ -403,7 +403,7 @@ void uiTemplateFileSelectPathPreview(uiLayout *layout, bContext *C, FileSelectPa
 {
   BLI_assert_msg(params != nullptr, "File select parameters not set.");
   create_file_path_button(
-      layout, C, params, "directory_preview", TIP_("Resolved file path preview"), true, nullptr);
+      layout, C, params, "directory_resolved", TIP_("Resolved file path"), true, nullptr);
 }
 
 /** \} */

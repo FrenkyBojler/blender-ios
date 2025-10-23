@@ -48,7 +48,7 @@
 #include "BKE_path_templates.hh"
 #include "BKE_preferences.h"
 
-#include "path_template_utils.hh"
+#include "file_path_templates.hh"
 
 #include "BLO_userdef_default.h"
 
@@ -170,14 +170,11 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     sfile->params->list_column_size = 500;
     
     /* Initialize template paths - will be set properly by operator processing if needed */
-    if (sfile->params->dir_variable[0] == '\0') {
-      STRNCPY(sfile->params->dir_variable, sfile->params->dir);
-      STRNCPY(sfile->params->dir_preview, sfile->params->dir);
+    if (sfile->params->dir_template[0] == '\0') {
+      STRNCPY(sfile->params->dir_template, sfile->params->dir);
     }
-    else {
-      if (sfile->params->dir_preview[0] == '\0') {
-        STRNCPY(sfile->params->dir_preview, sfile->params->dir);
-      }
+    if (sfile->params->dir_resolved[0] == '\0') {
+      STRNCPY(sfile->params->dir_resolved, sfile->params->dir);
     }
     
     /* Don't initialize path template handler yet - wait until after operator processing */
@@ -220,14 +217,11 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
           char template_file[FILE_MAX];
           BLI_path_split_dir_file(filepath, template_dir, sizeof(template_dir), template_file, sizeof(template_file));
           
-          /* Store template versions */
-          STRNCPY(params->dir_variable, template_dir);
+          /* Store filename */
           STRNCPY(params->file, template_file);
           
-          /* Resolve template for regular dir and preview using centralized function */
-          STRNCPY(params->dir, template_dir);
-          blender::editor::file::resolve_path_templates(params->dir, sizeof(params->dir));
-          STRNCPY(params->dir_preview, params->dir);
+          /* Use centralized template handling for directory paths */
+          blender::editor::file::path_templates::handle_input(params, template_dir);
         }
         else {
           BLI_path_split_dir_file(
@@ -390,7 +384,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   }
 
   /* Initialize path template handler now that all operator processing is complete */
-  blender::editor::file::initialize_template_paths(params);
+  blender::editor::file::path_templates::initialize(params);
 
   fileselect_initialize_params_common(sfile, params);
 
@@ -1209,7 +1203,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
     }
 
     /* Update template paths when directory changes */
-    blender::editor::file::handle_template_navigation(params, params->dir);
+    blender::editor::file::path_templates::handle_navigation(params, params->dir);
 
     filelist_setdir(sfile->files, params->dir);
 

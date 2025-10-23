@@ -24,7 +24,7 @@
 #include "ED_fileselect.hh"
 #include "ED_spreadsheet.hh"
 
-#include "../editors/space_file/path_template_utils.hh"
+#include "../editors/space_file/file_path_templates.hh"
 
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
@@ -3094,35 +3094,27 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 }
 
 /* Helper to check if params should use template version */
-static bool params_should_use_template(const FileSelectParams *params)
+static bool params_has_template(const FileSelectParams *params)
 {
-  return blender::editor::file::should_use_template_path(params);
+  return blender::editor::file::path_templates::has_template(params);
 }
 
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  
-  /* Return the template version if it has template variables, otherwise the resolved version */
-  if (params_should_use_template(params)) {
-    strcpy(value, params->dir_variable);
-  }
-  else {
-    strcpy(value, params->dir);
-  }
+  strcpy(value, params_has_template(params) ? params->dir_template : params->dir);
 }
 
 static int rna_FileSelectParams_directory_length(PointerRNA *ptr)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  
-  return params_should_use_template(params) ? strlen(params->dir_variable) : strlen(params->dir);
+  return params_has_template(params) ? strlen(params->dir_template) : strlen(params->dir);
 }
 
 static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  blender::editor::file::handle_template_path_input(params, value);
+  blender::editor::file::path_templates::handle_input(params, value);
 }
 
 static int rna_FileAssetSelectParams_asset_library_get(PointerRNA *ptr)
@@ -7418,14 +7410,14 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
   RNA_def_property_string_funcs(prop, "rna_FileSelectParams_directory_get", "rna_FileSelectParams_directory_length", "rna_FileSelectParams_directory_set");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
-  prop = RNA_def_property(srna, "directory_variable", PROP_STRING, PROP_BYTESTRING);
-  RNA_def_property_string_sdna(prop, nullptr, "dir_variable");
-  RNA_def_property_ui_text(prop, "Directory Variable", "Directory path with template variables (unresolved)");
+  prop = RNA_def_property(srna, "directory_template", PROP_STRING, PROP_BYTESTRING);
+  RNA_def_property_string_sdna(prop, nullptr, "dir_template");
+  RNA_def_property_ui_text(prop, "Template Path", "Directory path with template variables");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
-  prop = RNA_def_property(srna, "directory_preview", PROP_STRING, PROP_BYTESTRING);
-  RNA_def_property_string_sdna(prop, nullptr, "dir_preview");
-  RNA_def_property_ui_text(prop, "Directory Preview", "Directory path preview (resolved template variables)");
+  prop = RNA_def_property(srna, "directory_resolved", PROP_STRING, PROP_BYTESTRING);
+  RNA_def_property_string_sdna(prop, nullptr, "dir_resolved");
+  RNA_def_property_ui_text(prop, "Resolved Path", "Directory path with resolved template variables");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 

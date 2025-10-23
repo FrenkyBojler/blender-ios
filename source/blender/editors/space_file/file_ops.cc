@@ -23,7 +23,7 @@
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
-#include "path_template_utils.hh"
+#include "file_path_templates.hh"
 
 #include "BLT_translation.hh"
 
@@ -1603,12 +1603,10 @@ void file_sfile_to_operator_ex(
   char dir[FILE_MAX];
 
   /* Use template version if available, otherwise resolved version */
-  if (blender::editor::file::should_use_template_path(params)) {
-    BLI_strncpy(dir, params->dir_variable, FILE_MAX);
-  }
-  else {
-    BLI_strncpy(dir, params->dir, FILE_MAX);
-  }
+  BLI_strncpy(dir, 
+              blender::editor::file::path_templates::has_template(params) ? 
+                params->dir_template : params->dir, 
+              FILE_MAX);
   BLI_path_slash_ensure(dir, FILE_MAX);
 
   /* Build filepath */
@@ -1627,9 +1625,9 @@ void file_sfile_to_operator_ex(
   }
 
   /* Use utility function to reduce repetition */
-  blender::editor::file::set_operator_string_property(C, op, "filename", params->file);
-  blender::editor::file::set_operator_string_property(C, op, "directory", dir);
-  blender::editor::file::set_operator_string_property(C, op, "filepath", filepath);
+  blender::editor::file::path_templates::set_operator_string_property(C, op, "filename", params->file);
+  blender::editor::file::path_templates::set_operator_string_property(C, op, "directory", dir);
+  blender::editor::file::path_templates::set_operator_string_property(C, op, "filepath", filepath);
 
   /* some ops have multiple files to select */
   /* this is called on operators check() so clear collections first since
