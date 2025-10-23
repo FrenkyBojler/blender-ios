@@ -1629,11 +1629,11 @@ static void set_material_from_map(const Span<int> out_to_in_map,
                                   const MutableSpan<int> dst)
 {
   BLI_assert(material_remaps.size() > 0);
-  Vector<VArraySpan<int>> material_varrays;
+  Array<VArray<int>> material_varrays;
   for (const int i : meshes.index_range()) {
     bke::AttributeAccessor input_attrs = meshes[i]->attributes();
-    material_varrays.append(
-        *input_attrs.lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0));
+    material_varrays[i] = *input_attrs.lookup_or_default<int>(
+        "material_index", bke::AttrDomain::Face, 0);
   }
   threading::parallel_for(out_to_in_map.index_range(), 8192, [&](const IndexRange range) {
     for (const int out_f : range) {
@@ -1885,7 +1885,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
            * This should only happen if the user wants something other than the default
            * "transfer the materials" mode, which has already happened in the joined mesh.
            */
-          do_material_remap = material_remaps.size() > 0 && iter.name == "material_index";
+          do_material_remap = !material_remaps.is_empty() && iter.name == "material_index";
           break;
         }
         case bke::AttrDomain::Edge: {
