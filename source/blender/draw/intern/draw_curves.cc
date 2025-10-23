@@ -539,7 +539,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
                                              face_per_segment,
                                              curves.has_cyclic_curve(),
                                              error);
-  if (batch == nullptr) {
+  if (error) {
     r_error = RPT_(
         "Error: Curves object contains too many points. "
         "Reduce curve resolution or curve count to fix this issue.\n");
