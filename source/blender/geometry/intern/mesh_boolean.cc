@@ -23,7 +23,6 @@
 #include "BLI_virtual_array.hh"
 
 #include "GEO_mesh_boolean.hh"
-#include "GEO_realize_instances.hh"
 #include "mesh_boolean_intern.hh"
 #include "mesh_boolean_manifold.hh"
 
