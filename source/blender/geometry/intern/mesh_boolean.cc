@@ -435,32 +435,6 @@ static void copy_or_interp_loop_attributes(const meshintersect::IMesh *im,
                                 dst_to_src_face_map);
 }
 
-template<typename T>
-static void gather_with_check(const Span<T> src,
-                              const Span<int> dst_to_src_map,
-                              MutableSpan<T> dst)
-{
-  threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
-    for (const int dst_index : range) {
-      const int src_index = dst_to_src_map[dst_index];
-      if (src_index == -1) {
-        dst[dst_index] = T();
-      }
-      else {
-        dst[dst_index] = src[src_index];
-      }
-    }
-  });
-}
-
-static void gather_with_check(const GSpan src, const Span<int> dst_to_src_map, GMutableSpan dst)
-{
-  bke::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    gather_with_check(src.typed<T>(), dst_to_src_map, dst.typed<T>());
-  });
-}
-
 void gather_attributes_with_check(const bke::AttributeAccessor src_attributes,
                                   const bke::AttrDomain src_domain,
                                   const bke::AttrDomain dst_domain,
@@ -484,7 +458,7 @@ void gather_attributes_with_check(const bke::AttributeAccessor src_attributes,
     if (!dst) {
       return;
     }
-    gather_with_check(GVArraySpan(*src), dst_to_src_map, dst.span);
+    copy_attribute_using_map(GVArraySpan(*src), dst_to_src_map, dst.span);
     dst.finish();
   });
 }

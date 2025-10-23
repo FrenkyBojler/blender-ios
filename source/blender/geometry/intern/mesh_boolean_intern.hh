@@ -42,6 +42,8 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
                                    Span<int> out_to_in_corner_map,
                                    Span<int> out_to_in_face_map);
 
+void copy_attribute_using_map(const GSpan src, const Span<int> out_to_in_map, GMutableSpan dst);
+
 bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
                                              const Span<float4x4> transforms);
 

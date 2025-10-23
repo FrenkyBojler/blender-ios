@@ -1455,9 +1455,7 @@ static MeshAssembly assemble_mesh_from_meshgl(MeshGL &mgl, const MeshOffsets &me
   return ma;
 }
 
-static void copy_attribute_using_map(const GSpan src,
-                                     const Span<int> out_to_in_map,
-                                     GMutableSpan dst)
+void copy_attribute_using_map(const GSpan src, const Span<int> out_to_in_map, GMutableSpan dst)
 {
   const CPPType &type = dst.type();
   const void *default_value = type.default_value();
