@@ -15,13 +15,8 @@ _MENU_CONFIRM_HACK = True
 # FIXME: When running multi window tests, the view layer in the new window
 # may not be updated after a single event loop. This fixed delay is to allow
 # the corresponding tests to run as expected. See: #136012.
-_MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS = 1 / 60
-
-# WARNING: macOS and windows require an extra delay (it's unclear why), see: #146143.
-import sys
-if sys.platform in {"darwin", "win32"}:
-    _MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS = 1 / 6
-del sys
+_MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_INCREMENT_SECONDS = .10
+_MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_MAX_TIMEOUT = 1
 
 # -----------------------------------------------------------------------------
 # Utilities
@@ -787,6 +782,21 @@ def view3d_multi_mode_select():
         yield e.ctrl.z()
 
 
+def _multi_window_delay(window_a, window_b):
+    """Wait for up to _MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_MAX_TIMEOUT seconds to ensure that the view layers on the
+       different windows are different. """
+    different_view_layers = window_a.view_layer != window_b.view_layer
+    start_time = datetime.datetime.now(datetime.timezone.utc)
+    current_time = datetime.datetime.now(datetime.timezone.utc)
+    duration = current_time - start_time
+    while different_view_layers or duration.total_seconds() < _MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_MAX_TIMEOUT:
+        # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
+        yield datetime.timedelta(seconds=_MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_INCREMENT_SECONDS)
+        different_view_layers = window_a.view_layer != window_b.view_layer
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+        duration = current_time - start_time
+
+
 def view3d_multi_mode_multi_window():
     e_a, t = _test_vars(window_a := _test_window())
     yield from _call_menu(e_a, "Window -> New Main Window")
@@ -796,8 +806,7 @@ def view3d_multi_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
-        yield datetime.timedelta(seconds=_MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS)
+        _multi_window_delay(window_a, window_b)
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
@@ -955,8 +964,7 @@ def view3d_edit_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
-        yield datetime.timedelta(seconds=_MENU_CONFIRM_HACK_MULTI_WINDOW_PAUSE_SECONDS)
+        _multi_window_delay(window_a, window_b)
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
