@@ -157,9 +157,14 @@ set(SRC
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_bundle.cc
   nodes/node_geo_join_geometry.cc
+  nodes/node_geo_join_list.cc
   nodes/node_geo_list.cc
+  nodes/node_geo_list_find.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
+  nodes/node_geo_list_reverse.cc
+  nodes/node_geo_list_set_item.cc
+  nodes/node_geo_list_slice.cc
   nodes/node_geo_list_sort.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
