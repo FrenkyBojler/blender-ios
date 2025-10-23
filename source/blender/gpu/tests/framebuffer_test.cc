@@ -197,8 +197,6 @@ GPU_TEST(framebuffer_scissor_test);
 /* Color each side of a cube-map with a different color. */
 static void test_framebuffer_cube()
 {
-  BLOCK_GPU_TEST_ON(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY, GPU_BACKEND_VULKAN)
-
   const int SIZE = 32;
   GPU_render_begin();
 

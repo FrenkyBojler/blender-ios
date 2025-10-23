@@ -218,10 +218,6 @@ def main():
     elif args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
 
-    if sys.platform == "linux" and gpu_vendor == "INTEL":
-        # Skip broken test.
-        blocklist.append("camera_stereo_panoramic")
-
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
         report.set_compare_engine('eevee', 'opengl')
