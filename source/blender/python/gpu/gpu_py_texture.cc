@@ -84,19 +84,19 @@ const PyC_StringEnumItems pygpu_textureformat_items[] = {
 };
 
 const PyC_StringEnumItems pygpu_textureextendmode_items[] = {
-  {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_EXTEND), "EXTEND"},
-  {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_REPEAT), "REPEAT"},
-  {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_MIRRORED_REPEAT), "MIRRORED_REPEAT"},
-  {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER), "CLAMP_TO_BORDER"},
-  {0, nullptr},
+    {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_EXTEND), "EXTEND"},
+    {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_REPEAT), "REPEAT"},
+    {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_MIRRORED_REPEAT), "MIRRORED_REPEAT"},
+    {int(GPUSamplerExtendMode::GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER), "CLAMP_TO_BORDER"},
+    {0, nullptr},
 };
 
 const PyC_StringEnumItems pygpu_texturefiltering_items[] = {
-  {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_DEFAULT), "DEFAULT"},
-  {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_LINEAR), "LINEAR"},
-  {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_MIPMAP), "MIPMAP"},
-  {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_ANISOTROPIC), "ANISOTROPIC"},
-  {0, nullptr},
+    {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_DEFAULT), "DEFAULT"},
+    {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_LINEAR), "LINEAR"},
+    {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_MIPMAP), "MIPMAP"},
+    {int(GPUSamplerFiltering::GPU_SAMPLER_FILTERING_ANISOTROPIC), "ANISOTROPIC"},
+    {0, nullptr},
 };
 
 static int pygpu_texture_valid_check(BPyGPUTexture *bpygpu_tex)
@@ -363,15 +363,17 @@ static PyObject *pygpu_texture_format_get(BPyGPUTexture *self, void * /*type*/)
 }
 
 PyDoc_STRVAR(
-  /* Wrap. */
-  pygpu_texture_extend_mode_x_doc,
-  ".. method:: extend_mode_x(extend_mode='BOOL')\n"
-  "\n"
-  "   Set texture sampling method for coordinates outside of the [0..1] uv range along the x axis.\n"
-  "\n"
-  "   :arg extend_mode: the specified extent mode.\n"
-  "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & ``CLAMP_TO_BORDER``.\n"
-  "   :type extend_mode: str");
+    /* Wrap. */
+    pygpu_texture_extend_mode_x_doc,
+    ".. method:: extend_mode_x(extend_mode='BOOL')\n"
+    "\n"
+    "   Set texture sampling method for coordinates outside of the [0..1] uv range along the x "
+    "axis.\n"
+    "\n"
+    "   :arg extend_mode: the specified extent mode.\n"
+    "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & "
+    "``CLAMP_TO_BORDER``.\n"
+    "   :type extend_mode: str");
 static PyObject *pygpu_texture_extend_mode_x(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
@@ -386,15 +388,17 @@ static PyObject *pygpu_texture_extend_mode_x(BPyGPUTexture *self, PyObject *valu
 }
 
 PyDoc_STRVAR(
-  /* Wrap. */
-  pygpu_texture_extend_mode_y_doc,
-  ".. method:: extend_mode_y(extend_mode='BOOL')\n"
-  "\n"
-  "   Set texture sampling method for coordinates outside of the [0..1] uv range along the y axis.\n"
-  "\n"
-  "   :arg extend_mode: the specified extent mode.\n"
-  "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & ``CLAMP_TO_BORDER``.\n"
-  "   :type extend_mode: str");
+    /* Wrap. */
+    pygpu_texture_extend_mode_y_doc,
+    ".. method:: extend_mode_y(extend_mode='BOOL')\n"
+    "\n"
+    "   Set texture sampling method for coordinates outside of the [0..1] uv range along the y "
+    "axis.\n"
+    "\n"
+    "   :arg extend_mode: the specified extent mode.\n"
+    "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & "
+    "``CLAMP_TO_BORDER``.\n"
+    "   :type extend_mode: str");
 static PyObject *pygpu_texture_extend_mode_y(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
@@ -409,16 +413,17 @@ static PyObject *pygpu_texture_extend_mode_y(BPyGPUTexture *self, PyObject *valu
 }
 
 PyDoc_STRVAR(
-  /* Wrap. */
-  pygpu_texture_extend_mode_doc,
-  ".. method:: extend_mode(extend_mode='BOOL')\n"
-  "\n"
-  "   Set texture sampling method for coordinates outside of the [0..1] uv range along\n"
-  "   both the x and y axis.\n"
-  "\n"
-  "   :arg extend_mode: the specified extent mode.\n"
-  "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & ``CLAMP_TO_BORDER``.\n"
-  "   :type extend_mode: str");
+    /* Wrap. */
+    pygpu_texture_extend_mode_doc,
+    ".. method:: extend_mode(extend_mode='BOOL')\n"
+    "\n"
+    "   Set texture sampling method for coordinates outside of the [0..1] uv range along\n"
+    "   both the x and y axis.\n"
+    "\n"
+    "   :arg extend_mode: the specified extent mode.\n"
+    "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & "
+    "``CLAMP_TO_BORDER``.\n"
+    "   :type extend_mode: str");
 static PyObject *pygpu_texture_extend_mode(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
@@ -427,21 +432,21 @@ static PyObject *pygpu_texture_extend_mode(BPyGPUTexture *self, PyObject *value)
   if (!PyC_ParseStringEnum(value, &extend_mode)) {
     return nullptr;
   }
-  
+
   GPU_texture_extend_mode(self->tex, GPUSamplerExtendMode(extend_mode.value_found));
   Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(
-  /* Wrap. */
-  pygpu_texture_filter_mode_doc,
-  ".. method:: filter_mode(use_filter='BOOL')\n"
-  "\n"
-  "   Set texture filter usage.\n"
-  "\n"
-  "   :arg use_filter: If set to true, the texture will use linear interpolation between\n"
-  "      neighboring texels."
-  "   :type use_filter: Boolean");
+    /* Wrap. */
+    pygpu_texture_filter_mode_doc,
+    ".. method:: filter_mode(use_filter='BOOL')\n"
+    "\n"
+    "   Set texture filter usage.\n"
+    "\n"
+    "   :arg use_filter: If set to true, the texture will use linear interpolation between\n"
+    "      neighboring texels."
+    "   :type use_filter: Boolean");
 static PyObject *pygpu_texture_filter_mode(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
@@ -455,19 +460,18 @@ static PyObject *pygpu_texture_filter_mode(BPyGPUTexture *self, PyObject *value)
   Py_RETURN_NONE;
 }
 
-
 PyDoc_STRVAR(
-  /* Wrap. */
-  pygpu_texture_mipmap_mode_doc,
-  ".. method:: mipmap_mode(use_filter='BOOL')\n"
-  "\n"
-  "   Set texture filter and mip-map usage.\n"
-  "\n"
-  "   :arg use_filter: If set to true, the texture will use linear interpolation between\n"
-        "neighboring texels."
-  "   :type use_filter: Boolean"
-  "   :arg use_mipmap: If set to true, the texture will use mip-mapping as anti-aliasing method."
-  "   :type use_mipmap: Boolean");
+    /* Wrap. */
+    pygpu_texture_mipmap_mode_doc,
+    ".. method:: mipmap_mode(use_filter='BOOL')\n"
+    "\n"
+    "   Set texture filter and mip-map usage.\n"
+    "\n"
+    "   :arg use_filter: If set to true, the texture will use linear interpolation between\n"
+    "neighboring texels."
+    "   :type use_filter: Boolean"
+    "   :arg use_mipmap: If set to true, the texture will use mip-mapping as anti-aliasing method."
+    "   :type use_mipmap: Boolean");
 static PyObject *pygpu_texture_mipmap_mode(BPyGPUTexture *self, PyObject *args)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
@@ -483,15 +487,15 @@ static PyObject *pygpu_texture_mipmap_mode(BPyGPUTexture *self, PyObject *args)
 }
 
 PyDoc_STRVAR(
-  /* Wrap. */
-  pygpu_texture_anisotropic_filter_doc,
-  ".. method:: anisotropic_filter(use_filter='BOOL')\n"
-  "\n"
-  "   Set anisotropic filter usage.\n"
-  "\n"
-  "   :arg use_anisotropic: If set to true, the texture will use anisotropic filtering as\n"
-        "anti-aliasing method."
-  "   :type use_anisotropic: Boolean");
+    /* Wrap. */
+    pygpu_texture_anisotropic_filter_doc,
+    ".. method:: anisotropic_filter(use_filter='BOOL')\n"
+    "\n"
+    "   Set anisotropic filter usage.\n"
+    "\n"
+    "   :arg use_anisotropic: If set to true, the texture will use anisotropic filtering as\n"
+    "anti-aliasing method."
+    "   :type use_anisotropic: Boolean");
 static PyObject *pygpu_texture_anisotropic_filter(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
@@ -710,6 +714,30 @@ static PyMethodDef pygpu_texture__tp_methods[] = {
 #ifdef BPYGPU_USE_GPUOBJ_FREE_METHOD
     {"free", (PyCFunction)pygpu_texture_free, METH_NOARGS, pygpu_texture_free_doc},
 #endif
+    {"extend_mode_x",
+     (PyCFunction)pygpu_texture_extend_mode_x,
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_extend_mode_x_doc},
+    {"extend_mode_y",
+     (PyCFunction)pygpu_texture_extend_mode_y,
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_extend_mode_y_doc},
+    {"extend_mode",
+     (PyCFunction)pygpu_texture_extend_mode,
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_extend_mode_doc},
+    {"filter_mode",
+     (PyCFunction)pygpu_texture_filter_mode,
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_filter_mode_doc},
+    {"mipmap_mode",
+     (PyCFunction)pygpu_texture_mipmap_mode,
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_mipmap_mode_doc},
+    {"anisotropic_filter",
+     (PyCFunction)pygpu_texture_anisotropic_filter,
+     METH_VARARGS | METH_KEYWORDS,
+     pygpu_texture_anisotropic_filter_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
