@@ -1578,7 +1578,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
         return item;
       }
 
-      const VectorSet<StringRefNull> uv_map_names = me_dst->uv_map_names();
+      const VectorSet<StringRefNull> uv_map_names = mesh_eval->uv_map_names();
       const int num_data = uv_map_names.size();
 
       RNA_enum_item_add_separator(&item, &totitem);
@@ -1651,7 +1651,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
                                                                                 PropertyRNA *prop,
                                                                                 bool *r_free)
 {
-  using namesapce blender;
+  using namespace blender;
   DataTransferModifierData *dtmd = (DataTransferModifierData *)ptr->data;
   EnumPropertyItem *item = nullptr, tmp_item = {0};
   int totitem = 0;
@@ -1704,8 +1704,8 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
 
         for (int i = 0; i < num_data; i++) {
           tmp_item.value = i;
-          tmp_item.identifier = tmp_item.name = uv_map_names[i].c_str RNA_enum_item_add(
-              &item, &totitem, &tmp_item);
+          tmp_item.identifier = tmp_item.name = uv_map_names[i].c_str();
+          RNA_enum_item_add(&item, &totitem, &tmp_item);
         }
       }
     }
