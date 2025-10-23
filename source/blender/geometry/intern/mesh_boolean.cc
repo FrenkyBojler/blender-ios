@@ -114,12 +114,6 @@ class MeshesToIMeshInfo {
   /* For each input mesh, how to remap the material slot numbers to
    * the material slots in the first mesh. */
   Span<Array<short>> material_remaps;
-  /* Total number of input mesh vertices. */
-  int tot_meshes_verts;
-  /* Total number of input mesh edges. */
-  int tot_meshes_edges;
-  /* Total number of input mesh polys. */
-  int tot_meshes_polys;
 
   int input_mesh_for_imesh_vert(int imesh_v) const;
   int input_mesh_for_imesh_edge(int imesh_e) const;
@@ -186,19 +180,12 @@ static meshintersect::IMesh meshes_to_imesh(Span<const Mesh *> meshes,
                                             meshintersect::IMeshArena &arena,
                                             MeshesToIMeshInfo *r_info)
 {
+  r_info->mesh_offsets = MeshOffsets(meshes);
   int nmeshes = meshes.size();
   BLI_assert(nmeshes > 0);
   r_info->meshes = meshes;
-  r_info->tot_meshes_verts = 0;
-  r_info->tot_meshes_polys = 0;
-  int &totvert = r_info->tot_meshes_verts;
-  int &totedge = r_info->tot_meshes_edges;
-  int &faces_num = r_info->tot_meshes_polys;
-  for (const Mesh *mesh : meshes) {
-    totvert += mesh->verts_num;
-    totedge += mesh->edges_num;
-    faces_num += mesh->faces_num;
-  }
+  const int totvert = r_info->mesh_offsets.vert_offsets.total_size();
+  const int faces_num = r_info->mesh_offsets.face_offsets.total_size();
 
   /* Estimate the number of vertices and faces in the boolean output,
    * so that the memory arena can reserve some space. It is OK if these
@@ -415,15 +402,15 @@ static void copy_or_interp_loop_attributes(const meshintersect::IMesh *im,
   const OffsetIndices<int> dst_faces = dest_mesh->faces();
 
   Array<int> dst_to_src_corner_map(dst_faces.total_size());
-  for (int fi : dst_faces.index_range()) {
-    const meshintersect::Face *f = im->face(fi);
+  for (const int face : dst_faces.index_range()) {
+    const meshintersect::Face *f = im->face(face);
     const int mesh_index = mesh_id_for_face(f->orig, mim.mesh_offsets);
     fill_orig_loops(f,
                     src_faces[f->orig],
                     orig_corner_verts,
                     mesh_index,
                     mim,
-                    dst_to_src_corner_map.as_mutable_span().slice(dst_faces[fi]));
+                    dst_to_src_corner_map.as_mutable_span().slice(dst_faces[face]));
   }
 
   interpolate_corner_attributes(dest_mesh->attributes_for_write(),
@@ -434,12 +421,12 @@ static void copy_or_interp_loop_attributes(const meshintersect::IMesh *im,
                                 dst_to_src_face_map);
 }
 
-void gather_attributes_with_check(const bke::AttributeAccessor src_attributes,
-                                  const bke::AttrDomain src_domain,
-                                  const bke::AttrDomain dst_domain,
-                                  const bke::AttributeFilter &attribute_filter,
-                                  const Span<int> dst_to_src_map,
-                                  bke::MutableAttributeAccessor dst_attributes)
+static void gather_attributes_with_check(const bke::AttributeAccessor src_attributes,
+                                         const bke::AttrDomain src_domain,
+                                         const bke::AttrDomain dst_domain,
+                                         const bke::AttributeFilter &attribute_filter,
+                                         const Span<int> dst_to_src_map,
+                                         bke::MutableAttributeAccessor dst_attributes)
 {
   src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != src_domain) {
@@ -620,7 +607,7 @@ static Mesh *mesh_boolean_mesh_arr(Span<const Mesh *> meshes,
 
   bke::GeometrySet joined_meshes_set = join_meshes_with_transforms(meshes, transforms);
   const Mesh *joined_mesh = joined_meshes_set.get_mesh();
-  if (joined_mesh == nullptr) {
+  if (!joined_mesh) {
     return nullptr;
   }
 
@@ -629,7 +616,6 @@ static Mesh *mesh_boolean_mesh_arr(Span<const Mesh *> meshes,
     std::cout << "\nOLD_MESH_INTERSECT, nmeshes = " << meshes.size() << "\n";
   }
   MeshesToIMeshInfo mim;
-  mim.mesh_offsets = MeshOffsets(meshes);
   meshintersect::IMeshArena arena;
   meshintersect::IMesh m_in = meshes_to_imesh(meshes, transforms, material_remaps, arena, &mim);
   const auto shape_fn = [&](int f) { return mesh_id_for_face(f, mim.mesh_offsets); };
