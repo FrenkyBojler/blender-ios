@@ -486,6 +486,11 @@ function(cuda_add_common_flags cuda_version in_flags out_flags)
     set(flags ${flags} -D WITH_NANOVDB)
   endif()
 
+  if("${cuda_version}" GREATER_EQUAL 123)
+    # Enable jump table generation for the SVM switch statement.
+    set(flags ${flags} --jump-table-density 80)
+  endif()
+
   if(NOT WITH_CYCLES_CUDA_BUILD_SERIAL AND "${cuda_version}" GREATER_EQUAL 129)
     # Only use split compile with few binaries, to avoid excessive memory usage.
     # This is mainly helpful for quick local builds for one architecture.
