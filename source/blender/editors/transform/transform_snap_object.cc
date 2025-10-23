@@ -1409,13 +1409,10 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
         copy_v3_v3(r_face_nor, sctx->ret.no);
       }
 
-      if (snap_to_flag & SCE_SNAP_TO_FACE_MIDPOINT) {
-        if (snap_polygon(sctx, SCE_SNAP_TO_FACE_MIDPOINT) != SCE_SNAP_TO_NONE) {
-          retval = SCE_SNAP_TO_FACE_MIDPOINT;
-        }
-        else if (snap_to_flag & SCE_SNAP_TO_FACE) {
-          retval |= SCE_SNAP_TO_FACE;
-        }
+      if (snap_to_flag & SCE_SNAP_TO_FACE_MIDPOINT &&
+          snap_polygon(sctx, SCE_SNAP_TO_FACE_MIDPOINT) != SCE_SNAP_TO_NONE)
+      {
+        retval = SCE_SNAP_TO_FACE_MIDPOINT;
       }
       else if (snap_to_flag & SCE_SNAP_TO_FACE) {
         retval |= SCE_SNAP_TO_FACE;
