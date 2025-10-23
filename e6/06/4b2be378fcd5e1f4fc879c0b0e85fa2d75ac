@@ -1,2 +1,3 @@
 Referenced by issue #148553, macOS: Viewport Navigation Gizmo doesn’t respond to click-drag actions
 Referenced by pull request #148642, Fix #148553: macOS: Viewport Navigation Gizmos do not respond to drag operations
+Referenced by commit 8c9025d9aad23141530340e53f241415ce78879f, Fix #148553: macOS: Viewport Navigation Gizmos do not respond to drag operations
