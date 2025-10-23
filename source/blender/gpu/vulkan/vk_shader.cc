@@ -500,7 +500,6 @@ void VKShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilat
   interface = vk_interface;
   is_static_shader_ = info.do_static_compilation_;
   is_compute_shader_ = !info.compute_source_.is_empty() || !info.compute_source_generated.empty();
-  use_batch_compilation_ = is_batch_compilation;
 }
 
 VKShader::~VKShader()
@@ -545,10 +544,8 @@ void VKShader::build_shader_module(MutableSpan<StringRefNull> sources,
 
   sources[SOURCES_INDEX_VERSION] = source_patch;
   r_shader_module.combined_sources = combine_sources(sources);
-  if (!use_batch_compilation_) {
-    VKShaderCompiler::compile_module(*this, stage, r_shader_module);
-    r_shader_module.is_ready = true;
-  }
+  VKShaderCompiler::compile_module(*this, stage, r_shader_module);
+  r_shader_module.is_ready = true;
 }
 
 void VKShader::vertex_shader_from_glsl(MutableSpan<StringRefNull> sources)
@@ -578,9 +575,7 @@ void VKShader::warm_cache(int /*limit*/)
 
 bool VKShader::finalize(const shader::ShaderCreateInfo *info)
 {
-  if (!use_batch_compilation_) {
-    compilation_finished = true;
-  }
+  compilation_finished = true;
   if (compilation_failed) {
     return false;
   }
@@ -608,9 +603,6 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
   }
 
   push_constants = VKPushConstants(&vk_interface.push_constants_layout_get());
-  if (use_batch_compilation_) {
-    return true;
-  }
   return finalize_post();
 }
 

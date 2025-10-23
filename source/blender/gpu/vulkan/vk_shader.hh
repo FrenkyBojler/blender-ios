@@ -41,7 +41,6 @@ class VKShader : public Shader {
 
   bool is_compute_shader_ = false;
   bool is_static_shader_ = false;
-  bool use_batch_compilation_ = false;
 
  public:
   VKShaderModule vertex_module;
