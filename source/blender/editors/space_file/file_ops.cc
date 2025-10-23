@@ -1606,7 +1606,7 @@ void file_sfile_to_operator_ex(
               FILE_MAX);
   BLI_path_slash_ensure(dir, FILE_MAX);
 
-  /* Build filepath */
+  /* XXX, not real length */
   if (params->file[0]) {
     BLI_path_join(filepath, FILE_MAX, dir, params->file);
   }
@@ -1621,10 +1621,28 @@ void file_sfile_to_operator_ex(
     }
   }
 
-  /* Use utility function to reduce repetition */
-  blender::ed::file::path_template_nav_set_operator_property(C, op, "filename", params->file);
-  blender::ed::file::path_template_nav_set_operator_property(C, op, "directory", dir);
-  blender::ed::file::path_template_nav_set_operator_property(C, op, "filepath", filepath);
+  char value[FILE_MAX];
+  if ((prop = RNA_struct_find_property(op->ptr, "filename"))) {
+    RNA_property_string_get(op->ptr, prop, value);
+    RNA_property_string_set(op->ptr, prop, params->file);
+    if (RNA_property_update_check(prop) && !STREQ(params->file, value)) {
+      RNA_property_update(C, op->ptr, prop);
+    }
+  }
+  if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
+    RNA_property_string_get(op->ptr, prop, value);
+    RNA_property_string_set(op->ptr, prop, dir);
+    if (RNA_property_update_check(prop) && !STREQ(dir, value)) {
+      RNA_property_update(C, op->ptr, prop);
+    }
+  }
+  if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
+    RNA_property_string_get(op->ptr, prop, value);
+    RNA_property_string_set(op->ptr, prop, filepath);
+    if (RNA_property_update_check(prop) && !STREQ(filepath, value)) {
+      RNA_property_update(C, op->ptr, prop);
+    }
+  }
 
   /* some ops have multiple files to select */
   /* this is called on operators check() so clear collections first since
