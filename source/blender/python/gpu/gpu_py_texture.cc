@@ -362,59 +362,146 @@ static PyObject *pygpu_texture_format_get(BPyGPUTexture *self, void * /*type*/)
       PyC_StringEnum_FindIDFromValue(pygpu_textureformat_items, int(format)));
 }
 
-static PyObject *pygpu_texture_extend_mode_x_set(BPyGPUTexture *self, PyObject *value)
+PyDoc_STRVAR(
+  /* Wrap. */
+  pygpu_texture_extend_mode_x_doc,
+  ".. method:: extend_mode_x(extend_mode='BOOL')\n"
+  "\n"
+  "   Set texture sampling method for coordinates outside of the [0..1] uv range along the x axis.\n"
+  "\n"
+  "   :arg extend_mode: the specified extent mode.\n"
+  "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & ``CLAMP_TO_BORDER``.\n"
+  "   :type extend_mode: str");
+static PyObject *pygpu_texture_extend_mode_x(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
 
-  PyC_StringEnum pygpu_extend = {pygpu_textureextendmode_items};
-  if (!PyC_ParseStringEnum(value, &pygpu_extend)) {
+  PyC_StringEnum extend_mode = {pygpu_textureextendmode_items};
+  if (!PyC_ParseStringEnum(value, &extend_mode)) {
     return nullptr;
   }
 
-  GPU_texture_extend_mode_x(self->tex, GPUSamplerExtendMode(pygpu_extend.value_found));
+  GPU_texture_extend_mode_x(self->tex, GPUSamplerExtendMode(extend_mode.value_found));
   Py_RETURN_NONE;
 }
 
-static PyObject *pygpu_texture_extend_mode_y_set(BPyGPUTexture *self, PyObject *value)
+PyDoc_STRVAR(
+  /* Wrap. */
+  pygpu_texture_extend_mode_y_doc,
+  ".. method:: extend_mode_y(extend_mode='BOOL')\n"
+  "\n"
+  "   Set texture sampling method for coordinates outside of the [0..1] uv range along the y axis.\n"
+  "\n"
+  "   :arg extend_mode: the specified extent mode.\n"
+  "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & ``CLAMP_TO_BORDER``.\n"
+  "   :type extend_mode: str");
+static PyObject *pygpu_texture_extend_mode_y(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
 
-  PyC_StringEnum pygpu_extend = {pygpu_textureextendmode_items};
-  if (!PyC_ParseStringEnum(value, &pygpu_extend)) {
+  PyC_StringEnum extend_mode = {pygpu_textureextendmode_items};
+  if (!PyC_ParseStringEnum(value, &extend_mode)) {
     return nullptr;
   }
 
-  GPU_texture_extend_mode_y(self->tex, GPUSamplerExtendMode(pygpu_extend.value_found));
+  GPU_texture_extend_mode_y(self->tex, GPUSamplerExtendMode(extend_mode.value_found));
   Py_RETURN_NONE;
 }
 
-static PyObject *pygpu_texture_extend_mode_set(BPyGPUTexture *self, PyObject *value)
+PyDoc_STRVAR(
+  /* Wrap. */
+  pygpu_texture_extend_mode_doc,
+  ".. method:: extend_mode(extend_mode='BOOL')\n"
+  "\n"
+  "   Set texture sampling method for coordinates outside of the [0..1] uv range along\n"
+  "   both the x and y axis.\n"
+  "\n"
+  "   :arg extend_mode: the specified extent mode.\n"
+  "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & ``CLAMP_TO_BORDER``.\n"
+  "   :type extend_mode: str");
+static PyObject *pygpu_texture_extend_mode(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
 
-  PyC_StringEnum pygpu_extend = {pygpu_textureextendmode_items};
-  if (!PyC_ParseStringEnum(value, &pygpu_extend)) {
+  PyC_StringEnum extend_mode = {pygpu_textureextendmode_items};
+  if (!PyC_ParseStringEnum(value, &extend_mode)) {
     return nullptr;
   }
   
-  GPU_texture_extend_mode(self->tex, GPUSamplerExtendMode(pygpu_extend.value_found));
+  GPU_texture_extend_mode(self->tex, GPUSamplerExtendMode(extend_mode.value_found));
   Py_RETURN_NONE;
 }
 
-static PyObject *pygpu_texture_filter_mode_set(BPyGPUTexture *self, PyObject *value)
+PyDoc_STRVAR(
+  /* Wrap. */
+  pygpu_texture_filter_mode_doc,
+  ".. method:: filter_mode(use_filter='BOOL')\n"
+  "\n"
+  "   Set texture filter usage.\n"
+  "\n"
+  "   :arg use_filter: If set to true, the texture will use linear interpolation between\n"
+  "      neighboring texels."
+  "   :type use_filter: Boolean");
+static PyObject *pygpu_texture_filter_mode(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
 
-  PyC_StringEnum pygpu_filtering = {pygpu_texturefiltering_items};
-  if (!PyC_ParseStringEnum(value, &pygpu_filtering)) {
+  bool texture_use_filter;
+  if (!PyC_ParseBool(value, &texture_use_filter)) {
     return nullptr;
   }
 
-  if (GPUSamplerFiltering(pygpu_filtering.value_found) == GPUSamplerFiltering::GPU_SAMPLER_FILTERING_DEFAULT) {
-    GPU_texture_filter_mode(self->tex, false);
-  } else {
-    GPU_texture_filter_mode(self->tex, true);
+  GPU_texture_filter_mode(self->tex, texture_use_filter);
+  Py_RETURN_NONE;
+}
+
+
+PyDoc_STRVAR(
+  /* Wrap. */
+  pygpu_texture_mipmap_mode_doc,
+  ".. method:: mipmap_mode(use_filter='BOOL')\n"
+  "\n"
+  "   Set texture filter and mip-map usage.\n"
+  "\n"
+  "   :arg use_filter: If set to true, the texture will use linear interpolation between\n"
+        "neighboring texels."
+  "   :type use_filter: Boolean"
+  "   :arg use_mipmap: If set to true, the texture will use mip-mapping as anti-aliasing method."
+  "   :type use_mipmap: Boolean");
+static PyObject *pygpu_texture_mipmap_mode(BPyGPUTexture *self, PyObject *args)
+{
+  BPYGPU_TEXTURE_CHECK_OBJ(self);
+
+  bool texture_use_filter;
+  bool texture_use_mipmap;
+  if (!PyArg_ParseTuple(args, "bbbb:mipmap_mode_set", &texture_use_filter, &texture_use_mipmap)) {
+    return nullptr;
   }
+
+  GPU_texture_mipmap_mode(self->tex, texture_use_filter, texture_use_mipmap);
+  Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(
+  /* Wrap. */
+  pygpu_texture_anisotropic_filter_doc,
+  ".. method:: anisotropic_filter(use_filter='BOOL')\n"
+  "\n"
+  "   Set anisotropic filter usage.\n"
+  "\n"
+  "   :arg use_anisotropic: If set to true, the texture will use anisotropic filtering as\n"
+        "anti-aliasing method."
+  "   :type use_anisotropic: Boolean");
+static PyObject *pygpu_texture_anisotropic_filter(BPyGPUTexture *self, PyObject *value)
+{
+  BPYGPU_TEXTURE_CHECK_OBJ(self);
+
+  bool texture_use_anisotropic;
+  if (!PyC_ParseBool(value, &texture_use_anisotropic)) {
+    return nullptr;
+  }
+
+  GPU_texture_anisotropic_filter(self->tex, texture_use_anisotropic);
   Py_RETURN_NONE;
 }
 
