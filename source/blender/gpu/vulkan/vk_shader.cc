@@ -1270,7 +1270,6 @@ VkPipeline VKShader::ensure_and_get_compute_pipeline(
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
     vk_pipeline_base_ = vk_pipeline;
   }
-  debug::object_label(vk_pipeline, name_get());
   return vk_pipeline;
 }
 
