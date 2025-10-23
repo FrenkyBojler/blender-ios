@@ -7,7 +7,7 @@
  * \brief Path template handling implementation - preserves template variables during file browser navigation.
  */
 
-#include "path_template_navigation.hh"
+#include "ED_fileselect.hh"
 
 #include "BKE_global.hh"
 #include "BKE_main.hh"
@@ -25,7 +25,7 @@
 
 #include <cstring>
 
-namespace blender::editor::file::path_templates {
+namespace blender::ed::file {
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Helper Functions
@@ -183,7 +183,7 @@ static bool update_template_on_navigation(const char *original_template,
 /** \name Public API
  * \{ */
 
-void handle_input(FileSelectParams *params, const char *input_path)
+void file_path_template_handle_input(FileSelectParams *params, const char *input_path)
 {
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
@@ -198,10 +198,11 @@ void handle_input(FileSelectParams *params, const char *input_path)
   BLI_strncpy(params->dir_resolved, resolved_path, sizeof(params->dir_resolved));
 }
 
-void handle_navigation(FileSelectParams *params, const char *new_directory)
+void file_path_template_handle_navigation(FileSelectParams *params, const char *new_directory)
 {
   /* Try to preserve template if we were using one */
-  if (has_template(params) && is_within_template_bounds(params->dir_template, new_directory))
+  if (file_path_template_has_template(params) && 
+      is_within_template_bounds(params->dir_template, new_directory))
   {
     char updated_template[FILE_MAX];
     if (update_template_on_navigation(
@@ -227,7 +228,7 @@ void handle_navigation(FileSelectParams *params, const char *new_directory)
   BLI_strncpy(params->dir_resolved, new_directory, sizeof(params->dir_resolved));
 }
 
-void initialize(FileSelectParams *params)
+void file_path_template_initialize(FileSelectParams *params)
 {
   if (BKE_path_contains_template_syntax(params->dir)) {
     char resolved_path[FILE_MAX];
@@ -250,16 +251,16 @@ void initialize(FileSelectParams *params)
   }
 }
 
-bool has_template(const FileSelectParams *params)
+bool file_path_template_has_template(const FileSelectParams *params)
 {
   return params->dir_template[0] != '\0' &&
          BKE_path_contains_template_syntax(params->dir_template);
 }
 
-void set_operator_string_property(bContext *C,
-                                  wmOperator *op,
-                                  const char *prop_name,
-                                  const char *new_value)
+void file_path_template_set_operator_property(bContext *C,
+                                              wmOperator *op,
+                                              const char *prop_name,
+                                              const char *new_value)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, prop_name);
   if (!prop) {
@@ -277,4 +278,4 @@ void set_operator_string_property(bContext *C,
 
 /** \} */
 
-}  // namespace blender::editor::file::path_templates
+}  // namespace blender::ed::file

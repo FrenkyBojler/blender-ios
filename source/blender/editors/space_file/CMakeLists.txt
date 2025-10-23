@@ -37,7 +37,6 @@ set(SRC
   filelist.hh
   filelist/filelist_intern.hh
   fsmenu.h
-  path_template_navigation.hh
 )
 
 set(LIB

@@ -24,8 +24,6 @@
 #include "ED_fileselect.hh"
 #include "ED_spreadsheet.hh"
 
-#include "../editors/space_file/path_template_navigation.hh"
-
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
 
@@ -3096,7 +3094,7 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 /* Helper to check if params should use template version */
 static bool params_has_template(const FileSelectParams *params)
 {
-  return blender::editor::file::path_templates::has_template(params);
+  return blender::ed::file::file_path_template_has_template(params);
 }
 
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
@@ -3114,7 +3112,7 @@ static int rna_FileSelectParams_directory_length(PointerRNA *ptr)
 static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  blender::editor::file::path_templates::handle_input(params, value);
+  blender::ed::file::file_path_template_handle_input(params, value);
 }
 
 static int rna_FileAssetSelectParams_asset_library_get(PointerRNA *ptr)

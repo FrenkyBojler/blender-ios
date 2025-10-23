@@ -26,7 +26,6 @@
 
 #include "../space_file/file_intern.hh"
 #include "../space_file/filelist.hh"
-#include "../space_file/path_template_navigation.hh"
 
 using blender::StringRefNull;
 
@@ -332,7 +331,7 @@ static void file_directory_variable_enter_handle(bContext *C, void *, void *)
   }
 
   /* Handle template path input and update all fields */
-  blender::editor::file::path_templates::handle_input(params, params->dir_template);
+  blender::ed::file::file_path_template_handle_input(params, params->dir_template);
 
   ED_file_change_dir(C);
 }
