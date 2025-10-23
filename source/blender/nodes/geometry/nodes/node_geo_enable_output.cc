@@ -32,12 +32,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
   b.add_input(data_type, "Value")
       .hide_value()
-      .structure_type(StructureType::Dynamic)
-      .supports_field();
+      .supports_field()
+      .structure_type(StructureType::Dynamic);
   b.add_output(data_type, "Value")
       .align_with_previous()
-      .structure_type(StructureType::Dynamic)
-      .dependent_field();
+      .dependent_field()
+      .structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
