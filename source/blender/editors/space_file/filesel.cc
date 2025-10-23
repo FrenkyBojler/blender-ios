@@ -48,6 +48,8 @@
 #include "BKE_path_templates.hh"
 #include "BKE_preferences.h"
 
+#include "path_template_utils.hh"
+
 #include "BLO_userdef_default.h"
 
 #include "BLF_api.hh"
@@ -97,48 +99,7 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
   }
 }
 
-/** 
- * Helper function to resolve template variables in a path.
- */
-static void resolve_template_path(char *path, size_t path_maxlen)
-{
-  blender::bke::path_templates::VariableMap variables;
-  const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
-  BKE_add_template_variables_general(variables, scene ? &scene->id : nullptr);
-  if (scene) {
-    BKE_add_template_variables_for_render_path(variables, *scene);
-  }
-  BKE_path_apply_template(path, path_maxlen, variables);
-}
 
-/** 
- * Update file browser template paths: variable (unresolved) and preview (resolved).
- */
-static void fileselect_update_template_paths(FileSelectParams *params)
-{
-  /* Update dir_variable: preserve templates only if they resolve to current directory */
-  if (params->dir_variable[0] != '\0' && BKE_path_contains_template_syntax(params->dir_variable)) {
-    char resolved_path[FILE_MAX];
-    STRNCPY(resolved_path, params->dir_variable);
-    resolve_template_path(resolved_path, sizeof(resolved_path));
-
-    /* Clear template if user navigated away */
-    if (!STREQ(params->dir, resolved_path)) {
-      STRNCPY(params->dir_variable, params->dir);
-    }
-  }
-  else {
-    /* Empty or non-template: sync with current directory */
-    STRNCPY(params->dir_variable, params->dir);
-  }
-
-  /* Update preview: resolve templates or copy as-is */
-  STRNCPY(params->dir_preview, params->dir);
-  if (BKE_path_contains_template_syntax(params->dir)) {
-    resolve_template_path(params->dir_preview, sizeof(params->dir_preview));
-    STRNCPY(params->dir, params->dir_preview);
-  }
-}
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
@@ -211,6 +172,9 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     /* Initialize template paths */
     STRNCPY(sfile->params->dir_variable, sfile->params->dir);
     STRNCPY(sfile->params->dir_preview, sfile->params->dir);
+    
+    /* Initialize path template handler */
+    blender::editor::file::initialize_template_paths(sfile->params);
   }
 
   params = sfile->params;
@@ -404,7 +368,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 
   /* Always apply minimal template path handling
   TODO make not hardcoded to always use path templates*/
-  fileselect_update_template_paths(params);
+  blender::editor::file::initialize_template_paths(params);
 
   fileselect_initialize_params_common(sfile, params);
 
@@ -1226,7 +1190,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
     }
 
     /* Update template paths when directory changes */
-    fileselect_update_template_paths(params);
+    blender::editor::file::handle_template_navigation(params, params->dir);
 
     filelist_setdir(sfile->files, params->dir);
 

@@ -28,6 +28,7 @@
 
 #include "../space_file/file_intern.hh"
 #include "../space_file/filelist.hh"
+#include "../space_file/path_template_utils.hh"
 
 using blender::StringRefNull;
 
@@ -328,23 +329,8 @@ static void file_directory_variable_enter_handle(bContext *C, void *, void *)
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   if (!params) return;
 
-  /* Resolve template if present */
-  char resolved_path[FILE_MAX];
-  STRNCPY(resolved_path, params->dir_variable);
-  
-  if (BKE_path_contains_template_syntax(params->dir_variable)) {
-    blender::bke::path_templates::VariableMap variables;
-    const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
-    BKE_add_template_variables_general(variables, scene ? &scene->id : nullptr);
-    if (scene) {
-      BKE_add_template_variables_for_render_path(variables, *scene);
-    }
-    BKE_path_apply_template(resolved_path, sizeof(resolved_path), variables);
-  }
-  
-  /* Update directory and preview */
-  STRNCPY(params->dir, resolved_path);
-  STRNCPY(params->dir_preview, resolved_path);
+  /* Handle template path input and update all fields */
+  blender::editor::file::handle_template_path_input(params, params->dir_variable);
   
   ED_file_change_dir(C);
 }

@@ -19,6 +19,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_main.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
@@ -1599,12 +1600,19 @@ void file_sfile_to_operator_ex(
   PropertyRNA *prop;
   char dir[FILE_MAX];
 
-  BLI_strncpy(dir, params->dir, FILE_MAX);
+  /* Use template version if available, otherwise resolved version */
+  if (params->dir_variable[0] != '\0' && BKE_path_contains_template_syntax(params->dir_variable)) {
+    BLI_strncpy(dir, params->dir_variable, FILE_MAX);
+  }
+  else {
+    BLI_strncpy(dir, params->dir, FILE_MAX);
+  }
   BLI_path_slash_ensure(dir, FILE_MAX);
 
   /* XXX, not real length */
   if (params->file[0]) {
-    BLI_path_join(filepath, FILE_MAX, params->dir, params->file);
+    /* For filepath, use the template version if available */
+    BLI_path_join(filepath, FILE_MAX, dir, params->file);
   }
   else {
     BLI_strncpy(filepath, dir, FILE_MAX);
