@@ -566,7 +566,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   layout->prop(ptr,
                "particle_amount",
                UI_ITEM_NONE,
-               CTX_IFACE_(BLT_I18NCONTEXT_NUMBER, "Amount"),
+               CTX_IFACE_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
                ICON_NONE);
   layout->prop(ptr, "particle_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
 
