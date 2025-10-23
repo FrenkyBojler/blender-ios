@@ -1250,7 +1250,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
       }
     }
 
-    blender::gpu::TextureFormat texture_format;
+    blender::gpu::TextureFormat texture_format = blender::gpu::TextureFormat::Invalid;
 
     /* Try to see if this texture is a compressed format, if not, get the generic format. */
     if (!IMB_gpu_get_compressed_format(ibuf, &texture_format)) {
