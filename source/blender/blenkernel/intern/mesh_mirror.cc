@@ -313,8 +313,6 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   }
   const blender::OffsetIndices result_faces = result->faces();
 
-  bke::mesh_flip_faces(*result, result_faces.index_range().drop_front(src_faces.size()));
-
   /* adjust mirrored loop vertex and edge indices */
   for (const int i : result_corner_verts.index_range().drop_front(src_loops_num)) {
     result_corner_verts[i] += src_verts_num;
@@ -322,6 +320,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   for (const int i : result_corner_edges.index_range().drop_front(src_loops_num)) {
     result_corner_edges[i] += src_edges_num;
   }
+
+  bke::mesh_flip_faces(*result, result_faces.index_range().drop_front(src_faces.size()));
 
   if (!mesh->runtime->subsurf_optimal_display_edges.is_empty()) {
     const blender::BoundedBitSpan src = mesh->runtime->subsurf_optimal_display_edges;
