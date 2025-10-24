@@ -29,6 +29,7 @@
 
 #include "GHOST_C-api.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -38,14 +39,13 @@
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
@@ -107,7 +107,7 @@ enum eWinOverrideFlag {
   WIN_OVERRIDE_GEOM = (1 << 0),
   WIN_OVERRIDE_WINSTATE = (1 << 1),
 };
-ENUM_OPERATORS(eWinOverrideFlag, WIN_OVERRIDE_WINSTATE)
+ENUM_OPERATORS(eWinOverrideFlag)
 
 #define GHOST_WINDOW_STATE_DEFAULT GHOST_kWindowStateMaximized
 
@@ -132,6 +132,7 @@ static struct WMInitStruct {
   GHOST_TWindowState windowstate = GHOST_WINDOW_STATE_DEFAULT;
   eWinOverrideFlag override_flag;
 
+  bool window_frame = true;
   bool window_focus = true;
   bool native_pixels = true;
 } wm_init_state;
@@ -537,18 +538,23 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
   WM_main_add_notifier(NC_WINDOW | NA_REMOVED, nullptr);
 }
 
-void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
+void WM_window_title_set(wmWindow *win, const char *title)
 {
   if (win->ghostwin == nullptr) {
     return;
   }
 
   GHOST_WindowHandle handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
+  GHOST_SetTitle(handle, title);
+}
 
-  if (title) {
-    GHOST_SetTitle(handle, title);
+void WM_window_title_refresh(wmWindowManager *wm, wmWindow *win)
+{
+  if (win->ghostwin == nullptr) {
     return;
   }
+
+  GHOST_WindowHandle handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
 
   if (win->parent || WM_window_is_temp_screen(win)) {
     /* Not a main window. */
@@ -1075,7 +1081,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
     ListBase *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_dropbox_handler(&win->handlers, lb);
   }
-  WM_window_title(wm, win);
+  WM_window_title_refresh(wm, win);
 
   /* Add top-bar. */
   ED_screen_global_areas_refresh(win);
@@ -1302,7 +1308,12 @@ wmWindow *WM_window_open(bContext *C,
 
   if (win->ghostwin) {
     wm_window_raise(win);
-    WM_window_title(wm, win, title);
+    if (title) {
+      WM_window_title_set(win, title);
+    }
+    else {
+      WM_window_title_refresh(wm, win);
+    }
     return win;
   }
 
@@ -2116,6 +2127,7 @@ void wm_ghost_init(bContext *C)
   consumer = GHOST_CreateEventConsumer(ghost_event_proc, C);
 
   GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+  GHOST_UseWindowFrame(wm_init_state.window_frame);
 
   g_system = GHOST_CreateSystem();
   GPU_backend_ghost_system_set(g_system);
@@ -2814,6 +2826,16 @@ void WM_init_state_maximized_set()
   wm_init_state.override_flag |= WIN_OVERRIDE_WINSTATE;
 }
 
+bool WM_init_window_frame_get()
+{
+  return wm_init_state.window_frame;
+}
+
+void WM_init_window_frame_set(bool do_it)
+{
+  wm_init_state.window_frame = do_it;
+}
+
 void WM_init_window_focus_set(bool do_it)
 {
   wm_init_state.window_focus = do_it;
@@ -3192,10 +3214,10 @@ void wm_window_IME_end(wmWindow *win)
   }
 
   BLI_assert(win);
-  /* NOTE(@ideasman42): on WAYLAND a call to "begin" must be closed by an "end" call.
+  /* NOTE(@ideasman42): on WAYLAND and Windows a call to "begin" must be closed by an "end" call.
    * Even if no IME events were generated (which assigned `ime_data`).
-   * TODO: check if #GHOST_EndIME can run on WIN32 & APPLE without causing problems. */
-#  if defined(WIN32) || defined(__APPLE__)
+   * TODO: check if #GHOST_EndIME can run on APPLE without causing problems. */
+#  ifdef __APPLE__
   BLI_assert(win->runtime->ime_data);
 #  endif
   GHOST_EndIME(static_cast<GHOST_WindowHandle>(win->ghostwin));

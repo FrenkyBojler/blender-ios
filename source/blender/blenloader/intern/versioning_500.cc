@@ -42,10 +42,12 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_attribute_legacy_convert.hh"
@@ -110,7 +112,7 @@ void version_system_idprops_generate(Main *bmain)
     }
 
     if (scene->ed != nullptr) {
-      blender::seq::for_each_callback(&scene->ed->seqbase, [](Strip *strip) -> bool {
+      blender::seq::foreach_strip(&scene->ed->seqbase, [](Strip *strip) -> bool {
         idprops_process(strip->prop, &strip->system_properties);
         return true;
       });
@@ -130,8 +132,16 @@ void version_system_idprops_generate(Main *bmain)
     for (BoneCollection *bcoll : armature->collections_span()) {
       idprops_process(bcoll->prop, &bcoll->system_properties);
     }
-    LISTBASE_FOREACH (Bone *, bone, &armature->bonebase) {
+    /* There is no way to iterate directly over all bones of an armature currently, use a recursive
+     * approach instead. */
+    auto process_bone_recursive = [](const auto &process_bone_recursive, Bone *bone) -> void {
       idprops_process(bone->prop, &bone->system_properties);
+      LISTBASE_FOREACH (Bone *, bone_it, &bone->childbase) {
+        process_bone_recursive(process_bone_recursive, bone_it);
+      }
+    };
+    LISTBASE_FOREACH (Bone *, bone_it, &armature->bonebase) {
+      process_bone_recursive(process_bone_recursive, bone_it);
     }
   }
 }
@@ -144,6 +154,29 @@ void version_system_idprops_nodes_generate(Main *bmain)
     }
   }
   FOREACH_NODETREE_END;
+}
+/* Separate callback for non-root bones, because they were missed in the initial implementation. */
+void version_system_idprops_children_bones_generate(Main *bmain)
+{
+  LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
+    /* There is no way to iterate directly over all bones of an armature currently, use a recursive
+     * approach instead. */
+    auto process_bone_recursive = [](const auto &process_bone_recursive, Bone *bone) -> void {
+      /* Do not overwrite children bones' system properties if they were already defined by some
+       * scripts or add-on e.g. */
+      if (bone->system_properties == nullptr) {
+        idprops_process(bone->prop, &bone->system_properties);
+      }
+      LISTBASE_FOREACH (Bone *, bone_it, &bone->childbase) {
+        process_bone_recursive(process_bone_recursive, bone_it);
+      }
+    };
+    LISTBASE_FOREACH (Bone *, bone_it, &armature->bonebase) {
+      LISTBASE_FOREACH (Bone *, bone_child_it, &bone_it->childbase) {
+        process_bone_recursive(process_bone_recursive, bone_child_it);
+      }
+    }
+  }
 }
 
 static CustomDataLayer *find_old_seam_layer(CustomData &custom_data, const blender::StringRef name)
@@ -795,7 +828,7 @@ static void version_seq_text_from_legacy(Main *bmain)
 {
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     if (scene->ed != nullptr) {
-      blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+      blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) -> bool {
         if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
           TextVars *data = static_cast<TextVars *>(strip->effectdata);
           if (data->text_ptr == nullptr) {
@@ -2112,7 +2145,7 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
         *ntree, new_output_cycles, SOCK_IN, "NodeSocketVector", "Displacement");
     version_node_add_socket(*ntree, new_output_cycles, SOCK_IN, "NodeSocketFloat", "Thickness");
     /* We don't activate the output explicitly to avoid having two active outputs. We assume
-     * `node_tree.get_output_node('Cycles')` will return this node.  */
+     * `node_tree.get_output_node('Cycles')` will return this node. */
     new_output_cycles.custom1 = SHD_OUTPUT_CYCLES;
 
     bNode &shader_cycles = *blender::bke::node_add_static_node(
@@ -2470,7 +2503,7 @@ static bool window_has_sequence_editor_open(const wmWindow *win)
  * change its type to gaussian blur with 0 radius. */
 static void sequencer_substitute_transform_effects(Scene *scene)
 {
-  blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+  blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) -> bool {
     if (strip->type == STRIP_TYPE_TRANSFORM_LEGACY && strip->effectdata != nullptr) {
       TransformVarsLegacy *tv = static_cast<TransformVarsLegacy *>(strip->effectdata);
       StripTransform *transform = strip->data->transform;
@@ -2496,6 +2529,125 @@ static void sequencer_substitute_transform_effects(Scene *scene)
     }
     return true;
   });
+}
+
+/* The LGG mode of the Color Balance node was being done in sRGB space, while now it is done in
+ * linear space. So a Gamma node will be added before and after the node to perform the adjustment
+ * in sRGB space. */
+static void do_version_lift_gamma_gain_srgb_to_linear(bNodeTree &node_tree, bNode &node)
+{
+  bNodeSocket *image_input = blender::bke::node_find_socket(node, SOCK_IN, "Image");
+  bNodeSocket *type_input = blender::bke::node_find_socket(node, SOCK_IN, "Type");
+  bNodeSocket *image_output = blender::bke::node_find_socket(node, SOCK_OUT, "Image");
+
+  /* Find the links going into and out of the node. */
+  bNodeLink *image_input_link = nullptr;
+  bNodeLink *type_input_link = nullptr;
+  LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
+    if (link->tosock == image_input) {
+      image_input_link = link;
+    }
+    if (link->tosock == type_input) {
+      type_input_link = link;
+    }
+  }
+
+  if (type_input_link || !type_input ||
+      type_input->default_value_typed<bNodeSocketValueMenu>()->value != CMP_NODE_COLOR_BALANCE_LGG)
+  {
+    return;
+  }
+
+  bNode *inverse_gamma_node = blender::bke::node_add_static_node(
+      nullptr, node_tree, SH_NODE_GAMMA);
+  inverse_gamma_node->parent = node.parent;
+  inverse_gamma_node->location[0] = node.location[0];
+  inverse_gamma_node->location[1] = node.location[1];
+
+  bNodeSocket *inverse_gamma_color_input = blender::bke::node_find_socket(
+      *inverse_gamma_node, SOCK_IN, "Color");
+  copy_v4_v4(inverse_gamma_color_input->default_value_typed<bNodeSocketValueRGBA>()->value,
+             image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+  bNodeSocket *inverse_gamma_color_output = blender::bke::node_find_socket(
+      *inverse_gamma_node, SOCK_OUT, "Color");
+
+  bNodeSocket *inverse_gamma_input = blender::bke::node_find_socket(
+      *inverse_gamma_node, SOCK_IN, "Gamma");
+  inverse_gamma_input->default_value_typed<bNodeSocketValueFloat>()->value = 1.0f / 2.2f;
+
+  version_node_add_link(
+      node_tree, *inverse_gamma_node, *inverse_gamma_color_output, node, *image_input);
+  if (image_input_link) {
+    version_node_add_link(node_tree,
+                          *image_input_link->fromnode,
+                          *image_input_link->fromsock,
+                          *inverse_gamma_node,
+                          *inverse_gamma_color_input);
+    blender::bke::node_remove_link(&node_tree, *image_input_link);
+  }
+
+  bNode *gamma_node = blender::bke::node_add_static_node(nullptr, node_tree, SH_NODE_GAMMA);
+  gamma_node->parent = node.parent;
+  gamma_node->location[0] = node.location[0];
+  gamma_node->location[1] = node.location[1];
+
+  bNodeSocket *gamma_color_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Color");
+  bNodeSocket *gamma_color_output = blender::bke::node_find_socket(*gamma_node, SOCK_OUT, "Color");
+
+  bNodeSocket *gamma_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Gamma");
+  gamma_input->default_value_typed<bNodeSocketValueFloat>()->value = 2.2f;
+
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree.links) {
+    if (link->fromsock != image_output) {
+      continue;
+    }
+
+    version_node_add_link(
+        node_tree, *gamma_node, *gamma_color_output, *link->tonode, *link->tosock);
+    blender::bke::node_remove_link(&node_tree, *link);
+  }
+
+  version_node_add_link(node_tree, node, *image_output, *gamma_node, *gamma_color_input);
+}
+
+static void version_bone_hide_property_driver(AnimData *arm_adt, blender::Vector<Object *> &users)
+{
+  using namespace blender::animrig;
+  constexpr char const *hide_prop_prefix = "bones[";
+  constexpr char const *hide_prop_suffix = "\"].hide";
+
+  blender::Vector<FCurve *> drivers_to_fix;
+  LISTBASE_FOREACH (FCurve *, fcurve, &arm_adt->drivers) {
+    const blender::StringRef rna_path(fcurve->rna_path);
+    int quoted_bone_name_start = 0;
+    int quoted_bone_name_end = 0;
+    const bool is_prefix_found = BLI_str_quoted_substr_range(
+        fcurve->rna_path, hide_prop_prefix, &quoted_bone_name_start, &quoted_bone_name_end);
+    if (is_prefix_found && STREQ(fcurve->rna_path + quoted_bone_name_end, hide_prop_suffix)) {
+      drivers_to_fix.append(fcurve);
+    }
+  }
+
+  if (drivers_to_fix.is_empty()) {
+    return;
+  }
+
+  for (Object *ob : users) {
+    AnimData *ob_adt = BKE_animdata_ensure_id(&ob->id);
+    for (FCurve *original : drivers_to_fix) {
+      /* Has to be a copy in case there is more than 1 object using the armature. */
+      FCurve *copy = BKE_fcurve_copy(original);
+      char *fixed_path = BLI_string_joinN("pose.", copy->rna_path);
+      MEM_SAFE_FREE(copy->rna_path);
+      copy->rna_path = fixed_path;
+      BLI_addtail(&ob_adt->drivers, copy);
+    }
+  }
+
+  for (FCurve *original : drivers_to_fix) {
+    BLI_remlink(&arm_adt->drivers, original);
+    BKE_fcurve_free(original);
+  }
 }
 
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
@@ -2615,6 +2767,39 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
         continue;
       }
       scene->toolsettings->fix_to_cam_flag = default_flags;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 110)) {
+    /* Build map of armature->object to quickly find out afterwards which armature is used by which
+     * objects. */
+    blender::Map<bArmature *, blender::Vector<Object *>> armature_usage_map;
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->type != OB_ARMATURE || !ob->data) {
+        continue;
+      }
+      bArmature *arm = reinterpret_cast<bArmature *>(ob->data);
+      blender::Vector<Object *> &users = armature_usage_map.lookup_or_add_default(arm);
+      users.append(ob);
+    }
+
+    LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
+      AnimData *arm_adt = BKE_animdata_from_id(&armature->id);
+
+      if (!arm_adt || BLI_listbase_is_empty(&arm_adt->drivers)) {
+        continue;
+      }
+
+      blender::Vector<Object *> *users = armature_usage_map.lookup_ptr(armature);
+      if (!users) {
+        /* If `users` is a nullptr that means there is no user of that armature. That means the
+         * property won't be fixed for armatures that are not used by an object during versioning.
+         * However since the driver has to be moved to an object there is no way to fix it in this
+         * case. */
+        continue;
+      }
+
+      version_bone_hide_property_driver(arm_adt, *users);
     }
   }
 
@@ -3101,7 +3286,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
       Editing *ed = seq::editing_get(scene);
 
       if (ed != nullptr) {
-        seq::for_each_callback(&ed->seqbase, [](Strip *strip) -> bool {
+        seq::foreach_strip(&ed->seqbase, [](Strip *strip) -> bool {
           LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
             seq::modifier_persistent_uid_init(*strip, *smd);
           }
@@ -3208,39 +3393,12 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 46)) {
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (sl->spacetype != SPACE_NODE) {
-            continue;
-          }
-          const SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
-          if (!STREQ(snode->tree_idname, "CompositorNodeTree")) {
-            continue;
-          }
-
-          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                 &sl->regionbase;
-
-          if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
-                  regionbase,
-                  RGN_TYPE_ASSET_SHELF,
-                  "Asset shelf for compositing (versioning)",
-                  RGN_TYPE_HEADER))
-          {
-            new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
-          }
-          if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
-                  regionbase,
-                  RGN_TYPE_ASSET_SHELF_HEADER,
-                  "Asset shelf header for compositing (versioning)",
-                  RGN_TYPE_ASSET_SHELF))
-          {
-            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
-          }
-        }
-      }
-    }
+    /* Versioning from 0a0dd4ca37 was wrong, it only created asset shelf regions for Node Editors
+     * that are Compositors. If you change a non-Node Editor (e.g. an Image Editor) to a Compositor
+     * Editor, all is fine (SpaceLink *node_create gets called, the regions set up correctly), but
+     * changing an existing Node Editor (e.g. Shader or Geometry Nodes) to a Compositor, no new
+     * Space gets set up (rightfully so) and we are then missing the regions. Now corrected below
+     * (version bump in 5.1 since that is also affected). */
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 48)) {
@@ -3521,12 +3679,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 69)) {
-    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-      repair_node_link_node_pointers(*fd, *ntree);
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 71)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->toolsettings->uvsculpt.size *= 2;
@@ -3560,7 +3712,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
         /* Set the first strip modifier as the active one and uncollapse the root panel. */
-        blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+        blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) -> bool {
           seq::modifier_set_active(strip,
                                    static_cast<StripModifierData *>(strip->modifiers.first));
           LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
@@ -3790,30 +3942,167 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 100)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 102)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->r.time_jump_delta = 1.0f;
+      scene->r.time_jump_unit = 1;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 103)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+            do_version_lift_gamma_gain_srgb_to_linear(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 104)) {
+    /* Dope Sheet Editor: toggle overlays on. */
+    if (!DNA_struct_exists(fd->filesdna, "SpaceActionOverlays")) {
+      LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, space, &area->spacedata) {
+            if (space->spacetype == SPACE_ACTION) {
+              SpaceAction *space_action = (SpaceAction *)space;
+              space_action->overlays.flag |= ADS_OVERLAY_SHOW_OVERLAYS;
+              space_action->overlays.flag |= ADS_SHOW_SCENE_STRIP_FRAME_RANGE;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 105)) {
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      bke::mesh_uv_select_to_single_attribute(*mesh);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 106)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      version_node_input_socket_name(
+          node_tree, CMP_NODE_COLORCORRECTION, "Master Lift", "Master Offset");
+      version_node_input_socket_name(
+          node_tree, CMP_NODE_COLORCORRECTION, "Highlights Lift", "Highlights Offset");
+      version_node_input_socket_name(
+          node_tree, CMP_NODE_COLORCORRECTION, "Midtones Lift", "Midtones Offset");
+      version_node_input_socket_name(
+          node_tree, CMP_NODE_COLORCORRECTION, "Shadows Lift", "Shadows Offset");
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 107)) {
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      /* The flag was actually interpreted as reversed. */
+      material->blend_flag ^= MA_BL_LIGHTPROBE_VOLUME_DOUBLE_SIDED;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 108)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (!ELEM(sl->spacetype, SPACE_ACTION)) {
+          if (sl->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
+            sima->iuser.flag &= ~IMA_SHOW_SEQUENCER_SCENE;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 109)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      repair_node_link_node_pointers(*fd, *ntree);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 112)) {
+    /* The ownership of these pointers was moved to #CustomData in #customdata_version_242 and they
+     * became deprecated in 05952aa94d33ee when we started using implicit-sharing. However, they
+     * were never cleared and became dangling pointers. */
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      mesh->mpoly = nullptr;
+      mesh->mloop = nullptr;
+      mesh->mvert = nullptr;
+      mesh->medge = nullptr;
+      mesh->dvert = nullptr;
+      mesh->mtface = nullptr;
+      mesh->tface = nullptr;
+      mesh->mcol = nullptr;
+      mesh->mface = nullptr;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 2)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_NODE) {
             continue;
           }
-          SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
-          if (saction->mode != SACTCONT_TIMELINE) {
-            continue;
+
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+
+          if (ARegion *new_shelf_region = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF,
+                  "Asset shelf for compositing (versioning)",
+                  RGN_TYPE_HEADER))
+          {
+            new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
           }
-          /* Switching to dopesheet since that is the closest to the timeline view. */
-          saction->mode = SACTCONT_DOPESHEET;
-          /* The multiplication by 2 assumes that the time control footer has the same size as the
-           * header. The header is only shown if there is enough space for both. */
-          const bool show_header = area->winy > (HEADERY * UI_SCALE_FAC) * 2;
-          LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-            if (!show_header && region->regiontype == RGN_TYPE_HEADER) {
-              region->flag |= RGN_FLAG_HIDDEN;
-            }
-            if (region->regiontype == RGN_TYPE_FOOTER) {
-              region->flag &= ~RGN_FLAG_HIDDEN;
-            }
+          if (ARegion *new_shelf_header = do_versions_add_region_if_not_found(
+                  regionbase,
+                  RGN_TYPE_ASSET_SHELF_HEADER,
+                  "Asset shelf header for compositing (versioning)",
+                  RGN_TYPE_ASSET_SHELF))
+          {
+            new_shelf_header->alignment = RGN_ALIGN_BOTTOM | RGN_ALIGN_HIDE_WITH_PREV;
           }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
+    /* Clear mute flag on node types that set ntype->no_muting = true. */
+    static const Set<std::string> no_muting_nodes = {"CompositorNodeSplit",
+                                                     "CompositorNodeViewer",
+                                                     "NodeClosureInput",
+                                                     "NodeClosureOutput",
+                                                     "GeometryNodeForeachGeometryElementInput",
+                                                     "GeometryNodeForeachGeometryElementOutput",
+                                                     "GeometryNodeRepeatInput",
+                                                     "GeometryNodeRepeatOutput",
+                                                     "GeometryNodeSimulationInput",
+                                                     "GeometryNodeSimulationOutput",
+                                                     "GeometryNodeViewer",
+                                                     "NodeGroupInput",
+                                                     "NodeGroupOutput",
+                                                     "ShaderNodeOutputAOV",
+                                                     "ShaderNodeOutputLight",
+                                                     "ShaderNodeOutputLineStyle",
+                                                     "ShaderNodeOutputMaterial",
+                                                     "ShaderNodeOutputWorld",
+                                                     "TextureNodeOutput",
+                                                     "TextureNodeViewer"};
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (no_muting_nodes.contains(node->idname)) {
+          node->flag &= ~NODE_MUTED;
         }
       }
     }
