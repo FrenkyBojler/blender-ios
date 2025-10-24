@@ -2466,13 +2466,13 @@ static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const S
     const geo_log::NamedAttributeUsage usage = attribute.usage;
     fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("  \u2022 \"{}\": ")), name);
     Vector<std::string> usages;
-    if ((usage & geo_log::NamedAttributeUsage::Read) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Read)) {
       usages.append(TIP_("read"));
     }
-    if ((usage & geo_log::NamedAttributeUsage::Write) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Write)) {
       usages.append(TIP_("write"));
     }
-    if ((usage & geo_log::NamedAttributeUsage::Remove) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Remove)) {
       usages.append(TIP_("remove"));
     }
     for (const int i : usages.index_range()) {
@@ -3266,7 +3266,7 @@ static void node_draw_basis(const bContext &C,
         rct.xmin - padding,
         rct.xmax + padding,
         rct.ymin - padding,
-        rct.ymax - (NODE_DY + outline_width) + padding,
+        rct.ymax - NODE_DY + padding,
     };
 
     /* Node Group indicator. */
@@ -3282,49 +3282,8 @@ static void node_draw_basis(const bContext &C,
     }
   }
 
-  /* Outlines. */
+  /* Outline around the entire node to highlight selection, alert, or for simulation zones. */
   {
-    /* Body outline. */
-    const rctf rect_body = {
-        rct.xmin - 0,
-        rct.xmax + 0,
-        rct.ymin,
-        rct.ymax - (NODE_DY),
-    };
-    float color_body[4];
-    if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_body);
-    }
-    else if (node.is_muted()) {
-      UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.6f, color_body);
-    }
-    else {
-      UI_GetThemeColorShade4fv(TH_NODE, 20, color_body);
-    }
-    UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
-    UI_draw_roundbox_4fv(&rect_body, false, BASIS_RAD, color_body);
-
-    /* Header outline. */
-    const rctf rect_header = {
-        rct.xmin,
-        rct.xmax,
-        rct.ymax - (NODE_DY + outline_width),
-        rct.ymax,
-    };
-    float color_header[4];
-    if (node_undefined_or_unsupported(ntree, node)) {
-      UI_GetThemeColorShade4fv(TH_REDALERT, -40, color_header);
-    }
-    else if (node.is_muted()) {
-      UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.6f, color_header);
-    }
-    else {
-      UI_GetThemeColorShade4fv(color_id, 20, color_header);
-    }
-    UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
-    UI_draw_roundbox_4fv(&rect_header, false, BASIS_RAD, color_header);
-
-    /* Outline around the entire node to highlight selection, alert, or for simulation zones. */
     const rctf rect_node = {
         rct.xmin - outline_width,
         rct.xmax + outline_width,
@@ -3343,8 +3302,7 @@ static void node_draw_basis(const bContext &C,
       color_outline[3] = 1.0f;
     }
     else {
-      UI_GetThemeColorShade4fv(TH_NODE, 20, color_outline);
-      color_outline[3] = 0.0f;
+      UI_GetThemeColor4fv(TH_NODE_OUTLINE, color_outline);
     }
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
     UI_draw_roundbox_4fv(&rect_node, false, BASIS_RAD + outline_width, color_outline);
@@ -3490,8 +3448,7 @@ static void node_draw_collapsed(const bContext &C,
       UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, .4f, 10, color_outline);
     }
     else {
-      /* Use a mix of the backdrop and node type color, slightly lighter. */
-      UI_GetThemeColorBlendShade4fv(TH_BACK, color_id, .8f, 20, color_outline);
+      UI_GetThemeColor4fv(TH_NODE_OUTLINE, color_outline);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);

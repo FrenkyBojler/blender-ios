@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
@@ -73,6 +74,9 @@ struct uiItem {
   void fixed_size_set(bool fixed_size);
 
   [[nodiscard]] blender::ui::ItemType type() const;
+
+  [[nodiscard]] blender::int2 size() const;
+  [[nodiscard]] blender::int2 offset() const;
 
  protected:
   blender::ui::ItemInternalFlag flag_ = {};
@@ -897,7 +901,7 @@ enum eUI_Item_Flag : uint16_t {
    */
   UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE = 1 << 15,
 };
-ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
+ENUM_OPERATORS(eUI_Item_Flag)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
 
 /**
