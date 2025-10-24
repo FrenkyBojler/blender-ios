@@ -208,7 +208,8 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
         params->file[0] = '\0';
       }
       else {
-         if (BKE_path_contains_template_syntax(filepath)) {
+        /* Check if filepath contains template variables before splitting */
+        if (BKE_path_contains_template_syntax(filepath)) {
           /* Split filepath while preserving template variables */
           char template_dir[FILE_MAX];
           char template_file[FILE_MAX];
@@ -1177,7 +1178,7 @@ FileLayout *ED_fileselect_get_layout(SpaceFile *sfile, ARegion *region)
   return sfile->layout;
 }
 
-void ED_file_change_dir_ex(bContext *C, ScrArea *area, bool skip_template_update)
+void ED_file_change_dir_ex(bContext *C, ScrArea *area)
 {
   /* May happen when manipulating non-active spaces. */
   if (UNLIKELY(area->spacetype != SPACE_FILE)) {
@@ -1199,10 +1200,8 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area, bool skip_template_update
       /* could return but just refresh the current dir */
     }
 
-    /* Update template paths when directory changes (unless already handled by caller) */
-    if (!skip_template_update) {
-      blender::ed::file::path_template_nav_handle_browse(params, params->dir);
-    }
+    /* Update template paths when directory changes */
+    blender::ed::file::path_template_nav_handle_browse(params, params->dir);
 
     filelist_setdir(sfile->files, params->dir);
 
@@ -1219,7 +1218,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area, bool skip_template_update
 void ED_file_change_dir(bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
-  ED_file_change_dir_ex(C, area, false);
+  ED_file_change_dir_ex(C, area);
 }
 
 void file_select_deselect_all(SpaceFile *sfile, const eDirEntry_SelectFlag flag)
