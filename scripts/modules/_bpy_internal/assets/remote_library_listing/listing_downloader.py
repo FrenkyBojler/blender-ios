@@ -350,17 +350,8 @@ class RemoteAssetListingDownloader:
             assert bpy.app.timers.is_registered(self.on_timer_event)
 
         # Kickstart the download process by downloading the remote asset meta file:
-        from bl_pkg import bl_extension_utils
-        query_params = {
-            "platform": bl_extension_utils.platform_from_this_system(),
-            "blender_version": "{:d}.{:d}.{:d}".format(*bpy.app.version),
-        }
-        metadata_url = "{!s}?{!s}".format(
-            listing_common.ASSET_TOP_METADATA_FILENAME,
-            urllib.parse.urlencode(query_params)
-        )
         self._queue_download(
-            metadata_url,
+            listing_common.ASSET_TOP_METADATA_FILENAME,
             http_metadata.safe_to_unsafe_filename(listing_common.ASSET_TOP_METADATA_FILENAME),
             self.parse_asset_lib_metadata,
         )
@@ -630,10 +621,31 @@ class RemoteAssetListingDownloader:
         self.report({'ERROR'}, "Asset library index had an issue, download aborted")
         self.shutdown(DownloadStatus.FAILED)
 
+    @staticmethod
+    @functools.lru_cache(maxsize=None)
+    def _extra_query_params() -> dict[str, str]:
+        """Return query parameters that describe this Blender and the hardware."""
+
+        from bl_pkg import bl_extension_utils
+        query_params = {
+            "blender_version": "{:d}.{:d}.{:d}".format(*bpy.app.version),
+            "platform": bl_extension_utils.platform_from_this_system(),
+        }
+        return query_params
+
     def _queue_download(self, relative_url: str, download_to_path: Path | str,
                         on_done: Callable[[http_dl.RequestDescription, Path], None]) -> Path:
         """Queue up this download, returning the path to which it will be downloaded."""
-        remote_url = urllib.parse.urljoin(self._locator.remote_url, relative_url)
+
+        # Add the extra query parameters. This assumes that the relative URL
+        # doesn't already contain a query string.
+        assert '?' not in relative_url, "{!r} unexpectedly contains a query string".format(relative_url)
+        url_with_query_params = "{!s}?{!s}".format(
+            relative_url,
+            urllib.parse.urlencode(self._extra_query_params())
+        )
+
+        remote_url = urllib.parse.urljoin(self._locator.remote_url, url_with_query_params)
         download_to_path = self._locator.local_path / download_to_path
 
         self._bg_downloader.queue_download(remote_url, download_to_path, on_done)
