@@ -163,6 +163,12 @@ TEST(string_ref, StdStringConstructor)
   EXPECT_EQ(ref.data(), str.data());
 }
 
+TEST(string_ref, SpanConstructor)
+{
+  EXPECT_EQ(StringRef(Span<char>("hello", 5)), "hello");
+  EXPECT_EQ(StringRef(Span<char>("hello", 2)), "he");
+}
+
 TEST(string_ref, SubscriptOperator)
 {
   StringRef ref("hello");
@@ -454,6 +460,58 @@ TEST(string_ref, CopyUtf8Truncated)
       char dst[5];
       ref.copy_utf8_truncated(dst);
       EXPECT_EQ(StringRef(dst), BLI_STR_UTF8_SUPERSCRIPT_2 BLI_STR_UTF8_SUPERSCRIPT_2);
+    }
+  }
+}
+
+TEST(string_ref, CopyBytesTruncated)
+{
+  {
+    StringRef ref("hello");
+    char dst[10];
+    memset(dst, 0xFF, 10);
+    ref.copy_bytes_truncated(dst);
+    EXPECT_EQ(dst[5], '\0');
+    EXPECT_EQ(dst[6], 0xFF);
+    EXPECT_EQ(ref, dst);
+  }
+  {
+    StringRef ref("0123456789");
+    char dst[4];
+    memset(dst, 0xFF, 4);
+    ref.copy_bytes_truncated(dst);
+    EXPECT_EQ(dst[0], '0');
+    EXPECT_EQ(dst[1], '1');
+    EXPECT_EQ(dst[2], '2');
+    EXPECT_EQ(dst[3], '\0');
+  }
+  {
+    /* Simple 4 byte string. */
+    StringRef ref("01234");
+    {
+      char dst[1];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(dst[0], '\0');
+    }
+    {
+      char dst[2];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(dst[0], '0');
+    }
+    {
+      char dst[3];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(StringRef(dst), "01");
+    }
+    {
+      char dst[4];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(StringRef(dst), "012");
+    }
+    {
+      char dst[5];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(StringRef(dst), "0123");
     }
   }
 }

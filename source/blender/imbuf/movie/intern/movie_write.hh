@@ -25,6 +25,7 @@ extern "C" {
 #  include <libavutil/buffer.h>
 #  include <libavutil/channel_layout.h>
 #  include <libavutil/imgutils.h>
+#  include <libavutil/mastering_display_metadata.h>
 #  include <libavutil/opt.h>
 #  include <libavutil/rational.h>
 #  include <libavutil/samplefmt.h>
@@ -37,6 +38,7 @@ extern "C" {
 #  endif
 
 struct Scene;
+struct ReportList;
 struct StampData;
 
 struct MovieWriter {
@@ -53,6 +55,7 @@ struct MovieWriter {
 
   int ffmpeg_crf = 0; /* set to 0 to not use CRF mode; we have another flag for lossless anyway. */
   int ffmpeg_preset = 0; /* see eFFMpegPreset */
+  int ffmpeg_profile = 0;
 
   AVFormatContext *outfile = nullptr;
   AVCodecContext *video_codec = nullptr;
@@ -81,8 +84,12 @@ struct MovieWriter {
 #  endif
 };
 
-bool movie_audio_open(
-    MovieWriter *context, const Scene *scene, int start_frame, int mixrate, float volume);
+bool movie_audio_open(MovieWriter *context,
+                      const Scene *scene,
+                      int start_frame,
+                      int mixrate,
+                      float volume,
+                      ReportList *reports);
 void movie_audio_close(MovieWriter *context, bool is_autosplit);
 
 AVStream *alloc_audio_stream(MovieWriter *context,

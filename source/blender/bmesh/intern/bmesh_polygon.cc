@@ -138,7 +138,7 @@ void BM_face_calc_tessellation(const BMFace *f,
   }
   else {
     float axis_mat[3][3];
-    float(*projverts)[2] = BLI_array_alloca(projverts, f->len);
+    float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
     int j;
 
     axis_dominant_v3_to_m3_negate(axis_mat, f->no);
@@ -485,7 +485,7 @@ void BM_face_calc_tangent_from_edge_pair(const BMFace *f, float r_tangent[3])
 
     /* Edges may not be opposite side of the ngon,
      * this could cause problems for ngons with multiple-aligned edges of the same length.
-     * Fallback to longest edge. */
+     * Fall back to longest edge. */
     if (UNLIKELY(normalize_v3(r_tangent) == 0.0f)) {
       normalize_v3_v3(r_tangent, vec_a);
     }
@@ -1022,7 +1022,7 @@ void BM_face_normal_flip(BMesh *bm, BMFace *f)
 bool BM_face_point_inside_test(const BMFace *f, const float co[3])
 {
   float axis_mat[3][3];
-  float(*projverts)[2] = BLI_array_alloca(projverts, f->len);
+  float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
 
   float co_2d[2];
   BMLoop *l_iter;
@@ -1162,7 +1162,7 @@ void BM_face_triangulate(BMesh *bm,
     else {
       BMLoop *l_iter;
       float axis_mat[3][3];
-      float(*projverts)[2] = BLI_array_alloca(projverts, f->len);
+      float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
 
       axis_dominant_v3_to_m3_negate(axis_mat, f->no);
 
@@ -1275,7 +1275,7 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
   blender::float2 out = {-FLT_MAX, -FLT_MAX};
   float center[2] = {0.0f, 0.0f};
   float axis_mat[3][3];
-  float(*projverts)[2] = BLI_array_alloca(projverts, f->len);
+  float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
   const float *(*edgeverts)[2] = BLI_array_alloca(edgeverts, len);
   BMLoop *l;
   int i, i_prev, j;

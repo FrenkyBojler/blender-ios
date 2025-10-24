@@ -12,8 +12,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_time.h"
 #include "BLI_timecode.h"
@@ -71,11 +72,8 @@ static bool render_break(void *rjv);
 
 struct RenderJob : public RenderJobBase {
   Main *main;
+  ViewLayer *view_layer;
   ViewLayer *single_layer;
-  /* TODO(sergey): Should not be needed once engine will have its own
-   * depsgraph and copy-on-write will be implemented.
-   */
-  Depsgraph *depsgraph;
   Render *re;
   Object *camera_override;
   bool v3d_override;
@@ -92,8 +90,9 @@ struct RenderJob : public RenderJobBase {
   ScrArea *area;
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
-  bool supports_glsl_draw;
   bool interface_locked;
+  int frame_start;
+  int frame_end;
 };
 
 /* called inside thread! */
@@ -176,8 +175,8 @@ static void image_buffer_rect_update(RenderJob *rj,
   Scene *scene = rj->scene;
   const float *rectf = nullptr;
   int linear_stride, linear_offset_x, linear_offset_y;
-  ColorManagedViewSettings *view_settings;
-  ColorManagedDisplaySettings *display_settings;
+  const ColorManagedViewSettings *view_settings;
+  const ColorManagedDisplaySettings *display_settings;
 
   if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) {
     /* The whole image buffer is to be color managed again anyway. */
@@ -297,23 +296,70 @@ static void screen_render_single_layer_set(
   }
 }
 
-/* executes blocking render */
-static int screen_render_exec(bContext *C, wmOperator *op)
+static bool render_operator_has_custom_frame_range(wmOperator *render_operator)
 {
-  Scene *scene = CTX_data_scene(C);
-  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
-  ViewLayer *active_layer = CTX_data_view_layer(C);
+  return RNA_struct_property_is_set(render_operator->ptr, "frame_start") ||
+         RNA_struct_property_is_set(render_operator->ptr, "frame_end");
+}
+
+static void get_render_operator_frame_range(wmOperator *render_operator,
+                                            const Scene *scene,
+                                            int &frame_start,
+                                            int &frame_end)
+{
+  if (RNA_struct_property_is_set(render_operator->ptr, "frame_start")) {
+    frame_start = RNA_int_get(render_operator->ptr, "frame_start");
+  }
+  else {
+    frame_start = scene->r.sfra;
+  }
+
+  if (RNA_struct_property_is_set(render_operator->ptr, "frame_end")) {
+    frame_end = RNA_int_get(render_operator->ptr, "frame_end");
+  }
+  else {
+    frame_end = scene->r.efra;
+  }
+}
+
+/* executes blocking render */
+static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
+{
   ViewLayer *single_layer = nullptr;
   Render *re;
   Image *ima;
   View3D *v3d = CTX_wm_view3d(C);
   Main *mainp = CTX_data_main(C);
+
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
+  const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
+
+  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
+                                                  CTX_data_view_layer(C);
+  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Object *camera_override = v3d ? V3D_CAMERA_LOCAL(v3d) : nullptr;
 
   /* Cannot do render if there is not this function. */
   if (re_type->render == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (use_sequencer_scene && !RE_seq_render_active(scene, &scene->r)) {
+    BKE_report(op->reports, RPT_ERROR, "No sequencer scene with video strips to render");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!is_animation && render_operator_has_custom_frame_range(op)) {
+    BKE_report(op->reports, RPT_ERROR, "Frame start/end specified in a non-animation render");
+    return OPERATOR_CANCELLED;
+  }
+
+  int frame_start, frame_end;
+  get_render_operator_frame_range(op, scene, frame_start, frame_end);
+  if (is_animation && frame_start > frame_end) {
+    BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
 
@@ -341,7 +387,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
    * otherwise, invalidated cache entries can make their way into
    * the output rendering. We can't put that into RE_RenderFrame,
    * since sequence rendering can call that recursively... (peter) */
-  SEQ_cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene);
 
   RE_SetReports(re, op->reports);
 
@@ -351,8 +397,8 @@ static int screen_render_exec(bContext *C, wmOperator *op)
                   scene,
                   single_layer,
                   camera_override,
-                  scene->r.sfra,
-                  scene->r.efra,
+                  frame_start,
+                  frame_end,
                   scene->r.frame_step);
   }
   else {
@@ -421,8 +467,8 @@ static void make_renderinfo_string(const RenderStats *rs,
   const uintptr_t mem_in_use = MEM_get_memory_in_use();
   const uintptr_t peak_memory = MEM_get_peak_memory();
 
-  const float megs_used_memory = (mem_in_use) / (1024.0 * 1024.0);
-  const float megs_peak_memory = (peak_memory) / (1024.0 * 1024.0);
+  const int megs_used_memory = ceilf(mem_in_use / (1024.0 * 1024.0));
+  const int megs_peak_memory = ceilf(peak_memory / (1024.0 * 1024.0));
 
   /* local view */
   if (rs->localview) {
@@ -435,7 +481,7 @@ static void make_renderinfo_string(const RenderStats *rs,
   }
 
   /* frame number */
-  SNPRINTF(info_buffers.frame, "%d ", scene->r.cfra);
+  SNPRINTF_UTF8(info_buffers.frame, "%d ", scene->r.cfra);
   ret_array[i++] = RPT_("Frame:");
   ret_array[i++] = info_buffers.frame;
 
@@ -472,14 +518,14 @@ static void make_renderinfo_string(const RenderStats *rs,
     }
     else {
       if (rs->mem_peak == 0.0f) {
-        SNPRINTF(info_buffers.statistics,
-                 RPT_("Mem:%.2fM (Peak %.2fM)"),
-                 megs_used_memory,
-                 megs_peak_memory);
+        SNPRINTF_UTF8(info_buffers.statistics,
+                      RPT_("Mem:%dM, Peak: %dM"),
+                      megs_used_memory,
+                      megs_peak_memory);
       }
       else {
-        SNPRINTF(
-            info_buffers.statistics, RPT_("Mem:%.2fM, Peak: %.2fM"), rs->mem_used, rs->mem_peak);
+        SNPRINTF_UTF8(
+            info_buffers.statistics, RPT_("Mem:%dM, Peak: %dM"), rs->mem_used, rs->mem_peak);
       }
       info_statistics = info_buffers.statistics;
     }
@@ -526,9 +572,9 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
   rr = RE_AcquireResultRead(rj->re);
 
   if (rr) {
-    /* malloc OK here, stats_draw is not in tile threads */
+    /* `malloc` is OK here, `stats_draw` is not in tile threads. */
     if (rr->text == nullptr) {
-      rr->text = static_cast<char *>(MEM_callocN(IMA_MAX_RENDER_TEXT_SIZE, "rendertext"));
+      rr->text = MEM_calloc_arrayN<char>(IMA_MAX_RENDER_TEXT_SIZE, "rendertext");
     }
 
     make_renderinfo_string(rs, rj->scene, rj->v3d_override, rr->error, rr->text);
@@ -662,9 +708,7 @@ static void image_rect_update(void *rjv, RenderResult *rr, rcti *renrect)
      * this case GLSL doesn't have original float buffer to
      * operate with.
      */
-    if (!rj->supports_glsl_draw || ibuf->channels == 1 ||
-        ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL)
-    {
+    if (ibuf->channels == 1 || ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL) {
       image_buffer_rect_update(rj, rr, ibuf, &rj->iuser, &tile_rect, offset_x, offset_y, viewname);
     }
     ImageTile *image_tile = BKE_image_get_tile(ima, 0);
@@ -711,8 +755,8 @@ static void render_startjob(void *rjv, wmJobWorkerStatus *worker_status)
                   rj->scene,
                   rj->single_layer,
                   rj->camera_override,
-                  rj->scene->r.sfra,
-                  rj->scene->r.efra,
+                  rj->frame_start,
+                  rj->frame_end,
                   rj->scene->r.frame_step);
   }
   else {
@@ -778,16 +822,24 @@ static void render_endjob(void *rjv)
     BKE_main_free(rj->main);
   }
 
-  /* else the frame will not update for the original value */
+  /* Update depsgraph for returning to the original frame before animation render job. */
   if (rj->anim && !(rj->scene->r.scemode & R_NO_FRAME_UPDATE)) {
-    /* possible this fails of loading new file while rendering */
+    /* Possible this fails when loading new file while rendering. */
     if (G_MAIN->wm.first) {
-      ED_update_for_newframe(G_MAIN, rj->depsgraph);
+      /* Check view layer was not deleted during render. Technically another view layer
+       * may get allocated with the same pointer, but worst case it will cause an
+       * unnecessary update. */
+      if (BLI_findindex(&rj->scene->view_layers, rj->view_layer) != -1) {
+        Depsgraph *depsgraph = BKE_scene_get_depsgraph(rj->scene, rj->view_layer);
+        if (depsgraph) {
+          ED_update_for_newframe(G_MAIN, depsgraph);
+        }
+      }
     }
   }
 
   /* XXX above function sets all tags in nodes */
-  ntreeCompositClearTags(rj->scene->nodetree);
+  ntreeCompositClearTags(rj->scene->compositing_node_group);
 
   /* potentially set by caller */
   rj->scene->r.scemode &= ~R_NO_FRAME_UPDATE;
@@ -841,7 +893,7 @@ static void render_endjob(void *rjv)
      * and using one from Global will unlock exactly the same manager as
      * was locked before running the job.
      */
-    WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
+    WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
     DEG_tag_on_visible_update(G_MAIN, false);
   }
 }
@@ -872,7 +924,7 @@ static bool render_break(void * /*rjv*/)
   return false;
 }
 
-/* runs in thread, no cursor setting here works. careful with notifiers too (malloc conflicts) */
+/* runs in thread, no cursor setting here works. careful with notifiers too (`malloc` conflicts) */
 /* maybe need a way to get job send notifier? */
 static void render_drawlock(void *rjv, bool lock)
 {
@@ -880,12 +932,12 @@ static void render_drawlock(void *rjv, bool lock)
 
   /* If interface is locked, renderer callback shall do nothing. */
   if (!rj->interface_locked) {
-    BKE_spacedata_draw_locks(lock);
+    BKE_spacedata_draw_locks(lock ? REGION_DRAW_LOCK_RENDER : REGION_DRAW_LOCK_NONE);
   }
 }
 
 /** Catch escape key to cancel. */
-static int screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = (Scene *)op->customdata;
 
@@ -953,28 +1005,48 @@ static void clean_viewport_memory(Main *bmain, Scene *scene)
 }
 
 /* using context, starts job */
-static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* new render clears all callbacks */
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *active_layer = CTX_data_view_layer(C);
   ViewLayer *single_layer = nullptr;
-  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Render *re;
   wmJob *wm_job;
   RenderJob *rj;
   Image *ima;
+  ScrArea *area;
+
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
   const bool use_viewport = RNA_boolean_get(op->ptr, "use_viewport");
+  const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
+
   View3D *v3d = use_viewport ? CTX_wm_view3d(C) : nullptr;
+  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
+                                                  CTX_data_view_layer(C);
+  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Object *camera_override = v3d ? V3D_CAMERA_LOCAL(v3d) : nullptr;
-  const char *name;
-  ScrArea *area;
 
   /* Cannot do render if there is not this function. */
   if (re_type->render == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (use_sequencer_scene && !RE_seq_render_active(scene, &scene->r)) {
+    BKE_report(op->reports, RPT_ERROR, "No sequencer scene with video strips to render");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!is_animation && render_operator_has_custom_frame_range(op)) {
+    BKE_report(op->reports, RPT_ERROR, "Frame start/end specified in a non-animation render");
+    return OPERATOR_CANCELLED;
+  }
+
+  int frame_start, frame_end;
+  get_render_operator_frame_range(op, scene, frame_start, frame_end);
+  if (is_animation && frame_start > frame_end) {
+    BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
 
@@ -998,7 +1070,9 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
   /* Reports are done inside check function, and it will return false if there are other strips to
    * render. */
-  if ((scene->r.scemode & R_DOSEQ) && SEQ_relations_check_scene_recursion(scene, op->reports)) {
+  if ((scene->r.scemode & R_DOSEQ) &&
+      blender::seq::relations_check_scene_recursion(scene, op->reports))
+  {
     return OPERATOR_CANCELLED;
   }
 
@@ -1017,10 +1091,10 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
   ED_editors_flush_edits_ex(bmain, true, false);
 
   /* Cleanup VSE cache, since it is not guaranteed that stored images are invalid. */
-  SEQ_cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene);
 
   /* store spare
-   * get view3d layer, local layer, make this nice api call to render
+   * get view3d layer, local layer, make this nice API call to render
    * store spare */
 
   /* ensure at least 1 area shows result */
@@ -1031,12 +1105,8 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
   rj->main = bmain;
   rj->scene = scene;
   rj->current_scene = rj->scene;
+  rj->view_layer = active_layer;
   rj->single_layer = single_layer;
-  /* TODO(sergey): Render engine should be using its own depsgraph.
-   *
-   * NOTE: Currently is only used by ED_update_for_newframe() at the end of the render, so no
-   * need to ensure evaluation here. */
-  rj->depsgraph = CTX_data_depsgraph_pointer(C);
   rj->camera_override = camera_override;
   rj->anim = is_animation;
   rj->write_still = is_write_still && !is_animation;
@@ -1045,7 +1115,8 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
   rj->orig_layer = 0;
   rj->last_layer = 0;
   rj->area = area;
-  rj->supports_glsl_draw = IMB_colormanagement_support_glsl_draw(&scene->view_settings);
+  rj->frame_start = frame_start;
+  rj->frame_end = frame_end;
 
   BKE_color_managed_display_settings_copy(&rj->display_settings, &scene->display_settings);
   BKE_color_managed_view_settings_copy(&rj->view_settings, &scene->view_settings);
@@ -1063,7 +1134,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
   /* Lock the user interface depending on render settings. */
   if (scene->r.use_lock_interface) {
-    WM_set_locked_interface(CTX_wm_manager(C), true);
+    WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_RENDER);
 
     /* Set flag interface need to be unlocked.
      *
@@ -1080,11 +1151,12 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
   }
 
   /* setup job */
+  const char *name;
   if (RE_seq_render_active(scene, &scene->r)) {
-    name = "Sequence Render";
+    name = RPT_("Rendering sequence...");
   }
   else {
-    name = "Render";
+    name = RPT_("Rendering...");
   }
 
   wm_job = WM_jobs_get(CTX_wm_manager(C),
@@ -1141,20 +1213,31 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
   return OPERATOR_RUNNING_MODAL;
 }
 
+static std::string screen_render_get_description(bContext * /*C*/,
+                                                 wmOperatorType * /*ot*/,
+                                                 PointerRNA *ptr)
+{
+  const bool use_sequencer_scene = RNA_boolean_get(ptr, "use_sequencer_scene");
+  if (use_sequencer_scene) {
+    return TIP_("Render active sequencer scene");
+  }
+  return TIP_("Render active scene");
+}
+
 void RENDER_OT_render(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
   /* identifiers */
   ot->name = "Render";
-  ot->description = "Render active scene";
   ot->idname = "RENDER_OT_render";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_render_invoke;
   ot->modal = screen_render_modal;
   ot->cancel = screen_render_cancel;
   ot->exec = screen_render_exec;
+  ot->get_description = screen_render_get_description;
 
   /* This isn't needed, causes failure in background mode. */
 #if 0
@@ -1179,6 +1262,12 @@ void RENDER_OT_render(wmOperatorType *ot)
                          "Use 3D Viewport",
                          "When inside a 3D viewport, use layers and camera of the viewport");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "use_sequencer_scene",
+                         false,
+                         "Use Sequencer Scene",
+                         "Render the sequencer scene instead of the active scene");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_string(ot->srna,
                         "layer",
                         nullptr,
@@ -1193,35 +1282,65 @@ void RENDER_OT_render(wmOperatorType *ot)
                         "Scene",
                         "Scene to render, current scene if not specified");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(
+      ot->srna,
+      "frame_start",
+      0,
+      INT_MIN,
+      INT_MAX,
+      "Start Frame",
+      "Frame to start rendering animation at. If not specified, the scene start frame will be "
+      "assumed. This should only be specified if doing an animation render",
+      INT_MIN,
+      INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(
+      ot->srna,
+      "frame_end",
+      0,
+      INT_MIN,
+      INT_MAX,
+      "End Frame",
+      "Frame to end rendering animation at. If not specified, the scene end frame will be "
+      "assumed. This should only be specified if doing an animation render",
+      INT_MIN,
+      INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
+
+static RenderJobBase *render_job_get(const bContext *C)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  RenderJobBase *rj;
+
+  /* Try to find job tied to active scene first. */
+  rj = static_cast<RenderJobBase *>(
+      WM_jobs_customdata_from_type(wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER));
+
+  /* If not found, attempt to find job tied to sequencer scene. */
+  if (rj == nullptr) {
+    return static_cast<RenderJobBase *>(
+        WM_jobs_customdata_from_type(wm, CTX_data_sequencer_scene(C), WM_JOB_TYPE_RENDER));
+  }
+
+  return rj;
 }
 
 Scene *ED_render_job_get_scene(const bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  RenderJobBase *rj = (RenderJobBase *)WM_jobs_customdata_from_type(
-      wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER);
-
-  if (rj) {
-    return rj->scene;
-  }
-
-  return nullptr;
+  RenderJobBase *rj = render_job_get(C);
+  return rj ? rj->scene : nullptr;
 }
 
 Scene *ED_render_job_get_current_scene(const bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  RenderJobBase *rj = (RenderJobBase *)WM_jobs_customdata_from_type(
-      wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER);
-  if (rj) {
-    return rj->current_scene;
-  }
-  return nullptr;
+  RenderJobBase *rj = render_job_get(C);
+  return rj ? rj->current_scene : nullptr;
 }
 
 /* Motion blur curve preset */
 
-static int render_shutter_curve_preset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus render_shutter_curve_preset_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   CurveMapping *mblur_shutter_curve = &scene->r.mblur_shutter_curve;
@@ -1230,8 +1349,10 @@ static int render_shutter_curve_preset_exec(bContext *C, wmOperator *op)
 
   mblur_shutter_curve->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
   mblur_shutter_curve->preset = preset;
-  BKE_curvemap_reset(
-      cm, &mblur_shutter_curve->clipr, mblur_shutter_curve->preset, CURVEMAP_SLOPE_POS_NEG);
+  BKE_curvemap_reset(cm,
+                     &mblur_shutter_curve->clipr,
+                     mblur_shutter_curve->preset,
+                     CurveMapSlopeType::PositiveNegative);
   BKE_curvemapping_changed(mblur_shutter_curve, false);
 
   return OPERATOR_FINISHED;

@@ -285,7 +285,7 @@ void BLI_bitmap_draw_2d_tri_v2i(
 /* sort edge-segments on y, then x axis */
 static int draw_poly_v2i_n__span_y_sort(const void *a_p, const void *b_p, void *verts_p)
 {
-  const int(*verts)[2] = static_cast<const int(*)[2]>(verts_p);
+  const int (*verts)[2] = static_cast<const int (*)[2]>(verts_p);
   const int *a = static_cast<const int *>(a_p);
   const int *b = static_cast<const int *>(b_p);
   const int *co_a = verts[a[0]];
@@ -328,8 +328,7 @@ void BLI_bitmap_draw_2d_poly_v2i_n(const int xmin,
   /* Originally by Darel Rex Finley, 2007.
    * Optimized by Campbell Barton, 2016 to track sorted intersections. */
 
-  int(*span_y)[2] = static_cast<int(*)[2]>(
-      MEM_mallocN(sizeof(*span_y) * size_t(verts.size()), __func__));
+  int (*span_y)[2] = MEM_malloc_arrayN<int[2]>(size_t(verts.size()), __func__);
   int span_y_len = 0;
 
   for (int i_curr = 0, i_prev = int(verts.size() - 1); i_curr < verts.size(); i_prev = i_curr++) {
@@ -363,8 +362,7 @@ void BLI_bitmap_draw_2d_poly_v2i_n(const int xmin,
   struct NodeX {
     int span_y_index;
     int x;
-  } *node_x = static_cast<NodeX *>(
-      MEM_mallocN(sizeof(*node_x) * size_t(verts.size() + 1), __func__));
+  } *node_x = MEM_malloc_arrayN<NodeX>(size_t(verts.size() + 1), __func__);
   int node_x_len = 0;
 
   int span_y_index = 0;

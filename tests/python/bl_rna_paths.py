@@ -10,13 +10,8 @@ import unittest
 def process_rna_struct(self, struct, rna_path):
     # These paths are currently known failures of `path_from_id`.
     KNOWN_FAILURES = {
-        "view_settings",
-        "display_settings",
-        "colorspace_settings",
         "render.views[\"left\"]",
         "render.views[\"right\"]",
-        "display_settings",
-        "colorspace_settings",
         "uv_layers[\"UVMap\"]",
         "uv_layers[\"UVMap\"]",
     }
@@ -113,7 +108,7 @@ class TestRnaAncestors(unittest.TestCase):
                 # Do not error for now. Only ensure that if there is a rna_ancestors array, it is valid.
                 return
             if repr(rna_ancestors[0]) != ancestors_sub[0]:
-                # Do not error for now. There are valid cases wher the data is 'rebased' on a new 'root' ID.
+                # Do not error for now. There are valid cases where the data is 'rebased' on a new 'root' ID.
                 return
             if repr(p_data) in ancestors_sub:
                 # Loop back onto itself, skip.

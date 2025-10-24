@@ -50,7 +50,7 @@ using offset_t = intptr_t;
 // #define USE_TOTALLOC
 
 /* pad must be power of two */
-#define PADUP(num, pad) (((num) + ((pad)-1)) & ~((pad)-1))
+#define PADUP(num, pad) (((num) + ((pad) - 1)) & ~((pad) - 1))
 
 struct BLI_memiter_elem {
   offset_t size;
@@ -115,7 +115,7 @@ static void memiter_init(BLI_memiter *mi)
 
 BLI_memiter *BLI_memiter_create(uint chunk_size_min)
 {
-  BLI_memiter *mi = MEM_cnew<BLI_memiter>("BLI_memiter");
+  BLI_memiter *mi = MEM_callocN<BLI_memiter>("BLI_memiter");
   memiter_init(mi);
 
   /* Small values are used for tests to check for correctness,

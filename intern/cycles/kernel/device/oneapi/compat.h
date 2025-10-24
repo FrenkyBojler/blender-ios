@@ -33,19 +33,20 @@
 
 /* Qualifier wrappers for different names on different devices */
 
-#define ccl_device
+#define ccl_device inline
 #define ccl_device_extern extern "C"
 #define ccl_global
 #define ccl_always_inline __attribute__((always_inline))
-#define ccl_device_inline inline
+#define ccl_device_inline __attribute__((always_inline))
 #define ccl_noinline __attribute__((noinline))
 #define ccl_inline_constant const constexpr
 #define ccl_device_constant static constexpr
 #define ccl_static_constexpr static constexpr
 #define ccl_device_forceinline __attribute__((always_inline))
-#define ccl_device_noinline ccl_device ccl_noinline
+#define ccl_device_noinline __attribute__((noinline))
 #define ccl_device_noinline_cpu ccl_device
 #define ccl_device_inline_method ccl_device
+#define ccl_device_template_spec template<> ccl_device_inline
 #define ccl_restrict __restrict__
 #define ccl_optional_struct_init
 #define ccl_private
@@ -71,7 +72,7 @@ void oneapi_kernel_##name(KernelGlobalsGPU *ccl_restrict kg, \
                           size_t kernel_local_size, \
                           sycl::handler &cgh, \
                           __VA_ARGS__) { \
-      (kg); \
+      (void)(kg); \
       cgh.parallel_for( \
           sycl::nd_range<1>(kernel_global_size, kernel_local_size), \
           [=](sycl::nd_item<1> item) {
@@ -89,7 +90,7 @@ void oneapi_kernel_##name(KernelGlobalsGPU *ccl_restrict kg, \
                           size_t kernel_local_size, \
                           sycl::handler &cgh, \
                           __VA_ARGS__) { \
-      (kg); \
+      (void)(kg); \
       (kernel_local_size); \
       cgh.host_task( \
           [=]() {\
@@ -213,6 +214,7 @@ ccl_device_forceinline int __float_as_int(const float x)
 #define atanf(x) sycl::atan((x))
 #define floorf(x) sycl::floor((x))
 #define ceilf(x) sycl::ceil((x))
+#define roundf(x) sycl::round((x))
 #define sinhf(x) sycl::sinh((x))
 #define coshf(x) sycl::cosh((x))
 #define tanhf(x) sycl::tanh((x))
@@ -222,6 +224,7 @@ ccl_device_forceinline int __float_as_int(const float x)
 #define fminf(x, y) sycl::fmin((x), (y))
 #define fmodf(x, y) sycl::fmod((x), (y))
 #define lgammaf(x) sycl::lgamma((x))
+#define ldexpf(x, y) sycl::ldexp((x), (y))
 
 #define cosf(x) sycl::native::cos(((float)(x)))
 #define sinf(x) sycl::native::sin(((float)(x)))

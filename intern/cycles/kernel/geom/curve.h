@@ -8,6 +8,7 @@
 
 #include "kernel/geom/attribute.h"
 #include "kernel/geom/motion_curve.h"
+#include "kernel/geom/object.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -45,205 +46,81 @@ ccl_device_inline T curve_attribute_dfdy(const ccl_private differential &du,
 
 /* Read attributes on various curve elements, and compute the partial derivatives if requested. */
 
-ccl_device float curve_attribute_float(KernelGlobals kg,
-                                       const ccl_private ShaderData *sd,
-                                       const AttributeDescriptor desc,
-                                       ccl_private float *dfdx,
-                                       ccl_private float *dfdy)
+template<typename T>
+ccl_device dual<T> curve_attribute(KernelGlobals kg,
+                                   const ccl_private ShaderData *sd,
+                                   const AttributeDescriptor desc,
+                                   const bool dx = false,
+                                   const bool dy = false)
 {
+  dual<T> result;
   if (desc.element & (ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_CURVE_KEY_MOTION)) {
     const KernelCurve curve = kernel_data_fetch(curves, sd->prim);
     const int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
     const int k1 = k0 + 1;
 
-    const float f0 = kernel_data_fetch(attributes_float, desc.offset + k0);
-    const float f1 = kernel_data_fetch(attributes_float, desc.offset + k1);
+    const T f0 = attribute_data_fetch<T>(kg, desc.offset + k0);
+    const T f1 = attribute_data_fetch<T>(kg, desc.offset + k1);
 
 #  ifdef __RAY_DIFFERENTIALS__
-    if (dfdx) {
-      *dfdx = curve_attribute_dfdx(sd->du, f0, f1);
+    if (dx) {
+      result.dx = curve_attribute_dfdx(sd->du, f0, f1);
     }
-    if (dfdy) {
-      *dfdy = curve_attribute_dfdy(sd->du, f0, f1);
+    if (dy) {
+      result.dy = curve_attribute_dfdy(sd->du, f0, f1);
     }
 #  endif
 
-    return (1.0f - sd->u) * f0 + sd->u * f1;
-  }
-#  ifdef __RAY_DIFFERENTIALS__
-  if (dfdx) {
-    *dfdx = 0.0f;
-  }
-  if (dfdy) {
-    *dfdy = 0.0f;
-  }
-#  endif
-
-  if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
-    const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim : desc.offset;
-    return kernel_data_fetch(attributes_float, offset);
-  }
-  return 0.0f;
-}
-
-ccl_device float2 curve_attribute_float2(KernelGlobals kg,
-                                         const ccl_private ShaderData *sd,
-                                         const AttributeDescriptor desc,
-                                         ccl_private float2 *dfdx,
-                                         ccl_private float2 *dfdy)
-{
-  if (desc.element & (ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_CURVE_KEY_MOTION)) {
-    const KernelCurve curve = kernel_data_fetch(curves, sd->prim);
-    const int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
-    const int k1 = k0 + 1;
-
-    const float2 f0 = kernel_data_fetch(attributes_float2, desc.offset + k0);
-    const float2 f1 = kernel_data_fetch(attributes_float2, desc.offset + k1);
-
-#  ifdef __RAY_DIFFERENTIALS__
-    if (dfdx) {
-      *dfdx = curve_attribute_dfdx(sd->du, f0, f1);
-    }
-    if (dfdy) {
-      *dfdy = curve_attribute_dfdy(sd->du, f0, f1);
-    }
-#  endif
-
-    return (1.0f - sd->u) * f0 + sd->u * f1;
+    result.val = mix(f0, f1, sd->u);
+    return result;
   }
 
   /* idea: we can't derive any useful differentials here, but for tiled
    * mipmap image caching it would be useful to avoid reading the highest
    * detail level always. maybe a derivative based on the hair density
    * could be computed somehow? */
-#  ifdef __RAY_DIFFERENTIALS__
-  if (dfdx) {
-    *dfdx = zero_float2();
+
+  if (desc.element == ATTR_ELEMENT_CURVE) {
+    return dual<T>(attribute_data_fetch<T>(kg, desc.offset + sd->prim));
   }
-  if (dfdy) {
-    *dfdy = zero_float2();
-  }
-#  endif
-
-  if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
-    const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim : desc.offset;
-    return kernel_data_fetch(attributes_float2, offset);
-  }
-  return zero_float2();
-}
-
-ccl_device float3 curve_attribute_float3(KernelGlobals kg,
-                                         const ccl_private ShaderData *sd,
-                                         const AttributeDescriptor desc,
-                                         ccl_private float3 *dfdx,
-                                         ccl_private float3 *dfdy)
-{
-  if (desc.element & (ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_CURVE_KEY_MOTION)) {
-    const KernelCurve curve = kernel_data_fetch(curves, sd->prim);
-    const int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
-    const int k1 = k0 + 1;
-
-    const float3 f0 = kernel_data_fetch(attributes_float3, desc.offset + k0);
-    const float3 f1 = kernel_data_fetch(attributes_float3, desc.offset + k1);
-
-#  ifdef __RAY_DIFFERENTIALS__
-    if (dfdx) {
-      *dfdx = curve_attribute_dfdx(sd->du, f0, f1);
-    }
-    if (dfdy) {
-      *dfdy = curve_attribute_dfdy(sd->du, f0, f1);
-    }
-#  endif
-
-    return (1.0f - sd->u) * f0 + sd->u * f1;
-  }
-
-#  ifdef __RAY_DIFFERENTIALS__
-  if (dfdx) {
-    *dfdx = zero_float3();
-  }
-  if (dfdy) {
-    *dfdy = zero_float3();
-  }
-#  endif
-
-  if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
-    const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim : desc.offset;
-    return kernel_data_fetch(attributes_float3, offset);
-  }
-  return zero_float3();
-}
-
-ccl_device float4 curve_attribute_float4(KernelGlobals kg,
-                                         const ccl_private ShaderData *sd,
-                                         const AttributeDescriptor desc,
-                                         ccl_private float4 *dfdx,
-                                         ccl_private float4 *dfdy)
-{
-  if (desc.element & (ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_CURVE_KEY_MOTION)) {
-    const KernelCurve curve = kernel_data_fetch(curves, sd->prim);
-    const int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
-    const int k1 = k0 + 1;
-
-    const float4 f0 = kernel_data_fetch(attributes_float4, desc.offset + k0);
-    const float4 f1 = kernel_data_fetch(attributes_float4, desc.offset + k1);
-
-#  ifdef __RAY_DIFFERENTIALS__
-    if (dfdx) {
-      *dfdx = curve_attribute_dfdx(sd->du, f0, f1);
-    }
-    if (dfdy) {
-      *dfdy = curve_attribute_dfdy(sd->du, f0, f1);
-    }
-#  endif
-
-    return (1.0f - sd->u) * f0 + sd->u * f1;
-  }
-
-#  ifdef __RAY_DIFFERENTIALS__
-  if (dfdx) {
-    *dfdx = zero_float4();
-  }
-  if (dfdy) {
-    *dfdy = zero_float4();
-  }
-#  endif
-
-  if (desc.element & (ATTR_ELEMENT_CURVE | ATTR_ELEMENT_OBJECT | ATTR_ELEMENT_MESH)) {
-    const int offset = (desc.element == ATTR_ELEMENT_CURVE) ? desc.offset + sd->prim : desc.offset;
-    return kernel_data_fetch(attributes_float4, offset);
-  }
-  return zero_float4();
+  return make_zero<dual<T>>();
 }
 
 /* Curve thickness */
 
 ccl_device float curve_thickness(KernelGlobals kg, const ccl_private ShaderData *sd)
 {
-  float r = 0.0f;
-
-  if (sd->type & PRIMITIVE_CURVE) {
-    const KernelCurve curve = kernel_data_fetch(curves, sd->prim);
-    const int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
-    const int k1 = k0 + 1;
-
-    float4 P_curve[2];
-
-#  ifdef __OBJECT_MOTION__
-    if (sd->type & PRIMITIVE_MOTION) {
-      motion_curve_keys_linear(kg, sd->object, sd->time, k0, k1, P_curve);
-    }
-    else
-#  endif
-    {
-      P_curve[0] = kernel_data_fetch(curve_keys, k0);
-      P_curve[1] = kernel_data_fetch(curve_keys, k1);
-    }
-
-    r = (P_curve[1].w - P_curve[0].w) * sd->u + P_curve[0].w;
+  if (!(sd->type & PRIMITIVE_CURVE)) {
+    return 0.0f;
   }
 
-  return r * 2.0f;
+  const KernelCurve curve = kernel_data_fetch(curves, sd->prim);
+  const int k0 = curve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
+  const int k1 = k0 + 1;
+
+  float4 P_curve[2];
+
+#  ifdef __OBJECT_MOTION__
+  if (sd->type & PRIMITIVE_MOTION) {
+    motion_curve_keys_linear(kg, sd->object, sd->time, k0, k1, P_curve);
+  }
+  else
+#  endif
+  {
+    P_curve[0] = kernel_data_fetch(curve_keys, k0);
+    P_curve[1] = kernel_data_fetch(curve_keys, k1);
+  }
+
+  float r = 2.0f * ((P_curve[1].w - P_curve[0].w) * sd->u + P_curve[0].w);
+
+  if (sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED) {
+    return r;
+  }
+
+  const float normalized_r = r * (1.0f / M_SQRT3_F);
+  float3 dir = make_float3(normalized_r, normalized_r, normalized_r);
+  object_dir_transform(kg, sd, &dir);
+  return len(dir);
 }
 
 /* Curve random */
@@ -252,9 +129,7 @@ ccl_device float curve_random(KernelGlobals kg, const ccl_private ShaderData *sd
 {
   if (sd->type & PRIMITIVE_CURVE) {
     const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_CURVE_RANDOM);
-    return (desc.offset != ATTR_STD_NOT_FOUND) ?
-               curve_attribute_float(kg, sd, desc, nullptr, nullptr) :
-               0.0f;
+    return (desc.offset != ATTR_STD_NOT_FOUND) ? curve_attribute<float>(kg, sd, desc).val : 0.0f;
   }
   return 0.0f;
 }
@@ -278,7 +153,7 @@ ccl_device float3 curve_motion_center_location(KernelGlobals kg, const ccl_priva
 
 /* Curve tangent normal */
 
-ccl_device float3 curve_tangent_normal(KernelGlobals kg, const ccl_private ShaderData *sd)
+ccl_device float3 curve_tangent_normal(const ccl_private ShaderData *sd)
 {
   float3 tgN = make_float3(0.0f, 0.0f, 0.0f);
 

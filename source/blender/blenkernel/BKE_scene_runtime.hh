@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "BLI_map.hh"
@@ -30,9 +34,19 @@ class CompositorRuntime {
   ~CompositorRuntime();
 };
 
+/* Runtime data specific to the sequencer, e.g. when using scene strips. */
+class SequencerRuntime {
+ public:
+  Depsgraph *depsgraph = nullptr;
+
+  ~SequencerRuntime();
+};
+
 class SceneRuntime : NonCopyable, NonMovable {
  public:
   CompositorRuntime compositor;
+
+  SequencerRuntime sequencer;
 };
 
 }  // namespace blender::bke

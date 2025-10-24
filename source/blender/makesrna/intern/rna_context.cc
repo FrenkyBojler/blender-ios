@@ -26,7 +26,7 @@ const EnumPropertyItem rna_enum_context_mode_items[] = {
     {CTX_MODE_EDIT_METABALL, "EDIT_METABALL", 0, "Metaball Edit", ""},
     {CTX_MODE_EDIT_LATTICE, "EDIT_LATTICE", 0, "Lattice Edit", ""},
     {CTX_MODE_EDIT_GREASE_PENCIL, "EDIT_GREASE_PENCIL", 0, "Grease Pencil Edit", ""},
-    {CTX_MODE_EDIT_POINT_CLOUD, "EDIT_POINT_CLOUD", 0, "Point Cloud Edit", ""},
+    {CTX_MODE_EDIT_POINTCLOUD, "EDIT_POINTCLOUD", 0, "Point Cloud Edit", ""},
     {CTX_MODE_POSE, "POSE", 0, "Pose", ""},
     {CTX_MODE_SCULPT, "SCULPT", 0, "Sculpt", ""},
     {CTX_MODE_PAINT_WEIGHT, "PAINT_WEIGHT", 0, "Weight Paint", ""},
@@ -192,6 +192,15 @@ static PointerRNA rna_Context_layer_collection_get(PointerRNA *ptr)
 static PointerRNA rna_Context_tool_settings_get(PointerRNA *ptr)
 {
   bContext *C = (bContext *)ptr->data;
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  if (is_sequencer) {
+    Scene *scene = CTX_data_sequencer_scene(C);
+    if (scene) {
+      ToolSettings *toolsettings = scene->toolsettings;
+      return RNA_pointer_create_id_subdata(
+          *reinterpret_cast<ID *>(scene), &RNA_ToolSettings, toolsettings);
+    }
+  }
   return RNA_pointer_create_id_subdata(
       *reinterpret_cast<ID *>(CTX_data_scene(C)), &RNA_ToolSettings, CTX_data_tool_settings(C));
 }

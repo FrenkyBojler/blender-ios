@@ -12,7 +12,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 #include "UI_abstract_view.hh"
@@ -30,6 +30,7 @@ void AbstractViewItem::update_from_old(const AbstractViewItem &old)
   is_active_ = old.is_active_;
   is_renaming_ = old.is_renaming_;
   is_highlighted_search_ = old.is_highlighted_search_;
+  is_selected_ = old.is_selected_;
 }
 
 /** \} */
@@ -51,7 +52,7 @@ std::optional<bool> AbstractViewItem::should_be_active() const
 bool AbstractViewItem::set_state_active()
 {
   BLI_assert_msg(get_view().is_reconstructed(),
-                 "Item activation can't be done until reconstruction is completed");
+                 "Item activation cannot be done until reconstruction is completed");
 
   if (!is_activatable_) {
     return false;
@@ -69,14 +70,40 @@ bool AbstractViewItem::set_state_active()
 
 void AbstractViewItem::activate(bContext &C)
 {
-  if (set_state_active()) {
+  if (set_state_active() || reactivate_on_click_) {
     on_activate(C);
+  }
+
+  /* Make sure active item is selected. */
+  if (is_active()) {
+    set_selected(true);
+  }
+}
+
+void AbstractViewItem::activate_for_context_menu(bContext &C)
+{
+  if (activate_for_context_menu_) {
+    this->activate(C);
+  }
+  else {
+    this->set_state_active();
   }
 }
 
 void AbstractViewItem::deactivate()
 {
   is_active_ = false;
+  is_selected_ = false;
+}
+
+std::optional<bool> AbstractViewItem::should_be_selected() const
+{
+  return std::nullopt;
+}
+
+void AbstractViewItem::set_selected(const bool select)
+{
+  is_selected_ = select;
 }
 
 /** \} */
@@ -93,9 +120,13 @@ void AbstractViewItem::change_state_delayed()
        * shouldn't call #on_activate(). */
       set_state_active();
     }
-    else {
+    else if (is_active_) {
       is_active_ = false;
+      is_selected_ = false;
     }
+  }
+  if (std::optional<bool> is_selected = should_be_selected()) {
+    set_selected(is_selected.value_or(false));
   }
 }
 
@@ -164,10 +195,10 @@ void AbstractViewItem::end_renaming()
 static AbstractViewItem *find_item_from_rename_button(const uiBut &rename_but)
 {
   /* A minimal sanity check, can't do much more here. */
-  BLI_assert(rename_but.type == UI_BTYPE_TEXT && rename_but.poin);
+  BLI_assert(rename_but.type == ButType::Text && rename_but.poin);
 
   for (const std::unique_ptr<uiBut> &but : rename_but.block->buttons) {
-    if (but->type != UI_BTYPE_VIEW_ITEM) {
+    if (but->type != ButType::ViewItem) {
       continue;
     }
 
@@ -195,7 +226,7 @@ void AbstractViewItem::add_rename_button(uiBlock &block)
 {
   AbstractView &view = this->get_view();
   uiBut *rename_but = uiDefBut(&block,
-                               UI_BTYPE_TEXT,
+                               ButType::Text,
                                1,
                                "",
                                0,
@@ -213,11 +244,17 @@ void AbstractViewItem::add_rename_button(uiBlock &block)
   UI_but_flag_disable(rename_but, UI_BUT_UNDO);
 
   const bContext *evil_C = reinterpret_cast<bContext *>(block.evil_C);
-  ARegion *region = CTX_wm_region(evil_C);
+  ARegion *region = CTX_wm_region_popup(evil_C) ? CTX_wm_region_popup(evil_C) :
+                                                  CTX_wm_region(evil_C);
   /* Returns false if the button was removed. */
   if (UI_but_active_only(evil_C, region, &block, rename_but) == false) {
     end_renaming();
   }
+}
+
+void AbstractViewItem::delete_item(bContext * /*C*/)
+{
+  /* No deletion by default. Needs type specific implementation. */
 }
 
 /** \} */
@@ -273,7 +310,7 @@ std::optional<std::string> AbstractViewItem::debug_name() const
 
 AbstractViewItemDragController::AbstractViewItemDragController(AbstractView &view) : view_(view) {}
 
-void AbstractViewItemDragController::on_drag_start()
+void AbstractViewItemDragController::on_drag_start(bContext & /*C*/)
 {
   /* Do nothing by default. */
 }
@@ -303,6 +340,26 @@ void AbstractViewItem::disable_activatable()
   is_activatable_ = false;
 }
 
+void AbstractViewItem::select_on_click_set()
+{
+  select_on_click_ = true;
+}
+
+bool AbstractViewItem::is_select_on_click() const
+{
+  return select_on_click_;
+}
+
+void AbstractViewItem::always_reactivate_on_click()
+{
+  reactivate_on_click_ = true;
+}
+
+void AbstractViewItem::activate_for_context_menu_set()
+{
+  activate_for_context_menu_ = true;
+}
+
 void AbstractViewItem::disable_interaction()
 {
   is_interactive_ = false;
@@ -316,8 +373,15 @@ bool AbstractViewItem::is_interactive() const
 bool AbstractViewItem::is_active() const
 {
   BLI_assert_msg(this->get_view().is_reconstructed(),
-                 "State can't be queried until reconstruction is completed");
+                 "State cannot be queried until reconstruction is completed");
   return is_active_;
+}
+
+bool AbstractViewItem::is_selected() const
+{
+  BLI_assert_msg(this->get_view().is_reconstructed(),
+                 "State can't be queried until reconstruction is completed");
+  return is_selected_;
 }
 
 bool AbstractViewItem::is_search_highlight() const
@@ -391,7 +455,7 @@ bool UI_view_item_popup_keep_open(const AbstractViewItem &item)
   return item.get_view().get_popup_keep_open();
 }
 
-bool UI_view_item_drag_start(bContext &C, const AbstractViewItem &item)
+bool UI_view_item_drag_start(bContext &C, AbstractViewItem &item)
 {
   const std::unique_ptr<AbstractViewItemDragController> drag_controller =
       item.create_drag_controller();
@@ -399,12 +463,15 @@ bool UI_view_item_drag_start(bContext &C, const AbstractViewItem &item)
     return false;
   }
 
-  WM_event_start_drag(&C,
-                      ICON_NONE,
-                      drag_controller->get_drag_type(),
-                      drag_controller->create_drag_data(),
-                      WM_DRAG_FREE_DATA);
-  drag_controller->on_drag_start();
+  if (const std::optional<eWM_DragDataType> drag_type = drag_controller->get_drag_type()) {
+    WM_event_start_drag(
+        &C, ICON_NONE, *drag_type, drag_controller->create_drag_data(), WM_DRAG_FREE_DATA);
+  }
+  drag_controller->on_drag_start(C);
+
+  /* Make sure the view item is highlighted as active when dragging from it. This is useful user
+   * feedback. */
+  item.set_state_active();
 
   return true;
 }

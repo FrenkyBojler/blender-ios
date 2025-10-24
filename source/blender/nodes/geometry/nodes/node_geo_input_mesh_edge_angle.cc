@@ -80,7 +80,7 @@ class AngleFieldInput final : public bke::MeshFieldInput {
       return angle_normalized_v3v3(normal_1, normal_2);
     };
 
-    VArray<float> angles = VArray<float>::ForFunc(mesh.edges_num, angle_fn);
+    VArray<float> angles = VArray<float>::from_func(mesh.edges_num, angle_fn);
     return mesh.attributes().adapt_domain<float>(std::move(angles), AttrDomain::Edge, domain);
   }
 
@@ -181,7 +181,7 @@ class SignedAngleFieldInput final : public bke::MeshFieldInput {
       return -angle;
     };
 
-    VArray<float> angles = VArray<float>::ForFunc(mesh.edges_num, angle_fn);
+    VArray<float> angles = VArray<float>::from_func(mesh.edges_num, angle_fn);
     return mesh.attributes().adapt_domain<float>(std::move(angles), AttrDomain::Edge, domain);
   }
 
@@ -224,7 +224,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

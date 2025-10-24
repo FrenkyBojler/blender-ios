@@ -15,9 +15,13 @@
 
 struct ImBuf;
 struct Scene;
-struct SeqRenderData;
 struct Strip;
 struct TextVars;
+
+namespace blender::seq {
+
+struct SeqRenderState;
+struct RenderData;
 
 enum class StripEarlyOut {
   NoInput = -1,  /* No input needed. */
@@ -26,17 +30,7 @@ enum class StripEarlyOut {
   UseInput2 = 2, /* Output = input2. */
 };
 
-/* Wipe effect */
-enum {
-  DO_SINGLE_WIPE,
-  DO_DOUBLE_WIPE,
-  /* DO_BOX_WIPE, */   /* UNUSED */
-  /* DO_CROSS_WIPE, */ /* UNUSED */
-  DO_IRIS_WIPE,
-  DO_CLOCK_WIPE,
-};
-
-struct SeqEffectHandle {
+struct EffectHandle {
   /* constructors & destructor */
   /* init is _only_ called on first creation */
   void (*init)(Strip *strip);
@@ -64,7 +58,8 @@ struct SeqEffectHandle {
                           float *fac);
 
   /* execute the effect */
-  ImBuf *(*execute)(const SeqRenderData *context,
+  ImBuf *(*execute)(const RenderData *context,
+                    SeqRenderState *state,
                     Strip *strip,
                     float timeline_frame,
                     float fac,
@@ -72,17 +67,17 @@ struct SeqEffectHandle {
                     ImBuf *ibuf2);
 };
 
-SeqEffectHandle SEQ_effect_handle_get(Strip *strip);
-int SEQ_effect_get_num_inputs(int strip_type);
-void SEQ_effect_text_font_unload(TextVars *data, bool do_id_user);
-void SEQ_effect_text_font_load(TextVars *data, bool do_id_user);
-bool SEQ_effects_can_render_text(const Strip *strip);
-
-namespace blender::seq {
+/** Get the effect handle for a given strip, and load the strip if it has not been loaded already.
+ * If `strip` is not an effect strip, returns empty `EffectHandle`. */
+EffectHandle strip_effect_handle_get(Strip *strip);
+int effect_get_num_inputs(int strip_type);
+void effect_text_font_unload(TextVars *data, bool do_id_user);
+void effect_text_font_load(TextVars *data, bool do_id_user);
+bool effects_can_render_text(const Strip *strip);
 
 struct CharInfo {
   int index = 0;
-  const char *str_ptr = nullptr;
+  int offset = 0; /* Offset in bytes within text buffer. */
   int byte_length = 0;
   float2 position{0.0f, 0.0f};
   int advance_x = 0;

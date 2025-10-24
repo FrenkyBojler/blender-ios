@@ -5,14 +5,15 @@
 set(INC
   ../asset
   ../include
+  ../space_graph
   ../../asset_system
   ../../makesrna
-  ../../../../extern/fmtlib/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
+  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -37,6 +38,7 @@ set(SRC
   time_scrub_ui.cc
 
   anim_intern.hh
+  keyframes_general_intern.hh
 )
 
 set(LIB
@@ -49,6 +51,7 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
@@ -64,6 +67,7 @@ add_dependencies(bf_editor_animation bf_rna)
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    anim_draw_test.cc
     anim_filter_test.cc
     keyframes_general_test.cc
     keyframes_keylist_test.cc

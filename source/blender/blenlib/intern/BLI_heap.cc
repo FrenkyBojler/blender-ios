@@ -60,7 +60,7 @@ struct Heap {
 /** \name Internal Functions
  * \{ */
 
-#define HEAP_PARENT(i) (((i)-1) >> 1)
+#define HEAP_PARENT(i) (((i) - 1) >> 1)
 #define HEAP_LEFT(i) (((i) << 1) + 1)
 #define HEAP_RIGHT(i) (((i) << 1) + 2)
 #define HEAP_COMPARE(a, b) ((a)->value < (b)->value)
@@ -170,11 +170,11 @@ static void heap_node_free(Heap *heap, HeapNode *node)
 
 Heap *BLI_heap_new_ex(uint reserve_num)
 {
-  Heap *heap = MEM_cnew<Heap>(__func__);
+  Heap *heap = MEM_callocN<Heap>(__func__);
   /* ensure we have at least one so we can keep doubling it */
   heap->size = 0;
   heap->bufsize = std::max(1u, reserve_num);
-  heap->tree = MEM_cnew_array<HeapNode *>(heap->bufsize, "BLIHeapTree");
+  heap->tree = MEM_calloc_arrayN<HeapNode *>(heap->bufsize, "BLIHeapTree");
 
   heap->nodes.chunk = heap_node_alloc_chunk(
       (reserve_num > 1) ? reserve_num : HEAP_CHUNK_DEFAULT_NUM, nullptr);

@@ -65,7 +65,7 @@ static void memarena_buf_free_all(MemBuf *mb)
 
 MemArena *BLI_memarena_new(const size_t bufsize, const char *name)
 {
-  MemArena *ma = MEM_cnew<MemArena>("memarena");
+  MemArena *ma = MEM_callocN<MemArena>("memarena");
   ma->bufsize = bufsize;
   ma->align = 8;
   ma->name = name;
@@ -103,7 +103,7 @@ void BLI_memarena_free(MemArena *ma)
 }
 
 /** Pad num up by \a amt (must be power of two). */
-#define PADUP(num, amt) (((num) + ((amt)-1)) & ~((amt)-1))
+#define PADUP(num, amt) (((num) + ((amt) - 1)) & ~((amt) - 1))
 
 /** Align alloc'ed memory (needed if `align > 8`). */
 static void memarena_curbuf_align(MemArena *ma)
@@ -130,8 +130,13 @@ void *BLI_memarena_alloc(MemArena *ma, size_t size)
       ma->cursize = ma->bufsize;
     }
 
-    MemBuf *mb = static_cast<MemBuf *>(
-        (ma->use_calloc ? MEM_callocN : MEM_mallocN)(sizeof(*mb) + ma->cursize, ma->name));
+    MemBuf *mb;
+    if (ma->use_calloc) {
+      mb = static_cast<MemBuf *>(MEM_callocN(sizeof(*mb) + ma->cursize, ma->name));
+    }
+    else {
+      mb = static_cast<MemBuf *>(MEM_mallocN(sizeof(*mb) + ma->cursize, ma->name));
+    }
     ma->curbuf = mb->data;
     mb->next = ma->bufs;
     ma->bufs = mb;

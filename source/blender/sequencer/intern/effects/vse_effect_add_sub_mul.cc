@@ -14,6 +14,8 @@
 
 #include "effects.hh"
 
+namespace blender::seq {
+
 /* -------------------------------------------------------------------- */
 /* Color Add Effect */
 
@@ -44,7 +46,8 @@ struct AddEffectOp {
   float factor;
 };
 
-static ImBuf *do_add_effect(const SeqRenderData *context,
+static ImBuf *do_add_effect(const RenderData *context,
+                            SeqRenderState * /*state*/,
                             Strip * /*seq*/,
                             float /*timeline_frame*/,
                             float fac,
@@ -88,7 +91,8 @@ struct SubEffectOp {
   float factor;
 };
 
-static ImBuf *do_sub_effect(const SeqRenderData *context,
+static ImBuf *do_sub_effect(const RenderData *context,
+                            SeqRenderState * /*state*/,
                             Strip * /*seq*/,
                             float /*timeline_frame*/,
                             float fac,
@@ -132,7 +136,8 @@ struct MulEffectOp {
   float factor;
 };
 
-static ImBuf *do_mul_effect(const SeqRenderData *context,
+static ImBuf *do_mul_effect(const RenderData *context,
+                            SeqRenderState * /*state*/,
                             Strip * /*seq*/,
                             float /*timeline_frame*/,
                             float fac,
@@ -146,20 +151,22 @@ static ImBuf *do_mul_effect(const SeqRenderData *context,
   return dst;
 }
 
-void add_effect_get_handle(SeqEffectHandle &rval)
+void add_effect_get_handle(EffectHandle &rval)
 {
   rval.execute = do_add_effect;
   rval.early_out = early_out_mul_input2;
 }
 
-void sub_effect_get_handle(SeqEffectHandle &rval)
+void sub_effect_get_handle(EffectHandle &rval)
 {
   rval.execute = do_sub_effect;
   rval.early_out = early_out_mul_input2;
 }
 
-void mul_effect_get_handle(SeqEffectHandle &rval)
+void mul_effect_get_handle(EffectHandle &rval)
 {
   rval.execute = do_mul_effect;
   rval.early_out = early_out_mul_input2;
 }
+
+}  // namespace blender::seq

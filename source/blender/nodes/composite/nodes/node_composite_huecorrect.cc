@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
@@ -17,6 +16,7 @@
 #include "NOD_multi_function.hh"
 
 #include "BKE_colortools.hh"
+#include "BKE_node.hh"
 
 #include "GPU_material.hh"
 
@@ -26,15 +26,13 @@ namespace blender::nodes::node_composite_huecorrect_cc {
 
 static void cmp_node_huecorrect_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Fac")
+  b.is_function_node();
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Float>("Factor", "Fac")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
-      .subtype(PROP_FACTOR)
-      .compositor_domain_priority(1);
-  b.add_input<decl::Color>("Image")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .subtype(PROP_FACTOR);
   b.add_output<decl::Color>("Image");
 }
 
@@ -48,7 +46,7 @@ static void node_composit_init_huecorrect(bNodeTree * /*ntree*/, bNode *node)
 
   for (int c = 0; c < 3; c++) {
     CurveMap *cuma = &cumapping->cm[c];
-    BKE_curvemap_reset(cuma, &cumapping->clipr, cumapping->preset, CURVEMAP_SLOPE_POSITIVE);
+    BKE_curvemap_reset(cuma, &cumapping->clipr, cumapping->preset, CurveMapSlopeType::Positive);
   }
   /* use wrapping for all hue correct nodes */
   cumapping->flag |= CUMA_USE_WRAPPING;
@@ -94,7 +92,7 @@ static int node_gpu_material(GPUMaterial *material,
                         GPU_uniform(range_dividers));
 }
 
-static float4 hue_correct(const float factor, const float4 &color, const CurveMapping *curve_map)
+static float4 hue_correct(const float4 &color, const float factor, const CurveMapping *curve_map)
 {
   float3 hsv;
   rgb_to_hsv_v(color, hsv);
@@ -128,18 +126,18 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   BKE_curvemapping_init(curve_mapping);
 
   builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI2_SO<float, float4, float4>(
+    return mf::build::SI2_SO<float4, float, float4>(
         "Hue Correct",
-        [=](const float factor, const float4 &color) -> float4 {
-          return hue_correct(factor, color, curve_mapping);
+        [=](const float4 &color, const float factor) -> float4 {
+          return hue_correct(color, factor, curve_mapping);
         },
-        mf::build::exec_presets::SomeSpanOrSingle<1>());
+        mf::build::exec_presets::SomeSpanOrSingle<0>());
   });
 }
 
 }  // namespace blender::nodes::node_composite_huecorrect_cc
 
-void register_node_type_cmp_huecorrect()
+static void register_node_type_cmp_huecorrect()
 {
   namespace file_ns = blender::nodes::node_composite_huecorrect_cc;
 
@@ -151,11 +149,12 @@ void register_node_type_cmp_huecorrect()
   ntype.enum_name_legacy = "HUECORRECT";
   ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = file_ns::cmp_node_huecorrect_declare;
-  blender::bke::node_type_size(&ntype, 320, 140, 500);
+  blender::bke::node_type_size(ntype, 320, 140, 500);
   ntype.initfunc = file_ns::node_composit_init_huecorrect;
-  blender::bke::node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
+  blender::bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_huecorrect)

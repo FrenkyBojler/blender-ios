@@ -15,6 +15,11 @@
 struct LinkNode;
 struct MemArena;
 
+namespace blender::bke {
+enum class AttrDomain : int8_t;
+enum class AttrType : int16_t;
+}  // namespace blender::bke
+
 void BM_loop_interp_multires_ex(BMesh *bm,
                                 BMLoop *l_dst,
                                 const BMFace *f_src,
@@ -65,14 +70,17 @@ void BM_data_interp_face_vert_edge(
 void BM_data_layer_add(BMesh *bm, CustomData *data, int type);
 void BM_data_layer_add_named(BMesh *bm, CustomData *data, int type, blender::StringRef name);
 void BM_data_layer_ensure_named(BMesh *bm, CustomData *data, int type, blender::StringRef name);
+bool BM_data_layer_has_named(const BMesh *bm,
+                             const CustomData *data,
+                             int type,
+                             blender::StringRef name);
 void BM_data_layer_free(BMesh *bm, CustomData *data, int type);
 
 /** Ensure the dependent boolean layers exist for all face corner #CD_PROP_FLOAT2 layers. */
-void BM_uv_map_ensure_select_and_pin_attrs(BMesh *bm);
+void BM_uv_map_attr_pin_ensure_for_all_layers(BMesh *bm);
 
-void BM_uv_map_ensure_vert_select_attr(BMesh *bm, blender::StringRef uv_map_name);
-void BM_uv_map_ensure_edge_select_attr(BMesh *bm, blender::StringRef uv_map_name);
-void BM_uv_map_ensure_pin_attr(BMesh *bm, blender::StringRef uv_map_name);
+void BM_uv_map_attr_pin_ensure_named(BMesh *bm, blender::StringRef uv_map_name);
+bool BM_uv_map_attr_pin_exists(const BMesh *bm, blender::StringRef uv_map_name);
 
 /**
  * Remove a named custom data layer, if it existed. Return true if the layer was removed.
@@ -80,6 +88,24 @@ void BM_uv_map_ensure_pin_attr(BMesh *bm, blender::StringRef uv_map_name);
 bool BM_data_layer_free_named(BMesh *bm, CustomData *data, blender::StringRef name);
 void BM_data_layer_free_n(BMesh *bm, CustomData *data, int type, int n);
 void BM_data_layer_copy(BMesh *bm, CustomData *data, int type, int src_n, int dst_n);
+
+/* See #BM_data_layer_lookup. */
+struct BMDataLayerLookup {
+  const int offset = -1;
+  blender::bke::AttrDomain domain;
+  blender::bke::AttrType type;
+  operator bool() const
+  {
+    return offset != -1;
+  }
+};
+
+/**
+ * Search for a named custom data layer on all attribute domains and return the domain and type.
+ * This is roughly analogous to #Mesh::attributes().lookup(...), but keep in mind that certain
+ * attributes stored on #Mesh are not stored as attributes on #BMesh.
+ */
+BMDataLayerLookup BM_data_layer_lookup(const BMesh &bm, const blender::StringRef name);
 
 float BM_elem_float_data_get(CustomData *cd, void *element, int type);
 void BM_elem_float_data_set(CustomData *cd, void *element, int type, float val);

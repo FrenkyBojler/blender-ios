@@ -18,7 +18,7 @@
 
 #include "effects.hh"
 
-using namespace blender;
+namespace blender::seq {
 
 struct WipeZone {
   float angle;
@@ -101,7 +101,7 @@ static float check_zone(const WipeZone *wipezone, int x, int y, float fac)
   }
 
   switch (wipezone->type) {
-    case DO_SINGLE_WIPE:
+    case SEQ_WIPE_SINGLE:
       width = min_ii(wipezone->width, fac * yo);
       width = min_ii(width, yo - fac * yo);
 
@@ -140,7 +140,7 @@ static float check_zone(const WipeZone *wipezone, int x, int y, float fac)
       }
       break;
 
-    case DO_DOUBLE_WIPE:
+    case SEQ_WIPE_DOUBLE:
       if (!wipezone->forward) {
         fac = 1.0f - fac; /* Go the other direction */
       }
@@ -188,7 +188,7 @@ static float check_zone(const WipeZone *wipezone, int x, int y, float fac)
         output = 1 - output;
       }
       break;
-    case DO_CLOCK_WIPE:
+    case SEQ_WIPE_CLOCK:
       /*
        * temp1: angle of effect center in rads
        * temp2: angle of line through (halfx, halfy) and (x, y) in rads
@@ -241,7 +241,7 @@ static float check_zone(const WipeZone *wipezone, int x, int y, float fac)
         output = 1 - output;
       }
       break;
-    case DO_IRIS_WIPE:
+    case SEQ_WIPE_IRIS:
       if (xo > yo) {
         yo = xo;
       }
@@ -288,7 +288,7 @@ static void init_wipe_effect(Strip *strip)
     MEM_freeN(strip->effectdata);
   }
 
-  strip->effectdata = MEM_callocN(sizeof(WipeVars), "wipevars");
+  strip->effectdata = MEM_callocN<WipeVars>("wipevars");
 }
 
 static int num_inputs_wipe()
@@ -353,7 +353,8 @@ static void do_wipe_effect(
   });
 }
 
-static ImBuf *do_wipe_effect(const SeqRenderData *context,
+static ImBuf *do_wipe_effect(const RenderData *context,
+                             SeqRenderState * /*state*/,
                              Strip *strip,
                              float /*timeline_frame*/,
                              float fac,
@@ -384,7 +385,7 @@ static ImBuf *do_wipe_effect(const SeqRenderData *context,
   return out;
 }
 
-void wipe_effect_get_handle(SeqEffectHandle &rval)
+void wipe_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_wipe_effect;
   rval.num_inputs = num_inputs_wipe;
@@ -394,3 +395,5 @@ void wipe_effect_get_handle(SeqEffectHandle &rval)
   rval.get_default_fac = get_default_fac_fade;
   rval.execute = do_wipe_effect;
 }
+
+}  // namespace blender::seq

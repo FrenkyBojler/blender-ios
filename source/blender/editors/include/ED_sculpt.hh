@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 struct Depsgraph;
 struct Main;
 struct Mesh;
@@ -16,6 +18,7 @@ struct RegionView3D;
 struct ReportList;
 struct Scene;
 struct UndoType;
+struct UndoStep;
 struct bContext;
 struct wmKeyConfig;
 struct wmOperator;
@@ -48,6 +51,7 @@ void keymap_sculpt(wmKeyConfig *keyconf);
 /* `sculpt_transform.cc` */
 
 void update_modal_transform(bContext *C, Object &ob);
+void cancel_modal_transform(bContext *C, Object &ob);
 void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char *undo_name);
 void end_transform(bContext *C, Object &ob);
 
@@ -72,6 +76,8 @@ void geometry_end(Object &ob);
  */
 void push_multires_mesh_begin(bContext *C, const char *str);
 void push_multires_mesh_end(bContext *C, const char *str);
+
+size_t step_memory_size_get(UndoStep *step);
 
 }  // namespace undo
 
