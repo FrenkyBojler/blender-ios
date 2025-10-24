@@ -1517,6 +1517,9 @@ bool ED_region_is_overlap(const int spacetype, const int regiontype)
                   RGN_TYPE_ASSET_SHELF,
                   RGN_TYPE_ASSET_SHELF_HEADER);
 
+    case SPACE_ACTION:
+      return ELEM(regiontype, RGN_TYPE_UI);
+
     default:
       /* Most editors do not support any region overlap. It is fine if newly-added space types also
        * default to not having region overlap; this 'switch' doesn't have to be religiously updated
