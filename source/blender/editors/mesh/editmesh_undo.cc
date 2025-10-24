@@ -214,15 +214,21 @@ static struct {
 
 } um_arraystore = {{{nullptr}}};
 
-static void um_arraystore_cd_compact(CustomData *cdata,
-                                     const size_t data_len,
+struct ArraysWithType {
+  eCustomDataType type;
+  blender::Vector<const void *> data;
+  blender::Vector<const blender::ImplicitSharingInfo *> sharing_info;
+  const size_t data_len;
+};
+
+static void um_arraystore_cd_compact(ArraysWithType &arrays,
                                      const bool create,
                                      const int bs_index,
                                      const BArrayCustomData *bcd_reference,
                                      BArrayCustomData **r_bcd_first)
 {
   using namespace blender;
-  if (data_len == 0) {
+  if (arrays.data_len == 0) {
     if (create) {
       *r_bcd_first = nullptr;
     }
@@ -230,136 +236,128 @@ static void um_arraystore_cd_compact(CustomData *cdata,
 
   const BArrayCustomData *bcd_reference_current = bcd_reference;
   BArrayCustomData *bcd = nullptr, *bcd_first = nullptr, *bcd_prev = nullptr;
-  for (int layer_start = 0, layer_end; layer_start < cdata->totlayer; layer_start = layer_end) {
-    const eCustomDataType type = eCustomDataType(cdata->layers[layer_start].type);
+  const eCustomDataType type = arrays.type;
 
-    /* Perform a full copy on dynamic layers.
-     *
-     * Unfortunately we can't compare dynamic layer types as they contain allocated pointers,
-     * which burns CPU cycles looking for duplicate data that doesn't exist.
-     * The array data isn't comparable once copied from the mesh,
-     * this bottlenecks on high poly meshes, see #84114.
-     *
-     * Ideally the data would be expanded into a format that could be de-duplicated effectively,
-     * this would require a flat representation of each dynamic custom-data layer.
-     *
-     * Instead, these non-trivial custom data layer are stored in the undo system using implicit
-     * sharing, to avoid the copy from the undo mesh.
-     */
-    const bool layer_type_is_dynamic = CustomData_layertype_is_dynamic(type);
+  /* Perform a full copy on dynamic layers.
+   *
+   * Unfortunately we can't compare dynamic layer types as they contain allocated pointers,
+   * which burns CPU cycles looking for duplicate data that doesn't exist.
+   * The array data isn't comparable once copied from the mesh,
+   * this bottlenecks on high poly meshes, see #84114.
+   *
+   * Ideally the data would be expanded into a format that could be de-duplicated effectively,
+   * this would require a flat representation of each dynamic custom-data layer.
+   *
+   * Instead, these non-trivial custom data layer are stored in the undo system using implicit
+   * sharing, to avoid the copy from the undo mesh.
+   */
+  const bool layer_type_is_dynamic = CustomData_layertype_is_dynamic(type);
 
-    layer_end = layer_start + 1;
-    while ((layer_end < cdata->totlayer) && (type == cdata->layers[layer_end].type)) {
-      layer_end++;
+  const int stride = CustomData_sizeof(type);
+  BArrayStore *bs = create ? BLI_array_store_at_size_ensure(&um_arraystore.bs_stride[bs_index],
+                                                            stride,
+                                                            array_chunk_size_calc(stride)) :
+                             nullptr;
+  const int layer_len = arrays.data.size();
+
+  if (create) {
+    if (bcd_reference_current && (bcd_reference_current->type == type)) {
+      /* common case, the reference is aligned */
     }
+    else {
+      bcd_reference_current = nullptr;
 
-    const int stride = CustomData_sizeof(type);
-    BArrayStore *bs = create ? BLI_array_store_at_size_ensure(&um_arraystore.bs_stride[bs_index],
-                                                              stride,
-                                                              array_chunk_size_calc(stride)) :
-                               nullptr;
-    const int layer_len = layer_end - layer_start;
-
-    if (create) {
-      if (bcd_reference_current && (bcd_reference_current->type == type)) {
-        /* common case, the reference is aligned */
-      }
-      else {
-        bcd_reference_current = nullptr;
-
-        /* Do a full lookup when unaligned. */
-        if (bcd_reference) {
-          const BArrayCustomData *bcd_iter = bcd_reference;
-          while (bcd_iter) {
-            if (bcd_iter->type == type) {
-              bcd_reference_current = bcd_iter;
-              break;
-            }
-            bcd_iter = bcd_iter->next;
+      /* Do a full lookup when unaligned. */
+      if (bcd_reference) {
+        const BArrayCustomData *bcd_iter = bcd_reference;
+        while (bcd_iter) {
+          if (bcd_iter->type == type) {
+            bcd_reference_current = bcd_iter;
+            break;
           }
+          bcd_iter = bcd_iter->next;
         }
       }
     }
+  }
 
-    if (create) {
-      bcd = MEM_new<BArrayCustomData>(__func__);
-      bcd->next = nullptr;
-      bcd->type = type;
-      bcd->states.reinitialize(layer_end - layer_start);
+  if (create) {
+    bcd = MEM_new<BArrayCustomData>(__func__);
+    bcd->next = nullptr;
+    bcd->type = type;
+    bcd->states.reinitialize(layer_len);
 
-      if (bcd_prev) {
-        bcd_prev->next = bcd;
-        bcd_prev = bcd;
-      }
-      else {
-        bcd_first = bcd;
-        bcd_prev = bcd;
-      }
+    if (bcd_prev) {
+      bcd_prev->next = bcd;
+      bcd_prev = bcd;
     }
+    else {
+      bcd_first = bcd;
+      bcd_prev = bcd;
+    }
+  }
 
-    CustomDataLayer *layer = &cdata->layers[layer_start];
-    for (int i = 0; i < layer_len; i++, layer++) {
-      if (create) {
-        if (layer->data) {
-          if (layer_type_is_dynamic) {
-            /* See comment on `layer_type_is_dynamic` above. */
-            const ImplicitSharingInfo *sharing_info = layer->sharing_info;
-            sharing_info->add_user();
-            bcd->states[i] = ImplicitSharingInfoAndData{sharing_info, layer->data};
-          }
-          else {
-            const BArrayState *state_reference = nullptr;
-            if (bcd_reference_current && i < bcd_reference_current->states.size()) {
-              state_reference = std::get<BArrayState *>(bcd_reference_current->states[i]);
-            }
-
-            void *data_final = layer->data;
-            size_t data_final_size = size_t(data_len) * stride;
-
-#  ifdef USE_ARRAY_STORE_RLE
-            const bool use_rle = um_customdata_layer_use_rle(bcd);
-            uint8_t *data_enc = nullptr;
-            if (use_rle) {
-              /* Store the size in the encoded data (for convenience). */
-              size_t data_enc_extra_size = sizeof(size_t);
-              size_t data_enc_len;
-              data_enc = BLI_array_store_rle_encode(reinterpret_cast<const uint8_t *>(data_final),
-                                                    data_final_size,
-                                                    data_enc_extra_size,
-                                                    &data_enc_len);
-              memcpy(data_enc, &data_final_size, data_enc_extra_size);
-              data_final = data_enc;
-              data_final_size = data_enc_extra_size + data_enc_len;
-            }
-#  endif
-
-            bcd->states[i] = {
-                BLI_array_store_state_add(bs, data_final, data_final_size, state_reference),
-            };
-
-#  ifdef USE_ARRAY_STORE_RLE
-            if (use_rle) {
-              MEM_freeN(data_enc);
-            }
-#  endif
-          }
+  for (int i = 0; i < layer_len; i++) {
+    if (create) {
+      if (arrays.data[i]) {
+        if (layer_type_is_dynamic) {
+          /* See comment on `layer_type_is_dynamic` above. */
+          const ImplicitSharingInfo *sharing_info = arrays.sharing_info[i];
+          sharing_info->add_user();
+          bcd->states[i] = ImplicitSharingInfoAndData{sharing_info, arrays.data[i]};
         }
         else {
-          bcd->states[i] = nullptr;
+          const BArrayState *state_reference = nullptr;
+          if (bcd_reference_current && i < bcd_reference_current->states.size()) {
+            state_reference = std::get<BArrayState *>(bcd_reference_current->states[i]);
+          }
+
+          const void *data_final = arrays.data[i];
+          size_t data_final_size = size_t(arrays.data_len) * stride;
+
+#  ifdef USE_ARRAY_STORE_RLE
+          const bool use_rle = um_customdata_layer_use_rle(bcd);
+          uint8_t *data_enc = nullptr;
+          if (use_rle) {
+            /* Store the size in the encoded data (for convenience). */
+            size_t data_enc_extra_size = sizeof(size_t);
+            size_t data_enc_len;
+            data_enc = BLI_array_store_rle_encode(reinterpret_cast<const uint8_t *>(data_final),
+                                                  data_final_size,
+                                                  data_enc_extra_size,
+                                                  &data_enc_len);
+            memcpy(data_enc, &data_final_size, data_enc_extra_size);
+            data_final = data_enc;
+            data_final_size = data_enc_extra_size + data_enc_len;
+          }
+#  endif
+
+          bcd->states[i] = {
+              BLI_array_store_state_add(bs, data_final, data_final_size, state_reference),
+          };
+
+#  ifdef USE_ARRAY_STORE_RLE
+          if (use_rle) {
+            MEM_freeN(data_enc);
+          }
+#  endif
         }
       }
-
-      if (layer->data) {
-        layer->sharing_info->remove_user_and_delete_if_last();
-        layer->sharing_info = nullptr;
-        layer->data = nullptr;
+      else {
+        bcd->states[i] = nullptr;
       }
     }
 
-    if (create) {
-      if (bcd_reference_current) {
-        bcd_reference_current = bcd_reference_current->next;
-      }
+    if (arrays.data[i]) {
+      layer->sharing_info->remove_user_and_delete_if_last();
+      layer->sharing_info = nullptr;
+      layer->data = nullptr;
+    }
+  }
+
+  if (create) {
+    if (bcd_reference_current) {
+      bcd_reference_current = bcd_reference_current->next;
     }
   }
 
@@ -471,6 +469,13 @@ static void um_arraystore_compact_ex(UndoMesh *um, const UndoMesh *um_ref, bool 
   // TODO_MESH_ATTR
   blender::threading::parallel_invoke(
       4096 < (mesh->verts_num + mesh->edges_num + mesh->corners_num + mesh->faces_num),
+      [&]() {
+        um_arraystore_attrs_compact(mesh,
+                                    create,
+                                    ARRAY_STORE_INDEX_VERT,
+                                    um_ref ? um_ref->store.vdata : nullptr,
+                                    &um->store.vdata);
+      },
       [&]() {
         um_arraystore_cd_compact(&mesh->vert_data,
                                  mesh->verts_num,
