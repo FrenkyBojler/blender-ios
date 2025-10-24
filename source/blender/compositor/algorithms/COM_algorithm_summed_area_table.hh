@@ -70,9 +70,9 @@ inline float4 summed_area_table_sum(const Result &table,
   int2 corrected_upper_bound = math::min(table.domain().size - int2(1), upper_bound);
   float4 addend = float4(table.load_pixel_zero<Color>(corrected_upper_bound)) +
                   float4(table.load_pixel_zero<Color>(corrected_lower_bound));
-  float4 subtrahend = float4(table.load_pixel_zero<float4>(
+  float4 subtrahend = float4(table.load_pixel_zero<Color>(
                           int2(corrected_lower_bound.x, corrected_upper_bound.y))) +
-                      float4(table.load_pixel_zero<float4>(
+                      float4(table.load_pixel_zero<Color>(
                           int2(corrected_upper_bound.x, corrected_lower_bound.y)));
   return addend - subtrahend;
 }
