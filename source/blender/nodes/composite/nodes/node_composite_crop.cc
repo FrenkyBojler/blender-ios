@@ -139,7 +139,7 @@ class CropOperation : public NodeOperation {
                        texel.x < bounds.max.x && texel.y < bounds.max.y;
       /* Write the pixel color if it is inside the cropping region, otherwise, write zero. */
       float4 color = is_inside ? input.load_pixel<float4>(texel) : float4(0.0f);
-      output.store_pixel(texel, color);
+      output.store_pixel(texel, Color(color));
     });
   }
 
@@ -190,7 +190,7 @@ class CropOperation : public NodeOperation {
     output.allocate_texture(Domain(size, this->compute_domain().transformation));
 
     parallel_for(size, [&](const int2 texel) {
-      output.store_pixel(texel, input.load_pixel<float4>(texel + bounds.min));
+      output.store_pixel(texel, Color(input.load_pixel<float4>(texel + bounds.min)));
     });
   }
 

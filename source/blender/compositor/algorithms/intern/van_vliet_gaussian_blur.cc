@@ -68,7 +68,7 @@ static void sum_causal_and_non_causal_results_cpu(const Result &first_causal_inp
 
     /* Write the color using the transposed texel. See the sum_causal_and_non_causal_results method
      * for more information on the rational behind this. */
-    output.store_pixel(int2(texel.y, texel.x), filter_output);
+    output.store_pixel(int2(texel.y, texel.x), Color(filter_output));
   });
 }
 
@@ -306,18 +306,18 @@ static void blur_pass_cpu(Context &context,
        * them in a separate shader dispatch for better parallelism. */
       if (is_causal) {
         if (is_first_filter) {
-          first_causal_output.store_pixel(texel, outputs[0]);
+          first_causal_output.store_pixel(texel, Color(outputs[0]));
         }
         else {
-          second_causal_output.store_pixel(texel, outputs[0]);
+          second_causal_output.store_pixel(texel, Color(outputs[0]));
         }
       }
       else {
         if (is_first_filter) {
-          first_non_causal_output.store_pixel(texel, outputs[0]);
+          first_non_causal_output.store_pixel(texel, Color(outputs[0]));
         }
         else {
-          second_non_causal_output.store_pixel(texel, outputs[0]);
+          second_non_causal_output.store_pixel(texel, Color(outputs[0]));
         }
       }
 

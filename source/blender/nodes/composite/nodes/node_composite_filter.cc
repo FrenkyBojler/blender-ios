@@ -185,7 +185,7 @@ class FilterOperation : public NodeOperation {
             color.xyz(), magnitude, factor.load_pixel<float, true>(texel));
 
         /* Store the channel-wise magnitude with the original alpha of the input. */
-        output.store_pixel(texel, float4(magnitude, color.w));
+        output.store_pixel(texel, Color(float4(magnitude, color.w)));
       });
     }
     else {
@@ -203,7 +203,7 @@ class FilterOperation : public NodeOperation {
             input.load_pixel<float4>(texel), color, factor.load_pixel<float, true>(texel));
 
         /* Store the color making sure it is not negative. */
-        output.store_pixel(texel, math::max(color, float4(0.0f)));
+        output.store_pixel(texel, Color(math::max(color, float4(0.0f))));
       });
     }
   }

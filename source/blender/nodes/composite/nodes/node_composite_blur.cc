@@ -229,7 +229,7 @@ class BlurOperation : public NodeOperation {
         }
       }
 
-      output.store_pixel(texel, accumulated_color);
+      output.store_pixel(texel, Color(accumulated_color));
     });
   }
 
@@ -334,7 +334,7 @@ class BlurOperation : public NodeOperation {
 
       accumulated_color = math::safe_divide(accumulated_color, accumulated_weight);
 
-      output.store_pixel(texel, accumulated_color);
+      output.store_pixel(texel, Color(accumulated_color));
     });
   }
 

@@ -494,7 +494,7 @@ static void motion_blur_cpu(const Result &input_image,
         float blend_fac = math::clamp(1.0f - accum.weight.y / accum.weight.z, 0.0f, 1.0f);
         float4 out_color = (accum.fg / accum.weight.z) + center_color * blend_fac;
 
-        output.store_pixel(texel, out_color);
+        output.store_pixel(texel, Color(out_color));
       }
     }
   });

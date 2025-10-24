@@ -233,7 +233,7 @@ class InpaintOperation : public NodeOperation {
 
       /* An opaque pixel, not part of the inpainting region. */
       if (color.w == 1.0f) {
-        filled_region.store_pixel(texel, color);
+        filled_region.store_pixel(texel, Color(color));
         smoothing_radius_image.store_pixel(texel, 0.0f);
         distance_to_boundary_image.store_pixel(texel, 0.0f);
         return;
@@ -260,7 +260,7 @@ class InpaintOperation : public NodeOperation {
       /* Mix the boundary color with the original color using its alpha because semi-transparent
        * areas are considered to be partially inpainted. */
       float4 boundary_color = input.load_pixel<float4>(closest_boundary_texel);
-      filled_region.store_pixel(texel, math::interpolate(boundary_color, color, color.w));
+      filled_region.store_pixel(texel, Color(math::interpolate(boundary_color, color, color.w)));
     });
   }
 
@@ -321,7 +321,7 @@ class InpaintOperation : public NodeOperation {
 
       /* An opaque pixel, not part of the inpainting region, write the original color. */
       if (color.w == 1.0f) {
-        output.store_pixel(texel, color);
+        output.store_pixel(texel, Color(color));
         return;
       }
 
@@ -330,7 +330,7 @@ class InpaintOperation : public NodeOperation {
       /* Further than the inpainting distance, not part of the inpainting region, write the
        * original color. */
       if (distance_to_boundary > max_distance) {
-        output.store_pixel(texel, color);
+        output.store_pixel(texel, Color(color));
         return;
       }
 
@@ -338,7 +338,8 @@ class InpaintOperation : public NodeOperation {
        * areas are considered to be partially inpainted. */
       float4 inpainted_color = inpainted_region.load_pixel<float4>(texel);
       output.store_pixel(
-          texel, float4(math::interpolate(inpainted_color.xyz(), color.xyz(), color.w), 1.0f));
+          texel,
+          Color(float4(math::interpolate(inpainted_color.xyz(), color.xyz(), color.w), 1.0f)));
     });
   }
 

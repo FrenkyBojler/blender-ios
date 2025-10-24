@@ -212,7 +212,7 @@ class ZCombineOperation : public NodeOperation {
 
         /* Use the more opaque alpha from the two images. */
         combined_color.w = use_alpha ? math::max(second_color.w, first_color.w) : combined_color.w;
-        combined.store_pixel(texel, combined_color);
+        combined.store_pixel(texel, Color(combined_color));
       });
     }
 
@@ -335,7 +335,7 @@ class ZCombineOperation : public NodeOperation {
 
         /* Use the more opaque alpha from the two images. */
         combined_color.w = use_alpha ? math::max(second_color.w, first_color.w) : combined_color.w;
-        combined.store_pixel(texel, combined_color);
+        combined.store_pixel(texel, Color(combined_color));
       });
     }
 

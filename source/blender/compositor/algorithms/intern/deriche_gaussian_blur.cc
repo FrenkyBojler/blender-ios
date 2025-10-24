@@ -61,7 +61,7 @@ static void sum_causal_and_non_causal_results_cpu(const Result &causal_input,
 
     /* Write the color using the transposed texel. See the sum_causal_and_non_causal_results method
      * in the deriche_gaussian_blur.cc file for more information on the rational behind this. */
-    output.store_pixel(int2(texel.y, texel.x), filter_output);
+    output.store_pixel(int2(texel.y, texel.x), Color(filter_output));
   });
 }
 
@@ -217,10 +217,10 @@ static void blur_pass_cpu(Context &context,
       /* Store the causal and non causal outputs independently, then sum them in a separate shader
        * dispatch for better parallelism. */
       if (is_causal) {
-        causal_output.store_pixel(texel, outputs[0]);
+        causal_output.store_pixel(texel, Color(outputs[0]));
       }
       else {
-        non_causal_output.store_pixel(texel, outputs[0]);
+        non_causal_output.store_pixel(texel, Color(outputs[0]));
       }
 
       /* Shift the inputs temporally by one. The oldest input is discarded, while the current input

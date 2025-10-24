@@ -294,8 +294,8 @@ class DenoiseOperation : public NodeOperation {
        * need to restore it. */
       parallel_for(int2(width, height), [&](const int2 texel) {
         const float alpha = input_image.load_pixel<float4>(texel).w;
-        output_image.store_pixel(texel,
-                                 float4(output_image.load_pixel<float4>(texel).xyz(), alpha));
+        output_image.store_pixel(
+            texel, Color(float4(output_image.load_pixel<float4>(texel).xyz(), alpha)));
       });
     }
 

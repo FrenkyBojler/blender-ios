@@ -247,7 +247,7 @@ void convolve(Context &context,
         const int64_t index = texel.x + texel.y * int64_t(spatial_size.x);
         color[channel] = image_spatial_domain_channels[channel][index];
       }
-      output_cpu.store_pixel(texel, color);
+      output_cpu.store_pixel(texel, Color(color));
     });
   });
 

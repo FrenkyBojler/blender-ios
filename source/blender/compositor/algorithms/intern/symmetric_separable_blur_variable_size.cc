@@ -58,7 +58,7 @@ static void blur_pass(const Result &input,
 
     /* Write the color using the transposed texel. See the horizontal_pass_cpu function for more
      * information on the rational behind this. */
-    output.store_pixel(int2(texel.y, texel.x), accumulated_color / accumulated_weight);
+    output.store_pixel(int2(texel.y, texel.x), Color(accumulated_color / accumulated_weight));
   });
 }
 

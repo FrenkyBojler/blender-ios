@@ -147,7 +147,7 @@ class BilateralBlurOperation : public NodeOperation {
       float4 fallback = float4(float3(0.0f), 1.0f);
       float4 color = (accumulated_weight != 0.0f) ? (accumulated_color / accumulated_weight) :
                                                     fallback;
-      output.store_pixel(texel, color);
+      output.store_pixel(texel, Color(color));
     });
   }
 

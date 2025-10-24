@@ -331,7 +331,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
         }
       }
 
-      output.store_pixel(texel, mean_color_of_chosen_quadrant);
+      output.store_pixel(texel, Color(mean_color_of_chosen_quadrant));
     });
   }
 
@@ -343,7 +343,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
   void execute_anisotropic()
   {
     Result structure_tensor = compute_structure_tensor();
-    Result smoothed_structure_tensor = context().create_result(ResultType::Color);
+    Result smoothed_structure_tensor = context().create_result(ResultType::Float4);
     symmetric_separable_blur(
         context(), structure_tensor, smoothed_structure_tensor, float2(this->get_uniformity()));
     structure_tensor.release();
@@ -462,7 +462,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
       float radius = math::max(0.0f, size.load_pixel<float, true>(texel));
       if (radius == 0.0f) {
-        output.store_pixel(texel, input.load_pixel<float4>(texel));
+        output.store_pixel(texel, Color(input.load_pixel<float4>(texel)));
         return;
       }
 
@@ -673,7 +673,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
         weighted_sum /= sum_of_weights;
       }
 
-      output.store_pixel(texel, weighted_sum);
+      output.store_pixel(texel, Color(weighted_sum));
     });
   }
 
@@ -695,7 +695,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
     input.bind_as_texture(shader, "input_tx");
 
     const Domain domain = compute_domain();
-    Result structure_tensor = context().create_result(ResultType::Color);
+    Result structure_tensor = context().create_result(ResultType::Float4);
     structure_tensor.allocate_texture(domain);
     structure_tensor.bind_as_image(shader, "structure_tensor_img");
 
@@ -713,7 +713,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
     const Result &input = this->get_input("Image");
 
     const Domain domain = this->compute_domain();
-    Result structure_tensor_image = context().create_result(ResultType::Color);
+    Result structure_tensor_image = context().create_result(ResultType::Float4);
     structure_tensor_image.allocate_texture(domain);
 
     /* Computes the structure tensor of the image using a Dirac delta window function as described

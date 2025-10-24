@@ -392,7 +392,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
       float green = float(hash_value << 8) / float(0xFFFFFFFFu);
       float blue = float(hash_value << 16) / float(0xFFFFFFFFu);
 
-      output.store_pixel(texel, float4(id_of_first_rank, green, blue, 1.0f));
+      output.store_pixel(texel, Color(id_of_first_rank, green, blue, 1.0f));
     });
   }
 
@@ -555,7 +555,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
       float input_matte = matte.load_pixel<float>(texel);
 
       /* Premultiply the alpha to the image. */
-      output.store_pixel(texel, input_color * input_matte);
+      output.store_pixel(texel, Color(input_color * input_matte));
     });
   }
 

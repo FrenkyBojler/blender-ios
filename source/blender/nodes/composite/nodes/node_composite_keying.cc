@@ -304,7 +304,7 @@ class KeyingOperation : public NodeOperation {
       color_ycca /= 255.0f;
       color_ycca.w = color.w;
 
-      output.store_pixel(texel, color_ycca);
+      output.store_pixel(texel, Color(color_ycca));
     });
 
     return output;
@@ -374,7 +374,7 @@ class KeyingOperation : public NodeOperation {
                  BLI_YCC_ITU_BT709);
       color_rgba.w = color.w;
 
-      output.store_pixel(texel, color_rgba);
+      output.store_pixel(texel, Color(color_rgba));
     });
 
     return output;
@@ -795,7 +795,7 @@ class KeyingOperation : public NodeOperation {
           color[indices.y], color[indices.z], despill_balance);
       color[indices.x] -= math::max(0.0f, (color[indices.x] - weighted_average) * despill_factor);
 
-      output.store_pixel(texel, color);
+      output.store_pixel(texel, Color(color));
     });
   }
 

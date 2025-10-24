@@ -153,7 +153,7 @@ class DespeckleOperation : public NodeOperation {
       /* If the accumulated weight is zero, that means all pixels in the 3x3 window are similar and
        * no need to despeckle anything, so write the original center color and return. */
       if (accumulated_weight == 0.0f) {
-        output.store_pixel(texel, center_color);
+        output.store_pixel(texel, Color(center_color));
         return;
       }
 
@@ -162,7 +162,7 @@ class DespeckleOperation : public NodeOperation {
        * that are not close enough to the center pixel is low, and no need to despeckle anything,
        * so write the original center color and return. */
       if (accumulated_weight / sum_of_weights < neighbor_threshold) {
-        output.store_pixel(texel, center_color);
+        output.store_pixel(texel, Color(center_color));
         return;
       }
 
@@ -171,14 +171,14 @@ class DespeckleOperation : public NodeOperation {
       if (math::is_equal(
               center_color.xyz(), (sum_of_colors / sum_of_weights).xyz(), color_threshold))
       {
-        output.store_pixel(texel, center_color);
+        output.store_pixel(texel, Color(center_color));
         return;
       }
 
       /* We need to despeckle, so write the mean accumulated color. */
       float factor = factor_image.load_pixel<float, true>(texel);
       float4 mean_color = accumulated_color / accumulated_weight;
-      output.store_pixel(texel, math::interpolate(center_color, mean_color, factor));
+      output.store_pixel(texel, Color(math::interpolate(center_color, mean_color, factor)));
     });
   }
 

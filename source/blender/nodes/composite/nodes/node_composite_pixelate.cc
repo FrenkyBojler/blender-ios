@@ -103,7 +103,7 @@ class PixelateOperation : public NodeOperation {
 
       int2 size = end - start;
       int count = size.x * size.y;
-      output.store_pixel(texel, accumulated_color / count);
+      output.store_pixel(texel, Color(accumulated_color / count));
     });
   }
 
