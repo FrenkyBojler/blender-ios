@@ -50,6 +50,8 @@ bool attribute_set_poll(bContext &C, const ID &object_data);
 
 void operatortypes_geometry();
 
+void register_node_group_operators(const bContext &C);
+
 /**
  * Convert an attribute with the given name to a new type and domain.
  * The attribute must already exist.

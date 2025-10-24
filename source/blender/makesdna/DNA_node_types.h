@@ -1055,6 +1055,8 @@ typedef struct bNodeSocketValueMenu {
 
 typedef struct GeometryNodeAssetTraits {
   int flag;
+  char _pad[4];
+  char *node_tool_idname;
 } GeometryNodeAssetTraits;
 
 typedef enum GeometryNodeAssetTraitFlag {
