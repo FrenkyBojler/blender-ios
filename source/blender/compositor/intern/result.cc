@@ -434,7 +434,7 @@ void Result::allocate_single_value()
       this->set_single_value(float4(0.0f));
       break;
     case ResultType::Color:
-      this->set_single_value(Color({0.0f, 0.0f, 0.0f, 1.0f}));
+      this->set_single_value(Color(0.0f));
       break;
     case ResultType::Int:
       this->set_single_value(0);
