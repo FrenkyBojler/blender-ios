@@ -450,6 +450,7 @@ endif()
 
 set(GLSL_SRC
   GPU_shader_shared.hh
+  GPU_xr_defines.hh
 
   shaders/infos/gpu_clip_planes_infos.hh
   shaders/infos/gpu_index_load_infos.hh
@@ -486,6 +487,7 @@ set(GLSL_SRC
   shaders/infos/gpu_shader_sequencer_infos.hh
   shaders/infos/gpu_shader_simple_lighting_infos.hh
   shaders/infos/gpu_shader_text_infos.hh
+  shaders/infos/gpu_shader_xr_raycast_infos.hh
   shaders/infos/gpu_srgb_to_framebuffer_space_infos.hh
 
   shaders/gpu_shader_depth_only_frag.glsl
@@ -540,6 +542,7 @@ set(GLSL_SRC
 
   shaders/gpu_shader_text_vert.glsl
   shaders/gpu_shader_text_frag.glsl
+  shaders/gpu_shader_xr_raycast_vert.glsl
   shaders/gpu_shader_keyframe_shape_vert.glsl
   shaders/gpu_shader_keyframe_shape_frag.glsl
 
@@ -648,6 +651,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_principled.glsl
   shaders/material/gpu_shader_material_ray_portal.glsl
   shaders/material/gpu_shader_material_refraction.glsl
+  shaders/material/gpu_shader_material_repeat_zone.glsl
   shaders/material/gpu_shader_material_rgb_to_bw.glsl
   shaders/material/gpu_shader_material_radial_tiling.glsl
   shaders/material/gpu_shader_material_radial_tiling_shared.glsl

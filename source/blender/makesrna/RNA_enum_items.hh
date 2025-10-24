@@ -184,7 +184,6 @@ DEF_ENUM(rna_enum_node_math_items)
 DEF_ENUM(rna_enum_mapping_type_items)
 DEF_ENUM(rna_enum_node_vec_math_items)
 DEF_ENUM(rna_enum_node_boolean_math_items)
-DEF_ENUM(rna_enum_node_float_compare_items)
 DEF_ENUM(rna_enum_node_compare_operation_items)
 DEF_ENUM(rna_enum_node_integer_math_items)
 DEF_ENUM(rna_enum_node_float_to_int_items)
@@ -282,6 +281,9 @@ DEF_ENUM(rna_enum_nla_mode_blend_items)
 DEF_ENUM(rna_enum_keyblock_type_items)
 
 DEF_ENUM(rna_enum_asset_library_type_items)
+
+/* Defined in source/blender/python/intern/bpy_rna_id_collection.cc */
+DEF_ENUM(rna_enum_file_path_foreach_flag_items)
 
 #endif
 
