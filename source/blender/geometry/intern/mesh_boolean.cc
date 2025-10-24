@@ -31,6 +31,7 @@
 
 // #define BENCHMARK_TIME
 #ifdef BENCHMARK_TIME
+#  include "BLI_threads.h"
 #  include "BLI_timeit.hh"
 #  include <filesystem>
 #  include <fstream>
