@@ -6,11 +6,15 @@
  * \ingroup edinterface
  */
 
+#include <fmt/format.h>
+
 #include "BKE_library.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_math_color.h"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include <cstdio>
 
 #include "BLT_translation.hh"
 
@@ -309,72 +313,62 @@ void uiTemplateNodeSocket(uiLayout *layout, bContext * /*C*/, const float color[
 /** \name FileSelectParams Path Button Template
  * \{ */
 
+/* Custom tooltip builder: show name, description, value, then evaluated path. */
+// TODO Maybe need to move this somewhere else? Related:
+// https://projects.blender.org/blender/blender/pulls/139450/
+static void file_select_path_tooltip_custom(bContext &C,
+                                            uiTooltipData &data,
+                                            uiBut *but,
+                                            void *argN)
+{
+  /* Name/Label. */
+  std::string but_label = UI_but_string_get_label(*but);
+  if (!but_label.empty()) {
+    UI_tooltip_text_field_add(data, but_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+    UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+  }
+
+  /* Description (tooltip). */
+  std::string but_tip = UI_but_string_get_tooltip(C, *but);
+  if (!but_tip.empty()) {
+    UI_tooltip_text_field_add(data, but_tip, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_NORMAL);
+  }
+
+  /* Value (current path string shown in the button). */
+  char buf[512];
+  ui_but_string_get(but, buf, sizeof(buf));
+  if (buf[0]) {
+    UI_tooltip_text_field_add(data,
+                              fmt::format(fmt::runtime(TIP_("Value: {}")), buf),
+                              {},
+                              UI_TIP_STYLE_NORMAL,
+                              UI_TIP_LC_VALUE,
+                              true);
+  }
+
+  /* Evaluated/resolved path (in Python style). */
+  FileSelectParams *params = static_cast<FileSelectParams *>(argN);
+  if (params != nullptr && params->dir_resolved[0] != '\0') {
+    char filepath[FILE_MAX];
+    BLI_strncpy(filepath, params->dir_resolved, sizeof(filepath));
+
+    UI_tooltip_text_field_add(data,
+                              fmt::format(fmt::runtime(TIP_("Evaluated: {}")), filepath),
+                              {},
+                              UI_TIP_STYLE_NORMAL,
+                              UI_TIP_LC_PYTHON,
+                              true);
+  }
+}
+
 void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *params)
 {
   bScreen *screen = CTX_wm_screen(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
 
   ED_file_path_button(screen, sfile, params, layout->block());
-}
-/* Common helper for creating file path buttons */
-static uiBut *create_path_input_field(uiLayout *layout,
-                                      bContext *C,
-                                      FileSelectParams *params,
-                                      const char *prop_name,
-                                      const char *tooltip,
-                                      bool read_only,
-                                      uiButHandleFunc enter_callback)
-{
-  bScreen *screen = CTX_wm_screen(C);
-  SpaceFile *sfile = CTX_wm_space_file(C);
 
-  PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
-      &screen->id, &RNA_FileSelectParams, params);
-
-  uiBut *but = uiDefButR(layout->block(),
-                         ButType::Text,
-                         -1,
-                         "",
-                         0,
-                         0,
-                         UI_UNIT_X * 10,
-                         UI_UNIT_Y,
-                         &params_rna_ptr,
-                         prop_name,
-                         0,
-                         0.0f,
-                         float(FILE_MAX),
-                         tooltip);
-
-  if (read_only) {
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-  }
-  else {
-    UI_but_func_complete_set(but, autocomplete_directory, nullptr);
-    UI_but_funcN_set(but, enter_callback, nullptr, nullptr);
-  }
-
-  /* Disable if library is loaded */
-  if (sfile && sfile->files && filelist_lib(sfile->files)) {
-    UI_but_flag_enable(but, UI_BUT_DISABLED);
-  }
-  return but;
-}
-
-void uiTemplateFileSelectPathVariable(uiLayout *layout, bContext *C, FileSelectParams *params)
-{
-  BLI_assert_msg(params != nullptr, "File select parameters not set.");
-  bScreen *screen = CTX_wm_screen(C);
-  PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
-      &screen->id, &RNA_FileSelectParams, params);
-  layout->prop(&params_rna_ptr, "directory_template", UI_ITEM_NONE, nullptr, ICON_NONE);
-}
-
-void uiTemplateFileSelectPathPreview(uiLayout *layout, bContext *C, FileSelectParams *params)
-{
-  BLI_assert_msg(params != nullptr, "File select parameters not set.");
-  create_path_input_field(
-      layout, C, params, "directory_resolved", TIP_("Resolved file path"), true, nullptr);
+  uiLayoutSetTooltipCustomFunc(layout, file_select_path_tooltip_custom, params, nullptr, nullptr);
 }
 
 /** \} */

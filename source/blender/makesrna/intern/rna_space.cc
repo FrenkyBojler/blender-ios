@@ -7404,23 +7404,11 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
    * should be the only effective difference between the two. */
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_BYTESTRING);
   RNA_def_property_string_sdna(prop, nullptr, "dir");
-  RNA_def_property_ui_text(prop, "Directory", "Directory displayed in the file browser");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
-
-  prop = RNA_def_property(srna, "directory_template", PROP_STRING, PROP_BYTESTRING);
-  RNA_def_property_string_sdna(prop, nullptr, "dir_template");
   RNA_def_property_string_funcs(prop,
                                 "rna_FileSelectParams_directory_get",
                                 "rna_FileSelectParams_directory_length",
                                 "rna_FileSelectParams_directory_set");
-  RNA_def_property_ui_text(prop, "Template Path", "Directory path with template variables");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
-
-  prop = RNA_def_property(srna, "directory_resolved", PROP_STRING, PROP_BYTESTRING);
-  RNA_def_property_string_sdna(prop, nullptr, "dir_resolved");
-  RNA_def_property_ui_text(
-      prop, "Resolved Path", "Directory path with resolved template variables");
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Directory", "Directory displayed in the file browser");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, nullptr);
 
   prop = RNA_def_property(srna, "filename", PROP_STRING, PROP_FILENAME);

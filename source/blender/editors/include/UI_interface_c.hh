@@ -2656,8 +2656,6 @@ void uiTemplateColormanagedViewSettings(uiLayout *layout,
 
 int uiTemplateRecentFiles(uiLayout *layout, int rows);
 void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *params);
-void uiTemplateFileSelectPathVariable(uiLayout *layout, bContext *C, FileSelectParams *params);
-void uiTemplateFileSelectPathPreview(uiLayout *layout, bContext *C, FileSelectParams *params);
 
 namespace blender::ui {
 
