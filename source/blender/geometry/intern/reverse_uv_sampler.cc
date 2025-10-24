@@ -55,13 +55,13 @@ struct LocalData {
   Map<int, destruct_ptr<LocalRowData>> rows;
 };
 
-static int2 uv_to_cell(const float2 &uv, const int resolution)
+static int2 uv_to_cell(const float2 &uv, const float resolution)
 {
   return int2{uv * resolution};
 }
 
 static Bounds<int2> tri_to_cell_bounds(const int3 &tri,
-                                       const int resolution,
+                                       const float resolution,
                                        const Span<float2> uv_map)
 {
   const float2 &uv_0 = uv_map[tri[0]];
@@ -85,7 +85,7 @@ static Bounds<int2> tri_to_cell_bounds(const int3 &tri,
  */
 static void sort_tris_into_rows(const Span<float2> uv_map,
                                 const Span<int3> corner_tris,
-                                const int resolution,
+                                const float resolution,
                                 threading::EnumerableThreadSpecific<LocalData> &data_per_thread)
 {
   threading::parallel_for(corner_tris.index_range(), 256, [&](const IndexRange tris_range) {
@@ -177,13 +177,18 @@ static void finish_rows(const Span<int> all_ys,
 ReverseUVSampler::ReverseUVSampler(const Span<float2> uv_map, const Span<int3> corner_tris)
     : uv_map_(uv_map), corner_tris_(corner_tris), lookup_grid_(std::make_unique<LookupGrid>())
 {
-  /* A lower resolution means that there will be fewer cells and more triangles in each cell. Fewer
-   * cells make construction faster, but more triangles per cell make lookup slower. This value
-   * needs to be determined experimentally. */
-  resolution_ = std::max<int>(3, std::sqrt(corner_tris.size()) * 3);
   if (corner_tris.is_empty()) {
     return;
   }
+  const Bounds<float2> uv_bounds = *bounds::min_max(uv_map_);
+  const float2 uv_bounds_size = uv_bounds.size();
+  /* Reduce the resolution if the uv map is very large. */
+  const float resolution_divisor = std::max(1.0f, std::max(uv_bounds_size.x, uv_bounds_size.y));
+
+  /* A lower resolution means that there will be fewer cells and more triangles in each cell. Fewer
+   * cells make construction faster, but more triangles per cell make lookup slower. This value
+   * needs to be determined experimentally. */
+  resolution_ = std::max<float>(3, std::sqrt(corner_tris.size()) * 3.0f / resolution_divisor);
 
   threading::EnumerableThreadSpecific<LocalData> data_per_thread;
   sort_tris_into_rows(uv_map_, corner_tris_, resolution_, data_per_thread);

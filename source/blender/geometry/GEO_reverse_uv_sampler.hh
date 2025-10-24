@@ -21,7 +21,7 @@ class ReverseUVSampler {
  private:
   Span<float2> uv_map_;
   Span<int3> corner_tris_;
-  int resolution_;
+  float resolution_ = 3.0f;
   std::unique_ptr<LookupGrid> lookup_grid_;
 
  public:
