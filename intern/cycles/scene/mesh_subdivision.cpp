@@ -15,7 +15,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-void Mesh::tessellate(DiagSplit *split)
+void Mesh::tessellate(SubdParams &params)
 {
   /* reset the number of subdivision vertices, in case the Mesh was not cleared
    * between calls or data updates */
@@ -66,6 +66,7 @@ void Mesh::tessellate(DiagSplit *split)
         patch->patch_index = face.ptex_offset;
         patch->from_ngon = false;
         patch->shader = face.shader;
+        patch->smooth = face.smooth;
         patch++;
       }
       else {
@@ -73,13 +74,22 @@ void Mesh::tessellate(DiagSplit *split)
           patch->patch_index = face.ptex_offset + corner;
           patch->from_ngon = true;
           patch->shader = face.shader;
+          patch->smooth = face.smooth;
           patch++;
         }
       }
     }
 
     /* Split patches. */
-    split->split_patches(osd_patches.data(), sizeof(OsdPatch));
+    DiagSplit split(params);
+    split.split_patches(osd_patches.data(), sizeof(OsdPatch));
+
+    /* Setup interpolation. */
+    SubdAttributeInterpolation interpolation(*this, osd_mesh, osd_data);
+
+    /* Dice patches. */
+    EdgeDice dice(params, split.get_num_verts(), split.get_num_triangles(), interpolation);
+    dice.dice(split);
   }
   else
 #endif
@@ -103,6 +113,7 @@ void Mesh::tessellate(DiagSplit *split)
         hull[3] = verts[subd_face_corners[face.start_corner + 2]];
 
         patch->shader = face.shader;
+        patch->smooth = face.smooth;
         patch++;
       }
       else {
@@ -121,6 +132,7 @@ void Mesh::tessellate(DiagSplit *split)
           patch->from_ngon = true;
 
           patch->shader = face.shader;
+          patch->smooth = face.smooth;
 
           const int v0 = subd_face_corners[face.start_corner + mod(corner + 0, face.num_corners)];
           const int v1 = subd_face_corners[face.start_corner + mod(corner + 1, face.num_corners)];
@@ -138,34 +150,22 @@ void Mesh::tessellate(DiagSplit *split)
     }
 
     /* Split patches. */
-    split->split_patches(linear_patches.data(), sizeof(LinearQuadPatch));
-  }
+    DiagSplit split(params);
+    split.split_patches(linear_patches.data(), sizeof(LinearQuadPatch));
 
-  if (get_num_subd_faces()) {
-    /* Create a tessellated mesh attributes from subd base mesh attributes. */
+    /* Setup interpolation. */
 #ifdef WITH_OPENSUBDIV
-    SubdAttributeInterpolation interpolation(*this, osd_mesh, osd_data, num_patches);
+    SubdAttributeInterpolation interpolation(*this, osd_mesh, osd_data);
 #else
-    SubdAttributeInterpolation interpolation(*this, num_patches);
+    SubdAttributeInterpolation interpolation(*this);
 #endif
 
-    for (const Attribute &subd_attr : subd_attributes.attributes) {
-      if (!interpolation.support_interp_attribute(subd_attr)) {
-        continue;
-      }
-      Attribute &mesh_attr = attributes.copy(subd_attr);
-      interpolation.interp_attribute(subd_attr, mesh_attr);
-    }
+    /* Dice patches. */
+    EdgeDice dice(params, split.get_num_verts(), split.get_num_triangles(), interpolation);
+    dice.dice(split);
   }
 
   // TODO: Free subd base data? Or will this break interactive updates?
-
-  // TODO: Use ATTR_STD_PTEX attributes instead, and create only for lifetime of this function
-  // if there are attributes to interpolation. And then keep only if needed for ptex texturing
-
-  /* Clear temporary buffers needed for interpolation. */
-  subd_triangle_patch_index.clear();
-  subd_corner_patch_uv.clear();
 }
 
 CCL_NAMESPACE_END

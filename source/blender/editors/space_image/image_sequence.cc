@@ -23,11 +23,6 @@
 
 #include "ED_image.hh"
 
-struct ImageFrame {
-  ImageFrame *next, *prev;
-  int framenr;
-};
-
 /**
  * Get a list of frames from the list of image files matching the first file name sequence pattern.
  * The files and directory are read from standard file-select operator properties.
@@ -48,7 +43,7 @@ static void image_sequence_get_frame_ranges(wmOperator *op, ListBase *ranges)
     char head[FILE_MAX], tail[FILE_MAX];
     ushort digits;
     char *filename = RNA_string_get_alloc(&itemptr, "name", nullptr, 0, nullptr);
-    ImageFrame *frame = static_cast<ImageFrame *>(MEM_callocN(sizeof(ImageFrame), "image_frame"));
+    ImageFrame *frame = MEM_callocN<ImageFrame>("image_frame");
 
     /* use the first file in the list as base filename */
     frame->framenr = BLI_path_sequence_decode(
@@ -66,7 +61,7 @@ static void image_sequence_get_frame_ranges(wmOperator *op, ListBase *ranges)
     }
     else {
       /* start a new frame range */
-      range = static_cast<ImageFrameRange *>(MEM_callocN(sizeof(*range), __func__));
+      range = MEM_callocN<ImageFrameRange>(__func__);
       BLI_path_join(range->filepath, sizeof(range->filepath), dir, filename);
       BLI_addtail(ranges, range);
 
@@ -100,13 +95,24 @@ static int image_cmp_frame(const void *a, const void *b)
  * From a list of frames, compute the start (offset) and length of the sequence
  * of contiguous frames. If `detect_udim` is set, it will return UDIM tiles as well.
  */
-static void image_detect_frame_range(ImageFrameRange *range, const bool detect_udim)
+static void image_detect_frame_range(blender::StringRefNull root_path,
+                                     ImageFrameRange *range,
+                                     const bool detect_udim)
 {
   /* UDIM */
   if (detect_udim) {
+    const bool was_relative = BLI_path_is_rel(range->filepath);
+    if (was_relative) {
+      BLI_path_abs(range->filepath, root_path.c_str());
+    }
+
     int udim_start, udim_range;
     range->udims_detected = BKE_image_get_tile_info(
         range->filepath, &range->udim_tiles, &udim_start, &udim_range);
+
+    if (was_relative) {
+      BLI_path_rel(range->filepath, root_path.c_str());
+    }
 
     if (range->udims_detected) {
       range->offset = udim_start;
@@ -134,6 +140,11 @@ static void image_detect_frame_range(ImageFrameRange *range, const bool detect_u
     range->length = 1;
     range->offset = 0;
   }
+
+  ImageFrame *frame_last = static_cast<ImageFrame *>(range->frames.last);
+  if (frame_last != nullptr) {
+    range->max_framenr = frame_last->framenr;
+  }
 }
 
 ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
@@ -143,32 +154,26 @@ ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
   ListBase ranges;
   BLI_listbase_clear(&ranges);
 
-  char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
-
   /* File browser. */
   if (RNA_struct_property_is_set(op->ptr, "directory") &&
       RNA_struct_property_is_set(op->ptr, "files"))
   {
-    const bool was_relative = BLI_path_is_rel(filepath);
-
     image_sequence_get_frame_ranges(op, &ranges);
-    LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
-      image_detect_frame_range(range, detect_udim);
-      BLI_freelistN(&range->frames);
 
-      if (was_relative) {
-        BLI_path_rel(range->filepath, root_path.c_str());
-      }
+    LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
+      image_detect_frame_range(root_path, range, detect_udim);
     }
   }
   /* Filepath property for drag & drop etc. */
   else {
-    ImageFrameRange *range = static_cast<ImageFrameRange *>(MEM_callocN(sizeof(*range), __func__));
+    char filepath[FILE_MAX];
+    RNA_string_get(op->ptr, "filepath", filepath);
+
+    ImageFrameRange *range = MEM_callocN<ImageFrameRange>(__func__);
     BLI_addtail(&ranges, range);
 
     STRNCPY(range->filepath, filepath);
-    image_detect_frame_range(range, detect_udim);
+    image_detect_frame_range(root_path, range, detect_udim);
   }
 
   return ranges;

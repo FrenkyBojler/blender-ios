@@ -38,30 +38,59 @@
 #include "BKE_main_namemap.hh"
 #include "BKE_report.hh"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 using namespace blender::bke;
 
-static CLG_LogRef LOG = {"bke.main"};
+static CLG_LogRef LOG = {"lib.main"};
 
-Main *BKE_main_new()
+Main::Main()
 {
-  Main *bmain = static_cast<Main *>(MEM_callocN(sizeof(Main), "new main"));
-  BKE_main_init(*bmain);
-  return bmain;
-}
-
-void BKE_main_init(Main &bmain)
-{
-  bmain.lock = static_cast<MainLock *>(MEM_mallocN(sizeof(SpinLock), "main lock"));
-  BLI_spin_init(reinterpret_cast<SpinLock *>(bmain.lock));
-  bmain.is_global_main = false;
+  SpinLock *main_lock = MEM_mallocN<SpinLock>("main lock");
+  BLI_spin_init(main_lock);
+  /* Use C-style cast to workaround an issue casting away volatile for builds without TBB. */
+  this->lock = (MainLock *)main_lock;
 
   /* Just rebuilding the Action Slot to ID* map once is likely cheaper than,
    * for every ID, when it's loaded from disk, check whether it's animated or
    * not, and then figure out which Main it went into, and then set the flag. */
-  bmain.is_action_slot_to_id_map_dirty = true;
+  this->is_action_slot_to_id_map_dirty = true;
+}
+
+Main::~Main()
+{
+  /* In case this is called on a 'split-by-libraries' list of mains.
+   *
+   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
+  if (this->split_mains) {
+    for (Main *main_it : *this->split_mains) {
+      if (main_it == this) {
+        continue;
+      }
+      main_it->split_mains.reset();
+      MEM_delete(main_it);
+    }
+  }
+
+  /* Include this check here as the path may be manipulated after creation. */
+  BLI_assert_msg(!(this->filepath[0] == '/' && this->filepath[1] == '/'),
+                 "'.blend' relative \"//\" must not be used in Main!");
+
+  BKE_main_clear(*this);
+
+  BLI_spin_end(reinterpret_cast<SpinLock *>(this->lock));
+  /* The void cast is needed when building without TBB. */
+  MEM_freeN((void *)reinterpret_cast<SpinLock *>(this->lock));
+  this->lock = nullptr;
+}
+
+Main *BKE_main_new()
+{
+  Main *bmain = MEM_new<Main>(__func__);
+  IMB_colormanagement_working_space_init_default(bmain);
+  return bmain;
 }
 
 void BKE_main_clear(Main &bmain)
@@ -96,7 +125,6 @@ void BKE_main_clear(Main &bmain)
 
       switch ((eID_Index)a) {
         CASE_ID_INDEX(INDEX_ID_LI);
-        CASE_ID_INDEX(INDEX_ID_IP);
         CASE_ID_INDEX(INDEX_ID_AC);
         CASE_ID_INDEX(INDEX_ID_GD_LEGACY);
         CASE_ID_INDEX(INDEX_ID_NT);
@@ -161,30 +189,9 @@ void BKE_main_clear(Main &bmain)
   BKE_main_namemap_destroy(&bmain.name_map_global);
 }
 
-void BKE_main_destroy(Main &bmain)
-{
-  BKE_main_clear(bmain);
-
-  BLI_spin_end(reinterpret_cast<SpinLock *>(bmain.lock));
-  MEM_freeN(static_cast<void *>(bmain.lock));
-  bmain.lock = nullptr;
-}
-
 void BKE_main_free(Main *bmain)
 {
-  /* In case this is called on a 'split-by-libraries' list of mains.
-   *
-   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
-  if (bmain->next) {
-    BKE_main_free(bmain->next);
-  }
-
-  /* Include this check here as the path may be manipulated after creation. */
-  BLI_assert_msg(!(bmain->filepath[0] == '/' && bmain->filepath[1] == '/'),
-                 "'.blend' relative \"//\" must not be used in Main!");
-
-  BKE_main_destroy(*bmain);
-  MEM_freeN(bmain);
+  MEM_delete(bmain);
 }
 
 static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main *bmain_2, ID *id_2)
@@ -466,12 +473,14 @@ bool BKE_main_is_empty(Main *bmain)
 
 bool BKE_main_has_issues(const Main *bmain)
 {
-  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file;
+  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file ||
+         bmain->colorspace.is_missing_opencolorio_config;
 }
 
 bool BKE_main_needs_overwrite_confirm(const Main *bmain)
 {
-  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file;
+  return bmain->has_forward_compatibility_issues || bmain->is_asset_edit_file ||
+         bmain->colorspace.is_missing_opencolorio_config;
 }
 
 void BKE_main_lock(Main *bmain)
@@ -499,7 +508,7 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
       if (!BLI_ghash_ensure_p(
               bmain_relations->relations_from_pointers, self_id, (void ***)&entry_p))
       {
-        *entry_p = static_cast<MainIDRelationsEntry *>(MEM_callocN(sizeof(**entry_p), __func__));
+        *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
         (*entry_p)->session_uid = self_id->session_uid;
       }
       else {
@@ -520,7 +529,7 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
       if (!BLI_ghash_ensure_p(
               bmain_relations->relations_from_pointers, *id_pointer, (void ***)&entry_p))
       {
-        *entry_p = static_cast<MainIDRelationsEntry *>(MEM_callocN(sizeof(**entry_p), __func__));
+        *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
         (*entry_p)->session_uid = (*id_pointer)->session_uid;
       }
       else {
@@ -545,8 +554,7 @@ void BKE_main_relations_create(Main *bmain, const short flag)
     BKE_main_relations_free(bmain);
   }
 
-  bmain->relations = static_cast<MainIDRelations *>(
-      MEM_mallocN(sizeof(*bmain->relations), __func__));
+  bmain->relations = MEM_mallocN<MainIDRelations>(__func__);
   bmain->relations->relations_from_pointers = BLI_ghash_new(
       BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
   bmain->relations->entry_items_pool = BLI_mempool_create(
@@ -564,7 +572,7 @@ void BKE_main_relations_create(Main *bmain, const short flag)
     /* Ensure all IDs do have an entry, even if they are not connected to any other. */
     MainIDRelationsEntry **entry_p;
     if (!BLI_ghash_ensure_p(bmain->relations->relations_from_pointers, id, (void ***)&entry_p)) {
-      *entry_p = static_cast<MainIDRelationsEntry *>(MEM_callocN(sizeof(**entry_p), __func__));
+      *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
       (*entry_p)->session_uid = id->session_uid;
     }
     else {
@@ -709,7 +717,15 @@ void BKE_main_library_weak_reference_add_item(
   BLI_assert(BKE_idtype_idcode_append_is_reusable(GS(new_id->name)));
 
   const LibWeakRefKey key{library_filepath, library_id_name};
-  library_weak_reference_mapping->map.add_new(key, new_id);
+  /* With packed IDs and archive libraries, it is now possible to have several instances of the
+   * (originally) same linked ID made local at the same time in an append opeeration, so it is
+   * possible to get the same key several time here. And `Map::add_new` cannot be used safely
+   * anymore.
+   *
+   * Simply consider the first added one as valid, there is no good way to determine the 'best' one
+   * to keep around for append-or-reuse operations anyway - and the whole append-and-reuse may be
+   * depracted soon too. */
+  library_weak_reference_mapping->map.add(key, new_id);
 
   BKE_main_library_weak_reference_add(new_id, library_filepath, library_id_name);
 }
@@ -757,14 +773,28 @@ ID *BKE_main_library_weak_reference_find(Main *bmain,
                                          const char *library_filepath,
                                          const char *library_id_name)
 {
+  /* Make filepath absolute so we can compare filepaths that may be either relative or absolute. */
+  char library_filepath_abs[FILE_MAX];
+  STRNCPY(library_filepath_abs, library_filepath);
+  BLI_path_abs(library_filepath_abs, BKE_main_blendfile_path(bmain));
+
   ListBase *id_list = which_libbase(bmain, GS(library_id_name));
   LISTBASE_FOREACH (ID *, existing_id, id_list) {
-    if (existing_id->library_weak_reference &&
-        STREQ(existing_id->library_weak_reference->library_id_name, library_id_name) &&
-        STREQ(existing_id->library_weak_reference->library_filepath, library_filepath))
+    if (!(existing_id->library_weak_reference &&
+          STREQ(existing_id->library_weak_reference->library_id_name, library_id_name)))
     {
-      return existing_id;
+      continue;
     }
+
+    char existing_filepath_abs[FILE_MAX];
+    STRNCPY(existing_filepath_abs, existing_id->library_weak_reference->library_filepath);
+    BLI_path_abs(existing_filepath_abs, BKE_main_blendfile_path(bmain));
+
+    if (!STREQ(existing_filepath_abs, library_filepath_abs)) {
+      continue;
+    }
+
+    return existing_id;
   }
 
   return nullptr;
@@ -891,8 +921,6 @@ ListBase *which_libbase(Main *bmain, short type)
       return &(bmain->lights);
     case ID_CA:
       return &(bmain->cameras);
-    case ID_IP:
-      return &(bmain->ipo);
     case ID_KE:
       return &(bmain->shapekeys);
     case ID_WO:
@@ -956,8 +984,6 @@ MainListsArray BKE_main_lists_get(Main &bmain)
   MainListsArray lb{};
   /* Libraries may be accessed from pretty much any other ID. */
   lb[INDEX_ID_LI] = &bmain.libraries;
-
-  lb[INDEX_ID_IP] = &bmain.ipo;
 
   /* Moved here to avoid problems when freeing with animato (aligorith). */
   lb[INDEX_ID_AC] = &bmain.actions;

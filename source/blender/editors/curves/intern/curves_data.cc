@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 
 #include "DNA_object_types.h"
 
@@ -22,6 +23,19 @@ Vector<MutableSpan<float3>> get_curves_positions_for_write(bke::CurvesGeometry &
   return positions_per_attribute;
 }
 
+Vector<Span<float3>> get_curves_positions(const bke::CurvesGeometry &curves)
+{
+  Vector<Span<float3>> positions_per_attribute;
+  positions_per_attribute.append(curves.positions());
+  const std::optional<Span<float3>> handles_left = curves.handle_positions_left();
+  const std::optional<Span<float3>> handles_right = curves.handle_positions_right();
+  if (handles_left && handles_right) {
+    positions_per_attribute.append(*handles_left);
+    positions_per_attribute.append(*handles_right);
+  }
+  return positions_per_attribute;
+}
+
 void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
                                              TransVertStore *tvs,
                                              const bool skip_handles)
@@ -30,8 +44,17 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
 
   IndexMaskMemory memory;
   std::array<IndexMask, 3> selection;
-  for (const int i : selection_names.index_range()) {
-    selection[i] = ed::curves::retrieve_selected_points(curves, selection_names[i], memory);
+  if (selection_names.size() == 1) {
+    selection[0] = ed::curves::retrieve_selected_points(curves, memory);
+  }
+  else {
+    const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+        curves, CURVE_TYPE_BEZIER, memory);
+
+    for (const int i : selection_names.index_range()) {
+      selection[i] = ed::curves::retrieve_selected_points(
+          curves, selection_names[i], bezier_points, memory);
+    }
   }
 
   if (skip_handles) {
@@ -45,7 +68,7 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
     return;
   }
 
-  tvs->transverts = static_cast<TransVert *>(MEM_calloc_arrayN(size, sizeof(TransVert), __func__));
+  tvs->transverts = MEM_calloc_arrayN<TransVert>(size, __func__);
   tvs->transverts_tot = size;
 
   int offset = 0;
@@ -67,9 +90,9 @@ float (*point_normals_array_create(const Curves *curves_id))[3]
   using namespace blender;
   const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
   const int size = curves.points_num();
-  float3 *data = static_cast<float3 *>(MEM_malloc_arrayN(size, sizeof(float3), __func__));
+  float3 *data = MEM_malloc_arrayN<float3>(size, __func__);
   bke::curves_normals_point_domain_calc(curves, {data, size});
-  return reinterpret_cast<float(*)[3]>(data);
+  return reinterpret_cast<float (*)[3]>(data);
 }
 
 }  // namespace blender::ed::curves

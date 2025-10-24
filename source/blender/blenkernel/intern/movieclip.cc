@@ -71,6 +71,10 @@
 
 #include "BLO_read_write.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"gpu.texture"};
+
 static void free_buffers(MovieClip *clip);
 
 /** Reset runtime mask fields when data-block is being initialized. */
@@ -112,8 +116,6 @@ static void movie_clip_copy_data(Main * /*bmain*/,
   BKE_tracking_copy(&movie_clip_dst->tracking, &movie_clip_src->tracking, flag_subdata);
   movie_clip_dst->tracking_context = nullptr;
 
-  BLI_listbase_clear((ListBase *)&movie_clip_dst->drawdata);
-
   BKE_color_managed_colorspace_settings_copy(&movie_clip_dst->colorspace_settings,
                                              &movie_clip_src->colorspace_settings);
 }
@@ -122,11 +124,10 @@ static void movie_clip_free_data(ID *id)
 {
   MovieClip *movie_clip = (MovieClip *)id;
 
-  /* Also frees animdata. */
+  /* Also frees animation-data. */
   free_buffers(movie_clip);
 
   BKE_tracking_free(&movie_clip->tracking);
-  DRW_drawdata_free(id);
 }
 
 static void movie_clip_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -295,7 +296,7 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MC = {
-    /*id_code*/ ID_MC,
+    /*id_code*/ MovieClip::id_type,
     /*id_filter*/ FILTER_ID_MC,
     /*dependencies_id_types*/ FILTER_ID_GD_LEGACY | FILTER_ID_IM,
     /*main_listbase_index*/ INDEX_ID_MC,
@@ -313,6 +314,7 @@ IDTypeInfo IDType_ID_MC = {
     /*foreach_id*/ movie_clip_foreach_id,
     /*foreach_cache*/ movie_clip_foreach_cache,
     /*foreach_path*/ movie_clip_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ movieclip_blend_write,
@@ -466,12 +468,16 @@ static void get_proxy_filepath(const MovieClip *clip,
   BLI_strncat(filepath, ".jpg", FILE_MAX);
 }
 
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
+
+namespace {
 
 struct MultilayerConvertContext {
   float *combined_pass;
   int num_combined_channels;
 };
+
+}  // namespace
 
 static void *movieclip_convert_multilayer_add_view(void * /*ctx_v*/, const char * /*view_name*/)
 {
@@ -510,21 +516,21 @@ static void movieclip_convert_multilayer_add_pass(void * /*layer*/,
   }
 }
 
-#endif /* WITH_OPENEXR */
+#endif /* WITH_IMAGE_OPENEXR */
 
 void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
     return;
   }
-#ifdef WITH_OPENEXR
-  if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->userdata == nullptr) {
+#ifdef WITH_IMAGE_OPENEXR
+  if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->exrhandle == nullptr) {
     return;
   }
   MultilayerConvertContext ctx;
   ctx.combined_pass = nullptr;
   ctx.num_combined_channels = 0;
-  IMB_exr_multilayer_convert(ibuf->userdata,
+  IMB_exr_multilayer_convert(ibuf->exrhandle,
                              &ctx,
                              movieclip_convert_multilayer_add_view,
                              movieclip_convert_multilayer_add_layer,
@@ -534,8 +540,8 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
     IMB_assign_float_buffer(ibuf, ctx.combined_pass, IB_TAKE_OWNERSHIP);
     ibuf->channels = ctx.num_combined_channels;
   }
-  IMB_exr_close(ibuf->userdata);
-  ibuf->userdata = nullptr;
+  IMB_exr_close(ibuf->exrhandle);
+  ibuf->exrhandle = nullptr;
 #endif
 }
 
@@ -575,7 +581,7 @@ static ImBuf *movieclip_load_sequence_file(MovieClip *clip,
   loadflag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
 
   /* read ibuf */
-  ibuf = IMB_loadiffname(filepath, loadflag, colorspace);
+  ibuf = IMB_load_image_from_filepath(filepath, loadflag, colorspace);
   BKE_movieclip_convert_multilayer_ibuf(ibuf);
 
   return ibuf;
@@ -590,7 +596,7 @@ static void movieclip_open_anim_file(MovieClip *clip)
     BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&clip->id));
 
     /* FIXME: make several stream accessible in image editor, too */
-    clip->anim = openanim(filepath_abs, IB_byte_data, 0, clip->colorspace_settings.name);
+    clip->anim = openanim(filepath_abs, IB_byte_data, 0, false, clip->colorspace_settings.name);
 
     if (clip->anim) {
       if (clip->flag & MCLIP_USE_PROXY_CUSTOM_DIR) {
@@ -618,9 +624,6 @@ static ImBuf *movieclip_load_movie_file(MovieClip *clip,
     int fra = framenr - clip->start_frame + clip->frame_offset;
 
     ibuf = MOV_decode_frame(clip->anim, fra, IMB_Timecode_Type(tc), IMB_Proxy_Size(proxy));
-    if (ibuf) {
-      colormanage_imbuf_make_linear(ibuf, clip->colorspace_settings.name);
-    }
   }
 
   return ibuf;
@@ -774,8 +777,7 @@ static void *moviecache_getprioritydata(void *key_v)
   MovieClipImBufCacheKey *key = (MovieClipImBufCacheKey *)key_v;
   MovieClipCachePriorityData *priority_data;
 
-  priority_data = static_cast<MovieClipCachePriorityData *>(
-      MEM_callocN(sizeof(*priority_data), "movie cache clip priority data"));
+  priority_data = MEM_callocN<MovieClipCachePriorityData>("movie cache clip priority data");
   priority_data->framenr = key->framenr;
 
   return priority_data;
@@ -856,8 +858,7 @@ static bool put_imbuf_cache(
     // char cache_name[64];
     // SNPRINTF(cache_name, "movie %s", clip->id.name);
 
-    clip->cache = static_cast<MovieClipCache *>(
-        MEM_callocN(sizeof(MovieClipCache), "movieClipCache"));
+    clip->cache = MEM_callocN<MovieClipCache>("movieClipCache");
 
     moviecache = IMB_moviecache_create(
         "movieclip", sizeof(MovieClipImBufCacheKey), moviecache_hashhash, moviecache_hashcmp);
@@ -915,7 +916,7 @@ static MovieClip *movieclip_alloc(Main *bmain, const char *name)
 {
   MovieClip *clip;
 
-  clip = static_cast<MovieClip *>(BKE_id_new(bmain, ID_MC, name));
+  clip = BKE_id_new<MovieClip>(bmain, name);
 
   return clip;
 }
@@ -941,7 +942,7 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   STRNCPY(filepath, clip->filepath);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
-  ibuf = IMB_testiffname(filepath, IB_byte_data | IB_multilayer);
+  ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer | IB_test);
   if (ibuf) {
     clip->source = MCLIP_SRC_SEQUENCE;
     IMB_freeImBuf(ibuf);
@@ -1798,7 +1799,7 @@ static void movieclip_build_proxy_ibuf(const MovieClip *clip,
   BLI_thread_lock(LOCK_MOVIECLIP);
 
   BLI_file_ensure_parent_dir_exists(filepath);
-  if (IMB_saveiff(scaleibuf, filepath, IB_byte_data) == 0) {
+  if (IMB_save_image(scaleibuf, filepath, IB_byte_data) == 0) {
     perror(filepath);
   }
 
@@ -1952,7 +1953,7 @@ static void movieclip_eval_update_reload(Depsgraph *depsgraph, Main *bmain, Movi
 {
   BKE_movieclip_reload(bmain, clip);
   if (DEG_is_active(depsgraph)) {
-    MovieClip *clip_orig = (MovieClip *)DEG_get_original_id(&clip->id);
+    MovieClip *clip_orig = DEG_get_original(clip);
     BKE_movieclip_reload(bmain, clip_orig);
   }
 }
@@ -1961,7 +1962,7 @@ static void movieclip_eval_update_generic(Depsgraph *depsgraph, MovieClip *clip)
 {
   BKE_tracking_dopesheet_tag_update(&clip->tracking);
   if (DEG_is_active(depsgraph)) {
-    MovieClip *clip_orig = (MovieClip *)DEG_get_original_id(&clip->id);
+    MovieClip *clip_orig = DEG_get_original(clip);
     BKE_tracking_dopesheet_tag_update(&clip_orig->tracking);
   }
 }
@@ -1982,9 +1983,9 @@ void BKE_movieclip_eval_update(Depsgraph *depsgraph, Main *bmain, MovieClip *cli
 /** \name GPU textures
  * \{ */
 
-static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
-                                                 MovieClipUser *cuser,
-                                                 eGPUTextureTarget textarget)
+static blender::gpu::Texture **movieclip_get_gputexture_ptr(MovieClip *clip,
+                                                            MovieClipUser *cuser,
+                                                            eGPUTextureTarget textarget)
 {
   /* Check if we have an existing entry for that clip user. */
   MovieClip_RuntimeGPUTexture *tex;
@@ -1998,8 +1999,7 @@ static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
 
   /* If not, allocate a new one. */
   if (tex == nullptr) {
-    tex = (MovieClip_RuntimeGPUTexture *)MEM_mallocN(sizeof(MovieClip_RuntimeGPUTexture),
-                                                     __func__);
+    tex = MEM_mallocN<MovieClip_RuntimeGPUTexture>(__func__);
 
     for (int i = 0; i < TEXTARGET_COUNT; i++) {
       tex->gputexture[i] = nullptr;
@@ -2012,13 +2012,13 @@ static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
   return &tex->gputexture[textarget];
 }
 
-GPUTexture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
+blender::gpu::Texture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
 {
   if (clip == nullptr) {
     return nullptr;
   }
 
-  GPUTexture **tex = movieclip_get_gputexture_ptr(clip, cuser, TEXTARGET_2D);
+  blender::gpu::Texture **tex = movieclip_get_gputexture_ptr(clip, cuser, TEXTARGET_2D);
   if (*tex) {
     return *tex;
   }
@@ -2026,7 +2026,7 @@ GPUTexture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
   /* check if we have a valid image buffer */
   ImBuf *ibuf = BKE_movieclip_get_ibuf(clip, cuser);
   if (ibuf == nullptr) {
-    fprintf(stderr, "GPUTexture: Blender Texture Not Loaded!\n");
+    CLOG_ERROR(&LOG, "Failed to create GPU texture from Blender movie clip");
     *tex = GPU_texture_create_error(2, false);
     return *tex;
   }

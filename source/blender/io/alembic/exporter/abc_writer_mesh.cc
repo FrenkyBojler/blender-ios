@@ -10,6 +10,7 @@
 #include "abc_hierarchy_iterator.h"
 #include "intern/abc_axis_conversion.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
@@ -78,12 +79,12 @@ void ABCGenericMeshWriter::create_alembic_objects(const HierarchyContext *contex
   }
 
   if (is_subd_) {
-    CLOG_INFO(&LOG, 2, "exporting OSubD %s", args_.abc_path.c_str());
+    CLOG_DEBUG(&LOG, "exporting OSubD %s", args_.abc_path.c_str());
     abc_subdiv_ = OSubD(args_.abc_parent, args_.abc_name, timesample_index_);
     abc_subdiv_schema_ = abc_subdiv_.getSchema();
   }
   else {
-    CLOG_INFO(&LOG, 2, "exporting OPolyMesh %s", args_.abc_path.c_str());
+    CLOG_DEBUG(&LOG, "exporting OPolyMesh %s", args_.abc_path.c_str());
     abc_poly_mesh_ = OPolyMesh(args_.abc_parent, args_.abc_name, timesample_index_);
     abc_poly_mesh_schema_ = abc_poly_mesh_.getSchema();
 
@@ -126,10 +127,7 @@ bool ABCGenericMeshWriter::export_as_subdivision_surface(Object *ob_eval) const
 
 bool ABCGenericMeshWriter::is_supported(const HierarchyContext *context) const
 {
-  if (args_.export_params->visible_objects_only) {
-    return context->is_object_visible(args_.export_params->evaluation_mode);
-  }
-  return true;
+  return context->is_object_visible(args_.export_params->evaluation_mode);
 }
 
 void ABCGenericMeshWriter::do_write(HierarchyContext &context)
@@ -364,22 +362,19 @@ bool ABCGenericMeshWriter::get_velocities(Mesh *mesh, std::vector<Imath::V3f> &v
 {
   /* Export velocity attribute output by fluid sim, sequence cache modifier
    * and geometry nodes. */
-  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  const CustomDataLayer *velocity_layer = BKE_attribute_find(
-      owner, "velocity", CD_PROP_FLOAT3, bke::AttrDomain::Point);
-
-  if (velocity_layer == nullptr) {
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const VArraySpan attr = *attributes.lookup<float3>("velocity", bke::AttrDomain::Point);
+  if (attr.is_empty()) {
     return false;
   }
 
   const int totverts = mesh->verts_num;
-  const float(*mesh_velocities)[3] = reinterpret_cast<float(*)[3]>(velocity_layer->data);
 
   vels.clear();
   vels.resize(totverts);
 
   for (int i = 0; i < totverts; i++) {
-    copy_yup_from_zup(vels[i].getValue(), mesh_velocities[i]);
+    copy_yup_from_zup(vels[i].getValue(), attr[i]);
   }
 
   return true;

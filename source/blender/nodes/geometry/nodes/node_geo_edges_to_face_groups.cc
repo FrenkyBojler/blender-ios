@@ -20,7 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supports_field()
       .description("Edges used to split faces into separate groups");
   b.add_output<decl::Int>("Face Group ID")
-      .dependent_field()
+      .field_source_reference_all()
       .description("Index of the face group inside each boundary edge region");
 }
 
@@ -68,7 +68,7 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
     islands.calc_reduced_ids(output);
 
     return mesh.attributes().adapt_domain(
-        VArray<int>::ForContainer(std::move(output)), AttrDomain::Face, domain);
+        VArray<int>::from_container(std::move(output)), AttrDomain::Face, domain);
   }
 
   uint64_t hash() const override

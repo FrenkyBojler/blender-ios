@@ -6,6 +6,10 @@
  * \ingroup gpu
  */
 
+#include <cstring>
+
+#include "BLI_threads.h"
+
 #include "BKE_global.hh"
 
 #include "gpu_backend.hh"
@@ -39,8 +43,18 @@ thread_local int g_autoreleasepool_depth = 0;
 /** \name Metal Backend
  * \{ */
 
-void MTLBackend::samplers_update(){
-    /* Placeholder -- Handled in MTLContext. */
+void MTLBackend::init_resources()
+{
+  compiler_ = MEM_new<MTLShaderCompiler>(__func__);
+}
+
+void MTLBackend::delete_resources()
+{
+  MEM_delete(compiler_);
+}
+
+void MTLBackend::samplers_update() {
+  /* Placeholder -- Handled in MTLContext. */
 };
 
 Context *MTLBackend::context_alloc(void *ghost_window, void *ghost_context)
@@ -174,10 +188,10 @@ void MTLBackend::platform_init(MTLContext *ctx)
     return;
   }
 
-  eGPUDeviceType device = GPU_DEVICE_UNKNOWN;
-  eGPUOSType os = GPU_OS_MAC;
-  eGPUDriverType driver = GPU_DRIVER_ANY;
-  eGPUSupportLevel support_level = GPU_SUPPORT_LEVEL_SUPPORTED;
+  GPUDeviceType device = GPU_DEVICE_UNKNOWN;
+  GPUOSType os = GPU_OS_MAC;
+  GPUDriverType driver = GPU_DRIVER_ANY;
+  GPUSupportLevel support_level = GPU_SUPPORT_LEVEL_SUPPORTED;
 
   BLI_assert(ctx);
   id<MTLDevice> mtl_device = ctx->device;
@@ -243,6 +257,17 @@ void MTLBackend::platform_init(MTLContext *ctx)
            renderer,
            version,
            architecture_type);
+
+  /* UUID is not supported on Metal. */
+  GPG.device_uuid.reinitialize(0);
+
+  /* LUID is registryID on Metal, or at least this is what libraries like OIDN expects. */
+  const uint64_t luid = mtl_device.registryID;
+  GPG.device_luid.reinitialize(sizeof(luid));
+  std::memcpy(GPG.device_luid.data(), &luid, sizeof(luid));
+
+  /* Metal only has one device per LUID, so only the first bit will always be active.. */
+  GPG.device_luid_node_mask = 1;
 }
 
 void MTLBackend::platform_exit()
@@ -495,19 +520,21 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
 
   /* Feature support */
   GCaps.mem_stats_support = false;
-  GCaps.shader_draw_parameters_support = true;
   GCaps.hdr_viewport_support = true;
 
   GCaps.geometry_shader_support = false;
 
-  /* Compile shaders on performance cores but leave one free so UI is still responsive */
-  GCaps.max_parallel_compilations = MTLBackend::capabilities.num_performance_cores - 1;
+  /* Compile shaders on performance cores but leave one free so UI is still responsive.
+   * Also respect command line option to reduce number of threads. */
+  GCaps.max_parallel_compilations = std::min(BLI_system_thread_count(),
+                                             MTLBackend::capabilities.num_performance_cores - 1);
 
   /* Maximum buffer bindings: 31. Consider required slot for uniforms/UBOs/Vertex attributes.
    * Can use argument buffers if a higher limit is required. */
   GCaps.max_shader_storage_buffer_bindings = 14;
   GCaps.max_compute_shader_storage_blocks = 14;
   GCaps.max_storage_buffer_size = size_t(ctx->device.maxBufferLength);
+  GCaps.max_uniform_buffer_size = size_t(ctx->device.maxBufferLength);
   GCaps.storage_buffer_alignment = 256; /* TODO(fclem): But also unused. */
 
   GCaps.max_work_group_count[0] = 65535;
@@ -528,10 +555,8 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   /* OPENGL Related workarounds -- none needed for Metal. */
   GCaps.extensions_len = 0;
   GCaps.extension_get = mtl_extensions_get_null;
-  GCaps.mip_render_workaround = false;
   GCaps.depth_blitting_workaround = false;
   GCaps.use_main_context_workaround = false;
-  GCaps.broken_amd_driver = false;
 
   /* Metal related workarounds. */
   /* Minimum per-vertex stride is 4 bytes in Metal.

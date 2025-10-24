@@ -19,7 +19,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -27,6 +27,8 @@
 
 #include "DNA_defaults.h"
 #include "DNA_mask_types.h"
+#include "DNA_movieclip_types.h"
+#include "DNA_object_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_curve.hh"
@@ -47,7 +49,7 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.mask"};
+static CLG_LogRef LOG = {"mask"};
 
 /** Reset runtime mask fields when data-block is being initialized. */
 static void mask_runtime_reset(Mask *mask)
@@ -69,8 +71,6 @@ static void mask_copy_data(Main * /*bmain*/,
   /* TODO: add unused flag to those as well. */
   BKE_mask_layer_copy_list(&mask_dst->masklayers, &mask_src->masklayers);
 
-  BLI_listbase_clear((ListBase *)&mask_dst->drawdata);
-
   /* enable fake user by default */
   id_fake_user_set(&mask_dst->id);
 }
@@ -81,8 +81,6 @@ static void mask_free_data(ID *id)
 
   /* free mask data */
   BKE_mask_layer_free_list(&mask->masklayers);
-
-  DRW_drawdata_free(id);
 }
 
 static void mask_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -186,7 +184,7 @@ static void mask_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MSK = {
-    /*id_code*/ ID_MSK,
+    /*id_code*/ Mask::id_type,
     /*id_filter*/ FILTER_ID_MSK,
     /*dependencies_id_types*/ FILTER_ID_MC, /* WARNING! mask->parent.id, not typed. */
     /*main_listbase_index*/ INDEX_ID_MSK,
@@ -204,6 +202,7 @@ IDTypeInfo IDType_ID_MSK = {
     /*foreach_id*/ mask_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ mask_blend_write,
@@ -293,7 +292,7 @@ MaskLayer *BKE_mask_layer_new(Mask *mask, const char *name)
 {
   MaskLayer *masklay = MEM_callocN<MaskLayer>(__func__);
 
-  STRNCPY(masklay->name, name && name[0] ? name : DATA_("MaskLayer"));
+  STRNCPY_UTF8(masklay->name, name && name[0] ? name : DATA_("MaskLayer"));
 
   BLI_addtail(&mask->masklayers, masklay);
 
@@ -345,7 +344,7 @@ void BKE_mask_layer_rename(Mask *mask,
                            const char *oldname,
                            const char *newname)
 {
-  STRNCPY(masklay->name, newname);
+  STRNCPY_UTF8(masklay->name, newname);
 
   BKE_mask_layer_unique_name(mask, masklay);
 
@@ -357,7 +356,7 @@ MaskLayer *BKE_mask_layer_copy(const MaskLayer *masklay)
 {
   MaskLayer *masklay_new = MEM_callocN<MaskLayer>("new mask layer");
 
-  STRNCPY(masklay_new->name, masklay->name);
+  STRNCPY_UTF8(masklay_new->name, masklay->name);
 
   masklay_new->alpha = masklay->alpha;
   masklay_new->blend = masklay->blend;
@@ -966,7 +965,7 @@ Mask *BKE_mask_new(Main *bmain, const char *name)
   Mask *mask;
   char mask_name[MAX_ID_NAME - 2];
 
-  STRNCPY(mask_name, (name && name[0]) ? name : DATA_("Mask"));
+  STRNCPY_UTF8(mask_name, (name && name[0]) ? name : DATA_("Mask"));
 
   mask = mask_alloc(bmain, mask_name);
 
@@ -1990,7 +1989,7 @@ void BKE_mask_clipboard_copy_from_layer(MaskLayer *mask_layer)
         if (point->parent.id) {
           if (!BLI_ghash_lookup(mask_clipboard.id_hash, point->parent.id)) {
             int len = strlen(point->parent.id->name);
-            char *name_copy = static_cast<char *>(MEM_mallocN(len + 1, "mask clipboard ID name"));
+            char *name_copy = MEM_malloc_arrayN<char>(size_t(len) + 1, "mask clipboard ID name");
             memcpy(name_copy, point->parent.id->name, len + 1);
             BLI_ghash_insert(mask_clipboard.id_hash, point->parent.id, name_copy);
           }

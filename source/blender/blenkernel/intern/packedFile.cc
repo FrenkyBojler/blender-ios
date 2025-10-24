@@ -54,7 +54,7 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.packedfile"};
+static CLG_LogRef LOG = {"lib.packedfile"};
 
 using namespace blender;
 
@@ -214,7 +214,7 @@ PackedFile *BKE_packedfile_new_from_memory(const void *mem,
     sharing_info = blender::implicit_sharing::info_for_mem_free(const_cast<void *>(mem));
   }
 
-  PackedFile *pf = static_cast<PackedFile *>(MEM_callocN(sizeof(*pf), "PackedFile"));
+  PackedFile *pf = MEM_callocN<PackedFile>("PackedFile");
   pf->data = mem;
   pf->size = memlen;
   pf->sharing_info = sharing_info;
@@ -253,7 +253,7 @@ PackedFile *BKE_packedfile_new(ReportList *reports, const char *filepath_rel, co
   if (file_size == size_t(-1)) {
     BKE_reportf(reports, RPT_ERROR, "Unable to access the size of, source path '%s'", filepath);
   }
-  else if (file_size > INT_MAX) {
+  else if (file_size > PACKED_FILE_MAX_SIZE) {
     BKE_reportf(reports, RPT_ERROR, "Unable to pack files over 2gb, source path '%s'", filepath);
   }
   else {
@@ -567,7 +567,7 @@ static void unpack_generate_paths(const char *filepath,
       if (imapf != nullptr && imapf->packedfile != nullptr) {
         const PackedFile *pf = imapf->packedfile;
         enum eImbFileType ftype = eImbFileType(
-            IMB_ispic_type_from_memory((const uchar *)pf->data, pf->size));
+            IMB_test_image_type_from_memory((const uchar *)pf->data, pf->size));
         if (ima->source == IMA_SRC_TILED) {
           char tile_number[6];
           SNPRINTF(tile_number, ".%d", imapf->tile_number);
@@ -585,7 +585,7 @@ static void unpack_generate_paths(const char *filepath,
   }
 
   if (temp_dirname[0] == '\0') {
-    /* Fallback to relative dir. */
+    /* Fall back to relative dir. */
     STRNCPY(temp_dirname, "//");
   }
 
@@ -974,10 +974,10 @@ void BKE_packedfile_blend_write(BlendWriter *writer, const PackedFile *pf)
   if (pf == nullptr) {
     return;
   }
-  BLO_write_struct(writer, PackedFile, pf);
   BLO_write_shared(writer, pf->data, pf->size, pf->sharing_info, [&]() {
     BLO_write_raw(writer, pf->size, pf->data);
   });
+  BLO_write_struct(writer, PackedFile, pf);
 }
 
 void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p, StringRefNull filepath)
@@ -987,6 +987,7 @@ void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p, Strin
   if (pf == nullptr) {
     return;
   }
+  /* NOTE: this is endianness-sensitive. */
   /* NOTE: there is no way to handle endianness switch here. */
   pf->sharing_info = BLO_read_shared(reader, &pf->data, [&]() {
     BLO_read_data_address(reader, &pf->data);

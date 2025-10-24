@@ -231,7 +231,7 @@ def command_output_from_json_0(
     # the function only finishes when `poll()` is not none, it's just use to ensure file-handles
     # are closed before this function exits, this only seems to be a problem on WIN32.
 
-    # WIN32 needs to use a separate process-group else Blender will recieve the "break", see #131947.
+    # WIN32 needs to use a separate process-group else Blender will receive the "break", see #131947.
     creationflags = 0
     if sys.platform == "win32":
         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -1331,6 +1331,7 @@ class PkgManifest_Normalized(NamedTuple):
             error_fn(ex)
             return None
 
+        import re
         return PkgManifest_Normalized(
             name=field_name,
             tagline=field_tagline,
@@ -1338,7 +1339,7 @@ class PkgManifest_Normalized(NamedTuple):
             type=field_type,
             # Remove the maintainers email while it's not private, showing prominently
             # could cause maintainers to get direct emails instead of issue tracking systems.
-            maintainer=field_maintainer.split("<", 1)[0].rstrip(),
+            maintainer=re.sub(r"\s*<.*?>", "", field_maintainer),
             license=license_info_to_text(field_license),
 
             # Optional.
@@ -1836,7 +1837,7 @@ class _RepoDataSouce_TOML_FILES(_RepoDataSouce_ABC):
         """
         Detect a change and return as early as possibly.
         Ideally this would not have to scan many files, since this could become *expensive*
-        with very large repositories however as each package has it's own TOML,
+        with very large repositories however as each package has its own TOML,
         there is no viable alternative.
         """
         # Caller must check `self.exists()`.

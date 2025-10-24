@@ -50,36 +50,16 @@ static void wm_operatortype_free_macro(wmOperatorType *ot);
 
 using blender::StringRef;
 
-struct OperatorTypePointerHash {
-  uint64_t operator()(const wmOperatorType *value) const
-  {
-    return get_default_hash(StringRef(value->idname));
-  }
-  uint64_t operator()(const StringRef name) const
-  {
-    return get_default_hash(name);
-  }
-};
-
-struct OperatorTypePointerNameEqual {
-  bool operator()(const wmOperatorType *a, const wmOperatorType *b) const
-  {
-    return STREQ(a->idname, b->idname);
-  }
-  bool operator()(const StringRef idname, const wmOperatorType *a) const
-  {
-    return a->idname == idname;
-  }
-};
-
 static auto &get_operators_map()
 {
+  struct OperatorNameGetter {
+    StringRef operator()(const wmOperatorType *value) const
+    {
+      return StringRef(value->idname);
+    }
+  };
   static auto map = []() {
-    blender::VectorSet<wmOperatorType *,
-                       blender::DefaultProbingStrategy,
-                       OperatorTypePointerHash,
-                       OperatorTypePointerNameEqual>
-        map;
+    blender::CustomIDVectorSet<wmOperatorType *, OperatorNameGetter> map;
     /* Reserve size is set based on blender default setup. */
     map.reserve(2048);
     return map;
@@ -107,13 +87,12 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
     }
 
     if (!quiet) {
-      CLOG_INFO(
-          WM_LOG_OPERATORS, 0, "search for unknown operator '%s', '%s'\n", idname_bl, idname);
+      CLOG_INFO(WM_LOG_OPERATORS, "Search for unknown operator '%s', '%s'", idname_bl, idname);
     }
   }
   else {
     if (!quiet) {
-      CLOG_INFO(WM_LOG_OPERATORS, 0, "search for empty operator");
+      CLOG_INFO(WM_LOG_OPERATORS, "Search for empty operator");
     }
   }
 
@@ -156,6 +135,13 @@ static void wm_operatortype_append__end(wmOperatorType *ot)
 
   BLI_assert(WM_operator_bl_idname_is_valid(ot->idname));
   get_operators_map().add_new(ot);
+
+  /* Needed so any operators registered after startup will have their shortcuts set,
+   * in "register" scripts for example, see: #143838.
+   *
+   * This only has run-time implications when run after startup,
+   * it's a no-op when run beforehand, see: #WM_keyconfig_update_on_startup. */
+  WM_keyconfig_update_operatortype_tag();
 }
 
 /* All ops in 1 list (for time being... needs evaluation later). */
@@ -200,7 +186,7 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 
   get_operators_map().remove(ot);
 
-  WM_keyconfig_update_operatortype();
+  WM_keyconfig_update_operatortype_tag();
 
   MEM_freeN(ot);
 }
@@ -230,7 +216,7 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 
   if (ot->rna_ext.srna) {
     /* A Python operator, allocates its own string. */
-    MEM_freeN((void *)ot->idname);
+    MEM_freeN(ot->idname);
   }
 
   MEM_freeN(ot);
@@ -310,7 +296,7 @@ void WM_operatortype_idname_visit_for_search(
  * \{ */
 
 struct MacroData {
-  int retval;
+  wmOperatorStatus retval;
 };
 
 static void wm_macro_start(wmOperator *op)
@@ -320,21 +306,21 @@ static void wm_macro_start(wmOperator *op)
   }
 }
 
-static int wm_macro_end(wmOperator *op, int retval)
+static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
 {
-  if (retval & OPERATOR_CANCELLED) {
-    MacroData *md = static_cast<MacroData *>(op->customdata);
+  MacroData *md = static_cast<MacroData *>(op->customdata);
 
-    if (md->retval & OPERATOR_FINISHED) {
+  if (retval & (OPERATOR_CANCELLED | OPERATOR_INTERFACE)) {
+    if (md && (md->retval & OPERATOR_FINISHED)) {
       retval |= OPERATOR_FINISHED;
-      retval &= ~OPERATOR_CANCELLED;
+      retval &= ~(OPERATOR_CANCELLED | OPERATOR_INTERFACE);
     }
   }
 
   /* If modal is ending, free custom data. */
   if (retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) {
-    if (op->customdata) {
-      MEM_freeN(op->customdata);
+    if (md) {
+      MEM_freeN(md);
       op->customdata = nullptr;
     }
   }
@@ -343,9 +329,9 @@ static int wm_macro_end(wmOperator *op, int retval)
 }
 
 /* Macro exec only runs exec calls. */
-static int wm_macro_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_macro_exec(bContext *C, wmOperator *op)
 {
-  int retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
   const int op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
 
   wm_macro_start(op);
@@ -374,12 +360,12 @@ static int wm_macro_exec(bContext *C, wmOperator *op)
   return wm_macro_end(op, retval);
 }
 
-static int wm_macro_invoke_internal(bContext *C,
-                                    wmOperator *op,
-                                    const wmEvent *event,
-                                    wmOperator *opm)
+static wmOperatorStatus wm_macro_invoke_internal(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent *event,
+                                                 wmOperator *opm)
 {
-  int retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
   const int op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
 
   /* Start from operator received as argument. */
@@ -410,16 +396,16 @@ static int wm_macro_invoke_internal(bContext *C,
   return wm_macro_end(op, retval);
 }
 
-static int wm_macro_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_macro_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wm_macro_start(op);
   return wm_macro_invoke_internal(C, op, event, static_cast<wmOperator *>(op->macro.first));
 }
 
-static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmOperator *opm = op->opm;
-  int retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
 
   if (opm == nullptr) {
     CLOG_ERROR(WM_LOG_OPERATORS, "macro error, calling nullptr modal()");

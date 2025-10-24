@@ -16,7 +16,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_math_base.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -67,6 +68,14 @@ static SpaceLink *nla_create(const ScrArea *area, const Scene *scene)
   BLI_addtail(&snla->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+
+  /* footer */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&snla->regionbase, region);
+  region->regiontype = RGN_TYPE_FOOTER;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
+  region->flag = RGN_FLAG_HIDDEN;
 
   /* track list region */
   region = BKE_area_region_new();
@@ -132,7 +141,7 @@ static void nla_init(wmWindowManager *wm, ScrArea *area)
 {
   SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
 
-  /* init dopesheet data if non-existent (i.e. for old files) */
+  /* init dope-sheet data if non-existent (i.e. for old files). */
   if (snla->ads == nullptr) {
     snla->ads = MEM_callocN<bDopeSheet>("NlaEdit DopeSheet");
     wmWindow *win = WM_window_find_by_area(wm, area);
@@ -164,14 +173,15 @@ static void nla_track_region_init(wmWindowManager *wm, ARegion *region)
 
   /* own keymap */
   /* own tracks map first to override some track keymaps */
-  keymap = WM_keymap_ensure(wm->defaultconf, "NLA Tracks", SPACE_NLA, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "NLA Tracks", SPACE_NLA, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_poll(
       &region->runtime->handlers, keymap, WM_event_handler_region_v2d_mask_no_marker_poll);
   /* now generic channels map for everything else that can apply */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "NLA Generic", SPACE_NLA, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "NLA Generic", SPACE_NLA, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -218,7 +228,7 @@ static void nla_track_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_restore(C);
 
   /* scrollers */
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (region->winy > UI_ANIM_MINY) {
     UI_view2d_scrollers_draw(v2d, nullptr);
   }
 
@@ -233,9 +243,9 @@ static void nla_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "NLA Editor", SPACE_NLA, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "NLA Editor", SPACE_NLA, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
-  keymap = WM_keymap_ensure(wm->defaultconf, "NLA Generic", SPACE_NLA, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "NLA Generic", SPACE_NLA, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -247,18 +257,25 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   bAnimContext ac;
   View2D *v2d = &region->v2d;
 
+  const int min_height = UI_ANIM_MINY;
+
   /* clear and setup matrix */
   UI_ThemeClearColor(TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
   /* time grid */
-  UI_view2d_draw_lines_x__discrete_frames_or_seconds(v2d, scene, snla->flag & SNLA_DRAWTIME, true);
+  if (region->winy > min_height) {
+    UI_view2d_draw_lines_x__discrete_frames_or_seconds(
+        v2d, scene, snla->flag & SNLA_DRAWTIME, true);
+  }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
   /* start and end frame */
-  ANIM_draw_framerange(scene, v2d);
+  if (region->winy > min_height) {
+    ANIM_draw_framerange(scene, v2d);
+  }
 
   /* data */
   if (ANIM_animdata_get_context(C, &ac)) {
@@ -272,13 +289,13 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   /* markers */
   UI_view2d_view_orthoSpecial(region, v2d, true);
   int marker_draw_flag = DRAW_MARKERS_MARGIN;
-  if (snla->flag & SNLA_SHOW_MARKERS) {
+  if (snla->flag & SNLA_SHOW_MARKERS && region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
     ED_markers_draw(C, marker_draw_flag);
   }
 
   /* preview range */
   UI_view2d_view_ortho(v2d);
-  ANIM_draw_previewrange(C, v2d, 0);
+  ANIM_draw_previewrange(scene, v2d, 0);
 
   /* callback */
   UI_view2d_view_ortho(v2d);
@@ -287,7 +304,8 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   /* reset view matrix */
   UI_view2d_view_restore(C);
 
-  ED_time_scrub_draw(region, scene, snla->flag & SNLA_DRAWTIME, true);
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, snla->flag & SNLA_DRAWTIME, true, fps);
 }
 
 static void nla_main_region_draw_overlay(const bContext *C, ARegion *region)
@@ -298,10 +316,11 @@ static void nla_main_region_draw_overlay(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* scrubbing region */
-  ED_time_scrub_draw_current_frame(region, scene, snla->flag & SNLA_DRAWTIME);
+  ED_time_scrub_draw_current_frame(
+      region, scene, snla->flag & SNLA_DRAWTIME, region->winy >= UI_ANIM_MINY);
 
   /* scrollers */
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (region->winy >= UI_ANIM_MINY) {
     UI_view2d_scrollers_draw(v2d, nullptr);
   }
 }
@@ -317,6 +336,28 @@ static void nla_header_region_draw(const bContext *C, ARegion *region)
   ED_region_header(C, region);
 }
 
+static void nla_footer_region_listener(const wmRegionListenerParams *params)
+{
+  ARegion *region = params->region;
+  const wmNotifier *wmn = params->notifier;
+
+  /* context changes */
+  switch (wmn->category) {
+    case NC_SCREEN:
+      if (wmn->data == ND_ANIMPLAY) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+    case NC_SCENE:
+      switch (wmn->data) {
+        case ND_FRAME:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+  }
+}
+
 /* add handlers, stuff you only do once or on area/region changes */
 static void nla_buttons_region_init(wmWindowManager *wm, ARegion *region)
 {
@@ -324,7 +365,7 @@ static void nla_buttons_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "NLA Generic", SPACE_NLA, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "NLA Generic", SPACE_NLA, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -512,9 +553,8 @@ static void nla_track_region_message_subscribe(const wmRegionMessageSubscribePar
   msg_sub_value_region_tag_redraw.user_data = region;
   msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
 
-  /* All dopesheet filter settings, etc. affect the drawing of this editor,
-   * so just whitelist the entire struct for updates
-   */
+  /* All dope-sheet filter settings, etc. affect the drawing of this editor,
+   * so just whitelist the entire struct for updates. */
   {
     wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
@@ -619,7 +659,7 @@ void ED_spacetype_nla()
   ARegionType *art;
 
   st->spaceid = SPACE_NLA;
-  STRNCPY(st->name, "NLA");
+  STRNCPY_UTF8(st->name, "NLA");
 
   st->create = nla_create;
   st->free = nla_free;
@@ -654,6 +694,18 @@ void ED_spacetype_nla()
 
   art->init = nla_header_region_init;
   art->draw = nla_header_region_draw;
+
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: footer */
+  art = MEM_callocN<ARegionType>("spacetype nla region");
+  art->regionid = RGN_TYPE_FOOTER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+
+  art->init = nla_header_region_init;
+  art->draw = nla_header_region_draw;
+  art->listener = nla_footer_region_listener;
 
   BLI_addhead(&st->regiontypes, art);
 

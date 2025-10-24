@@ -46,7 +46,7 @@ VFontData *BKE_vfontdata_from_freetypefont(PackedFile *pf)
   }
 
   /* allocate blender font */
-  VFontData *vfd = static_cast<VFontData *>(MEM_callocN(sizeof(*vfd), "FTVFontData"));
+  VFontData *vfd = MEM_callocN<VFontData>("FTVFontData");
 
   /* Get the font name. */
   char *name = BLF_display_name_from_id(fontid);
@@ -71,7 +71,7 @@ VFontData *BKE_vfontdata_from_freetypefont(PackedFile *pf)
 
 static void *vfontdata_copy_characters_value_cb(const void *src)
 {
-  return BKE_vfontdata_char_copy(static_cast<const VChar *>(src));
+  return src ? BKE_vfontdata_char_copy(static_cast<const VChar *>(src)) : nullptr;
 }
 
 VFontData *BKE_vfontdata_copy(const VFontData *vfont_src, const int /*flag*/)
@@ -117,13 +117,23 @@ VChar *BKE_vfontdata_char_from_freetypefont(VFont *vfont, uint character)
     return nullptr;
   }
 
-  VChar *che = (VChar *)MEM_callocN(sizeof(VChar), "objfnt_char");
+  VChar *che = MEM_callocN<VChar>("objfnt_char");
 
   /* need to set a size for embolden, etc. */
   BLF_size(font_id, 16);
 
-  che->width = BLF_character_to_curves(
-      font_id, character, &che->nurbsbase, vfont->data->metrics.scale, use_fallback);
+  if (!BLF_character_to_curves(font_id,
+                               character,
+                               &che->nurbsbase,
+                               vfont->data->metrics.scale,
+                               use_fallback,
+                               &che->width))
+  {
+    /* Free but add to the character cache to prevent future lookups
+     * from attempting to load the font again. */
+    MEM_freeN(che);
+    che = nullptr;
+  }
 
   BLI_ghash_insert(vfont->data->characters, POINTER_FROM_UINT(character), che);
   BLF_unload_id(font_id);

@@ -131,8 +131,9 @@ bool WM_gesture_is_modal_first(const wmGesture *gesture)
 static void wm_gesture_draw_line_active_side(const rcti *rect, const bool flip)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint shdr_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint shdr_col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  uint shdr_pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint shdr_col = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
@@ -186,7 +187,7 @@ static void wm_gesture_draw_line(wmGesture *gt)
   }
 
   uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
@@ -216,20 +217,21 @@ static void wm_gesture_draw_rect(wmGesture *gt)
   const rcti *rect = static_cast<const rcti *>(gt->customdata);
 
   uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   GPU_blend(GPU_BLEND_ALPHA);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4f(1.0f, 1.0f, 1.0f, 0.05f);
 
-  immRecti(shdr_pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+  immRectf(shdr_pos, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
   immUnbindProgram();
 
   GPU_blend(GPU_BLEND_NONE);
 
-  shdr_pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  shdr_pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
@@ -259,7 +261,7 @@ static void wm_gesture_draw_circle(wmGesture *gt)
   GPU_blend(GPU_BLEND_ALPHA);
 
   const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -299,18 +301,32 @@ static void draw_filled_lasso_px_cb(int x, int x_end, int y, void *user_data)
   memset(col, 0x10, x_end - x);
 }
 
-static void draw_filled_lasso(wmGesture *gt)
+static void draw_filled_lasso(wmGesture *gt, const blender::int2 *lasso_pt_extra)
 {
-  const float *lasso = (float *)gt->customdata;
-  const int mcoords_len = gt->points;
+  const int mcoords_len = gt->points + (lasso_pt_extra ? 1 : 0);
   Array<int2> mcoords(mcoords_len);
   int i;
   rcti rect;
   const float red[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 
-  for (i = 0; i < mcoords_len; i++, lasso += 2) {
-    mcoords[i][0] = lasso[0];
-    mcoords[i][1] = lasso[1];
+  if (gt->type == WM_GESTURE_POLYLINE) {
+    const short *lasso = static_cast<const short *>(gt->customdata);
+    for (i = 0; i < mcoords_len; i++, lasso += 2) {
+      mcoords[i][0] = lasso[0];
+      mcoords[i][1] = lasso[1];
+    }
+  }
+  else {
+    const float *lasso = static_cast<const float *>(gt->customdata);
+    for (i = 0; i < mcoords_len; i++, lasso += 2) {
+      mcoords[i][0] = lasso[0];
+      mcoords[i][1] = lasso[1];
+    }
+  }
+
+  if (lasso_pt_extra) {
+    mcoords[mcoords_len - 1][0] = lasso_pt_extra->x;
+    mcoords[mcoords_len - 1][1] = lasso_pt_extra->y;
   }
 
   BLI_lasso_boundbox(&rect, mcoords);
@@ -341,8 +357,17 @@ static void draw_filled_lasso(wmGesture *gt)
     GPU_shader_uniform_float_ex(
         state.shader, GPU_shader_get_uniform(state.shader, "shuffle"), 4, 1, red);
 
-    immDrawPixelsTexTiled(
-        &state, rect.xmin, rect.ymin, w, h, GPU_R8, false, pixel_buf, 1.0f, 1.0f, nullptr);
+    immDrawPixelsTexTiled(&state,
+                          rect.xmin,
+                          rect.ymin,
+                          w,
+                          h,
+                          blender::gpu::TextureFormat::UNORM_8,
+                          false,
+                          pixel_buf,
+                          1.0f,
+                          1.0f,
+                          nullptr);
 
     GPU_shader_unbind();
 
@@ -356,7 +381,7 @@ static void draw_filled_lasso(wmGesture *gt)
  * tool, and this common logic. */
 static void draw_lasso_smooth_stroke_indicator(wmGesture *gt, const uint shdr_pos)
 {
-  float(*lasso)[2] = static_cast<float(*)[2]>(gt->customdata);
+  float (*lasso)[2] = static_cast<float (*)[2]>(gt->customdata);
   float last_x = lasso[gt->points - 1][0];
   float last_y = lasso[gt->points - 1][1];
 
@@ -397,7 +422,7 @@ static void wm_gesture_draw_lasso(wmGesture *gt, bool filled)
   int i;
 
   if (filled) {
-    draw_filled_lasso(gt);
+    draw_filled_lasso(gt, nullptr);
   }
 
   const int numverts = gt->points;
@@ -408,7 +433,7 @@ static void wm_gesture_draw_lasso(wmGesture *gt, bool filled)
   }
 
   const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
@@ -441,7 +466,7 @@ static void draw_start_vertex_circle(const wmGesture &gt, const uint shdr_pos)
   const int numverts = gt.points;
 
   /* Draw the circle around the starting vertex. */
-  const short(*border)[2] = static_cast<short int(*)[2]>(gt.customdata);
+  const short (*border)[2] = static_cast<short int (*)[2]>(gt.customdata);
 
   const float start_pos[2] = {float(border[0][0]), float(border[0][1])};
   const float current_pos[2] = {float(gt.mval.x), float(gt.mval.y)};
@@ -470,7 +495,7 @@ static void draw_start_vertex_circle(const wmGesture &gt, const uint shdr_pos)
 
 static void wm_gesture_draw_polyline(wmGesture *gt)
 {
-  draw_filled_lasso(gt);
+  draw_filled_lasso(gt, &gt->mval);
 
   const int numverts = gt->points + 1;
   if (numverts < 2) {
@@ -478,7 +503,7 @@ static void wm_gesture_draw_polyline(wmGesture *gt)
   }
 
   const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
@@ -515,7 +540,7 @@ static void wm_gesture_draw_cross(const wmWindow *win, const wmGesture *gt)
   float x1, x2, y1, y2;
 
   const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 

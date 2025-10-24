@@ -18,7 +18,7 @@ namespace blender::nodes::node_shader_tex_image_cc {
 static void sh_node_tex_image_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Vector").implicit_field(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Vector").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_output<decl::Color>("Color").no_muted_links();
   b.add_output<decl::Float>("Alpha").no_muted_links();
 }
@@ -90,7 +90,10 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat,
   }
   const bool use_cubic = ELEM(tex->interpolation, SHD_INTERP_CUBIC, SHD_INTERP_SMART);
 
-  if (ima->source == IMA_SRC_TILED) {
+  /* Only use UDIM tiles if projection is flat.
+   * Otherwise treat the first tile as a single image. (See #141776). */
+  const bool use_udim = ima->source == IMA_SRC_TILED && tex->projection == SHD_PROJ_FLAT;
+  if (use_udim) {
     const char *gpu_node_name = use_cubic ? "node_tex_tile_cubic" : "node_tex_tile_linear";
     GPUNodeLink *gpu_image, *gpu_image_tile_mapping;
     GPU_image_tiled(mat, ima, iuser, sampler_state, &gpu_image, &gpu_image_tile_mapping);
@@ -262,7 +265,7 @@ NODE_SHADER_MATERIALX_BEGIN
     }
   }
 
-  if (STREQ(socket_out_->name, "Alpha")) {
+  if (STREQ(socket_out_->identifier, "Alpha")) {
     res = res[3];
   }
   return res;

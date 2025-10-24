@@ -29,7 +29,7 @@ const EnumPropertyItem rna_enum_volume_grid_data_type_items[] = {
     {VOLUME_GRID_INT, "INT", 0, "Integer", "32-bit integer"},
     {VOLUME_GRID_INT64, "INT64", 0, "Integer 64-bit", "64-bit integer"},
     {VOLUME_GRID_MASK, "MASK", 0, "Mask", "No data, boolean mask of active voxels"},
-    {VOLUME_GRID_VECTOR_FLOAT, "VECTOR_FLOAT", 0, "Float Vector", "3D float vector"},
+    {VOLUME_GRID_VECTOR_FLOAT, "VECTOR_FLOAT", 0, "Vector", "3D float vector"},
     {VOLUME_GRID_VECTOR_DOUBLE, "VECTOR_DOUBLE", 0, "Double Vector", "3D double vector"},
     {VOLUME_GRID_VECTOR_INT, "VECTOR_INT", 0, "Integer Vector", "3D integer vector"},
     {VOLUME_GRID_POINTS,
@@ -50,6 +50,8 @@ const EnumPropertyItem rna_enum_volume_grid_data_type_items[] = {
 struct DummyVolumeGridData;
 
 #ifdef RNA_RUNTIME
+
+#  include "BLI_math_base.h"
 
 #  include "BKE_volume.hh"
 
@@ -353,6 +355,7 @@ static void rna_def_volume_grids(BlenderRNA *brna, PropertyRNA *cprop)
                            "and volume parameters");
 
   prop = RNA_def_property(srna, "frame_filepath", PROP_STRING, PROP_FILEPATH);
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_string_funcs(prop,
                                 "rna_VolumeGrids_frame_filepath_get",
@@ -504,8 +507,8 @@ static void rna_def_volume_render(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_VolumeRender_path");
 
   static const EnumPropertyItem precision_items[] = {
-      {VOLUME_PRECISION_FULL, "FULL", 0, "Full", "Full float (Use 32 bit for all data)"},
-      {VOLUME_PRECISION_HALF, "HALF", 0, "Half", "Half float (Use 16 bit for all data)"},
+      {VOLUME_PRECISION_FULL, "FULL", 0, "Full", "Use 32-bit floating-point numbers for all data"},
+      {VOLUME_PRECISION_HALF, "HALF", 0, "Half", "Use 16-bit floating-point numbers for all data"},
       {VOLUME_PRECISION_VARIABLE, "VARIABLE", 0, "Variable", "Use variable bit quantization"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -571,6 +574,7 @@ static void rna_def_volume(BlenderRNA *brna)
 
   /* File */
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "File Path", "Volume file used by this Volume data-block");
   RNA_def_property_update(prop, 0, "rna_Volume_update_filepath");

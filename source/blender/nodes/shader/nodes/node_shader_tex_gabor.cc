@@ -12,7 +12,7 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_gabor_cc {
@@ -23,7 +23,7 @@ static void sh_node_tex_gabor_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Vector>("Vector")
-      .implicit_field(implicit_field_inputs::position)
+      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description(
           "The coordinates at which Gabor noise will be evaluated. The Z component is ignored in "
           "the 2D case");
@@ -62,7 +62,7 @@ static void sh_node_tex_gabor_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_tex_gabor(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "gabor_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "gabor_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_tex_gabor(bNodeTree * /*ntree*/, bNode *node)
@@ -124,7 +124,7 @@ class GaborNoiseFunction : public mf::MultiFunction {
     builder.single_input<float3>("Vector");
     builder.single_input<float>("Scale");
     builder.single_input<float>("Frequency");
-    builder.single_input<float>("Anistropy");
+    builder.single_input<float>("Anisotropy");
 
     if (type == SHD_GABOR_TYPE_2D) {
       builder.single_input<float>("Orientation");
@@ -145,7 +145,7 @@ class GaborNoiseFunction : public mf::MultiFunction {
     const VArray<float3> &vector = params.readonly_single_input<float3>(0, "Vector");
     const VArray<float> &scale = params.readonly_single_input<float>(1, "Scale");
     const VArray<float> &frequency = params.readonly_single_input<float>(2, "Frequency");
-    const VArray<float> &anistropy = params.readonly_single_input<float>(3, "Anistropy");
+    const VArray<float> &anisotropy = params.readonly_single_input<float>(3, "Anisotropy");
     /* A parameter index of 4 is reserved for Orientation input below. */
     MutableSpan<float> r_value = params.uninitialized_single_output_if_required<float>(5, "Value");
     MutableSpan<float> r_phase = params.uninitialized_single_output_if_required<float>(6, "Phase");
@@ -159,7 +159,7 @@ class GaborNoiseFunction : public mf::MultiFunction {
           noise::gabor(vector[i].xy(),
                        scale[i],
                        frequency[i],
-                       anistropy[i],
+                       anisotropy[i],
                        orientation[i],
                        r_value.is_empty() ? nullptr : &r_value[i],
                        r_phase.is_empty() ? nullptr : &r_phase[i],
@@ -173,7 +173,7 @@ class GaborNoiseFunction : public mf::MultiFunction {
           noise::gabor(vector[i],
                        scale[i],
                        frequency[i],
-                       anistropy[i],
+                       anisotropy[i],
                        orientation[i],
                        r_value.is_empty() ? nullptr : &r_value[i],
                        r_phase.is_empty() ? nullptr : &r_phase[i],

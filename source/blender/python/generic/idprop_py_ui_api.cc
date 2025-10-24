@@ -8,6 +8,8 @@
 
 #include <Python.h>
 
+#include "python_compat.hh" /* IWYU pragma: keep. */
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_string.h"
@@ -193,7 +195,7 @@ static bool idprop_ui_data_update_int_default(IDProperty *idprop,
   else {
     const int value = PyC_Long_AsI32(default_value);
     if ((value == -1) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to integer");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to integer");
       return false;
     }
 
@@ -356,7 +358,7 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
   else {
     const int value = PyC_Long_AsBool(default_value);
     if ((value == -1) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to integer");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to integer");
       return false;
     }
 
@@ -446,7 +448,7 @@ static bool idprop_ui_data_update_float_default(IDProperty *idprop,
   else {
     const double value = PyFloat_AsDouble(default_value);
     if ((value == -1.0) && PyErr_Occurred()) {
-      PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to double");
+      PyErr_SetString(PyExc_ValueError, "Cannot convert \"default\" argument to double");
       return false;
     }
 
@@ -630,7 +632,7 @@ static bool idprop_ui_data_update_id(IDProperty *idprop, PyObject *args, PyObjec
 PyDoc_STRVAR(
     /* Wrap. */
     BPy_IDPropertyUIManager_update_doc,
-    ".. method:: update( "
+    ".. method:: update(*, "
     "subtype=None, "
     "min=None, "
     "max=None, "
@@ -645,7 +647,7 @@ PyDoc_STRVAR(
     "\n"
     "   Update the RNA information of the IDProperty used for interaction and\n"
     "   display in the user interface. The required types for many of the keyword\n"
-    "   arguments depend on the type of the property.\n ");
+    "   arguments depend on the type of the property.\n");
 static PyObject *BPy_IDPropertyUIManager_update(BPy_IDPropertyUIManager *self,
                                                 PyObject *args,
                                                 PyObject *kwargs)
@@ -819,7 +821,7 @@ static void idprop_ui_data_to_dict_id(IDProperty *property, PyObject *dict)
     /* While UI exposed custom properties do not allow the 'all ID types' `0` value, in
      * py-defined IDProperties it is accepted. So force defining a valid id_type value when this
      * function is called. */
-    ID *id = IDP_Id(property);
+    ID *id = IDP_ID_get(property);
     id_type_value = id ? GS(id->name) : ID_OB;
   }
 
@@ -963,9 +965,14 @@ static PyObject *BPy_IDPropertyUIManager_update_from(BPy_IDPropertyUIManager *se
 /** \name UI Data Manager Definition
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef BPy_IDPropertyUIManager_methods[] = {
@@ -988,8 +995,12 @@ static PyMethodDef BPy_IDPropertyUIManager_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyObject *BPy_IDPropertyUIManager_repr(BPy_IDPropertyUIManager *self)
@@ -1000,7 +1011,7 @@ static PyObject *BPy_IDPropertyUIManager_repr(BPy_IDPropertyUIManager *self)
 
 static Py_hash_t BPy_IDPropertyUIManager_hash(BPy_IDPropertyUIManager *self)
 {
-  return _Py_HashPointer(self->property);
+  return Py_HashPointer(self->property);
 }
 
 PyTypeObject BPy_IDPropertyUIManager_Type = {

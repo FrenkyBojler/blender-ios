@@ -22,7 +22,7 @@
 #include "bpy_rna_gizmo.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -187,7 +187,6 @@ static void py_rna_gizmo_handler_get_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_XDECREF(ret);
 
@@ -237,7 +236,6 @@ static void py_rna_gizmo_handler_set_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_DECREF(args);
 
@@ -293,7 +291,6 @@ static void py_rna_gizmo_handler_range_get_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_XDECREF(ret);
 
@@ -658,9 +655,14 @@ fail:
 bool BPY_rna_gizmo_module(PyObject *mod_par)
 {
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
   static PyMethodDef method_def_array[] = {
@@ -685,8 +687,12 @@ bool BPY_rna_gizmo_module(PyObject *mod_par)
       /* no sentinel needed. */
   };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
   for (int i = 0; i < ARRAY_SIZE(method_def_array); i++) {

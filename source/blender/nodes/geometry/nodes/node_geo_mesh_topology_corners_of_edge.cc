@@ -15,8 +15,9 @@ namespace blender::nodes::node_geo_mesh_topology_corners_of_edge_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Edge Index")
-      .implicit_field(implicit_field_inputs::index)
-      .description("The edge to retrieve data from. Defaults to the edge from the context");
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
+      .description("The edge to retrieve data from. Defaults to the edge from the context")
+      .structure_type(StructureType::Field);
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values that sort the corners attached to the edge");
   b.add_input<decl::Int>("Sort Index")
@@ -118,7 +119,7 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
       }
     });
 
-    return VArray<int>::ForContainer(std::move(corner_of_edge));
+    return VArray<int>::from_container(std::move(corner_of_edge));
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -150,7 +151,7 @@ class CornersOfEdgeCountInput final : public bke::MeshFieldInput {
     }
     Array<int> counts(mesh.edges_num, 0);
     array_utils::count_indices(mesh.corner_edges(), counts);
-    return VArray<int>::ForContainer(std::move(counts));
+    return VArray<int>::from_container(std::move(counts));
   }
 
   uint64_t hash() const final
