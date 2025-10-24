@@ -138,7 +138,7 @@ class BilateralBlurOperation : public NodeOperation {
 
           if (difference < threshold) {
             accumulated_weight += 1.0f;
-            accumulated_color += float4(input.load_pixel_extended<float4>(texel + int2(x, y)));
+            accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, y)));
           }
         }
       }
