@@ -316,28 +316,6 @@ void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *p
 
   ED_file_path_button(screen, sfile, params, layout->block());
 }
-
-/* Simplified callback for variable path changes */
-static void file_directory_variable_enter_handle(bContext *C, void *, void *)
-{
-  SpaceFile *sfile = CTX_wm_space_file(C);
-  if (!sfile) {
-    return;
-  }
-
-  FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  if (!params) {
-    return;
-  }
-
-  /* Handle template path input and update all fields */
-  blender::ed::file::path_template_nav_handle_text(params, params->dir_template);
-
-  /* Skip template update in ED_file_change_dir since we already handled it above */
-  ScrArea *area = CTX_wm_area(C);
-  ED_file_change_dir_ex(C, area, true);
-}
-
 /* Common helper for creating file path buttons */
 static uiBut *create_path_input_field(uiLayout *layout,
                                       bContext *C,
@@ -352,8 +330,6 @@ static uiBut *create_path_input_field(uiLayout *layout,
 
   PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
       &screen->id, &RNA_FileSelectParams, params);
-
-  UI_block_func_set(layout->block(), file_draw_check_cb, nullptr, nullptr);
 
   uiBut *but = uiDefButR(layout->block(),
                          ButType::Text,
@@ -382,22 +358,16 @@ static uiBut *create_path_input_field(uiLayout *layout,
   if (sfile && sfile->files && filelist_lib(sfile->files)) {
     UI_but_flag_enable(but, UI_BUT_DISABLED);
   }
-
-  UI_block_func_set(layout->block(), nullptr, nullptr, nullptr);
-  
   return but;
 }
 
 void uiTemplateFileSelectPathVariable(uiLayout *layout, bContext *C, FileSelectParams *params)
 {
   BLI_assert_msg(params != nullptr, "File select parameters not set.");
-  create_path_input_field(layout,
-                          C,
-                          params,
-                          "directory_template",
-                          TIP_("File path with template variables"),
-                          false,
-                          file_directory_variable_enter_handle);
+  bScreen *screen = CTX_wm_screen(C);
+  PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
+      &screen->id, &RNA_FileSelectParams, params);
+  layout->prop(&params_rna_ptr, "directory_template", UI_ITEM_NONE, nullptr, ICON_NONE);
 }
 
 void uiTemplateFileSelectPathPreview(uiLayout *layout, bContext *C, FileSelectParams *params)
