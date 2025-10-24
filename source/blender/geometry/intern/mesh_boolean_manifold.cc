@@ -1954,8 +1954,9 @@ bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
     });
   }
   return geometry::realize_instances(
-      bke::GeometrySet::from_instances(&instances, bke::GeometryOwnershipType::Editable),
-      geometry::RealizeInstancesOptions());
+             bke::GeometrySet::from_instances(&instances, bke::GeometryOwnershipType::Editable),
+             geometry::RealizeInstancesOptions())
+      .geometry;
 }
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
