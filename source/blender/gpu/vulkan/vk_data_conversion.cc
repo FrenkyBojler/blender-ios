@@ -1090,7 +1090,7 @@ static void convert_buffer(void *dst_memory,
          * certain implementation. For platform parity we clamp these infinite values to finite
          * values. */
         blender::math::float_to_half_make_finite_array(
-            src.slice(range).data(), src.slice(range).data(), range.size());
+            src.slice(range).data(), dst.slice(range).data(), range.size());
       });
       break;
     }
