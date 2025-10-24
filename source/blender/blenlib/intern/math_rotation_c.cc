@@ -298,7 +298,7 @@ float normalize_qt_qt_double(double r[4], const float q[4])
   if (len != 0.0) {
     double inv = 1.0 / len;
     for (int i = 0; i < 4; i++) {
-      r[i] = q[i] * inv;
+      r[i] = d[i] * inv;
     }
   }
   else {
