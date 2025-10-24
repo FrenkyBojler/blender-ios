@@ -353,7 +353,7 @@ void remote_library_request_asset_download(bContext &C,
         "import _bpy_internal.assets.remote_library_listing.asset_downloader as asset_dl\n"
         "from pathlib import Path\n"
         "\n"
-        "asset_dl.download_asset(\n"
+        "asset_dl.download_asset_file(\n"
         "    library_url, Path(library_path),\n"
         "    dst_filepath, Path(dst_filepath),\n"
         ")\n";

@@ -44,7 +44,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
   /** Information specific to online assets. */
   struct OnlineAssetInfo {
     /** The path this file should be downloaded to. Usually relative, but isn't required to. The
-     * downloader accepts both cases, see #download_asset() in Python. */
+     * downloader accepts both cases, see #download_asset_file() in Python. */
     std::string download_dst_filepath_;
   };
 
@@ -128,7 +128,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
   /**
    * For online assets (see #is_online()), the path this file should be downloaded to when
    * requested. Usually relative, but isn't required to. The downloader accepts both cases, see
-   * #download_asset() in Python.
+   * #download_asset_file() in Python.
    *
    * Will return an empty value if this is not an online asset.
    */

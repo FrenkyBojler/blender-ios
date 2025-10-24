@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 __all__ = [
-    "download_asset",
+    "download_asset_file",
     "downloader_status",
     "DownloadStatus",
 ]
@@ -34,8 +34,8 @@ finished, their status can be obtained here.
 """
 
 
-def download_asset(asset_library_url: str, asset_library_local_path: Path, asset_url: str, save_to: Path) -> None:
-    """Download an asset to a file on disk.
+def download_asset_file(asset_library_url: str, asset_library_local_path: Path, asset_url: str, save_to: Path) -> None:
+    """Download an asset file to a file on disk.
 
     :param asset_library_url: Root URL of the remote asset library. Used as an
         identifier of this library (to create a downloader per library), as well
@@ -62,7 +62,7 @@ def download_asset(asset_library_url: str, asset_library_local_path: Path, asset
         _asset_downloaders[asset_library_url] = downloader
         _asset_downloaders_last_status.pop(asset_library_url, None)
 
-    downloader.download_asset(asset_url, save_to)
+    downloader.download_asset_file(asset_url, save_to)
 
 
 def _download_done(downloader: AssetDownloader) -> None:
@@ -215,8 +215,8 @@ class AssetDownloader:
             # Double-check the registration worked, see #139720 for details.
             assert bpy.app.timers.is_registered(self.on_timer_event)
 
-    def download_asset(self, asset_url: str, save_to: Path) -> None:
-        """Download an asset to a local file."""
+    def download_asset_file(self, asset_url: str, save_to: Path) -> None:
+        """Download an asset file to a local file."""
         self._status = DownloadStatus.DOWNLOADING
         self._queue_download(asset_url, save_to)
 
