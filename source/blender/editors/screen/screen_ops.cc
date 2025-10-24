@@ -3503,7 +3503,13 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
+  ScrArea *area = CTX_wm_area(C);
   Scene *scene = CTX_data_scene(C);
+
+  if (area && area->spacetype == SPACE_SEQ) {
+    scene = CTX_data_sequencer_scene(C);
+  }
+
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool done = false;
 
@@ -3513,8 +3519,6 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   AnimKeylist *keylist = ED_keylist_create();
-
-  ScrArea *area = CTX_wm_area(C);
   switch (area ? eSpace_Type(area->spacetype) : SPACE_EMPTY) {
     case SPACE_ACTION: {
       keylist_from_dopesheet(*C, *keylist);
@@ -3574,6 +3578,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
