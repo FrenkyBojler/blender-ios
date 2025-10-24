@@ -4,6 +4,8 @@
 
 #include "node_geometry_util.hh"
 
+#include "BKE_node_tree_reference_lifetimes.hh"
+
 #include "NOD_node_extra_info.hh"
 #include "NOD_rna_define.hh"
 
@@ -30,14 +32,24 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.add_input(data_type, "Value")
-      .hide_value()
-      .supports_field()
-      .structure_type(StructureType::Dynamic);
-  b.add_output(data_type, "Value")
-      .align_with_previous()
-      .dependent_field()
-      .structure_type(StructureType::Dynamic);
+
+  auto input_value = b.add_input(data_type, "Value").hide_value();
+  auto output_value = b.add_output(data_type, "Value").align_with_previous();
+
+  if (nodes::socket_type_supports_fields(socket_type)) {
+    input_value.supports_field();
+  }
+
+  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
+    output.propagate_all();
+  }
+
+  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
+    output.reference_pass_all();
+  }
+
+  input_value.structure_type(StructureType::Dynamic);
+  output_value.structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
