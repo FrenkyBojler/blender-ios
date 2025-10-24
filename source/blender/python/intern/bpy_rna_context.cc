@@ -537,7 +537,6 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
                                                            PyObject *kwds)
 {
   bool enable = true;
-  bool deduplicate = false;
   bool hide_missing = false;
 
   static const char *kwlist[] = {"", "hide_missing", nullptr};

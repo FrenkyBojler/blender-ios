@@ -1783,16 +1783,10 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
-void CTX_member_logging_set(bContext *C, bool enable, bool deduplicate, bool hide_missing)
+void CTX_member_logging_set(bContext *C, bool enable, bool hide_missing)
 {
   C->data.log_access = enable;
-  C->data.log_deduplicate = deduplicate;
   C->data.log_hide_missing = hide_missing;
-
-  /* Clear existing seen entries when settings change. */
-  if (C->data.seen_log_entries) {
-    C->data.seen_log_entries->clear();
-  }
 }
 
 bool CTX_member_logging_get(const bContext *C)
