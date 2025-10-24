@@ -81,6 +81,15 @@ class CustomPropertiesTest(unittest.TestCase):
         assert meta is not None
         self.assertEqual(expected_custom, meta.custom)
 
+    def test_serialize_to_json(self) -> None:
+        import cattrs.preconf.json
+
+        meta = asset_finder._get_asset_meta(self.cube.asset_data)
+
+        converter = cattrs.preconf.json.JsonConverter(omit_if_default=True)
+        as_json = converter.dumps(meta, indent=2)
+        self.assertIsNotNone(as_json)
+
 
 def main():
     global args
