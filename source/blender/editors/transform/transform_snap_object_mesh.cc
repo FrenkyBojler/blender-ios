@@ -11,6 +11,7 @@
 
 #include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
+#include "BKE_object.hh"
 
 #include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
@@ -91,6 +92,14 @@ static bool raycastMesh(SnapObjectContext *sctx,
     return retval;
   }
 
+  const Mesh *mesh_to_use = mesh_eval;
+
+  /* For curve and surface objects, use the evaluated mesh so snapping
+   * works with the final geometry instead of the coarse cage. */
+  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_CURVES, OB_SURF)) {
+    mesh_to_use = BKE_object_get_evaluated_mesh(ob_eval);
+  }
+
   float4x4 imat = math::invert(obmat);
   float3 ray_start_local = math::transform_point(imat, sctx->runtime.ray_start);
   float3 ray_normal_local = math::transform_direction(imat, sctx->runtime.ray_dir);
@@ -131,9 +140,9 @@ static bool raycastMesh(SnapObjectContext *sctx,
   }
 
   bke::BVHTreeFromMesh treedata;
-  snap_object_data_mesh_get(mesh_eval, use_hide, &treedata);
+  snap_object_data_mesh_get(mesh_to_use, use_hide, &treedata);
 
-  const Span<int> tri_faces = mesh_eval->corner_tri_faces();
+  const Span<int> tri_faces = mesh_to_use->corner_tri_faces();
 
   if (treedata.tree == nullptr) {
     return retval;
