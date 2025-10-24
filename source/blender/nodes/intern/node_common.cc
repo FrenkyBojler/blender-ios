@@ -408,6 +408,7 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
 
 static void node_group_declare_panel_recursive(
     DeclarationListBuilder &b,
+    const bNode &node,
     const bNodeTree &group,
     const Map<const bNodeTreeInterfaceSocket *, StructureType> &structure_type_by_socket,
     const bNodeTreeInterfacePanel &io_parent_panel,
@@ -415,7 +416,7 @@ static void node_group_declare_panel_recursive(
 {
   bool layout_added = false;
   auto add_layout_if_needed = [&]() {
-    if (is_root && !layout_added) {
+    if (is_root && !layout_added && node.typeinfo->draw_buttons) {
       b.add_default_layout();
       layout_added = true;
     }
@@ -441,7 +442,7 @@ static void node_group_declare_panel_recursive(
                             .description(StringRef(io_panel.description))
                             .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
         node_group_declare_panel_recursive(
-            panel_b, group, structure_type_by_socket, io_panel, false);
+            panel_b, node, group, structure_type_by_socket, io_panel, false);
         break;
       }
     }
@@ -492,7 +493,7 @@ void node_group_declare(NodeDeclarationBuilder &b)
   }
 
   node_group_declare_panel_recursive(
-      b, *group, structure_type_by_socket, group->tree_interface.root_panel, true);
+      b, *node, *group, structure_type_by_socket, group->tree_interface.root_panel, true);
 
   if (group->type == NTREE_GEOMETRY) {
     group->ensure_interface_cache();
