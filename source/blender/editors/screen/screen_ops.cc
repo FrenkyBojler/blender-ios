@@ -3743,6 +3743,10 @@ static wmOperatorStatus screen_maximize_area_exec(bContext *C, wmOperator *op)
     if (!ELEM(screen->state, SCREENNORMAL, SCREENMAXIMIZED)) {
       return OPERATOR_CANCELLED;
     }
+    if (BLI_listbase_is_single(&screen->areabase) && screen->state == SCREENNORMAL) {
+      /* SCREENMAXIMIZED is not useful when a singleton. #144740. */
+      return OPERATOR_CANCELLED;
+    }
     ED_screen_state_toggle(C, CTX_wm_window(C), area, SCREENMAXIMIZED);
   }
 
@@ -5646,8 +5650,11 @@ static bool match_region_with_redraws(const ScrArea *area,
     }
   }
   else if (regiontype == RGN_TYPE_HEADER) {
-    /* Since the timeline does not exist anymore, this doesn't need updating. */
-    return false;
+    /* The Timeline mode of the Dope Sheet shows playback controls in the header. */
+    if (spacetype == SPACE_ACTION) {
+      SpaceAction *saction = (SpaceAction *)area->spacedata.first;
+      return saction->mode == SACTCONT_TIMELINE;
+    }
   }
   else if (regiontype == RGN_TYPE_FOOTER) {
     /* The footer region in animation editors shows the current frame. */
@@ -6325,10 +6332,11 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   }
 
   /* changes context! */
-  if (WM_window_open_temp(C, nullptr, SPACE_USERPREF, false)) {
+  if (ScrArea *area = ED_screen_temp_space_open(
+          C, nullptr, SPACE_USERPREF, U.preferences_display_type, false))
+  {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
-    ScrArea *area = CTX_wm_area(C);
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
     region_header->flag |= RGN_FLAG_HIDDEN;

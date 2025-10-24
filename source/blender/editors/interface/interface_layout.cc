@@ -736,12 +736,15 @@ static void ui_item_array(uiLayout *layout,
       return;
     }
 
-    w /= dim_size[0];
-    // h /= dim_size[1]; /* UNUSED */
+    w /= dim_size[1];
+    // h /= dim_size[0]; /* UNUSED */
 
     for (int a = 0; a < len; a++) {
-      col = a % dim_size[0];
-      row = a / dim_size[0];
+      /* We are going over flat array indices (the way matrices are stored internally [also check
+       * logic in #pyrna_py_from_array_index()]) -- and they are not ordered "row first" -- , so
+       * map these to rows/colums. */
+      col = a % dim_size[1];
+      row = a / dim_size[1];
 
       uiBut *but = uiDefAutoButR(block,
                                  ptr,
@@ -750,7 +753,7 @@ static void ui_item_array(uiLayout *layout,
                                  "",
                                  ICON_NONE,
                                  x + w * col,
-                                 y + (dim_size[1] * UI_UNIT_Y) - (row * UI_UNIT_Y),
+                                 y + (dim_size[0] * UI_UNIT_Y) - (row * UI_UNIT_Y),
                                  w,
                                  UI_UNIT_Y);
       if (slider && but->type == ButType::Num) {
@@ -1823,7 +1826,9 @@ static void ui_item_rna_size(uiLayout *layout,
       h += 2 * UI_UNIT_Y;
     }
     else if (subtype == PROP_MATRIX) {
-      h += ceilf(sqrtf(len)) * UI_UNIT_Y;
+      int dim_size[/*RNA_MAX_ARRAY_DIMENSION*/ 3];
+      RNA_property_array_dimension(ptr, prop, dim_size);
+      h += dim_size[0] * UI_UNIT_Y;
     }
     else {
       h += len * UI_UNIT_Y;
@@ -2111,7 +2116,7 @@ void uiLayout::prop(PointerRNA *ptr,
       layout_sub->space_ = 0;
 
       if (!RNA_property_editable(ptr, prop)) {
-        layout_split->enabled_set(false);
+        layout_sub->enabled_set(false);
       }
 
       if (!use_prop_sep_split_label) {
@@ -2263,7 +2268,7 @@ void uiLayout::prop(PointerRNA *ptr,
         results_are_suggestions = true;
       }
     }
-    but = ui_but_add_search(but, ptr, prop, nullptr, nullptr, results_are_suggestions);
+    but = ui_but_add_search(but, ptr, prop, nullptr, nullptr, nullptr, results_are_suggestions);
 
     if (layout->red_alert()) {
       UI_but_flag_enable(but, UI_BUT_REDALERT);
@@ -2638,6 +2643,7 @@ uiBut *ui_but_add_search(uiBut *but,
                          PropertyRNA *prop,
                          PointerRNA *searchptr,
                          PropertyRNA *searchprop,
+                         PropertyRNA *item_searchprop,
                          const bool results_are_suggestions)
 {
   /* for ID's we do automatic lookup */
@@ -2680,11 +2686,13 @@ uiBut *ui_but_add_search(uiBut *but,
     if (searchptr) {
       coll_search->search_ptr = *searchptr;
       coll_search->search_prop = searchprop;
+      coll_search->item_search_prop = item_searchprop;
     }
     else {
       /* Rely on `has_search_fn`. */
       coll_search->search_ptr = PointerRNA_NULL;
       coll_search->search_prop = nullptr;
+      coll_search->item_search_prop = nullptr;
     }
 
     coll_search->search_but = but;
@@ -2726,6 +2734,7 @@ void uiLayout::prop_search(PointerRNA *ptr,
                            PropertyRNA *prop,
                            PointerRNA *searchptr,
                            PropertyRNA *searchprop,
+                           PropertyRNA *item_searchprop,
                            const std::optional<StringRefNull> name_opt,
                            int icon,
                            bool results_are_suggestions)
@@ -2745,6 +2754,12 @@ void uiLayout::prop_search(PointerRNA *ptr,
     RNA_warning("search collection property is not a collection type: %s.%s",
                 RNA_struct_identifier(searchptr->type),
                 RNA_property_identifier(searchprop));
+    return;
+  }
+  if (item_searchprop && RNA_property_type(item_searchprop) != PROP_STRING) {
+    RNA_warning("Search collection items' property is not a string type: %s.%s",
+                RNA_struct_identifier(RNA_property_pointer_type(searchptr, searchprop)),
+                RNA_property_identifier(item_searchprop));
     return;
   }
 
@@ -2774,7 +2789,8 @@ void uiLayout::prop_search(PointerRNA *ptr,
   w += UI_UNIT_X; /* X icon needs more space */
   uiBut *but = ui_item_with_label(this, block, name, icon, ptr, prop, 0, 0, 0, w, h, 0);
 
-  but = ui_but_add_search(but, ptr, prop, searchptr, searchprop, results_are_suggestions);
+  but = ui_but_add_search(
+      but, ptr, prop, searchptr, searchprop, item_searchprop, results_are_suggestions);
 }
 
 void uiLayout::prop_search(PointerRNA *ptr,
@@ -2798,7 +2814,7 @@ void uiLayout::prop_search(PointerRNA *ptr,
     return;
   }
 
-  this->prop_search(ptr, prop, searchptr, searchprop, name, icon, false);
+  this->prop_search(ptr, prop, searchptr, searchprop, nullptr, name, icon, false);
 }
 
 void ui_item_menutype_func(bContext *C, uiLayout *layout, void *arg_mt)
