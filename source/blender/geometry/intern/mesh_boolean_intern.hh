@@ -35,6 +35,11 @@ struct MeshOffsets : NonCopyable, NonMovable {
   explicit MeshOffsets(Span<const Mesh *> meshes);
 };
 
+/**
+ * Copy attributes on the face corner domain to the output mesh, and for output corners that values
+ * that don't have an explicit mapping defined (the maps contain -1 for that element), interpolate
+ * the values across the face .
+ */
 void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
                                    bke::AttributeAccessor input_attrs,
                                    Mesh *output_mesh,
