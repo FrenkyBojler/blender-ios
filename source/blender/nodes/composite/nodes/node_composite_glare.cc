@@ -2722,7 +2722,9 @@ class GlareOperation : public NodeOperation {
 
   float3 get_tint()
   {
-    return this->get_input("Tint").get_single_value_default(float4(1.0f)).xyz();
+    return float4(
+               this->get_input("Tint").get_single_value_default(Color({1.0f, 1.0f, 1.0f, 1.0f})))
+        .xyz();
   }
 
   float get_size()

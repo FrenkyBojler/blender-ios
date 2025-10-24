@@ -75,8 +75,8 @@ class ZCombineOperation : public NodeOperation {
 
   void execute_single_value()
   {
-    const float4 first_color = get_input("A").get_single_value<float4>();
-    const float4 second_color = get_input("B").get_single_value<float4>();
+    const float4 first_color = float4(get_input("A").get_single_value<Color>());
+    const float4 second_color = float4(get_input("B").get_single_value<Color>());
     const float first_z_value = get_input("Depth A").get_single_value<float>();
     const float second_z_value = get_input("Depth B").get_single_value<float>();
 
@@ -97,7 +97,7 @@ class ZCombineOperation : public NodeOperation {
       combined_color.w = use_alpha() ? math::max(second_color.w, first_color.w) : combined_color.w;
 
       combined.allocate_single_value();
-      combined.set_single_value(combined_color);
+      combined.set_single_value(Color(combined_color));
     }
 
     Result &combined_z = get_result("Depth");

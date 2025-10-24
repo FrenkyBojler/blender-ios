@@ -148,7 +148,7 @@ class ConvertColorSpaceOperation : public NodeOperation {
                                                                                          target);
 
     Result &input_image = get_input("Image");
-    float4 color = input_image.get_single_value<float4>();
+    Color color = input_image.get_single_value<Color>();
 
     IMB_colormanagement_processor_apply_pixel(color_processor, color, 3);
     IMB_colormanagement_processor_free(color_processor);
