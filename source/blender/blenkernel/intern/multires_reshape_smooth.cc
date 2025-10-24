@@ -445,6 +445,17 @@ static blender::float2 ccg_uv_corner_to_ptex_uv(blender::float2 uv, int corner)
   return blender::float2(1.0f - uv.x, uv.y);
 }
 
+static float clamp_uv(const int input)
+{
+  if (input == 0) {
+    return 0.0f;
+  }
+  if (input % 2) {
+    return 0.5f;
+  }
+  return 1.0f;
+}
+
 static void foreach_toplevel_grid_coord_single_threaded(
     MultiresReshapeSmoothContext *reshape_smooth_context,
     blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
@@ -482,7 +493,8 @@ static void foreach_toplevel_grid_coord_single_threaded(
             const float grid_u = x * grid_size_1_inv;
             PTexCoord ptex_coord;
             ptex_coord.ptex_face_index = ptex_face_index;
-            const float2 ptex_face_uv = ccg_uv_corner_to_ptex_uv(float2(grid_u, grid_v), corner);
+            float2 clamped_uv(clamp_uv(x), clamp_uv(y));
+            const float2 ptex_face_uv = ccg_uv_corner_to_ptex_uv(clamped_uv, corner);
             ptex_coord.u = ptex_face_uv.x;
             ptex_coord.v = ptex_face_uv.y;
 
