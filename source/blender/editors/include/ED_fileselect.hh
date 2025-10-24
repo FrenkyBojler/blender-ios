@@ -218,8 +218,10 @@ void ED_file_read_bookmarks();
 /**
  * Support updating the directory even when this isn't the active space
  * needed so RNA properties update function isn't context sensitive, see #70255.
+ * \param skip_template_update: Skip calling path_template_nav_handle_browse if the caller has
+ *                              already handled template path updates.
  */
-void ED_file_change_dir_ex(bContext *C, ScrArea *area);
+void ED_file_change_dir_ex(bContext *C, ScrArea *area, bool skip_template_update = false);
 void ED_file_change_dir(bContext *C);
 
 void ED_file_path_button(bScreen *screen,

@@ -333,7 +333,9 @@ static void file_directory_variable_enter_handle(bContext *C, void *, void *)
   /* Handle template path input and update all fields */
   blender::ed::file::path_template_nav_handle_text(params, params->dir_template);
 
-  ED_file_change_dir(C);
+  /* Skip template update in ED_file_change_dir since we already handled it above */
+  ScrArea *area = CTX_wm_area(C);
+  ED_file_change_dir_ex(C, area, true);
 }
 
 /* Common helper for creating file path buttons */
