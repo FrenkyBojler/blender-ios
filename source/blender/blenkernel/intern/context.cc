@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <unordered_set>
 
 #include <fmt/format.h>
 
@@ -103,6 +104,8 @@ struct bContext {
     void *py_context_orig;
     /** True if logging is enabled for context members (can be set programmatically). */
     bool log_access;
+    /** True if missing/None values should be hidden from logging. */
+    bool log_hide_missing;
   } data;
 };
 
@@ -111,6 +114,7 @@ struct bContext {
 bContext *CTX_create()
 {
   bContext *C = MEM_callocN<bContext>(__func__);
+  C->data.log_hide_missing = false;
 
   return C;
 }
@@ -121,6 +125,8 @@ bContext *CTX_copy(const bContext *C)
   *newC = *C;
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
+
+  newC->data.log_hide_missing = C->data.log_hide_missing;
 
   return newC;
 }
@@ -386,6 +392,34 @@ static void ctx_member_log_access(const bContext *C,
 
   std::string value_repr = ctx_result_brief_repr(result);
   const char *value_desc = value_repr.c_str();
+
+  /* If hiding missing values is enabled and the result represents None/missing, skip logging. */
+  if (C && C->data.log_hide_missing) {
+    bool is_missing = false;
+    switch (result.type) {
+      case ContextDataType::Pointer:
+        if (result.ptr.data == nullptr) {
+          is_missing = true;
+        }
+        break;
+      case ContextDataType::Collection:
+        if (result.list.is_empty()) {
+          is_missing = true;
+        }
+        break;
+      case ContextDataType::String:
+        if (result.str.is_empty()) {
+          is_missing = true;
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (is_missing) {
+      return;
+    }
+  }
 
 #ifdef WITH_PYTHON
   /* Get current Python location if available and Python is properly initialized. */
@@ -1749,9 +1783,16 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
   return BKE_scene_get_depsgraph(scene, view_layer);
 }
 
-void CTX_member_logging_set(bContext *C, bool enable)
+void CTX_member_logging_set(bContext *C, bool enable, bool deduplicate, bool hide_missing)
 {
   C->data.log_access = enable;
+  C->data.log_deduplicate = deduplicate;
+  C->data.log_hide_missing = hide_missing;
+
+  /* Clear existing seen entries when settings change. */
+  if (C->data.seen_log_entries) {
+    C->data.seen_log_entries->clear();
+  }
 }
 
 bool CTX_member_logging_get(const bContext *C)

@@ -475,7 +475,7 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext *C);
 /**
  * Enable or disable logging of context members.
  */
-void CTX_member_logging_set(bContext *C, bool enable);
+void CTX_member_logging_set(bContext *C, bool enable, bool hide_missing = false);
 
 /**
  * Check if logging is enabled of context members.

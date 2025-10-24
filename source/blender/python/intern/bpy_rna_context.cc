@@ -109,10 +109,14 @@ static bool wm_check_region_exists(const bScreen *screen,
 
 /**
  * Helper function to configure context logging with extensible options.
+ *
+ * \param C: The context to configure.
+ * \param enable: Whether to enable logging.
+ * \param hide_missing: Whether to hide missing/None values from logging.
  */
-static void bpy_rna_context_logging_set(bContext *C, bool enable)
+static void bpy_rna_context_logging_set(bContext *C, bool enable, bool hide_missing = false)
 {
-  CTX_member_logging_set(C, enable);
+  CTX_member_logging_set(C, enable, hide_missing);
 }
 
 /** \} */
@@ -533,15 +537,28 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
                                                            PyObject *kwds)
 {
   bool enable = true;
+  bool deduplicate = false;
+  bool hide_missing = false;
 
-  static const char *kwlist[] = {"", nullptr};
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&", (char **)kwlist, PyC_ParseBool, &enable)) {
+  static const char *kwlist[] = {"", "hide_missing", nullptr};
+
+  /* Parse arguments: required bool, optional hide_missing bool.
+   * Format string "O&|O&": O& = bool converter, | = start of optional args. */
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwds,
+                                   "O&|O&",
+                                   (char **)kwlist,
+                                   PyC_ParseBool,
+                                   &enable,
+                                   PyC_ParseBool,
+                                   &hide_missing))
+  {
     return nullptr;
   }
 
   self->ctx_temp.use_logging = enable;
 
-  bpy_rna_context_logging_set(self->context, enable);
+  bpy_rna_context_logging_set(self->context, enable, hide_missing);
 
   Py_RETURN_NONE;
 }
