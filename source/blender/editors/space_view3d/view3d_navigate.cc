@@ -947,7 +947,7 @@ void axis_set_view(bContext *C,
   const char orig_view = rv3d->view;
   const char orig_view_axis_roll = rv3d->view_axis_roll;
 
-  normalize_qt_qt_precise(quat, quat_);
+  normalize_qt_qt(quat, quat_);
 
   if (align_to_quat) {
     mul_qt_qtqt(quat, quat, align_to_quat);

@@ -237,50 +237,83 @@ void quat_to_mat3(float m[3][3], const float q[4])
   quat_to_mat3_no_error(m, q);
 }
 
-void quat_to_mat4(float m[4][4], const float q[4])
+void quat_to_mat4_double(float m[4][4], const double q[4])
 {
-  double q0, q1, q2, q3, qda, qdb, qdc, qaa, qab, qac, qbb, qbc, qcc;
+  double q1t, q2t, q3t, qda, qdb, qdc, qaa, qab, qac, qbb, qbc, qcc;
 
-#ifndef NDEBUG
-  if (!((q0 = dot_qtqt(q, q)) == 0.0 || (fabs(q0 - 1.0) < QUAT_EPSILON))) {
-    fprintf(stderr,
-            "Warning! quat_to_mat4() called with non-normalized: size %.8f *** report a bug ***\n",
-            float(q0));
-  }
-#endif
+  q1t = 2.0 * q[1];
+  q2t = 2.0 * q[2];
+  q3t = 2.0 * q[3];
+  qda = q[0] * q1t;
+  qdb = q[0] * q2t;
+  qdc = q[0] * q3t;
+  qaa = q[1] * q1t;
+  qab = q[1] * q2t;
+  qac = q[1] * q3t;
+  qbb = q[2] * q2t;
+  qbc = q[2] * q3t;
+  qcc = q[3] * q3t;
 
-  q0 = M_SQRT2 * double(q[0]);
-  q1 = M_SQRT2 * double(q[1]);
-  q2 = M_SQRT2 * double(q[2]);
-  q3 = M_SQRT2 * double(q[3]);
-
-  qda = q0 * q1;
-  qdb = q0 * q2;
-  qdc = q0 * q3;
-  qaa = q1 * q1;
-  qab = q1 * q2;
-  qac = q1 * q3;
-  qbb = q2 * q2;
-  qbc = q2 * q3;
-  qcc = q3 * q3;
-
-  m[0][0] = float(1.0 - qbb - qcc);
+  m[0][0] = float(1.0 - (qbb + qcc));
   m[0][1] = float(qdc + qab);
   m[0][2] = float(-qdb + qac);
   m[0][3] = 0.0f;
 
   m[1][0] = float(-qdc + qab);
-  m[1][1] = float(1.0 - qaa - qcc);
+  m[1][1] = float(1.0 - (qaa + qcc));
   m[1][2] = float(qda + qbc);
   m[1][3] = 0.0f;
 
   m[2][0] = float(qdb + qac);
   m[2][1] = float(-qda + qbc);
-  m[2][2] = float(1.0 - qaa - qbb);
+  m[2][2] = float(1.0 - (qaa + qbb));
   m[2][3] = 0.0f;
 
   m[3][0] = m[3][1] = m[3][2] = 0.0f;
   m[3][3] = 1.0f;
+}
+
+void quat_to_mat4(float m[4][4], const float q[4])
+{
+#ifndef NDEBUG
+  float f;
+  if (!((f = dot_qtqt(q, q)) == 0.0 || (fabs(f - 1.0) < QUAT_EPSILON))) {
+    fprintf(stderr,
+            "Warning! quat_to_mat4() called with non-normalized: size %.8f *** report a bug ***\n",
+            float(f));
+  }
+#endif
+
+  double qd[4];
+  for (int i=0; i < 4; i++) {
+    qd[i] = q[i];
+  }
+  quat_to_mat4_double(m, qd);
+}
+
+float normalize_qt_qt_double(double r[4], const float q[4])
+{
+  double d[4] = {q[0], q[1], q[2], q[3]};
+  const double len = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + d[3] * d[3]);
+  if (len != 0.0) {
+    double inv = 1.0 / len;
+    for (int i=0; i < 4; i++) {
+      r[i] = q[i] * inv;
+    }
+  }
+  else {
+    r[1] = 1.0;
+    r[0] = r[2] = r[3] = 0.0;
+  }
+  return len;
+}
+
+void normalize_quat_to_mat4(float m[4][4], const float q[4])
+{
+  /* normalize in double precision for a more precise result */
+  double qd[4];
+  normalize_qt_qt_double(qd, q);
+  quat_to_mat4_double(m, qd);
 }
 
 void mat3_normalized_to_quat_fast(float q[4], const float mat[3][3])
@@ -484,23 +517,6 @@ float normalize_qt_qt(float r[4], const float q[4])
 {
   copy_qt_qt(r, q);
   return normalize_qt(r);
-}
-
-float normalize_qt_qt_precise(float r[4], const float q[4])
-{
-  double d[4] = {q[0], q[1], q[2], q[3]};
-  const float len = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + d[3] * d[3]);
-
-  copy_qt_qt(r, q);
-  if (len != 0.0) {
-    mul_qt_fl(r, 1.0f / len);
-  }
-  else {
-    r[1] = 1.0f;
-    r[0] = r[2] = r[3] = 0.0f;
-  }
-
-  return len;
 }
 
 void rotation_between_vecs_to_mat3(float m[3][3], const float v1[3], const float v2[3])

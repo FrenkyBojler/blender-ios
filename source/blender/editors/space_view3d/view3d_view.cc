@@ -420,7 +420,7 @@ void view3d_viewmatrix_set(const Depsgraph *depsgraph,
       ED_view3d_lock(rv3d);
     }
 
-    quat_to_mat4(rv3d->viewmat, rv3d->viewquat);
+    normalize_quat_to_mat4(rv3d->viewmat, rv3d->viewquat);
     /* Snap values close to zero to exactly zero, so that views along an axis are precise. */
     round_diag_mat4_epsilon(rv3d->viewmat, 5e-8f);
     if (rv3d->persp == RV3D_PERSP) {

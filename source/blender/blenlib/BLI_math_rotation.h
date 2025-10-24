@@ -76,10 +76,6 @@ void conjugate_qt_qt(float q1[4], const float q2[4]);
 float dot_qtqt(const float a[4], const float b[4]);
 float normalize_qt(float q[4]);
 float normalize_qt_qt(float r[4], const float q[4]);
-/**
- * Like normalize_qt_qt, but do intermediate calculations in double precision.
- */
-float normalize_qt_qt_precise(float r[4], const float q[4]);
 
 /* Comparison. */
 
@@ -102,6 +98,10 @@ void add_qt_qtqt(float q[4], const float a[4], const float b[4], float t);
 
 void quat_to_mat3(float m[3][3], const float q[4]);
 void quat_to_mat4(float m[4][4], const float q[4]);
+/**
+ * Normalize the quaternion q and convert it to a transform matrix.
+ */
+void normalize_quat_to_mat4(float m[4][4], const float q[4]);
 
 /**
  * Apply the rotation of \a a to \a q keeping the values compatible with \a old.
