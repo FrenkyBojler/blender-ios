@@ -662,11 +662,11 @@ void WM_window_title_refresh(wmWindowManager *wm, wmWindow *win)
   }
 
   GHOST_WindowHandle handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
-
-  std::optional<blender::FunctionRef<void(const char *)>> window_filepath_fn = std::nullopt;
-  if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_PATH) {
-    window_filepath_fn = [&handle](const char *filepath) { GHOST_SetPath(handle, filepath); };
-  }
+  auto window_filepath_fn = (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_PATH) ?
+                                std::optional([&handle](const char *filepath) {
+                                  GHOST_SetPath(handle, filepath);
+                                }) :
+                                std::nullopt;
   std::string win_title = wm_window_title_text(wm, win, window_filepath_fn);
   GHOST_SetTitle(handle, win_title.c_str());
   wm_window_title_state_refresh(wm, win);
@@ -1066,12 +1066,11 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
       win->cursor = WM_CURSOR_DEFAULT;
     }
 
-    std::optional<blender::FunctionRef<void(const char *)>> window_filepath_fn = std::nullopt;
-    if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_PATH) {
-      window_filepath_fn = [&win_filepath](const char *filepath) {
-        STRNCPY_UTF8(win_filepath, filepath);
-      };
-    }
+    auto window_filepath_fn = (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_PATH) ?
+                                  std::optional([&win_filepath](const char *filepath) {
+                                    STRNCPY_UTF8(win_filepath, filepath);
+                                  }) :
+                                  std::nullopt;
     std::string win_title = wm_window_title_text(wm, win, window_filepath_fn);
     wm_window_ghostwindow_add(wm, win_title.c_str(), win, is_dialog);
   }
