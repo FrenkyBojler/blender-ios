@@ -646,6 +646,7 @@ class RemoteAssetListingDownloader:
                 # TODO: delete any existing thumbnail?
                 continue
 
+            assert asset.file is not None, "This code only supports the 'file' attr, not 'files'"
             asset_file = file_map[asset.file]
 
             thumbnail_path = self._locator.thumbnail_download_path(asset, asset_file)

@@ -213,6 +213,17 @@ components:
           description: >
             Relative path of the file that contains this asset.
             This relative path is used to look up more file information in the asset library's list of files.
+
+            An asset MUST have either a 'file' or a 'files' property.
+        "files":
+          type: array
+          items: { type: string }
+          minItems: 1
+          description: >
+            Relative paths of the files that contain this asset.
+            These relative paths are used to look up more file information in the asset library's list of files.
+
+            An asset MUST have either a 'file' or a 'files' property.
         "thumbnail_url":
           type: string
           description: >
@@ -223,7 +234,7 @@ components:
       required:
         - "name"
         - "id_type"
-        - "file"
+
 
     AssetIDTypeV1:
       type: string

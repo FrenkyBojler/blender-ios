@@ -76,7 +76,8 @@ class AssetLibraryIndexV1:
 class AssetV1:
     name: str
     id_type: AssetIDTypeV1
-    file: str
+    file: Optional[str] = None
+    files: Optional[list[str]] = None
     thumbnail_url: Optional[str] = None
     meta: Optional[AssetMetadataV1] = None
 
@@ -265,7 +266,13 @@ OPENAPI_SPEC = {
                         '$ref': '#/components/schemas/AssetIDTypeV1'},
                     'file': {
                         'type': 'string',
-                        'description': "Relative path of the file that contains this asset. This relative path is used to look up more file information in the asset library's list of files.\n"},
+                        'description': "Relative path of the file that contains this asset. This relative path is used to look up more file information in the asset library's list of files.\nAn asset MUST have either a 'file' or a 'files' property.\n"},
+                    'files': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'string'},
+                        'minItems': 1,
+                        'description': "Relative paths of the files that contain this asset. These relative paths are used to look up more file information in the asset library's list of files.\nAn asset MUST have either a 'file' or a 'files' property.\n"},
                     'thumbnail_url': {
                         'type': 'string',
                         'description': "URL where a blend file containing this asset can be downloaded. If the URL is relative, it is to be interpreted as relative to the library's root URL.\n"},
@@ -273,8 +280,7 @@ OPENAPI_SPEC = {
                         '$ref': '#/components/schemas/AssetMetadataV1'}},
                 'required': [
                     'name',
-                    'id_type',
-                    'file']},
+                    'id_type']},
             'AssetIDTypeV1': {
                 'type': 'string',
                 'description': 'Type of the Blender data-block.',
