@@ -134,7 +134,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
                      falloff,
                      out_color,
                      matte);
-        output_color = Color(output_color);
+        output_color = Color(out_color);
       },
       mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
   builder.set_matching_fn(function);
