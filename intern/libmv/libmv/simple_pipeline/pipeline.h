@@ -24,8 +24,31 @@
 #include "libmv/simple_pipeline/callbacks.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/simple_pipeline/tracks.h"
+#include "libmv/simple_pipeline/camera_intrinsics.h"
 
 namespace libmv {
+
+namespace {
+struct EuclideanPipelineRoutines {
+  typedef EuclideanReconstruction Reconstruction;
+  typedef EuclideanCamera Camera;
+  typedef EuclideanPoint Point;
+
+  static void Bundle(const Tracks& tracks,
+                     EuclideanReconstruction* reconstruction);
+
+  static bool Resect(const vector<Marker>& markers,
+                     EuclideanReconstruction* reconstruction,
+                     bool final_pass);
+
+  static bool Intersect(const vector<Marker>& markers,
+                        EuclideanReconstruction* reconstruction);
+
+  static Marker ProjectMarker(const EuclideanPoint& point,
+                              const EuclideanCamera& camera,
+                              const CameraIntrinsics& intrinsics);
+};
+}
 
 /*!
     Estimate camera poses and scene 3D coordinates for all frames and tracks.

@@ -939,6 +939,13 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem solver_items[] = {
+    {TRACKING_MOTION_INCREMENTAL, "INCREMENTAL", 0, "Incremental", "Solve motion frame-by-frame"},
+    {TRACKING_MOTION_MODAL, "MODAL", 0, "Tripod", "Solve tripod motion"},
+    {TRACKING_MOTION_GLOBAL, "GLOBAL", 0, "Global", "Solve motion altogether"},
+    {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "MovieTrackingSettings", nullptr);
   RNA_def_struct_path_func(srna, "rna_trackingSettings_path");
   RNA_def_struct_ui_text(srna, "Movie tracking settings", "Match moving settings");
@@ -1029,13 +1036,14 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Action", "Cleanup action to execute");
 
   /* solver settings */
-  prop = RNA_def_property(srna, "use_tripod_solver", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "solver", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "solver");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "motion_flag", TRACKING_MOTION_TRIPOD);
+  RNA_def_property_enum_items(prop, solver_items);
   RNA_def_property_ui_text(
       prop,
-      "Tripod Motion",
-      "Use special solver to track a stable camera position, such as a tripod");
+      "Solver",
+      "Use a solver based on the type of motion in the scene");
 
   /* default_limit_frames */
   prop = RNA_def_property(srna, "default_frames_limit", PROP_INT, PROP_NONE);

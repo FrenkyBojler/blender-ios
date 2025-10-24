@@ -54,6 +54,10 @@ void EuclideanReconstruction::InsertCamera(int image,
   image_to_cameras_map_.insert(make_pair(image, camera));
 }
 
+void EuclideanReconstruction::RemoveCamera(int image) {
+  image_to_cameras_map_.erase(image);
+}
+
 void EuclideanReconstruction::InsertPoint(int track, const Vec3& X) {
   LG << "InsertPoint " << track << ":\n" << X;
   if (track >= points_.size()) {
@@ -110,6 +114,44 @@ vector<EuclideanPoint> EuclideanReconstruction::AllPoints() const {
     }
   }
   return points;
+}
+
+map<uint64_t, ImagePair> EuclideanReconstruction::AllImagePairs() const {
+  return image_pairs_;
+}
+
+/// Add an image pair to the reconstruction.
+void EuclideanReconstruction::InsertImagePair(ImagePair pair) {
+  uint64_t id;
+  if (pair.camera_id_1 > pair.camera_id_2) {
+    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) * pair.camera_id_2 + pair.camera_id_1;
+  } else {
+    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) * pair.camera_id_1 + pair.camera_id_2;
+  }
+  image_pairs_[id] = pair;
+}
+
+ImagePair* EuclideanReconstruction::ImagePairForImages(int camera_id_1, int camera_id_2) {
+  return const_cast<ImagePair*>(
+    static_cast<const EuclideanReconstruction*>(this)->ImagePairForImages(camera_id_1, camera_id_2));
+}
+
+const ImagePair* EuclideanReconstruction::ImagePairForImages(int camera_id_1, int camera_id_2) const {
+  uint64_t id;
+  if (camera_id_1 > camera_id_2) {
+    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) * camera_id_2 + camera_id_1;
+  } else {
+    id = static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) * camera_id_1 + camera_id_2;
+  }
+  if (image_pairs_.find(id) == image_pairs_.end()) {
+    return NULL;
+  }
+  const ImagePair* pair = &image_pairs_.at(id);
+  return pair;
+}
+
+void EuclideanReconstruction::RemoveImagePair(uint64_t pair_id) {
+  image_pairs_.erase(pair_id);
 }
 
 void ProjectiveReconstruction::InsertCamera(int image, const Mat34& P) {

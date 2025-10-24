@@ -16,6 +16,8 @@
 #include "libmv/simple_pipeline/reconstruction_scale.h"
 #include "libmv/simple_pipeline/tracks.h"
 
+#include "libmv/global_pipeline/global_pipeline.h"
+
 using libmv::CameraIntrinsics;
 using libmv::EuclideanCamera;
 using libmv::EuclideanPoint;
@@ -30,6 +32,8 @@ using libmv::EuclideanReconstructTwoFrames;
 using libmv::EuclideanReprojectionError;
 using libmv::PolynomialCameraIntrinsics;
 using libmv::Tracks;
+
+using libmv::GlobalCompleteReconstruction;
 
 struct libmv_Reconstruction {
   EuclideanReconstruction reconstruction;
@@ -287,6 +291,61 @@ libmv_Reconstruction* libmv_solveReconstruction(
   EuclideanBundle(normalized_tracks, &reconstruction);
   EuclideanCompleteReconstruction(
       normalized_tracks, &reconstruction, &update_callback);
+
+  /* Refinement. */
+  if (libmv_reconstruction_options->refine_intrinsics) {
+    libmv_solveRefineIntrinsics(tracks,
+                                libmv_reconstruction_options->refine_intrinsics,
+                                libmv::BUNDLE_NO_CONSTRAINTS,
+                                progress_update_callback,
+                                callback_customdata,
+                                &reconstruction,
+                                camera_intrinsics);
+  }
+
+  /* Set reconstruction scale to unity. */
+  EuclideanScaleToUnity(&reconstruction);
+
+  /* Finish reconstruction. */
+  finishReconstruction(tracks,
+                       *camera_intrinsics,
+                       libmv_reconstruction,
+                       progress_update_callback,
+                       callback_customdata);
+
+  libmv_reconstruction->is_valid = true;
+  return (libmv_Reconstruction*)libmv_reconstruction;
+}
+
+libmv_Reconstruction* libmv_solveGlobal(
+    const libmv_Tracks* libmv_tracks,
+    const libmv_CameraIntrinsicsOptions* libmv_camera_intrinsics_options,
+    libmv_ReconstructionOptions* libmv_reconstruction_options,
+    reconstruct_progress_update_cb progress_update_callback,
+    void* callback_customdata) {
+  libmv_Reconstruction* libmv_reconstruction =
+      LIBMV_OBJECT_NEW(libmv_Reconstruction);
+
+  Tracks& tracks = *((Tracks*)libmv_tracks);
+  EuclideanReconstruction& reconstruction =
+      libmv_reconstruction->reconstruction;
+
+  ReconstructUpdateCallback update_callback =
+      ReconstructUpdateCallback(progress_update_callback, callback_customdata);
+
+  /* Retrieve reconstruction options from C-API to libmv API. */
+  CameraIntrinsics* camera_intrinsics;
+  camera_intrinsics = libmv_reconstruction->intrinsics =
+      libmv_cameraIntrinsicsCreateFromOptions(libmv_camera_intrinsics_options);
+
+  /* Invert the camera intrinsics/ */
+  Tracks normalized_tracks;
+  libmv_getNormalizedTracks(tracks, *camera_intrinsics, &normalized_tracks);
+
+  /* Actual reconstruction. */
+  update_callback.invoke(0, "Initial reconstruction");
+
+  GlobalCompleteReconstruction(normalized_tracks, &reconstruction, camera_intrinsics, &update_callback);
 
   /* Refinement. */
   if (libmv_reconstruction_options->refine_intrinsics) {

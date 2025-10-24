@@ -530,14 +530,14 @@ class CLIP_PT_tools_solve(CLIP_PT_tracking_panel, Panel):
         camera = clip.tracking.camera
 
         col = layout.column()
-        col.prop(settings, "use_tripod_solver", text="Tripod")
+        col.prop(settings, "solver", text="Solver")
         col = layout.column()
-        col.active = not settings.use_tripod_solver
+        col.active = settings.solver == "INCREMENTAL"
         col.prop(settings, "use_keyframe_selection", text="Keyframe")
 
         col = layout.column(align=True)
         col.active = (
-            not settings.use_tripod_solver and
+            settings.solver == "INCREMENTAL" and
             not settings.use_keyframe_selection
         )
         col.prop(tracking_object, "keyframe_a")
@@ -1856,7 +1856,7 @@ class CLIP_MT_solving_pie(Menu):
         pie.operator("clip.solve_camera", text="Solve Camera", icon='OUTLINER_OB_CAMERA')
         # Use Tripod Solver
         if settings:
-            pie.prop(settings, "use_tripod_solver", text="Tripod Solver")
+            pie.prop(settings, "solver", text="Solver")
         # create Plane Track
         pie.operator("clip.create_plane_track", icon='MATPLANE')
         # Set Keyframe A

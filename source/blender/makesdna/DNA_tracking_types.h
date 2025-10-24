@@ -82,8 +82,9 @@ enum eTrackFrameMatch {
 };
 
 enum TrackingMotionFlag {
-  TRACKING_MOTION_TRIPOD = (1 << 0),
-  TRACKING_MOTION_MODAL = (TRACKING_MOTION_TRIPOD),
+  TRACKING_MOTION_INCREMENTAL = 0,
+  TRACKING_MOTION_MODAL = 1,
+  TRACKING_MOTION_GLOBAL = 2,
 };
 
 enum TrackingSpeed {
@@ -407,7 +408,7 @@ struct MovieTrackingSettings {
   float default_weight = 0;
 
   /** Flags describes motion type, #TrackingMotionFlag. */
-  short motion_flag = 0;
+  short solver = 0;
 
   /* ** common tracker settings ** */
   /** Speed of tracking, #TrackingSpeed. */

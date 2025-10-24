@@ -61,6 +61,18 @@ struct EuclideanPoint {
   Vec3 X;
 };
 
+struct ImagePair {
+  int camera_id_1;
+  int camera_id_2;
+
+  /// Rotation from camera_id_1 to camera_id_2.
+  Mat3 R;
+  /// Translation from camera_id_1 to camera_id_2.
+  Vec3 t;
+
+  double weight = -1;
+};
+
 /*!
     The EuclideanReconstruction class stores \link EuclideanCamera cameras
     \endlink and \link EuclideanPoint points \endlink.
@@ -95,6 +107,8 @@ class EuclideanReconstruction {
   */
   void InsertCamera(int image, const Mat3& R, const Vec3& t);
 
+  void RemoveCamera(int image);
+
   /*!
       Insert a point into the reconstruction. If there is already a point for
       the given \a track, the existing point is replaced. If there is no point
@@ -121,6 +135,17 @@ class EuclideanReconstruction {
   /// Returns all points.
   vector<EuclideanPoint> AllPoints() const;
 
+  /// Returns all image pairs.
+  map<uint64_t, ImagePair> AllImagePairs() const;
+
+  /// Add an image pair to the reconstruction.
+  void InsertImagePair(ImagePair pair);
+
+  ImagePair* ImagePairForImages(int camera_id_1, int camera_id_2);
+  const ImagePair* ImagePairForImages(int camera_id_1, int camera_id_2) const;
+
+  void RemoveImagePair(uint64_t pair_id);
+
  private:
   // Indexed by frame number.
   typedef map<int, EuclideanCamera> ImageToCameraMap;
@@ -128,6 +153,8 @@ class EuclideanReconstruction {
 
   // Insxed by track.
   vector<EuclideanPoint> points_;
+
+  map<uint64_t, ImagePair> image_pairs_;
 };
 
 /*!

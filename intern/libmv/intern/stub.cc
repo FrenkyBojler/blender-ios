@@ -107,6 +107,15 @@ libmv_Reconstruction* libmv_solveReconstruction(
   return NULL;
 }
 
+libmv_Reconstruction* libmv_solveGlobal(
+    const libmv_Tracks* /*libmv_tracks*/,
+    const libmv_CameraIntrinsicsOptions* /*libmv_camera_intrinsics_options*/,
+    libmv_ReconstructionOptions* /*libmv_reconstruction_options*/,
+    reconstruct_progress_update_cb /*progress_update_callback*/,
+    void* /*callback_customdata*/) {
+  return NULL;
+}
+
 libmv_Reconstruction* libmv_solveModal(
     const libmv_Tracks* /*libmv_tracks*/,
     const libmv_CameraIntrinsicsOptions* /*libmv_camera_intrinsics_options*/,

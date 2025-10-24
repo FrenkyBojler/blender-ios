@@ -41,7 +41,7 @@ struct MovieReconstructContext {
   libmv_Reconstruction *reconstruction;
 
   char object_name[MAX_NAME];
-  TrackingMotionFlag motion_flag;
+  TrackingMotionFlag solver;
 
   libmv_CameraIntrinsicsOptions camera_intrinsics_options;
 
@@ -298,7 +298,7 @@ bool BKE_tracking_reconstruction_check(MovieTracking *tracking,
                                        char *error_msg,
                                        int error_size)
 {
-  if (tracking->settings.motion_flag & TRACKING_MOTION_MODAL) {
+  if (tracking->settings.solver != TRACKING_MOTION_INCREMENTAL) {
     /* TODO: check for number of tracks? */
     return true;
   }
@@ -339,7 +339,8 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(
   int sfra = INT_MAX, efra = INT_MIN;
 
   STRNCPY_UTF8(context->object_name, tracking_object->name);
-  context->motion_flag = TrackingMotionFlag(tracking->settings.motion_flag);
+
+  context->solver = TrackingMotionFlag(tracking->settings.solver);
 
   context->select_keyframes = (tracking->settings.reconstruction_flag &
                                TRACKING_USE_KEYFRAME_SELECTION) != 0;
@@ -465,24 +466,36 @@ void BKE_tracking_reconstruction_solve(MovieReconstructContext *context,
 
   reconstructionOptionsFromContext(&reconstruction_options, context);
 
-  if (context->motion_flag & TRACKING_MOTION_MODAL) {
-    context->reconstruction = libmv_solveModal(context->tracks,
-                                               &context->camera_intrinsics_options,
-                                               &reconstruction_options,
-                                               reconstruct_update_solve_cb,
-                                               &progressdata);
-  }
-  else {
-    context->reconstruction = libmv_solveReconstruction(context->tracks,
-                                                        &context->camera_intrinsics_options,
-                                                        &reconstruction_options,
-                                                        reconstruct_update_solve_cb,
-                                                        &progressdata);
+  switch (context->solver) {
+    case TRACKING_MOTION_MODAL: {
+      context->reconstruction = libmv_solveModal(context->tracks,
+                                                 &context->camera_intrinsics_options,
+                                                 &reconstruction_options,
+                                                 reconstruct_update_solve_cb,
+                                                 &progressdata);
+      break;
+    }
+    case TRACKING_MOTION_INCREMENTAL: {
+      context->reconstruction = libmv_solveReconstruction(context->tracks,
+                                                          &context->camera_intrinsics_options,
+                                                          &reconstruction_options,
+                                                          reconstruct_update_solve_cb,
+                                                          &progressdata);
 
-    if (context->select_keyframes) {
-      /* store actual keyframes used for reconstruction to update them in the interface later */
-      context->keyframe1 = reconstruction_options.keyframe1;
-      context->keyframe2 = reconstruction_options.keyframe2;
+      if (context->select_keyframes) {
+        /* store actual keyframes used for reconstruction to update them in the interface later */
+        context->keyframe1 = reconstruction_options.keyframe1;
+        context->keyframe2 = reconstruction_options.keyframe2;
+      }
+      break;
+    }
+    case TRACKING_MOTION_GLOBAL: {
+      context->reconstruction = libmv_solveGlobal(context->tracks,
+                                                  &context->camera_intrinsics_options,
+                                                  &reconstruction_options,
+                                                  reconstruct_update_solve_cb,
+                                                  &progressdata);
+      break;
     }
   }
 
