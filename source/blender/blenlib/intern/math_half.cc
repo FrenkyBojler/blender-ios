@@ -7,7 +7,6 @@
  */
 
 #include "BLI_math_half.hh"
-#include "BLI_task.hh"
 
 #if defined(__ARM_NEON)
 /* Use ARM FP16 conversion instructions */
