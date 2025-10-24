@@ -380,7 +380,8 @@ static std::string ctx_result_brief_repr(const bContextDataResult &result)
 /** Simple logging for context data results. */
 static void ctx_member_log_access(const bContext *C,
                                   const char *member,
-                                  const bContextDataResult &result)
+                                  const bContextDataResult &result,
+                                  const eContextResult lookup_result)
 {
   const bool use_logging = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE) ||
                            (C && CTX_member_logging_get(C));
@@ -392,30 +393,9 @@ static void ctx_member_log_access(const bContext *C,
   std::string value_repr = ctx_result_brief_repr(result);
   const char *value_desc = value_repr.c_str();
 
-  /* If hiding missing values is enabled and the result represents None/missing, skip logging. */
+  /* If hiding missing is enabled and the member was not found, skip logging. */
   if (C && C->data.log_hide_missing) {
-    bool is_missing = false;
-    switch (result.type) {
-      case ContextDataType::Pointer:
-        if (result.ptr.data == nullptr) {
-          is_missing = true;
-        }
-        break;
-      case ContextDataType::Collection:
-        if (result.list.is_empty()) {
-          is_missing = true;
-        }
-        break;
-      case ContextDataType::String:
-        if (result.str.is_empty()) {
-          is_missing = true;
-        }
-        break;
-      default:
-        break;
-    }
-
-    if (is_missing) {
+    if (lookup_result == CTX_RESULT_MEMBER_NOT_FOUND) {
       return;
     }
   }
@@ -470,7 +450,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
       }
 
       /* Log context member access directly without storing a copy. */
-      ctx_member_log_access(C, member, result);
+      ctx_member_log_access(C, member, result, CTX_RESULT_OK);
     }
   }
 #else
@@ -487,7 +467,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
     return_data = fall_through;
 
     /* Log fallback context member access. */
-    ctx_member_log_access(C, member, fallback_result);
+    ctx_member_log_access(C, member, fallback_result, CTX_RESULT_MEMBER_NOT_FOUND);
   }
 
   /* Don't allow UI context access from non-main threads. */
@@ -514,7 +494,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   if (CTX_py_dict_get(C)) {
     if (BPY_context_member_get(C, member, result)) {
       /* Log the Python context result if we're in a temp_override. */
-      ctx_member_log_access(C, member, *result);
+      ctx_member_log_access(C, member, *result, CTX_RESULT_OK);
       return CTX_RESULT_OK;
     }
   }
@@ -590,7 +570,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
 
   /* Log context result if we're in a temp_override and we got a successful or no-data result. */
   if (ELEM(final_result, CTX_RESULT_OK, CTX_RESULT_NO_DATA)) {
-    ctx_member_log_access(C, member, *result);
+    ctx_member_log_access(C, member, *result, final_result);
   }
 
   return final_result;
