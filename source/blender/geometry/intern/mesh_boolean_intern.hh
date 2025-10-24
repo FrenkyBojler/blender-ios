@@ -47,20 +47,19 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
                                    Span<int> out_to_in_corner_map,
                                    Span<int> out_to_in_face_map);
 
-void copy_attribute_using_map(const GSpan src, const Span<int> out_to_in_map, GMutableSpan dst);
+void copy_attribute_using_map(GSpan src, Span<int> out_to_in_map, GMutableSpan dst);
 
 /**
  * The \a dst span should be the material_index property of the result.
  * Rather than using the attribute from the joined mesh, we want to take
  * the original face and map it using \a material_remaps.
  */
-void set_material_from_map(const Span<int> out_to_in_map,
-                           const Span<Array<short>> material_remaps,
-                           const Span<const Mesh *> meshes,
+void set_material_from_map(Span<int> out_to_in_map,
+                           Span<Array<short>> material_remaps,
+                           Span<const Mesh *> meshes,
                            const MeshOffsets &mesh_offsets,
-                           const MutableSpan<int> dst);
+                           MutableSpan<int> dst);
 
-bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> meshes,
-                                             const Span<float4x4> transforms);
+bke::GeometrySet join_meshes_with_transforms(Span<const Mesh *> meshes, Span<float4x4> transforms);
 
 }  // namespace blender::geometry::boolean
