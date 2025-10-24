@@ -7,31 +7,36 @@ BF_PROGRAM="blender"
 # while Blender is already using an older one.
 
 # Library name with major version that we needed.
-TBB_LIB_NAME=$(basename $(readlink ${BF_DIST_BIN}/lib/libtbb.so))
+BF_TBB_LIB_NAME=$(readlink ${BF_DIST_BIN}/lib/libtbb.so)
 
-# Get absolute path from LD_DEBUG output trying to preload this library.
-# We have not found a better alternative that takes into account LD_LIBRARY_PATH.
-# TODO: relying on particular LD_DEBUG output syntax is weak
-TBB_LD_OUTPUT=$(LD_DEBUG=versions LD_PRELOAD="$TBB_LIB_NAME" /bin/true 2>&1 >/dev/null)
-# TODO: Can we rely on the existence of sed?
-TBB_LIB_PATH=$(echo "$TBB_LD_OUTPUT" |
-	grep "calling init:" |
-	grep "$TBB_LIB_NAME" |
-	sed -n "s/.*calling init: \([^[:space:]]\+\).*\/$TBB_LIB_NAME$/\1/p")
+if [ -n "$BF_TBB_LIB_NAME" ]; then
+	BF_TBB_LIB_NAME=$(basename $BF_TBB_LIB_NAME)
+	# Get absolute path from LD_DEBUG output trying to preload this library.
+	# We have not found a better alternative that takes into account LD_LIBRARY_PATH.
+	BF_TBB_LD_OUTPUT=$(LD_DEBUG=versions LD_PRELOAD="$BF_TBB_LIB_NAME" /bin/true 2>&1 >/dev/null)
+	BF_TBB_LIB_PATH=$(echo "$BF_TBB_LD_OUTPUT" |
+		grep "calling init:" |
+		grep "$BF_TBB_LIB_NAME" |
+		(sed -n "s/.*calling init: \([^[:space:]]\+\).*\/$BF_TBB_LIB_NAME$/\1/p" 2>/dev/null))
+fi
 
-if [ -n "$TBB_LIB_PATH" ]; then
+if [ -n "$BF_TBB_LIB_PATH" ]; then
 	# If the library exists, compare its version to the one we bundle.
-	TBB_SYSTEM_NAME=$(basename $(readlink $TBB_LIB_PATH/$TBB_LIB_NAME))
-	TBB_BUNDLED_NAME=$(basename $(readlink $BF_DIST_BIN/lib/$TBB_LIB_NAME))
-	# TODO: Relying on GNU sort is not portable, especially since this script may also run on BSD.
-	TBB_NEWEST_NAME=$(printf "%s\n%s\n" "$TBB_SYSTEM_NAME" "$TBB_BUNDLED_NAME" | sort -V | tail -n 1)
-
-	# If the system TBB version is newer, preload it.
-	if [ "$TBB_SYSTEM_NAME" = "$TBB_NEWEST_NAME" ]; then
-		BLENDER_RESTORE_LD_PRELOAD=${LD_PRELOAD}
-		LD_PRELOAD=$TBB_LIB_PATH/$TBB_LIB_NAME:${LD_PRELOAD}
-		export BLENDER_RESTORE_LD_PRELOAD
-		export LD_PRELOAD
+	BF_TBB_SYSTEM_NAME=$(readlink $BF_TBB_LIB_PATH/$BF_TBB_LIB_NAME)
+	BF_TBB_BUNDLED_NAME=$(readlink $BF_DIST_BIN/lib/$BF_TBB_LIB_NAME)
+	if [ -n "$BF_TBB_SYSTEM_NAME" ] && [ -n "$BF_TBB_BUNDLED_NAME" ]; then
+		BF_TBB_SYSTEM_NAME=$(basename $BF_TBB_SYSTEM_NAME)
+		BF_TBB_BUNDLED_NAME=$(basename $BF_TBB_BUNDLED_NAME)
+		BF_TBB_NEWEST_NAME=$(printf "%s\n%s\n" "$BF_TBB_SYSTEM_NAME" "$BF_TBB_BUNDLED_NAME" |
+			(sort -V 2>/dev/null) |
+			(tail -n 1 2>/dev/null))
+		# If the system TBB version is newer, preload it.
+		if [ "$BF_TBB_SYSTEM_NAME" = "$BF_TBB_NEWEST_NAME" ]; then
+			BLENDER_RESTORE_LD_PRELOAD=${LD_PRELOAD}
+			LD_PRELOAD=$BF_TBB_LIB_PATH/$BF_TBB_LIB_NAME:${LD_PRELOAD}
+			export BLENDER_RESTORE_LD_PRELOAD
+			export LD_PRELOAD
+		fi
 	fi
 fi
 
