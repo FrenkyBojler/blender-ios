@@ -155,6 +155,9 @@ struct GWL_LibDecor_Window {
   /** The window has been configured (see #xdg_surface_ack_configure). */
   bool initial_configure_seen = false;
 
+  /** When true, refresh the title to trigger a window update. */
+  bool force_refresh_hack = false;
+
   std::optional<GHOST_TWindowState> initial_configure_state = std::nullopt;
 };
 
@@ -1035,6 +1038,8 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
       decor.pending.size[0] = 0;
       decor.pending.size[1] = 0;
 
+      bool force_refresh_hack = decor.force_refresh_hack;
+
       if (decor.initial_configure_seen == false) {
         decor.initial_configure_seen = true;
         if (decor.initial_configure_state) {
@@ -1058,12 +1063,15 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
            * committing the surface resolves the problem. */
           if (((state == state_current) && (state == GHOST_kWindowStateNormal))) {
             /* Ensure the title changes. */
-            const std::string &title = win->title;
-            const char *title_swap = " ";
-            libdecor_frame_set_title(decor.frame, title_swap + (title.empty() ? 0 : 1));
-            libdecor_frame_set_title(decor.frame, title.c_str());
+            force_refresh_hack = true;
           }
         }
+      }
+      if (force_refresh_hack) {
+        const std::string &title = win->title;
+        const char *title_swap = " ";
+        libdecor_frame_set_title(decor.frame, title_swap + (title.empty() ? 0 : 1));
+        libdecor_frame_set_title(decor.frame, title.c_str());
       }
 
 #  ifdef USE_LIBDECOR_CONFIG_COPY_WORKAROUND
@@ -1577,6 +1585,13 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
       }
     }
 #  endif /* USE_LIBDECOR_CONFIG_COPY_QUEUE */
+
+    /* Needed window update for GNOME-48, see #148274. */
+    if (frame_pending.is_fullscreen != win->frame.is_fullscreen ||
+        frame_pending.is_maximised != win->frame.is_maximised)
+    {
+      decor.force_refresh_hack = true;
+    }
   }
 
   /* Apply & commit the changes. */
