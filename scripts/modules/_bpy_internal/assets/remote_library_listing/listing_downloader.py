@@ -350,8 +350,17 @@ class RemoteAssetListingDownloader:
             assert bpy.app.timers.is_registered(self.on_timer_event)
 
         # Kickstart the download process by downloading the remote asset meta file:
-        self._queue_download(
+        from bl_pkg import bl_extension_utils
+        query_params = {
+            "platform": bl_extension_utils.platform_from_this_system(),
+            "blender_version": "{:d}.{:d}.{:d}".format(*bpy.app.version),
+        }
+        metadata_url = "{!s}?{!s}".format(
             listing_common.ASSET_TOP_METADATA_FILENAME,
+            urllib.parse.urlencode(query_params)
+        )
+        self._queue_download(
+            metadata_url,
             http_metadata.safe_to_unsafe_filename(listing_common.ASSET_TOP_METADATA_FILENAME),
             self.parse_asset_lib_metadata,
         )
