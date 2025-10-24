@@ -20,8 +20,6 @@ import bpy
 
 from bpy.app.translations import pgettext_rpt as rpt_
 
-from .bl_extension_utils import CommandBatch_StatusFlag, CommandBatchItem
-
 # Request the processes exit, then wait for them to exit.
 # NOTE(@ideasman42): This is all well and good but any delays exiting are unwanted,
 # only keep this as a reference and in case we can speed up forcing them to exit.
@@ -393,13 +391,15 @@ class NotifyHandle:
         return update_count
 
     @staticmethod
-    def calc_status_text_icon_from_data(
-            status_data: CommandBatch_StatusFlag,
-            update_count: int,
+    def _calc_status_text_icon_from_data(
+            status_data,  # CommandBatch_StatusFlag
+            update_count,  # int
     ) -> tuple[str, str]:
         # Generate a nice UI string for a status-bar & splash screen (must be short).
         #
         # FIXME: this text assumed a "sync" operation.
+        from .bl_extension_utils import CommandBatchItem
+
         if status_data.failure_count == 0:
             fail_text = ""
         elif status_data.failure_count == status_data.count:
@@ -427,7 +427,7 @@ class NotifyHandle:
         if self.sync_info is None:
             return rpt_("Checking for Extension Updates"), 'SORTTIME', WM_EXTENSIONS_UPDATE_CHECKING
         status_data, update_count, extra_warnings = self.sync_info
-        text, icon = self.calc_status_text_icon_from_data(
+        text, icon = self._calc_status_text_icon_from_data(
             status_data, update_count,
         )
         # Not more than 1-2 of these (failed to lock, some repositories offline .. etc).
