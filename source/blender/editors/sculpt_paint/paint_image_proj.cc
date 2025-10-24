@@ -4065,7 +4065,7 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
     return false;
   }
 
-  if (!ps->mesh_eval->uv_map_names().is_empty()) {
+  if (ps->mesh_eval->uv_map_names().is_empty()) {
     ps->mesh_eval = nullptr;
     return false;
   }

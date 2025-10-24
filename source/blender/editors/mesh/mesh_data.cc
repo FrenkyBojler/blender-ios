@@ -436,9 +436,8 @@ static bool uv_texture_remove_poll(bContext *C)
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   const StringRef active_name = mesh->active_uv_map_name();
   if (mesh->runtime->edit_mesh) {
-    if (CustomData_has_layer_named(
-            &mesh->runtime->edit_mesh->bm->ldata, CD_PROP_FLOAT2, active_name))
-    {
+    const BMesh &bm = *mesh->runtime->edit_mesh->bm;
+    if (!CustomData_has_layer_named(&bm.ldata, CD_PROP_FLOAT2, active_name)) {
       return false;
     }
   }
