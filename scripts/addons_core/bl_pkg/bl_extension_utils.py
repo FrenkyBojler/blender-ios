@@ -1109,40 +1109,6 @@ class CommandBatch:
             count=len(self._batch),
         )
 
-    @staticmethod
-    def calc_status_text_icon_from_data(
-            status_data: CommandBatch_StatusFlag,
-            update_count: int,
-    ) -> tuple[str, str]:
-        # Generate a nice UI string for a status-bar & splash screen (must be short).
-        #
-        # NOTE: this is (arguably) UI logic, it's just nice to have it here
-        # as it avoids using low-level flags externally.
-        #
-        # FIXME: this text assumed a "sync" operation.
-        if status_data.failure_count == 0:
-            fail_text = ""
-        elif status_data.failure_count == status_data.count:
-            fail_text = ", failed"
-        else:
-            fail_text = ", some actions failed"
-
-        if (
-                status_data.flag == (1 << CommandBatchItem.STATUS_NOT_YET_STARTED) or
-                status_data.flag & (1 << CommandBatchItem.STATUS_RUNNING)
-        ):
-            return "Checking for Extension Updates{:s}".format(fail_text), 'SORTTIME'
-
-        if status_data.flag == 1 << CommandBatchItem.STATUS_COMPLETE:
-            if update_count > 0:
-                # NOTE: the UI design in #120612 has the number of extensions available in icon.
-                # Include in the text as this is not yet supported.
-                return "Extensions Updates Available ({:d}){:s}".format(update_count, fail_text), 'INTERNET'
-            return "All Extensions Up-to-date{:s}".format(fail_text), 'CHECKMARK'
-
-        # Should never reach this line!
-        return "Internal error, unknown state!{:s}".format(fail_text), 'ERROR'
-
     def calc_status_log_or_none(self) -> list[tuple[str, str]] | None:
         """
         Return the log or None if there were no changes since the last call.
