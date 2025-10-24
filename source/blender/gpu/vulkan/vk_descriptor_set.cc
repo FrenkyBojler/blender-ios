@@ -43,7 +43,6 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
 
 void VKDescriptorSetTracker::upload_descriptor_sets()
 {
-  VKDevice &device = VKBackend::get().device;
   descriptor_sets.upload_descriptor_sets();
   vk_descriptor_set_layout_ = VK_NULL_HANDLE;
 }

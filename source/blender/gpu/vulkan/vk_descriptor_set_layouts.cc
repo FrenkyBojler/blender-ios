@@ -90,11 +90,4 @@ void VKDescriptorSetLayouts::deinit()
   vk_descriptor_set_layouts_.clear();
 }
 
-static void align_size(VkDeviceSize &r_size, VkDeviceSize alignment)
-{
-  if (alignment > 1) {
-    r_size = (r_size + alignment - 1) & ~(alignment - 1);
-  }
-}
-
 }  // namespace blender::gpu

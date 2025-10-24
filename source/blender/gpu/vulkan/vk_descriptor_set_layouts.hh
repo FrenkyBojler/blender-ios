@@ -67,24 +67,6 @@ template<> struct DefaultHash<gpu::VKDescriptorSetLayoutInfo> {
 
 namespace blender::gpu {
 
-struct VKDescriptorBufferLayout {
-  /**
-   * Total size of the descriptor buffer.
-   *
-   * Size is aligned to
-   * VkPhysicalDeviceDescriptorBufferProperties.descriptorBufferOffsetAlignment.
-   */
-  VkDeviceSize size;
-
-  /**
-   * Offsets of each binding inside the buffer.
-   *
-   * Offsets are aligned to
-   * VkPhysicalDeviceDescriptorBufferProperties.descriptorBufferOffsetAlignment.
-   */
-  Vector<VkDeviceSize> binding_offsets;
-};
-
 /**
  * Registries of descriptor set layouts.
  */
@@ -96,7 +78,6 @@ class VKDescriptorSetLayouts : NonCopyable {
    * Map containing all created descriptor set layouts.
    */
   Map<VKDescriptorSetLayoutInfo, VkDescriptorSetLayout> vk_descriptor_set_layouts_;
-  Map<VkDescriptorSetLayout, VKDescriptorBufferLayout> descriptor_buffer_layouts_;
 
   /**
    * Reusable descriptor set layout create info.

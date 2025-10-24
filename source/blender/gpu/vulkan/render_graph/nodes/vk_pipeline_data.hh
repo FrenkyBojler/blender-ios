@@ -72,8 +72,6 @@ struct VKPipelineDataGraphics {
 struct VKBoundPipeline {
   VkPipeline vk_pipeline;
   VkDescriptorSet vk_descriptor_set;
-  VkDeviceAddress descriptor_buffer_device_address;
-  VkDeviceSize descriptor_buffer_offset;
 };
 
 struct VKIndexBufferBinding {
