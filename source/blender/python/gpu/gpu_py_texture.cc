@@ -357,7 +357,7 @@ static PyObject *pygpu_texture_format_get(BPyGPUTexture *self, void * /*type*/)
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_extend_mode_x_doc,
-    ".. method:: extend_mode_x(extend_mode='BOOL')\n"
+    ".. method:: extend_mode_x(extend_mode=`EXTEND`)\n"
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along the x "
     "axis.\n"
@@ -382,7 +382,7 @@ static PyObject *pygpu_texture_extend_mode_x(BPyGPUTexture *self, PyObject *valu
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_extend_mode_y_doc,
-    ".. method:: extend_mode_y(extend_mode='BOOL')\n"
+    ".. method:: extend_mode_y(extend_mode=`EXTEND`)\n"
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along the y "
     "axis.\n"
@@ -407,7 +407,7 @@ static PyObject *pygpu_texture_extend_mode_y(BPyGPUTexture *self, PyObject *valu
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_extend_mode_doc,
-    ".. method:: extend_mode(extend_mode='BOOL')\n"
+    ".. method:: extend_mode(extend_mode=`EXTEND`)\n"
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along\n"
     "   both the x and y axis.\n"
@@ -432,37 +432,37 @@ static PyObject *pygpu_texture_extend_mode(BPyGPUTexture *self, PyObject *value)
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_filter_mode_doc,
-    ".. method:: filter_mode(use_filter='BOOL')\n"
+    ".. method:: filter_mode(use_filter)\n"
     "\n"
     "   Set texture filter usage.\n"
     "\n"
-    "   :arg use_filter: If set to true, the texture will use linear interpolation between\n"
-    "      neighboring texels."
+    "   :arg use_filter: If set to true, the texture will use linear interpolation between "
+    "neighboring texels.\n"
     "   :type use_filter: bool\n");
 static PyObject *pygpu_texture_filter_mode(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
 
-  bool texture_use_filter;
-  if (!PyC_ParseBool(value, &texture_use_filter)) {
+  bool use_filter;
+  if (!PyC_ParseBool(value, &use_filter)) {
     return nullptr;
   }
 
-  GPU_texture_filter_mode(self->tex, texture_use_filter);
+  GPU_texture_filter_mode(self->tex, use_filter);
   Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_mipmap_mode_doc,
-    ".. method:: mipmap_mode(use_mipmap, use_filter)\n"
+    ".. method:: mipmap_mode(use_mipmap=True, use_filter=True)\n"
     "\n"
     "   Set texture filter and mip-map usage.\n"
     "\n"
     "   :arg use_mipmap: If set to true, the texture will use mip-mapping as anti-aliasing "
     "method.\n"
     "   :type use_mipmap: bool\n"
-    "   :arg use_filter: If set to true, the texture will use linear interpolation between\n"
+    "   :arg use_filter: If set to true, the texture will use linear interpolation between "
     "neighboring texels.\n"
     "   :type use_filter: bool\n");
 static PyObject *pygpu_texture_mipmap_mode(BPyGPUTexture *self, PyObject *args, PyObject *kwds)
@@ -493,23 +493,22 @@ static PyObject *pygpu_texture_mipmap_mode(BPyGPUTexture *self, PyObject *args, 
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_anisotropic_filter_doc,
-    ".. method:: anisotropic_filter(use_filter=)\n"
+    ".. method:: anisotropic_filter(use_anisotropic)\n"
     "\n"
-    "   Set anisotropic filter usage.\n"
+    "   Set anisotropic filter usage. This only has effect if mipmapping is enabled.\n"
     "\n"
-    "   :arg use_anisotropic: If set to true, the texture will use anisotropic filtering as\n"
-    "anti-aliasing method."
+    "   :arg use_anisotropic: If set to true, the texture will use anisotropic filtering.\n"
     "   :type use_anisotropic: bool\n");
 static PyObject *pygpu_texture_anisotropic_filter(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
 
-  bool texture_use_anisotropic;
-  if (!PyC_ParseBool(value, &texture_use_anisotropic)) {
+  bool use_anisotropic;
+  if (!PyC_ParseBool(value, &use_anisotropic)) {
     return nullptr;
   }
 
-  GPU_texture_anisotropic_filter(self->tex, texture_use_anisotropic);
+  GPU_texture_anisotropic_filter(self->tex, use_anisotropic);
   Py_RETURN_NONE;
 }
 
@@ -753,7 +752,7 @@ PyDoc_STRVAR(
     ".. class:: GPUTexture(size, *, layers=0, is_cubemap=False, format='RGBA8', "
     "data=None)\n"
     "\n"
-    "   This object gives access to off GPU textures.\n"
+    "   This object gives access to GPU textures.\n"
     "\n"
     "   :arg size: Dimensions of the texture 1D, 2D, 3D or cubemap.\n"
     "   :type size: int | Sequence[int]\n"
