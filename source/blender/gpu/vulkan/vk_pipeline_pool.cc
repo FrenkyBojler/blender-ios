@@ -176,7 +176,6 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(VKComputeInfo &compute
                                                           VkPipeline vk_pipeline_base,
                                                           StringRefNull name)
 {
-  /* Perform strategic of this function based on the compilation state. */
   bool wait_for_pipeline = false;
   bool do_compile_pipeline = false;
   {
@@ -289,17 +288,14 @@ VkPipeline VKPipelinePool::wait_for_compute_pipeline(VKComputeInfo &compute_info
 {
   CLOG_TRACE(
       &LOG, "Waiting for another thread to finish compiling compute pipeline %s", name.c_str());
-  while (true) {
-    std::unique_lock<Mutex> lock(compute_.new_pipeline_added_mutex);
-    compute_.new_pipeline_added.wait(lock);
-    {
-      std::scoped_lock lock(compute_.mutex);
-      const VkPipeline *found_pipeline = compute_.pipelines.lookup_ptr(compute_info);
-      if (*found_pipeline != VK_NULL_HANDLE) {
-        return *found_pipeline;
-      }
-    }
-  }
+  std::unique_lock<Mutex> lock(compute_.mutex);
+  const VkPipeline *pipeline = VK_NULL_HANDLE;
+  compute_.new_pipeline_added.wait(lock, [&]() {
+    pipeline = compute_.pipelines.lookup_ptr(compute_info);
+    return pipeline != VK_NULL_HANDLE;
+  });
+
+  return *pipeline;
 }
 
 /* \} */

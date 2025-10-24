@@ -286,7 +286,6 @@ class VKPipelinePool : public NonCopyable {
     Map<VKComputeInfo, VkPipeline> pipelines;
     Mutex mutex;
     std::condition_variable_any new_pipeline_added;
-    Mutex new_pipeline_added_mutex;
   } compute_;
 
  public:
