@@ -1260,7 +1260,8 @@ static void bm_to_mesh_verts(const BMesh &bm,
   CustomData_free_layer_named(&mesh.vert_data, "position");
   CustomData_add_layer_named(
       &mesh.vert_data, CD_PROP_FLOAT3, CD_CONSTRUCT, mesh.verts_num, "position");
-  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(bm.vdata, mesh.vert_data);
+  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
+      bm.vdata, bke::AttrDomain::Point, mesh.attribute_storage.wrap(), mesh.vert_data);
   MutableSpan<float3> dst_vert_positions = mesh.vert_positions_for_write();
 
   std::atomic<bool> any_loose_vert = false;
@@ -1302,7 +1303,8 @@ static void bm_to_mesh_edges(const BMesh &bm,
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   attributes.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
-  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(bm.edata, mesh.edge_data);
+  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
+      bm.edata, bke::AttrDomain::Edge, mesh.attribute_storage.wrap(), mesh.edge_data);
   MutableSpan<int2> dst_edges = mesh.edges_for_write();
 
   std::atomic<bool> any_loose_edge = false;
@@ -1354,7 +1356,8 @@ static void bm_to_mesh_faces(const BMesh &bm,
                              MutableSpan<int> material_indices)
 {
   BKE_mesh_face_offsets_ensure_alloc(&mesh);
-  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(bm.pdata, mesh.face_data);
+  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
+      bm.pdata, bke::AttrDomain::Face, mesh.attribute_storage.wrap(), mesh.face_data);
   MutableSpan<int> dst_face_offsets = mesh.face_offsets_for_write();
   threading::parallel_for(bm_faces.index_range(), 1024, [&](const IndexRange range) {
     for (const int face_i : range) {
@@ -1400,7 +1403,8 @@ static void bm_to_mesh_loops(const BMesh &bm,
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
   attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(bm.ldata, mesh.corner_data);
+  const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
+      bm.ldata, bke::AttrDomain::Corner, mesh.attribute_storage.wrap(), mesh.corner_data);
 
   MutableSpan<int> dst_corner_verts = mesh.corner_verts_for_write();
   MutableSpan<int> dst_corner_edges = mesh.corner_edges_for_write();
