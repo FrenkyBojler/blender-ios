@@ -118,6 +118,7 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
 
   /** Sub layout to add child items, if not the layout itself. */
   uiLayout *child_items_layout_ = nullptr;
+
   int x_ = 0, y_ = 0, w_ = 0, h_ = 0;
 
   float scale_[2] = {0.0f, 0.0f};
@@ -704,7 +705,6 @@ struct uiLayout : public uiItem, blender::NonCopyable, blender::NonMovable {
   [[nodiscard]] blender::ui::EmbossType emboss_or_undefined() const;
   [[nodiscard]] blender::int2 size() const;
   [[nodiscard]] blender::int2 offset() const;
-
 
  protected:
   void estimate();
