@@ -181,7 +181,7 @@ class FilterOperation : public NodeOperation {
 
         /* Mix the channel-wise magnitude with the original color at the center of the kernel using
          * the input factor. */
-        float4 color = input.load_pixel<float4>(texel);
+        float4 color = float4(input.load_pixel<Color>(texel));
         magnitude = math::interpolate(
             color.xyz(), magnitude, factor.load_pixel<float, true>(texel));
 
@@ -202,7 +202,7 @@ class FilterOperation : public NodeOperation {
 
         /* Mix with the original color at the center of the kernel using the input factor. */
         color = math::interpolate(
-            input.load_pixel<float4>(texel), color, factor.load_pixel<float, true>(texel));
+            float4(input.load_pixel<Color>(texel)), color, factor.load_pixel<float, true>(texel));
 
         /* Store the color making sure it is not negative. */
         output.store_pixel(texel, Color(math::max(color, float4(0.0f))));

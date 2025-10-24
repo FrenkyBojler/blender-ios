@@ -197,8 +197,8 @@ class ZCombineOperation : public NodeOperation {
     if (combined.should_compute()) {
       combined.allocate_texture(domain);
       parallel_for(domain.size, [&](const int2 texel) {
-        float4 first_color = first.load_pixel<float4, true>(texel);
-        float4 second_color = second.load_pixel<float4, true>(texel);
+        float4 first_color = float4(first.load_pixel<Color, true>(texel));
+        float4 second_color = float4(second.load_pixel<Color, true>(texel));
         float first_z_value = first_z.load_pixel<float, true>(texel);
         float second_z_value = second_z.load_pixel<float, true>(texel);
 
@@ -321,8 +321,8 @@ class ZCombineOperation : public NodeOperation {
     if (combined.should_compute()) {
       combined.allocate_texture(domain);
       parallel_for(domain.size, [&](const int2 texel) {
-        float4 first_color = first.load_pixel<float4, true>(texel);
-        float4 second_color = second.load_pixel<float4, true>(texel);
+        float4 first_color = float4(first.load_pixel<Color, true>(texel));
+        float4 second_color = float4(second.load_pixel<Color, true>(texel));
         float mask_value = mask.load_pixel<float>(texel);
 
         /* Choose the closer pixel as the foreground, that is, the masked pixel with the lower z

@@ -32,7 +32,7 @@ static void blur_pass(const Result &input,
     float4 accumulated_color = float4(0.0f);
 
     /* First, compute the contribution of the center pixel. */
-    float4 center_color = input.load_pixel<float4>(texel);
+    float4 center_color = float4(input.load_pixel<Color>(texel));
     float center_weight = weights.load_pixel<float>(int2(0));
     accumulated_color += center_color * center_weight;
     accumulated_weight += center_weight;

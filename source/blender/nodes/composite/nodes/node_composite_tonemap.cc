@@ -199,7 +199,7 @@ class ToneMapOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float4 input_color = image.load_pixel<float4>(texel);
+      float4 input_color = float4(image.load_pixel<Color>(texel));
 
       /* Equation (2) from Reinhard's 2002 paper. */
       float4 scaled_color = input_color * luminance_scale;
@@ -322,7 +322,7 @@ class ToneMapOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float4 input_color = input.load_pixel<float4>(texel);
+      float4 input_color = float4(input.load_pixel<Color>(texel));
       float input_luminance = math::dot(input_color.xyz(), luminance_coefficients);
 
       /* Trilinear interpolation between equations (6) and (7) from Reinhard's 2005 paper. */

@@ -124,7 +124,7 @@ class GroupOutputOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min, Color(image.load_pixel<float4>(texel)));
+      output.store_pixel(texel + bounds.min, image.load_pixel<Color>(texel));
     });
   }
 

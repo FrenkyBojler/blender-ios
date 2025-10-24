@@ -430,7 +430,7 @@ static void motion_blur_cpu(const Result &input_image,
         float4 center_motion = input_velocity.load_pixel<float4, true>(texel);
         float2 center_previous_motion = center_motion.xy() * shutter_speed;
         float2 center_next_motion = center_motion.zw() * -shutter_speed;
-        float4 center_color = input_image.load_pixel<float4>(texel);
+        float4 center_color = float4(input_image.load_pixel<Color>(texel));
 
         /* Randomize tile boundary to avoid ugly discontinuities. Randomize 1/4th of the tile.
          * Note this randomize only in one direction but in practice it's enough. */

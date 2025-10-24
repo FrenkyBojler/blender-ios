@@ -150,7 +150,7 @@ class BokehBlurOperation : public NodeOperation {
        * pixel. Otherwise, the pixel is blurred normally and the mask value is irrelevant. */
       float mask = mask_image.load_pixel<float, true>(texel);
       if (mask == 0.0f) {
-        output.store_pixel(texel, Color(input.load_pixel<float4>(texel)));
+        output.store_pixel(texel, input.load_pixel<Color>(texel));
         return;
       }
 
@@ -160,7 +160,7 @@ class BokehBlurOperation : public NodeOperation {
       float4 accumulated_weight = float4(0.0f);
       for (int y = -radius; y <= radius; y++) {
         for (int x = -radius; x <= radius; x++) {
-          float4 weight = blur_kernel.load_pixel<float4>(int2(x, y) + radius);
+          float4 weight = float4(blur_kernel.load_pixel<Color>(int2(x, y) + radius));
           accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, y))) *
                                weight;
           accumulated_weight += weight;
@@ -262,7 +262,7 @@ class BokehBlurOperation : public NodeOperation {
        * pixel. Otherwise, the pixel is blurred normally and the mask value is irrelevant. */
       float mask = mask_image.load_pixel<float, true>(texel);
       if (mask == 0.0f) {
-        output.store_pixel(texel, Color(input.load_pixel<float4>(texel)));
+        output.store_pixel(texel, input.load_pixel<Color>(texel));
         return;
       }
 

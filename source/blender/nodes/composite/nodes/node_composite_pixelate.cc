@@ -97,7 +97,7 @@ class PixelateOperation : public NodeOperation {
       float4 accumulated_color = float4(0.0f);
       for (int y = start.y; y < end.y; y++) {
         for (int x = start.x; x < end.x; x++) {
-          accumulated_color += input.load_pixel<float4>(int2(x, y));
+          accumulated_color += float4(input.load_pixel<Color>(int2(x, y)));
         }
       }
 

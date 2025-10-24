@@ -121,7 +121,7 @@ class BilateralBlurOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float4 center_determinator = determinator_image.load_pixel<float4>(texel);
+      float4 center_determinator = float4(determinator_image.load_pixel<Color>(texel));
 
       /* Go over the pixels in the blur window of the specified radius around the center pixel, and
        * for pixels whose determinator is close enough to the determinator of the center pixel,

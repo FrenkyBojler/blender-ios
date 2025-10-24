@@ -462,7 +462,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
 
       float radius = math::max(0.0f, size.load_pixel<float, true>(texel));
       if (radius == 0.0f) {
-        output.store_pixel(texel, Color(input.load_pixel<float4>(texel)));
+        output.store_pixel(texel, input.load_pixel<Color>(texel));
         return;
       }
 
@@ -527,7 +527,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
        * and weight separately first. Luckily, the zero coordinates of the center pixel zeros out
        * most of the complex computations below, and it can easily be shown that the weight for the
        * center pixel in all sectors is simply (1 / number_of_sectors). */
-      float4 center_color = input.load_pixel<float4>(texel);
+      float4 center_color = float4(input.load_pixel<Color>(texel));
       float4 center_color_squared = center_color * center_color;
       float center_weight = 1.0f / number_of_sectors;
       float4 weighted_center_color = center_color * center_weight;

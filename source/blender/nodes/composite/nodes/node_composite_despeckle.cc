@@ -129,7 +129,7 @@ class DespeckleOperation : public NodeOperation {
                                 float3(corner_weight, 1.0f, corner_weight));
 
     parallel_for(domain.size, [&](const int2 texel) {
-      float4 center_color = input.load_pixel<float4>(texel);
+      float4 center_color = float4(input.load_pixel<Color>(texel));
 
       /* Go over the pixels in the 3x3 window around the center pixel and compute the total sum of
        * their colors multiplied by their weights. Additionally, for pixels whose colors are not
