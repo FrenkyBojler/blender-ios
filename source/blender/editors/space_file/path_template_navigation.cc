@@ -4,7 +4,8 @@
 
 /** \file
  * \ingroup spfile
- * \brief Path template handling implementation - preserves template variables during file browser navigation.
+ * \brief Path template handling implementation - preserves template variables during file browser
+ * navigation.
  */
 
 #include "ED_fileselect.hh"
@@ -93,10 +94,10 @@ static bool is_within_template_bounds(const char *template_path, const char *cur
   if (resolved_len == current_len) {
     return strcmp(normalized_current, resolved_template) == 0;
   }
-  
+
   /* Check if one path is prefix of the other (parent/child relationship) */
   const size_t min_len = (resolved_len < current_len) ? resolved_len : current_len;
-  return strncmp(resolved_template, normalized_current, min_len) == 0 && 
+  return strncmp(resolved_template, normalized_current, min_len) == 0 &&
          (resolved_template[min_len] == '/' || normalized_current[min_len] == '/');
 }
 
@@ -133,7 +134,7 @@ static bool update_template_on_navigation(const char *original_template,
   }
 
   /* Case 2: Going deeper into template directory */
-  if (current_len > resolved_len && 
+  if (current_len > resolved_len &&
       strncmp(normalized_current, resolved_template, resolved_len) == 0 &&
       normalized_current[resolved_len] == '/')
   {
@@ -141,7 +142,7 @@ static bool update_template_on_navigation(const char *original_template,
     char template_base[FILE_MAX];
     BLI_strncpy(template_base, original_template, sizeof(template_base));
     BLI_path_slash_rstrip(template_base);
-    
+
     BLI_path_join(result, result_maxlen, template_base, extra_path);
     return true;
   }
@@ -156,7 +157,7 @@ static bool update_template_on_navigation(const char *original_template,
     if (*remaining_path == '/') {
       remaining_path++;
     }
-    
+
     int levels_up = (*remaining_path != '\0') ? 1 : 0;
     for (const char *p = remaining_path; *p; p++) {
       if (*p == '/') {
@@ -170,7 +171,7 @@ static bool update_template_on_navigation(const char *original_template,
     for (int i = 0; i < levels_up && result[0]; i++) {
       BLI_path_parent_dir(result);
     }
-    
+
     return true;
   }
 

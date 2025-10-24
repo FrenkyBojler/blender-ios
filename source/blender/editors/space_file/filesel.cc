@@ -166,7 +166,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     sfile->params->filter_id = U_default.file_space_data.filter_id;
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
-    
+
     /* Initialize template paths - will be set properly by operator processing if needed */
     if (sfile->params->dir_template[0] == '\0') {
       STRNCPY(sfile->params->dir_template, sfile->params->dir);
@@ -174,7 +174,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     if (sfile->params->dir_resolved[0] == '\0') {
       STRNCPY(sfile->params->dir_resolved, sfile->params->dir);
     }
-    
+
     /* Don't initialize path template handler yet - wait until after operator processing */
   }
 
@@ -202,7 +202,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     if (is_filepath && RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
       char filepath[FILE_MAX];
       RNA_string_get(op->ptr, "filepath", filepath);
-      
+
       if (params->type == FILE_LOADLIB) {
         STRNCPY(params->dir, filepath);
         params->file[0] = '\0';
@@ -213,11 +213,12 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
           /* Split filepath while preserving template variables */
           char template_dir[FILE_MAX];
           char template_file[FILE_MAX];
-          BLI_path_split_dir_file(filepath, template_dir, sizeof(template_dir), template_file, sizeof(template_file));
-          
+          BLI_path_split_dir_file(
+              filepath, template_dir, sizeof(template_dir), template_file, sizeof(template_file));
+
           /* Store filename */
           STRNCPY(params->file, template_file);
-          
+
           /* Use centralized template handling for directory paths */
           blender::ed::file::path_template_nav_handle_text(params, template_dir);
         }
