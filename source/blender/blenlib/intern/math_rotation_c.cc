@@ -285,7 +285,7 @@ void quat_to_mat4(float m[4][4], const float q[4])
 #endif
 
   double qd[4];
-  for (int i=0; i < 4; i++) {
+  for (int i = 0; i < 4; i++) {
     qd[i] = q[i];
   }
   quat_to_mat4_double(m, qd);
@@ -297,7 +297,7 @@ float normalize_qt_qt_double(double r[4], const float q[4])
   const double len = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2] + d[3] * d[3]);
   if (len != 0.0) {
     double inv = 1.0 / len;
-    for (int i=0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
       r[i] = q[i] * inv;
     }
   }
