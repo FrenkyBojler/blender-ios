@@ -425,6 +425,11 @@ static void foreach_toplevel_grid_coord(
   });
 }
 
+static bool is_valid_ptex_uv(blender::float2 uv)
+{
+  return (uv.x == 0.0f || uv.x == 0.5f || uv.x == 1.0f) && (uv.y == 0.0f || uv.y == 0.5f || uv.y == 1.0f);
+}
+
 static blender::float2 ccg_uv_corner_to_ptex_uv(blender::float2 uv, int corner)
 {
   if (corner == 0) {
@@ -446,32 +451,43 @@ static void foreach_toplevel_grid_coord_single_threaded(
 {
   using namespace blender;
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
-
   const OffsetIndices<int> faces = reshape_smooth_context->reshape_context->base_faces;
+  /* Is this the correct ptex offset to even use? */
   const Span<int> face_ptex_offset = bke::subdiv::face_ptex_offset_get(reshape_context->subdiv);
   const int grid_size = reshape_context->top.grid_size;
   const int grid_area = grid_size * grid_size;
   const float grid_size_1_inv = 1.0f / float(grid_size - 1);
   BLI_assert(face_ptex_offset.size() == faces.size() + 1);
+
+  const int ptex_faces_per_side_per_corner = (grid_size - 1) / 2;
+  const int ptex_faces_per_corner = ptex_faces_per_side_per_corner * ptex_faces_per_side_per_corner;
+
+  printf("DATA: LEVEL: %d, GRID_SIZE: %d, ptex_faces_per_side_per_corner: %d, Base Faces: %ld, Subdiv Faces: %ld\n", reshape_context->top.level, reshape_context->top.grid_size, ptex_faces_per_side_per_corner, reshape_context->base_faces.size(), reshape_smooth_context->geometry.faces().size());
+  printf("(Face Index, Corner, X, Y) -> (Corner, Grid U, Grid V) -> Element -> (Offset, Corner, Start, PTEX_X_IDX, PTEX_Y_IDX, Index, PTEX U, PTEX V)\n");
   for (const int face_index : faces.index_range()) {
     const IndexRange face = faces[face_index];
     if (face.size() == 4) {
       for (int corner = 0; corner < face.size(); ++corner) {
-        /* TODO: This indexing is weird and will clearly not work for non-regular meshes*/
-        const int ptex_face_index = face_ptex_offset[face_index] * 4 + corner;
+        const int ptex_face_start = (face_ptex_offset[face_index] + corner) * ptex_faces_per_corner;
         const int grid_index = face.start() + corner;
         const IndexRange range = bke::ccg::grid_range(grid_area, grid_index);
         for (int y = 0; y < grid_size; ++y) {
           const float grid_v = y * grid_size_1_inv;
           for (int x = 0; x < grid_size; ++x) {
+            const int ptex_x_idx = std::max(0, x - 1) / 2;
+            const int ptex_y_idx = std::max(0, y - 1) / 2;
+
+            const int ptex_face_index = ptex_face_start + ptex_y_idx * ptex_faces_per_side_per_corner + ptex_x_idx;
+
             const float grid_u = x * grid_size_1_inv;
             PTexCoord ptex_coord;
             ptex_coord.ptex_face_index = ptex_face_index;
             const float2 ptex_face_uv = ccg_uv_corner_to_ptex_uv(float2(grid_u, grid_v), corner);
             ptex_coord.u = ptex_face_uv.x;
             ptex_coord.v = ptex_face_uv.y;
+
             const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-            printf("RAW: (%d, %d, %d, %d) -> CCG: (%d, %f, %f) -> %d -> PTEX: (%d, %d, %f, %f)\n",
+            printf("RAW: (%d, %d, %d, %d) -> CCG: (%d, %f, %f) -> %d -> PTEX: (%d, %d, %d, (%d, %d), %d, (%f, %f))",
                    face_index,
                    corner,
                    x,
@@ -481,9 +497,14 @@ static void foreach_toplevel_grid_coord_single_threaded(
                    grid_v,
                    element,
                    face_ptex_offset[face_index],
+                   ptex_face_start,
+                   corner,
+                   ptex_x_idx,
+                   ptex_y_idx,
                    ptex_face_index,
                    ptex_coord.u,
                    ptex_coord.v);
+            BLI_assert(is_valid_ptex_uv(ptex_face_uv));
             callback(&ptex_coord, element, corner);
           }
         }
@@ -1495,7 +1516,7 @@ static void evaluate_higher_grid_positions(
                                                                dPdv);
 
         delta_storage[idx] = P;
-        printf("\t->(%f, %f, %f)\n", P.x, P.y, P.z);
+        printf(" -> (%f, %f, %f)\n", P.x, P.y, P.z);
         BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner);
       });
 }
