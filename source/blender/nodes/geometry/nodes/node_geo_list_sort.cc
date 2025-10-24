@@ -36,6 +36,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Float>("Weights")
       .default_value(0.0f)
+      .hide_value()
       .structure_type(StructureType::Dynamic)
       .description("Weights determining the sorted order (can be a single value, list, or field)");
 }
