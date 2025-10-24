@@ -416,9 +416,12 @@ static void node_group_declare_panel_recursive(
 {
   bool layout_added = false;
   auto add_layout_if_needed = [&]() {
-    if (is_root && !layout_added && node.typeinfo->draw_buttons) {
-      b.add_default_layout();
-      layout_added = true;
+    /* Some custom group nodes don't have a draw function. */
+    if (node.typeinfo->draw_buttons) {
+      if (is_root && !layout_added) {
+        b.add_default_layout();
+        layout_added = true;
+      }
     }
   };
 
