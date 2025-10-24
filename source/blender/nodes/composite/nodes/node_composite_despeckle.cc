@@ -141,7 +141,8 @@ class DespeckleOperation : public NodeOperation {
       for (int j = 0; j < 3; j++) {
         for (int i = 0; i < 3; i++) {
           float weight = weights[j][i];
-          float4 color = input.load_pixel_extended<float4>(texel + int2(i - 1, j - 1)) * weight;
+          float4 color = float4(input.load_pixel_extended<Color>(texel + int2(i - 1, j - 1))) *
+                         weight;
           sum_of_colors += color;
           if (!math::is_equal(center_color.xyz(), color.xyz(), color_threshold)) {
             accumulated_color += color;

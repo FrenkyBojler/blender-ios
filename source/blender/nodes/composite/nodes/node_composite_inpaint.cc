@@ -138,7 +138,7 @@ class InpaintOperation : public NodeOperation {
 
           /* Exempt the center pixel. */
           if (offset != int2(0)) {
-            if (input.load_pixel_extended<float4>(texel + offset).w < 1.0f) {
+            if (input.load_pixel_extended<Color>(texel + offset).a < 1.0f) {
               has_transparent_neighbors = true;
               break;
             }

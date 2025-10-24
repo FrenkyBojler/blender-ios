@@ -915,7 +915,7 @@ BLI_INLINE_METHOD float4 Result::sample_cubic_extended(const float2 &coordinates
 static void sample_ewa_extended_read_callback(void *userdata, int x, int y, float result[4])
 {
   const Result *input = static_cast<const Result *>(userdata);
-  const float4 sampled_result = input->load_pixel_extended<float4>(int2(x, y));
+  const Color sampled_result = input->load_pixel_extended<Color>(int2(x, y));
   copy_v4_v4(result, sampled_result);
 }
 
@@ -952,7 +952,7 @@ BLI_INLINE_METHOD float4 Result::sample_ewa_extended(const float2 &coordinates,
 static void sample_ewa_zero_read_callback(void *userdata, int x, int y, float result[4])
 {
   const Result *input = static_cast<const Result *>(userdata);
-  const float4 sampled_result = input->load_pixel_zero<float4>(int2(x, y));
+  const Color sampled_result = input->load_pixel_zero<Color>(int2(x, y));
   copy_v4_v4(result, sampled_result);
 }
 

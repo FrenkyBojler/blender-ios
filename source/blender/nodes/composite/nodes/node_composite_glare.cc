@@ -734,9 +734,9 @@ class GlareOperation : public NodeOperation {
            * in the same column. */
           for (int y = 0; y < height; y++) {
             int2 texel = int2(x, y);
-            float4 previous_output = output.load_pixel_zero<float4>(texel - int2(0, i));
+            float4 previous_output = float4(output.load_pixel_zero<Color>(texel - int2(0, i)));
             float4 current_input = output.load_pixel<float4>(texel);
-            float4 next_input = output.load_pixel_zero<float4>(texel + int2(0, i));
+            float4 next_input = float4(output.load_pixel_zero<Color>(texel + int2(0, i)));
 
             float4 neighbor_average = (previous_output + next_input) / 2.0f;
             float4 causal_output = math::interpolate(current_input, neighbor_average, fade_factor);
@@ -749,9 +749,9 @@ class GlareOperation : public NodeOperation {
            * input in the same column. */
           for (int y = height - 1; y >= 0; y--) {
             int2 texel = int2(x, y);
-            float4 previous_output = output.load_pixel_zero<float4>(texel + int2(0, i));
+            float4 previous_output = float4(output.load_pixel_zero<Color>(texel + int2(0, i)));
             float4 current_input = output.load_pixel<float4>(texel);
-            float4 next_input = output.load_pixel_zero<float4>(texel - int2(0, i));
+            float4 next_input = float4(output.load_pixel_zero<Color>(texel - int2(0, i)));
 
             float4 neighbor_average = (previous_output + next_input) / 2.0f;
             float4 non_causal_output = math::interpolate(
@@ -837,10 +837,11 @@ class GlareOperation : public NodeOperation {
            * the same row. */
           for (int x = 0; x < width; x++) {
             int2 texel = int2(x, y);
-            float4 previous_output = horizontal_pass_result.load_pixel_zero<float4>(texel -
-                                                                                    int2(i, 0));
+            float4 previous_output = float4(
+                horizontal_pass_result.load_pixel_zero<Color>(texel - int2(i, 0)));
             float4 current_input = horizontal_pass_result.load_pixel<float4>(texel);
-            float4 next_input = horizontal_pass_result.load_pixel_zero<float4>(texel + int2(i, 0));
+            float4 next_input = float4(
+                horizontal_pass_result.load_pixel_zero<Color>(texel + int2(i, 0)));
 
             float4 neighbor_average = (previous_output + next_input) / 2.0f;
             float4 causal_output = math::interpolate(current_input, neighbor_average, fade_factor);
@@ -853,10 +854,11 @@ class GlareOperation : public NodeOperation {
            * input in the same row. */
           for (int x = width - 1; x >= 0; x--) {
             int2 texel = int2(x, y);
-            float4 previous_output = horizontal_pass_result.load_pixel_zero<float4>(texel +
-                                                                                    int2(i, 0));
+            float4 previous_output = float4(
+                horizontal_pass_result.load_pixel_zero<Color>(texel + int2(i, 0)));
             float4 current_input = horizontal_pass_result.load_pixel<float4>(texel);
-            float4 next_input = horizontal_pass_result.load_pixel_zero<float4>(texel - int2(i, 0));
+            float4 next_input = float4(
+                horizontal_pass_result.load_pixel_zero<Color>(texel - int2(i, 0)));
 
             float4 neighbor_average = (previous_output + next_input) / 2.0f;
             float4 non_causal_output = math::interpolate(
@@ -952,9 +954,9 @@ class GlareOperation : public NodeOperation {
            * of the previous output and next input in the same anti diagonal. */
           for (int j = 0; j < anti_diagonal_length; j++) {
             int2 texel = start + j * direction;
-            float4 previous_output = output.load_pixel_zero<float4>(texel - i * direction);
+            float4 previous_output = float4(output.load_pixel_zero<Color>(texel - i * direction));
             float4 current_input = output.load_pixel<float4>(texel);
-            float4 next_input = output.load_pixel_zero<float4>(texel + i * direction);
+            float4 next_input = float4(output.load_pixel_zero<Color>(texel + i * direction));
 
             float4 neighbor_average = (previous_output + next_input) / 2.0f;
             float4 causal_output = math::interpolate(current_input, neighbor_average, fade_factor);
@@ -967,9 +969,9 @@ class GlareOperation : public NodeOperation {
            * previous output and next input in the same diagonal. */
           for (int j = 0; j < anti_diagonal_length; j++) {
             int2 texel = end - j * direction;
-            float4 previous_output = output.load_pixel_zero<float4>(texel + i * direction);
+            float4 previous_output = float4(output.load_pixel_zero<Color>(texel + i * direction));
             float4 current_input = output.load_pixel<float4>(texel);
-            float4 next_input = output.load_pixel_zero<float4>(texel - i * direction);
+            float4 next_input = float4(output.load_pixel_zero<Color>(texel - i * direction));
 
             float4 neighbor_average = (previous_output + next_input) / 2.0f;
             float4 non_causal_output = math::interpolate(
@@ -1060,11 +1062,11 @@ class GlareOperation : public NodeOperation {
            * previous output and next input in the same diagonal. */
           for (int j = 0; j < diagonal_length; j++) {
             int2 texel = start + j * direction;
-            float4 previous_output = diagonal_pass_result.load_pixel_zero<float4>(texel -
-                                                                                  i * direction);
+            float4 previous_output = float4(
+                diagonal_pass_result.load_pixel_zero<Color>(texel - i * direction));
             float4 current_input = diagonal_pass_result.load_pixel<float4>(texel);
-            float4 next_input = diagonal_pass_result.load_pixel_zero<float4>(texel +
-                                                                             i * direction);
+            float4 next_input = float4(
+                diagonal_pass_result.load_pixel_zero<Color>(texel + i * direction));
 
             float4 neighbor_average = (previous_output + next_input) / 2.0f;
             float4 causal_output = math::interpolate(current_input, neighbor_average, fade_factor);
@@ -1077,11 +1079,11 @@ class GlareOperation : public NodeOperation {
            * previous output and next input in the same diagonal. */
           for (int j = 0; j < diagonal_length; j++) {
             int2 texel = end - j * direction;
-            float4 previous_output = diagonal_pass_result.load_pixel_zero<float4>(texel +
-                                                                                  i * direction);
+            float4 previous_output = float4(
+                diagonal_pass_result.load_pixel_zero<Color>(texel + i * direction));
             float4 current_input = diagonal_pass_result.load_pixel<float4>(texel);
-            float4 next_input = diagonal_pass_result.load_pixel_zero<float4>(texel -
-                                                                             i * direction);
+            float4 next_input = float4(
+                diagonal_pass_result.load_pixel_zero<Color>(texel - i * direction));
 
             float4 neighbor_average = (previous_output + next_input) / 2.0f;
             float4 non_causal_output = math::interpolate(

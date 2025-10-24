@@ -161,7 +161,8 @@ class BokehBlurOperation : public NodeOperation {
       for (int y = -radius; y <= radius; y++) {
         for (int x = -radius; x <= radius; x++) {
           float4 weight = blur_kernel.load_pixel<float4>(int2(x, y) + radius);
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, y)) * weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, y))) *
+                               weight;
           accumulated_weight += weight;
         }
       }
@@ -287,7 +288,8 @@ class BokehBlurOperation : public NodeOperation {
           }
 
           float4 weight = load_weight(int2(x, y), size);
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, y)) * weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, y))) *
+                               weight;
           accumulated_weight += weight;
         }
       }
