@@ -126,6 +126,8 @@ static float limit_radius(const float3 &position_prev,
 }
 
 static void limit_radii(const Span<float3> positions,
+                        const VArray<int> &counts,
+                        const IndexRange points,
                         const Span<float> angles,
                         const Span<float> radii,
                         const bool cyclic,
@@ -139,9 +141,9 @@ static void limit_radii(const Span<float3> positions,
                                          angles.last(),
                                          angles.first(),
                                          angles[1],
-                                         radii.last(),
-                                         radii.first(),
-                                         radii[1]);
+                                         radii.last() * (counts[points.last()] != 0),
+                                         radii.first() * (counts[points.first()] != 0),
+                                         radii[1] * (counts[points[1]] != 0));
     /* All middle points. */
     for (const int i : positions.index_range().drop_back(1).drop_front(1)) {
       const int i_prev = i - 1;
@@ -152,9 +154,9 @@ static void limit_radii(const Span<float3> positions,
                                       angles[i_prev],
                                       angles[i],
                                       angles[i_next],
-                                      radii[i_prev],
-                                      radii[i],
-                                      radii[i_next]);
+                                      radii[i_prev] * (counts[points[i_prev]] != 0),
+                                      radii[i] * (counts[i] != 0),
+                                      radii[i_next] * (counts[points[i_next]] != 0));
     }
     /* Last point. */
     radii_clamped.last() = limit_radius(positions.last(1),
@@ -163,9 +165,9 @@ static void limit_radii(const Span<float3> positions,
                                         angles.last(1),
                                         angles.last(),
                                         angles.first(),
-                                        radii.last(1),
-                                        radii.last(),
-                                        radii.first());
+                                        radii.last(1) * (counts[points.last(1)] != 0),
+                                        radii.last() * (counts[points.last()] != 0),
+                                        radii.first() * (counts[points.first()] != 0));
   }
   else {
     const int i_last = positions.index_range().last();
@@ -177,8 +179,9 @@ static void limit_radii(const Span<float3> positions,
       const int i_next = i + 1;
       /* Use a zero radius for the first and last points, because they don't have fillets.
        * This logic could potentially be unrolled, but it doesn't seem worth it. */
-      const float radius_prev = i_prev == 0 ? 0.0f : radii[i_prev];
-      const float radius_next = i_next == i_last ? 0.0f : radii[i_next];
+      const float radius_prev = i_prev == 0 || counts[points[i_prev]] == 0 ? 0.0f : radii[i_prev];
+      const float radius_next = i_next == i_last || counts[points[i_next]] == 0 ? 0.0f :
+                                                                                  radii[i_next];
       radii_clamped[i] = limit_radius(positions[i_prev],
                                       positions[i],
                                       positions[i_next],
@@ -443,7 +446,8 @@ static bke::CurvesGeometry fillet_curves(const bke::CurvesGeometry &src_curves,
       if (limit_radius) {
         input_radii_buffer.reinitialize(src_points.size());
         radius_input.materialize_compressed(src_points, input_radii_buffer);
-        limit_radii(src_positions, angles, input_radii_buffer, cyclic[curve_i], radii);
+        limit_radii(
+            src_positions, counts, src_points, angles, input_radii_buffer, cyclic[curve_i], radii);
       }
       else {
         radius_input.materialize_compressed(src_points, radii);
