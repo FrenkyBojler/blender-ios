@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <unordered_set>
 
 #include <fmt/format.h>
 
