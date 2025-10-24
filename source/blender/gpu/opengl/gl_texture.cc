@@ -207,11 +207,21 @@ void GLTexture::update_sub(
     clamped_half_buffer.reset(
         (uint16_t *)MEM_mallocN_aligned(sizeof(uint16_t) * total_component_count, 128, __func__));
 
-    /* Doing float to half conversion manually to avoid implementation specific behavior regarding
-     * Inf and NaNs. Use make finite version to avoid unexpected black pixels on certain
-     * implementation. For platform parity we clamp these infinite values to finite values. */
-    blender::math::float_to_half_make_finite_array(
-        static_cast<const float *>(data), clamped_half_buffer.get(), total_component_count);
+    Span<float> src(static_cast<const float *>(data), total_component_count);
+    MutableSpan<uint16_t> dst(static_cast<uint16_t *>(clamped_half_buffer.get()),
+                              total_component_count);
+
+    constexpr int64_t chunk_size = 4 * 1024 * 1024;
+
+    threading::parallel_for(
+        IndexRange(total_component_count), chunk_size, [&](const IndexRange range) {
+          /* Doing float to half conversion manually to avoid implementation specific behavior
+           * regarding Inf and NaNs. Use make finite version to avoid unexpected black pixels on
+           * certain implementation. For platform parity we clamp these infinite values to finite
+           * values. */
+          blender::math::float_to_half_make_finite_array(
+              src.slice(range).data(), dst.slice(range).data(), range.size());
+        });
     data = clamped_half_buffer.get();
     type = GPU_DATA_HALF_FLOAT;
   }
