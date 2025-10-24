@@ -12,11 +12,9 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
-#include "BLI_lasso_2d.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_rect.h"
-#include "BLI_sort.hh"
 #include "BLI_stack.hh"
 #include "BLI_task.hh"
 
