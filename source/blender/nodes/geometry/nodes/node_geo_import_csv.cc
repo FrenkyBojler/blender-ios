@@ -4,8 +4,6 @@
 
 #include <fmt/format.h>
 
-#include "node_geometry_util.hh"
-
 #include "BLI_file_watcher.hh"
 #include "BLI_generic_key_string.hh"
 #include "BLI_listbase.h"
@@ -15,6 +13,8 @@
 #include "BKE_report.hh"
 
 #include "IO_csv.hh"
+
+#include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_import_csv {
 
