@@ -137,7 +137,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
      "Show Grease Pencil data-blocks"},
     {FILTER_ID_GR,
      "filter_group",
-     ICON_OUTLINER_COLLECTION,
+     ICON_GROUP,
      "Collections",
      "Show Collection data-blocks"},
     {FILTER_ID_CV,
