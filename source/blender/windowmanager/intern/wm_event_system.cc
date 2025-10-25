@@ -4106,7 +4106,8 @@ void wm_event_do_handlers(bContext *C)
 
   /* Check for file changes in geometry import nodes. */
   if (wm && !BLI_listbase_is_empty(&wm->windows)) {
-    if (blender::file_watcher::poll()) {
+    blender::Vector<std::string> changed_files = blender::file_watcher::poll_changed_files();
+    if (!changed_files.is_empty()) {
       Main *bmain = CTX_data_main(C);
       if (bmain) {
         /* Tag all geometry node trees for recalculation. */
@@ -4115,11 +4116,7 @@ void wm_event_do_handlers(bContext *C)
             DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
           }
         }
-        /* Ensure all invariants are maintained. */
-        BKE_main_ensure_invariants(*bmain);
-        /* Send notifiers to trigger UI and viewport updates. */
         WM_main_add_notifier(NC_NODE | NA_EDITED, nullptr);
-        WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, nullptr);
       }
     }
   }

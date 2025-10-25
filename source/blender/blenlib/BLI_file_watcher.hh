@@ -5,11 +5,12 @@
 #pragma once
 
 #include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
 
 namespace blender::file_watcher {
 
 void add_file(StringRef filepath);
 void remove_file(StringRef filepath);
-bool poll();
+Vector<std::string> poll_changed_files();
 
 }  // namespace blender::file_watcher

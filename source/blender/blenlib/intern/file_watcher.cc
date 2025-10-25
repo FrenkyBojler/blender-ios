@@ -14,6 +14,7 @@
 #include "BLI_memory_cache_file_load.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
+#include "BLI_vector.hh"
 
 #include "dmon.h"
 
@@ -30,7 +31,7 @@ struct WatchData {
 
 static bool initialized = false;
 static Map<std::string, std::unique_ptr<WatchData>> dir_to_watch_data;
-static bool any_changed = false;
+static Vector<std::string> changed_files;
 
 /**
  * Callback function for dmon file change events.
@@ -66,7 +67,7 @@ static void watch_callback(dmon_watch_id watch_id,
   char full_path[FILE_MAX];
   BLI_path_join(full_path, sizeof(full_path), rootdir, filepath);
   memory_cache::invalidate_file(full_path);
-  any_changed = true;
+  changed_files.append(full_path);
 }
 
 void add_file(StringRef filepath)
@@ -122,18 +123,18 @@ void remove_file(StringRef filepath)
 }
 
 /**
- * Poll for file changes and return whether any changes were detected.
+ * Poll for file changes and return the list of files that changed.
  *
- * \return: True if any watched files changed since the last poll, false otherwise
+ * \return: Vector of full file paths that changed since the last poll
  */
-bool poll()
+Vector<std::string> poll_changed_files()
 {
   if (!initialized) {
-    return false;
+    return {};
   }
 
-  const bool result = any_changed;
-  any_changed = false;
+  Vector<std::string> result = std::move(changed_files);
+  changed_files.clear();
   return result;
 }
 
