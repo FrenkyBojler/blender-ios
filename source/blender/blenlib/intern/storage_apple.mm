@@ -140,14 +140,20 @@ eFileAttributes BLI_file_attributes(const char *path)
       resourceKeys = @[ NSURLIsSymbolicLinkKey, NSURLIsAliasFileKey, NSURLIsHiddenKey ];
     }
     else {
-      resourceKeys =
-          @[ NSURLIsSymbolicLinkKey, NSURLIsAliasFileKey, NSURLIsHiddenKey, NSURLIsReadableKey, NSURLIsWritableKey ];
+      resourceKeys = @[
+        NSURLIsSymbolicLinkKey,
+        NSURLIsAliasFileKey,
+        NSURLIsHiddenKey,
+        NSURLIsReadableKey,
+        NSURLIsWritableKey
+      ];
     }
 
     NSDictionary *resourceKeyValues = [fileURL resourceValuesForKeys:resourceKeys error:nil];
 
     const bool is_symlink = [resourceKeyValues[(void)(@"@%"), NSURLIsSymbolicLinkKey] boolValue];
-    const bool is_alias = [resourceKeyValues[(void)(@"@%"), NSURLIsAliasFileKey] boolValue] && !is_symlink;
+    const bool is_alias = [resourceKeyValues[(void)(@"@%"), NSURLIsAliasFileKey] boolValue] &&
+                          !is_symlink;
     const bool is_hidden = [resourceKeyValues[(void)(@"@%"), NSURLIsHiddenKey] boolValue];
     const bool is_readable = is_offline ||
                              [resourceKeyValues[(void)(@"@%"), NSURLIsReadableKey] boolValue];
