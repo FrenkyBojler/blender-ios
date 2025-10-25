@@ -449,6 +449,14 @@ class Result {
            const ExtensionMode &extend_mode_x,
            const ExtensionMode &extend_mode_y) const;
 
+  float4 sample(const float2 &coordinates,
+                const Interpolation &interpolation,
+                const ExtensionMode &extend_mode_x,
+                const ExtensionMode &extend_mode_y) const;
+
+  /* Return structure used by math::sample functions */
+  math::SamplerSource samplerSource(const math::SamplerOptions &) const;
+
   /* Equivalent to the GLSL texture() function with nearest interpolation and zero boundary
    * condition. The coordinates are thus expected to have half-pixels offsets. A float4 is always
    * returned regardless of the number of channels of the buffer, the remaining channels will be
@@ -557,6 +565,16 @@ BLI_INLINE_METHOD GMutableSpan Result::cpu_data()
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
   return cpu_data_;
+}
+
+BLI_INLINE_METHOD math::SamplerSource Result::samplerSource(
+    const math::SamplerOptions &options) const
+{
+  return math::SamplerSource{options,
+                             static_cast<const float *>(cpu_data_.data()),
+                             domain_.data_size.x,
+                             domain_.data_size.y,
+                             int(channels_count())};
 }
 
 template<typename T> BLI_INLINE_METHOD const T &Result::get_single_value() const

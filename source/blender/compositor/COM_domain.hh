@@ -171,6 +171,8 @@ class Domain {
   /* The options that describe how this domain prefer to be realized on some other domain. See the
    * RealizationOptions struct for more information. */
   RealizationOptions realization_options;
+  /* Convert realization_options to math::SamplerOptions */
+  math::SamplerOptions get_sampler_options() const;
 
   /* A size only constructor that sets the transformation to identity. */
   Domain(const int2 &size);
@@ -197,7 +199,8 @@ class Domain {
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
 
-math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode);
-GPUSamplerExtendMode map_extension_mode_to_extend_mode(const ExtensionMode &mode);
+math::InterpWrapMode map_extension_mode_to_wrap_mode(ExtensionMode mode);
+GPUSamplerExtendMode map_extension_mode_to_extend_mode(ExtensionMode mode);
+GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode);
 
 }  // namespace blender::compositor

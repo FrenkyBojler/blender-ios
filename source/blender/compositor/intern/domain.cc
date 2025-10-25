@@ -61,7 +61,7 @@ bool operator!=(const Domain &a, const Domain &b)
   return !(a == b);
 }
 
-math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode)
+math::InterpWrapMode map_extension_mode_to_wrap_mode(ExtensionMode mode)
 {
   switch (mode) {
     case ExtensionMode::Clip:
@@ -75,21 +75,60 @@ math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode)
   return math::InterpWrapMode::Border;
 }
 
-GPUSamplerExtendMode map_extension_mode_to_extend_mode(const ExtensionMode &mode)
+GPUSamplerExtendMode map_extension_mode_to_extend_mode(ExtensionMode mode)
 {
   switch (mode) {
-    case blender::compositor::ExtensionMode::Clip:
+    case ExtensionMode::Clip:
       return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 
-    case blender::compositor::ExtensionMode::Extend:
+    case ExtensionMode::Extend:
       return GPU_SAMPLER_EXTEND_MODE_EXTEND;
 
-    case blender::compositor::ExtensionMode::Repeat:
+    case ExtensionMode::Repeat:
       return GPU_SAMPLER_EXTEND_MODE_REPEAT;
   }
 
   BLI_assert_unreachable();
   return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
+}
+
+GPUSamplerExtendMode map_wrap_mode_to_extend_mode(math::InterpWrapMode mode)
+{
+  switch (mode) {
+    case math::InterpWrapMode::Border:
+      return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
+
+    case math::InterpWrapMode::Extend:
+      return GPU_SAMPLER_EXTEND_MODE_EXTEND;
+
+    case math::InterpWrapMode::Repeat:
+      return GPU_SAMPLER_EXTEND_MODE_REPEAT;
+  }
+
+  BLI_assert_unreachable();
+  return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
+}
+
+math::SamplerOptions Domain::get_sampler_options() const
+{
+  math::SamplerOptions ret;
+  switch (realization_options.interpolation) {
+    case Interpolation::Nearest:
+      ret.sampler = math::Sampler::Nearest;
+      break;
+    default: /* case Interpolation::Bilinear: */
+      ret.sampler = math::Sampler::Box;
+      break;
+    case Interpolation::Bicubic:
+      ret.sampler = math::Sampler::Bspline;
+      break;
+    case Interpolation::Anisotropic:
+      ret.sampler = math::Sampler::Anisotropic;
+      break;
+  }
+  ret.wrap_x = map_extension_mode_to_wrap_mode(realization_options.extension_x);
+  ret.wrap_y = map_extension_mode_to_wrap_mode(realization_options.extension_y);
+  return ret;
 }
 
 }  // namespace blender::compositor
