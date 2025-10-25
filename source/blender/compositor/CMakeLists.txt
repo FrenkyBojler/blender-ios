@@ -316,6 +316,7 @@ set(GLSL_SRC
   shaders/compositor_radial_lens_distortion.glsl
   shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
+  shaders/compositor_realize_on_domain_fast.glsl
   shaders/compositor_sample_pixel.glsl
   shaders/compositor_scale_variable.glsl
   shaders/compositor_smaa_blending_weight_calculation.glsl
@@ -370,6 +371,7 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_ocio_processor.glsl
   shaders/library/gpu_shader_compositor_ocio_processor_lib.glsl
   shaders/library/gpu_shader_compositor_posterize.glsl
+  shaders/library/gpu_shader_compositor_sample_rect.glsl
   shaders/library/gpu_shader_compositor_separate_combine.glsl
   shaders/library/gpu_shader_compositor_set_alpha.glsl
   shaders/library/gpu_shader_compositor_set_value.glsl
