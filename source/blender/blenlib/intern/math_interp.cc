@@ -687,6 +687,189 @@ void interpolate_cubic_mitchell_fl(
                                                        InterpWrapMode::Extend);
 }
 
+/***************************************************************************
+ * 2-pass sample filtering.
+ ***************************************************************************/
+
+/* large filters just do this many samples somewhat evenly spaced */
+static const int MAX_PER_RADIUS = 8;
+static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
+
+using SamplerImplementation = int (*)(int width,
+                                      InterpWrapMode,
+                                      float u,
+                                      float w,
+                                      int positions[MAX_SAMPLES],
+                                      float weights[MAX_SAMPLES]);
+
+/* Compute a 1-d nearest filter */
+static int make_samples_nearest(int width,
+                                InterpWrapMode wrap,
+                                float u,
+                                float, /* w */
+                                int positions[MAX_SAMPLES],
+                                float weights[MAX_SAMPLES])
+{
+  /* this is much simpler */
+  int y = wrap_coord(u, width, wrap);
+  if (y < 0) {
+    return 0;
+  }
+  positions[0] = y;
+  weights[0] = 1.0f;
+  return 1;
+}
+
+/* Compute a 1-d box filter */
+static int make_samples_box(int width,
+                            InterpWrapMode wrap,
+                            float u,
+                            float w,
+                            int positions[MAX_SAMPLES],
+                            float weights[MAX_SAMPLES])
+{
+  /* this test is written so that NaN turns into 1.0f */
+  if (!(w >= 1.0f)) {
+    w = 1.0f;
+  }
+  float r = (w + 1.0f) / 2.0f;
+  float d = ceilf(w / MAX_PER_RADIUS);
+  float v = ceilf(u - r - 0.5f) + 0.5f; /* first non-zero pixel */
+  int count = 0;
+  float sum = 0.0f;
+  for (float x = v - u; x < r; x += d) {
+    float weight = math::min(r - math::abs(x), 1.0f);
+    sum += weight;
+    int y = wrap_coord(u + x, width, wrap);
+    if (y >= 0) {
+      positions[count] = y;
+      weights[count] = weight;
+      count++;
+    }
+  }
+  float m = 1.0f / sum;
+  for (int i = 0; i < count; ++i) {
+    weights[i] *= m;
+  }
+  return count;
+}
+
+/* Compute a 1-d bspline filter */
+static int make_samples_bspline(int width,
+                                InterpWrapMode wrap,
+                                float u,
+                                float w,
+                                int positions[MAX_SAMPLES],
+                                float weights[MAX_SAMPLES])
+{
+  /* this test is written so that NaN turns into 1.0f */
+  if (!(w >= 1.0f)) {
+    w = 1.0f;
+  }
+  float r = 2.0f * w;
+  float d = ceilf(w / MAX_PER_RADIUS);
+  float v = ceilf(u - r - 0.5f) + 0.5f; /* first non-zero pixel */
+  int count = 0;
+  float sum = 0.0f;
+  for (float xx = v - u; xx < r; xx += d) {
+    float x = math::abs(xx / w);
+    float weight = x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
+                              ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
+    sum += weight;
+    int y = wrap_coord(u + xx, width, wrap);
+    if (y >= 0) {
+      positions[count] = y;
+      weights[count] = weight;
+      count++;
+    }
+  }
+  float m = 1.0f / sum;
+  for (int i = 0; i < count; ++i) {
+    weights[i] *= m;
+  }
+  return count;
+}
+
+static const SamplerImplementation samplers[] = {
+    make_samples_nearest,
+    make_samples_box, // bilinear
+    make_samples_box,
+    make_samples_bspline,
+    make_samples_box /* Use box for Anisotropic if wh instead of dPdx/dPdy called */
+};
+
+float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
+{
+  const SamplerImplementation sampler = samplers[(int)source.sampler];
+
+  int positions_y[MAX_SAMPLES];
+  float weights_y[MAX_SAMPLES];
+  int ny = sampler(source.height, source.wrap_y, uv.y, wh.y, positions_y, weights_y);
+
+  int positions_x[MAX_SAMPLES];
+  float weights_x[MAX_SAMPLES];
+  int nx = sampler(source.width, source.wrap_x, uv.x, wh.x, positions_x, weights_x);
+
+  if (!nx || !ny) {
+    return float4(0.0f);
+  }
+
+  switch (source.components) {
+    default: { /* case 1: */
+      float sum{0.0f};
+      for (int i = 0; i < ny; i++) {
+        int y = positions_y[i];
+        float sumx{0.0f};
+        for (int j = 0; j < nx; j++) {
+          const float *p = source.buffer + (y * source.width + positions_x[j]) * 1;
+          sumx += *p * weights_x[j];
+        }
+        sum += sumx * weights_y[i];
+      }
+      return float4(sum, 0.0f, 0.0f, 1.0f);
+    }
+    case 2: {
+      float2 sum{0.0f};
+      for (int i = 0; i < ny; i++) {
+        int y = positions_y[i];
+        float2 sumx{0.0f};
+        for (int j = 0; j < nx; j++) {
+          const float *p = source.buffer + (y * source.width + positions_x[j]) * 2;
+          sumx += *(float2 *)p * weights_x[j];
+        }
+        sum += sumx * weights_y[i];
+      }
+      return float4(sum.x, sum.y, 0.0f, 1.0f);
+    }
+    case 3: {
+      float3 sum{0.0f};
+      for (int i = 0; i < ny; i++) {
+        int y = positions_y[i];
+        float3 sumx{0.0f};
+        for (int j = 0; j < nx; j++) {
+          const float *p = source.buffer + (y * source.width + positions_x[j]) * 3;
+          sumx += *(float3*)(p) * weights_x[j];
+        }
+        sum += sumx * weights_y[i];
+      }
+      return float4(sum.x, sum.y, sum.z, 1.0f);
+    }
+    case 4: {
+      float4 sum{0.0f};
+      for (int i = 0; i < ny; i++) {
+        int y = positions_y[i];
+        float4 sumx{0.0f};
+        for (int j = 0; j < nx; j++) {
+          const float *p = source.buffer + (y * source.width + positions_x[j]) * 4;
+          sumx += *(float4 *)p * weights_x[j];
+        }
+        sum += sumx * weights_y[i];
+      }
+      return sum;
+    }
+  }
+}
+
 }  // namespace blender::math
 
 /**************************************************************************

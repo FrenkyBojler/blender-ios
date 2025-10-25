@@ -41,6 +41,40 @@ enum class InterpWrapMode {
   Border
 };
 
+/**
+ * Sampler defines how a value is calculated at a point from surrounding pixels.
+ */
+enum class Sampler {
+  /** only the pixel containing the center */
+  Nearest,
+  /** two nearest pixels are lerp'ed */
+  Bilinear,
+  /** Insersect rectangle with pixels. Same as bilinear for a size of 1 */
+  Box,
+  /** Only non-negative cubic. Same as Bicubic for a size of 1 */
+  Bspline,
+  /** EWA sampling. Same as Box for functions that don't have dPdx,dPdy arguments */
+  Anisotropic
+};
+
+/** Filter and wrap mode in both directions, in a single structure to simplify function parameters.
+ * Compositor has equivalent structure called RealizationOptions.
+ */
+struct SamplerOptions {
+  Sampler sampler = Sampler::Box;
+  InterpWrapMode wrap_x = InterpWrapMode::Extend;
+  InterpWrapMode wrap_y = InterpWrapMode::Extend;
+};
+
+/** All arguments to sampler functions that don't vary per-pixel.
+ */
+struct SamplerSource : public SamplerOptions {
+  const float *buffer;
+  int width;
+  int height;
+  int components;
+};
+
 /* -------------------------------------------------------------------- */
 /* Nearest (point) sampling. */
 
@@ -356,6 +390,44 @@ void interpolate_cubic_bspline_wrapmode_fl(const float *buffer,
 void interpolate_cubic_mitchell_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v);
 
+/**
+ * Sample using an arbitrary filter and orthogonal rectangular area.
+ * Anisotropic sampler is same as Box, must use dPdx,dPdy to get actual filter.
+ */
+float4 sample_rect(SamplerSource source, float2 uv, float2 wh);
+
+/** API matching sample_rect() when it is known nearest sampling will work */
+inline float4 sample_nearest(SamplerSource source, float2 uv)
+{
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  interpolate_nearest_wrapmode_fl(source.buffer,
+                                  pixel_value,
+                                  source.width,
+                                  source.height,
+                                  source.components,
+                                  uv.x,
+                                  uv.y,
+                                  source.wrap_x,
+                                  source.wrap_y);
+  return pixel_value;
+}
+
+/** API matching sample_rect() when it is known bilinear sampling will work */
+inline float4 sample_bilinear(SamplerSource source, float2 uv)
+{
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  interpolate_bilinear_wrapmode_fl(source.buffer,
+                                   pixel_value,
+                                   source.width,
+                                   source.height,
+                                   source.components,
+                                   uv.x - 0.5f,
+                                   uv.y - 0.5f,
+                                   source.wrap_x,
+                                   source.wrap_y);
+  return pixel_value;
+}
+
 }  // namespace blender::math
 
 /* -------------------------------------------------------------------- */
@@ -372,6 +444,7 @@ void BLI_ewa_imp2radangle(
 /**
  * TODO(sergey): Consider making this function inlined, so the pixel read callback
  * could also be inlined in order to avoid per-pixel function calls.
+ * TODO(spitzak): replace with function matching sample_rect
  */
 void BLI_ewa_filter(int width,
                     int height,
