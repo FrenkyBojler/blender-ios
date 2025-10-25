@@ -55,6 +55,16 @@ void cache_cleanup(Scene *scene)
   preview_cache_invalidate(scene);
 }
 
+void cache_cleanup_intra(Scene *scene)
+{
+  intra_frame_cache_invalidate(scene);
+}
+
+void cache_cleanup_final(Scene *scene)
+{
+  final_image_cache_clear(scene);
+}
+
 void cache_settings_changed(Scene *scene)
 {
   if (!(scene->ed->cache_flag & SEQ_CACHE_STORE_RAW)) {
@@ -408,7 +418,7 @@ void relations_check_uids_unique_and_report(const Scene *scene)
   GSet *used_uids = BLI_gset_new(
       BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
 
-  for_each_callback(&scene->ed->seqbase, get_uids_cb, used_uids);
+  foreach_strip(&scene->ed->seqbase, get_uids_cb, used_uids);
 
   BLI_gset_free(used_uids, nullptr);
 }

@@ -548,7 +548,10 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surfel_cluster_build_comp.glsl
   engines/eevee/shaders/eevee_surfel_light_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_build_comp.glsl
+  engines/eevee/shaders/eevee_surfel_list_flatten_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_lib.glsl
+  engines/eevee/shaders/eevee_surfel_list_prefix_comp.glsl
+  engines/eevee/shaders/eevee_surfel_list_prepare_comp.glsl
   engines/eevee/shaders/eevee_surfel_list_sort_comp.glsl
   engines/eevee/shaders/eevee_surfel_ray_comp.glsl
   engines/eevee/shaders/eevee_thickness_lib.glsl
@@ -615,6 +618,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_volume_vert.glsl
   engines/workbench/shaders/workbench_world_light_lib.glsl
 
+  engines/workbench/workbench_defines.hh
   engines/workbench/workbench_shader_shared.hh
 
   intern/shaders/subdiv_custom_data_interp_comp.glsl
@@ -685,6 +689,7 @@ set(GLSL_SRC
   engines/select/shaders/select_lib.glsl
   engines/select/shaders/select_debug_frag.glsl
 
+  engines/select/select_defines.hh
   engines/select/select_shader_shared.hh
 
   engines/overlay/shaders/overlay_antialiasing_frag.glsl
