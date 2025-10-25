@@ -19,6 +19,7 @@
 #include "dmon.h"
 
 #include <memory>
+#include <mutex>
 #include <string>
 
 namespace blender::file_watcher {
@@ -32,6 +33,7 @@ struct WatchData {
 static bool initialized = false;
 static Map<std::string, std::unique_ptr<WatchData>> dir_to_watch_data;
 static Vector<std::string> changed_files;
+static std::mutex changed_files_mutex; /* Protects changed_files from concurrent access. */
 
 /**
  * Callback function for dmon file change events.
@@ -66,7 +68,12 @@ static void watch_callback(
   char full_path[FILE_MAX];
   BLI_path_join(full_path, sizeof(full_path), rootdir, filepath);
   memory_cache::invalidate_file(full_path);
-  changed_files.append(full_path);
+
+  /* Thread-safe append: dmon callbacks run on a separate thread. */
+  {
+    std::lock_guard<std::mutex> lock(changed_files_mutex);
+    changed_files.append(full_path);
+  }
 }
 
 void add_file(StringRef filepath)
@@ -132,6 +139,8 @@ Vector<std::string> poll_changed_files()
     return {};
   }
 
+  /* Thread-safe swap: dmon callbacks run on a separate thread. */
+  std::lock_guard<std::mutex> lock(changed_files_mutex);
   Vector<std::string> result = std::move(changed_files);
   changed_files.clear();
   return result;
