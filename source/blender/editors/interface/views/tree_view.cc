@@ -252,11 +252,15 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
     const int x = ((first_descendant->indent_width() + uiLayoutListItemPaddingWidth() -
                     (0.5f * UI_ICON_SIZE) + U.pixelsize + UI_SCALE_FAC) /
                    aspect);
-    const int ymax = std::max(0, first_descendant_index - scroll_ofs) * padded_item_height() /
-                     aspect;
-    const int ymin = std::min(max_visible_row_count, last_descendant_index + 1 - scroll_ofs) *
-                     padded_item_height() / aspect;
-    lines.append(std::make_pair(int2(x, ymax), int2(x, ymin)));
+
+    const int start_row = std::max(0, first_descendant_index - scroll_ofs);
+    const int end_row = std::min(max_visible_row_count,
+                                 std::max(0, last_descendant_index + 1 - scroll_ofs));
+
+    const int ymax = start_row * padded_item_height() / aspect;
+    const int ymin = end_row * padded_item_height() / aspect;
+
+    lines.append(std::make_pair(int2(x, ymin), int2(x, ymax)));
 
     this->get_hierarchy_lines(region, *item, aspect, lines, visible_item_index);
   }
@@ -307,15 +311,89 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
   ui_but_to_pixelrect(&first_item_but_pixel_rect, &region, &block, first_item_but);
   int2 top_left{first_item_but_pixel_rect.xmin, first_item_but_pixel_rect.ymax};
 
-  for (const auto &line : lines) {
-    immBegin(GPU_PRIM_LINES, 2);
-    immVertex2f(pos, top_left.x + line.first.x, top_left.y - line.first.y);
-    immVertex2f(pos, top_left.x + line.second.x, top_left.y - line.second.y);
-    immEnd();
+  /* Get block boundaries for proper clipping */
+  rcti block_pixel_rect;
+  ui_but_to_pixelrect(&block_pixel_rect, &region, &block, nullptr);
+  
+  /* Find visible tree view items within block boundaries */
+  uiButViewItem *first_visible_but = nullptr;
+  uiButViewItem *last_visible_but = nullptr;
+  
+  for (const std::unique_ptr<uiBut> &but : block.buttons) {
+    if (but->type != ButType::ViewItem) {
+      continue;
+    }
+    uiButViewItem *view_item_but = static_cast<uiButViewItem *>(but.get());
+    if (&view_item_but->view_item->get_view() != this) {
+      continue;
+    }
+    
+    rcti but_pixel_rect;
+    ui_but_to_pixelrect(&but_pixel_rect, &region, &block, view_item_but);
+    
+    /* Consider buttons that intersect with block vertically (not strict containment) */
+    if (!(but_pixel_rect.ymax < block_pixel_rect.ymin || but_pixel_rect.ymin > block_pixel_rect.ymax)) {
+      if (!first_visible_but) {
+        first_visible_but = view_item_but;
+      }
+      last_visible_but = view_item_but;
+    }
   }
-  GPU_blend(GPU_BLEND_NONE);
+  
+  if (!first_visible_but || !last_visible_but) {
+    immUnbindProgram();
+    GPU_blend(GPU_BLEND_NONE);
+    return;
+  }
+
+  rcti first_visible_but_pixel_rect;
+  ui_but_to_pixelrect(&first_visible_but_pixel_rect, &region, &block, first_visible_but);
+  
+  rcti last_visible_but_pixel_rect;
+  ui_but_to_pixelrect(&last_visible_but_pixel_rect, &region, &block, last_visible_but);
+  
+  
+  /* Compute unified clip bounds */
+  const float clip_top = std::min(float(first_visible_but_pixel_rect.ymax),
+                                  float(block_pixel_rect.ymax) - UI_UNIT_Y);
+  const float clip_bottom = std::max(float(last_visible_but_pixel_rect.ymin),
+                                     float(block_pixel_rect.ymin) + float(padded_item_height()));
+
+  Vector<std::pair<float, float>> valid_line_points;
+
+  for (int i = 0; i < lines.size(); i++) {
+    const auto &line = lines[i];
+    float x = top_left.x + line.first.x;
+    float y_top = top_left.y - line.second.y;   /* top point (ymax) */
+    float y_bottom = top_left.y - line.first.y; /* bottom point (ymin) */
+
+    /* Horizontal clipping to block bounds */
+    x = std::min(std::max(x, float(block_pixel_rect.xmin)), float(block_pixel_rect.xmax));
+    /* Unified vertical clipping to visible popover area */
+    y_top = std::min(std::max(y_top, clip_bottom), clip_top);
+    y_bottom = std::min(std::max(y_bottom, clip_bottom), clip_top);
+
+    const float line_length = fabsf(y_bottom - y_top);
+    if (line_length >= 0.1f) {
+      valid_line_points.append({x, y_top});
+      valid_line_points.append({x, y_bottom});
+    }
+  }
+
+  if (valid_line_points.is_empty()) {
+    immUnbindProgram();
+    GPU_blend(GPU_BLEND_NONE);
+    return;
+  }
+
+  immBegin(GPU_PRIM_LINES, valid_line_points.size());
+  for (const auto &point : valid_line_points) {
+    immVertex2f(pos, point.first, point.second);
+  }
+  immEnd();
 
   immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 void AbstractTreeView::draw_overlays(const ARegion &region, const uiBlock &block) const
