@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_function_ref.hh"
+#include "BLI_string_ref.hh"
 
 struct ARegion;
 struct ARegionType;
@@ -73,9 +74,14 @@ bool settings_is_catalog_path_enabled(const AssetShelf &shelf,
                                       const asset_system::AssetCatalogPath &path);
 void settings_set_catalog_path_enabled(AssetShelf &shelf,
                                        const asset_system::AssetCatalogPath &path);
+void settings_remove_catalog_path(AssetShelf &shelf,
+                                  const asset_system::AssetCatalogPath &path);
 
 void settings_foreach_enabled_catalog_path(
     const AssetShelf &shelf,
     FunctionRef<void(const asset_system::AssetCatalogPath &catalog_path)> fn);
+
+void show_catalog_in_visible_shelves(const bContext &C, const StringRefNull catalog_path);
+void remove_catalog_from_visible_shelves(const bContext &C, const StringRefNull catalog_path);
 
 }  // namespace blender::ed::asset::shelf

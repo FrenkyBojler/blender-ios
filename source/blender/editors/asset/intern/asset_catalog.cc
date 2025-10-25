@@ -17,6 +17,7 @@
 #include "RNA_access.hh"
 
 #include "ED_asset_catalog.hh"
+#include "ED_asset_shelf.hh"
 
 #include "WM_api.hh"
 
@@ -71,16 +72,24 @@ asset_system::AssetCatalog *catalog_add(AssetLibrary *library,
   return new_catalog;
 }
 
-void catalog_remove(AssetLibrary *library, const CatalogID &catalog_id)
+void catalog_remove(const bContext &C,
+                    AssetLibrary *library, const CatalogID &catalog_id)
 {
   asset_system::AssetCatalogService &catalog_service = library->catalog_service();
   if (catalog_service.is_read_only()) {
     return;
   }
 
+  const AssetCatalog *catalog = catalog_service.find_catalog(catalog_id);
+  if (catalog) {
+    blender::ed::asset::shelf::remove_catalog_from_visible_shelves(C, catalog->path.str());
+  }
+  
   catalog_service.undo_push();
   catalog_service.tag_has_unsaved_changes(nullptr);
   catalog_service.prune_catalogs_by_id(catalog_id);
+
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_CATALOGS, nullptr);
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 }
 

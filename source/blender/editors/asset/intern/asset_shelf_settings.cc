@@ -21,6 +21,7 @@
 
 #include "BKE_asset.hh"
 #include "BKE_preferences.h"
+#include "BKE_asset.hh"
 #include "BKE_screen.hh"
 
 #include "asset_shelf.hh"
@@ -166,6 +167,22 @@ void settings_set_catalog_path_enabled(AssetShelf &shelf,
     {
       BKE_asset_catalog_path_list_add_path(shelf.settings.enabled_catalog_paths, path.c_str());
     }
+  }
+}
+
+void settings_remove_catalog_path(AssetShelf &shelf,
+                                  const asset_system::AssetCatalogPath &path)
+{
+  if (use_enabled_catalogs_from_prefs(shelf)) {
+    bUserAssetShelfSettings *pref_settings = BKE_preferences_asset_shelf_settings_get(
+        &U, shelf.idname);
+    if (pref_settings) {
+      BKE_asset_catalog_path_list_remove_path(pref_settings->enabled_catalog_paths, path.c_str());
+      U.runtime.is_dirty = true;
+    }
+  }
+  else {
+    BKE_asset_catalog_path_list_remove_path(shelf.settings.enabled_catalog_paths, path.c_str());
   }
 }
 

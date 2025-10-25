@@ -343,11 +343,11 @@ bool AssetCatalogTreeViewItem::rename(const bContext &C, StringRefNull new_name)
   return true;
 }
 
-void AssetCatalogTreeViewItem::delete_item(bContext * /*C*/)
+void AssetCatalogTreeViewItem::delete_item(bContext *C)
 {
   const AssetCatalogTreeView &tree_view = static_cast<const AssetCatalogTreeView &>(
       this->get_tree_view());
-  ed::asset::catalog_remove(tree_view.asset_library_, catalog_item_.get_catalog_id());
+  ed::asset::catalog_remove(*C, tree_view.asset_library_, catalog_item_.get_catalog_id());
 }
 
 std::unique_ptr<ui::TreeViewItemDropTarget> AssetCatalogTreeViewItem::create_drop_target()
@@ -494,11 +494,12 @@ bool AssetCatalogDropTarget::drop_assets_into_catalog(bContext *C,
     /* Trigger re-run of filtering to update visible assets. */
     filelist_tag_needs_filtering(tree_view.space_file_.files);
     file_select_deselect_all(&tree_view.space_file_, FILE_SEL_SELECTED | FILE_SEL_HIGHLIGHTED);
-    WM_main_add_notifier(NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
-    WM_main_add_notifier(NC_ASSET | ND_ASSET_CATALOGS, nullptr);
   }
 
   if (did_update) {
+    WM_main_add_notifier(NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
+    WM_main_add_notifier(NC_ASSET | ND_ASSET_CATALOGS, nullptr);
+
     ED_undo_push(C, "Assign Asset Catalog");
   }
   return true;

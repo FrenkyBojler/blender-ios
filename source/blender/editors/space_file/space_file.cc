@@ -414,6 +414,13 @@ static void file_listener(const wmSpaceTypeListenerParams *listener_params)
       break;
     }
     case NC_ASSET: {
+      switch (wmn->data) {
+        case ND_ASSET_CATALOGS:
+          if (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) {
+            ED_area_tag_refresh(area);
+          }
+          break;
+      }
       switch (wmn->action) {
         case NA_SELECTED:
         case NA_ACTIVATED:

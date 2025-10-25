@@ -93,3 +93,4 @@ void BKE_asset_catalog_path_list_blend_read_data(BlendDataReader *reader,
 bool BKE_asset_catalog_path_list_has_path(const ListBase &catalog_path_list,
                                           const char *catalog_path);
 void BKE_asset_catalog_path_list_add_path(ListBase &catalog_path_list, const char *catalog_path);
+void BKE_asset_catalog_path_list_remove_path(ListBase &catalog_path_list, const char *catalog_path);

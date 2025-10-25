@@ -25,6 +25,7 @@
 
 struct AssetWeakReference;
 struct Main;
+struct bContext;
 
 namespace blender::asset_system {
 class AssetLibrary;
@@ -52,7 +53,8 @@ bool catalogs_get_save_catalogs_when_file_is_saved();
 asset_system::AssetCatalog *catalog_add(asset_system::AssetLibrary *library,
                                         StringRefNull name,
                                         StringRef parent_path = nullptr);
-void catalog_remove(asset_system::AssetLibrary *library,
+void catalog_remove(const bContext &C,
+                    asset_system::AssetLibrary *library,
                     const asset_system::CatalogID &catalog_id);
 
 void catalog_rename(asset_system::AssetLibrary *library,

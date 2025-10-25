@@ -177,3 +177,14 @@ void BKE_asset_catalog_path_list_add_path(ListBase &catalog_path_list, const cha
   new_path->path = BLI_strdup(catalog_path);
   BLI_addtail(&catalog_path_list, new_path);
 }
+
+void BKE_asset_catalog_path_list_remove_path(ListBase &catalog_path_list, const char *catalog_path)
+{
+  AssetCatalogPathLink *path_link = static_cast<AssetCatalogPathLink *>(BLI_findstring_ptr(
+      &catalog_path_list, catalog_path, offsetof(AssetCatalogPathLink, path)));
+  if (path_link) {
+    BLI_remlink(&catalog_path_list, path_link);
+    MEM_freeN(path_link->path);
+    MEM_freeN(path_link);
+  }
+}

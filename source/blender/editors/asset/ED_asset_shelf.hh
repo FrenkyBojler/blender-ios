@@ -110,6 +110,11 @@ AssetShelf *active_shelf_from_area(const ScrArea *area);
  */
 void show_catalog_in_visible_shelves(const bContext &C, const StringRefNull catalog_path);
 
+/**
+ * Remove catalog path from all shelves visible in all windows.
+ */
+void remove_catalog_from_visible_shelves(const bContext &C, const StringRefNull catalog_path);
+
 int context(const bContext *C, const char *member, bContextDataResult *result);
 
 }  // namespace blender::ed::asset::shelf

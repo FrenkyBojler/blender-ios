@@ -521,15 +521,13 @@ static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
   SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
   std::string catalog_id_str = RNA_string_get(op->ptr, "catalog_id");
+  
   asset_system::CatalogID catalog_id;
   if (!BLI_uuid_parse_string(&catalog_id, catalog_id_str.c_str())) {
     return OPERATOR_CANCELLED;
   }
 
-  catalog_remove(asset_library, catalog_id);
-
-  WM_event_add_notifier_ex(
-      CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
+  catalog_remove(*C, asset_library, catalog_id);
 
   return OPERATOR_FINISHED;
 }

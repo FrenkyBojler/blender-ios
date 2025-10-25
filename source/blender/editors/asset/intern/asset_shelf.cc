@@ -315,6 +315,10 @@ static void asset_shelf_region_listen(const wmRegionListenerParams *params)
       if (wmn->data == ND_REGIONS_ASSET_SHELF) {
         ED_region_tag_redraw(region);
       }
+      /* Handle asset parameter changes (including catalog changes) */
+      else if (wmn->data == ND_SPACE_ASSET_PARAMS) {
+        ED_region_tag_redraw(region);
+      }
       break;
     case NC_SCENE:
       /* Asset shelf polls typically check the mode. */
@@ -324,6 +328,8 @@ static void asset_shelf_region_listen(const wmRegionListenerParams *params)
       break;
     case NC_ASSET:
       ED_region_tag_redraw(region);
+      break;
+    default:
       break;
   }
 }
@@ -941,6 +947,19 @@ void show_catalog_in_visible_shelves(const bContext &C, const StringRefNull cata
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
       if (AssetShelf *shelf = asset::shelf::active_shelf_from_area(area)) {
         settings_set_catalog_path_enabled(*shelf, catalog_path.c_str());
+      }
+    }
+  }
+}
+
+void remove_catalog_from_visible_shelves(const bContext &C, const StringRefNull catalog_path)
+{
+  wmWindowManager *wm = CTX_wm_manager(&C);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(win);
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (AssetShelf *shelf = asset::shelf::active_shelf_from_area(area)) {
+        settings_remove_catalog_path(*shelf, catalog_path.c_str());
       }
     }
   }
