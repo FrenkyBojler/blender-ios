@@ -40,19 +40,18 @@ static Vector<std::string> changed_files;
  * \param action: The type of change (CREATE, DELETE, MODIFY, MOVE)
  * \param rootdir: The root directory being watched
  * \param filepath: The relative path of the file that changed
- * \param oldfilepath: The old path for MOVE actions (otherwise empty)
  * \param user: User data pointer - points to WatchData for this directory
  */
-static void watch_callback(dmon_watch_id watch_id,
-                           dmon_action action,
-                           const char *rootdir,
-                           const char *filepath,
-                           const char *oldfilepath,
-                           void *user)
+static void watch_callback(
+    dmon_watch_id watch_id,
+    dmon_action action,
+    const char *rootdir,
+    const char *filepath,
+    const char * /*oldfilepath*/, /* Not used - we don't handle MOVE actions. */
+    void *user)
 {
   (void)watch_id;
   (void)action;
-  (void)oldfilepath;
 
   const WatchData *watch_data = static_cast<const WatchData *>(user);
   if (!watch_data) {
