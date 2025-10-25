@@ -297,6 +297,94 @@ class IMAGE_OT_open_images(Operator):
         return {'FINISHED'}
 
 
+class IMAGE_OT_make_hdri(Operator):
+    """Make an Image the World HDRI"""
+    bl_idname = "image.make_hdri"
+    bl_label = "Make active HDRI"
+    bl_options = {'REGISTER'}
+
+    filepath: StringProperty(
+        subtype='FILE_PATH', 
+        options={'SKIP_SAVE'}
+    )
+
+    def execute(self, context):
+        if not self.filepath:
+            return {'CANCELLED'}
+        image = bpy.data.images.load(self.filepath, check_existing=True)
+                
+        world = bpy.context.scene.world
+        if not bpy.context.scene.world:
+            world = bpy.data.worlds.new("World")
+            bpy.context.scene.world = world
+            
+        world.use_nodes = True
+        nodes = world.node_tree.nodes
+        links = world.node_tree.links
+
+        bg_node = None
+        env_node = None
+        out_node = None
+        for node in nodes:
+            if node.type == 'BACKGROUND':
+                bg_node = node
+            if node.type == 'TEX_ENVIRONMENT':
+                env_node = node
+            if node.type == 'OUTPUT_WORLD':
+                out_node = node
+
+        if not out_node:
+            out_node = nodes.new(type='ShaderNodeOutputWorld')
+            out_node.location = (200, 100)
+            
+        if not bg_node:
+            bg_node = nodes.new(type='ShaderNodeBackground')
+            bg_node.location = (-200, 100)
+        if not bg_node.outputs['Background'].is_linked:
+            links.new(bg_node.outputs['Background'], out_node.inputs['Surface'])
+        bg_node.inputs['Color'].show_expanded = True
+
+        if not env_node:
+            env_node = nodes.new(type='ShaderNodeTexEnvironment')
+            env_node.location = (bg_node.location.x - 300, bg_node.location.y)
+        if not env_node.outputs['Color'].is_linked:
+            links.new(env_node.outputs['Color'], bg_node.inputs['Color'])
+        env_node.inputs['Vector'].show_expanded = True
+
+        env_node.image = image
+
+        if not env_node.inputs['Vector'].is_linked:
+            map_node = nodes.new(type='ShaderNodeMapping')
+            map_node.location = (env_node.location.x - 200, env_node.location.y)
+            coords_node = nodes.new(type='ShaderNodeTexCoord')
+            coords_node.location = (map_node.location.x - 200, map_node.location.y)
+            links.new(map_node.outputs['Vector'], env_node.inputs['Vector'])
+            links.new(map_node.inputs['Vector'], coords_node.outputs['Generated'])
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        if self.filepath:
+            return self.execute(context)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+
+class IMAGE_FH_hdri_handler(FileHandler):
+    bl_idname = "IMAGE_FH_hdri_handler"
+    bl_label = "Make active HDRI"
+    bl_import_operator = "image.make_hdri"
+    bl_file_extensions = ";".join(bl_file_extensions_image_movie)
+
+    @classmethod
+    def poll_drop(cls, context):
+        return (
+            (context.area is not None) and
+            (context.area.type == 'PROPERTIES') and
+            (context.space_data.context == 'WORLD')
+        )
+
+
 class IMAGE_FH_drop_handler(FileHandler):
     bl_idname = "IMAGE_FH_drop_handler"
     bl_label = "Open images"
@@ -317,6 +405,8 @@ classes = (
     EditExternally,
     ProjectApply,
     IMAGE_OT_open_images,
+    IMAGE_OT_make_hdri,
     IMAGE_FH_drop_handler,
+    IMAGE_FH_hdri_handler,
     ProjectEdit,
 )
