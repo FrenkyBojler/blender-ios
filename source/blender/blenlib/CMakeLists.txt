@@ -14,6 +14,7 @@ set(INC
 set(INC_SYS
   ../../../extern/wcwidth
   ../../../extern/json/include
+  ../../../extern/dmon
 
   ${ZLIB_INCLUDE_DIRS}
   ${ZSTD_INCLUDE_DIRS}
@@ -437,6 +438,10 @@ set(LIB
   ${ZLIB_LIBRARIES}
   ${ZSTD_LIBRARIES}
 )
+
+# Link dmon library
+list(APPEND LIB bf_extern_dmon)
+
 
 if(NOT WITH_PYTHON_MODULE)
   list(APPEND SRC

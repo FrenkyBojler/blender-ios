@@ -109,3 +109,6 @@ endif()
 if(WITH_VULKAN_BACKEND)
   add_subdirectory(vulkan_memory_allocator)
 endif()
+
+# Add dmon library for file watching
+add_subdirectory(dmon)
