@@ -373,3 +373,7 @@ void BKE_constraint_blend_write(struct BlendWriter *writer, struct ListBase *con
 void BKE_constraint_blend_read_data(struct BlendDataReader *reader,
                                     struct ID *id_owner,
                                     struct ListBase *lb);
+
+void damptrack_do_transform_normalized(float matrix[4][4],
+                                       const float tarvec[3],
+                                       const int track_axis);

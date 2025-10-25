@@ -64,6 +64,12 @@
 
 using namespace blender;
 
+namespace blender::bke {
+// constexpr uint8_t BONE_AXIS_MAIN = 0;
+// constexpr uint8_t BONE_AXIS_SECONDARY = 2;
+constexpr uint8_t BONE_AXIS_ROLL = 1;
+}  // namespace blender::bke
+
 /* -------------------------------------------------------------------- */
 /** \name Prototypes
  * \{ */
@@ -2064,11 +2070,8 @@ void BKE_bone_offset_matrix_get(const Bone *bone, float offs_bone[4][4])
   /* The bone's root offset (is in the parent's coordinate system). */
   copy_v3_v3(offs_bone[3], bone->head);
 
-  /* Get the length translation of parent (length along y axis). */
-  // offs_bone[3][1] += bone->parent->length;
-
-  /* Get the length translation of parent (length along z axis). */
-  offs_bone[3][2] += bone->parent->length;
+  /* Get the length translation of parent (length along roll axis). */
+  offs_bone[3][blender::bke::BONE_AXIS_ROLL] += bone->parent->length;
 }
 
 void BKE_bone_parent_transform_calc_from_pchan(const bPoseChannel *pchan,
@@ -2556,12 +2559,12 @@ void BKE_pchan_protected_rotation_axisangle_set(bPoseChannel *pchan,
  * This is the bone transformation trick; they're hierarchical so each bone(b)
  * is in the coord system of bone(b-1):
  *
- * arm_mat(b)= arm_mat(b-1) * yoffs(b-1) * d_root(b) * bone_mat(b)
+ * arm_mat(b)= arm_mat(b-1) * bone_offs(b-1) * d_root(b) * bone_mat(b)
  *
- * -> yoffs is just the y axis translation in parent's coord system
+ * -> bone_offs is just the roll-axis translation in parent's coord system
  * -> d_root is the translation of the bone root, also in parent's coord system
  *
- * pose_mat(b)= pose_mat(b-1) * yoffs(b-1) * d_root(b) * bone_mat(b) * chan_mat(b)
+ * pose_mat(b)= pose_mat(b-1) * bone_offs(b-1) * d_root(b) * bone_mat(b) * chan_mat(b)
  *
  * we then - in init deform - store the deform in chan_mat, such that:
  *
@@ -2572,11 +2575,11 @@ void BKE_pchan_protected_rotation_axisangle_set(bPoseChannel *pchan,
 void mat3_to_vec_roll(const float mat[3][3], float r_vec[3], float *r_roll)
 {
   if (r_vec) {
-    copy_v3_v3(r_vec, mat[1]);
+    copy_v3_v3(r_vec, mat[blender::bke::BONE_AXIS_ROLL]);
   }
 
   if (r_roll) {
-    mat3_vec_to_roll(mat, mat[1], r_roll);
+    mat3_vec_to_roll(mat, mat[blender::bke::BONE_AXIS_ROLL], r_roll);
   }
 }
 
@@ -2592,11 +2595,33 @@ void mat3_vec_to_roll(const float mat[3][3], const float vec[3], float *r_roll)
   /* Extract the twist angle as the roll value. */
   mat3_to_quat(q, rollmat);
 
-  *r_roll = quat_split_swing_and_twist(q, 1, nullptr, nullptr);
+  *r_roll = quat_split_swing_and_twist(q, blender::bke::BONE_AXIS_ROLL, nullptr, nullptr);
 }
 
 void vec_roll_to_mat3_normalized(const float nor[3], const float roll, float r_mat[3][3])
 {
+  {
+    // Get the matrix that rolls around 'nor'.
+    float rMatrix[3][3];
+    axis_angle_normalized_to_mat3(rMatrix, nor, roll);
+
+    // Get the matrix that rotates the roll axis to align with 'nor'.
+    float matrix44[4][4];
+    unit_m4(matrix44);
+    // TODO: split up the function below, because I think we can make it work more specialized,
+    // with just the rotation part of the matrix.
+    damptrack_do_transform_normalized(matrix44, nor, blender::bke::BONE_AXIS_ROLL);
+
+    float bMatrix[3][3];
+    copy_m3_m4(bMatrix, matrix44);
+
+    /* Combine and output result */
+    // TODO: maybe if we do this in opposite order, the roll matrix can be around a fixed
+    // coordinate axis, maybe making it easier to compute. Not sure though.
+    mul_m3_m3m3(r_mat, rMatrix, bMatrix);
+    return;
+  }
+
   /**
    * Given `v = (v.x, v.y, v.z)` our (normalized) bone vector, we want the rotation matrix M
    * from the Y axis (so that `M * (0, 1, 0) = v`).
@@ -2669,6 +2694,7 @@ void vec_roll_to_mat3_normalized(const float nor[3], const float roll, float r_m
    *
    * P.S. In the end, this basically is a heavily optimized version of Damped Track +Y.
    */
+  using blender::bke::BONE_AXIS_ROLL;
 
   const float SAFE_THRESHOLD = 6.1e-3f;     /* Theta above this value has good enough precision. */
   const float CRITICAL_THRESHOLD = 2.5e-4f; /* True singularity if XZ distance is below this. */
@@ -2678,8 +2704,8 @@ void vec_roll_to_mat3_normalized(const float nor[3], const float roll, float r_m
   const float y = nor[1];
   const float z = nor[2];
 
-  float theta = 1.0f + y;                /* Remapping Y from [-1,+1] to [0,2]. */
-  const float theta_alt = x * x + z * z; /* Squared distance from origin in x,z plane. */
+  float theta = 1.0f + nor[BONE_AXIS_ROLL]; /* Remapping Y from [-1,+1] to [0,2]. */
+  const float theta_alt = x * x + z * z;    /* Squared distance from origin in x,z plane. */
   float rMatrix[3][3], bMatrix[3][3];
 
   BLI_ASSERT_UNIT_V3(nor);
@@ -2756,7 +2782,7 @@ void BKE_armature_where_is_bone(Bone *bone, const Bone *bone_parent, const bool 
 
   if (bone_parent) {
     float offs_bone[4][4];
-    /* yoffs(b-1) + root(b) + bonemat(b) */
+    /* bone_vector(b-1) + root(b) + bonemat(b) */
     BKE_bone_offset_matrix_get(bone, offs_bone);
 
     /* Compose the matrix for this bone. */

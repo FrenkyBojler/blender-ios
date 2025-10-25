@@ -4464,6 +4464,87 @@ static void damptrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *t
   }
 }
 
+void damptrack_do_transform_normalized(float matrix[4][4],
+                                       const float tarvec[3],
+                                       const int track_axis)
+{
+  using namespace blender;
+  float3 obvec, obloc;
+  float3 raxis;
+  float rangle;
+  float rmat[3][3], tmat[4][4];
+
+  /* find the (unit) direction that the axis we're interested in currently points
+   * - mul_mat3_m4_v3() only takes the 3x3 (rotation+scaling) components of the 4x4 matrix
+   * - the normalization step at the end should take care of any unwanted scaling
+   *   left over in the 3x3 matrix we used
+   */
+  copy_v3_v3(obvec, track_dir_vecs[track_axis]);
+  mul_mat3_m4_v3(matrix, obvec);
+
+  if (normalize_v3(obvec) == 0.0f) {
+    /* exceptional case - just use the track vector as appropriate */
+    copy_v3_v3(obvec, track_dir_vecs[track_axis]);
+  }
+
+  copy_v3_v3(obloc, matrix[3]);
+
+  /* determine the axis-angle rotation, which represents the smallest possible rotation
+   * between the two rotation vectors (i.e. the 'damping' referred to in the name)
+   * - we take this to be the rotation around the normal axis/vector to the plane defined
+   *   by the current and destination vectors, which will 'map' the current axis to the
+   *   destination vector
+   * - the min/max wrappers around (obvec . tarvec) result (stored temporarily in rangle)
+   *   are used to ensure that the smallest angle is chosen
+   */
+  raxis = math::cross_high_precision(obvec, tarvec);
+
+  rangle = dot_v3v3(obvec, tarvec);
+  rangle = acosf(max_ff(-1.0f, min_ff(1.0f, rangle)));
+
+  /* construct rotation matrix from the axis-angle rotation found above
+   * - this call takes care to make sure that the axis provided is a unit vector first
+   */
+  float norm = normalize_v3(raxis);
+
+  if (norm < FLT_EPSILON) {
+    /* if dot product is nonzero, while cross is zero, we have two opposite vectors!
+     * - this is an ambiguity in the math that needs to be resolved arbitrarily,
+     *   or there will be a case where damped track strangely does nothing
+     * - to do that, rotate around a different local axis
+     */
+    float tmpvec[3];
+
+    if (fabsf(rangle) < M_PI - 0.01f) {
+      return;
+    }
+
+    rangle = M_PI;
+    copy_v3_v3(tmpvec, track_dir_vecs[(track_axis + 1) % 6]);
+    mul_mat3_m4_v3(matrix, tmpvec);
+    cross_v3_v3v3(raxis, obvec, tmpvec);
+
+    if (normalize_v3(raxis) == 0.0f) {
+      return;
+    }
+  }
+  else if (norm < 0.1f) {
+    /* Near 0 and Pi `arcsin` has way better precision than `arccos`. */
+    rangle = (rangle > M_PI_2) ? M_PI - asinf(norm) : asinf(norm);
+  }
+
+  axis_angle_normalized_to_mat3(rmat, raxis, rangle);
+
+  /* rotate the owner in the way defined by this rotation matrix, then reapply the location since
+   * we may have destroyed that in the process of multiplying the matrix
+   */
+  unit_m4(tmat);
+  mul_m4_m3m4(tmat, rmat, matrix); /* m1, m3, m2 */
+
+  copy_m4_m4(matrix, tmat);
+  copy_v3_v3(matrix[3], obloc);
+}
+
 static void damptrack_do_transform(float matrix[4][4], const float tarvec_in[3], int track_axis)
 {
   using namespace blender;
@@ -4471,80 +4552,7 @@ static void damptrack_do_transform(float matrix[4][4], const float tarvec_in[3],
   float3 tarvec;
 
   if (normalize_v3_v3(tarvec, tarvec_in) != 0.0f) {
-    float3 obvec, obloc;
-    float3 raxis;
-    float rangle;
-    float rmat[3][3], tmat[4][4];
-
-    /* find the (unit) direction that the axis we're interested in currently points
-     * - mul_mat3_m4_v3() only takes the 3x3 (rotation+scaling) components of the 4x4 matrix
-     * - the normalization step at the end should take care of any unwanted scaling
-     *   left over in the 3x3 matrix we used
-     */
-    copy_v3_v3(obvec, track_dir_vecs[track_axis]);
-    mul_mat3_m4_v3(matrix, obvec);
-
-    if (normalize_v3(obvec) == 0.0f) {
-      /* exceptional case - just use the track vector as appropriate */
-      copy_v3_v3(obvec, track_dir_vecs[track_axis]);
-    }
-
-    copy_v3_v3(obloc, matrix[3]);
-
-    /* determine the axis-angle rotation, which represents the smallest possible rotation
-     * between the two rotation vectors (i.e. the 'damping' referred to in the name)
-     * - we take this to be the rotation around the normal axis/vector to the plane defined
-     *   by the current and destination vectors, which will 'map' the current axis to the
-     *   destination vector
-     * - the min/max wrappers around (obvec . tarvec) result (stored temporarily in rangle)
-     *   are used to ensure that the smallest angle is chosen
-     */
-    raxis = math::cross_high_precision(obvec, tarvec);
-
-    rangle = dot_v3v3(obvec, tarvec);
-    rangle = acosf(max_ff(-1.0f, min_ff(1.0f, rangle)));
-
-    /* construct rotation matrix from the axis-angle rotation found above
-     * - this call takes care to make sure that the axis provided is a unit vector first
-     */
-    float norm = normalize_v3(raxis);
-
-    if (norm < FLT_EPSILON) {
-      /* if dot product is nonzero, while cross is zero, we have two opposite vectors!
-       * - this is an ambiguity in the math that needs to be resolved arbitrarily,
-       *   or there will be a case where damped track strangely does nothing
-       * - to do that, rotate around a different local axis
-       */
-      float tmpvec[3];
-
-      if (fabsf(rangle) < M_PI - 0.01f) {
-        return;
-      }
-
-      rangle = M_PI;
-      copy_v3_v3(tmpvec, track_dir_vecs[(track_axis + 1) % 6]);
-      mul_mat3_m4_v3(matrix, tmpvec);
-      cross_v3_v3v3(raxis, obvec, tmpvec);
-
-      if (normalize_v3(raxis) == 0.0f) {
-        return;
-      }
-    }
-    else if (norm < 0.1f) {
-      /* Near 0 and Pi `arcsin` has way better precision than `arccos`. */
-      rangle = (rangle > M_PI_2) ? M_PI - asinf(norm) : asinf(norm);
-    }
-
-    axis_angle_normalized_to_mat3(rmat, raxis, rangle);
-
-    /* rotate the owner in the way defined by this rotation matrix, then reapply the location since
-     * we may have destroyed that in the process of multiplying the matrix
-     */
-    unit_m4(tmat);
-    mul_m4_m3m4(tmat, rmat, matrix); /* m1, m3, m2 */
-
-    copy_m4_m4(matrix, tmat);
-    copy_v3_v3(matrix[3], obloc);
+    damptrack_do_transform_normalized(matrix, tarvec, track_axis);
   }
 }
 

@@ -114,9 +114,9 @@ TEST(mat3_vec_to_roll, Rotationmatrix)
 
 /** Generic function to test vec_roll_to_mat3_normalized. */
 static double test_vec_roll_to_mat3_normalized(const float input[3],
-                                               float roll,
+                                               const float roll,
                                                const float expected_roll_mat[3][3],
-                                               bool normalize = true)
+                                               const bool normalize = true)
 {
   float input_normalized[3];
   float roll_mat[3][3];
@@ -129,12 +129,17 @@ static double test_vec_roll_to_mat3_normalized(const float input[3],
     copy_v3_v3(input_normalized, input);
   }
 
+  // The implementation of the function under test changed. The test values are still from the
+  // original implementation, but since the computations are different, the results aren't exactly
+  // the same.
+  constexpr float epsilon = 11 * FLT_EPSILON;
+
   vec_roll_to_mat3_normalized(input_normalized, roll, roll_mat);
 
-  EXPECT_V3_NEAR(roll_mat[1], input_normalized, FLT_EPSILON);
+  EXPECT_V3_NEAR(roll_mat[1], input_normalized, epsilon);
 
   if (expected_roll_mat) {
-    EXPECT_M3_NEAR(roll_mat, expected_roll_mat, FLT_EPSILON);
+    EXPECT_M3_NEAR(roll_mat, expected_roll_mat, epsilon);
   }
 
   return EXPECT_M3_ORTHOGONAL(roll_mat, SCALE_EPSILON, ORTHO_EPSILON);
