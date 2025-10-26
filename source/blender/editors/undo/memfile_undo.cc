@@ -15,7 +15,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
