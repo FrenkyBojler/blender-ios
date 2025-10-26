@@ -68,7 +68,6 @@ set(SRC_KERNEL_DEVICE_GPU_HEADERS
   device/gpu/parallel_active_index.h
   device/gpu/parallel_prefix_sum.h
   device/gpu/parallel_sorted_index.h
-  device/gpu/timer.h
   device/gpu/work_stealing.h
 )
 
@@ -289,6 +288,7 @@ set(SRC_KERNEL_FILM_HEADERS
   film/volume_guiding_denoise.h
   film/cryptomatte_passes.h
   film/light_passes.h
+  film/render_time.h
   film/read.h
   film/write.h
 )

@@ -238,11 +238,18 @@ ccl_device_forceinline int __float_as_int(const float x)
 
 /* Timer */
 
+#if defined(__SYCL_DEVICE_ONLY__)
 extern SYCL_EXTERNAL ulong __attribute__((overloadable)) intel_get_cycle_counter(void);
 ccl_device_forceinline uint64_t gpu_time_fast()
 {
   return intel_get_cycle_counter();
 }
+#else
+ccl_device_forceinline uint64_t gpu_time_fast()
+{
+  return 0;
+}
+#endif
 
 /* Types */
 #include "util/half.h"

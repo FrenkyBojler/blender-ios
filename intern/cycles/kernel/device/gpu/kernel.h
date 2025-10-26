@@ -42,9 +42,8 @@
 #include "kernel/bake/bake.h"
 
 #include "kernel/film/adaptive_sampling.h"
+#include "kernel/film/render_time.h"
 #include "kernel/film/volume_guiding_denoise.h"
-
-#include "kernel/device/gpu/timer.h"
 
 #ifdef __KERNEL_METAL__
 #  include "kernel/device/metal/context_end.h"
@@ -57,6 +56,10 @@
 #if defined(__HIPRT__)
 #  include "kernel/device/hiprt/hiprt_kernels.h"
 #endif
+
+#define GPU_TIMER_START() uint64_t _timer_start = gpu_time_fast()
+#define GPU_TIMER_END() ccl_gpu_kernel_call(write_render_time(state, render_buffer, _timer_start))
+
 /* --------------------------------------------------------------------
  * Integrator.
  */
@@ -155,8 +158,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_intersect_closest(nullptr, state, render_buffer));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -171,8 +175,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_intersect_shadow(nullptr, state));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -187,8 +192,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_intersect_subsurface(nullptr, state));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -204,8 +210,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_intersect_volume_stack(nullptr, state));
+    GPU_TIMER_END();
   }
 #  endif
 }
@@ -221,8 +228,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_intersect_dedicated_light(nullptr, state));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -243,8 +251,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_shade_background(nullptr, state, render_buffer));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -259,8 +268,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_shade_light(nullptr, state, render_buffer));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -275,8 +285,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_shade_shadow(nullptr, state, render_buffer));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -291,8 +302,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_shade_surface(nullptr, state, render_buffer));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -319,8 +331,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
 
+    GPU_TIMER_END();
 #  if defined(__KERNEL_METAL_APPLE__) && defined(__METALRT__)
     KernelGlobals kg = nullptr;
     /* Workaround Ambient Occlusion and Bevel nodes not working with Metal.
@@ -344,8 +357,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_shade_surface_mnee(nullptr, state, render_buffer));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -366,8 +380,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_shade_volume(nullptr, state, render_buffer));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
@@ -397,8 +412,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
 
   if (ccl_gpu_kernel_within_bounds(global_index, work_size)) {
     const int state = (path_index_array) ? path_index_array[global_index] : global_index;
-    gpu_kernel_timer timer(render_buffer, state);
+    GPU_TIMER_START();
     ccl_gpu_kernel_call(integrator_shade_dedicated_light(nullptr, state, render_buffer));
+    GPU_TIMER_END();
   }
 }
 ccl_gpu_kernel_postfix
