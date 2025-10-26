@@ -87,17 +87,10 @@ static bool raycastMesh(SnapObjectContext *sctx,
                         bool use_hide)
 {
   bool retval = false;
-
+  /* Use the evaluated mesh so raycasting works on the final geometry. */
+  mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   if (mesh_eval->faces_num == 0) {
     return retval;
-  }
-
-  const Mesh *mesh_to_use = mesh_eval;
-
-  /* For curve and surface objects, use the evaluated mesh so snapping
-   * works with the final geometry instead of the coarse cage. */
-  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_CURVES, OB_SURF)) {
-    mesh_to_use = BKE_object_get_evaluated_mesh(ob_eval);
   }
 
   float4x4 imat = math::invert(obmat);
@@ -140,9 +133,9 @@ static bool raycastMesh(SnapObjectContext *sctx,
   }
 
   bke::BVHTreeFromMesh treedata;
-  snap_object_data_mesh_get(mesh_to_use, use_hide, &treedata);
+  snap_object_data_mesh_get(mesh_eval, use_hide, &treedata);
 
-  const Span<int> tri_faces = mesh_to_use->corner_tri_faces();
+  const Span<int> tri_faces = mesh_eval->corner_tri_faces();
 
   if (treedata.tree == nullptr) {
     return retval;
