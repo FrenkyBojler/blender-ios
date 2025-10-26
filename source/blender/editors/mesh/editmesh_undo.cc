@@ -218,7 +218,7 @@ struct ArraysWithType {
   eCustomDataType type;
   blender::Vector<const void *> data;
   blender::Vector<const blender::ImplicitSharingInfo *> sharing_info;
-  const size_t data_len;
+  size_t data_len;
 };
 
 static void um_arraystore_cd_compact(ArraysWithType &arrays,
@@ -363,6 +363,29 @@ static void um_arraystore_cd_compact(ArraysWithType &arrays,
 
   if (create) {
     *r_bcd_first = bcd_first;
+  }
+}
+
+static void um_arraystore_cd_compact(CustomData *cdata,
+                                     const size_t data_len,
+                                     const bool create,
+                                     const int bs_index,
+                                     const BArrayCustomData *bcd_reference,
+                                     BArrayCustomData **r_bcd_first)
+{
+  blender::Map<eCustomDataType, ArraysWithType> arrays;
+  for (const CustomDataLayer &layer : blender::Span(cdata->layers, cdata->totlayer)) {
+    ArraysWithType &arrays_for_type = arrays.lookup_or_add_cb(eCustomDataType(layer.type), [&]() {
+      ArraysWithType arrays;
+      arrays.type = eCustomDataType(layer.type);
+      arrays_for_type.data_len = data_len;
+      return arrays;
+    });
+    arrays_for_type.data.append(layer.data);
+    arrays_for_type.sharing_info.append(layer.sharing_info);
+  }
+  for (ArraysWithType &arrays_for_type : arrays.values()) {
+    um_arraystore_cd_compact(arrays_for_type, create, bs_index, bcd_reference, r_bcd_first);
   }
 }
 
