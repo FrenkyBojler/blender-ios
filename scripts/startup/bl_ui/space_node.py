@@ -1048,14 +1048,14 @@ class NodeTreePropertiesPanel:
     @staticmethod
     def get_node_tree(context):
         raise NotImplementedError
-    
+
     @classmethod
     def poll(cls, context):
         group = cls.get_node_tree(context)
 
         if group is None:
             return False
-        
+
         return (group.is_editable and not group.is_embedded_data)
 
     def draw_nodetree_properties(self, layout, group, width_operator):
@@ -1121,7 +1121,7 @@ class NODE_PT_group_node_tree_properties(NodeTreePropertiesPanel, Panel):
     def poll(cls, context):
         if not super().poll(context):
             return False
-        
+
         node_tree = cls.get_node_tree(context)
         return node_tree is not None
 
