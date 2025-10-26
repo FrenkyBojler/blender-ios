@@ -528,6 +528,29 @@ static void foreach_toplevel_grid_coord_single_threaded(
   }
 }
 
+static void foreach_reshape_ptex_face_single_threaded(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
+{
+  using namespace blender;
+  const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
+  const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
+  for (const int face_index : faces.index_range()) {
+    printf("<-------------------->\n");
+    const IndexRange face = faces[face_index];
+    const int grid_index = get_face_grid_index(reshape_smooth_context, face);
+    for (int v = 0; v < 3; v++) {
+      for (int u = 0; u < 3; u++) {
+        PTexCoord ptex_coord;
+        ptex_coord.ptex_face_index = face_index;
+        ptex_coord.u = float(u) / 2.0f;
+        ptex_coord.v = float(v) / 2.0f;
+        callback(&ptex_coord, -1, grid_index);
+      }
+    }
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -735,7 +758,7 @@ static void foreach_vertex_every_edge(const blender::bke::subdiv::ForeachContext
 
 static void foreach_loop(const blender::bke::subdiv::ForeachContext *foreach_context,
                          void * /*tls*/,
-                         const int /*ptex_face_index*/,
+                         const int ptex_face_index,
                          const float /*ptex_face_u*/,
                          const float /*ptex_face_v*/,
                          const int /*coarse_loop_index*/,
@@ -756,6 +779,7 @@ static void foreach_loop(const blender::bke::subdiv::ForeachContext *foreach_con
 
   const int first_grid_index = reshape_context->face_start_grid_index[coarse_face_index];
   corner->grid_index = first_grid_index + coarse_corner;
+  printf("FOREACH_LOOP: COARSE: %d, %d, PTEX: %d, VERT_IDX: %d, GRID_IDX: %d\n", coarse_face_index, coarse_corner, ptex_face_index, corner->vert_index, corner->grid_index);
 }
 
 static void foreach_poly(const blender::bke::subdiv::ForeachContext *foreach_context,
@@ -1506,6 +1530,21 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
       });
 }
 
+static void evaluate_reshape_faces(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::MutableSpan<blender::float3> delta_storage,
+    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
+{
+  printf("evaluate_reshape_faces\n");
+  foreach_reshape_ptex_face_single_threaded(reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
+        blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
+        const blender::float3 P = blender::bke::subdiv::eval_limit_point(
+            reshape_subdiv, ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v);
+
+        printf("(%d, %f %f) -> (%d) -> (%f, %f, %f)\n", ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, corner, P.x, P.y, P.z);
+  });
+}
+
 static void evaluate_higher_grid_positions(
     MultiresReshapeSmoothContext *reshape_smooth_context,
     blender::MutableSpan<blender::float3> delta_storage,
@@ -1656,6 +1695,8 @@ void multires_reshape_store_limit_positions(
   reshape_subdiv_create(&reshape_smooth_context);
 
   reshape_subdiv_refine_final(&reshape_smooth_context, deltas);
+  printf("EVAL_RESHAPE_FACES\n");
+  evaluate_reshape_faces(&reshape_smooth_context, deltas, tangent_matrices);
   evaluate_higher_grid_positions(&reshape_smooth_context, deltas, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
