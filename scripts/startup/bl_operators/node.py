@@ -8,7 +8,6 @@ import bpy
 from bpy.types import (
     FileHandler,
     Operator,
-    NodeTree,
     PropertyGroup,
 )
 from bpy.props import (
@@ -16,7 +15,6 @@ from bpy.props import (
     CollectionProperty,
     EnumProperty,
     FloatVectorProperty,
-    PointerProperty,
     StringProperty,
     IntProperty,
 )
