@@ -99,7 +99,7 @@ bool LookdevWorld::sync(const LookdevParameters &new_parameters)
     intensity_socket_->value = parameters_.intensity;
     angle_socket_->value = parameters_.rot_z;
 
-    GPU_TEXTURE_FREE_SAFE(image->gputexture[TEXTARGET_2D][0]);
+    GPU_TEXTURE_FREE_SAFE(image->runtime->gputexture[TEXTARGET_2D][0]);
     environment_node_->id = nullptr;
 
     StudioLight *sl = BKE_studiolight_find(parameters_.hdri.c_str(),
@@ -109,7 +109,7 @@ bool LookdevWorld::sync(const LookdevParameters &new_parameters)
       gpu::Texture *texture = sl->equirect_radiance_gputexture;
       if (texture != nullptr) {
         GPU_texture_ref(texture);
-        image->gputexture[TEXTARGET_2D][0] = texture;
+        image->runtime->gputexture[TEXTARGET_2D][0] = texture;
         environment_node_->id = &image->id;
       }
     }
