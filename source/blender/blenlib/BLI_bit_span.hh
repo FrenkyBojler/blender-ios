@@ -62,6 +62,70 @@ class MutableBitIterator : public BitIteratorBase {
   }
 };
 
+class HighBitIterator {
+ private:
+  const BitInt *data_;
+  int current_bit_ = 0;
+  int max_bit_ = 0;
+
+ public:
+  explicit HighBitIterator(const BitInt *data, int min_bit, int max_bit)
+      : data_(data), current_bit_(min_bit), max_bit_(max_bit)
+  {
+    /* Note: Last bit is never dereferenced. */
+    BLI_assert(max_bit <= 64);
+    advance();
+  }
+
+  unsigned operator*() const
+  {
+    return current_bit_;
+  }
+
+  HighBitIterator &operator++()
+  {
+    current_bit_++;
+    advance();
+    return *this;
+  }
+
+  friend bool operator!=(const HighBitIterator &a, const HighBitIterator &b)
+  {
+    BLI_assert(a.data_ == b.data_);
+    return a.current_bit_ != b.current_bit_;
+  }
+
+ private:
+  void advance()
+  {
+    while ((current_bit_ != max_bit_) && ((*data_ >> current_bit_) & 1u) == 0) {
+      current_bit_++;
+    }
+  }
+};
+
+class HighBitSpan {
+ private:
+  const BitInt *data_;
+  /** The range of referenced bits. */
+  IndexRange bit_range_ = {0, 0};
+
+ public:
+  HighBitSpan(const BitInt *data, IndexRange bit_range) : data_(data), bit_range_(bit_range)
+  {
+    BLI_assert(bit_range.last() < 64);
+  }
+
+  HighBitIterator begin() const
+  {
+    return HighBitIterator(data_, bit_range_.start(), bit_range_.one_after_last());
+  }
+  HighBitIterator end() const
+  {
+    return HighBitIterator(data_, bit_range_.one_after_last(), bit_range_.one_after_last());
+  }
+};
+
 /**
  * Similar to #Span, but references a range of bits instead of normal C++ types (which must be at
  * least one byte large). Use #MutableBitSpan if the values are supposed to be modified.
@@ -153,6 +217,11 @@ class BitSpan {
   BitIterator end() const
   {
     return {data_, bit_range_.one_after_last()};
+  }
+
+  HighBitSpan high_bits() const
+  {
+    return HighBitSpan(data_, bit_range_);
   }
 };
 
