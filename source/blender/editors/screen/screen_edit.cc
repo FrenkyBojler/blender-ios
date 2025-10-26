@@ -1073,6 +1073,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
     else if (az->type == AZONE_REGION_SCROLL) {
       WM_cursor_set(win, WM_CURSOR_DEFAULT);
     }
+    else if (az->type == AZONE_REGION_QUAD) {
+      WM_cursor_set(win, WM_CURSOR_MOVE);
+    }
     else if (az->type == AZONE_REGION) {
       if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
         WM_cursor_set(win, WM_CURSOR_X_MOVE);
@@ -1211,6 +1214,9 @@ int ED_screen_area_active(const bContext *C)
     AZone *az = ED_area_actionzone_find_xy(area, win->eventstate->xy);
 
     if (az && az->type == AZONE_REGION) {
+      return 1;
+    }
+    if (az && az->type == AZONE_REGION_QUAD) {
       return 1;
     }
 

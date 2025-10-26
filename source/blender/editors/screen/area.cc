@@ -301,6 +301,9 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
           }
         }
       }
+      else if (az->type == AZONE_REGION_QUAD) {
+        /* Pass. */
+      }
       else if (az->type == AZONE_FULLSCREEN) {
         if (az->alpha > 0.0f) {
           area_draw_azone_fullscreen(az->x1, az->y1, az->x2, az->y2, az->alpha);
@@ -1757,21 +1760,26 @@ static void region_rect_recursive(
       }
     }
     if (quad) {
+      const float ratio_x = (area->quadview_ratio[0] != 0.0f) ? area->quadview_ratio[0] : 0.5f;
+      const float ratio_y = (area->quadview_ratio[1] != 0.0f) ? area->quadview_ratio[1] : 0.5f;
+      const int x = remainder->xmin + int(float(remainder->xmax - remainder->xmin) * ratio_x);
+      const int y = remainder->ymin + int(float(remainder->ymax - remainder->ymin) * ratio_y);
+
       if (quad == 1) { /* left bottom */
-        region->winrct.xmax = BLI_rcti_cent_x(remainder);
-        region->winrct.ymax = BLI_rcti_cent_y(remainder);
+        region->winrct.xmax = x;
+        region->winrct.ymax = y;
       }
       else if (quad == 2) { /* left top */
-        region->winrct.xmax = BLI_rcti_cent_x(remainder);
-        region->winrct.ymin = BLI_rcti_cent_y(remainder) + 1;
+        region->winrct.xmax = x;
+        region->winrct.ymin = y + 1;
       }
       else if (quad == 3) { /* right bottom */
-        region->winrct.xmin = BLI_rcti_cent_x(remainder) + 1;
-        region->winrct.ymax = BLI_rcti_cent_y(remainder);
+        region->winrct.xmin = x + 1;
+        region->winrct.ymax = y;
       }
       else { /* right top */
-        region->winrct.xmin = BLI_rcti_cent_x(remainder) + 1;
-        region->winrct.ymin = BLI_rcti_cent_y(remainder) + 1;
+        region->winrct.xmin = x + 1;
+        region->winrct.ymin = y + 1;
         BLI_rcti_init(remainder, 0, 0, 0, 0);
       }
 
@@ -2174,6 +2182,9 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
   /* clear all azones, add the area triangle widgets */
   area_azone_init(win, screen, area);
 
+  /* Only one quad view gets AZONE_REGION_QUAD*/
+  char quad_view_index = 0;
+
   /* region windows, default and own handlers */
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
     region_evaluate_visibility(region);
@@ -2194,6 +2205,23 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
 
     /* Some AZones use View2D data which is only updated in region init, so call that first! */
     region_azones_add(screen, area, region);
+
+    if (region->alignment == RGN_ALIGN_QSPLIT) {
+      if (quad_view_index == 0) {
+        /* set area action zones */
+        const int padding = int((UI_SCALE_FAC + U.pixelsize) * 2.0f);
+        AZone *az = MEM_callocN<AZone>("actionzone");
+        BLI_addtail(&(area->actionzones), az);
+        az->type = AZONE_REGION_QUAD;
+        az->region = region;
+        az->x1 = region->winrct.xmax - padding;
+        az->y1 = region->winrct.ymax - padding;
+        az->x2 = region->winrct.xmax + padding;
+        az->y2 = region->winrct.ymax + padding;
+        BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
+      }
+      quad_view_index++;
+    }
   }
 
   /* Avoid re-initializing tools while resizing areas & regions. */

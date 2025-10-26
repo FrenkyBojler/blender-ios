@@ -912,6 +912,9 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
       if (az->type == AZONE_AREA) {
         break;
       }
+      if (az->type == AZONE_REGION_QUAD) {
+        break;
+      }
       if (az->type == AZONE_REGION) {
         const ARegion *region = az->region;
         const int local_xy[2] = {xy[0] - region->winrct.xmin, xy[1] - region->winrct.ymin};
@@ -1123,6 +1126,9 @@ static void actionzone_apply(bContext *C, wmOperator *op, int type)
   else if (type == AZONE_FULLSCREEN) {
     event.type = EVT_ACTIONZONE_FULLSCREEN;
   }
+  else if (type == AZONE_REGION_QUAD) {
+    event.type = EVT_ACTIONZONE_REGION_QUAD;
+  }
   else {
     event.type = EVT_ACTIONZONE_REGION;
   }
@@ -1157,7 +1163,7 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
   sad->modifier = RNA_int_get(op->ptr, "modifier");
 
   /* region azone directly reacts on mouse clicks */
-  if (ELEM(sad->az->type, AZONE_REGION, AZONE_FULLSCREEN)) {
+  if (ELEM(sad->az->type, AZONE_REGION, AZONE_FULLSCREEN, AZONE_REGION_QUAD)) {
     actionzone_apply(C, op, sad->az->type);
     actionzone_exit(op);
     return OPERATOR_FINISHED;
@@ -3188,6 +3194,129 @@ static void SCREEN_OT_region_scale(wmOperatorType *ot)
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Quad View Resize Operator
+ * \{ */
+
+struct QuadViewSizeData {
+  ScrArea *area;
+  ARegion *region;
+  rcti bounds;
+  float orig_ratio[2];
+};
+
+static void quadview_size_exit(wmOperator *op)
+{
+  QuadViewSizeData *qsd = static_cast<QuadViewSizeData *>(op->customdata);
+  MEM_freeN(qsd);
+  op->customdata = nullptr;
+  screen_modal_action_end();
+}
+
+static wmOperatorStatus quadview_size_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  sActionzoneData *sad = static_cast<sActionzoneData *>(event->customdata);
+
+  if (event->type != EVT_ACTIONZONE_REGION_QUAD) {
+    BKE_report(op->reports, RPT_ERROR, "Can only size quad view from an action zone");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (sad->sa1) {
+    QuadViewSizeData *qsd = MEM_callocN<QuadViewSizeData>("QuadViewSizeData");
+    op->customdata = qsd;
+    qsd->area = sad->sa1;
+    qsd->region = sad->az->region;
+
+    BLI_rcti_init_minmax(&qsd->bounds);
+    LISTBASE_FOREACH (ARegion *, region, &sad->sa1->regionbase) {
+      if (region->alignment == RGN_ALIGN_QSPLIT) {
+        BLI_rcti_do_minmax_rcti(&qsd->bounds, &region->winrct);
+      }
+    }
+
+    qsd->orig_ratio[0] = float(BLI_rcti_size_x(&sad->az->region->winrct)) /
+                         float(BLI_rcti_size_x(&qsd->bounds));
+    qsd->orig_ratio[1] = float(BLI_rcti_size_y(&sad->az->region->winrct)) /
+                         float(BLI_rcti_size_y(&qsd->bounds));
+
+    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+
+    /* add temp handler */
+    screen_modal_action_begin();
+    WM_event_add_modal_handler(C, op);
+
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  QuadViewSizeData *qsd = static_cast<QuadViewSizeData *>(op->customdata);
+  switch (event->type) {
+    case MOUSEMOVE: {
+      if (qsd->region->runtime->type->on_user_resize) {
+        qsd->region->runtime->type->on_user_resize(qsd->region);
+      }
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_MOVE);
+      float quad_x = float(event->xy[0] - (qsd->bounds.xmin)) /
+                     float(BLI_rcti_size_x(&qsd->bounds) + 1);
+      float quad_y = float((event->xy[1]) - (qsd->bounds.ymin)) /
+                     float(BLI_rcti_size_y(&qsd->bounds) + 1);
+      qsd->area->quadview_ratio[0] = std::clamp(quad_x, 0.15f, 0.85f);
+      qsd->area->quadview_ratio[1] = std::clamp(quad_y, 0.15f, 0.85f);
+      ED_area_tag_redraw(qsd->area);
+      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      break;
+    }
+    case LEFTMOUSE:
+      if (event->val == KM_RELEASE) {
+        ED_area_tag_redraw(qsd->area);
+        WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+        quadview_size_exit(op);
+        return OPERATOR_FINISHED;
+      }
+      break;
+
+    case EVT_ESCKEY:
+      qsd->area->quadview_ratio[0] = qsd->orig_ratio[0];
+      qsd->area->quadview_ratio[1] = qsd->orig_ratio[1];
+      ED_area_tag_redraw(qsd->area);
+      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      quadview_size_exit(op);
+      return OPERATOR_CANCELLED;
+    default: {
+      break;
+    }
+  }
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static void quadview_size_cancel(bContext * /*C*/, wmOperator *op)
+{
+  quadview_size_exit(op);
+}
+
+static void SCREEN_OT_quadview_size(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Quad View Resize";
+  ot->description = "Resize Quad View areas";
+  ot->idname = "SCREEN_OT_quadview_size";
+
+  ot->invoke = quadview_size_invoke;
+  ot->modal = quadview_size_modal;
+  ot->cancel = quadview_size_cancel;
+
+  ot->poll = ED_operator_areaactive;
+
+  /* flags */
+  ot->flag = OPTYPE_BLOCKING | OPTYPE_INTERNAL;
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Frame Change Operator
@@ -6941,6 +7070,7 @@ void ED_operatortypes_screen()
   WM_operatortype_append(SCREEN_OT_region_scale);
   WM_operatortype_append(SCREEN_OT_region_toggle);
   WM_operatortype_append(SCREEN_OT_region_flip);
+  WM_operatortype_append(SCREEN_OT_quadview_size);
   WM_operatortype_append(SCREEN_OT_header_toggle_menus);
   WM_operatortype_append(SCREEN_OT_region_context_menu);
   WM_operatortype_append(SCREEN_OT_screen_set);
