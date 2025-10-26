@@ -692,14 +692,14 @@ classes = (
 cli_commands = []
 
 
-def get_extension_repo_filter(self, context):
+def get_extension_repo_filter_items(self, context):
     repos = context.preferences.extensions.repos
 
     repo_enum = []
     repo_enum.append(('ALL', "All Repositories", "Show extensions from all repositories"))
     for repo in repos:
         repo_enum.append((repo.name, repo.name, f"Only show extensions from '{repo.name}'"))
-        
+
     return repo_enum
 
 
@@ -764,7 +764,7 @@ def register():
     WindowManager.extension_repo_filter = EnumProperty(
         name="Filter by Repository",
         description="Filter extensions by repository",
-        items=get_extension_repo_filter,
+        items=get_extension_repo_filter_items,
     )
 
     from bl_ui.space_userpref import USERPREF_MT_interface_theme_presets
