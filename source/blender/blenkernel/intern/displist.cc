@@ -713,6 +713,13 @@ static blender::bke::GeometrySet curve_calc_modifiers_post(Depsgraph *depsgraph,
   {
     Mesh *mesh = BKE_mesh_new_nomain_from_curve_displist(ob, dispbase);
     geometry_set.replace_mesh(mesh);
+    
+    /* Create Curves object for legacy curve rendering in overlay engine.
+    * This allows legacy curves with bevel/extrude to be displayed in edit mode
+    * while maintaining compatibility with the new curves system. */
+   Curves *curves = blender::bke::curve_legacy_to_curves(
+        *cu, ob->runtime->curve_cache->deformed_nurbs);
+    geometry_set.replace_curves(curves);
   }
   else {
     geometry_set.replace_curves(
