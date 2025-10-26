@@ -15,6 +15,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -322,6 +323,10 @@ static void memfile_undosys_step_decode(
       memfile_undosys_unfinished_id_previews_restart(id);
     }
     FOREACH_MAIN_ID_END;
+  }
+
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(C));
