@@ -242,6 +242,8 @@ class NODE_MT_gn_geometry_read_base(node_add_menu.NodeMenu):
         if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator(layout, "GeometryNodeToolSelection")
             self.node_operator(layout, "GeometryNodeToolActiveElement")
+        layout.separator()
+        self.node_operator(layout, "GeometryNodeGetGeometryBundle")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
