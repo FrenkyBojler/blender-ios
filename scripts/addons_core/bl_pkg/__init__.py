@@ -692,6 +692,17 @@ classes = (
 cli_commands = []
 
 
+def get_extension_repo_filter(self, context):
+    repos = context.preferences.extensions.repos
+
+    repo_enum = []
+    repo_enum.append(('ALL', "All Repositories", "Show extensions from all repositories"))
+    for repo in repos:
+        repo_enum.append((repo.name, repo.name, f"Only show extensions from '{repo.name}'"))
+        
+    return repo_enum
+
+
 def register():
     prefs = bpy.context.preferences
 
@@ -750,6 +761,12 @@ def register():
         default=True,
     )
 
+    WindowManager.extension_repo_filter = EnumProperty(
+        name="Filter by Repository",
+        description="Filter extensions by repository",
+        items=get_extension_repo_filter,
+    )
+
     from bl_ui.space_userpref import USERPREF_MT_interface_theme_presets
     USERPREF_MT_interface_theme_presets.append(theme_preset_draw)
 
@@ -786,6 +803,7 @@ def unregister():
     del WindowManager.extension_type
     del WindowManager.extension_show_panel_installed
     del WindowManager.extension_show_panel_available
+    del WindowManager.extension_repo_filter
 
     for cls in classes:
         bpy.utils.unregister_class(cls)

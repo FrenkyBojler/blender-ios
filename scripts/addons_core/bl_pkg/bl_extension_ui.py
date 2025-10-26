@@ -969,6 +969,10 @@ class ExtensionUI_FilterParams:
                 if tags_exclude_match(item.tags, self.tags_exclude):
                     continue
 
+            extension_repo_filter = bpy.context.window_manager.extension_repo_filter
+            if extension_repo_filter != "ALL" and extension_repo_filter != self.repos_all[repo_index].name:
+                continue
+
             is_addon = False
             is_theme = False
             match item.type:
@@ -1781,7 +1785,9 @@ class USERPREF_PT_extensions_tags(Panel):
     bl_ui_units_x = 13
 
     def draw(self, context):
-        tags_panel_draw(self.layout, context, "extension_tags")
+        layout = self.layout
+        layout.prop(context.window_manager, "extension_repo_filter", text="")
+        tags_panel_draw(layout, context, "extension_tags")
 
 
 class USERPREF_MT_addons_settings(Menu):
