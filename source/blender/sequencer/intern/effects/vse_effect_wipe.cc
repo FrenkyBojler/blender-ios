@@ -28,20 +28,23 @@ struct WipeData {
     this->forward = wipe->forward != 0;
     this->size = float2(width, height);
 
-    /* Position that the wipe line goes through: moves along
-     * the image diagonal. */
-    this->pos = this->size * fac;
-    if (!this->forward) {
-      this->pos = this->size - this->pos;
-    }
-    if (this->type == SEQ_WIPE_DOUBLE) {
-      /* For double blend, position goes from center of screen
-       * along the diagonal. The other blend line position is just
-       * a mirror of it. */
+    if (this->type == SEQ_WIPE_SINGLE) {
+      /* Position that the wipe line goes through: moves along
+       * the image diagonal. The other diagonal when angle is negative. */
+      this->pos = this->size * (this->forward ? fac : (1.0f - fac));
       if (wipe->angle < 0.0f) {
         this->pos.x = this->size.x - this->pos.x;
       }
-      this->pos = this->size - this->pos * 0.5f;
+    }
+    if (this->type == SEQ_WIPE_DOUBLE) {
+      /* For double blend, position goes from center of screen
+       * along the diagonal. The other blend line position will be
+       * a mirror of it. */
+      float2 offset = this->size * (this->forward ? (1.0f - fac) : fac) * 0.5f;
+      if (wipe->angle < 0.0f) {
+        offset.x = -offset.x;
+      }
+      this->pos = this->size * 0.5f + offset;
     }
 
     /* Line direction: (cos(a), sin(a)). Perpendicular: (-sin(a), cos(a)).
