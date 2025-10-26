@@ -23,8 +23,9 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_shade_background()
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
-  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
+  GPU_TIMER_START();
   integrator_shade_background(nullptr, path_index, kernel_params.render_buffer);
+  GPU_TIMER_END();
 }
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_shade_light()
@@ -33,8 +34,9 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_shade_light()
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
-  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
+  GPU_TIMER_START();
   integrator_shade_light(nullptr, path_index, kernel_params.render_buffer);
+  GPU_TIMER_END();
 }
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_shade_surface()
@@ -43,8 +45,9 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_shade_surface()
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
-  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
+  GPU_TIMER_START();
   integrator_shade_surface(nullptr, path_index, kernel_params.render_buffer);
+  GPU_TIMER_END();
 }
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_shade_volume()
@@ -53,8 +56,9 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_shade_volume()
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
-  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
+  GPU_TIMER_START();
   integrator_shade_volume(nullptr, path_index, kernel_params.render_buffer);
+  GPU_TIMER_END();
 }
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_shade_volume_ray_marching()
@@ -72,8 +76,9 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_shade_shadow()
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
-  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
+  GPU_TIMER_START();
   integrator_shade_shadow(nullptr, path_index, kernel_params.render_buffer);
+  GPU_TIMER_END();
 }
 
 extern "C" __global__ void __raygen__kernel_optix_integrator_shade_dedicated_light()
@@ -82,8 +87,9 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_shade_dedicated_lig
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
-  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
+  GPU_TIMER_START();
   integrator_shade_dedicated_light(nullptr, path_index, kernel_params.render_buffer);
+  GPU_TIMER_END();
 }
 
 extern "C" __global__ void __raygen__kernel_optix_shader_eval_displace()

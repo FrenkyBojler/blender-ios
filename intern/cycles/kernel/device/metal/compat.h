@@ -289,6 +289,14 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #define sqrtf(x) trigmode::sqrt(float(x))
 #define logf(x) trigmode::log(float(x))
 
+/* Timer */
+
+ccl_device_forceinline uint64_t gpu_time_fast()
+{
+  /* TODO: Metal does not appear to have a way to query a fast timer/counter. */
+  return 0;
+}
+
 #define __device__
 
 #ifdef __METALRT__

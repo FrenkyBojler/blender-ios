@@ -6,7 +6,7 @@
 
 #ifdef __KERNEL_GPU__
 
-#include "kernel/film/write.h"
+#  include "kernel/film/write.h"
 
 CCL_NAMESPACE_BEGIN
 

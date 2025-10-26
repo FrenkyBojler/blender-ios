@@ -53,12 +53,12 @@
 
 #include "kernel/film/read.h"
 
+#define GPU_TIMER_START() uint64_t _timer_start = gpu_time_fast()
+#define GPU_TIMER_END() ccl_gpu_kernel_call(write_render_time(state, render_buffer, _timer_start))
+
 #if defined(__HIPRT__)
 #  include "kernel/device/hiprt/hiprt_kernels.h"
 #endif
-
-#define GPU_TIMER_START() uint64_t _timer_start = gpu_time_fast()
-#define GPU_TIMER_END() ccl_gpu_kernel_call(write_render_time(state, render_buffer, _timer_start))
 
 /* --------------------------------------------------------------------
  * Integrator.
