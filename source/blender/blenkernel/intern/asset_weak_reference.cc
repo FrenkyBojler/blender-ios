@@ -188,3 +188,44 @@ void BKE_asset_catalog_path_list_remove_path(ListBase &catalog_path_list, const 
     MEM_freeN(path_link);
   }
 }
+
+void BKE_asset_catalog_path_list_update_path(ListBase &catalog_path_list,
+                                             const char *old_path,
+                                             const char *new_path)
+{
+  if (!old_path || !new_path) {
+    return;
+  }
+
+  const size_t old_path_len = strlen(old_path);
+
+  LISTBASE_FOREACH (AssetCatalogPathLink *, path_link, &catalog_path_list) {
+    const char *current_path = path_link->path;
+    if (!current_path) {
+      continue;
+    }
+
+    // Check for exact match
+    if (strcmp(current_path, old_path) == 0) {
+      // Exact match - replace with new path
+      MEM_freeN(path_link->path);
+      path_link->path = BLI_strdup(new_path);
+      continue;
+    }
+
+    // Check for child path (starts with old_path + '/')
+    if (strncmp(current_path, old_path, old_path_len) == 0 &&
+        current_path[old_path_len] == '/')
+    {
+      // Child path - rebase it
+      // Example: "character/Ružena/poselib" → "character/Ruzena/poselib"
+      const char *relative_part = current_path + old_path_len; // Includes '/'
+      const size_t new_path_len = strlen(new_path) + strlen(relative_part) + 1;
+      char *rebased_path = static_cast<char *>(MEM_mallocN(new_path_len, __func__));
+      BLI_snprintf(rebased_path, new_path_len, "%s%s", new_path, relative_part);
+
+      MEM_freeN(path_link->path);
+      path_link->path = rebased_path;
+    }
+  }
+}

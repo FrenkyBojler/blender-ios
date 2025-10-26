@@ -57,7 +57,8 @@ void catalog_remove(const bContext &C,
                     asset_system::AssetLibrary *library,
                     const asset_system::CatalogID &catalog_id);
 
-void catalog_rename(asset_system::AssetLibrary *library,
+void catalog_rename(const bContext &C,
+                    asset_system::AssetLibrary *library,
                     asset_system::CatalogID catalog_id,
                     StringRefNull new_name);
 /**

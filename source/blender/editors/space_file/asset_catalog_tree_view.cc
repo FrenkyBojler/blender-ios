@@ -339,7 +339,7 @@ bool AssetCatalogTreeViewItem::rename(const bContext &C, StringRefNull new_name)
 
   const AssetCatalogTreeView &tree_view = static_cast<const AssetCatalogTreeView &>(
       this->get_tree_view());
-  asset::catalog_rename(tree_view.asset_library_, catalog_item_.get_catalog_id(), new_name);
+  asset::catalog_rename(C, tree_view.asset_library_, catalog_item_.get_catalog_id(), new_name);
   return true;
 }
 

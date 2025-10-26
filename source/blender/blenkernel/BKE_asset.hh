@@ -94,3 +94,25 @@ bool BKE_asset_catalog_path_list_has_path(const ListBase &catalog_path_list,
                                           const char *catalog_path);
 void BKE_asset_catalog_path_list_add_path(ListBase &catalog_path_list, const char *catalog_path);
 void BKE_asset_catalog_path_list_remove_path(ListBase &catalog_path_list, const char *catalog_path);
+
+/**
+ * Update a catalog path in the list. If the old path is found, it will be replaced with the new
+ * path. This also handles child paths - if a path starts with old_path + '/', it will be rebased
+ * to new_path.
+ *
+ * Example:
+ *   old_path = "character/Ružena"
+ *   new_path = "character/Ruzena"
+ *   
+ *   Paths in list:
+ *     "character/Ružena" → "character/Ruzena"
+ *     "character/Ružena/poselib" → "character/Ruzena/poselib"
+ *     "other/catalog" → "other/catalog" (unchanged)
+ *
+ * \param catalog_path_list: List of AssetCatalogPathLink to update
+ * \param old_path: Old catalog path to find and replace
+ * \param new_path: New catalog path to replace with
+ */
+void BKE_asset_catalog_path_list_update_path(ListBase &catalog_path_list,
+                                             const char *old_path,
+                                             const char *new_path);

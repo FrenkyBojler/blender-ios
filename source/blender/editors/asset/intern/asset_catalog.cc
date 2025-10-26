@@ -93,7 +93,8 @@ void catalog_remove(const bContext &C,
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 }
 
-void catalog_rename(AssetLibrary *library,
+void catalog_rename(const bContext &C,
+                    AssetLibrary *library,
                     const CatalogID catalog_id,
                     const StringRefNull new_name)
 {
@@ -104,6 +105,7 @@ void catalog_rename(AssetLibrary *library,
 
   AssetCatalog *catalog = catalog_service.find_catalog(catalog_id);
 
+  const AssetCatalogPath old_path = catalog->path;
   const AssetCatalogPath new_path = catalog->path.parent() / StringRef(new_name);
   const AssetCatalogPath clean_new_path = new_path.cleanup();
 
@@ -115,6 +117,12 @@ void catalog_rename(AssetLibrary *library,
   catalog_service.undo_push();
   catalog_service.tag_has_unsaved_changes(catalog);
   catalog_service.update_catalog_path(catalog_id, clean_new_path);
+
+  /* Update Asset Shelf entries reflecting the old path to the new one. */
+  blender::ed::asset::shelf::update_catalog_path_in_visible_shelves(
+      C, old_path.str(), clean_new_path.str());
+
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_CATALOGS, nullptr);
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 }
 

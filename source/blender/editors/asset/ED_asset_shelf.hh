@@ -117,4 +117,22 @@ void remove_catalog_from_visible_shelves(const bContext &C, const StringRefNull 
 
 int context(const bContext *C, const char *member, bContextDataResult *result);
 
+/**
+ * Update catalog paths in all visible asset shelves across all windows.
+ * This is called when a catalog is renamed to update the stored paths in asset shelf settings.
+ *
+ * This function:
+ * - Iterates through all windows and asset shelf regions
+ * - Updates paths in enabled_catalog_paths (both local and preferences)
+ * - Updates active_catalog_path if it matches the old path
+ * - Handles child paths (e.g., "parent/child" when "parent" is renamed)
+ *
+ * \param C: Context
+ * \param old_path: Old catalog path (before rename)
+ * \param new_path: New catalog path (after rename)
+ */
+void update_catalog_path_in_visible_shelves(const bContext &C,
+                                            StringRefNull old_path,
+                                            StringRefNull new_path);
+
 }  // namespace blender::ed::asset::shelf

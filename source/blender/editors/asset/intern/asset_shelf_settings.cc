@@ -20,9 +20,12 @@
 #include "BLI_string_utf8.h"
 
 #include "BKE_asset.hh"
+#include "BKE_context.hh"
 #include "BKE_preferences.h"
-#include "BKE_asset.hh"
 #include "BKE_screen.hh"
+
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "asset_shelf.hh"
 
@@ -103,7 +106,7 @@ void settings_set_all_catalog_active(AssetShelfSettings &settings)
 bool settings_is_active_catalog(const AssetShelfSettings &settings,
                                 const asset_system::AssetCatalogPath &path)
 {
-  return settings.active_catalog_path && settings.active_catalog_path == path.str();
+  return settings.active_catalog_path && strcmp(settings.active_catalog_path, path.c_str()) == 0;
 }
 
 bool settings_is_all_catalog_active(const AssetShelfSettings &settings)
@@ -198,6 +201,82 @@ void settings_foreach_enabled_catalog_path(
   LISTBASE_FOREACH (const AssetCatalogPathLink *, path_link, enabled_catalog_paths) {
     fn(asset_system::AssetCatalogPath(path_link->path));
   }
+}
+
+void update_catalog_path_in_visible_shelves(const bContext &C,
+                                            const StringRefNull old_path,
+                                            const StringRefNull new_path)
+{
+  wmWindowManager *wm = CTX_wm_manager(&C);
+  if (!wm) {
+    return;
+  }
+
+  const size_t old_path_len = old_path.size();
+
+  // Iterate through all windows
+  LISTBASE_FOREACH (wmWindow *, window, &wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(window);
+    if (!screen) {
+      continue;
+    }
+
+    // Iterate through all areas
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      // Iterate through all regions
+      LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+        if (region->regiontype != RGN_TYPE_ASSET_SHELF) {
+          continue;
+        }
+
+        RegionAssetShelf *shelf_regiondata =
+            RegionAssetShelf::get_from_asset_shelf_region(*region);
+        if (!shelf_regiondata || !shelf_regiondata->active_shelf) {
+          continue;
+        }
+
+        AssetShelf *shelf = shelf_regiondata->active_shelf;
+
+        // Update enabled_catalog_paths
+        ListBase *catalog_paths = get_enabled_catalog_path_list(*shelf);
+        if (catalog_paths) {
+          BKE_asset_catalog_path_list_update_path(
+              *catalog_paths, old_path.c_str(), new_path.c_str());
+        }
+
+        // Update active_catalog_path if needed
+        if (shelf->settings.active_catalog_path) {
+          const char *active_path = shelf->settings.active_catalog_path;
+
+          // Check for exact match
+          if (strcmp(active_path, old_path.c_str()) == 0) {
+            MEM_delete(shelf->settings.active_catalog_path);
+            shelf->settings.active_catalog_path = BLI_strdupn(new_path.c_str(), new_path.size());
+          }
+          // Check for child path
+          else if (strncmp(active_path, old_path.c_str(), old_path_len) == 0 &&
+                   active_path[old_path_len] == '/')
+          {
+            const char *relative_part = active_path + old_path_len;
+            const size_t new_len = new_path.size() + strlen(relative_part) + 1;
+            char *rebased_path = static_cast<char *>(MEM_mallocN(new_len, __func__));
+            BLI_snprintf(rebased_path, new_len, "%s%s", new_path.c_str(), relative_part);
+
+            MEM_delete(shelf->settings.active_catalog_path);
+            shelf->settings.active_catalog_path = rebased_path;
+          }
+        }
+
+        // If catalogs are stored in preferences, mark preferences as dirty
+        if (use_enabled_catalogs_from_prefs(*shelf)) {
+          U.runtime.is_dirty = true;
+        }
+      }
+    }
+  }
+
+  // Send notification to redraw asset shelves
+  WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 }
 
 }  // namespace blender::ed::asset::shelf
