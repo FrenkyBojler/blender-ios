@@ -1044,113 +1044,90 @@ class NODE_MT_node_tree_interface_new_item(NodeInterfaceMenu, Menu):
             layout.operator("node.interface_item_new_panel_toggle", text="Panel Toggle")
 
 
-class NODE_PT_node_tree_properties(Panel):
+class NodeTreePropertiesPanel:
+    @staticmethod
+    def get_node_tree(context):
+        raise NotImplementedError
+    
+    @classmethod
+    def poll(cls, context):
+        group = cls.get_node_tree(context)
+
+        if group is None:
+            return False
+        
+        return (group.is_editable and not group.is_embedded_data)
+
+    def draw_nodetree_properties(self, layout, group, width_operator):
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        layout.prop(group, "name", text="Name")
+
+        if group.asset_data:
+            layout.prop(group.asset_data, "description", text="Description")
+        else:
+            layout.prop(group, "description", text="Description")
+
+        if not group.bl_use_group_interface:
+            return
+
+        layout.prop(group, "color_tag")
+        row = layout.row(align=True)
+        row.prop(group, "default_group_node_width", text="Node Width")
+        row.operator(width_operator, text="", icon='NODE')
+
+        if group.bl_idname == "GeometryNodeTree":
+            row = layout.row()
+            row.active = group.is_modifier
+            row.prop(group, "show_modifier_manage_panel")
+
+            header, body = layout.panel("group_usage")
+            header.label(text="Usage")
+            if body:
+                col = body.column(align=True)
+                col.prop(group, "is_modifier")
+                col.prop(group, "is_tool")
+
+
+class NODE_PT_node_tree_properties(NodeTreePropertiesPanel, Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "Group"
     bl_label = "Group"
     bl_order = 0
 
-    @classmethod
-    def poll(cls, context):
-        snode = context.space_data
-        if snode is None:
-            return False
-        group = snode.edit_tree
-        if group is None:
-            return False
-        if group.is_embedded_data:
-            return False
-        return True
+    @staticmethod
+    def get_node_tree(context):
+        snode = getattr(context, "space_data", None)
+        return getattr(snode, "edit_tree", None)
 
     def draw(self, context):
-        layout = self.layout
-        snode = context.space_data
-        group = snode.edit_tree
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        layout.prop(group, "name", text="Name")
-
-        if group.asset_data:
-            layout.prop(group.asset_data, "description", text="Description")
-        else:
-            layout.prop(group, "description", text="Description")
-
-        if not group.bl_use_group_interface:
-            return
-
-        layout.prop(group, "color_tag")
-        row = layout.row(align=True)
-        row.prop(group, "default_group_node_width", text="Node Width")
-        row.operator("node.default_group_width_set", text="", icon='NODE')
-
-        if group.bl_idname == "GeometryNodeTree":
-            row = layout.row()
-            row.active = group.is_modifier
-            row.prop(group, "show_modifier_manage_panel")
-
-            header, body = layout.panel("group_usage")
-            header.label(text="Usage")
-            if body:
-                col = body.column(align=True)
-                col.prop(group, "is_modifier")
-                col.prop(group, "is_tool")
+        tree = self.get_node_tree(context)
+        self.draw_nodetree_properties(self.layout, tree, width_operator="node.default_group_width_set")
 
 
-class NODE_PT_group_node_tree_properties(Panel):
+class NODE_PT_group_node_tree_properties(NodeTreePropertiesPanel, Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "Node"
     bl_label = "Group"
 
+    @staticmethod
+    def get_node_tree(context):
+        return getattr(context.active_node, "node_tree", None)
+
     @classmethod
     def poll(cls, context):
-        snode = context.space_data
-        if snode is None:
+        if not super().poll(context):
             return False
-        group = snode.edit_tree
-        if group is None:
-            return False
-        if group.is_embedded_data:
-            return False
-
-        node_tree = getattr(context.active_node, "node_tree", None)
+        
+        node_tree = cls.get_node_tree(context)
         return node_tree is not None
 
     def draw(self, context):
-        layout = self.layout
-        group = context.active_node.node_tree
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        layout.prop(group, "name", text="Name")
-
-        if group.asset_data:
-            layout.prop(group.asset_data, "description", text="Description")
-        else:
-            layout.prop(group, "description", text="Description")
-
-        if not group.bl_use_group_interface:
-            return
-
-        layout.prop(group, "color_tag")
-        row = layout.row(align=True)
-        row.prop(group, "default_group_node_width", text="Node Width")
-        row.operator("node.default_group_width_from_selected", text="", icon='NODE')
-
-        if group.bl_idname == "GeometryNodeTree":
-            row = layout.row()
-            row.active = group.is_modifier
-            row.prop(group, "show_modifier_manage_panel")
-
-            header, body = layout.panel("group_usage")
-            header.label(text="Usage")
-            if body:
-                col = body.column(align=True)
-                col.prop(group, "is_modifier")
-                col.prop(group, "is_tool")
+        tree = self.get_node_tree(context)
+        self.draw_nodetree_properties(self.layout, tree, width_operator="node.default_group_width_from_selected")
 
 
 class NODE_PT_node_tree_animation(Panel):
