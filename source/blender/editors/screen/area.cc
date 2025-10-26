@@ -1135,6 +1135,20 @@ static void fullscreen_azone_init(ScrArea *area, ARegion *region)
   BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }
 
+static void quadview_azone_init(ScrArea *area, ARegion *region)
+{
+  const int padding = int((UI_SCALE_FAC + U.pixelsize) * 2.0f);
+  AZone *az = MEM_callocN<AZone>("Quad View action zone");
+  BLI_addtail(&(area->actionzones), az);
+  az->type = AZONE_REGION_QUAD;
+  az->region = region;
+  az->x1 = region->winrct.xmax - padding;
+  az->y1 = region->winrct.ymax - padding;
+  az->x2 = region->winrct.xmax + padding;
+  az->y2 = region->winrct.ymax + padding;
+  BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
+}
+
 /**
  * Return true if the background color alpha is close to fully transparent. That is, a value of
  * less than 50 on a [0-255] scale (rather arbitrary threshold). Assumes the region uses #TH_BACK
@@ -2208,17 +2222,7 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
 
     if (region->alignment == RGN_ALIGN_QSPLIT) {
       if (quad_view_index == 0) {
-        /* set area action zones */
-        const int padding = int((UI_SCALE_FAC + U.pixelsize) * 2.0f);
-        AZone *az = MEM_callocN<AZone>("actionzone");
-        BLI_addtail(&(area->actionzones), az);
-        az->type = AZONE_REGION_QUAD;
-        az->region = region;
-        az->x1 = region->winrct.xmax - padding;
-        az->y1 = region->winrct.ymax - padding;
-        az->x2 = region->winrct.xmax + padding;
-        az->y2 = region->winrct.ymax + padding;
-        BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
+        quadview_azone_init(area, region);
       }
       quad_view_index++;
     }

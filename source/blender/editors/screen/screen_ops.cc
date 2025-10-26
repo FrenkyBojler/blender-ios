@@ -3261,7 +3261,7 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
       if (qsd->region->runtime->type->on_user_resize) {
         qsd->region->runtime->type->on_user_resize(qsd->region);
       }
-      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_MOVE);
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NSEW_SCROLL);
       float quad_x = float(event->xy[0] - (qsd->bounds.xmin)) /
                      float(BLI_rcti_size_x(&qsd->bounds) + 1);
       float quad_y = float((event->xy[1]) - (qsd->bounds.ymin)) /
