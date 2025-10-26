@@ -350,6 +350,7 @@ PassInfo Pass::get_info(const PassType type,
       pass_info.num_components = 1;
       pass_info.use_exposure = false;
       pass_info.use_filter = false;
+      /* TODO: Handle GPU clock */
       pass_info.scale = 1000.0f / float(time_fast_frequency());
       break;
 

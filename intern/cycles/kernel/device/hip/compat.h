@@ -96,6 +96,13 @@ ccl_device_forceinline T ccl_gpu_tex_object_read_2D(const ccl_gpu_tex_object_2D 
 #define logf(x) __logf(((float)(x)))
 #define expf(x) __expf(((float)(x)))
 
+/* Timer */
+
+ccl_device_forceinline uint64_t gpu_time_fast()
+{
+  return wall_clock64();
+}
+
 /* Types */
 
 #include "util/half.h"

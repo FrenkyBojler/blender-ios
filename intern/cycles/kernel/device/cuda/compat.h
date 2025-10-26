@@ -112,6 +112,13 @@ ccl_device_forceinline float __half2float(const half h)
   return val;
 }
 
+/* Timer */
+
+ccl_device_forceinline uint64_t gpu_time_fast()
+{
+  return clock64();
+}
+
 /* Types */
 
 #include "util/half.h"

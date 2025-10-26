@@ -383,7 +383,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description="Device to use for rendering",
         items=enum_devices,
         default='CPU',
-        update=update_render_passes,
     )
     shading_system: BoolProperty(
         name="Open Shading Language",
@@ -1487,7 +1486,7 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
     )
     pass_render_time: BoolProperty(
         name="Render Time",
-        description="Reports time per pixel in milliseconds. Supported only on CPU render devices",
+        description="Reports time per pixel in milliseconds",
         default=False,
         update=update_render_passes,
     )

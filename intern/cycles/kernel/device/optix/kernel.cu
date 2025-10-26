@@ -7,6 +7,7 @@
 #include "kernel/device/optix/compat.h"
 #include "kernel/device/optix/globals.h"
 
+#include "kernel/device/gpu/timer.h"
 #include "kernel/device/gpu/image.h"  /* Texture lookup uses normal CUDA intrinsics. */
 
 #include "kernel/tables.h"
@@ -28,6 +29,7 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_intersect_closest()
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
+  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
   integrator_intersect_closest(nullptr, path_index, kernel_params.render_buffer);
 }
 
@@ -37,6 +39,7 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_intersect_shadow()
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
+  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
   integrator_intersect_shadow(nullptr, path_index);
 }
 
@@ -46,6 +49,7 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_intersect_subsurfac
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
+  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
   integrator_intersect_subsurface(nullptr, path_index);
 }
 
@@ -55,6 +59,7 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_intersect_volume_st
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
+  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
   integrator_intersect_volume_stack(nullptr, path_index);
 }
 
@@ -64,5 +69,6 @@ extern "C" __global__ void __raygen__kernel_optix_integrator_intersect_dedicated
   const int path_index = (kernel_params.path_index_array) ?
                              kernel_params.path_index_array[global_index] :
                              global_index;
+  gpu_kernel_timer timer(kernel_params.render_buffer, path_index);
   integrator_intersect_dedicated_light(nullptr, path_index);
 }

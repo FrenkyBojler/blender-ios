@@ -68,6 +68,7 @@ set(SRC_KERNEL_DEVICE_GPU_HEADERS
   device/gpu/parallel_active_index.h
   device/gpu/parallel_prefix_sum.h
   device/gpu/parallel_sorted_index.h
+  device/gpu/timer.h
   device/gpu/work_stealing.h
 )
 
