@@ -8,3 +8,4 @@ Referenced by commit bb3f0f540144ec9e7cab417e368fcfc58df45c06, Fix #147182: Dupl
 Referenced by issue #147083, Playing then pausing causes instant crash in file imported from 4.5
 Referenced by issue #146493, VSE crashes when doing edits
 Referenced by issue #147653, Crash deleting scene while playing animation
+Referenced by issue #148770, VSE Sync Scene with Multicam
