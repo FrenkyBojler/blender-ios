@@ -1478,7 +1478,7 @@ uint32_t get_and_occupy_next_slot(uint32_t &buffer_mask)
   return slot;
 }
 
-void patch_create_info_atomic_workaround(std::unique_ptr<shader::ShaderCreateInfo> &patched_info,
+void patch_create_info_atomic_workaround(std::unique_ptr<PatchedShaderCreateInfo> &patched_info,
                                          shader::ShaderCreateInfoStringCache &patched_names,
                                          const shader::ShaderCreateInfo &original_info)
 {
@@ -1496,15 +1496,15 @@ void patch_create_info_atomic_workaround(std::unique_ptr<shader::ShaderCreateInf
     }
 
     if (patched_info == nullptr) {
-      patched_info = std::make_unique<shader::ShaderCreateInfo>(original_info);
+      patched_info = std::make_unique<PatchedShaderCreateInfo>(original_info);
       free_slots = available_buffer_slots(original_info);
     }
     int slot = get_and_occupy_next_slot(free_slots);
-    patched_names.append(std::make_unique<std::string>(name + "_buf_[]"));
-    patched_info->storage_buf(
-        slot, Qualifier::read_write, to_component_type(type), *patched_names.last());
-    patched_names.append(std::make_unique<std::string>(name + "_metadata_"));
-    patched_info->push_constant(Type::uint4_t, *patched_names.last());
+    patched_info->names.append(std::make_unique<std::string>(name + "_buf_[]"));
+    patched_info->info.storage_buf(
+        slot, Qualifier::read_write, to_component_type(type), *patched_info->names.last());
+    patched_info->names.append(std::make_unique<std::string>(name + "_metadata_"));
+    patched_info->info.push_constant(Type::uint4_t, *patched_info->names.last());
   };
 
   auto ensure_atomic_workaround_resource = [&](const ShaderCreateInfo::Resource &res) {

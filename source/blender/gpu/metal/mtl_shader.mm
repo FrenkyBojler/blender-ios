@@ -163,17 +163,18 @@ const shader::ShaderCreateInfo &MTLShader::patch_create_info(
     const shader::ShaderCreateInfo &original_info)
 {
   if (!MTLBackend::get_capabilities().supports_texture_atomics) {
-    patch_create_info_atomic_workaround(patched_info_, patched_info_strings_, original_info);
+    /* This function can lazily create the patched_info_. */
+    patch_create_info_atomic_workaround(patched_info_, original_info);
   }
 
   if (original_info.max_sampler_slot() > 16) {
     if (patched_info_ == nullptr) {
-      patched_info_ = std::make_unique<shader::ShaderCreateInfo>(original_info);
+      patched_info_ = std::make_unique<PatchedShaderCreateInfo>(original_info);
     }
-    patched_info_->builtins_ |= BuiltinBits::USE_SAMPLER_ARG_BUFFER;
+    patched_info_->info.builtins_ |= BuiltinBits::USE_SAMPLER_ARG_BUFFER;
   }
 
-  return patched_info_ != nullptr ? *patched_info_ : original_info;
+  return patched_info_ != nullptr ? patched_info_->info : original_info;
 }
 
 /** \} */

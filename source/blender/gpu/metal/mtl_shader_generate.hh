@@ -58,14 +58,15 @@
 
 namespace blender::gpu {
 
+struct PatchedShaderCreateInfo;
+
 uint32_t available_buffer_slots(const shader::ShaderCreateInfo &info);
 
 std::pair<std::string, std::string> generate_entry_point(const shader::ShaderCreateInfo &info,
                                                          const ShaderStage stage,
                                                          const StringRefNull entry_point_name);
 
-void patch_create_info_atomic_workaround(std::unique_ptr<shader::ShaderCreateInfo> &patched_info,
-                                         shader::ShaderCreateInfoStringCache &patched_names,
+void patch_create_info_atomic_workaround(std::unique_ptr<PatchedShaderCreateInfo> &patched_info,
                                          const shader::ShaderCreateInfo &original_info);
 
 }  // namespace blender::gpu

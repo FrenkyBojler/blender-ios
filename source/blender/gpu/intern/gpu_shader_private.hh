@@ -36,6 +36,13 @@ class Context;
 #define SOURCES_INDEX_VERSION 0
 #define SOURCES_INDEX_SPECIALIZATION_CONSTANTS 1
 
+struct PatchedShaderCreateInfo {
+  shader::ShaderCreateInfo info;
+  shader::ShaderCreateInfoStringCache names;
+
+  PatchedShaderCreateInfo(const shader::ShaderCreateInfo &info_) : info(info_) {}
+};
+
 /**
  * Implementation of shader compilation and uniforms handling.
  * Base class which is then specialized for each implementation (GL, VK, ...).
@@ -67,8 +74,7 @@ class Shader {
 
   /* In some situation, a backend might want to transform the create infos before it is being
    * parsed. */
-  std::unique_ptr<shader::ShaderCreateInfo> patched_info_ = nullptr;
-  shader::ShaderCreateInfoStringCache patched_info_strings_;
+  std::unique_ptr<PatchedShaderCreateInfo> patched_info_;
 
  public:
   Shader(const char *name);
