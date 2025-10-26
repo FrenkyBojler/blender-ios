@@ -86,8 +86,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   for (const StringRef error : realize_result.errors) {
     params.error_message_add(NodeWarningType::Error, error);
   }
-  // TODO: Override.
-  realize_result.geometry.merge_bundle_from(geometry_set);
+  realize_result.geometry.name = geometry_set.name;
   params.set_output("Geometry", std::move(realize_result.geometry));
 }
 

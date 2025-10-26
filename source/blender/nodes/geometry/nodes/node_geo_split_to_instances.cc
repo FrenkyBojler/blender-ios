@@ -334,6 +334,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     dst_instances->add_reference(std::move(group_geometry));
   }
 
+  dst_geometry.name = src_geometry.name;
   dst_geometry.copy_bundle_from(src_geometry);
 
   geometry::debug_randomize_instance_order(dst_instances);

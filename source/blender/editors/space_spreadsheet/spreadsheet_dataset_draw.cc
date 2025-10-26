@@ -142,8 +142,7 @@ class RootGeometryViewItem : public InstancesTreeViewItem {
  public:
   RootGeometryViewItem(const bke::GeometrySet &geometry)
   {
-    const StringRefNull geo_name = geometry.name();
-    label_ = geo_name.is_empty() ? IFACE_("(Geometry)") : geo_name;
+    label_ = geometry.name.empty() ? IFACE_("(Geometry)") : geometry.name;
   }
 
   void build_row(uiLayout &row) override

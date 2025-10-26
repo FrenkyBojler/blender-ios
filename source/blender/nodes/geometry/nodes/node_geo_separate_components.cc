@@ -18,7 +18,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .translation_context(BLT_I18NCONTEXT_ID_ID)
       .propagate_all();
   b.add_output<decl::Geometry>("Instances").propagate_all();
-  b.add_output<decl::Bundle>("Bundle").propagate_all();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -31,6 +30,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet pointclouds;
   GeometrySet volumes;
   GeometrySet instances;
+
+  const std::string &name = geometry_set.name;
+  meshes.name = name;
+  curves.name = name;
+  grease_pencil.name = name;
+  pointclouds.name = name;
+  volumes.name = name;
+  instances.name = name;
 
   meshes.copy_bundle_from(geometry_set);
   curves.copy_bundle_from(geometry_set);
@@ -64,7 +71,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Point Cloud", pointclouds);
   params.set_output("Volume", volumes);
   params.set_output("Instances", instances);
-  params.set_output("Bundle", geometry_set.bundle_ptr());
 }
 
 static void node_register()

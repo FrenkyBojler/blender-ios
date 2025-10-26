@@ -257,7 +257,7 @@ void USDPointInstancerWriter::process_instance_reference(
 
     case bke::InstanceReference::Type::GeometrySet: {
       bke::GeometrySet geometry_set = reference.geometry_set();
-      std::string set_name = geometry_set.name();
+      std::string set_name = geometry_set.name;
 
       if (proto_index_map.contains(set_name)) {
         proto_indices.push_back(proto_index_map.lookup(set_name));
