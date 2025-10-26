@@ -106,11 +106,14 @@ static float calc_wipe_blend(const WipeData *data, int x, int y)
   float output = 0.0f;
   switch (data->type) {
     case SEQ_WIPE_SINGLE: {
+      /* Distance to line: dot(pixel_pos - line_pos, line_normal). */
       float dist = math::dot(float2(x, y) - data->pos, data->normal);
       output = calc_wipe_band(dist, data->blend_width_inv);
     } break;
 
     case SEQ_WIPE_DOUBLE: {
+      /* Distance to line: dot(pixel_pos - line_pos, line_normal).
+       * For double wipe, we have two lines to calculate the distance to. */
       float2 pos1 = data->pos;
       float2 pos2 = data->size - data->pos;
       float dist1 = math::dot(float2(x, y) - pos1, -data->normal);
