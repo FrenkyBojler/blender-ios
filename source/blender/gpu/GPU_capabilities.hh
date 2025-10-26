@@ -16,6 +16,7 @@
 
 int GPU_max_texture_size();
 int GPU_max_texture_3d_size();
+uint32_t GPU_max_buffer_texture_size();
 int GPU_max_texture_layers();
 int GPU_max_textures();
 int GPU_max_textures_vert();
@@ -33,6 +34,7 @@ int GPU_max_varying_floats();
 int GPU_max_shader_storage_buffer_bindings();
 int GPU_max_compute_shader_storage_blocks();
 int GPU_max_samplers();
+size_t GPU_max_uniform_buffer_size();
 size_t GPU_max_storage_buffer_size();
 /* Used when binding subrange of SSBOs. In bytes.
  * The start of the range must be aligned with this value. */
@@ -42,6 +44,16 @@ int GPU_extensions_len();
 const char *GPU_extension_get(int i);
 
 int GPU_texture_size_with_limit(int res);
+
+/**
+ * Returns whether it should be "safe" to use texture of a given size.
+ *
+ * The heuristic is that maybe allocating texture that is 25% of
+ * #GPU_max_texture_size squared is fine. Note that the actual texture creation
+ * can still fail even if deemed "safe" by this function, depending on current memory
+ * usage, texture format, etc.
+ */
+bool GPU_is_safe_texture_size(int width, int height);
 
 bool GPU_use_subprocess_compilation();
 int GPU_max_parallel_compilations();

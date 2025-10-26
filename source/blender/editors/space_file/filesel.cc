@@ -535,6 +535,8 @@ int ED_fileselect_asset_import_method_get(const SpaceFile *sfile, const FileDirE
       return ASSET_IMPORT_APPEND;
     case FILE_ASSET_IMPORT_APPEND_REUSE:
       return ASSET_IMPORT_APPEND_REUSE;
+    case FILE_ASSET_IMPORT_PACK:
+      return ASSET_IMPORT_PACK;
 
       /* Should be handled above already. Break and fail below. */
     case FILE_ASSET_IMPORT_FOLLOW_PREFS:
@@ -1231,6 +1233,7 @@ int autocomplete_directory(bContext *C, char *str, void * /*arg_v*/)
 
     BLI_path_split_dir_part(str, dirname, sizeof(dirname));
 
+    BLI_assert(!BLI_path_is_rel(dirname));
     dir = opendir(dirname);
 
     if (dir) {

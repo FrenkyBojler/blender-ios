@@ -10,6 +10,10 @@
 
 #include <string>
 
+#include "BLI_enum_flags.hh"
+#include "BLI_math_base.h"
+#include "BLI_set.hh"
+
 #include "DNA_customdata_types.h" /* for eCustomDataType */
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
@@ -80,11 +84,15 @@ enum eGPUMaterialFlag {
   GPU_MATFLAG_AOV = (1 << 19),
 
   GPU_MATFLAG_BARYCENTRIC = (1 << 20),
+  /* Signals that these specific closures might *not* be colorless.
+   * If this flag is not set, all closures are ensured to not be tinted. */
+  GPU_MATFLAG_REFLECTION_MAYBE_COLORED = (1 << 21),
+  GPU_MATFLAG_REFRACTION_MAYBE_COLORED = (1 << 22),
 
   /* Tells the render engine the material was just compiled or updated. */
   GPU_MATFLAG_UPDATED = (1 << 29),
 };
-ENUM_OPERATORS(eGPUMaterialFlag, GPU_MATFLAG_UPDATED);
+ENUM_OPERATORS(eGPUMaterialFlag);
 
 using GPUCodegenCallbackFn = void (*)(void *thunk,
                                       GPUMaterial *mat,
@@ -293,17 +301,54 @@ struct GPUNodeStack {
   bool hasoutput;
   short sockettype;
   bool end;
+
+  /* Return true if the socket might contain a polychromatic value.
+   * This is a conservative heuristic that allows for optimization. */
+  bool might_be_tinted() const
+  {
+    return this->link || (this->vec[0] != this->vec[1]) || (this->vec[1] != this->vec[2]);
+  }
+
+  bool socket_not_zero() const
+  {
+    return this->link || (clamp_f(this->vec[0], 0.0f, 1.0f) > 1e-5f);
+  }
+
+  bool socket_not_one() const
+  {
+    return this->link || (clamp_f(this->vec[0], 0.0f, 1.0f) < 1.0f - 1e-5f);
+  }
+
+  bool socket_is_one() const
+  {
+    return !this->link && (clamp_f(this->vec[0], 0.0f, 1.0f) > 0.9999f);
+  }
+};
+
+struct GPUGraphOutput {
+  std::string serialized;
+  blender::Vector<blender::StringRefNull> dependencies;
+
+  bool empty() const
+  {
+    return serialized.empty();
+  }
+
+  std::string serialized_or_default(std::string value) const
+  {
+    return serialized.empty() ? value : serialized;
+  }
 };
 
 struct GPUCodegenOutput {
   std::string attr_load;
   /* Node-tree functions calls. */
-  std::string displacement;
-  std::string surface;
-  std::string volume;
-  std::string thickness;
-  std::string composite;
-  std::string material_functions;
+  GPUGraphOutput displacement;
+  GPUGraphOutput surface;
+  GPUGraphOutput volume;
+  GPUGraphOutput thickness;
+  GPUGraphOutput composite;
+  blender::Vector<GPUGraphOutput> material_functions;
 
   GPUShaderCreateInfo *create_info;
 };
@@ -362,6 +407,16 @@ bool GPU_stack_link(GPUMaterial *mat,
                     GPUNodeStack *in,
                     GPUNodeStack *out,
                     ...);
+
+bool GPU_stack_link_zone(GPUMaterial *material,
+                         const bNode *bnode,
+                         const char *name,
+                         GPUNodeStack *in,
+                         GPUNodeStack *out,
+                         int zone_index,
+                         bool is_zone_end,
+                         int in_argument_count,
+                         int out_argument_count);
 
 void GPU_material_output_surface(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_output_volume(GPUMaterial *material, GPUNodeLink *link);

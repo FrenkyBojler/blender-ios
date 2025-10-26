@@ -12,10 +12,13 @@
 
 #  include "BLI_math_color.h"
 
+#  include "CLG_log.h"
+
 #  include "../description.hh"
-#  include "error_handling.hh"
 #  include "libocio_cpu_processor.hh"
 #  include "libocio_processor.hh"
+
+static CLG_LogRef LOG = {"color_management"};
 
 namespace blender::ocio {
 
@@ -147,7 +150,7 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
       interop_id_ = "srgb_p3d65_display";
     }
     else if (alias == "displayp3_hdr_display") {
-      interop_id_ = "srgbx_p3d65_display";
+      interop_id_ = "srgbe_p3d65_display";
     }
     else if (alias == "p3d65_display") {
       interop_id_ = "g26_p3d65_display";
@@ -193,6 +196,11 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
       interop_id_ = "data";
     }
   }
+
+  CLOG_TRACE(&LOG,
+             "Add colorspace: %s (interop ID: %s)",
+             name().c_str(),
+             interop_id_.is_empty() ? "<none>" : interop_id_.c_str());
 }
 
 bool LibOCIOColorSpace::is_scene_linear() const

@@ -38,8 +38,8 @@ void VKExtensions::log() const
              " - [%c] shader output viewport index\n"
              " - [%c] shader output layer\n"
              " - [%c] fragment shader barycentric\n"
+             " - [%c] wide lines\n"
              "Device extensions\n"
-             " - [%c] descriptor buffer\n"
              " - [%c] dynamic rendering local read\n"
              " - [%c] dynamic rendering unused attachments\n"
              " - [%c] external memory\n"
@@ -50,7 +50,7 @@ void VKExtensions::log() const
              shader_output_viewport_index ? 'X' : ' ',
              shader_output_layer ? 'X' : ' ',
              fragment_shader_barycentric ? 'X' : ' ',
-             descriptor_buffer ? 'X' : ' ',
+             wide_lines ? 'X' : ' ',
              dynamic_rendering_local_read ? 'X' : ' ',
              dynamic_rendering_unused_attachments ? 'X' : ' ',
              external_memory ? 'X' : ' ',
@@ -91,7 +91,6 @@ void VKDevice::deinit()
   pipelines.free_data();
   descriptor_set_layouts_.deinit();
   vma_pools.deinit(*this);
-  vmaDestroyAllocator(mem_allocator_);
   mem_allocator_ = VK_NULL_HANDLE;
 
   while (!render_graphs_.is_empty()) {
@@ -124,6 +123,7 @@ void VKDevice::init(void *ghost_context)
   vk_device_ = handles.device;
   vk_queue_family_ = handles.graphic_queue_family;
   vk_queue_ = handles.queue;
+  mem_allocator_ = handles.vma_allocator;
   queue_mutex_ = static_cast<std::mutex *>(handles.queue_mutex);
 
   init_physical_device_extensions();
@@ -134,7 +134,7 @@ void VKDevice::init(void *ghost_context)
   VKBackend::capabilities_init(*this);
   init_functions();
   init_debug_callbacks();
-  init_memory_allocator();
+  vma_pools.init(*this);
   pipelines.init();
   pipelines.read_from_disk();
 
@@ -175,14 +175,6 @@ void VKDevice::init_functions()
 #endif
   }
 
-  /* VK_EXT_descriptor_buffer */
-  functions.vkGetDescriptorSetLayoutSize = LOAD_FUNCTION(vkGetDescriptorSetLayoutSizeEXT);
-  functions.vkGetDescriptorSetLayoutBindingOffset = LOAD_FUNCTION(
-      vkGetDescriptorSetLayoutBindingOffsetEXT);
-  functions.vkGetDescriptor = LOAD_FUNCTION(vkGetDescriptorEXT);
-  functions.vkCmdBindDescriptorBuffers = LOAD_FUNCTION(vkCmdBindDescriptorBuffersEXT);
-  functions.vkCmdSetDescriptorBufferOffsets = LOAD_FUNCTION(vkCmdSetDescriptorBufferOffsetsEXT);
-
 #undef LOAD_FUNCTION
 }
 
@@ -202,15 +194,6 @@ void VKDevice::init_physical_device_properties()
   vk_physical_device_id_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
   vk_physical_device_properties.pNext = &vk_physical_device_driver_properties_;
   vk_physical_device_driver_properties_.pNext = &vk_physical_device_id_properties_;
-
-  if (supports_extension(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
-    vk_physical_device_descriptor_buffer_properties_ = {
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT};
-    vk_physical_device_descriptor_buffer_properties_.pNext =
-        vk_physical_device_driver_properties_.pNext;
-    vk_physical_device_driver_properties_.pNext =
-        &vk_physical_device_descriptor_buffer_properties_;
-  }
 
   if (supports_extension(VK_KHR_MAINTENANCE_4_EXTENSION_NAME)) {
     vk_physical_device_maintenance4_properties_.pNext = vk_physical_device_properties.pNext;
@@ -262,29 +245,6 @@ bool VKDevice::supports_extension(const char *extension_name) const
     }
   }
   return false;
-}
-
-void VKDevice::init_memory_allocator()
-{
-  VmaAllocatorCreateInfo info = {};
-  info.vulkanApiVersion = VK_API_VERSION_1_2;
-  info.physicalDevice = vk_physical_device_;
-  info.device = vk_device_;
-  info.instance = vk_instance_;
-  info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-  if (extensions_.memory_priority) {
-    info.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
-  }
-  if (extensions_.maintenance4) {
-    info.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT;
-  }
-  vmaCreateAllocator(&info, &mem_allocator_);
-
-  if (!extensions_.external_memory) {
-    return;
-  }
-
-  vma_pools.init(*this);
 }
 
 void VKDevice::init_dummy_buffer()
