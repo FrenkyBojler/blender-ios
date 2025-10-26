@@ -4,6 +4,7 @@
 
 #include "node_geometry_util.hh"
 
+#include "BLI_file_watcher.hh"
 #include "BLI_generic_key_string.hh"
 #include "BLI_listbase.h"
 #include "BLI_memory_cache_file_load.hh"
@@ -46,6 +47,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!path) {
     params.set_default_remaining_outputs();
     return;
+  }
+
+  /* Watch file for changes. */
+  if (!path->empty()) {
+    file_watcher::add_file(*path);
   }
 
   std::shared_ptr<const LoadObjCache> cached_value = memory_cache::get_loaded<LoadObjCache>(
