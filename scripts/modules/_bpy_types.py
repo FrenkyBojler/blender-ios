@@ -689,7 +689,7 @@ class Mesh(_types.ID):
            float triplets each representing (X, Y, Z)
            eg: [(0.0, 1.0, 0.5), ...].
 
-        :type vertices: Iterable[Sequence[float] | :class:`Vector`]
+        :type vertices: Iterable[Sequence[float] | :class:`mathutils.Vector`]
         :arg edges:
 
            int pairs, each pair contains two indices to the
