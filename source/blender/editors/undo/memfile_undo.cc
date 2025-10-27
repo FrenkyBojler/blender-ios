@@ -250,6 +250,13 @@ static void memfile_undosys_step_decode(
           DEG_graph_free(compositor_runtime.preview_depsgraph);
           compositor_runtime.preview_depsgraph = nullptr;
         }
+
+        if (scene->runtime->sequencer.depsgraph) {
+          /* Ensure that the depsgraph created in #get_depsgraph_for_scene_strip are updated. */
+          blender::bke::SequencerRuntime &seq_runtime = scene->runtime->sequencer;
+          DEG_graph_free(seq_runtime.depsgraph);
+          seq_runtime.depsgraph = nullptr;
+        }
       }
 
       /* NOTE: Tagging `ID_RECALC_SYNC_TO_EVAL` here should not be needed in practice, since
