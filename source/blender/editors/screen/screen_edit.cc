@@ -1914,19 +1914,24 @@ ScrArea *ED_screen_temp_space_open(
 
       if (ctx_screen->state == SCREENMAXIMIZED) {
         /* Find the currently maximized area, manually iterate the screen area list since
-         * it may not always be current context area (when opening a new space from the topbar
-         * for example). */
-        ScrArea *maximized_area;
+         * it may not always be the current context area (e.g. when opening a new space
+         * from the topbar) */
+        ScrArea *maximized_area = nullptr;
         LISTBASE_FOREACH (ScrArea *, screen_area, &ctx_screen->areabase) {
           if (screen_area->full) {
             maximized_area = screen_area;
           }
         }
 
+        if (!maximized_area) {
+          /* A maximized screen should *always* contain a maximized area. */
+          BLI_assert_unreachable();
+        }
+
         /* Check if the current maximized area has the same type as the one we're opening. */
         if (maximized_area->spacetype == space_type) {
-          /* Return the existing area instead of recreating an area on top, which would make the
-           * "Back to Previous" button seem ineffective. */
+          /* Return the existing area instead of recreating an area on top, which would make
+           * the "Back to Previous" button seem ineffective. */
           return maximized_area;
         }
 
