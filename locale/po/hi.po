@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-10-27 09:50+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -1667,10 +1667,6 @@ msgid "Sharp"
 msgstr "पैना"
 
 
-msgid "Direction"
-msgstr "दिशा"
-
-
 msgid "Draw"
 msgstr "चित्रण"
 
@@ -2444,6 +2440,10 @@ msgid "Ctrl"
 msgstr "नियंत्रण"
 
 
+msgid "Direction"
+msgstr "दिशा"
+
+
 msgid "North"
 msgstr "उत्तर"
 
@@ -2572,6 +2572,38 @@ msgid "Mask"
 msgstr "आवरण"
 
 
+msgid "Text"
+msgstr "पाठ"
+
+
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
+msgid "Names"
+msgstr "नाम"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
+
+
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Math"
+msgstr "गणित"
+
+
 msgid "Light"
 msgstr "प्रकाश"
 
@@ -2592,10 +2624,6 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
@@ -2604,8 +2632,8 @@ msgid "Hooks"
 msgstr "खूँटी"
 
 
-msgid "Names"
-msgstr "नाम"
+msgid "Import"
+msgstr "आयात करें"
 
 
 msgid "Toggle Bone Options"
@@ -2616,40 +2644,12 @@ msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
 
 
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
-msgid "Math"
-msgstr "गणित"
+msgid "UV"
+msgstr "यूवी"
 
 
 msgid "Merge"
 msgstr "विलय करें"
-
-
-msgid "Text"
-msgstr "पाठ"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "UV"
-msgstr "यूवी"
 
 
 msgid "Basic"
@@ -4857,10 +4857,6 @@ msgid "Blend Opacity"
 msgstr "मिश्रण अपारदर्शिता"
 
 
-msgid "Cross"
-msgstr "पार"
-
-
 msgctxt "Sequence"
 msgid "Image"
 msgstr "छवि"
@@ -5099,10 +5095,6 @@ msgstr "कोई पाठ या संचिका निर्दिष्�
 
 msgid "External shader script must have .osl or .oso extension, or be a module name"
 msgstr "बाह्य shader स्क्रिप्ट .osl या .oso एक्सटेंशन होना चाहिए, या एक मॉड्यूल का नाम हो"
-
-
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr ".Oso संचिका में बाह्य .oslसंचिकाल में आगे लिखने में विफल "
 
 
 msgctxt "Operator"
