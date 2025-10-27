@@ -1,4 +1,4 @@
-Referenced by issue #146255, Frame numbers visibility in graph editor
+Referenced by issue #146255, Frame numbers flicker in graph editor
 Referenced by issue #146266, Grease pencil: Cannot draw in copied scene
 Referenced by pull request #146300, Fix #146288: Crash displaying frames without a scene
 Referenced by issue #146288, Crash when open old video edit workspace
