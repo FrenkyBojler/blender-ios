@@ -5462,6 +5462,14 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     offsets[chain_i] = up_to_point;
     stroke_materials.span[chain_i] = max_ii(mat_nr, 0);
     up_to_point += cwi.point_count;
+
+    if (weight_transfer_match_output) {
+      for (const char *defname : defnames) {
+        vgroup_weights = attributes.lookup_or_add_for_write_span<float>(defname,
+                                                                        AttrDomain::Point);
+        vgroup_weights.finish();
+      }
+    }
   }
   vgroup_weights.finish();
 
