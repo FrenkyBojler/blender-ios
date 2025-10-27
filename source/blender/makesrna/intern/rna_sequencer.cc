@@ -117,7 +117,7 @@ const EnumPropertyItem rna_enum_pitch_shifter_quality_items[] = {
      "HIGH",
      0,
      "High",
-     "rioritize high-quality pitch processing"},
+     "Prioritize high-quality pitch processing"},
     {AUD_STRETCHER_QUALITY_FAST,
      "FAST",
      0,
@@ -4239,7 +4239,7 @@ static void rna_def_pitch_shifter_modifier(BlenderRNA *brna)
   prop = RNA_def_property(srna, "pitch_quality", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "pitch_quality");
   RNA_def_property_enum_items(prop, rna_enum_pitch_shifter_quality_items);
-  RNA_def_property_ui_text(prop, "Pitch Quality", "Quality of the pitch shifting, higher quality is slower.");
+  RNA_def_property_ui_text(prop, "Pitch Quality", "Quality of the pitch shifting");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 }
 
