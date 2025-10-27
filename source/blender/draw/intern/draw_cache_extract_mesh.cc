@@ -18,6 +18,7 @@
 #include "BLI_task.hh"
 
 #include "GPU_capabilities.hh"
+#include "GPU_debug.hh"
 
 #include "GPU_debug.hh"
 #include "draw_cache_extract.hh"
@@ -366,8 +367,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
   }
 
   static gpu::DebugScope subdiv_extract_scope = {"SubdivExtraction"};
-
-  subdiv_extract_scope.begin_capture();
+  auto capture = subdiv_extract_scope.scoped_capture();
 
   if (vbos_to_create.contains(VBOType::Position) || vbos_to_create.contains(VBOType::Orco)) {
     gpu::VertBufPtr orco_vbo;
@@ -514,8 +514,6 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                            extract_attribute_subdiv(mr, subdiv_cache, cache.attr_used[i]));
     }
   }
-
-  subdiv_extract_scope.end_capture();
 }
 
 /** \} */
