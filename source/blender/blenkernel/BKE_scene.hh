@@ -138,7 +138,7 @@ const char *BKE_scene_find_marker_name(const Scene *scene, int frame);
  */
 const char *BKE_scene_find_last_marker_name(const Scene *scene, int frame);
 
-int BKE_scene_frame_snap_by_seconds(Scene *scene, double interval_in_seconds, int frame);
+float BKE_scene_frame_snap_by_seconds(const Scene *scene, double interval_in_seconds, float frame);
 
 /**
  * Checks for cycle, returns true if it's all OK.
@@ -219,14 +219,6 @@ bool BKE_scene_uses_blender_workbench(const Scene *scene);
 bool BKE_scene_uses_cycles(const Scene *scene);
 
 bool BKE_scene_uses_shader_previews(const Scene *scene);
-
-/**
- * Return whether the Cycles experimental feature is enabled. It is invalid to call without first
- * ensuring that Cycles is the active render engine (e.g. with #BKE_scene_uses_cycles).
- *
- * \note We cannot use `const` as RNA_id_pointer_create is not using a const ID.
- */
-bool BKE_scene_uses_cycles_experimental_features(Scene *scene);
 
 void BKE_scene_copy_data_eevee(Scene *sce_dst, const Scene *sce_src);
 

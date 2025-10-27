@@ -27,7 +27,9 @@
 @class MTLCommandQueue;
 @class MTLRenderPipelineState;
 
-struct GPUFrameBuffer;
+namespace blender::gpu {
+class FrameBuffer;
+}  // namespace blender::gpu
 
 /* Texture Update system structs. */
 struct TextureUpdateRoutineSpecialisation {
@@ -210,7 +212,7 @@ class MTLTexture : public Texture {
   int tex_buffer_metadata_[4];
 
   /* Blit Frame-buffer. */
-  GPUFrameBuffer *blit_fb_ = nullptr;
+  gpu::FrameBuffer *blit_fb_ = nullptr;
   uint blit_fb_slice_ = 0;
   uint blit_fb_mip_ = 0;
 
@@ -285,9 +287,6 @@ class MTLTexture : public Texture {
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat type) override;
-
-  /* Remove once no longer required -- will just return 0 for now in MTL path. */
-  uint gl_bindcode_get() const override;
 
   bool is_format_srgb();
   bool texture_is_baked();
@@ -387,7 +386,7 @@ class MTLTexture : public Texture {
             uint dst_slice,
             int width,
             int height);
-  GPUFrameBuffer *get_blit_framebuffer(int dst_slice, uint dst_mip);
+  gpu::FrameBuffer *get_blit_framebuffer(int dst_slice, uint dst_mip);
   /* Texture Update function Utilities. */
   /* Metal texture updating does not provide the same range of functionality for type conversion
    * and format compatibility as are available in OpenGL. To achieve the same level of

@@ -6,6 +6,7 @@
  * \ingroup eevee
  */
 
+#include "BLI_math_axis_angle.hh"
 #include "BLI_rect.h"
 
 #include "BKE_image.hh"
@@ -454,7 +455,8 @@ void LookdevModule::rotate_world_probe_data(
   }
   else {
     float rotation_z = 0.0f; /* TODO */
-    rotation = from_rotation<float4x4>(AxisAngle(AxisSigned::Z_POS, rotation_z));
+    AxisAngle axis_angle_rotation(AxisSigned::Z_POS, rotation_z);
+    rotation = math::from_rotation<float4x4>(axis_angle_rotation);
   }
 
   PassSimple pass = {__func__};

@@ -478,7 +478,7 @@ class Instance : public DrawEngine {
                                id_attachment);
     resources_.clear_fb.bind();
     float4 clear_colors[2] = {scene_state_.background_color, float4(0.0f)};
-    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float(*)[4]>(clear_colors));
+    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float (*)[4]>(clear_colors));
     GPU_framebuffer_clear_depth_stencil(resources_.clear_fb, 1.0f, 0x00);
 
     opaque_ps_.draw(
@@ -630,7 +630,7 @@ static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
 
 static void write_render_color_output(RenderLayer *layer,
                                       const char *viewname,
-                                      GPUFrameBuffer *fb,
+                                      gpu::FrameBuffer *fb,
                                       const rcti *rect)
 {
   RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_COMBINED, viewname);
@@ -650,7 +650,7 @@ static void write_render_color_output(RenderLayer *layer,
 
 static void write_render_z_output(RenderLayer *layer,
                                   const char *viewname,
-                                  GPUFrameBuffer *fb,
+                                  gpu::FrameBuffer *fb,
                                   const rcti *rect,
                                   const float4x4 &winmat)
 {

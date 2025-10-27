@@ -2,7 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_lookdev_info.hh"
+/**
+ * This shader is used for:
+ * - copying the world space lighting just after it has been extracted.
+ * - rotate the world space lighting into the view following lighting before each frame.
+ */
+
+#include "infos/eevee_lookdev_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_lookdev_copy_world)
 

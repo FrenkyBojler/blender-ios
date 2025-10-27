@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'68bccbaeeefe')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-15 07:14+0000\n"
+"POT-Creation-Date: 2025-10-13 16:12+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Just Adam <adam.abbas2009@gmail.com>\n"
 "Language-Team: Bulgarian <https://translate.blender.org/projects/blender-ui/ui/bg/>\n"
@@ -648,6 +648,10 @@ msgid "Gamma"
 msgstr "Гама"
 
 
+msgid "View"
+msgstr "Изглед"
+
+
 msgid "Mix"
 msgstr "Смесване"
 
@@ -714,10 +718,6 @@ msgstr "Разделяне"
 
 msgid "Plane"
 msgstr "Равнина"
-
-
-msgid "View"
-msgstr "Изглед"
 
 
 msgid "Render"
@@ -830,6 +830,10 @@ msgstr "Връзка"
 
 msgid "Append"
 msgstr "Добави"
+
+
+msgid "Pack"
+msgstr "Пакетирай"
 
 
 msgid "End"
@@ -1136,18 +1140,6 @@ msgid "Mask"
 msgstr "Маскиране"
 
 
-msgid "Merge"
-msgstr "Слей"
-
-
-msgid "Text"
-msgstr "Текст"
-
-
-msgid "UV Mapping"
-msgstr "UV Картиране"
-
-
 msgid "Light"
 msgstr "Светлина"
 
@@ -1172,6 +1164,22 @@ msgid "In-Betweens"
 msgstr "Междинни Кадри"
 
 
+msgid "Merge"
+msgstr "Слей"
+
+
+msgid "Text"
+msgstr "Текст"
+
+
+msgid "Import"
+msgstr "Внеси"
+
+
+msgid "UV Mapping"
+msgstr "UV Картиране"
+
+
 msgid "Languages..."
 msgstr "Езици..."
 
@@ -1182,10 +1190,6 @@ msgstr "Кеш"
 
 msgid "Key"
 msgstr "Клавиш"
-
-
-msgid "Import"
-msgstr "Внеси"
 
 
 msgid "System"
@@ -1254,6 +1258,10 @@ msgstr "Свят"
 
 msgid "Even"
 msgstr "Равн"
+
+
+msgid "Edge Length"
+msgstr "Дължина на ръба"
 
 
 msgid "Lines"
@@ -1395,10 +1403,6 @@ msgstr "Филтрирай .blend файловете"
 
 msgid "Filter text files"
 msgstr "Филтрирай текстовите файлове"
-
-
-msgid "Set brush shape"
-msgstr "Задай форма на четка"
 
 
 msgctxt "Operator"
@@ -1679,10 +1683,6 @@ msgstr "Събери като Форми"
 
 msgid "Origin to Geometry"
 msgstr "Начало към Геометрия"
-
-
-msgid "Edge Length"
-msgstr "Дължина на ръба"
 
 
 msgid "Maximum scale randomization over each axis"
@@ -2294,10 +2294,6 @@ msgstr "Кешът е изключен докато файла не бъде з�
 
 msgid "Unpack"
 msgstr "Разпакетирай"
-
-
-msgid "Pack"
-msgstr "Пакетирай"
 
 
 msgid "Minimum Grid Spacing"
