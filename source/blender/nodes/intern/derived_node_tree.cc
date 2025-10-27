@@ -313,6 +313,11 @@ void DOutputSocket::foreach_target_socket(ForeachTargetSocketFn target_fn,
  * the parent as well as the group node making the context. */
 static const DTreeContext *find_active_context_recursive(const DTreeContext *context)
 {
+  /* If group nodes are missing an assigned node tree, their context can be invalid. */
+  if (context == nullptr) {
+    return nullptr;
+  }
+
   const bNodeInstanceKey key = context->instance_key();
 
   /* The instance key of the given context matches the active viewer instance key, so this is the
