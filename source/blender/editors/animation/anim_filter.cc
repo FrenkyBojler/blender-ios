@@ -3692,7 +3692,7 @@ static int ds_base_sorting_cmp(const void *base1_ptr, const void *base2_ptr)
   const Base *b1 = *((const Base **)base1_ptr);
   const Base *b2 = *((const Base **)base2_ptr);
 
-  return strcmp(b1->object->id.name + 2, b2->object->id.name + 2);
+  return BLI_strcasecmp_natural(b1->object->id.name + 2, b2->object->id.name + 2);
 }
 
 /* Get a sorted list of all the bases - for inclusion in dopesheet (when drawing channels) */
@@ -3710,7 +3710,8 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
 
   Base **sorted_bases = MEM_calloc_arrayN<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
   LISTBASE_FOREACH (Base *, base, object_bases) {
-    if (animdata_filter_base_is_ok(ac, base, OB_MODE_OBJECT, filter_mode)) {
+    const eObjectMode object_mode = eObjectMode(base->object->mode);
+    if (animdata_filter_base_is_ok(ac, base, object_mode, filter_mode)) {
       sorted_bases[num_bases++] = base;
     }
   }
