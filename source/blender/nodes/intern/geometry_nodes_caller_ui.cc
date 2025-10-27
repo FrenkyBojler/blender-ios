@@ -555,6 +555,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
                      name);
       }
       else {
+        /* #uiTemplateID only supports pointer properties currently. */
         row->prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "images", name, ICON_IMAGE);
       }
       break;
