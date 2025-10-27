@@ -164,7 +164,7 @@ class StateManager {
 class Fence {
  protected:
   bool signalled_ = false;
-  const char *name = nullptr;
+  StringRefNull name;
 
  public:
   Fence(const char *name) : name(name) {}

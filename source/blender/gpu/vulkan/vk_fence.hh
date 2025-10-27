@@ -12,11 +12,15 @@
 
 #include "vk_common.hh"
 
+#include "BLI_mutex.hh"
+
 namespace blender::gpu {
 
 class VKFence : public Fence {
  private:
   VkEvent vk_event_ = VK_NULL_HANDLE;
+  Mutex mutex_;
+
   ~VKFence();
 
  public:
