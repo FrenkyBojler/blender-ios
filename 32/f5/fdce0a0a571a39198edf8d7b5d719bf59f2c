@@ -21,3 +21,4 @@ Referenced by issue #136787, Default EEVEE renderer crashes-to-desktop when open
 Referenced by issue #138088, Vulkan: Missing Anti-Aliasing on the RGB Wheel
 Referenced by issue #140501, crashes when importing image mac
 Referenced by issue #144916, Blender crashes when snapping after aligning in edit mode
+Referenced by issue #148833, Opening Video Sequencer Window Instantly Crashes Blender
