@@ -158,7 +158,7 @@ VertBufBinding MTLBatch::prepare_vertex_binding(MTLVertBuf *verts,
         }
 
         binding.desc_id = desc.vertex_descriptor.num_vert_buffers++;
-        binding.slot_id = get_and_occupy_next_slot(buffer_mask);
+        binding.slot_id = bitscan_forward_clear_uint(&buffer_mask);
 
         auto &buffer_layout = desc.vertex_descriptor.buffer_layouts[binding.desc_id];
         buffer_layout.step_function = MTLVertexStepFunctionPerVertex;

@@ -497,6 +497,4 @@ inline bool mtl_format_is_normalized(MTLVertexFormat format)
   return false;
 }
 
-uint32_t get_and_occupy_next_slot(uint32_t &buffer_mask);
-
 }  // namespace blender::gpu

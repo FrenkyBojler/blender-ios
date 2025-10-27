@@ -560,6 +560,11 @@ static void generate_buffer(GeneratedStreams &generated,
     auto &out = generated.wrapper_constructor_assign;
     out << Sep() << name.str_no_array() << "(";
     /* Remove the const qualifier. Its only there to avoid a compiler warning. */
+    /* The reason the warning exists is because the vertex shader might be executed more than once
+     * per vertex, which could lead to weird situation when working with atomic counter for
+     * instance. Given this is only used by the debug line shader (to decrement the primitives
+     * lifetime) it is not a huge issue to silence the warning. In the future, it might be better
+     * to add a flag on the create info to allow non-const resource in the vertex shader. */
     out << "const_cast<" << memory_scope << type << " (&)" << name.str_only_array() << ">(";
     out << name.str_no_array();
     out << ")";
@@ -1322,46 +1327,6 @@ static void generate_builtins(GeneratedStreams &ss,
   ss.wrapper_class_members << "\n";
 }
 
-/* Return available buffer slots for vertex buffer bindings. */
-uint32_t available_buffer_slots(const ShaderCreateInfo &info)
-{
-  uint32_t free_slots = ~((~0u) << 31u);
-
-  auto occupy_slot = [&](const ShaderCreateInfo::Resource &res) {
-    switch (res.bind_type) {
-      case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
-        free_slots &= ~(1u << (MTL_UBO_SLOT_OFFSET + res.slot));
-        break;
-      case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
-        free_slots &= ~(1u << (MTL_SSBO_SLOT_OFFSET + res.slot));
-        break;
-      case ShaderCreateInfo::Resource::BindType::SAMPLER:
-      case ShaderCreateInfo::Resource::BindType::IMAGE:
-        break;
-    };
-  };
-
-  for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-    occupy_slot(res);
-  }
-  for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-    occupy_slot(res);
-  }
-  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
-    occupy_slot(res);
-  }
-
-  if (info.push_constants_.is_empty() == false) {
-    free_slots &= ~(1u << MTL_PUSH_CONSTANT_BUFFER_SLOT);
-  }
-
-  if (bool(info.builtins_ & BuiltinBits::USE_SAMPLER_ARG_BUFFER)) {
-    free_slots &= ~(1u << MTL_SAMPLER_ARGUMENT_BUFFER_SLOT);
-  }
-
-  return free_slots;
-}
-
 std::pair<std::string, std::string> generate_entry_point(const ShaderCreateInfo &info,
                                                          const ShaderStage stage,
                                                          const StringRefNull entry_point_name)
@@ -1470,16 +1435,47 @@ std::pair<std::string, std::string> generate_entry_point(const ShaderCreateInfo 
   return {prefix.str(), out.str()};
 }
 
-uint32_t get_and_occupy_next_slot(uint32_t &buffer_mask)
+/* Return available buffer slots for vertex buffer bindings. */
+uint32_t available_buffer_slots(const ShaderCreateInfo &info)
 {
-  uint32_t slot = bitscan_forward_uint(buffer_mask);
-  BLI_assert(slot < 31);
-  buffer_mask &= ~(1 << slot);
-  return slot;
+  uint32_t free_slots = ~((~0u) << 31u);
+
+  auto occupy_slot = [&](const ShaderCreateInfo::Resource &res) {
+    switch (res.bind_type) {
+      case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
+        free_slots &= ~(1u << (MTL_UBO_SLOT_OFFSET + res.slot));
+        break;
+      case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
+        free_slots &= ~(1u << (MTL_SSBO_SLOT_OFFSET + res.slot));
+        break;
+      case ShaderCreateInfo::Resource::BindType::SAMPLER:
+      case ShaderCreateInfo::Resource::BindType::IMAGE:
+        break;
+    };
+  };
+
+  for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
+    occupy_slot(res);
+  }
+  for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+    occupy_slot(res);
+  }
+  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+    occupy_slot(res);
+  }
+
+  if (info.push_constants_.is_empty() == false) {
+    free_slots &= ~(1u << MTL_PUSH_CONSTANT_BUFFER_SLOT);
+  }
+
+  if (bool(info.builtins_ & BuiltinBits::USE_SAMPLER_ARG_BUFFER)) {
+    free_slots &= ~(1u << MTL_SAMPLER_ARGUMENT_BUFFER_SLOT);
+  }
+
+  return free_slots;
 }
 
 void patch_create_info_atomic_workaround(std::unique_ptr<PatchedShaderCreateInfo> &patched_info,
-                                         shader::ShaderCreateInfoStringCache &patched_names,
                                          const shader::ShaderCreateInfo &original_info)
 {
   uint32_t free_slots = 0;
@@ -1499,7 +1495,7 @@ void patch_create_info_atomic_workaround(std::unique_ptr<PatchedShaderCreateInfo
       patched_info = std::make_unique<PatchedShaderCreateInfo>(original_info);
       free_slots = available_buffer_slots(original_info);
     }
-    int slot = get_and_occupy_next_slot(free_slots);
+    int slot = bitscan_forward_clear_uint(&free_slots);
     patched_info->names.append(std::make_unique<std::string>(name + "_buf_[]"));
     patched_info->info.storage_buf(
         slot, Qualifier::read_write, to_component_type(type), *patched_info->names.last());

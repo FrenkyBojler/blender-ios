@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2022 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -30,7 +30,8 @@ constant int my_specialization_constant [[function_constant(64)]];
 
 /* If needed Bindless Sampler argument buffer type declaration goes here. */
 struct BindlessSamplers {
-  array<sampler, 18> samplers [[id(0)]];
+  /* 64 here is replaced by the number of sampler used in the shader. */
+  array<sampler, 64> samplers [[id(0)]];
 };
 
 /* Commented out for parser to work. */
