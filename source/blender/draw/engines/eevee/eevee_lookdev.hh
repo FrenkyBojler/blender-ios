@@ -121,9 +121,9 @@ class LookdevModule {
  private:
   Instance &inst_;
 
-  bool enabled_;
+  bool enabled_ = false;
 
-  bool use_viewspace_lighting_ = false;
+  bool use_viewspace_lighting_ = true;
 
   static constexpr int num_spheres = 2;
 
@@ -179,6 +179,8 @@ class LookdevModule {
   void draw(View &view);
 
   void display();
+
+  void rotate_world();
 
   void store_world_probe_data(Texture &in_sphere_probe,
                               const SphereProbeAtlasCoord &atlas_coord,

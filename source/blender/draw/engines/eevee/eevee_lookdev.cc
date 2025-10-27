@@ -369,6 +369,18 @@ void LookdevModule::draw(View &view)
   }
 }
 
+void LookdevModule::rotate_world()
+{
+  if (!use_viewspace_lighting_) {
+    return;
+  }
+
+  rotate_world_probe_data(inst_.sphere_probes.octahedral_probes_texture(),
+                          inst_.sphere_probes.world_sphere_probe().atlas_coord,
+                          inst_.sphere_probes.spherical_harmonics_buf(),
+                          inst_.world.sunlight);
+}
+
 void LookdevModule::display()
 {
   if (!enabled_) {
@@ -397,13 +409,16 @@ void LookdevModule::store_world_probe_data(
   SphereProbePixelArea write_coord_mip3 = atlas_coord.as_write_coord(3);
   SphereProbePixelArea write_coord_mip4 = atlas_coord.as_write_coord(4);
 
-  world_sphere_probe_.ensure_2d_array(gpu::TextureFormat::SPHERE_PROBE_FORMAT,
-                                      in_sphere_probe.size().xy(),
-                                      1,
-                                      GPU_TEXTURE_USAGE_GENERAL,
-                                      nullptr,
-                                      5);
-  world_sphere_probe_.ensure_mip_views();
+  if (world_sphere_probe_.ensure_2d_array(gpu::TextureFormat::SPHERE_PROBE_FORMAT,
+                                          in_sphere_probe.size().xy(),
+                                          1,
+                                          GPU_TEXTURE_USAGE_GENERAL,
+                                          nullptr,
+                                          5))
+  {
+    GPU_texture_mipmap_mode(world_sphere_probe_, true, true);
+    world_sphere_probe_.ensure_mip_views();
+  }
 
   PassSimple pass = {__func__};
   pass.init();
@@ -415,7 +430,7 @@ void LookdevModule::store_world_probe_data(
   pass.push_constant("write_coord_mip3_packed", reinterpret_cast<int4 *>(&write_coord_mip3));
   pass.push_constant("write_coord_mip4_packed", reinterpret_cast<int4 *>(&write_coord_mip4));
   pass.push_constant("lookdev_rotation", float4x4::identity());
-  pass.bind_texture("in_sphere_tx", &in_sphere_probe);
+  pass.bind_texture("in_sphere_tx", in_sphere_probe);
   pass.bind_image("out_sphere_mip0", world_sphere_probe_.mip_view(0));
   pass.bind_image("out_sphere_mip1", world_sphere_probe_.mip_view(1));
   pass.bind_image("out_sphere_mip2", world_sphere_probe_.mip_view(2));
@@ -449,7 +464,7 @@ void LookdevModule::rotate_world_probe_data(
   SphereProbePixelArea write_coord_mip3 = atlas_coord.as_write_coord(3);
   SphereProbePixelArea write_coord_mip4 = atlas_coord.as_write_coord(4);
 
-  float4x4 rotation;
+  float4x4 rotation = float4x4::identity();
   if (use_viewspace_lighting_) {
     /* TODO copy camera matrix */
   }

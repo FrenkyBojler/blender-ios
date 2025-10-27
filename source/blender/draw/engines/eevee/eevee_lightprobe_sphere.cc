@@ -188,6 +188,11 @@ SphereProbeModule::UpdateInfo SphereProbeModule::update_info_from_probe(SpherePr
   return info;
 }
 
+const SphereProbe &SphereProbeModule::world_sphere_probe() const
+{
+  return instance_.light_probes.world_sphere_;
+}
+
 std::optional<SphereProbeModule::UpdateInfo> SphereProbeModule::world_update_info_pop()
 {
   SphereProbe &world_probe = instance_.light_probes.world_sphere_;
@@ -244,7 +249,7 @@ void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoo
     instance_.manager->submit(sum_sh_ps_);
     instance_.manager->submit(sum_sun_ps_);
     instance_.lookdev.store_world_probe_data(
-        cubemap_tx_, atlas_coord, spherical_harmonics_, instance_.world.sunlight);
+        probes_tx_, atlas_coord, spherical_harmonics_, instance_.world.sunlight);
     /* All volume probe that needs to composite the world probe need to be updated. */
     instance_.volume_probes.update_world_irradiance();
   }
