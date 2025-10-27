@@ -3504,12 +3504,7 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
   ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
-
-  if (area && area->spacetype == SPACE_SEQ) {
-    scene = CTX_data_sequencer_scene(C);
-  }
-
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool done = false;
 
