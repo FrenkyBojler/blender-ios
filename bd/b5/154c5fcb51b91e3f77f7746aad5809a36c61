@@ -1,2 +1,3 @@
 Referenced by commit 7400b18d28352a52145e3ed1c9da325cf5a90359, Refactor: Mesh: Use functions to access UV map names
 Referenced by issue #148859, Crash in `DRW_particles_batch_cache_get_hair()`
+Referenced by commit 4c25b7f263d1d9aaad6b0da081a75a88b5568cdb, Fix #148859: Crash in particle system draw cache
