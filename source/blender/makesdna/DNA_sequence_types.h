@@ -648,6 +648,14 @@ typedef struct SoundEqualizerModifierData {
   ListBase graphics;
 } SoundEqualizerModifierData;
 
+typedef struct PitchShifterModifierData {
+  StripModifierData modifier;
+  int semi_tones;
+  int cents;
+  float ratio;
+  int pitch_quality;
+} PitchShifterModifierData;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -896,6 +904,7 @@ typedef enum eStripModifierType {
   eSeqModifierType_Tonemap = 7,
   eSeqModifierType_SoundEqualizer = 8,
   eSeqModifierType_Compositor = 9,
+  eSeqModifierType_PitchShifter = 10,
   /* Keep last. */
   NUM_STRIP_MODIFIER_TYPES,
 } eStripModifierType;

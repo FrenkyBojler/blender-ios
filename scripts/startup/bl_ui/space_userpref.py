@@ -46,7 +46,7 @@ class USERPREF_HT_header(Header):
         layout.template_header()
 
         USERPREF_MT_editor_menus.draw_collapsible(context, layout)
-
+        
         layout.separator_spacer()
 
         self.draw_buttons(layout, context)
