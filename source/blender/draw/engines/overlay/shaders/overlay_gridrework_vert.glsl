@@ -11,15 +11,18 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 void main()
 {
-  const float[2] vertex_offsets = { -1.0f, 1.0f };
+  int line_idx = (gl_VertexID / 2) % int(grid_buf.num_lines);     // vertex 0, vertex 0, vertex 1, vertex 1
+  int line_start = -int(grid_buf.num_lines >> 1);
 
-  int vertex_idx = gl_VertexID % 2; // vertex 0, vertex 1, vertex 0, vertex 1
-  int line_idx = gl_VertexID / 2;   // vertex 0, vertex 0, vertex 1, vertex 1
+  float3 vert_pos = float3(line_start + line_idx, line_start, 0.0f);
   
-  // int line_id   = gl_VertexID / 2;
+  // If not start vertex, flip y-coord for other side of line
+  int vert_idx = gl_VertexID % 2;
+  vert_pos.y = (vert_idx == 0) ? vert_pos.y : -vert_pos.y;
 
-  float3 vert_pos = float3(0.0f, offsets[gl_VertexID % 2], 0.0f);
-  // float3 real_pos = drw_view_position() + vert_pos;
+  // If not x-direction, flip x- and -ycoords for y-direction
+  int dir_idx  = gl_VertexID / int(grid_buf.num_lines * 2);
+  vert_pos.xy = (dir_idx == 0) ? vert_pos.xy : vert_pos.yx;
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vert_pos, 1.0f));
 }

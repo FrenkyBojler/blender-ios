@@ -132,6 +132,13 @@ struct OVERLAY_GridData {
 };
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 
+struct OVERLAY_GridReworkData {
+  uint num_lines;
+  uint _pad0[3];
+};
+BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridReworkData, 16)
+
+
 #ifdef GPU_SHADER
 /* Keep the same values as in `draw_cache_impl_curves.cc` */
 #  define EDIT_CURVES_NURBS_CONTROL_POINT (1u)

@@ -28,8 +28,7 @@ namespace blender::draw::overlay {
  */
 class GridRework : Overlay {
 private:
-  /* ... */
-
+  UniformBuffer<OVERLAY_GridReworkData> grid_ubo_;
   PassSimple grid_ps_ = {"grid_ps_"};
 
   float3 grid_axes_ = float3(0.0f);
@@ -54,13 +53,10 @@ public:
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR);
 
     {
-      // TODO remove
-      constexpr uint n_lines = 4;
-      constexpr uint n_verts = 2 * n_lines;
-
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
-      sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
+      sub.bind_ubo("grid_buf", &grid_ubo_);
+      sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, grid_ubo_.num_lines * 4, 0);
     }
   }
 
@@ -70,6 +66,7 @@ public:
       return;
     }
 
+    grid_ubo_.push_update();
     GPU_framebuffer_bind(framebuffer);
     manager.submit(grid_ps_, view);
   }
@@ -78,6 +75,8 @@ private:
   bool init(const State &state) 
   {
     /* ... */
+
+    grid_ubo_.num_lines = 33;
 
     return true;
   }
