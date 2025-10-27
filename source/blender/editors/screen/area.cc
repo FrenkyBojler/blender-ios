@@ -1137,15 +1137,16 @@ static void fullscreen_azone_init(ScrArea *area, ARegion *region)
 
 static void quadview_azone_init(ScrArea *area, ARegion *region)
 {
-  const int padding = int((UI_SCALE_FAC + U.pixelsize) * 2.0f);
   AZone *az = MEM_callocN<AZone>("Quad View action zone");
   BLI_addtail(&(area->actionzones), az);
   az->type = AZONE_REGION_QUAD;
   az->region = region;
-  az->x1 = region->winrct.xmax - padding;
-  az->y1 = region->winrct.ymax - padding;
-  az->x2 = region->winrct.xmax + padding;
-  az->y2 = region->winrct.ymax + padding;
+  const int half_line = int(floor(U.pixelsize / 2.0f));
+  const int padding = int((UI_SCALE_FAC + U.pixelsize) * 2.0f) + half_line;
+  az->x1 = region->winrct.xmax - padding + 1;
+  az->y1 = region->winrct.ymax - padding + 1;
+  az->x2 = region->winrct.xmax + padding + 1;
+  az->y2 = region->winrct.ymax + padding + 1;
   BLI_rcti_init(&az->rect, az->x1, az->x2, az->y1, az->y2);
 }
 
