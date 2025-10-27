@@ -178,6 +178,9 @@ struct LayoutInternal {
   static void layout_resolve(uiLayout *layout);
   static uiButtonItem *ui_layout_find_button_item(const uiLayout *layout, const uiBut *but);
   static uiLayout *ui_item_prop_split_layout_hack(uiLayout *layout_parent, uiLayout *layout_split);
+  static void layout_offset_size_set(uiLayout *layout, int x, int y, int w, int h);
+  static void layout_move(uiLayout *layout, int delta_xmin, int delta_xmax);
+  static void layout_space_set(uiLayout *layout, int space);
 };
 
 }  // namespace blender::ui
@@ -477,8 +480,17 @@ blender::int2 uiItem::size() const
     const uiButtonItem *bitem = static_cast<const uiButtonItem *>(this);
     return {int(BLI_rctf_size_x(&bitem->but->rect)), int(BLI_rctf_size_y(&bitem->but->rect))};
   }
-  const uiLayout *litem = static_cast<const uiLayout *>(this);
-  return {litem->w_, litem->h_};
+  return static_cast<const uiLayout *>(this)->size();
+}
+
+blender::int2 uiLayout::offset() const
+{
+  return {x_, y_};
+}
+
+blender::int2 uiLayout::size() const
+{
+  return {w_, h_};
 }
 
 blender::int2 uiItem::offset() const
@@ -503,13 +515,16 @@ static void ui_item_position(uiItem *item, const int x, const int y, const int w
     ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
-    uiLayout *litem = static_cast<uiLayout *>(item);
-
-    litem->x_ = x;
-    litem->y_ = y + h;
-    litem->w_ = w;
-    litem->h_ = h;
+    LayoutInternal::layout_offset_size_set(static_cast<uiLayout *>(item), x, y + h, w, h);
   }
+}
+
+void LayoutInternal::layout_offset_size_set(uiLayout *layout, int x, int y, int w, int h)
+{
+  layout->x_ = x;
+  layout->y_ = y;
+  layout->w_ = w;
+  layout->h_ = h;
 }
 
 static void ui_item_move(uiItem *item, const int delta_xmin, const int delta_xmax)
@@ -523,15 +538,23 @@ static void ui_item_move(uiItem *item, const int delta_xmin, const int delta_xma
     ui_but_update(bitem->but); /* For `strlen`. */
   }
   else {
-    uiLayout *litem = static_cast<uiLayout *>(item);
-
-    if (delta_xmin > 0) {
-      litem->x_ += delta_xmin;
-    }
-    else {
-      litem->w_ += delta_xmax;
-    }
+    LayoutInternal::layout_move(static_cast<uiLayout *>(item), delta_xmin, delta_xmax);
   }
+}
+
+void LayoutInternal::layout_move(uiLayout *layout, int delta_xmin, int delta_xmax)
+{
+  if (delta_xmin > 0) {
+    layout->x_ += delta_xmin;
+  }
+  else {
+    layout->w_ += delta_xmax;
+  }
+}
+
+void LayoutInternal::layout_space_set(uiLayout *layout, int space)
+{
+  layout->space_ = space;
 }
 
 /** \} */
@@ -570,7 +593,7 @@ static uiLayout *ui_item_local_sublayout(uiLayout *test, uiLayout *layout, bool 
     sub = &layout->column(align);
   }
 
-  sub->space_ = 0;
+  LayoutInternal::layout_space_set(sub, 0);
   return sub;
 }
 
@@ -1113,7 +1136,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
      * number of labels can end up aligning thousands of buttons when displaying key-map search (a
      * heavy operation), see: #78636. */
     sub = &layout->row(layout->align());
-    sub->space_ = 0;
+    LayoutInternal::layout_space_set(sub, 0);
   }
 
   if (!name.is_empty()) {
@@ -4916,7 +4939,7 @@ static uiLayoutItemBx *ui_layout_box(uiLayout *layout, ButType type)
   uiLayoutItemBx *box = MEM_new<uiLayoutItemBx>(__func__);
   LayoutInternal::init_from_parent(box, layout, false);
 
-  box->space_ = layout->root()->style->columnspace;
+  LayoutInternal::layout_space_set(box, layout->root()->style->columnspace);
 
   blender::ui::block_layout_set_current(layout->block(), box);
 
@@ -5386,7 +5409,7 @@ static blender::int2 ui_layout_end(uiBlock *block, uiLayout *layout)
 
   LayoutInternal::layout_estimate(layout);
   LayoutInternal::layout_resolve(layout);
-  return {layout->x_, layout->y_};
+  return layout->offset();
 }
 
 static void ui_layout_free(uiLayout *layout)
@@ -5455,25 +5478,24 @@ uiLayout &block_layout(uiBlock *block,
   /* Only used when 'uiItemInternalFlag::PropSep' is set. */
   layout->use_property_decorate_set(true);
 
-  layout->x_ = x;
-  layout->y_ = y;
-  layout->space_ = style->templatespace;
+  LayoutInternal::layout_space_set(layout, style->templatespace);
   layout->active_set(true);
   layout->enabled_set(true);
   layout->emboss_set(EmbossType::Undefined);
-
+  int w = 0, h = 0;
   if (ELEM(type, LayoutType::Menu, LayoutType::PieMenu)) {
-    layout->space_ = 0;
+    LayoutInternal::layout_space_set(layout, 0);
   }
 
   if (dir == LayoutDirection::Horizontal) {
-    layout->h_ = size;
+    h = size;
     layout->root()->emh = em * UI_UNIT_Y;
   }
   else {
-    layout->w_ = size;
+    w = size;
     layout->root()->emw = em * UI_UNIT_X;
   }
+  LayoutInternal::layout_offset_size_set(layout, x, y, w, h);
 
   block->curlayout = layout;
   root->layout = layout;
