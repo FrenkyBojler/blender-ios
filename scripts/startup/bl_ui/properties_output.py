@@ -513,6 +513,13 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         """Video codec options."""
         layout = self.layout
         ffmpeg = context.scene.render.ffmpeg
+        image_settings = context.scene.render.image_settings
+        if image_settings.color_management == 'OVERRIDE':
+            display_settings = image_settings.display_settings
+            view_settings = image_settings.view_settings
+        else:
+            display_settings = context.scene.display_settings
+            view_settings = context.scene.view_settings
 
         needs_codec = ffmpeg.format in {
             'AVI',
@@ -522,13 +529,19 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
             'MPEG4',
             'WEBM',
         }
+
+        # HDR compatibility
+        if view_settings.is_hdr:
+            if not needs_codec or ffmpeg.codec not in {'H265', 'AV1'}:
+                layout.label(text="HDR needs H.265 or AV1", icon='ERROR')
+            elif image_settings.color_depth not in {'10', '12'}:
+                layout.label(text="HDR needs 10 or 12 bits", icon='ERROR')
+
         if needs_codec:
             layout.prop(ffmpeg, "codec")
 
         if needs_codec and ffmpeg.codec == 'NONE':
             return
-
-        image_settings = context.scene.render.image_settings
 
         # Color depth. List of codecs needs to be in sync with
         # `IMB_ffmpeg_valid_bit_depths` in source code.
@@ -553,13 +566,6 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         row = col.row()
         row.enabled = False
         row.prop(display_settings, "display_device", text="")
-
-        # HDR compatibility
-        if view_settings.is_hdr:
-            if not needs_codec or ffmpeg.codec not in {'H265', 'AV1'}:
-                col.label(text="HDR needs H.265 or AV1", icon='ERROR')
-            elif image_settings.color_depth not in {'10', '12'}:
-                col.label(text="HDR needs 10 or 12 bits", icon='ERROR')
 
         if ffmpeg.codec == 'DNXHD':
             layout.prop(ffmpeg, "use_lossless_output")
