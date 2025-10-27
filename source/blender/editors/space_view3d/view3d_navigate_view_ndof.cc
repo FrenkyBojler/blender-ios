@@ -534,7 +534,7 @@ static std::optional<float3> ndof_orbit_center_calc_from_zbuf(Depsgraph *depsgra
                                                               ARegion *region)
 {
   rcti sample_grid_area;
-  int sampling_resolution = 0; /* sample count = (sampling_resolution) ^ 2 */
+
   if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_FLY) {
     /* Move the grid to the bottom to enhance navigation in Arch Viz */
     sample_grid_area.xmin = 0.3 * region->winx;
