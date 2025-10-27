@@ -33,9 +33,11 @@ class USERPREF_HT_header(Header):
             pass
         else:
             # Show '*' to let users know the preferences have been modified.
+            # It is shown to the left so that it is visible when the sidebar is narrow,
+            # and for consistency with unsaved files in the title bar.
             layout.operator(
                 "wm.save_userpref",
-                text=iface_("Save Preferences") + (" *" if prefs.is_dirty else ""),
+                text=("* " if prefs.is_dirty else "") + iface_("Save Preferences"),
                 translate=False,
             )
 
