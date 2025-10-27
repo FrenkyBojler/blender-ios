@@ -608,7 +608,7 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
                            self->ptr->owner_id,
                            path_full,
                            index,
-                           CREATEDRIVER_WITH_FMODIFIER,
+                           CREATEDRIVER_WITH_DEFAULT_DVAR,
                            DRIVER_TYPE_PYTHON);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
