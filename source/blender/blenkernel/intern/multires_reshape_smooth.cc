@@ -535,17 +535,33 @@ static void foreach_reshape_ptex_face_single_threaded(
   using namespace blender;
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
   const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
+
+  const int inner_grid_size = 3;
+  const float inner_grid_size_1_inv = 0.5f;
+
   for (const int face_index : faces.index_range()) {
     printf("<-------------------->\n");
-    const IndexRange face = faces[face_index];
-    const int grid_index = get_face_grid_index(reshape_smooth_context, face);
-    for (int v = 0; v < 3; v++) {
-      for (int u = 0; u < 3; u++) {
+    IndexRange face = faces[face_index];
+    const int corner = get_face_grid_index(reshape_smooth_context, face);
+    std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
+        reshape_smooth_context, face);
+
+    for (int y = 0; y < inner_grid_size; ++y) {
+      const float ptex_v = float(y) * inner_grid_size_1_inv;
+      for (int x = 0; x < inner_grid_size; ++x) {
+        const float ptex_u = float(x) * inner_grid_size_1_inv;
+
         PTexCoord ptex_coord;
         ptex_coord.ptex_face_index = face_index;
-        ptex_coord.u = float(u) / 2.0f;
-        ptex_coord.v = float(v) / 2.0f;
-        callback(&ptex_coord, -1, grid_index);
+        ptex_coord.u = ptex_u;
+        ptex_coord.v = ptex_v;
+
+        const GridCoord grid_coord = interpolate_grid_coord(
+            blender::Span(face_grid_coords), ptex_u, ptex_v);
+
+        const int elem_idx = multires_index_for_grid_coord(reshape_context, &grid_coord);
+
+        callback(&ptex_coord, elem_idx, corner);
       }
     }
   }
@@ -1535,14 +1551,33 @@ static void evaluate_reshape_faces(
     blender::MutableSpan<blender::float3> delta_storage,
     blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
 {
-  printf("evaluate_reshape_faces\n");
+  printf("evaluate_reshape_faces: %ld\n", delta_storage.size());
+  blender::BitVector<> tagged_elements(delta_storage.size(), false);
   foreach_reshape_ptex_face_single_threaded(reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
-        const blender::float3 P = blender::bke::subdiv::eval_limit_point(
-            reshape_subdiv, ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v);
 
-        printf("(%d, %f %f) -> (%d) -> (%f, %f, %f)\n", ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, corner, P.x, P.y, P.z);
+        tagged_elements[idx].set(true);
+        /* Surface. */
+        blender::float3 dPdu;
+        blender::float3 dPdv;
+        blender::float3 P;
+        blender::bke::subdiv::eval_limit_point_and_derivatives(reshape_subdiv,
+                                                               ptex_coord->ptex_face_index,
+                                                               ptex_coord->u,
+                                                               ptex_coord->v,
+                                                               P,
+                                                               dPdu,
+                                                               dPdv);
+
+        delta_storage[idx] = P;
+        printf("(%d, %f %f) -> (%d, %d)-> (%f, %f, %f)\n", ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, corner, idx, P.x, P.y, P.z);
+        /* TODO: Is this corner calculation correct? */
+        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
   });
+
+  for (const int i : tagged_elements.index_range()) {
+    printf("%d - %s\n", i, tagged_elements[i].test() ? "T" : "F");
+  }
 }
 
 static void evaluate_higher_grid_positions(
@@ -1697,7 +1732,7 @@ void multires_reshape_store_limit_positions(
   reshape_subdiv_refine_final(&reshape_smooth_context, deltas);
   printf("EVAL_RESHAPE_FACES\n");
   evaluate_reshape_faces(&reshape_smooth_context, deltas, tangent_matrices);
-  evaluate_higher_grid_positions(&reshape_smooth_context, deltas, tangent_matrices);
+  //evaluate_higher_grid_positions(&reshape_smooth_context, deltas, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif
@@ -1717,7 +1752,8 @@ void multires_reshape_store_tangent_matrices(
   reshape_subdiv_create(&reshape_smooth_context);
 
   reshape_subdiv_refine_final(&reshape_smooth_context, positions);
-  evaluate_higher_grid_positions(&reshape_smooth_context, new_positions, tangent_matrices);
+  evaluate_reshape_faces(&reshape_smooth_context, new_positions, tangent_matrices);
+  //evaluate_higher_grid_positions(&reshape_smooth_context, new_positions, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif
