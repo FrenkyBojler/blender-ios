@@ -143,8 +143,8 @@ static void constraint_bone_name_fix(Object *rename_ob,
      *
      * We only rename channels in the action if the action constraint and the
      * bone rename are from the same object. This is because the action of an
-     * action constraint animates the constrained object/bone, not the
-     * constraint target. */
+     * action constraint animates the constrained object/bone, it does not
+     * animate the constraint target. */
     if (curcon->type == CONSTRAINT_TYPE_ACTION && constraint_ob == rename_ob) {
       bActionConstraint *actcon = static_cast<bActionConstraint *>(curcon->data);
       BKE_action_fix_paths_rename(
