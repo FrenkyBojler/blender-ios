@@ -28,6 +28,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
@@ -248,7 +249,7 @@ void write_generated_coordinates(const OCompoundProperty &prop, CDStreamConfig &
     /* Data not available, so don't even bother creating an Alembic property for it. */
     return;
   }
-  const float(*orcodata)[3] = static_cast<const float(*)[3]>(customdata);
+  const float (*orcodata)[3] = static_cast<const float (*)[3]>(customdata);
 
   /* Convert 3D vertices from float[3] z=up to V3f y=up. */
   std::vector<Imath::V3f> coords(config.totvert);
@@ -261,7 +262,7 @@ void write_generated_coordinates(const OCompoundProperty &prop, CDStreamConfig &
   /* ORCOs are always stored in the normalized 0..1 range in Blender, but Alembic stores them
    * unnormalized, so we need to unnormalize (invert transform) them. */
   BKE_mesh_orco_verts_transform(
-      mesh, reinterpret_cast<float(*)[3]>(coords.data()), mesh->verts_num, true);
+      mesh, reinterpret_cast<float (*)[3]>(coords.data()), mesh->verts_num, true);
 
   if (!config.abc_orco.valid()) {
     /* Create the Alembic property and keep a reference so future frames can reuse it. */
@@ -524,7 +525,7 @@ void read_velocity(const V3fArraySamplePtr &velocities,
   AttributeOwner owner = AttributeOwner::from_id(&config.mesh->id);
   CustomDataLayer *velocity_layer = BKE_attribute_new(
       owner, "velocity", CD_PROP_FLOAT3, bke::AttrDomain::Point, nullptr);
-  float(*velocity)[3] = (float(*)[3])velocity_layer->data;
+  float (*velocity)[3] = (float (*)[3])velocity_layer->data;
 
   for (int i = 0; i < num_velocity_vectors; i++) {
     const Imath::V3f &vel_in = (*velocities)[i];
@@ -571,7 +572,7 @@ void read_generated_coordinates(const ICompoundProperty &prop,
     cd_data = CustomData_add_layer(&mesh->vert_data, CD_ORCO, CD_CONSTRUCT, totvert);
   }
 
-  float(*orcodata)[3] = static_cast<float(*)[3]>(cd_data);
+  float (*orcodata)[3] = static_cast<float (*)[3]>(cd_data);
   for (int vertex_idx = 0; vertex_idx < totvert; ++vertex_idx) {
     const Imath::V3f &abc_coords = (*abc_orco)[vertex_idx];
     copy_zup_from_yup(orcodata[vertex_idx], abc_coords.getValue());

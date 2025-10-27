@@ -29,7 +29,7 @@
 #  include "BKE_displist.h"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_grease_pencil.hh"
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_idtype.hh"
 #  include "BKE_image.hh"
 #  include "BKE_lattice.hh"
@@ -205,6 +205,23 @@ static void rna_Main_scenes_remove(
       /* Don't rely on `CTX_wm_window(C)` as it may have been cleared,
        * yet windows may still be open that reference this scene. */
       wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
+
+      /* Cancel animation playback. */
+      if (bScreen *screen = ED_screen_animation_playing(wm)) {
+        ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
+        if (sad->scene == scene) {
+#  ifdef WITH_PYTHON
+          BPy_BEGIN_ALLOW_THREADS;
+#  endif
+
+          ED_screen_animation_play(C, 0, 0);
+
+#  ifdef WITH_PYTHON
+          BPy_END_ALLOW_THREADS;
+#  endif
+        }
+      }
+
       LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
         if (WM_window_get_active_scene(win) == scene) {
 #  ifdef WITH_PYTHON
@@ -288,8 +305,7 @@ static Material *rna_Main_materials_new(Main *bmain, const char *name)
   Material *material = BKE_material_add(bmain, safe_name);
   id_us_min(&material->id);
 
-  material->nodetree = blender::bke::node_tree_add_tree_embedded(
-      bmain, &material->id, "Material Node Tree", "ShaderNodeTree");
+  ED_node_shader_default(nullptr, bmain, &material->id);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -561,8 +577,7 @@ static World *rna_Main_worlds_new(Main *bmain, const char *name)
   World *world = BKE_world_add(bmain, safe_name);
   id_us_min(&world->id);
 
-  world->nodetree = blender::bke::node_tree_add_tree_embedded(
-      bmain, &world->id, "World Node Tree", "ShaderNodeTree");
+  ED_node_shader_default(nullptr, bmain, &world->id);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 

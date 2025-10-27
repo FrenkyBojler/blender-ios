@@ -181,12 +181,15 @@ class GreasePencilBrushFalloff:
             if context.region.type == 'TOOL_HEADER':
                 col.prop(brush, "curve_distance_falloff_preset", expand=True)
             else:
-                row = col.row(align=True)
                 col.prop(brush, "curve_distance_falloff_preset", text="")
 
             if brush.curve_distance_falloff_preset == 'CUSTOM':
-                layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True,
-                                              use_negative_slope=True, show_presets=True)
+                layout.template_curve_mapping(
+                    brush, "curve_distance_falloff",
+                    brush=True,
+                    use_negative_slope=True,
+                    show_presets=True,
+                )
 
 
 class GREASE_PENCIL_MT_move_to_layer(Menu):

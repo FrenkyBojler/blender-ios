@@ -674,18 +674,6 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
   }
 }
 
-static bool node_composit_poll_rlayers(const blender::bke::bNodeType * /*ntype*/,
-                                       const bNodeTree *ntree,
-                                       const char **r_disabled_hint)
-{
-  if (!STREQ(ntree->idname, "CompositorNodeTree")) {
-    *r_disabled_hint = RPT_("Not a compositor node tree");
-    return false;
-  }
-
-  return true;
-}
-
 static void node_composit_free_rlayers(bNode *node)
 {
   /* free extra socket info */
@@ -809,7 +797,7 @@ class RenderLayerOperation : public NodeOperation {
     Result &alpha_result = this->get_result("Alpha");
 
     if (image_result.should_compute() || alpha_result.should_compute()) {
-      const Result combined_pass = this->context().get_input(
+      const Result combined_pass = this->context().get_pass(
           scene, view_layer, RE_PASSNAME_COMBINED);
       if (image_result.should_compute()) {
         this->execute_pass(combined_pass, image_result);
@@ -836,7 +824,7 @@ class RenderLayerOperation : public NodeOperation {
       const char *pass_name = this->get_pass_name(output->identifier);
       this->context().populate_meta_data_for_pass(scene, view_layer, pass_name, result.meta_data);
 
-      const Result pass = this->context().get_input(scene, view_layer, pass_name);
+      const Result pass = this->context().get_pass(scene, view_layer, pass_name);
       this->execute_pass(pass, result);
     }
   }
@@ -974,7 +962,6 @@ static void register_node_type_cmp_rlayers()
   blender::bke::node_type_socket_templates(&ntype, nullptr, cmp_node_rlayers_out);
   ntype.draw_buttons = file_ns::node_composit_buts_viewlayers;
   ntype.initfunc_api = file_ns::node_composit_init_rlayers;
-  ntype.poll = file_ns::node_composit_poll_rlayers;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_storage(ntype,
