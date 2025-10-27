@@ -98,7 +98,7 @@ bool LookdevWorld::sync(const LookdevParameters &new_parameters)
 
   if (parameters_changed) {
     intensity_socket_->value = parameters_.intensity;
-    angle_socket_->value = parameters_.rot_z;
+    angle_socket_->value = 0.0f; /* TODO(fclem): Remove. */
 
     GPU_TEXTURE_FREE_SAFE(image->gputexture[TEXTARGET_2D][0]);
     environment_node_->id = nullptr;
@@ -465,12 +465,12 @@ void LookdevModule::rotate_world_probe_data(
   SphereProbePixelArea write_coord_mip4 = atlas_coord.as_write_coord(4);
 
   float4x4 rotation = float4x4::identity();
-  if (use_viewspace_lighting_) {
+  if (false && use_viewspace_lighting_) {
     /* TODO copy camera matrix */
   }
   else {
-    float rotation_z = 0.0f; /* TODO */
-    AxisAngle axis_angle_rotation(AxisSigned::Z_POS, rotation_z);
+    const ::View3DShading &shading = inst_.v3d->shading;
+    AxisAngle axis_angle_rotation(AxisSigned::Z_POS, shading.studiolight_rot_z);
     rotation = math::from_rotation<float4x4>(axis_angle_rotation);
   }
 
