@@ -384,16 +384,9 @@ class VKPipelinePool : public NonCopyable {
   VkPipelineCache vk_pipeline_cache_non_static_;
 
   VKPipelineMap<VKComputeInfo> compute_;
-
-  struct {
-    Map<VKGraphicsInfo, VkPipeline> pipelines;
-    Mutex mutex;
-    std::condition_variable_any new_pipeline_added;
-  } graphics_;
+  VKPipelineMap<VKGraphicsInfo> graphics_;
 
  public:
-  VKPipelinePool();
-
   void init();
 
   /**
@@ -423,15 +416,15 @@ class VKPipelinePool : public NonCopyable {
    * pipeline creation process.
    *
    * \param graphics_info:    Description of the pipeline to compile.
-   * \param is_static_shader: Pipelines from static pipelines are cached between Blender sessions.
-   *                          Pipelines from dynamic shaders are only cached for the duration of a
-   *                          single Blender session.
+   * \param is_static_shader: Pipelines from static pipelines are cached between Blender
+   * sessions. Pipelines from dynamic shaders are only cached for the duration of a single
+   * Blender session.
    * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
    *                          compiling the pipeline.
    * \param name:             Name to give as a debug label when creating a pipeline.
    * \returns The handle of the compiled pipeline.
    */
-  VkPipeline get_or_create_graphics_pipeline(VKGraphicsInfo &graphics_info,
+  VkPipeline get_or_create_graphics_pipeline(const VKGraphicsInfo &graphics_info,
                                              bool is_static_shader,
                                              VkPipeline vk_pipeline_base,
                                              StringRefNull name);
@@ -444,8 +437,8 @@ class VKPipelinePool : public NonCopyable {
   /**
    * Destroy all created pipelines.
    *
-   * Function is called just before the device is removed. This cannot be done in the destructor as
-   * that would be called after the device is removed.
+   * Function is called just before the device is removed. This cannot be done in the destructor
+   * as that would be called after the device is removed.
    */
   void free_data();
 
@@ -453,12 +446,12 @@ class VKPipelinePool : public NonCopyable {
    * Read the static pipeline cache from cache file.
    *
    * Pipeline caches requires blender to be build with `WITH_BUILDINFO` enabled . Between commits
-   * shader modules can change and shader module identifiers cannot be used. We use the build info
-   * to check if the identifiers can be reused.
+   * shader modules can change and shader module identifiers cannot be used. We use the build
+   * info to check if the identifiers can be reused.
    *
-   * Previous stored pipeline cache will not be read when G_DEBUG_GPU is enabled. In this case the
-   * shader modules will be compiled with other settings and any cached pipeline will not be used
-   * during this session.
+   * Previous stored pipeline cache will not be read when G_DEBUG_GPU is enabled. In this case
+   * the shader modules will be compiled with other settings and any cached pipeline will not be
+   * used during this session.
    *
    * NOTE: When developing shaders we assume that `WITH_BUILDINFO` is turned off or `G_DEBUG_GPU`
    * flag is set.
@@ -469,12 +462,12 @@ class VKPipelinePool : public NonCopyable {
    * Store the static pipeline cache to disk.
    *
    * Pipeline caches requires blender to be build with `WITH_BUILDINFO` enabled . Between commits
-   * shader modules can change and shader module identifiers cannot be used. We use the build info
-   * to check if the identifiers can be reused.
+   * shader modules can change and shader module identifiers cannot be used. We use the build
+   * info to check if the identifiers can be reused.
    *
-   * The cache will not be written when G_DEBUG_GPU is active. In this case the shader modules have
-   * been generated with debug information and other compiler settings are used. This will clutter
-   * the pipeline cache.
+   * The cache will not be written when G_DEBUG_GPU is active. In this case the shader modules
+   * have been generated with debug information and other compiler settings are used. This will
+   * clutter the pipeline cache.
    *
    * NOTE: When developing shaders we assume that `WITH_BUILDINFO` is turned off or `G_DEBUG_GPU`
    * flag is set.
@@ -489,9 +482,9 @@ class VKPipelinePool : public NonCopyable {
    * pipeline creation process.
    *
    * \param compute_info:     Description of the pipeline to compile.
-   * \param is_static_shader: Pipelines from static pipelines are cached between Blender sessions.
-   *                          Pipelines from dynamic shaders are only cached for the duration of a
-   *                          single Blender session.
+   * \param is_static_shader: Pipelines from static pipelines are cached between Blender
+   * sessions. Pipelines from dynamic shaders are only cached for the duration of a single
+   * Blender session.
    * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
    *                          compiling the pipeline.
    * \param name:             Name to give as a debug label when creating a pipeline.
@@ -502,8 +495,8 @@ class VKPipelinePool : public NonCopyable {
                                      VkPipeline vk_pipeline_base,
                                      StringRefNull name);
   /**
-   * The needed compute pipeline can be compiled by another thread. In this case we wait until the
-   * thread is finished.
+   * The needed compute pipeline can be compiled by another thread. In this case we wait until
+   * the thread is finished.
    *
    * \param compute_info:     Description of the pipeline to request.
    * \param name:             Name for logging.
@@ -518,9 +511,9 @@ class VKPipelinePool : public NonCopyable {
    * pipeline creation process.
    *
    * \param compute_info:     Description of the pipeline to compile.
-   * \param is_static_shader: Pipelines from static pipelines are cached between Blender sessions.
-   *                          Pipelines from dynamic shaders are only cached for the duration of a
-   *                          single Blender session.
+   * \param is_static_shader: Pipelines from static pipelines are cached between Blender
+   * sessions. Pipelines from dynamic shaders are only cached for the duration of a single
+   * Blender session.
    * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
    *                          compiling the pipeline.
    * \param name:             Name to give as a debug label when creating a pipeline.
@@ -531,8 +524,8 @@ class VKPipelinePool : public NonCopyable {
                                       VkPipeline vk_pipeline_base,
                                       StringRefNull name);
   /**
-   * The needed graphics pipeline can be compiled by another thread. In this case we wait until the
-   * thread is finished.
+   * The needed graphics pipeline can be compiled by another thread. In this case we wait until
+   * the thread is finished.
    *
    * \param grahpics_info:     Description of the pipeline to request.
    * \param name:              Name for logging.

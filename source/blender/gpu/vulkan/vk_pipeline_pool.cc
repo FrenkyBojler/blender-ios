@@ -24,7 +24,6 @@ static CLG_LogRef LOG = {"gpu.vulkan"};
 
 namespace blender::gpu {
 
-VKPipelinePool::VKPipelinePool() {}
 void VKPipelinePool::init()
 {
   VKDevice &device = VKBackend::get().device;
@@ -117,61 +116,20 @@ VkPipeline VKPipelineMap<VKComputeInfo>::create(const VKComputeInfo &compute_inf
 /** \name Graphics pipelines
  * \{ */
 
-VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graphics_info,
+VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(const VKGraphicsInfo &graphics_info,
                                                            const bool is_static_shader,
                                                            VkPipeline vk_pipeline_base,
                                                            StringRefNull name)
 {
-  bool wait_for_pipeline = false;
-  bool do_compile_pipeline = false;
-  {
-    std::scoped_lock lock(graphics_.mutex);
-    const VkPipeline *found_pipeline = graphics_.pipelines.lookup_ptr(graphics_info);
-    if (found_pipeline) {
-      if (*found_pipeline == VK_NULL_HANDLE) {
-        wait_for_pipeline = true;
-      }
-      else {
-        /* Early exit: compute_info found and has a valid pipeline. */
-        return *found_pipeline;
-      }
-    }
-    else {
-      graphics_.pipelines.add_new(graphics_info, VK_NULL_HANDLE);
-      do_compile_pipeline = true;
-    }
-  }
-
-  if (wait_for_pipeline) {
-    return wait_for_graphics_pipeline(graphics_info, name);
-  }
-
-  if (do_compile_pipeline) {
-    VkPipeline pipeline = create_graphics_pipeline(
-        graphics_info, is_static_shader, vk_pipeline_base, name);
-
-    /* Store result in the compute pipelines map. */
-    {
-      std::scoped_lock lock(graphics_.mutex);
-      VkPipeline &pipeline_item = graphics_.pipelines.lookup(graphics_info);
-      pipeline_item = pipeline;
-    }
-
-    /* Notify other threads that a new pipeline is available. */
-    {
-      graphics_.new_pipeline_added.notify_all();
-    }
-    return pipeline;
-  }
-
-  BLI_assert_unreachable();
-  return VK_NULL_HANDLE;
+  VkPipelineCache vk_pipeline_cache = is_static_shader ? vk_pipeline_cache_static_ :
+                                                         vk_pipeline_cache_non_static_;
+  return graphics_.get_or_create(graphics_info, vk_pipeline_cache, vk_pipeline_base, name);
 }
-
-VkPipeline VKPipelinePool::create_graphics_pipeline(VKGraphicsInfo &graphics_info,
-                                                    const bool is_static_shader,
-                                                    VkPipeline vk_pipeline_base,
-                                                    StringRefNull name)
+template<>
+VkPipeline VKPipelines<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_info,
+                                               VkPipelineCache vk_pipeline_cache,
+                                               VkPipeline vk_pipeline_base,
+                                               StringRefNull name)
 {
   VkPipelineRenderingCreateInfo vk_pipeline_rendering_create_info{
       VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
@@ -646,8 +604,7 @@ VkPipeline VKPipelinePool::create_graphics_pipeline(VKGraphicsInfo &graphics_inf
   VkPipeline pipeline = VK_NULL_HANDLE;
   double start_time = BLI_time_now_seconds();
   vkCreateGraphicsPipelines(device.vk_handle(),
-                            is_static_shader ? vk_pipeline_cache_static_ :
-                                               vk_pipeline_cache_non_static_,
+                            vk_pipeline_cache,
                             1,
                             &vk_graphics_pipeline_create_info,
                             nullptr,
@@ -660,50 +617,20 @@ VkPipeline VKPipelinePool::create_graphics_pipeline(VKGraphicsInfo &graphics_inf
              (end_time - start_time) * 1000.0);
   return pipeline;
 }
-VkPipeline VKPipelinePool::wait_for_graphics_pipeline(VKGraphicsInfo &graphics_info,
-                                                      StringRefNull name)
-{
-  CLOG_TRACE(
-      &LOG, "Waiting for another thread to finish compiling graphics pipeline %s", name.c_str());
-  std::unique_lock<Mutex> lock(graphics_.mutex);
-  const VkPipeline *pipeline = VK_NULL_HANDLE;
-  graphics_.new_pipeline_added.wait(lock, [&]() {
-    pipeline = graphics_.pipelines.lookup_ptr(graphics_info);
-    return pipeline != VK_NULL_HANDLE;
-  });
-
-  return *pipeline;
-}
 
 /* \} */
 
 void VKPipelinePool::discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pipeline_layout)
 {
+  graphics_.discard(discard_pool, vk_pipeline_layout);
   compute_.discard(discard_pool, vk_pipeline_layout);
-
-  {
-    std::scoped_lock lock(graphics_.mutex);
-    graphics_.pipelines.remove_if([&](auto item) {
-      if (item.key.vk_pipeline_layout == vk_pipeline_layout) {
-        discard_pool.discard_pipeline(item.value);
-        return true;
-      }
-      return false;
-    });
-  }
 }
 
 void VKPipelinePool::free_data()
 {
   VKDevice &device = VKBackend::get().device;
-  {
-    std::scoped_lock lock(graphics_.mutex);
-    for (VkPipeline &vk_pipeline : graphics_.pipelines.values()) {
-      vkDestroyPipeline(device.vk_handle(), vk_pipeline, nullptr);
-    }
-    graphics_.pipelines.clear();
-  }
 
+  graphics_.free_data(device.vk_handle());
   compute_.free_data(device.vk_handle());
 
   vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache_static_, nullptr);
