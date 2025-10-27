@@ -243,6 +243,10 @@ static void memfile_undosys_step_decode(
 
       if (GS(id->name) == ID_SCE) {
         Scene *scene = reinterpret_cast<Scene *>(id);
+        /* TODO: We should be able to restore these depsgraphs properly as part of
+         * #BKE_scene_undo_depsgraphs_restore but this is currently only done for depsgraphs in the
+         * scene.depsgraph_hash map. So the safest option is to just delete the following
+         * depsgraphs for now. */
         if (scene->compositing_node_group) {
           /* Ensure undo calls from the UI update the interactive compositor preview depsgraph, see
            * #compo_initjob. */
