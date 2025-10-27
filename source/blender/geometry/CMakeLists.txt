@@ -106,6 +106,7 @@ set(SRC
   GEO_xpbd_constraint_utils.hh
 
   intern/mesh_boolean_manifold.hh
+  intern/mesh_boolean_intern.hh
 )
 
 set(LIB
