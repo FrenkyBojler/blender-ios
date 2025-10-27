@@ -1935,7 +1935,7 @@ ScrArea *ED_screen_temp_space_open(
           return maximized_area;
         }
 
-        /* The current area is already fullscreen, stack the new area on top of it. */
+        /* The current area is already maximized, stack the new area on top of it. */
         ED_area_newspace(C, maximized_area, space_type, true);
         maximized_area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
         ((SpaceLink *)maximized_area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
@@ -1945,7 +1945,7 @@ ScrArea *ED_screen_temp_space_open(
 
       ScrArea *ctx_area = CTX_wm_area(C);
 
-      /* Create a new fullscreen area. */
+      /* Create a new maximized area. */
       ScrArea *area = ED_screen_full_newspace(C, ctx_area, int(space_type));
       ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
       return area;
