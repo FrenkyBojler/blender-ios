@@ -818,11 +818,10 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
     default: { /* case 1: */
       float sum{0.0f};
       for (int i = 0; i < ny; i++) {
-        int y = positions_y[i];
         float sumx{0.0f};
+        const float *p = source.buffer + positions_y[i] * source.width * 4;
         for (int j = 0; j < nx; j++) {
-          const float *p = source.buffer + (y * source.width + positions_x[j]) * 1;
-          sumx += *p * weights_x[j];
+          sumx += *(p + positions_x[j]) * weights_x[j];
         }
         sum += sumx * weights_y[i];
       }
@@ -831,11 +830,10 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
     case 2: {
       float2 sum{0.0f};
       for (int i = 0; i < ny; i++) {
-        int y = positions_y[i];
         float2 sumx{0.0f};
+        const float *p = source.buffer + positions_y[i] * source.width * 4;
         for (int j = 0; j < nx; j++) {
-          const float *p = source.buffer + (y * source.width + positions_x[j]) * 2;
-          sumx += *(float2 *)p * weights_x[j];
+          sumx += *(float2 *)(p + positions_x[j] * 2) * weights_x[j];
         }
         sum += sumx * weights_y[i];
       }
@@ -844,28 +842,40 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
     case 3: {
       float3 sum{0.0f};
       for (int i = 0; i < ny; i++) {
-        int y = positions_y[i];
         float3 sumx{0.0f};
+        const float *p = source.buffer + positions_y[i] * source.width * 4;
         for (int j = 0; j < nx; j++) {
-          const float *p = source.buffer + (y * source.width + positions_x[j]) * 3;
-          sumx += *(float3*)(p) * weights_x[j];
+          sumx += *(float3 *)(p + positions_x[j] * 3) * weights_x[j];
         }
         sum += sumx * weights_y[i];
       }
       return float4(sum.x, sum.y, sum.z, 1.0f);
     }
     case 4: {
+#if BLI_HAVE_SSE2
+      __m128 sum = _mm_set1_ps(0.0f);
+      for (int i = 0; i < ny; i++) {
+        __m128 sumx = _mm_set1_ps(0.0f);
+        const float *p = source.buffer + positions_y[i] * source.width * 4;
+        for (int j = 0; j < nx; j++) {
+          sumx = _mm_add_ps(
+              sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * 4), _mm_set1_ps(weights_x[j])));
+        }
+        sum = _mm_add_ps(sum, _mm_mul_ps(sumx, _mm_set1_ps(weights_y[i])));
+      }
+      return *(float4 *)(&sum);  //_mm_storeu_ps(output, sum);
+#else
       float4 sum{0.0f};
       for (int i = 0; i < ny; i++) {
-        int y = positions_y[i];
         float4 sumx{0.0f};
+        const float *p = source.buffer + positions_y[i] * source.width * 4;
         for (int j = 0; j < nx; j++) {
-          const float *p = source.buffer + (y * source.width + positions_x[j]) * 4;
-          sumx += *(float4 *)p * weights_x[j];
+          sumx += *(float4 *)(p + positions_x[j] * 4) * weights_x[j];
         }
         sum += sumx * weights_y[i];
       }
       return sum;
+#endif
     }
   }
 }
