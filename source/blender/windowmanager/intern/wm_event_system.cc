@@ -56,6 +56,7 @@
 
 #include "ED_asset.hh"
 #include "ED_fileselect.hh"
+#include "ED_geometry.hh"
 #include "ED_info.hh"
 #include "ED_markers.hh"
 #include "ED_render.hh"
@@ -632,6 +633,17 @@ void wm_event_do_notifiers(bContext *C)
           ED_preview_restart_queue_work(C);
         }
       }
+      else if (note->category == NC_ASSET) {
+        if (ELEM(note->data, ND_ASSET_LIST, ND_ASSET_LIST_READING)) {
+          blender::ed::geometry::register_node_group_operators(*C);
+        }
+      }
+      else if (note->category == NC_NODE) {
+        if (ELEM(note->data, ND_NODE_ASSET_DATA)) {
+          blender::ed::geometry::register_node_group_operators(*C);
+        }
+      }
+
       if (note->window == win) {
         if (note->category == NC_SCREEN) {
           if (note->data == ND_WORKSPACE_SET) {

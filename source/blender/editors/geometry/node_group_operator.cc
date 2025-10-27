@@ -9,7 +9,6 @@
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
-#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -1130,9 +1129,7 @@ void register_node_group_operators(const bContext &C)
       continue;
     }
     OperatorTypeData type_data = OperatorTypeData::from_group(*ntree);
-    if (WM_operatortype_find(type_data.idname.c_str(), true)) {
-      continue;
-    }
+    WM_operatortype_remove(type_data.idname.c_str());
     WM_operatortype_append_ptr(register_node_tool, &type_data);
   }
 
@@ -1160,27 +1157,10 @@ void register_node_group_operators(const bContext &C)
       }
     }
     OperatorTypeData type_data = OperatorTypeData::from_asset(asset);
-    if (WM_operatortype_find(type_data.idname.c_str(), true)) {
-      return true;
-    }
+    WM_operatortype_remove(type_data.idname.c_str());
     WM_operatortype_append_ptr(register_node_tool, &type_data);
     return true;
   });
-}
-
-static wmOperatorStatus register_operators_exec(bContext *C, wmOperator * /*op*/)
-{
-  register_node_group_operators(*C);
-  return OPERATOR_FINISHED;
-}
-
-void GEOMETRY_OT_resister_node_group_operators(wmOperatorType *ot)
-{
-  ot->name = "Register Group Operators";
-  ot->idname = __func__;
-  ot->description = "Register all node group operators from assets and local data-blocks";
-
-  ot->exec = register_operators_exec;
 }
 
 /** \} */
