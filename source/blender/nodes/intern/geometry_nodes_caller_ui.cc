@@ -555,7 +555,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
                      name);
       }
       else {
-        /* #uiTemplateID only supports pointer properties currently. */
+        /* #uiTemplateID only supports pointer properties currently. Node tools store data-block
+         * pointers in strings currently. */
         row->prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "images", name, ICON_IMAGE);
       }
       break;
