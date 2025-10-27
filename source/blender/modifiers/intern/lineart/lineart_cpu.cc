@@ -1216,7 +1216,7 @@ void lineart_main_cull_triangles(LineartData *ld, bool clip_far)
 {
   LineartTriangle *tri;
   LineartElementLinkNode *v_eln, *t_eln, *e_eln;
-  double (*m_view_projection)[4] = ld->conf.view_projection;
+  double(*m_view_projection)[4] = ld->conf.view_projection;
   int i;
   int v_count = 0, t_count = 0, e_count = 0;
   Object *ob;
@@ -5389,8 +5389,10 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
 
   MutableSpan<int> offsets = new_curves.offsets_for_write();
 
+  const bool weight_transfer_match_output = modifier_calculation_flags &
+                                            MOD_LINEART_MATCH_OUTPUT_VGROUP;
   SpanAttributeWriter<float> vgroup_weights;
-  if (vgname) {
+  if (vgname && (!weight_transfer_match_output)) {
     vgroup_weights = attributes.lookup_or_add_for_write_span<float>(vgname, AttrDomain::Point);
   }
 
@@ -5398,15 +5400,20 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   for (int chain_i : writer.index_range()) {
     LineartChainWriteInfo &cwi = writer[chain_i];
 
+    blender::Vector<const char *> defnames = {};
     MDeformVert *src_dvert = nullptr;
-    int src_deform_group = -1;
     Mesh *src_mesh = nullptr;
-    if (source_vgname && vgroup_weights) {
+    if (source_vgname) {
       Object *eval_ob = DEG_get_evaluated(depsgraph, cwi.chain->object_ref);
       if (eval_ob && eval_ob->type == OB_MESH) {
         src_mesh = BKE_object_get_evaluated_mesh(eval_ob);
         src_dvert = src_mesh->deform_verts_for_write().data();
-        src_deform_group = BKE_id_defgroup_name_index(&src_mesh->id, source_vgname);
+        const ListBase *deflist = BKE_id_defgroup_list_get(&src_mesh->id);
+        LISTBASE_FOREACH (bDeformGroup *, defgroup, deflist) {
+          if (strstr(defgroup->name, source_vgname) == defgroup->name) {
+            defnames.append(defgroup->name);
+          }
+        }
       }
     }
 
@@ -5419,15 +5426,37 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
         point_opacities.span[point_i] = opacity;
       }
 
-      if (src_deform_group >= 0) {
+      float highest_weight = 0;
+      for (const char *defname : defnames) {
+        const int src_deform_group = BKE_id_defgroup_name_index(&src_mesh->id, defname);
+        if (src_deform_group < 0) {
+          continue;
+        }
+        if (weight_transfer_match_output) {
+          vgroup_weights = attributes.lookup_or_add_for_write_span<float>(defname,
+                                                                          AttrDomain::Point);
+          if (!vgroup_weights) {
+            continue;
+          }
+        }
+
         const int64_t vindex = eci->index - cwi.chain->index_offset;
         if (UNLIKELY(vindex >= src_mesh->verts_num)) {
           vgroup_weights.span[point_i] = 0;
           continue;
         }
+
         MDeformWeight *mdw = BKE_defvert_ensure_index(&src_dvert[vindex], src_deform_group);
 
-        vgroup_weights.span[point_i] = invert_input ? (1 - mdw->weight) : mdw->weight;
+        if (weight_transfer_match_output) {
+          vgroup_weights.span[point_i] = invert_input ? (1 - mdw->weight) : mdw->weight;
+        }
+        else {
+          highest_weight = max_ff(highest_weight, mdw->weight);
+        }
+      }
+      if ((!weight_transfer_match_output) && vgroup_weights) {
+        vgroup_weights.span[point_i] = highest_weight;
       }
     }
     offsets[chain_i] = up_to_point;
