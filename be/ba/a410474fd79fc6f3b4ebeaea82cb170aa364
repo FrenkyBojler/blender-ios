@@ -1,1 +1,2 @@
 Referenced by issue #141397, Drivers: Keyframe points cannot be inserted if Driver is created via Python
+Referenced by pull request #148875, Fix #141397: Drivers created via python have a generator modifier
