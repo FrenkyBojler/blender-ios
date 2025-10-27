@@ -104,23 +104,25 @@ static void sima_zoom_set(
 
   sima->zoom = zoom;
 
-  if (sima->zoom < 0.1f || sima->zoom > 4.0f) {
-    /* check zoom limits */
-    ED_space_image_get_size(sima, &width, &height);
+  ED_space_image_get_size(sima, &width, &height);
 
-    width *= sima->zoom;
-    height *= sima->zoom;
-
-    if ((width < 4) && (height < 4) && sima->zoom < oldzoom) {
-      sima->zoom = oldzoom;
-    }
-    else if (BLI_rcti_size_x(&region->winrct) <= sima->zoom) {
-      sima->zoom = oldzoom;
-    }
-    else if (BLI_rcti_size_y(&region->winrct) <= sima->zoom) {
-      sima->zoom = oldzoom;
-    }
-  }
+  /* zoom limits.
+   *   min is based on ratio of apparent image size to largest screen dimension
+   *   max is based on ratio of apparent pixel size to largest screen dimension
+   *    based on pixel size so user can still zoom in on very large images
+  */
+  float sima_minzoom_image_over_screen = 1.0f / 100.0f;
+  float sima_maxzoom_pixel_over_screen = 25.0f / 1.0f;
+  //  /* check zoom limits */
+  float comp_image  = width >= height
+                    ? width : height;  // largest image dimension
+  float comp_screen = BLI_rcti_size_x(&region->winrct) >= BLI_rcti_size_y(&region->winrct)
+                    ? BLI_rcti_size_x(&region->winrct)
+                    : BLI_rcti_size_y(&region->winrct);  // largest screen dimension
+  if (comp_image * sima->zoom < comp_screen * sima_minzoom_image_over_screen && sima->zoom < oldzoom)
+    sima->zoom = oldzoom; // image size is less than minzoom ratio compared to screen size
+  else if (comp_screen * sima_maxzoom_pixel_over_screen <= sima->zoom)
+    sima->zoom = oldzoom; // max screen bounds is less than apparent pixel size
 
   if (zoom_to_pos && location) {
     float aspx, aspy, w, h;
