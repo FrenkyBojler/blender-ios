@@ -371,6 +371,53 @@ TimeMarker *ED_markers_get_first_selected(ListBase *markers)
   return nullptr;
 }
 
+bool ED_markers_region_visible(const ScrArea *area, const ARegion *region)
+{
+  if (region->winy <= (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
+    return false;
+  }
+
+  switch (area->spacetype) {
+    case SPACE_ACTION: {
+      const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
+      if ((saction->flag & SACTION_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_GRAPH: {
+      const SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+      if (sgraph->mode == SIPO_MODE_DRIVERS) {
+        return false;
+      }
+      if ((sgraph->flag & SIPO_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_NLA: {
+      const SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
+      if ((snla->flag & SNLA_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_SEQ: {
+      const SpaceSeq *seq = static_cast<SpaceSeq *>(area->spacedata.first);
+      if ((seq->flag & SEQ_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    default:
+      /* Unexpected editor type that shows no markers. */
+      BLI_assert_unreachable();
+      return false;
+  }
+
+  return true;
+}
+
 /* --------------------------------- */
 
 void debug_markers_print_list(ListBase *markers)
