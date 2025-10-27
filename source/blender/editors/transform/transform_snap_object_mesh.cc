@@ -88,6 +88,16 @@ static bool raycastMesh(SnapObjectContext *sctx,
 {
   bool retval = false;
 
+  /* For curve and surface objects, use the evaluated mesh so snapping
+   * works with the final geometry instead of the coarse cage. */
+  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_CURVES, OB_SURF)) {
+    mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  }
+
+  if (mesh_eval->faces_num == 0) {
+    return retval;
+  }
+
   float4x4 imat = math::invert(obmat);
   float3 ray_start_local = math::transform_point(imat, sctx->runtime.ray_start);
   float3 ray_normal_local = math::transform_direction(imat, sctx->runtime.ray_dir);
@@ -102,12 +112,6 @@ static bool raycastMesh(SnapObjectContext *sctx,
   local_depth = depth_max;
   if (local_depth != BVH_RAYCAST_DIST_MAX) {
     local_depth *= local_scale;
-  }
-
-  /* For curve and surface objects, use the evaluated mesh so snapping
-   * works with the final geometry instead of the coarse cage. */
-  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_CURVES, OB_SURF)) {
-    mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   }
 
   /* Test bounding box. */
