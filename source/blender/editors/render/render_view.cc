@@ -191,9 +191,10 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
   else if (U.render_display_type == USER_RENDER_DISPLAY_SCREEN) {
     area = CTX_wm_area(C);
 
-    /* If the active screen is already in full-screen mode, skip this and
-     * unset the area, so that the full-screen area is just changed later. */
-    if (area && area->full) {
+    /* If the active screen is already in maximized mode, skip this and
+     * unset the area, so that the maximized area is just changed later. */
+    const bScreen *ctx_screen = CTX_wm_screen(C);
+    if (ctx_screen->state == SCREENMAXIMIZED) {
       area = nullptr;
     }
     else {
@@ -224,15 +225,17 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
       area = biggest_non_image_area(C);
       if (area) {
         ED_area_newspace(C, area, SPACE_IMAGE, true);
+
+        const bScreen *ctx_screen = CTX_wm_screen(C);
+        if (ctx_screen->state == SCREENMAXIMIZED) {
+          area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
+          static_cast<SpaceLink *>(area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
+        }
+
         sima = static_cast<SpaceImage *>(area->spacedata.first);
 
         /* Makes "Escape" go back to previous space. */
         sima->flag |= SI_PREVSPACE;
-
-        /* We already had a full-screen here -> mark new space as a stacked full-screen. */
-        if (area->full) {
-          area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
-        }
       }
       else {
         /* use any area of decent size */
