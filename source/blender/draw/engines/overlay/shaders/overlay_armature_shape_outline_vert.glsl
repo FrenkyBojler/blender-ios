@@ -100,8 +100,8 @@ void geometry_main(VertOut geom_in[4],
   float3 v12 = geom_in[2].vs_P - geom_in[1].vs_P;
   float3 v13 = geom_in[3].vs_P - geom_in[1].vs_P;
 
-  float3 n0 = cross(v12, v10);
-  float3 n3 = cross(v13, v12);
+  float3 n0 = normalize(cross(v12, v10));
+  float3 n3 = normalize(cross(v13, v12));
 
   float fac0 = dot(view_vec, n0);
   float fac3 = dot(view_vec, n3);
