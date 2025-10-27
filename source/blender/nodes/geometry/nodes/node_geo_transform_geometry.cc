@@ -48,11 +48,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static bool use_translate(const math::Quaternion &rotation, const float3 scale)
 { 
-  float x = rotation.x;
-  float y = rotation.y;
-  float z = rotation.z;
-  float vector_magnitude_sq = x*x + y*y + z*z;
-  if (vector_magnitude_sq> 1e-10f) {
+  if (math::length_squared(rotation.imaginary_part()) > 1e-10f) {
     return false;
   }
   if (compare_ff(scale.x, 1.0f, 1e-9f) != 1 || compare_ff(scale.y, 1.0f, 1e-9f) != 1 ||
