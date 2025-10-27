@@ -483,20 +483,23 @@ static std::optional<float3> ndof_orbit_center_calc_from_bounds(Depsgraph *depsg
   return std::nullopt;
 }
 
-static float ndof_read_zbuf(ARegion *region, const int x, const int y)
+static float ndof_read_zbuf_rect(ARegion *region, const rcti &rect, int r_xy[2])
 {
   /* Avoid allocating the whole depth buffer. */
   ViewDepths depth_temp = {0};
-  {
-    /* Some small rectangle in the middle of the view3d region. */
-    rcti rect;
-    const int region_center[2] = {x, y};
-    BLI_rcti_init_pt_radius(&rect, region_center, 2);
-    view3d_depths_rect_create(region, &rect, &depth_temp);
-  }
+  rcti rect_clip = rect;
+  view3d_depths_rect_create(region, &rect_clip, &depth_temp);
 
   /* Find the closest Z pixel. */
-  const float depth_near = view3d_depth_near(&depth_temp);
+  float depth_near;
+
+  if (r_xy) {
+    depth_near = view3d_depth_near_ex(&depth_temp, r_xy);
+    printf("POS %d %d\n", UNPACK2(r_xy));
+  }
+  else {
+    depth_near = view3d_depth_near(&depth_temp);
+  }
 
   MEM_SAFE_FREE(depth_temp.depths);
 
@@ -510,24 +513,13 @@ x component = screen space x coordinate of the sample
 y component = screen space y coordinate of the sample
 z component = depth of the sample (the lowest value)
 */
-static float3 ndof_get_min_depth_pt(ARegion *region,
-                                    const rcti sample_grid_area,
-                                    const int sample_grid_resolution)
+static float3 ndof_get_min_depth_pt(ARegion *region, const rcti &sample_grid_area)
 {
-  const int step_x = (sample_grid_area.xmax - sample_grid_area.xmin) / sample_grid_resolution;
-  const int step_y = (sample_grid_area.ymax - sample_grid_area.ymin) / sample_grid_resolution;
-  float3 result(FLT_MAX);
-
-  for (int x = sample_grid_area.xmin; x <= sample_grid_area.xmax; x += step_x) {
-    for (int y = sample_grid_area.ymin; y <= sample_grid_area.ymax; y += step_y) {
-      float depth_near = ndof_read_zbuf(region, x, y);
-      if (depth_near < result.z) {
-        result.x = x;
-        result.y = y;
-        result.z = depth_near;
-      }
-    }
-  }
+  float3 result;
+  int xy[2] = {0, 0};
+  result.z = ndof_read_zbuf_rect(region, sample_grid_area, xy);
+  result.x = xy[0];
+  result.y = xy[1];
 
   return result;
 }
@@ -537,21 +529,18 @@ static std::optional<float3> ndof_orbit_center_calc_from_zbuf(Depsgraph *depsgra
                                                               ARegion *region)
 {
   rcti sample_grid_area;
-  int sampling_resolution = 0;  // sample count = (sampling_resolution)^2
   if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_FLY) {
     sample_grid_area.xmin = 0.3 * region->winx;
     sample_grid_area.xmax = 0.7 * region->winx;
     sample_grid_area.ymin = 0.2 * region->winy;
     sample_grid_area.ymax = 0.6 * region->winy;
-    sampling_resolution = 9;
   }
   else {
     int view_center[2] = {region->winx / 2, region->winy / 2};
     BLI_rcti_init_pt_radius(&sample_grid_area, view_center, 0.05 * region->winx);
-    sampling_resolution = 5;
   }
 
-  float3 min_depth_pt = ndof_get_min_depth_pt(region, sample_grid_area, sampling_resolution);
+  float3 min_depth_pt = ndof_get_min_depth_pt(region, sample_grid_area);
 
   if (min_depth_pt.z == FLT_MAX) {
     return std::nullopt;
@@ -559,11 +548,7 @@ static std::optional<float3> ndof_orbit_center_calc_from_zbuf(Depsgraph *depsgra
 
   blender::float3 zbuf_center{};
 
-  if (!ED_view3d_unproject_v3(region,
-                              min_depth_pt.x,
-                              min_depth_pt.y,
-                              min_depth_pt.z,
-                              zbuf_center))
+  if (!ED_view3d_unproject_v3(region, min_depth_pt.x, min_depth_pt.y, min_depth_pt.z, zbuf_center))
   {
     return std::nullopt;
   }
@@ -801,7 +786,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
   /* off by default, until changed later this function */
   rv3d->ndof_rot_angle = 0.0f;
   const bool fly_with_auto_speed = !NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U) &&
-                               (U.ndof_flag & NDOF_DYNAMIC_FLY_SPEED);
+                                   (U.ndof_flag & NDOF_DYNAMIC_FLY_SPEED);
   static float pan_speed_buffer = 0.;
 
   if (ndof.progress == P_FINISHING) {
@@ -882,7 +867,8 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
       if (!fly_with_auto_speed) {
         pan_speed_buffer = view3d_ndof_pan_speed_calc(rv3d);
       }
-      view3d_ndof_pan_zoom(ndof, vod->area, vod->region, has_translate, has_zoom, pan_speed_buffer);
+      view3d_ndof_pan_zoom(
+          ndof, vod->area, vod->region, has_translate, has_zoom, pan_speed_buffer);
       xform_flag |= HAS_TRANSLATE;
     }
   }
