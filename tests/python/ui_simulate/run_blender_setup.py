@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-Utility script, called by ``run.py`` to run inside Blender,
+Utility script, called by ``blender_headless.py`` to run inside Blender,
 to avoid boilerplate code having to be added into each test.
 """
 
@@ -32,14 +32,22 @@ def create_parser():
         dest="step_command_pre",
         default=None,
         required=False,
-        help="See 'run.py'",
+        help=(
+            "Command to run that takes the test file and line as arguments. "
+            "Literals {file} and {line} will be replaced with the file and line."
+            "Called for every event, allows an editor to track which commands run."
+        )
     )
     parser.add_argument(
         "--step-command-post",
         dest="step_command_post",
         default=None,
         required=False,
-        help="See 'run.py'",
+        help=(
+            "Command to run that takes the test file and line as arguments. "
+            "Literals {file} and {line} will be replaced with the file and line."
+            "Called for every event, allows an editor to track which commands run."
+        )
     )
 
     parser.add_argument(
