@@ -448,10 +448,11 @@ static bool ui_tooltip_period_needed(blender::StringRef tip)
   }
 
   /* Already ends with punctuation. */
-  if (ELEM(tip.back(), '.', '!', '?') ||
-      tip.endswith("\xe3\x80\x82") || /* U+3002 IDEOGRAPHIC FULL STOP */
-      tip.endswith("\xef\xbc\x8e")    /* U+FF0E FULLWIDTH FULL STOP */
-  )
+  if (tip.find_last_not_of(".!?"
+                           "\xe3\x80\x82" /* U+3002 IDEOGRAPHIC FULL STOP */
+                           "\xef\xbc\x8e" /* U+FF0E FULLWIDTH FULL STOP */
+                           ) != blender::StringRef::not_found)
+    ;
   {
     return false;
   }
