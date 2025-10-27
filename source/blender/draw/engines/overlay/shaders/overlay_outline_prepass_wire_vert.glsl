@@ -85,6 +85,8 @@ void geometry_main(VertOut geom_in[4],
   float3 v12 = geom_in[2].vs_P - geom_in[1].vs_P;
   float3 v13 = geom_in[3].vs_P - geom_in[1].vs_P;
 
+  /* Known Issue: This also generates outlines for connected-overlapping edges, since their vector
+   * is zero-length. */
   float3 n0 = normalize(cross(v12, v10));
   float3 n3 = normalize(cross(v13, v12));
 
