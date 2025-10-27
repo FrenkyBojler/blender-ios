@@ -448,11 +448,9 @@ static std::string ui_tooltip_with_period(blender::StringRef tip)
   }
 
   /* Already ends with punctuation. */
-  if (tip.find_last_not_of(".!?"
-                           "\xe3\x80\x82" /* U+3002 IDEOGRAPHIC FULL STOP */
-                           "\xef\xbc\x8e" /* U+FF0E FULLWIDTH FULL STOP */
-                           ) != tip.size() - 1)
-  {
+  const uint charcode = BLI_str_utf8_as_unicode_safe(
+      BLI_str_find_prev_char_utf8(tip.data() + tip.size(), tip.data()));
+  if (BLI_str_utf32_char_is_terminal_punctuation(charcode)) {
     return tip;
   }
 
