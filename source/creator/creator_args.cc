@@ -1543,8 +1543,8 @@ static int arg_handle_debug_gpu_scope_capture_set(int argc, const char **argv, v
 
 static const char arg_handle_debug_gpu_shader_source_doc[] =
     "\n"
-    "\tCapture the GPU commands issued inside the give scope name."
-    "\tFiles are saved in the current working directory inside a folder named \"Shaders\".";
+    "\tCapture the GPU commands issued inside the give scope name.\n"
+    "\tFiles are saved in the current working directory inside a directory named \"Shaders\".";
 static int arg_handle_debug_gpu_shader_source(int argc, const char **argv, void * /*data*/)
 {
   if (argc > 1) {
@@ -1902,7 +1902,7 @@ static int arg_handle_window_maximized(int /*argc*/, const char ** /*argv*/, voi
 
 static const char arg_handle_no_window_frame_doc[] =
     "\n\t"
-    "Disable all window decorations (Wayland only).";
+    "Disable all window decorations (Linux only).";
 static int arg_handle_no_window_frame(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   WM_init_window_frame_set(false);
@@ -2150,6 +2150,7 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
       LISTBASE_FOREACH (RenderEngineType *, type, &R_engines) {
         printf("\t%s\n", type->idname);
       }
+      WM_exit_ex(C, false, false);
       exit(0);
     }
     else {
@@ -2166,6 +2167,7 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
         }
         else {
           fprintf(stderr, "\nError: engine not found '%s'\n", engine_name);
+          WM_exit_ex(C, false, false);
           exit(1);
         }
       }

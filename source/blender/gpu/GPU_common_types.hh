@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -82,7 +83,7 @@ enum class ShaderStage : uint8_t {
   COMPUTE = 2 << 1,
   ANY = (ShaderStage::VERTEX | ShaderStage::FRAGMENT | ShaderStage::COMPUTE),
 };
-ENUM_OPERATORS(ShaderStage, ShaderStage::ANY);
+ENUM_OPERATORS(ShaderStage);
 
 }  // namespace blender::gpu
 

@@ -382,7 +382,7 @@ void ED_uvedit_select_sync_flush(const ToolSettings *ts, BMesh *bm, const bool s
   }
 }
 
-static void uvedit_vertex_select_tagged(BMesh *bm, Scene *scene, bool select)
+static void uvedit_vertex_select_tagged(BMesh *bm, const Scene *scene, bool select)
 {
   BMFace *efa;
   BMLoop *l;
@@ -777,7 +777,7 @@ void uvedit_edge_select_set_noflush(const Scene *scene,
           BM_loop_edge_uvselect_set_noflush(bm, l_iter, select);
         }
         else {
-          uvedit_edge_select_set_no_sync(ts, bm, l, select);
+          uvedit_edge_select_set_no_sync(ts, bm, l_iter, select);
         }
       }
     }
@@ -1591,14 +1591,24 @@ BMLoop *uv_find_nearest_loop_from_edge(Scene *scene, Object *obedit, BMEdge *e, 
 /** \name Helper functions for UV selection.
  * \{ */
 
+static bool uvedit_select_pin_ok_or_report(const Scene *scene, ReportList *reports)
+{
+  if (ED_uvedit_select_mode_get(scene) != UV_SELECT_VERT) {
+    BKE_report(reports, RPT_ERROR, "Pinned vertices can be selected in Vertex Mode only");
+    return false;
+  }
+  return true;
+}
+
 void uvedit_select_prepare_custom_data(const Scene *scene, BMesh *bm)
 {
   const ToolSettings *ts = scene->toolsettings;
   BLI_assert((ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
   UNUSED_VARS_NDEBUG(ts);
-  const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
-  BLI_assert(active_uv_name);
-  UNUSED_VARS_NDEBUG(active_uv_name);
+
+  /* Needed because this data must *not* be used for select-sync
+   * once this has been manipulated with select-sync disabled. */
+  BM_mesh_uvselect_clear(bm);
 }
 
 void uvedit_select_prepare_sync_select(const Scene *scene, BMesh *bm)
@@ -1766,6 +1776,7 @@ void uvedit_vert_select_set_no_sync(const ToolSettings *ts,
                                     bool select)
 {
   BLI_assert(bm && (ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
+  BLI_assert(bm->uv_select_sync_valid == false); /* #uvedit_select_prepare_custom_data ensures. */
   BLI_assert(BM_elem_flag_test(l->f, BM_ELEM_HIDDEN) == 0);
   UNUSED_VARS_NDEBUG(ts, bm);
   BM_elem_flag_set(l, BM_ELEM_SELECT_UV, select);
@@ -1776,6 +1787,7 @@ void uvedit_edge_select_set_no_sync(const ToolSettings *ts,
                                     bool select)
 {
   BLI_assert(bm && (ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
+  BLI_assert(bm->uv_select_sync_valid == false); /* #uvedit_select_prepare_custom_data ensures. */
   BLI_assert(BM_elem_flag_test(l->f, BM_ELEM_HIDDEN) == 0);
   UNUSED_VARS_NDEBUG(ts, bm);
   BM_elem_flag_set(l, BM_ELEM_SELECT_UV_EDGE, select);
@@ -1787,6 +1799,7 @@ void uvedit_face_select_set_no_sync(const ToolSettings *ts,
                                     bool select)
 {
   BLI_assert(bm && (ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
+  BLI_assert(bm->uv_select_sync_valid == false); /* #uvedit_select_prepare_custom_data ensures. */
   BLI_assert(BM_elem_flag_test(f, BM_ELEM_HIDDEN) == 0);
   UNUSED_VARS_NDEBUG(ts, bm);
   BM_elem_flag_set(f, BM_ELEM_SELECT_UV, select);
@@ -2455,7 +2468,7 @@ static int uv_select_edgering(Scene *scene, Object *obedit, UvNearestHit *hit, c
 /** \name Select Linked
  * \{ */
 
-static void uv_select_linked_multi(Scene *scene,
+static void uv_select_linked_multi(const Scene *scene,
                                    const Span<Object *> objects,
                                    UvNearestHit *hit,
                                    const bool extend,
@@ -2507,7 +2520,7 @@ static void uv_select_linked_multi(Scene *scene,
      *
      * Better solve this by having a delimit option for select-linked operator,
      * keeping island-select working as is. */
-    UvVertMap *vmap = BM_uv_vert_map_create(bm, !uv_select_sync);
+    UvVertMap *vmap = BM_uv_vert_map_create(bm, !uv_select_sync, true);
     if (vmap == nullptr) {
       continue;
     }
@@ -2747,7 +2760,7 @@ static void uv_select_linked_multi(Scene *scene,
 /**
  * A wrapper for #uv_select_linked_multi that uses defaults for UV island selection.
  */
-static void uv_select_linked_multi_for_select_island(Scene *scene,
+static void uv_select_linked_multi_for_select_island(const Scene *scene,
                                                      const Span<Object *> objects,
                                                      Object *obedit,
                                                      BMFace *efa,
@@ -4146,6 +4159,55 @@ void UV_OT_select_split(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit; /* requires space image */
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select/Tag Flushing Utils
+ *
+ * Utility functions to flush the uv-selection from tags.
+ * \{ */
+
+/**
+ * Called when the user disables select sync.
+ *
+ * \note This isn't fool proof:
+ * it's always possible for an object to be linked in from another scene.
+ * Nevertheless, validate the selection in the current context as failing to do so
+ * allows edges to be selected in face-select mode or use stale UV selection data
+ * which hasn't been flushed between verts/edges/faces, see #148249.
+ */
+static void uv_select_sync_update(const Scene *scene, Object *obedit)
+{
+  const ToolSettings *ts = scene->toolsettings;
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+    return;
+  }
+
+  /* Sync selection has been disabled re-use or re-create the select-sync data. */
+  BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+  /* May be -1, this is accounted for. */
+  const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
+  if (bm->selectmode == ts->uv_selectmode) {
+    if (bm->uv_select_sync_valid == false) {
+      uvedit_sync_uvselect_flush_from_v3d(ts, bm);
+      /* When the modes match, don't clear. */
+    }
+  }
+  else {
+    if (bm->uv_select_sync_valid) {
+      BM_mesh_uvselect_mode_flush_update(bm, bm->selectmode, ts->uv_selectmode, cd_loop_uv_offset);
+    }
+    else {
+      const short selectmode_orig = bm->selectmode;
+      bm->selectmode = ts->uv_selectmode;
+      uvedit_sync_uvselect_flush_from_v3d(ts, bm);
+      bm->selectmode = selectmode_orig;
+    }
+    /* Always false because the mode doesn't match. */
+    BM_mesh_uvselect_clear(bm);
+  }
+}
+
 static void uv_select_tag_update_for_object(Depsgraph *depsgraph,
                                             const ToolSettings *ts,
                                             Object *obedit)
@@ -4163,16 +4225,8 @@ static void uv_select_tag_update_for_object(Depsgraph *depsgraph,
   }
 }
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Select/Tag Flushing Utils
- *
- * Utility functions to flush the uv-selection from tags.
- * \{ */
-
 /**
- * helper function for #uv_select_flush_from_tag_loop and uv_select_flush_from_tag_face
+ * Helper function for #uv_select_flush_from_tag_loop and #uv_select_flush_from_tag_face.
  */
 static void uvedit_uv_select_flush_from_tag_sticky_loc_internal(
     const Scene *scene, BMesh *bm, BMLoop *l, const bool select, const BMUVOffsets &offsets)
@@ -4201,6 +4255,26 @@ static void uvedit_uv_select_flush_from_tag_sticky_loc_internal(
       }
     } while ((l_iter = l_iter->radial_next) != l_first);
   } while ((e_iter = BM_DISK_EDGE_NEXT(e_iter, v)) != e_first);
+}
+
+/**
+ * Helper function for #uv_select_flush_from_tag_face.
+ */
+static void uvedit_edge_select_flush_from_tag_sticky_loc_internal(
+    const Scene *scene, BMesh *bm, BMLoop *l, const bool select, const BMUVOffsets &offsets)
+{
+  uvedit_edge_select_set(scene, bm, l, select);
+  if (l->radial_next != l) {
+    BMLoop *l_iter = l->radial_next;
+    do {
+      if (!uvedit_face_visible_test(scene, l_iter->f)) {
+        continue;
+      }
+      if (BM_loop_uv_share_edge_check(l, l_iter, offsets.uv)) {
+        uvedit_edge_select_set(scene, bm, l_iter, select);
+      }
+    } while ((l_iter = l_iter->radial_next) != l);
+  }
 }
 
 /**
@@ -4259,6 +4333,12 @@ static void uv_select_flush_from_tag_face(const Scene *scene, Object *obedit, co
       else {
         uvedit_face_select_set_no_sync(ts, bm, efa, select);
       }
+    }
+
+    BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+      if (!BM_elem_flag_test(efa, BM_ELEM_TAG)) {
+        continue;
+      }
 
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
         uvedit_loop_edge_select_set(ts, bm, l, select);
@@ -4269,6 +4349,9 @@ static void uv_select_flush_from_tag_face(const Scene *scene, Object *obedit, co
         else {
           if (!uvedit_vert_is_face_select_any_other(ts, bm, l, offsets)) {
             uvedit_uv_select_flush_from_tag_sticky_loc_internal(scene, bm, l, select, offsets);
+          }
+          if (!uvedit_edge_is_face_select_any_other(ts, bm, l, offsets)) {
+            uvedit_edge_select_flush_from_tag_sticky_loc_internal(scene, bm, l, select, offsets);
           }
         }
       }
@@ -4480,11 +4563,36 @@ static void uv_select_flush_from_loop_edge_flag(const Scene *scene, BMesh *bm)
 /** \name Box Select Operator
  * \{ */
 
+static wmOperatorStatus uv_box_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  const Scene *scene = CTX_data_scene(C);
+  const bool pinned = RNA_boolean_get(op->ptr, "pinned");
+  if (pinned) {
+    if (!uvedit_select_pin_ok_or_report(scene, op->reports)) {
+      return OPERATOR_CANCELLED;
+    }
+  }
+  return WM_gesture_box_invoke(C, op, event);
+}
+
 static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
+
+  const bool pinned = RNA_boolean_get(op->ptr, "pinned");
+
+  /* Note that face selection uses the face-center. */
+  const char uv_select_mode = ED_uvedit_select_mode_get(scene);
+  const bool use_select_linked = pinned ? false : ED_uvedit_select_island_check(ts);
+
+  if (pinned) {
+    if (!uvedit_select_pin_ok_or_report(scene, op->reports)) {
+      return OPERATOR_CANCELLED;
+    }
+  }
+
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const ARegion *region = CTX_wm_region(C);
   BMFace *efa;
@@ -4492,13 +4600,6 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
   BMIter iter, liter;
   float *luv;
   rctf rectf;
-  const bool use_face_center = ((ts->uv_flag & UV_FLAG_SELECT_SYNC) ?
-                                    (ts->selectmode == SCE_SELECT_FACE) :
-                                    (ts->uv_selectmode == UV_SELECT_FACE));
-  const bool use_edge = ((ts->uv_flag & UV_FLAG_SELECT_SYNC) ?
-                             (ts->selectmode == SCE_SELECT_EDGE) :
-                             (ts->uv_selectmode == UV_SELECT_EDGE));
-  const bool use_select_linked = ED_uvedit_select_island_check(ts);
 
   /* get rectangle from operator */
   WM_operator_properties_border_to_rctf(op, &rectf);
@@ -4507,8 +4608,6 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
   const bool select = (sel_op != SEL_OP_SUB);
   const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
-
-  const bool pinned = RNA_boolean_get(op->ptr, "pinned");
 
   bool changed_multi = false;
 
@@ -4526,22 +4625,21 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
     bool changed = false;
 
     if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
-      /* NOTE: sync selection can't do pinned. */
       uvedit_select_prepare_sync_select(scene, bm);
     }
     else {
       uvedit_select_prepare_custom_data(scene, bm);
-      if (pinned) {
-        const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
-        BM_uv_map_attr_pin_ensure_named(bm, active_uv_name);
-      }
     }
+
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
     /* do actual selection */
-    if (use_face_center && !pinned) {
-      /* handle face selection mode */
-
+    if (pinned && offsets.pin == -1) {
+      /* Special case, nothing is pinned so it's known in advance that nothing will be selected.
+       * Still run the code after this block finishes as the UV's may have been de-selected. */
+    }
+    else if (uv_select_mode == UV_SELECT_FACE) {
+      /* Handle face selection (face center). */
       if (use_select_linked) {
         BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
       }
@@ -4576,7 +4674,7 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
         uv_select_flush_from_tag_face(scene, obedit, select);
       }
     }
-    else if (use_edge && !pinned) {
+    else if (uv_select_mode == UV_SELECT_EDGE) {
       bool do_second_pass = true;
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
         if (!uvedit_face_visible_test(scene, efa)) {
@@ -4633,7 +4731,9 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
       }
     }
     else {
-      /* other selection modes */
+      /* Handle vert selection. */
+      BLI_assert(uv_select_mode == UV_SELECT_VERT);
+
       changed = true;
       BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
@@ -4645,18 +4745,11 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
         BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
           luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
           if (select != uvedit_uv_select_test(scene, bm, l, offsets)) {
-            if (!pinned || (ts->uv_flag & UV_FLAG_SELECT_SYNC)) {
-              /* UV_FLAG_SELECT_SYNC - can't do pinned selection */
-              if (BLI_rctf_isect_pt_v(&rectf, luv)) {
+            if (BLI_rctf_isect_pt_v(&rectf, luv)) {
+              if (!pinned || BM_ELEM_CD_GET_BOOL(l, offsets.pin)) {
                 uvedit_uv_select_set(scene, bm, l, select);
                 BM_elem_flag_enable(l->v, BM_ELEM_TAG);
                 has_selected = true;
-              }
-            }
-            else if (pinned) {
-              if (BM_ELEM_CD_GET_BOOL(l, offsets.pin) && BLI_rctf_isect_pt_v(&rectf, luv)) {
-                uvedit_uv_select_set(scene, bm, l, select);
-                BM_elem_flag_enable(l->v, BM_ELEM_TAG);
               }
             }
           }
@@ -4695,7 +4788,7 @@ void UV_OT_select_box(wmOperatorType *ot)
   ot->idname = "UV_OT_select_box";
 
   /* API callbacks. */
-  ot->invoke = WM_gesture_box_invoke;
+  ot->invoke = uv_box_select_invoke;
   ot->exec = uv_box_select_exec;
   ot->modal = WM_gesture_box_modal;
   ot->poll = ED_operator_uvedit_space_image; /* requires space image */
@@ -4763,12 +4856,8 @@ static wmOperatorStatus uv_circle_select_exec(bContext *C, wmOperator *op)
   float zoomx, zoomy;
   float offset[2], ellipse[2];
 
-  const bool use_face_center = ((ts->uv_flag & UV_FLAG_SELECT_SYNC) ?
-                                    (ts->selectmode == SCE_SELECT_FACE) :
-                                    (ts->uv_selectmode == UV_SELECT_FACE));
-  const bool use_edge = ((ts->uv_flag & UV_FLAG_SELECT_SYNC) ?
-                             (ts->selectmode == SCE_SELECT_EDGE) :
-                             (ts->uv_selectmode == UV_SELECT_EDGE));
+  /* Note that face selection uses the face-center. */
+  const char uv_select_mode = ED_uvedit_select_mode_get(scene);
   const bool use_select_linked = ED_uvedit_select_island_check(ts);
 
   /* get operator properties */
@@ -4815,7 +4904,8 @@ static wmOperatorStatus uv_circle_select_exec(bContext *C, wmOperator *op)
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
     /* do selection */
-    if (use_face_center) {
+    if (uv_select_mode == UV_SELECT_FACE) {
+      /* Handle face selection (face center). */
       if (use_select_linked) {
         BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
       }
@@ -4852,7 +4942,8 @@ static wmOperatorStatus uv_circle_select_exec(bContext *C, wmOperator *op)
         uv_select_flush_from_tag_face(scene, obedit, select);
       }
     }
-    else if (use_edge) {
+    else if (uv_select_mode == UV_SELECT_EDGE) {
+      /* Handle edge selection. */
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
         if (!uvedit_face_visible_test(scene, efa)) {
           continue;
@@ -4879,6 +4970,9 @@ static wmOperatorStatus uv_circle_select_exec(bContext *C, wmOperator *op)
       }
     }
     else {
+      /* Handle vert selection. */
+      BLI_assert(uv_select_mode == UV_SELECT_VERT);
+
       BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -4993,12 +5087,9 @@ static bool do_lasso_select_mesh_uv(bContext *C, const Span<int2> mcoords, const
   Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  const bool use_face_center = ((ts->uv_flag & UV_FLAG_SELECT_SYNC) ?
-                                    (ts->selectmode == SCE_SELECT_FACE) :
-                                    (ts->uv_selectmode == UV_SELECT_FACE));
-  const bool use_edge = ((ts->uv_flag & UV_FLAG_SELECT_SYNC) ?
-                             (ts->selectmode == SCE_SELECT_EDGE) :
-                             (ts->uv_selectmode == UV_SELECT_EDGE));
+
+  /* Note that face selection uses the face-center. */
+  const char uv_select_mode = ED_uvedit_select_mode_get(scene);
   const bool use_select_linked = ED_uvedit_select_island_check(ts);
 
   const bool select = (sel_op != SEL_OP_SUB);
@@ -5034,7 +5125,8 @@ static bool do_lasso_select_mesh_uv(bContext *C, const Span<int2> mcoords, const
     }
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
-    if (use_face_center) { /* Face Center Select. */
+    if (uv_select_mode == UV_SELECT_FACE) {
+      /* Handle face selection (face center). */
       if (use_select_linked) {
         BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
       }
@@ -5071,7 +5163,8 @@ static bool do_lasso_select_mesh_uv(bContext *C, const Span<int2> mcoords, const
         uv_select_flush_from_tag_face(scene, obedit, select);
       }
     }
-    else if (use_edge) {
+    else if (uv_select_mode == UV_SELECT_EDGE) {
+      /* Handle edge selection. */
       bool do_second_pass = true;
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
         if (!uvedit_face_visible_test(scene, efa)) {
@@ -5128,7 +5221,10 @@ static bool do_lasso_select_mesh_uv(bContext *C, const Span<int2> mcoords, const
         }
       }
     }
-    else { /* Vert Selection. */
+    else {
+      /* Handle vert selection. */
+      BLI_assert(uv_select_mode == UV_SELECT_VERT);
+
       BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
       BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
@@ -5214,16 +5310,13 @@ void UV_OT_select_lasso(wmOperatorType *ot)
 
 static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
 
   /* Use this operator only in vertex mode, since it is not guaranteed that pinned vertices may
    * form higher selection states (like edges/faces/islands) in other modes. */
-  if ((ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0) {
-    if (ts->uv_selectmode != UV_SELECT_VERT) {
-      BKE_report(op->reports, RPT_ERROR, "Pinned vertices can be selected in Vertex Mode only");
-      return OPERATOR_CANCELLED;
-    }
+  if (!uvedit_select_pin_ok_or_report(scene, op->reports)) {
+    return OPERATOR_CANCELLED;
   }
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -5236,9 +5329,10 @@ static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *obedit : objects) {
-    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    BMesh *bm = mesh.runtime->edit_mesh->bm;
 
-    const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
+    const blender::StringRef active_uv_name = mesh.active_uv_map_name();
     if (!BM_uv_map_attr_pin_exists(bm, active_uv_name)) {
       continue;
     }
@@ -5375,15 +5469,26 @@ static bool overlap_tri_tri_uv_test(const float t1[3][2],
 static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(C);
+  const ToolSettings *ts = scene->toolsettings;
+  const bool uv_select_sync = (ts->uv_flag & UV_FLAG_SELECT_SYNC);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
+  struct ChangedInfo {
+    uint has_changed : 1;
+    uint has_overlap : 1;
+  };
+
+  Array<ChangedInfo> objects_tag(objects.size(), {false, false});
+
   /* Calculate maximum number of tree nodes and prepare initial selection. */
   uint uv_tri_len = 0;
-  for (Object *obedit : objects) {
+  for (const int i : blender::IndexRange(objects.size())) {
+    Object *obedit = objects[i];
+
     BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
 
     BM_mesh_elem_table_ensure(bm, BM_FACE);
@@ -5391,6 +5496,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
     BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
     if (!extend) {
       ED_uvedit_deselect_all(scene, obedit, SEL_DESELECT);
+      objects_tag[i].has_changed = true;
     }
 
     BMIter iter;
@@ -5521,9 +5627,6 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       BMFace *face_a = bm_a->ftable[o_a->face_index];
       BMFace *face_b = bm_b->ftable[o_b->face_index];
 
-      if (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) {
-        /* Pass. */
-      }
       /* Skip if both faces are already selected. */
       if (uvedit_face_select_test(scene, bm_a, face_a) &&
           uvedit_face_select_test(scene, bm_b, face_b))
@@ -5534,8 +5637,10 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       /* Main tri-tri overlap test. */
       const float endpoint_bias = -1e-4f;
       if (overlap_tri_tri_uv_test(o_a->tri, o_b->tri, endpoint_bias)) {
-        uvedit_face_select_enable(scene, bm_a, face_a);
-        uvedit_face_select_enable(scene, bm_b, face_b);
+        objects_tag[o_a->ob_index].has_overlap = true;
+        objects_tag[o_b->ob_index].has_overlap = true;
+        BM_elem_flag_enable(face_a, BM_ELEM_TAG);
+        BM_elem_flag_enable(face_b, BM_ELEM_TAG);
       }
     }
 
@@ -5543,8 +5648,33 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
     MEM_freeN(overlap);
   }
 
-  for (Object *object : objects) {
-    uv_select_tag_update_for_object(depsgraph, scene->toolsettings, object);
+  for (const int i : blender::IndexRange(objects.size())) {
+    Object *obedit = objects[i];
+    const ChangedInfo &tag_info = objects_tag[i];
+    const bool select = true;
+
+    if (tag_info.has_overlap) {
+      BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+
+      if (uv_select_sync) {
+        uvedit_select_prepare_sync_select(scene, bm);
+      }
+      else {
+        uvedit_select_prepare_custom_data(scene, bm);
+      }
+      uv_select_flush_from_tag_face(scene, obedit, select);
+
+      if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+        ED_uvedit_select_sync_flush(ts, bm, select);
+      }
+      else {
+        ED_uvedit_selectmode_flush(scene, bm);
+      }
+    }
+
+    if (tag_info.has_changed || tag_info.has_overlap) {
+      uv_select_tag_update_for_object(depsgraph, scene->toolsettings, obedit);
+    }
   }
 
   BLI_bvhtree_free(uv_tree);
@@ -6624,6 +6754,25 @@ void ED_uvedit_sticky_selectmode_update(bContext *C)
       scene, view_layer, nullptr);
   for (Object *obedit : objects) {
     uv_select_tag_update_for_object(depsgraph, ts, obedit);
+  }
+}
+
+/**
+ * Called when changing the UV select sync option.
+ */
+void ED_uvedit_select_sync_multi(bContext *C)
+{
+  const Scene *scene = CTX_data_scene(C);
+  const ToolSettings *ts = scene->toolsettings;
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+    return;
+  }
+
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, nullptr);
+  for (Object *obedit : objects) {
+    uv_select_sync_update(scene, obedit);
   }
 }
 
