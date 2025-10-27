@@ -1030,6 +1030,7 @@ struct wmJobWorkerStatus {
 
 struct wmOperatorType {
 
+  /** Subclassed to store data for additional information for specific operator types. */
   struct TypeData {
     virtual ~TypeData() = default;
   };
@@ -1152,6 +1153,7 @@ struct wmOperatorType {
   /** Python needs the operator type as well. */
   bool (*pyop_poll)(bContext *C, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT = nullptr;
 
+  /** Extra information used statically for this operator type. */
   std::unique_ptr<TypeData> custom_data;
 
   /** RNA integration. */

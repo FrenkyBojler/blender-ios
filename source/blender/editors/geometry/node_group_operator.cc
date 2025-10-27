@@ -110,12 +110,6 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   };
   std::variant<AssetRef, LocalRef> group_ref;
 
-  // struct Input {
-  //   std::string name;
-  //   PropertyType type;
-  // };
-  // Vector<Input> inputs;
-
   static OperatorTypeData from_asset(const asset_system::AssetRepresentation &asset);
   static OperatorTypeData from_group(const bNodeTree &group);
 };

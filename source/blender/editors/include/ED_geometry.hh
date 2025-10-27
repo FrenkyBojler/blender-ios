@@ -50,6 +50,11 @@ bool attribute_set_poll(bContext &C, const ID &object_data);
 
 void operatortypes_geometry();
 
+/**
+ * Re-register all operator types for node tool assets and local node groups. This process
+ * unregisters old operators, except if the operator idname changes from the old version of an
+ * asset or local group.
+ */
 void register_node_group_operators(const bContext &C);
 
 /**
