@@ -550,13 +550,6 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
             layout.prop(image_settings, "color_depth", expand=True)
 
         # Color space
-        if image_settings.color_management == 'OVERRIDE':
-            display_settings = image_settings.display_settings
-            view_settings = image_settings.view_settings
-        else:
-            display_settings = context.scene.display_settings
-            view_settings = context.scene.view_settings
-
         split = layout.split(factor=0.4)
         col = split.column()
         col.alignment = 'RIGHT'
