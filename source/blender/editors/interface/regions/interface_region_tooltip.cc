@@ -451,8 +451,7 @@ static std::string ui_tooltip_with_period(blender::StringRef tip)
   if (tip.find_last_not_of(".!?"
                            "\xe3\x80\x82" /* U+3002 IDEOGRAPHIC FULL STOP */
                            "\xef\xbc\x8e" /* U+FF0E FULLWIDTH FULL STOP */
-                           ) != blender::StringRef::not_found)
-    ;
+                           ) != tip.size() - 1)
   {
     return tip;
   }
