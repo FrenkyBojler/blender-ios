@@ -4044,7 +4044,8 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area)
   return static_cast<ScrArea *>(screen->areabase.first);
 }
 
-ScrArea *ED_screen_find_maximized_area(const bScreen *screen) {
+ScrArea *ED_screen_find_maximized_area(const bScreen *screen)
+{
   if (screen->state == SCREENMAXIMIZED) {
     return nullptr;
   }
