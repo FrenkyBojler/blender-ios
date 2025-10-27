@@ -1354,8 +1354,17 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     TREESTORE(data.te)->flag &= ~TSE_CLOSED;
   }
 
-  CollectionObject *last_inserted_cob = nullptr;
+  blender::Vector<CollectionObject *> cobs;
+  blender::Vector<CollectionObject *> dragged_cobs;
+  bool is_custom_sort_move = false;
 
+  LISTBASE_FOREACH (CollectionObject *, cob, &data.to->gobject) {
+    cobs.append(cob);
+  }
+
+  std::sort(cobs.begin(), cobs.end(), [](const CollectionObject *a, const CollectionObject *b) {
+    return a->sort_index < b->sort_index;
+  });
   /*  For each dragged item:
    *  If it's an OBJECT (ID_OB),
    *      Hold Ctrl to add it to the target and keep it in its current collection. Otherwise move
@@ -1379,60 +1388,59 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
       }
 
       SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-      if (space_outliner->sort_method == SO_SORT_CUSTOM &&
-          ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER))
-      {
-        Object *relative_ob = nullptr;
-        TreeStoreElem *drop_tselem = TREESTORE(data.te);
-        if (drop_tselem && drop_tselem->type == TSE_SOME_ID && data.te->idcode == ID_OB) {
-          relative_ob = reinterpret_cast<Object *>(drop_tselem->id);
-        }
-
+      if (space_outliner->sort_method == SO_SORT_CUSTOM) {
+        is_custom_sort_move = true;
         CollectionObject *cob = BKE_collection_object_find_in(data.to, object);
         if (cob) {
-          BLI_remlink(&data.to->gobject, cob);
-
-          if (last_inserted_cob) {
-            BLI_insertlinkafter(&data.to->gobject, last_inserted_cob, cob);
-          }
-          else if (relative_ob) {
-            CollectionObject *rel = BKE_collection_object_find_in(data.to, relative_ob);
-            if (rel && rel != cob) {
-              if (data.insert_type == TE_INSERT_BEFORE) {
-                BLI_insertlinkbefore(&data.to->gobject, rel, cob);
-              }
-              else {
-                BLI_insertlinkafter(&data.to->gobject, rel, cob);
-              }
-            }
-            else {
-              BLI_addtail(&data.to->gobject, cob);
-            }
-          }
-          else {
-            (data.insert_type == TE_INSERT_BEFORE) ? BLI_addhead(&data.to->gobject, cob) :
-                                                     BLI_addtail(&data.to->gobject, cob);
-          }
-          last_inserted_cob = cob;
+          dragged_cobs.append(cob);
+          cobs.remove_if([&](CollectionObject *item) { return item == cob; });
         }
       }
     }
     else if (GS(drag_id->id->name) == ID_GR) {
       Collection *from = collection_parent_from_ID(drag_id->from_parent);
       Collection *collection = (Collection *)drag_id->id;
-
       if (collection != from) {
         BKE_collection_move(bmain, data.to, from, relative, relative_after, collection);
       }
     }
   }
 
-  /* Update dependency graph and UI. */
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  if (space_outliner->sort_method == SO_SORT_CUSTOM) {
-    /* Ensure ViewLayer bases and base index reflect the new order. */
-    BKE_main_collection_sync(bmain);
+  if (is_custom_sort_move) {
+    Object *relative_ob = nullptr;
+    TreeStoreElem *drop_tselem = TREESTORE(data.te);
+    if (drop_tselem && drop_tselem->type == TSE_SOME_ID && data.te->idcode == ID_OB) {
+      relative_ob = reinterpret_cast<Object *>(drop_tselem->id);
+    }
+
+    int new_index = 0;
+    if (relative_ob) {
+      CollectionObject *rel_cob = BKE_collection_object_find_in(data.to, relative_ob);
+      new_index = -1;
+      for (int i = 0; i < cobs.size(); i++) {
+        if (cobs[i] == rel_cob) {
+          new_index = i;
+          break;
+        }
+      }
+      if (new_index == -1) {
+        new_index = cobs.size();
+      }
+      else if (data.insert_type == TE_INSERT_AFTER) {
+        new_index++;
+      }
+    }
+    else {
+      new_index = (data.insert_type == TE_INSERT_BEFORE) ? 0 : cobs.size();
+    }
+
+    cobs.insert(new_index, dragged_cobs.as_span());
+
+    for (int i = 0; i < cobs.size(); i++) {
+      cobs[i]->sort_index = i;
+    }
   }
+  /* Update dependency graph. */
   DEG_id_tag_update(&data.to->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
