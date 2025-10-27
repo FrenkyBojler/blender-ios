@@ -1,5 +1,6 @@
 """
-**Logging Context Member Access**
+Logging Context Member Access
++++++++++++++++++++++++++++++
 
 Context members can be logged by calling ``logging_set(True)`` on the "with" target of a temporary override.
 This will log the members that are being accessed during the operation and may
