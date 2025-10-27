@@ -21,6 +21,7 @@ MINLINE unsigned int bitscan_forward_uint64(unsigned long long a);
 
 MINLINE int bitscan_forward_clear_i(int *a);
 MINLINE unsigned int bitscan_forward_clear_uint(unsigned int *a);
+MINLINE unsigned int bitscan_forward_clear_uint64(unsigned long long *a);
 
 /* Search the value from MSB to LSB for a set bit. Returns index of this bit. */
 

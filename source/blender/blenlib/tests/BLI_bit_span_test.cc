@@ -48,7 +48,7 @@ TEST(bit_span, Iteration)
     int i = 0;
     int result[2] = {-1, -1};
     int expect[2] = {2, 3};
-    for (const int bit_index : span.high_bits()) {
+    for (const int bit_index : iter_1_indices(data)) {
       result[i++] = bit_index;
     }
     EXPECT_EQ_ARRAY(expect, result, 2);
@@ -60,7 +60,7 @@ TEST(bit_span, Iteration)
     int result[7] = {-1, -1, -1, -1, -1, -1, -1};
     int expect[7] = {0, 1, 3, 4, 5, 6, 7};
     int i = 0;
-    for (const int bit_index : span2.high_bits()) {
+    for (const int bit_index : iter_1_indices(data2)) {
       result[i++] = bit_index;
     }
     EXPECT_EQ_ARRAY(expect, result, 7);

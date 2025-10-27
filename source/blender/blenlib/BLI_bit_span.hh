@@ -12,6 +12,7 @@
 
 #include "BLI_bit_ref.hh"
 #include "BLI_index_range.hh"
+#include "BLI_math_bits.h"
 #include "BLI_memory_utils.hh"
 
 namespace blender::bits {
@@ -62,69 +63,62 @@ class MutableBitIterator : public BitIteratorBase {
   }
 };
 
-class HighBitIterator {
+class OneBitIterator {
  private:
-  const BitInt *data_;
-  int current_bit_ = 0;
-  int max_bit_ = 0;
+  BitInt data_ = 0;
+  int64_t current_bit_ = 0;
 
  public:
-  explicit HighBitIterator(const BitInt *data, int min_bit, int max_bit)
-      : data_(data), current_bit_(min_bit), max_bit_(max_bit)
+  OneBitIterator() = default;
+
+  explicit OneBitIterator(BitInt data) : data_(data)
   {
-    /* Note: Last bit is never dereferenced. */
-    BLI_assert(max_bit <= 64);
-    advance();
+    current_bit_ = bitscan_forward_clear_uint64(&data_);
   }
 
-  unsigned operator*() const
+  int64_t operator*() const
   {
     return current_bit_;
   }
 
-  HighBitIterator &operator++()
+  OneBitIterator &operator++()
   {
-    current_bit_++;
-    advance();
+    if (data_ > 0) {
+      current_bit_ = bitscan_forward_clear_uint64(&data_);
+    }
+    else {
+      current_bit_ = -1;
+    }
     return *this;
   }
 
-  friend bool operator!=(const HighBitIterator &a, const HighBitIterator &b)
+  friend bool operator!=(const OneBitIterator &a, const OneBitIterator & /*b*/)
   {
-    BLI_assert(a.data_ == b.data_);
-    return a.current_bit_ != b.current_bit_;
-  }
-
- private:
-  void advance()
-  {
-    while ((current_bit_ != max_bit_) && ((*data_ >> current_bit_) & 1u) == 0) {
-      current_bit_++;
-    }
+    return a.current_bit_ != -1;
   }
 };
 
-class HighBitSpan {
+class OneBitIteratorWrapper {
  private:
-  const BitInt *data_;
-  /** The range of referenced bits. */
-  IndexRange bit_range_ = {0, 0};
+  const BitInt data_;
 
  public:
-  HighBitSpan(const BitInt *data, IndexRange bit_range) : data_(data), bit_range_(bit_range)
-  {
-    BLI_assert(bit_range.last() < 64);
-  }
+  OneBitIteratorWrapper(BitInt data) : data_(data) {}
 
-  HighBitIterator begin() const
+  OneBitIterator begin() const
   {
-    return HighBitIterator(data_, bit_range_.start(), bit_range_.one_after_last());
+    return OneBitIterator(data_);
   }
-  HighBitIterator end() const
+  OneBitIterator end() const
   {
-    return HighBitIterator(data_, bit_range_.one_after_last(), bit_range_.one_after_last());
+    return {};
   }
 };
+
+inline OneBitIteratorWrapper iter_1_indices(BitInt value)
+{
+  return OneBitIteratorWrapper(value);
+}
 
 /**
  * Similar to #Span, but references a range of bits instead of normal C++ types (which must be at
@@ -217,11 +211,6 @@ class BitSpan {
   BitIterator end() const
   {
     return {data_, bit_range_.one_after_last()};
-  }
-
-  HighBitSpan high_bits() const
-  {
-    return HighBitSpan(data_, bit_range_);
   }
 };
 
