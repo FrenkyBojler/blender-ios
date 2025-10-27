@@ -3256,7 +3256,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 
   /* assign self */
   if (func->flag & FUNC_USE_SELF_ID) {
-    fprintf(f, "\t_selfid = ( ID *)_ptr->owner_id;\n");
+    fprintf(f, "\t_selfid = (ID *)_ptr->owner_id;\n");
   }
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
@@ -3264,13 +3264,13 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
       fprintf(f, "\t_self = *_ptr;\n");
     }
     else if (dsrna->dnafromprop) {
-      fprintf(f, "\t_self = ( %s *)_ptr->data;\n", dsrna->dnafromname);
+      fprintf(f, "\t_self = (%s *)_ptr->data;\n", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
-      fprintf(f, "\t_self = ( %s *)_ptr->data;\n", dsrna->dnaname);
+      fprintf(f, "\t_self = (%s *)_ptr->data;\n", dsrna->dnaname);
     }
     else {
-      fprintf(f, "\t_self = ( %s *)_ptr->data;\n", srna->identifier);
+      fprintf(f, "\t_self = (%s *)_ptr->data;\n", srna->identifier);
     }
   }
   else if (func->flag & FUNC_USE_SELF_TYPE) {
@@ -5121,7 +5121,7 @@ static void rna_generate_header(BlenderRNA * /*brna*/, FILE *f)
   fprintf(f, "        property##_end(&rna_macro_iter); \\\n");
   fprintf(f, "    }\n\n");
 
-  fprintf(f, "/* Forward Declarations */\n\n");
+  fprintf(f, "/* Structs forward declarations. */\n");
   rna_generate_struct_forward_declarations(f);
 
   for (ds = static_cast<StructDefRNA *>(DefRNA.structs.first); ds;
@@ -5654,7 +5654,7 @@ static void rna_generate_header_cpp(BlenderRNA * /*brna*/, FILE *f)
   fprintf(f, "/**************** Implementation ****************/\n");
   fprintf(f, "\n");
 
-  fprintf(f, "/* Forward Declarations */\n\n");
+  fprintf(f, "/* Structs forward declarations. */\n");
   rna_generate_struct_forward_declarations(f);
 
   fprintf(f, "namespace BL {\n");
