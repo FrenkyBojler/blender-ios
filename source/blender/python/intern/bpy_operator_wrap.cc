@@ -84,41 +84,9 @@ void BPY_RNA_operator_wrapper(wmOperatorType *ot, void *userdata)
 {
   /* take care not to overwrite anything set in
    * WM_operatortype_append_ptr before opfunc() is called */
-  // TODO: Find better solution?
-  wmOperatorType *data = ((wmOperatorType *)userdata);
   StructRNA *srna = ot->srna;
-  ot->name = data->name;
-  ot->idname = data->idname;
-  ot->translation_context = data->translation_context;
-  ot->description = data->description;
-  ot->undo_group = data->undo_group;
-  ot->exec = data->exec;
-  ot->check = data->check;
-  ot->invoke = data->invoke;
-  ot->cancel = data->cancel;
-  ot->modal = data->modal;
-  ot->poll = data->poll;
-  ot->poll_property = data->poll_property;
-  ot->ui = data->ui;
-  ot->ui_poll = data->ui_poll;
-  ot->get_name = data->get_name;
-  ot->get_description = data->get_description;
-  ot->depends_on_cursor = data->depends_on_cursor;
-
+  *ot = std::move(*((wmOperatorType *)userdata));
   ot->srna = srna; /* restore */
-
-  ot->last_properties = nullptr;
-  ot->prop = data->prop;
-  ot->macro = data->macro;
-  ot->modalkeymap = data->modalkeymap;
-  ot->pyop_poll = data->pyop_poll;
-
-  /* Not used for Python operators. */
-  ot->custom_data = {};
-
-  ot->rna_ext = data->rna_ext;
-  ot->cursor_pending = 0;
-  ot->flag = data->flag;
 
   /* Use i18n context from rna_ext.srna if possible (py operators). */
   if (ot->rna_ext.srna) {
