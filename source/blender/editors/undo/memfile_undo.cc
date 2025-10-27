@@ -324,9 +324,19 @@ static void memfile_undosys_step_decode(
     FOREACH_MAIN_ID_END;
   }
 
-  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-    DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
+  /* Update only changed objects after undo. */
+  ID *id = nullptr;
+  FOREACH_MAIN_ID_BEGIN (bmain, id) {
+    if (id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) {
+      continue;
+    }
+
+    if (GS(id->name) == ID_OB) {
+      Object *ob = (Object *)id;
+      DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
+    }
   }
+  FOREACH_MAIN_ID_END;
 
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(C));
 }
