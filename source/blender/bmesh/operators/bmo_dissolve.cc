@@ -663,8 +663,8 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         continue;
       }
 
-      /* If the angle at the vert is larger than the threshold, it cannot be merged. */
-      if (bmo_vert_calc_edge_angle_blended(v) > angle_threshold - angle_epsilon) {
+      /* Preserve verts with angle greater than (180° - threshold). */
+      if (bmo_vert_calc_edge_angle_blended(v) > (M_PI - angle_threshold) - angle_epsilon) {
         BMO_vert_flag_disable(bm, v, VERT_MARK);
         continue;
       }
