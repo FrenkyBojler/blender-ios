@@ -541,16 +541,22 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_IMAGE: {
-      uiTemplateID(row,
-                   &ctx.C,
-                   ctx.properties_ptr,
-                   rna_path,
-                   "image.new",
-                   "image.open",
-                   nullptr,
-                   UI_TEMPLATE_ID_FILTER_ALL,
-                   false,
-                   name);
+      PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, rna_path.c_str());
+      if (prop && RNA_property_type(prop) == PROP_POINTER) {
+        uiTemplateID(row,
+                     &ctx.C,
+                     ctx.properties_ptr,
+                     rna_path,
+                     "image.new",
+                     "image.open",
+                     nullptr,
+                     UI_TEMPLATE_ID_FILTER_ALL,
+                     false,
+                     name);
+      }
+      else {
+        row->prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "images", name, ICON_IMAGE);
+      }
       break;
     }
     case SOCK_MENU: {
