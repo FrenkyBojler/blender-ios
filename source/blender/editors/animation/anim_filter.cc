@@ -349,7 +349,7 @@ static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
   /* sync settings with current view status, then return appropriate data */
   /* update scene-pointer (no need to check for pinning yet, as not implemented) */
   snla->ads->source = reinterpret_cast<ID *>(ac->scene);
-  snla->ads->filterflag |= ADS_FILTER_ONLYNLA;
+  ac->filters.flag |= ADS_FILTER_ONLYNLA;
 
   ac->datatype = ANIMCONT_NLA;
   ac->data = snla->ads;
@@ -3692,7 +3692,7 @@ static int ds_base_sorting_cmp(const void *base1_ptr, const void *base2_ptr)
   const Base *b1 = *((const Base **)base1_ptr);
   const Base *b2 = *((const Base **)base2_ptr);
 
-  return strcmp(b1->object->id.name + 2, b2->object->id.name + 2);
+  return BLI_strcasecmp_natural(b1->object->id.name + 2, b2->object->id.name + 2);
 }
 
 /* Get a sorted list of all the bases - for inclusion in dopesheet (when drawing channels) */
