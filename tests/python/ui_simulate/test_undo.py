@@ -5,6 +5,7 @@
 """
 This file does not run anything, it's methods are accessed for tests by: ``run.py``.
 """
+import time
 import datetime
 
 # FIXME: Since 2.8 or so, there is a problem with simulated events
@@ -12,11 +13,6 @@ import datetime
 # are handled. This isn't great but seems not to be a problem for users?
 _MENU_CONFIRM_HACK = True
 
-# FIXME: When running multi window tests, the view layer in the new window
-# may not be updated after a single event loop. This fixed delay is to allow
-# the corresponding tests to run as expected. See: #136012.
-_MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_INCREMENT_SECONDS = .10
-_MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_MAX_TIMEOUT = 1
 
 # -----------------------------------------------------------------------------
 # Utilities
@@ -782,19 +778,25 @@ def view3d_multi_mode_select():
         yield e.ctrl.z()
 
 
-def _multi_window_delay(window_a, window_b):
-    """Wait for up to _MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_MAX_TIMEOUT seconds to ensure that the view layers on the
-       different windows are different. """
-    different_view_layers = window_a.view_layer != window_b.view_layer
-    start_time = datetime.datetime.now(datetime.timezone.utc)
-    current_time = datetime.datetime.now(datetime.timezone.utc)
-    duration = current_time - start_time
-    while different_view_layers or duration.total_seconds() < _MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_MAX_TIMEOUT:
-        # We wait for a brief period of time after confirming to ensure that each main window has a different view layer
-        yield datetime.timedelta(seconds=_MENU_CONFIRM_HACK_MULTI_WINDOW_DELAY_INCREMENT_SECONDS)
-        different_view_layers = window_a.view_layer != window_b.view_layer
-        current_time = datetime.datetime.now(datetime.timezone.utc)
-        duration = current_time - start_time
+def _ui_hack_sleep_until(until, start_time, idle=1 / 60, timeout=1.0):
+    """
+    Delays the internal event loop until a specified condition is true.
+
+    This should be used sparingly as it likely represents some other failure condition inside Blender. Currently, the
+    only known needed usecase is for multi window undo tests which need separate view layers.
+
+    Note: In practice, the timeout value of 1.0 seconds should be more than enough for all cases. In testing with a
+    fixed, constant delay, the tests succeeded with a timeout of 1/6th of a second.
+    :param until: lambda to check the condition of after each sleep
+    :param start_time: initial time the sleep started
+    :param idle: how long to idle between checks of the `until` lambda
+    :param timeout: the max time in seconds that this busy wait will execute.
+    :return:
+    """
+    current_time = time.time()
+    while current_time - start_time < timeout or not until():
+        yield datetime.timedelta(seconds=idle)
+        current_time = time.time()
 
 
 def view3d_multi_mode_multi_window():
@@ -806,7 +808,7 @@ def view3d_multi_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        _multi_window_delay(window_a, window_b)
+        yield from _ui_hack_sleep_until(lambda: window_a.view_layer != window_b.view_layer, time.time())
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
@@ -964,7 +966,7 @@ def view3d_edit_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        _multi_window_delay(window_a, window_b)
+        yield from _ui_hack_sleep_until(lambda: window_a.view_layer != window_b.view_layer, time.time())
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
