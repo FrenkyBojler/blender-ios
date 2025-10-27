@@ -4044,6 +4044,29 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area)
   return static_cast<ScrArea *>(screen->areabase.first);
 }
 
+ScrArea *ED_screen_find_maximized_area(const bScreen *screen) {
+  if (screen->state == SCREENMAXIMIZED) {
+    return nullptr;
+  }
+
+  ScrArea *maximized_area = nullptr;
+
+  /* To find the currently maximized area, manually itereate the screen area list since it may
+   * not always be the current context area (e.g. when opening a new space from the topbar). */
+  LISTBASE_FOREACH (ScrArea *, screen_area, &screen->areabase) {
+    if (screen_area->full) {
+      maximized_area = screen_area;
+    }
+  }
+
+  if (!maximized_area) {
+    /* A maximized screen should *always* contain a maximized area. */
+    BLI_assert_unreachable();
+  }
+
+  return maximized_area;
+}
+
 int ED_region_global_size_y()
 {
   return ED_area_headersize(); /* same size as header */

@@ -1913,20 +1913,7 @@ ScrArea *ED_screen_temp_space_open(
       bScreen *ctx_screen = CTX_wm_screen(C);
 
       if (ctx_screen->state == SCREENMAXIMIZED) {
-        /* Find the currently maximized area, manually iterate the screen area list since
-         * it may not always be the current context area (e.g. when opening a new space
-         * from the topbar) */
-        ScrArea *maximized_area = nullptr;
-        LISTBASE_FOREACH (ScrArea *, screen_area, &ctx_screen->areabase) {
-          if (screen_area->full) {
-            maximized_area = screen_area;
-          }
-        }
-
-        if (!maximized_area) {
-          /* A maximized screen should *always* contain a maximized area. */
-          BLI_assert_unreachable();
-        }
+        ScrArea *maximized_area = ED_screen_find_maximized_area(ctx_screen);
 
         /* Check if the current maximized area has the same type as the one we're opening. */
         if (maximized_area->spacetype == space_type) {
@@ -1947,7 +1934,7 @@ ScrArea *ED_screen_temp_space_open(
 
       /* Create a new maximized area. */
       ScrArea *area = ED_screen_full_newspace(C, ctx_area, int(space_type));
-      ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
+      static_cast<SpaceLink *>(area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
       return area;
     }
   }
