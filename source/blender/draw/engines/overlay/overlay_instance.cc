@@ -484,7 +484,8 @@ void Instance::begin_sync()
   begin_sync_layer(regular);
   begin_sync_layer(infront);
 
-  grid.begin_sync(resources, state);
+  grid_rework.begin_sync(resources, state);
+  // grid.begin_sync(resources, state);
 
   anti_aliasing.begin_sync(resources, state);
   xray_fade.begin_sync(resources, state);
@@ -807,7 +808,8 @@ void Instance::draw_v2d(Manager &manager, View &view)
   GPU_framebuffer_clear_color(resources.overlay_output_color_only_fb, float4(0.0));
 
   background.draw_output(resources.overlay_output_color_only_fb, manager, view);
-  grid.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
+  grid_rework.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
+  // grid.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
   regular.mesh_uvs.draw(resources.overlay_output_fb, manager, view);
 
   cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
@@ -935,7 +937,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
     /* Color only pass. */
     motion_paths.draw_color_only(resources.overlay_color_only_fb, manager, view);
     xray_fade.draw_color_only(resources.overlay_color_only_fb, manager, view);
-    grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
+    grid_rework.draw_color_only(resources.overlay_color_only_fb, manager, view);
+    // grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
 
     regular.meshes.draw_line(resources.overlay_line_fb, manager, view);
     infront.meshes.draw_line(resources.overlay_line_in_front_fb, manager, view);

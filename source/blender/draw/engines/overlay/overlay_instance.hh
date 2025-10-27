@@ -107,6 +107,7 @@ class Instance : public DrawEngine {
     Wireframe wireframe;
   } regular{selection_type_}, infront{selection_type_};
 
+  GridRework grid_rework;
   Grid grid;
 
   AntiAliasing anti_aliasing;

@@ -24,6 +24,81 @@
 namespace blender::draw::overlay {
 
 /**
+ * Grid draw rework; WIP.
+ */
+class GridRework : Overlay {
+private:
+  /* ... */
+
+  PassSimple grid_ps_ = {"grid_ps_"};
+
+  float3 grid_axes_ = float3(0.0f);
+  float3 zplane_axes_ = float3(0.0f);
+
+public:
+  void begin_sync(Resources &res, const State &state) final
+  {
+    enabled_ = !state.is_space_node() && init(state);
+    if (!enabled_) {
+      grid_ps_.init();
+      return;
+    }
+
+    gpu::Texture **depth_tx = state.xray_enabled ? &res.xray_depth_tx : &res.depth_tx;
+    gpu::Texture **depth_infront_tx = state.use_in_front ? &res.depth_target_in_front_tx :
+                                                           &res.dummy_depth_tx;
+
+    grid_ps_.init();
+    grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+    grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
+    grid_ps_.state_set(DRW_STATE_WRITE_COLOR);
+
+    {
+      // TODO remove
+      constexpr uint n_lines = 4;
+      constexpr uint n_verts = 2 * n_lines;
+
+      auto &sub = grid_ps_.sub("grid");
+      sub.shader_set(res.shaders->gridrework.get());
+      sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
+    }
+  }
+
+  void draw_color_only(Framebuffer &framebuffer, Manager &manager, View &view) final
+  {
+    if (!enabled_) {
+      return;
+    }
+
+    GPU_framebuffer_bind(framebuffer);
+    manager.submit(grid_ps_, view);
+  }
+
+private:
+  bool init(const State &state) 
+  {
+    /* ... */
+
+    return true;
+  }
+
+  bool init_2d(const State &state)
+  {
+    /* ... */
+
+    return true;
+  }
+
+  bool init_3d(const State &state)
+  {
+    /* ... */
+
+    return true;
+  }
+};
+
+
+/**
  * Draw 2D or 3D grid as well at global X, Y and Z axes.
  */
 class Grid : Overlay {

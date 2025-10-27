@@ -49,8 +49,7 @@ void main()
   P += drw_view_position() * plane_axes;
 
   float dist, fade;
-  bool is_persp = drw_view().winmat[3][3] == 0.0f;
-  if (is_persp) {
+  if (drw_view_is_perspective()) {
     float3 V = drw_view_position() - P;
     dist = length(V);
     V /= dist;
@@ -214,5 +213,6 @@ void main()
     fade *= linearstep(grid_depth, grid_depth + bias, scene_depth);
   }
 
+  out_color.rgb = float3(1, 0, 1);
   out_color.a *= fade;
 }
