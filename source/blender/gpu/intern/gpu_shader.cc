@@ -881,12 +881,8 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
   std::unique_lock lock(mutex_);
 
   Batch *batch = MEM_new<Batch>(__func__);
+  batch->infos = infos;
   batch->shaders.reserve(infos.size());
-  batch->infos.reserve(infos.size());
-  for (const shader::ShaderCreateInfo *info : infos) {
-    /* Make a local copy so we don't have to care about the calling code deleting it. */
-    batch->infos.append(*info);
-  }
 
   BatchHandle handle = next_batch_handle_++;
   batches_.add(handle, batch);
@@ -900,8 +896,8 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
     }
   }
   else {
-    for (shader::ShaderCreateInfo &info : batch->infos) {
-      batch->shaders.append(compile(info, false));
+    for (const shader::ShaderCreateInfo *info : infos) {
+      batch->shaders.append(compile(*info, false));
     }
   }
 
@@ -1013,7 +1009,7 @@ void ShaderCompiler::do_work(void *work_payload)
 
   /* Compile */
   if (!batch->is_specialization_batch()) {
-    batch->shaders[shader_index] = compile_shader(batch->infos[shader_index]);
+    batch->shaders[shader_index] = compile_shader(*batch->infos[shader_index]);
   }
   else {
     specialize_shader(batch->specializations[shader_index]);
