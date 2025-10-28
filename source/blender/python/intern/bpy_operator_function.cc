@@ -23,12 +23,17 @@
 #include "bpy_capi_utils.hh"
 #include "bpy_operator_function.hh"
 
+#include "bpy_operator.hh"
+
 #include "BKE_context.hh"
 #include "BKE_scene.hh"
 
 #include "WM_api.hh"
+#include "WM_op_handlers.hh"
 
 #include "DEG_depsgraph.hh"
+
+#include "structmember.h"
 
 /* -------------------------------------------------------------------- */
 /** \name Private Utility Functions
@@ -451,6 +456,11 @@ static PyObject *bpy_op_fn_get_bl_options(BPyOpFunction *self, void * /*closure*
   return result;
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_op_fn_get_handlers_doc,
+    "Handlers options");
+
 static PyObject *bpy_op_fn_get_doc(BPyOpFunction *self, void * /*closure*/)
 {
   return bpy_op_fn_get_doc_impl(self);
@@ -465,6 +475,170 @@ static PyGetSetDef bpy_op_fn_getsetters[] = {
     /* No doc-string, as this is standard part of the Python spec. */
     {"__doc__", (getter)bpy_op_fn_get_doc, nullptr, nullptr, nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr}};
+
+/** \} */
+
+/** Method definitions for BPyOpFunction. */
+static PyMethodDef bpy_op_handler_methods[] = {{nullptr, nullptr, 0, nullptr}};
+
+/** Method definitions for BPyOpFunction. */
+static PyMethodDef bpy_op_handler_action_methods[] = {
+    {"append", (PyCFunction)op_handler_append, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {"remove", (PyCFunction)op_handler_remove, METH_VARARGS | METH_KEYWORDS, nullptr},
+    {nullptr, nullptr, 0, nullptr}};
+
+static PyMemberDef bpy_op_fn_members[] = {
+    {"handlers",
+     T_OBJECT_EX,
+     offsetof(BPyOpFunction, handlers),
+     READONLY,
+     bpy_op_fn_get_handlers_doc},
+    {nullptr},
+};
+
+static PyMemberDef bpy_op_handlers_members[] = {
+    {"invoke_pre",
+     T_OBJECT_EX,
+     offsetof(BPyOpHandlers, invoke_pre),
+     READONLY,
+     bpy_op_fn_get_handlers_doc},
+    {"invoke_post",
+     T_OBJECT_EX,
+     offsetof(BPyOpHandlers, invoke_post),
+     READONLY,
+     bpy_op_fn_get_handlers_doc},
+    {"modal", T_OBJECT_EX, offsetof(BPyOpHandlers, modal), READONLY, bpy_op_fn_get_handlers_doc},
+    {"modal_end",
+     T_OBJECT_EX,
+     offsetof(BPyOpHandlers, modal_end),
+     READONLY,
+     bpy_op_fn_get_handlers_doc},
+    {nullptr},
+};
+
+/* -------------------------------------------------------------------- */
+/** \name Type Declaration #BPyOpFunctionHandlerInvokePreType
+ * \{ */
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_op_handler_invoke_pre_doc,
+    "Handler invoke pre options");
+
+PyTypeObject BPyOpHandlersActionsType = {
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "BPyOpHandlersActions",
+    /*tp_basicsize*/ sizeof(BPyOpHandlersActions),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ nullptr,
+    /*tp_print*/ 0,
+    /*tp_getattr*/ nullptr,
+    /*tp_setattr*/ nullptr,
+    /*tp_as_async*/ nullptr,
+    /*tp_repr*/ nullptr,
+    /*tp_as_number*/ nullptr,
+    /*tp_as_sequence*/ nullptr,
+    /*tp_as_mapping*/ nullptr,
+    /*tp_hash*/ nullptr,
+    /*tp_call*/ nullptr,
+    /*tp_str*/ nullptr,
+    /*tp_getattro*/ PyObject_GenericGetAttr,
+    /*tp_setattro*/ nullptr,
+    /*tp_as_buffer*/ nullptr,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
+    /*tp_doc*/ bpy_op_handler_invoke_pre_doc,
+    /*tp_traverse*/ nullptr,
+    /*tp_clear*/ nullptr,
+    /*tp_richcompare*/ nullptr,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ nullptr,
+    /*tp_iternext*/ nullptr,
+    /*tp_methods*/ bpy_op_handler_action_methods,
+    /*tp_members*/ nullptr,
+    /*tp_getset*/ nullptr,
+    /*tp_base*/ nullptr,
+    /*tp_dict*/ nullptr,
+    /*tp_descr_get*/ nullptr,
+    /*tp_descr_set*/ nullptr,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ nullptr,
+    /*tp_alloc*/ nullptr,
+    /*tp_new*/ nullptr,
+    /*tp_free*/ nullptr,
+    /*tp_is_gc*/ nullptr,
+    /*tp_bases*/ nullptr,
+    /*tp_mro*/ nullptr,
+    /*tp_cache*/ nullptr,
+    /*tp_subclasses*/ nullptr,
+    /*tp_weaklist*/ nullptr,
+    /*tp_del*/ nullptr,
+    /*tp_version_tag*/ 0,
+    /*tp_finalize*/ nullptr,
+    /*tp_vectorcall*/ nullptr,
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Type Declaration #BPyOpFunctionHandlerType
+ * \{ */
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_op_handler_doc,
+    "Handler options");
+
+PyTypeObject BPyOpHandlerType = {
+    /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "BPyOpHandlers",
+    /*tp_basicsize*/ sizeof(BPyOpHandlers),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ nullptr,
+    /*tp_print*/ 0,
+    /*tp_getattr*/ nullptr,
+    /*tp_setattr*/ nullptr,
+    /*tp_as_async*/ nullptr,
+    /*tp_repr*/ nullptr,
+    /*tp_as_number*/ nullptr,
+    /*tp_as_sequence*/ nullptr,
+    /*tp_as_mapping*/ nullptr,
+    /*tp_hash*/ nullptr,
+    /*tp_call*/ nullptr,
+    /*tp_str*/ nullptr,
+    /*tp_getattro*/ PyObject_GenericGetAttr,
+    /*tp_setattro*/ nullptr,
+    /*tp_as_buffer*/ nullptr,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
+    /*tp_doc*/ bpy_op_handler_doc,
+    /*tp_traverse*/ nullptr,
+    /*tp_clear*/ nullptr,
+    /*tp_richcompare*/ nullptr,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ nullptr,
+    /*tp_iternext*/ nullptr,
+    /*tp_methods*/ bpy_op_handler_methods,
+    /*tp_members*/ bpy_op_handlers_members,
+    /*tp_getset*/ nullptr,
+    /*tp_base*/ nullptr,
+    /*tp_dict*/ nullptr,
+    /*tp_descr_get*/ nullptr,
+    /*tp_descr_set*/ nullptr,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ nullptr,
+    /*tp_alloc*/ nullptr,
+    /*tp_new*/ nullptr,
+    /*tp_free*/ nullptr,
+    /*tp_is_gc*/ nullptr,
+    /*tp_bases*/ nullptr,
+    /*tp_mro*/ nullptr,
+    /*tp_cache*/ nullptr,
+    /*tp_subclasses*/ nullptr,
+    /*tp_weaklist*/ nullptr,
+    /*tp_del*/ nullptr,
+    /*tp_version_tag*/ 0,
+    /*tp_finalize*/ nullptr,
+    /*tp_vectorcall*/ nullptr,
+};
 
 /** \} */
 
@@ -515,7 +689,7 @@ PyTypeObject BPyOpFunctionType = {
     /*tp_iter*/ nullptr,
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ bpy_op_fn_methods,
-    /*tp_members*/ nullptr,
+    /*tp_members*/ bpy_op_fn_members,
     /*tp_getset*/ bpy_op_fn_getsetters,
     /*tp_base*/ nullptr,
     /*tp_dict*/ nullptr,
@@ -552,6 +726,22 @@ int BPyOpFunction_InitTypes()
   return 0;
 }
 
+static bool create_handler_action(BPyOpHandlersActions *&handler_action,
+                                  char *idname,
+                                  int handler_type)
+{
+  handler_action = (BPyOpHandlersActions *)PyObject_New(BPyOpHandlersActions,
+                                                        &BPyOpHandlersActionsType);
+  if (!handler_action) {
+    return false;
+  }
+
+  BLI_strncpy(handler_action->idname, idname, OP_MAX_TYPENAME);
+  handler_action->handler_type = handler_type;
+
+  return true;
+}
+
 PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
 {
   const char *op_mod_str, *op_fn_str;
@@ -573,6 +763,11 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
+  op_fn->handlers = (BPyOpHandlers *)PyObject_New(BPyOpHandlers, &BPyOpHandlerType);
+  if (!op_fn->handlers) {
+    return nullptr;
+  }
+
   /* Construct the Blender `idname` (e.g., `OBJECT_OT_select_all`). */
   char op_mod_str_upper[OP_MAX_TYPENAME];
   BLI_strncpy(op_mod_str_upper, op_mod_str, sizeof(op_mod_str_upper));
@@ -583,6 +778,26 @@ PyObject *pyop_create_function(PyObject * /*self*/, PyObject *args)
   /* Prevented by the #OP_MAX_TYPENAME check. */
   BLI_assert(idname_len < sizeof(op_fn->idname));
   UNUSED_VARS_NDEBUG(idname_len);
+
+  if (!create_handler_action(op_fn->handlers->invoke_pre, op_fn->idname, HANDLER_TYPE_PRE_INVOKE))
+  {
+    return nullptr;
+  }
+
+  if (!create_handler_action(
+          op_fn->handlers->invoke_post, op_fn->idname, HANDLER_TYPE_POST_INVOKE))
+  {
+    return nullptr;
+  }
+
+  if (!create_handler_action(op_fn->handlers->modal, op_fn->idname, HANDLER_TYPE_MODAL)) {
+    return nullptr;
+  }
+
+  if (!create_handler_action(op_fn->handlers->modal_end, op_fn->idname, HANDLER_TYPE_MODAL_END)) {
+    return nullptr;
+  }
+
   return (PyObject *)op_fn;
 }
 

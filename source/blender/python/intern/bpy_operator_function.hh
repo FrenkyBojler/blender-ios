@@ -15,6 +15,20 @@
 
 #include "DNA_windowmanager_types.h"
 
+typedef struct {
+  PyObject_HEAD
+  char idname[OP_MAX_TYPENAME];
+  int handler_type;
+} BPyOpHandlersActions;
+
+typedef struct {
+  PyObject_HEAD
+  BPyOpHandlersActions *invoke_pre;
+  BPyOpHandlersActions *invoke_post;
+  BPyOpHandlersActions *modal;
+  BPyOpHandlersActions *modal_end;
+} BPyOpHandlers;
+
 /**
  * A callable operator.
  *
@@ -24,6 +38,7 @@ typedef struct {
   PyObject_HEAD
   /** Operator ID name (e.g., `OBJECT_OT_select_all`). */
   char idname[OP_MAX_TYPENAME];
+  BPyOpHandlers *handlers;
 } BPyOpFunction;
 
 extern PyTypeObject BPyOpFunctionType;

@@ -16,6 +16,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "WM_op_handlers.hh"
 #include "WM_types.hh"
 
 #include "op_handlers/intern/wm_op_handlers_intern.hh"

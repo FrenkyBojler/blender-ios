@@ -14,12 +14,6 @@
 
 #include "intern/wm_op_handlers_intern.hh"
 
-#define HANDLER_TYPE_ALL 0
-#define HANDLER_TYPE_PRE_INVOKE 1
-#define HANDLER_TYPE_POST_INVOKE 2
-#define HANDLER_TYPE_MODAL 3
-#define HANDLER_TYPE_MODAL_END 4
-
 #ifdef __cplusplus
 extern "C" {
 #endif
