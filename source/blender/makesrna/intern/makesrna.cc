@@ -3866,12 +3866,12 @@ static void rna_generate_function_prototypes(BlenderRNA *brna, StructRNA *srna, 
 static void rna_generate_struct_forward_declarations(FILE *f)
 {
   blender::VectorSet<std::string> structs_set = {"ID", "PointerRNA", "StructRNA", "FunctionRNA"};
-  LISTBASE_FOREACH (StructDefRNA *, dsrna, &DefRNA.structs) {
+  LISTBASE_FOREACH (const StructDefRNA *, dsrna, &DefRNA.structs) {
     if (dsrna->dnaname) {
       structs_set.add(dsrna->dnaname);
     }
-    LISTBASE_FOREACH (FunctionDefRNA *, dfunc, &dsrna->functions) {
-      LISTBASE_FOREACH (PropertyDefRNA *, dparm, &dfunc->cont.properties) {
+    LISTBASE_FOREACH (const FunctionDefRNA *, dfunc, &dsrna->functions) {
+      LISTBASE_FOREACH (const PropertyDefRNA *, dparm, &dfunc->cont.properties) {
         if (dparm->prop->type != PROP_POINTER || rna_type_type_name(dparm->prop)) {
           continue;
         }
@@ -3885,23 +3885,26 @@ static void rna_generate_struct_forward_declarations(FILE *f)
     }
   }
 
-  blender::Vector<std::string> structs_vec(structs_set.as_span());
-  std::sort(
-      structs_vec.begin(), structs_vec.end(), [](blender::StringRef a, blender::StringRef b) {
-        /* Keep structs within namespaces last. */
-        bool scoped_name[2] = {a.find("::") != a.not_found, b.find("::") != b.not_found};
-        return (scoped_name[0] == scoped_name[1] && BLI_strcasecmp(a.data(), b.data()) < 0) ||
-               scoped_name[0] < scoped_name[1];
-      });
+  blender::Vector<std::string> structs_vec = structs_set.extract_vector();
+  std::sort(structs_vec.begin(),
+            structs_vec.end(),
+            [](const blender::StringRef a, const blender::StringRef b) {
+              /* Keep structs within namespaces last. */
+              bool scoped_name[2] = {a.find("::") != blender::StringRef::not_found,
+                                     b.find("::") != blender::StringRef::not_found};
+              return (scoped_name[0] == scoped_name[1] &&
+                      BLI_strcasecmp(a.data(), b.data()) < 0) ||
+                     scoped_name[0] < scoped_name[1];
+            });
 
   /* For grouping structs within namespaces. */
   blender::StringRef last_namespace = "";
 
-  for (blender::StringRef type : structs_vec) {
+  for (const blender::StringRef type : structs_vec) {
     blender::StringRef namespace_name;
     blender::StringRef struct_name;
     int namespace_length = type.find_last_of("::");
-    if (namespace_length != type.not_found) {
+    if (namespace_length != blender::StringRef::not_found) {
       namespace_name = type.substr(0, namespace_length - 1);
       struct_name = type.substr(namespace_length + 1);
     }
