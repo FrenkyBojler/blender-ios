@@ -352,7 +352,7 @@ class NWLinkUseNodeNameMenu(Menu, NWBaseMenu):
 
 class NWLinkUseOutputsNamesMenu(Menu, NWBaseMenu):
     bl_idname = "NODE_MT_nw_link_use_outputs_names_menu"
-    bl_label = "Use Outputs Names"
+    bl_label = "Use Output Names"
 
     def draw(self, context):
         layout = self.layout
