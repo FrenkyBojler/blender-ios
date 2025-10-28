@@ -17,6 +17,7 @@
 #  pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
+#include "GHOST_Types.h"
 #include "intern/GHOST_Context.hh"
 #include "intern/GHOST_ContextMTL.hh"
 #include "intern/GHOST_Window.hh"
@@ -438,8 +439,7 @@ enum MTLPipelineStateDirtyFlag {
        MTL_PIPELINE_STATE_FRONT_FACING_FLAG | MTL_PIPELINE_STATE_CULLMODE_FLAG)
 };
 
-/* Ignore full flag bit-mask `MTL_PIPELINE_STATE_ALL_FLAG`. */
-ENUM_OPERATORS(MTLPipelineStateDirtyFlag, MTL_PIPELINE_STATE_CULLMODE_FLAG);
+ENUM_OPERATORS(MTLPipelineStateDirtyFlag);
 
 struct MTLUniformBufferBinding {
   bool bound;
@@ -1012,10 +1012,12 @@ class MTLContext : public Context {
   void set_ghost_window(GHOST_WindowHandle ghostWinHandle);
 };
 
-/* GHOST Context callback and present. */
+/* GHOST Context callbacks. */
 void present(MTLRenderPassDescriptor *blit_descriptor,
              id<MTLRenderPipelineState> blit_pso,
              id<MTLTexture> swapchain_texture,
              id<CAMetalDrawable> drawable);
+
+void xr_blit(id<MTLTexture> metal_xr_texture, int ofsx, int ofsy, int width, int height);
 
 }  // namespace blender::gpu

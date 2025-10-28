@@ -58,6 +58,10 @@ if(WITH_GPU_SHADER_ASSERT)
   add_definitions(-DWITH_GPU_SHADER_ASSERT)
 endif()
 
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
+endif()
+
 set(INC_SYS
 )
 
@@ -450,6 +454,7 @@ endif()
 
 set(GLSL_SRC
   GPU_shader_shared.hh
+  GPU_xr_defines.hh
 
   shaders/infos/gpu_clip_planes_infos.hh
   shaders/infos/gpu_index_load_infos.hh

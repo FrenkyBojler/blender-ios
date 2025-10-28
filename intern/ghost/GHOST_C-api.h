@@ -589,7 +589,7 @@ extern char *GHOST_GetTitle(GHOST_WindowHandle windowhandle);
  * \param filepath: The file directory.
  * \return Indication if the backend implements file associated with window.
  */
-extern GHOST_TSuccess GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath);
+extern void GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath);
 
 /**
  * Return the current window decoration style flags.
@@ -1006,6 +1006,13 @@ extern GHOST_TCapabilityFlag GHOST_GetCapabilities(void);
  * Assign the callback which generates a back-trace (may be nullptr).
  */
 extern void GHOST_SetBacktraceHandler(GHOST_TBacktraceFn backtrace_fn);
+
+/**
+ * When `use_window_frame` is false, don't show window frames.
+ *
+ * \note This must run before the system is created.
+ */
+extern void GHOST_UseWindowFrame(bool use_window_frame);
 
 /**
  * Focus window after opening, or put them in the background.
