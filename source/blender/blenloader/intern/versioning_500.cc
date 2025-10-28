@@ -4113,7 +4113,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 82)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 5)) {
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       wm->xr.session_settings.controller_dominant_hand = XR_CONTROLLER_DHAND_RIGHT;
 
