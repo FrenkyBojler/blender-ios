@@ -334,7 +334,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
       }
       if (const auto *item = dynamic_cast<const ListBakeItem *>(&bake_item)) {
         if (const auto *simple_list = std::get_if<ListBakeItem::SimpleList>(&item->value)) {
-          if (simple_list && (*simple_list)->cpp_type() == base_type) {
+          if (*simple_list && (*simple_list)->cpp_type() == base_type) {
             return SocketValueVariant::From(std::move(*simple_list));
           }
         }

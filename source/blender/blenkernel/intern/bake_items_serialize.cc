@@ -45,6 +45,10 @@ namespace blender::bke::bake {
 using namespace io::serialize;
 using DictionaryValuePtr = std::shared_ptr<DictionaryValue>;
 
+static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io_item,
+                                                       const BlobReader &blob_reader,
+                                                       const BlobReadSharing &blob_sharing);
+
 std::shared_ptr<DictionaryValue> BlobSlice::serialize() const
 {
   auto io_slice = std::make_shared<DictionaryValue>();
@@ -1440,6 +1444,40 @@ template<typename T>
   return false;
 }
 
+[[nodiscard]] static bool deserialize_bundle(const io::serialize::DictionaryValue &io_bundle,
+                                             const BlobReader &blob_reader,
+                                             const BlobReadSharing &blob_sharing,
+                                             BundleBakeItem &r_bake_item)
+{
+  const ArrayValue *io_items = io_bundle.lookup_array("items");
+  if (!io_items) {
+    return false;
+  }
+  for (const auto &io_item_ : io_items->elements()) {
+    const DictionaryValue *io_item = io_item_->as_dictionary_value();
+    if (!io_item) {
+      return false;
+    }
+    const std::optional<std::string> key = io_item->lookup_str("key");
+    if (!key) {
+      return false;
+    }
+    const std::optional<StringRefNull> socket_idname = io_item->lookup_str("socket_idname");
+    if (!socket_idname) {
+      return false;
+    }
+    const DictionaryValue *io_item_value = io_item->lookup_dict("value");
+    std::unique_ptr<BakeItem> value = deserialize_bake_item(
+        *io_item_value, blob_reader, blob_sharing);
+    if (!value) {
+      return false;
+    }
+    r_bake_item.items.append(
+        BundleBakeItem::Item{*key, BundleBakeItem::SocketValue{*socket_idname, std::move(value)}});
+  }
+  return true;
+}
+
 static void serialize_bake_item(const BakeItem &item,
                                 BlobWriter &blob_writer,
                                 BlobWriteSharing &blob_sharing,
@@ -1511,8 +1549,35 @@ static void serialize_bake_item(const BakeItem &item,
   }
   else if (const auto *list_state_item = dynamic_cast<const ListBakeItem *>(&item)) {
     r_io_item.append_str("type", "LIST");
-    /* TODO */
-    UNUSED_VARS(list_state_item);
+    if (const auto *simple_list = std::get_if<ListBakeItem::SimpleList>(&list_state_item->value)) {
+      if (*simple_list) {
+        const nodes::List &list = **simple_list;
+        if (list.cpp_type() == CPPType::get<std::string>()) {
+          /* TODO Not supported yet, can't be constructed by users. */
+          BLI_assert_unreachable();
+        }
+        else {
+          const eCustomDataType data_type = cpp_type_to_custom_data_type(list.cpp_type());
+          r_io_item.append_str("item_type", get_data_type_io_name(data_type));
+          ArrayValue &io_items = *r_io_item.append_array("items");
+          const GVArray list_varray = list.varray();
+          BUFFER_FOR_CPP_TYPE_VALUE(list.cpp_type(), item_value);
+          for (const int i : IndexRange(list_varray.size())) {
+            list_varray.get(i, item_value);
+            auto item = serialize_primitive_value(data_type, item_value);
+            io_items.append(std::move(item));
+          }
+        }
+      }
+    }
+    if (const auto *bundle_list = std::get_if<ListBakeItem::BundleList>(&list_state_item->value)) {
+      r_io_item.append_str("item_type", "BUNDLE");
+      ArrayValue &io_items = *r_io_item.append_array("items");
+      for (const BundleBakeItem &bundle_bake_item : *bundle_list) {
+        DictionaryValue &io_bundle_item = *io_items.append_dict();
+        serialize_bake_item(bundle_bake_item, blob_writer, blob_sharing, io_bundle_item);
+      }
+    }
   }
 }
 
@@ -1600,39 +1665,52 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
     }
   }
   if (*state_item_type == StringRef("BUNDLE")) {
-    const ArrayValue *io_items = io_item.lookup_array("items");
-    if (!io_items) {
-      return {};
-    }
     auto bundle = std::make_unique<BundleBakeItem>();
-    for (const auto &io_item_ : io_items->elements()) {
-      const DictionaryValue *io_item = io_item_->as_dictionary_value();
-      if (!io_item) {
-        return {};
-      }
-      const std::optional<std::string> key = io_item->lookup_str("key");
-      if (!key) {
-        return {};
-      }
-      const std::optional<StringRefNull> socket_idname = io_item->lookup_str("socket_idname");
-      if (!socket_idname) {
-        return {};
-      }
-      const DictionaryValue *io_item_value = io_item->lookup_dict("value");
-      std::unique_ptr<BakeItem> value = deserialize_bake_item(
-          *io_item_value, blob_reader, blob_sharing);
-      if (!value) {
-        return {};
-      }
-      bundle->items.append(BundleBakeItem::Item{
-          *key, BundleBakeItem::SocketValue{*socket_idname, std::move(value)}});
+    if (!deserialize_bundle(io_item, blob_reader, blob_sharing, *bundle)) {
+      return {};
     }
     return bundle;
   }
   if (*state_item_type == StringRef("LIST")) {
-    /* TODO */
-    auto list = std::make_unique<ListBakeItem>(nodes::ListPtr{});
-    return list;
+    const std::optional<StringRefNull> io_list_item_type = io_item.lookup_str("item_type");
+    const ArrayValue *io_items = io_item.lookup_array("items");
+    if (!io_list_item_type || !io_items) {
+      return {};
+    }
+    const Span<std::shared_ptr<Value>> io_elements = io_items->elements();
+    if (const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(
+            *io_list_item_type))
+    {
+      const CPPType &cpp_type = *custom_data_type_to_cpp_type(*data_type);
+      auto array_data = nodes::List::ArrayData::ForConstructed(cpp_type, io_elements.size());
+      GMutableSpan array_span = {cpp_type, array_data.data, io_elements.size()};
+      for (const int i : io_elements.index_range()) {
+        if (!io_elements[i]) {
+          continue;
+        }
+        if (!deserialize_primitive_value(*io_elements[i], *data_type, array_span[i])) {
+          return {};
+        }
+      }
+      auto list = nodes::List::create(cpp_type, std::move(array_data), io_elements.size());
+      return std::make_unique<ListBakeItem>(std::move(list));
+    }
+    if (*io_list_item_type == "BUNDLE") {
+      Vector<BundleBakeItem> bundle_list(io_elements.size());
+      for (const int i : io_elements.index_range()) {
+        if (!io_elements[i]) {
+          return {};
+        }
+        const DictionaryValue *io_bundle_dict = io_elements[i]->as_dictionary_value();
+        if (!io_bundle_dict) {
+          return {};
+        }
+        if (!deserialize_bundle(*io_bundle_dict, blob_reader, blob_sharing, bundle_list[i])) {
+          return {};
+        }
+      }
+      return std::make_unique<ListBakeItem>(std::move(bundle_list));
+    }
   }
   const std::shared_ptr<io::serialize::Value> *io_data = io_item.lookup("data");
   if (!io_data) {
