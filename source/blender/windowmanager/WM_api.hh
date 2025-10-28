@@ -1313,6 +1313,7 @@ size_t WM_operator_py_idname(char *dst, const char *src) ATTR_NONNULL(1, 2);
 bool WM_operator_py_idname_ok_or_report(ReportList *reports,
                                         const char *classname,
                                         const char *idname);
+bool WM_operator_idname_ok_or_report(ReportList *reports, const char *idname);
 /**
  * Return true when an operators name follows the `SOME_OT_op` naming convention.
  */

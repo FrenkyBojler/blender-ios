@@ -89,6 +89,8 @@ namespace geo_log = blender::nodes::geo_eval_log;
 
 namespace blender::ed::geometry {
 
+using asset_system::AssetRepresentation;
+
 /**
  * Abstraction layer over local node groups and assets, so operators can be registered and
  * referenced regardless of that distinction.
@@ -110,12 +112,17 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   };
   std::variant<AssetRef, LocalRef> group_ref;
 
-  static OperatorTypeData from_asset(const asset_system::AssetRepresentation &asset);
-  static OperatorTypeData from_group(const bNodeTree &group);
+  static std::optional<OperatorTypeData> from_asset(const AssetRepresentation &asset,
+                                                    ReportList &reports);
+  static std::optional<OperatorTypeData> from_group(const bNodeTree &group, ReportList &reports);
 };
 
-static std::string operator_idname_for_custom(const StringRefNull custom_idname)
+static std::optional<std::string> operator_idname_for_custom(const StringRefNull custom_idname,
+                                                             ReportList *reports)
 {
+  if (!WM_operator_idname_ok_or_report(reports, custom_idname.c_str())) {
+    return std::nullopt;
+  }
   char idname_buf[OP_MAX_TYPENAME];
   WM_operator_bl_idname(idname_buf, custom_idname.c_str());
   return idname_buf;
@@ -139,23 +146,29 @@ static std::string operator_idname_fallback(const StringRefNull name)
   return name_str;
 }
 
-static std::string operator_idname_for_asset(const asset_system::AssetRepresentation &asset)
+static std::optional<std::string> operator_idname_for_asset(const AssetRepresentation &asset,
+                                                            ReportList *reports)
 {
   const AssetMetaData &metadata = asset.get_metadata();
   const IDProperty *id_property = BKE_asset_metadata_idprop_find(&metadata, "node_tool_idname");
   if (id_property && id_property->type == IDP_STRING) {
-    return operator_idname_for_custom(IDP_string_get(id_property));
+    return operator_idname_for_custom(IDP_string_get(id_property), reports);
   }
   return operator_idname_fallback(asset.get_name());
 }
 
-OperatorTypeData OperatorTypeData::from_asset(const asset_system::AssetRepresentation &asset)
+std::optional<OperatorTypeData> OperatorTypeData::from_asset(
+    const asset_system::AssetRepresentation &asset, ReportList &reports)
 {
-  const AssetMetaData &metadata = asset.get_metadata();
+  std::optional<std::string> idname = operator_idname_for_asset(asset, &reports);
+  if (!idname) {
+    return std::nullopt;
+  }
 
+  const AssetMetaData &metadata = asset.get_metadata();
   OperatorTypeData type_data;
   type_data.name = asset.get_name();
-  type_data.idname = operator_idname_for_asset(asset);
+  type_data.idname = std::move(*idname);
   type_data.description = metadata.description ? metadata.description : "";
   const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
       &metadata, "geometry_node_asset_traits_flag");
@@ -172,19 +185,25 @@ OperatorTypeData OperatorTypeData::from_asset(const asset_system::AssetRepresent
   return type_data;
 }
 
-static std::string operator_idname_for_group(const bNodeTree &group)
+static std::optional<std::string> operator_idname_for_group(const bNodeTree &group,
+                                                            ReportList *reports)
 {
   if (const char *idname = group.geometry_node_asset_traits->node_tool_idname) {
-    return operator_idname_for_custom(idname);
+    return operator_idname_for_custom(idname, reports);
   }
   return operator_idname_fallback(BKE_id_name(group.id));
 }
 
-OperatorTypeData OperatorTypeData::from_group(const bNodeTree &group)
+std::optional<OperatorTypeData> OperatorTypeData::from_group(const bNodeTree &group,
+                                                             ReportList &reports)
 {
+  std::optional<std::string> idname = operator_idname_for_group(group, &reports);
+  if (!idname) {
+    return std::nullopt;
+  }
   OperatorTypeData type_data;
   type_data.name = BKE_id_name(group.id);
-  type_data.idname = operator_idname_for_group(group);
+  type_data.idname = std::move(*idname);
   type_data.description = group.description ? group.description : "";
   type_data.flag = GeometryNodeAssetTraitFlag(group.geometry_node_asset_traits->flag);
   type_data.group_ref = OperatorTypeData::LocalRef{group.id.name + 2, group.id.session_uid};
@@ -1112,6 +1131,40 @@ static void register_node_tool(wmOperatorType *ot, void *user_data)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
+struct OperatorRegisterErrors : NonCopyable {
+  ReportList reports;
+  OperatorRegisterErrors()
+  {
+    BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
+  }
+  ~OperatorRegisterErrors()
+  {
+    BKE_reports_free(&reports);
+  }
+  void clear()
+  {
+    BKE_reports_clear(&reports);
+  }
+};
+
+static OperatorRegisterErrors &get_registration_errors()
+{
+  static OperatorRegisterErrors errors;
+  return errors;
+}
+
+void ui_template_node_operator_registration_errors(uiLayout &layout)
+{
+  const OperatorRegisterErrors &errors = get_registration_errors();
+  if (BLI_listbase_is_empty(&errors.reports.list)) {
+    return;
+  }
+  uiLayout &col = layout.column(false);
+  LISTBASE_FOREACH (Report *, report, &errors.reports.list) {
+    col.label(report->message, ICON_ERROR);
+  }
+}
+
 static void unregister_node_group_operators()
 {
   Set<StringRefNull> idnames;
@@ -1129,6 +1182,9 @@ void register_node_group_operators(const bContext &C)
 {
   unregister_node_group_operators();
 
+  OperatorRegisterErrors &errors = get_registration_errors();
+  errors.clear();
+
   Main &bmain = *CTX_data_main(&C);
   LISTBASE_FOREACH (bNodeTree *, ntree, &bmain.nodetrees) {
     if (!ntree->geometry_node_asset_traits) {
@@ -1137,8 +1193,19 @@ void register_node_group_operators(const bContext &C)
     if ((ntree->geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) == 0) {
       continue;
     }
-    OperatorTypeData type_data = OperatorTypeData::from_group(*ntree);
-    WM_operatortype_append_ptr(register_node_tool, &type_data);
+    std::optional<OperatorTypeData> type_data = OperatorTypeData::from_group(*ntree,
+                                                                             errors.reports);
+    if (!type_data) {
+      continue;
+    }
+    if (WM_operatortype_find(type_data->idname.c_str(), true)) {
+      BKE_reportf(&errors.reports,
+                  RPT_ERROR,
+                  "Cannot replace builtin operator '%s",
+                  type_data->idname.c_str());
+      continue;
+    }
+    WM_operatortype_append_ptr(register_node_tool, &type_data.value());
   }
 
   const AssetLibraryReference library_ref = asset_system::all_library_reference();
@@ -1148,7 +1215,7 @@ void register_node_group_operators(const bContext &C)
     return;
   }
 
-  ed::asset::list::iterate(library_ref, [&](asset_system::AssetRepresentation &asset) {
+  ed::asset::list::iterate(library_ref, [&](AssetRepresentation &asset) {
     if (asset.get_id_type() != ID_NT) {
       return true;
     }
@@ -1164,8 +1231,19 @@ void register_node_group_operators(const bContext &C)
         return true;
       }
     }
-    OperatorTypeData type_data = OperatorTypeData::from_asset(asset);
-    WM_operatortype_append_ptr(register_node_tool, &type_data);
+    std::optional<OperatorTypeData> type_data = OperatorTypeData::from_asset(asset,
+                                                                             errors.reports);
+    if (!type_data) {
+      return true;
+    }
+    if (WM_operatortype_find(type_data->idname.c_str(), true)) {
+      BKE_reportf(&errors.reports,
+                  RPT_ERROR,
+                  "Cannot replace builtin operator '%s",
+                  type_data->idname.c_str());
+      return true;
+    }
+    WM_operatortype_append_ptr(register_node_tool, &type_data.value());
     return true;
   });
 }
@@ -1503,9 +1581,9 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       layout->separator();
       add_separator = false;
     }
-    OperatorTypeData type_data = OperatorTypeData::from_asset(*asset);
-    PointerRNA props_ptr = layout->op(type_data.idname,
-                                      IFACE_(type_data.name),
+
+    PointerRNA props_ptr = layout->op(operator_idname_for_asset(*asset, nullptr).value_or(""),
+                                      IFACE_(asset->get_name()),
                                       ICON_NONE,
                                       wm::OpCallContext::InvokeRegionWin,
                                       UI_ITEM_NONE);
@@ -1552,7 +1630,8 @@ static bool unassigned_local_poll(const bContext &C)
   }
   const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(*active_object);
   LISTBASE_FOREACH (const bNodeTree *, group, &bmain.nodetrees) {
-    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
+    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu.
+     */
     if (group->id.library_weak_reference || group->id.asset_data) {
       continue;
     }
@@ -1578,9 +1657,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   }
   uiLayout *layout = menu->layout;
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    OperatorTypeData type_data = OperatorTypeData::from_asset(*asset);
-    layout->op(type_data.idname,
-               IFACE_(type_data.name),
+    layout->op(operator_idname_for_asset(*asset, nullptr).value_or(""),
+               IFACE_(asset->get_name()),
                ICON_NONE,
                wm::OpCallContext::InvokeRegionWin,
                UI_ITEM_NONE);
@@ -1611,9 +1689,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
       first = false;
     }
 
-    OperatorTypeData type_data = OperatorTypeData::from_group(*group);
-    layout->op(type_data.idname,
-               type_data.name,
+    layout->op(operator_idname_for_group(*group, nullptr).value_or(""),
+               BKE_id_name(group->id),
                ICON_NONE,
                wm::OpCallContext::InvokeRegionWin,
                UI_ITEM_NONE);

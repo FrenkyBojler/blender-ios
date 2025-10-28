@@ -1092,6 +1092,7 @@ class NODE_PT_node_tree_properties(Panel):
                 if tool_body:
                     tool_body.active = group.is_tool
                     tool_body.prop(group, "node_tool_idname", text="Identifier")
+                    tool_body.template_node_operator_registration_errors()
 
 
 class NODE_PT_node_tree_animation(Panel):

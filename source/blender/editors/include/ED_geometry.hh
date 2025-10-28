@@ -56,6 +56,7 @@ void operatortypes_geometry();
  * asset or local group.
  */
 void register_node_group_operators(const bContext &C);
+void ui_template_node_operator_registration_errors(uiLayout &layout);
 
 /**
  * Convert an attribute with the given name to a new type and domain.
