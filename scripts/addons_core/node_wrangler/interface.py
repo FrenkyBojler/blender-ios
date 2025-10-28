@@ -415,8 +415,7 @@ class NWAttributeMenu(bpy.types.Menu):
 
 def select_parent_children_buttons(self, context):
     layout = self.layout
-    layout.operator(operators.NWSelectParentChildren.bl_idname,
-                    text="Select frame's members (children)").option = 'CHILD'
+    layout.operator(operators.NWSelectParentChildren.bl_idname, text="Select Frame Children").option = 'CHILD'
     layout.operator(operators.NWSelectParentChildren.bl_idname, text="Select parent frame").option = 'PARENT'
 
 
