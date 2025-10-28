@@ -93,7 +93,7 @@ constexpr char_term op_multiply('*', 2);
 
 constexpr parser p(
     expr,
-    terms(op_plus, op_multiply, number),
+    terms(op_plus, op_multiply, number, '(', ')'),
     nterms(expr),
     rules(
         expr(number) >>=
@@ -107,7 +107,11 @@ constexpr parser p(
         expr(expr, op_multiply, expr) >>=
         [](ParseContext &ctx, ast::Expr *v_expr_a, char /*skip*/, ast::Expr *v_expr_b) {
           return &ctx.scope.construct<ast::Expr>(ast::BinaryOp{"*", v_expr_a, v_expr_b});
-        }));
+        },
+        expr('(', expr, ')') >>= [](ParseContext & /*ctx*/,
+                                    char /*skip*/,
+                                    ast::Expr *v_expr,
+                                    char /*skip*/) { return v_expr; }));
 }  // namespace grammar
 
 static void node_geo_exec(GeoNodeExecParams params)
