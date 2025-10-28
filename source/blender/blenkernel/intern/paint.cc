@@ -2715,13 +2715,6 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
     return;
   }
 
-  const Mesh *mesh_orig = static_cast<Mesh *>(ob_orig->data);
-  const Mesh *mesh_eval = static_cast<Mesh *>(ob_eval->data);
-  printf("Orig Mesh: %p vs Eval Mesh: %p vs Sculpt: %p\n",
-         mesh_orig->runtime->subdiv_ccg.get(),
-         mesh_eval->runtime->subdiv_ccg.get(),
-         ob_orig->sculpt->subdiv_ccg.get());
-
   bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob_orig);
 
   if (!ss->cache && !ss->filter_cache && !ss->expand_cache) {
@@ -2992,8 +2985,6 @@ void BKE_sculpt_copy_multires_positions(Object *object)
   if (!ss) {
     return;
   }
-
-  printf("COPYING MULTIRES POSITIONS\n");
 
   if (ss->subdiv_ccg) {
     ss->multires.runtime.positions_at_level[ss->subdiv_ccg->level - 1].reinitialize(

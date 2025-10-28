@@ -112,20 +112,7 @@ static void subdiv_ccg_eval_grid_element_limit(Subdiv &subdiv,
                                                const int element)
 {
   if (subdiv.displacement_evaluator != nullptr) {
-    /*
-    printf("%d -> (%d %f %f)\n",
-           element,
-           ptex_face_index,
-           u,
-           v);
-           */
     subdiv_ccg.positions[element] = eval_final_point(&subdiv, ptex_face_index, u, v);
-    /*
-    printf("\t(%f %f %f)\n",
-           subdiv_ccg.positions[element].x,
-           subdiv_ccg.positions[element].y,
-           subdiv_ccg.positions[element].z);
-           */
   }
   else if (!subdiv_ccg.normals.is_empty()) {
     eval_limit_point_and_normal(&subdiv,
@@ -416,7 +403,6 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
   subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
   subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
 
-  printf("BKE_subdiv_to_ccg\n");
   if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
     stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
     return nullptr;
@@ -443,7 +429,6 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
   stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
   SubdivCCGMaskEvaluator mask_evaluator;
   bool has_mask = BKE_subdiv_ccg_mask_init_from_paint(&mask_evaluator, &coarse_mesh);
-  /* TODO: Needs object to store data */
   std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
 

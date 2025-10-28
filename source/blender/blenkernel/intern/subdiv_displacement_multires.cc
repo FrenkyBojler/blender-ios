@@ -97,34 +97,6 @@ static int displacement_get_grid_and_coord(const Displacement &displacement,
   return corner;
 }
 
-static int displacement_get_grid_and_coord_v2(const Displacement &displacement,
-                                              const int ptex_face_index,
-                                              const float u,
-                                              const float v,
-                                              Span<float3> &r_displacement_grid,
-                                              float &r_grid_u,
-                                              float &r_grid_v)
-{
-  const MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
-      displacement.user_data);
-  const PolyCornerIndex &face_corner = data.ptex_face_corner[ptex_face_index];
-  const IndexRange face = data.faces[face_corner.face_index];
-  const int start_grid_index = face.start() + face_corner.corner;
-  int corner = 0;
-  const int grid_area = data.grid_size * data.grid_size;
-  if (face.size() == 4) {
-    float corner_u, corner_v;
-    corner = rotate_quad_to_corner(u, v, &corner_u, &corner_v);
-    r_displacement_grid = data.level_displacements.slice(start_grid_index + corner, grid_area);
-    ptex_face_uv_to_grid_uv(corner_u, corner_v, &r_grid_u, &r_grid_v);
-  }
-  else {
-    r_displacement_grid = data.level_displacements.slice(start_grid_index, grid_area);
-    ptex_face_uv_to_grid_uv(u, v, &r_grid_u, &r_grid_v);
-  }
-  return corner;
-}
-
 static const MDisps *displacement_get_other_grid(const Displacement &displacement,
                                                  const int ptex_face_index,
                                                  const int corner,
@@ -152,31 +124,6 @@ BLI_INLINE AverageWith read_displacement_grid(const MDisps &displacement_grid,
   const int x = roundf(grid_u * (grid_size - 1));
   const int y = roundf(grid_v * (grid_size - 1));
   r_tangent_D = displacement_grid.disps[y * grid_size + x];
-  if (x == 0 && y == 0) {
-    return AverageWith::All;
-  }
-  if (x == 0) {
-    return AverageWith::Prev;
-  }
-  if (y == 0) {
-    return AverageWith::Next;
-  }
-  return AverageWith::None;
-}
-
-BLI_INLINE AverageWith read_displacement_grid_v2(const Span<float3> displacement_grid,
-                                                 const int grid_size,
-                                                 const float grid_u,
-                                                 const float grid_v,
-                                                 float3 &r_tangent_D)
-{
-  if (displacement_grid.is_empty()) {
-    r_tangent_D = float3(0.0f);
-    return AverageWith::None;
-  }
-  const int x = roundf(grid_u * (grid_size - 1));
-  const int y = roundf(grid_v * (grid_size - 1));
-  r_tangent_D = displacement_grid[y * grid_size + x];
   if (x == 0 && y == 0) {
     return AverageWith::All;
   }
@@ -413,42 +360,6 @@ static void eval_displacement(Displacement *displacement,
   BKE_multires_construct_tangent_matrix(tangent_matrix, dPdu, dPdv, corner_of_quad);
 
   r_D = math::transform_direction(tangent_matrix, tangent_D);
-  /* For the boundary points of grid average two (or all) neighbor grids. */
-  const int corner = displacement_get_face_corner(data, ptex_face_index, u, v);
-  average_displacement(*displacement, average_with, ptex_face_index, corner, grid_u, grid_v, r_D);
-}
-
-static void eval_displacement_v2(Displacement *displacement,
-                                 const int ptex_face_index,
-                                 const float u,
-                                 const float v,
-                                 const float3 &dPdu,
-                                 const float3 &dPdv,
-                                 float3 &r_D)
-{
-  MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
-      displacement->user_data);
-  BLI_assert(data.is_initialized);
-  const int grid_size = data.grid_size;
-  /* Get displacement in tangent space. */
-  Span<float3> level_displacement_grid;
-  float grid_u, grid_v;
-  const int corner_of_quad = displacement_get_grid_and_coord_v2(
-      *displacement, ptex_face_index, u, v, level_displacement_grid, grid_u, grid_v);
-  /* Read displacement from the current displacement grid and see if any
-   * averaging is needed. */
-  float3 tangent_D;
-  const AverageWith average_with = read_displacement_grid_v2(
-      level_displacement_grid, grid_size, grid_u, grid_v, tangent_D);
-  /* Convert it to the object space. */
-  float3x3 tangent_matrix;
-  BKE_multires_construct_tangent_matrix(tangent_matrix, dPdu, dPdv, corner_of_quad);
-
-  r_D = math::transform_direction(tangent_matrix, tangent_D);
-#if 0
-  std::cout << "tangent_D: " << tangent_D << "dP/du: " << dPdu << "dP/dv: " << dPdv << "result: " << r_D << std::endl;
-  BLI_assert(!std::isnan(r_D.x) && !std::isnan(r_D.y) && !std::isnan(r_D.z));
-#endif
   /* For the boundary points of grid average two (or all) neighbor grids. */
   const int corner = displacement_get_face_corner(data, ptex_face_index, u, v);
   average_displacement(*displacement, average_with, ptex_face_index, corner, grid_u, grid_v, r_D);

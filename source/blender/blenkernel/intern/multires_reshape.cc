@@ -25,9 +25,6 @@
 #include "BLI_math_matrix.hh"
 #include "mikk_float3.hh"
 
-static const int multires_grid_tot[] = {
-    0, 4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
-
 /* -------------------------------------------------------------------- */
 /** \name Reshape from object
  * \{ */
@@ -318,15 +315,6 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   {
     return false;
   }
-
-  /*
-  if (!multires_reshape_assign_final_coords_from_ccg(
-          &reshape_context, &lower_subdiv_ccg, ccg_storage))
-  {
-    multires_reshape_context_free(&reshape_context);
-    return false;
-  }
-  */
 
   printf("Retrieving old positions: \n");
   blender::Span<blender::float3> old_positions = object.sculpt->multires.runtime.positions_at_level[lower_subdiv_ccg.level - 1];

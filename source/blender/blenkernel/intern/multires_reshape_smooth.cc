@@ -425,109 +425,6 @@ static void foreach_toplevel_grid_coord(
   });
 }
 
-static bool is_valid_ptex_uv(blender::float2 uv)
-{
-  return (uv.x == 0.0f || uv.x == 0.5f || uv.x == 1.0f) && (uv.y == 0.0f || uv.y == 0.5f || uv.y == 1.0f);
-}
-
-static blender::float2 ccg_uv_corner_to_ptex_uv(blender::float2 uv, int corner)
-{
-  if (corner == 0) {
-    return blender::float2(1.0f - uv.y, 1.0f - uv.x);
-  }
-  if (corner == 1) {
-    return blender::float2(uv.x, 1.0f - uv.y);
-  }
-  if (corner == 2) {
-    return blender::float2(uv.y, uv.x);
-  }
-  BLI_assert(corner == 3);
-  return blender::float2(1.0f - uv.x, uv.y);
-}
-
-static float clamp_uv(const int input)
-{
-  if (input == 0) {
-    return 0.0f;
-  }
-  if (input % 2) {
-    return 0.5f;
-  }
-  return 1.0f;
-}
-
-static void foreach_toplevel_grid_coord_single_threaded(
-    MultiresReshapeSmoothContext *reshape_smooth_context,
-    blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
-{
-  using namespace blender;
-  const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
-  const OffsetIndices<int> faces = reshape_smooth_context->reshape_context->base_faces;
-  /* Is this the correct ptex offset to even use? */
-  const Span<int> face_ptex_offset = bke::subdiv::face_ptex_offset_get(reshape_context->subdiv);
-  const int grid_size = reshape_context->top.grid_size;
-  const int grid_area = grid_size * grid_size;
-  const float grid_size_1_inv = 1.0f / float(grid_size - 1);
-  BLI_assert(face_ptex_offset.size() == faces.size() + 1);
-
-  const int ptex_faces_per_side_per_corner = (grid_size - 1) / 2;
-  const int ptex_faces_per_corner = ptex_faces_per_side_per_corner * ptex_faces_per_side_per_corner;
-
-  printf("DATA: LEVEL: %d, GRID_SIZE: %d, ptex_faces_per_side_per_corner: %d, Base Faces: %ld, Subdiv Faces: %ld\n", reshape_context->top.level, reshape_context->top.grid_size, ptex_faces_per_side_per_corner, reshape_context->base_faces.size(), reshape_smooth_context->geometry.faces().size());
-  printf("(Face Index, Corner, X, Y) -> (Corner, Grid U, Grid V) -> Element -> (Offset, Corner, Start, PTEX_X_IDX, PTEX_Y_IDX, Index, PTEX U, PTEX V)\n");
-  for (const int face_index : faces.index_range()) {
-    const IndexRange face = faces[face_index];
-    if (face.size() == 4) {
-      for (int corner = 0; corner < face.size(); ++corner) {
-        const int ptex_face_start = (face_ptex_offset[face_index] + corner) * ptex_faces_per_corner;
-        const int grid_index = face.start() + corner;
-        const IndexRange range = bke::ccg::grid_range(grid_area, grid_index);
-        for (int y = 0; y < grid_size; ++y) {
-          const float grid_v = y * grid_size_1_inv;
-          for (int x = 0; x < grid_size; ++x) {
-            const int ptex_x_idx = std::max(0, x - 1) / 2;
-            const int ptex_y_idx = std::max(0, y - 1) / 2;
-
-            const int ptex_face_index = ptex_face_start + ptex_y_idx * ptex_faces_per_side_per_corner + ptex_x_idx;
-
-            const float grid_u = x * grid_size_1_inv;
-            PTexCoord ptex_coord;
-            ptex_coord.ptex_face_index = ptex_face_index;
-            float2 clamped_uv(clamp_uv(x), clamp_uv(y));
-            const float2 ptex_face_uv = ccg_uv_corner_to_ptex_uv(clamped_uv, corner);
-            ptex_coord.u = ptex_face_uv.x;
-            ptex_coord.v = ptex_face_uv.y;
-
-            const int element = range[CCG_grid_xy_to_index(grid_size, x, y)];
-            printf("RAW: (%d, %d, %d, %d) -> CCG: (%d, %f, %f) -> %d -> PTEX: (%d, %d, %d, (%d, %d), %d, (%f, %f))",
-                   face_index,
-                   corner,
-                   x,
-                   y,
-                   corner,
-                   grid_u,
-                   grid_v,
-                   element,
-                   face_ptex_offset[face_index],
-                   ptex_face_start,
-                   corner,
-                   ptex_x_idx,
-                   ptex_y_idx,
-                   ptex_face_index,
-                   ptex_coord.u,
-                   ptex_coord.v);
-            BLI_assert(is_valid_ptex_uv(ptex_face_uv));
-            callback(&ptex_coord, element, corner);
-          }
-        }
-      }
-    }
-    else {
-      BLI_assert_msg(false, "Unimplemented!");
-    }
-  }
-}
-
 static void foreach_reshape_ptex_face_single_threaded(
     MultiresReshapeSmoothContext *reshape_smooth_context,
     blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
@@ -1580,57 +1477,6 @@ static void evaluate_reshape_faces(
   }
 }
 
-static void evaluate_higher_grid_positions(
-    MultiresReshapeSmoothContext *reshape_smooth_context,
-    blender::MutableSpan<blender::float3> delta_storage,
-    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
-{
-  foreach_toplevel_grid_coord_single_threaded(
-      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
-        blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
-
-        /* Surface. */
-        blender::float3 dPdu;
-        blender::float3 dPdv;
-        blender::float3 P;
-        blender::bke::subdiv::eval_limit_point_and_derivatives(reshape_subdiv,
-                                                               ptex_coord->ptex_face_index,
-                                                               ptex_coord->u,
-                                                               ptex_coord->v,
-                                                               P,
-                                                               dPdu,
-                                                               dPdv);
-
-        delta_storage[idx] = P;
-        printf(" -> (%f, %f, %f)\n", P.x, P.y, P.z);
-        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner);
-      });
-}
-
-static void evaluate_higher_grid_derivatives(
-    MultiresReshapeSmoothContext *reshape_smooth_context,
-    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
-{
-  foreach_toplevel_grid_coord_single_threaded(
-      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
-        blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
-
-        /* Surface. */
-        blender::float3 dPdu;
-        blender::float3 dPdv;
-        blender::float3 P;
-        blender::bke::subdiv::eval_limit_point_and_derivatives(reshape_subdiv,
-                                                               ptex_coord->ptex_face_index,
-                                                               ptex_coord->u,
-                                                               ptex_coord->v,
-                                                               P,
-                                                               dPdu,
-                                                               dPdv);
-
-        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner);
-      });
-}
-
 #endif
 
 /** \} */
@@ -1730,9 +1576,7 @@ void multires_reshape_store_limit_positions(
   reshape_subdiv_create(&reshape_smooth_context);
 
   reshape_subdiv_refine_final(&reshape_smooth_context, deltas);
-  printf("EVAL_RESHAPE_FACES\n");
   evaluate_reshape_faces(&reshape_smooth_context, deltas, tangent_matrices);
-  //evaluate_higher_grid_positions(&reshape_smooth_context, deltas, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif
@@ -1753,7 +1597,6 @@ void multires_reshape_store_tangent_matrices(
 
   reshape_subdiv_refine_final(&reshape_smooth_context, positions);
   evaluate_reshape_faces(&reshape_smooth_context, new_positions, tangent_matrices);
-  //evaluate_higher_grid_positions(&reshape_smooth_context, new_positions, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif
