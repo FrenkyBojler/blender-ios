@@ -1167,14 +1167,6 @@ static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *resh
   reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
 }
 
-static void reshape_subdiv_refine_final_v2(
-    const MultiresReshapeSmoothContext *reshape_smooth_context,
-    blender::Span<blender::float3> storage)
-{
-  printf("SETTING SUBDIV COARSE VERTS\n");
-  reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
-}
-
 static void reshape_subdiv_evaluate_limit_at_grid(
     const MultiresReshapeSmoothContext *reshape_smooth_context,
     const PTexCoord *ptex_coord,
