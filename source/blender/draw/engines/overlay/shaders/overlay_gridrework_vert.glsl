@@ -11,18 +11,25 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 void main()
 {
-  int line_idx = (gl_VertexID / 2) % int(grid_buf.num_lines);     // vertex 0, vertex 0, vertex 1, vertex 1
-  int line_start = -int(grid_buf.num_lines >> 1);
+  // TODO; snap/mod surrounding origin to the nearest centre of floor plane
 
-  float3 vert_pos = float3(line_start + line_idx, line_start, 0.0f);
+  // Determine index of current line from 0 to num_lines - 1
+  int line_idx = (gl_VertexID / 2) % int(grid_buf.num_lines);     // vertex 0, vertex 0, vertex 1, vertex 1
+
+  // Offset distance to most outer line
+  // TODO; this should be a fixed distance or the edge of the camera plane
+  float line_offset = 2.0f;
+  float line_start = -line_offset * float(grid_buf.num_lines >> 1);
+  
+  float3 vert_pos = float3(line_start + line_offset * line_idx, line_start, 0.0f);
   
   // If not start vertex, flip y-coord for other side of line
-  int vert_idx = gl_VertexID % 2;
-  vert_pos.y = (vert_idx == 0) ? vert_pos.y : -vert_pos.y;
+  bool is_first_vert = (gl_VertexID % 2) == 0;
+  vert_pos.y = is_first_vert ? vert_pos.y : -vert_pos.y;
 
   // If not x-direction, flip x- and -ycoords for y-direction
-  int dir_idx  = gl_VertexID / int(grid_buf.num_lines * 2);
-  vert_pos.xy = (dir_idx == 0) ? vert_pos.xy : vert_pos.yx;
+  bool is_x_dir = (gl_VertexID / int(grid_buf.num_lines * 2)) == 0;
+  vert_pos.xy = is_x_dir ? vert_pos.xy : vert_pos.yx;
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vert_pos, 1.0f));
 }
