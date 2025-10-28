@@ -1904,7 +1904,8 @@ static bool area_move_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static int area_snap_calc_location(const bScreen *screen,
+static int area_snap_calc_location(const wmWindow *win,
+                                   const bScreen *screen,
                                    const enum AreaMoveSnapType snap_type,
                                    const int delta,
                                    const int origval,
@@ -1945,24 +1946,35 @@ static int area_snap_calc_location(const bScreen *screen,
       const int axis = (dir_axis == SCREEN_AXIS_V) ? 0 : 1;
       int snap_dist_best = INT_MAX;
       {
-        const float div_array[] = {
-            0.0f,
-            1.0f / 12.0f,
-            2.0f / 12.0f,
-            3.0f / 12.0f,
-            4.0f / 12.0f,
-            5.0f / 12.0f,
-            6.0f / 12.0f,
-            7.0f / 12.0f,
-            8.0f / 12.0f,
-            9.0f / 12.0f,
-            10.0f / 12.0f,
-            11.0f / 12.0f,
-            1.0f,
+        rcti screen_rect;
+        WM_window_screen_rect_calc(win, &screen_rect);
+
+        const int screen_size = (dir_axis == SCREEN_AXIS_V) ? BLI_rcti_size_x(&screen_rect) :
+                                                              BLI_rcti_size_y(&screen_rect);
+        const int screen_min = (dir_axis == SCREEN_AXIS_V) ? screen_rect.xmin : screen_rect.ymin;
+
+        const int div_array[] = {
+            m_min,
+            screen_min + round_fl_to_int(screen_size * 1.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 2.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 3.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 4.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 5.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 6.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 7.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 8.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 9.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 10.0f / 12.0f),
+            screen_min + round_fl_to_int(screen_size * 11.0f / 12.0f),
+            m_min + m_span,
         };
+
         /* Test the snap to the best division. */
         for (int i = 0; i < ARRAY_SIZE(div_array); i++) {
-          const int m_cursor_test = m_min + round_fl_to_int(m_span * div_array[i]);
+          const int m_cursor_test = div_array[i];
+          if (m_cursor_test < m_min) {
+            continue;
+          }
           const int snap_dist_test = abs(m_cursor - m_cursor_test);
           if (snap_dist_best >= snap_dist_test) {
             snap_dist_best = snap_dist_test;
@@ -2034,7 +2046,7 @@ static void area_move_apply_do(bContext *C,
   }
   else {
     final_loc = area_snap_calc_location(
-        screen, snap_type, delta, origval, dir_axis, bigger, smaller);
+        win, screen, snap_type, delta, origval, dir_axis, bigger, smaller);
   }
 
   BLI_assert(final_loc != -1);
@@ -2668,6 +2680,7 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
   sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
   PropertyRNA *prop_dir = RNA_struct_find_property(op->ptr, "direction");
   bool update_factor = false;
+  wmWindow *win = CTX_wm_window(C);
 
   /* execute the events */
   switch (event->type) {
@@ -2739,7 +2752,8 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
 
     if (sd->previewmode == 0) {
       if (sd->do_snap) {
-        const int snap_loc = area_snap_calc_location(CTX_wm_screen(C),
+        const int snap_loc = area_snap_calc_location(win,
+                                                     CTX_wm_screen(C),
                                                      SNAP_FRACTION_AND_ADJACENT,
                                                      sd->delta,
                                                      sd->origval,
@@ -2784,7 +2798,8 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
         if (sd->do_snap) {
           area->v1->editflag = area->v2->editflag = area->v3->editflag = area->v4->editflag = 1;
 
-          const int snap_loc = area_snap_calc_location(CTX_wm_screen(C),
+          const int snap_loc = area_snap_calc_location(win,
+                                                       CTX_wm_screen(C),
                                                        SNAP_FRACTION_AND_ADJACENT,
                                                        sd->delta,
                                                        sd->origval,
