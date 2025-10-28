@@ -75,7 +75,7 @@ class Call {
 
 class Expr {
  public:
-  using ExprVariant = std::variant<Number, Identifier, BinaryOp, UnaryOp, MemberAccess>;
+  using ExprVariant = std::variant<Number, Identifier, BinaryOp, UnaryOp, MemberAccess, Call>;
 
   ExprVariant expr;
 
@@ -209,7 +209,15 @@ constexpr parser p(
                                     char /*skip*/,
                                     ast::Expr *v_expr,
                                     char /*skip*/) { return v_expr; },
-        expr_list() >>= [](ParseContext & /*ctx*/) { return Vector<ast::Expr *>{}; }
+        expr_list() >>= [](ParseContext & /*ctx*/) { return Vector<ast::Expr *>{}; },
+        expr(identifier, '(', expr_list, ')') >>=
+        [](ParseContext &ctx,
+           const term_value<std::string_view> &v_identifier,
+           char /*skip*/,
+           Vector<ast::Expr *> v_args,
+           char /*skip*/) {
+          return &ctx.scope.construct<ast::Expr>(ast::Call{v_identifier, std::move(v_args)});
+        }
 
         ));
 
