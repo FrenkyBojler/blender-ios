@@ -152,25 +152,11 @@ static bool update_template_on_navigation(const char *original_template,
       strncmp(resolved_template, normalized_current, current_len) == 0 &&
       (current_len == 0 || resolved_template[current_len] == '/'))
   {
-    /* Count directory levels to go up */
-    const char *remaining_path = resolved_template + current_len;
-    if (*remaining_path == '/') {
-      remaining_path++;
-    }
-
-    int levels_up = (*remaining_path != '\0') ? 1 : 0;
-    for (const char *p = remaining_path; *p; p++) {
-      if (*p == '/') {
-        levels_up++;
-      }
-    }
-
     /* Go up from template path */
     BLI_strncpy(result, original_template, result_maxlen);
     BLI_path_slash_rstrip(result);
-    for (int i = 0; i < levels_up && result[0]; i++) {
-      BLI_path_parent_dir(result);
-    }
+
+    BLI_path_parent_dir(result);
 
     return true;
   }
@@ -240,7 +226,7 @@ void path_template_nav_handle_browse(FileSelectParams *params, const char *new_d
       }
 
       BLI_strncpy(params->dir_template, updated_template, sizeof(params->dir_template));
-      BLI_strncpy(params->dir, new_directory, sizeof(params->dir));
+      BLI_strncpy(params->dir, resolved, sizeof(params->dir));
       BLI_strncpy(params->dir_resolved, resolved, sizeof(params->dir_resolved));
       return;
     }
