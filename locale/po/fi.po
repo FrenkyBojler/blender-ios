@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-10-27 09:50+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -6058,10 +6058,6 @@ msgid "Slide"
 msgstr "Sivu"
 
 
-msgid "Direction"
-msgstr "Suunta"
-
-
 msgctxt "Brush"
 msgid "Draw"
 msgstr "Piirrä"
@@ -6978,10 +6974,6 @@ msgid "Cycles render settings"
 msgstr "Cycles-renderöintiasetukset"
 
 
-msgid "Second"
-msgstr "Sekuntti"
-
-
 msgid "Play Audio"
 msgstr "Soita audio"
 
@@ -7236,6 +7228,10 @@ msgid "Workspace"
 msgstr "Työtila"
 
 
+msgid "Direction"
+msgstr "Suunta"
+
+
 msgid "ID Type"
 msgstr "ID-tyyppi"
 
@@ -7244,72 +7240,20 @@ msgid "Mask"
 msgstr "Maski"
 
 
+msgid "Text"
+msgstr "Teksti"
+
+
 msgid "Metaball"
 msgstr "Metapallo"
-
-
-msgid "Light"
-msgstr "Valo"
-
-
-msgid "Light Probe"
-msgstr "Valoluotain"
-
-
-msgid "Add Image"
-msgstr "Lisää kuva"
-
-
-msgid "Track"
-msgstr "Raide"
 
 
 msgid "Show/Hide"
 msgstr "Näytä/Piilota"
 
 
-msgid "Hooks"
-msgstr "Koukut"
-
-
-msgid "Random Mask"
-msgstr "Satunnainen maski"
-
-
 msgid "Names"
 msgstr "Nimet"
-
-
-msgid "Mesh Select Mode"
-msgstr "Muodon valintatila"
-
-
-msgid "Utilities"
-msgstr "Työkalut"
-
-
-msgid "Math"
-msgstr "Matematiikka"
-
-
-msgid "Text"
-msgstr "Teksti"
-
-
-msgid "Read"
-msgstr "Lue"
-
-
-msgid "Write"
-msgstr "Kirjoita"
-
-
-msgid "Instances"
-msgstr "Instanssit"
-
-
-msgid "Import"
-msgstr "Tuo"
 
 
 msgid "UV Mapping"
@@ -7328,12 +7272,64 @@ msgid "Select All by Trait"
 msgstr "Valitse kaikki piirteen mukaan"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Utilities"
+msgstr "Työkalut"
+
+
+msgid "Math"
+msgstr "Matematiikka"
 
 
 msgid "Select Loops"
 msgstr "Valitse silmukat"
+
+
+msgid "Light"
+msgstr "Valo"
+
+
+msgid "Light Probe"
+msgstr "Valoluotain"
+
+
+msgid "Add Image"
+msgstr "Lisää kuva"
+
+
+msgid "Track"
+msgstr "Raide"
+
+
+msgid "Hooks"
+msgstr "Koukut"
+
+
+msgid "Read"
+msgstr "Lue"
+
+
+msgid "Write"
+msgstr "Kirjoita"
+
+
+msgid "Random Mask"
+msgstr "Satunnainen maski"
+
+
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Import"
+msgstr "Tuo"
+
+
+msgid "Mesh Select Mode"
+msgstr "Muodon valintatila"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Basic"
@@ -12835,6 +12831,10 @@ msgid "Bake Selected"
 msgstr "Paista Valittu"
 
 
+msgid "Second"
+msgstr "Sekuntti"
+
+
 msgid "Paths:"
 msgstr "Polut:"
 
@@ -14888,10 +14888,6 @@ msgstr "Katkaise yhteys"
 
 msgid "Add node to input"
 msgstr "Lisää noodi syötteeseen"
-
-
-msgid "Unsupported Menu Socket"
-msgstr "Menupistoketta ei tueta"
 
 
 msgid "Copy to bone"

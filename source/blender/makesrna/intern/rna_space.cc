@@ -236,6 +236,13 @@ const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
    ICON_FILE, \
    "Cache File", \
    "Edit timings for Cache File data-blocks"}
+#define SACT_ITEM_TIMELINE \
+  {SACTCONT_TIMELINE, \
+   "TIMELINE", \
+   ICON_TIME, \
+   "Timeline", \
+   "Simple timeline view with playback controls in the header, without channel list, " \
+   "side-panel, or footer"}
 
 #ifndef RNA_RUNTIME
 /* XXX: action-editor is currently for object-level only actions,
@@ -247,6 +254,7 @@ static EnumPropertyItem rna_enum_space_action_mode_all_items[] = {
     SACT_ITEM_GPENCIL,
     SACT_ITEM_MASK,
     SACT_ITEM_CACHEFILE,
+    SACT_ITEM_TIMELINE,
     {0, nullptr, 0, nullptr, nullptr},
 };
 static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
@@ -260,12 +268,19 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
 };
 #endif
 
+const EnumPropertyItem rna_enum_space_action_mode_items[] = {
+    SACT_ITEM_DOPESHEET,
+    SACT_ITEM_TIMELINE,
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #undef SACT_ITEM_DOPESHEET
 #undef SACT_ITEM_ACTION
 #undef SACT_ITEM_SHAPEKEY
 #undef SACT_ITEM_GPENCIL
 #undef SACT_ITEM_MASK
 #undef SACT_ITEM_CACHEFILE
+#undef SACT_ITEM_TIMELINE
 
 #define SI_ITEM_VIEW(identifier, name, icon) \
   {SI_MODE_VIEW, identifier, icon, name, "Inspect images or render results"}
@@ -8285,13 +8300,11 @@ static void rna_def_space_clip_overlay(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_overlays", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SC_SHOW_OVERLAYS);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays like cursor and annotations");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   prop = RNA_def_property(srna, "show_cursor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SC_SHOW_CURSOR);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(prop, "Show Overlays", "Display 2D cursor");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 }
