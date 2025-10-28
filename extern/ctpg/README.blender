@@ -1,0 +1,8 @@
+Project: ctpg
+URL: https://github.com/peter-winter/ctpg
+License: SPDX:MIT
+Copyright: Copyright (c) 2021 peter-winter
+Upstream version: 624b4d1fa407a
+Local modifications: None
+
+- Took only the needed header file from the original project.
