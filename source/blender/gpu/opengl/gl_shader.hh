@@ -255,7 +255,7 @@ class GLSubprocessShaderCompiler : public ShaderCompiler {
         };
   virtual ~GLSubprocessShaderCompiler() override;
 
-  virtual Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
+  virtual Shader *compile_shader(shader::ShaderCreateInfo &info) override;
   virtual void specialize_shader(ShaderSpecialization &specialization) override;
 };
 

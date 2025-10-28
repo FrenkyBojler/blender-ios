@@ -160,7 +160,7 @@ blender::gpu::Shader *GPU_shader_create_from_info_name(const char *info_name)
 blender::gpu::Shader *GPU_shader_create_from_info(const GPUShaderCreateInfo *_info)
 {
   using namespace blender::gpu::shader;
-  const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
+  ShaderCreateInfo info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
   return GPUBackend::get()->get_compiler()->compile(info, false);
 }
 
@@ -662,13 +662,14 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 /** \name ShaderCompiler
  * \{ */
 
-Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
+Shader *ShaderCompiler::compile(shader::ShaderCreateInfo &info, bool is_batch_compilation)
 {
   using Clock = std::chrono::steady_clock;
   using TimePoint = Clock::time_point;
 
   using namespace blender::gpu::shader;
-  const_cast<ShaderCreateInfo &>(info).finalize();
+
+  info.finalize();
   BLI_assert(info.do_static_compilation_ || info.is_generated_);
 
   TimePoint start_time;
@@ -870,7 +871,7 @@ ShaderCompiler::~ShaderCompiler()
   BLI_assert(batches_.is_empty());
 }
 
-Shader *ShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
+Shader *ShaderCompiler::compile_shader(shader::ShaderCreateInfo &info)
 {
   return compile(info, false);
 }
