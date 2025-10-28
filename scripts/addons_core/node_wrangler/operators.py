@@ -547,7 +547,7 @@ class NWMergeNodes(Operator, NWBase):
             ('GEOMETRY', 'Geometry', 'Merge using Mesh Boolean or Join Geometry nodes'),
             ('MIX', 'Mix Node', 'Merge using Mix nodes'),
             ('MATH', 'Math Node', 'Merge using Math nodes'),
-            ('ZCOMBINE', 'Z-Combine Node', 'Merge using Z-Combine nodes'),
+            ('ZCOMBINE', 'Depth Combine Node', 'Merge using Depth Combine nodes'),
             ('ALPHAOVER', 'Alpha Over Node', 'Merge using Alpha Over nodes'),
         ),
     )
@@ -654,7 +654,7 @@ class NWMergeNodes(Operator, NWBase):
         nodes, links = get_nodes_links(context)
         mode = self.mode
         merge_type = self.merge_type
-        # Prevent trying to add Z-Combine in not 'COMPOSITING' node tree.
+        # Prevent trying to add Depth Combine in not 'COMPOSITING' node tree.
         # 'ZCOMBINE' works only if mode == 'MIX'
         # Setting mode to None prevents trying to add 'ZCOMBINE' node.
         if (merge_type == 'ZCOMBINE' or merge_type == 'ALPHAOVER') and tree_type != 'COMPOSITING':
