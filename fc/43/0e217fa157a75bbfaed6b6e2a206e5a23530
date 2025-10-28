@@ -1,2 +1,3 @@
 Referenced by issue #148916, Vulkan: Freeze when rendering Cycles
 Referenced by pull request #148943, Fix #148916: Freezing Cycles render when using Vulkan
+Referenced by commit 50e6b115aae12dca2d9ba9c3e68a327d59882026, Fix #148916: Freezing Cycles render when using Vulkan
