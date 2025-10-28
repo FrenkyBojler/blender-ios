@@ -32,6 +32,13 @@ class Number {
   dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
 };
 
+class Identifier {
+ public:
+  std::string_view identifier;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
 class BinaryOp {
  public:
   std::string_view op;
@@ -43,7 +50,7 @@ class BinaryOp {
 
 class Expr {
  public:
-  using ExprVariant = std::variant<Number, BinaryOp>;
+  using ExprVariant = std::variant<Number, Identifier, BinaryOp>;
 
   ExprVariant expr;
 
@@ -55,6 +62,11 @@ class Expr {
 dot_export::Node &Number::to_dot(dot_export::DirectedGraph &graph) const
 {
   return graph.new_node(value);
+}
+
+dot_export::Node &Identifier::to_dot(dot_export::DirectedGraph &graph) const
+{
+  return graph.new_node(identifier);
 }
 
 dot_export::Node &BinaryOp::to_dot(dot_export::DirectedGraph &graph) const
@@ -88,6 +100,9 @@ constexpr nterm<ast::Expr *> expr("expr");
 constexpr char number_pattern[] = "[1-9][0-9]*";
 constexpr regex_term<number_pattern> number("number");
 
+constexpr char identifier_pattern[] = "[a-zA-Z][a-zA-Z0-9]*";
+constexpr regex_term<identifier_pattern> identifier("identifier");
+
 constexpr char_term op_plus('+', 1);
 constexpr char_term op_minus('-', 1);
 constexpr char_term op_multiply('*', 2);
@@ -95,12 +110,16 @@ constexpr char_term op_divide('/', 2);
 
 constexpr parser p(
     expr,
-    terms(op_plus, op_minus, op_multiply, op_divide, number, '(', ')'),
+    terms(op_plus, op_minus, op_multiply, op_divide, number, identifier, '(', ')'),
     nterms(expr),
     rules(
         expr(number) >>=
         [](ParseContext &ctx, const term_value<std::string_view> &v_number) {
           return &ctx.scope.construct<ast::Expr>(ast::Number{v_number.get_value()});
+        },
+        expr(identifier) >>=
+        [](ParseContext &ctx, const term_value<std::string_view> &v_identifier) {
+          return &ctx.scope.construct<ast::Expr>(ast::Identifier{v_identifier.get_value()});
         },
         expr(expr, op_plus, expr) >>=
         [](ParseContext &ctx, ast::Expr *v_expr_a, char /*skip*/, ast::Expr *v_expr_b) {
