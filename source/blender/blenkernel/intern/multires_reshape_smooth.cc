@@ -1445,7 +1445,7 @@ static void evaluate_reshape_faces(
   foreach_reshape_ptex_face_single_threaded(reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
 
-        tagged_elements[idx].set(true);
+        tagged_elements[idx].set();
         /* Surface. */
         blender::float3 dPdu;
         blender::float3 dPdv;
@@ -1465,7 +1465,7 @@ static void evaluate_reshape_faces(
   });
 
   for (const int i : tagged_elements.index_range()) {
-    printf("%d - %s\n", i, tagged_elements[i].test() ? "T" : "F");
+    BLI_assert(tagged_elements[i].test());
   }
 }
 

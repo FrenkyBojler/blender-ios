@@ -278,10 +278,6 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
      * Annoying and not so much black-boxed as far as sculpting goes, and
      * surely there is a better way of solving this. */
     if (ctx->object->sculpt != nullptr) {
-      printf("Mesh: %p vs New Mesh: %p vs Sculpt: %p\n",
-             mesh->runtime->subdiv_ccg.get(),
-             result->runtime->subdiv_ccg.get(),
-             ctx->object->sculpt->subdiv_ccg.get());
       SculptSession *sculpt_session = ctx->object->sculpt;
       sculpt_session->subdiv_ccg = result->runtime->subdiv_ccg;
       sculpt_session->multires.active = true;
