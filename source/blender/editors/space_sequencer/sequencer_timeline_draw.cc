@@ -20,6 +20,7 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -364,7 +365,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       break;
 
     /* Effects. */
-    case STRIP_TYPE_TRANSFORM:
     case STRIP_TYPE_SPEED:
     case STRIP_TYPE_ADD:
     case STRIP_TYPE_SUB:
@@ -408,9 +408,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       }
       else if (strip->type == STRIP_TYPE_SPEED) {
         rgb_byte_set_hue_float_offset(r_col, 0.72);
-      }
-      else if (strip->type == STRIP_TYPE_TRANSFORM) {
-        rgb_byte_set_hue_float_offset(r_col, 0.75);
       }
       else if (strip->type == STRIP_TYPE_MULTICAM) {
         rgb_byte_set_hue_float_offset(r_col, 0.85);
@@ -1827,15 +1824,19 @@ static void draw_timeline_grid(TimelineDrawContext *ctx)
     return;
   }
 
-  U.v2d_min_gridsize *= 3;
+  const Scene *scene = ctx->scene;
+  if (scene == nullptr) {
+    /* If we don't have a scene available, pick what we defined as default for framerate to show
+     * *something*. */
+    scene = DNA_struct_default_get(Scene);
+  }
   UI_view2d_draw_lines_x__discrete_frames_or_seconds(
-      ctx->v2d, ctx->scene, (ctx->sseq->flag & SEQ_DRAWFRAMES) == 0, false);
-  U.v2d_min_gridsize /= 3;
+      ctx->v2d, scene, (ctx->sseq->flag & SEQ_DRAWFRAMES) == 0, false);
 }
 
 static void draw_timeline_markers(TimelineDrawContext *ctx)
 {
-  if ((ctx->sseq->flag & SEQ_SHOW_MARKERS) == 0) {
+  if (!ED_markers_region_visible(CTX_wm_area(ctx->C), ctx->region)) {
     return;
   }
   if (ctx->scene == nullptr) {
@@ -1883,9 +1884,7 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
   draw_timeline_grid(&ctx);
   draw_timeline_sfra_efra(&ctx);
   draw_seq_strips(&ctx, strips_batch);
-  if (region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
-    draw_timeline_markers(&ctx);
-  }
+  draw_timeline_markers(&ctx);
   UI_view2d_view_ortho(ctx.v2d);
   if (ctx.scene) {
     ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);

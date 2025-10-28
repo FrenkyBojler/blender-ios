@@ -32,13 +32,15 @@ namespace blender::nodes::node_composite_map_uv_cc {
 static void cmp_node_map_uv_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.allow_any_socket_order();
 
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms)
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Vector>("UV")
       .default_value({1.0f, 0.0f, 0.0f})
       .min(0.0f)
@@ -46,21 +48,23 @@ static void cmp_node_map_uv_declare(NodeDeclarationBuilder &b)
       .description(
           "The UV coordinates at which to sample the texture. The Z component is assumed to "
           "contain an alpha channel")
-      .compositor_domain_priority(0)
       .structure_type(StructureType::Dynamic);
 
   PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling").default_closed(true);
   sampling_panel.add_input<decl::Menu>("Interpolation")
       .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
+      .optional_label()
       .description("Interpolation method");
   sampling_panel.add_input<decl::Menu>("Extension X")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the X axis");
   sampling_panel.add_input<decl::Menu>("Extension Y")
       .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
       .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
       .description("The extension mode applied to the Y axis");
 }
 
@@ -193,7 +197,7 @@ class MapUVOperation : public NodeOperation {
 
     Result &output = get_result("Image");
     output.allocate_single_value();
-    output.set_single_value(result);
+    output.set_single_value(Color(result));
   }
 
   void execute_cpu_interpolation(const Interpolation &interpolation)
@@ -221,7 +225,7 @@ class MapUVOperation : public NodeOperation {
 
       float4 result = sampled_color * alpha;
 
-      output_image.store_pixel(texel, result);
+      output_image.store_pixel(texel, Color(result));
     });
   }
 
@@ -282,7 +286,7 @@ class MapUVOperation : public NodeOperation {
 
         float4 result = sampled_color * alpha;
 
-        output_image.store_pixel(texel, result);
+        output_image.store_pixel(texel, Color(result));
       };
 
       /* Compute each of the pixels in the 2x2 block, making sure to exempt out of bounds right

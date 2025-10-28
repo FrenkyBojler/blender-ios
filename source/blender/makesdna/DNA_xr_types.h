@@ -48,6 +48,10 @@ typedef struct XrSessionSettings {
   /** Object type settings to apply to VR view (unlike shading, not shared with window 3D-View). */
   int object_type_exclude_viewport;
   int object_type_exclude_select;
+
+  /** Fly speed. */
+  float fly_speed;
+  float padding;
 } XrSessionSettings;
 
 typedef enum eXrSessionFlag {

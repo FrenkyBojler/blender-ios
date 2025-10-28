@@ -42,6 +42,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 #include "WM_api.hh"
 
@@ -327,6 +328,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                   viewfinder_winmat,
                                   settings->clip_start,
                                   settings->clip_end,
+                                  session_state->vignette_data->aperture,
                                   false,
                                   true,
                                   true,
@@ -349,6 +351,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                   winmat,
                                   settings->clip_start,
                                   settings->clip_end,
+                                  session_state->vignette_data->aperture,
                                   true,
                                   false,
                                   true,
@@ -801,7 +804,7 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
       break;
     case XR_CONTROLLER_DRAW_DARK_RAY:
     case XR_CONTROLLER_DRAW_LIGHT_RAY:
-      draw_ray = true;
+      draw_ray = !state->is_raycast_shown;
       break;
   }
 
@@ -832,7 +835,7 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
 
       immBegin(GPU_PRIM_LINES, 2);
 
-      const float(*mat)[4] = controller->aim_mat;
+      const float (*mat)[4] = controller->aim_mat;
       madd_v3_v3v3fl(ray, mat[3], mat[2], -scale);
 
       immAttrSkip(col);
@@ -860,7 +863,7 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
 
       immBegin(GPU_PRIM_LINES, 6);
 
-      const float(*mat)[4] = controller->aim_mat;
+      const float (*mat)[4] = controller->aim_mat;
       madd_v3_v3v3fl(x_axis, mat[3], mat[0], scale);
       madd_v3_v3v3fl(y_axis, mat[3], mat[1], scale);
       madd_v3_v3v3fl(z_axis, mat[3], mat[2], scale);
