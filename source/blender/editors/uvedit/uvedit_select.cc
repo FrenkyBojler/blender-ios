@@ -6757,10 +6757,16 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   blender::int2 tile;
+  RNA_int_get_array(op->ptr, "tile", tile);
+  const rctf tile_rect = {
+      float(tile.x),
+      float(tile.x + 1),
+      float(tile.y),
+      float(tile.y + 1),
+  };
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
   bool changed_multi = false;
 
-  RNA_int_get_array(op->ptr, "tile", tile);
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
@@ -6789,9 +6795,7 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
        * TODO: Tessellate UVs then check the center of each triangle with a non-zero area. */
       BM_face_uv_calc_center_median(f, offsets.uv, center);
 
-      if (center.x >= tile.x && center.x <= tile.x + 1.0f && center.y >= tile.y &&
-          center.y <= tile.y + 1.0f)
-      {
+      if (BLI_rctf_isect_pt_v(&tile_rect, center)) {
         BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
           if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
             uvedit_face_select_set_with_sticky(scene, em->bm, l->f, true, offsets);
@@ -6806,6 +6810,7 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       changed_multi = true;
       if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
         BM_mesh_select_mode_flush(em->bm);
+        BM_mesh_uvselect_sync_to_mesh(em->bm);
       }
       else {
         ED_uvedit_selectmode_flush(scene, em->bm);
