@@ -120,7 +120,16 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
       if (points_to_keep.size() == curves.points_num()) {
         break;
       }
-      drawing.strokes_for_write() = bke::curves_copy_point_selection(curves, points_to_keep, {});
+      const Array<int> point_to_curve_map = curves.point_to_curve_map();
+      const IndexMask points_mask = IndexMask::from_predicate(
+          curves.points_range(), GrainSize(2048), memory, [&](const int64_t i) {
+            const int curve_i = point_to_curve_map[i];
+            if (strokes.contains(curve_i) && !points_to_keep.contains(i)) {
+              return false;
+            }
+            return true;
+          });
+      drawing.strokes_for_write() = bke::curves_copy_point_selection(curves, points_mask, {});
       break;
     }
     case MOD_GREASE_PENCIL_SIMPLIFY_ADAPTIVE: {
@@ -147,6 +156,9 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
           curves.points_range(), GrainSize(2048), memory, [&](const int64_t i) {
             const int curve_i = point_to_curve_map[i];
             const IndexRange points = points_by_curve[curve_i];
+            if (!strokes.contains(curve_i)) {
+              return false;
+            }
             if (points.drop_front(1).drop_back(1).contains(i)) {
               return true;
             }
