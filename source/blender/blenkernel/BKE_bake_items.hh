@@ -14,6 +14,8 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_volume_grid_fwd.hh"
 
+#include "NOD_geometry_nodes_list_fwd.hh"
+
 namespace blender::bke::bake {
 
 /**
@@ -165,6 +167,22 @@ class BundleBakeItem : public BakeItem {
   };
 
   Vector<Item> items;
+};
+
+class ListBakeItem : public BakeItem {
+ public:
+  /* A simple list that is implicitly shared without additional processing. */
+  using SimpleList = nodes::ListPtr;
+  /* List of bake items for bundles which need additional preparation for baking. */
+  using BundleList = Vector<BundleBakeItem>;
+
+  std::variant<SimpleList, BundleList> value;
+
+  ListBakeItem(nodes::ListPtr list);
+  ListBakeItem(Vector<BundleBakeItem> &&items);
+  ~ListBakeItem() override;
+
+  void count_memory(MemoryCounter &memory) const override;
 };
 
 }  // namespace blender::bke::bake

@@ -27,6 +27,8 @@
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
 
+#include "NOD_geometry_nodes_list.hh"
+
 #include <fmt/format.h>
 #include <sstream>
 #include <xxhash.h>
@@ -1507,6 +1509,11 @@ static void serialize_bake_item(const BakeItem &item,
       }
     }
   }
+  else if (const auto *list_state_item = dynamic_cast<const ListBakeItem *>(&item)) {
+    r_io_item.append_str("type", "LIST");
+    /* TODO */
+    UNUSED_VARS(list_state_item);
+  }
 }
 
 static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io_item,
@@ -1621,6 +1628,11 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
           *key, BundleBakeItem::SocketValue{*socket_idname, std::move(value)}});
     }
     return bundle;
+  }
+  if (*state_item_type == StringRef("LIST")) {
+    /* TODO */
+    auto list = std::make_unique<ListBakeItem>(nodes::ListPtr{});
+    return list;
   }
   const std::shared_ptr<io::serialize::Value> *io_data = io_item.lookup("data");
   if (!io_data) {
