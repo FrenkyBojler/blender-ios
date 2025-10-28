@@ -6757,9 +6757,10 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   blender::int2 tile;
+  bool changed_multi = false;
+
   RNA_int_get_array(op->ptr, "tile", tile);
   const bool extend = RNA_boolean_get(op->ptr, "extend");
-  blender::Bounds<blender::float2> bounds;
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
@@ -6773,20 +6774,23 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
     if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       uvedit_select_prepare_sync_select(scene, em->bm);
     }
+    else {
+      uvedit_select_prepare_custom_data(scene, em->bm);
+    }
+
     BMFace *f;
     BMIter iter;
-
     BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
       BMLoop *l;
       BMIter liter;
+      blender::float2 center;
 
-      INIT_MINMAX2(bounds.min, bounds.max);
-      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-        const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
-        minmax_v2v2_v2(bounds.min, bounds.max, luv);
-      }
-      if (bounds.center().x >= tile.x && bounds.center().x <= tile.x + 1.0f &&
-          bounds.center().y >= tile.y && bounds.center().y <= tile.y + 1.0f)
+      /* Center median does not work correctly for concave n-gons.
+       * TODO: Tessellate UVs then check the center of each triangle with a non-zero area. */
+      BM_face_uv_calc_center_median(f, offsets.uv, center);
+
+      if (center.x >= tile.x && center.x <= tile.x + 1.0f && center.y >= tile.y &&
+          center.y <= tile.y + 1.0f)
       {
         BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
           if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
@@ -6799,6 +6803,7 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       }
     }
     if (changed) {
+      changed_multi = true;
       if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
         BM_mesh_select_mode_flush(em->bm);
       }
@@ -6807,9 +6812,9 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       }
       uv_select_tag_update_for_object(depsgraph, ts, ob);
     }
-    else {
-      return OPERATOR_CANCELLED;
-    }
+  }
+  if (!changed_multi) {
+    return OPERATOR_CANCELLED;
   }
 
   return OPERATOR_FINISHED;
@@ -6825,8 +6830,8 @@ static wmOperatorStatus uv_select_tile_invoke(bContext *C,
   if (!RNA_property_is_set(op->ptr, prop_tile)) {
     const SpaceImage *sima = CTX_wm_space_image(C);
     blender::int2 tile;
-    tile.x = (int)sima->cursor[0];
-    tile.y = (int)sima->cursor[1];
+    tile.x = int(sima->cursor[0]);
+    tile.y = int(sima->cursor[1]);
 
     RNA_property_int_set_array(op->ptr, prop_tile, tile);
   }
