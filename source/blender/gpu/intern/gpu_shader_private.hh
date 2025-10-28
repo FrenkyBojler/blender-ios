@@ -257,6 +257,12 @@ class ShaderCompiler {
 
   bool is_compiling_impl();
 
+  std::atomic<bool> is_paused_;
+  std::condition_variable pause_finished_notification_;
+  /** WARNING: This mutex is only for the condition_variable, is_paused_ should be modified under
+   * the main mutex_. */
+  std::mutex pause_mutex_;
+
  protected:
   /* Must be called earlier from the destructor of the subclass if the compilation process relies
    * on subclass resources. */
@@ -289,6 +295,8 @@ class ShaderCompiler {
 
   bool is_compiling();
   void wait_for_all();
+  void pause_all();
+  void continue_all();
 };
 
 enum class Severity {
