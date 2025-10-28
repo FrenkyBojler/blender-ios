@@ -14,6 +14,7 @@
 #include "NOD_expression_to_nodes.hh"
 
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 namespace blender::nodes::expression {
 
@@ -70,11 +71,9 @@ class AstToNodeGroupBuilder {
       return;
     }
 
-    bke::node_add_link(r_tree_,
-                       *expr_result.node,
-                       *expr_result.socket,
-                       group_output_node,
-                       *static_cast<bNodeSocket *>(group_output_node.inputs.first));
+    this->add_link(
+        expr_result,
+        {&group_output_node, static_cast<bNodeSocket *>(group_output_node.inputs.first)});
   }
 
  private:
@@ -102,9 +101,49 @@ class AstToNodeGroupBuilder {
     return input;
   }
 
-  NodeAndSocket build_expr(const ast::BinaryOp & /*ast_node*/)
+  NodeAndSocket build_expr(const ast::BinaryOp &ast_node)
   {
-    r_error_ = "Binary operators are not supported yet";
+    const StringRef op = ast_node.op;
+    NodeAndSocket a = this->build_expr(*ast_node.a);
+    if (!a.socket) {
+      return {};
+    }
+    NodeAndSocket b = this->build_expr(*ast_node.b);
+    if (!b.socket) {
+      return {};
+    }
+    const bke::bNodeSocketType &a_type = *a.socket->typeinfo;
+    const bke::bNodeSocketType &b_type = *b.socket->typeinfo;
+    const bool a_is_scalar = ELEM(a_type.type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN);
+    const bool b_is_scalar = ELEM(b_type.type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN);
+    if (a_is_scalar && b_is_scalar) {
+      /* TODO: Support integer math in some cases. */
+      bNode &math_node = this->add_node("ShaderNodeMath");
+      if (op == "+") {
+        math_node.custom1 = NODE_MATH_ADD;
+      }
+      else if (op == "-") {
+        math_node.custom1 = NODE_MATH_SUBTRACT;
+      }
+      else if (op == "*") {
+        math_node.custom1 = NODE_MATH_MULTIPLY;
+      }
+      else if (op == "/") {
+        math_node.custom1 = NODE_MATH_DIVIDE;
+      }
+      else {
+        r_error_ = "The binary operator is not supported";
+        return {};
+      }
+      /* Ensure socket availability is up to date. */
+      math_node.typeinfo->updatefunc(&r_tree_, &math_node);
+      bNodeSocket *in0 = static_cast<bNodeSocket *>(math_node.inputs.first);
+      bNodeSocket *in1 = in0->next;
+      this->add_link(a, {&math_node, in0});
+      this->add_link(b, {&math_node, in1});
+      return {&math_node, static_cast<bNodeSocket *>(math_node.outputs.first)};
+    }
+    r_error_ = "The binary operator is not supported";
     return {};
   }
 
@@ -129,6 +168,11 @@ class AstToNodeGroupBuilder {
   bNode &add_node(const StringRefNull idname)
   {
     return *bke::node_add_node(nullptr, r_tree_, idname);
+  }
+
+  bNodeLink &add_link(const NodeAndSocket &from, const NodeAndSocket &to)
+  {
+    return bke::node_add_link(r_tree_, *from.node, *from.socket, *to.node, *to.socket);
   }
 };
 
