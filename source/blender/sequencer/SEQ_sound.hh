@@ -62,8 +62,8 @@ void sound_equalizermodifier_remove_graph(SoundEqualizerModifierData *semd,
                                           EQCurveMappingData *eqcmd);
 
 void *pitch_shiftmodifier_recreator(Strip * /*strip*/,
-                                      StripModifierData *smd,
-                                      void *sound,
-                                      bool &needs_update);
+                                    StripModifierData *smd,
+                                    void *sound,
+                                    bool &needs_update);
 
 }  // namespace blender::seq

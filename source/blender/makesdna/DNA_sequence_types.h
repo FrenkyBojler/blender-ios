@@ -665,7 +665,7 @@ typedef struct PitchShiftModifierData {
   int cents;
   float ratio;
   int quality; /*ePitchShiftQuality*/
-  int mode; /*ePitchShiftMode*/
+  int mode;    /*ePitchShiftMode*/
   char _pad[4];
 } PitchShiftModifierData;
 

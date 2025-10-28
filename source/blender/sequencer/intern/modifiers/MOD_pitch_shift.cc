@@ -45,13 +45,13 @@ static void pitch_shiftmodifier_draw(const bContext * /*C*/, Panel *panel)
   uiLayout &col = layout->column(false);
 
   col.prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  
+
   int mode = RNA_enum_get(ptr, "mode");
-  if(mode == ePitchShiftMode::PITCH_SHIFT_MODE_SEMITONES) {
+  if (mode == ePitchShiftMode::PITCH_SHIFT_MODE_SEMITONES) {
     col.prop(ptr, "semi_tones", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col.prop(ptr, "cents", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  else if(mode == ePitchShiftMode::PITCH_SHIFT_MODE_RATIO) {
+  else if (mode == ePitchShiftMode::PITCH_SHIFT_MODE_RATIO) {
     col.prop(ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 

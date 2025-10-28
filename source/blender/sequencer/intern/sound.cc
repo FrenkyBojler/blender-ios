@@ -353,9 +353,9 @@ void *sound_equalizermodifier_recreator(Strip *strip,
 }
 
 void *pitch_shiftmodifier_recreator(Strip * /*strip*/,
-                                      StripModifierData *smd,
-                                      void *sound_in,
-                                      bool &needs_update)
+                                    StripModifierData *smd,
+                                    void *sound_in,
+                                    bool &needs_update)
 {
   if (!needs_update && smd->runtime.last_sound_in == sound_in) {
     return smd->runtime.last_sound_out;
@@ -379,10 +379,10 @@ void *pitch_shiftmodifier_recreator(Strip * /*strip*/,
 
   double pitch_scale = 0;
   int mode = psmd->mode;
-  if(mode == PITCH_SHIFT_MODE_SEMITONES) {
-    pitch_scale  = pow(2.0, (psmd->semi_tones + (psmd->cents / 100.0)) / 12.0);
+  if (mode == PITCH_SHIFT_MODE_SEMITONES) {
+    pitch_scale = pow(2.0, (psmd->semi_tones + (psmd->cents / 100.0)) / 12.0);
   }
-  else if(mode == PITCH_SHIFT_MODE_RATIO) {
+  else if (mode == PITCH_SHIFT_MODE_RATIO) {
     pitch_scale = psmd->ratio;
 
     if (pitch_scale <= 0.0) {
@@ -391,8 +391,7 @@ void *pitch_shiftmodifier_recreator(Strip * /*strip*/,
     }
   }
 
-  if(pitch_scale == 0)
-  {
+  if (pitch_scale == 0) {
     return smd->runtime.last_sound_out;
   }
 
