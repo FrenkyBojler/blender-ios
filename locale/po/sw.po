@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-10-27 09:50+0000\n"
 "PO-Revision-Date: 2025-07-23 15:16+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Swahili <https://translate.blender.org/projects/blender-ui/ui/sw/>\n"
@@ -16086,10 +16086,6 @@ msgid "Amount of random elements that are going to be affected by the brush"
 msgstr "Kiasi cha vipengele nasibu ambavyo vitaathiriwa na brashi"
 
 
-msgid "Direction"
-msgstr "Mwelekeo"
-
-
 msgid "Add effect of brush"
 msgstr "Ongeza athari ya brashi"
 
@@ -23492,10 +23488,6 @@ msgid "Sync to audio playback, dropping frames"
 msgstr "Sawazisha kwa uchezaji wa sauti, kuangusha viunzi"
 
 
-msgid "Second"
-msgstr "Pili"
-
-
 msgid "Timeline Markers"
 msgstr "Alama za Ratiba"
 
@@ -25824,6 +25816,10 @@ msgstr "Kitufe cha kudhibiti kimebonyezwa, -1 kwa hali yoyote"
 
 msgid "Control key pressed"
 msgstr "Kitufe cha kudhibiti kimebonyezwa"
+
+
+msgid "Direction"
+msgstr "Mwelekeo"
 
 
 msgid "The direction (only applies to drag events)"
@@ -28437,20 +28433,12 @@ msgid "Editor menu containing buttons"
 msgstr "Menyu ya mhariri iliyo na vitufe"
 
 
+msgid "Text"
+msgstr "Maandishi"
+
+
 msgid "Metaball"
 msgstr "Mpira wa miguu"
-
-
-msgid "Light"
-msgstr "Mwanga"
-
-
-msgid "Light Probe"
-msgstr "Uchunguzi wa Mwanga"
-
-
-msgid "Apply"
-msgstr "Tumia"
 
 
 msgid "Show/Hide"
@@ -28461,16 +28449,24 @@ msgid "Clean Up"
 msgstr "Safisha"
 
 
-msgid "Asset"
-msgstr "Mali"
+msgid "Pivot Point"
+msgstr "Egemeo"
+
+
+msgid "Snap"
+msgstr "Picha"
 
 
 msgid "Layout"
 msgstr "Mpangilio"
 
 
-msgid "Bone Collections"
-msgstr "Mikusanyo ya Mifupa"
+msgid "Mirror"
+msgstr "Kioo"
+
+
+msgid "Navigation"
+msgstr "Urambazaji"
 
 
 msgid "Adjust"
@@ -28489,24 +28485,28 @@ msgid "Utilities"
 msgstr "Huduma"
 
 
+msgid "Select Linked"
+msgstr "Chagua Imeunganishwa"
+
+
 msgid "Math"
 msgstr "Hisabati"
 
 
-msgid "Merge"
-msgstr "Unganisha"
+msgid "Light"
+msgstr "Mwanga"
 
 
-msgid "Text"
-msgstr "Maandishi"
+msgid "Light Probe"
+msgstr "Uchunguzi wa Mwanga"
 
 
-msgid "Pivot Point"
-msgstr "Egemeo"
+msgid "Apply"
+msgstr "Tumia"
 
 
-msgid "Snap"
-msgstr "Picha"
+msgid "Asset"
+msgstr "Mali"
 
 
 msgid "Read"
@@ -28529,32 +28529,28 @@ msgid "Instances"
 msgstr "Matukio"
 
 
-msgid "Mirror"
-msgstr "Kioo"
+msgid "Bone Collections"
+msgstr "Mikusanyo ya Mifupa"
 
 
 msgid "Import"
 msgstr "Ingiza"
 
 
-msgid "Navigation"
-msgstr "Urambazaji"
-
-
 msgid "Deprecated"
 msgstr "Imeacha kutumika"
 
 
-msgid "Select Linked"
-msgstr "Chagua Imeunganishwa"
-
-
-msgid "Basic"
-msgstr "Msingi"
+msgid "Merge"
+msgstr "Unganisha"
 
 
 msgid "Keyframe Insert Pie"
 msgstr "Ingiza Pai ya Fremu Muhimu"
+
+
+msgid "Basic"
+msgstr "Msingi"
 
 
 msgid "Bone Collection Specials"
@@ -33776,10 +33772,6 @@ msgstr "Saraka ya Kuoka ya Kuiga"
 
 msgid "Location on disk where the bake data is stored"
 msgstr "Mahali kwenye diski ambapo data ya kuoka huhifadhiwa"
-
-
-msgid "Packed"
-msgstr "Imefungwa"
 
 
 msgid "Node Group"
@@ -72302,6 +72294,10 @@ msgid "Don't import textures"
 msgstr "Usiingize maandishi"
 
 
+msgid "Packed"
+msgstr "Imefungwa"
+
+
 msgid "Import textures as packed data"
 msgstr "Ingiza maumbo kama data iliyopakiwa"
 
@@ -73188,22 +73184,6 @@ msgid "Panel containing UI elements"
 msgstr "Paneli iliyo na vipengele vya UI"
 
 
-msgid "Auto-Masking"
-msgstr "Kufunika Masking Kiotomatiki"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Mchoro wa Mikunjo Ongeza Chaguzi za Mviringo"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Curves Sculpt Parameta Falloff"
-
-
-msgid "Viewport Debug"
-msgstr "Utatuzi wa kituo cha kutazama"
-
-
 msgid "View Lock"
 msgstr "Kufuli ya Tazama"
 
@@ -73266,6 +73246,22 @@ msgstr "Mtazamo wa Quad"
 
 msgid "Multi Frame"
 msgstr "Fremu nyingi"
+
+
+msgid "Auto-Masking"
+msgstr "Kufunika Masking Kiotomatiki"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Mchoro wa Mikunjo Ongeza Chaguzi za Mviringo"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Curves Sculpt Parameta Falloff"
+
+
+msgid "Viewport Debug"
+msgstr "Utatuzi wa kituo cha kutazama"
 
 
 msgid "Motion Blur"
@@ -84660,18 +84656,6 @@ msgid "Method for controlling how the strip combines with other strips"
 msgstr "Njia ya kudhibiti jinsi strip inachanganyika na vibanzi vingine"
 
 
-msgid "Cross"
-msgstr "Msalaba"
-
-
-msgid "Alpha Under"
-msgstr "Alpha Chini"
-
-
-msgid "Gamma Cross"
-msgstr "Msalaba wa Gamma"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Y nafasi ya ukanda wa mfuatano"
 
@@ -92751,10 +92735,6 @@ msgid "External shader script must have .osl or .oso extension, or be a module n
 msgstr "Hati ya shader ya nje lazima iwe na kiendelezi cha .osl au .oso, au iwe jina la sehemu"
 
 
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr "Imeshindwa kuandika faili ya .oso karibu na faili ya .osl ya nje katika "
-
-
 msgid "No compatible GPUs found for Cycles"
 msgstr "Hakuna GPU zinazooana zilizopatikana za Mizunguko"
 
@@ -93582,10 +93562,6 @@ msgid "No active camera in the scene"
 msgstr "Hakuna kamera inayotumika kwenye eneo la tukio"
 
 
-msgid "Unexpected modifier type: "
-msgstr "Aina ya kirekebishaji kisichotarajiwa: "
-
-
 msgid "Target object not specified"
 msgstr "Kitu lengwa hakijabainishwa"
 
@@ -93636,10 +93612,6 @@ msgstr "Kamera inayotumika haipo katika eneo hili"
 
 msgid "Expected one other selected mesh object to copy from"
 msgstr "Ilitarajia kitu kingine kimoja kilichochaguliwa cha matundu kunakili kutoka"
-
-
-msgid "Modifiers cannot be added to object: "
-msgstr "Virekebishaji haviwezi kuongezwa kwa kupinga: "
 
 
 msgid "No objects with bound-box selected"
@@ -93704,10 +93676,6 @@ msgstr "Imeshindwa kuunda njia iliyowekwa mapema"
 
 msgid "Unable to remove default presets"
 msgstr "Imeshindwa kuondoa mipangilio chaguomsingi"
-
-
-msgid "Failed to execute the preset: "
-msgstr "Imeshindwa kutekeleza uwekaji awali: "
 
 
 msgid "No other objects selected"
@@ -93991,10 +93959,6 @@ msgid "Python evaluation failed: "
 msgstr "Tathmini ya chatu imeshindwa: "
 
 
-msgid "Failed to assign value: "
-msgstr "Imeshindwa kugawa thamani: "
-
-
 msgid "Strip(s)"
 msgstr "Vipande"
 
@@ -94019,16 +93983,8 @@ msgid "Collection(s)"
 msgstr "Mkusanyiko"
 
 
-msgid "Invalid regular expression (find): "
-msgstr "Usemi batili wa kawaida (tafuta): "
-
-
 msgid "Material(s)"
 msgstr "Nyenzo"
-
-
-msgid "Invalid regular expression (replace): "
-msgstr "Usemi wa kawaida usio sahihi (badilisha): "
 
 
 msgid "Bone(s)"
@@ -95605,6 +95561,10 @@ msgstr "Mstari wa Kasi"
 
 msgid "This object is part of a compound shape"
 msgstr "Kitu hiki ni sehemu ya umbo changamani"
+
+
+msgid "Second"
+msgstr "Pili"
 
 
 msgid "X Stiffness"
@@ -106152,10 +106112,6 @@ msgstr "Tenganisha nodi zilizounganishwa kwenye ingizo"
 
 msgid "Dependency Loop"
 msgstr "Kitanzi cha Utegemezi"
-
-
-msgid "Unsupported Menu Socket"
-msgstr "Soketi ya Menyu Isiyotumika"
 
 
 msgid "Closed by Default"
