@@ -891,15 +891,15 @@ class ANIM_OT_version_bone_hide_property(Operator):
                     # FCurve for that property already exists.
                     continue
 
-                ob_channelbag.fcurves.new_from_fcurve(fcurve, new_path)
+                ob_channelbag.fcurves.new_from_fcurve(fcurve, data_path=new_path)
 
             modified_armatures.append(arm_ob)
 
         if not modified_armatures:
-            self.report({'WARNING'}, rpt_("No armatures were modified"))
+            self.report({'WARNING'}, rpt_("No armature animation was modified"))
             return {'CANCELLED'}
 
-        self.report({'INFO'}, rpt_(f"Modified {len(modified_armatures)} armatures"))
+        self.report({'INFO'}, rpt_(f"Modified the animation of {len(modified_armatures)} armatures"))
         for screen in bpy.data.screens:
             for area in screen.areas:
                 area.tag_redraw()
