@@ -1273,7 +1273,7 @@ class NWModifyLabels(Operator, NWBase):
 
 class NWAddTextureSetup(Operator, NWBase):
     bl_idname = "node.nw_add_texture"
-    bl_label = "Texture Setup"
+    bl_label = "Add Texture Setup"
     bl_description = "Add texture node setup to selected shaders"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1354,7 +1354,7 @@ class NWAddTextureSetup(Operator, NWBase):
 
 class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
     bl_idname = "node.nw_add_textures_for_principled"
-    bl_label = "Principled Texture Setup"
+    bl_label = "Add Principled Texture Setup"
     bl_description = "Add texture node setup for Principled BSDF"
     bl_options = {'REGISTER', 'UNDO'}
 

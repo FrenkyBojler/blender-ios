@@ -34,8 +34,8 @@ def drawlayout(context, layout, mode='non-panel'):
 
     if tree_type == 'ShaderNodeTree':
         col = layout.column(align=True)
-        col.operator(operators.NWAddTextureSetup.bl_idname, text="Add Texture Setup", icon='NODE_SEL')
-        col.operator(operators.NWAddPrincipledSetup.bl_idname, text="Add Principled Setup", icon='NODE_SEL')
+        col.operator(operators.NWAddTextureSetup.bl_idname, icon='NODE_SEL')
+        col.operator(operators.NWAddPrincipledSetup.bl_idname, icon='NODE_SEL')
         col.separator()
 
     col = layout.column(align=True)
