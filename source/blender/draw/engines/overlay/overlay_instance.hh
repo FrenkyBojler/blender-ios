@@ -107,8 +107,13 @@ class Instance : public DrawEngine {
     Wireframe wireframe;
   } regular{selection_type_}, infront{selection_type_};
 
+  // Temporary ifdef for testing
+#define USE_GRID_REWORK
+#ifdef USE_GRID_REWORK
   GridRework grid_rework;
+#else
   Grid grid;
+#endif
 
   AntiAliasing anti_aliasing;
   XrayFade xray_fade;

@@ -11,5 +11,19 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 void main()
 {
-  out_color = float4(1, 0, 1, 1);
+  float3 P = local_pos;
+  float3 V = drw_view_position() - P;
+
+  float dist = length(V);
+  V /= dist;
+
+  float angle = V.z;
+  angle = 1.0f - abs(angle);
+  angle *= angle;
+
+  float fade = 1.0f - angle * angle;
+  fade *= 1.0f - smoothstep(0.0f, 512.f, dist - 512.f);
+  
+  out_color.rgb = float3(1); // local_pos;
+  out_color.a   = fade;
 }

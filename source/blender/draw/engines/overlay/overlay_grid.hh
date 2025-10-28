@@ -50,7 +50,7 @@ public:
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-    grid_ps_.state_set(DRW_STATE_WRITE_COLOR);
+    grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
     {
       auto &sub = grid_ps_.sub("grid");
@@ -74,9 +74,10 @@ public:
 private:
   bool init(const State &state) 
   {
-    /* ... */
+    // const View3D *v3d = state.v3d;
+    // const RegionView3D *rv3d = state.rv3d;
 
-    grid_ubo_.num_lines = 33;
+    grid_ubo_.num_lines = 1024 + 1;
 
     return true;
   }
@@ -158,6 +159,7 @@ class Grid : Overlay {
       if (zneg_flag_ & SHOW_AXIS_Z) {
         sub.push_constant("grid_flag", &zneg_flag_);
         sub.push_constant("plane_axes", &zplane_axes_);
+        // sub.state_set(DRWState::)
         sub.draw(res.shapes.grid.get());
       }
       if (grid_flag_) {
