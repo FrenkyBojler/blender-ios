@@ -6,11 +6,11 @@
  * \ingroup sequencer
  */
 
-#include <fmt/format.h>
 #include "BKE_colortools.hh"
 #include "BLI_listbase.h"
 #include "BLO_read_write.hh"
 #include "BLT_translation.hh"
+#include <fmt/format.h>
 
 #include "DNA_sequence_types.h"
 
@@ -30,34 +30,32 @@ namespace blender::seq {
 
 static void pitch_shiftermodifier_init_data(StripModifierData *smd)
 {
-    PitchShifterModifierData *psmd = (PitchShifterModifierData *)smd;
-    // 0 semi tones means no changes.
-    psmd->semi_tones = 0;
-    psmd->cents = 0;
-    psmd->ratio = 1;
-    psmd->pitch_quality = AUD_STRETCHER_QUALITY_HIGH;
+  PitchShifterModifierData *psmd = (PitchShifterModifierData *)smd;
+  // 0 semi tones means no changes.
+  psmd->semi_tones = 0;
+  psmd->cents = 0;
+  psmd->ratio = 1;
+  psmd->quality = AUD_STRETCHER_QUALITY_HIGH;
 }
 
 static void pitch_shiftermodifier_draw(const bContext * /*C*/, Panel *panel)
 {
-    uiLayout *layout = panel->layout;
-    PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  uiLayout *layout = panel->layout;
+  PointerRNA *ptr = UI_panel_custom_data_get(panel);
 
-    layout->use_property_split_set(true);
+  layout->use_property_split_set(true);
 
-    uiLayout &col = layout->column(false);
-    col.prop(ptr, "semi_tones", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.prop(ptr, "cents", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.prop(ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.prop(ptr, "pitch_quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiLayout &col = layout->column(false);
+  col.prop(ptr, "semi_tones", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "cents", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void pitch_shiftermodifier_register(ARegionType *region_type)
 {
-    modifier_panel_register(
-        region_type, eSeqModifierType_PitchShifter, pitch_shiftermodifier_draw);
+  modifier_panel_register(region_type, eSeqModifierType_PitchShifter, pitch_shiftermodifier_draw);
 }
-
 
 StripModifierTypeInfo seqModifierType_PitchShifter = {
     /*idname*/ "PitchShifter",

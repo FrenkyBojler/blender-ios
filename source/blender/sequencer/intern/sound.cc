@@ -35,14 +35,16 @@
 
 #include "strip_time.hh"
 
+#include "AUD_Types.h"
+
 namespace blender::seq {
 
 /* Unlike _update_sound_ functions,
  * these ones take info from audaspace to update sequence length! */
 const SoundModifierWorkerInfo workersSoundModifiers[] = {
-  {eSeqModifierType_SoundEqualizer, sound_equalizermodifier_recreator},
-  {eSeqModifierType_PitchShifter, pitch_shiftermodifier_recreator},
-  {0, nullptr}};
+    {eSeqModifierType_SoundEqualizer, sound_equalizermodifier_recreator},
+    {eSeqModifierType_PitchShifter, pitch_shiftermodifier_recreator},
+    {0, nullptr}};
 
 #ifdef WITH_CONVOLUTION
 static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, ListBase *seqbase)
@@ -350,29 +352,43 @@ void *sound_equalizermodifier_recreator(Strip *strip,
 #endif
 }
 
-void *pitch_shiftermodifier_recreator(Strip *strip,
-  StripModifierData *smd,
-  void *sound_in,
-  bool &needs_update)
-  {
-    if (!needs_update && smd->runtime.last_sound_in == sound_in)
-    {
-      return smd->runtime.last_sound_out;
-    }
-    PitchShifterModifierData *psmd = (PitchShifterModifierData *)smd;
-    
-    int quality = psmd->pitch_quality;
-    double pitch_scale = psmd->ratio;
-    if(pitch_scale <= 0.0){
-      pitch_scale = 1.0;
-      psmd->ratio = 1.0;
-    }
-    AUD_Sound *sound_out = AUD_Sound_timeStretchPitchScale(sound_in, 1, pitch_scale, (AUD_StretcherQuality)quality, false);
-    needs_update = true;
-    smd->runtime.last_sound_in = sound_in;
-    smd->runtime.last_sound_out = sound_out;
-    return sound_out;
+void *pitch_shiftermodifier_recreator(Strip * /*strip*/,
+                                      StripModifierData *smd,
+                                      void *sound_in,
+                                      bool &needs_update)
+{
+  if (!needs_update && smd->runtime.last_sound_in == sound_in) {
+    return smd->runtime.last_sound_out;
   }
+  PitchShifterModifierData *psmd = (PitchShifterModifierData *)smd;
+
+  int quality = psmd->quality;
+  switch (quality) {
+    case PITCH_SHIFT_QUALITY_HIGH:
+      quality = AUD_STRETCHER_QUALITY_HIGH;
+      break;
+    case PITCH_SHIFT_QUALITY_FAST:
+      quality = AUD_STRETCHER_QUALITY_FAST;
+      break;
+    case PITCH_SHIFT_QUALITY_CONSISTENT:
+      quality = AUD_STRETCHER_QUALITY_CONSISTENT;
+      break;
+    default:
+      quality = AUD_STRETCHER_QUALITY_HIGH;
+  }
+
+  double pitch_scale = psmd->ratio;
+  if (pitch_scale <= 0.0) {
+    pitch_scale = 1.0;
+    psmd->ratio = 1.0;
+  }
+  AUD_Sound *sound_out = AUD_Sound_timeStretchPitchScale(
+      sound_in, 1, pitch_scale, (AUD_StretcherQuality)quality, false);
+  needs_update = true;
+  smd->runtime.last_sound_in = sound_in;
+  smd->runtime.last_sound_out = sound_out;
+  return sound_out;
+}
 
 const SoundModifierWorkerInfo *sound_modifier_worker_info_get(int type)
 {

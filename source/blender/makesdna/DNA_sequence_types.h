@@ -648,12 +648,18 @@ typedef struct SoundEqualizerModifierData {
   ListBase graphics;
 } SoundEqualizerModifierData;
 
+typedef enum PitchShiftQuality {
+  PITCH_SHIFT_QUALITY_HIGH = 0,
+  PITCH_SHIFT_QUALITY_FAST = 1,
+  PITCH_SHIFT_QUALITY_CONSISTENT = 2,
+} PitchShiftQuality;
+
 typedef struct PitchShifterModifierData {
   StripModifierData modifier;
   int semi_tones;
   int cents;
   float ratio;
-  int pitch_quality;
+  int quality;
 } PitchShifterModifierData;
 
 /** \} */
