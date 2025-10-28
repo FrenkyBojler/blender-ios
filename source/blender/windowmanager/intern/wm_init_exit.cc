@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_memory_cache.hh"
 #include "MEM_guardedalloc.h"
 
 #include "CLG_log.h"
@@ -558,6 +559,10 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   free_openrecent();
 
   BKE_mball_cubeTable_free();
+
+  /* Clear the cache which may (indirectly) contain e.g. GPU resources which need to be freed
+   * before the GPU backend is destroyed. */
+  memory_cache::clear();
 
   /* Render code might still access databases. */
   RE_FreeAllRender();
