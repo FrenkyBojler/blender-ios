@@ -65,6 +65,16 @@ static void free_locales()
   num_locales = num_locales_menu = 0;
 }
 
+static bool locale_sufficient(char *locale)
+{
+  char *percentage = strrchr(locale, ':');
+  if (percentage && strchr(percentage, '%')) {
+    percentage++;
+    return strtoul(percentage, nullptr, 10) > 20;
+  }
+  return false;
+}
+
 static void fill_locales()
 {
   std::optional<std::string> languages_path = BKE_appdir_folder_id(BLENDER_DATAFILES, "locale");
@@ -93,11 +103,16 @@ static void fill_locales()
       line = line->next;
       continue; /* Comment or void... */
     }
+
     t = atoi(str);
     if (t >= num_locales) {
       num_locales = t + 1;
     }
-    num_locales_menu++;
+
+    if (locale_sufficient(str)) {
+      num_locales_menu++;
+    }
+
     line = line->next;
   }
   num_locales_menu++; /* The "closing" void item... */
@@ -114,6 +129,11 @@ static void fill_locales()
 
       char *str = (char *)line->link;
       if (ELEM(str[0], '#', '\0')) {
+        line = line->next;
+        continue;
+      }
+
+      if (!locale_sufficient(str)) {
         line = line->next;
         continue;
       }
