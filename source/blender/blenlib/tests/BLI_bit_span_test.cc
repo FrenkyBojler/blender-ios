@@ -45,25 +45,38 @@ TEST(bit_span, Iteration)
   }
 
   {
-    int i = 0;
-    int result[2] = {-1, -1};
-    int expect[2] = {2, 3};
+    const Vector<int> expect{2, 3};
+    Vector<int> result;
     for (const int bit_index : iter_1_indices(data)) {
-      result[i++] = bit_index;
+      result.append(bit_index);
     }
-    EXPECT_EQ_ARRAY(expect, result, 2);
+    EXPECT_EQ_SPAN(expect.as_span(), result.as_span());
   }
   {
     uint64_t data2 = 0xFBu;
-    const BitSpan span2(&data2, 8);
-    EXPECT_EQ(span2.size(), 8);
-    int result[7] = {-1, -1, -1, -1, -1, -1, -1};
-    int expect[7] = {0, 1, 3, 4, 5, 6, 7};
+    const Vector<int> expect{0, 1, 3, 4, 5, 6, 7};
+    Vector<int> result;
+    for (const int bit_index : iter_1_indices(data2)) {
+      result.append(bit_index);
+    }
+    EXPECT_EQ_SPAN(expect.as_span(), result.as_span());
+  }
+  {
+    uint64_t data2 = ~uint64_t(0);
     int i = 0;
     for (const int bit_index : iter_1_indices(data2)) {
-      result[i++] = bit_index;
+      EXPECT_EQ(i, bit_index);
+      i++;
     }
-    EXPECT_EQ_ARRAY(expect, result, 7);
+    EXPECT_EQ(i, 64);
+  }
+  {
+    uint64_t data2 = 0;
+    int i = 0;
+    for ([[maybe_unused]] const int bit_index : iter_1_indices(data2)) {
+      i++;
+    }
+    EXPECT_EQ(i, 0);
   }
 }
 

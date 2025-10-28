@@ -65,18 +65,16 @@ class MutableBitIterator : public BitIteratorBase {
 
 class OneBitIterator {
  private:
-  BitInt data_ = 0;
-  int64_t current_bit_ = 0;
+  BitInt data_;
+  int current_bit_;
 
  public:
-  OneBitIterator() = default;
-
   explicit OneBitIterator(BitInt data) : data_(data)
   {
-    current_bit_ = bitscan_forward_clear_uint64(&data_);
+    this->operator++();
   }
 
-  int64_t operator*() const
+  int operator*() const
   {
     return current_bit_;
   }
@@ -92,18 +90,18 @@ class OneBitIterator {
     return *this;
   }
 
-  friend bool operator!=(const OneBitIterator &a, const OneBitIterator & /*b*/)
+  friend bool operator!=(const OneBitIterator &a, const OneBitIterator &b)
   {
-    return a.current_bit_ != -1;
+    return a.current_bit_ != b.current_bit_;
   }
 };
 
-class OneBitIteratorWrapper {
+class OneBitIteratorRange {
  private:
   const BitInt data_;
 
  public:
-  OneBitIteratorWrapper(BitInt data) : data_(data) {}
+  OneBitIteratorRange(BitInt data) : data_(data) {}
 
   OneBitIterator begin() const
   {
@@ -111,13 +109,13 @@ class OneBitIteratorWrapper {
   }
   OneBitIterator end() const
   {
-    return {};
+    return OneBitIterator(0);
   }
 };
 
-inline OneBitIteratorWrapper iter_1_indices(BitInt value)
+inline OneBitIteratorRange iter_1_indices(BitInt value)
 {
-  return OneBitIteratorWrapper(value);
+  return OneBitIteratorRange(value);
 }
 
 /**
