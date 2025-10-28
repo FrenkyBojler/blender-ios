@@ -171,61 +171,21 @@ void VKPipelinePool::specialization_info_reset()
 /** \name Compute pipelines
  * \{ */
 
-VkPipeline VKPipelinePool::get_or_create_compute_pipeline(VKComputeInfo &compute_info,
+VkPipeline VKPipelinePool::get_or_create_compute_pipeline(const VKComputeInfo &compute_info,
                                                           const bool is_static_shader,
                                                           VkPipeline vk_pipeline_base,
                                                           StringRefNull name)
 {
-  bool wait_for_pipeline = false;
-  bool do_compile_pipeline = false;
-  {
-    std::scoped_lock lock(compute_.mutex);
-    const VkPipeline *found_pipeline = compute_.pipelines.lookup_ptr(compute_info);
-    if (found_pipeline) {
-      if (*found_pipeline == VK_NULL_HANDLE) {
-        wait_for_pipeline = true;
-      }
-      else {
-        /* Early exit: compute_info found and has a valid pipeline. */
-        return *found_pipeline;
-      }
-    }
-    else {
-      compute_.pipelines.add_new(compute_info, VK_NULL_HANDLE);
-      do_compile_pipeline = true;
-    }
-  }
-
-  if (wait_for_pipeline) {
-    return wait_for_compute_pipeline(compute_info, name);
-  }
-
-  if (do_compile_pipeline) {
-    VkPipeline pipeline = create_compute_pipeline(
-        compute_info, is_static_shader, vk_pipeline_base, name);
-
-    /* Store result in the compute pipelines map. */
-    {
-      std::scoped_lock lock(compute_.mutex);
-      VkPipeline &pipeline_item = compute_.pipelines.lookup(compute_info);
-      pipeline_item = pipeline;
-    }
-
-    /* Notify other threads that a new pipeline is available. */
-    {
-      compute_.new_pipeline_added.notify_all();
-    }
-    return pipeline;
-  }
-
-  BLI_assert_unreachable();
-  return VK_NULL_HANDLE;
+  VkPipelineCache vk_pipeline_cache = is_static_shader ? vk_pipeline_cache_static_ :
+                                                         vk_pipeline_cache_non_static_;
+  return compute_.get_or_create(compute_info, vk_pipeline_cache, vk_pipeline_base, name);
 }
 
-VkPipeline VKPipelinePool::create_compute_pipeline(VKComputeInfo &compute_info,
-                                                   const bool is_static_shader,
-                                                   VkPipeline vk_pipeline_base,
-                                                   StringRefNull name)
+template<>
+VkPipeline VKPipelineMap<VKComputeInfo>::create(const VKComputeInfo &compute_info,
+                                                VkPipelineCache vk_pipeline_cache,
+                                                VkPipeline vk_pipeline_base,
+                                                StringRefNull name)
 {
   /* Building compute pipeline create info */
   const bool do_specialization_constants = !compute_info.specialization_constants.is_empty();
@@ -267,8 +227,7 @@ VkPipeline VKPipelinePool::create_compute_pipeline(VKComputeInfo &compute_info,
   double start_time = BLI_time_now_seconds();
   VkPipeline pipeline = VK_NULL_HANDLE;
   vkCreateComputePipelines(device.vk_handle(),
-                           is_static_shader ? vk_pipeline_cache_static_ :
-                                              vk_pipeline_cache_non_static_,
+                           vk_pipeline_cache,
                            1,
                            &vk_compute_pipeline_create_info,
                            nullptr,
@@ -281,21 +240,6 @@ VkPipeline VKPipelinePool::create_compute_pipeline(VKComputeInfo &compute_info,
              (end_time - start_time) * 1000.0);
 
   return pipeline;
-}
-
-VkPipeline VKPipelinePool::wait_for_compute_pipeline(VKComputeInfo &compute_info,
-                                                     StringRefNull name)
-{
-  CLOG_TRACE(
-      &LOG, "Waiting for another thread to finish compiling compute pipeline %s", name.c_str());
-  std::unique_lock<Mutex> lock(compute_.mutex);
-  const VkPipeline *pipeline = VK_NULL_HANDLE;
-  compute_.new_pipeline_added.wait(lock, [&]() {
-    pipeline = compute_.pipelines.lookup_ptr(compute_info);
-    return pipeline != VK_NULL_HANDLE;
-  });
-
-  return *pipeline;
 }
 
 /* \} */
@@ -738,16 +682,7 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(VKGraphicsInfo &graph
 
 void VKPipelinePool::discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pipeline_layout)
 {
-  {
-    std::scoped_lock lock(compute_.mutex);
-    compute_.pipelines.remove_if([&](auto item) {
-      if (item.key.vk_pipeline_layout == vk_pipeline_layout) {
-        discard_pool.discard_pipeline(item.value);
-        return true;
-      }
-      return false;
-    });
-  }
+  compute_.discard(discard_pool, vk_pipeline_layout);
 
   {
     std::scoped_lock lock(mutex_);
@@ -772,13 +707,7 @@ void VKPipelinePool::free_data()
     graphic_pipelines_.clear();
   }
 
-  {
-    std::scoped_lock lock(compute_.mutex);
-    for (VkPipeline &vk_pipeline : compute_.pipelines.values()) {
-      vkDestroyPipeline(device.vk_handle(), vk_pipeline, nullptr);
-    }
-    compute_.pipelines.clear();
-  }
+  compute_.free_data(device.vk_handle());
 
   vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache_static_, nullptr);
   vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache_non_static_, nullptr);
