@@ -61,7 +61,7 @@ EQCurveMappingData *sound_equalizermodifier_add_graph(SoundEqualizerModifierData
 void sound_equalizermodifier_remove_graph(SoundEqualizerModifierData *semd,
                                           EQCurveMappingData *eqcmd);
 
-void *pitch_shiftermodifier_recreator(Strip * /*strip*/,
+void *pitch_shiftmodifier_recreator(Strip * /*strip*/,
                                       StripModifierData *smd,
                                       void *sound,
                                       bool &needs_update);

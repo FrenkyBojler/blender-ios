@@ -43,7 +43,7 @@ namespace blender::seq {
  * these ones take info from audaspace to update sequence length! */
 const SoundModifierWorkerInfo workersSoundModifiers[] = {
     {eSeqModifierType_SoundEqualizer, sound_equalizermodifier_recreator},
-    {eSeqModifierType_PitchShifter, pitch_shiftermodifier_recreator},
+    {eSeqModifierType_PitchShift, pitch_shiftmodifier_recreator},
     {0, nullptr}};
 
 #ifdef WITH_CONVOLUTION
@@ -352,7 +352,7 @@ void *sound_equalizermodifier_recreator(Strip *strip,
 #endif
 }
 
-void *pitch_shiftermodifier_recreator(Strip * /*strip*/,
+void *pitch_shiftmodifier_recreator(Strip * /*strip*/,
                                       StripModifierData *smd,
                                       void *sound_in,
                                       bool &needs_update)
@@ -360,7 +360,7 @@ void *pitch_shiftermodifier_recreator(Strip * /*strip*/,
   if (!needs_update && smd->runtime.last_sound_in == sound_in) {
     return smd->runtime.last_sound_out;
   }
-  PitchShifterModifierData *psmd = (PitchShifterModifierData *)smd;
+  PitchShiftModifierData *psmd = (PitchShiftModifierData *)smd;
 
   int quality = psmd->quality;
   switch (quality) {
@@ -377,11 +377,25 @@ void *pitch_shiftermodifier_recreator(Strip * /*strip*/,
       quality = AUD_STRETCHER_QUALITY_HIGH;
   }
 
-  double pitch_scale = psmd->ratio;
-  if (pitch_scale <= 0.0) {
-    pitch_scale = 1.0;
-    psmd->ratio = 1.0;
+  double pitch_scale = 0;
+  int mode = psmd->mode;
+  if(mode == PITCH_SHIFT_MODE_SEMITONES) {
+    pitch_scale  = pow(2.0, (psmd->semi_tones + (psmd->cents / 100.0)) / 12.0);
   }
+  else if(mode == PITCH_SHIFT_MODE_RATIO) {
+    pitch_scale = psmd->ratio;
+
+    if (pitch_scale <= 0.0) {
+      pitch_scale = 1.0;
+      psmd->ratio = 1.0;
+    }
+  }
+
+  if(pitch_scale == 0)
+  {
+    return smd->runtime.last_sound_out;
+  }
+
   AUD_Sound *sound_out = AUD_Sound_timeStretchPitchScale(
       sound_in, 1, pitch_scale, (AUD_StretcherQuality)quality, false);
   needs_update = true;

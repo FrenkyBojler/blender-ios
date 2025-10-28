@@ -648,19 +648,26 @@ typedef struct SoundEqualizerModifierData {
   ListBase graphics;
 } SoundEqualizerModifierData;
 
-typedef enum PitchShiftQuality {
+typedef enum ePitchShiftMode {
+  PITCH_SHIFT_MODE_SEMITONES = 0,
+  PITCH_SHIFT_MODE_RATIO = 1,
+} ePitchShiftMode;
+
+typedef enum ePitchShiftQuality {
   PITCH_SHIFT_QUALITY_HIGH = 0,
   PITCH_SHIFT_QUALITY_FAST = 1,
   PITCH_SHIFT_QUALITY_CONSISTENT = 2,
-} PitchShiftQuality;
+} ePitchShiftQuality;
 
-typedef struct PitchShifterModifierData {
+typedef struct PitchShiftModifierData {
   StripModifierData modifier;
   int semi_tones;
   int cents;
   float ratio;
-  int quality;
-} PitchShifterModifierData;
+  int quality; /*ePitchShiftQuality*/
+  int mode; /*ePitchShiftMode*/
+  char _pad[4];
+} PitchShiftModifierData;
 
 /** \} */
 
@@ -910,7 +917,7 @@ typedef enum eStripModifierType {
   eSeqModifierType_Tonemap = 7,
   eSeqModifierType_SoundEqualizer = 8,
   eSeqModifierType_Compositor = 9,
-  eSeqModifierType_PitchShifter = 10,
+  eSeqModifierType_PitchShift = 10,
   /* Keep last. */
   NUM_STRIP_MODIFIER_TYPES,
 } eStripModifierType;
