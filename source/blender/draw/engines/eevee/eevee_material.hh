@@ -12,8 +12,10 @@
 
 #include "DRW_render.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
+
 #include "GPU_material.hh"
 
 #include "draw_pass.hh"
@@ -136,7 +138,7 @@ enum eClosureBits : uint32_t {
 
   CLOSURE_TRANSMISSION = CLOSURE_SSS | CLOSURE_REFRACTION | CLOSURE_TRANSLUCENT,
 };
-ENUM_OPERATORS(eClosureBits, CLOSURE_CLEARCOAT)
+ENUM_OPERATORS(eClosureBits)
 
 static inline eClosureBits shader_closure_bits_from_flag(const GPUMaterial *gpumat)
 {
@@ -298,33 +300,6 @@ struct ShaderKey {
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Default Material Node-Tree
- *
- * In order to support materials without nodetree we reuse and configure a standalone nodetree that
- * we pass for shader generation. The GPUMaterial is still stored inside the Material even if
- * it does not use the same nodetree.
- *
- * \{ */
-
-class DefaultSurfaceNodeTree {
- private:
-  bNodeTree *ntree_;
-  bNodeSocketValueRGBA *color_socket_;
-  bNodeSocketValueFloat *metallic_socket_;
-  bNodeSocketValueFloat *roughness_socket_;
-  bNodeSocketValueFloat *specular_socket_;
-
- public:
-  DefaultSurfaceNodeTree();
-  ~DefaultSurfaceNodeTree();
-
-  /** Configure a default node-tree with the given material. */
-  bNodeTree *nodetree_get(::Material *ma);
-};
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Material
  *
  * \{ */
@@ -377,8 +352,6 @@ class MaterialModule {
   Map<ShaderKey, PassMain::Sub *> shader_map_;
 
   MaterialArray material_array_;
-
-  DefaultSurfaceNodeTree default_surface_ntree_;
 
   ::Material *error_mat_;
 

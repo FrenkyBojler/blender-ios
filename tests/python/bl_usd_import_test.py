@@ -874,30 +874,31 @@ class USDImportTest(AbstractUSDTest):
                 8 + i), 1.0, 2, "Unexpected weight for Elbow deform vert")
 
         action = bpy.data.actions['Anim1']
+        channelbag = action.layers[0].strips[0].channelbags[0]
 
         # Verify the Elbow joint rotation animation.
         curve_path = 'pose.bones["Elbow"].rotation_quaternion'
 
         # Quat W
-        f = action.fcurves.find(curve_path, index=0)
+        f = channelbag.fcurves.find(curve_path, index=0)
         self.assertIsNotNone(f, "Couldn't find Elbow rotation quaternion W curve")
         self.assertAlmostEqual(f.evaluate(0), 1.0, 2, "Unexpected value for rotation quaternion W curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.707, 2, "Unexpected value for rotation quaternion W curve at frame 10")
 
         # Quat X
-        f = action.fcurves.find(curve_path, index=1)
+        f = channelbag.fcurves.find(curve_path, index=1)
         self.assertIsNotNone(f, "Couldn't find Elbow rotation quaternion X curve")
         self.assertAlmostEqual(f.evaluate(0), 0.0, 2, "Unexpected value for rotation quaternion X curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.707, 2, "Unexpected value for rotation quaternion X curve at frame 10")
 
         # Quat Y
-        f = action.fcurves.find(curve_path, index=2)
+        f = channelbag.fcurves.find(curve_path, index=2)
         self.assertIsNotNone(f, "Couldn't find Elbow rotation quaternion Y curve")
         self.assertAlmostEqual(f.evaluate(0), 0.0, 2, "Unexpected value for rotation quaternion Y curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.0, 2, "Unexpected value for rotation quaternion Y curve at frame 10")
 
         # Quat Z
-        f = action.fcurves.find(curve_path, index=3)
+        f = channelbag.fcurves.find(curve_path, index=3)
         self.assertIsNotNone(f, "Couldn't find Elbow rotation quaternion Z curve")
         self.assertAlmostEqual(f.evaluate(0), 0.0, 2, "Unexpected value for rotation quaternion Z curve at frame 0")
         self.assertAlmostEqual(f.evaluate(10), 0.0, 2, "Unexpected value for rotation quaternion Z curve at frame 10")
@@ -1937,7 +1938,6 @@ class USDImportTest(AbstractUSDTest):
 
     def test_material_import_usd_hook(self):
         """Test importing color from an mtlx shader."""
-
         bpy.utils.register_class(ImportMtlxColorUSDHook)
         bpy.ops.wm.usd_import(filepath=str(self.testdir / "usd_simple_mtlx.usda"))
         bpy.utils.unregister_class(ImportMtlxColorUSDHook)
@@ -1949,7 +1949,6 @@ class USDImportTest(AbstractUSDTest):
         # Check that a Principled BSDF shader with the expected Base Color input.
         # was created.
         mtl = bpy.data.materials["Material"]
-        self.assertTrue(mtl.use_nodes)
         bsdf = mtl.node_tree.nodes.get("Principled BSDF")
         self.assertIsNotNone(bsdf)
         base_color_input = bsdf.inputs['Base Color']
@@ -2112,11 +2111,12 @@ class ImportMtlxColorUSDHook(bpy.types.USDHook):
 
         # Add a Principled BSDF shader and set its 'Base Color' input to
         # the color we read from mtlx.
-        bl_material.use_nodes = True
         node_tree = bl_material.node_tree
+        assert node_tree
         nodes = node_tree.nodes
-        bsdf = nodes.get("Principled BSDF")
-        assert bsdf
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+        output = nodes.new("ShaderNodeOutputMaterial")
+        node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
         color4 = [color[0], color[1], color[2], 1]
         ImportMtlxColorUSDHook.imported_color = color4
         bsdf.inputs['Base Color'].default_value = color4

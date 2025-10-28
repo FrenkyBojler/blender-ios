@@ -34,6 +34,7 @@ BLOCKLIST_USD = [
 BLOCKLIST_METAL = [
     # Thinfilm
     "principled.*thinfilm.*.blend",
+    "metallic.*thinfilm.*.blend",
     # Transparency
     "transparent.blend",
     "transparent_shadow.blend",
@@ -56,6 +57,25 @@ BLOCKLIST_METAL = [
     "white_noise.*.blend",
     "musgrave_multifractal.*.blend",
     "autosmooth_custom_normals.blend",
+]
+
+# AMD seems to have similar limitations as Metal for transparency.
+BLOCKLIST_AMD = BLOCKLIST_METAL + [
+    "musgrave_.*_multifractal.*.blend",
+    "noise_lacunarity.blend",
+]
+
+# Minor difference in texture coordinate for white noise hash.
+BLOCKLIST_INTEL = [
+    "autosmooth_custom_normals.blend",
+    "hair_reflection.blend",
+    "hair_transmission.blend",
+    "principled_bsdf_emission.blend",
+    "principled_bsdf_sheen.blend",
+    "musgrave_.*_multifractal.*.blend",
+    "noise_lacunarity.blend",
+    "sss_hair.blend",
+    "white_noise.*.blend",
 ]
 
 
@@ -119,7 +139,16 @@ def main():
 
     from modules import render_report
 
-    blocklist = BLOCKLIST_METAL if sys.platform == "darwin" else []
+    if sys.platform == "darwin":
+        blocklist = BLOCKLIST_METAL
+    else:
+        gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+        if gpu_vendor == "AMD":
+            blocklist = BLOCKLIST_AMD
+        elif gpu_vendor == "INTEL":
+            blocklist = BLOCKLIST_INTEL
+        else:
+            blocklist = []
 
     if args.export_method == 'HYDRA':
         report = render_report.Report("Storm Hydra", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_HYDRA)

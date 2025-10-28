@@ -10,6 +10,8 @@
 
 #include "DNA_scene_types.h"
 
+#include "BLI_enum_flags.hh"
+
 struct BlendDataReader;
 struct BlendWriter;
 struct Depsgraph;
@@ -46,7 +48,7 @@ enum class StripDuplicate : uint8_t {
   /* If this is set, duplicate all strips. If not set, duplicate selected strips. */
   All = (1 << 3),
 };
-ENUM_OPERATORS(StripDuplicate, StripDuplicate::All);
+ENUM_OPERATORS(StripDuplicate);
 
 SequencerToolSettings *tool_settings_init();
 SequencerToolSettings *tool_settings_ensure(Scene *scene);
@@ -143,6 +145,16 @@ Strip *lookup_strip_by_name(Editing *ed, const char *key);
  * \return Span of strips
  */
 Span<Strip *> lookup_strips_by_scene(Editing *ed, const Scene *key);
+
+/**
+ * Find all strips using provided compositor node tree as a modifier
+ *
+ * \param ed: Editing that owns lookup hash
+ * \param key: Node tree pointer
+ *
+ * \return Span of strips
+ */
+Span<Strip *> lookup_strips_by_compositor_node_group(Editing *ed, const bNodeTree *key);
 
 /**
  * Find which meta strip the given timeline channel belongs to. Returns nullptr if it is a global

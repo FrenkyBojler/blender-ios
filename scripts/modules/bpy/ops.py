@@ -7,11 +7,7 @@ from _bpy import ops as _ops_module
 
 # op_add = _ops_module.add
 _op_dir = _ops_module.dir
-_op_poll = _ops_module.poll
-_op_call = _ops_module.call
-_op_as_string = _ops_module.as_string
-_op_get_rna_type = _ops_module.get_rna_type
-_op_get_bl_options = _ops_module.get_bl_options
+_op_create_function = _ops_module.create_function
 
 _op_handlers = _ops_module.handlers
 
@@ -36,6 +32,7 @@ def remove_handlers(owner=None, cb=None):
 
 
 # -----------------------------------------------------------------------------
+<<<<<<< HEAD
 # Callable Operator Wrapper
 
 class _BPyOpsSubModOp:
@@ -160,13 +157,16 @@ class _BPyOpsSubModOp:
 
 
 # -----------------------------------------------------------------------------
+=======
+>>>>>>> origin/main
 # Sub-Module Access
 
 def _bpy_ops_submodule__getattr__(module, func):
-    # Return a value from `bpy.ops.{module}.{func}`
+    # Return a `BPyOpsCallable` object that bypasses Python `__call__` overhead
+    # for improved operator execution performance.
     if func.startswith("__"):
         raise AttributeError(func)
-    return _BPyOpsSubModOp(module, func)
+    return _op_create_function(module, func)
 
 
 def _bpy_ops_submodule__dir__(module):
