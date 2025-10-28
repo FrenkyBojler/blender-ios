@@ -52,6 +52,7 @@ TEST(makesrna_test, forward_struct_declarations_scoped_struct_set)
                                                      "POINTERRNA1",
                                                      "pointerrna3",
                                                      "Object",
+                                                     "blender::UI::FooStruct",
                                                      "Scene",
                                                      "Addons",
                                                      "bAddon",
@@ -73,17 +74,18 @@ TEST(makesrna_test, forward_struct_declarations_scoped_struct_set)
 
       "namespace blender {\n"
       "struct Map;\n"
+      "struct Vector;\n"
       "}; // namespace blender\n"
+
+      "namespace blender::UI {\n"
+      "struct FooStruct;\n"
+      "}; // namespace blender::UI\n"
 
       "namespace blender::ui {\n"
       "struct Layout;\n"
       "struct PieLayout;\n"
-      "}; // namespace blender::ui\n"
+      "}; // namespace blender::ui\n";
 
-      "namespace blender {\n"
-      "struct Vector;\n"
-      "}; // namespace blender\n";
-
-  EXPECT_EQ(stream.str(), blender::StringRef(expected_stream));
+  EXPECT_EQ(stream.str(), std::string(expected_stream));
 }
 }  // namespace blender::rna::tests
