@@ -26,7 +26,7 @@ namespace blender::ed::transform {
 
 static const Mesh *get_mesh_ref(const Object *ob_eval)
 {
-  Object *ob_orig = DEG_get_original(const_cast<Object *>(ob_eval));
+  const Object *ob_orig = DEG_get_original(ob_eval);
   if (ob_orig) {
     return static_cast<const Mesh *>(ob_orig->data);
   }
