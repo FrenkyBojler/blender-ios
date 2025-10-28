@@ -1953,26 +1953,32 @@ static int area_snap_calc_location(const wmWindow *win,
                                                               BLI_rcti_size_y(&screen_rect);
         const int screen_min = (dir_axis == SCREEN_AXIS_V) ? screen_rect.xmin : screen_rect.ymin;
 
-        const int div_array[] = {
-            m_min,
-            screen_min + round_fl_to_int(screen_size * 1.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 2.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 3.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 4.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 5.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 6.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 7.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 8.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 9.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 10.0f / 12.0f),
-            screen_min + round_fl_to_int(screen_size * 11.0f / 12.0f),
-            m_min + m_span,
-        };
+        /* Number of snap sections between the end-snap points. Minimum is 2, which
+         * results in a single extra position at 50%. Should be even and easily divisible. */
+        const int interior_snap_divisor = 24;
+        /* Minimum snap helps to cull any that are too close to the endpoint snaps. */
+        const int min_snap = int(float(screen_size) / float(interior_snap_divisor) / 4.0f);
+
+        blender::Vector<int> snaps(interior_snap_divisor + 1);
+        snaps[0] = m_min;
+        for (int i = 1; i < interior_snap_divisor; i++) {
+          snaps[i] = (screen_min + round_fl_to_int(screen_size * i / interior_snap_divisor));
+        }
+        snaps[interior_snap_divisor] = (m_min + m_span);
 
         /* Test the snap to the best division. */
-        for (int i = 0; i < ARRAY_SIZE(div_array); i++) {
-          const int m_cursor_test = div_array[i];
-          if (m_cursor_test < m_min) {
+        for (int i = 0; i < snaps.size(); i++) {
+          const int m_cursor_test = snaps[i];
+          if (m_cursor_test < (m_min) ||
+              (m_cursor_test > m_min && m_cursor_test < (m_min + min_snap)))
+          {
+            /* Ignore snaps too close to the minimum snap position. */
+            continue;
+          }
+          if (m_cursor_test > (m_min + m_span) ||
+              (m_cursor_test < (m_min + m_span) && m_cursor_test > (m_min + m_span - min_snap)))
+          {
+            /* Ignore snaps too close to the maximum snap position. */
             continue;
           }
           const int snap_dist_test = abs(m_cursor - m_cursor_test);
@@ -1983,6 +1989,7 @@ static int area_snap_calc_location(const wmWindow *win,
         }
       }
 
+      /* Also snap to positions of neighboring areas. */
       LISTBASE_FOREACH (const ScrVert *, v1, &screen->vertbase) {
         if (!v1->editflag) {
           continue;
