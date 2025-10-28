@@ -157,6 +157,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   const ast::Expr *value = *result;
   dot_export::DirectedGraph graph;
+  graph.attributes.set("ordering", "out");
   value->to_dot(graph);
   std::cout << "\n\n" << graph.to_dot_string() << "\n\n";
   params.set_default_remaining_outputs();
