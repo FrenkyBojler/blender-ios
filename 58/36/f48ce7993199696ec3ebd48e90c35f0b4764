@@ -1,2 +1,3 @@
 Referenced by issue #148724, Regression: NLA editor does not show NLA strips
 Referenced by pull request #148910, Fix #148888: NLA filter flag not working
+Referenced by commit 427e952570b26f09f71438304908ef6565eb4385, Fix #148888: NLA filter flag not working
