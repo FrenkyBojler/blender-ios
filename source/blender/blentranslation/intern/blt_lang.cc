@@ -264,7 +264,7 @@ static uint lang_from_userdef()
 
 #ifdef WITH_INTERNATIONAL
 #  define ULANGUAGE lang_from_userdef()
-#  define LOCALE(_id) (locales ? locales[(_id)] : "")
+#  define LOCALE(_id) ((locales && locales[(_id)]) ? locales[(_id)] : "")
 #endif
 
 void BLT_lang_set(const char *str)
