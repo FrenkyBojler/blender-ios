@@ -3189,10 +3189,6 @@ static void rna_Node_image_layer_update(Main *bmain, Scene *scene, PointerRNA *p
   BKE_image_signal(bmain, ima, iuser, IMA_SIGNAL_SRC_CHANGE);
 
   rna_Node_update(bmain, scene, ptr);
-
-  if (scene != nullptr && scene->compositing_node_group != nullptr) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
 }
 
 static const EnumPropertyItem *renderresult_layers_add_enum(RenderLayer *rl)
@@ -3391,9 +3387,6 @@ static const EnumPropertyItem *rna_Node_view_layer_itemf(bContext * /*C*/,
 static void rna_Node_view_layer_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   rna_Node_update_relations(bmain, scene, ptr);
-  if (scene != nullptr && scene->compositing_node_group != nullptr) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
 }
 
 static void rna_Image_Node_update_id(Main *bmain, Scene *scene, PointerRNA *ptr)

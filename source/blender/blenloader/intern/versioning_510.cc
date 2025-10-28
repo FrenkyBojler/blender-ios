@@ -15,6 +15,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_sys_types.h"
 
 #include "BKE_main.hh"
@@ -220,6 +221,66 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
   }
 }
 
+static const char *legacy_pass_name_to_new_name(const char *name)
+{
+  if (STREQ(name, "DiffDir")) {
+    return "Diffuse Direct";
+  }
+  if (STREQ(name, "DiffInd")) {
+    return "Diffuse Indirect";
+  }
+  if (STREQ(name, "DiffCol")) {
+    return "Diffuse Color";
+  }
+  if (STREQ(name, "GlossDir")) {
+    return "Glossy Direct";
+  }
+  if (STREQ(name, "GlossInd")) {
+    return "Glossy Indirect";
+  }
+  if (STREQ(name, "GlossCol")) {
+    return "Glossy Color";
+  }
+  if (STREQ(name, "TransDir")) {
+    return "Transmission Direct";
+  }
+  if (STREQ(name, "TransInd")) {
+    return "Transmission Indirect";
+  }
+  if (STREQ(name, "TransCol")) {
+    return "Transmission Color";
+  }
+  if (STREQ(name, "VolumeDir")) {
+    return "Volume Direct";
+  }
+  if (STREQ(name, "VolumeInd")) {
+    return "Volume Indirect";
+  }
+  if (STREQ(name, "VolumeCol")) {
+    return "Volume Color";
+  }
+  if (STREQ(name, "AO")) {
+    return "Ambient Occlusion";
+  }
+  if (STREQ(name, "Env")) {
+    return "Environment";
+  }
+  if (STREQ(name, "IndexMA")) {
+    return "Material Index";
+  }
+  if (STREQ(name, "IndexOB")) {
+    return "Object Index";
+  }
+  if (STREQ(name, "GreasePencil")) {
+    return "Grease Pencil";
+  }
+  if (STREQ(name, "Emit")) {
+    return "Emission";
+  }
+
+  return name;
+}
+
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -266,6 +327,25 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == SH_NODE_MIX) {
             do_version_mix_node_mix_mode_geometry(*node_tree, *node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 5)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_R_LAYERS) {
+            LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+              MEM_freeN(socket->storage);
+              socket->storage = nullptr;
+              const char *new_pass_name = legacy_pass_name_to_new_name(socket->name);
+              STRNCPY(socket->name, new_pass_name);
+              STRNCPY(socket->identifier, new_pass_name);
+            }
           }
         }
       }
