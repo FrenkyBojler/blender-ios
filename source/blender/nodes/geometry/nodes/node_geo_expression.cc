@@ -166,8 +166,16 @@ constexpr char_term op_member_access('.', 4);
 
 constexpr parser p(
     expr,
-    terms(
-        op_plus, op_minus, op_multiply, op_divide, number, identifier, '(', ')', op_member_access),
+    terms(op_plus,
+          op_minus,
+          op_multiply,
+          op_divide,
+          number,
+          identifier,
+          '(',
+          ')',
+          ',',
+          op_member_access),
     nterms(expr, expr_list),
     rules(
         expr(number) >>=
@@ -210,6 +218,13 @@ constexpr parser p(
                                     ast::Expr *v_expr,
                                     char /*skip*/) { return v_expr; },
         expr_list() >>= [](ParseContext & /*ctx*/) { return Vector<ast::Expr *>{}; },
+        expr_list(expr) >>= [](ParseContext & /*ctx*/,
+                               ast::Expr *v_expr) { return Vector<ast::Expr *>{v_expr}; },
+        expr_list(expr_list, ',', expr) >>=
+        [](ParseContext & /*ctx*/, Vector<ast::Expr *> v_expr_list, char /*skip*/, ast::Expr *b) {
+          v_expr_list.append(b);
+          return v_expr_list;
+        },
         expr(identifier, '(', expr_list, ')') >>=
         [](ParseContext &ctx,
            const term_value<std::string_view> &v_identifier,
