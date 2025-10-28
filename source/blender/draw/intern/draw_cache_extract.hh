@@ -34,6 +34,7 @@ struct ToolSettings;
 namespace blender::draw {
 
 struct MeshRenderData;
+struct DRWSkinningCache;
 struct DRWSubdivCache;
 
 /* Vertex Group Selection and display options */
@@ -284,6 +285,7 @@ struct MeshBatchCache {
   Array<gpu::Batch *> surface_per_mat;
 
   DRWSubdivCache *subdiv_cache;
+  DRWSkinningCache *skinning_cache;
 
   DRWBatchFlag batch_requested;
   DRWBatchFlag batch_ready;
@@ -337,6 +339,13 @@ void mesh_buffer_cache_create_requested(TaskGraph &task_graph,
                                         bool do_final,
                                         bool do_uvedit,
                                         bool use_hide);
+
+void mesh_buffer_cache_create_requested_skinning(MeshBatchCache &cache,
+                                                 MeshBufferCache &mbc,
+                                                 Span<IBOType> ibo_requests,
+                                                 Span<VBOType> vbo_requests,
+                                                 DRWSkinningCache &skinning_cache,
+                                                 MeshRenderData &mr);
 
 void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
                                                MeshBufferCache &mbc,
