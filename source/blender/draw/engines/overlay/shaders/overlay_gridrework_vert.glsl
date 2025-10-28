@@ -11,12 +11,14 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 void main()
 {
+  // Determine distance to floor plane through camera center
+  float t = drw_view_position().z / drw_view_forward().z;
+
   // Determine index of current line from 0 to num_lines - 1
   int line_idx = (gl_VertexID / 2) % int(grid_buf.num_lines);     // vertex 0, vertex 0, vertex 1, vertex 1
 
   // Offset distance to most outer line
-  // TODO; this should be a fixed distance or the edge of the camera plane
-  float line_offset = 1.0f;
+  float line_offset = floor(pow(2.0f, t / 64.f));
   float line_start = -line_offset * float(grid_buf.num_lines >> 1);
   
   float3 vert_pos = float3(line_start + line_offset * line_idx, line_start, 0.0f);
@@ -31,11 +33,10 @@ void main()
 
   // Add camera offset; grid moves with camera; we shoot a ray through the floor and move
   // around this point for now
-  float t = -drw_view_position().z / -drw_view_forward().z;
   float3 pos_on_floor = drw_view_position() + t * -drw_view_forward();
   pos_on_floor = float3(pos_on_floor.xy, 0);
 
-  vert_pos += floor(pos_on_floor);
+  vert_pos += floor(pos_on_floor / line_offset) * line_offset;
   local_pos = vert_pos;
   
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vert_pos, 1.0f));

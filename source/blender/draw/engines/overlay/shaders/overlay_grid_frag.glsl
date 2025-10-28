@@ -214,6 +214,5 @@ void main()
   }
 
   out_color.rgb = float3(1, 0, 1);
-  out_color.a = 1;
   out_color.a *= fade;
 }

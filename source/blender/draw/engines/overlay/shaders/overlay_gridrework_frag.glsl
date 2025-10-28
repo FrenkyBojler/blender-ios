@@ -24,6 +24,6 @@ void main()
   float fade = 1.0f - angle * angle;
   fade *= 1.0f - smoothstep(0.0f, 512.f, dist - 512.f);
   
-  out_color.rgb = float3(1); // local_pos;
-  out_color.a   = fade;
+  out_color.rgb = float3(0); // local_pos;
+  out_color.a   = 1.f; /* fade */;
 }
