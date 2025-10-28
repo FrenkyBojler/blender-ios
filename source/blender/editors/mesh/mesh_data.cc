@@ -834,11 +834,11 @@ static void mesh_add_loops(Mesh *mesh, int len)
 
   BKE_mesh_runtime_clear_cache(mesh);
 
+  mesh->corners_num = totloop;
+
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
   attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitDefaultValue());
-
-  mesh->corners_num = totloop;
 
   /* Keep the last face offset up to date with the corner total (they must be the same). We have
    * to be careful here though, since the mesh may not be in a valid state at this point. */
