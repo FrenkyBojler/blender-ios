@@ -126,10 +126,10 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(const VKGraphicsInfo 
   return graphics_.get_or_create(graphics_info, vk_pipeline_cache, vk_pipeline_base, name);
 }
 template<>
-VkPipeline VKPipelines<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_info,
-                                               VkPipelineCache vk_pipeline_cache,
-                                               VkPipeline vk_pipeline_base,
-                                               StringRefNull name)
+VkPipeline VKPipelineMap<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_info,
+                                                 VkPipelineCache vk_pipeline_cache,
+                                                 VkPipeline vk_pipeline_base,
+                                                 StringRefNull name)
 {
   VkPipelineRenderingCreateInfo vk_pipeline_rendering_create_info{
       VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
@@ -164,8 +164,6 @@ VkPipeline VKPipelines<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_in
   VkPipelineRasterizationProvokingVertexStateCreateInfoEXT
       vk_pipeline_rasterization_provoking_vertex_state_info;
 
-  VkDynamicState vk_dynamic_states[] = {
-      VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_LINE_WIDTH};
   VkPipelineDynamicStateCreateInfo vk_pipeline_dynamic_state_create_info;
 
   VkPipelineViewportStateCreateInfo vk_pipeline_viewport_state_create_info;
@@ -208,10 +206,6 @@ VkPipeline VKPipelines<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_in
       VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_PROVOKING_VERTEX_STATE_CREATE_INFO_EXT;
   vk_pipeline_rasterization_provoking_vertex_state_info.provokingVertexMode =
       VK_PROVOKING_VERTEX_MODE_LAST_VERTEX_EXT;
-
-  vk_pipeline_dynamic_state_create_info = {};
-  vk_pipeline_dynamic_state_create_info.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 
   vk_pipeline_viewport_state_create_info = {};
   vk_pipeline_viewport_state_create_info.sType =
@@ -306,12 +300,20 @@ VkPipeline VKPipelines<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_in
           VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
 
   /* Dynamic state */
+  Vector<VkDynamicState, 3> vk_dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT,
+                                                 VK_DYNAMIC_STATE_SCISSOR};
   const bool is_line_topology = ELEM(graphics_info.vertex_in.vk_topology,
                                      VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
                                      VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
                                      VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
-  vk_pipeline_dynamic_state_create_info.dynamicStateCount = is_line_topology ? 3 : 2;
-  vk_pipeline_dynamic_state_create_info.pDynamicStates = vk_dynamic_states;
+  if (is_line_topology) {
+    vk_dynamic_states.append(VK_DYNAMIC_STATE_LINE_WIDTH);
+  }
+  vk_pipeline_dynamic_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+                                           nullptr,
+                                           0,
+                                           uint32_t(vk_dynamic_states.size()),
+                                           vk_dynamic_states.data()};
 
   /* Viewport state */
   vk_pipeline_viewport_state_create_info.pViewports = nullptr;

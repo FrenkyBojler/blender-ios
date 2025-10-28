@@ -437,8 +437,8 @@ class VKPipelinePool : public NonCopyable {
   /**
    * Destroy all created pipelines.
    *
-   * Function is called just before the device is removed. This cannot be done in the destructor
-   * as that would be called after the device is removed.
+   * Function is called just before the device is removed. This cannot be done in the destructor as
+   * that would be called after the device is removed.
    */
   void free_data();
 
@@ -446,12 +446,12 @@ class VKPipelinePool : public NonCopyable {
    * Read the static pipeline cache from cache file.
    *
    * Pipeline caches requires blender to be build with `WITH_BUILDINFO` enabled . Between commits
-   * shader modules can change and shader module identifiers cannot be used. We use the build
-   * info to check if the identifiers can be reused.
+   * shader modules can change and shader module identifiers cannot be used. We use the build info
+   * to check if the identifiers can be reused.
    *
-   * Previous stored pipeline cache will not be read when G_DEBUG_GPU is enabled. In this case
-   * the shader modules will be compiled with other settings and any cached pipeline will not be
-   * used during this session.
+   * Previous stored pipeline cache will not be read when G_DEBUG_GPU is enabled. In this case the
+   * shader modules will be compiled with other settings and any cached pipeline will not be used
+   * during this session.
    *
    * NOTE: When developing shaders we assume that `WITH_BUILDINFO` is turned off or `G_DEBUG_GPU`
    * flag is set.
@@ -462,12 +462,12 @@ class VKPipelinePool : public NonCopyable {
    * Store the static pipeline cache to disk.
    *
    * Pipeline caches requires blender to be build with `WITH_BUILDINFO` enabled . Between commits
-   * shader modules can change and shader module identifiers cannot be used. We use the build
-   * info to check if the identifiers can be reused.
+   * shader modules can change and shader module identifiers cannot be used. We use the build info
+   * to check if the identifiers can be reused.
    *
-   * The cache will not be written when G_DEBUG_GPU is active. In this case the shader modules
-   * have been generated with debug information and other compiler settings are used. This will
-   * clutter the pipeline cache.
+   * The cache will not be written when G_DEBUG_GPU is active. In this case the shader modules have
+   * been generated with debug information and other compiler settings are used. This will clutter
+   * the pipeline cache.
    *
    * NOTE: When developing shaders we assume that `WITH_BUILDINFO` is turned off or `G_DEBUG_GPU`
    * flag is set.
