@@ -1112,23 +1112,8 @@ static void register_node_tool(wmOperatorType *ot, void *user_data)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static void unregister_node_group_operators()
-{
-  Set<StringRefNull> idnames;
-  for (const wmOperatorType *ot : WM_operatortypes_registered_get()) {
-    if (ot->flag & OPTYPE_NODE_TOOL) {
-      idnames.add_new(ot->idname);
-    }
-  }
-  for (const StringRefNull idname : idnames) {
-    WM_operatortype_remove(idname.c_str());
-  }
-}
-
 void register_node_group_operators(const bContext &C)
 {
-  unregister_node_group_operators();
-
   Main &bmain = *CTX_data_main(&C);
   LISTBASE_FOREACH (bNodeTree *, ntree, &bmain.nodetrees) {
     if (!ntree->geometry_node_asset_traits) {
@@ -1138,6 +1123,14 @@ void register_node_group_operators(const bContext &C)
       continue;
     }
     OperatorTypeData type_data = OperatorTypeData::from_group(*ntree);
+    if (const wmOperatorType *ot = WM_operatortype_find(type_data.idname.c_str(), true)) {
+      if (ot->flag & OPTYPE_NODE_TOOL) {
+        WM_operatortype_remove(type_data.idname.c_str());
+      }
+      else {
+        continue;
+      }
+    }
     WM_operatortype_append_ptr(register_node_tool, &type_data);
   }
 
@@ -1165,6 +1158,14 @@ void register_node_group_operators(const bContext &C)
       }
     }
     OperatorTypeData type_data = OperatorTypeData::from_asset(asset);
+    if (const wmOperatorType *ot = WM_operatortype_find(type_data.idname.c_str(), true)) {
+      if (ot->flag & OPTYPE_NODE_TOOL) {
+        WM_operatortype_remove(type_data.idname.c_str());
+      }
+      else {
+        return true;
+      }
+    }
     WM_operatortype_append_ptr(register_node_tool, &type_data);
     return true;
   });
