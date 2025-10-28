@@ -87,13 +87,14 @@ static bool is_bone_dropper_valid(BoneDropper *bone_dropper)
 
   if (GS(owner_ptr.owner_id->name) == ID_OB) {
     Object *ob = reinterpret_cast<Object *>(owner_ptr.owner_id);
+    /* Allows for the eyedropper to work on pose bones. */
     if (ob->type == OB_ARMATURE && ob->data) {
       return true;
     }
   }
 
-  if (GS(owner_ptr.owner_id->name) == ID_AR) {
-    return true;
+  if (GS(owner_ptr.owner_id->name) != ID_AR) {
+    return false;
   }
 
   return true;
