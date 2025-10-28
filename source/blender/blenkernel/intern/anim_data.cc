@@ -988,7 +988,6 @@ void BKE_action_fix_paths_rename(ID *owner_id,
                           newName,
                           oldN,
                           newN,
-                          // blender::animrig::legacy::fcurves_all(act),
                           blender::animrig::legacy::fcurves_for_action_slot(act, slot_handle),
                           verify_paths);
 
