@@ -37,6 +37,8 @@
 /* Must be multiple of 32. Set to 32 for shader simplicity. */
 #define DRW_VISIBILITY_GROUP_SIZE 32
 
+#define SKINNING_LOCAL_SIZE 64
+
 /**
  * The maximum of indexable views is dictated by:
  * - The UBO limit (16KiB) of the ViewMatrices container.

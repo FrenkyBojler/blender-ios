@@ -8,6 +8,10 @@ set(INC
   intern/lineart
   ../editors/include
   ../makesrna
+  ../draw/intern
+  ../draw/intern/shaders
+  ../gpu
+  ../gpu/intern
   ../../../intern/eigen
 
   # RNA_prototypes.hh

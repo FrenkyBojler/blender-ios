@@ -44,6 +44,7 @@
 #include "draw_cache_extract.hh"
 #include "draw_cache_inline.hh"
 #include "draw_subdivision.hh"
+#include "draw_skinning.hh"
 
 #include "draw_cache_impl.hh" /* own include */
 #include "draw_context_private.hh"
@@ -641,6 +642,13 @@ static void mesh_batch_cache_free_subdiv_cache(MeshBatchCache &cache)
   }
 }
 
+static void mesh_batch_cache_free_skinning_cache(MeshBatchCache &cache)
+{
+  /* Don't free skinning cache during mesh cache clear - keep it persistent
+   * Only set pointer to null, actual cleanup happens when mesh is deleted */
+  cache.skinning_cache = nullptr;
+}
+
 static void mesh_batch_cache_clear(MeshBatchCache &cache)
 {
   FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
@@ -666,6 +674,7 @@ static void mesh_batch_cache_clear(MeshBatchCache &cache)
   drw_mesh_weight_state_clear(&cache.weight_state);
 
   mesh_batch_cache_free_subdiv_cache(cache);
+  mesh_batch_cache_free_skinning_cache(cache);
 }
 
 void DRW_mesh_batch_cache_free(void *batch_cache)
@@ -1323,6 +1332,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
   const bool do_subdivision = BKE_subsurf_modifier_has_gpu_subdiv(&mesh);
 
+  const bool do_skinning = draw_skinning_is_available(&ob);
+
   enum class BufferList : int8_t { Final, Cage, UVCage };
 
   struct BatchCreateData {
@@ -1757,6 +1768,25 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                        false,
                                        false,
                                        true);
+  }
+
+  if (do_skinning) {
+    DRW_create_skinning(ob,
+                        mesh,
+                        cache,
+                        cache.final,
+                        ibo_requests[int(BufferList::Final)],
+                        vbo_requests[int(BufferList::Final)],
+                        is_editmode,
+                        is_paint_mode,
+                        true,
+                        false,
+                        do_cage,
+                        ts,
+                        use_hide);
+  }
+  else {
+    mesh_batch_cache_free_skinning_cache(cache);
   }
 
   if (do_subdivision) {

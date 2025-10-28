@@ -28,14 +28,18 @@
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
+#include "WM_api.hh"
 
 #include "RNA_prototypes.hh"
 #include "RNA_types.hh"
+#include "RNA_access.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
+
+#include "draw_skinning.hh"
 
 static void init_data(ModifierData *md)
 {
@@ -126,17 +130,28 @@ static void deform_verts(ModifierData *md,
                         positions.size()};
   }
 
+  Object *ob = ctx->object;
+  short skinning_mode = amd->use_gpudeform;
+
+  if (skinning_mode == SKIN_GPU) {
+    if (!blender::draw::draw_skinning_is_available(ob) /*&& CHECK IF THERE is no gpu */) {
+      // WM_report(RPT_ERROR, "GPU skinning failed, falling back to CPU");
+      printf("GPU skinning failed, falling back to CPU");
+    }
+  }
+
   /* if next modifier needs original vertices */
   MOD_previous_vcos_store(md, reinterpret_cast<float (*)[3]>(positions.data()));
-
-  BKE_armature_deform_coords_with_mesh(*amd->object,
-                                       *ctx->object,
-                                       positions,
-                                       vert_coords_prev,
-                                       std::nullopt,
-                                       amd->deformflag,
-                                       amd->defgrp_name,
-                                       mesh);
+  if (skinning_mode == SKIN_CPU) {
+    BKE_armature_deform_coords_with_mesh(*amd->object,
+                                        *ctx->object,
+                                        positions,
+                                        vert_coords_prev,
+                                        std::nullopt,
+                                        amd->deformflag,
+                                        amd->defgrp_name,
+                                        mesh);
+    }
 
   /* free cache */
   MEM_SAFE_FREE(amd->vert_coords_prev);
@@ -162,7 +177,6 @@ static void deform_verts_EM(ModifierData *md,
 
   /* if next modifier needs original vertices */
   MOD_previous_vcos_store(md, reinterpret_cast<float (*)[3]>(positions.data()));
-
   BKE_armature_deform_coords_with_editmesh(*amd->object,
                                            *ctx->object,
                                            positions,
@@ -201,14 +215,27 @@ static void deform_matrices(ModifierData *md,
                             blender::MutableSpan<blender::float3x3> matrices)
 {
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
-  BKE_armature_deform_coords_with_mesh(*amd->object,
-                                       *ctx->object,
-                                       positions,
-                                       std::nullopt,
-                                       matrices,
-                                       amd->deformflag,
-                                       amd->defgrp_name,
-                                       mesh);
+  Object *ob = ctx->object;
+  short skinning_mode = amd->use_gpudeform;
+
+  if (skinning_mode == SKIN_GPU) {
+    if (!blender::draw::draw_skinning_is_available(ob) /*&& CHECK IF THERE is no gpu */) {
+      // WM_report(RPT_ERROR, "GPU skinning failed, falling back to CPU");
+      printf("GPU skinning failed, falling back to CPU");
+    }
+  }
+
+  if (skinning_mode == SKIN_GPU) {
+    ArmatureModifierData *amd = (ArmatureModifierData *)md;
+    BKE_armature_deform_coords_with_mesh(*amd->object,
+                                        *ctx->object,
+                                        positions,
+                                        std::nullopt,
+                                        matrices,
+                                        amd->deformflag,
+                                        amd->defgrp_name,
+                                        mesh);
+  }
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -232,12 +259,36 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   col->prop(ptr, "use_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
   col->prop(ptr, "use_bone_envelopes", UI_ITEM_NONE, IFACE_("Bone Envelopes"), ICON_NONE);
 
+  // col = uiLayoutColumnWithHeading(layout, true, IFACE_("Performance"));
   modifier_error_message_draw(layout, ptr);
+}
+
+static void gpudeform_panel_header_draw(const bContext * /*C*/, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
+
+  layout->prop(ptr, "use_gpudeform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
+static void gpudeform_panel_draw(const bContext * /*C*/, Panel *panel)
+{
+  uiLayout *layout = panel->layout;
+
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
+
+  layout->use_property_split_set(true);
+
+  layout->active_set(RNA_boolean_get(ptr, "use_gpudeform"));
+  layout->prop(ptr, "gpu_deform_precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
 {
-  modifier_panel_register(region_type, eModifierType_Armature, panel_draw);
+  PanelType *panel_type = modifier_panel_register(region_type, eModifierType_Armature, panel_draw);
+  modifier_subpanel_register(
+      region_type, "gpuskinning", "", gpudeform_panel_header_draw, gpudeform_panel_draw, panel_type);
 }
 
 static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
