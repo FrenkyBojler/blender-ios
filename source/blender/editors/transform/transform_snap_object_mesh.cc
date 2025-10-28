@@ -11,7 +11,6 @@
 
 #include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
-#include "BKE_object.hh"
 
 #include "ED_transform_snap_object_context.hh"
 #include "ED_view3d.hh"
@@ -87,12 +86,6 @@ static bool raycastMesh(SnapObjectContext *sctx,
                         bool use_hide)
 {
   bool retval = false;
-
-  /* For curve and surface objects, use the evaluated mesh so snapping
-   * works with the final geometry instead of the coarse cage. */
-  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_CURVES, OB_SURF)) {
-    mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
-  }
 
   if (mesh_eval->faces_num == 0) {
     return retval;
