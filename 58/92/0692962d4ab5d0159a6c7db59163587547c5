@@ -1,1 +1,2 @@
 Referenced by issue #148915, Sculpt Mode - Brush assets and custom settings cause crashes.
+Referenced by pull request #148960, Fix #148915: Crash when using uninitialized pressure curve
