@@ -779,7 +779,7 @@ def view3d_multi_mode_select():
 
 def _ui_hack_idle_until(until, start_time, idle=1 / 60, timeout=1.0):
     """
-    Delays the internal event loop until a specified condition is true.
+    Idle while the internal event loop runs until a specified condition is true.
 
     This should be used sparingly as it likely represents some other failure condition inside Blender. Currently, the
     only known needed usecase is for multi window undo tests which need separate view layers. See #148903 for further
