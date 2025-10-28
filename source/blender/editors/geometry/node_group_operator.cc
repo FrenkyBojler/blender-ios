@@ -1646,8 +1646,7 @@ static bool unassigned_local_poll(const bContext &C)
   }
   const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(*active_object);
   LISTBASE_FOREACH (const bNodeTree *, group, &bmain.nodetrees) {
-    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu.
-     */
+    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
     if (group->id.library_weak_reference || group->id.asset_data) {
       continue;
     }
