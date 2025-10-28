@@ -57,9 +57,17 @@ class BinaryOp {
   dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
 };
 
+class UnaryOp {
+ public:
+  std::string_view op;
+  Expr *expr = nullptr;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
 class Expr {
  public:
-  using ExprVariant = std::variant<Number, Identifier, BinaryOp, MemberAccess>;
+  using ExprVariant = std::variant<Number, Identifier, BinaryOp, UnaryOp, MemberAccess>;
 
   ExprVariant expr;
 
@@ -96,6 +104,14 @@ dot_export::Node &BinaryOp::to_dot(dot_export::DirectedGraph &graph) const
   return op_node;
 }
 
+dot_export::Node &UnaryOp::to_dot(dot_export::DirectedGraph &graph) const
+{
+  dot_export::Node &expr_node = expr->to_dot(graph);
+  dot_export::Node &op_node = graph.new_node(op);
+  graph.new_edge(op_node, expr_node);
+  return op_node;
+}
+
 dot_export::Node &Expr::to_dot(dot_export::DirectedGraph &graph) const
 {
   return std::visit([&](const auto &expr) -> dot_export::Node & { return expr.to_dot(graph); },
@@ -125,7 +141,9 @@ constexpr char_term op_minus('-', 1);
 constexpr char_term op_multiply('*', 2);
 constexpr char_term op_divide('/', 2);
 
-constexpr char_term op_member_access('.', 3);
+const int unary_minus_precedence = 3;
+
+constexpr char_term op_member_access('.', 4);
 
 constexpr parser p(
     expr,
@@ -163,6 +181,10 @@ constexpr parser p(
         expr(expr, op_divide, expr) >>=
         [](ParseContext &ctx, ast::Expr *v_expr_a, char /*skip*/, ast::Expr *v_expr_b) {
           return &ctx.scope.construct<ast::Expr>(ast::BinaryOp{"/", v_expr_a, v_expr_b});
+        },
+        expr(op_minus, expr)[unary_minus_precedence] >>=
+        [](ParseContext &ctx, char /*skip*/, ast::Expr *v_expr) {
+          return &ctx.scope.construct<ast::Expr>(ast::UnaryOp{"-", v_expr});
         },
         expr('(', expr, ')') >>= [](ParseContext & /*ctx*/,
                                     char /*skip*/,
