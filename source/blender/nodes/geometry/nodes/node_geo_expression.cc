@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include <ctpg/ctpg.hpp>
+#include <fmt/format.h>
 
 #include "BLI_dot_export.hh"
 
@@ -39,6 +40,14 @@ class Identifier {
   dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
 };
 
+class MemberAccess {
+ public:
+  Expr *expr = nullptr;
+  std::string_view identifier;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
 class BinaryOp {
  public:
   std::string_view op;
@@ -50,7 +59,7 @@ class BinaryOp {
 
 class Expr {
  public:
-  using ExprVariant = std::variant<Number, Identifier, BinaryOp>;
+  using ExprVariant = std::variant<Number, Identifier, BinaryOp, MemberAccess>;
 
   ExprVariant expr;
 
@@ -67,6 +76,14 @@ dot_export::Node &Number::to_dot(dot_export::DirectedGraph &graph) const
 dot_export::Node &Identifier::to_dot(dot_export::DirectedGraph &graph) const
 {
   return graph.new_node(identifier);
+}
+
+dot_export::Node &MemberAccess::to_dot(dot_export::DirectedGraph &graph) const
+{
+  dot_export::Node &expr_node = expr->to_dot(graph);
+  dot_export::Node &member_access_node = graph.new_node(fmt::format(".{}", this->identifier));
+  graph.new_edge(member_access_node, expr_node);
+  return member_access_node;
 }
 
 dot_export::Node &BinaryOp::to_dot(dot_export::DirectedGraph &graph) const
@@ -108,9 +125,12 @@ constexpr char_term op_minus('-', 1);
 constexpr char_term op_multiply('*', 2);
 constexpr char_term op_divide('/', 2);
 
+constexpr char_term op_member_access('.', 3);
+
 constexpr parser p(
     expr,
-    terms(op_plus, op_minus, op_multiply, op_divide, number, identifier, '(', ')'),
+    terms(
+        op_plus, op_minus, op_multiply, op_divide, number, identifier, '(', ')', op_member_access),
     nterms(expr),
     rules(
         expr(number) >>=
@@ -120,6 +140,13 @@ constexpr parser p(
         expr(identifier) >>=
         [](ParseContext &ctx, const term_value<std::string_view> &v_identifier) {
           return &ctx.scope.construct<ast::Expr>(ast::Identifier{v_identifier.get_value()});
+        },
+        expr(expr, op_member_access, identifier) >>=
+        [](ParseContext &ctx,
+           ast::Expr *v_expr,
+           char /*skip*/,
+           const term_value<std::string_view> &v_identifier) {
+          return &ctx.scope.construct<ast::Expr>(ast::MemberAccess{v_expr, v_identifier});
         },
         expr(expr, op_plus, expr) >>=
         [](ParseContext &ctx, ast::Expr *v_expr_a, char /*skip*/, ast::Expr *v_expr_b) {
