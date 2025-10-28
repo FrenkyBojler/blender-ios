@@ -1185,6 +1185,21 @@ void register_node_group_operators(const bContext &C)
   OperatorRegisterErrors &errors = get_registration_errors();
   errors.clear();
 
+  Map<StringRefNull, int> duplicate_node_tool_idnames;
+  Set<StringRefNull> builtin_operator_replacement_attempts;
+  const auto check_for_duplicate = [&](const StringRefNull idname) -> bool {
+    const wmOperatorType *ot = WM_operatortype_find(idname.c_str(), true);
+    if (!ot) {
+      return true;
+    }
+    if (ot->flag & OPTYPE_NODE_TOOL) {
+      duplicate_node_tool_idnames.lookup_or_add(idname, 0)++;
+      return false;
+    }
+    builtin_operator_replacement_attempts.add(idname);
+    return false;
+  };
+
   Main &bmain = *CTX_data_main(&C);
   LISTBASE_FOREACH (bNodeTree *, ntree, &bmain.nodetrees) {
     if (!ntree->geometry_node_asset_traits) {
@@ -1198,11 +1213,7 @@ void register_node_group_operators(const bContext &C)
     if (!type_data) {
       continue;
     }
-    if (WM_operatortype_find(type_data->idname.c_str(), true)) {
-      BKE_reportf(&errors.reports,
-                  RPT_ERROR,
-                  "Cannot replace builtin operator '%s",
-                  type_data->idname.c_str());
+    if (!check_for_duplicate(type_data->idname)) {
       continue;
     }
     WM_operatortype_append_ptr(register_node_tool, &type_data.value());
@@ -1210,42 +1221,47 @@ void register_node_group_operators(const bContext &C)
 
   const AssetLibraryReference library_ref = asset_system::all_library_reference();
   ed::asset::list::storage_fetch(&library_ref, &C);
-  asset_system::AssetLibrary *library = ed::asset::list::library_get_once_available(library_ref);
-  if (!library) {
-    return;
-  }
-
-  ed::asset::list::iterate(library_ref, [&](AssetRepresentation &asset) {
-    if (asset.get_id_type() != ID_NT) {
-      return true;
-    }
-    const AssetMetaData &meta_data = asset.get_metadata();
-    const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
-    if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_GEOMETRY) {
-      return true;
-    }
-    const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
-        &meta_data, "geometry_node_asset_traits_flag");
-    if (traits_flag) {
-      if (traits_flag->type != IDP_INT || (IDP_int_get(traits_flag) & GEO_NODE_ASSET_TOOL) == 0) {
+  if (ed::asset::list::library_get_once_available(library_ref)) {
+    ed::asset::list::iterate(library_ref, [&](AssetRepresentation &asset) {
+      if (asset.get_id_type() != ID_NT) {
         return true;
       }
-    }
-    std::optional<OperatorTypeData> type_data = OperatorTypeData::from_asset(asset,
-                                                                             errors.reports);
-    if (!type_data) {
+      const AssetMetaData &meta_data = asset.get_metadata();
+      const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
+      if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_GEOMETRY) {
+        return true;
+      }
+      const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
+          &meta_data, "geometry_node_asset_traits_flag");
+      if (traits_flag) {
+        if (traits_flag->type != IDP_INT || (IDP_int_get(traits_flag) & GEO_NODE_ASSET_TOOL) == 0)
+        {
+          return true;
+        }
+      }
+      std::optional<OperatorTypeData> type_data = OperatorTypeData::from_asset(asset,
+                                                                               errors.reports);
+      if (!type_data) {
+        return true;
+      }
+      if (!check_for_duplicate(type_data->idname)) {
+        return true;
+      }
+      WM_operatortype_append_ptr(register_node_tool, &type_data.value());
       return true;
-    }
-    if (WM_operatortype_find(type_data->idname.c_str(), true)) {
-      BKE_reportf(&errors.reports,
-                  RPT_ERROR,
-                  "Cannot replace builtin operator '%s",
-                  type_data->idname.c_str());
-      return true;
-    }
-    WM_operatortype_append_ptr(register_node_tool, &type_data.value());
-    return true;
-  });
+    });
+  }
+
+  for (const StringRefNull idname : builtin_operator_replacement_attempts) {
+    BKE_reportf(&errors.reports, RPT_ERROR, "Cannot replace builtin operator '%s", idname.c_str());
+  }
+  for (const MapItem<StringRefNull, int> &item : duplicate_node_tool_idnames.items()) {
+    BKE_reportf(&errors.reports,
+                RPT_ERROR,
+                "%d duplicate(s) of node tool idname '%s'",
+                item.value,
+                item.key.c_str());
+  }
 }
 
 /** \} */
