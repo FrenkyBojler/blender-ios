@@ -31,6 +31,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::stringstream errors;
   ResourceScope scope;
   const expression::ast::Expr *value = expression::parse(scope, expression, errors);
+  if (!value) {
+    params.error_message_add(NodeWarningType::Error, errors.str());
+    params.set_default_remaining_outputs();
+    return;
+  }
+
   dot_export::DirectedGraph graph;
   graph.attributes.set("ordering", "out");
   value->to_dot(graph);
