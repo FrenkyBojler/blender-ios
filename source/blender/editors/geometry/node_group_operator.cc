@@ -1597,7 +1597,6 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       layout->separator();
       add_separator = false;
     }
-
     PointerRNA props_ptr = layout->op(operator_idname_for_asset(*asset, nullptr).value_or(""),
                                       IFACE_(asset->get_name()),
                                       ICON_NONE,
