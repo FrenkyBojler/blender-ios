@@ -696,8 +696,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
   free_strip_proxy(strip);
 
   if (lock_range) {
-    time_right_handle_frame_set(scene, strip, prev_end_frame);
-    time_left_handle_frame_set(scene, strip, prev_start_frame);
+    time_handles_frame_set(scene, strip, prev_start_frame, prev_end_frame);
   }
 
   relations_invalidate_cache_raw(scene, strip);
