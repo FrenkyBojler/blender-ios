@@ -328,6 +328,48 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
 /** \} */
 
 /* ---------------------------------------------------------------------- */
+/** \name Skinning Extract Loop
+ * \{ */
+void mesh_buffer_cache_create_requested_skinning(MeshBatchCache &cache,
+                                               MeshBufferCache &mbc,
+                                               const Span<IBOType> ibo_requests,
+                                               const Span<VBOType> vbo_requests,
+                                               DRWSkinningCache &skinning_cache,
+                                               MeshRenderData &mr)
+{
+  if (ibo_requests.is_empty() && vbo_requests.is_empty()) {
+    return;
+  }
+  MeshBufferList &buffers = mbc.buff;
+
+  mesh_render_data_update_corner_normals(mr);
+  mesh_render_data_update_loose_geom(mr, mbc);
+
+  Set<VBOType, 16> vbos_to_create;
+  for (const VBOType request : vbo_requests) {
+    if (!buffers.vbos.contains(request)) {
+      vbos_to_create.add_new(request);
+    }
+  }
+
+  bool needs_positions = vbos_to_create.contains(VBOType::Position);
+  bool needs_normals = vbos_to_create.contains(VBOType::CornerNormal);
+
+  if (needs_positions || needs_normals) {
+    if (needs_positions) {
+      buffers.vbos.add_new(VBOType::Position, extract_positions_skinning(skinning_cache, mr));
+    }
+
+    /* this will use the cached result from position extraction */
+    if (needs_normals) {
+      buffers.vbos.add_new(VBOType::CornerNormal, extract_normals_skinning(skinning_cache, mr));
+    }
+  }
+}
+
+/** \} */
+
+/* ---------------------------------------------------------------------- */
 /** \name Subdivision Extract Loop
  * \{ */
 

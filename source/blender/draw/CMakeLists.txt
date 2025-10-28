@@ -66,6 +66,7 @@ set(SRC
   intern/draw_cache_impl_particles.cc
   intern/draw_cache_impl_pointcloud.cc
   intern/draw_cache_impl_subdivision.cc
+  intern/draw_cache_impl_skinning.cc
   intern/draw_cache_impl_volume.cc
   intern/draw_color_management.cc
   intern/draw_command.cc
@@ -181,6 +182,7 @@ set(SRC
   intern/draw_subdiv_defines.hh
   intern/draw_subdiv_shader_shared.hh
   intern/draw_subdivision.hh
+  intern/draw_skinning.hh
   intern/draw_view.hh
   intern/draw_view_c.hh
   intern/draw_view_data.hh
@@ -317,6 +319,7 @@ set(GLSL_SRC
   intern/shaders/draw_debug_infos.hh
   intern/shaders/draw_object_infos_infos.hh
   intern/shaders/draw_view_infos.hh
+  intern/shaders/draw_skinning_infos.hh
   intern/shaders/subdiv_infos.hh
 
   engines/eevee/shaders/infos/eevee_ambient_occlusion_infos.hh
@@ -658,6 +661,10 @@ set(GLSL_SRC
   intern/shaders/draw_view_lib.glsl
   intern/shaders/draw_view_reconstruction_lib.glsl
   intern/shaders/draw_visibility_comp.glsl
+  intern/shaders/draw_math_quat_lib.glsl
+  intern/shaders/draw_armature_skinning_lbs.glsl
+  intern/shaders/draw_armature_skinning_dqs.glsl
+  intern/shaders/draw_armatureskin_aabb.glsl
 
   intern/draw_attribute_shader_shared.hh
   intern/draw_command_shared.hh

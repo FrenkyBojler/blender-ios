@@ -12,6 +12,7 @@
 #include "extract_mesh.hh"
 
 #include "draw_subdivision.hh"
+#include "draw_skinning.hh"
 
 namespace blender::draw {
 
@@ -84,6 +85,67 @@ gpu::VertBufPtr extract_positions(const MeshRenderData &mr)
   }
 
   return vbo;
+}
+
+static const GPUVertFormat &get_skinning_pos_format()
+{
+  static GPUVertFormat format = {0};
+  if (format.attr_len == 0) {
+    GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
+  }
+  return format;
+}
+
+static const GPUVertFormat &get_skinning_nor_format()
+{
+  static GPUVertFormat format = {0};
+  if (format.attr_len == 0) {
+    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32_32);
+  }
+  return format;
+}
+
+static gpu::VertBufPtr g_skinning_normals_cache = nullptr;
+
+gpu::VertBufPtr extract_positions_skinning(const DRWSkinningCache &skinning_cache,
+                                           const MeshRenderData &mr)
+{
+  gpu::VertBufPtr vbo_pos = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_pos_format(), mr.corners_num + mr.loose_indices_num + 1));
+
+  gpu::VertBufPtr vbo_nor = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_nor_format(), mr.corners_num + mr.loose_indices_num));
+
+  draw_skinning_extract_pos_nor(vbo_pos.get(), vbo_nor.get(), skinning_cache);
+
+  draw_skinning_compute_bounds(const_cast<Mesh *>(mr.mesh), skinning_cache, vbo_pos.get());
+
+  /* Cache the normals VBO for later retrieval */
+  g_skinning_normals_cache = std::move(vbo_nor);
+
+  return vbo_pos;
+}
+
+gpu::VertBufPtr extract_normals_skinning(const DRWSkinningCache &skinning_cache,
+                                         const MeshRenderData &mr)
+{
+  /* Return the cached normals VBO that was computed during position extraction */
+  if (g_skinning_normals_cache) {
+    gpu::VertBufPtr result = std::move(g_skinning_normals_cache);
+    g_skinning_normals_cache = nullptr;
+    return result;
+  }
+
+  /* Fallback: create normals VBO if positions weren't extracted first */
+  gpu::VertBufPtr vbo_pos = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_pos_format(), mr.corners_num + mr.loose_indices_num + 1));
+
+  gpu::VertBufPtr vbo_nor = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_nor_format(), mr.corners_num + mr.loose_indices_num));
+
+  draw_skinning_extract_pos_nor(vbo_pos.get(), vbo_nor.get(), skinning_cache);
+
+  return vbo_nor;
 }
 
 static void extract_loose_positions_subdiv(const DRWSubdivCache &subdiv_cache,
