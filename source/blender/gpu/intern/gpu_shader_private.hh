@@ -137,7 +137,7 @@ class ShaderCompiler {
 
   struct Batch {
     Vector<Shader *> shaders;
-    Vector<shader::ShaderCreateInfo, 1> infos;
+    Vector<shader::ShaderCreateInfo> infos;
 
     Vector<ShaderSpecialization> specializations;
 
