@@ -1,1 +1,2 @@
 Referenced by issue #148695, macOS: UI lag when dragging value slider
+Referenced by pull request #148927, Fix #148695: Value slider UI dragging lag due to missing redraw
