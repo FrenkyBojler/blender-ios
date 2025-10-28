@@ -12,6 +12,7 @@
 #include "NOD_expression_parse.hh"
 
 #include "node_geometry_util.hh"
+#include "shader/node_shader_util.hh"
 
 namespace blender::nodes::node_geo_expression_cc {
 
@@ -41,7 +42,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "NodeExpression");
+  sh_geo_node_type_base(&ntype, "NodeExpression");
   ntype.ui_name = "Expression";
   ntype.ui_description = "Evaluate an expression on inputs";
   ntype.nclass = NODE_CLASS_CONVERTER;

@@ -424,6 +424,8 @@ class NODE_MT_shader_node_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeSeparateBundle")
         layout.separator()
         self.node_operator(layout, "GeometryNodeMenuSwitch")
+        layout.separator()
+        self.node_operator(layout, "NodeExpression")
         if cycles_shader_nodes_poll(context):
             layout.separator()
             self.node_operator(layout, "ShaderNodeScript")
