@@ -3884,7 +3884,8 @@ static void rna_ShaderNodeTexIES_mode_set(PointerRNA *ptr, int value)
 
       if (value == NODE_IES_EXTERNAL && text->filepath) {
         STRNCPY(nss->filepath, text->filepath);
-        BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id));
       }
 
       id_us_min(node->id);
@@ -3909,7 +3910,8 @@ static void rna_ShaderNodeScript_mode_set(PointerRNA *ptr, int value)
 
       if (value == NODE_SCRIPT_EXTERNAL && text->filepath) {
         STRNCPY(nss->filepath, text->filepath);
-        BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id));
       }
 
       id_us_min(node->id);
@@ -5032,7 +5034,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 
   prop = RNA_def_property(srna, "sun_elevation", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_ui_text(prop, "Sun Elevation", "Sun angle from horizon");
-  RNA_def_property_float_default(prop, M_PI_2);
+  RNA_def_property_float_default(prop, DEG2RADF(15.0f));
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "sun_rotation", PROP_FLOAT, PROP_ANGLE);
