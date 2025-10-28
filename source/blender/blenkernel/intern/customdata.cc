@@ -4308,30 +4308,6 @@ void CustomData_set_layer_unique_name(CustomData *data, const int index)
       name_maxncpy);
 }
 
-void CustomData_validate_layer_name(const CustomData *data,
-                                    const eCustomDataType type,
-                                    const StringRef name,
-                                    char *outname)
-{
-  int index = -1;
-
-  /* if a layer name was given, try to find that layer */
-  if (!name.is_empty()) {
-    index = CustomData_get_named_layer_index(data, type, name);
-  }
-
-  if (index == -1) {
-    /* either no layer was specified, or the layer we want has been
-     * deleted, so assign the active layer to name
-     */
-    index = CustomData_get_active_layer_index(data, type);
-    BLI_strncpy_utf8(outname, data->layers[index].name, MAX_CUSTOMDATA_LAYER_NAME);
-  }
-  else {
-    name.copy_utf8_truncated(outname, MAX_CUSTOMDATA_LAYER_NAME);
-  }
-}
-
 bool CustomData_verify_versions(CustomData *data, const int index)
 {
   const LayerTypeInfo *typeInfo;
@@ -5163,15 +5139,15 @@ void CustomData_blend_write(BlendWriter *writer,
     CustomData_external_write(data, id, cddata_mask, count, 0);
   }
 
-  BLO_write_struct_array_at_address(
-      writer, CustomDataLayer, data->totlayer, data->layers, layers_to_write.data());
-
   for (const CustomDataLayer &layer : layers_to_write) {
     const size_t size_in_bytes = CustomData_sizeof(eCustomDataType(layer.type)) * count;
     BLO_write_shared(writer, layer.data, size_in_bytes, layer.sharing_info, [&]() {
       blend_write_layer_data(writer, layer, count);
     });
   }
+
+  BLO_write_struct_array_at_address(
+      writer, CustomDataLayer, data->totlayer, data->layers, layers_to_write.data());
 
   if (data->external) {
     BLO_write_struct(writer, CustomDataExternal, data->external);
