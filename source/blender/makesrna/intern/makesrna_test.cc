@@ -86,6 +86,6 @@ TEST(makesrna_test, forward_struct_declarations_scoped_struct_set)
       "struct PieLayout;\n"
       "}; // namespace blender::ui\n";
 
-  EXPECT_EQ(stream.str(), std::string(expected_stream));
+  EXPECT_EQ(stream.str(), expected_stream);
 }
 }  // namespace blender::rna::tests
