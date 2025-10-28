@@ -9448,6 +9448,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "Description", "Description of the node tree");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
   /* AnimData */
   rna_def_animdata_common(srna);

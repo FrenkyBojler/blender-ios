@@ -69,6 +69,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "WM_api.hh"
+#include "WM_types.hh"
 #include "atomic_ops.h"
 
 #include "lib_intern.hh"
@@ -2406,7 +2408,17 @@ IDNewNameResult BKE_id_rename(Main &bmain,
         }
         break;
       }
+      case ID_NT: {
+        bNodeTree &ntree = reinterpret_cast<bNodeTree &>(id);
+        if (ntree.geometry_node_asset_traits) {
+          if (ntree.geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) {
+            WM_main_add_notifier(NC_NODE | ND_NODE_ASSET_DATA, &id);
+          }
+        }
+        break;
+      }
       default:
+
         break;
     }
   };
