@@ -11,7 +11,7 @@ namespace blender::rna::tests {
 
 TEST(makesrna_test, forward_struct_declarations_empty_set)
 {
-  std::stringstream stream;
+  std::ostringstream stream;
   blender::VectorSet<std::string> test_struct_set;
   rna_write_struct_forward_declarations(stream, std::move(test_struct_set));
   EXPECT_EQ(stream.str(), blender::StringRef(""));
@@ -19,7 +19,7 @@ TEST(makesrna_test, forward_struct_declarations_empty_set)
 
 TEST(makesrna_test, forward_struct_declarations_unscoped_struct_set)
 {
-  std::stringstream stream;
+  std::ostringstream stream;
   blender::VectorSet<std::string> test_struct_set = {"bContext2",
                                                      "PointerRNA2",
                                                      "BContext",
@@ -45,7 +45,7 @@ TEST(makesrna_test, forward_struct_declarations_unscoped_struct_set)
 
 TEST(makesrna_test, forward_struct_declarations_scoped_struct_set)
 {
-  std::stringstream stream;
+  std::ostringstream stream;
   blender::VectorSet<std::string> test_struct_set = {"bContext2",
                                                      "PointerRNA2",
                                                      "BContext",

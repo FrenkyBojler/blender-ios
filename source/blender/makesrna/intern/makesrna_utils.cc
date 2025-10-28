@@ -8,7 +8,7 @@
 
 #include "BLI_string.h"
 
-void rna_write_struct_forward_declarations(std::stringstream &stream,
+void rna_write_struct_forward_declarations(std::ostringstream &stream,
                                            blender::VectorSet<std::string> &&structs_set)
 {
   blender::Vector<std::string> structs_vec = structs_set.extract_vector();

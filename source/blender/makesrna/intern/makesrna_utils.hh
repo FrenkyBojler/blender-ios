@@ -9,4 +9,5 @@
 
 #include "BLI_vector_set.hh"
 
-void rna_write_struct_forward_declarations(std::stringstream  &buffer, blender::VectorSet<std::string> &&structs_set);
+void rna_write_struct_forward_declarations(std::ostringstream &buffer,
+                                           blender::VectorSet<std::string> &&structs_set);
