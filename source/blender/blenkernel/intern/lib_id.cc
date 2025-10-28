@@ -2418,7 +2418,6 @@ IDNewNameResult BKE_id_rename(Main &bmain,
         break;
       }
       default:
-
         break;
     }
   };
