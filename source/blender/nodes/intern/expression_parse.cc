@@ -20,7 +20,7 @@ using namespace ctpg;
 constexpr nterm<ast::Expr *> expr("expr");
 constexpr nterm<Vector<ast::Expr *>> expr_list("args");
 
-constexpr char number_pattern[] = "[1-9][0-9]*|0+";
+constexpr char number_pattern[] = "([1-9][0-9]*|0)(\\.[0-9]+)?";
 constexpr regex_term<number_pattern> number("number");
 
 constexpr char identifier_pattern[] = "[a-zA-Z][a-zA-Z0-9]*";

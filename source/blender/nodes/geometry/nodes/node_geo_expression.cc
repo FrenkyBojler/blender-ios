@@ -20,10 +20,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_output<decl::Int>("Value");
+  b.add_output<decl::Float>("Value");
   b.add_input<decl::String>("Expression").optional_label();
-  b.add_input<decl::Int>("a");
-  b.add_input<decl::Int>("b");
+  b.add_input<decl::Float>("a");
+  b.add_input<decl::Float>("b");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

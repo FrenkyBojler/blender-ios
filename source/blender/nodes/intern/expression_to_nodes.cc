@@ -84,7 +84,7 @@ class AstToNodeGroupBuilder {
 
   NodeAndSocket build_expr(const ast::Number &ast_node)
   {
-    const int value = std::stoi(ast_node.value);
+    const float value = std::stoi(ast_node.value);
     bNode &node = this->add_node("ShaderNodeValue");
     bNodeSocket *socket = static_cast<bNodeSocket *>(node.outputs.first);
     socket->default_value_typed<bNodeSocketValueFloat>()->value = value;
