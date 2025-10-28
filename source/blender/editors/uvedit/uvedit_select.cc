@@ -6756,41 +6756,43 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  const int tile_x = RNA_int_get(op->ptr, "tile_x");
-  const int tile_y = RNA_int_get(op->ptr, "tile_y");
-
+  blender::int2 tile;
+  RNA_int_get_array(op->ptr, "tile", tile);
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  blender::Bounds<blender::float2> bounds;
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
     bool changed = false;
+    if (!extend) {
+      ED_uvedit_deselect_all(scene, ob, SEL_DESELECT);
+      changed = true;
+    }
+
+    if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+      uvedit_select_prepare_sync_select(scene, em->bm);
+    }
     BMFace *f;
     BMIter iter;
+
     BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
       BMLoop *l;
       BMIter liter;
 
-      bool face_in_tile = false;
+      INIT_MINMAX2(bounds.min, bounds.max);
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
         const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
-
-        if (luv[0] > tile_x && luv[0] < tile_x + 1.0f && luv[1] > tile_y && luv[1] < tile_y + 1.0f)
-        {
-          face_in_tile = true;
-          break;
-        }
+        minmax_v2v2_v2(bounds.min, bounds.max, luv);
       }
-
-      BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-        const float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
-
-        bool overlaps_tile = (luv[0] >= tile_x && luv[0] <= tile_x + 1.0f && luv[1] >= tile_y &&
-                              luv[1] <= tile_y + 1.0f);
-
-        bool tile_edge = (luv[0] == tile_x + 1.0f || luv[1] == tile_y + 1.0f || luv[0] == tile_x ||
-                          luv[1] == tile_y);
-
-        if (overlaps_tile && (face_in_tile || !tile_edge)) {
+      if (bounds.center().x >= tile.x && bounds.center().x <= tile.x + 1.0f &&
+          bounds.center().y >= tile.y && bounds.center().y <= tile.y + 1.0f)
+      {
+        BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+          if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+            uvedit_face_select_set_with_sticky(scene, em->bm, l->f, true, offsets);
+            uvedit_edge_select_set_with_sticky(scene, em->bm, l, true, offsets);
+          }
           uvedit_uv_select_set_with_sticky(scene, em->bm, l, true, offsets);
           changed = true;
         }
@@ -6805,6 +6807,9 @@ static wmOperatorStatus uv_select_tile_exec(bContext *C, wmOperator *op)
       }
       uv_select_tag_update_for_object(depsgraph, ts, ob);
     }
+    else {
+      return OPERATOR_CANCELLED;
+    }
   }
 
   return OPERATOR_FINISHED;
@@ -6815,14 +6820,15 @@ static wmOperatorStatus uv_select_tile_invoke(bContext *C,
                                               const wmEvent * /*event*/)
 {
 
-  PropertyRNA *prop_tile_x = RNA_struct_find_property(op->ptr, "tile_x");
-  PropertyRNA *prop_tile_y = RNA_struct_find_property(op->ptr, "tile_y");
+  PropertyRNA *prop_tile = RNA_struct_find_property(op->ptr, "tile");
 
-  if (!RNA_property_is_set(op->ptr, prop_tile_x) || !RNA_property_is_set(op->ptr, prop_tile_y)) {
+  if (!RNA_property_is_set(op->ptr, prop_tile)) {
     const SpaceImage *sima = CTX_wm_space_image(C);
+    blender::int2 tile;
+    tile.x = (int)sima->cursor[0];
+    tile.y = (int)sima->cursor[1];
 
-    RNA_property_int_set(op->ptr, prop_tile_x, (int)sima->cursor[0]);
-    RNA_property_int_set(op->ptr, prop_tile_y, (int)sima->cursor[1]);
+    RNA_property_int_set_array(op->ptr, prop_tile, tile);
   }
   return uv_select_tile_exec(C, op);
 }
@@ -6838,8 +6844,21 @@ void UV_OT_select_tile(wmOperatorType *ot)
   ot->exec = uv_select_tile_exec;
   ot->poll = ED_operator_uvedit_space_image;
 
-  RNA_def_int(ot->srna, "tile_x", 0, 0, INT_MAX, "Tile X", "", 0, INT_MAX);
-  RNA_def_int(ot->srna, "tile_y", 0, 0, INT_MAX, "Tile Y", "", 0, INT_MAX);
+  RNA_def_boolean(ot->srna,
+                  "extend",
+                  false,
+                  "Extend",
+                  "Extend selection rather than clearing the existing selection");
+  RNA_def_int_array(ot->srna,
+                    "tile",
+                    2,
+                    nullptr,
+                    INT_MIN,
+                    INT_MAX,
+                    "Tile",
+                    "Tile location to select UVs",
+                    INT_MIN,
+                    INT_MAX);
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
