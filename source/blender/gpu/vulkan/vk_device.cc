@@ -557,8 +557,8 @@ void VKDevice::debug_print()
   resources.debug_print();
   std::ostream &os = std::cout;
   os << "Pipelines\n";
-  os << " Graphics: " << pipelines.graphic_pipelines_.size() << "\n";
-  os << " Compute: " << pipelines.compute_pipelines_.size() << "\n";
+  os << " Graphics: " << pipelines.graphics_.size() << "\n";
+  os << " Compute: " << pipelines.compute_.size() << "\n";
   os << "Descriptor sets\n";
   os << " VkDescriptorSetLayouts: " << descriptor_set_layouts_.size() << "\n";
   for (const VKThreadData *thread_data : thread_data_) {
