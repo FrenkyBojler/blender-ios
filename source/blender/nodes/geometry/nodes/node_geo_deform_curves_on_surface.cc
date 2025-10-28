@@ -10,8 +10,10 @@
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
 
+#include "BLI_bounds.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
+#include "BLI_timeit.hh"
 
 #include "GEO_reverse_uv_sampler.hh"
 
@@ -305,8 +307,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const Span<int3> corner_tris_orig = surface_mesh_orig->corner_tris();
   const Span<int3> corner_tris_eval = surface_mesh_eval->corner_tris();
-  const ReverseUVSampler reverse_uv_sampler_orig{uv_map_orig, corner_tris_orig};
-  const ReverseUVSampler reverse_uv_sampler_eval{uv_map_eval, corner_tris_eval};
+
+  Bounds<float2> uv_bounds(float2{0, 0});
+  if (surface_uv_coords.size() > 0) {
+    uv_bounds = *bounds::min_max(surface_uv_coords);
+  }
+
+  ReverseUVSampler reverse_uv_sampler_orig(
+      uv_map_orig, corner_tris_orig, uv_bounds, surface_uv_coords.size());
+  ReverseUVSampler reverse_uv_sampler_eval(
+      uv_map_eval, corner_tris_eval, uv_bounds, surface_uv_coords.size());
 
   /* Retrieve face corner normals from each mesh. It's necessary to use face corner normals
    * because face normals or vertex normals may lose information (custom normals, auto smooth) in

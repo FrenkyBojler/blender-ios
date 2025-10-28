@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <optional>
+
+#include "BLI_array.hh"
+#include "BLI_bounds.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 
@@ -21,11 +25,16 @@ class ReverseUVSampler {
  private:
   Span<float2> uv_map_;
   Span<int3> corner_tris_;
-  int resolution_;
+  Array<float2> centers_;
+  float2 resolution_;
   std::unique_ptr<LookupGrid> lookup_grid_;
+  int64_t live_count_;
 
  public:
-  ReverseUVSampler(Span<float2> uv_map, Span<int3> corner_tris);
+  ReverseUVSampler(Span<float2> uv_map,
+                   Span<int3> corner_tris,
+                   std::optional<Bounds<float2>> known_uv_bounds = std::nullopt,
+                   std::optional<int64_t> samples_num_hint = std::nullopt);
   ~ReverseUVSampler();
 
   enum class ResultType {

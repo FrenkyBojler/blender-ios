@@ -55,13 +55,13 @@ struct LocalData {
   Map<int, destruct_ptr<LocalRowData>> rows;
 };
 
-static int2 uv_to_cell(const float2 &uv, const int resolution)
+static int2 uv_to_cell(const float2 &uv, const float2 resolution)
 {
   return int2{uv * resolution};
 }
 
 static Bounds<int2> tri_to_cell_bounds(const int3 &tri,
-                                       const int resolution,
+                                       const float2 resolution,
                                        const Span<float2> uv_map)
 {
   const float2 &uv_0 = uv_map[tri[0]];
@@ -85,13 +85,17 @@ static Bounds<int2> tri_to_cell_bounds(const int3 &tri,
  */
 static void sort_tris_into_rows(const Span<float2> uv_map,
                                 const Span<int3> corner_tris,
-                                const int resolution,
-                                threading::EnumerableThreadSpecific<LocalData> &data_per_thread)
+                                const float2 resolution,
+                                threading::EnumerableThreadSpecific<LocalData> &data_per_thread,
+                                const Span<bool> mask)
 {
   threading::parallel_for(corner_tris.index_range(), 256, [&](const IndexRange tris_range) {
     LocalData &local_data = data_per_thread.local();
     for (const int tri_i : tris_range) {
       const int3 &tri = corner_tris[tri_i];
+      if (mask.size() > 0 && !mask[tri_i]) {
+        continue;
+      }
 
       /* Compute the cells that the triangle touches approximately. */
       const Bounds<int2> cell_bounds = tri_to_cell_bounds(tri, resolution, uv_map);
@@ -174,19 +178,82 @@ static void finish_rows(const Span<int> all_ys,
   });
 }
 
-ReverseUVSampler::ReverseUVSampler(const Span<float2> uv_map, const Span<int3> corner_tris)
-    : uv_map_(uv_map), corner_tris_(corner_tris), lookup_grid_(std::make_unique<LookupGrid>())
+ReverseUVSampler::ReverseUVSampler(const Span<float2> uv_map,
+                                   const Span<int3> corner_tris,
+                                   std::optional<Bounds<float2>> known_uv_bounds,
+                                   std::optional<int64_t> samples_num_hint)
+    : uv_map_(uv_map),
+      corner_tris_(corner_tris),
+      centers_(corner_tris_.size()),
+      lookup_grid_(std::make_unique<LookupGrid>())
 {
-  /* A lower resolution means that there will be fewer cells and more triangles in each cell. Fewer
-   * cells make construction faster, but more triangles per cell make lookup slower. This value
-   * needs to be determined experimentally. */
-  resolution_ = std::max<int>(3, std::sqrt(corner_tris.size()) * 3);
-  if (corner_tris.is_empty()) {
+  struct MeanUV {
+    float2 total;
+    int count;
+  };
+
+  Array<bool> mask(corner_tris_.size(), false);
+  MeanUV res = threading::parallel_reduce(
+      corner_tris.index_range(),
+      1024,
+      MeanUV{{0, 0}, 0},
+      [&](const IndexRange tris_range, const MeanUV &value) {
+        MeanUV result = value;
+        for (const int tri_i : tris_range) {
+          const int3 &tri = corner_tris[tri_i];
+          const float2 &uv_0 = uv_map_[tri[0]];
+          const float2 &uv_1 = uv_map_[tri[1]];
+          const float2 &uv_2 = uv_map_[tri[2]];
+          float2 tri_min_uv = math::min(math::min(uv_0, uv_1), uv_2);
+          float2 tri_max_uv = math::max(math::max(uv_0, uv_1), uv_2);
+          if (known_uv_bounds.has_value() &&
+              (tri_max_uv.x < known_uv_bounds->min.x || tri_min_uv.x > known_uv_bounds->max.x ||
+               tri_max_uv.y < known_uv_bounds->min.y || tri_min_uv.y > known_uv_bounds->max.y))
+          {
+            mask[tri_i] = false;
+            continue;
+          }
+          result.total += tri_max_uv - tri_min_uv;
+          result.count++;
+          /* While we are here, take this opportunity to memorize the triangle center
+           * and to mask triangles outside sampling support.
+           */
+          mask[tri_i] = true;
+          centers_[tri_i] = (uv_0 + uv_1 + uv_2) / 3.;
+        }
+        return result;
+      },
+      [](const MeanUV &a, const MeanUV &b) {
+        return MeanUV{a.total + b.total, a.count + b.count};
+      });
+
+  float2 mean_uv = res.total;
+  live_count_ = res.count;
+  if (live_count_ == 0) {
     return;
   }
 
+  mean_uv /= live_count_;
+
+  /* A lower resolution means that there will be fewer cells and more triangles in each cell. Fewer
+   * cells make construction faster, but more triangles per cell make lookup slower. This value
+   * needs to be determined experimentally.
+   */
+
+  float magic_mult;
+  if (!samples_num_hint.has_value()) {
+    magic_mult = 3.0;
+  }
+  else {
+    magic_mult = math::max(
+        1.0f, math::min(3.0f, std::sqrt(float(*samples_num_hint) / float(live_count_))));
+  }
+
+  resolution_.x = magic_mult / mean_uv.x;
+  resolution_.y = magic_mult / mean_uv.y;
+
   threading::EnumerableThreadSpecific<LocalData> data_per_thread;
-  sort_tris_into_rows(uv_map_, corner_tris_, resolution_, data_per_thread);
+  sort_tris_into_rows(uv_map_, corner_tris_, resolution_, data_per_thread, mask);
 
   VectorSet<int> all_ys;
   Vector<const LocalData *> local_data_vec;
@@ -234,6 +301,9 @@ ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv) const
 {
   const int2 cell = uv_to_cell(query_uv, resolution_);
   const Span<int> tri_indices = lookup_tris_in_cell(cell, *lookup_grid_);
+  if (tri_indices.size() == 0) {
+    return Result{};
+  }
 
   float best_dist = FLT_MAX;
   float3 best_bary_weights;
@@ -248,14 +318,14 @@ ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv) const
    * entire operation in this case. */
   const float area_epsilon = 0.00001f;
 
-  for (const int tri_i : tri_indices) {
+  auto lookup_fun = [&](const int tri_i) {
     const int3 &tri = corner_tris_[tri_i];
     const float2 &uv_0 = uv_map_[tri[0]];
     const float2 &uv_1 = uv_map_[tri[1]];
     const float2 &uv_2 = uv_map_[tri[2]];
     float3 bary_weights;
     if (!barycentric_coords_v2(uv_0, uv_1, uv_2, query_uv, bary_weights)) {
-      continue;
+      return Result{};
     }
 
     /* If #query_uv is in the triangle, the distance is <= 0. Otherwise, the larger the distance,
@@ -267,7 +337,8 @@ ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv) const
 
     if (dist <= 0.0f && best_dist <= 0.0f) {
       const float worse_dist = std::max(dist, best_dist);
-      /* Allow ignoring multiple triangle intersections if the uv is almost exactly on an edge. */
+      /* Allow ignoring multiple triangle intersections if the uv is almost exactly on an edge.
+       */
       if (worse_dist < -edge_epsilon) {
         const int3 &best_tri = corner_tris_[tri_i];
         const float best_tri_area = area_tri_v2(
@@ -284,6 +355,31 @@ ReverseUVSampler::Result ReverseUVSampler::sample(const float2 &query_uv) const
       best_dist = dist;
       best_bary_weights = bary_weights;
       best_tri_index = tri_i;
+    }
+    return Result{};
+  };
+
+  int nearest = tri_indices[0];
+  float min_distance = FLT_MAX;
+  for (const int tri_i : tri_indices) {
+    float distance = math::distance_squared(query_uv, centers_[tri_i]);
+    if (distance < min_distance) {
+      min_distance = distance;
+      nearest = tri_i;
+    }
+  }
+  lookup_fun(nearest);
+  if (best_dist < 0.0f) {
+    return Result{ResultType::Ok, best_tri_index, math::clamp(best_bary_weights, 0.0f, 1.0f)};
+  }
+
+  for (const int tri_i : tri_indices) {
+    if (tri_i == nearest) {
+      continue;
+    }
+    auto result = lookup_fun(tri_i);
+    if (result.type == ResultType::Multiple) {
+      return result;
     }
   }
 
