@@ -5,7 +5,6 @@
 """
 This file does not run anything, it's methods are accessed for tests by: ``run.py``.
 """
-import time
 import datetime
 
 # FIXME: Since 2.8 or so, there is a problem with simulated events
@@ -778,21 +777,24 @@ def view3d_multi_mode_select():
         yield e.ctrl.z()
 
 
-def _ui_hack_sleep_until(until, start_time, idle=1 / 60, timeout=1.0):
+def _ui_hack_idle_until(until, start_time, idle=1 / 60, timeout=1.0):
     """
     Delays the internal event loop until a specified condition is true.
 
     This should be used sparingly as it likely represents some other failure condition inside Blender. Currently, the
-    only known needed usecase is for multi window undo tests which need separate view layers.
+    only known needed usecase is for multi window undo tests which need separate view layers. See #148903 for further
+    information on this issue.
 
     Note: In practice, the timeout value of 1.0 seconds should be more than enough for all cases. In testing with a
     fixed, constant delay, the tests succeeded with a timeout of 1/6th of a second.
     :param until: lambda to check the condition of after each sleep
     :param start_time: initial time the sleep started
-    :param idle: how long to idle between checks of the `until` lambda
+    :param idle: how long to idle between checks of the `until` lambda.
+        Defaults to 60Hz due to common refresh rates.
     :param timeout: the max time in seconds that this busy wait will execute.
     :return:
     """
+    import time
     current_time = time.time()
     while current_time - start_time < timeout or not until():
         yield datetime.timedelta(seconds=idle)
@@ -808,7 +810,7 @@ def view3d_multi_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        yield from _ui_hack_sleep_until(lambda: window_a.view_layer != window_b.view_layer, time.time())
+        yield from _ui_hack_idle_until(lambda: window_a.view_layer != window_b.view_layer, time.time())
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
@@ -966,7 +968,7 @@ def view3d_edit_mode_multi_window():
     yield from _call_menu(e_b, "New Scene")
     yield e_b.ret()
     if _MENU_CONFIRM_HACK:
-        yield from _ui_hack_sleep_until(lambda: window_a.view_layer != window_b.view_layer, time.time())
+        yield from _ui_hack_idle_until(lambda: window_a.view_layer != window_b.view_layer, time.time())
 
     t.assertNotEqual(window_a.view_layer, window_b.view_layer, "Windows should have different view layers")
 
