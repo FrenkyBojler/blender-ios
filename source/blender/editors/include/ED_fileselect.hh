@@ -35,6 +35,8 @@ namespace blender::asset_system {
 class AssetLibrary;
 }
 
+#include "BKE_path_templates.hh"
+
 #define FILE_LAYOUT_HOR 1
 #define FILE_LAYOUT_VER 2
 
@@ -287,8 +289,11 @@ namespace blender::ed::file {
  * Should be called when initializing file browser state.
  *
  * \param params: FileSelectParams structure to initialize.
+ * \param variables: Optional variable map.
  */
-void path_template_nav_initialize(FileSelectParams *params);
+void path_template_nav_initialize(
+    FileSelectParams *params,
+    const blender::bke::path_templates::VariableMap *variables = nullptr);
 
 /**
  * Handle user input of a path (potentially with template variables) via text.
@@ -298,8 +303,12 @@ void path_template_nav_initialize(FileSelectParams *params);
  *
  * \param params: FileSelectParams structure to update with new path information.
  * \param input_path: User-entered path string (may contain template variable syntax).
+ * \param variables: Optional variable map.
  */
-void path_template_nav_handle_text(FileSelectParams *params, const char *input_path);
+void path_template_nav_handle_text(
+    FileSelectParams *params,
+    const char *input_path,
+    const blender::bke::path_templates::VariableMap *variables = nullptr);
 
 /**
  * Handle directory navigation in browser while preserving parent template variables.
@@ -309,8 +318,12 @@ void path_template_nav_handle_text(FileSelectParams *params, const char *input_p
  *
  * \param params: FileSelectParams structure to update with new navigation state.
  * \param new_directory: Target directory path after navigation.
+ * \param variables: Optional variable map.
  */
-void path_template_nav_handle_browse(FileSelectParams *params, const char *new_directory);
+void path_template_nav_handle_browse(
+    FileSelectParams *params,
+    const char *new_directory,
+    const blender::bke::path_templates::VariableMap *variables = nullptr);
 
 /**
  * Check if `dir_template` contains template syntax.

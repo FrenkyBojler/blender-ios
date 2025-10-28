@@ -32,19 +32,26 @@ namespace blender::ed::file {
 /** \name Internal Helper Functions
  * \{ */
 
-static void resolve_template_variables(char *path, size_t path_maxlen)
+static void resolve_template_variables(char *path,
+                                       size_t path_maxlen,
+                                       const blender::bke::path_templates::VariableMap *variables)
 {
   if (!BKE_path_contains_template_syntax(path)) {
     return;
   }
 
-  blender::bke::path_templates::VariableMap variables;
-  const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
-  BKE_add_template_variables_general(variables, scene ? &scene->id : nullptr);
-  if (scene) {
-    BKE_add_template_variables_for_render_path(variables, *scene);
+  if (variables) {
+    BKE_path_apply_template(path, path_maxlen, *variables);
+    return;
   }
-  BKE_path_apply_template(path, path_maxlen, variables);
+
+  blender::bke::path_templates::VariableMap vars;
+  const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
+  BKE_add_template_variables_general(vars, scene ? &scene->id : nullptr);
+  if (scene) {
+    BKE_add_template_variables_for_render_path(vars, *scene);
+  }
+  BKE_path_apply_template(path, path_maxlen, vars);
 }
 
 /* Helper to normalize a path in place */
@@ -59,10 +66,11 @@ static void resolve_and_normalize_paths(const char *template_path,
                                         const char *current_path,
                                         char *resolved_template,
                                         char *normalized_current,
-                                        size_t buffer_size)
+                                        size_t buffer_size,
+                                        const blender::bke::path_templates::VariableMap *variables)
 {
   BLI_strncpy(resolved_template, template_path, buffer_size);
-  resolve_template_variables(resolved_template, buffer_size);
+  resolve_template_variables(resolved_template, buffer_size, variables);
   normalize_path(resolved_template);
 
   BLI_strncpy(normalized_current, current_path, buffer_size);
@@ -76,7 +84,9 @@ static void resolve_and_normalize_paths(const char *template_path,
  * \{ */
 
 /* Check if current path is within a resolved template directory */
-static bool is_within_template_bounds(const char *template_path, const char *current_path)
+static bool is_within_template_bounds(const char *template_path,
+                                      const char *current_path,
+                                      const blender::bke::path_templates::VariableMap *variables)
 {
   if (!BKE_path_contains_template_syntax(template_path)) {
     return false;
@@ -85,7 +95,7 @@ static bool is_within_template_bounds(const char *template_path, const char *cur
   char resolved_template[FILE_MAX];
   char normalized_current[FILE_MAX];
   resolve_and_normalize_paths(
-      template_path, current_path, resolved_template, normalized_current, FILE_MAX);
+      template_path, current_path, resolved_template, normalized_current, FILE_MAX, variables);
 
   const size_t resolved_len = strlen(resolved_template);
   const size_t current_len = strlen(normalized_current);
@@ -110,10 +120,12 @@ static bool is_within_template_bounds(const char *template_path, const char *cur
  * - Going deeper: Append extra path components to template
  * - Going up: Remove directory levels from template path
  */
-static bool update_template_on_navigation(const char *original_template,
-                                          const char *current_path,
-                                          char *result,
-                                          size_t result_maxlen)
+static bool update_template_on_navigation(
+    const char *original_template,
+    const char *current_path,
+    char *result,
+    size_t result_maxlen,
+    const blender::bke::path_templates::VariableMap *variables)
 {
   if (!BKE_path_contains_template_syntax(original_template)) {
     return false;
@@ -122,7 +134,7 @@ static bool update_template_on_navigation(const char *original_template,
   char resolved_template[FILE_MAX];
   char normalized_current[FILE_MAX];
   resolve_and_normalize_paths(
-      original_template, current_path, resolved_template, normalized_current, FILE_MAX);
+      original_template, current_path, resolved_template, normalized_current, FILE_MAX, variables);
 
   const size_t resolved_len = strlen(resolved_template);
   const size_t current_len = strlen(normalized_current);
@@ -170,12 +182,13 @@ static bool update_template_on_navigation(const char *original_template,
 /** \name Public API
  * \{ */
 
-void path_template_nav_initialize(FileSelectParams *params)
+void path_template_nav_initialize(FileSelectParams *params,
+                                  const blender::bke::path_templates::VariableMap *variables)
 {
   if (BKE_path_contains_template_syntax(params->dir)) {
     char resolved_path[FILE_MAX];
     BLI_strncpy(resolved_path, params->dir, sizeof(resolved_path));
-    resolve_template_variables(resolved_path, sizeof(resolved_path));
+    resolve_template_variables(resolved_path, sizeof(resolved_path), variables);
 
     BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
     BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
@@ -193,13 +206,15 @@ void path_template_nav_initialize(FileSelectParams *params)
   }
 }
 
-void path_template_nav_handle_text(FileSelectParams *params, const char *input_path)
+void path_template_nav_handle_text(FileSelectParams *params,
+                                   const char *input_path,
+                                   const blender::bke::path_templates::VariableMap *variables)
 {
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
 
   if (BKE_path_contains_template_syntax(resolved_path)) {
-    resolve_template_variables(resolved_path, sizeof(resolved_path));
+    resolve_template_variables(resolved_path, sizeof(resolved_path), variables);
   }
 
   /* Update all three path fields directly */
@@ -208,21 +223,26 @@ void path_template_nav_handle_text(FileSelectParams *params, const char *input_p
   BLI_strncpy(params->dir_resolved, resolved_path, sizeof(params->dir_resolved));
 }
 
-void path_template_nav_handle_browse(FileSelectParams *params, const char *new_directory)
+void path_template_nav_handle_browse(FileSelectParams *params,
+                                     const char *new_directory,
+                                     const blender::bke::path_templates::VariableMap *variables)
 {
   /* Try to preserve template if we were using one */
   if (path_template_nav_contains_syntax(params) &&
-      is_within_template_bounds(params->dir_template, new_directory))
+      is_within_template_bounds(params->dir_template, new_directory, variables))
   {
     char updated_template[FILE_MAX];
-    if (update_template_on_navigation(
-            params->dir_template, new_directory, updated_template, sizeof(updated_template)))
+    if (update_template_on_navigation(params->dir_template,
+                                      new_directory,
+                                      updated_template,
+                                      sizeof(updated_template),
+                                      variables))
     {
       /* Resolve template for display */
       char resolved[FILE_MAX];
       BLI_strncpy(resolved, updated_template, sizeof(resolved));
       if (BKE_path_contains_template_syntax(resolved)) {
-        resolve_template_variables(resolved, sizeof(resolved));
+        resolve_template_variables(resolved, sizeof(resolved), variables);
       }
 
       BLI_strncpy(params->dir_template, updated_template, sizeof(params->dir_template));
