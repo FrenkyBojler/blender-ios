@@ -8,14 +8,13 @@
 
 struct bNodeSocket;
 struct bNodeTree;
+struct bNode;
 
 namespace blender::nodes::expression {
 
-struct ToNodesResult {
-  bNodeSocket *output_socket = nullptr;
-  std::string error;
-};
-
-ToNodesResult ast_to_nodes(bNodeTree &tree, const Map<StringRef, bNodeSocket *> &inputs);
+void expression_node_to_group(const bNode &node,
+                              StringRef expression,
+                              bNodeTree &r_tree,
+                              std::string &r_error);
 
 }  // namespace blender::nodes::expression

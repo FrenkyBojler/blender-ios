@@ -14,6 +14,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 
+#include "NOD_expression_to_nodes.hh"
 #include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
@@ -37,7 +38,7 @@ struct NodeAndSocket {
 };
 
 struct PrimitiveSocketValue {
-  std::variant<int, float, bool, ColorGeometry4f, float3, MenuValue> value;
+  std::variant<int, float, bool, ColorGeometry4f, float3, MenuValue, std::string> value;
 
   const void *buffer() const
   {
@@ -69,6 +70,9 @@ struct PrimitiveSocketValue {
     }
     if (type.is<MenuValue>()) {
       return {*static_cast<const MenuValue *>(value.get())};
+    }
+    if (type.is<std::string>()) {
+      return {*static_cast<const std::string *>(value.get())};
     }
     BLI_assert_unreachable();
     return {};
@@ -138,6 +142,9 @@ struct SocketValue {
         case SOCK_MENU:
           return PrimitiveSocketValue{
               MenuValue(socket.default_value_typed<bNodeSocketValueMenu>()->value)};
+        case SOCK_STRING:
+          return PrimitiveSocketValue{
+              std::string(socket.default_value_typed<bNodeSocketValueString>()->value)};
         default:
           return std::nullopt;
       }
@@ -204,6 +211,7 @@ class ShaderNodesInliner {
   const bke::DataTypeConversions &data_type_conversions_;
   /** This is used to generate unique names and ids. */
   int dst_node_counter_ = 0;
+  Map<NodeInContext, bNodeTree *> expression_node_groups_cache_;
 
  public:
   ShaderNodesInliner(const bNodeTree &src_tree,
@@ -455,6 +463,10 @@ class ShaderNodesInliner {
       this->handle_output_socket__group_input(socket);
       return;
     }
+    if (node->is_type("NodeExpression")) {
+      this->handle_output_socket__expression(socket);
+      return;
+    }
     if (node->is_type("GeometryNodeRepeatOutput")) {
       if (this->should_preserve_repeat_zone_node(*node)) {
         this->handle_output_socket__preserved_repeat_output(socket);
@@ -541,9 +553,15 @@ class ShaderNodesInliner {
       this->store_socket_value_fallback(socket);
       return;
     }
-    group->ensure_interface_cache();
-    group->ensure_topology_cache();
-    const bNode *group_output_node = group->group_output_node();
+    this->handle_output_socket__group_generic(socket, *group);
+  }
+
+  void handle_output_socket__group_generic(const SocketInContext &socket, const bNodeTree &group)
+  {
+    const NodeInContext node = socket.owner_node();
+    group.ensure_interface_cache();
+    group.ensure_topology_cache();
+    const bNode *group_output_node = group.group_output_node();
     if (!group_output_node) {
       this->store_socket_value_fallback(socket);
       return;
@@ -573,6 +591,47 @@ class ShaderNodesInliner {
       return;
     }
     this->store_socket_value_fallback(socket);
+  }
+
+  void handle_output_socket__expression(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const SocketInContext expr_input_socket = node.input_socket(0);
+    const SocketValue *expr_socket_value = value_by_socket_.lookup_ptr(expr_input_socket);
+    if (!expr_socket_value) {
+      /* The expression is not known yet, so schedule it for now. */
+      this->schedule_socket(expr_input_socket);
+      return;
+    }
+    const std::optional<PrimitiveSocketValue> expr_value_opt = expr_socket_value->to_primitive(
+        *expr_input_socket->typeinfo);
+    if (!expr_value_opt) {
+      params_.r_error_messages.append({&*node, TIP_("Expression must be a constant value")});
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const StringRef expression = std::get<std::string>(expr_value_opt->value);
+    bNodeTree *expression_tree = expression_node_groups_cache_.lookup_or_add_cb(
+        node, [&]() { return this->build_expression_node_group(expression, *node); });
+    if (!expression_tree) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    this->handle_output_socket__group_generic(socket, *expression_tree);
+  }
+
+  bNodeTree *build_expression_node_group(const StringRef expression, const bNode &node)
+  {
+    bNodeTree &expr_tree = *BKE_id_new_nomain<bNodeTree>(node.name);
+    scope_.add_destruct_call([&]() { BKE_id_free(nullptr, &expr_tree); });
+
+    std::string error;
+    expression::expression_node_to_group(node, expression, expr_tree, error);
+    if (!error.empty()) {
+      params_.r_error_messages.append({&node, error});
+      return nullptr;
+    }
+    return &expr_tree;
   }
 
   bool should_preserve_repeat_zone_node(const bNode &repeat_zone_node) const

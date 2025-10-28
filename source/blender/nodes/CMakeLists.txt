@@ -72,6 +72,7 @@ set(SRC
   intern/derived_node_tree.cc
   intern/expression_ast.cc
   intern/expression_parse.cc
+  intern/expression_to_nodes.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
