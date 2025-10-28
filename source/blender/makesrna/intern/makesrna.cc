@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <sstream>
 
 #include "MEM_guardedalloc.h"
 
@@ -29,6 +30,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
 
+#include "makesrna_utils.hh"
 #include "rna_internal.hh"
 
 #include "CLG_log.h"
@@ -3884,45 +3886,9 @@ static void rna_generate_struct_forward_declarations(FILE *f)
       }
     }
   }
-
-  blender::Vector<std::string> structs_vec = structs_set.extract_vector();
-  std::sort(structs_vec.begin(),
-            structs_vec.end(),
-            [](const blender::StringRef a, const blender::StringRef b) {
-              /* Keep structs within namespaces last. */
-              bool scoped_name[2] = {a.find("::") != blender::StringRef::not_found,
-                                     b.find("::") != blender::StringRef::not_found};
-              return (scoped_name[0] == scoped_name[1] &&
-                      BLI_strcasecmp(a.data(), b.data()) < 0) ||
-                     scoped_name[0] < scoped_name[1];
-            });
-
-  /* For grouping structs within namespaces. */
-  blender::StringRef last_namespace = "";
-
-  for (const blender::StringRef type : structs_vec) {
-    blender::StringRef namespace_name;
-    blender::StringRef struct_name;
-    int namespace_length = type.find_last_of("::");
-    if (namespace_length != blender::StringRef::not_found) {
-      namespace_name = type.substr(0, namespace_length - 1);
-      struct_name = type.substr(namespace_length + 1);
-    }
-    else {
-      struct_name = type;
-    }
-    if (namespace_name != last_namespace && !last_namespace.is_empty()) {
-      fprintf(f, "}; // namespace %.*s\n", int(last_namespace.size()), last_namespace.data());
-    }
-    if (namespace_name != last_namespace && !namespace_name.is_empty()) {
-      fprintf(f, "namespace %.*s {\n", int(namespace_name.size()), namespace_name.data());
-    }
-    fprintf(f, "struct %s;\n", struct_name.data());
-    last_namespace = namespace_name;
-  }
-  if (!last_namespace.is_empty()) {
-    fprintf(f, "}; // namespace %.*s\n", int(last_namespace.size()), last_namespace.data());
-  }
+  std::stringstream stream;
+  rna_write_struct_forward_declarations(stream, std::move(structs_set));
+  fprintf(f, "%s", stream.str().c_str());
   fprintf(f, "\n");
 }
 
