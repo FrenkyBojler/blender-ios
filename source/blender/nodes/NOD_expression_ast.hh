@@ -1,0 +1,75 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+#include <variant>
+
+#include "BLI_dot_export_fwd.hh"
+#include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
+
+namespace blender::nodes::expression::ast {
+
+class Expr;
+
+class Number {
+ public:
+  StringRef value;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
+class Identifier {
+ public:
+  StringRef identifier;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
+class MemberAccess {
+ public:
+  Expr *expr = nullptr;
+  StringRef identifier;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
+class BinaryOp {
+ public:
+  StringRef op;
+  Expr *a = nullptr;
+  Expr *b = nullptr;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
+class UnaryOp {
+ public:
+  StringRef op;
+  Expr *expr = nullptr;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
+class Call {
+ public:
+  StringRef identifier;
+  Vector<Expr *> args;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
+class Expr {
+ public:
+  using ExprVariant = std::variant<Number, Identifier, BinaryOp, UnaryOp, MemberAccess, Call>;
+
+  ExprVariant expr;
+
+  Expr(ExprVariant expr) : expr(std::move(expr)) {}
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
+}  // namespace blender::nodes::expression::ast

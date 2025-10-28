@@ -59,6 +59,7 @@ set(INC
   ../depsgraph
   ../makesrna
   ../modifiers
+  ../../../extern/ctpg/include
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -69,6 +70,8 @@ set(INC_SYS
 
 set(SRC
   intern/derived_node_tree.cc
+  intern/expression_ast.cc
+  intern/expression_parse.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
@@ -108,6 +111,8 @@ set(SRC
   NOD_common.hh
   NOD_composite.hh
   NOD_derived_node_tree.hh
+  NOD_expression_ast.hh
+  NOD_expression_parse.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
   NOD_geometry_nodes_bundle.hh

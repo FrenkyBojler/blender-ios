@@ -20,7 +20,6 @@ set(INC
   ../../io/ply
   ../../io/stl
   ../../io/wavefront_obj
-  ../../../../extern/ctpg/include
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )

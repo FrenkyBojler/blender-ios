@@ -1,0 +1,65 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include <fmt/format.h>
+
+#include "NOD_expression_ast.hh"
+
+#include "BLI_dot_export.hh"
+
+namespace blender::nodes::expression::ast {
+
+dot_export::Node &Number::to_dot(dot_export::DirectedGraph &graph) const
+{
+  return graph.new_node(this->value);
+}
+
+dot_export::Node &Identifier::to_dot(dot_export::DirectedGraph &graph) const
+{
+  return graph.new_node(this->identifier);
+}
+
+dot_export::Node &MemberAccess::to_dot(dot_export::DirectedGraph &graph) const
+{
+  dot_export::Node &expr_node = this->expr->to_dot(graph);
+  dot_export::Node &member_access_node = graph.new_node(fmt::format(".{}", this->identifier));
+  graph.new_edge(member_access_node, expr_node);
+  return member_access_node;
+}
+
+dot_export::Node &BinaryOp::to_dot(dot_export::DirectedGraph &graph) const
+{
+  dot_export::Node &a_node = this->a->to_dot(graph);
+  dot_export::Node &b_node = this->b->to_dot(graph);
+  dot_export::Node &op_node = graph.new_node(this->op);
+  graph.new_edge(op_node, a_node);
+  graph.new_edge(op_node, b_node);
+  return op_node;
+}
+
+dot_export::Node &UnaryOp::to_dot(dot_export::DirectedGraph &graph) const
+{
+  dot_export::Node &expr_node = this->expr->to_dot(graph);
+  dot_export::Node &op_node = graph.new_node(this->op);
+  graph.new_edge(op_node, expr_node);
+  return op_node;
+}
+
+dot_export::Node &Call::to_dot(dot_export::DirectedGraph &graph) const
+{
+  dot_export::Node &identifier_node = graph.new_node(fmt::format("{}(...)", this->identifier));
+  for (const Expr *arg : this->args) {
+    dot_export::Node &arg_node = arg->to_dot(graph);
+    graph.new_edge(identifier_node, arg_node);
+  }
+  return identifier_node;
+}
+
+dot_export::Node &Expr::to_dot(dot_export::DirectedGraph &graph) const
+{
+  return std::visit([&](const auto &expr) -> dot_export::Node & { return expr.to_dot(graph); },
+                    this->expr);
+}
+
+}  // namespace blender::nodes::expression::ast
