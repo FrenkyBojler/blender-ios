@@ -1018,6 +1018,6 @@ void present(MTLRenderPassDescriptor *blit_descriptor,
              id<MTLTexture> swapchain_texture,
              id<CAMetalDrawable> drawable);
 
-void xr_blit(id<MTLTexture> swapchain_texture, GHOST_XrDrawViewInfo swapchain_format);
+void xr_blit(id<MTLTexture> metal_xr_texture, int ofsx, int ofsy, int width, int height);
 
 }  // namespace blender::gpu

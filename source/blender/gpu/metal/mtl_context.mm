@@ -2751,7 +2751,11 @@ void present(MTLRenderPassDescriptor *blit_descriptor,
 /** \name XR blitting function called from the GHOST Metal XR binding.
  * \{ */
 
-void xr_blit(id<MTLTexture> metal_xr_texture, GHOST_XrDrawViewInfo draw_info)
+void xr_blit(id<MTLTexture> metal_xr_texture,
+             const int ofsx,
+             const int ofsy,
+             const int width,
+             const int height)
 {
   gpu::MTLContext *ctx = gpu::MTLContext::get();
 
@@ -2759,8 +2763,8 @@ void xr_blit(id<MTLTexture> metal_xr_texture, GHOST_XrDrawViewInfo draw_info)
   MTLAttachment src_attachment = source_framebuffer->get_color_attachment(0);
   id<MTLTexture> src_texture = src_attachment.texture->get_metal_handle_base();
 
-  MTLOrigin origin = MTLOriginMake(draw_info.ofsx, draw_info.ofsy, 0);
-  MTLSize size = MTLSizeMake(draw_info.width, draw_info.height, 1);
+  MTLOrigin origin = MTLOriginMake(ofsx, ofsy, 0);
+  MTLSize size = MTLSizeMake(width, height, 1);
 
   id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
   [blit_encoder copyFromTexture:src_texture

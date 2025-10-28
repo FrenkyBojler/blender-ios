@@ -218,8 +218,8 @@ void GHOST_ContextMTL::metalRegisterPresentCallback(void (*callback)(
   this->contextPresentCallback = callback;
 }
 
-void GHOST_ContextMTL::metalRegisterXrBlitCallback(void (*callback)(id<MTLTexture>,
-                                                                    GHOST_XrDrawViewInfo))
+void GHOST_ContextMTL::metalRegisterXrBlitCallback(
+    void (*callback)(id<MTLTexture>, int, int, int, int))
 {
   this->xrBlitCallback = callback;
 }

@@ -135,7 +135,7 @@ class GHOST_ContextMTL : public GHOST_Context {
    */
   void metalRegisterPresentCallback(void (*callback)(
       MTLRenderPassDescriptor *, id<MTLRenderPipelineState>, id<MTLTexture>, id<CAMetalDrawable>));
-  void metalRegisterXrBlitCallback(void (*callback)(id<MTLTexture>, GHOST_XrDrawViewInfo));
+  void metalRegisterXrBlitCallback(void (*callback)(id<MTLTexture>, int, int, int, int));
 
  private:
   /** Metal state */
@@ -168,7 +168,7 @@ class GHOST_ContextMTL : public GHOST_Context {
                                  id<MTLTexture>,
                                  id<CAMetalDrawable>);
   /* XR texture blitting callback. */
-  void (*xrBlitCallback)(id<MTLTexture>, GHOST_XrDrawViewInfo);
+  void (*xrBlitCallback)(id<MTLTexture>, int, int, int, int);
 
   int mtl_SwapInterval;
 

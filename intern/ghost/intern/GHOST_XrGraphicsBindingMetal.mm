@@ -148,7 +148,8 @@ void GHOST_XrGraphicsBindingMetal::submitToSwapchainImage(
       swapchain_image);
   id<MTLTexture> metal_xr_texture = static_cast<id<MTLTexture>>(metal_swapchain_image.texture);
 
-  ghost_metal_ctx_->xrBlitCallback(metal_xr_texture, draw_info);
+  ghost_metal_ctx_->xrBlitCallback(
+      metal_xr_texture, draw_info.ofsx, draw_info.ofsy, draw_info.width, draw_info.height);
 }
 
 void GHOST_XrGraphicsBindingMetal::submitToSwapchainEnd() {}
