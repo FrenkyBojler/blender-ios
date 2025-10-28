@@ -89,11 +89,13 @@ constexpr char number_pattern[] = "[1-9][0-9]*";
 constexpr regex_term<number_pattern> number("number");
 
 constexpr char_term op_plus('+', 1);
+constexpr char_term op_minus('-', 1);
 constexpr char_term op_multiply('*', 2);
+constexpr char_term op_divide('/', 2);
 
 constexpr parser p(
     expr,
-    terms(op_plus, op_multiply, number, '(', ')'),
+    terms(op_plus, op_minus, op_multiply, op_divide, number, '(', ')'),
     nterms(expr),
     rules(
         expr(number) >>=
@@ -104,9 +106,17 @@ constexpr parser p(
         [](ParseContext &ctx, ast::Expr *v_expr_a, char /*skip*/, ast::Expr *v_expr_b) {
           return &ctx.scope.construct<ast::Expr>(ast::BinaryOp{"+", v_expr_a, v_expr_b});
         },
+        expr(expr, op_minus, expr) >>=
+        [](ParseContext &ctx, ast::Expr *v_expr_a, char /*skip*/, ast::Expr *v_expr_b) {
+          return &ctx.scope.construct<ast::Expr>(ast::BinaryOp{"-", v_expr_a, v_expr_b});
+        },
         expr(expr, op_multiply, expr) >>=
         [](ParseContext &ctx, ast::Expr *v_expr_a, char /*skip*/, ast::Expr *v_expr_b) {
           return &ctx.scope.construct<ast::Expr>(ast::BinaryOp{"*", v_expr_a, v_expr_b});
+        },
+        expr(expr, op_divide, expr) >>=
+        [](ParseContext &ctx, ast::Expr *v_expr_a, char /*skip*/, ast::Expr *v_expr_b) {
+          return &ctx.scope.construct<ast::Expr>(ast::BinaryOp{"/", v_expr_a, v_expr_b});
         },
         expr('(', expr, ')') >>= [](ParseContext & /*ctx*/,
                                     char /*skip*/,
