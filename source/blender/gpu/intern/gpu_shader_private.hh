@@ -257,7 +257,7 @@ class ShaderCompiler {
 
   bool is_compiling_impl();
 
-  std::atomic<bool> is_paused_;
+  std::atomic<bool> is_paused_ = false;
   std::condition_variable pause_finished_notification_;
   /** WARNING: This mutex is only for the condition_variable, is_paused_ should be modified under
    * the main mutex_. */
