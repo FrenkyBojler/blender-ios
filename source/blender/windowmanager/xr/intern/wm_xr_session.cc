@@ -464,6 +464,25 @@ bool WM_xr_session_state_viewfinder_rotation_get(const wmXrData *xr, float r_rot
   return true;
 }
 
+bool WM_xr_session_state_viewfinder_capture_flash_get(const wmXrData *xr, float *r_flash)
+{
+  if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
+    *r_flash = 1.0f;
+    return false;
+  }
+
+  *r_flash = xr->runtime->session_state.viewfinder_capture_flash;
+  return true;
+}
+
+void WM_xr_session_state_viewfinder_capture_flash_set(wmXrData *xr, float flash)
+{
+  if (WM_xr_session_exists(xr)) {
+    CLAMP(flash, 0.0f, 1.0f);
+    xr->runtime->session_state.viewfinder_capture_flash = flash;
+  }
+}
+
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
                                                      float r_viewmat[4][4],
                                                      float *r_focal_len)
@@ -619,6 +638,7 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->nav_scale = 1.0f;
   state->is_navigation_dirty = true;
   state->swap_hands = false;
+  state->viewfinder_capture_flash = 1.0f;
 }
 
 void WM_xr_session_state_vignette_reset(wmXrSessionState *state)

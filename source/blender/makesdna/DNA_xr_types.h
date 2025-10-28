@@ -39,7 +39,8 @@ typedef struct XrSessionSettings {
   char viewfinder_active_action_playback; /* #eXrViewfinderPlaybackButtonState */
 
   float viewfinder_width;
-  float viewfinder_capture_flash;
+
+  float _pad3;
 
   /** Clipping distance. */
   float clip_start, clip_end;

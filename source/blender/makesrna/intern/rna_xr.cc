@@ -1042,6 +1042,29 @@ static void rna_XrSessionState_viewfinder_rotation_get(PointerRNA *ptr, float *r
 #  endif
 }
 
+static float rna_XrSessionState_viewfinder_capture_flash_get(PointerRNA *ptr)
+{
+  float value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_flash_get(xr, &value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 1.0f;
+#  endif
+  return value;
+}
+
+static void rna_XrSessionState_viewfinder_capture_flash_set(PointerRNA *ptr, float value)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewfinder_capture_flash_set(xr, value);
+#  else
+  UNUSED_VARS(ptr, value);
+#  endif
+}
+
 static void rna_XrSessionState_nav_location_get(PointerRNA *ptr, float *r_values)
 {
 #  ifdef WITH_XR_OPENXR
@@ -2120,9 +2143,6 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Viewfinder Width", "Width of the viewfinder");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
-  prop = RNA_def_property(srna, "viewfinder_capture_flash", PROP_FLOAT, PROP_NONE); /* Internal */
-  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
-
   prop = RNA_def_property(srna, "viewfinder_active_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, viewfinder_modes);
@@ -2512,6 +2532,12 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop, "Viewfinder Rotation", "Last known rotation of the viewfinder in world space");
+
+  prop = RNA_def_property(srna, "viewfinder_capture_flash", PROP_FLOAT, PROP_NONE); /* Internal */
+  RNA_def_property_float_funcs(prop,
+                               "rna_XrSessionState_viewfinder_capture_flash_get",
+                               "rna_XrSessionState_viewfinder_capture_flash_set",
+                               nullptr);
 
   prop = RNA_def_property(srna, "navigation_location", PROP_FLOAT, PROP_TRANSLATION);
   RNA_def_property_array(prop, 3);

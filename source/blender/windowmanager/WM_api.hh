@@ -2171,6 +2171,8 @@ bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_lo
 bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_rotation[4]);
 bool WM_xr_session_state_viewfinder_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewfinder_rotation_get(const wmXrData *xr, float r_rotation[4]);
+bool WM_xr_session_state_viewfinder_capture_flash_get(const wmXrData *xr, float *r_flash);
+void WM_xr_session_state_viewfinder_capture_flash_set(wmXrData *xr, float flash);
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
                                                      float r_viewmat[4][4],
                                                      float *r_focal_len);

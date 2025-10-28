@@ -38,6 +38,7 @@ struct wmXrSessionState {
 
   float viewfinder_position[3];
   float viewfinder_orientation_quat[4];
+  float viewfinder_capture_flash;
 
   /** Copy of XrSessionSettings.base_pose_ data to detect changes that need
    * resetting to base pose. */

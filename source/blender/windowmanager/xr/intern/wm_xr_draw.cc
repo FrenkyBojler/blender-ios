@@ -649,7 +649,7 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   GPU_matrix_pop();
 }
 
-static void wm_xr_controller_viewfinder_draw_view_texture(XrSessionSettings *settings,
+static void wm_xr_controller_viewfinder_draw_view_texture(wmXrSessionState *state,
                                                           const rctf viewfinder_rect)
 {
   /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
@@ -666,13 +666,7 @@ static void wm_xr_controller_viewfinder_draw_view_texture(XrSessionSettings *set
 
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
 
-  /* Small hack to create a capture flash fade, depends on FPS. */
-  if (settings->viewfinder_capture_flash < 1.0f) {
-    settings->viewfinder_capture_flash += 0.015f;
-  }
-  CLAMP_MAX(settings->viewfinder_capture_flash, 1.0f);
-
-  const float tex_color[4] = {1.0f, 1.0f, 1.0f, settings->viewfinder_capture_flash};
+  const float tex_color[4] = {1.0f, 1.0f, 1.0f, state->viewfinder_capture_flash};
   immUniformColor4fv(tex_color);
 
   GPUSamplerExtendMode extend_mode = GPU_SAMPLER_EXTEND_MODE_REPEAT;
@@ -682,9 +676,14 @@ static void wm_xr_controller_viewfinder_draw_view_texture(XrSessionSettings *set
   immRectf_with_texco(view_tex_pos, view_tex_coord, viewfinder_rect, rctf{0.0f, 1.0f, 0.0f, 1.0f});
 
   immUnbindProgram();
+
+  /* Small hack to create a capture flash fade, depends on FPS. */
+  if (state->viewfinder_capture_flash < 1.0f) {
+    state->viewfinder_capture_flash += 0.015f;
+  }
 }
 
-static void wm_xr_controller_viewfinder_draw(XrSessionSettings *settings,
+static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
                                              GHOST_XrContextHandle /*xr_context*/,
                                              wmXrSessionState *state,
                                              const bContext *C,
@@ -717,7 +716,7 @@ static void wm_xr_controller_viewfinder_draw(XrSessionSettings *settings,
   wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
 
   /* Viewfinder View Texture. */
-  wm_xr_controller_viewfinder_draw_view_texture(settings, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_view_texture(state, viewfinder_rect);
 
   /* UI Widgets. */
   wm_xr_controller_viewfinder_draw_ui_widgets(C, region, settings, viewfinder_rect);
@@ -725,7 +724,7 @@ static void wm_xr_controller_viewfinder_draw(XrSessionSettings *settings,
   GPU_matrix_pop();
 }
 
-static void wm_xr_controller_model_draw(XrSessionSettings *settings,
+static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
                                         GHOST_XrContextHandle xr_context,
                                         wmXrSessionState *state,
                                         const bContext *C,
@@ -900,7 +899,7 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
 void wm_xr_draw_controllers(const bContext * /*C*/, ARegion *region, void *customdata)
 {
   wmXrData *xr = static_cast<wmXrData *>(customdata);
-  XrSessionSettings *settings = &xr->session_settings;
+  const XrSessionSettings *settings = &xr->session_settings;
   GHOST_XrContextHandle xr_context = xr->runtime->context;
   wmXrSessionState *state = &xr->runtime->session_state;
 

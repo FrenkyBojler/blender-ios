@@ -294,7 +294,6 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         landmarks = scene.vr_landmarks
 
         wm = context.window_manager
-        xr_settings = wm.xr_session_settings
         xr_state = wm.xr_session_state
 
         lm = landmarks.add()
@@ -310,7 +309,7 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.viewfinder_quat = rot
         lm.viewfinder_lens = scene.camera.data.lens
 
-        xr_settings.viewfinder_capture_flash = 0  # Internal value, 0 is flash, 1 is no flash. Fades up over time
+        xr_state.viewfinder_capture_flash = 0  # Internal value, 0 is flash, 1 is no flash. Fades up over time
 
         return {'FINISHED'}
 
