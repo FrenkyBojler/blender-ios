@@ -4046,7 +4046,7 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area)
 
 ScrArea *ED_screen_find_maximized_area(const bScreen *screen)
 {
-  if (screen->state == SCREENMAXIMIZED) {
+  if (screen->state != SCREENMAXIMIZED) {
     return nullptr;
   }
 
@@ -4060,10 +4060,8 @@ ScrArea *ED_screen_find_maximized_area(const bScreen *screen)
     }
   }
 
-  if (!maximized_area) {
-    /* A maximized screen should *always* contain a maximized area. */
-    BLI_assert_unreachable();
-  }
+  /* A maximized screen should *always* contain a maximized area. */
+  BLI_assert(maximized_area != nullptr);
 
   return maximized_area;
 }
