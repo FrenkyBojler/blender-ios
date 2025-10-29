@@ -13,7 +13,7 @@
 
 #include "DNA_space_types.h"
 
-namespace blender::ed::file::tests {
+namespace blender::bke::path_templates::tests {
 
 using namespace blender::bke::path_templates;
 
@@ -129,4 +129,4 @@ TEST(path_template_navigation, Browse_VariableFolder_GoingUp)
   EXPECT_STREQ(params.dir_resolved, "/project/");
 }
 
-}  // namespace blender::ed::file::tests
+}  // namespace blender::bke::path_templates::tests
