@@ -613,6 +613,8 @@ class NODE_PT_geometry_node_tool_options(Panel):
         layout.prop(group, "use_wait_for_click")
         layout.prop(group, "node_tool_idname", text="Identifier")
         layout.template_node_operator_registration_errors()
+        if group.asset_data and len(group.node_tool_idname) == 0:
+            layout.label(icon='ERROR', text="Asset missing unique identifier")
 
 
 class NODE_PT_node_color_presets(PresetPanel, Panel):
