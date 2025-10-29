@@ -725,6 +725,13 @@ class SocketValueInferencerImpl {
     Vector<const void *> input_values(inputs_num);
     for (const int input_i : IndexRange(inputs_num)) {
       const SocketInContext input_socket = node.input_socket(input_i);
+      if (!input_socket->is_available()) {
+        continue;
+      }
+      if (!input_socket->typeinfo->base_cpp_type) {
+        /* Skip extent sockets. */
+        continue;
+      }
       const std::optional<InferenceValue> input_value = all_socket_values_.lookup_try(
           input_socket);
       if (!input_value.has_value()) {
@@ -753,12 +760,20 @@ class SocketValueInferencerImpl {
       if (!input_socket->is_available()) {
         continue;
       }
+      if (!input_socket->typeinfo->base_cpp_type) {
+        /* Skip extent sockets. */
+        continue;
+      }
       params.add_readonly_single_input(
           GPointer(input_socket->typeinfo->base_cpp_type, input_values[input_i]));
     }
     for (const int output_i : node->output_sockets().index_range()) {
       const SocketInContext output_socket = node.output_socket(output_i);
       if (!output_socket->is_available()) {
+        continue;
+      }
+      if (!output_socket->typeinfo->base_cpp_type) {
+        /* Skip extent sockets. */
         continue;
       }
       /* Allocate memory for the output value. */

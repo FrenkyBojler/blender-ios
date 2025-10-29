@@ -67,4 +67,11 @@ dot_export::Node &Expr::to_dot(dot_export::DirectedGraph &graph) const
                     this->expr);
 }
 
+std::string Expr::to_dot() const
+{
+  dot_export::DirectedGraph graph;
+  this->to_dot(graph);
+  return graph.to_dot_string();
+}
+
 }  // namespace blender::nodes::expression::ast

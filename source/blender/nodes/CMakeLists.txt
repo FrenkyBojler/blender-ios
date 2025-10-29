@@ -53,6 +53,7 @@ set(INC
   intern
   shader
   texture
+  function/include
   geometry/include
   ../animrig
   ../editors/include

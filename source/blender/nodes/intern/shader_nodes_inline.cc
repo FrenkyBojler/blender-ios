@@ -13,6 +13,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
+#include "BLI_string.h"
 
 #include "NOD_expression_to_nodes.hh"
 #include "NOD_menu_value.hh"
@@ -1369,6 +1370,11 @@ class ShaderNodesInliner {
       case SOCK_RGBA: {
         copy_v4_v4(socket.default_value_typed<bNodeSocketValueRGBA>()->value,
                    std::get<ColorGeometry4f>(value.value));
+        break;
+      }
+      case SOCK_STRING: {
+        STRNCPY(socket.default_value_typed<bNodeSocketValueString>()->value,
+                std::get<std::string>(value.value).c_str());
         break;
       }
       default: {

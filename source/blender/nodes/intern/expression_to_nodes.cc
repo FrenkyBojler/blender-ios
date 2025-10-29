@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <iostream>
 #include <sstream>
 
 #include <fmt/format.h>
@@ -15,11 +16,14 @@
 
 #include "NOD_expression_parse.hh"
 #include "NOD_expression_to_nodes.hh"
+#include "NOD_fn_format_string.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items.hh"
 
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_tree_dot_export.hh"
 
 #include "DNA_node_types.h"
 
@@ -156,11 +160,11 @@ class AstToNodeGroupBuilder {
         r_tree_(r_tree),
         r_error_(r_error)
   {
+    std::cout << "\n\n" << root_expr.to_dot() << "\n\n";
   }
 
   void build()
   {
-
     this->add_interface_inputs();
     this->add_interface_outputs();
 
@@ -182,6 +186,8 @@ class AstToNodeGroupBuilder {
     this->add_link(
         expr_result,
         {&group_output_node, static_cast<bNodeSocket *>(group_output_node.inputs.first)});
+
+    std::cout << "\n\n" << bke::node_tree_to_dot(r_tree_) << "\n\n";
   }
 
  private:
@@ -379,6 +385,38 @@ static FunctionSymbol vector_member_access(const int index)
       });
 }
 
+static FunctionSymbol string_concatenation()
+{
+  return FunctionSymbol(
+      "+",
+      [](TypeCheckCallParams &params) {
+        return params.input_types.size() == 2 && params.input_types[0]->type == SOCK_STRING &&
+               params.input_types[1]->type == SOCK_STRING;
+      },
+      [](InsertCallParams &params) {
+        bNode &node = params.add_node("FunctionNodeFormatString");
+        auto &storage = *static_cast<NodeFunctionFormatString *>(node.storage);
+        storage.items = MEM_calloc_arrayN<NodeFunctionFormatStringItem>(2, "string_concatenation");
+        NodeFunctionFormatStringItem &item0 = storage.items[0];
+        NodeFunctionFormatStringItem &item1 = storage.items[1];
+        item0.identifier = storage.next_identifier++;
+        item1.identifier = storage.next_identifier++;
+        item0.name = BLI_strdup("a");
+        item1.name = BLI_strdup("b");
+        item0.socket_type = SOCK_STRING;
+        item1.socket_type = SOCK_STRING;
+        storage.items_num = 2;
+        params.update_node_sockets(node);
+        STRNCPY(static_cast<bNodeSocket *>(node.inputs.first)
+                    ->default_value_typed<bNodeSocketValueString>()
+                    ->value,
+                "{a}{b}");
+        params.add_input(node, 1);
+        params.add_input(node, 2);
+        params.use_node_output(node);
+      });
+}
+
 static void init_symbol_table(SymbolTable &symbols)
 {
   symbols.add(float_math_function("+", NODE_MATH_ADD, 2));
@@ -391,6 +429,7 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(vector_member_access(1));
   symbols.add(vector_member_access(2));
   symbols.add(negate_float_function());
+  symbols.add(string_concatenation());
 }
 
 static SymbolTable &get_symbol_table()

@@ -78,6 +78,7 @@ class Expr {
   Expr(ExprVariant expr) : expr(std::move(expr)) {}
 
   dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+  std::string to_dot() const;
 };
 
 }  // namespace blender::nodes::expression::ast
