@@ -2684,13 +2684,14 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
         *segbevcount = 0;
       }
 
-      a = nu->pntsu - 1;
       bezt = nu->bezt;
       if (nu->flagu & CU_NURB_CYCLIC) {
-        a++;
-        prevbezt = nu->bezt + (nu->pntsu - 1);
+        a = nu->pntsu;
+        prevbezt = bezt;
+        bezt++;
       }
       else {
+        a = nu->pntsu - 1;
         prevbezt = bezt;
         bezt++;
       }
@@ -2781,6 +2782,9 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
         }
         prevbezt = bezt;
         bezt++;
+        if ((nu->flagu & CU_NURB_CYCLIC) && bezt == nu->bezt + nu->pntsu) {
+          bezt = nu->bezt;
+        }
       }
 
       if ((nu->flagu & CU_NURB_CYCLIC) == 0) { /* not cyclic: endpoint */
