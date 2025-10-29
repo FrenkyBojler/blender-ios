@@ -42,6 +42,9 @@ void folderlist_popdir(ListBase *folderlist, char *dir, char *dir_template)
   if (folder) {
     /* Remove the current directory. */
     MEM_freeN(folder->foldername);
+    if (folder->foldertemplate) {
+      MEM_freeN(folder->foldertemplate);
+    }
     BLI_freelinkN(folderlist, folder);
 
     folder = static_cast<FolderList *>(folderlist->last);
