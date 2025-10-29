@@ -58,6 +58,13 @@ static void pitch_shiftmodifier_draw(const bContext * /*C*/, Panel *panel)
   col.prop(ptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
+static void pitch_shiftmodifier_apply(ModifierApplyContext &context,
+                                      StripModifierData *smd,
+                                      ImBuf *mask)
+{
+  printf("Pitch Shift modifier cannot be applied on images.\n");
+}
+
 static void pitch_shiftmodifier_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eSeqModifierType_PitchShift, pitch_shiftmodifier_draw);

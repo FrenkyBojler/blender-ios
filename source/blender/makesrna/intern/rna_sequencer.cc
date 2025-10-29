@@ -4217,6 +4217,7 @@ static void rna_def_pitch_shift_modifier(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Mode", "Mode of the pitch shift");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_PitchShift_mode_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "semi_tones", PROP_INT, PROP_FACTOR);
   RNA_def_property_int_sdna(prop, nullptr, "semi_tones");
@@ -4224,24 +4225,30 @@ static void rna_def_pitch_shift_modifier(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Semitones", "Number of semitones to shift the pitch.");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_PitchShift_semitones_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
   prop = RNA_def_property(srna, "cents", PROP_INT, PROP_FACTOR);
   RNA_def_property_int_sdna(prop, nullptr, "cents");
   RNA_def_property_range(prop, -100, 100);
   RNA_def_property_ui_text(prop, "Cents", "A cent is one one-hundredth of a semi-tone.");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_PitchShift_semitones_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
   prop = RNA_def_property(srna, "ratio", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "ratio");
   RNA_def_property_range(prop, 0.5, 2);
   RNA_def_property_ui_range(prop, 0.5f, 2.0f, 0.1f, -1);
   RNA_def_property_ui_text(prop, "Ratio", "Factor by which the audio pitch is scaled.");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "quality", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "quality");
   RNA_def_property_enum_items(prop, rna_enum_pitch_shift_quality_items);
   RNA_def_property_ui_text(prop, "Quality", "Quality of the pitch shifting");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
 static void rna_def_sound_modifiers(BlenderRNA *brna)
