@@ -629,6 +629,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_bundle.hh"
 #  include "NOD_geo_capture_attribute.hh"
 #  include "NOD_geo_closure.hh"
+#  include "NOD_geo_expression.hh"
 #  include "NOD_geo_field_to_grid.hh"
 #  include "NOD_geo_foreach_geometry_element.hh"
 #  include "NOD_geo_index_switch.hh"
@@ -663,6 +664,8 @@ using blender::nodes::ClosureOutputItemsAccessor;
 using blender::nodes::CombineBundleItemsAccessor;
 using blender::nodes::EvaluateClosureInputItemsAccessor;
 using blender::nodes::EvaluateClosureOutputItemsAccessor;
+using blender::nodes::ExpressionInputItemsAccessor;
+using blender::nodes::ExpressionOutputItemsAccessor;
 using blender::nodes::FieldToGridItemsAccessor;
 using blender::nodes::FileOutputItemsAccessor;
 using blender::nodes::ForeachGeometryElementGenerationItemsAccessor;
@@ -8030,6 +8033,93 @@ static void def_separate_bundle(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
+static void rna_def_expression_input_item(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodeExpressionInputItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Expression Input Item", "");
+  RNA_def_struct_sdna(srna, "NodeExpressionInputItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "ExpressionInputItemsAccessor", true);
+}
+
+static void rna_def_expression_input_items(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodeExpressionInputItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Input Items", "Collection of expression input items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "NodeExpressionInputItem", "ExpressionInputItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "NodeExpressionInputItem", "ExpressionInputItemsAccessor");
+}
+
+static void rna_def_expression_output_item(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodeExpressionOutputItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Expression Output Item", "");
+  RNA_def_struct_sdna(srna, "NodeExpressionOutputItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "ExpressionOutputItemsAccessor", true);
+}
+
+static void rna_def_expression_output_items(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodeExpressionOutputItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Output Items", "Collection of expression output items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "NodeExpressionOutputItem", "ExpressionOutputItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "NodeExpressionOutputItem", "ExpressionOutputItemsAccessor");
+}
+
+static void def_expression(BlenderRNA *brna, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  rna_def_expression_input_item(brna);
+  rna_def_expression_input_items(brna);
+
+  rna_def_expression_output_item(brna);
+  rna_def_expression_output_items(brna);
+
+  RNA_def_struct_sdna_from(srna, "NodeExpression", "storage");
+
+  prop = RNA_def_property(srna, "input_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "input_items.items", "input_items.items_num");
+  RNA_def_property_struct_type(prop, "NodeExpressionInputItem");
+  RNA_def_property_srna(prop, "NodeExpressionInputItems");
+
+  prop = RNA_def_property(srna, "output_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "output_items.items", "output_items.items_num");
+  RNA_def_property_struct_type(prop, "NodeExpressionOutputItem");
+  RNA_def_property_srna(prop, "NodeExpressionOutputItems");
+
+  prop = RNA_def_property(srna, "active_input_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "input_items.active_index");
+  RNA_def_property_ui_text(prop, "Active Input Index", "Index of the active input item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "active_output_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "output_items.active_index");
+  RNA_def_property_ui_text(prop, "Active Output Index", "Index of the active output item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+}
+
 static void rna_def_index_switch_item(BlenderRNA *brna)
 {
   PropertyRNA *prop;
@@ -9805,7 +9895,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeEvaluateClosure", def_evaluate_closure);
   define("NodeInternal", "NodeJoinBundle");
   define("NodeInternal", "NodeSeparateBundle", def_separate_bundle);
-  define("NodeInternal", "NodeExpression");
+  define("NodeInternal", "NodeExpression", def_expression);
 
   define("ShaderNode", "ShaderNodeAddShader");
   define("ShaderNode", "ShaderNodeAmbientOcclusion", def_sh_ambient_occlusion);

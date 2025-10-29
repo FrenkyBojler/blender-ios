@@ -2582,6 +2582,43 @@ typedef struct NodeFunctionFormatString {
   char _pad[4];
 } NodeFunctionFormatString;
 
+typedef struct NodeExpressionInputItem {
+  char *name;
+  int identifier;
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type;
+  char _pad[2];
+} NodeExpressionInputItem;
+
+typedef struct NodeExpressionOutputItem {
+  char *name;
+  int identifier;
+  /** #eNodeSocketDatatype. */
+  int16_t socket_type;
+  char _pad[2];
+} NodeExpressionOutputItem;
+
+typedef struct NodeExpressionInputItems {
+  NodeExpressionInputItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+  char _pad[4];
+} NodeExpressionInputItems;
+
+typedef struct NodeExpressionOutputItems {
+  NodeExpressionOutputItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+  char _pad[4];
+} NodeExpressionOutputItems;
+
+typedef struct NodeExpression {
+  NodeExpressionInputItems input_items;
+  NodeExpressionOutputItems output_items;
+} NodeExpression;
+
 /* script node mode */
 enum {
   NODE_SCRIPT_INTERNAL = 0,
