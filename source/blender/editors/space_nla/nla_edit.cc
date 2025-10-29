@@ -2222,14 +2222,14 @@ static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*
 
         /* setup iterator, and iterate over all the keyframes in the action,
          * applying this scaling */
+        blender::animrig::Action &action = strip->act->wrap();
+        blender::Span<FCurve *> fcurves = blender::animrig::fcurves_for_action_slot(
+            action, strip->action_slot_handle);
         ked.data = strip;
-        ANIM_animchanneldata_keyframes_loop(&ked,
-                                            ac.ads,
-                                            strip->act,
-                                            ALE_ACT,
-                                            nullptr,
-                                            bezt_apply_nlamapping,
-                                            BKE_fcurve_handles_recalc);
+        for (FCurve *fcurve : fcurves) {
+          ANIM_fcurve_keyframes_loop(
+              &ked, fcurve, nullptr, bezt_apply_nlamapping, BKE_fcurve_handles_recalc);
+        }
 
         /* clear scale of strip now that it has been applied,
          * and recalculate the extents of the action now that it has been scaled
