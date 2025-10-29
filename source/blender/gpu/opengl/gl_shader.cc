@@ -1399,7 +1399,7 @@ bool GLShader::finalize(const shader::ShaderCreateInfo *info)
     sources.append("version");
     sources.append("/* Specialization Constants. */\n");
     sources.append(source);
-    geometry_shader_from_glsl(sources);
+    geometry_shader_from_glsl(*info, sources);
   }
 
   if (async_compilation_) {
