@@ -1075,9 +1075,11 @@ void ShaderCompiler::pause_all()
 
 void ShaderCompiler::continue_all()
 {
-  std::unique_lock lock(mutex_);
-  BLI_assert(is_paused_);
-  is_paused_ = false;
+  {
+    std::unique_lock lock(mutex_);
+    BLI_assert(is_paused_);
+    is_paused_ = false;
+  }
   pause_finished_notification_.notify_all();
 }
 
