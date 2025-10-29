@@ -211,7 +211,7 @@ class ShaderNodesInliner {
   const bke::DataTypeConversions &data_type_conversions_;
   /** This is used to generate unique names and ids. */
   int dst_node_counter_ = 0;
-  Map<std::pair<NodeInContext, int>, std::shared_ptr<expression::ExpressionNodeGroup>>
+  Map<SocketInContext, std::shared_ptr<expression::ExpressionNodeGroup>>
       expression_node_groups_cache_;
 
  public:
@@ -624,7 +624,7 @@ class ShaderNodesInliner {
     }
     const StringRef expression = std::get<std::string>(expr_value_opt->value);
     const expression::ExpressionNodeGroup &group = *expression_node_groups_cache_.lookup_or_add_cb(
-        {node, expr_index},
+        socket,
         [&]() { return expression::expression_node_to_group(*node, expression, expr_index); });
     if (!group.tree) {
       this->store_socket_value_fallback(socket);

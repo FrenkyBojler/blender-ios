@@ -5,6 +5,7 @@
 #include <optional>
 #include <regex>
 
+#include "NOD_expression_to_nodes.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
@@ -71,6 +72,8 @@ class SocketUsageInferencerImpl {
    * or not.
    */
   bool ignore_top_level_node_muting_ = false;
+  Map<SocketInContext, std::shared_ptr<expression::ExpressionNodeGroup>>
+      expression_node_groups_cache_;
 
  public:
   SocketUsageInferencer *owner_ = nullptr;
@@ -294,6 +297,10 @@ class SocketUsageInferencerImpl {
           this->usage_task__input__enable_output(socket);
           break;
         }
+        if (node->is_type("NodeExpression")) {
+          this->usage_task__input__expression_node(socket);
+          break;
+        }
         this->usage_task__input__fallback(socket);
         break;
       }
@@ -379,6 +386,57 @@ class SocketUsageInferencerImpl {
     this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, &group_context);
   }
 
+  void usage_task__input__expression_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const NodeExpression &storage = *static_cast<const NodeExpression *>(node->storage);
+    const int socket_i = socket->index();
+    const bool is_expression_input = socket_i < storage.expression_items.items_num;
+    const bool is_variable_input = socket_i > storage.expression_items.items_num &&
+                                   socket_i < storage.expression_items.items_num + 1 +
+                                                  storage.input_items.items_num;
+    if (is_expression_input) {
+      const int expr_i = socket_i;
+      this->usage_task__with_dependent_sockets(
+          socket, {&node->output_socket(expr_i)}, {}, node.context);
+      return;
+    }
+    if (is_variable_input) {
+      const int variable_i = socket_i - storage.expression_items.items_num - 1;
+      Vector<SocketInContext> dependent_sockets;
+      for (const int expr_i : IndexRange(storage.expression_items.items_num)) {
+        const SocketInContext expression_socket = node.input_socket(expr_i);
+        const InferenceValue value = this->get_socket_value(expression_socket);
+        const std::optional<std::string> expression = value.get_if_primitive<std::string>();
+        if (!expression.has_value()) {
+          this->usage_task__input__any_output(socket);
+          return;
+        }
+        const SocketInContext result_output_socket = node.output_socket(expr_i);
+        expression::ExpressionNodeGroup &group = *expression_node_groups_cache_.lookup_or_add_cb(
+            result_output_socket,
+            [&]() { return expression::expression_node_to_group(*node, *expression, expr_i); });
+        if (!group.tree) {
+          continue;
+        }
+        group.tree->ensure_interface_cache();
+        group.tree->ensure_topology_cache();
+        const ComputeContext &group_context = compute_context_cache_.for_expression_node_output(
+            node.context, node->identifier, expr_i, &node->owner_tree());
+        for (const bNode *group_input_node : group.tree->group_input_nodes()) {
+          const bNodeSocket &group_input_socket = group_input_node->output_socket(variable_i);
+          if (group_input_socket.is_directly_linked()) {
+            dependent_sockets.append({&group_context, &group_input_socket});
+          }
+        }
+      }
+      this->usage_task__with_dependent_sockets(socket, dependent_sockets);
+      return;
+    }
+    /* This is for the extent sockets. */
+    all_socket_usages_.add_new(socket, false);
+  }
+
   void usage_task__input__group_output_node(const SocketInContext &socket)
   {
     const int output_i = socket->index();
@@ -388,11 +446,24 @@ class SocketUsageInferencerImpl {
       return;
     }
     /* The group output node is used if the matching output of the parent group node is used. */
-    const bke::GroupNodeComputeContext &group_context =
-        *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
-    const bNodeSocket &group_node_output = group_context.node()->output_socket(output_i);
-    this->usage_task__with_dependent_sockets(
-        socket, {&group_node_output}, {}, group_context.parent());
+    if (const auto *group_context = dynamic_cast<const bke::GroupNodeComputeContext *>(
+            socket.context))
+    {
+      const bNodeSocket &group_node_output = group_context->node()->output_socket(output_i);
+      this->usage_task__with_dependent_sockets(
+          socket, {&group_node_output}, {}, group_context->parent());
+      return;
+    }
+    if (const auto *expression_output_context =
+            dynamic_cast<const bke::ExpressionNodeOutputComputeContext *>(socket.context))
+    {
+      const bNodeSocket &expression_node_output = expression_output_context->node()->output_socket(
+          expression_output_context->output_index());
+      this->usage_task__with_dependent_sockets(socket, {&expression_node_output}, {}, nullptr);
+      return;
+    }
+    BLI_assert_unreachable();
+    all_socket_usages_.add_new(socket, false);
   }
 
   void usage_task__output(const SocketInContext &socket)
@@ -482,8 +553,7 @@ class SocketUsageInferencerImpl {
       return;
     }
     if (!socket_decl->usage_inference_fn) {
-      this->usage_task__with_dependent_sockets(
-          socket, socket->owner_node().output_sockets(), {}, socket.context);
+      this->usage_task__input__any_output(socket);
       return;
     }
     SocketUsageParams params{
@@ -531,6 +601,12 @@ class SocketUsageInferencerImpl {
       dependent_sockets.append(internal_link.tosock);
     }
     this->usage_task__with_dependent_sockets(socket, dependent_sockets, {}, socket.context);
+  }
+
+  void usage_task__input__any_output(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    this->usage_task__with_dependent_sockets(socket, node->output_sockets(), {}, node.context);
   }
 
   /**
@@ -588,6 +664,42 @@ class SocketUsageInferencerImpl {
       }
     }
     all_socket_usages_.add_new(socket, all_condition_inputs_true);
+  }
+
+  void usage_task__with_dependent_sockets(const SocketInContext &socket,
+                                          const Span<SocketInContext> dependent_outputs)
+  {
+    /* Check if any of the dependent outputs are used. */
+    SocketInContext next_unknown_socket;
+    bool any_output_used = false;
+    for (const SocketInContext dependent_socket : dependent_outputs) {
+      const std::optional<bool> is_used = all_socket_usages_.lookup_try(dependent_socket);
+      if (!is_used.has_value()) {
+        if (dependent_socket->is_output() && !dependent_socket->is_directly_linked()) {
+          continue;
+        }
+        if (!next_unknown_socket) {
+          next_unknown_socket = dependent_socket;
+          continue;
+        }
+      }
+      if (is_used.value_or(false)) {
+        any_output_used = true;
+        break;
+      }
+    }
+    if (next_unknown_socket) {
+      /* Create a task that checks if the next dependent socket is used. Intentionally only create
+       * a task for the very next one and not for all, because that could potentially trigger a lot
+       * of unnecessary evaluations. */
+      this->push_usage_task(next_unknown_socket);
+      return;
+    }
+    if (!any_output_used) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    all_socket_usages_.add_new(socket, true);
   }
 
   void push_usage_task(const SocketInContext &socket)

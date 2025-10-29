@@ -62,6 +62,9 @@ class AstToNodeGroupBuilder {
     bNode &group_output_node = this->add_node("NodeGroupOutput");
 
     LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node.outputs) {
+      if (socket == group_input_node.outputs.last) {
+        continue;
+      }
       inputs_.add(socket->name, {&group_input_node, socket});
     }
 
