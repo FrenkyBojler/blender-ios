@@ -340,20 +340,18 @@ static void file_select_path_tooltip_custom(bContext &C,
                               true);
   }
 
-  /* Evaluated/resolved path (in Python style). */
+  /* Evaluated/resolved path (shown only if different from template). */
   FileSelectParams *params = static_cast<FileSelectParams *>(argN);
-  if (params != nullptr && params->dir_resolved[0] != '\0' &&
+  if (params && params->dir_resolved[0] != '\0' &&
       !STREQ(params->dir_resolved, params->dir_template))
   {
-    char filepath[FILE_MAX];
-    BLI_strncpy(filepath, params->dir_resolved, sizeof(filepath));
-
-    UI_tooltip_text_field_add(data,
-                              fmt::format(fmt::runtime(TIP_("Evaluated: {}")), filepath),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_PYTHON,
-                              true);
+    UI_tooltip_text_field_add(
+        data,
+        fmt::format(fmt::runtime(TIP_("Evaluated: {}")), params->dir_resolved),
+        {},
+        UI_TIP_STYLE_NORMAL,
+        UI_TIP_LC_PYTHON,
+        true);
   }
 }
 
