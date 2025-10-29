@@ -3089,17 +3089,15 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
   return RNA_pointer_create_with_parent(*ptr, &RNA_FileSelectIDFilter, ptr->data);
 }
 
-/* Helper to check if params should use template version */
-
+/* Helper to check if params should use template version. */
 static bool params_has_template_syntax(const FileSelectParams *params)
 {
-
   return BKE_path_contains_template_syntax(params->dir_template);
 }
 
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
 {
-  FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
+  const FileSelectParams *params = static_cast<const FileSelectParams *>(ptr->data);
   strcpy(value, params_has_template_syntax(params) ? params->dir_template : params->dir);
 }
 
@@ -3111,7 +3109,7 @@ static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *valu
 
 static int rna_FileSelectParams_directory_length(PointerRNA *ptr)
 {
-  FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
+  const FileSelectParams *params = static_cast<const FileSelectParams *>(ptr->data);
   return params_has_template_syntax(params) ? strlen(params->dir_template) : strlen(params->dir);
 }
 

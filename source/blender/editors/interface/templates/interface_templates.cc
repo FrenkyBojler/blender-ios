@@ -308,9 +308,8 @@ void uiTemplateNodeSocket(uiLayout *layout, bContext * /*C*/, const float color[
 /** \name FileSelectParams Path Button Template
  * \{ */
 
-/* Custom tooltip builder: show name, description, value, then evaluated path. */
-// TODO Maybe need to move this somewhere else? Related:
-// https://projects.blender.org/blender/blender/pulls/139450/
+/* Custom tooltip builder showing path template information.
+ * Displays the template syntax, current value, and resolved/evaluated path. */
 static void file_select_path_tooltip_custom(bContext &C,
                                             uiTooltipData &data,
                                             uiBut *but,

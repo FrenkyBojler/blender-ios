@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,6 +7,8 @@
  * \brief Path template handling implementation - preserves template variables during file browser
  * navigation.
  */
+
+#include <cstring>
 
 #include "BKE_global.hh"
 #include "BKE_main.hh"
@@ -22,8 +24,6 @@
 
 #include "WM_types.hh"
 
-#include <cstring>
-
 namespace blender::bke::path_templates {
 
 /* -------------------------------------------------------------------- */
@@ -32,7 +32,7 @@ namespace blender::bke::path_templates {
 
 static void resolve_template_variables(char *path,
                                        size_t path_maxlen,
-                                       const blender::bke::path_templates::VariableMap *variables)
+                                       const VariableMap *variables)
 {
   if (!BKE_path_contains_template_syntax(path)) {
     return;
@@ -43,7 +43,7 @@ static void resolve_template_variables(char *path,
     return;
   }
 
-  blender::bke::path_templates::VariableMap vars;
+  VariableMap vars;
   const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
   BKE_add_template_variables_general(vars, scene ? &scene->id : nullptr);
   if (scene) {
@@ -65,7 +65,7 @@ static void resolve_and_normalize_paths(const char *template_path,
                                         char *resolved_template,
                                         char *normalized_current,
                                         size_t buffer_size,
-                                        const blender::bke::path_templates::VariableMap *variables)
+                                        const VariableMap *variables)
 {
   BLI_strncpy(resolved_template, template_path, buffer_size);
   resolve_template_variables(resolved_template, buffer_size, variables);
@@ -84,7 +84,7 @@ static void resolve_and_normalize_paths(const char *template_path,
 /* Check if current path is within a resolved template directory */
 static bool is_within_template_bounds(const char *template_path,
                                       const char *current_path,
-                                      const blender::bke::path_templates::VariableMap *variables)
+                                      const VariableMap *variables)
 {
   if (!BKE_path_contains_template_syntax(template_path)) {
     return false;
@@ -123,7 +123,7 @@ static bool update_template_on_navigation(
     const char *current_path,
     char *result,
     size_t result_maxlen,
-    const blender::bke::path_templates::VariableMap *variables)
+    const VariableMap *variables)
 {
   if (!BKE_path_contains_template_syntax(original_template)) {
     return false;
@@ -180,8 +180,7 @@ static bool update_template_on_navigation(
 /** \name Public API
  * \{ */
 
-void path_template_nav_initialize(FileSelectParams *params,
-                                  const blender::bke::path_templates::VariableMap *variables)
+void path_template_nav_initialize(FileSelectParams *params, const VariableMap *variables)
 {
   if (BKE_path_contains_template_syntax(params->dir)) {
     char resolved_path[FILE_MAX];
@@ -206,7 +205,7 @@ void path_template_nav_initialize(FileSelectParams *params,
 
 void path_template_nav_handle_text(FileSelectParams *params,
                                    const char *input_path,
-                                   const blender::bke::path_templates::VariableMap *variables)
+                                   const VariableMap *variables)
 {
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
@@ -223,7 +222,7 @@ void path_template_nav_handle_text(FileSelectParams *params,
 
 void path_template_nav_handle_browse(FileSelectParams *params,
                                      const char *new_directory,
-                                     const blender::bke::path_templates::VariableMap *variables)
+                                     const VariableMap *variables)
 {
   /* Try to preserve template if we were using one */
   if (BKE_path_contains_template_syntax(params->dir_template) &&
