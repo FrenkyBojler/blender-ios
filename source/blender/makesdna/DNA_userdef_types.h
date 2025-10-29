@@ -1082,7 +1082,12 @@ typedef enum eNdof_Navigation_Mode {
    * since it's confusing for users when 2D/3D navigation is inverted, see: #144751.
    */
   NDOF_NAVIGATION_MODE_FLY = 1,
-  /* TODO: implement "Target Camera Mode" and "Drone Mode" */
+  /*
+   * Enables a Fly Mode navigation but pushing the cap forward
+   * while looking down will not change the altitude of the camera.
+   */
+  NDOF_NAVIGATION_MODE_DRONE = 2,
+  /* TODO: implement "Target Camera Mode" */
 } eNdof_Navigation_Mode;
 
 /**

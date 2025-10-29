@@ -165,13 +165,47 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
 
   if (has_translate) {
 
-    const float speed = view3d_ndof_pan_speed_calc(rv3d);
-    pan_vec *= speed * ndof.time_delta;
-
     /* transform motion from view to world coordinates */
     float view_inv[4];
     invert_qt_qt_normalized(view_inv, rv3d->viewquat);
-    mul_qt_v3(view_inv, pan_vec);
+
+    if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_DRONE)
+    {
+      /* If camera orientation is top/bootom, then swap panning axis
+      and negate Y to simulate drone behavior */
+      float zvec[3] = {0, 0, 1};
+      mul_qt_v3(view_inv, zvec);
+
+      if (zvec[2] > 0.98f || zvec[2] < -0.98f) {
+        std::swap(pan_vec.z, pan_vec.y);
+        pan_vec.y *= -1.f;
+        mul_qt_v3(view_inv, pan_vec);
+      }
+      else {
+        /* In other cases, buffer Y and discard it during calculations,
+        limitng the pan movement to XZ plane */
+        float buffer_y = pan_vec.y;
+        pan_vec.y = 0;
+
+        /* Calculate the pan_vec in view space, and set Z to an absolute value afterwards */
+        mul_qt_v3(view_inv, pan_vec);
+        pan_vec.z = buffer_y;
+
+        /* If the view is turned upside down, then invert the pan Z value */
+        float yvec[3] = {0, 1, 0};
+        mul_qt_v3(view_inv, yvec);
+
+        if (yvec[2] < 0.f) {
+          pan_vec.z *= -1.f;
+        }
+      }
+    }
+    else {
+      mul_qt_v3(view_inv, pan_vec);
+    }
+
+    const float speed = view3d_ndof_pan_speed_calc(rv3d);
+    pan_vec *= speed * ndof.time_delta;
 
     /* move center of view opposite of hand motion (this is camera mode, not object mode) */
     sub_v3_v3(rv3d->ofs, pan_vec);
@@ -539,7 +573,7 @@ static std::optional<float3> ndof_orbit_center_calc_from_zbuf(Depsgraph *depsgra
 {
   rcti sample_rect;
 
-  if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_FLY) {
+  if (!NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U)) {
     /* Move the region to the bottom to enhance navigation in architectural-visualization. */
     sample_rect.xmin = 0.3f * region->winx;
     sample_rect.xmax = 0.7f * region->winx;
