@@ -27,19 +27,16 @@ static FileSelectParams create_empty_params()
   FileSelectParams params = {};
   params.dir[0] = '\0';
   params.dir_template[0] = '\0';
-  params.dir_resolved[0] = '\0';
   return params;
 }
 
 /** Initialize a FileSelectParams with preset directory values. */
 static FileSelectParams create_params_with_state(const char *dir,
-                                                 const char *dir_template,
-                                                 const char *dir_resolved)
+                                                 const char *dir_template)
 {
   FileSelectParams params = {};
   BLI_strncpy(params.dir, dir, sizeof(params.dir));
   BLI_strncpy(params.dir_template, dir_template, sizeof(params.dir_template));
-  BLI_strncpy(params.dir_resolved, dir_resolved, sizeof(params.dir_resolved));
   return params;
 }
 
@@ -69,7 +66,6 @@ TEST(path_template_navigation, Initialize_WithVariable)
 
   EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
   EXPECT_STREQ(params.dir, "/home/my_project/renders");
-  EXPECT_STREQ(params.dir_resolved, "/home/my_project/renders");
 }
 
 TEST(path_template_navigation, Initialize_WithoutVariable)
@@ -81,7 +77,6 @@ TEST(path_template_navigation, Initialize_WithoutVariable)
 
   EXPECT_STREQ(params.dir_template, "/home/user/projects");
   EXPECT_STREQ(params.dir, "/home/user/projects");
-  EXPECT_STREQ(params.dir_resolved, "/home/user/projects");
 }
 
 /** \} */
@@ -152,7 +147,7 @@ TEST(path_template_navigation, HandleText_Empty)
 TEST(path_template_navigation, Browse_UpWithSingleVariable)
 {
   FileSelectParams params = create_params_with_state(
-      "/home/my_project/renders", "/home/{project}/renders", "/home/my_project/renders");
+      "/home/my_project/renders", "/home/{project}/renders");
   VariableMap variables = create_test_variables();
 
   path_template_nav_handle_browse(&params, "/home/my_project", &variables);
@@ -164,7 +159,7 @@ TEST(path_template_navigation, Browse_UpWithSingleVariable)
 TEST(path_template_navigation, Browse_DownWithSingleVariable)
 {
   FileSelectParams params = create_params_with_state(
-      "/home/my_project", "/home/{project}", "/home/my_project");
+      "/home/my_project", "/home/{project}");
   VariableMap variables = create_test_variables();
 
   path_template_nav_handle_browse(&params, "/home/my_project/renders", &variables);
@@ -176,8 +171,7 @@ TEST(path_template_navigation, Browse_DownWithSingleVariable)
 TEST(path_template_navigation, Browse_UpWithNestedVariable)
 {
   FileSelectParams params = create_params_with_state("/project/scenes/sequence/01/assets",
-                                                     "/project/{nested_path}/assets",
-                                                     "/project/scenes/sequence/01/assets");
+                                                     "/project/{nested_path}/assets");
   VariableMap variables = create_test_variables();
   variables.add_filepath("nested_path", "scenes/sequence/01");
 
@@ -190,7 +184,7 @@ TEST(path_template_navigation, Browse_UpWithNestedVariable)
 TEST(path_template_navigation, Browse_DownWithNestedVariable)
 {
   FileSelectParams params = create_params_with_state(
-      "/project/scenes/sequence/01", "/project/{nested_path}", "/project/scenes/sequence/01");
+      "/project/scenes/sequence/01", "/project/{nested_path}");
   VariableMap variables = create_test_variables();
   variables.add_filepath("nested_path", "scenes/sequence/01");
 
@@ -203,7 +197,7 @@ TEST(path_template_navigation, Browse_DownWithNestedVariable)
 TEST(path_template_navigation, Browse_WithoutVariable)
 {
   FileSelectParams params = create_params_with_state(
-      "/home/user/projects", "/home/user/projects", "/home/user/projects");
+      "/home/user/projects", "/home/user/projects");
 
   path_template_nav_handle_browse(&params, "/home/user", nullptr);
 
@@ -213,7 +207,7 @@ TEST(path_template_navigation, Browse_WithoutVariable)
 
 TEST(path_template_navigation, Browse_Root)
 {
-  FileSelectParams params = create_params_with_state("/home", "/home", "/home");
+  FileSelectParams params = create_params_with_state("/home", "/home");
 
   path_template_nav_handle_browse(&params, "/", nullptr);
 
@@ -224,7 +218,7 @@ TEST(path_template_navigation, Browse_Root)
 TEST(path_template_navigation, Browse_Empty)
 {
   FileSelectParams params = create_params_with_state(
-      "/home/user/projects", "/home/user/projects", "/home/user/projects");
+      "/home/user/projects", "/home/user/projects");
 
   path_template_nav_handle_browse(&params, "", nullptr);
 

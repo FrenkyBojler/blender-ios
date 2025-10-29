@@ -164,12 +164,9 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
 
-    /* Initialize template paths - will be set properly by operator processing if needed */
+    /* Initialize template path - will be set properly by operator processing if needed */
     if (sfile->params->dir_template[0] == '\0') {
       STRNCPY(sfile->params->dir_template, sfile->params->dir);
-    }
-    if (sfile->params->dir_resolved[0] == '\0') {
-      STRNCPY(sfile->params->dir_resolved, sfile->params->dir);
     }
   }
 

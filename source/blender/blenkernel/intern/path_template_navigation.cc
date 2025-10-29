@@ -192,16 +192,11 @@ void path_template_nav_initialize(FileSelectParams *params, const VariableMap *v
 
     BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
     BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
-    BLI_strncpy(params->dir_resolved, resolved_path, sizeof(params->dir_resolved));
   }
   else {
     /* No templates - initialize empty fields with current dir */
-    const char *dir_to_use = params->dir;
     if (params->dir_template[0] == '\0') {
-      BLI_strncpy(params->dir_template, dir_to_use, sizeof(params->dir_template));
-    }
-    if (params->dir_resolved[0] == '\0') {
-      BLI_strncpy(params->dir_resolved, dir_to_use, sizeof(params->dir_resolved));
+      BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
     }
   }
 }
@@ -217,10 +212,11 @@ void path_template_nav_handle_text(FileSelectParams *params,
     resolve_template_variables(resolved_path, sizeof(resolved_path), variables);
   }
 
-  /* Update all three path fields directly */
+  /* Update both path fields:
+   * - dir_template: stores the original input with template variables
+   * - dir: the resolved/evaluated path for display and file operations */
   BLI_strncpy(params->dir_template, input_path, sizeof(params->dir_template));
   BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
-  BLI_strncpy(params->dir_resolved, resolved_path, sizeof(params->dir_resolved));
 }
 
 void path_template_nav_handle_browse(FileSelectParams *params,
@@ -247,15 +243,13 @@ void path_template_nav_handle_browse(FileSelectParams *params,
 
       BLI_strncpy(params->dir_template, updated_template, sizeof(params->dir_template));
       BLI_strncpy(params->dir, resolved, sizeof(params->dir));
-      BLI_strncpy(params->dir_resolved, resolved, sizeof(params->dir_resolved));
       return;
     }
   }
 
-  /* Template not preserved - all paths are the same */
+  /* Template not preserved - set both paths to the new directory */
   BLI_strncpy(params->dir_template, new_directory, sizeof(params->dir_template));
   BLI_strncpy(params->dir, new_directory, sizeof(params->dir));
-  BLI_strncpy(params->dir_resolved, new_directory, sizeof(params->dir_resolved));
 }
 
 void path_template_nav_set_operator_property(bContext *C,
