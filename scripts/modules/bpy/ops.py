@@ -14,19 +14,6 @@ _op_handlers = _ops_module.handlers
 _ModuleType = type(_ops_module)
 
 
-class handler_action:
-    def __init__(self, mod, append_func, remove_func):
-        self._mod = mod
-        self._append_func = append_func
-        self._remove_func = remove_func
-
-    def append(self, cb, owner=None, args=None, poll=None):
-        self._append_func(owner=owner, op=self._mod.idname(), cb=cb, args=args, poll=poll)
-
-    def remove(self, cb=None, owner=None):
-        self._remove_func(owner=owner, op=self._mod.idname(), cb=cb, args=None, poll=None)
-
-
 def remove_handlers(owner=None, cb=None):
     _op_handlers.remove(owner=owner, cb=cb, args=None, poll=None)
 
