@@ -151,21 +151,6 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const std::string expression = params.extract_input<std::string>("Expression");
-
-  std::stringstream errors;
-  ResourceScope scope;
-  const expression::ast::Expr *value = expression::parse(scope, expression, errors);
-  if (!value) {
-    params.error_message_add(NodeWarningType::Error, errors.str());
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  dot_export::DirectedGraph graph;
-  graph.attributes.set("ordering", "out");
-  value->to_dot(graph);
-  std::cout << "\n\n" << graph.to_dot_string() << "\n\n";
   params.set_default_remaining_outputs();
 }
 
