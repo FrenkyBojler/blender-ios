@@ -105,6 +105,13 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   auto *storage = MEM_callocN<NodeExpression>(__func__);
   node->storage = storage;
+
+  storage->expression_items.items = MEM_calloc_arrayN<NodeExpressionItem>(1, __func__);
+  NodeExpressionItem &item = storage->expression_items.items[0];
+  item.name = BLI_strdup(DATA_("Expression"));
+  item.socket_type = SOCK_FLOAT;
+  item.identifier = storage->expression_items.next_identifier++;
+  storage->expression_items.items_num = 1;
 }
 
 static void node_free_storage(bNode *node)
