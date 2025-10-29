@@ -15,6 +15,11 @@ dot_export::Node &NumberLiteral::to_dot(dot_export::DirectedGraph &graph) const
   return graph.new_node(this->value);
 }
 
+dot_export::Node &StringLiteral::to_dot(dot_export::DirectedGraph &graph) const
+{
+  return graph.new_node(this->value);
+}
+
 dot_export::Node &Identifier::to_dot(dot_export::DirectedGraph &graph) const
 {
   return graph.new_node(this->identifier);

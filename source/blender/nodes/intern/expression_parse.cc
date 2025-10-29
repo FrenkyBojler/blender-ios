@@ -23,6 +23,10 @@ constexpr nterm<Vector<ast::Expr *>> expr_list("args");
 constexpr char number_pattern[] = "([1-9][0-9]*|0)(\\.[0-9]+)?";
 constexpr regex_term<number_pattern> number("number");
 
+/* Disable '\' character because escaping is not implemented. */
+constexpr char string_pattern[] = "\"[^\"\\\\]*\"";
+constexpr regex_term<string_pattern> string("string");
+
 constexpr char identifier_pattern[] = "[a-zA-Z][a-zA-Z0-9]*";
 constexpr regex_term<identifier_pattern> identifier("identifier");
 
@@ -42,6 +46,7 @@ constexpr parser p(
           op_multiply,
           op_divide,
           number,
+          string,
           identifier,
           '(',
           ')',
@@ -52,6 +57,10 @@ constexpr parser p(
         expr(number) >>=
         [](ParseContext &ctx, const term_value<std::string_view> &v_number) {
           return &ctx.scope.construct<ast::Expr>(ast::NumberLiteral{v_number.get_value()});
+        },
+        expr(string) >>=
+        [](ParseContext &ctx, const term_value<std::string_view> &v_number) {
+          return &ctx.scope.construct<ast::Expr>(ast::StringLiteral{v_number.get_value()});
         },
         expr(identifier) >>=
         [](ParseContext &ctx, const term_value<std::string_view> &v_identifier) {

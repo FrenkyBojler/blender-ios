@@ -21,6 +21,13 @@ class NumberLiteral {
   dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
 };
 
+class StringLiteral {
+ public:
+  StringRef value;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
 class Identifier {
  public:
   StringRef identifier;
@@ -63,8 +70,8 @@ class Call {
 
 class Expr {
  public:
-  using ExprVariant =
-      std::variant<NumberLiteral, Identifier, BinaryOp, UnaryOp, MemberAccess, Call>;
+  using ExprVariant = std::
+      variant<NumberLiteral, StringLiteral, Identifier, BinaryOp, UnaryOp, MemberAccess, Call>;
 
   ExprVariant expr;
 

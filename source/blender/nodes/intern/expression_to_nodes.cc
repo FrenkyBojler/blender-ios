@@ -10,6 +10,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_resource_scope.hh"
+#include "BLI_string.h"
 #include "BLT_translation.hh"
 
 #include "NOD_expression_parse.hh"
@@ -221,6 +222,15 @@ class AstToNodeGroupBuilder {
     bNodeSocket *socket = static_cast<bNodeSocket *>(node.outputs.first);
     socket->default_value_typed<bNodeSocketValueFloat>()->value = value;
     return {&node, socket};
+  }
+
+  NodeAndSocket build_expr(const ast::StringLiteral &ast_node)
+  {
+    bNode &node = this->add_node("FunctionNodeInputString");
+    auto &storage = *static_cast<NodeInputString *>(node.storage);
+    const StringRef str = ast_node.value.drop_known_prefix("\"").drop_known_suffix("\"");
+    storage.string = BLI_strdupn(str.data(), str.size());
+    return {&node, static_cast<bNodeSocket *>(node.outputs.first)};
   }
 
   NodeAndSocket build_expr(const ast::Identifier &ast_node)
