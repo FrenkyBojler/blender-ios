@@ -59,13 +59,14 @@ set(INC
   ../depsgraph
   ../makesrna
   ../modifiers
-  ../../../extern/ctpg/include
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
-)
+  )
 
-set(INC_SYS
+  set(INC_SYS
+  ../../../extern/ctpg/include
+  ../../../extern/fast_float
 )
 
 set(SRC

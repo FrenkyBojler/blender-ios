@@ -211,7 +211,8 @@ class ShaderNodesInliner {
   const bke::DataTypeConversions &data_type_conversions_;
   /** This is used to generate unique names and ids. */
   int dst_node_counter_ = 0;
-  Map<std::pair<NodeInContext, int>, bNodeTree *> expression_node_groups_cache_;
+  Map<std::pair<NodeInContext, int>, std::shared_ptr<expression::ExpressionNodeGroup>>
+      expression_node_groups_cache_;
 
  public:
   ShaderNodesInliner(const bNodeTree &src_tree,
@@ -622,16 +623,16 @@ class ShaderNodesInliner {
       return;
     }
     const StringRef expression = std::get<std::string>(expr_value_opt->value);
-    bNodeTree *group = expression_node_groups_cache_.lookup_or_add_cb({node, expr_index}, [&]() {
-      return this->build_expression_node_group(expression, *node, expr_index);
-    });
-    if (!group) {
+    const expression::ExpressionNodeGroup &group = *expression_node_groups_cache_.lookup_or_add_cb(
+        {node, expr_index},
+        [&]() { return expression::expression_node_to_group(*node, expression, expr_index); });
+    if (!group.tree) {
       this->store_socket_value_fallback(socket);
       return;
     }
-    group->ensure_interface_cache();
-    group->ensure_topology_cache();
-    const bNode *group_output_node = group->group_output_node();
+    group.tree->ensure_interface_cache();
+    group.tree->ensure_topology_cache();
+    const bNode *group_output_node = group.tree->group_output_node();
     BLI_assert(group_output_node);
 
     const ComputeContext &group_compute_context =
@@ -640,22 +641,6 @@ class ShaderNodesInliner {
     const SocketInContext group_output_socket_ctx = {&group_compute_context,
                                                      &group_output_node->input_socket(0)};
     this->forward_value_or_schedule(socket, group_output_socket_ctx);
-  }
-
-  bNodeTree *build_expression_node_group(const StringRef expression,
-                                         const bNode &node,
-                                         const int expr_index)
-  {
-    bNodeTree &expr_tree = *BKE_id_new_nomain<bNodeTree>(node.name);
-    scope_.add_destruct_call([&]() { BKE_id_free(nullptr, &expr_tree); });
-
-    std::string error;
-    expression::expression_node_to_group(node, expression, expr_index, expr_tree, error);
-    if (!error.empty()) {
-      params_.r_error_messages.append({&node, error});
-      return nullptr;
-    }
-    return &expr_tree;
   }
 
   bool should_preserve_repeat_zone_node(const bNode &repeat_zone_node) const

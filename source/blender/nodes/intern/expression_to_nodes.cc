@@ -6,6 +6,8 @@
 
 #include <fmt/format.h>
 
+#include <fast_float.h>
+
 #include "BLI_listbase.h"
 #include "BLI_resource_scope.hh"
 #include "BLT_translation.hh"
@@ -13,6 +15,7 @@
 #include "NOD_expression_parse.hh"
 #include "NOD_expression_to_nodes.hh"
 
+#include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -101,7 +104,13 @@ class AstToNodeGroupBuilder {
 
   NodeAndSocket build_expr(const ast::Number &ast_node)
   {
-    const float value = std::stoi(ast_node.value);
+    float value;
+    fast_float::from_chars_result result = fast_float::from_chars(
+        ast_node.value.begin(), ast_node.value.end(), value);
+    if (result.ec != std::errc()) {
+      r_error_ = fmt::format("{}: {}", TIP_("Invalid number"), ast_node.value);
+      return {};
+    }
     bNode &node = this->add_node("ShaderNodeValue");
     bNodeSocket *socket = static_cast<bNodeSocket *>(node.outputs.first);
     socket->default_value_typed<bNodeSocketValueFloat>()->value = value;
@@ -193,26 +202,39 @@ class AstToNodeGroupBuilder {
   }
 };
 
-void expression_node_to_group(const bNode &node,
-                              const StringRef expression,
-                              const int expr_index,
-                              bNodeTree &r_tree,
-                              std::string &r_error)
+std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
+                                                              const StringRef expression,
+                                                              const int expr_index)
 {
-  std::stringstream errors;
+  auto output = std::make_shared<ExpressionNodeGroup>();
 
   ResourceScope parse_scope;
+  std::stringstream errors;
   ast::Expr *expr_ast = expression::parse(parse_scope, expression, errors);
   if (!expr_ast) {
-    r_error = errors.str();
-    if (r_error.empty()) {
-      r_error = TIP_("Parse error");
+    output->error = errors.str();
+    if (output->error.empty()) {
+      output->error = TIP_("Parse error");
     }
-    return;
+    return output;
   }
 
-  AstToNodeGroupBuilder builder(node, *expr_ast, expr_index, r_tree, r_error);
+  bNodeTree *tree = BKE_id_new_nomain<bNodeTree>(node.name);
+  output->tree = tree;
+  AstToNodeGroupBuilder builder(node, *expr_ast, expr_index, *tree, output->error);
   builder.build();
+  if (!output->error.empty()) {
+    BKE_id_free(nullptr, &tree->id);
+    output->tree = nullptr;
+  }
+  return output;
+}
+
+ExpressionNodeGroup::~ExpressionNodeGroup()
+{
+  if (this->tree) {
+    BKE_id_free(nullptr, const_cast<ID *>(&this->tree->id));
+  }
 }
 
 }  // namespace blender::nodes::expression
