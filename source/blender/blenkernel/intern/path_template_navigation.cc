@@ -118,12 +118,11 @@ static bool is_within_template_bounds(const char *template_path,
  * - Going deeper: Append extra path components to template
  * - Going up: Remove directory levels from template path
  */
-static bool update_template_on_navigation(
-    const char *original_template,
-    const char *current_path,
-    char *result,
-    size_t result_maxlen,
-    const VariableMap *variables)
+static bool update_template_on_navigation(const char *original_template,
+                                          const char *current_path,
+                                          char *result,
+                                          size_t result_maxlen,
+                                          const VariableMap *variables)
 {
   if (!BKE_path_contains_template_syntax(original_template)) {
     return false;

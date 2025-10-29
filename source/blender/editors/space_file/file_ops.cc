@@ -1601,12 +1601,10 @@ void file_sfile_to_operator_ex(
   char dir[FILE_MAX];
 
   /* Use template version if available, otherwise resolved version */
-  BLI_strncpy(
-      dir,
-      BKE_path_contains_template_syntax(params->dir_template) ?
-          params->dir_template :
-          params->dir,
-      FILE_MAX);
+  BLI_strncpy(dir,
+              BKE_path_contains_template_syntax(params->dir_template) ? params->dir_template :
+                                                                        params->dir,
+              FILE_MAX);
   BLI_path_slash_ensure(dir, FILE_MAX);
 
   /* XXX, not real length */
