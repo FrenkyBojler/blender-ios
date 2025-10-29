@@ -440,7 +440,7 @@ namespace blender::bke::path_templates {
  * Should be called when initializing file browser state.
  *
  * \param params: FileSelectParams structure to initialize.
- * \param variables: Optional variable map.
+ * \param variables: Optional variable map for template resolution.
  */
 void path_template_nav_initialize(
     FileSelectParams *params,
@@ -454,7 +454,7 @@ void path_template_nav_initialize(
  *
  * \param params: FileSelectParams structure to update with new path information.
  * \param input_path: User-entered path string (may contain template variable syntax).
- * \param variables: Optional variable map.
+ * \param variables: Optional variable map for template resolution.
  */
 void path_template_nav_handle_text(
     FileSelectParams *params,
@@ -469,7 +469,7 @@ void path_template_nav_handle_text(
  *
  * \param params: FileSelectParams structure to update with new navigation state.
  * \param new_directory: Target directory path after navigation.
- * \param variables: Optional variable map.
+ * \param variables: Optional variable map for template resolution.
  */
 void path_template_nav_handle_browse(
     FileSelectParams *params,

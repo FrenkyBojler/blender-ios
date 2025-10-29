@@ -40,11 +40,12 @@ void folderlist_popdir(ListBase *folderlist, char *dir, char *dir_template)
   folder = static_cast<FolderList *>(folderlist->last);
 
   if (folder) {
-    /* remove the current directory */
+    /* Remove the current directory. */
     MEM_freeN(folder->foldername);
     BLI_freelinkN(folderlist, folder);
 
     folder = static_cast<FolderList *>(folderlist->last);
+
     if (folder) {
       prev_dir = folder->foldername;
       BLI_strncpy(dir, prev_dir, FILE_MAXDIR);
