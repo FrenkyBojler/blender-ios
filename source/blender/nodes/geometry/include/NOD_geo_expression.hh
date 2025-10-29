@@ -123,6 +123,7 @@ struct ExpressionItemsAccessor : public socket_items::SocketItemsAccessorDefault
   static constexpr StringRefNull node_idname = "NodeExpression";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
+  static constexpr bool has_custom_initial_name = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_expression_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_expression_item_remove";
@@ -183,6 +184,11 @@ struct ExpressionItemsAccessor : public socket_items::SocketItemsAccessorDefault
   static std::string socket_identifier_for_item(const NodeExpressionItem &item)
   {
     return "ExpressionItem_" + std::to_string(item.identifier);
+  }
+
+  static std::string custom_initial_name(const bNode & /*node*/, StringRef /*src_name*/)
+  {
+    return "Expression";
   }
 };
 
