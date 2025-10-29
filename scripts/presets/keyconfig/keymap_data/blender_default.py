@@ -1901,9 +1901,9 @@ def km_graph_editor(params):
 
     items.extend([
         ("wm.context_toggle", {"type": 'H', "value": 'PRESS', "ctrl": True},
-         ("wm.context_toggle", {"type": 'TAB', "value": 'PRESS', "shift": True},
-         {"properties": [("data_path", "tool_settings.use_snap_anim")]}),
          {"properties": [("data_path", "space_data.show_handles")]}),
+        ("wm.context_toggle", {"type": 'TAB', "value": 'PRESS', "shift": True},
+         {"properties": [("data_path", "tool_settings.use_snap_anim")]}),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS'},
          {"properties": [("deselect_all", not params.legacy)]}),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS', "alt": True},
