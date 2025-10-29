@@ -48,7 +48,7 @@ void folderlist_popdir(ListBase *folderlist, char *dir, char *dir_template)
     if (folder) {
       prev_dir = folder->foldername;
       BLI_strncpy(dir, prev_dir, FILE_MAXDIR);
-      if (dir_template && dir_template[0]) {
+      if (dir_template) {
         if (folder->foldertemplate) {
           BLI_strncpy(dir_template, folder->foldertemplate, FILE_MAXDIR);
         }
