@@ -506,6 +506,22 @@ static FunctionSymbol ternary_conditional_operator(const eNodeSocketDatatype typ
       });
 }
 
+static FunctionSymbol create_vec_function()
+{
+  return FunctionSymbol(
+      "vec",
+      [](TypeCheckCallParams &params) {
+        if (params.input_types.size() != 3) {
+          return false;
+        }
+        return all_inputs_1d(params);
+      },
+      [](InsertCallParams &params) {
+        bNode &node = params.add_node("ShaderNodeCombineXYZ");
+        params.use_node_sockets(node);
+      });
+}
+
 static void init_symbol_table(SymbolTable &symbols)
 {
   symbols.add(float_math_function("+", NODE_MATH_ADD, 2));
@@ -514,19 +530,23 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(float_math_function("/", NODE_MATH_DIVIDE, 2));
   symbols.add(float_math_function("sin", NODE_MATH_SINE, 1));
   symbols.add(float_math_function("cos", NODE_MATH_COSINE, 1));
+  symbols.add(negate_float_function());
 
   symbols.add(vector_math_function("+", NODE_VECTOR_MATH_ADD, 2));
   symbols.add(vector_math_function("-", NODE_VECTOR_MATH_SUBTRACT, 2));
   symbols.add(vector_math_function("*", NODE_VECTOR_MATH_MULTIPLY, 2));
   symbols.add(vector_math_function("/", NODE_VECTOR_MATH_DIVIDE, 2));
 
+  symbols.add(create_vec_function());
   symbols.add(vector_member_access(0));
   symbols.add(vector_member_access(1));
   symbols.add(vector_member_access(2));
-  symbols.add(negate_float_function());
+
   symbols.add(string_concatenation());
+
   symbols.add(attribute_access("attrf", CD_PROP_FLOAT));
   symbols.add(attribute_access("attrv", CD_PROP_FLOAT3));
+
   for (const eNodeSocketDatatype type : {SOCK_FLOAT,
                                          SOCK_INT,
                                          SOCK_BOOLEAN,
