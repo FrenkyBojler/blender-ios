@@ -1807,6 +1807,9 @@ static void ui_item_rna_size(uiLayout *layout,
       /* not compact for float/int buttons, looks too squashed */
       w = ui_text_icon_width(
           layout, name, icon, ELEM(type, PROP_FLOAT, PROP_INT) ? false : compact);
+      if (subtype == PROP_PERCENTAGE) {
+        w -= UI_UNIT_X;
+      }
     }
   }
   h = UI_UNIT_Y;

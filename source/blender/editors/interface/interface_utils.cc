@@ -148,31 +148,17 @@ uiBut *uiDefAutoButR(uiBlock *block,
         }
       }
       else if (RNA_property_subtype(prop) == PROP_PERCENTAGE) {
-        bool show_slider = false;
-        if (type == PROP_INT) {
-          int softmin, softmax, step;
-          RNA_property_int_ui_range(ptr, prop, &softmin, &softmax, &step);
-          show_slider = softmax <= 100;
-        }
-        else if (type == PROP_FLOAT) {
+        ButType but_type = ButType::NumSlider;
+        if (type == PROP_FLOAT) {
           float softmin, softmax, step, precision;
           RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
-          show_slider = softmax <= 100.0f;
+          if (softmax > 100.0f) {
+            /* No slider if it is expected to go over 100%. */
+            but_type = ButType::Num;
+          }
         }
-        but = uiDefButR_prop(block,
-                             show_slider ? ButType::NumSlider : ButType::Num,
-                             0,
-                             name,
-                             x,
-                             y,
-                             width,
-                             height,
-                             ptr,
-                             prop,
-                             index,
-                             0,
-                             0,
-                             nullptr);
+        but = uiDefButR_prop(
+            block, but_type, 0, name, x, y, width, height, ptr, prop, index, 0, 0, nullptr);
       }
       else if (RNA_property_subtype(prop) == PROP_FACTOR) {
         but = uiDefButR_prop(block,
