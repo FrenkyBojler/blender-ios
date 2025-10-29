@@ -1012,13 +1012,11 @@ void ShaderCompiler::do_work(ParallelWork &work)
 
   {
     std::lock_guard lock(mutex_);
-    if (work.id) {
-      work.id = 0;
-    }
-    else {
+    if (work.id == 0) {
       /* Work has been cancelled. */
       return;
     }
+    work.id = 0;
   }
 
   /* Compile */
