@@ -221,12 +221,69 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
   }
 }
 
+static float compute_leveling_angle(const float view_x_axis[3],
+                                    const float view_y_axis[3],
+                                    const float view_z_axis[3])
+{
+  /* View leveling algorithm */
+
+  /* Check if viewing direction is aligned with a horizon plane normal */
+  float horizon_normal[3] = {0, 0, 1};
+  float alignment = dot_v3v3(view_z_axis, horizon_normal);
+
+  /* Level the view only if there is no alignment */
+  if ((alignment > -0.999f) && (alignment < 0.999f)) {
+
+    float isect_vec[3] = {0, 0, 0};
+    float isect_pt[3] = {0, 0, 0};
+
+    /* Find the interection vector between horizon (XY) plane
+    and view plane */
+    isect_plane_plane_v3(horizon_normal, view_z_axis, isect_pt, isect_vec);
+    normalize_v3(isect_vec);
+
+    /* Invert the direction of intersection vector if view
+    is oriented upside down */
+    if (view_y_axis[2] < 0.f) {
+      negate_v3(isect_vec);
+    }
+
+    /* Determine the angle between view X axis and it's
+    "rotation" onto a horizon plane */
+    float cosine = dot_v3v3(view_x_axis, isect_vec);
+
+    /* Level the view only if X axis does not lie on the horizon plane */
+    if (cosine < 0.999f) {
+
+      float x_to_horizon_angle = acos(cosine);
+
+      /* Invert the leveling rotation direction if the view is tilted
+      clockwise with Y axis pointing up, or it is tilted counter-clockwise
+      with Y axis pointing down */
+      if (((view_x_axis[2] < 0.f) && (view_y_axis[2] > 0.f)) ||
+          ((view_x_axis[2] > 0.f) && (view_y_axis[2] < 0.f)))
+      {
+        x_to_horizon_angle *= -1.f;
+      }
+
+      return x_to_horizon_angle;
+    }
+  }
+  return 0.f;
+}
+
 static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
                               ScrArea *area,
                               ARegion *region,
                               ViewOpsData *vod,
                               const bool apply_dyn_ofs)
 {
+
+  if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_DRONE)
+  {
+    U.ndof_flag |= NDOF_LOCK_HORIZON;
+  }
+
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -245,6 +302,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
     float angle, quat[4];
     float xvec[3] = {1, 0, 0};
     float yvec[3] = {0, 1, 0};
+    float zvec[3] = {0, 0, 1};
 
     /* only use XY, ignore Z */
     blender::float3 rot = WM_event_ndof_rotation_get_for_navigation(ndof);
@@ -253,6 +311,16 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
     mul_qt_v3(view_inv, xvec);
     /* Determine the direction of the Y vector (to check if the view is upside down). */
     mul_qt_v3(view_inv, yvec);
+    /* Determine the direction of the Z vector (for view leveling rotation around this vector) */
+    mul_qt_v3(view_inv, zvec);
+
+    /* Level the view to a "horizon plane" */
+    const float leveling_angle = compute_leveling_angle(xvec, yvec, zvec);
+    if (leveling_angle != 0.) {
+      float leveling_quat[4];
+      axis_angle_to_quat(leveling_quat, zvec, leveling_angle);
+      mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, leveling_quat);
+    }
 
     /* Perform the up/down rotation */
     angle = ndof.time_delta * rot[0];
