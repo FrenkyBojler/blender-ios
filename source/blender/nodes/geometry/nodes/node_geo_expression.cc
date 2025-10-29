@@ -38,10 +38,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   const NodeExpression &storage = node_storage(*node);
 
-  for (const int i : IndexRange(storage.output_items.items_num)) {
-    const NodeExpressionOutputItem &item = storage.output_items.items[i];
+  for (const int i : IndexRange(storage.expression_items.items_num)) {
+    const NodeExpressionItem &item = storage.expression_items.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-    const std::string identifier = ExpressionOutputItemsAccessor::socket_identifier_for_item(item);
+    const std::string identifier = ExpressionItemsAccessor::socket_identifier_for_item(item);
     b.add_input<decl::String>(item.name, identifier)
         .optional_label()
         .description("Expression to be evaluated");
@@ -84,7 +84,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<ExpressionInputItemsAccessor>(*node);
-  socket_items::destruct_array<ExpressionOutputItemsAccessor>(*node);
+  socket_items::destruct_array<ExpressionItemsAccessor>(*node);
   MEM_freeN(node->storage);
 }
 
@@ -95,25 +95,25 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<ExpressionInputItemsAccessor>(*src_node, *dst_node);
-  socket_items::copy_array<ExpressionOutputItemsAccessor>(*src_node, *dst_node);
+  socket_items::copy_array<ExpressionItemsAccessor>(*src_node, *dst_node);
 }
 
 static void node_operators()
 {
   socket_items::ops::make_common_operators<ExpressionInputItemsAccessor>();
-  socket_items::ops::make_common_operators<ExpressionOutputItemsAccessor>();
+  socket_items::ops::make_common_operators<ExpressionItemsAccessor>();
 }
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
   socket_items::blend_write<ExpressionInputItemsAccessor>(&writer, node);
-  socket_items::blend_write<ExpressionOutputItemsAccessor>(&writer, node);
+  socket_items::blend_write<ExpressionItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
   socket_items::blend_read_data<ExpressionInputItemsAccessor>(&reader, node);
-  socket_items::blend_read_data<ExpressionOutputItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ExpressionItemsAccessor>(&reader, node);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -161,7 +161,7 @@ NOD_REGISTER_NODE(node_register)
 namespace blender::nodes {
 
 StructRNA *ExpressionInputItemsAccessor::item_srna = &RNA_NodeExpressionInputItem;
-StructRNA *ExpressionOutputItemsAccessor::item_srna = &RNA_NodeExpressionOutputItem;
+StructRNA *ExpressionItemsAccessor::item_srna = &RNA_NodeExpressionItem;
 
 void ExpressionInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -173,12 +173,12 @@ void ExpressionInputItemsAccessor::blend_read_data_item(BlendDataReader *reader,
   BLO_read_string(reader, &item.name);
 }
 
-void ExpressionOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
+void ExpressionItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
   BLO_write_string(writer, item.name);
 }
 
-void ExpressionOutputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
+void ExpressionItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
   BLO_read_string(reader, &item.name);
 }

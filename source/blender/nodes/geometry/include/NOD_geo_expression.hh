@@ -102,50 +102,50 @@ struct ExpressionInputItemsAccessor : public socket_items::SocketItemsAccessorDe
   }
 };
 
-struct ExpressionOutputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
-  using ItemT = NodeExpressionOutputItem;
+struct ExpressionItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
+  using ItemT = NodeExpressionItem;
   static StructRNA *item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "NodeExpression";
   static constexpr bool has_type = true;
   static constexpr bool has_name = false;
   struct operator_idnames {
-    static constexpr StringRefNull add_item = "NODE_OT_expression_output_item_add";
-    static constexpr StringRefNull remove_item = "NODE_OT_expression_output_item_remove";
-    static constexpr StringRefNull move_item = "NODE_OT_expression_output_item_move";
+    static constexpr StringRefNull add_item = "NODE_OT_expression_item_add";
+    static constexpr StringRefNull remove_item = "NODE_OT_expression_item_remove";
+    static constexpr StringRefNull move_item = "NODE_OT_expression_item_move";
   };
   struct ui_idnames {
-    static constexpr StringRefNull list = "DATA_UL_expression_output_items";
+    static constexpr StringRefNull list = "DATA_UL_expression_items";
   };
   struct rna_names {
     static constexpr StringRefNull items = "output_items";
     static constexpr StringRefNull active_index = "active_output_index";
   };
 
-  static socket_items::SocketItemsRef<NodeExpressionOutputItem> get_items_from_node(bNode &node)
+  static socket_items::SocketItemsRef<NodeExpressionItem> get_items_from_node(bNode &node)
   {
     auto *storage = static_cast<NodeExpression *>(node.storage);
-    return {&storage->output_items.items,
-            &storage->output_items.items_num,
-            &storage->output_items.active_index};
+    return {&storage->expression_items.items,
+            &storage->expression_items.items_num,
+            &storage->expression_items.active_index};
   }
 
-  static void copy_item(const NodeExpressionOutputItem &src, NodeExpressionOutputItem &dst)
+  static void copy_item(const NodeExpressionItem &src, NodeExpressionItem &dst)
   {
     dst = src;
   }
 
-  static void destruct_item(NodeExpressionOutputItem * /*item*/) {}
+  static void destruct_item(NodeExpressionItem * /*item*/) {}
 
   static void blend_write_item(BlendWriter *writer, const ItemT &item);
   static void blend_read_data_item(BlendDataReader *reader, ItemT &item);
 
-  static eNodeSocketDatatype get_socket_type(const NodeExpressionOutputItem &item)
+  static eNodeSocketDatatype get_socket_type(const NodeExpressionItem &item)
   {
     return eNodeSocketDatatype(item.socket_type);
   }
 
-  static char **get_name(NodeExpressionOutputItem &item)
+  static char **get_name(NodeExpressionItem &item)
   {
     return &item.name;
   }
@@ -156,17 +156,17 @@ struct ExpressionOutputItemsAccessor : public socket_items::SocketItemsAccessorD
   }
 
   static void init_with_socket_type_and_name(bNode &node,
-                                             NodeExpressionOutputItem &item,
+                                             NodeExpressionItem &item,
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
     auto *storage = static_cast<NodeExpression *>(node.storage);
     item.socket_type = socket_type;
-    item.identifier = storage->output_items.next_identifier++;
-    socket_items::set_item_name_and_make_unique<ExpressionOutputItemsAccessor>(node, item, name);
+    item.identifier = storage->expression_items.next_identifier++;
+    socket_items::set_item_name_and_make_unique<ExpressionItemsAccessor>(node, item, name);
   }
 
-  static std::string socket_identifier_for_item(const NodeExpressionOutputItem &item)
+  static std::string socket_identifier_for_item(const NodeExpressionItem &item)
   {
     return "ExpressionItem_" + std::to_string(item.identifier);
   }

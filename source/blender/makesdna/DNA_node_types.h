@@ -2590,13 +2590,13 @@ typedef struct NodeExpressionInputItem {
   char _pad[2];
 } NodeExpressionInputItem;
 
-typedef struct NodeExpressionOutputItem {
+typedef struct NodeExpressionItem {
   char *name;
   int identifier;
   /** #eNodeSocketDatatype. */
   int16_t socket_type;
   char _pad[2];
-} NodeExpressionOutputItem;
+} NodeExpressionItem;
 
 typedef struct NodeExpressionInputItems {
   NodeExpressionInputItem *items;
@@ -2606,17 +2606,17 @@ typedef struct NodeExpressionInputItems {
   char _pad[4];
 } NodeExpressionInputItems;
 
-typedef struct NodeExpressionOutputItems {
-  NodeExpressionOutputItem *items;
+typedef struct NodeExpressionItems {
+  NodeExpressionItem *items;
   int items_num;
   int active_index;
   int next_identifier;
   char _pad[4];
-} NodeExpressionOutputItems;
+} NodeExpressionItems;
 
 typedef struct NodeExpression {
   NodeExpressionInputItems input_items;
-  NodeExpressionOutputItems output_items;
+  NodeExpressionItems expression_items;
 } NodeExpression;
 
 /* script node mode */
