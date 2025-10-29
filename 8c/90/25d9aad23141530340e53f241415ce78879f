@@ -2,3 +2,4 @@ Referenced by issue #148695, macOS: UI lag when dragging value slider
 Referenced by pull request #148927, Fix #148695: Value slider UI dragging lag due to missing redraw
 Referenced by issue #148980, macOS: Value slider gets stuck while dragging
 Referenced by pull request #149009, Fix #148980: macOS: Continuous grab wrapping fails when no custom bounds are provided
+Referenced by commit b19b481f5741c8c51bb0967b1ceabfb2ccb25ff3, Fix #148980: macOS: Continuous grab wrapping fails when no custom bounds are provided
