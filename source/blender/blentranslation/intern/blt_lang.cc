@@ -26,6 +26,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_appdir.hh"
+#include "BKE_blender_version.h"
 
 #include "DNA_userdef_types.h"
 
@@ -65,14 +66,25 @@ static void free_locales()
   num_locales = num_locales_menu = 0;
 }
 
-static bool locale_sufficient(char *locale)
+/* Minimum translation percentage to show language in the UI in release. */
+#  define MIN_TRANSLATION 20
+
+static int locale_translation_percentage(char *locale)
 {
   char *percentage = strrchr(locale, ':');
   if (percentage && strchr(percentage, '%')) {
     percentage++;
-    return strtoul(percentage, nullptr, 10) > 20;
+    return strtoul(percentage, nullptr, 10);
   }
-  return false;
+  return 0;
+}
+
+static bool locale_visible(char *locale)
+{
+  if (BKE_blender_version_is_alpha()) {
+    return true;
+  }
+  return locale_translation_percentage(locale) > MIN_TRANSLATION;
 }
 
 static void fill_locales()
@@ -109,7 +121,7 @@ static void fill_locales()
       num_locales = t + 1;
     }
 
-    if (locale_sufficient(str)) {
+    if (locale_visible(str)) {
       num_locales_menu++;
     }
 
@@ -133,7 +145,7 @@ static void fill_locales()
         continue;
       }
 
-      if (!locale_sufficient(str)) {
+      if (!locale_visible(str)) {
         line = line->next;
         continue;
       }
@@ -144,18 +156,23 @@ static void fill_locales()
         sep1++;
         sep2 = strchr(sep1, ':');
         if (sep2) {
+          int translated = locale_translation_percentage(str);
           locales_menu[idx].value = id;
           locales_menu[idx].icon = 0;
-          locales_menu[idx].name = BLI_strdupn(sep1, sep2 - sep1);
+          locales_menu[idx].name = BLI_sprintfN(
+              "%.*s%s", sep2 - sep1, sep1, (translated > MIN_TRANSLATION) ? "" : " *");
 
           sep2++;
           sep3 = strchr(sep2, ':');
 
           if (sep3) {
             locales_menu[idx].identifier = loc = BLI_strdupn(sep2, sep3 - sep2);
-
             sep3++;
-            desc = BLI_sprintfN("Locale code: %s. Translation progress: %s", loc, sep3);
+            desc = BLI_sprintfN(
+                "Locale code: %s\nTranslation progress: %s%s",
+                loc,
+                sep3,
+                (translated > MIN_TRANSLATION) ? "" : "\n\n* Not shown in release builds.");
           }
           else {
             locales_menu[idx].identifier = loc = BLI_strdup(sep2);
