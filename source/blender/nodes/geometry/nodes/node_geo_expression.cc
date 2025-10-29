@@ -149,11 +149,6 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<ExpressionItemsAccessor>(&reader, node);
 }
 
-static void node_geo_exec(GeoNodeExecParams params)
-{
-  params.set_default_remaining_outputs();
-}
-
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   if (!socket_items::try_add_item_via_any_extend_socket<ExpressionItemsAccessor>(
@@ -178,7 +173,6 @@ static void node_register()
   ntype.ui_name = "Expression";
   ntype.ui_description = "Evaluate an expression on inputs";
   ntype.nclass = NODE_CLASS_CONVERTER;
-  ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(ntype, "NodeExpression", node_free_storage, node_copy_storage);

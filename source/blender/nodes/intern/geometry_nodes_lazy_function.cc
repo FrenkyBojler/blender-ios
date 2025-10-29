@@ -2885,6 +2885,10 @@ struct GeometryNodesLazyFunctionBuilder {
           this->build_enable_output_node(bnode, graph_params);
           break;
         }
+        if (bnode.is_type("NodeExpression")) {
+          this->build_expression_node(bnode, graph_params);
+          break;
+        }
         if (bnode.is_undefined()) {
           this->build_undefined_node(bnode, graph_params);
           break;
@@ -3495,6 +3499,11 @@ struct GeometryNodesLazyFunctionBuilder {
     graph_params.lf_inputs_by_bsocket.add(&enable_bsocket, &lf_node.input(0));
     graph_params.usage_by_bsocket.add(&enable_bsocket, output_is_used_socket);
     graph_params.usage_by_bsocket.add(&value_input_bsocket, &lf_node.output(0));
+  }
+
+  void build_expression_node(const bNode &bnode, BuildGraphParams &graph_params)
+  {
+    /* TODO */
   }
 
   void build_index_switch_node(const bNode &bnode, BuildGraphParams &graph_params)
