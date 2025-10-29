@@ -172,8 +172,6 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     if (sfile->params->dir_resolved[0] == '\0') {
       STRNCPY(sfile->params->dir_resolved, sfile->params->dir);
     }
-
-    /* Don't initialize path template handler yet - wait until after operator processing */
   }
 
   params = sfile->params;
@@ -200,7 +198,6 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     if (is_filepath && RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
       char filepath[FILE_MAX];
       RNA_string_get(op->ptr, "filepath", filepath);
-
       if (params->type == FILE_LOADLIB) {
         STRNCPY(params->dir, filepath);
         params->file[0] = '\0';
@@ -380,7 +377,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     params->filter_glob[0] = '\0';
   }
 
-  /* Initialize path template handler now that all operator processing is complete */
+  /* Initialize path template handler here since operator processing is complete */
   blender::bke::path_templates::path_template_nav_initialize(params);
 
   fileselect_initialize_params_common(sfile, params);
