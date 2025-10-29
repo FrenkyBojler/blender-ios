@@ -260,6 +260,12 @@ class AstToNodeGroupBuilder {
     return this->build_generic_call(ast_node.op, {ast_node.expr});
   }
 
+  NodeAndSocket build_expr(const ast::ConditionalOp &ast_node)
+  {
+    return this->build_generic_call("?:",
+                                    {ast_node.condition, ast_node.true_expr, ast_node.false_expr});
+  }
+
   NodeAndSocket build_expr(const ast::MemberAccess &ast_node)
   {
     return this->build_generic_call("." + ast_node.identifier, {ast_node.expr});
@@ -435,6 +441,37 @@ static FunctionSymbol string_concatenation()
       });
 }
 
+static FunctionSymbol ternary_conditional_operator(const eNodeSocketDatatype type)
+{
+  return FunctionSymbol(
+      "?:",
+      [type](TypeCheckCallParams &params) {
+        if (params.input_types.size() != 3) {
+          return false;
+        }
+        if (params.input_types[0]->type != SOCK_BOOLEAN) {
+          return false;
+        }
+        if (params.input_types[1]->type != type) {
+          return false;
+        }
+        if (params.input_types[2]->type != type) {
+          return false;
+        }
+        return true;
+      },
+      [type](InsertCallParams &params) {
+        bNode &node = params.add_node("GeometryNodeSwitch");
+        auto &storage = *static_cast<NodeSwitch *>(node.storage);
+        storage.input_type = type;
+        params.update_node_sockets(node);
+        params.add_input(node, 0);
+        params.add_input(node, 2);
+        params.add_input(node, 1);
+        params.use_node_output(node);
+      });
+}
+
 static void init_symbol_table(SymbolTable &symbols)
 {
   symbols.add(float_math_function("+", NODE_MATH_ADD, 2));
@@ -450,6 +487,17 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(string_concatenation());
   symbols.add(attribute_access("attrf", CD_PROP_FLOAT));
   symbols.add(attribute_access("attrv", CD_PROP_FLOAT3));
+  for (const eNodeSocketDatatype type : {SOCK_FLOAT,
+                                         SOCK_INT,
+                                         SOCK_BOOLEAN,
+                                         SOCK_VECTOR,
+                                         SOCK_STRING,
+                                         SOCK_ROTATION,
+                                         SOCK_MATRIX,
+                                         SOCK_RGBA})
+  {
+    symbols.add(ternary_conditional_operator(type));
+  }
 }
 
 static SymbolTable &get_symbol_table()

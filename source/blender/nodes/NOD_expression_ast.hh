@@ -60,6 +60,15 @@ class UnaryOp {
   dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
 };
 
+class ConditionalOp {
+ public:
+  Expr *condition = nullptr;
+  Expr *true_expr = nullptr;
+  Expr *false_expr = nullptr;
+
+  dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;
+};
+
 class Call {
  public:
   StringRef identifier;
@@ -70,8 +79,14 @@ class Call {
 
 class Expr {
  public:
-  using ExprVariant = std::
-      variant<NumberLiteral, StringLiteral, Identifier, BinaryOp, UnaryOp, MemberAccess, Call>;
+  using ExprVariant = std::variant<NumberLiteral,
+                                   StringLiteral,
+                                   Identifier,
+                                   BinaryOp,
+                                   UnaryOp,
+                                   ConditionalOp,
+                                   MemberAccess,
+                                   Call>;
 
   ExprVariant expr;
 

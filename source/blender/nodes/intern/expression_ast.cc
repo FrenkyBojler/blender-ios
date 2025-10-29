@@ -51,6 +51,18 @@ dot_export::Node &UnaryOp::to_dot(dot_export::DirectedGraph &graph) const
   return op_node;
 }
 
+dot_export::Node &ConditionalOp::to_dot(dot_export::DirectedGraph &graph) const
+{
+  dot_export::Node &condition_node = this->condition->to_dot(graph);
+  dot_export::Node &true_expr_node = this->true_expr->to_dot(graph);
+  dot_export::Node &false_expr_node = this->false_expr->to_dot(graph);
+  dot_export::Node &op_node = graph.new_node("if");
+  graph.new_edge(op_node, condition_node);
+  graph.new_edge(op_node, true_expr_node);
+  graph.new_edge(op_node, false_expr_node);
+  return op_node;
+}
+
 dot_export::Node &Call::to_dot(dot_export::DirectedGraph &graph) const
 {
   dot_export::Node &identifier_node = graph.new_node(fmt::format("{}(...)", this->identifier));
@@ -70,6 +82,7 @@ dot_export::Node &Expr::to_dot(dot_export::DirectedGraph &graph) const
 std::string Expr::to_dot() const
 {
   dot_export::DirectedGraph graph;
+  graph.attributes.set("ordering", "out");
   this->to_dot(graph);
   return graph.to_dot_string();
 }

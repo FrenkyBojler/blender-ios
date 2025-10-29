@@ -51,6 +51,8 @@ constexpr parser p(
           '(',
           ')',
           ',',
+          ':',
+          '?',
           op_member_access),
     nterms(expr, expr_list),
     rules(
@@ -114,6 +116,15 @@ constexpr parser p(
            char /*skip*/) {
           return &ctx.scope.construct<ast::Expr>(
               ast::Call{StringRef(v_identifier), std::move(v_args)});
+        },
+        expr(expr, '?', expr, ':', expr) >>=
+        [](ParseContext &ctx,
+           ast::Expr *v_condition,
+           char /*skip*/,
+           ast::Expr *v_true,
+           char /*skip*/,
+           ast::Expr *v_false) {
+          return &ctx.scope.construct<ast::Expr>(ast::ConditionalOp{v_condition, v_true, v_false});
         }
 
         ));
