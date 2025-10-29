@@ -794,12 +794,24 @@ static void do_merge_tile(
   int y, tilex, tiley;
   size_t ofs, copylen;
 
-  copylen = tilex = rrpart->rectx;
-  tiley = rrpart->recty;
-  // copylen = tilex = rrpart->tilerect.xmax - rrpart->tilerect.xmin;
-  // tiley = rrpart->tilerect.ymax - rrpart->tilerect.ymin;
+  // bool is_border_render = rrpart->tilerect.xmin != 0 && rrpart->tilerect.ymin != 0 &&
+  //                         rrpart->tilerect.xmax != rrpart->rectx &&
+  //                         rrpart->tilerect.ymax != rrpart->recty;
 
-  ofs = (size_t(rrpart->tilerect.ymin) * rr->rectx + rrpart->tilerect.xmin);
+  bool already_uncroped = rr->rectx == rrpart->rectx && rr->recty == rrpart->recty;
+  // Used by eevee, since in cases of border overlay the result comes already with a size of the
+  // full render size.
+  if (already_uncroped) {
+    copylen = tilex = rrpart->rectx;
+    tiley = rrpart->recty;
+    ofs = 0;
+  }
+  else {
+    copylen = tilex = rrpart->tilerect.xmax - rrpart->tilerect.xmin;
+    tiley = rrpart->tilerect.ymax - rrpart->tilerect.ymin;
+    ofs = (size_t(rrpart->tilerect.ymin) * rr->rectx + rrpart->tilerect.xmin);
+  }
+
   target += pixsize * ofs;
 
   copylen *= sizeof(float) * pixsize;
