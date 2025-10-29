@@ -1,1 +1,2 @@
 Referenced by pull request #148996, Revert "Fix: Make GPUWorker::terminate_ atomic"
+Referenced by commit 20f61bfc56f4221e22e765c6b605147740a1429b, Revert "Fix: Make GPUWorker::terminate_ atomic"
