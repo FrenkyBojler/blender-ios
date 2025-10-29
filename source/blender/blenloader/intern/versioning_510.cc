@@ -279,7 +279,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_IMAGE) {
             LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-              MEM_freeN(reinterpret_cast<NodeImageLayer *>(socket->storage));
+              MEM_freeN(socket->storage);
               socket->storage = nullptr;
             }
           }
