@@ -277,6 +277,12 @@ static const char *legacy_pass_name_to_new_name(const char *name)
   if (STREQ(name, "Emit")) {
     return "Emission";
   }
+  if (STREQ(name, "Z")) {
+    return "Depth";
+  }
+  if (STREQ(name, "Speed")) {
+    return "Vector";
+  }
 
   return name;
 }
@@ -344,7 +350,8 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
               socket->storage = nullptr;
               const char *new_pass_name = legacy_pass_name_to_new_name(socket->name);
               STRNCPY(socket->name, new_pass_name);
-              STRNCPY(socket->identifier, new_pass_name);
+              const char *new_pass_identifier = legacy_pass_name_to_new_name(socket->identifier);
+              STRNCPY(socket->identifier, new_pass_identifier);
             }
           }
         }

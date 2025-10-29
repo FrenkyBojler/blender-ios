@@ -399,10 +399,6 @@ static void do_versions_compositor_render_passes(bNodeTree *ntree)
        * drop links from sockets which were renamed.
        */
       do_versions_compositor_render_passes_storage(node);
-      /* Make sure new sockets are properly created. */
-      node_verify_sockets(ntree, node, false);
-      /* Make sure all possibly created sockets have proper storage. */
-      do_versions_compositor_render_passes_storage(node);
     }
   }
 }
