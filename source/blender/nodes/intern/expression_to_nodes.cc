@@ -30,7 +30,6 @@ struct NodeAndSocket {
 
 class AstToNodeGroupBuilder {
  private:
-  const bNode &expr_bnode_;
   const NodeExpression &bnode_storage_;
   const ast::Expr &root_expr_;
   const int expr_index_;
@@ -45,8 +44,7 @@ class AstToNodeGroupBuilder {
                         const int expr_index,
                         bNodeTree &r_tree,
                         std::string &r_error)
-      : expr_bnode_(expr_bnode),
-        bnode_storage_(*static_cast<const NodeExpression *>(expr_bnode.storage)),
+      : bnode_storage_(*static_cast<const NodeExpression *>(expr_bnode.storage)),
         root_expr_(root_expr),
         expr_index_(expr_index),
         r_tree_(r_tree),
@@ -90,7 +88,7 @@ class AstToNodeGroupBuilder {
 
   void add_interface_outputs()
   {
-    const NodeExpressionItem &expr_item = bnode_storage_.expression_items.items[0];
+    const NodeExpressionItem &expr_item = bnode_storage_.expression_items.items[expr_index_];
     const bke::bNodeSocketType *output_stype = bke::node_socket_type_find_static(
         expr_item.socket_type);
     r_tree_.tree_interface.add_socket(
