@@ -185,6 +185,42 @@ class EvaluateClosureComputeContext : public NodeComputeContext {
   bool is_recursive() const;
 };
 
+class ExpressionNodeOutputComputeContext : public ComputeContext {
+ private:
+  int32_t node_id_;
+  int output_index_;
+
+  /** This is optional and may not be known always when the compute context is created. */
+  const bNodeTree *tree_ = nullptr;
+
+ public:
+  ExpressionNodeOutputComputeContext(const ComputeContext *parent,
+                                     int32_t node_id,
+                                     int output_index,
+                                     const bNodeTree *tree = nullptr);
+
+  int32_t node_id() const
+  {
+    return node_id_;
+  }
+
+  int output_index() const
+  {
+    return output_index_;
+  }
+
+  const bNodeTree *tree() const
+  {
+    return tree_;
+  }
+
+  const bNode *node() const;
+
+ private:
+  ComputeContextHash compute_hash() const override;
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
 class OperatorComputeContext : public ComputeContext {
  private:
   /** The tree that is executed. May be null. */

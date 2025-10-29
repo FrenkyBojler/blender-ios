@@ -71,6 +71,39 @@ void NodeComputeContext::print_current_in_line(std::ostream &stream) const
   stream << "Node ID: " << node_id_;
 }
 
+ExpressionNodeOutputComputeContext::ExpressionNodeOutputComputeContext(
+    const ComputeContext *parent,
+    const int32_t node_id,
+    const int output_index,
+    const bNodeTree *tree)
+    : ComputeContext(parent), node_id_(node_id), output_index_(output_index), tree_(tree)
+{
+}
+
+const bNode *ExpressionNodeOutputComputeContext::node() const
+{
+  if (tree_) {
+    return tree_->node_by_id(node_id_);
+  }
+  return nullptr;
+}
+
+ComputeContextHash ExpressionNodeOutputComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "EXPRESSION_NODE_OUTPUT", node_id_, output_index_);
+}
+
+void ExpressionNodeOutputComputeContext::print_current_in_line(std::ostream &stream) const
+{
+  if (tree_) {
+    if (const bNode *node = tree_->node_by_id(node_id_)) {
+      stream << "Node: " << node_label(*tree_, *node) << " Output: " << output_index_;
+      return;
+    }
+  }
+  stream << "Node ID: " << node_id_ << " Output: " << output_index_;
+}
+
 SimulationZoneComputeContext::SimulationZoneComputeContext(const ComputeContext *parent,
                                                            const int32_t output_node_id)
     : ComputeContext(parent), output_node_id_(output_node_id)
@@ -332,6 +365,19 @@ const EvaluateClosureComputeContext &ComputeContextCache::for_evaluate_closure(
     return &this->for_any_uncached<EvaluateClosureComputeContext>(
         parent, node_id, tree, closure_source_location);
   });
+}
+
+const ExpressionNodeOutputComputeContext &ComputeContextCache::for_expression_node_output(
+    const ComputeContext *parent,
+    const int32_t node_id,
+    const int output_index,
+    const bNodeTree *tree)
+{
+  return *expression_node_output_contexts_cache_.lookup_or_add_cb(
+      std::pair{parent, std::pair{node_id, output_index}}, [&]() {
+        return &this->for_any_uncached<ExpressionNodeOutputComputeContext>(
+            parent, node_id, output_index, tree);
+      });
 }
 
 }  // namespace blender::bke

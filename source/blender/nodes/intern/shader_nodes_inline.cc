@@ -553,15 +553,9 @@ class ShaderNodesInliner {
       this->store_socket_value_fallback(socket);
       return;
     }
-    this->handle_output_socket__group_generic(socket, *group);
-  }
-
-  void handle_output_socket__group_generic(const SocketInContext &socket, const bNodeTree &group)
-  {
-    const NodeInContext node = socket.owner_node();
-    group.ensure_interface_cache();
-    group.ensure_topology_cache();
-    const bNode *group_output_node = group.group_output_node();
+    group->ensure_interface_cache();
+    group->ensure_topology_cache();
+    const bNode *group_output_node = group->group_output_node();
     if (!group_output_node) {
       this->store_socket_value_fallback(socket);
       return;
@@ -590,6 +584,22 @@ class ShaderNodesInliner {
       this->forward_value_or_schedule(socket, group_input_socket_ctx);
       return;
     }
+    if (const auto *expression_node_output_compute_context =
+            dynamic_cast<const bke::ExpressionNodeOutputComputeContext *>(socket.context))
+    {
+      const ComputeContext *parent_compute_context =
+          expression_node_output_compute_context->parent();
+      const bNode *expression_node = expression_node_output_compute_context->node();
+      BLI_assert(expression_node);
+      const NodeExpression &expression_node_storage = *static_cast<NodeExpression *>(
+          expression_node->storage);
+      const int input_index = expression_node_storage.expression_items.items_num + 1 +
+                              socket->index();
+      const SocketInContext expression_input_socket_ctx = {
+          parent_compute_context, &expression_node->input_socket(input_index)};
+      this->forward_value_or_schedule(socket, expression_input_socket_ctx);
+      return;
+    }
     this->store_socket_value_fallback(socket);
   }
 
@@ -612,14 +622,24 @@ class ShaderNodesInliner {
       return;
     }
     const StringRef expression = std::get<std::string>(expr_value_opt->value);
-    bNodeTree *expression_tree = expression_node_groups_cache_.lookup_or_add_cb(
-        {node, expr_index},
-        [&]() { return this->build_expression_node_group(expression, *node, expr_index); });
-    if (!expression_tree) {
+    bNodeTree *group = expression_node_groups_cache_.lookup_or_add_cb({node, expr_index}, [&]() {
+      return this->build_expression_node_group(expression, *node, expr_index);
+    });
+    if (!group) {
       this->store_socket_value_fallback(socket);
       return;
     }
-    this->handle_output_socket__group_generic(socket, *expression_tree);
+    group->ensure_interface_cache();
+    group->ensure_topology_cache();
+    const bNode *group_output_node = group->group_output_node();
+    BLI_assert(group_output_node);
+
+    const ComputeContext &group_compute_context =
+        compute_context_cache_.for_expression_node_output(
+            socket.context, node->identifier, expr_index, &node->owner_tree());
+    const SocketInContext group_output_socket_ctx = {&group_compute_context,
+                                                     &group_output_node->input_socket(0)};
+    this->forward_value_or_schedule(socket, group_output_socket_ctx);
   }
 
   bNodeTree *build_expression_node_group(const StringRef expression,
