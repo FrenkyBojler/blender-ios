@@ -39,6 +39,7 @@ const int unary_minus_precedence = 3;
 
 constexpr char_term op_member_access('.', 4);
 
+// TODO: Looks like clang doesn't like this (won't compile)...
 constexpr parser p(
     expr,
     terms(op_plus,
