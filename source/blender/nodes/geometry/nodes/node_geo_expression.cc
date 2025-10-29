@@ -75,6 +75,32 @@ static void node_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
 }
 
+static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+  bNodeTree &ntree = *id_cast<bNodeTree *>(ptr->owner_id);
+  bNode &node = *ptr->data_as<bNode>();
+  if (uiLayout *panel = layout->panel(C, "expression_items", false, IFACE_("Expression Items"))) {
+    socket_items::ui::draw_items_list_with_operators<ExpressionItemsAccessor>(
+        C, panel, ntree, node);
+    socket_items::ui::draw_active_item_props<ExpressionItemsAccessor>(
+        ntree, node, [&](PointerRNA *item_ptr) {
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        });
+  }
+  if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
+    socket_items::ui::draw_items_list_with_operators<ExpressionInputItemsAccessor>(
+        C, panel, ntree, node);
+    socket_items::ui::draw_active_item_props<ExpressionInputItemsAccessor>(
+        ntree, node, [&](PointerRNA *item_ptr) {
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        });
+  }
+}
+
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   auto *storage = MEM_callocN<NodeExpression>(__func__);
@@ -147,11 +173,11 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  ntype.freefunc = node_free_storage;
-  ntype.copyfunc = node_copy_storage;
+  blender::bke::node_type_storage(ntype, "NodeExpression", node_free_storage, node_copy_storage);
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   ntype.register_operators = node_operators;
+  ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

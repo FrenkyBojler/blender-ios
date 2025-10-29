@@ -108,7 +108,7 @@ struct ExpressionItemsAccessor : public socket_items::SocketItemsAccessorDefault
   static int node_type;
   static constexpr StringRefNull node_idname = "NodeExpression";
   static constexpr bool has_type = true;
-  static constexpr bool has_name = false;
+  static constexpr bool has_name = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_expression_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_expression_item_remove";
@@ -118,8 +118,8 @@ struct ExpressionItemsAccessor : public socket_items::SocketItemsAccessorDefault
     static constexpr StringRefNull list = "DATA_UL_expression_items";
   };
   struct rna_names {
-    static constexpr StringRefNull items = "output_items";
-    static constexpr StringRefNull active_index = "active_output_index";
+    static constexpr StringRefNull items = "expression_items";
+    static constexpr StringRefNull active_index = "active_expression_index";
   };
 
   static socket_items::SocketItemsRef<NodeExpressionItem> get_items_from_node(bNode &node)
