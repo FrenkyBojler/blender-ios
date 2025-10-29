@@ -1238,7 +1238,10 @@ static StringRefNull stage_name_get(GLenum gl_stage)
   return "";
 }
 
-GLuint GLShader::create_shader_stage(GLenum gl_stage, MutableSpan<StringRefNull> sources)
+GLuint GLShader::create_shader_stage(GLenum gl_stage,
+                                     MutableSpan<StringRefNull> sources,
+                                     GLSources &gl_sources,
+                                     const shader::SpecializationConstants &constants_state)
 {
   /* Patch the shader sources to include specialization constants. */
   std::string constants_source;
