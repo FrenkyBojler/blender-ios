@@ -285,9 +285,6 @@ static void tonemapmodifier_apply(ModifierApplyContext &context,
                                   StripModifierData *smd,
                                   ImBuf *mask)
 {
-
-  printf("Applying Tonemap modifier\n");
-
   const SequencerTonemapModifierData *tmmd = (const SequencerTonemapModifierData *)smd;
 
   TonemapApplyOp op;

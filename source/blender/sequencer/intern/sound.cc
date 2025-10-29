@@ -43,7 +43,7 @@ namespace blender::seq {
  * these ones take info from audaspace to update sequence length! */
 const SoundModifierWorkerInfo workersSoundModifiers[] = {
     {eSeqModifierType_SoundEqualizer, sound_equalizermodifier_recreator},
-    {eSeqModifierType_PitchShift, pitch_shiftmodifier_recreator},
+    {eSeqModifierType_Pitch, pitchmodifier_recreator},
     {0, nullptr}};
 
 #ifdef WITH_CONVOLUTION
@@ -352,25 +352,25 @@ void *sound_equalizermodifier_recreator(Strip *strip,
 #endif
 }
 
-void *pitch_shiftmodifier_recreator(Strip * /*strip*/,
-                                    StripModifierData *smd,
-                                    void *sound_in,
-                                    bool &needs_update)
+void *pitchmodifier_recreator(Strip * /*strip*/,
+                              StripModifierData *smd,
+                              void *sound_in,
+                              bool &needs_update)
 {
   if (!needs_update && smd->runtime.last_sound_in == sound_in) {
     return smd->runtime.last_sound_out;
   }
-  PitchShiftModifierData *psmd = (PitchShiftModifierData *)smd;
+  PitchModifierData *pmd = (PitchModifierData *)smd;
 
-  int quality = psmd->quality;
+  int quality = pmd->quality;
   switch (quality) {
-    case PITCH_SHIFT_QUALITY_HIGH:
+    case PITCH_QUALITY_HIGH:
       quality = AUD_STRETCHER_QUALITY_HIGH;
       break;
-    case PITCH_SHIFT_QUALITY_FAST:
+    case PITCH_QUALITY_FAST:
       quality = AUD_STRETCHER_QUALITY_FAST;
       break;
-    case PITCH_SHIFT_QUALITY_CONSISTENT:
+    case PITCH_QUALITY_CONSISTENT:
       quality = AUD_STRETCHER_QUALITY_CONSISTENT;
       break;
     default:
@@ -378,16 +378,16 @@ void *pitch_shiftmodifier_recreator(Strip * /*strip*/,
   }
 
   double pitch_scale = 0;
-  int mode = psmd->mode;
-  if (mode == PITCH_SHIFT_MODE_SEMITONES) {
-    pitch_scale = pow(2.0, (psmd->semi_tones + (psmd->cents / 100.0)) / 12.0);
+  int mode = pmd->mode;
+  if (mode == PITCH_MODE_SEMITONES) {
+    pitch_scale = pow(2.0, (pmd->semitones + (pmd->cents / 100.0)) / 12.0);
   }
-  else if (mode == PITCH_SHIFT_MODE_RATIO) {
-    pitch_scale = psmd->ratio;
+  else if (mode == PITCH_MODE_RATIO) {
+    pitch_scale = pmd->ratio;
 
     if (pitch_scale <= 0.0) {
       pitch_scale = 1.0;
-      psmd->ratio = 1.0;
+      pmd->ratio = 1.0;
     }
   }
 
