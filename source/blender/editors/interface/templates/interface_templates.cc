@@ -342,16 +342,13 @@ static void file_select_path_tooltip_custom(bContext &C,
 
   /* Evaluated/resolved path (shown only if different from template). */
   FileSelectParams *params = static_cast<FileSelectParams *>(argN);
-  if (params && params->dir[0] != '\0' &&
-      !STREQ(params->dir, params->dir_template))
-  {
-    UI_tooltip_text_field_add(
-        data,
-        fmt::format(fmt::runtime(TIP_("Evaluated: {}")), params->dir),
-        {},
-        UI_TIP_STYLE_NORMAL,
-        UI_TIP_LC_PYTHON,
-        true);
+  if (params && params->dir[0] != '\0' && !STREQ(params->dir, params->dir_template)) {
+    UI_tooltip_text_field_add(data,
+                              fmt::format(fmt::runtime(TIP_("Evaluated: {}")), params->dir),
+                              {},
+                              UI_TIP_STYLE_NORMAL,
+                              UI_TIP_LC_PYTHON,
+                              true);
   }
 }
 

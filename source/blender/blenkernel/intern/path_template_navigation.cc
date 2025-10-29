@@ -161,8 +161,7 @@ static bool update_template_on_navigation(const char *original_template,
   }
 
   /* Case 3: Going up from template directory */
-  if (resolved_len > current_len &&
-      STREQLEN(resolved_template, normalized_current, current_len) &&
+  if (resolved_len > current_len && STREQLEN(resolved_template, normalized_current, current_len) &&
       (current_len == 0 || resolved_template[current_len] == '/'))
   {
     /* Go up from template path */
