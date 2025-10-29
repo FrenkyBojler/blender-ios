@@ -319,9 +319,9 @@ def RKS_GEN_custom_props(_ksi, _context, ks, data):
 # Property identifiers for Bendy Bones
 bbone_property_ids = (
     "bbone_curveinx",
-    "bbone_curveiny",
+    "bbone_curveinz",
     "bbone_curveoutx",
-    "bbone_curveouty",
+    "bbone_curveoutz",
 
     "bbone_rollin",
     "bbone_rollout",
@@ -332,8 +332,8 @@ bbone_property_ids = (
     # NOTE: These are in the nested bone struct
     # Do it this way to force them to be included
     # in whatever actions are being keyed here
-    "bone.bbone_in",
-    "bone.bbone_out",
+    "bbone_easein",
+    "bbone_easeout",
 )
 
 
