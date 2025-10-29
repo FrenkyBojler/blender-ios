@@ -208,7 +208,7 @@ class AstToNodeGroupBuilder {
     return std::visit([&](const auto &ast_node) { return this->build_expr(ast_node); }, expr.expr);
   }
 
-  NodeAndSocket build_expr(const ast::Number &ast_node)
+  NodeAndSocket build_expr(const ast::NumberLiteral &ast_node)
   {
     float value;
     fast_float::from_chars_result result = fast_float::from_chars(

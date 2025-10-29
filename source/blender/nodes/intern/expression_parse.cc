@@ -51,7 +51,7 @@ constexpr parser p(
     rules(
         expr(number) >>=
         [](ParseContext &ctx, const term_value<std::string_view> &v_number) {
-          return &ctx.scope.construct<ast::Expr>(ast::Number{v_number.get_value()});
+          return &ctx.scope.construct<ast::Expr>(ast::NumberLiteral{v_number.get_value()});
         },
         expr(identifier) >>=
         [](ParseContext &ctx, const term_value<std::string_view> &v_identifier) {

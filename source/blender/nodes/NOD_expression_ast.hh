@@ -14,7 +14,7 @@ namespace blender::nodes::expression::ast {
 
 class Expr;
 
-class Number {
+class NumberLiteral {
  public:
   StringRef value;
 
@@ -63,7 +63,8 @@ class Call {
 
 class Expr {
  public:
-  using ExprVariant = std::variant<Number, Identifier, BinaryOp, UnaryOp, MemberAccess, Call>;
+  using ExprVariant =
+      std::variant<NumberLiteral, Identifier, BinaryOp, UnaryOp, MemberAccess, Call>;
 
   ExprVariant expr;
 

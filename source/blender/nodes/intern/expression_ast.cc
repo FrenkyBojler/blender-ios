@@ -10,7 +10,7 @@
 
 namespace blender::nodes::expression::ast {
 
-dot_export::Node &Number::to_dot(dot_export::DirectedGraph &graph) const
+dot_export::Node &NumberLiteral::to_dot(dot_export::DirectedGraph &graph) const
 {
   return graph.new_node(this->value);
 }
