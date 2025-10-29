@@ -65,9 +65,8 @@ uiBut *uiDefAutoButR(uiBlock *block,
                      int height)
 {
   uiBut *but = nullptr;
-  const PropertyType type = RNA_property_type(prop);
 
-  switch (type) {
+  switch (RNA_property_type(prop)) {
     case PROP_BOOLEAN: {
       if (RNA_property_array_check(prop) && index == -1) {
         return nullptr;
@@ -148,15 +147,9 @@ uiBut *uiDefAutoButR(uiBlock *block,
         }
       }
       else if (RNA_property_subtype(prop) == PROP_PERCENTAGE) {
-        ButType but_type = ButType::NumSlider;
-        if (type == PROP_FLOAT) {
-          float softmin, softmax, step, precision;
-          RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
-          if (softmax > 100.0f) {
-            /* No slider if it is expected to go over 100%. */
-            but_type = ButType::Num;
-          }
-        }
+        float softmin, softmax, step, precision;
+        RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
+        const ButType but_type = (softmax > 100.0f) ? ButType::Num : ButType::NumSlider;
         but = uiDefButR_prop(
             block, but_type, 0, name, x, y, width, height, ptr, prop, index, 0, 0, nullptr);
       }
