@@ -1113,7 +1113,7 @@ class ShaderNodesInliner {
     result.has_missing_inputs = false;
     result.all_inputs_primitive = true;
     for (const bNodeSocket *input_socket : node->input_sockets()) {
-      if (!input_socket->is_available()) {
+      if (this->socket_is_ignored(*input_socket)) {
         continue;
       }
       const SocketInContext input_socket_ctx = {node.context, input_socket};
@@ -1141,7 +1141,7 @@ class ShaderNodesInliner {
 
     /* Prepare inputs to the multi-function evaluation. */
     for (const bNodeSocket *input_socket : node->input_sockets()) {
-      if (!input_socket->is_available()) {
+      if (this->socket_is_ignored(*input_socket)) {
         continue;
       }
       const SocketInContext input_socket_ctx = {node.context, input_socket};
@@ -1154,7 +1154,7 @@ class ShaderNodesInliner {
     /* Prepare output buffers. */
     Vector<void *> output_values;
     for (const bNodeSocket *output_socket : node->output_sockets()) {
-      if (!output_socket->is_available()) {
+      if (this->socket_is_ignored(*output_socket)) {
         continue;
       }
       void *value = scope_.allocate_owned(*output_socket->typeinfo->base_cpp_type);
@@ -1168,7 +1168,7 @@ class ShaderNodesInliner {
     /* Store constant-folded values for the output sockets. */
     int current_output_i = 0;
     for (const bNodeSocket *output_socket : node->output_sockets()) {
-      if (!output_socket->is_available()) {
+      if (this->socket_is_ignored(*output_socket)) {
         continue;
       }
       const void *value = output_values[current_output_i++];
@@ -1514,6 +1514,11 @@ class ShaderNodesInliner {
   {
     const bool use_refcounting = !(dst_tree_.id.tag & ID_TAG_NO_MAIN);
     return use_refcounting ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT;
+  }
+
+  bool socket_is_ignored(const bNodeSocket &socket) const
+  {
+    return !socket.is_available() || socket.idname == StringRef("NodeSocketVirtual");
   }
 
   void report_error(const NodeInContext &node, const StringRef message)
