@@ -836,8 +836,8 @@ static void wm_file_read_post(bContext *C,
     if (is_startup_file) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         BKE_ntree_update_tag_id_changed(bmain, &scene->id);
-        BKE_ntree_update(*bmain);
       }
+      BKE_ntree_update(*bmain);
     }
 
 #if 1
