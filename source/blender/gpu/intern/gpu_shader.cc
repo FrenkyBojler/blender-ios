@@ -1030,7 +1030,7 @@ void ShaderCompiler::do_work(void *work_payload)
   /* Pause must happen after the work has finished and before more work is requested,
    * otherwise we can run into deadlocks due to notifications desync. */
   if (is_paused_) {
-    std::unique_lock lock(pause_mutex_);
+    std::unique_lock lock(mutex_);
     pause_finished_notification_.wait(lock, [&]() { return !is_paused_; });
   }
 }
