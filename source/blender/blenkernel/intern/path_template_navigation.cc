@@ -100,13 +100,17 @@ static bool is_within_template_bounds(const char *template_path,
 
   /* Exact match */
   if (resolved_len == current_len) {
-    return strcmp(normalized_current, resolved_template) == 0;
+    return STREQ(normalized_current, resolved_template);
   }
 
   /* Check if one path is prefix of the other (parent/child relationship) */
-  const size_t min_len = (resolved_len < current_len) ? resolved_len : current_len;
-  return strncmp(resolved_template, normalized_current, min_len) == 0 &&
-         (resolved_template[min_len] == '/' || normalized_current[min_len] == '/');
+  if (resolved_len < current_len) {
+    return strncmp(resolved_template, normalized_current, resolved_len) == 0 &&
+           normalized_current[resolved_len] == '/';
+  }
+
+  return strncmp(resolved_template, normalized_current, current_len) == 0 &&
+         resolved_template[current_len] == '/';
 }
 
 /**
@@ -137,7 +141,7 @@ static bool update_template_on_navigation(const char *original_template,
   const size_t current_len = strlen(normalized_current);
 
   /* Case 1: Exact match */
-  if (current_len == resolved_len && strcmp(normalized_current, resolved_template) == 0) {
+  if (current_len == resolved_len && STREQ(normalized_current, resolved_template)) {
     BLI_strncpy(result, original_template, result_maxlen);
     return true;
   }

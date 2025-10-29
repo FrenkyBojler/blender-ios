@@ -343,7 +343,7 @@ static void file_select_path_tooltip_custom(bContext &C,
   /* Evaluated/resolved path (in Python style). */
   FileSelectParams *params = static_cast<FileSelectParams *>(argN);
   if (params != nullptr && params->dir_resolved[0] != '\0' &&
-      strcmp(params->dir_resolved, params->dir_template) != 0)
+      !STREQ(params->dir_resolved, params->dir_template))
   {
     char filepath[FILE_MAX];
     BLI_strncpy(filepath, params->dir_resolved, sizeof(filepath));
