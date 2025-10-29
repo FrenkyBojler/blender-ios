@@ -916,18 +916,23 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
 
 void ShaderCompiler::batch_cancel(BatchHandle &handle)
 {
-  std::unique_lock lock(mutex_);
+  {
+    std::unique_lock lock(mutex_);
 
-  Batch *batch = batches_.pop(handle);
-  compilation_queue_.remove_batch(batch);
+    Batch *batch = batches_.pop(handle);
+    compilation_queue_.remove_batch(batch);
 
-  /* If it was already being compiled, wait until it's ready so the calling thread can safely
-   * delete the ShaderCreateInfos. */
-  compilation_finished_notification_.wait(lock, [&]() { return batch->is_ready(); });
-  batch->free_shaders();
-  MEM_delete(batch);
+    /* If it was already being compiled, wait until it's ready so the calling thread can safely
+     * delete the ShaderCreateInfos. */
+    compilation_finished_notification_.wait(lock, [&]() { return batch->is_ready(); });
+    batch->free_shaders();
+    MEM_delete(batch);
 
-  handle = 0;
+    handle = 0;
+  }
+
+  /* Count this as a finished compilation, since wait_for_all might be waiting. */
+  compilation_finished_notification_.notify_all();
 }
 
 bool ShaderCompiler::batch_is_ready(BatchHandle handle)
