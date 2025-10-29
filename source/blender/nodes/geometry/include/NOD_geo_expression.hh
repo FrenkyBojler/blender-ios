@@ -9,6 +9,7 @@
 #include "DNA_node_types.h"
 
 #include "NOD_socket_items.hh"
+#include "NOD_socket_items_name_util.hh"
 
 #include "RNA_access.hh"
 
@@ -21,6 +22,9 @@ struct ExpressionInputItemsAccessor : public socket_items::SocketItemsAccessorDe
   static constexpr StringRefNull node_idname = "NodeExpression";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
+  static constexpr bool has_custom_initial_name = true;
+  static constexpr char unique_name_separator = '_';
+  static constexpr bool has_name_validation = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_expression_input_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_expression_input_item_remove";
@@ -99,6 +103,16 @@ struct ExpressionInputItemsAccessor : public socket_items::SocketItemsAccessorDe
   static std::string socket_identifier_for_item(const NodeExpressionInputItem &item)
   {
     return "InputItem_" + std::to_string(item.identifier);
+  }
+
+  static std::string custom_initial_name(const bNode &node, StringRef src_name)
+  {
+    return socket_items::variable_name_find_short<ExpressionInputItemsAccessor>(node, src_name);
+  }
+
+  static std::string validate_name(const StringRef name)
+  {
+    return socket_items::variable_name_validate(name);
   }
 };
 
