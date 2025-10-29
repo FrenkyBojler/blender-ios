@@ -15,7 +15,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_global.hh"
 #include "BKE_movieclip.h"
 #include "BKE_path_templates.hh"
 

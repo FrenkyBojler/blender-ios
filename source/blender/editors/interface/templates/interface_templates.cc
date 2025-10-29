@@ -14,7 +14,6 @@
 #include "BLI_math_color.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
-#include <cstdio>
 
 #include "BLT_translation.hh"
 
@@ -22,14 +21,10 @@
 #include "ED_screen.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.hh"
 
 #include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
-
-#include "../space_file/file_intern.hh"
-#include "../space_file/filelist.hh"
 
 using blender::StringRefNull;
 
