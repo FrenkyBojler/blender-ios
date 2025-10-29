@@ -21,16 +21,19 @@ float4 get_mip_data(int mip,
                     SphereProbePixelArea write_coord,
                     float3x3 rotation_mat)
 {
-  float3 direction = sphere_probe_texel_to_direction(float2(texel), write_coord, read_coord);
-  direction = rotation_mat * direction;
-  float2 uv = sphere_probe_direction_to_uv(direction, float(mip), read_coord);
+  float3 rotated_ws_direction = sphere_probe_texel_to_direction(
+      float2(texel), write_coord, read_coord);
+  /* Multiplying with the inverse (which is also the transposed given the rotation matrix is
+   * orthonormal) as we want the reversed transform. */
+  float3 original_ws_direction = transpose(rotation_mat) * rotated_ws_direction;
+  float2 uv = sphere_probe_direction_to_uv(original_ws_direction, float(mip), read_coord);
   return textureLod(in_sphere_tx, float3(uv, read_coord.layer), float(mip));
 }
 
 void main()
 {
   float3x3 rotation_mat = to_float3x3(lookdev_rotation);
-  if (gl_GlobalInvocationID.x == 0) {
+  if (all(equal(gl_GlobalInvocationID.xy, uint2(0)))) {
     {
       SphericalHarmonicL1 sh;
       sh.L0.M0 = in_sh.L0_M0;
