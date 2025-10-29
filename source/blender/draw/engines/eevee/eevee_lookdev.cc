@@ -219,9 +219,10 @@ blender::gpu::Batch *LookdevModule::sphere_get(const SphereLOD level_of_detail)
 void LookdevModule::init(const rcti *visible_rect)
 {
   visible_rect_ = *visible_rect;
-  enabled_ = inst_.is_viewport() && inst_.overlays_enabled() && inst_.use_lookdev_overlay();
+  use_reference_spheres_ = inst_.is_viewport() && inst_.overlays_enabled() &&
+                           inst_.use_lookdev_overlay();
 
-  if (enabled_) {
+  if (use_reference_spheres_) {
     const int2 extent_dummy(1);
     constexpr eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE |
                                        GPU_TEXTURE_USAGE_SHADER_READ;
@@ -229,8 +230,14 @@ void LookdevModule::init(const rcti *visible_rect)
     dummy_aov_color_tx_.ensure_2d_array(
         gpu::TextureFormat::SFLOAT_16_16_16_16, extent_dummy, 1, usage);
     dummy_aov_value_tx_.ensure_2d_array(gpu::TextureFormat::SFLOAT_16, extent_dummy, 1, usage);
+  }
 
-    use_viewspace_lighting_ = (inst_.v3d->flag & V3D_SHADING_WORLD_ORIENTATION) == 0;
+  if (inst_.is_viewport()) {
+    bool use_viewspace_lighting = (inst_.v3d->shading.flag &
+                                   V3D_SHADING_STUDIOLIGHT_VIEW_ROTATION) != 0;
+    if (assign_if_different(use_viewspace_lighting_, use_viewspace_lighting)) {
+      inst_.sampling.reset();
+    }
   }
 }
 
@@ -263,7 +270,7 @@ static int calc_sphere_extent(const float viewport_scale)
 
 void LookdevModule::sync()
 {
-  if (!enabled_) {
+  if (!use_reference_spheres_) {
     return;
   }
   const float viewport_scale = calc_viewport_scale();
@@ -356,7 +363,7 @@ void LookdevModule::sync_display()
 
 void LookdevModule::draw(View &view)
 {
-  if (!enabled_) {
+  if (!use_reference_spheres_) {
     return;
   }
 
@@ -371,9 +378,11 @@ void LookdevModule::draw(View &view)
 
 void LookdevModule::rotate_world()
 {
-  if (!use_viewspace_lighting_) {
+  if (!inst_.is_viewport()) {
     return;
   }
+
+  /* TODO(fclem): Only rotate if rotation matrix changed. */
 
   rotate_world_probe_data(inst_.sphere_probes.octahedral_probes_texture(),
                           inst_.sphere_probes.world_sphere_probe().atlas_coord,
@@ -383,7 +392,7 @@ void LookdevModule::rotate_world()
 
 void LookdevModule::display()
 {
-  if (!enabled_) {
+  if (!use_reference_spheres_) {
     return;
   }
 
@@ -465,8 +474,9 @@ void LookdevModule::rotate_world_probe_data(
   SphereProbePixelArea write_coord_mip4 = atlas_coord.as_write_coord(4);
 
   float4x4 rotation = float4x4::identity();
-  if (false && use_viewspace_lighting_) {
-    /* TODO copy camera matrix */
+  if (use_viewspace_lighting_) {
+    CartesianBasis target(AxisSigned::X_POS, AxisSigned::Z_NEG, AxisSigned::Y_POS);
+    rotation = inst_.camera.data_get().viewinv * math::from_rotation<float4x4>(target);
   }
   else {
     const ::View3DShading &shading = inst_.v3d->shading;
@@ -500,6 +510,10 @@ void LookdevModule::rotate_world_probe_data(
   pass.dispatch(dispatch_size);
 
   inst_.manager->submit(pass);
+  /* Tag world to update the SH stored in the volume probe atlas.
+   * If any volume probe is visible, thi will reupload the baked data.
+   * This is the costly part of this feature. */
+  inst_.volume_probes.update_world_irradiance();
 }
 
 /** \} */

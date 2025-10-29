@@ -121,9 +121,9 @@ class LookdevModule {
  private:
   Instance &inst_;
 
-  bool enabled_ = false;
+  bool use_reference_spheres_ = false;
 
-  bool use_viewspace_lighting_ = true;
+  bool use_viewspace_lighting_ = false;
 
   static constexpr int num_spheres = 2;
 
