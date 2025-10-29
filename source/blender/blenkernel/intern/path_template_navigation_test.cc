@@ -17,116 +17,221 @@ namespace blender::bke::path_templates::tests {
 
 using namespace blender::bke::path_templates;
 
-/* Helper to create a FileSelectParams with initialized fields */
-static FileSelectParams create_params(const char *dir)
+/* -------------------------------------------------------------------- */
+/** \name Test Helpers
+ * \{ */
+
+/** Initialize a FileSelectParams with all fields cleared. */
+static FileSelectParams create_empty_params()
 {
   FileSelectParams params = {};
-  BLI_strncpy(params.dir, dir, sizeof(params.dir));
+  params.dir[0] = '\0';
   params.dir_template[0] = '\0';
   params.dir_resolved[0] = '\0';
   return params;
 }
 
-/* Helper to create a basic variable map for testing */
+/** Initialize a FileSelectParams with preset directory values. */
+static FileSelectParams create_params_with_state(const char *dir,
+                                                 const char *dir_template,
+                                                 const char *dir_resolved)
+{
+  FileSelectParams params = {};
+  BLI_strncpy(params.dir, dir, sizeof(params.dir));
+  BLI_strncpy(params.dir_template, dir_template, sizeof(params.dir_template));
+  BLI_strncpy(params.dir_resolved, dir_resolved, sizeof(params.dir_resolved));
+  return params;
+}
+
+/** Create a standard variable map for testing with common template variables. */
 static VariableMap create_test_variables()
 {
   VariableMap variables;
   variables.add_string("project", "my_project");
-  variables.add_string("blend_file", "scene_01");
+  variables.add_string("blend_file", "my_file");
   variables.add_string("blend_dir", "blender_files");
   variables.add_integer("frame", 42);
   return variables;
 }
+/** \} */
 
-/* Keep a minimal focused set of tests exercising the public API with variables
- * and without, plus navigation cases (going up / going deeper) and a variable
- * that resolves to an entire folder component. */
+/* -------------------------------------------------------------------- */
+/** \name Initialize Tests
+ * \{ */
 
-TEST(path_template_navigation, HandleText_WithVariable)
+TEST(path_template_navigation, Initialize_WithVariable)
 {
-  FileSelectParams params = {};
+  FileSelectParams params = create_empty_params();
+  BLI_strncpy(params.dir, "/home/{project}/renders", sizeof(params.dir));
   VariableMap variables = create_test_variables();
 
-  path_template_nav_handle_text(&params, "/home/user/{blend_file}/renders", &variables);
+  path_template_nav_initialize(&params, &variables);
 
-  EXPECT_STREQ(params.dir_template, "/home/user/{blend_file}/renders");
-  EXPECT_STREQ(params.dir, "/home/user/scene_01/renders");
+  EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
+  EXPECT_STREQ(params.dir, "/home/my_project/renders");
+  EXPECT_STREQ(params.dir_resolved, "/home/my_project/renders");
+}
+
+TEST(path_template_navigation, Initialize_WithoutVariable)
+{
+  FileSelectParams params = create_empty_params();
+  BLI_strncpy(params.dir, "/home/user/projects", sizeof(params.dir));
+
+  path_template_nav_initialize(&params, nullptr);
+
+  EXPECT_STREQ(params.dir_template, "/home/user/projects");
+  EXPECT_STREQ(params.dir, "/home/user/projects");
+  EXPECT_STREQ(params.dir_resolved, "/home/user/projects");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Handle Text Input Tests
+ * \{ */
+
+TEST(path_template_navigation, HandleText_WithSingleVariable)
+{
+  FileSelectParams params = create_empty_params();
+  VariableMap variables = create_test_variables();
+
+  path_template_nav_handle_text(&params, "/home/{project}/renders", &variables);
+
+  EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
+  EXPECT_STREQ(params.dir, "/home/my_project/renders");
+}
+
+TEST(path_template_navigation, HandleText_WithNestedVariable)
+{
+  FileSelectParams params = create_empty_params();
+  VariableMap variables = create_test_variables();
+  variables.add_filepath("nested_path", "scenes/sequence/01");
+
+  path_template_nav_handle_text(&params, "/project/{nested_path}/assets", &variables);
+
+  EXPECT_STREQ(params.dir_template, "/project/{nested_path}/assets");
+  EXPECT_STREQ(params.dir, "/project/scenes/sequence/01/assets");
 }
 
 TEST(path_template_navigation, HandleText_WithoutVariable)
 {
-  FileSelectParams params = {};
+  FileSelectParams params = create_empty_params();
 
-  /* Call without providing a VariableMap (use nullptr) */
   path_template_nav_handle_text(&params, "/home/user/projects", nullptr);
 
   EXPECT_STREQ(params.dir_template, "/home/user/projects");
   EXPECT_STREQ(params.dir, "/home/user/projects");
 }
 
-TEST(path_template_navigation, Browse_GoingUpFolder)
+TEST(path_template_navigation, HandleText_Root)
 {
-  FileSelectParams params = {};
-  VariableMap variables = create_test_variables();
+  FileSelectParams params = create_empty_params();
 
-  BLI_strncpy(params.dir_template, "/home/{blend_dir}/projects", sizeof(params.dir_template));
-  BLI_strncpy(params.dir, "/home/blender_files/projects", sizeof(params.dir));
-  BLI_strncpy(params.dir_resolved, "/home/blender_files/projects", sizeof(params.dir_resolved));
+  path_template_nav_handle_text(&params, "/", nullptr);
 
-  path_template_nav_handle_browse(&params, "/home/blender_files", &variables);
-
-  EXPECT_STREQ(params.dir_template, "/home/{blend_dir}/");
-  EXPECT_STREQ(params.dir, "/home/blender_files/");
+  EXPECT_STREQ(params.dir_template, "/");
+  EXPECT_STREQ(params.dir, "/");
 }
 
-TEST(path_template_navigation, Browse_GoingDeeperFolder)
+TEST(path_template_navigation, HandleText_Empty)
 {
-  FileSelectParams params = {};
-  VariableMap variables = create_test_variables();
+  FileSelectParams params = create_empty_params();
 
-  BLI_strncpy(params.dir_template, "/home/{blend_dir}", sizeof(params.dir_template));
-  BLI_strncpy(params.dir, "/home/blender_files", sizeof(params.dir));
-  BLI_strncpy(params.dir_resolved, "/home/blender_files", sizeof(params.dir_resolved));
+  path_template_nav_handle_text(&params, "", nullptr);
 
-  path_template_nav_handle_browse(&params, "/home/blender_files/subdir", &variables);
-
-  EXPECT_STREQ(params.dir_template, "/home/{blend_dir}/subdir");
-  EXPECT_STREQ(params.dir, "/home/blender_files/subdir");
+  EXPECT_STREQ(params.dir_template, "");
+  EXPECT_STREQ(params.dir, "");
 }
 
-TEST(path_template_navigation, HandleText_VariableResolvesToFolder)
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Browse Navigation Tests
+ * \{ */
+
+TEST(path_template_navigation, Browse_UpWithSingleVariable)
 {
-  FileSelectParams params = {};
+  FileSelectParams params = create_params_with_state(
+      "/home/my_project/renders", "/home/{project}/renders", "/home/my_project/renders");
   VariableMap variables = create_test_variables();
-  /* Add a variable that contains a slash (folder component) */
-  variables.add_filepath("folder_test", "scenes/01");
 
-  path_template_nav_handle_text(&params, "/project/{folder_test}/assets", &variables);
+  path_template_nav_handle_browse(&params, "/home/my_project", &variables);
 
-  /* The entire variable value should be treated as a single unit in the path */
-  EXPECT_STREQ(params.dir_template, "/project/{folder_test}/assets");
-  EXPECT_STREQ(params.dir, "/project/scenes/01/assets");
+  EXPECT_STREQ(params.dir_template, "/home/{project}/");
+  EXPECT_STREQ(params.dir, "/home/my_project/");
 }
 
-TEST(path_template_navigation, Browse_VariableFolder_GoingUp)
+TEST(path_template_navigation, Browse_DownWithSingleVariable)
 {
-  FileSelectParams params = {};
+  FileSelectParams params = create_params_with_state(
+      "/home/my_project", "/home/{project}", "/home/my_project");
   VariableMap variables = create_test_variables();
-  /* Variable contains a multi-component folder */
-  variables.add_filepath("folder_test", "scenes/01");
 
-  /* Start with the template and resolved path pointing at the variable-expanded folder. */
-  BLI_strncpy(params.dir_template, "/project/{folder_test}", sizeof(params.dir_template));
-  BLI_strncpy(params.dir, "/project/scenes/01", sizeof(params.dir));
-  BLI_strncpy(params.dir_resolved, "/project/scenes/01", sizeof(params.dir_resolved));
+  path_template_nav_handle_browse(&params, "/home/my_project/renders", &variables);
 
-  /* Navigate up to the parent of the variable-expanded folder. */
-  path_template_nav_handle_browse(&params, "/project", &variables);
-
-  /* The variable component should be removed and the resolved path should be /project/ (implementation keeps trailing slash). */
-  EXPECT_STREQ(params.dir_template, "/project/");
-  EXPECT_STREQ(params.dir, "/project/");
-  EXPECT_STREQ(params.dir_resolved, "/project/");
+  EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
+  EXPECT_STREQ(params.dir, "/home/my_project/renders");
 }
+
+TEST(path_template_navigation, Browse_UpWithNestedVariable)
+{
+  FileSelectParams params = create_params_with_state("/project/scenes/sequence/01/assets",
+                                                     "/project/{nested_path}/assets",
+                                                     "/project/scenes/sequence/01/assets");
+  VariableMap variables = create_test_variables();
+  variables.add_filepath("nested_path", "scenes/sequence/01");
+
+  path_template_nav_handle_browse(&params, "/project/scenes/sequence/01", &variables);
+
+  EXPECT_STREQ(params.dir_template, "/project/{nested_path}/");
+  EXPECT_STREQ(params.dir, "/project/scenes/sequence/01/");
+}
+
+TEST(path_template_navigation, Browse_DownWithNestedVariable)
+{
+  FileSelectParams params = create_params_with_state(
+      "/project/scenes/sequence/01", "/project/{nested_path}", "/project/scenes/sequence/01");
+  VariableMap variables = create_test_variables();
+  variables.add_filepath("nested_path", "scenes/sequence/01");
+
+  path_template_nav_handle_browse(&params, "/project/scenes/sequence/01/assets", &variables);
+
+  EXPECT_STREQ(params.dir_template, "/project/{nested_path}/assets");
+  EXPECT_STREQ(params.dir, "/project/scenes/sequence/01/assets");
+}
+
+TEST(path_template_navigation, Browse_WithoutVariable)
+{
+  FileSelectParams params = create_params_with_state(
+      "/home/user/projects", "/home/user/projects", "/home/user/projects");
+
+  path_template_nav_handle_browse(&params, "/home/user", nullptr);
+
+  EXPECT_STREQ(params.dir_template, "/home/user");
+  EXPECT_STREQ(params.dir, "/home/user");
+}
+
+TEST(path_template_navigation, Browse_Root)
+{
+  FileSelectParams params = create_params_with_state("/home", "/home", "/home");
+
+  path_template_nav_handle_browse(&params, "/", nullptr);
+
+  EXPECT_STREQ(params.dir_template, "/");
+  EXPECT_STREQ(params.dir, "/");
+}
+
+TEST(path_template_navigation, Browse_Empty)
+{
+  FileSelectParams params = create_params_with_state(
+      "/home/user/projects", "/home/user/projects", "/home/user/projects");
+
+  path_template_nav_handle_browse(&params, "", nullptr);
+
+  EXPECT_STREQ(params.dir, "");
+  EXPECT_STREQ(params.dir_template, "");
+}
+
+/** \} */
 
 }  // namespace blender::bke::path_templates::tests
