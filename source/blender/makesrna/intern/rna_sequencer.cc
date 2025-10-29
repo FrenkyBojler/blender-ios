@@ -3557,6 +3557,13 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_ui_range(prop, 0.0, 1.0, 1, -1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
+  prop = RNA_def_property(srna, "line_spacing", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "line_spacing");
+  RNA_def_property_ui_text(prop, "Line Spacing", "Line spacing as factor of font height");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 10.0, 1, -1);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+
   prop = RNA_def_property(srna, "box_margin", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "box_margin");
   RNA_def_property_ui_text(prop, "Box Margin", "Box margin as factor of image width");

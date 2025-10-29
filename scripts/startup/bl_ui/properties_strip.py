@@ -259,6 +259,7 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             col.prop(strip, "text", text="")
             col.use_property_split = True
             layout.prop(strip, "wrap_width", text="Wrap Width")
+            layout.prop(strip, "line_spacing", text="Line Spacing")
 
         col = layout.column(align=True)
         if strip_type in {'CROSS', 'GAMMA_CROSS', 'WIPE', 'ALPHA_OVER', 'ALPHA_UNDER'}:

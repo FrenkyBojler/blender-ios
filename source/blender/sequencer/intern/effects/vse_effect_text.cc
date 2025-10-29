@@ -205,6 +205,7 @@ static void init_text_effect(Strip *strip)
   data->anchor_y = SEQ_TEXT_ALIGN_Y_CENTER;
   data->align = SEQ_TEXT_ALIGN_X_CENTER;
   data->wrap_width = 1.0f;
+  data->line_spacing = 1.0f;
 }
 
 void effect_text_font_unload(TextVars *data, const bool do_id_user)
@@ -858,6 +859,11 @@ static int wrap_width_get(const TextVars *data, const int2 image_size)
   return data->wrap_width * image_size.x;
 }
 
+static void apply_line_spacing(const TextVars *data, TextVarsRuntime *runtime)
+{
+  runtime->line_height *= data->line_spacing;
+}
+
 /* Lines must contain CharInfo for newlines and \0, as UI must know where they begin. */
 static void apply_word_wrapping(const TextVars *data,
                                 TextVarsRuntime *runtime,
@@ -1003,7 +1009,10 @@ static void apply_text_alignment(const TextVars *data,
   }
 }
 
-TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const int2 image_size)
+TextVarsRuntime *text_effect_calc_runtime(const Strip *strip,
+                                          int font,
+                                          const int2 image_size,
+                                          const float line_spacing)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   TextVarsRuntime *runtime = MEM_new<TextVarsRuntime>(__func__);
@@ -1014,6 +1023,7 @@ TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const in
   runtime->character_count = BLI_strlen_utf8(data->text_ptr);
 
   Vector<CharInfo> characters_temp = build_character_info(data, font);
+  apply_line_spacing(data, runtime);
   apply_word_wrapping(data, runtime, image_size, characters_temp);
   apply_text_alignment(data, runtime, image_size);
   calc_boundbox(data, runtime, image_size);

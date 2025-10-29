@@ -471,6 +471,7 @@ typedef struct TextVars {
   float color[4], shadow_color[4], box_color[4], outline_color[4];
   float loc[2];
   float wrap_width;
+  float line_spacing;
   float box_margin;
   float box_roundness;
   float shadow_angle;
@@ -479,7 +480,7 @@ typedef struct TextVars {
   float outline_width;
   char flag;  /* eEffectTextFlags */
   char align; /* eEffectTextAlignX */
-  char _pad[2];
+  char _pad[6];
 
   /** Offsets in characters (unicode code-points) for #TextVars::text_ptr. */
   int cursor_offset;
