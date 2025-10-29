@@ -101,7 +101,7 @@ static void strip_add_set_name(Scene *scene, Strip *strip, LoadData *load_data)
     else if (strip->type == STRIP_TYPE_MASK) {
       edit_strip_name_set(scene, strip, load_data->mask->id.name + 2);
     }
-    else if ((strip->type & STRIP_TYPE_EFFECT) != 0) {
+    else if (strip->is_effect()) {
       edit_strip_name_set(scene, strip, strip_give_name(strip));
     }
     else { /* Image, sound and movie. */
@@ -172,7 +172,7 @@ Strip *add_effect_strip(Scene *scene, ListBase *seqbase, LoadData *load_data)
   EffectHandle sh = strip_effect_handle_get(strip);
   sh.init(strip);
 
-  if (seq::effect_get_num_inputs(strip->type) != 0) {
+  if (effect_get_num_inputs(strip->type) != 0) {
     strip->input1 = load_data->effect.input1;
     strip->input2 = load_data->effect.input2;
   }
@@ -205,7 +205,7 @@ void add_image_load_file(Scene *scene, Strip *strip, size_t strip_frame, const c
   STRNCPY(se->filename, filename);
 }
 
-void add_image_init_alpha_mode(Strip *strip)
+void add_image_init_alpha_mode(Main *bmain, Scene *scene, Strip *strip)
 {
   if (strip->data && strip->data->stripdata) {
     char filepath[FILE_MAX];
@@ -213,7 +213,7 @@ void add_image_init_alpha_mode(Strip *strip)
 
     BLI_path_join(
         filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
-    BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
+    BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &scene->id));
 
     /* Initialize input color space. */
     if (strip->type == STRIP_TYPE_IMAGE) {
@@ -261,7 +261,8 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   /* Set initial scale based on load_data->fit_method. */
   char file_path[FILE_MAX];
   STRNCPY(file_path, load_data->path);
-  BLI_path_abs(file_path, BKE_main_blendfile_path(bmain));
+  BLI_path_abs(file_path, ID_BLEND_PATH(bmain, &scene->id));
+
   ImBuf *ibuf = IMB_load_image_from_filepath(
       file_path, IB_byte_data | IB_multilayer, strip->data->colorspace_settings.name);
   if (ibuf != nullptr) {
@@ -350,6 +351,9 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 
     /* Turn on Display Waveform by default. */
     strip->flag |= SEQ_AUDIO_DRAW_WAVEFORM;
+
+    /* Turn on Preserve Pitch by default. */
+    strip->flag |= SEQ_AUDIO_PITCH_CORRECTION;
   }
 
   strip_add_set_name(scene, strip, load_data);
@@ -398,7 +402,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 {
   char filepath[sizeof(load_data->path)];
   STRNCPY(filepath, load_data->path);
-  BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
+  BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &scene->id));
 
   char colorspace[/*MAX_COLORSPACE_NAME*/ 64] = "\0";
   bool is_multiview_loaded = false;
@@ -533,7 +537,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 
 void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool lock_range)
 {
-  int prev_startdisp = 0, prev_enddisp = 0;
+  int prev_start_frame = 0, prev_end_frame = 0;
   /* NOTE: don't rename the strip, will break animation curves. */
 
   if (ELEM(strip->type,
@@ -550,8 +554,8 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
   if (lock_range) {
     /* keep so we don't have to move the actual start and end points (only the data) */
-    prev_startdisp = time_left_handle_frame_get(scene, strip);
-    prev_enddisp = time_right_handle_frame_get(scene, strip);
+    prev_start_frame = time_left_handle_frame_get(scene, strip);
+    prev_end_frame = time_right_handle_frame_get(scene, strip);
   }
 
   switch (strip->type) {
@@ -574,7 +578,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
       BLI_path_join(
           filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
-      BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
+      BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &scene->id));
 
       relations_strip_free_anim(strip);
 
@@ -693,8 +697,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
   free_strip_proxy(strip);
 
   if (lock_range) {
-    time_left_handle_frame_set(scene, strip, prev_startdisp);
-    time_right_handle_frame_set(scene, strip, prev_enddisp);
+    time_handles_frame_set(scene, strip, prev_start_frame, prev_end_frame);
   }
 
   relations_invalidate_cache_raw(scene, strip);

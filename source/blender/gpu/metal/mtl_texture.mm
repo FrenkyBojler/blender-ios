@@ -7,6 +7,7 @@
  */
 
 #include "BKE_global.hh"
+#include "BLI_math_half.hh"
 
 #include "DNA_userdef_types.h"
 
@@ -72,7 +73,7 @@ gpu::MTLTexture::MTLTexture(const char *name) : Texture(name)
 
 gpu::MTLTexture::MTLTexture(const char *name,
                             TextureFormat format,
-                            eGPUTextureType type,
+                            GPUTextureType type,
                             id<MTLTexture> metal_texture)
     : Texture(name)
 {
@@ -379,8 +380,8 @@ void gpu::MTLTexture::blit(gpu::MTLTexture *dst,
   BLI_assert(MTLContext::get());
 
   /* Fetch restore framebuffer and blit target framebuffer from destination texture. */
-  GPUFrameBuffer *restore_fb = GPU_framebuffer_active_get();
-  GPUFrameBuffer *blit_target_fb = dst->get_blit_framebuffer(dst_slice, dst_mip);
+  gpu::FrameBuffer *restore_fb = GPU_framebuffer_active_get();
+  gpu::FrameBuffer *blit_target_fb = dst->get_blit_framebuffer(dst_slice, dst_mip);
   BLI_assert(blit_target_fb);
   GPU_framebuffer_bind(blit_target_fb);
 
@@ -402,10 +403,10 @@ void gpu::MTLTexture::blit(gpu::MTLTexture *dst,
   /* Caching previous pipeline state. */
   bool depth_write_prev = GPU_depth_mask_get();
   uint stencil_mask_prev = GPU_stencil_mask_get();
-  eGPUStencilTest stencil_test_prev = GPU_stencil_test_get();
-  eGPUFaceCullTest culling_test_prev = GPU_face_culling_get();
-  eGPUBlend blend_prev = GPU_blend_get();
-  eGPUDepthTest depth_test_prev = GPU_depth_test_get();
+  GPUStencilTest stencil_test_prev = GPU_stencil_test_get();
+  GPUFaceCullTest culling_test_prev = GPU_face_culling_get();
+  GPUBlend blend_prev = GPU_blend_get();
+  GPUDepthTest depth_test_prev = GPU_depth_test_get();
   GPU_scissor_test(false);
 
   /* Apply state for blit draw call. */
@@ -436,7 +437,7 @@ void gpu::MTLTexture::blit(gpu::MTLTexture *dst,
   }
 }
 
-GPUFrameBuffer *gpu::MTLTexture::get_blit_framebuffer(int dst_slice, uint dst_mip)
+gpu::FrameBuffer *gpu::MTLTexture::get_blit_framebuffer(int dst_slice, uint dst_mip)
 {
 
   /* Check if layer has changed. */
@@ -504,6 +505,34 @@ void gpu::MTLTexture::update_sub(
   BLI_assert(mip >= mip_min_ && mip <= mip_max_);
   BLI_assert(mip < texture_.mipmapLevelCount);
   BLI_assert(texture_.mipmapLevelCount >= mip_max_);
+
+  std::unique_ptr<uint16_t, MEM_freeN_smart_ptr_deleter> clamped_half_buffer = nullptr;
+
+  if (data != nullptr && type == GPU_DATA_FLOAT && is_half_float(format_)) {
+    size_t pixel_count = max_ii(extent[0], 1) * max_ii(extent[1], 1) * max_ii(extent[2], 1);
+    size_t total_component_count = to_component_len(format_) * pixel_count;
+
+    clamped_half_buffer.reset(
+        (uint16_t *)MEM_mallocN_aligned(sizeof(uint16_t) * total_component_count, 128, __func__));
+
+    Span<float> src(static_cast<const float *>(data), total_component_count);
+    MutableSpan<uint16_t> dst(static_cast<uint16_t *>(clamped_half_buffer.get()),
+                              total_component_count);
+
+    constexpr int64_t chunk_size = 4 * 1024 * 1024;
+
+    threading::parallel_for(
+        IndexRange(total_component_count), chunk_size, [&](const IndexRange range) {
+          /* Doing float to half conversion manually to avoid implementation specific behavior
+           * regarding Inf and NaNs. Use make finite version to avoid unexpected black pixels on
+           * certain implementation. For platform parity we clamp these infinite values to finite
+           * values. */
+          blender::math::float_to_half_make_finite_array(
+              src.slice(range).data(), dst.slice(range).data(), range.size());
+        });
+    data = clamped_half_buffer.get();
+    type = GPU_DATA_HALF_FLOAT;
+  }
 
   /* DEPTH FLAG - Depth formats cannot use direct BLIT - pass off to their own routine which will
    * do a depth-only render. */
@@ -1376,8 +1405,8 @@ void gpu::MTLTexture::clear(eGPUDataFormat data_format, const void *data)
 
   if (do_render_pass_clear) {
     /* Create clear frame-buffer for fast clear. */
-    GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
-    FrameBuffer *fb = unwrap(this->get_blit_framebuffer(-1, 0));
+    gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
+    FrameBuffer *fb = this->get_blit_framebuffer(-1, 0);
     fb->bind(true);
     fb->clear_attachment(this->attachment_type(0), data_format, data);
     GPU_framebuffer_bind(prev_fb);
@@ -2025,12 +2054,6 @@ void gpu::MTLTexture::read_internal(int mip,
     /* Release destination buffer. */
     dest_buf->free();
   }
-}
-
-/* Remove once no longer required -- will just return 0 for now in MTL path. */
-uint gpu::MTLTexture::gl_bindcode_get() const
-{
-  return 0;
 }
 
 bool gpu::MTLTexture::init_internal()

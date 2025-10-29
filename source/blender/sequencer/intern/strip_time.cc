@@ -56,7 +56,7 @@ float give_frame_index(const Scene *scene, const Strip *strip, float timeline_fr
   float end = time_content_end_frame_get(scene, strip) - 1;
   float frame_index_max = strip->len - 1;
 
-  if (strip->type & STRIP_TYPE_EFFECT) {
+  if (strip->is_effect()) {
     end = time_right_handle_frame_get(scene, strip);
     frame_index_max = end - sta;
   }
@@ -540,6 +540,15 @@ void time_right_handle_frame_set(const Scene *scene, Strip *strip, int timeline_
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
+void time_handles_frame_set(const Scene *scene,
+                            Strip *strip,
+                            int left_handle_timeline_frame,
+                            int right_handle_timeline_frame)
+{
+  time_right_handle_frame_set(scene, strip, right_handle_timeline_frame);
+  time_left_handle_frame_set(scene, strip, left_handle_timeline_frame);
+}
+
 void strip_time_translate_handles(const Scene *scene, Strip *strip, const int offset)
 {
   strip->startofs += offset;
@@ -575,7 +584,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
 
   /* Effects only have a start frame and a length, so unless we're inside
    * a meta strip, there's no need to do anything. */
-  if (!recursed && (strip->type & STRIP_TYPE_EFFECT)) {
+  if (!recursed && strip->is_effect()) {
     return;
   }
 

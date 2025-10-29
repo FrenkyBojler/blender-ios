@@ -2,9 +2,27 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "vk_backbuffer_blit_info.hh"
+#include "vk_backbuffer_blit_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(vk_backbuffer_blit)
+
+float srgb_to_linearrgb(float c)
+{
+  if (c < 0.04045f) {
+    return (c < 0.0f) ? 0.0f : c * (1.0f / 12.92f);
+  }
+
+  return pow((c + 0.055f) * (1.0f / 1.055f), 2.4f);
+}
+
+vec3 nonlinear_to_linear_scrgb(vec3 c)
+{
+#ifdef USE_GAMMA22
+  return pow(c, vec3(2.2f));
+#else
+  return vec3(srgb_to_linearrgb(c.r), srgb_to_linearrgb(c.g), srgb_to_linearrgb(c.b));
+#endif
+}
 
 void main()
 {
@@ -15,11 +33,10 @@ void main()
   /*
    * Convert from extended sRGB non-linear to linear.
    *
-   * Preserves negative wide gamut values with sign/abs.
-   * Gamma 2.2 is used instead of the sRGB piecewise transfer function, because
-   * most SDR sRGB displays decode with gamma 2.2, and that's what we are trying
-   * to match.
+   * Preserves negative wide gamut values with sign/abs. May use either gamma 2.2
+   * decode to match most SDR sRGB displays, or the piecewise sRGB function to
+   * match Windows SDR applications in HDR node.
    */
-  color.rgb = sign(color.rgb) * pow(abs(color.rgb), vec3(2.2f)) * sdr_scale;
+  color.rgb = sign(color.rgb) * nonlinear_to_linear_scrgb(abs(color.rgb)) * sdr_scale;
   imageStore(dst_img, ivec2(dst_texel), color);
 }

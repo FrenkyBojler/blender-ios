@@ -241,6 +241,7 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
 
   /* Register present callback. */
   this->ghost_context_->metalRegisterPresentCallback(&present);
+  this->ghost_context_->metalRegisterXrBlitCallback(&xr_blit);
 
   /* Create FrameBuffer handles. */
   MTLFrameBuffer *mtl_front_left = new MTLFrameBuffer(this, "front_left");
@@ -609,8 +610,8 @@ id<MTLBuffer> MTLContext::get_null_attribute_buffer()
   return null_attribute_buffer_;
 }
 
-gpu::MTLTexture *MTLContext::get_dummy_texture(eGPUTextureType type,
-                                               eGPUSamplerFormat sampler_format)
+gpu::MTLTexture *MTLContext::get_dummy_texture(GPUTextureType type,
+                                               GPUSamplerFormat sampler_format)
 {
   /* Decrement 1 from texture type as they start from 1 and go to 32 (inclusive). Remap to 0..31 */
   gpu::MTLTexture *dummy_tex = dummy_textures_[sampler_format][type - 1];
@@ -849,7 +850,7 @@ void MTLContext::set_viewports(int count, const int (&viewports)[GPU_MAX_VIEWPOR
   BLI_assert(this);
   bool changed = (this->pipeline_state.num_active_viewports != count);
   for (int v = 0; v < count; v++) {
-    const int(&viewport_info)[4] = viewports[v];
+    const int (&viewport_info)[4] = viewports[v];
 
     BLI_assert(viewport_info[0] >= 0);
     BLI_assert(viewport_info[1] >= 0);
@@ -2742,6 +2743,39 @@ void present(MTLRenderPassDescriptor *blit_descriptor,
       BLI_assert(false);
     }
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name XR blitting function called from the GHOST Metal XR binding.
+ * \{ */
+
+void xr_blit(id<MTLTexture> metal_xr_texture,
+             const int ofsx,
+             const int ofsy,
+             const int width,
+             const int height)
+{
+  gpu::MTLContext *ctx = gpu::MTLContext::get();
+
+  gpu::MTLFrameBuffer *source_framebuffer = ctx->get_current_framebuffer();
+  MTLAttachment src_attachment = source_framebuffer->get_color_attachment(0);
+  id<MTLTexture> src_texture = src_attachment.texture->get_metal_handle_base();
+
+  MTLOrigin origin = MTLOriginMake(ofsx, ofsy, 0);
+  MTLSize size = MTLSizeMake(width, height, 1);
+
+  id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
+  [blit_encoder copyFromTexture:src_texture
+                    sourceSlice:0
+                    sourceLevel:0
+                   sourceOrigin:origin
+                     sourceSize:size
+                      toTexture:metal_xr_texture
+               destinationSlice:0
+               destinationLevel:0
+              destinationOrigin:origin];
 }
 
 /** \} */

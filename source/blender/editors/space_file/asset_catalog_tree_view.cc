@@ -104,9 +104,9 @@ class AssetCatalogDragController : public ui::AbstractViewItemDragController {
   explicit AssetCatalogDragController(AssetCatalogTreeView &tree_view,
                                       const AssetCatalogTreeItem &catalog_item);
 
-  eWM_DragDataType get_drag_type() const override;
+  std::optional<eWM_DragDataType> get_drag_type() const override;
   void *create_drag_data() const override;
-  void on_drag_start() override;
+  void on_drag_start(bContext &C) override;
 };
 
 class AssetCatalogDropTarget : public ui::TreeViewItemDropTarget {
@@ -279,7 +279,9 @@ void AssetCatalogTreeViewItem::on_activate(bContext & /*C*/)
 
 void AssetCatalogTreeViewItem::build_row(uiLayout &row)
 {
-  const std::string label_override = catalog_item_.has_unsaved_changes() ? (label_ + "*") : label_;
+  /* Show "*" to the left for consistency with unsaved files in the title bar. */
+  const std::string label_override = catalog_item_.has_unsaved_changes() ? ("* " + label_) :
+                                                                           label_;
   this->add_label(row, label_override);
 
   if (!is_hovered()) {
@@ -553,7 +555,7 @@ AssetCatalogDragController::AssetCatalogDragController(AssetCatalogTreeView &tre
 {
 }
 
-eWM_DragDataType AssetCatalogDragController::get_drag_type() const
+std::optional<eWM_DragDataType> AssetCatalogDragController::get_drag_type() const
 {
   return WM_DRAG_ASSET_CATALOG;
 }
@@ -566,7 +568,7 @@ void *AssetCatalogDragController::create_drag_data() const
   return drag_catalog;
 }
 
-void AssetCatalogDragController::on_drag_start()
+void AssetCatalogDragController::on_drag_start(bContext & /*C*/)
 {
   AssetCatalogTreeView &tree_view_ = this->get_view<AssetCatalogTreeView>();
   tree_view_.activate_catalog_by_id(catalog_item_.get_catalog_id());
