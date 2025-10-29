@@ -582,6 +582,37 @@ static void wm_event_timers_execute(bContext *C)
   CTX_wm_window_set(C, nullptr);
 }
 
+static bool notifier_refreshes_node_group_operators(const wmNotifier &note)
+{
+  if (note.category == NC_ASSET) {
+    if (ELEM(note.data, ND_ASSET_LIST, ND_ASSET_LIST_READING)) {
+      return true;
+    }
+  }
+  else if (note.category == NC_NODE) {
+    if (ELEM(note.data, ND_NODE_ASSET_DATA)) {
+      return true;
+    }
+  }
+  else if (note.category == NC_ID) {
+    if (note.action == NA_RENAME) {
+      if (!note.reference) {
+        return true;
+      }
+      const ID &id = *static_cast<const ID *>(note.reference);
+      if (GS(id.name) == ID_NT) {
+        const auto &group = blender::id_cast<const bNodeTree &>(id);
+        if (group.geometry_node_asset_traits) {
+          if (group.geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
 void wm_event_do_notifiers(bContext *C)
 {
   /* Ensure inside render boundary. */
@@ -633,15 +664,9 @@ void wm_event_do_notifiers(bContext *C)
           ED_preview_restart_queue_work(C);
         }
       }
-      else if (note->category == NC_ASSET) {
-        if (ELEM(note->data, ND_ASSET_LIST, ND_ASSET_LIST_READING)) {
-          blender::ed::geometry::register_node_group_operators(*C);
-        }
-      }
-      else if (note->category == NC_NODE) {
-        if (ELEM(note->data, ND_NODE_ASSET_DATA)) {
-          blender::ed::geometry::register_node_group_operators(*C);
-        }
+
+      if (notifier_refreshes_node_group_operators(*note)) {
+        blender::ed::geometry::register_node_group_operators(*C);
       }
 
       if (note->window == win) {
