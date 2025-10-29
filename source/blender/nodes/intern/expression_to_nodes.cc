@@ -29,6 +29,11 @@ class AstToNodeGroupBuilder;
 struct NodeAndSocket {
   bNode *node = nullptr;
   bNodeSocket *socket = nullptr;
+
+  operator bool() const
+  {
+    return this->socket != nullptr;
+  }
 };
 
 struct TypeCheckCallParams {
@@ -216,24 +221,42 @@ class AstToNodeGroupBuilder {
 
   NodeAndSocket build_expr(const ast::BinaryOp &ast_node)
   {
-    const StringRef op = ast_node.op;
-    NodeAndSocket a = this->build_expr(*ast_node.a);
-    if (!a.socket) {
-      return {};
-    }
-    NodeAndSocket b = this->build_expr(*ast_node.b);
-    if (!b.socket) {
-      return {};
-    }
-    const bke::bNodeSocketType &a_type = *a.socket->typeinfo;
-    const bke::bNodeSocketType &b_type = *b.socket->typeinfo;
+    return this->build_generic_call(ast_node.op, {ast_node.a, ast_node.b});
+  }
 
+  NodeAndSocket build_expr(const ast::UnaryOp &ast_node)
+  {
+    return this->build_generic_call(ast_node.op, {ast_node.expr});
+  }
+
+  NodeAndSocket build_expr(const ast::MemberAccess &ast_node)
+  {
+    return this->build_generic_call("." + ast_node.identifier, {ast_node.expr});
+  }
+
+  NodeAndSocket build_expr(const ast::Call &ast_node)
+  {
+    return this->build_generic_call(ast_node.identifier, ast_node.args);
+  }
+
+  NodeAndSocket build_generic_call(const StringRef name, const Span<const ast::Expr *> args)
+  {
+    Array<NodeAndSocket> arg_sockets(args.size());
     TypeCheckCallParams type_check_params;
-    type_check_params.input_types = {&a_type, &b_type};
+    type_check_params.input_types.resize(args.size());
+    for (const int i : args.index_range()) {
+      NodeAndSocket arg_socket = this->build_expr(*args[i]);
+      if (!arg_socket) {
+        /* There is an error in the argument. */
+        return {};
+      }
+      type_check_params.input_types[i] = arg_socket.socket->typeinfo;
+      arg_sockets[i] = arg_socket;
+    }
 
-    const Span<FunctionSymbol> candidates = symbol_table_.symbols_.lookup(op);
+    const Span<FunctionSymbol> candidates = symbol_table_.symbols_.lookup(name);
     if (candidates.is_empty()) {
-      r_error_ = fmt::format("{}: \"{}\"", TIP_("Unknown binary operator"), op);
+      r_error_ = fmt::format("{}: \"{}\"", TIP_("Unknown function"), name);
       return {};
     }
     Vector<const FunctionSymbol *> filtered_candidates;
@@ -243,40 +266,23 @@ class AstToNodeGroupBuilder {
       }
     }
     if (filtered_candidates.is_empty()) {
-      r_error_ = fmt::format("{}: \"{}\"", TIP_("No matching binary operator"), op);
+      r_error_ = fmt::format("{}: \"{}\"", TIP_("No matching function"), name);
       return {};
     }
     if (filtered_candidates.size() > 1) {
-      r_error_ = fmt::format("{}: \"{}\"", TIP_("Ambiguous binary operator"), op);
+      r_error_ = fmt::format("{}: \"{}\"", TIP_("Ambiguous function call"), name);
       return {};
     }
     const FunctionSymbol &function = *filtered_candidates[0];
     InsertCallParams insert_params{*this};
     function.insert(insert_params);
-    BLI_assert(insert_params.inputs.size() == 2);
+    BLI_assert(insert_params.inputs.size() == args.size());
     BLI_assert(insert_params.output.socket);
 
-    this->add_link(a, insert_params.inputs[0]);
-    this->add_link(b, insert_params.inputs[1]);
+    for (const int i : args.index_range()) {
+      this->add_link(arg_sockets[i], insert_params.inputs[i]);
+    }
     return insert_params.output;
-  }
-
-  NodeAndSocket build_expr(const ast::UnaryOp & /*ast_node*/)
-  {
-    r_error_ = "Unary operators are not supported yet";
-    return {};
-  }
-
-  NodeAndSocket build_expr(const ast::MemberAccess & /*ast_node*/)
-  {
-    r_error_ = "Member access is not supported yet";
-    return {};
-  }
-
-  NodeAndSocket build_expr(const ast::Call & /*ast_node*/)
-  {
-    r_error_ = "Function calls are not supported yet";
-    return {};
   }
 
   bNode &add_node(const StringRef idname)
@@ -298,22 +304,29 @@ static bool all_inputs_1d(TypeCheckCallParams &params)
       });
 }
 
-static InsertCallFn float_math_node(const NodeMathOperation op)
+static FunctionSymbol float_math_node(const StringRef name,
+                                      const NodeMathOperation op,
+                                      const int inputs_num)
 {
-  return [op](InsertCallParams &params) {
-    bNode &math_node = params.add_node(StringRef("ShaderNodeMath"));
-    math_node.custom1 = op;
-    params.update_node_sockets(math_node);
-    params.use_node_sockets(math_node);
-  };
+  return FunctionSymbol(
+      name,
+      [inputs_num](TypeCheckCallParams &params) {
+        return params.input_types.size() == inputs_num && all_inputs_1d(params);
+      },
+      [op](InsertCallParams &params) {
+        bNode &math_node = params.add_node(StringRef("ShaderNodeMath"));
+        math_node.custom1 = op;
+        params.update_node_sockets(math_node);
+        params.use_node_sockets(math_node);
+      });
 }
 
 static void init_symbol_table(SymbolTable &symbols)
 {
-  symbols.add(FunctionSymbol("+", all_inputs_1d, float_math_node(NODE_MATH_ADD)));
-  symbols.add(FunctionSymbol("-", all_inputs_1d, float_math_node(NODE_MATH_SUBTRACT)));
-  symbols.add(FunctionSymbol("*", all_inputs_1d, float_math_node(NODE_MATH_MULTIPLY)));
-  symbols.add(FunctionSymbol("/", all_inputs_1d, float_math_node(NODE_MATH_DIVIDE)));
+  symbols.add(float_math_node("+", NODE_MATH_ADD, 2));
+  symbols.add(float_math_node("-", NODE_MATH_SUBTRACT, 2));
+  symbols.add(float_math_node("*", NODE_MATH_MULTIPLY, 2));
+  symbols.add(float_math_node("/", NODE_MATH_DIVIDE, 2));
 }
 
 static SymbolTable &get_symbol_table()

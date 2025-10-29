@@ -627,6 +627,7 @@ class ShaderNodesInliner {
         socket,
         [&]() { return expression::expression_node_to_group(*node, expression, expr_index); });
     if (!group.tree) {
+      params_.r_error_messages.append({&*node, group.error});
       this->store_socket_value_fallback(socket);
       return;
     }
