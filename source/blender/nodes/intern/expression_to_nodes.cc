@@ -54,6 +54,13 @@ struct InsertCallParams {
     this->inputs.append({&node, &socket});
   }
 
+  void add_input(bNode &node, const int index)
+  {
+    bNodeSocket *socket = static_cast<bNodeSocket *>(BLI_findlink(&node.inputs, index));
+    BLI_assert(socket);
+    this->add_input(node, *socket);
+  }
+
   void set_output(bNode &node, bNodeSocket &socket)
   {
     /* Should only be set once. */
@@ -304,9 +311,9 @@ static bool all_inputs_1d(TypeCheckCallParams &params)
       });
 }
 
-static FunctionSymbol float_math_node(const StringRef name,
-                                      const NodeMathOperation op,
-                                      const int inputs_num)
+static FunctionSymbol float_math_function(const StringRef name,
+                                          const NodeMathOperation op,
+                                          const int inputs_num)
 {
   return FunctionSymbol(
       name,
@@ -314,19 +321,39 @@ static FunctionSymbol float_math_node(const StringRef name,
         return params.input_types.size() == inputs_num && all_inputs_1d(params);
       },
       [op](InsertCallParams &params) {
-        bNode &math_node = params.add_node(StringRef("ShaderNodeMath"));
+        bNode &math_node = params.add_node("ShaderNodeMath");
         math_node.custom1 = op;
         params.update_node_sockets(math_node);
         params.use_node_sockets(math_node);
       });
 }
 
+static FunctionSymbol negate_float_function()
+{
+  return FunctionSymbol(
+      "-",
+      [](TypeCheckCallParams &params) {
+        return params.input_types.size() == 1 && all_inputs_1d(params);
+      },
+      [](InsertCallParams &params) {
+        bNode &math_node = params.add_node("ShaderNodeMath");
+        math_node.custom1 = NODE_MATH_SUBTRACT;
+        params.update_node_sockets(math_node);
+        static_cast<bNodeSocket *>(math_node.inputs.first)
+            ->default_value_typed<bNodeSocketValueFloat>()
+            ->value = 0.0f;
+        params.add_input(math_node, 1);
+        params.use_node_output(math_node);
+      });
+}
+
 static void init_symbol_table(SymbolTable &symbols)
 {
-  symbols.add(float_math_node("+", NODE_MATH_ADD, 2));
-  symbols.add(float_math_node("-", NODE_MATH_SUBTRACT, 2));
-  symbols.add(float_math_node("*", NODE_MATH_MULTIPLY, 2));
-  symbols.add(float_math_node("/", NODE_MATH_DIVIDE, 2));
+  symbols.add(float_math_function("+", NODE_MATH_ADD, 2));
+  symbols.add(float_math_function("-", NODE_MATH_SUBTRACT, 2));
+  symbols.add(float_math_function("*", NODE_MATH_MULTIPLY, 2));
+  symbols.add(float_math_function("/", NODE_MATH_DIVIDE, 2));
+  symbols.add(negate_float_function());
 }
 
 static SymbolTable &get_symbol_table()
