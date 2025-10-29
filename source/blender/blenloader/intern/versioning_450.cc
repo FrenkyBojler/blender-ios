@@ -5963,6 +5963,33 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  /* **** Forward Compatibility. **** */
+
+  /* The NodeImageLayer storage for the output sockets were removed, so they need to be allocated
+   * again and their pass name set to the identifier. */
+  if (MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (ELEM(node->type_legacy, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
+            LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+              NodeImageLayer *storage = MEM_callocN<NodeImageLayer>(__func__);
+              socket->storage = storage;
+              /* Alpha is derived from the combined pass. */
+              if (STREQ(socket->identifier, "Alpha")) {
+                STRNCPY_UTF8(storage->pass_name, RE_PASSNAME_COMBINED);
+              }
+              else {
+                STRNCPY_UTF8(storage->pass_name, socket->identifier);
+              }
+            }
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
