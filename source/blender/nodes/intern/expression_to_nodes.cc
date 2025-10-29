@@ -353,6 +353,8 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(float_math_function("-", NODE_MATH_SUBTRACT, 2));
   symbols.add(float_math_function("*", NODE_MATH_MULTIPLY, 2));
   symbols.add(float_math_function("/", NODE_MATH_DIVIDE, 2));
+  symbols.add(float_math_function("sin", NODE_MATH_SINE, 1));
+  symbols.add(float_math_function("cos", NODE_MATH_COSINE, 1));
   symbols.add(negate_float_function());
 }
 
