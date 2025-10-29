@@ -331,11 +331,11 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
 /** \name Skinning Extract Loop
  * \{ */
 void mesh_buffer_cache_create_requested_skinning(MeshBatchCache &cache,
-                                               MeshBufferCache &mbc,
-                                               const Span<IBOType> ibo_requests,
-                                               const Span<VBOType> vbo_requests,
-                                               DRWSkinningCache &skinning_cache,
-                                               MeshRenderData &mr)
+                                                 MeshBufferCache &mbc,
+                                                 const Span<IBOType> ibo_requests,
+                                                 const Span<VBOType> vbo_requests,
+                                                 DRWSkinningCache &skinning_cache,
+                                                 MeshRenderData &mr)
 {
   if (ibo_requests.is_empty() && vbo_requests.is_empty()) {
     return;

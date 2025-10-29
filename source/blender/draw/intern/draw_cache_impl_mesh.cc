@@ -41,8 +41,9 @@
 
 #include "draw_cache_extract.hh"
 #include "draw_cache_inline.hh"
-#include "draw_subdivision.hh"
 #include "draw_skinning.hh"
+#include "draw_subdivision.hh"
+
 
 #include "draw_cache_impl.hh" /* own include */
 #include "draw_context_private.hh"

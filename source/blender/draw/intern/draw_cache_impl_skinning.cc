@@ -24,7 +24,6 @@
 #include "draw_skinning.hh"
 #include "mesh_extractors/extract_mesh.hh"
 
-
 /* (ResolutionC): we'll probably use soon... */
 // #define MAX_BONE_WEIGHTS 4
 
