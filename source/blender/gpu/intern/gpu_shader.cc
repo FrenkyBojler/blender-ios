@@ -923,8 +923,9 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
   Batch *batch = batches_.pop(handle);
   for (std::unique_ptr<ParallelWork> &work : batch->works) {
     if (work->id) {
-      batch->pending_compilations--;
       compilation_worker_->cancel_work(work->id);
+      work->id = 0;
+      batch->pending_compilations--;
     }
   }
 
