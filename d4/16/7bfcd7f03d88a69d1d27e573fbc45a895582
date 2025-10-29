@@ -1,1 +1,2 @@
 Referenced by issue #148754, UI workspace sanity tests corrupt memory and crash
+Referenced by issue #148999, ui_test_workspace.sanity_check_sculpting sporadic crash
