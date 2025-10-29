@@ -31,6 +31,7 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+#include "render_types.h"
 
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
@@ -393,11 +394,16 @@ class Instance : public DrawEngine {
      * OpenGL render is used for quick preview (thumbnails or sequencer preview)
      * where using the rendering engine to preview doesn't make so much sense. */
     if (draw_ctx->evil_C) {
-      const float clear_col[4] = {0, 0, 0, 0};
-      /* This is to keep compatibility with external engine. */
-      /* TODO(fclem): remove it eventually. */
       GPU_framebuffer_bind(dfbl->default_fb);
-      GPU_framebuffer_clear_color(dfbl->default_fb, clear_col);
+
+      Render *re = RE_GetSceneRender(draw_ctx->scene);
+      /* If we're drawing over the previous render result, don't clear the framebuffer. */
+      if (!(re->r.mode & R_BORDER_OVERLAY)) {
+        const float clear_col[4] = {0, 0, 0, 0};
+        /* This is to keep compatibility with external engine. */
+        /* TODO(fclem): remove it eventually. */
+        GPU_framebuffer_clear_color(dfbl->default_fb, clear_col);
+      }
 
       DRW_submission_start();
       draw_scene_do(manager, view);
@@ -443,7 +449,7 @@ RenderEngineType DRW_engine_viewport_external_type = {
     },
 };
 
-bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx)
+bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx, bool &r_draw_previous)
 {
   const SpaceLink *space_data = draw_ctx->space_data;
   Scene *scene = draw_ctx->scene;
@@ -473,6 +479,10 @@ bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx)
   if (re == nullptr) {
     return false;
   }
+
+  /* If we're only replacing the border render selection,
+   * still draw the previous render result underneath. */
+  r_draw_previous = (re->r.mode & R_BORDER_OVERLAY);
 
   return RE_engine_draw_acquire(re);
 }

@@ -108,8 +108,8 @@ struct DRWViewData {
 
     callback(eevee);
     callback(workbench);
-    callback(external);
     callback(image);
+    callback(external);
 #ifdef WITH_DRAW_DEBUG
     callback(edit_select_debug);
 #endif

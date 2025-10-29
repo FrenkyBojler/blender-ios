@@ -1043,10 +1043,11 @@ void DRWContext::enable_engines(bool gpencil_engine_needed, RenderEngineType *re
 
   SpaceLink *space_data = this->space_data;
   if (space_data && space_data->spacetype == SPACE_IMAGE) {
-    if (DRW_engine_external_acquire_for_image_editor(this)) {
+    bool draw_previous = true;
+    if (DRW_engine_external_acquire_for_image_editor(this, draw_previous)) {
       view_data.external.set_used(true);
     }
-    else {
+    if (draw_previous) {
       view_data.image.set_used(true);
     }
     view_data.overlay.set_used(true);

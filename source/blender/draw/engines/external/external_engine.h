@@ -18,8 +18,10 @@ extern RenderEngineType DRW_engine_viewport_external_type;
  * If the drawing is possible, the render engine is "acquired" so that it is not freed by the
  * render engine for until drawing is finished.
  *
+ * Also returns whether we should still draw the previous render result underneath.
+ *
  * NOTE: Released by the draw engine when it is done drawing. */
-bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx);
+bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx, bool &r_draw_previous);
 
 namespace blender::draw::external {
 
