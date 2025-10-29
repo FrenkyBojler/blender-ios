@@ -235,6 +235,7 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
 
   /* Register present callback. */
   this->ghost_context_->metalRegisterPresentCallback(&present);
+  this->ghost_context_->metalRegisterXrBlitCallback(&xr_blit);
 
   /* Create FrameBuffer handles. */
   MTLFrameBuffer *mtl_front_left = new MTLFrameBuffer(this, "front_left");
@@ -807,8 +808,8 @@ static void ensure_texture_bindings(MTLContext &ctx,
   uint16_t dirty_enabled_image_mask = shader_interface.enabled_ima_mask_ & dirty_image_mask;
   uint64_t dirty_enabled_sampler_mask = shader_interface.enabled_tex_mask_ & dirty_sampler_mask;
 
-  bits::BitInt bind_image = dirty_enabled_image_mask & stage_ima_mask;
-  for (const uint slot : BitSpan(&bind_image, MTL_MAX_IMAGE_SLOTS).high_bits()) {
+  uint16_t bind_image = dirty_enabled_image_mask & stage_ima_mask;
+  for (const uint slot : bits::iter_1_indices(bind_image)) {
     MTLTexture *gpu_tex = ctx.pipeline_state.image_bindings[slot].texture_resource;
 
     if (gpu_tex == nullptr) {
@@ -836,8 +837,8 @@ static void ensure_texture_bindings(MTLContext &ctx,
     }
   }
 
-  bits::BitInt bind_sampler = dirty_enabled_sampler_mask & stage_tex_mask;
-  for (const uint slot : BitSpan(&bind_sampler, MTL_MAX_SAMPLER_SLOTS).high_bits()) {
+  uint64_t bind_sampler = dirty_enabled_sampler_mask & stage_tex_mask;
+  for (const uint slot : bits::iter_1_indices(bind_sampler)) {
     MTLTexture *gpu_tex = ctx.pipeline_state.texture_bindings[slot].texture_resource;
     MTLSamplerBinding &sampler_state = ctx.pipeline_state.sampler_bindings[slot];
 
@@ -926,8 +927,8 @@ static void ensure_buffer_bindings(MTLContext &ctx,
   uint32_t dirty_enabled_ubo_mask = shader_interface.enabled_ubo_mask_ & dirty_ubo_mask;
   uint32_t dirty_enabled_ssbo_mask = shader_interface.enabled_ssbo_mask_ & dirty_ssbo_mask;
 
-  bits::BitInt bind_ubo = dirty_enabled_ubo_mask & (stage_buf_mask >> MTL_UBO_SLOT_OFFSET);
-  for (const uint slot : BitSpan(&bind_ubo, MTL_MAX_UBO).high_bits()) {
+  uint32_t bind_ubo = dirty_enabled_ubo_mask & (stage_buf_mask >> MTL_UBO_SLOT_OFFSET);
+  for (const uint slot : bits::iter_1_indices(bind_ubo)) {
     MTLUniformBufferBinding &bind = ctx.pipeline_state.ubo_bindings[slot];
     if (bind.ubo) {
       bindings.bind_buffer(enc, bind.ubo->get_metal_buffer(), 0, MTL_UBO_SLOT_OFFSET + slot);
@@ -940,8 +941,9 @@ static void ensure_buffer_bindings(MTLContext &ctx,
                     slot);
     }
   }
-  bits::BitInt bind_ssbo = dirty_enabled_ssbo_mask & (stage_buf_mask >> MTL_SSBO_SLOT_OFFSET);
-  for (const uint slot : BitSpan(&bind_ssbo, MTL_MAX_SSBO).high_bits()) {
+
+  uint32_t bind_ssbo = dirty_enabled_ssbo_mask & (stage_buf_mask >> MTL_SSBO_SLOT_OFFSET);
+  for (const uint slot : bits::iter_1_indices(bind_ssbo)) {
     MTLStorageBufferBinding &bind = ctx.pipeline_state.ssbo_bindings[slot];
     if (bind.ssbo) {
       bindings.bind_buffer(enc, bind.ssbo->get_metal_buffer(), 0, MTL_SSBO_SLOT_OFFSET + slot);
@@ -2094,6 +2096,39 @@ void present(MTLRenderPassDescriptor *blit_descriptor,
       BLI_assert(false);
     }
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name XR blitting function called from the GHOST Metal XR binding.
+ * \{ */
+
+void xr_blit(id<MTLTexture> metal_xr_texture,
+             const int ofsx,
+             const int ofsy,
+             const int width,
+             const int height)
+{
+  gpu::MTLContext *ctx = gpu::MTLContext::get();
+
+  gpu::MTLFrameBuffer *source_framebuffer = ctx->get_current_framebuffer();
+  MTLAttachment src_attachment = source_framebuffer->get_color_attachment(0);
+  id<MTLTexture> src_texture = src_attachment.texture->get_metal_handle_base();
+
+  MTLOrigin origin = MTLOriginMake(ofsx, ofsy, 0);
+  MTLSize size = MTLSizeMake(width, height, 1);
+
+  id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
+  [blit_encoder copyFromTexture:src_texture
+                    sourceSlice:0
+                    sourceLevel:0
+                   sourceOrigin:origin
+                     sourceSize:size
+                      toTexture:metal_xr_texture
+               destinationSlice:0
+               destinationLevel:0
+              destinationOrigin:origin];
 }
 
 /** \} */

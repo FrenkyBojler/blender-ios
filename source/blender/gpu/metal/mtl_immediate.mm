@@ -121,8 +121,7 @@ void MTLImmediate::end()
 
     /* Populate Vertex descriptor and verify attributes.
      * TODO(Metal): Cache this vertex state based on Vertex format and shaders. */
-    const bits::BitInt mask = interface.enabled_attr_mask_;
-    for (int i : BitSpan(&mask, 16).high_bits()) {
+    for (int i : bits::iter_1_indices(interface.enabled_attr_mask_)) {
       const ShaderInput *input = interface.attr_get(i);
       BLI_assert(input != nullptr);
       StringRefNull input_name(interface.name_at_offset(input->name_offset));
