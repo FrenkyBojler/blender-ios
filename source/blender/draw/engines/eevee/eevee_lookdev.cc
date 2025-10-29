@@ -382,12 +382,24 @@ void LookdevModule::rotate_world()
     return;
   }
 
-  /* TODO(fclem): Only rotate if rotation matrix changed. */
+  float4x4 rotation = float4x4::identity();
+  if (use_viewspace_lighting_) {
+    CartesianBasis target(AxisSigned::X_POS, AxisSigned::Z_NEG, AxisSigned::Y_POS);
+    rotation = inst_.camera.data_get().viewinv * math::from_rotation<float4x4>(target);
+  }
+  else {
+    const ::View3DShading &shading = inst_.v3d->shading;
+    AxisAngle axis_angle_rotation(AxisSigned::Z_POS, shading.studiolight_rot_z);
+    rotation = math::from_rotation<float4x4>(axis_angle_rotation);
+  }
 
-  rotate_world_probe_data(inst_.sphere_probes.octahedral_probes_texture(),
-                          inst_.sphere_probes.world_sphere_probe().atlas_coord,
-                          inst_.sphere_probes.spherical_harmonics_buf(),
-                          inst_.world.sunlight);
+  if (assign_if_different(last_rotation_matrix_, rotation)) {
+    rotate_world_probe_data(inst_.sphere_probes.octahedral_probes_texture(),
+                            inst_.sphere_probes.world_sphere_probe().atlas_coord,
+                            inst_.sphere_probes.spherical_harmonics_buf(),
+                            inst_.world.sunlight,
+                            rotation);
+  }
 }
 
 void LookdevModule::display()
@@ -455,6 +467,8 @@ void LookdevModule::store_world_probe_data(
   pass.dispatch(dispatch_size);
 
   inst_.manager->submit(pass);
+
+  last_rotation_matrix_ = float4x4::identity();
 }
 
 /* TODO(fclem): Call this as soon as possible inside the frame drawing and tag world probe volume
@@ -464,7 +478,8 @@ void LookdevModule::rotate_world_probe_data(
     Texture &dst_sphere_probe,
     const SphereProbeAtlasCoord &atlas_coord,
     StorageBuffer<SphereProbeHarmonic, true> &dst_volume_probe,
-    UniformBuffer<LightData> &dst_sunlight)
+    UniformBuffer<LightData> &dst_sunlight,
+    float4x4 &rotation)
 {
   SphereProbeUvArea read_coord = atlas_coord.as_sampling_coord();
   SphereProbePixelArea write_coord_mip0 = atlas_coord.as_write_coord(0);
@@ -472,17 +487,6 @@ void LookdevModule::rotate_world_probe_data(
   SphereProbePixelArea write_coord_mip2 = atlas_coord.as_write_coord(2);
   SphereProbePixelArea write_coord_mip3 = atlas_coord.as_write_coord(3);
   SphereProbePixelArea write_coord_mip4 = atlas_coord.as_write_coord(4);
-
-  float4x4 rotation = float4x4::identity();
-  if (use_viewspace_lighting_) {
-    CartesianBasis target(AxisSigned::X_POS, AxisSigned::Z_NEG, AxisSigned::Y_POS);
-    rotation = inst_.camera.data_get().viewinv * math::from_rotation<float4x4>(target);
-  }
-  else {
-    const ::View3DShading &shading = inst_.v3d->shading;
-    AxisAngle axis_angle_rotation(AxisSigned::Z_POS, shading.studiolight_rot_z);
-    rotation = math::from_rotation<float4x4>(axis_angle_rotation);
-  }
 
   PassSimple pass = {__func__};
   pass.init();

@@ -124,6 +124,8 @@ class LookdevModule {
   bool use_reference_spheres_ = false;
 
   bool use_viewspace_lighting_ = false;
+  /* Used for update detection. */
+  float4x4 last_rotation_matrix_ = float4x4::identity();
 
   static constexpr int num_spheres = 2;
 
@@ -190,7 +192,8 @@ class LookdevModule {
   void rotate_world_probe_data(Texture &dst_sphere_probe,
                                const SphereProbeAtlasCoord &atlas_coord,
                                StorageBuffer<SphereProbeHarmonic, true> &dst_volume_probe,
-                               UniformBuffer<LightData> &dst_sunlight);
+                               UniformBuffer<LightData> &dst_sunlight,
+                               float4x4 &rotation);
 
  private:
   void sync_pass(PassSimple &pass,
