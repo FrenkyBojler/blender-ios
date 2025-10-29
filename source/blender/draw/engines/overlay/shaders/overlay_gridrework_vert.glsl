@@ -11,33 +11,47 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 void main()
 {
+  // TODO; parameterize; 4 is levels and 2 is directions for now
+  // Extract line data from vertex id
+  uint idx = gl_VertexID;
+  uint line_side = idx & 0x01;                        // LSB indicates start/end vertex
+  idx = idx >> 1;
+  uint line_idx = idx % grid_buf.num_lines;           // index of line, from x-min to x-max
+  uint line_dir = (idx / grid_buf.num_lines) % 2;     // direction of line, x or y
+  uint line_lvl = (idx / grid_buf.num_lines / 2) % 4; // lvl of line on grid, wraps around
+
   // Determine distance to floor plane through camera center
   float t = drw_view_position().z / drw_view_forward().z;
 
-  // Determine index of current line from 0 to num_lines - 1
-  int line_idx = (gl_VertexID / 2) % int(grid_buf.num_lines);     // vertex 0, vertex 0, vertex 1, vertex 1
+  // Rotate levels dependent on camera distance
+  // TODO; this is a total hack for testing
+  // line_lvl += log2(t);
+
+  // Determine line scale for current level
+  // TODO; 1.f should become unit size 
+  float line_scale = (1.f) * (1 << line_lvl);
 
   // Offset distance to most outer line
-  float line_offset = floor(pow(2.0f, t / 64.f));
-  float line_start = -line_offset * float(grid_buf.num_lines >> 1);
-  
-  float3 vert_pos = float3(line_start + line_offset * line_idx, line_start, 0.0f);
+  float line_start = -line_scale * float(grid_buf.num_lines >> 1);
 
+  // Determine vertex position
   // If not start vertex, flip y-coord for other side of line
-  bool is_first_vert = (gl_VertexID % 2) == 0;
-  vert_pos.y = is_first_vert ? vert_pos.y : -vert_pos.y;
-
   // If not x-direction, flip x- and -ycoords for y-direction
-  bool is_x_dir = (gl_VertexID / int(grid_buf.num_lines * 2)) == 0;
-  vert_pos.xy = is_x_dir ? vert_pos.xy : vert_pos.yx;
+  float3 vert_pos = float3(line_start + line_scale * line_idx, line_start, 0.0f);
+  vert_pos.y = bool(line_side) ? vert_pos.y : -vert_pos.y;
+  vert_pos.xy = bool(line_dir) ? vert_pos.xy : vert_pos.yx;
 
-  // Add camera offset; grid moves with camera; we shoot a ray through the floor and move
-  // around this point for now
+  // Add camera offset; grid moves with camera
   float3 pos_on_floor = drw_view_position() + t * -drw_view_forward();
   pos_on_floor = float3(pos_on_floor.xy, 0);
+  vert_pos += floor(pos_on_floor / line_scale) * line_scale;
 
-  vert_pos += floor(pos_on_floor / line_offset) * line_offset;
+  // TODO; remove; offset lines vertically to see overlaps
+  // vert_pos.z -= 0.05 * line_lvl;
+
+  // Vertex outputs
   local_pos = vert_pos;
+  local_lvl = line_lvl;
   
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vert_pos, 1.0f));
 }

@@ -53,10 +53,17 @@ public:
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
     {
+      const uint n_verts 
+        = grid_ubo_.num_lines // nr of lines in a direction and level
+        * 4                   // nr of levels
+        * 2                   // nr of directions (x, y)
+        * 2                   // nr of verts per line
+      ;
+
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
       sub.bind_ubo("grid_buf", &grid_ubo_);
-      sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, grid_ubo_.num_lines * 4, 0);
+      sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
     }
   }
 
@@ -77,7 +84,7 @@ private:
     // const View3D *v3d = state.v3d;
     // const RegionView3D *rv3d = state.rv3d;
 
-    grid_ubo_.num_lines = 1024 + 1;
+    grid_ubo_.num_lines = 15;
 
     return true;
   }
