@@ -107,7 +107,6 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
     std::string relative_asset_identifier;
   };
   struct LocalRef {
-    std::string name;
     uint32_t session_uid;
   };
   std::variant<AssetRef, LocalRef> group_ref;
@@ -206,7 +205,7 @@ std::optional<OperatorTypeData> OperatorTypeData::from_group(const bNodeTree &gr
   type_data.idname = std::move(*idname);
   type_data.description = group.description ? group.description : "";
   type_data.flag = GeometryNodeAssetTraitFlag(group.geometry_node_asset_traits->flag);
-  type_data.group_ref = OperatorTypeData::LocalRef{group.id.name + 2, group.id.session_uid};
+  type_data.group_ref = OperatorTypeData::LocalRef{group.id.session_uid};
   return type_data;
 }
 
