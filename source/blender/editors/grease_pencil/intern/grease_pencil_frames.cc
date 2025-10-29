@@ -369,6 +369,11 @@ bool ensure_active_keyframe(const Scene &scene,
       grease_pencil.insert_frame(layer, current_frame);
     }
     r_inserted_keyframe = true;
+
+    for (auto [frame_number, frame] : layer.frames_for_write().items()) {
+      SET_FLAG_FROM_TEST(frame.flag, (frame_number == current_frame), GP_FRAME_SELECTED);
+    }
+
   }
   /* There should now always be a drawing at the current frame. */
   BLI_assert(layer.has_drawing_at(current_frame));
