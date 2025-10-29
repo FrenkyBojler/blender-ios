@@ -1016,14 +1016,7 @@ void ShaderCompiler::do_work(void *work_payload)
     specialize_shader(batch->specializations[shader_index]);
   }
 
-  {
-    std::lock_guard lock(mutex_);
-    batch->pending_compilations--;
-    if (batch->is_ready() && batch->is_cancelled) {
-      batch->free_shaders();
-      MEM_delete(batch);
-    }
-  }
+  batch->pending_compilations--;
 
   compilation_finished_notification_.notify_all();
 
