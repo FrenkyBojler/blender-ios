@@ -1,1 +1,2 @@
 Referenced by issue #146945, 5.0 isnt creating the principal shader and output nodes on new material created via script
+Referenced by issue #148990, bmesh (from object mode) selection state (flushing?) issues
