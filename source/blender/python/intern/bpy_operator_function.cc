@@ -479,9 +479,6 @@ static PyGetSetDef bpy_op_fn_getsetters[] = {
 /** \} */
 
 /** Method definitions for BPyOpFunction. */
-static PyMethodDef bpy_op_handler_methods[] = {{nullptr, nullptr, 0, nullptr}};
-
-/** Method definitions for BPyOpFunction. */
 static PyMethodDef bpy_op_handler_action_methods[] = {
     {"append", (PyCFunction)op_handler_append, METH_VARARGS | METH_KEYWORDS, nullptr},
     {"remove", (PyCFunction)op_handler_remove, METH_VARARGS | METH_KEYWORDS, nullptr},
@@ -522,7 +519,7 @@ static PyMemberDef bpy_op_handlers_members[] = {
 
 PyDoc_STRVAR(
     /* Wrap. */
-    bpy_op_handler_invoke_pre_doc,
+    bpy_op_handler_actions_doc,
     "Handler invoke pre options");
 
 PyTypeObject BPyOpHandlersActionsType = {
@@ -546,7 +543,7 @@ PyTypeObject BPyOpHandlersActionsType = {
     /*tp_setattro*/ nullptr,
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT,
-    /*tp_doc*/ bpy_op_handler_invoke_pre_doc,
+    /*tp_doc*/ bpy_op_handler_actions_doc,
     /*tp_traverse*/ nullptr,
     /*tp_clear*/ nullptr,
     /*tp_richcompare*/ nullptr,
@@ -593,7 +590,7 @@ PyTypeObject BPyOpHandlerType = {
     /*tp_name*/ "BPyOpHandlers",
     /*tp_basicsize*/ sizeof(BPyOpHandlers),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ nullptr,
+    /*tp_dealloc*/ (destructor)bpy_op_fn_dealloc,
     /*tp_print*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -616,7 +613,7 @@ PyTypeObject BPyOpHandlerType = {
     /*tp_weaklistoffset*/ 0,
     /*tp_iter*/ nullptr,
     /*tp_iternext*/ nullptr,
-    /*tp_methods*/ bpy_op_handler_methods,
+    /*tp_methods*/ nullptr,
     /*tp_members*/ bpy_op_handlers_members,
     /*tp_getset*/ nullptr,
     /*tp_base*/ nullptr,
@@ -718,11 +715,25 @@ PyTypeObject BPyOpFunctionType = {
 /** \name Public API
  * \{ */
 
+/**
+ * @brief Ensures python types are ready.
+ * `get_type` may crash blender if type is not avaiable.
+ * Can happen on autocomplete on python console.
+ */
 int BPyOpFunction_InitTypes()
 {
   if (PyType_Ready(&BPyOpFunctionType) < 0) {
     return -1;
   }
+
+  if (PyType_Ready(&BPyOpHandlerType) < 0) {
+    return -1;
+  }
+
+  if (PyType_Ready(&BPyOpHandlersActionsType) < 0) {
+    return -1;
+  }
+
   return 0;
 }
 
