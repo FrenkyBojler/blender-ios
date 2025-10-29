@@ -1599,7 +1599,7 @@ static void draw_timeline_sfra_efra(TimelineDrawContext *ctx)
   const View2D *v2d = ctx->v2d;
   const Editing *ed = seq::editing_get(scene);
   const int frame_sta = scene->r.sfra;
-  const int frame_end = scene->r.efra + 1;
+  const int frame_end = scene->r.efra;
 
   GPU_blend(GPU_BLEND_ALPHA);
 
