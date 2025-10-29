@@ -600,15 +600,19 @@ class NODE_PT_geometry_node_tool_options(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Options"
-    bl_ui_units_x = 8
+    bl_ui_units_x = 12
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         snode = context.space_data
         group = snode.node_tree
 
         layout.prop(group, "use_wait_for_click")
+        layout.prop(group, "node_tool_idname", text="Identifier")
+        layout.template_node_operator_registration_errors()
 
 
 class NODE_PT_node_color_presets(PresetPanel, Panel):
@@ -1077,22 +1081,16 @@ class NODE_PT_node_tree_properties(Panel):
         row.operator("node.default_group_width_set", text="", icon='NODE')
 
         if group.bl_idname == "GeometryNodeTree":
-            usage_header, usage_body = layout.panel("group_usage")
-            usage_header.label(text="Usage")
-            if usage_body:
-                modifier_header, modifier_body = usage_body.panel("modifier_usage")
-                modifier_header.use_property_split = False
-                modifier_header.prop(group, "is_modifier")
-                if modifier_body:
-                    modifier_body.active = group.is_modifier
-                    modifier_body.prop(group, "show_modifier_manage_panel", text="Manage Panel")
-                tool_header, tool_body = usage_body.panel("tool_usage")
-                tool_header.use_property_split = False
-                tool_header.prop(group, "is_tool")
-                if tool_body:
-                    tool_body.active = group.is_tool
-                    tool_body.prop(group, "node_tool_idname", text="Identifier")
-                    tool_body.template_node_operator_registration_errors()
+            row = layout.row()
+            row.active = group.is_modifier
+            row.prop(group, "show_modifier_manage_panel")
+
+            header, body = layout.panel("group_usage")
+            header.label(text="Usage")
+            if body:
+                col = body.column(align=True)
+                col.prop(group, "is_modifier")
+                col.prop(group, "is_tool")
 
 
 class NODE_PT_node_tree_animation(Panel):
