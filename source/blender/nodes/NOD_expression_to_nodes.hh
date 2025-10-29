@@ -14,6 +14,7 @@ namespace blender::nodes::expression {
 
 void expression_node_to_group(const bNode &node,
                               StringRef expression,
+                              int expr_index,
                               bNodeTree &r_tree,
                               std::string &r_error);
 

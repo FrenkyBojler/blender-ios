@@ -16,6 +16,8 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
+#include "DNA_node_types.h"
+
 namespace blender::nodes::expression {
 
 struct NodeAndSocket {
@@ -26,7 +28,9 @@ struct NodeAndSocket {
 class AstToNodeGroupBuilder {
  private:
   const bNode &expr_bnode_;
+  const NodeExpression &bnode_storage_;
   const ast::Expr &root_expr_;
+  const int expr_index_;
   bNodeTree &r_tree_;
   Map<StringRef, NodeAndSocket> inputs_;
 
@@ -35,34 +39,28 @@ class AstToNodeGroupBuilder {
  public:
   AstToNodeGroupBuilder(const bNode &expr_bnode,
                         const ast::Expr &root_expr,
+                        const int expr_index,
                         bNodeTree &r_tree,
                         std::string &r_error)
-      : expr_bnode_(expr_bnode), root_expr_(root_expr), r_tree_(r_tree), r_error_(r_error)
+      : expr_bnode_(expr_bnode),
+        bnode_storage_(*static_cast<const NodeExpression *>(expr_bnode.storage)),
+        root_expr_(root_expr),
+        expr_index_(expr_index),
+        r_tree_(r_tree),
+        r_error_(r_error)
   {
   }
 
   void build()
   {
-    Map<StringRef, bNodeSocket *> expr_inputs;
-    for (const int i : expr_bnode_.input_sockets().index_range()) {
-      const bNodeSocket &socket = expr_bnode_.input_socket(i);
-      r_tree_.tree_interface.add_socket(
-          socket.name, "", socket.idname, NODE_INTERFACE_SOCKET_INPUT, nullptr);
-    }
-    for (const int i : expr_bnode_.output_sockets().index_range()) {
-      const bNodeSocket &socket = expr_bnode_.output_socket(i);
-      r_tree_.tree_interface.add_socket(
-          socket.name, "", socket.idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
-    }
+
+    this->add_interface_inputs();
+    this->add_interface_outputs();
 
     bNode &group_input_node = this->add_node("NodeGroupInput");
     bNode &group_output_node = this->add_node("NodeGroupOutput");
 
     LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node.outputs) {
-      /* TODO: Generalize this. */
-      if (socket == group_input_node.outputs.first) {
-        continue;
-      }
       inputs_.add(socket->name, {&group_input_node, socket});
     }
 
@@ -77,6 +75,25 @@ class AstToNodeGroupBuilder {
   }
 
  private:
+  void add_interface_inputs()
+  {
+    for (const int i : IndexRange(bnode_storage_.input_items.items_num)) {
+      const NodeExpressionInputItem &item = bnode_storage_.input_items.items[i];
+      const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type);
+      r_tree_.tree_interface.add_socket(
+          item.name, "", stype->idname, NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    }
+  }
+
+  void add_interface_outputs()
+  {
+    const NodeExpressionItem &expr_item = bnode_storage_.expression_items.items[0];
+    const bke::bNodeSocketType *output_stype = bke::node_socket_type_find_static(
+        expr_item.socket_type);
+    r_tree_.tree_interface.add_socket(
+        expr_item.name, "", output_stype->idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+  }
+
   NodeAndSocket build_expr(const ast::Expr &expr)
   {
     return std::visit([&](const auto &ast_node) { return this->build_expr(ast_node); }, expr.expr);
@@ -177,7 +194,8 @@ class AstToNodeGroupBuilder {
 };
 
 void expression_node_to_group(const bNode &node,
-                              StringRef expression,
+                              const StringRef expression,
+                              const int expr_index,
                               bNodeTree &r_tree,
                               std::string &r_error)
 {
@@ -193,7 +211,7 @@ void expression_node_to_group(const bNode &node,
     return;
   }
 
-  AstToNodeGroupBuilder builder(node, *expr_ast, r_tree, r_error);
+  AstToNodeGroupBuilder builder(node, *expr_ast, expr_index, r_tree, r_error);
   builder.build();
 }
 

@@ -211,7 +211,7 @@ class ShaderNodesInliner {
   const bke::DataTypeConversions &data_type_conversions_;
   /** This is used to generate unique names and ids. */
   int dst_node_counter_ = 0;
-  Map<NodeInContext, bNodeTree *> expression_node_groups_cache_;
+  Map<std::pair<NodeInContext, int>, bNodeTree *> expression_node_groups_cache_;
 
  public:
   ShaderNodesInliner(const bNodeTree &src_tree,
@@ -596,7 +596,8 @@ class ShaderNodesInliner {
   void handle_output_socket__expression(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    const SocketInContext expr_input_socket = node.input_socket(0);
+    const int expr_index = socket->index();
+    const SocketInContext expr_input_socket = node.input_socket(expr_index);
     const SocketValue *expr_socket_value = value_by_socket_.lookup_ptr(expr_input_socket);
     if (!expr_socket_value) {
       /* The expression is not known yet, so schedule it for now. */
@@ -612,7 +613,8 @@ class ShaderNodesInliner {
     }
     const StringRef expression = std::get<std::string>(expr_value_opt->value);
     bNodeTree *expression_tree = expression_node_groups_cache_.lookup_or_add_cb(
-        node, [&]() { return this->build_expression_node_group(expression, *node); });
+        {node, expr_index},
+        [&]() { return this->build_expression_node_group(expression, *node, expr_index); });
     if (!expression_tree) {
       this->store_socket_value_fallback(socket);
       return;
@@ -620,13 +622,15 @@ class ShaderNodesInliner {
     this->handle_output_socket__group_generic(socket, *expression_tree);
   }
 
-  bNodeTree *build_expression_node_group(const StringRef expression, const bNode &node)
+  bNodeTree *build_expression_node_group(const StringRef expression,
+                                         const bNode &node,
+                                         const int expr_index)
   {
     bNodeTree &expr_tree = *BKE_id_new_nomain<bNodeTree>(node.name);
     scope_.add_destruct_call([&]() { BKE_id_free(nullptr, &expr_tree); });
 
     std::string error;
-    expression::expression_node_to_group(node, expression, expr_tree, error);
+    expression::expression_node_to_group(node, expression, expr_index, expr_tree, error);
     if (!error.empty()) {
       params_.r_error_messages.append({&node, error});
       return nullptr;
