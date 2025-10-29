@@ -215,8 +215,10 @@ void file_on_reload_callback_register(SpaceFile *sfile,
 
 /* not listbase itself */
 void folderlist_free(ListBase *folderlist);
-void folderlist_popdir(ListBase *folderlist, char *dir);
-void folderlist_pushdir(ListBase *folderlist, const char *dir);
+/* `dir_template` optionally stores the template path for the directory. So it
+ * can be restored when navigating history. */
+void folderlist_popdir(ListBase *folderlist, char *dir, char *dir_template = nullptr);
+void folderlist_pushdir(ListBase *folderlist, const char *dir, const char *dir_template = nullptr);
 const char *folderlist_peeklastdir(ListBase *folderlist);
 bool folderlist_clear_next(SpaceFile *sfile);
 

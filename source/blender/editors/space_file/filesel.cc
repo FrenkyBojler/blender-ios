@@ -89,7 +89,7 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
   }
 
   folder_history_list_ensure_for_active_browse_mode(sfile);
-  folderlist_pushdir(sfile->folders_prev, params->dir);
+  folderlist_pushdir(sfile->folders_prev, params->dir, params->dir_template);
 
   /* Switching thumbnails needs to recalc layout #28809. */
   if (sfile->layout) {
@@ -1205,7 +1205,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
       folderlist_free(sfile->folders_next);
     }
 
-    folderlist_pushdir(sfile->folders_prev, params->dir);
+    folderlist_pushdir(sfile->folders_prev, params->dir, params->dir_template);
 
     file_draw_check_ex(C, area);
   }

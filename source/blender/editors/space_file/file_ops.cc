@@ -2345,9 +2345,9 @@ static wmOperatorStatus file_previous_exec(bContext *C, wmOperator * /*op*/)
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   if (params) {
-    folderlist_pushdir(sfile->folders_next, params->dir);
-    folderlist_popdir(sfile->folders_prev, params->dir);
-    folderlist_pushdir(sfile->folders_next, params->dir);
+    folderlist_pushdir(sfile->folders_next, params->dir, params->dir_template);
+    folderlist_popdir(sfile->folders_prev, params->dir, params->dir_template);
+    folderlist_pushdir(sfile->folders_next, params->dir, params->dir_template);
 
     ED_file_change_dir(C);
   }
@@ -2380,11 +2380,11 @@ static wmOperatorStatus file_next_exec(bContext *C, wmOperator * /*unused*/)
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   if (params) {
-    folderlist_pushdir(sfile->folders_prev, params->dir);
-    folderlist_popdir(sfile->folders_next, params->dir);
+    folderlist_pushdir(sfile->folders_prev, params->dir, params->dir_template);
+    folderlist_popdir(sfile->folders_next, params->dir, params->dir_template);
 
     /* update folders_prev so we can check for it in #folderlist_clear_next() */
-    folderlist_pushdir(sfile->folders_prev, params->dir);
+    folderlist_pushdir(sfile->folders_prev, params->dir, params->dir_template);
 
     ED_file_change_dir(C);
   }

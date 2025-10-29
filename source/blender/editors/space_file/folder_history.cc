@@ -29,9 +29,11 @@
 struct FolderList {
   FolderList *next, *prev;
   char *foldername;
+  /* Unresolved/template folder path (may contain template variables). */
+  char *foldertemplate;
 };
 
-void folderlist_popdir(ListBase *folderlist, char *dir)
+void folderlist_popdir(ListBase *folderlist, char *dir, char *dir_template)
 {
   const char *prev_dir;
   FolderList *folder;
@@ -46,12 +48,21 @@ void folderlist_popdir(ListBase *folderlist, char *dir)
     if (folder) {
       prev_dir = folder->foldername;
       BLI_strncpy(dir, prev_dir, FILE_MAXDIR);
+      if (dir_template) {
+        if (folder->foldertemplate) {
+          BLI_strncpy(dir_template, folder->foldertemplate, FILE_MAXDIR);
+        }
+        else {
+          /* No template stored for this entry, fall back to resolved path. */
+          BLI_strncpy(dir_template, prev_dir, FILE_MAXDIR);
+        }
+      }
     }
   }
   /* Delete the folder next or use set-directory directly before PREVIOUS OP. */
 }
 
-void folderlist_pushdir(ListBase *folderlist, const char *dir)
+void folderlist_pushdir(ListBase *folderlist, const char *dir, const char *dir_template)
 {
   if (!dir[0]) {
     return;
@@ -70,6 +81,12 @@ void folderlist_pushdir(ListBase *folderlist, const char *dir)
   /* create next folder element */
   folder = MEM_callocN<FolderList>(__func__);
   folder->foldername = BLI_strdup(dir);
+  if (dir_template && dir_template[0]) {
+    folder->foldertemplate = BLI_strdup(dir_template);
+  }
+  else {
+    folder->foldertemplate = nullptr;
+  }
 
   /* add it to the end of the list */
   BLI_addtail(folderlist, folder);
@@ -112,7 +129,12 @@ void folderlist_free(ListBase *folderlist)
 {
   if (folderlist) {
     LISTBASE_FOREACH_MUTABLE (FolderList *, folder, folderlist) {
-      MEM_freeN(folder->foldername);
+      if (folder->foldername) {
+        MEM_freeN(folder->foldername);
+      }
+      if (folder->foldertemplate) {
+        MEM_freeN(folder->foldertemplate);
+      }
       MEM_delete(folder);
     }
     BLI_listbase_clear(folderlist);
@@ -127,6 +149,9 @@ static ListBase folderlist_duplicate(ListBase *folderlist)
 
   LISTBASE_FOREACH (FolderList *, folder, &folderlistn) {
     folder->foldername = (char *)MEM_dupallocN(folder->foldername);
+    if (folder->foldertemplate) {
+      folder->foldertemplate = (char *)MEM_dupallocN(folder->foldertemplate);
+    }
   }
   return folderlistn;
 }
