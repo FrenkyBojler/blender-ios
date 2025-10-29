@@ -14,6 +14,7 @@
 
 #include "NOD_expression_parse.hh"
 #include "NOD_expression_to_nodes.hh"
+#include "NOD_socket.hh"
 
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
@@ -23,9 +24,89 @@
 
 namespace blender::nodes::expression {
 
+class AstToNodeGroupBuilder;
+
 struct NodeAndSocket {
   bNode *node = nullptr;
   bNodeSocket *socket = nullptr;
+};
+
+struct TypeCheckCallParams {
+  Vector<const bke::bNodeSocketType *> input_types;
+};
+
+struct InsertCallParams {
+  AstToNodeGroupBuilder &builder;
+
+  Vector<NodeAndSocket> inputs;
+  NodeAndSocket output;
+
+  bNode &add_node(const StringRef idname);
+  void update_node_sockets(bNode &node);
+
+  void add_input(bNode &node, bNodeSocket &socket)
+  {
+    this->inputs.append({&node, &socket});
+  }
+
+  void set_output(bNode &node, bNodeSocket &socket)
+  {
+    /* Should only be set once. */
+    BLI_assert(!this->output.socket);
+    this->output = {&node, &socket};
+  }
+
+  void use_node_sockets(bNode &node)
+  {
+    this->use_node_inputs(node);
+    this->use_node_output(node);
+  }
+
+  void use_node_inputs(bNode &node)
+  {
+    LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
+      if (socket->is_available()) {
+        this->add_input(node, *socket);
+      }
+    }
+  }
+
+  void use_node_output(bNode &node)
+  {
+    LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
+      if (socket->is_available()) {
+        this->set_output(node, *socket);
+      }
+    }
+  }
+};
+
+using InsertCallFn = std::function<void(InsertCallParams &params)>;
+using TypeCheckCallFn = std::function<bool(TypeCheckCallParams &params)>;
+
+class FunctionSymbol {
+ public:
+  std::string name;
+  TypeCheckCallFn type_check;
+  InsertCallFn insert;
+
+  FunctionSymbol(std::string name, TypeCheckCallFn type_check, InsertCallFn insert)
+      : name(std::move(name)), type_check(std::move(type_check)), insert(std::move(insert))
+  {
+  }
+};
+
+class SymbolTable {
+ private:
+  MultiValueMap<std::string, FunctionSymbol> symbols_;
+
+  friend AstToNodeGroupBuilder;
+
+ public:
+  void add(FunctionSymbol function_symbol)
+  {
+    symbols_.add(function_symbol.name, std::move(function_symbol));
+  }
 };
 
 class AstToNodeGroupBuilder {
@@ -33,20 +114,25 @@ class AstToNodeGroupBuilder {
   const NodeExpression &bnode_storage_;
   const ast::Expr &root_expr_;
   const int expr_index_;
+  const SymbolTable &symbol_table_;
   bNodeTree &r_tree_;
   Map<StringRef, NodeAndSocket> inputs_;
 
   std::string &r_error_;
 
+  friend InsertCallParams;
+
  public:
   AstToNodeGroupBuilder(const bNode &expr_bnode,
                         const ast::Expr &root_expr,
                         const int expr_index,
+                        const SymbolTable &symbol_table,
                         bNodeTree &r_tree,
                         std::string &r_error)
       : bnode_storage_(*static_cast<const NodeExpression *>(expr_bnode.storage)),
         root_expr_(root_expr),
         expr_index_(expr_index),
+        symbol_table_(symbol_table),
         r_tree_(r_tree),
         r_error_(r_error)
   {
@@ -141,37 +227,38 @@ class AstToNodeGroupBuilder {
     }
     const bke::bNodeSocketType &a_type = *a.socket->typeinfo;
     const bke::bNodeSocketType &b_type = *b.socket->typeinfo;
-    const bool a_is_scalar = ELEM(a_type.type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN);
-    const bool b_is_scalar = ELEM(b_type.type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN);
-    if (a_is_scalar && b_is_scalar) {
-      /* TODO: Support integer math in some cases. */
-      bNode &math_node = this->add_node("ShaderNodeMath");
-      if (op == "+") {
-        math_node.custom1 = NODE_MATH_ADD;
-      }
-      else if (op == "-") {
-        math_node.custom1 = NODE_MATH_SUBTRACT;
-      }
-      else if (op == "*") {
-        math_node.custom1 = NODE_MATH_MULTIPLY;
-      }
-      else if (op == "/") {
-        math_node.custom1 = NODE_MATH_DIVIDE;
-      }
-      else {
-        r_error_ = "The binary operator is not supported";
-        return {};
-      }
-      /* Ensure socket availability is up to date. */
-      math_node.typeinfo->updatefunc(&r_tree_, &math_node);
-      bNodeSocket *in0 = static_cast<bNodeSocket *>(math_node.inputs.first);
-      bNodeSocket *in1 = in0->next;
-      this->add_link(a, {&math_node, in0});
-      this->add_link(b, {&math_node, in1});
-      return {&math_node, static_cast<bNodeSocket *>(math_node.outputs.first)};
+
+    TypeCheckCallParams type_check_params;
+    type_check_params.input_types = {&a_type, &b_type};
+
+    const Span<FunctionSymbol> candidates = symbol_table_.symbols_.lookup(op);
+    if (candidates.is_empty()) {
+      r_error_ = fmt::format("{}: \"{}\"", TIP_("Unknown binary operator"), op);
+      return {};
     }
-    r_error_ = "The binary operator is not supported";
-    return {};
+    Vector<const FunctionSymbol *> filtered_candidates;
+    for (const FunctionSymbol &function : candidates) {
+      if (function.type_check(type_check_params)) {
+        filtered_candidates.append(&function);
+      }
+    }
+    if (filtered_candidates.is_empty()) {
+      r_error_ = fmt::format("{}: \"{}\"", TIP_("No matching binary operator"), op);
+      return {};
+    }
+    if (filtered_candidates.size() > 1) {
+      r_error_ = fmt::format("{}: \"{}\"", TIP_("Ambiguous binary operator"), op);
+      return {};
+    }
+    const FunctionSymbol &function = *filtered_candidates[0];
+    InsertCallParams insert_params{*this};
+    function.insert(insert_params);
+    BLI_assert(insert_params.inputs.size() == 2);
+    BLI_assert(insert_params.output.socket);
+
+    this->add_link(a, insert_params.inputs[0]);
+    this->add_link(b, insert_params.inputs[1]);
+    return insert_params.output;
   }
 
   NodeAndSocket build_expr(const ast::UnaryOp & /*ast_node*/)
@@ -192,7 +279,7 @@ class AstToNodeGroupBuilder {
     return {};
   }
 
-  bNode &add_node(const StringRefNull idname)
+  bNode &add_node(const StringRef idname)
   {
     return *bke::node_add_node(nullptr, r_tree_, idname);
   }
@@ -202,6 +289,42 @@ class AstToNodeGroupBuilder {
     return bke::node_add_link(r_tree_, *from.node, *from.socket, *to.node, *to.socket);
   }
 };
+
+static bool all_inputs_1d(TypeCheckCallParams &params)
+{
+  return std::all_of(
+      params.input_types.begin(), params.input_types.end(), [](const bke::bNodeSocketType *stype) {
+        return ELEM(stype->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN);
+      });
+}
+
+static InsertCallFn float_math_node(const NodeMathOperation op)
+{
+  return [op](InsertCallParams &params) {
+    bNode &math_node = params.add_node(StringRef("ShaderNodeMath"));
+    math_node.custom1 = op;
+    params.update_node_sockets(math_node);
+    params.use_node_sockets(math_node);
+  };
+}
+
+static void init_symbol_table(SymbolTable &symbols)
+{
+  symbols.add(FunctionSymbol("+", all_inputs_1d, float_math_node(NODE_MATH_ADD)));
+  symbols.add(FunctionSymbol("-", all_inputs_1d, float_math_node(NODE_MATH_SUBTRACT)));
+  symbols.add(FunctionSymbol("*", all_inputs_1d, float_math_node(NODE_MATH_MULTIPLY)));
+  symbols.add(FunctionSymbol("/", all_inputs_1d, float_math_node(NODE_MATH_DIVIDE)));
+}
+
+static SymbolTable &get_symbol_table()
+{
+  static SymbolTable symbol_table = []() {
+    SymbolTable symbols;
+    init_symbol_table(symbols);
+    return symbols;
+  }();
+  return symbol_table;
+}
 
 std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
                                                               const StringRef expression,
@@ -220,9 +343,11 @@ std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
     return output;
   }
 
+  const SymbolTable &symbols = get_symbol_table();
+
   bNodeTree *tree = BKE_id_new_nomain<bNodeTree>(node.name);
   output->tree = tree;
-  AstToNodeGroupBuilder builder(node, *expr_ast, expr_index, *tree, output->error);
+  AstToNodeGroupBuilder builder(node, *expr_ast, expr_index, symbols, *tree, output->error);
   builder.build();
   if (!output->error.empty()) {
     BKE_id_free(nullptr, &tree->id);
@@ -235,6 +360,20 @@ ExpressionNodeGroup::~ExpressionNodeGroup()
 {
   if (this->tree) {
     BKE_id_free(nullptr, const_cast<ID *>(&this->tree->id));
+  }
+}
+
+bNode &InsertCallParams::add_node(const StringRef idname)
+{
+  return this->builder.add_node(idname);
+}
+
+void InsertCallParams::update_node_sockets(bNode &node)
+{
+  update_node_declaration_and_sockets(this->builder.r_tree_, node);
+  if (node.typeinfo->updatefunc) {
+    /* Ensure socket availability is up to date. */
+    node.typeinfo->updatefunc(&this->builder.r_tree_, &node);
   }
 }
 
