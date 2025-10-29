@@ -1992,6 +1992,12 @@ void node_update_asset_metadata(bNodeTree &node_tree)
     auto property = idprop::create("geometry_node_asset_traits_flag",
                                    node_tree.geometry_node_asset_traits->flag);
     BKE_asset_metadata_idprop_ensure(asset_data, property.release());
+    if (node_tree.geometry_node_asset_traits->node_tool_idname) {
+      auto property = idprop::create(
+          "node_tool_idname",
+          StringRefNull(node_tree.geometry_node_asset_traits->node_tool_idname));
+      BKE_asset_metadata_idprop_ensure(asset_data, property.release());
+    }
   }
 }
 
