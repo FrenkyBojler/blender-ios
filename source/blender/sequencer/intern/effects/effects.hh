@@ -149,8 +149,7 @@ static void apply_effect_op(const OpT &op, const ImBuf *src1, const ImBuf *src2,
 
 TextVarsRuntime *text_effect_calc_runtime(const Strip *strip,
                                           int font,
-                                          const int2 image_size,
-                                          const float line_spacing = 1.0f);
+                                          const int2 image_size);
 int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags);
 
 }  // namespace blender::seq
