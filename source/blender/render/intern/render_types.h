@@ -12,10 +12,9 @@
 /* exposed internal in render module only! */
 /* ------------------------------------------------------------------------- */
 
-#include <mutex>
-
 #include "DNA_scene_types.h"
 
+#include "BLI_mutex.hh"
 #include "BLI_threads.h"
 
 #include "RE_compositor.hh"
@@ -169,7 +168,8 @@ struct Render : public BaseRender {
 
   bool prepare_viewlayer(struct ViewLayer *view_layer, struct Depsgraph *depsgraph) override;
 
-  char name[RE_MAXNAME] = "";
+  /* Owner pointer that uniquely identifiers the owner of this scene. */
+  const void *owner = nullptr;
 
   /* state settings */
   short flag = 0;
@@ -216,7 +216,7 @@ struct Render : public BaseRender {
   /* Compositor.
    * NOTE: Use bare pointer instead of smart pointer because the it is a fully opaque type. */
   blender::render::Compositor *compositor = nullptr;
-  std::mutex compositor_mutex;
+  blender::Mutex compositor_mutex;
 
   /* Callbacks for the corresponding base class method implementation. */
   void (*display_init_cb)(void *handle, RenderResult *rr) = nullptr;
@@ -262,8 +262,8 @@ struct Render : public BaseRender {
 /** #R.flag */
 #define R_ANIMATION 1 << 0
 /* Indicates that the render pipeline should not write its render result. This happens for instance
- * when the render pipeline uses the compositor, but the compositor node tree does not have an
- * output composite node or a render layer input, and consequently no render result. In that case,
- * the output will be written from the File Output nodes, since the render pipeline will early fail
- * if neither a File Output nor a Composite node exist in the scene. */
+ * when the render pipeline uses the compositor, but the compositor node tree does not have a group
+ * output node or a render layer input, and consequently no render result. In that case, the output
+ * will be written from the File Output nodes, since the render pipeline will early fail if neither
+ * a File Output nor a Group Output node exist in the scene. */
 #define R_SKIP_WRITE 1 << 1

@@ -1672,6 +1672,19 @@ bool is_orthonormal_m4(const float m[4][4])
   return false;
 }
 
+bool is_identity_m4(const float m[4][4])
+{
+  for (int row = 0; row < 4; row++) {
+    for (int col = 0; col < 4; col++) {
+      if (m[row][col] != (row == col ? 1.0f : 0.0f)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 bool is_uniform_scaled_m3(const float m[3][3])
 {
   const float eps = 1e-7f;
@@ -2017,8 +2030,8 @@ void mat4_decompose(float loc[3], float quat[4], float size[3], const float wmat
  * Right polar decomposition:
  *     M = UP
  *
- * U is the 'rotation'-like component, the closest orthogonal matrix to M.
- * P is the 'scaling'-like component, defined in U space.
+ * U is the *rotation*-like component, the closest orthogonal matrix to M.
+ * P is the *scaling*-like component, defined in U space.
  *
  * See https://en.wikipedia.org/wiki/Polar_decomposition for more.
  */

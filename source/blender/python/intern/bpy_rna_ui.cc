@@ -14,7 +14,7 @@
 
 #include "../generic/py_capi_utils.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "bpy_rna.hh"
 #include "bpy_rna_ui.hh" /* Declare #BPY_rna_uilayout_introspect_method_def. */
@@ -24,7 +24,9 @@ PyDoc_STRVAR(
     bpy_rna_uilayout_introspect_doc,
     ".. method:: introspect()\n"
     "\n"
-    "   Return a dictionary containing a textual representation of the UI layout.\n");
+    "   Return a list of dictionaries containing a textual representation of the UI layout.\n"
+    "\n"
+    "   :rtype: list[dict[str, Any]]\n");
 static PyObject *bpy_rna_uilayout_introspect(PyObject *self)
 {
   BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
@@ -34,7 +36,7 @@ static PyObject *bpy_rna_uilayout_introspect(PyObject *self)
   PyObject *main_mod = PyC_MainModule_Backup();
   PyObject *py_dict = PyC_DefaultNameSpace("<introspect>");
   PyObject *result = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
-  MEM_freeN((void *)expr);
+  MEM_freeN(expr);
   Py_DECREF(py_dict);
   PyC_MainModule_Restore(main_mod);
   return result;

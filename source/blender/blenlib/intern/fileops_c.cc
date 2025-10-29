@@ -341,10 +341,19 @@ bool BLI_file_touch(const char *filepath)
   return false;
 }
 
-static bool dir_create_recursive(char *dirname, int len)
+/**
+ * Create the given directory and its parents if necessary.
+ *
+ * If the directory already exists, this function is a no-op.
+ *
+ * \param dirname: The directory to create.
+ * \param len: The number of bytes of `dirname` to use as path to create.
+ * This makes the recursive call possible without doing string duplication
+ * for each parent directory.
+ */
+static bool dir_create_recursive(const char *dirname, const int len)
 {
   BLI_assert(strlen(dirname) == len);
-  BLI_assert(BLI_exists(dirname) == 0);
   /* Caller must ensure the path doesn't have trailing slashes. */
   BLI_assert_msg(len && !BLI_path_slash_is_native_compat(dirname[len - 1]),
                  "Paths must not end with a slash!");
@@ -375,12 +384,26 @@ static bool dir_create_recursive(char *dirname, int len)
     *dirname_parent_end = dirname_parent_end_value;
   }
   if (ret) {
+    /* Ignore errors when the directory was created (probably by another process) in between the
+     * earlier call to BLI_exists() and this call to mkdir. Since this function only creates a
+     * directory if it doesn't exist yet, this is actually not seen as an error, even though
+     * mkdir() failed. */
 #ifdef WIN32
     if (umkdir(dirname) == -1) {
+      if (GetLastError() == ERROR_ALREADY_EXISTS && BLI_is_dir(dirname)) {
+        return true;
+      }
+
+      /* Any other error should bubble up as an actual error. */
       ret = false;
     }
 #else
     if (mkdir(dirname, 0777) != 0) {
+      if (errno == EEXIST && BLI_is_dir(dirname)) {
+        return true;
+      }
+
+      /* Any other error should bubble up as an actual error. */
       ret = false;
     }
 #endif
@@ -569,8 +592,7 @@ void *BLI_gzopen(const char *filepath, const char *mode)
     fclose(file);
   }
 
-  /* temporary #if until we update all libraries to 1.2.7
-   * for correct wide char path handling */
+  /* Temporary `#if` until we update all libraries to 1.2.7 for correct wide char path handling. */
 #  if ZLIB_VERNUM >= 0x1270
   UTF16_ENCODE(filepath);
 
@@ -814,7 +836,7 @@ int BLI_path_move(const char *path_src, const char *path_dst)
   }
 
   if (!ELEM(path_dst_with_filename, path_dst_buf, path_dst)) {
-    MEM_freeN((void *)path_dst_with_filename);
+    MEM_freeN(path_dst_with_filename);
   }
 
   return err;
@@ -839,7 +861,7 @@ int BLI_copy(const char *path_src, const char *path_dst)
   }
 
   if (!ELEM(path_dst_with_filename, path_dst_buf, path_dst)) {
-    MEM_freeN((void *)path_dst_with_filename);
+    MEM_freeN(path_dst_with_filename);
   }
 
   return err;
@@ -964,7 +986,7 @@ static int recursive_operation_impl(StrBuf *src_buf,
 {
   /* NOTE(@ideasman42): This function must *not* use any `MEM_*` functions
    * as it's used to purge temporary files on when the processed is aborted,
-   * in this case the `MEM_*` state may have already been freed (memory usage tracking for e.g.)
+   * in this case the `MEM_*` state may have already been freed (e.g. memory usage tracking)
    * causing freed memory access, potentially crashing. This constraint doesn't apply to the
    * callbacks themselves - unless they might also be called when aborting. */
   struct stat st;
@@ -1532,7 +1554,7 @@ int BLI_copy(const char *path_src, const char *path_dst)
       path_src, path_dst_with_filename, copy_callback_pre, copy_single_file, nullptr);
 
   if (!ELEM(path_dst_with_filename, path_dst_buf, path_dst)) {
-    MEM_freeN((void *)path_dst_with_filename);
+    MEM_freeN(path_dst_with_filename);
   }
 
   return ret;

@@ -16,6 +16,8 @@
 
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_inverse_eval_path.hh"
+#include "NOD_partial_eval.hh"
+#include "NOD_socket_usage_inference.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_space_types.h"
@@ -222,7 +224,7 @@ static void foreach_gizmo_for_input(const ie::SocketElem &input_socket,
     const bNodeTree &group = *reinterpret_cast<const bNodeTree *>(node.id);
     group.ensure_topology_cache();
     const ComputeContext &group_compute_context = compute_context_cache.for_group_node(
-        compute_context, node, tree);
+        compute_context, node.identifier, &tree);
     foreach_gizmo_for_group_input(
         group,
         ie::GroupInputElem{input_socket.socket->index(), input_socket.elem},
@@ -296,6 +298,9 @@ static void foreach_active_gizmo_in_open_node_editor(
   /* Check gizmos on input sockets. */
   for (auto &&item : gizmo_propagation.gizmo_inputs_by_node_inputs.items()) {
     const bNodeSocket &socket = *item.key.socket;
+    if (socket.is_inactive()) {
+      continue;
+    }
     const bNode &node = socket.owner_node();
     if ((node.flag & NODE_SELECT) || (socket.flag & SOCK_GIZMO_PIN)) {
       used_gizmo_inputs.add_multiple(item.value);
@@ -374,8 +379,30 @@ static void foreach_active_gizmo_exposed_to_modifier(
   if (!tree.runtime->gizmo_propagation) {
     return;
   }
+
+  tree.ensure_interface_cache();
+
+  ResourceScope scope;
+  const Vector<InferenceValue> input_values = get_geometry_nodes_input_inference_values(
+      *nmd.node_group, nmd.settings.properties, scope);
+
+  const auto get_input_value = [&](const int group_input_i) {
+    return input_values[group_input_i];
+  };
+  SocketValueInferencer value_inferencer{
+      *nmd.node_group, scope, compute_context_cache, get_input_value};
+  socket_usage_inference::SocketUsageInferencer usage_inferencer(
+      *nmd.node_group, scope, value_inferencer, compute_context_cache);
+
   const ComputeContext &root_compute_context = compute_context_cache.for_modifier(nullptr, nmd);
   for (auto &&item : tree.runtime->gizmo_propagation->gizmo_inputs_by_group_inputs.items()) {
+    const ie::GroupInputElem &group_input_elem = item.key;
+    if (item.value.is_empty()) {
+      continue;
+    }
+    if (!usage_inferencer.is_group_input_used(group_input_elem.group_input_index)) {
+      continue;
+    }
     for (const ie::SocketElem &socket_elem : item.value) {
       foreach_gizmo_for_input(socket_elem, compute_context_cache, &root_compute_context, tree, fn);
     }
@@ -490,7 +517,7 @@ void apply_gizmo_change(
     bContext &C,
     Object &object,
     NodesModifierData &nmd,
-    geo_eval_log::GeoModifierLog &eval_log,
+    geo_eval_log::GeoNodesLog &eval_log,
     const ComputeContext &gizmo_context,
     const bNodeSocket &gizmo_socket,
     const FunctionRef<void(bke::SocketValueVariant &value)> apply_on_gizmo_value_fn)
@@ -527,6 +554,15 @@ void apply_gizmo_change(
 
   /* Actually backpropagate the socket values. */
   ie::backpropagate_socket_values(C, object, nmd, eval_log, sockets_to_update);
+}
+
+bool value_node_has_gizmo(const bNodeTree &tree, const bNode &node)
+{
+  BLI_assert(partial_eval::is_supported_value_node(node));
+  if (!tree.runtime->gizmo_propagation) {
+    return false;
+  }
+  return tree.runtime->gizmo_propagation->gizmo_endpoint_sockets.contains(&node.output_socket(0));
 }
 
 }  // namespace blender::nodes::gizmos

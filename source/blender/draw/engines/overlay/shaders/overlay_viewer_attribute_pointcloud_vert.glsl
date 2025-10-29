@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_viewer_attribute_info.hh"
+#include "infos/overlay_viewer_attribute_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_viewer_attribute_pointcloud)
 
@@ -15,5 +15,5 @@ void main()
 {
   float3 world_pos = pointcloud_get_pos();
   gl_Position = drw_point_world_to_homogenous(world_pos);
-  finalColor = pointcloud_get_customdata_vec4(attribute_tx);
+  final_color = pointcloud_get_customdata_vec4(attribute_tx);
 }

@@ -99,7 +99,7 @@ void BokehKernel::compute_gpu(Context &context,
                               const float catadioptric,
                               const float lens_shift)
 {
-  GPUShader *shader = context.get_shader("compositor_bokeh_image");
+  gpu::Shader *shader = context.get_shader("compositor_bokeh_image");
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_1f(shader, "exterior_angle", compute_exterior_angle(sides));
@@ -269,7 +269,7 @@ void BokehKernel::compute_cpu(const int sides,
   parallel_for(size, [&](const int2 texel) {
     const float4 bokeh_value = spectral_bokeh(
         texel, size, exterior_angle, corrected_rotation, roundness, catadioptric, lens_shift);
-    this->result.store_pixel(texel, bokeh_value);
+    this->result.store_pixel(texel, Color(bokeh_value));
   });
 }
 

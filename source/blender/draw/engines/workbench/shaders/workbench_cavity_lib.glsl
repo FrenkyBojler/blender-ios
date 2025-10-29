@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
-#include "infos/workbench_composite_info.hh"
+#include "infos/workbench_composite_infos.hh"
 
 #include "draw_view_lib.glsl"
 #include "workbench_common_lib.glsl"
@@ -12,7 +12,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_view)
 SHADER_LIBRARY_CREATE_INFO(workbench_composite)
 SHADER_LIBRARY_CREATE_INFO(workbench_resolve_cavity)
 
-/*  From The Alchemy screen-space ambient obscurance algorithm
+/* From The Alchemy screen-space ambient obscurance algorithm
  * http://graphics.cs.williams.edu/papers/AlchemyHPG11/VV11AlchemyAO.pdf */
 
 #ifdef WORKBENCH_CAVITY
@@ -24,14 +24,14 @@ SHADER_LIBRARY_CREATE_INFO(workbench_resolve_cavity)
 #ifdef USE_CAVITY
 
 void cavity_compute(float2 screenco,
-                    depth2D depthBuffer,
+                    sampler2DDepth depth_buffer,
                     sampler2D normalBuffer,
                     out float cavities,
                     out float edges)
 {
   cavities = edges = 0.0f;
 
-  float depth = texture(depthBuffer, screenco).x;
+  float depth = texture(depth_buffer, screenco).x;
 
   /* Early out if background and in front. */
   if (depth == 1.0f || depth == 0.0f) {
@@ -73,7 +73,7 @@ void cavity_compute(float2 screenco,
       continue;
     }
     /* Sample depth. */
-    float s_depth = texture(depthBuffer, uvcoords).r;
+    float s_depth = texture(depth_buffer, uvcoords).r;
     /* Handle Background case */
     bool is_background = (s_depth == 1.0f);
     /* This trick provide good edge effect even if no neighbor is found. */

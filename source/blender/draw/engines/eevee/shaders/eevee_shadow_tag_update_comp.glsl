@@ -11,16 +11,14 @@
  * tag the appropriate tiles.
  */
 
-#include "infos/eevee_shadow_info.hh"
+#include "infos/eevee_shadow_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_shadow_tag_update)
 
 #include "draw_aabb_lib.glsl"
 #include "draw_intersect_lib.glsl"
 
-#include "draw_view_lib.glsl"
 #include "eevee_shadow_tilemap_lib.glsl"
-#include "gpu_shader_utildefines_lib.glsl"
 
 float3 safe_project(float4x4 winmat, float4x4 viewmat, inout int clipped, float3 v)
 {
@@ -67,7 +65,7 @@ void main()
     else if (clipped > 0) {
       /* Not all verts are behind the near clip plane. */
       if (intersect(frustum, box)) {
-        /* We cannot correctly handle this case so we fallback by covering the whole view. */
+        /* We cannot correctly handle this case so we fall back by covering the whole view. */
         aabb_ndc.max = float3(1.0f);
         aabb_ndc.min = float3(-1.0f);
       }

@@ -87,13 +87,12 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
     }
 
     if (!quiet) {
-      CLOG_INFO(
-          WM_LOG_OPERATORS, 0, "search for unknown operator '%s', '%s'\n", idname_bl, idname);
+      CLOG_INFO(WM_LOG_OPERATORS, "Search for unknown operator '%s', '%s'", idname_bl, idname);
     }
   }
   else {
     if (!quiet) {
-      CLOG_INFO(WM_LOG_OPERATORS, 0, "search for empty operator");
+      CLOG_INFO(WM_LOG_OPERATORS, "Search for empty operator");
     }
   }
 
@@ -106,7 +105,7 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
 
 static wmOperatorType *wm_operatortype_append__begin()
 {
-  wmOperatorType *ot = MEM_callocN<wmOperatorType>("operatortype");
+  wmOperatorType *ot = MEM_new<wmOperatorType>(__func__);
 
   BLI_assert(ot_prop_basic_count == -1);
 
@@ -136,6 +135,13 @@ static void wm_operatortype_append__end(wmOperatorType *ot)
 
   BLI_assert(WM_operator_bl_idname_is_valid(ot->idname));
   get_operators_map().add_new(ot);
+
+  /* Needed so any operators registered after startup will have their shortcuts set,
+   * in "register" scripts for example, see: #143838.
+   *
+   * This only has run-time implications when run after startup,
+   * it's a no-op when run beforehand, see: #WM_keyconfig_update_on_startup. */
+  WM_keyconfig_update_operatortype_tag();
 }
 
 /* All ops in 1 list (for time being... needs evaluation later). */
@@ -180,9 +186,9 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 
   get_operators_map().remove(ot);
 
-  WM_keyconfig_update_operatortype();
+  WM_keyconfig_update_operatortype_tag();
 
-  MEM_freeN(ot);
+  MEM_delete(ot);
 }
 
 bool WM_operatortype_remove(const char *idname)
@@ -210,10 +216,10 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 
   if (ot->rna_ext.srna) {
     /* A Python operator, allocates its own string. */
-    MEM_freeN((void *)ot->idname);
+    MEM_freeN(ot->idname);
   }
 
-  MEM_freeN(ot);
+  MEM_delete(ot);
 }
 
 void wm_operatortype_free()
@@ -302,19 +308,19 @@ static void wm_macro_start(wmOperator *op)
 
 static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
 {
-  if (retval & OPERATOR_CANCELLED) {
-    MacroData *md = static_cast<MacroData *>(op->customdata);
+  MacroData *md = static_cast<MacroData *>(op->customdata);
 
-    if (md->retval & OPERATOR_FINISHED) {
+  if (retval & (OPERATOR_CANCELLED | OPERATOR_INTERFACE)) {
+    if (md && (md->retval & OPERATOR_FINISHED)) {
       retval |= OPERATOR_FINISHED;
-      retval &= ~OPERATOR_CANCELLED;
+      retval &= ~(OPERATOR_CANCELLED | OPERATOR_INTERFACE);
     }
   }
 
   /* If modal is ending, free custom data. */
   if (retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) {
-    if (op->customdata) {
-      MEM_freeN(op->customdata);
+    if (md) {
+      MEM_freeN(md);
       op->customdata = nullptr;
     }
   }
@@ -490,7 +496,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname,
     return nullptr;
   }
 
-  ot = MEM_callocN<wmOperatorType>("operatortype");
+  ot = MEM_new<wmOperatorType>(__func__);
   ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 
   ot->idname = idname;
@@ -527,7 +533,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
 {
   wmOperatorType *ot;
 
-  ot = MEM_callocN<wmOperatorType>("operatortype");
+  ot = MEM_new<wmOperatorType>(__func__);
   ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 
   ot->flag = OPTYPE_MACRO;

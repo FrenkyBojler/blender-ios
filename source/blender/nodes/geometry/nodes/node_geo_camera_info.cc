@@ -27,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Orthographic Scale")
       .description("Orthographic camera scale (similar to zoom)");
 
-  b.add_input<decl::Object>("Camera").hide_label();
+  b.add_input<decl::Object>("Camera").optional_label();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -38,7 +38,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const Object *camera_obj = params.get_input<Object *>("Camera");
+  const Object *camera_obj = params.extract_input<Object *>("Camera");
 
   if (!camera_obj || camera_obj->type != OB_CAMERA) {
     params.set_default_remaining_outputs();

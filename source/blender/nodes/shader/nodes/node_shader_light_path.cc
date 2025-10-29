@@ -22,6 +22,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Glossy Depth");
   b.add_output<decl::Float>("Transparent Depth");
   b.add_output<decl::Float>("Transmission Depth");
+  b.add_output<decl::Float>("Portal Depth");
 }
 
 static int node_shader_gpu_light_path(GPUMaterial *mat,
@@ -37,10 +38,10 @@ NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
   /* NOTE: This node isn't supported by MaterialX. Only default values returned. */
-  if (STREQ(socket_out_->name, "Is Camera Ray")) {
+  if (STREQ(socket_out_->identifier, "Is Camera Ray")) {
     return val(1.0f);
   }
-  if (STREQ(socket_out_->name, "Ray Length")) {
+  if (STREQ(socket_out_->identifier, "Ray Length")) {
     return val(1.0f);
   }
   NodeItem res = val(0.0f);

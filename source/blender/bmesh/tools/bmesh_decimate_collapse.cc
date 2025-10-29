@@ -13,6 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_heap.h"
 #include "BLI_linklist.h"
 #include "BLI_math_geom.h"
@@ -61,7 +62,7 @@ enum CD_UseFlag {
   CD_DO_EDGE = (1 << 1),
   CD_DO_LOOP = (1 << 2),
 };
-ENUM_OPERATORS(CD_UseFlag, CD_DO_LOOP)
+ENUM_OPERATORS(CD_UseFlag)
 
 /* BMesh Helper Functions
  * ********************** */
@@ -409,9 +410,8 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
 
   tree = BLI_kdtree_3d_new(bm->totedge);
 
-  etable = static_cast<BMEdge **>(MEM_mallocN(sizeof(*etable) * bm->totedge, __func__));
-  edge_symmetry_map = static_cast<int *>(
-      MEM_mallocN(sizeof(*edge_symmetry_map) * bm->totedge, __func__));
+  etable = MEM_malloc_arrayN<BMEdge *>(bm->totedge, __func__);
+  edge_symmetry_map = MEM_malloc_arrayN<int>(bm->totedge, __func__);
 
   BM_ITER_MESH_INDEX (e, &iter, bm, BM_EDGES_OF_MESH, i) {
     float co[3];
@@ -776,7 +776,6 @@ static void bm_edge_collapse_loop_customdata(
             CustomData_bmesh_interp_n(&bm->ldata,
                                       cd_src,
                                       w,
-                                      nullptr,
                                       ARRAY_SIZE(cd_src),
                                       POINTER_OFFSET(l_iter->head.data, offset),
                                       i);
@@ -1055,7 +1054,7 @@ static bool bm_edge_collapse(BMesh *bm,
     }
 #endif
 
-    // BM_mesh_validate(bm);
+    // BM_mesh_is_valid(bm);
 
     return true;
   }
@@ -1111,7 +1110,7 @@ static bool bm_edge_collapse(BMesh *bm,
     }
 #endif
 
-    // BM_mesh_validate(bm);
+    // BM_mesh_is_valid(bm);
 
     return true;
   }
@@ -1313,10 +1312,10 @@ void BM_mesh_decimate_collapse(BMesh *bm,
 #endif
 
   /* Allocate variables. */
-  vquadrics = static_cast<Quadric *>(MEM_callocN(sizeof(Quadric) * bm->totvert, __func__));
+  vquadrics = MEM_calloc_arrayN<Quadric>(bm->totvert, __func__);
   /* Since some edges may be degenerate, we might be over allocating a little here. */
   eheap = BLI_heap_new_ex(bm->totedge);
-  eheap_table = static_cast<HeapNode **>(MEM_mallocN(sizeof(HeapNode *) * bm->totedge, __func__));
+  eheap_table = MEM_malloc_arrayN<HeapNode *>(bm->totedge, __func__);
   tot_edge_orig = bm->totedge;
 
   /* build initial edge collapse cost data */
@@ -1505,7 +1504,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
       }
     }
 
-    MEM_freeN((void *)edge_symmetry_map);
+    MEM_freeN(edge_symmetry_map);
   }
 #endif /* USE_SYMMETRY */
 
@@ -1525,7 +1524,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
   BLI_heap_free(eheap, nullptr);
 
   /* testing only */
-  // BM_mesh_validate(bm);
+  // BM_mesh_is_valid(bm);
 
   /* quiet release build warning */
   (void)tot_edge_orig;

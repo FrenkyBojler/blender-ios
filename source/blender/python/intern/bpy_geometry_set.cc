@@ -120,7 +120,7 @@ static BPy_GeometrySet *BPy_GeometrySet_static_from_evaluated_object(PyObject * 
     return nullptr;
   }
   Object *evaluated_object = reinterpret_cast<Object *>(evaluated_object_id);
-  if (!DEG_is_evaluated_object(evaluated_object)) {
+  if (!DEG_is_evaluated(evaluated_object)) {
     PyErr_SetString(PyExc_TypeError, "Expected an evaluated object");
     return nullptr;
   }
@@ -343,7 +343,7 @@ PyDoc_STRVAR(
     bpy_geometry_set_grease_pencil_doc,
     "The Grease Pencil data-block in the geometry set.\n"
     "\n"
-    ":type: :class:`bpy.types.GreasePencilv3`\n");
+    ":type: :class:`bpy.types.GreasePencil`\n");
 static PyObject *BPy_GeometrySet_get_grease_pencil(BPy_GeometrySet *self, void * /*closure*/)
 {
   return pyrna_id_CreatePyObject(

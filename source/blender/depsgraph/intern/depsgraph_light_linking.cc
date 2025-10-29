@@ -53,7 +53,7 @@ namespace {
 #ifndef NDEBUG
 bool is_valid_input_id(const ID &id)
 {
-  return (id.tag & ID_TAG_LOCALIZED) || DEG_is_original_id(&id);
+  return (id.tag & ID_TAG_LOCALIZED) || DEG_is_original(&id);
 }
 #endif
 
@@ -481,7 +481,7 @@ void Cache::eval_runtime_data(Object &object_eval) const
     }
   }
   else if (need_runtime) {
-    object_eval.light_linking = MEM_callocN<LightLinking>(__func__);
+    BKE_light_linking_ensure(&object_eval);
     object_eval.light_linking->runtime = runtime;
   }
 }

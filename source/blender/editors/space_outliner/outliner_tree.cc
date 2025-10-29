@@ -168,7 +168,7 @@ void outliner_free_tree_element(TreeElement *element, ListBase *parent_subtree)
   outliner_free_tree(&element->subtree);
 
   if (element->flag & TE_FREE_NAME) {
-    MEM_freeN((void *)element->name);
+    MEM_freeN(element->name);
   }
   element->abstract_element = nullptr;
   MEM_delete(element);
@@ -249,7 +249,7 @@ TreeElement *AbstractTreeDisplay::add_element(ListBase *lb,
    * on file read. */
   /* FIXME: This is may be an arbitrary void pointer that is cast to an ID pointer. Could be a
    * temporary stack pointer even. Often works reliably enough at runtime, and file reading handles
-   * cases where data can't be reconstructed just fine (pointer is null`ed). This is still
+   * cases where data can't be reconstructed just fine (pointer is null'ed). This is still
    * completely type unsafe and error-prone. */
   ID *persistent_dataptr = owner_id ? owner_id : static_cast<ID *>(create_data);
 
@@ -306,6 +306,9 @@ TreeElement *AbstractTreeDisplay::add_element(ListBase *lb,
     /* pass */
   }
   else if (ELEM(type, TSE_ANIM_DATA, TSE_NLA, TSE_NLA_TRACK, TSE_DRIVER_BASE)) {
+    /* pass */
+  }
+  else if (ELEM(type, TSE_ACTION_SLOT)) {
     /* pass */
   }
   else if (ELEM(type, TSE_GP_LAYER, TSE_GREASE_PENCIL_NODE)) {
@@ -568,8 +571,7 @@ static void outliner_sort(ListBase *lb)
     int totelem = BLI_listbase_count(lb);
 
     if (totelem > 1) {
-      tTreeSort *tear = static_cast<tTreeSort *>(
-          MEM_mallocN(totelem * sizeof(tTreeSort), "tree sort array"));
+      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
       tTreeSort *tp = tear;
       int skip = 0;
 
@@ -635,8 +637,7 @@ static void outliner_collections_children_sort(ListBase *lb)
     int totelem = BLI_listbase_count(lb);
 
     if (totelem > 1) {
-      tTreeSort *tear = static_cast<tTreeSort *>(
-          MEM_mallocN(totelem * sizeof(tTreeSort), "tree sort array"));
+      tTreeSort *tear = MEM_malloc_arrayN<tTreeSort>(totelem, "tree sort array");
       tTreeSort *tp = tear;
 
       LISTBASE_FOREACH (TreeElement *, te, lb) {
@@ -1144,6 +1145,7 @@ static void outliner_clear_newid_from_main(Main *bmain)
  * \{ */
 
 void outliner_build_tree(Main *mainvar,
+                         WorkSpace *workspace,
                          Scene *scene,
                          ViewLayer *view_layer,
                          SpaceOutliner *space_outliner,
@@ -1191,7 +1193,7 @@ void outliner_build_tree(Main *mainvar,
   /* All tree displays should be created as sub-classes of AbstractTreeDisplay. */
   BLI_assert(space_outliner->runtime->tree_display != nullptr);
 
-  TreeSourceData source_data{*mainvar, *scene, *view_layer};
+  TreeSourceData source_data{*mainvar, *workspace, *scene, *view_layer};
   space_outliner->tree = space_outliner->runtime->tree_display->build_tree(source_data);
 
   if ((space_outliner->flag & SO_SKIP_SORT_ALPHA) == 0) {

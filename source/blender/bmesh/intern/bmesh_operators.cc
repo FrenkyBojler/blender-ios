@@ -31,17 +31,17 @@ static int bmo_name_to_slotcode_check(const BMOpSlot slot_args[BMO_OP_MAX_SLOTS]
                                       const char *identifier);
 
 const int BMO_OPSLOT_TYPEINFO[BMO_OP_SLOT_TOTAL_TYPES] = {
-    0,                /*  0: BMO_OP_SLOT_SENTINEL */
-    sizeof(int),      /*  1: BMO_OP_SLOT_BOOL */
-    sizeof(int),      /*  2: BMO_OP_SLOT_INT */
-    sizeof(float),    /*  3: BMO_OP_SLOT_FLT */
-    sizeof(void *),   /*  4: BMO_OP_SLOT_PNT */
-    sizeof(void *),   /*  5: BMO_OP_SLOT_PNT */
-    0,                /*  6: unused */
-    0,                /*  7: unused */
-    sizeof(float[3]), /*  8: BMO_OP_SLOT_VEC */
-    sizeof(void *),   /*  9: BMO_OP_SLOT_ELEMENT_BUF */
-    sizeof(void *),   /* 10: BMO_OP_SLOT_MAPPING */
+    0,                /* 0: #BMO_OP_SLOT_SENTINEL */
+    sizeof(int),      /* 1: #BMO_OP_SLOT_BOOL */
+    sizeof(int),      /* 2: #BMO_OP_SLOT_INT */
+    sizeof(float),    /* 3: #BMO_OP_SLOT_FLT */
+    sizeof(void *),   /* 4: #BMO_OP_SLOT_PNT */
+    sizeof(void *),   /* 5: #BMO_OP_SLOT_PNT */
+    0,                /* 6: unused */
+    0,                /* 7: unused */
+    sizeof(float[3]), /* 8: #BMO_OP_SLOT_VEC */
+    sizeof(void *),   /* 9: #BMO_OP_SLOT_ELEMENT_BUF */
+    sizeof(void *),   /* 10: #BMO_OP_SLOT_MAPPING */
 };
 
 /* Dummy slot so there is something to return when slot name lookup fails */
@@ -157,6 +157,10 @@ void BMO_op_init(BMesh *bm, BMOperator *op, const int flag, const char *opname)
   /* memarena, used for operator's slot buffers */
   op->arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
   BLI_memarena_use_calloc(op->arena);
+
+  if (bmo_opdefines[opcode]->init) {
+    bmo_opdefines[opcode]->init(op);
+  }
 }
 
 void BMO_op_exec(BMesh *bm, BMOperator *op)
@@ -352,15 +356,15 @@ void BMO_slot_mat_set(BMOperator *op,
   slot->data.p = BLI_memarena_alloc(op->arena, sizeof(float[4][4]));
 
   if (size == 4) {
-    copy_m4_m4(static_cast<float(*)[4]>(slot->data.p), (const float(*)[4])mat);
+    copy_m4_m4(static_cast<float (*)[4]>(slot->data.p), (const float (*)[4])mat);
   }
   else if (size == 3) {
-    copy_m4_m3(static_cast<float(*)[4]>(slot->data.p), (const float(*)[3])mat);
+    copy_m4_m3(static_cast<float (*)[4]>(slot->data.p), (const float (*)[3])mat);
   }
   else {
     fprintf(stderr, "%s: invalid size argument %d (bmesh internal error)\n", __func__, size);
 
-    zero_m4(static_cast<float(*)[4]>(slot->data.p));
+    zero_m4(static_cast<float (*)[4]>(slot->data.p));
   }
 }
 
@@ -465,7 +469,7 @@ void *BMO_slot_as_arrayN(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_
   /* could add support for mapping type */
   BLI_assert(slot->slot_type == BMO_OP_SLOT_ELEMENT_BUF);
 
-  ret = static_cast<void **>(MEM_mallocN(sizeof(void *) * slot->len, __func__));
+  ret = MEM_malloc_arrayN<void *>(slot->len, __func__);
   memcpy(ret, slot->data.buf, sizeof(void *) * slot->len);
   *len = slot->len;
   return ret;
@@ -1467,7 +1471,7 @@ void BMO_error_clear(BMesh *bm)
 
 void BMO_error_raise(BMesh *bm, BMOperator *owner, eBMOpErrorLevel level, const char *msg)
 {
-  BMOpError *err = static_cast<BMOpError *>(MEM_callocN(sizeof(BMOpError), "bmop_error"));
+  BMOpError *err = MEM_callocN<BMOpError>("bmop_error");
 
   err->msg = msg;
   err->op = owner;

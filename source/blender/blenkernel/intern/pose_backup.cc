@@ -36,7 +36,9 @@ struct PoseChannelBackup {
 
   bPoseChannel olddata; /* Backup of pose channel. */
   IDProperty *oldprops; /* Backup copy (needs freeing) of pose channel's ID properties. */
-  const Object *owner;  /* The object to which this pose channel belongs. */
+  /* Backup copy (needs freeing) of pose channel's system IDProperties. */
+  IDProperty *old_system_properties;
+  const Object *owner; /* The object to which this pose channel belongs. */
 };
 
 struct PoseBackup {
@@ -84,6 +86,9 @@ static void pose_backup_create(const Object *ob,
     if (pchan->prop) {
       chan_bak->oldprops = IDP_CopyProperty(pchan->prop);
     }
+    if (pchan->system_properties) {
+      chan_bak->old_system_properties = IDP_CopyProperty(pchan->system_properties);
+    }
 
     BLI_addtail(&pose_backup.backups, chan_bak);
     backed_up_bone_names.add_new(bone_name);
@@ -104,7 +109,7 @@ static blender::Set<bPoseChannel *> armature_find_selected_pose_bones(
   for (Object *obj : objects) {
     /* Iterate over the selected bones to fill the set of bone names. */
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &obj->pose->chanbase) {
-      if (pose_bone->bone->flag & BONE_SELECTED) {
+      if (pose_bone->flag & POSE_SELECTED) {
         selected_bones.add(pose_bone);
       }
       else {
@@ -142,8 +147,7 @@ PoseBackup *BKE_pose_backup_create_selected_bones(blender::Span<Object *> object
   pose_backup->is_bone_selection_relevant = !selected_bones.is_empty();
 
   for (Object *ob : objects) {
-    const bArmature *armature = static_cast<const bArmature *>(ob->data);
-    const BoneNameSet selected_bone_names = BKE_armature_find_selected_bone_names(armature);
+    const BoneNameSet selected_bone_names = BKE_pose_channel_find_selected_names(ob);
     pose_backup_create(ob, const_cast<bAction *>(action), selected_bone_names, *pose_backup);
   }
 
@@ -163,6 +167,9 @@ void BKE_pose_backup_restore(const PoseBackup *pbd)
     if (chan_bak->oldprops) {
       IDP_SyncGroupValues(chan_bak->pchan->prop, chan_bak->oldprops);
     }
+    if (chan_bak->old_system_properties) {
+      IDP_SyncGroupValues(chan_bak->pchan->system_properties, chan_bak->old_system_properties);
+    }
 
     /* TODO: constraints settings aren't restored yet,
      * even though these could change (though not that likely) */
@@ -178,6 +185,9 @@ void BKE_pose_backup_free(PoseBackup *pbd)
   LISTBASE_FOREACH_MUTABLE (PoseChannelBackup *, chan_bak, &pbd->backups) {
     if (chan_bak->oldprops) {
       IDP_FreeProperty(chan_bak->oldprops);
+    }
+    if (chan_bak->old_system_properties) {
+      IDP_FreeProperty(chan_bak->old_system_properties);
     }
     BLI_freelinkN(&pbd->backups, chan_bak);
   }

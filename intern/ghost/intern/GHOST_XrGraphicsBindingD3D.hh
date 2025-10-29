@@ -44,13 +44,16 @@ class GHOST_XrGraphicsBindingD3D : public GHOST_IXrGraphicsBinding {
                                                bool &r_is_srgb_format) const override;
   std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(uint32_t image_count) override;
 
+  void submitToSwapchainBegin() override {}
+  void submitToSwapchainEnd() override {}
+
   bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const override;
 
  protected:
   /** Secondary DirectX 11 context used by OpenXR. */
-  GHOST_ContextD3D *m_ghost_d3d_ctx = nullptr;
+  GHOST_ContextD3D *ghost_d3d_ctx_ = nullptr;
 
-  std::list<std::vector<XrSwapchainImageD3D11KHR>> m_image_cache;
+  std::list<std::vector<XrSwapchainImageD3D11KHR>> image_cache_;
 };
 
 /**
@@ -68,9 +71,9 @@ class GHOST_XrGraphicsBindingOpenGLD3D : public GHOST_XrGraphicsBindingD3D {
 
  private:
   /** Primary OpenGL context for Blender to use for drawing. */
-  GHOST_ContextWGL &m_ghost_wgl_ctx;
+  GHOST_ContextWGL &ghost_wgl_ctx_;
   /** Handle to shared resource object. */
-  GHOST_SharedOpenGLResource *m_shared_resource = nullptr;
+  GHOST_SharedOpenGLResource *shared_resource_ = nullptr;
 };
 
 #ifdef WITH_VULKAN_BACKEND
@@ -87,6 +90,6 @@ class GHOST_XrGraphicsBindingVulkanD3D : public GHOST_XrGraphicsBindingD3D {
 
  private:
   /** Primary Vulkan context for Blender to use for drawing. */
-  GHOST_ContextVK &m_ghost_ctx;
+  GHOST_ContextVK &ghost_ctx_;
 };
 #endif

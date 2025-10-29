@@ -30,22 +30,14 @@
  *
  */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_material_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_occupancy)
 
-#include "eevee_nodetree_lib.glsl"
 #include "eevee_occupancy_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_surf_lib.glsl"
-#include "eevee_velocity_lib.glsl"
 #include "eevee_volume_lib.glsl"
-
-float4 closure_to_rgba(Closure cl)
-{
-  return float4(0.0f);
-}
 
 void main()
 {
@@ -57,7 +49,8 @@ void main()
   float volume_z = view_z_to_volume_z(vPz) + jitter;
 
   if (use_fast_method) {
-    OccupancyBits occupancy_bits = occupancy_from_depth(volume_z, uniform_buf.volumes.tex_size.z);
+    occupancy::Bits occupancy_bits = occupancy::bits_from_depth(volume_z,
+                                                                uniform_buf.volumes.tex_size.z);
     for (int i = 0; i < imageSize(occupancy_img).z; i++) {
       /* Negate occupancy bits before XORing so that meshes clipped by the near plane fill the
        * space between the inner part of the mesh and the near plane.

@@ -151,7 +151,7 @@ static wmOperatorStatus mesh_bisect_invoke(bContext *C, wmOperator *op, const wm
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
     BisectData *opdata;
 
-    opdata = static_cast<BisectData *>(MEM_mallocN(sizeof(BisectData), "inset_operator_data"));
+    opdata = MEM_mallocN<BisectData>("inset_operator_data");
     gesture->user_data.data = opdata;
 
     opdata->backup_len = objects.size();
@@ -387,7 +387,10 @@ static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
       params.calc_normals = false;
       params.is_destructive = true;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       ret = OPERATOR_FINISHED;
     }
   }
@@ -407,7 +410,7 @@ void MESH_OT_bisect(wmOperatorType *ot)
   ot->description = "Cut geometry along a plane (click-drag to define plane)";
   ot->idname = "MESH_OT_bisect";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = mesh_bisect_exec;
   ot->invoke = mesh_bisect_invoke;
   ot->modal = mesh_bisect_modal;
@@ -686,7 +689,7 @@ static void gizmo_mesh_bisect_setup(const bContext *C, wmGizmoGroup *gzgroup)
     return;
   }
 
-  GizmoGroup *ggd = static_cast<GizmoGroup *>(MEM_callocN(sizeof(GizmoGroup), __func__));
+  GizmoGroup *ggd = MEM_callocN<GizmoGroup>(__func__);
   gzgroup->customdata = ggd;
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);

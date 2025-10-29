@@ -15,7 +15,7 @@ Typically, Python objects representing (wrapping) Blender data have a limited li
 They are created on-demand, and deleted as soon as they are not used in Python anymore.
 
 This means that storing python-only data in these objects should not be done for anything that
-requires some form of persistance.
+requires some form of persistence.
 
 There are some exceptions to this rule. For example, IDs do store their Python instance, once created,
 and re-use it instead of re-creating a new Python object every time they are accessed from Python.
@@ -90,7 +90,7 @@ However, when linking in library data from another blend-file naming collisions 
 so it's best to avoid referencing data by name at all.
 
 This can be tricky at times and not even Blender handles this correctly in some cases
-(when selecting the modifier object for e.g. you can't select between multiple objects with the same name),
+(when selecting the modifier object for example, you can't select between multiple objects with the same name),
 but it's still good to try avoiding these problems in this area.
 If you need to select between local and library data, there is a feature in ``bpy.data`` members to allow for this.
 

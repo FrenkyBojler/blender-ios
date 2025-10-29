@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/workbench_prepass_info.hh"
+#include "infos/workbench_prepass_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(workbench_prepass)
 FRAGMENT_SHADER_CREATE_INFO(workbench_transparent_accum)
@@ -80,7 +80,7 @@ void main()
   float3 shaded_color = color;
 #endif
 
-  shaded_color *= get_shadow(N, forceShadowing);
+  shaded_color *= get_shadow(N, force_shadowing);
 
   /* Listing 4 */
   float alpha = alpha_interp * world_data.xray_alpha;

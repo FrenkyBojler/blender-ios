@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/workbench_composite_info.hh"
+#include "infos/workbench_composite_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(workbench_composite)
 FRAGMENT_SHADER_CREATE_INFO(workbench_resolve_opaque_matcap)
@@ -23,7 +23,7 @@ void main()
   float depth = texture(depth_tx, uv).r;
   if (depth == 1.0f) {
     /* Skip the background. */
-    discard;
+    gpu_discard_fragment();
     return;
   }
 
@@ -74,5 +74,5 @@ void main()
   color.rgb *= get_shadow(N, shadow);
 #endif
 
-  fragColor = color;
+  frag_color = color;
 }

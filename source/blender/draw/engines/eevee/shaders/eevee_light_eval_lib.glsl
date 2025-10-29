@@ -15,12 +15,13 @@
  * - utility_tx
  */
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_light_data)
 
 #include "eevee_bxdf_lib.glsl"
 #include "eevee_closure_lib.glsl"
+#include "eevee_light_iter_lib.glsl"
 #include "eevee_light_lib.glsl"
 #include "eevee_shadow_lib.glsl"
 #include "eevee_shadow_tracing_lib.glsl"
@@ -126,7 +127,9 @@ void light_eval_single(uint l_idx,
                        float3 Ng,
                        float3 V,
                        float thickness,
-                       uchar receiver_light_set)
+                       uchar receiver_light_set,
+                       float terminator_normal_offset,
+                       float terminator_geometry_offset)
 {
   LightData light = light_buf[l_idx];
 
@@ -169,6 +172,9 @@ void light_eval_single(uint l_idx,
                          thickness,
                          P,
                          Ng,
+                         stack.cl[0].N,
+                         terminator_normal_offset,
+                         terminator_geometry_offset,
                          ray_count,
                          ray_step_count);
   }
@@ -201,19 +207,41 @@ void light_eval_transmission(inout ClosureLightStack stack,
                              float3 V,
                              float vPz,
                              float thickness,
-                             uchar receiver_light_set)
+                             uchar receiver_light_set,
+                             float terminator_normal_offset,
+                             float terminator_geometry_offset)
 {
 #ifdef SKIP_LIGHT_EVAL
   return;
 #endif
 
   LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
-    light_eval_single(l_idx, true, true, stack, P, Ng, V, thickness, receiver_light_set);
+    light_eval_single(l_idx,
+                      true,
+                      true,
+                      stack,
+                      P,
+                      Ng,
+                      V,
+                      thickness,
+                      receiver_light_set,
+                      terminator_normal_offset,
+                      terminator_geometry_offset);
   }
   LIGHT_FOREACH_END
 
   LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, PIXEL, vPz, l_idx) {
-    light_eval_single(l_idx, false, true, stack, P, Ng, V, thickness, receiver_light_set);
+    light_eval_single(l_idx,
+                      false,
+                      true,
+                      stack,
+                      P,
+                      Ng,
+                      V,
+                      thickness,
+                      receiver_light_set,
+                      terminator_normal_offset,
+                      terminator_geometry_offset);
   }
   LIGHT_FOREACH_END
 }
@@ -223,19 +251,41 @@ void light_eval_reflection(inout ClosureLightStack stack,
                            float3 Ng,
                            float3 V,
                            float vPz,
-                           uchar receiver_light_set)
+                           uchar receiver_light_set,
+                           float terminator_normal_offset,
+                           float terminator_geometry_offset)
 {
 #ifdef SKIP_LIGHT_EVAL
   return;
 #endif
 
   LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
-    light_eval_single(l_idx, true, false, stack, P, Ng, V, 0.0f, receiver_light_set);
+    light_eval_single(l_idx,
+                      true,
+                      false,
+                      stack,
+                      P,
+                      Ng,
+                      V,
+                      0.0f,
+                      receiver_light_set,
+                      terminator_normal_offset,
+                      terminator_geometry_offset);
   }
   LIGHT_FOREACH_END
 
   LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, PIXEL, vPz, l_idx) {
-    light_eval_single(l_idx, false, false, stack, P, Ng, V, 0.0f, receiver_light_set);
+    light_eval_single(l_idx,
+                      false,
+                      false,
+                      stack,
+                      P,
+                      Ng,
+                      V,
+                      0.0f,
+                      receiver_light_set,
+                      terminator_normal_offset,
+                      terminator_geometry_offset);
   }
   LIGHT_FOREACH_END
 }

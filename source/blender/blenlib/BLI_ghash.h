@@ -75,7 +75,7 @@ enum {
  * \param info: Identifier string for the GHash.
  * \param nentries_reserve: Optionally reserve the number of members that the hash will hold.
  * Use this to avoid resizing buckets if the size is known or can be closely approximated.
- * \return  An empty GHash.
+ * \return An empty GHash.
  */
 GHash *BLI_ghash_new_ex(GHashHashFP hashfp,
                         GHashCmpFP cmpfp,
@@ -328,7 +328,7 @@ BLI_INLINE bool BLI_ghashIterator_done(const GHashIterator *ghi)
 
 /* -------------------------------------------------------------------- */
 /** \name GSet Types
- * A 'set' implementation (unordered collection of unique elements).
+ * A "set" implementation (unordered collection of unique elements).
  *
  * Internally this is a 'GHash' without any keys,
  * which is why this API's are in the same header & source file.
@@ -429,7 +429,7 @@ void *BLI_gset_pop_key(GSet *gs, const void *key) ATTR_WARN_UNUSED_RESULT;
 /** \name GSet Iterator
  * \{ */
 
-/* rely on inline api for now */
+/* Rely on inline API for now. */
 
 /** Use a GSet specific type so we can cast but compiler sees as different */
 typedef struct GSetIterator {

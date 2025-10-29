@@ -418,8 +418,7 @@ static UnorderedLoopPair *edbm_tagged_loop_pairs_to_fill(BMesh *bm)
   }
 
   if (total_tag) {
-    UnorderedLoopPair *uloop_pairs = static_cast<UnorderedLoopPair *>(
-        MEM_mallocN(total_tag * sizeof(UnorderedLoopPair), __func__));
+    UnorderedLoopPair *uloop_pairs = MEM_malloc_arrayN<UnorderedLoopPair>(total_tag, __func__);
     UnorderedLoopPair *ulp = uloop_pairs;
 
     BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -1051,7 +1050,8 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     if (bm->totfacesel) {
       /* highly nifty but hard to support since the operator can fail and we're left
        * with modified selection */
-      // WM_operator_name_call(C, "MESH_OT_region_to_loop", WM_OP_INVOKE_DEFAULT, nullptr, event);
+      // WM_operator_name_call(C, "MESH_OT_region_to_loop",
+      // blender::wm::OpCallContext::InvokeDefault, nullptr, event);
       continue;
     }
     error_face_selected = false;
@@ -1112,7 +1112,7 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     return OPERATOR_CANCELLED;
   }
   if (error_face_selected) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot rip selected faces");
+    BKE_report(op->reports, RPT_ERROR, "Cannot rip faces");
     return OPERATOR_CANCELLED;
   }
   if (error_disconnected_vertices) {
@@ -1120,7 +1120,7 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     return OPERATOR_CANCELLED;
   }
   if (error_rip_failed) {
-    BKE_report(op->reports, RPT_ERROR, "Rip failed");
+    BKE_report(op->reports, RPT_ERROR, "Cannot rip non-manifold vertices or edges");
     return OPERATOR_CANCELLED;
   }
   /* No errors, everything went fine. */
@@ -1136,7 +1136,7 @@ void MESH_OT_rip(wmOperatorType *ot)
   ot->idname = "MESH_OT_rip";
   ot->description = "Disconnect vertex or edges from connected geometry";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_rip_invoke;
   ot->poll = EDBM_view3d_poll;
 

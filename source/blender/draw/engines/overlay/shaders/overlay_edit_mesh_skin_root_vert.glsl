@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_skin_root)
 #ifdef GLSL_CPP_STUBS
@@ -12,7 +12,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_mesh_skin_root)
 #include "draw_model_lib.glsl"
 #include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
 
 void main()
 {
@@ -29,13 +29,13 @@ void main()
 
   float theta = M_TAU * (float(vert_id) / 63.0f);
   float3 circle_P = float3(cos(theta), 0.0f, sin(theta));
-  finalColor = colorSkinRoot;
+  final_color = theme.colors.skinroot;
 #else
   float3 lP = local_pos;
   float circle_size = size;
   float3 circle_P = pos;
   /* Manual stipple: one segment out of 2 is transparent. */
-  finalColor = ((gl_VertexID & 1) == 0) ? colorSkinRoot : float4(0.0f);
+  final_color = ((gl_VertexID & 1) == 0) ? theme.colors.skinroot : float4(0.0f);
 #endif
   float3 screen_pos = (right * circle_P.x + up * circle_P.z) * circle_size;
   float4 pos_4d = drw_modelmat() * float4(lP + screen_pos, 1.0f);

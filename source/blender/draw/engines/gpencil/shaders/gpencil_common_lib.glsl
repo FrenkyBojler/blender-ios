@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "gpu_glsl_cpp_stubs.hh"
+#include "gpu_shader_compat.hh"
 
 /* Must match eGPLayerBlendModes */
 #define MODE_REGULAR 0
@@ -15,10 +15,13 @@
 #define MODE_DIVIDE 5
 #define MODE_HARDLIGHT_SECOND_PASS 999
 
-void blend_mode_output(
-    int blend_mode, float4 color, float opacity, out float4 frag_color, out float4 frag_revealage)
+void blend_mode_output(int blending_mode,
+                       float4 color,
+                       float opacity,
+                       out float4 frag_color,
+                       out float4 frag_revealage)
 {
-  switch (blend_mode) {
+  switch (blending_mode) {
     case MODE_REGULAR:
       /* Reminder: Blending func is pre-multiply alpha blend
        * `(dst.rgba * (1 - src.a) + src.rgb)`. */
@@ -28,8 +31,7 @@ void blend_mode_output(
       break;
     case MODE_MULTIPLY:
       /* Reminder: Blending func is multiply blend `(dst.rgba * src.rgba)`. */
-      color.a *= opacity;
-      frag_revealage = frag_color = (1.0f - color.a) + color.a * color;
+      frag_revealage = frag_color = (1.0f - color.a * opacity) + color * opacity;
       break;
     case MODE_DIVIDE:
       /* Reminder: Blending func is multiply blend `(dst.rgba * src.rgba)`. */

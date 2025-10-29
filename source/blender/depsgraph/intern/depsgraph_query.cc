@@ -14,6 +14,7 @@
 
 #include "BKE_action.hh" /* XXX: BKE_pose_channel_find_name */
 #include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 
 #include "DNA_object_types.h"
@@ -206,19 +207,6 @@ ViewLayer *DEG_get_evaluated_view_layer(const Depsgraph *graph)
   return view_layer_cow;
 }
 
-Object *DEG_get_evaluated_object(const Depsgraph *depsgraph, Object *object)
-{
-  if (object == nullptr) {
-    return nullptr;
-  }
-  return (Object *)DEG_get_evaluated_id(depsgraph, &object->id);
-}
-
-const Object *DEG_get_evaluated_object(const Depsgraph *depsgraph, const Object *object)
-{
-  return DEG_get_evaluated_object(depsgraph, const_cast<Object *>(object));
-}
-
 ID *DEG_get_evaluated_id(const Depsgraph *depsgraph, ID *id)
 {
   return deg::get_evaluated_id(reinterpret_cast<const deg::Depsgraph *>(depsgraph), id);
@@ -296,7 +284,7 @@ const ID *DEG_get_original_id(const ID *id)
 
 Depsgraph *DEG_get_depsgraph_by_id(const ID &id)
 {
-  return id.runtime.depsgraph;
+  return id.runtime->depsgraph;
 }
 
 bool DEG_is_original_id(const ID *id)
@@ -323,19 +311,9 @@ bool DEG_is_original_id(const ID *id)
   return true;
 }
 
-bool DEG_is_original_object(const Object *object)
-{
-  return DEG_is_original_id(&object->id);
-}
-
 bool DEG_is_evaluated_id(const ID *id)
 {
   return !DEG_is_original_id(id);
-}
-
-bool DEG_is_evaluated_object(const Object *object)
-{
-  return !DEG_is_original_object(object);
 }
 
 bool DEG_is_fully_evaluated(const Depsgraph *depsgraph)

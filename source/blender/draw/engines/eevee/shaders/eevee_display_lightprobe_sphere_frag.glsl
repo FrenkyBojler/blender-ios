@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_lightprobe_sphere_info.hh"
+#include "infos/eevee_lightprobe_sphere_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_display_lightprobe_sphere)
 
@@ -15,7 +15,7 @@ void main()
 
   /* Discard outside the circle. */
   if (dist_sqr > 1.0f) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
 

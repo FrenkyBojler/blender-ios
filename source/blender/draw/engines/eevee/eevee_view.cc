@@ -118,7 +118,7 @@ void ShadingView::render()
   /* Alpha stores transmittance. So start at 1. */
   float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   GPU_framebuffer_bind(combined_fb_);
-  GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, 1.0f);
+  GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, inst_.film.depth.clear_value);
   inst_.pipelines.background.clear(render_view_);
 
   /* TODO(fclem): Move it after the first prepass (and hiz update) once pipeline is stabilized. */
@@ -157,7 +157,7 @@ void ShadingView::render()
   inst_.sphere_probes.viewport_draw(render_view_, combined_fb_);
   inst_.planar_probes.viewport_draw(render_view_, combined_fb_);
 
-  GPUTexture *combined_final_tx = render_postfx(rbufs.combined_tx);
+  gpu::Texture *combined_final_tx = render_postfx(rbufs.combined_tx);
   inst_.film.accumulate(jitter_view_, combined_final_tx);
 
   rbufs.release();
@@ -180,12 +180,12 @@ void ShadingView::render_transparent_pass(RenderBuffers &rbufs)
   }
 }
 
-GPUTexture *ShadingView::render_postfx(GPUTexture *input_tx)
+gpu::Texture *ShadingView::render_postfx(gpu::Texture *input_tx)
 {
   if (!inst_.depth_of_field.postfx_enabled() && !inst_.motion_blur.postfx_enabled()) {
     return input_tx;
   }
-  postfx_tx_.acquire(extent_, GPU_RGBA16F);
+  postfx_tx_.acquire(extent_, gpu::TextureFormat::SFLOAT_16_16_16_16);
 
   /* Fix a sync bug on AMD + Mesa when volume + motion blur create artifacts
    * except if there is a clear event between them. */
@@ -196,7 +196,7 @@ GPUTexture *ShadingView::render_postfx(GPUTexture *input_tx)
     postfx_tx_.clear(float4(0.0f));
   }
 
-  GPUTexture *output_tx = postfx_tx_;
+  gpu::Texture *output_tx = postfx_tx_;
 
   /* Swapping is done internally. Actual output is set to the next input. */
   inst_.motion_blur.render(render_view_, &input_tx, &output_tx);
@@ -366,7 +366,8 @@ void CaptureView::render_probes()
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(1), 0));
 
       GPU_framebuffer_bind(combined_fb_);
-      GPU_framebuffer_clear_color_depth(combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), 1.0f);
+      GPU_framebuffer_clear_color_depth(
+          combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), inst_.film.depth.clear_value);
       inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
 

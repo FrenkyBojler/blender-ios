@@ -7,13 +7,15 @@
  * Dispatched one thread per light.
  */
 
-#include "infos/eevee_light_culling_info.hh"
+#include "infos/eevee_light_culling_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_light_shadow_setup)
 
 #include "eevee_sampling_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
+#include "gpu_shader_math_matrix_construct_lib.glsl"
 #include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_math_matrix_projection_lib.glsl"
 
 int shadow_directional_coverage_get(int level)
 {
@@ -43,7 +45,7 @@ void orthographic_sync(int tilemap_id,
     tilemaps_clip_buf[clip_index].object_to_world = object_to_world;
   }
   else {
-    /* Same light direction but camera might have moved. Shift tilemap grid.  */
+    /* Same light direction but camera might have moved. Shift tilemap grid. */
     tilemaps_buf[tilemap_id].grid_shift = origin_offset -
                                           tilemaps_clip_buf[clip_index].grid_offset;
   }

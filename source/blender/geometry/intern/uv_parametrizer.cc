@@ -12,7 +12,7 @@
 #include "GEO_uv_parametrizer.hh"
 
 #include "BLI_array.hh"
-#include "BLI_convexhull_2d.h"
+#include "BLI_convexhull_2d.hh"
 #include "BLI_ghash.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -37,7 +37,7 @@ namespace blender::geometry {
 #define param_warning(message) \
   {/* `printf("Warning %s:%d: %s\n", __FILE__, __LINE__, message);` */}(void)0
 
-/* Prevent unused function warnings when slim is disabled.  */
+/* Prevent unused function warnings when slim is disabled. */
 #ifdef WITH_UV_SLIM
 #  define UNUSED_FUNCTION_NO_SLIM(x) x
 #else
@@ -197,7 +197,7 @@ static PHash *phash_new(PHashLink **list, int sizehint)
   }
 
   ph->cursize = PHashSizes[ph->cursize_id];
-  ph->buckets = MEM_calloc_arrayN<PHashLink *>(size_t(ph->cursize), "PHashBuckets");
+  ph->buckets = MEM_calloc_arrayN<PHashLink *>(ph->cursize, "PHashBuckets");
 
   return ph;
 }
@@ -242,7 +242,7 @@ static void phash_insert(PHash *ph, PHashLink *link)
 
     ph->cursize = PHashSizes[++ph->cursize_id];
     MEM_freeN(ph->buckets);
-    ph->buckets = MEM_calloc_arrayN<PHashLink *>(size_t(ph->cursize), "PHashBuckets");
+    ph->buckets = (PHashLink **)MEM_callocN(ph->cursize * sizeof(*ph->buckets), "PHashBuckets");
     ph->size = 0;
     *(ph->list) = nullptr;
 
@@ -489,7 +489,7 @@ static void p_chart_uv_transform(PChart *chart, const float mat[2][2])
   }
 }
 
-static void p_chart_uv_to_array(PChart *chart, float (*points)[2])
+static void p_chart_uv_to_array(PChart *chart, MutableSpan<float2> points)
 {
   PVert *v;
   uint i = 0;
@@ -1029,7 +1029,7 @@ static void p_split_vert(ParamHandle *handle, PChart *chart, PEdge *e)
 
 static PChart **p_split_charts(ParamHandle *handle, PChart *chart, int ncharts)
 {
-  PChart **charts = MEM_calloc_arrayN<PChart *>(size_t(ncharts), "PCharts");
+  PChart **charts = MEM_calloc_arrayN<PChart *>(ncharts, "PCharts");
 
   for (int i = 0; i < ncharts; i++) {
     charts[i] = MEM_callocN<PChart>("PChart");
@@ -1450,10 +1450,10 @@ static void p_polygon_kernel_center(float (*points)[2], int npoints, float *cent
     if (nnewpoints * 2 > size) {
       size *= 2;
       MEM_freeN(oldpoints);
-      oldpoints = MEM_malloc_arrayN<float[2]>(size_t(size), "oldpoints");
+      oldpoints = MEM_mallocN(sizeof(float[2]) * size, "oldpoints");
       memcpy(oldpoints, newpoints, sizeof(float[2]) * nnewpoints);
       MEM_freeN(newpoints);
-      newpoints = MEM_malloc_arrayN<float[2]>(size_t(size), "newpoints");
+      newpoints = MEM_mallocN(sizeof(float[2]) * size, "newpoints");
     }
     else {
       float(*sw_points)[2] = oldpoints;
@@ -2365,9 +2365,9 @@ static void p_abf_setup_system(PAbfSystem *sys)
   sys->bTriangle = MEM_malloc_arrayN<float>(size_t(sys->nfaces), "ABFbtriangle");
   sys->bInterior = MEM_malloc_arrayN<float>(2 * size_t(sys->ninterior), "ABFbinterior");
 
-  sys->lambdaTriangle = MEM_calloc_arrayN<float>(size_t(sys->nfaces), "ABFlambdatri");
-  sys->lambdaPlanar = MEM_calloc_arrayN<float>(size_t(sys->ninterior), "ABFlamdaplane");
-  sys->lambdaLength = MEM_malloc_arrayN<float>(size_t(sys->ninterior), "ABFlambdalen");
+  sys->lambdaTriangle = MEM_calloc_arrayN<float>(sys->nfaces, "ABFlambdatri");
+  sys->lambdaPlanar = MEM_calloc_arrayN<float>(sys->ninterior, "ABFlamdaplane");
+  sys->lambdaLength = MEM_malloc_arrayN<float>(sys->ninterior, "ABFlambdalen");
 
   sys->J2dt = MEM_malloc_arrayN<float[3]>(size_t(sys->nangles), "ABFj2dt");
   sys->bstar = MEM_malloc_arrayN<float>(size_t(sys->nfaces), "ABFbstar");
@@ -3708,13 +3708,11 @@ static void p_chart_rotate_minimum_area(PChart *chart)
 
 static void p_chart_rotate_fit_aabb(PChart *chart)
 {
-  float(*points)[2] = MEM_malloc_arrayN<float[2]>(size_t(chart->nverts), __func__);
+  Array<float2> points(chart->nverts);
 
   p_chart_uv_to_array(chart, points);
 
-  float angle = BLI_convexhull_aabb_fit_points_2d(points, chart->nverts);
-
-  MEM_freeN(points);
+  float angle = BLI_convexhull_aabb_fit_points_2d(points);
 
   if (angle != 0.0f) {
     float mat[2][2];
@@ -3857,7 +3855,7 @@ static void p_add_ngon(ParamHandle *handle,
   uint nfilltri = nverts - 2;
   uint(*tris)[3] = static_cast<uint(*)[3]>(
       BLI_memarena_alloc(arena, sizeof(*tris) * size_t(nfilltri)));
-  float(*projverts)[2] = static_cast<float(*)[2]>(
+  float (*projverts)[2] = static_cast<float (*)[2]>(
       BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(nverts)));
 
   /* Calc normal, flipped: to get a positive 2d cross product. */
@@ -4178,7 +4176,7 @@ void uv_parametrizer_stretch_end(ParamHandle *phandle)
   phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
-void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_pinned)
+void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params)
 {
   if (handle->ncharts == 0) {
     return;
@@ -4188,14 +4186,9 @@ void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, boo
 
   Vector<PackIsland *> pack_island_vector;
 
-  UVPackIsland_Params params;
-  params.rotate_method = do_rotate ? ED_UVPACK_ROTATION_ANY : ED_UVPACK_ROTATION_NONE;
-  params.margin = margin;
-  params.margin_method = ED_UVPACK_MARGIN_SCALED;
-
   for (int i = 0; i < handle->ncharts; i++) {
     PChart *chart = handle->charts[i];
-    if (ignore_pinned && chart->has_pins) {
+    if (params.pin_method == ED_UVPACK_PIN_NONE && chart->has_pins) {
       continue;
     }
 
@@ -4226,6 +4219,7 @@ void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, boo
     for (PVert *v = chart->verts; v; v = v->nextlink) {
       geometry::mul_v2_m2_add_v2v2(v->uv, matrix, v->uv, pack_island->pre_translate);
     }
+    geometry::p_chart_uv_translate(chart, params.udim_base_offset);
 
     pack_island_vector[i] = nullptr;
     delete pack_island;
@@ -4278,7 +4272,7 @@ void uv_parametrizer_average(ParamHandle *phandle, bool ignore_pinned, bool scal
           s[0][1] = va->uv[1] - vc->uv[1];
           s[1][0] = vb->uv[0] - vc->uv[0];
           s[1][1] = vb->uv[1] - vc->uv[1];
-          /* Find the "U" axis and "V" axis in triangle co-ordinates. Normally this would require
+          /* Find the "U" axis and "V" axis in triangle coordinates. Normally this would require
            * SVD, but in 2D we can use a cheaper matrix inversion instead. */
           if (!invert_m2_m2(m, s)) {
             continue;

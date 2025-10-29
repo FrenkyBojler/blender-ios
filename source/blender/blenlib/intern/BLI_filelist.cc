@@ -108,6 +108,7 @@ struct BuildDirCtx {
  */
 static void bli_builddir(BuildDirCtx *dir_ctx, const char *dirname)
 {
+  BLI_assert(!BLI_path_is_rel(dirname));
   DIR *dir = opendir(dirname);
   if (UNLIKELY(dir == nullptr)) {
     fprintf(stderr,
@@ -430,10 +431,10 @@ void BLI_filelist_duplicate(direntry **dest_filelist,
 void BLI_filelist_entry_free(direntry *entry)
 {
   if (entry->relname) {
-    MEM_freeN((void *)entry->relname);
+    MEM_freeN(entry->relname);
   }
   if (entry->path) {
-    MEM_freeN((void *)entry->path);
+    MEM_freeN(entry->path);
   }
 }
 

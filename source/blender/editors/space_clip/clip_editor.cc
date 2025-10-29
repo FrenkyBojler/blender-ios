@@ -24,6 +24,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_mutex.hh"
 #include "BLI_rect.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -104,7 +105,8 @@ bool ED_space_clip_maskedit_visible_splines_poll(bContext *C)
   }
 
   const SpaceClip *space_clip = CTX_wm_space_clip(C);
-  return space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
+  return space_clip->overlay.flag & SC_SHOW_OVERLAYS &&
+         space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 
 bool ED_space_clip_maskedit_mask_poll(bContext *C)
@@ -129,7 +131,8 @@ bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext *C)
   }
 
   const SpaceClip *space_clip = CTX_wm_space_clip(C);
-  return space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
+  return space_clip->overlay.flag & SC_SHOW_OVERLAYS &&
+         space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 
 /** \} */
@@ -681,7 +684,7 @@ struct PrefetchQueue {
    */
   bool forward;
 
-  SpinLock spin;
+  blender::Mutex mutex;
 
   bool *stop;
   bool *do_update;
@@ -780,7 +783,7 @@ static uchar *prefetch_thread_next_frame(PrefetchQueue *queue,
 {
   uchar *mem = nullptr;
 
-  BLI_spin_lock(&queue->spin);
+  std::lock_guard lock(queue->mutex);
   if (!*queue->stop && !check_prefetch_break() &&
       IN_RANGE_INCL(queue->current_frame, queue->start_frame, queue->end_frame))
   {
@@ -831,7 +834,6 @@ static uchar *prefetch_thread_next_frame(PrefetchQueue *queue,
       *queue->progress = float(frames_processed) / (queue->end_frame - queue->start_frame);
     }
   }
-  BLI_spin_unlock(&queue->spin);
 
   return mem;
 }
@@ -896,8 +898,6 @@ static void start_prefetch_threads(MovieClip *clip,
 
   /* initialize queue */
   PrefetchQueue queue;
-  BLI_spin_init(&queue.spin);
-
   queue.current_frame = current_frame;
   queue.initial_frame = current_frame;
   queue.start_frame = start_frame;
@@ -916,8 +916,6 @@ static void start_prefetch_threads(MovieClip *clip,
   }
   BLI_task_pool_work_and_wait(task_pool);
   BLI_task_pool_free(task_pool);
-
-  BLI_spin_end(&queue.spin);
 }
 
 /* NOTE: Reading happens from `clip_local` into `clip->cache`. */
@@ -1121,7 +1119,7 @@ void clip_start_prefetch_job(const bContext *C)
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        CTX_data_scene(C),
-                       "Prefetching",
+                       "Prefetching...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_PREFETCH);
 

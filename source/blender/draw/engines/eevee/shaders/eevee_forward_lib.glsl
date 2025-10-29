@@ -10,10 +10,11 @@
  * This is used by alpha blended materials and materials using Shader to RGB nodes.
  */
 
+#include "draw_model_lib.glsl"
 #include "eevee_colorspace_lib.glsl"
 #include "eevee_light_eval_lib.glsl"
 #include "eevee_lightprobe_eval_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_closures_lib.glsl"
 #include "eevee_subsurface_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 
@@ -41,12 +42,15 @@ void forward_lighting_eval(float thickness, out float3 radiance, out float3 tran
    * by 1 for this evaluation and skip evaluating the transmission closure twice. */
   ObjectInfos object_infos = drw_infos[drw_resource_id()];
   uchar receiver_light_set = receiver_light_set_get(object_infos);
-  light_eval_reflection(stack, g_data.P, g_data.Ng, V, vPz, receiver_light_set);
+  float normal_offset = object_infos.shadow_terminator_normal_offset;
+  float geometry_offset = object_infos.shadow_terminator_geometry_offset;
+  light_eval_reflection(
+      stack, g_data.P, g_data.Ng, V, vPz, receiver_light_set, normal_offset, geometry_offset);
 
 #if defined(MAT_SUBSURFACE) || defined(MAT_REFRACTION) || defined(MAT_TRANSLUCENT)
 
   ClosureUndetermined cl_transmit = g_closure_get(0);
-  if (cl_transmit.type != CLOSURE_NONE) {
+  if (cl_transmit.type != CLOSURE_NONE_ID) {
 #  if defined(MAT_SUBSURFACE)
     float3 sss_reflect_shadowed, sss_reflect_unshadowed;
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
@@ -58,7 +62,15 @@ void forward_lighting_eval(float thickness, out float3 radiance, out float3 tran
     stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
 
     /* NOTE: Only evaluates `stack.cl[0]`. */
-    light_eval_transmission(stack, g_data.P, g_data.Ng, V, vPz, thickness, receiver_light_set);
+    light_eval_transmission(stack,
+                            g_data.P,
+                            g_data.Ng,
+                            V,
+                            vPz,
+                            thickness,
+                            receiver_light_set,
+                            normal_offset,
+                            geometry_offset);
 
 #  if defined(MAT_SUBSURFACE)
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
@@ -84,7 +96,7 @@ void forward_lighting_eval(float thickness, out float3 radiance, out float3 tran
   float3 radiance_indirect = float3(0.0f);
   for (uchar i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
     ClosureUndetermined cl = g_closure_get_resolved(i, 1.0f);
-    if (cl.weight > 1e-5f) {
+    if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
       float3 direct_light = closure_light_get(stack, i).light_shadowed;
       float3 indirect_light = lightprobe_eval(samp, cl, g_data.P, V, thickness);
 
