@@ -257,7 +257,7 @@ class ShaderCompiler {
 
   bool is_compiling_impl();
 
-  std::atomic<bool> is_paused_ = false;
+  bool is_paused_ = false;
   std::condition_variable pause_finished_notification_;
 
  protected:
