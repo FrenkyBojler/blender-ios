@@ -2568,30 +2568,27 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
                                     bNode &end_node)
 {
   if (&start_node == &end_node) {
-    return true;  // 如果起点和终点是同一个节点, 路径当然存在.
+    return true;
   }
 
-  Vector<bNode *> to_visit;  // 待访问的节点 "栈"
+  Vector<bNode *> to_visit;
   to_visit.append(&start_node);
 
-  VectorSet<bNode *> visited;  // 已经访问过的节点, 防止死循环
+  VectorSet<bNode *> visited;
   visited.add(&start_node);
 
   while (!to_visit.is_empty()) {
     bNode *current_node = to_visit.pop_last();
-
     for (bNodeSocket *out_sock : current_node->output_sockets()) {
       for (bNodeSocket *linked_sock : out_sock->directly_linked_sockets()) {
         bNode &next_node = linked_sock->owner_node();
-        // 如果下一个节点就是终点, 我们成功了!
+        if (!selected_nodes.contains(&next_node)) {
+          continue;
+        }
         if (&next_node == &end_node) {
           return true;
         }
-        // 关键检查: 下一个节点必须在允许的 "选中节点" 集合里.
-        if (!selected_nodes.contains(&next_node)) {
-          continue;  // 如果不在, 这条路不通, 换下一条.
-        }
-        // 如果下一个节点合法且没被访问过, 就加入待访问列表.
+         /* Avoid cycles in the graph. */
         if (visited.add(&next_node)) {
           to_visit.append(&next_node);
         }
@@ -2608,13 +2605,12 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
 {
   NodeEndpoint result{};
   rctf bounds{};
-  Map<int, Vector<bNode *>> start_candidates_by_priority;
   Vector<bNode *> end_candidates;
-
-  bool find_first = false;
 
   // VectorSet<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false);
   Vector<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false).extract_vector();
+
+  bool find_first = false;
   for (bNode *node : selected_nodes) {
     if (!find_first) {
       result.bounds = node->runtime->draw_bounds;
@@ -2635,12 +2631,13 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
       end_candidates.append(node);
     }
   }
-  // todo 或许可以有多个,但只考虑最高优先级且只有一个?
+
   if (selected_nodes.is_empty() || end_candidates.size() != 1) {
     return {};
   }
+  // todo 或许可以有多个,但只考虑最高优先级且只有一个?
   bNode *end_node = end_candidates[0];
-
+  Map<int, Vector<bNode *>> start_candidates_by_priority;
   int max_priority = INT_MIN;
   for (bNode *node : selected_nodes) {
     const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
@@ -2674,6 +2671,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   // ! 或许应该找和end兼容的优先级?
   // 变换方向和投影点无法插入到矢量连线,变换点可以
   // 变换方向和投影点可以插入到矩阵连线,变换点不行
+  // 合并字符串也有问题
   const Vector<bNode *> &start_candidates = start_candidates_by_priority.lookup(max_priority);
   if (start_candidates.size() != 1) {
     return {};
@@ -3152,6 +3150,8 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     }
   }
 
+  VectorSet<bNode *> transformed_nodes = transform::get_transformed_nodes(*ntree, false);
+
   /* *** ensure offset at the left (or right for right_alignment case) of insert_node *** */
 
   float dist = right_alignment ? totr_insert.xmin - prev->runtime->draw_bounds.xmax :
@@ -3160,7 +3160,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
 
-    for (bNode *node : transform::get_transformed_nodes(*ntree, false)) {
+    for (bNode *node : transformed_nodes) {
         node_offset_apply(*node, addval);
     }
 
@@ -3184,7 +3184,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     /* enough room is available, but we want to ensure the min margin at the right */
     else {
       /* offset inserted node so that min margin is kept at the right */
-      for (bNode *node : transform::get_transformed_nodes(*ntree, false)) {
+      for (bNode *node : transformed_nodes) {
           node_offset_apply(*node, -addval);
       }
     }
@@ -3194,7 +3194,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     iofsd->offset_x = margin;
 
     /* flag all parents of insert as offset to prevent them from being offset */
-    for (bNode *node : transform::get_transformed_nodes(*ntree, false)) {
+    for (bNode *node : transformed_nodes) {
       bke::node_parents_iterator(node, node_parents_offset_flag_enable_cb, nullptr);
     }
     /* iterate over entire chain and apply offsets */
