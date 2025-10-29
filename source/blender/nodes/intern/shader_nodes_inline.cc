@@ -278,7 +278,7 @@ class ShaderNodesInliner {
       bNodeSocket *copied_socket = static_cast<bNodeSocket *>(
           BLI_findlink(&copied_node->inputs, socket.socket->index()));
       this->set_input_socket_value(
-          *src_node, *copied_node, *copied_socket, value_by_socket_.lookup(socket));
+          src_node, *copied_node, *copied_socket, value_by_socket_.lookup(socket));
     }
 
     this->restore_zones_in_output_tree();
@@ -509,6 +509,10 @@ class ShaderNodesInliner {
       this->handle_output_socket__menu_switch(socket);
       return;
     }
+    if (node->is_type("GeometryNodeInputNamedAttribute")) {
+      this->handle_output_socket__named_attribute(socket);
+      return;
+    }
     this->handle_output_socket__eval(socket);
   }
 
@@ -619,7 +623,7 @@ class ShaderNodesInliner {
     const std::optional<PrimitiveSocketValue> expr_value_opt = expr_socket_value->to_primitive(
         *expr_input_socket->typeinfo);
     if (!expr_value_opt) {
-      params_.r_error_messages.append({&*node, TIP_("Expression must be a constant value")});
+      this->report_error(node, TIP_("Expression must be a constant value"));
       this->store_socket_value_fallback(socket);
       return;
     }
@@ -628,7 +632,7 @@ class ShaderNodesInliner {
         socket,
         [&]() { return expression::expression_node_to_group(*node, expression, expr_index); });
     if (!group.tree) {
-      params_.r_error_messages.append({&*node, group.error});
+      this->report_error(node, group.error);
       this->store_socket_value_fallback(socket);
       return;
     }
@@ -704,7 +708,7 @@ class ShaderNodesInliner {
     const std::optional<PrimitiveSocketValue> iterations_value_opt =
         iterations_socket_value->to_primitive(*iterations_input->typeinfo);
     if (!iterations_value_opt) {
-      this->add_dynamic_repeat_zone_iterations_error(*repeat_input_node);
+      this->add_dynamic_repeat_zone_iterations_error(repeat_input_node);
     }
     const int iterations = iterations_value_opt.has_value() ?
                                std::get<int>(iterations_value_opt->value) :
@@ -764,10 +768,9 @@ class ShaderNodesInliner {
     preserved_zone.input_node = &copied_node;
   }
 
-  void add_dynamic_repeat_zone_iterations_error(const bNode &repeat_input_node)
+  void add_dynamic_repeat_zone_iterations_error(const NodeInContext &repeat_input_node)
   {
-    params_.r_error_messages.append(
-        {&repeat_input_node, TIP_("Iterations input has to be a constant value")});
+    this->report_error(repeat_input_node, TIP_("Iterations input has to be a constant value"));
   }
 
   void handle_output_socket__repeat_input(const SocketInContext &socket)
@@ -868,8 +871,7 @@ class ShaderNodesInliner {
 
     if (closure_eval_context.is_recursive()) {
       this->store_socket_value_fallback(socket);
-      params_.r_error_messages.append(
-          {&*evaluate_closure_node, TIP_("Recursive closures are not supported")});
+      this->report_error(evaluate_closure_node, TIP_("Recursive closures are not supported"));
       return;
     }
 
@@ -1004,7 +1006,7 @@ class ShaderNodesInliner {
       /* This limitation may be lifted in the future. Menu Switch nodes could be supported natively
        * by render engines or we convert them to a bunch of mix nodes. */
       this->store_socket_value_fallback(socket);
-      params_.r_error_messages.append({node.node, TIP_("Menu value has to be a constant value")});
+      this->report_error(node, TIP_("Menu value has to be a constant value"));
       return;
     }
     const MenuValue menu_value = std::get<MenuValue>(menu_value_opt->value);
@@ -1030,6 +1032,52 @@ class ShaderNodesInliner {
     /* Set the value of the mask output. */
     const bool is_selected = selected_index == socket->index() - 1;
     this->store_socket_value(socket, {PrimitiveSocketValue{is_selected}});
+  }
+
+  void handle_output_socket__named_attribute(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    if (socket->identifier == StringRef("Exists")) {
+      this->store_socket_value_fallback(socket);
+      this->report_error(node, TIP_("Exists output is not supported in shader nodes"));
+      return;
+    }
+    const auto &storage = *static_cast<const NodeGeometryInputNamedAttribute *>(node->storage);
+    const SocketInContext attribute_name_input = node.input_socket(0);
+    const SocketValue *attribute_name_value = value_by_socket_.lookup_ptr(attribute_name_input);
+    if (!attribute_name_value) {
+      this->schedule_socket(attribute_name_input);
+      return;
+    }
+    const std::optional<PrimitiveSocketValue> attribute_name_opt =
+        attribute_name_value->to_primitive(*attribute_name_input.socket->typeinfo);
+    if (!attribute_name_opt) {
+      this->store_socket_value_fallback(socket);
+      this->report_error(node, TIP_("Attribute name has to be a constant value"));
+      return;
+    }
+    const std::string attribute_name = std::get<std::string>(attribute_name_opt->value);
+    bNode &new_node = *this->add_node("ShaderNodeAttribute");
+    auto &new_node_storage = *static_cast<NodeShaderAttribute *>(new_node.storage);
+    STRNCPY(new_node_storage.name, attribute_name.c_str());
+
+    const eCustomDataType data_type = eCustomDataType(storage.data_type);
+    if (ELEM(data_type, CD_PROP_FLOAT, CD_PROP_INT32, CD_PROP_BOOL)) {
+      bNodeSocket &float_output = *bke::node_find_socket(new_node, SOCK_OUT, "Factor");
+      this->store_socket_value(socket, {LinkedSocketValue{&new_node, &float_output}});
+      return;
+    }
+    if (data_type == CD_PROP_FLOAT3) {
+      bNodeSocket &vector_output = *bke::node_find_socket(new_node, SOCK_OUT, "Vector");
+      this->store_socket_value(socket, {LinkedSocketValue{&new_node, &vector_output}});
+      return;
+    }
+    if (data_type == CD_PROP_COLOR) {
+      bNodeSocket &color_output = *bke::node_find_socket(new_node, SOCK_OUT, "Color");
+      this->store_socket_value(socket, {LinkedSocketValue{&new_node, &color_output}});
+      return;
+    }
+    this->store_socket_value_fallback(socket);
   }
 
   /**
@@ -1157,7 +1205,7 @@ class ShaderNodesInliner {
       bNodeSocket &dst_input_socket = *socket_map.lookup(src_input_socket);
       const SocketInContext input_socket_ctx = {node.context, src_input_socket};
       const SocketValue &value = value_by_socket_.lookup(input_socket_ctx);
-      this->set_input_socket_value(*node, copied_node, dst_input_socket, value);
+      this->set_input_socket_value(node, copied_node, dst_input_socket, value);
     }
     for (const bNodeSocket *src_output_socket : node->output_sockets()) {
       if (!src_output_socket->is_available()) {
@@ -1215,7 +1263,7 @@ class ShaderNodesInliner {
     return SocketValue{FallbackValue{}};
   }
 
-  void set_input_socket_value(const bNode &original_node,
+  void set_input_socket_value(const NodeInContext &original_node,
                               bNode &dst_node,
                               bNodeSocket &dst_socket,
                               const SocketValue &value)
@@ -1466,6 +1514,29 @@ class ShaderNodesInliner {
   {
     const bool use_refcounting = !(dst_tree_.id.tag & ID_TAG_NO_MAIN);
     return use_refcounting ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT;
+  }
+
+  void report_error(const NodeInContext &node, const StringRef message)
+  {
+    Vector<NodeInContext> nodes;
+    nodes.append(node);
+    for (const ComputeContext *context = node.context; context; context = context->parent()) {
+      if (const auto *group_context = dynamic_cast<const bke::GroupNodeComputeContext *>(context))
+      {
+        nodes.append({context->parent(), group_context->node()});
+      }
+      else if (const auto *expression_output_context =
+                   dynamic_cast<const bke::ExpressionNodeOutputComputeContext *>(context))
+      {
+        /* Clear already found nodes, because those are dynamically generated and the user never
+         * sees them. */
+        nodes.clear();
+        nodes.append({expression_output_context->parent(), expression_output_context->node()});
+      }
+    }
+    for (const NodeInContext &node : nodes) {
+      params_.r_error_messages.append({&*node, message});
+    }
   }
 };
 

@@ -47,6 +47,7 @@ struct TypeCheckCallParams {
 
 struct InsertCallParams {
   AstToNodeGroupBuilder &builder;
+  const bNodeTree &tree;
 
   Vector<NodeAndSocket> inputs;
   NodeAndSocket output;
@@ -304,7 +305,7 @@ class AstToNodeGroupBuilder {
       return {};
     }
     const FunctionSymbol &function = *filtered_candidates[0];
-    InsertCallParams insert_params{*this};
+    InsertCallParams insert_params{*this, r_tree_};
     function.insert(insert_params);
     BLI_assert(insert_params.inputs.size() == args.size());
     BLI_assert(insert_params.output.socket);
@@ -385,6 +386,23 @@ static FunctionSymbol vector_member_access(const int index)
       });
 }
 
+static FunctionSymbol attribute_access(const StringRef name, const eCustomDataType type)
+{
+  return FunctionSymbol(
+      name,
+      [](TypeCheckCallParams &params) {
+        return params.input_types.size() == 1 && params.input_types[0]->type == SOCK_STRING;
+      },
+      [type](InsertCallParams &params) {
+        bNode &node = params.add_node("GeometryNodeInputNamedAttribute");
+        auto &storage = *static_cast<NodeGeometryInputNamedAttribute *>(node.storage);
+        storage.data_type = type;
+        params.update_node_sockets(node);
+        params.use_node_inputs(node);
+        params.set_output(node, 0);
+      });
+}
+
 static FunctionSymbol string_concatenation()
 {
   return FunctionSymbol(
@@ -430,6 +448,8 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(vector_member_access(2));
   symbols.add(negate_float_function());
   symbols.add(string_concatenation());
+  symbols.add(attribute_access("attrf", CD_PROP_FLOAT));
+  symbols.add(attribute_access("attrv", CD_PROP_FLOAT3));
 }
 
 static SymbolTable &get_symbol_table()
