@@ -162,6 +162,22 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_default_remaining_outputs();
 }
 
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
+{
+  if (!socket_items::try_add_item_via_any_extend_socket<ExpressionItemsAccessor>(
+          params.ntree, params.node, params.node, params.link, "__extend__expression_input"))
+  {
+    return false;
+  }
+  if (!socket_items::try_add_item_via_any_extend_socket<ExpressionItemsAccessor>(
+          params.ntree, params.node, params.node, params.link, "__extend__expression_output"))
+  {
+    return false;
+  }
+  return socket_items::try_add_item_via_any_extend_socket<ExpressionInputItemsAccessor>(
+      params.ntree, params.node, params.node, params.link);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -178,6 +194,7 @@ static void node_register()
   ntype.blend_data_read_storage_content = node_blend_read;
   ntype.register_operators = node_operators;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.insert_link = node_insert_link;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
