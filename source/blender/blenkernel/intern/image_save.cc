@@ -253,6 +253,8 @@ static void image_save_post(ReportList *reports,
   }
 
   ibuf->userflags &= ~IB_BITMAPDIRTY;
+  ima->format_flag = ibuf->foptions.flag;
+  ima->format_quality = ibuf->foptions.quality;
 
   /* change type? */
   if (ima->type == IMA_TYPE_R_RESULT) {

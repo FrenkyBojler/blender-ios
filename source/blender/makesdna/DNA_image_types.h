@@ -170,6 +170,9 @@ typedef struct Image {
 
   char _pad2[2];
 
+  int format_flag;
+  int format_quality;
+
   /** Deprecated. */
   struct PackedFile *packedfile DNA_DEPRECATED;
   struct ListBase packedfiles;

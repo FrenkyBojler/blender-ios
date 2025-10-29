@@ -4113,6 +4113,13 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 114)) {
+    LISTBASE_FOREACH (Image *, image, &bmain->images) {
+      image->format_flag = 0;
+      image->format_quality = 90;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

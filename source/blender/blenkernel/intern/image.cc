@@ -3962,13 +3962,16 @@ static void image_create_multilayer(Image *ima, ImBuf *ibuf, int framenr)
 #endif /* WITH_IMAGE_OPENEXR */
 
 /** Common stuff to do with images after loading. */
-static void image_init_after_load(Image *ima, ImageUser *iuser, ImBuf * /*ibuf*/)
+static void image_init_after_load(Image *ima, ImageUser *iuser, ImBuf *ibuf)
 {
   /* Preview is null when it has never been used as an icon before.
    * Never handle previews/icons outside of main thread. */
   if (G.background == 0 && ima->preview == nullptr && BLI_thread_is_main()) {
     BKE_icon_changed(BKE_icon_id_ensure(&ima->id));
   }
+
+  ibuf->foptions.flag = ima->format_flag;
+  ibuf->foptions.quality = ima->format_quality;
 
   /* timer */
   BKE_image_tag_time(ima);

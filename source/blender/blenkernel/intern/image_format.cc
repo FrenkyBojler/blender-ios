@@ -992,6 +992,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     if (custom_flags & OPENEXR_MULTIPART) {
       im_format->exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
     }
+    im_format->quality = quality;
   }
 #endif
 
