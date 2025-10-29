@@ -50,7 +50,6 @@ using blender::draw::View;
  * \{ */
 struct LookdevParameters {
   std::string hdri;
-  float rot_z = 0.0f;
   float background_opacity = 0.0f;
   float intensity = 1.0f;
   float blur = 0.0f;
@@ -74,7 +73,6 @@ class LookdevWorld {
  private:
   bNode *environment_node_ = nullptr;
   bNodeSocketValueFloat *intensity_socket_ = nullptr;
-  bNodeSocketValueFloat *angle_socket_ = nullptr;
   ::Image *image = nullptr;
   ::World *world = nullptr;
 
@@ -126,6 +124,7 @@ class LookdevModule {
   bool use_viewspace_lighting_ = false;
   /* Used for update detection. */
   float4x4 last_rotation_matrix_ = float4x4::identity();
+  float studio_light_rotation_z_ = 0.0f;
 
   static constexpr int num_spheres = 2;
 

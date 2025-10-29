@@ -38,20 +38,9 @@ LookdevWorld::LookdevWorld()
   bNodeTree *ntree = bke::node_tree_add_tree_embedded(
       nullptr, &world->id, "Lookdev World Nodetree", ntreeType_Shader->idname);
 
-  bNode *coordinate = bke::node_add_static_node(nullptr, *ntree, SH_NODE_TEX_COORD);
-  bNodeSocket *coordinate_out = bke::node_find_socket(*coordinate, SOCK_OUT, "Generated");
-
-  bNode *rotate = bke::node_add_static_node(nullptr, *ntree, SH_NODE_VECTOR_ROTATE);
-  rotate->custom1 = NODE_VECTOR_ROTATE_TYPE_AXIS_Z;
-  bNodeSocket *rotate_vector_in = bke::node_find_socket(*rotate, SOCK_IN, "Vector");
-  angle_socket_ = static_cast<bNodeSocketValueFloat *>(
-      bke::node_find_socket(*rotate, SOCK_IN, "Angle")->default_value);
-  bNodeSocket *rotate_out = bke::node_find_socket(*rotate, SOCK_OUT, "Vector");
-
   bNode *environment = bke::node_add_static_node(nullptr, *ntree, SH_NODE_TEX_ENVIRONMENT);
   environment_node_ = environment;
   NodeTexImage *environment_storage = static_cast<NodeTexImage *>(environment->storage);
-  bNodeSocket *environment_vector_in = bke::node_find_socket(*environment, SOCK_IN, "Vector");
   bNodeSocket *environment_out = bke::node_find_socket(*environment, SOCK_OUT, "Color");
 
   bNode *background = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
@@ -63,8 +52,6 @@ LookdevWorld::LookdevWorld()
   bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
   bNodeSocket *output_in = bke::node_find_socket(*output, SOCK_IN, "Surface");
 
-  bke::node_add_link(*ntree, *coordinate, *coordinate_out, *rotate, *rotate_vector_in);
-  bke::node_add_link(*ntree, *rotate, *rotate_out, *environment, *environment_vector_in);
   bke::node_add_link(*ntree, *environment, *environment_out, *background, *background_color_in);
   bke::node_add_link(*ntree, *background, *background_out, *output, *output_in);
   bke::node_set_active(*ntree, *output);
@@ -98,7 +85,6 @@ bool LookdevWorld::sync(const LookdevParameters &new_parameters)
 
   if (parameters_changed) {
     intensity_socket_->value = parameters_.intensity;
-    angle_socket_->value = 0.0f; /* TODO(fclem): Remove. */
 
     GPU_TEXTURE_FREE_SAFE(image->gputexture[TEXTARGET_2D][0]);
     environment_node_->id = nullptr;
@@ -233,9 +219,12 @@ void LookdevModule::init(const rcti *visible_rect)
   }
 
   if (inst_.is_viewport()) {
-    bool use_viewspace_lighting = (inst_.v3d->shading.flag &
-                                   V3D_SHADING_STUDIOLIGHT_VIEW_ROTATION) != 0;
+    const ::View3DShading &shading = inst_.v3d->shading;
+    bool use_viewspace_lighting = (shading.flag & V3D_SHADING_STUDIOLIGHT_VIEW_ROTATION) != 0;
     if (assign_if_different(use_viewspace_lighting_, use_viewspace_lighting)) {
+      inst_.sampling.reset();
+    }
+    if (assign_if_different(studio_light_rotation_z_, shading.studiolight_rot_z)) {
       inst_.sampling.reset();
     }
   }
@@ -388,8 +377,7 @@ void LookdevModule::rotate_world()
     rotation = inst_.camera.data_get().viewinv * math::from_rotation<float4x4>(target);
   }
   else {
-    const ::View3DShading &shading = inst_.v3d->shading;
-    AxisAngle axis_angle_rotation(AxisSigned::Z_POS, shading.studiolight_rot_z);
+    AxisAngle axis_angle_rotation(AxisSigned::Z_POS, studio_light_rotation_z_);
     rotation = math::from_rotation<float4x4>(axis_angle_rotation);
   }
 
@@ -538,7 +526,6 @@ LookdevParameters::LookdevParameters(const ::View3D *v3d)
   show_scene_world = shading.type == OB_RENDER ? shading.flag & V3D_SHADING_SCENE_WORLD_RENDER :
                                                  shading.flag & V3D_SHADING_SCENE_WORLD;
   if (!show_scene_world) {
-    rot_z = shading.studiolight_rot_z;
     background_opacity = shading.studiolight_background;
     blur = shading.studiolight_blur;
     intensity = shading.studiolight_intensity;
@@ -548,9 +535,9 @@ LookdevParameters::LookdevParameters(const ::View3D *v3d)
 
 bool LookdevParameters::operator==(const LookdevParameters &other) const
 {
-  return hdri == other.hdri && rot_z == other.rot_z &&
-         background_opacity == other.background_opacity && blur == other.blur &&
-         intensity == other.intensity && show_scene_world == other.show_scene_world;
+  return hdri == other.hdri && background_opacity == other.background_opacity &&
+         blur == other.blur && intensity == other.intensity &&
+         show_scene_world == other.show_scene_world;
 }
 
 bool LookdevParameters::operator!=(const LookdevParameters &other) const
