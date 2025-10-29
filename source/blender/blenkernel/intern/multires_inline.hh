@@ -37,9 +37,9 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   else {
     BLI_assert_msg(0, "Unhandled corner index");
   }
-  tangent_matrix.z_axis() = blender::math::cross(dPdu, dPdv);
+  const float geometric_mean = blender::math::sqrt(blender::math::length(tangent_matrix.x_axis()) *
+                                                   blender::math::length(tangent_matrix.y_axis()));
+  tangent_matrix.z_axis() = blender::math::cross(tangent_matrix.x_axis(), tangent_matrix.y_axis());
 
-  tangent_matrix.x_axis() = blender::math::normalize(tangent_matrix.x_axis());
-  tangent_matrix.y_axis() = blender::math::normalize(tangent_matrix.y_axis());
-  tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis());
+  tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis()) * geometric_mean;
 }
