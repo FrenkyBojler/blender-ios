@@ -4,6 +4,7 @@
 
 #include <regex>
 
+#include "NOD_expression_to_nodes.hh"
 #include "NOD_menu_value.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
@@ -51,6 +52,8 @@ class SocketValueInferencerImpl {
   std::optional<Span<bool>> top_level_ignored_inputs_;
 
   const bNodeTree &root_tree_;
+
+  Map<SocketInContext, std::shared_ptr<expression::ExpressionNodeGroup>> expression_node_groups_;
 
  public:
   SocketValueInferencerImpl(
@@ -197,6 +200,10 @@ class SocketValueInferencerImpl {
           this->value_task__output__enable_output(socket);
           return;
         }
+        if (node->is_type("NodeExpression")) {
+          this->value_task__output__expression_node(socket);
+          return;
+        }
         if (node->typeinfo->build_multi_function) {
           this->value_task__output__multi_function_node(socket);
           return;
@@ -241,6 +248,46 @@ class SocketValueInferencerImpl {
     all_socket_values_.add_new(socket, *value);
   }
 
+  void value_task__output__expression_node(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const int expr_index = socket->index();
+    const SocketInContext expr_input_socket = node.input_socket(expr_index);
+    const std::optional<InferenceValue> expr_value = all_socket_values_.lookup_try(
+        expr_input_socket);
+    if (!expr_value.has_value()) {
+      this->push_value_task(expr_input_socket);
+      return;
+    }
+    const std::optional<std::string> expr = expr_value->get_if_primitive<std::string>();
+    if (!expr.has_value()) {
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
+      return;
+    }
+    const expression::ExpressionNodeGroup &group = *expression_node_groups_.lookup_or_add_cb(
+        socket, [&]() { return expression::expression_node_to_group(*node, *expr, expr_index); });
+    if (!group.tree) {
+      all_socket_values_.add_new(socket, InferenceValue::Unknown());
+      return;
+    }
+    group.tree->ensure_interface_cache();
+    group.tree->ensure_topology_cache();
+
+    const bNode *group_output_node = group.tree->group_output_node();
+    BLI_assert(group_output_node);
+    const ComputeContext &group_context = compute_context_cache_.for_expression_node_output(
+        node.context, node->identifier, expr_index, &node->owner_tree());
+    const SocketInContext group_output_socket_ctx = {&group_context,
+                                                     &group_output_node->input_socket(0)};
+    const std::optional<InferenceValue> group_output_value = all_socket_values_.lookup_try(
+        group_output_socket_ctx);
+    if (!group_output_value.has_value()) {
+      this->push_value_task(group_output_socket_ctx);
+      return;
+    }
+    all_socket_values_.add_new(socket, *group_output_value);
+  }
+
   void value_task__output__group_input_node(const SocketInContext &socket)
   {
     const bool is_root_context = socket.context == nullptr;
@@ -253,16 +300,39 @@ class SocketValueInferencerImpl {
       return;
     }
 
-    const bke::GroupNodeComputeContext &group_context =
-        *static_cast<const bke::GroupNodeComputeContext *>(socket.context);
-    const SocketInContext group_node_input{group_context.parent(),
-                                           &group_context.node()->input_socket(socket->index())};
-    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(group_node_input);
-    if (!value.has_value()) {
-      this->push_value_task(group_node_input);
+    if (const auto *group_context = dynamic_cast<const bke::GroupNodeComputeContext *>(
+            socket.context))
+    {
+      const SocketInContext group_node_input{
+          group_context->parent(), &group_context->node()->input_socket(socket->index())};
+      const std::optional<InferenceValue> value = all_socket_values_.lookup_try(group_node_input);
+      if (!value.has_value()) {
+        this->push_value_task(group_node_input);
+        return;
+      }
+      all_socket_values_.add_new(socket, *value);
       return;
     }
-    all_socket_values_.add_new(socket, *value);
+    if (const auto *expression_output_context =
+            dynamic_cast<const bke::ExpressionNodeOutputComputeContext *>(socket.context))
+    {
+      const NodeInContext expression_node = {expression_output_context->parent(),
+                                             expression_output_context->node()};
+      const NodeExpression &expression_storage = *static_cast<const NodeExpression *>(
+          expression_node->storage);
+      const SocketInContext expression_input_socket = expression_node.input_socket(
+          expression_storage.expression_items.items_num + 1 + socket->index());
+      const std::optional<InferenceValue> value = all_socket_values_.lookup_try(
+          expression_input_socket);
+      if (!value.has_value()) {
+        this->push_value_task(expression_input_socket);
+        return;
+      }
+      all_socket_values_.add_new(socket, *value);
+      return;
+    }
+    BLI_assert_unreachable();
+    all_socket_values_.add_new(socket, InferenceValue::Unknown());
   }
 
   void value_task__output__reroute_node(const SocketInContext &socket)
