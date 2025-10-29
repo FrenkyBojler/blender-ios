@@ -2824,12 +2824,10 @@ def fbx_data_from_scene(scene, depsgraph, settings):
         def sk_cos_nors(shape_key):
             if shape_key == sk_base:
                 _cos = MESH_ATTRIBUTE_POSITION.to_ndarray(me.attributes)
-                _nors = np.empty(len(me.vertex_normals) * 3, dtype=normal_bl_dtype)
-                me.vertex_normals.foreach_get("vector", _nors)
             else:
                 _cos = np.empty(len(me.vertices) * 3, dtype=co_bl_dtype)
                 shape_key.points.foreach_get("co", _cos)
-                _nors = np.array(shape_key.normals_vertex_get(), dtype=normal_bl_dtype)
+            _nors = np.array(shape_key.normals_vertex_get(), dtype=normal_bl_dtype)
             return (
                 vcos_transformed(_cos, geom_mat_co, co_fbx_dtype),
                 nors_transformed(_nors, geom_mat_no, normal_fbx_dtype)

@@ -310,13 +310,17 @@ def shape_difference_exclude_similar(sv_cos_nors, ref_cos_nors, e=1e-6):
     # Note that unlike math.isclose(a,b), np.isclose(a,b) is not symmetrical and the second argument 'b', is
     # considered to be the reference value.
     # Note that atol=0 will mean that if only one co component being compared is zero, they won't be considered close.
-    similar_mask = np.isclose(sv_cos, ref_cos, atol=0, rtol=e)
+    similar_mask_cos = np.isclose(sv_cos, ref_cos, atol=0, rtol=e)
 
-    # A co is only similar if every component in it is similar.
-    co_similar_mask = np.all(similar_mask, axis=1)
+    # Normal tolerance is higher because it's only meant to add a few extra vertices compared to position check,
+    # and deltas below 1e-4 would hardly be visually noticeable anyway.
+    similar_mask_nors = np.isclose(sv_nors, ref_nors, atol=1e-4, rtol=e)
+
+    # A vertex is only similar if every component in both its position and normal are similar.
+    similar_mask = np.all(similar_mask_cos & similar_mask_nors, axis=1)
 
     # Get the indices of cos that are not similar.
-    not_similar_verts_idx = np.flatnonzero(~co_similar_mask)
+    not_similar_verts_idx = np.flatnonzero(~similar_mask)
 
     # Subtracting first over the entire arrays and then indexing seems faster than indexing both arrays first and then
     # subtracting, until less than about 3% of the cos are being indexed.
