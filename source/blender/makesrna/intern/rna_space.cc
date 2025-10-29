@@ -3095,7 +3095,7 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 static bool params_has_template_syntax(const FileSelectParams *params)
 {
 
-  return blender::bke::path_templates::path_template_nav_contains_syntax(params);
+  return BKE_path_contains_template_syntax(params->dir_template);
 }
 
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)

@@ -477,13 +477,6 @@ void path_template_nav_handle_browse(
     const blender::bke::path_templates::VariableMap *variables = nullptr);
 
 /**
- * Check if `dir_template` contains template syntax.
- *
- * \return true if `dir_template` is non-empty and contains template variable syntax.
- */
-bool path_template_nav_contains_syntax(const FileSelectParams *params);
-
-/**
  * Set an RNA string property on an operator with update notification.
  *
  * Sets a string property and triggers RNA update callbacks if the value changed.

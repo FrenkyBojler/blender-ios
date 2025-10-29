@@ -226,7 +226,7 @@ void path_template_nav_handle_browse(FileSelectParams *params,
                                      const blender::bke::path_templates::VariableMap *variables)
 {
   /* Try to preserve template if we were using one */
-  if (path_template_nav_contains_syntax(params) &&
+  if (BKE_path_contains_template_syntax(params->dir_template) &&
       is_within_template_bounds(params->dir_template, new_directory, variables))
   {
     char updated_template[FILE_MAX];
@@ -254,12 +254,6 @@ void path_template_nav_handle_browse(FileSelectParams *params,
   BLI_strncpy(params->dir_template, new_directory, sizeof(params->dir_template));
   BLI_strncpy(params->dir, new_directory, sizeof(params->dir));
   BLI_strncpy(params->dir_resolved, new_directory, sizeof(params->dir_resolved));
-}
-
-bool path_template_nav_contains_syntax(const FileSelectParams *params)
-{
-  return params->dir_template[0] != '\0' &&
-         BKE_path_contains_template_syntax(params->dir_template);
 }
 
 void path_template_nav_set_operator_property(bContext *C,
