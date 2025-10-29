@@ -105,6 +105,13 @@ static const GPUVertFormat &get_skinning_nor_format()
   return format;
 }
 
+static const GPUVertFormat &get_skinning_tan_format()
+{
+  static GPUVertFormat format = GPU_vertformat_from_attribute(
+      "tan", gpu::VertAttrType::SFLOAT_32_32_32_32);
+  return format;
+}
+
 static gpu::VertBufPtr g_skinning_normals_cache = nullptr;
 
 gpu::VertBufPtr extract_positions_skinning(const DRWSkinningCache &skinning_cache,
@@ -146,6 +153,12 @@ gpu::VertBufPtr extract_normals_skinning(const DRWSkinningCache &skinning_cache,
   draw_skinning_extract_pos_nor(vbo_pos.get(), vbo_nor.get(), skinning_cache);
 
   return vbo_nor;
+}
+
+gpu::VertBufPtr extract_tangents_skinning(const DRWSkinningCache &skinning_cache,
+                                          const MeshRenderData &mr)
+{
+  /* here we implement vbo_tan */
 }
 
 static void extract_loose_positions_subdiv(const DRWSubdivCache &subdiv_cache,

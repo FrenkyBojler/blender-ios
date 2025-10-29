@@ -4,10 +4,7 @@
 
 /**
  * Compute shader for armature modifier deformation using Linear Blend Skinning.
- * 
- * Implements GPU-accelerated matrix-based skinning with shared memory optimization
- * for bone transformations. Uses differential accumulation for numerical stability.
- * Bone matrices are pre-transformed to target object coordinate space on the CPU.
+ *
  */
 
 #include "draw_skinning_infos.hh"
@@ -106,7 +103,6 @@ void main()
   uint lid = gl_LocalInvocationID.x;
   uint lsize = gl_WorkGroupSize.x;
 
-  /* Initialize shared memory hash table cooperatively across workgroup threads. */
   for (uint i = lid; i < HASH_SIZE; i += lsize) {
     s_hash_keys[i] = EMPTY_SLOT;
     s_hash_pos[i] = EMPTY_SLOT;
@@ -121,25 +117,26 @@ void main()
   uint idx_u1 = indices_buf[gid].y;
   uvec4 bone_idx = unpack_indices_from_two_uints(idx_u0, idx_u1);
 
-  /* Insert unique bone indices into hash table to minimize global memory access. */
   for (int k = 0; k < 4; ++k) {
     uint bi = bone_idx[k];
-
     if (bi != 0xFFFFu) {
-      uint probe = hash_insert(bi);
+      hash_insert(bi);
     }
   }
 
   memoryBarrierShared();
   barrier();
 
-  /* Build compact mapping from hash table positions to bone indices. */
-  for (uint i = lid; i < HASH_SIZE; i += lsize) {
-    if (s_hash_keys[i] != EMPTY_SLOT) {
-      uint compact_idx = atomicAdd(s_unique_count, 1u);
-      s_hash_pos[i] = compact_idx;
-      s_compact_to_bone[compact_idx] = s_hash_keys[i];
+  if (lid == 0u) {
+    uint compact_idx = 0u;
+    for (uint i = 0u; i < HASH_SIZE; ++i) {
+      if (s_hash_keys[i] != EMPTY_SLOT) {
+        s_hash_pos[i] = compact_idx;
+        s_compact_to_bone[compact_idx] = s_hash_keys[i];
+        compact_idx++;
+      }
     }
+    s_unique_count = compact_idx;
   }
 
   memoryBarrierShared();

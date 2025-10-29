@@ -30,9 +30,10 @@
 #include "UI_resources.hh"
 #include "WM_api.hh"
 
+#include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 #include "RNA_types.hh"
-#include "RNA_access.hh"
+
 
 #include "MEM_guardedalloc.h"
 
@@ -141,17 +142,17 @@ static void deform_verts(ModifierData *md,
   }
 
   /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<float (*)[3]>(positions.data()));
+  MOD_previous_vcos_store(md, reinterpret_cast<float(*)[3]>(positions.data()));
   if (skinning_mode == SKIN_CPU) {
     BKE_armature_deform_coords_with_mesh(*amd->object,
-                                        *ctx->object,
-                                        positions,
-                                        vert_coords_prev,
-                                        std::nullopt,
-                                        amd->deformflag,
-                                        amd->defgrp_name,
-                                        mesh);
-    }
+                                         *ctx->object,
+                                         positions,
+                                         vert_coords_prev,
+                                         std::nullopt,
+                                         amd->deformflag,
+                                         amd->defgrp_name,
+                                         mesh);
+  }
 
   /* free cache */
   MEM_SAFE_FREE(amd->vert_coords_prev);
@@ -176,7 +177,7 @@ static void deform_verts_EM(ModifierData *md,
   }
 
   /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<float (*)[3]>(positions.data()));
+  MOD_previous_vcos_store(md, reinterpret_cast<float(*)[3]>(positions.data()));
   BKE_armature_deform_coords_with_editmesh(*amd->object,
                                            *ctx->object,
                                            positions,
@@ -228,13 +229,13 @@ static void deform_matrices(ModifierData *md,
   if (skinning_mode == SKIN_GPU) {
     ArmatureModifierData *amd = (ArmatureModifierData *)md;
     BKE_armature_deform_coords_with_mesh(*amd->object,
-                                        *ctx->object,
-                                        positions,
-                                        std::nullopt,
-                                        matrices,
-                                        amd->deformflag,
-                                        amd->defgrp_name,
-                                        mesh);
+                                         *ctx->object,
+                                         positions,
+                                         std::nullopt,
+                                         matrices,
+                                         amd->deformflag,
+                                         amd->defgrp_name,
+                                         mesh);
   }
 }
 
@@ -287,8 +288,12 @@ static void gpudeform_panel_draw(const bContext * /*C*/, Panel *panel)
 static void panel_register(ARegionType *region_type)
 {
   PanelType *panel_type = modifier_panel_register(region_type, eModifierType_Armature, panel_draw);
-  modifier_subpanel_register(
-      region_type, "gpuskinning", "", gpudeform_panel_header_draw, gpudeform_panel_draw, panel_type);
+  modifier_subpanel_register(region_type,
+                             "gpuskinning",
+                             "",
+                             gpudeform_panel_header_draw,
+                             gpudeform_panel_draw,
+                             panel_type);
 }
 
 static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)

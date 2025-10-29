@@ -22,7 +22,6 @@
 #include "draw_skinning.hh"
 #include "mesh_extractors/extract_mesh.hh"
 
-
 /* (ResolutionC): we'll probably use soon... */
 // #define MAX_BONE_WEIGHTS 4
 
@@ -121,29 +120,28 @@ static DRWSkinningCache &mesh_batch_cache_ensure_skinning_cache(MeshBatchCache &
  * Extracts mesh data and compresses to save on GPU memory.
  * \{ */
 
-static bool draw_skinning_pack_vertex_data(const Mesh *mesh,
-                                           Object *armature_ob,
+static bool draw_skinning_pack_vertex_data(Object *armature_ob,
                                            float **r_meshdata_pos,
                                            float **r_meshdata_nor,
                                            uint32_t **r_meshdata_idx,
                                            uint32_t **r_meshdata_wgt,
                                            MeshRenderData &mr)
 {
-  const int verts_num = mesh->verts_num;
+  const int verts_num = mr.mesh->verts_num;
   if (verts_num == 0) {
     return false;
   }
 
   const int total_elements = mr.corners_num + mr.loose_indices_num;
 
-  /* We need to obviously add the annoying 4th component for padding :)*/
+  /* Extract data per-corner but get vertex data for each corner */
   blender::MutableSpan<blender::float4> pos_data(
       reinterpret_cast<blender::float4 *>(*r_meshdata_pos), total_elements);
   blender::MutableSpan corners_data = pos_data.take_front(mr.corners_num);
   blender::MutableSpan loose_edge_data = pos_data.slice(mr.corners_num, mr.loose_edges.size() * 2);
   blender::MutableSpan loose_vert_data = pos_data.take_back(mr.loose_verts.size());
 
-  // There's probably a problem with how we're fetching this...
+  /* Extract positions per corner */
   for (int i = 0; i < mr.corners_num; i++) {
     const blender::float3 &pos = mr.vert_positions[mr.corner_verts[i]];
     corners_data[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
@@ -163,10 +161,10 @@ static bool draw_skinning_pack_vertex_data(const Mesh *mesh,
     loose_vert_data[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
   }
 
-  const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
-  const blender::Span<MDeformVert> dverts = mesh->deform_verts();
+  const blender::Span<blender::float3> vert_normals = mr.mesh->vert_normals();
+  const blender::Span<MDeformVert> dverts = mr.mesh->deform_verts();
 
-  const ListBase *defbase = &mesh->vertex_group_names;
+  const ListBase *defbase = &mr.mesh->vertex_group_names;
   const int defbase_len = BLI_listbase_count(defbase);
 
   bPoseChannel **pchan_from_defbase = static_cast<bPoseChannel **>(
@@ -201,10 +199,8 @@ static bool draw_skinning_pack_vertex_data(const Mesh *mesh,
       reinterpret_cast<blender::float2 *>(*r_meshdata_nor), total_elements);
 
   blender::MutableSpan corners_nor_data = nor_data.take_front(mr.corners_num);
-
   blender::MutableSpan loose_edge_nor_data = nor_data.slice(mr.corners_num,
                                                             mr.loose_edges.size() * 2);
-
   blender::MutableSpan loose_vert_nor_data = nor_data.take_back(mr.loose_verts.size());
 
   /* Octahedral compression for mesh normals, helps with mem bandwidth. */
@@ -367,6 +363,7 @@ static bool draw_skinning_pack_vertex_data(const Mesh *mesh,
     wgt_data[output_idx] = blender::uint2(w0u, w1u);
   };
 
+  /* Extract weights per corner */
   tbb::parallel_for(tbb::blocked_range<int>(0, mr.corners_num),
                     [&](const tbb::blocked_range<int> &range) {
                       for (int i = range.begin(); i != range.end(); ++i) {
@@ -404,7 +401,7 @@ static int draw_get_bone_count(Object *armature_ob, int *bone_count)
   return *bone_count;
 }
 
-static bool draw_skinning_pack_bone_matrices(Object *armature_ob,
+static void draw_skinning_pack_bone_matrices(Object *armature_ob,
                                              Object *target_ob,
                                              float **bonedata_mat,
                                              GPUDualQuat **bonedata_dq,
@@ -412,7 +409,7 @@ static bool draw_skinning_pack_bone_matrices(Object *armature_ob,
                                              const bool use_dual_quaternion)
 {
   if (!armature_ob || armature_ob->type != OB_ARMATURE || !armature_ob->pose) {
-    return false;
+    return;
   }
 
   bPose *pose = armature_ob->pose;
@@ -466,8 +463,6 @@ static bool draw_skinning_pack_bone_matrices(Object *armature_ob,
 
     bone_index++;
   }
-
-  return true;
 }
 
 /** \} */
@@ -477,7 +472,7 @@ static bool draw_skinning_pack_bone_matrices(Object *armature_ob,
  *
  * Setups shader and buffers for packing and upload
  * \{ */
-static bool draw_skinning_setup_buffers(Object *armature_ob,
+static void draw_skinning_setup_buffers(Object *armature_ob,
                                         DRWSkinningCache *cache,
                                         MeshRenderData &mr,
                                         const ArmatureModifierData *amd)
@@ -524,9 +519,9 @@ static bool draw_skinning_setup_buffers(Object *armature_ob,
   bool use_dual_quaternion = (amd && (amd->deformflag & ARM_DEF_QUATERNION));
 
   if (use_dual_quaternion) {
-    cache->in_bonedq_buf = GPU_storagebuf_create(sizeof(DualQuat) * (cache->bone_count + 4));
+    cache->in_bonedq_buf = GPU_storagebuf_create(sizeof(DualQuat) * (cache->bone_count + 5));
     cache->bonedata_dq = (GPUDualQuat *)MEM_mallocN_aligned(
-        sizeof(GPUDualQuat) * (cache->bone_count + 4), 16, "GPUDualQuat bone data");
+        sizeof(GPUDualQuat) * (cache->bone_count + 5), 16, "GPUDualQuat bone data");
 
     cache->in_bonemat_buf = nullptr;
     cache->bonedata_mat = nullptr;
@@ -576,32 +571,9 @@ static bool draw_skinning_setup_buffers(Object *armature_ob,
                   (cache->in_bonemat_buf != nullptr || cache->in_bonedq_buf != nullptr));
 
   cache->buffers_valid = success;
-  return success;
 }
 
 /** \} */
-
-static bool draw_skinning_setup_packing(DRWSkinningCache *cache,
-                                        const Mesh *mesh,
-                                        Object *armature_ob,
-                                        MeshRenderData &mr)
-{
-
-  if (!cache->vertex_data_packed) {
-
-    draw_skinning_pack_vertex_data(mesh,
-                                   armature_ob,
-                                   &cache->meshdata_pos,
-                                   &cache->meshdata_nor,
-                                   &cache->meshdata_idx,
-                                   &cache->meshdata_wgt,
-                                   mr);
-
-    cache->vertex_data_packed = true;
-  }
-
-  return true;
-}
 
 /* -------------------------------------------------------------------- */
 /** \name GPU Skinning Shader binding
@@ -795,7 +767,17 @@ static bool draw_create_skinning(Object &ob,
         if (needs_buffer_setup /*|| check mesh/modifier stack updated */) {
           draw_skinning_cache_free(skincache);
           draw_skinning_setup_buffers(amd->object, &skincache, mr, amd);
-          draw_skinning_setup_packing(&skincache, &mesh, amd->object, mr);
+          if (!skincache.vertex_data_packed) {
+
+            draw_skinning_pack_vertex_data(amd->object,
+                                           &skincache.meshdata_pos,
+                                           &skincache.meshdata_nor,
+                                           &skincache.meshdata_idx,
+                                           &skincache.meshdata_wgt,
+                                           mr);
+
+            skincache.vertex_data_packed = true;
+          }
         }
 
         if (amd->object && (skincache.bonedata_mat || skincache.bonedata_dq)) {

@@ -177,6 +177,7 @@ vec3 transform_point_dual_quat(vec3 point, DualQuat dq) {
 vec3 transform_normal_dual_quat(vec3 normal, DualQuat dq) {
   float w = dq.quat.w, x = dq.quat.x, y = dq.quat.y, z = dq.quat.z;
 
+  /* Build rotation matrix from quaternion */
   mat3 M;
   M[0][0] = w * w + x * x - y * y - z * z;
   M[1][0] = 2.0 * (x * y - w * z);
@@ -195,11 +196,14 @@ vec3 transform_normal_dual_quat(vec3 normal, DualQuat dq) {
     len2 = 1.0 / len2;
   }
 
-  vec3 result = M * normal;
-
+  /* Apply scale first if present */
+  mat3 transform_matrix = M;
   if (dq.scale_weight != 0.0) {
-    result = mat3(dq.scale) * result;
+    transform_matrix = M * mat3(dq.scale);
   }
+
+  mat3 normal_matrix = transpose(inverse(transform_matrix));
+  vec3 result = normal_matrix * normal;
 
   result *= len2;
 

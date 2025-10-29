@@ -352,18 +352,16 @@ void mesh_buffer_cache_create_requested_skinning(MeshBatchCache &cache,
     }
   }
 
-  bool needs_positions = vbos_to_create.contains(VBOType::Position);
-  bool needs_normals = vbos_to_create.contains(VBOType::CornerNormal);
+  if (vbos_to_create.contains(VBOType::Position)) {
+    buffers.vbos.add_new(VBOType::Position, extract_positions_skinning(skinning_cache, mr));
+  }
 
-  if (needs_positions || needs_normals) {
-    if (needs_positions) {
-      buffers.vbos.add_new(VBOType::Position, extract_positions_skinning(skinning_cache, mr));
-    }
-
-    /* this will use the cached result from position extraction */
-    if (needs_normals) {
-      buffers.vbos.add_new(VBOType::CornerNormal, extract_normals_skinning(skinning_cache, mr));
-    }
+  /* this will use the cached result from position extraction */
+  if (vbos_to_create.contains(VBOType::CornerNormal)) {
+    buffers.vbos.add_new(VBOType::CornerNormal, extract_normals_skinning(skinning_cache, mr));
+  }
+  if (vbos_to_create.contains(VBOType::Tangents)) {
+    buffers.vbos.add_new(VBOType::Tangents, extract_tangents_skinning(skinning_cache, mr));
   }
 }
 

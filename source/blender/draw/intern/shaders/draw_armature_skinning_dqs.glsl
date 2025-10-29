@@ -5,9 +5,6 @@
 /**
  * Compute shader for armature modifier deformation using Dual Quaternion Skinning.
  * 
- * Implements GPU-accelerated dual quaternion skinning with shared memory optimization
- * for bone transformations. Uses pivot-based accumulation to fix scale artifacts.
- * Dual quaternions are pre-transformed to target object coordinate space on the CPU.
  */
 
 #include "draw_skinning_infos.hh"
@@ -15,7 +12,6 @@
 
 COMPUTE_SHADER_CREATE_INFO(draw_armature_skinning_dqs_comp)
 
-/* Shared memory hash table for dual quaternion deduplication within workgroups. */
 #define HASH_SIZE 128u
 #define HASH_MASK (HASH_SIZE - 1u)
 #define EMPTY_SLOT 0xFFFFFFFFu
@@ -106,7 +102,7 @@ void main()
   uint lid = gl_LocalInvocationID.x;
   uint lsize = gl_WorkGroupSize.x;
 
-  /* Initialize shared memory hash table cooperatively across workgroup threads. */
+  /* Initialize shared memory cooperatively */
   for (uint i = lid; i < HASH_SIZE; i += lsize) {
     s_hash_keys[i] = EMPTY_SLOT;
     s_hash_pos[i] = EMPTY_SLOT;
@@ -121,31 +117,32 @@ void main()
   uint idx_u1 = indices_buf[gid].y;
   uvec4 bone_idx = unpack_indices_from_two_uints(idx_u0, idx_u1);
 
-  /* Insert unique bone indices into hash table to minimize global memory access. */
   for (int k = 0; k < 4; ++k) {
     uint bi = bone_idx[k];
-
     if (bi != 0xFFFFu) {
-      uint probe = hash_insert(bi);
+      hash_insert(bi);
     }
   }
 
   memoryBarrierShared();
   barrier();
 
-  /* Build compact mapping from hash table positions to bone indices. */
-  for (uint i = lid; i < HASH_SIZE; i += lsize) {
-    if (s_hash_keys[i] != EMPTY_SLOT) {
-      uint compact_idx = atomicAdd(s_unique_count, 1u);
-      s_hash_pos[i] = compact_idx;
-      s_compact_to_bone[compact_idx] = s_hash_keys[i];
+  if (lid == 0u) {
+    uint compact_idx = 0u;
+    for (uint i = 0u; i < HASH_SIZE; ++i) {
+      if (s_hash_keys[i] != EMPTY_SLOT) {
+        s_hash_pos[i] = compact_idx;
+        s_compact_to_bone[compact_idx] = s_hash_keys[i];
+        compact_idx++;
+      }
     }
+    s_unique_count = compact_idx;
   }
 
   memoryBarrierShared();
   barrier();
 
-  /* Load dual quaternions into shared memory using compact indices. */
+   /* Load dual quaternions into shared memory using compact indices. */
   for (uint i = lid; i < s_unique_count; i += lsize) {
     uint bone_idx = s_compact_to_bone[i];
     s_shared_dqs[i] = bonedq_buf[bone_idx];
@@ -227,7 +224,6 @@ void main()
     N_final = normalize(transform_normal_dual_quat(N_rest, normalized_dq));
   }
   else {
-    /* No bone influences - preserve rest pose. */
     P_final = P_rest;
     N_final = N_rest;
   }
