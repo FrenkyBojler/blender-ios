@@ -256,6 +256,7 @@ set(SRC
   intern/particle_distribute.cc
   intern/particle_system.cc
   intern/path_templates.cc
+  intern/path_template_navigation.cc
   intern/pbvh.cc
   intern/pbvh_bmesh.cc
   intern/pbvh_pixels.cc
@@ -814,6 +815,7 @@ if(WITH_GTESTS)
     intern/main_test.cc
     intern/nla_test.cc
     intern/path_templates_test.cc
+    intern/path_template_navigation_test.cc
     intern/scene_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc

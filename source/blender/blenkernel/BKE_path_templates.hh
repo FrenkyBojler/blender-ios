@@ -423,3 +423,80 @@ std::optional<std::string> BKE_path_template_format_float(blender::StringRef for
 /** Same as #BKE_path_template_format_float but for formatting an integer value. */
 std::optional<std::string> BKE_path_template_format_int(blender::StringRef format_specifier,
                                                         int64_t value);
+
+/* -------------------------------------------------------------------- */
+/** \name Path Template Navigation
+ * \{ */
+
+struct FileSelectParams;
+struct wmOperator;
+
+namespace blender::bke::path_templates {
+
+/**
+ * Initialize path template fields in FileSelectParams.
+ *
+ * Sets up `dir_template` and `dir_resolved` fields based on the current directory.
+ * Should be called when initializing file browser state.
+ *
+ * \param params: FileSelectParams structure to initialize.
+ * \param variables: Optional variable map.
+ */
+void path_template_nav_initialize(
+    FileSelectParams *params,
+    const blender::bke::path_templates::VariableMap *variables = nullptr);
+
+/**
+ * Handle user input of a path (potentially with template variables) via text.
+ *
+ * Processes user-entered paths that may contain template syntax (e.g., `//render/{fps}/`).
+ * Resolves template variables and updates all path fields in FileSelectParams accordingly.
+ *
+ * \param params: FileSelectParams structure to update with new path information.
+ * \param input_path: User-entered path string (may contain template variable syntax).
+ * \param variables: Optional variable map.
+ */
+void path_template_nav_handle_text(
+    FileSelectParams *params,
+    const char *input_path,
+    const blender::bke::path_templates::VariableMap *variables = nullptr);
+
+/**
+ * Handle directory navigation in browser while preserving parent template variables.
+ *
+ * Called when the file browser navigates to a new directory. Attempts to maintain template
+ * variable syntax when navigating within template-based directory structures.
+ *
+ * \param params: FileSelectParams structure to update with new navigation state.
+ * \param new_directory: Target directory path after navigation.
+ * \param variables: Optional variable map.
+ */
+void path_template_nav_handle_browse(
+    FileSelectParams *params,
+    const char *new_directory,
+    const blender::bke::path_templates::VariableMap *variables = nullptr);
+
+/**
+ * Check if `dir_template` contains template syntax.
+ *
+ * \return true if `dir_template` is non-empty and contains template variable syntax.
+ */
+bool path_template_nav_contains_syntax(const FileSelectParams *params);
+
+/**
+ * Set an RNA string property on an operator with update notification.
+ *
+ * Sets a string property and triggers RNA update callbacks if the value changed.
+ *
+ * \param C: Blender context for property update notifications.
+ * \param op: Operator whose property should be modified.
+ * \param prop_name: Name of the string property to set.
+ * \param new_value: New string value for the property.
+ */
+void path_template_nav_set_operator_property(bContext *C,
+                                             wmOperator *op,
+                                             const char *prop_name,
+                                             const char *new_value);
+
+}  // namespace blender::bke::path_templates
+/** \} */

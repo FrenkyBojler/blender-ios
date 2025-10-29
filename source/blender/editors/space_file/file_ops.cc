@@ -19,6 +19,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_main.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
@@ -1601,8 +1602,9 @@ void file_sfile_to_operator_ex(
 
   /* Use template version if available, otherwise resolved version */
   BLI_strncpy(dir,
-              blender::ed::file::path_template_nav_contains_syntax(params) ? params->dir_template :
-                                                                             params->dir,
+              blender::bke::path_templates::path_template_nav_contains_syntax(params) ?
+                  params->dir_template :
+                  params->dir,
               FILE_MAX);
   BLI_path_slash_ensure(dir, FILE_MAX);
 

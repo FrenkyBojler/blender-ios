@@ -17,10 +17,10 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
 #include "BKE_movieclip.h"
+#include "BKE_path_templates.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
-#include "ED_fileselect.hh"
 #include "ED_spreadsheet.hh"
 
 #include "BLI_string.h"
@@ -3094,7 +3094,8 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 
 static bool params_has_template_syntax(const FileSelectParams *params)
 {
-  return blender::ed::file::path_template_nav_contains_syntax(params);
+
+  return blender::bke::path_templates::path_template_nav_contains_syntax(params);
 }
 
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
@@ -3106,7 +3107,7 @@ static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
 static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *value)
 {
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
-  blender::ed::file::path_template_nav_handle_text(params, value);
+  blender::bke::path_templates::path_template_nav_handle_text(params, value);
 }
 
 static int rna_FileSelectParams_directory_length(PointerRNA *ptr)

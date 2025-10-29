@@ -136,8 +136,6 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   fileselect_initialize_params_common(sfile, base_params);
 }
 
-/* Template resolution handled inline using BKE functions */
-
 /**
  * \note #RNA_struct_property_is_set_ex is used here because we want
  * the previously used settings to be used here rather than overriding them.
@@ -220,7 +218,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
           STRNCPY(params->file, template_file);
 
           /* Use centralized template handling for directory paths */
-          blender::ed::file::path_template_nav_handle_text(params, template_dir);
+          blender::bke::path_templates::path_template_nav_handle_text(params, template_dir);
         }
         else {
           BLI_path_split_dir_file(
@@ -383,7 +381,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   }
 
   /* Initialize path template handler now that all operator processing is complete */
-  blender::ed::file::path_template_nav_initialize(params);
+  blender::bke::path_templates::path_template_nav_initialize(params);
 
   fileselect_initialize_params_common(sfile, params);
 
@@ -1202,7 +1200,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
     }
 
     /* Update template paths when directory changes */
-    blender::ed::file::path_template_nav_handle_browse(params, params->dir);
+    blender::bke::path_templates::path_template_nav_handle_browse(params, params->dir);
 
     filelist_setdir(sfile->files, params->dir);
 

@@ -29,7 +29,6 @@ set(SRC
   folder_history.cc
   fsmenu.cc
   fsmenu_system.cc
-  path_template_navigation.cc
   space_file.cc
 
   file_indexer.hh
@@ -97,19 +96,3 @@ blender_add_lib(bf_editor_space_file "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_file bf_rna)
-
-if(WITH_GTESTS)
-  set(TEST_SRC
-    path_template_navigation_tests.cc
-  )
-  set(TEST_INC
-    ../../blenkernel
-    ../../blenlib
-  )
-  set(TEST_LIB
-    bf_editor_space_file
-    PRIVATE bf::blenkernel
-    PRIVATE bf::blenlib
-  )
-  blender_add_test_suite_lib(editor_space_file "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
-endif()

@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup spfile
+ * \ingroup blenkernel
  * \brief Path template handling implementation - preserves template variables during file browser
  * navigation.
  */
-
-#include "ED_fileselect.hh"
 
 #include "BKE_global.hh"
 #include "BKE_main.hh"
@@ -26,7 +24,7 @@
 
 #include <cstring>
 
-namespace blender::ed::file {
+namespace blender::bke::path_templates {
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Helper Functions
@@ -285,4 +283,4 @@ void path_template_nav_set_operator_property(bContext *C,
 
 /** \} */
 
-}  // namespace blender::ed::file
+}  // namespace blender::bke::path_templates
