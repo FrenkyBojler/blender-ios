@@ -1202,6 +1202,9 @@ void register_node_group_operators(const bContext &C)
 
   Main &bmain = *CTX_data_main(&C);
   LISTBASE_FOREACH (bNodeTree *, ntree, &bmain.nodetrees) {
+if (ID_IS_ASSET(&ntree->id)) {
+      continue;
+    }
     if (!ntree->geometry_node_asset_traits) {
       continue;
     }
