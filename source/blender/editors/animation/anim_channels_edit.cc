@@ -5362,16 +5362,17 @@ static void ANIM_OT_channels_bake(wmOperatorType *ot)
   ot->poll = channel_view_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-  RNA_def_int_array(ot->srna,
-                    "range",
-                    2,
-                    nullptr,
-                    INT_MIN,
-                    INT_MAX,
-                    "Frame Range",
-                    "The range in which to create new keys",
-                    0,
-                    INT_MAX);
+  PropertyRNA *prop = RNA_def_int_array(ot->srna,
+                                        "range",
+                                        2,
+                                        nullptr,
+                                        INT_MIN,
+                                        INT_MAX,
+                                        "Frame Range",
+                                        "The range in which to create new keys",
+                                        0,
+                                        INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   RNA_def_float(ot->srna,
                 "step",
