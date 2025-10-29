@@ -358,6 +358,40 @@ static FunctionSymbol float_math_function(const StringRef name,
       });
 }
 
+static FunctionSymbol vector_math_function(const StringRef name,
+                                           const NodeVectorMathOperation op,
+                                           const int inputs_num)
+{
+  return FunctionSymbol(
+      name,
+      [inputs_num](TypeCheckCallParams &params) {
+        if (params.input_types.size() != inputs_num) {
+          return false;
+        }
+        bool any_input_is_vector = false;
+        for (const bke::bNodeSocketType *stype : params.input_types) {
+          if (stype->type == SOCK_VECTOR) {
+            any_input_is_vector = true;
+          }
+          if (!ELEM(stype->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR)) {
+            return false;
+          }
+        }
+        if (!any_input_is_vector) {
+          return false;
+        }
+        return true;
+      },
+      [op](InsertCallParams &params) {
+        bNode &math_node = params.add_node("ShaderNodeVectorMath");
+        math_node.custom1 = op;
+        params.update_node_sockets(math_node);
+        params.use_node_sockets(math_node);
+      }
+
+  );
+}
+
 static FunctionSymbol negate_float_function()
 {
   return FunctionSymbol(
@@ -480,6 +514,12 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(float_math_function("/", NODE_MATH_DIVIDE, 2));
   symbols.add(float_math_function("sin", NODE_MATH_SINE, 1));
   symbols.add(float_math_function("cos", NODE_MATH_COSINE, 1));
+
+  symbols.add(vector_math_function("+", NODE_VECTOR_MATH_ADD, 2));
+  symbols.add(vector_math_function("-", NODE_VECTOR_MATH_SUBTRACT, 2));
+  symbols.add(vector_math_function("*", NODE_VECTOR_MATH_MULTIPLY, 2));
+  symbols.add(vector_math_function("/", NODE_VECTOR_MATH_DIVIDE, 2));
+
   symbols.add(vector_member_access(0));
   symbols.add(vector_member_access(1));
   symbols.add(vector_member_access(2));
