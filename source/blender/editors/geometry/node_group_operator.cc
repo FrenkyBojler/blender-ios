@@ -1185,24 +1185,28 @@ void register_node_group_operators(const bContext &C)
   OperatorRegisterErrors &errors = get_registration_errors();
   errors.clear();
 
-  Map<StringRefNull, int> duplicate_node_tool_idnames;
-  Set<StringRefNull> builtin_operator_replacement_attempts;
+  Map<std::string, int> duplicate_node_tool_idnames;
+  Set<std::string> builtin_operator_replacement_attempts;
   const auto check_for_duplicate = [&](const StringRefNull idname) -> bool {
     const wmOperatorType *ot = WM_operatortype_find(idname.c_str(), true);
     if (!ot) {
       return true;
     }
     if (ot->flag & OPTYPE_NODE_TOOL) {
-      duplicate_node_tool_idnames.lookup_or_add(idname, 0)++;
+      char idname_py[OP_MAX_TYPENAME];
+      WM_operator_py_idname(idname_py, idname.c_str());
+      duplicate_node_tool_idnames.lookup_or_add_as(idname_py, 0)++;
       return false;
     }
-    builtin_operator_replacement_attempts.add(idname);
+    char idname_py[OP_MAX_TYPENAME];
+    WM_operator_py_idname(idname_py, idname.c_str());
+    builtin_operator_replacement_attempts.add_as(idname_py);
     return false;
   };
 
   Main &bmain = *CTX_data_main(&C);
   LISTBASE_FOREACH (bNodeTree *, ntree, &bmain.nodetrees) {
-if (ID_IS_ASSET(&ntree->id)) {
+    if (ID_IS_ASSET(&ntree->id)) {
       continue;
     }
     if (!ntree->geometry_node_asset_traits) {
@@ -1258,12 +1262,10 @@ if (ID_IS_ASSET(&ntree->id)) {
   for (const StringRefNull idname : builtin_operator_replacement_attempts) {
     BKE_reportf(&errors.reports, RPT_ERROR, "Cannot replace builtin operator '%s", idname.c_str());
   }
-  for (const MapItem<StringRefNull, int> &item : duplicate_node_tool_idnames.items()) {
-    BKE_reportf(&errors.reports,
-                RPT_ERROR,
-                "%d duplicate(s) of node tool idname '%s'",
-                item.value,
-                item.key.c_str());
+  for (const MapItem<std::string, int> &item : duplicate_node_tool_idnames.items()) {
+    char idname_py[OP_MAX_TYPENAME];
+    WM_operator_py_idname(idname_py, item.key.c_str());
+    BKE_reportf(&errors.reports, RPT_ERROR, "%d duplicate(s) of '%s'", item.value, idname_py);
   }
 }
 
