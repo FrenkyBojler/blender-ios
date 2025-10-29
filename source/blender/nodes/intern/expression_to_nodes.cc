@@ -68,6 +68,13 @@ struct InsertCallParams {
     this->output = {&node, &socket};
   }
 
+  void set_output(bNode &node, const int index)
+  {
+    bNodeSocket *socket = static_cast<bNodeSocket *>(BLI_findlink(&node.outputs, index));
+    BLI_assert(socket);
+    this->set_output(node, *socket);
+  }
+
   void use_node_sockets(bNode &node)
   {
     this->use_node_inputs(node);
@@ -347,6 +354,21 @@ static FunctionSymbol negate_float_function()
       });
 }
 
+static FunctionSymbol vector_member_access(const int index)
+{
+  BLI_assert(index >= 0 && index <= 2);
+  return FunctionSymbol(
+      fmt::format(".{}", char('x' + index)),
+      [](TypeCheckCallParams &params) {
+        return params.input_types.size() == 1 && params.input_types[0]->type == SOCK_VECTOR;
+      },
+      [index](InsertCallParams &params) {
+        bNode &node = params.add_node("ShaderNodeSeparateXYZ");
+        params.use_node_inputs(node);
+        params.set_output(node, index);
+      });
+}
+
 static void init_symbol_table(SymbolTable &symbols)
 {
   symbols.add(float_math_function("+", NODE_MATH_ADD, 2));
@@ -355,6 +377,9 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(float_math_function("/", NODE_MATH_DIVIDE, 2));
   symbols.add(float_math_function("sin", NODE_MATH_SINE, 1));
   symbols.add(float_math_function("cos", NODE_MATH_COSINE, 1));
+  symbols.add(vector_member_access(0));
+  symbols.add(vector_member_access(1));
+  symbols.add(vector_member_access(2));
   symbols.add(negate_float_function());
 }
 
