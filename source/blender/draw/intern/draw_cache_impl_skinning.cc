@@ -8,6 +8,8 @@
  * \brief GPU Acceleration for Armature modifier and Shape keys
  */
 #include "BKE_armature.hh"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_tangent.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
@@ -21,6 +23,7 @@
 #include "draw_shader.hh"
 #include "draw_skinning.hh"
 #include "mesh_extractors/extract_mesh.hh"
+
 
 /* (ResolutionC): we'll probably use soon... */
 // #define MAX_BONE_WEIGHTS 4
@@ -52,6 +55,7 @@ void draw_skinning_cache_free(DRWSkinningCache &cache)
   GPU_VERTBUF_DISCARD_SAFE(cache.in_bonemat_buf);
   GPU_VERTBUF_DISCARD_SAFE(cache.in_vertpos_buf);
   GPU_VERTBUF_DISCARD_SAFE(cache.in_vertnor_buf);
+  GPU_VERTBUF_DISCARD_SAFE(cache.in_verttan_buf);
 
   if (cache.in_bonedq_buf) {
     GPU_storagebuf_free(cache.in_bonedq_buf);
@@ -123,6 +127,7 @@ static DRWSkinningCache &mesh_batch_cache_ensure_skinning_cache(MeshBatchCache &
 static bool draw_skinning_pack_vertex_data(Object *armature_ob,
                                            float **r_meshdata_pos,
                                            float **r_meshdata_nor,
+                                           float **r_meshdata_tan,
                                            uint32_t **r_meshdata_idx,
                                            uint32_t **r_meshdata_wgt,
                                            MeshRenderData &mr)
@@ -255,6 +260,58 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
       n = vert_normals[vert_idx];
     }
     loose_vert_nor_data[i] = encode_octahedral(n);
+  }
+
+  blender::MutableSpan<blender::float4> tan_data(
+      reinterpret_cast<blender::float4 *>(*r_meshdata_tan), total_elements);
+
+  blender::MutableSpan corners_tan_data = tan_data.take_front(mr.corners_num);
+  blender::MutableSpan loose_edge_tan_data = tan_data.slice(mr.corners_num,
+                                                            mr.loose_edges.size() * 2);
+  blender::MutableSpan loose_vert_tan_data = tan_data.take_back(mr.loose_verts.size());
+
+  /* Calculate tangents using the default UV layer */
+  blender::Array<blender::Array<blender::float4>> tangent_arrays;
+  const bke::AttributeAccessor attributes = mr.mesh->attributes();
+  const StringRef default_uv_name = mr.mesh->default_uv_map_name();
+
+  if (!default_uv_name.is_empty()) {
+    blender::VArraySpan<blender::float2> uv_map = *attributes.lookup<blender::float2>(
+        default_uv_name, bke::AttrDomain::Corner);
+    blender::Array<blender::Span<blender::float2>> uv_map_spans(1);
+    uv_map_spans[0] = uv_map;
+
+    tangent_arrays = bke::mesh::calc_uv_tangents(mr.vert_positions,
+                                                 mr.faces,
+                                                 mr.corner_verts,
+                                                 mr.mesh->corner_tris(),
+                                                 mr.mesh->corner_tri_faces(),
+                                                 mr.sharp_faces,
+                                                 mr.mesh->vert_normals(),
+                                                 mr.face_normals,
+                                                 mr.corner_normals,
+                                                 uv_map_spans);
+  }
+
+  if (!tangent_arrays.is_empty() && !tangent_arrays[0].is_empty()) {
+    const blender::Span<blender::float4> tangents = tangent_arrays[0];
+
+    for (int i = 0; i < mr.corners_num; i++) {
+      corners_tan_data[i] = tangents[i];
+    }
+  }
+  else {
+    for (int i = 0; i < mr.corners_num; i++) {
+      corners_tan_data[i] = blender::float4(1.0f, 0.0f, 0.0f, 1.0f);
+    }
+  }
+
+  for (int i = 0; i < mr.loose_edges.size() * 2; i++) {
+    loose_edge_tan_data[i] = blender::float4(1.0f, 0.0f, 0.0f, 1.0f);
+  }
+
+  for (int i = 0; i < mr.loose_verts.size(); i++) {
+    loose_vert_tan_data[i] = blender::float4(1.0f, 0.0f, 0.0f, 1.0f);
   }
 
   blender::MutableSpan<blender::uint2> idx_data(
@@ -516,6 +573,14 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
   GPU_vertbuf_init_with_format_ex(*cache->in_vertnor_buf, nor_in_format, GPU_USAGE_STATIC);
   GPU_vertbuf_data_alloc(*cache->in_vertnor_buf, cache->corner_nums);
 
+  cache->in_verttan_buf = GPU_vertbuf_calloc();
+  static GPUVertFormat tan_in_format = {0};
+  if (tan_in_format.attr_len == 0) {
+    GPU_vertformat_attr_add(&tan_in_format, "intan", gpu::VertAttrType::SFLOAT_32_32_32_32);
+  }
+  GPU_vertbuf_init_with_format_ex(*cache->in_verttan_buf, tan_in_format, GPU_USAGE_STATIC);
+  GPU_vertbuf_data_alloc(*cache->in_verttan_buf, cache->corner_nums);
+
   bool use_dual_quaternion = (amd && (amd->deformflag & ARM_DEF_QUATERNION));
 
   if (use_dual_quaternion) {
@@ -546,11 +611,13 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
   cache->meshdata_idx = cache->in_indices_buf->data<uint32_t>().data();
   cache->meshdata_pos = cache->in_vertpos_buf->data<float>().data();
   cache->meshdata_nor = cache->in_vertnor_buf->data<float>().data();
+  cache->meshdata_tan = cache->in_verttan_buf->data<float>().data();
 
   GPU_vertbuf_tag_dirty(cache->in_weights_buf);
   GPU_vertbuf_tag_dirty(cache->in_indices_buf);
   GPU_vertbuf_tag_dirty(cache->in_vertpos_buf);
   GPU_vertbuf_tag_dirty(cache->in_vertnor_buf);
+  GPU_vertbuf_tag_dirty(cache->in_verttan_buf);
 
   if (cache->in_bonemat_buf) {
     GPU_vertbuf_tag_dirty(cache->in_bonemat_buf);
@@ -567,7 +634,7 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
 
   bool success = (cache->compute_shader != nullptr && cache->in_indices_buf != nullptr &&
                   cache->in_weights_buf != nullptr && cache->in_vertpos_buf != nullptr &&
-                  cache->in_vertnor_buf != nullptr &&
+                  cache->in_vertnor_buf != nullptr && cache->in_verttan_buf != nullptr &&
                   (cache->in_bonemat_buf != nullptr || cache->in_bonedq_buf != nullptr));
 
   cache->buffers_valid = success;
@@ -581,9 +648,10 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
  * Setup shader buffers for packing and upload
  * \{ */
 
-void draw_skinning_extract_pos_nor(VertBuf *vbo_pos,
-                                   VertBuf *vbo_nor,
-                                   const DRWSkinningCache &cache)
+void draw_skinning_extract_pos_nor_tan(VertBuf *vbo_pos,
+                                       VertBuf *vbo_nor,
+                                       VertBuf *vbo_tan,
+                                       const DRWSkinningCache &cache)
 {
   GPU_shader_bind(cache.compute_shader);
 
@@ -609,11 +677,17 @@ void draw_skinning_extract_pos_nor(VertBuf *vbo_pos,
   GPU_vertbuf_bind_as_ssbo(cache.in_vertnor_buf,
                            GPU_shader_get_ssbo_binding(cache.compute_shader, "nor_buf"));
 
+  GPU_vertbuf_bind_as_ssbo(cache.in_verttan_buf,
+                           GPU_shader_get_ssbo_binding(cache.compute_shader, "tan_buf"));
+
   GPU_vertbuf_bind_as_ssbo(vbo_pos,
                            GPU_shader_get_ssbo_binding(cache.compute_shader, "out_skinned_pos"));
 
   GPU_vertbuf_bind_as_ssbo(vbo_nor,
                            GPU_shader_get_ssbo_binding(cache.compute_shader, "out_skinned_nor"));
+
+  GPU_vertbuf_bind_as_ssbo(vbo_tan,
+                           GPU_shader_get_ssbo_binding(cache.compute_shader, "out_skinned_tan"));
 
   GPU_shader_uniform_1i(cache.compute_shader, "vertex_count", cache.corner_nums);
 
@@ -764,7 +838,8 @@ static bool draw_create_skinning(Object &ob,
 
         // TODO (ResolutionC): needs better evaluation for if topo/new modifiers added
         // TODO (ResolutionC): we need to handle multimodifiers
-        if (needs_buffer_setup /*|| check mesh/modifier stack updated */) {
+        if (needs_buffer_setup /*|| check mesh/modifier stack updated and or if the mesh's resting data is actively changing*/)
+        {
           draw_skinning_cache_free(skincache);
           draw_skinning_setup_buffers(amd->object, &skincache, mr, amd);
           if (!skincache.vertex_data_packed) {
@@ -772,6 +847,7 @@ static bool draw_create_skinning(Object &ob,
             draw_skinning_pack_vertex_data(amd->object,
                                            &skincache.meshdata_pos,
                                            &skincache.meshdata_nor,
+                                           &skincache.meshdata_tan,
                                            &skincache.meshdata_idx,
                                            &skincache.meshdata_wgt,
                                            mr);

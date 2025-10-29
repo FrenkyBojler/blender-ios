@@ -11,8 +11,9 @@
 
 #include "extract_mesh.hh"
 
-#include "draw_subdivision.hh"
 #include "draw_skinning.hh"
+#include "draw_subdivision.hh"
+
 
 namespace blender::draw {
 
@@ -113,22 +114,27 @@ static const GPUVertFormat &get_skinning_tan_format()
 }
 
 static gpu::VertBufPtr g_skinning_normals_cache = nullptr;
+static gpu::VertBufPtr g_skinning_tangents_cache = nullptr;
 
 gpu::VertBufPtr extract_positions_skinning(const DRWSkinningCache &skinning_cache,
                                            const MeshRenderData &mr)
 {
   gpu::VertBufPtr vbo_pos = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
-      get_skinning_pos_format(), mr.corners_num + mr.loose_indices_num + 1));
+      get_skinning_pos_format(), mr.corners_num + mr.loose_indices_num));
 
   gpu::VertBufPtr vbo_nor = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
       get_skinning_nor_format(), mr.corners_num + mr.loose_indices_num));
 
-  draw_skinning_extract_pos_nor(vbo_pos.get(), vbo_nor.get(), skinning_cache);
+  gpu::VertBufPtr vbo_tan = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_tan_format(), mr.corners_num + mr.loose_indices_num));
+
+  draw_skinning_extract_pos_nor_tan(vbo_pos.get(), vbo_nor.get(), vbo_tan.get(), skinning_cache);
 
   draw_skinning_compute_bounds(const_cast<Mesh *>(mr.mesh), skinning_cache, vbo_pos.get());
 
-  /* Cache the normals VBO for later retrieval */
+  /* Cache the normals and tangents VBOs for later retrieval */
   g_skinning_normals_cache = std::move(vbo_nor);
+  g_skinning_tangents_cache = std::move(vbo_tan);
 
   return vbo_pos;
 }
@@ -145,12 +151,15 @@ gpu::VertBufPtr extract_normals_skinning(const DRWSkinningCache &skinning_cache,
 
   /* Fallback: create normals VBO if positions weren't extracted first */
   gpu::VertBufPtr vbo_pos = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
-      get_skinning_pos_format(), mr.corners_num + mr.loose_indices_num + 1));
+      get_skinning_pos_format(), mr.corners_num + mr.loose_indices_num));
 
   gpu::VertBufPtr vbo_nor = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
       get_skinning_nor_format(), mr.corners_num + mr.loose_indices_num));
 
-  draw_skinning_extract_pos_nor(vbo_pos.get(), vbo_nor.get(), skinning_cache);
+  gpu::VertBufPtr vbo_tan = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_tan_format(), mr.corners_num + mr.loose_indices_num));
+
+  draw_skinning_extract_pos_nor_tan(vbo_pos.get(), vbo_nor.get(), vbo_tan.get(), skinning_cache);
 
   return vbo_nor;
 }
@@ -158,7 +167,26 @@ gpu::VertBufPtr extract_normals_skinning(const DRWSkinningCache &skinning_cache,
 gpu::VertBufPtr extract_tangents_skinning(const DRWSkinningCache &skinning_cache,
                                           const MeshRenderData &mr)
 {
-  /* here we implement vbo_tan */
+  /* Return the cached tangents VBO that was computed during position extraction */
+  if (g_skinning_tangents_cache) {
+    gpu::VertBufPtr result = std::move(g_skinning_tangents_cache);
+    g_skinning_tangents_cache = nullptr;
+    return result;
+  }
+
+  /* Fallback: create tangents VBO if positions weren't extracted first */
+  gpu::VertBufPtr vbo_pos = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_pos_format(), mr.corners_num + mr.loose_indices_num));
+
+  gpu::VertBufPtr vbo_nor = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_nor_format(), mr.corners_num + mr.loose_indices_num));
+
+  gpu::VertBufPtr vbo_tan = gpu::VertBufPtr(GPU_vertbuf_create_on_device(
+      get_skinning_tan_format(), mr.corners_num + mr.loose_indices_num));
+
+  draw_skinning_extract_pos_nor_tan(vbo_pos.get(), vbo_nor.get(), vbo_tan.get(), skinning_cache);
+
+  return vbo_tan;
 }
 
 static void extract_loose_positions_subdiv(const DRWSubdivCache &subdiv_cache,

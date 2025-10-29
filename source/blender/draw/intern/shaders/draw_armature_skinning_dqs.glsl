@@ -158,8 +158,10 @@ void main()
     vec4 P_rest = pos_buf[gid];
     vec2 N_packed = nor_buf[gid];
     vec3 N_rest = unpack_octahedral(N_packed);
+    vec4 T_rest = tan_buf[gid];
     out_skinned_pos[gid] = P_rest;
     out_skinned_nor[gid] = vec4(N_rest, 0.0f);
+    out_skinned_tan[gid] = T_rest;
     return;
   }
 
@@ -168,6 +170,7 @@ void main()
   vec3 P_rest = vec3(pos_buf[gid]);
   vec2 N_packed = nor_buf[gid];
   vec3 N_rest = unpack_octahedral(N_packed);
+  vec4 T_rest = tan_buf[gid];
 
   /* Initialize dual quaternion accumulator. */
   DualQuat dq_sum;
@@ -213,21 +216,25 @@ void main()
 
   vec3 P_final;
   vec3 N_final;
+  vec3 T_final;
 
   if (total_weight > 0.0) {
     /* Normalize accumulated dual quaternion by total weight. */
     dq_sum.quat_weight = total_weight;
     DualQuat normalized_dq = normalize_dual_quat(dq_sum);
 
-    /* Apply dual quaternion transformation to vertex and normal. */
+    /* Apply dual quaternion transformation to vertex, normal, and tangent. */
     P_final = transform_point_dual_quat(P_rest, normalized_dq);
     N_final = normalize(transform_normal_dual_quat(N_rest, normalized_dq));
+    T_final = normalize(transform_normal_dual_quat(T_rest.xyz, normalized_dq));
   }
   else {
     P_final = P_rest;
     N_final = N_rest;
+    T_final = T_rest.xyz;
   }
 
   out_skinned_pos[gid] = vec4(P_final, 1.0);
   out_skinned_nor[gid] = vec4(N_final, 0.0);
+  out_skinned_tan[gid] = vec4(T_final, T_rest.w);
 }

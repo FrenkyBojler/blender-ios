@@ -158,8 +158,10 @@ void main()
     vec4 P_rest = pos_buf[gid];
     vec2 N_packed = nor_buf[gid];
     vec3 N_rest = unpack_octahedral(N_packed);
+    vec4 T_rest = tan_buf[gid];
     out_skinned_pos[gid] = P_rest;
     out_skinned_nor[gid] = vec4(N_rest, 0.0f);
+    out_skinned_tan[gid] = T_rest;
     return;
   }
 
@@ -169,10 +171,12 @@ void main()
   vec4 P_rest_f = vec4(P_rest, 1.0f);
   vec2 N_packed = nor_buf[gid];
   vec3 N_rest = unpack_octahedral(N_packed);
+  vec4 T_rest = tan_buf[gid];
 
   /* Accumulate transformation deltas for numerical stability. */
   vec3 co_accum = vec3(0.0f);
   vec3 N_accum = vec3(0.0f);
+  vec3 T_accum = vec3(0.0f);
   float total_weight = 0.0f;
 
   for (int k = 0; k < 4; ++k) {
@@ -195,6 +199,10 @@ void main()
         vec3 N_eval = transformed_nor - N_rest;
         N_accum += N_eval * w;
 
+        vec3 transformed_tan = mat3(bm) * T_rest.xyz;
+        vec3 T_eval = transformed_tan - T_rest.xyz;
+        T_accum += T_eval * w;
+
         total_weight += w;
       }
     }
@@ -202,7 +210,9 @@ void main()
 
   vec3 P_final = P_rest + co_accum;
   vec3 N_final = normalize(N_rest + N_accum);
+  vec3 T_final = normalize(T_rest.xyz + T_accum);
 
   out_skinned_pos[gid] = vec4(P_final, 1.0f);
   out_skinned_nor[gid] = vec4(N_final, 0.0f);
+  out_skinned_tan[gid] = vec4(T_final, T_rest.w);
 }

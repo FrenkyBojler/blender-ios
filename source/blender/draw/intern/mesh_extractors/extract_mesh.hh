@@ -273,6 +273,8 @@ void extract_face_dots_subdiv(const DRWSubdivCache &subdiv_cache,
 gpu::VertBufPtr extract_normals(const MeshRenderData &mr, bool use_hq);
 gpu::VertBufPtr extract_normals_skinning(const DRWSkinningCache &skinning_cache,
                                          const MeshRenderData &mr);
+gpu::VertBufPtr extract_tangents_skinning(const DRWSkinningCache &skinning_cache,
+                                          const MeshRenderData &mr);
 gpu::VertBufPtr extract_normals_subdiv(const MeshRenderData &mr,
                                        const DRWSubdivCache &subdiv_cache,
                                        gpu::VertBuf &pos);

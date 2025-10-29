@@ -61,7 +61,6 @@
 #include "gpu_shader_create_info.hh"
 #include "mesh_extractors/extract_mesh.hh"
 
-
 using namespace blender::gpu::shader;
 using namespace blender::gpu;
 
@@ -87,14 +86,17 @@ struct DRWSkinningCache {
   VertBuf *in_bonemat_buf;
   VertBuf *in_vertpos_buf;
   VertBuf *in_vertnor_buf;
+  VertBuf *in_verttan_buf;
 
   blender::gpu::StorageBuf *in_bonedq_buf;
 
   VertBuf *out_skinned_pos;
   VertBuf *out_skinned_nor;
+  VertBuf *out_skinned_tan;
 
   float *meshdata_pos;
   float *meshdata_nor;
+  float *meshdata_tan;
 
   float *bonedata_mat;
   GPUDualQuat *bonedata_dq;
@@ -128,9 +130,10 @@ void DRW_create_skinning(Object &evaluated_object,
                          const ToolSettings *ts,
                          const bool use_hide);
 
-void draw_skinning_extract_pos_nor(VertBuf *vbo_pos,
-                                   VertBuf *vbo_nor,
-                                   const DRWSkinningCache &cache);
+void draw_skinning_extract_pos_nor_tan(VertBuf *vbo_pos,
+                                       VertBuf *vbo_nor,
+                                       VertBuf *vbo_tan,
+                                       const DRWSkinningCache &cache);
 
 void draw_skinning_compute_bounds(Mesh *mesh,
                                   const DRWSkinningCache &cache,
