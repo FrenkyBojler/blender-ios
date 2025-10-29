@@ -105,11 +105,11 @@ static bool is_within_template_bounds(const char *template_path,
 
   /* Check if one path is prefix of the other (parent/child relationship) */
   if (resolved_len < current_len) {
-    return strncmp(resolved_template, normalized_current, resolved_len) == 0 &&
+    return STREQLEN(resolved_template, normalized_current, resolved_len) &&
            normalized_current[resolved_len] == '/';
   }
 
-  return strncmp(resolved_template, normalized_current, current_len) == 0 &&
+  return STREQLEN(resolved_template, normalized_current, current_len) &&
          resolved_template[current_len] == '/';
 }
 
@@ -148,7 +148,7 @@ static bool update_template_on_navigation(const char *original_template,
 
   /* Case 2: Going deeper into template directory */
   if (current_len > resolved_len &&
-      strncmp(normalized_current, resolved_template, resolved_len) == 0 &&
+      STREQLEN(normalized_current, resolved_template, resolved_len) &&
       normalized_current[resolved_len] == '/')
   {
     const char *extra_path = normalized_current + resolved_len + 1;
@@ -162,7 +162,7 @@ static bool update_template_on_navigation(const char *original_template,
 
   /* Case 3: Going up from template directory */
   if (resolved_len > current_len &&
-      strncmp(resolved_template, normalized_current, current_len) == 0 &&
+      STREQLEN(resolved_template, normalized_current, current_len) &&
       (current_len == 0 || resolved_template[current_len] == '/'))
   {
     /* Go up from template path */
