@@ -1549,7 +1549,7 @@ static void serialize_bake_item(const BakeItem &item,
   }
   else if (const auto *list_state_item = dynamic_cast<const ListBakeItem *>(&item)) {
     r_io_item.append_str("type", "LIST");
-    if (const auto *simple_list = std::get_if<ListBakeItem::SimpleList>(&list_state_item->value)) {
+    if (const nodes::ListPtr *simple_list = std::get_if<nodes::ListPtr>(&list_state_item->value)) {
       if (*simple_list) {
         const nodes::List &list = **simple_list;
         if (list.cpp_type() == CPPType::get<std::string>()) {

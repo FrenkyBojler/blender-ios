@@ -333,7 +333,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
         return SocketValueVariant::From(std::move(field));
       }
       if (const auto *item = dynamic_cast<const ListBakeItem *>(&bake_item)) {
-        if (const auto *simple_list = std::get_if<ListBakeItem::SimpleList>(&item->value)) {
+        if (const auto *simple_list = std::get_if<nodes::ListPtr>(&item->value)) {
           if (*simple_list && (*simple_list)->cpp_type() == base_type) {
             return SocketValueVariant::From(std::move(*simple_list));
           }
@@ -362,7 +362,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
         return SocketValueVariant(std::string(item->value()));
       }
       if (const auto *item = dynamic_cast<const ListBakeItem *>(&bake_item)) {
-        if (const auto *simple_list = std::get_if<ListBakeItem::SimpleList>(&item->value)) {
+        if (const auto *simple_list = std::get_if<nodes::ListPtr>(&item->value)) {
           if (*simple_list && (*simple_list)->cpp_type() == CPPType::get<std::string>()) {
             return SocketValueVariant::From(std::move(*simple_list));
           }

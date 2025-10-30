@@ -171,12 +171,10 @@ class BundleBakeItem : public BakeItem {
 
 class ListBakeItem : public BakeItem {
  public:
-  /* A simple list that is implicitly shared without additional processing. */
-  using SimpleList = nodes::ListPtr;
   /* List of bake items for bundles which need additional preparation for baking. */
   using BundleList = Vector<BundleBakeItem>;
 
-  std::variant<SimpleList, BundleList> value;
+  std::variant<nodes::ListPtr, BundleList> value;
 
   ListBakeItem(nodes::ListPtr list);
   ListBakeItem(Vector<BundleBakeItem> &&items);
