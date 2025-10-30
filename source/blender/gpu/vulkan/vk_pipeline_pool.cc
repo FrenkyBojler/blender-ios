@@ -242,6 +242,8 @@ static void build_depth_stencil_state(
     VkGraphicsPipelineCreateInfo &vk_graphics_pipeline_create_info,
     VkPipelineDepthStencilStateCreateInfo &vk_pipeline_depth_stencil_state_create_info)
 {
+  vk_pipeline_depth_stencil_state_create_info = {
+      VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
   if (graphics_info.fragment_out.depth_attachment_format != VK_FORMAT_UNDEFINED) {
     vk_graphics_pipeline_create_info.pDepthStencilState =
         &vk_pipeline_depth_stencil_state_create_info;
