@@ -1,7 +1,10 @@
 /* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #include "testing/testing.h"
+
+#include "NOD_expression_parse.hh"
 
 #include "expression_parse.hh"
 
@@ -82,6 +85,64 @@ TEST(nodes_expression, tokenize_invalid_char)
     const StringRef error = std::get<std::string>(result.result);
     EXPECT_TRUE(error.startswith("Invalid character"));
   }
+}
+
+static void expect_ast_recursive(const ast::Expr &a, const ast::Expr &b)
+{
+  EXPECT_EQ(a.expr.index(), b.expr.index());
+  if (const auto *a_ = std::get_if<ast::Identifier>(&a.expr)) {
+    const auto *b_ = std::get_if<ast::Identifier>(&b.expr);
+    EXPECT_EQ(a_->identifier, b_->identifier);
+  }
+  else if (const auto *a_ = std::get_if<ast::NumberLiteral>(&a.expr)) {
+    const auto *b_ = std::get_if<ast::NumberLiteral>(&b.expr);
+    EXPECT_EQ(a_->value, b_->value);
+  }
+  else if (const auto *a_ = std::get_if<ast::StringLiteral>(&a.expr)) {
+    const auto *b_ = std::get_if<ast::StringLiteral>(&b.expr);
+    EXPECT_EQ(a_->value, b_->value);
+  }
+  else if (const auto *a_ = std::get_if<ast::BinaryOp>(&a.expr)) {
+    const auto *b_ = std::get_if<ast::BinaryOp>(&b.expr);
+    EXPECT_EQ(a_->op, b_->op);
+    expect_ast_recursive(*a_->a, *b_->a);
+    expect_ast_recursive(*a_->b, *b_->b);
+  }
+  else if (const auto *a_ = std::get_if<ast::UnaryOp>(&a.expr)) {
+    const auto *b_ = std::get_if<ast::UnaryOp>(&b.expr);
+    EXPECT_EQ(a_->op, b_->op);
+    expect_ast_recursive(*a_->expr, *b_->expr);
+  }
+  else if (const auto *a_ = std::get_if<ast::ConditionalOp>(&a.expr)) {
+    const auto *b_ = std::get_if<ast::ConditionalOp>(&b.expr);
+    expect_ast_recursive(*a_->condition, *b_->condition);
+    expect_ast_recursive(*a_->true_expr, *b_->true_expr);
+    expect_ast_recursive(*a_->false_expr, *b_->false_expr);
+  }
+  else if (const auto *a_ = std::get_if<ast::Call>(&a.expr)) {
+    const auto *b_ = std::get_if<ast::Call>(&b.expr);
+    EXPECT_EQ(a_->function->expr.index(), b_->function->expr.index());
+    EXPECT_EQ(a_->args.size(), b_->args.size());
+    for (const int i : IndexRange(a_->args.size())) {
+      expect_ast_recursive(*a_->args[i], *b_->args[i]);
+    }
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
+static void expect_ast(const ast::Expr &a, const ast::Expr &b)
+{
+  expect_ast_recursive(a, b);
+}
+
+TEST(nodes_expression, parse_identifier)
+{
+  ResourceScope scope;
+  ParseResult result = parse(scope, "a");
+  ast::Expr *expr = std::get<ast::Expr *>(result);
+  expect_ast(*expr, {ast::Identifier{"a"}});
 }
 
 }  // namespace blender::nodes::expression::tests
