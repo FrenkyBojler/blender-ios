@@ -859,11 +859,6 @@ static int wrap_width_get(const TextVars *data, const int2 image_size)
   return data->wrap_width * image_size.x;
 }
 
-static void apply_line_spacing(const TextVars *data, TextVarsRuntime *runtime)
-{
-  runtime->line_height *= data->line_spacing;
-}
-
 /* Lines must contain CharInfo for newlines and \0, as UI must know where they begin. */
 static void apply_word_wrapping(const TextVars *data,
                                 TextVarsRuntime *runtime,
@@ -906,7 +901,7 @@ static void apply_word_wrapping(const TextVars *data,
     if (character.do_wrap || data->text_ptr[character.offset] == '\n') {
       runtime->lines.append(LineInfo());
       char_position.x = 0;
-      char_position.y -= runtime->line_height;
+      char_position.y -= runtime->line_height * data->line_spacing;
     }
   }
 }
@@ -919,6 +914,19 @@ static int text_box_width_get(const Vector<LineInfo> &lines)
     width_max = std::max(width_max, line.width);
   }
   return width_max;
+}
+
+static int text_box_height_get(const TextVars *data, const TextVarsRuntime *runtime)
+{
+  const int64_t lines = runtime->lines.size();
+
+  if (lines == 0) {
+    return 0;
+  }
+  else {
+    // Always have at least one full line height.
+    return (lines - 1) * runtime->line_height * data->line_spacing + BLF_height_max(runtime->font);
+  }
 }
 
 static float2 horizontal_alignment_offset_get(const TextVars *data,
@@ -969,7 +977,7 @@ static float2 anchor_offset_get(const TextVars *data, int width_max, int text_he
 
 static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const int2 image_size)
 {
-  const int text_height = runtime->lines.size() * runtime->line_height;
+  const int text_height = text_box_height_get(data, runtime);
 
   int width_max = text_box_width_get(runtime->lines);
 
@@ -992,7 +1000,7 @@ static void apply_text_alignment(const TextVars *data,
                                  const int2 image_size)
 {
   const int width_max = text_box_width_get(runtime->lines);
-  const int text_height = runtime->lines.size() * runtime->line_height;
+  const int text_height = text_box_height_get(data, runtime);
 
   const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
   const float2 line_height_offset{0.0f,
@@ -1020,7 +1028,6 @@ TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const in
   runtime->character_count = BLI_strlen_utf8(data->text_ptr);
 
   Vector<CharInfo> characters_temp = build_character_info(data, font);
-  apply_line_spacing(data, runtime);
   apply_word_wrapping(data, runtime, image_size, characters_temp);
   apply_text_alignment(data, runtime, image_size);
   calc_boundbox(data, runtime, image_size);
