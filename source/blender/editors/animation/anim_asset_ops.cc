@@ -668,8 +668,7 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
   }
   else {
-    /* Only push the undo state if the modified action was in the local file. Undoing in an
-     * external file is not yet supported. */
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
     ED_undo_push_op(C, op);
   }
 
@@ -779,6 +778,7 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
   }
   else {
     asset::clear_id(&action->id);
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
     ED_undo_push_op(C, op);
   }
 
