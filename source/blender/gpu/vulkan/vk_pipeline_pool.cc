@@ -135,14 +135,13 @@ static void build_viewport_state(
     const VKGraphicsInfo &graphics_info,
     VkPipelineViewportStateCreateInfo &vk_pipeline_viewport_state_create_info)
 {
-  vk_pipeline_viewport_state_create_info = {
-      VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-      nullptr,
-      0,
-      uint32_t(graphics_info.fragment_shader.viewports.size()),
-      nullptr,
-      uint32_t(graphics_info.fragment_shader.scissors.size()),
-      nullptr};
+  vk_pipeline_viewport_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+                                            nullptr,
+                                            0,
+                                            graphics_info.fragment_shader.viewport_count,
+                                            nullptr,
+                                            graphics_info.fragment_shader.viewport_count,
+                                            nullptr};
 }
 
 static void build_input_assembly_state(
@@ -534,6 +533,7 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(const VKGraphicsInfo 
                                                          vk_pipeline_cache_non_static_;
   return graphics_.get_or_create(graphics_info, vk_pipeline_cache, vk_pipeline_base, name);
 }
+
 template<>
 VkPipeline VKPipelineMap<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_info,
                                                  VkPipelineCache vk_pipeline_cache,
