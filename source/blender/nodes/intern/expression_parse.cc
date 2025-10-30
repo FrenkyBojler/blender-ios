@@ -116,7 +116,8 @@ class Tokenizer {
       case ')':
       case ',':
       case ':':
-      case '?': {
+      case '?':
+      case '.': {
         return add_special(1);
       }
       case '<':
@@ -348,17 +349,26 @@ class Parser {
   {
     BLI_assert(this->next_is("("));
     this->consume_next();
+    if (this->next_is(")")) {
+      this->consume_next();
+      return {};
+    }
     Vector<ast::Expr *> args;
     while (true) {
-      if (this->next_is(")")) {
-        this->consume_next();
-        return args;
-      }
       ast::Expr *arg = this->parse__expression();
       if (!arg) {
         return std::nullopt;
       }
       args.append(arg);
+      if (this->next_is(")")) {
+        this->consume_next();
+        return args;
+      }
+      if (!this->next_is(",")) {
+        this->set_unexpected_token_error();
+        return std::nullopt;
+      }
+      this->consume_next();
     }
   }
 
