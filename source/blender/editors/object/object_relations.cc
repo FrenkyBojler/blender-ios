@@ -394,6 +394,9 @@ void parent_clear(Object *ob, const int type)
       /* remove parent, and apply the parented transform
        * result as object's local transforms */
       ob->parent = nullptr;
+      /* set parent object to PAROBJECT explicitly to prevent rna enum errors later */
+      ob->partype = PAROBJECT;
+      ob->parsubstr[0] = 0;
       BKE_object_apply_mat4(ob, ob->object_to_world().ptr(), true, false);
       /* Don't recalculate the animation because it would change the transform
        * instead of keeping it. */
