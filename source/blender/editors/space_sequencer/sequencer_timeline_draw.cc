@@ -8,7 +8,6 @@
  */
 
 #include <cmath>
-#include <cstring>
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
@@ -49,7 +48,6 @@
 
 #include "SEQ_channels.hh"
 #include "SEQ_connect.hh"
-#include "SEQ_effects.hh"
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
@@ -1224,22 +1222,22 @@ static void draw_seq_timeline_channels(TimelineDrawContext *ctx)
 {
   View2D *v2d = ctx->v2d;
   UI_view2d_view_ortho(v2d);
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
   GPU_blend(GPU_BLEND_ALPHA);
-  immUniformThemeColor(TH_ROW_ALTERNATE);
+  uchar4 color;
+  UI_GetThemeColor4ubv(TH_ROW_ALTERNATE, color);
 
   /* Alternating horizontal stripes. */
   int i = max_ii(1, int(v2d->cur.ymin) - 1);
   while (i < v2d->cur.ymax) {
     if (i & 1) {
-      immRectf(pos, v2d->cur.xmin, i, v2d->cur.xmax, i + 1);
+      ctx->quads->add_quad(v2d->cur.xmin, i, v2d->cur.xmax, i + 1, color);
     }
     i++;
   }
 
+  ctx->quads->draw();
   GPU_blend(GPU_BLEND_NONE);
-  immUnbindProgram();
 }
 
 /* Get visible strips into two sets: regular strips, and strips
@@ -1602,38 +1600,31 @@ static void draw_timeline_sfra_efra(TimelineDrawContext *ctx)
 
   GPU_blend(GPU_BLEND_ALPHA);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
   /* Draw overlay outside of frame range. */
-  immUniformThemeColorShadeAlpha(TH_BACK, -10, -100);
+  uchar4 color;
+  UI_GetThemeColorShadeAlpha4ubv(TH_BACK, -10, -100, color);
 
   if (frame_sta < frame_end) {
-    immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, float(frame_sta), v2d->cur.ymax);
-    immRectf(pos, float(frame_end), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+    ctx->quads->add_quad(v2d->cur.xmin, v2d->cur.ymin, float(frame_sta), v2d->cur.ymax, color);
+    ctx->quads->add_quad(float(frame_end), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax, color);
   }
   else {
-    immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+    ctx->quads->add_quad(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax, color);
   }
 
-  immUniformThemeColorShade(TH_BACK, -60);
-
   /* Draw frame range boundary. */
-  immBegin(GPU_PRIM_LINES, 4);
+  UI_GetThemeColorShade4ubv(TH_BACK, -60, color);
 
-  immVertex2f(pos, frame_sta, v2d->cur.ymin);
-  immVertex2f(pos, frame_sta, v2d->cur.ymax);
+  ctx->quads->add_line(frame_end, v2d->cur.ymin, frame_end, v2d->cur.ymax, color);
+  ctx->quads->add_line(frame_end, v2d->cur.ymin, frame_end, v2d->cur.ymax, color);
 
-  immVertex2f(pos, frame_end, v2d->cur.ymin);
-  immVertex2f(pos, frame_end, v2d->cur.ymax);
-
-  immEnd();
+  ctx->quads->draw();
 
   /* While in meta strip, draw a checkerboard overlay outside of frame range. */
   if (ed && !BLI_listbase_is_empty(&ed->metastack)) {
     const MetaStack *ms = static_cast<const MetaStack *>(ed->metastack.last);
-    immUnbindProgram();
 
+    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
     immUniform4f("color1", 0.0f, 0.0f, 0.0f, 0.22f);
@@ -1645,21 +1636,13 @@ static void draw_timeline_sfra_efra(TimelineDrawContext *ctx)
 
     immUnbindProgram();
 
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformThemeColorShade(TH_BACK, -40);
-
-    immBegin(GPU_PRIM_LINES, 4);
-
-    immVertex2f(pos, ms->disp_range[0], v2d->cur.ymin);
-    immVertex2f(pos, ms->disp_range[0], v2d->cur.ymax);
-
-    immVertex2f(pos, ms->disp_range[1], v2d->cur.ymin);
-    immVertex2f(pos, ms->disp_range[1], v2d->cur.ymax);
-
-    immEnd();
+    UI_GetThemeColorShade4ubv(TH_BACK, -40, color);
+    ctx->quads->add_line(
+        ms->disp_range[0], v2d->cur.ymin, ms->disp_range[0], v2d->cur.ymax, color);
+    ctx->quads->add_line(
+        ms->disp_range[1], v2d->cur.ymin, ms->disp_range[1], v2d->cur.ymax, color);
+    ctx->quads->draw();
   }
-
-  immUnbindProgram();
 
   GPU_blend(GPU_BLEND_NONE);
 }
@@ -1787,10 +1770,9 @@ static void draw_cache_view(const bContext *C)
   GPU_blend(GPU_BLEND_NONE);
 }
 
-/* Draw sequencer timeline. */
-static void draw_overlap_frame_indicator(const Scene *scene, const View2D *v2d)
+static void draw_overlay_frame_indicator(const Scene *scene, const View2D *v2d)
 {
-  int overlap_frame = (scene->ed->overlay_frame_flag & SEQ_EDIT_OVERLAY_FRAME_ABS) ?
+  int overlay_frame = (scene->ed->overlay_frame_flag & SEQ_EDIT_OVERLAY_FRAME_ABS) ?
                           scene->ed->overlay_frame_abs :
                           scene->r.cfra + scene->ed->overlay_frame_ofs;
 
@@ -1806,8 +1788,8 @@ static void draw_overlap_frame_indicator(const Scene *scene, const View2D *v2d)
   immUniformThemeColor(TH_CFRAME);
 
   immBegin(GPU_PRIM_LINES, 2);
-  immVertex2f(pos, overlap_frame, v2d->cur.ymin);
-  immVertex2f(pos, overlap_frame, v2d->cur.ymax);
+  immVertex2f(pos, overlay_frame, v2d->cur.ymin);
+  immVertex2f(pos, overlay_frame, v2d->cur.ymax);
   immEnd();
 
   immUnbindProgram();
@@ -1912,7 +1894,7 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region)
     UI_view2d_view_ortho(v2d);
     draw_cache_view(C);
     if (scene->ed->overlay_frame_flag & SEQ_EDIT_OVERLAY_FRAME_SHOW) {
-      draw_overlap_frame_indicator(scene, v2d);
+      draw_overlay_frame_indicator(scene, v2d);
     }
     UI_view2d_view_restore(C);
   }
