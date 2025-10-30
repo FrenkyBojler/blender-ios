@@ -257,9 +257,6 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
             col.scale_y = 1.3
             col.use_property_split = False
             col.prop(strip, "text", text="")
-            col.use_property_split = True
-            layout.prop(strip, "wrap_width", text="Wrap Width")
-            layout.prop(strip, "line_spacing", text="Line Spacing")
 
         col = layout.column(align=True)
         if strip_type in {'CROSS', 'GAMMA_CROSS', 'WIPE', 'ALPHA_OVER', 'ALPHA_UNDER'}:
@@ -289,6 +286,10 @@ class STRIP_PT_effect_text_layout(StripButtonsPanel, Panel):
         strip = context.active_strip
         layout = self.layout
         layout.use_property_split = True
+        col = layout.column()
+        col.prop(strip, "wrap_width", text="Wrap Width")
+        col = layout.column()
+        col.prop(strip, "line_spacing", text="Line Spacing")
         col = layout.column()
         col.prop(strip, "location", text="Location")
         col.prop(strip, "alignment_x", text="Alignment X")
