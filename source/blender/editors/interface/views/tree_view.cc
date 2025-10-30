@@ -173,7 +173,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   uiViewState state{};
 
   SET_FLAG_FROM_TEST(state.flag, show_display_options_, UI_VIEW_COLLAPSE_FILTER_OPTIONS);
-  state.search_string = search_string_ ? BLI_strdup(search_string_->data()) : nullptr;
+  BLI_strncpy(state.search_string, search_string_->data(), sizeof(state.search_string));
 
   if (!custom_height_ && !scroll_value_) {
     return {};
@@ -200,7 +200,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
   }
 
   show_display_options_ = state.flag & UI_VIEW_COLLAPSE_FILTER_OPTIONS;
-  if (state.search_string && state.search_string[0] != '\0') {
+  if (state.search_string[0] != '\0') {
     if (!search_string_) {
       search_string_ = std::make_unique<decltype(search_string_)::element_type>();
     }

@@ -26,7 +26,6 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_rect.h"
-#include "BLI_string.h"
 
 #include "ED_screen.hh"
 
@@ -48,57 +47,6 @@ struct ViewLink : public Link {
 
   static void views_bounds_calc(const uiBlock &block);
 };
-
-uiViewState::uiViewState(const uiViewState &other)
-    : custom_height(other.custom_height), scroll_offset(other.scroll_offset), flag(other.flag)
-{
-  search_string = other.search_string ? BLI_strdup(other.search_string) : nullptr;
-}
-
-uiViewState::uiViewState(uiViewState &&other)
-    : custom_height(other.custom_height), scroll_offset(other.scroll_offset), flag(other.flag)
-{
-  search_string = other.search_string;
-  other.search_string = nullptr;
-}
-
-uiViewState::~uiViewState()
-{
-  MEM_SAFE_FREE(search_string);
-}
-
-uiViewState &uiViewState::operator=(const uiViewState &other)
-{
-  if (this == &other) {
-    return *this;
-  }
-  if (this->search_string) {
-    MEM_freeN(this->search_string);
-  }
-  this->custom_height = other.custom_height;
-  this->scroll_offset = other.scroll_offset;
-  this->flag = other.flag;
-  this->search_string = BLI_strdup(other.search_string);
-  return *this;
-}
-
-uiViewState &uiViewState::operator=(uiViewState &&other)
-{
-  if (this == &other) {
-    return *this;
-  }
-
-  if (this->search_string) {
-    MEM_freeN(this->search_string);
-  }
-  this->custom_height = other.custom_height;
-  this->scroll_offset = other.scroll_offset;
-  this->flag = other.flag;
-  this->search_string = other.search_string;
-  other.search_string = nullptr;
-
-  return *this;
-}
 
 template<class T>
 static T *ui_block_add_view_impl(uiBlock &block,
@@ -225,7 +173,7 @@ void ui_block_views_end(ARegion *region, const uiBlock *block)
       /* Ensure persistent view state storage for writing to files if needed. */
       if (std::optional<uiViewState> temp_state = link->view->persistent_state()) {
         uiViewStateLink *state_link = ensure_view_state(*region, *link);
-        state_link->state = std::move(*temp_state);
+        state_link->state = *temp_state;
       }
     }
   }

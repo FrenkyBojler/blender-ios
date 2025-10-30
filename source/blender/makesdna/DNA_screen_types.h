@@ -360,17 +360,7 @@ typedef struct uiViewState {
   uint16_t flag; /* #uiViewStateflag */
   char _pad[6];
 
-  char *search_string;
-
-#ifdef __cplusplus
-  uiViewState() = default;
-  uiViewState(const uiViewState &other);
-  uiViewState(uiViewState &&other);
-  ~uiViewState();
-  uiViewState &operator=(const uiViewState &other);
-  uiViewState &operator=(uiViewState &&other);
-#endif
-
+  char search_string[/*UI_MAX_NAME_STR*/ 256];
 } uiViewState;
 
 /**
