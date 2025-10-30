@@ -5396,13 +5396,15 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   using blender::StringRef;
 
   auto ensure_target_defgroup = [&](StringRef group_name) {
-    int group_index = -1;
-    if ((group_index = BKE_defgroup_name_index(&new_curves.vertex_group_names, group_name)) < 0) {
-      bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
-      group_name.copy_utf8_truncated(defgroup->name);
-      BLI_addtail(&new_curves.vertex_group_names, defgroup);
-      group_index = BLI_listbase_count(&new_curves.vertex_group_names) - 1;
+    int group_index = 0;
+    LISTBASE_FOREACH_INDEX (bDeformGroup *, group, &new_curves.vertex_group_names, group_index) {
+      if (group_name == StringRef(group->name)) {
+        return group_index;
+      }
     }
+    bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
+    group_name.copy_utf8_truncated(defgroup->name);
+    BLI_addtail(&new_curves.vertex_group_names, defgroup);
     return group_index;
   };
 
@@ -5439,7 +5441,8 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
         const MDeformWeight *mdw_from = BKE_defvert_find_index(&src_dvert[source_index],
                                                                from_group);
         MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index], to_group);
-        mdw_to->weight = invert_input ? (1 - mdw_from->weight) : mdw_from->weight;
+        const float source_weight = mdw_from ? mdw_from->weight : 0.0f;
+        mdw_to->weight = invert_input ? (1 - source_weight) : source_weight;
       });
     };
 
@@ -5448,10 +5451,11 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
       src_to_dst_defgroup.foreach_item([&](int from_group, int /*to_group*/) {
         const MDeformWeight *mdw_from = BKE_defvert_find_index(&src_dvert[source_index],
                                                                from_group);
-        highest_weight = std::max(highest_weight, mdw_from->weight);
+        const float source_weight = mdw_from ? mdw_from->weight : 0.0f;
+        highest_weight = std::max(highest_weight, source_weight);
       });
       MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index], target_defgroup);
-      mdw_to->weight = highest_weight;
+      mdw_to->weight = invert_input ? (1 - highest_weight) : highest_weight;
     };
 
     int i;
