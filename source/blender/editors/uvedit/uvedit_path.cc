@@ -661,23 +661,23 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
           scene, depsgraph, obedit, &op_params, ele_src, ele_dst, aspect_y, offsets);
 
       /* Store the object and it's index so redo is possible. */
-      int dst_index, src_index;
+      int src_index, dst_index;
       if (uv_selectmode & UV_SELECT_FACE) {
         BM_mesh_elem_index_ensure(bm, BM_FACE);
-        dst_index = BM_elem_index_get(ele_dst);
         src_index = BM_elem_index_get(ele_src);
+        dst_index = BM_elem_index_get(ele_dst);
       }
       else if (uv_selectmode & UV_SELECT_EDGE) {
         BM_mesh_elem_index_ensure(bm, BM_LOOP);
-        dst_index = BM_elem_index_get(ele_dst);
         src_index = BM_elem_index_get(ele_src);
+        dst_index = BM_elem_index_get(ele_dst);
       }
       else {
         BM_mesh_elem_index_ensure(bm, BM_LOOP);
-        dst_index = BM_elem_index_get(ele_dst);
         src_index = BM_elem_index_get(ele_src);
+        dst_index = BM_elem_index_get(ele_dst);
       }
-      
+
       const int object_index = blender::ed::object::object_in_mode_to_index(
           scene, view_layer, OB_MODE_EDIT, obedit);
       BLI_assert(object_index != -1);
@@ -695,7 +695,6 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  const ToolSettings *ts = scene->toolsettings;
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
 
@@ -721,7 +720,7 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
 
   /* NOLINTBEGIN: bugprone-assignment-in-if-condition */
   if (uv_selectmode & UV_SELECT_FACE) {
-    if (dst_index < 0 || dst_index >= bm->totface || src_index < 0 || src_index >= bm->totface) {
+    if (src_index < 0 || src_index >= bm->totface || dst_index < 0 || dst_index >= bm->totface) {
       return OPERATOR_CANCELLED;
     }
     if (!(ele_src = (BMElem *)BM_face_at_index_find_or_table(bm, src_index)) ||
