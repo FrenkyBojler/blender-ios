@@ -695,20 +695,13 @@ void interpolate_cubic_mitchell_fl(
 static const int MAX_PER_RADIUS = 8;
 static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
 
-using SamplerImplementation = int (*)(int width,
-                                      InterpWrapMode,
-                                      float u,
-                                      float w,
-                                      int positions[MAX_SAMPLES],
-                                      float weights[MAX_SAMPLES]);
-
 /* Compute a 1-d nearest filter */
-static int make_samples_nearest(int width,
-                                InterpWrapMode wrap,
-                                float u,
-                                float, /* w */
-                                int positions[MAX_SAMPLES],
-                                float weights[MAX_SAMPLES])
+BLI_INLINE int make_samples_nearest(int width,
+                                    InterpWrapMode wrap,
+                                    float u,
+                                    float, /* w */
+                                    int positions[MAX_SAMPLES],
+                                    float weights[MAX_SAMPLES])
 {
   /* this is much simpler */
   int y = wrap_coord(u, width, wrap);
@@ -720,13 +713,39 @@ static int make_samples_nearest(int width,
   return 1;
 }
 
+BLI_INLINE int make_samples_bilinear(int width,
+                                     InterpWrapMode wrap,
+                                     float u,
+                                     float, /* w */
+                                     int positions[MAX_SAMPLES],
+                                     float weights[MAX_SAMPLES])
+{
+  float f = u - floorf(u);
+  int n = 0;
+  int y = wrap_coord(u, width, wrap);
+  if (y >= 0) {
+    positions[0] = y;
+    weights[0] = 1.0f - f;
+    n = 1;
+  }
+  if (f) {
+    y = wrap_coord(u + 1, width, wrap);
+    if (y >= 0) {
+      positions[n] = y;
+      weights[n] = f;
+      n++;
+    }
+  }
+  return n;
+}
+
 /* Compute a 1-d box filter */
-static int make_samples_box(int width,
-                            InterpWrapMode wrap,
-                            float u,
-                            float w,
-                            int positions[MAX_SAMPLES],
-                            float weights[MAX_SAMPLES])
+BLI_INLINE int make_samples_box(int width,
+                                InterpWrapMode wrap,
+                                float u,
+                                float w,
+                                int positions[MAX_SAMPLES],
+                                float weights[MAX_SAMPLES])
 {
   /* this test is written so that NaN turns into 1.0f */
   if (!(w >= 1.0f)) {
@@ -755,12 +774,12 @@ static int make_samples_box(int width,
 }
 
 /* Compute a 1-d bspline filter */
-static int make_samples_bspline(int width,
-                                InterpWrapMode wrap,
-                                float u,
-                                float w,
-                                int positions[MAX_SAMPLES],
-                                float weights[MAX_SAMPLES])
+BLI_INLINE int make_samples_bspline(int width,
+                                    InterpWrapMode wrap,
+                                    float u,
+                                    float w,
+                                    int positions[MAX_SAMPLES],
+                                    float weights[MAX_SAMPLES])
 {
   /* this test is written so that NaN turns into 1.0f */
   if (!(w >= 1.0f)) {
@@ -790,36 +809,45 @@ static int make_samples_bspline(int width,
   return count;
 }
 
-static const SamplerImplementation samplers[] = {
-    make_samples_nearest,
-    make_samples_box, // bilinear
-    make_samples_box,
-    make_samples_bspline,
-    make_samples_box /* Use box for Anisotropic if wh instead of dPdx/dPdy called */
-};
-
-float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
+BLI_INLINE float4 _sample_rect(Sampler sampler, InterpWrapMode wrap_x, InterpWrapMode wrap_y,
+                               const float* buffer, int width, int height, int components,
+                               float2 uv, float2 wh)
 {
-  const SamplerImplementation sampler = samplers[(int)source.sampler];
-
   int positions_y[MAX_SAMPLES];
   float weights_y[MAX_SAMPLES];
-  int ny = sampler(source.height, source.wrap_y, uv.y, wh.y, positions_y, weights_y);
-
+  int ny;
   int positions_x[MAX_SAMPLES];
   float weights_x[MAX_SAMPLES];
-  int nx = sampler(source.width, source.wrap_x, uv.x, wh.x, positions_x, weights_x);
+  int nx;
 
+  switch (sampler) {
+  case Sampler::Nearest:
+    ny = make_samples_nearest(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
+    nx = make_samples_nearest(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
+    break;
+  case Sampler::Bilinear:
+    ny = make_samples_bilinear(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
+    nx = make_samples_bilinear(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
+    break;
+  default: //case Sampler::Box:
+    ny = make_samples_box(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
+    nx = make_samples_box(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
+    break;
+  case Sampler::Bspline:
+    ny = make_samples_bspline(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
+    nx = make_samples_bspline(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
+    break;
+  }
   if (!nx || !ny) {
     return float4(0.0f);
   }
 
-  switch (source.components) {
+  switch (components) {
     default: { /* case 1: */
       float sum{0.0f};
       for (int i = 0; i < ny; i++) {
         float sumx{0.0f};
-        const float *p = source.buffer + positions_y[i] * source.width * 4;
+        const float *p = buffer + positions_y[i] * width * 4;
         for (int j = 0; j < nx; j++) {
           sumx += *(p + positions_x[j]) * weights_x[j];
         }
@@ -831,7 +859,7 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
       float2 sum{0.0f};
       for (int i = 0; i < ny; i++) {
         float2 sumx{0.0f};
-        const float *p = source.buffer + positions_y[i] * source.width * 4;
+        const float *p = buffer + positions_y[i] * width * 4;
         for (int j = 0; j < nx; j++) {
           sumx += *(float2 *)(p + positions_x[j] * 2) * weights_x[j];
         }
@@ -843,7 +871,7 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
       float3 sum{0.0f};
       for (int i = 0; i < ny; i++) {
         float3 sumx{0.0f};
-        const float *p = source.buffer + positions_y[i] * source.width * 4;
+        const float *p = buffer + positions_y[i] * width * 4;
         for (int j = 0; j < nx; j++) {
           sumx += *(float3 *)(p + positions_x[j] * 3) * weights_x[j];
         }
@@ -856,7 +884,7 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
       __m128 sum = _mm_set1_ps(0.0f);
       for (int i = 0; i < ny; i++) {
         __m128 sumx = _mm_set1_ps(0.0f);
-        const float *p = source.buffer + positions_y[i] * source.width * 4;
+        const float *p = buffer + positions_y[i] * width * 4;
         for (int j = 0; j < nx; j++) {
           sumx = _mm_add_ps(
               sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * 4), _mm_set1_ps(weights_x[j])));
@@ -868,7 +896,7 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
       float4 sum{0.0f};
       for (int i = 0; i < ny; i++) {
         float4 sumx{0.0f};
-        const float *p = source.buffer + positions_y[i] * source.width * 4;
+        const float *p = buffer + positions_y[i] * width * 4;
         for (int j = 0; j < nx; j++) {
           sumx += *(float4 *)(p + positions_x[j] * 4) * weights_x[j];
         }
@@ -877,6 +905,73 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
       return sum;
 #endif
     }
+  }
+}
+
+/** unoptimized version */
+float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
+{
+  return _sample_rect(source.sampler, source.wrap_x, source.wrap_y,
+                      source.buffer, source.width, source.height, source.components,
+                      uv, wh);
+}
+
+/** Optimized versions of sample_rect */
+static float4 sample_nearest(SamplerSource source, float2 uv, float2)
+{
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  interpolate_nearest_wrapmode_fl(source.buffer,
+                                  pixel_value,
+                                  source.width,
+                                  source.height,
+                                  source.components,
+                                  uv.x,
+                                  uv.y,
+                                  source.wrap_x,
+                                  source.wrap_y);
+  return pixel_value;
+}
+
+static float4 sample_bilinear(SamplerSource source, float2 uv, float2)
+{
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  interpolate_bilinear_wrapmode_fl(source.buffer,
+                                   pixel_value,
+                                   source.width,
+                                   source.height,
+                                   source.components,
+                                   uv.x - 0.5f,
+                                   uv.y - 0.5f,
+                                   source.wrap_x,
+                                   source.wrap_y);
+  return pixel_value;
+}
+
+static float4 sample_box(SamplerSource source, float2 uv, float2 wh)
+{
+  return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
+                      source.buffer, source.width, source.height, source.components,
+                      uv, wh);
+}
+
+static float4 sample_bspline(SamplerSource source, float2 uv, float2 wh)
+{
+  return _sample_rect(Sampler::Bspline, source.wrap_x, source.wrap_y,
+                      source.buffer, source.width, source.height, source.components,
+                      uv, wh);
+}
+
+SampleRect sample_rect(const SamplerSource &source)
+{
+  switch (source.sampler) {
+    case Sampler::Nearest:
+      return sample_nearest;
+    case Sampler::Bilinear:
+      return sample_bilinear;
+    default: /* case Sampler::Box */
+      return sample_box;
+    case Sampler::Bspline:
+      return sample_bspline;
   }
 }
 

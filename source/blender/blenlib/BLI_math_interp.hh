@@ -428,6 +428,13 @@ inline float4 sample_bilinear(SamplerSource source, float2 uv)
   return pixel_value;
 }
 
+/**
+ * Lookup optimized versions of above function. The returned function assumes it is called with
+ * the same arguments. If there is no optimized version sample_rect() is returned.
+ */
+using SampleRect = float4 (*)(SamplerSource source, float2 uv, float2 wh);
+SampleRect sample_rect(const SamplerSource &source);
+
 }  // namespace blender::math
 
 /* -------------------------------------------------------------------- */
