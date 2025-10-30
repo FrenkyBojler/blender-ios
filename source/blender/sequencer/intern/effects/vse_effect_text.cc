@@ -1009,9 +1009,7 @@ static void apply_text_alignment(const TextVars *data,
   }
 }
 
-TextVarsRuntime *text_effect_calc_runtime(const Strip *strip,
-                                          int font,
-                                          const int2 image_size)
+TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const int2 image_size)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   TextVarsRuntime *runtime = MEM_new<TextVarsRuntime>(__func__);
