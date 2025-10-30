@@ -71,7 +71,7 @@ class ConditionalOp {
 
 class Call {
  public:
-  StringRef identifier;
+  Expr *function = nullptr;
   Vector<Expr *> args;
 
   dot_export::Node &to_dot(dot_export::DirectedGraph &graph) const;

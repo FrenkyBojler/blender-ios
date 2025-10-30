@@ -116,7 +116,8 @@ constexpr parser p(
            Vector<ast::Expr *> v_args,
            char /*skip*/) {
           return &ctx.scope.construct<ast::Expr>(
-              ast::Call{StringRef(v_identifier), std::move(v_args)});
+              ast::Call{&ctx.scope.construct<ast::Expr>(ast::Identifier{StringRef(v_identifier)}),
+                        std::move(v_args)});
         },
         expr(expr, '?', expr, ':', expr) >>=
         [](ParseContext &ctx,

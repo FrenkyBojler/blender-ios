@@ -65,12 +65,14 @@ dot_export::Node &ConditionalOp::to_dot(dot_export::DirectedGraph &graph) const
 
 dot_export::Node &Call::to_dot(dot_export::DirectedGraph &graph) const
 {
-  dot_export::Node &identifier_node = graph.new_node(fmt::format("{}(...)", this->identifier));
+  dot_export::Node &call_node = graph.new_node("call");
+  dot_export::Node &function_node = this->function->to_dot(graph);
+  graph.new_edge(call_node, function_node);
   for (const Expr *arg : this->args) {
     dot_export::Node &arg_node = arg->to_dot(graph);
-    graph.new_edge(identifier_node, arg_node);
+    graph.new_edge(call_node, arg_node);
   }
-  return identifier_node;
+  return call_node;
 }
 
 dot_export::Node &Expr::to_dot(dot_export::DirectedGraph &graph) const

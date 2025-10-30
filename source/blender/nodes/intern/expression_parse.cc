@@ -239,11 +239,353 @@ TokenizeResult tokenize(const StringRef expression)
   return tokenizer.tokenize();
 }
 
+class Parser {
+ private:
+  ResourceScope &scope_;
+  const Span<Token> tokens_;
+  int64_t i_ = 0;
+  std::optional<std::string> error_;
+
+ public:
+  Parser(ResourceScope &scope, const Span<Token> tokens) : scope_(scope), tokens_(tokens) {}
+
+  using ParseFn = ast::Expr *(Parser::*)();
+
+  const std::optional<std::string> &error() const
+  {
+    return error_;
+  }
+
+  ast::Expr *parse__expression()
+  {
+    return this->parse__expression__ternary_conditional();
+  }
+
+  ast::Expr *parse__expression__ternary_conditional()
+  {
+    return this->parse__expression__generic_ternary(
+        "?", ":", &Parser::parse__expression__logical_or);
+  }
+
+  ast::Expr *parse__expression__logical_or()
+  {
+    return this->parse__expression__generic_binary_multiple(
+        {"||"}, &Parser::parse__expression__logical_and);
+  }
+
+  ast::Expr *parse__expression__logical_and()
+  {
+    return this->parse__expression__generic_binary_multiple({"&&"},
+                                                            &Parser::parse__expression__equality);
+  }
+
+  ast::Expr *parse__expression__equality()
+  {
+    return this->parse__expression__generic_binary_single({"==", "!="},
+                                                          &Parser::parse__expression__relational);
+  }
+
+  ast::Expr *parse__expression__relational()
+  {
+    return this->parse__expression__generic_binary_single({"<", ">", "<=", ">="},
+                                                          &Parser::parse__expression__additive);
+  }
+
+  ast::Expr *parse__expression__additive()
+  {
+    return this->parse__expression__generic_binary_multiple(
+        {"+", "-"}, &Parser::parse__expression__multiplicative);
+  }
+
+  ast::Expr *parse__expression__multiplicative()
+  {
+    return this->parse__expression__generic_binary_multiple({"*", "/", "%"},
+                                                            &Parser::parse__expression__unary);
+  }
+
+  ast::Expr *parse__expression__unary()
+  {
+    return this->parse__expression__generic_unary({"+", "-", "!", "~"},
+                                                  &Parser::parse__expression__dot);
+  }
+
+  ast::Expr *parse__expression__dot()
+  {
+    ast::Expr *expr = this->parse__expression__call();
+    if (!expr) {
+      return nullptr;
+    }
+    while (true) {
+      if (!this->next_is(".")) {
+        return expr;
+      }
+      this->consume_next();
+      const std::optional<StringRef> identifier = this->parse__identifier();
+      if (!identifier.has_value()) {
+        return nullptr;
+      }
+      expr = this->make_expr(ast::MemberAccess{expr, *identifier});
+    }
+  }
+
+  ast::Expr *parse__expression__call()
+  {
+    ast::Expr *expr = this->parse__expression__atom();
+    if (!expr) {
+      return nullptr;
+    }
+    if (!this->next_is("(")) {
+      return expr;
+    }
+    const std::optional<Vector<ast::Expr *>> args = this->parse__argument_list();
+    if (!args.has_value()) {
+      return nullptr;
+    }
+    return this->make_expr(ast::Call{expr, std::move(*args)});
+  }
+
+  std::optional<Vector<ast::Expr *>> parse__argument_list()
+  {
+    BLI_assert(this->next_is("("));
+    this->consume_next();
+    Vector<ast::Expr *> args;
+    while (true) {
+      if (this->next_is(")")) {
+        this->consume_next();
+        return args;
+      }
+      ast::Expr *arg = this->parse__expression();
+      if (!arg) {
+        return std::nullopt;
+      }
+      args.append(arg);
+    }
+  }
+
+  ast::Expr *parse__expression__atom()
+  {
+    if (this->is_at_end()) {
+      this->set_unexpected_end_error();
+      return nullptr;
+    }
+    const Token &peek_token = tokens_[i_];
+    switch (peek_token.type) {
+      case TokenType::Number: {
+        this->consume_next();
+        return this->make_expr(ast::NumberLiteral{peek_token.str});
+      }
+      case TokenType::String: {
+        this->consume_next();
+        return this->make_expr(ast::StringLiteral{peek_token.str});
+      }
+      case TokenType::Special: {
+        const StringRef str = peek_token.str;
+        if (str == "(") {
+          this->consume_next();
+          ast::Expr *expr = this->parse__expression();
+          if (!expr) {
+            return nullptr;
+          }
+          if (!this->next_is(")")) {
+            this->set_error(TIP_("Expected ')'"));
+            return nullptr;
+          }
+          this->consume_next();
+          return expr;
+        }
+        this->set_unexpected_token_error();
+        return nullptr;
+      }
+      case TokenType::Identifier: {
+        this->consume_next();
+        return this->make_expr(ast::Identifier{peek_token.str});
+      }
+    }
+    this->set_error("Unknown token");
+    return nullptr;
+  }
+
+  std::optional<StringRef> parse__identifier()
+  {
+    if (this->is_at_end()) {
+      this->set_unexpected_end_error();
+      return std::nullopt;
+    }
+    const Token &peek_token = tokens_[i_];
+    if (peek_token.type != TokenType::Identifier) {
+      this->set_error(TIP_("Expected identifier"));
+      return std::nullopt;
+    }
+    this->consume_next();
+    return peek_token.str;
+  }
+
+  ast::Expr *parse__expression__generic_ternary(const StringRef delimiter_a,
+                                                const StringRef delimiter_b,
+                                                const ParseFn fn)
+  {
+    ast::Expr *condition = (this->*fn)();
+    if (!condition) {
+      return nullptr;
+    }
+    if (!this->next_is(delimiter_a)) {
+      return condition;
+    }
+    ast::Expr *true_expr = (this->*fn)();
+    if (!true_expr) {
+      this->error__expression__generic_ternary(delimiter_a, delimiter_b);
+      return nullptr;
+    }
+    if (!this->next_is(delimiter_b)) {
+      this->error__expression__generic_ternary(delimiter_a, delimiter_b);
+      return nullptr;
+    }
+    ast::Expr *false_expr = (this->*fn)();
+    if (!false_expr) {
+      this->error__expression__generic_ternary(delimiter_a, delimiter_b);
+      return nullptr;
+    }
+    if (this->next_is_any({delimiter_a, delimiter_b})) {
+      this->set_unexpected_token_error();
+      return nullptr;
+    }
+    return this->make_expr(ast::ConditionalOp{condition, true_expr, false_expr});
+  }
+
+  ast::Expr *parse__expression__generic_binary_single(const Span<StringRef> ops, const ParseFn fn)
+  {
+    ast::Expr *a = (this->*fn)();
+    if (!a) {
+      return nullptr;
+    }
+    if (!this->next_is_any(ops)) {
+      return a;
+    }
+    const StringRef op = this->consume_next().str;
+    ast::Expr *b = (this->*fn)();
+    if (!b) {
+      this->error__expression__generic_binary(op);
+      return nullptr;
+    }
+    if (this->next_is_any(ops)) {
+      this->set_unexpected_token_error();
+      return nullptr;
+    }
+    return this->make_expr(ast::BinaryOp{op, a, b});
+  }
+
+  ast::Expr *parse__expression__generic_binary_multiple(const Span<StringRef> ops,
+                                                        const ParseFn fn)
+  {
+    ast::Expr *expr = (this->*fn)();
+    if (!expr) {
+      return nullptr;
+    }
+    while (true) {
+      if (!this->next_is_any(ops)) {
+        return expr;
+      }
+      const StringRef op = this->consume_next().str;
+      ast::Expr *b = (this->*fn)();
+      if (!b) {
+        return nullptr;
+      }
+      expr = this->make_expr(ast::BinaryOp{op, expr, b});
+    }
+  }
+
+  ast::Expr *parse__expression__generic_unary(const Span<StringRef> ops, const ParseFn fn)
+  {
+    if (!this->next_is_any(ops)) {
+      return (this->*fn)();
+    }
+    const StringRef op = this->consume_next().str;
+    ast::Expr *a = (this->*fn)();
+    if (!a) {
+      return nullptr;
+    }
+    return this->make_expr(ast::UnaryOp{op, a});
+  }
+
+  void error__expression__generic_ternary(const StringRef delimiter_a, const StringRef delimiter_b)
+  {
+    this->set_error(fmt::format(
+        "{}: a {} b {} c", TIP_("Expected expression of this form:"), delimiter_a, delimiter_b));
+  }
+
+  void error__expression__generic_binary(const StringRef delimiter)
+  {
+    this->set_error(
+        fmt::format("{}: a {} b", TIP_("Expected expression of this form:"), delimiter));
+  }
+
+  bool next_is(const StringRef str)
+  {
+    if (this->is_at_end()) {
+      return false;
+    }
+    return this->tokens_[i_].str == str;
+  }
+
+  bool next_is_any(const Span<StringRef> strs)
+  {
+    if (this->is_at_end()) {
+      return false;
+    }
+    return strs.contains(this->tokens_[i_].str);
+  }
+
+  bool is_at_end() const
+  {
+    return i_ >= tokens_.size();
+  }
+
+  const Token &consume_next()
+  {
+    return tokens_[i_++];
+  }
+
+  void set_unexpected_token_error()
+  {
+    this->set_error(fmt::format("{}: {}", TIP_("Unexpected token"), tokens_[i_].str));
+  }
+
+  void set_unexpected_end_error()
+  {
+    this->set_error(TIP_("Unexpected end of expression"));
+  }
+
+  void set_error(std::string error)
+  {
+    error_ = std::move(error);
+  }
+
+  template<typename T> ast::Expr *make_expr(T &&value)
+  {
+    return &scope_.construct<ast::Expr>(std::forward<T>(value));
+  }
+};
+
 ast::Expr *parse(ResourceScope &scope, const StringRef expression, std::ostream &r_errors)
 {
-  UNUSED_VARS(scope, expression, r_errors);
-  r_errors << "Not implemented";
-  return nullptr;
+  const TokenizeResult tokenize_result = tokenize(expression);
+  if (const auto *error = std::get_if<std::string>(&tokenize_result.result)) {
+    r_errors << *error;
+    return nullptr;
+  }
+  const Span<Token> tokens = std::get<Vector<Token>>(tokenize_result.result);
+  Parser parser{scope, tokens};
+  ast::Expr *expr = parser.parse__expression();
+  if (!expr) {
+    if (const std::optional<std::string> &error = parser.error()) {
+      r_errors << *error;
+    }
+    else {
+      r_errors << TIP_("Unknown error");
+    }
+    return nullptr;
+  }
+  return expr;
 }
 
 }  // namespace blender::nodes::expression

@@ -303,7 +303,12 @@ class AstToNodeGroupBuilder {
 
   NodeAndSocket build_expr(const ast::Call &ast_node)
   {
-    return this->build_generic_call(ast_node.identifier, ast_node.args);
+    if (const ast::Identifier *identifier = std::get_if<ast::Identifier>(&ast_node.function->expr))
+    {
+      return this->build_generic_call(identifier->identifier, ast_node.args);
+    }
+    r_error_ = TIP_("Unexpected function call");
+    return {};
   }
 
   NodeAndSocket build_generic_call(const StringRef name, const Span<const ast::Expr *> args)
