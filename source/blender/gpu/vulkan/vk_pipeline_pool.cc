@@ -534,6 +534,7 @@ VkPipeline VKPipelinePool::get_or_create_graphics_pipeline(const VKGraphicsInfo 
                                                          vk_pipeline_cache_non_static_;
   return graphics_.get_or_create(graphics_info, vk_pipeline_cache, vk_pipeline_base, name);
 }
+
 template<>
 VkPipeline VKPipelineMap<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_info,
                                                  VkPipelineCache vk_pipeline_cache,
