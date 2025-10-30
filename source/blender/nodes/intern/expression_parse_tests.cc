@@ -146,4 +146,14 @@ TEST(nodes_expression, parse_identifier)
   expect_ast("a", {ast::Identifier{"a"}});
 }
 
+TEST(nodes_expression, parse_number)
+{
+  expect_ast("123", {ast::NumberLiteral{"123"}});
+}
+
+TEST(nodes_expression, parse_string)
+{
+  expect_ast("\"abc\"", {ast::StringLiteral{"\"abc\""}});
+}
+
 }  // namespace blender::nodes::expression::tests
