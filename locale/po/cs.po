@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-10-27 09:50+0000\n"
 "PO-Revision-Date: 2025-07-23 15:14+0000\n"
 "Last-Translator: Jan Vavřínek <janvavrinek1@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -8561,10 +8561,6 @@ msgid "Constant"
 msgstr "Konstantní"
 
 
-msgid "Direction"
-msgstr "Směr"
-
-
 msgid "Add effect of brush"
 msgstr "Přidat efekt štětce"
 
@@ -12575,6 +12571,10 @@ msgid "Control key pressed"
 msgstr "Stisknutá klávesa Ctrl"
 
 
+msgid "Direction"
+msgstr "Směr"
+
+
 msgid "North"
 msgstr "Sever"
 
@@ -13834,8 +13834,88 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
+msgid "Text"
+msgstr "Text"
+
+
 msgid "Metaball"
 msgstr "Meta objekt"
+
+
+msgid "Show/Hide"
+msgstr "Zobrazit/skrýt"
+
+
+msgid "Names"
+msgstr "Názvy"
+
+
+msgid "Bone Roll"
+msgstr "Kost"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
+
+
+msgid "Pivot Point"
+msgstr "Bod pro pivot"
+
+
+msgid "Snap"
+msgstr "Přichytit"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Způsob útlumu"
+
+
+msgid "Layout"
+msgstr "Rozložení"
+
+
+msgid "Mirror"
+msgstr "Zrcadlit"
+
+
+msgid "UV Mapping"
+msgstr "UV mapování"
+
+
+msgid "Local View"
+msgstr "Lokální pohled"
+
+
+msgid "Navigation"
+msgstr "Navigace"
+
+
+msgid "Align View"
+msgstr "Zarovnat pohled"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
+
+
+msgid "Tracking"
+msgstr "Sledování"
+
+
+msgid "Utilities"
+msgstr "Nástroje"
+
+
+msgid "Select Linked"
+msgstr "Vybrat Propojené"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Assign Material"
+msgstr "Přiřadit Materiál"
 
 
 msgid "Light"
@@ -13862,24 +13942,12 @@ msgid "Quick Effects"
 msgstr "Rychlé Efekty"
 
 
-msgid "Show/Hide"
-msgstr "Zobrazit/skrýt"
-
-
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
 msgid "Make Single User"
 msgstr "Přivlastnit"
 
 
 msgid "Hooks"
 msgstr "Háky"
-
-
-msgid "Layout"
-msgstr "Rozložení"
 
 
 msgid "Clear Transform"
@@ -13890,32 +13958,20 @@ msgid "Propagate"
 msgstr "Vložit"
 
 
-msgid "Names"
-msgstr "Názvy"
+msgid "Instances"
+msgstr "Instance"
 
 
-msgid "Keying"
-msgstr "Klíčovací sestava"
+msgid "Import"
+msgstr "Importovat"
 
 
 msgid "Mesh Select Mode"
 msgstr "Síťový mód výběru"
 
 
-msgid "Tracking"
-msgstr "Sledování"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
-
-
 msgid "Face Data"
 msgstr "Data Ploch"
-
-
-msgid "Math"
-msgstr "Matematika"
 
 
 msgid "Merge"
@@ -13926,64 +13982,8 @@ msgid "Special Characters"
 msgstr "Speciální Znaky"
 
 
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Pivot Point"
-msgstr "Bod pro pivot"
-
-
-msgid "Snap"
-msgstr "Přichytit"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Způsob útlumu"
-
-
-msgid "Instances"
-msgstr "Instance"
-
-
-msgid "Mirror"
-msgstr "Zrcadlit"
-
-
-msgid "Import"
-msgstr "Importovat"
-
-
-msgid "UV Mapping"
-msgstr "UV mapování"
-
-
-msgid "Local View"
-msgstr "Lokální pohled"
-
-
-msgid "Navigation"
-msgstr "Navigace"
-
-
-msgid "Align View"
-msgstr "Zarovnat pohled"
-
-
-msgid "Select Linked"
-msgstr "Vybrat Propojené"
-
-
 msgid "Basic"
 msgstr "Základní"
-
-
-msgid "Assign Material"
-msgstr "Přiřadit Materiál"
 
 
 msgctxt "MovieClip"
@@ -30494,10 +30494,6 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Auto-Masking"
-msgstr "Auto-Maska"
-
-
 msgid "Active Tool"
 msgstr "Aktivní nástroj"
 
@@ -30552,6 +30548,10 @@ msgstr "Orientace transformací"
 
 msgid "Stereoscopy"
 msgstr "Stereoskopie"
+
+
+msgid "Auto-Masking"
+msgstr "Auto-Maska"
 
 
 msgid "Chain Scaling"

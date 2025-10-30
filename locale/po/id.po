@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-10-27 09:50+0000\n"
 "PO-Revision-Date: 2025-07-23 14:57+0000\n"
 "Last-Translator: Michael Tribayu Jatnika Natawiria <mike.natawiria@gmail.com>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -11715,10 +11715,6 @@ msgid "Cloth Simulation"
 msgstr "Simulasi Kain"
 
 
-msgid "Direction"
-msgstr "Arah"
-
-
 msgid "Add effect of brush"
 msgstr "Tambah efek kuas"
 
@@ -13251,10 +13247,6 @@ msgid "Sync Mode"
 msgstr "Mode Sinkronisasi"
 
 
-msgid "Second"
-msgstr "Kedua"
-
-
 msgid "Use Preview Range"
 msgstr "Partikel"
 
@@ -13741,6 +13733,10 @@ msgstr "Apa saja"
 
 msgid "Ctrl"
 msgstr "Ctrl"
+
+
+msgid "Direction"
+msgstr "Arah"
 
 
 msgid "North"
@@ -15250,8 +15246,52 @@ msgid "Mask"
 msgstr "Masker"
 
 
+msgid "Text"
+msgstr "Teks"
+
+
 msgid "Metaball"
 msgstr "Metabola"
+
+
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Layout"
+msgstr "Tata Letak"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
+
+
+msgid "Utilities"
+msgstr "Utilitas"
+
+
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
 
 
 msgid "Light"
@@ -15282,38 +15322,6 @@ msgid "Hooks"
 msgstr "Kait"
 
 
-msgid "Layout"
-msgstr "Tata Letak"
-
-
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Tracking"
-msgstr "Pelacakan"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
-
-
-msgid "Text"
-msgstr "Teks"
-
-
-msgid "Snap"
-msgstr "Jepret"
-
-
 msgid "Sample"
 msgstr "Sampel"
 
@@ -15326,28 +15334,16 @@ msgid "Instances"
 msgstr "Contoh-contoh"
 
 
-msgid "Mirror"
-msgstr "Cermin"
-
-
 msgid "Import"
 msgstr "Impor"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
 
 
 msgid "UV"
 msgstr "UV"
 
 
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
-
-
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
+msgid "Merge"
+msgstr "Menggabungkan"
 
 
 msgctxt "MovieClip"
@@ -27248,10 +27244,6 @@ msgid "Unable to remove default presets"
 msgstr "Tidak dapat menghapus preset default"
 
 
-msgid "Failed to execute the preset: "
-msgstr "Gagal mengeksekusi preset: "
-
-
 msgid "No other objects selected"
 msgstr "Tidak ada objek lain yang terseleksi"
 
@@ -28017,6 +28009,10 @@ msgstr "Bahan Bakar"
 
 msgid "Guide Mode"
 msgstr "Mode Panduan"
+
+
+msgid "Second"
+msgstr "Kedua"
 
 
 msgid "X Stiffness"

@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
-"PO-Revision-Date: 2025-09-29 00:59+0000\n"
+"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"PO-Revision-Date: 2025-10-15 14:42+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
 "Language: sv\n"
@@ -510,14 +510,6 @@ msgid "Distribute memory across devices"
 msgstr "Fördela minne över enheter"
 
 
-msgid "HIP RT (Unstable)"
-msgstr "HIP RT (Ostabil)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above. This currently has known stability issues, that are expected to be solved before the next release."
-msgstr "HIP RT möjliggör AMD-hårdvarustrålspårning på RDNA2 och högre. Det finns för närvarande kända stabilitetsproblem, som förväntas vara lösta före nästa utgåva."
-
-
 msgid "Embree on GPU"
 msgstr "Embree på GPU"
 
@@ -828,6 +820,10 @@ msgstr "Nodredigerare"
 
 msgid "Video Sequencer"
 msgstr "Videosekvenser"
+
+
+msgid "Non-linear editor for arranging and mixing scenes, video, audio, and effects"
+msgstr "Icke-linjär redigerare för att arrangera och mixa scener, video, ljud och effekter"
 
 
 msgid "Movie Clip Editor"
@@ -2901,6 +2897,18 @@ msgstr "Ta bort krockade partiklar"
 
 msgid "Display"
 msgstr "Visa"
+
+
+msgid "Display name. For viewing, this is the display device that will be emulated by limiting the gamut and HDR colors. For image and video output, this is the display space used for writing."
+msgstr "Visningsnamn. För visning är detta den visningsenhet som kommer att emuleras genom att begränsa färgskalan och HDR-färgerna. För bild- och videoutmatning är detta det visningsutrymme som används för skrivning."
+
+
+msgid "Display Emulation"
+msgstr "Skärmemulering"
+
+
+msgid "Control how images in the chosen display are mapped to the physical display"
+msgstr "Kontrollerar hur bilderna i den valda skärmen mappas till den fysiska skärmen"
 
 
 msgid "Is Data"
@@ -5772,10 +5780,6 @@ msgid "Smooth"
 msgstr "Jämn"
 
 
-msgid "Direction"
-msgstr "Riktning"
-
-
 msgctxt "Brush"
 msgid "Scale"
 msgstr "Skala"
@@ -7248,10 +7252,6 @@ msgid "Sync to Audio"
 msgstr "Synkronisera till ljud"
 
 
-msgid "Second"
-msgstr "Sekund"
-
-
 msgid "Timeline Markers"
 msgstr "Tidslinjemarkörer"
 
@@ -8129,6 +8129,10 @@ msgstr "Alla"
 
 msgid "Ctrl"
 msgstr "Ctrl"
+
+
+msgid "Direction"
+msgstr "Riktning"
 
 
 msgid "North"
@@ -9331,8 +9335,80 @@ msgid "Mask"
 msgstr "Mask"
 
 
+msgid "Text"
+msgstr "Text"
+
+
 msgid "Metaball"
 msgstr "Metaboll"
+
+
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Mirror"
+msgstr "Spegla"
+
+
+msgid "Local View"
+msgstr "Lokal vy"
+
+
+msgid "Viewpoint"
+msgstr "Visningspunkt"
+
+
+msgid "Navigation"
+msgstr "Navigering"
+
+
+msgid "Align View"
+msgstr "Justera vy"
+
+
+msgid "Adjust"
+msgstr "Justera"
+
+
+msgid "Align View to Active"
+msgstr "Justera vy till aktiv"
+
+
+msgid "Select More/Less"
+msgstr "Markera mera/mindre"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Assign Material"
+msgstr "Tilldela material"
 
 
 msgid "Light"
@@ -9367,14 +9443,6 @@ msgid "Quick Effects"
 msgstr "Snabbeffekter"
 
 
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
-
-
 msgid "Asset"
 msgstr "Tillgång"
 
@@ -9385,50 +9453,6 @@ msgstr "Konvertera"
 
 msgid "Link/Transfer Data"
 msgstr "Länka/överför data"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Propagate"
-msgstr "Propagera"
-
-
-msgid "Names"
-msgstr "Namn"
-
-
-msgid "Adjust"
-msgstr "Justera"
-
-
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Math"
-msgstr "Matematik"
-
-
-msgid "Merge"
-msgstr "Sammanfoga"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Pivot Point"
-msgstr "Fast punkt"
-
-
-msgid "Snap"
-msgstr "Snäpp"
 
 
 msgid "Read"
@@ -9443,56 +9467,36 @@ msgid "Primitives"
 msgstr "Primitiver"
 
 
+msgid "Propagate"
+msgstr "Propagera"
+
+
 msgid "Instances"
 msgstr "Instanser"
-
-
-msgid "Mirror"
-msgstr "Spegla"
 
 
 msgid "Import"
 msgstr "Importera"
 
 
-msgid "Local View"
-msgstr "Lokal vy"
-
-
-msgid "Viewpoint"
-msgstr "Visningspunkt"
-
-
-msgid "Navigation"
-msgstr "Navigering"
-
-
-msgid "Align View"
-msgstr "Justera vy"
-
-
-msgid "Align View to Active"
-msgstr "Justera vy till aktiv"
-
-
 msgid "Deprecated"
 msgstr "Föråldrad"
-
-
-msgid "Select More/Less"
-msgstr "Markera mera/mindre"
 
 
 msgid "UV"
 msgstr "UV"
 
 
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
 msgid "Animals"
 msgstr "Djur"
-
-
-msgid "Assign Material"
-msgstr "Tilldela material"
 
 
 msgid "Catalog"
@@ -10234,10 +10238,6 @@ msgstr "Optimal visning"
 
 msgid "Total Levels"
 msgstr "Totalt antal nivåer"
-
-
-msgid "Bake Target"
-msgstr "Bakningsmål"
 
 
 msgid "Node Group"
@@ -21389,10 +21389,6 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
-msgid "VR"
-msgstr "VR"
-
-
 msgid "Active Tool"
 msgstr "Aktivt verktyg"
 
@@ -21419,6 +21415,10 @@ msgstr "Mätning"
 
 msgid "Stroke Placement"
 msgstr "Streckplacering"
+
+
+msgid "VR"
+msgstr "VR"
 
 
 msgid "Import Settings"
@@ -24480,16 +24480,9 @@ msgid "Active Table"
 msgstr "Aktiv tabell"
 
 
-msgid "Cross"
-msgstr "Övertona"
-
-
-msgid "Alpha Under"
-msgstr "Alfa under"
-
-
-msgid "Gamma Cross"
-msgstr "Gamma-övertona"
+msgctxt "Color"
+msgid "Value"
+msgstr "Värde"
 
 
 msgctxt "Sequence"
@@ -24535,11 +24528,6 @@ msgstr "Ingång 1"
 
 msgid "Input 2"
 msgstr "Ingång 2"
-
-
-msgctxt "Color"
-msgid "Value"
-msgstr "Värde"
 
 
 msgid "Speed Control"
@@ -27535,6 +27523,10 @@ msgstr "Baka markerad"
 
 msgid "Calculate to Frame"
 msgstr "Beräkna till bildruta"
+
+
+msgid "Second"
+msgstr "Sekund"
 
 
 msgid "X Stiffness"
@@ -32859,6 +32851,10 @@ msgid "Unable to copy item"
 msgstr "Det går inte att kopiera objektet"
 
 
+msgid "Anisotropic"
+msgstr "Anisotropisk"
+
+
 msgctxt "NodeTree"
 msgid "Comparison"
 msgstr "Jämförelse"
@@ -33235,10 +33231,6 @@ msgstr "Kirsch"
 
 msgid "Balance"
 msgstr "Balans"
-
-
-msgid "Anisotropic"
-msgstr "Anisotropisk"
 
 
 msgid "Eccentricity"

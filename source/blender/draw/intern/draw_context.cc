@@ -10,6 +10,7 @@
 
 #include "CLG_log.h"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -21,7 +22,6 @@
 #include "BLI_sys_types.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #include "BLF_api.hh"
 
@@ -711,7 +711,7 @@ static bool supports_handle_ranges(DupliObject *dupli, Object *parent)
 enum class InstancesFlags : uint8_t {
   IsNegativeScale = 1 << 0,
 };
-ENUM_OPERATORS(InstancesFlags, InstancesFlags::IsNegativeScale);
+ENUM_OPERATORS(InstancesFlags);
 
 struct InstancesKey {
   uint64_t hash_value;
@@ -896,8 +896,9 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       }
 
       tmp_object.light_linking = ob->light_linking;
-      SET_FLAG_FROM_TEST(
-          tmp_object.transflag, bool(key.flags & InstancesFlags::IsNegativeScale), OB_NEG_SCALE);
+      SET_FLAG_FROM_TEST(tmp_object.transflag,
+                         flag_is_set(key.flags, InstancesFlags::IsNegativeScale),
+                         OB_NEG_SCALE);
       /* Should use DrawInstances data instead. */
       tmp_object.runtime->object_to_world = float4x4();
       tmp_object.runtime->world_to_object = float4x4();
@@ -1021,6 +1022,12 @@ void DRWContext::engines_draw_scene()
   blender::draw::command::StateSet::set();
 
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
+#ifdef __APPLE__
+    if (G.debug & G_DEBUG_GPU) {
+      /* Put each engine inside their own command buffers. */
+      GPU_flush();
+    }
+#endif
     GPU_debug_group_begin(instance.name_get().c_str());
     instance.draw(*DRW_manager_get());
     GPU_debug_group_end();
@@ -2037,9 +2044,6 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
         return false;
       }
       if (use_only_selected && !(ob.base_flag & BASE_SELECTED)) {
-        return false;
-      }
-      if ((ob.base_flag & BASE_SELECTABLE) == 0) {
         return false;
       }
       return true;
