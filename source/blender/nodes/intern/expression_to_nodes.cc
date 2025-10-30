@@ -134,16 +134,20 @@ class SymbolTable {
   }
 };
 
+struct BuildOptions {};
+
 class AstToNodeGroupBuilder {
  private:
   const NodeExpression &bnode_storage_;
   const ast::Expr &root_expr_;
   const int expr_index_;
   const SymbolTable &symbol_table_;
-  bNodeTree &r_tree_;
-  Map<StringRef, NodeAndSocket> inputs_;
+  const BuildOptions &options_;
 
+  bNodeTree &r_tree_;
   std::string &r_error_;
+
+  Map<StringRef, NodeAndSocket> inputs_;
 
   friend InsertCallParams;
 
@@ -152,12 +156,14 @@ class AstToNodeGroupBuilder {
                         const ast::Expr &root_expr,
                         const int expr_index,
                         const SymbolTable &symbol_table,
+                        const BuildOptions &options,
                         bNodeTree &r_tree,
                         std::string &r_error)
       : bnode_storage_(*static_cast<const NodeExpression *>(expr_bnode.storage)),
         root_expr_(root_expr),
         expr_index_(expr_index),
         symbol_table_(symbol_table),
+        options_(options),
         r_tree_(r_tree),
         r_error_(r_error)
   {
@@ -172,11 +178,13 @@ class AstToNodeGroupBuilder {
     bNode &group_input_node = this->add_node("NodeGroupInput");
     bNode &group_output_node = this->add_node("NodeGroupOutput");
 
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node.outputs) {
-      if (socket == group_input_node.outputs.last) {
-        continue;
+    {
+      bNodeSocket *group_input_socket = static_cast<bNodeSocket *>(group_input_node.outputs.first);
+      for ([[maybe_unused]] const int i : IndexRange(bnode_storage_.input_items.items_num)) {
+        const NodeExpressionInputItem &item = bnode_storage_.input_items.items[i];
+        inputs_.add(item.name, {&group_input_node, group_input_socket});
+        group_input_socket = group_input_socket->next;
       }
-      inputs_.add(socket->name, {&group_input_node, socket});
     }
 
     NodeAndSocket expr_result = this->build_expr(root_expr_);
@@ -187,6 +195,8 @@ class AstToNodeGroupBuilder {
     this->add_link(
         expr_result,
         {&group_output_node, static_cast<bNodeSocket *>(group_output_node.inputs.first)});
+
+    BKE_ntree_update_without_main(r_tree_);
 
     std::cout << "\n\n" << bke::node_tree_to_dot(r_tree_) << "\n\n";
   }
@@ -570,9 +580,11 @@ static SymbolTable &get_symbol_table()
   return symbol_table;
 }
 
-std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
-                                                              const StringRef expression,
-                                                              const int expr_index)
+static std::shared_ptr<ExpressionNodeGroup> expression_node_to_group_impl(
+    const bNode &node,
+    const StringRef expression,
+    const int expr_index,
+    const BuildOptions &options)
 {
   auto output = std::make_shared<ExpressionNodeGroup>();
 
@@ -589,15 +601,26 @@ std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
 
   const SymbolTable &symbols = get_symbol_table();
 
-  bNodeTree *tree = BKE_id_new_nomain<bNodeTree>(node.name);
+  /* TODO: Generalize tree type. */
+  bNodeTree *tree = bke::node_tree_add_tree(nullptr, node.name, "GeometryNodeTree");
+
   output->tree = tree;
-  AstToNodeGroupBuilder builder(node, *expr_ast, expr_index, symbols, *tree, output->error);
+  AstToNodeGroupBuilder builder(
+      node, *expr_ast, expr_index, symbols, options, *tree, output->error);
   builder.build();
   if (!output->error.empty()) {
     BKE_id_free(nullptr, &tree->id);
     output->tree = nullptr;
   }
   return output;
+}
+
+std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
+                                                              const StringRef expression,
+                                                              const int expr_index)
+{
+  BuildOptions options;
+  return expression_node_to_group_impl(node, expression, expr_index, options);
 }
 
 ExpressionNodeGroup::~ExpressionNodeGroup()

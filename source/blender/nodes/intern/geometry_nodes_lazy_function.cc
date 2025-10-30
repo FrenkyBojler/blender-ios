@@ -20,6 +20,7 @@
  * complexity. So far, this does not seem to be a performance issue.
  */
 
+#include "NOD_expression_to_nodes.hh"
 #include "NOD_geo_viewer.hh"
 #include "NOD_geometry_exec.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -51,6 +52,7 @@
 
 #include "ED_node.hh"
 
+#include "FN_lazy_function_execute.hh"
 #include "FN_lazy_function_graph_executor.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -1538,6 +1540,16 @@ class LazyFunctionForExpressionNode : public LazyFunction {
 
   friend struct GeometryNodesLazyFunctionBuilder;
 
+  struct EvalStorage {
+    ResourceScope scope;
+    std::shared_ptr<expression::ExpressionNodeGroup> expression_node_group;
+    const GeometryNodesLazyFunctionGraphInfo *group_graph_info = nullptr;
+    void *group_storage = nullptr;
+    Vector<int> inputs_index_map;
+    Vector<int> output_index_map;
+    bool multi_threading_enabled = false;
+  };
+
  public:
   LazyFunctionForExpressionNode(const bNode &bnode, const int expr_index)
       : bnode_(bnode),
@@ -1573,14 +1585,104 @@ class LazyFunctionForExpressionNode : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
-    const std::string expression =
-        params.get_input<SocketValueVariant>(expression_input_i_).get<std::string>();
+    GeoNodesUserData &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
 
-    set_default_value_for_output_socket(params, result_output_i_, bnode_.output_socket(0));
+    EvalStorage &eval_storage = *static_cast<EvalStorage *>(context.storage);
+    if (!eval_storage.expression_node_group) {
+      const std::string expression =
+          params.get_input<SocketValueVariant>(expression_input_i_).get<std::string>();
+      eval_storage.expression_node_group = expression::expression_node_to_group(
+          bnode_, expression, expr_index_);
+      /* Check if creating the node group failed. */
+      if (!eval_storage.expression_node_group->tree) {
+        this->output_fallbacks(params);
+        this->log_error(context, eval_storage.expression_node_group->error);
+        return;
+      }
+
+      eval_storage.group_graph_info = ensure_geometry_nodes_lazy_function_graph(
+          *eval_storage.expression_node_group->tree);
+      if (!eval_storage.group_graph_info) {
+        this->output_fallbacks(params);
+        this->log_error(context, "Invalid expression");
+        return;
+      }
+
+      const GeometryNodesGroupFunction &group_fn = eval_storage.group_graph_info->function;
+
+      /* Types containing referenced data are not supported yet. */
+      BLI_assert(group_fn.inputs.references_to_propagate.range.is_empty());
+
+      eval_storage.group_storage = group_fn.function->init_storage(eval_storage.scope.allocator());
+
+      eval_storage.inputs_index_map.reinitialize(inputs_.size() - 1);
+      eval_storage.output_index_map.reinitialize(outputs_.size());
+      for (const int i : variable_inputs_.index_range()) {
+        eval_storage.inputs_index_map[group_fn.inputs.main[i]] = variable_inputs_[i];
+        eval_storage.output_index_map[group_fn.outputs.input_usages[i]] =
+            variable_usage_outputs_[i];
+      }
+      eval_storage.inputs_index_map[group_fn.inputs.output_usages[0]] = result_usage_input_i_;
+      eval_storage.output_index_map[group_fn.outputs.main[0]] = result_output_i_;
+    }
+
+    bke::ExpressionNodeOutputComputeContext compute_context{
+        user_data.compute_context, bnode_.identifier, expr_index_, &bnode_.owner_tree()};
+
+    GeoNodesUserData group_user_data = user_data;
+    group_user_data.compute_context = &compute_context;
+    group_user_data.log_socket_values = should_log_socket_values_for_context(
+        user_data, compute_context.hash());
+
+    GeoNodesLocalUserData group_local_user_data{group_user_data};
+    lf::Context group_context{
+        eval_storage.group_storage, &group_user_data, &group_local_user_data};
+
+    lf::RemappedParams group_params{*eval_storage.group_graph_info->function.function,
+                                    params,
+                                    eval_storage.inputs_index_map,
+                                    eval_storage.output_index_map,
+                                    eval_storage.multi_threading_enabled};
+
+    ScopedComputeContextTimer timer(group_context);
+    eval_storage.group_graph_info->function.function->execute(group_params, group_context);
+  }
+
+  void output_fallbacks(lf::Params &params) const
+  {
+    set_default_value_for_output_socket(
+        params, result_output_i_, bnode_.output_socket(expr_index_));
     for (const int lf_i : variable_usage_outputs_) {
       params.set_output(lf_i, false);
     }
-    params.set_output(expression_usage_output_i_, true);
+  }
+
+  void log_error(const lf::Context &context, const StringRef error) const
+  {
+    GeoNodesUserData &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    GeoNodesLocalUserData &local_user_data = *static_cast<GeoNodesLocalUserData *>(
+        context.local_user_data);
+
+    if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data))
+    {
+      tree_logger->node_warnings.append(*tree_logger->allocator,
+                                        {bnode_.identifier, {NodeWarningType::Error, error}});
+    }
+  }
+
+  void *init_storage(LinearAllocator<> &allocator) const override
+  {
+    return allocator.construct<EvalStorage>().release();
+  }
+
+  void destruct_storage(void *storage) const override
+  {
+    EvalStorage *eval_storage = static_cast<EvalStorage *>(storage);
+    if (eval_storage->group_storage) {
+      eval_storage->group_graph_info->function.function->destruct_storage(
+          eval_storage->group_storage);
+    }
+    std::destroy_at(eval_storage);
   }
 };
 
