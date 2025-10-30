@@ -1927,7 +1927,7 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
 
       /* Slight snap to vertical minimum and maximum. */
       const int snap_threshold = int(float(ED_area_headersize()) * 0.6f);
-
+      
       /* Extra snaps for Timeline and Graph Editor. */
       const bool has_scrub = md->area2 &&
                              ELEM(md->area2->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
@@ -1945,15 +1945,15 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
         m_cursor_final = m_min;
       }
       else if (has_scrub && (md->dir_axis == SCREEN_AXIS_H) &&
-               (m_cursor_final < (m_min + ED_area_headersize() + snap_threshold)))
+               (m_cursor_final < (m_min + UI_TIME_SCRUB_MARGIN_Y + snap_threshold)))
       {
-        m_cursor_final = m_min + ED_area_headersize();
+        m_cursor_final = m_min + UI_TIME_SCRUB_MARGIN_Y;
       }
       else if (has_scrub && anim_footer && (md->dir_axis == SCREEN_AXIS_H) &&
                (m_cursor_final <
-                (m_min + ED_area_headersize() + ED_area_headersize() + snap_threshold)))
+                (m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize() + snap_threshold)))
       {
-        m_cursor_final = m_min + ED_area_headersize() + ED_area_headersize();
+        m_cursor_final = m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize();
       }
 
       if (m_cursor_final > (md->origval + md->bigger - snap_threshold)) {
