@@ -27,7 +27,7 @@ ccl_device_noinline void svm_node_enter_bump_eval(KernelGlobals kg,
   stack_store_float3(stack, offset + 0, sd->P);
   stack_store_float(stack, offset + 3, sd->dP);
 
-  /* set state as if undisplaced */
+  /* Set position as if undisplaced. */
   const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_POSITION_UNDISPLACED);
 
   if (desc.offset != ATTR_STD_NOT_FOUND) {
@@ -41,6 +41,17 @@ ccl_device_noinline void svm_node_enter_bump_eval(KernelGlobals kg,
     /* Save the full differential, the compact form isn't enough for svm_node_set_bump. */
     stack_store_float3(stack, offset + 4, P.dx);
     stack_store_float3(stack, offset + 7, P.dy);
+  }
+
+  /* Set normal as if undisplaced.
+   * Note this does not need to be restored, because the bump evaluation will
+   * write to sd->N. */
+  const AttributeDescriptor ndesc = find_attribute(kg, sd, ATTR_STD_NORMAL_UNDISPLACED);
+  if (ndesc.offset != ATTR_STD_NOT_FOUND) {
+    float3 N = safe_normalize(
+        primitive_surface_attribute<float3>(kg, sd, ndesc, false, false).val);
+    object_normal_transform(kg, sd, &N);
+    sd->N = (sd->flag & SD_BACKFACING) ? -N : N;
   }
 }
 
