@@ -1,1 +1,2 @@
 Referenced by issue #101602, Handle Type selector in the Graph Editor's sidebar sets different types than selected
+Referenced by pull request #149069, Fix #149046: Setting a keyframe handle ignoring user choice
