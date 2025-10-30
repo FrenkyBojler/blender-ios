@@ -62,6 +62,7 @@
 #include "ED_fileselect.hh"
 #include "ED_image.hh"
 #include "ED_keyframes_keylist.hh"
+#include "ED_markers.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_scene.hh"
@@ -1928,37 +1929,45 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
       /* Slight snap to vertical minimum and maximum. */
       const int snap_threshold = int(float(ED_area_headersize()) * 0.6f);
 
+      blender::Vector<int> snaps;
+      snaps.append(m_min);
+
       /* Extra snaps for Timeline and Graph Editor. */
-      const bool has_scrub = md->area2 &&
-                             ELEM(md->area2->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
-      bool anim_header = false;
-      bool anim_footer = false;
-
-      if (has_scrub) {
+      const bool area2_scrub = md->area2 &&
+                               ELEM(md->area2->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
+      if (area2_scrub && md->dir_axis == SCREEN_AXIS_H) {
         ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_HEADER);
-        anim_header = (region && region->runtime->visible);
+        const bool anim_header = (region && region->runtime->visible);
         region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
-        anim_footer = (region && region->runtime->visible);
+        const bool anim_footer = (region && region->runtime->visible);
+        snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y);
+        if (anim_footer) {
+          snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize());
+        }
+      }
+      const bool area1_scrub = md->area1 &&
+                               ELEM(md->area1->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
+      if (area1_scrub && md->dir_axis == SCREEN_AXIS_H) {
+        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_HEADER);
+        const bool anim_header = (region && region->runtime->visible);
+        region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
+        const bool anim_footer = (region && region->runtime->visible);
+        if (anim_footer) {
+          snaps.append(md->origval + md->bigger - (UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize()));
+        }
+        snaps.append(md->origval + md->bigger - UI_TIME_SCRUB_MARGIN_Y);
       }
 
-      if (m_cursor_final < (m_min + snap_threshold)) {
-        m_cursor_final = m_min;
-      }
-      else if (has_scrub && (md->dir_axis == SCREEN_AXIS_H) &&
-               (m_cursor_final < (m_min + UI_TIME_SCRUB_MARGIN_Y + snap_threshold)))
-      {
-        m_cursor_final = m_min + UI_TIME_SCRUB_MARGIN_Y;
-      }
-      else if (has_scrub && anim_footer && (md->dir_axis == SCREEN_AXIS_H) &&
-               (m_cursor_final <
-                (m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize() + snap_threshold)))
-      {
-        m_cursor_final = m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize();
+      snaps.append(md->origval + md->bigger);
+
+      /* Test the snap to the best division. */
+      for (int i = 0; i < snaps.size(); i++) {
+        if (abs(m_cursor_final - snaps[i]) < snap_threshold) {
+          m_cursor_final = snaps[i];
+          break;
+        }
       }
 
-      if (m_cursor_final > (md->origval + md->bigger - snap_threshold)) {
-        m_cursor_final = md->origval + md->bigger;
-      }
     } break;
 
     case SNAP_BIGGER_SMALLER_ONLY:
