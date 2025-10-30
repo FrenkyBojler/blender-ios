@@ -1127,23 +1127,8 @@ KeyframeEditFunc ANIM_editkeyframes_mirror(short mode)
 /* Sets the selected bezier handles to type 'auto' */
 static short set_bezier_auto(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* If the key is selected, always apply to both handles. */
-  if (bezt->f2 & SELECT) {
-    bezt->h1 = bezt->h2 = HD_AUTO;
-  }
-  else {
-    if (bezt->f1 & SELECT) {
-      bezt->h1 = HD_AUTO;
-      BKE_fcurve_update_handle_flag_from_opposite(*bezt, true);
-    }
-    if (bezt->f3 & SELECT) {
-      bezt->h2 = HD_AUTO;
-      BKE_fcurve_update_handle_flag_from_opposite(*bezt, false);
-    }
-
-    ENSURE_HANDLES_MATCH(bezt);
-  }
-
+  /* Setting one handle to `HD_AUTO` is not a valid state. Both need to be the same. */
+  bezt->h1 = bezt->h2 = HD_AUTO;
   return 0;
 }
 
@@ -1152,23 +1137,8 @@ static short set_bezier_auto(KeyframeEditData * /*ked*/, BezTriple *bezt)
  */
 static short set_bezier_auto_clamped(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* If the key is selected, always apply to both handles. */
-  if (bezt->f2 & SELECT) {
-    bezt->h1 = bezt->h2 = HD_AUTO_ANIM;
-  }
-  else {
-    if (bezt->f1 & SELECT) {
-      bezt->h1 = HD_AUTO_ANIM;
-      BKE_fcurve_update_handle_flag_from_opposite(*bezt, true);
-    }
-    if (bezt->f3 & SELECT) {
-      bezt->h2 = HD_AUTO_ANIM;
-      BKE_fcurve_update_handle_flag_from_opposite(*bezt, false);
-    }
-
-    ENSURE_HANDLES_MATCH(bezt);
-  }
-
+  /* Setting one handle to `HD_AUTO_ANIM` is not a valid state. Both need to be the same. */
+  bezt->h1 = bezt->h2 = HD_AUTO_ANIM;
   return 0;
 }
 
@@ -1213,10 +1183,8 @@ static short bezier_isfree(KeyframeEditData * /*ked*/, BezTriple *bezt)
 /* Sets selected bezier handles to type 'align' */
 static short set_bezier_align(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* No matter if the key or handle is selected, in order for the handles to be aligned, they both
-   * need to be set to "HD_ALIGN". */
+  /* Setting one handle to `HD_ALIGN` is not a valid state. Both need to be the same. */
   bezt->h1 = bezt->h2 = HD_ALIGN;
-
   return 0;
 }
 
