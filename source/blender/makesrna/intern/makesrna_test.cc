@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_string_ref.hh"
+
 #include "makesrna_utils.hh"
 
 #include "testing/testing.h"
@@ -12,24 +13,25 @@ namespace blender::rna::tests {
 TEST(makesrna_test, forward_struct_declarations_empty_set)
 {
   std::ostringstream stream;
-  blender::VectorSet<std::string> test_struct_set;
-  rna_write_struct_forward_declarations(stream, std::move(test_struct_set));
+  rna_write_struct_forward_declarations(stream, {});
   EXPECT_EQ(stream.str(), blender::StringRef(""));
 }
 
 TEST(makesrna_test, forward_struct_declarations_unscoped_struct_set)
 {
   std::ostringstream stream;
-  blender::VectorSet<std::string> test_struct_set = {"bContext2",
-                                                     "PointerRNA2",
-                                                     "BContext",
-                                                     "POINTERRNA1",
-                                                     "pointerrna3",
-                                                     "Object",
-                                                     "Scene",
-                                                     "Addons",
-                                                     "bAddon"};
-  rna_write_struct_forward_declarations(stream, std::move(test_struct_set));
+  blender::Vector<std::string> test_structs = {
+      "bContext2",
+      "PointerRNA2",
+      "BContext",
+      "POINTERRNA1",
+      "pointerrna3",
+      "Object",
+      "Scene",
+      "Addons",
+      "bAddon",
+  };
+  rna_write_struct_forward_declarations(stream, std::move(test_structs));
   const char *expected_stream =
       "struct Addons;\n"
       "struct bAddon;\n"
@@ -46,21 +48,23 @@ TEST(makesrna_test, forward_struct_declarations_unscoped_struct_set)
 TEST(makesrna_test, forward_struct_declarations_scoped_struct_set)
 {
   std::ostringstream stream;
-  blender::VectorSet<std::string> test_struct_set = {"bContext2",
-                                                     "PointerRNA2",
-                                                     "BContext",
-                                                     "POINTERRNA1",
-                                                     "pointerrna3",
-                                                     "Object",
-                                                     "blender::UI::FooStruct",
-                                                     "Scene",
-                                                     "Addons",
-                                                     "bAddon",
-                                                     "blender::Vector",
-                                                     "blender::Map",
-                                                     "blender::ui::Layout",
-                                                     "blender::ui::PieLayout"};
-  rna_write_struct_forward_declarations(stream, std::move(test_struct_set));
+  blender::Vector<std::string> test_structs = {
+      "bContext2",
+      "PointerRNA2",
+      "BContext",
+      "POINTERRNA1",
+      "pointerrna3",
+      "Object",
+      "blender::UI::FooStruct",
+      "Scene",
+      "Addons",
+      "bAddon",
+      "blender::Vector",
+      "blender::Map",
+      "blender::ui::Layout",
+      "blender::ui::PieLayout",
+  };
+  rna_write_struct_forward_declarations(stream, test_structs);
   const char *expected_stream =
       "struct Addons;\n"
       "struct bAddon;\n"

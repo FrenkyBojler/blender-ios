@@ -3887,7 +3887,7 @@ static void rna_generate_struct_forward_declarations(FILE *f)
     }
   }
   std::ostringstream stream;
-  rna_write_struct_forward_declarations(stream, std::move(structs_set));
+  rna_write_struct_forward_declarations(stream, structs_set.extract_vector());
   fprintf(f, "%s", stream.str().c_str());
   fprintf(f, "\n");
 }

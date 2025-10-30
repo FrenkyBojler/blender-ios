@@ -7,7 +7,7 @@
 #include <iosfwd>
 #include <string>
 
-#include "BLI_vector_set.hh"
+#include "BLI_vector.hh"
 
 void rna_write_struct_forward_declarations(std::ostringstream &buffer,
-                                           blender::VectorSet<std::string> &&structs_set);
+                                           blender::Vector<std::string> structs);

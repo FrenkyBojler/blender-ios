@@ -31,24 +31,22 @@ static StructSplitName rna_split_namespace_struct_name(blender::StringRef full_n
 }
 
 void rna_write_struct_forward_declarations(std::ostringstream &stream,
-                                           blender::VectorSet<std::string> &&structs_set)
+                                           blender::Vector<std::string> structs)
 {
-  blender::Vector<std::string> structs_vec = structs_set.extract_vector();
-  std::stable_sort(structs_vec.begin(),
-                   structs_vec.end(),
-                   [](const blender::StringRef a, const blender::StringRef b) {
-                     /* Keep structs within namespaces last. */
-                     const StructSplitName a_name_split = rna_split_namespace_struct_name(a);
-                     const StructSplitName b_name_split = rna_split_namespace_struct_name(b);
-                     return (a_name_split.namespace_name < b_name_split.namespace_name) ||
-                            (a_name_split.namespace_name == b_name_split.namespace_name &&
-                             BLI_strcasecmp(a_name_split.struct_name.data(),
-                                            b_name_split.struct_name.data()) < 0);
-                   });
+  std::stable_sort(
+      structs.begin(), structs.end(), [](const blender::StringRef a, const blender::StringRef b) {
+        /* Keep structs within namespaces last. */
+        const StructSplitName a_name_split = rna_split_namespace_struct_name(a);
+        const StructSplitName b_name_split = rna_split_namespace_struct_name(b);
+        return (a_name_split.namespace_name < b_name_split.namespace_name) ||
+               (a_name_split.namespace_name == b_name_split.namespace_name &&
+                BLI_strcasecmp(a_name_split.struct_name.data(), b_name_split.struct_name.data()) <
+                    0);
+      });
 
   /* For grouping structs within namespaces. */
   blender::StringRef last_namespace = "";
-  for (const blender::StringRef full_name : structs_vec) {
+  for (const blender::StringRef full_name : structs) {
     const StructSplitName name_split = rna_split_namespace_struct_name(full_name);
     if (name_split.namespace_name != last_namespace && !last_namespace.is_empty()) {
       stream << "}; // namespace " << std::string_view(last_namespace) << '\n';
