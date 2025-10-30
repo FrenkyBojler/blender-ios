@@ -55,12 +55,6 @@ struct EffectHandle {
 
   StripEarlyOut (*early_out)(const Strip *strip, float fac);
 
-  /* sets the default `fac` value */
-  void (*get_default_fac)(const Scene *scene,
-                          const Strip *strip,
-                          float timeline_frame,
-                          float *fac);
-
   /* execute the effect */
   ImBuf *(*execute)(const RenderData *context,
                     SeqRenderState *state,
@@ -121,10 +115,6 @@ inline void store_premul_pixel(const float4 &pix, float *dst)
 StripEarlyOut early_out_mul_input1(const Strip * /*seq*/, float fac);
 StripEarlyOut early_out_mul_input2(const Strip * /*seq*/, float fac);
 StripEarlyOut early_out_fade(const Strip * /*seq*/, float fac);
-void get_default_fac_fade(const Scene *scene,
-                          const Strip *strip,
-                          float timeline_frame,
-                          float *fac);
 
 EffectHandle effect_handle_get(StripType strip_type);
 

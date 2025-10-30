@@ -117,13 +117,11 @@ void cross_effect_get_handle(EffectHandle &rval)
 {
   rval.execute = do_cross_effect;
   rval.early_out = early_out_fade;
-  rval.get_default_fac = get_default_fac_fade;
 }
 
 void gamma_cross_effect_get_handle(EffectHandle &rval)
 {
   rval.early_out = early_out_fade;
-  rval.get_default_fac = get_default_fac_fade;
   rval.execute = do_gammacross_effect;
 }
 

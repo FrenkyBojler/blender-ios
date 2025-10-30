@@ -247,7 +247,6 @@ void wipe_effect_get_handle(EffectHandle &rval)
   rval.num_inputs = num_inputs_wipe;
   rval.copy = copy_wipe_effect;
   rval.early_out = early_out_fade;
-  rval.get_default_fac = get_default_fac_fade;
   rval.execute = do_wipe_effect;
 }
 
