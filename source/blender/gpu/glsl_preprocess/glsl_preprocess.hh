@@ -212,6 +212,9 @@ class Preprocessor {
     }
     str = remove_comments(str, report_error);
     threadgroup_variables_parsing(str);
+    if (language == BLENDER_GLSL || language == CPP) {
+      str = disabled_code_mutation(str, report_error);
+    }
     parse_builtins(str, filename);
     if (language == BLENDER_GLSL || language == CPP) {
       if (do_parse_function) {
@@ -221,7 +224,6 @@ class Preprocessor {
         pragma_runtime_generated_parsing(str);
         pragma_once_linting(str, filename, report_error);
       }
-      str = disabled_code_mutation(str, report_error);
       str = include_parse_and_remove(str, report_error);
       str = pragmas_mutation(str, report_error);
       str = swizzle_function_mutation(str, report_error);
@@ -1342,7 +1344,8 @@ class Preprocessor {
   {
     const bool skip_drw_debug = filename.find("draw_debug_draw_lib.glsl") != std::string::npos ||
                                 filename.find("draw_debug_draw_display_vert.glsl") !=
-                                    std::string::npos;
+                                    std::string::npos ||
+                                filename.find("draw_shader_shared.hh") != std::string::npos;
     using namespace metadata;
     /* TODO: This can trigger false positive caused by disabled #if blocks. */
     std::string tokens[] = {"gl_FragCoord",

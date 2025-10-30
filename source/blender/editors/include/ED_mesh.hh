@@ -207,10 +207,13 @@ UvMapVert *BM_uv_vert_map_at_index(UvVertMap *vmap, unsigned int v);
 /**
  * Return a new #UvVertMap from the edit-mesh.
  */
-UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select);
+UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, bool respect_hide);
 
 void EDBM_flag_enable_all(BMEditMesh *em, char hflag);
 void EDBM_flag_disable_all(BMEditMesh *em, char hflag);
+
+/** \copydoc #BM_uvselect_clear */
+bool EDBM_uvselect_clear(BMEditMesh *em);
 
 bool BMBVH_EdgeVisible(const BMBVHTree *tree,
                        const BMEdge *e,
@@ -517,13 +520,7 @@ void ED_mesh_faces_remove(Mesh *mesh, ReportList *reports, int count);
 
 void ED_mesh_geometry_clear(Mesh *mesh);
 
-blender::bke::AttributeWriter<bool> ED_mesh_uv_map_vert_select_layer_ensure(Mesh *mesh,
-                                                                            int uv_index);
-blender::bke::AttributeWriter<bool> ED_mesh_uv_map_edge_select_layer_ensure(Mesh *mesh,
-                                                                            int uv_index);
 blender::bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, int uv_index);
-blender::VArray<bool> ED_mesh_uv_map_vert_select_layer_get(const Mesh *mesh, int uv_index);
-blender::VArray<bool> ED_mesh_uv_map_edge_select_layer_get(const Mesh *mesh, int uv_index);
 blender::VArray<bool> ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, int uv_index);
 
 void ED_mesh_uv_ensure(Mesh *mesh, const char *name);

@@ -23,6 +23,7 @@
 #include "BLO_read_write.hh"
 
 #include "BKE_node_socket_value.hh"
+#include "BKE_node_tree_reference_lifetimes.hh"
 
 namespace blender::nodes::node_geo_index_switch_cc {
 
@@ -107,15 +108,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (supports_fields) {
     output.dependent_field().reference_pass_all();
   }
-  else if (data_type == SOCK_GEOMETRY) {
+  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
     output.propagate_all();
+  }
+  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
+    output.reference_pass_all();
   }
   output.structure_type(structure_type);
 
   b.add_input<decl::Extend>("", "__extend__").custom_draw([](CustomSocketDrawParams &params) {
     uiLayout &layout = params.layout;
     layout.emboss_set(ui::EmbossType::None);
-    PointerRNA op_ptr = layout.op("node.index_switch_item_add", IFACE_(""), ICON_ADD);
+    PointerRNA op_ptr = layout.op("node.index_switch_item_add", "", ICON_ADD);
     RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
   });
 }
