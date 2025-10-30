@@ -593,8 +593,7 @@ static Strip *strip_duplicate(Main *bmain,
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
   }
   else if (strip->is_effect()) {
-    EffectHandle sh;
-    sh = strip_effect_handle_get(strip);
+    EffectHandle sh = strip_effect_handle_get(strip);
     if (sh.copy) {
       sh.copy(strip_new, strip, flag);
     }

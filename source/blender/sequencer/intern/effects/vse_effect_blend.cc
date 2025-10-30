@@ -371,11 +371,6 @@ static ImBuf *do_colormix_effect(const RenderData *context,
   return dst;
 }
 
-static void copy_effect_default(Strip *dst, const Strip *src, const int /*flag*/)
-{
-  dst->effectdata = MEM_dupallocN(src->effectdata);
-}
-
 void blend_mode_effect_get_handle(EffectHandle &rval)
 {
   rval.execute = do_blend_mode_effect;
@@ -385,7 +380,6 @@ void blend_mode_effect_get_handle(EffectHandle &rval)
 void color_mix_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_colormix_effect;
-  rval.copy = copy_effect_default;
   rval.execute = do_colormix_effect;
   rval.early_out = early_out_mul_input2;
 }

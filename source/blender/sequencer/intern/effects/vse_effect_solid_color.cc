@@ -28,11 +28,6 @@ static int num_inputs_color()
   return 0;
 }
 
-static void copy_solid_color(Strip *dst, const Strip *src, const int /*flag*/)
-{
-  dst->effectdata = MEM_dupallocN(src->effectdata);
-}
-
 static StripEarlyOut early_out_color(const Strip * /*strip*/, float /*fac*/)
 {
   return StripEarlyOut::NoInput;
@@ -92,7 +87,6 @@ void solid_color_effect_get_handle(EffectHandle &rval)
   rval.init = init_solid_color;
   rval.num_inputs = num_inputs_color;
   rval.early_out = early_out_color;
-  rval.copy = copy_solid_color;
   rval.execute = do_solid_color;
 }
 

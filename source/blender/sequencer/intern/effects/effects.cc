@@ -116,6 +116,11 @@ static int num_inputs_default()
   return 2;
 }
 
+static void copy_effect_default(Strip *dst, const Strip *src, const int /*flag*/)
+{
+  dst->effectdata = MEM_dupallocN(src->effectdata);
+}
+
 static StripEarlyOut early_out_noop(const Strip * /*strip*/, float /*fac*/)
 {
   return StripEarlyOut::DoEffect;
@@ -177,7 +182,7 @@ EffectHandle effect_handle_get(StripType strip_type)
   rval.free = free_default;
   rval.early_out = early_out_noop;
   rval.execute = nullptr;
-  rval.copy = nullptr;
+  rval.copy = copy_effect_default;
 
   switch (strip_type) {
     case STRIP_TYPE_CROSS:

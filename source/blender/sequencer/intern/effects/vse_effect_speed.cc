@@ -56,9 +56,8 @@ static void free_speed_effect(Strip *strip, const bool /*do_id_user*/)
 
 static void copy_speed_effect(Strip *dst, const Strip *src, const int /*flag*/)
 {
-  SpeedControlVars *v;
   dst->effectdata = MEM_dupallocN(src->effectdata);
-  v = (SpeedControlVars *)dst->effectdata;
+  SpeedControlVars *v = (SpeedControlVars *)dst->effectdata;
   v->frameMap = nullptr;
 }
 

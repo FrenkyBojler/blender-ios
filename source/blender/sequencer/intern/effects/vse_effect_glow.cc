@@ -142,11 +142,6 @@ static int num_inputs_glow()
   return 1;
 }
 
-static void copy_glow_effect(Strip *dst, const Strip *src, const int /*flag*/)
-{
-  dst->effectdata = MEM_dupallocN(src->effectdata);
-}
-
 static void do_glow_effect_byte(Strip *strip,
                                 int render_size,
                                 float fac,
@@ -254,7 +249,6 @@ void glow_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_glow_effect;
   rval.num_inputs = num_inputs_glow;
-  rval.copy = copy_glow_effect;
   rval.execute = do_glow_effect;
 }
 

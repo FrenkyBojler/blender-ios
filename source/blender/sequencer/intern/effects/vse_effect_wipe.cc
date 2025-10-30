@@ -167,11 +167,6 @@ static int num_inputs_wipe()
   return 2;
 }
 
-static void copy_wipe_effect(Strip *dst, const Strip *src, const int /*flag*/)
-{
-  dst->effectdata = MEM_dupallocN(src->effectdata);
-}
-
 template<typename T>
 static void do_wipe_effect(
     const Strip *strip, float fac, int width, int height, const T *rect1, const T *rect2, T *out)
@@ -245,7 +240,6 @@ void wipe_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_wipe_effect;
   rval.num_inputs = num_inputs_wipe;
-  rval.copy = copy_wipe_effect;
   rval.early_out = early_out_fade;
   rval.execute = do_wipe_effect;
 }
