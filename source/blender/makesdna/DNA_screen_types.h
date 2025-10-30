@@ -339,9 +339,9 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   uiListDyn *dyn_data;
 } uiList;
 
-typedef enum uiViewStateflag {
+typedef enum uiViewStateFlag {
   UI_VIEW_COLLAPSE_FILTER_OPTIONS = (1 << 0),
-} uiViewStateflag;
+} uiViewStateFlag;
 
 /** See #uiViewStateLink. */
 typedef struct uiViewState {
@@ -356,7 +356,7 @@ typedef struct uiViewState {
    *   scrolled out of view).
    */
   int scroll_offset;
-  uint16_t flag; /* #uiViewStateflag */
+  uint16_t flag; /* #uiViewStateFlag */
   char _pad[6];
 
   char search_string[/*UI_MAX_NAME_STR*/ 256];

@@ -155,7 +155,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
 {
   uiViewState state{};
 
-  SET_FLAG_FROM_TEST(state.flag, show_display_options_, UI_VIEW_COLLAPSE_FILTER_OPTIONS);
+  SET_FLAG_FROM_TEST(state.flag, !show_display_options_, UI_VIEW_COLLAPSE_FILTER_OPTIONS);
   BLI_strncpy(state.search_string, search_string_.get(), sizeof(state.search_string));
 
   if (!custom_height_ && !scroll_value_) {
@@ -182,7 +182,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
     scroll_value_ = std::make_shared<int>(state.scroll_offset);
   }
 
-  show_display_options_ = state.flag & UI_VIEW_COLLAPSE_FILTER_OPTIONS;
+  show_display_options_ = (state.flag & UI_VIEW_COLLAPSE_FILTER_OPTIONS) == 0;
   BLI_strncpy(search_string_.get(), state.search_string, sizeof(search_string_));
 }
 
@@ -946,8 +946,8 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     /* Bottom */
     uiLayout *bottom = &col->row(false);
     UI_block_emboss_set(block, ui::EmbossType::None);
-    int icon = tree_view.show_display_options_ ? ICON_DISCLOSURE_TRI_RIGHT :
-                                                 ICON_DISCLOSURE_TRI_DOWN;
+    int icon = tree_view.show_display_options_ ? ICON_DISCLOSURE_TRI_DOWN :
+                                                 ICON_DISCLOSURE_TRI_RIGHT;
     uiBut *but = uiDefIconBut(
         block, ButType::IconToggle, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.3, nullptr, 0, 0, "");
     UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
@@ -967,7 +967,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   0,
                   "");
 
-    if (!tree_view.show_display_options_) {
+    if (tree_view.show_display_options_) {
       block_layout_set_current(block, col);
       uiBut *but = uiDefBut(block,
                             ButType::Text,
