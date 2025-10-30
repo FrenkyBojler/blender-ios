@@ -257,6 +257,16 @@ class Parser {
     return error_;
   }
 
+  ast::Expr *parse_all_as_expression()
+  {
+    ast::Expr *expr = this->parse__expression();
+    if (!this->is_at_end()) {
+      this->set_unexpected_token_error();
+      return nullptr;
+    }
+    return expr;
+  }
+
   ast::Expr *parse__expression()
   {
     return this->parse__expression__ternary_conditional();
@@ -585,7 +595,7 @@ ast::Expr *parse(ResourceScope &scope, const StringRef expression, std::ostream 
   }
   const Span<Token> tokens = std::get<Vector<Token>>(tokenize_result.result);
   Parser parser{scope, tokens};
-  ast::Expr *expr = parser.parse__expression();
+  ast::Expr *expr = parser.parse_all_as_expression();
   if (!expr) {
     if (const std::optional<std::string> &error = parser.error()) {
       r_errors << *error;
