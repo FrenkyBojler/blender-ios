@@ -1904,6 +1904,8 @@ def km_graph_editor(params):
     items.extend([
         ("wm.context_toggle", {"type": 'H', "value": 'PRESS', "ctrl": True},
          {"properties": [("data_path", "space_data.show_handles")]}),
+        ("wm.context_toggle", {"type": 'TAB', "value": 'PRESS', "shift": True},
+         {"properties": [("data_path", "tool_settings.use_snap_anim")]}),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS'},
          {"properties": [("deselect_all", not params.legacy)]}),
         ("graph.clickselect", {"type": params.select_mouse, "value": 'PRESS', "alt": True},
@@ -2672,6 +2674,8 @@ def km_dopesheet(params):
          {"properties": [("mode", 'TIME_SCALE')]}),
         ("transform.transform", {"type": 'T', "value": 'PRESS', "shift": True},
          {"properties": [("mode", 'TIME_SLIDE')]}),
+        ("wm.context_toggle", {"type": 'TAB', "value": 'PRESS', "shift": True},
+         {"properties": [("data_path", "tool_settings.use_snap_anim")]}),
         *_template_items_proportional_editing(
             params, connected=False, toggle_data_path="tool_settings.use_proportional_action"),
         ("marker.add", {"type": 'M', "value": 'PRESS'}, None),
@@ -8512,7 +8516,7 @@ def km_sequencer_tool_generic_select_rcs(params):
         ("sequencer.select_handle", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "alt": True}, {"properties": [("ignore_connections", True)]}),
         ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS'},
-         {"properties": [("seq_solo_preview", True)]}),
+         {"properties": [("seq_solo_preview", True), ("pass_through_on_strip_handles", True)]}),
         # Change frame takes precedence over the sequence slide operator. If a
         # mouse press happens on a strip handle, it is canceled, and the sequence
         # slide below activates instead.
@@ -8528,7 +8532,7 @@ def km_sequencer_tool_generic_select_lcs(_params):
         ("sequencer.select", {"type": 'LEFTMOUSE', "value": 'PRESS',
          "shift": True}, {"properties": [("toggle", True)]}),
         ("anim.change_frame", {"type": 'RIGHTMOUSE', "value": 'PRESS',
-         "shift": True}, {"properties": [("seq_solo_preview", True)]}),
+         "shift": True}, {"properties": [("seq_solo_preview", True), ("pass_through_on_strip_handles", False)]}),
     ]
 
 
