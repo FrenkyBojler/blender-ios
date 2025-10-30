@@ -1023,7 +1023,7 @@ class LegacyCryptoMatteOperation : public BaseCryptoMatteOperation {
 
   Result &get_input_image() override
   {
-    return get_input("image");
+    return this->get_input("Image");
   }
 
   Vector<Result> get_layers() override
