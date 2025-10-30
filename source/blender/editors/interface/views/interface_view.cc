@@ -62,6 +62,11 @@ uiViewState::uiViewState(uiViewState &&other)
   other.search_string = nullptr;
 }
 
+uiViewState::~uiViewState()
+{
+  MEM_SAFE_FREE(search_string);
+}
+
 uiViewState &uiViewState::operator=(const uiViewState &other)
 {
   if (this == &other) {

@@ -366,7 +366,7 @@ typedef struct uiViewState {
   uiViewState() = default;
   uiViewState(const uiViewState &other);
   uiViewState(uiViewState &&other);
-  ~uiViewState() = default;
+  ~uiViewState();
   uiViewState &operator=(const uiViewState &other);
   uiViewState &operator=(uiViewState &&other);
 #endif
