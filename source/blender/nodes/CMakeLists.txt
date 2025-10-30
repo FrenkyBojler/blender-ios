@@ -170,6 +170,7 @@ set(SRC
   NOD_trace_values.hh
   NOD_value_elem.hh
   NOD_value_elem_eval.hh
+  intern/expression_parse.hh
   intern/list_function_eval.hh
   intern/node_common.h
   intern/node_exec.hh
@@ -255,6 +256,7 @@ if(WITH_GTESTS)
   set(TEST_INC
   )
   set(TEST_SRC
+    intern/expression_parse_tests.cc
     intern/geometry_nodes_bundle_tests.cc
     intern/node_iterator_tests.cc
   )
