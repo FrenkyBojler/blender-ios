@@ -6,11 +6,17 @@
 
 #include <DRW_render.hh>
 
+#include "BKE_context.hh"
+
+#include "DRW_engine.hh"
+
 #include "image_drawing_mode.hh"
 #include "image_private.hh"
 #include "image_space.hh"
 #include "image_space_image.hh"
 #include "image_space_node.hh"
+
+#include "BLI_math_matrix.hh"
 
 #include "DNA_space_types.h"
 
@@ -31,7 +37,7 @@ static inline std::unique_ptr<AbstractSpaceAccessor> space_accessor_from_space(
   return nullptr;
 }
 
-class Instance {
+class Instance : public DrawEngine {
  private:
   std::unique_ptr<AbstractSpaceAccessor> space_;
   Main *main_;
@@ -41,28 +47,39 @@ class Instance {
  public:
   const ARegion *region;
   State state;
+  Manager *manager = nullptr;
 
  public:
   Instance() : drawing_mode_(*this) {}
 
-  void init(Main *main, SpaceLink *space_link, const ARegion *_region)
-  {
-    main_ = main;
-    region = _region;
-    space_ = space_accessor_from_space(space_link);
-  }
-
   virtual ~Instance() = default;
 
-  void begin_sync()
+  StringRefNull name_get() final
+  {
+    return "UV/Image";
+  }
+
+  void init() final
+  {
+    const DRWContext *ctx_state = DRW_context_get();
+    main_ = CTX_data_main(ctx_state->evil_C);
+    region = ctx_state->region;
+    space_ = space_accessor_from_space(ctx_state->space_data);
+    manager = DRW_manager_get();
+  }
+
+  void begin_sync() final
   {
     drawing_mode_.begin_sync();
 
     /* Setup full screen view matrix. */
-    float winmat[4][4], viewmat[4][4];
-    orthographic_m4(viewmat, 0.0, region->winx, 0.0, region->winy, 0.0, 1.0);
-    unit_m4(winmat);
-    state.view = DRW_view_create(viewmat, winmat, nullptr, nullptr, nullptr);
+    float4x4 viewmat = math::projection::orthographic(
+        0.0f, float(region->winx), 0.0f, float(region->winy), 0.0f, 1.0f);
+    float4x4 winmat = float4x4::identity();
+    state.view.sync(viewmat, winmat);
+    state.flags.do_tile_drawing = false;
+
+    image_sync();
   }
 
   void image_sync()
@@ -81,9 +98,9 @@ class Instance {
     float image_resolution[2] = {image_buffer ? image_buffer->x : 1024.0f,
                                  image_buffer ? image_buffer->y : 1024.0f};
     space_->init_ss_to_texture_matrix(
-        region, state.image->runtime.backdrop_offset, image_resolution, state.ss_to_texture);
+        region, state.image->runtime->backdrop_offset, image_resolution, state.ss_to_texture);
 
-    const Scene *scene = DRW_context_state_get()->scene;
+    const Scene *scene = DRW_context_get()->scene;
     state.sh_params.update(space_.get(), scene, state.image, image_buffer);
     space_->release_buffer(state.image, image_buffer, lock);
 
@@ -97,15 +114,17 @@ class Instance {
     drawing_mode_.image_sync(state.image, iuser);
   }
 
-  void draw_finish()
+  void object_sync(ObjectRef & /*obref*/, Manager & /*manager*/) final {}
+
+  void end_sync() final {}
+
+  void draw(Manager & /*manager*/) final
   {
+    DRW_submission_start();
+    drawing_mode_.draw_viewport();
     drawing_mode_.draw_finish();
     state.image = nullptr;
-  }
-
-  void draw_viewport()
-  {
-    drawing_mode_.draw_viewport();
+    DRW_submission_end();
   }
 };
 }  // namespace blender::image_engine

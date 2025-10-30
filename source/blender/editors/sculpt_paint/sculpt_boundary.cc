@@ -9,21 +9,21 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_task.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_ccg.hh"
 #include "BKE_colortools.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 
-#include "brushes/types.hh"
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
 #include "sculpt_automask.hh"
@@ -130,7 +130,7 @@ static bool is_vert_in_editable_boundary_bmesh(BMVert &initial_vert)
   int neighbor_count = 0;
   int boundary_vertex_count = 0;
 
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
   for (BMVert *neighbor : vert_neighbors_get_bmesh(initial_vert, neighbors)) {
     if (!BM_elem_flag_test(neighbor, BM_ELEM_HIDDEN)) {
       neighbor_count++;
@@ -695,7 +695,7 @@ static void edit_data_init_bmesh(BMesh *bm,
 
       const int from_v_i = BM_elem_index_get(from_v);
 
-      Vector<BMVert *, 64> neighbors;
+      BMeshNeighborVerts neighbors;
       for (BMVert *neighbor : vert_neighbors_get_bmesh(*from_v, neighbors)) {
         const int neighbor_idx = BM_elem_index_get(neighbor);
         if (BM_elem_flag_test(neighbor, BM_ELEM_HIDDEN) ||
@@ -1015,7 +1015,8 @@ struct LocalDataMesh {
   Vector<float3> slide_directions;
 
   /* Smooth */
-  Vector<Vector<int>> neighbors;
+  Vector<int> neighbor_offsets;
+  Vector<int> neighbor_data;
   Vector<float3> average_positions;
 
   Vector<float3> new_positions;
@@ -1037,7 +1038,8 @@ struct LocalDataGrids {
   Vector<float3> slide_directions;
 
   /* Smooth */
-  Vector<Vector<SubdivCCGCoord>> neighbors;
+  Vector<int> neighbor_offsets;
+  Vector<int> neighbor_data;
   Vector<float3> average_positions;
 
   Vector<float3> new_positions;
@@ -1059,7 +1061,8 @@ struct LocalDataBMesh {
   Vector<float3> slide_directions;
 
   /* Smooth */
-  Vector<Vector<BMVert *>> neighbors;
+  Vector<int> neighbor_offsets;
+  Vector<BMVert *> neighbor_data;
   Vector<float3> average_positions;
 
   Vector<float3> new_positions;
@@ -1358,7 +1361,7 @@ static void do_bend_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -1640,7 +1643,7 @@ static void do_slide_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -1905,7 +1908,7 @@ static void do_inflate_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2176,7 +2179,7 @@ static void do_grab_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2455,7 +2458,7 @@ static void do_twist_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /** \} */
@@ -2481,7 +2484,7 @@ BLI_NOINLINE static void calc_smooth_position(const Span<float3> positions,
 
 BLI_NOINLINE static void calc_average_position(const Span<float3> vert_positions,
                                                const Span<int> vert_propagation_steps,
-                                               const Span<Vector<int>> neighbors,
+                                               const GroupedSpan<int> neighbors,
                                                const Span<int> propagation_steps,
                                                const MutableSpan<float> factors,
                                                const MutableSpan<float3> average_positions)
@@ -2507,38 +2510,8 @@ BLI_NOINLINE static void calc_average_position(const Span<float3> vert_positions
   }
 }
 
-BLI_NOINLINE static void calc_average_position(const SubdivCCG &subdiv_ccg,
-                                               const Span<int> vert_propagation_steps,
-                                               const Span<Vector<SubdivCCGCoord>> neighbors,
-                                               const Span<int> propagation_steps,
-                                               const MutableSpan<float> factors,
-                                               const MutableSpan<float3> average_positions)
-{
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  const Span<float3> positions = subdiv_ccg.positions;
-
-  BLI_assert(neighbors.size() == propagation_steps.size());
-  BLI_assert(neighbors.size() == factors.size());
-  BLI_assert(neighbors.size() == average_positions.size());
-
-  for (const int i : neighbors.index_range()) {
-    average_positions[i] = float3(0.0f);
-    int valid_neighbors = 0;
-    for (const SubdivCCGCoord neighbor : neighbors[i]) {
-      if (propagation_steps[i] == vert_propagation_steps[neighbor.to_index(key)]) {
-        average_positions[i] += positions[neighbor.to_index(key)];
-        valid_neighbors++;
-      }
-    }
-    average_positions[i] *= math::safe_rcp(float(valid_neighbors));
-    if (valid_neighbors == 0) {
-      factors[i] = 0.0f;
-    }
-  }
-}
-
 BLI_NOINLINE static void calc_average_position(const Span<int> vert_propagation_steps,
-                                               const Span<Vector<BMVert *>> neighbors,
+                                               const GroupedSpan<BMVert *> neighbors,
                                                const Span<int> propagation_steps,
                                                const MutableSpan<float> factors,
                                                const MutableSpan<float3> average_positions)
@@ -2597,10 +2570,13 @@ static void calc_smooth_mesh(const Sculpt &sd,
 
   scale_factors(factors, strength);
 
-  tls.neighbors.resize(verts.size());
-  const MutableSpan<Vector<int>> neighbors = tls.neighbors;
-
-  calc_vert_neighbors(faces, corner_verts, vert_to_face, hide_poly, verts, neighbors);
+  const GroupedSpan<int> neighbors = calc_vert_neighbors(faces,
+                                                         corner_verts,
+                                                         vert_to_face,
+                                                         hide_poly,
+                                                         verts,
+                                                         tls.neighbor_offsets,
+                                                         tls.neighbor_data);
   tls.average_positions.resize(verts.size());
 
   const Span<float3> positions = gather_data_mesh(position_data.eval, verts, tls.positions);
@@ -2664,13 +2640,12 @@ static void calc_smooth_grids(const Sculpt &sd,
 
   scale_factors(factors, strength);
 
-  tls.neighbors.resize(grid_verts_num);
-  const MutableSpan<Vector<SubdivCCGCoord>> neighbors = tls.neighbors;
-  calc_vert_neighbors(subdiv_ccg, grids, neighbors);
+  const GroupedSpan<int> neighbors = calc_vert_neighbors(
+      subdiv_ccg, grids, tls.neighbor_offsets, tls.neighbor_data);
 
   tls.average_positions.resize(grid_verts_num);
   const MutableSpan<float3> average_positions = tls.average_positions;
-  calc_average_position(subdiv_ccg,
+  calc_average_position(subdiv_ccg.positions,
                         vert_propagation_steps,
                         neighbors,
                         propagation_steps,
@@ -2733,9 +2708,8 @@ static void calc_smooth_bmesh(const Sculpt &sd,
 
   scale_factors(factors, strength);
 
-  tls.neighbors.resize(verts.size());
-  const MutableSpan<Vector<BMVert *>> neighbors = tls.neighbors;
-  calc_vert_neighbors(verts, neighbors);
+  const GroupedSpan<BMVert *> neighbors = calc_vert_neighbors(
+      verts, tls.neighbor_offsets, tls.neighbor_data);
 
   tls.average_positions.resize(verts.size());
   const MutableSpan<float3> average_positions = tls.average_positions;
@@ -2846,7 +2820,7 @@ static void do_smooth_brush(const Depsgraph &depsgraph,
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 /* -------------------------------------------------------------------- */
@@ -2917,7 +2891,7 @@ static void init_falloff_mesh(const Span<float> mask,
              boundary.edit_info.strength_factor.size());
 
   const int num_elements = boundary.edit_info.strength_factor.size();
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   for (const int i : IndexRange(num_elements)) {
     if (boundary.edit_info.propagation_steps_num[i] != BOUNDARY_STEPS_NONE) {
@@ -2963,7 +2937,7 @@ static void init_falloff_grids(const SubdivCCG &subdiv_ccg,
 
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   for (const int grid : IndexRange(subdiv_ccg.grids_num)) {
     for (const int index : bke::ccg::grid_range(key, grid)) {
@@ -3012,7 +2986,7 @@ static void init_falloff_bmesh(BMesh *bm,
 
   const int num_elements = boundary.edit_info.strength_factor.size();
 
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
 
   for (const int i : IndexRange(num_elements)) {
     if (boundary.edit_info.propagation_steps_num[i] != BOUNDARY_STEPS_NONE) {
@@ -3525,7 +3499,7 @@ std::unique_ptr<SculptBoundary> data_init_bmesh(Object &object,
 {
   SculptSession &ss = *object.sculpt;
 
-  SCULPT_vertex_random_access_ensure(object);
+  vert_random_access_ensure(object);
   boundary::ensure_boundary_info(object);
 
   const std::optional<BMVert *> boundary_initial_vert = get_closest_boundary_vert_bmesh(

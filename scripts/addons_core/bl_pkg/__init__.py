@@ -4,7 +4,9 @@
 
 bl_info = {
     "name": "Blender Extensions",
-    "author": "Campbell Barton",
+    # This is now displayed as the maintainer, so show the foundation.
+    # "author": "Campbell Barton", # Original Author
+    "author": "Blender Foundation",
     "version": (0, 0, 1),
     "blender": (4, 0, 0),
     "location": "Edit -> Preferences -> Extensions",
@@ -27,6 +29,7 @@ from bpy.props import (
     BoolProperty,
     EnumProperty,
     PointerProperty,
+    CollectionProperty,
     StringProperty,
 )
 
@@ -116,9 +119,22 @@ def manifest_compatible_with_wheel_data_or_error(
     if (error := pkg_manifest_dict_is_valid_or_error(manifest_dict, from_repo=False, strict=False)):
         return error
 
+    # NOTE: this is not type checked here to be `list[str]` (expected type).
+    # account for an invalid value in the following checks.
+    wheels_rel = manifest_dict.get("wheels")
+
     python_versions = []
-    if (wheel_files := manifest_dict.get("wheels", None)) is not None:
-        if isinstance(python_versions_test := python_versions_from_wheels(wheel_files), str):
+    if wheels_rel:
+        try:
+            python_versions_test = python_versions_from_wheels(wheels_rel)
+        except Exception as ex:
+            # This should only ever happen for invalid wheels.
+            python_versions_test = "Error extracting Python version from wheels: {:s} from \"{:s}\"".format(
+                str(ex),
+                pkg_manifest_filepath,
+            )
+
+        if isinstance(python_versions_test, str):
             print("Error parsing wheel versions: {:s} from \"{:s}\"".format(
                 python_versions_test,
                 pkg_manifest_filepath,
@@ -140,10 +156,19 @@ def manifest_compatible_with_wheel_data_or_error(
     # NOTE: the caller may need to collect wheels when refreshing.
     # While this isn't so clean it happens to be efficient.
     # It could be refactored to work differently in the future if that is ever needed.
-    if wheels_rel := manifest_dict.get("wheels"):
+    if wheels_rel:
         from .bl_extension_ops import pkg_wheel_filter
-        if (wheel_abs := pkg_wheel_filter(repo_module, pkg_id, repo_directory, wheels_rel)) is not None:
-            wheel_list.append(wheel_abs)
+        try:
+            wheels_abs = pkg_wheel_filter(repo_module, pkg_id, repo_directory, wheels_rel)
+        except Exception as ex:
+            print("Error parsing wheel versions: {:s} from \"{:s}\"".format(
+                str(ex),
+                pkg_manifest_filepath,
+            ))
+            wheels_abs = None
+
+        if wheels_abs is not None:
+            wheel_list.append(wheels_abs)
 
     return None
 
@@ -651,8 +676,10 @@ def cli_extension(argv):
 
 
 class BlExtDummyGroup(bpy.types.PropertyGroup):
-    # Dummy.
-    pass
+    __slots__ = ()
+
+    name: StringProperty()
+    show_tag: BoolProperty()
 
 
 # -----------------------------------------------------------------------------
@@ -666,13 +693,19 @@ cli_commands = []
 
 
 def register():
+    from bpy.app.translations import pgettext_rpt as rpt_
+
     prefs = bpy.context.preferences
 
     from bpy.types import WindowManager
     from . import (
         bl_extension_ops,
         bl_extension_ui,
+        bl_extension_utils,
     )
+
+    # Override NOP with Blender function.
+    bl_extension_utils.rpt_ = rpt_
 
     # Needed, otherwise the UI gets filtered out, see: #122754.
     from _bpy import _bl_owner_id_set as bl_owner_id_set
@@ -687,11 +720,11 @@ def register():
     bl_extension_ops.register()
     bl_extension_ui.register()
 
-    WindowManager.addon_tags = PointerProperty(
+    WindowManager.addon_tags = CollectionProperty(
         name="Addon Tags",
         type=BlExtDummyGroup,
     )
-    WindowManager.extension_tags = PointerProperty(
+    WindowManager.extension_tags = CollectionProperty(
         name="Extension Tags",
         type=BlExtDummyGroup,
     )
@@ -703,6 +736,8 @@ def register():
     )
     WindowManager.extension_type = EnumProperty(
         items=(
+            ('ALL', "All", "Show all extension types"),
+            None,
             ('ADDON', "Add-ons", "Only show add-ons"),
             ('THEME', "Themes", "Only show themes"),
         ),

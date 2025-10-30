@@ -95,14 +95,10 @@ def system_path_contains(dirpath: str) -> bool:
     return False
 
 
-# When removing files to make way for newly copied file an `os.path.exists`
-# check isn't sufficient as the path may be a broken symbolic-link.
-def path_exists_or_is_link(path: str) -> bool:
-    return os.path.exists(path) or os.path.islink(path)
-
-
 def filepath_ensure_removed(path: str) -> bool:
-    if path_exists_or_is_link(path):
+    # When removing files to make way for newly copied file an `os.path.exists`
+    # check isn't sufficient as the path may be a broken symbolic-link.
+    if os.path.lexists(path):
         os.remove(path)
         return True
     return False
@@ -472,7 +468,7 @@ def register_impl(do_register: bool, all_users: bool) -> str | None:
         # relative to the blender binary and in general it's not needed because system installations
         # are used by package managers which can handle file association themselves.
         # The Linux builds provided by https://blender.org are portable, register is intended to be used for these.
-        if __import__("bpy").utils.resource_path('SYSTEM'):
+        if not __import__("bpy").app.portable:
             return "System Installation, registration is handled by the package manager"
         # While snap builds are portable, the snap system handled file associations.
         # Blender is also launched via a wrapper, again, we could support this if it were

@@ -2,8 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
+#include "BLI_array.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 #include "BLI_vector.hh"
@@ -12,6 +17,7 @@
 
 #include "BKE_image.hh"
 #include "BKE_image_wrappers.hh"
+#include "BKE_paint_bvh.hh"
 
 #include "IMB_imbuf_types.hh"
 

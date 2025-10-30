@@ -7,7 +7,6 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_utildefines.h"
 
 #include "BKE_mesh.hh"
 #include "BKE_volume_grid.hh"
@@ -108,12 +107,6 @@ struct VolumeToMeshOp {
       this->verts.clear();
       this->tris.clear();
       this->quads.clear();
-    }
-
-    /* Better align generated mesh with volume (see #85312). */
-    openvdb::Vec3s offset = grid.voxelSize() / 2.0f;
-    for (openvdb::Vec3s &position : this->verts) {
-      position += offset;
     }
   }
 };
