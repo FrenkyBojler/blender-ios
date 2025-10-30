@@ -42,6 +42,7 @@ struct NodeAndSocket {
 };
 
 struct TypeCheckCallParams {
+  const bke::bNodeTreeType &tree_type;
   Vector<const bke::bNodeSocketType *> input_types;
 };
 
@@ -293,7 +294,7 @@ class AstToNodeGroupBuilder {
   NodeAndSocket build_generic_call(const StringRef name, const Span<const ast::Expr *> args)
   {
     Array<NodeAndSocket> arg_sockets(args.size());
-    TypeCheckCallParams type_check_params;
+    TypeCheckCallParams type_check_params{*r_tree_.typeinfo};
     type_check_params.input_types.resize(args.size());
     for (const int i : args.index_range()) {
       NodeAndSocket arg_socket = this->build_expr(*args[i]);
@@ -431,7 +432,8 @@ static FunctionSymbol vector_member_access(const int index)
   return FunctionSymbol(
       fmt::format(".{}", char('x' + index)),
       [](TypeCheckCallParams &params) {
-        return params.input_types.size() == 1 && params.input_types[0]->type == SOCK_VECTOR;
+        return params.input_types.size() == 1 &&
+               ELEM(params.input_types[0]->type, SOCK_VECTOR, SOCK_RGBA);
       },
       [index](InsertCallParams &params) {
         bNode &node = params.add_node("ShaderNodeSeparateXYZ");
@@ -536,6 +538,99 @@ static FunctionSymbol create_vec_function()
       });
 }
 
+static StringRef get_combine_color_node_idname(const int tree_type)
+{
+  switch (tree_type) {
+    case NTREE_GEOMETRY:
+      return "FunctionNodeCombineColor";
+    case NTREE_COMPOSIT:
+      return "CompositorNodeCombineColor";
+    case NTREE_SHADER:
+      return "ShaderNodeCombineColor";
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
+static FunctionSymbol create_rgb_function()
+{
+  return FunctionSymbol(
+      "rgb",
+      [](TypeCheckCallParams &params) {
+        if (params.input_types.size() != 3) {
+          return false;
+        }
+        return all_inputs_1d(params);
+      },
+      [](InsertCallParams &params) {
+        const StringRef idname = get_combine_color_node_idname(params.tree.type);
+        bNode &node = params.add_node(idname);
+        params.add_input(node, 0);
+        params.add_input(node, 1);
+        params.add_input(node, 2);
+        params.use_node_output(node);
+      });
+}
+
+static FunctionSymbol create_rgba_function()
+{
+  return FunctionSymbol(
+      "rgba",
+      [](TypeCheckCallParams &params) {
+        if (params.input_types.size() != 4) {
+          return false;
+        }
+        if (!ELEM(params.tree_type.type, NTREE_COMPOSIT, NTREE_GEOMETRY)) {
+          return false;
+        }
+        return all_inputs_1d(params);
+      },
+      [](InsertCallParams &params) {
+        const StringRef idname = get_combine_color_node_idname(params.tree.type);
+        bNode &node = params.add_node(idname);
+        params.use_node_sockets(node);
+      });
+}
+
+static StringRef get_separate_color_node_idname(const int tree_type)
+{
+  switch (tree_type) {
+    case NTREE_GEOMETRY:
+      return "FunctionNodeSeparateColor";
+    case NTREE_COMPOSIT:
+      return "CompositorNodeSeparateColor";
+    case NTREE_SHADER:
+      return "ShaderNodeSeparateColor";
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
+static FunctionSymbol create_color_member_access(const int index)
+{
+  BLI_assert(index >= 0 && index < 4);
+  return FunctionSymbol(
+      fmt::format(".{}", char("rgba"[index])),
+      [index](TypeCheckCallParams &params) {
+        if (params.input_types.size() != 1) {
+          return false;
+        }
+        if (index == 3 && params.tree_type.type == NTREE_SHADER) {
+          return false;
+        }
+        if (!ELEM(params.input_types[0]->type, SOCK_RGBA, SOCK_VECTOR)) {
+          return false;
+        }
+        return true;
+      },
+      [index](InsertCallParams &params) {
+        const StringRef node_idname = get_separate_color_node_idname(params.tree.type);
+        bNode &node = params.add_node(node_idname);
+        params.use_node_inputs(node);
+        params.set_output(node, index);
+      });
+}
+
 static void init_symbol_table(SymbolTable &symbols)
 {
   symbols.add(float_math_function("+", NODE_MATH_ADD, 2));
@@ -552,9 +647,17 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(vector_math_function("/", NODE_VECTOR_MATH_DIVIDE, 2));
 
   symbols.add(create_vec_function());
+  symbols.add(create_rgb_function());
+  symbols.add(create_rgba_function());
+
   symbols.add(vector_member_access(0));
   symbols.add(vector_member_access(1));
   symbols.add(vector_member_access(2));
+
+  symbols.add(create_color_member_access(0));
+  symbols.add(create_color_member_access(1));
+  symbols.add(create_color_member_access(2));
+  symbols.add(create_color_member_access(3));
 
   symbols.add(string_concatenation());
 
