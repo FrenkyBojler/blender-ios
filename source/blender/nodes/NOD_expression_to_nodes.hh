@@ -22,6 +22,7 @@ class ExpressionNodeGroup : NonCopyable, NonMovable {
 };
 
 std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
+                                                              StringRef tree_idname,
                                                               Span<StringRef> expressions,
                                                               Span<int> expr_indices);
 

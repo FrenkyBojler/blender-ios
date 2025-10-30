@@ -415,7 +415,8 @@ class SocketUsageInferencerImpl {
         const SocketInContext result_output_socket = node.output_socket(expr_i);
         expression::ExpressionNodeGroup &group = *expression_node_groups_cache_.lookup_or_add_cb(
             result_output_socket, [&]() {
-              return expression::expression_node_to_group(*node, {*expression}, {expr_i});
+              return expression::expression_node_to_group(
+                  *node, root_tree_.idname, {*expression}, {expr_i});
             });
         if (!group.tree) {
           continue;

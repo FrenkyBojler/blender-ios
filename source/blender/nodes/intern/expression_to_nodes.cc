@@ -585,6 +585,7 @@ static SymbolTable &get_symbol_table()
 }
 
 std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
+                                                              const StringRef tree_idname,
                                                               const Span<StringRef> expressions,
                                                               const Span<int> expr_indices)
 {
@@ -608,8 +609,7 @@ std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
 
   const SymbolTable &symbols = get_symbol_table();
 
-  /* TODO: Generalize tree type. */
-  bNodeTree *tree = bke::node_tree_add_tree(nullptr, node.name, "GeometryNodeTree");
+  bNodeTree *tree = bke::node_tree_add_tree(nullptr, node.name, tree_idname);
 
   output->tree = tree;
   BuildOptions options;

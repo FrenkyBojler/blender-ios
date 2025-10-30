@@ -64,7 +64,8 @@ DTreeContext &DerivedNodeTree::construct_context_recursively(DTreeContext *paren
               expressions.append(expr_socket.default_value_typed<bNodeSocketValueString>()->value);
               expr_indices.append(i);
             }
-            return expression::expression_node_to_group(*bnode, expressions, expr_indices);
+            return expression::expression_node_to_group(
+                *bnode, btree.idname, expressions, expr_indices);
           });
       if (!group.tree) {
         continue;
