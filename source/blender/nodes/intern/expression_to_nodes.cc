@@ -743,16 +743,12 @@ std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
   ResourceScope parse_scope;
   Vector<ast::Expr *> expr_asts;
   for (const int i : expressions.index_range()) {
-    std::stringstream errors;
-    ast::Expr *expr_ast = expression::parse(parse_scope, expressions[i], errors);
-    if (!expr_ast) {
-      output->error = errors.str();
-      if (output->error.empty()) {
-        output->error = TIP_("Parse error");
-      }
+    ParseResult parse_result = expression::parse(parse_scope, expressions[i]);
+    if (const std::string *error = std::get_if<std::string>(&parse_result)) {
+      output->error = *error;
       return output;
     }
-    expr_asts.append(expr_ast);
+    expr_asts.append(std::get<ast::Expr *>(parse_result));
   }
 
   const SymbolTable &symbols = get_symbol_table();

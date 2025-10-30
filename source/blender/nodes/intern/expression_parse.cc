@@ -592,24 +592,20 @@ class Parser {
   }
 };
 
-ast::Expr *parse(ResourceScope &scope, const StringRef expression, std::ostream &r_errors)
+ParseResult parse(ResourceScope &scope, const StringRef expression)
 {
   const TokenizeResult tokenize_result = tokenize(expression);
   if (const auto *error = std::get_if<std::string>(&tokenize_result.result)) {
-    r_errors << *error;
-    return nullptr;
+    return *error;
   }
   const Span<Token> tokens = std::get<Vector<Token>>(tokenize_result.result);
   Parser parser{scope, tokens};
   ast::Expr *expr = parser.parse_all_as_expression();
   if (!expr) {
     if (const std::optional<std::string> &error = parser.error()) {
-      r_errors << *error;
+      return *error;
     }
-    else {
-      r_errors << TIP_("Unknown error");
-    }
-    return nullptr;
+    return TIP_("Unknown error");
   }
   return expr;
 }
