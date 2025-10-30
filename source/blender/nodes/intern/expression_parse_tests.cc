@@ -42,7 +42,8 @@ TEST(expression_parse, tokenize_number)
   expect_tokens(tokenize("123"), {"123"});
   expect_tokens(tokenize("123 634"), {"123", "634"});
   expect_tokens(tokenize("123.456"), {"123.456"});
-  expect_tokens(tokenize("0x34"), {"0x34"});
+  expect_tokens(tokenize("123.456."), {"123.456", "."});
+  expect_tokens(tokenize("123..."), {"123.", ".", "."});
 }
 
 TEST(expression_parse, tokenize_string)

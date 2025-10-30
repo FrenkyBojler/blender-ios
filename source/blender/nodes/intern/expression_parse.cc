@@ -455,6 +455,7 @@ class Parser {
     if (!this->next_is(delimiter_a)) {
       return condition;
     }
+    this->consume_next();
     ast::Expr *true_expr = (this->*fn)();
     if (!true_expr) {
       this->error__expression__generic_ternary(delimiter_a, delimiter_b);
@@ -464,6 +465,7 @@ class Parser {
       this->error__expression__generic_ternary(delimiter_a, delimiter_b);
       return nullptr;
     }
+    this->consume_next();
     ast::Expr *false_expr = (this->*fn)();
     if (!false_expr) {
       this->error__expression__generic_ternary(delimiter_a, delimiter_b);
