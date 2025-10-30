@@ -215,6 +215,7 @@ set(GLSL_SRC
   shaders/infos/compositor_realize_on_domain_infos.hh
   shaders/infos/compositor_sample_pixel_infos.hh
   shaders/infos/compositor_scale_variable_infos.hh
+  shaders/infos/compositor_signed_distance_field_infos.hh
   shaders/infos/compositor_smaa_infos.hh
   shaders/infos/compositor_split_infos.hh
   shaders/infos/compositor_summed_area_table_infos.hh

@@ -15,14 +15,16 @@ namespace blender::nodes::node_composite_signed_distance_field_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Mask").hide_value();
+  b.add_input<decl::Bool>("Mask").hide_value().structure_type(StructureType::Dynamic);
 
   b.add_output<decl::Float>("Signed Distance Field")
+      .structure_type(StructureType::Dynamic)
       .description(
           "The distance in pixel to the nearest pixel at the boundary of the mask. The distance "
           "is negative inside the mask");
   b.add_output<decl::Vector>("Nearest Pixel")
       .dimensions(2)
+      .structure_type(StructureType::Dynamic)
       .description("The integer coordinates of the nearest pixel at the boundary of the mask");
 }
 
@@ -34,14 +36,14 @@ class SignedDistanceFieldOperation : public NodeOperation {
 
   void execute() override
   {
-    const Result &input = this->get_input("Mask");
+    const Result &input_mask = this->get_input("Mask");
     Result &distance_output = this->get_result("Signed Distance Field");
 
     Result &nearest_pixel_output = this->get_result("Nearest Pixel");
     nearest_pixel_output.set_type(ResultType::Int2);
     nearest_pixel_output.set_precision(ResultPrecision::Half);
 
-    if (input.is_single_value()) {
+    if (input_mask.is_single_value()) {
       if (distance_output.should_compute()) {
         distance_output.allocate_single_value();
         distance_output.set_single_value(0.0f);
@@ -87,21 +89,21 @@ class SignedDistanceFieldOperation : public NodeOperation {
 
   Result compute_boundary_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_signed_distance_field_compute_boundary",
-                                             ResultPrecision::Half);
+    gpu::Shader *shader = this->context().get_shader(
+        "compositor_signed_distance_field_compute_boundary", ResultPrecision::Half);
     GPU_shader_bind(shader);
 
-    const Result &input = this->get_input("Mask");
-    input.bind_as_texture(shader, "input_tx");
+    const Result &mask = this->get_input("Mask");
+    mask.bind_as_texture(shader, "mask_tx");
 
     Result boundary = this->context().create_result(ResultType::Int2, ResultPrecision::Half);
-    const Domain domain = input.domain();
+    const Domain domain = mask.domain();
     boundary.allocate_texture(domain);
     boundary.bind_as_image(shader, "boundary_img");
 
     compute_dispatch_threads_at_least(shader, domain.size);
 
-    input.unbind_as_texture();
+    mask.unbind_as_texture();
     boundary.unbind_as_image();
     GPU_shader_unbind();
 
@@ -110,10 +112,10 @@ class SignedDistanceFieldOperation : public NodeOperation {
 
   Result compute_boundary_cpu()
   {
-    const Result &input = this->get_input("Mask");
+    const Result &mask = this->get_input("Mask");
 
     Result boundary = this->context().create_result(ResultType::Int2, ResultPrecision::Half);
-    const Domain domain = input.domain();
+    const Domain domain = mask.domain();
     boundary.allocate_texture(domain);
 
     /* The signed distance field operation uses a jump flood algorithm to flood the region to be
@@ -125,8 +127,8 @@ class SignedDistanceFieldOperation : public NodeOperation {
      * can still operate if the interior of the region was also included. However, the algorithm
      * operates more accurately when the number of pixels to be flooded is minimum. */
     parallel_for(domain.size, [&](const int2 texel) {
-      /* Identify if any of the 8 neighbors around the center pixel are zero. */
-      bool has_zero_neighbors = false;
+      /* Identify if any of the 8 neighbors around the center pixel are unmasked. */
+      bool has_unmasked_neighbors = false;
       for (int j = -1; j <= 1; j++) {
         for (int i = -1; i <= 1; i++) {
           const int2 offset = int2(i, j);
@@ -136,16 +138,16 @@ class SignedDistanceFieldOperation : public NodeOperation {
             continue;
           }
 
-          if (input.load_pixel_extended<float>(texel + offset) == 0.0f) {
-            has_zero_neighbors = true;
+          if (!mask.load_pixel_extended<bool>(texel + offset)) {
+            has_unmasked_neighbors = true;
             break;
           }
         }
       }
 
-      /* The pixels at the boundary are those that are non-zero and have zero neighbors. */
-      const bool is_non_zero = input.load_pixel<float>(texel) != 0.0f;
-      const bool is_boundary_pixel = is_non_zero && has_zero_neighbors;
+      /* The pixels at the boundary are those that are masked and have unmasked neighbors. */
+      const bool is_masked = mask.load_pixel<bool>(texel);
+      const bool is_boundary_pixel = is_masked && has_unmasked_neighbors;
 
       /* Encode the boundary information in the format expected by the jump flooding algorithm. */
       const int2 jump_flooding_value = initialize_jump_flooding_value(texel, is_boundary_pixel);
@@ -168,23 +170,23 @@ class SignedDistanceFieldOperation : public NodeOperation {
 
   void compute_signed_distance_gpu(const Result &flooded_boundary)
   {
-    GPUShader *shader = this->context().get_shader(
+    gpu::Shader *shader = this->context().get_shader(
         "compositor_signed_distance_field_compute_distance");
     GPU_shader_bind(shader);
 
-    const Result &input = this->get_input("Mask");
-    input.bind_as_texture(shader, "input_tx");
+    const Result &mask = this->get_input("Mask");
+    mask.bind_as_texture(shader, "mask_tx");
 
     flooded_boundary.bind_as_texture(shader, "flooded_boundary_tx");
 
-    const Domain domain = input.domain();
+    const Domain domain = mask.domain();
     Result &distance_output = this->get_result("Signed Distance Field");
     distance_output.allocate_texture(domain);
     distance_output.bind_as_image(shader, "distance_img");
 
     compute_dispatch_threads_at_least(shader, domain.size);
 
-    input.unbind_as_texture();
+    mask.unbind_as_texture();
     flooded_boundary.unbind_as_texture();
     distance_output.unbind_as_image();
     GPU_shader_unbind();
@@ -192,14 +194,14 @@ class SignedDistanceFieldOperation : public NodeOperation {
 
   void compute_signed_distance_cpu(const Result &flooded_boundary)
   {
-    const Result &input = this->get_input("Mask");
+    const Result &mask = this->get_input("Mask");
 
-    const Domain domain = input.domain();
+    const Domain domain = mask.domain();
     Result &distance_output = this->get_result("Signed Distance Field");
     distance_output.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      const bool is_inside_mask = input.load_pixel<float>(texel) != 0.0f;
+      const bool is_inside_mask = mask.load_pixel<bool>(texel);
       const int2 closest_boundary_texel = flooded_boundary.load_pixel<int2>(texel);
       const float distance_to_boundary = math::distance(float2(texel),
                                                         float2(closest_boundary_texel));

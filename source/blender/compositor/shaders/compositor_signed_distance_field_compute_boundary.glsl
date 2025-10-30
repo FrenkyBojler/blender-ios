@@ -18,8 +18,8 @@ void main()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  /* Identify if any of the 8 neighbors around the center pixel are zero. */
-  bool has_zero_neighbors = false;
+  /* Identify if any of the 8 neighbors around the center pixel are unmasked. */
+  bool has_unmasked_neighbors = false;
   for (int j = -1; j <= 1; j++) {
     for (int i = -1; i <= 1; i++) {
       const int2 offset = int2(i, j);
@@ -29,16 +29,16 @@ void main()
         continue;
       }
 
-      if (texture_load(input_tx, texel + offset).x == 0.0f) {
-        has_zero_neighbors = true;
+      if (!bool(texture_load(mask_tx, texel + offset).x)) {
+        has_unmasked_neighbors = true;
         break;
       }
     }
   }
 
-  /* The pixels at the boundary are those that are non-zero and have zero neighbors. */
-  const bool is_non_zero = texture_load(input_tx, texel).x != 0.0f;
-  const bool is_boundary_pixel = is_non_zero && has_zero_neighbors;
+  /* The pixels at the boundary are those that are masked and have unmasked neighbors. */
+  const bool is_masked = bool(texture_load(mask_tx, texel).x);
+  const bool is_boundary_pixel = is_masked && has_unmasked_neighbors;
 
   /* Encode the boundary information in the format expected by the jump flooding algorithm. */
   const int2 jump_flooding_value = initialize_jump_flooding_value(texel, is_boundary_pixel);
