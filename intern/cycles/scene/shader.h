@@ -131,11 +131,14 @@ class Shader : public Node {
   uint id;
 
 #ifdef WITH_OSL
-  /* osl shading state references */
-  OSL::ShaderGroupRef osl_surface_ref;
-  OSL::ShaderGroupRef osl_surface_bump_ref;
-  OSL::ShaderGroupRef osl_volume_ref;
-  OSL::ShaderGroupRef osl_displacement_ref;
+  /* Compiled osl shading state references. */
+  struct OSLCache {
+    OSL::ShaderGroupRef surface;
+    OSL::ShaderGroupRef bump;
+    OSL::ShaderGroupRef displacement;
+    OSL::ShaderGroupRef volume;
+  };
+  map<Device *, OSLCache> osl_cache;
 #endif
 
   Shader();
