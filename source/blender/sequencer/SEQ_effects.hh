@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "DNA_sequence_types.h"
 #include "DNA_vec_types.h"
 
 #include "BLI_math_vector_types.hh"
@@ -21,6 +22,7 @@ namespace blender::seq {
 void effect_ensure_initialized(Strip *strip);
 void effect_free(Strip *strip);
 int effect_get_num_inputs(int strip_type);
+bool effect_is_transition(StripType type);
 void effect_text_font_set(Strip *strip, VFont *font);
 bool effects_can_render_text(const Strip *strip);
 

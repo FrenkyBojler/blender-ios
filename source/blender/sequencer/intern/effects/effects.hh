@@ -128,6 +128,8 @@ void get_default_fac_fade(const Scene *scene,
 
 EffectHandle effect_handle_get(StripType strip_type);
 
+float effect_fader_calc(Scene *scene, Strip *strip, float timeline_frame);
+
 void add_effect_get_handle(EffectHandle &rval);
 void adjustment_effect_get_handle(EffectHandle &rval);
 void alpha_over_effect_get_handle(EffectHandle &rval);
