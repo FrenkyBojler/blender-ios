@@ -1521,6 +1521,69 @@ class LazyFunctionForSimulationZone : public LazyFunction {
   }
 };
 
+class LazyFunctionForExpressionNode : public LazyFunction {
+ private:
+  const bNode &bnode_;
+  const NodeExpression &bnode_storage_;
+  const int expr_index_;
+  const int variables_num_;
+  const NodeExpressionItem &expr_item_;
+
+  int expression_input_i_;
+  int expression_usage_output_i_;
+  int result_output_i_;
+  int result_usage_input_i_;
+  IndexRange variable_inputs_;
+  IndexRange variable_usage_outputs_;
+
+  friend struct GeometryNodesLazyFunctionBuilder;
+
+ public:
+  LazyFunctionForExpressionNode(const bNode &bnode, const int expr_index)
+      : bnode_(bnode),
+        bnode_storage_(*static_cast<const NodeExpression *>(bnode_.storage)),
+        expr_index_(expr_index),
+        variables_num_(bnode_storage_.input_items.items_num),
+        expr_item_(bnode_storage_.expression_items.items[expr_index_])
+  {
+    /* Add variable inputs and their usage outputs. */
+    for (const int i : IndexRange(variables_num_)) {
+      const NodeExpressionInputItem &item = bnode_storage_.input_items.items[i];
+      const bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(
+          item.socket_type);
+      BLI_assert(socket_type);
+      inputs_.append_as(item.name, CPPType::get<SocketValueVariant>(), lf::ValueUsage::Maybe);
+      outputs_.append_as("Usage", CPPType::get<bool>());
+    }
+    variable_inputs_ = IndexRange(variables_num_);
+    variable_usage_outputs_ = IndexRange(variables_num_);
+
+    /* Add expression input and its usage output. */
+    expression_input_i_ = inputs_.append_and_get_index_as(
+        "Expression", CPPType::get<SocketValueVariant>(), lf::ValueUsage::Used);
+    expression_usage_output_i_ = outputs_.append_and_get_index_as("Expression Usage",
+                                                                  CPPType::get<bool>());
+
+    /* Add result output and its input usage. */
+    result_output_i_ = outputs_.append_and_get_index_as(expr_item_.name,
+                                                        CPPType::get<SocketValueVariant>());
+    result_usage_input_i_ = inputs_.append_and_get_index_as(
+        "Usage", CPPType::get<bool>(), lf::ValueUsage::Maybe);
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
+  {
+    const std::string expression =
+        params.get_input<SocketValueVariant>(expression_input_i_).get<std::string>();
+
+    set_default_value_for_output_socket(params, result_output_i_, bnode_.output_socket(0));
+    for (const int lf_i : variable_usage_outputs_) {
+      params.set_output(lf_i, false);
+    }
+    params.set_output(expression_usage_output_i_, true);
+  }
+};
+
 void report_from_multi_function(const mf::Context &context,
                                 NodeWarningType type,
                                 std::string message)
@@ -2997,6 +3060,7 @@ struct GeometryNodesLazyFunctionBuilder {
     for (const int i : btree_.interface_outputs().index_range()) {
       const bNodeTreeInterfaceSocket &interface_output = *btree_.interface_outputs()[i];
       const bNodeSocket &bsocket = bnode.input_socket(i);
+      /* TODO: Fix: only add group outputs for main output. */
       lf::GraphOutputSocket &lf_socket = graph_params.lf_graph.add_output(
           CPPType::get<SocketValueVariant>(), interface_output.name ? interface_output.name : "");
       lf_graph_outputs.append(&lf_socket);
@@ -3503,7 +3567,64 @@ struct GeometryNodesLazyFunctionBuilder {
 
   void build_expression_node(const bNode &bnode, BuildGraphParams &graph_params)
   {
-    /* TODO */
+    const NodeExpression &storage = *static_cast<const NodeExpression *>(bnode.storage);
+    const Span<const bNodeSocket *> expr_input_bsockets = bnode.input_sockets().take_front(
+        storage.expression_items.items_num);
+    const Span<const bNodeSocket *> variable_input_bsockets =
+        bnode.input_sockets().drop_front(storage.expression_items.items_num + 1).drop_back(1);
+    const Span<const bNodeSocket *> expr_output_bsockets = bnode.output_sockets().drop_back(1);
+
+    Vector<lf::FunctionNode *> lf_expr_nodes;
+
+    for (const int expr_index : IndexRange(storage.expression_items.items_num)) {
+      const bNodeSocket &expr_bsocket = *expr_input_bsockets[expr_index];
+      const bNodeSocket &result_bsocket = *expr_output_bsockets[expr_index];
+
+      auto &expr_fn = scope_.construct<LazyFunctionForExpressionNode>(bnode, expr_index);
+      lf::FunctionNode &lf_node = graph_params.lf_graph.add_function(expr_fn);
+      lf_expr_nodes.append(&lf_node);
+      lf::InputSocket &lf_expr_input = lf_node.input(expr_fn.expression_input_i_);
+      lf::OutputSocket &lf_result_output = lf_node.output(expr_fn.result_output_i_);
+      lf::InputSocket &lf_result_usage_input = lf_node.input(expr_fn.result_usage_input_i_);
+
+      graph_params.lf_inputs_by_bsocket.add(&expr_bsocket, &lf_expr_input);
+      graph_params.lf_output_by_bsocket.add(&result_bsocket, &lf_result_output);
+      mapping_->bsockets_by_lf_socket_map.add(&lf_expr_input, &expr_bsocket);
+      graph_params.socket_usage_inputs.add(&lf_node.input(expr_fn.result_usage_input_i_));
+      graph_params.usage_by_bsocket.add(&expr_bsocket,
+                                        &lf_node.output(expr_fn.expression_usage_output_i_));
+
+      if (lf::OutputSocket *lf_result_is_used = graph_params.usage_by_bsocket.lookup_default(
+              &result_bsocket, nullptr))
+      {
+        graph_params.lf_graph.add_link(*lf_result_is_used, lf_result_usage_input);
+      }
+      else {
+        static const bool static_false = false;
+        lf_result_usage_input.set_default_value(&static_false);
+      }
+
+      for (const int variable_i : IndexRange(storage.input_items.items_num)) {
+        const bNodeSocket &variable_bsocket = *variable_input_bsockets[variable_i];
+        lf::InputSocket &lf_variable_input = lf_node.input(expr_fn.variable_inputs_[variable_i]);
+        graph_params.lf_inputs_by_bsocket.add(&variable_bsocket, &lf_variable_input);
+        mapping_->bsockets_by_lf_socket_map.add(&lf_variable_input, &variable_bsocket);
+      }
+    }
+
+    for (const int variable_i : IndexRange(storage.input_items.items_num)) {
+      const bNodeSocket &variable_bsocket = *variable_input_bsockets[variable_i];
+      Vector<lf::OutputSocket *> lf_variable_usages;
+      for (lf::FunctionNode *lf_expr_node : lf_expr_nodes) {
+        const auto &expr_fn = static_cast<const LazyFunctionForExpressionNode &>(
+            lf_expr_node->function());
+        lf_variable_usages.append(
+            &lf_expr_node->output(expr_fn.variable_usage_outputs_[variable_i]));
+      }
+      lf::OutputSocket *lf_combined_usage = this->or_socket_usages(lf_variable_usages,
+                                                                   graph_params);
+      graph_params.usage_by_bsocket.add(&variable_bsocket, lf_combined_usage);
+    }
   }
 
   void build_index_switch_node(const bNode &bnode, BuildGraphParams &graph_params)
