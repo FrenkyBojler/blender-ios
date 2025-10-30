@@ -1559,13 +1559,16 @@ static void serialize_bake_item(const BakeItem &item,
         else {
           const eCustomDataType data_type = cpp_type_to_custom_data_type(list.cpp_type());
           r_io_item.append_str("item_type", get_data_type_io_name(data_type));
-          ArrayValue &io_items = *r_io_item.append_array("items");
-          const GVArray list_varray = list.varray();
-          BUFFER_FOR_CPP_TYPE_VALUE(list.cpp_type(), item_value);
-          for (const int i : IndexRange(list_varray.size())) {
-            list_varray.get(i, item_value);
-            auto item = serialize_primitive_value(data_type, item_value);
-            io_items.append(std::move(item));
+          if (const auto single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
+            r_io_item.append("value", serialize_primitive_value(data_type, single_data->value));
+          }
+          else if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
+            const GSpan array_span = {list.cpp_type(), array_data->data, list.size()};
+            r_io_item.append_int("num_items", list.size());
+            r_io_item.append(
+                "data",
+                write_blob_shared_simple_gspan(
+                    blob_writer, blob_sharing, array_span, array_data->sharing_info.get()));
           }
         }
       }
@@ -1673,29 +1676,40 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
   }
   if (*state_item_type == StringRef("LIST")) {
     const std::optional<StringRefNull> io_list_item_type = io_item.lookup_str("item_type");
-    const ArrayValue *io_items = io_item.lookup_array("items");
-    if (!io_list_item_type || !io_items) {
-      return {};
-    }
-    const Span<std::shared_ptr<Value>> io_elements = io_items->elements();
     if (const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(
             *io_list_item_type))
     {
-      const CPPType &cpp_type = *custom_data_type_to_cpp_type(*data_type);
-      auto array_data = nodes::List::ArrayData::ForConstructed(cpp_type, io_elements.size());
-      GMutableSpan array_span = {cpp_type, array_data.data, io_elements.size()};
-      for (const int i : io_elements.index_range()) {
-        if (!io_elements[i]) {
-          continue;
-        }
-        if (!deserialize_primitive_value(*io_elements[i], *data_type, array_span[i])) {
+      const CPPType *cpp_type = custom_data_type_to_cpp_type(*data_type);
+      BLI_assert(cpp_type);
+      if (const std::shared_ptr<io::serialize::Value> *io_value = io_item.lookup("value")) {
+        BUFFER_FOR_CPP_TYPE_VALUE(*cpp_type, buffer);
+        if (!deserialize_primitive_value(**io_value, *data_type, buffer)) {
           return {};
         }
+        auto list = nodes::List::create(
+            *cpp_type, nodes::List::SingleData::ForValue(GPointer{cpp_type, buffer}), 1);
+        return std::make_unique<ListBakeItem>(std::move(list));
       }
-      auto list = nodes::List::create(cpp_type, std::move(array_data), io_elements.size());
-      return std::make_unique<ListBakeItem>(std::move(list));
+      else if (const io::serialize::DictionaryValue *io_data = io_item.lookup_dict("data")) {
+        const std::optional<int> num_items = io_item.lookup_int("num_items");
+        if (!num_items) {
+          return {};
+        }
+        auto array_data = nodes::List::ArrayData::ForUninitialized(*cpp_type, *num_items);
+        GMutableSpan array_span = {cpp_type, array_data.data, *num_items};
+        if (!read_blob_simple_gspan(blob_reader, *io_data, array_span)) {
+          return {};
+        }
+        auto list = nodes::List::create(*cpp_type, std::move(array_data), *num_items);
+        return std::make_unique<ListBakeItem>(std::move(list));
+      }
     }
     if (*io_list_item_type == "BUNDLE") {
+      const ArrayValue *io_items = io_item.lookup_array("items");
+      if (!io_items) {
+        return {};
+      }
+      const Span<std::shared_ptr<Value>> io_elements = io_items->elements();
       Vector<BundleBakeItem> bundle_list(io_elements.size());
       for (const int i : io_elements.index_range()) {
         if (!io_elements[i]) {
