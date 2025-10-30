@@ -46,7 +46,7 @@ struct CrossEffectOp {
 
 static ImBuf *do_cross_effect(const RenderData *context,
                               SeqRenderState * /*state*/,
-                              Strip * /*seq*/,
+                              Strip * /*strip*/,
                               float /*timeline_frame*/,
                               float fac,
                               ImBuf *src1,
@@ -100,7 +100,7 @@ struct GammaCrossEffectOp {
 
 static ImBuf *do_gammacross_effect(const RenderData *context,
                                    SeqRenderState * /*state*/,
-                                   Strip * /*seq*/,
+                                   Strip * /*strip*/,
                                    float /*timeline_frame*/,
                                    float fac,
                                    ImBuf *src1,

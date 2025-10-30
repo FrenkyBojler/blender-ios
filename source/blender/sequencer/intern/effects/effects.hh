@@ -112,9 +112,9 @@ inline void store_premul_pixel(const float4 &pix, float *dst)
   *reinterpret_cast<float4 *>(dst) = pix;
 }
 
-StripEarlyOut early_out_mul_input1(const Strip * /*seq*/, float fac);
-StripEarlyOut early_out_mul_input2(const Strip * /*seq*/, float fac);
-StripEarlyOut early_out_fade(const Strip * /*seq*/, float fac);
+StripEarlyOut early_out_mul_input1(const Strip * /*strip*/, float fac);
+StripEarlyOut early_out_mul_input2(const Strip * /*strip*/, float fac);
+StripEarlyOut early_out_fade(const Strip * /*strip*/, float fac);
 
 EffectHandle effect_handle_get(StripType strip_type);
 
