@@ -48,7 +48,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         .description("Expression to be evaluated");
     auto &output = b.add_output(socket_type, item.name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type) && tree->type == NTREE_GEOMETRY) {
-      output.dependent_field().reference_pass_all();
+      output.field_source_reference_all();
     }
     output.structure_type(StructureType::Dynamic);
   }
@@ -111,7 +111,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   storage->expression_items.items = MEM_calloc_arrayN<NodeExpressionItem>(1, __func__);
   NodeExpressionItem &item = storage->expression_items.items[0];
   item.name = BLI_strdup(DATA_("Expression"));
-  item.socket_type = SOCK_FLOAT;
+  item.socket_type = SOCK_RGBA;
   item.identifier = storage->expression_items.next_identifier++;
   storage->expression_items.items_num = 1;
 }
