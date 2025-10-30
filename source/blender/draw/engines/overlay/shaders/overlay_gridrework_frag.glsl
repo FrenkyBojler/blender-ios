@@ -43,8 +43,7 @@ void main()
   // fade *= (1.f -  abs(local_coord * 2.f - 1.f));
 
   // TODO; fade levels
-  fade = local_level;
-  // fade = (1.f -  abs(local_level * 2.f - 1.f));
+  fade *= (1.f - local_level);
   // float a_level = local_level;
   // fade =  abs(local_level /* * 2.f - 1.f */);
 

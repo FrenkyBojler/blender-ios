@@ -32,26 +32,11 @@ void main()
 
   // Rotate levels dependent on distance to floor plane point
   float line_lvl_mod = log2(t) / log2(float(NUM_GRID_SUBDIVS)); // log10(t) equals log2(t) / log2(10)
-  
+  line_lvl += int(ceil(line_lvl_mod));
+  line_lvl -= 2; // Start grid one level below current
+
   // Output level interpolant for blending in fragment shader
-  local_level = (float(line_lvl - 1) + line_lvl_mod) / float(NUM_GRID_LEVELS - 1);
-  if (local_level > 0)
-    local_level = fract(local_level);
-  else
-    local_level = 1.f - fract(local_level);
-
-
-  // local_level 
-  //   = mod(float(line_lvl /* - 1 */) + line_lvl_mod, float(NUM_GRID_LEVELS - 1)) 
-  //   / float(NUM_GRID_LEVELS - 1);
-
-  line_lvl += int(line_lvl_mod);
-  // line_lvl -= 1; // Start grid one level below current
-
-
-  if (gl_VertexID == 0)
-    printf("t = %f, mod = %f, actual level = %d, local level = %f\n", t, line_lvl_mod, line_lvl, local_level);
-
+  local_level = fract((line_lvl + line_lvl_mod) / float(NUM_GRID_LEVELS - 1));
 
   // Determine line scale for current level; 
   // use float to support fractional scaling for sub-levels
