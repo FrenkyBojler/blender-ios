@@ -5423,59 +5423,63 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
       if (eval_ob && eval_ob->type == OB_MESH) {
         src_mesh = BKE_object_get_evaluated_mesh(eval_ob);
         src_dvert = src_mesh->deform_verts();
-        const ListBase *deflist = BKE_id_defgroup_list_get(&src_mesh->id);
-        LISTBASE_FOREACH (bDeformGroup *, defgroup, deflist) {
-          if (StringRef(defgroup->name).startswith(source_vgname)) {
-            const int target_group_index = weight_transfer_match_output ?
-                                               ensure_target_defgroup(defgroup->name) :
-                                               target_defgroup;
-            src_to_dst_defgroup.add(BKE_defgroup_name_index(deflist, defgroup->name),
-                                    target_group_index);
-          }
+      }
+    }
+
+    if (!src_dvert.is_empty()) {
+      const ListBase *deflist = BKE_id_defgroup_list_get(&src_mesh->id);
+      int group_index = 0;
+      LISTBASE_FOREACH_INDEX (bDeformGroup *, defgroup, deflist, group_index) {
+        if (StringRef(defgroup->name).startswith(source_vgname)) {
+          const int target_group_index = weight_transfer_match_output ?
+                                             ensure_target_defgroup(defgroup->name) :
+                                             target_defgroup;
+          src_to_dst_defgroup.add(group_index, target_group_index);
+        }
+      }
+
+      auto transfer_to_matching_groups = [&](const int64_t source_index, const int target_index) {
+        src_to_dst_defgroup.foreach_item([&](int from_group, int to_group) {
+          const MDeformWeight *mdw_from = BKE_defvert_find_index(&src_dvert[source_index],
+                                                                 from_group);
+          MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index], to_group);
+          const float source_weight = mdw_from ? mdw_from->weight : 0.0f;
+          mdw_to->weight = invert_input ? (1 - source_weight) : source_weight;
+        });
+      };
+
+      auto transfer_to_singular_group = [&](const int64_t source_index, const int target_index) {
+        float highest_weight = 0.0f;
+        src_to_dst_defgroup.foreach_item([&](int from_group, int /*to_group*/) {
+          const MDeformWeight *mdw_from = BKE_defvert_find_index(&src_dvert[source_index],
+                                                                 from_group);
+          const float source_weight = mdw_from ? mdw_from->weight : 0.0f;
+          highest_weight = std::max(highest_weight, source_weight);
+        });
+        MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index], target_defgroup);
+        mdw_to->weight = invert_input ? (1 - highest_weight) : highest_weight;
+      };
+
+      int i;
+      LISTBASE_FOREACH_INDEX (LineartEdgeChainItem *, eci, &cwi.chain->chain, i) {
+        int point_i = i + up_to_point;
+        point_positions[point_i] = blender::math::transform_point(inverse_mat, float3(eci->gpos));
+        point_radii.span[point_i] = thickness / 2.0f;
+        if (point_opacities) {
+          point_opacities.span[point_i] = opacity;
+        }
+
+        const int64_t vindex = eci->index - cwi.chain->index_offset;
+
+        if (weight_transfer_match_output) {
+          transfer_to_matching_groups(vindex, point_i);
+        }
+        else {
+          transfer_to_singular_group(vindex, point_i);
         }
       }
     }
 
-    auto transfer_to_matching_groups = [&](const int64_t source_index, const int target_index) {
-      src_to_dst_defgroup.foreach_item([&](int from_group, int to_group) {
-        const MDeformWeight *mdw_from = BKE_defvert_find_index(&src_dvert[source_index],
-                                                               from_group);
-        MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index], to_group);
-        const float source_weight = mdw_from ? mdw_from->weight : 0.0f;
-        mdw_to->weight = invert_input ? (1 - source_weight) : source_weight;
-      });
-    };
-
-    auto transfer_to_singular_group = [&](const int64_t source_index, const int target_index) {
-      float highest_weight = 0.0f;
-      src_to_dst_defgroup.foreach_item([&](int from_group, int /*to_group*/) {
-        const MDeformWeight *mdw_from = BKE_defvert_find_index(&src_dvert[source_index],
-                                                               from_group);
-        const float source_weight = mdw_from ? mdw_from->weight : 0.0f;
-        highest_weight = std::max(highest_weight, source_weight);
-      });
-      MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index], target_defgroup);
-      mdw_to->weight = invert_input ? (1 - highest_weight) : highest_weight;
-    };
-
-    int i;
-    LISTBASE_FOREACH_INDEX (LineartEdgeChainItem *, eci, &cwi.chain->chain, i) {
-      int point_i = i + up_to_point;
-      point_positions[point_i] = blender::math::transform_point(inverse_mat, float3(eci->gpos));
-      point_radii.span[point_i] = thickness / 2.0f;
-      if (point_opacities) {
-        point_opacities.span[point_i] = opacity;
-      }
-
-      const int64_t vindex = eci->index - cwi.chain->index_offset;
-
-      if (weight_transfer_match_output) {
-        transfer_to_matching_groups(vindex, point_i);
-      }
-      else {
-        transfer_to_singular_group(vindex, point_i);
-      }
-    }
     offsets[chain_i] = up_to_point;
     stroke_materials.span[chain_i] = max_ii(mat_nr, 0);
     up_to_point += cwi.point_count;
