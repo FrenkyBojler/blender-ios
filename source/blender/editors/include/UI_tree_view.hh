@@ -133,7 +133,9 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool scroll_active_into_view_on_draw_ = false;
   bool show_display_options_ = false;
-  std::unique_ptr<std::array<char, MAX_NAME>> search_string_ = nullptr;
+  /* `char[UI_MAX_NAME_STR]` wrapped in shared pointer, to keep a stable pointer over
+   * reconstruction that can be passed to buttons. */
+  std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;

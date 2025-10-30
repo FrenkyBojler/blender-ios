@@ -162,8 +162,7 @@ void AbstractTreeView::update_from_old(uiBlock &new_block)
   if (AbstractView *old_view = ui_block_view_find_matching_in_old_block(new_block, *this)) {
     if (AbstractTreeView *old_tree_view = dynamic_cast<AbstractTreeView *>(old_view)) {
       show_display_options_ = old_tree_view->show_display_options_;
-      search_string_ = std::move(old_tree_view->search_string_);
-      old_tree_view->search_string_ = nullptr;
+      search_string_ = old_tree_view->search_string_;
     }
   }
 }
@@ -173,7 +172,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   uiViewState state{};
 
   SET_FLAG_FROM_TEST(state.flag, show_display_options_, UI_VIEW_COLLAPSE_FILTER_OPTIONS);
-  BLI_strncpy(state.search_string, search_string_->data(), sizeof(state.search_string));
+  BLI_strncpy(state.search_string, search_string_.get(), sizeof(state.search_string));
 
   if (!custom_height_ && !scroll_value_) {
     return {};
@@ -200,12 +199,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
   }
 
   show_display_options_ = state.flag & UI_VIEW_COLLAPSE_FILTER_OPTIONS;
-  if (state.search_string[0] != '\0') {
-    if (!search_string_) {
-      search_string_ = std::make_unique<decltype(search_string_)::element_type>();
-    }
-    BLI_strncpy(search_string_->data(), state.search_string, search_string_->size());
-  }
+  BLI_strncpy(search_string_.get(), state.search_string, sizeof(search_string_));
 }
 
 int AbstractTreeView::count_visible_descendants(const AbstractTreeViewItem &parent) const
@@ -999,7 +993,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                             UI_UNIT_Y,
                             tree_view.search_string_.get(),
                             0,
-                            tree_view.search_string_->size(),
+                            UI_MAX_NAME_STR,
                             "");
       UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
       UI_but_flag_enable(but, UI_BUT_UNDO);
@@ -1118,13 +1112,9 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   tree_view.change_state_delayed();
   {
     /* Setup search string to filter out elements with matching characters. */
-    if (tree_view.search_string_ == nullptr) {
-      tree_view.search_string_ =
-          std::make_unique<decltype(tree_view.search_string_)::element_type>();
-    }
-    char string[MAX_NAME + 2];
-    BLI_strncpy_ensure_pad(string, tree_view.search_string_->data(), '*', sizeof(string));
-    tree_view.filter(string);
+    char string[UI_MAX_NAME_STR];
+    BLI_strncpy_ensure_pad(string, tree_view.search_string_.get(), '*', sizeof(string));
+    tree_view.filter(tree_view.search_string_ ? std::optional{string} : std::nullopt);
   }
   ensure_min_rows_items(tree_view);
 
