@@ -4,3 +4,4 @@ Referenced by issue #145633, Blender freezes when closing Blender after using th
 Referenced by pull request #146096, Fix #145633: Revert "Fix #144526: Crash on exit with Video_Editing template"
 Referenced by commit bef15f0ec17bccba6aec815e590a29f30483dce0, Fix #145633: Revert "Fix #144526: Crash on exit with Video_Editing template"
 Referenced by issue #137983, Release note tools: List of bug fixes per release override
+Referenced by issue #144932, Assertion: BLI_assert failed: DRW_lock_start(), at 'locked'
