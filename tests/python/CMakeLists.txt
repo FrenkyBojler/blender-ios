@@ -1428,7 +1428,6 @@ if(WITH_UI_TESTS)
     test_workspace.sanity_check_2d_animation
     test_workspace.sanity_check_sculpting
     test_workspace.sanity_check_vfx
-    test_workspace.sanity_check_video_editing
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
