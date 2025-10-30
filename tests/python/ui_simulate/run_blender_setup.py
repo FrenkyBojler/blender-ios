@@ -89,11 +89,9 @@ def main():
 
     BLOCKLIST = []
     if os.getenv("BLENDER_TEST_IGNORE_BLOCKLIST") is None:
-        if sys.platform == "linux":
-            BLOCKLIST = ["test_undo.view3d_edit_mode_multi_window", "test_undo.view3d_multi_mode_multi_window"]
-        elif sys.platform == "win32":
-            if gpu_device == "INTEL":
-                BLOCKLIST = ["test_workspace"]
+        if sys.platform == "win32" and gpu_device == "INTEL":
+            # See #149084 for the tracking issue
+            BLOCKLIST = ["test_workspace"]
 
     is_first = True
     for test_id in args.tests:
