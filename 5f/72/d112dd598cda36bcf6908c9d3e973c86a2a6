@@ -2,3 +2,4 @@ Referenced by issue #148142, Cannot interact with the Blender File View window (
 Referenced by issue #144919, Opening child windows hangs in GNOME-49.0 (fixed in 49.1)
 Referenced by issue #148274, Regression, Wayland: Window decorations are broken when un-maximizing a Blender window
 Referenced by commit a3a3b1989d63dbe7e66867e6c690231124995389, Revert "Fix #144919: Opening windows hangs on GNOME-49 with Wayland"
+Referenced by issue #137983, Release note tools: List of bug fixes per release override
