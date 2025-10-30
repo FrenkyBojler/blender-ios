@@ -18,6 +18,14 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_report.hh"
 
+// todo(habib): cleanup
+#include "BKE_blender_copybuffer.hh"
+#include "BKE_blendfile.hh"
+// for get copybuffer path. todo(habib(): verify is necessary
+#include "BKE_appdir.hh"
+#include "BLI_path_utils.hh"
+#include "BLO_readfile.hh"
+
 #include "ED_node.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
@@ -30,6 +38,17 @@
 #include "node_intern.hh"
 
 namespace blender::ed::space_node {
+
+/* -------------------------------------------------------------------- */
+/** \name Local Utilities
+ * \{ */
+
+static void node_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepath_maxncpy)
+{
+  BLI_path_join(filepath, filepath_maxncpy, BKE_tempdir_base(), "copybuffer_nodes.blend");
+}
+
+/** \} */
 
 struct NodeClipboardItemIDInfo {
   /** Name of the referenced ID. */
@@ -319,6 +338,210 @@ static NodeClipboard &get_node_clipboard()
 /** \name Copy
  * \{ */
 
+static bool node_clipboard_copy_paste(Main &bmain,
+                                      bNodeTree &from_tree,
+                                      bNodeTree &to_tree,
+                                      ReportList *reports)
+{
+  // todo(habib): Is going through NodeClipboard still the best implementation?
+  NodeClipboard clipboard;
+
+  /* Copy. */
+  {
+    Map<const bNode *, bNode *> node_map;
+    Map<const bNodeSocket *, bNodeSocket *> socket_map;
+
+    node_select_paired(from_tree);
+
+    for (const bNode *node : from_tree.all_nodes()) {
+      if (node->flag & SELECT) {
+        clipboard.copy_add_node(*node, node_map, socket_map);
+      }
+    }
+
+    for (bNode *new_node : node_map.values()) {
+      /* Parent pointer must be redirected to new node or detached if parent is not copied. */
+      if (new_node->parent) {
+        if (node_map.contains(new_node->parent)) {
+          new_node->parent = node_map.lookup(new_node->parent);
+        }
+        else {
+          bke::node_detach_node(from_tree, *new_node);
+        }
+      }
+    }
+
+    /* Copy links between selected nodes. */
+    LISTBASE_FOREACH (bNodeLink *, link, &from_tree.links) {
+      BLI_assert(link->tonode);
+      BLI_assert(link->fromnode);
+      if (link->tonode->flag & NODE_SELECT && link->fromnode->flag & NODE_SELECT) {
+        clipboard.links.append({});
+        ClipboardLink &new_link = clipboard.links.last();
+        new_link.flag = link->flag;
+        new_link.to_node = node_map.lookup(link->tonode);
+        new_link.from_node = node_map.lookup(link->fromnode);
+        new_link.to_socket = link->tosock->identifier;
+        new_link.from_socket = link->fromsock->identifier;
+        new_link.multi_input_sort_id = link->multi_input_sort_id;
+      }
+    }
+  }
+
+  /* Paste. */
+  {
+    if (clipboard.nodes.is_empty()) {
+      BKE_report(reports, RPT_ERROR, "The internal clipboard is empty");
+      return false;
+    }
+
+    if (!clipboard.paste_validate_id_references(bmain)) {
+      BKE_report(reports,
+                 RPT_WARNING,
+                 "Some nodes references to other IDs could not be restored, will be left empty");
+    }
+
+    // todo(habib): necessary?
+    // ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+
+    node_deselect_all(to_tree);
+
+    Map<const bNode *, bNode *> node_map;
+    Map<const bNodeSocket *, bNodeSocket *> socket_map;
+
+    bNode *new_active_node = nullptr;
+
+    /* Copy valid nodes from clipboard. */
+    for (NodeClipboardItem &item : clipboard.nodes) {
+      const bNode &node = *item.node;
+      const char *disabled_hint = nullptr;
+
+      /* Some poll functions (e.g. for the nodegroup node, see #node_group_poll_instance) do
+       * require fully valid node data, including the potential ID pointers. So first create the
+       * new copy of the clipboard node, make it as valid as possible, then call its #poll_instance
+       * function, and discard the new copy if it fails.
+       *
+       * See also #141415.
+       */
+
+      /* Do not access referenced ID pointers here, as they are still the old ones, which may be
+       * invalid. */
+      bNode *new_node = bke::node_copy_with_mapping(
+          &to_tree, node, LIB_ID_CREATE_NO_USER_REFCOUNT, std::nullopt, std::nullopt, socket_map);
+      /* Update the newly copied node's ID references. */
+      clipboard.paste_update_node_id_references(*new_node);
+      /* Reset socket shape in case a node is copied to a different tree type. */
+      LISTBASE_FOREACH (bNodeSocket *, socket, &new_node->inputs) {
+        socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+      }
+      LISTBASE_FOREACH (bNodeSocket *, socket, &new_node->outputs) {
+        socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+      }
+
+      if (!new_node->typeinfo->poll_instance ||
+          new_node->typeinfo->poll_instance(new_node, &to_tree, &disabled_hint))
+      {
+        node_map.add_new(&node, new_node);
+        if (item.was_active) {
+          new_active_node = new_node;
+        }
+      }
+      else {
+        if (disabled_hint) {
+          BKE_reportf(reports,
+                      RPT_ERROR,
+                      "Cannot add node %s into node tree %s: %s",
+                      node.name,
+                      to_tree.id.name + 2,
+                      disabled_hint);
+        }
+        else {
+          BKE_reportf(reports,
+                      RPT_ERROR,
+                      "Cannot add node %s into node tree %s",
+                      node.name,
+                      to_tree.id.name + 2);
+        }
+        bke::node_free_node(&to_tree, *new_node);
+      }
+    }
+
+    for (bNode *new_node : node_map.values()) {
+      bke::node_set_selected(*new_node, true);
+
+      new_node->flag &= ~NODE_ACTIVE;
+
+      /* The parent pointer must be redirected to new node. */
+      if (new_node->parent) {
+        if (node_map.contains(new_node->parent)) {
+          new_node->parent = node_map.lookup(new_node->parent);
+        }
+      }
+    }
+
+    if (new_active_node) {
+      bke::node_set_active(to_tree, *new_active_node);
+    }
+
+    // todo(habib): support offset
+
+    // PropertyRNA *offset_prop = RNA_struct_find_property(op->ptr, "offset");
+    // if (RNA_property_is_set(op->ptr, offset_prop)) {
+    //   float2 center(0);
+    //   for (NodeClipboardItem &item : clipboard.nodes) {
+    //     center.x += BLI_rctf_cent_x(&item.draw_rect);
+    //     center.y += BLI_rctf_cent_y(&item.draw_rect);
+    //   }
+    //   /* DPI factor needs to be removed when computing a View2D offset from drawing rects. */
+    //   center /= clipboard.nodes.size();
+
+    //   float2 mouse_location;
+    //   RNA_property_float_get_array(op->ptr, offset_prop, mouse_location);
+    //   const float2 offset = (mouse_location - center) / UI_SCALE_FAC;
+
+    //   for (bNode *new_node : node_map.values()) {
+    //     new_node->location[0] += offset.x;
+    //     new_node->location[1] += offset.y;
+    //   }
+    // }
+
+    remap_node_pairing(to_tree, node_map);
+
+    for (bNode *new_node : node_map.values()) {
+      bke::node_declaration_ensure(to_tree, *new_node);
+    }
+
+    /* Add links between existing nodes. */
+    for (const ClipboardLink &link : clipboard.links) {
+      bNode *from_node = node_map.lookup_default(link.from_node, nullptr);
+      bNode *to_node = node_map.lookup_default(link.to_node, nullptr);
+      if (!from_node || !to_node) {
+        continue;
+      }
+      bNodeSocket *from = bke::node_find_socket(*from_node, SOCK_OUT, link.from_socket.c_str());
+      bNodeSocket *to = bke::node_find_socket(*to_node, SOCK_IN, link.to_socket.c_str());
+      if (!from || !to) {
+        continue;
+      }
+      bNodeLink &new_link = bke::node_add_link(to_tree, *from_node, *from, *to_node, *to);
+      new_link.multi_input_sort_id = link.multi_input_sort_id;
+    }
+
+    to_tree.ensure_topology_cache();
+    for (bNode *new_node : node_map.values()) {
+      /* Update multi input socket indices in case all connected nodes weren't copied. */
+      update_multi_input_indices_for_removed_links(*new_node);
+    }
+  }
+
+  // todo(habib): Updates
+  // BKE_main_ensure_invariants(bmain);
+  /* Pasting nodes can create arbitrary new relations because nodes can reference IDs. */
+  // DEG_relations_tag_update(&bmain);
+
+  return true;
+}
+
 static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -369,13 +592,117 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator * /*op*
   return OPERATOR_FINISHED;
 }
 
+/*
+Global idea:
+  Copy:
+    - Create node group "CopyNG" (tree type = type of selected node)
+    - Copy paste selected nodes (and links) into this node group
+      => need to refactor `node_clipboard_copy_exec()`
+    - Save group to file using PartialWriteContext
+    - Done
+
+  Paste:
+    - Paste from file using PartialWriteContext
+      - Group "CopyNG" should be here now
+    - Copy-paste from CopyNG to current edittree
+*/
+
+static wmOperatorStatus os_copyboard_copy_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender::bke::blendfile;
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  bNodeTree *node_tree = snode->edittree;
+
+  // create a node group
+  //    type must be same of active
+  // for each selected node
+  //    copy to node group
+  // save node group to disk
+  //    choose name unique enough
+
+  // todo(habib): Get a more unique name
+  bNodeTree *copy_tree = blender::bke::node_tree_add_tree(
+      bmain, "CopyNG", node_tree->typeinfo->idname);
+
+  if (!node_clipboard_copy_paste(*bmain, *node_tree, *copy_tree, op->reports)) {
+    return OPERATOR_CANCELLED;
+  };
+
+  PartialWriteContext copybuffer{*bmain};
+
+  // todo(habib): what flags make sense?
+  copybuffer.id_add(
+      &copy_tree->id,
+      PartialWriteContext::IDAddOptions{(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                                         PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
+                                         PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
+      nullptr);
+
+  char filepath[FILE_MAX];
+  node_copybuffer_filepath_get(filepath, sizeof(filepath));
+  copybuffer.write(filepath, *op->reports);
+
+  // delete CopyNG
+  BKE_id_delete(bmain, &copy_tree->id);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus os_clipboard_paste_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+
+  char filepath[FILE_MAX];
+  node_copybuffer_filepath_get(filepath, sizeof(filepath));
+
+  // todo(habib): verify flags
+  int flag = 0;
+  flag |= FILE_AUTOSELECT | BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD;
+  flag |= FILE_ACTIVE_COLLECTION;
+
+  const int num_pasted = BKE_copybuffer_paste(C, filepath, flag, op->reports, FILTER_ID_NT);
+  if (num_pasted == 0) {
+    BKE_report(op->reports, RPT_INFO, "No nodes to paste");
+    return OPERATOR_CANCELLED;
+  }
+
+  // todo(habib): Enable assert. Currently Render Layers node would make a whole copy of a scene
+  // because that's how appending works.
+  // BLI_assert_msg(num_pasted == 1,
+  //                "Expected exactly one node group. Number of copied nodes within the node group
+  //                " "can be arbitrary.");
+
+  bNodeTree *from_tree = nullptr;
+  FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+    if (STREQ(&node_tree->id.name[2], "CopyNG")) {
+      from_tree = node_tree;
+      break;
+    }
+  }
+  FOREACH_NODETREE_END;
+  BLI_assert(from_tree != nullptr);
+
+  if (!node_clipboard_copy_paste(*bmain, *from_tree, *snode->edittree, op->reports)) {
+    return OPERATOR_CANCELLED;
+  };
+  BKE_id_delete(bmain, &from_tree->id);
+
+  BKE_main_ensure_invariants(*bmain);
+  /* Pasting nodes can create arbitrary new relations because nodes can reference IDs. */
+  DEG_relations_tag_update(bmain);
+
+  return OPERATOR_FINISHED;
+}
+
 void NODE_OT_clipboard_copy(wmOperatorType *ot)
 {
   ot->name = "Copy to Clipboard";
   ot->description = "Copy the selected nodes to the internal clipboard";
   ot->idname = "NODE_OT_clipboard_copy";
 
-  ot->exec = node_clipboard_copy_exec;
+  ot->exec = os_copyboard_copy_exec;
   ot->poll = ED_operator_node_active;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -419,10 +746,10 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     const bNode &node = *item.node;
     const char *disabled_hint = nullptr;
 
-    /* Some poll functions (e.g. for the nodegroup node, see #node_group_poll_instance) do require
-     * fully valid node data, including the potential ID pointers. So first create the new copy of
-     * the clipboard node, make it as valid as possible, then call its #poll_instance function, and
-     * discard the new copy if it fails.
+    /* Some poll functions (e.g. for the nodegroup node, see #node_group_poll_instance) do
+     * require fully valid node data, including the potential ID pointers. So first create the
+     * new copy of the clipboard node, make it as valid as possible, then call its #poll_instance
+     * function, and discard the new copy if it fails.
      *
      * See also #141415.
      */
@@ -549,7 +876,8 @@ static wmOperatorStatus node_clipboard_paste_invoke(bContext *C,
   float2 cursor;
   UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
   RNA_float_set_array(op->ptr, "offset", cursor);
-  return node_clipboard_paste_exec(C, op);
+  // return node_clipboard_paste_exec(C, op);
+  return os_clipboard_paste_exec(C, op);
 }
 
 void NODE_OT_clipboard_paste(wmOperatorType *ot)
@@ -559,7 +887,7 @@ void NODE_OT_clipboard_paste(wmOperatorType *ot)
   ot->idname = "NODE_OT_clipboard_paste";
 
   ot->invoke = node_clipboard_paste_invoke;
-  ot->exec = node_clipboard_paste_exec;
+  ot->exec = os_clipboard_paste_exec;
   ot->poll = ED_operator_node_editable;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
