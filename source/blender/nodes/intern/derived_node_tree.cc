@@ -2,11 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLT_translation.hh"
+
 #include "NOD_derived_node_tree.hh"
 
 #include "BLI_dot_export.hh"
 
 namespace blender::nodes {
+
+struct ExpressionNodeGroupsCache {
+  Map<std::pair<DTreeContext *, bNode *>, std::shared_ptr<expression::ExpressionNodeGroup>>
+      expression_node_groups;
+};
 
 DerivedNodeTree::DerivedNodeTree(const bNodeTree &btree)
 {
@@ -40,6 +47,32 @@ DTreeContext &DerivedNodeTree::construct_context_recursively(DTreeContext *paren
             &context, bnode, *child_btree, child_key);
         context.children_.add_new(bnode, &child);
       }
+    }
+    if (bnode->is_type("NodeExpression")) {
+      const expression::ExpressionNodeGroup &group = *expression_node_groups_.lookup_or_add_cb(
+          {&context, bnode}, [&]() {
+            const NodeExpression &storage = *static_cast<const NodeExpression *>(bnode->storage);
+            Vector<StringRef> expressions;
+            Vector<int> expr_indices;
+            for (const int i : IndexRange(storage.expression_items.items_num)) {
+              const bNodeSocket &expr_socket = bnode->input_socket(i);
+              if (expr_socket.is_directly_linked()) {
+                auto result = std::make_shared<expression::ExpressionNodeGroup>();
+                result->error = TIP_("Linked expression not supported");
+                return result;
+              }
+              expressions.append(expr_socket.default_value_typed<bNodeSocketValueString>()->value);
+              expr_indices.append(i);
+            }
+            return expression::expression_node_to_group(*bnode, expressions, expr_indices);
+          });
+      if (!group.tree) {
+        continue;
+      }
+      const bNodeInstanceKey child_key = bke::node_instance_key(instance_key, &btree, bnode);
+      DTreeContext &child = this->construct_context_recursively(
+          &context, bnode, *group.tree, child_key);
+      context.children_.add_new(bnode, &child);
     }
   }
 
@@ -105,7 +138,6 @@ DOutputSocket DInputSocket::get_corresponding_group_node_output() const
 {
   BLI_assert(*this);
   BLI_assert(bsocket_->owner_node().is_group_output());
-  BLI_assert(bsocket_->index() < bsocket_->owner_node().input_sockets().size() - 1);
 
   const DTreeContext *parent_context = context_->parent_context();
   const bNode *parent_node = context_->parent_node();
@@ -113,23 +145,50 @@ DOutputSocket DInputSocket::get_corresponding_group_node_output() const
   BLI_assert(parent_node != nullptr);
 
   const int socket_index = bsocket_->index();
-  return {parent_context, &parent_node->output_socket(socket_index)};
+  if (parent_node->is_group()) {
+    return {parent_context, &parent_node->output_socket(socket_index)};
+  }
+  if (parent_node->is_type("NodeExpression")) {
+    return {parent_context, &parent_node->output_socket(socket_index)};
+  }
+  BLI_assert_unreachable();
+  return {};
 }
 
 Vector<DOutputSocket> DInputSocket::get_corresponding_group_input_sockets() const
 {
   BLI_assert(*this);
-  BLI_assert(bsocket_->owner_node().is_group());
+  const bNode &node = bsocket_->owner_node();
 
   const DTreeContext *child_context = context_->child_context(bsocket_->owner_node());
-  BLI_assert(child_context != nullptr);
+  if (!child_context) {
+    /* Can happen when the node group is missing. */
+    return {};
+  }
 
   const bNodeTree &child_tree = child_context->btree();
   Span<const bNode *> group_input_nodes = child_tree.group_input_nodes();
-  const int socket_index = bsocket_->index();
+  const int outer_socket_index = bsocket_->index();
+
+  int inner_socket_index;
+  if (node.is_group()) {
+    inner_socket_index = outer_socket_index;
+  }
+  else if (node.is_type("NodeExpression")) {
+    const auto &storage = *static_cast<const NodeExpression *>(node.storage);
+    inner_socket_index = outer_socket_index - storage.expression_items.items_num - 1;
+    if (inner_socket_index < 0 || inner_socket_index >= storage.input_items.items_num) {
+      return {};
+    }
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+
   Vector<DOutputSocket> sockets;
   for (const bNode *group_input_node : group_input_nodes) {
-    sockets.append(DOutputSocket(child_context, &group_input_node->output_socket(socket_index)));
+    sockets.append(
+        DOutputSocket(child_context, &group_input_node->output_socket(inner_socket_index)));
   }
   return sockets;
 }
@@ -138,7 +197,6 @@ DInputSocket DOutputSocket::get_corresponding_group_node_input() const
 {
   BLI_assert(*this);
   BLI_assert(bsocket_->owner_node().is_group_input());
-  BLI_assert(bsocket_->index() < bsocket_->owner_node().output_sockets().size() - 1);
 
   const DTreeContext *parent_context = context_->parent_context();
   const bNode *parent_node = context_->parent_node();
@@ -146,15 +204,24 @@ DInputSocket DOutputSocket::get_corresponding_group_node_input() const
   BLI_assert(parent_node != nullptr);
 
   const int socket_index = bsocket_->index();
-  return {parent_context, &parent_node->input_socket(socket_index)};
+  if (parent_node->is_group()) {
+    return {parent_context, &parent_node->input_socket(socket_index)};
+  }
+  if (parent_node->is_type("NodeExpression")) {
+    const auto &storage = *static_cast<const NodeExpression *>(parent_node->storage);
+    return {parent_context,
+            &parent_node->input_socket(socket_index + storage.expression_items.items_num + 1)};
+  }
+  BLI_assert_unreachable();
+  return {};
 }
 
 DInputSocket DOutputSocket::get_active_corresponding_group_output_socket() const
 {
   BLI_assert(*this);
-  BLI_assert(bsocket_->owner_node().is_group());
+  const bNode &node = bsocket_->owner_node();
 
-  const DTreeContext *child_context = context_->child_context(bsocket_->owner_node());
+  const DTreeContext *child_context = context_->child_context(node);
   if (child_context == nullptr) {
     /* Can happen when the group node references a non-existent group (e.g. when the group is
      * linked but the original file is not found). */
@@ -163,10 +230,20 @@ DInputSocket DOutputSocket::get_active_corresponding_group_output_socket() const
 
   const bNodeTree &child_tree = child_context->btree();
   Span<const bNode *> group_output_nodes = child_tree.nodes_by_type("NodeGroupOutput");
-  const int socket_index = bsocket_->index();
+  const int outer_socket_index = bsocket_->index();
+  int inner_socket_index;
+  if (node.is_group()) {
+    inner_socket_index = outer_socket_index;
+  }
+  else if (node.is_type("NodeExpression")) {
+    inner_socket_index = outer_socket_index;
+  }
+  else {
+    BLI_assert_unreachable();
+  }
   for (const bNode *group_output_node : group_output_nodes) {
     if (group_output_node->flag & NODE_DO_OUTPUT || group_output_nodes.size() == 1) {
-      return {child_context, &group_output_node->input_socket(socket_index)};
+      return {child_context, &group_output_node->input_socket(inner_socket_index)};
     }
   }
   return {};
@@ -197,7 +274,7 @@ void DInputSocket::foreach_origin_socket(FunctionRef<void(DSocket)> origin_fn) c
         }
       }
     }
-    else if (linked_node.is_group()) {
+    else if (linked_node.is_group() || linked_node.is_type("NodeExpression")) {
       DInputSocket socket_in_group = linked_dsocket.get_active_corresponding_group_output_socket();
       if (socket_in_group) {
         if (socket_in_group->is_logically_linked()) {
@@ -286,7 +363,7 @@ void DOutputSocket::foreach_target_socket(ForeachTargetSocketFn target_fn,
         path_info.sockets.pop_last();
       }
     }
-    else if (linked_node->is_group()) {
+    else if (linked_node->is_group() || linked_node->is_type("NodeExpression")) {
       /* Follow the links within the nested node group. */
       path_info.sockets.append(linked_socket);
       const Vector<DOutputSocket> sockets_in_group =
@@ -398,7 +475,9 @@ std::string DerivedNodeTree::to_dot() const
 
   this->foreach_node([&](DNode node) {
     /* Ignore nodes that should not show up in the final output. */
-    if (node->is_muted() || node->is_group() || node->is_reroute() || node->is_frame()) {
+    if (node->is_muted() || node->is_group() || node->is_type("NodeExpression") ||
+        node->is_reroute() || node->is_frame())
+    {
       return;
     }
     if (!node.context()->is_root()) {

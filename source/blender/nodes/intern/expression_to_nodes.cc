@@ -139,8 +139,8 @@ struct BuildOptions {};
 class AstToNodeGroupBuilder {
  private:
   const NodeExpression &bnode_storage_;
-  const ast::Expr &root_expr_;
-  const int expr_index_;
+  const Span<ast::Expr *> root_exprs_;
+  const Span<int> expr_indices_;
   const SymbolTable &symbol_table_;
   const BuildOptions &options_;
 
@@ -153,21 +153,20 @@ class AstToNodeGroupBuilder {
 
  public:
   AstToNodeGroupBuilder(const bNode &expr_bnode,
-                        const ast::Expr &root_expr,
-                        const int expr_index,
+                        const Span<ast::Expr *> root_exprs,
+                        const Span<int> expr_indices,
                         const SymbolTable &symbol_table,
                         const BuildOptions &options,
                         bNodeTree &r_tree,
                         std::string &r_error)
       : bnode_storage_(*static_cast<const NodeExpression *>(expr_bnode.storage)),
-        root_expr_(root_expr),
-        expr_index_(expr_index),
+        root_exprs_(root_exprs),
+        expr_indices_(expr_indices),
         symbol_table_(symbol_table),
         options_(options),
         r_tree_(r_tree),
         r_error_(r_error)
   {
-    std::cout << "\n\n" << root_expr.to_dot() << "\n\n";
   }
 
   void build()
@@ -187,18 +186,17 @@ class AstToNodeGroupBuilder {
       }
     }
 
-    NodeAndSocket expr_result = this->build_expr(root_expr_);
-    if (!expr_result.socket) {
-      return;
+    for (const int i : expr_indices_.index_range()) {
+      NodeAndSocket expr_result = this->build_expr(*root_exprs_[i]);
+      if (!expr_result) {
+        return;
+      }
+      this->add_link(
+          expr_result,
+          {&group_output_node, static_cast<bNodeSocket *>(group_output_node.inputs.first)});
     }
 
-    this->add_link(
-        expr_result,
-        {&group_output_node, static_cast<bNodeSocket *>(group_output_node.inputs.first)});
-
     BKE_ntree_update_without_main(r_tree_);
-
-    std::cout << "\n\n" << bke::node_tree_to_dot(r_tree_) << "\n\n";
   }
 
  private:
@@ -214,11 +212,14 @@ class AstToNodeGroupBuilder {
 
   void add_interface_outputs()
   {
-    const NodeExpressionItem &expr_item = bnode_storage_.expression_items.items[expr_index_];
-    const bke::bNodeSocketType *output_stype = bke::node_socket_type_find_static(
-        expr_item.socket_type);
-    r_tree_.tree_interface.add_socket(
-        expr_item.name, "", output_stype->idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+    for (const int i : expr_indices_.index_range()) {
+      const NodeExpressionItem &expr_item =
+          bnode_storage_.expression_items.items[expr_indices_[i]];
+      const bke::bNodeSocketType *output_stype = bke::node_socket_type_find_static(
+          expr_item.socket_type);
+      r_tree_.tree_interface.add_socket(
+          expr_item.name, "", output_stype->idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+    }
   }
 
   NodeAndSocket build_expr(const ast::Expr &expr)
@@ -580,23 +581,26 @@ static SymbolTable &get_symbol_table()
   return symbol_table;
 }
 
-static std::shared_ptr<ExpressionNodeGroup> expression_node_to_group_impl(
-    const bNode &node,
-    const StringRef expression,
-    const int expr_index,
-    const BuildOptions &options)
+std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
+                                                              const Span<StringRef> expressions,
+                                                              const Span<int> expr_indices)
 {
+  BLI_assert(expressions.size() == expr_indices.size());
   auto output = std::make_shared<ExpressionNodeGroup>();
 
   ResourceScope parse_scope;
-  std::stringstream errors;
-  ast::Expr *expr_ast = expression::parse(parse_scope, expression, errors);
-  if (!expr_ast) {
-    output->error = errors.str();
-    if (output->error.empty()) {
-      output->error = TIP_("Parse error");
+  Vector<ast::Expr *> expr_asts;
+  for (const int i : expressions.index_range()) {
+    std::stringstream errors;
+    ast::Expr *expr_ast = expression::parse(parse_scope, expressions[i], errors);
+    if (!expr_ast) {
+      output->error = errors.str();
+      if (output->error.empty()) {
+        output->error = TIP_("Parse error");
+      }
+      return output;
     }
-    return output;
+    expr_asts.append(expr_ast);
   }
 
   const SymbolTable &symbols = get_symbol_table();
@@ -605,22 +609,15 @@ static std::shared_ptr<ExpressionNodeGroup> expression_node_to_group_impl(
   bNodeTree *tree = bke::node_tree_add_tree(nullptr, node.name, "GeometryNodeTree");
 
   output->tree = tree;
+  BuildOptions options;
   AstToNodeGroupBuilder builder(
-      node, *expr_ast, expr_index, symbols, options, *tree, output->error);
+      node, expr_asts, expr_indices, symbols, options, *tree, output->error);
   builder.build();
   if (!output->error.empty()) {
     BKE_id_free(nullptr, &tree->id);
     output->tree = nullptr;
   }
   return output;
-}
-
-std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
-                                                              const StringRef expression,
-                                                              const int expr_index)
-{
-  BuildOptions options;
-  return expression_node_to_group_impl(node, expression, expr_index, options);
 }
 
 ExpressionNodeGroup::~ExpressionNodeGroup()

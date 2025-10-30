@@ -169,7 +169,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  sh_geo_node_type_base(&ntype, "NodeExpression");
+  common_node_type_base(&ntype, "NodeExpression");
   ntype.ui_name = "Expression";
   ntype.ui_description = "Evaluate an expression on inputs";
   ntype.nclass = NODE_CLASS_CONVERTER;

@@ -630,7 +630,7 @@ class ShaderNodesInliner {
     const StringRef expression = std::get<std::string>(expr_value_opt->value);
     const expression::ExpressionNodeGroup &group = *expression_node_groups_cache_.lookup_or_add_cb(
         socket,
-        [&]() { return expression::expression_node_to_group(*node, expression, expr_index); });
+        [&]() { return expression::expression_node_to_group(*node, {expression}, {expr_index}); });
     if (!group.tree) {
       this->report_error(node, group.error);
       this->store_socket_value_fallback(socket);

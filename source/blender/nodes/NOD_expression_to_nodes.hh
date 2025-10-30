@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_expression_ast.hh"
+#pragma once
 
-#include "BLI_map.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 
 struct bNodeSocket;
@@ -22,7 +22,7 @@ class ExpressionNodeGroup : NonCopyable, NonMovable {
 };
 
 std::shared_ptr<ExpressionNodeGroup> expression_node_to_group(const bNode &node,
-                                                              StringRef expression,
-                                                              int expr_index);
+                                                              Span<StringRef> expressions,
+                                                              Span<int> expr_indices);
 
 }  // namespace blender::nodes::expression

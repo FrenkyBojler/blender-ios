@@ -19,6 +19,8 @@
 
 #include "BKE_node_runtime.hh"
 
+#include "NOD_expression_to_nodes.hh"
+
 namespace blender::nodes {
 
 class DTreeContext;
@@ -180,6 +182,9 @@ class DerivedNodeTree {
  private:
   LinearAllocator<> allocator_;
   DTreeContext *root_context_;
+  Map<std::pair<const DTreeContext *, const bNode *>,
+      std::shared_ptr<expression::ExpressionNodeGroup>>
+      expression_node_groups_;
   VectorSet<const bNodeTree *> used_btrees_;
 
  public:
