@@ -4246,8 +4246,9 @@ static void rna_def_pitch_modifier(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "preserve_formant", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "preserve_formant", 0);
-  RNA_def_property_ui_text(
-      prop, "Preserve Vocal Formant", "Preserve the vocal formants for the stretcher.");
+  RNA_def_property_ui_text(prop,
+                           "Preserve Vocal Formants",
+                           "Whether to preserve the vocal formants when shifting the pitch.");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
