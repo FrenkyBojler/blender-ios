@@ -186,14 +186,17 @@ class AstToNodeGroupBuilder {
       }
     }
 
-    for (const int i : expr_indices_.index_range()) {
-      NodeAndSocket expr_result = this->build_expr(*root_exprs_[i]);
-      if (!expr_result) {
-        return;
+    {
+      bNodeSocket *group_output_socket = static_cast<bNodeSocket *>(
+          group_output_node.inputs.first);
+      for (const int i : expr_indices_.index_range()) {
+        NodeAndSocket expr_result = this->build_expr(*root_exprs_[i]);
+        if (!expr_result) {
+          return;
+        }
+        this->add_link(expr_result, {&group_output_node, group_output_socket});
+        group_output_socket = group_output_socket->next;
       }
-      this->add_link(
-          expr_result,
-          {&group_output_node, static_cast<bNodeSocket *>(group_output_node.inputs.first)});
     }
 
     BKE_ntree_update_without_main(r_tree_);
