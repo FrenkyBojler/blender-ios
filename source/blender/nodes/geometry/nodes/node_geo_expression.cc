@@ -44,6 +44,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = ExpressionItemsAccessor::socket_identifier_for_item(item);
     b.add_input<decl::String>(item.name, identifier)
         .optional_label()
+        .hide_socket_icon(tree->type == NTREE_COMPOSIT)
         .description("Expression to be evaluated");
     auto &output = b.add_output(socket_type, item.name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type) && tree->type == NTREE_GEOMETRY) {
@@ -52,7 +53,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     output.structure_type(StructureType::Dynamic);
   }
   b.add_input<decl::Extend>("", "__extend__expression_input")
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .hide_socket_icon(tree->type == NTREE_COMPOSIT);
   b.add_output<decl::Extend>("", "__extend__expression_output")
       .align_with_previous()
       .structure_type(StructureType::Dynamic)

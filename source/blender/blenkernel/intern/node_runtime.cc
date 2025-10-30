@@ -730,3 +730,14 @@ bool bNodeSocket::inferred_socket_visibility() const
   ensure_inference_usage_cache(tree);
   return tree.runtime->inferenced_socket_usage[this->index_in_tree()].is_visible;
 }
+
+bool bNodeSocket::is_icon_visible() const
+{
+  if (const blender::nodes::SocketDeclaration *socket_decl = this->runtime->declaration) {
+    if (socket_decl->hide_socket_icon) {
+      return false;
+    }
+  }
+  return this->is_visible() &&
+         (this->owner_node().flag & NODE_COLLAPSED || !this->is_panel_collapsed());
+}

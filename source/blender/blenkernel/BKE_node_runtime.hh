@@ -1033,12 +1033,6 @@ inline bool bNodeSocket::is_visible() const
   return !this->is_user_hidden() && this->is_available() && this->inferred_socket_visibility();
 }
 
-inline bool bNodeSocket::is_icon_visible() const
-{
-  return this->is_visible() &&
-         (this->owner_node().flag & NODE_COLLAPSED || !this->is_panel_collapsed());
-}
-
 inline bool bNodeSocket::may_be_field() const
 {
   return ELEM(this->runtime->inferred_structure_type,

@@ -233,6 +233,11 @@ class SocketDeclaration : public ItemDeclaration {
   bool is_panel_toggle = false;
   bool is_layer_name = false;
   bool is_volume_grid_name = false;
+  /**
+   * This can be used if the same socket supports to be linked in one node tree type but not
+   * another.
+   */
+  bool hide_socket_icon = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -324,6 +329,8 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &optional_label(bool value = true);
 
   BaseSocketDeclarationBuilder &hide_value(bool value = true);
+
+  BaseSocketDeclarationBuilder &hide_socket_icon(bool value = true);
 
   BaseSocketDeclarationBuilder &multi_input(bool value = true);
 

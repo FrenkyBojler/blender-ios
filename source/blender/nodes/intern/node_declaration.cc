@@ -552,6 +552,12 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::hide_value(bool valu
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::hide_socket_icon(bool value)
+{
+  decl_base_->hide_socket_icon = value;
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::multi_input(bool value)
 {
   BLI_assert(this->is_input());
