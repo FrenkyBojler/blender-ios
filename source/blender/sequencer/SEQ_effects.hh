@@ -14,15 +14,14 @@
  */
 
 struct Strip;
-struct TextVars;
+struct VFont;
 
 namespace blender::seq {
 
 void effect_ensure_initialized(Strip *strip);
 void effect_free(Strip *strip);
 int effect_get_num_inputs(int strip_type);
-void effect_text_font_unload(TextVars *data, bool do_id_user);
-void effect_text_font_load(TextVars *data, bool do_id_user);
+void effect_text_font_set(Strip *strip, VFont *font);
 bool effects_can_render_text(const Strip *strip);
 
 struct CharInfo {
