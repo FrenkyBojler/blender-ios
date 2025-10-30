@@ -123,7 +123,7 @@ enum LibraryForeachIDCallbackFlag {
   IDWALK_CB_HASH_IGNORE = (1 << 19),
 
 };
-ENUM_OPERATORS(LibraryForeachIDCallbackFlag, IDWALK_CB_OVERRIDE_LIBRARY_HIERARCHY_DEFAULT);
+ENUM_OPERATORS(LibraryForeachIDCallbackFlag, IDWALK_CB_HASH_IGNORE);
 
 enum {
   IDWALK_RET_NOP = 0,
