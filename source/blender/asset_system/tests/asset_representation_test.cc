@@ -64,13 +64,13 @@ TEST_F(AssetRepresentationTest, library_relative_identifier__id_name_change)
 
   AssetRepresentation &asset = add_dummy_id_asset(*library, object->id);
 
-  EXPECT_EQ(asset.library_relative_identifier(), "Object/Before rename");
+  EXPECT_EQ(asset.library_relative_identifier(), "Object" SEP_STR "Before rename");
 
   BKE_id_rename(*bmain, object->id, "Renamed!");
-  EXPECT_EQ(asset.library_relative_identifier(), "Object/Renamed!");
+  EXPECT_EQ(asset.library_relative_identifier(), "Object" SEP_STR "Renamed!");
 
   BKE_id_rename(*bmain, object->id, "Name/With\\Slashes/");
-  EXPECT_EQ(asset.library_relative_identifier(), "Object/Name/With\\Slashes/");
+  EXPECT_EQ(asset.library_relative_identifier(), "Object" SEP_STR "Name/With\\Slashes/");
 
   BKE_main_free(bmain);
 }
@@ -117,7 +117,7 @@ TEST_F(AssetRepresentationTest, weak_reference__id_name_change)
     AssetWeakReference weak_ref = asset.make_weak_reference();
     EXPECT_EQ(weak_ref.asset_library_type, ASSET_LIBRARY_LOCAL);
     EXPECT_STREQ(weak_ref.asset_library_identifier, nullptr);
-    EXPECT_STREQ(weak_ref.relative_asset_identifier, "Object/Before rename");
+    EXPECT_STREQ(weak_ref.relative_asset_identifier, "Object" SEP_STR "Before rename");
   }
 
   BKE_id_rename(*bmain, object->id, "Renamed!");
@@ -125,7 +125,7 @@ TEST_F(AssetRepresentationTest, weak_reference__id_name_change)
     AssetWeakReference weak_ref = asset.make_weak_reference();
     EXPECT_EQ(weak_ref.asset_library_type, ASSET_LIBRARY_LOCAL);
     EXPECT_STREQ(weak_ref.asset_library_identifier, nullptr);
-    EXPECT_STREQ(weak_ref.relative_asset_identifier, "Object/Renamed!");
+    EXPECT_STREQ(weak_ref.relative_asset_identifier, "Object" SEP_STR "Renamed!");
   }
 
   BKE_id_rename(*bmain, object->id, "Name/With\\Slashes/");
@@ -133,7 +133,7 @@ TEST_F(AssetRepresentationTest, weak_reference__id_name_change)
     AssetWeakReference weak_ref = asset.make_weak_reference();
     EXPECT_EQ(weak_ref.asset_library_type, ASSET_LIBRARY_LOCAL);
     EXPECT_STREQ(weak_ref.asset_library_identifier, nullptr);
-    EXPECT_STREQ(weak_ref.relative_asset_identifier, "Object/Name/With\\Slashes/");
+    EXPECT_STREQ(weak_ref.relative_asset_identifier, "Object" SEP_STR "Name/With\\Slashes/");
   }
 
   BKE_main_free(bmain);
