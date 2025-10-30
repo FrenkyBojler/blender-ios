@@ -730,7 +730,7 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
     }
   }
   else if (uv_selectmode & UV_SELECT_EDGE) {
-    if (dst_index < 0 || dst_index >= bm->totloop || src_index < 0 || src_index >= bm->totloop) {
+    if (src_index < 0 || src_index >= bm->totloop || dst_index < 0 || dst_index >= bm->totloop ) {
       return OPERATOR_CANCELLED;
     }
     if (!(ele_src = (BMElem *)BM_loop_at_index_find(bm, src_index)) ||
@@ -740,7 +740,7 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
     }
   }
   else {
-    if (dst_index < 0 || dst_index >= bm->totloop || src_index < 0 || src_index >= bm->totloop) {
+    if (src_index < 0 || src_index >= bm->totloop || dst_index < 0 || dst_index >= bm->totloop) {
       return OPERATOR_CANCELLED;
     }
     if (!(ele_src = (BMElem *)BM_loop_at_index_find(bm, src_index)) ||
