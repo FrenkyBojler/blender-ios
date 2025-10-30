@@ -849,7 +849,7 @@ void node_socket_copy_default_value(bNodeSocket *to, const bNodeSocket *from)
 
   /* use label instead of name if it has been set */
   if (from->runtime->declaration->label_fn) {
-    STRNCPY_UTF8(to->name, from->runtime->declaration->label_fn(from->owner_node()).c_str());
+    STRNCPY_UTF8(to->name, (*from->runtime->declaration->label_fn)(from->owner_node()).c_str());
   }
 
   node_socket_copy_default_value_data(to->typeinfo->type, to->default_value, from->default_value);

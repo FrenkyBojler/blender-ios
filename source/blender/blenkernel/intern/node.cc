@@ -5002,7 +5002,7 @@ StringRefNull node_socket_label(const bNodeSocket &sock)
     return (sock.label[0] != '\0') ? sock.label : sock.name;
   }
   if (sock.runtime->declaration->label_fn) {
-    return sock.runtime->declaration->label_fn(sock.owner_node());
+    return (*sock.runtime->declaration->label_fn)(sock.owner_node());
   }
   return sock.name;
 }

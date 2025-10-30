@@ -604,10 +604,9 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
   return *this;
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::label_fn(
-    std::function<StringRefNull(bNode)> fn)
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::label_fn(CustomSocketLabelFn fn)
 {
-  decl_base_->label_fn = std::move(fn);
+  decl_base_->label_fn = std::make_unique<CustomSocketLabelFn>(std::move(fn));
   return *this;
 }
 
