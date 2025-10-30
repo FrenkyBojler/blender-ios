@@ -661,12 +661,13 @@ typedef enum ePitchQuality {
 
 typedef struct PitchModifierData {
   StripModifierData modifier;
+  int mode; /*ePitchMode*/
   int semitones;
   int cents;
   float ratio;
+  char preserve_formant;
+  char _pad[3];
   int quality; /*ePitchQuality*/
-  int mode;    /*ePitchMode*/
-  char _pad[4];
 } PitchModifierData;
 
 /** \} */

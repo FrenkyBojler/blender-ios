@@ -27,12 +27,12 @@ namespace blender::seq {
 static void pitchmodifier_init_data(StripModifierData *smd)
 {
   PitchModifierData *pmd = (PitchModifierData *)smd;
-  // 0 semi tones means no changes.
+  pmd->mode = ePitchMode::PITCH_MODE_SEMITONES;
   pmd->semitones = 0;
   pmd->cents = 0;
   pmd->ratio = 1;
+  pmd->preserve_formant = false;
   pmd->quality = AUD_STRETCHER_QUALITY_HIGH;
-  pmd->mode = ePitchMode::PITCH_MODE_SEMITONES;
 }
 
 static void pitchmodifier_draw(const bContext * /*C*/, Panel *panel)
@@ -55,6 +55,7 @@ static void pitchmodifier_draw(const bContext * /*C*/, Panel *panel)
     col.prop(ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
+  col.prop(ptr, "preserve_formant", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "quality", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 

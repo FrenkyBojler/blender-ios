@@ -1600,7 +1600,7 @@ static void rna_StripModifier_Pitch_mode_update(Main *bmain, Scene *scene, Point
   PitchModifierData *pmd = (PitchModifierData *)ptr->data;
   int mode = pmd->mode;
   if (mode == PITCH_MODE_SEMITONES) {
-    // Convert ratio into semitones
+    /* Convert ratio into semitones */
     double pitch_scale = pmd->ratio;
     double total_semitones = 12.0 * log2(pitch_scale);
     int semitones = (int)floor(total_semitones);
@@ -1609,7 +1609,7 @@ static void rna_StripModifier_Pitch_mode_update(Main *bmain, Scene *scene, Point
     pmd->cents = cents;
   }
   else if (mode == PITCH_MODE_RATIO) {
-    // Convert semitones into ratio
+    /* Convert semitones into ratio */
     pmd->ratio = pow(2.0, (pmd->semitones + (pmd->cents / 100.0)) / 12.0);
   }
 
@@ -4241,6 +4241,13 @@ static void rna_def_pitch_modifier(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.5, 2);
   RNA_def_property_ui_range(prop, 0.5f, 2.0f, 0.1f, -1);
   RNA_def_property_ui_text(prop, "Ratio", "Factor by which the audio pitch is scaled.");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "preserve_formant", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "preserve_formant", 0);
+  RNA_def_property_ui_text(
+      prop, "Preserve Vocal Formant", "Preserve the vocal formants for the stretcher.");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 

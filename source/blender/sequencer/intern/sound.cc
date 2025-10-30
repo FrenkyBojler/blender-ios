@@ -396,7 +396,7 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
   }
 
   AUD_Sound *sound_out = AUD_Sound_timeStretchPitchScale(
-      sound_in, 1, pitch_scale, (AUD_StretcherQuality)quality, false);
+      sound_in, 1, pitch_scale, (AUD_StretcherQuality)quality, pmd->preserve_formant);
   needs_update = true;
   smd->runtime.last_sound_in = sound_in;
   smd->runtime.last_sound_out = sound_out;
