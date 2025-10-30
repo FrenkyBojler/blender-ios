@@ -34,7 +34,7 @@ from .utils.paths import match_files_to_socket_names, split_into_components
 from .utils.nodes import (node_mid_pt, autolink, node_at_pos, get_nodes_links,
                           force_update, nw_check,
                           nw_check_not_empty, nw_check_selected, nw_check_active, nw_check_space_type,
-                          nw_check_node_type, nw_check_visible_outputs, nw_check_viewer_node, NWBase,
+                          nw_check_node_type, nw_check_visible_outputs, get_viewer_image, nw_check_viewer_node, NWBase,
                           get_first_enabled_output, is_visible_socket)
 
 
@@ -497,28 +497,40 @@ class NWReloadImages(Operator):
         """Disabled for custom nodes."""
         return (nw_check(cls, context)
                 and nw_check_space_type(cls, context, {'ShaderNodeTree', 'CompositorNodeTree',
-                                        'TextureNodeTree', 'GeometryNodeTree'}))
+                                                       'TextureNodeTree', 'GeometryNodeTree'}))
 
     def execute(self, context):
         nodes, links = get_nodes_links(context)
-        image_types = ["IMAGE", "TEX_IMAGE", "TEX_ENVIRONMENT", "TEXTURE"]
         num_reloaded = 0
         for node in nodes:
-            if node.type in image_types:
-                if node.type == "TEXTURE":
-                    if node.texture:  # node has texture assigned
-                        if node.texture.type in ['IMAGE', 'ENVIRONMENT_MAP']:
-                            if node.texture.image:  # texture has image assigned
-                                node.texture.image.reload()
-                                num_reloaded += 1
-                else:
-                    if node.image:
-                        node.image.reload()
+            if (node.bl_idname == 'TextureNodeTexture'
+                    and node.texture is not None
+                    and node.texture.type == 'IMAGE'
+                    and node.texture.image is not None):
+                # Legacy texture nodes.
+                node.texture.image.reload()
+                num_reloaded += 1
+            elif (node.bl_idname in {'CompositorNodeImage',
+                                     'GeometryNodeInputImage',
+                                     'ShaderNodeTexEnvironment',
+                                     'ShaderNodeTexImage',
+                                     'TextureNodeImage'}
+                    and node.image is not None):
+                # Image and environment textures.
+                node.image.reload()
+                num_reloaded += 1
+            elif node.bl_idname in {'GeometryNodeGroup',
+                                    'GeometryNodeImageInfo',
+                                    'GeometryNodeImageTexture'}:
+                # For these Geometry Nodes, check each input since images can be defined in sockets.
+                for sock in node.inputs:
+                    if (sock.bl_idname == 'NodeSocketImage'
+                            and sock.default_value is not None):
+                        sock.default_value.reload()
                         num_reloaded += 1
 
         if num_reloaded:
-            self.report({'INFO'}, "Reloaded images")
-            print("Reloaded " + str(num_reloaded) + " images")
+            self.report({'INFO'}, rpt_("Reloaded {:d} image(s)").format(num_reloaded))
             force_update(context)
             return {'FINISHED'}
         else:
@@ -1082,11 +1094,11 @@ class NWCopySettings(Operator, NWBase):
             # Report nodes that are not valid
             valid_node_names = [n.name for n in valid_nodes]
             invalid_names = set(selected_node_names) - set(valid_node_names)
-            self.report(
-                {'INFO'},
-                rpt_("Ignored {} (not of the same type as {})").format(", ".join(sorted(invalid_names)),
-                                                                       node_active.name),
+            message = rpt_("Ignored {} (not of the same type as {})").format(
+                ", ".join(sorted(invalid_names)),
+                node_active.name,
             )
+            self.report({'INFO'}, message)
 
         # Reference original
         orig = node_active
@@ -1688,7 +1700,7 @@ class NWAddReroutes(Operator, NWBase):
 
             reroutes_count = 0  # Will be used when aligning reroutes added to hidden nodes.
             for out_i, output in enumerate(node.outputs):
-                if output.is_unavailable:
+                if output.is_unavailable or isinstance(output, bpy.types.NodeSocketVirtual):
                     continue
                 if node.type == 'R_LAYERS' and output.name != 'Alpha':
                     # If 'R_LAYERS' check if output is used in render pass.
@@ -2191,7 +2203,7 @@ class NWAddSequence(Operator, NWBase, ImportHelper):
 class NWSaveViewer(bpy.types.Operator, ExportHelper):
     """Save the current viewer node to an image file"""
     bl_idname = "node.nw_save_viewer"
-    bl_label = "Save This Image"
+    bl_label = "Save Viewer Image"
     filepath: StringProperty(subtype="FILE_PATH")
     filename_ext: EnumProperty(
         name="Format",
@@ -2206,7 +2218,9 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
                ('.dpx', 'DPX', ""),
                ('.exr', 'OPEN_EXR', ""),
                ('.hdr', 'HDR', ""),
-               ('.tif', 'TIFF', "")),
+               ('.tif', 'TIFF', ""),
+               ('.webp', 'WEBP', ""),
+              ),
         default='.png',
     )
 
@@ -2218,36 +2232,39 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
 
     def execute(self, context):
         fp = self.filepath
-        if fp:
-            formats = {
-                '.bmp': 'BMP',
-                '.rgb': 'IRIS',
-                '.png': 'PNG',
-                '.jpg': 'JPEG',
-                '.jpeg': 'JPEG',
-                '.jp2': 'JPEG2000',
-                '.tga': 'TARGA',
-                '.cin': 'CINEON',
-                '.dpx': 'DPX',
-                '.exr': 'OPEN_EXR',
-                '.hdr': 'HDR',
-                '.tiff': 'TIFF',
-                '.tif': 'TIFF'}
-            basename, ext = path.splitext(fp)
-            image_settings = context.scene.render.image_settings
-            old_media_type = image_settings.media_type
-            old_file_format = image_settings.file_format
-            old_tree_type = context.space_data.tree_type
-            image_settings.media_type = 'IMAGE'
-            image_settings.file_format = formats[self.filename_ext]
-            context.area.type = "IMAGE_EDITOR"
-            context.area.spaces[0].image = bpy.data.images['Viewer Node']
-            context.area.spaces[0].image.save_render(fp)
-            context.area.type = "NODE_EDITOR"
-            context.space_data.tree_type = old_tree_type
-            image_settings.media_type = old_media_type
-            image_settings.file_format = old_file_format
-            return {'FINISHED'}
+        if not fp:
+            return {'CANCELLED'}
+
+        formats = {
+            '.bmp': 'BMP',
+            '.rgb': 'IRIS',
+            '.png': 'PNG',
+            '.jpg': 'JPEG',
+            '.jpeg': 'JPEG',
+            '.jp2': 'JPEG2000',
+            '.tga': 'TARGA',
+            '.cin': 'CINEON',
+            '.dpx': 'DPX',
+            '.exr': 'OPEN_EXR',
+            '.hdr': 'HDR',
+            '.tiff': 'TIFF',
+            '.tif': 'TIFF',
+            '.webp': 'WEBP',
+        }
+        image_settings = context.scene.render.image_settings
+        old_media_type = image_settings.media_type
+        old_file_format = image_settings.file_format
+        image_settings.media_type = 'IMAGE'
+        image_settings.file_format = formats[self.filename_ext]
+
+        try:
+            get_viewer_image().save_render(fp)
+        except RuntimeError as e:
+            self.report({'ERROR'}, rpt_("Could not write image: {}").format(e))
+
+        image_settings.media_type = old_media_type
+        image_settings.file_format = old_file_format
+        return {'FINISHED'}
 
 
 class NWResetNodes(bpy.types.Operator):
