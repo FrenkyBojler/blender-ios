@@ -22,21 +22,21 @@ static void expect_tokens(const TokenizeResult &result, const Span<StringRef> ex
   }
 }
 
-TEST(expression_parse, tokenize_empty)
+TEST(nodes_expression, tokenize_empty)
 {
   expect_tokens(tokenize(""), {});
   expect_tokens(tokenize(" "), {});
   expect_tokens(tokenize("  \n\n\t\n\t\t \n"), {});
 }
 
-TEST(expression_parse, tokenize_identifier)
+TEST(nodes_expression, tokenize_identifier)
 {
   expect_tokens(tokenize("a"), {"a"});
   expect_tokens(tokenize("abc qwe"), {"abc", "qwe"});
   expect_tokens(tokenize("abc\nqwe34 \n"), {"abc", "qwe34"});
 }
 
-TEST(expression_parse, tokenize_number)
+TEST(nodes_expression, tokenize_number)
 {
   expect_tokens(tokenize("0"), {"0"});
   expect_tokens(tokenize("123"), {"123"});
@@ -46,20 +46,20 @@ TEST(expression_parse, tokenize_number)
   expect_tokens(tokenize("123..."), {"123.", ".", "."});
 }
 
-TEST(expression_parse, tokenize_string)
+TEST(nodes_expression, tokenize_string)
 {
   expect_tokens(tokenize("\"abc\""), {"\"abc\""});
   expect_tokens(tokenize("\"abc\n'qwe34 \n\" \"\""), {"\"abc\n'qwe34 \n\"", "\"\""});
 }
 
-TEST(expression_parse, tokenize_string_unterminated)
+TEST(nodes_expression, tokenize_string_unterminated)
 {
   const TokenizeResult result = tokenize("\"abc");
   const StringRef error = std::get<std::string>(result.result);
   EXPECT_TRUE(error.startswith("Unterminated string"));
 }
 
-TEST(expression_parse, tokenize_special)
+TEST(nodes_expression, tokenize_special)
 {
   expect_tokens(tokenize("+"), {"+"});
   expect_tokens(tokenize("-"), {"-"});
@@ -70,7 +70,7 @@ TEST(expression_parse, tokenize_special)
   expect_tokens(tokenize(">>>"), {">>", ">"});
 }
 
-TEST(expression_parse, invalid_char)
+TEST(nodes_expression, tokenize_invalid_char)
 {
   {
     const TokenizeResult result = tokenize("a\x1b");
