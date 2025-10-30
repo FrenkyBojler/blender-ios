@@ -102,7 +102,10 @@ static void init_noop(Strip * /*strip*/) {}
 
 static void load_noop(Strip * /*strip*/) {}
 
-static void free_noop(Strip * /*strip*/, const bool /*do_id_user*/) {}
+static void free_default(Strip *strip, const bool /*do_id_user*/)
+{
+  MEM_SAFE_FREE(strip->effectdata);
+}
 
 static int num_inputs_default()
 {
@@ -182,7 +185,7 @@ EffectHandle effect_handle_get(StripType strip_type)
   rval.init = init_noop;
   rval.num_inputs = num_inputs_default;
   rval.load = load_noop;
-  rval.free = free_noop;
+  rval.free = free_default;
   rval.early_out = early_out_noop;
   rval.get_default_fac = get_default_fac_noop;
   rval.execute = nullptr;
@@ -251,7 +254,7 @@ static EffectHandle effect_handle_for_blend_mode_get(StripBlendMode blend)
   rval.init = init_noop;
   rval.num_inputs = num_inputs_default;
   rval.load = load_noop;
-  rval.free = free_noop;
+  rval.free = free_default;
   rval.early_out = early_out_noop;
   rval.get_default_fac = get_default_fac_noop;
   rval.execute = nullptr;
