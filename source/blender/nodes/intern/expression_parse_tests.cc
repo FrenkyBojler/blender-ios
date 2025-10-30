@@ -72,6 +72,7 @@ TEST(nodes_expression, tokenize_special)
   expect_tokens("< =", {"<", "="});
   expect_tokens("==", {"=="});
   expect_tokens(">>>", {">>", ">"});
+  expect_tokens("&&&|", {"&&", "&", "|"});
 }
 
 TEST(nodes_expression, tokenize_invalid_char)
@@ -103,6 +104,11 @@ static void expect_ast_recursive(const ast::Expr &a, const ast::Expr &b)
     const auto *b_ = std::get_if<ast::StringLiteral>(&b.expr);
     EXPECT_EQ(a_->value, b_->value);
   }
+  else if (const auto *a_ = std::get_if<ast::MemberAccess>(&a.expr)) {
+    const auto *b_ = std::get_if<ast::MemberAccess>(&b.expr);
+    expect_ast_recursive(*a_->expr, *b_->expr);
+    EXPECT_EQ(a_->identifier, b_->identifier);
+  }
   else if (const auto *a_ = std::get_if<ast::BinaryOp>(&a.expr)) {
     const auto *b_ = std::get_if<ast::BinaryOp>(&b.expr);
     EXPECT_EQ(a_->op, b_->op);
@@ -122,9 +128,9 @@ static void expect_ast_recursive(const ast::Expr &a, const ast::Expr &b)
   }
   else if (const auto *a_ = std::get_if<ast::Call>(&a.expr)) {
     const auto *b_ = std::get_if<ast::Call>(&b.expr);
-    EXPECT_EQ(a_->function->expr.index(), b_->function->expr.index());
+    expect_ast_recursive(*a_->function, *b_->function);
     EXPECT_EQ(a_->args.size(), b_->args.size());
-    for (const int i : IndexRange(a_->args.size())) {
+    for (const int i : a_->args.index_range()) {
       expect_ast_recursive(*a_->args[i], *b_->args[i]);
     }
   }
@@ -137,23 +143,162 @@ static void expect_ast(const StringRef src, const ast::Expr &b)
 {
   ResourceScope scope;
   ParseResult result = parse(scope, src);
+  if (const std::string *error = std::get_if<std::string>(&result)) {
+    FAIL() << "Expected expression, got error: " << *error;
+    return;
+  }
   ast::Expr *expr = std::get<ast::Expr *>(result);
   expect_ast_recursive(*expr, b);
 }
 
-TEST(nodes_expression, parse_identifier)
+static void expect_parse_error(const StringRef src)
 {
-  expect_ast("a", {ast::Identifier{"a"}});
+  ResourceScope scope;
+  ParseResult result = parse(scope, src);
+  EXPECT_TRUE(std::holds_alternative<std::string>(result));
+}
+
+static ResourceScope &get_static_scope()
+{
+  static ResourceScope scope;
+  return scope;
+}
+
+static ast::Expr *id(const StringRef id)
+{
+  return &get_static_scope().construct<ast::Expr>(ast::Identifier{id});
+}
+
+static ast::Expr *number(const StringRef number)
+{
+  return &get_static_scope().construct<ast::Expr>(ast::NumberLiteral{number});
+}
+
+static ast::Expr *string(const StringRef string)
+{
+  return &get_static_scope().construct<ast::Expr>(ast::StringLiteral{string});
+}
+
+static ast::Expr *binary(const StringRef op, ast::Expr *a, ast::Expr *b)
+{
+  return &get_static_scope().construct<ast::Expr>(ast::BinaryOp{op, a, b});
+}
+
+static ast::Expr *unary(const StringRef op, ast::Expr *a)
+{
+  return &get_static_scope().construct<ast::Expr>(ast::UnaryOp{op, a});
+}
+
+static ast::Expr *conditional(ast::Expr *condition, ast::Expr *true_expr, ast::Expr *false_expr)
+{
+  return &get_static_scope().construct<ast::Expr>(
+      ast::ConditionalOp{condition, true_expr, false_expr});
+}
+
+static ast::Expr *call(ast::Expr *function, Span<ast::Expr *> args)
+{
+  return &get_static_scope().construct<ast::Expr>(ast::Call{function, args});
+}
+
+static ast::Expr *member(ast::Expr *expr, const StringRef id)
+{
+  return &get_static_scope().construct<ast::Expr>(ast::MemberAccess{expr, id});
+}
+
+TEST(nodes_expression, parse_id)
+{
+  expect_ast("a", *id("a"));
+  expect_ast("abc", *id("abc"));
+  expect_parse_error("a b");
 }
 
 TEST(nodes_expression, parse_number)
 {
-  expect_ast("123", {ast::NumberLiteral{"123"}});
+  expect_ast("123", *number("123"));
+  expect_ast("123.", *number("123."));
+  expect_ast("123.456", *number("123.456"));
+  expect_parse_error("123.456 4");
+  expect_parse_error("(1");
 }
 
 TEST(nodes_expression, parse_string)
 {
-  expect_ast("\"abc\"", {ast::StringLiteral{"\"abc\""}});
+  expect_ast("\"\"", *string("\"\""));
+  expect_ast("\"abc\"", *string("\"abc\""));
+  expect_parse_error("\"abc");
+}
+
+TEST(nodes_expression, parse_binary)
+{
+  expect_ast("1 < 2", *binary("<", number("1"), number("2")));
+  expect_ast("1 <= 2", *binary("<=", number("1"), number("2")));
+  expect_ast("a < b && c <= d",
+             *binary("&&", binary("<", id("a"), id("b")), binary("<=", id("c"), id("d"))));
+  expect_ast("1 + 2", *binary("+", number("1"), number("2")));
+  expect_ast("1 + 2 + 3", *binary("+", binary("+", number("1"), number("2")), number("3")));
+  expect_ast("1 - 2 + 3", *binary("+", binary("-", number("1"), number("2")), number("3")));
+  expect_ast("1 + 2 - 3", *binary("-", binary("+", number("1"), number("2")), number("3")));
+  expect_ast(
+      "2 * 3 + 4 * 5",
+      *binary("+", binary("*", number("2"), number("3")), binary("*", number("4"), number("5"))));
+  expect_parse_error("1 +");
+  expect_parse_error("1 <");
+  expect_parse_error("1 < 2 <");
+}
+
+TEST(nodes_expression, parse_unary)
+{
+  expect_ast("-1", *unary("-", number("1")));
+  expect_ast("+1", *unary("+", number("1")));
+  expect_ast("----1", *unary("-", unary("-", unary("-", unary("-", number("1"))))));
+  expect_ast("+++1", *unary("+", unary("+", unary("+", number("1")))));
+  expect_ast("-1 + +2", *binary("+", unary("-", number("1")), unary("+", number("2"))));
+  expect_parse_error("-(");
+}
+
+TEST(nodes_expression, parse_conditional)
+{
+  expect_ast("1 ? 2 : 3", *conditional(number("1"), number("2"), number("3")));
+  expect_ast("a < b ? c - 1 : (1 ? 10 : 20)",
+             *conditional(binary("<", id("a"), id("b")),
+                          binary("-", id("c"), number("1")),
+                          conditional(number("1"), number("10"), number("20"))));
+  expect_parse_error("1 ?");
+  expect_parse_error("1 ?? 2 : 3");
+  expect_parse_error("1 ? 2");
+  expect_parse_error("1 ? 2 :");
+  expect_parse_error("1 ? 2 :: 3");
+  expect_parse_error("1 ? 2 : 3 ?");
+}
+
+TEST(nodes_expression, parse_call)
+{
+  expect_ast("a()", *call(id("a"), {}));
+  expect_ast("a(1, 2)", *call(id("a"), {number("1"), number("2")}));
+  expect_ast("a(1, 2)(3, 4)",
+             *call(call(id("a"), {number("1"), number("2")}), {number("3"), number("4")}));
+  expect_ast(
+      "a(b(c(d(1, 2), 3)))",
+      *call(id("a"),
+            {
+                call(id("b"),
+                     {
+                         call(id("c"), {call(id("d"), {number("1"), number("2")}), number("3")}),
+                     }),
+            }));
+  expect_ast("a(\"b\")", *call(id("a"), {string("\"b\"")}));
+  expect_parse_error("a(");
+  expect_parse_error("a(3, ");
+  expect_parse_error("a(3, 4");
+}
+
+TEST(nodes_expression, parse_member)
+{
+  expect_ast("a.b", *member(id("a"), "b"));
+  expect_ast("a.b.c.d", *member(member(member(id("a"), "b"), "c"), "d"));
+  expect_ast("a.b(c).d", *member(call(member(id("a"), "b"), {id("c")}), "d"));
+  expect_parse_error("a.b..c");
+  expect_parse_error("a.");
 }
 
 }  // namespace blender::nodes::expression::tests

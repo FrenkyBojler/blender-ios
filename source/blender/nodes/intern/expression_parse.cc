@@ -39,7 +39,7 @@ class Tokenizer {
         i_++;
         continue;
       }
-      if (this->is_digit(c)) {
+      if (this->is_number_start(c)) {
         this->tokenize_number();
         continue;
       }
@@ -134,13 +134,20 @@ class Tokenizer {
         if (second == '=') {
           return add_special(2);
         }
-        if (second == first) {
+        if (first == second) {
           return add_special(2);
         }
         return add_special(1);
       }
       case '=': {
         if (second == '=') {
+          return add_special(2);
+        }
+        return add_special(1);
+      }
+      case '&':
+      case '|': {
+        if (first == second) {
           return add_special(2);
         }
         return add_special(1);
@@ -321,42 +328,35 @@ class Parser {
   ast::Expr *parse__expression__unary()
   {
     return this->parse__expression__generic_unary({"+", "-", "!", "~"},
-                                                  &Parser::parse__expression__dot);
+                                                  &Parser::parse__expression__dot_or_call);
   }
 
-  ast::Expr *parse__expression__dot()
-  {
-    ast::Expr *expr = this->parse__expression__call();
-    if (!expr) {
-      return nullptr;
-    }
-    while (true) {
-      if (!this->next_is(".")) {
-        return expr;
-      }
-      this->consume_next();
-      const std::optional<StringRef> identifier = this->parse__identifier();
-      if (!identifier.has_value()) {
-        return nullptr;
-      }
-      expr = this->make_expr(ast::MemberAccess{expr, *identifier});
-    }
-  }
-
-  ast::Expr *parse__expression__call()
+  ast::Expr *parse__expression__dot_or_call()
   {
     ast::Expr *expr = this->parse__expression__atom();
     if (!expr) {
       return nullptr;
     }
-    if (!this->next_is("(")) {
+    while (true) {
+      if (this->next_is(".")) {
+        this->consume_next();
+        const std::optional<StringRef> identifier = this->parse__identifier();
+        if (!identifier.has_value()) {
+          return nullptr;
+        }
+        expr = this->make_expr(ast::MemberAccess{expr, *identifier});
+        continue;
+      }
+      if (this->next_is("(")) {
+        const std::optional<Vector<ast::Expr *>> args = this->parse__argument_list();
+        if (!args.has_value()) {
+          return nullptr;
+        }
+        expr = this->make_expr(ast::Call{expr, std::move(*args)});
+        continue;
+      }
       return expr;
     }
-    const std::optional<Vector<ast::Expr *>> args = this->parse__argument_list();
-    if (!args.has_value()) {
-      return nullptr;
-    }
-    return this->make_expr(ast::Call{expr, std::move(*args)});
   }
 
   std::optional<Vector<ast::Expr *>> parse__argument_list()
@@ -365,7 +365,7 @@ class Parser {
     this->consume_next();
     if (this->next_is(")")) {
       this->consume_next();
-      return {};
+      return Vector<ast::Expr *>();
     }
     Vector<ast::Expr *> args;
     while (true) {
@@ -402,6 +402,10 @@ class Parser {
         this->consume_next();
         return this->make_expr(ast::StringLiteral{peek_token.str});
       }
+      case TokenType::Identifier: {
+        this->consume_next();
+        return this->make_expr(ast::Identifier{peek_token.str});
+      }
       case TokenType::Special: {
         const StringRef str = peek_token.str;
         if (str == "(") {
@@ -419,10 +423,6 @@ class Parser {
         }
         this->set_unexpected_token_error();
         return nullptr;
-      }
-      case TokenType::Identifier: {
-        this->consume_next();
-        return this->make_expr(ast::Identifier{peek_token.str});
       }
     }
     this->set_error("Unknown token");
@@ -526,11 +526,11 @@ class Parser {
       return (this->*fn)();
     }
     const StringRef op = this->consume_next().str;
-    ast::Expr *a = (this->*fn)();
-    if (!a) {
+    ast::Expr *expr = this->parse__expression__generic_unary(ops, fn);
+    if (!expr) {
       return nullptr;
     }
-    return this->make_expr(ast::UnaryOp{op, a});
+    return this->make_expr(ast::UnaryOp{op, expr});
   }
 
   void error__expression__generic_ternary(const StringRef delimiter_a, const StringRef delimiter_b)
@@ -573,6 +573,10 @@ class Parser {
 
   void set_unexpected_token_error()
   {
+    if (this->is_at_end()) {
+      this->set_unexpected_end_error();
+      return;
+    }
     this->set_error(fmt::format("{}: {}", TIP_("Unexpected token"), tokens_[i_].str));
   }
 
