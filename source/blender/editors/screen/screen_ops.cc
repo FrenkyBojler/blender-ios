@@ -62,7 +62,6 @@
 #include "ED_fileselect.hh"
 #include "ED_image.hh"
 #include "ED_keyframes_keylist.hh"
-#include "ED_markers.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_scene.hh"
@@ -1917,6 +1916,7 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
   const int m_cursor = md->origval + delta;
   const int m_span = float(md->bigger + md->smaller);
   const int m_min = md->origval - md->smaller;
+  // const int axis_max = axis_min + m_span;
 
   switch (md->snap_type) {
     case SNAP_AREAGRID: {
@@ -1936,11 +1936,9 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
       const bool area2_scrub = md->area2 &&
                                ELEM(md->area2->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
       if (area2_scrub && md->dir_axis == SCREEN_AXIS_H) {
-        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_HEADER);
-        const bool anim_header = (region && region->runtime->visible);
-        region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
-        const bool anim_footer = (region && region->runtime->visible);
         snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y);
+        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
+        const bool anim_footer = (region && region->runtime->visible);
         if (anim_footer) {
           snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize());
         }
@@ -1948,9 +1946,7 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
       const bool area1_scrub = md->area1 &&
                                ELEM(md->area1->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
       if (area1_scrub && md->dir_axis == SCREEN_AXIS_H) {
-        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_HEADER);
-        const bool anim_header = (region && region->runtime->visible);
-        region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
+        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
         const bool anim_footer = (region && region->runtime->visible);
         if (anim_footer) {
           snaps.append(md->origval + md->bigger - (UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize()));
@@ -1959,8 +1955,6 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
       }
 
       snaps.append(md->origval + md->bigger);
-
-      /* Test the snap to the best division. */
       for (int i = 0; i < snaps.size(); i++) {
         if (abs(m_cursor_final - snaps[i]) < snap_threshold) {
           m_cursor_final = snaps[i];
