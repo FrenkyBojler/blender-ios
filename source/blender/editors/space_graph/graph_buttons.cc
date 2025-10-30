@@ -304,6 +304,18 @@ static void graphedit_activekey_handles_cb(bContext *C, void *fcu_ptr, void *bez
   graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
 }
 
+static void graphedit_activekey_handle_left_kb(bContext *C, void *fcu_ptr, void *bezt_ptr)
+{
+  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr), true);
+  graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
+}
+
+static void graphedit_activekey_handle_right_kb(bContext *C, void *fcu_ptr, void *bezt_ptr)
+{
+  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr), false);
+  graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
+}
+
 /* update callback for editing coordinates of right handle in active keyframe properties
  * NOTE: we cannot just do graphedit_activekey_handles_cb() due to "order of computation"
  *       weirdness (see calchandleNurb_intern() and #39911)
@@ -480,7 +492,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       0,
                       "Type of left handle");
-      UI_but_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
+      UI_but_func_set(but, graphedit_activekey_handle_left_kb, fcu, bezt);
 
       uiItemL_respect_property_split(col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,
@@ -538,7 +550,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       0,
                       "Type of right handle");
-      UI_but_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
+      UI_but_func_set(but, graphedit_activekey_handle_right_kb, fcu, bezt);
 
       uiItemL_respect_property_split(col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,

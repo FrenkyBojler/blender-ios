@@ -1253,6 +1253,41 @@ void BKE_fcurve_handles_recalc_ex(FCurve *fcu, eBezTriple_Flag handle_sel_flag)
   }
 }
 
+void BKE_fcurve_update_handle_flag_from_opposite(BezTriple &key, const bool from_left)
+{
+  uint8_t source;
+  uint8_t *target;
+
+  if (from_left) {
+    source = key.h1;
+    target = &key.h2;
+  }
+  else {
+    source = key.h2;
+    target = &key.h1;
+  }
+
+  switch (source) {
+    /* Need to ensure that both sides are the same. */
+    case HD_AUTO:
+    case HD_ALIGN:
+    case HD_AUTO_ANIM:
+      *target = source;
+      break;
+
+    case HD_FREE:
+    case HD_VECT:
+      /* If the source was set to either of those, the handle has to be either free or vector. */
+      if (!ELEM(*target, HD_FREE, HD_VECT)) {
+        *target = HD_FREE;
+      }
+      break;
+
+    default:
+      break;
+  }
+}
+
 void BKE_fcurve_handles_recalc(FCurve *fcu)
 {
   BKE_fcurve_handles_recalc_ex(fcu, eBezTriple_Flag(SELECT));

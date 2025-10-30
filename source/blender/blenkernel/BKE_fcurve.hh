@@ -566,6 +566,17 @@ void BKE_fcurve_handles_recalc(FCurve *fcu);
  * (if caller does not operate on selection).
  */
 void BKE_fcurve_handles_recalc_ex(FCurve *fcu, eBezTriple_Flag handle_sel_flag);
+
+/** For the given keyframe, update the handle mode of one side to be in a valid state based on the
+ * opposite side. For example if one side is set to "Aligned" the other has to copy that, otherwise
+ * it wouldn't be actually aligned. This is useful in cases where the user explcitly sets on handle
+ * type.
+ *
+ * \param from_left: If true the right handle is updated based on the state of the left
+ * handle. If false it is the other way around.
+ */
+void BKE_fcurve_update_handle_flag_from_opposite(BezTriple &key, bool from_left);
+
 /**
  * Update handles, making sure the handle-types are valid (e.g. correctly deduced from an "Auto"
  * type), and recalculating their position vectors.

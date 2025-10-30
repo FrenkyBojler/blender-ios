@@ -1134,9 +1134,11 @@ static short set_bezier_auto(KeyframeEditData * /*ked*/, BezTriple *bezt)
   else {
     if (bezt->f1 & SELECT) {
       bezt->h1 = HD_AUTO;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, true);
     }
     if (bezt->f3 & SELECT) {
       bezt->h2 = HD_AUTO;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, false);
     }
 
     ENSURE_HANDLES_MATCH(bezt);
@@ -1157,9 +1159,11 @@ static short set_bezier_auto_clamped(KeyframeEditData * /*ked*/, BezTriple *bezt
   else {
     if (bezt->f1 & SELECT) {
       bezt->h1 = HD_AUTO_ANIM;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, true);
     }
     if (bezt->f3 & SELECT) {
       bezt->h2 = HD_AUTO_ANIM;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, false);
     }
 
     ENSURE_HANDLES_MATCH(bezt);
@@ -1178,9 +1182,11 @@ static short set_bezier_vector(KeyframeEditData * /*ked*/, BezTriple *bezt)
   else {
     if (bezt->f1 & SELECT) {
       bezt->h1 = HD_VECT;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, true);
     }
     if (bezt->f3 & SELECT) {
       bezt->h2 = HD_VECT;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, false);
     }
   }
 
@@ -1207,18 +1213,9 @@ static short bezier_isfree(KeyframeEditData * /*ked*/, BezTriple *bezt)
 /* Sets selected bezier handles to type 'align' */
 static short set_bezier_align(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* If the key is selected, always apply to both handles. */
-  if (bezt->f2 & SELECT) {
-    bezt->h1 = bezt->h2 = HD_ALIGN;
-  }
-  else {
-    if (bezt->f1 & SELECT) {
-      bezt->h1 = HD_ALIGN;
-    }
-    if (bezt->f3 & SELECT) {
-      bezt->h2 = HD_ALIGN;
-    }
-  }
+  /* No matter if the key or handle is selected, in order for the handles to be aligned, they both
+   * need to be set to "HD_ALIGN". */
+  bezt->h1 = bezt->h2 = HD_ALIGN;
 
   return 0;
 }
@@ -1233,9 +1230,11 @@ static short set_bezier_free(KeyframeEditData * /*ked*/, BezTriple *bezt)
   else {
     if (bezt->f1 & SELECT) {
       bezt->h1 = HD_FREE;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, true);
     }
     if (bezt->f3 & SELECT) {
       bezt->h2 = HD_FREE;
+      BKE_fcurve_update_handle_flag_from_opposite(*bezt, false);
     }
   }
 
