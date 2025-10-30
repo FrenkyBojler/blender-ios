@@ -7,10 +7,12 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 
 #include "GPU_capabilities.hh"
 #include "GPU_shader.hh"
+#include "GPU_state.hh"
 #include "GPU_texture.hh"
 
 #include "COM_context.hh"
@@ -270,27 +272,9 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
   const float2 dPdy(inverse_transformation[1].xy());
   const float2 translate(inverse_transformation[2].xy());
 
-  if (options.sampler == math::Sampler::Nearest) {
-    parallel_for(size, [&](const int2 texel) {
-      float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
-      float4 sample = math::sample_nearest(source, uv);
-      output.store_pixel_generic_type(texel, sample);
-    });
-  }
-  else if (options.sampler == math::Sampler::Bilinear) {
-    parallel_for(size, [&](const int2 texel) {
-      float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
-      float4 sample = math::sample_bilinear(source, uv);
-      output.store_pixel_generic_type(texel, sample);
-    });
-  }
-  else {
-    parallel_for(size, [&](const int2 texel) {
-      float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
-      float4 sample = math::sample_rect(source, uv, wh);
-      output.store_pixel_generic_type(texel, sample);
-    });
-  }
+  // locate the optimized version of sample_rect
+  auto sample_rect = math::sample_rect(source);
+
   parallel_for(size, [&](const int2 texel) {
     float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
     float4 sample = sample_rect(source, uv, wh);
