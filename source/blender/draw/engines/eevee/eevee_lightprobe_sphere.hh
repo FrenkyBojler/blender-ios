@@ -60,6 +60,10 @@ class SphereProbeModule {
   int convolve_lod_ = 0;
   /* True if we extract spherical harmonic during `remap_ps_`. */
   bool extract_sh_ = false;
+  /* True if we extract sun during `remap_ps_`. */
+  bool extract_sun_ = false;
+  /* True if we actually remap the data during `remap_ps_`. */
+  bool32_t do_remap_mip0_ = false;
 
   int3 dispatch_probe_pack_ = int3(1);
   int3 dispatch_probe_convolve_ = int3(1);
@@ -186,11 +190,19 @@ class SphereProbeModule {
   /**
    * Remap the rendered cube-map `cubemap_tx_` to a octahedral map inside the atlas at the given
    * coordinate.
+   *
+   * If `convolve_octahedral` is true, it will convolve the octahedral representation down the
+   * mip_chain.
+   *
    * If `extract_spherical_harmonics` is true, it will extract the spherical harmonics into
    * `spherical_harmonics_`.
+   *
+   * If `extract_sun` is true, it will extract the spherical harmonics into `world.sunlight`.
    */
   void remap_to_octahedral_projection(const SphereProbeAtlasCoord &atlas_coord,
-                                      bool extract_spherical_harmonics);
+                                      bool convolve_octahedral,
+                                      bool extract_spherical_harmonics,
+                                      bool extract_sun);
 
   void sync_display(Vector<SphereProbe *> &probe_active);
 };
