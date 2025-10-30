@@ -5392,8 +5392,8 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   const bool weight_transfer_match_output = modifier_calculation_flags &
                                             MOD_LINEART_MATCH_OUTPUT_VGROUP;
 
-  using blender::Map;
   using blender::StringRef;
+  using blender::Vector;
 
   auto ensure_target_defgroup = [&](StringRef group_name) {
     int group_index = 0;
@@ -5412,7 +5412,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   for (int chain_i : writer.index_range()) {
     LineartChainWriteInfo &cwi = writer[chain_i];
 
-    Map<int, int> src_to_dst_defgroup;
+    Vector<int> src_to_dst_defgroup;
 
     blender::Span<MDeformVert> src_dvert;
     Mesh *src_mesh = nullptr;
@@ -5434,28 +5434,40 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
           const int target_group_index = weight_transfer_match_output ?
                                              ensure_target_defgroup(defgroup->name) :
                                              target_defgroup;
-          src_to_dst_defgroup.add(group_index, target_group_index);
+          src_to_dst_defgroup.append(target_group_index);
+        }
+        else {
+          src_to_dst_defgroup.append(-1);
         }
       }
+    }
 
+    if (!src_to_dst_defgroup.is_empty()) {
       auto transfer_to_matching_groups = [&](const int64_t source_index, const int target_index) {
-        src_to_dst_defgroup.foreach_item([&](int from_group, int to_group) {
+        for (const int from_group : src_to_dst_defgroup.index_range()) {
+          if (from_group < 0) {
+            continue;
+          }
           const MDeformWeight *mdw_from = BKE_defvert_find_index(&src_dvert[source_index],
                                                                  from_group);
-          MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index], to_group);
+          MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index],
+                                                           src_to_dst_defgroup[from_group]);
           const float source_weight = mdw_from ? mdw_from->weight : 0.0f;
           mdw_to->weight = invert_input ? (1 - source_weight) : source_weight;
-        });
+        }
       };
 
       auto transfer_to_singular_group = [&](const int64_t source_index, const int target_index) {
         float highest_weight = 0.0f;
-        src_to_dst_defgroup.foreach_item([&](int from_group, int /*to_group*/) {
+        for (const int from_group : src_to_dst_defgroup.index_range()) {
+          if (from_group < 0) {
+            continue;
+          }
           const MDeformWeight *mdw_from = BKE_defvert_find_index(&src_dvert[source_index],
                                                                  from_group);
           const float source_weight = mdw_from ? mdw_from->weight : 0.0f;
           highest_weight = std::max(highest_weight, source_weight);
-        });
+        }
         MDeformWeight *mdw_to = BKE_defvert_ensure_index(&dv[target_index], target_defgroup);
         mdw_to->weight = invert_input ? (1 - highest_weight) : highest_weight;
       };
