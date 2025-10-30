@@ -365,14 +365,15 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   /* Grid Axis */
   bTheme *btheme = UI_GetTheme();
   ThemeSpace *ts = &btheme->space_view3d;
-  float mix_color[4] = {0.3f, 0.3f, 0.3f, 1.0f};
+  const float mix_color[4] = {0.3f, 0.3f, 0.3f, 1.0f};
+  float axis_contrast = ts->axis_contrast;
   float temp_color[4];
   UI_GetThemeColor4fv(TH_AXIS_X, temp_color);
-  gb.colors.grid_axis_x = math::interpolate(float4(mix_color), float4(temp_color), ts->axis_contrast);
+  gb.colors.grid_axis_x = math::interpolate(float4(mix_color), float4(temp_color), axis_contrast);
   UI_GetThemeColor4fv(TH_AXIS_Y, temp_color);
-  gb.colors.grid_axis_y = math::interpolate(float4(mix_color), float4(temp_color), ts->axis_contrast);
+  gb.colors.grid_axis_y = math::interpolate(float4(mix_color), float4(temp_color), axis_contrast);
   UI_GetThemeColor4fv(TH_AXIS_Z, temp_color);
-  gb.colors.grid_axis_z = math::interpolate(float4(mix_color), float4(temp_color), ts->axis_contrast);
+  gb.colors.grid_axis_z = math::interpolate(float4(mix_color), float4(temp_color), axis_contrast);
 
   UI_GetThemeColorShadeAlpha4fv(TH_TRANSFORM, 0, -80, gb.colors.deselect);
   UI_GetThemeColorShadeAlpha4fv(TH_WIRE, 0, -30, gb.colors.outline);
