@@ -1453,7 +1453,7 @@ if(TEST_SRC_DIR_EXISTS)
 endif()
 
 # ------------------------------------------------------------------------------
-# Linux Release sainty checks
+# Linux Release sanity checks
 # ------------------------------------------------------------------------------
 
 if(WITH_LINUX_OFFICIAL_RELEASE_TESTS)
