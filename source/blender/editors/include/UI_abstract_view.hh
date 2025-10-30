@@ -68,6 +68,8 @@ class AbstractView {
   /* Search/filter string from the previous redraw, stored to detect changes. */
   std::string prev_filter_string_;
 
+  bool needs_filtering_ = true;
+
   /* See #get_bounds(). */
   std::optional<rcti> bounds_;
 
@@ -155,7 +157,6 @@ class AbstractView {
   bool is_multiselect_supported() const;
 
  protected:
-  bool needs_filtering_ = true;
   AbstractView() = default;
 
   /**
@@ -175,7 +176,7 @@ class AbstractView {
    * #AbstractViewItem.update_from_old().
    * After this, reconstruction is complete (see #is_reconstructed()).
    */
-  virtual void update_from_old(uiBlock &new_block);
+  void update_from_old(uiBlock &new_block);
   /**
    * Check if the view is fully (re-)constructed. That means, both the build function and
    * #update_from_old() have finished.

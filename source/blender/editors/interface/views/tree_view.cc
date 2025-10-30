@@ -151,22 +151,6 @@ void AbstractTreeView::toggle_show_display_options()
   show_display_options_ = !show_display_options_;
 }
 
-void AbstractTreeView::update_from_old(uiBlock &new_block)
-{
-  AbstractView::update_from_old(new_block);
-  uiBlock *old_block = new_block.oldblock;
-  if (!old_block) {
-    return;
-  }
-
-  if (AbstractView *old_view = ui_block_view_find_matching_in_old_block(new_block, *this)) {
-    if (AbstractTreeView *old_tree_view = dynamic_cast<AbstractTreeView *>(old_view)) {
-      show_display_options_ = old_tree_view->show_display_options_;
-      search_string_ = old_tree_view->search_string_;
-    }
-  }
-}
-
 std::optional<uiViewState> AbstractTreeView::persistent_state() const
 {
   uiViewState state{};
@@ -350,6 +334,8 @@ void AbstractTreeView::update_children_from_old(const AbstractView &old_view)
 
   custom_height_ = old_tree_view.custom_height_;
   scroll_value_ = old_tree_view.scroll_value_;
+  search_string_ = old_tree_view.search_string_;
+  show_display_options_ = old_tree_view.show_display_options_;
   update_children_from_old_recursive(*this, old_tree_view);
 }
 

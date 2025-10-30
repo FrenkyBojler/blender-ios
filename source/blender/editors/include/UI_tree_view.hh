@@ -174,7 +174,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   std::optional<uiViewState> persistent_state() const override;
   void persistent_state_apply(const uiViewState &state) override;
-  void update_from_old(uiBlock &new_block) override;
 
  private:
   void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const final;
