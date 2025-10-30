@@ -1083,7 +1083,6 @@ void TreeViewBuilder::ensure_min_rows_items(AbstractTreeView &tree_view)
 void TreeViewBuilder::build_tree_view(const bContext &C,
                                       AbstractTreeView &tree_view,
                                       uiLayout &layout,
-                                      std::optional<StringRef> /*search_string*/,
                                       const bool add_box)
 {
   uiBlock &block = *layout.block();

@@ -436,7 +436,6 @@ class TreeViewBuilder {
   static void build_tree_view(const bContext &C,
                               AbstractTreeView &tree_view,
                               uiLayout &layout,
-                              std::optional<StringRef> search_string = {},
                               bool add_box = true);
 
  private:
