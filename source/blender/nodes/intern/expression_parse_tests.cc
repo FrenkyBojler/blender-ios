@@ -10,8 +10,9 @@
 
 namespace blender::nodes::expression::tests {
 
-static void expect_tokens(const TokenizeResult &result, const Span<StringRef> expected_tokens)
+static void expect_tokens(const StringRef src, const Span<StringRef> expected_tokens)
 {
+  const TokenizeResult result = tokenize(src);
   const Vector<Token> *found_tokens = std::get_if<Vector<Token>>(&result.result);
   if (!found_tokens) {
     FAIL() << "Expected tokens, got error: " << std::get<std::string>(result.result);
@@ -27,32 +28,32 @@ static void expect_tokens(const TokenizeResult &result, const Span<StringRef> ex
 
 TEST(nodes_expression, tokenize_empty)
 {
-  expect_tokens(tokenize(""), {});
-  expect_tokens(tokenize(" "), {});
-  expect_tokens(tokenize("  \n\n\t\n\t\t \n"), {});
+  expect_tokens("", {});
+  expect_tokens(" ", {});
+  expect_tokens("  \n\n\t\n\t\t \n", {});
 }
 
 TEST(nodes_expression, tokenize_identifier)
 {
-  expect_tokens(tokenize("a"), {"a"});
-  expect_tokens(tokenize("abc qwe"), {"abc", "qwe"});
-  expect_tokens(tokenize("abc\nqwe34 \n"), {"abc", "qwe34"});
+  expect_tokens("a", {"a"});
+  expect_tokens("abc qwe", {"abc", "qwe"});
+  expect_tokens("abc\nqwe34 \n", {"abc", "qwe34"});
 }
 
 TEST(nodes_expression, tokenize_number)
 {
-  expect_tokens(tokenize("0"), {"0"});
-  expect_tokens(tokenize("123"), {"123"});
-  expect_tokens(tokenize("123 634"), {"123", "634"});
-  expect_tokens(tokenize("123.456"), {"123.456"});
-  expect_tokens(tokenize("123.456."), {"123.456", "."});
-  expect_tokens(tokenize("123..."), {"123.", ".", "."});
+  expect_tokens("0", {"0"});
+  expect_tokens("123", {"123"});
+  expect_tokens("123 634", {"123", "634"});
+  expect_tokens("123.456", {"123.456"});
+  expect_tokens("123.456.", {"123.456", "."});
+  expect_tokens("123...", {"123.", ".", "."});
 }
 
 TEST(nodes_expression, tokenize_string)
 {
-  expect_tokens(tokenize("\"abc\""), {"\"abc\""});
-  expect_tokens(tokenize("\"abc\n'qwe34 \n\" \"\""), {"\"abc\n'qwe34 \n\"", "\"\""});
+  expect_tokens("\"abc\"", {"\"abc\""});
+  expect_tokens("\"abc\n'qwe34 \n\" \"\"", {"\"abc\n'qwe34 \n\"", "\"\""});
 }
 
 TEST(nodes_expression, tokenize_string_unterminated)
@@ -64,13 +65,13 @@ TEST(nodes_expression, tokenize_string_unterminated)
 
 TEST(nodes_expression, tokenize_special)
 {
-  expect_tokens(tokenize("+"), {"+"});
-  expect_tokens(tokenize("-"), {"-"});
-  expect_tokens(tokenize("*+"), {"*", "+"});
-  expect_tokens(tokenize("<="), {"<="});
-  expect_tokens(tokenize("< ="), {"<", "="});
-  expect_tokens(tokenize("=="), {"=="});
-  expect_tokens(tokenize(">>>"), {">>", ">"});
+  expect_tokens("+", {"+"});
+  expect_tokens("-", {"-"});
+  expect_tokens("*+", {"*", "+"});
+  expect_tokens("<=", {"<="});
+  expect_tokens("< =", {"<", "="});
+  expect_tokens("==", {"=="});
+  expect_tokens(">>>", {">>", ">"});
 }
 
 TEST(nodes_expression, tokenize_invalid_char)
@@ -132,17 +133,17 @@ static void expect_ast_recursive(const ast::Expr &a, const ast::Expr &b)
   }
 }
 
-static void expect_ast(const ast::Expr &a, const ast::Expr &b)
+static void expect_ast(const StringRef src, const ast::Expr &b)
 {
-  expect_ast_recursive(a, b);
+  ResourceScope scope;
+  ParseResult result = parse(scope, src);
+  ast::Expr *expr = std::get<ast::Expr *>(result);
+  expect_ast_recursive(*expr, b);
 }
 
 TEST(nodes_expression, parse_identifier)
 {
-  ResourceScope scope;
-  ParseResult result = parse(scope, "a");
-  ast::Expr *expr = std::get<ast::Expr *>(result);
-  expect_ast(*expr, {ast::Identifier{"a"}});
+  expect_ast("a", {ast::Identifier{"a"}});
 }
 
 }  // namespace blender::nodes::expression::tests
