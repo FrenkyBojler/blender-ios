@@ -1997,16 +1997,18 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
   bool changed = false;
   int max_left_offset = INT_MAX;
-  /* Make two runs of the split logic so the newly created strips from the first run get split by
-   * the second foreach run.*/
+
+  VectorSet<Strip *> strips_to_cut;
+
+  /* Make two split logic runs so the newly created strips can get split by the second foreach
+   * run.*/
   for (int axis : {0, 1}) {
-    LISTBASE_FOREACH_MUTABLE (Strip *, strip, ed->current_strips()) {
+    LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
         continue;
       }
       rctf rq;
       strip_rectf(scene, strip, &rq);
-      const char *error_msg = nullptr;
       if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
         if (max_left_offset == INT_MAX ||
             seq::time_left_handle_frame_get(scene, strip) < max_left_offset)
@@ -2014,20 +2016,26 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
           max_left_offset = std::min(max_left_offset,
                                      seq::time_left_handle_frame_get(scene, strip));
         }
-        if (seq::edit_strip_split(bmain,
-                                  scene,
-                                  ed->current_strips(),
-                                  strip,
-                                  rect_frames[axis],
-                                  method,
-                                  false,
-                                  &error_msg) != nullptr)
-        {
-          if (error_msg != nullptr) {
-            BKE_report(op->reports, RPT_ERROR, error_msg);
-          }
-          changed = true;
+        /* Don't change the content of ed->current_strips() in LISTBASE_FOREACH. */
+        strips_to_cut.add(strip);
+      }
+    }
+
+    const char *error_msg = nullptr;
+    for (Strip *strip : strips_to_cut) {
+      if (seq::edit_strip_split(bmain,
+                                scene,
+                                ed->current_strips(),
+                                strip,
+                                rect_frames[axis],
+                                method,
+                                false,
+                                &error_msg) != nullptr)
+      {
+        if (error_msg != nullptr) {
+          BKE_report(op->reports, RPT_ERROR, error_msg);
         }
+        changed = true;
       }
     }
   }
