@@ -10,6 +10,7 @@
 
 namespace blender::nodes::expression {
 
+ast::Expr *parse_old(ResourceScope &scope, StringRef expression, std::ostream &r_errors);
 ast::Expr *parse(ResourceScope &scope, StringRef expression, std::ostream &r_errors);
 
-}
+}  // namespace blender::nodes::expression

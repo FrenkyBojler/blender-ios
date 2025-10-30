@@ -132,7 +132,7 @@ constexpr parser p(
 
 }  // namespace grammar
 
-ast::Expr *parse(ResourceScope &scope, StringRef expression, std::ostream &r_errors)
+ast::Expr *parse_old(ResourceScope &scope, StringRef expression, std::ostream &r_errors)
 {
   ParseContext ctx{scope};
   auto result = grammar::p.context_parse(
