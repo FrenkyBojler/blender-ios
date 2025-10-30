@@ -5394,7 +5394,6 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
 
   using blender::Map;
   using blender::StringRef;
-  using blender::Vector;
 
   auto ensure_target_defgroup = [&](StringRef group_name) {
     int group_index = -1;
