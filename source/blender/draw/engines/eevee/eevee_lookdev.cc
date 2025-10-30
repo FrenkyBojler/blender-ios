@@ -371,14 +371,11 @@ void LookdevModule::rotate_world()
     return;
   }
 
-  float4x4 rotation = float4x4::identity();
+  AxisAngle axis_angle_rotation(AxisSigned::Z_POS, studio_light_rotation_z_);
+  float4x4 rotation = math::from_rotation<float4x4>(axis_angle_rotation);
   if (use_viewspace_lighting_) {
     CartesianBasis target(AxisSigned::X_POS, AxisSigned::Z_NEG, AxisSigned::Y_POS);
-    rotation = inst_.camera.data_get().viewinv * math::from_rotation<float4x4>(target);
-  }
-  else {
-    AxisAngle axis_angle_rotation(AxisSigned::Z_POS, studio_light_rotation_z_);
-    rotation = math::from_rotation<float4x4>(axis_angle_rotation);
+    rotation = inst_.camera.data_get().viewinv * math::from_rotation<float4x4>(target) * rotation;
   }
 
   if (assign_if_different(last_rotation_matrix_, rotation)) {

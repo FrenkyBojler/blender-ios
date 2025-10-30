@@ -6650,7 +6650,6 @@ class VIEW3D_PT_shading_lighting(Panel):
                 row = col.row(align=True)
                 row.prop(shading, "use_studiolight_view_rotation", text="", icon='WORLD', toggle=True)
                 row = row.row(align=True)
-                row.active = shading.use_studiolight_view_rotation
                 row.prop(shading, "studiolight_rotate_z", text="Rotation")
 
                 col.prop(shading, "studiolight_intensity")
