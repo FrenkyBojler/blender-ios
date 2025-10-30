@@ -1127,8 +1127,10 @@ KeyframeEditFunc ANIM_editkeyframes_mirror(short mode)
 /* Sets the selected bezier handles to type 'auto' */
 static short set_bezier_auto(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* Setting one handle to `HD_AUTO` is not a valid state. Both need to be the same. */
-  bezt->h1 = bezt->h2 = HD_AUTO;
+  if (BEZT_ISSEL_ANY(bezt)) {
+    /* Setting one handle to `HD_AUTO` is not a valid state. Both need to be the same. */
+    bezt->h1 = bezt->h2 = HD_AUTO;
+  }
   return 0;
 }
 
@@ -1137,8 +1139,10 @@ static short set_bezier_auto(KeyframeEditData * /*ked*/, BezTriple *bezt)
  */
 static short set_bezier_auto_clamped(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* Setting one handle to `HD_AUTO_ANIM` is not a valid state. Both need to be the same. */
-  bezt->h1 = bezt->h2 = HD_AUTO_ANIM;
+  if (BEZT_ISSEL_ANY(bezt)) {
+    /* Setting one handle to `HD_AUTO_ANIM` is not a valid state. Both need to be the same. */
+    bezt->h1 = bezt->h2 = HD_AUTO_ANIM;
+  }
   return 0;
 }
 
@@ -1183,8 +1187,10 @@ static short bezier_isfree(KeyframeEditData * /*ked*/, BezTriple *bezt)
 /* Sets selected bezier handles to type 'align' */
 static short set_bezier_align(KeyframeEditData * /*ked*/, BezTriple *bezt)
 {
-  /* Setting one handle to `HD_ALIGN` is not a valid state. Both need to be the same. */
-  bezt->h1 = bezt->h2 = HD_ALIGN;
+  if (BEZT_ISSEL_ANY(bezt)) {
+    /* Setting one handle to `HD_ALIGN` is not a valid state. Both need to be the same. */
+    bezt->h1 = bezt->h2 = HD_ALIGN;
+  }
   return 0;
 }
 
