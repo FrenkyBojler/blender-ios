@@ -1729,6 +1729,7 @@ struct sAreaMoveData {
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
   bScreen *screen;
+  ScrArea *area1, *area2;
   double start_time;
   double end_time;
   wmWindow *win;
@@ -1875,6 +1876,9 @@ static bool area_move_init(bContext *C, wmOperator *op)
   sAreaMoveData *md = MEM_callocN<sAreaMoveData>("sAreaMoveData");
   op->customdata = md;
 
+  const int xy[2] = {x, y};
+  screen_area_edge_from_cursor(C, xy, &md->area1, &md->area2);
+
   md->dir_axis = screen_geom_edge_is_horizontal(actedge) ? SCREEN_AXIS_H : SCREEN_AXIS_V;
   if (md->dir_axis == SCREEN_AXIS_H) {
     md->origval = actedge->v1->vec.y;
@@ -1923,10 +1927,35 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
 
       /* Slight snap to vertical minimum and maximum. */
       const int snap_threshold = int(float(ED_area_headersize()) * 0.6f);
+
+      /* Extra snaps for Timeline and Graph Editor. */
+      const bool has_scrub = md->area2 && ELEM(md->area2->spacetype, SPACE_ACTION);
+      bool anim_header = false;
+      bool anim_footer = false;
+
+      if (has_scrub) {
+        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_HEADER);
+        anim_header = (region && region->runtime->visible);
+        region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
+        anim_footer = (region && region->runtime->visible);
+      }
+
       if (m_cursor_final < (m_min + snap_threshold)) {
         m_cursor_final = m_min;
       }
-      else if (m_cursor_final > (md->origval + md->bigger - snap_threshold)) {
+      else if (has_scrub && (md->dir_axis == SCREEN_AXIS_H) &&
+               (m_cursor_final < (m_min + ED_area_headersize() + snap_threshold)))
+      {
+        m_cursor_final = m_min + ED_area_headersize();
+      }
+      else if (has_scrub && anim_footer && (md->dir_axis == SCREEN_AXIS_H) &&
+               (m_cursor_final <
+                (m_min + ED_area_headersize() + ED_area_headersize() + snap_threshold)))
+      {
+        m_cursor_final = m_min + ED_area_headersize() + ED_area_headersize();
+      }
+
+      if (m_cursor_final > (md->origval + md->bigger - snap_threshold)) {
         m_cursor_final = md->origval + md->bigger;
       }
     } break;
