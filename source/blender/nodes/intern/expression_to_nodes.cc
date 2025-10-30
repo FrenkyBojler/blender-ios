@@ -46,6 +46,21 @@ struct TypeCheckCallParams {
   Vector<const bke::bNodeSocketType *> input_types;
 };
 
+static bNodeSocket *find_available_socket_by_index(ListBase &sockets, const int index)
+{
+  int remaining = index;
+  LISTBASE_FOREACH (bNodeSocket *, socket, &sockets) {
+    if (!socket->is_available()) {
+      continue;
+    }
+    if (remaining == 0) {
+      return socket;
+    }
+    remaining--;
+  }
+  return nullptr;
+}
+
 struct InsertCallParams {
   AstToNodeGroupBuilder &builder;
   const bNodeTree &tree;
@@ -63,7 +78,7 @@ struct InsertCallParams {
 
   void add_input(bNode &node, const int index)
   {
-    bNodeSocket *socket = static_cast<bNodeSocket *>(BLI_findlink(&node.inputs, index));
+    bNodeSocket *socket = find_available_socket_by_index(node.inputs, index);
     BLI_assert(socket);
     this->add_input(node, *socket);
   }
@@ -77,7 +92,7 @@ struct InsertCallParams {
 
   void set_output(bNode &node, const int index)
   {
-    bNodeSocket *socket = static_cast<bNodeSocket *>(BLI_findlink(&node.outputs, index));
+    bNodeSocket *socket = find_available_socket_by_index(node.outputs, index);
     BLI_assert(socket);
     this->set_output(node, *socket);
   }
@@ -508,16 +523,41 @@ static FunctionSymbol ternary_conditional_operator(const eNodeSocketDatatype typ
         if (params.input_types[2]->type != type) {
           return false;
         }
+        if (params.tree_type.type != NTREE_GEOMETRY &&
+            !ELEM(type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_INT, SOCK_BOOLEAN))
+        {
+          return false;
+        }
         return true;
       },
       [type](InsertCallParams &params) {
-        bNode &node = params.add_node("GeometryNodeSwitch");
-        auto &storage = *static_cast<NodeSwitch *>(node.storage);
-        storage.input_type = type;
+        if (params.tree.type == NTREE_GEOMETRY) {
+          bNode &node = params.add_node("GeometryNodeSwitch");
+          auto &storage = *static_cast<NodeSwitch *>(node.storage);
+          storage.input_type = type;
+          params.update_node_sockets(node);
+          params.add_input(node, 0);
+          params.add_input(node, 2);
+          params.add_input(node, 1);
+          params.use_node_output(node);
+          return;
+        }
+        bNode &node = params.add_node("ShaderNodeMix");
+        NodeShaderMix &storage = *static_cast<NodeShaderMix *>(node.storage);
+        storage.clamp_factor = false;
+        if (ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN)) {
+          storage.data_type = type;
+        }
+        else if (type == SOCK_VECTOR) {
+          storage.data_type = SOCK_VECTOR;
+        }
+        else {
+          storage.data_type = SOCK_RGBA;
+        }
         params.update_node_sockets(node);
         params.add_input(node, 0);
-        params.add_input(node, 2);
         params.add_input(node, 1);
+        params.add_input(node, 2);
         params.use_node_output(node);
       });
 }
