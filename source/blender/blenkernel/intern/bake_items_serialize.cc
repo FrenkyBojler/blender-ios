@@ -1559,12 +1559,12 @@ static void serialize_bake_item(const BakeItem &item,
         else {
           const eCustomDataType data_type = cpp_type_to_custom_data_type(list.cpp_type());
           r_io_item.append_str("item_type", get_data_type_io_name(data_type));
-          if (const auto single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
+          r_io_item.append_int("num_items", list.size());
+          if (const auto *single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
             r_io_item.append("value", serialize_primitive_value(data_type, single_data->value));
           }
           else if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
             const GSpan array_span = {list.cpp_type(), array_data->data, list.size()};
-            r_io_item.append_int("num_items", list.size());
             r_io_item.append(
                 "data",
                 write_blob_shared_simple_gspan(
@@ -1679,6 +1679,10 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
     if (const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(
             *io_list_item_type))
     {
+      const std::optional<int> num_items = io_item.lookup_int("num_items");
+      if (!num_items) {
+        return {};
+      }
       const CPPType *cpp_type = custom_data_type_to_cpp_type(*data_type);
       BLI_assert(cpp_type);
       if (const std::shared_ptr<io::serialize::Value> *io_value = io_item.lookup("value")) {
@@ -1687,19 +1691,20 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
           return {};
         }
         auto list = nodes::List::create(
-            *cpp_type, nodes::List::SingleData::ForValue(GPointer{cpp_type, buffer}), 1);
+            *cpp_type, nodes::List::SingleData::ForValue(GPointer{cpp_type, buffer}), *num_items);
         return std::make_unique<ListBakeItem>(std::move(list));
       }
-      else if (const io::serialize::DictionaryValue *io_data = io_item.lookup_dict("data")) {
-        const std::optional<int> num_items = io_item.lookup_int("num_items");
-        if (!num_items) {
+      if (const io::serialize::DictionaryValue *io_data = io_item.lookup_dict("data")) {
+        GArray<> buffer(*cpp_type, *num_items);
+        if (!read_blob_simple_gspan(
+                blob_reader, *io_data, GMutableSpan{cpp_type, buffer.data(), *num_items}))
+        {
           return {};
         }
-        auto array_data = nodes::List::ArrayData::ForUninitialized(*cpp_type, *num_items);
-        GMutableSpan array_span = {cpp_type, array_data.data, *num_items};
-        if (!read_blob_simple_gspan(blob_reader, *io_data, array_span)) {
-          return {};
-        }
+        nodes::List::ArrayData array_data;
+        const auto *sharing_info = new ImplicitSharedValue<GArray<>>(std::move(buffer));
+        array_data.data = const_cast<void *>(sharing_info->data.data());
+        array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
         auto list = nodes::List::create(*cpp_type, std::move(array_data), *num_items);
         return std::make_unique<ListBakeItem>(std::move(list));
       }
