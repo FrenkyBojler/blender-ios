@@ -68,12 +68,21 @@ class Tokenizer {
   {
     const int64_t start = i_;
     i_++;
+    bool has_dot = false;
     while (i_ < full_size_) {
       const char c = full_str_[i_];
-      if (!this->is_number_continue(c)) {
-        break;
+      if (this->is_digit(c)) {
+        i_++;
+        continue;
       }
-      i_++;
+      if (c == '.') {
+        if (!has_dot) {
+          has_dot = true;
+          i_++;
+          continue;
+        }
+      }
+      break;
     }
     const StringRef number = full_str_.substr(start, i_ - start);
     tokens_.append({TokenType::Number, number});
@@ -191,11 +200,6 @@ class Tokenizer {
   bool is_number_start(const char c) const
   {
     return this->is_digit(c);
-  }
-
-  bool is_number_continue(const char c) const
-  {
-    return this->is_number_start(c) || strchr(".eExXoO", c);
   }
 
   bool is_digit(const char c) const
