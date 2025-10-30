@@ -156,6 +156,25 @@ void get_default_fac_fade(const Scene *scene, const Strip *strip, float timeline
   *fac = math::clamp(*fac, 0.0f, 1.0f);
 }
 
+void effect_ensure_initialized(Strip *strip)
+{
+  if (strip->effectdata == nullptr) {
+    EffectHandle h = strip_effect_handle_get(strip);
+    if (h.init != nullptr) {
+      h.init(strip);
+    }
+  }
+}
+
+void effect_free(Strip *strip)
+{
+  EffectHandle h = strip_effect_handle_get(strip);
+  if (h.free != nullptr) {
+    h.free(strip, true);
+    BLI_assert(strip->effectdata == nullptr);
+  }
+}
+
 EffectHandle effect_handle_get(StripType strip_type)
 {
   EffectHandle rval;
