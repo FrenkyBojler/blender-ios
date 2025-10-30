@@ -631,9 +631,7 @@ void BKE_area_region_free(SpaceType *st, ARegion *region)
   BLI_freelistN(&region->ui_previews);
   BLI_freelistN(&region->runtime->panels_category);
   BLI_freelistN(&region->panels_category_active);
-  LISTBASE_FOREACH_MUTABLE (uiViewStateLink *, view_state, &region->view_states) {
-    MEM_delete(view_state);
-  }
+  BLI_freelistN(&region->view_states);
   MEM_delete(region->runtime);
 }
 
