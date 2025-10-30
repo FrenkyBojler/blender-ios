@@ -1,1 +1,2 @@
 Referenced by issue #148803, Regression: Appended assets from library get removed when changing values from the redo panel
+Referenced by commit 4456eb982a8e56692d72300846fefaeaea6a4f66, Fix #148803: Using redo panel removes just appended asset
