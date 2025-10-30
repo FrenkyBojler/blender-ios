@@ -237,6 +237,8 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
     float locy_offset = 0.0f;
 
     bNodeSocket *fac_socket = blender::bke::node_find_socket(*node, SOCK_OUT, "Fac");
+    /* Clear label because Musgrave output socket label is set to "Height" instead of "Fac". */
+    fac_socket->label[0] = '\0';
 
     bNodeSocket *detail_socket = blender::bke::node_find_socket(*node, SOCK_IN, "Detail");
     float *detail = version_cycles_node_socket_float_value(detail_socket);
