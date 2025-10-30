@@ -18,13 +18,15 @@
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BKE_library.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
+
+#include "fmt/core.h"
 
 namespace blender::nodes::node_geo_foreach_geometry_element_cc {
 
@@ -58,8 +60,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
-            uiLayoutSetPropSep(panel, true);
-            uiLayoutSetPropDecorate(panel, false);
+            panel->use_property_split_set(true);
+            panel->use_property_decorate_set(false);
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
@@ -70,8 +72,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementMainItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
-            uiLayoutSetPropSep(panel, true);
-            uiLayoutSetPropDecorate(panel, false);
+            panel->use_property_split_set(true);
+            panel->use_property_decorate_set(false);
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
@@ -84,8 +86,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           ntree, output_node, [&](PointerRNA *item_ptr) {
             NodeForeachGeometryElementGenerationItem &active_item =
                 storage.generation_items.items[storage.generation_items.active_index];
-            uiLayoutSetPropSep(panel, true);
-            uiLayoutSetPropDecorate(panel, false);
+            panel->use_property_split_set(true);
+            panel->use_property_decorate_set(false);
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             if (active_item.socket_type != SOCK_GEOMETRY) {
               panel->prop(item_ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -189,17 +191,19 @@ static void node_label(const bNodeTree * /*ntree*/,
                        char *label,
                        const int label_maxncpy)
 {
-  BLI_strncpy_utf8(label, IFACE_("For Each Element"), label_maxncpy);
+  BLI_strncpy_utf8(
+      label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "For Each Element"), label_maxncpy);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  bNode *output_node = ntree->node_by_id(node_storage(*node).output_node_id);
+  bNode *output_node = params.ntree.node_by_id(node_storage(params.node).output_node_id);
   if (!output_node) {
     return true;
   }
   return socket_items::try_add_item_via_any_extend_socket<
-      ForeachGeometryElementInputItemsAccessor>(*ntree, *node, *output_node, *link);
+      ForeachGeometryElementInputItemsAccessor>(
+      params.ntree, params.node, *output_node, params.link);
 }
 
 static void node_register()
@@ -344,15 +348,16 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
   socket_items::copy_array<ForeachGeometryElementMainItemsAccessor>(*src_node, *dst_node);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   if (!socket_items::try_add_item_via_any_extend_socket<ForeachGeometryElementMainItemsAccessor>(
-          *ntree, *node, *node, *link, "__extend__main"))
+          params.ntree, params.node, params.node, params.link, "__extend__main"))
   {
     return false;
   }
   return socket_items::try_add_item_via_any_extend_socket<
-      ForeachGeometryElementGenerationItemsAccessor>(*ntree, *node, *node, *link);
+      ForeachGeometryElementGenerationItemsAccessor>(
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_operators()
@@ -404,22 +409,24 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
   else {
     params.add_item_full_name(
-        IFACE_("For Each Element " UI_MENU_ARROW_SEP " Main"), [](LinkSearchOpParams &params) {
+        fmt::format(IFACE_("For Each Element {} Main"), UI_MENU_ARROW_SEP),
+        [](LinkSearchOpParams &params) {
           const auto [input_node, output_node] = add_foreach_zone(params);
           socket_items::clear<ForeachGeometryElementGenerationItemsAccessor>(*output_node);
           params.update_and_connect_available_socket(*output_node, "Geometry");
         });
 
-    params.add_item_full_name(IFACE_("For Each Element " UI_MENU_ARROW_SEP " Generated"),
-                              [](LinkSearchOpParams &params) {
-                                const auto [input_node, output_node] = add_foreach_zone(params);
-                                params.node_tree.ensure_topology_cache();
-                                bke::node_add_link(params.node_tree,
-                                                   *output_node,
-                                                   output_node->output_socket(2),
-                                                   params.node,
-                                                   params.socket);
-                              });
+    params.add_item_full_name(
+        fmt::format(IFACE_("For Each Element {} Generated"), UI_MENU_ARROW_SEP),
+        [](LinkSearchOpParams &params) {
+          const auto [input_node, output_node] = add_foreach_zone(params);
+          params.node_tree.ensure_topology_cache();
+          bke::node_add_link(params.node_tree,
+                             *output_node,
+                             output_node->output_socket(2),
+                             params.node,
+                             params.socket);
+        });
   }
 }
 

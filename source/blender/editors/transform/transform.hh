@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "ED_numinput.hh"
@@ -117,7 +119,7 @@ enum eTContext {
   /** Enable edge scrolling in 2D views. */
   CTX_VIEW2D_EDGE_PAN = (1 << 15),
 };
-ENUM_OPERATORS(eTContext, CTX_VIEW2D_EDGE_PAN)
+ENUM_OPERATORS(eTContext)
 
 /** #TransInfo.flag */
 enum eTFlag {
@@ -188,7 +190,7 @@ enum eTFlag {
   /** Transform origin. */
   T_ORIGIN = 1 << 27,
 };
-ENUM_OPERATORS(eTFlag, T_ORIGIN);
+ENUM_OPERATORS(eTFlag);
 
 /** #TransInfo.modifiers */
 enum eTModifier {
@@ -201,8 +203,9 @@ enum eTModifier {
   MOD_SNAP_FORCED = 1 << 6,
   MOD_EDIT_SNAP_SOURCE = 1 << 7,
   MOD_NODE_FRAME = 1 << 8,
+  MOD_STRIP_CLAMP_HOLDS = 1 << 9,
 };
-ENUM_OPERATORS(eTModifier, MOD_EDIT_SNAP_SOURCE)
+ENUM_OPERATORS(eTModifier)
 
 /** #TransSnap.status */
 enum eTSnap {
@@ -212,7 +215,7 @@ enum eTSnap {
   SNAP_TARGET_FOUND = 1 << 1,
   SNAP_MULTI_POINTS = 1 << 2,
 };
-ENUM_OPERATORS(eTSnap, SNAP_MULTI_POINTS)
+ENUM_OPERATORS(eTSnap)
 
 /** #TransSnap.direction */
 enum eSnapDir {
@@ -220,7 +223,7 @@ enum eSnapDir {
   DIR_GLOBAL_Y = (1 << 1),
   DIR_GLOBAL_Z = (1 << 2),
 };
-ENUM_OPERATORS(eSnapDir, DIR_GLOBAL_Z)
+ENUM_OPERATORS(eSnapDir)
 
 /** #TransCon.mode, #TransInfo.con.mode */
 enum eTConstraint {
@@ -231,11 +234,9 @@ enum eTConstraint {
   CON_AXIS1 = 1 << 2,
   CON_AXIS2 = 1 << 3,
   CON_SELECT = 1 << 4,
-  /** Does not reorient vector to face viewport when on. */
-  CON_NOFLIP = 1 << 5,
-  CON_USER = 1 << 6,
+  CON_USER = 1 << 5,
 };
-ENUM_OPERATORS(eTConstraint, CON_USER)
+ENUM_OPERATORS(eTConstraint)
 
 /** #TransInfo.state */
 enum eTState {
@@ -251,7 +252,7 @@ enum eRedrawFlag {
   TREDRAW_SOFT = (1 << 0),
   TREDRAW_HARD = (1 << 1) | TREDRAW_SOFT,
 };
-ENUM_OPERATORS(eRedrawFlag, TREDRAW_HARD)
+ENUM_OPERATORS(eRedrawFlag)
 
 /** #TransInfo.helpline */
 enum eTHelpline {
@@ -331,6 +332,8 @@ enum {
   TFM_MODAL_PASSTHROUGH_NAVIGATE = 36,
 
   TFM_MODAL_NODE_FRAME = 37,
+
+  TFM_MODAL_STRIP_CLAMP = 38,
 };
 
 /** \} */
@@ -413,6 +416,7 @@ struct TransDataMirror : public TransDataBasic {
   float *loc_src;
 };
 
+/** For objects, poses. 1 single allocation per #TransInfo! */
 struct TransDataExtension {
   /** Initial object drot. */
   float drot[3];
@@ -468,6 +472,12 @@ struct TransDataExtension {
   int rotOrder;
   /** Original object transformation used for rigid bodies. */
   float oloc[3], orot[3], oquat[4], orotAxis[3], orotAngle;
+
+  /**
+   * Use when #TransDataBasic::center has been overridden but the real center is still needed
+   * for internal calculations.
+   */
+  float center_no_override[3];
 };
 
 struct TransData2D {
@@ -507,8 +517,6 @@ struct TransData : public TransDataBasic {
   float axismtx[3][3];
   /** For objects/bones, the first constraint in its constraint stack. */
   bConstraint *con;
-  /** For objects, poses. 1 single allocation per #TransInfo! */
-  TransDataExtension *ext;
   /** For curves, stores handle flags for modification/cancel. */
   TransDataCurveHandleFlags *hdata;
   /** If set, copy of Object or #bPoseChannel protection. */
@@ -589,8 +597,7 @@ struct TransCon {
   void (*applyRot)(const TransInfo *t,
                    const TransDataContainer *tc,
                    const TransData *td,
-                   float r_axis[3],
-                   float *r_angle);
+                   float r_axis[3]);
 };
 
 struct MouseInput {
@@ -717,6 +724,79 @@ struct TransDataContainer {
   };
 
   TransCustomDataContainer custom;
+
+  /**
+   * Array of indices for the `data`, `data_ext`, and `data_2d` arrays.
+   *
+   * When using this index map to traverse the arrays, they will be sorted primarily by selection
+   * state (selected before unselected). Depending on the sort function used (see below),
+   * unselected items are then sorted by their "distance" for proportional editing.
+   *
+   * At the moment of writing, this map is only used in cases where `tc->data` has a mixture of
+   * selected and unselected items (as far as I, Sybren, know, just for proportial editing).
+   * Without `tc->sorted_index_map`, all items in `tc->data` are expected to be selected.
+   *
+   * NOTE: this is set to `nullptr` by default; use one of the sorting functions below to
+   * initialize the array.
+   *
+   * \see #sort_trans_data_selected_first Sorts only by selection state.
+   * \see #sort_trans_data_dist Sorts by selection state and distance.
+   */
+  int *sorted_index_map;
+
+  /**
+   * Call the given function for each index in the data. This index can then be
+   * used to access the `data`, `data_ext`, and `data_2d` arrays.
+   *
+   * If there is a `sorted_index_map` (see above), this will be used. Otherwise
+   * it is assumed that the arrays can be iterated in their natural array order.
+   *
+   * \param fn: function that's called for each index. The function should
+   * return whether to keep looping (true) or break out of the loop (false).
+   *
+   * \return whether the end of the loop was reached.
+   */
+  bool foreach_index(FunctionRef<bool(int)> fn) const
+  {
+    if (this->sorted_index_map) {
+      for (const int i : Span(this->sorted_index_map, this->data_len)) {
+        if (!fn(i)) {
+          return false;
+        }
+      }
+    }
+    else {
+      for (const int i : IndexRange(this->data_len)) {
+        if (!fn(i)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Call \a fn only for indices of selected items.
+   * Apart from that, this is the same as `index_map()` above.
+   *
+   * \param fn: function that's called for each index. Contrary to the `index_map()` function, it
+   * is assumed that all selected items should be visited, and so for simplicity there is no `bool`
+   * to return.
+   */
+  void foreach_index_selected(FunctionRef<void(int)> fn) const
+  {
+    this->foreach_index([&](const int i) {
+      const bool is_selected = (this->data[i].flag & TD_SELECTED);
+      if (!is_selected) {
+        /* Selected items are sorted first. Either this is trivially true
+         * (proportional editing off, so the only transformed data is the
+         * selected data) or it's handled by `sorted_index_map`. */
+        return false;
+      }
+      fn(i);
+      return true;
+    });
+  }
 };
 
 struct TransInfo {
@@ -775,13 +855,14 @@ struct TransInfo {
   float center2d[2];
   /** Maximum index on the input vector. */
   short idx_max;
-  /** Snapping Gears. */
-  float snap[2];
+  /** Increment value for incremental snapping. */
+  float3 increment;
+  float increment_precision;
   /** Spatial snapping gears(even when rotating, scaling... etc). */
   float snap_spatial[3];
   /**
    * Precision factor that is multiplied to snap_spatial when precision
-   * modifier is enabled for snap to grid or incremental snap.
+   * modifier is enabled for snap to grid.
    */
   float snap_spatial_precision;
   /** Mouse side of the current frame, 'L', 'R' or 'B'. */
@@ -920,6 +1001,10 @@ wmOperatorStatus transformEnd(bContext *C, TransInfo *t);
 void setTransformViewMatrices(TransInfo *t);
 void setTransformViewAspect(TransInfo *t, float r_aspect[3]);
 void convertViewVec(TransInfo *t, float r_vec[3], double dx, double dy);
+/**
+ * If viewport projection fails, calculate a usable fallback.
+ */
+void projectFloatViewCenterFallback(TransInfo *t, float adr[2]);
 void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], eV3DProjTest flag);
 void projectIntView(TransInfo *t, const float vec[3], int adr[2]);
 void projectFloatViewEx(TransInfo *t, const float vec[3], float adr[2], eV3DProjTest flag);
@@ -938,6 +1023,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf);
  */
 bool transform_apply_matrix(TransInfo *t, float mat[4][4]);
 void transform_final_value_get(const TransInfo *t, float *value, int value_num);
+void view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3]);
 
 /** \} */
 
@@ -1015,7 +1101,6 @@ void postTrans(bContext *C, TransInfo *t);
 void resetTransModal(TransInfo *t);
 void resetTransRestrictions(TransInfo *t);
 
-void applyTransObjects(TransInfo *t);
 void restoreTransObjects(TransInfo *t);
 
 void calculateCenter2D(TransInfo *t);
@@ -1046,7 +1131,10 @@ void calculatePropRatio(TransInfo *t);
  * (use for objects or pose-bones)
  * Similar to #ElementRotation.
  */
-void transform_data_ext_rotate(TransData *td, float mat[3][3], bool use_drot);
+void transform_data_ext_rotate(TransData *td,
+                               TransDataExtension *td_ext,
+                               float mat[3][3],
+                               bool use_drot);
 
 Object *transform_object_deform_pose_armature_get(const TransInfo *t, Object *ob);
 

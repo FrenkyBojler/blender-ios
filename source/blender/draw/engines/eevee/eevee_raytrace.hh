@@ -12,13 +12,16 @@
 
 #include "DNA_scene_types.h"
 
+#include "DRW_gpu_wrapper.hh"
 #include "DRW_render.hh"
 
-#include "eevee_shader_shared.hh"
+#include "eevee_raytrace_shared.hh"
 
 namespace blender::eevee {
 
 class Instance;
+
+using RayTraceTileBuf = draw::StorageArrayBuffer<uint, 1024, true>;
 
 /* -------------------------------------------------------------------- */
 /** \name Ray-tracing Buffers
@@ -66,10 +69,12 @@ struct RayTraceBuffer {
    */
   float4x4 history_persmat;
 
-  GPUTexture *feedback_ensure(bool is_dummy, int2 extent)
+  gpu::Texture *feedback_ensure(bool is_dummy, int2 extent)
   {
     eGPUTextureUsage usage_rw = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
-    if (radiance_feedback_tx.ensure_2d(GPU_RGBA16F, is_dummy ? int2(1) : extent, usage_rw)) {
+    if (radiance_feedback_tx.ensure_2d(
+            gpu::TextureFormat::SFLOAT_16_16_16_16, is_dummy ? int2(1) : extent, usage_rw))
+    {
       radiance_feedback_tx.clear(float4(0.0f));
     }
     return radiance_feedback_tx;
@@ -86,23 +91,23 @@ class RayTraceResultTexture {
   /** Result is in a temporary texture that needs to be released. */
   TextureFromPool *result_ = nullptr;
   /** Value of `result_->tx_` that can be referenced in advance. */
-  GPUTexture *tx_ = nullptr;
+  gpu::Texture *tx_ = nullptr;
   /** History buffer to swap the temporary texture that does not need to be released. */
   Texture *history_ = nullptr;
 
  public:
   RayTraceResultTexture() = default;
-  RayTraceResultTexture(TextureFromPool &result) : result_(result.ptr()), tx_(result){};
+  RayTraceResultTexture(TextureFromPool &result) : result_(result.ptr()), tx_(result) {};
   RayTraceResultTexture(TextureFromPool &result, Texture &history)
-      : result_(result.ptr()), tx_(result), history_(history.ptr()){};
+      : result_(result.ptr()), tx_(result), history_(history.ptr()) {};
 
-  operator GPUTexture *() const
+  operator gpu::Texture *() const
   {
     BLI_assert(tx_ != nullptr);
     return tx_;
   }
 
-  GPUTexture **operator&()
+  gpu::Texture **operator&()
   {
     return &tx_;
   }
@@ -177,7 +182,7 @@ class RayTraceModule {
   /** Indirect dispatch denoise full-resolution tiles. */
   DispatchIndirectBuf horizon_denoise_dispatch_buf_ = {"horizon_denoise_dispatch_buf_"};
   /** Pointer to the texture to store the result of horizon scan in. */
-  GPUTexture *horizon_scan_output_tx_[3] = {nullptr};
+  gpu::Texture *horizon_scan_output_tx_[3] = {nullptr};
   /** Tile buffer that contains tile coordinates. */
   RayTraceTileBuf raytrace_tracing_tiles_buf_ = {"raytrace_tracing_tiles_buf_"};
   RayTraceTileBuf raytrace_denoise_tiles_buf_ = {"raytrace_denoise_tiles_buf_"};
@@ -197,9 +202,9 @@ class RayTraceModule {
   /** Texture containing the view space normal. The BSDF normal is arbitrarily chosen. */
   TextureFromPool downsampled_in_normal_tx_ = {"downsampled_in_normal_tx_"};
   /** Textures containing the ray hit radiance denoised (full-res). One of them is result_tx. */
-  GPUTexture *denoised_spatial_tx_ = nullptr;
-  GPUTexture *denoised_temporal_tx_ = nullptr;
-  GPUTexture *denoised_bilateral_tx_ = nullptr;
+  gpu::Texture *denoised_spatial_tx_ = nullptr;
+  gpu::Texture *denoised_temporal_tx_ = nullptr;
+  gpu::Texture *denoised_bilateral_tx_ = nullptr;
   /** Ray hit depth for temporal denoising. Output of spatial denoise. */
   TextureFromPool hit_depth_tx_ = {"hit_depth_tx_"};
   /** Ray hit variance for temporal denoising. Output of spatial denoise. */
@@ -207,18 +212,18 @@ class RayTraceModule {
   /** Temporally stable variance for temporal denoising. Output of temporal denoise. */
   TextureFromPool denoise_variance_tx_ = {"denoise_variance_tx_"};
   /** Persistent texture reference for temporal denoising input. */
-  GPUTexture *radiance_history_tx_ = nullptr;
-  GPUTexture *variance_history_tx_ = nullptr;
-  GPUTexture *tilemask_history_tx_ = nullptr;
+  gpu::Texture *radiance_history_tx_ = nullptr;
+  gpu::Texture *variance_history_tx_ = nullptr;
+  gpu::Texture *tilemask_history_tx_ = nullptr;
   /** Radiance input for screen space tracing. */
-  GPUTexture *screen_radiance_front_tx_ = nullptr;
-  GPUTexture *screen_radiance_back_tx_ = nullptr;
+  gpu::Texture *screen_radiance_front_tx_ = nullptr;
+  gpu::Texture *screen_radiance_back_tx_ = nullptr;
 
   Texture radiance_dummy_black_tx_ = {"radiance_dummy_black_tx"};
   /** Dummy texture when the tracing is disabled. */
   TextureFromPool dummy_result_tx_ = {"dummy_result_tx"};
   /** Pointer to `inst_.render_buffers.depth_tx` updated before submission. */
-  GPUTexture *renderbuf_depth_view_ = nullptr;
+  gpu::Texture *renderbuf_depth_view_ = nullptr;
 
   /** Copy of the scene options to avoid changing parameters during motion blur. */
   RaytraceEEVEE ray_tracing_options_;
@@ -233,7 +238,7 @@ class RayTraceModule {
   RayTraceData &data_;
 
  public:
-  RayTraceModule(Instance &inst, RayTraceData &data) : inst_(inst), data_(data){};
+  RayTraceModule(Instance &inst, RayTraceData &data) : inst_(inst), data_(data) {};
 
   void init();
 
@@ -256,7 +261,7 @@ class RayTraceModule {
    * \arg force_no_tracing will run the pipeline without any tracing, relying only on local probes.
    */
   RayTraceResult render(RayTraceBuffer &rt_buffer,
-                        GPUTexture *screen_radiance_back_tx,
+                        gpu::Texture *screen_radiance_back_tx,
                         eClosureBits active_closures,
                         /* TODO(fclem): Maybe wrap these two in some other class. */
                         View &main_view,
@@ -273,7 +278,7 @@ class RayTraceModule {
   RayTraceResult alloc_dummy(RayTraceBuffer &rt_buffer);
 
   void debug_pass_sync();
-  void debug_draw(View &view, GPUFrameBuffer *view_fb);
+  void debug_draw(View &view, gpu::FrameBuffer *view_fb);
 
   bool use_raytracing() const
   {
@@ -282,7 +287,7 @@ class RayTraceModule {
 
   bool use_fast_gi() const
   {
-    return use_raytracing() && ray_tracing_options_.trace_max_roughness >= 1.0f;
+    return use_raytracing() && ray_tracing_options_.trace_max_roughness < 1.0f;
   }
 
  private:

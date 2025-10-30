@@ -22,7 +22,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -596,7 +596,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
         dst_attributes.lookup_or_add_for_write_span<float>(
             "radius",
             bke::AttrDomain::Point,
-            bke::AttributeInitVArray(VArray<float>::ForSingle(0.01f, dst_point_num)));
+            bke::AttributeInitVArray(VArray<float>::from_single(0.01f, dst_point_num)));
     const IndexRange all_new_points = keep_original ?
                                           IndexRange(src_curves.point_num,
                                                      dst_point_num - src_curves.point_num) :
@@ -609,7 +609,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
             dst_attributes.lookup_or_add_for_write_span<float>(
                 "opacity",
                 bke::AttrDomain::Point,
-                bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, dst_point_num))))
+                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, dst_point_num))))
     {
       for (const int point_i : all_new_points) {
         opacity_writer.span[point_i] *= info.strength;
@@ -685,7 +685,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   const GreasePencilEnvelopeModifierMode mode = GreasePencilEnvelopeModifierMode(
       RNA_enum_get(ptr, "mode"));
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

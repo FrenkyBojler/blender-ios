@@ -5,7 +5,7 @@
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_scene_types.h"
@@ -20,6 +20,7 @@
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
 #include "BKE_report.hh"
@@ -32,7 +33,6 @@
 #include "RNA_define.hh"
 
 #include "ED_asset.hh"
-#include "ED_asset_handle.hh"
 #include "ED_asset_library.hh"
 #include "ED_asset_list.hh"
 #include "ED_asset_mark_clear.hh"
@@ -77,8 +77,8 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
   if (use_toggle) {
     BLI_assert(paint->brush_asset_reference);
     if (brush_asset_reference == *paint->brush_asset_reference) {
-      if (paint->runtime.previous_active_brush_reference != nullptr) {
-        brush_asset_reference = *paint->runtime.previous_active_brush_reference;
+      if (paint->runtime->previous_active_brush_reference != nullptr) {
+        brush_asset_reference = *paint->runtime->previous_active_brush_reference;
       }
     }
     else {
@@ -154,12 +154,18 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
 
   /* Determine file path to save to. */
   PropertyRNA *name_prop = RNA_struct_find_property(op->ptr, "name");
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * This `name` should be `MAX_ID_NAME - 2` long.
+   *
+   * This name might also be used as filename for the saved asset, thus hitting the size issue
+   * between ID names and file names (FILE_MAXFILE). */
   char name[MAX_NAME] = "";
   if (RNA_property_is_set(op->ptr, name_prop)) {
     RNA_property_string_get(op->ptr, name_prop, name);
   }
   if (name[0] == '\0') {
-    STRNCPY(name, brush->id.name + 2);
+    STRNCPY_UTF8(name, brush->id.name + 2);
   }
 
   const eAssetLibraryType enum_value = (eAssetLibraryType)RNA_enum_get(op->ptr,
@@ -689,7 +695,7 @@ static bool brush_asset_save_poll(bContext *C)
     return false;
   }
 
-  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+  if (library_ref->type == ASSET_LIBRARY_LOCAL) {
     CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be individually saved");
     return false;
   }
@@ -751,7 +757,7 @@ static bool brush_asset_revert_poll(bContext *C)
     BLI_assert_unreachable();
     return false;
   }
-  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+  if (library_ref->type == ASSET_LIBRARY_LOCAL) {
     CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be reverted");
     return false;
   }

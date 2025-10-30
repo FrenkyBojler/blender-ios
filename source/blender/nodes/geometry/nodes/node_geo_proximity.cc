@@ -12,7 +12,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -25,7 +25,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry", "Target")
       .only_realized_data()
-      .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud});
+      .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud})
+      .description("Geometry to find the closest point on");
   b.add_input<decl::Int>("Group ID")
       .hide_value()
       .field_on_all()
@@ -34,7 +35,10 @@ static void node_declare(NodeDeclarationBuilder &b)
           "individually");
   b.add_input<decl::Vector>("Sample Position", "Source Position")
       .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  b.add_input<decl::Int>("Sample Group ID").hide_value().supports_field();
+  b.add_input<decl::Int>("Sample Group ID")
+      .hide_value()
+      .supports_field()
+      .structure_type(StructureType::Dynamic);
   b.add_output<decl::Vector>("Position").dependent_field({2, 3}).reference_pass_all();
   b.add_output<decl::Float>("Distance").dependent_field({2, 3}).reference_pass_all();
   b.add_output<decl::Bool>("Is Valid")
@@ -246,6 +250,13 @@ class ProximityFunction : public mf::MultiFunction {
       }
     });
   }
+
+  ExecutionHints get_execution_hints() const override
+  {
+    ExecutionHints hints;
+    hints.min_grain_size = 512;
+    return hints;
+  }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -259,18 +270,32 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const NodeGeometryProximity &storage = node_storage(params.node());
+  const auto target_type = GeometryNodeProximityTargetType(storage.target_element);
+
   Field<int> group_id_field = params.extract_input<Field<int>>("Group ID");
-  Field<float3> position_field = params.extract_input<Field<float3>>("Source Position");
-  Field<int> sample_id_field = params.extract_input<Field<int>>("Sample Group ID");
+  auto sample_position = params.extract_input<bke::SocketValueVariant>("Source Position");
+  auto sample_group_id = params.extract_input<bke::SocketValueVariant>("Sample Group ID");
 
-  auto proximity_fn = std::make_unique<ProximityFunction>(
-      std::move(target), GeometryNodeProximityTargetType(storage.target_element), group_id_field);
-  auto proximity_op = FieldOperation::Create(
-      std::move(proximity_fn), {std::move(position_field), std::move(sample_id_field)});
+  std::string error_message;
+  bke::SocketValueVariant position;
+  bke::SocketValueVariant distance;
+  bke::SocketValueVariant is_valid;
+  if (!execute_multi_function_on_value_variant(
+          std::make_shared<ProximityFunction>(
+              std::move(target), target_type, std::move(group_id_field)),
+          {&sample_position, &sample_group_id},
+          {&position, &distance, &is_valid},
+          params.user_data(),
+          error_message))
+  {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
 
-  params.set_output("Position", Field<float3>(proximity_op, 0));
-  params.set_output("Distance", Field<float>(proximity_op, 1));
-  params.set_output("Is Valid", Field<bool>(proximity_op, 2));
+  params.set_output("Position", std::move(position));
+  params.set_output("Distance", std::move(distance));
+  params.set_output("Is Valid", std::move(is_valid));
 }
 
 static void node_rna(StructRNA *srna)

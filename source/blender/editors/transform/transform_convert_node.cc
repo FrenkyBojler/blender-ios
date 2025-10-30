@@ -74,7 +74,6 @@ static void create_transform_data_for_node(TransData &td,
   memset(td.axismtx, 0, sizeof(td.axismtx));
   td.axismtx[2][2] = 1.0f;
 
-  td.ext = nullptr;
   td.val = nullptr;
 
   td.flag = TD_SELECTED;
@@ -108,7 +107,7 @@ static bool transform_tied_to_other_node(bNode *node, VectorSet<bNode *> transfo
   if (node->is_frame()) {
     const NodeFrame *data = static_cast<const NodeFrame *>(node->storage);
     const bool shrinking = data->flag & NODE_FRAME_SHRINK;
-    const bool is_parent = !(node->direct_children_in_frame().is_empty());
+    const bool is_parent = !node->direct_children_in_frame().is_empty();
 
     if (is_parent && shrinking) {
       return true;
@@ -232,8 +231,9 @@ static void node_snap_grid_apply(TransInfo *t)
         continue;
       }
 
-      /* Nodes are snapped to the grid by first aligning their inital position to the grid and then
-       * offsetting them in grid increments.
+      /* Nodes are snapped to the grid by first aligning their initial position to the grid and
+       * then offsetting them in grid increments.
+       *
        * This ensures that multiple unsnapped nodes snap to the grid in sync while moving.
        */
 
@@ -319,7 +319,8 @@ static void flushTransNodes(TransInfo *t)
       nodes_to_detach.append(node);
     }
     if (nodes_to_detach.is_empty()) {
-      WM_operator_name_call(t->context, "NODE_OT_attach", WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+      WM_operator_name_call(
+          t->context, "NODE_OT_attach", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
     }
     else {
       for (bNode *node : nodes_to_detach) {
@@ -406,7 +407,7 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 

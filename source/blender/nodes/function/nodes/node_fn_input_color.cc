@@ -7,6 +7,7 @@
 #include "BLI_math_vector.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_fn_input_color_cc {
@@ -14,8 +15,8 @@ namespace blender::nodes::node_fn_input_color_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Color>("Color").custom_draw([](CustomSocketDrawParams &params) {
-    uiLayoutSetAlignment(&params.layout, UI_LAYOUT_ALIGN_EXPAND);
-    uiLayout &col = params.layout.column(true);
+    params.layout.alignment_set(ui::LayoutAlign::Expand);
+    uiLayout &col = params.layout.column(false);
     uiTemplateColorPicker(&col, &params.node_ptr, "value", true, false, false, true);
     col.prop(&params.node_ptr, "value", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
@@ -42,6 +43,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeInputColor", FN_NODE_INPUT_COLOR);
   ntype.ui_name = "Color";
+  ntype.ui_description = "Output a color value chosen with the color picker widget";
   ntype.enum_name_legacy = "INPUT_COLOR";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;

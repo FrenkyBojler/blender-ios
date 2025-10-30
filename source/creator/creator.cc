@@ -28,7 +28,9 @@
 
 #include "DNA_genfile.h"
 
+#include "BLI_endian_defines.h"
 #include "BLI_fftw.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
@@ -68,6 +70,8 @@
 
 #include "ED_datafiles.h"
 
+#include "SEQ_modifier.hh"
+
 #include "WM_api.hh"
 
 #include "RNA_define.hh"
@@ -92,11 +96,15 @@
 
 #ifdef WITH_LIBMV
 #  include "libmv-capi.h"
-#elif defined(WITH_CYCLES_LOGGING)
+#endif
+
+#ifdef WITH_CYCLES
 #  include "CCL_api.h"
 #endif
 
 #include "creator_intern.h" /* Own include. */
+
+BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
 
 /* -------------------------------------------------------------------- */
 /** \name Local Defines
@@ -191,8 +199,7 @@ static void callback_main_atexit(void *user_data)
   if (CreatorAtExitData_EarlyExit *early_exit = app_init_data->early_exit) {
     CTX_free(early_exit->C);
 
-    RE_texture_rng_exit();
-    BKE_brush_system_exit();
+    DEG_free_node_types();
 
     BKE_blender_globals_clear();
     BKE_appdir_exit();
@@ -271,6 +278,16 @@ void gmp_blender_init_allocator()
 }
 #endif
 
+static void restore_ld_preload()
+{
+  /* LD_PRELOAD may have been modified on startup for Blender. However
+   * we don't want it for other executables launched from Blender. */
+  const char *restore_ld_preload = BLI_getenv("BLENDER_RESTORE_LD_PRELOAD");
+  if (restore_ld_preload) {
+    BLI_setenv("LD_PRELOAD", restore_ld_preload);
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -316,6 +333,8 @@ int main(int argc,
 #ifndef NDEBUG
   setvbuf(stdout, nullptr, _IONBF, 0);
 #endif
+
+  restore_ld_preload();
 
 #ifdef WIN32
 #  ifdef USE_WIN32_UNICODE_ARGS
@@ -382,6 +401,10 @@ int main(int argc,
 
   /* Initialize logging. */
   CLG_init();
+  CLG_output_use_timestamp_set(true);
+  CLG_output_use_memory_set(false);
+  CLG_output_use_source_set(false);
+  CLG_output_use_basename_set(false);
   CLG_fatal_fn_set(callback_clg_fatal);
 
   C = CTX_create();
@@ -403,8 +426,6 @@ int main(int argc,
 
 #ifdef WITH_LIBMV
   libmv_initLogging(argv[0]);
-#elif defined(WITH_CYCLES_LOGGING)
-  CCL_init_logging(argv[0]);
 #endif
 
 #if defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG) && defined(WITH_GMP)
@@ -443,12 +464,10 @@ int main(int argc,
   BKE_cpp_types_init();
   BKE_idtype_init();
   BKE_modifier_init();
+  blender::seq::modifiers_init();
   BKE_shaderfx_init();
   BKE_volumes_init();
   DEG_register_node_types();
-
-  BKE_brush_system_init();
-  RE_texture_rng_init();
 
   BKE_callback_global_init();
 
@@ -497,6 +516,10 @@ int main(int argc,
   /* Continue with regular initialization, no need to use "early" exit. */
   app_init_data.early_exit = nullptr;
 
+#ifdef WITH_CYCLES
+  CCL_log_init();
+#endif
+
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
   IMB_init();
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
@@ -505,8 +528,11 @@ int main(int argc,
   /* After #ARG_PASS_SETTINGS arguments, this is so #WM_main_playanim skips #RNA_init. */
   RNA_init();
 
+  RE_texture_rng_init();
   RE_engines_init();
   blender::bke::node_system_init();
+
+  BKE_brush_system_init();
   BKE_particle_init_rng();
   /* End second initialization. */
 
@@ -540,9 +566,11 @@ int main(int argc,
   WM_init(C, argc, argv);
 
 #ifndef WITH_PYTHON
-  printf(
-      "\n* WARNING * - Blender compiled without Python!\n"
-      "this is not intended for typical usage\n\n");
+  fprintf(stderr,
+          "\n"
+          "WARNING: Blender compiled without Python!\n"
+          "This is not intended for typical usage.\n"
+          "\n");
 #endif
 
 #ifdef WITH_FREESTYLE

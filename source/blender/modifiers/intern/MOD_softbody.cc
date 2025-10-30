@@ -13,7 +13,7 @@
 
 #include "BKE_softbody.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
@@ -36,7 +36,7 @@ static void deform_verts(ModifierData * /*md*/,
                scene,
                ctx->object,
                DEG_get_ctime(ctx->depsgraph),
-               reinterpret_cast<float(*)[3]>(positions.data()),
+               reinterpret_cast<float (*)[3]>(positions.data()),
                positions.size());
 }
 
@@ -113,4 +113,5 @@ ModifierTypeInfo modifierType_Softbody = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

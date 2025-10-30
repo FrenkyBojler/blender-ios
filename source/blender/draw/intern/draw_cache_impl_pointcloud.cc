@@ -84,13 +84,6 @@ struct PointCloudBatchCache {
 
   /* settings to determine if cache is invalid */
   bool is_dirty;
-
-  /**
-   * The draw cache extraction is currently not multi-threaded for multiple objects, but if it was,
-   * some locking would be necessary because multiple objects can use the same object data with
-   * different materials, etc. This is a placeholder to make multi-threading easier in the future.
-   */
-  Mutex render_mutex;
 };
 
 static PointCloudBatchCache *pointcloud_batch_cache_get(PointCloud &pointcloud)
@@ -244,6 +237,17 @@ static void pointcloud_extract_indices(const PointCloud &pointcloud, PointCloudB
   uint32_t primitive_len = pointcloud.totpoint * tri_count_per_point;
 
   GPUIndexBufBuilder builder;
+
+  /* Max allowed points to ensure the size of the index buffer will not overflow.
+   * NOTE: pointcloud.totpoint is an int we assume that we can safely use 31 bits. */
+  const uint32_t max_totpoint = INT32_MAX / uint32_t(tri_count_per_point *
+                                                     GPU_indexbuf_primitive_len(GPU_PRIM_TRIS));
+  if (pointcloud.totpoint > max_totpoint) {
+    GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, 0, 0);
+    GPU_indexbuf_build_in_place_ex(&builder, 0, 0, false, cache.eval_cache.geom_indices);
+    return;
+  }
+
   GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, primitive_len, vertid_max);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
@@ -367,9 +371,9 @@ gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
     for (const int i : IndexRange(GPU_MAX_ATTR)) {
       GPU_VERTBUF_DISCARD_SAFE(cache->eval_cache.attributes_buf[i]);
     }
-    drw_attributes_merge(&cache->eval_cache.attr_used, &attrs_needed, cache->render_mutex);
+    drw_attributes_merge(&cache->eval_cache.attr_used, &attrs_needed);
   }
-  drw_attributes_merge(&cache->eval_cache.attr_used_over_time, &attrs_needed, cache->render_mutex);
+  drw_attributes_merge(&cache->eval_cache.attr_used_over_time, &attrs_needed);
 
   DRW_batch_request(&cache->eval_cache.surface_per_mat[0]);
   return cache->eval_cache.surface_per_mat;
@@ -411,7 +415,7 @@ gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, const 
   {
     VectorSet<std::string> requests{};
     drw_attributes_add_request(&requests, name);
-    drw_attributes_merge(&cache.eval_cache.attr_used, &requests, cache.render_mutex);
+    drw_attributes_merge(&cache.eval_cache.attr_used, &requests);
   }
 
   int request_i = -1;

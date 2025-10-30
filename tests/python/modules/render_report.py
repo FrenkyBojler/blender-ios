@@ -9,6 +9,7 @@ a HTML report showing the differences, for regression testing.
 
 import glob
 import os
+import sys
 import pathlib
 import shutil
 import subprocess
@@ -158,7 +159,7 @@ def diff_output(test, oiiotool, fail_threshold, fail_percent, verbose, update):
     try:
         subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        if self.verbose:
+        if verbose:
             msg = e.output.decode("utf-8", 'ignore')
             for line in msg.splitlines():
                 # Ignore warnings for images without alpha channel.
@@ -171,6 +172,25 @@ def diff_output(test, oiiotool, fail_threshold, fail_percent, verbose, update):
         test.error = None
 
     return test
+
+
+def get_gpu_device_vendor(blender):
+    command = [
+        blender,
+        "--background",
+        "--factory-startup",
+        "--python",
+        str(pathlib.Path(__file__).parent / "gpu_info.py")
+    ]
+    try:
+        completed_process = subprocess.run(command, stdout=subprocess.PIPE, universal_newlines=True)
+        for line in completed_process.stdout.splitlines():
+            if line.startswith("GPU_DEVICE_TYPE:"):
+                vendor = line.split(':')[1].upper()
+                return vendor
+    except Exception:
+        return None
+    return None
 
 
 class Report:
@@ -343,7 +363,7 @@ class Report:
             message += """<p><tt>BLENDER_TEST_UPDATE=1 ctest -R %s</tt></p>""" % self.engine_name
             message += """<p>This then happens for new and failing tests; reference images of """ \
                        """passing test cases will not be updated. Be sure to commit the new reference """ \
-                       """images to the tests/files git submodule afterwards.</p>"""
+                       """images under the tests/files folder afterwards.</p>"""
             message += """</div>"""
         else:
             message = ""
@@ -502,30 +522,46 @@ class Report:
 
         remaining_filepaths = filepaths[:]
         test_results = []
+        arguments_suffix = self._get_arguments_suffix()
 
         while len(remaining_filepaths) > 0:
             command = [blender]
             running_tests = []
 
+            # On Windows, there is a maximum length of 32,767 characters (including the terminating null character)
+            # for process command line commands, see:
+            # https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
+            command_line_length = len(blender)
+            for suffix in arguments_suffix:
+                # Add 3 for taking into account spaces and quotation marks potentially added by Python.
+                command_line_length += len(suffix) + 3
+
             # Construct output filepaths and command to run
             for filepath in remaining_filepaths:
-                running_tests.append(filepath)
-
                 testname = test_get_name(filepath)
-                print_message(testname, 'SUCCESS', 'RUN')
 
                 base_output_filepath = os.path.join(self.output_dir, "tmp_" + testname)
+                command_filepath = self._get_render_arguments(arguments_cb, filepath, base_output_filepath)
+
+                # Check if we have surpassed the command line limit.
+                for cmd in command_filepath:
+                    command_line_length += len(cmd) + 3
+                if sys.platform == 'win32' and command_line_length > 32766 and len(running_tests) > 0:
+                    break
+
+                print_message(testname, 'SUCCESS', 'RUN')
+                running_tests.append(filepath)
+                command.extend(command_filepath)
+
                 output_filepath = base_output_filepath + '0001.png'
                 if os.path.exists(output_filepath):
                     os.remove(output_filepath)
-
-                command.extend(self._get_render_arguments(arguments_cb, filepath, base_output_filepath))
 
                 # Only chain multiple commands for batch
                 if not batch:
                     break
 
-            command.extend(self._get_arguments_suffix())
+            command.extend(arguments_suffix)
 
             # Run process
             crash = False
@@ -550,6 +586,7 @@ class Report:
                 remaining_filepaths.pop(0)
                 file_crashed = False
                 for test in self._get_filepath_tests(filepath):
+                    self.postprocess_test(blender, test)
                     if not os.path.exists(test.tmp_out_img) or os.path.getsize(test.tmp_out_img) == 0:
                         if crash:
                             # In case of crash, stop after missing files and re-render remaining
@@ -588,6 +625,14 @@ class Report:
                 os.remove(test.tmp_out_img)
 
         return test_results
+
+    def postprocess_test(self, blender, test):
+        """
+        Post-process test result after the Blender has run.
+        For example, this function is where conversion from video to a still image suitable for image diffing.
+        """
+
+        pass
 
     def _run_all_tests(self, dirname, dirpath, blender, arguments_cb, batch, fail_silently):
         passed_tests = []

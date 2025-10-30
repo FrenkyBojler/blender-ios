@@ -14,6 +14,8 @@
 #include "vk_image_view.hh"
 #include "vk_memory.hh"
 
+#include "BLI_enum_flags.hh"
+
 namespace blender::gpu {
 
 class VKSampler;
@@ -26,10 +28,11 @@ enum class VKImageViewFlags {
   DEFAULT = 0,
   NO_SWIZZLING = 1 << 0,
 };
-ENUM_OPERATORS(VKImageViewFlags, VKImageViewFlags::NO_SWIZZLING)
+ENUM_OPERATORS(VKImageViewFlags)
 
 class VKTexture : public Texture {
   friend class VKDescriptorSetUpdator;
+  friend class VKContext;
 
   /**
    * Texture format how the texture is stored on the device.
@@ -37,7 +40,7 @@ class VKTexture : public Texture {
    * This can be a different format then #Texture.format_ in case the texture format isn't natively
    * supported by the device.
    */
-  eGPUTextureFormat device_format_ = (eGPUTextureFormat)-1;
+  TextureFormat device_format_ = TextureFormat::Invalid;
 
   /** When set the instance is considered to be a texture view from `source_texture_` */
   VKTexture *source_texture_ = nullptr;
@@ -60,12 +63,6 @@ class VKTexture : public Texture {
    */
   Vector<VKImageView> image_views_;
 
-  /* Last image layout of the texture. Frame-buffer and barriers can alter/require the actual
-   * layout to be changed. During this it requires to set the current layout in order to know which
-   * conversion should happen. #current_layout_ keep track of the layout so the correct conversion
-   * can be done. */
-  VkImageLayout current_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
-
   int layer_offset_ = 0;
   bool use_stencil_ = false;
 
@@ -83,15 +80,14 @@ class VKTexture : public Texture {
 
   virtual ~VKTexture() override;
 
-  void init(VkImage vk_image, VkImageLayout layout, eGPUTextureFormat texture_format);
-
   void generate_mipmap() override;
   void copy_to(Texture *tex) override;
   void copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect);
   void clear(eGPUDataFormat format, const void *data) override;
-  void clear_depth_stencil(const eGPUFrameBufferBits buffer,
+  void clear_depth_stencil(const GPUFrameBufferBits buffer,
                            float clear_depth,
-                           uint clear_stencil);
+                           uint clear_stencil,
+                           std::optional<int> layer);
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat format) override;
@@ -111,8 +107,6 @@ class VKTexture : public Texture {
                   eGPUDataFormat format,
                   GPUPixelBuffer *pixbuf) override;
 
-  /* TODO(fclem): Legacy. Should be removed at some point. */
-  uint gl_bindcode_get() const override;
   /**
    * Export the memory associated with this texture to be imported by a different
    * API/Process/Instance.
@@ -133,7 +127,7 @@ class VKTexture : public Texture {
   /**
    * Get the texture format how the texture is stored on the device.
    */
-  eGPUTextureFormat device_format_get() const
+  TextureFormat device_format_get() const
   {
     return device_format_;
   }
@@ -152,7 +146,12 @@ class VKTexture : public Texture {
  protected:
   bool init_internal() override;
   bool init_internal(VertBuf *vbo) override;
-  bool init_internal(GPUTexture *src, int mip_offset, int layer_offset, bool use_stencil) override;
+  bool init_internal(gpu::Texture *src,
+                     int mip_offset,
+                     int layer_offset,
+                     bool use_stencil) override;
+  /* Initialize VKTexture with a swapchain image. */
+  void init_swapchain(VkImage vk_image, TextureFormat gpu_format);
 
  private:
   /** Is this texture a view of another texture. */

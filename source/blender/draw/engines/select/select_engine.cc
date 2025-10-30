@@ -58,17 +58,19 @@ struct Instance : public DrawEngine {
   View view_edges = {"view_edges"};
   View view_verts = {"view_verts"};
 
+  UniformArrayBuffer<float4, 6> clip_planes_buf;
+
   const DRWContext *draw_ctx = nullptr;
 
  public:
   struct StaticData {
-    GPUFrameBuffer *framebuffer_select_id;
-    GPUTexture *texture_u32;
+    gpu::FrameBuffer *framebuffer_select_id;
+    blender::gpu::Texture *texture_u32;
 
     struct Shaders {
       /* Depth Pre Pass */
-      GPUShader *select_id_flat;
-      GPUShader *select_id_uniform;
+      gpu::Shader *select_id_flat;
+      gpu::Shader *select_id_uniform;
     } sh_data[GPU_SHADER_CFG_LEN];
 
     SELECTID_Context context;
@@ -89,9 +91,9 @@ struct Instance : public DrawEngine {
   {
     this->draw_ctx = DRW_context_get();
     StaticData &e_data = StaticData::get();
-    eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
-                                  GPU_SHADER_CFG_CLIPPED :
-                                  GPU_SHADER_CFG_DEFAULT;
+    GPUShaderConfig sh_cfg = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ?
+                                 GPU_SHADER_CFG_CLIPPED :
+                                 GPU_SHADER_CFG_DEFAULT;
 
     StaticData::Shaders *sh_data = &e_data.sh_data[sh_cfg];
 
@@ -109,9 +111,9 @@ struct Instance : public DrawEngine {
   void begin_sync() final
   {
     StaticData &e_data = StaticData::get();
-    eGPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
-                                  GPU_SHADER_CFG_CLIPPED :
-                                  GPU_SHADER_CFG_DEFAULT;
+    GPUShaderConfig sh_cfg = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ?
+                                 GPU_SHADER_CFG_CLIPPED :
+                                 GPU_SHADER_CFG_DEFAULT;
 
     StaticData::Shaders *sh = &e_data.sh_data[sh_cfg];
 
@@ -128,13 +130,26 @@ struct Instance : public DrawEngine {
     bool retopology_occlusion = RETOPOLOGY_ENABLED(draw_ctx->v3d) && !XRAY_ENABLED(draw_ctx->v3d);
     float retopology_offset = RETOPOLOGY_OFFSET(draw_ctx->v3d);
 
+    for (int i : IndexRange(6)) {
+      clip_planes_buf[i] = float4(0);
+    }
+
     /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity.
      */
     int clipping_plane_count = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ? 6 : 0;
+    int plane_len = min((RV3D_LOCK_FLAGS(draw_ctx->rv3d) & RV3D_BOXCLIP) ? 4 : 6,
+                        clipping_plane_count);
+
+    for (auto i : IndexRange(plane_len)) {
+      clip_planes_buf[i] = draw_ctx->rv3d->clip[i];
+    }
+
+    clip_planes_buf.push_update();
 
     {
       depth_only_ps.init();
       depth_only_ps.state_set(state, clipping_plane_count);
+      depth_only_ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, clip_planes_buf);
       depth_only = nullptr;
       depth_occlude = nullptr;
       {
@@ -154,6 +169,7 @@ struct Instance : public DrawEngine {
 
       select_face_ps.init();
       select_face_ps.state_set(state, clipping_plane_count);
+      select_face_ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, clip_planes_buf);
       select_face_uniform = nullptr;
       select_face_flat = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_FACE) {
@@ -171,6 +187,7 @@ struct Instance : public DrawEngine {
       }
 
       select_edge_ps.init();
+      select_edge_ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, clip_planes_buf);
       select_edge = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_EDGE) {
         auto &sub = select_edge_ps.sub("Sub");
@@ -181,6 +198,7 @@ struct Instance : public DrawEngine {
       }
 
       select_id_vert_ps.init();
+      select_id_vert_ps.bind_ubo(DRW_CLIPPING_UBO_SLOT, clip_planes_buf);
       select_vert = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
         const float vertex_size = U.pixelsize *
@@ -204,7 +222,8 @@ struct Instance : public DrawEngine {
   }
 
   ElemIndexRanges edit_mesh_sync(Object *ob,
-                                 ResourceHandle res_handle,
+                                 BMEditMesh *em,
+                                 ResourceHandleRange res_handle,
                                  short select_mode,
                                  bool draw_facedot,
                                  const uint initial_index)
@@ -212,7 +231,6 @@ struct Instance : public DrawEngine {
     using namespace blender::draw;
     using namespace blender;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
-    BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     ElemIndexRanges ranges{};
     ranges.total = IndexRange::from_begin_size(initial_index, 0);
@@ -264,7 +282,7 @@ struct Instance : public DrawEngine {
   }
 
   ElemIndexRanges mesh_sync(Object *ob,
-                            ResourceHandle res_handle,
+                            ResourceHandleRange res_handle,
                             short select_mode,
                             const uint initial_index)
   {
@@ -307,16 +325,22 @@ struct Instance : public DrawEngine {
   }
 
   ElemIndexRanges object_sync(
-      View3D *v3d, Object *ob, ResourceHandle res_handle, short select_mode, uint index_start)
+      View3D *v3d, Object *ob, ResourceHandleRange res_handle, short select_mode, uint index_start)
   {
     BLI_assert_msg(index_start > 0, "Index 0 is reserved for no selection");
 
     switch (ob->type) {
       case OB_MESH: {
-        const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
-        if (mesh.runtime->edit_mesh) {
+        const bool is_editmode = ob->mode == OB_MODE_EDIT;
+        /* NOTE: it's important to get the edit-mesh before modifiers have been applied
+         * because the evaluated mesh may not have an edit-mesh, see #138715.
+         * Match edit-mesh access from #mesh_render_data_create. */
+        const Mesh *orig_edit_mesh = is_editmode ? BKE_object_get_pre_modified_mesh(ob) : nullptr;
+        BMEditMesh *em = (orig_edit_mesh) ? orig_edit_mesh->runtime->edit_mesh.get() : nullptr;
+
+        if (em) {
           bool draw_facedot = check_ob_drawface_dot(select_mode, v3d, eDrawType(ob->dt));
-          return edit_mesh_sync(ob, res_handle, select_mode, draw_facedot, index_start);
+          return edit_mesh_sync(ob, em, res_handle, select_mode, draw_facedot, index_start);
         }
         return mesh_sync(ob, res_handle, select_mode, index_start);
       }
@@ -334,20 +358,22 @@ struct Instance : public DrawEngine {
     StaticData &e_data = StaticData::get();
     SELECTID_Context &sel_ctx = e_data.context;
 
-    if (!sel_ctx.objects.contains(ob) && ob->dt >= OB_SOLID) {
-      /* This object is not selectable. It is here to participate in occlusion.
-       * This is the case in retopology mode. */
-      blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
-          DRW_object_get_data_for_drawing<Mesh>(*ob));
+    if (!sel_ctx.objects.contains(ob)) {
+      if (ob->dt >= OB_SOLID) {
+        /* This object is not selectable. It is here to participate in occlusion.
+         * This is the case in retopology mode. */
+        blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
+            DRW_object_get_data_for_drawing<Mesh>(*ob));
 
-      depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
+        depth_occlude->draw(geom_faces, manager.unique_handle(ob_ref));
+      }
       return;
     }
 
     /* Only sync selectable object once.
      * This can happen in retopology mode where there is two sync loop. */
     sel_ctx.elem_ranges.lookup_or_add_cb(ob, [&]() {
-      ResourceHandle res_handle = manager.resource_handle(ob_ref);
+      ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
       ElemIndexRanges elem_ranges = object_sync(
           draw_ctx->v3d, ob, res_handle, sel_ctx.select_mode, sel_ctx.max_index_drawn_len);
       sel_ctx.max_index_drawn_len = elem_ranges.total.one_after_last();
@@ -420,7 +446,7 @@ struct Instance : public DrawEngine {
     if (e_data.texture_u32 == nullptr) {
       eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
       e_data.texture_u32 = GPU_texture_create_2d(
-          "select_buf_ids", size[0], size[1], 1, GPU_R32UI, usage, nullptr);
+          "select_buf_ids", size[0], size[1], 1, gpu::TextureFormat::UINT_32, usage, nullptr);
       GPU_framebuffer_texture_attach(e_data.framebuffer_select_id, e_data.texture_u32, 0, 0);
 
       GPU_framebuffer_check_valid(e_data.framebuffer_select_id, nullptr);
@@ -429,7 +455,7 @@ struct Instance : public DrawEngine {
 
   short get_object_select_mode(Scene *scene, Object *ob)
   {
-    short r_select_mode = 0;
+    short select_mode = 0;
     if (ob->mode & (OB_MODE_WEIGHT_PAINT | OB_MODE_VERTEX_PAINT | OB_MODE_TEXTURE_PAINT)) {
       /* In order to sample flat colors for vertex weights / texture-paint / vertex-paint
        * we need to be in SCE_SELECT_FACE mode so select_cache_init() correctly sets up
@@ -439,17 +465,17 @@ struct Instance : public DrawEngine {
        * So OB_MODE_VERTEX_PAINT is already included here [required for P1032 I guess]. */
       Mesh *me_orig = static_cast<Mesh *>(DEG_get_original(ob)->data);
       if (me_orig->editflag & ME_EDIT_PAINT_VERT_SEL) {
-        r_select_mode = SCE_SELECT_VERTEX;
+        select_mode = SCE_SELECT_VERTEX;
       }
       else {
-        r_select_mode = SCE_SELECT_FACE;
+        select_mode = SCE_SELECT_FACE;
       }
     }
     else {
-      r_select_mode = scene->toolsettings->selectmode;
+      select_mode = scene->toolsettings->selectmode;
     }
 
-    return r_select_mode;
+    return select_mode;
   }
 
   bool check_ob_drawface_dot(short select_mode, const View3D *v3d, eDrawType dt)
@@ -509,13 +535,13 @@ SELECTID_Context *DRW_select_engine_context_get()
   return &e_data.context;
 }
 
-GPUFrameBuffer *DRW_engine_select_framebuffer_get()
+blender::gpu::FrameBuffer *DRW_engine_select_framebuffer_get()
 {
   Instance::StaticData &e_data = Instance::StaticData::get();
   return e_data.framebuffer_select_id;
 }
 
-GPUTexture *DRW_engine_select_texture_get()
+blender::gpu::Texture *DRW_engine_select_texture_get()
 {
   Instance::StaticData &e_data = Instance::StaticData::get();
   return e_data.texture_u32;

@@ -34,12 +34,6 @@ void register_node_tree_type_cmp();
 void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype);
 
 void node_cmp_rlayers_outputs(bNodeTree *ntree, bNode *node);
-void node_cmp_rlayers_register_pass(bNodeTree *ntree,
-                                    bNode *node,
-                                    Scene *scene,
-                                    ViewLayer *view_layer,
-                                    const char *name,
-                                    eNodeSocketDatatype type);
 const char *node_cmp_rlayers_sock_to_pass(int sock_index);
 
 /**
@@ -63,24 +57,6 @@ void ntreeCompositUpdateRLayers(bNodeTree *ntree);
 
 void ntreeCompositClearTags(bNodeTree *ntree);
 
-bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
-                                              bNode *node,
-                                              const char *name,
-                                              const ImageFormatData *im_format);
-
-int ntreeCompositOutputFileRemoveActiveSocket(bNodeTree *ntree, bNode *node);
-void ntreeCompositOutputFileSetPath(bNode *node, bNodeSocket *sock, const char *name);
-void ntreeCompositOutputFileSetLayer(bNode *node, bNodeSocket *sock, const char *name);
-/* needed in do_versions */
-void ntreeCompositOutputFileUniquePath(ListBase *list,
-                                       bNodeSocket *sock,
-                                       const char defname[],
-                                       char delim);
-void ntreeCompositOutputFileUniqueLayer(ListBase *list,
-                                        bNodeSocket *sock,
-                                        const char defname[],
-                                        char delim);
-
 void ntreeCompositCryptomatteSyncFromAdd(bNode *node);
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node);
 bNodeSocket *ntreeCompositCryptomatteAddSocket(bNodeTree *ntree, bNode *node);
@@ -98,5 +74,9 @@ namespace blender::nodes {
 
 compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
                                                                 DNode node);
+compositor::NodeOperation *get_group_output_compositor_operation(compositor::Context &context,
+                                                                 DNode node);
+void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfoParams &parameters);
+void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &parameters);
 
-}
+}  // namespace blender::nodes

@@ -20,10 +20,11 @@
 
 #include "BKE_deform.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -69,7 +70,7 @@ static void smoothModifier_do(
     return;
   }
 
-  float(*accumulated_vecs)[3] = MEM_calloc_arrayN<float[3]>(verts_num, __func__);
+  float (*accumulated_vecs)[3] = MEM_calloc_arrayN<float[3]>(verts_num, __func__);
   if (!accumulated_vecs) {
     return;
   }
@@ -171,7 +172,7 @@ static void deform_verts(ModifierData *md,
 {
   SmoothModifierData *smd = (SmoothModifierData *)md;
   smoothModifier_do(
-      smd, ctx->object, mesh, reinterpret_cast<float(*)[3]>(positions.data()), positions.size());
+      smd, ctx->object, mesh, reinterpret_cast<float (*)[3]>(positions.data()), positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -183,7 +184,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   row = &layout->row(true, IFACE_("Axis"));
   row->prop(ptr, "use_x", toggles_flag, std::nullopt, ICON_NONE);
@@ -238,4 +239,5 @@ ModifierTypeInfo modifierType_Smooth = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

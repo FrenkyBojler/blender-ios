@@ -9,6 +9,7 @@
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLO_read_write.hh"
@@ -21,10 +22,16 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_output<decl::String>("String").custom_draw([](CustomSocketDrawParams &params) {
-    uiLayoutSetAlignment(&params.layout, UI_LAYOUT_ALIGN_EXPAND);
+    params.layout.alignment_set(ui::LayoutAlign::Expand);
     PropertyRNA *prop = RNA_struct_find_property(&params.node_ptr, "string");
-    params.layout.prop(
-        &params.node_ptr, prop, -1, 0, UI_ITEM_NONE, "", ICON_NONE, IFACE_("String"));
+    params.layout.prop(&params.node_ptr,
+                       prop,
+                       -1,
+                       0,
+                       UI_ITEM_R_SPLIT_EMPTY_NAME,
+                       "",
+                       ICON_NONE,
+                       IFACE_("String"));
   });
 }
 
@@ -83,6 +90,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (type != SOCK_STRING) {
     return;
   }
+  if (params.other_socket().in_out == SOCK_OUT) {
+    return;
+  }
 
   params.add_item(IFACE_("String"), [](LinkSearchOpParams &params) {
     bNode &node = params.add_node("FunctionNodeInputString");
@@ -103,6 +113,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeInputString", FN_NODE_INPUT_STRING);
   ntype.ui_name = "String";
+  ntype.ui_description = "Provide a string value that can be connected to other nodes in the tree";
   ntype.enum_name_legacy = "INPUT_STRING";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;

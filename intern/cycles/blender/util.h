@@ -19,7 +19,9 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_view3d_types.h"
 
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.h"
@@ -499,14 +501,7 @@ static inline void set_enum(PointerRNA &ptr, const char *name, const string &ide
 
 static inline string get_string(PointerRNA &ptr, const char *name)
 {
-  char cstrbuf[1024];
-  char *cstr = RNA_string_get_alloc(&ptr, name, cstrbuf, sizeof(cstrbuf), nullptr);
-  string str(cstr);
-  if (cstr != cstrbuf) {
-    MEM_freeN(cstr);
-  }
-
-  return str;
+  return RNA_string_get(&ptr, name);
 }
 
 static inline void set_string(PointerRNA &ptr, const char *name, const string &value)
@@ -672,17 +667,15 @@ static inline BL::MeshSequenceCacheModifier object_mesh_cache_find(BL::Object &b
 
 static BL::SubsurfModifier object_subdivision_modifier(BL::Object &b_ob, const bool preview)
 {
-  PointerRNA cobj = RNA_pointer_get(&b_ob.ptr, "cycles");
-
-  if (cobj.data && !b_ob.modifiers.empty()) {
+  if (!b_ob.modifiers.empty()) {
     BL::Modifier mod = b_ob.modifiers[b_ob.modifiers.length() - 1];
     const bool enabled = preview ? mod.show_viewport() : mod.show_render();
 
-    if (enabled && mod.type() == BL::Modifier::type_SUBSURF &&
-        RNA_boolean_get(&cobj, "use_adaptive_subdivision"))
-    {
+    if (enabled && mod.type() == BL::Modifier::type_SUBSURF) {
       BL::SubsurfModifier subsurf(mod);
-      return subsurf;
+      if (subsurf.use_adaptive_subdivision()) {
+        return subsurf;
+      }
     }
   }
 
@@ -810,6 +803,13 @@ static inline bool object_need_motion_attribute(BObjectInfo &b_ob_info, Scene *s
   /* Motion pass which implies 3 motion steps, or motion blur which is not disabled on object
    * level. */
   return true;
+}
+
+static inline bool region_view3d_navigating_or_transforming(const BL::RegionView3D &b_rv3d)
+{
+  ::RegionView3D *rv3d = static_cast<::RegionView3D *>(b_rv3d.ptr.data);
+  return rv3d && ((rv3d->rflag & (RV3D_NAVIGATING | RV3D_PAINTING)) ||
+                  (G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)));
 }
 
 class EdgeMap {

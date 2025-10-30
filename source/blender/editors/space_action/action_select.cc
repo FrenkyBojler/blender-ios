@@ -31,7 +31,6 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_nla.hh"
 
-#include "UI_interface.hh"
 #include "UI_view2d.hh"
 
 #include "ED_anim_api.hh"
@@ -1567,9 +1566,8 @@ static void actkeys_select_leftright(bAnimContext *ac,
   if (select_mode == SELECT_ADD) {
     SpaceAction *saction = (SpaceAction *)ac->sl;
 
-    if ((saction) && (saction->flag & SACTION_MARKERS_MOVE)) {
-      ListBase *markers = ED_animcontext_get_markers(ac);
-      LISTBASE_FOREACH (TimeMarker *, marker, markers) {
+    if (saction && ac->markers && (saction->flag & SACTION_MARKERS_MOVE)) {
+      LISTBASE_FOREACH (TimeMarker *, marker, ac->markers) {
         if (((leftright == ACTKEYS_LRSEL_LEFT) && (marker->frame < scene->r.cfra)) ||
             ((leftright == ACTKEYS_LRSEL_RIGHT) && (marker->frame >= scene->r.cfra)))
         {

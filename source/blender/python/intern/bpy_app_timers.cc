@@ -14,13 +14,12 @@
 
 #include "bpy_app_timers.hh"
 
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 static double handle_returned_value(PyObject *function, PyObject *ret)
 {
   if (ret == nullptr) {
     PyErr_PrintEx(0);
-    PyErr_Clear();
     return -1;
   }
 
@@ -69,7 +68,7 @@ static void py_timer_free(uintptr_t /*uuid*/, void *user_data)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_timers_register_doc,
-    ".. function:: register(function, first_interval=0, persistent=False)\n"
+    ".. function:: register(function, *, first_interval=0, persistent=False)\n"
     "\n"
     "   Add a new function that will be called after the specified amount of seconds.\n"
     "   The function gets no arguments and is expected to return either None or a float.\n"
@@ -129,7 +128,7 @@ PyDoc_STRVAR(
 static PyObject *bpy_app_timers_unregister(PyObject * /*self*/, PyObject *function)
 {
   if (!BLI_timer_unregister(intptr_t(function))) {
-    PyErr_SetString(PyExc_ValueError, "Error: function is not registered");
+    PyErr_SetString(PyExc_ValueError, "function is not registered");
     return nullptr;
   }
   Py_RETURN_NONE;

@@ -150,6 +150,9 @@ class GHOST_ISystem {
   static GHOST_TBacktraceFn getBacktraceFn();
   static void setBacktraceFn(GHOST_TBacktraceFn backtrace_fn);
 
+  static bool getUseWindowFrame();
+  static void setUseWindowFrame(bool use_window_frame);
+
  protected:
   /**
    * Constructor.
@@ -180,18 +183,20 @@ class GHOST_ISystem {
 
   /**
    * Installs a timer.
-   * Note that, on most operating systems, messages need to be processed in order
+   *
+   * \note On most operating systems, messages need to be processed in order
    * for the timer callbacks to be invoked.
-   * \param delay: The time to wait for the first call to the timerProc (in milliseconds).
-   * \param interval: The interval between calls to the timerProc (in milliseconds).
-   * \param timerProc: The callback invoked when the interval expires.
-   * \param userData: Placeholder for user data.
+   *
+   * \param delay: The time to wait for the first call to the #timer_proc (in milliseconds).
+   * \param interval: The interval between calls to the #timer_proc.
+   * \param timer_proc: The callback invoked when the interval expires.
+   * \param user_data: Placeholder for user data.
    * \return A timer task (0 if timer task installation failed).
    */
   virtual GHOST_ITimerTask *installTimer(uint64_t delay,
                                          uint64_t interval,
-                                         GHOST_TimerProcPtr timerProc,
-                                         GHOST_TUserDataPtr userData = nullptr) = 0;
+                                         GHOST_TimerProcPtr timer_proc,
+                                         GHOST_TUserDataPtr user_data = nullptr) = 0;
 
   /**
    * Removes a timer.
@@ -233,10 +238,10 @@ class GHOST_ISystem {
    * \param width: The width the window.
    * \param height: The height the window.
    * \param state: The state of the window when opened.
-   * \param gpuSettings: Misc GPU settings.
+   * \param gpu_settings: Misc GPU settings.
    * \param exclusive: Use to show the window on top and ignore others (used full-screen).
    * \param is_dialog: Stay on top of parent window, no icon in taskbar, can't be minimized.
-   * \param parentWindow: Parent (embedder) window
+   * \param parent_window: Parent (embedder) window
    * \return The new window (or 0 if creation failed).
    */
   virtual GHOST_IWindow *createWindow(const char *title,
@@ -245,10 +250,10 @@ class GHOST_ISystem {
                                       uint32_t width,
                                       uint32_t height,
                                       GHOST_TWindowState state,
-                                      GHOST_GPUSettings gpuSettings,
+                                      GHOST_GPUSettings gpu_settings,
                                       const bool exclusive = false,
                                       const bool is_dialog = false,
-                                      const GHOST_IWindow *parentWindow = nullptr) = 0;
+                                      const GHOST_IWindow *parent_window = nullptr) = 0;
 
   /**
    * Dispose a window.
@@ -262,7 +267,7 @@ class GHOST_ISystem {
    * Never explicitly delete the context, use #disposeContext() instead.
    * \return The new context (or 0 if creation failed).
    */
-  virtual GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings) = 0;
+  virtual GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpu_settings) = 0;
 
   /**
    * Dispose of a context.
@@ -280,6 +285,7 @@ class GHOST_ISystem {
 
   /**
    * Native pixel size support (MacBook 'retina').
+   * \return The pixel size in float.
    */
   virtual bool useNativePixel() = 0;
 
@@ -324,6 +330,7 @@ class GHOST_ISystem {
 
   /**
    * Retrieves events from the queue and send them to the event consumers.
+   * The event stack will be empty afterwards.
    */
   virtual void dispatchEvents() = 0;
 
@@ -373,6 +380,11 @@ class GHOST_ISystem {
   virtual GHOST_TSuccess getCursorPosition(int32_t &x, int32_t &y) const = 0;
 
   /**
+   * \return the size of the cursor in logical pixels (before Hi-DPI scaling is applied).
+   */
+  virtual uint32_t getCursorPreferredLogicalSize() const = 0;
+
+  /**
    * Updates the location of the cursor (location in screen coordinates).
    * Not all operating systems allow the cursor to be moved (without the input device being moved).
    * \param x: The x-coordinate of the cursor.
@@ -388,18 +400,18 @@ class GHOST_ISystem {
   /**
    * Returns the state of a modifier key (outside the message queue).
    * \param mask: The modifier key state to retrieve.
-   * \param isDown: The state of a modifier key (true == pressed).
+   * \param is_down: The state of a modifier key (true == pressed).
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess getModifierKeyState(GHOST_TModifierKey mask, bool &isDown) const = 0;
+  virtual GHOST_TSuccess getModifierKeyState(GHOST_TModifierKey mask, bool &is_down) const = 0;
 
   /**
    * Returns the state of a mouse button (outside the message queue).
    * \param mask: The button state to retrieve.
-   * \param isDown: Button state.
+   * \param is_down: Button state.
    * \return Indication of success.
    */
-  virtual GHOST_TSuccess getButtonState(GHOST_TButton mask, bool &isDown) const = 0;
+  virtual GHOST_TSuccess getButtonState(GHOST_TButton mask, bool &is_down) const = 0;
 
   /**
    * Enable multi-touch gestures if supported.
@@ -422,7 +434,7 @@ class GHOST_ISystem {
 
 #ifdef WITH_INPUT_NDOF
   /**
-   * Sets 3D mouse deadzone
+   * Sets 3D mouse dead-zone.
    * \param deadzone: Dead-zone of the 3D mouse (both for rotation and pan) relative to full range
    */
   virtual void setNDOFDeadZone(float deadzone) = 0;
@@ -440,13 +452,18 @@ class GHOST_ISystem {
    ***************************************************************************************/
 
   /**
-   * Returns the selection buffer
-   * \return "unsigned char" from X11 XA_CUT_BUFFER0 buffer
+   * Return the clipboard buffer or null.
+   *
+   * \param selection: Use the "primary" selection.
+   * Check the #GHOST_kCapabilityClipboardPrimary for backends that support this.
+   * \return Returns the clipboard data as a null terminated string or null when unavailable.
    */
   virtual char *getClipboard(bool selection) const = 0;
 
   /**
    * Put data to the Clipboard
+   * \param buffer: The buffer to copy to the clipboard.
+   * \param selection: The clipboard to copy too only used on X11.
    */
   virtual void putClipboard(const char *buffer, bool selection) const = 0;
 
@@ -521,11 +538,20 @@ class GHOST_ISystem {
   virtual GHOST_TSuccess exit() = 0;
 
   /** The one and only system */
-  static GHOST_ISystem *m_system;
-  static const char *m_system_backend_id;
+  static GHOST_ISystem *system_;
+  static const char *system_backend_id_;
 
   /** Function to call that sets the back-trace. */
-  static GHOST_TBacktraceFn m_backtrace_fn;
+  static GHOST_TBacktraceFn backtrace_fn_;
+
+  /**
+   * When false, don't use window frame.
+   *
+   * \note This needs to be set before system initialization
+   * to avoid loading LIBDECOR libraries (which can crash).
+   * If LIBDECOR is removed, this could be set on window creation instead.
+   */
+  static bool use_window_frame_;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystem")
 };

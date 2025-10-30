@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_anonymous_attribute_id.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_bake_items.hh"
 #include "BKE_bake_items_serialize.hh"
 #include "BKE_curves.hh"
@@ -15,11 +16,10 @@
 #include "BKE_volume.hh"
 
 #include "BLI_endian_defines.h"
-#include "BLI_endian_switch.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_object_types.h"
 #include "DNA_volume_types.h"
@@ -205,7 +205,7 @@ BlobSlice MemoryBlobWriter::write_as_stream(const StringRef file_extension,
   const int64_t size = stream.stream->tellp();
   stream_by_name_.add_new(name, std::move(stream));
   total_written_size_ += size;
-  return {base_name_, IndexRange(size)};
+  return {name, IndexRange(size)};
 }
 
 BlobWriteSharing::~BlobWriteSharing()
@@ -289,11 +289,9 @@ std::optional<ImplicitSharingInfoAndData> BlobReadSharing::read_shared(
 
 static StringRefNull get_endian_io_name(const int endian)
 {
-  if (endian == L_ENDIAN) {
-    return "little";
-  }
-  BLI_assert(endian == B_ENDIAN);
-  return "big";
+  BLI_assert(endian == L_ENDIAN);
+  UNUSED_VARS_NDEBUG(endian);
+  return "little";
 }
 
 static StringRefNull get_domain_io_name(const AttrDomain domain)
@@ -329,7 +327,7 @@ static std::optional<eCustomDataType> get_data_type_from_io_name(const StringRef
 }
 
 /**
- * Write the data and remember which endianness the data had.
+ * Write the data, always in little endian.
  */
 static std::shared_ptr<DictionaryValue> write_blob_raw_data_with_endian(
     BlobWriter &blob_writer,
@@ -338,14 +336,14 @@ static std::shared_ptr<DictionaryValue> write_blob_raw_data_with_endian(
     const int64_t size_in_bytes)
 {
   auto io_data = blob_sharing.write_deduplicated(blob_writer, data, size_in_bytes);
-  if (ENDIAN_ORDER == B_ENDIAN) {
-    io_data->append_str("endian", get_endian_io_name(ENDIAN_ORDER));
-  }
+  BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
   return io_data;
 }
 
 /**
- * Read data of an into an array and optionally perform an endian switch if necessary.
+ * Read data of an into an array.
+ *
+ * \returns True if successful, false if reading fails, or endian switch would be needed.
  */
 [[nodiscard]] static bool read_blob_raw_data_with_endian(const BlobReader &blob_reader,
                                                          const DictionaryValue &io_data,
@@ -367,21 +365,9 @@ static std::shared_ptr<DictionaryValue> write_blob_raw_data_with_endian(
   const StringRefNull current_endian = get_endian_io_name(ENDIAN_ORDER);
   const bool need_endian_switch = stored_endian != current_endian;
   if (need_endian_switch) {
-    switch (element_size) {
-      case 1:
-        break;
-      case 2:
-        BLI_endian_switch_uint16_array(static_cast<uint16_t *>(r_data), elements_num);
-        break;
-      case 4:
-        BLI_endian_switch_uint32_array(static_cast<uint32_t *>(r_data), elements_num);
-        break;
-      case 8:
-        BLI_endian_switch_uint64_array(static_cast<uint64_t *>(r_data), elements_num);
-        break;
-      default:
-        return false;
-    }
+    /* NOTE: this is endianness-sensitive. */
+    /* Blender only builds on little endian systems, and reads little endian data here. */
+    return false;
   }
   return true;
 }
@@ -578,7 +564,7 @@ template<typename T>
     if (attributes.contains(*name)) {
       /* If the attribute exists already, copy the values over to the existing array. */
       GSpanAttributeWriter attribute = attributes.lookup_or_add_for_write_only_span(
-          *name, *domain, *data_type);
+          *name, *domain, *custom_data_type_to_attr_type(*data_type));
       if (!attribute) {
         return false;
       }
@@ -589,7 +575,7 @@ template<typename T>
       /* Add a new attribute that shares the data. */
       if (!attributes.add(*name,
                           *domain,
-                          *data_type,
+                          *custom_data_type_to_attr_type(*data_type),
                           AttributeInitShared(attribute_data, *attribute_sharing_info)))
       {
         return false;
@@ -642,7 +628,7 @@ static std::optional<CurvesGeometry> try_load_curves_geometry(const DictionaryVa
   }
 
   CurvesGeometry curves;
-  CustomData_free_layer_named(&curves.point_data, "position");
+  curves.attribute_storage.wrap().remove("position");
   curves.point_num = io_curves.lookup_int("num_points").value_or(0);
   curves.curve_num = io_curves.lookup_int("num_curves").value_or(0);
 
@@ -869,7 +855,7 @@ static Mesh *try_load_mesh(const DictionaryValue &io_geometry,
         return cancel();
       }
       bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
-      STRNCPY(defgroup->name, value->as_string_value()->value().c_str());
+      STRNCPY_UTF8(defgroup->name, value->as_string_value()->value().c_str());
       BLI_addtail(&mesh->vertex_group_names, defgroup);
     }
   }
@@ -1065,7 +1051,8 @@ static std::shared_ptr<io::serialize::ArrayValue> serialize_attributes(
     const StringRefNull domain_name = get_domain_io_name(iter.domain);
     io_attribute->append_str("domain", domain_name);
 
-    const StringRefNull type_name = get_data_type_io_name(iter.data_type);
+    const StringRefNull type_name = get_data_type_io_name(
+        *attr_type_to_custom_data_type(iter.data_type));
     io_attribute->append_str("type", type_name);
 
     const GAttributeReader attribute = iter.get();
@@ -1510,14 +1497,14 @@ static void serialize_bake_item(const BakeItem &item,
     r_io_item.append_str("type", "BUNDLE");
     ArrayValue &io_items = *r_io_item.append_array("items");
     for (const BundleBakeItem::Item &item : bundle_state_item->items) {
-      DictionaryValue &io_bundle_item = *io_items.append_dict();
-      ArrayValue &io_key = *io_bundle_item.append_array("key");
-      for (const std::string &identifier : item.key.identifiers()) {
-        io_key.append_str(identifier);
+      if (const auto *socket_value = std::get_if<BundleBakeItem::SocketValue>(&item.value)) {
+        DictionaryValue &io_bundle_item = *io_items.append_dict();
+        io_bundle_item.append_str("key", item.key);
+        io_bundle_item.append_str("socket_idname", socket_value->socket_idname);
+        io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict(
+            "value");
+        serialize_bake_item(*socket_value->value, blob_writer, blob_sharing, io_bundle_item_value);
       }
-      io_bundle_item.append_str("socket_idname", item.socket_idname);
-      io::serialize::DictionaryValue &io_bundle_item_value = *io_bundle_item.append_dict("value");
-      serialize_bake_item(*item.value, blob_writer, blob_sharing, io_bundle_item_value);
     }
   }
 }
@@ -1616,17 +1603,9 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
       if (!io_item) {
         return {};
       }
-      const ArrayValue *io_key = io_item->lookup_array("key");
-      if (!io_key) {
+      const std::optional<std::string> key = io_item->lookup_str("key");
+      if (!key) {
         return {};
-      }
-      Vector<std::string> key;
-      for (const auto &io_key_value : io_key->elements()) {
-        const StringValue *io_key_string = io_key_value->as_string_value();
-        if (!io_key_string) {
-          return {};
-        }
-        key.append(io_key_string->value());
       }
       const std::optional<StringRefNull> socket_idname = io_item->lookup_str("socket_idname");
       if (!socket_idname) {
@@ -1639,7 +1618,7 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
         return {};
       }
       bundle->items.append(BundleBakeItem::Item{
-          nodes::SocketInterfaceKey{std::move(key)}, *socket_idname, std::move(value)});
+          *key, BundleBakeItem::SocketValue{*socket_idname, std::move(value)}});
     }
     return bundle;
   }

@@ -14,6 +14,7 @@
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
@@ -29,6 +30,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 
 #include "ED_image.hh"
@@ -36,11 +38,12 @@
 #include "ED_screen.hh"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
+#include "IMB_colormanagement.hh"
 
 #include "curves_sculpt_intern.hh"
 #include "paint_hide.hh"
@@ -50,7 +53,6 @@
 
 static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
   float scalar = RNA_float_get(op->ptr, "scalar");
@@ -60,9 +62,9 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
                                   brush->ob_mode == OB_MODE_PAINT_GREASE_PENCIL);
 
   if (brush) {
-    /* Pixel radius. */
+    /* Pixel diameter. */
     {
-      const int old_size = (use_unified_size) ? BKE_brush_size_get(scene, brush) : brush->size;
+      const int old_size = (use_unified_size) ? BKE_brush_size_get(paint, brush) : brush->size;
       int size = int(scalar * old_size);
 
       if (abs(old_size - size) < U.pixelsize) {
@@ -75,7 +77,7 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
       }
 
       if (use_unified_size) {
-        BKE_brush_size_set(scene, brush, size);
+        BKE_brush_size_set(paint, brush, size);
       }
       else {
         brush->size = max_ii(size, 1);
@@ -83,19 +85,19 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
       }
     }
 
-    /* Unprojected radius. */
+    /* Unprojected diameter. */
     {
-      float unprojected_radius = scalar * (use_unified_size ?
-                                               BKE_brush_unprojected_radius_get(scene, brush) :
-                                               brush->unprojected_radius);
+      float unprojected_size = scalar * (use_unified_size ?
+                                             BKE_brush_unprojected_size_get(paint, brush) :
+                                             brush->unprojected_size);
 
-      unprojected_radius = std::max(unprojected_radius, 0.001f);
+      unprojected_size = std::max(unprojected_size, 0.001f);
 
       if (use_unified_size) {
-        BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius);
+        BKE_brush_unprojected_size_set(paint, brush, unprojected_size);
       }
       else {
-        brush->unprojected_radius = unprojected_radius;
+        brush->unprojected_size = unprojected_size;
         BKE_brush_tag_unsaved_changes(brush);
       }
     }
@@ -166,7 +168,6 @@ static bool palette_poll(bContext *C)
 
 static wmOperatorStatus palette_color_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
   Palette *palette = paint->palette;
@@ -185,11 +186,11 @@ static wmOperatorStatus palette_color_add_exec(bContext *C, wmOperator * /*op*/)
              PaintMode::GPencil,
              PaintMode::VertexGPencil))
     {
-      copy_v3_v3(color->rgb, BKE_brush_color_get(scene, paint, brush));
+      copy_v3_v3(color->color, BKE_brush_color_get(paint, brush));
       color->value = 0.0;
     }
     else if (mode == PaintMode::Weight) {
-      zero_v3(color->rgb);
+      zero_v3(color->color);
       color->value = brush->weight;
     }
   }
@@ -274,8 +275,10 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
     const int range = int(pow(10.0f, threshold));
     for (int row = 0; row < ibuf->y; row++) {
       for (int col = 0; col < ibuf->x; col++) {
-        float color[4];
-        IMB_sampleImageAtLocation(ibuf, float(col), float(row), false, color);
+        float color[3];
+        IMB_sampleImageAtLocation(ibuf, float(col), float(row), color);
+        /* Convert to sRGB for hex. */
+        IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
         for (int i = 0; i < 3; i++) {
           color[i] = truncf(color[i] * range) / range;
         }
@@ -287,7 +290,7 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
       }
     }
 
-    done = BKE_palette_from_hash(bmain, color_table, image->id.name + 2, false);
+    done = BKE_palette_from_hash(bmain, color_table, image->id.name + 2);
   }
 
   /* Free memory. */
@@ -345,9 +348,9 @@ static wmOperatorStatus palette_sort_exec(bContext *C, wmOperator *op)
     int t = 0;
     LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
       float h, s, v;
-      rgb_to_hsv(color->rgb[0], color->rgb[1], color->rgb[2], &h, &s, &v);
+      rgb_to_hsv(color->color[0], color->color[1], color->color[2], &h, &s, &v);
       col_elm = &color_array[t];
-      copy_v3_v3(col_elm->rgb, color->rgb);
+      copy_v3_v3(col_elm->rgb, color->color);
       col_elm->value = color->value;
       col_elm->h = h;
       col_elm->s = s;
@@ -378,7 +381,7 @@ static wmOperatorStatus palette_sort_exec(bContext *C, wmOperator *op)
       col_elm = &color_array[i];
       PaletteColor *palcol = BKE_palette_color_add(palette);
       if (palcol) {
-        copy_v3_v3(palcol->rgb, col_elm->rgb);
+        copy_v3_v3(palcol->color, col_elm->rgb);
       }
     }
   }
@@ -491,7 +494,7 @@ static wmOperatorStatus palette_join_exec(bContext *C, wmOperator *op)
     LISTBASE_FOREACH (PaletteColor *, color, &palette_join->colors) {
       PaletteColor *palcol = BKE_palette_color_add(palette);
       if (palcol) {
-        copy_v3_v3(palcol->rgb, color->rgb);
+        copy_v3_v3(palcol->color, color->color);
         palcol->value = color->value;
         done = true;
       }
@@ -987,8 +990,6 @@ void ED_operatortypes_paint()
 
   /* brush */
   WM_operatortype_append(BRUSH_OT_scale_size);
-  WM_operatortype_append(BRUSH_OT_curve_preset);
-  WM_operatortype_append(BRUSH_OT_sculpt_curves_falloff_preset);
   WM_operatortype_append(BRUSH_OT_stencil_control);
   WM_operatortype_append(BRUSH_OT_stencil_fit_image_aspect);
   WM_operatortype_append(BRUSH_OT_stencil_reset_transform);

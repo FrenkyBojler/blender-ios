@@ -16,6 +16,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
@@ -147,7 +148,7 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
       WM_msg_publish_rna_prop(
           CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layers);
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
     }
     else if (drag_node.is_group()) {
       WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
@@ -156,7 +157,7 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
                               GreasePencilv3LayerGroup,
                               active);
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3, layer_groups);
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
     }
 
     ED_undo_push(C, "Reorder Layers");
@@ -181,7 +182,7 @@ class LayerViewItemDragController : public AbstractViewItemDragController {
   {
   }
 
-  eWM_DragDataType get_drag_type() const override
+  std::optional<eWM_DragDataType> get_drag_type() const override
   {
     if (dragged_node_.wrap().is_layer()) {
       return WM_DRAG_GREASE_PENCIL_LAYER;
@@ -197,7 +198,7 @@ class LayerViewItemDragController : public AbstractViewItemDragController {
     return drag_data;
   }
 
-  void on_drag_start() override
+  void on_drag_start(bContext & /*C*/) override
   {
     grease_pencil_.set_active_node(&dragged_node_);
   }
@@ -216,7 +217,7 @@ class LayerViewItem : public AbstractTreeViewItem {
     build_layer_name(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
 
     build_layer_buttons(*sub);
   }
@@ -281,6 +282,14 @@ class LayerViewItem : public AbstractTreeViewItem {
   StringRef get_rename_string() const override
   {
     return layer_.name();
+  }
+
+  void delete_item(bContext *C) override
+  {
+    grease_pencil_.remove_layer(layer_);
+    DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(C, "Delete Grease Pencil Layer");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
@@ -377,7 +386,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     build_layer_group_name(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
 
     build_layer_group_buttons(*sub);
   }
@@ -443,6 +452,14 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
   StringRef get_rename_string() const override
   {
     return group_.name();
+  }
+
+  void delete_item(bContext *C) override
+  {
+    grease_pencil_.remove_group(group_);
+    DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(C, "Delete Grease Pencil Group");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
@@ -546,7 +563,7 @@ void uiTemplateGreasePencilLayerTree(uiLayout *layout, bContext *C)
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,

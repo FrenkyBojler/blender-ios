@@ -41,7 +41,7 @@ class AssetRepresentation;
 class AssetLibrary {
   eAssetLibraryType library_type_;
   /**
-   * The name this asset library will be displayed in the UI as. Will also be used as a weak way
+   * The name this asset library will be displayed as in the UI. Will also be used as a weak way
    * to identify an asset library (e.g. by #AssetWeakReference).
    */
   std::string name_;
@@ -299,7 +299,19 @@ void AS_asset_library_remap_ids(const blender::bke::id::IDRemapper &mappings);
  * \param r_name: Returns the ID name on success. Optional (passing null is allowed).
  */
 void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_reference,
-                                              char r_path_buffer[1090 /* FILE_MAX_LIBEXTRA */],
+                                              char r_path_buffer[/*FILE_MAX_LIBEXTRA*/ 1282],
                                               char **r_dir,
                                               char **r_group,
                                               char **r_name);
+
+/**
+ * Updates the default import method for asset libraries based on
+ * #U.experimental.no_data_block_packing.
+ */
+void AS_asset_library_import_method_ensure_valid(Main &bmain);
+/**
+ * This is not done as part of #AS_asset_library_import_method_ensure_valid because it changes
+ * run-time data only and does not need to happen during versioning (also it appears to break tests
+ * when run during versioning).
+ */
+void AS_asset_library_essential_import_method_update();

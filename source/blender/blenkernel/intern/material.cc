@@ -21,7 +21,6 @@
 #include "DNA_ID.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_customdata_types.h"
 #include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
@@ -36,23 +35,23 @@
 #include "DNA_volume_types.h"
 
 #include "BLI_array_utils.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_attribute.h"
 #include "BKE_brush.hh"
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_displist.h"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -79,7 +78,7 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.material"};
+static CLG_LogRef LOG = {"material"};
 
 static void material_init_data(ID *id)
 {
@@ -170,7 +169,6 @@ static void material_free_data(ID *id)
 static void material_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Material *material = reinterpret_cast<Material *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   /* Node-trees **are owned by IDs**, treat them as mere sub-data and not real ID! */
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
@@ -182,9 +180,21 @@ static void material_foreach_id(ID *id, LibraryForeachIDData *data)
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->sima, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, material->gp_style->ima, IDWALK_CB_USER);
   }
+}
 
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, material->ipo, IDWALK_CB_USER);
+static void material_foreach_working_space_color(ID *id,
+                                                 const IDTypeForeachColorFunctionCallback &fn)
+{
+  Material *material = reinterpret_cast<Material *>(id);
+
+  fn.single(&material->r);
+  fn.single(&material->specr);
+  fn.single(material->line_col);
+
+  if (material->gp_style) {
+    fn.single(material->gp_style->stroke_rgba);
+    fn.single(material->gp_style->fill_rgba);
+    fn.single(material->gp_style->mix_rgba);
   }
 }
 
@@ -195,6 +205,9 @@ static void material_blend_write(BlendWriter *writer, ID *id, const void *id_add
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
   ma->texpaintslot = nullptr;
   BLI_listbase_clear(&ma->gpumaterial);
+
+  /* Set deprecated #use_nodes for forward compatibility. */
+  ma->use_nodes = true;
 
   /* write LibData */
   BLO_write_id_struct(writer, Material, id_address, &ma->id);
@@ -249,6 +262,7 @@ IDTypeInfo IDType_ID_MA = {
     /*foreach_id*/ material_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ material_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ material_blend_write,
@@ -954,6 +968,19 @@ MaterialGPencilStyle *BKE_gpencil_material_settings(Object *ob, short act)
   return BKE_material_default_gpencil()->gp_style;
 }
 
+/**
+ * Ensure a valid active index.
+ * When materials are assigned, the active material must be in the range of `1..totcol`.
+ * see #139182 for details.
+ */
+static void object_material_active_index_sanitize(Object *ob)
+{
+  if (ob->totcol && ob->actcol == 0) {
+    ob->actcol = 1;
+  }
+  ob->actcol = std::min(ob->actcol, ob->totcol);
+}
+
 void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, bool do_id_user)
 {
   if (totcol == ob->totcol) {
@@ -993,10 +1020,6 @@ void BKE_object_material_resize(Main *bmain, Object *ob, const short totcol, boo
   /* XXX(@ideasman42): why not realloc on shrink? */
 
   ob->totcol = totcol;
-  if (ob->totcol && ob->actcol == 0) {
-    ob->actcol = 1;
-  }
-  ob->actcol = std::min(ob->actcol, ob->totcol);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
@@ -1020,6 +1043,7 @@ void BKE_object_materials_sync_length(Main *bmain, Object *ob, ID *id)
   else {
     /* Normal case: the use the obdata amount of materials slots to update the object's one. */
     BKE_object_material_resize(bmain, ob, *totcol, false);
+    object_material_active_index_sanitize(ob);
   }
 }
 
@@ -1039,6 +1063,7 @@ void BKE_objects_materials_sync_length_all(Main *bmain, ID *id)
   {
     if (ob->data == id) {
       BKE_object_material_resize(bmain, ob, *totcol, false);
+      object_material_active_index_sanitize(ob);
       processed_objects++;
       BLI_assert(processed_objects <= id->us && processed_objects > 0);
       if (processed_objects == id->us) {
@@ -1416,7 +1441,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
   }
 
   /* can happen on face selection in editmode */
-  ob->actcol = std::min(ob->actcol, ob->totcol);
+  object_material_active_index_sanitize(ob);
 
   /* we delete the actcol */
   mao = (*matarar)[ob->actcol - 1];
@@ -1455,7 +1480,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
         obt->matbits[a - 1] = obt->matbits[a];
       }
       obt->totcol--;
-      obt->actcol = std::min(obt->actcol, obt->totcol);
+      object_material_active_index_sanitize(ob);
 
       if (obt->totcol == 0) {
         MEM_freeN(obt->mat);
@@ -1500,7 +1525,7 @@ enum ePaintSlotFilter {
   PAINT_SLOT_IMAGE = 1 << 0,
   PAINT_SLOT_COLOR_ATTRIBUTE = 1 << 1,
 };
-ENUM_OPERATORS(ePaintSlotFilter, PAINT_SLOT_COLOR_ATTRIBUTE)
+ENUM_OPERATORS(ePaintSlotFilter)
 
 using ForEachTexNodeCallback = bool (*)(bNode *node, void *userdata);
 static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
@@ -1558,6 +1583,7 @@ struct FillTexPaintSlotsData {
 
 static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
 {
+  using namespace blender;
   FillTexPaintSlotsData *fill_data = static_cast<FillTexPaintSlotsData *>(userdata);
 
   Material *ma = fill_data->ma;
@@ -1597,8 +1623,15 @@ static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
       slot->attribute_name = storage->name;
       if (storage->type == SHD_ATTRIBUTE_GEOMETRY) {
         const Mesh *mesh = (const Mesh *)fill_data->ob->data;
-        const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id, storage->name);
-        slot->valid = layer != nullptr;
+        if (mesh->runtime->edit_mesh) {
+          const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm,
+                                                              storage->name);
+          slot->valid = attr && bke::mesh::is_color_attribute({attr.domain, attr.type});
+        }
+        else {
+          const bke::AttributeAccessor attributes = mesh->attributes();
+          slot->valid = bke::mesh::is_color_attribute(attributes.lookup_meta_data(storage->name));
+        }
       }
 
       /* Do not show unsupported attributes. */
@@ -1754,7 +1787,7 @@ bNode *BKE_texpaint_slot_material_find_node(Material *ma, short texpaint_slot)
   return find_data.r_node;
 }
 
-void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
+void ramp_blend(int type, float r_col[4], const float fac, const float col[4])
 {
   float tmp, facm = 1.0f - fac;
 
@@ -1763,6 +1796,7 @@ void ramp_blend(int type, float r_col[3], const float fac, const float col[3])
       r_col[0] = facm * (r_col[0]) + fac * col[0];
       r_col[1] = facm * (r_col[1]) + fac * col[1];
       r_col[2] = facm * (r_col[2]) + fac * col[2];
+      r_col[3] = facm * (r_col[3]) + fac * col[3];
       break;
     case MA_RAMP_ADD:
       r_col[0] += fac * col[0];
@@ -2049,7 +2083,6 @@ static void material_default_surface_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket *base_color = blender::bke::node_find_socket(*principled, SOCK_IN, "Base Color");
@@ -2077,7 +2110,6 @@ static void material_default_volume_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(
       nullptr, *ntree, SH_NODE_VOLUME_PRINCIPLED);
@@ -2103,7 +2135,6 @@ static void material_default_holdout_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *holdout = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_HOLDOUT);
   bNode *output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);

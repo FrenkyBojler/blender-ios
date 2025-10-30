@@ -31,6 +31,7 @@
 #include "BLI_string_ref.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_types.hh"
 
@@ -75,6 +76,7 @@ class AbstractView {
   std::string context_menu_title;
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
+  bool is_multiselect_supported_ = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -151,6 +153,8 @@ class AbstractView {
   void set_popup_keep_open();
 
   void clear_search_highlight();
+  void allow_multiselect_items();
+  bool is_multiselect_supported() const;
 
  protected:
   AbstractView() = default;
@@ -198,6 +202,7 @@ class AbstractViewItem {
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  bool is_selected_ = false;
   bool is_renaming_ = false;
   /** See #is_search_highlight(). */
   bool is_highlighted_search_ = false;
@@ -211,12 +216,30 @@ class AbstractViewItem {
    * children currently.
    */
   bool is_always_collapsible_ = false;
+  /** See #select_on_click_set(). */
+  bool select_on_click_ = false;
+  /** See #always_reactivate_on_click(). */
+  bool reactivate_on_click_ = false;
+  /** See #activate_for_context_menu_set(). */
+  bool activate_for_context_menu_ = false;
 
  public:
   virtual ~AbstractViewItem() = default;
 
   virtual void build_context_menu(bContext &C, uiLayout &column) const;
 
+  /**
+   * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
+   * state that happened externally. Or to simply highlight the item as active without triggering
+   * activation with an `on_activate()` call. E.g. this is done when spawning a context menu if
+   * #activate_for_context_menu_set() wasn't called, to indicate which item the context menu
+   * belongs to.
+   *
+   * Can be overridden to customize behavior but should always call the base class implementation.
+   *
+   * \return true of the item was activated.
+   */
+  virtual bool set_state_active();
   /**
    * Called when the view changes an item's state from inactive to active. Will only be called if
    * the state change is triggered through the view, not through external changes. E.g. a click on
@@ -231,6 +254,8 @@ class AbstractViewItem {
    */
   virtual std::optional<bool> should_be_active() const;
 
+  virtual std::optional<bool> should_be_selected() const;
+  virtual void set_selected(const bool select);
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
    * another item is already being renamed.
@@ -277,7 +302,7 @@ class AbstractViewItem {
   AbstractView &get_view() const;
 
   /**
-   * Get the view item button (button of type #UI_BTYPE_VIEW_ITEM) created for this item. Every
+   * Get the view item button (button of type #ButType::ViewItem) created for this item. Every
    * visible item gets one during the layout building. Items that are not visible may not have one,
    * so null is a valid return value.
    */
@@ -290,21 +315,43 @@ class AbstractViewItem {
 
   void disable_activatable();
   /**
+   * Configure this view item to only select/activate on mouse-click (i.e. when the mouse is
+   * pressed and released without much movement in-between); the default is to select/activate on
+   * mouse-press.
+   */
+  void select_on_click_set();
+  bool is_select_on_click() const;
+  /** Call #on_activate() on every click on the item, even when the item was active before. */
+  void always_reactivate_on_click();
+  /** Call #on_activate() when spawning a context menu. Otherwise the item will only be highlighted
+   * as active to indicate where the context menu was spawned from. */
+  void activate_for_context_menu_set();
+  /**
    * Activates this item, deactivates other items, and calls the #AbstractViewItem::on_activate()
    * function. Should only be called when the item was activated through the view (e.g. through a
    * click), not if the view reflects an external change (e.g.
    * #AbstractViewItem::should_be_active() changes from returning false to returning true).
    *
+   * Also ensures the item is selected if it's active.
+   *
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise the
    * actual item state is unknown, possibly calling state-change update functions incorrectly.
    */
   void activate(bContext &C);
+  /**
+   * If #activate_for_context_menu_set() was called, properly (re)activates the item including a
+   * #AbstractViewItem::on_activate() call. Otherwise, the item will only be highlighted as active,
+   * to indicate which item the context menu belongs to.
+   * Should be used when spawning a context menu for this item.
+   */
+  void activate_for_context_menu(bContext &C);
   void deactivate();
   /**
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise we
    * can't be sure about the item state.
    */
   bool is_active() const;
+  bool is_selected() const;
   /**
    * Should this item be highlighted as matching search result? Only one item should be highlighted
    * this way at a time. Pressing enter will activate it.
@@ -315,6 +362,8 @@ class AbstractViewItem {
   void begin_renaming();
   void end_renaming();
   void rename_apply(const bContext &C);
+
+  virtual void delete_item(bContext *C);
 
  protected:
   AbstractViewItem() = default;
@@ -336,14 +385,6 @@ class AbstractViewItem {
    * \note Always call the base class implementation when overriding this!
    */
   virtual void update_from_old(const AbstractViewItem &old);
-
-  /**
-   * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
-   * state that happened externally.
-   * Can be overridden to customize behavior but should always call the base class implementation.
-   * \return true of the item was activated.
-   */
-  virtual bool set_state_active();
 
   /**
    * See #AbstractView::change_state_delayed(). Overrides should call the base class
@@ -381,9 +422,13 @@ class AbstractViewItemDragController {
   AbstractViewItemDragController(AbstractView &view);
   virtual ~AbstractViewItemDragController() = default;
 
-  virtual eWM_DragDataType get_drag_type() const = 0;
+  virtual std::optional<eWM_DragDataType> get_drag_type() const = 0;
   virtual void *create_drag_data() const = 0;
-  virtual void on_drag_start();
+  /**
+   * Called when beginning to drag. Also called when #get_drag_type() doesn't return a value, so an
+   * arbitrary action can be executed.
+   */
+  virtual void on_drag_start(bContext &C);
 
   /** Request the view the item is registered for as type #ViewType. Throws a `std::bad_cast`
    * exception if the view is not of the requested type. */

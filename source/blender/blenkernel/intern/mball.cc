@@ -95,14 +95,8 @@ static void metaball_free_data(ID *id)
 static void metaball_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   MetaBall *metaball = reinterpret_cast<MetaBall *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-
   for (int i = 0; i < metaball->totcol; i++) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, metaball->mat[i], IDWALK_CB_USER);
-  }
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, metaball->ipo, IDWALK_CB_USER);
   }
 }
 
@@ -162,6 +156,7 @@ IDTypeInfo IDType_ID_MB = {
     /*foreach_id*/ metaball_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ metaball_blend_write,
@@ -226,6 +221,35 @@ MetaElem *BKE_mball_element_add(MetaBall *mb, const int type)
   BLI_addtail(&mb->elems, ml);
 
   return ml;
+}
+
+blender::float2 BKE_mball_element_display_radius_calc_with_stiffness(const MetaElem *ml)
+{
+  blender::float2 radius_stiffness = {
+      /* Display radius. */
+      ml->rad,
+      /* Display stiffness. */
+      ml->rad * atanf(ml->s) * float(2.0 / blender::math::numbers::pi),
+  };
+
+  if (ml->type == MB_CUBE) {
+    /* Without this additional size, the cube can't be selected in solid mode.
+     * Use the minimum size so this doesn't become too large because of one large axis.
+     * See: #136396. */
+    const float offset = min_fff(ml->expx, ml->expy, ml->expz) * M_SQRT2;
+    radius_stiffness[0] += offset;
+    radius_stiffness[1] += offset;
+  }
+  return radius_stiffness;
+}
+float BKE_mball_element_display_radius_calc(const MetaElem *ml)
+{
+  float radius = ml->rad;
+  if (ml->type == MB_CUBE) {
+    const float offset = min_fff(ml->expx, ml->expy, ml->expz) * M_SQRT2;
+    radius += offset;
+  }
+  return radius;
 }
 
 bool BKE_mball_is_basis(const Object *ob)
@@ -649,7 +673,7 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
     BKE_lattice_deform_coords(
         ob->parent,
         ob,
-        reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()),
+        reinterpret_cast<float (*)[3]>(mesh->vert_positions_for_write().data()),
         mesh->verts_num,
         0,
         nullptr,

@@ -128,6 +128,12 @@ static IDProperty **rna_ViewLayer_idprops(PointerRNA *ptr)
   return &view_layer->id_properties;
 }
 
+static IDProperty **rna_ViewLayer_system_idprops(PointerRNA *ptr)
+{
+  ViewLayer *view_layer = (ViewLayer *)ptr->data;
+  return &view_layer->system_properties;
+}
+
 static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, bContext *C)
 {
   View3D *v3d = CTX_wm_view3d(C);
@@ -609,6 +615,7 @@ void RNA_def_view_layer(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_RENDER_RESULT);
   RNA_def_struct_path_func(srna, "rna_ViewLayer_path");
   RNA_def_struct_idprops_func(srna, "rna_ViewLayer_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_ViewLayer_system_idprops");
 
   rna_def_view_layer_common(brna, srna, true);
 
@@ -699,6 +706,7 @@ void RNA_def_view_layer(BlenderRNA *brna)
   /* Dependency Graph */
   prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Depsgraph");
+  RNA_def_property_flag_hide_from_ui_workaround(prop);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
   RNA_def_property_pointer_funcs(prop, "rna_ViewLayer_depsgraph_get", nullptr, nullptr, nullptr);

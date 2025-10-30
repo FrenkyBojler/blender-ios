@@ -19,8 +19,8 @@
 #include "BKE_packedFile.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_string_search.hh"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -40,7 +40,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_string_search.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
@@ -678,7 +678,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       break;
     case UI_ID_RENAME:
       /* Only for the undo push. */
-      undo_push_label = "Rename Data-Block";
+      undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Data-Block");
       break;
     case UI_ID_BROWSE:
     case UI_ID_PIN:
@@ -698,10 +698,10 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
         id_us_clear_real(id);
         id_fake_user_clear(id);
         id->us = 0;
-        undo_push_label = "Delete Data-Block";
+        undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Delete Data-Block");
       }
       else {
-        undo_push_label = "Unlink Data-Block";
+        undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Unlink Data-Block");
       }
 
       break;
@@ -713,7 +713,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
         else {
           id_us_min(id);
         }
-        undo_push_label = "Fake User";
+        undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Fake User");
       }
       else {
         return;
@@ -731,7 +731,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 
             /* Reassign to get proper updates/notifiers. */
             idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
-            undo_push_label = "Make Local";
+            undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local");
           }
         }
         if (undo_push_label != nullptr) {
@@ -752,7 +752,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
           RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, nullptr);
           RNA_property_update(C, &template_ui->ptr, template_ui->prop);
-          undo_push_label = "Make Local";
+          undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local");
         }
       }
       break;
@@ -776,7 +776,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           DEG_relations_tag_update(bmain);
         }
         BKE_main_ensure_invariants(*CTX_data_main(C));
-        undo_push_label = "Make Single User";
+        undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Single User");
       }
       break;
 #if 0
@@ -866,7 +866,6 @@ static StringRef template_id_browse_tip(const StructRNA *type)
 
         /* Use generic text. */
       case ID_LI:
-      case ID_IP:
       case ID_KE:
       case ID_VF:
       case ID_GR:
@@ -892,7 +891,7 @@ static void template_id_workspace_pin_extra_icon(const TemplateID &template_ui, 
   const WorkSpace *workspace = WM_window_get_active_workspace(win);
   UI_but_extra_operator_icon_add(but,
                                  "WORKSPACE_OT_scene_pin_toggle",
-                                 WM_OP_INVOKE_DEFAULT,
+                                 blender::wm::OpCallContext::InvokeDefault,
                                  (workspace->flags & WORKSPACE_USE_PIN_SCENE) ? ICON_PINNED :
                                                                                 ICON_UNPINNED);
 }
@@ -925,7 +924,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
 {
   ID *idfrom = template_ui.ptr.owner_id;
   uiBut *but;
-  const int but_type = use_tab_but ? UI_BTYPE_TAB : UI_BTYPE_BUT;
+  const ButType but_type = use_tab_but ? ButType::Tab : ButType::But;
 
   /* i18n markup, does nothing! */
   BLT_I18N_MSGID_MULTI_CTXT("New",
@@ -979,7 +978,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
     but = uiDefIconTextButO(block,
                             but_type,
                             newop,
-                            WM_OP_INVOKE_DEFAULT,
+                            blender::wm::OpCallContext::InvokeDefault,
                             icon,
                             button_text,
                             0,
@@ -996,7 +995,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
   }
   else {
     but = uiDefIconTextBut(
-        block, but_type, 0, icon, button_text, 0, 0, w, but_height, nullptr, 0, 0, std::nullopt);
+        block, but_type, 0, icon, button_text, 0, 0, w, but_height, nullptr, std::nullopt);
     UI_but_funcN_set(but,
                      template_id_cb,
                      MEM_new<TemplateID>(__func__, template_ui),
@@ -1038,9 +1037,9 @@ static void template_ID(const bContext *C,
   // lb = template_ui->idlb;
 
   /* Allow operators to take the ID from context. */
-  uiLayoutSetContextPointer(layout, "id", &idptr);
+  layout->context_ptr_set("id", &idptr);
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   UI_block_align_begin(block);
 
   if (idptr.type) {
@@ -1085,7 +1084,7 @@ static void template_ID(const bContext *C,
     // text_idbutton(id, name);
     name[0] = '\0';
     but = uiDefButR(block,
-                    UI_BTYPE_TEXT,
+                    ButType::Text,
                     0,
                     name,
                     0,
@@ -1120,9 +1119,23 @@ static void template_ID(const bContext *C,
     if (!hide_buttons && !(idfrom && ID_IS_LINKED(idfrom))) {
       if (ID_IS_LINKED(id)) {
         const bool disabled = !BKE_idtype_idcode_is_localizable(GS(id->name));
-        if (id->tag & ID_TAG_INDIRECT) {
+        if (ID_IS_PACKED(id)) {
           but = uiDefIconBut(block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
+                             0,
+                             ICON_PACKAGE,
+                             0,
+                             0,
+                             UI_UNIT_X,
+                             UI_UNIT_Y,
+                             nullptr,
+                             0,
+                             0,
+                             TIP_("Packed library data-block, click to unpack and make local"));
+        }
+        else if (id->tag & ID_TAG_INDIRECT) {
+          but = uiDefIconBut(block,
+                             ButType::But,
                              0,
                              ICON_LIBRARY_DATA_INDIRECT,
                              0,
@@ -1137,7 +1150,7 @@ static void template_ID(const bContext *C,
         }
         else {
           but = uiDefIconBut(block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
                              0,
                              ICON_LIBRARY_DATA_DIRECT,
                              0,
@@ -1165,7 +1178,7 @@ static void template_ID(const bContext *C,
       else if (ID_IS_OVERRIDE_LIBRARY(id)) {
         but = uiDefIconBut(
             block,
-            UI_BTYPE_BUT,
+            ButType::But,
             0,
             ICON_LIBRARY_DATA_OVERRIDE,
             0,
@@ -1190,11 +1203,11 @@ static void template_ID(const bContext *C,
       char numstr[32];
       short numstr_len;
 
-      numstr_len = SNPRINTF_RLEN(numstr, "%d", ID_REAL_USERS(id));
+      numstr_len = SNPRINTF_UTF8_RLEN(numstr, "%d", ID_REAL_USERS(id));
 
       but = uiDefBut(
           block,
-          UI_BTYPE_BUT,
+          ButType::But,
           0,
           numstr,
           0,
@@ -1229,9 +1242,9 @@ static void template_ID(const bContext *C,
       if (ID_IS_ASSET(id)) {
         uiDefIconButO(block,
                       /* Using `_N` version allows us to get the 'active' state by default. */
-                      UI_BTYPE_ICON_TOGGLE_N,
+                      ButType::IconToggleN,
                       "ASSET_OT_clear_single",
-                      WM_OP_INVOKE_DEFAULT,
+                      blender::wm::OpCallContext::InvokeDefault,
                       /* 'active' state of a toggle button uses icon + 1, so to get proper asset
                        * icon we need to pass its value - 1 here. */
                       ICON_ASSET_MANAGER - 1,
@@ -1244,7 +1257,7 @@ static void template_ID(const bContext *C,
       else if (!ELEM(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_OB, ID_WS) && (hide_buttons == false))
       {
         uiDefIconButR(block,
-                      UI_BTYPE_ICON_TOGGLE,
+                      ButType::IconToggle,
                       0,
                       ICON_FAKE_USER_OFF,
                       0,
@@ -1270,9 +1283,9 @@ static void template_ID(const bContext *C,
    * Only for images, sound and fonts */
   if (id && BKE_packedfile_id_check(id)) {
     but = uiDefIconButO(block,
-                        UI_BTYPE_BUT,
+                        ButType::But,
                         "FILE_OT_unpack_item",
-                        WM_OP_INVOKE_REGION_WIN,
+                        blender::wm::OpCallContext::InvokeRegionWin,
                         ICON_PACKAGE,
                         0,
                         0,
@@ -1299,9 +1312,9 @@ static void template_ID(const bContext *C,
 
     if (openop) {
       but = uiDefIconTextButO(block,
-                              UI_BTYPE_BUT,
+                              ButType::But,
                               openop,
-                              WM_OP_INVOKE_DEFAULT,
+                              blender::wm::OpCallContext::InvokeDefault,
                               ICON_FILEBROWSER,
                               (id) ? "" : IFACE_("Open"),
                               0,
@@ -1318,7 +1331,7 @@ static void template_ID(const bContext *C,
     }
     else {
       but = uiDefIconTextBut(block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
                              0,
                              ICON_FILEBROWSER,
                              (id) ? "" : IFACE_("Open"),
@@ -1327,8 +1340,6 @@ static void template_ID(const bContext *C,
                              w,
                              UI_UNIT_Y,
                              nullptr,
-                             0,
-                             0,
                              std::nullopt);
       UI_but_funcN_set(but,
                        template_id_cb,
@@ -1351,9 +1362,9 @@ static void template_ID(const bContext *C,
 
     if (unlinkop) {
       but = uiDefIconButO(block,
-                          UI_BTYPE_BUT,
+                          ButType::But,
                           unlinkop,
-                          WM_OP_INVOKE_DEFAULT,
+                          blender::wm::OpCallContext::InvokeDefault,
                           ICON_X,
                           0,
                           0,
@@ -1372,7 +1383,7 @@ static void template_ID(const bContext *C,
       if ((RNA_property_flag(template_ui.prop) & PROP_NEVER_UNLINK) == 0) {
         but = uiDefIconBut(
             block,
-            UI_BTYPE_BUT,
+            ButType::But,
             0,
             ICON_X,
             0,
@@ -1414,7 +1425,7 @@ ID *UI_context_active_but_get_tab_ID(bContext *C)
 {
   uiBut *but = UI_context_active_but_get(C);
 
-  if (but && but->type == UI_BTYPE_TAB) {
+  if (but && but->type == ButType::Tab) {
     return static_cast<ID *>(but->custom_data);
   }
   return nullptr;
@@ -1432,7 +1443,7 @@ static void template_ID_tabs(const bContext *C,
   const PointerRNA active_ptr = RNA_property_pointer_get(&template_id.ptr, template_id.prop);
   MenuType *mt = menu ? WM_menutype_find(menu, false) : nullptr;
 
-  /* When horizonal show the tabs as pills, rounded on all corners. */
+  /* When horizontal show the tabs as pills, rounded on all corners. */
   const bool horizontal =
       (region->regiontype == RGN_TYPE_HEADER &&
        ELEM(RGN_ALIGN_ENUM_FROM_MASK(region->alignment), RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM));
@@ -1440,7 +1451,7 @@ static void template_ID_tabs(const bContext *C,
 
   const int but_height = UI_UNIT_Y * 1.1;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   const uiStyle *style = UI_style_get_dpi();
 
   for (ID *id : BKE_id_ordered_list(template_id.idlb)) {
@@ -1448,7 +1459,7 @@ static void template_ID_tabs(const bContext *C,
     const int but_width = name_width + UI_UNIT_X;
 
     uiButTab *tab = (uiButTab *)uiDefButR_prop(block,
-                                               UI_BTYPE_TAB,
+                                               ButType::Tab,
                                                0,
                                                id->name + 2,
                                                0,
@@ -1814,7 +1825,7 @@ void uiTemplateAnyID(uiLayout *layout,
   /* HACK: special group just for the enum,
    * otherwise we get ugly layout with text included too... */
   uiLayout *sub = &row->row(true);
-  uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
+  sub->alignment_set(blender::ui::LayoutAlign::Left);
 
   sub->prop(ptr, propType, 0, 0, UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
@@ -1823,7 +1834,7 @@ void uiTemplateAnyID(uiLayout *layout,
   /* HACK: special group to counteract the effects of the previous enum,
    * which now pushes everything too far right. */
   sub = &row->row(true);
-  uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_EXPAND);
+  sub->alignment_set(blender::ui::LayoutAlign::Expand);
 
   sub->prop(ptr, propID, 0, 0, UI_ITEM_NONE, "", ICON_NONE);
 }

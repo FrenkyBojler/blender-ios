@@ -11,7 +11,7 @@
 #include "BLI_path_utils.hh"
 
 #include "BKE_blendfile.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_preview_image.hh"
 
 #include "DNA_ID.h"
@@ -64,7 +64,7 @@ AssetWeakReference AssetRepresentation::make_weak_reference() const
 void AssetRepresentation::ensure_previewable()
 {
   if (ID *id = this->local_id()) {
-    PreviewImage *preview = BKE_previewimg_id_ensure(id);
+    PreviewImage *preview = BKE_previewimg_id_get(id);
     BKE_icon_preview_ensure(id, preview);
     return;
   }
@@ -132,7 +132,7 @@ std::string AssetRepresentation::full_library_path() const
 {
   std::string asset_path = full_path();
 
-  char blend_path[/*FILE_MAX_LIBEXTRA*/ 1090];
+  char blend_path[/*FILE_MAX_LIBEXTRA*/ 1282];
   if (!BKE_blendfile_library_path_explode(asset_path.c_str(), blend_path, nullptr, nullptr)) {
     return {};
   }

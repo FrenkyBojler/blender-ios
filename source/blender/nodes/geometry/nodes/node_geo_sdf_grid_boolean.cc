@@ -13,7 +13,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -81,35 +81,23 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = int16_t(Operation::Difference);
 }
 
-#ifdef WITH_OPENVDB
-static void get_float_grids(MutableSpan<SocketValueVariant> values,
-                            Vector<bke::VolumeGrid<float>> &grids)
-{
-  for (SocketValueVariant &input : values) {
-    if (auto grid = input.extract<bke::VolumeGrid<float>>()) {
-      grids.append(std::move(grid));
-    }
-  }
-}
-#endif
-
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const Operation operation = Operation(params.node().custom1);
 
-  Vector<SocketValueVariant> inputs = params.extract_input<Vector<SocketValueVariant>>("Grid 2");
+  auto grids = params.extract_input<GeoNodesMultiInput<bke::VolumeGrid<float>>>("Grid 2");
   Vector<bke::VolumeGrid<float>> operands;
   switch (operation) {
     case Operation::Intersect:
     case Operation::Union:
-      get_float_grids(inputs, operands);
+      operands.extend(grids.values);
       break;
     case Operation::Difference:
       if (auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid 1")) {
         operands.append(std::move(grid));
       }
-      get_float_grids(inputs, operands);
+      operands.extend(grids.values);
       break;
   }
 
@@ -147,6 +135,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
   }
+  operands.first()->tag_tree_modified();
 
   params.set_output("Grid", std::move(operands.first()));
 #else
@@ -192,7 +181,6 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
   blender::bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }

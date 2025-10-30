@@ -8,7 +8,7 @@
 
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLO_read_write.hh"
@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::String>("Format").hide_label().description(
+  b.add_input<decl::String>("Format").optional_label().description(
       "Format string using a Python and path template compatible syntax. For example, \"Count: "
       "{}\" would replace the {} with the first input value.");
   b.add_output<decl::String>("String").align_with_previous();
@@ -78,10 +78,10 @@ static void node_free_storage(bNode *node)
   MEM_freeN(node->storage);
 }
 
-static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
+static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
   return socket_items::try_add_item_via_any_extend_socket<FormatStringItemsAccessor>(
-      *ntree, *node, *node, *link);
+      params.ntree, params.node, params.node, params.link);
 }
 
 static void node_operators()
@@ -98,8 +98,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<FormatStringItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
@@ -207,7 +207,7 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
     precision_group = groups_num;
   }
   /* "L" is omitted, because we take the current locale into account in Geometry Nodes. */
-  /* Allowed type specifiers vary by data type.*/
+  /* Allowed type specifiers vary by data type. */
   if (type.is<std::string>()) {
     pattern += "[s\\?]?";
   }
@@ -274,7 +274,7 @@ class FormatInputsLookup {
          * anymore. Only other explicit identifiers are allowed. */
         if (!r_error) {
           r_error = TIP_(
-              "Empty identifier can't be used when explicit identifier was used before. For "
+              "Empty identifier cannot be used when explicit identifier was used before. For "
               "example, \"{} {x}\" is ok but \"{x} {}\" is not.");
         }
         return std::nullopt;
@@ -299,10 +299,10 @@ class FormatInputsLookup {
         return std::nullopt;
       }
       if (res.ptr < identifier.end()) {
-        /* There are other characters after the number.*/
+        /* There are other characters after the number. */
         if (!r_error) {
           r_error = fmt::format(
-              fmt::runtime(TIP_("An input name can't start with a digit: \"{}\"")), identifier);
+              fmt::runtime(TIP_("An input name cannot start with a digit: \"{}\"")), identifier);
         }
         return std::nullopt;
       }
@@ -372,7 +372,7 @@ static std::optional<ProcessedPythonCompatibleFormat> preprocess_python_compatib
     /* The type can't be formatted. The user shouldn't be able to trigger this error but nice to
      * handle it anyway. */
     if (!r_error) {
-      r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" can't be formatted")), type.name());
+      r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" cannot be formatted")), type.name());
     }
     return std::nullopt;
   }
@@ -447,7 +447,7 @@ static std::optional<ProcessedPythonCompatibleFormat> preprocess_python_compatib
   return result;
 }
 
-static void format_with_fmt(const fmt::format_string<> format,
+static void format_with_fmt(const fmt::runtime_format_string<> format,
                             const GVArray &input,
                             const GVArray *widths,
                             const GVArray *precisions,
@@ -571,7 +571,7 @@ static void format_with_hash_syntax(const StringRef format_pattern,
     }
   }
   else if (!r_error) {
-    r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" can't be formatted")), type.name());
+    r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" cannot be formatted")), type.name());
   }
 }
 
@@ -608,7 +608,7 @@ static void format_without_format_specifier(const GVArray &input,
     });
   }
   else if (!r_error) {
-    r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" can't be formatted")), type.name());
+    r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" cannot be formatted")), type.name());
   }
 }
 

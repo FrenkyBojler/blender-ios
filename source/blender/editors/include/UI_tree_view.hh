@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
@@ -71,8 +72,6 @@ class TreeViewItemContainer {
     None = 0,
     SkipCollapsed = 1 << 0,
     SkipFiltered = 1 << 1,
-
-    /* Keep ENUM_OPERATORS() below updated! */
   };
   using ItemIterFn = FunctionRef<void(AbstractTreeViewItem &)>;
 
@@ -101,8 +100,7 @@ class TreeViewItemContainer {
   void foreach_parent(ItemIterFn iter_fn) const;
 };
 
-ENUM_OPERATORS(TreeViewItemContainer::IterOptions,
-               TreeViewItemContainer::IterOptions::SkipCollapsed);
+ENUM_OPERATORS(TreeViewItemContainer::IterOptions);
 
 /**
  * The container class is the base for both the tree-view and the items. This alias gives it a
@@ -131,6 +129,8 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    */
   int last_tot_items_ = 0;
 
+  bool scroll_active_into_view_on_draw_ = false;
+
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
   friend class TreeViewLayoutBuilder;
@@ -146,6 +146,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
+  /* Scroll to the active element when state is changed. */
 
   /**
    * \param xy: The mouse coordinates in window space.
@@ -155,7 +156,10 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /** Visual feature: Define a number of item rows the view will show by default. If there
    * are fewer items, empty dummy items will be added. These contribute to the view bounds, so the
    * drop target of the view includes them, but they are not interactive (e.g. no mouse-hover
-   * highlight). */
+   * highlight).
+   *
+   * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
+   * height. */
   void set_default_rows(int default_rows);
 
  protected:
@@ -183,6 +187,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
                            int &visible_item_index) const;
 
   int count_visible_descendants(const AbstractTreeViewItem &parent) const;
+  void scroll_active_into_view();
 };
 
 /** \} */
@@ -321,7 +326,6 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   void ensure_parents_uncollapsed();
 
  private:
-  static void tree_row_click_fn(bContext *, void *, void *);
   static void collapse_chevron_click_fn(bContext *, void *but_arg1, void *);
 
   /**
@@ -376,8 +380,6 @@ class BasicTreeViewItem : public AbstractTreeViewItem {
   IsActiveFn is_active_fn_;
 
  private:
-  static void tree_row_click_fn(bContext *C, void *arg1, void *arg2);
-
   std::optional<bool> should_be_active() const override;
   void on_activate(bContext &C) override;
 };

@@ -18,6 +18,7 @@
 #include "BLI_fileops.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -137,12 +138,12 @@ static bool fluid_initjob(
 
   fmd = (FluidModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Fluid);
   if (!fmd) {
-    BLI_strncpy(error_msg, N_("Bake failed: no Fluid modifier found"), error_size);
+    BLI_strncpy_utf8(error_msg, N_("Bake failed: no Fluid modifier found"), error_size);
     return false;
   }
   fds = fmd->domain;
   if (!fds) {
-    BLI_strncpy(error_msg, N_("Bake failed: invalid domain"), error_size);
+    BLI_strncpy_utf8(error_msg, N_("Bake failed: invalid domain"), error_size);
     return false;
   }
 
@@ -239,7 +240,7 @@ static void fluid_bake_sequence(FluidJob *job)
   frames = fds->cache_frame_end - fds->cache_frame_start + 1;
 
   if (frames <= 0) {
-    STRNCPY(fds->error, N_("No frames to bake"));
+    STRNCPY_UTF8(fds->error, N_("No frames to bake"));
     return;
   }
 
@@ -329,24 +330,30 @@ static void fluid_bake_endjob(void *customdata)
   DEG_id_tag_update(&job->ob->id, ID_RECALC_GEOMETRY);
 
   G.is_rendering = false;
-  BKE_spacedata_draw_locks(false);
-  WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
+  WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
 
   /* Bake was successful:
    * Report for ended bake and how long it took. */
   if (job->success) {
     /* Show bake info. */
-    WM_global_reportf(
-        RPT_INFO, "Fluid: %s complete (%.2fs)", job->name, BLI_time_now_seconds() - job->start);
+    WM_global_reportf(RPT_INFO,
+                      "Fluid: %s complete (%.2fs)",
+                      CTX_RPT_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, job->name),
+                      BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
-      WM_global_reportf(
-          RPT_ERROR, "Fluid: %s failed at frame %d: %s", job->name, *job->pause_frame, fds->error);
+      WM_global_reportf(RPT_ERROR,
+                        "Fluid: %s failed at frame %d: %s",
+                        CTX_RPT_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, job->name),
+                        *job->pause_frame,
+                        fds->error);
     }
     else { /* User canceled the bake. */
-      WM_global_reportf(
-          RPT_WARNING, "Fluid: %s canceled at frame %d!", job->name, *job->pause_frame);
+      WM_global_reportf(RPT_WARNING,
+                        "Fluid: %s canceled at frame %d!",
+                        CTX_RPT_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, job->name),
+                        *job->pause_frame);
     }
   }
 }
@@ -367,7 +374,7 @@ static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
   G.is_break = false;
   G.is_rendering = true;
-  BKE_spacedata_draw_locks(true);
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
 
   if (fluid_is_bake_noise(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_NOISE);
@@ -436,8 +443,7 @@ static void fluid_free_endjob(void *customdata)
   FluidDomainSettings *fds = job->fmd->domain;
 
   G.is_rendering = false;
-  BKE_spacedata_draw_locks(false);
-  WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
+  WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
 
   /* Reflect the now empty cache in the viewport too. */
   DEG_id_tag_update(&job->ob->id, ID_RECALC_GEOMETRY);
@@ -446,17 +452,24 @@ static void fluid_free_endjob(void *customdata)
    *  Report for ended free job and how long it took */
   if (job->success) {
     /* Show free job info */
-    WM_global_reportf(
-        RPT_INFO, "Fluid: %s complete (%.2fs)", job->name, BLI_time_now_seconds() - job->start);
+    WM_global_reportf(RPT_INFO,
+                      "Fluid: %s complete (%.2fs)",
+                      CTX_RPT_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, job->name),
+                      BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
-      WM_global_reportf(
-          RPT_ERROR, "Fluid: %s failed at frame %d: %s", job->name, *job->pause_frame, fds->error);
+      WM_global_reportf(RPT_ERROR,
+                        "Fluid: %s failed at frame %d: %s",
+                        CTX_RPT_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, job->name),
+                        *job->pause_frame,
+                        fds->error);
     }
     else { /* User canceled the free job */
-      WM_global_reportf(
-          RPT_WARNING, "Fluid: %s canceled at frame %d!", job->name, *job->pause_frame);
+      WM_global_reportf(RPT_WARNING,
+                        "Fluid: %s canceled at frame %d!",
+                        CTX_RPT_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, job->name),
+                        *job->pause_frame);
     }
   }
 }
@@ -474,7 +487,7 @@ static void fluid_free_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
   G.is_break = false;
   G.is_rendering = true;
-  BKE_spacedata_draw_locks(true);
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
 
   int cache_map = 0;
 
@@ -563,7 +576,7 @@ static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmE
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               scene,
-                              "Fluid Bake",
+                              "Baking fluid...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_FLUID);
 
@@ -571,7 +584,7 @@ static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmE
   WM_jobs_timer(wm_job, 0.01, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, fluid_bake_startjob, nullptr, nullptr, fluid_bake_endjob);
 
-  WM_set_locked_interface(CTX_wm_manager(C), true);
+  WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
   WM_event_add_modal_handler(C, op);
@@ -645,7 +658,7 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               scene,
-                              "Fluid Free",
+                              "Freeing fluid...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_FLUID);
 
@@ -653,9 +666,9 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   WM_jobs_timer(wm_job, 0.01, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, fluid_free_startjob, nullptr, nullptr, fluid_free_endjob);
 
-  WM_set_locked_interface(CTX_wm_manager(C), true);
+  WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
-  /*  Free Fluid Geometry */
+  /* Free Fluid Geometry. */
   WM_jobs_start(CTX_wm_manager(C), wm_job);
 
   return OPERATOR_FINISHED;

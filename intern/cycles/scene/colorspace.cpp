@@ -27,9 +27,42 @@ ustring u_colorspace_srgb("__builtin_srgb");
 /* Cached data. */
 #ifdef WITH_OCIO
 static thread_mutex cache_colorspaces_mutex;
-static thread_mutex cache_processors_mutex;
 static unordered_map<ustring, ustring> cached_colorspaces;
+
+static thread_mutex cache_processors_mutex;
 static unordered_map<ustring, OCIO::ConstProcessorRcPtr> cached_processors;
+
+static thread_mutex cache_scene_linear_mutex;
+static string cache_scene_linear_name;
+
+static void check_invalidate_caches()
+{
+  /* Invalidate cached processors and colorspace, in case Blender changed it.
+   * Note this should not happen during rendering, all render should be stopped
+   * before it is changed. */
+  const thread_scoped_lock cache_scene_linear_lock(cache_scene_linear_mutex);
+  OCIO::ConstConfigRcPtr config = nullptr;
+  try {
+    config = OCIO::GetCurrentConfig();
+  }
+  catch (const OCIO::Exception &exception) {
+    LOG_ERROR << "OCIO config error: " << exception.what();
+    return;
+  }
+
+  const OCIO::ConstColorSpaceRcPtr scene_linear_colorspace = config->getColorSpace("scene_linear");
+  if (scene_linear_colorspace && cache_scene_linear_name != scene_linear_colorspace->getName()) {
+    cache_scene_linear_name = scene_linear_colorspace->getName();
+    {
+      const thread_scoped_lock cache_processors_lock(cache_processors_mutex);
+      cached_processors.clear();
+    }
+    {
+      const thread_scoped_lock cache_lock(cache_colorspaces_mutex);
+      cached_colorspaces.clear();
+    }
+  }
+}
 #endif
 
 ColorSpaceProcessor *ColorSpaceManager::get_processor(ustring colorspace)
@@ -47,7 +80,7 @@ ColorSpaceProcessor *ColorSpaceManager::get_processor(ustring colorspace)
     config = OCIO::GetCurrentConfig();
   }
   catch (const OCIO::Exception &exception) {
-    VLOG_WARNING << "OCIO config error: " << exception.what();
+    LOG_ERROR << "OCIO config error: " << exception.what();
     return nullptr;
   }
 
@@ -55,17 +88,20 @@ ColorSpaceProcessor *ColorSpaceManager::get_processor(ustring colorspace)
     return nullptr;
   }
 
+  check_invalidate_caches();
+
   /* Cache processor until free_memory(), memory overhead is expected to be
    * small and the processor is likely to be reused. */
   const thread_scoped_lock cache_processors_lock(cache_processors_mutex);
+
   if (cached_processors.find(colorspace) == cached_processors.end()) {
     try {
       cached_processors[colorspace] = config->getProcessor(colorspace.c_str(), "scene_linear");
     }
     catch (const OCIO::Exception &exception) {
       cached_processors[colorspace] = OCIO::ConstProcessorRcPtr();
-      VLOG_WARNING << "Colorspace " << colorspace.c_str()
-                   << " can't be converted to scene_linear: " << exception.what();
+      LOG_WARNING << "Colorspace " << colorspace.c_str()
+                  << " cannot be converted to scene_linear: " << exception.what();
     }
   }
 
@@ -92,7 +128,7 @@ bool ColorSpaceManager::colorspace_is_data(ustring colorspace)
     config = OCIO::GetCurrentConfig();
   }
   catch (const OCIO::Exception &exception) {
-    VLOG_WARNING << "OCIO config error: " << exception.what();
+    LOG_ERROR << "OCIO config error: " << exception.what();
     return false;
   }
 
@@ -138,6 +174,8 @@ ustring ColorSpaceManager::detect_known_colorspace(ustring colorspace,
 
   /* Use OpenColorIO. */
 #ifdef WITH_OCIO
+  check_invalidate_caches();
+
   {
     const thread_scoped_lock cache_lock(cache_colorspaces_mutex);
     /* Cached lookup. */
@@ -153,12 +191,12 @@ ustring ColorSpaceManager::detect_known_colorspace(ustring colorspace,
 
   const thread_scoped_lock cache_lock(cache_colorspaces_mutex);
   if (is_scene_linear) {
-    VLOG_INFO << "Colorspace " << colorspace.string() << " is no-op";
+    LOG_INFO << "Colorspace " << colorspace.string() << " is no-op";
     cached_colorspaces[colorspace] = u_colorspace_raw;
     return u_colorspace_raw;
   }
   if (is_srgb) {
-    VLOG_INFO << "Colorspace " << colorspace.string() << " is sRGB";
+    LOG_INFO << "Colorspace " << colorspace.string() << " is sRGB";
     cached_colorspaces[colorspace] = u_colorspace_srgb;
     return u_colorspace_srgb;
   }
@@ -170,28 +208,28 @@ ustring ColorSpaceManager::detect_known_colorspace(ustring colorspace,
       config = OCIO::GetCurrentConfig();
     }
     catch (const OCIO::Exception &exception) {
-      VLOG_WARNING << "OCIO config error: " << exception.what();
+      LOG_ERROR << "OCIO config error: " << exception.what();
       return u_colorspace_raw;
     }
 
     if (!config || !config->getColorSpace(colorspace.c_str())) {
-      VLOG_WARNING << "Colorspace " << colorspace.c_str() << " not found, using raw instead";
+      LOG_WARNING << "Colorspace " << colorspace.c_str() << " not found, using raw instead";
     }
     else {
-      VLOG_WARNING << "Colorspace " << colorspace.c_str()
-                   << " can't be converted to scene_linear, using raw instead";
+      LOG_WARNING << "Colorspace " << colorspace.c_str()
+                  << " can't be converted to scene_linear, using raw instead";
     }
     cached_colorspaces[colorspace] = u_colorspace_raw;
     return u_colorspace_raw;
   }
 
   /* Convert to/from colorspace with OpenColorIO. */
-  VLOG_INFO << "Colorspace " << colorspace.string() << " handled through OpenColorIO";
+  LOG_INFO << "Colorspace " << colorspace.string() << " handled through OpenColorIO";
   cached_colorspaces[colorspace] = colorspace;
   return colorspace;
 #else
-  VLOG_WARNING << "Colorspace " << colorspace.c_str()
-               << " not available, built without OpenColorIO";
+  LOG_WARNING << "Colorspace " << colorspace.c_str()
+              << " not available, built without OpenColorIO";
   return u_colorspace_raw;
 #endif
 }

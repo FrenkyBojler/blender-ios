@@ -21,7 +21,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_linear_allocator.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_path_utils.hh"
@@ -311,7 +310,7 @@ void WM_event_start_prepared_drag(bContext *C, wmDrag *drag)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  BLI_addtail(&wm->drags, drag);
+  BLI_addtail(&wm->runtime->drags, drag);
   wm_dropbox_invoke(C, drag);
 }
 
@@ -365,21 +364,15 @@ void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale)
 void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *C, wmDrag *drag)
 {
   BLI_assert(drag->type == WM_DRAG_PATH);
-  if (!CTX_wm_space_file(C)) {
+  const SpaceFile *sfile = CTX_wm_space_file(C);
+  if (!sfile) {
     return;
   }
-  char dirpath[FILE_MAX];
-  BLI_path_split_dir_part(WM_drag_get_single_path(drag), dirpath, FILE_MAX);
-
-  blender::LinearAllocator<> allocator;
+  const blender::Vector<std::string> selected_paths = ED_fileselect_selected_files_full_paths(
+      sfile);
   blender::Vector<const char *> paths;
-  const blender::Vector<PointerRNA> files = CTX_data_collection_get(C, "selected_files");
-  for (const PointerRNA &file_ptr : files) {
-    const FileDirEntry *file = static_cast<const FileDirEntry *>(file_ptr.data);
-    char filepath[FILE_MAX];
-    BLI_path_join(filepath, sizeof(filepath), dirpath, file->name);
-
-    paths.append(allocator.copy_string(filepath).c_str());
+  for (const std::string &path : selected_paths) {
+    paths.append(path.c_str());
   }
   if (paths.is_empty()) {
     return;
@@ -490,7 +483,7 @@ static wmDropBox *dropbox_active(bContext *C,
             continue;
           }
 
-          const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
+          const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
           if (drop->ot && WM_operator_poll_context(C, drop->ot, opcontext)) {
             /* Get dropbox tooltip now, #wm_drag_draw_tooltip can use a different draw context. */
             drag->drop_state.tooltip = dropbox_tooltip(C, drag, event->xy, drop);
@@ -580,7 +573,7 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
 
 void wm_drop_prepare(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
-  const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
+  const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
 
   if (drag->drop_state.ui_context) {
     CTX_store_set(C, drag->drop_state.ui_context.get());
@@ -606,7 +599,7 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event)
   wmWindowManager *wm = CTX_wm_manager(C);
 
   bool any_active = false;
-  LISTBASE_FOREACH (wmDrag *, drag, &wm->drags) {
+  LISTBASE_FOREACH (wmDrag *, drag, &wm->runtime->drags) {
     wm_drop_update_active(C, drag, event);
 
     if (drag->drop_state.active_dropbox) {
@@ -616,14 +609,14 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event)
 
   /* Change the cursor to display that dropping isn't possible here. But only if there is something
    * being dragged actually. Cursor will be restored in #wm_drags_exit(). */
-  if (!BLI_listbase_is_empty(&wm->drags)) {
+  if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
     WM_cursor_modal_set(CTX_wm_window(C), any_active ? WM_CURSOR_DEFAULT : WM_CURSOR_STOP);
   }
 }
 
-wmOperatorCallContext wm_drop_operator_context_get(const wmDropBox * /*drop*/)
+blender::wm::OpCallContext wm_drop_operator_context_get(const wmDropBox * /*drop*/)
 {
-  return WM_OP_INVOKE_DEFAULT;
+  return blender::wm::OpCallContext::InvokeDefault;
 }
 
 /* ************** IDs ***************** */
@@ -760,6 +753,16 @@ ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, const in
                                     idtype,
                                     name,
                                     flag | (use_relative_path ? FILE_RELPATH : 0));
+    case ASSET_IMPORT_PACK:
+      return WM_file_link_datablock(bmain,
+                                    scene,
+                                    view_layer,
+                                    view3d,
+                                    blend_path.c_str(),
+                                    idtype,
+                                    name,
+                                    flag | (use_relative_path ? FILE_RELPATH : 0) |
+                                        BLO_LIBLINK_PACK);
     case ASSET_IMPORT_APPEND:
       return WM_file_append_datablock(bmain,
                                       scene,
@@ -794,7 +797,7 @@ bool WM_drag_asset_will_import_linked(const wmDrag *drag)
   }
 
   const wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0);
-  return asset_drag->import_settings.method == ASSET_IMPORT_LINK;
+  return ELEM(asset_drag->import_settings.method, ASSET_IMPORT_LINK, ASSET_IMPORT_PACK);
 }
 
 ID *WM_drag_get_local_ID_or_import_from_asset(const bContext *C, const wmDrag *drag, int idcode)
@@ -1097,7 +1100,7 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
                                   y,
                                   drag->imb->x,
                                   drag->imb->y,
-                                  GPU_RGBA8,
+                                  blender::gpu::TextureFormat::UNORM_8_8_8_8,
                                   false,
                                   drag->imb->byte_buffer.data,
                                   drag->imbuf_scale,
@@ -1271,7 +1274,7 @@ void wm_drags_draw(bContext *C, wmWindow *win)
 
   /* Should we support multi-line drag draws? Maybe not, more types mixed won't work well. */
   GPU_blend(GPU_BLEND_ALPHA);
-  LISTBASE_FOREACH (wmDrag *, drag, &wm->drags) {
+  LISTBASE_FOREACH (wmDrag *, drag, &wm->runtime->drags) {
     if (drag->drop_state.active_dropbox) {
       CTX_wm_area_set(C, drag->drop_state.area_from);
       CTX_wm_region_set(C, drag->drop_state.region_from);

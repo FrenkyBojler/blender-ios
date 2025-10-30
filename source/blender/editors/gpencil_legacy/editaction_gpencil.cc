@@ -14,7 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_gpencil_legacy_types.h"
@@ -221,7 +221,6 @@ void ED_gpencil_set_active_channel(bGPdata *gpd, bGPDlayer *gpl)
   /* Update other layer status. */
   if (BKE_gpencil_layer_active_get(gpd) != gpl) {
     BKE_gpencil_layer_active_set(gpd, gpl);
-    BKE_gpencil_layer_autolock_set(gpd, false);
     WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 }
@@ -362,7 +361,7 @@ bool ED_gpencil_anim_copybuf_copy(bAnimContext *ac)
       BLI_assert(copied_frames.first == nullptr);
 
       /* make a copy of the layer's name - for name-based matching later... */
-      STRNCPY(new_layer->info, gpl->info);
+      STRNCPY_UTF8(new_layer->info, gpl->info);
     }
   }
 
@@ -461,7 +460,7 @@ bool ED_gpencil_anim_copybuf_paste(bAnimContext *ac, const short offset_mode)
          *   if it works, it will show up.
          */
         LISTBASE_FOREACH (bGPDstroke *, gps, &gpfs->strokes) {
-          /* make a copy of stroke, then of its points array */
+          /* Make a copy of stroke, then a copy of its points array. */
           bGPDstroke *gpsn = BKE_gpencil_stroke_duplicate(gps, true, true);
 
           /* append stroke to frame */
@@ -502,7 +501,7 @@ static bool gpencil_frame_snap_nearest(bGPDframe * /*gpf*/, Scene * /*scene*/)
 
 static bool gpencil_frame_snap_nearestsec(bGPDframe *gpf, Scene *scene)
 {
-  float secf = float(FPS);
+  float secf = float(scene->frames_per_second());
   if (gpf->flag & GP_FRAME_SELECT) {
     gpf->framenum = int(floorf(gpf->framenum / secf + 0.5f) * secf);
   }

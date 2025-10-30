@@ -183,10 +183,10 @@ static void *ed_armature_pick_bone_from_selectbuffer_impl(const bool is_editmode
             continue;
           }
           if (findunsel) {
-            sel = (pchan->bone->flag & BONE_SELECTED);
+            sel = (pchan->flag & POSE_SELECTED);
           }
           else {
-            sel = !(pchan->bone->flag & BONE_SELECTED);
+            sel = !(pchan->flag & POSE_SELECTED);
           }
 
           data = pchan;
@@ -505,7 +505,7 @@ static wmOperatorStatus armature_select_linked_exec(bContext *C, wmOperator *op)
 
     bool found = false;
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (blender::animrig::bone_is_visible_editbone(arm, ebone) &&
+      if (blender::animrig::bone_is_visible(arm, ebone) &&
           (ebone->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)))
       {
         ebone->flag |= BONE_DONE;
@@ -657,10 +657,16 @@ static EditBone *get_nearest_editbonepoint(
   result_bias.base = nullptr;
   result_bias.ebone = nullptr;
 
-  /* find the bone after the current active bone, so as to bump up its chances in selection.
-   * this way overlapping bones will cycle selection state as with objects. */
+  /* Find the bone after the current (selected) active bone, so as to bump up its chances in
+   * selection. this way overlapping bones will cycle selection state as with objects. */
   Object *obedit_orig = vc->obedit;
   EditBone *ebone_active_orig = static_cast<bArmature *>(obedit_orig->data)->act_edbone;
+  if (ebone_active_orig &&
+      (ebone_active_orig->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) == 0)
+  {
+    ebone_active_orig = nullptr;
+  }
+
   if (ebone_active_orig == nullptr) {
     use_cycle = false;
   }
@@ -686,7 +692,7 @@ static EditBone *get_nearest_editbonepoint(
     rcti rect;
     BLI_rcti_init_pt_radius(&rect, vc->mval, 12);
     /* VIEW3D_SELECT_PICK_ALL needs to be used or unselectable bones can block selectability of
-     * bones further back. See #123963.  */
+     * bones further back. See #123963. */
     const int hits12 = view3d_gpu_select_with_id_filter(
         vc, &buffer, &rect, VIEW3D_SELECT_PICK_ALL, select_filter, select_id_ignore);
 
@@ -740,13 +746,10 @@ cache_end:
         union {
           uint32_t as_u32;
           struct {
-#ifdef __BIG_ENDIAN__
-            uint16_t ob;
-            uint16_t bone;
-#else
+            /* NOTE: this is endianness-sensitive.
+             * In Big Endian the order of these two variable would have to be inverted. */
             uint16_t bone;
             uint16_t ob;
-#endif
           };
         } offset, test, best;
       } cycle_order;
@@ -816,6 +819,7 @@ cache_end:
           if (bias > bias_max) {
             bias_max = bias;
 
+            min_depth = hit_result.depth;
             result_bias.select_id = select_id;
             result_bias.base = base;
             result_bias.ebone = ebone;
@@ -908,7 +912,7 @@ bool ED_armature_edit_deselect_all_visible(Object *obedit)
   bool changed = false;
   LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
     /* first and foremost, bone must be visible and selected */
-    if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+    if (blender::animrig::bone_is_visible(arm, ebone)) {
       if (ebone->flag & (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL)) {
         ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
         changed = true;
@@ -1107,7 +1111,7 @@ bool ED_armature_edit_select_pick_bone(
 
     ED_armature_edit_sync_selection(arm->edbo);
 
-    /* Then now check for active status. */
+    /* Now check for active status. */
     if (ED_armature_ebone_selectflag_get(ebone)) {
       arm->act_edbone = ebone;
     }
@@ -1161,7 +1165,7 @@ static bool armature_edit_select_op_apply(bArmature *arm,
 {
   BLI_assert(!(is_ignore_flag & ~(BONESEL_ROOT | BONESEL_TIP)));
   BLI_assert(!(is_inside_flag & ~(BONESEL_ROOT | BONESEL_TIP | BONESEL_BONE)));
-  BLI_assert(blender::animrig::bone_is_visible_editbone(arm, ebone));
+  BLI_assert(blender::animrig::bone_is_visible(arm, ebone));
   bool changed = false;
   bool is_point_done = false;
   int points_proj_tot = 0;
@@ -1467,7 +1471,7 @@ static void armature_select_more_less(Object *ob, bool more)
 
   /* do selection */
   LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-    if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+    if (blender::animrig::bone_is_visible(arm, ebone)) {
       if (more) {
         armature_select_more(arm, ebone);
       }
@@ -1478,7 +1482,7 @@ static void armature_select_more_less(Object *ob, bool more)
   }
 
   LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-    if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+    if (blender::animrig::bone_is_visible(arm, ebone)) {
       if (more == false) {
         if (ebone->flag & BONE_SELECTED) {
           ED_armature_ebone_select_set(ebone, true);
@@ -2167,7 +2171,7 @@ static wmOperatorStatus armature_select_mirror_exec(bContext *C, wmOperator *op)
         int flag_new = extend ? EBONE_PREV_FLAG_GET(ebone) : 0;
 
         if ((ebone_mirror = ED_armature_ebone_get_mirrored(arm->edbo, ebone)) &&
-            blender::animrig::bone_is_visible_editbone(arm, ebone_mirror))
+            blender::animrig::bone_is_visible(arm, ebone_mirror))
         {
           const int flag_mirror = EBONE_PREV_FLAG_GET(ebone_mirror);
           flag_new |= flag_mirror;

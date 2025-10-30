@@ -645,8 +645,7 @@ void USDStageReader::import_all_materials(Main *bmain)
     Material *new_mtl = mtl_reader.add_material(usd_mtl, !have_import_hook);
     BLI_assert_msg(new_mtl, "Failed to create material");
 
-    const std::string mtl_name = make_safe_name(new_mtl->id.name + 2, true);
-    settings_.mat_name_to_mat.add_new(mtl_name, new_mtl);
+    settings_.mat_name_to_mat.add_new(new_mtl->id.name + 2, new_mtl);
 
     if (params_.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
       /* Record the Blender material we created for the USD material with the given path.
@@ -907,18 +906,30 @@ void USDStageReader::collect_point_instancer_proto_paths(const pxr::UsdPrim &pri
   pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_flags);
 
   for (const auto &child_prim : children) {
-    const pxr::UsdGeomImageable imageable = pxr::UsdGeomImageable(child_prim);
-    if (!imageable) {
-      continue;
+
+    /* Note we allow undefined prims in case prototypes are defined as overs.
+     * If the prim is defined, we apply additional checks for inclusion. */
+    if (child_prim.IsDefined()) {
+      const pxr::UsdGeomImageable imageable = pxr::UsdGeomImageable(child_prim);
+      if (!imageable) {
+        continue;
+      }
+
+      /* We should only traverse through a hierarchy, and any potential instancers, if they would
+       * be included by our purpose and visibility checks, matching what is inside
+       * #collect_readers. */
+      if (!include_by_purpose(imageable)) {
+        continue;
+      }
+
+      if (!include_by_visibility(imageable)) {
+        continue;
+      }
     }
 
-    /* We should only traverse through a hierarchy, and any potential instancers, if they would be
-     * included by our purpose and visibility checks, matching what is inside #collect_readers. */
-    if (!include_by_purpose(imageable)) {
-      continue;
-    }
-
-    if (!include_by_visibility(imageable)) {
+    /* We should only consider potential point instancers if they would be included by the scene
+     * instancing flags. */
+    if (!params_.support_scene_instancing && child_prim.IsInPrototype()) {
       continue;
     }
 

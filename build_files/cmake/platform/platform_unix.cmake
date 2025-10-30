@@ -298,7 +298,7 @@ if(WITH_CODEC_FFMPEG)
     # Override FFMPEG components to also include static library dependencies
     # included with precompiled libraries, and to ensure correct link order.
     set(FFMPEG_FIND_COMPONENTS
-      avformat avcodec avdevice avutil swresample swscale
+      avformat avdevice avfilter avcodec avutil swresample swscale
       sndfile
       FLAC
       mp3lame
@@ -550,6 +550,7 @@ if(WITH_TBB)
     get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
   endif()
   set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
+  mark_as_advanced(TBB_DIR)
 endif()
 add_bundled_libraries(tbb/lib)
 
@@ -579,8 +580,23 @@ if(WITH_MANIFOLD)
   else()
     # This isn't a common system library, so disable if it's not found.
     find_package(manifold)
+    if(TARGET manifold::manifold)
+      set(MANIFOLD_FOUND TRUE)
+    endif()
     set_and_warn_library_found("MANIFOLD" MANIFOLD_FOUND WITH_MANIFOLD)
   endif()
+  mark_as_advanced(manifold_DIR)
+endif()
+
+if(WITH_RUBBERBAND)
+  if(DEFINED LIBDIR)
+    find_package_wrapper(Rubberband)
+  else()
+    # Use system libs
+    find_package(PkgConfig)
+    pkg_check_modules(RUBBERBAND rubberband)
+  endif()
+  set_and_warn_library_found("Rubberband" RUBBERBAND_FOUND WITH_RUBBERBAND)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
@@ -660,13 +676,6 @@ if(WITH_SYSTEM_FREETYPE)
   check_freetype_for_brotli()
   # Quiet warning as this variable will be used after `FREETYPE_LIBRARIES`.
   set(BROTLI_LIBRARIES "")
-endif()
-
-if(WITH_LZO AND WITH_SYSTEM_LZO)
-  find_package_wrapper(LZO)
-  if(NOT LZO_FOUND)
-    message(FATAL_ERROR "Failed finding system LZO version!")
-  endif()
 endif()
 
 if(WITH_SYSTEM_EIGEN3)

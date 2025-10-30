@@ -41,7 +41,7 @@ struct wmOperator;
 #define BONESEL_ANY (BONESEL_TIP | BONESEL_ROOT | BONESEL_BONE)
 
 #define EBONE_SELECTABLE(arm, ebone) \
-  (blender::animrig::bone_is_visible_editbone(arm, ebone) && !((ebone)->flag & BONE_UNSELECTABLE))
+  (blender::animrig::bone_is_visible(arm, ebone) && !((ebone)->flag & BONE_UNSELECTABLE))
 
 #define EBONE_EDITABLE(ebone) \
   (CHECK_TYPE_INLINE(ebone, EditBone *), \
@@ -284,7 +284,7 @@ bool ED_armature_pose_select_pick_bone(const Scene *scene,
                                        ViewLayer *view_layer,
                                        View3D *v3d,
                                        Object *ob,
-                                       Bone *bone,
+                                       bPoseChannel *pchan,
                                        const SelectPick_Params &params) ATTR_NONNULL(1, 2, 3, 4);
 /**
  * Called for mode-less pose selection.

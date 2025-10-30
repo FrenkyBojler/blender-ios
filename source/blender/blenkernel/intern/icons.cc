@@ -25,7 +25,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_global.hh" /* only for G.background test */
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_studiolight.h"
 
@@ -44,7 +44,7 @@ enum {
 
 /* GLOBALS */
 
-static CLG_LogRef LOG = {"bke.icons"};
+static CLG_LogRef LOG = {"lib.icons"};
 
 /* Protected by gIconMutex. */
 static GHash *gIcons = nullptr;

@@ -7,7 +7,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_ies_light_cc {
@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1000000.0f)
       .description("Strength of the light source")
       .translation_context(BLT_I18NCONTEXT_AMOUNT);
-  b.add_output<decl::Float>("Fac");
+  b.add_output<decl::Float>("Factor", "Fac");
 }
 
 static void node_shader_buts_ies(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)

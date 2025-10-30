@@ -10,6 +10,7 @@
 #include <fmt/format.h>
 #include <sstream>
 #include <string>
+#include <xxhash.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -59,7 +60,7 @@
 #include "BLO_read_write.hh"
 
 #include "NOD_geometry_nodes_caller_ui.hh"
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -114,7 +115,7 @@ static void find_dependencies_from_settings(const NodesModifierSettings &setting
                                             nodes::GeometryNodesEvalDependencies &deps)
 {
   IDP_foreach_property(settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
-    if (ID *id = IDP_Id(property)) {
+    if (ID *id = IDP_ID_get(property)) {
       deps.add_generic_id_full(id);
     }
   });
@@ -451,6 +452,7 @@ void MOD_nodes_update_interface(Object *object, NodesModifierData *nmd)
   update_id_properties_from_node_group(nmd);
   update_bakes_from_node_group(*nmd);
   update_panels_from_node_group(*nmd);
+  nmd->runtime->usage_cache.reset();
 
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
 }
@@ -474,7 +476,7 @@ namespace blender {
 
 /**
  * Setup side effects nodes so that the given node in the given compute context will be executed.
- * To make sure that it is executed, all parent group nodes and zones have to be set to  have side
+ * To make sure that it is executed, all parent group nodes and zones have to be set to have side
  * effects as well.
  */
 static void try_add_side_effect_node(const ModifierEvalContext &ctx,
@@ -901,7 +903,7 @@ static void find_socket_log_contexts(const NodesModifierData &nmd,
  * the object as a parameter, so it's likely better to this check as a separate step.
  */
 static void check_property_socket_sync(const Object *ob,
-                                       const nodes::PropertiesVectorSet &properties,
+                                       const IDProperty *properties,
                                        ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
@@ -922,11 +924,11 @@ static void check_property_socket_sync(const Object *ob,
     if (i == 0 && type == SOCK_GEOMETRY) {
       continue;
     }
-    if (input_structure_types[i] == nodes::StructureType::Grid) {
+    if (ELEM(input_structure_types[i], nodes::StructureType::Grid, nodes::StructureType::List)) {
       continue;
     }
 
-    IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
+    IDProperty *property = IDP_GetPropertyFromGroup_null(properties, socket->identifier);
     if (property == nullptr) {
       if (!ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_BUNDLE, SOCK_CLOSURE)) {
         BKE_modifier_set_error(
@@ -1178,7 +1180,7 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
     use_frame_cache_ = ctx_.object->flag & OB_FLAG_USE_SIMULATION_CACHE;
     depsgraph_is_active_ = DEG_is_active(depsgraph);
     modifier_cache_ = nmd.runtime->cache.get();
-    fps_ = FPS;
+    fps_ = scene->frames_per_second();
 
     if (!modifier_cache_) {
       return;
@@ -1819,12 +1821,12 @@ static void modifyGeometry(ModifierData *md,
   }
   NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(
       BKE_modifier_get_original(ctx->object, &nmd->modifier));
-
-  nodes::PropertiesVectorSet properties = nodes::build_properties_vector_set(
-      nmd->settings.properties);
+  if (ID_MISSING(nmd_orig->node_group)) {
+    return;
+  }
 
   const bNodeTree &tree = *nmd->node_group;
-  check_property_socket_sync(ctx->object, properties, md);
+  check_property_socket_sync(ctx->object, nmd->settings.properties, md);
 
   tree.ensure_topology_cache();
   const bNode *output_node = tree.group_output_node();
@@ -1892,8 +1894,11 @@ static void modifyGeometry(ModifierData *md,
 
   bke::ModifierComputeContext modifier_compute_context{nullptr, *nmd};
 
-  geometry_set = nodes::execute_geometry_nodes_on_geometry(
-      tree, properties, modifier_compute_context, call_data, std::move(geometry_set));
+  geometry_set = nodes::execute_geometry_nodes_on_geometry(tree,
+                                                           nmd->settings.properties,
+                                                           modifier_compute_context,
+                                                           call_data,
+                                                           std::move(geometry_set));
 
   if (logging_enabled(ctx)) {
     nmd_orig->runtime->eval_log = std::move(eval_log);
@@ -1949,6 +1954,63 @@ static void modify_geometry_set(ModifierData *md,
   modifyGeometry(md, ctx, *geometry_set);
 }
 
+void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
+{
+  if (!nmd.node_group) {
+    this->reset();
+    return;
+  }
+  if (ID_MISSING(&nmd.node_group->id)) {
+    this->reset();
+    return;
+  }
+  const bNodeTree &tree = *nmd.node_group;
+  tree.ensure_interface_cache();
+  tree.ensure_topology_cache();
+  ResourceScope scope;
+  const Vector<nodes::InferenceValue> group_input_values =
+      nodes::get_geometry_nodes_input_inference_values(tree, nmd.settings.properties, scope);
+
+  /* Compute the hash of the input values. This has to be done everytime currently, because there
+   * is no reliable callback yet that is called any of the modifier properties changes. */
+  XXH3_state_t *state = XXH3_createState();
+  XXH3_64bits_reset(state);
+  BLI_SCOPED_DEFER([&]() { XXH3_freeState(state); });
+  for (const int input_i : IndexRange(nmd.node_group->interface_inputs().size())) {
+    const nodes::InferenceValue &value = group_input_values[input_i];
+    XXH3_64bits_update(state, &input_i, sizeof(input_i));
+    if (value.is_primitive_value()) {
+      const void *value_ptr = value.get_primitive_ptr();
+      const bNodeTreeInterfaceSocket &io_socket = *nmd.node_group->interface_inputs()[input_i];
+      const CPPType &base_type = *io_socket.socket_typeinfo()->base_cpp_type;
+      uint64_t value_hash = base_type.hash_or_fallback(value_ptr, 0);
+      XXH3_64bits_update(state, &value_hash, sizeof(value_hash));
+    }
+  }
+  const uint64_t new_input_values_hash = XXH3_64bits_digest(state);
+  if (new_input_values_hash == input_values_hash_) {
+    if (this->inputs.size() == tree.interface_inputs().size() &&
+        this->outputs.size() == tree.interface_outputs().size())
+    {
+      /* The cache is up to date, so return early. */
+      return;
+    }
+  }
+  /* Compute the new usage inference result. */
+  this->inputs.reinitialize(tree.interface_inputs().size());
+  this->outputs.reinitialize(tree.interface_outputs().size());
+  nodes::socket_usage_inference::infer_group_interface_usage(
+      tree, group_input_values, inputs, outputs);
+  input_values_hash_ = new_input_values_hash;
+}
+
+void NodesModifierUsageInferenceCache::reset()
+{
+  input_values_hash_ = 0;
+  this->inputs = {};
+  this->outputs = {};
+}
+
 static void panel_draw(const bContext *C, Panel *panel)
 {
   uiLayout *layout = panel->layout;
@@ -1970,8 +2032,8 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
   BLO_write_string(writer, nmd->bake_directory);
 
+  Map<IDProperty *, IDPropertyUIDataBool *> boolean_props;
   if (nmd->settings.properties != nullptr) {
-    Map<IDProperty *, IDPropertyUIDataBool *> boolean_props;
     if (!BLO_write_is_undo(writer)) {
       /* Boolean properties are added automatically for boolean node group inputs. Integer
        * properties are automatically converted to boolean sockets where applicable as well.
@@ -1989,43 +2051,44 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     /* Note that the property settings are based on the socket type info
      * and don't necessarily need to be written, but we can't just free them. */
     IDP_BlendWrite(writer, nmd->settings.properties);
+  }
 
-    BLO_write_struct_array(writer, NodesModifierBake, nmd->bakes_num, nmd->bakes);
-    for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
-      BLO_write_string(writer, bake.directory);
+  BLO_write_struct_array(writer, NodesModifierBake, nmd->bakes_num, nmd->bakes);
+  for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
+    BLO_write_string(writer, bake.directory);
 
+    BLO_write_struct_array(writer, NodesModifierDataBlock, bake.data_blocks_num, bake.data_blocks);
+    for (const NodesModifierDataBlock &item : Span(bake.data_blocks, bake.data_blocks_num)) {
+      BLO_write_string(writer, item.id_name);
+      BLO_write_string(writer, item.lib_name);
+    }
+    if (bake.packed) {
+      BLO_write_struct(writer, NodesModifierPackedBake, bake.packed);
       BLO_write_struct_array(
-          writer, NodesModifierDataBlock, bake.data_blocks_num, bake.data_blocks);
-      for (const NodesModifierDataBlock &item : Span(bake.data_blocks, bake.data_blocks_num)) {
-        BLO_write_string(writer, item.id_name);
-        BLO_write_string(writer, item.lib_name);
+          writer, NodesModifierBakeFile, bake.packed->meta_files_num, bake.packed->meta_files);
+      BLO_write_struct_array(
+          writer, NodesModifierBakeFile, bake.packed->blob_files_num, bake.packed->blob_files);
+      const auto write_bake_file = [&](const NodesModifierBakeFile &bake_file) {
+        BLO_write_string(writer, bake_file.name);
+        if (bake_file.packed_file) {
+          BKE_packedfile_blend_write(writer, bake_file.packed_file);
+        }
+      };
+      for (const NodesModifierBakeFile &meta_file :
+           Span{bake.packed->meta_files, bake.packed->meta_files_num})
+      {
+        write_bake_file(meta_file);
       }
-      if (bake.packed) {
-        BLO_write_struct(writer, NodesModifierPackedBake, bake.packed);
-        BLO_write_struct_array(
-            writer, NodesModifierBakeFile, bake.packed->meta_files_num, bake.packed->meta_files);
-        BLO_write_struct_array(
-            writer, NodesModifierBakeFile, bake.packed->blob_files_num, bake.packed->blob_files);
-        const auto write_bake_file = [&](const NodesModifierBakeFile &bake_file) {
-          BLO_write_string(writer, bake_file.name);
-          if (bake_file.packed_file) {
-            BKE_packedfile_blend_write(writer, bake_file.packed_file);
-          }
-        };
-        for (const NodesModifierBakeFile &meta_file :
-             Span{bake.packed->meta_files, bake.packed->meta_files_num})
-        {
-          write_bake_file(meta_file);
-        }
-        for (const NodesModifierBakeFile &blob_file :
-             Span{bake.packed->blob_files, bake.packed->blob_files_num})
-        {
-          write_bake_file(blob_file);
-        }
+      for (const NodesModifierBakeFile &blob_file :
+           Span{bake.packed->blob_files, bake.packed->blob_files_num})
+      {
+        write_bake_file(blob_file);
       }
     }
-    BLO_write_struct_array(writer, NodesModifierPanel, nmd->panels_num, nmd->panels);
+  }
+  BLO_write_struct_array(writer, NodesModifierPanel, nmd->panels_num, nmd->panels);
 
+  if (nmd->settings.properties) {
     if (!BLO_write_is_undo(writer)) {
       LISTBASE_FOREACH (IDProperty *, prop, &nmd->settings.properties->data.group) {
         if (prop->type == IDP_INT) {
@@ -2270,4 +2333,5 @@ ModifierTypeInfo modifierType_Nodes = {
     /*blend_write*/ blender::blend_write,
     /*blend_read*/ blender::blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

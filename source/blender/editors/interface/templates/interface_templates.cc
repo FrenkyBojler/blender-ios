@@ -9,6 +9,7 @@
 #include "BKE_library.hh"
 #include "BKE_screen.hh"
 
+#include "BLI_math_color.h"
 #include "BLI_string_ref.hh"
 
 #include "ED_fileselect.hh"
@@ -16,7 +17,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
 
@@ -180,8 +181,7 @@ uiBlock *template_common_search_menu(const bContext *C,
                   UI_SEARCHBOX_BOUNDS;
 
     /* fake button, it holds space for search items */
-    uiDefBut(block, UI_BTYPE_LABEL, 0, "", 0, UI_UNIT_Y, w, h, nullptr, 0, 0, std::nullopt);
-
+    uiDefBut(block, ButType::Label, 0, "", 0, UI_UNIT_Y, w, h, nullptr, 0, 0, std::nullopt);
     but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, w, UI_UNIT_Y, "");
     UI_but_search_preview_grid_size_set(but, preview_rows, preview_cols);
   }
@@ -193,7 +193,7 @@ uiBlock *template_common_search_menu(const bContext *C,
 
     /* fake button, it holds space for search items */
     uiDefBut(block,
-             UI_BTYPE_LABEL,
+             ButType::Label,
              0,
              "",
              0,
@@ -286,14 +286,14 @@ void uiTemplatePathBuilder(uiLayout *layout,
 
 void uiTemplateNodeSocket(uiLayout *layout, bContext * /*C*/, const float color[4])
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   UI_block_align_begin(block);
 
   /* XXX using explicit socket colors is not quite ideal.
    * Eventually it should be possible to use theme colors for this purpose,
    * but this requires a better design for extendable color palettes in user preferences. */
   uiBut *but = uiDefBut(
-      block, UI_BTYPE_NODE_SOCKET, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
+      block, ButType::NodeSocket, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
   rgba_float_to_uchar(but->col, color);
 
   UI_block_align_end(block);
@@ -308,7 +308,7 @@ void uiTemplateFileSelectPath(uiLayout *layout, bContext *C, FileSelectParams *p
   bScreen *screen = CTX_wm_screen(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
 
-  ED_file_path_button(screen, sfile, params, uiLayoutGetBlock(layout));
+  ED_file_path_button(screen, sfile, params, layout->block());
 }
 
 /** \} */

@@ -6,52 +6,57 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_assert.h"
 #include "BLI_math_matrix.hh"
 
-#include "UI_interface.hh"
-#include "UI_resources.hh"
+#include "DNA_node_types.h"
 
+#include "RNA_enum_types.hh"
+
+#include "COM_domain.hh"
 #include "COM_node_operation.hh"
-#include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
-/* **************** Translate ******************** */
-
 namespace blender::nodes::node_composite_translate_cc {
-
-NODE_STORAGE_FUNCS(NodeTranslateData)
 
 static void cmp_node_translate_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0)
-      .compositor_realization_mode(CompositorInputRealizationMode::None);
-  b.add_input<decl::Float>("X")
-      .default_value(0.0f)
-      .min(-10000.0f)
-      .max(10000.0f)
-      .compositor_expects_single_value();
-  b.add_input<decl::Float>("Y")
-      .default_value(0.0f)
-      .min(-10000.0f)
-      .max(10000.0f)
-      .compositor_expects_single_value();
-  b.add_output<decl::Color>("Image");
+      .hide_value()
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
+  b.add_input<decl::Float>("X").default_value(0.0f).min(-10000.0f).max(10000.0f);
+  b.add_input<decl::Float>("Y").default_value(0.0f).min(-10000.0f).max(10000.0f);
+
+  PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling").default_closed(true);
+  sampling_panel.add_input<decl::Menu>("Interpolation")
+      .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
+      .static_items(rna_enum_node_compositor_interpolation_items)
+      .optional_label()
+      .description("Interpolation method");
+  sampling_panel.add_input<decl::Menu>("Extension X")
+      .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
+      .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
+      .description("The extension mode applied to the X axis");
+  sampling_panel.add_input<decl::Menu>("Extension Y")
+      .default_value(CMP_NODE_EXTENSION_MODE_CLIP)
+      .static_items(rna_enum_node_compositor_extension_items)
+      .optional_label()
+      .description("The extension mode applied to the Y axis");
 }
 
 static void node_composit_init_translate(bNodeTree * /*ntree*/, bNode *node)
 {
+  /* Unused, kept for forward compatibility. */
   NodeTranslateData *data = MEM_callocN<NodeTranslateData>(__func__);
   node->storage = data;
-}
-
-static void node_composit_buts_translate(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "wrap_axis", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -72,37 +77,63 @@ class TranslateOperation : public NodeOperation {
     output.share_data(input);
     output.transform(math::from_location<float3x3>(translation));
     output.get_realization_options().interpolation = this->get_interpolation();
-    output.get_realization_options().repeat_x = this->get_repeat_x();
-    output.get_realization_options().repeat_y = this->get_repeat_y();
+    output.get_realization_options().extension_x = this->get_extension_mode_x();
+    output.get_realization_options().extension_y = this->get_extension_mode_y();
   }
 
   Interpolation get_interpolation()
   {
-    switch (node_storage(bnode()).interpolation) {
+    const Result &input = this->get_input("Interpolation");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_INTERPOLATION_BILINEAR);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    const CMPNodeInterpolation interpolation = static_cast<CMPNodeInterpolation>(menu_value.value);
+    switch (interpolation) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
 
-    BLI_assert_unreachable();
     return Interpolation::Nearest;
   }
 
-  bool get_repeat_x()
+  ExtensionMode get_extension_mode_x()
   {
-    return ELEM(node_storage(bnode()).wrap_axis,
-                CMP_NODE_TRANSLATE_REPEAT_AXIS_X,
-                CMP_NODE_TRANSLATE_REPEAT_AXIS_XY);
+    const Result &input = this->get_input("Extension X");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    const CMPExtensionMode extension_x = static_cast<CMPExtensionMode>(menu_value.value);
+    switch (extension_x) {
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    return ExtensionMode::Clip;
   }
 
-  bool get_repeat_y()
+  ExtensionMode get_extension_mode_y()
   {
-    return ELEM(node_storage(bnode()).wrap_axis,
-                CMP_NODE_TRANSLATE_REPEAT_AXIS_Y,
-                CMP_NODE_TRANSLATE_REPEAT_AXIS_XY);
+    const Result &input = this->get_input("Extension Y");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_EXTENSION_MODE_CLIP);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    const CMPExtensionMode extension_y = static_cast<CMPExtensionMode>(menu_value.value);
+    switch (extension_y) {
+      case CMP_NODE_EXTENSION_MODE_CLIP:
+        return ExtensionMode::Clip;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    return ExtensionMode::Clip;
   }
 };
 
@@ -125,7 +156,6 @@ static void register_node_type_cmp_translate()
   ntype.enum_name_legacy = "TRANSLATE";
   ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_translate_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_translate;
   ntype.initfunc = file_ns::node_composit_init_translate;
   blender::bke::node_type_storage(
       ntype, "NodeTranslateData", node_free_standard_storage, node_copy_standard_storage);

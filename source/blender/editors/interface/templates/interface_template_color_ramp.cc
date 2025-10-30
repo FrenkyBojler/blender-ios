@@ -24,7 +24,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
 
@@ -58,7 +58,11 @@ static void colorband_distribute(bContext *C, ColorBand *coba, bool evenly)
       coba->data[a].pos = pos;
       pos += gap;
     }
-    ED_undo_push(C, evenly ? "Distribute Stops Evenly" : "Distribute Stops from Left");
+    const char *undo_str = evenly ? CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT,
+                                           "Distribute Stops Evenly") :
+                                    CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT,
+                                           "Distribute Stops from Left");
+    ED_undo_push(C, undo_str);
   }
 }
 
@@ -73,25 +77,25 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
 
   uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Pulldown);
 
-  uiLayout *layout = UI_block_layout(block,
-                                     UI_LAYOUT_VERTICAL,
-                                     UI_LAYOUT_MENU,
-                                     0,
-                                     0,
-                                     UI_MENU_WIDTH_MIN,
-                                     0,
-                                     UI_MENU_PADDING,
-                                     style);
-  UI_block_layout_set_current(block, layout);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Menu,
+                                               0,
+                                               0,
+                                               UI_MENU_WIDTH_MIN,
+                                               0,
+                                               UI_MENU_PADDING,
+                                               style);
+  blender::ui::block_layout_set_current(block, &layout);
   {
-    uiLayoutSetContextPointer(layout, "color_ramp", &coba_ptr);
+    layout.context_ptr_set("color_ramp", &coba_ptr);
   }
 
   /* We could move these to operators,
    * although this isn't important unless we want to assign key shortcuts to them. */
   {
     uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT_MENU,
+                                  ButType::ButMenu,
                                   1,
                                   ICON_ARROW_LEFTRIGHT,
                                   IFACE_("Flip Color Ramp"),
@@ -100,8 +104,6 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                   menuwidth,
                                   UI_UNIT_Y,
                                   nullptr,
-                                  0.0,
-                                  0.0,
                                   "");
     UI_but_func_set(but, [coba, cb](bContext &C) {
       colorband_flip(&C, coba);
@@ -111,7 +113,7 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
   }
   {
     uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT_MENU,
+                                  ButType::ButMenu,
                                   1,
                                   ICON_BLANK1,
                                   IFACE_("Distribute Stops from Left"),
@@ -120,8 +122,6 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                   menuwidth,
                                   UI_UNIT_Y,
                                   nullptr,
-                                  0.0,
-                                  0.0,
                                   "");
     UI_but_func_set(but, [coba, cb](bContext &C) {
       colorband_distribute(&C, coba, false);
@@ -131,7 +131,7 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
   }
   {
     uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT_MENU,
+                                  ButType::ButMenu,
                                   1,
                                   ICON_BLANK1,
                                   IFACE_("Distribute Stops Evenly"),
@@ -140,8 +140,6 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                   menuwidth,
                                   UI_UNIT_Y,
                                   nullptr,
-                                  0.0,
-                                  0.0,
                                   "");
     UI_but_func_set(but, [coba, cb](bContext &C) {
       colorband_distribute(&C, coba, true);
@@ -150,15 +148,15 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
     });
   }
 
-  layout->separator();
+  layout.separator();
 
-  layout->op("UI_OT_eyedropper_colorramp", IFACE_("Eyedropper"), ICON_EYEDROPPER);
+  layout.op("UI_OT_eyedropper_colorramp", IFACE_("Eyedropper"), ICON_EYEDROPPER);
 
-  layout->separator();
+  layout.separator();
 
   {
     uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT_MENU,
+                                  ButType::ButMenu,
                                   1,
                                   ICON_LOOP_BACK,
                                   IFACE_("Reset Color Ramp"),
@@ -167,8 +165,6 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                   menuwidth,
                                   UI_UNIT_Y,
                                   nullptr,
-                                  0.0,
-                                  0.0,
                                   "");
     UI_but_func_set(but, [coba, cb](bContext &C) {
       BKE_colorband_init(coba, true);
@@ -235,7 +231,7 @@ static void colorband_buttons_layout(uiLayout *layout,
   uiLayout *row = &split->row(false);
 
   bt = uiDefIconTextBut(block,
-                        UI_BTYPE_BUT,
+                        ButType::But,
                         0,
                         ICON_ADD,
                         "",
@@ -244,13 +240,11 @@ static void colorband_buttons_layout(uiLayout *layout,
                         2.0f * unit,
                         UI_UNIT_Y,
                         nullptr,
-                        0,
-                        0,
                         TIP_("Add a new color stop to the color ramp"));
   UI_but_func_set(bt, [coba, cb](bContext &C) { colorband_add(C, cb, *coba); });
 
   bt = uiDefIconTextBut(block,
-                        UI_BTYPE_BUT,
+                        ButType::But,
                         0,
                         ICON_REMOVE,
                         "",
@@ -259,8 +253,6 @@ static void colorband_buttons_layout(uiLayout *layout,
                         2.0f * unit,
                         UI_UNIT_Y,
                         nullptr,
-                        0,
-                        0,
                         TIP_("Delete the active position"));
   UI_but_func_set(bt, [coba, cb](bContext &C) {
     if (BKE_colorband_element_remove(coba, coba->cur)) {
@@ -307,7 +299,7 @@ static void colorband_buttons_layout(uiLayout *layout,
   row = &layout->row(false);
 
   bt = uiDefBut(
-      block, UI_BTYPE_COLORBAND, 0, "", xs, ys, BLI_rctf_size_x(butr), UI_UNIT_Y, coba, 0, 0, "");
+      block, ButType::ColorBand, 0, "", xs, ys, BLI_rctf_size_x(butr), UI_UNIT_Y, coba, 0, 0, "");
   bt->rnapoin = cb.ptr;
   bt->rnaprop = cb.prop;
   UI_but_func_set(bt, [cb](bContext &C) { rna_update_cb(C, cb); });
@@ -324,7 +316,7 @@ static void colorband_buttons_layout(uiLayout *layout,
 
       row = &split->row(false);
       bt = uiDefButS(block,
-                     UI_BTYPE_NUM,
+                     ButType::Num,
                      0,
                      "",
                      0,
@@ -349,7 +341,7 @@ static void colorband_buttons_layout(uiLayout *layout,
 
       row = &subsplit->row(false);
       bt = uiDefButS(block,
-                     UI_BTYPE_NUM,
+                     ButType::Num,
                      0,
                      "",
                      0,

@@ -4,7 +4,7 @@
 
 #include "node_shader_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_output_linestyle_cc {
@@ -46,6 +46,8 @@ void register_node_type_sh_output_linestyle()
 
   sh_node_type_base(&ntype, "ShaderNodeOutputLineStyle", SH_NODE_OUTPUT_LINESTYLE);
   ntype.ui_name = "Line Style Output";
+  ntype.ui_description =
+      "Control the mixing of texture information into the base color of line styles";
   ntype.enum_name_legacy = "OUTPUT_LINESTYLE";
   ntype.nclass = NODE_CLASS_OUTPUT;
   ntype.declare = file_ns::node_declare;

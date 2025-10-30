@@ -267,9 +267,9 @@ static void rna_trackingTrack_name_set(PointerRNA *ptr, const char *value)
                                                                             track);
   /* Store old name, for the animation fix later. */
   char old_name[sizeof(track->name)];
-  STRNCPY(old_name, track->name);
+  STRNCPY_UTF8(old_name, track->name);
   /* Update the name, */
-  STRNCPY(track->name, value);
+  STRNCPY_UTF8(track->name, value);
   BKE_tracking_track_unique_name(&tracking_object->tracks, track);
   /* Fix animation paths. */
   AnimData *adt = BKE_animdata_from_id(&clip->id);
@@ -574,7 +574,7 @@ static void rna_trackingObject_name_set(PointerRNA *ptr, const char *value)
   MovieClip *clip = (MovieClip *)ptr->owner_id;
   MovieTrackingObject *tracking_object = (MovieTrackingObject *)ptr->data;
 
-  STRNCPY(tracking_object->name, value);
+  STRNCPY_UTF8(tracking_object->name, value);
 
   BKE_tracking_object_unique_name(&clip->tracking, tracking_object);
 }
@@ -670,7 +670,7 @@ static MovieTrackingTrack *add_track_to_base(
   track = BKE_tracking_track_add(tracking, tracksbase, 0, 0, frame, width, height);
 
   if (name && name[0]) {
-    STRNCPY(track->name, name);
+    STRNCPY_UTF8(track->name, name);
     BKE_tracking_track_unique_name(tracksbase, track);
   }
 
@@ -1600,6 +1600,7 @@ static void rna_def_trackingTrack(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "MovieTrackingMarker");
   RNA_def_property_collection_sdna(prop, nullptr, "markers", "markersnr");
   RNA_def_property_ui_text(prop, "Markers", "Collection of markers in track");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MOVIECLIP);
   rna_def_trackingMarkers(brna, prop);
 
   /* ** channels ** */
@@ -1653,6 +1654,7 @@ static void rna_def_trackingTrack(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "bundle_pos");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Bundle", "Position of bundle reconstructed from this track");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MOVIECLIP);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, RNA_TRANSLATION_PREC_DEFAULT);
 
   /* hide */
@@ -1717,14 +1719,14 @@ static void rna_def_trackingTrack(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Average Error", "Average error of re-projection");
 
-  /* grease pencil */
-  prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
+  /* Annotations */
+  prop = RNA_def_property(srna, "annotation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "gpd");
-  RNA_def_property_struct_type(prop, "GreasePencil");
+  RNA_def_property_struct_type(prop, "Annotation");
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_GPencil_datablocks_annotations_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
-  RNA_def_property_ui_text(prop, "Grease Pencil", "Grease Pencil data for this track");
+  RNA_def_property_ui_text(prop, "Annotation", "Annotation data for this track");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, nullptr);
 
   /* weight */
@@ -1873,6 +1875,7 @@ static void rna_def_trackingPlaneTrack(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "MovieTrackingPlaneMarker");
   RNA_def_property_collection_sdna(prop, nullptr, "markers", "markersnr");
   RNA_def_property_ui_text(prop, "Markers", "Collection of markers in track");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MOVIECLIP);
   rna_def_trackingPlaneMarkers(brna, prop);
 
   /* select */

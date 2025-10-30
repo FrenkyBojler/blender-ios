@@ -11,8 +11,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "IMB_imbuf.hh"
-
 #include "effects.hh"
 
 namespace blender::seq {
@@ -50,6 +48,7 @@ static StripEarlyOut early_out_color(const Strip * /*strip*/, float /*fac*/)
 }
 
 static ImBuf *do_solid_color(const RenderData *context,
+                             SeqRenderState * /*state*/,
                              Strip *strip,
                              float /*timeline_frame*/,
                              float /*fac*/,

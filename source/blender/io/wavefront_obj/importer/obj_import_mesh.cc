@@ -12,6 +12,7 @@
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_deform.hh"
 #include "BKE_lib_id.hh"
@@ -89,7 +90,12 @@ Object *MeshFromGeometry::create_mesh_object(
   Object *obj = BKE_object_add_only_object(bmain, OB_MESH, ob_name.c_str());
   obj->data = BKE_object_obdata_add_from_type(bmain, OB_MESH, ob_name.c_str());
 
-  this->create_materials(bmain, materials, created_materials, obj, import_params.relative_paths);
+  this->create_materials(bmain,
+                         materials,
+                         created_materials,
+                         obj,
+                         import_params.relative_paths,
+                         import_params.mtl_name_collision_mode);
 
   BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
 
@@ -355,23 +361,33 @@ static Material *get_or_create_material(Main *bmain,
                                         const std::string &name,
                                         Map<std::string, std::unique_ptr<MTLMaterial>> &materials,
                                         Map<std::string, Material *> &created_materials,
-                                        bool relative_paths)
+                                        bool relative_paths,
+                                        eOBJMtlNameCollisionMode mtl_name_collision_mode)
 {
-  /* Have we created this material already? */
+  /* Have we created this material already in this import session? */
   Material **found_mat = created_materials.lookup_ptr(name);
   if (found_mat != nullptr) {
     return *found_mat;
   }
 
-  /* We have not, will have to create it. Create a new default
-   * MTLMaterial too, in case the OBJ file tries to use a material
-   * that was not in the MTL file. */
+  /* Check if a material with this name already exists in the main database */
+  Material *existing_mat = (Material *)BKE_libblock_find_name(bmain, ID_MA, name.c_str());
+  if (existing_mat != nullptr &&
+      mtl_name_collision_mode == OBJ_MTL_NAME_COLLISION_REFERENCE_EXISTING)
+  {
+    /* If the collision mode is set to reference existing materials, use the existing one */
+    created_materials.add_new(name, existing_mat);
+    return existing_mat;
+  }
+
+  /* We need to create a new material */
   const MTLMaterial &mtl = *materials.lookup_or_add(name, std::make_unique<MTLMaterial>());
 
+  /* If we're in MAKE_UNIQUE mode and a material with this name already exists,
+   * BKE_material_add will automatically create a unique name */
   Material *mat = BKE_material_add(bmain, name.c_str());
   id_us_min(&mat->id);
 
-  mat->use_nodes = true;
   mat->nodetree = create_mtl_node_tree(bmain, mtl, mat, relative_paths);
   BKE_ntree_update_after_single_tree_change(*bmain, *mat->nodetree);
 
@@ -383,11 +399,12 @@ void MeshFromGeometry::create_materials(Main *bmain,
                                         Map<std::string, std::unique_ptr<MTLMaterial>> &materials,
                                         Map<std::string, Material *> &created_materials,
                                         Object *obj,
-                                        bool relative_paths)
+                                        bool relative_paths,
+                                        eOBJMtlNameCollisionMode mtl_name_collision_mode)
 {
   for (const std::string &name : mesh_geometry_.material_order_) {
     Material *mat = get_or_create_material(
-        bmain, name, materials, created_materials, relative_paths);
+        bmain, name, materials, created_materials, relative_paths, mtl_name_collision_mode);
     if (mat == nullptr) {
       continue;
     }
@@ -441,11 +458,13 @@ void MeshFromGeometry::create_colors(Mesh *mesh)
   }
 
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  CustomDataLayer *color_layer = BKE_attribute_new(
-      owner, "Color", CD_PROP_COLOR, bke::AttrDomain::Point, nullptr);
-  BKE_id_attributes_active_color_set(&mesh->id, color_layer->name);
-  BKE_id_attributes_default_color_set(&mesh->id, color_layer->name);
-  float4 *colors = (float4 *)color_layer->data;
+  const std::string name = BKE_attribute_calc_unique_name(owner, "Color");
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
+  bke::SpanAttributeWriter attr = attributes.lookup_or_add_for_write_span<ColorGeometry4f>(
+      name, bke::AttrDomain::Point);
+  BKE_id_attributes_active_color_set(&mesh->id, name);
+  BKE_id_attributes_default_color_set(&mesh->id, name);
+  MutableSpan<float4> colors = attr.span.cast<float4>();
 
   /* Second pass to fill out the data. */
   for (auto item : mesh_geometry_.global_to_local_vertices_.items()) {
@@ -456,6 +475,8 @@ void MeshFromGeometry::create_colors(Mesh *mesh)
     const float3 &c = global_vertices_.vertex_colors[vi];
     colors[local_vi] = float4(c.x, c.y, c.z, 1.0);
   }
+
+  attr.finish();
 }
 
 }  // namespace blender::io::obj

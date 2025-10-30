@@ -274,9 +274,9 @@ static void calculate_depth(gesture::GestureData &gesture_data,
 
       Sculpt *sd = CTX_data_tool_settings(vc.C)->sculpt;
       Brush *brush = BKE_paint_brush(&sd->paint);
-      Scene *scene = CTX_data_scene(vc.C);
 
-      depth_radius = object_space_radius_get(vc, *scene, *brush, trim_operation->initial_location);
+      depth_radius = object_space_radius_get(
+          vc, sd->paint, *brush, trim_operation->initial_location);
     }
 
     depth_front = mid_point_depth - depth_radius;
@@ -358,7 +358,7 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   get_origin_and_normal(gesture_data, shape_origin, shape_normal);
   plane_from_point_normal_v3(shape_plane, shape_origin, shape_normal);
 
-  const float(*ob_imat)[4] = vc.obact->world_to_object().ptr();
+  const float (*ob_imat)[4] = vc.obact->world_to_object().ptr();
 
   /* Write vertices coordinates OperationType::Difference for the front face. */
   MutableSpan<float3> positions = trim_operation->mesh->vert_positions_for_write();
@@ -444,7 +444,7 @@ static void generate_geometry(gesture::GestureData &gesture_data)
   /* Get the triangulation for the front/back poly. */
   const int face_tris_num = bke::mesh::face_triangles_num(screen_points.size());
   Array<uint3> tris(face_tris_num);
-  BLI_polyfill_calc(reinterpret_cast<const float(*)[2]>(screen_points.data()),
+  BLI_polyfill_calc(reinterpret_cast<const float (*)[2]>(screen_points.data()),
                     screen_points.size(),
                     0,
                     reinterpret_cast<uint(*)[3]>(tris.data()));

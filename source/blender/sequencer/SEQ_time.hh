@@ -98,6 +98,15 @@ void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_f
  */
 void time_right_handle_frame_set(const Scene *scene, Strip *strip, int timeline_frame);
 /**
+ * This function has same effect as calling @time_right_handle_frame_set and
+ * @time_right_handle_frame_set. If both handles are to be set after strip length changes, it is
+ * recommended to use this function as the order of setting handles is important. See #131731.
+ */
+void time_handles_frame_set(const Scene *scene,
+                            Strip *strip,
+                            int left_handle_timeline_frame,
+                            int right_handle_timeline_frame);
+/**
  * Get number of frames (in timeline) that can be rendered.
  * This can change depending on scene FPS or strip speed factor.
  */
@@ -129,6 +138,7 @@ void time_slip_strip(
     const Scene *scene, Strip *strip, int frame_delta, float subframe_delta, bool slip_keyframes);
 /**
  * Get difference between scene and movie strip frame-rate.
+ * Returns 1.0f for all other strip types.
  */
 float time_media_playback_rate_factor_get(const Strip *strip, float scene_fps);
 /**

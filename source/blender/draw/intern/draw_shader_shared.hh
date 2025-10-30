@@ -4,7 +4,7 @@
 
 #pragma once
 
-#if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
+#ifndef GPU_SHADER
 #  include "BLI_math_vector.hh"
 #  include "GPU_shader.hh"
 #  include "GPU_shader_shared_utils.hh"
@@ -38,7 +38,7 @@ struct GPULayerAttr;
 
 namespace blender::draw {
 
-struct ObjectRef;
+class ObjectRef;
 
 }  // namespace blender::draw
 
@@ -134,7 +134,7 @@ struct ObjectMatrices {
   float4x4 model;
   float4x4 model_inverse;
 
-#if !defined(GPU_SHADER) && defined(__cplusplus)
+#ifndef GPU_SHADER
   void sync(const Object &object);
   void sync(const float4x4 &model_matrix);
 #endif
@@ -148,9 +148,16 @@ enum eObjectInfoFlag : uint32_t {
   OBJECT_ACTIVE = (1u << 3u),
   OBJECT_NEGATIVE_SCALE = (1u << 4u),
   OBJECT_HOLDOUT = (1u << 5u),
+  /* Implies all objects that match the current active object's mode and able to be edited
+   * simultaneously. Currently only applicable for edit mode. */
+  OBJECT_ACTIVE_EDIT_MODE = (1u << 6u),
   /* Avoid skipped info to change culling. */
   OBJECT_NO_INFO = ~OBJECT_HOLDOUT
 };
+
+#ifndef GPU_SHADER
+ENUM_OPERATORS(eObjectInfoFlag);
+#endif
 
 struct ObjectInfos {
   /** Uploaded as center + size. Converted to mul+bias to local coord. */
@@ -170,9 +177,9 @@ struct ObjectInfos {
   float _pad1;
   float _pad2;
 
-#if !defined(GPU_SHADER) && defined(__cplusplus)
+#ifndef GPU_SHADER
   void sync();
-  void sync(const blender::draw::ObjectRef ref, bool is_active_object);
+  void sync(const blender::draw::ObjectRef ref, bool is_active_object, bool is_active_edit_mode);
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(ObjectInfos, 16)
@@ -198,7 +205,7 @@ struct ObjectBounds {
   /** Radius of the inscribed sphere derived from the bounding corner. Computed on GPU. */
 #define _inner_sphere_radius bounding_corners[3].w
 
-#if !defined(GPU_SHADER) && defined(__cplusplus)
+#ifndef GPU_SHADER
   void sync();
   void sync(const Object &ob, float inflate_bounds = 0.0f);
   void sync(const float3 &center, const float3 &size);
@@ -242,10 +249,18 @@ struct VolumeInfos {
 BLI_STATIC_ASSERT_ALIGN(VolumeInfos, 16)
 
 struct CurvesInfos {
+  /* TODO(fclem): Make it a single uint. */
   /** Per attribute scope, follows loading order.
    * \note uint as bool in GLSL is 4 bytes.
    * \note GLSL pad arrays of scalar to 16 bytes (std140). */
   uint4 is_point_attribute[DRW_ATTRIBUTE_PER_CURVES_MAX];
+
+  /* Number of vertex in a segment (including restart vertex for cylinder). */
+  uint vertex_per_segment;
+  /* Edge count for the visible half cylinder. Equal to face count + 1. */
+  uint half_cylinder_face_count;
+  uint _pad0;
+  uint _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(CurvesInfos, 16)
 
@@ -256,7 +271,7 @@ struct ObjectAttribute {
   float data_x, data_y, data_z, data_w;
   uint hash_code;
 
-#if !defined(GPU_SHADER) && defined(__cplusplus)
+#ifndef GPU_SHADER
   /**
    * Go through all possible source of the given object uniform attribute.
    * Returns true if the attribute was correctly filled.
@@ -276,7 +291,7 @@ struct LayerAttribute {
   uint buffer_length; /* Only in the first record. */
   uint _pad1, _pad2;
 
-#if !defined(GPU_SHADER) && defined(__cplusplus)
+#ifndef GPU_SHADER
   bool sync(const Scene *scene, const ViewLayer *layer, const GPULayerAttr &attr);
 #endif
 };
@@ -376,7 +391,7 @@ inline uint debug_color_pack(float4 v_color)
 }
 
 /* Take the header (DrawCommand) into account. */
-#define DRW_DEBUG_DRAW_VERT_MAX (64 * 8192) - 1
+#define DRW_DEBUG_DRAW_VERT_MAX (2 * 1024) - 1
 
 /* The debug draw buffer is laid-out as the following struct.
  * But we use plain array in shader code instead because of driver issues. */

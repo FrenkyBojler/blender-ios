@@ -118,6 +118,8 @@ typedef enum eAssetImportMethod {
    * heavy data dependencies (e.g. the image data-blocks of a material, the mesh of an object) may
    * be reused from an earlier append. */
   ASSET_IMPORT_APPEND_REUSE = 2,
+  /** Link data-block, but also pack it as read-only data. */
+  ASSET_IMPORT_PACK = 3,
 } eAssetImportMethod;
 
 #
@@ -196,23 +198,6 @@ typedef struct AssetWeakReference {
                                            blender::StringRef library_relative_identifier);
 #endif
 } AssetWeakReference;
-
-/**
- * To be replaced by #AssetRepresentation!
- *
- * Not part of the core design, we should try to get rid of it. Only needed to wrap FileDirEntry
- * into a type with PropertyGroup as base, so we can have an RNA collection of #AssetHandle's to
- * pass to the UI.
- *
- * \warning Never store this! When using #blender::ed::asset::list::iterate(), only access it
- * within the iterator function. The contained file data can be freed since the file cache has a
- * maximum number of items.
- */
-#
-#
-typedef struct AssetHandle {
-  const struct FileDirEntry *file_data;
-} AssetHandle;
 
 struct AssetCatalogPathLink {
   struct AssetCatalogPathLink *next, *prev;

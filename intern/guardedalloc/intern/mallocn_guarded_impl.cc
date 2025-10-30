@@ -174,11 +174,8 @@ static const char *check_memlist(const MemHead *memh);
 /* locally used defines                                                  */
 /* --------------------------------------------------------------------- */
 
-#ifdef __BIG_ENDIAN__
-#  define MAKE_ID(a, b, c, d) (int(a) << 24 | int(b) << 16 | (c) << 8 | (d))
-#else
-#  define MAKE_ID(a, b, c, d) (int(d) << 24 | int(c) << 16 | (b) << 8 | (a))
-#endif
+/* NOTE: this is endianness-sensitive. */
+#define MAKE_ID(a, b, c, d) (int(d) << 24 | int(c) << 16 | (b) << 8 | (a))
 
 #define MEMTAG1 MAKE_ID('M', 'E', 'M', 'O')
 #define MEMTAG2 MAKE_ID('R', 'Y', 'B', 'L')
@@ -366,7 +363,7 @@ void *MEM_guarded_dupallocN(const void *vmemh)
       }
       else {
         newp = MEM_guarded_mallocN_aligned(
-            memh->len, (size_t)memh->alignment, name, AllocationType::ALLOC_FREE);
+            memh->len, size_t(memh->alignment), name, AllocationType::ALLOC_FREE);
       }
 
       if (newp == nullptr)

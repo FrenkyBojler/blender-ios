@@ -23,6 +23,7 @@
 #include "BLI_hash_mm3.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "RE_pipeline.h"
 
@@ -59,6 +60,15 @@ CryptomatteSession::CryptomatteSession(const Main *bmain)
         RE_PASSNAME_CRYPTOMATTE_OBJECT);
     LISTBASE_FOREACH (ID *, id, &bmain->objects) {
       objects.add_ID(*id);
+    }
+
+    blender::bke::cryptomatte::CryptomatteLayer &assets = add_layer(RE_PASSNAME_CRYPTOMATTE_ASSET);
+    LISTBASE_FOREACH (ID *, id, &bmain->objects) {
+      const Object *asset_object = reinterpret_cast<Object *>(id);
+      while (asset_object->parent != nullptr) {
+        asset_object = asset_object->parent;
+      }
+      assets.add_ID(asset_object->id);
     }
   }
   if (!BLI_listbase_is_empty(&bmain->materials)) {
@@ -111,7 +121,9 @@ void CryptomatteSession::init(const ViewLayer *view_layer, bool build_meta_data)
     cryptoflags = VIEW_LAYER_CRYPTOMATTE_ALL;
   }
 
-  ListBase *object_bases = BKE_view_layer_object_bases_get(const_cast<ViewLayer *>(view_layer));
+  ListBase *object_bases = build_meta_data ? BKE_view_layer_object_bases_get(
+                                                 const_cast<ViewLayer *>(view_layer)) :
+                                             nullptr;
 
   if (cryptoflags & VIEW_LAYER_CRYPTOMATTE_OBJECT) {
     blender::bke::cryptomatte::CryptomatteLayer &objects = add_layer(
@@ -125,7 +137,18 @@ void CryptomatteSession::init(const ViewLayer *view_layer, bool build_meta_data)
   }
 
   if (cryptoflags & VIEW_LAYER_CRYPTOMATTE_ASSET) {
-    add_layer(blender::StringRefNull(view_layer->name) + "." + RE_PASSNAME_CRYPTOMATTE_ASSET);
+    blender::bke::cryptomatte::CryptomatteLayer &assets = add_layer(
+        blender::StringRefNull(view_layer->name) + "." + RE_PASSNAME_CRYPTOMATTE_ASSET);
+
+    if (build_meta_data) {
+      LISTBASE_FOREACH (Base *, base, object_bases) {
+        const Object *asset_object = base->object;
+        while (asset_object->parent != nullptr) {
+          asset_object = asset_object->parent;
+        }
+        assets.add_ID(asset_object->id);
+      }
+    }
   }
 
   if (cryptoflags & VIEW_LAYER_CRYPTOMATTE_MATERIAL) {
@@ -252,7 +275,7 @@ bool BKE_cryptomatte_find_name(const CryptomatteSession *session,
     return false;
   }
 
-  BLI_strncpy(r_name, name->c_str(), name_maxncpy);
+  BLI_strncpy_utf8(r_name, name->c_str(), name_maxncpy);
   return true;
 }
 
@@ -264,7 +287,7 @@ char *BKE_cryptomatte_entries_to_matte_id(NodeCryptomatte *node_storage)
     if (!first) {
       BLI_dynstr_append(matte_id, ",");
     }
-    if (STRNLEN(entry->name) != 0) {
+    if (entry->name[0] != '\0') {
       BLI_dynstr_nappend(matte_id, entry->name, sizeof(entry->name));
     }
     else {

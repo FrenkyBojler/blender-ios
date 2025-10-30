@@ -135,14 +135,14 @@ class Armatures : Overlay {
       });
     }
 
-    BoneBuffers(const SelectionType selection_type) : selection_type_(selection_type){};
+    BoneBuffers(const SelectionType selection_type) : selection_type_(selection_type) {};
   };
 
   BoneBuffers opaque_ = {selection_type_};
   BoneBuffers transparent_ = {selection_type_};
 
  public:
-  Armatures(const SelectionType selection_type) : selection_type_(selection_type){};
+  Armatures(const SelectionType selection_type) : selection_type_(selection_type) {};
 
   void begin_sync(Resources &res, const State &state) final
   {
@@ -157,11 +157,13 @@ class Armatures : Overlay {
     show_outline = (state.v3d->flag & V3D_SELECT_OUTLINE);
 
     const bool do_smooth_wire = U.gpu_flag & USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE;
-    const float wire_alpha = state.overlay.bone_wire_alpha;
+    const float wire_alpha = state.ctx_mode == CTX_MODE_PAINT_WEIGHT ?
+                                 state.overlay.bone_wire_alpha :
+                                 1.0f;
     /* Draw bone outlines and custom shape wire with a specific alpha. */
     const bool use_wire_alpha = (wire_alpha < 1.0f);
 
-    GPUTexture **depth_tex = (state.xray_enabled) ? &res.depth_tx : &res.dummy_depth_tx;
+    gpu::Texture **depth_tex = (state.xray_enabled) ? &res.depth_tx : &res.dummy_depth_tx;
 
     armature_ps_.init();
     armature_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);

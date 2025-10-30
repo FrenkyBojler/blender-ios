@@ -8,11 +8,12 @@
 
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "BLI_sys_types.h"
 
 #ifdef WITH_INTERNATIONAL
-
-#  include <optional>
 
 #  include "BLI_string_ref.hh"
 
@@ -41,7 +42,7 @@ using BPy_ThreadStatePtr = void *;
 /**
  * Analogue of #PyEval_SaveThread()
  */
-BPy_ThreadStatePtr BPY_thread_save();
+[[nodiscard]] BPy_ThreadStatePtr BPY_thread_save();
 /**
  * Analogue of #PyEval_RestoreThread()
  */
@@ -90,10 +91,10 @@ void BPY_driver_reset();
  * This evaluates Python driver expressions, `driver_orig->expression`
  * is a Python expression that should evaluate to a float number, which is returned.
  */
-float BPY_driver_exec(PathResolvedRNA *anim_rna,
-                      ChannelDriver *driver,
-                      ChannelDriver *driver_orig,
-                      const AnimationEvalContext *anim_eval_context);
+[[nodiscard]] float BPY_driver_exec(PathResolvedRNA *anim_rna,
+                                    ChannelDriver *driver,
+                                    ChannelDriver *driver_orig,
+                                    const AnimationEvalContext *anim_eval_context);
 
 /**
  * Acquire the global-interpreter-lock (GIL) and wrap `Py_DECREF`.
@@ -102,7 +103,9 @@ float BPY_driver_exec(PathResolvedRNA *anim_rna,
 void BPY_DECREF(void *pyob_ptr);
 
 void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr);
-int BPY_context_member_get(bContext *C, const char *member, bContextDataResult *result);
+[[nodiscard]] bool BPY_context_member_get(bContext *C,
+                                          const char *member,
+                                          bContextDataResult *result);
 void BPY_context_set(bContext *C);
 /**
  * Use for updating while a python script runs - in case of file load.
@@ -133,7 +136,13 @@ void BPY_free_srna_pytype(StructRNA *srna);
 /**
  * Avoids duplicating keyword list.
  */
-bool BPY_string_is_keyword(const char *str);
+[[nodiscard]] bool BPY_string_is_keyword(const char *str);
+
+/**
+ * Get current Python stack location.
+ * Returns a string like `filename.py:123` if available, #std::nullopt otherwise.
+ */
+[[nodiscard]] std::optional<std::string> BPY_python_current_file_and_line(void);
 
 /* `bpy_rna_callback.cc` */
 
@@ -142,6 +151,6 @@ void BPY_callback_wm_free(wmWindowManager *wm);
 
 /* I18n for addons */
 #ifdef WITH_INTERNATIONAL
-std::optional<blender::StringRefNull> BPY_app_translations_py_pgettext(blender::StringRef msgctxt,
-                                                                       blender::StringRef msgid);
+[[nodiscard]] std::optional<blender::StringRefNull> BPY_app_translations_py_pgettext(
+    blender::StringRef msgctxt, blender::StringRef msgid);
 #endif
