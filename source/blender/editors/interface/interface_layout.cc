@@ -4416,6 +4416,7 @@ uiLayout &uiLayout::grid_flow(
 
   return *flow;
 }
+
 uiLayout &uiLayout::list_box(uiList *ui_list, PointerRNA *actptr, PropertyRNA *actprop)
 {
   uiLayoutItemBx *item_box = ui_layout_box(this, ButType::ListBox);
@@ -6084,35 +6085,43 @@ void uiLayout::separator_spacer()
 uiLayoutRoot *uiLayout::root() const
 {
   return root_;
-};
+}
+
 const bContextStore *uiLayout::context() const
 {
   return context_;
-};
+}
+
 uiLayout *uiLayout::parent() const
 {
   return parent_;
-};
+}
+
 blender::StringRef uiLayout::heading() const
 {
   return heading_;
-};
+}
+
 void uiLayout::heading_reset()
 {
   heading_ = {};
 }
+
 blender::Span<uiItem *> uiLayout::items() const
 {
   return items_;
-};
+}
+
 bool uiLayout::align() const
 {
   return align_;
 }
+
 bool uiLayout::variable_size() const
 {
   return variable_size_;
 }
+
 blender::ui::EmbossType uiLayout::emboss_or_undefined() const
 {
   return emboss_;
@@ -6196,6 +6205,7 @@ void uiLayout::resolve()
     static_cast<uiLayout *>(subitem)->resolve();
   }
 }
+
 void uiLayout::resolve_impl()
 {
   /* Nothing to do. */
