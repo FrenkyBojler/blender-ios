@@ -685,8 +685,7 @@ static void subdiv_accumulate_vert_displacement(SubdivMeshContext *ctx,
   float3 D;
   eval_limit_point_and_derivatives(subdiv, ptex_face_index, u, v, dummy_P, dPdu, dPdv);
 
-  /* NOTE: The subdivided mesh is allocated in this module, and its vertices are kept at zero
-   * locations as a default calloc(). */
+  /* NOTE: This is the first function that processes positions, so values must be initialized. */
   eval_displacement(subdiv, ptex_face_index, u, v, dPdu, dPdv, D);
   ctx->subdiv_positions[subdiv_vert_index] = D;
 
