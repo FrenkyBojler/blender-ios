@@ -19,10 +19,8 @@ SMOOTH(float3, local_pos)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_INTERFACE_INFO(overlay_grid_debug)
-SMOOTH(float2, local_coord)
-SMOOTH(float, local_level)
-FLAT(int, debug_line_lvl)
-FLAT(bool, debug_fade_line_lvl)
+SMOOTH(float2, frag_xy)
+SMOOTH(float, frag_level)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_grid_next)

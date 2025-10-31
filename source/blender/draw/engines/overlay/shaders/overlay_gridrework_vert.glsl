@@ -11,7 +11,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 #include "gpu_shader_math_safe_lib.glsl"
 
 // TODO merge with vert definition
-#define GRID_LEVELS        4
+#define GRID_LEVELS        3
 #define GRID_DIRECTIONS    2
 #define GRID_SUBDIVS      10
 #define GRID_LEVEL_OFFSET -2
@@ -31,47 +31,37 @@ void main()
   uint line_dir = (idx / grid_buf.num_lines) % GRID_DIRECTIONS;                       // direction of line, x or y
   int line_lvl = int((idx / grid_buf.num_lines / GRID_DIRECTIONS) % GRID_LEVELS); // lvl of line on grid, wraps around
 
-  debug_line_lvl = line_lvl;
-  debug_fade_line_lvl = false; // line_idx % GRID_SUBDIVS != 0;
   // Discard lines that are present in a level above
-  /* if (line_idx % GRID_SUBDIVS == 0 && line_lvl < (GRID_LEVELS - 1)) {
+  if (line_idx % GRID_SUBDIVS == 0 && line_lvl < (GRID_LEVELS - 1)) {
     gl_Position = float4(NAN_FLT);
     return;
-  } */
+  }
 
   // Determine distance to floor plane through center point
   float abs_cos_theta = abs(drw_view_forward().z); 
   float abs_z = abs(drw_view_position().z);
   float t = abs_z / abs_cos_theta;
-  // t = mix(t, abs_z, 1.0f - abs_cos_theta); // TODO re-enable
+  t = mix(t, abs_z, 1.0f - abs_cos_theta); // TODO re-enable
 
   // Rotate levels dependent on distance to floor plane point
   float line_lvl_mod = /* max(0.f, */ log2(t) / log2(float(GRID_SUBDIVS)); // log10(t) equals log2(t) / log2(10)
   
+  // Grid levels fade in smoothly, passed through a sigmoidal
   float temp
     = (float(line_lvl) / float(GRID_LEVELS)) 
     + (1.0f - fract(line_lvl + line_lvl_mod)) // [0, 1]
     * (1 / float(GRID_LEVELS));
-  
-  // Lowest grid level fades in smoothly, instead of popping in
-  local_level = sigm(temp);
-  // local_level = select(1.f, 1.f - fract(line_lvl + line_lvl_mod), line_lvl == 0);
-  
+  frag_level = select(1.f, /* sigm */(temp), line_lvl < (GRID_LEVELS - 1));
   line_lvl = line_lvl + int(ceil(line_lvl_mod));// start grid at 100 subdivs
   
-  // Discard sublevels
-  if (line_lvl < 0) {
+  // Discard sublevels to match old grid visually
+  /* if (line_lvl < 2) {
     gl_Position = float4(NAN_FLT);
     return;
-  }
+  } */
   
-  // Offset levels by 1
+  // Offset levels by specified amount so as to always render a sublevel
   line_lvl += GRID_LEVEL_OFFSET;
-
-  if (gl_VertexID == 0)
-    printf("0 - line_lvl=%d, temp=%f\n", line_lvl, temp);
-  if (gl_VertexID == 416)
-    printf("1 - line_lvl=%d, temp=%f\n", line_lvl, temp);
 
   // Determine line scale for current level; 
   // use float to support fractional scaling for sub-levels
@@ -87,13 +77,11 @@ void main()
   vert_pos.y = select(vert_pos.y, -vert_pos.y, line_side);
   vert_pos.xy = select(vert_pos.xy, vert_pos.yx, line_dir);
 
-  // Output vertex position coordinate in [-1, 1]
-  local_coord = vert_pos.xy / line_start;
+  // Output vertex position in [-1, 1]
+  frag_xy = vert_pos.xy / line_start;
 
   // Add camera offset; grid moves with camera
   float3 pos_on_floor = float3(drw_view_position().xy + t * -drw_view_forward().xy, 0);
-  // pos_on_floor = mix(pos_on_floor, float3(drw_view_position().xy, 0), 0.f);
-  // pos_on_floor = 0.5f * pos_on_floor + 0.5f * float3(drw_view_position().xy, 0);
   vert_pos += round(pos_on_floor / (line_scale * GRID_SUBDIVS)) * (line_scale * GRID_SUBDIVS);
   
   // Vertex outputs

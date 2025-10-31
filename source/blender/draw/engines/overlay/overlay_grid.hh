@@ -55,7 +55,7 @@ public:
     {
       const uint n_verts 
         = grid_ubo_.num_lines // nr of lines in a direction and level
-        * 4                   // nr of levels
+        * 3                   // nr of levels
         * 2                   // nr of directions (x, y)
         * 2                   // nr of verts per line
       ;
@@ -84,7 +84,7 @@ private:
     // const View3D *v3d = state.v3d;
     // const RegionView3D *rv3d = state.rv3d;
 
-    grid_ubo_.num_lines = 1 + 400;
+    grid_ubo_.num_lines = 1 + 200;
 
     return true;
   }
