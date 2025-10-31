@@ -108,7 +108,7 @@ if(WITH_UI_TESTS)
       "PASS_THROUGH=1"
     )
   endif()
-  function(add_blender_test_ui_backend backend testname)
+  function(add_blender_test_ui_backend testname backend)
     # Remove `--background`a
     set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
     list(REMOVE_ITEM EXE_PARAMS --background)
