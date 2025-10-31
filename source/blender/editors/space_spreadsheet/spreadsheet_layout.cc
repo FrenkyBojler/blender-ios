@@ -412,7 +412,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
         [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
           char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE];
           BLI_str_format_int64_grouped(dst, *(int64_t *)argN);
-          return fmt::format("{} {}", dst, TIP_("bytes"));
+          return fmt::format("{}", dst);
         },
         MEM_dupallocN<int64_t>(__func__, value),
         MEM_freeN);
