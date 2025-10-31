@@ -815,11 +815,11 @@ void retiming_key_timeline_frame_set(const Scene *scene,
 
 float retiming_key_speed_get(const Strip *strip, const SeqRetimingKey *key)
 {
-  BLI_assert(key->strip_frame_index > 0);
   if (key->strip_frame_index == 0) {
     return 1.0f;
   }
 
+  BLI_assert(retiming_key_index_get(strip, key) > 0);
   const SeqRetimingKey *key_prev = key - 1;
   const int frame_index_max = strip->len - 1;
   const float frame_index_start = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
