@@ -1,2 +1,3 @@
 Referenced by issue #149095, Rendering: GN scattered Grease pencil object have wrong depth
 Referenced by pull request #149139, Fix #149095: Instanced GP objects rendered in wrong order
+Referenced by commit c6d7bbbea661add088d9a3286fd385318d1bd3ff, Fix #149095: Instanced GP objects rendered in wrong order
