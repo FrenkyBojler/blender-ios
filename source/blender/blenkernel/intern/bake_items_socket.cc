@@ -383,19 +383,17 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
       }
       if (const auto *item = dynamic_cast<const ListBakeItem *>(&bake_item)) {
         if (const auto *bundle_list = std::get_if<ListBakeItem::BundleList>(&item->value)) {
+          const CPPType &type = CPPType::get<nodes::BundlePtr>();
           const int count = bundle_list->size();
-          auto array_data = nodes::List::ArrayData::ForDefaultValue(
-              CPPType::get<nodes::BundlePtr>(), count);
-          MutableSpan<nodes::BundlePtr> array_span = {
-              static_cast<nodes::BundlePtr *>(array_data.data), count};
+          auto array_data = nodes::List::ArrayData::ForDefaultValue(type, count);
+          MutableSpan array_span(static_cast<nodes::BundlePtr *>(array_data.data), count);
           for (const int i : IndexRange(count)) {
             array_span[i] = nodes::Bundle::create();
             nodes::Bundle &bundle = const_cast<nodes::Bundle &>(*array_span[i]);
             copy_bundle_bake_item_to_socket_value(
                 (*bundle_list)[i], bundle, data_block_map, r_attribute_map);
           }
-          nodes::ListPtr list_ptr = nodes::List::create(
-              CPPType::get<nodes::BundlePtr>(), std::move(array_data), count);
+          nodes::ListPtr list_ptr = nodes::List::create(type, std::move(array_data), count);
           return bke::SocketValueVariant::From(std::move(list_ptr));
         }
         return std::nullopt;
