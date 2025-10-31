@@ -1274,7 +1274,7 @@ class NWModifyLabels(Operator, NWBase):
 class NWAddTextureSetup(Operator, NWBase):
     bl_idname = "node.nw_add_texture"
     bl_label = "Texture Setup"
-    bl_description = "Add texture node setup to selected shaders"
+    bl_description = "Add a texture node setup to selected shaders"
     bl_options = {'REGISTER', 'UNDO'}
 
     add_mapping: BoolProperty(
@@ -1355,7 +1355,7 @@ class NWAddTextureSetup(Operator, NWBase):
 class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
     bl_idname = "node.nw_add_textures_for_principled"
     bl_label = "Principled Texture Setup"
-    bl_description = "Add texture node setup for Principled BSDF"
+    bl_description = "Add a texture node setup for Principled BSDF"
     bl_options = {'REGISTER', 'UNDO'}
 
     directory: StringProperty(
@@ -1648,7 +1648,7 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
 
 
 class NWAddReroutes(Operator, NWBase):
-    """Add Reroute Nodes and link them to outputs of selected nodes"""
+    """Add Reroute nodes and link them to outputs of selected nodes"""
     bl_idname = "node.nw_add_reroutes"
     bl_label = "Add Reroutes"
     bl_description = "Add Reroutes to outputs"
