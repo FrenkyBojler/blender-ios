@@ -40,10 +40,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
-
 #include "BLI_array_utils.hh"
 #include "BLI_bitmap.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_heap_simple.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -64,7 +63,7 @@
 #include "BKE_mesh_mapping.hh"
 #include "BKE_modifier.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -129,7 +128,7 @@ enum SkinNodeFlag {
   SEAM_FRAME = 4,
   FLIP_NORMAL = 8,
 };
-ENUM_OPERATORS(SkinNodeFlag, FLIP_NORMAL);
+ENUM_OPERATORS(SkinNodeFlag);
 
 struct Frame {
   /* Index in the vertex array */
@@ -1816,7 +1815,7 @@ enum eSkinErrorFlag {
   SKIN_ERROR_NO_VALID_ROOT = (1 << 0),
   SKIN_ERROR_HULL = (1 << 1),
 };
-ENUM_OPERATORS(eSkinErrorFlag, SKIN_ERROR_HULL);
+ENUM_OPERATORS(eSkinErrorFlag);
 
 static BMesh *build_skin(SkinNode *skin_nodes,
                          int verts_num,
@@ -2019,7 +2018,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA op_ptr;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "branch_smoothing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -2031,33 +2030,27 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   layout->prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout->row(false);
-  uiItemO(row, IFACE_("Create Armature"), ICON_NONE, "OBJECT_OT_skin_armature_create");
-  uiItemO(row, std::nullopt, ICON_NONE, "MESH_OT_customdata_skin_add");
+  row->op("OBJECT_OT_skin_armature_create", IFACE_("Create Armature"), ICON_NONE);
+  row->op("MESH_OT_customdata_skin_add", std::nullopt, ICON_NONE);
 
   row = &layout->row(false);
-  uiItemFullO(row,
-              "OBJECT_OT_skin_loose_mark_clear",
-              IFACE_("Mark Loose"),
-              ICON_NONE,
-              nullptr,
-              WM_OP_EXEC_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
+                   IFACE_("Mark Loose"),
+                   ICON_NONE,
+                   blender::wm::OpCallContext::ExecDefault,
+                   UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 0); /* SKIN_LOOSE_MARK */
-  uiItemFullO(row,
-              "OBJECT_OT_skin_loose_mark_clear",
-              IFACE_("Clear Loose"),
-              ICON_NONE,
-              nullptr,
-              WM_OP_EXEC_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
+                   IFACE_("Clear Loose"),
+                   ICON_NONE,
+                   blender::wm::OpCallContext::ExecDefault,
+                   UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 1); /* SKIN_LOOSE_CLEAR */
 
-  uiItemO(layout, IFACE_("Mark Root"), ICON_NONE, "OBJECT_OT_skin_root_mark");
-  uiItemO(layout, IFACE_("Equalize Radii"), ICON_NONE, "OBJECT_OT_skin_radii_equalize");
+  layout->op("OBJECT_OT_skin_root_mark", IFACE_("Mark Root"), ICON_NONE);
+  layout->op("OBJECT_OT_skin_radii_equalize", IFACE_("Equalize Radii"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -2098,4 +2091,5 @@ ModifierTypeInfo modifierType_Skin = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

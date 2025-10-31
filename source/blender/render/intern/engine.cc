@@ -45,6 +45,8 @@
 
 #include "WM_api.hh"
 
+#include "CLG_log.h"
+
 #include "pipeline.hh"
 #include "render_result.h"
 #include "render_types.h"
@@ -52,6 +54,8 @@
 /* Render Engine Types */
 
 ListBase R_engines = {nullptr, nullptr};
+
+static CLG_LogRef LOG = {"render"};
 
 void RE_engines_init()
 {
@@ -63,8 +67,14 @@ void RE_engines_exit()
 {
   RenderEngineType *type, *next;
 
-  DRW_engines_free();
-  DRW_module_exit();
+  if (DRW_gpu_context_try_enable()) {
+    /* Clean resources if the DRW context exists.
+     * We need a context bound even when dealing with non context dependent GPU resources,
+     * since GL functions may be null otherwise (See #141233). */
+    DRW_engines_free();
+    DRW_module_exit();
+    DRW_gpu_context_disable();
+  }
 
   for (type = static_cast<RenderEngineType *>(R_engines.first); type; type = next) {
     next = type->next;
@@ -92,7 +102,7 @@ RenderEngineType *RE_engines_find(const char *idname)
       BLI_findstring(&R_engines, idname, offsetof(RenderEngineType, idname)));
   if (!type) {
     type = static_cast<RenderEngineType *>(
-        BLI_findstring(&R_engines, "BLENDER_EEVEE_NEXT", offsetof(RenderEngineType, idname)));
+        BLI_findstring(&R_engines, "BLENDER_EEVEE", offsetof(RenderEngineType, idname)));
   }
 
   return type;
@@ -101,19 +111,6 @@ RenderEngineType *RE_engines_find(const char *idname)
 bool RE_engine_is_external(const Render *re)
 {
   return (re->engine && re->engine->type && re->engine->type->render);
-}
-
-bool RE_engine_supports_alembic_procedural(const RenderEngineType *render_type, Scene *scene)
-{
-  if ((render_type->flag & RE_USE_ALEMBIC_PROCEDURAL) == 0) {
-    return false;
-  }
-
-  if (BKE_scene_uses_cycles(scene) && !BKE_scene_uses_cycles_experimental_features(scene)) {
-    return false;
-  }
-
-  return true;
 }
 
 /* Create, Free */
@@ -524,8 +521,8 @@ void RE_engine_update_memory_stats(RenderEngine *engine, float mem_used, float m
   Render *re = engine->re;
 
   if (re) {
-    re->i.mem_used = mem_used;
-    re->i.mem_peak = mem_peak;
+    re->i.mem_used = int(ceilf(mem_used));
+    re->i.mem_peak = int(ceilf(mem_peak));
   }
 }
 
@@ -610,10 +607,10 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine,
    * leaving stereo to be handled by the engine. */
   Render *re = engine->re;
   if (use_spherical_stereo || re == nullptr) {
-    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float (*)[4])r_modelmat);
   }
   else {
-    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float(*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float (*)[4])r_modelmat);
   }
 }
 
@@ -782,7 +779,7 @@ bool RE_bake_engine(Render *re,
 
   /* set render info */
   re->i.cfra = re->scene->r.cfra;
-  BLI_strncpy(re->i.scene_name, re->scene->id.name + 2, sizeof(re->i.scene_name) - 2);
+  STRNCPY(re->i.scene_name, re->scene->id.name + 2);
 
   /* render */
   engine = re->engine;
@@ -856,7 +853,7 @@ static bool possibly_using_gpu_compositor(const Render *re)
   }
 
   const Scene *scene = re->pipeline_scene_eval;
-  return (scene->nodetree && scene->use_nodes && (scene->r.scemode & R_DOCOMP));
+  return (scene->compositing_node_group && (scene->r.scemode & R_DOCOMP));
 }
 
 static void engine_render_view_layer(Render *re,
@@ -947,6 +944,7 @@ static void engine_render_view_layer(Render *re,
      * dependency graph, which is only allowed if there is no grease
      * pencil (pipeline is taking care of that). */
     if (!RE_engine_test_break(engine) && engine->depsgraph != nullptr) {
+      CLOG_INFO(&LOG, "Rendering grease pencil");
       DRW_render_gpencil(engine, engine->depsgraph);
     }
   }
@@ -1084,6 +1082,8 @@ bool RE_engine_render(Render *re, bool do_all)
 
   if (type->render) {
     FOREACH_VIEW_LAYER_TO_RENDER_BEGIN (re, view_layer_iter) {
+      CLOG_INFO(&LOG, "Start rendering: %s, %s", re->scene->id.name + 2, view_layer_iter->name);
+      CLOG_INFO(&LOG, "Engine: %s", engine->type->name);
       const bool use_grease_pencil = (view_layer_iter->layflag & SCE_LAY_GREASE_PENCIL) != 0;
       engine_render_view_layer(re, engine, view_layer_iter, true, use_grease_pencil);
 
@@ -1145,6 +1145,7 @@ bool RE_engine_render(Render *re, bool do_all)
 
 #ifdef WITH_FREESTYLE
   if (re->r.mode & R_EDGE_FRS) {
+    CLOG_INFO(&LOG, "Rendering freestyle");
     RE_RenderFreestyleExternal(re);
   }
 #endif
@@ -1307,7 +1308,7 @@ void RE_engine_tile_highlight_clear_all(RenderEngine *engine)
 
 bool RE_engine_gpu_context_create(RenderEngine *engine)
 {
-  /* If the there already is a draw manager render context available, reuse it. */
+  /* If there already is a draw manager render context available, reuse it. */
   engine->use_drw_render_context = (engine->re && RE_system_gpu_context_get(engine->re));
   if (engine->use_drw_render_context) {
     return true;

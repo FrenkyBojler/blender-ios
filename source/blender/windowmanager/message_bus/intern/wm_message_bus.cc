@@ -33,6 +33,7 @@ using wmMsgTypeInitFn = void (*)(wmMsgTypeInfo *);
 static wmMsgTypeInitFn wm_msg_init_fn[WM_MSG_TYPE_NUM] = {
     WM_msgtypeinfo_init_rna,
     WM_msgtypeinfo_init_static,
+    WM_msgtypeinfo_init_remote_io,
 };
 
 void WM_msgbus_types_init()
@@ -176,11 +177,10 @@ wmMsgSubscribeKey *WM_msg_subscribe_with_key(wmMsgBus *mbus,
 
 void WM_msg_publish_with_key(wmMsgBus *mbus, wmMsgSubscribeKey *msg_key)
 {
-  CLOG_INFO(WM_LOG_MSGBUS_SUB,
-            2,
-            "tagging subscribers: (ptr=%p, len=%d)",
-            msg_key,
-            BLI_listbase_count(&msg_key->values));
+  CLOG_DEBUG(WM_LOG_MSGBUS_SUB,
+             "tagging subscribers: (ptr=%p, len=%d)",
+             msg_key,
+             BLI_listbase_count(&msg_key->values));
 
   LISTBASE_FOREACH (wmMsgSubscribeValueLink *, msg_lnk, &msg_key->values) {
     if (false) { /* Make an option? */

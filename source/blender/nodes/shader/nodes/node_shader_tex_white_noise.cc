@@ -10,7 +10,7 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_white_noise_cc {
@@ -19,7 +19,7 @@ static void sh_node_tex_white_noise_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f).implicit_field(
-      implicit_field_inputs::position);
+      NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Float>("W")
       .min(-10000.0f)
       .max(10000.0f)
@@ -238,7 +238,7 @@ NODE_SHADER_MATERIALX_BEGIN
       break;
   }
 
-  if (STREQ(socket_out_->name, "Value")) {
+  if (STREQ(socket_out_->identifier, "Value")) {
     return noise;
   }
 
@@ -262,7 +262,7 @@ void register_node_type_sh_tex_white_noise()
 
   common_node_type_base(&ntype, "ShaderNodeTexWhiteNoise", SH_NODE_TEX_WHITE_NOISE);
   ntype.ui_name = "White Noise Texture";
-  ntype.ui_description = "Return a random value or color based on an input seed";
+  ntype.ui_description = "Calculate a random value or color based on an input seed";
   ntype.enum_name_legacy = "TEX_WHITE_NOISE";
   ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::sh_node_tex_white_noise_declare;

@@ -42,9 +42,10 @@ void Instance::init()
   state.is_viewport_image_render = ctx->is_viewport_image_render();
   state.is_image_render = ctx->is_image_render();
   state.is_depth_only_drawing = ctx->is_depth();
+  state.skip_particles = ctx->mode == DRWContext::DEPTH_ACTIVE_OBJECT;
   state.is_material_select = ctx->is_material_select();
   state.draw_background = ctx->options.draw_background;
-  state.show_text = ctx->options.draw_text;
+  state.show_text = false;
 
   /* Note there might be less than 6 planes, but we always compute the 6 of them for simplicity. */
   state.clipping_plane_count = clipping_enabled_ ? 6 : 0;
@@ -65,12 +66,14 @@ void Instance::init()
     state.xray_opacity = state.xray_enabled ? XRAY_ALPHA(state.v3d) : 1.0f;
     state.xray_flag_enabled = SHADING_XRAY_FLAG_ENABLED(state.v3d->shading) &&
                               !state.is_depth_only_drawing;
+    state.vignette_enabled = ctx->mode == DRWContext::VIEWPORT_XR &&
+                             state.v3d->vignette_aperture < M_SQRT1_2;
 
     const bool viewport_uses_workbench = state.v3d->shading.type <= OB_SOLID ||
                                          BKE_scene_uses_blender_workbench(state.scene);
     const bool viewport_uses_eevee = STREQ(
         ED_view3d_engine_type(state.scene, state.v3d->shading.type)->idname,
-        RE_engine_id_BLENDER_EEVEE_NEXT);
+        RE_engine_id_BLENDER_EEVEE);
     const bool use_resolution_scaling = BKE_render_preview_pixel_size(&state.scene->r) != 1;
     /* Only workbench ensures the depth buffer is matching overlays.
      * Force depth prepass for other render engines.
@@ -86,6 +89,8 @@ void Instance::init()
       state.overlay = state.v3d->overlay;
       state.v3d_flag = state.v3d->flag;
       state.v3d_gridflag = state.v3d->gridflag;
+      state.show_text = !resources.is_selection() && !state.is_depth_only_drawing &&
+                        (ctx->v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0;
     }
     else {
       memset(&state.overlay, 0, sizeof(state.overlay));
@@ -129,7 +134,8 @@ void Instance::init()
 
   {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
-    if (resources.dummy_depth_tx.ensure_2d(GPU_DEPTH_COMPONENT32F, int2(1, 1), usage)) {
+    if (resources.dummy_depth_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH, int2(1, 1), usage))
+    {
       float data = 1.0f;
       GPU_texture_update_sub(resources.dummy_depth_tx, GPU_DATA_FLOAT, &data, 0, 0, 0, 1, 1, 1);
     }
@@ -208,7 +214,8 @@ void Instance::ensure_weight_ramp_texture()
     unit_float_to_uchar_clamp_v4(pixels_ubyte[i], pixels[i]);
   }
 
-  resources.weight_ramp_tx.ensure_1d(GPU_SRGB8_A8, res, GPU_TEXTURE_USAGE_SHADER_READ);
+  resources.weight_ramp_tx.ensure_1d(
+      gpu::TextureFormat::SRGBA_8_8_8_8, res, GPU_TEXTURE_USAGE_SHADER_READ);
   GPU_texture_update(resources.weight_ramp_tx, GPU_DATA_UBYTE, pixels_ubyte);
 }
 
@@ -237,7 +244,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   using namespace math;
   UniformData &gb = theme;
 
-  auto rgba_uchar_to_float = [](uchar r, uchar b, uchar g, uchar a) {
+  auto rgba_uchar_to_float = [](uchar r, uchar g, uchar b, uchar a) {
     return float4(r, g, b, a) / 255.0f;
   };
 
@@ -263,11 +270,10 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_GP_VERTEX, gb.colors.gpencil_vertex);
   UI_GetThemeColor4fv(TH_GP_VERTEX_SELECT, gb.colors.gpencil_vertex_select);
 
-  UI_GetThemeColor4fv(TH_EDGE_SEAM, gb.colors.edge_seam);
-  UI_GetThemeColor4fv(TH_EDGE_SHARP, gb.colors.edge_sharp);
-  UI_GetThemeColor4fv(TH_EDGE_CREASE, gb.colors.edge_crease);
-  UI_GetThemeColor4fv(TH_EDGE_BEVEL, gb.colors.edge_bweight);
-  UI_GetThemeColor4fv(TH_EDGE_FACESEL, gb.colors.edge_face_select);
+  UI_GetThemeColor4fv(TH_SEAM, gb.colors.edge_seam);
+  UI_GetThemeColor4fv(TH_SHARP, gb.colors.edge_sharp);
+  UI_GetThemeColor4fv(TH_CREASE, gb.colors.edge_crease);
+  UI_GetThemeColor4fv(TH_BEVEL, gb.colors.edge_bweight);
   UI_GetThemeColor4fv(TH_FACE, gb.colors.face);
   UI_GetThemeColor4fv(TH_FACE_SELECT, gb.colors.face_select);
   UI_GetThemeColor4fv(TH_FACE_MODE_SELECT, gb.colors.face_mode_select);
@@ -277,7 +283,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_NORMAL, gb.colors.normal);
   UI_GetThemeColor4fv(TH_VNORMAL, gb.colors.vnormal);
   UI_GetThemeColor4fv(TH_LNORMAL, gb.colors.lnormal);
-  UI_GetThemeColor4fv(TH_FACE_DOT, gb.colors.facedot);
+  UI_GetThemeColor4fv(TH_FACE_SELECT, gb.colors.facedot), gb.colors.facedot[3] = 1.0f;
   UI_GetThemeColor4fv(TH_SKIN_ROOT, gb.colors.skinroot);
   UI_GetThemeColor4fv(TH_BACK, gb.colors.background);
   UI_GetThemeColor4fv(TH_BACK_GRAD, gb.colors.background_gradient);
@@ -295,8 +301,8 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
       gb.colors.edit_mesh_middle.w);
 
 #ifdef WITH_FREESTYLE
-  UI_GetThemeColor4fv(TH_FREESTYLE_EDGE_MARK, gb.colors.edge_freestyle);
-  UI_GetThemeColor4fv(TH_FREESTYLE_FACE_MARK, gb.colors.face_freestyle);
+  UI_GetThemeColor4fv(TH_FREESTYLE, gb.colors.edge_freestyle), gb.colors.edge_freestyle[3] = 1.0f;
+  UI_GetThemeColor4fv(TH_FREESTYLE, gb.colors.face_freestyle);
 #else
   gb.colors.edge_freestyle = float4(0.0f);
   gb.colors.face_freestyle = float4(0.0f);
@@ -338,7 +344,6 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_NURB_VLINE, gb.colors.nurb_vline);
   UI_GetThemeColor4fv(TH_NURB_SEL_ULINE, gb.colors.nurb_sel_uline);
   UI_GetThemeColor4fv(TH_NURB_SEL_VLINE, gb.colors.nurb_sel_vline);
-  UI_GetThemeColor4fv(TH_ACTIVE_SPLINE, gb.colors.active_spline);
 
   UI_GetThemeColor4fv(TH_CFRAME, gb.colors.current_frame);
   UI_GetThemeColor4fv(TH_FRAME_BEFORE, gb.colors.before_frame);
@@ -426,9 +431,11 @@ void Instance::begin_sync()
 {
   /* TODO(fclem): Against design. Should not sync depending on view. */
   View &view = View::default_get();
-  state.dt = DRW_text_cache_ensure();
   state.camera_position = view.viewinv().location();
   state.camera_forward = view.viewinv().z_axis();
+
+  DRW_text_cache_destroy(state.dt);
+  state.dt = DRW_text_cache_create();
 
   resources.begin_sync(state.clipping_plane_count);
 
@@ -682,7 +689,7 @@ void Instance::end_sync()
                                                    size.x,
                                                    size.y,
                                                    1,
-                                                   GPU_DEPTH24_STENCIL8,
+                                                   gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
                                                    GPU_TEXTURE_USAGE_GENERAL,
                                                    nullptr);
     }
@@ -955,7 +962,24 @@ void Instance::draw_v3d(Manager &manager, View &view)
     background.draw_output(resources.overlay_output_color_only_fb, manager, view);
     anti_aliasing.draw_output(resources.overlay_output_color_only_fb, manager, view);
     cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
+
+    draw_text(resources.overlay_output_color_only_fb);
+
+    if (state.vignette_enabled) {
+      background.draw_vignette(resources.overlay_output_color_only_fb, manager, view);
+    }
   }
+}
+
+void Instance::draw_text(Framebuffer &framebuffer)
+{
+  if (state.show_text == false) {
+    return;
+  }
+  GPU_framebuffer_bind(framebuffer);
+
+  GPU_depth_test(GPU_DEPTH_NONE);
+  DRW_text_cache_draw(state.dt, state.region, state.v3d);
 }
 
 bool Instance::object_is_selected(const ObjectRef &ob_ref)
@@ -975,9 +999,9 @@ bool Instance::object_is_sculpt_mode(const ObjectRef &ob_ref)
     const Object *active_object = state.object_active;
     const bool is_active_object = ob_ref.object == active_object;
 
-    bool is_geonode_preview = ob_ref.dupli_object && ob_ref.dupli_object->preview_base_geometry;
-    bool is_active_dupli_parent = ob_ref.dupli_parent == active_object;
-    return is_active_object || (is_active_dupli_parent && is_geonode_preview);
+    bool is_active_geonode_preview = ob_ref.preview_base_geometry() != nullptr &&
+                                     ob_ref.is_active(state.object_active);
+    return is_active_object || is_active_geonode_preview;
   }
 
   if (state.object_mode == OB_MODE_SCULPT) {
@@ -1008,13 +1032,9 @@ bool Instance::object_is_edit_paint_mode(const ObjectRef &ob_ref,
                                          bool in_sculpt_mode)
 {
   bool in_edit_paint_mode = in_edit_mode || in_paint_mode || in_sculpt_mode;
-  if (ob_ref.object->base_flag & BASE_FROM_DUPLI) {
-    /* Disable outlines for objects instanced by an object in sculpt, paint or edit mode. */
-    in_edit_paint_mode |= ob_ref.dupli_parent && (object_is_edit_mode(ob_ref.dupli_parent) ||
-                                                  object_is_sculpt_mode(ob_ref.dupli_parent) ||
-                                                  object_is_paint_mode(ob_ref.dupli_parent));
-  }
-  return in_edit_paint_mode;
+  /* Disable outlines for objects instanced by an object in sculpt, paint or edit mode. */
+  return in_edit_paint_mode || ob_ref.parent_is_in_edit_paint_mode(
+                                   state.object_active, state.object_mode, state.ctx_mode);
 }
 
 bool Instance::object_is_edit_mode(const Object *object)
@@ -1069,6 +1089,10 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
   }
 
   if (resources.is_selection() || state.is_depth_only_drawing) {
+    if (ob_ref.object->visibility_flag & OB_HIDE_SURFACE_PICK) {
+      /* Special flag to avoid surfaces to contribute to depth picking and selection. */
+      return false;
+    }
     /* Selection and depth picking always need a prepass.
      * Note that depth writing and depth test might be disable for certain selection mode. */
     return true;
@@ -1076,7 +1100,9 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 
   if (in_paint_mode) {
     /* Allow paint overlays to draw with depth equal test. */
-    if (object_is_rendered_transparent(ob_ref.object, state)) {
+    if (object_is_rendered_transparent(ob_ref.object, state) ||
+        object_is_in_front(ob_ref.object, state))
+    {
       return true;
     }
   }

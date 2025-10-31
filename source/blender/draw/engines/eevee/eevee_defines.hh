@@ -57,7 +57,7 @@
 #define SPHERE_PROBE_MAX 128
 
 /** NOTE: Runtime format only. */
-#define VOLUME_PROBE_FORMAT GPU_RGBA16F
+#define VOLUME_PROBE_FORMAT SFLOAT_16_16_16_16
 
 /**
  * Limited by the performance impact it can cause.
@@ -131,21 +131,21 @@
 #define GBUF_NORMAL_FB_LAYER_COUNT 1
 
 /* Deferred Lighting. */
-#define DEFERRED_RADIANCE_FORMAT GPU_R32UI
+#define DEFERRED_RADIANCE_FORMAT UINT_32
 #define DEFERRED_GBUFFER_ROG_ID 0
 
 /* Ray-tracing. */
 #define RAYTRACE_GROUP_SIZE 8
 /* Keep this as a define to avoid shader variations. */
-#define RAYTRACE_RADIANCE_FORMAT GPU_R11F_G11F_B10F
-#define RAYTRACE_RAYTIME_FORMAT GPU_R32F
-#define RAYTRACE_VARIANCE_FORMAT GPU_R16F
-#define RAYTRACE_TILEMASK_FORMAT GPU_R8UI
+#define RAYTRACE_RADIANCE_FORMAT UFLOAT_11_11_10
+#define RAYTRACE_RAYTIME_FORMAT SFLOAT_32
+#define RAYTRACE_VARIANCE_FORMAT SFLOAT_16
+#define RAYTRACE_TILEMASK_FORMAT UINT_8
 
 /* Sub-Surface Scattering. */
 #define SUBSURFACE_GROUP_SIZE RAYTRACE_GROUP_SIZE
-#define SUBSURFACE_RADIANCE_FORMAT GPU_R11F_G11F_B10F
-#define SUBSURFACE_OBJECT_ID_FORMAT GPU_R16UI
+#define SUBSURFACE_RADIANCE_FORMAT UFLOAT_11_11_10
+#define SUBSURFACE_OBJECT_ID_FORMAT UINT_16
 
 /* Film. */
 #define FILM_GROUP_SIZE 16
@@ -190,6 +190,35 @@
 
 /* Velocity. */
 #define VERTEX_COPY_GROUP_SIZE 64
+
+/* Utility Texture. */
+#define UTIL_TEX_SIZE 64
+#define UTIL_BTDF_LAYER_COUNT 16
+/* Scale and bias to avoid interpolation of the border pixel.
+ * Remap UVs to the border pixels centers. */
+#define UTIL_TEX_UV_SCALE ((UTIL_TEX_SIZE - 1.0f) / UTIL_TEX_SIZE)
+#define UTIL_TEX_UV_BIAS (0.5f / UTIL_TEX_SIZE)
+
+#define UTIL_BLUE_NOISE_LAYER 0
+#define UTIL_SSS_TRANSMITTANCE_PROFILE_LAYER 1
+#define UTIL_LTC_MAT_LAYER 2
+#define UTIL_BSDF_LAYER 3
+#define UTIL_BTDF_LAYER 4
+#define UTIL_DISK_INTEGRAL_LAYER UTIL_SSS_TRANSMITTANCE_PROFILE_LAYER
+#define UTIL_DISK_INTEGRAL_COMP 3
+
+/* Could be somewhere else. */
+#ifdef GPU_SHADER
+#  if defined(GPU_FRAGMENT_SHADER)
+#    define UTIL_TEXEL float2(gl_FragCoord.xy)
+#  elif defined(GPU_COMPUTE_SHADER)
+#    define UTIL_TEXEL float2(gl_GlobalInvocationID.xy)
+#  elif defined(GPU_VERTEX_SHADER)
+#    define UTIL_TEXEL float2(gl_VertexID, 0)
+#  elif defined(GPU_LIBRARY_SHADER)
+#    define UTIL_TEXEL float2(0)
+#  endif
+#endif
 
 /* Resource bindings. */
 
@@ -272,5 +301,9 @@
 #define VELOCITY_GEO_NEXT_BUF_SLOT 3
 #define VELOCITY_INDIRECTION_BUF_SLOT 4
 
+#define CLOSURE_WEIGHT_CUTOFF 1e-5f
 /* Treat closure as singular if the roughness is below this threshold. */
 #define BSDF_ROUGHNESS_THRESHOLD 2e-2
+
+/* Cannot use math libraries in shared headers yet. */
+#define EEVEE_PI 3.14159265358979323846 /* pi */

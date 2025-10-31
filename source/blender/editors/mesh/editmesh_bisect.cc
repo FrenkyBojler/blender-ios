@@ -387,7 +387,10 @@ static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
       params.calc_normals = false;
       params.is_destructive = true;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       ret = OPERATOR_FINISHED;
     }
   }
@@ -407,7 +410,7 @@ void MESH_OT_bisect(wmOperatorType *ot)
   ot->description = "Cut geometry along a plane (click-drag to define plane)";
   ot->idname = "MESH_OT_bisect";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = mesh_bisect_exec;
   ot->invoke = mesh_bisect_invoke;
   ot->modal = mesh_bisect_modal;

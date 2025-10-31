@@ -263,7 +263,7 @@ static void py_bvhtree_raycast_cb(void *userdata,
 {
   const PyBVHTree *self = static_cast<const PyBVHTree *>(userdata);
 
-  const float(*coords)[3] = self->coords;
+  const float (*coords)[3] = self->coords;
   const uint *tri = self->tris[index];
   const float *tri_co[3] = {coords[tri[0]], coords[tri[1]], coords[tri[2]]};
   float dist;
@@ -296,7 +296,7 @@ static void py_bvhtree_nearest_point_cb(void *userdata,
 {
   PyBVHTree *self = static_cast<PyBVHTree *>(userdata);
 
-  const float(*coords)[3] = (const float(*)[3])self->coords;
+  const float (*coords)[3] = (const float (*)[3])self->coords;
   const uint *tri = self->tris[index];
   const float *tri_co[3] = {coords[tri[0]], coords[tri[1]], coords[tri[2]]};
   float nearest_tmp[3], dist_sq;
@@ -320,7 +320,7 @@ static void py_bvhtree_nearest_point_cb(void *userdata,
 PyDoc_STRVAR(
     /* Wrap. */
     py_bvhtree_ray_cast_doc,
-    ".. method:: ray_cast(origin, direction, distance=sys.float_info.max)\n"
+    ".. method:: ray_cast(origin, direction, distance=sys.float_info.max, /)\n"
     "\n"
     "   Cast a ray onto the mesh.\n"
     "\n"
@@ -372,7 +372,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     py_bvhtree_find_nearest_doc,
     ".. method:: find_nearest(origin, distance=" PYBVH_MAX_DIST_STR
-    ")\n"
+    ", /)\n"
     "\n"
     "   Find the nearest element (typically face index) to a point.\n"
     "\n"
@@ -429,7 +429,7 @@ static void py_bvhtree_nearest_point_range_cb(void *userdata,
   PyBVH_RangeData *data = static_cast<PyBVH_RangeData *>(userdata);
   PyBVHTree *self = data->self;
 
-  const float(*coords)[3] = self->coords;
+  const float (*coords)[3] = self->coords;
   const uint *tri = self->tris[index];
   const float *tri_co[3] = {coords[tri[0]], coords[tri[1]], coords[tri[2]]};
   float nearest_tmp[3], dist_sq;
@@ -457,7 +457,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     py_bvhtree_find_nearest_range_doc,
     ".. method:: find_nearest_range(origin, distance=" PYBVH_MAX_DIST_STR
-    ")\n"
+    ", /)\n"
     "\n"
     "   Find the nearest elements (typically face index) to a point in the distance range.\n"
     "\n"
@@ -550,7 +550,7 @@ static bool py_bvhtree_overlap_cb(void *userdata, int index_a, int index_b, int 
 PyDoc_STRVAR(
     /* Wrap. */
     py_bvhtree_overlap_doc,
-    ".. method:: overlap(other_tree)\n"
+    ".. method:: overlap(other_tree, /)\n"
     "\n"
     "   Find overlapping indices between 2 trees.\n"
     "\n"
@@ -636,7 +636,7 @@ static PyObject *py_bvhtree_overlap(PyBVHTree *self, PyBVHTree *other)
 PyDoc_STRVAR(
     /* Wrap. */
     C_BVHTree_FromPolygons_doc,
-    ".. classmethod:: FromPolygons(vertices, polygons, all_triangles=False, epsilon=0.0)\n"
+    ".. classmethod:: FromPolygons(vertices, polygons, *, all_triangles=False, epsilon=0.0)\n"
     "\n"
     "   BVH tree constructed geometry passed in as arguments.\n"
     "\n"
@@ -658,7 +658,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
   MemArena *poly_arena = nullptr;
   MemArena *pf_arena = nullptr;
 
-  float(*coords)[3] = nullptr;
+  float (*coords)[3] = nullptr;
   uint(*tris)[3] = nullptr;
   uint coords_len, tris_len;
   float epsilon = 0.0f;
@@ -666,7 +666,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
 
   /* when all_triangles is False */
   int *orig_index = nullptr;
-  float(*orig_normal)[3] = nullptr;
+  float (*orig_normal)[3] = nullptr;
 
   uint i;
   bool valid = true;
@@ -833,7 +833,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
         i++;
       }
       else if (plink->len > 3) {
-        float(*proj_coords)[2] = static_cast<float(*)[2]>(
+        float (*proj_coords)[2] = static_cast<float (*)[2]>(
             BLI_memarena_alloc(pf_arena, sizeof(*proj_coords) * plink->len));
         float *normal = orig_normal[poly_index];
         const float *co_prev;
@@ -928,7 +928,7 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
 PyDoc_STRVAR(
     /* Wrap. */
     C_BVHTree_FromBMesh_doc,
-    ".. classmethod:: FromBMesh(bmesh, epsilon=0.0)\n"
+    ".. classmethod:: FromBMesh(bmesh, *, epsilon=0.0)\n"
     "\n"
     "   BVH tree based on :class:`BMesh` data.\n"
     "\n"
@@ -940,7 +940,7 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
 
   BPy_BMesh *py_bm;
 
-  float(*coords)[3] = nullptr;
+  float (*coords)[3] = nullptr;
   uint(*tris)[3] = nullptr;
   uint coords_len, tris_len;
   float epsilon = 0.0f;
@@ -977,7 +977,7 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
     uint i;
 
     int *orig_index = nullptr;
-    float(*orig_normal)[3] = nullptr;
+    float (*orig_normal)[3] = nullptr;
 
     tree = BLI_bvhtree_new(int(tris_len), epsilon, PY_BVH_TREE_TYPE_DEFAULT, PY_BVH_AXIS_DEFAULT);
     if (tree) {
@@ -1126,7 +1126,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
 PyDoc_STRVAR(
     /* Wrap. */
     C_BVHTree_FromObject_doc,
-    ".. classmethod:: FromObject(object, depsgraph, deform=True, render=False, "
+    ".. classmethod:: FromObject(object, depsgraph, *, deform=True, render=False, "
     "cage=False, epsilon=0.0)\n"
     "\n"
     "   BVH tree based on :class:`Object` data.\n"
@@ -1188,7 +1188,7 @@ static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObje
 
   const uint coords_len = uint(mesh->verts_num);
 
-  float(*coords)[3] = MEM_malloc_arrayN<float[3]>(size_t(coords_len), __func__);
+  float (*coords)[3] = MEM_malloc_arrayN<float[3]>(size_t(coords_len), __func__);
   uint(*tris)[3] = MEM_malloc_arrayN<uint[3]>(size_t(corner_tris.size()), __func__);
   memcpy(coords, mesh->vert_positions().data(), sizeof(float[3]) * size_t(mesh->verts_num));
 
@@ -1236,7 +1236,7 @@ static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObje
                                 tris,
                                 uint(corner_tris.size()),
                                 orig_index,
-                                reinterpret_cast<float(*)[3]>(orig_normal));
+                                reinterpret_cast<float (*)[3]>(orig_normal));
 }
 #endif /* MATH_STANDALONE */
 

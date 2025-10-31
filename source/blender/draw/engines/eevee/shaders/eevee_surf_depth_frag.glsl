@@ -6,7 +6,7 @@
  * Depth shader that can stochastically discard transparent pixel.
  */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_material_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_clip_plane)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
@@ -14,7 +14,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_depth)
 
 #include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_lib.glsl"
 #include "eevee_transparency_lib.glsl"

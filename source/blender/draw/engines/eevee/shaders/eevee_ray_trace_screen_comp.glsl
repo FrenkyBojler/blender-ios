@@ -6,17 +6,18 @@
  * Use screen space tracing against depth buffer to find intersection with the scene.
  */
 
-#include "infos/eevee_tracing_info.hh"
+#include "infos/eevee_tracing_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_trace_screen)
 
 #include "eevee_bxdf_sampling_lib.glsl"
 #include "eevee_closure_lib.glsl"
 #include "eevee_colorspace_lib.glsl"
-#include "eevee_gbuffer_lib.glsl"
+#include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_lightprobe_eval_lib.glsl"
 #include "eevee_ray_trace_screen_lib.glsl"
 #include "eevee_ray_types_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_spherical_harmonics_lib.glsl"
 
@@ -50,8 +51,8 @@ void main()
   int2 texel_fullres = texel * uniform_buf.raytrace.resolution_scale +
                        uniform_buf.raytrace.resolution_bias;
 
-  uint gbuf_header = texelFetch(gbuf_header_tx, int3(texel_fullres, 0), 0).r;
-  ClosureType closure_type = gbuffer_closure_type_get_by_bin(gbuf_header, closure_index);
+  gbuffer::Header gbuf_header = gbuffer::read_header(texel_fullres);
+  ClosureType closure_type = gbuffer::mode_to_closure_type(gbuf_header.bin_type(closure_index));
 
   bool is_reflection = true;
   if ((closure_type == CLOSURE_BSDF_TRANSLUCENT_ID) ||
@@ -60,7 +61,7 @@ void main()
     is_reflection = false;
   }
 
-  float depth = texelFetch(depth_tx, texel_fullres, 0).r;
+  float depth = reverse_z::read(texelFetch(depth_tx, texel_fullres, 0).r);
   float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
 
   float3 P = drw_point_screen_to_world(float3(uv, depth));
@@ -71,20 +72,18 @@ void main()
 
   /* Only closure 0 can be a transmission closure. */
   if (closure_index == 0) {
-    float thickness = gbuffer_read_thickness(gbuf_header, gbuf_normal_tx, texel_fullres);
+    const float thickness = gbuffer::read_thickness(gbuf_header, texel_fullres);
     if (thickness != 0.0f) {
-      ClosureUndetermined cl = gbuffer_read_bin(
-          gbuf_header, gbuf_closure_tx, gbuf_normal_tx, texel_fullres, closure_index);
+      ClosureUndetermined cl = gbuffer::read_bin(texel_fullres, closure_index);
       ray = raytrace_thickness_ray_amend(ray, cl, V, thickness);
     }
   }
 
   float3 radiance = float3(0.0f);
   float noise_offset = sampling_rng_1D_get(SAMPLING_RAYTRACE_W);
-  float rand_trace = interlieved_gradient_noise(float2(texel), 5.0f, noise_offset);
+  float rand_trace = interleaved_gradient_noise(float2(texel), 5.0f, noise_offset);
 
-  ClosureUndetermined cl = gbuffer_read_bin(
-      gbuf_header, gbuf_closure_tx, gbuf_normal_tx, texel_fullres, closure_index);
+  ClosureUndetermined cl = gbuffer::read_bin(texel_fullres, closure_index);
   float roughness = closure_apparent_roughness_get(cl);
 
   /* Transform the ray into view-space. */
@@ -139,7 +138,7 @@ void main()
      * This is faster than loading the gbuffer again and averages between reflected and normal
      * direction over many rays. */
     float3 Ng = ray.direction;
-    /* Fallback to nearest light-probe. */
+    /* Fall back to nearest light-probe. */
     LightProbeSample samp = lightprobe_load(ray.origin, Ng, V);
     /* Clamp SH to have parity with forward evaluation. */
     float clamp_indirect = uniform_buf.clamp.surface_indirect;

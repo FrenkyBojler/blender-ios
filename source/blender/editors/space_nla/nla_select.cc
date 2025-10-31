@@ -172,7 +172,7 @@ void NLA_OT_select_all(wmOperatorType *ot)
   ot->idname = "NLA_OT_select_all";
   ot->description = "Select or deselect all NLA-Strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_deselectall_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -401,7 +401,7 @@ void NLA_OT_select_box(wmOperatorType *ot)
   ot->idname = "NLA_OT_select_box";
   ot->description = "Use box selection to grab NLA-Strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = nlaedit_box_select_invoke;
   ot->exec = nlaedit_box_select_exec;
   ot->modal = WM_gesture_box_modal;
@@ -448,7 +448,8 @@ static void nlaedit_select_leftright(bContext *C,
 
   /* if currently in tweak-mode, exit tweak-mode first */
   if (scene->flag & SCE_NLA_EDIT_ON) {
-    WM_operator_name_call(C, "NLA_OT_tweakmode_exit", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(
+        C, "NLA_OT_tweakmode_exit", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
 
   /* if select mode is replace, deselect all keyframes (and tracks) first */
@@ -572,7 +573,7 @@ void NLA_OT_select_leftright(wmOperatorType *ot)
   ot->idname = "NLA_OT_select_leftright";
   ot->description = "Select strips to the left or the right of the current frame";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = nlaedit_select_leftright_invoke;
   ot->exec = nlaedit_select_leftright_exec;
   ot->poll = ED_operator_nla_active;
@@ -611,7 +612,8 @@ static wmOperatorStatus mouse_nla_strips(bContext *C,
    * now that we've found our target...
    */
   if (scene->flag & SCE_NLA_EDIT_ON) {
-    WM_operator_name_call(C, "NLA_OT_tweakmode_exit", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(
+        C, "NLA_OT_tweakmode_exit", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
 
   if (select_mode != SELECT_REPLACE) {

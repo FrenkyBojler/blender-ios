@@ -8,6 +8,7 @@
 
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 
 #include "BLI_listbase.h"
 
@@ -22,6 +23,10 @@
 
 #include "UI_resources.hh"
 
+#include "SEQ_modifier.hh"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
+
 #include "node_common.h"
 
 #include "RNA_prototypes.hh"
@@ -35,11 +40,46 @@ static void composite_get_from_context(const bContext *C,
                                        ID **r_id,
                                        ID **r_from)
 {
+  using namespace blender;
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  if (snode->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER) {
+    Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+    if (!sequencer_scene) {
+      *r_ntree = nullptr;
+      return;
+    }
+    Editing *ed = seq::editing_get(sequencer_scene);
+    if (!ed) {
+      *r_ntree = nullptr;
+      return;
+    }
+    Strip *strip = seq::select_active_get(sequencer_scene);
+    if (!strip) {
+      *r_ntree = nullptr;
+      return;
+    }
+    StripModifierData *smd = seq::modifier_get_active(strip);
+    if (!smd) {
+      *r_ntree = nullptr;
+      return;
+    }
+    if (smd->type != eSeqModifierType_Compositor) {
+      *r_ntree = nullptr;
+      return;
+    }
+    SequencerCompositorModifierData *scmd = reinterpret_cast<SequencerCompositorModifierData *>(
+        smd);
+    *r_from = nullptr;
+    *r_id = &sequencer_scene->id;
+    *r_ntree = scmd->node_group;
+    return;
+  }
+
   Scene *scene = CTX_data_scene(C);
 
   *r_from = nullptr;
   *r_id = &scene->id;
-  *r_ntree = scene->nodetree;
+  *r_ntree = scene->compositing_node_group;
 }
 
 static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
@@ -72,36 +112,19 @@ static void localize(bNodeTree *localtree, bNodeTree *ntree)
     /* move over the compbufs */
     /* right after #blender::bke::node_tree_copy_tree() `oldsock` pointers are valid */
 
-    if (node->type_legacy == CMP_NODE_VIEWER) {
-      if (node->id) {
-        if (node->flag & NODE_DO_OUTPUT) {
-          local_node->id = (ID *)node->id;
-        }
-        else {
-          local_node->id = nullptr;
-        }
-      }
-    }
-
     node = node->next;
     local_node = local_node->next;
   }
 }
 
-static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
+static void local_merge(Main * /*bmain*/, bNodeTree *localtree, bNodeTree *ntree)
 {
   /* move over the compbufs and previews */
   blender::bke::node_preview_merge_tree(ntree, localtree, true);
 
   LISTBASE_FOREACH (bNode *, lnode, &localtree->nodes) {
     if (bNode *orig_node = blender::bke::node_find_node_by_name(*ntree, lnode->name)) {
-      if (lnode->type_legacy == CMP_NODE_VIEWER) {
-        if (lnode->id && (lnode->flag & NODE_DO_OUTPUT)) {
-          /* image_merge does sanity check for pointers */
-          BKE_image_merge(bmain, (Image *)orig_node->id, (Image *)lnode->id);
-        }
-      }
-      else if (lnode->type_legacy == CMP_NODE_MOVIEDISTORTION) {
+      if (lnode->type_legacy == CMP_NODE_MOVIEDISTORTION) {
         /* special case for distortion node: distortion context is allocating in exec function
          * and to achieve much better performance on further calls this context should be
          * copied back to original node */
@@ -137,14 +160,30 @@ static void composite_node_add_init(bNodeTree * /*bnodetree*/, bNode *bnode)
 static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*ntreetype*/,
                                                   blender::bke::bNodeSocketType *socket_type)
 {
-  return blender::bke::node_is_static_socket_type(*socket_type) &&
-         ELEM(socket_type->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA);
+  return blender::bke::node_is_static_socket_type(*socket_type) && ELEM(socket_type->type,
+                                                                        SOCK_FLOAT,
+                                                                        SOCK_INT,
+                                                                        SOCK_BOOLEAN,
+                                                                        SOCK_VECTOR,
+                                                                        SOCK_RGBA,
+                                                                        SOCK_MENU,
+                                                                        SOCK_STRING);
 }
 
-static bool composite_validate_link(eNodeSocketDatatype /*from*/, eNodeSocketDatatype /*to*/)
+/**
+ * Keep consistent with the #is_conversion_supported function in #compositor::ConversionOperation
+ * on the compositor side.
+ */
+static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDatatype to_type)
 {
-  /* All supported types can be implicitly converted to other types. */
-  return true;
+  /* Basic math types can be implicitly converted to each other. */
+  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT) &&
+      ELEM(to_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
+  {
+    return true;
+  }
+
+  return from_type == to_type;
 }
 
 blender::bke::bNodeTreeType *ntreeType_Composite;
@@ -159,7 +198,7 @@ void register_node_tree_type_cmp()
   tt->group_idname = "CompositorNodeGroup";
   tt->ui_name = N_("Compositor");
   tt->ui_icon = ICON_NODE_COMPOSITING;
-  tt->ui_description = N_("Compositing nodes");
+  tt->ui_description = N_("Create effects and post-process renders, images, and the 3D Viewport");
 
   tt->foreach_nodeclass = foreach_nodeclass;
   tt->localize = localize;
@@ -205,13 +244,10 @@ void ntreeCompositTagRender(Scene *scene)
   for (Scene *sce_iter = (Scene *)G_MAIN->scenes.first; sce_iter;
        sce_iter = (Scene *)sce_iter->id.next)
   {
-    if (sce_iter->nodetree) {
-      for (bNode *node : sce_iter->nodetree->all_nodes()) {
-        if (node->id == (ID *)scene || node->type_legacy == CMP_NODE_COMPOSITE) {
-          BKE_ntree_update_tag_node_property(sce_iter->nodetree, node);
-        }
-        else if (node->type_legacy == CMP_NODE_TEXTURE) /* uses scene size_x/size_y */ {
-          BKE_ntree_update_tag_node_property(sce_iter->nodetree, node);
+    if (sce_iter->compositing_node_group) {
+      for (bNode *node : sce_iter->compositing_node_group->all_nodes()) {
+        if (node->id == (ID *)scene) {
+          BKE_ntree_update_tag_node_property(sce_iter->compositing_node_group, node);
         }
       }
     }

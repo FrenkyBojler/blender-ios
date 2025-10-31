@@ -54,7 +54,7 @@ void DebugDraw::reset()
   gpu_draw_buf_used = false;
 }
 
-GPUStorageBuf *DebugDraw::gpu_draw_buf_get()
+gpu::StorageBuf *DebugDraw::gpu_draw_buf_get()
 {
 #ifdef WITH_DRAW_DEBUG
   gpu_draw_buf_used = true;
@@ -183,10 +183,9 @@ void drw_debug_matrix(const float4x4 &m4, const uint lifetime)
 void drw_debug_matrix_as_bbox(const float4x4 &mat, const float4 color, const uint lifetime)
 {
   BoundBox bb;
-  const float min[3] = {-1.0f, -1.0f, -1.0f}, max[3] = {1.0f, 1.0f, 1.0f};
-  BKE_boundbox_init_from_minmax(&bb, min, max);
+  std::array<float3, 8> corners = bounds::corners(Bounds<float3>(float3(-1), float3(1)));
   for (auto i : IndexRange(8)) {
-    mul_project_m4_v3(mat.ptr(), bb.vec[i]);
+    mul_project_m4_v3(mat.ptr(), corners[i]);
   }
   drw_debug_bbox(bb, color, lifetime);
 }
@@ -235,7 +234,7 @@ void DebugDraw::display_lines(View &view)
   GPU_viewport_size_get_f(viewport_size);
 
   gpu::Batch *batch = GPU_batch_procedural_lines_get();
-  GPUShader *shader = DRW_shader_debug_draw_display_get();
+  gpu::Shader *shader = DRW_shader_debug_draw_display_get();
   GPU_batch_set_shader(batch, shader);
   GPU_shader_uniform_mat4(shader, "persmat", view.persmat().ptr());
   GPU_shader_uniform_2f(shader, "size_viewport", viewport_size[2], viewport_size[3]);

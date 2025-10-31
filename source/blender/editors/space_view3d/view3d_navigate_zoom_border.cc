@@ -130,7 +130,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext *C, wmOperator *op)
       float xy_delta[2];
       float zfac;
 
-      /* We can't use the depth, fallback to the old way that doesn't set the center depth */
+      /* We can't use the depth, fall back to the old way that doesn't set the center depth */
       copy_v3_v3(ofs_new, rv3d->ofs);
 
       {
@@ -192,7 +192,7 @@ void VIEW3D_OT_zoom_border(wmOperatorType *ot)
   ot->description = "Zoom in the view to the nearest object contained in the border";
   ot->idname = "VIEW3D_OT_zoom_border";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = view3d_zoom_border_exec;
   ot->modal = WM_gesture_box_modal;

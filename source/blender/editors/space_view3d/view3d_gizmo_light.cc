@@ -14,6 +14,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -52,7 +53,7 @@ static void gizmo_spot_blend_prop_matrix_get(const wmGizmo * /*gz*/,
                                              void *value_p)
 {
   BLI_assert(gz_prop->type->array_length == 16);
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
 
   const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -74,7 +75,7 @@ static void gizmo_spot_blend_prop_matrix_set(const wmGizmo * /*gz*/,
                                              wmGizmoProperty *gz_prop,
                                              const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
 
   const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
@@ -102,7 +103,7 @@ static void gizmo_light_radius_prop_matrix_get(const wmGizmo * /*gz*/,
                                                void *value_p)
 {
   BLI_assert(gz_prop->type->array_length == 16);
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
 
   const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -118,7 +119,7 @@ static void gizmo_light_radius_prop_matrix_set(const wmGizmo * /*gz*/,
                                                wmGizmoProperty *gz_prop,
                                                const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
 
   const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
@@ -151,10 +152,14 @@ static bool WIDGETGROUP_light_spot_poll(const bContext *C, wmGizmoGroupType * /*
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
-    Object *ob = base->object;
+    const Object *ob = base->object;
     if (ob->type == OB_LAMP) {
-      Light *la = static_cast<Light *>(ob->data);
-      return (la->type == LA_SPOT);
+      const Light *la = static_cast<Light *>(ob->data);
+      if (la->type == LA_SPOT) {
+        if (BKE_id_is_editable(CTX_data_main(C), &la->id)) {
+          return true;
+        }
+      }
     }
   }
   return false;
@@ -313,7 +318,11 @@ static bool WIDGETGROUP_light_point_poll(const bContext *C, wmGizmoGroupType * /
     const Object *ob = base->object;
     if (ob->type == OB_LAMP) {
       const Light *la = static_cast<const Light *>(ob->data);
-      return (la->type == LA_LOCAL);
+      if (la->type == LA_LOCAL) {
+        if (BKE_id_is_editable(CTX_data_main(C), &la->id)) {
+          return true;
+        }
+      }
     }
   }
   return false;
@@ -390,7 +399,7 @@ static void gizmo_area_light_prop_matrix_get(const wmGizmo * /*gz*/,
                                              void *value_p)
 {
   BLI_assert(gz_prop->type->array_length == 16);
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
   const Light *la = static_cast<const Light *>(gz_prop->custom_func.user_data);
 
   matrix[0][0] = la->area_size;
@@ -402,7 +411,7 @@ static void gizmo_area_light_prop_matrix_set(const wmGizmo * /*gz*/,
                                              wmGizmoProperty *gz_prop,
                                              const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   Light *la = static_cast<Light *>(gz_prop->custom_func.user_data);
 
@@ -433,10 +442,14 @@ static bool WIDGETGROUP_light_area_poll(const bContext *C, wmGizmoGroupType * /*
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
-    Object *ob = base->object;
+    const Object *ob = base->object;
     if (ob->type == OB_LAMP) {
-      Light *la = static_cast<Light *>(ob->data);
-      return (la->type == LA_AREA);
+      const Light *la = static_cast<Light *>(ob->data);
+      if (la->type == LA_AREA) {
+        if (BKE_id_is_editable(CTX_data_main(C), &la->id)) {
+          return true;
+        }
+      }
     }
   }
   return false;
@@ -523,16 +536,21 @@ static bool WIDGETGROUP_light_target_poll(const bContext *C, wmGizmoGroupType * 
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
-    Object *ob = base->object;
-    if (ob->type == OB_LAMP) {
-      Light *la = static_cast<Light *>(ob->data);
-      return ELEM(la->type, LA_SUN, LA_SPOT, LA_AREA);
-    }
+    const Object *ob = base->object;
+    if (BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
+      if (ob->type == OB_LAMP) {
+        /* No need to check the light is editable, only the object is transformed. */
+        const Light *la = static_cast<Light *>(ob->data);
+        if (ELEM(la->type, LA_SUN, LA_SPOT, LA_AREA)) {
+          return true;
+        }
+      }
 #if 0
-    else if (ob->type == OB_CAMERA) {
-      return true;
-    }
+      else if (ob->type == OB_CAMERA) {
+        return true;
+      }
 #endif
+    }
   }
   return false;
 }

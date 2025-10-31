@@ -101,6 +101,7 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_volume_add);
   WM_operatortype_append(OBJECT_OT_volume_import);
   WM_operatortype_append(OBJECT_OT_add);
+  WM_operatortype_append(OBJECT_OT_lattice_add_to_selected);
   WM_operatortype_append(OBJECT_OT_add_named);
   WM_operatortype_append(OBJECT_OT_transform_to_mouse);
   WM_operatortype_append(OBJECT_OT_effector_add);
@@ -220,6 +221,8 @@ void operatortypes_object()
 
   WM_operatortype_append(OBJECT_OT_move_to_collection);
   WM_operatortype_append(OBJECT_OT_link_to_collection);
+  move_to_collection_menu_register();
+  link_to_collection_menu_register();
 
   WM_operatortype_append(OBJECT_OT_shape_key_add);
   WM_operatortype_append(OBJECT_OT_shape_key_copy);
@@ -229,6 +232,7 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_shape_key_mirror);
   WM_operatortype_append(OBJECT_OT_shape_key_move);
   WM_operatortype_append(OBJECT_OT_shape_key_lock);
+  WM_operatortype_append(OBJECT_OT_shape_key_make_basis);
 
   WM_operatortype_append(OBJECT_OT_collection_add);
   WM_operatortype_append(OBJECT_OT_collection_link);

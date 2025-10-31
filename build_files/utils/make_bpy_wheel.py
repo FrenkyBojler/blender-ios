@@ -56,6 +56,16 @@ long_description = """# Blender
 
 This package provides Blender as a Python module for use in studio pipelines, web services, scientific research, and more.
 
+### Archived Versions
+
+Blender versions outside the current LTS window are removed from PyPI but are available at [https://download.blender.org/pypi/bpy/](https://download.blender.org/pypi/bpy/).
+
+These versions can still be installed manually. For example, to install version 3.6.0:
+
+```bash
+pip install bpy==3.6.0 --extra-index-url https://download.blender.org/pypi/
+```
+
 ## Documentation
 
 * [Blender Python API](https://docs.blender.org/api/current/)
@@ -201,7 +211,7 @@ def main() -> None:
         platform_tag = "macosx_%d_%d_%s" % (target_major, target_minor, machine)
     elif sys.platform == "win32":
         # Workaround for Python process running in a virtualized environment on Windows-on-Arm:
-        # use the actual processor architecture instead of the the virtualized one.
+        # use the actual processor architecture instead of the virtualized one.
         #
         # The win_arm64 matches the behavior when native WoA Python is used, and also matches
         # sysconfig.get_platform() from a native Python build (although it returns win-arm64 with a

@@ -7,7 +7,7 @@
 
 /* Store volumetric properties into the froxel textures. */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_material_infos.hh"
 
 #ifdef GLSL_CPP_STUBS
 #  define MAT_VOLUME
@@ -20,7 +20,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_volume)
 
 /* Needed includes for shader nodes. */
 #include "eevee_attributes_volume_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_occupancy_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 
@@ -31,8 +31,7 @@ GlobalData init_globals(float3 wP)
   surf.N = float3(0.0f);
   surf.Ng = float3(0.0f);
   surf.is_strand = false;
-  surf.hair_time = 0.0f;
-  surf.hair_thickness = 0.0f;
+  surf.hair_diameter = 0.0f;
   surf.hair_strand_id = 0;
   surf.barycentric_coords = float2(0.0f);
   surf.barycentric_dists = float3(0.0f);
@@ -68,7 +67,7 @@ VolumeProperties eval_froxel(int3 froxel, float jitter)
 #endif
 
   g_data = init_globals(wP);
-  attrib_load();
+  attrib_load(VolumePoint(0));
   nodetree_volume();
 
 #if defined(MAT_GEOM_VOLUME)

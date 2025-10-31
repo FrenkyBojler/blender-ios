@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #include "DNA_asset_types.h"
 #include "DNA_defs.h"
@@ -105,6 +105,10 @@ typedef struct bScreen {
   /** Context callback. */
   void /*bContextDataCallback*/ *context;
 
+  /* Used to restore after SCREENFULL state. */
+  short fullscreen_flag;
+  char _pad2[6];
+
   /** Runtime. */
   struct wmTooltipState *tool_tip;
 
@@ -165,8 +169,7 @@ typedef struct Panel {
   /** Runtime for drawing. */
   struct uiLayout *layout;
 
-  /** Defined as #BKE_ST_MAXNAME. */
-  char panelname[64];
+  char panelname[/*BKE_ST_MAXNAME*/ 64];
   /** Panel name is identifier for restoring location. */
   char *drawname;
   /** Offset within the region. */
@@ -304,9 +307,6 @@ typedef struct uiListDyn {
   int *items_filter_neworder;
 
   struct wmOperatorType *custom_drag_optype;
-  struct PointerRNA *custom_drag_opptr;
-  struct wmOperatorType *custom_activate_optype;
-  struct PointerRNA *custom_activate_opptr;
 } uiListDyn;
 
 typedef struct uiList { /* some list UI data need to be saved in file */
@@ -315,8 +315,7 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   /** Runtime. */
   struct uiListType *type;
 
-  /** Defined as UI_MAX_NAME_STR. */
-  char list_id[128];
+  char list_id[/*UI_MAX_NAME_STR*/ 256];
 
   /** How items are laid out in the list. */
   int layout_type;
@@ -328,8 +327,8 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   int list_last_activei;
 
   /* Filtering data. */
-  /** Defined as UI_MAX_NAME_STR. */
-  char filter_byname[128];
+  /** Defined as . */
+  char filter_byname[/*UI_MAX_NAME_STR*/ 256];
   int filter_flag;
   int filter_sort_flag;
 
@@ -339,6 +338,10 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   /** Dynamic data (runtime). */
   uiListDyn *dyn_data;
 } uiList;
+
+typedef enum uiViewStateFlag {
+  UI_VIEW_COLLAPSE_FILTER_OPTIONS = (1 << 0),
+} uiViewStateFlag;
 
 /** See #uiViewStateLink. */
 typedef struct uiViewState {
@@ -353,6 +356,10 @@ typedef struct uiViewState {
    *   scrolled out of view).
    */
   int scroll_offset;
+  uint16_t flag; /* #uiViewStateFlag */
+  char _pad[6];
+
+  char search_string[/*UI_MAX_NAME_STR*/ 256];
 } uiViewState;
 
 /**
@@ -365,15 +372,14 @@ typedef struct uiViewState {
 typedef struct uiViewStateLink {
   struct uiViewStateLink *next, *prev;
 
-  char idname[64]; /* #BKE_ST_MAXNAME */
+  char idname[/*BKE_ST_MAXNAME*/ 64];
 
   uiViewState state;
 } uiViewStateLink;
 
 typedef struct TransformOrientation {
   struct TransformOrientation *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   float mat[3][3];
   char _pad[4];
 } TransformOrientation;
@@ -382,8 +388,7 @@ typedef struct TransformOrientation {
 typedef struct uiPreview {
   struct uiPreview *next, *prev;
 
-  /** Defined as #BKE_ST_MAXNAME. */
-  char preview_id[64];
+  char preview_id[/*BKE_ST_MAXNAME*/ 64];
   short height;
 
   /* Unset on file read. */
@@ -598,9 +603,21 @@ enum {
   SCREENNORMAL = 0,
   /** One editor taking over the screen. */
   SCREENMAXIMIZED = 1,
-  /** One editor taking over the screen with no bare-minimum UI elements. */
+  /**
+   * One editor taking over the screen with no bare-minimum UI elements.
+   *
+   * Besides making the area full-screen this disables navigation & statistics because
+   * this is part of a stereo 3D pipeline where these elements would interfere, see: !142418.
+   */
   SCREENFULL = 2,
 };
+
+/** #bScreen.fullscreen_flag */
+typedef enum eScreen_Fullscreen_Flag {
+  FULLSCREEN_RESTORE_GIZMO_NAVIGATE = (1 << 0),
+  FULLSCREEN_RESTORE_TEXT = (1 << 1),
+  FULLSCREEN_RESTORE_STATS = (1 << 2),
+} eScreen_Fullscreen_Flag;
 
 /** #bScreen.redraws_flag */
 typedef enum eScreen_Redraws_Flag {
@@ -639,7 +656,6 @@ enum {
 enum {
   UILST_LAYOUT_DEFAULT = 0,
   UILST_LAYOUT_COMPACT = 1,
-  UILST_LAYOUT_GRID = 2,
   UILST_LAYOUT_BIG_PREVIEW_GRID = 3,
 };
 
@@ -788,6 +804,7 @@ enum {
    * wouldn't exist. Runtime only flag. */
   RGN_FLAG_POLL_FAILED = (1 << 10),
   RGN_FLAG_RESIZE_RESPECT_BUTTON_SECTIONS = (1 << 11),
+  RGN_FLAG_INDICATE_OVERFLOW = (1 << 12),
 };
 
 /** #ARegion.do_draw */
@@ -846,7 +863,7 @@ typedef struct AssetShelf {
 
   /** Identifier that matches the #AssetShelfType.idname this shelf was created with. Used to
    * restore the #AssetShelf.type pointer below on file read. */
-  char idname[64]; /* MAX_NAME */
+  char idname[/*MAX_NAME*/ 64];
   /** Runtime. */
   struct AssetShelfType *type;
 
@@ -885,7 +902,7 @@ typedef struct RegionAssetShelf {
 typedef enum AssetShelfSettings_DisplayFlag {
   ASSETSHELF_SHOW_NAMES = (1 << 0),
 } AssetShelfSettings_DisplayFlag;
-ENUM_OPERATORS(AssetShelfSettings_DisplayFlag, ASSETSHELF_SHOW_NAMES);
+ENUM_OPERATORS(AssetShelfSettings_DisplayFlag);
 
 /* #AssetShelfSettings.instance_flag */
 typedef enum AssetShelf_InstanceFlag {
@@ -896,7 +913,7 @@ typedef enum AssetShelf_InstanceFlag {
    */
   ASSETSHELF_REGION_IS_HIDDEN = (1 << 0),
 } AssetShelf_InstanceFlag;
-ENUM_OPERATORS(AssetShelf_InstanceFlag, ASSETSHELF_REGION_IS_HIDDEN);
+ENUM_OPERATORS(AssetShelf_InstanceFlag);
 
 typedef struct FileHandler {
   DNA_DEFINE_CXX_METHODS(FileHandler)

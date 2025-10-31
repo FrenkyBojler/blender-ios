@@ -1125,7 +1125,7 @@ static void extrude_points_from_selected_vertices(const ViewContext *vc,
                                      new_last_nu,
                                      new_last_nu->bezt ? (const void *)new_last_nu->bezt :
                                                          (const void *)new_last_nu->bp);
-      new_last_nu->flagu = ~CU_NURB_CYCLIC;
+      new_last_nu->flagu &= ~CU_NURB_CYCLIC;
     }
   }
 
@@ -1834,7 +1834,7 @@ void CURVE_OT_pen(wmOperatorType *ot)
   ot->idname = "CURVE_OT_pen";
   ot->description = "Construct and edit splines";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = curve_pen_invoke;
   ot->modal = curve_pen_modal;
   ot->poll = ED_operator_editcurve;

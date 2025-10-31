@@ -838,8 +838,9 @@ void BM_mesh_calc_uvs_grid(BMesh *bm,
 void bmo_create_uvsphere_exec(BMesh *bm, BMOperator *op)
 {
   const float rad = BMO_slot_float_get(op->slots_in, "radius");
-  const int seg = BMO_slot_int_get(op->slots_in, "u_segments");
-  const int tot = BMO_slot_int_get(op->slots_in, "v_segments");
+  /* Prevent zero U/V (crashes). If default permanents were supported 3 would make more sense. */
+  const int seg = std::max(1, BMO_slot_int_get(op->slots_in, "u_segments"));
+  const int tot = std::max(1, BMO_slot_int_get(op->slots_in, "v_segments"));
 
   const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
   const bool calc_uvs = (cd_loop_uv_offset != -1) && BMO_slot_bool_get(op->slots_in, "calc_uvs");
@@ -1526,7 +1527,7 @@ void BM_mesh_calc_uvs_cone(BMesh *bm,
   const float uv_center_x_bottom = cap_ends ? 0.75f : 0.5f;
   const float uv_radius = cap_ends ? 0.24f : 0.5f;
 
-  /* Using the opposite's end uv_scale as fallback allows us to handle 'real cone' case. */
+  /* Using the opposite's end uv_scale as a fallback allows us to handle 'real cone' case. */
   const float uv_scale_top = (radius_top != 0.0f) ?
                                  (uv_radius / radius_top) :
                                  ((radius_bottom != 0.0f) ? (uv_radius / radius_bottom) :

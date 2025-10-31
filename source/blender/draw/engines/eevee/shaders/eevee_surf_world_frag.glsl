@@ -8,7 +8,7 @@
  * Outputs shading parameter per pixel using a set of randomized BSDFs.
  */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_material_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_world)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_world)
@@ -18,7 +18,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_world)
 #include "eevee_colorspace_lib.glsl"
 #include "eevee_lightprobe_sphere_lib.glsl"
 #include "eevee_lightprobe_volume_eval_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_lib.glsl"
 
@@ -29,15 +29,12 @@ float4 closure_to_rgba(Closure cl)
 
 void main()
 {
-  /* Clear AOVs first. In case the material renders to them. */
-  clear_aovs();
-
   init_globals();
   /* View position is passed to keep accuracy. */
   g_data.N = drw_normal_view_to_world(drw_view_incident_vector(interp.P));
   g_data.Ng = g_data.N;
   g_data.P = -g_data.N;
-  attrib_load();
+  attrib_load(WorldPoint(0));
 
   nodetree_surface(0.0f);
 

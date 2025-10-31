@@ -2,11 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_math_vector_safe_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
+
 void node_bsdf_glass(float4 color,
                      float roughness,
                      float ior,
                      float3 N,
                      float weight,
+                     float thin_film_thickness,
+                     float thin_film_ior,
                      const float do_multiscatter,
                      out Closure result)
 {

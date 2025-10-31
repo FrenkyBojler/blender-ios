@@ -19,26 +19,28 @@ struct View2D;
 namespace blender::ed::vse {
 
 enum eStripHandle {
-  SEQ_HANDLE_NONE,
-  SEQ_HANDLE_LEFT,
-  SEQ_HANDLE_RIGHT,
-  SEQ_HANDLE_BOTH,
+  STRIP_HANDLE_NONE,
+  STRIP_HANDLE_LEFT,
+  STRIP_HANDLE_RIGHT,
 };
 
 struct StripSelection {
-  Strip *seq1 = nullptr;
-  Strip *seq2 = nullptr;
-  eStripHandle handle = SEQ_HANDLE_NONE;
+  /** Closest strip in the selection to the mouse cursor. */
+  Strip *strip1 = nullptr;
+  /** Farthest strip in the selection from the mouse cursor. */
+  Strip *strip2 = nullptr;
+  /** Handle of `strip1`. */
+  eStripHandle handle = STRIP_HANDLE_NONE;
 };
 
 void select_strip_single(Scene *scene, Strip *strip, bool deselect_all);
 /**
- * Iterates over a scene's sequences and deselects all of them.
+ * Iterates over a scene's strips and deselects all of them.
  *
- * \param scene: scene containing sequences to be deselected.
- * \return true if any sequences were deselected; false otherwise.
+ * \param scene: scene containing strips to be deselected.
+ * \return true if any strips were deselected; false otherwise.
  */
-bool deselect_all_strips(Scene *scene);
+bool deselect_all_strips(const Scene *scene);
 
 bool maskedit_mask_poll(bContext *C);
 bool check_show_maskedit(SpaceSeq *sseq, Scene *scene);
@@ -78,5 +80,13 @@ StripSelection pick_strip_and_handle(const struct Scene *scene,
                                      float mouse_co[2]);
 bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d);
 bool handle_is_selected(const Strip *strip, eStripHandle handle);
+
+bool is_scene_time_sync_needed(const bContext &C);
+/**
+ * Returns the scene strip (if any) that should be used for the scene synchronization feature.
+ * This is the top-most visible scene strip at the current time of the \a sequencer_scene.
+ */
+const Strip *get_scene_strip_for_time_sync(const Scene *sequence_scene);
+void sync_active_scene_and_time_with_scene_strip(bContext &C);
 
 }  // namespace blender::ed::vse

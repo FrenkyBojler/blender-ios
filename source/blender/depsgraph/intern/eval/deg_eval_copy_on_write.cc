@@ -25,7 +25,6 @@
 
 #include "BKE_curve.hh"
 #include "BKE_global.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_scene.hh"
@@ -122,9 +121,6 @@ void nested_id_hack_discard_pointers(ID *id_cow)
 
     case ID_SCE: {
       Scene *scene_cow = (Scene *)id_cow;
-      /* Node trees always have their own ID node in the graph, and are
-       * being copied as part of their copy-on-evaluation process. */
-      scene_cow->nodetree = nullptr;
       /* Tool settings pointer is shared with the original scene. */
       scene_cow->toolsettings = nullptr;
       break;
@@ -171,7 +167,6 @@ const ID *nested_id_hack_get_discarded_pointers(NestedIDHackTempStorage *storage
     case ID_SCE: {
       storage->scene = *(Scene *)id;
       storage->scene.toolsettings = nullptr;
-      storage->scene.nodetree = nullptr;
       return &storage->scene.id;
     }
 
@@ -199,7 +194,6 @@ void nested_id_hack_restore_pointers(const ID *old_id, ID *new_id)
     SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree)
     SPECIAL_CASE(ID_LA, Light, nodetree)
     SPECIAL_CASE(ID_MA, Material, nodetree)
-    SPECIAL_CASE(ID_SCE, Scene, nodetree)
     SPECIAL_CASE(ID_TE, Tex, nodetree)
     SPECIAL_CASE(ID_WO, World, nodetree)
 
@@ -236,7 +230,6 @@ void ntree_hack_remap_pointers(const Depsgraph *depsgraph, ID *id_cow)
     SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree, bNodeTree)
     SPECIAL_CASE(ID_LA, Light, nodetree, bNodeTree)
     SPECIAL_CASE(ID_MA, Material, nodetree, bNodeTree)
-    SPECIAL_CASE(ID_SCE, Scene, nodetree, bNodeTree)
     SPECIAL_CASE(ID_TE, Tex, nodetree, bNodeTree)
     SPECIAL_CASE(ID_WO, World, nodetree, bNodeTree)
 
@@ -498,7 +491,7 @@ int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
     ID *id_cow = depsgraph->get_cow_id(id_orig);
     BLI_assert(id_cow != nullptr);
     DEG_COW_PRINT(
-        "    Remapping datablock for %s: id_orig=%p id_cow=%p\n", id_orig->name, id_orig, id_cow);
+        "    Remapping data-block for %s: id_orig=%p id_cow=%p\n", id_orig->name, id_orig, id_cow);
     *id_p = id_cow;
   }
   return IDWALK_RET_NOP;
@@ -760,9 +753,15 @@ ID *deg_expand_eval_copy_datablock(const Depsgraph *depsgraph, const IDNode *id_
   DEG_COW_PRINT(
       "Expanding datablock for %s: id_orig=%p id_cow=%p\n", id_orig->name, id_orig, id_cow);
 
-  /* Sanity checks. */
+  /* Sanity checks.
+   *
+   * At this point, `id_cow` is essentially considered as a (partially dirty) allocated buffer (it
+   * has been freed, but not fully cleared, as a result of calling #deg_free_eval_copy_datablock on
+   * it). It is not expected to have any valid sub-data, not even a valid `ID::runtime` pointer.
+   */
   BLI_assert(check_datablock_expanded(id_cow) == false);
   BLI_assert(id_cow->py_instance == nullptr);
+  BLI_assert(id_cow->runtime == nullptr);
 
   /* Copy data from original ID to a copied version. */
   /* TODO(sergey): Avoid doing full ID copy somehow, make Mesh to reference
@@ -1029,7 +1028,7 @@ void deg_tag_eval_copy_id(deg::Depsgraph &depsgraph, ID *id_cow, const ID *id_or
   /* This ID is no longer localized, is a self-sustaining copy now. */
   id_cow->tag &= ~ID_TAG_LOCALIZED;
   id_cow->orig_id = (ID *)id_orig;
-  id_cow->runtime.depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
+  id_cow->runtime->depsgraph = &reinterpret_cast<::Depsgraph &>(depsgraph);
 }
 
 bool deg_eval_copy_is_expanded(const ID *id_cow)

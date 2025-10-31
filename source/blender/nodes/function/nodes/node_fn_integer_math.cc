@@ -4,11 +4,12 @@
 
 #include <numeric>
 
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_inverse_eval_params.hh"
@@ -92,21 +93,24 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
        item++)
   {
     if (item->name != nullptr && item->identifier[0] != '\0') {
-      params.add_item(IFACE_(item->name),
+      params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
                       SocketSearchOp{"Value", NodeIntegerMathOperation(item->value)},
                       weight);
     }
   }
 }
 
-static void node_label(const bNodeTree * /*ntree*/, const bNode *node, char *label, int maxlen)
+static void node_label(const bNodeTree * /*ntree*/,
+                       const bNode *node,
+                       char *label,
+                       int label_maxncpy)
 {
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_integer_math_items, node->custom1, &name);
   if (!enum_label) {
-    name = "Unknown";
+    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
-  BLI_strncpy(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), maxlen);
+  BLI_strncpy(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
 
 /* Derived from `divide_round_i` but fixed to be safe and handle negative inputs. */
@@ -302,6 +306,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeIntegerMath", FN_NODE_INTEGER_MATH);
   ntype.ui_name = "Integer Math";
+  ntype.ui_description = "Perform various math operations on the given integer inputs";
   ntype.enum_name_legacy = "INTEGER_MATH";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

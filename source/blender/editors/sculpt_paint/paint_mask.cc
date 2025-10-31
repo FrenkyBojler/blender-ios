@@ -28,7 +28,6 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_subsurf.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -42,7 +41,6 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
@@ -82,7 +80,7 @@ Array<float> duplicate_mask(const Object &object)
         result.fill(0.0f);
       }
       else {
-        BM_mesh_elem_table_ensure(&bm, BM_VERT);
+        vert_random_access_ensure(const_cast<Object &>(object));
         for (const int i : result.index_range()) {
           result[i] = BM_ELEM_CD_GET_FLOAT(BM_vert_at_index(&bm, i), offset);
         }
@@ -92,6 +90,15 @@ Array<float> duplicate_mask(const Object &object)
   }
   BLI_assert_unreachable();
   return {};
+}
+
+void mix_new_masks(const Span<float> new_masks, const float factor, const MutableSpan<float> masks)
+{
+  BLI_assert(new_masks.size() == masks.size());
+
+  for (const int i : masks.index_range()) {
+    masks[i] += (new_masks[i] - masks[i]) * factor;
+  }
 }
 
 void mix_new_masks(const Span<float> new_masks,

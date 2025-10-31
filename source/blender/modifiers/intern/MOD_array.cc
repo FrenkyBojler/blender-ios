@@ -37,7 +37,7 @@
 #include "BKE_object_deform.h"
 #include "BKE_object_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -293,6 +293,7 @@ static void mesh_merge_transform(Mesh *result,
   blender::MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
   blender::MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
   blender::MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
+  bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
 
   CustomData_copy_data(&cap_mesh->vert_data, &result->vert_data, 0, cap_verts_index, cap_nverts);
   CustomData_copy_data(&cap_mesh->edge_data, &result->edge_data, 0, cap_edges_index, cap_nedges);
@@ -339,7 +340,6 @@ static void mesh_merge_transform(Mesh *result,
   if (const VArray cap_material_indices = *cap_attributes.lookup<int>("material_index",
                                                                       bke::AttrDomain::Face))
   {
-    bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
     bke::SpanAttributeWriter<int> result_material_indices =
         result_attributes.lookup_or_add_for_write_span<int>("material_index",
                                                             bke::AttrDomain::Face);
@@ -564,6 +564,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
   blender::MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
   blender::MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
   blender::MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
+  bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
 
   if (use_merge) {
     /* Will need full_doubles_map for handling merge */
@@ -687,22 +688,24 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
   /* handle UVs */
   if (chunk_nloops > 0 && is_zero_v2(amd->uv_offset) == false) {
-    const int totuv = CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2);
-    for (i = 0; i < totuv; i++) {
-      blender::float2 *dmloopuv = static_cast<blender::float2 *>(CustomData_get_layer_n_for_write(
-          &result->corner_data, CD_PROP_FLOAT2, i, result->corners_num));
-      dmloopuv += chunk_nloops;
+    const VectorSet<StringRefNull> uv_map_names = result->uv_map_names();
+    for (i = 0; i < uv_map_names.size(); i++) {
+      bke::SpanAttributeWriter uv_map_attr = result_attributes.lookup_for_write_span<float2>(
+          uv_map_names[i]);
+      float2 *uv_map = uv_map_attr.span.data();
+      uv_map += chunk_nloops;
       for (c = 1; c < count; c++) {
         const float uv_offset[2] = {
             amd->uv_offset[0] * float(c),
             amd->uv_offset[1] * float(c),
         };
         int l_index = chunk_nloops;
-        for (; l_index-- != 0; dmloopuv++) {
-          (*dmloopuv)[0] += uv_offset[0];
-          (*dmloopuv)[1] += uv_offset[1];
+        for (; l_index-- != 0; uv_map++) {
+          (*uv_map)[0] += uv_offset[0];
+          (*uv_map)[1] += uv_offset[1];
         }
       }
+      uv_map_attr.finish();
     }
   }
 
@@ -895,7 +898,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "fit_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -910,7 +913,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     layout->prop(ptr, "curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void relative_offset_header_draw(const bContext * /*C*/, Panel *panel)
@@ -928,11 +931,11 @@ static void relative_offset_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiLayout *col = &layout->column(false);
 
-  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_relative_offset"));
+  col->active_set(RNA_boolean_get(ptr, "use_relative_offset"));
   col->prop(ptr, "relative_offset_displace", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
 }
 
@@ -951,11 +954,11 @@ static void constant_offset_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiLayout *col = &layout->column(false);
 
-  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_constant_offset"));
+  col->active_set(RNA_boolean_get(ptr, "use_constant_offset"));
   col->prop(ptr, "constant_offset_displace", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
 }
 
@@ -977,11 +980,11 @@ static void object_offset_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiLayout *col = &layout->column(false);
 
-  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_object_offset"));
+  col->active_set(RNA_boolean_get(ptr, "use_object_offset"));
   col->prop(ptr, "offset_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
 }
 
@@ -1000,10 +1003,10 @@ static void symmetry_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiLayout *col = &layout->column(false);
-  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_merge_vertices"));
+  col->active_set(RNA_boolean_get(ptr, "use_merge_vertices"));
   col->prop(ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
   col->prop(
       ptr, "use_merge_vertices_cap", UI_ITEM_NONE, IFACE_("First and Last Copies"), ICON_NONE);
@@ -1016,7 +1019,7 @@ static void uv_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   col = &layout->column(true);
   col->prop(ptr, "offset_u", UI_ITEM_R_EXPAND, IFACE_("Offset U"), ICON_NONE);
@@ -1030,7 +1033,7 @@ static void caps_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   col = &layout->column(false);
   col->prop(ptr, "start_cap", UI_ITEM_NONE, IFACE_("Cap Start"), ICON_NONE);
@@ -1095,4 +1098,5 @@ ModifierTypeInfo modifierType_Array = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

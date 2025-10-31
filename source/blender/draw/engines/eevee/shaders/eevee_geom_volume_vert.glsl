@@ -2,13 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_material_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(eevee_clip_plane)
 VERTEX_SHADER_CREATE_INFO(eevee_geom_volume)
 
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_surf_lib.glsl"
 
 void main()
@@ -26,5 +27,15 @@ void main()
   float3 lP = loc + pos * size;
   interp.P = drw_point_object_to_world(lP);
 
-  gl_Position = drw_point_world_to_homogenous(interp.P);
+  gl_Position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
+
+#ifdef MAT_SHADOW
+  /* Volumes currently do not support shadow. But the shader validation pipeline still compiles the
+   * shadow variant of this shader. Avoid linking error on Intel Windows drivers. */
+#  ifdef SHADOW_UPDATE_ATOMIC_RASTER
+  shadow_iface.shadow_view_id = 0;
+#  endif
+  shadow_clip.position = float3(0);
+  shadow_clip.vector = float3(0);
+#endif
 }

@@ -13,6 +13,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph.hh"
@@ -49,7 +50,7 @@ static void gizmo_empty_image_prop_matrix_get(const wmGizmo *gz,
                                               wmGizmoProperty *gz_prop,
                                               void *value_p)
 {
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -72,7 +73,7 @@ static void gizmo_empty_image_prop_matrix_set(const wmGizmo *gz,
                                               wmGizmoProperty *gz_prop,
                                               const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -108,10 +109,14 @@ static bool WIDGETGROUP_empty_image_poll(const bContext *C, wmGizmoGroupType * /
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
-    Object *ob = base->object;
+    const Object *ob = base->object;
     if (ob->type == OB_EMPTY) {
       if (ob->empty_drawtype == OB_EMPTY_IMAGE) {
-        return BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d);
+        if (BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d)) {
+          if (BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
+            return true;
+          }
+        }
       }
     }
   }

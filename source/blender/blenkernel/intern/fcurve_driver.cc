@@ -56,7 +56,7 @@
 static blender::Mutex python_driver_lock;
 #endif
 
-static CLG_LogRef LOG = {"bke.fcurve"};
+static CLG_LogRef LOG = {"anim.fcurve"};
 
 /* -------------------------------------------------------------------- */
 /** \name Driver Variables
@@ -433,7 +433,7 @@ static float dvar_eval_rotDiff(const AnimationEvalContext * /*anim_eval_context*
     return 0.0f;
   }
 
-  const float(*mat[2])[4];
+  const float (*mat[2])[4];
 
   /* NOTE: for now, these are all just world-space. */
   for (int i = 0; i < 2; i++) {
@@ -1020,14 +1020,13 @@ DriverVar *driver_add_new_variable(ChannelDriver *driver)
   dvar = MEM_callocN<DriverVar>("DriverVar");
   BLI_addtail(&driver->variables, dvar);
 
+  /* Don't use translations as this is referenced as a literal in #ChannelDriver::expression. */
+  const char *name_default = "var";
+
   /* Give the variable a 'unique' name. */
-  STRNCPY_UTF8(dvar->name, CTX_DATA_(BLT_I18NCONTEXT_ID_ACTION, "var"));
-  BLI_uniquename(&driver->variables,
-                 dvar,
-                 CTX_DATA_(BLT_I18NCONTEXT_ID_ACTION, "var"),
-                 '_',
-                 offsetof(DriverVar, name),
-                 sizeof(dvar->name));
+  STRNCPY_UTF8(dvar->name, name_default);
+  BLI_uniquename(
+      &driver->variables, dvar, name_default, '_', offsetof(DriverVar, name), sizeof(dvar->name));
 
   /* Set the default type to 'single prop'. */
   driver_change_variable_type(dvar, DVAR_TYPE_SINGLE_PROP);

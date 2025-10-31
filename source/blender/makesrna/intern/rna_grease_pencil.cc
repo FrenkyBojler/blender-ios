@@ -516,7 +516,7 @@ static void rna_GreasePencilLayer_tint_color_set(PointerRNA *ptr, const float *v
           grease_pencil.attributes_for_write().lookup_or_add_for_write_span<ColorGeometry4f>(
               "tint_color",
               bke::AttrDomain::Layer,
-              bke::AttributeInitVArray(VArray<ColorGeometry4f>::ForSingle(
+              bke::AttributeInitVArray(VArray<ColorGeometry4f>::from_single(
                   ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f), grease_pencil.layers().size()))))
   {
     copy_v3_v3(tint_colors.span[layer_idx], values);
@@ -549,7 +549,7 @@ static void rna_GreasePencilLayer_tint_factor_set(PointerRNA *ptr, const float v
           grease_pencil.attributes_for_write().lookup_or_add_for_write_span<ColorGeometry4f>(
               "tint_color",
               bke::AttrDomain::Layer,
-              bke::AttributeInitVArray(VArray<ColorGeometry4f>::ForSingle(
+              bke::AttributeInitVArray(VArray<ColorGeometry4f>::from_single(
                   ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f), grease_pencil.layers().size()))))
   {
     tint_colors.span[layer_idx][3] = value;
@@ -583,7 +583,7 @@ static void rna_GreasePencilLayer_radius_offset_set(PointerRNA *ptr, const float
               "radius_offset",
               bke::AttrDomain::Layer,
               bke::AttributeInitVArray(
-                  VArray<float>::ForSingle(0.0f, grease_pencil.layers().size()))))
+                  VArray<float>::from_single(0.0f, grease_pencil.layers().size()))))
   {
     radius_offsets.span[layer_idx] = value;
     radius_offsets.finish();
@@ -1245,7 +1245,7 @@ static void rna_def_grease_pencil_layer_group(BlenderRNA *brna)
   prop = RNA_def_property(srna, "is_expanded", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, "GreasePencilLayerTreeNode", "flag", GP_LAYER_TREE_NODE_EXPANDED);
-  RNA_def_property_ui_text(prop, "Expanded", "The layer groups is expanded in the UI");
+  RNA_def_property_ui_text(prop, "Expanded", "The layer group is expanded in the UI");
   RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_GreasePencilLayerGroup_is_expanded_set");
@@ -1426,7 +1426,7 @@ static void rna_def_grease_pencil_data(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  srna = RNA_def_struct(brna, "GreasePencilv3", "ID");
+  srna = RNA_def_struct(brna, "GreasePencil", "ID");
   RNA_def_struct_sdna(srna, "GreasePencil");
   RNA_def_struct_ui_text(srna, "Grease Pencil", "Grease Pencil data-block");
   RNA_def_struct_ui_icon(srna, ICON_OUTLINER_DATA_GREASEPENCIL);
