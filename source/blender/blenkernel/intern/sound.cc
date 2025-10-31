@@ -449,6 +449,14 @@ static void sound_device_use_end()
  */
 static bool sound_use_close_thread()
 {
+  /* For these cases sound is already force disabled, so no point starting a thread. */
+#  if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
+  return false;
+#  endif
+  if (G.background) {
+    return false;
+  }
+
 #  if OS_MAC
   /* Closing audio device on macOS prior to 15.2 could lead to interference with other software.
    * See #121911 for details. */
