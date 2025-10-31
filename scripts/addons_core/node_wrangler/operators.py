@@ -1916,7 +1916,11 @@ class NWCenterNodes(Operator, NWBase):
         selection = context.selected_nodes
 
         # Pick outermost selected nodes
-        nodes = [node for node in selection if not node.parent or (node.parent and not node.parent.select)]
+        nodes = []
+        for node in selection:
+            if node.parent and node.parent.select:
+                continue
+            nodes.append(node)
 
         # Get bound center of picked nodes
         nodes_x = []
