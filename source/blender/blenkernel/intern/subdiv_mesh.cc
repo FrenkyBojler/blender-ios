@@ -199,6 +199,35 @@ static void loops_of_ptex_get(LoopsOfPtex *loops_of_ptex,
 /** \name Vertex custom data interpolation helpers
  * \{ */
 
+static float3 mix_normals(const Span<float3> src,
+                          const Span<int> src_indices,
+                          const Span<float> weights)
+{
+  float3 result(0);
+  for (const int i : src_indices.index_range()) {
+    result += src[src_indices[i]] * weights[i];
+  }
+  return math::normalize(result);
+}
+
+static float3 mix_normals(const Span<float3> src,
+                          const std::array<int, 4> &src_indices,
+                          const float4 &weights)
+{
+  float3 result(0);
+  for (const int i : IndexRange(src_indices.size())) {
+    result += src[src_indices[i]] * weights[i];
+  }
+  return math::normalize(result);
+}
+
+static float3 mix_normals(const Span<float3> src,
+                          const std::array<int, 2> &src_indices,
+                          const float factor)
+{
+  return math::normalize(math::interpolate(src[src_indices[0]], src[src_indices[1]], factor));
+}
+
 static void mix_attrs(const Span<GSpan> src,
                       const std::array<int, 2> &src_indices,
                       const float factor,
@@ -275,6 +304,8 @@ struct VerticesForInterpolation {
    * The idea is to avoid unnecessary allocations for regular faces, where
    * we can simply use corner vertices. */
   Span<GSpan> vert_data;
+  Span<MDeformVert> dverts_data;
+  Span<float3> CD_NORMAL_data;
   /* Vertices data calculated for ptex corners. There are always 4 elements
    * in this custom data, aligned the following way:
    *
@@ -285,6 +316,7 @@ struct VerticesForInterpolation {
    *
    * Is allocated for non-regular faces (triangles and n-gons). */
   std::array<MDeformVert, 4> dverts_storage;
+  std::array<float3, 4> CD_NORMAL_storage;
   AlignedBuffer<1024, 64> storage_buffer;
   LinearAllocator<> storage_allocator;
   Array<GSpan> storage_spans;
@@ -315,6 +347,8 @@ static void vert_interpolation_from_face(const SubdivMeshContext *ctx,
     vert_interpolation->vert_indices[1] = ctx->coarse_corner_verts[coarse_face.start() + 1];
     vert_interpolation->vert_indices[2] = ctx->coarse_corner_verts[coarse_face.start() + 2];
     vert_interpolation->vert_indices[3] = ctx->coarse_corner_verts[coarse_face.start() + 3];
+    vert_interpolation->dverts_data = ctx->coarse_dverts;
+    vert_interpolation->CD_NORMAL_data = ctx->coarse_CD_NORMAL;
   }
   else {
     vert_interpolation->vert_data = vert_interpolation->storage_spans;
@@ -335,6 +369,9 @@ static void vert_interpolation_from_face(const SubdivMeshContext *ctx,
               weights.as_span(),
               2,
               vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
+    // TODO: MIX DVERTS
+    vert_interpolation->CD_NORMAL_storage[2] = mix_normals(
+        ctx->coarse_CD_NORMAL, indices, weights.as_span());
   }
 }
 
@@ -350,10 +387,15 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
     LoopsOfPtex loops_of_ptex;
     loops_of_ptex_get(&loops_of_ptex, coarse_face, corner);
     /* PTEX face corner corresponds to a face loop with same index. */
+    const int vert = ctx->coarse_corner_verts[coarse_face.start() + corner];
     copy_attrs(ctx->coarse_vert_attribute_spans,
-               ctx->coarse_corner_verts[coarse_face.start() + corner],
+               vert,
                0,
                vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
+    // TODO: COPY DVERTS
+    if (!ctx->coarse_CD_NORMAL.is_empty()) {
+      vert_interpolation->CD_NORMAL_storage[0] = ctx->coarse_CD_NORMAL[vert];
+    }
     /* Interpolate remaining ptex face corners, which hits loops
      * middle points.
      *
@@ -373,11 +415,21 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
               0.5f,
               1,
               vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
+    // TODO: MIX DVERTS
+    if (!ctx->coarse_CD_NORMAL.is_empty()) {
+      vert_interpolation->CD_NORMAL_storage[1] = mix_normals(
+          ctx->coarse_CD_NORMAL, first_indices, 0.5f);
+    }
     mix_attrs(ctx->coarse_vert_attribute_spans,
               last_indices,
               0.5f,
               3,
               vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
+    // TODO: MIX DVERTS
+    if (!ctx->coarse_CD_NORMAL.is_empty()) {
+      vert_interpolation->CD_NORMAL_storage[3] = mix_normals(
+          ctx->coarse_CD_NORMAL, last_indices, 0.5f);
+    }
   }
 }
 
@@ -666,6 +718,20 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
     }
   });
 
+  const Span<MDeformVert> coarse_dverts = subdiv_mesh.deform_verts_for_write();
+  if (!coarse_dverts.is_empty()) {
+    subdiv_context->subdiv_dverts = subdiv_mesh.deform_verts_for_write();
+  }
+  if (CustomData_has_layer(&subdiv_mesh.vert_data, CD_NORMAL)) {
+    subdiv_context->coarse_CD_NORMAL = {
+        static_cast<const float3 *>(CustomData_get_layer(&subdiv_mesh.vert_data, CD_NORMAL)),
+        coarse_mesh.verts_num};
+    subdiv_context->coarse_CD_NORMAL = {
+        static_cast<float3 *>(CustomData_add_layer(
+            &subdiv_mesh.vert_data, CD_NORMAL, CD_CONSTRUCT, subdiv_mesh.verts_num)),
+        subdiv_mesh.verts_num};
+  }
+
   /* Allocate corner topology arrays which are added to the result at the end. */
   subdiv_context->subdiv_corner_verts = MEM_malloc_arrayN<int>(size_t(num_loops), __func__);
   subdiv_context->subdiv_corner_edges = MEM_malloc_arrayN<int>(size_t(num_loops), __func__);
@@ -694,6 +760,7 @@ static void subdiv_vert_data_copy(const SubdivMeshContext *ctx,
              coarse_vert_index,
              subdiv_vert_index,
              ctx->subdiv_vert_attribute_spans);
+  // TODO: COPY DVERTS
 }
 
 static float4 quad_weights_from_uv(const float u, const float v)
@@ -715,6 +782,11 @@ static void subdiv_vert_data_interpolate(const SubdivMeshContext *ctx,
             ctx->subdiv_vert_attribute_spans);
   if (ctx->vert_origindex != nullptr) {
     ctx->vert_origindex[subdiv_vert_index] = ORIGINDEX_NONE;
+  }
+  // TODO: MIX DVERTS
+  if (!ctx->coarse_CD_NORMAL.is_empty()) {
+    ctx->subdiv_CD_NORMAL[subdiv_vert_index] = mix_normals(
+        vert_interpolation->CD_NORMAL_data, vert_interpolation->vert_indices, weights);
   }
 }
 
