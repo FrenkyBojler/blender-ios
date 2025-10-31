@@ -1028,8 +1028,9 @@ static int ui_colorpicker_wheel_cb(const bContext * /*C*/, uiBlock *block, const
   bool mouse_in_region = popup && BLI_rcti_isect_pt(&popup->region->winrct,
                                                     float(event->xy[0]),
                                                     float(event->xy[1]));
-  if (popup && ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE, RIGHTMOUSE) && !mouse_in_region) {
-    /* Exit and save color if right click or moving mouse wheel while outside the popup. */
+
+  if (popup && !mouse_in_region && ISMOUSE_WHEEL(event->type)) {
+    /* Exit and save color if moving mouse wheel while outside the popup. */
     popup->menuretval = UI_RETURN_OK;
     return 1;
   }
