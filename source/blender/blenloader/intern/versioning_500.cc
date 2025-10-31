@@ -2517,11 +2517,9 @@ static void sequencer_substitute_transform_effects(Scene *scene)
       transform->scale_x *= tv->ScalexIni;
       transform->scale_y *= tv->ScaleyIni;
       transform->rotation += tv->rotIni;
-      blender::seq::EffectHandle sh = blender::seq::strip_effect_handle_get(strip);
-      sh.free(strip, true);
+      blender::seq::effect_free(strip);
       strip->type = STRIP_TYPE_GAUSSIAN_BLUR;
-      sh = blender::seq::strip_effect_handle_get(strip);
-      sh.init(strip);
+      blender::seq::effect_ensure_initialized(strip);
       GaussianBlurVars *gv = static_cast<GaussianBlurVars *>(strip->effectdata);
       gv->size_x = gv->size_y = 0.0f;
       blender::seq::edit_strip_name_set(scene, strip, "Transform Placeholder (Migrated)");
@@ -3059,16 +3057,21 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (ELEM(sl->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA, SPACE_SEQ)) {
-            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                   &sl->regionbase;
-            ARegion *new_footer = do_versions_add_region_if_not_found(
-                regionbase, RGN_TYPE_FOOTER, "footer for animation editors", RGN_TYPE_HEADER);
-            if (new_footer != nullptr) {
-              new_footer->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
-                                                                        RGN_ALIGN_BOTTOM;
-              new_footer->flag |= RGN_FLAG_HIDDEN;
-            }
+          if (!ELEM(sl->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA, SPACE_SEQ)) {
+            continue;
+          }
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+          ARegion *new_footer = do_versions_add_region_if_not_found(
+              regionbase, RGN_TYPE_FOOTER, "footer for animation editors", RGN_TYPE_HEADER);
+          if (new_footer == nullptr) {
+            continue;
+          }
+
+          new_footer->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
+                                                                    RGN_ALIGN_BOTTOM;
+          if (ELEM(sl->spacetype, SPACE_GRAPH, SPACE_NLA)) {
+            new_footer->flag |= RGN_FLAG_HIDDEN;
           }
         }
       }

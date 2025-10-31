@@ -5093,7 +5093,12 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
         break;
       case ButType::Popover:
-        wt = popover_widget_type(but, rect);
+        if (but->icon == 0) {
+          wt = popover_widget_type(but, rect);
+        }
+        else { /* Currently used for presets. */
+          wt = widget_type(UI_WTYPE_ICON);
+        }
         break;
       case ButType::NodeSocket:
         wt = widget_type(UI_WTYPE_NODESOCKET);
@@ -5806,13 +5811,13 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
 
   int icon_width = 0;
   if (id) {
-    icon_width += int(1.0f * UI_UNIT_X);
+    icon_width += int(1.0f * UI_UNIT_X * zoom);
   }
   if (id && ID_MISSING(id)) {
-    icon_width += int(0.85f * UI_UNIT_X);
+    icon_width += int(0.85f * UI_UNIT_X * zoom);
   }
   if (id && ID_IS_OVERRIDE_LIBRARY(id)) {
-    icon_width += int(0.85f * UI_UNIT_X);
+    icon_width += int(0.85f * UI_UNIT_X * zoom);
   }
 
   uiWidgetStateInfo state = {0};
@@ -5965,21 +5970,36 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                       UI_NO_ICON_OVERLAY_TEXT);
       xs += int(0.85f * UI_UNIT_X);
     }
-    IconTextOverlay overlay;
-    BLI_str_format_integer_unit(overlay.text, id->us);
-    if (id->us < 1) {
-      rgba_uchar_args_set(overlay.color, 255, 60, 60, 255);
+
+    if (ID_IS_ASSET(id)) {
+      UI_icon_draw_ex(xs,
+                      ys,
+                      ICON_ASSET_MANAGER,
+                      aspect,
+                      1.0f,
+                      0.0f,
+                      wt->wcol.text,
+                      false,
+                      UI_NO_ICON_OVERLAY_TEXT);
+      xs += int(0.85f * UI_UNIT_X);
     }
-    UI_icon_draw_ex(xs,
-                    ys,
-                    id->flag & ID_FLAG_FAKEUSER ? ICON_FAKE_USER_ON : ICON_FAKE_USER_OFF,
-                    aspect,
-                    1.0f,
-                    0.0f,
-                    wt->wcol.text,
-                    false,
-                    &overlay);
-    GPU_blend(GPU_BLEND_NONE);
+    else {
+      IconTextOverlay overlay;
+      BLI_str_format_integer_unit(overlay.text, id->us);
+      if (id->us < 1) {
+        rgba_uchar_args_set(overlay.color, 255, 60, 60, 255);
+      }
+      UI_icon_draw_ex(xs,
+                      ys,
+                      id->flag & ID_FLAG_FAKEUSER ? ICON_FAKE_USER_ON : ICON_FAKE_USER_OFF,
+                      aspect,
+                      1.0f,
+                      0.0f,
+                      wt->wcol.text,
+                      false,
+                      &overlay);
+      GPU_blend(GPU_BLEND_NONE);
+    }
   }
 }
 
