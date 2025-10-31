@@ -872,6 +872,21 @@ static void search_fn(bContext *C, void * /*arg1*/, void *arg2)
   std::string name = view->get_search_string();
 }
 
+static void set_filtering_collapsed_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
+{
+  const wmWindow *win = CTX_wm_window(C);
+  if (!(win && win->eventstate)) {
+    return;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!region) {
+    return;
+  }
+  if (AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, 2 * UI_UNIT_Y)) {
+    view->set_filtering_collapsed();
+  }
+}
+
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 {
   uiLayout &parent_layout = this->current_layout();
@@ -886,22 +901,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     col = &parent_layout.column(true);
   }
 
-  static char search[256] = "";
-  uiBut *but = uiDefBut(block,
-                        ButType::Text,
-                        1,
-                        "",
-                        0,
-                        0,
-                        UI_TREEVIEW_INDENT,
-                        UI_UNIT_Y,
-                        search,
-                        0,
-                        sizeof(search),
-                        "");
-  UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
-  ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
-  UI_but_func_set(but, search_fn, nullptr, search);
   /* Row for the tree-view and the scroll bar. */
   uiLayout *row = &col->row(false);
 
@@ -963,6 +962,18 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     }
 
     block_layout_set_current(block, col);
+
+    /* Bottom */
+    uiLayout *bottom = &col->row(false);
+    UI_block_emboss_set(block, ui::EmbossType::None);
+    int icon = tree_view.is_filtering_collapsed() ? ICON_DISCLOSURE_TRI_RIGHT :
+                                                    ICON_DISCLOSURE_TRI_DOWN;
+    uiBut *but = uiDefIconBut(
+        block, ButType::IconToggle, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.3, nullptr, 0, 0, "");
+    UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
+    UI_block_emboss_set(block, ui::EmbossType::Emboss);
+    bottom->column(false);
+
     uiDefIconButI(block,
                   ButType::Grip,
                   0,
@@ -975,6 +986,26 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   0,
                   0,
                   "");
+
+    if (!tree_view.is_filtering_collapsed()) {
+      block_layout_set_current(block, col);
+      static char search[256] = "";
+      uiBut *but = uiDefBut(block,
+                            ButType::Text,
+                            1,
+                            "",
+                            0,
+                            0,
+                            UI_TREEVIEW_INDENT,
+                            UI_UNIT_Y,
+                            search,
+                            0,
+                            sizeof(search),
+                            "");
+      UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
+      ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
+      UI_but_func_set(but, search_fn, nullptr, search);
+    }
   }
 
   block_layout_set_current(block, &parent_layout);
