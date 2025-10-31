@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-Utility script, called by ``blender_headless.py`` to run inside Blender to avoid boilerplate code having to be added
-into each test. Handles execution primarily for CTest usage.
-
-See ``run.py`` for an alternate helper script with more utilities helpful when debugging or developing these tests.
+Utility script, called by ``run.py`` or ``blender_headless.py`` to run inside Blender,
+to avoid boilerplate code having to be added into each test.
 """
 
 import os
@@ -18,6 +16,30 @@ def create_parser():
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawTextHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--keep-open",
+        dest="keep_open",
+        default=False,
+        action='store_true',
+        required=False,
+        help="Keep the Blender window open after running the test.",
+    )
+
+    parser.add_argument(
+        "--step-command-pre",
+        dest="step_command_pre",
+        default=None,
+        required=False,
+        help="See 'run.py'",
+    )
+    parser.add_argument(
+        "--step-command-post",
+        dest="step_command_post",
+        default=None,
+        required=False,
+        help="See 'run.py'",
     )
 
     parser.add_argument(
@@ -44,11 +66,24 @@ def main():
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
     verbose = os.getenv('BLENDER_VERBOSE') is not None
 
+    # Check if `bpy.app.use_event_simulate` has been enabled by the test itself.
+    # When writing tests, it's useful if the test can temporarily be set to keep the window open.
+
     def on_error():
-        sys.exit(1)
+        if not bpy.app.use_event_simulate:
+            args.keep_open = True
+
+        if not args.keep_open:
+            sys.exit(1)
 
     def on_exit():
-        sys.exit(0)
+        if not bpy.app.use_event_simulate:
+            args.keep_open = True
+
+        if not args.keep_open:
+            sys.exit(0)
+        else:
+            bpy.app.use_event_simulate = False
 
     gpu_device = gpu.platform.device_type_get()
 
@@ -85,6 +120,9 @@ def main():
             test_fn(),
             on_error=on_error,
             on_exit=on_exit,
+            # Optional.
+            on_step_command_pre=args.step_command_pre,
+            on_step_command_post=args.step_command_post,
         )
 
 
