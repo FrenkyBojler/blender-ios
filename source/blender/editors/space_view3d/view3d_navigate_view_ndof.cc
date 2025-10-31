@@ -309,12 +309,12 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
     mul_qt_v3(view_inv, zvec);
 
     /* Level the view to a "horizon plane" */
-      const float leveling_angle = compute_leveling_angle(xvec, yvec, zvec);
-      if (leveling_angle != 0.) {
-        float leveling_quat[4];
-        axis_angle_to_quat(leveling_quat, zvec, leveling_angle);
-        mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, leveling_quat);
-      }
+    const float leveling_angle = compute_leveling_angle(xvec, yvec, zvec);
+    if (leveling_angle != 0.) {
+      float leveling_quat[4];
+      axis_angle_to_quat(leveling_quat, zvec, leveling_angle);
+      mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, leveling_quat);
+    }
 
     /* Perform the up/down rotation */
     angle = ndof.time_delta * rot[0];
