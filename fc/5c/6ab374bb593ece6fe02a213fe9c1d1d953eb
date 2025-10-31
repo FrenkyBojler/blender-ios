@@ -1,2 +1,3 @@
 Referenced by issue #148891, Cycles OSL: Surface becomes black in the viewport when updating shader
 Referenced by pull request #149088, Fix #148891: Cycles OSL shader update issues
+Referenced by commit bbee81e6e51835fef3752bb43454794406e3f8e9, Fix #148891: Cycles OSL shader update issues
