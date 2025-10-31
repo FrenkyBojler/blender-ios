@@ -7,6 +7,22 @@ import argparse
 import os
 import sys
 from pathlib import Path
+try:
+    # Render report is not always available and leads to errors in the console logs that can be ignored.
+    from modules import render_report
+
+    class StormReport(render_report.Report):
+        def __init__(self, title, output_dir, oiiotool, variation=None, blocklist=[]):
+            super().__init__(title, output_dir, oiiotool, variation=variation, blocklist=blocklist)
+            self.gpu_backend = variation
+
+        def _get_render_arguments(self, arguments_cb, filepath, base_output_filepath):
+            return arguments_cb(filepath, base_output_filepath, gpu_backend=self.gpu_backend)
+
+except ImportError:
+    # render_report can only be loaded when running the render tests. It errors when
+    # this script is run during preparation steps.
+    pass
 
 # Unsupported or broken scenarios for the Storm render engine
 BLOCKLIST_HYDRA = [
@@ -66,11 +82,14 @@ BLOCKLIST_AMD = BLOCKLIST_METAL + [
 ]
 
 # Minor difference in texture coordinate for white noise hash.
-BLOCKLIST_INTEL = [
+BLOCKLIST_INTEL_LINUX_OPENGL = [
     "hair_reflection.blend",
     "hair_transmission.blend",
     "principled_bsdf_emission.blend",
     "principled_bsdf_sheen.blend",
+]
+
+BLOCKLIST_VULKAN = [
 ]
 
 
@@ -100,19 +119,26 @@ if inside_blender:
         sys.exit(1)
 
 
-def get_arguments(filepath, output_filepath):
-    return [
+def get_arguments(filepath, output_filepath, gpu_backend):
+    arguments = [
         "--background",
         "--factory-startup",
         "--enable-autoexec",
         "--debug-memory",
-        "--debug-exit-on-error",
+        "--debug-exit-on-error"]
+
+    if gpu_backend:
+        arguments.extend(["--gpu-backend", gpu_backend])
+
+    arguments.extend([
         filepath,
         "-P",
         os.path.realpath(__file__),
         "-o", output_filepath,
         "-F", "PNG",
-        "-f", "1"]
+        "-f", "1"])
+
+    return arguments
 
 
 def create_argparse():
@@ -125,6 +151,7 @@ def create_argparse():
     parser.add_argument("--oiiotool", required=True)
     parser.add_argument("--export_method", required=True)
     parser.add_argument('--batch', default=False, action='store_true')
+    parser.add_argument('--gpu-backend')
     return parser
 
 
@@ -132,25 +159,40 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    from modules import render_report
-
-    if sys.platform == "darwin":
-        blocklist = BLOCKLIST_METAL
+    if args.gpu_backend == "metal":
+        blocklist += BLOCKLIST_METAL
+    elif args.gpu_backend == "vulkan":
+        blocklist += BLOCKLIST_VULKAN
     else:
         gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
         if gpu_vendor == "AMD":
             blocklist = BLOCKLIST_AMD
-        elif gpu_vendor == "INTEL":
-            blocklist = BLOCKLIST_INTEL
+        elif gpu_vendor == "INTEL" and sys.platform == "linux":
+            blocklist = BLOCKLIST_INTEL_LINUX_OPENGL
         else:
             blocklist = []
 
     if args.export_method == 'HYDRA':
-        report = render_report.Report("Storm Hydra", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_HYDRA)
+        report = StormReport(
+            "Storm Hydra",
+            args.outdir,
+            args.oiiotool,
+            variation=args.gpu_backend,
+            blocklist=blocklist +
+            BLOCKLIST_HYDRA)
         report.set_reference_dir("storm_hydra_renders")
-        report.set_compare_engine('cycles', 'CPU')
+        if args.gpu_backend == "vulkan":
+            report.set_compare_engine('eevee', 'opengl')
+        else:
+            report.set_compare_engine('cycles', 'CPU')
     else:
-        report = render_report.Report("Storm USD", args.outdir, args.oiiotool, blocklist=blocklist + BLOCKLIST_USD)
+        report = StormReport(
+            "Storm USD",
+            args.outdir,
+            args.oiiotool,
+            variation=args.gpu_backend,
+            blocklist=blocklist +
+            BLOCKLIST_USD)
         report.set_reference_dir("storm_usd_renders")
         report.set_compare_engine('storm_hydra')
 

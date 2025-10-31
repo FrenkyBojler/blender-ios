@@ -108,7 +108,7 @@ if(WITH_UI_TESTS)
       "PASS_THROUGH=1"
     )
   endif()
-  function(add_blender_test_ui testname)
+  function(add_blender_test_ui_backend backend testname)
     # Remove `--background`a
     set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
     list(REMOVE_ITEM EXE_PARAMS --background)
@@ -126,9 +126,33 @@ if(WITH_UI_TESTS)
       # On other systems this is harmless.
       --no-window-frame
       -p 0 0 800 600
+      --gpu-backend ${backend}
       "${EXE_PARAMS}"
       "${ARGN}"
     )
+  endfunction()
+  function(add_blender_test_ui testname)
+    if(WITH_OPENGL_BACKEND)
+      add_blender_test_ui_backend(
+        "ui_opengl_${testname}"
+        "opengl"
+        "${ARGN}"
+      )
+    endif()
+    if(WITH_METAL_BACKEND)
+      add_blender_test_ui_backend(
+        "ui_metal_${testname}"
+        "metal"
+        "${ARGN}"
+      )
+    endif()
+    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+      add_blender_test_ui_backend(
+        "ui_vulkan_${testname}"
+        "vulkan"
+        "${ARGN}"
+      )
+    endif()
   endfunction()
 endif()
 
@@ -936,27 +960,83 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
     if(WITH_HYDRA)
       # Hydra Storm
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          storm_hydra_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-          --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/storm_hydra"
-          --export_method "HYDRA"
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
+      if(WITH_OPENGL_BACKEND)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            storm_hydra_opengl_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/storm_hydra_opengl"
+            --export_method "HYDRA"
+            --gpu-backend opengl
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
 
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          storm_usd_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-          --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/storm_usd"
-          --export_method "USD"
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            storm_usd_opengl_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/storm_usd_opengl"
+            --export_method "USD"
+            --gpu-backend opengl
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
+
+      if(WITH_METAL_BACKEND)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            storm_hydra_metal_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/storm_hydra_metal"
+            --export_method "HYDRA"
+            --gpu-backend metal
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            storm_usd_metal_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/storm_usd_metal"
+            --export_method "USD"
+            --gpu-backend metal
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
+
+      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            storm_hydra_vulkan_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/storm_hydra_vulkan"
+            --export_method "HYDRA"
+            --gpu-backend vulkan
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+
+        foreach(render_test ${gpu_render_tests})
+          add_render_test(
+            storm_usd_vulkan_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/storm_usd_vulkan"
+            --export_method "USD"
+            --gpu-backend vulkan
+            ${_gpu_render_tests_arguments}
+          )
+        endforeach()
+      endif()
     endif()
     unset(_gpu_render_tests_arguments)
   endif()
@@ -1433,7 +1513,7 @@ if(WITH_UI_TESTS)
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
-      "ui_${ui_test}"
+      "${ui_test}"
       --enable-event-simulate
       --python "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run_blender_setup.py"
       --
