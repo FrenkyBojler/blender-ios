@@ -160,9 +160,9 @@ def main():
     args = parser.parse_args()
 
     if args.gpu_backend == "metal":
-        blocklist += BLOCKLIST_METAL
+        blocklist = BLOCKLIST_METAL
     elif args.gpu_backend == "vulkan":
-        blocklist += BLOCKLIST_VULKAN
+        blocklist = BLOCKLIST_VULKAN
     else:
         gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
         if gpu_vendor == "AMD":
