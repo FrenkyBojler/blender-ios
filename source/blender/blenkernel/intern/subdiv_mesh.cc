@@ -115,7 +115,7 @@ static void subdiv_mesh_ctx_cache_uv_layers(SubdivMeshContext *ctx)
 {
   Mesh *subdiv_mesh = ctx->subdiv_mesh;
   bke::MutableAttributeAccessor attributes = subdiv_mesh->attributes_for_write();
-  for (const StringRef name : subdiv_mesh->uv_map_names()) {
+  for (const StringRef name : ctx->coarse_mesh->uv_map_names()) {
     ctx->uv_maps.append(
         attributes.lookup_or_add_for_write_only_span<float2>(name, AttrDomain::Corner));
   }
@@ -373,8 +373,8 @@ struct VerticesForInterpolation {
       : storage_spans(ctx.coarse_vert_attribute_spans.size())
   {
     this->allocator.provide_buffer(this->buffer);
-    for (const int i : ctx.coarse_vert_attributes.index_range()) {
-      const CPPType &type = ctx.coarse_vert_attributes[i].type();
+    for (const int i : ctx.coarse_vert_attribute_spans.index_range()) {
+      const CPPType &type = ctx.coarse_vert_attribute_spans[i].type();
       void *data = this->allocator.allocate_array(type, 4);
       this->storage_spans[i] = {type, data, 4};
     }
@@ -532,8 +532,8 @@ struct LoopsForInterpolation {
       : storage_spans(ctx.coarse_corner_attribute_spans.size())
   {
     this->allocator.provide_buffer(this->buffer);
-    for (const int i : ctx.coarse_corner_attributes.index_range()) {
-      const CPPType &type = ctx.coarse_corner_attributes[i].type();
+    for (const int i : ctx.coarse_corner_attribute_spans.index_range()) {
+      const CPPType &type = ctx.coarse_corner_attribute_spans[i].type();
       void *data = this->allocator.allocate_array(type, 4);
       this->storage_spans[i] = {type, data, 4};
     }
@@ -601,12 +601,12 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
                                   (first_loop_index - base_loop_index + 1) % coarse_face.size();
     const std::array<int, 2> first_indices = {first_loop_index, second_loop_index};
     const std::array<int, 2> last_indices = {loops_of_ptex.last_loop, loops_of_ptex.first_loop};
-    mix_attrs(ctx->coarse_vert_attribute_spans,
+    mix_attrs(ctx->coarse_corner_attribute_spans,
               first_indices,
               0.5f,
               1,
               loop_interpolation->storage_spans.as_span().cast<GMutableSpan>());
-    mix_attrs(ctx->coarse_vert_attribute_spans,
+    mix_attrs(ctx->coarse_corner_attribute_spans,
               last_indices,
               0.5f,
               3,
@@ -729,7 +729,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   MutableAttributeAccessor attributes = subdiv_mesh.attributes_for_write();
   attributes.add<float3>("position", AttrDomain::Point, AttributeInitConstruct());
   attributes.add<int2>(".edge_verts", AttrDomain::Edge, AttributeInitConstruct());
-  attributes.foreach_attribute([&](const AttributeIter &iter) {
+  coarse_mesh.attributes().foreach_attribute([&](const AttributeIter &iter) {
     if (iter.data_type == AttrType::String) {
       return;
     }
@@ -741,7 +741,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
       subdiv_context->coarse_vert_attribute_spans.append(
           subdiv_context->coarse_vert_attributes.last());
       subdiv_context->subdiv_vert_attributes.append(
-          attributes.lookup_or_add_for_write_span(iter.name, iter.domain, iter.data_type));
+          attributes.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
       subdiv_context->subdiv_vert_attribute_spans.append(
           subdiv_context->subdiv_vert_attributes.last().span);
     }
@@ -753,7 +753,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
       subdiv_context->coarse_edge_attribute_spans.append(
           subdiv_context->coarse_edge_attributes.last());
       subdiv_context->subdiv_edge_attributes.append(
-          attributes.lookup_or_add_for_write_span(iter.name, iter.domain, iter.data_type));
+          attributes.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
       subdiv_context->subdiv_edge_attribute_spans.append(
           subdiv_context->subdiv_edge_attributes.last().span);
     }
@@ -762,7 +762,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
       subdiv_context->coarse_face_attribute_spans.append(
           subdiv_context->coarse_face_attributes.last());
       subdiv_context->subdiv_face_attributes.append(
-          attributes.lookup_or_add_for_write_span(iter.name, iter.domain, iter.data_type));
+          attributes.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
       subdiv_context->subdiv_face_attribute_spans.append(
           subdiv_context->subdiv_face_attributes.last().span);
     }
@@ -777,7 +777,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
       subdiv_context->coarse_corner_attribute_spans.append(
           subdiv_context->coarse_corner_attributes.last());
       subdiv_context->subdiv_corner_attributes.append(
-          attributes.lookup_or_add_for_write_span(iter.name, iter.domain, iter.data_type));
+          attributes.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
       subdiv_context->subdiv_corner_attribute_spans.append(
           subdiv_context->subdiv_corner_attributes.last().span);
     }
