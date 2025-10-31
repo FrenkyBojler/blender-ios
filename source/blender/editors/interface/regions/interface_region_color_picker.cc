@@ -1030,9 +1030,16 @@ static int ui_colorpicker_wheel_cb(const bContext * /*C*/, uiBlock *block, const
                                                     float(event->xy[1]));
 
   if (popup && !mouse_in_region && ISMOUSE_WHEEL(event->type)) {
-    /* Exit and save color if moving mouse wheel while outside the popup. */
-    popup->menuretval = UI_RETURN_OK;
-    return 1;
+    if (ISMOUSE_WHEEL(event->type)) {
+      /* Exit and save color if moving mouse wheel while outside the popup. */
+      popup->menuretval = UI_RETURN_OK;
+      return 1;
+    }
+    if (event->type == MOUSEPAN) {
+      /* Exit and discard changes on two-finger touch pad scroll. */
+      popup->menuretval = UI_RETURN_CANCEL;
+      return 1;
+    }
   }
 
   /* Increase/Decrease the Color HSV Value component using the mouse wheel. */
