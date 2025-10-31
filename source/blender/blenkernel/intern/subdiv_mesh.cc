@@ -961,10 +961,9 @@ static void subdiv_interpolate_corner_data(const SubdivMeshContext *ctx,
                                            const float u,
                                            const float v)
 {
-  const float4 weights = quad_weights_from_uv(u, v);
   mix_attrs(loop_interpolation->corner_data,
             loop_interpolation->loop_indices,
-            weights,
+            quad_weights_from_uv(u, v),
             subdiv_loop_index,
             ctx->subdiv_corner_attribute_spans);
 }
