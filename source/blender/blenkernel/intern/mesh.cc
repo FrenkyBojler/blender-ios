@@ -1263,10 +1263,10 @@ Mesh *mesh_new_no_attributes(const int verts_num,
   mesh->verts_num = verts_num;
   mesh->edges_num = edges_num;
   mesh->corners_num = corners_num;
-  CustomData_free_layer_named(&mesh->vert_data, "position");
-  CustomData_free_layer_named(&mesh->edge_data, ".edge_verts");
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_vert");
-  CustomData_free_layer_named(&mesh->corner_data, ".corner_edge");
+  mesh->attribute_storage.wrap().remove("position");
+  mesh->attribute_storage.wrap().remove(".edge_verts");
+  mesh->attribute_storage.wrap().remove(".corner_vert");
+  mesh->attribute_storage.wrap().remove(".corner_edge");
   return mesh;
 }
 
