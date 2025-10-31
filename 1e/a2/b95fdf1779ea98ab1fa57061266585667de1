@@ -1,2 +1,2 @@
 Referenced by issue #148569, USD Imports with duplicate blend shape names inside the same skeleton root prim crash
-Referenced by issue #149154, muted nodegroup's output wrong ( affected by unconnected input)
+Referenced by issue #149154, muted nodegroup's output is wrong (and is affected by unconnected input)
