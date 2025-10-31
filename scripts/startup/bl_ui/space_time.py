@@ -337,7 +337,9 @@ class TIME_PT_jump(TimelinePanelButtons, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        scene = context.scene
+        st = context.space_data
+        is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+        scene = context.scene if not is_sequencer else context.sequencer_scene
 
         layout.prop(scene, "time_jump_unit", expand=True, text="Jump Unit")
         layout.prop(scene, "time_jump_delta", text="Delta")
