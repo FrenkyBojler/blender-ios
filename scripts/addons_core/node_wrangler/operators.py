@@ -224,14 +224,14 @@ class NWLazyConnect(Operator, NWBase):
 
 
 class NWDeleteUnused(Operator, NWBase):
-    """Delete all nodes whose output is not used"""
+    """Delete all nodes with unused outputs"""
     bl_idname = 'node.nw_del_unused'
     bl_label = 'Delete Unused Nodes'
     bl_options = {'REGISTER', 'UNDO'}
 
     delete_muted: BoolProperty(
         name="Delete Muted",
-        description="Delete (but reconnect, like Ctrl-X) all muted nodes",
+        description="Dissolve all muted nodes with reconnect",
         default=True)
     delete_frames: BoolProperty(
         name="Delete Empty Frames",
@@ -1815,7 +1815,7 @@ class NWLinkActiveToSelected(Operator, NWBase):
 
 
 class NWAlignNodes(Operator, NWBase):
-    '''Align the selected nodes neatly in a row/column'''
+    '''Align selected nodes in a grid pattern'''
     bl_idname = "node.nw_align_nodes"
     bl_label = "Align Nodes"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1952,7 +1952,7 @@ class NWDetachOutputs(Operator, NWBase):
 
 
 class NWLinkToOutputNode(Operator):
-    """Link to Composite node or Material Output node"""
+    """Link node to the group or node tree output"""
     bl_idname = "node.nw_link_out"
     bl_label = "Connect to Output"
     bl_options = {'REGISTER', 'UNDO'}
@@ -2256,7 +2256,7 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
 
 
 class NWResetNodes(bpy.types.Operator):
-    """Reset Nodes in Selection"""
+    """Revert nodes back to the default state, but keep connections"""
     bl_idname = "node.nw_reset_nodes"
     bl_label = "Reset Nodes"
     bl_options = {'REGISTER', 'UNDO'}
