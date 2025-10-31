@@ -1895,13 +1895,25 @@ class NWSelectParentChildren(Operator, NWBase):
     bl_label = "Select Parent or Children"
     bl_options = {'REGISTER', 'UNDO'}
 
+    parent_desc = "Select frame containing the selected nodes"
+    child_desc = "Select members of the selected frame"
+
     option: EnumProperty(
         name="Option",
         items=(
-            ('PARENT', 'Select Parent', 'Select Parent Frame'),
-            ('CHILD', 'Select Children', 'Select members of selected frame'),
+            ('PARENT', 'Select Parent', parent_desc),
+            ('CHILD', 'Select Children', child_desc),
         )
     )
+    
+    @classmethod
+    def description(cls, _context, properties):
+        option = properties.option
+
+        if option == 'PARENT':
+            return cls.parent_desc
+        elif option == 'CHILD':
+            return cls.child_desc
 
     @classmethod
     def poll(cls, context):
