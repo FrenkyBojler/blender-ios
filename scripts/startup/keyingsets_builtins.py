@@ -352,14 +352,11 @@ class BUILTIN_KSI_VisualAvailable(KeyingSetInfo):
     bl_options = {'INSERTKEY_VISUAL'}
 
     def poll(self, context):
-        # Skip checking for available channels to prevent hotkeys from
-        # getting mixed up in the Insert Keyframe Menu (see #127175).
+        # The keyingset operates on selected items.
         return bool(context.selected_objects)
 
-    # iterator - use callback for selected bones/objects
     iterator = keyingsets_utils.RKS_ITER_selected_item
 
-    # generator
     generate = keyingsets_utils.RKS_GEN_available
 
 # ------------
