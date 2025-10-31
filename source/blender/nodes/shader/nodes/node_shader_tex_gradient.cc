@@ -133,6 +133,9 @@ class GradientFunction : public mf::MultiFunction {
         break;
       }
     }
+    mask.foreach_index_optimized<int64_t>(
+        [&](const int64_t i) { fac[i] = math::clamp(fac[i], 0.0f, 1.0f); });
+
     if (compute_color) {
       mask.foreach_index(
           [&](const int64_t i) { r_color[i] = ColorGeometry4f(fac[i], fac[i], fac[i], 1.0f); });

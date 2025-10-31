@@ -2957,6 +2957,175 @@ static void do_version_adaptive_subdivision(Main *bmain)
   }
 }
 
+static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+    if (node->type_legacy != SH_NODE_TEX_GRADIENT) {
+      continue;
+    }
+    auto *data = static_cast<NodeTexGradient *>(node->storage);
+    if (!ELEM(data->gradient_type, SHD_BLEND_LINEAR, SHD_BLEND_QUADRATIC, SHD_BLEND_DIAGONAL)) {
+      /* Nothing to do. No changes for other gradient types. */
+      continue;
+    }
+
+    bNodeSocket *factor_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Fac");
+    bNodeSocket *color_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Color");
+    bNodeSocket *vector_input = blender::bke::node_find_socket(*node, SOCK_IN, "Vector");
+
+    bNodeLink *factor_output_link = nullptr;
+    bNodeLink *color_output_link = nullptr;
+    bNodeLink *vector_input_link = nullptr;
+
+    LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
+      if (link->fromsock == factor_output) {
+        factor_output_link = link;
+      }
+      else if (link->fromsock == color_output) {
+        color_output_link = link;
+      }
+      else if (link->tosock == vector_input) {
+        vector_input_link = link;
+      }
+    }
+
+    if (!factor_output_link && !color_output_link) {
+      /* Node is not linked, nothing to do. */
+      continue;
+    }
+
+    bNode *gradient_node = nullptr;
+    bNodeSocket *gradient_socket = nullptr;
+    bNode *separateXYZ = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeSeparateXYZ");
+
+    switch (data->gradient_type) {
+      case SHD_BLEND_LINEAR: {
+        gradient_node = separateXYZ;
+        gradient_socket = blender::bke::node_find_socket(*separateXYZ, SOCK_OUT, "X");
+        break;
+      }
+      case SHD_BLEND_QUADRATIC: {
+        bNode *max = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+        max->custom1 = NODE_MATH_MAXIMUM;
+        version_node_add_link(*node_tree,
+                              *separateXYZ,
+                              *blender::bke::node_find_socket(*separateXYZ, SOCK_OUT, "X"),
+                              *max,
+                              *blender::bke::node_find_socket(*max, SOCK_IN, "Value"));
+        bNodeSocket *max_input_b = blender::bke::node_find_socket(*max, SOCK_IN, "Value_001");
+        // static_cast<bNodeSocketValueFloat *>(max_input_b->default_value)->value = 0.0f;
+        max_input_b->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
+
+        bNode *multiply = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+        multiply->custom1 = NODE_MATH_MULTIPLY;
+
+        version_node_add_link(*node_tree,
+                              *max,
+                              *blender::bke::node_find_socket(*max, SOCK_OUT, "Value"),
+                              *multiply,
+                              *blender::bke::node_find_socket(*multiply, SOCK_IN, "Value"));
+        version_node_add_link(*node_tree,
+                              *max,
+                              *blender::bke::node_find_socket(*max, SOCK_OUT, "Value"),
+                              *multiply,
+                              *blender::bke::node_find_socket(*multiply, SOCK_IN, "Value_001"));
+
+        gradient_node = multiply;
+        gradient_socket = blender::bke::node_find_socket(*multiply, SOCK_OUT, "Value");
+        break;
+      }
+      case SHD_BLEND_DIAGONAL: {
+        bNode *add = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+        version_node_add_link(*node_tree,
+                              *separateXYZ,
+                              *blender::bke::node_find_socket(*separateXYZ, SOCK_OUT, "X"),
+                              *add,
+                              *blender::bke::node_find_socket(*add, SOCK_IN, "Value"));
+
+        version_node_add_link(*node_tree,
+                              *separateXYZ,
+                              *blender::bke::node_find_socket(*separateXYZ, SOCK_OUT, "Y"),
+                              *add,
+                              *blender::bke::node_find_socket(*add, SOCK_IN, "Value_001"));
+
+        bNode *multiply = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+        multiply->custom1 = NODE_MATH_MULTIPLY;
+
+        version_node_add_link(*node_tree,
+                              *add,
+                              *blender::bke::node_find_socket(*add, SOCK_OUT, "Value"),
+                              *multiply,
+                              *blender::bke::node_find_socket(*multiply, SOCK_IN, "Value"));
+
+        bNodeSocket *multiply_input_b = blender::bke::node_find_socket(
+            *multiply, SOCK_IN, "Value_001");
+        static_cast<bNodeSocketValueFloat *>(multiply_input_b->default_value)->value = 0.5f;
+
+        gradient_node = multiply;
+        gradient_socket = blender::bke::node_find_socket(*multiply, SOCK_OUT, "Value");
+        break;
+      }
+    }
+
+    if (factor_output_link) {
+      version_node_add_link(*node_tree,
+                            *gradient_node,
+                            *gradient_socket,
+                            *factor_output_link->tonode,
+                            *factor_output_link->tosock);
+      blender::bke::node_remove_link(node_tree, *factor_output_link);
+    }
+
+    if (color_output_link) {
+      bNode *combine = blender::bke::node_add_node(
+          nullptr, *node_tree, "FunctionNodeCombineColor");
+      version_node_add_link(*node_tree,
+                            *gradient_node,
+                            *gradient_socket,
+                            *combine,
+                            *blender::bke::node_find_socket(*combine, SOCK_IN, "Red"));
+      version_node_add_link(*node_tree,
+                            *gradient_node,
+                            *gradient_socket,
+                            *combine,
+                            *blender::bke::node_find_socket(*combine, SOCK_IN, "Green"));
+      version_node_add_link(*node_tree,
+                            *gradient_node,
+                            *gradient_socket,
+                            *combine,
+                            *blender::bke::node_find_socket(*combine, SOCK_IN, "Blue"));
+      bNodeSocket *alpha_input = blender::bke::node_find_socket(*combine, SOCK_IN, "Alpha");
+      static_cast<bNodeSocketValueFloat *>(alpha_input->default_value)->value = 1.0f;
+
+      version_node_add_link(*node_tree,
+                            *combine,
+                            *blender::bke::node_find_socket(*combine, SOCK_OUT, "Color"),
+                            *color_output_link->tonode,
+                            *color_output_link->tosock);
+      blender::bke::node_remove_link(node_tree, *color_output_link);
+
+      gradient_node = combine;
+      gradient_socket = blender::bke::node_find_socket(*combine, SOCK_OUT, "Color");
+    }
+
+    if (vector_input_link) {
+      version_node_add_link(*node_tree,
+                            *vector_input_link->fromnode,
+                            *vector_input_link->fromsock,
+                            *separateXYZ,
+                            *blender::bke::node_find_socket(*separateXYZ, SOCK_IN, "Vector"));
+      blender::bke::node_remove_link(node_tree, *vector_input_link);
+    }
+    else {
+      // todo(habib): Generated texture coordinates
+    }
+    // todo(habib): Position new nodes correctly.
+
+    blender::bke::node_tree_set_type(*node_tree);
+    version_node_remove(*node_tree, *node);
+  }
+}
+
 void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   using namespace blender;
@@ -4111,6 +4280,15 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 114)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_GEOMETRY) {
+        do_version_texture_gradient_clamp(node_tree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
