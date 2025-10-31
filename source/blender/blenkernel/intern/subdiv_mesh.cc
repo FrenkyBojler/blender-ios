@@ -975,8 +975,9 @@ static void subdiv_mesh_ensure_vert_interpolation(SubdivMeshContext *ctx,
   }
   if (tls->vert_interpolation_coarse_face_index != coarse_face_index) {
     vert_interpolation_from_face(ctx, tls->vert_interpolation, coarse_face);
+    vert_interpolation_from_corner(ctx, tls->vert_interpolation, coarse_face, coarse_corner);
   }
-  if (tls->vert_interpolation_coarse_corner != coarse_corner) {
+  else if (tls->vert_interpolation_coarse_corner != coarse_corner) {
     vert_interpolation_from_corner(ctx, tls->vert_interpolation, coarse_face, coarse_corner);
   }
   tls->vert_interpolation_coarse_face_index = coarse_face_index;
@@ -1136,8 +1137,9 @@ static void subdiv_mesh_ensure_loop_interpolation(SubdivMeshContext *ctx,
   }
   if (tls->loop_interpolation_coarse_face_index != coarse_face_index) {
     loop_interpolation_from_face(ctx, tls->loop_interpolation, coarse_face);
+    loop_interpolation_from_corner(ctx, tls->loop_interpolation, coarse_face, coarse_corner);
   }
-  if (tls->loop_interpolation_coarse_corner != coarse_corner) {
+  else if (tls->loop_interpolation_coarse_corner != coarse_corner) {
     loop_interpolation_from_corner(ctx, tls->loop_interpolation, coarse_face, coarse_corner);
   }
   tls->loop_interpolation_coarse_face_index = coarse_face_index;
