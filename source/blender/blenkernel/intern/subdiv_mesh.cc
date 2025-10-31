@@ -137,7 +137,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_CD_NORMAL = {
         static_cast<const float3 *>(CustomData_get_layer(&subdiv_mesh->vert_data, CD_NORMAL)),
         coarse_mesh->verts_num};
-    ctx->coarse_CD_NORMAL = {
+    ctx->subdiv_CD_NORMAL = {
         static_cast<float3 *>(CustomData_add_layer(
             &subdiv_mesh->vert_data, CD_NORMAL, CD_CONSTRUCT, subdiv_mesh->verts_num)),
         subdiv_mesh->verts_num};
@@ -146,7 +146,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_vert_origindex = {
         static_cast<const int *>(CustomData_get_layer(&coarse_mesh->vert_data, CD_ORIGINDEX)),
         coarse_mesh->verts_num};
-    ctx->coarse_vert_origindex = {
+    ctx->subdiv_vert_origindex = {
         static_cast<int *>(CustomData_add_layer(
             &subdiv_mesh->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->verts_num)),
         subdiv_mesh->verts_num};
@@ -155,7 +155,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_edge_origindex = {
         static_cast<const int *>(CustomData_get_layer(&coarse_mesh->edge_data, CD_ORIGINDEX)),
         coarse_mesh->edges_num};
-    ctx->coarse_edge_origindex = {
+    ctx->subdiv_edge_origindex = {
         static_cast<int *>(CustomData_add_layer(
             &subdiv_mesh->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->edges_num)),
         subdiv_mesh->edges_num};
@@ -164,7 +164,7 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
     ctx->coarse_face_origindex = {
         static_cast<const int *>(CustomData_get_layer(&coarse_mesh->face_data, CD_ORIGINDEX)),
         coarse_mesh->faces_num};
-    ctx->coarse_face_origindex = {
+    ctx->subdiv_face_origindex = {
         static_cast<int *>(CustomData_add_layer(
             &subdiv_mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->faces_num)),
         subdiv_mesh->faces_num};
