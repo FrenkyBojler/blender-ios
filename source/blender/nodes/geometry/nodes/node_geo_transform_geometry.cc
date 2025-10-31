@@ -47,7 +47,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 }
 
 static bool use_translate(const math::Quaternion &rotation, const float3 scale)
-{ 
+{
   if (math::length_squared(rotation.imaginary_part()) > 1e-10f) {
     return false;
   }
