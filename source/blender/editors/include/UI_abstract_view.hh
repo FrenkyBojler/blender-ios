@@ -77,6 +77,7 @@ class AbstractView {
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
   bool is_multiselect_supported_ = false;
+  std::string search_string_;
 
  public:
   virtual ~AbstractView() = default;
@@ -155,6 +156,9 @@ class AbstractView {
   void clear_search_highlight();
   void allow_multiselect_items();
   bool is_multiselect_supported() const;
+
+  std::string get_search_string();
+  void set_serach_string(char *search_string);
 
  protected:
   AbstractView() = default;

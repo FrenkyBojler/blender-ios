@@ -826,6 +826,28 @@ static int count_visible_items(AbstractTreeView &tree_view)
   return item_count;
 }
 
+static void search_fn(bContext *C, void * /*arg1*/, void *arg2)
+{
+  const wmWindow *win = CTX_wm_window(C);
+  if (!(win && win->eventstate)) {
+    return;
+  }
+
+  const ARegion *region = CTX_wm_region(C);
+  if (!region) {
+    return;
+  }
+
+  AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, UI_UNIT_Y);
+  if (view == nullptr) {
+    return;
+  }
+  char *string = static_cast<char *>(arg2);
+  view->set_serach_string(string);
+  std::string name = view->get_search_string();
+  int a = 0;
+}
+
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 {
   uiLayout &parent_layout = this->current_layout();
@@ -839,6 +861,23 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   else {
     col = &parent_layout.column(true);
   }
+
+  static char search[256] = "";
+  uiBut *but = uiDefBut(block,
+                        UI_BTYPE_TEXT,
+                        1,
+                        "",
+                        0,
+                        0,
+                        UI_TREEVIEW_INDENT,
+                        UI_UNIT_Y,
+                        search,
+                        0,
+                        sizeof(search),
+                        "");
+  UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
+  ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
+  UI_but_func_set(but, search_fn, nullptr, search);
   /* Row for the tree-view and the scroll bar. */
   uiLayout *row = &col->row(false);
 
@@ -866,7 +905,9 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   tree_view.foreach_item(
       [&, this](AbstractTreeViewItem &item) {
         if ((index >= first_visible_index) && (index <= max_visible_index)) {
-          this->build_row(item);
+          if (tree_view.get_search_string().empty() || item.is_filtered_visible()) {
+            this->build_row(item);
+          }
         }
         index++;
       },
@@ -1021,7 +1062,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   tree_view.build_tree();
   tree_view.update_from_old(block);
   tree_view.change_state_delayed();
-  tree_view.filter(search_string);
+  tree_view.filter(tree_view.get_search_string());
 
   ensure_min_rows_items(tree_view);
 
