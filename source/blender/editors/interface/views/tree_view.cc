@@ -74,7 +74,7 @@ void TreeViewItemContainer::foreach_item_recursive(ItemIterFn iter_fn, IterOptio
 {
   for (const auto &child : children_) {
     bool skip = false;
-    if (bool(options & IterOptions::SkipFiltered) && !child->is_filtered_visible()) {
+    if (flag_is_set(options, IterOptions::SkipFiltered) && !child->is_filtered_visible()) {
       skip = true;
     }
 
@@ -82,7 +82,7 @@ void TreeViewItemContainer::foreach_item_recursive(ItemIterFn iter_fn, IterOptio
       iter_fn(*child);
     }
 
-    if (bool(options & IterOptions::SkipCollapsed) && child->is_collapsed()) {
+    if (flag_is_set(options, IterOptions::SkipCollapsed) && child->is_collapsed()) {
       continue;
     }
 
@@ -1050,7 +1050,7 @@ void BasicTreeViewItem::build_row(uiLayout &row)
 void BasicTreeViewItem::add_label(uiLayout &layout, StringRefNull label_override)
 {
   const StringRefNull label = label_override.is_empty() ? StringRefNull(label_) : label_override;
-  layout.label(IFACE_(label), icon);
+  layout.label(label, icon);
 }
 
 void BasicTreeViewItem::on_activate(bContext &C)

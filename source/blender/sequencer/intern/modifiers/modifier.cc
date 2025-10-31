@@ -24,8 +24,6 @@
 #include "BKE_colortools.hh"
 #include "BKE_screen.hh"
 
-#include "IMB_colormanagement.hh"
-
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
@@ -35,7 +33,6 @@
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
-#include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
 #include "UI_interface.hh"
@@ -64,8 +61,8 @@ static bool modifier_has_persistent_uid(const Strip &strip, int uid)
 
 void modifier_persistent_uid_init(const Strip &strip, StripModifierData &smd)
 {
-  uint64_t hash = blender::get_default_hash(blender::StringRef(smd.name));
-  blender::RandomNumberGenerator rng{uint32_t(hash)};
+  uint64_t hash = get_default_hash(StringRef(smd.name));
+  RandomNumberGenerator rng{uint32_t(hash)};
   while (true) {
     const int new_uid = rng.get_int32();
     if (new_uid <= 0) {
@@ -109,7 +106,7 @@ static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
 
   /* Modifier Icon. */
   sub = &layout->row(true);
-  sub->emboss_set(blender::ui::EmbossType::None);
+  sub->emboss_set(ui::EmbossType::None);
   PointerRNA active_op_ptr = sub->op(
       "SEQUENCER_OT_strip_modifier_set_active", "", RNA_struct_ui_icon(ptr->type));
   RNA_string_set(&active_op_ptr, "modifier", smd->name);
@@ -127,7 +124,7 @@ static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
 
   /* Delete button. */
   sub = &row->row(false);
-  sub->emboss_set(blender::ui::EmbossType::None);
+  sub->emboss_set(ui::EmbossType::None);
   PointerRNA remove_op_ptr = sub->op("SEQUENCER_OT_strip_modifier_remove", "", ICON_X);
   RNA_string_set(&remove_op_ptr, "name", smd->name);
   buttons_number++;
@@ -137,7 +134,7 @@ static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
     name_row->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
-    row->alignment_set(blender::ui::LayoutAlign::Right);
+    row->alignment_set(ui::LayoutAlign::Right);
   }
 
   /* Extra padding for delete button. */
@@ -159,18 +156,10 @@ void draw_mask_input_type_settings(const bContext *C, uiLayout *layout, PointerR
   row->prop(ptr, "input_mask_type", UI_ITEM_R_EXPAND, IFACE_("Type"), ICON_NONE);
 
   if (input_mask_type == STRIP_MASK_INPUT_STRIP) {
-    MetaStack *ms = meta_stack_active_get(ed);
-    PointerRNA sequences_object;
-    if (ms) {
-      sequences_object = RNA_pointer_create_discrete(
-          &sequencer_scene->id, &RNA_MetaStrip, ms->parent_strip);
-    }
-    else {
-      sequences_object = RNA_pointer_create_discrete(
-          &sequencer_scene->id, &RNA_SequenceEditor, ed);
-    }
+    PointerRNA sequences_object = RNA_pointer_create_discrete(
+        &sequencer_scene->id, &RNA_SequenceEditor, ed);
     col->prop_search(
-        ptr, "input_mask_strip", &sequences_object, "strips", IFACE_("Mask"), ICON_NONE);
+        ptr, "input_mask_strip", &sequences_object, "strips_all", IFACE_("Mask"), ICON_NONE);
   }
   else {
     col->prop(ptr, "input_mask_id", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -202,7 +191,7 @@ static void modifier_reorder(bContext *C, Panel *panel, const int new_index)
   WM_operator_properties_create_ptr(&props_ptr, ot);
   RNA_string_set(&props_ptr, "modifier", smd->name);
   RNA_int_set(&props_ptr, "index", new_index);
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
   WM_operator_properties_free(&props_ptr);
 }
 

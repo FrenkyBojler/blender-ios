@@ -511,7 +511,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
 
   /* XXX Without an undo push here, there will be a crash when the user modifies operator
    * properties. The stuff we do in these drop callbacks just isn't safe over undo/redo. */
-  ED_undo_push(C, "Collection_Drop");
+  ED_undo_push(C, "Drop Collection");
 }
 
 static void view3d_id_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
@@ -519,7 +519,6 @@ static void view3d_id_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
   ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
 
   WM_operator_properties_id_lookup_set_from_id(drop->ptr, id);
-  RNA_boolean_set(drop->ptr, "show_datablock_in_modifier", (drag->type != WM_DRAG_ASSET));
 }
 
 static void view3d_geometry_nodes_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
