@@ -78,9 +78,12 @@ struct SubdivMeshContext {
   int *subdiv_corner_edges;
 
   /* Cached custom data arrays for faster access. */
-  int *vert_origindex;
-  int *edge_origindex;
-  int *face_origindex;
+  Span<int> coarse_vert_origindex;
+  MutableSpan<int> subdiv_vert_origindex;
+  Span<int> coarse_edge_origindex;
+  MutableSpan<int> subdiv_edge_origindex;
+  Span<int> coarse_face_origindex;
+  MutableSpan<int> subdiv_face_origindex;
   /* UV layers interpolation. */
   Vector<bke::SpanAttributeWriter<float2>> uv_maps;
 
@@ -113,30 +116,70 @@ static void subdiv_mesh_ctx_cache_uv_layers(SubdivMeshContext *ctx)
   Mesh *subdiv_mesh = ctx->subdiv_mesh;
   bke::MutableAttributeAccessor attributes = subdiv_mesh->attributes_for_write();
   for (const StringRef name : subdiv_mesh->uv_map_names()) {
-    ctx->uv_maps.append(attributes.lookup_for_write_span<float2>(name));
+    ctx->uv_maps.append(
+        attributes.lookup_or_add_for_write_only_span<float2>(name, AttrDomain::Corner));
   }
 }
 
 static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
 {
+  const Mesh *coarse_mesh = ctx->coarse_mesh;
   Mesh *subdiv_mesh = ctx->subdiv_mesh;
   ctx->subdiv_positions = subdiv_mesh->vert_positions_for_write();
   ctx->subdiv_edges = subdiv_mesh->edges_for_write();
   ctx->subdiv_face_offsets = subdiv_mesh->face_offsets_for_write();
-  /* Pointers to original indices layers. */
-  ctx->vert_origindex = static_cast<int *>(CustomData_get_layer_for_write(
-      &subdiv_mesh->vert_data, CD_ORIGINDEX, subdiv_mesh->verts_num));
-  ctx->edge_origindex = static_cast<int *>(CustomData_get_layer_for_write(
-      &subdiv_mesh->edge_data, CD_ORIGINDEX, subdiv_mesh->edges_num));
-  ctx->face_origindex = static_cast<int *>(CustomData_get_layer_for_write(
-      &subdiv_mesh->face_data, CD_ORIGINDEX, subdiv_mesh->faces_num));
+
+  ctx->coarse_dverts = coarse_mesh->deform_verts();
+  if (!ctx->coarse_dverts.is_empty()) {
+    ctx->subdiv_dverts = subdiv_mesh->deform_verts_for_write();
+  }
+  if (CustomData_has_layer(&subdiv_mesh->vert_data, CD_NORMAL)) {
+    ctx->coarse_CD_NORMAL = {
+        static_cast<const float3 *>(CustomData_get_layer(&subdiv_mesh->vert_data, CD_NORMAL)),
+        coarse_mesh->verts_num};
+    ctx->coarse_CD_NORMAL = {
+        static_cast<float3 *>(CustomData_add_layer(
+            &subdiv_mesh->vert_data, CD_NORMAL, CD_CONSTRUCT, subdiv_mesh->verts_num)),
+        subdiv_mesh->verts_num};
+  }
+  if (CustomData_has_layer(&subdiv_mesh->vert_data, CD_ORIGINDEX)) {
+    ctx->coarse_vert_origindex = {
+        static_cast<const int *>(CustomData_get_layer(&coarse_mesh->vert_data, CD_ORIGINDEX)),
+        coarse_mesh->verts_num};
+    ctx->coarse_vert_origindex = {
+        static_cast<int *>(CustomData_add_layer(
+            &subdiv_mesh->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->verts_num)),
+        subdiv_mesh->verts_num};
+  }
+  if (CustomData_has_layer(&subdiv_mesh->edge_data, CD_ORIGINDEX)) {
+    ctx->coarse_edge_origindex = {
+        static_cast<const int *>(CustomData_get_layer(&coarse_mesh->edge_data, CD_ORIGINDEX)),
+        coarse_mesh->edges_num};
+    ctx->coarse_edge_origindex = {
+        static_cast<int *>(CustomData_add_layer(
+            &subdiv_mesh->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->edges_num)),
+        subdiv_mesh->edges_num};
+  }
+  if (CustomData_has_layer(&subdiv_mesh->face_data, CD_ORIGINDEX)) {
+    ctx->coarse_face_origindex = {
+        static_cast<const int *>(CustomData_get_layer(&coarse_mesh->face_data, CD_ORIGINDEX)),
+        coarse_mesh->faces_num};
+    ctx->coarse_face_origindex = {
+        static_cast<int *>(CustomData_add_layer(
+            &subdiv_mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->faces_num)),
+        subdiv_mesh->faces_num};
+  }
   /* UV layers interpolation. */
   subdiv_mesh_ctx_cache_uv_layers(ctx);
   /* Orco interpolation. */
-  ctx->orco = static_cast<float (*)[3]>(
-      CustomData_get_layer_for_write(&subdiv_mesh->vert_data, CD_ORCO, subdiv_mesh->verts_num));
-  ctx->cloth_orco = static_cast<float (*)[3]>(CustomData_get_layer_for_write(
-      &subdiv_mesh->vert_data, CD_CLOTH_ORCO, subdiv_mesh->verts_num));
+  if (CustomData_has_layer(&coarse_mesh->vert_data, CD_ORCO)) {
+    ctx->orco = static_cast<float (*)[3]>(CustomData_add_layer(
+        &subdiv_mesh->vert_data, CD_ORCO, CD_CONSTRUCT, subdiv_mesh->verts_num));
+  }
+  if (CustomData_has_layer(&coarse_mesh->vert_data, CD_CLOTH_ORCO)) {
+    ctx->cloth_orco = static_cast<float (*)[3]>(CustomData_add_layer(
+        &subdiv_mesh->vert_data, CD_CLOTH_ORCO, CD_CONSTRUCT, subdiv_mesh->verts_num));
+  }
 }
 
 static void subdiv_mesh_prepare_accumulator(SubdivMeshContext *ctx, int num_vertices)
@@ -688,6 +731,8 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
 
   /* Create corner data for interpolation without topology attributes. */
   MutableAttributeAccessor attributes = subdiv_mesh.attributes_for_write();
+  attributes.add<float3>("position", AttrDomain::Point, AttributeInitConstruct());
+  attributes.add<int2>(".edge_verts", AttrDomain::Edge, AttributeInitConstruct());
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.data_type == AttrType::String) {
       return;
@@ -742,20 +787,6 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
     }
   });
 
-  const Span<MDeformVert> coarse_dverts = subdiv_mesh.deform_verts_for_write();
-  if (!coarse_dverts.is_empty()) {
-    subdiv_context->subdiv_dverts = subdiv_mesh.deform_verts_for_write();
-  }
-  if (CustomData_has_layer(&subdiv_mesh.vert_data, CD_NORMAL)) {
-    subdiv_context->coarse_CD_NORMAL = {
-        static_cast<const float3 *>(CustomData_get_layer(&subdiv_mesh.vert_data, CD_NORMAL)),
-        coarse_mesh.verts_num};
-    subdiv_context->coarse_CD_NORMAL = {
-        static_cast<float3 *>(CustomData_add_layer(
-            &subdiv_mesh.vert_data, CD_NORMAL, CD_CONSTRUCT, subdiv_mesh.verts_num)),
-        subdiv_mesh.verts_num};
-  }
-
   /* Allocate corner topology arrays which are added to the result at the end. */
   subdiv_context->subdiv_corner_verts = MEM_malloc_arrayN<int>(size_t(num_loops), __func__);
   subdiv_context->subdiv_corner_edges = MEM_malloc_arrayN<int>(size_t(num_loops), __func__);
@@ -784,7 +815,16 @@ static void subdiv_vert_data_copy(const SubdivMeshContext *ctx,
              coarse_vert_index,
              subdiv_vert_index,
              ctx->subdiv_vert_attribute_spans);
-  // TODO: COPY DVERTS
+  if (!ctx->coarse_vert_origindex.is_empty()) {
+    ctx->subdiv_vert_origindex[subdiv_vert_index] = ctx->coarse_vert_origindex[coarse_vert_index];
+  }
+  if (!ctx->coarse_dverts.is_empty()) {
+    BKE_defvert_array_copy(
+        &ctx->subdiv_dverts[subdiv_vert_index], &ctx->coarse_dverts[coarse_vert_index], 1);
+  }
+  if (!ctx->coarse_CD_NORMAL.is_empty()) {
+    ctx->subdiv_CD_NORMAL[subdiv_vert_index] = ctx->coarse_CD_NORMAL[coarse_vert_index];
+  }
 }
 
 static float4 quad_weights_from_uv(const float u, const float v)
@@ -794,7 +834,7 @@ static float4 quad_weights_from_uv(const float u, const float v)
 
 static void subdiv_vert_data_interpolate(const SubdivMeshContext *ctx,
                                          const int subdiv_vert_index,
-                                         const VerticesForInterpolation *vert_interpolation,
+                                         VerticesForInterpolation *vert_interpolation,
                                          const float u,
                                          const float v)
 {
@@ -804,10 +844,15 @@ static void subdiv_vert_data_interpolate(const SubdivMeshContext *ctx,
             weights,
             subdiv_vert_index,
             ctx->subdiv_vert_attribute_spans);
-  if (ctx->vert_origindex != nullptr) {
-    ctx->vert_origindex[subdiv_vert_index] = ORIGINDEX_NONE;
+  if (!ctx->coarse_vert_origindex.is_empty()) {
+    ctx->subdiv_vert_origindex[subdiv_vert_index] = ORIGINDEX_NONE;
   }
-  // TODO: MIX DVERTS
+  if (!ctx->coarse_dverts.is_empty()) {
+    ctx->subdiv_dverts[subdiv_vert_index] = mix_deform_verts(ctx->coarse_dverts,
+                                                             vert_interpolation->vert_indices,
+                                                             Span(&weights.x, 4),
+                                                             vert_interpolation->dvert_mix_buffer);
+  }
   if (!ctx->coarse_CD_NORMAL.is_empty()) {
     ctx->subdiv_CD_NORMAL[subdiv_vert_index] = mix_normals(
         vert_interpolation->CD_NORMAL_data, vert_interpolation->vert_indices, weights);
@@ -1017,8 +1062,13 @@ static void subdiv_copy_edge_data(SubdivMeshContext *ctx,
                                   const int coarse_edge_index)
 {
   if (coarse_edge_index == ORIGINDEX_NONE) {
-    if (ctx->edge_origindex != nullptr) {
-      ctx->edge_origindex[subdiv_edge_index] = ORIGINDEX_NONE;
+    if (!ctx->coarse_edge_origindex.is_empty()) {
+      ctx->subdiv_edge_origindex[subdiv_edge_index] = ORIGINDEX_NONE;
+    }
+    for (const int attr : ctx->coarse_edge_attributes.index_range()) {
+      const CPPType &type = ctx->coarse_edge_attributes[attr].type();
+      type.copy_construct(type.default_value(),
+                          ctx->subdiv_edge_attribute_spans[attr][subdiv_edge_index]);
     }
     return;
   }
@@ -1026,6 +1076,9 @@ static void subdiv_copy_edge_data(SubdivMeshContext *ctx,
              coarse_edge_index,
              subdiv_edge_index,
              ctx->subdiv_edge_attribute_spans);
+  if (!ctx->coarse_edge_origindex.is_empty()) {
+    ctx->subdiv_edge_origindex[subdiv_edge_index] = ctx->coarse_edge_origindex[coarse_edge_index];
+  }
   if (ctx->settings->use_optimal_display) {
     ctx->subdiv_display_edges[subdiv_edge_index] = true;
   }
@@ -1135,6 +1188,9 @@ static void subdiv_mesh_face(const ForeachContext *foreach_context,
              coarse_face_index,
              subdiv_face_index,
              ctx->subdiv_face_attribute_spans);
+  if (!ctx->coarse_face_origindex.is_empty()) {
+    ctx->subdiv_face_origindex[subdiv_face_index] = ctx->coarse_face_origindex[coarse_face_index];
+  }
   ctx->subdiv_face_offsets[subdiv_face_index] = start_loop_index;
 }
 
@@ -1238,8 +1294,8 @@ static void subdiv_mesh_vert_of_loose_edge_interpolate(SubdivMeshContext *ctx,
                     interpolation_weights,
                     2,
                     subdiv_vert_index);
-  if (ctx->vert_origindex != nullptr) {
-    ctx->vert_origindex[subdiv_vert_index] = ORIGINDEX_NONE;
+  if (!ctx->coarse_vert_origindex.is_empty()) {
+    ctx->subdiv_vert_origindex[subdiv_vert_index] = ORIGINDEX_NONE;
   }
 }
 
