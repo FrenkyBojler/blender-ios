@@ -1,3 +1,4 @@
 Referenced by issue #148295, Regression: presets icon in the light theme is no longer visible
 Referenced by pull request #148307, Fix #148295: Preset buttons have bad visibility in light theme
 Referenced by issue #148571, `layout.emboss='NONE'` doesn't work with `layout.popover` icons elements in 5.0
+Referenced by commit d2ad7c75b650e1216d2beff111d1f45d746c9449, Fix #148295: Preset buttons have bad visibility in light theme
