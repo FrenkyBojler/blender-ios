@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_math_base.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_gpencil_legacy_types.h"
@@ -1785,6 +1786,41 @@ void gather_deform_verts(const Span<MDeformVert> src,
     dst[dst_i].totweight = src[src_i].totweight;
     dst[dst_i].flag = src[src_i].flag;
   });
+}
+
+MDeformVert mix_deform_verts(const Span<MDeformVert> src,
+                             const Span<int> indices,
+                             const Span<float> weights,
+                             MDeformWeightSet &dw_buffer)
+{
+  MDeformVert dst_dvert{};
+
+  if (indices.size() == 1) {
+    const MDeformVert &src_dvert = src[indices.first()];
+    dst_dvert.dw = MEM_malloc_arrayN<MDeformWeight>(src_dvert.totweight, __func__);
+    std::copy_n(src_dvert.dw, src_dvert.totweight, dst_dvert.dw);
+    dst_dvert.totweight = src_dvert.totweight;
+    return dst_dvert;
+  }
+
+  const float src_num_inv = math::rcp(float(indices.size()));
+  for (const int src_vert : indices) {
+    const MDeformVert &src_dvert = src[src_vert];
+    for (const MDeformWeight &src_weight : Span(src_dvert.dw, src_dvert.totweight)) {
+      const int i = dw_buffer.index_of_or_add(MDeformWeight{src_weight.def_nr, 0.0f});
+      const float factor = weights.is_empty() ? src_num_inv : weights[i] * src_num_inv;
+      const_cast<MDeformWeight &>(dw_buffer[i]).weight += src_weight.weight * factor;
+    }
+  }
+
+  std::sort(const_cast<MDeformWeight *>(dw_buffer.begin()),
+            const_cast<MDeformWeight *>(dw_buffer.end()),
+            [](const auto &a, const auto &b) { return a.def_nr < b.def_nr; });
+
+  dst_dvert.dw = MEM_malloc_arrayN<MDeformWeight>(dw_buffer.size(), __func__);
+  dst_dvert.totweight = dw_buffer.size();
+  std::copy(dw_buffer.begin(), dw_buffer.end(), dst_dvert.dw);
+  return dst_dvert;
 }
 
 }  // namespace blender::bke

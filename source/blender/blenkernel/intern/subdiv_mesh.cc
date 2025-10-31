@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include "BKE_attribute.hh"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -16,8 +15,10 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
+#include "BKE_deform.hh"
 #include "BKE_key.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
@@ -87,10 +88,10 @@ struct SubdivMeshContext {
   float (*orco)[3];
   float (*cloth_orco)[3];
 
-  Span<MDeformVert> coarse_dverts;  // TODO
+  Span<MDeformVert> coarse_dverts;
   MutableSpan<MDeformVert> subdiv_dverts;
 
-  Span<float3> coarse_CD_NORMAL;  // TODO
+  Span<float3> coarse_CD_NORMAL;
   MutableSpan<float3> subdiv_CD_NORMAL;
 
   /* Per-subdivided vertex counter of averaged values. */
@@ -300,6 +301,9 @@ static void copy_attrs(const Span<GSpan> src,
  * exception cases all over the code. */
 
 struct VerticesForInterpolation {
+  AlignedBuffer<1024, 64> buffer;
+  LinearAllocator<> allocator;
+  MDeformWeightSet dvert_mix_buffer;
   /* This field points to a vertex data which is to be used for interpolation.
    * The idea is to avoid unnecessary allocations for regular faces, where
    * we can simply use corner vertices. */
@@ -315,27 +319,29 @@ struct VerticesForInterpolation {
    *   index 3 -> uv (1, 0)
    *
    * Is allocated for non-regular faces (triangles and n-gons). */
-  std::array<MDeformVert, 4> dverts_storage;
+  std::array<MDeformVert, 4> dverts_storage = {};
   std::array<float3, 4> CD_NORMAL_storage;
-  AlignedBuffer<1024, 64> storage_buffer;
-  LinearAllocator<> storage_allocator;
   Array<GSpan> storage_spans;
   /* Indices within vert_data to interpolate for. The indices are aligned
    * with uv coordinates in a similar way as indices in corner_data_storage. */
   std::array<int, 4> vert_indices;
-};
 
-static void vert_interpolation_init(const SubdivMeshContext *ctx,
-                                    VerticesForInterpolation *vert_interpolation)
-{
-  new (vert_interpolation) VerticesForInterpolation();
-  vert_interpolation->storage_spans.reinitialize(ctx->coarse_vert_attribute_spans.size());
-  for (const int i : ctx->coarse_vert_attribute_spans.index_range()) {
-    const CPPType &type = ctx->coarse_vert_attribute_spans[i].type();
-    void *data = vert_interpolation->storage_allocator.allocate_array(type, 4);
-    vert_interpolation->storage_spans[i] = {type, data, 4};
+  VerticesForInterpolation() = default;
+  VerticesForInterpolation(const SubdivMeshContext &ctx)
+      : storage_spans(ctx.coarse_vert_attribute_spans.size())
+  {
+    this->allocator.provide_buffer(this->buffer);
+    for (const int i : ctx.coarse_vert_attributes.index_range()) {
+      const CPPType &type = ctx.coarse_vert_attributes[i].type();
+      void *data = this->allocator.allocate_array(type, 4);
+      this->storage_spans[i] = {type, data, 4};
+    }
   }
-}
+  ~VerticesForInterpolation()
+  {
+    BKE_defvert_array_free_elems(this->dverts_storage.data(), this->dverts_storage.size());
+  }
+};
 
 static void vert_interpolation_from_face(const SubdivMeshContext *ctx,
                                          VerticesForInterpolation *vert_interpolation,
@@ -369,9 +375,15 @@ static void vert_interpolation_from_face(const SubdivMeshContext *ctx,
               weights.as_span(),
               2,
               vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
-    // TODO: MIX DVERTS
-    vert_interpolation->CD_NORMAL_storage[2] = mix_normals(
-        ctx->coarse_CD_NORMAL, indices, weights.as_span());
+    if (!ctx->coarse_dverts.is_empty()) {
+      BKE_defvert_array_free_elems(&vert_interpolation->dverts_storage[2], 1);
+      vert_interpolation->dverts_storage[2] = mix_deform_verts(
+          ctx->coarse_dverts, indices, weights, vert_interpolation->dvert_mix_buffer);
+    }
+    if (!ctx->coarse_CD_NORMAL.is_empty()) {
+      vert_interpolation->CD_NORMAL_storage[2] = mix_normals(
+          ctx->coarse_CD_NORMAL, indices, weights.as_span());
+    }
   }
 }
 
@@ -392,7 +404,11 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
                vert,
                0,
                vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
-    // TODO: COPY DVERTS
+    if (!ctx->coarse_dverts.is_empty()) {
+      BKE_defvert_array_free_elems(vert_interpolation->dverts_storage.data(), 1);
+      BKE_defvert_array_copy(
+          vert_interpolation->dverts_storage.data(), &ctx->coarse_dverts[vert], 1);
+    }
     if (!ctx->coarse_CD_NORMAL.is_empty()) {
       vert_interpolation->CD_NORMAL_storage[0] = ctx->coarse_CD_NORMAL[vert];
     }
@@ -415,17 +431,26 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
               0.5f,
               1,
               vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
-    // TODO: MIX DVERTS
+    if (!ctx->coarse_dverts.is_empty()) {
+      BKE_defvert_array_free_elems(&vert_interpolation->dverts_storage[1], 1);
+      vert_interpolation->dverts_storage[1] = mix_deform_verts(
+          ctx->coarse_dverts, first_indices, {0.5f, 0.5f}, vert_interpolation->dvert_mix_buffer);
+    }
     if (!ctx->coarse_CD_NORMAL.is_empty()) {
       vert_interpolation->CD_NORMAL_storage[1] = mix_normals(
           ctx->coarse_CD_NORMAL, first_indices, 0.5f);
     }
+    BKE_defvert_array_free_elems(&vert_interpolation->dverts_storage[1], 1);
     mix_attrs(ctx->coarse_vert_attribute_spans,
               last_indices,
               0.5f,
               3,
               vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
-    // TODO: MIX DVERTS
+    if (!ctx->coarse_dverts.is_empty()) {
+      BKE_defvert_array_free_elems(&vert_interpolation->dverts_storage[1], 1);
+      vert_interpolation->dverts_storage[3] = mix_deform_verts(
+          ctx->coarse_dverts, last_indices, {0.5f, 0.5f}, vert_interpolation->dvert_mix_buffer);
+    }
     if (!ctx->coarse_CD_NORMAL.is_empty()) {
       vert_interpolation->CD_NORMAL_storage[3] = mix_normals(
           ctx->coarse_CD_NORMAL, last_indices, 0.5f);
@@ -440,6 +465,8 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
  * \{ */
 
 struct LoopsForInterpolation {
+  AlignedBuffer<1024, 64> buffer;
+  LinearAllocator<> allocator;
   /* This field points to a loop data which is to be used for interpolation.
    * The idea is to avoid unnecessary allocations for regular faces, where
    * we can simply interpolate corner vertices. */
@@ -453,27 +480,24 @@ struct LoopsForInterpolation {
    *   index 3 -> uv (1, 0)
    *
    * Is allocated for non-regular faces (triangles and n-gons). */
-  AlignedBuffer<1024, 64> storage_buffer;
-  LinearAllocator<> storage_allocator;
   Array<GSpan> storage_spans;
 
   /* Indices within corner_data to interpolate for. The indices are aligned with
    * uv coordinates in a similar way as indices in corner_data_storage. */
   std::array<int, 4> loop_indices;
-};
 
-static void loop_interpolation_init(const SubdivMeshContext *ctx,
-                                    LoopsForInterpolation *loop_interpolation)
-{
-  new (loop_interpolation) LoopsForInterpolation();
-  loop_interpolation->storage_allocator.provide_buffer(loop_interpolation->storage_buffer);
-  loop_interpolation->storage_spans.reinitialize(ctx->coarse_corner_attribute_spans.size());
-  for (const int i : ctx->coarse_vert_attribute_spans.index_range()) {
-    const CPPType &type = ctx->coarse_vert_attribute_spans[i].type();
-    void *data = loop_interpolation->storage_allocator.allocate_array(type, 4);
-    loop_interpolation->storage_spans[i] = {type, data, 4};
+  LoopsForInterpolation() = default;
+  LoopsForInterpolation(const SubdivMeshContext &ctx)
+      : storage_spans(ctx.coarse_corner_attribute_spans.size())
+  {
+    this->allocator.provide_buffer(this->buffer);
+    for (const int i : ctx.coarse_corner_attributes.index_range()) {
+      const CPPType &type = ctx.coarse_corner_attributes[i].type();
+      void *data = this->allocator.allocate_array(type, 4);
+      this->storage_spans[i] = {type, data, 4};
+    }
   }
-}
+};
 
 static void loop_interpolation_from_face(const SubdivMeshContext *ctx,
                                          LoopsForInterpolation *loop_interpolation,
@@ -906,7 +930,7 @@ static void subdiv_mesh_ensure_vert_interpolation(SubdivMeshContext *ctx,
 {
   const IndexRange coarse_face = ctx->coarse_faces[coarse_face_index];
   if (!tls->vert_interpolation_initialized) {
-    vert_interpolation_init(ctx, &tls->vert_interpolation);
+    new (&tls->vert_interpolation) VerticesForInterpolation(*ctx);
   }
   if (tls->vert_interpolation_coarse_face_index != coarse_face_index) {
     vert_interpolation_from_face(ctx, &tls->vert_interpolation, coarse_face);
@@ -1059,7 +1083,7 @@ static void subdiv_mesh_ensure_loop_interpolation(SubdivMeshContext *ctx,
 {
   const IndexRange coarse_face = ctx->coarse_faces[coarse_face_index];
   if (!tls->loop_interpolation_initialized) {
-    loop_interpolation_init(ctx, &tls->loop_interpolation);
+    new (&tls->loop_interpolation) LoopsForInterpolation(*ctx);
   }
   if (tls->loop_interpolation_coarse_face_index != coarse_face_index) {
     loop_interpolation_from_face(ctx, &tls->loop_interpolation, coarse_face);
