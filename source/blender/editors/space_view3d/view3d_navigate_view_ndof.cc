@@ -227,18 +227,19 @@ static float compute_leveling_angle(const float view_x_axis[3],
 {
   /* View leveling algorithm */
 
-  /* Check if viewing direction is aligned with a horizon plane normal */
-  float horizon_normal[3] = {0, 0, 1};
-  float alignment = dot_v3v3(view_z_axis, horizon_normal);
+  /* Check if viewing direction is aligned with a horizon plane normal or if it's already leveled */
+  bool viewNotLeveled = (view_x_axis[2] > 0.001f) || (view_x_axis[2] < -0.001f);
+  bool viewNotTopOrBttm = (view_z_axis[2] > -0.99f) && (view_z_axis[2] < 0.99f);
 
   /* Level the view only if there is no alignment */
-  if ((alignment > -0.999f) && (alignment < 0.999f)) {
+  if (viewNotLeveled && viewNotTopOrBttm) {
 
     float isect_vec[3] = {0, 0, 0};
     float isect_pt[3] = {0, 0, 0};
 
     /* Find the interection vector between horizon (XY) plane
     and view plane */
+    const float horizon_normal[3] = {0, 0, 1};
     isect_plane_plane_v3(horizon_normal, view_z_axis, isect_pt, isect_vec);
     normalize_v3(isect_vec);
 
@@ -248,26 +249,21 @@ static float compute_leveling_angle(const float view_x_axis[3],
       negate_v3(isect_vec);
     }
 
-    /* Determine the angle between view X axis and it's
-    "rotation" onto a horizon plane */
-    float cosine = dot_v3v3(view_x_axis, isect_vec);
+    /* Determine the angle to rotate the view over it's Y axis, to make
+    view's X axis lie on the horizon plane (world XY)*/
+    const float cosine = dot_v3v3(view_x_axis, isect_vec);
+    float x_to_horizon_angle = acos(cosine);
 
-    /* Level the view only if X axis does not lie on the horizon plane */
-    if (cosine < 0.999f) {
-
-      float x_to_horizon_angle = acos(cosine);
-
-      /* Invert the leveling rotation direction if the view is tilted
-      clockwise with Y axis pointing up, or it is tilted counter-clockwise
-      with Y axis pointing down */
-      if (((view_x_axis[2] < 0.f) && (view_y_axis[2] > 0.f)) ||
-          ((view_x_axis[2] > 0.f) && (view_y_axis[2] < 0.f)))
-      {
-        x_to_horizon_angle *= -1.f;
-      }
-
-      return x_to_horizon_angle;
+    /* Invert the leveling rotation direction if the view is tilted
+    clockwise with Y axis pointing up, or it is tilted counter-clockwise
+    with Y axis pointing down */
+    if (((view_x_axis[2] < 0.f) && (view_y_axis[2] > 0.f)) ||
+        ((view_x_axis[2] > 0.f) && (view_y_axis[2] < 0.f)))
+    {
+      x_to_horizon_angle *= -1.f;
     }
+
+    return x_to_horizon_angle;
   }
   return 0.f;
 }
