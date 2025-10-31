@@ -5427,7 +5427,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     }
 
     if (!src_dvert.is_empty()) {
-      const ListBase *deflist = BKE_id_defgroup_list_get(&src_mesh->id);
+      const ListBase *deflist = &src_mesh->vertex_group_names;
       int group_index = 0;
       LISTBASE_FOREACH_INDEX (bDeformGroup *, defgroup, deflist, group_index) {
         if (StringRef(defgroup->name).startswith(source_vgname)) {
