@@ -67,7 +67,10 @@ template<typename T> struct vec_struct_base<T, 2, true> {
     struct {
       T x;
       union {
-        T y;
+        struct {
+          /* This still needs to be wrapped in a struct to avoid a MSVC 16.5+ bug. */
+          T y;
+        };
         Y_SWIZZLES;
       };
     };
@@ -91,7 +94,10 @@ template<typename T> struct vec_struct_base<T, 3, true> {
         struct {
           T y;
           union {
-            T z;
+            struct {
+              /* This still needs to be wrapped in a struct to avoid a MSVC 16.5+ bug. */
+              T z;
+            };
             Z_SWIZZLES;
           };
         };
@@ -123,7 +129,10 @@ template<typename T> struct vec_struct_base<T, 4, true> {
             struct {
               T z;
               union {
-                T w;
+                struct {
+                  /* This still needs to be wrapped in a struct to avoid a MSVC 16.5+ bug. */
+                  T w;
+                };
                 W_SWIZZLES;
               };
             };
