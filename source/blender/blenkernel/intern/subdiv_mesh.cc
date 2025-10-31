@@ -688,7 +688,7 @@ static void subdiv_accumulate_vert_displacement(SubdivMeshContext *ctx,
   /* NOTE: The subdivided mesh is allocated in this module, and its vertices are kept at zero
    * locations as a default calloc(). */
   eval_displacement(subdiv, ptex_face_index, u, v, dPdu, dPdv, D);
-  ctx->subdiv_positions[subdiv_vert_index] += D;
+  ctx->subdiv_positions[subdiv_vert_index] = D;
 
   if (ctx->accumulated_counters) {
     ++ctx->accumulated_counters[subdiv_vert_index];
