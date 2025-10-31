@@ -53,10 +53,20 @@ struct SubdivMeshContext {
   Vector<GVArraySpan> coarse_face_attributes;
   Vector<GVArraySpan> coarse_corner_attributes;
 
+  Vector<GSpan> coarse_vert_attribute_spans;
+  Vector<GSpan> coarse_edge_attribute_spans;
+  Vector<GSpan> coarse_face_attribute_spans;
+  Vector<GSpan> coarse_corner_attribute_spans;
+
   Vector<GSpanAttributeWriter> subdiv_vert_attributes;
   Vector<GSpanAttributeWriter> subdiv_edge_attributes;
   Vector<GSpanAttributeWriter> subdiv_face_attributes;
   Vector<GSpanAttributeWriter> subdiv_corner_attributes;
+
+  Vector<GMutableSpan> subdiv_vert_attribute_spans;
+  Vector<GMutableSpan> subdiv_edge_attribute_spans;
+  Vector<GMutableSpan> subdiv_face_attribute_spans;
+  Vector<GMutableSpan> subdiv_corner_attribute_spans;
 
   Span<MDeformVert> coarse_dverts;  // TODO
   MutableSpan<MDeformVert> subdiv_dverts;
@@ -345,9 +355,7 @@ static void loop_interpolation_init(const SubdivMeshContext *ctx,
 {
   if (coarse_face.size() == 4) {
     loop_interpolation->corner_data.resize(ctx->coarse_corner_attributes.size());
-    for (const int i : ctx->coarse_corner_attributes.index_range()) {
-      loop_interpolation->corner_data[i] = ctx->coarse_corner_attributes[i];
-    }
+    loop_interpolation->corner_data = ctx->coarse_corner_attribute_spans;
     loop_interpolation->loop_indices[0] = coarse_face.start() + 0;
     loop_interpolation->loop_indices[1] = coarse_face.start() + 1;
     loop_interpolation->loop_indices[2] = coarse_face.start() + 2;
@@ -621,10 +629,10 @@ static std::array<float, 4> quad_weights_from_uv(const float u, const float v)
   return {(1.0f - u) * (1.0f - v), u * (1.0f - v), u * v, (1.0f - u) * v};
 }
 
-static void mix_data(const Span<GVArraySpan> src,
+static void mix_data(const Span<GSpan> src,
                      const Span<int> src_indices,
                      const int dst_index,
-                     const Span<GSpanAttributeWriter> dst)
+                     const Span<GMutableSpan> dst)
 {
 }
 
