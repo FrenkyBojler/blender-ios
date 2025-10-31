@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-10-27 09:50+0000\n"
 "PO-Revision-Date: 2025-09-09 13:59+0000\n"
 "Last-Translator: Alessandro Vecchio <alessandrovecchio1907@gmail.com>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
@@ -4248,14 +4248,6 @@ msgid "Parent bone (in same Armature)"
 msgstr "Osso genitore (nella stessa Armatura)"
 
 
-msgid "Select Head"
-msgstr "Seleziona Testa"
-
-
-msgid "Select Tail"
-msgstr "Seleziona Coda"
-
-
 msgid "Display Wire"
 msgstr "Visualizza Fili"
 
@@ -7734,6 +7726,14 @@ msgstr "Utilizza la posizione 3D del percorso del genitore"
 
 msgid "Undistort"
 msgstr "Non Distorto"
+
+
+msgid "Attribute Name"
+msgstr "Nome Attributo"
+
+
+msgid "Sample Index"
+msgstr "Indice Campione"
 
 
 msgid "Kinematic Constraint"
@@ -14577,10 +14577,6 @@ msgid "Amount of random elements that are going to be affected by the brush"
 msgstr "Ammontare di elementi casuali che saranno interessati dal pennello"
 
 
-msgid "Direction"
-msgstr "Direzione"
-
-
 msgid "Add effect of brush"
 msgstr "Aggiunge l'effetto del pennello"
 
@@ -19697,14 +19693,6 @@ msgid "Active Movie Clip"
 msgstr "Filmato Attivo"
 
 
-msgid "Mirror Object"
-msgstr "Specchia Oggetto"
-
-
-msgid "Relative Object"
-msgstr "Oggetto Relativo"
-
-
 msgid "Distance Model"
 msgstr "Modello Distanza"
 
@@ -21929,6 +21917,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "Tasto Ctrl premuto"
+
+
+msgid "Direction"
+msgstr "Direzione"
 
 
 msgid "North"
@@ -24558,64 +24550,168 @@ msgid "Material slot name"
 msgstr "Nome dello slot materiale"
 
 
-msgid "Add Image"
-msgstr "Aggiungi Immagine"
-
-
-msgid "Read"
-msgstr "Lettura"
-
-
-msgid "Relations"
-msgstr "Relazioni"
-
-
-msgid "Sample"
-msgstr "Campione"
-
-
-msgid "Write"
-msgstr "Scrittura"
-
-
-msgid "Primitives"
-msgstr "Primitive"
-
-
-msgid "Rigid Body"
-msgstr "Corpo Rigido"
-
-
-msgid "Import"
-msgstr "Importa"
-
-
-msgid "Apply"
-msgstr "Applica"
-
-
 msgid "Text"
 msgstr "Testo"
 
 
-msgid "Track"
-msgstr "Traccia"
-
-
-msgid "Utilities"
-msgstr "Utilità"
-
-
-msgid "Quick Effects"
-msgstr "Effetti Veloci"
+msgid "Metaball"
+msgstr "Metaball"
 
 
 msgid "Show/Hide"
 msgstr "Mostra/Nascondi"
 
 
+msgid "Names"
+msgstr "Nomi"
+
+
+msgid "Bone Roll"
+msgstr "Rollio Osso"
+
+
 msgid "Clean Up"
 msgstr "Ripulisci"
+
+
+msgid "Pivot Point"
+msgstr "Punto di Perno"
+
+
+msgid "Snap"
+msgstr "Aggancia"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Decadimento Modifica Proporzionale"
+
+
+msgid "Mask Edit"
+msgstr "Modifica Maschera"
+
+
+msgid "Automasking"
+msgstr "Automascheramento"
+
+
+msgid "Face Sets Edit"
+msgstr "Modifica Sets di Facce"
+
+
+msgid "Vertex Group Locks"
+msgstr "Blocchi del Gruppo di Vertici"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Mirror"
+msgstr "Specchia"
+
+
+msgid "UV Mapping"
+msgstr "Mappatura UV"
+
+
+msgid "Local View"
+msgstr "Vista Locale"
+
+
+msgid "Viewpoint"
+msgstr "Punto di vista"
+
+
+msgid "Navigation"
+msgstr "Navigazione"
+
+
+msgid "Align View"
+msgstr "Allinea Vista"
+
+
+msgid "Adjust"
+msgstr "Regola"
+
+
+msgid "Align View to Active"
+msgstr "Allinea Vista a Attivo"
+
+
+msgid "View Regions"
+msgstr "Regione Vista"
+
+
+msgid "Select More/Less"
+msgstr "Seleziona Più/Meno"
+
+
+msgid "Keying"
+msgstr "Keying"
+
+
+msgid "Tracking"
+msgstr "Tracciamento"
+
+
+msgid "Select Similar"
+msgstr "Seleziona Simili"
+
+
+msgid "Select All by Trait"
+msgstr "Seleziona Tutto per Caratteristica"
+
+
+msgid "Utilities"
+msgstr "Utilità"
+
+
+msgid "Select Linked"
+msgstr "Seleziona Collegati"
+
+
+msgid "Math"
+msgstr "Matematica"
+
+
+msgid "Select Loops"
+msgstr "Seleziona Anelli"
+
+
+msgid "Assign Material"
+msgstr "Assegna Materiale"
+
+
+msgid "Light"
+msgstr "Luce"
+
+
+msgid "Light Probe"
+msgstr "Sensore di Luce"
+
+
+msgid "Add Image"
+msgstr "Aggiungi Immagine"
+
+
+msgid "Relations"
+msgstr "Relazioni"
+
+
+msgid "Rigid Body"
+msgstr "Corpo Rigido"
+
+
+msgid "Apply"
+msgstr "Applica"
+
+
+msgid "Track"
+msgstr "Traccia"
+
+
+msgid "Quick Effects"
+msgstr "Effetti Veloci"
 
 
 msgid "Asset"
@@ -24630,24 +24726,28 @@ msgid "Convert"
 msgstr "Converti"
 
 
-msgid "Math"
-msgstr "Matematica"
-
-
 msgid "Link/Transfer Data"
 msgstr "Collega/Trasferisci Dati"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Hooks"
 msgstr "Ganci"
 
 
-msgid "Vertex Group Locks"
-msgstr "Blocchi del Gruppo di Vertici"
+msgid "Read"
+msgstr "Lettura"
+
+
+msgid "Sample"
+msgstr "Campione"
+
+
+msgid "Write"
+msgstr "Scrittura"
+
+
+msgid "Primitives"
+msgstr "Primitive"
 
 
 msgid "Face Sets Init"
@@ -24670,12 +24770,16 @@ msgid "Propagate"
 msgstr "Propaga"
 
 
+msgid "Instances"
+msgstr "Istanze"
+
+
 msgid "Bone Collections"
 msgstr "Raccolte di Ossa"
 
 
-msgid "Names"
-msgstr "Nomi"
+msgid "Import"
+msgstr "Importa"
 
 
 msgid "Toggle Bone Options"
@@ -24706,6 +24810,10 @@ msgid "Set Face Strength"
 msgstr "Imposta Intensità Faccia"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Merge"
 msgstr "Unisci"
 
@@ -24716,122 +24824,6 @@ msgstr "Caratteri Speciali"
 
 msgid "Kerning"
 msgstr "Crenatura"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Bone Roll"
-msgstr "Rollio Osso"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Pivot Point"
-msgstr "Punto di Perno"
-
-
-msgid "Snap"
-msgstr "Aggancia"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Decadimento Modifica Proporzionale"
-
-
-msgid "Mask Edit"
-msgstr "Modifica Maschera"
-
-
-msgid "Automasking"
-msgstr "Automascheramento"
-
-
-msgid "Adjust"
-msgstr "Regola"
-
-
-msgid "Face Sets Edit"
-msgstr "Modifica Sets di Facce"
-
-
-msgid "Keying"
-msgstr "Keying"
-
-
-msgid "Tracking"
-msgstr "Tracciamento"
-
-
-msgid "Mirror"
-msgstr "Specchia"
-
-
-msgid "UV Mapping"
-msgstr "Mappatura UV"
-
-
-msgid "Local View"
-msgstr "Vista Locale"
-
-
-msgid "Viewpoint"
-msgstr "Punto di vista"
-
-
-msgid "Navigation"
-msgstr "Navigazione"
-
-
-msgid "Align View"
-msgstr "Allinea Vista"
-
-
-msgid "Align View to Active"
-msgstr "Allinea Vista a Attivo"
-
-
-msgid "View Regions"
-msgstr "Regione Vista"
-
-
-msgid "Select More/Less"
-msgstr "Seleziona Più/Meno"
-
-
-msgid "Select Similar"
-msgstr "Seleziona Simili"
-
-
-msgid "Select All by Trait"
-msgstr "Seleziona Tutto per Caratteristica"
-
-
-msgid "Select Linked"
-msgstr "Seleziona Collegati"
-
-
-msgid "Select Loops"
-msgstr "Seleziona Anelli"
-
-
-msgid "Assign Material"
-msgstr "Assegna Materiale"
-
-
-msgid "Light"
-msgstr "Luce"
-
-
-msgid "Light Probe"
-msgstr "Sensore di Luce"
-
-
-msgid "Instances"
-msgstr "Istanze"
 
 
 msgid "Keyframe Insert Pie"
@@ -25550,14 +25542,6 @@ msgid "UV Pinned"
 msgstr "UV Spillata"
 
 
-msgid "UV Select"
-msgstr "UV selezionata"
-
-
-msgid "UV Edge Select"
-msgstr "Seleziona Spigolo UV"
-
-
 msgid "Set the map as active for display and editing"
 msgstr "Imposta la mappa come attiva per mostrare e modificare"
 
@@ -25574,20 +25558,12 @@ msgid "Set the UV map as active for rendering"
 msgstr "Imposta la mappa UV come attiva per il rendering"
 
 
-msgid "UV Edge Selection"
-msgstr "Selezione Spigoli UV"
-
-
 msgid "Name of UV map"
 msgstr "Nome della mappa UV"
 
 
 msgid "UV Pin"
 msgstr "Spillo UV"
-
-
-msgid "UV Vertex Selection"
-msgstr "Selezione Vertici UV"
 
 
 msgid "Mesh Vertex"
@@ -28279,6 +28255,10 @@ msgid "Distance within which mirrored vertices are merged"
 msgstr "Distanza all'interno della quale vengono uniti i vertici specchiati"
 
 
+msgid "Mirror Object"
+msgstr "Specchia Oggetto"
+
+
 msgid "Object to use as mirror"
 msgstr "Oggetto da utilizzare come specchio"
 
@@ -28405,14 +28385,6 @@ msgstr "Mantieni Confini"
 
 msgid "Nodes Modifier"
 msgstr "Modificatore Nodi"
-
-
-msgid "Bake Target"
-msgstr "Target Precalcolo"
-
-
-msgid "Packed"
-msgstr "Compresso"
 
 
 msgid "Pack the baked data into the .blend file"
@@ -31856,10 +31828,6 @@ msgid "Sample Grid Index"
 msgstr "Indice Griglia Campione"
 
 
-msgid "Sample Index"
-msgstr "Indice Campione"
-
-
 msgid "Scale Elements"
 msgstr "Scala Elementi"
 
@@ -31971,10 +31939,6 @@ msgstr "Aggiungi Shader"
 
 msgid "Ambient Occlusion"
 msgstr "Occlusione Ambientale"
-
-
-msgid "Attribute Name"
-msgstr "Nome Attributo"
 
 
 msgid "Instancer"
@@ -45475,10 +45439,6 @@ msgid "Render"
 msgstr "Render"
 
 
-msgid "Render active scene"
-msgstr "Renderizza la scena attiva"
-
-
 msgid "Render Layer"
 msgstr "Livello Render"
 
@@ -49806,6 +49766,10 @@ msgstr "Solo Selezione"
 
 msgid "Textures Directory"
 msgstr "Cartella Texture"
+
+
+msgid "Packed"
+msgstr "Compresso"
 
 
 msgid "All Custom"
@@ -56869,18 +56833,6 @@ msgid "Stereo Mode"
 msgstr "Modalità Stereo"
 
 
-msgid "Cross"
-msgstr "Croce"
-
-
-msgid "Alpha Under"
-msgstr "Sotto Trasparenza"
-
-
-msgid "Gamma Cross"
-msgstr "Incrocio Gamma"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Posizione Y dello spezzone sequenza"
 
@@ -58503,6 +58455,10 @@ msgid "Driven Selected"
 msgstr "Guidato Selezionato"
 
 
+msgid "Relative Object"
+msgstr "Oggetto Relativo"
+
+
 msgid "Stroke Placement (2D View)"
 msgstr "Giacitura Tratto (Vista 2D)"
 
@@ -60023,11 +59979,6 @@ msgid "Report a Bug"
 msgstr "Segnala un Baco"
 
 
-msgctxt "Operator"
-msgid "Mirrored"
-msgstr "Specchiato"
-
-
 msgid "Multiplier"
 msgstr "Moltiplicatore"
 
@@ -60341,10 +60292,6 @@ msgid "Active camera is not in this scene"
 msgstr "La camera attiva non è in questa scena"
 
 
-msgid "Modifiers cannot be added to object: "
-msgstr "Non possono essere aggiunti modificatori all'oggetto: "
-
-
 msgid "Fur Material"
 msgstr "Materiale Pelo"
 
@@ -60504,10 +60451,6 @@ msgstr "Supporto"
 msgctxt "Operator"
 msgid "User Communities"
 msgstr "Comunità Utenti"
-
-
-msgid "Failed to assign value: "
-msgstr "Impossibile impostare il valore: "
 
 
 msgid "Strip(s)"
@@ -62657,11 +62600,6 @@ msgid "Release Notes"
 msgstr "Note di Rilascio"
 
 
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Guide"
-
-
 msgid "No active item"
 msgstr "Nessun elemento attivo"
 
@@ -64073,6 +64011,11 @@ msgstr "Regola Distanza Focale"
 
 msgid "Distance Min"
 msgstr "Distanza Min"
+
+
+msgctxt "Operator"
+msgid "Mirrored"
+msgstr "Specchiato"
 
 
 msgid "Affect Only"
@@ -66256,6 +66199,10 @@ msgid "Timber"
 msgstr "Legname"
 
 
+msgid "Render active scene"
+msgstr "Renderizza la scena attiva"
+
+
 msgid "3D Local View "
 msgstr "Vista Locale 3D "
 
@@ -67924,6 +67871,10 @@ msgid "Unable to create socket"
 msgstr "Impossibile creare il connettore"
 
 
+msgid "Anisotropic"
+msgstr "Anisotropico"
+
+
 msgid "Unable to locate socket '%s' in node"
 msgstr "Impossibile trovare il connettore '%s' nel nodo"
 
@@ -68542,10 +68493,6 @@ msgstr "Rugosità Casuale"
 
 msgid "Subsurface Radius"
 msgstr "Raggio Subsuperficie"
-
-
-msgid "Anisotropic"
-msgstr "Anisotropico"
 
 
 msgid "Anisotropic Rotation"

@@ -541,16 +541,24 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_IMAGE: {
-      uiTemplateID(row,
-                   &ctx.C,
-                   ctx.properties_ptr,
-                   rna_path,
-                   "image.new",
-                   "image.open",
-                   nullptr,
-                   UI_TEMPLATE_ID_FILTER_ALL,
-                   false,
-                   name);
+      PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, rna_path.c_str());
+      if (prop && RNA_property_type(prop) == PROP_POINTER) {
+        uiTemplateID(row,
+                     &ctx.C,
+                     ctx.properties_ptr,
+                     rna_path,
+                     "image.new",
+                     "image.open",
+                     nullptr,
+                     UI_TEMPLATE_ID_FILTER_ALL,
+                     false,
+                     name);
+      }
+      else {
+        /* #uiTemplateID only supports pointer properties currently. Node tools store data-block
+         * pointers in strings currently. */
+        row->prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "images", name, ICON_IMAGE);
+      }
       break;
     }
     case SOCK_MENU: {
@@ -913,13 +921,13 @@ static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd
 
     std::stringstream ss;
     Vector<std::string> usages;
-    if ((usage & geo_log::NamedAttributeUsage::Read) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Read)) {
       usages.append(IFACE_("Read"));
     }
-    if ((usage & geo_log::NamedAttributeUsage::Write) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Write)) {
       usages.append(IFACE_("Write"));
     }
-    if ((usage & geo_log::NamedAttributeUsage::Remove) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Remove)) {
       usages.append(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"));
     }
     for (const int i : usages.index_range()) {
@@ -1008,11 +1016,9 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   }
 
   if (nmd.node_group != nullptr && nmd.settings.properties != nullptr) {
-    nmd.node_group->ensure_interface_cache();
-    ctx.input_usages.reinitialize(nmd.node_group->interface_inputs().size());
-    ctx.output_usages.reinitialize(nmd.node_group->interface_outputs().size());
-    nodes::socket_usage_inference::infer_group_interface_usage(
-        *nmd.node_group, ctx.properties, ctx.input_usages, ctx.output_usages);
+    nmd.runtime->usage_cache.ensure(nmd);
+    ctx.input_usages = nmd.runtime->usage_cache.inputs;
+    ctx.output_usages = nmd.runtime->usage_cache.outputs;
     draw_interface_panel_content(ctx, &layout, nmd.node_group->tree_interface.root_panel);
   }
 
