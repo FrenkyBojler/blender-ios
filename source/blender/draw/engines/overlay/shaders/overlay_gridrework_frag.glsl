@@ -36,21 +36,22 @@ void main()
   angle = 1.0f - abs(angle);
   angle *= angle;
 
-  float fade = 1.0f - angle * angle;
-  fade *= 1.0f - smoothstep(0.0f, 512.f, dist - 512.f);
+  float fade = 1.f;
+
+  // Fade angles
+  fade *= (1.f - angle * angle);
+
+  // Fade distances
+  fade *= 1.0f - smoothstep(0.0f, 1000.f, dist - 1000.f);
   
   // TODO; fade edges
-  // fade *= (1.f -  abs(local_coord * 2.f - 1.f));
+  fade *= (1.f - length(local_coord));
 
   // TODO; fade levels
-  fade *= (1.f - local_level);
-  // float a_level = local_level;
-  // fade =  abs(local_level /* * 2.f - 1.f */);
-
-  // float a = (1.f - abs(a_level * 2.f - 1.f));
+  fade *= local_level;
 
   // out_color.rgb = float3(1); // mix(vec3(1, 0, 0), vec3(0, 1, 0), a);
   // out_color.rgb = debug_colors[int(local_level) % 7];
-  out_color.rgb = float3(1, 0, 1); // mix(float3(1, 0, 1), float3(1, 1, 0), float3(local_level));
+  out_color.rgb =/*  debug_colors[debug_line_lvl]; */  float3(1, 0, 1); // mix(float3(1, 0, 1), float3(1, 1, 0), float3(local_level));
   out_color.a = fade;
 }
