@@ -10,6 +10,7 @@
 #  include "draw_view_infos.hh"
 #  include "eevee_common_infos.hh"
 #  include "eevee_light_shared.hh"
+#  include "eevee_sampling_infos.hh"
 #  include "gpu_shader_fullscreen_infos.hh"
 
 #  define SPHERE_PROBE
