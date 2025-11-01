@@ -232,5 +232,6 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
  * subdivided mesh.
  */
 void multires_do_versions_simple_to_catmull_clark(Object *object, MultiresModifierData *mmd);
+void multires_do_versions_tangent_space_conversion(Object *object, MultiresModifierData *mmd);
 
 #include "intern/multires_inline.hh"  // IWYU pragma: export

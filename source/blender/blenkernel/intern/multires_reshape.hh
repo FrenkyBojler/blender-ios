@@ -266,6 +266,12 @@ void multires_reshape_evaluate_base_mesh_limit_at_grid(
     blender::float3 &r_P,
     blender::float3x3 &r_tangent_matrix);
 
+void multires_reshape_evaluate_base_mesh_limit_at_grid_for_versioning(
+    const MultiresReshapeContext *reshape_context,
+    const GridCoord *grid_coord,
+    blender::float3 &r_P,
+    blender::float3x3 &r_tangent_matrix);
+
 /* --------------------------------------------------------------------
  * Custom data preparation.
  */
@@ -322,6 +328,9 @@ bool multires_reshape_assign_final_coords_from_span(const MultiresReshapeContext
 void multires_reshape_assign_final_coords_from_mdisps(
     const MultiresReshapeContext *reshape_context);
 void multires_debug_reshape_grid_coord(const MultiresReshapeContext *reshape_context);
+
+void multires_reshape_assign_final_coords_from_mdisps_for_versioning(
+    const MultiresReshapeContext *reshape_context);
 
 /**
  * Reads from original #CD_MIDSPS, writes to the current mesh #CD_MDISPS.
