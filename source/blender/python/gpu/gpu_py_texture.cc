@@ -121,6 +121,10 @@ static int pygpu_texture_valid_check(BPyGPUTexture *bpygpu_tex)
 /** \name GPUTexture Type
  * \{ */
 
+#define BPYGPU_TEXTURE_EXTEND_MODE_ARG_DOC \
+  "   :arg extend_mode: the specified extent mode.\n" \
+  "   :type extend_mode: Literal['EXTEND', 'REPEAT', 'MIRRORED_REPEAT', 'CLAMP_TO_BORDER']\n";
+
 static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
@@ -361,11 +365,7 @@ PyDoc_STRVAR(
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along the x "
     "axis.\n"
-    "\n"
-    "   :arg extend_mode: the specified extent mode.\n"
-    "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & "
-    "``CLAMP_TO_BORDER``.\n"
-    "   :type extend_mode: str\n");
+    "\n" BPYGPU_TEXTURE_EXTEND_MODE_ARG_DOC);
 static PyObject *pygpu_texture_extend_mode_x(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
@@ -386,11 +386,7 @@ PyDoc_STRVAR(
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along the y "
     "axis.\n"
-    "\n"
-    "   :arg extend_mode: the specified extent mode.\n"
-    "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & "
-    "``CLAMP_TO_BORDER``.\n"
-    "   :type extend_mode: str\n");
+    "\n" BPYGPU_TEXTURE_EXTEND_MODE_ARG_DOC);
 static PyObject *pygpu_texture_extend_mode_y(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
@@ -411,11 +407,7 @@ PyDoc_STRVAR(
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along\n"
     "   both the x and y axis.\n"
-    "\n"
-    "   :arg extend_mode: the specified extent mode.\n"
-    "      Possible values are ``EXTEND``, ``REPEAT``, ``MIRRORED_REPEAT`` & "
-    "``CLAMP_TO_BORDER``.\n"
-    "   :type extend_mode: str\n");
+    "\n" BPYGPU_TEXTURE_EXTEND_MODE_ARG_DOC);
 static PyObject *pygpu_texture_extend_mode(BPyGPUTexture *self, PyObject *value)
 {
   BPYGPU_TEXTURE_CHECK_OBJ(self);
