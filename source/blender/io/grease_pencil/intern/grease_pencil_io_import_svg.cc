@@ -10,20 +10,19 @@
 #include "BLI_math_color.h"
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_report.hh"
 
-#include "BLI_string.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
-
-#include "GEO_resample_curves.hh"
 
 #include "ED_grease_pencil.hh"
 
@@ -74,13 +73,31 @@ static ColorGeometry4f unpack_nano_color(const uint pack)
   return color;
 }
 
+/* Simple approximation of a gradient by a single color. */
+static ColorGeometry4f average_gradient_color(const NSVGgradient &svg_gradient)
+{
+  const Span<NSVGgradientStop> stops = {svg_gradient.stops, svg_gradient.nstops};
+
+  float4 avg_color = float4(0, 0, 0, 0);
+  if (stops.is_empty()) {
+    return ColorGeometry4f(avg_color);
+  }
+
+  for (const int i : stops.index_range()) {
+    avg_color += float4(unpack_nano_color(stops[i].color));
+  }
+  avg_color /= stops.size();
+
+  return ColorGeometry4f(avg_color);
+}
+
 /* TODO Gradients are not yet supported (will output magenta placeholder color).
  * This is because gradients for fill materials in particular can only be defined by materials.
- * Since each path can have a unique gradient it potentially requires a material per curve. Stroke
- * gradients could be baked into vertex colors. */
+ * Since each path can have a unique gradient it potentially requires a material per curve.
+ * Stroke gradients could be baked into vertex colors. */
 static ColorGeometry4f convert_svg_color(const NSVGpaint &svg_paint)
 {
-  switch (svg_paint.type) {
+  switch (NSVGpaintType(svg_paint.type)) {
     case NSVG_PAINT_UNDEF:
       return ColorGeometry4f(1, 0, 1, 1);
     case NSVG_PAINT_NONE:
@@ -88,9 +105,9 @@ static ColorGeometry4f convert_svg_color(const NSVGpaint &svg_paint)
     case NSVG_PAINT_COLOR:
       return unpack_nano_color(svg_paint.color);
     case NSVG_PAINT_LINEAR_GRADIENT:
-      return ColorGeometry4f(0, 0, 0, 1);
+      return average_gradient_color(*svg_paint.gradient);
     case NSVG_PAINT_RADIAL_GRADIENT:
-      return ColorGeometry4f(0, 0, 0, 1);
+      return average_gradient_color(*svg_paint.gradient);
 
     default:
       BLI_assert_unreachable();
@@ -113,8 +130,8 @@ static IndexRange extend_curves_geometry(bke::CurvesGeometry &curves, const NSVG
       continue;
     }
     BLI_assert(path->npts >= 1 && path->npts == int(path->npts / 3) * 3 + 1);
-    /* nanosvg converts everything to bezier curves, points come in triplets. Round up to the next
-     * full integer, since there is one point without handles (3*n+1 points in total). */
+    /* nanosvg converts everything to bezier curves, points come in triplets. Round up to the
+     * next full integer, since there is one point without handles (3*n+1 points in total). */
     const int point_num = (path->npts + 2) / 3;
     new_curve_offsets.append(point_num);
   }
@@ -127,7 +144,7 @@ static IndexRange extend_curves_geometry(bke::CurvesGeometry &curves, const NSVG
 
   const IndexRange new_curves_range = {old_curves_num, new_points_by_curve.size()};
   const int curves_num = new_curves_range.one_after_last();
-  const int points_num = new_points_by_curve.total_size();
+  const int points_num = new_points_by_curve.total_size() + old_points_num;
 
   Array<int> new_offsets(curves_num + 1);
   if (old_curves_num > 0) {
@@ -162,9 +179,10 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
+  MutableSpan<bool> cyclic = curves.cyclic_for_write();
+
   bke::SpanAttributeWriter fill_colors = attributes.lookup_or_add_for_write_span<ColorGeometry4f>(
       "fill_color", bke::AttrDomain::Curve);
-  MutableSpan<bool> cyclic = curves.cyclic_for_write();
   bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
       "fill_opacity", bke::AttrDomain::Curve);
 
@@ -183,8 +201,12 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
 
   materials.span.slice(curves_range).fill(material_index);
   const ColorGeometry4f shape_color = convert_svg_color(shape.fill);
-  fill_colors.span.slice(curves_range).fill(shape_color);
-  fill_opacities.span.slice(curves_range).fill(shape_color.a);
+  if (fill_colors) {
+    fill_colors.span.slice(curves_range).fill(shape_color);
+  }
+  if (fill_opacities) {
+    fill_opacities.span.slice(curves_range).fill(shape_color.a);
+  }
 
   int curve_index = curves_range.start();
   for (NSVGpath *path = shape.paths; path; path = path->next) {
@@ -215,8 +237,12 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
       radii.span[point_index] = shape.strokeWidth * path_width_scale;
 
       const ColorGeometry4f point_color = convert_svg_color(shape.stroke);
-      vertex_colors.span[point_index] = point_color;
-      point_opacities.span[point_index] = point_color.a;
+      if (vertex_colors) {
+        vertex_colors.span[point_index] = point_color;
+      }
+      if (point_opacities) {
+        point_opacities.span[point_index] = point_color.a;
+      }
     }
 
     ++curve_index;
@@ -267,7 +293,7 @@ bool SVGImporter::read(StringRefNull filepath)
   constexpr float svg_dpi = 96.0f;
 
   char abs_filepath[FILE_MAX];
-  BLI_strncpy(abs_filepath, filepath.c_str(), sizeof(abs_filepath));
+  STRNCPY(abs_filepath, filepath.c_str());
   BLI_path_abs(abs_filepath, BKE_main_blendfile_path_from_global());
 
   NSVGimage *svg_data = nullptr;
@@ -295,8 +321,11 @@ bool SVGImporter::read(StringRefNull filepath)
   /* Overall scale for SVG coordinates in millimeters. */
   const float svg_scale = 0.001f * scene_unit_scale * params_.scale;
   /* Grease pencil is rotated 90 degrees in X axis by default. */
-  const float4x4 transform = math::scale(math::from_rotation<float4x4>(math::EulerXYZ(-90, 0, 0)),
-                                         float3(svg_scale));
+  const float4x4 transform = math::scale(
+      math::from_rotation<float4x4>(math::EulerXYZ(DEG2RAD(-90), 0, 0)), float3(svg_scale));
+
+  /* True if any shape has a color gradient, which are not fully supported. */
+  bool has_color_gradient = false;
 
   /* Loop all shapes. */
   std::string prv_id = "*";
@@ -336,6 +365,10 @@ bool SVGImporter::read(StringRefNull filepath)
     const StringRefNull mat_name = (is_stroke ? (is_fill ? "Both" : "Stroke") : "Fill");
     const int material_index = create_material(mat_name, is_stroke, is_fill);
 
+    if (ELEM(shape->fill.type, NSVG_PAINT_LINEAR_GRADIENT, NSVG_PAINT_RADIAL_GRADIENT)) {
+      has_color_gradient = true;
+    }
+
     bke::CurvesGeometry &curves = drawing->strokes_for_write();
     const IndexRange new_curves_range = extend_curves_geometry(curves, *shape);
     if (new_curves_range.is_empty()) {
@@ -352,6 +385,12 @@ bool SVGImporter::read(StringRefNull filepath)
   /* Calculate bounding box and move all points to new origin center. */
   if (params_.recenter_bounds) {
     shift_to_bounds_center(grease_pencil);
+  }
+
+  if (has_color_gradient) {
+    BKE_report(context_.reports,
+               RPT_WARNING,
+               "SVG has gradients, Grease Pencil color will be approximated");
   }
 
   return true;

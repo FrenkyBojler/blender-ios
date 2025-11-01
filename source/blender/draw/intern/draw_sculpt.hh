@@ -8,7 +8,15 @@
 
 #pragma once
 
-#include "draw_manager.hh"
+#include "BLI_enum_flags.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_vector.hh"
+
+struct GPUMaterial;
+struct Object;
+namespace blender::gpu {
+class Batch;
+}
 
 namespace blender::draw {
 
@@ -29,7 +37,7 @@ enum SculptBatchFeature {
   SCULPT_BATCH_VERTEX_COLOR = 1 << 3,
   SCULPT_BATCH_UV = 1 << 4
 };
-ENUM_OPERATORS(SculptBatchFeature, SCULPT_BATCH_UV);
+ENUM_OPERATORS(SculptBatchFeature);
 
 /** Used by engines that don't use GPUMaterials, like the Workbench and Overlay engines. */
 Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature features);

@@ -48,10 +48,6 @@ struct CCGKey {
   int has_mask;
 };
 
-/* initialize 'key' at the specified level */
-void CCG_key(CCGKey *key, const CCGSubSurf *ss, int level);
-void CCG_key_top_level(CCGKey *key, const CCGSubSurf *ss);
-
 inline blender::float3 &CCG_elem_co(const CCGKey & /*key*/, CCGElem *elem)
 {
   return *reinterpret_cast<blender::float3 *>(elem);
@@ -105,17 +101,15 @@ inline blender::float3 &CCG_elem_offset_co(const CCGKey &key, CCGElem *elem, int
   return CCG_elem_co(key, CCG_elem_offset(key, elem, offset));
 }
 
-inline blender::float3 &CCG_elem_offset_no(const CCGKey &key, CCGElem *elem, int offset)
+inline int CCG_grid_size(const int level)
 {
-  return CCG_elem_no(key, CCG_elem_offset(key, elem, offset));
+  BLI_assert(level > 0);
+  return (1 << (level - 1)) + 1;
 }
 
-inline float &CCG_elem_offset_mask(const CCGKey &key, CCGElem *elem, int offset)
+inline int CCG_grid_factor(int low_level, int high_level)
 {
-  return CCG_elem_mask(key, CCG_elem_offset(key, elem, offset));
-}
-
-inline CCGElem *CCG_elem_next(const CCGKey &key, CCGElem *elem)
-{
-  return CCG_elem_offset(key, elem, 1);
+  BLI_assert(low_level > 0 && high_level > 0);
+  BLI_assert(low_level <= high_level);
+  return 1 << (high_level - low_level);
 }

@@ -11,11 +11,12 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_generic_span.hh"
-#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 
 struct Depsgraph;
+struct Mesh;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
 struct GAttributeReader;
@@ -65,10 +66,10 @@ void do_paint_brush(const Depsgraph &depsgraph,
                     PaintModeSettings &paint_mode_settings,
                     const Sculpt &sd,
                     Object &ob,
-                    Span<bke::pbvh::Node *> nodes,
-                    Span<bke::pbvh::Node *> texnodes);
+                    const IndexMask &node_mask,
+                    const IndexMask &texnode_mask);
 void do_smear_brush(const Depsgraph &depsgraph,
                     const Sculpt &sd,
                     Object &ob,
-                    Span<bke::pbvh::Node *> nodes);
+                    const IndexMask &node_mask);
 }  // namespace blender::ed::sculpt_paint::color

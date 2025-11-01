@@ -12,7 +12,7 @@
 #include "BLI_array.hh"
 #include "BLI_bit_span.hh"
 #include "BLI_map.hh"
-#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
@@ -21,7 +21,6 @@ struct Brush;
 struct BMVert;
 struct Depsgraph;
 struct Object;
-struct PBVHVertRef;
 struct Sculpt;
 struct SculptBoundaryPreview;
 struct SculptSession;
@@ -104,15 +103,14 @@ void ensure_boundary_info(Object &object);
  *
  * Requires #ensure_boundary_info to have been called.
  */
-bool vert_is_boundary(const SculptSession &ss, PBVHVertRef vertex);
-bool vert_is_boundary(Span<bool> hide_poly,
-                      GroupedSpan<int> vert_to_face_map,
+bool vert_is_boundary(GroupedSpan<int> vert_to_face_map,
+                      Span<bool> hide_poly,
                       BitSpan boundary,
                       int vert);
-bool vert_is_boundary(const SubdivCCG &subdiv_ccg,
+bool vert_is_boundary(OffsetIndices<int> faces,
                       Span<int> corner_verts,
-                      OffsetIndices<int> faces,
                       BitSpan boundary,
+                      const SubdivCCG &subdiv_ccg,
                       SubdivCCGCoord vert);
 bool vert_is_boundary(BMVert *vert);
 
@@ -123,7 +121,7 @@ bool vert_is_boundary(BMVert *vert);
 std::unique_ptr<SculptBoundary> data_init(const Depsgraph &depsgraph,
                                           Object &object,
                                           const Brush *brush,
-                                          PBVHVertRef initial_vert,
+                                          int initial_vert,
                                           float radius);
 std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
                                                Object &object,
@@ -148,5 +146,10 @@ void edges_preview_draw(uint gpuattr,
                         const float outline_col[3],
                         float outline_alpha);
 void pivot_line_preview_draw(uint gpuattr, SculptSession &ss);
+
+void do_boundary_brush(const Depsgraph &depsgraph,
+                       const Sculpt &sd,
+                       Object &object,
+                       const IndexMask &node_mask);
 
 }  // namespace blender::ed::sculpt_paint::boundary

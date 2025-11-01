@@ -12,28 +12,30 @@
 
 #include <Python.h>
 
-#include "bpy_app.h"
+#include "bpy_app.hh"
 
-#include "bpy_app_alembic.h"
-#include "bpy_app_build_options.h"
-#include "bpy_app_ffmpeg.h"
-#include "bpy_app_ocio.h"
-#include "bpy_app_oiio.h"
-#include "bpy_app_opensubdiv.h"
-#include "bpy_app_openvdb.h"
-#include "bpy_app_sdl.h"
-#include "bpy_app_usd.h"
+#include "bpy_app_alembic.hh"
+#include "bpy_app_build_options.hh"
+#include "bpy_app_ffmpeg.hh"
+#include "bpy_app_ocio.hh"
+#include "bpy_app_oiio.hh"
+#include "bpy_app_opensubdiv.hh"
+#include "bpy_app_openvdb.hh"
+#include "bpy_app_sdl.hh"
 
-#include "bpy_app_translations.h"
+#include "bpy_app_usd.hh"
 
-#include "bpy_app_handlers.h"
-#include "bpy_driver.h"
+#include "bpy_app_translations.hh"
 
-#include "BPY_extern_python.h" /* For #BPY_python_app_help_text_fn. */
+#include "bpy_app_handlers.hh"
+#include "bpy_capi_utils.hh"
+#include "bpy_driver.hh"
+
+#include "BPY_extern_python.hh" /* For #BPY_python_app_help_text_fn. */
 
 /* modules */
-#include "bpy_app_icons.h"
-#include "bpy_app_timers.h"
+#include "bpy_app_icons.hh"
+#include "bpy_app_timers.hh"
 
 #include "BLI_utildefines.h"
 
@@ -42,10 +44,11 @@
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
-#include "DNA_ID.h"
+#include "GPU_shader.hh"
 
 #include "UI_interface_icons.hh"
 
+#include "ED_undo.hh"
 #include "MEM_guardedalloc.h"
 
 #include "RNA_enum_types.hh" /* For `rna_enum_wm_job_type_items`. */
@@ -54,10 +57,9 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "../generic/py_capi_rna.h"
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_rna.hh"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #ifdef BUILD_DATE
 extern "C" char build_date[];
@@ -78,16 +80,22 @@ extern "C" char build_system[];
 static PyTypeObject BlenderAppType;
 
 static PyStructSequence_Field app_info_fields[] = {
-    {"version", "The Blender version as a tuple of 3 numbers. eg. (2, 83, 1)"},
+    {"version",
+     "The Blender version as a tuple of 3 numbers (major, minor, micro). eg. (4, 3, 1)"},
     {"version_file",
-     "The Blender version, as a tuple, last used to save a .blend file, compatible with "
-     "``bpy.data.version``. This value should be used for handling compatibility changes between "
-     "Blender versions"},
+     "The Blender File version, as a tuple of 3 numbers (major, minor, file sub-version), that "
+     "will be used to save a .blend file. The last item in this tuple indicates the file "
+     "sub-version, which is different from the release micro version (the last item of the "
+     "``bpy.app.version`` tuple). The file sub-version can be incremented multiple times while a "
+     "Blender version is under development. This value is, and should be, used for handling "
+     "compatibility changes between Blender versions"},
     {"version_string", "The Blender version formatted as a string"},
     {"version_cycle", "The release status of this build alpha/beta/rc/release"},
     {"background",
      "Boolean, True when blender is running without a user interface (started with -b)"},
+    {"module", "Boolean, True when running Blender as a python module"},
     {"factory_startup", "Boolean, True when blender is running with --factory-startup)"},
+    {"portable", "Boolean, True unless blender was built to reference absolute paths (on UNIX)."},
 
     /* buildinfo */
     {"build_date", "The date this blender instance was built"},
@@ -126,8 +134,7 @@ static PyStructSequence_Field app_info_fields[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_doc,
-    "This module contains application values that remain unchanged during runtime.");
-
+    "This module contains application values that remain unchanged during runtime.\n");
 static PyStructSequence_Desc app_info_desc = {
     /*name*/ "bpy.app",
     /*doc*/ bpy_app_doc,
@@ -157,7 +164,18 @@ static PyObject *make_app_info()
 
   SetStrItem(STRINGIFY(BLENDER_VERSION_CYCLE));
   SetObjItem(PyBool_FromLong(G.background));
+#ifdef WITH_PYTHON_MODULE
+  SetObjItem(Py_NewRef(Py_True));
+#else
+  SetObjItem(Py_NewRef(Py_False));
+#endif
   SetObjItem(PyBool_FromLong(G.factory_startup));
+
+#ifdef WITH_INSTALL_PORTABLE
+  SetObjItem(Py_NewRef(Py_True));
+#else
+  SetObjItem(Py_NewRef(Py_False));
+#endif
 
 /* build info, use bytes since we can't assume _any_ encoding:
  * see patch #30154 for issue */
@@ -226,7 +244,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_debug_doc,
     "Boolean, for debug info "
-    "(started with ``--debug`` / ``--debug-*`` matching this attribute name)");
+    "(started with ``--debug`` / ``--debug-*`` matching this attribute name).");
 static PyObject *bpy_app_debug_get(PyObject * /*self*/, void *closure)
 {
   const int flag = POINTER_AS_INT(closure);
@@ -256,17 +274,19 @@ static int bpy_app_debug_set(PyObject * /*self*/, PyObject *value, void *closure
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_internet_offline_doc,
-    "Boolean, true when internet access is allowed by Blender & 3rd party scripts (read-only)");
+    "Boolean, true when internet access is allowed by Blender & 3rd party scripts "
+    "(read-only).");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_internet_offline_override_doc,
-    "Boolean, true when internet access preference is overridden by the command line (read-only)");
-
+    "Boolean, true when internet access preference is overridden by the command line "
+    "(read-only).");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_global_flag_doc,
     "Boolean, for application behavior "
     "(started with ``--enable-*`` matching this attribute name)");
+
 static PyObject *bpy_app_global_flag_get(PyObject * /*self*/, void *closure)
 {
   const int flag = POINTER_AS_INT(closure);
@@ -308,7 +328,7 @@ static int bpy_app_global_flag_set__only_disable(PyObject * /*self*/,
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_debug_value_doc,
-    "Short, number which can be set to non-zero values for testing purposes");
+    "Short, number which can be set to non-zero values for testing purposes.");
 static PyObject *bpy_app_debug_value_get(PyObject * /*self*/, void * /*closure*/)
 {
   return PyLong_FromLong(G.debug_value);
@@ -334,7 +354,7 @@ static int bpy_app_debug_value_set(PyObject * /*self*/, PyObject *value, void * 
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_tempdir_doc,
-    "String, the temp directory used by blender (read-only)");
+    "String, the temp directory used by blender (read-only).");
 static PyObject *bpy_app_tempdir_get(PyObject * /*self*/, void * /*closure*/)
 {
   return PyC_UnicodeFromBytes(BKE_tempdir_session());
@@ -343,7 +363,7 @@ static PyObject *bpy_app_tempdir_get(PyObject * /*self*/, void * /*closure*/)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_driver_dict_doc,
-    "Dictionary for drivers namespace, editable in-place, reset on file load (read-only)");
+    "Dictionary for drivers namespace, editable in-place, reset on file load (read-only).");
 static PyObject *bpy_app_driver_dict_get(PyObject * /*self*/, void * /*closure*/)
 {
   if (bpy_pydriver_Dict == nullptr) {
@@ -353,13 +373,13 @@ static PyObject *bpy_app_driver_dict_get(PyObject * /*self*/, void * /*closure*/
     }
   }
 
-  return Py_INCREF_RET(bpy_pydriver_Dict);
+  return Py_NewRef(bpy_pydriver_Dict);
 }
 
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_preview_render_size_doc,
-    "Reference size for icon/preview renders (read-only)");
+    "Reference size for icon/preview renders (read-only).");
 static PyObject *bpy_app_preview_render_size_get(PyObject * /*self*/, void *closure)
 {
   return PyLong_FromLong(
@@ -419,11 +439,6 @@ static int bpy_app_binary_path_set(PyObject * /*self*/, PyObject *value, void * 
 
 static PyGetSetDef bpy_app_getsets[] = {
     {"debug", bpy_app_debug_get, bpy_app_debug_set, bpy_app_debug_doc, (void *)G_DEBUG},
-    {"debug_ffmpeg",
-     bpy_app_debug_get,
-     bpy_app_debug_set,
-     bpy_app_debug_doc,
-     (void *)G_DEBUG_FFMPEG},
     {"debug_freestyle",
      bpy_app_debug_get,
      bpy_app_debug_set,
@@ -560,7 +575,7 @@ PyDoc_STRVAR(
     "   :arg job_type: job type in :ref:`rna_enum_wm_job_type_items`.\n"
     "   :type job_type: str\n"
     "   :return: Whether a job of the given type is currently running.\n"
-    "   :rtype: bool.\n");
+    "   :rtype: bool\n");
 static PyObject *bpy_app_is_job_running(PyObject * /*self*/, PyObject *args, PyObject *kwds)
 {
   BPy_EnumProperty_Parse job_type_enum{};
@@ -581,6 +596,11 @@ static PyObject *bpy_app_is_job_running(PyObject * /*self*/, PyObject *args, PyO
     return nullptr;
   }
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
+  if (job_type_enum.value == WM_JOB_TYPE_SHADER_COMPILATION) {
+    /* Shader compilation no longer uses the WM_job API, so we handle this as a special case
+     * to avoid breaking the Python API. */
+    return PyBool_FromLong(GPU_shader_batch_is_compiling());
+  }
   return PyBool_FromLong(WM_jobs_has_running_type(wm, job_type_enum.value));
 }
 
@@ -589,7 +609,7 @@ char *(*BPY_python_app_help_text_fn)(bool all) = nullptr;
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_help_text_doc,
-    ".. staticmethod:: help_text(all=False)\n"
+    ".. staticmethod:: help_text(*, all=False)\n"
     "\n"
     "   Return the help text as a string.\n"
     "\n"
@@ -618,10 +638,34 @@ static PyObject *bpy_app_help_text(PyObject * /*self*/, PyObject *args, PyObject
   return result;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_memory_usage_undo_doc,
+    ".. staticmethod:: memory_usage_undo()\n"
+    "\n"
+    "   Get undo memory usage information.\n"
+    "\n"
+    "   :return: Memory usage of the undo stack in bytes.\n"
+    "   :rtype: int\n");
+
+static PyObject *bpy_app_memory_usage_undo(PyObject * /*self*/, PyObject * /*args*/)
+{
+  size_t total_memory = 0;
+  UndoStack *ustack = ED_undo_stack_get();
+  if (ustack) {
+    total_memory = ED_undosys_total_memory_calc(ustack);
+  }
+  return PyLong_FromSize_t(total_memory);
+}
 
 static PyMethodDef bpy_app_methods[] = {
     {"is_job_running",
@@ -632,11 +676,19 @@ static PyMethodDef bpy_app_methods[] = {
      (PyCFunction)bpy_app_help_text,
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      bpy_app_help_text_doc},
+    {"memory_usage_undo",
+     (PyCFunction)bpy_app_memory_usage_undo,
+     METH_NOARGS | METH_STATIC,
+     bpy_app_memory_usage_undo_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static void py_struct_seq_getset_init()
@@ -673,7 +725,7 @@ PyObject *BPY_app_struct()
   BlenderAppType.tp_init = nullptr;
   BlenderAppType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppType.tp_hash = (hashfunc)Py_HashPointer;
 
   /* Kind of a hack on top of #PyStructSequence. */
   py_struct_seq_getset_init();

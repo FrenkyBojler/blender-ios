@@ -13,8 +13,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
-#include "BLI_array.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_linklist_stack.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -22,6 +21,7 @@
 #include "BLI_memarena.h"
 #include "BLI_sort_utils.h"
 #include "BLI_utildefines_stack.h"
+#include "BLI_vector.hh"
 
 #include "BKE_customdata.hh"
 
@@ -446,15 +446,11 @@ bool BM_face_split_edgenet(BMesh *bm,
                            BMFace *f,
                            BMEdge **edge_net,
                            const int edge_net_len,
-                           BMFace ***r_face_arr,
-                           int *r_face_arr_len)
+                           blender::Vector<BMFace *> *r_face_arr)
 {
   /* re-use for new face verts */
   BMVert **face_verts;
   int face_verts_len;
-
-  BMFace **face_arr = nullptr;
-  BLI_array_declare(face_arr);
 
   BMVert **vert_queue;
   STACK_DECLARE(vert_queue);
@@ -469,8 +465,7 @@ bool BM_face_split_edgenet(BMesh *bm,
 
   if (!edge_net_len) {
     if (r_face_arr) {
-      *r_face_arr = nullptr;
-      *r_face_arr_len = 0;
+      r_face_arr->clear_and_shrink();
     }
     return false;
   }
@@ -479,8 +474,7 @@ bool BM_face_split_edgenet(BMesh *bm,
    * large for single faces with complex edge-nets, see: #65980. */
 
   /* over-alloc (probably 2-4 is only used in most cases), for the biggest-fan */
-  edge_order = static_cast<VertOrder *>(
-      MEM_mallocN(sizeof(*edge_order) * edge_order_len, __func__));
+  edge_order = MEM_malloc_arrayN<VertOrder>(edge_order_len, __func__);
 
   /* use later */
   face_verts = static_cast<BMVert **>(
@@ -528,6 +522,7 @@ bool BM_face_split_edgenet(BMesh *bm,
   STACK_PUSH(vert_queue, l_first->v);
   BM_ELEM_API_FLAG_ENABLE(l_first->v, VERT_IN_QUEUE);
 
+  blender::Vector<BMFace *> face_arr;
   while ((v = STACK_POP(vert_queue))) {
     BM_ELEM_API_FLAG_DISABLE(v, VERT_IN_QUEUE);
     if (bm_face_split_edgenet_find_loop(
@@ -542,7 +537,7 @@ bool BM_face_split_edgenet(BMesh *bm,
       }
 
       if (f_new) {
-        BLI_array_append(face_arr, f_new);
+        face_arr.append(f_new);
         copy_v3_v3(f_new->no, f->no);
 
         /* warning, normally don't do this,
@@ -577,7 +572,7 @@ bool BM_face_split_edgenet(BMesh *bm,
 
     /* See: #BM_loop_interp_from_face for similar logic. */
     void **blocks = BLI_array_alloca(blocks, f->len);
-    float(*cos_2d)[2] = BLI_array_alloca(cos_2d, f->len);
+    float (*cos_2d)[2] = BLI_array_alloca(cos_2d, f->len);
     float *w = BLI_array_alloca(w, f->len);
     float axis_mat[3][3];
     float co[2];
@@ -618,7 +613,7 @@ bool BM_face_split_edgenet(BMesh *bm,
                 mul_v2_m3v3(co, axis_mat, v->co);
                 interp_weights_poly_v2(w, cos_2d, f->len, co);
                 CustomData_bmesh_interp(
-                    &bm->ldata, (const void **)blocks, w, nullptr, f->len, l_iter->head.data);
+                    &bm->ldata, (const void **)blocks, w, f->len, l_iter->head.data);
                 l_first = l_iter;
               }
               else {
@@ -645,7 +640,7 @@ bool BM_face_split_edgenet(BMesh *bm,
     BM_ELEM_API_FLAG_DISABLE(l_iter->v, VERT_VISIT);
   } while ((l_iter = l_iter->next) != l_first);
 
-  if (BLI_array_len(face_arr)) {
+  if (!face_arr.is_empty()) {
     bmesh_face_swap_data(f, face_arr[0]);
     BM_face_kill(bm, face_arr[0]);
     face_arr[0] = f;
@@ -654,18 +649,12 @@ bool BM_face_split_edgenet(BMesh *bm,
     BM_ELEM_API_FLAG_DISABLE(f, FACE_NET);
   }
 
-  for (i = 0; i < BLI_array_len(face_arr); i++) {
-    BM_ELEM_API_FLAG_DISABLE(face_arr[i], FACE_NET);
+  for (BMFace *face : face_arr) {
+    BM_ELEM_API_FLAG_DISABLE(face, FACE_NET);
   }
 
   if (r_face_arr) {
-    *r_face_arr = face_arr;
-    *r_face_arr_len = BLI_array_len(face_arr);
-  }
-  else {
-    if (face_arr) {
-      MEM_freeN(face_arr);
-    }
+    *r_face_arr = std::move(face_arr);
   }
 
   MEM_freeN(edge_order);
@@ -1363,7 +1352,7 @@ bool BM_face_split_edgenet_connect_islands(BMesh *bm,
   /* Declare here because of `goto` below. */
   BMEdge **edge_net_new = nullptr;
   BVHTree *bvhtree = nullptr;
-  float(*vert_coords_backup)[3] = nullptr;
+  float (*vert_coords_backup)[3] = nullptr;
   uint *verts_group_table = nullptr;
   BMVert **vert_arr = nullptr;
   uint vert_arr_len = 0;
@@ -1414,11 +1403,11 @@ bool BM_face_split_edgenet_connect_islands(BMesh *bm,
            * but we need to sort the groups before setting the vertex array order */
           const float axis_value[2] = {
 #if SORT_AXIS == 0
-            dot_m3_v3_row_x(axis_mat, v_iter->co),
-            dot_m3_v3_row_y(axis_mat, v_iter->co),
+              dot_m3_v3_row_x(axis_mat, v_iter->co),
+              dot_m3_v3_row_y(axis_mat, v_iter->co),
 #else
-            dot_m3_v3_row_y(axis_mat, v_iter->co),
-            dot_m3_v3_row_x(axis_mat, v_iter->co),
+              dot_m3_v3_row_y(axis_mat, v_iter->co),
+              dot_m3_v3_row_x(axis_mat, v_iter->co),
 #endif
           };
 
@@ -1453,7 +1442,7 @@ bool BM_face_split_edgenet_connect_islands(BMesh *bm,
   verts_group_table = static_cast<uint *>(
       BLI_memarena_alloc(mem_arena, sizeof(*verts_group_table) * vert_arr_len));
 
-  vert_coords_backup = static_cast<float(*)[3]>(
+  vert_coords_backup = static_cast<float (*)[3]>(
       BLI_memarena_alloc(mem_arena, sizeof(*vert_coords_backup) * vert_arr_len));
 
   {

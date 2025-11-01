@@ -24,10 +24,10 @@ class VKImmediate;
 
 using AttributeMask = uint16_t;
 
-// TODO: VKVertexAttributeObject should not contain any reference to VBO's. This should make the
-// API be compatible with both VKBatch and VKImmediate.
-// TODO: In steam of storing the bindings/attributes we should add a data structure that can store
-// them. Building the bindings/attributes should be done inside VKPipelinePool.
+/* TODO: VKVertexAttributeObject should not contain any reference to VBO's. This should make the
+ * API be compatible with both #VKBatch and #VKImmediate. */
+/* TODO: In steam of storing the bindings/attributes we should add a data structure that can store
+ * them. Building the bindings/attributes should be done inside #VKPipelinePool. */
 class VKVertexAttributeObject {
  public:
   bool is_valid = false;
@@ -52,14 +52,6 @@ class VKVertexAttributeObject {
   void update_bindings(const VKContext &context, VKBatch &batch);
   void update_bindings(VKImmediate &immediate);
 
-  /**
-   * Ensure that all Vertex Buffers are uploaded to the GPU.
-   *
-   * This is a separate step as uploading could flush the graphics pipeline making the state
-   * inconsistent.
-   */
-  void ensure_vbos_uploaded() const;
-
   void debug_print() const;
 
  private:
@@ -71,8 +63,7 @@ class VKVertexAttributeObject {
                        VKBufferWithOffset *immediate_vertex_buffer,
                        const int64_t vertex_len,
                        const VKShaderInterface &interface,
-                       AttributeMask &r_occupied_attributes,
-                       const bool use_instancing);
+                       AttributeMask &r_occupied_attributes);
 };
 
 }  // namespace blender::gpu

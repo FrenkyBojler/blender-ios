@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-
 # SPDX-FileCopyrightText: 2024 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+
+__all__ = (
+    "main",
+)
 
 import argparse
 import os

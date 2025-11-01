@@ -8,6 +8,13 @@ else()
   set(LLVM_TARGETS X86)
 endif()
 
+if(UNIX AND NOT APPLE)
+  # Make llvm's pkgconfig pick up our static xml2 lib
+  set(LLVM_XML2_ARGS
+    -DCMAKE_PREFIX_PATH=${LIBDIR}/xml2
+  )
+endif()
+
 if(APPLE)
   set(LLVM_XML2_ARGS
     -DLIBXML2_LIBRARY=${LIBDIR}/xml2/lib/libxml2.a
@@ -46,7 +53,7 @@ else()
   set(LLVM_GENERATOR "Unix Makefiles")
 endif()
 
-# LLVM does not switch over to cpp17 until llvm 16 and building ealier versions with
+# LLVM does not switch over to cpp17 until llvm 16 and building earlier versions with
 # MSVC is leading to some crashes in ISPC. Switch back to their default on all platforms
 # for now.
 string(REPLACE "-DCMAKE_CXX_STANDARD=17" " " LLVM_CMAKE_FLAGS "${DEFAULT_CMAKE_FLAGS}")
@@ -114,7 +121,7 @@ else()
 endif()
 
 # We currently do not build libxml2 on Windows.
-if(APPLE)
+if(UNIX)
   add_dependencies(
     ll
     external_xml2

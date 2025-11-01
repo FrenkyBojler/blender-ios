@@ -16,6 +16,9 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
@@ -28,6 +31,7 @@
 
 #include "outliner_intern.hh"
 #include "tree/tree_display.hh"
+#include "tree/tree_element_rna.hh"
 
 namespace blender::ed::outliner {
 
@@ -38,10 +42,13 @@ namespace blender::ed::outliner {
 void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
 {
   memset(tvc, 0, sizeof(*tvc));
+  /* Workspace. */
+  tvc->workspace = CTX_wm_workspace(C);
 
   /* Scene level. */
   tvc->scene = CTX_data_scene(C);
   tvc->view_layer = CTX_data_view_layer(C);
+  tvc->layer_collection = CTX_data_layer_collection(C);
 
   /* Objects. */
   BKE_view_layer_synced_ensure(tvc->scene, tvc->view_layer);
@@ -187,6 +194,19 @@ TreeElement *outliner_find_id(SpaceOutliner *space_outliner, ListBase *lb, const
     if (tselem->type == TSE_SOME_ID) {
       if (tselem->id == id) {
         return te;
+      }
+    }
+    else if (tselem->type == TSE_RNA_STRUCT) {
+      /* No ID, so check if entry is RNA-struct, and if that RNA-struct is an ID datablock we are
+       * good. */
+      const TreeElementRNAStruct *te_rna_struct = tree_element_cast<TreeElementRNAStruct>(te);
+      if (te_rna_struct) {
+        const PointerRNA &ptr = te_rna_struct->get_pointer_rna();
+        if (RNA_struct_is_ID(ptr.type)) {
+          if (static_cast<ID *>(ptr.data) == id) {
+            return te;
+          }
+        }
       }
     }
 
@@ -477,4 +497,43 @@ Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2])
   }
 
   return base;
+}
+
+bool ED_outliner_give_rna_under_cursor(bContext *C, const int mval[2], PointerRNA *r_ptr)
+{
+  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+
+  float view_mval[2];
+  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+
+  TreeElement *te = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);
+  if (!te) {
+    return false;
+  }
+
+  bool success = true;
+  TreeStoreElem *tselem = TREESTORE(te);
+  switch (tselem->type) {
+    case TSE_BONE: {
+      Bone *bone = (Bone *)te->directdata;
+      *r_ptr = RNA_pointer_create_discrete(tselem->id, &RNA_Bone, bone);
+      break;
+    }
+    case TSE_POSE_CHANNEL: {
+      bPoseChannel *pchan = (bPoseChannel *)te->directdata;
+      *r_ptr = RNA_pointer_create_discrete(tselem->id, &RNA_PoseBone, pchan);
+      break;
+    }
+    case TSE_EBONE: {
+      EditBone *bone = (EditBone *)te->directdata;
+      *r_ptr = RNA_pointer_create_discrete(tselem->id, &RNA_EditBone, bone);
+      break;
+    }
+
+    default:
+      success = false;
+      break;
+  }
+  return success;
 }
