@@ -225,7 +225,7 @@ static void sequencer_generic_invoke_path__internal(bContext *C,
       Main *bmain = CTX_data_main(C);
       char dirpath[FILE_MAX];
       STRNCPY(dirpath, last_strip->data->dirpath);
-      BLI_path_abs(dirpath, BKE_main_blendfile_path(bmain));
+      BLI_path_abs(dirpath, ID_BLEND_PATH(bmain, &scene->id));
       RNA_string_set(op->ptr, identifier, dirpath);
     }
   }
@@ -566,7 +566,7 @@ static void seq_load_apply_generic_options(bContext *C, wmOperator *op, Strip *s
 
   if (RNA_boolean_get(op->ptr, "overlap_shuffle_override")) {
     /* Use set overlap_mode to fix overlaps. */
-    blender::VectorSet<Strip *> strip_col;
+    VectorSet<Strip *> strip_col;
     strip_col.add(strip);
 
     ScrArea *area = CTX_wm_area(C);
@@ -1087,7 +1087,7 @@ static IMB_Proxy_Size seq_get_proxy_size_flags(bContext *C)
   return proxy_sizes;
 }
 
-static void seq_build_proxy(bContext *C, blender::Span<Strip *> movie_strips)
+static void seq_build_proxy(bContext *C, Span<Strip *> movie_strips)
 {
   if (U.sequencer_proxy_setup != USER_SEQ_PROXY_SETUP_AUTOMATIC) {
     return;
@@ -1137,7 +1137,7 @@ static void sequencer_add_movie_sync_sound_strip(
 static void sequencer_add_movie_multiple_strips(bContext *C,
                                                 wmOperator *op,
                                                 seq::LoadData *load_data,
-                                                blender::VectorSet<Strip *> &r_movie_strips)
+                                                VectorSet<Strip *> &r_movie_strips)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -1145,7 +1145,7 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
   bool overlap_shuffle_override = RNA_boolean_get(op->ptr, "overlap") == false &&
                                   RNA_boolean_get(op->ptr, "overlap_shuffle_override");
   bool has_seq_overlap = false;
-  blender::Vector<Strip *> added_strips;
+  Vector<Strip *> added_strips;
 
   RNA_BEGIN (op->ptr, itemptr, "files") {
     char dir_only[FILE_MAX];
@@ -1210,7 +1210,7 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
 static bool sequencer_add_movie_single_strip(bContext *C,
                                              wmOperator *op,
                                              seq::LoadData *load_data,
-                                             blender::VectorSet<Strip *> &r_movie_strips)
+                                             VectorSet<Strip *> &r_movie_strips)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -1218,7 +1218,7 @@ static bool sequencer_add_movie_single_strip(bContext *C,
 
   Strip *strip_movie = nullptr;
   Strip *strip_sound = nullptr;
-  blender::Vector<Strip *> added_strips;
+  Vector<Strip *> added_strips;
 
   strip_movie = seq::add_movie_strip(bmain, scene, ed->current_strips(), load_data);
 
@@ -1297,7 +1297,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
     deselect_all_strips(scene);
   }
 
-  blender::VectorSet<Strip *> movie_strips;
+  VectorSet<Strip *> movie_strips;
   const int tot_files = RNA_property_collection_length(op->ptr,
                                                        RNA_struct_find_property(op->ptr, "files"));
 
@@ -1786,7 +1786,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
      * is set, every frame between `offset` and `max_framenr` . */
     sequencer_add_image_strip_load_files(op, scene, strip, &load_data, range);
 
-    seq::add_image_init_alpha_mode(strip);
+    seq::add_image_init_alpha_mode(bmain, scene, strip);
 
     /* Adjust starting length of strip.
      * Note that this length differs from `strip->len`, which is always 1 for single images. */
