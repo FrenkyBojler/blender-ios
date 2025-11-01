@@ -3507,3 +3507,9 @@ typedef struct NodeGeometryStoreBundleItem {
   int8_t data_type;
 } NodeGeometryStoreBundleItem;
 
+typedef struct NodeGeometryGetBundleItem {
+  /** #eCustomDataType. */
+  int8_t data_type;
+} NodeGeometryGetBundleItem;
+
+
