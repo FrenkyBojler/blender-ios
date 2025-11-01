@@ -825,8 +825,8 @@ float BKE_nurb_calc_length(const Nurb *nu, int resolution)
       }
       prevbezt = bezt;
       bezt++;
-
     }
+
     MEM_freeN(points);
   }
   else if (nu->type == CU_NURBS) {
