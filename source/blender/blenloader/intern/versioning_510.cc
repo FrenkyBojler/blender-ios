@@ -18,9 +18,11 @@
 #include "BLI_sys_types.h"
 
 #include "BKE_main.hh"
+#include "BKE_multires.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "DNA_modifier_types.h"
 
 #include "readfile.hh"
 
@@ -242,6 +244,18 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
       }
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+        if (md->type == eModifierType_Multires) {
+          MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
+          multires_do_versions_tangent_space_conversion(ob, mmd);
+        }
+      }
+    }
+  }
+
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
