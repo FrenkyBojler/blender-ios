@@ -770,16 +770,15 @@ float BKE_nurb_calc_length(const Nurb *nu, int resolution)
   float *points, *pntsit, *prevpntsit;
 
   if (nu->type == CU_POLY) {
-    bezt = nu->bezt;
+    a = nu->pntsu - 1;
+    bp = nu->bp;
     if (nu->flagu & CU_NURB_CYCLIC) {
-      a = nu->pntsu;
-      prevbezt = bezt;
-      bezt++;
+      a++;
+      prevbp = nu->bp + (nu->pntsu - 1);
     }
     else {
-      a = nu->pntsu - 1;
-      prevbezt = bezt;
-      bezt++;
+      prevbp = bp;
+      bp++;
     }
 
     while (a--) {
@@ -826,10 +825,6 @@ float BKE_nurb_calc_length(const Nurb *nu, int resolution)
       }
       prevbezt = bezt;
       bezt++;
-    }
-
-    if ((nu->flagu & CU_NURB_CYCLIC) && bezt == nu->bezt + nu->pntsu) {
-      bezt = nu->bezt;
     }
     MEM_freeN(points);
   }
