@@ -339,7 +339,7 @@ static void rna_SequenceEditor_update_cache(Main * /*bmain*/, Scene *scene, Poin
   Editing *ed = scene->ed;
 
   blender::seq::relations_free_imbuf(scene, &ed->seqbase, false);
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
 }
 
 static void rna_SequenceEditor_cache_settings_changed(Main * /*bmain*/,
@@ -791,14 +791,8 @@ static void rna_Strip_text_font_set(PointerRNA *ptr,
                                     ReportList * /*reports*/)
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
-  TextVars *data = static_cast<TextVars *>(strip->effectdata);
   VFont *value = static_cast<VFont *>(ptr_value.data);
-
-  blender::seq::effect_text_font_unload(data, true);
-
-  id_us_plus(&value->id);
-  data->text_blf_id = STRIP_FONT_NOT_LOADED;
-  data->text_font = value;
+  blender::seq::effect_text_font_set(strip, value);
 }
 
 /* name functions that ignore the first two characters */
@@ -2442,6 +2436,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, STRIP_TYPE_ALPHAOVER);
   RNA_def_property_ui_text(
       prop, "Blending Mode", "Method for controlling how the strip combines with other strips");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
 
