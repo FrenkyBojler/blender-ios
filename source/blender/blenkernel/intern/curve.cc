@@ -2782,6 +2782,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
         }
         prevbezt = bezt;
         bezt++;
+        /* For cyclic curves, wrap back to the first control point after reaching the end. */
         if ((nu->flagu & CU_NURB_CYCLIC) && bezt == nu->bezt + nu->pntsu) {
           bezt = nu->bezt;
         }
