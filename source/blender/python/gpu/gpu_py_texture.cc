@@ -357,7 +357,7 @@ static PyObject *pygpu_texture_format_get(BPyGPUTexture *self, void * /*type*/)
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_extend_mode_x_doc,
-    ".. method:: extend_mode_x(extend_mode=`EXTEND`)\n"
+    ".. method:: extend_mode_x(extend_mode='EXTEND')\n"
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along the x "
     "axis.\n"
@@ -382,7 +382,7 @@ static PyObject *pygpu_texture_extend_mode_x(BPyGPUTexture *self, PyObject *valu
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_extend_mode_y_doc,
-    ".. method:: extend_mode_y(extend_mode=`EXTEND`)\n"
+    ".. method:: extend_mode_y(extend_mode='EXTEND')\n"
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along the y "
     "axis.\n"
@@ -407,7 +407,7 @@ static PyObject *pygpu_texture_extend_mode_y(BPyGPUTexture *self, PyObject *valu
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_texture_extend_mode_doc,
-    ".. method:: extend_mode(extend_mode=`EXTEND`)\n"
+    ".. method:: extend_mode(extend_mode='EXTEND')\n"
     "\n"
     "   Set texture sampling method for coordinates outside of the [0..1] uv range along\n"
     "   both the x and y axis.\n"
