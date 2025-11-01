@@ -622,16 +622,11 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
     GPU_vertbuf_tag_dirty(cache->in_bonemat_buf);
   }
 
-  short no_cache = amd->use_gpucache;
-
   if (use_dual_quaternion) {
     cache->compute_shader = DRW_shader_armature_skinning_dqs_get();
   }
-  if (no_cache == WITH_CACHE) {
-    cache->compute_shader = DRW_shader_armature_skinning_lbs_get();
-  }
   else {
-    cache->compute_shader = DRW_shader_armature_skinning_nocache_get();
+    cache->compute_shader = DRW_shader_armature_skinning_lbs_get();
   }
 
   cache->cached_deform_flag = amd ? amd->deformflag : 0;
