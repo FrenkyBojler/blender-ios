@@ -60,31 +60,32 @@ void main()
 
   uint idx_u0 = indices_buf[gid].x;
   uint idx_u1 = indices_buf[gid].y;
-  uvec4 bone_idx = unpack_indices_from_two_uints(idx_u0, idx_u1);
-
   uint w_u0 = weights_buf[gid].x;
   uint w_u1 = weights_buf[gid].y;
+  vec4 P_rest_full = pos_buf[gid];
+  vec2 N_packed = nor_buf[gid];
+  vec4 T_rest = tan_buf[gid];
 
   /* Early exit for unweighted vertices */
   if (w_u0 == 0u && w_u1 == 0u) {
-    vec4 P_rest = pos_buf[gid];
-    vec2 N_packed = nor_buf[gid];
     vec3 N_rest = unpack_octahedral(N_packed);
-    vec4 T_rest = tan_buf[gid];
-    out_skinned_pos[gid] = P_rest;
+    out_skinned_pos[gid] = P_rest_full;
     out_skinned_nor[gid] = vec4(N_rest, 0.0f);
     out_skinned_tan[gid] = T_rest;
     return;
   }
 
+  uvec4 bone_idx = unpack_indices_from_two_uints(idx_u0, idx_u1);
   vec4 weights = unpack_weights_from_two_uints(w_u0, w_u1);
-
-  vec3 P_rest = vec3(pos_buf[gid]);
-  vec2 N_packed = nor_buf[gid];
+  vec3 P_rest = P_rest_full.xyz;
   vec3 N_rest = unpack_octahedral(N_packed);
-  vec4 T_rest = tan_buf[gid];
 
-  /* Initialize dual quaternion accumulator */
+  GPUDualQuat gpu_dq0, gpu_dq1, gpu_dq2, gpu_dq3;
+  if (bone_idx[0] != 0xFFFFu) gpu_dq0 = bonedq_buf[bone_idx[0]];
+  if (bone_idx[1] != 0xFFFFu) gpu_dq1 = bonedq_buf[bone_idx[1]];
+  if (bone_idx[2] != 0xFFFFu) gpu_dq2 = bonedq_buf[bone_idx[2]];
+  if (bone_idx[3] != 0xFFFFu) gpu_dq3 = bonedq_buf[bone_idx[3]];
+
   DualQuat dq_sum;
   dq_sum.quat = vec4(0.0, 0.0, 0.0, 0.0);
   dq_sum.trans = vec4(0.0, 0.0, 0.0, 0.0);
@@ -94,29 +95,74 @@ void main()
 
   float total_weight = 0.0;
 
-  for (int k = 0; k < 4; ++k) {
-    uint bi = bone_idx[k];
-    float w = weights[k];
+  /* Unrolled loop for better instruction scheduling */
+  
+  /* Bone 0 */
+  if (weights[0] > 0.0 && bone_idx[0] != 0xFFFFu) {
+    DualQuat bone_dq;
+    bone_dq.quat = vec4(gpu_dq0.quat[1], gpu_dq0.quat[2], gpu_dq0.quat[3], gpu_dq0.quat[0]);
+    bone_dq.trans = vec4(gpu_dq0.trans[1], gpu_dq0.trans[2], gpu_dq0.trans[3], gpu_dq0.trans[0]);
+    bone_dq.scale = mat4(
+      vec4(gpu_dq0.scale[0][0], gpu_dq0.scale[0][1], gpu_dq0.scale[0][2], gpu_dq0.scale[0][3]),
+      vec4(gpu_dq0.scale[1][0], gpu_dq0.scale[1][1], gpu_dq0.scale[1][2], gpu_dq0.scale[1][3]),
+      vec4(gpu_dq0.scale[2][0], gpu_dq0.scale[2][1], gpu_dq0.scale[2][2], gpu_dq0.scale[2][3]),
+      vec4(gpu_dq0.scale[3][0], gpu_dq0.scale[3][1], gpu_dq0.scale[3][2], gpu_dq0.scale[3][3])
+    );
+    bone_dq.scale_weight = gpu_dq0.scale_weight;
+    bone_dq.quat_weight = 1.0;
+    accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, weights[0]);
+    total_weight += weights[0];
+  }
 
-    if (w > 0.0 && bi != 0xFFFFu) {
-      GPUDualQuat gpu_dq = bonedq_buf[bi];
+  /* Bone 1 */
+  if (weights[1] > 0.0 && bone_idx[1] != 0xFFFFu) {
+    DualQuat bone_dq;
+    bone_dq.quat = vec4(gpu_dq1.quat[1], gpu_dq1.quat[2], gpu_dq1.quat[3], gpu_dq1.quat[0]);
+    bone_dq.trans = vec4(gpu_dq1.trans[1], gpu_dq1.trans[2], gpu_dq1.trans[3], gpu_dq1.trans[0]);
+    bone_dq.scale = mat4(
+      vec4(gpu_dq1.scale[0][0], gpu_dq1.scale[0][1], gpu_dq1.scale[0][2], gpu_dq1.scale[0][3]),
+      vec4(gpu_dq1.scale[1][0], gpu_dq1.scale[1][1], gpu_dq1.scale[1][2], gpu_dq1.scale[1][3]),
+      vec4(gpu_dq1.scale[2][0], gpu_dq1.scale[2][1], gpu_dq1.scale[2][2], gpu_dq1.scale[2][3]),
+      vec4(gpu_dq1.scale[3][0], gpu_dq1.scale[3][1], gpu_dq1.scale[3][2], gpu_dq1.scale[3][3])
+    );
+    bone_dq.scale_weight = gpu_dq1.scale_weight;
+    bone_dq.quat_weight = 1.0;
+    accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, weights[1]);
+    total_weight += weights[1];
+  }
 
-      DualQuat bone_dq;
-      bone_dq.quat = vec4(gpu_dq.quat[1], gpu_dq.quat[2], gpu_dq.quat[3], gpu_dq.quat[0]);
-      bone_dq.trans = vec4(gpu_dq.trans[1], gpu_dq.trans[2], gpu_dq.trans[3], gpu_dq.trans[0]);
-      bone_dq.scale = mat4(
-        vec4(gpu_dq.scale[0][0], gpu_dq.scale[0][1], gpu_dq.scale[0][2], gpu_dq.scale[0][3]),
-        vec4(gpu_dq.scale[1][0], gpu_dq.scale[1][1], gpu_dq.scale[1][2], gpu_dq.scale[1][3]),
-        vec4(gpu_dq.scale[2][0], gpu_dq.scale[2][1], gpu_dq.scale[2][2], gpu_dq.scale[2][3]),
-        vec4(gpu_dq.scale[3][0], gpu_dq.scale[3][1], gpu_dq.scale[3][2], gpu_dq.scale[3][3])
-      );
-      bone_dq.scale_weight = gpu_dq.scale_weight;
-      bone_dq.quat_weight = 1.0;
+  /* Bone 2 */
+  if (weights[2] > 0.0 && bone_idx[2] != 0xFFFFu) {
+    DualQuat bone_dq;
+    bone_dq.quat = vec4(gpu_dq2.quat[1], gpu_dq2.quat[2], gpu_dq2.quat[3], gpu_dq2.quat[0]);
+    bone_dq.trans = vec4(gpu_dq2.trans[1], gpu_dq2.trans[2], gpu_dq2.trans[3], gpu_dq2.trans[0]);
+    bone_dq.scale = mat4(
+      vec4(gpu_dq2.scale[0][0], gpu_dq2.scale[0][1], gpu_dq2.scale[0][2], gpu_dq2.scale[0][3]),
+      vec4(gpu_dq2.scale[1][0], gpu_dq2.scale[1][1], gpu_dq2.scale[1][2], gpu_dq2.scale[1][3]),
+      vec4(gpu_dq2.scale[2][0], gpu_dq2.scale[2][1], gpu_dq2.scale[2][2], gpu_dq2.scale[2][3]),
+      vec4(gpu_dq2.scale[3][0], gpu_dq2.scale[3][1], gpu_dq2.scale[3][2], gpu_dq2.scale[3][3])
+    );
+    bone_dq.scale_weight = gpu_dq2.scale_weight;
+    bone_dq.quat_weight = 1.0;
+    accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, weights[2]);
+    total_weight += weights[2];
+  }
 
-      /* Use vertex position as pivot point to neutralize scale artifacts */
-      accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, w);
-      total_weight += w;
-    }
+  /* Bone 3 */
+  if (weights[3] > 0.0 && bone_idx[3] != 0xFFFFu) {
+    DualQuat bone_dq;
+    bone_dq.quat = vec4(gpu_dq3.quat[1], gpu_dq3.quat[2], gpu_dq3.quat[3], gpu_dq3.quat[0]);
+    bone_dq.trans = vec4(gpu_dq3.trans[1], gpu_dq3.trans[2], gpu_dq3.trans[3], gpu_dq3.trans[0]);
+    bone_dq.scale = mat4(
+      vec4(gpu_dq3.scale[0][0], gpu_dq3.scale[0][1], gpu_dq3.scale[0][2], gpu_dq3.scale[0][3]),
+      vec4(gpu_dq3.scale[1][0], gpu_dq3.scale[1][1], gpu_dq3.scale[1][2], gpu_dq3.scale[1][3]),
+      vec4(gpu_dq3.scale[2][0], gpu_dq3.scale[2][1], gpu_dq3.scale[2][2], gpu_dq3.scale[2][3]),
+      vec4(gpu_dq3.scale[3][0], gpu_dq3.scale[3][1], gpu_dq3.scale[3][2], gpu_dq3.scale[3][3])
+    );
+    bone_dq.scale_weight = gpu_dq3.scale_weight;
+    bone_dq.quat_weight = 1.0;
+    accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, weights[3]);
+    total_weight += weights[3];
   }
 
   vec3 P_final;
