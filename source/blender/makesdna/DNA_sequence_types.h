@@ -20,7 +20,6 @@
 #include "DNA_session_uid_types.h" /* for #SessionUID */
 #include "DNA_vec_types.h"         /* for #rctf */
 
-struct Ipo;
 struct MovieClip;
 struct Scene;
 struct VFont;
@@ -31,6 +30,7 @@ namespace blender::seq {
 struct FinalImageCache;
 struct IntraFrameCache;
 struct MediaPresence;
+struct PreviewCache;
 struct ThumbnailCache;
 struct TextVarsRuntime;
 struct PrefetchJob;
@@ -40,6 +40,7 @@ struct StripLookup;
 using FinalImageCache = blender::seq::FinalImageCache;
 using IntraFrameCache = blender::seq::IntraFrameCache;
 using MediaPresence = blender::seq::MediaPresence;
+using PreviewCache = blender::seq::PreviewCache;
 using ThumbnailCache = blender::seq::ThumbnailCache;
 using TextVarsRuntime = blender::seq::TextVarsRuntime;
 using PrefetchJob = blender::seq::PrefetchJob;
@@ -49,6 +50,7 @@ using StripLookup = blender::seq::StripLookup;
 typedef struct FinalImageCache FinalImageCache;
 typedef struct IntraFrameCache IntraFrameCache;
 typedef struct MediaPresence MediaPresence;
+typedef struct PreviewCache PreviewCache;
 typedef struct ThumbnailCache ThumbnailCache;
 typedef struct TextVarsRuntime TextVarsRuntime;
 typedef struct PrefetchJob PrefetchJob;
@@ -86,7 +88,7 @@ typedef struct StripTransform {
   float scale_x;
   float scale_y;
   float rotation;
-  /** 0-1 range, use SEQ_image_transform_origin_offset_pixelspace_get to convert to pixel space. */
+  /** 0-1 range, `seq::image_transform_origin_offset_pixelspace_get` to convert to pixelspace. */
   float origin[2];
   int filter; /* eStripTransformFilter */
 } StripTransform;
@@ -110,11 +112,11 @@ typedef struct StripProxy {
   char dirpath[/*FILE_MAXDIR*/ 768];
   /** Custom file. */
   char filename[/*FILE_MAXFILE*/ 256];
-  struct MovieReader *anim; /* custom proxy anim file */
+  struct MovieReader *anim; /* Custom proxy anim file. */
 
-  short tc; /* time code in use */
+  short tc; /* Time code in use. */
 
-  short quality;          /* proxy build quality */
+  short quality;          /* Proxy build quality. */
   short build_size_flags; /* eStripProxyBuildSize, which proxy sizes to build. */
   short build_tc_flags;   /* eStripProxyTimeCode, which time codes to build. */
   short build_flags;      /* eStripProxyBuildFlag */
@@ -125,7 +127,6 @@ typedef struct StripProxy {
 typedef struct StripData {
   struct StripData *next, *prev;
   int us, done;
-  int startstill, endstill;
   /**
    * Only used as an array in IMAGE sequences(!),
    * and as a 1-element array in MOVIE sequences,
@@ -136,9 +137,10 @@ typedef struct StripData {
   StripProxy *proxy;
   StripCrop *crop;
   StripTransform *transform;
-  StripColorBalance *color_balance DNA_DEPRECATED;
+  /* Replaced by #ColorBalanceModifierData::color_balance in 2.64. */
+  StripColorBalance *color_balance_legacy DNA_DEPRECATED;
 
-  /* color management */
+  /* Color management */
   ColorManagedColorspaceSettings colorspace_settings;
 } StripData;
 
@@ -177,7 +179,7 @@ typedef struct Strip {
 
   int flag; /* eStripFlag; flags bit mask. */
   int type; /* StripType; strip type. */
-  /** The length of the contents of this strip - before handles are applied. */
+  /** The length of the contents of this strip before handles are applied. */
   int len;
   /**
    * Start frame of contents of strip in absolute frame coordinates.
@@ -185,15 +187,12 @@ typedef struct Strip {
    */
   float start;
   /**
-   * Frames after the first frame where display starts,
-   * frames before the last frame where display ends.
+   * Frame distance from content start to left handle, and from right handle to content end,
+   * meaning these can be negative if hold frames are visible.
    */
   float startofs, endofs;
-  /**
-   * Frames that use the first frame before data begins,
-   * frames that use the last frame after data ends.
-   */
-  float startstill, endstill;
+  /** Replaced by `startofs` and `endofs` in 3.3. */
+  float startstill_legacy DNA_DEPRECATED, endstill_legacy DNA_DEPRECATED;
   /** The current channel index of the strip in the timeline. */
   int channel;
   /** Starting and ending points of the effect strip. Undefined for other strip types. */
@@ -210,11 +209,9 @@ typedef struct Strip {
 
   StripData *data;
 
-  /** Old animation system, deprecated for 2.5. */
-  struct Ipo *ipo DNA_DEPRECATED;
-
-  /** these ID vars should never be NULL but can be when linked libraries fail to load,
-   * so check on access */
+  /** These ID vars should never be NULL but can be when linked libraries fail to load,
+   * so check on access. */
+  /* For SCENE strips. */
   struct Scene *scene;
   /** Override scene camera. */
   struct Object *scene_camera;
@@ -223,11 +220,12 @@ typedef struct Strip {
   /** For MASK strips. */
   struct Mask *mask;
   /** For MOVIE strips. */
-  ListBase anims;
+  ListBase anims; /* StripAnim */
 
+  /** Only for transition effect strips. Allows keyframing custom fade progression over time. */
   float effect_fader;
-  /* DEPRECATED, only used for versioning. */
-  float speed_fader;
+  /** Moved to #SpeedControlVars::speed_fader in 3.0. */
+  float speed_fader_legacy DNA_DEPRECATED;
 
   /** Effect strip inputs (`nullptr` if not an effect strip). */
   struct Strip *input1, *input2;
@@ -251,8 +249,9 @@ typedef struct Strip {
   void *scene_sound;
   float volume;
 
-  /** Pitch (-0.1..10), pan -2..2. */
-  float pitch DNA_DEPRECATED, pan;
+  /** Pitch ranges from -0.1 to 10, replaced in 3.3 with #Strip::speed_factor on sound strips.
+   * Pan ranges from -2 to 2. */
+  float pitch_legacy DNA_DEPRECATED, pan;
   float strobe;
 
   float sound_offset;
@@ -261,12 +260,10 @@ typedef struct Strip {
   /** Struct pointer for effect settings. */
   void *effectdata;
 
-  /** Only use part of animation file. */
-  int anim_startofs;
-  /** Is subtle different to startofs / endofs. */
-  int anim_endofs;
+  /** Frame offset from start/end of video file content to be ignored and invisible to the VSE. */
+  int anim_startofs, anim_endofs;
 
-  int blend_mode;
+  int blend_mode; /* StripBlendMode */
   float blend_opacity;
 
   int8_t color_tag; /* StripColorTag */
@@ -288,10 +285,10 @@ typedef struct Strip {
   /** System-defined custom properties storage. */
   struct IDProperty *system_properties;
 
-  /* modifiers */
-  ListBase modifiers;
+  /* Modifiers */
+  ListBase modifiers; /* StripModifierData */
 
-  /* Playback rate of strip content in frames per second. */
+  /* Playback rate of original video file in frames per second, for movie strips only. */
   float media_playback_rate;
   float speed_factor;
 
@@ -299,15 +296,24 @@ typedef struct Strip {
   int retiming_keys_num;
   char _pad6[4];
 
+  void *_pad10;
+
   StripRuntime runtime;
+
+#ifdef __cplusplus
+  bool is_effect() const;
+#endif
 } Strip;
 
 typedef struct MetaStack {
   struct MetaStack *next, *prev;
-  ListBase *oldbasep;
-  ListBase *old_channels;
+  /**
+   * The meta-strip that contains `parent_strip`. May be null (that means it is the top-most
+   * strips).
+   */
+  Strip *old_strip;
   Strip *parent_strip;
-  /* the startdisp/enddisp when entering the meta */
+  /* The startdisp/enddisp when entering the metastrip. */
   int disp_range[2];
 } MetaStack;
 
@@ -330,14 +336,17 @@ typedef struct EditingRuntime {
   IntraFrameCache *intra_frame_cache;
   SourceImageCache *source_image_cache;
   FinalImageCache *final_image_cache;
+  PreviewCache *preview_cache;
 } EditingRuntime;
 
 typedef struct Editing {
-  /** Pointer to the current list of seq's being edited (can be within a meta strip). */
-  ListBase *seqbasep;
-  ListBase *displayed_channels;
-  void *_pad0;
-  /** Pointer to the top-most seq's. */
+  /**
+   * The current meta-strip being edited and/or viewed, may be null, in which case the top-most
+   * strips are used.
+   */
+  Strip *current_meta_strip;
+
+  /** Pointer to the top-most strips. */
   ListBase seqbase;
   ListBase metastack;
   ListBase channels; /* SeqTimelineChannel */
@@ -357,6 +366,16 @@ typedef struct Editing {
   PrefetchJob *prefetch_job;
 
   EditingRuntime runtime;
+
+#ifdef __cplusplus
+  /** Access currently displayed strips, from root sequence or a meta-strip. */
+  ListBase *current_strips();
+  ListBase *current_strips() const;
+
+  /** Access currently displayed channels, from root sequence or a meta-strip. */
+  ListBase *current_channels();
+  ListBase *current_channels() const;
+#endif
 } Editing;
 
 /** \} */
@@ -393,7 +412,8 @@ typedef struct GlowVars {
   int bNoComp;
 } GlowVars;
 
-typedef struct TransformVars {
+/* Removed in 5.0. Only used in versioning and blend reading. */
+typedef struct TransformVarsLegacy {
   float ScalexIni;
   float ScaleyIni;
   float xIni;
@@ -403,7 +423,7 @@ typedef struct TransformVars {
   int interpolation;
   /** Preserve aspect/ratio when scaling. */
   int uniform_scale;
-} TransformVars;
+} TransformVarsLegacy;
 
 typedef struct SolidColorVars {
   float col[3];
@@ -412,8 +432,8 @@ typedef struct SolidColorVars {
 
 typedef struct SpeedControlVars {
   float *frameMap;
-  /* DEPRECATED, only used for versioning. */
-  float globalSpeed;
+  /** Replaced by `speed_fader_*` fields in 3.0. */
+  float globalSpeed_legacy DNA_DEPRECATED;
   int flags; /* eEffectSpeedControlFlags */
 
   int speed_control_type; /* eEffectSpeedControlType */
@@ -466,7 +486,9 @@ typedef struct TextVars {
   int selection_start_offset;
   int selection_end_offset;
 
-  char align_y DNA_DEPRECATED /* eEffectTextAlignY; only used for versioning. */;
+  /** Replaced by `anchor_y` in 4.4. */
+  char align_y_legacy DNA_DEPRECATED; /* eEffectTextAlignY */
+
   char anchor_x; /* eEffectTextAlignX */
   char anchor_y; /* eEffectTextAlignY */
   char _pad1;
@@ -486,14 +508,14 @@ typedef enum eEffectTextFlags {
   SEQ_TEXT_OUTLINE = (1 << 4),
 } eEffectTextFlags;
 
-/** #TextVars.align */
+/** #TextVars.anchor_x, #TextVars.align */
 typedef enum eEffectTextAlignX {
   SEQ_TEXT_ALIGN_X_LEFT = 0,
   SEQ_TEXT_ALIGN_X_CENTER = 1,
   SEQ_TEXT_ALIGN_X_RIGHT = 2,
 } eEffectTextAlignX;
 
-/** #TextVars.align_y */
+/** #TextVars.anchor_y, formerly #TextVars.align_y */
 typedef enum eEffectTextAlignY {
   SEQ_TEXT_ALIGN_Y_TOP = 0,
   SEQ_TEXT_ALIGN_Y_CENTER = 1,
@@ -503,8 +525,7 @@ typedef enum eEffectTextAlignY {
 #define STRIP_FONT_NOT_LOADED -2
 
 typedef struct ColorMixVars {
-  /** Value from STRIP_TYPE_XXX enumeration. */
-  int blend_effect;
+  int blend_effect; /* StripBlendMode */
   /** Blend factor [0.0f, 1.0f]. */
   float factor;
 } ColorMixVars;
@@ -533,7 +554,7 @@ typedef struct StripModifierData {
   int flag; /* eStripModifierFlag */
   char name[/*MAX_NAME*/ 64];
 
-  /* mask input, either sequence or mask ID */
+  /* Mask input, either strip or mask ID. */
   int mask_input_type; /* eModMaskInput */
   int mask_time;       /* eModMaskTime */
 
@@ -541,7 +562,11 @@ typedef struct StripModifierData {
   struct Mask *mask_id;
 
   int persistent_uid;
-  char _pad[4];
+  /**
+   * Bits that can be used for open-states of layout panels in the modifier.
+   */
+  uint16_t layout_panel_open_flag;
+  char _pad[2];
 
   StripModifierDataRuntime runtime;
 } StripModifierData;
@@ -601,8 +626,14 @@ typedef enum eModTonemapType {
   SEQ_TONEMAP_RD_PHOTORECEPTOR = 1,
 } eModTonemapType;
 
+typedef struct SequencerCompositorModifierData {
+  StripModifierData modifier;
+  struct bNodeTree *node_group;
+} SequencerCompositorModifierData;
+
 /** \} */
 
+/* -------------------------------------------------------------------- */
 /** \name Sound Modifiers
  * \{ */
 
@@ -616,6 +647,7 @@ typedef struct SoundEqualizerModifierData {
   /* EQCurveMappingData */
   ListBase graphics;
 } SoundEqualizerModifierData;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -644,9 +676,9 @@ typedef enum eEditingProxyStorageMode {
 
 /** #SpeedControlVars::flags */
 typedef enum eEffectSpeedControlFlags {
-  SEQ_SPEED_UNUSED_2 = 1 << 0, /* cleared */
-  SEQ_SPEED_UNUSED_1 = 1 << 1, /* cleared */
-  SEQ_SPEED_UNUSED_3 = 1 << 2, /* cleared */
+  SEQ_SPEED_UNUSED_2 = 1 << 0, /* Cleared. */
+  SEQ_SPEED_UNUSED_1 = 1 << 1, /* Cleared. */
+  SEQ_SPEED_UNUSED_3 = 1 << 2, /* Cleared. */
   SEQ_SPEED_USE_INTERPOLATION = 1 << 3,
 } eEffectSpeedControlFlags;
 
@@ -703,29 +735,29 @@ typedef enum eStripFlag {
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
   SEQ_USE_LINEAR_MODIFIERS = (1 << 23),
 
-  /* flags for whether those properties are animated or not */
+  /* Flags for whether those properties are animated or not */
   SEQ_AUDIO_VOLUME_ANIMATED = (1 << 24),
   SEQ_AUDIO_PITCH_ANIMATED = (1 << 25),
   SEQ_AUDIO_PAN_ANIMATED = (1 << 26),
   SEQ_AUDIO_DRAW_WAVEFORM = (1 << 27),
 
-  /* don't include Annotations in OpenGL previews of Scene strips */
+  /* Don't include annotations in OpenGL previews of Scene strips. */
   SEQ_SCENE_NO_ANNOTATION = (1 << 28),
   SEQ_USE_VIEWS = (1 << 29),
 
   /* Access scene strips directly (like a meta-strip). */
   SEQ_SCENE_STRIPS = (1 << 30),
 
-  SEQ_UNUSED_31 = (1u << 31),
+  SEQ_AUDIO_PITCH_CORRECTION = (1u << 31)
 } eStripFlag;
 
 /** #StripProxy.storage */
 typedef enum eStripProxyStorageFlag {
-  SEQ_STORAGE_PROXY_CUSTOM_FILE = (1 << 1), /* store proxy in custom directory */
-  SEQ_STORAGE_PROXY_CUSTOM_DIR = (1 << 2),  /* store proxy in custom file */
+  SEQ_STORAGE_PROXY_CUSTOM_FILE = (1 << 1), /* Store proxy in custom directory. */
+  SEQ_STORAGE_PROXY_CUSTOM_DIR = (1 << 2),  /* Store proxy in custom file. */
 } eStripProxyStorageFlag;
 
-/* convenience define for all selection flags */
+/* Convenience define for all selection flags. */
 #define STRIP_ALLSEL (SELECT + SEQ_LEFTSEL + SEQ_RIGHTSEL)
 
 typedef enum eModColorBalanceInverseFlag {
@@ -770,7 +802,7 @@ typedef enum eStripAlphaMode {
 /**
  * #Strip.type
  *
- * \warning #STRIP_TYPE_EFFECT BIT is used to determine if this is an effect strip!
+ * Note: update #Strip::is_effect when adding new effect types.
  */
 typedef enum StripType {
   STRIP_TYPE_IMAGE = 0,
@@ -782,7 +814,6 @@ typedef enum StripType {
   STRIP_TYPE_MOVIECLIP = 6,
   STRIP_TYPE_MASK = 7,
 
-  STRIP_TYPE_EFFECT = 8,
   STRIP_TYPE_CROSS = 8,
   STRIP_TYPE_ADD = 9,
   STRIP_TYPE_SUB = 10,
@@ -790,12 +821,13 @@ typedef enum StripType {
   STRIP_TYPE_ALPHAUNDER = 12,
   STRIP_TYPE_GAMCROSS = 13,
   STRIP_TYPE_MUL = 14,
-  STRIP_TYPE_OVERDROP_REMOVED =
-      15, /* Removed (behavior was the same as alpha-over), only used when reading old files. */
-  /* STRIP_TYPE_PLUGIN      = 24, */ /* Deprecated */
+  /* Removed (behavior was the same as alpha-over), only used when reading old files. */
+  STRIP_TYPE_OVERDROP_REMOVED = 15,
+  /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
   STRIP_TYPE_WIPE = 25,
   STRIP_TYPE_GLOW = 26,
-  STRIP_TYPE_TRANSFORM = 27,
+  /* Removed in 5.0, used only for versioning. */
+  STRIP_TYPE_TRANSFORM_LEGACY = 27,
   STRIP_TYPE_COLOR = 28,
   STRIP_TYPE_SPEED = 29,
   STRIP_TYPE_MULTICAM = 30,
@@ -803,28 +835,6 @@ typedef enum StripType {
   STRIP_TYPE_GAUSSIAN_BLUR = 40,
   STRIP_TYPE_TEXT = 41,
   STRIP_TYPE_COLORMIX = 42,
-
-  /* Blend modes */
-  STRIP_TYPE_SCREEN = 43,
-  STRIP_TYPE_LIGHTEN = 44,
-  STRIP_TYPE_DODGE = 45,
-  STRIP_TYPE_DARKEN = 46,
-  STRIP_TYPE_COLOR_BURN = 47,
-  STRIP_TYPE_LINEAR_BURN = 48,
-  STRIP_TYPE_OVERLAY = 49,
-  STRIP_TYPE_HARD_LIGHT = 50,
-  STRIP_TYPE_SOFT_LIGHT = 51,
-  STRIP_TYPE_PIN_LIGHT = 52,
-  STRIP_TYPE_LIN_LIGHT = 53,
-  STRIP_TYPE_VIVID_LIGHT = 54,
-  STRIP_TYPE_HUE = 55,
-  STRIP_TYPE_SATURATION = 56,
-  STRIP_TYPE_VALUE = 57,
-  STRIP_TYPE_BLEND_COLOR = 58,
-  STRIP_TYPE_DIFFERENCE = 59,
-  STRIP_TYPE_EXCLUSION = 60,
-
-  STRIP_TYPE_MAX = 60,
 } StripType;
 
 typedef enum eStripMovieClipFlag {
@@ -832,13 +842,38 @@ typedef enum eStripMovieClipFlag {
   SEQ_MOVIECLIP_RENDER_STABILIZED = 1 << 1,
 } eStripMovieClipFlag;
 
-enum {
-  SEQ_BLEND_REPLACE = 0,
-  /* all other BLEND_MODEs are simple STRIP_TYPE_EFFECT ids and therefore identical
-   * to the table above. (Only those effects that handle _exactly_ two inputs,
-   * otherwise, you can't really blend, right :) !)
-   */
-};
+typedef enum StripBlendMode {
+  STRIP_BLEND_REPLACE = 0,
+
+  STRIP_BLEND_CROSS = 8,
+  STRIP_BLEND_ADD = 9,
+  STRIP_BLEND_SUB = 10,
+  STRIP_BLEND_ALPHAOVER = 11,
+  STRIP_BLEND_ALPHAUNDER = 12,
+  STRIP_BLEND_GAMCROSS = 13,
+  STRIP_BLEND_MUL = 14,
+  /* Removed (behavior was the same as alpha-over), only used when reading old files. */
+  STRIP_BLEND_OVERDROP_REMOVED = 15,
+
+  STRIP_BLEND_SCREEN = 43,
+  STRIP_BLEND_LIGHTEN = 44,
+  STRIP_BLEND_DODGE = 45,
+  STRIP_BLEND_DARKEN = 46,
+  STRIP_BLEND_COLOR_BURN = 47,
+  STRIP_BLEND_LINEAR_BURN = 48,
+  STRIP_BLEND_OVERLAY = 49,
+  STRIP_BLEND_HARD_LIGHT = 50,
+  STRIP_BLEND_SOFT_LIGHT = 51,
+  STRIP_BLEND_PIN_LIGHT = 52,
+  STRIP_BLEND_LIN_LIGHT = 53,
+  STRIP_BLEND_VIVID_LIGHT = 54,
+  STRIP_BLEND_HUE = 55,
+  STRIP_BLEND_SATURATION = 56,
+  STRIP_BLEND_VALUE = 57,
+  STRIP_BLEND_BLEND_COLOR = 58,
+  STRIP_BLEND_DIFFERENCE = 59,
+  STRIP_BLEND_EXCLUSION = 60,
+} StripBlendMode;
 
 #define STRIP_HAS_PATH(_strip) \
   (ELEM((_strip)->type, \
@@ -847,18 +882,20 @@ enum {
         STRIP_TYPE_SOUND_RAM, \
         STRIP_TYPE_SOUND_HD))
 
-/* modifiers */
+/* Modifiers */
 
 /** #StripModifierData.type */
 typedef enum eStripModifierType {
-  seqModifierType_ColorBalance = 1,
-  seqModifierType_Curves = 2,
-  seqModifierType_HueCorrect = 3,
-  seqModifierType_BrightContrast = 4,
-  seqModifierType_Mask = 5,
-  seqModifierType_WhiteBalance = 6,
-  seqModifierType_Tonemap = 7,
-  seqModifierType_SoundEqualizer = 8,
+  eSeqModifierType_None = 0,
+  eSeqModifierType_ColorBalance = 1,
+  eSeqModifierType_Curves = 2,
+  eSeqModifierType_HueCorrect = 3,
+  eSeqModifierType_BrightContrast = 4,
+  eSeqModifierType_Mask = 5,
+  eSeqModifierType_WhiteBalance = 6,
+  eSeqModifierType_Tonemap = 7,
+  eSeqModifierType_SoundEqualizer = 8,
+  eSeqModifierType_Compositor = 9,
   /* Keep last. */
   NUM_STRIP_MODIFIER_TYPES,
 } eStripModifierType;
@@ -867,6 +904,7 @@ typedef enum eStripModifierType {
 typedef enum eStripModifierFlag {
   STRIP_MODIFIER_FLAG_MUTE = (1 << 0),
   STRIP_MODIFIER_FLAG_EXPANDED = (1 << 1),
+  STRIP_MODIFIER_FLAG_ACTIVE = (1 << 2),
 } eStripModifierFlag;
 
 typedef enum eModMaskInput {

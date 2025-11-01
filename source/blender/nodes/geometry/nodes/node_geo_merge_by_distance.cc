@@ -5,6 +5,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_merge_by_distance.hh"
 #include "GEO_point_merge_by_distance.hh"
 
@@ -18,13 +19,13 @@ static EnumPropertyItem mode_items[] = {
     {GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL,
      "ALL",
      0,
-     "All",
-     "Merge all close selected points, whether or not they are connected"},
+     N_("All"),
+     N_("Merge all close selected points, whether or not they are connected")},
     {GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED,
      "CONNECTED",
      0,
-     "Connected",
-     "Only merge mesh vertices along existing edges. This method can be much faster"},
+     N_("Connected"),
+     N_("Only merge mesh vertices along existing edges. This method can be much faster")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -37,7 +38,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Point cloud or mesh to merge points of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Menu>("Mode").static_items(mode_items);
+  b.add_input<decl::Menu>("Mode").static_items(mode_items).optional_label();
   b.add_input<decl::Float>("Distance").default_value(0.001f).min(0.0f).subtype(PROP_DISTANCE);
 }
 
@@ -103,7 +104,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const float merge_distance = params.extract_input<float>("Distance");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
       PointCloud *result = pointcloud_merge_by_distance(
           *pointcloud, merge_distance, selection, params.get_attribute_filter("Geometry"));

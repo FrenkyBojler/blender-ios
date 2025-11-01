@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #include "DNA_asset_types.h"
 #include "DNA_defs.h"
@@ -648,7 +648,6 @@ enum {
 enum {
   UILST_LAYOUT_DEFAULT = 0,
   UILST_LAYOUT_COMPACT = 1,
-  UILST_LAYOUT_GRID = 2,
   UILST_LAYOUT_BIG_PREVIEW_GRID = 3,
 };
 
@@ -797,6 +796,7 @@ enum {
    * wouldn't exist. Runtime only flag. */
   RGN_FLAG_POLL_FAILED = (1 << 10),
   RGN_FLAG_RESIZE_RESPECT_BUTTON_SECTIONS = (1 << 11),
+  RGN_FLAG_INDICATE_OVERFLOW = (1 << 12),
 };
 
 /** #ARegion.do_draw */
@@ -894,7 +894,7 @@ typedef struct RegionAssetShelf {
 typedef enum AssetShelfSettings_DisplayFlag {
   ASSETSHELF_SHOW_NAMES = (1 << 0),
 } AssetShelfSettings_DisplayFlag;
-ENUM_OPERATORS(AssetShelfSettings_DisplayFlag, ASSETSHELF_SHOW_NAMES);
+ENUM_OPERATORS(AssetShelfSettings_DisplayFlag);
 
 /* #AssetShelfSettings.instance_flag */
 typedef enum AssetShelf_InstanceFlag {
@@ -905,7 +905,7 @@ typedef enum AssetShelf_InstanceFlag {
    */
   ASSETSHELF_REGION_IS_HIDDEN = (1 << 0),
 } AssetShelf_InstanceFlag;
-ENUM_OPERATORS(AssetShelf_InstanceFlag, ASSETSHELF_REGION_IS_HIDDEN);
+ENUM_OPERATORS(AssetShelf_InstanceFlag);
 
 typedef struct FileHandler {
   DNA_DEFINE_CXX_METHODS(FileHandler)

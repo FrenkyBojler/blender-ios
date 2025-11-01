@@ -16,6 +16,8 @@
 #include "DNA_texture_types.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
+#include "BLI_enum_flags.hh"
+
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
 #  include <string>
@@ -156,18 +158,17 @@ typedef struct bNodeSocket {
   void *default_value;
 
   /** Local stack index for "node_exec". */
-  short stack_index;
+  int stack_index;
   char display_shape;
 
   /* #AttrDomain used when the geometry nodes modifier creates an attribute for a group
    * output. */
   char attribute_domain;
 
-  char _pad[4];
+  char _pad[2];
 
   /** Custom dynamic defined label. */
   char label[/*MAX_NAME*/ 64];
-  char short_label[/*MAX_NAME*/ 64];
   char description[/*MAX_NAME*/ 64];
 
   /**
@@ -236,11 +237,13 @@ typedef struct bNodeSocket {
    */
   bool affects_node_output() const;
   /**
-   * This becomes false when it is detected that the input socket is currently not used and its
-   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whose
-   * visibility is controlled by a menu should be hidden.
+   * This becomes false when it is detected that the socket is unused and should be hidden.
+   * Inputs: An input should be hidden if it's unused and its usage depends on a menu input (as
+   *   opposed to e.g. a boolean input).
+   * Outputs: An output is unused if it outputs the socket types fallback value as a constant given
+   *   the current set of menu inputs and its value depends on a menu input.
    */
-  bool inferred_input_socket_visibility() const;
+  bool inferred_socket_visibility() const;
   /**
    * True when the value of this socket may be a field. This is inferred during structure type
    * inferencing.
@@ -337,7 +340,7 @@ typedef enum eNodeSocketInOut {
   SOCK_IN = 1 << 0,
   SOCK_OUT = 1 << 1,
 } eNodeSocketInOut;
-ENUM_OPERATORS(eNodeSocketInOut, SOCK_OUT);
+ENUM_OPERATORS(eNodeSocketInOut);
 
 /** #bNodeSocket.flag, first bit is selection. */
 typedef enum eNodeSocketFlag {
@@ -356,16 +359,14 @@ typedef enum eNodeSocketFlag {
   SOCK_HIDE_VALUE = (1 << 7),
   /** Socket hidden automatically, to distinguish from manually hidden. */
   SOCK_AUTO_HIDDEN__DEPRECATED = (1 << 8),
-  SOCK_NO_INTERNAL_LINK = (1 << 9),
-  /** Draw socket in a more compact form. */
-  SOCK_COMPACT = (1 << 10),
+  /** Not used anymore but may still be set in files. */
+  SOCK_NO_INTERNAL_LINK_LEGACY = (1 << 9),
+  /** Not used anymore but may still be set in files. */
+  SOCK_COMPACT_LEGACY = (1 << 10),
   /** Make the input socket accept multiple incoming links in the UI. */
   SOCK_MULTI_INPUT = (1 << 11),
-  /**
-   * Don't show the socket's label in the interface, for situations where the
-   * type is obvious and the name takes up too much space.
-   */
-  SOCK_HIDE_LABEL = (1 << 12),
+  /** Not used anymore but may still be set in files. */
+  SOCK_HIDE_LABEL_LEGACY = (1 << 12),
   /**
    * Only used for geometry nodes. Don't show the socket value in the modifier interface.
    */
@@ -500,6 +501,11 @@ typedef struct bNode {
    * equivalent to #storage.
    */
   IDProperty *prop;
+
+  /**
+   * System-defined properties, used e.g. to store data for custom node types.
+   */
+  IDProperty *system_properties;
 
   /** Parent node (for frame nodes). */
   struct bNode *parent;
@@ -794,7 +800,7 @@ typedef struct bNodeTree {
   /** Precision used by the GPU execution of the compositor tree. */
   int precision DNA_DEPRECATED;
 
-  /** #blender::bke::NodeGroupColorTag. */
+  /** #blender::bke::NodeColorTag. */
   int color_tag;
 
   /**
@@ -1063,8 +1069,9 @@ typedef enum GeometryNodeAssetTraitFlag {
   GEO_NODE_ASSET_GREASE_PENCIL = (1 << 9),
   /* Only used by Grease Pencil for now. */
   GEO_NODE_ASSET_PAINT = (1 << 10),
+  GEO_NODE_ASSET_HIDE_MODIFIER_MANAGE_PANEL = (1 << 11),
 } GeometryNodeAssetTraitFlag;
-ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_PAINT);
+ENUM_OPERATORS(GeometryNodeAssetTraitFlag);
 
 /* Data structs, for `node->storage`. */
 
@@ -1182,7 +1189,7 @@ typedef struct NodeBlurData {
   float fac DNA_DEPRECATED;
   float percentx DNA_DEPRECATED;
   float percenty DNA_DEPRECATED;
-  short filtertype;
+  short filtertype DNA_DEPRECATED;
   char bokeh DNA_DEPRECATED;
   char gamma DNA_DEPRECATED;
 } NodeBlurData;
@@ -1207,7 +1214,7 @@ typedef struct NodeBilateralBlurData {
 
 typedef struct NodeKuwaharaData {
   short size DNA_DEPRECATED;
-  short variation;
+  short variation DNA_DEPRECATED;
   int uniformity DNA_DEPRECATED;
   float sharpness DNA_DEPRECATED;
   float eccentricity DNA_DEPRECATED;
@@ -1234,32 +1241,61 @@ typedef struct NodeImageFile {
   int sfra, efra;
 } NodeImageFile;
 
-/**
- * XXX: first struct fields should match #NodeImageFile to ensure forward compatibility.
- */
-typedef struct NodeImageMultiFile {
-  char base_path[/*FILE_MAX*/ 1024];
-  ImageFormatData format;
-  /** XXX old frame rand values from NodeImageFile for forward compatibility. */
-  int sfra DNA_DEPRECATED, efra DNA_DEPRECATED;
-  /** Selected input in details view list. */
-  int active_input;
+typedef struct NodeCompositorFileOutputItem {
+  /* The unique identifier of the item used to construct the socket identifier. */
+  int identifier;
+  /* The type of socket for the item, which is limited to the types listed in the
+   * FileOutputItemsAccessor::supports_socket_type. */
+  int16_t socket_type;
+  /* The number of dimensions in the vector socket if the socket type is vector, otherwise, it is
+   * unused, */
+  char vector_socket_dimensions;
+  /* If true and the node is saving individual files, the format an save_as_render members of this
+   * struct will be used, otherwise, the members of the NodeCompositorFileOutput struct will be
+   * used for all items. */
+  char override_node_format;
+  /* Apply the render part of the display transform when saving non-linear images. Unused if
+   * override_node_format is false or the node is saving multi-layer images. */
   char save_as_render;
-  char _pad[3];
-} NodeImageMultiFile;
+  char _pad[7];
+  /* The unique name of the item. It is used as the file name when saving individual files and used
+   * as the layer name when saving multi-layer images. */
+  char *name;
+  /* The image format to use when saving individual images and override_node_format is true. */
+  ImageFormatData format;
+} NodeCompositorFileOutputItem;
+
+typedef struct NodeCompositorFileOutput {
+  char directory[/*FILE_MAX*/ 1024];
+  /* The base name of the file. Can be nullptr. */
+  char *file_name;
+  /* The image format to use when saving the images. */
+  ImageFormatData format;
+  /* The file output images. They can represent individual images or layers depending on whether
+   * multi-layer images are being saved. */
+  NodeCompositorFileOutputItem *items;
+  /* The number of file output items. */
+  int items_count;
+  /* The currently active file output item. */
+  int active_item_index;
+  /* Apply the render part of the display transform when saving non-linear images. */
+  char save_as_render;
+  char _pad[7];
+} NodeCompositorFileOutput;
+
 typedef struct NodeImageMultiFileSocket {
   /* single layer file output */
   short use_render_format DNA_DEPRECATED;
   /** Use overall node image format. */
-  short use_node_format;
-  char save_as_render;
+  short use_node_format DNA_DEPRECATED;
+  char save_as_render DNA_DEPRECATED;
   char _pad1[3];
-  char path[/*FILE_MAX*/ 1024];
-  ImageFormatData format;
+  char path[/*FILE_MAX*/ 1024] DNA_DEPRECATED;
+  ImageFormatData format DNA_DEPRECATED;
 
   /* Multi-layer output. */
   /** Subtract 2 because '.' and channel char are appended. */
-  char layer[/*EXR_TOT_MAXNAME - 2*/ 62];
+  char layer[/*EXR_TOT_MAXNAME - 2*/ 62] DNA_DEPRECATED;
   char _pad2[2];
 } NodeImageMultiFileSocket;
 
@@ -1271,8 +1307,8 @@ typedef struct NodeChroma {
   float fstrength DNA_DEPRECATED;
   float falpha DNA_DEPRECATED;
   float key[4] DNA_DEPRECATED;
-  short algorithm;
-  short channel;
+  short algorithm DNA_DEPRECATED;
+  short channel DNA_DEPRECATED;
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
@@ -1322,8 +1358,8 @@ typedef struct NodeScriptDict {
 
 /** glare node. */
 typedef struct NodeGlare {
-  char type;
-  char quality;
+  char type DNA_DEPRECATED;
+  char quality DNA_DEPRECATED;
   char iter DNA_DEPRECATED;
   char angle DNA_DEPRECATED;
   char _pad0;
@@ -1354,7 +1390,7 @@ typedef struct NodeTonemap {
   float m DNA_DEPRECATED;
   float a DNA_DEPRECATED;
   float c DNA_DEPRECATED;
-  int type;
+  int type DNA_DEPRECATED;
 } NodeTonemap;
 
 /* Lens Distortion node. */
@@ -1363,7 +1399,7 @@ typedef struct NodeLensDist {
   short proj DNA_DEPRECATED;
   short fit DNA_DEPRECATED;
   char _pad[2];
-  int distortion_type;
+  int distortion_type DNA_DEPRECATED;
 } NodeLensDist;
 
 typedef struct NodeColorBalance {
@@ -1387,7 +1423,7 @@ typedef struct NodeColorBalance {
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
-  short limchan;
+  short limchan DNA_DEPRECATED;
   short unspill DNA_DEPRECATED;
   float limscale DNA_DEPRECATED;
   float uspillr DNA_DEPRECATED;
@@ -1400,6 +1436,11 @@ typedef struct NodeConvertColorSpace {
   char to_color_space[64];
 } NodeConvertColorSpace;
 
+typedef struct NodeConvertToDisplay {
+  ColorManagedDisplaySettings display_settings;
+  ColorManagedViewSettings view_settings;
+} NodeConvertToDisplay;
+
 typedef struct NodeDilateErode {
   char falloff;
 } NodeDilateErode;
@@ -1410,7 +1451,7 @@ typedef struct NodeMask {
 } NodeMask;
 
 typedef struct NodeSetAlpha {
-  char mode;
+  char mode DNA_DEPRECATED;
 } NodeSetAlpha;
 
 typedef struct NodeTexBase {
@@ -1421,16 +1462,19 @@ typedef struct NodeTexBase {
 typedef struct NodeTexSky {
   NodeTexBase base;
   int sky_model;
+  float sun_direction[3];
+  float turbidity;
+  float ground_albedo;
   float sun_size;
   float sun_intensity;
   float sun_elevation;
   float sun_rotation;
   float altitude;
   float air_density;
-  float dust_density;
+  float aerosol_density;
   float ozone_density;
   char sun_disc;
-  char _pad[11];
+  char _pad[7];
 } NodeTexSky;
 
 typedef struct NodeTexImage {
@@ -1557,7 +1601,7 @@ typedef struct NodeKeyingData {
   float clip_white DNA_DEPRECATED;
   int dilate_distance DNA_DEPRECATED;
   int feather_distance DNA_DEPRECATED;
-  int feather_falloff;
+  int feather_falloff DNA_DEPRECATED;
   int blur_pre DNA_DEPRECATED;
   int blur_post DNA_DEPRECATED;
 } NodeKeyingData;
@@ -1568,41 +1612,47 @@ typedef struct NodeTrackPosData {
 } NodeTrackPosData;
 
 typedef struct NodeTransformData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeTransformData;
 
 typedef struct NodeTranslateData {
   char wrap_axis DNA_DEPRECATED;
   char relative DNA_DEPRECATED;
-  short extension_x;
-  short extension_y;
-  short interpolation;
+  short extension_x DNA_DEPRECATED;
+  short extension_y DNA_DEPRECATED;
+  short interpolation DNA_DEPRECATED;
 } NodeTranslateData;
 
 typedef struct NodeRotateData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeRotateData;
 
 typedef struct NodeScaleData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeScaleData;
 
+typedef struct NodeCornerPinData {
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
+} NodeCornerPinData;
+
 typedef struct NodeDisplaceData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeDisplaceData;
 
 typedef struct NodeMapUVData {
-  short interpolation;
-  char extension_x;
-  char extension_y;
+  short interpolation DNA_DEPRECATED;
+  char extension_x DNA_DEPRECATED;
+  char extension_y DNA_DEPRECATED;
 } NodeMapUVData;
 
 typedef struct NodePlaneTrackDeformData {
@@ -1634,6 +1684,11 @@ typedef struct NodeShaderNormalMap {
   int space;
   char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64];
 } NodeShaderNormalMap;
+
+typedef struct NodeRadialTiling {
+  uint8_t normalize;
+  char _pad[7];
+} NodeRadialTiling;
 
 typedef struct NodeShaderUVMap {
   char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64];
@@ -1703,8 +1758,8 @@ typedef struct NodeCryptomatte {
 
 typedef struct NodeDenoise {
   char hdr DNA_DEPRECATED;
-  char prefilter;
-  char quality;
+  char prefilter DNA_DEPRECATED;
+  char quality DNA_DEPRECATED;
   char _pad[1];
 } NodeDenoise;
 
@@ -2051,11 +2106,43 @@ typedef struct NodeGeometryImageTexture {
   int8_t extension;
 } NodeGeometryImageTexture;
 
+typedef enum NodeGeometryViewerItemFlag {
+  /**
+   * Automatically remove the viewer item when there is no link connected to it. This simplifies
+   * working with viewers when one adds and removes values to view all the time.
+   *
+   * This is a flag instead of always being used, because sometimes the user or some script sets up
+   * multiple inputs which shouldn't be deleted immediately. This flag is automatically set when
+   * viewer items are added interactively in the node editor.
+   */
+  NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE = (1 << 0),
+} NodeGeometryViewerItemFlag;
+
+typedef struct NodeGeometryViewerItem {
+  char *name;
+  /** #eNodeSocketDatatype. */
+  short socket_type;
+  uint8_t flag;
+  char _pad[1];
+  /**
+   * Generated unique identifier for sockets which stays the same even when the item order or
+   * names change.
+   */
+  int identifier;
+} NodeGeometryViewerItem;
+
 typedef struct NodeGeometryViewer {
+  NodeGeometryViewerItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+
   /** #eCustomDataType. */
-  int8_t data_type;
+  int8_t data_type_legacy;
   /** #AttrDomain. */
   int8_t domain;
+
+  char _pad[2];
 } NodeGeometryViewer;
 
 typedef struct NodeGeometryUVUnwrap {
@@ -2219,7 +2306,9 @@ typedef struct NodeClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type;
+  char _pad[1];
   int identifier;
 } NodeClosureOutputItem;
 
@@ -2239,9 +2328,16 @@ typedef struct NodeClosureOutputItems {
   char _pad[4];
 } NodeClosureOutputItems;
 
+typedef enum NodeClosureFlag {
+  NODE_CLOSURE_FLAG_DEFINE_SIGNATURE = (1 << 0),
+} NodeClosureFlag;
+
 typedef struct NodeClosureOutput {
   NodeClosureInputItems input_items;
   NodeClosureOutputItems output_items;
+  /** #NodeClosureFlag. */
+  uint8_t flag;
+  char _pad[7];
 } NodeClosureOutput;
 
 typedef struct NodeEvaluateClosureInputItem {
@@ -2264,6 +2360,10 @@ typedef struct NodeEvaluateClosureOutputItem {
   int identifier;
 } NodeEvaluateClosureOutputItem;
 
+typedef enum NodeEvaluateClosureFlag {
+  NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE = (1 << 0),
+} NodeEvaluateClosureFlag;
+
 typedef struct NodeEvaluateClosureInputItems {
   NodeEvaluateClosureInputItem *items;
   int items_num;
@@ -2283,6 +2383,9 @@ typedef struct NodeEvaluateClosureOutputItems {
 typedef struct NodeEvaluateClosure {
   NodeEvaluateClosureInputItems input_items;
   NodeEvaluateClosureOutputItems output_items;
+  /** #NodeEvaluateClosureFlag. */
+  uint8_t flag;
+  char _pad[7];
 } NodeEvaluateClosure;
 
 typedef struct IndexSwitchItem {
@@ -2305,6 +2408,24 @@ typedef struct NodeIndexSwitch {
   blender::MutableSpan<IndexSwitchItem> items_span();
 #endif
 } NodeIndexSwitch;
+
+typedef struct GeometryNodeFieldToGridItem {
+  /** #eNodeSocketDatatype. */
+  int8_t data_type;
+  char _pad[3];
+  int identifier;
+  char *name;
+} GeometryNodeFieldToGridItem;
+
+typedef struct GeometryNodeFieldToGrid {
+  /** #eNodeSocketDatatype. */
+  int8_t data_type;
+  char _pad[3];
+  int next_identifier;
+  GeometryNodeFieldToGridItem *items;
+  int items_num;
+  int active_index;
+} GeometryNodeFieldToGrid;
 
 typedef struct NodeGeometryDistributePointsInVolume {
   /** #GeometryNodePointDistributeVolumeMode. */
@@ -2403,30 +2524,46 @@ typedef struct NodeCombineBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type;
+  char _pad[1];
 } NodeCombineBundleItem;
+
+typedef enum NodeCombineBundleFlag {
+  NODE_COMBINE_BUNDLE_FLAG_DEFINE_SIGNATURE = (1 << 0),
+} NodeCombineBundleFlag;
 
 typedef struct NodeCombineBundle {
   NodeCombineBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  char _pad[4];
+  /** #NodeCombineBundleFlag. */
+  uint8_t flag;
+  char _pad[3];
 } NodeCombineBundle;
 
 typedef struct NodeSeparateBundleItem {
   char *name;
   int identifier;
   int16_t socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType. */
+  int8_t structure_type;
+  char _pad[1];
 } NodeSeparateBundleItem;
+
+typedef enum NodeSeparateBundleFlag {
+  NODE_SEPARATE_BUNDLE_FLAG_DEFINE_SIGNATURE = (1 << 0),
+} NodeSeparateBundleFlag;
 
 typedef struct NodeSeparateBundle {
   NodeSeparateBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  char _pad[4];
+  /** #NodeSeparateBundleFlag. */
+  uint8_t flag;
+  char _pad[3];
 } NodeSeparateBundle;
 
 typedef struct NodeFunctionFormatStringItem {
@@ -2632,7 +2769,12 @@ enum {
 };
 
 /* sky texture */
-enum { SHD_SKY_NISHITA = 0 };
+enum {
+  SHD_SKY_PREETHAM = 0,
+  SHD_SKY_HOSEK = 1,
+  SHD_SKY_SINGLE_SCATTERING = 2,
+  SHD_SKY_MULTIPLE_SCATTERING = 3,
+};
 
 /* environment texture */
 enum {
@@ -2937,8 +3079,8 @@ typedef enum CMPNodeAlphaConvertMode {
 
 /** Distance Matte Node. Stored in #NodeChroma.channel. */
 typedef enum CMPNodeDistanceMatteColorSpace {
-  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA = 1,
-  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA = 2,
+  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA = 0,
+  CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA = 1,
 } CMPNodeDistanceMatteColorSpace;
 
 /** Color Spill Node. Stored in `custom2`. */
@@ -3018,6 +3160,7 @@ typedef enum CMPNodeGlareType {
   CMP_NODE_GLARE_GHOST = 3,
   CMP_NODE_GLARE_BLOOM = 4,
   CMP_NODE_GLARE_SUN_BEAMS = 5,
+  CMP_NODE_GLARE_KERNEL = 6,
 } CMPNodeGlareType;
 
 /* Kuwahara Node. Stored in variation */
@@ -3077,10 +3220,10 @@ typedef enum CMPNodeCryptomatteSource {
 
 /* Channel Matte node, stored in custom1. */
 typedef enum CMPNodeChannelMatteColorSpace {
-  CMP_NODE_CHANNEL_MATTE_CS_RGB = 1,
-  CMP_NODE_CHANNEL_MATTE_CS_HSV = 2,
-  CMP_NODE_CHANNEL_MATTE_CS_YUV = 3,
-  CMP_NODE_CHANNEL_MATTE_CS_YCC = 4,
+  CMP_NODE_CHANNEL_MATTE_CS_RGB = 0,
+  CMP_NODE_CHANNEL_MATTE_CS_HSV = 1,
+  CMP_NODE_CHANNEL_MATTE_CS_YUV = 2,
+  CMP_NODE_CHANNEL_MATTE_CS_YCC = 3,
 } CMPNodeChannelMatteColorSpace;
 
 /* NodeLensDist.distortion_type. */

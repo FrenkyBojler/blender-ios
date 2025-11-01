@@ -255,6 +255,8 @@ static short ob_keyframes_loop(KeyframeEditData *ked,
   ac.ads = ads;
   ac.data = &dummy_chan;
   ac.datatype = ANIMCONT_CHANNEL;
+  ac.filters.flag = eDopeSheet_FilterFlag(ads->filterflag);
+  ac.filters.flag2 = eDopeSheet_FilterFlag2(ads->filterflag2);
 
   /* get F-Curves to take keyframes from */
   filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
@@ -305,6 +307,8 @@ static short scene_keyframes_loop(KeyframeEditData *ked,
   ac.ads = ads;
   ac.data = &dummy_chan;
   ac.datatype = ANIMCONT_CHANNEL;
+  ac.filters.flag = eDopeSheet_FilterFlag(ads->filterflag);
+  ac.filters.flag2 = eDopeSheet_FilterFlag2(ads->filterflag2);
 
   /* get F-Curves to take keyframes from */
   filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
@@ -913,7 +917,7 @@ static short snap_bezier_nearest(KeyframeEditData * /*ked*/, BezTriple *bezt)
 static short snap_bezier_nearestsec(KeyframeEditData *ked, BezTriple *bezt)
 {
   const Scene *scene = ked->scene;
-  const float secf = float(FPS);
+  const float secf = float(scene->frames_per_second());
 
   if (bezt->f2 & SELECT) {
     BKE_fcurve_keyframe_move_time_with_handles(bezt, floorf(bezt->vec[1][0] / secf + 0.5f) * secf);

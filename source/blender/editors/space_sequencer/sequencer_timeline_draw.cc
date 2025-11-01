@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string_utf8.h"
@@ -19,6 +20,7 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -89,7 +91,7 @@ Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v
   const Editing *ed = seq::editing_get(scene);
   Vector<Strip *> strips;
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
     if (min_ii(seq::time_left_handle_frame_get(scene, strip), seq::time_start_frame_get(strip)) >
         v2d->cur.xmax)
     {
@@ -121,7 +123,7 @@ static TimelineDrawContext timeline_draw_context_get(const bContext *C, SeqQuads
   ctx.sseq = CTX_wm_space_seq(C);
   ctx.v2d = UI_view2d_fromcontext(C);
 
-  ctx.ed = seq::editing_get(ctx.scene);
+  ctx.ed = ctx.scene ? seq::editing_get(ctx.scene) : nullptr;
   ctx.channels = ctx.ed ? seq::channels_displayed_get(ctx.ed) : nullptr;
 
   ctx.viewport = WM_draw_region_get_viewport(ctx.region);
@@ -215,14 +217,15 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Strip *
   strip_ctx.strip = strip;
   strip_ctx.bottom = strip->channel + STRIP_OFSBOTTOM;
   strip_ctx.top = strip->channel + STRIP_OFSTOP;
-  strip_ctx.left_handle = seq::time_left_handle_frame_get(scene, strip);
-  strip_ctx.right_handle = seq::time_right_handle_frame_get(scene, strip);
-  strip_ctx.content_start = seq::time_start_frame_get(strip);
-  strip_ctx.content_end = seq::time_content_end_frame_get(scene, strip);
+  strip_ctx.left_handle = time_left_handle_frame_get(scene, strip);
+  strip_ctx.right_handle = time_right_handle_frame_get(scene, strip);
+  strip_ctx.content_start = time_start_frame_get(strip);
+  strip_ctx.content_end = time_content_end_frame_get(scene, strip);
 
   if (strip->type == STRIP_TYPE_SOUND_RAM && strip->sound != nullptr) {
     /* Visualize sub-frame sound offsets. */
-    const double sound_offset = (strip->sound->offset_time + strip->sound_offset) * FPS;
+    const double sound_offset = (strip->sound->offset_time + strip->sound_offset) *
+                                scene->frames_per_second();
     strip_ctx.content_start += sound_offset;
     strip_ctx.content_end += sound_offset;
   }
@@ -238,8 +241,8 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Strip *
   strip_draw_context_set_retiming_overlay_visibility(ctx, &strip_ctx);
   strip_ctx.strip_is_too_small = (!strip_ctx.can_draw_text_overlay &&
                                   !strip_ctx.can_draw_strip_content);
-  strip_ctx.is_active_strip = strip == seq::select_active_get(scene);
-  strip_ctx.is_single_image = seq::transform_single_image_check(strip);
+  strip_ctx.is_active_strip = strip == select_active_get(scene);
+  strip_ctx.is_single_image = transform_single_image_check(strip);
   strip_ctx.handle_width = strip_handle_draw_size_get(ctx->scene, strip, ctx->pixelx);
   strip_ctx.show_strip_color_tag = (ctx->sseq->timeline_overlay.flag &
                                     SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG);
@@ -247,7 +250,7 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Strip *
   /* Determine if strip (or contents of meta strip) has missing data/media. */
   strip_ctx.missing_data_block = !strip_has_valid_data(strip);
   strip_ctx.missing_media = media_presence_is_missing(scene, strip);
-  strip_ctx.is_connected = seq::is_strip_connected(strip);
+  strip_ctx.is_connected = is_strip_connected(strip);
   if (strip->type == STRIP_TYPE_META) {
     const ListBase *seqbase = &strip->seqbase;
     LISTBASE_FOREACH (const Strip *, sub, seqbase) {
@@ -267,7 +270,7 @@ static StripDrawContext strip_draw_context_get(TimelineDrawContext *ctx, Strip *
     strip_ctx.strip_content_top = strip_ctx.top;
   }
 
-  strip_ctx.is_muted = seq::render_is_muted(ctx->channels, strip);
+  strip_ctx.is_muted = render_is_muted(ctx->channels, strip);
   strip_ctx.curve = nullptr;
   return strip_ctx;
 }
@@ -362,7 +365,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       break;
 
     /* Effects. */
-    case STRIP_TYPE_TRANSFORM:
     case STRIP_TYPE_SPEED:
     case STRIP_TYPE_ADD:
     case STRIP_TYPE_SUB:
@@ -406,9 +408,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       }
       else if (strip->type == STRIP_TYPE_SPEED) {
         rgb_byte_set_hue_float_offset(r_col, 0.72);
-      }
-      else if (strip->type == STRIP_TYPE_TRANSFORM) {
-        rgb_byte_set_hue_float_offset(r_col, 0.75);
       }
       else if (strip->type == STRIP_TYPE_MULTICAM) {
         rgb_byte_set_hue_float_offset(r_col, 0.85);
@@ -483,7 +482,7 @@ static void draw_seq_waveform_overlay(TimelineDrawContext *timeline_ctx,
                            SEQ_TIMELINE_WAVEFORMS_HALF) != 0;
 
   const float frames_per_pixel = BLI_rctf_size_x(&v2d->cur) / timeline_ctx->region->winx;
-  const float samples_per_frame = SOUND_WAVE_SAMPLES_PER_SECOND / FPS;
+  const float samples_per_frame = SOUND_WAVE_SAMPLES_PER_SECOND / scene->frames_per_second();
   const float samples_per_pixel = samples_per_frame * frames_per_pixel;
   const float bottom = strip_ctx->bottom + timeline_ctx->pixely * 2.0f;
   const float top = strip_ctx->strip_content_top;
@@ -500,8 +499,8 @@ static void draw_seq_waveform_overlay(TimelineDrawContext *timeline_ctx,
   const float draw_end_frame = min_ff(v2d->cur.xmax,
                                       strip_ctx->right_handle - timeline_ctx->pixelx * 3.0f);
   /* Offset must be also aligned, otherwise waveform flickers when moving left handle. */
-  float sample_start_frame = draw_start_frame -
-                             (strip->sound->offset_time + strip->sound_offset) * FPS;
+  float sample_start_frame = draw_start_frame - (strip->sound->offset_time + strip->sound_offset) *
+                                                    scene->frames_per_second();
 
   const int pixels_to_draw = round_fl_to_int((draw_end_frame - draw_start_frame) /
                                              frames_per_pixel);
@@ -642,7 +641,7 @@ static void drawmeta_contents(TimelineDrawContext *timeline_ctx,
 
   uchar col[4];
 
-  int chan_min = seq::MAX_CHANNELS;
+  int chan_min = MAX_CHANNELS;
   int chan_max = 0;
   int chan_range = 0;
   /* Some vertical margin to account for rounded corners, so that contents do
@@ -660,7 +659,7 @@ static void drawmeta_contents(TimelineDrawContext *timeline_ctx,
   ListBase *meta_channels;
   int offset;
 
-  meta_seqbase = seq::get_seqbase_from_strip(strip_meta, &meta_channels, &offset);
+  meta_seqbase = get_seqbase_from_strip(strip_meta, &meta_channels, &offset);
 
   if (!meta_seqbase || BLI_listbase_is_empty(meta_seqbase)) {
     return;
@@ -688,8 +687,8 @@ static void drawmeta_contents(TimelineDrawContext *timeline_ctx,
 
   /* Draw only immediate children (1 level depth). */
   LISTBASE_FOREACH (Strip *, strip, meta_seqbase) {
-    float x1_chan = seq::time_left_handle_frame_get(scene, strip) + offset;
-    float x2_chan = seq::time_right_handle_frame_get(scene, strip) + offset;
+    float x1_chan = time_left_handle_frame_get(scene, strip) + offset;
+    float x2_chan = time_right_handle_frame_get(scene, strip) + offset;
     if (x1_chan <= meta_x2 && x2_chan >= meta_x1) {
       float y_chan = (strip->channel - chan_min) / float(chan_range) * draw_range;
       float y1_chan, y2_chan;
@@ -1225,8 +1224,7 @@ static void draw_seq_timeline_channels(TimelineDrawContext *ctx)
 {
   View2D *v2d = ctx->v2d;
   UI_view2d_view_ortho(v2d);
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_blend(GPU_BLEND_ALPHA);
   immUniformThemeColor(TH_ROW_ALTERNATE);
@@ -1594,6 +1592,9 @@ static void draw_seq_strips(TimelineDrawContext *timeline_ctx, StripsDrawBatch &
 static void draw_timeline_sfra_efra(TimelineDrawContext *ctx)
 {
   const Scene *scene = ctx->scene;
+  if (!scene) {
+    return;
+  }
   const View2D *v2d = ctx->v2d;
   const Editing *ed = seq::editing_get(scene);
   const int frame_sta = scene->r.sfra;
@@ -1601,8 +1602,7 @@ static void draw_timeline_sfra_efra(TimelineDrawContext *ctx)
 
   GPU_blend(GPU_BLEND_ALPHA);
 
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Draw overlay outside of frame range. */
@@ -1794,8 +1794,7 @@ static void draw_overlap_frame_indicator(const Scene *scene, const View2D *v2d)
                           scene->ed->overlay_frame_abs :
                           scene->r.cfra + scene->ed->overlay_frame_ofs;
 
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
   float viewport_size[4];
   GPU_viewport_size_get_f(viewport_size);
@@ -1822,15 +1821,22 @@ static void draw_timeline_grid(TimelineDrawContext *ctx)
     return;
   }
 
-  U.v2d_min_gridsize *= 3;
+  const Scene *scene = ctx->scene;
+  if (scene == nullptr) {
+    /* If we don't have a scene available, pick what we defined as default for framerate to show
+     * *something*. */
+    scene = DNA_struct_default_get(Scene);
+  }
   UI_view2d_draw_lines_x__discrete_frames_or_seconds(
-      ctx->v2d, ctx->scene, (ctx->sseq->flag & SEQ_DRAWFRAMES) == 0, false);
-  U.v2d_min_gridsize /= 3;
+      ctx->v2d, scene, (ctx->sseq->flag & SEQ_DRAWFRAMES) == 0, false);
 }
 
 static void draw_timeline_markers(TimelineDrawContext *ctx)
 {
-  if ((ctx->sseq->flag & SEQ_SHOW_MARKERS) == 0) {
+  if (!ED_markers_region_visible(CTX_wm_area(ctx->C), ctx->region)) {
+    return;
+  }
+  if (ctx->scene == nullptr) {
     return;
   }
 
@@ -1875,21 +1881,30 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
   draw_timeline_grid(&ctx);
   draw_timeline_sfra_efra(&ctx);
   draw_seq_strips(&ctx, strips_batch);
-  if (region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
-    draw_timeline_markers(&ctx);
-  }
+  draw_timeline_markers(&ctx);
   UI_view2d_view_ortho(ctx.v2d);
-  ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);
+  if (ctx.scene) {
+    ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);
+  }
+  UI_view2d_view_restore(C);
   draw_timeline_gizmos(&ctx);
   draw_timeline_post_view_callbacks(&ctx);
-  ED_time_scrub_draw(region, ctx.scene, !(ctx.sseq->flag & SEQ_DRAWFRAMES), true);
+  if (ctx.scene) {
+    const int fps = round_db_to_int(ctx.scene->frames_per_second());
+    ED_time_scrub_draw(region, ctx.scene, !(ctx.sseq->flag & SEQ_DRAWFRAMES), true, fps);
+  }
 
-  seq_prefetch_wm_notify(C, ctx.scene);
+  if (ctx.scene) {
+    seq_prefetch_wm_notify(C, ctx.scene);
+  }
 }
 
 void draw_timeline_seq_display(const bContext *C, ARegion *region)
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return;
+  }
   const SpaceSeq *sseq = CTX_wm_space_seq(C);
   View2D *v2d = &region->v2d;
 
@@ -1906,11 +1921,14 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region)
       region, scene, !(sseq->flag & SEQ_DRAWFRAMES), region->winy >= UI_ANIM_MINY);
 
   if (region->winy > UI_ANIM_MINY) {
-    const ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
-    seq::timeline_boundbox(scene, seqbase, &v2d->tot);
-    const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
-    region->v2d.scroll |= V2D_SCROLL_BOTTOM;
-    UI_view2d_scrollers_draw(v2d, &scroller_mask);
+    const Editing *ed = seq::editing_get(scene);
+    if (ed) {
+      const ListBase *seqbase = seq::active_seqbase_get(ed);
+      seq::timeline_boundbox(scene, seqbase, &v2d->tot);
+      const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
+      region->v2d.scroll |= V2D_SCROLL_BOTTOM;
+      UI_view2d_scrollers_draw(v2d, &scroller_mask);
+    }
   }
   else {
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;

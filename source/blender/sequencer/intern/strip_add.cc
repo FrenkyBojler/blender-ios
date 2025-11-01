@@ -38,7 +38,6 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_metadata.hh"
 
 #include "MOV_read.hh"
 
@@ -54,7 +53,6 @@
 
 #include "multiview.hh"
 #include "proxy.hh"
-#include "sequencer.hh"
 #include "strip_time.hh"
 
 namespace blender::seq {
@@ -101,7 +99,7 @@ static void strip_add_set_name(Scene *scene, Strip *strip, LoadData *load_data)
     else if (strip->type == STRIP_TYPE_MASK) {
       edit_strip_name_set(scene, strip, load_data->mask->id.name + 2);
     }
-    else if ((strip->type & STRIP_TYPE_EFFECT) != 0) {
+    else if (strip->is_effect()) {
       edit_strip_name_set(scene, strip, strip_give_name(strip));
     }
     else { /* Image, sound and movie. */
@@ -172,7 +170,7 @@ Strip *add_effect_strip(Scene *scene, ListBase *seqbase, LoadData *load_data)
   EffectHandle sh = strip_effect_handle_get(strip);
   sh.init(strip);
 
-  if (seq::effect_get_num_inputs(strip->type) != 0) {
+  if (effect_get_num_inputs(strip->type) != 0) {
     strip->input1 = load_data->effect.input1;
     strip->input2 = load_data->effect.input2;
   }
@@ -185,7 +183,7 @@ Strip *add_effect_strip(Scene *scene, ListBase *seqbase, LoadData *load_data)
   if (strip->input1 == nullptr) {
     strip->len = 1; /* Effect is generator, set non zero length. */
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
-    time_right_handle_frame_set(scene, strip, load_data->effect.end_frame);
+    time_right_handle_frame_set(scene, strip, load_data->start_frame + load_data->effect.length);
   }
 
   strip_add_set_name(scene, strip, load_data);
@@ -205,7 +203,7 @@ void add_image_load_file(Scene *scene, Strip *strip, size_t strip_frame, const c
   STRNCPY(se->filename, filename);
 }
 
-void add_image_init_alpha_mode(Strip *strip)
+void add_image_init_alpha_mode(Main *bmain, Scene *scene, Strip *strip)
 {
   if (strip->data && strip->data->stripdata) {
     char filepath[FILE_MAX];
@@ -213,7 +211,7 @@ void add_image_init_alpha_mode(Strip *strip)
 
     BLI_path_join(
         filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
-    BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
+    BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &scene->id));
 
     /* Initialize input color space. */
     if (strip->type == STRIP_TYPE_IMAGE) {
@@ -240,9 +238,9 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 {
   Strip *strip = strip_alloc(
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_IMAGE);
-  strip->len = load_data->image.len;
+  strip->len = load_data->image.count;
   StripData *data = strip->data;
-  data->stripdata = MEM_calloc_arrayN<StripElem>(load_data->image.len, "stripelem");
+  data->stripdata = MEM_calloc_arrayN<StripElem>(load_data->image.count, "stripelem");
 
   if (strip->len == 1) {
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
@@ -261,14 +259,15 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   /* Set initial scale based on load_data->fit_method. */
   char file_path[FILE_MAX];
   STRNCPY(file_path, load_data->path);
-  BLI_path_abs(file_path, BKE_main_blendfile_path(bmain));
+  BLI_path_abs(file_path, ID_BLEND_PATH(bmain, &scene->id));
+
   ImBuf *ibuf = IMB_load_image_from_filepath(
       file_path, IB_byte_data | IB_multilayer, strip->data->colorspace_settings.name);
   if (ibuf != nullptr) {
     /* Set image resolution. Assume that all images in sequence are same size. This fields are only
      * informative. */
     StripElem *strip_elem = data->stripdata;
-    for (int i = 0; i < load_data->image.len; i++) {
+    for (int i = 0; i < load_data->image.count; i++) {
       strip_elem->orig_width = ibuf->x;
       strip_elem->orig_height = ibuf->y;
       strip_elem++;
@@ -295,9 +294,10 @@ void add_sound_av_sync(Main *bmain, Scene *scene, Strip *strip, LoadData *load_d
   }
 
   const double av_stream_offset = sound_stream.start - load_data->r_video_stream_start;
-  const int frame_offset = av_stream_offset * FPS;
+  const int frame_offset = av_stream_offset * scene->frames_per_second();
   /* Set sub-frame offset. */
-  strip->sound->offset_time = (double(frame_offset) / FPS) - av_stream_offset;
+  strip->sound->offset_time = (double(frame_offset) / scene->frames_per_second()) -
+                              av_stream_offset;
   transform_translate_strip(scene, strip, frame_offset);
 }
 
@@ -327,7 +327,8 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
    * nearest frame as the audio track usually overshoots or undershoots the
    * end frame of the video by a little bit.
    * See #47135 for under shoot example. */
-  strip->len = std::max(1, int(round((info.length - sound->offset_time) * FPS)));
+  strip->len = std::max(
+      1, int(round((info.length - sound->offset_time) * scene->frames_per_second())));
 
   StripData *data = strip->data;
   /* We only need 1 element to store the filename. */
@@ -348,6 +349,9 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 
     /* Turn on Display Waveform by default. */
     strip->flag |= SEQ_AUDIO_DRAW_WAVEFORM;
+
+    /* Turn on Preserve Pitch by default. */
+    strip->flag |= SEQ_AUDIO_PITCH_CORRECTION;
   }
 
   strip_add_set_name(scene, strip, load_data);
@@ -396,7 +400,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 {
   char filepath[sizeof(load_data->path)];
   STRNCPY(filepath, load_data->path);
-  BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
+  BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &scene->id));
 
   char colorspace[/*MAX_COLORSPACE_NAME*/ 64] = "\0";
   bool is_multiview_loaded = false;
@@ -531,7 +535,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
 
 void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool lock_range)
 {
-  int prev_startdisp = 0, prev_enddisp = 0;
+  int prev_start_frame = 0, prev_end_frame = 0;
   /* NOTE: don't rename the strip, will break animation curves. */
 
   if (ELEM(strip->type,
@@ -548,8 +552,8 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
   if (lock_range) {
     /* keep so we don't have to move the actual start and end points (only the data) */
-    prev_startdisp = time_left_handle_frame_get(scene, strip);
-    prev_enddisp = time_right_handle_frame_get(scene, strip);
+    prev_start_frame = time_left_handle_frame_get(scene, strip);
+    prev_end_frame = time_right_handle_frame_get(scene, strip);
   }
 
   switch (strip->type) {
@@ -572,7 +576,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
       BLI_path_join(
           filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
-      BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
+      BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &scene->id));
 
       relations_strip_free_anim(strip);
 
@@ -669,7 +673,8 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       if (!strip->sound) {
         return;
       }
-      strip->len = ceil(double(BKE_sound_get_length(bmain, strip->sound)) * FPS);
+      strip->len = ceil(double(BKE_sound_get_length(bmain, strip->sound)) *
+                        scene->frames_per_second());
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
       strip->len = std::max(strip->len, 0);
@@ -690,8 +695,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
   free_strip_proxy(strip);
 
   if (lock_range) {
-    time_left_handle_frame_set(scene, strip, prev_startdisp);
-    time_right_handle_frame_set(scene, strip, prev_enddisp);
+    time_handles_frame_set(scene, strip, prev_start_frame, prev_end_frame);
   }
 
   relations_invalidate_cache_raw(scene, strip);

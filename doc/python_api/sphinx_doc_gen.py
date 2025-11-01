@@ -57,7 +57,7 @@ except ImportError:
     print(__doc__)
     sys.exit()
 
-import rna_info  # Blender module.
+import _rna_info as rna_info  # Blender module.
 
 
 def rna_info_BuildRNAInfo_cache():
@@ -83,6 +83,10 @@ USE_ONLY_BUILTIN_RNA_TYPES = True
 # Write a page for each static enum defined in:
 # `source/blender/makesrna/RNA_enum_items.hh` so the enums can be linked to instead of being expanded everywhere.
 USE_SHARED_RNA_ENUM_ITEMS_STATIC = True
+
+# Generate a list of types which support custom properties.
+# This isn't listed anywhere, it's just linked to.
+USE_RNA_TYPES_WITH_CUSTOM_PROPERTY_INDEX = True
 
 # Other types are assumed to be `bpy.types.*`.
 PRIMITIVE_TYPE_NAMES = {"bool", "bytearray", "bytes", "dict", "float", "int", "list", "set", "str", "tuple"}
@@ -787,7 +791,7 @@ def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_cla
         # would be listed in documentation which isn't useful.
         #
         # However, excluding all of them is also incorrect as it means class methods defined
-        # in `bpy_types.py` for example are excluded, making some utility functions entirely hidden.
+        # in `_bpy_types.py` for example are excluded, making some utility functions entirely hidden.
         if (bl_rna := getattr(py_func.__self__, "bl_rna", None)) is not None:
             if bl_rna.functions.get(identifier) is not None:
                 return
@@ -1179,7 +1183,6 @@ context_type_map = {
     "active_object": [("Object", False)],
     "active_operator": [("Operator", False)],
     "active_pose_bone": [("PoseBone", False)],
-    "active_sequence_strip": [("Strip", False)],
     "active_strip": [("Strip", False)],
     "active_editable_fcurve": [("FCurve", False)],
     "active_nla_strip": [("NlaStrip", False)],
@@ -1208,7 +1211,7 @@ context_type_map = {
     "editable_fcurves": [("FCurve", True)],
     "fluid": [("FluidSimulationModifier", False)],
     "gpencil": [("GreasePencil", False)],
-    "grease_pencil": [("GreasePencilv3", False)],
+    "grease_pencil": [("GreasePencil", False)],
     "curves": [("Hair Curves", False)],
     "id": [("ID", False)],
     "image_paint_object": [("Object", False)],
@@ -1241,7 +1244,6 @@ context_type_map = {
     "selected_editable_fcurves": [("FCurve", True)],
     "selected_editable_keyframes": [("Keyframe", True)],
     "selected_editable_objects": [("Object", True)],
-    "selected_editable_sequences": [("Strip", True)],
     "selected_editable_strips": [("Strip", True)],
     "selected_files": [("FileSelectEntry", True)],
     "selected_ids": [("ID", True)],
@@ -1251,12 +1253,13 @@ context_type_map = {
     "selected_objects": [("Object", True)],
     "selected_pose_bones": [("PoseBone", True)],
     "selected_pose_bones_from_active_object": [("PoseBone", True)],
-    "selected_sequences": [("Strip", True)],
     "selected_strips": [("Strip", True)],
     "selected_visible_actions": [("Action", True)],
     "selected_visible_fcurves": [("FCurve", True)],
-    "sequences": [("Strip", True)],
+    "sequencer_scene": [("Scene", False)],
     "strips": [("Strip", True)],
+    "strip": [("Strip", False)],
+    "strip_modifier": [("StripModifier", False)],
     "soft_body": [("SoftBodyModifier", False)],
     "speaker": [("Speaker", False)],
     "texture": [("Texture", False)],
@@ -1264,6 +1267,7 @@ context_type_map = {
     "texture_slot": [("TextureSlot", False)],
     "texture_user": [("ID", False)],
     "texture_user_property": [("Property", False)],
+    "tool_settings": [("ToolSettings", False)],
     "ui_list": [("UIList", False)],
     "vertex_paint_object": [("Object", False)],
     "view_layer": [("ViewLayer", False)],
@@ -1737,7 +1741,7 @@ def pyrna2sphinx(basepath):
                     if not descr:
                         descr = prop.name
                     # In rare cases `descr` may be empty.
-                    fw("         `{:s}`, {:s}\n\n".format(
+                    fw("         ``{:s}``, {:s}\n\n".format(
                         prop.identifier,
                         ", ".join((val for val in (descr, type_descr) if val))
                     ))
@@ -2136,6 +2140,13 @@ def write_rst_types_index(basepath):
             fw("   :maxdepth: 1\n\n")
             fw("   Shared Enum Types <bpy_types_enum_items/index>\n\n")
 
+        # This needs to be included somewhere, while it's hidden, list to avoid warnings.
+        if USE_RNA_TYPES_WITH_CUSTOM_PROPERTY_INDEX:
+            fw(".. toctree::\n")
+            fw("   :hidden:\n")
+            fw("   :maxdepth: 1\n\n")
+            fw("   Types with Custom Property Support <bpy_types_custom_properties>\n\n")
+
 
 def write_rst_ops_index(basepath):
     """
@@ -2174,6 +2185,24 @@ def write_rst_geometry_set(basepath):
         pyclass2sphinx(fw, "bpy.types", "GeometrySet", bpy.types.GeometrySet, False)
 
     EXAMPLE_SET_USED.add("bpy.types.GeometrySet")
+
+
+def write_rst_inline_shader_nodes(basepath):
+    """
+    Write the RST files for ``bpy.types.InlineShaderNodes``.
+    """
+    if 'bpy.types.InlineShaderNodes' in EXCLUDE_MODULES:
+        return
+
+    # Write the index.
+    filepath = os.path.join(basepath, "bpy.types.InlineShaderNodes.rst")
+    with open(filepath, "w", encoding="utf-8") as fh:
+        fw = fh.write
+        fw(title_string("InlineShaderNodes", "="))
+        write_example_ref("", fw, "bpy.types.InlineShaderNodes")
+        pyclass2sphinx(fw, "bpy.types", "InlineShaderNodes", bpy.types.InlineShaderNodes, False)
+
+    EXAMPLE_SET_USED.add("bpy.types.InlineShaderNodes")
 
 
 def write_rst_msgbus(basepath):
@@ -2300,6 +2329,49 @@ def write_rst_enum_items_and_index(basepath):
             key_no_prefix = key.removeprefix("rna_enum_")
             write_rst_enum_items(basepath_bpy_types_rna_enum, key, key_no_prefix, enum_items)
         fw("\n")
+
+
+def write_rst_rna_types_with_custom_property_support(basepath):
+    from bpy.types import bpy_struct_meta_idprop
+
+    types_exclude = {
+        "IDPropertyWrapPtr",  # Internal type, exclude form public docs.
+    }
+    types_found = []
+
+    for ty_id in dir(bpy.types):
+        if ty_id.startswith("_"):
+            continue
+        if ty_id in types_exclude:
+            continue
+
+        ty = getattr(bpy.types, ty_id)
+        if not isinstance(ty, bpy_struct_meta_idprop):
+            continue
+
+        # Don't include every sub-type as it's very noisy and not helpful.
+        if any((isinstance(ty_base, bpy_struct_meta_idprop) for ty_base in ty.__bases__)):
+            continue
+
+        types_found.append(ty_id)
+
+    types_found.sort()
+
+    with open(os.path.join(basepath, "bpy_types_custom_properties.rst"), "w", encoding="utf-8") as fh:
+        fw = fh.write
+
+        fw(".. _bpy_types-custom_properties:\n\n")
+
+        fw(title_string("Types with Custom Property Support", "="))
+        fw("\n")
+        fw("The following types (and their sub-types) have custom-property access.\n\n")
+
+        fw("For examples on using custom properties see the quick-start section on\n")
+        fw(":ref:`info_quickstart-custom_properties`.\n")
+
+        fw("\n")
+        for ty_id in types_found:
+            fw("- :class:`bpy.types.{:s}`\n".format(ty_id))
 
 
 def write_rst_importable_modules(basepath):
@@ -2485,6 +2557,7 @@ def rna2sphinx(basepath):
     write_rst_ops_index(basepath)           # `bpy.ops`.
     write_rst_msgbus(basepath)              # `bpy.msgbus`.
     write_rst_geometry_set(basepath)        # `bpy.types.GeometrySet`.
+    write_rst_inline_shader_nodes(basepath)  # `bpy.types.InlineShaderNodes`.
     pyrna2sphinx(basepath)                  # `bpy.types.*` & `bpy.ops.*`.
     write_rst_data(basepath)                # `bpy.data`.
     write_rst_importable_modules(basepath)
@@ -2492,6 +2565,9 @@ def rna2sphinx(basepath):
     # `bpy_types_enum_items/*` (referenced from `bpy.types`).
     if USE_SHARED_RNA_ENUM_ITEMS_STATIC:
         write_rst_enum_items_and_index(basepath)
+
+    if USE_RNA_TYPES_WITH_CUSTOM_PROPERTY_INDEX:
+        write_rst_rna_types_with_custom_property_support(basepath)
 
     # Copy the other RST files.
     copy_handwritten_rsts(basepath)

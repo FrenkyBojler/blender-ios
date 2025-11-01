@@ -44,8 +44,13 @@ NODE_STORAGE_FUNCS(NodePlaneTrackDeformData)
 static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_input<decl::Color>("Image")
+      .hide_value()
+      .compositor_realization_mode(CompositorInputRealizationMode::Transforms)
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
   b.add_output<decl::Float>("Plane").structure_type(StructureType::Dynamic);
 
   b.add_layout([](uiLayout *layout, bContext *C, PointerRNA *ptr) {
@@ -77,9 +82,6 @@ static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
     }
   });
 
-  b.add_input<decl::Color>("Image")
-      .compositor_realization_mode(CompositorInputRealizationMode::Transforms)
-      .structure_type(StructureType::Dynamic);
   PanelDeclarationBuilder &motion_blur_panel = b.add_panel("Motion Blur").default_closed(true);
   motion_blur_panel.add_input<decl::Bool>("Motion Blur")
       .default_value(false)
@@ -159,7 +161,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
 
   void execute_gpu(const Array<float4x4> homography_matrices)
   {
-    GPUUniformBuf *homography_matrices_buffer = GPU_uniformbuf_create_ex(
+    gpu::UniformBuf *homography_matrices_buffer = GPU_uniformbuf_create_ex(
         homography_matrices.size() * sizeof(float4x4),
         homography_matrices.data(),
         "Plane Track Deform Homography Matrices");
@@ -188,10 +190,10 @@ class PlaneTrackDeformOperation : public NodeOperation {
   }
 
   void compute_plane_gpu(const Array<float4x4> &homography_matrices,
-                         GPUUniformBuf *homography_matrices_buffer,
+                         gpu::UniformBuf *homography_matrices_buffer,
                          Result &plane_mask)
   {
-    GPUShader *shader = context().get_shader("compositor_plane_deform_motion_blur");
+    gpu::Shader *shader = context().get_shader("compositor_plane_deform_motion_blur");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "number_of_motion_blur_samples", homography_matrices.size());
@@ -224,9 +226,9 @@ class PlaneTrackDeformOperation : public NodeOperation {
   }
 
   Result compute_plane_mask_gpu(const Array<float4x4> &homography_matrices,
-                                GPUUniformBuf *homography_matrices_buffer)
+                                gpu::UniformBuf *homography_matrices_buffer)
   {
-    GPUShader *shader = context().get_shader("compositor_plane_deform_motion_blur_mask");
+    gpu::Shader *shader = context().get_shader("compositor_plane_deform_motion_blur_mask");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "number_of_motion_blur_samples", homography_matrices.size());
@@ -307,7 +309,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
       /* Premultiply the mask value as an alpha. */
       float4 plane_color = accumulated_color * plane_mask.load_pixel<float>(texel);
 
-      output.store_pixel(texel, plane_color);
+      output.store_pixel(texel, Color(plane_color));
     });
   }
 

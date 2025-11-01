@@ -12,10 +12,10 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_space_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -34,7 +34,6 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_metadata.hh"
 
 #include "MOV_read.hh"
 
@@ -44,6 +43,7 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 
+#include "cache/intra_frame_cache.hh"
 #include "multiview.hh"
 #include "proxy.hh"
 #include "render.hh"
@@ -360,7 +360,7 @@ static bool seq_proxy_multiview_context_invalid(Strip *strip,
       char filepath[FILE_MAX];
       BLI_path_join(
           filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
-      BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
+      BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
       BKE_scene_multiview_view_prefix_get(scene, filepath, prefix_vars->prefix, &prefix_vars->ext);
     }
 
@@ -431,7 +431,7 @@ bool proxy_rebuild_context(Main *bmain,
                            Depsgraph *depsgraph,
                            Scene *scene,
                            Strip *strip,
-                           blender::Set<std::string> *processed_paths,
+                           Set<std::string> *processed_paths,
                            ListBase *queue,
                            bool build_only_on_bad_performance)
 {
@@ -469,7 +469,8 @@ bool proxy_rebuild_context(Main *bmain,
 
     context = MEM_callocN<IndexBuildContext>("strip proxy rebuild context");
 
-    strip_new = strip_duplicate_recursive(scene, scene, nullptr, strip, 0);
+    strip_new = strip_duplicate_recursive(
+        bmain, scene, scene, nullptr, strip, StripDuplicate::Selected);
 
     context->tc_flags = strip_new->data->proxy->build_tc_flags;
     context->size_flags = strip_new->data->proxy->build_size_flags;
@@ -563,6 +564,12 @@ void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status)
        timeline_frame < time_right_handle_frame_get(scene, strip);
        timeline_frame++)
   {
+    intra_frame_cache_set_cur_frame(render_context.scene,
+                                    timeline_frame,
+                                    render_context.view_id,
+                                    render_context.rectx,
+                                    render_context.recty);
+
     if (context->size_flags & IMB_PROXY_25) {
       seq_proxy_build_frame(&render_context, &state, strip, timeline_frame, 25, overwrite);
     }

@@ -76,7 +76,7 @@
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
@@ -939,7 +939,7 @@ int BKE_image_find_nearest_tile_with_offset(const Image *image,
                                             const float co[2],
                                             float r_uv_offset[2])
 {
-  /* NOTE: If the co-ordinates are integers, take special care to break ties. */
+  /* NOTE: If the coordinates are integers, take special care to break ties. */
 
   zero_v2(r_uv_offset);
   int tile_number_best = -1;
@@ -1528,6 +1528,10 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
     imapf->view = 0;
     imapf->tile_number = 1001;
     STRNCPY(imapf->filepath, ima->filepath);
+
+    /* The image should not be marked as "generated" since image data was provided. */
+    ImageTile *base_tile = BKE_image_get_tile(ima, 0);
+    base_tile->gen_flag &= ~IMA_GEN_TILE;
   }
 }
 
@@ -1778,8 +1782,12 @@ static void stampdata(
 
   if (use_dynamic && scene->r.stamp & R_STAMP_TIME) {
     const short timecode_style = USER_TIMECODE_SMPTE_FULL;
-    BLI_timecode_string_from_time(
-        text, sizeof(text), 0, FRA2TIME(scene->r.cfra), FPS, timecode_style);
+    BLI_timecode_string_from_time(text,
+                                  sizeof(text),
+                                  0,
+                                  FRA2TIME(scene->r.cfra),
+                                  scene->frames_per_second(),
+                                  timecode_style);
     SNPRINTF_UTF8(stamp_data->time, do_prefix ? "Timecode %s" : "%s", text);
   }
   else {
@@ -1998,18 +2006,13 @@ static void stampdata_from_template(StampData *stamp_data,
 void BKE_image_stamp_buf(Scene *scene,
                          Object *camera,
                          const StampData *stamp_data_template,
-                         uchar *rect,
-                         float *rectf,
-                         int width,
-                         int height)
+                         ImBuf *ibuf)
 {
   StampData stamp_data;
   int w, h, pad;
   int x, y, y_ofs;
   int h_fixed;
   const int mono = blf_mono_font_render; /* XXX */
-  const ColorManagedDisplay *display;
-  const char *display_device;
 
   /* vars for calculating wordwrap */
   struct {
@@ -2032,12 +2035,9 @@ void BKE_image_stamp_buf(Scene *scene,
 #define BUFF_MARGIN_X 2
 #define BUFF_MARGIN_Y 1
 
-  if (!rect && !rectf) {
+  if (!ibuf->byte_buffer.data && !ibuf->float_buffer.data) {
     return;
   }
-
-  display_device = scene->display_settings.display_device;
-  display = IMB_colormanagement_display_get_named(display_device);
 
   bool do_prefix = (scene->r.stamp & R_STAMP_HIDE_LABELS) == 0;
   if (stamp_data_template == nullptr) {
@@ -2054,9 +2054,15 @@ void BKE_image_stamp_buf(Scene *scene,
 
   /* set before return */
   BLF_size(mono, scene->r.stamp_font_id);
-  BLF_wordwrap(mono, width - (BUFF_MARGIN_X * 2));
+  BLF_wordwrap(mono, ibuf->x - (BUFF_MARGIN_X * 2));
 
-  BLF_buffer(mono, rectf, rect, width, height, display);
+  BLF_buffer(mono,
+             ibuf->float_buffer.data,
+             ibuf->byte_buffer.data,
+             ibuf->x,
+             ibuf->y,
+             ibuf->byte_buffer.colorspace);
+  /* No conversion to scene linear needed, #BLF_buffer_col accepts sRGB. */
   BLF_buffer_col(mono, scene->r.fg_stamp);
   pad = BLF_width_max(mono);
 
@@ -2065,19 +2071,20 @@ void BKE_image_stamp_buf(Scene *scene,
   y_ofs = -BLF_descender(mono);
 
   x = 0;
-  y = height;
+  y = ibuf->y;
+
+  /* Background needs to be converted to scene linear. */
+  float bg_stamp[4];
+  IMB_colormanagement_srgb_to_scene_linear_v3(bg_stamp, scene->r.bg_stamp);
+  bg_stamp[3] = scene->r.bg_stamp[3];
 
   if (TEXT_SIZE_CHECK(stamp_data.file, w, h)) {
     /* Top left corner */
     y -= h;
 
     /* also a little of space to the background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       w + BUFF_MARGIN_X,
@@ -2096,16 +2103,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.date, sizeof(stamp_data.date));
@@ -2119,16 +2118,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.rendertime, sizeof(stamp_data.rendertime));
@@ -2142,16 +2133,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.memory, sizeof(stamp_data.memory));
@@ -2165,16 +2148,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.hostname, sizeof(stamp_data.hostname));
@@ -2189,16 +2164,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs + (h - h_fixed), 0.0);
     BLF_draw_buffer(mono, stamp_data.note, sizeof(stamp_data.note));
@@ -2212,12 +2179,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.marker, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       w + BUFF_MARGIN_X,
@@ -2235,16 +2198,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.time, w, h)) {
 
     /* extra space for background */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      x - BUFF_MARGIN_X,
-                      y,
-                      x + w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, x - BUFF_MARGIN_X, y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     /* and pad the text. */
     BLF_position(mono, x, y + y_ofs, 0.0);
@@ -2257,12 +2212,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.frame, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2279,12 +2230,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.frame_range, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2301,12 +2248,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.camera, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2321,12 +2264,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.cameralens, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2338,15 +2277,11 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.scene, w, h)) {
 
     /* Bottom right corner, with an extra space because the BLF API is too strict! */
-    x = width - w - 2;
+    x = ibuf->x - w - 2;
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2360,16 +2295,12 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.strip, w, h)) {
 
     /* Top right corner, with an extra space because the BLF API is too strict! */
-    x = width - w - pad;
-    y = height - h;
+    x = ibuf->x - w - pad;
+    y = ibuf->y - h;
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2631,12 +2562,15 @@ bool BKE_imbuf_alpha_test(ImBuf *ibuf)
 
 bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *imf)
 {
+  if (!BLI_file_ensure_parent_dir_exists(filepath)) {
+    CLOG_ERROR(&LOG, "Couldn't create directory for file %s: %s", filepath, std::strerror(errno));
+    return false;
+  }
+
   BKE_image_format_to_imbuf(ibuf, imf);
 
-  BLI_file_ensure_parent_dir_exists(filepath);
-
   const bool ok = IMB_save_image(ibuf, filepath, IB_byte_data);
-  if (ok == 0) {
+  if (!ok && errno != 0) {
     perror(filepath);
   }
 
@@ -2937,7 +2871,7 @@ static void image_walk_id_all_users(
     }
     case ID_MA: {
       Material *ma = (Material *)id;
-      if (ma->nodetree && ma->use_nodes && !skip_nested_nodes) {
+      if (ma->nodetree && !skip_nested_nodes) {
         image_walk_ntree_all_users(ma->nodetree, &ma->id, customdata, callback);
       }
       image_walk_gpu_materials(id, &ma->gpumaterial, customdata, callback);
@@ -4037,12 +3971,12 @@ static void image_create_multilayer(Image *ima, ImBuf *ibuf, int framenr)
 
   /* only load rr once for multiview */
   if (!ima->rr) {
-    ima->rr = RE_MultilayerConvert(ibuf->userdata, colorspace, predivide, ibuf->x, ibuf->y);
+    ima->rr = RE_MultilayerConvert(ibuf->exrhandle, colorspace, predivide, ibuf->x, ibuf->y);
   }
 
-  IMB_exr_close(ibuf->userdata);
+  IMB_exr_close(ibuf->exrhandle);
 
-  ibuf->userdata = nullptr;
+  ibuf->exrhandle = nullptr;
   if (ima->rr != nullptr) {
     ima->rr->framenr = framenr;
     BKE_stamp_info_from_imbuf(ima->rr, ibuf);
@@ -4309,10 +4243,10 @@ static ImBuf *load_image_single(Image *ima,
 
   if (ibuf) {
 #ifdef WITH_IMAGE_OPENEXR
-    if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->userdata) {
+    if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->exrhandle) {
       /* Handle multilayer and multiview cases, don't assign ibuf here.
        * will be set layer in BKE_image_acquire_ibuf from ima->rr. */
-      if (IMB_exr_has_multilayer(ibuf->userdata)) {
+      if (IMB_exr_has_multilayer(ibuf->exrhandle)) {
         image_create_multilayer(ima, ibuf, cfra);
         ima->type = IMA_TYPE_MULTILAYER;
         IMB_freeImBuf(ibuf);
