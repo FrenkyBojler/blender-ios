@@ -158,7 +158,7 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
 
   /* Depsgraph gives each linked duplicate its own evaluated mesh, even though they share
    * the same mesh datablock. Cache by object ID so each duplicate gets its own cache,
-   * instead of constantly invalidating a shared cache when the evaluated mesh pointers differ. */
+   * instead of constantly invalidating a shared cache when the evaluated mesh pointers diffe. */
   const ID *ob_id = &ob_eval->id;
   if (std::unique_ptr<SnapObjectContext::SnapCache> *em_cache_p = sctx->editmesh_caches.lookup_ptr(
           ob_id))
