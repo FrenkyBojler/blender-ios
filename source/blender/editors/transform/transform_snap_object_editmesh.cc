@@ -27,8 +27,11 @@ namespace blender::ed::transform {
 static const Mesh *get_mesh_ref(const Object *ob_eval)
 {
   const Object *ob_orig = DEG_get_original(ob_eval);
-  if (ob_orig) {
-    return static_cast<const Mesh *>(ob_orig->data);
+  if (const Mesh *me = BKE_object_get_editmesh_eval_final(ob_eval)) {
+    return me;
+  }
+  if (const Mesh *me = BKE_object_get_editmesh_eval_cage(ob_eval)) {
+    return me;
   }
 
   return static_cast<const Mesh *>(ob_eval->data);
@@ -153,8 +156,12 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
                              nullptr :
                              get_mesh_ref(ob_eval);
 
+  /* Depsgraph gives each linked duplicate its own evaluated mesh, even though they share
+   * the same mesh datablock. Cache by object ID so each duplicate gets its own cache,
+   * instead of constantly invalidating a shared cache when the evaluated mesh pointers differ. */
+  const ID *ob_id = &ob_eval->id;
   if (std::unique_ptr<SnapObjectContext::SnapCache> *em_cache_p = sctx->editmesh_caches.lookup_ptr(
-          ob_eval->runtime->data_orig))
+          ob_id))
   {
     em_cache = static_cast<SnapCache_EditMesh *>(em_cache_p->get());
 
@@ -167,7 +174,7 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
   else if (create) {
     std::unique_ptr<SnapCache_EditMesh> em_cache_ptr = std::make_unique<SnapCache_EditMesh>();
     em_cache = em_cache_ptr.get();
-    sctx->editmesh_caches.add_new(ob_eval->runtime->data_orig, std::move(em_cache_ptr));
+    sctx->editmesh_caches.add_new(ob_id, std::move(em_cache_ptr));
     init = true;
   }
 
