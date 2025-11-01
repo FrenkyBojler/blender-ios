@@ -1,1 +1,2 @@
 Referenced by issue #149128, Failing extension installation is missing full error traceback
+Referenced by pull request #149053, Fix: LineArt: Assign vertex weight directly instead of using span writer
