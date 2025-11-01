@@ -4,11 +4,12 @@
 
 /**
  * Compute shader for armature modifier deformation using Linear Blend Skinning.
+ * Version without shared-memory hash caching (baseline for performance comparison).
  */
 
 #include "draw_skinning_infos.hh"
 
-COMPUTE_SHADER_CREATE_INFO(draw_armature_skinning_lbs)
+COMPUTE_SHADER_CREATE_INFO(draw_armature_skinning_nocache)
 
 vec2 unpack_weights_from_uint(uint x) {
   const float inv65535 = 1.0f / 65535.0f;
@@ -82,6 +83,7 @@ void main()
   vec3 N_rest = unpack_octahedral(N_packed);
   vec4 T_rest = tan_buf[gid];
 
+  /* Accumulate transformation deltas for numerical stability. */
   vec3 co_accum = vec3(0.0f);
   vec3 N_accum = vec3(0.0f);
   vec3 T_accum = vec3(0.0f);
@@ -92,6 +94,7 @@ void main()
     float w = weights[k];
 
     if (w > 0.0f && bi != 0xFFFFu) {
+      /* Directly fetch bone matrix from buffer (no caching). */
       mat4 bm = bonemat_buf[bi];
 
       vec3 P_trans = (bm * P_rest_f).xyz;

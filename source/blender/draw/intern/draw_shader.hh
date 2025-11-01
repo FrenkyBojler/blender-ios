@@ -26,6 +26,7 @@ blender::gpu::Shader *DRW_shader_draw_view_finalize_get();
 blender::gpu::Shader *DRW_shader_draw_resource_finalize_get();
 blender::gpu::Shader *DRW_shader_draw_command_generate_get();
 blender::gpu::Shader *DRW_shader_armature_skinning_lbs_get();
+blender::gpu::Shader *DRW_shader_armature_skinning_nocache_get();
 blender::gpu::Shader *DRW_shader_armature_skinning_dqs_get();
 blender::gpu::Shader *DRW_shader_armature_skinning_aabb_get();
 

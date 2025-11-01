@@ -17,6 +17,7 @@
     .object = NULL, \
     .defgrp_name = "", \
     .use_gpudeform = SKIN_CPU, \
+    .use_gpucache = WITH_CACHE, \
     .gpu_deform_precision = 3, \
   }
 

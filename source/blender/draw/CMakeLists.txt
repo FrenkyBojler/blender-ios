@@ -665,6 +665,7 @@ set(GLSL_SRC
   intern/shaders/draw_math_quat_lib.glsl
   intern/shaders/draw_armature_skinning_lbs.glsl
   intern/shaders/draw_armature_skinning_dqs.glsl
+  intern/shaders/draw_armature_skinning_nocache.glsl
   intern/shaders/draw_armatureskin_aabb.glsl
 
   intern/draw_attribute_shader_shared.hh

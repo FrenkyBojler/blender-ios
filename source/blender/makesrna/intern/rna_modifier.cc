@@ -3322,6 +3322,14 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
       prop, "Preserve Volume", "Deform rotation interpolation with quaternions");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "use_gpucache", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_gpucache", WITH_CACHE);
+  RNA_def_property_ui_text(prop,
+                           "Cache Shader",
+                           "Enable hardware acceleration armature deformation. NOTE: Won't "
+                           "produce exactly same results as disabled");
+  RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
   prop = RNA_def_property(srna, "use_gpudeform", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_gpudeform", SKIN_CPU);
   RNA_def_property_ui_text(prop,

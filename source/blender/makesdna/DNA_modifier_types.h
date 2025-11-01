@@ -868,14 +868,20 @@ typedef struct ArmatureModifierData {
   float (*vert_coords_prev)[3];
   char defgrp_name[/*MAX_VGROUP_NAME*/ 64];
   short use_gpudeform;
+  short use_gpucache;
   short gpu_deform_precision;
-  char _pad3[4];
+  char _pad3[2];
 } ArmatureModifierData;
 
 typedef enum eDeformFlag {
   SKIN_CPU = 0,
   SKIN_GPU = 1,
 } eDeformFlag;
+
+typedef enum eCacheFlag {
+  NO_CACHE = 0,
+  WITH_CACHE = 1,
+} eCacheFlag;
 
 typedef enum {
   MOD_HOOK_UNIFORM_SPACE = (1 << 0),

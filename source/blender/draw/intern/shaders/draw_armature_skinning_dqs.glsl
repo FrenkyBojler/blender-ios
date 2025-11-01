@@ -4,23 +4,12 @@
 
 /**
  * Compute shader for armature modifier deformation using Dual Quaternion Skinning.
- * 
  */
 
 #include "draw_skinning_infos.hh"
 #include "draw_math_quat_lib.glsl"
 
-COMPUTE_SHADER_CREATE_INFO(draw_armature_skinning_dqs_comp)
-
-#define HASH_SIZE 128u
-#define HASH_MASK (HASH_SIZE - 1u)
-#define EMPTY_SLOT 0xFFFFFFFFu
-
-shared uint s_hash_keys[HASH_SIZE];
-shared uint s_hash_pos[HASH_SIZE];
-shared uint s_unique_count;
-shared GPUDualQuat s_shared_dqs[HASH_SIZE];
-shared uint s_compact_to_bone[HASH_SIZE];
+COMPUTE_SHADER_CREATE_INFO(draw_armature_skinning_dqs)
 
 vec2 unpack_weights_from_uint(uint x) {
   const float inv65535 = 1.0f / 65535.0f;
@@ -60,100 +49,39 @@ vec3 unpack_octahedral(vec2 p)
   return normalize(v);
 }
 
-uint hash_func(uint key) {
-  key ^= key >> 16;
-  key *= 0x85ebca6bu;
-  key ^= key >> 13;
-  key *= 0xc2b2ae35u;
-  key ^= key >> 16;
-  return key & HASH_MASK;
-}
-
-/* Linear probing hash table insertion with atomic compare-and-swap for thread safety. */
-uint hash_insert(uint key)
-{
-  uint probe = hash_func(key);
-  for (uint iter = 0u; iter < HASH_SIZE; ++iter) {
-    uint prev = atomicCompSwap(s_hash_keys[probe], EMPTY_SLOT, key);
-    if (prev == EMPTY_SLOT || prev == key) {
-      return probe;
-    }
-    probe = (probe + 1u) & HASH_MASK;
-  }
-  return EMPTY_SLOT;
-}
-
-uint hash_find(uint key)
-{
-  uint probe = hash_func(key);
-  for (uint iter = 0u; iter < HASH_SIZE; ++iter) {
-    uint v = s_hash_keys[probe];
-    if (v == key) return probe;
-    if (v == EMPTY_SLOT) return EMPTY_SLOT;
-    probe = (probe + 1u) & HASH_MASK;
-  }
-  return EMPTY_SLOT;
+/* Helper function to convert GPU dual quaternion to shader format */
+DualQuat convert_gpu_dualquat(GPUDualQuat gpu_dq) {
+  DualQuat bone_dq;
+  /* Quaternion components reordered from [w,x,y,z] to [x,y,z,w] */
+  bone_dq.quat = vec4(gpu_dq.quat[1], gpu_dq.quat[2], gpu_dq.quat[3], gpu_dq.quat[0]);
+  bone_dq.trans = vec4(gpu_dq.trans[1], gpu_dq.trans[2], gpu_dq.trans[3], gpu_dq.trans[0]);
+  bone_dq.scale = mat4(
+    vec4(gpu_dq.scale[0][0], gpu_dq.scale[0][1], gpu_dq.scale[0][2], gpu_dq.scale[0][3]),
+    vec4(gpu_dq.scale[1][0], gpu_dq.scale[1][1], gpu_dq.scale[1][2], gpu_dq.scale[1][3]),
+    vec4(gpu_dq.scale[2][0], gpu_dq.scale[2][1], gpu_dq.scale[2][2], gpu_dq.scale[2][3]),
+    vec4(gpu_dq.scale[3][0], gpu_dq.scale[3][1], gpu_dq.scale[3][2], gpu_dq.scale[3][3])
+  );
+  bone_dq.scale_weight = gpu_dq.scale_weight;
+  bone_dq.quat_weight = 1.0;
+  return bone_dq;
 }
 
 void main()
 {
   uint gid = gl_GlobalInvocationID.x;
-  if (gid >= uint(vertex_count)) return;
-  uint lid = gl_LocalInvocationID.x;
-  uint lsize = gl_WorkGroupSize.x;
-
-  /* Initialize shared memory cooperatively */
-  for (uint i = lid; i < HASH_SIZE; i += lsize) {
-    s_hash_keys[i] = EMPTY_SLOT;
-    s_hash_pos[i] = EMPTY_SLOT;
+  if (gid >= uint(vertex_count)) {
+    return;
   }
-  if (lid == 0u) {
-    s_unique_count = 0u;
-  }
-  memoryBarrierShared();
-  barrier();
 
+  /* Load bone indices and weights */
   uint idx_u0 = indices_buf[gid].x;
   uint idx_u1 = indices_buf[gid].y;
   uvec4 bone_idx = unpack_indices_from_two_uints(idx_u0, idx_u1);
 
-  for (int k = 0; k < 4; ++k) {
-    uint bi = bone_idx[k];
-    if (bi != 0xFFFFu) {
-      hash_insert(bi);
-    }
-  }
-
-  memoryBarrierShared();
-  barrier();
-
-  if (lid == 0u) {
-    uint compact_idx = 0u;
-    for (uint i = 0u; i < HASH_SIZE; ++i) {
-      if (s_hash_keys[i] != EMPTY_SLOT) {
-        s_hash_pos[i] = compact_idx;
-        s_compact_to_bone[compact_idx] = s_hash_keys[i];
-        compact_idx++;
-      }
-    }
-    s_unique_count = compact_idx;
-  }
-
-  memoryBarrierShared();
-  barrier();
-
-   /* Load dual quaternions into shared memory using compact indices. */
-  for (uint i = lid; i < s_unique_count; i += lsize) {
-    uint bone_idx = s_compact_to_bone[i];
-    s_shared_dqs[i] = bonedq_buf[bone_idx];
-  }
-
-  memoryBarrierShared();
-  barrier();
-
   uint w_u0 = weights_buf[gid].x;
   uint w_u1 = weights_buf[gid].y;
 
+  /* Early exit for unweighted vertices */
   if (w_u0 == 0u && w_u1 == 0u) {
     vec4 P_rest = pos_buf[gid];
     vec2 N_packed = nor_buf[gid];
@@ -167,12 +95,18 @@ void main()
 
   vec4 weights = unpack_weights_from_two_uints(w_u0, w_u1);
 
+  /* Load vertex data */
   vec3 P_rest = vec3(pos_buf[gid]);
   vec2 N_packed = nor_buf[gid];
   vec3 N_rest = unpack_octahedral(N_packed);
   vec4 T_rest = tan_buf[gid];
 
-  /* Initialize dual quaternion accumulator. */
+  GPUDualQuat gpu_dq0 = (bone_idx[0] != 0xFFFFu) ? bonedq_buf[bone_idx[0]] : GPUDualQuat(vec4(1,0,0,0), vec4(0,0,0,0), mat4(1.0), 0.0);
+  GPUDualQuat gpu_dq1 = (bone_idx[1] != 0xFFFFu) ? bonedq_buf[bone_idx[1]] : GPUDualQuat(vec4(1,0,0,0), vec4(0,0,0,0), mat4(1.0), 0.0);
+  GPUDualQuat gpu_dq2 = (bone_idx[2] != 0xFFFFu) ? bonedq_buf[bone_idx[2]] : GPUDualQuat(vec4(1,0,0,0), vec4(0,0,0,0), mat4(1.0), 0.0);
+  GPUDualQuat gpu_dq3 = (bone_idx[3] != 0xFFFFu) ? bonedq_buf[bone_idx[3]] : GPUDualQuat(vec4(1,0,0,0), vec4(0,0,0,0), mat4(1.0), 0.0);
+
+  /* Initialize dual quaternion accumulator */
   DualQuat dq_sum;
   dq_sum.quat = vec4(0.0, 0.0, 0.0, 0.0);
   dq_sum.trans = vec4(0.0, 0.0, 0.0, 0.0);
@@ -182,36 +116,30 @@ void main()
 
   float total_weight = 0.0;
 
-  /* Accumulate weighted dual quaternions from influencing bones. */
-  for (int k = 0; k < 4; ++k) {
-    uint bi = bone_idx[k];
-    float w = weights[k];
+  
+  /* Bone 0 */
+  if (weights[0] > 0.0f && bone_idx[0] != 0xFFFFu) {
+    DualQuat bone_dq = convert_gpu_dualquat(gpu_dq0);
+    accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, weights[0]);
+    total_weight += weights[0];
+  }
 
-    if (w > 0.0 && bi != 0xFFFFu) {
-      uint probe = hash_find(bi);
-      if (probe != EMPTY_SLOT) {
-        uint local_idx = s_hash_pos[probe];
-        GPUDualQuat gpu_dq = s_shared_dqs[local_idx];
+  if (weights[1] > 0.0f && bone_idx[1] != 0xFFFFu) {
+    DualQuat bone_dq = convert_gpu_dualquat(gpu_dq1);
+    accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, weights[1]);
+    total_weight += weights[1];
+  }
 
-        /* Convert GPU dual quaternion format to shader format.
-         * Quaternion components are reordered from [w,x,y,z] to [x,y,z,w]. */
-        DualQuat bone_dq;
-        bone_dq.quat = vec4(gpu_dq.quat[1], gpu_dq.quat[2], gpu_dq.quat[3], gpu_dq.quat[0]);
-        bone_dq.trans = vec4(gpu_dq.trans[1], gpu_dq.trans[2], gpu_dq.trans[3], gpu_dq.trans[0]);
-        bone_dq.scale = mat4(
-          vec4(gpu_dq.scale[0][0], gpu_dq.scale[0][1], gpu_dq.scale[0][2], gpu_dq.scale[0][3]),
-          vec4(gpu_dq.scale[1][0], gpu_dq.scale[1][1], gpu_dq.scale[1][2], gpu_dq.scale[1][3]),
-          vec4(gpu_dq.scale[2][0], gpu_dq.scale[2][1], gpu_dq.scale[2][2], gpu_dq.scale[2][3]),
-          vec4(gpu_dq.scale[3][0], gpu_dq.scale[3][1], gpu_dq.scale[3][2], gpu_dq.scale[3][3])
-        );
-        bone_dq.scale_weight = gpu_dq.scale_weight;
-        bone_dq.quat_weight = 1.0;
+  if (weights[2] > 0.0f && bone_idx[2] != 0xFFFFu) {
+    DualQuat bone_dq = convert_gpu_dualquat(gpu_dq2);
+    accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, weights[2]);
+    total_weight += weights[2];
+  }
 
-        /* Use vertex position as pivot point to neutralize scale artifacts. */
-        accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, w);
-        total_weight += w;
-      }
-    }
+  if (weights[3] > 0.0f && bone_idx[3] != 0xFFFFu) {
+    DualQuat bone_dq = convert_gpu_dualquat(gpu_dq3);
+    accumulate_dual_quat_pivot(dq_sum, bone_dq, P_rest, weights[3]);
+    total_weight += weights[3];
   }
 
   vec3 P_final;

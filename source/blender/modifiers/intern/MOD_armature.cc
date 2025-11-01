@@ -260,6 +260,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   col->prop(ptr, "use_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
   col->prop(ptr, "use_bone_envelopes", UI_ITEM_NONE, IFACE_("Bone Envelopes"), ICON_NONE);
 
+  layout->prop(ptr, "use_gpucache", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
   // col = uiLayoutColumnWithHeading(layout, true, IFACE_("Performance"));
   modifier_error_message_draw(layout, ptr);
 }
