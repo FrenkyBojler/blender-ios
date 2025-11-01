@@ -909,7 +909,7 @@ BLI_INLINE float4 _sample_rect(Sampler sampler, InterpWrapMode wrap_x, InterpWra
 }
 
 /** unoptimized version */
-float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
+float4 sample_rect(const SamplerSource &source, float2 uv, float2 wh)
 {
   return _sample_rect(source.sampler, source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
@@ -917,7 +917,7 @@ float4 sample_rect(SamplerSource source, float2 uv, float2 wh)
 }
 
 /** Optimized versions of sample_rect */
-static float4 sample_nearest(SamplerSource source, float2 uv, float2)
+static float4 sample_nearest(const SamplerSource &source, float2 uv, float2)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   interpolate_nearest_wrapmode_fl(source.buffer,
@@ -932,7 +932,7 @@ static float4 sample_nearest(SamplerSource source, float2 uv, float2)
   return pixel_value;
 }
 
-static float4 sample_bilinear(SamplerSource source, float2 uv, float2)
+static float4 sample_bilinear(const SamplerSource &source, float2 uv, float2)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   interpolate_bilinear_wrapmode_fl(source.buffer,
@@ -947,14 +947,21 @@ static float4 sample_bilinear(SamplerSource source, float2 uv, float2)
   return pixel_value;
 }
 
-static float4 sample_box(SamplerSource source, float2 uv, float2 wh)
+static float4 sample_box(const SamplerSource &source, float2 uv, float2 wh)
 {
   return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
                       uv, wh);
 }
 
-static float4 sample_bspline(SamplerSource source, float2 uv, float2 wh)
+static float4 sample_box4(const SamplerSource &source, float2 uv, float2 wh)
+{
+  return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
+                      source.buffer, source.width, source.height, 4,
+                      uv, wh);
+}
+
+static float4 sample_bspline(const SamplerSource &source, float2 uv, float2 wh)
 {
   return _sample_rect(Sampler::Bspline, source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
@@ -969,7 +976,7 @@ SampleRect sample_rect(const SamplerSource &source)
     case Sampler::Bilinear:
       return sample_bilinear;
     default: /* case Sampler::Box */
-      return sample_box;
+      return source.components == 4 ? sample_box4 : sample_box;
     case Sampler::Bspline:
       return sample_bspline;
   }

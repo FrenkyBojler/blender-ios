@@ -394,7 +394,7 @@ void interpolate_cubic_mitchell_fl(
  * Sample using an arbitrary filter and orthogonal rectangular area.
  * Anisotropic sampler is same as Box, must use dPdx,dPdy to get actual filter.
  */
-float4 sample_rect(SamplerSource source, float2 uv, float2 wh);
+float4 sample_rect(const SamplerSource &source, float2 uv, float2 wh);
 
 /** API matching sample_rect() when it is known nearest sampling will work */
 inline float4 sample_nearest(SamplerSource source, float2 uv)
@@ -432,7 +432,7 @@ inline float4 sample_bilinear(SamplerSource source, float2 uv)
  * Lookup optimized versions of above function. The returned function assumes it is called with
  * the same arguments. If there is no optimized version sample_rect() is returned.
  */
-using SampleRect = float4 (*)(SamplerSource source, float2 uv, float2 wh);
+using SampleRect = float4 (*)(const SamplerSource &source, float2 uv, float2 wh);
 SampleRect sample_rect(const SamplerSource &source);
 
 }  // namespace blender::math
