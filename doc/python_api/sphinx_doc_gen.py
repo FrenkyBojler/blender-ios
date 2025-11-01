@@ -1979,7 +1979,8 @@ def pyrna2sphinx(basepath):
                 else:
                     operator_description = op.description
 
-                fw("   {:s}\n\n".format(operator_description))
+                write_indented_lines("   ", fw, operator_description)
+                fw("\n")
                 for prop in op.args:
                     write_param("   ", fw, prop)
 
