@@ -1752,8 +1752,7 @@ static void pchan_draw_ik_lines(const Armatures::DrawContext *ctx,
         /* Find the chain's root */
         while (parchan->parent) {
           segcount++;
-          /* FIXME: revise the breaking conditions */
-          if (segcount == data->chainlen || segcount > blender::bke::SPLINE_IK_MAX_CHAIN_LEN) {
+          if (segcount == data->chainlen) {
             break;
           }
           parchan = parchan->parent;
