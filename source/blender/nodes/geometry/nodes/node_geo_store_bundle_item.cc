@@ -40,7 +40,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const NodeGeometryStoreBundleItem &storage = node_storage(*node);
-    const eCustomDataType data_type = eCustomDataType(storage.data_type);
+    const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
     b.add_input(data_type, "Item");
   }
 }
@@ -55,7 +55,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryStoreBundleItem *data = MEM_callocN<NodeGeometryStoreBundleItem>(__func__);
-  data->data_type = CD_PROP_FLOAT;
+  data->data_type = SOCK_GEOMETRY;
   node->storage = data;
 }
 
@@ -102,13 +102,31 @@ static void node_rna(StructRNA *srna)
       "data_type",
       "Data Type",
       "Type of data stored in attribute",
-      rna_enum_attribute_type_with_auto_items,
+      rna_enum_node_socket_data_type_items,
       NOD_storage_enum_accessors(data_type),
-      CD_PROP_FLOAT,
+      SOCK_GEOMETRY,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(rna_enum_attribute_type_with_auto_items,
-                                 enums::generic_attribute_type_supported);
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   return ELEM(item.value,
+                                               SOCK_FLOAT,
+                                               SOCK_INT,
+                                               SOCK_BOOLEAN,
+                                               SOCK_ROTATION,
+                                               SOCK_MATRIX,
+                                               SOCK_VECTOR,
+                                               SOCK_STRING,
+                                               SOCK_RGBA,
+                                               SOCK_GEOMETRY,
+                                               SOCK_OBJECT,
+                                               SOCK_COLLECTION,
+                                               SOCK_MATERIAL,
+                                               SOCK_IMAGE,
+                                               SOCK_MENU,
+                                               SOCK_BUNDLE,
+                                               SOCK_CLOSURE);
+                                 });
       });
 }
 
