@@ -12,6 +12,7 @@
 #  include "eevee_lightprobe_shared.hh"
 #  include "eevee_sampling_shared.hh"
 #  include "eevee_shadow_shared.hh"
+#  include "eevee_uniform_infos.hh"
 #  include "eevee_uniform_shared.hh"
 
 #  define EEVEE_SAMPLING_DATA
@@ -42,11 +43,6 @@ GPU_SHADER_CREATE_INFO(eevee_node_tree)
 UNIFORM_BUF(0 /*GPU_NODE_TREE_UBO_SLOT*/, NodeTree, node_tree)
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(eevee_global_ubo)
-TYPEDEF_SOURCE("eevee_uniform_shared.hh")
-UNIFORM_BUF(UNIFORM_BUF_SLOT, UniformData, uniform_buf)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(eevee_hiz_data)
 SAMPLER(HIZ_TEX_SLOT, sampler2D, hiz_tx)
 ADDITIONAL_INFO(eevee_global_ubo)
@@ -54,25 +50,6 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_utility_texture)
 SAMPLER(RBUFS_UTILITY_TEX_SLOT, sampler2DArray, utility_tx)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_NAMED_INTERFACE_INFO(eevee_clip_plane_iface, clip_interp)
-SMOOTH(float, clip_distance)
-GPU_SHADER_NAMED_INTERFACE_END(clip_interp)
-
-GPU_SHADER_CREATE_INFO(eevee_clip_plane)
-VERTEX_OUT(eevee_clip_plane_iface)
-TYPEDEF_SOURCE("eevee_uniform_shared.hh")
-UNIFORM_BUF(CLIP_PLANE_BUF, ClipPlaneData, clip_plane)
-DEFINE("MAT_CLIP_PLANE")
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_light_data)
-TYPEDEF_SOURCE("eevee_light_shared.hh")
-STORAGE_BUF(LIGHT_CULL_BUF_SLOT, read, LightCullingData, light_cull_buf)
-STORAGE_BUF(LIGHT_BUF_SLOT, read, LightData, light_buf[])
-STORAGE_BUF(LIGHT_ZBIN_BUF_SLOT, read, uint, light_zbin_buf[])
-STORAGE_BUF(LIGHT_TILE_BUF_SLOT, read, uint, light_tile_buf[])
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_shadow_data)
@@ -117,23 +94,6 @@ GPU_SHADER_CREATE_END()
 GPU_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 STORAGE_BUF(CRYPTOMATTE_BUF_SLOT, read, float2, cryptomatte_object_buf[])
 IMAGE_FREQ(RBUFS_CRYPTOMATTE_SLOT, SFLOAT_32_32_32_32, write, image2D, rp_cryptomatte_img, PASS)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_tests_data)
-TYPEDEF_SOURCE("eevee_defines.hh")
-DEFINE("MAT_REFLECTION")
-DEFINE("MAT_REFRACTION")
-DEFINE("MAT_SUBSURFACE")
-DEFINE("MAT_TRANSLUCENT")
-GPU_SHADER_CREATE_END()
-
-/* Used for shaders that need the final accumulated volume transmittance and scattering. */
-GPU_SHADER_CREATE_INFO(eevee_volume_lib)
-TYPEDEF_SOURCE("eevee_defines.hh")
-ADDITIONAL_INFO(eevee_global_ubo)
-ADDITIONAL_INFO(draw_view)
-SAMPLER(VOLUME_SCATTERING_TEX_SLOT, sampler3D, volume_scattering_tx)
-SAMPLER(VOLUME_TRANSMITTANCE_TEX_SLOT, sampler3D, volume_transmittance_tx)
 GPU_SHADER_CREATE_END()
 
 /** \} */

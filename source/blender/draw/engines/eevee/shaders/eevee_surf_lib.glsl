@@ -5,6 +5,7 @@
 #pragma once
 
 #include "infos/eevee_material_infos.hh"
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_geom_mesh)
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)

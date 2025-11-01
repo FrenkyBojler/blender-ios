@@ -9,6 +9,7 @@
  */
 
 #include "infos/eevee_shadow_infos.hh"
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_shadow_data)

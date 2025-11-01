@@ -326,6 +326,7 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_film_infos.hh
   engines/eevee/shaders/infos/eevee_hiz_infos.hh
   engines/eevee/shaders/infos/eevee_light_culling_infos.hh
+  engines/eevee/shaders/infos/eevee_light_infos.hh
   engines/eevee/shaders/infos/eevee_lightprobe_infos.hh
   engines/eevee/shaders/infos/eevee_lightprobe_sphere_infos.hh
   engines/eevee/shaders/infos/eevee_lightprobe_volume_infos.hh
@@ -336,9 +337,12 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_sampling_infos.hh
   engines/eevee/shaders/infos/eevee_shadow_infos.hh
   engines/eevee/shaders/infos/eevee_subsurface_infos.hh
+  engines/eevee/shaders/infos/eevee_tests_infos.hh
   engines/eevee/shaders/infos/eevee_tracing_infos.hh
+  engines/eevee/shaders/infos/eevee_uniform_infos.hh
   engines/eevee/shaders/infos/eevee_velocity_infos.hh
   engines/eevee/shaders/infos/eevee_volume_infos.hh
+  engines/eevee/shaders/infos/eevee_volume_resolved_infos.hh
 
   engines/image/shaders/infos/engine_image_infos.hh
 
