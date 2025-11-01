@@ -146,6 +146,8 @@ class VRLandmark(PropertyGroup):
             ('CUSTOM', "Custom Pose",
              "Allow a manually defined position and rotation to be used as "
              "the VR view base pose"),
+            ('VIEWFINDER', "Viewfinder",
+             "Camera viewpoint captured with the VR director viewfinder"),
         ],
         default='SCENE_CAMERA',
         update=vr_landmark_type_update,
@@ -171,6 +173,39 @@ class VRLandmark(PropertyGroup):
         default=1.0,
         min=0.000001,
         update=vr_landmark_base_scale_update,
+    )
+    
+    # Director Viewfinder properties
+    camera_lens: bpy.props.FloatProperty(
+        name="Camera Lens",
+        description="Focal length in millimeters",
+        default=50.0,
+        min=1.0,
+        max=5000.0,
+    )
+    camera_aperture: bpy.props.FloatProperty(
+        name="Camera Aperture",
+        description="F-Stop value for depth of field",
+        default=2.8,
+        min=0.1,
+        max=128.0,
+    )
+    camera_focus_distance: bpy.props.FloatProperty(
+        name="Focus Distance",
+        description="Distance to focus point",
+        default=10.0,
+        min=0.0,
+    )
+    camera_rotation: bpy.props.FloatVectorProperty(
+        name="Camera Rotation",
+        description="Camera orientation as Euler angles",
+        subtype='EULER',
+        size=3,
+    )
+    use_dof: bpy.props.BoolProperty(
+        name="Use Depth of Field",
+        description="Enable depth of field for this viewfinder capture",
+        default=False,
     )
 
     @staticmethod
@@ -213,6 +248,47 @@ def register():
     bpy.types.Scene.vr_landmarks_active = bpy.props.IntProperty(
         update=vr_landmark_active_update,
     )
+    
+    # Viewfinder properties
+    bpy.types.Scene.vr_viewfinder_enabled = bpy.props.BoolProperty(
+        name="Enable VR Viewfinder",
+        description="Enable the director viewfinder on the left controller",
+        default=False,
+    )
+    bpy.types.Scene.vr_viewfinder_mode = bpy.props.EnumProperty(
+        name="Viewfinder Mode",
+        items=[
+            ('LIVE', "Live", "Live viewfinder mode for capturing new shots"),
+            ('PLAYBACK', "Playback", "Review captured shots"),
+        ],
+        default='LIVE',
+    )
+    bpy.types.Scene.vr_viewfinder_active_button = bpy.props.IntProperty(
+        name="Active Viewfinder Button",
+        description="Currently active button in the viewfinder UI",
+        default=0,
+        min=0,
+    )
+    bpy.types.Scene.vr_viewfinder_playback_index = bpy.props.IntProperty(
+        name="Playback Index",
+        description="Index of the viewfinder landmark being previewed",
+        default=0,
+        min=0,
+    )
+    bpy.types.Scene.vr_viewfinder_size = bpy.props.FloatProperty(
+        name="Viewfinder Size",
+        description="Size of the viewfinder display",
+        default=0.15,
+        min=0.01,
+        max=1.0,
+    )
+    bpy.types.Scene.vr_viewfinder_passepartout = bpy.props.FloatProperty(
+        name="Viewfinder Passepartout",
+        description="Amount of overscan to show around the frame",
+        default=0.1,
+        min=0.0,
+        max=0.5,
+    )
 
     bpy.app.handlers.load_post.append(vr_ensure_default_landmark)
 
@@ -224,5 +300,13 @@ def unregister():
     del bpy.types.Scene.vr_landmarks
     del bpy.types.Scene.vr_landmarks_selected
     del bpy.types.Scene.vr_landmarks_active
+    
+    # Clean up viewfinder properties
+    del bpy.types.Scene.vr_viewfinder_enabled
+    del bpy.types.Scene.vr_viewfinder_mode
+    del bpy.types.Scene.vr_viewfinder_active_button
+    del bpy.types.Scene.vr_viewfinder_playback_index
+    del bpy.types.Scene.vr_viewfinder_size
+    del bpy.types.Scene.vr_viewfinder_passepartout
 
     bpy.app.handlers.load_post.remove(vr_ensure_default_landmark)

@@ -183,6 +183,25 @@ class VIEW3D_PT_vr_landmarks(Panel):
                             "base_pose_angle", text="Angle")
                 layout.prop(landmark_selected,
                             "base_scale", text="Scale")
+            elif landmark_selected.type == 'VIEWFINDER':
+                # Show viewfinder camera settings
+                box = layout.box()
+                box.label(text="Camera Settings:", icon='CAMERA_DATA')
+                
+                col = box.column(align=True)
+                col.prop(landmark_selected, "camera_lens", text="Lens (mm)")
+                col.prop(landmark_selected, "use_dof", text="Depth of Field")
+                
+                if landmark_selected.use_dof:
+                    subcol = col.column(align=True)
+                    subcol.active = landmark_selected.use_dof
+                    subcol.prop(landmark_selected, "camera_aperture", text="Aperture (f-stop)")
+                    subcol.prop(landmark_selected, "camera_focus_distance", text="Focus Distance")
+                
+                box = layout.box()
+                box.label(text="Position:", icon='EMPTY_ARROWS')
+                box.prop(landmark_selected, "base_pose_location", text="Location")
+                box.prop(landmark_selected, "camera_rotation", text="Rotation")
 
 
 # Actions.
@@ -208,6 +227,75 @@ class VIEW3D_PT_vr_actionmaps(Panel):
         col.prop(scene, "vr_actions_enable_vive_cosmos", text="HTC Vive Cosmos")
         col.prop(scene, "vr_actions_enable_vive_focus", text="HTC Vive Focus")
         col.prop(scene, "vr_actions_enable_huawei", text="Huawei")
+
+
+# VR Director Viewfinder
+class VIEW3D_PT_vr_viewfinder(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "VR"
+    bl_label = "Director Viewfinder"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene, "vr_viewfinder_enabled", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        layout.active = scene.vr_viewfinder_enabled
+        
+        # Mode selector
+        layout.prop(scene, "vr_viewfinder_mode", text="Mode")
+        
+        layout.separator()
+        
+        # Live mode controls
+        if scene.vr_viewfinder_mode == 'LIVE':
+            col = layout.column(align=True)
+            col.label(text="Live Controls:")
+            
+            row = col.row(align=True)
+            row.operator("view3d.vr_viewfinder_adjust_lens", text="Lens +").direction = 1
+            row.operator("view3d.vr_viewfinder_adjust_lens", text="Lens -").direction = -1
+            
+            row = col.row(align=True)
+            row.operator("view3d.vr_viewfinder_adjust_aperture", text="Aperture +").direction = 1
+            row.operator("view3d.vr_viewfinder_adjust_aperture", text="Aperture -").direction = -1
+            
+            col.operator("view3d.vr_viewfinder_toggle_dof", text="Toggle DOF")
+            col.operator("view3d.vr_viewfinder_capture", text="Capture Shot", icon='CAMERA_DATA')
+        
+        # Playback mode controls
+        else:
+            col = layout.column(align=True)
+            col.label(text="Playback Controls:")
+            
+            row = col.row(align=True)
+            row.operator("view3d.vr_viewfinder_playback_navigate", text="Previous", icon='TRIA_LEFT').direction = -1
+            row.operator("view3d.vr_viewfinder_playback_navigate", text="Next", icon='TRIA_RIGHT').direction = 1
+            
+            col.operator("view3d.vr_viewfinder_playback_preview", text="Preview Shot", icon='HIDE_OFF')
+            col.operator("view3d.vr_viewfinder_playback_delete", text="Delete Shot", icon='TRASH')
+        
+        layout.separator()
+        
+        # Settings
+        col = layout.column(align=True)
+        col.label(text="Settings:")
+        col.prop(scene, "vr_viewfinder_size", text="Size")
+        col.prop(scene, "vr_viewfinder_passepartout", text="Passepartout")
+        
+        layout.separator()
+        
+        # Export
+        layout.operator("view3d.vr_viewfinder_to_camera_keyframes", 
+                       text="Export to Camera Keyframes", 
+                       icon='KEYFRAME_HLT')
 
 
 # Viewport feedback.
@@ -260,6 +348,7 @@ classes = (
     VIEW3D_PT_vr_session_view_object_type_visibility,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
+    VIEW3D_PT_vr_viewfinder,
     VIEW3D_PT_vr_viewport_feedback,
 
     VIEW3D_UL_vr_landmarks,
