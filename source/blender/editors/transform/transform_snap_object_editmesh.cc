@@ -13,7 +13,6 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
-#include "DEG_depsgraph_query.hh"
 #include "ED_transform_snap_object_context.hh"
 
 #include "transform_snap_object.hh"
@@ -26,7 +25,6 @@ namespace blender::ed::transform {
 
 static const Mesh *get_mesh_ref(const Object *ob_eval)
 {
-  const Object *ob_orig = DEG_get_original(ob_eval);
   if (const Mesh *me = BKE_object_get_editmesh_eval_final(ob_eval)) {
     return me;
   }
