@@ -155,7 +155,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "NodeGetBundleItem");
   ntype.ui_name = "Get Bundle Item";
-  ntype.ui_description = "Retrieve a bundle item by name.";
+  ntype.ui_description = "Retrieve a bundle item by name and data type.";
   ntype.nclass = NODE_CLASS_CONVERTER;
   blender::bke::node_type_storage(
       ntype, "NodeGeometryGetBundleItem", node_free_standard_storage, node_copy_standard_storage);

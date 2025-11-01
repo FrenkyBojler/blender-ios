@@ -101,7 +101,7 @@ static void node_rna(StructRNA *srna)
       srna,
       "data_type",
       "Data Type",
-      "Type of data stored in attribute",
+      "",
       rna_enum_node_socket_data_type_items,
       NOD_storage_enum_accessors(data_type),
       SOCK_GEOMETRY,
@@ -136,7 +136,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "NodeStoreBundleItem");
   ntype.ui_name = "Store Bundle Item";
-  ntype.ui_description = "Store a bundle item by name.";
+  ntype.ui_description = "Store a bundle item by name and data type.";
   ntype.nclass = NODE_CLASS_CONVERTER;
   blender::bke::node_type_storage(ntype,
                                   "NodeGeometryStoreBundleItem",
