@@ -52,22 +52,6 @@ GPU_SHADER_CREATE_INFO(eevee_utility_texture)
 SAMPLER(RBUFS_UTILITY_TEX_SLOT, sampler2DArray, utility_tx)
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(eevee_shadow_data)
-TYPEDEF_SOURCE("eevee_shadow_shared.hh")
-/* SHADOW_READ_ATOMIC macro indicating shadow functions should use `usampler2DArrayAtomic` as
- * the atlas type. */
-DEFINE("SHADOW_READ_ATOMIC")
-BUILTINS(BuiltinBits::TEXTURE_ATOMIC)
-SAMPLER(SHADOW_ATLAS_TEX_SLOT, usampler2DArrayAtomic, shadow_atlas_tx)
-SAMPLER(SHADOW_TILEMAPS_TEX_SLOT, usampler2D, shadow_tilemaps_tx)
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_shadow_data_non_atomic)
-TYPEDEF_SOURCE("eevee_shadow_shared.hh")
-SAMPLER(SHADOW_ATLAS_TEX_SLOT, usampler2DArray, shadow_atlas_tx)
-SAMPLER(SHADOW_TILEMAPS_TEX_SLOT, usampler2D, shadow_tilemaps_tx)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(eevee_volume_properties_data)
 ADDITIONAL_INFO(eevee_global_ubo)
 IMAGE(VOLUME_PROP_SCATTERING_IMG_SLOT, UFLOAT_11_11_10, read, image3D, in_scattering_img)

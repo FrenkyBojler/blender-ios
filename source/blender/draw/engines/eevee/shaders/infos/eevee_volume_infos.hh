@@ -12,6 +12,7 @@
 #  include "eevee_light_infos.hh"
 #  include "eevee_lightprobe_infos.hh"
 #  include "eevee_sampling_infos.hh"
+#  include "eevee_shadow_infos.hh"
 #  include "eevee_volume_resolved_infos.hh"
 #  include "eevee_volume_shared.hh"
 #  include "gpu_shader_fullscreen_infos.hh"
