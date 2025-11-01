@@ -68,7 +68,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   nodes::BundlePtr bundle = params.extract_input<nodes::BundlePtr>("Bundle");
   if (!bundle) {
-    params.set_output("Exists", false);
     params.set_default_remaining_outputs();
     return;
   }
@@ -77,14 +76,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool remove = params.extract_input<bool>("Remove");
 
   if (name.is_empty()) {
-    params.set_output("Exists", false);
+    params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
   }
 
   const BundleItemValue *value = bundle->lookup(name);
   if (!value) {
-    params.set_output("Exists", false);
+    params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
   }
@@ -93,7 +92,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(
         NodeWarningType::Error,
         fmt::format("{}: \"{}\"", TIP_("Cannot get internal value from bundle"), name));
-    params.set_output("Exists", false);
+    params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
   }
@@ -101,12 +100,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(storage.data_type, 0);
   SocketValueVariant output_value = std::move(socket_value->value);
   if (socket_value->type->type != stype->type) {
-    params.set_output("Exists", false);
+    params.set_output("Bundle", std::move(bundle));
     params.set_default_remaining_outputs();
     return;
   }
 
   if (remove) {
+    bundle = bundle->copy();
+    const_cast<Bundle &>(*bundle).remove(name);
   }
 
   params.set_output("Bundle", std::move(bundle));
