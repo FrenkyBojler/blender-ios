@@ -1,2 +1,2 @@
-Referenced by issue #149212, Stabilize 2D in VSE does not use correct frame when prefetching
+Referenced by issue #149212, Stabilize 2D in VSE uses wrong frame data when prefetching
 Referenced by issue #148457, FFMPEG: Broken movie seeking
