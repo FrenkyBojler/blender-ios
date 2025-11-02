@@ -192,52 +192,6 @@ static void scene_raycast(const MutableSpan<ProjectBrushTarget> project_targets,
   }
 }
 
-/**
- * Calculates the projection of the brush plane center on the target objects, and returns its
- * distance.
- */
-static float calc_center_projection_distance(const StrokeCache &cache,
-                                             const float3 &normal,
-                                             const bool bidirectional)
-{
-  const Span<ProjectBrushTarget> project_targets = cache.project_targets.as_span();
-  const float3 &center = cache.location_symm;
-
-  BVHTreeRayHit hit;
-  float distance = BVH_RAYCAST_DIST_MAX;
-
-  for (const int i : project_targets.index_range()) {
-    const float4x4 &active_to_target_mat = project_targets[i].active_to_target_matrix;
-    const float3 ray_origin = math::transform_point(active_to_target_mat, center);
-    const float3 ray_direction = math::transform_direction(active_to_target_mat, normal);
-
-    raycast(ray_origin, ray_direction, project_targets[i].tree_data, hit);
-    distance = absolute_min_distance(distance, hit.dist);
-
-    if (bidirectional) {
-      raycast(ray_origin, -ray_direction, project_targets[i].tree_data, hit);
-      distance = absolute_min_distance(distance, -hit.dist);
-    }
-  }
-
-  return distance == BVH_RAYCAST_DIST_MAX ? 0.0f : distance;
-}
-
-/*
- * Offsets the projection from the target objects, preventing meshes with volume from being
- * squeezed when projected.
- */
-static void calc_projection_offset(const float3 &center,
-                                   const float3 &normal,
-                                   const float center_projection_dist,
-                                   const Span<float3> positions,
-                                   const MutableSpan<float> hit_distances)
-{
-  for (const int i : positions.index_range()) {
-    const float distance = math::dot(positions[i] - center, normal);
-    hit_distances[i] += (distance - center_projection_dist);
-  }
-}
 
 static void calc_translations(const float3 &normal,
                               const Span<float> factors,
@@ -266,11 +220,9 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
                        const bool bidirectional,
-                       const bool relative,
                        const float3 &normal,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
-                       const float center_projection_dist,
                        const bke::pbvh::MeshNode &node,
                        Object &object,
                        LocalData &tls,
@@ -306,11 +258,6 @@ static void calc_faces(const Depsgraph &depsgraph,
                 tls.ray_origins,
                 hit_distances);
 
-  if (relative) {
-    calc_projection_offset(
-        ss.cache->location_symm, normal, center_projection_dist, positions, hit_distances);
-  }
-
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(normal, tls.factors, hit_distances, translations);
@@ -325,9 +272,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool bidirectional,
-                       const bool relative,
                        const float3 &normal,
-                       const float center_projection_dist,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
@@ -351,10 +296,6 @@ static void calc_grids(const Depsgraph &depsgraph,
                 tls.ray_origins,
                 hit_distances);
 
-  if (relative) {
-    calc_projection_offset(
-        ss.cache->location_symm, normal, center_projection_dist, positions, hit_distances);
-  }
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -370,9 +311,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        Object &object,
                        const Brush &brush,
                        const bool bidirectional,
-                       const bool relative,
                        const float3 &normal,
-                       const float center_projection_dist,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
 {
@@ -395,10 +334,6 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                 tls.ray_origins,
                 hit_distances);
 
-  if (relative) {
-    calc_projection_offset(
-        ss.cache->location_symm, normal, center_projection_dist, positions, hit_distances);
-  }
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -423,11 +358,6 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
   const bool bidirectional = brush.flag2 & BRUSH_PROJECT_USE_BIDIRECTIONAL;
   const float3 normal = calc_normal(brush, cache);
 
-  const float center_projection_dist = calc_center_projection_distance(
-      cache, normal, bidirectional);
-
-  const bool relative = brush.flag2 & BRUSH_PROJECT_USE_RELATIVE;
-
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
@@ -443,11 +373,9 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
                    sd,
                    brush,
                    bidirectional,
-                   relative,
                    normal,
                    attribute_data,
                    vert_normals,
-                   center_projection_dist,
                    nodes[i],
                    object,
                    tls,
@@ -467,9 +395,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
                    object,
                    brush,
                    bidirectional,
-                   relative,
                    normal,
-                   center_projection_dist,
                    nodes[i],
                    tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
@@ -485,9 +411,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
                    object,
                    brush,
                    bidirectional,
-                   relative,
                    normal,
-                   center_projection_dist,
                    nodes[i],
                    tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);

@@ -3792,14 +3792,6 @@ static void rna_def_brush(BlenderRNA *brna)
                            "inverse, choosing the closest intersection.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "use_relative", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_PROJECT_USE_RELATIVE);
-  RNA_def_property_ui_text(
-      prop,
-      "Relative",
-      "Offset the projection to maintain the average relative positions of the vertices.");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
   prop = RNA_def_property(srna, "use_accumulate", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_ACCUMULATE);
   RNA_def_property_ui_text(prop, "Accumulate", "Accumulate stroke daubs on top of each other");

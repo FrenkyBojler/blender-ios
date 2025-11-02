@@ -421,7 +421,6 @@ typedef enum eBrushFlags2 {
   BRUSH_USE_COLOR_AS_DISPLACEMENT = (1 << 9),
   BRUSH_JITTER_COLOR = (1 << 10),
   BRUSH_PROJECT_USE_BIDIRECTIONAL = (1 << 11),
-  BRUSH_PROJECT_USE_RELATIVE = (1 << 12),
 } eBrushFlags2;
 
 typedef enum {
