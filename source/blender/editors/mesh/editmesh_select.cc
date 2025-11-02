@@ -4486,11 +4486,11 @@ void MESH_OT_select_more(wmOperatorType *ot)
               "repeat",
               1,
               1,
-              INT_MAX,
+              100,
               "Iterations",
               "Number of times to repeat operation",
               1,
-              INT_MAX);
+              100);
 }
 
 /** \} */
@@ -4544,11 +4544,11 @@ void MESH_OT_select_less(wmOperatorType *ot)
               "repeat",
               1,
               1,
-              INT_MAX,
+              100,
               "Iterations",
               "Number of times to repeat operation",
               1,
-              INT_MAX);
+              100);
 }
 
 /** \} */
