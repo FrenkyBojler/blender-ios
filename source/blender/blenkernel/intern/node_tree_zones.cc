@@ -349,7 +349,7 @@ static std::unique_ptr<bNodeTreeZones> discover_tree_zones(const bNodeTree &tree
   {
     for (const bNode *node : tree.nodes_by_type(output_idname)) {
       if (tree_zones->zone_by_node_id.contains(node->identifier)) {
-        /* Group output nodes must not be in a zone. */
+        /* Output nodes must not be in a zone. */
         return {};
       }
     }
