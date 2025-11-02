@@ -930,6 +930,11 @@ static void bpy_detect_exit_singleton_add_to_module(PyObject *mod)
 {
   static PyObject *singleton = nullptr;
 
+  /* Note that Python's API docs state that:
+   * - If this capsule will be stored as an attribute of a module,
+   *   the name should be specified as `modulename.attributename`.
+   * This is ignored here because the capsule is not intended for script author access.
+   * It also wouldn't make sense as it is stored in multiple modules. */
   const char *bpy_detect_exit_singleton_id = "_bpy_detect_exit_singleton";
   if (singleton == nullptr) {
     /* This is ignored, but must be non-null,
