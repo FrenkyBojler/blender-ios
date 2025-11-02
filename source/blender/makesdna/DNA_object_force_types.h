@@ -131,8 +131,6 @@ typedef struct PartDeflect {
   struct Tex *tex;
 
   /* effector noise */
-  /** Random noise generator for e.g. wind. */
-  struct RNG *rng;
   /** Noise of force. */
   float f_noise;
   /** Noise random seed. */
@@ -178,10 +176,10 @@ typedef struct SBVertex {
   float vec[4];
 } SBVertex;
 
-/* Container for data that is shared among CoW copies.
+/* Container for data that is shared among evaluated copies.
  *
  * This is placed in a separate struct so that values can be changed
- * without having to update all CoW copies. */
+ * without having to update all evaluated copies. */
 typedef struct SoftBody_Shared {
   struct PointCache *pointcache;
   struct ListBase ptcaches;
@@ -205,9 +203,9 @@ typedef struct SoftBody {
   float nodemass;
   /**
    * Along with it introduce mass painting starting to fix old bug .. nastiness that VG are indexes
-   * rather find them by name tag to find it -> jow20090613. #MAX_VGROUP_NAME size.
+   * rather find them by name tag to find it -> jow20090613.
    */
-  char namedVG_Mass[64];
+  char namedVG_Mass[/*MAX_VGROUP_NAME*/ 64];
   /** Softbody amount of gravitation to apply. */
   float grav;
   /** Friction to env. */
@@ -231,9 +229,9 @@ typedef struct SoftBody {
   short vertgroup;
   /**
    * Starting to fix old bug .. nastiness that VG are indexes
-   * rather find them by name tag to find it -> jow20090613. #MAX_VGROUP_NAME size.
+   * rather find them by name tag to find it -> jow20090613.
    */
-  char namedVG_Softgoal[64];
+  char namedVG_Softgoal[/*MAX_VGROUP_NAME*/ 64];
 
   short fuzzyness;
 
@@ -246,9 +244,8 @@ typedef struct SoftBody {
    * Along with it introduce Spring_K painting
    * starting to fix old bug .. nastiness that VG are indexes
    * rather find them by name tag to find it -> jow20090613.
-   * MAX_VGROUP_NAME
    */
-  char namedVG_Spring_K[64];
+  char namedVG_Spring_K[/*MAX_VGROUP_NAME*/ 64];
 
   /* baking */
   char _pad1[6];

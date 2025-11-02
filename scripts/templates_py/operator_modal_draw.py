@@ -15,15 +15,15 @@ def draw_callback_px(self, context):
     blf.draw(font_id, "Hello Word " + str(len(self.mouse_path)))
 
     # 50% alpha, 2 pixel width line
-    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
     gpu.state.blend_set('ALPHA')
-    gpu.state.line_width_set(2.0)
-    batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": self.mouse_path})
+    shader = gpu.shader.from_builtin('POLYLINE_UNIFORM_COLOR')
     shader.uniform_float("color", (0.0, 0.0, 0.0, 0.5))
+    shader.uniform_float("viewportSize", (context.area.width, context.area.height))
+    shader.uniform_float('lineWidth', 2.0)
+    batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": self.mouse_path})
     batch.draw(shader)
 
-    # restore opengl defaults
-    gpu.state.line_width_set(1.0)
+    # restore gpu defaults
     gpu.state.blend_set('NONE')
 
 
@@ -50,10 +50,9 @@ class ModalDrawOperator(bpy.types.Operator):
 
     def invoke(self, context, event):
         if context.area.type == 'VIEW_3D':
-            # the arguments we pass the the callback
+            # The arguments we pass the callback.
             args = (self, context)
-            # Add the region OpenGL drawing callback
-            # draw in view space with 'POST_VIEW' and 'PRE_VIEW'
+            # Add the region OpenGL drawing callback draw in view space with `POST_VIEW` and `PRE_VIEW`.
             self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_callback_px, args, 'WINDOW', 'POST_PIXEL')
 
             self.mouse_path = []

@@ -6,12 +6,15 @@
  * \ingroup bmesh
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_sort.h"
 #include "BLI_stack.h"
+#include "BLI_vector.hh"
 
 #include "BKE_bvhutils.hh"
 
@@ -74,12 +77,8 @@ static bool bm_vert_pair_share_best_splittable_face_cb(BMFace *f,
       return false;
     }
     float dot = dot_v3v3(v_test->co, no);
-    if (dot < min) {
-      min = dot;
-    }
-    if (dot > max) {
-      max = dot;
-    }
+    min = std::min(dot, min);
+    max = std::max(dot, max);
   }
 
   const float test_edgenet_range_on_face_normal = max - min;
@@ -97,7 +96,7 @@ static bool bm_vert_pair_share_splittable_face_cb(BMFace * /*f*/,
                                                   BMLoop *l_b,
                                                   void *userdata)
 {
-  float(*data)[3] = static_cast<float(*)[3]>(userdata);
+  float (*data)[3] = static_cast<float (*)[3]>(userdata);
   float *v_a_co = data[0];
   float *v_a_b_dir = data[1];
   const float range_min = -FLT_EPSILON;
@@ -125,7 +124,7 @@ static bool bm_vert_pair_share_splittable_face_cb(BMFace * /*f*/,
 static BMFace *bm_vert_pair_best_face_get(
     BMVert *v_a, BMVert *v_b, BMEdge **edgenet, const int edgenet_len, const float epsilon)
 {
-  BMFace *r_best_face = nullptr;
+  BMFace *best_face = nullptr;
 
   BLI_assert(v_a != v_b);
 
@@ -134,9 +133,9 @@ static BMFace *bm_vert_pair_best_face_get(
     float data[2][3];
     copy_v3_v3(data[0], v_b->co);
     sub_v3_v3v3(data[1], v_a->co, data[0]);
-    r_best_face = BM_vert_pair_shared_face_cb(
+    best_face = BM_vert_pair_shared_face_cb(
         v_a, v_b, false, bm_vert_pair_share_splittable_face_cb, &data, &dummy, &dummy);
-    BLI_assert(!r_best_face || BM_edge_in_face(edgenet[0], r_best_face) == false);
+    BLI_assert(!best_face || BM_edge_in_face(edgenet[0], best_face) == false);
   }
   else {
     EDBMSplitBestFaceData data{};
@@ -156,22 +155,18 @@ static BMFace *bm_vert_pair_best_face_get(
       BMIter f_iter;
       BM_ITER_ELEM (v_test, &f_iter, data.r_best_face, BM_VERTS_OF_FACE) {
         float dot = dot_v3v3(v_test->co, no);
-        if (dot < min) {
-          min = dot;
-        }
-        if (dot > max) {
-          max = dot;
-        }
+        min = std::min(dot, min);
+        max = std::max(dot, max);
       }
       float face_range_on_normal = max - min + 2 * epsilon;
       if (face_range_on_normal < data.best_edgenet_range_on_face_normal) {
         data.r_best_face = nullptr;
       }
     }
-    r_best_face = data.r_best_face;
+    best_face = data.r_best_face;
   }
 
-  return r_best_face;
+  return best_face;
 }
 
 /** \} */
@@ -1017,16 +1012,12 @@ bool BM_mesh_intersect_edges(
           }
 
           if (best_face) {
-            BMFace **face_arr = nullptr;
-            int face_arr_len = 0;
-            BM_face_split_edgenet(bm, best_face, edgenet, edgenet_len, &face_arr, &face_arr_len);
-            if (face_arr) {
-              /* Update the new faces normal.
-               * Normal is necessary to obtain the best face for edgenet */
-              while (face_arr_len--) {
-                BM_face_normal_update(face_arr[face_arr_len]);
-              }
-              MEM_freeN(face_arr);
+            blender::Vector<BMFace *> face_arr;
+            BM_face_split_edgenet(bm, best_face, edgenet, edgenet_len, &face_arr);
+            /* Update the new faces normal.
+             * Normal is necessary to obtain the best face for edgenet */
+            for (BMFace *face : face_arr) {
+              BM_face_normal_update(face);
             }
           }
         }

@@ -21,14 +21,13 @@
 #include "../view_map/Silhouette.h"
 #include "../view_map/ViewMap.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_rotation.h"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #if 1  // FRS_antialiasing
-#  include "BKE_global.h"
+#  include "BKE_global.hh"
 #  include "DNA_scene_types.h"
 #endif
 

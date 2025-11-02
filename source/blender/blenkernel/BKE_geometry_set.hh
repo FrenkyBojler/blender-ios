@@ -9,13 +9,14 @@
  */
 
 #include <iosfwd>
-#include <mutex>
 
 #include "BLI_bounds_types.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_memory_counter_fwd.hh"
+#include "BLI_mutex.hh"
 
 /* For #Map. */
 #include "BKE_attribute.hh"
@@ -27,18 +28,16 @@ struct PointCloud;
 struct Volume;
 struct GreasePencil;
 namespace blender::bke {
-class AnonymousAttributePropagationInfo;
-class AttributeIDRef;
-struct AttributeKind;
+struct AttributeDomainAndType;
 class AttributeAccessor;
 struct AttributeMetaData;
-class ComponentAttributeProviders;
 class CurvesEditHints;
 class Instances;
 class GeometryComponent;
 class GreasePencilEditHints;
 class MutableAttributeAccessor;
 enum class AttrDomain : int8_t;
+struct GizmoEditHints;
 }  // namespace blender::bke
 
 namespace blender::bke {
@@ -84,7 +83,7 @@ class GeometryComponent : public ImplicitSharingMixin {
 
  public:
   GeometryComponent(Type type);
-  virtual ~GeometryComponent() = default;
+  ~GeometryComponent() override = default;
   static GeometryComponentPtr create(Type component_type);
 
   int attribute_domain_size(AttrDomain domain) const;
@@ -95,6 +94,8 @@ class GeometryComponent : public ImplicitSharingMixin {
    */
   virtual std::optional<AttributeAccessor> attributes() const;
   virtual std::optional<MutableAttributeAccessor> attributes_for_write();
+
+  virtual void count_memory(MemoryCounter &memory) const;
 
   /**
    * Copies the component. The returned component only has a single user and is therefor mutable.
@@ -148,6 +149,13 @@ struct GeometrySet {
 
  public:
   /**
+   * A user defined name for this geometry. It is not expected to be unique. Its main
+   * purpose is help debugging instance trees. It may eventually also be used when exporting
+   * instance trees or when creating separate objects from them.
+   */
+  std::string name;
+
+  /**
    * The methods are defaulted here so that they are not instantiated in every translation unit.
    */
   GeometrySet();
@@ -185,6 +193,12 @@ struct GeometrySet {
     return this->has(Component::static_type);
   }
 
+  template<typename Component> bool has_component() const
+  {
+    BLI_STATIC_ASSERT(is_geometry_component_v<Component>, "");
+    return components_[int(Component::static_type)];
+  }
+
   void remove(const GeometryComponent::Type component_type);
   template<typename Component> void remove()
   {
@@ -196,12 +210,6 @@ struct GeometrySet {
    * Remove all geometry components with types that are not in the provided list.
    */
   void keep_only(Span<GeometryComponent::Type> component_types);
-  /**
-   * Keeps the provided geometry types, but also instances and edit data.
-   * Instances must not be removed while using #modify_geometry_sets.
-   */
-  void keep_only_during_modify(Span<GeometryComponent::Type> component_types);
-  void remove_geometry_during_modify();
 
   void add(const GeometryComponent &component);
 
@@ -210,7 +218,8 @@ struct GeometrySet {
    */
   Vector<const GeometryComponent *> get_components() const;
 
-  std::optional<Bounds<float3>> compute_boundbox_without_instances() const;
+  std::optional<Bounds<float3>> compute_boundbox_without_instances(bool use_radius = true,
+                                                                   bool use_subdiv = false) const;
 
   friend std::ostream &operator<<(std::ostream &stream, const GeometrySet &geometry_set);
 
@@ -231,8 +240,15 @@ struct GeometrySet {
    * instances so that they can be owned.
    */
   void ensure_owns_all_data();
+  /**
+   * Typically, multiple #GeometrySet may share the same #GeometryComponent. This is fine as long
+   * as we can guarantee that the data is read-only. However, if some geometry is available in
+   * Python, that guarantee is not possible currently. For that case it can make sense that the
+   * #GeometrySet is the unique owner of the geometries it contains.
+   */
+  void ensure_no_shared_components();
 
-  using AttributeForeachCallback = FunctionRef<void(const AttributeIDRef &attribute_id,
+  using AttributeForeachCallback = FunctionRef<void(StringRef attribute_id,
                                                     const AttributeMetaData &meta_data,
                                                     const GeometryComponent &component)>;
 
@@ -240,27 +256,20 @@ struct GeometrySet {
                          bool include_instances,
                          AttributeForeachCallback callback) const;
 
-  static void propagate_attributes_from_layer_to_instances(
-      const AttributeAccessor src_attributes,
-      MutableAttributeAccessor dst_attributes,
-      const AnonymousAttributePropagationInfo &propagation_info);
+  struct GatheredAttributes {
+    VectorSet<StringRef, 16> names;
+    Vector<AttributeDomainAndType, 16> kinds;
+    void add(const StringRef name, const AttributeDomainAndType &kind);
+  };
 
   void gather_attributes_for_propagation(Span<GeometryComponent::Type> component_types,
                                          GeometryComponent::Type dst_component_type,
                                          bool include_instances,
-                                         const AnonymousAttributePropagationInfo &propagation_info,
-                                         Map<AttributeIDRef, AttributeKind> &r_attributes) const;
+                                         const AttributeFilter &attribute_filter,
+                                         GatheredAttributes &r_attributes) const;
 
   Vector<GeometryComponent::Type> gather_component_types(bool include_instances,
                                                          bool ignore_empty) const;
-
-  using ForeachSubGeometryCallback = FunctionRef<void(GeometrySet &geometry_set)>;
-
-  /**
-   * Modify every (recursive) instance separately. This is often more efficient than realizing all
-   * instances just to change the same thing on all of them.
-   */
-  void modify_geometry_sets(ForeachSubGeometryCallback callback);
 
   /* Utility methods for creation. */
   /**
@@ -353,6 +362,14 @@ struct GeometrySet {
    */
   const CurvesEditHints *get_curve_edit_hints() const;
   /**
+   * Returns read-only Grease Pencil edit hints or null.
+   */
+  const GreasePencilEditHints *get_grease_pencil_edit_hints() const;
+  /**
+   * Returns read-only gizmo edit hints or null.
+   */
+  const GizmoEditHints *get_gizmo_edit_hints() const;
+  /**
    * Returns a read-only Grease Pencil data-block or null.
    */
   const GreasePencil *get_grease_pencil() const;
@@ -381,6 +398,14 @@ struct GeometrySet {
    * Returns mutable curve edit hints or null.
    */
   CurvesEditHints *get_curve_edit_hints_for_write();
+  /**
+   * Returns mutable Grease Pencil edit hints or null.
+   */
+  GreasePencilEditHints *get_grease_pencil_edit_hints_for_write();
+  /**
+   * Returns mutable gizmo edit hints or null.
+   */
+  GizmoEditHints *get_gizmo_edit_hints_for_write();
   /**
    * Returns a mutable Grease Pencil data-block or null. No ownership is transferred.
    */
@@ -420,8 +445,16 @@ struct GeometrySet {
   friend bool operator==(const GeometrySet &a, const GeometrySet &b)
   {
     /* This compares only the component pointers, not the actual geometry data. */
-    return Span(a.components_) == Span(b.components_);
+    return Span(a.components_) == Span(b.components_) && a.name == b.name;
   }
+
+  uint64_t hash() const
+  {
+    /* This should have the same data that's also taken into account in #operator==. */
+    return get_default_hash(Span(components_), this->name);
+  }
+
+  void count_memory(MemoryCounter &memory) const;
 
  private:
   /**
@@ -448,7 +481,7 @@ class MeshComponent : public GeometryComponent {
  public:
   MeshComponent();
   MeshComponent(Mesh *mesh, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
-  ~MeshComponent();
+  ~MeshComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -479,7 +512,9 @@ class MeshComponent : public GeometryComponent {
   bool owns_direct_data() const override;
   void ensure_owns_direct_data() override;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::Mesh;
+  void count_memory(MemoryCounter &memory) const override;
+
+  static constexpr GeometryComponent::Type static_type = Type::Mesh;
 
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
@@ -504,7 +539,7 @@ class PointCloudComponent : public GeometryComponent {
   PointCloudComponent();
   PointCloudComponent(PointCloud *pointcloud,
                       GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
-  ~PointCloudComponent();
+  ~PointCloudComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -538,10 +573,12 @@ class PointCloudComponent : public GeometryComponent {
   bool owns_direct_data() const override;
   void ensure_owns_direct_data() override;
 
+  void count_memory(MemoryCounter &memory) const override;
+
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::PointCloud;
+  static constexpr GeometryComponent::Type static_type = Type::PointCloud;
 };
 
 /**
@@ -560,12 +597,12 @@ class CurveComponent : public GeometryComponent {
    * even when the new curve data structure is used.
    */
   mutable Curve *curve_for_render_ = nullptr;
-  mutable std::mutex curve_for_render_mutex_;
+  mutable Mutex curve_for_render_mutex_;
 
  public:
   CurveComponent();
   CurveComponent(Curves *curve, GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
-  ~CurveComponent();
+  ~CurveComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -584,6 +621,8 @@ class CurveComponent : public GeometryComponent {
   bool owns_direct_data() const override;
   void ensure_owns_direct_data() override;
 
+  void count_memory(MemoryCounter &memory) const override;
+
   /**
    * Create empty curve data used for rendering the spline's wire edges.
    * \note See comment on #curve_for_render_ for further explanation.
@@ -593,7 +632,7 @@ class CurveComponent : public GeometryComponent {
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::Curve;
+  static constexpr GeometryComponent::Type static_type = Type::Curve;
 };
 
 /**
@@ -608,7 +647,7 @@ class InstancesComponent : public GeometryComponent {
   InstancesComponent();
   InstancesComponent(Instances *instances,
                      GeometryOwnershipType ownership = GeometryOwnershipType::Owned);
-  ~InstancesComponent();
+  ~InstancesComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -621,13 +660,17 @@ class InstancesComponent : public GeometryComponent {
 
   bool is_empty() const final;
 
+  Instances *release();
+
   bool owns_direct_data() const override;
   void ensure_owns_direct_data() override;
+
+  void count_memory(MemoryCounter &memory) const override;
 
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::Instance;
+  static constexpr GeometryComponent::Type static_type = Type::Instance;
 };
 
 /**
@@ -642,7 +685,7 @@ class VolumeComponent : public GeometryComponent {
 
  public:
   VolumeComponent();
-  ~VolumeComponent();
+  ~VolumeComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -672,7 +715,9 @@ class VolumeComponent : public GeometryComponent {
   bool owns_direct_data() const override;
   void ensure_owns_direct_data() override;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::Volume;
+  void count_memory(MemoryCounter &memory) const override;
+
+  static constexpr GeometryComponent::Type static_type = Type::Volume;
 };
 
 /**
@@ -695,6 +740,10 @@ class GeometryComponentEditData final : public GeometryComponent {
    * Information about how drawings on the grease pencil layers are manipulated during evaluation.
    */
   std::unique_ptr<GreasePencilEditHints> grease_pencil_edit_hints_;
+  /**
+   * Propagated information for how gizmos should be transformed along with the geometry.
+   */
+  std::unique_ptr<GizmoEditHints> gizmo_edit_hints_;
 
   GeometryComponentEditData();
 
@@ -712,7 +761,7 @@ class GeometryComponentEditData final : public GeometryComponent {
    */
   static void remember_deformed_positions_if_necessary(GeometrySet &geometry);
 
-  static constexpr inline GeometryComponent::Type static_type = GeometryComponent::Type::Edit;
+  static constexpr GeometryComponent::Type static_type = GeometryComponent::Type::Edit;
 };
 
 /**
@@ -727,7 +776,7 @@ class GreasePencilComponent : public GeometryComponent {
 
  public:
   GreasePencilComponent();
-  ~GreasePencilComponent();
+  ~GreasePencilComponent() override;
   GeometryComponentPtr copy() const override;
 
   void clear() override;
@@ -751,10 +800,12 @@ class GreasePencilComponent : public GeometryComponent {
   bool owns_direct_data() const override;
   void ensure_owns_direct_data() override;
 
-  static constexpr inline GeometryComponent::Type static_type = Type::GreasePencil;
+  static constexpr GeometryComponent::Type static_type = Type::GreasePencil;
 
   std::optional<AttributeAccessor> attributes() const final;
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 };
+
+bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type, StringRef name);
 
 }  // namespace blender::bke

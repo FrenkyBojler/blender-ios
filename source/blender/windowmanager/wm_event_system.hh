@@ -17,15 +17,18 @@ struct ScrArea;
 struct wmEvent;
 struct wmKeyMap;
 struct wmKeyMapItem;
-enum wmOperatorCallContext;
+
+namespace blender::wm {
+enum class OpCallContext : int8_t;
+}
 
 #ifdef WITH_XR_OPENXR
 struct wmXrActionData;
 #endif
 
-/* wmKeyMap is in DNA_windowmanager.h, it's saveable */
+/* #wmKeyMap is in `DNA_windowmanager.h`, it's saveable. */
 
-/** Custom types for handlers, for signaling, freeing */
+/** Custom types for handlers, for signaling, freeing. */
 enum eWM_EventHandlerType {
   WM_HANDLER_TYPE_GIZMO = 1,
   WM_HANDLER_TYPE_UI,
@@ -34,7 +37,10 @@ enum eWM_EventHandlerType {
   WM_HANDLER_TYPE_KEYMAP,
 };
 
-using EventHandlerPoll = bool (*)(const ARegion *region, const wmEvent *event);
+using EventHandlerPoll = bool (*)(const wmWindow *win,
+                                  const ScrArea *area,
+                                  const ARegion *region,
+                                  const wmEvent *event);
 
 struct wmEventHandler {
   wmEventHandler *next, *prev;
@@ -57,7 +63,7 @@ struct wmEventHandler_KeymapDynamic {
   void *user_data;
 };
 
-/** #WM_HANDLER_TYPE_KEYMAP */
+/** #WM_HANDLER_TYPE_KEYMAP. */
 struct wmEventHandler_Keymap {
   wmEventHandler head;
 
@@ -70,7 +76,7 @@ struct wmEventHandler_Keymap {
   bToolRef *keymap_tool;
 };
 
-/** #WM_HANDLER_TYPE_GIZMO */
+/** #WM_HANDLER_TYPE_GIZMO. */
 struct wmEventHandler_Gizmo {
   wmEventHandler head;
 
@@ -78,23 +84,30 @@ struct wmEventHandler_Gizmo {
   struct wmGizmoMap *gizmo_map;
 };
 
-/** #WM_HANDLER_TYPE_UI */
+/** #WM_HANDLER_TYPE_UI. */
 struct wmEventHandler_UI {
   wmEventHandler head;
 
-  wmUIHandlerFunc handle_fn;       /* callback receiving events */
-  wmUIHandlerRemoveFunc remove_fn; /* callback when handler is removed */
-  void *user_data;                 /* user data pointer */
+  /** Callback receiving events. */
+  wmUIHandlerFunc handle_fn;
+  /** Callback when handler is removed. */
+  wmUIHandlerRemoveFunc remove_fn;
+  /** User data pointer. */
+  void *user_data;
 
   /** Store context for this handler for derived/modal handlers. */
   struct {
     ScrArea *area;
     ARegion *region;
-    ARegion *menu;
+    /**
+     * Temporary, floating regions stored in #Screen::regionbase.
+     * Used for menus, popovers & dialogs.
+     */
+    ARegion *region_popup;
   } context;
 };
 
-/** #WM_HANDLER_TYPE_OP */
+/** #WM_HANDLER_TYPE_OP. */
 struct wmEventHandler_Op {
   wmEventHandler head;
 
@@ -106,8 +119,10 @@ struct wmEventHandler_Op {
 
   /** Store context for this handler for derived/modal handlers. */
   struct {
-    /* To override the window, and hence the screen. Set for few cases only, usually window/screen
-     * can be taken from current context. */
+    /**
+     * To override the window, and hence the screen.
+     * Set for few cases only, usually window/screen can be taken from current context.
+     */
     wmWindow *win;
 
     ScrArea *area;
@@ -116,7 +131,7 @@ struct wmEventHandler_Op {
   } context;
 };
 
-/** #WM_HANDLER_TYPE_DROPBOX */
+/** #WM_HANDLER_TYPE_DROPBOX. */
 struct wmEventHandler_Dropbox {
   wmEventHandler head;
 
@@ -138,7 +153,7 @@ void wm_event_free_handler(wmEventHandler *handler);
 void wm_event_do_handlers(bContext *C);
 
 /**
- * Windows store own event queues #wmWindow.event_queue (no #bContext here).
+ * Windows store their own event queues #wmWindow.event_queue (no #bContext here).
  */
 void wm_event_add_ghostevent(wmWindowManager *wm,
                              wmWindow *win,
@@ -166,7 +181,7 @@ void wm_event_handler_ui_cancel_ex(bContext *C,
                                    ARegion *region,
                                    bool reactivate_button);
 
-/* `wm_event_query.cc` */
+/* `wm_event_query.cc`. */
 
 /**
  * Applies the global tablet pressure correction curve.
@@ -174,7 +189,7 @@ void wm_event_handler_ui_cancel_ex(bContext *C,
 float wm_pressure_curve(float raw_pressure);
 void wm_tablet_data_from_ghost(const GHOST_TabletData *tablet_data, wmTabletData *wmtab);
 
-/* wm_dropbox.c */
+/* `wm_dropbox.cc`. */
 
 void wm_dropbox_free();
 /**
@@ -192,9 +207,9 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event);
 /**
  * The operator of a dropbox should always be executed in the context determined by the mouse
  * coordinates. The dropbox poll should check the context area and region as needed.
- * So this always returns #WM_OP_INVOKE_DEFAULT.
+ * So this always returns #blender::wm::OpCallContext::InvokeDefault.
  */
-wmOperatorCallContext wm_drop_operator_context_get(const wmDropBox *drop);
+blender::wm::OpCallContext wm_drop_operator_context_get(const wmDropBox *drop);
 /**
  * Called in #wm_draw_window_onscreen.
  */

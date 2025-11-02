@@ -26,21 +26,24 @@
  * The CoreAudioDevice class.
  */
 
-#include "CoreAudioSynchronizer.h"
-#include "devices/SoftwareDevice.h"
-
 #include <memory>
 
+#include <AudioToolbox/AudioToolbox.h>
+#include <AudioToolbox/CoreAudioClock.h>
 #include <AudioUnit/AudioUnit.h>
+
+#include "devices/MixingThreadDevice.h"
 
 AUD_NAMESPACE_BEGIN
 
 /**
  * This device plays back through CoreAudio, the Apple audio API.
  */
-class AUD_PLUGIN_API CoreAudioDevice : public SoftwareDevice
+class AUD_PLUGIN_API CoreAudioDevice : public MixingThreadDevice
 {
 private:
+	uint32_t m_buffersize;
+
 	/**
 	 * Whether there is currently playback.
 	 */
@@ -50,11 +53,12 @@ private:
 	 * The CoreAudio AudioUnit.
 	 */
 	AudioUnit m_audio_unit;
+	bool m_active{false};
 
-	/**
-	 * The Synchronizer.
-	 */
-	std::unique_ptr<CoreAudioSynchronizer> m_synchronizer;
+	/// The CoreAudio clock referene.
+	CAClockRef m_clock_ref;
+	bool m_audio_clock_ready{false};
+	double m_synchronizerStartTime{0};
 
 	/**
 	 * Mixes the next bytes into the buffer.
@@ -71,8 +75,8 @@ private:
 	CoreAudioDevice(const CoreAudioDevice&) = delete;
 	CoreAudioDevice& operator=(const CoreAudioDevice&) = delete;
 
-protected:
-	virtual void playing(bool playing);
+	AUD_LOCAL void preMixingWork(bool playing) override;
+	void playing(bool playing) override;
 
 public:
 	/**
@@ -89,7 +93,10 @@ public:
 	 */
 	virtual ~CoreAudioDevice();
 
-	virtual ISynchronizer* getSynchronizer();
+	virtual void seekSynchronizer(double time);
+	virtual double getSynchronizerPosition();
+	virtual void playSynchronizer();
+	virtual void stopSynchronizer();
 
 	/**
 	 * Registers this plugin.

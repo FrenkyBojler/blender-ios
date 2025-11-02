@@ -61,6 +61,23 @@ class ModifierSpec:
                " with parameters: " + str(self.modifier_parameters)
 
 
+class MultiModifierSpec:
+    """
+    Holds a list of Deform modifiers that must be applied together to yield the expected result.
+    """
+
+    def __init__(self, modifiers):
+        """
+        Constructs a multi-modifier spec.
+
+        :arg modifiers - list of modifier specs
+        """
+        self.modifiers = modifiers
+
+    def __str__(self):
+        return "Multi-Modifier: [" + ', '.join(str(modspec) for modspec in self.modifiers) + "]"
+
+
 class ParticleSystemSpec:
     """
     Holds a Particle System modifier and its parameters.
@@ -167,12 +184,20 @@ class MeshTest(ABC):
     A mesh testing Abstract class that hold common functionalities for testting operations.
     """
 
-    def __init__(self, test_object_name, exp_object_name, test_name=None, threshold=None, do_compare=True):
+    def __init__(
+            self,
+            test_object_name,
+            exp_object_name,
+            test_name=None,
+            threshold=None,
+            allow_index_change=False,
+            do_compare=True):
         """
         :arg test_object_name: str - Name of object of mesh type to run the operations on.
         :arg exp_object_name: str - Name of object of mesh type that has the expected
                                 geometry after running the operations.
         :arg test_name: str - Name of the test.
+        :arg allow_index_change: Allow the test to pass even if the mesh element indices are different.
         :arg threshold: exponent: To allow variations and accept difference to a certain degree.
         :arg do_compare: bool - True if we want to compare the test and expected objects, False otherwise.
         """
@@ -184,6 +209,7 @@ class MeshTest(ABC):
             filepath = bpy.data.filepath
             self.test_name = bpy.path.display_name_from_filepath(filepath)
         self.threshold = threshold
+        self.allow_index_change = allow_index_change
         self.do_compare = do_compare
         self.update = os.getenv("BLENDER_TEST_UPDATE") is not None
         self.verbose = os.getenv("BLENDER_VERBOSE") is not None
@@ -197,6 +223,8 @@ class MeshTest(ABC):
                 self.expected_object = objects[self.exp_object_name]
             else:
                 self.create_expected_object()
+                self.activate_test_object()
+                bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
         else:
             self.expected_object = objects[self.exp_object_name]
 
@@ -212,7 +240,6 @@ class MeshTest(ABC):
         self.expected_object.name = self.exp_object_name
         x, y, z = self.test_object.location
         self.expected_object.location = (x, y + 10, z)
-        bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
 
     def create_evaluated_object(self):
         """
@@ -221,14 +248,22 @@ class MeshTest(ABC):
         bpy.context.view_layer.objects.active = self.test_object
 
         # Duplicate test object.
-        bpy.ops.object.mode_set(mode="OBJECT")
-        bpy.ops.object.select_all(action="DESELECT")
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')
         bpy.context.view_layer.objects.active = self.test_object
 
         self.test_object.select_set(True)
         bpy.ops.object.duplicate()
         self.evaluated_object = bpy.context.active_object
         self.evaluated_object.name = "evaluated_object"
+
+    # Test files are less confusing when the test object is active initially instead of
+    # the expected object. That's because the test object has the modifier/node tree that
+    # is being tested.
+    def activate_test_object(self):
+        bpy.ops.object.select_all(action='DESELECT')
+        self.test_object.select_set(True)
+        bpy.context.view_layer.objects.active = self.test_object
 
     @staticmethod
     def _print_result(result):
@@ -254,7 +289,11 @@ class MeshTest(ABC):
             print("Compare evaluated and expected object in Blender.\n")
             return False
 
-        result = self.compare_meshes(self.evaluated_object, self.expected_object, self.threshold)
+        result = self.compare_object_data(
+            self.evaluated_object,
+            self.expected_object,
+            self.threshold,
+            self.allow_index_change)
 
         # Initializing with True to get correct resultant of result_code booleans.
         success = True
@@ -365,15 +404,17 @@ class MeshTest(ABC):
         self.evaluated_object.name = expected_object_name
         self.do_selection(self.evaluated_object.data, "VERT", evaluated_selection, False)
 
+        self.activate_test_object()
+
         # Save file.
         bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
         self.test_updated_counter += 1
         self.expected_object = self.evaluated_object
 
     @staticmethod
-    def compare_meshes(evaluated_object, expected_object, threshold):
+    def compare_object_data(evaluated_object, expected_object, threshold, allow_index_change):
         """
-        Compares evaluated object mesh with expected object mesh.
+        Compares evaluated object data with expected object data.
 
         :arg evaluated_object: first object for comparison.
         :arg expected_object: second object for comparison.
@@ -381,30 +422,48 @@ class MeshTest(ABC):
         :return: dict: Contains results of different comparisons.
         """
         objects = bpy.data.objects
-        evaluated_test_mesh = objects[evaluated_object.name].data
-        expected_mesh = expected_object.data
+        evaluated_test_data = objects[evaluated_object.name].data
+        expected_data = expected_object.data
         result_codes = {}
 
-        if threshold:
-            result_mesh = expected_mesh.unit_test_compare(
-                mesh=evaluated_test_mesh, threshold=threshold)
+        if evaluated_object.type == 'CURVE':
+            unit_test_compare_args = {"curves": evaluated_test_data}
+            report_name = "Curves"
+            validate_func = None
+        elif evaluated_object.type == 'MESH':
+            unit_test_compare_args = {"mesh": evaluated_test_data}
+            report_name = "Mesh"
+            def validate_func(): return evaluated_test_data.validate(verbose=True)
+        elif evaluated_object.type == 'LATTICE':
+            unit_test_compare_args = {"lattice": evaluated_test_data}
+            report_name = "Lattice"
+            validate_func = None
         else:
-            result_mesh = expected_mesh.unit_test_compare(
-                mesh=evaluated_test_mesh)
+            raise Exception("This object type is not yet supported!")
 
-        if result_mesh == "Same":
-            result_codes['Mesh Comparison'] = (True, result_mesh)
+        if threshold:
+            result_data = expected_data.unit_test_compare(
+                threshold=threshold, **unit_test_compare_args)
         else:
-            result_codes['Mesh Comparison'] = (False, result_mesh)
+            result_data = expected_data.unit_test_compare(
+                **unit_test_compare_args)
+
+        if result_data == "Same":
+            result_codes[f'{report_name} Comparison'] = (True, result_data)
+        elif allow_index_change and result_data == "The geometries are the same up to a change of indices":
+            result_codes[f'{report_name} Comparison'] = (True, result_data)
+        else:
+            result_codes[f'{report_name} Comparison'] = (False, result_data)
 
         # Validation check.
-        result_validation = evaluated_test_mesh.validate(verbose=True)
-        if result_validation:
-            result_validation = "Invalid Mesh"
-            result_codes['Mesh Validation'] = (False, result_validation)
-        else:
-            result_validation = "Valid"
-            result_codes['Mesh Validation'] = (True, result_validation)
+        if validate_func:
+            result_validation = validate_func()
+            if result_validation:
+                result_validation = f"Invalid {report_name}"
+                result_codes[f'{report_name} Validation'] = (False, result_validation)
+            else:
+                result_validation = "Valid"
+                result_codes[f'{report_name} Validation'] = (True, result_validation)
 
         return result_codes
 
@@ -429,7 +488,8 @@ class SpecMeshTest(MeshTest):
                  exp_object_name,
                  operations_stack=None,
                  apply_modifier=True,
-                 threshold=None):
+                 threshold=None,
+                 allow_index_change=False):
         """
         Constructor for SpecMeshTest.
 
@@ -443,7 +503,7 @@ class SpecMeshTest(MeshTest):
                              This affects operations of type ModifierSpec and DeformModifierSpec.
         """
 
-        super().__init__(test_object_name, exp_object_name, test_name, threshold)
+        super().__init__(test_object_name, exp_object_name, test_name, threshold, allow_index_change)
         self.test_name = test_name
         if operations_stack is None:
             self.operations_stack = []
@@ -463,6 +523,13 @@ class SpecMeshTest(MeshTest):
                 if self.apply_modifier:
                     self._apply_modifier(
                         evaluated_test_object, operation.modifier_name)
+
+            elif isinstance(operation, MultiModifierSpec):
+                for modspec in operation.modifiers:
+                    self._add_modifier(evaluated_test_object, modspec)
+                if self.apply_modifier:
+                    self._apply_all_modifiers(
+                        evaluated_test_object)
 
             elif isinstance(operation, OperatorSpecEditMode):
                 self._apply_operator_edit_mode(
@@ -563,11 +630,17 @@ class SpecMeshTest(MeshTest):
         scene.frame_set(modifier_spec.frame_end)
 
     def _apply_modifier(self, test_object, modifier_name):
-        # Modifier automatically gets applied when converting from Curve to Mesh.
         if test_object.type == 'CURVE':
+            # Cannot apply constructive modifiers on curves, convert to mesh entirely.
             bpy.ops.object.convert(target='MESH')
-        elif test_object.type == 'MESH':
+        elif test_object.type in ['MESH', 'LATTICE']:
             bpy.ops.object.modifier_apply(modifier=modifier_name)
+        else:
+            raise Exception("This object type is not yet supported!")
+
+    def _apply_all_modifiers(self, test_object):
+        if test_object.type in ['CURVE', 'MESH', 'LATTICE']:
+            bpy.ops.object.convert(target='MESH')
         else:
             raise Exception("This object type is not yet supported!")
 
@@ -723,6 +796,11 @@ class BlendFileTest(MeshTest):
     blend file i.e. without adding them from scratch or without adding specifications.
     """
 
+    def __init__(self, test_object_name, exp_object_name, threshold=None):
+        super().__init__(test_object_name, exp_object_name, threshold=threshold)
+        if bpy.data.objects[test_object_name].get("allow_index_change"):
+            self.allow_index_change = True
+
     def apply_operations(self, evaluated_test_object_name):
 
         BlendFileTest.apply_operations.__doc__ = MeshTest.apply_operations.__doc__
@@ -782,7 +860,7 @@ class RunTest:
     >>> modifiers_test.run_all_tests()
     """
 
-    def __init__(self, tests, apply_modifiers=False, do_compare=False):
+    def __init__(self, tests, do_compare=False):
         """
         Construct a test suite.
 
@@ -793,10 +871,11 @@ class RunTest:
              2) expected_object_name: bpy.Types.Object - expected object
              3) modifiers or operators: list - list of mesh_test.ModifierSpec objects or
              mesh_test.OperatorSpecEditMode objects
+        :arg do_compare: bool - Whether the result mesh will be compared with the provided golden mesh. When set to False
+        the modifier is not applied so the result can be examined inside Blender.
         """
         self.tests = tests
         self._ensure_unique_test_name_or_raise_error()
-        self.apply_modifiers = apply_modifiers
         self.do_compare = do_compare
         self.verbose = os.environ.get("BLENDER_VERBOSE") is not None
         self._failed_tests_list = []
@@ -863,7 +942,9 @@ class RunTest:
             raise Exception('No test called {} found!'.format(test_name))
 
         test = case
-        test.apply_modifier = self.apply_modifiers
+        if not self.do_compare:
+            test.apply_modifier = False
+
         test.do_compare = self.do_compare
 
         success = test.run_test()

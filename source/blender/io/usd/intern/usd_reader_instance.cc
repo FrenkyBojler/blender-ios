@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_reader_instance.h"
+#include "usd_reader_instance.hh"
 
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
@@ -12,19 +12,7 @@
 
 namespace blender::io::usd {
 
-USDInstanceReader::USDInstanceReader(const pxr::UsdPrim &prim,
-                                     const USDImportParams &import_params,
-                                     const ImportSettings &settings)
-    : USDXformReader(prim, import_params, settings)
-{
-}
-
-bool USDInstanceReader::valid() const
-{
-  return prim_.IsValid() && prim_.IsInstance();
-}
-
-void USDInstanceReader::create_object(Main *bmain, const double /* motionSampleTime */)
+void USDInstanceReader::create_object(Main *bmain)
 {
   this->object_ = BKE_object_add_only_object(bmain, OB_EMPTY, name_.c_str());
   this->object_->data = nullptr;

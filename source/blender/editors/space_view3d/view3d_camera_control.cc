@@ -34,13 +34,12 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 struct View3DCameraControl {
 
@@ -116,7 +115,7 @@ View3DCameraControl *ED_view3d_cameracontrol_acquire(Depsgraph *depsgraph,
 {
   View3DCameraControl *vctrl;
 
-  vctrl = static_cast<View3DCameraControl *>(MEM_callocN(sizeof(View3DCameraControl), __func__));
+  vctrl = MEM_callocN<View3DCameraControl>(__func__);
 
   /* Store context */
   vctrl->ctx_scene = scene;
@@ -152,7 +151,7 @@ View3DCameraControl *ED_view3d_cameracontrol_acquire(Depsgraph *depsgraph,
     vctrl->obtfm = BKE_object_tfm_backup(ob_back);
 
     BKE_object_where_is_calc(depsgraph, scene, v3d->camera);
-    negate_v3_v3(rv3d->ofs, v3d->camera->object_to_world[3]);
+    negate_v3_v3(rv3d->ofs, v3d->camera->object_to_world().location());
 
     rv3d->dist = 0.0;
   }
@@ -186,7 +185,7 @@ View3DCameraControl *ED_view3d_cameracontrol_acquire(Depsgraph *depsgraph,
  * A version of #BKE_object_apply_mat4 that respects #Object.protectflag,
  * applying the locking back to the view to avoid the view.
  * This is needed so the view doesn't get out of sync with the object,
- * causing visible jittering when in fly/walk mode for e.g.
+ * causing visible jittering when in fly/walk mode for example.
  *
  * \note This could be exposed as an API option, as we might not want the view
  * to be constrained by the thing it's controlling.
@@ -260,7 +259,7 @@ void ED_view3d_cameracontrol_update(View3DCameraControl *vctrl, /* args for keyf
 
     invert_m4_m4(prev_view_imat, vctrl->view_mat_prev);
     mul_m4_m4m4(diff_mat, view_mat, prev_view_imat);
-    mul_m4_m4m4(parent_mat, diff_mat, vctrl->root_parent->object_to_world);
+    mul_m4_m4m4(parent_mat, diff_mat, vctrl->root_parent->object_to_world().ptr());
 
     if (object_apply_mat4_with_protect(vctrl->root_parent, parent_mat, false, rv3d, view_mat)) {
       /* Calculate again since the view locking changes the matrix. */

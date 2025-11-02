@@ -8,12 +8,16 @@
 
 #pragma once
 
-#include "BLI_fileops.hh"
 #include "IO_wavefront_obj.hh"
-#include "obj_import_mtl.hh"
+
+#include "BLI_map.hh"
+#include "BLI_vector.hh"
+
 #include "obj_import_objects.hh"
 
 namespace blender::io::obj {
+
+struct MTLMaterial;
 
 /* NOTE: the OBJ parser implementation is planned to get fairly large changes "soon",
  * so don't read too much into current implementation... */
@@ -45,6 +49,15 @@ class OBJParser {
  private:
   void add_mtl_library(StringRef path);
   void add_default_mtl_library();
+  size_t parse_string_buffer(StringRef &buffer_str,
+                             Vector<std::unique_ptr<Geometry>> &r_all_geometries,
+                             GlobalVertices &r_global_vertices,
+                             Geometry *&curr_geom,
+                             bool &state_shaded_smooth,
+                             std::string &state_group_name,
+                             int &state_group_index,
+                             std::string &state_material_name,
+                             int &state_material_index);
 };
 
 class MTLParser {

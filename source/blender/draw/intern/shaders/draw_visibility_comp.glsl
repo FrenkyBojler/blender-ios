@@ -7,11 +7,11 @@
  */
 /* TODO(fclem): This could be augmented by a 2 pass occlusion culling system. */
 
-#pragma BLENDER_REQUIRE(common_view_lib.glsl)
-#pragma BLENDER_REQUIRE(common_math_lib.glsl)
-#pragma BLENDER_REQUIRE(common_intersect_lib.glsl)
+#include "draw_view_infos.hh"
 
-shared uint shared_result;
+#include "draw_intersect_lib.glsl"
+
+COMPUTE_SHADER_CREATE_INFO(draw_visibility_compute)
 
 void mask_visibility_bit(uint view_id)
 {
@@ -32,7 +32,7 @@ void main()
 
   ObjectBounds bounds = bounds_buf[gl_GlobalInvocationID.x];
 
-  if (bounds.bounding_sphere.w != -1.0) {
+  if (drw_bounds_are_valid(bounds)) {
     IsectBox box = isect_box_setup(bounds.bounding_corners[0].xyz,
                                    bounds.bounding_corners[1].xyz,
                                    bounds.bounding_corners[2].xyz,
@@ -41,21 +41,30 @@ void main()
     Sphere inscribed_sphere = shape_sphere(bounds.bounding_sphere.xyz,
                                            bounds._inner_sphere_radius);
 
-    for (drw_view_id = 0u; drw_view_id < uint(view_len); drw_view_id++) {
-      if (drw_view_culling.bound_sphere.w == -1.0) {
+    for (uint view_id = 0u; view_id < uint(view_len); view_id++) {
+      if (drw_view_culling(view_id).bound_sphere.w == -1.0f) {
         /* View disabled. */
-        mask_visibility_bit(drw_view_id);
+        mask_visibility_bit(view_id);
       }
-      else if (intersect_view(inscribed_sphere) == true) {
+      else if (intersect_view(inscribed_sphere, view_id) == true) {
         /* Visible. */
       }
-      else if (intersect_view(bounding_sphere) == false) {
+      else if (intersect_view(bounding_sphere, view_id) == false) {
         /* Not visible. */
-        mask_visibility_bit(drw_view_id);
+        mask_visibility_bit(view_id);
       }
-      else if (intersect_view(box) == false) {
+      else if (intersect_view(box, view_id) == false) {
         /* Not visible. */
-        mask_visibility_bit(drw_view_id);
+        mask_visibility_bit(view_id);
+      }
+    }
+  }
+  else {
+    /* Culling is disabled, but we need to mask the bits for disabled views. */
+    for (uint view_id = 0u; view_id < uint(view_len); view_id++) {
+      if (drw_view_culling(view_id).bound_sphere.w == -1.0f) {
+        /* View disabled. */
+        mask_visibility_bit(view_id);
       }
     }
   }

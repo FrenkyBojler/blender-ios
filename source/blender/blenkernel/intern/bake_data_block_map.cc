@@ -4,9 +4,9 @@
 
 #include <ostream>
 
-#include "BLI_hash.hh"
+#include "BKE_bake_data_block_id.hh"
 
-#include "BKE_bake_data_block_map.hh"
+#include "BLI_hash.hh"
 
 #include "DNA_ID.h"
 #include "DNA_modifier_types.h"
@@ -22,7 +22,7 @@ BakeDataBlockID::BakeDataBlockID(const ID &id)
 {
   this->type = GS(id.name);
   this->id_name = id.name + 2;
-  if (id.lib) {
+  if (ID_IS_LINKED(&id)) {
     this->lib_name = id.lib->id.name + 2;
   }
 }

@@ -73,7 +73,8 @@ typedef enum
 	AUD_CONTAINER_MP2,
 	AUD_CONTAINER_MP3,
 	AUD_CONTAINER_OGG,
-	AUD_CONTAINER_WAV
+	AUD_CONTAINER_WAV,
+	AUD_CONTAINER_AAC
 } AUD_Container;
 
 /// Audio codecs for writers.
@@ -118,6 +119,15 @@ typedef enum
 	AUD_CHANNELS_SURROUND61 = 7,	/// 6.1 surround sound.
 	AUD_CHANNELS_SURROUND71 = 8	/// 7.1 surround sound.
 } AUD_Channels;
+
+/// Resampling algorithm and quality.
+typedef enum
+{
+	AUD_RESAMPLE_QUALITY_FASTEST = 0, /// Linear resample, very fast but lowest quality.
+	AUD_RESAMPLE_QUALITY_LOW     = 1, /// JOS resample at low quality preset.
+	AUD_RESAMPLE_QUALITY_MEDIUM  = 2, /// JOS resample at medium quality preset.
+	AUD_RESAMPLE_QUALITY_HIGH    = 3  /// JOS resample at high quality preset.
+} AUD_ResampleQuality;
 
 /**
  * The sample rate tells how many samples are played back within one second.
@@ -190,3 +200,25 @@ typedef struct
 	/// Audio data parameters.
 	AUD_DeviceSpecs specs;
 } AUD_StreamInfo;
+
+/**
+ * The Rubber Band stretcher quality.
+ */
+typedef enum
+{
+	AUD_STRETCHER_QUALITY_HIGH = 0,      /// Prioritize high-quality pitch processing
+	AUD_STRETCHER_QUALITY_FAST = 1,      /// Prioritize speed over audio quality
+	AUD_STRETCHER_QUALITY_CONSISTENT = 2 /// Prioritize consistency for dynamic pitch changes
+} AUD_StretcherQuality;
+
+/// Possible animatable properties for Sequence Factories and Entries.
+typedef enum
+{
+	AUD_AP_VOLUME,
+	AUD_AP_PANNING,
+	AUD_AP_PITCH,
+	AUD_AP_LOCATION,
+	AUD_AP_ORIENTATION,
+	AUD_AP_TIME_STRETCH,
+	AUD_AP_PITCH_SCALE
+} AUD_AnimateablePropertyType;

@@ -6,10 +6,7 @@
  * \ingroup edlattice
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
@@ -31,7 +28,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "lattice_intern.h"
+#include "lattice_intern.hh"
 
 using blender::Vector;
 
@@ -51,7 +48,7 @@ static bool make_regular_poll(bContext *C)
   return (ob && ob->type == OB_LATTICE);
 }
 
-static int make_regular_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_regular_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -68,7 +65,7 @@ static int make_regular_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      if (ED_object_edit_report_if_shape_key_is_locked(ob, op->reports)) {
+      if (blender::ed::object::shape_key_report_if_locked(ob, op->reports)) {
         continue;
       }
 
@@ -102,7 +99,7 @@ void LATTICE_OT_make_regular(wmOperatorType *ot)
   ot->description = "Set UVW control points a uniform distance apart";
   ot->idname = "LATTICE_OT_make_regular";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = make_regular_exec;
   ot->poll = make_regular_poll;
 
@@ -125,7 +122,7 @@ enum eLattice_FlipAxes {
 
 /**
  * Flip midpoint value so that relative distances between midpoint and neighbor-pair is maintained.
- * Assumes that uvw <=> xyz (i.e. axis-aligned index-axes with coordinate-axes).
+ * Assumes that UVW <=> XYZ (i.e. axis-aligned index-axes with coordinate-axes).
  * - Helper for #lattice_flip_exec()
  */
 static void lattice_flip_point_value(
@@ -199,7 +196,7 @@ static void lattice_swap_point_pairs(
   lattice_flip_point_value(lt, u1, v1, w1, mid, axis);
 }
 
-static int lattice_flip_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_flip_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -221,7 +218,7 @@ static int lattice_flip_exec(bContext *C, wmOperator *op)
     lt = (Lattice *)obedit->data;
     lt = lt->editlatt->latt;
 
-    if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
       continue;
     }
 
@@ -347,7 +344,7 @@ void LATTICE_OT_flip(wmOperatorType *ot)
   ot->description = "Mirror all control points without inverting the lattice deform";
   ot->idname = "LATTICE_OT_flip";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_operator_editlattice;
   ot->invoke = WM_menu_invoke;
   ot->exec = lattice_flip_exec;

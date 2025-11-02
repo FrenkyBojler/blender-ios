@@ -56,6 +56,7 @@ class AddPresetSampling(AddPresetBase, Operator):
         "cycles.denoiser",
         "cycles.denoising_input_passes",
         "cycles.denoising_prefilter",
+        "cycles.denoising_quality",
     ]
 
     preset_subdir = "cycles/sampling"
@@ -80,6 +81,7 @@ class AddPresetViewportSampling(AddPresetBase, Operator):
         "cycles.preview_denoiser",
         "cycles.preview_denoising_input_passes",
         "cycles.preview_denoising_prefilter",
+        "cycles.preview_denoising_quality",
         "cycles.preview_denoising_start_sample",
     ]
 
@@ -104,7 +106,6 @@ class AddPresetPerformance(AddPresetBase, Operator):
         "cycles.debug_use_compact_bvh",
         "cycles.debug_use_hair_bvh",
         "cycles.debug_bvh_time_steps",
-        "cycles.use_auto_tile",
         "cycles.tile_size",
     ]
 

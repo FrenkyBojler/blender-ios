@@ -14,14 +14,14 @@
 #include "Interpreter.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_text.h"
 
-#include "BPY_extern_run.h"
+#include "BPY_extern_run.hh"
 
-#include "bpy_capi_utils.h"
+#include "bpy_capi_utils.hh"
 
 namespace Freestyle {
 
@@ -30,8 +30,6 @@ class PythonInterpreter : public Interpreter {
   PythonInterpreter()
   {
     _language = "Python";
-    _context = 0;
-    memset(&_freestyle_bmain, 0, sizeof(Main));
   }
 
   void setContext(bContext *C)
@@ -93,8 +91,8 @@ class PythonInterpreter : public Interpreter {
   }
 
  private:
-  bContext *_context;
-  Main _freestyle_bmain;
+  bContext *_context = nullptr;
+  Main _freestyle_bmain = {};
 };
 
 } /* namespace Freestyle */

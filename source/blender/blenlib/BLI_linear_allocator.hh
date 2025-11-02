@@ -4,14 +4,11 @@
 
 /** \file
  * \ingroup bli
- *
- * A linear allocator is the simplest form of an allocator. It never reuses any memory, and
- * therefore does not need a deallocation method. It simply hands out consecutive buffers of
- * memory. When the current buffer is full, it reallocates a new larger buffer and continues.
  */
 
 #pragma once
 
+#include "BLI_cpp_type.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
@@ -24,6 +21,11 @@ namespace blender {
  */
 // #define BLI_DEBUG_LINEAR_ALLOCATOR_SIZE
 
+/**
+ * A linear allocator is the simplest form of an allocator. It never reuses any memory, and
+ * therefore does not need a deallocation method. It simply hands out consecutive buffers of
+ * memory. When the current buffer is full, it allocates a new larger buffer and continues.
+ */
 template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopyable, NonMovable {
  private:
   BLI_NO_UNIQUE_ADDRESS Allocator allocator_;
@@ -34,7 +36,7 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
 
   /* Buffers larger than that are not packed together with smaller allocations to avoid wasting
    * memory. */
-  constexpr static inline int64_t large_buffer_threshold = 4096;
+  constexpr static int64_t large_buffer_threshold = 4096;
 
  public:
 #ifdef BLI_DEBUG_LINEAR_ALLOCATOR_SIZE
@@ -99,6 +101,12 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
     return static_cast<T *>(this->allocate(sizeof(T), alignof(T)));
   }
 
+  /** Same as above but uses a runtime #CPPType. */
+  void *allocate(const CPPType &type)
+  {
+    return this->allocate(type.size, type.alignment);
+  }
+
   /**
    * Allocate a memory buffer that can hold T array with the given size.
    *
@@ -108,6 +116,12 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
   {
     T *array = static_cast<T *>(this->allocate(sizeof(T) * size, alignof(T)));
     return MutableSpan<T>(array, size);
+  }
+
+  /** Same as above but uses a runtime #CPPType. */
+  void *allocate_array(const CPPType &type, const int64_t size)
+  {
+    return this->allocate(type.size * size, type.alignment);
   }
 
   /**
@@ -161,7 +175,7 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
   {
     const int64_t alloc_size = str.size() + 1;
     char *buffer = static_cast<char *>(this->allocate(alloc_size, 1));
-    str.copy(buffer, alloc_size);
+    str.copy_unsafe(buffer);
     return StringRefNull(static_cast<const char *>(buffer));
   }
 
@@ -211,6 +225,38 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
   void provide_buffer(AlignedBuffer<Size, Alignment> &aligned_buffer)
   {
     this->provide_buffer(aligned_buffer.ptr(), Size);
+  }
+
+  /**
+   * Some algorithms can be implemented more efficiently by over-allocating the destination memory
+   * a bit. This allows the algorithm not to worry about having enough memory. Generally, this can
+   * be a useful strategy if the actual required memory is not known in advance, but an upper bound
+   * can be found. Ideally, one can free the over-allocated memory in the end again to reduce
+   * memory consumption.
+   *
+   * A linear allocator generally does allow freeing any memory. However, there is one exception.
+   * One can free the end of the last allocation (but not any previous allocation). While uses of
+   * this approach are quite limited, it's still the best option in some situations.
+   */
+  void free_end_of_previous_allocation(const int64_t original_allocation_size,
+                                       const void *free_after)
+  {
+    /* If the original allocation size was large, it might have been separately allocated. In this
+     * case, we can't free the end of it anymore. */
+    if (original_allocation_size <= large_buffer_threshold) {
+      const int64_t new_begin = uintptr_t(free_after);
+      BLI_assert(new_begin <= current_begin_);
+#ifndef NDEBUG
+      /* This condition is not really necessary but it helps finding the cases where memory was
+       * freed. */
+      const int64_t freed_bytes_num = current_begin_ - new_begin;
+      if (freed_bytes_num > 0) {
+        current_begin_ = new_begin;
+      }
+#else
+      current_begin_ = new_begin;
+#endif
+    }
   }
 
   /**

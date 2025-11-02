@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -28,8 +27,6 @@
     .handle = NULL, \
     .handle_filepath[0] = '\0', \
     .handle_readers = NULL, \
-    .use_prefetch = 1, \
-    .prefetch_cache_size = 4096, \
   }
 
 /** \} */

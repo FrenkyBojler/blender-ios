@@ -12,22 +12,31 @@ Example usage:
 
     python ./issues_needing_info.py --username mano-wii
 """
+__all__ = (
+    "main",
+)
 
 import argparse
 import datetime
-from gitea_utils import gitea_json_issues_search, gitea_json_issue_events_filter, git_username_detect
+from gitea_utils import (
+    git_username_detect,
+    gitea_json_issue_events_filter,
+    gitea_json_issues_search,
+)
 
 
-def print_needing_info_urls(username, before):
+def print_needing_info_urls(username: str, before: str) -> None:
 
     print(f"Needs information from user before {before}:")
 
     label = "Status/Needs Information from User"
-    issues_json = gitea_json_issues_search(type="issues",
-                                           state="open",
-                                           before=before,
-                                           labels=label,
-                                           verbose=True)
+    issues_json = gitea_json_issues_search(
+        type="issues",
+        state="open",
+        before=before,
+        labels=label,
+        verbose=True,
+    )
 
     for issue in issues_json:
         fullname = issue["repository"]["full_name"]
@@ -54,7 +63,7 @@ def main() -> None:
         dest="username",
         type=str,
         required=False,
-        help="Username registred in Gitea")
+        help="Username registered in Gitea")
 
     args = parser.parse_args()
     username = args.username

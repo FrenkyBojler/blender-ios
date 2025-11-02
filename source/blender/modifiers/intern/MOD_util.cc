@@ -8,33 +8,24 @@
 
 #include <cstring>
 
-#include "BLI_utildefines.h"
-
 #include "BLI_bitmap.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "DNA_image_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_texture_types.h"
 
-#include "BKE_action.h" /* BKE_pose_channel_find_name */
+#include "BKE_action.hh" /* BKE_pose_channel_find_name */
 #include "BKE_attribute.hh"
+#include "BKE_customdata.hh"
 #include "BKE_deform.hh"
-#include "BKE_editmesh.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_lattice.hh"
-#include "BKE_lib_id.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_object.hh"
 
 #include "BKE_modifier.hh"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "MOD_modifiertypes.hh"
@@ -77,15 +68,15 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
         bPoseChannel *pchan = BKE_pose_channel_find_name(map_object->pose, dmd->map_bone);
         if (pchan) {
           float mat_bone_world[4][4];
-          mul_m4_m4m4(mat_bone_world, map_object->object_to_world, pchan->pose_mat);
+          mul_m4_m4m4(mat_bone_world, map_object->object_to_world().ptr(), pchan->pose_mat);
           invert_m4_m4(mapref_imat, mat_bone_world);
         }
         else {
-          invert_m4_m4(mapref_imat, map_object->object_to_world);
+          invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
         }
       }
       else {
-        invert_m4_m4(mapref_imat, map_object->object_to_world);
+        invert_m4_m4(mapref_imat, map_object->object_to_world().ptr());
       }
     }
     else { /* if there is no map object, default to local */
@@ -95,13 +86,14 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
 
   /* UVs need special handling, since they come from faces */
   if (texmapping == MOD_DISP_MAP_UV) {
-    if (CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
+    const VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+    if (!uv_map_names.is_empty()) {
       const OffsetIndices faces = mesh->faces();
       const Span<int> corner_verts = mesh->corner_verts();
       BLI_bitmap *done = BLI_BITMAP_NEW(verts_num, __func__);
-      char uvname[MAX_CUSTOMDATA_LAYER_NAME];
-      CustomData_validate_layer_name(
-          &mesh->corner_data, CD_PROP_FLOAT2, dmd->uvlayer_name, uvname);
+      const StringRef uvname = uv_map_names.contains(dmd->uvlayer_name) ?
+                                   dmd->uvlayer_name :
+                                   mesh->active_uv_map_name();
       const bke::AttributeAccessor attributes = mesh->attributes();
       const VArraySpan uv_map = *attributes.lookup_or_default<float2>(
           uvname, bke::AttrDomain::Corner, float2(0));
@@ -135,10 +127,10 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
         copy_v3_v3(*r_texco, cos != nullptr ? *cos : positions[i]);
         break;
       case MOD_DISP_MAP_GLOBAL:
-        mul_v3_m4v3(*r_texco, ob->object_to_world, cos != nullptr ? *cos : positions[i]);
+        mul_v3_m4v3(*r_texco, ob->object_to_world().ptr(), cos != nullptr ? *cos : positions[i]);
         break;
       case MOD_DISP_MAP_OBJECT:
-        mul_v3_m4v3(*r_texco, ob->object_to_world, cos != nullptr ? *cos : positions[i]);
+        mul_v3_m4v3(*r_texco, ob->object_to_world().ptr(), cos != nullptr ? *cos : positions[i]);
         mul_m4_v3(mapref_imat, *r_texco);
         break;
     }
@@ -153,7 +145,7 @@ void MOD_previous_vcos_store(ModifierData *md, const float (*vert_coords)[3])
   while ((md = md->next) && md->type == eModifierType_Armature) {
     ArmatureModifierData *amd = (ArmatureModifierData *)md;
     if (amd->multi && amd->vert_coords_prev == nullptr) {
-      amd->vert_coords_prev = static_cast<float(*)[3]>(MEM_dupallocN(vert_coords));
+      amd->vert_coords_prev = static_cast<float (*)[3]>(MEM_dupallocN(vert_coords));
     }
     else {
       break;
@@ -279,5 +271,22 @@ void modifier_type_init(ModifierTypeInfo *types[])
   INIT_TYPE(GreasePencilNoise);
   INIT_TYPE(GreasePencilMirror);
   INIT_TYPE(GreasePencilThickness);
+  INIT_TYPE(GreasePencilLattice);
+  INIT_TYPE(GreasePencilDash);
+  INIT_TYPE(GreasePencilMultiply);
+  INIT_TYPE(GreasePencilLength);
+  INIT_TYPE(GreasePencilWeightAngle);
+  INIT_TYPE(GreasePencilArray);
+  INIT_TYPE(GreasePencilWeightProximity);
+  INIT_TYPE(GreasePencilHook);
+  INIT_TYPE(GreasePencilLineart);
+  INIT_TYPE(GreasePencilArmature);
+  INIT_TYPE(GreasePencilTime);
+  INIT_TYPE(GreasePencilSimplify);
+  INIT_TYPE(GreasePencilEnvelope);
+  INIT_TYPE(GreasePencilOutline);
+  INIT_TYPE(GreasePencilShrinkwrap);
+  INIT_TYPE(GreasePencilBuild);
+  INIT_TYPE(GreasePencilTexture);
 #undef INIT_TYPE
 }

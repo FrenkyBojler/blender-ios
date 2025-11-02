@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include "BLI_math_matrix.hh"
+
 #include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 
@@ -14,26 +16,22 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_material.h"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
 
 #include "BLO_read_write.hh"
 
 #include "GEO_realize_instances.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "WM_types.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_grease_pencil_util.hh"
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 namespace blender {
@@ -93,8 +91,7 @@ static float4x4 get_mirror_matrix(const Object &ob,
 
   if (mmd.object) {
     /* Transforms from parent object space to target object space. */
-    const float4x4 to_target = math::invert(float4x4(mmd.object->object_to_world)) *
-                               float4x4(ob.object_to_world);
+    const float4x4 to_target = math::invert(mmd.object->object_to_world()) * ob.object_to_world();
     /* Mirror points in the target object space. */
     matrix = math::invert(to_target) * matrix * to_target;
   }
@@ -136,9 +133,9 @@ static bke::CurvesGeometry create_mirror_copies(const Object &ob,
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = true;
   options.realize_instance_attributes = false;
-  options.propagation_info = {};
   bke::GeometrySet result_geo = geometry::realize_instances(
-      bke::GeometrySet::from_instances(instances.release()), options);
+                                    bke::GeometrySet::from_instances(instances.release()), options)
+                                    .geometry;
   return std::move(result_geo.get_curves_for_write()->geometry.wrap());
 }
 
@@ -210,23 +207,23 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiLayout *row = uiLayoutRowWithHeading(layout, true, IFACE_("Axis"));
-  uiItemR(row, ptr, "use_axis_x", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_axis_y", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_axis_z", toggles_flag, nullptr, ICON_NONE);
+  uiLayout *row = &layout->row(true, IFACE_("Axis"));
+  row->prop(ptr, "use_axis_x", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_axis_y", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_axis_z", toggles_flag, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", "Influence"))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

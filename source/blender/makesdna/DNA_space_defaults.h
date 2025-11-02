@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -21,6 +20,11 @@
     .draw_type = MASK_DT_OUTLINE, \
     .overlay_mode = MASK_OVERLAY_ALPHACHANNEL, \
     .blend_factor = 0.7f, \
+  }
+
+#define _DNA_DEFAULT_SpaceClipOverlay \
+  { \
+    .flag = SC_SHOW_OVERLAYS | SC_SHOW_CURSOR, \
   }
 
 #define _DNA_DEFAULT_SpaceClip \
@@ -49,6 +53,7 @@
     .around = V3D_AROUND_CENTER_MEDIAN, \
     .cursor = {0, 0}, \
     .mask_info = _DNA_DEFAULT_MaskSpaceInfo, \
+    .overlay = _DNA_DEFAULT_SpaceClipOverlay, \
   }
 
 /** \} */
