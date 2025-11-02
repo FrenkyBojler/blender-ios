@@ -87,6 +87,7 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
         row.prop(ob, "dimensions")
         row.use_property_decorate = False
 
+
 class OBJECT_PT_delta_transform(ObjectButtonsPanel, Panel):
     bl_label = "Delta Transform"
     bl_parent_id = "OBJECT_PT_transform"

@@ -1587,85 +1587,6 @@ static void v3d_editvertex_buts(
 
 #undef TRANSFORM_MEDIAN_ARRAY_LEN
 
-<<<<<<< HEAD
-=======
-static void v3d_object_dimension_buts(bContext *C, uiLayout *layout, View3D *v3d, Object *ob)
-{
-  uiBlock *block = (layout) ? layout->block() : nullptr;
-  uiLayout *sub_layout = layout ? &layout->absolute(false) : nullptr;
-  TransformProperties *tfp = v3d_transform_props_ensure(v3d);
-  const bool is_editable = ID_IS_EDITABLE(&ob->id);
-
-  if (block) {
-    BLI_assert(C == nullptr);
-    int yi = 200;
-    const int butw = 200;
-    const int buth = 20 * UI_SCALE_FAC;
-
-    BKE_object_dimensions_eval_cached_get(ob, tfp->ob_dims);
-    copy_v3_v3(tfp->ob_dims_orig, tfp->ob_dims);
-    copy_v3_v3(tfp->ob_scale_orig, ob->scale);
-    copy_m4_m4(tfp->ob_obmat_orig, ob->object_to_world().ptr());
-
-    if (!is_editable && sub_layout) {
-      sub_layout->enabled_set(false);
-    }
-
-    uiDefBut(block,
-             ButType::Label,
-             0,
-             IFACE_("Dimensions:"),
-             0,
-             yi -= buth,
-             butw,
-             buth,
-             nullptr,
-             0,
-             0,
-             "");
-    UI_block_align_begin(block);
-    const float lim = FLT_MAX;
-    for (int i = 0; i < 3; i++) {
-      uiBut *but;
-      const char text[3] = {char('X' + i), ':', '\0'};
-      but = uiDefButF(block,
-                      ButType::Num,
-                      B_TRANSFORM_PANEL_DIMS,
-                      text,
-                      0,
-                      yi -= buth,
-                      butw,
-                      buth,
-                      &(tfp->ob_dims[i]),
-                      0.0f,
-                      lim,
-                      "");
-      UI_but_number_step_size_set(but, 10);
-      UI_but_number_precision_set(but, 3);
-      UI_but_unit_type_set(but, PROP_UNIT_LENGTH);
-      if (!is_editable) {
-        UI_but_disable(but, "Cannot edit this property from a linked data-block");
-      }
-    }
-    UI_block_align_end(block);
-  }
-  else { /* apply */
-    int axis_mask = 0;
-    for (int i = 0; i < 3; i++) {
-      if (tfp->ob_dims[i] == tfp->ob_dims_orig[i]) {
-        axis_mask |= (1 << i);
-      }
-    }
-    BKE_object_dimensions_set_ex(
-        ob, tfp->ob_dims, axis_mask, tfp->ob_scale_orig, tfp->ob_obmat_orig);
-
-    PointerRNA obptr = RNA_id_pointer_create(&ob->id);
-    PropertyRNA *prop = RNA_struct_find_property(&obptr, "scale");
-    RNA_property_update(C, &obptr, prop);
-  }
-}
-
->>>>>>> bf-blender
 #define B_VGRP_PNL_EDIT_SINGLE 8 /* or greater */
 
 static void do_view3d_vgroup_buttons(bContext *C, void * /*arg*/, int event)
@@ -1963,27 +1884,6 @@ static void v3d_transform_butsR(uiLayout *layout, Object *ob, PointerRNA *ptr)
   }
   layout->prop(ptr, "rotation_mode", UI_ITEM_NONE, "", ICON_NONE);
 
-<<<<<<< HEAD
-  split = uiLayoutSplit(layout, 0.8f, false);
-  colsub = uiLayoutColumn(split, true);
-  uiItemR(colsub, ptr, "scale", UI_ITEM_NONE, nullptr, ICON_NONE);
-  colsub = uiLayoutColumn(split, true);
-  uiLayoutSetEmboss(colsub, UI_EMBOSS_NONE_OR_STATUS);
-  uiItemL(colsub, "", ICON_NONE);
-  uiItemR(colsub,
-          ptr,
-          "lock_scale",
-          UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
-          "",
-          ICON_DECORATE_UNLOCKED);
-
-  /* Dimensions and editmode are mostly the same check. */
-  if (OB_TYPE_SUPPORT_EDITMODE(ob->type) || ELEM(ob->type, OB_VOLUME, OB_CURVES, OB_POINTCLOUD)) {
-    split = uiLayoutSplit(layout, 0.8f, false);
-    colsub = uiLayoutColumn(split, true);
-    uiItemR(colsub, ptr, "dimensions", UI_ITEM_NONE, nullptr, ICON_NONE);
-  }
-=======
   split = &layout->split(0.8f, false);
   colsub = &split->column(true);
   colsub->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1992,7 +1892,13 @@ static void v3d_transform_butsR(uiLayout *layout, Object *ob, PointerRNA *ptr)
   colsub->label("", ICON_NONE);
   colsub->prop(
       ptr, "lock_scale", UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY, "", ICON_DECORATE_UNLOCKED);
->>>>>>> bf-blender
+
+  /* Dimensions and editmode are mostly the same check. */
+  if (OB_TYPE_SUPPORT_EDITMODE(ob->type) || ELEM(ob->type, OB_VOLUME, OB_CURVES, OB_POINTCLOUD)) {
+    split = &layout->split(0.8f, false);
+    colsub = &split->column(true);
+    colsub->prop(ptr, "dimensions", UI_ITEM_NONE, nullptr, ICON_NONE);
+  }
 }
 
 static void v3d_posearmature_buts(uiLayout *layout, Object *ob)
