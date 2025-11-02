@@ -192,7 +192,6 @@ static void scene_raycast(const MutableSpan<ProjectBrushTarget> project_targets,
   }
 }
 
-
 static void calc_translations(const float3 &normal,
                               const Span<float> factors,
                               const Span<float> hit_distances,
@@ -296,7 +295,6 @@ static void calc_grids(const Depsgraph &depsgraph,
                 tls.ray_origins,
                 hit_distances);
 
-
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
   calc_translations(normal, tls.factors, hit_distances, translations);
@@ -333,7 +331,6 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                 tls.factors,
                 tls.ray_origins,
                 hit_distances);
-
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -390,14 +387,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_grids(depsgraph,
-                   sd,
-                   object,
-                   brush,
-                   bidirectional,
-                   normal,
-                   nodes[i],
-                   tls);
+        calc_grids(depsgraph, sd, object, brush, bidirectional, normal, nodes[i], tls);
         bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
@@ -406,14 +396,7 @@ void do_scene_project_brush(const Depsgraph &depsgraph,
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
         LocalData &tls = all_tls.local();
-        calc_bmesh(depsgraph,
-                   sd,
-                   object,
-                   brush,
-                   bidirectional,
-                   normal,
-                   nodes[i],
-                   tls);
+        calc_bmesh(depsgraph, sd, object, brush, bidirectional, normal, nodes[i], tls);
         bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;
