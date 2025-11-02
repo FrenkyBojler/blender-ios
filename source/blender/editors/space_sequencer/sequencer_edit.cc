@@ -1998,11 +1998,10 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   bool changed = false;
   int max_left_offset = INT_MAX;
 
-  VectorSet<Strip *> strips_to_cut;
-
   /* Make two split logic runs so the newly created strips can get split by the second foreach
    * run.*/
   for (int axis : {0, 1}) {
+    VectorSet<Strip *> strips_to_cut;
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
         continue;
@@ -2022,11 +2021,11 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     }
 
     const char *error_msg = nullptr;
-    for (Strip *strip : strips_to_cut) {
+    for (Strip *cut_strip : strips_to_cut) {
       if (seq::edit_strip_split(bmain,
                                 scene,
                                 ed->current_strips(),
-                                strip,
+                                cut_strip,
                                 rect_frames[axis],
                                 method,
                                 false,
