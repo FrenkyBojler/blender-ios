@@ -545,6 +545,15 @@ class StrokePanel(BrushPanel):
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
             row.prop(brush, "use_pressure_spacing", toggle=True, text="")
+            if not self.is_popover:
+                UnifiedPaintPanel.prop_custom_pressure(
+                    layout,
+                    context,
+                    row,
+                    brush,
+                    pressure_name="use_pressure_spacing",
+                    curve_visibility_name="show_spacing_curve",
+                    custom_curve_name="curve_spacing")
 
         if brush.use_line or brush.use_curve:
             row = col.row(align=True)
@@ -799,7 +808,7 @@ def brush_settings(layout, context, brush, popover=False):
         row = layout.row(align=True)
         if capabilities.has_hardness_pressure:
             pressure_name = "use_hardness_pressure"
-            UnifiedPaintPanel.prop_unified(
+            unified_row = UnifiedPaintPanel.prop_unified(
                 layout,
                 context,
                 brush,
@@ -813,7 +822,7 @@ def brush_settings(layout, context, brush, popover=False):
                 UnifiedPaintPanel.prop_custom_pressure(
                     layout,
                     context,
-                    row,
+                    unified_row,
                     brush,
                     pressure_name=pressure_name,
                     curve_visibility_name=curve_visibility_name,
@@ -822,7 +831,7 @@ def brush_settings(layout, context, brush, popover=False):
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
             pressure_name = "use_auto_smooth_pressure" if capabilities.has_auto_smooth_pressure else None
-            UnifiedPaintPanel.prop_unified(
+            unified_row = UnifiedPaintPanel.prop_unified(
                 layout,
                 context,
                 brush,
@@ -836,7 +845,7 @@ def brush_settings(layout, context, brush, popover=False):
                 UnifiedPaintPanel.prop_custom_pressure(
                     layout,
                     context,
-                    row,
+                    unified_row,
                     brush,
                     pressure_name=pressure_name,
                     curve_visibility_name=curve_visibility_name,
@@ -867,7 +876,7 @@ def brush_settings(layout, context, brush, popover=False):
         # plane_offset, use_offset_pressure, use_plane_trim, plane_trim
         if capabilities.has_plane_offset:
             layout.separator()
-            UnifiedPaintPanel.prop_unified(
+            unified_row = UnifiedPaintPanel.prop_unified(
                 layout,
                 context,
                 brush,
@@ -875,6 +884,16 @@ def brush_settings(layout, context, brush, popover=False):
                 pressure_name="use_offset_pressure",
                 slider=True,
             )
+
+            if not popover:
+                UnifiedPaintPanel.prop_custom_pressure(
+                    layout,
+                    context,
+                    unified_row,
+                    brush,
+                    pressure_name="use_offset_pressure",
+                    curve_visibility_name="show_plane_offset_curve",
+                    custom_curve_name="curve_plane_offset")
 
             if sculpt_brush_type != 'PLANE':
                 row = layout.row(heading="Plane Trim")
@@ -975,6 +994,15 @@ def brush_settings(layout, context, brush, popover=False):
             row = layout.row(align=True)
             row.prop(brush, "area_radius_factor")
             row.prop(brush, "use_pressure_area_radius", text="")
+            if not popover:
+                UnifiedPaintPanel.prop_custom_pressure(
+                    layout,
+                    context,
+                    row,
+                    brush,
+                    pressure_name="use_pressure_area_radius",
+                    curve_visibility_name="show_area_radius_curve",
+                    custom_curve_name="curve_area_radius")
             layout.separator()
             layout.prop(brush, "plane_inversion_mode")
             layout.separator()
