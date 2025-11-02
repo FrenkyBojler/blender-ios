@@ -2831,14 +2831,6 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
     bool changed = false;
 
     if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
-      uvedit_select_prepare_sync_select(scene, bm);
-    }
-    else {
-      uvedit_select_prepare_custom_data(scene, bm);
-    }
-    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-
-    if ((ts->uv_flag & UV_FLAG_SELECT_SYNC) && (bm->uv_select_sync_valid == false)) {
       BMEditMesh *em = BKE_editmesh_from_object(obedit);
       if (select) {
         EDBM_select_more(em, true);
@@ -2852,8 +2844,10 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
       continue;
     }
 
-    if (is_uv_face_selectmode) {
+    uvedit_select_prepare_custom_data(scene, bm);
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
+    if (is_uv_face_selectmode) {
       /* clear tags */
       BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
 
@@ -2939,24 +2933,7 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
       else {
         /* Select tagged loops. */
         uv_select_flush_from_tag_loop(scene, obedit, select);
-        /* Set/unset edge flags based on selected verts. */
-        if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
-          /* Pass. */
-        }
-        else {
-          uvedit_select_flush_from_verts(scene, bm, select);
-        }
-      }
-
-      if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
-        BLI_assert(bm->uv_select_sync_valid); /* Already handled. */
-        if (select) {
-          BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
-        }
-        else {
-          BM_mesh_uvselect_flush_from_loop_verts_only_deselect(bm);
-        }
-        BM_mesh_uvselect_sync_to_mesh(bm);
+        uvedit_select_flush_from_verts(scene, bm, select);
       }
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
