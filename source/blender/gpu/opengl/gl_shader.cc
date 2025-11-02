@@ -521,25 +521,38 @@ static void print_resource(std::ostream &os,
     case ShaderCreateInfo::Resource::BindType::SAMPLER:
       os << "uniform ";
       print_image_type(os, res.sampler.type, res.bind_type);
-      os << res.sampler.name << ";\n";
+      os << res.sampler.name << ";";
       break;
     case ShaderCreateInfo::Resource::BindType::IMAGE:
       os << "uniform ";
       print_qualifier(os, res.image.qualifiers);
       print_image_type(os, res.image.type, res.bind_type);
-      os << res.image.name << ";\n";
+      os << res.image.name << ";";
       break;
     case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
       os << "uniform " << res.uniformbuf.name.str_no_array() << " { " << res.uniformbuf.type_name
-         << " " << res.uniformbuf.name << "; };\n";
+         << " " << res.uniformbuf.name << "; };";
       break;
     case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
       print_qualifier(os, res.storagebuf.qualifiers);
       os << "buffer ";
       os << res.storagebuf.name.str_no_array() << " { " << res.storagebuf.type_name << " "
-         << res.storagebuf.name << "; };\n";
+         << res.storagebuf.name << "; };";
       break;
   }
+}
+
+static void print_resource(std::ostream &os,
+                           const ShaderCreateInfo::Resource &res,
+                           bool auto_resource_location,
+                           StringRefNull res_frequency,
+                           StringRefNull &active_info_name)
+{
+  if (assign_if_different(active_info_name, res.info_name)) {
+    os << "#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << "\\\n";
+  }
+  print_resource(os, res, auto_resource_location);
+  os << "\\\n";
 }
 
 static void print_interface(std::ostream &os,
@@ -588,20 +601,26 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
   for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
     ss << "shared " << to_string(sv.type) << " " << sv.name << ";\n";
   }
-  /* NOTE: We define macros in GLSL to trigger compilation error if the resource names
-   * are reused for local variables. This is to match other backend behavior which needs accessors
-   * macros. */
-  ss << "\n/* Pass Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-    print_resource(ss, res, info.auto_resource_location_);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
+      print_resource(ss, res, info.auto_resource_location_, "PASS", active_info);
+    }
+    ss << "\n";
   }
-  ss << "\n/* Batch Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-    print_resource(ss, res, info.auto_resource_location_);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+      print_resource(ss, res, info.auto_resource_location_, "BATCH", active_info);
+    }
+    ss << "\n";
   }
-  ss << "\n/* Geometry Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
-    print_resource(ss, res, info.auto_resource_location_);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+      print_resource(ss, res, info.auto_resource_location_, "GEOMETRY", active_info);
+    }
+    ss << "\n";
   }
   ss << "\n/* Push Constants. */\n";
   int location = 0;

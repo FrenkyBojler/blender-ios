@@ -370,22 +370,22 @@ static void print_resource(std::ostream &os,
     case ShaderCreateInfo::Resource::BindType::SAMPLER:
       os << "uniform ";
       print_image_type(os, res.sampler.type, res.bind_type);
-      os << res.sampler.name << ";\n";
+      os << res.sampler.name << ";";
       break;
     case ShaderCreateInfo::Resource::BindType::IMAGE:
       os << "uniform ";
       print_qualifier(os, res.image.qualifiers);
       print_image_type(os, res.image.type, res.bind_type);
-      os << res.image.name << ";\n";
+      os << res.image.name << ";";
       break;
     case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
       os << "uniform _" << name_no_array.str_no_array() << " { " << res.uniformbuf.type_name << " "
-         << res.uniformbuf.name << "; };\n";
+         << res.uniformbuf.name << "; };";
       break;
     case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
       print_qualifier(os, res.storagebuf.qualifiers);
       os << "buffer _" << name_no_array.str_no_array() << " { " << res.storagebuf.type_name << " "
-         << res.storagebuf.name << "; };\n";
+         << res.storagebuf.name << "; };";
       break;
   }
 }
@@ -396,6 +396,19 @@ static void print_resource(std::ostream &os,
 {
   const VKDescriptorSet::Location location = shader_interface.descriptor_set_location(res);
   print_resource(os, location, res);
+}
+
+static void print_resource(std::ostream &os,
+                           const VKShaderInterface &shader_interface,
+                           const ShaderCreateInfo::Resource &res,
+                           StringRefNull res_frequency,
+                           StringRefNull &active_info_name)
+{
+  if (assign_if_different(active_info_name, res.info_name)) {
+    os << "#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << "\\\n";
+  }
+  print_resource(os, shader_interface, res);
+  os << "\\\n";
 }
 
 inline int get_location_count(const Type &type)
@@ -774,21 +787,27 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
     ss << "shared " << to_string(sv.type) << " " << sv.name << ";\n";
   }
 
-  ss << "\n/* Pass Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-    print_resource(ss, vk_interface, res);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
+      print_resource(ss, res, info.auto_resource_location_, "PASS", active_info);
+    }
+    ss << "\n";
   }
-
-  ss << "\n/* Batch Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-    print_resource(ss, vk_interface, res);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+      print_resource(ss, res, info.auto_resource_location_, "BATCH", active_info);
+    }
+    ss << "\n";
   }
-
-  ss << "\n/* Geometry Resources. */\n";
-  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
-    print_resource(ss, vk_interface, res);
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+      print_resource(ss, res, info.auto_resource_location_, "GEOMETRY", active_info);
+    }
+    ss << "\n";
   }
-
   /* Push constants. */
   const VKPushConstants::Layout &push_constants_layout = vk_interface.push_constants_layout_get();
   const VKPushConstants::StorageType push_constants_storage =
