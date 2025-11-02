@@ -798,35 +798,49 @@ def brush_settings(layout, context, brush, popover=False):
 
         row = layout.row(align=True)
         if capabilities.has_hardness_pressure:
-            pressure_name = "use_hardness_pressure" if capabilities.has_hardness_pressure else None
-            curve_visibility_name = "show_hardness_curve" if capabilities.has_hardness_pressure and not popover else None
-            custom_curve_name = "curve_hardness" if capabilities.has_hardness_pressure and not popover else None
+            pressure_name = "use_hardness_pressure"
             UnifiedPaintPanel.prop_unified(
                 layout,
                 context,
                 brush,
                 "hardness",
                 pressure_name=pressure_name,
-                curve_visibility_name=curve_visibility_name,
-                custom_curve_name=custom_curve_name,
                 slider=True,
             )
+            if not popover:
+                curve_visibility_name = "show_hardness_curve"
+                custom_curve_name = "curve_hardness"
+                UnifiedPaintPanel.prop_custom_pressure(
+                    layout,
+                    context,
+                    row,
+                    brush,
+                    pressure_name=pressure_name,
+                    curve_visibility_name=curve_visibility_name,
+                    custom_curve_name=custom_curve_name)
 
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
             pressure_name = "use_auto_smooth_pressure" if capabilities.has_auto_smooth_pressure else None
-            curve_visibility_name = "show_auto_smooth_curve" if capabilities.has_auto_smooth_pressure and not popover else None
-            custom_curve_name = "curve_auto_smooth" if capabilities.has_auto_smooth_pressure and not popover else None
             UnifiedPaintPanel.prop_unified(
                 layout,
                 context,
                 brush,
                 "auto_smooth_factor",
                 pressure_name=pressure_name,
-                curve_visibility_name=curve_visibility_name,
-                custom_curve_name=custom_curve_name,
                 slider=True,
             )
+            if capabilities.has_auto_smooth_pressure and not popover:
+                curve_visibility_name = "show_auto_smooth_curve"
+                custom_curve_name = "curve_auto_smooth"
+                UnifiedPaintPanel.prop_custom_pressure(
+                    layout,
+                    context,
+                    row,
+                    brush,
+                    pressure_name=pressure_name,
+                    curve_visibility_name=curve_visibility_name,
+                    custom_curve_name=custom_curve_name)
 
         # topology_rake_factor
         if (
