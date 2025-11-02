@@ -1672,7 +1672,6 @@ Bounds<float3> bounds_get(const Tree &pbvh)
 
 }  // namespace blender::bke::pbvh
 
-
 /***************************** Node Access ***********************************/
 
 void BKE_pbvh_node_mark_update(blender::bke::pbvh::Node &node)
