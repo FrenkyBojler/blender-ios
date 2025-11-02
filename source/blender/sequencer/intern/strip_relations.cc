@@ -46,13 +46,21 @@ bool relation_is_effect_of_strip(const Strip *effect, const Strip *input)
   return ELEM(input, effect->input1, effect->input2);
 }
 
-void cache_cleanup(Scene *scene)
+void cache_cleanup(Scene *scene, CacheCleanup mode)
 {
-  thumbnail_cache_clear(scene);
-  source_image_cache_clear(scene);
-  final_image_cache_clear(scene);
-  intra_frame_cache_invalidate(scene);
-  preview_cache_invalidate(scene);
+  if (flag_is_set(mode, CacheCleanup::Thumbnails)) {
+    thumbnail_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::SourceImage)) {
+    source_image_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::FinalImage)) {
+    final_image_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::IntraFrame)) {
+    intra_frame_cache_invalidate(scene);
+    preview_cache_invalidate(scene);
+  }
 }
 
 void cache_settings_changed(Scene *scene)
@@ -214,7 +222,6 @@ void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
     return;
   }
 
-  cache_cleanup(scene);
   prefetch_stop(scene);
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
@@ -408,7 +415,7 @@ void relations_check_uids_unique_and_report(const Scene *scene)
   GSet *used_uids = BLI_gset_new(
       BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
 
-  for_each_callback(&scene->ed->seqbase, get_uids_cb, used_uids);
+  foreach_strip(&scene->ed->seqbase, get_uids_cb, used_uids);
 
   BLI_gset_free(used_uids, nullptr);
 }

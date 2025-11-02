@@ -66,6 +66,8 @@ void Instance::init()
     state.xray_opacity = state.xray_enabled ? XRAY_ALPHA(state.v3d) : 1.0f;
     state.xray_flag_enabled = SHADING_XRAY_FLAG_ENABLED(state.v3d->shading) &&
                               !state.is_depth_only_drawing;
+    state.vignette_enabled = ctx->mode == DRWContext::VIEWPORT_XR &&
+                             state.v3d->vignette_aperture < M_SQRT1_2;
 
     const bool viewport_uses_workbench = state.v3d->shading.type <= OB_SOLID ||
                                          BKE_scene_uses_blender_workbench(state.scene);
@@ -962,6 +964,10 @@ void Instance::draw_v3d(Manager &manager, View &view)
     cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
 
     draw_text(resources.overlay_output_color_only_fb);
+
+    if (state.vignette_enabled) {
+      background.draw_vignette(resources.overlay_output_color_only_fb, manager, view);
+    }
   }
 }
 
@@ -1083,6 +1089,10 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
   }
 
   if (resources.is_selection() || state.is_depth_only_drawing) {
+    if (ob_ref.object->visibility_flag & OB_HIDE_SURFACE_PICK) {
+      /* Special flag to avoid surfaces to contribute to depth picking and selection. */
+      return false;
+    }
     /* Selection and depth picking always need a prepass.
      * Note that depth writing and depth test might be disable for certain selection mode. */
     return true;

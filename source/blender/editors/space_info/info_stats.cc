@@ -25,13 +25,13 @@
 #include "BLF_api.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_timecode.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -61,7 +61,7 @@
 
 #include "GPU_capabilities.hh"
 
-ENUM_OPERATORS(eUserpref_StatusBar_Flag, STATUSBAR_SHOW_VERSION)
+ENUM_OPERATORS(eUserpref_StatusBar_Flag)
 
 struct SceneStats {
   uint64_t totvert, totvertsel, totvertsculpt;
@@ -363,7 +363,7 @@ static void stats_object_pose(const Object *ob, SceneStats *stats)
 
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       stats->totbone++;
-      if (pchan->bone && (pchan->bone->flag & BONE_SELECTED)) {
+      if ((pchan->flag & POSE_SELECTED)) {
         if (BKE_pose_is_bonecoll_visible(arm, pchan)) {
           stats->totbonesel++;
         }

@@ -279,7 +279,7 @@ static Strip *rna_Strips_new_image(ID *id,
   BLI_path_split_dir_file(file, dirpath, sizeof(dirpath), filename, sizeof(filename));
   blender::seq::add_image_set_directory(strip, dirpath);
   blender::seq::add_image_load_file(scene, strip, 0, filename);
-  blender::seq::add_image_init_alpha_mode(strip);
+  blender::seq::add_image_init_alpha_mode(bmain, scene, strip);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -839,7 +839,6 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", "Multiply color channels from two videos"},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", "Sweep a transition line across the frame"},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", "Add blur and brightness to light areas"},
-      {STRIP_TYPE_TRANSFORM, "TRANSFORM", 0, "Transform", "Apply scale, rotation, or translation"},
       {STRIP_TYPE_COLOR, "COLOR", 0, "Color", "Add a simple color strip"},
       {STRIP_TYPE_SPEED, "SPEED", 0, "Speed", "Timewarp video strips, modifying playback speed"},
       {STRIP_TYPE_MULTICAM, "MULTICAM", 0, "Multicam Selector", "Control active camera angles"},

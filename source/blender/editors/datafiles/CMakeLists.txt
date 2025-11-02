@@ -245,6 +245,14 @@ if(WITH_BLENDER)
       clipuv_dehlt
       clipuv_hlt
       collapsemenu
+      collection_color_01
+      collection_color_02
+      collection_color_03
+      collection_color_04
+      collection_color_05
+      collection_color_06
+      collection_color_07
+      collection_color_08
       collection_new
       color
       color_blue
@@ -264,6 +272,7 @@ if(WITH_BLENDER)
       con_floor
       con_followpath
       con_followtrack
+      con_geometryattribute
       con_kinematic
       con_locktrack
       con_loclike
@@ -572,6 +581,7 @@ if(WITH_BLENDER)
       mod_cloth
       mod_color_balance
       mod_curve
+      mod_curve_to_tube
       mod_curves
       mod_dash
       mod_data_transfer
@@ -603,6 +613,7 @@ if(WITH_BLENDER)
       mod_particle_instance
       mod_physics
       mod_remesh
+      mod_scatter_on_surface
       mod_screw
       mod_shrinkwrap
       mod_simpledeform
@@ -809,6 +820,7 @@ if(WITH_BLENDER)
       seq_splitview
       seq_strip_duplicate
       seq_strip_meta
+      seq_strip_modifier
       settings
       shaderfx
       shading_bbox

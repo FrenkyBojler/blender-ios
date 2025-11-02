@@ -149,12 +149,14 @@ static void compute_deep_hash_recursive(const Main &bmain,
     return;
   }
   current_stack.add(&id);
+  BLI_SCOPED_DEFER([&]() -> void { current_stack.remove(&id); });
   const std::optional<XXH128_hash_t> id_shallow_hash = get_id_shallow_hash(id, r_errors);
   if (!id_shallow_hash) {
     return;
   }
 
   XXH3_state_t *hash_state = XXH3_createState();
+  BLI_SCOPED_DEFER([&hash_state]() -> void { XXH3_freeState(hash_state); })
   XXH3_128bits_reset(hash_state);
   XXH3_128bits_update(hash_state, &*id_shallow_hash, sizeof(XXH128_hash_t));
 
@@ -173,6 +175,10 @@ static void compute_deep_hash_recursive(const Main &bmain,
         if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
           /* Embedded data are part of their owner's internal data, and as such already computed as
            * part of the owner's shallow hash. */
+          return IDWALK_RET_NOP;
+        }
+        if (cb_data->cb_flag & IDWALK_CB_HASH_IGNORE) {
+          /* This pointer is explicitly ignored for the hash computation. */
           return IDWALK_RET_NOP;
         }
         ID *referenced_id = *cb_data->id_pointer;
@@ -208,7 +214,6 @@ static void compute_deep_hash_recursive(const Main &bmain,
   }
   IDHash new_deep_hash;
   const XXH128_hash_t new_deep_hash_xxh128 = XXH3_128bits_digest(hash_state);
-  XXH3_freeState(hash_state);
   static_assert(sizeof(IDHash) == sizeof(XXH128_hash_t));
   memcpy(new_deep_hash.data, &new_deep_hash_xxh128, sizeof(IDHash));
   r_hashes.add(&id, new_deep_hash);
