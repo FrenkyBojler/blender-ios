@@ -57,7 +57,7 @@ except ImportError:
     print(__doc__)
     sys.exit()
 
-import rna_info  # Blender module.
+import _rna_info as rna_info  # Blender module.
 
 
 def rna_info_BuildRNAInfo_cache():
@@ -1258,6 +1258,8 @@ context_type_map = {
     "selected_visible_fcurves": [("FCurve", True)],
     "sequencer_scene": [("Scene", False)],
     "strips": [("Strip", True)],
+    "strip": [("Strip", False)],
+    "strip_modifier": [("StripModifier", False)],
     "soft_body": [("SoftBodyModifier", False)],
     "speaker": [("Speaker", False)],
     "texture": [("Texture", False)],

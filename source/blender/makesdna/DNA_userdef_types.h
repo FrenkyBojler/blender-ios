@@ -239,10 +239,9 @@ typedef struct UserDef_Experimental {
   char use_new_curves_tools;
   char use_extended_asset_browser;
   char use_sculpt_texture_paint;
-  char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char _pad[5];
+  char _pad[6];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -686,7 +685,7 @@ typedef enum eUserPref_Flag {
   USER_AUTOSAVE = (1 << 0),
   USER_FLAG_NUMINPUT_ADVANCED = (1 << 1),
   USER_FLAG_RECENT_SEARCHES_DISABLE = (1 << 2),
-  USER_FLAG_UNUSED_3 = (1 << 3), /* cleared */
+  USER_MENU_CLOSE_LEAVE = (1 << 3),
   USER_FLAG_UNUSED_4 = (1 << 4), /* cleared */
   USER_TRACKBALL = (1 << 5),
   USER_FLAG_UNUSED_6 = (1 << 6), /* cleared */
@@ -941,6 +940,12 @@ typedef enum eUserpref_Anim_Flags {
   USER_ANIM_HIGH_QUALITY_DRAWING = (1 << 2),
 } eUserpref_Anim_Flags;
 
+typedef enum eFixToCam_Flags {
+  FIX_TO_CAM_FLAG_USE_LOC = (1 << 0),
+  FIX_TO_CAM_FLAG_USE_ROT = (1 << 1),
+  FIX_TO_CAM_FLAG_USE_SCALE = (1 << 2),
+} eFixToCam_Flags;
+
 /** #UserDef.transopts */
 typedef enum eUserpref_Translation_Flags {
   USER_TR_TOOLTIPS = (1 << 0),
@@ -1055,6 +1060,8 @@ typedef enum eNdof_Flag {
   NDOF_ORBIT_CENTER_AUTO = (1 << 17),
   NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
   NDOF_SHOW_GUIDE_ORBIT_CENTER = (1 << 19),
+  /** Must only be used when `!NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U)`. */
+  NDOF_FLY_SPEED_AUTO = (1 << 20),
 } eNdof_Flag;
 
 /**

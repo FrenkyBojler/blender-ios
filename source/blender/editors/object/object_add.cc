@@ -50,6 +50,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_armature.hh"
+#include "BKE_attribute.h"
 #include "BKE_camera.h"
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
@@ -2321,10 +2322,9 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperato
 
   /* Decide which UV map to use for attachment. */
   Mesh *surface_mesh = static_cast<Mesh *>(surface_ob->data);
-  const char *uv_name = CustomData_get_active_layer_name(&surface_mesh->corner_data,
-                                                         CD_PROP_FLOAT2);
-  if (uv_name != nullptr) {
-    curves_id->surface_uv_map = BLI_strdup(uv_name);
+  const StringRef uv_name = surface_mesh->active_uv_map_name();
+  if (!uv_name.is_empty()) {
+    curves_id->surface_uv_map = BLI_strdupn(uv_name.data(), uv_name.size());
   }
 
   /* Add deformation modifier. */
@@ -4249,6 +4249,18 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
   if (selected_editable_bases.is_empty()) {
     BKE_report(op->reports, RPT_INFO, "No editable objects to convert");
     return OPERATOR_CANCELLED;
+  }
+
+  /* Disallow conversion if any selected editable object is in Edit Mode.
+   * This could be supported in the future, but it's a rare corner case
+   * typically triggered only by Python scripts, see #147387. */
+  for (const PointerRNA &ptr : selected_editable_bases) {
+    const Object *ob = ((const Base *)ptr.data)->object;
+    if (ob->mode & OB_MODE_EDIT) {
+      BKE_report(
+          op->reports, RPT_ERROR, "Cannot convert selected objects while they are in edit mode");
+      return OPERATOR_CANCELLED;
+    }
   }
 
   /* don't forget multiple users! */

@@ -631,6 +631,10 @@ const char *BKE_main_blendfile_path(const Main *bmain) ATTR_NONNULL();
  * you should always try to get a valid Main pointer from context.
  */
 const char *BKE_main_blendfile_path_from_global();
+/**
+ * Return the absolute file-path of a library.
+ */
+const char *BKE_main_blendfile_path_from_library(const Library &library);
 
 /**
  * \return A pointer to the \a ListBase of given \a bmain for requested \a type ID type.
@@ -667,9 +671,8 @@ MainListsArray BKE_main_lists_get(Main &bmain);
  * typically when a library is missing, by definition its data (placeholder IDs) does not need
  * versionning anyway then. */
 #define LIBRARY_VERSION_FILE_ATLEAST(lib, ver, subver) \
-  (((lib)->runtime->versionfile != 0) && \
-   ((lib)->runtime->versionfile > (ver) || \
-    ((lib)->runtime->versionfile == (ver) && (lib)->runtime->subversionfile >= (subver))))
+  ((lib)->runtime->versionfile == 0 || (lib)->runtime->versionfile > (ver) || \
+   ((lib)->runtime->versionfile == (ver) && (lib)->runtime->subversionfile >= (subver)))
 
 /**
  * The size of thumbnails (optionally) stored in the `.blend` files header.
