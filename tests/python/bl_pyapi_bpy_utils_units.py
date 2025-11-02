@@ -60,10 +60,10 @@ class UnitsTesting(unittest.TestCase):
         # LENGTH
         # Note: precision handling is a bit complicated when using multi-units...
         ('IMPERIAL', 'LENGTH', 3, False, False, 0.3048, "1'"),
-        ('IMPERIAL', 'LENGTH', -3, False, False, 0.3048, "1.000'"),
+        ('IMPERIAL', 'LENGTH', -3, False, False, 0.3048, "1.00'"),
         ('IMPERIAL', 'LENGTH', 3, False, True, 0.3048, "1ft"),
-        ('IMPERIAL', 'LENGTH', -3, False, True, 0.3048, "1.000ft"),
-        ('IMPERIAL', 'LENGTH', -6, False, True, 0.3048, "1.000000ft"),
+        ('IMPERIAL', 'LENGTH', -3, False, True, 0.3048, "1.00ft"),
+        ('IMPERIAL', 'LENGTH', -6, False, True, 0.3048, "1.00000ft"),
         ('IMPERIAL', 'LENGTH', -7, False, True, 0.3048, "1.000000ft"),
         ('IMPERIAL', 'LENGTH', 4, True, False, 0.3048 * 2 + 0.0254 * 5.5, "2' 5.5\""),
         ('IMPERIAL', 'LENGTH', -4, True, False, 0.3048 * 2 + 0.0254 * 5.5, "2' 5.50\""),
@@ -77,7 +77,7 @@ class UnitsTesting(unittest.TestCase):
         ('METRIC', 'LENGTH', 9, False, False, 1234.56789, "1.234568 km"),
         ('METRIC', 'LENGTH', 9, True, False, 1000.000123456789, "1 km 0.123 mm"),
         ('METRIC', 'LENGTH', 7, True, False, 0, "0 m"),
-        ('METRIC', 'LENGTH', -5, True, False, 0, "0.00000 m"),
+        ('METRIC', 'LENGTH', -5, True, False, 0, "0.0000 m"),
         ('METRIC', 'LENGTH', -7, True, False, 0, "0.000000 m"),
     )
 
