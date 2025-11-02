@@ -539,11 +539,12 @@ class NWReloadImages(Operator):
             if interface_ids:
                 for obj in context.scene.objects:
                     for mod in obj.modifiers:
-                        if (mod.type == 'NODES'
-                                and mod.node_group == edit_tree):
-                            for id in interface_ids:
-                                if img := mod.get(id):
-                                    images_to_reload.add(img)
+                        if not (mod.type == 'NODES' and mod.node_group == edit_tree):
+                            continue
+                        for id in interface_ids:
+                            if not (img := mod.get(id)):
+                                continue
+                            images_to_reload.add(img)
 
         if not images_to_reload:
             self.report({'WARNING'}, "No images found to reload in this node tree")
