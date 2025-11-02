@@ -2213,6 +2213,11 @@ void transformApply(bContext *C, TransInfo *t)
     viewRedrawForce(C, t);
   }
 
+  /* When editing a mesh in the 3D View, also refresh the UV Editor. */
+  if (t->spacetype == SPACE_VIEW3D && t->obedit_type == OB_MESH) {
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+  }
+
   t->redraw = TREDRAW_NOTHING;
 
   /* If auto confirm is on, break after one pass. */
