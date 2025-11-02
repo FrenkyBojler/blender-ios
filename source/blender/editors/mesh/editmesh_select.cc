@@ -4482,15 +4482,8 @@ void MESH_OT_select_more(wmOperatorType *ot)
 
   RNA_def_boolean(
       ot->srna, "use_face_step", true, "Face Step", "Connected faces (instead of edges)");
-  RNA_def_int(ot->srna,
-              "repeat",
-              1,
-              1,
-              100,
-              "Iterations",
-              "Number of times to repeat operation",
-              1,
-              100);
+  RNA_def_int(
+      ot->srna, "repeat", 1, 1, 100, "Iterations", "Number of times to repeat operation", 1, 100);
 }
 
 /** \} */
@@ -4540,15 +4533,8 @@ void MESH_OT_select_less(wmOperatorType *ot)
 
   RNA_def_boolean(
       ot->srna, "use_face_step", true, "Face Step", "Connected faces (instead of edges)");
-  RNA_def_int(ot->srna,
-              "repeat",
-              1,
-              1,
-              100,
-              "Iterations",
-              "Number of times to repeat operation",
-              1,
-              100);
+  RNA_def_int(
+      ot->srna, "repeat", 1, 1, 100, "Iterations", "Number of times to repeat operation", 1, 100);
 }
 
 /** \} */

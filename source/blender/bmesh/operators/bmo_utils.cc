@@ -388,8 +388,6 @@ void bmo_region_extend_exec(BMesh *bm, BMOperator *op)
 
   BMO_slot_buffer_flag_enable(bm, op->slots_in, "geom", BM_ALL_NOLOOP, SEL_ORIG);
 
-  BMO_mesh_flag_disable_all(bm, op, BM_ALL_NOLOOP, SEL_FLAG);
-
   for (int i = 0; i < repeat; i++) {
     if (constrict) {
       bmo_region_extend_contract(bm, op, use_faces, use_face_step);
