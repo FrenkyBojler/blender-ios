@@ -388,7 +388,7 @@ void EDBM_select_flush_from_verts(BMEditMesh *em, const bool select)
   BM_mesh_select_flush_from_verts(em->bm, select);
 }
 
-void EDBM_select_more(BMEditMesh *em, const bool use_face_step)
+void EDBM_select_more(BMEditMesh *em, const bool use_face_step, const int repeat)
 {
   BMOperator bmop;
   const bool use_faces = (em->selectmode == SCE_SELECT_FACE);
@@ -396,11 +396,13 @@ void EDBM_select_more(BMEditMesh *em, const bool use_face_step)
   BMO_op_initf(em->bm,
                &bmop,
                BMO_FLAG_DEFAULTS,
-               "region_extend geom=%hvef use_contract=%b use_faces=%b use_face_step=%b",
+               "region_extend geom=%hvef use_contract=%b use_faces=%b use_face_step=%b repeat=%i",
                BM_ELEM_SELECT,
                false,
                use_faces,
-               use_face_step);
+               use_face_step,
+               repeat);
+
   BMO_op_exec(em->bm, &bmop);
   /* Don't flush selection in edge/vertex mode. */
   BMO_slot_buffer_hflag_enable(
@@ -411,7 +413,7 @@ void EDBM_select_more(BMEditMesh *em, const bool use_face_step)
   EDBM_uvselect_clear(em);
 }
 
-void EDBM_select_less(BMEditMesh *em, const bool use_face_step)
+void EDBM_select_less(BMEditMesh *em, const bool use_face_step, const int repeat)
 {
   BMOperator bmop;
   const bool use_faces = (em->selectmode == SCE_SELECT_FACE);
@@ -419,11 +421,12 @@ void EDBM_select_less(BMEditMesh *em, const bool use_face_step)
   BMO_op_initf(em->bm,
                &bmop,
                BMO_FLAG_DEFAULTS,
-               "region_extend geom=%hvef use_contract=%b use_faces=%b use_face_step=%b",
+               "region_extend geom=%hvef use_contract=%b use_faces=%b use_face_step=%b repeat=%i",
                BM_ELEM_SELECT,
                true,
                use_faces,
-               use_face_step);
+               use_face_step,
+               repeat);
   BMO_op_exec(em->bm, &bmop);
   /* Don't flush selection in edge/vertex mode. */
   BMO_slot_buffer_hflag_disable(

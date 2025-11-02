@@ -130,8 +130,8 @@ void EDBM_mesh_load(Main *bmain, Object *ob);
  * edges select/deselect faces and vertices, and in face select mode faces select/deselect
  * edges and vertices.
  */
-void EDBM_select_more(BMEditMesh *em, bool use_face_step);
-void EDBM_select_less(BMEditMesh *em, bool use_face_step);
+void EDBM_select_more(BMEditMesh *em, bool use_face_step, int repeat);
+void EDBM_select_less(BMEditMesh *em, bool use_face_step, int repeat);
 
 void EDBM_selectmode_flush_ex(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_flush(BMEditMesh *em);

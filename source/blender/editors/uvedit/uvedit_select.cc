@@ -2838,10 +2838,10 @@ static wmOperatorStatus uv_select_more_less(bContext *C, const bool select)
     if ((ts->uv_flag & UV_FLAG_SELECT_SYNC) && (bm->uv_select_sync_valid == false)) {
       BMEditMesh *em = BKE_editmesh_from_object(obedit);
       if (select) {
-        EDBM_select_more(em, true);
+        EDBM_select_more(em, true, 1);
       }
       else {
-        EDBM_select_less(em, true);
+        EDBM_select_less(em, true, 1);
       }
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);

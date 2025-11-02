@@ -4458,9 +4458,7 @@ static wmOperatorStatus edbm_select_more_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    for (int i = 0; i < repetitions; i++) {
-      EDBM_select_more(em, use_face_step);
-    }
+    EDBM_select_more(em, use_face_step, repetitions);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
@@ -4484,14 +4482,21 @@ void MESH_OT_select_more(wmOperatorType *ot)
 
   RNA_def_boolean(
       ot->srna, "use_face_step", true, "Face Step", "Connected faces (instead of edges)");
-  RNA_def_int(
-      ot->srna, "repeat", 1, 1, INT32_MAX, "Iterations", "Number of times to repeat operation", 1, INT32_MAX);
+  RNA_def_int(ot->srna,
+              "repeat",
+              1,
+              1,
+              INT_MAX,
+              "Iterations",
+              "Number of times to repeat operation",
+              1,
+              INT_MAX);
 }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Select More Operator
+/** \name Select Less Operator
  * \{ */
 
 static wmOperatorStatus edbm_select_less_exec(bContext *C, wmOperator *op)
@@ -4511,9 +4516,7 @@ static wmOperatorStatus edbm_select_less_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    for (int i = 0; i < repetitions; i++) {
-      EDBM_select_less(em, use_face_step);
-    }
+    EDBM_select_less(em, use_face_step, repetitions);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
@@ -4537,8 +4540,15 @@ void MESH_OT_select_less(wmOperatorType *ot)
 
   RNA_def_boolean(
       ot->srna, "use_face_step", true, "Face Step", "Connected faces (instead of edges)");
-  RNA_def_int(
-      ot->srna, "repeat", 1, 1, INT32_MAX, "Iterations", "Number of times to repeat operation", 1, INT32_MAX);
+  RNA_def_int(ot->srna,
+              "repeat",
+              1,
+              1,
+              INT_MAX,
+              "Iterations",
+              "Number of times to repeat operation",
+              1,
+              INT_MAX);
 }
 
 /** \} */

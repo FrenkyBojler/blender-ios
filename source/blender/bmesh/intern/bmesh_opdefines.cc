@@ -274,6 +274,8 @@ static BMOpDefine bmo_region_extend_def = {
         {"use_faces", BMO_OP_SLOT_BOOL},
         /* Step over connected faces. */
         {"use_face_step", BMO_OP_SLOT_BOOL},
+        /* Number of times to repeat the operation. */
+        {"repeat", BMO_OP_SLOT_INT},
         {{'\0'}},
     },
     /*slot_types_out*/
