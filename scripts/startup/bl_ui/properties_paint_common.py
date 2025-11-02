@@ -960,6 +960,7 @@ def brush_settings(layout, context, brush, popover=False):
         elif sculpt_brush_type == 'SCENE_PROJECT':
             layout.separator()
             layout.prop(brush, "project_ray_direction_type")
+            layout.prop(brush, "minimum_distance")
             layout.prop(brush, "use_bidirectional")
             layout.prop(brush, "use_relative")
 

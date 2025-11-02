@@ -2669,6 +2669,16 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Ray Direction", "Ray Direction");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+  prop = RNA_def_property(srna, "minimum_distance", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "minimum_distance");
+  RNA_def_property_float_default(prop, 0);
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Minimum Distance",
+                           "Minimum distance to other scene objects after projecting onto them");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
   prop = RNA_def_property(srna, "cloth_deform_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_cloth_deform_type_items);
   RNA_def_property_ui_text(prop, "Deformation", "Deformation type that is used in the brush");

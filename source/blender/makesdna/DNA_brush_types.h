@@ -400,7 +400,8 @@ typedef struct Brush {
 
   /* Scene Project brush */
   int8_t project_ray_direction_type;
-  char _pad2[7];
+  char _pad2[3];
+  float minimum_distance;
 
   /* overlay */
   int texture_overlay_alpha;

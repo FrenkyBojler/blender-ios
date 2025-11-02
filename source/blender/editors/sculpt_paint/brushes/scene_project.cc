@@ -162,6 +162,7 @@ static void object_raycast(const ProjectBrushTarget &project_target,
  */
 static void scene_raycast(const MutableSpan<ProjectBrushTarget> project_targets,
                           const bool bidirectional,
+                          const float minimum_distance,
                           const float3 &normal,
                           const Span<float3> positions,
                           const Span<float> factors,
@@ -184,6 +185,9 @@ static void scene_raycast(const MutableSpan<ProjectBrushTarget> project_targets,
   for (const int i : r_hit_distances.index_range()) {
     if (math::abs(r_hit_distances[i]) == BVH_RAYCAST_DIST_MAX) {
       r_hit_distances[i] = 0.0f;
+    }
+    else {
+      r_hit_distances[i] = r_hit_distances[i] - minimum_distance;
     }
   }
 }
@@ -295,6 +299,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   scene_raycast(ss.cache->project_targets,
                 bidirectional,
+                brush.minimum_distance,
                 normal,
                 positions,
                 tls.factors,
@@ -339,6 +344,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   const MutableSpan<float> hit_distances = tls.hit_distances;
   scene_raycast(ss.cache->project_targets,
                 bidirectional,
+                brush.minimum_distance,
                 normal,
                 positions,
                 tls.factors,
@@ -382,6 +388,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   const MutableSpan<float> hit_distances = tls.hit_distances;
   scene_raycast(ss.cache->project_targets,
                 bidirectional,
+                brush.minimum_distance,
                 normal,
                 positions,
                 tls.factors,
