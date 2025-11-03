@@ -3181,7 +3181,7 @@ static void GREASE_PENCIL_OT_extrude(wmOperatorType *ot)
 /** \name Reproject Strokes Operator
  * \{ */
 
-/* Detriment how much the radius needs to be scaled to be look the same from the view. */
+/* Determine how much the radius needs to be scaled to look the same from the view. */
 static float calculate_radius_projection_factor(const RegionView3D *rv3d,
                                                 const float3 &old_pos,
                                                 const float3 &new_pos)
