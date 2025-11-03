@@ -173,7 +173,7 @@ static int wm_cursor_size(const wmWindow *win)
 
   if (OS_MAC) {
     /* MacOS always scales up this type of cursor for high-dpi displays. */
-    return 21;
+    return 20;
   }
 
   /* The DPI as a scale without the UI scale preference. */
