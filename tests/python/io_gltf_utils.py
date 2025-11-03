@@ -22,6 +22,10 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
     text += str(gltf.magic) + "\n"
     text += str(gltf.version) + "\n"
     text += str(gltf.file_size) + "\n"
+
+    # we need to override generator field to avoid test failures
+    gltf.json['asset']['generator'] = "glTF-Blender-IO Test Suite"
+
     text += json.dumps(gltf.json, indent=2, ensure_ascii=False)
     for accessor in gltf.accessors_data:
         text += accessor + "\n"

@@ -3,7 +3,7 @@ None
 None
 {
   "asset": {
-    "generator": "Khronos glTF Blender I/O v5.1.1",
+    "generator": "glTF-Blender-IO Test Suite",
     "version": "2.0"
   },
   "scene": 0,
