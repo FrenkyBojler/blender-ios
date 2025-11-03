@@ -33,6 +33,8 @@ class USERPREF_HT_header(Header):
             pass
         else:
             # Show '*' to let users know the preferences have been modified.
+            # It is shown to the left so that it is visible when the sidebar is narrow,
+            # and for consistency with unsaved files in the title bar.
             layout.operator(
                 "wm.save_userpref",
                 text=("* " if prefs.is_dirty else "") + iface_("Save Preferences"),
@@ -2133,7 +2135,10 @@ class USERPREF_PT_ndof_settings(Panel):
 
         if show_3dview_settings:
             col.prop(props, "ndof_lock_horizon", text="Lock Horizon")
-
+            colsub = col.column()
+            colsub.active = props.ndof_navigation_mode == 'FLY'
+            colsub.prop(props, "ndof_fly_speed_auto", text="Auto Fly Speed")
+            del colsub
             layout.separator()
 
         if show_3dview_settings:
