@@ -435,7 +435,7 @@ void VKTexture::update_sub(int mip,
          uint32_t(mip),
          uint32_t(start_layer),
          uint32_t(layers)},
-        {uint32_t(offset.x), uint32_t(offset.y), uint32_t(offset.z)},
+        {offset.x, offset.y, offset.z},
         {uint32_t(extent.x), uint32_t(extent.y), uint32_t(extent.z)}};
     VkCopyMemoryToImageInfoEXT vk_copy_memory_to_image = {
         VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO_EXT,
