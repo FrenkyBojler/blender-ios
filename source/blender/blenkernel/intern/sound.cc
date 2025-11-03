@@ -449,12 +449,14 @@ static void sound_device_use_end()
  */
 static bool sound_use_close_thread()
 {
-  /* For these cases sound is already force disabled, so no point starting a thread. */
+  /* No point starting a thread if sound is disabled and we're running headless. */
+  if (STREQ(g_state.device_name, "None")) {
 #  if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
-  return false;
-#  endif
-  if (G.background) {
     return false;
+#  endif
+    if (G.background) {
+      return false;
+    }
   }
 
 #  if OS_MAC
