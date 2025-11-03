@@ -22,6 +22,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
+#include "BLI_time.h"
 
 #include "BKE_camera.h"
 #include "BKE_context.hh"
@@ -314,7 +315,6 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                       V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
                                       V3D_OFSDRAW_SHOW_GRIDFLOOR | V3D_OFSDRAW_SHOW_SELECTION;
 
-  // TODO: Somehow pass camera DoF settings to Workbench
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
                                   &settings->shading,
@@ -649,8 +649,7 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   GPU_matrix_pop();
 }
 
-static void wm_xr_controller_viewfinder_draw_view_texture(wmXrSessionState *state,
-                                                          const rctf viewfinder_rect)
+static void wm_xr_controller_viewfinder_draw_view_texture(const rctf viewfinder_rect)
 {
   /* Obtain the Viewfinder view texture we computed in `wm_xr_draw_view()`. */
   blender::gpu::Texture *view_tex = GPU_offscreen_color_texture(g_viewfinder_offscreen);
@@ -666,7 +665,7 @@ static void wm_xr_controller_viewfinder_draw_view_texture(wmXrSessionState *stat
 
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
 
-  const float tex_color[4] = {1.0f, 1.0f, 1.0f, state->viewfinder_capture_flash};
+  const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   immUniformColor4fv(tex_color);
 
   GPUSamplerExtendMode extend_mode = GPU_SAMPLER_EXTEND_MODE_REPEAT;
@@ -676,10 +675,47 @@ static void wm_xr_controller_viewfinder_draw_view_texture(wmXrSessionState *stat
   immRectf_with_texco(view_tex_pos, view_tex_coord, viewfinder_rect, rctf{0.0f, 1.0f, 0.0f, 1.0f});
 
   immUnbindProgram();
+}
 
-  /* Small hack to create a capture flash fade, depends on FPS. */
-  if (state->viewfinder_capture_flash < 1.0f) {
-    state->viewfinder_capture_flash += 0.015f;
+static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
+                                                        const XrSessionSettings *settings,
+                                                        const rctf viewfinder_rect)
+{
+  /* Do not apply the flash effect if we're in playback mode. */
+  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
+    state->viewfinder_capture_flash = 0.0f;
+    return;
+  }
+
+  /* Settings. */
+  constexpr float flash_duration_sec = 0.4f;
+  constexpr float full_flash_alpha = 0.3f;
+
+  static double last_flash_time;
+  if (state->viewfinder_capture_flash != 0.0f) {
+    last_flash_time = BLI_time_now_seconds();
+    state->viewfinder_capture_flash = 0.0f;
+  }
+
+  const float last_flash_delta = BLI_time_now_seconds() - last_flash_time;
+
+  if (last_flash_delta < flash_duration_sec) {
+    const float flash_progress = last_flash_delta / flash_duration_sec;
+    const float flash_alpha = interpf(0.0f, full_flash_alpha, flash_progress);
+
+    GPUVertFormat *flash_format = immVertexFormat();
+    uint flash_pos = GPU_vertformat_attr_add(
+        flash_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+
+    GPU_blend(GPU_BLEND_ALPHA);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immUniformColor4f(1.0f, 1.0f, 1.0f, flash_alpha);
+    immRectf(flash_pos,
+             viewfinder_rect.xmin,
+             viewfinder_rect.ymin,
+             viewfinder_rect.xmax,
+             viewfinder_rect.ymax);
+    immUnbindProgram();
   }
 }
 
@@ -715,8 +751,9 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   /* Main background overlays. */
   wm_xr_controller_viewfinder_draw_overlays(viewfinder_rect);
 
-  /* Viewfinder View Texture. */
-  wm_xr_controller_viewfinder_draw_view_texture(state, viewfinder_rect);
+  /* Viewfinder View texture and flash. */
+  wm_xr_controller_viewfinder_draw_view_texture(viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_view_flash(state, settings, viewfinder_rect);
 
   /* UI Widgets. */
   wm_xr_controller_viewfinder_draw_ui_widgets(C, region, settings, viewfinder_rect);

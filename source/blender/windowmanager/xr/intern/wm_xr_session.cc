@@ -638,7 +638,7 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   state->nav_scale = 1.0f;
   state->is_navigation_dirty = true;
   state->swap_hands = false;
-  state->viewfinder_capture_flash = 1.0f;
+  state->viewfinder_capture_flash = 0.0f;
 }
 
 void WM_xr_session_state_vignette_reset(wmXrSessionState *state)

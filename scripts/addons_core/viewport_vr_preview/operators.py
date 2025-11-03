@@ -311,7 +311,7 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.viewfinder_quat = rot
         lm.viewfinder_lens = scene.camera.data.lens
 
-        xr_state.viewfinder_capture_flash = 0  # Internal value, 0 is flash, 1 is no flash. Fades up over time
+        xr_state.viewfinder_capture_flash = 1 # Internal value, setting to 1 will trigger a flash
 
         return {'FINISHED'}
 
