@@ -280,7 +280,7 @@ actionconfig_data = \
                    ],
              },
              ),
-            ("viewfinder_cycle_action_right", {"type": 'FLOAT', "user_paths": ['/user/hand/right'], "op": 'wm.xr_viewfinder_cycle_action', "op_mode": 'PRESS', "bimanual": 'False', "haptic_name": 'haptic', "haptic_match_user_paths": 'True', "haptic_duration": '0.30000001192092896', "haptic_frequency": '3000.0', "haptic_amplitude": '0.5', "haptic_mode": 'PRESS'},
+            ("viewfinder_cycle_action_right", {"type": 'FLOAT', "user_paths": ['/user/hand/left'], "op": 'wm.xr_viewfinder_cycle_action', "op_mode": 'PRESS', "bimanual": 'False', "haptic_name": 'haptic', "haptic_match_user_paths": 'True', "haptic_duration": '0.30000001192092896', "haptic_frequency": '3000.0', "haptic_amplitude": '0.5', "haptic_mode": 'PRESS'},
              {"op_properties": [("cycle_left", False)]},
              {"bindings":
                  [
