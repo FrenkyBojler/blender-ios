@@ -49,6 +49,8 @@ struct SubdivMeshContext {
   MutableSpan<float3> subdiv_positions;
   MutableSpan<int2> subdiv_edges;
   MutableSpan<int> subdiv_face_offsets;
+  MutableSpan<int> subdiv_corner_verts;
+  MutableSpan<int> subdiv_corner_edges;
 
   Vector<GVArraySpan> coarse_vert_attributes;
   Vector<GVArraySpan> coarse_edge_attributes;
@@ -69,13 +71,6 @@ struct SubdivMeshContext {
   Vector<GMutableSpan> subdiv_edge_attribute_spans;
   Vector<GMutableSpan> subdiv_face_attribute_spans;
   Vector<GMutableSpan> subdiv_corner_attribute_spans;
-
-  /**
-   * Owning pointers to topology arrays, not added to the result mesh until face corner value
-   * interpolation finishes.
-   */
-  int *subdiv_corner_verts;
-  int *subdiv_corner_edges;
 
   /* Cached custom data arrays for faster access. */
   Span<int> coarse_vert_origindex;
@@ -128,6 +123,8 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
   ctx->subdiv_positions = subdiv_mesh->vert_positions_for_write();
   ctx->subdiv_edges = subdiv_mesh->edges_for_write();
   ctx->subdiv_face_offsets = subdiv_mesh->face_offsets_for_write();
+  ctx->subdiv_corner_verts = subdiv_mesh->corner_verts_for_write();
+  ctx->subdiv_corner_edges = subdiv_mesh->corner_edges_for_write();
 
   ctx->coarse_dverts = coarse_mesh->deform_verts();
   if (!ctx->coarse_dverts.is_empty()) {
@@ -193,8 +190,6 @@ static void subdiv_mesh_prepare_accumulator(SubdivMeshContext *ctx, int num_vert
 static void subdiv_mesh_context_free(SubdivMeshContext *ctx)
 {
   MEM_SAFE_FREE(ctx->accumulated_counters);
-  MEM_SAFE_FREE(ctx->subdiv_corner_verts);
-  MEM_SAFE_FREE(ctx->subdiv_corner_edges);
 }
 
 /** \} */
@@ -715,8 +710,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   SubdivMeshContext *subdiv_context = static_cast<SubdivMeshContext *>(foreach_context->user_data);
 
   const Mesh &coarse_mesh = *subdiv_context->coarse_mesh;
-  subdiv_context->subdiv_mesh = bke::mesh_new_no_attributes(
-      num_vertices, num_edges, num_faces, num_loops);
+  subdiv_context->subdiv_mesh = BKE_mesh_new_nomain(num_vertices, num_edges, num_faces, num_loops);
   Mesh &subdiv_mesh = *subdiv_context->subdiv_mesh;
   BKE_mesh_copy_parameters_for_eval(subdiv_context->subdiv_mesh, &coarse_mesh);
 
@@ -726,8 +720,6 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
 
   /* Create corner data for interpolation without topology attributes. */
   MutableAttributeAccessor attributes = subdiv_mesh.attributes_for_write();
-  attributes.add<float3>("position", AttrDomain::Point, AttributeInitConstruct());
-  attributes.add<int2>(".edge_verts", AttrDomain::Edge, AttributeInitConstruct());
   coarse_mesh.attributes().foreach_attribute([&](const AttributeIter &iter) {
     if (iter.data_type == AttrType::String) {
       return;
@@ -781,10 +773,6 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
           subdiv_context->subdiv_corner_attributes.last().span);
     }
   });
-
-  /* Allocate corner topology arrays which are added to the result at the end. */
-  subdiv_context->subdiv_corner_verts = MEM_malloc_arrayN<int>(size_t(num_loops), __func__);
-  subdiv_context->subdiv_corner_edges = MEM_malloc_arrayN<int>(size_t(num_loops), __func__);
 
   subdiv_mesh_ctx_cache_custom_data_layers(subdiv_context);
   subdiv_mesh_prepare_accumulator(subdiv_context, num_vertices);
@@ -1401,17 +1389,6 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   foreach_subdiv_geometry(subdiv, &foreach_context, settings, coarse_mesh);
   stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY);
   Mesh *result = subdiv_context.subdiv_mesh;
-
-  result->attributes_for_write().add(".corner_vert",
-                                     AttrDomain::Corner,
-                                     AttrType::Int32,
-                                     AttributeInitMoveArray(subdiv_context.subdiv_corner_verts));
-  result->attributes_for_write().add(".corner_edge",
-                                     AttrDomain::Corner,
-                                     AttrType::Int32,
-                                     AttributeInitMoveArray(subdiv_context.subdiv_corner_edges));
-  subdiv_context.subdiv_corner_verts = nullptr;
-  subdiv_context.subdiv_corner_edges = nullptr;
 
   /* NOTE: Using normals from the limit surface gives different results than Blender's vertex
    * normal calculation. Since vertex normals are supposed to be a consistent cache, don't bother
