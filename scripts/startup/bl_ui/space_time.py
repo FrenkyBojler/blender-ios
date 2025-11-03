@@ -46,11 +46,13 @@ def playback_controls(layout, context):
     tool_settings = scene.tool_settings if scene else None
     screen = context.screen
 
-    if scene:
-        layout.popover(
-            panel="TIME_PT_playback",
-            text="Playback",
-        )
+    if not scene:
+        return
+
+    layout.popover(
+        panel="TIME_PT_playback",
+        text="Playback",
+    )
 
     if tool_settings and not is_timeline:
         # The Keyframe settings are not exposed in the Timeline view.
