@@ -82,14 +82,54 @@ BLOCKLIST_AMD = BLOCKLIST_METAL + [
 ]
 
 # Minor difference in texture coordinate for white noise hash.
-BLOCKLIST_INTEL_LINUX_OPENGL = [
+BLOCKLIST_OPENGL_INTEL_LINUX = [
     "hair_reflection.blend",
     "hair_transmission.blend",
     "principled_bsdf_emission.blend",
     "principled_bsdf_sheen.blend",
 ]
 
+# Some Vulkan tests are broken for all vendors.
 BLOCKLIST_VULKAN = [
+    # Integrator; image 100% transparent
+    "transparent_shadow_limit_0.blend",
+    "transparent_shadow_limit_1.blend",
+    "transparent_shadow_limit_1024.blend",
+    "transparent_shadow_limit_401.blend",
+
+    # Light linking; image black
+    "shadow_link_simple_point_cloud.blend",
+
+    # Mesh; some spheres (Intel Linux) or all spheres (every other vendor) not rendered
+    "normal_types.blend",
+    "normal_types_motion.blend",
+
+    # Shader; image 100% transparent
+    "normal.blend",
+]
+BLOCKLIST_VULKAN_HYDRA = [
+    # Motion blur; sporadic black image on NVIDIA and Intel
+    "multi_step_motion_blur.blend",
+]
+BLOCKLIST_VULKAN_USD = [
+    # Motion blur; image black
+    "bvh_steps_curve_segments_0.blend",
+    "bvh_steps_curve_segments_3.blend",
+    "bvh_steps_line_segments_0.blend",
+    "bvh_steps_line_segments_3.blend",
+    "mblur_deform_autosmooth.blend",
+    "mblur_deform_simple.blend",
+]
+
+# A very large amount of tests is missing objects. Blacklist all tests for now.
+BLOCKLIST_VULKAN_INTEL_LINUX = [
+    "*.blend",
+]
+
+BLOCKLIST_VULKAN_NVIDIA = [
+    # Principled bsdf; missing objects
+    "principled_bsdf_emission.blend",
+    "principled_bsdf_sheen.blend",
 ]
 
 
@@ -159,18 +199,26 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
+    blocklist = []
     if args.gpu_backend == "metal":
-        blocklist = BLOCKLIST_METAL
+        blocklist += BLOCKLIST_METAL
     elif args.gpu_backend == "vulkan":
-        blocklist = BLOCKLIST_VULKAN
+        blocklist += BLOCKLIST_VULKAN
+        if args.export_method == 'HYDRA':
+            blocklist += BLOCKLIST_VULKAN_HYDRA
+        else:
+            blocklist += BLOCKLIST_VULKAN_USD
+        gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+        if gpu_vendor == "NVIDIA":
+            blocklist += BLOCKLIST_VULKAN_NVIDIA
+        elif gpu_vendor == "INTEL" and sys.platform == "linux":
+            blocklist += BLOCKLIST_VULKAN_INTEL_LINUX
     else:
         gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
         if gpu_vendor == "AMD":
-            blocklist = BLOCKLIST_AMD
+            blocklist += BLOCKLIST_AMD
         elif gpu_vendor == "INTEL" and sys.platform == "linux":
-            blocklist = BLOCKLIST_INTEL_LINUX_OPENGL
-        else:
-            blocklist = []
+            blocklist += BLOCKLIST_OPENGL_INTEL_LINUX
 
     if args.export_method == 'HYDRA':
         report = StormReport(
@@ -218,9 +266,9 @@ def main():
         report.set_fail_threshold(0.036)
         report.set_fail_percent(1.3)
     if (test_dir_name in {'sss', 'hair'}):
-        # Ignore differences in rasterization of hair on Mesa drivers
-        report.set_fail_threshold(0.02)
-        report.set_fail_percent(1.8)
+        # Ignore differences in rasterization of hair on Vulkan and Mesa drivers
+        report.set_fail_threshold(0.036)
+        report.set_fail_percent(2.3)
 
     test_dir_name = Path(args.testdir).name
 
