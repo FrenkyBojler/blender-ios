@@ -70,10 +70,13 @@ void main()
              int3(local_texel, write_coord.layer), \
              get_mip_data(_mip, local_texel, read_coord, write_coord, rotation_mat));
   /* We cannot put the following code in a loop because of the different image accesses. */
-  BLI_STATIC_ASSERT(SPHERE_PROBE_MIPMAP_LEVELS == 5, "Manual unroll needs to be updated");
   PROCESS_MIP(0)
   PROCESS_MIP(1)
   PROCESS_MIP(2)
   PROCESS_MIP(3)
   PROCESS_MIP(4)
+#ifdef __cplusplus
+  /* If this mismatches, manual unroll needs to be updated. */
+  static_assert(SPHERE_PROBE_MIPMAP_LEVELS == 5);
+#endif
 }
