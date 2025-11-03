@@ -123,7 +123,7 @@ BLOCKLIST_VULKAN_USD = [
 
 # A very large amount of tests is missing objects. Blacklist all tests for now.
 BLOCKLIST_VULKAN_INTEL_LINUX = [
-    "*.blend",
+    ".*.blend",
 ]
 
 BLOCKLIST_VULKAN_NVIDIA = [
