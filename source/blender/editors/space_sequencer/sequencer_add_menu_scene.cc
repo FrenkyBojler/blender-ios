@@ -191,10 +191,8 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
                blender::wm::OpCallContext::InvokeDefault,
                UI_ITEM_NONE);
   }
-  else if (scenes_len > 1) {
-    if (show_assets) {
-      layout->label(IFACE_("Scenes"), ICON_SCENE_DATA);
-    }
+  else {
+    layout->label(IFACE_("Scenes"), ICON_SCENE_DATA);
     const Scene *active_scene = CTX_data_sequencer_scene(C);
     int i = 0;
     LISTBASE_FOREACH_INDEX (Scene *, scene, &bmain->scenes, i) {
