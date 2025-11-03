@@ -85,43 +85,15 @@ static bke::CurvesGeometry trim_curve(const bke::CurvesGeometry &src,
                                       const Span<int2> mcoords,
                                       const bool keep_caps)
 {
-  const OffsetIndices<int> src_offsets = src.points_by_curve();
-  const Array<rcti> screen_space_bbox = calculate_curve_bounds(src_offsets,
+  const Array<rcti> screen_space_bbox = calculate_curve_bounds(src.points_by_curve(),
                                                                screen_space_positions);
-
-  /* Collect curves and curve points inside the lasso area. */
-  Vector<int> selected_curves;
-  Vector<Vector<int>> selected_points_in_curves;
-
-  for (const int src_curve : src.curves_range()) {
-    /* Look for curve points inside the lasso area. */
-    Vector<int> selected_points;
-    for (const int src_point : src_offsets[src_curve]) {
-      if (BLI_lasso_is_point_inside(mcoords,
-                                    int(screen_space_positions[src_point].x),
-                                    int(screen_space_positions[src_point].y),
-                                    IS_CLIPPED))
-      {
-        if (selected_points.is_empty()) {
-          selected_curves.append(src_curve);
-        }
-        selected_points.append(src_point);
-      }
-    }
-    if (!selected_points.is_empty()) {
-      selected_points_in_curves.append(std::move(selected_points));
-    }
-  }
-
-  IndexMaskMemory memory;
-  const IndexMask curve_selection = IndexMask::from_indices(selected_curves.as_span(), memory);
-
-  return ed::greasepencil::trim::trim_curve_segments(src,
-                                                     screen_space_positions,
-                                                     screen_space_bbox,
-                                                     curve_selection,
-                                                     selected_points_in_curves,
-                                                     keep_caps);
+  return trim::trim_curve_segments(src,
+                                   screen_space_positions,
+                                   screen_space_bbox,
+                                   mcoords,
+                                   src.curves_range(),
+                                   src.curves_range(),
+                                   keep_caps);
 }
 
 TEST(grease_pencil_trim, trim_two_edges)
@@ -206,8 +178,6 @@ TEST(grease_pencil_trim, trim_t_intersection)
   expect_near_positions(dst.positions(), expected_positions);
 }
 
-/* This test does not work with the current Trim algorithm. */
-#if 0
 TEST(grease_pencil_trim, trim_figure_eight)
 {
   using namespace bke::greasepencil;
@@ -231,6 +201,5 @@ TEST(grease_pencil_trim, trim_figure_eight)
       {2.5f, 2.0f}, {2.0f, 3.0f}, {0.0f, 3.0f}, {0.0f, 1.0f}, {2.0f, 1.0f}, {2.5f, 2.0f}};
   expect_near_positions(dst.positions(), expected_positions);
 }
-#endif
 
 }  // namespace blender::ed::greasepencil::tests
