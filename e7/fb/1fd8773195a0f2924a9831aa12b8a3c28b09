@@ -1,0 +1,1 @@
+Referenced by issue #149267, Blender occasionally hangs in ShaderCompiler::wait_for_all
