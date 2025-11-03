@@ -50,23 +50,22 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C,
   if (!node) {
     return PointerRNA_NULL;
   }
+
+  if (bke::zone_type_by_node_type(node->type_legacy) != nullptr) {
+    const bke::bNodeTreeZones *zones = snode->edittree->zones();
+    if (!zones) {
+      return PointerRNA_NULL;
+    }
+    if (const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier)) {
+      if (zone->input_node() == node) {
+        /* Assume the data is generally stored on the output and not the input node. */
+        node = const_cast<bNode *>(zone->output_node());
+      }
+    }
+  }
+
   if (node->idname != node_idname) {
     return PointerRNA_NULL;
-  }
-
-  if (bke::zone_type_by_node_type(node->type_legacy) == nullptr) {
-    return RNA_pointer_create_discrete(&snode->edittree->id, &RNA_Node, node);
-  }
-
-  const bke::bNodeTreeZones *zones = snode->edittree->zones();
-  if (!zones) {
-    return PointerRNA_NULL;
-  }
-  if (const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier)) {
-    if (zone->input_node() == node) {
-      /* Assume the data is generally stored on the output and not the input node. */
-      node = const_cast<bNode *>(zone->output_node());
-    }
   }
   return RNA_pointer_create_discrete(&snode->edittree->id, &RNA_Node, node);
 }
