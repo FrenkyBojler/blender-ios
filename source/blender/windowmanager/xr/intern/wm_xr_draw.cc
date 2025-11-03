@@ -738,7 +738,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   const float viewfinder_height = settings->viewfinder_width * 9.0f / 16.0f;
   const float viewfinder_vertical_offset = 3.5f; /* Center of the viewfinder rectangle. */
 
-  rctf viewfinder_rect;
+  rctf viewfinder_rect = {0};
   BLI_rctf_resize(&viewfinder_rect, settings->viewfinder_width, viewfinder_height);
 
   /* Initial transform setup. */
