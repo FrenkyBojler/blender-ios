@@ -84,19 +84,19 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 using ErrorFn = FunctionRef<void(StringRef message)>;
 static bool validate_sdf_grid(const openvdb::FloatGrid &grid, ErrorFn error_fn)
 {
-  if (grid.background() > 0.0f) {
+  if (!(grid.background() > 0.0f)) {
     error_fn("Expected outside background value > 0");
     return false;
   }
-  if (-grid.background() < 0.0f) {
+  if (!(-grid.background() < 0.0f)) {
     error_fn("Expected inside background value < 0");
     return false;
   }
   return true;
 }
 
-/* Data from the previous operand carried over. */
-struct OperandData {
+/* The first valid operand is used to define the output grid. */
+struct ResultData {
   bke::VolumeGrid<float> operand;
   bke::VolumeTreeAccessToken tree_token;
   openvdb::FloatGrid &grid;
@@ -114,11 +114,11 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  std::optional<OperandData> previous_operand;
+  std::optional<ResultData> result;
   if (operation == Operation::Difference) {
     bke::VolumeGrid<float> primary = params.extract_input<bke::VolumeGrid<float>>("Grid 1");
-    VolumeTreeAccessToken tree_token;
-    openvdb::FloatGrid &grid = primary->grid_for_write(primary_tree_token);
+    bke::VolumeTreeAccessToken tree_token;
+    openvdb::FloatGrid &grid = primary.grid_for_write(tree_token);
     if (!validate_sdf_grid(grid, [&](const StringRef message) {
           params.error_message_add(NodeWarningType::Error, "Grid: " + message);
         }))
@@ -127,42 +127,16 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
 
-    previous_operand = {primary, std::move(tree_token), grid};
+    result.emplace(ResultData{std::move(primary), std::move(tree_token), grid});
   }
 
-  // bke::VolumeTreeAccessToken result_token;
-  // if (operation == Operation::Difference) {
-  //   result_grid = &operands.first().grid_for_write(result_token);
-  //   if (!validate_sdf_grid(*result_grid, [&](const StringRef message) {
-  //         params.error_message_add(NodeWarningType::Error, "Grid: " + message);
-  //       }))
-  //   {
-  //     params.set_default_remaining_outputs();
-  //     return;
-  //   }
-  // }
-  // else {
-  //   do {
-  //     if (!validate_sdf_grid(result_grid, [&](const StringRef message) {
-  //           params.error_message_add(NodeWarningType::Warning, "Grid 2: " + message);
-  //         }))
-  //     {
-  //       params.set_default_remaining_outputs();
-  //       return;
-  //     }
-  //   } while (!result_grid);
-  // }
-  // const openvdb::math::Transform &transform = result_grid.transform();
-
   for (bke::VolumeGrid<float> &operand : operands) {
-    bke::VolumeTreeAccessToken operand_tree_token;
+    bke::VolumeTreeAccessToken tree_token;
     std::shared_ptr<openvdb::FloatGrid> resampled_storage;
-    openvdb::FloatGrid &grid = result_grid ? geometry::resample_sdf_grid_if_necessary(
-                                                 operand,
-                                                 operand_tree_token,
-                                                 result_grid->transform(),
-                                                 resampled_storage) :
-                                             operand.grid_for_write(operand_tree_token);
+    openvdb::FloatGrid &grid =
+        result ? geometry::resample_sdf_grid_if_necessary(
+                     operand, tree_token, result->grid.transform(), resampled_storage) :
+                 operand.grid_for_write(tree_token);
     if (!validate_sdf_grid(grid, [&](const StringRef message) {
           params.error_message_add(NodeWarningType::Warning, "Grid 2: " + message);
         }))
@@ -170,17 +144,17 @@ static void node_geo_exec(GeoNodeExecParams params)
       continue;
     }
 
-    if (result_grid) {
+    if (result) {
       try {
         switch (operation) {
           case Operation::Intersect:
-            openvdb::tools::csgIntersection(*result_grid, grid);
+            openvdb::tools::csgIntersection(result->grid, grid);
             break;
           case Operation::Union:
-            openvdb::tools::csgUnion(*result_grid, grid);
+            openvdb::tools::csgUnion(result->grid, grid);
             break;
           case Operation::Difference:
-            openvdb::tools::csgDifference(*result_grid, grid);
+            openvdb::tools::csgDifference(result->grid, grid);
             break;
         }
       }
@@ -189,15 +163,21 @@ static void node_geo_exec(GeoNodeExecParams params)
         params.set_default_remaining_outputs();
         return;
       }
-      result_grid
+      result->operand->tag_tree_modified();
     }
-
-    result_grid = &grid;
+    else {
+      /* Resampling only starts with the 2nd valid operand. */
+      BLI_assert(!resampled_storage);
+      result.emplace(ResultData{std::move(operand), std::move(tree_token), grid});
+    }
   }
 
-  if (result_grid) {
+  if (result) {
+    params.set_output("Grid", std::move(result->operand));
   }
-  params.set_output("Grid", std::move(operands.first()));
+  else {
+    params.set_default_remaining_outputs();
+  }
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
