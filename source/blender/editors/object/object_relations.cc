@@ -644,19 +644,16 @@ static bool parent_set_with_depsgraph(ReportList *reports,
           case PAR_LATTICE: /* lattice deform */
             if (BKE_modifiers_is_deformed_by_lattice(ob) != par) {
               const bool is_grease_pencil = ob->type == OB_GREASE_PENCIL;
-              md = modifier_add(reports,
-                                bmain,
-                                scene,
-                                ob,
-                                nullptr,
-                                is_grease_pencil ? eModifierType_GreasePencilLattice :
-                                                   eModifierType_Lattice);
+              const ModifierType lattice_modifier_type = is_grease_pencil ?
+                                                             eModifierType_GreasePencilLattice :
+                                                             eModifierType_Lattice;
+              md = modifier_add(reports, bmain, scene, ob, nullptr, lattice_modifier_type);
               if (md) {
                 if (is_grease_pencil) {
                   reinterpret_cast<GreasePencilLatticeModifierData *>(md)->object = par;
                 }
                 else {
-                  reinterpret_cast<GreasePencilLatticeModifierData *>(md)->object = par;
+                  reinterpret_cast<LatticeModifierData *>(md)->object = par;
                 }
               }
             }
