@@ -697,16 +697,7 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
   const int2 size = domain_.size;
   const float2 texel_coordinates = coordinates * float2(size);
 
-  /* Those types do not support different interpolations and are always sampled in nearest. */
-  if constexpr (is_same_any_v<T, int32_t, int2, bool, nodes::MenuValue>) {
-    const int x = wrap_coordinates(texel_coordinates.x, size.x, mode_x);
-    const int y = wrap_coordinates(texel_coordinates.y, size.y, mode_y);
-    if (x < 0 || y < 0) {
-      return T(0);
-    }
-    return this->load_pixel<T>(int2(x, y));
-  }
-  else if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
+  if constexpr (is_same_any_v<T, float, float2, float3, float4, Color>) {
     const math::InterpWrapMode extension_mode_x = map_extension_mode_to_wrap_mode(mode_x);
     const math::InterpWrapMode extension_mode_y = map_extension_mode_to_wrap_mode(mode_y);
 
@@ -760,8 +751,13 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
     return pixel_value;
   }
   else {
-    static_assert(false);
-    return T(0);
+    /* Non float types do not support interpolations and are always sampled in nearest. */
+    const int x = wrap_coordinates(texel_coordinates.x, size.x, mode_x);
+    const int y = wrap_coordinates(texel_coordinates.y, size.y, mode_y);
+    if (x < 0 || y < 0) {
+      return T(0);
+    }
+    return this->load_pixel<T>(int2(x, y));
   }
 }
 
