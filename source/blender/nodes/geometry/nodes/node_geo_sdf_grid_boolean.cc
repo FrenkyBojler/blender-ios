@@ -81,62 +81,122 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = int16_t(Operation::Difference);
 }
 
+using ErrorFn = FunctionRef<void(StringRef message)>;
+static bool validate_sdf_grid(const openvdb::FloatGrid &grid, ErrorFn error_fn)
+{
+  if (grid.background() > 0.0f) {
+    error_fn("Expected outside background value > 0");
+    return false;
+  }
+  if (-grid.background() < 0.0f) {
+    error_fn("Expected inside background value < 0");
+    return false;
+  }
+  return true;
+}
+
+/* Data from the previous operand carried over. */
+struct OperandData {
+  bke::VolumeGrid<float> operand;
+  bke::VolumeTreeAccessToken tree_token;
+  openvdb::FloatGrid &grid;
+};
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const Operation operation = Operation(params.node().custom1);
 
-  auto grids = params.extract_input<GeoNodesMultiInput<bke::VolumeGrid<float>>>("Grid 2");
-  Vector<bke::VolumeGrid<float>> operands;
-  switch (operation) {
-    case Operation::Intersect:
-    case Operation::Union:
-      operands.extend(grids.values);
-      break;
-    case Operation::Difference:
-      if (auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid 1")) {
-        operands.append(std::move(grid));
-      }
-      operands.extend(grids.values);
-      break;
-  }
-
+  Vector<bke::VolumeGrid<float>> operands =
+      params.extract_input<GeoNodesMultiInput<bke::VolumeGrid<float>>>("Grid 2").values;
   if (operands.is_empty()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  bke::VolumeTreeAccessToken result_token;
-  openvdb::FloatGrid &result_grid = operands.first().grid_for_write(result_token);
-  const openvdb::math::Transform &transform = result_grid.transform();
-
-  for (bke::VolumeGrid<float> &volume_grid : operands.as_mutable_span().drop_front(1)) {
-    bke::VolumeTreeAccessToken tree_token;
-    std::shared_ptr<openvdb::FloatGrid> resampled_storage;
-    openvdb::FloatGrid &grid = geometry::resample_sdf_grid_if_necessary(
-        volume_grid, tree_token, transform, resampled_storage);
-
-    try {
-      switch (operation) {
-        case Operation::Intersect:
-          openvdb::tools::csgIntersection(result_grid, grid);
-          break;
-        case Operation::Union:
-          openvdb::tools::csgUnion(result_grid, grid);
-          break;
-        case Operation::Difference:
-          openvdb::tools::csgDifference(result_grid, grid);
-          break;
-      }
-    }
-    catch (const openvdb::ValueError & /*ex*/) {
-      /* May happen if a grid is empty. */
+  std::optional<OperandData> previous_operand;
+  if (operation == Operation::Difference) {
+    bke::VolumeGrid<float> primary = params.extract_input<bke::VolumeGrid<float>>("Grid 1");
+    VolumeTreeAccessToken tree_token;
+    openvdb::FloatGrid &grid = primary->grid_for_write(primary_tree_token);
+    if (!validate_sdf_grid(grid, [&](const StringRef message) {
+          params.error_message_add(NodeWarningType::Error, "Grid: " + message);
+        }))
+    {
       params.set_default_remaining_outputs();
       return;
     }
-  }
-  operands.first()->tag_tree_modified();
 
+    previous_operand = {primary, std::move(tree_token), grid};
+  }
+
+  // bke::VolumeTreeAccessToken result_token;
+  // if (operation == Operation::Difference) {
+  //   result_grid = &operands.first().grid_for_write(result_token);
+  //   if (!validate_sdf_grid(*result_grid, [&](const StringRef message) {
+  //         params.error_message_add(NodeWarningType::Error, "Grid: " + message);
+  //       }))
+  //   {
+  //     params.set_default_remaining_outputs();
+  //     return;
+  //   }
+  // }
+  // else {
+  //   do {
+  //     if (!validate_sdf_grid(result_grid, [&](const StringRef message) {
+  //           params.error_message_add(NodeWarningType::Warning, "Grid 2: " + message);
+  //         }))
+  //     {
+  //       params.set_default_remaining_outputs();
+  //       return;
+  //     }
+  //   } while (!result_grid);
+  // }
+  // const openvdb::math::Transform &transform = result_grid.transform();
+
+  for (bke::VolumeGrid<float> &operand : operands) {
+    bke::VolumeTreeAccessToken operand_tree_token;
+    std::shared_ptr<openvdb::FloatGrid> resampled_storage;
+    openvdb::FloatGrid &grid = result_grid ? geometry::resample_sdf_grid_if_necessary(
+                                                 operand,
+                                                 operand_tree_token,
+                                                 result_grid->transform(),
+                                                 resampled_storage) :
+                                             operand.grid_for_write(operand_tree_token);
+    if (!validate_sdf_grid(grid, [&](const StringRef message) {
+          params.error_message_add(NodeWarningType::Warning, "Grid 2: " + message);
+        }))
+    {
+      continue;
+    }
+
+    if (result_grid) {
+      try {
+        switch (operation) {
+          case Operation::Intersect:
+            openvdb::tools::csgIntersection(*result_grid, grid);
+            break;
+          case Operation::Union:
+            openvdb::tools::csgUnion(*result_grid, grid);
+            break;
+          case Operation::Difference:
+            openvdb::tools::csgDifference(*result_grid, grid);
+            break;
+        }
+      }
+      catch (const openvdb::Exception & /*ex*/) {
+        params.error_message_add(NodeWarningType::Error, "OpenVDB error");
+        params.set_default_remaining_outputs();
+        return;
+      }
+      result_grid
+    }
+
+    result_grid = &grid;
+  }
+
+  if (result_grid) {
+  }
   params.set_output("Grid", std::move(operands.first()));
 #else
   node_geo_exec_with_missing_openvdb(params);
