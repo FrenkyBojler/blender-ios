@@ -2959,6 +2959,8 @@ static void do_version_adaptive_subdivision(Main *bmain)
 
 static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
 {
+  using namespace blender::bke;
+
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
     if (node->type_legacy != SH_NODE_TEX_GRADIENT) {
       continue;
@@ -2969,9 +2971,9 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       continue;
     }
 
-    bNodeSocket *factor_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Fac");
-    bNodeSocket *color_output = blender::bke::node_find_socket(*node, SOCK_OUT, "Color");
-    bNodeSocket *vector_input = blender::bke::node_find_socket(*node, SOCK_IN, "Vector");
+    bNodeSocket *factor_output = node_find_socket(*node, SOCK_OUT, "Fac");
+    bNodeSocket *color_output = node_find_socket(*node, SOCK_OUT, "Color");
+    bNodeSocket *vector_input = node_find_socket(*node, SOCK_IN, "Vector");
 
     bNodeLink *factor_output_link = nullptr;
     bNodeLink *color_output_link = nullptr;
@@ -2996,39 +2998,37 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
 
     bNode *gradient_node = nullptr;
     bNodeSocket *gradient_socket = nullptr;
-    bNode *separateXYZ = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeSeparateXYZ");
+    bNode *separateXYZ = node_add_node(nullptr, *node_tree, "ShaderNodeSeparateXYZ");
     copy_v2_v2(separateXYZ->location, node->location);
 
     switch (data->gradient_type) {
       case SHD_BLEND_LINEAR: {
         /* Gradient = X */
         gradient_node = separateXYZ;
-        gradient_socket = blender::bke::node_find_socket(*separateXYZ, SOCK_OUT, "X");
+        gradient_socket = node_find_socket(*separateXYZ, SOCK_OUT, "X");
         break;
       }
       case SHD_BLEND_QUADRATIC: {
         /* Gradient = (max(X, 0))^2 */
-        bNode *max = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+        bNode *max = node_add_node(nullptr, *node_tree, "ShaderNodeMath");
         copy_v2_v2(max->location, node->location);
 
-        bNodeSocket *max_output = blender::bke::node_find_socket(*max, SOCK_OUT, "Value");
-        bNodeSocket *max_input_a = blender::bke::node_find_socket(*max, SOCK_IN, "Value");
-        bNodeSocket *max_input_b = blender::bke::node_find_socket(*max, SOCK_IN, "Value_001");
+        bNodeSocket *max_output = node_find_socket(*max, SOCK_OUT, "Value");
+        bNodeSocket *max_input_a = node_find_socket(*max, SOCK_IN, "Value");
+        bNodeSocket *max_input_b = node_find_socket(*max, SOCK_IN, "Value_001");
         max->custom1 = NODE_MATH_MAXIMUM;
 
         version_node_add_link(*node_tree,
                               *separateXYZ,
-                              *blender::bke::node_find_socket(*separateXYZ, SOCK_OUT, "X"),
+                              *node_find_socket(*separateXYZ, SOCK_OUT, "X"),
                               *max,
                               *max_input_a);
         max_input_b->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
 
-        bNode *multiply = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+        bNode *multiply = node_add_node(nullptr, *node_tree, "ShaderNodeMath");
         copy_v2_v2(multiply->location, node->location);
-        bNodeSocket *multiply_input_a = blender::bke::node_find_socket(
-            *multiply, SOCK_IN, "Value");
-        bNodeSocket *multiply_input_b = blender::bke::node_find_socket(
-            *multiply, SOCK_IN, "Value_001");
+        bNodeSocket *multiply_input_a = node_find_socket(*multiply, SOCK_IN, "Value");
+        bNodeSocket *multiply_input_b = node_find_socket(*multiply, SOCK_IN, "Value_001");
 
         multiply->custom1 = NODE_MATH_MULTIPLY;
 
@@ -3036,31 +3036,31 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
         version_node_add_link(*node_tree, *max, *max_output, *multiply, *multiply_input_b);
 
         gradient_node = multiply;
-        gradient_socket = blender::bke::node_find_socket(*multiply, SOCK_OUT, "Value");
+        gradient_socket = node_find_socket(*multiply, SOCK_OUT, "Value");
         break;
       }
       case SHD_BLEND_DIAGONAL: {
         /* Gradient = (X + Y) * 0.5. */
-        bNode *add = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+        bNode *add = node_add_node(nullptr, *node_tree, "ShaderNodeMath");
         copy_v2_v2(add->location, node->location);
-        bNodeSocket *add_input_a = blender::bke::node_find_socket(*add, SOCK_IN, "Value");
-        bNodeSocket *add_input_b = blender::bke::node_find_socket(*add, SOCK_IN, "Value_001");
-        bNodeSocket *add_output = blender::bke::node_find_socket(*add, SOCK_OUT, "Value");
+        bNodeSocket *add_input_a = node_find_socket(*add, SOCK_IN, "Value");
+        bNodeSocket *add_input_b = node_find_socket(*add, SOCK_IN, "Value_001");
+        bNodeSocket *add_output = node_find_socket(*add, SOCK_OUT, "Value");
         add->custom1 = NODE_MATH_ADD;
 
         version_node_add_link(*node_tree,
                               *separateXYZ,
-                              *blender::bke::node_find_socket(*separateXYZ, SOCK_OUT, "X"),
+                              *node_find_socket(*separateXYZ, SOCK_OUT, "X"),
                               *add,
                               *add_input_a);
 
         version_node_add_link(*node_tree,
                               *separateXYZ,
-                              *blender::bke::node_find_socket(*separateXYZ, SOCK_OUT, "Y"),
+                              *node_find_socket(*separateXYZ, SOCK_OUT, "Y"),
                               *add,
                               *add_input_b);
 
-        bNode *multiply = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+        bNode *multiply = node_add_node(nullptr, *node_tree, "ShaderNodeMath");
         copy_v2_v2(multiply->location, node->location);
         multiply->custom1 = NODE_MATH_MULTIPLY;
 
@@ -3068,14 +3068,13 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
                               *add,
                               *add_output,
                               *multiply,
-                              *blender::bke::node_find_socket(*multiply, SOCK_IN, "Value"));
+                              *node_find_socket(*multiply, SOCK_IN, "Value"));
 
-        bNodeSocket *multiply_input_b = blender::bke::node_find_socket(
-            *multiply, SOCK_IN, "Value_001");
+        bNodeSocket *multiply_input_b = node_find_socket(*multiply, SOCK_IN, "Value_001");
         static_cast<bNodeSocketValueFloat *>(multiply_input_b->default_value)->value = 0.5f;
 
         gradient_node = multiply;
-        gradient_socket = blender::bke::node_find_socket(*multiply, SOCK_OUT, "Value");
+        gradient_socket = node_find_socket(*multiply, SOCK_OUT, "Value");
         break;
       }
     }
@@ -3086,30 +3085,29 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
                             *gradient_socket,
                             *factor_output_link->tonode,
                             *factor_output_link->tosock);
-      blender::bke::node_remove_link(node_tree, *factor_output_link);
+      node_remove_link(node_tree, *factor_output_link);
     }
 
     if (color_output_link) {
-      bNode *combine = blender::bke::node_add_node(
-          nullptr, *node_tree, "FunctionNodeCombineColor");
+      bNode *combine = node_add_node(nullptr, *node_tree, "FunctionNodeCombineColor");
       copy_v2_v2(combine->location, node->location);
-      bNodeSocket *combine_output = blender::bke::node_find_socket(*combine, SOCK_OUT, "Color");
+      bNodeSocket *combine_output = node_find_socket(*combine, SOCK_OUT, "Color");
       version_node_add_link(*node_tree,
                             *gradient_node,
                             *gradient_socket,
                             *combine,
-                            *blender::bke::node_find_socket(*combine, SOCK_IN, "Red"));
+                            *node_find_socket(*combine, SOCK_IN, "Red"));
       version_node_add_link(*node_tree,
                             *gradient_node,
                             *gradient_socket,
                             *combine,
-                            *blender::bke::node_find_socket(*combine, SOCK_IN, "Green"));
+                            *node_find_socket(*combine, SOCK_IN, "Green"));
       version_node_add_link(*node_tree,
                             *gradient_node,
                             *gradient_socket,
                             *combine,
-                            *blender::bke::node_find_socket(*combine, SOCK_IN, "Blue"));
-      bNodeSocket *alpha_input = blender::bke::node_find_socket(*combine, SOCK_IN, "Alpha");
+                            *node_find_socket(*combine, SOCK_IN, "Blue"));
+      bNodeSocket *alpha_input = node_find_socket(*combine, SOCK_IN, "Alpha");
       static_cast<bNodeSocketValueFloat *>(alpha_input->default_value)->value = 1.0f;
 
       version_node_add_link(*node_tree,
@@ -3117,7 +3115,7 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
                             *combine_output,
                             *color_output_link->tonode,
                             *color_output_link->tosock);
-      blender::bke::node_remove_link(node_tree, *color_output_link);
+      node_remove_link(node_tree, *color_output_link);
 
       gradient_node = combine;
       gradient_socket = combine_output;
@@ -3128,14 +3126,14 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
                             *vector_input_link->fromnode,
                             *vector_input_link->fromsock,
                             *separateXYZ,
-                            *blender::bke::node_find_socket(*separateXYZ, SOCK_IN, "Vector"));
-      blender::bke::node_remove_link(node_tree, *vector_input_link);
+                            *node_find_socket(*separateXYZ, SOCK_IN, "Vector"));
+      node_remove_link(node_tree, *vector_input_link);
     }
     else {
-      // todo(habib): Generated texture coordinates
+      // todo(habib): unconnected 'Vector' input defaults to "Generated Coordinates"
     }
 
-    blender::bke::node_tree_set_type(*node_tree);
+    node_tree_set_type(*node_tree);
     version_node_remove(*node_tree, *node);
   }
 }
