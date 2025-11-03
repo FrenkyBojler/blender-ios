@@ -1296,10 +1296,12 @@ void BKE_sound_read_waveform(Main *bmain, bSound *sound, bool *stop)
 
     waveform->data = MEM_malloc_arrayN<float>(3 * size_t(length), "SoundWaveform.samples");
     /* Ideally this would take a boolean argument. */
-    short stop_i16 = *stop;
-    waveform->length = AUD_readSound(
-        sound->playback_handle, waveform->data, length, SOUND_WAVE_SAMPLES_PER_SECOND, &stop_i16);
-    *stop = stop_i16 != 0;
+
+    waveform->length = AUD_readSound(sound->playback_handle,
+                                     waveform->data,
+                                     length,
+                                     SOUND_WAVE_SAMPLES_PER_SECOND,
+                                     reinterpret_cast<short *>(stop));
   }
   else {
     /* Create an empty waveform here if the sound couldn't be
