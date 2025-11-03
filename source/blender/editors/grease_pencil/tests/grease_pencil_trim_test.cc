@@ -22,7 +22,7 @@
 
 namespace blender::ed::greasepencil::tests {
 
-static constexpr int BBOX_PADDING = 2;
+static constexpr int BBOX_PADDING = 0;
 
 static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
                                               const Span<float2> positions_2d,
@@ -152,8 +152,6 @@ TEST(grease_pencil_trim, trim_two_edges)
                                             {2.0f, 4.0f},
                                             {6.0f, 4.0f}};
   expect_near_positions(dst.positions(), expected_positions);
-
-  EXPECT_TRUE(false);
 }
 
 }  // namespace blender::ed::greasepencil::tests
