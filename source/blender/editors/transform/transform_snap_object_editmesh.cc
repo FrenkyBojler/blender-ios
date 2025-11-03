@@ -156,6 +156,10 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
                              nullptr :
                              get_mesh_ref(ob_eval);
 
+  if (ob_eval->runtime && ob_eval->runtime->snap_cache_dirty) {
+    snap_object_context_clear(sctx);
+    ob_eval->runtime->snap_cache_dirty = false;
+  }
   /* Cache by EditMesh pointer so each Edit Mode object has its own entry,
    * avoiding conflicts when linked duplicates have separate evaluated meshes.
    * see #148788. */

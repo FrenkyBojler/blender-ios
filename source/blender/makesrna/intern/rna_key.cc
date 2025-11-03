@@ -8,6 +8,8 @@
 
 #include <cstdlib>
 
+#include "BKE_object_types.hh"
+
 #include "DNA_key_types.h"
 #include "DNA_scene_types.h"
 
@@ -743,6 +745,10 @@ static void rna_Key_update_data(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
     if (BKE_key_from_object(ob) == key) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+      /* Mark snap cache as dirty if this object is being edited. */
+      if ((ob->mode & OB_MODE_EDIT) && ob->runtime != nullptr) {
+        ob->runtime->snap_cache_dirty = true;
+      }
     }
   }
 }

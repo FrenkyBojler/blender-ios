@@ -132,6 +132,11 @@ struct ObjectRuntime {
   uint64_t last_update_transform = 0;
   uint64_t last_update_geometry = 0;
   uint64_t last_update_shading = 0;
+
+  /**
+   * True when the snapping cache should be cleared.
+   */
+  bool snap_cache_dirty = false;
 };
 
 }  // namespace blender::bke
