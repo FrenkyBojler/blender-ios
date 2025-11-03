@@ -1803,12 +1803,13 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
     return dst_dvert;
   }
 
+  dw_buffer.clear_and_keep_capacity();
   const float src_num_inv = math::rcp(float(indices.size()));
   for (const int src_vert : indices) {
     const MDeformVert &src_dvert = src[src_vert];
     for (const MDeformWeight &src_weight : Span(src_dvert.dw, src_dvert.totweight)) {
       const int i = dw_buffer.index_of_or_add(MDeformWeight{src_weight.def_nr, 0.0f});
-      const float factor = weights.is_empty() ? src_num_inv : weights[i] * src_num_inv;
+      const float factor = weights.is_empty() ? src_num_inv : weights[i];
       const_cast<MDeformWeight &>(dw_buffer[i]).weight += src_weight.weight * factor;
     }
   }
