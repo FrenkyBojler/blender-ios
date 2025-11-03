@@ -338,52 +338,94 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
 
     def execute(self, context):
         wm = context.window_manager
-        viewfinder_mode = wm.xr_session_settings.viewfinder_active_mode
+        xr_settings = wm.xr_session_settings
+
+        viewfinder_mode = xr_settings.viewfinder_active_mode
+        active_live_action = xr_settings.viewfinder_active_action_live
+        active_playback_action = xr_settings.viewfinder_active_action_playback
 
         if viewfinder_mode == "LIVE":
-            # View Zoom Control
-            LENS_FOCALS = [
-                18,
-                20,
-                24,
-                28,
-                35,
-                50,
-                70,
-                85,
-                100,
-                135,
-                200,
-                300
-            ]
-            camera = context.scene.camera
-            current_focal = camera.data.lens
+            match active_live_action:
+                case "LENS":
+                    # View Zoom Control
+                    LENS_FOCALS = [
+                        18,
+                        20,
+                        24,
+                        28,
+                        35,
+                        50,
+                        70,
+                        85,
+                        100,
+                        135,
+                        200,
+                        300
+                    ]
+                    camera = context.scene.camera
+                    current_focal = camera.data.lens
 
-            # Find the nearest lens focal length index
-            diff_list = [abs(focal - current_focal) for focal in LENS_FOCALS]
-            cur_index = diff_list.index(min(diff_list))
+                    # Find the nearest lens focal length index
+                    diff_list = [abs(focal - current_focal) for focal in LENS_FOCALS]
+                    cur_index = diff_list.index(min(diff_list))
 
-            if self.action_up:
-                # Zoom in
-                new_index = min(cur_index + 1, len(LENS_FOCALS) - 1)
-            else:
-                # Zoom out
-                new_index = max(cur_index - 1, 0)
+                    if self.action_up:
+                        # Zoom in
+                        new_index = min(cur_index + 1, len(LENS_FOCALS) - 1)
+                    else:
+                        # Zoom out
+                        new_index = max(cur_index - 1, 0)
 
-            # Apply the new focal length
-            camera.data.lens = LENS_FOCALS[new_index]
+                    # Apply the new focal length
+                    camera.data.lens = LENS_FOCALS[new_index]
 
-            return {'FINISHED'}
+                    return {'FINISHED'}
+                case "DOF":
+                    return {'CANCELLED'}
+                case "FOCUS":
+                    return {'CANCELLED'}
+                case "APERTURE":
+                    return {'CANCELLED'}
+
 
         if viewfinder_mode == "PLAYBACK":
             # Playblack control
             scene = context.scene
             landmarks = scene.vr_landmarks
 
-            incr = 1 if self.action_up else -1
-            scene.vr_landmarks_selected = (scene.vr_landmarks_selected + incr) % len(landmarks)
+            match active_playback_action:
+                case "BROWSE":
+                    incr = 1 if self.action_up else -1
+                    scene.vr_landmarks_selected = (scene.vr_landmarks_selected + incr) % len(landmarks)
 
-            return {'FINISHED'}
+                    return {'FINISHED'}
+                case "PREVIEW":
+                    current_landmark = landmarks[scene.vr_landmarks_selected]
+
+                    preview_cone_name = "ViewfinderPreviewCone"
+
+                    # Create a dummy cone (or fetch it if it already exists) to represent the captured point
+                    if preview_cone_name in bpy.data.objects:
+                        cone = bpy.data.objects[preview_cone_name]
+                    else:
+                        # Create a new cone
+                        bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.25, depth=0.5, end_fill_type="NOTHING")
+                        cone = bpy.context.active_object
+                        cone.name = preview_cone_name
+
+                    lm_pos = current_landmark.base_pose_location
+                    lm_quat = current_landmark.viewfinder_quat
+
+                    cone.location = lm_pos
+                    cone.rotation_mode = 'QUATERNION'
+                    cone.rotation_quaternion = lm_quat
+
+                    return {'FINISHED'}
+                case "DELETE":
+                    landmarks.remove(scene.vr_landmarks_selected)
+                    scene.vr_landmarks_selected = (scene.vr_landmarks_selected - 1) % len(landmarks)
+
+                    return {'FINISHED'}
 
         return {'CANCELLED'}
 
