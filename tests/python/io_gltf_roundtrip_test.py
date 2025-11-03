@@ -27,7 +27,7 @@ def do_gltf_roundtrip(filepath, params_import, params_export):
         **params_export)
 
 
-class GLTFImportTest(unittest.TestCase):
+class GLTFRoundtripTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.testdir = args.testdir
