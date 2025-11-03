@@ -224,14 +224,14 @@ class NWLazyConnect(Operator, NWBase):
 
 
 class NWDeleteUnused(Operator, NWBase):
-    """Delete all nodes whose output is not used"""
+    """Delete all nodes with unused outputs"""
     bl_idname = 'node.nw_del_unused'
     bl_label = 'Delete Unused Nodes'
     bl_options = {'REGISTER', 'UNDO'}
 
     delete_muted: BoolProperty(
         name="Delete Muted",
-        description="Delete (but reconnect, like Ctrl-X) all muted nodes",
+        description="Dissolve all muted nodes with reconnect",
         default=True)
     delete_frames: BoolProperty(
         name="Delete Empty Frames",
@@ -471,7 +471,7 @@ class NWResetBG(Operator, NWBase):
 class NWAddAttrNode(Operator, NWBase):
     """Add an Attribute node with this name"""
     bl_idname = 'node.nw_add_attr_node'
-    bl_label = 'Add UV map'
+    bl_label = 'Add Attribute'
     bl_options = {'REGISTER', 'UNDO'}
 
     attr_name: StringProperty()
@@ -500,16 +500,17 @@ class NWReloadImages(Operator):
                                                        'TextureNodeTree', 'GeometryNodeTree'}))
 
     def execute(self, context):
+        edit_tree = context.space_data.edit_tree
         nodes, links = get_nodes_links(context)
-        num_reloaded = 0
+        images_to_reload = set()
+
         for node in nodes:
             if (node.bl_idname == 'TextureNodeTexture'
                     and node.texture is not None
                     and node.texture.type == 'IMAGE'
                     and node.texture.image is not None):
                 # Legacy texture nodes.
-                node.texture.image.reload()
-                num_reloaded += 1
+                images_to_reload.add(node.texture.image)
             elif (node.bl_idname in {'CompositorNodeImage',
                                      'GeometryNodeInputImage',
                                      'ShaderNodeTexEnvironment',
@@ -517,8 +518,7 @@ class NWReloadImages(Operator):
                                      'TextureNodeImage'}
                     and node.image is not None):
                 # Image and environment textures.
-                node.image.reload()
-                num_reloaded += 1
+                images_to_reload.add(node.image)
             elif node.bl_idname in {'GeometryNodeGroup',
                                     'GeometryNodeImageInfo',
                                     'GeometryNodeImageTexture'}:
@@ -526,16 +526,37 @@ class NWReloadImages(Operator):
                 for sock in node.inputs:
                     if (sock.bl_idname == 'NodeSocketImage'
                             and sock.default_value is not None):
-                        sock.default_value.reload()
-                        num_reloaded += 1
+                        images_to_reload.add(sock.default_value)
 
-        if num_reloaded:
-            self.report({'INFO'}, rpt_("Reloaded {:d} image(s)").format(num_reloaded))
-            force_update(context)
-            return {'FINISHED'}
-        else:
+        # Images defined in group interface, typically used by modifier.
+        if edit_tree.bl_idname == 'GeometryNodeTree':
+            interface_ids = []
+            items = edit_tree.interface.items_tree
+            for item in items:
+                if (isinstance(item, bpy.types.NodeTreeInterfaceSocketImage)
+                        and item.in_out == 'INPUT'):
+                    interface_ids.append(item.identifier)
+            if interface_ids:
+                for obj in context.scene.objects:
+                    for mod in obj.modifiers:
+                        if not (mod.type == 'NODES' and mod.node_group == edit_tree):
+                            continue
+                        for id in interface_ids:
+                            if not (img := mod.get(id)):
+                                continue
+                            images_to_reload.add(img)
+
+        if not images_to_reload:
             self.report({'WARNING'}, "No images found to reload in this node tree")
             return {'CANCELLED'}
+
+        for img in images_to_reload:
+            img.reload()
+        force_update(context)
+        edit_tree.interface_update(context)
+
+        self.report({'INFO'}, rpt_("Reloaded {:d} image(s)").format(len(images_to_reload)))
+        return {'FINISHED'}
 
 
 class NWMergeNodes(Operator, NWBase):
@@ -1286,7 +1307,7 @@ class NWModifyLabels(Operator, NWBase):
 class NWAddTextureSetup(Operator, NWBase):
     bl_idname = "node.nw_add_texture"
     bl_label = "Texture Setup"
-    bl_description = "Add texture node setup to selected shaders"
+    bl_description = "Add a texture node setup to selected shaders"
     bl_options = {'REGISTER', 'UNDO'}
 
     add_mapping: BoolProperty(
@@ -1367,7 +1388,7 @@ class NWAddTextureSetup(Operator, NWBase):
 class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
     bl_idname = "node.nw_add_textures_for_principled"
     bl_label = "Principled Texture Setup"
-    bl_description = "Add texture node setup for Principled BSDF"
+    bl_description = "Add a texture node setup for Principled BSDF"
     bl_options = {'REGISTER', 'UNDO'}
 
     directory: StringProperty(
@@ -1660,7 +1681,7 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
 
 
 class NWAddReroutes(Operator, NWBase):
-    """Add Reroute Nodes and link them to outputs of selected nodes"""
+    """Add Reroute nodes and link them to outputs of selected nodes"""
     bl_idname = "node.nw_add_reroutes"
     bl_label = "Add Reroutes"
     bl_description = "Add reroutes to outputs"
@@ -1827,7 +1848,7 @@ class NWLinkActiveToSelected(Operator, NWBase):
 
 
 class NWAlignNodes(Operator, NWBase):
-    '''Align the selected nodes neatly in a row/column'''
+    '''Align selected nodes in a grid pattern'''
     bl_idname = "node.nw_align_nodes"
     bl_label = "Align Nodes"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1955,13 +1976,25 @@ class NWSelectParentChildren(Operator, NWBase):
     bl_label = "Select Parent or Children"
     bl_options = {'REGISTER', 'UNDO'}
 
+    parent_desc = "Select frame containing the selected nodes"
+    child_desc = "Select members of the selected frame"
+
     option: EnumProperty(
         name="Option",
         items=(
-            ('PARENT', 'Select Parent', 'Select parent frame'),
-            ('CHILD', 'Select Children', 'Select members of selected frame'),
+            ('PARENT', 'Select Parent', parent_desc),
+            ('CHILD', 'Select Children', child_desc),
         )
     )
+    
+    @classmethod
+    def description(cls, _context, properties):
+        option = properties.option
+
+        if option == 'PARENT':
+            return cls.parent_desc
+        elif option == 'CHILD':
+            return cls.child_desc
 
     @classmethod
     def poll(cls, context):
@@ -2012,7 +2045,7 @@ class NWDetachOutputs(Operator, NWBase):
 
 
 class NWLinkToOutputNode(Operator):
-    """Link to Composite node or Material Output node"""
+    """Link node to the group or node tree output"""
     bl_idname = "node.nw_link_out"
     bl_label = "Connect to Output"
     bl_options = {'REGISTER', 'UNDO'}
@@ -2316,7 +2349,7 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
 
 
 class NWResetNodes(bpy.types.Operator):
-    """Reset nodes in selection"""
+    """Revert nodes back to the default state, but keep connections"""
     bl_idname = "node.nw_reset_nodes"
     bl_label = "Reset Nodes"
     bl_options = {'REGISTER', 'UNDO'}
