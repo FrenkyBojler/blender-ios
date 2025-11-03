@@ -1,2 +1,3 @@
 Referenced by issue #111135, Cleanup/Fix VSE readfile code, fully deprecate `SEQ_TYPE_SOUND_HD`.
 Referenced by pull request #149265, Cleanup: remove long-unused Sound code, rename .h -> .hh
+Referenced by commit 71b1c5056218db1b355778ea030917995571907c, Cleanup: remove long-unused Sound code, rename .h -> .hh
