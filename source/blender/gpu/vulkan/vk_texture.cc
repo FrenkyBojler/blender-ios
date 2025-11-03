@@ -98,6 +98,8 @@ void VKTexture::copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspe
 
   VKContext &context = *VKContext::get();
   context.render_graph().add_node(copy_image);
+
+  dst_texture.has_data_ = true;
 }
 
 void VKTexture::copy_to(Texture *tex)
@@ -143,6 +145,8 @@ void VKTexture::clear(eGPUDataFormat format, const void *data)
   VKContext &context = *VKContext::get();
 
   context.render_graph().add_node(clear_color_image);
+
+  has_data_ = true;
 }
 
 void VKTexture::clear_depth_stencil(const GPUFrameBufferBits buffers,
@@ -177,6 +181,8 @@ void VKTexture::clear_depth_stencil(const GPUFrameBufferBits buffers,
 
   VKContext &context = *VKContext::get();
   context.render_graph().add_node(clear_depth_stencil_image);
+
+  has_data_ = true;
 }
 
 void VKTexture::swizzle_set(const char swizzle_mask[4])
@@ -397,6 +403,54 @@ void VKTexture::update_sub(int mip,
     sample_len = device_memory_size / to_bytesize(device_format_);
   }
 
+  VKDevice &device = VKBackend().get().device;
+  const VKExtensions &extensions = device.extensions_get();
+  // TODO also include image layout and format support, tiling
+  const bool use_host_image_copy = !has_data_ && data != nullptr && extensions.host_image_copy;
+  if (use_host_image_copy) {
+    VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
+    VkHostImageLayoutTransitionInfoEXT image_layout_transition = {
+        VK_STRUCTURE_TYPE_HOST_IMAGE_LAYOUT_TRANSITION_INFO_EXT,
+        nullptr,
+        vk_image_handle(),
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        {to_vk_image_aspect_single_bit(vk_image_aspects, false),
+         0,
+         VK_REMAINING_MIP_LEVELS,
+         0,
+         VK_REMAINING_ARRAY_LAYERS},
+    };
+    device.functions.vkTransitionImageLayout(device.vk_handle(), 1, &image_layout_transition);
+    device.resources.update_image_layout(vk_image_handle(),
+                                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    VkMemoryToImageCopyEXT vk_memory_to_image_copy = {
+        VK_STRUCTURE_TYPE_MEMORY_TO_IMAGE_COPY_EXT,
+        nullptr,
+        data,
+        unpack_row_length,
+        0,
+        {to_vk_image_aspect_single_bit(vk_image_aspects, false),
+         uint32_t(mip),
+         uint32_t(start_layer),
+         uint32_t(layers)},
+        {uint32_t(offset.x), uint32_t(offset.y), uint32_t(offset.z)},
+        {uint32_t(extent.x), uint32_t(extent.y), uint32_t(extent.z)}};
+    VkCopyMemoryToImageInfoEXT vk_copy_memory_to_image = {
+        VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO_EXT,
+        nullptr,
+        VK_HOST_IMAGE_COPY_MEMCPY_EXT,
+        vk_image_handle(),
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        1,
+        &vk_memory_to_image_copy};
+    device.functions.vkCopyMemoryToImage(device.vk_handle(), &vk_copy_memory_to_image);
+
+    has_data_ = true;
+    return;
+  }
+
   VKBuffer staging_buffer;
   VkBuffer vk_buffer = VK_NULL_HANDLE;
   if (data) {
@@ -454,6 +508,7 @@ void VKTexture::update_sub(int mip,
   node_data.region.imageSubresource.layerCount = layers;
 
   context.render_graph().add_node(copy_buffer_to_image);
+  has_data_ = true;
 }
 
 void VKTexture::update_sub(int mip,

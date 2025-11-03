@@ -184,12 +184,25 @@ class VKResourceStateTracker {
 
   /**
    * Register an image resource.
-   *
+   *vkGetMemoryFd
    * When an image is created in VKTexture, it needs to be registered in the device resources so
    * the resource state can be tracked during its lifetime.
    */
   void add_image(VkImage vk_image, bool use_subresource_tracking, const char *name = nullptr);
   void add_swapchain_image(VkImage vk_image, const char *name = nullptr);
+
+  /**
+   * \brief Update the layout of an image that has been externally modified.
+   *
+   * There are extensions that allow image layouts to be modified outside the render graph. In
+   * those cases the image layout needs to be updated in the resource state tracker to ensure
+   * future barriers are aware of them.
+   *
+   * \name vk_image:        VkImage handle to update the image layout for.
+   * \name vk_image_layout: The layout the resource state tracker should now be using as the
+   *                        current layout of the image.
+   */
+  void update_image_layout(VkImage vk_image, VkImageLayout vk_image_layout);
 
   /**
    * Remove an registered image.

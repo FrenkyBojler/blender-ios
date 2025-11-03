@@ -76,6 +76,14 @@ class VKTexture : public Texture {
                                       false,
                                       VKImageViewArrayed::DONT_CARE};
 
+  /**
+   * \brief Has this texture data.
+   *
+   * Is used to decide if host image copy can be performed to overwrite the data outside the
+   * rendergraph.
+   */
+  bool has_data_ = false;
+
  public:
   VKTexture(const char *name) : Texture(name) {}
 
