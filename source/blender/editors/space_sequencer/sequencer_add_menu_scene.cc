@@ -157,11 +157,12 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
   asset::AssetItemTree &tree = *sseq->runtime->assets_for_menu;
   const bool show_assets = !(tree.catalogs.is_empty() && loading_finished &&
                              tree.unassigned_assets.is_empty());
+
+  layout->separator();
+
+  layout->label(IFACE_("Assets"), ICON_ASSET_MANAGER);
+
   if (show_assets) {
-    layout->separator();
-
-    layout->label(IFACE_("Assets"), ICON_ASSET_MANAGER);
-
     if (!loading_finished) {
       layout->label(IFACE_("Loading Asset Libraries"), ICON_INFO);
     }
@@ -173,9 +174,12 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
     if (!tree.unassigned_assets.is_empty()) {
       layout->menu_contents("SEQUENCER_MT_scene_add_unassigned_assets");
     }
-
-    layout->separator();
   }
+  else {
+    layout->label(IFACE_("No scene assets."), ICON_NONE);
+  }
+
+  layout->separator();
 
   /* Show existing scenes. */
   Main *bmain = CTX_data_main(C);
