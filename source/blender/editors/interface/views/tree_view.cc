@@ -954,18 +954,18 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     UI_block_emboss_set(block, ui::EmbossType::Emboss);
     bottom->column(false);
 
-    uiBut *but = uiDefIconButI(block,
-                               ButType::Grip,
-                               0,
-                               ICON_GRIP,
-                               0,
-                               0,
-                               UI_UNIT_X * 10,
-                               UI_UNIT_Y * 0.5f,
-                               tree_view.custom_height_.get(),
-                               0,
-                               0,
-                               "");
+    but = uiDefIconButI(block,
+                        ButType::Grip,
+                        0,
+                        ICON_GRIP,
+                        0,
+                        0,
+                        UI_UNIT_X * 10,
+                        UI_UNIT_Y * 0.5f,
+                        tree_view.custom_height_.get(),
+                        0,
+                        0,
+                        "");
     static_cast<uiButGrip *>(but)->step_distance = padded_item_height();
 
     if (tree_view.show_display_options_) {
