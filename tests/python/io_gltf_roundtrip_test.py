@@ -71,9 +71,6 @@ class GLTFRoundtripTest(unittest.TestCase):
 
         report.finish("io_gltf_roundtrip")
 
-# This is a simple glTF loader to extract the JSON content and buffer from a GLB file.
-# Based on  KhronosGroup/glTf-Blender-IO
-
 
 def main():
     global args
