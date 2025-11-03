@@ -1793,6 +1793,7 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
                              const Span<float> weights,
                              MDeformWeightSet &dw_buffer)
 {
+  BLI_assert(weights.is_empty() || indices.size() == weights.size());
   MDeformVert dst_dvert{};
 
   if (indices.size() == 1) {
@@ -1804,6 +1805,7 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
   }
 
   dw_buffer.clear_and_keep_capacity();
+  BLI_assert(!indices.is_empty());
   const float src_num_inv = math::rcp(float(indices.size()));
   for (const int src_vert : indices) {
     const MDeformVert &src_dvert = src[src_vert];
