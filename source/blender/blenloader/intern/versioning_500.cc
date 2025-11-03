@@ -4303,6 +4303,8 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 114)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_GEOMETRY) {
+        /* Gradient Texture node did not clamp results for the Compositor CPU and geometry nodes.
+         * The compositor is not versioned to unify it with GPU backend. */
         do_version_texture_gradient_clamp(node_tree);
       }
     }
