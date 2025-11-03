@@ -11,32 +11,30 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 #include "gpu_shader_math_safe_lib.glsl"
 
 // TODO merge with vert definition
-#define GRID_LEVELS        3
 #define GRID_DIRECTIONS    2
 #define GRID_SUBDIVS      10
 #define GRID_LEVEL_OFFSET -2
 
-// Fitted simple sigmoidal which intersects [-1, -1], [0, 0], and [1, 1]
-float sigm(in float x) {
-  return 2.0f * x / (1.0f + abs(x));
-}
-
 void main()
 {
-  // Extract line data from vertex id
+  // Every pair of consecutive vertices forms a line
   uint idx = gl_VertexID;
   uint line_side = idx & 0x01;                                                            // LSB indicates start/end vertex
   idx = idx >> 1;
-  uint line_idx = (idx % grid_buf.num_lines);                                             // index of line, from x-min to x-max
+
+  // Extract line data from vertex id
+  uint line_idx = (idx % grid_buf.num_lines); // - (grid_buf.num_lines / 2);      
   uint line_dir = (idx / grid_buf.num_lines) % GRID_DIRECTIONS;                       // direction of line, x or y
-  int line_lvl = int((idx / grid_buf.num_lines / GRID_DIRECTIONS) % GRID_LEVELS); // lvl of line on grid, wraps around
+  int line_lvl = int((idx / grid_buf.num_lines / GRID_DIRECTIONS) % grid_buf.num_levels); // lvl of line on grid, wraps around
+
+  debug_grid_lvl = uint(line_lvl);
 
   // Discard lines that are present in a level above
-  if (line_idx % GRID_SUBDIVS == 0 && line_lvl < (GRID_LEVELS - 1)) {
+  /* if (abs(int(line_idx) - int(grid_buf.num_lines / 2)) % GRID_SUBDIVS == 0 && line_lvl < (GRID_LEVELS - 1)) {
     gl_Position = float4(NAN_FLT);
     return;
-  }
-
+  } */
+  
   // Determine distance to floor plane through center point
   float abs_cos_theta = abs(drw_view_forward().z); 
   float abs_z = abs(drw_view_position().z);
@@ -44,21 +42,24 @@ void main()
   t = mix(t, abs_z, 1.0f - abs_cos_theta); // TODO re-enable
 
   // Rotate levels dependent on distance to floor plane point
-  float line_lvl_mod = /* max(0.f, */ log2(t) / log2(float(GRID_SUBDIVS)); // log10(t) equals log2(t) / log2(10)
+  // Value to offset levels by, dependent on distance to center point
+  float line_lvl_mod = /* max(0.f, */ log2(t) / log2(float(GRID_SUBDIVS)); // log10(t)
   
   // Grid levels fade in smoothly, passed through a sigmoidal
-  float temp
-    = (float(line_lvl) / float(GRID_LEVELS)) 
-    + (1.0f - fract(line_lvl + line_lvl_mod)) // [0, 1]
-    * (1 / float(GRID_LEVELS));
-  frag_level = select(1.f, /* sigm */(temp), line_lvl < (GRID_LEVELS - 1));
+  float temp = 1.f;
+  if (line_lvl < (grid_buf.num_levels - 1)) {
+    temp = (float(line_lvl) + 1.f - fract(line_lvl_mod)) / float(grid_buf.num_levels - 1);
+  } else if (line_lvl == (grid_buf.num_levels - 1)) {
+    temp = fract(line_lvl_mod);
+  }
+  frag_level = temp; //select(1.f, temp, line_lvl < (grid_buf.num_levels - 1));
   line_lvl = line_lvl + int(ceil(line_lvl_mod));// start grid at 100 subdivs
   
   // Discard sublevels to match old grid visually
-  /* if (line_lvl < 2) {
+  if (line_lvl < 2) {
     gl_Position = float4(NAN_FLT);
     return;
-  } */
+  }
   
   // Offset levels by specified amount so as to always render a sublevel
   line_lvl += GRID_LEVEL_OFFSET;

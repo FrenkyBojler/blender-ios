@@ -134,7 +134,9 @@ BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 
 struct OVERLAY_GridReworkData {
   uint num_lines;
-  uint _pad0[3];
+  uint num_levels;
+  float distance;
+  uint _pad0[1];
 };
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridReworkData, 16)
 

@@ -54,10 +54,10 @@ public:
 
     {
       const uint n_verts 
-        = grid_ubo_.num_lines // nr of lines in a direction and level
-        * 3                   // nr of levels
-        * 2                   // nr of directions (x, y)
-        * 2                   // nr of verts per line
+        = grid_ubo_.num_lines  // nr of lines in a direction and level
+        * grid_ubo_.num_levels // nr of levels
+        * 2                    // nr of directions (x, y)
+        * 2                    // nr of verts per line
       ;
 
       auto &sub = grid_ps_.sub("grid");
@@ -81,10 +81,22 @@ public:
 private:
   bool init(const State &state) 
   {
-    // const View3D *v3d = state.v3d;
-    // const RegionView3D *rv3d = state.rv3d;
+    const View3D *v3d = state.v3d;
+    const RegionView3D *rv3d = state.rv3d;
 
-    grid_ubo_.num_lines = 1 + 200;
+    // Get far clip distance
+    float v3d_clip_end;
+    if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
+      Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
+      v3d_clip_end = ((Camera *)(camera_object->data))->clip_end;
+    }
+    else {
+      v3d_clip_end = v3d->clip_end;
+    }
+
+    grid_ubo_.num_lines = 1 + static_cast<uint>(0.33f * v3d_clip_end);
+    grid_ubo_.num_levels = 4;
+    grid_ubo_.distance = 0.5f * v3d_clip_end;
 
     return true;
   }
