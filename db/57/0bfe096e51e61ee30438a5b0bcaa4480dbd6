@@ -1,2 +1,3 @@
 Referenced by issue #149178, Regression: Nested catalogs are not collapsible in the Asset browser and Asset shelf
 Referenced by pull request #149253, Fix #149178: Regression: Cannot collpase nested tree view elements
+Referenced by commit c353509e0b8eb9910b4f2ce6e6bc14eb0ccd8b37, Fix #149178: Regression: Cannot collpase nested tree view elements
