@@ -171,8 +171,10 @@ void AbstractView::filter(std::optional<StringRef> filter_str)
     item.is_filtered_visible_ = is_empty ||
                                 item.should_be_filtered_visible(StringRefNull(*filter_str));
 
-    if (!is_empty && item.is_filtered_visible_) {
-      /* Don't force parent elements to be visible when search string is not empty. */
+    if (!is_empty) {
+      /* Allow view types to hook into the filtering. For example tree views ensure matching
+       * children have their parents visible and uncollapsed. If the search query is empty, all
+       * items are visible by default, and nothing has to be done. */
       item.on_filter_change();
     }
 
