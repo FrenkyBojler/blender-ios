@@ -415,10 +415,12 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
 
                     lm_pos = current_landmark.base_pose_location
                     lm_quat = current_landmark.viewfinder_quat
+                    lm_lens = current_landmark.viewfinder_lens
 
                     cone.location = lm_pos
                     cone.rotation_mode = 'QUATERNION'
                     cone.rotation_quaternion = lm_quat
+                    cone.scale.z = lm_lens / 50 # Scale on local Z to represent focal length, 50mm being 1.0 scale
 
                     return {'FINISHED'}
                 case "DELETE":
