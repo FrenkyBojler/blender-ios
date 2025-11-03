@@ -156,13 +156,13 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
                              nullptr :
                              get_mesh_ref(ob_eval);
 
-  /* Depsgraph gives each linked duplicate its own evaluated mesh, even though they share
-   * the same mesh datablock. Cache by object ID so each duplicate gets its own cache,
-   * instead of constantly invalidating a shared cache when the evaluated mesh pointers differ.
-   * see #148788 */
-  const ID *ob_id = &ob_eval->id;
+  /* Cache by EditMesh pointer so each Edit Mode object has its own entry,
+   * avoiding conflicts when linked duplicates have separate evaluated meshes.
+   * see #148788. */
+  const BMEditMesh *em = BKE_editmesh_from_object(const_cast<Object *>(ob_eval));
+
   if (std::unique_ptr<SnapObjectContext::SnapCache> *em_cache_p = sctx->editmesh_caches.lookup_ptr(
-          ob_id))
+          reinterpret_cast<const ID *>(em)))
   {
     em_cache = static_cast<SnapCache_EditMesh *>(em_cache_p->get());
 
@@ -175,7 +175,7 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
   else if (create) {
     std::unique_ptr<SnapCache_EditMesh> em_cache_ptr = std::make_unique<SnapCache_EditMesh>();
     em_cache = em_cache_ptr.get();
-    sctx->editmesh_caches.add_new(ob_id, std::move(em_cache_ptr));
+    sctx->editmesh_caches.add_new(reinterpret_cast<const ID *>(em), std::move(em_cache_ptr));
     init = true;
   }
 
