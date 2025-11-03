@@ -1540,7 +1540,7 @@ void *BKE_sound_ensure_time_stretch_effect(void *sound_handle, void *sequence_ha
   /* If sequence handle is already the time stretch effect with the same framerate, use that. */
   AUD_Sound *cur_seq_sound = sequence_handle ? AUD_SequenceEntry_getSound(sequence_handle) :
                                                nullptr;
-  if (AUD_Sound_animateableTimeStretchPitchScale_is(cur_seq_sound) &&
+  if (AUD_Sound_isAnimateableTimeStretchPitchScale(cur_seq_sound) &&
       AUD_Sound_animateableTimeStretchPitchScale_getFPS(cur_seq_sound) == fps)
   {
     return cur_seq_sound;

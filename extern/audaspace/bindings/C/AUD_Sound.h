@@ -472,7 +472,7 @@ extern AUD_API AUD_Sound* AUD_Sound_mutable(AUD_Sound* sound);
     /**
      * Checks if sound is an instance of AnimateableTimeStretchPitchScale effect.
      */
-    extern AUD_API bool AUD_Sound_animateableTimeStretchPitchScale_is(AUD_Sound* sound);
+    extern AUD_API bool AUD_Sound_isAnimateableTimeStretchPitchScale(AUD_Sound* sound);
 #endif
 
 #ifdef __cplusplus
