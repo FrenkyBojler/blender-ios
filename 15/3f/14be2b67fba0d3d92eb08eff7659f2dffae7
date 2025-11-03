@@ -6,3 +6,4 @@ Referenced by issue #115779, Compositor Split node factor 0 still shows the othe
 Referenced by issue #115780, Regression: Compositor Split node with only colors does not work (in 3DView, compositor backdrop is fine)
 Referenced by issue #115670, Selecting HIP causes a complete hanging of Blender 4.0
 Referenced by pull request #149289, Fix: Split node cannot be muted
+Referenced by commit 36ab6822f6b13e998afeb6be460defa27f4237c7, Fix: Split node cannot be muted
