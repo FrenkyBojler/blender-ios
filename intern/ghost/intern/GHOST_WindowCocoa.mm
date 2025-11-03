@@ -1188,9 +1188,9 @@ GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(const uint8_t *bitm
     }
 
     if (can_invert_color) {
-	   /* Flip white cursor with black outline to black cursor with
-        * white outline to match macOS platform conventions. */
-        cursor_bitmap_rgba_invert((uint32_t *)bitmap, size);
+      /* Flip white cursor with black outline to black cursor with
+       * white outline to match macOS platform conventions. */
+      cursor_bitmap_rgba_invert((uint32_t *)bitmap, size);
     }
 
     NSBitmapImageRep *cursorImageRep = [[NSBitmapImageRep alloc]

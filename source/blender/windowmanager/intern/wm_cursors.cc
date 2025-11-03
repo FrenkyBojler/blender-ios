@@ -397,7 +397,7 @@ static bool window_set_custom_cursor(wmWindow *win, const BCursor &cursor)
 void WM_cursor_set(wmWindow *win, int curs)
 {
   /* Option to not use any OS-supplied cursors is needed for testing. */
-  const bool use_only_custom_cursors = true;
+  const bool use_only_custom_cursors = false;
 
   if (G.background) {
     return;
