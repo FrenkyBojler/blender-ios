@@ -414,6 +414,11 @@ class ShaderNodesInliner {
     this->schedule_socket(origin_socket);
   }
 
+  /**
+   * Generally, input values of a node should never be dangling because otherwise the node can't be
+   * evaluated. However, if a node is never evaluated anyway, then its inputs can be dangling. This
+   * allows the dangling-state to be properly forwarded through the node.
+   */
   bool input_socket_may_have_dangling_value(const SocketInContext &socket)
   {
     BLI_assert(socket->is_input());
