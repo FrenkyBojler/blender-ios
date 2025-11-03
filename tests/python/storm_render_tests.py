@@ -182,7 +182,7 @@ def main():
             BLOCKLIST_HYDRA)
         report.set_reference_dir("storm_hydra_renders")
         if args.gpu_backend == "vulkan":
-            report.set_compare_engine('eevee', 'opengl')
+            report.set_compare_engine('storm_hydra', 'opengl')
         else:
             report.set_compare_engine('cycles', 'CPU')
     else:
@@ -195,6 +195,14 @@ def main():
             BLOCKLIST_USD)
         report.set_reference_dir("storm_usd_renders")
         report.set_compare_engine('storm_hydra')
+        if args.gpu_backend == "metal":
+            report.set_compare_engine('storm_hydra', 'metal')
+        elif args.gpu_backend == "vulkan":
+            report.set_compare_engine('storm_hydra', 'vulkan')
+        elif args.gpu_backend == "opengl":
+            report.set_compare_engine('storm_hydra', 'opengl')
+        else:
+            report.set_compare_engine('cycles', 'CPU')
 
     report.set_pixelated(True)
 

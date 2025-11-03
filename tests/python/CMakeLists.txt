@@ -842,202 +842,57 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
     set(_gpu_render_tests_arguments)
 
-    # EEVEE
-    if(WITH_OPENGL_BACKEND)
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          eevee_opengl_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
-          --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_opengl"
-          --gpu-backend opengl
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
-    endif()
+    function(add_gpu_render_tests name script render_tests)
+      if(WITH_OPENGL_BACKEND)
+        foreach(render_test ${render_tests})
+          add_render_test(
+            ${name}_opengl_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/${script}
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/${name}_opengl"
+            --gpu-backend opengl
+            ${ARGN}
+          )
+        endforeach()
+      endif()
 
-    if(WITH_METAL_BACKEND)
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          eevee_metal_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
-          --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_metal"
-          --gpu-backend metal
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
-    endif()
+      if(WITH_METAL_BACKEND)
+        foreach(render_test ${render_tests})
+          add_render_test(
+            ${name}_metal_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/${script}
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/${name}_metal"
+            --gpu-backend metal
+            ${ARGN}
+          )
+        endforeach()
+      endif()
 
-    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          eevee_vulkan_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
-          --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_vulkan"
-          --gpu-backend vulkan
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
-    endif()
+      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+        foreach(render_test ${render_tests})
+          add_render_test(
+            ${name}_vulkan_${render_test}
+            ${CMAKE_CURRENT_LIST_DIR}/${script}
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/${name}_vulkan"
+            --gpu-backend vulkan
+            ${ARGN}
+          )
+        endforeach()
+      endif()
+    endfunction()
 
-    # Workbench
-    if(WITH_OPENGL_BACKEND)
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          workbench_opengl_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
-          --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/workbench_opengl"
-          --gpu-backend opengl
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
-    endif()
-
-    if(WITH_METAL_BACKEND)
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          workbench_metal_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
-          --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/workbench_metal"
-          --gpu-backend metal
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
-    endif()
-
-    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
-      foreach(render_test ${gpu_render_tests})
-        add_render_test(
-          workbench_vulkan_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/workbench_render_tests.py
-          --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/workbench_vulkan"
-          --gpu-backend vulkan
-          ${_gpu_render_tests_arguments}
-        )
-      endforeach()
-    endif()
-
-    # Overlay
+    add_gpu_render_tests(eevee "eevee_render_tests.py" "${gpu_render_tests}")
+    add_gpu_render_tests(workbench "workbench_render_tests.py" "${gpu_render_tests}")
     if(WITH_GPU_RENDER_TESTS_HEADED)
-      if(WITH_OPENGL_BACKEND)
-        add_render_test(
-          overlay_opengl
-          ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
-          --testdir "${TEST_SRC_DIR}/overlay"
-          --outdir "${TEST_OUT_DIR}/overlay"
-          --gpu-backend opengl
-          ${_gpu_render_tests_arguments}
-        )
-      endif()
-
-      if(WITH_METAL_BACKEND)
-        add_render_test(
-          overlay_metal
-          ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
-          --testdir "${TEST_SRC_DIR}/overlay"
-          --outdir "${TEST_OUT_DIR}/overlay"
-          --gpu-backend metal
-          ${_gpu_render_tests_arguments}
-        )
-      endif()
-
-      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
-        add_render_test(
-          overlay_vulkan
-          ${CMAKE_CURRENT_LIST_DIR}/overlay_render_tests.py
-          --testdir "${TEST_SRC_DIR}/overlay"
-          --outdir "${TEST_OUT_DIR}/overlay"
-          --gpu-backend vulkan
-          ${_gpu_render_tests_arguments}
-        )
-      endif()
+      add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
     endif()
-
     if(WITH_HYDRA)
-      # Hydra Storm
-      if(WITH_OPENGL_BACKEND)
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            storm_hydra_opengl_${render_test}
-            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/storm_hydra_opengl"
-            --export_method "HYDRA"
-            --gpu-backend opengl
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
-
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            storm_usd_opengl_${render_test}
-            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/storm_usd_opengl"
-            --export_method "USD"
-            --gpu-backend opengl
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
-      endif()
-
-      if(WITH_METAL_BACKEND)
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            storm_hydra_metal_${render_test}
-            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/storm_hydra_metal"
-            --export_method "HYDRA"
-            --gpu-backend metal
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
-
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            storm_usd_metal_${render_test}
-            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/storm_usd_metal"
-            --export_method "USD"
-            --gpu-backend metal
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
-      endif()
-
-      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            storm_hydra_vulkan_${render_test}
-            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/storm_hydra_vulkan"
-            --export_method "HYDRA"
-            --gpu-backend vulkan
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
-
-        foreach(render_test ${gpu_render_tests})
-          add_render_test(
-            storm_usd_vulkan_${render_test}
-            ${CMAKE_CURRENT_LIST_DIR}/storm_render_tests.py
-            --testdir "${TEST_SRC_DIR}/render/${render_test}"
-            --outdir "${TEST_OUT_DIR}/storm_usd_vulkan"
-            --export_method "USD"
-            --gpu-backend vulkan
-            ${_gpu_render_tests_arguments}
-          )
-        endforeach()
-      endif()
+      add_gpu_render_tests(storm_hydra "storm_render_tests.py" "${gpu_render_tests}" --export_method "HYDRA")
+      add_gpu_render_tests(storm_usd "storm_render_tests.py" "${gpu_render_tests}" --export_method "USD")
     endif()
+
     unset(_gpu_render_tests_arguments)
   endif()
 endif()
