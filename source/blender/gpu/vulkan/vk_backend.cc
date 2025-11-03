@@ -139,6 +139,9 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
 
   vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
 
+  if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
+    missing_capabilities.append("vertex pipeline stores and atomics");
+  }
 #ifndef __APPLE__
   if (features.features.geometryShader == VK_FALSE) {
     missing_capabilities.append("geometry shaders");
