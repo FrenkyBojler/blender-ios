@@ -2506,6 +2506,7 @@ void NODE_OT_detach(wmOperatorType *ot)
 /** \name Automatic Node Insert on Dragging
  * \{ */
 
+// ! Unused Now !
 static bNode *get_selected_node_for_insertion(bNodeTree &node_tree)
 {
   bNode *selected_node = nullptr;
@@ -2564,7 +2565,15 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
   while (!to_visit.is_empty()) {
     bNode *current_node = to_visit.pop_last();
     for (bNodeSocket *out_sock : current_node->output_sockets()) {
+      // todo 奇怪，不判断好像也没问题啊
+      // !如果输出接口连到的输入接口不可见，如何做？
+      // if(!out_sock->is_visible()){
+      //   continue;
+      // }
       for (bNodeSocket *linked_sock : out_sock->directly_linked_sockets()) {
+        // if (!linked_sock->is_visible()) {
+        //   continue;
+        // }
         bNode &next_node = linked_sock->owner_node();
         if (!selected_nodes.contains(&next_node)) {
           continue;
@@ -2583,7 +2592,80 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
   return false;
 }
 
-static int get_main_socket_priority(const bNodeSocket *socket);
+static int get_socket_priority(const bNodeSocket *socket)
+{
+  switch (eNodeSocketDatatype(socket->type)) {
+    case SOCK_CUSTOM:
+      return 0;
+    case SOCK_MENU:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_STRING:
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_ROTATION:
+    case SOCK_MATRIX:
+    case SOCK_COLLECTION:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
+      return 1;
+    case SOCK_SHADER:
+    case SOCK_GEOMETRY:
+      return 2;
+  }
+  return -1;
+}
+
+static bNodeSocket *get_compatible_socket_input(bNodeTree &ntree, bNode &node, bNodeLink &link)
+{
+  // ! 合并字符串还有问题, 同类型找 默认
+  for (bNodeSocket *sock : node.input_sockets()) {
+    if (sock->is_visible() && link.fromsock->type == sock->type) {
+      return sock;
+    }
+  }
+  if (!ntree.typeinfo->validate_link) {
+    return nullptr;
+  }
+  for (bNodeSocket *sock : node.input_sockets()) {
+    // ? 找类型最匹配的？ 整数找浮点，而不是矢量？ 没现成的就不做了
+    if (sock->is_visible() &&
+        ntree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
+                                      eNodeSocketDatatype(sock->type)))
+    {
+      return sock;
+    }
+  }
+  return nullptr;
+}
+
+static bNodeSocket *get_compatible_socket_output(bNodeTree &ntree, bNode &node, bNodeLink &link)
+{
+  for (bNodeSocket *sock : node.output_sockets()) {
+    if (sock->is_visible() && link.fromsock->type == sock->type) {
+      return sock;
+    }
+  }
+  if (!ntree.typeinfo->validate_link) {
+    return nullptr;
+  }
+
+  for (bNodeSocket *sock : node.output_sockets()) {
+    if (sock->is_visible() &&
+        //  && !sock->is_directly_linked()
+        ntree.typeinfo->validate_link(eNodeSocketDatatype(sock->type),
+                                      eNodeSocketDatatype(link.fromsock->type)))
+    {
+      return sock;
+    }
+  }
+  return nullptr;
+}
 
 static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, bool is_new_node)
 {
@@ -2619,44 +2701,53 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   if (selected_nodes.is_empty() || end_candidates.size() != 1) {
     return {};
   }
-  // todo 或许可以有多个,但只考虑最高优先级且只有一个?
+
+  // 这里只是预判定能不能当起点,至于起点选哪个，要在连线上判断
   bNode *end_node = end_candidates[0];
   Map<int, Vector<bNode *>> start_candidates_by_priority;
-  int max_priority = INT_MIN;
+  int max_start_priority = INT_MIN;
   for (bNode *node : selected_nodes) {
-    const bNodeSocket *main_input = get_main_socket(tree, *node, SOCK_IN);
-    if (main_input == nullptr) {
+    bool valid_start = true;
+    int max_sk_priority = INT_MIN;
+    // ! 遍历节点的输入，判断优先级最高的那些接口中是否全没连线，如果全没连线，才是有效起点
+    Map<int, Vector<bNodeSocket *>> inputs_by_priority;
+    for (bNodeSocket *socket : node->input_sockets()) {
+      const int sk_priority = get_socket_priority(socket);
+      inputs_by_priority.lookup_or_add_default(sk_priority).append(socket);
+      max_sk_priority = max_ii(max_sk_priority, sk_priority);
+    }
+    if (inputs_by_priority.is_empty()) {
+      valid_start = false;
       continue;
     }
-    bool valid_start;
-    if (!is_new_node) {
-      // ? 如果 main_input 和 end 不兼容呢? 如果 main_in上面的第一个接口连线里,main没连线呢?
-      valid_start = !main_input->is_directly_linked();
-    }
-    else {
-      valid_start = true;
-      for (const bNodeLink *link : main_input->directly_linked_links()) {
-        if (selected_nodes.contains(link->fromnode)) {
+    const Vector<bNodeSocket *> &top_sockets = inputs_by_priority.lookup(max_sk_priority);
+    for (const bNodeSocket *socket : top_sockets) {
+      if (!is_new_node) {
+        if (socket->is_directly_linked()) {
           valid_start = false;
           break;
         }
       }
+      if (is_new_node) {
+        for (const bNodeLink *link : socket->directly_linked_links()) {
+          if (selected_nodes.contains(link->fromnode)) {
+            valid_start = false;
+            break;
+          }
+        }
+      }
     }
     if (valid_start) {
-      int priority = get_main_socket_priority(main_input);
-      start_candidates_by_priority.lookup_or_add_default(priority).append(node);
-      max_priority = max_ii(max_priority, priority);
+      start_candidates_by_priority.lookup_or_add_default(max_sk_priority).append(node);
+      max_start_priority = max_ii(max_start_priority, max_sk_priority);
     }
   }
 
   if (start_candidates_by_priority.is_empty()) {
     return {};
   }
-  // ! 或许应该找和end兼容的优先级?
-  // 变换方向和投影点无法插入到矢量连线,变换点可以
-  // 变换方向和投影点可以插入到矩阵连线,变换点不行
-  // 合并字符串也有问题
-  const Vector<bNode *> &start_candidates = start_candidates_by_priority.lookup(max_priority);
+  const Vector<bNode *> &start_candidates = start_candidates_by_priority.lookup(
+      max_start_priority);
   if (start_candidates.size() != 1) {
     return {};
   }
@@ -2672,41 +2763,20 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   return result;
 }
 
-static bool endpoint_start_is_compatible_to_link(bNodeTree &tree,
+// todo 需要改进
+static bool endpoint_is_compatible_to_link(bNodeTree &ntree,
                                                  NodeEndpoint &endpoint,
-                                                 const bNodeLink &link)
+                                                 bNodeLink &link)
 {
-  const bNodeSocket *main_input = get_main_socket(tree, *endpoint.start_node, SOCK_IN);
-  if (main_input == nullptr) {
-    return false;
-  }
   if (endpoint.is_reroute()) {
     return true;
   }
-  if (tree.typeinfo->validate_link &&
-      tree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
-                                   eNodeSocketDatatype(main_input->type)))
-  {
+  // const bNodeSocket *main_input = get_compatible_socket_input(ntree, *endpoint.start_node, link);
+  if (get_compatible_socket_input(ntree, *endpoint.start_node, link)) {
     return true;
   }
-  return false;
-}
-
-static bool endpoint_end_is_compatible_to_link(bNodeTree &tree,
-                                               NodeEndpoint &endpoint,
-                                               const bNodeLink &link)
-{
-  const bNodeSocket *main_output = get_main_socket(tree, *endpoint.end_node, SOCK_OUT);
-  if (main_output == nullptr) {
-    return false;
-  }
-  if (endpoint.is_reroute()) {
-    return true;
-  }
-  if (tree.typeinfo->validate_link &&
-      tree.typeinfo->validate_link(eNodeSocketDatatype(main_output->type),
-                                   eNodeSocketDatatype(link.tosock->type)))
-  {
+  // const bNodeSocket *main_output = get_compatible_socket_output(ntree, *endpoint.end_node, link);
+  if (get_compatible_socket_output(ntree, *endpoint.end_node, link)) {
     return true;
   }
   return false;
@@ -2798,11 +2868,8 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
-    if (!attach_enabled || !endpoint_start_is_compatible_to_link(node_tree, endpoint, *selink)) {
-      selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
-    }
-    // 匹配的输入端已经连了线了
-    if (is_new_node && !endpoint_end_is_compatible_to_link(node_tree, endpoint, *selink)) {
+    if (!attach_enabled || !endpoint_is_compatible_to_link(node_tree, endpoint, *selink))
+    {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2879,7 +2946,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     }
   }
   if (!best_input) {
-    best_input = get_main_socket(ntree, *endpoint.start_node, SOCK_IN);
+    best_input = get_compatible_socket_input(ntree, *endpoint.start_node, *old_link);
   }
   bNodeSocket *best_output = nullptr;
   if (is_new_node) {
@@ -2891,7 +2958,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     }
   }
   if (!best_output) {
-    best_output = get_main_socket(ntree, *endpoint.end_node, SOCK_OUT);
+    best_output = get_compatible_socket_output(ntree, *endpoint.end_node, *old_link);
   }
 
   if (!endpoint.is_reroute()) {
@@ -3016,13 +3083,13 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
     if (sock->flag & SOCK_UNAVAIL) {
       continue;
     }
-    maxpriority = max_ii(get_main_socket_priority(sock), maxpriority);
+    maxpriority = max_ii(get_socket_priority(sock), maxpriority);
   }
 
   /* Try all priorities, starting from 'highest'. */
   for (int priority = maxpriority; priority >= 0; priority--) {
     LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
-      if (!!sock->is_visible() && priority == get_main_socket_priority(sock)) {
+      if (!!sock->is_visible() && priority == get_socket_priority(sock)) {
         return sock;
       }
     }
