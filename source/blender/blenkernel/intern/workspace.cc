@@ -66,6 +66,40 @@ static void workspace_free_data(ID *id)
   BKE_viewer_path_clear(&workspace->viewer_path);
 }
 
+static void workspace_copy_data(
+    Main *bmain, std::optional<Library *> owner_library, ID *id_dst, const ID *id_src, int flag)
+{
+  /* Workspaces should always be local data currently. */
+  BLI_assert(owner_library == nullptr);
+  UNUSED_VARS_NDEBUG(owner_library);
+
+  WorkSpace *workspace_dst = id_cast<WorkSpace *>(id_dst);
+  const WorkSpace *workspace_src = id_cast<const WorkSpace *>(id_src);
+
+  workspace_dst->flags = workspace_src->flags;
+  workspace_dst->pin_scene = workspace_src->pin_scene;
+  workspace_dst->sequencer_scene = workspace_src->sequencer_scene;
+  workspace_dst->object_mode = workspace_src->object_mode;
+  workspace_dst->order = workspace_src->order;
+  BLI_duplicatelist(&workspace_dst->owner_ids, &workspace_src->owner_ids);
+
+  /* TODO(@ideasman42): tools */
+  BLI_listbase_clear(&workspace_dst->tools);
+
+  LISTBASE_FOREACH (WorkSpaceLayout *, layout_src, &workspace_dst->layouts) {
+    WorkSpaceLayout *layout_new = ED_workspace_layout_duplicate(
+        bmain, workspace_new, layout_old, win);
+
+    if (layout_active_old == layout_old) {
+      win->workspace_hook->temp_layout_store = layout_new;
+    }
+  }
+
+  workspace->runtime = MEM_new<blender::bke::WorkSpaceRuntime>(__func__);
+
+  BKE_asset_library_reference_init_default(&workspace->asset_library_ref);
+}
+
 static void workspace_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   WorkSpace *workspace = (WorkSpace *)id;
@@ -184,12 +218,12 @@ IDTypeInfo IDType_ID_WS = {
     /*name*/ "WorkSpace",
     /*name_plural*/ N_("workspaces"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_WORKSPACE,
-    /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA |
-        IDTYPE_FLAGS_NO_MEMFILE_UNDO | IDTYPE_FLAGS_NEVER_UNUSED,
+    /*flags*/ IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO |
+        IDTYPE_FLAGS_NEVER_UNUSED,
     /*asset_type_info*/ nullptr,
 
     /*init_data*/ workspace_init_data,
-    /*copy_data*/ nullptr,
+    /*copy_data*/ workspace_copy_data,
     /*free_data*/ workspace_free_data,
     /*make_local*/ nullptr,
     /*foreach_id*/ workspace_foreach_id,
