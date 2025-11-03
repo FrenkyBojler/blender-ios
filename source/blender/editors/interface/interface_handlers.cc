@@ -708,10 +708,6 @@ static bool ui_but_dragedit_update_mval(uiHandleButtonData *data,
                                         int mx,
                                         blender::FunctionRef<int()> drag_threshold_fn)
 {
-  if (mx == data->draglastx) {
-    return false;
-  }
-
   if (data->draglock) {
     const int threshold = drag_threshold_fn();
     if (abs(mx - data->dragstartx) < threshold) {
@@ -3687,7 +3683,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 #ifdef WITH_INPUT_IME
   /* See #wm_window_IME_end code-comments for details. */
-#  if defined(WIN32) || defined(__APPLE__)
+#  ifdef __APPLE__
   if (win->runtime->ime_data)
 #  endif
   {
@@ -5888,7 +5884,6 @@ static bool ui_numedit_but_SLI(uiBut *but,
                                const bool snap,
                                const bool shift)
 {
-  uiButNumberSlider *slider_but = reinterpret_cast<uiButNumberSlider *>(but);
   float cursor_x_range, f, tempf, softmin, softmax, softrange;
   int temp, lvalue;
   bool changed = false;
@@ -5917,10 +5912,11 @@ static bool ui_numedit_but_SLI(uiBut *but,
     cursor_x_range = BLI_rctf_size_x(&but->rect);
   }
   else if (but->type == ButType::Scroll) {
+    uiButScrollBar *scroll_but = reinterpret_cast<uiButScrollBar *>(but);
     const float size = (is_horizontal) ? BLI_rctf_size_x(&but->rect) :
                                          -BLI_rctf_size_y(&but->rect);
     cursor_x_range = size * (but->softmax - but->softmin) /
-                     (but->softmax - but->softmin + slider_but->step_size);
+                     (but->softmax - but->softmin + scroll_but->visual_height);
   }
   else {
     const float ofs = (BLI_rctf_size_y(&but->rect) / 2.0f);
@@ -6862,7 +6858,8 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
   }
 #endif
 
-  ui_but_v3_get(but, rgb);
+  /* Always start from original value to avoid numerical drift. */
+  copy_v3_v3(rgb, data->origvec);
   ui_scene_linear_to_perceptual_space(but, rgb);
 
   ui_rgb_to_color_picker_HSVCUBE_compat_v(hsv_but, rgb, hsv);
@@ -7155,8 +7152,9 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   rcti rect;
   BLI_rcti_rctf_copy(&rect, &but->rect);
 
+  /* Always start from original value to avoid numerical drift. */
   float rgb[3];
-  ui_but_v3_get(but, rgb);
+  copy_v3_v3(rgb, data->origvec);
   ui_scene_linear_to_perceptual_space(but, rgb);
   ui_color_picker_rgb_to_hsv_compat(rgb, hsv);
 
@@ -9708,7 +9706,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
       }
 #endif
       case MOUSEMOVE: {
-        uiBut *but_other = ui_but_find_mouse_over(region, event);
+        uiBut *but_other = UI_but_find_mouse_over(region, event);
         bool exit = false;
 
         /* always deactivate button for pie menus,
@@ -9870,7 +9868,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
           }
         }
 
-        bt = ui_but_find_mouse_over(region, event);
+        bt = UI_but_find_mouse_over(region, event);
 
         if (bt && bt->active != data) {
           if (but->type != ButType::Color) { /* exception */
@@ -9882,7 +9880,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
       }
       case RIGHTMOUSE: {
         if (event->val == KM_PRESS) {
-          uiBut *bt = ui_but_find_mouse_over(region, event);
+          uiBut *bt = UI_but_find_mouse_over(region, event);
           if (bt && bt->active == data) {
             button_activate_state(C, bt, BUTTON_STATE_HIGHLIGHT);
           }
@@ -9951,7 +9949,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
        * it stays active while the mouse is over it.
        * This avoids adding mouse-moves, see: #33466. */
       if (ELEM(state_orig, BUTTON_STATE_INIT, BUTTON_STATE_HIGHLIGHT, BUTTON_STATE_WAIT_DRAG)) {
-        if (ui_but_find_mouse_over(region, event) == but) {
+        if (UI_but_find_mouse_over(region, event) == but) {
           button_activate_init(C, region, but, BUTTON_ACTIVATE_OVER);
         }
       }
@@ -11223,6 +11221,10 @@ static int ui_handle_menu_event(bContext *C,
       if ((inside == false) && (menu->menuretval == 0)) {
         uiSafetyRct *saferct = static_cast<uiSafetyRct *>(block->saferct.first);
 
+        if (event->type == MOUSEMOVE) {
+          WM_tooltip_clear(C, win);
+        }
+
         if (ELEM(event->type, LEFTMOUSE, MIDDLEMOUSE, RIGHTMOUSE)) {
           if (ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
             if ((is_parent_menu == false) && (U.uiflag & USER_MENUOPENAUTO) == 0) {
@@ -12123,7 +12125,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
         (ui_region_find_active_but(data->menu->region) == nullptr) &&
         /* make sure mouse isn't inside another menu (see #43247) */
         (ui_screen_region_find_mouse_over(screen, event) == nullptr) &&
-        (but_other = ui_but_find_mouse_over(region, event)) &&
+        (but_other = UI_but_find_mouse_over(region, event)) &&
         ui_can_activate_other_menu(but, but_other, event) &&
         /* Hover-opening menu's doesn't work well for buttons over one another
          * along the same axis the menu is opening on (see #71719). */

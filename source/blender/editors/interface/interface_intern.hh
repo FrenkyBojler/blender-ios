@@ -1440,6 +1440,7 @@ uiBut *ui_but_add_search(uiBut *but,
                          PropertyRNA *prop,
                          PointerRNA *searchptr,
                          PropertyRNA *searchprop,
+                         PropertyRNA *item_searchprop,
                          bool results_are_suggestions);
 /**
  * Check all buttons defined in this layout,
@@ -1549,7 +1550,6 @@ uiBut *ui_but_find_mouse_over_ex(const ARegion *region,
                                  const uiButFindPollFn find_poll,
                                  const void *find_custom_data)
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
-uiBut *ui_but_find_mouse_over(const ARegion *region, const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 uiBut *ui_but_find_rect_over(const ARegion *region, const rcti *rect_px) ATTR_WARN_UNUSED_RESULT;
 
 uiBut *ui_list_find_mouse_over_ex(const ARegion *region, const int xy[2])
@@ -1643,6 +1643,7 @@ struct uiRNACollectionSearch {
 
   PointerRNA search_ptr;
   PropertyRNA *search_prop;
+  PropertyRNA *item_search_prop;
 
   uiBut *search_but;
   /** Let `UI_butstore_*` API update search_but pointer above over redraws. */

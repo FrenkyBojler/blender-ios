@@ -132,6 +132,7 @@ static struct WMInitStruct {
   GHOST_TWindowState windowstate = GHOST_WINDOW_STATE_DEFAULT;
   eWinOverrideFlag override_flag;
 
+  bool window_frame = true;
   bool window_focus = true;
   bool native_pixels = true;
 } wm_init_state;
@@ -2116,6 +2117,7 @@ void wm_ghost_init(bContext *C)
   consumer = GHOST_CreateEventConsumer(ghost_event_proc, C);
 
   GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+  GHOST_UseWindowFrame(wm_init_state.window_frame);
 
   g_system = GHOST_CreateSystem();
   GPU_backend_ghost_system_set(g_system);
@@ -2814,6 +2816,16 @@ void WM_init_state_maximized_set()
   wm_init_state.override_flag |= WIN_OVERRIDE_WINSTATE;
 }
 
+bool WM_init_window_frame_get()
+{
+  return wm_init_state.window_frame;
+}
+
+void WM_init_window_frame_set(bool do_it)
+{
+  wm_init_state.window_frame = do_it;
+}
+
 void WM_init_window_focus_set(bool do_it)
 {
   wm_init_state.window_focus = do_it;
@@ -3192,10 +3204,10 @@ void wm_window_IME_end(wmWindow *win)
   }
 
   BLI_assert(win);
-  /* NOTE(@ideasman42): on WAYLAND a call to "begin" must be closed by an "end" call.
+  /* NOTE(@ideasman42): on WAYLAND and Windows a call to "begin" must be closed by an "end" call.
    * Even if no IME events were generated (which assigned `ime_data`).
-   * TODO: check if #GHOST_EndIME can run on WIN32 & APPLE without causing problems. */
-#  if defined(WIN32) || defined(__APPLE__)
+   * TODO: check if #GHOST_EndIME can run on APPLE without causing problems. */
+#  ifdef __APPLE__
   BLI_assert(win->runtime->ime_data);
 #  endif
   GHOST_EndIME(static_cast<GHOST_WindowHandle>(win->ghostwin));

@@ -3505,9 +3505,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
             /* Other drop custom types allowed. */
             if (event->custom == EVT_DATA_DRAGDROP) {
-              /* Drop handlers can perform multiple operations (e.g., collection drag-and-drop),
-               * but we want to treat it as a single operation. */
-              ED_undo_group_begin(C);
               ListBase *lb = (ListBase *)event->customdata;
               LISTBASE_FOREACH_MUTABLE (wmDrag *, drag, lb) {
                 if (drop->poll(C, drag, event)) {
@@ -3551,7 +3548,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
               }
               /* Always exit all drags on a drop event, even if poll didn't succeed. */
               wm_drags_exit(wm, win);
-              ED_undo_group_end(C);
             }
           }
         }
@@ -4948,41 +4944,25 @@ bool WM_event_handler_region_marker_poll(const wmWindow *win,
                                          const ARegion *region,
                                          const wmEvent *event)
 {
-  switch (area->spacetype) {
-    case SPACE_ACTION: {
-      const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
-      if ((saction->flag & SACTION_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
+  if (!ED_markers_region_visible(area, region)) {
+    return false;
+  }
+
+  /* Check for markers in the current scene, noting that the VSE uses a special sequencer scene. */
+  Scene *scene = WM_window_get_active_scene(win);
+
+  if (area->spacetype == SPACE_SEQ) {
+    WorkSpace *workspace = WM_window_get_active_workspace(win);
+    if (workspace && workspace->sequencer_scene) {
+      scene = workspace->sequencer_scene;
     }
-    case SPACE_GRAPH: {
-      const SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
-      if ((sgraph->flag & SIPO_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
+    else {
+      return false;
     }
-    case SPACE_NLA: {
-      const SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
-      if ((snla->flag & SNLA_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
-    }
-    case SPACE_SEQ: {
-      const SpaceSeq *seq = static_cast<SpaceSeq *>(area->spacedata.first);
-      if ((seq->flag & SEQ_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
-    }
-    default:
-      break;
   }
 
   const ListBase *markers = ED_scene_markers_get_from_area(
-      WM_window_get_active_scene(win), WM_window_get_active_view_layer(win), area);
+      scene, WM_window_get_active_view_layer(win), area);
   if (BLI_listbase_is_empty(markers)) {
     return false;
   }

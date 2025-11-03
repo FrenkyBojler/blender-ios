@@ -6,9 +6,10 @@
  * \ingroup gpu
  */
 
+#include "BLI_colorspace.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_string.h"
-#include "BLI_time.h"
 
 #include "GPU_capabilities.hh"
 #include "GPU_debug.hh"
@@ -265,6 +266,9 @@ void GPU_shader_bind(blender::gpu::Shader *gpu_shader,
     shader->bind(constants_state);
     GPU_matrix_bind(gpu_shader);
     Shader::set_srgb_uniform(ctx, gpu_shader);
+    /* Blender working color space do not change during the drawing of the frame.
+     * So we can just set the uniform once. */
+    Shader::set_scene_linear_to_xyz_uniform(gpu_shader);
   }
   else {
     if (constants_state) {
@@ -634,6 +638,15 @@ void Shader::set_srgb_uniform(Context *ctx, blender::gpu::Shader *shader)
   ctx->shader_builtin_srgb_is_dirty = false;
 }
 
+void Shader::set_scene_linear_to_xyz_uniform(blender::gpu::Shader *shader)
+{
+  int32_t loc = GPU_shader_get_builtin_uniform(shader, GPU_UNIFORM_SCENE_LINEAR_XFORM);
+  if (loc != -1) {
+    GPU_shader_uniform_float_ex(
+        shader, loc, 9, 1, blender::colorspace::scene_linear_to_rec709.ptr()[0]);
+  }
+}
+
 void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 {
   Context *ctx = Context::get();
@@ -898,20 +911,11 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
   Batch *batch = batches_.pop(handle);
   compilation_queue_.remove_batch(batch);
 
-  if (batch->is_specialization_batch()) {
-    /* For specialization batches, we block until ready, since base shader compilation may be
-     * cancelled afterwards, leaving the specialization with a deleted base shader. */
-    compilation_finished_notification_.wait(lock, [&]() { return batch->is_ready(); });
-  }
-
-  if (batch->is_ready()) {
-    batch->free_shaders();
-    MEM_delete(batch);
-  }
-  else {
-    /* If it's currently compiling, the compilation thread makes the cleanup. */
-    batch->is_cancelled = true;
-  }
+  /* If it was already being compiled, wait until it's ready so the calling thread can safely
+   * delete the ShaderCreateInfos. */
+  compilation_finished_notification_.wait(lock, [&]() { return batch->is_ready(); });
+  batch->free_shaders();
+  MEM_delete(batch);
 
   handle = 0;
 }
@@ -1003,12 +1007,8 @@ void ShaderCompiler::do_work(void *work_payload)
   }
 
   {
-    std::lock_guard lock(mutex_);
+    std::unique_lock lock(mutex_);
     batch->pending_compilations--;
-    if (batch->is_ready() && batch->is_cancelled) {
-      batch->free_shaders();
-      MEM_delete(batch);
-    }
   }
 
   compilation_finished_notification_.notify_all();

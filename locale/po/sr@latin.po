@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -5006,10 +5006,6 @@ msgid "Constant"
 msgstr "Konstantno"
 
 
-msgid "Direction"
-msgstr "Smer"
-
-
 msgid "Add effect of brush"
 msgstr "Dodaj efekat četkice"
 
@@ -7968,6 +7964,10 @@ msgid "Control key pressed"
 msgstr "Taster kontrol je pritisnut"
 
 
+msgid "Direction"
+msgstr "Smer"
+
+
 msgid "North"
 msgstr "Sever"
 
@@ -8545,8 +8545,20 @@ msgid "Propagate"
 msgstr "Prenesi"
 
 
+msgid "Keying"
+msgstr "Zbirka tastera"
+
+
+msgid "Tracking"
+msgstr "Praćenje"
+
+
 msgid "Names"
 msgstr "Imena"
+
+
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Toggle Bone Options"
@@ -8561,20 +8573,8 @@ msgid "Disable Bone Options"
 msgstr "Onemogući opcije kostiju"
 
 
-msgid "Keying"
-msgstr "Zbirka tastera"
-
-
 msgid "Mesh Select Mode"
 msgstr "Mod izbora mreže"
-
-
-msgid "Tracking"
-msgstr "Praćenje"
-
-
-msgid "Math"
-msgstr "Matematika"
 
 
 msgid "Merge"
@@ -8593,12 +8593,12 @@ msgid "Snap"
 msgstr "Lepljenje"
 
 
-msgid "Mirror"
-msgstr "Ogledalo"
-
-
 msgid "Import"
 msgstr "Uvoz"
+
+
+msgid "Mirror"
+msgstr "Ogledalo"
 
 
 msgid "UV Mapping"
@@ -8609,16 +8609,16 @@ msgid "Local View"
 msgstr "Lokalni pogled"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Navigation"
 msgstr "Navigacija"
 
 
 msgid "Align View"
 msgstr "Poravnaj pogled"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Select Linked"
@@ -21437,18 +21437,6 @@ msgstr "Stereo režim"
 
 msgid "Blend Opacity"
 msgstr "Providnost prelaza"
-
-
-msgid "Cross"
-msgstr "Ukrštenje"
-
-
-msgid "Alpha Under"
-msgstr "Providnost ispod"
-
-
-msgid "Gamma Cross"
-msgstr "Ukrštanje game"
 
 
 msgctxt "Sequence"

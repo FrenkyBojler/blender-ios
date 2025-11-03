@@ -1061,20 +1061,20 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
       /* Bottom-left. */
       {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + UI_HEADER_OFFSET,
+       area->totrct.xmin + UI_AZONESPOTW_LEFT,
        float(area->totrct.ymin + ED_area_headersize())},
       /* Bottom-right. */
-      {area->totrct.xmax - UI_AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW_RIGHT,
        area->totrct.ymin - U.pixelsize,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymin + UI_AZONESPOTH},
       /* Top-left. */
       {area->totrct.xmin - U.pixelsize,
        float(area->totrct.ymax - ED_area_headersize()),
-       area->totrct.xmin + UI_HEADER_OFFSET,
+       area->totrct.xmin + UI_AZONESPOTW_LEFT,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
-      {area->totrct.xmax - UI_AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW_RIGHT,
        area->totrct.ymax - UI_AZONESPOTH,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymax + U.pixelsize},
@@ -3904,7 +3904,7 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
   /* clear */
   ED_region_clear(C, region, region_background_color_id(C, region));
 
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE, GPU_BACKEND_OPENGL))
+  if (GPU_type_matches_ex(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE, GPU_BACKEND_OPENGL))
   {
     /* WORKAROUND: Driver bug. Fixes invalid glyph being rendered (see #147168). */
     BLF_batch_discard();

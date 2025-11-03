@@ -29,6 +29,7 @@
 #include "ED_asset_shelf.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
@@ -666,6 +667,10 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
     /* Not needed for local assets. */
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
   }
+  else {
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
+    ED_undo_push_op(C, op);
+  }
 
   asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
@@ -708,7 +713,7 @@ static std::string pose_asset_modify_description(bContext * /* C */,
                                                  PointerRNA *ptr)
 {
   const int mode = RNA_enum_get(ptr, "mode");
-  return std::string(prop_asset_overwrite_modes[mode].description);
+  return TIP_(std::string(prop_asset_overwrite_modes[mode].description));
 }
 
 /* Calling it overwrite instead of save because we aren't actually saving an opened asset. */
@@ -773,6 +778,8 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
   }
   else {
     asset::clear_id(&action->id);
+    /* Only create undo-step for local actions. Undoing external files isn't supported. */
+    ED_undo_push_op(C, op);
   }
 
   asset::refresh_asset_library(C, library_ref.value());
