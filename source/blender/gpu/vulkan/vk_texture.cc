@@ -403,7 +403,7 @@ void VKTexture::update_sub(int mip,
     sample_len = device_memory_size / to_bytesize(device_format_);
   }
 
-  VKDevice &device = VKBackend().get().device;
+  VKDevice &device = VKBackend::get().device;
   const VKExtensions &extensions = device.extensions_get();
   // TODO also include image layout and format support, tiling
   const bool use_host_image_copy = !has_data_ && data != nullptr && extensions.host_image_copy;

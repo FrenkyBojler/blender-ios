@@ -184,7 +184,7 @@ class VKResourceStateTracker {
 
   /**
    * Register an image resource.
-   *vkGetMemoryFd
+   *
    * When an image is created in VKTexture, it needs to be registered in the device resources so
    * the resource state can be tracked during its lifetime.
    */
