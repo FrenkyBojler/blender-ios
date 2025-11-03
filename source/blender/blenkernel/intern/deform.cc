@@ -1807,12 +1807,12 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
   dw_buffer.clear_and_keep_capacity();
   BLI_assert(!indices.is_empty());
   const float src_num_inv = math::rcp(float(indices.size()));
-  for (const int src_vert : indices) {
-    const MDeformVert &src_dvert = src[src_vert];
+  for (const int i : indices.index_range()) {
+    const MDeformVert &src_dvert = src[indices[i]];
     for (const MDeformWeight &src_weight : Span(src_dvert.dw, src_dvert.totweight)) {
-      const int i = dw_buffer.index_of_or_add(MDeformWeight{src_weight.def_nr, 0.0f});
+      const int weight_i = dw_buffer.index_of_or_add(MDeformWeight{src_weight.def_nr, 0.0f});
       const float factor = weights.is_empty() ? src_num_inv : weights[i];
-      const_cast<MDeformWeight &>(dw_buffer[i]).weight += src_weight.weight * factor;
+      const_cast<MDeformWeight &>(dw_buffer[weight_i]).weight += src_weight.weight * factor;
     }
   }
 
