@@ -678,7 +678,7 @@ void SEQUENCER_OT_scene_strip_add(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Add Scene Strip";
   ot->idname = "SEQUENCER_OT_scene_strip_add";
-  ot->description = "Add a strip re-using a scene as source";
+  ot->description = "Add a strip re-using this scene as source";
 
   /* API callbacks. */
   ot->invoke = sequencer_add_scene_strip_invoke;
