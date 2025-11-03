@@ -840,8 +840,6 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     list(APPEND gpu_render_tests ${render_tests})
     list(FILTER gpu_render_tests EXCLUDE REGEX light_group|shadow_catcher|denoise|guiding|reports)
 
-    set(_gpu_render_tests_arguments)
-
     function(add_gpu_render_tests name script render_tests)
       if(WITH_OPENGL_BACKEND)
         foreach(render_test ${render_tests})
@@ -892,8 +890,6 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
       add_gpu_render_tests(storm_hydra "storm_render_tests.py" "${gpu_render_tests}" --export_method "HYDRA")
       add_gpu_render_tests(storm_usd "storm_render_tests.py" "${gpu_render_tests}" --export_method "USD")
     endif()
-
-    unset(_gpu_render_tests_arguments)
   endif()
 endif()
 
