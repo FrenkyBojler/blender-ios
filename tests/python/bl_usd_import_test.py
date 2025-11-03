@@ -2104,7 +2104,7 @@ class USDImportComparisonTest(unittest.TestCase):
 
             with self.subTest(input_file_path.stem):
                 bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
-                ok = report.import_and_check(
+                ok = report.generate_and_check(
                     input_file, lambda filepath, params: bpy.ops.wm.usd_import(
                         filepath=str(input_file), import_subdivision=True, **params))
                 if not ok:

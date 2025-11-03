@@ -50,6 +50,7 @@ class Report:
         'global_dir',
         'input_dir',
         'reference_dir',
+        'generate_data_desc',
         'tested_count',
         'failed_list',
         'passed_list',
@@ -69,12 +70,14 @@ class Report:
         output_dir: pathlib.Path,
         input_dir: pathlib.Path,
         reference_dir: pathlib.Path,
+        comparison_func: Callable[[str, dict], None] = None,
     ):
         self.title = title
         self.output_dir = output_dir
         self.global_dir = os.path.dirname(output_dir)
         self.input_dir = input_dir
         self.reference_dir = reference_dir
+        self.generate_data_desc = comparison_func if comparison_func else self.generate_generic_data_desc
 
         self.tested_count = 0
         self.failed_list = []
@@ -251,6 +254,7 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
             self.failed_html += test_html
         else:
             self.passed_html += test_html
+        return not error
 
     @staticmethod
     def _val_to_str(val) -> str:
@@ -419,7 +423,7 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
                     desc.write(f" slot:{adt.action_slot.identifier}")
                 desc.write(f" blend:{adt.action_blend_type} drivers:{len(adt.drivers)}\n")
 
-    def generate_main_data_desc(self) -> str:
+    def generate_generic_data_desc(self) -> str:
         """Generates textual description of the current state of the
         Blender main data."""
 
@@ -860,7 +864,8 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
         desc.close()
         return text
 
-    def import_and_check(self, input_file: pathlib.Path, import_func: Callable[[str, dict], None]) -> bool:
+    def generate_and_check(self, input_file: pathlib.Path, generate_func: Callable[[
+            str, dict], None], roundtrip: bool = None) -> bool:
         """
         Imports a single file using the provided import function, and
         checks whether it matches with expected template, returns
@@ -872,12 +877,19 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
         When working in template update mode (environment variable
         BLENDER_TEST_UPDATE=1), updates the template with new result
         and always returns true.
+
+        This function also supports import/export tests (called round-trips),
+        where the export parameters are read from a .export.json file next to
+        the input file, and passed to the import function as well. In this
+        case, the output file is expected to be written to "out" subfolder
+        of the input directory, with the same base name as the input file.
+
         """
         self.tested_count += 1
         input_basename = pathlib.Path(input_file).stem
         print(f"Importing {input_file}...", flush=True)
 
-        # load json parameters if they exist
+        # load json parameters if they exist, for import
         params = {}
         input_params_file = input_file.with_suffix(".json")
         if input_params_file.exists():
@@ -887,10 +899,26 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
             except:
                 pass
 
-        # import
+        # load json parameters if they exist, for export
+        params_export = {}
+        output_params_file = input_file.with_suffix(".export.json")
+        if output_params_file.exists():
+            try:
+                with output_params_file.open('r', encoding='utf-8') as file:
+                    params_export = json.load(file)
+            except:
+                pass
+
+        # Generate (import or round-trip)
         try:
-            import_func(str(input_file), params)
-            got_desc = self.generate_main_data_desc()
+            if not roundtrip:
+                generate_func(str(input_file), params)
+                got_desc = self.generate_data_desc()
+            else:
+                generate_func(str(input_file), params, params_export)
+                output_file = os.path.join(os.path.join(self.input_dir, "out"), os.path.basename(input_file))
+                got_desc = self.generate_data_desc(output_file)
+
         except RuntimeError as ex:
             got_desc = f"Error during import: {ex}"
 
@@ -908,8 +936,8 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
                 self.updated_list.append(input_basename)
         else:
             # compare result with expected reference
-            self._add_test_result(input_basename, got_desc, ref_desc)
-            if ref_desc == got_desc:
+            result = self._add_test_result(input_basename, got_desc, ref_desc)
+            if result:
                 self.passed_list.append(input_basename)
             else:
                 self.failed_list.append(input_basename)
