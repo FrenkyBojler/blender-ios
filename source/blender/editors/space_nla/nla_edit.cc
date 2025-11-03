@@ -45,6 +45,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 #include "UI_view2d.hh"
@@ -2249,6 +2250,11 @@ static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*
         strip->actstart = start;
         strip->actend = end;
 
+        /* We have to update the action itself. Tagging the bAnimListElem will just update the ID
+         * owning the NLA, not the action itself. This may be a bug of ANIM_animdata_update but so
+         * far no other operator had issues with this so for this 5.0 fix I (Christoph) kept the
+         * scope of the change small. */
+        DEG_id_tag_update(&strip->act->id, ID_RECALC_ANIMATION);
         ale->update |= ANIM_UPDATE_DEPS;
       }
     }
