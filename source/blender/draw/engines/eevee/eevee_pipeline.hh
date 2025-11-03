@@ -157,11 +157,20 @@ class ForwardPipeline {
   PassSortable transparent_ps_ = {"Forward.Transparent"};
   float3 camera_forward_;
 
+  /* Used when there is no feedback radiance buffer. */
+  Texture dummy_black = {"dummy_black"};
+
   bool has_opaque_ = false;
   bool has_transparent_ = false;
+  gpu::Texture *radiance_behind_tx_ = nullptr;
 
  public:
-  ForwardPipeline(Instance &inst) : inst_(inst) {};
+  ForwardPipeline(Instance &inst) : inst_(inst)
+  {
+    float4 data(0.0f);
+    dummy_black.ensure_2d(
+        gpu::TextureFormat::SFLOAT_16_16_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, data);
+  };
 
   void sync();
 
@@ -198,6 +207,8 @@ struct DeferredLayerBase {
   PassMain::Sub *gbuffer_double_sided_hybrid_ps_ = nullptr;
   PassMain::Sub *gbuffer_single_sided_ps_ = nullptr;
   PassMain::Sub *gbuffer_double_sided_ps_ = nullptr;
+
+  gpu::Texture *radiance_behind_tx_ = nullptr;
 
   /* Closures bits from the materials in this pass. */
   eClosureBits closure_bits_ = CLOSURE_NONE;
@@ -544,8 +555,16 @@ class DeferredProbePipeline {
 
   PassSimple eval_light_ps_ = {"EvalLights"};
 
+  /* Used when there is no feedback radiance buffer. */
+  Texture dummy_black = {"dummy_black"};
+
  public:
-  DeferredProbePipeline(Instance &inst) : inst_(inst) {};
+  DeferredProbePipeline(Instance &inst) : inst_(inst)
+  {
+    float4 data(0.0f);
+    dummy_black.ensure_2d(
+        gpu::TextureFormat::SFLOAT_16_16_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, data);
+  }
 
   void begin_sync();
   void end_sync();

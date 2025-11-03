@@ -145,9 +145,9 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_gbuffer_data)
 DEFINE("GBUFFER_LOAD")
-SAMPLER(12, usampler2DArray, gbuf_header_tx)
-SAMPLER(13, sampler2DArray, gbuf_closure_tx)
-SAMPLER(14, sampler2DArray, gbuf_normal_tx)
+SAMPLER(13, usampler2DArray, gbuf_header_tx)
+SAMPLER(14, sampler2DArray, gbuf_closure_tx)
+SAMPLER(15, sampler2DArray, gbuf_normal_tx)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_render_pass_out)

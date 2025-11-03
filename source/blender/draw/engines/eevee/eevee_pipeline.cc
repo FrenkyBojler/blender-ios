@@ -318,6 +318,7 @@ void ForwardPipeline::sync()
     {
       /* Common resources. */
       opaque_ps_.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
+      opaque_ps_.bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
       opaque_ps_.bind_resources(inst_.uniform_data);
       opaque_ps_.bind_resources(inst_.lights);
       opaque_ps_.bind_resources(inst_.shadows);
@@ -346,6 +347,7 @@ void ForwardPipeline::sync()
 
     /* Textures. */
     sub.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
+    sub.bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
 
     sub.bind_resources(inst_.uniform_data);
     sub.bind_resources(inst_.lights);
@@ -437,6 +439,8 @@ void ForwardPipeline::render(View &view,
     return;
   }
 
+  radiance_behind_tx_ = dummy_black;
+
   GPU_debug_group_begin("Forward.Opaque");
 
   prepass_fb.bind();
@@ -500,24 +504,32 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
   gbuffer_ps_.bind_resources(inst.shadows);
   gbuffer_ps_.bind_resources(inst.sphere_probes);
   gbuffer_ps_.bind_resources(inst.volume_probes);
+  gbuffer_ps_.bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
 
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_WRITE_STENCIL |
                    DRW_STATE_CLIP_CONTROL_UNIT_RANGE | DRW_STATE_STENCIL_ALWAYS;
 
   gbuffer_single_sided_hybrid_ps_ = &gbuffer_ps_.sub("DoubleSided");
+  gbuffer_single_sided_hybrid_ps_->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT,
+                                                &radiance_behind_tx_);
   gbuffer_single_sided_hybrid_ps_->state_set(state | DRW_STATE_CULL_BACK);
 
   gbuffer_double_sided_hybrid_ps_ = &gbuffer_ps_.sub("SingleSided");
+  gbuffer_double_sided_hybrid_ps_->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT,
+                                                &radiance_behind_tx_);
   gbuffer_double_sided_hybrid_ps_->state_set(state);
 
   gbuffer_double_sided_ps_ = &gbuffer_ps_.sub("DoubleSided");
+  gbuffer_double_sided_ps_->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
   gbuffer_double_sided_ps_->state_set(state);
 
   gbuffer_single_sided_ps_ = &gbuffer_ps_.sub("SingleSided");
+  gbuffer_single_sided_ps_->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
   gbuffer_single_sided_ps_->state_set(state | DRW_STATE_CULL_BACK);
 
   closure_bits_ = CLOSURE_NONE;
   closure_count_ = 0;
+  radiance_behind_tx_ = nullptr;
 }
 
 void DeferredLayer::begin_sync()
@@ -843,6 +855,8 @@ gpu::Texture *DeferredLayer::render(View &main_view,
   if (closure_count_ == 0) {
     return nullptr;
   }
+
+  radiance_behind_tx_ = radiance_behind_tx ? radiance_behind_tx : dummy_black;
 
   RenderBuffers &rb = inst_.render_buffers;
 
@@ -1360,6 +1374,8 @@ void DeferredProbePipeline::render(View &view,
                                    int2 extent)
 {
   GPU_debug_group_begin("Probe.Render");
+
+  opaque_layer_.radiance_behind_tx_ = dummy_black;
 
   GPU_framebuffer_bind(prepass_fb);
   inst_.manager->submit(opaque_layer_.prepass_ps_, view);
