@@ -17,7 +17,7 @@ import pathlib
 from . import global_report
 from io import StringIO
 from mathutils import Matrix
-from typing import Callable
+from typing import Callable, Optional
 
 
 def fmtf(f: float) -> str:
@@ -865,7 +865,7 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
         return text
 
     def generate_and_check(self, input_file: pathlib.Path, generate_func: Callable[[
-            str, dict], None], roundtrip: bool = None) -> bool:
+            str, dict], None], expected_filename: Optional[str] = None) -> bool:
         """
         Imports a single file using the provided import function, and
         checks whether it matches with expected template, returns
@@ -909,16 +909,15 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
             except:
                 pass
 
-        # Generate (import or round-trip)
+        # Generate (import, export or round-trip)
         try:
-            if not roundtrip:
+            if not expected_filename:
                 generate_func(str(input_file), params)
                 got_desc = self.generate_data_desc()
             else:
                 generate_func(str(input_file), params, params_export)
-                output_file = os.path.join(os.path.join(self.input_dir, "out"), os.path.basename(input_file))
+                output_file = os.path.join(os.path.join(self.input_dir, "out"), expected_filename)
                 got_desc = self.generate_data_desc(output_file)
-
         except RuntimeError as ex:
             got_desc = f"Error during import: {ex}"
 

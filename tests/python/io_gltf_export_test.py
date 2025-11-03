@@ -16,32 +16,33 @@ from io_gltf_utils import gltf_generate_descr
 args = None
 
 
-def do_gltf_roundtrip(filepath, params_import, params_export):
-    bpy.ops.import_scene.gltf(filepath=filepath, **params_import)
+def do_gltf_export(filepath, params_import, params_export):
+    bpy.ops.wm.open_mainfile(filepath=str(filepath))
     bpy.ops.export_scene.gltf(
         filepath=join(
             join(
                 dirname(filepath),
                 "out"),
-            basename(filepath)),
+            pathlib.Path(basename(filepath)).with_suffix('.gltf').name),
+        export_format='GLTF_SEPARATE',
         **params_export)
 
 
-class GLTFRoundtripTest(unittest.TestCase):
+class GLTFExportTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.testdir = args.testdir
         cls.output_dir = args.outdir
 
-    def test_roundtrip_gltf(self):
-        input_files = sorted(pathlib.Path(self.testdir).glob("*.gltf"))
+    def test_export_gltf(self):
+        input_files = sorted(pathlib.Path(self.testdir).glob("*.blend"))
         self.passed_tests = []
         self.failed_tests = []
         self.updated_tests = []
 
         from modules import io_report
         report = io_report.Report(
-            "glTF Roundtrip",
+            "glTF Export",
             self.output_dir,
             self.testdir,
             self.testdir.joinpath("reference"),
@@ -54,7 +55,7 @@ class GLTFRoundtripTest(unittest.TestCase):
                     input_file,
                     lambda filepath,
                     params_import,
-                    params_export: do_gltf_roundtrip(
+                    params_export: do_gltf_export(
                         filepath,
                         params_import,
                         params_export),
