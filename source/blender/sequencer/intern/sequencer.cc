@@ -563,8 +563,8 @@ static Strip *strip_duplicate(Main *bmain,
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
     if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->clip != nullptr) {
       MovieClip *clip_old = strip_new->clip;
-      strip_new->clip = reinterpret_cast<MovieClip *>(
-          BKE_id_copy(bmain, reinterpret_cast<ID *>(clip_old)));
+      strip_new->clip = reinterpret_cast<MovieClip *>(BKE_id_copy_for_duplicate(
+          bmain, reinterpret_cast<ID *>(clip_old), USER_DUP_LINKED_ID, LIB_ID_COPY_DEFAULT));
       if (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) {
         id_us_min(&strip_new->clip->id);
       }
@@ -573,8 +573,8 @@ static Strip *strip_duplicate(Main *bmain,
   else if (strip->type == STRIP_TYPE_MASK) {
     if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->mask != nullptr) {
       Mask *mask_old = strip_new->mask;
-      strip_new->mask = reinterpret_cast<Mask *>(
-          BKE_id_copy(bmain, reinterpret_cast<ID *>(mask_old)));
+      strip_new->mask = reinterpret_cast<Mask *>(BKE_id_copy_for_duplicate(
+          bmain, reinterpret_cast<ID *>(mask_old), USER_DUP_LINKED_ID, LIB_ID_COPY_DEFAULT));
       if (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) {
         id_us_min(&strip_new->mask->id);
       }
