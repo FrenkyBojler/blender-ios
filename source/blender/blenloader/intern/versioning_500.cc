@@ -3130,7 +3130,13 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       node_remove_link(node_tree, *vector_input_link);
     }
     else {
-      // todo(habib): unconnected 'Vector' input defaults to "Generated Coordinates"
+      bNode *position = node_add_node(nullptr, *node_tree, "GeometryNodeInputPosition");
+      copy_v2_v2(position->location, node->location);
+      version_node_add_link(*node_tree,
+                            *position,
+                            *node_find_socket(*position, SOCK_OUT, "Position"),
+                            *separateXYZ,
+                            *node_find_socket(*separateXYZ, SOCK_IN, "Vector"));
     }
 
     node_tree_set_type(*node_tree);
