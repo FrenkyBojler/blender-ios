@@ -381,8 +381,7 @@ struct uiButSearch : public uiBut {
   void *item_active = nullptr;
   char *item_active_str;
 
-  void *arg = nullptr;
-  uiFreeArgFunc arg_free_fn = nullptr;
+  std::shared_ptr<void> arg = nullptr;
 
   uiButSearchContextMenuFn item_context_menu_fn = nullptr;
   uiButSearchTooltipFn item_tooltip_fn = nullptr;

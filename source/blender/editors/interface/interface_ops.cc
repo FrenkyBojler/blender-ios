@@ -1949,7 +1949,8 @@ static bool jump_to_target_button(bContext *C, bool poll)
                                                                            nullptr;
 
       if (search_but && search_but->items_update_fn == ui_rna_collection_search_update_fn) {
-        uiRNACollectionSearch *coll_search = static_cast<uiRNACollectionSearch *>(search_but->arg);
+        uiRNACollectionSearch *coll_search = static_cast<uiRNACollectionSearch *>(
+            search_but->arg.get());
 
         char str_buf[MAXBONENAME];
         char *str_ptr = RNA_property_string_get_alloc(

@@ -396,7 +396,7 @@ static ARegion *wm_searchbox_tooltip_init(
       ui_searchbox_butrect(&rect, data, data->active);
 
       return search_but->item_tooltip_fn(
-          C, region, &rect, search_but->arg, search_but->item_active);
+          C, region, &rect, search_but->arg.get(), search_but->item_active);
     }
   }
   return nullptr;
@@ -441,7 +441,7 @@ bool ui_searchbox_event(
             {
 
               void *active = data->items.pointers[data->active];
-              if (search_but->item_context_menu_fn(C, search_but->arg, active, event)) {
+              if (search_but->item_context_menu_fn(C, search_but->arg.get(), active, event)) {
                 handled = true;
               }
             }
@@ -515,7 +515,7 @@ static void ui_searchbox_update_fn(bContext *C,
     WM_tooltip_clear(C, win);
   }
   const bool is_first_search = !but->changed;
-  but->items_update_fn(C, but->arg, str, items, is_first_search);
+  but->items_update_fn(C, but->arg.get(), str, items, is_first_search);
 }
 
 void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool reset)
@@ -990,7 +990,7 @@ static ARegion *ui_searchbox_create_generic_ex(bContext *C,
 
   /* Create search-box data. */
   uiSearchboxData *data = MEM_callocN<uiSearchboxData>(__func__);
-  data->search_arg = but->arg;
+  data->search_arg = but->arg.get();
   data->search_but = but;
   data->butregion = butregion;
   data->size_set = false;

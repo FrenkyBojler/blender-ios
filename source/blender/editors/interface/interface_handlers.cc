@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <variant>
 
 #include "MEM_guardedalloc.h"
@@ -531,8 +532,7 @@ struct uiAfterFunc {
   PointerRNA rnapoin;
   PropertyRNA *rnaprop;
 
-  void *search_arg;
-  uiFreeArgFunc search_arg_free_fn;
+  std::shared_ptr<void> search_arg;
 
   uiBlockInteraction_CallbackData custom_interaction_callbacks;
   uiBlockInteraction_Handle *custom_interaction_handle;
@@ -972,10 +972,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
 
   if (but->type == ButType::SearchMenu) {
     uiButSearch *search_but = (uiButSearch *)but;
-    after->search_arg_free_fn = search_but->arg_free_fn;
     after->search_arg = search_but->arg;
-    search_but->arg_free_fn = nullptr;
-    search_but->arg = nullptr;
   }
 
   if (but->active != nullptr) {
@@ -1182,10 +1179,6 @@ static void ui_apply_but_funcs_after(bContext *C)
     }
     if (after.rename_orig) {
       MEM_freeN(after.rename_orig);
-    }
-
-    if (after.search_arg_free_fn) {
-      after.search_arg_free_fn(after.search_arg);
     }
 
     if (after.custom_interaction_handle != nullptr) {
