@@ -171,7 +171,8 @@ void AbstractView::filter(std::optional<StringRef> filter_str)
     item.is_filtered_visible_ = is_empty ||
                                 item.should_be_filtered_visible(StringRefNull(*filter_str));
 
-    if (item.is_filtered_visible_) {
+    if (!is_empty && item.is_filtered_visible_) {
+      /* Don't force parent elements to be visible when search string is not empty. */
       item.on_filter_change();
     }
 
