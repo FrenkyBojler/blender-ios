@@ -145,6 +145,7 @@ def animdata_get_channelbag_for_assigned_slot(anim_data) -> ActionChannelbag:
         return None
     return action_get_channelbag_for_slot(anim_data.action, anim_data.action_slot)
 
+
 def bake_action(
         obj,
         *,
