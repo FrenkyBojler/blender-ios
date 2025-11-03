@@ -1943,7 +1943,7 @@ static wmOperatorStatus wm_xr_viewfinder_cycle_action_exec(bContext *C, wmOperat
 
   const bool cycle_left = RNA_boolean_get(op->ptr, "cycle_left");
   const int incr = cycle_left ? -1 : 1;
-  *active_action_prop = (*active_action_prop + incr) % enum_length;
+  *active_action_prop = mod_i(*active_action_prop + incr, enum_length);
 
   return OPERATOR_FINISHED;
 }
