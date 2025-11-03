@@ -56,7 +56,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
