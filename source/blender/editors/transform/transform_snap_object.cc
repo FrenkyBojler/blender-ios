@@ -1590,6 +1590,15 @@ bool object_project_all_view3d_ex(SnapObjectContext *sctx,
       sctx, depsgraph, v3d, params, ray_start, ray_normal, ray_depth, sort, r_hit_list);
 }
 
+void snap_object_context_clear(SnapObjectContext *sctx)
+{
+  if (sctx == nullptr) {
+    return;
+  }
+  /* Clear all cached snap data. */
+  sctx->editmesh_caches.clear();
+}
+
 #ifdef DEBUG_SNAP_TIME
 void ED_transform_snap_object_time_average_print()
 {

@@ -210,6 +210,8 @@ bool object_project_all_view3d_ex(SnapObjectContext *sctx,
                                   bool sort,
                                   ListBase *r_hit_list);
 
+void snap_object_context_clear(SnapObjectContext *sctx);
+
 #ifdef DEBUG_SNAP_TIME
 void ED_transform_snap_object_time_average_print();
 #else
