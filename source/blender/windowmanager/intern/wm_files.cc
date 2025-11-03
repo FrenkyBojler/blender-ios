@@ -86,7 +86,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_undo_system.hh"
 #include "BKE_workspace.hh"
 
@@ -503,7 +503,7 @@ static void wm_gpu_backend_override_from_userdef()
     return;
   }
 
-  GPU_backend_type_selection_set_override(eGPUBackendType(U.gpu_backend));
+  GPU_backend_type_selection_set_override(GPUBackendType(U.gpu_backend));
 }
 
 /**
@@ -1041,6 +1041,14 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
 
   BLI_linklist_free(bf_reports->resynced_lib_overrides_libraries, nullptr);
   bf_reports->resynced_lib_overrides_libraries = nullptr;
+
+  if (bf_reports->pre_animato_file_loaded) {
+    BKE_report(
+        bf_reports->reports,
+        RPT_WARNING,
+        "Loaded a pre-2.50 blend file, animation data has not been loaded. Open & save the file "
+        "with Blender v4.5 to convert animation data.");
+  }
 }
 
 bool WM_file_read(bContext *C,
@@ -2311,8 +2319,12 @@ static void wm_autosave_location(char filepath[FILE_MAX])
 
 static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
 {
-  char filepath[FILE_MAX];
+  if (wm->file_saved) {
+    /* When file is already saved, skip creating an auto-save file, see: #146003 */
+    return true;
+  }
 
+  char filepath[FILE_MAX];
   wm_autosave_location(filepath);
 
   /* Technically, we could always just save here, but that would cause performance regressions
@@ -4386,6 +4398,9 @@ static void file_overwrite_detailed_info_show(uiLayout *parent_layout, Main *bma
   }
 
   if (bmain->colorspace.is_missing_opencolorio_config) {
+    if (bmain->is_asset_edit_file || bmain->has_forward_compatibility_issues) {
+      layout->separator(1.4f);
+    }
     layout->label(
         RPT_("Displays, views or color spaces in this file were missing and have been changed."),
         ICON_NONE);
@@ -4716,7 +4731,8 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  uiLayout *layout = uiItemsAlertBox(block, 34, ALERT_ICON_QUESTION);
+  uiLayout *layout = uiItemsAlertBox(
+      block, (bmain->colorspace.is_missing_opencolorio_config) ? 44 : 34, ALERT_ICON_QUESTION);
 
   const bool needs_overwrite_confirm = BKE_main_needs_overwrite_confirm(bmain);
 
@@ -4774,7 +4790,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
   /* Modified Images Checkbox. */
   if (modified_images_count > 0) {
     char message[64];
-    SNPRINTF(message, "Save %u modified image(s)", modified_images_count);
+    SNPRINTF(message, RPT_("Save %u modified image(s)"), modified_images_count);
     /* Only the first checkbox should get extra separation. */
     if (!has_extra_checkboxes) {
       layout->separator();
