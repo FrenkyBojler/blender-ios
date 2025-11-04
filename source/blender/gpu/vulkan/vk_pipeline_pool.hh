@@ -60,12 +60,25 @@ struct VKGraphicsInfo {
 
     bool operator==(const VertexIn &other) const
     {
-      /* TODO: use an exact implementation and remove the hash compare. */
-#if 0
-      return vk_topology == other.vk_topology && attributes.hash() == other.attributes.hash() &&
-             bindings.hash() == other.bindings.hash();
-#endif
-      return hash() == other.hash();
+      if (vk_topology != other.vk_topology || attributes.size() != other.attributes.size() ||
+          bindings.size() != other.bindings.size())
+      {
+        return false;
+      }
+      if (memcmp(attributes.data(),
+                 other.attributes.data(),
+                 attributes.size() * sizeof(VkVertexInputAttributeDescription)) != 0)
+      {
+        return false;
+      }
+      if (memcmp(bindings.data(),
+                 other.bindings.data(),
+                 bindings.size() * sizeof(VkVertexInputBindingDescription)) != 0)
+      {
+        return false;
+      }
+
+      return true;
     }
 
     uint64_t hash() const
@@ -89,8 +102,7 @@ struct VKGraphicsInfo {
     }
     uint64_t hash() const
     {
-      uint64_t hash = 0;
-      hash = hash * 33 ^ uint64_t(vk_vertex_module);
+      uint64_t hash = uint64_t(vk_vertex_module);
       hash = hash * 33 ^ uint64_t(vk_geometry_module);
       return hash;
     }
@@ -126,24 +138,20 @@ struct VKGraphicsInfo {
 
     bool operator==(const FragmentOut &other) const
     {
-#if 1
-      return hash() == other.hash();
-#else
       if (depth_attachment_format != other.depth_attachment_format ||
           stencil_attachment_format != other.stencil_attachment_format ||
-          color_attachment_formats.size() != other.color_attachment_formats.size())
+          color_attachment_size != other.color_attachment_size)
       {
         return false;
       }
 
       if (memcmp(color_attachment_formats.data(),
                  other.color_attachment_formats.data(),
-                 color_attachment_formats.size() * sizeof(VkFormat)) == 0)
+                 color_attachment_size * sizeof(VkFormat)) != 0)
       {
         return false;
       }
       return true;
-#endif
     }
 
     uint64_t hash() const
@@ -151,7 +159,7 @@ struct VKGraphicsInfo {
       uint64_t hash = uint64_t(depth_attachment_format);
       hash = hash * 33 ^ uint64_t(stencil_attachment_format);
       hash = hash * 33 ^ XXH3_64bits(color_attachment_formats.data(),
-                                     color_attachment_formats.size() * sizeof(VkFormat));
+                                     color_attachment_size * sizeof(VkFormat));
       return hash;
     }
   };
@@ -168,11 +176,28 @@ struct VKGraphicsInfo {
 
   bool operator==(const VKGraphicsInfo &other) const
   {
-    return vertex_in == other.vertex_in && pre_rasterization == other.pre_rasterization &&
-           fragment_shader == other.fragment_shader && fragment_out == other.fragment_out &&
-           vk_pipeline_layout == other.vk_pipeline_layout &&
-           specialization_constants == other.specialization_constants && state == other.state &&
-           mutable_state == other.mutable_state;
+    if (vk_pipeline_layout != other.vk_pipeline_layout || state.data != other.state.data ||
+        mutable_state.data[0] != other.mutable_state.data[0] ||
+        mutable_state.data[1] != other.mutable_state.data[1] ||
+        mutable_state.data[2] != other.mutable_state.data[2])
+    {
+      return false;
+    }
+
+    if (!(vertex_in == other.vertex_in && pre_rasterization == other.pre_rasterization &&
+          fragment_shader == other.fragment_shader && fragment_out == other.fragment_out))
+    {
+      return false;
+    }
+
+    if (specialization_constants.size() != other.specialization_constants.size() ||
+        memcmp(specialization_constants.data(),
+               other.specialization_constants.data(),
+               specialization_constants.size() != 0))
+    {
+      return false;
+    }
+    return true;
   };
   uint64_t hash() const
   {
@@ -228,12 +253,24 @@ template<typename PipelineInfo> class VKPipelineMap {
           do_wait_for_pipeline = true;
         }
         else {
+#ifndef NDEBUG
+          const PipelineInfo &stored_key = pipelines_.lookup_key(pipeline_info);
+          BLI_assert(stored_key == pipeline_info);
+#endif
           /* Early exit: pipeline_info found and has a valid pipeline. */
           return *found_pipeline;
         }
       }
       else {
+#ifndef NDEBUG
+        bool added = pipelines_.add(pipeline_info, VK_NULL_HANDLE);
+        BLI_assert(added);
+        found_pipeline = pipelines_.lookup_ptr(pipeline_info);
+        BLI_assert(found_pipeline);
+#else
         pipelines_.add_new(pipeline_info, VK_NULL_HANDLE);
+#endif
+
         do_compile_pipeline = true;
       }
     }
@@ -245,8 +282,9 @@ template<typename PipelineInfo> class VKPipelineMap {
       /* Store result in the compute pipelines map. */
       {
         std::scoped_lock lock(mutex_);
-        VkPipeline &pipeline_item = pipelines_.lookup(pipeline_info);
-        pipeline_item = pipeline;
+        VkPipeline *pipeline_item = pipelines_.lookup_ptr(pipeline_info);
+        BLI_assert(pipeline_item != nullptr);
+        *pipeline_item = pipeline;
       }
       /* Notify other threads that a new pipeline is available. */
       {
