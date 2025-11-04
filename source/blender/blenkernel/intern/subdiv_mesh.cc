@@ -216,6 +216,9 @@ static void subdiv_mesh_prepare_accumulator(SubdivMeshContext *ctx, int num_vert
   if (!ctx->have_displacement) {
     return;
   }
+  /* #subdiv_accumulate_vert_displacement requires zero initialization of positions so the
+   * displacements can be accumulated into the array from a per-vertex-per-corner/edge callback. */
+  ctx->subdiv_positions.fill(float3(0));
   ctx->accumulated_counters = MEM_calloc_arrayN<int>(num_vertices, __func__);
 }
 
@@ -746,9 +749,8 @@ static void subdiv_accumulate_vert_displacement(SubdivMeshContext *ctx,
   float3 D;
   eval_limit_point_and_derivatives(subdiv, ptex_face_index, u, v, dummy_P, dPdu, dPdv);
 
-  /* NOTE: This is the first function that processes positions, so values must be initialized. */
   eval_displacement(subdiv, ptex_face_index, u, v, dPdu, dPdv, D);
-  ctx->subdiv_positions[subdiv_vert_index] = D;
+  ctx->subdiv_positions[subdiv_vert_index] += D;
 
   if (ctx->accumulated_counters) {
     ++ctx->accumulated_counters[subdiv_vert_index];
