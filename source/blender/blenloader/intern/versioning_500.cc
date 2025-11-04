@@ -2975,23 +2975,23 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
     bNodeSocket *color_output = node_find_socket(*node, SOCK_OUT, "Color");
     bNodeSocket *vector_input = node_find_socket(*node, SOCK_IN, "Vector");
 
-    bNodeLink *factor_output_link = nullptr;
-    bNodeLink *color_output_link = nullptr;
+    bool is_factor_output_linked = false;
+    bool is_color_output_linked = false;
     bNodeLink *vector_input_link = nullptr;
 
     LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
       if (link->fromsock == factor_output) {
-        factor_output_link = link;
+        is_factor_output_linked = true;
       }
       else if (link->fromsock == color_output) {
-        color_output_link = link;
+        is_color_output_linked = true;
       }
       else if (link->tosock == vector_input) {
         vector_input_link = link;
       }
     }
 
-    if (!factor_output_link && !color_output_link) {
+    if (!is_factor_output_linked && !is_color_output_linked) {
       /* Node is not linked, nothing to do. */
       continue;
     }
@@ -3097,16 +3097,18 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       }
     }
 
-    if (factor_output_link) {
-      version_node_add_link(*node_tree,
-                            *gradient_node,
-                            *gradient_socket,
-                            *factor_output_link->tonode,
-                            *factor_output_link->tosock);
-      node_remove_link(node_tree, *factor_output_link);
+    if (is_factor_output_linked) {
+      /* Output socket can be connected to multiple nodes, so consider all links. */
+      LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &node_tree->links) {
+        if (link->fromsock == factor_output) {
+          version_node_add_link(
+              *node_tree, *gradient_node, *gradient_socket, *link->tonode, *link->tosock);
+          node_remove_link(node_tree, *link);
+        }
+      }
     }
 
-    if (color_output_link) {
+    if (is_color_output_linked) {
       bNode &combine = version_node_add_empty(*node_tree, "FunctionNodeCombineColor");
       bNodeSocket &combine_red = version_node_add_socket(
           *node_tree, combine, SOCK_IN, "NodeSocketFloat", "Red");
@@ -3132,12 +3134,12 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
 
       static_cast<bNodeSocketValueFloat *>(combine_alpha.default_value)->value = 1.0f;
 
-      version_node_add_link(*node_tree,
-                            combine,
-                            combine_output,
-                            *color_output_link->tonode,
-                            *color_output_link->tosock);
-      node_remove_link(node_tree, *color_output_link);
+      LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &node_tree->links) {
+        if (link->fromsock == color_output) {
+          version_node_add_link(*node_tree, combine, combine_output, *link->tonode, *link->tosock);
+          node_remove_link(node_tree, *link);
+        }
+      }
 
       gradient_node = &combine;
       gradient_socket = &combine_output;
@@ -3152,6 +3154,8 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       node_remove_link(node_tree, *vector_input_link);
     }
     else {
+      /* Gradient texture's input in geometry nodes defaults to using Input Positon if it's not
+       * connected. */
       bNode *position = node_add_node(nullptr, *node_tree, "GeometryNodeInputPosition");
       copy_v2_v2(position->location, node->location);
       version_node_add_link(*node_tree,
