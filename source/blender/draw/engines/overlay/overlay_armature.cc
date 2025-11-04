@@ -976,9 +976,6 @@ static void draw_bone_update_disp_matrix_default(UnifiedBonePtr bone)
                bke::bone_axis_vector_roll(0),
                bke::bone_axis_vector_roll(1),
                bke::bone_axis_vector_roll(2));
-  printf("\033[38;5;214mdraw_bone_update_disp_matrix_default:\033[0m\n");
-  print_m4("disp_mat", disp_mat);
-  print_m4("disp_tail_mat", disp_tail_mat);
 }
 
 static void draw_bone_update_disp_matrix_custom_shape(UnifiedBonePtr bone)

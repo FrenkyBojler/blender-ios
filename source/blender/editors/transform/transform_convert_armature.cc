@@ -21,6 +21,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
+#include "BKE_armature_axes.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_report.hh"
@@ -1106,11 +1107,11 @@ static void recalcData_edit_armature(TransInfo *t)
             ebo->roll = td->ival;
           }
           else {
-            copy_v3_v3(up_axis, td->axismtx[2]);
+            copy_v3_v3(up_axis, td->axismtx[bke::BONE_AXIS_SECONDARY]);
 
             sub_v3_v3v3(vec, ebo->tail, ebo->head);
             normalize_v3(vec);
-            rotation_between_vecs_to_quat(qrot, td->axismtx[1], vec);
+            rotation_between_vecs_to_quat(qrot, td->axismtx[bke::BONE_AXIS_ROLL], vec);
             mul_qt_v3(qrot, up_axis);
 
             /* Roll has a tendency to flip in certain orientations - #34283, #33974. */

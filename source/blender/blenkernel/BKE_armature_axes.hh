@@ -14,8 +14,8 @@
  */
 
 namespace blender::bke {
-constexpr uint8_t BONE_AXIS_MAIN = 0;       // not yet used
-constexpr uint8_t BONE_AXIS_SECONDARY = 2;  // not yet used
+constexpr uint8_t BONE_AXIS_MAIN = 0;
+constexpr uint8_t BONE_AXIS_SECONDARY = 1;
 constexpr uint8_t BONE_AXIS_ROLL = 2;
 
 /**

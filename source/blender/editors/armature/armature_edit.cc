@@ -23,6 +23,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
+#include "BKE_armature_axes.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
@@ -213,14 +214,14 @@ float ED_armature_ebone_roll_to_vector(const EditBone *bone,
   sub_v3_v3v3(align_axis_proj, align_axis, vec);
 
   if (axis_only) {
-    if (angle_v3v3(align_axis_proj, mat[2]) > float(M_PI_2)) {
+    if (angle_v3v3(align_axis_proj, mat[blender::bke::BONE_AXIS_SECONDARY]) > float(M_PI_2)) {
       negate_v3(align_axis_proj);
     }
   }
 
-  roll = angle_v3v3(align_axis_proj, mat[2]);
+  roll = angle_v3v3(align_axis_proj, mat[blender::bke::BONE_AXIS_SECONDARY]);
 
-  cross_v3_v3v3(vec, mat[2], align_axis_proj);
+  cross_v3_v3v3(vec, mat[blender::bke::BONE_AXIS_SECONDARY], align_axis_proj);
 
   if (dot_v3v3(vec, nor) < 0.0f) {
     return -roll;
