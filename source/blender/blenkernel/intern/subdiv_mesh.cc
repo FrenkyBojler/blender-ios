@@ -318,6 +318,18 @@ static void mix_attrs(const Span<GSpan> src,
   }
 }
 
+template<typename T>
+static T mix_attr(const Span<T> src, const Span<int> src_indices, const Span<float> weights)
+{
+  T dst;
+  attribute_math::DefaultMixer<T> mixer({&dst, 1});
+  for (const int i : src_indices.index_range()) {
+    mixer.mix_in(0, src[src_indices[i]], weights[i]);
+  }
+  mixer.finalize();
+  return dst;
+}
+
 static void mix_attrs(const Span<GSpan> src,
                       const Span<int> src_indices,
                       const Span<float> weights,
@@ -329,11 +341,7 @@ static void mix_attrs(const Span<GSpan> src,
       using T = decltype(dummy);
       const Span<T> src_attr = src[attr].typed<T>();
       MutableSpan<T> dst_attr = dst[attr].typed<T>();
-      attribute_math::DefaultMixer<T> mixer({&dst_attr[dst_index], 1});
-      for (const int i : src_indices.index_range()) {
-        mixer.mix_in(0, src_attr[src_indices[i]], weights[i]);
-      }
-      mixer.finalize();
+      dst_attr[dst_index] = mix_attr(src_attr, src_indices, weights);
     });
   }
 }
@@ -505,6 +513,7 @@ struct LoopsForInterpolation {
    * we can simply interpolate corner vertices. */
   Span<GSpan> corner_data;
   Span<float3> CD_NORMAL_data;
+  Span<float2> CD_ORIGSPACE_MLOOP_data;
   /* Loops data calculated for ptex corners. There are always 4 elements
    * in this custom data, aligned the following way:
    *
@@ -516,6 +525,7 @@ struct LoopsForInterpolation {
    * Is allocated for non-regular faces (triangles and n-gons). */
   Array<GSpan> storage_spans;
   std::array<float3, 4> CD_NORMAL_storage;
+  std::array<float2, 4> CD_ORIGSPACE_MLOOP_storage;
 
   /* Indices within corner_data to interpolate for. The indices are aligned with
    * uv coordinates in a similar way as indices in corner_data_storage. */
@@ -544,6 +554,7 @@ static void loop_interpolation_from_face(const SubdivMeshContext *ctx,
     loop_interpolation->loop_indices[2] = coarse_face.start() + 2;
     loop_interpolation->loop_indices[3] = coarse_face.start() + 3;
     loop_interpolation->CD_NORMAL_data = ctx->coarse_CD_NORMAL;
+    loop_interpolation->CD_ORIGSPACE_MLOOP_data = ctx->coarse_CD_ORIGSPACE_MLOOP;
   }
   else {
     loop_interpolation->corner_data = loop_interpolation->storage_spans;
@@ -551,6 +562,8 @@ static void loop_interpolation_from_face(const SubdivMeshContext *ctx,
     loop_interpolation->loop_indices[1] = 1;
     loop_interpolation->loop_indices[2] = 2;
     loop_interpolation->loop_indices[3] = 3;
+    loop_interpolation->CD_NORMAL_data = loop_interpolation->CD_NORMAL_storage;
+    loop_interpolation->CD_ORIGSPACE_MLOOP_data = loop_interpolation->CD_ORIGSPACE_MLOOP_storage;
     /* Interpolate center of face right away, it stays unchanged for all
      * ptex faces. */
     const float weight = 1.0f / float(coarse_face.size());
@@ -568,6 +581,10 @@ static void loop_interpolation_from_face(const SubdivMeshContext *ctx,
     if (!ctx->coarse_CD_NORMAL.is_empty()) {
       loop_interpolation->CD_NORMAL_storage[2] = mix_normals(
           ctx->coarse_CD_NORMAL, indices, weights.as_span());
+    }
+    if (!ctx->coarse_CD_ORIGSPACE_MLOOP.is_empty()) {
+      loop_interpolation->CD_ORIGSPACE_MLOOP_storage[2] = mix_attr(
+          ctx->coarse_CD_ORIGSPACE_MLOOP, indices, weights.as_span());
     }
   }
 }
@@ -592,6 +609,10 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
       loop_interpolation->CD_NORMAL_storage[0] =
           ctx->coarse_CD_NORMAL[coarse_face.start() + corner];
     }
+    if (!ctx->coarse_CD_NORMAL.is_empty()) {
+      loop_interpolation->CD_ORIGSPACE_MLOOP_storage[0] =
+          ctx->coarse_CD_ORIGSPACE_MLOOP[coarse_face.start() + corner];
+    }
     /* Interpolate remaining ptex face corners, which hits loops
      * middle points.
      *
@@ -612,6 +633,12 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
       loop_interpolation->CD_NORMAL_storage[1] = mix_normals(
           ctx->coarse_CD_NORMAL, first_indices, 0.5f);
     }
+    if (!ctx->coarse_CD_ORIGSPACE_MLOOP.is_empty()) {
+      loop_interpolation->CD_ORIGSPACE_MLOOP_storage[1] = attribute_math::mix2(
+          0.5f,
+          ctx->coarse_CD_ORIGSPACE_MLOOP[first_indices[0]],
+          ctx->coarse_CD_ORIGSPACE_MLOOP[first_indices[1]]);
+    }
     mix_attrs(ctx->coarse_corner_attribute_spans,
               last_indices,
               0.5f,
@@ -620,6 +647,12 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
     if (!ctx->coarse_CD_NORMAL.is_empty()) {
       loop_interpolation->CD_NORMAL_storage[3] = mix_normals(
           ctx->coarse_CD_NORMAL, last_indices, 0.5f);
+    }
+    if (!ctx->coarse_CD_ORIGSPACE_MLOOP.is_empty()) {
+      loop_interpolation->CD_ORIGSPACE_MLOOP_storage[3] = attribute_math::mix2(
+          0.5f,
+          ctx->coarse_CD_ORIGSPACE_MLOOP[last_indices[0]],
+          ctx->coarse_CD_ORIGSPACE_MLOOP[last_indices[1]]);
     }
   }
 }
@@ -819,9 +852,6 @@ static void subdiv_vert_data_copy(const SubdivMeshContext *ctx,
   if (!ctx->coarse_dverts.is_empty()) {
     BKE_defvert_array_copy(
         &ctx->subdiv_dverts[subdiv_vert_index], &ctx->coarse_dverts[coarse_vert_index], 1);
-  }
-  if (!ctx->coarse_CD_NORMAL.is_empty()) {
-    ctx->subdiv_CD_NORMAL[subdiv_vert_index] = ctx->coarse_CD_NORMAL[coarse_vert_index];
   }
 }
 
@@ -1114,6 +1144,14 @@ static void subdiv_interpolate_corner_data(const SubdivMeshContext *ctx,
   if (!ctx->coarse_CD_NORMAL.is_empty()) {
     ctx->subdiv_CD_NORMAL[subdiv_loop_index] = mix_normals(
         loop_interpolation->CD_NORMAL_data, loop_interpolation->loop_indices, weights);
+  }
+  if (!ctx->coarse_CD_ORIGSPACE_MLOOP.is_empty()) {
+    ctx->subdiv_CD_ORIGSPACE_MLOOP[subdiv_loop_index] = attribute_math::mix4(
+        weights,
+        loop_interpolation->CD_ORIGSPACE_MLOOP_data[loop_interpolation->loop_indices[0]],
+        loop_interpolation->CD_ORIGSPACE_MLOOP_data[loop_interpolation->loop_indices[1]],
+        loop_interpolation->CD_ORIGSPACE_MLOOP_data[loop_interpolation->loop_indices[2]],
+        loop_interpolation->CD_ORIGSPACE_MLOOP_data[loop_interpolation->loop_indices[3]]);
   }
 }
 
