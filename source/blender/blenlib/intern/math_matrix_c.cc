@@ -2371,19 +2371,23 @@ void loc_quat_size_to_mat4(float R[4][4],
 void print_m3(const char *str, const float m[3][3])
 {
   printf("%s\n", str);
-  printf("%f %f %f\n", m[0][0], m[1][0], m[2][0]);
-  printf("%f %f %f\n", m[0][1], m[1][1], m[2][1]);
-  printf("%f %f %f\n", m[0][2], m[1][2], m[2][2]);
+  /* Two tricks to make the output easier to read:
+   * - '% f' to print a space when the number is positive. That way the
+   *   alignment is the same for positive and negative numbers.
+   * - Adding 0.0f causes negative zero values to become non-negative. */
+  printf("% f % f % f\n", m[0][0] + 0.0f, m[1][0] + 0.0f, m[2][0] + 0.0f);
+  printf("% f % f % f\n", m[0][1] + 0.0f, m[1][1] + 0.0f, m[2][1] + 0.0f);
+  printf("% f % f % f\n", m[0][2] + 0.0f, m[1][2] + 0.0f, m[2][2] + 0.0f);
   printf("\n");
 }
 
 void print_m4(const char *str, const float m[4][4])
 {
   printf("%s\n", str);
-  printf("%f %f %f %f\n", m[0][0], m[1][0], m[2][0], m[3][0]);
-  printf("%f %f %f %f\n", m[0][1], m[1][1], m[2][1], m[3][1]);
-  printf("%f %f %f %f\n", m[0][2], m[1][2], m[2][2], m[3][2]);
-  printf("%f %f %f %f\n", m[0][3], m[1][3], m[2][3], m[3][3]);
+  printf("% f % f % f % f\n", m[0][0] + 0.0f, m[1][0] + 0.0f, m[2][0] + 0.0f, m[3][0] + 0.0f);
+  printf("% f % f % f % f\n", m[0][1] + 0.0f, m[1][1] + 0.0f, m[2][1] + 0.0f, m[3][1] + 0.0f);
+  printf("% f % f % f % f\n", m[0][2] + 0.0f, m[1][2] + 0.0f, m[2][2] + 0.0f, m[3][2] + 0.0f);
+  printf("% f % f % f % f\n", m[0][3] + 0.0f, m[1][3] + 0.0f, m[2][3] + 0.0f, m[3][3] + 0.0f);
   printf("\n");
 }
 
