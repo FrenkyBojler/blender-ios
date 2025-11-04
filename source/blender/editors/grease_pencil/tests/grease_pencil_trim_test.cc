@@ -206,31 +206,4 @@ TEST(grease_pencil_trim, trim_t_intersection)
   expect_near_positions(dst.positions(), expected_positions);
 }
 
-/* This test does not work with the current Trim algorithm. */
-#if 0
-TEST(grease_pencil_trim, trim_figure_eight)
-{
-  using namespace bke::greasepencil;
-  using namespace bke;
-
-  const Array<int2> mcoords = {{4, 2}, {4, 4}, {6, 4}, {6, 2}};
-  const Array<int> src_offsets = {0, 8};
-  const Array<bool> src_cyclic = {true};
-  const Array<float2> screen_space_positions = {{0.0f, 1.0f},
-                                                {0.0f, 3.0f},
-                                                {2.0f, 3.0f},
-                                                {3.0f, 1.0f},
-                                                {5.0f, 1.0f},
-                                                {5.0f, 3.0f},
-                                                {3.0f, 3.0f},
-                                                {2.0f, 1.0f}};
-  const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
-  const CurvesGeometry dst = trim_curve(src, screen_space_positions, mcoords, true);
-
-  const Array<float2> expected_positions = {
-      {2.5f, 2.0f}, {2.0f, 3.0f}, {0.0f, 3.0f}, {0.0f, 1.0f}, {2.0f, 1.0f}, {2.5f, 2.0f}};
-  expect_near_positions(dst.positions(), expected_positions);
-}
-#endif
-
 }  // namespace blender::ed::greasepencil::tests
