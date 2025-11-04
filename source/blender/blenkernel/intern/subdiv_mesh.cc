@@ -92,6 +92,9 @@ struct SubdivMeshContext {
   Span<float3> coarse_CD_NORMAL;
   MutableSpan<float3> subdiv_CD_NORMAL;
 
+  Span<float2> coarse_CD_ORIGSPACE_MLOOP;
+  MutableSpan<float2> subdiv_CD_ORIGSPACE_MLOOP;
+
   /* Per-subdivided vertex counter of averaged values. */
   int *accumulated_counters;
   bool have_displacement;
@@ -130,14 +133,25 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
   if (!ctx->coarse_dverts.is_empty()) {
     ctx->subdiv_dverts = subdiv_mesh->deform_verts_for_write();
   }
-  if (CustomData_has_layer(&coarse_mesh->vert_data, CD_NORMAL)) {
+  if (CustomData_has_layer(&coarse_mesh->corner_data, CD_NORMAL)) {
     ctx->coarse_CD_NORMAL = {
-        static_cast<const float3 *>(CustomData_get_layer(&coarse_mesh->vert_data, CD_NORMAL)),
-        coarse_mesh->verts_num};
+        static_cast<const float3 *>(CustomData_get_layer(&coarse_mesh->corner_data, CD_NORMAL)),
+        coarse_mesh->corners_num};
     ctx->subdiv_CD_NORMAL = {
         static_cast<float3 *>(CustomData_add_layer(
-            &subdiv_mesh->vert_data, CD_NORMAL, CD_CONSTRUCT, subdiv_mesh->verts_num)),
-        subdiv_mesh->verts_num};
+            &subdiv_mesh->corner_data, CD_NORMAL, CD_CONSTRUCT, subdiv_mesh->corners_num)),
+        subdiv_mesh->corners_num};
+  }
+  if (CustomData_has_layer(&coarse_mesh->corner_data, CD_ORIGSPACE_MLOOP)) {
+    ctx->coarse_CD_ORIGSPACE_MLOOP = {static_cast<const float2 *>(CustomData_get_layer(
+                                          &coarse_mesh->corner_data, CD_ORIGSPACE_MLOOP)),
+                                      coarse_mesh->corners_num};
+    ctx->subdiv_CD_ORIGSPACE_MLOOP = {
+        static_cast<float2 *>(CustomData_add_layer(&subdiv_mesh->corner_data,
+                                                   CD_ORIGSPACE_MLOOP,
+                                                   CD_CONSTRUCT,
+                                                   subdiv_mesh->corners_num)),
+        subdiv_mesh->corners_num};
   }
   if (CustomData_has_layer(&coarse_mesh->vert_data, CD_ORIGINDEX)) {
     ctx->coarse_vert_origindex = {
