@@ -773,15 +773,11 @@ static bool validate_mdisps(const Mesh &mesh, const bool verbose, Mesh *mesh_mut
   IndexMaskMemory memory;
   const IndexMask invalid = IndexMask::from_predicate(
       IndexRange(mesh.corners_num), GrainSize(4096), memory, [&](const int i) {
-        for (int grid_element = 0; grid_element < mdisps[i].totdisp; grid_element++) {
-          if (!std::isfinite(mdisps[i].disps[grid_element][0]) ||
-              !std::isfinite(mdisps[i].disps[grid_element][1]) ||
-              !std::isfinite(mdisps[i].disps[grid_element][2]))
-          {
-            return true;
-          }
-        }
-        return false;
+        const Span<float> disps = Span(reinterpret_cast<const float3 *>(mdisps[i].disps),
+                                       mdisps[i].totdisp)
+                                      .cast<float>();
+        return std::any_of(
+            disps.begin(), disps.end(), [&](const float &v) { return !std::isfinite(v); });
       });
 
   if (invalid.is_empty()) {
@@ -789,7 +785,7 @@ static bool validate_mdisps(const Mesh &mesh, const bool verbose, Mesh *mesh_mut
   }
 
   if (verbose) {
-    print_error_with_indices(invalid, "MDisps has invalid values");
+    print_error_with_indices(invalid, "Multires displacement has invalid values");
   }
 
   if (mesh_mut) {
@@ -797,13 +793,11 @@ static bool validate_mdisps(const Mesh &mesh, const bool verbose, Mesh *mesh_mut
             CustomData_get_layer_for_write(&mesh_mut->corner_data, CD_MDISPS, mesh.corners_num)))
     {
       invalid.foreach_index(GrainSize(512), [&](const int i) {
-        for (int grid_element = 0; grid_element < mdisps[i].totdisp; grid_element++) {
-          for (int j = 0; j < 3; j++) {
-            mdisp_mut[i].disps[grid_element][j] = std::isfinite(
-                                                      mdisp_mut[i].disps[grid_element][j]) ?
-                                                      mdisp_mut[i].disps[grid_element][j] :
-                                                      0.0f;
-          }
+        MutableSpan<float> disps = MutableSpan(reinterpret_cast<float3 *>(mdisp_mut[i].disps),
+                                               mdisp_mut[i].totdisp)
+                                       .cast<float>();
+        for (float &disp_component : disps) {
+          disp_component = std::isfinite(disp_component) ? disp_component : 0.0f;
         }
       });
     }
