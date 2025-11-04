@@ -2194,6 +2194,24 @@ void UI_block_end(const bContext *C, uiBlock *block)
                   nullptr);
 }
 
+void UI_block_end_xr(const bContext *C, uiBlock *block)
+{
+  /* Create a fake window, size comes from development when a real window was still used. */
+  wmWindow window = {};
+  window.sizex = 1600 * 2;
+  window.sizey = 900 * 2;
+
+  UI_block_end_ex(C,
+                  CTX_data_main(C),
+                  &window,
+                  CTX_data_scene(C),
+                  CTX_wm_region(C),
+                  CTX_data_depsgraph_pointer(C),
+                  block,
+                  window.eventstate->xy,
+                  nullptr);
+}
+
 /* ************** BLOCK DRAWING FUNCTION ************* */
 
 void ui_fontscale(float *points, float aspect)
@@ -2328,11 +2346,13 @@ void UI_block_draw_xr(const bContext *C, uiBlock *block)
 
   uiStyle style = *UI_style_get_dpi(); /* XXX pass on as arg */
 
-  /* get menu region or area region */
-  ARegion *region = CTX_wm_region_popup(C);
-  if (!region) {
-    region = CTX_wm_region(C);
-  }
+  /* Fake fixed region winrct size values, for drawing to not depend on the window size. Values
+   * obtained from the old region used during development. */
+  ARegion region = {};
+  region.winrct.xmin = 0;
+  region.winrct.ymin = 0;
+  region.winrct.xmax = 1680;
+  region.winrct.ymax = 1760;
 
   if (!block->endblock) {
     UI_block_end(C, block);
@@ -2357,12 +2377,12 @@ void UI_block_draw_xr(const bContext *C, uiBlock *block)
     }
 
     rcti rect;
-    ui_but_to_pixelrect(&rect, region, block, but.get());
+    ui_but_to_pixelrect(&rect, &region, block, but.get());
 
     /* XXX: figure out why invalid coordinates happen when closing render window */
     /* and material preview is redrawn in main window (temp fix for bug #23848) */
     if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
-      ui_draw_but(C, region, &style, but.get(), &rect);
+      ui_draw_but(C, &region, &style, but.get(), &rect);
     }
   }
 
@@ -3947,6 +3967,51 @@ uiBlock *UI_block_begin(const bContext *C,
     block->auto_open = true;
     block->flag |= UI_BLOCK_LOOP;
   }
+
+  return block;
+}
+
+uiBlock *UI_block_begin_xr(const bContext *C,
+                        std::string name,
+                        blender::ui::EmbossType emboss)
+{
+  uiBlock *block = MEM_new<uiBlock>(__func__);
+  block->active = true;
+  block->emboss = emboss;
+  block->evil_C = (void *)C; /* XXX */
+
+  const Scene *scene = CTX_data_scene(C);
+  if (scene) {
+    /* store display device name, don't lookup for transformations yet
+     * block could be used for non-color displays where looking up for transformation
+     * would slow down redraw, so only lookup for actual transform when it's indeed
+     * needed
+     */
+    STRNCPY_UTF8(block->display_device, scene->display_settings.display_device);
+
+    /* Copy to avoid crash when scene gets deleted with UI still open. */
+    UnitSettings *unit = MEM_callocN<UnitSettings>(__func__);
+    memcpy(unit, &scene->unit, sizeof(scene->unit));
+    block->unit = unit;
+  }
+  else {
+    STRNCPY_UTF8(block->display_device, IMB_colormanagement_display_get_default_name());
+  }
+
+  block->name = std::move(name);
+
+  /* Prevent reallocations on redraw, most of the time blocks layout will be the same. */
+  if (block->oldblock) {
+    block->buttons.reserve(block->oldblock->buttons.size());
+  }
+
+  /* Set window matrix and aspect for region and OpenGL state. */
+  /* Fake window size for XR, see #UI_block_end_xr. */
+  const blender::int2 win_size = {1600 * 2, 900 * 2};
+  const rcti winrct = {0, win_size[0] - 1, 0, win_size[1] - 1};
+
+  wmGetProjectionMatrix(block->winmat, &winrct);
+  block->aspect = 2.0f / fabsf(win_size[0] * block->winmat[0][0]);
 
   return block;
 }

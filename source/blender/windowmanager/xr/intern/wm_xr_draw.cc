@@ -475,7 +475,7 @@ static uiLayout &uiblock_prepare(uiBlock **block,
   const uiStyle *style = UI_style_get_dpi();
   const int viewfinder_width = style->widget.points * 50 * UI_SCALE_FAC;
 
-  *block = UI_block_begin(C, region, __func__, emboss);
+  *block = UI_block_begin_xr(C, __func__, emboss);
 
   UI_block_flag_enable(*block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
   UI_block_theme_style_set(*block, UI_BLOCK_THEME_STYLE_POPUP); /* Can also use REGULAR here. */
@@ -510,7 +510,7 @@ static uiBlock *viewfinder_action_label_ui_block(const bContext *C,
   // TODO: Address the small menu down arrow that can be seen on the right side
   layout.prop(&ptr, active_action_prop, UI_ITEM_R_COMPACT | UI_ITEM_R_ICON_NEVER, "", ICON_NONE);
 
-  UI_block_end(C, block);
+  UI_block_end_xr(C, block);
 
   return block;
 }
@@ -536,7 +536,7 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
   row.scale_x_set(15.0f); /* TODO: Apparently, the scale gets clamped internally at some point. */
   row.scale_y_set(1.1f);
 
-  UI_block_end(C, block);
+  UI_block_end_xr(C, block);
 
   return block;
 }
@@ -580,7 +580,7 @@ static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
 
   layout.label(settings_label.c_str(), ICON_NONE);
 
-  UI_block_end(C, block);
+  UI_block_end_xr(C, block);
 
   return block;
 }
@@ -589,7 +589,7 @@ static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
                                               ARegion *region,
                                               const XrSessionSettings *settings)
 {
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin_xr(C, __func__, blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
@@ -617,7 +617,7 @@ static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
     return settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK;
   });
 
-  UI_block_end(C, block);
+  UI_block_end_xr(C, block);
 
   return block;
 }
@@ -627,13 +627,8 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
                                                         const XrSessionSettings *settings,
                                                         const rctf viewfinder_rect)
 {
-
   /* Create a fake context to trick the UI drawing code in drawing in places it shouldn't be. */
-  // TODO: should be to use a fake region like rv3d in draw_offscreen_simple and pass it to UI_block_draw_xr
-  wmWindow *first_main_window = static_cast<wmWindow *>(CTX_wm_manager(C)->windows.first);
   bContext *fake_C = CTX_copy(C);
-  CTX_wm_window_set(fake_C, first_main_window);
-  CTX_wm_region_set(fake_C, region);
 
   using BlockFuncPtr = decltype(&viewfinder_mode_tabs_ui_block);
   const auto draw_block = [&](BlockFuncPtr block_func, float x_off, float y_off) {

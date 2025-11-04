@@ -913,6 +913,9 @@ uiBlock *UI_block_begin(const bContext *C,
                         ARegion *region,
                         std::string name,
                         blender::ui::EmbossType emboss);
+uiBlock *UI_block_begin_xr(const bContext *C,
+                           std::string name,
+                           blender::ui::EmbossType emboss);
 void UI_block_end_ex(const bContext *C,
                      Main *bmain,
                      wmWindow *window,
@@ -923,6 +926,7 @@ void UI_block_end_ex(const bContext *C,
                      const int xy[2] = nullptr,
                      int r_xy[2] = nullptr);
 void UI_block_end(const bContext *C, uiBlock *block);
+void UI_block_end_xr(const bContext *C, uiBlock *block);
 /**
  * Uses local copy of style, to scale things down, and allow widgets to change stuff.
  */
