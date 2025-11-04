@@ -95,7 +95,7 @@ def main():
             BLOCKLIST = ["test_workspace"]
         if sys.platform == "linux" and gpu_device == "INTEL" and gpu_backend == "VULKAN":
             # Unclear what also fails on AMD Linux, as the worker crashes when running Vulkan tests.
-            BLOCKLIST = ["test_sculpt" "test_tools" "test_undo" "test_workspace"]
+            BLOCKLIST = ["test_sculpt", "test_tools", "test_undo", "test_workspace"]
 
     is_first = True
     for test_id in args.tests:
