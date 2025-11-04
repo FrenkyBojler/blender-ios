@@ -1099,6 +1099,10 @@ typedef enum eNdof_Navigation_Mode {
 #define NDOF_IS_ORBIT_AROUND_CENTER_MODE(userdef) \
   ((userdef)->ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT)
 
+#define NDOF_IS_HORIZON_LOCKED(userdef) \
+  ((userdef)->ndof_navigation_mode == NDOF_NAVIGATION_MODE_DRONE) || \
+  ((userdef)->ndof_flag & NDOF_LOCK_HORIZON)
+
 #define NDOF_PIXELS_PER_SECOND 600.0f
 
 /** UserDef.ogl_multisamples */

@@ -274,11 +274,6 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
                               const bool apply_dyn_ofs)
 {
 
-  if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_DRONE)
-  {
-    U.ndof_flag |= NDOF_LOCK_HORIZON;
-  }
-
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -292,7 +287,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
 
   invert_qt_qt_normalized(view_inv, rv3d->viewquat);
 
-  if (U.ndof_flag & NDOF_LOCK_HORIZON) {
+  if (NDOF_IS_HORIZON_LOCKED(&U)) {
     /* Turntable view code adapted for 3D mouse use. */
     float angle, quat[4];
     float xvec[3] = {1, 0, 0};
@@ -459,7 +454,7 @@ void view3d_ndof_fly(const wmNDOFMotionData &ndof,
       axis_angle_to_quat(rotation, axis, angle);
       mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, rotation);
 
-      if (U.ndof_flag & NDOF_LOCK_HORIZON) {
+      if (NDOF_IS_HORIZON_LOCKED(&U)) {
         /* force an upright viewpoint
          * TODO: make this less... sudden */
         float view_horizon[3] = {1.0f, 0.0f, 0.0f};    /* view +x */
