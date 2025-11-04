@@ -106994,6 +106994,10 @@ msgid "No objects to paste"
 msgstr "Hakuna vitu vya kubandika"
 
 
+msgid "No object(s) selected to copy"
+msgstr "Hakuna kitu(kitu) kilichochaguliwa kunakili"
+
+
 msgid "Copied %d selected object(s)"
 msgstr "Imenakiliwa vitu %d vilivyochaguliwa"
 

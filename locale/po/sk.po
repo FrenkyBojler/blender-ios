@@ -141355,6 +141355,10 @@ msgid "No objects to paste"
 msgstr "Žiadne objekty na prilepenie"
 
 
+msgid "No object(s) selected to copy"
+msgstr "Nie sú vybrané žiadne objekty na kopírovanie"
+
+
 msgid "Copied %d selected object(s)"
 msgstr "Kopírovaných %d vybraných objektov"
 

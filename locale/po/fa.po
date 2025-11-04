@@ -999,6 +999,10 @@ msgid "Area width"
 msgstr "ﻪﻘﻄﻨﻣ ﯼﺎﻨﻬﭘ"
 
 
+msgid "TNo object(s) selected to copy"
+msgstr "هیچ شیء(هایی) برای کپی انتخاب نشده است"
+
+
 msgid "Full Path"
 msgstr "ﻞﻣﺎﮐ ﺮﯿﺴﻣ"
 
