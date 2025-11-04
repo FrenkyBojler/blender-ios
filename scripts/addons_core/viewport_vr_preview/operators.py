@@ -343,6 +343,7 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
 
     def execute(self, context):
         wm = context.window_manager
+        xr_state = wm.xr_session_state
         xr_settings = wm.xr_session_settings
 
         viewfinder_mode = xr_settings.viewfinder_active_mode
@@ -395,9 +396,6 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                 32
             )
 
-            focus_distance_map = [((x**2)/10 + 0.1) for x in range(20)]
-
-
             def get_next_in_map(current, map_, up_dir) -> int:
                 # Find the closest map idx to the current
                 diff_list = [abs(elem - current) for elem in map_]
@@ -429,12 +427,25 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
 
                     return {'FINISHED'}
 
-                # Focus distance control
+                # Focus distance control (ray-cast autofocus)
                 case "FOCUS":
-                    current_focus_distance = camera.dof.focus_distance
+                    scene = context.scene
+                    depsgraph = context.evaluated_depsgraph_get()
 
-                    new_idx = get_next_in_map(current_focus_distance, focus_distance_map, self.action_up)
-                    camera.dof.focus_distance = focus_distance_map[new_idx]
+                    # Cast a ray from the Viewfinder PoV to find the distance to the nearest object
+                    view_origin = xr_state.viewfinder_location
+                    view_quat = xr_state.viewfinder_rotation
+
+                    direction = Vector((0.0, 0.0, -1.0))
+                    world_dir = view_quat @ direction
+                    world_dir.normalize()
+
+                    hit_success, hit_location, _, _, _, _= scene.ray_cast(depsgraph, view_origin, world_dir)
+
+                    if hit_success:
+                        distance = (hit_location - view_origin).length
+                        # Set the DoF Focus Distance from the hit
+                        camera.dof.focus_distance = distance
 
                     return {'FINISHED'}
 
