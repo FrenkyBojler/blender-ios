@@ -16,6 +16,7 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
 #include "BLI_polyfill_2d.h"
@@ -30,6 +31,18 @@
 
 using blender::float3;
 using blender::Span;
+
+/**
+ * Return an angle in the range: `[0.0..M_PI * 2]`.
+ */
+static float angle_signed_v2v2_pos(const float v1[2], const float v2[2])
+{
+  const float angle = angle_signed_v2v2(v1, v2);
+  if (angle < 0.0f) {
+    return angle + (M_PI * 2);
+  }
+  return angle;
+}
 
 /**
  * \brief COMPUTE POLY NORMAL (BMFace)
@@ -1273,7 +1286,6 @@ void BM_face_triangulate(BMesh *bm,
 
 void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int len)
 {
-  blender::float2 out = {-FLT_MAX, -FLT_MAX};
   float center[2] = {0.0f, 0.0f};
   float axis_mat[3][3];
   float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
@@ -1302,35 +1314,93 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
 
     /* center the projection for maximum accuracy */
     sub_v2_v2(projverts[i], center);
-
-    out[0] = max_ff(out[0], projverts[i][0]);
-    out[1] = max_ff(out[1], projverts[i][1]);
   }
   bm->elem_index_dirty |= BM_LOOP;
-
-  /* ensure we are well outside the face bounds (value is arbitrary) */
-  out += 1.0f;
 
   for (i = 0; i < len; i++) {
     edgeverts[i][0] = projverts[BM_elem_index_get(loops[i][0])];
     edgeverts[i][1] = projverts[BM_elem_index_get(loops[i][1])];
   }
-
-  /* do convexity test */
+  /* Do convexity test. */
   for (i = 0; i < len; i++) {
-    float mid[2];
-    mid_v2_v2v2(mid, edgeverts[i][0], edgeverts[i][1]);
+    /* Compare the angles at the loops. */
+    BMLoop *l_a = loops[i][0];
+    BMLoop *l_b = loops[i][1];
 
-    int isect = 0;
-    int j_prev;
-    for (j = 0, j_prev = f->len - 1; j < f->len; j_prev = j++) {
-      const float *f_edge[2] = {projverts[j_prev], projverts[j]};
-      if (isect_seg_seg_v2(UNPACK2(f_edge), mid, out) == ISECT_LINE_LINE_CROSS) {
-        isect++;
+    BMLoop *l_a_prev = l_a->prev;
+    BMLoop *l_a_next = l_a->next;
+
+    BMLoop *l_b_prev = l_b->prev;
+    BMLoop *l_b_next = l_b->next;
+
+    const float *co_a = projverts[BM_elem_index_get(l_a)];
+    const float *co_b = projverts[BM_elem_index_get(l_b)];
+
+    /* Always allow cuts that overlap (unlikely but not an error). */
+    if (UNLIKELY(equals_v2v2(co_a, co_b))) {
+      continue;
+    }
+
+    /* Account for zero length edges, not essential but they shouldn't break the calculation. */
+    {
+      const int limit_init = f->len - 1;
+      int limit;
+      /* A. */
+      limit = limit_init;
+      while (UNLIKELY(equals_v2v2(co_a, projverts[BM_elem_index_get(l_a_prev)])) && limit-- > 0) {
+        l_a_prev = l_a_prev->prev;
+      }
+      limit = limit_init;
+      while (UNLIKELY(equals_v2v2(co_a, projverts[BM_elem_index_get(l_a_next)])) && limit-- > 0) {
+        l_a_next = l_a_next->next;
+      }
+      /* B. */
+      limit = limit_init;
+      while (UNLIKELY(equals_v2v2(co_b, projverts[BM_elem_index_get(l_b_prev)])) && limit-- > 0) {
+        l_b_prev = l_b_prev->prev;
+      }
+      limit = limit_init;
+      while (UNLIKELY(equals_v2v2(co_b, projverts[BM_elem_index_get(l_b_next)])) && limit-- > 0) {
+        l_b_next = l_b_next->next;
       }
     }
 
-    if (isect % 2 == 0) {
+    float a_other[2];
+    float a_prev[2];
+    float a_next[2];
+
+    float b_other[2];
+    float b_prev[2];
+    float b_next[2];
+
+    {
+      const float *co_a_prev = projverts[BM_elem_index_get(l_a_prev)];
+      const float *co_a_next = projverts[BM_elem_index_get(l_a_next)];
+
+      const float *co_b_prev = projverts[BM_elem_index_get(l_b_prev)];
+      const float *co_b_next = projverts[BM_elem_index_get(l_b_next)];
+
+      sub_v2_v2v2(a_other, co_b, co_a);
+      normalize_v2(a_other);
+
+      negate_v2_v2(b_other, a_other);
+
+      sub_v2_v2v2(a_prev, co_a_prev, co_a);
+      sub_v2_v2v2(a_next, co_a_next, co_a);
+
+      sub_v2_v2v2(b_prev, co_b_prev, co_b);
+      sub_v2_v2v2(b_next, co_b_next, co_b);
+
+      normalize_v2(a_prev);
+      normalize_v2(a_next);
+
+      normalize_v2(b_prev);
+      normalize_v2(b_next);
+    }
+
+    if ((angle_signed_v2v2_pos(a_prev, a_other) > angle_signed_v2v2_pos(a_prev, a_next)) ||
+        (angle_signed_v2v2_pos(b_prev, b_other) > angle_signed_v2v2_pos(b_prev, b_next)))
+    {
       loops[i][0] = nullptr;
     }
   }
