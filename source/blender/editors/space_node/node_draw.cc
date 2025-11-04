@@ -1464,7 +1464,7 @@ static int node_get_colorid(TreeDrawContext &tree_draw_ctx, const bNode &node)
     case NODE_CLASS_ATTRIBUTE:
       return TH_NODE_ATTRIBUTE;
     case NODE_CLASS_LAYOUT:
-      return (node.type_legacy == NODE_FRAME) ? TH_NODE_FRAME : TH_NODE;
+      return node.is_frame() ? TH_NODE_FRAME : TH_NODE;
     default:
       return TH_NODE;
   }
