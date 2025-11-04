@@ -1777,7 +1777,11 @@ void BKE_scene_copy_data_eevee(Scene *sce_dst, const Scene *sce_src)
   sce_dst->eevee = sce_src->eevee;
 }
 
-Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
+Scene *BKE_scene_duplicate(Main *bmain,
+                           Scene *sce,
+                           eSceneCopyMethod type,
+                           eDupli_ID_Flags duplicate_flags,
+                           /*eLibIDDuplicateFlags*/ uint duplicate_options)
 {
   Scene *sce_copy;
 
@@ -1834,23 +1838,21 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
     return sce_copy;
   }
 
-  eDupli_ID_Flags duplicate_flags = (eDupli_ID_Flags)(U.dupflag | USER_DUP_OBJECT);
+  /* Scene duplication is always root of duplication currently, and so `is_root_id` is always true.
+   *
+   * Keep `is_root_id` around though, as this allows the rest of the duplication code to stay in
+   * sync with the layout and behavior as the other duplicate functions (see e.g.
+   * #BKE_collection_duplicate or #BKE_object_duplicate).
+   *
+   * TODO: At some point it would be nice to deduplicate this logic and move common behavior into
+   * generic ID management code, with IDType callbacks for specific duplication behavior only. */
+  const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
+  const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
+  const int copy_flags = LIB_ID_COPY_DEFAULT;
 
-  sce_copy = (Scene *)BKE_id_copy(bmain, (ID *)sce);
+  sce_copy = (Scene *)BKE_id_copy_for_duplicate(bmain, (ID *)sce, duplicate_flags, copy_flags);
   id_us_min(&sce_copy->id);
   id_us_ensure_real(&sce_copy->id);
-
-  /* Scene duplication is always root of duplication currently, and never a subprocess.
-   *
-   * Keep these around though, as this allow the rest of the duplication code to stay in sync with
-   * the layout and behavior as the other duplicate functions (see e.g. #BKE_collection_duplicate
-   * or #BKE_object_duplicate).
-   *
-   * TOOD: At some point it would be nice to deduplicate this logic and move common behavior into
-   * generic ID management code, with IDType callbacks for specific duplication behavior only. */
-  const bool is_subprocess = false;
-  const bool is_root_id = true;
-  const int copy_flags = LIB_ID_COPY_DEFAULT;
 
   if (!is_subprocess) {
     BKE_main_id_newptr_and_tag_clear(bmain);

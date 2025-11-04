@@ -29,7 +29,9 @@
 #include "BKE_duplilist.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 #include "BKE_sound.h"
@@ -553,7 +555,19 @@ static Strip *strip_duplicate(Main *bmain,
   else if (strip->type == STRIP_TYPE_SCENE) {
     if (int(dupe_flag & StripDuplicate::Data) != 0 && strip_new->scene != nullptr) {
       Scene *scene_old = strip_new->scene;
-      strip_new->scene = BKE_scene_duplicate(bmain, scene_old, SCE_COPY_FULL);
+      strip_new->scene = BKE_scene_duplicate(bmain,
+                                             scene_old,
+                                             SCE_COPY_FULL,
+                                             (eDupli_ID_Flags)(U.dupflag | USER_DUP_OBJECT),
+                                             LIB_ID_DUPLICATE_IS_ROOT_ID |
+                                                 LIB_ID_DUPLICATE_IS_SUBPROCESS);
+      /* A relink and sync is needed here since it was prevented by the
+       * `LIB_ID_DUPLICATE_IS_SUBPROCESS` flag above, which itself was necessary to avoid clearing
+       * the `newid` pointer. */
+      BKE_libblock_relink_to_newid(bmain,
+                                   &strip_new->scene->id,
+                                   ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR);
+      BKE_main_collection_sync(bmain);
     }
     strip_new->data->stripdata = nullptr;
     if (strip->scene_sound) {
@@ -668,6 +682,11 @@ Strip *strip_duplicate_recursive(Main *bmain,
     cut_one_way_connections(strip_new);
   }
 
+  /* Clear temporary `newid` for potentially copied datablocks (scene, mask, and movieclip). */
+  if (bmain != nullptr) {
+    BKE_main_id_newptr_and_tag_clear(bmain);
+  }
+
   return strip_new;
 }
 
@@ -726,6 +745,10 @@ void seqbase_duplicate_recursive(Main *bmain,
     if (is_strip_connected(strip)) {
       cut_one_way_connections(strip);
     }
+  }
+  /* Clear temporary `newid` for potentially copied datablocks (scene, mask, and movieclip). */
+  if (bmain != nullptr) {
+    BKE_main_id_newptr_and_tag_clear(bmain);
   }
 }
 
