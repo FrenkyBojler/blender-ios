@@ -13,7 +13,7 @@ enum {
   TEX_IMAGE_MISSING_R = 1,
   TEX_IMAGE_MISSING_G = 0,
   TEX_IMAGE_MISSING_B = 1,
-  TEX_IMAGE_MISSING_A = 1
+  TEX_IMAGE_MISSING_A = 0
 };
 
 /* Interpolation types for textures

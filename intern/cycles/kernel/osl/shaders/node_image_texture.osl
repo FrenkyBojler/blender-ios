@@ -98,7 +98,7 @@ shader node_image_texture(int use_mapping = 0,
                           int is_tiled = 0,
                           int is_float = 1,
                           output color Color = 0.0,
-                          output float Alpha = 1.0)
+                          output float Alpha = 0.0)
 {
   point p = Vector;
 
