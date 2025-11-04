@@ -31,20 +31,18 @@
 #include "BKE_mask.h"
 #include "BKE_movieclip.h"
 #include "BKE_scene.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_metadata.hh"
 
 #include "MOV_read.hh"
 
 #include "SEQ_add.hh"
 #include "SEQ_edit.hh"
-#include "SEQ_effects.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
@@ -52,9 +50,9 @@
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
+#include "effects/effects.hh"
 #include "multiview.hh"
 #include "proxy.hh"
-#include "sequencer.hh"
 #include "strip_time.hh"
 
 namespace blender::seq {
