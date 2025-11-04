@@ -1994,9 +1994,6 @@ static void WIDGETGROUP_gizmo_draw_prepare(const bContext *C, wmGizmoGroup *gzgr
   float viewinv_m3[3][3];
   copy_m3_m4(viewinv_m3, rv3d->viewinv);
 
-  const float px = fabsf(ED_view3d_pixel_size(rv3d, rv3d->twmat[3]));
-  const bool gizmo_tiny_screen = (px < 1.0e-5f);
-
   float idot[3];
 
   /* Re-calculate hidden unless modal. */
@@ -2038,13 +2035,6 @@ static void WIDGETGROUP_gizmo_draw_prepare(const bContext *C, wmGizmoGroup *gzgr
         case MAN_AXIS_ROT_T:
           WM_gizmo_set_matrix_rotation_from_z_axis(axis, rv3d->viewinv[2]);
           break;
-      }
-    }
-
-    if (!is_modal && gizmo_tiny_screen && gizmo_get_axis_type(axis_idx) == MAN_AXES_TRANSLATE) {
-      static const float bias_table[] = {0.5f, 0.0f, -0.5f};
-      if (axis_idx >= MAN_AXIS_TRANS_X && axis_idx <= MAN_AXIS_TRANS_Z) {
-        axis->select_bias = bias_table[axis_idx - MAN_AXIS_TRANS_X];
       }
     }
 
