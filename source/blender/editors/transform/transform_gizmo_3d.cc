@@ -1993,7 +1993,6 @@ static void WIDGETGROUP_gizmo_draw_prepare(const bContext *C, wmGizmoGroup *gzgr
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   float viewinv_m3[3][3];
   copy_m3_m4(viewinv_m3, rv3d->viewinv);
-
   float idot[3];
 
   /* Re-calculate hidden unless modal. */
