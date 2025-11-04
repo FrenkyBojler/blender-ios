@@ -375,7 +375,8 @@ static void object_remove_parent_deform_modifiers(Object *ob, const Object *par)
 static void parent_clear_data(Object *ob)
 {
   ob->parent = nullptr;
-  /* Set parent type to default PAROBJECT and reset enum explicitly, to prevent rna enum errors later. */
+  /* Set parent type to default PAROBJECT and reset enum explicitly, to prevent rna enum errors
+   * later. */
   ob->partype = PAROBJECT;
   ob->parsubstr[0] = '\0';
 }
