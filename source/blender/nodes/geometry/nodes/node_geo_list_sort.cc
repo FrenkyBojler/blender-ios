@@ -102,6 +102,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (weights_variant.is_context_dependent_field()) {
     fn::GField field = weights_variant.extract<fn::GField>();
     weights_list = evaluate_field_to_list(std::move(field), list_size);
+    if (!weights_list) {
+      params.error_message_add(NodeWarningType::Error, "Failed to evaluate weights field");
+      params.set_output("List", std::move(list));
+      return;
+    }
   }
   else if (weights_variant.is_list()) {
     weights_list = weights_variant.get<ListPtr>();
