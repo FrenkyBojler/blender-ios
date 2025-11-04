@@ -345,48 +345,98 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
         active_playback_action = xr_settings.viewfinder_active_action_playback
 
         if viewfinder_mode == "LIVE":
+            camera = context.scene.camera.data
+
+            focal_map = (
+                18,
+                20,
+                24,
+                28,
+                35,
+                50,
+                70,
+                85,
+                100,
+                135,
+                200,
+                300
+            )
+
+            fstop_map = (
+                1,
+                1.2,
+                1.4,
+                1.7,
+                2,
+                2.4,
+                2.8,
+                3.3,
+                4,
+                4.8,
+                5.6,
+                6.7,
+                8,
+                9.5,
+                11,
+                13,
+                16,
+                19,
+                22,
+                27,
+                32
+            )
+
+            focus_distance_map = [((x**2)/10 + 0.1) for x in range(15)]
+
+
+            def get_next_in_map(current, map_, up_dir) -> int:
+                # Find the closest map idx to the current
+                diff_list = [abs(elem - current) for elem in map_]
+                current_idx = diff_list.index(min(diff_list))
+
+                # Find the next element going up or down, clamping at bounds
+                if up_dir:
+                    # Zoom in
+                    next_idx = min(current_idx + 1, len(map_) - 1)
+                else:
+                    # Zoom out
+                    next_idx = max(current_idx - 1, 0)
+
+                return next_idx
+
             match active_live_action:
+                # View Zoom Control
                 case "LENS":
-                    # View Zoom Control
-                    LENS_FOCALS = [
-                        18,
-                        20,
-                        24,
-                        28,
-                        35,
-                        50,
-                        70,
-                        85,
-                        100,
-                        135,
-                        200,
-                        300
-                    ]
-                    camera = context.scene.camera
-                    current_focal = camera.data.lens
+                    current_focal = camera.lens
 
-                    # Find the nearest lens focal length index
-                    diff_list = [abs(focal - current_focal) for focal in LENS_FOCALS]
-                    cur_index = diff_list.index(min(diff_list))
-
-                    if self.action_up:
-                        # Zoom in
-                        new_index = min(cur_index + 1, len(LENS_FOCALS) - 1)
-                    else:
-                        # Zoom out
-                        new_index = max(cur_index - 1, 0)
-
-                    # Apply the new focal length
-                    camera.data.lens = LENS_FOCALS[new_index]
+                    new_idx = get_next_in_map(current_focal, focal_map, self.action_up)
+                    camera.lens = focal_map[new_idx]
 
                     return {'FINISHED'}
-                case "DOF":
-                    return {'CANCELLED'}
-                case "FOCUS":
-                    return {'CANCELLED'}
-                case "APERTURE":
-                    return {'CANCELLED'}
 
+                # Toggle DoF on/off
+                case "DOF":
+                    camera.dof.use_dof = not camera.dof.use_dof
+
+                    return {'FINISHED'}
+
+                # Focus distance control
+                case "FOCUS":
+                    current_focus_distance = camera.dof.focus_distance
+
+                    new_idx = get_next_in_map(current_focus_distance, focus_distance_map, self.action_up)
+                    camera.dof.focus_distance = focus_distance_map[new_idx]
+
+                    return {'FINISHED'}
+
+                # F-Stop control
+                case "APERTURE":
+                    current_fstop = camera.dof.aperture_fstop
+
+                    new_idx = get_next_in_map(current_fstop, fstop_map, self.action_up)
+                    camera.dof.aperture_fstop = fstop_map[new_idx]
+
+                    return {'FINISHED'}
 
         if viewfinder_mode == "PLAYBACK":
             # Playblack control
@@ -394,11 +444,14 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
             landmarks = scene.vr_landmarks
 
             match active_playback_action:
+                # Browse shots left/right
                 case "BROWSE":
                     incr = 1 if self.action_up else -1
                     scene.vr_landmarks_selected = (scene.vr_landmarks_selected + incr) % len(landmarks)
 
                     return {'FINISHED'}
+
+                # Preview the selected shot in space
                 case "PREVIEW":
                     current_landmark = landmarks[scene.vr_landmarks_selected]
 
@@ -423,6 +476,8 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                     cone.scale.z = lm_lens / 50 # Scale on local Z to represent focal length, 50mm being 1.0 scale
 
                     return {'FINISHED'}
+
+                # Delete the selected shot (landmark)
                 case "DELETE":
                     landmarks.remove(scene.vr_landmarks_selected)
                     scene.vr_landmarks_selected = (scene.vr_landmarks_selected - 1) % len(landmarks)

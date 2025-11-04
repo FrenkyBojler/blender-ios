@@ -530,7 +530,11 @@ static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
   std::string settings_label;
   switch (settings->viewfinder_active_mode) {
     case XR_VIEWFINDER_MODE_LIVE:
-      settings_label = fmt::format("{}mm   f {:.1f}", cam->lens, cam->dof.aperture_fstop);
+      settings_label = fmt::format("{}mm   DoF: {}   d: {:.1f}   f {:.1f}",
+                                   cam->lens,
+                                   (cam->dof.flag & CAM_DOF_ENABLED) ? "on" : "off",
+                                   cam->dof.focus_distance,
+                                   cam->dof.aperture_fstop);
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
       settings_label = fmt::format("{} / {}", landmark_idx + 1, landmark_len);
@@ -613,7 +617,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
   const float settings_label_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                     viewfinder_rect.xmax - 1.35f :
+                                     viewfinder_rect.xmax - 3.40f:
                                      viewfinder_rect.xmax - 0.55f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
