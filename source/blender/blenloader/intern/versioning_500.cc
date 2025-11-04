@@ -2961,7 +2961,7 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
 {
   using namespace blender::bke;
 
-  LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
     if (node->type_legacy != SH_NODE_TEX_GRADIENT) {
       continue;
     }
@@ -2999,22 +2999,22 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
     bNode *gradient_node = nullptr;
     bNodeSocket *gradient_socket = nullptr;
 
-    bNode &separateXYZ = version_node_add_empty(*node_tree, "ShaderNodeSeparateXYZ");
-    bNodeSocket &separateXYZ_input = version_node_add_socket(
-        *node_tree, separateXYZ, SOCK_IN, "NodeSocketVector", "Vector");
-    bNodeSocket &separateXYZ_X_output = version_node_add_socket(
-        *node_tree, separateXYZ, SOCK_OUT, "NodeSocketFloat", "X");
-    bNodeSocket &separateXYZ_Y_output = version_node_add_socket(
-        *node_tree, separateXYZ, SOCK_OUT, "NodeSocketFloat", "Y");
-    version_node_add_socket(*node_tree, separateXYZ, SOCK_OUT, "NodeSocketFloat", "Z");
+    bNode &separate = version_node_add_empty(*node_tree, "ShaderNodeSeparateXYZ");
+    bNodeSocket &separate_input = version_node_add_socket(
+        *node_tree, separate, SOCK_IN, "NodeSocketVector", "Vector");
+    bNodeSocket &separate_x_output = version_node_add_socket(
+        *node_tree, separate, SOCK_OUT, "NodeSocketFloat", "X");
+    bNodeSocket &separate_y_output = version_node_add_socket(
+        *node_tree, separate, SOCK_OUT, "NodeSocketFloat", "Y");
+    version_node_add_socket(*node_tree, separate, SOCK_OUT, "NodeSocketFloat", "Z");
 
-    copy_v2_v2(separateXYZ.location, node->location);
+    copy_v2_v2(separate.location, node->location);
 
     switch (data->gradient_type) {
       case SHD_BLEND_LINEAR: {
         /* Gradient = X */
-        gradient_node = &separateXYZ;
-        gradient_socket = &separateXYZ_X_output;
+        gradient_node = &separate;
+        gradient_socket = &separate_x_output;
         break;
       }
       case SHD_BLEND_QUADRATIC: {
@@ -3032,7 +3032,7 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
         copy_v2_v2(max.location, node->location);
         max.custom1 = NODE_MATH_MAXIMUM;
 
-        version_node_add_link(*node_tree, separateXYZ, separateXYZ_X_output, max, max_input_a);
+        version_node_add_link(*node_tree, separate, separate_x_output, max, max_input_a);
         max_input_b.default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
 
         bNode &multiply = version_node_add_empty(*node_tree, "ShaderNodeMath");
@@ -3071,8 +3071,8 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
         copy_v2_v2(add.location, node->location);
         add.custom1 = NODE_MATH_ADD;
 
-        version_node_add_link(*node_tree, separateXYZ, separateXYZ_X_output, add, add_input_a);
-        version_node_add_link(*node_tree, separateXYZ, separateXYZ_Y_output, add, add_input_b);
+        version_node_add_link(*node_tree, separate, separate_x_output, add, add_input_a);
+        version_node_add_link(*node_tree, separate, separate_y_output, add, add_input_b);
 
         bNode &multiply = version_node_add_empty(*node_tree, "ShaderNodeMath");
         bNodeSocket &multiply_input_a = version_node_add_socket(
@@ -3147,8 +3147,8 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       version_node_add_link(*node_tree,
                             *vector_input_link->fromnode,
                             *vector_input_link->fromsock,
-                            separateXYZ,
-                            separateXYZ_input);
+                            separate,
+                            separate_input);
       node_remove_link(node_tree, *vector_input_link);
     }
     else {
@@ -3157,8 +3157,8 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       version_node_add_link(*node_tree,
                             *position,
                             *node_find_socket(*position, SOCK_OUT, "Position"),
-                            separateXYZ,
-                            separateXYZ_input);
+                            separate,
+                            separate_input);
     }
 
     node_tree_set_type(*node_tree);
