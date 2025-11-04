@@ -311,9 +311,8 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   float viewfinder_winmat[4][4];
   copy_m4_m4(viewfinder_winmat, params.winmat);
 
-  const int viewfinder_display_flag = V3D_OFSDRAW_SHOW_ANNOTATION |
-                                      V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
-                                      V3D_OFSDRAW_SHOW_GRIDFLOOR | V3D_OFSDRAW_SHOW_SELECTION;
+  const int viewfinder_display_flag = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
+                                      V3D_OFSDRAW_SHOW_ANNOTATION | V3D_OFSDRAW_SHOW_GRIDFLOOR;
 
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
@@ -587,6 +586,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
 {
 
   /* Create a fake context to trick the UI drawing code in drawing in places it shouldn't be. */
+  // TODO: should be to use a fake region like rv3d in draw_offscreen_simple and pass it to UI_block_draw_xr
   wmWindow *first_main_window = static_cast<wmWindow *>(CTX_wm_manager(C)->windows.first);
   bContext *fake_C = CTX_copy(C);
   CTX_wm_window_set(fake_C, first_main_window);
