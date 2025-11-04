@@ -1,3 +1,4 @@
 Referenced by issue #146123, hair curves shading issue in "Control Point" selection mode
 Referenced by issue #147542, Curve Sculpt Mode: Cage overlay is Z-fighting with the curve
 Referenced by issue #148312, Blender 5.0 3D Viewport Hair Preview Bug
+Referenced by issue #149288, Regression: Hair in linked collections are placed in the wrong location
