@@ -57,8 +57,8 @@ void snode_set_context(const bContext &C);
 VectorSet<bNode *> get_selected_nodes(bNodeTree &node_tree);
 
 /**
- * \param is_new_node: If the node was just inserted, it is allowed to be inserted in a link,
- * even if it is linked already (after link-drag-search).
+ * \param is_new_node: If the node was just inserted, it is allowed to be inserted in a link, even
+ * if it is linked already (after link-drag-search).
  */
 void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,

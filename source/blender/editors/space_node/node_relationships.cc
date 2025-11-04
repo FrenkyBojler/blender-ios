@@ -2581,7 +2581,7 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
         if (&next_node == &end_node) {
           return true;
         }
-         /* Avoid cycles in the graph. */
+        /* Avoid cycles in the graph. */
         if (visited.add(&next_node)) {
           to_visit.append(&next_node);
         }
@@ -2623,7 +2623,7 @@ static int get_socket_priority(const bNodeSocket *socket)
 
 static bNodeSocket *get_compatible_socket_input(bNodeTree &ntree, bNode &node, bNodeLink &link)
 {
-  // ! 合并字符串还有问题, 同类型找 默认
+  // ! 合并字符串有问题,多个同类型找 默认;如果有优先级更高的接口,除非低优先级同时有输入输出,或者高优先级不是第一个接口,或者只有一边有?
   for (bNodeSocket *sock : node.input_sockets()) {
     if (sock->is_visible() && link.fromsock->type == sock->type) {
       return sock;
@@ -2647,7 +2647,7 @@ static bNodeSocket *get_compatible_socket_input(bNodeTree &ntree, bNode &node, b
 static bNodeSocket *get_compatible_socket_output(bNodeTree &ntree, bNode &node, bNodeLink &link)
 {
   for (bNodeSocket *sock : node.output_sockets()) {
-    if (sock->is_visible() && link.fromsock->type == sock->type) {
+    if (sock->is_visible() && link.tosock->type == sock->type) {
       return sock;
     }
   }
@@ -2659,7 +2659,7 @@ static bNodeSocket *get_compatible_socket_output(bNodeTree &ntree, bNode &node, 
     if (sock->is_visible() &&
         //  && !sock->is_directly_linked()
         ntree.typeinfo->validate_link(eNodeSocketDatatype(sock->type),
-                                      eNodeSocketDatatype(link.fromsock->type)))
+                                      eNodeSocketDatatype(link.tosock->type)))
     {
       return sock;
     }
@@ -2670,9 +2670,7 @@ static bNodeSocket *get_compatible_socket_output(bNodeTree &ntree, bNode &node, 
 static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, bool is_new_node)
 {
   NodeEndpoint result{};
-  rctf bounds{};
   Vector<bNode *> end_candidates;
-
   // VectorSet<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false);
   Vector<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false).extract_vector();
 
@@ -2697,25 +2695,54 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
       end_candidates.append(node);
     }
   }
+  result.selected_count = selected_nodes.size();
+
+  /* Handle no link between zone input and zone output */
+  if (end_candidates.size() == 2) {
+    // 不确定是否要始终把区域输入和输出之间当做有连线.
+    // 目前无法处理同时选中了无连接区域输入输出,但只有一个在候选里
+    for (bNode *end_node : end_candidates) {
+      if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(end_node->type_legacy))
+      {
+        if (zone_type->output_type != end_node->type_legacy) {
+          continue;
+        }
+        // 找到了区域输出节点. 查找它配对的输入节点是否也被选中了.
+        bNode *paired_input = zone_type->get_corresponding_input(tree, *end_node);
+        if (paired_input && selected_nodes.contains(paired_input)) {
+          if (paired_input->input_sockets().is_empty()) {
+            return {};
+          }
+          for (const bNodeSocket *socket : paired_input->input_sockets()) {
+            if (socket->is_directly_linked()) {
+              return {};
+            }
+          }
+          result.start_node = paired_input;
+          result.end_node = end_node;
+          return result;
+        }
+      }
+    }
+  }
 
   if (selected_nodes.is_empty() || end_candidates.size() != 1) {
     return {};
   }
 
-  // 这里只是预判定能不能当起点,至于起点选哪个，要在连线上判断
+  /* 这里只是预判定能不能当起点,至于起点接口选哪个，要在连线上判断 */
   bNode *end_node = end_candidates[0];
   Map<int, Vector<bNode *>> start_candidates_by_priority;
   int max_start_priority = INT_MIN;
   for (bNode *node : selected_nodes) {
-    bool valid_start = true;
     int max_sk_priority = INT_MIN;
-    // ! 遍历节点的输入，判断优先级最高的那些接口中是否全没连线，如果全没连线，才是有效起点
     Map<int, Vector<bNodeSocket *>> inputs_by_priority;
     for (bNodeSocket *socket : node->input_sockets()) {
       const int sk_priority = get_socket_priority(socket);
       inputs_by_priority.lookup_or_add_default(sk_priority).append(socket);
       max_sk_priority = max_ii(max_sk_priority, sk_priority);
     }
+    bool valid_start = true;
     if (inputs_by_priority.is_empty()) {
       valid_start = false;
       continue;
@@ -2723,6 +2750,10 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     const Vector<bNodeSocket *> &top_sockets = inputs_by_priority.lookup(max_sk_priority);
     for (const bNodeSocket *socket : top_sockets) {
       if (!is_new_node) {
+        /* 遍历节点的输入，判断优先级最高的那些接口中是否全没连线，如果全没连线，才是有效起点 */
+        // todo 优先级同为1,有连线的输入(旋转),
+        // 也有同级的同类型输入输出(矢量)未连线,也要允许当做起点?
+        // 预备起点里没更高优先级才行,预存,后面再重新判断?
         if (socket->is_directly_linked()) {
           valid_start = false;
           break;
@@ -2759,23 +2790,20 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
 
   result.start_node = start_node;
   result.end_node = end_node;
-  result.selected_count = selected_nodes.size();
   return result;
 }
 
-// todo 需要改进
 static bool endpoint_is_compatible_to_link(bNodeTree &ntree,
-                                                 NodeEndpoint &endpoint,
-                                                 bNodeLink &link)
+                                           NodeEndpoint &endpoint,
+                                           bNodeLink &link)
 {
   if (endpoint.is_reroute()) {
     return true;
   }
-  // const bNodeSocket *main_input = get_compatible_socket_input(ntree, *endpoint.start_node, link);
+  // const bNodeSocket*main_input=get_compatible_socket_input(ntree,*endpoint.start_node,link);
   if (get_compatible_socket_input(ntree, *endpoint.start_node, link)) {
     return true;
   }
-  // const bNodeSocket *main_output = get_compatible_socket_output(ntree, *endpoint.end_node, link);
   if (get_compatible_socket_output(ntree, *endpoint.end_node, link)) {
     return true;
   }
@@ -2845,16 +2873,16 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     node_link_bezier_points_evaluated(*link, coords);
     float dist = FLT_MAX;
 
-    /* Loop over link coords to find shortest dist to upper left node edge of a intersected
-     * line segment. */
+    /* Loop over link coords to find shortest dist to cursor position clamp by nodes bounds of a
+     * intersected line segment. */
     for (int i = 0; i < NODE_LINK_RESOL; i++) {
       /* Check if the nodes total bounds intersects the line from this point to next one. */
       if (BLI_rctf_isect_segment(&endpoint.bounds, coords[i], coords[i + 1])) {
         /* Store the shortest distance to the cursor position of all intersections found so
          * far. */
 
-        /* To be precise coords should be clipped by `select->draw_bounds`, but not done
-         * since there's no real noticeable difference. */
+        /* To be precise coords should be clipped by `select->draw_bounds`, but not done since
+         * there's no real noticeable difference. */
         dist = min_ff(dist_squared_to_line_segment_v2(node_xy, coords[i], coords[i + 1]), dist);
       }
     }
@@ -2868,8 +2896,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
-    if (!attach_enabled || !endpoint_is_compatible_to_link(node_tree, endpoint, *selink))
-    {
+    if (!attach_enabled || !endpoint_is_compatible_to_link(node_tree, endpoint, *selink)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -3021,40 +3048,6 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 /* -------------------------------------------------------------------- */
 /** \name Node Insert Offset Operator
  * \{ */
-
-static int get_main_socket_priority(const bNodeSocket *socket)
-{
-  switch (eNodeSocketDatatype(socket->type)) {
-    case SOCK_CUSTOM:
-      return 0;
-    case SOCK_MENU:
-      return 1;
-    case SOCK_BOOLEAN:
-      return 2;
-    case SOCK_INT:
-      return 3;
-    case SOCK_FLOAT:
-      return 4;
-    case SOCK_VECTOR:
-      return 5;
-    case SOCK_RGBA:
-      return 6;
-    case SOCK_STRING:
-    case SOCK_SHADER:
-    case SOCK_OBJECT:
-    case SOCK_IMAGE:
-    case SOCK_ROTATION:
-    case SOCK_MATRIX:
-    case SOCK_GEOMETRY:
-    case SOCK_COLLECTION:
-    case SOCK_TEXTURE:
-    case SOCK_MATERIAL:
-    case SOCK_BUNDLE:
-    case SOCK_CLOSURE:
-      return 7;
-  }
-  return -1;
-}
 
 bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out)
 {
@@ -3212,7 +3205,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
 
     for (bNode *node : transformed_nodes) {
-        node_offset_apply(*node, addval);
+      node_offset_apply(*node, addval);
     }
 
     totr_insert.xmin += addval;
@@ -3236,7 +3229,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     else {
       /* offset inserted node so that min margin is kept at the right */
       for (bNode *node : transformed_nodes) {
-          node_offset_apply(*node, -addval);
+        node_offset_apply(*node, -addval);
       }
     }
   }
