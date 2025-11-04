@@ -1969,7 +1969,8 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
     /* Make the rendered view use the active scene camera settings (DoF, background image, etc). */
     rv3d.persp = RV3D_CAMOB;
     v3d.camera = scene->camera;
-  } else {
+  }
+  else {
     rv3d.persp = RV3D_PERSP;
   }
   v3d.clip_start = clip_start;

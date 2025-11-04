@@ -617,7 +617,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
   const float mode_tabs_y = viewfinder_rect.ymax + 0.45f;
 
   const float settings_label_x = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                     viewfinder_rect.xmax - 3.40f:
+                                     viewfinder_rect.xmax - 3.40f :
                                      viewfinder_rect.xmax - 0.55f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
