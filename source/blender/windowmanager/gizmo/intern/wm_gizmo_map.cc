@@ -654,7 +654,6 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
         }
         select_bias *= scale;
       }
-
       sub_v3_v3(co_3d, co_3d_origin);
       const float dot_test = dot_v3v3(co_3d, co_direction) - select_bias;
       if (dot_best > dot_test) {
