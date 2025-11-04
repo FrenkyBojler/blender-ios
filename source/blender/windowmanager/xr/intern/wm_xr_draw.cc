@@ -314,9 +314,14 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   const int viewfinder_display_flag = V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
                                       V3D_OFSDRAW_SHOW_ANNOTATION | V3D_OFSDRAW_SHOW_GRIDFLOOR;
 
+  /* Always enable DoF in the View3D settings used by in the viewfinder rendered view
+   * for Workbench. */
+  View3DShading viewfinder_shading_settings = settings->shading;
+  viewfinder_shading_settings.flag |= V3D_SHADING_DEPTH_OF_FIELD;
+
   ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
                                   draw_data->scene,
-                                  &settings->shading,
+                                  &viewfinder_shading_settings,
                                   (eDrawType)settings->shading.type,
                                   settings->object_type_exclude_viewport,
                                   settings->object_type_exclude_select,
