@@ -111,11 +111,29 @@ struct SubdivMeshContext {
 
 static void subdiv_mesh_ctx_cache_uv_layers(SubdivMeshContext *ctx)
 {
+  const Mesh &coarse_mesh = *ctx->coarse_mesh;
   Mesh *subdiv_mesh = ctx->subdiv_mesh;
   bke::MutableAttributeAccessor attributes = subdiv_mesh->attributes_for_write();
-  for (const StringRef name : ctx->coarse_mesh->uv_map_names()) {
+  for (const StringRef name : coarse_mesh.uv_map_names()) {
     ctx->uv_maps.append(
         attributes.lookup_or_add_for_write_only_span<float2>(name, AttrDomain::Corner));
+  }
+
+  if (const char *name = CustomData_get_active_layer_name(&coarse_mesh.corner_data,
+                                                          CD_PROP_FLOAT2))
+  {
+    const int i = CustomData_get_named_layer(&subdiv_mesh->corner_data, CD_PROP_FLOAT2, name);
+    if (i >= 0) {
+      CustomData_set_layer_active(&subdiv_mesh->corner_data, CD_PROP_FLOAT2, i);
+    }
+  }
+  if (const char *name = CustomData_get_render_layer_name(&coarse_mesh.corner_data,
+                                                          CD_PROP_FLOAT2))
+  {
+    const int i = CustomData_get_named_layer(&subdiv_mesh->corner_data, CD_PROP_FLOAT2, name);
+    if (i >= 0) {
+      CustomData_set_layer_render(&subdiv_mesh->corner_data, CD_PROP_FLOAT2, i);
+    }
   }
 }
 
