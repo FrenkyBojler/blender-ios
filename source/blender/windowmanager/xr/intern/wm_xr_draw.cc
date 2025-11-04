@@ -581,8 +581,7 @@ static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
   return block;
 }
 
-static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
-                                              const XrSessionSettings *settings)
+static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C, const XrSessionSettings *settings)
 {
   uiBlock *block = UI_block_begin_xr(C, __func__, blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);

@@ -3971,9 +3971,7 @@ uiBlock *UI_block_begin(const bContext *C,
   return block;
 }
 
-uiBlock *UI_block_begin_xr(const bContext *C,
-                        std::string name,
-                        blender::ui::EmbossType emboss)
+uiBlock *UI_block_begin_xr(const bContext *C, std::string name, blender::ui::EmbossType emboss)
 {
   uiBlock *block = MEM_new<uiBlock>(__func__);
   block->active = true;

@@ -913,9 +913,7 @@ uiBlock *UI_block_begin(const bContext *C,
                         ARegion *region,
                         std::string name,
                         blender::ui::EmbossType emboss);
-uiBlock *UI_block_begin_xr(const bContext *C,
-                           std::string name,
-                           blender::ui::EmbossType emboss);
+uiBlock *UI_block_begin_xr(const bContext *C, std::string name, blender::ui::EmbossType emboss);
 void UI_block_end_ex(const bContext *C,
                      Main *bmain,
                      wmWindow *window,
