@@ -30,11 +30,22 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
 
   b.add_output<decl::Matrix>("Transform")
       .description("Transform from grid index space to object space");
   b.add_output(data_type, "Background Value").description("Default value outside of grid voxels");
+
+  PanelDeclarationBuilder &pb = b.add_panel("Grid Class").default_closed(true);
+  pb.add_output<decl::Bool>("Unknown", "GridClassUnknown").description("Unspecified grid class");
+  pb.add_output<decl::Bool>("Density", "GridClassDensity").description("Density or fog values");
+  pb.add_output<decl::Bool>("Level Set", "GridClassLevelSet")
+      .description("Level set or signed-distance field (SDF)");
+  pb.add_output<decl::Bool>("Staggered", "GridClassStaggered")
+      .description("Vector field with staggered component storage");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -128,6 +139,12 @@ static void node_geo_exec(GeoNodeExecParams params)
                             type_traits::to_blender(vdb_typed_grid->background()));
         }
       });
+
+  const openvdb::GridClass grid_class = vdb_grid->getGridClass();
+  params.set_output("GridClassUnknown", grid_class == openvdb::GridClass::GRID_UNKNOWN);
+  params.set_output("GridClassDensity", grid_class == openvdb::GridClass::GRID_FOG_VOLUME);
+  params.set_output("GridClassLevelSet", grid_class == openvdb::GridClass::GRID_LEVEL_SET);
+  params.set_output("GridClassStaggered", grid_class == openvdb::GridClass::GRID_STAGGERED);
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
