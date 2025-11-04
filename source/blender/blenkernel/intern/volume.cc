@@ -1167,4 +1167,25 @@ openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
   return BKE_volume_grid_type_operation(grid_type, op);
 }
 
+bool BKE_volume_is_grid_class_compatible(VolumeGridType grid_type,
+                                         const openvdb::GridClass grid_class)
+{
+  switch (grid_class) {
+    case openvdb::GridClass::GRID_UNKNOWN:
+      return true;
+    case openvdb::GridClass::GRID_FOG_VOLUME:
+      return ELEM(
+          grid_type, VolumeGridType::VOLUME_GRID_FLOAT, VolumeGridType::VOLUME_GRID_DOUBLE);
+    case openvdb::GridClass::GRID_LEVEL_SET:
+      return ELEM(
+          grid_type, VolumeGridType::VOLUME_GRID_FLOAT, VolumeGridType::VOLUME_GRID_DOUBLE);
+    case openvdb::GridClass::GRID_STAGGERED:
+      return ELEM(grid_type,
+                  VolumeGridType::VOLUME_GRID_VECTOR_FLOAT,
+                  VolumeGridType::VOLUME_GRID_VECTOR_DOUBLE);
+  }
+  BLI_assert_unreachable();
+  return true;
+}
+
 #endif

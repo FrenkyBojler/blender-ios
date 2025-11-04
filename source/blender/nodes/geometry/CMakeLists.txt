@@ -230,6 +230,7 @@ set(SRC
   nodes/node_geo_set_grease_pencil_depth_mode.cc
   nodes/node_geo_set_grease_pencil_softness.cc
   nodes/node_geo_set_grid_background.cc
+  nodes/node_geo_set_grid_class.cc
   nodes/node_geo_set_grid_transform.cc
   nodes/node_geo_set_id.cc
   nodes/node_geo_set_instance_transform.cc

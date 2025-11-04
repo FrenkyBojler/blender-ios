@@ -113,4 +113,7 @@ void BKE_volume_grid_type_to_static_type(const VolumeGridType grid_type, Fn &&fn
 openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
     const VolumeGridType grid_type, const openvdb::GridBase &old_grid, float resolution_factor);
 
+bool BKE_volume_is_grid_class_compatible(VolumeGridType grid_type,
+                                         const openvdb::GridClass grid_class);
+
 #endif
