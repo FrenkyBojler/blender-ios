@@ -2135,11 +2135,11 @@ class USERPREF_PT_ndof_settings(Panel):
 
         if show_3dview_settings:
             colsub = col.column()
-            colsub.active = props.ndof_navigation_mode != 'DRONE'
+            colsub.active = props.ndof_navigation_mode in {'FLY', 'OBJECT'}
             colsub.prop(props, "ndof_lock_horizon", text="Lock Horizon")
             del colsub
             colsub = col.column()
-            colsub.active = props.ndof_navigation_mode != 'OBJECT'
+            colsub.active = props.ndof_navigation_mode in {'FLY', 'DRONE'}
             colsub.prop(props, "ndof_fly_speed_auto", text="Auto Fly Speed")
             del colsub
             layout.separator()
