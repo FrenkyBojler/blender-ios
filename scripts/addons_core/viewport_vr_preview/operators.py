@@ -363,6 +363,10 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
             )
 
             fstop_map = (
+                0.1,
+                0.2,
+                0.4,
+                0.8,
                 1,
                 1.2,
                 1.4,
@@ -386,7 +390,7 @@ class VIEW3D_OT_vr_viewfinder_apply_action(Operator):
                 32
             )
 
-            focus_distance_map = [((x**2)/10 + 0.1) for x in range(15)]
+            focus_distance_map = [((x**2)/10 + 0.1) for x in range(20)]
 
 
             def get_next_in_map(current, map_, up_dir) -> int:
