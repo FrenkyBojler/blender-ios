@@ -5,3 +5,4 @@ Referenced by pull request #137485, EEVEE: Remove shadow ray horizon clipping
 Referenced by commit b01cdf7df2ba62c66cf0fce4521d65afa46acf52, EEVEE: Remove shadow ray horizon clipping
 Referenced by issue #139967, AMD Vega: Enabling the "Emission" pass or AOV index in Eevee causes visible wireframe/triangulation artifacts in the final render.
 Referenced by issue #149134, Unexpected shadows in EEVEE when hair curves intersect underlying mesh
+Referenced by issue #149316, EEVEE shadows render incorrectly when the camera has a negative scale
