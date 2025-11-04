@@ -518,20 +518,42 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
 {
   /* XR Session settings RNA pointer. */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_XrSessionSettings, (void *)settings);
-  //  PropertyRNA *prop = RNA_struct_find_property(&ptr, "viewfinder_active_but_live");
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "viewfinder_active_action_live");
 
   uiBlock *block = nullptr;
   uiLayout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
-
   uiLayout &row = layout.row(true);
 
-  const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                       "viewfinder_active_action_live" :
-                                       "viewfinder_active_action_playback";
+  layout.scale_y_set(1.1f);
 
-  row.prop(&ptr, active_action_prop, UI_ITEM_R_EXPAND | UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
-  row.scale_x_set(15.0f); /* TODO: Apparently, the scale gets clamped internally at some point. */
-  row.scale_y_set(1.1f);
+  if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE) {
+    /* Live mode, display each property enum separately for the DoF controls to be marked
+     * as disabled when DoF is disabled. */
+    layout.ui_units_x_set(8.0f); /* Width hack. */
+
+    uiLayout &sub1 = row.row(true);
+    sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_LENS, "", ICON_NONE);
+    sub1.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_DOF, "", ICON_NONE);
+
+    uiLayout &sub2 = row.row(true);
+    const Object *scene_cam = CTX_data_scene(C)->camera;
+    const Camera *cam_data = static_cast<const Camera *>(scene_cam->data);
+    sub2.enabled_set(cam_data->dof.flag & CAM_DOF_ENABLED);
+
+    /* Show these controls greyed-out if DoF is disabled. */
+    sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_FOCUS, "", ICON_NONE);
+    sub2.prop_enum(&ptr, prop, XR_VIEWFINDER_ACTION_LIVE_APERTURE, "", ICON_NONE);
+  }
+  else {
+    /* Playback mode, directly draw the full enum prop. */
+    layout.scale_x_set(15.0f); /* Width hack. */
+
+    row.prop(&ptr,
+             "viewfinder_active_action_playback",
+             UI_ITEM_R_EXPAND | UI_ITEM_R_ICON_ONLY,
+             "",
+             ICON_NONE);
+  }
 
   UI_block_end_xr(C, block);
 
