@@ -385,7 +385,12 @@ class ShaderNodesInliner {
     }
     if (!used_link) {
       /* If there is no link on the input, use the value of the socket directly. */
-      this->store_socket_value(socket, {InputSocketValue{socket.socket}});
+      if (this->input_socket_may_have_dangling_value(socket)) {
+        this->store_socket_value(socket, {DanglingValue{}});
+      }
+      else {
+        this->store_socket_value(socket, {InputSocketValue{socket.socket}});
+      }
       return;
     }
 
@@ -1127,6 +1132,9 @@ class ShaderNodesInliner {
       return src_value;
     }
     if (std::get_if<LinkedSocketValue>(&src_value.value)) {
+      return src_value;
+    }
+    if (std::get_if<DanglingValue>(&src_value.value)) {
       return src_value;
     }
     const std::optional<PrimitiveSocketValue> src_primitive_value = src_value.to_primitive(
