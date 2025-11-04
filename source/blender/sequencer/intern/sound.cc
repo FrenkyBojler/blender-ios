@@ -35,7 +35,9 @@
 
 #include "strip_time.hh"
 
-#include "AUD_Types.h"
+#ifdef WITH_AUDASPACE
+#  include "AUD_Types.h"
+#endif
 
 namespace blender::seq {
 
@@ -360,6 +362,8 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
   if (!needs_update && smd->runtime.last_sound_in == sound_in) {
     return smd->runtime.last_sound_out;
   }
+
+#ifdef WITH_AUDASPACE
   PitchModifierData *pmd = (PitchModifierData *)smd;
 
   int quality = pmd->quality;
@@ -392,7 +396,12 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
   }
 
   if (pitch_scale == 0) {
-    return smd->runtime.last_sound_out;
+    if (smd->runtime.last_sound_in == sound_in) {
+      return smd->runtime.last_sound_out;
+    }
+    else {
+      return sound_in;
+    }
   }
 
   AUD_Sound *sound_out = AUD_Sound_timeStretchPitchScale(
@@ -401,6 +410,14 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
   smd->runtime.last_sound_in = sound_in;
   smd->runtime.last_sound_out = sound_out;
   return sound_out;
+#else
+  if (smd->runtime.last_sound_in == sound_in) {
+    return smd->runtime.last_sound_out;
+  }
+  else {
+    return sound_in;
+  }
+#endif
 }
 
 const SoundModifierWorkerInfo *sound_modifier_worker_info_get(int type)

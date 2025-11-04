@@ -648,7 +648,7 @@ typedef struct SoundEqualizerModifierData {
   ListBase graphics;
 } SoundEqualizerModifierData;
 
-typedef enum ePitchtMode {
+typedef enum ePitchMode {
   PITCH_MODE_SEMITONES = 0,
   PITCH_MODE_RATIO = 1,
 } ePitchMode;

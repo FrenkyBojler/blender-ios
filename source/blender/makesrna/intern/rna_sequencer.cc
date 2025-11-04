@@ -31,8 +31,6 @@
 
 #include "WM_types.hh"
 
-#include "AUD_Types.h"
-
 struct EffectInfo {
   const char *struct_name;
   const char *ui_name;

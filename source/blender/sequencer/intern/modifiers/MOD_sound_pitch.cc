@@ -20,8 +20,6 @@
 
 #include "modifier.hh"
 
-#include "AUD_Types.h"
-
 namespace blender::seq {
 
 static void pitchmodifier_init_data(StripModifierData *smd)
@@ -32,7 +30,7 @@ static void pitchmodifier_init_data(StripModifierData *smd)
   pmd->cents = 0;
   pmd->ratio = 1;
   pmd->preserve_formant = false;
-  pmd->quality = AUD_STRETCHER_QUALITY_HIGH;
+  pmd->quality = ePitchQuality::PITCH_QUALITY_HIGH;
 }
 
 static void pitchmodifier_draw(const bContext * /*C*/, Panel *panel)
