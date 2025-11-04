@@ -1807,7 +1807,10 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     BKE_image_free_anim_gputextures(G.main);
   }
 
-  if (viewmat) {
+  /* LOCATION SCOUTING PROTOTYPE: Disable workaround as we're deliberaty passing a fake
+   * camera object and setting the rv3d persp to RV3D_CAMOB to use the active scene camera
+   * settings to render the view. */
+  if (viewmat && false) {
     /* WORKAROUND: Disable camera view to avoid EEVEE being confused and try to
      * get the projection matrix from the camera.
      * Set the `lens` parameter to 0 to make EEVEE prefer the `winmat` from the rv3d instead of
@@ -1890,6 +1893,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      bool draw_background,
                                      const char *viewname,
                                      const bool do_color_management,
+                                     const bool fake_scene_cameraob_persp,
                                      GPUOffScreen *ofs,
                                      GPUViewport *viewport)
 {
@@ -1961,7 +1965,13 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
   v3d.object_type_exclude_viewport = object_type_exclude_viewport_override;
   v3d.object_type_exclude_select = object_type_exclude_select_override;
 
-  rv3d.persp = RV3D_PERSP;
+  if (fake_scene_cameraob_persp) {
+    /* Make the rendered view use the active scene camera settings (DoF, background image, etc). */
+    rv3d.persp = RV3D_CAMOB;
+    v3d.camera = scene->camera;
+  } else {
+    rv3d.persp = RV3D_PERSP;
+  }
   v3d.clip_start = clip_start;
   v3d.clip_end = clip_end;
   /* Actually not used since we pass in the projection matrix. */

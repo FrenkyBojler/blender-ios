@@ -334,6 +334,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                   true,
                                   nullptr,
                                   true,
+                                  true,
                                   g_viewfinder_offscreen,
                                   gpu_viewport);
 
@@ -356,6 +357,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
                                   false,
                                   true,
                                   nullptr,
+                                  false,
                                   false,
                                   vp->offscreen,
                                   vp->viewport);
