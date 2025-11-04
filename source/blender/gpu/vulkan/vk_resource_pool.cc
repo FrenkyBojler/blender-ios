@@ -132,12 +132,7 @@ VKDiscardPool &VKDiscardPool::discard_pool_get()
   }
 
   VKDevice &device = VKBackend::get().device;
-  if (G.is_rendering) {
-    return device.orphaned_data_render;
-  }
-  else {
-    return device.orphaned_data;
-  }
+  return device.orphaned_data;
 }
 
 }  // namespace blender::gpu

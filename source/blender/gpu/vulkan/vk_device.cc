@@ -94,7 +94,6 @@ void VKDevice::deinit()
   samplers_.free();
   GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_sh_);
 
-  orphaned_data_render.deinit(*this);
   orphaned_data.deinit(*this);
   {
     while (!thread_data_.is_empty()) {
@@ -607,8 +606,6 @@ void VKDevice::debug_print()
   }
   os << "Discard pool\n";
   debug_print(os, orphaned_data);
-  os << "Discard pool (render)\n";
-  debug_print(os, orphaned_data_render);
   os << "\n";
 
   for (const std::reference_wrapper<VKContext> &context : contexts_) {

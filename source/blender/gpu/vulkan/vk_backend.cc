@@ -669,29 +669,11 @@ void VKBackend::render_end()
         context->flush();
       }
       std::scoped_lock lock(device.orphaned_data.mutex_get());
-      device.orphaned_data.move_data(device.orphaned_data_render,
-                                     device.orphaned_data.timeline_ + 1);
     }
   }
-
-  /* When performing animation render we want to release any discarded resources during rendering
-   * after each frame.
-   */
-  if (G.is_rendering && thread_data.rendering_depth == 0 && !BLI_thread_is_main()) {
-    std::scoped_lock lock(device.orphaned_data.mutex_get());
-    device.orphaned_data.move_data(device.orphaned_data_render,
-                                   device.orphaned_data.timeline_ + 1);
-  }
 }
 
-void VKBackend::render_step(bool force_resource_release)
-{
-  if (force_resource_release) {
-    std::scoped_lock lock(device.orphaned_data.mutex_get());
-    device.orphaned_data.move_data(device.orphaned_data_render,
-                                   device.orphaned_data.timeline_ + 1);
-  }
-}
+void VKBackend::render_step(bool /*force_resource_release*/) {}
 
 void VKBackend::capabilities_init(VKDevice &device)
 {
