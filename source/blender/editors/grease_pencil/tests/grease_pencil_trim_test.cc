@@ -37,8 +37,9 @@ static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
   curves.offsets_for_write().copy_from(offsets);
   curves.cyclic_for_write().copy_from(cyclic);
 
+  MutableSpan<float3> positions = curves.positions_for_write();
   for (const int i : curves.points_range()) {
-    curves.positions_for_write()[i] = float3(positions_2d[i], 0.0f);
+    positions[i] = float3(positions_2d[i], 0.0f);
   }
 
   return curves;
