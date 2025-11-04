@@ -367,7 +367,8 @@ Array<float2> calculate_view_positions(const GreasePencilStrokeParams &params,
 Array<float2> calculate_view_handles_positions_left(const GreasePencilStrokeParams &params,
                                                     const IndexMask &selection)
 {
-  const Span<float3> handle_positions_left = params.drawing.strokes().handle_positions_left();
+  const Span<float3> handle_positions_left =
+      params.drawing.strokes().handle_positions_left().value_or(Span<float3>());
   Array<float2> view_positions(handle_positions_left.size());
 
   if (handle_positions_left.is_empty()) {
@@ -393,7 +394,8 @@ Array<float2> calculate_view_handles_positions_left(const GreasePencilStrokePara
 Array<float2> calculate_view_handles_positions_right(const GreasePencilStrokeParams &params,
                                                      const IndexMask &selection)
 {
-  const Span<float3> handle_positions_right = params.drawing.strokes().handle_positions_right();
+  const Span<float3> handle_positions_right =
+      params.drawing.strokes().handle_positions_right().value_or(Span<float3>());
   Array<float2> view_positions(handle_positions_right.size());
 
   if (handle_positions_right.is_empty()) {
