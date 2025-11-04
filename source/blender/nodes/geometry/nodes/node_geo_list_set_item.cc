@@ -14,6 +14,8 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "BLI_bit_vector.hh"
+
 #include "list_function_eval.hh"
 #include "node_geometry_util.hh"
 
@@ -161,9 +163,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const GVArray value_varray = value_list->varray();
+  /* Use a visited bitset to avoid double-destruction when indices contains duplicates. */
+  BitVector<> visited(list_size, false);
   for (const int index : indices) {
+    /* Skip if this index has already been processed to avoid double-destruction. */
+    if (visited[index]) {
+      continue;
+    }
     type.destruct(dst_span[index]);
     value_varray.get_to_uninitialized(index, dst_span[index]);
+    visited[index].set();
   }
 
   ListPtr result_list = List::create(type, std::move(result_data), list_size);
