@@ -469,7 +469,6 @@ static blender::gpu::Batch *wm_xr_controller_model_batch_create(GHOST_XrContextH
 
 static uiLayout &uiblock_prepare(uiBlock **block,
                                  const bContext *C,
-                                 ARegion *region,
                                  blender::ui::EmbossType emboss)
 {
   const uiStyle *style = UI_style_get_dpi();
@@ -493,7 +492,6 @@ static uiLayout &uiblock_prepare(uiBlock **block,
 }
 
 static uiBlock *viewfinder_action_label_ui_block(const bContext *C,
-                                                 ARegion *region,
                                                  const XrSessionSettings *settings)
 {
   const char *active_action_prop = settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_LIVE ?
@@ -505,7 +503,7 @@ static uiBlock *viewfinder_action_label_ui_block(const bContext *C,
   //  PropertyRNA *prop = RNA_struct_find_property(&ptr, active_action_prop);
 
   uiBlock *block = nullptr;
-  uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::None);
+  uiLayout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::None);
 
   // TODO: Address the small menu down arrow that can be seen on the right side
   layout.prop(&ptr, active_action_prop, UI_ITEM_R_COMPACT | UI_ITEM_R_ICON_NEVER, "", ICON_NONE);
@@ -516,7 +514,6 @@ static uiBlock *viewfinder_action_label_ui_block(const bContext *C,
 }
 
 static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
-                                                ARegion *region,
                                                 const XrSessionSettings *settings)
 {
   /* XR Session settings RNA pointer. */
@@ -524,7 +521,7 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
   //  PropertyRNA *prop = RNA_struct_find_property(&ptr, "viewfinder_active_but_live");
 
   uiBlock *block = nullptr;
-  uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::Emboss);
+  uiLayout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
   uiLayout &row = layout.row(true);
 
@@ -542,12 +539,11 @@ static uiBlock *viewfinder_action_enum_ui_block(const bContext *C,
 }
 
 static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
-                                                   ARegion *region,
                                                    const XrSessionSettings *settings)
 {
 
   uiBlock *block = nullptr;
-  uiLayout &layout = uiblock_prepare(&block, C, region, blender::ui::EmbossType::Emboss);
+  uiLayout &layout = uiblock_prepare(&block, C, blender::ui::EmbossType::Emboss);
 
   Scene *scene = CTX_data_scene(C);
   Object *cam_ob = scene->camera;
@@ -586,7 +582,6 @@ static uiBlock *viewfinder_settings_label_ui_block(const bContext *C,
 }
 
 static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
-                                              ARegion *region,
                                               const XrSessionSettings *settings)
 {
   uiBlock *block = UI_block_begin_xr(C, __func__, blender::ui::EmbossType::Emboss);
@@ -623,7 +618,6 @@ static uiBlock *viewfinder_mode_tabs_ui_block(const bContext *C,
 }
 
 static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
-                                                        ARegion *region,
                                                         const XrSessionSettings *settings,
                                                         const rctf viewfinder_rect)
 {
@@ -636,7 +630,7 @@ static void wm_xr_controller_viewfinder_draw_ui_widgets(const bContext *C,
     GPU_matrix_translate_3f(x_off, y_off, 0.0f);
     GPU_matrix_scale_1f(0.01f);
 
-    uiBlock *block = block_func(fake_C, region, settings);
+    uiBlock *block = block_func(fake_C, settings);
     UI_block_draw_xr(fake_C, block); /* Stripped-down XR version of #UI_block_draw. */
 
     GPU_matrix_pop();
@@ -762,8 +756,7 @@ static void wm_xr_controller_viewfinder_draw_view_flash(wmXrSessionState *state,
 static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
                                              GHOST_XrContextHandle /*xr_context*/,
                                              wmXrSessionState *state,
-                                             const bContext *C,
-                                             ARegion *region)
+                                             const bContext *C)
 {
   if (!settings->viewfinder_enable) {
     return;
@@ -796,7 +789,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
   wm_xr_controller_viewfinder_draw_view_flash(state, settings, viewfinder_rect);
 
   /* UI Widgets. */
-  wm_xr_controller_viewfinder_draw_ui_widgets(C, region, settings, viewfinder_rect);
+  wm_xr_controller_viewfinder_draw_ui_widgets(C, settings, viewfinder_rect);
 
   GPU_matrix_pop();
 }
@@ -804,8 +797,7 @@ static void wm_xr_controller_viewfinder_draw(const XrSessionSettings *settings,
 static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
                                         GHOST_XrContextHandle xr_context,
                                         wmXrSessionState *state,
-                                        const bContext *C,
-                                        ARegion *region)
+                                        const bContext *C)
 {
   GHOST_XrControllerModelData model_data;
 
@@ -874,7 +866,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
     }
   }
 
-  wm_xr_controller_viewfinder_draw(settings, xr_context, state, C, region);
+  wm_xr_controller_viewfinder_draw(settings, xr_context, state, C);
 }
 
 static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSessionState *state)
@@ -973,13 +965,13 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
   immUnbindProgram();
 }
 
-void wm_xr_draw_controllers(const bContext * /*C*/, ARegion *region, void *customdata)
+void wm_xr_draw_controllers(const bContext * /*C*/, ARegion * /*region*/, void *customdata)
 {
   wmXrData *xr = static_cast<wmXrData *>(customdata);
   const XrSessionSettings *settings = &xr->session_settings;
   GHOST_XrContextHandle xr_context = xr->runtime->context;
   wmXrSessionState *state = &xr->runtime->session_state;
 
-  wm_xr_controller_model_draw(settings, xr_context, state, evil_main_C, region);
+  wm_xr_controller_model_draw(settings, xr_context, state, evil_main_C);
   wm_xr_controller_aim_draw(settings, state);
 }

@@ -1241,7 +1241,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
       if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
         ARegionType *art = WM_xr_surface_controller_region_type_get();
         if (art) {
-          ED_region_surface_draw_cb_draw(region, art, REGION_DRAW_POST_VIEW);
+          ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
         }
       }
       if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
@@ -1249,7 +1249,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
         if (st) {
           ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
           if (art) {
-            ED_region_surface_draw_cb_draw(region, art, REGION_DRAW_POST_VIEW);
+            ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
           }
         }
       }
@@ -1315,7 +1315,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
         if ((v3d->flag2 & V3D_XR_SHOW_CONTROLLERS) != 0) {
           ARegionType *art = WM_xr_surface_controller_region_type_get();
           if (art) {
-            ED_region_surface_draw_cb_draw(region, art, REGION_DRAW_POST_VIEW);
+            ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
           }
         }
         if ((v3d->flag2 & V3D_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
@@ -1323,7 +1323,7 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
           if (st) {
             ARegionType *art = BKE_regiontype_from_id(st, RGN_TYPE_XR);
             if (art) {
-              ED_region_surface_draw_cb_draw(region, art, REGION_DRAW_POST_VIEW);
+              ED_region_surface_draw_cb_draw(art, REGION_DRAW_POST_VIEW);
             }
           }
         }
