@@ -115840,10 +115840,6 @@ msgid "No objects to paste"
 msgstr "Yapıştırılacak nesne yok"
 
 
-msgid "No object(s) selected to copy"
-msgstr "Kopyalanacak nesne seçilmedi"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "%d seçili nesne kopyalandı"
 

@@ -75590,10 +75590,6 @@ msgid "No objects to paste"
 msgstr "붙여 넣을 오브젝트가 없습니다"
 
 
-msgid "No object(s) selected to copy"
-msgstr "복사할 객체가 선택되지 않았습니다"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "%d개의 선택된 오브젝트를 복사했습니다"
 

@@ -143070,10 +143070,6 @@ msgid "No objects to paste"
 msgstr "貼り付けるオブジェクトがありません"
 
 
-msgid "No object(s) selected to copy"
-msgstr "コピーするオブジェクトが選択されていません"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "%d 個の選択オブジェクトをコピーしました"
 

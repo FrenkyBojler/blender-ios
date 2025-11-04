@@ -137038,10 +137038,6 @@ msgid "No objects to paste"
 msgstr "Không có đối tượng nào để dán cả"
 
 
-msgid "No object(s) selected to copy"
-msgstr "Không có đối tượng nào được chọn để sao chép"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "Đã sao chép %d đối tượng được chọn"
 

@@ -133234,10 +133234,6 @@ msgid "Depth too large"
 msgstr "Depth too large"
 
 
-msgid "No object(s) selected to copy"
-msgstr "No object(s) selected to copy"
-
-
 msgid "No objects to paste"
 msgstr "No objects to paste"
 

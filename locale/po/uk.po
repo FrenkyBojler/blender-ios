@@ -87130,10 +87130,6 @@ msgid "No objects to paste"
 msgstr "Нема об'єктів для вставлення"
 
 
-msgid "No object(s) selected to copy"
-msgstr "Не вибрано жодного об’єкта для копіювання"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "Скопійовано %d вибраних об'єкт(ів)"
 

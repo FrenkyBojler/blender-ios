@@ -68981,10 +68981,6 @@ msgid "Depth too large"
 msgstr "深度過大"
 
 
-msgid "No object(s) selected to copy"
-msgstr "未選取任何物件進行複製"
-
-
 msgid "No active camera"
 msgstr "無作用中攝影機"
 

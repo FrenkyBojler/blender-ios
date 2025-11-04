@@ -141355,10 +141355,6 @@ msgid "No objects to paste"
 msgstr "ჩასასმელი ობიექტები არ არის"
 
 
-msgid "No object(s) selected to copy"
-msgstr "არცერთი ობიექტი არ არის მონიშნული კოპირებისთვის"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "დაკოპირებულია %d მონიშნული ობიექტი"
 

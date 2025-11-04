@@ -67314,10 +67314,6 @@ msgid "Depth too large"
 msgstr "Profondità troppo ampia"
 
 
-msgid "No object(s) selected to copy"
-msgstr "Nessun oggetto(i) selezionato(i) da copiare"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "Copiati %d oggetti selezionati"
 

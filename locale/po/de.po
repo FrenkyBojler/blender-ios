@@ -56711,10 +56711,6 @@ msgid "Depth too large"
 msgstr "Tiefe zu groß"
 
 
-msgid "No object(s) selected to copy"
-msgstr "Kein(e) Objekt(e) zum Kopieren ausgewählt"
-
-
 msgid "No active camera"
 msgstr "Keine aktive Kamera"
 

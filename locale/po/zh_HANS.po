@@ -141336,10 +141336,6 @@ msgid "No objects to paste"
 msgstr "无可供粘贴的物体"
 
 
-msgid "No object(s) selected to copy"
-msgstr "未选中任何对象进行复制"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "已复制 %d 个选中物体"
 

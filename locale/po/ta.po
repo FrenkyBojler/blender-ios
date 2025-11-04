@@ -136201,10 +136201,6 @@ msgid "No objects to paste"
 msgstr "ஒட்டுவதற்கு பொருள்கள் இல்லை"
 
 
-msgid "No object(s) selected to copy"
-msgstr "நகலெடுக்க எந்த பொருளும்(களும்) தேர்ந்தெடுக்கப்படவில்லை"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "நகலெடுக்கப்பட்ட %d தேர்ந்தெடுக்கப்பட்ட பொருள் (கள்)"
 

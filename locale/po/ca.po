@@ -141355,10 +141355,6 @@ msgid "No objects to paste"
 msgstr "No hi ha objectes per enganxar"
 
 
-msgid "No object(s) selected to copy"
-msgstr "No hi ha objecte(s) seleccionat(s) per copiar"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "S'ha(n) copiat %d objecte(s) seleccionat(s)"
 

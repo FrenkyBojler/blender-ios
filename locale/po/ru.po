@@ -141355,10 +141355,6 @@ msgid "No objects to paste"
 msgstr "Нет объектов для вставки"
 
 
-msgid "No object(s) selected to copy"
-msgstr "Не выбрано ни одного объекта для копирования"
-
-
 msgid "Copied %d selected object(s)"
 msgstr "Скопировано %d выделенных объектов"
 
