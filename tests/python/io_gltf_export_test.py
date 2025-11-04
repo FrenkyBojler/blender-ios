@@ -17,10 +17,10 @@ from io_gltf_utils import gltf_generate_descr
 args = None
 
 
-def do_gltf_export(filepath, output_file, params_import, params_export):
+def do_gltf_export(filepath, output_filepath, params_import, params_export):
     bpy.ops.wm.open_mainfile(filepath=str(filepath))
     bpy.ops.export_scene.gltf(
-        filepath=output_file,
+        filepath=output_filepath,
         export_format='GLTF_SEPARATE',
         **params_export)
 
@@ -48,19 +48,19 @@ class GLTFExportTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             for input_file in input_files:
                 with self.subTest(pathlib.Path(input_file).stem):
-                    output_file = pathlib.Path(join(tmp_dir, basename(input_file))).with_suffix('.gltf')
+                    output_filepath = pathlib.Path(join(tmp_dir, basename(input_file))).with_suffix('.gltf')
                     bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "../../empty.blend"))
                     ok = report.generate_and_check(
                         input_file,
                         lambda filepath,
-                        output_file,
+                        output_filepath,
                         params_import,
                         params_export: do_gltf_export(
                             filepath,
-                            str(output_file),
+                            str(output_filepath),
                             params_import,
                             params_export),
-                        output_file=output_file)
+                        output_filepath=output_filepath)
                     if not ok:
                         self.fail(f"{input_file.stem} import result does not match expectations")
 
