@@ -865,7 +865,7 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
         return text
 
     def generate_and_check(self, input_file: pathlib.Path, generate_func: Callable[[
-            str, dict], None], expected_filename: Optional[str] = None) -> bool:
+            str, dict], None], output_file: Optional[str] = None) -> bool:
         """
         Imports a single file using the provided import function, and
         checks whether it matches with expected template, returns
@@ -879,10 +879,11 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
         and always returns true.
 
         This function also supports import/export tests (called round-trips),
-        where the export parameters are read from a .export.json file next to
-        the input file, and passed to the import function as well. In this
-        case, the output file is expected to be written to "out" subfolder
-        of the input directory, with the same base name as the input file.
+        and exports,  where the export parameters are read from a .export.json
+        file next to the input file, and passed to the import function as well.
+        In this case, the output file is expected to be written to a temporary folder.
+        Here, output_file is the name of the output file to read the result from
+        (absolute name is used here, as it is inside a temporary folder).
 
         """
         self.tested_count += 1
@@ -911,12 +912,13 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
 
         # Generate (import, export or round-trip)
         try:
-            if not expected_filename:
+            if not output_file:
+                # Import (check Blender main data, so no output file)
                 generate_func(str(input_file), params)
                 got_desc = self.generate_data_desc()
             else:
-                generate_func(str(input_file), params, params_export)
-                output_file = os.path.join(os.path.join(self.input_dir, "out"), expected_filename)
+                # Export or round-trip (check output file)
+                generate_func(str(input_file), str(output_file), params, params_export)
                 got_desc = self.generate_data_desc(output_file)
         except RuntimeError as ex:
             got_desc = f"Error during import: {ex}"

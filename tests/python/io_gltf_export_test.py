@@ -4,6 +4,7 @@
 import pathlib
 import sys
 import unittest
+import tempfile
 
 import bpy
 from os.path import join, basename, dirname, isfile
@@ -16,14 +17,10 @@ from io_gltf_utils import gltf_generate_descr
 args = None
 
 
-def do_gltf_export(filepath, params_import, params_export):
+def do_gltf_export(filepath, output_file, params_import, params_export):
     bpy.ops.wm.open_mainfile(filepath=str(filepath))
     bpy.ops.export_scene.gltf(
-        filepath=join(
-            join(
-                dirname(filepath),
-                "out"),
-            pathlib.Path(basename(filepath)).with_suffix('.gltf').name),
+        filepath=output_file,
         export_format='GLTF_SEPARATE',
         **params_export)
 
@@ -48,27 +45,24 @@ class GLTFExportTest(unittest.TestCase):
             self.testdir.joinpath("reference"),
             gltf_generate_descr)
 
-        for input_file in input_files:
-            with self.subTest(pathlib.Path(input_file).stem):
-                bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "../../empty.blend"))
-                ok = report.generate_and_check(
-                    input_file,
-                    lambda filepath,
-                    params_import,
-                    params_export: do_gltf_export(
-                        filepath,
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            for input_file in input_files:
+                with self.subTest(pathlib.Path(input_file).stem):
+                    output_file = pathlib.Path(join(tmp_dir, basename(input_file))).with_suffix('.gltf')
+                    bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "../../empty.blend"))
+                    ok = report.generate_and_check(
+                        input_file,
+                        lambda filepath,
+                        output_file,
                         params_import,
-                        params_export),
-                    expected_filename=pathlib.Path(basename(input_file)).with_suffix('.gltf').name)
-                if not ok:
-                    self.fail(f"{input_file.stem} import result does not match expectations")
-
-        # Now that all tests have been run
-        # Let's empty the output directory of the generated files
-        # so that we can make sure that the next run will generate them all again.
-        for f in listdir(join(self.testdir, "out")):
-            if isfile(join(join(self.testdir, "out"), f)) and f != "README.md":  # keep the README
-                remove(join(join(self.testdir, "out"), f))
+                        params_export: do_gltf_export(
+                            filepath,
+                            str(output_file),
+                            params_import,
+                            params_export),
+                        output_file=output_file)
+                    if not ok:
+                        self.fail(f"{input_file.stem} import result does not match expectations")
 
         report.finish("io_gltf_roundtrip")
 
