@@ -986,15 +986,16 @@ static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Sce
 
 static int sequencer_draw_get_transform_preview_frame(const Scene *scene)
 {
-  Strip *last_seq = seq::select_active_get(scene);
-  /* #sequencer_draw_get_transform_preview must already have been called. */
-  BLI_assert(last_seq != nullptr);
   int preview_frame;
 
   if (scene->ed->runtime.use_preview_frame == 1) {
     preview_frame = scene->ed->runtime.vse_preview_frame;
     return preview_frame;
   }
+
+  Strip *last_seq = seq::select_active_get(scene);
+  /* #sequencer_draw_get_transform_preview must already have been called. */
+  BLI_assert(last_seq != nullptr);
 
   if (last_seq->flag & SEQ_RIGHTSEL) {
     preview_frame = seq::time_right_handle_frame_get(scene, last_seq) - 1;
