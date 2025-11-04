@@ -18,6 +18,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_memarena.h"
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
@@ -29,6 +30,7 @@
 
 #include "intern/bmesh_private.hh"
 
+using blender::float2;
 using blender::float3;
 using blender::Span;
 
@@ -1321,87 +1323,55 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
     edgeverts[i][0] = projverts[BM_elem_index_get(loops[i][0])];
     edgeverts[i][1] = projverts[BM_elem_index_get(loops[i][1])];
   }
-  /* Do convexity test. */
+  /* Do convexity test.
+   *
+   * Ensure the edge between the two corners of the face defines a line that lies within the face.
+   * Consider an edge that connects both tips of a crescent-moon shaped face.
+   * In this case the edge would span the empty region and must not be considered "legal". */
   for (i = 0; i < len; i++) {
     /* Compare the angles at the loops. */
-    BMLoop *l_a = loops[i][0];
-    BMLoop *l_b = loops[i][1];
-
-    BMLoop *l_a_prev = l_a->prev;
-    BMLoop *l_a_next = l_a->next;
-
-    BMLoop *l_b_prev = l_b->prev;
-    BMLoop *l_b_next = l_b->next;
-
-    const float *co_a = projverts[BM_elem_index_get(l_a)];
-    const float *co_b = projverts[BM_elem_index_get(l_b)];
+    BMLoop **l_pair = loops[i];
+    const float *co_pair[2] = {
+        projverts[BM_elem_index_get(l_pair[0])],
+        projverts[BM_elem_index_get(l_pair[1])],
+    };
 
     /* Always allow cuts that overlap (unlikely but not an error). */
-    if (UNLIKELY(equals_v2v2(co_a, co_b))) {
+    if (UNLIKELY(equals_v2v2(co_pair[0], co_pair[1]))) {
       continue;
     }
 
-    /* Account for zero length edges, not essential but they shouldn't break the calculation. */
-    {
-      const int limit_init = f->len - 1;
-      int limit;
-      /* A. */
-      limit = limit_init;
-      while (UNLIKELY(equals_v2v2(co_a, projverts[BM_elem_index_get(l_a_prev)])) && limit-- > 0) {
-        l_a_prev = l_a_prev->prev;
+    const float2 pair_dir = blender::math::normalize(float2(co_pair[1]) - float2(co_pair[0]));
+    for (const int side : blender::IndexRange(2)) {
+      const float2 co = float2(co_pair[side]);
+      BMLoop *l_prev = l_pair[side]->prev;
+      BMLoop *l_next = l_pair[side]->next;
+
+      /* Account for zero length edges, not essential but they shouldn't break the calculation. */
+      {
+        const int limit_init = f->len - 3;
+        int limit;
+        limit = limit_init;
+        while (UNLIKELY(equals_v2v2(co, projverts[BM_elem_index_get(l_prev)])) && limit-- > 0) {
+          l_prev = l_prev->prev;
+        }
+        limit = limit_init;
+        while (UNLIKELY(equals_v2v2(co, projverts[BM_elem_index_get(l_next)])) && limit-- > 0) {
+          l_next = l_next->next;
+        }
       }
-      limit = limit_init;
-      while (UNLIKELY(equals_v2v2(co_a, projverts[BM_elem_index_get(l_a_next)])) && limit-- > 0) {
-        l_a_next = l_a_next->next;
+
+      const float2 co_prev = float2(projverts[BM_elem_index_get(l_prev)]);
+      const float2 co_next = float2(projverts[BM_elem_index_get(l_next)]);
+
+      const float2 dir_other = side == 0 ? pair_dir : -pair_dir;
+      const float2 dir_prev = blender::math::normalize(co_prev - co);
+      const float2 dir_next = blender::math::normalize(co_next - co);
+
+      if (angle_signed_v2v2_pos(dir_prev, dir_other) > angle_signed_v2v2_pos(dir_prev, dir_next)) {
+        loops[i][0] = nullptr;
+        break;
       }
-      /* B. */
-      limit = limit_init;
-      while (UNLIKELY(equals_v2v2(co_b, projverts[BM_elem_index_get(l_b_prev)])) && limit-- > 0) {
-        l_b_prev = l_b_prev->prev;
-      }
-      limit = limit_init;
-      while (UNLIKELY(equals_v2v2(co_b, projverts[BM_elem_index_get(l_b_next)])) && limit-- > 0) {
-        l_b_next = l_b_next->next;
-      }
-    }
-
-    float a_other[2];
-    float a_prev[2];
-    float a_next[2];
-
-    float b_other[2];
-    float b_prev[2];
-    float b_next[2];
-
-    {
-      const float *co_a_prev = projverts[BM_elem_index_get(l_a_prev)];
-      const float *co_a_next = projverts[BM_elem_index_get(l_a_next)];
-
-      const float *co_b_prev = projverts[BM_elem_index_get(l_b_prev)];
-      const float *co_b_next = projverts[BM_elem_index_get(l_b_next)];
-
-      sub_v2_v2v2(a_other, co_b, co_a);
-      normalize_v2(a_other);
-
-      negate_v2_v2(b_other, a_other);
-
-      sub_v2_v2v2(a_prev, co_a_prev, co_a);
-      sub_v2_v2v2(a_next, co_a_next, co_a);
-
-      sub_v2_v2v2(b_prev, co_b_prev, co_b);
-      sub_v2_v2v2(b_next, co_b_next, co_b);
-
-      normalize_v2(a_prev);
-      normalize_v2(a_next);
-
-      normalize_v2(b_prev);
-      normalize_v2(b_next);
-    }
-
-    if ((angle_signed_v2v2_pos(a_prev, a_other) > angle_signed_v2v2_pos(a_prev, a_next)) ||
-        (angle_signed_v2v2_pos(b_prev, b_other) > angle_signed_v2v2_pos(b_prev, b_next)))
-    {
-      loops[i][0] = nullptr;
     }
   }
 
