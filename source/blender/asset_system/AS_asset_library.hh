@@ -41,7 +41,7 @@ class AssetRepresentation;
 class AssetLibrary {
   eAssetLibraryType library_type_;
   /**
-   * The name this asset library will be displayed in the UI as. Will also be used as a weak way
+   * The name this asset library will be displayed as in the UI. Will also be used as a weak way
    * to identify an asset library (e.g. by #AssetWeakReference).
    */
   std::string name_;
@@ -150,7 +150,7 @@ class AssetLibrary {
                                                         int id_type,
                                                         std::unique_ptr<AssetMetaData> metadata);
   /** See #AssetLibrary::add_external_asset(). */
-  std::weak_ptr<AssetRepresentation> add_local_id_asset(StringRef relative_asset_path, ID &id);
+  std::weak_ptr<AssetRepresentation> add_local_id_asset(ID &id);
   /**
    * Remove an asset from the library that was added using #add_external_asset() or
    * #add_local_id_asset(). Can usually be expected to be constant time complexity (worst case may
@@ -299,7 +299,19 @@ void AS_asset_library_remap_ids(const blender::bke::id::IDRemapper &mappings);
  * \param r_name: Returns the ID name on success. Optional (passing null is allowed).
  */
 void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_reference,
-                                              char r_path_buffer[1282 /* FILE_MAX_LIBEXTRA */],
+                                              char r_path_buffer[/*FILE_MAX_LIBEXTRA*/ 1282],
                                               char **r_dir,
                                               char **r_group,
                                               char **r_name);
+
+/**
+ * Updates the default import method for asset libraries based on
+ * #U.experimental.no_data_block_packing.
+ */
+void AS_asset_library_import_method_ensure_valid(Main &bmain);
+/**
+ * This is not done as part of #AS_asset_library_import_method_ensure_valid because it changes
+ * run-time data only and does not need to happen during versioning (also it appears to break tests
+ * when run during versioning).
+ */
+void AS_asset_library_essential_import_method_update();

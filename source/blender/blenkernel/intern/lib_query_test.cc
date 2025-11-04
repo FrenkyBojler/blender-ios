@@ -127,7 +127,7 @@ class IDSubDataTestData : public WholeIDTestData {
     /* Add a material that contains an embedded nodetree and assign a custom property to one of
      * its nodes. */
     this->material = BKE_material_add(this->bmain, "Material");
-    ED_node_shader_default(this->C, &this->material->id);
+    ED_node_shader_default(this->C, this->bmain, &this->material->id);
 
     BKE_object_material_assign(
         this->bmain, this->object, this->material, this->object->actcol, BKE_MAT_ASSIGN_OBJECT);
@@ -165,8 +165,7 @@ TEST_F(LibQueryTest, libquery_basic)
   FOREACH_MAIN_ID_END;
 
   /* Set an invalid user-count value to IDs directly used by the scene.
-   * This includes these used by its embedded IDs, like the master collection, and the scene
-   itself
+   * This includes these used by its embedded IDs, like the master collection, and the scene itself
    * (through the loop-back pointers of embedded IDs to their owner). */
   auto set_count = [](LibraryIDLinkCallbackData *cb_data) -> int {
     if (*(cb_data->id_pointer)) {

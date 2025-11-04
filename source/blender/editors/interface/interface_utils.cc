@@ -20,6 +20,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -73,7 +74,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
 
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_ICON_TOGGLE,
+                                 ButType::IconToggle,
                                  0,
                                  icon,
                                  x,
@@ -89,7 +90,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
-                                     UI_BTYPE_ICON_TOGGLE,
+                                     ButType::IconToggle,
                                      0,
                                      icon,
                                      name,
@@ -106,7 +107,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_CHECKBOX,
+                             ButType::Checkbox,
                              0,
                              name,
                              x,
@@ -127,7 +128,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       if (RNA_property_array_check(prop) && index == -1) {
         if (ELEM(RNA_property_subtype(prop), PROP_COLOR, PROP_COLOR_GAMMA)) {
           but = uiDefButR_prop(block,
-                               UI_BTYPE_COLOR,
+                               ButType::Color,
                                0,
                                name,
                                x,
@@ -149,7 +150,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                RNA_property_subtype(prop) == PROP_FACTOR)
       {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_NUM_SLIDER,
+                             ButType::NumSlider,
                              0,
                              name,
                              x,
@@ -165,7 +166,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_NUM,
+                             ButType::Num,
                              0,
                              name,
                              x,
@@ -188,7 +189,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
     case PROP_ENUM:
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_MENU,
+                                 ButType::Menu,
                                  0,
                                  icon,
                                  x,
@@ -204,7 +205,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
-                                     UI_BTYPE_MENU,
+                                     ButType::Menu,
                                      0,
                                      icon,
                                      std::nullopt,
@@ -221,7 +222,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_MENU,
+                             ButType::Menu,
                              0,
                              name,
                              x,
@@ -239,7 +240,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
     case PROP_STRING:
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(block,
-                                 UI_BTYPE_TEXT,
+                                 ButType::Text,
                                  0,
                                  icon,
                                  x,
@@ -255,7 +256,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
-                                     UI_BTYPE_TEXT,
+                                     ButType::Text,
                                      0,
                                      icon,
                                      name,
@@ -272,7 +273,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             UI_BTYPE_TEXT,
+                             ButType::Text,
                              0,
                              name,
                              x,
@@ -303,7 +304,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
       }
 
       but = uiDefIconTextButR_prop(block,
-                                   UI_BTYPE_SEARCH_MENU,
+                                   ButType::SearchMenu,
                                    0,
                                    icon,
                                    name,
@@ -317,14 +318,14 @@ uiBut *uiDefAutoButR(uiBlock *block,
                                    0,
                                    0,
                                    std::nullopt);
-      ui_but_add_search(but, ptr, prop, nullptr, nullptr, false);
+      ui_but_add_search(but, ptr, prop, nullptr, nullptr, nullptr, false);
       break;
     }
     case PROP_COLLECTION: {
       char text[256];
-      SNPRINTF(text, IFACE_("%d items"), RNA_property_collection_length(ptr, prop));
+      SNPRINTF_UTF8(text, IFACE_("%d items"), RNA_property_collection_length(ptr, prop));
       but = uiDefBut(
-          block, UI_BTYPE_LABEL, 0, text, x, y, width, height, nullptr, 0, 0, std::nullopt);
+          block, ButType::Label, 0, text, x, y, width, height, nullptr, 0, 0, std::nullopt);
       UI_but_flag_enable(but, UI_BUT_DISABLED);
       break;
     }
@@ -535,7 +536,19 @@ void ui_rna_collection_search_update_fn(
           has_sep_char = ID_IS_LINKED(id);
         }
       }
+      else if (data->item_search_prop) {
+        name = RNA_property_string_get_alloc(
+            &itemptr, data->item_search_prop, name_buf, sizeof(name_buf), nullptr);
+      }
       else if (itemptr.type == &RNA_ActionSlot) {
+        /* FIXME: This special case is fairly annoying.
+         *
+         * `item_search_prop` now allows to specify another string property than the default RNA
+         * struct name one as source, but icons are still an issue. RNA access API for icons likely
+         * needs some love, to allow callbacks, data-based icons retrieval, in addition to the
+         * purely static options currently available (see #RNA_struct_ui_icon and
+         * #RNA_property_ui_icon).
+         */
         PropertyRNA *prop = RNA_struct_find_property(&itemptr, "name_display");
         name = RNA_property_string_get_alloc(&itemptr, prop, name_buf, sizeof(name_buf), nullptr);
         /* Also show an icon for the data-block type that each slot is intended for. */

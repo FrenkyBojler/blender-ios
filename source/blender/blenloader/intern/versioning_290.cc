@@ -15,6 +15,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 /* Define macros in `DNA_genfile.h`. */
@@ -65,6 +66,7 @@
 #include "BKE_multires.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_report.hh"
 
 #include "IMB_imbuf_enums.h"
 #include "MEM_guardedalloc.h"
@@ -73,9 +75,14 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 
+#include "BLO_read_write.hh"
 #include "BLO_readfile.hh"
 #include "readfile.hh"
 #include "versioning_common.hh"
+
+#include "BLT_translation.hh"
+
+#include <fmt/format.h>
 
 /* Make preferences read-only, use `versioning_userdef.cc`. */
 #define U (*((const UserDef *)&U))
@@ -103,7 +110,7 @@ static eSpaceSeq_Proxy_RenderSize get_sequencer_render_size(Main *bmain)
   return render_size;
 }
 
-static bool can_use_proxy(const Strip *strip, int psize)
+static bool can_use_proxy(const Strip *strip, IMB_Proxy_Size psize)
 {
   if (strip->data->proxy == nullptr) {
     return false;
@@ -377,7 +384,8 @@ static void seq_update_meta_disp_range(Scene *scene)
     blender::seq::time_right_handle_frame_set(scene, ms->parent_strip, ms->disp_range[1]);
 
     /* Recalculate effects using meta strip. */
-    LISTBASE_FOREACH (Strip *, strip, ms->oldbasep) {
+    ListBase *old_seqbasep = ms->old_strip ? &ms->old_strip->seqbase : &ed->seqbase;
+    LISTBASE_FOREACH (Strip *, strip, old_seqbasep) {
       if (strip->input2) {
         strip->start = strip->startdisp = max_ii(strip->input1->startdisp,
                                                  strip->input2->startdisp);
@@ -385,9 +393,8 @@ static void seq_update_meta_disp_range(Scene *scene)
       }
     }
 
-    /* Ensure that active seqbase points to active meta strip seqbase. */
     MetaStack *active_ms = blender::seq::meta_stack_active_get(ed);
-    blender::seq::active_seqbase_set(ed, &active_ms->parent_strip->seqbase);
+    active_ms->old_strip = ms->parent_strip;
   }
 }
 
@@ -714,11 +721,11 @@ static void do_versions_point_attributes(CustomData *pdata)
   for (int i = 0; i < pdata->totlayer; i++) {
     CustomDataLayer *layer = &pdata->layers[i];
     if (layer->type == CD_LOCATION) {
-      STRNCPY(layer->name, "Position");
+      STRNCPY_UTF8(layer->name, "Position");
       layer->type = CD_PROP_FLOAT3;
     }
     else if (layer->type == CD_RADIUS) {
-      STRNCPY(layer->name, "Radius");
+      STRNCPY_UTF8(layer->name, "Radius");
       layer->type = CD_PROP_FLOAT;
     }
   }
@@ -730,10 +737,10 @@ static void do_versions_point_attribute_names(CustomData *pdata)
   for (int i = 0; i < pdata->totlayer; i++) {
     CustomDataLayer *layer = &pdata->layers[i];
     if (layer->type == CD_PROP_FLOAT3 && STREQ(layer->name, "Position")) {
-      STRNCPY(layer->name, "position");
+      STRNCPY_UTF8(layer->name, "position");
     }
     else if (layer->type == CD_PROP_FLOAT && STREQ(layer->name, "Radius")) {
-      STRNCPY(layer->name, "radius");
+      STRNCPY_UTF8(layer->name, "radius");
     }
   }
 }
@@ -817,27 +824,12 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
           CustomData_get_layer(&me->face_data, CD_MPOLY));
       for (const int i : blender::IndexRange(me->faces_num)) {
         if (polys[i].totloop == 2) {
-          bool changed;
-          BKE_mesh_legacy_convert_loops_to_corners(me);
-          BKE_mesh_legacy_convert_polys_to_offsets(me);
-          BKE_mesh_validate_arrays(
-              me,
-              reinterpret_cast<float(*)[3]>(me->vert_positions_for_write().data()),
-              me->verts_num,
-              me->edges_for_write().data(),
-              me->edges_num,
-              (MFace *)CustomData_get_layer_for_write(
-                  &me->fdata_legacy, CD_MFACE, me->totface_legacy),
-              me->totface_legacy,
-              me->corner_verts().data(),
-              me->corner_edges_for_write().data(),
-              me->corners_num,
-              me->face_offsets().data(),
-              me->faces_num,
-              me->deform_verts_for_write().data(),
-              false,
-              true,
-              &changed);
+          std::string message = fmt::format(
+              fmt::runtime(RPT_("Mesh %s has invalid faces, likely caused by the manifold extrude "
+                                "tool in version 2.90.0. Opening and saving the file in a version "
+                                "prior to 5.1 should resolve the issue\n")),
+              me->id.name + 2);
+          BLO_read_invalidate_message((BlendHandle *)fd, bmain, message.c_str());
           break;
         }
       }
@@ -912,7 +904,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
               tex->sun_rotation = 0.0f;
               tex->altitude = 0.0f;
               tex->air_density = 1.0f;
-              tex->dust_density = 1.0f;
+              tex->aerosol_density = 1.0f;
               tex->ozone_density = 1.0f;
             }
           }
@@ -1135,7 +1127,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
 
     if (!DNA_struct_member_exists(fd->filesdna, "CacheFile", "char", "velocity_unit")) {
       LISTBASE_FOREACH (CacheFile *, cache_file, &bmain->cachefiles) {
-        STRNCPY(cache_file->velocity_name, ".velocities");
+        STRNCPY_UTF8(cache_file->velocity_name, ".velocities");
         cache_file->velocity_unit = CACHEFILE_VELOCITY_UNIT_SECOND;
       }
     }
@@ -1174,7 +1166,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
 
       /* The sub-step method changed from "per second" to "per frame".
        * To get the new value simply divide the old bullet sim FPS with the scene FPS. */
-      rbw->substeps_per_frame /= FPS;
+      rbw->substeps_per_frame /= scene->frames_per_second();
 
       if (rbw->substeps_per_frame <= 0) {
         rbw->substeps_per_frame = 1;
@@ -1533,7 +1525,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
             LISTBASE_FOREACH (bNodeSocket *, output_socket, &node->outputs) {
               const char *volume_scatter = "VolumeScatterCol";
               if (STREQLEN(output_socket->name, volume_scatter, MAX_NAME)) {
-                STRNCPY(output_socket->name, RE_PASSNAME_VOLUME_LIGHT);
+                STRNCPY_UTF8(output_socket->name, RE_PASSNAME_VOLUME_LIGHT);
               }
             }
           }
@@ -1549,7 +1541,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
             if (node->type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY) {
               NodeCryptomatte *storage = (NodeCryptomatte *)node->storage;
               char *matte_id = storage->matte_id;
-              if (matte_id == nullptr || strlen(storage->matte_id) == 0) {
+              if ((matte_id == nullptr) || (storage->matte_id[0] == '\0')) {
                 continue;
               }
               BKE_cryptomatte_matte_id_to_entries(storage, storage->matte_id);
@@ -1577,7 +1569,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         if (STREQ(node->idname, "GeometryNodeRandomAttribute")) {
-          STRNCPY(node->idname, "GeometryLegacyNodeAttributeRandomize");
+          STRNCPY_UTF8(node->idname, "GeometryLegacyNodeAttributeRandomize");
         }
       }
     }
@@ -1802,10 +1794,10 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (STREQ(node->idname, "GeometryNodeSubdivisionSurfaceSimple")) {
-            STRNCPY(node->idname, "GeometryNodeSubdivide");
+            STRNCPY_UTF8(node->idname, "GeometryNodeSubdivide");
           }
           if (STREQ(node->idname, "GeometryNodeSubdivisionSurface")) {
-            STRNCPY(node->idname, "GeometryNodeSubdivideSmooth");
+            STRNCPY_UTF8(node->idname, "GeometryNodeSubdivideSmooth");
           }
         }
       }
@@ -1827,7 +1819,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
               {
                 sseq->flag |= SEQ_USE_PROXIES;
               }
-              if (sseq->render_size == SEQ_RENDER_SIZE_FULL) {
+              if (sseq->render_size == SEQ_RENDER_SIZE_FULL_DEPRECATED) {
                 sseq->render_size = SEQ_RENDER_SIZE_PROXY_100;
               }
             }
@@ -1859,7 +1851,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (STREQ(node->idname, "GeometryNodeSubdivideSmooth")) {
-            STRNCPY(node->idname, "GeometryNodeSubdivisionSurface");
+            STRNCPY_UTF8(node->idname, "GeometryNodeSubdivisionSurface");
           }
         }
       }
@@ -1937,7 +1929,7 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
           if (sl->spacetype == SPACE_NODE) {
             SpaceNode *snode = (SpaceNode *)sl;
             LISTBASE_FOREACH (bNodeTreePath *, path, &snode->treepath) {
-              STRNCPY(path->display_name, path->node_name);
+              STRNCPY_UTF8(path->display_name, path->node_name);
             }
           }
         }

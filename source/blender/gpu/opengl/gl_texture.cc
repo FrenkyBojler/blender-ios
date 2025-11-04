@@ -9,6 +9,7 @@
 #include <string>
 
 #include "BLI_assert.h"
+#include "BLI_math_half.hh"
 #include "BLI_string.h"
 
 #include "DNA_userdef_types.h"
@@ -40,7 +41,7 @@ GLTexture::GLTexture(const char *name) : Texture(name)
 GLTexture::~GLTexture()
 {
   if (framebuffer_) {
-    GPU_framebuffer_free(wrap(framebuffer_));
+    GPU_framebuffer_free(framebuffer_);
   }
   GLContext *ctx = GLContext::get();
   if (ctx != nullptr && is_bound_) {
@@ -48,7 +49,7 @@ GLTexture::~GLTexture()
     ctx->state_manager->texture_unbind(this);
     ctx->state_manager->image_unbind(this);
   }
-  GLContext::tex_free(tex_id_);
+  GLContext::texture_free(tex_id_);
 }
 
 bool GLTexture::init_internal()
@@ -114,9 +115,12 @@ bool GLTexture::init_internal(VertBuf *vbo)
   return true;
 }
 
-bool GLTexture::init_internal(GPUTexture *src, int mip_offset, int layer_offset, bool use_stencil)
+bool GLTexture::init_internal(gpu::Texture *src,
+                              int mip_offset,
+                              int layer_offset,
+                              bool use_stencil)
 {
-  const GLTexture *gl_src = static_cast<const GLTexture *>(unwrap(src));
+  const GLTexture *gl_src = static_cast<const GLTexture *>(src);
   GLenum internal_format = to_gl_internal_format(format_);
   target_ = to_gl_target(type_);
 
@@ -132,7 +136,7 @@ bool GLTexture::init_internal(GPUTexture *src, int mip_offset, int layer_offset,
   debug::object_label(GL_TEXTURE, tex_id_, name_);
 
   /* Stencil view support. */
-  if (ELEM(format_, GPU_DEPTH32F_STENCIL8)) {
+  if (ELEM(format_, TextureFormat::SFLOAT_32_DEPTH_UINT_8)) {
     stencil_texture_mode_set(use_stencil);
   }
 
@@ -192,6 +196,34 @@ void GLTexture::update_sub(
   if (mip >= mipmaps_) {
     debug::raise_gl_error("Updating a miplvl on a texture too small to have this many levels.");
     return;
+  }
+
+  std::unique_ptr<uint16_t, MEM_freeN_smart_ptr_deleter> clamped_half_buffer = nullptr;
+
+  if (data != nullptr && type == GPU_DATA_FLOAT && is_half_float(format_)) {
+    size_t pixel_count = max_ii(extent[0], 1) * max_ii(extent[1], 1) * max_ii(extent[2], 1);
+    size_t total_component_count = to_component_len(format_) * pixel_count;
+
+    clamped_half_buffer.reset(
+        (uint16_t *)MEM_mallocN_aligned(sizeof(uint16_t) * total_component_count, 128, __func__));
+
+    Span<float> src(static_cast<const float *>(data), total_component_count);
+    MutableSpan<uint16_t> dst(static_cast<uint16_t *>(clamped_half_buffer.get()),
+                              total_component_count);
+
+    constexpr int64_t chunk_size = 4 * 1024 * 1024;
+
+    threading::parallel_for(
+        IndexRange(total_component_count), chunk_size, [&](const IndexRange range) {
+          /* Doing float to half conversion manually to avoid implementation specific behavior
+           * regarding Inf and NaNs. Use make finite version to avoid unexpected black pixels on
+           * certain implementation. For platform parity we clamp these infinite values to finite
+           * values. */
+          blender::math::float_to_half_make_finite_array(
+              src.slice(range).data(), dst.slice(range).data(), range.size());
+        });
+    data = clamped_half_buffer.get();
+    type = GPU_DATA_HALF_FLOAT;
   }
 
   const int dimensions = this->dimensions_count();
@@ -292,8 +324,7 @@ void GLTexture::generate_mipmap()
 
   /* Some drivers have bugs when using #glGenerateMipmap with depth textures (see #56789).
    * In this case we just create a complete texture with mipmaps manually without
-   * down-sampling. You must initialize the texture levels using other methods like
-   * #GPU_framebuffer_recursive_downsample(). */
+   * down-sampling. You must initialize the texture levels using other methods. */
   if (format_flag_ & GPU_FORMAT_DEPTH) {
     return;
   }
@@ -329,7 +360,7 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
    * "pixel data" to exist which is then uploaded CPU -> GPU at bind
    * time. */
 
-  GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
   FrameBuffer *fb = this->framebuffer_get();
   fb->bind(true);
@@ -375,8 +406,8 @@ void *GLTexture::read(int mip, eGPUDataFormat type)
    * if the texture is big. (see #66573) */
   void *data = MEM_mallocN(texture_size + 8, "GPU_texture_read");
 
-  GLenum gl_format = to_gl_data_format(format_ == GPU_DEPTH32F_STENCIL8 ? GPU_DEPTH_COMPONENT32F :
-                                                                          format_);
+  GLenum gl_format = to_gl_data_format(
+      format_ == TextureFormat::SFLOAT_32_DEPTH_UINT_8 ? TextureFormat::SFLOAT_32_DEPTH : format_);
   GLenum gl_type = to_gl(type);
 
   if (GLContext::direct_state_access_support) {
@@ -454,8 +485,8 @@ FrameBuffer *GLTexture::framebuffer_get()
     return framebuffer_;
   }
   BLI_assert(!(type_ & GPU_TEXTURE_1D));
-  framebuffer_ = unwrap(GPU_framebuffer_create(name_));
-  framebuffer_->attachment_set(this->attachment_type(0), GPU_ATTACHMENT_TEXTURE(wrap(this)));
+  framebuffer_ = GPU_framebuffer_create(name_);
+  framebuffer_->attachment_set(this->attachment_type(0), GPU_ATTACHMENT_TEXTURE(this));
   has_pixels_ = true;
   return framebuffer_;
 }
@@ -669,7 +700,7 @@ bool GLTexture::proxy_check(int mip)
   GLenum gl_proxy = to_gl_proxy(type_);
   GLenum internal_format = to_gl_internal_format(format_);
   GLenum gl_format = to_gl_data_format(format_);
-  GLenum gl_type = to_gl(to_data_format(format_));
+  GLenum gl_type = to_gl(to_texture_data_format(format_));
   /* Small exception. */
   int dimensions = (type_ == GPU_TEXTURE_CUBE) ? 2 : this->dimensions_count();
 
@@ -714,11 +745,6 @@ bool GLTexture::proxy_check(int mip)
 
 void GLTexture::check_feedback_loop()
 {
-  /* Recursive down sample workaround break this check.
-   * See #recursive_downsample() for more information. */
-  if (GPU_mip_render_workaround()) {
-    return;
-  }
   /* Do not check if using compute shader. */
   GLShader *sh = dynamic_cast<GLShader *>(Context::get()->shader);
   if (sh && sh->is_compute()) {
@@ -748,13 +774,6 @@ void GLTexture::check_feedback_loop()
       return;
     }
   }
-}
-
-uint GLTexture::gl_bindcode_get() const
-{
-  /* TODO(fclem): Legacy. Should be removed at some point. */
-
-  return tex_id_;
 }
 
 /* -------------------------------------------------------------------- */

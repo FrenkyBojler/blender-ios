@@ -298,15 +298,31 @@ static void ObjectToTransData(TransInfo *t, TransData *td, TransDataExtension *t
   }
 }
 
-static void trans_object_base_deps_flag_prepare(const Scene *scene, ViewLayer *view_layer)
+static void trans_object_base_deps_flag_prepare(const TransInfo *t,
+                                                const Scene *scene,
+                                                ViewLayer *view_layer)
 {
+  if (t->options & CTX_OBMODE_XFORM_OBDATA) {
+    return;
+  }
   BKE_view_layer_synced_ensure(scene, view_layer);
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     base->object->id.tag &= ~ID_TAG_DOIT;
   }
 }
 
-static void set_trans_object_base_deps_flag_cb(ID *id, eDepsObjectComponentType component)
+static void tag_trans_objects_with_geometry_dep_only_fn(ID *id, eDepsObjectComponentType component)
+{
+  /* Here we only handle object IDs. */
+  if (GS(id->name) != ID_OB) {
+    return;
+  }
+  if (component == DEG_OB_COMP_GEOMETRY) {
+    id->tag |= ID_TAG_DOIT;
+  }
+}
+
+static void tag_trans_objects_dep_fn(ID *id, eDepsObjectComponentType component)
 {
   /* Here we only handle object IDs. */
   if (GS(id->name) != ID_OB) {
@@ -318,27 +334,40 @@ static void set_trans_object_base_deps_flag_cb(ID *id, eDepsObjectComponentType 
   id->tag |= ID_TAG_DOIT;
 }
 
-static void flush_trans_object_base_deps_flag(Depsgraph *depsgraph, Object *object)
+static void flush_trans_object_base_deps_flag(const TransInfo *t, Object *object)
 {
+  if (t->options & CTX_OBMODE_XFORM_OBDATA) {
+    return;
+  }
   object->id.tag |= ID_TAG_DOIT;
-  DEG_foreach_dependent_ID_component(depsgraph,
-                                     &object->id,
-                                     DEG_OB_COMP_TRANSFORM,
-                                     DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
-                                     set_trans_object_base_deps_flag_cb);
+
+  DEG_foreach_dependent_ID_component(
+      t->depsgraph,
+      &object->id,
+      DEG_OB_COMP_TRANSFORM,
+      DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
+
+      /* When we transform parents while skipping children, we only traverse the GEOMETRY-dependent
+       * components. This avoids marking children as not participating in snapping but still marks
+       * objects with modifier dependencies.
+       * Unfortunately, some transform-dependent objects that are not children may also be skipped,
+       * such as constrained ones.
+       * See #121378 for details. */
+      (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) ? tag_trans_objects_with_geometry_dep_only_fn :
+                                                      tag_trans_objects_dep_fn);
 }
 
 static void trans_object_base_deps_flag_finish(const TransInfo *t,
                                                const Scene *scene,
                                                ViewLayer *view_layer)
 {
-
-  if ((t->options & CTX_OBMODE_XFORM_OBDATA) == 0) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      if (base->object->id.tag & ID_TAG_DOIT) {
-        base->flag_legacy |= BA_SNAP_FIX_DEPS_FIASCO;
-      }
+  if (t->options & CTX_OBMODE_XFORM_OBDATA) {
+    return;
+  }
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+    if (base->object->id.tag & ID_TAG_DOIT) {
+      base->flag_legacy |= BA_SNAP_FIX_DEPS_FIASCO;
     }
   }
 }
@@ -366,7 +395,7 @@ static void set_trans_object_base_flags(TransInfo *t)
   /* Make sure depsgraph is here. */
   DEG_graph_relations_update(depsgraph);
   /* Clear all flags we need. It will be used to detect dependencies. */
-  trans_object_base_deps_flag_prepare(scene, view_layer);
+  trans_object_base_deps_flag_prepare(t, scene, view_layer);
   /* Traverse all bases and set all possible flags. */
   BKE_view_layer_synced_ensure(scene, view_layer);
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
@@ -397,7 +426,7 @@ static void set_trans_object_base_flags(TransInfo *t)
           base->flag_legacy |= BA_WAS_SEL;
         }
       }
-      flush_trans_object_base_deps_flag(depsgraph, ob);
+      flush_trans_object_base_deps_flag(t, ob);
     }
   }
   /* Store temporary bits in base indicating that base is being modified
@@ -427,11 +456,9 @@ static int count_proportional_objects(TransInfo *t)
   int total = 0;
   ViewLayer *view_layer = t->view_layer;
   View3D *v3d = static_cast<View3D *>(t->view);
-  Main *bmain = CTX_data_main(t->context);
   Scene *scene = t->scene;
-  Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
   /* Clear all flags we need. It will be used to detect dependencies. */
-  trans_object_base_deps_flag_prepare(scene, view_layer);
+  trans_object_base_deps_flag_prepare(t, scene, view_layer);
   /* Rotations around local centers are allowed to propagate, so we take all objects. */
   if (!((t->around == V3D_AROUND_LOCAL_ORIGINS) && ELEM(t->mode, TFM_ROTATION, TFM_TRACKBALL))) {
     /* Mark all parents. */
@@ -466,7 +493,7 @@ static int count_proportional_objects(TransInfo *t)
         (base->flag & BASE_SELECTED) == 0 &&
         (BASE_EDITABLE(v3d, base) && BASE_SELECTABLE(v3d, base)))
     {
-      flush_trans_object_base_deps_flag(depsgraph, ob);
+      flush_trans_object_base_deps_flag(t, ob);
       total += 1;
     }
   }
@@ -684,6 +711,7 @@ static void createTransObject(bContext *C, TransInfo *t)
                       tdo->xcs, ob, ob_parent_recurse, object::XFORM_OB_SKIP_CHILD_PARENT_APPLY);
                   BLI_ghash_insert(objects_parent_root, ob, ob_parent_recurse);
                   base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+                  base->flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
                 }
               }
             }
@@ -705,6 +733,7 @@ static void createTransObject(bContext *C, TransInfo *t)
             object::object_xform_skip_child_container_item_ensure(
                 tdo->xcs, ob, nullptr, object::XFORM_OB_SKIP_CHILD_PARENT_IS_XFORM);
             base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+            base->flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
           }
           else {
             Object *ob_parent_recurse = static_cast<Object *>(

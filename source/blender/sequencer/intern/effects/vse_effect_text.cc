@@ -33,7 +33,6 @@
 #include "DNA_space_types.h"
 #include "DNA_vfont_types.h"
 
-#include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "SEQ_effects.hh"
@@ -171,10 +170,7 @@ bool effects_can_render_text(const Strip *strip)
 
 static void init_text_effect(Strip *strip)
 {
-  if (strip->effectdata) {
-    MEM_freeN(strip->effectdata);
-  }
-
+  MEM_SAFE_FREE(strip->effectdata);
   TextVars *data = MEM_callocN<TextVars>("textvars");
   strip->effectdata = data;
 
@@ -207,7 +203,7 @@ static void init_text_effect(Strip *strip)
   data->wrap_width = 1.0f;
 }
 
-void effect_text_font_unload(TextVars *data, const bool do_id_user)
+static void text_font_unload(TextVars *data, const bool do_id_user)
 {
   if (data == nullptr) {
     return;
@@ -226,7 +222,20 @@ void effect_text_font_unload(TextVars *data, const bool do_id_user)
   }
 }
 
-void effect_text_font_load(TextVars *data, const bool do_id_user)
+void effect_text_font_set(Strip *strip, VFont *font)
+{
+  if (strip == nullptr || strip->type != STRIP_TYPE_TEXT) {
+    return;
+  }
+  TextVars *data = static_cast<TextVars *>(strip->effectdata);
+  text_font_unload(data, true);
+
+  id_us_plus(&font->id);
+  data->text_blf_id = STRIP_FONT_NOT_LOADED;
+  data->text_font = font;
+}
+
+static void text_font_load(TextVars *data, const bool do_id_user)
 {
   VFont *vfont = data->text_font;
   if (vfont == nullptr) {
@@ -262,7 +271,7 @@ void effect_text_font_load(TextVars *data, const bool do_id_user)
 static void free_text_effect(Strip *strip, const bool do_id_user)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  effect_text_font_unload(data, do_id_user);
+  text_font_unload(data, do_id_user);
 
   if (data) {
     MEM_SAFE_FREE(data->text_ptr);
@@ -275,7 +284,7 @@ static void free_text_effect(Strip *strip, const bool do_id_user)
 static void load_text_effect(Strip *strip)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  effect_text_font_load(data, false);
+  text_font_load(data, false);
 }
 
 static void copy_text_effect(Strip *dst, const Strip *src, const int flag)
@@ -286,7 +295,7 @@ static void copy_text_effect(Strip *dst, const Strip *src, const int flag)
 
   data->runtime = nullptr;
   data->text_blf_id = -1;
-  effect_text_font_load(data, (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0);
+  text_font_load(data, (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0);
 }
 
 static int num_inputs_text()
@@ -575,7 +584,6 @@ static void text_draw(const char *text_ptr, const TextVarsRuntime *runtime, floa
 static rcti draw_text_outline(const RenderData *context,
                               const TextVars *data,
                               const TextVarsRuntime *runtime,
-                              const ColorManagedDisplay *display,
                               ImBuf *out)
 {
   /* Outline width of 1.0 maps to half of text line height. */
@@ -591,7 +599,12 @@ static rcti draw_text_outline(const RenderData *context,
   /* Draw white text into temporary buffer. */
   const size_t pixel_count = size_t(size.x) * size.y;
   Array<uchar4> tmp_buf(pixel_count, uchar4(0));
-  BLF_buffer(runtime->font, nullptr, (uchar *)tmp_buf.data(), size.x, size.y, display);
+  BLF_buffer(runtime->font,
+             nullptr,
+             (uchar *)tmp_buf.data(),
+             size.x,
+             size.y,
+             out->byte_buffer.colorspace);
 
   text_draw(data->text_ptr, runtime, float4(1.0f));
 
@@ -691,7 +704,8 @@ static rcti draw_text_outline(const RenderData *context,
       }
     }
   });
-  BLF_buffer(runtime->font, nullptr, out->byte_buffer.data, size.x, size.y, display);
+  BLF_buffer(
+      runtime->font, nullptr, out->byte_buffer.data, size.x, size.y, out->byte_buffer.colorspace);
 
   return outline_rect;
 }
@@ -776,21 +790,17 @@ static int text_effect_line_size_get(const RenderData *context, const Strip *str
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
-  /* Used to calculate boundbox. Proxy size compensation is not needed there. */
+  /* Used to calculate boundbox. Render scale compensation is not needed there. */
   if (context == nullptr) {
     return data->text_size;
   }
 
-  /* Compensate text size for preview render size. */
-  double proxy_size_comp = context->scene->r.size / 100.0;
-  if (context->preview_render_size != SEQ_RENDER_SIZE_SCENE) {
-    proxy_size_comp = rendersize_to_scale_factor(context->preview_render_size);
-  }
-
-  return proxy_size_comp * data->text_size;
+  /* Compensate for preview render size. */
+  const float size_scale = seq::get_render_scale_factor(*context);
+  return size_scale * data->text_size;
 }
 
-int text_effect_font_init(const RenderData *context, const Strip *strip, int font_flags)
+int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   int font = blf_mono_font_render;
@@ -803,7 +813,7 @@ int text_effect_font_init(const RenderData *context, const Strip *strip, int fon
   if (data->text_blf_id == STRIP_FONT_NOT_LOADED) {
     data->text_blf_id = -1;
 
-    effect_text_font_load(data, false);
+    text_font_load(data, false);
   }
 
   if (data->text_blf_id >= 0) {
@@ -1020,6 +1030,7 @@ TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const in
 }
 
 static ImBuf *do_text_effect(const RenderData *context,
+                             SeqRenderState * /*state*/,
                              Strip *strip,
                              float /*timeline_frame*/,
                              float /*fac*/,
@@ -1031,10 +1042,8 @@ static ImBuf *do_text_effect(const RenderData *context,
   ImBuf *out = prepare_effect_imbufs(context, nullptr, nullptr, false);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
-  const char *display_device = context->scene->display_settings.display_device;
-  const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
-  const int font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : 0) |
-                         ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : 0);
+  const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                               ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
 
   /* Guard against parallel accesses to the fonts map. */
   std::lock_guard lock(g_font_map.mutex);
@@ -1048,8 +1057,8 @@ static ImBuf *do_text_effect(const RenderData *context,
   TextVarsRuntime *runtime = text_effect_calc_runtime(strip, font, {out->x, out->y});
   data->runtime = runtime;
 
-  rcti outline_rect = draw_text_outline(context, data, runtime, display, out);
-  BLF_buffer(font, nullptr, out->byte_buffer.data, out->x, out->y, display);
+  rcti outline_rect = draw_text_outline(context, data, runtime, out);
+  BLF_buffer(font, nullptr, out->byte_buffer.data, out->x, out->y, out->byte_buffer.colorspace);
   text_draw(data->text_ptr, runtime, data->color);
   BLF_buffer(font, nullptr, nullptr, 0, 0, nullptr);
   BLF_disable(font, font_flags);

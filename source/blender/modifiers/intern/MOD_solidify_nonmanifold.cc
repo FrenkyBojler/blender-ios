@@ -210,7 +210,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
 #define MOD_SOLIDIFY_EMPTY_TAG uint(-1)
 
   /* Calculate only face normals. Copied because they are modified directly below. */
-  blender::Array<blender::float3> face_nors = mesh->face_normals();
+  blender::Array<blender::float3> face_nors = mesh->face_normals_true();
 
   blender::Array<NewFaceRef> face_sides_arr(faces_num * 2);
   bool *null_faces = (smd->nonmanifold_offset_mode ==
@@ -298,7 +298,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   /* Vert edge adjacent map. */
   OldVertEdgeRef **vert_adj_edges = MEM_calloc_arrayN<OldVertEdgeRef *>(verts_num, __func__);
   /* Original vertex positions (changed for degenerated geometry). */
-  float(*orig_mvert_co)[3] = MEM_malloc_arrayN<float[3]>(verts_num, __func__);
+  float (*orig_mvert_co)[3] = MEM_malloc_arrayN<float[3]>(verts_num, __func__);
   /* Fill in the original vertex positions. */
   for (uint i = 0; i < verts_num; i++) {
     orig_mvert_co[i][0] = orig_vert_positions[i][0];
@@ -1427,7 +1427,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
               NewEdgeRef *first_edge = nullptr;
               NewEdgeRef **edge_ptr = g->edges;
               /* Contains normal and offset `[nx, ny, nz, ofs]`. */
-              float(*planes_queue)[4] = MEM_malloc_arrayN<float[4]>(g->edges_len + 1, __func__);
+              float (*planes_queue)[4] = MEM_malloc_arrayN<float[4]>(g->edges_len + 1, __func__);
               uint queue_index = 0;
 
               float fallback_nor[3];

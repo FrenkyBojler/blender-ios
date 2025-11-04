@@ -18,6 +18,7 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_curveprofile.h"
 #include "BKE_deform.hh"
@@ -97,7 +98,7 @@ static std::string ensure_weight_attribute_meta_data(Mesh &mesh,
   const std::string new_name = BKE_attribute_calc_unique_name(AttributeOwner::from_id(&mesh.id),
                                                               name);
   attributes.add<float>(
-      new_name, domain, bke::AttributeInitVArray(VArray<float>::ForSpan(weight)));
+      new_name, domain, bke::AttributeInitVArray(VArray<float>::from_span(weight)));
   r_attr_converted = true;
   return new_name;
 }
@@ -482,4 +483,5 @@ ModifierTypeInfo modifierType_Bevel = {
     /*blend_write*/ blend_write,
     /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

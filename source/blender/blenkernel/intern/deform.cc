@@ -42,6 +42,7 @@
 
 #include "data_transfer_intern.hh"
 
+using blender::Span;
 using blender::StringRef;
 
 bDeformGroup *BKE_object_defgroup_new(Object *ob, const StringRef name)
@@ -1107,17 +1108,16 @@ void BKE_defvert_extract_vgroup_to_vertweights(const MDeformVert *dvert,
 void BKE_defvert_extract_vgroup_to_edgeweights(const MDeformVert *dvert,
                                                const int defgroup,
                                                const int verts_num,
-                                               const blender::int2 *edges,
-                                               const int edges_num,
+                                               blender::Span<blender::int2> edges,
                                                const bool invert_vgroup,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, edges_num, 0.0f);
+    copy_vn_fl(r_weights, edges.size(), 0.0f);
     return;
   }
 
-  int i = edges_num;
+  int i = edges.size();
   float *tmp_weights = MEM_malloc_arrayN<float>(size_t(verts_num), __func__);
 
   BKE_defvert_extract_vgroup_to_vertweights(
@@ -1135,17 +1135,16 @@ void BKE_defvert_extract_vgroup_to_edgeweights(const MDeformVert *dvert,
 void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
                                                const int defgroup,
                                                const int verts_num,
-                                               const int *corner_verts,
-                                               const int loops_num,
+                                               const Span<int> corner_verts,
                                                const bool invert_vgroup,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, loops_num, 0.0f);
+    copy_vn_fl(r_weights, corner_verts.size(), 0.0f);
     return;
   }
 
-  int i = loops_num;
+  int i = corner_verts.size();
   float *tmp_weights = MEM_malloc_arrayN<float>(size_t(verts_num), __func__);
 
   BKE_defvert_extract_vgroup_to_vertweights(
@@ -1161,8 +1160,7 @@ void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
 void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
                                                const int defgroup,
                                                const int verts_num,
-                                               const int *corner_verts,
-                                               const int /*loops_num*/,
+                                               const Span<int> corner_verts,
                                                const blender::OffsetIndices<int> faces,
                                                const bool invert_vgroup,
                                                float *r_weights)
@@ -1258,19 +1256,20 @@ static void vgroups_datatransfer_interp(const CustomDataTransferLayerMap *laymap
   }
 }
 
-static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
-                                                                const int mix_mode,
-                                                                const float mix_factor,
-                                                                const float *mix_weights,
-                                                                const bool use_create,
-                                                                const bool use_delete,
-                                                                Object *ob_dst,
-                                                                const Mesh &mesh_src,
-                                                                Mesh &mesh_dst,
-                                                                const bool /*use_dupref_dst*/,
-                                                                const int tolayers,
-                                                                const bool *use_layers_src,
-                                                                const int num_layers_src)
+static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(
+    blender::Vector<CustomDataTransferLayerMap> *r_map,
+    const int mix_mode,
+    const float mix_factor,
+    const float *mix_weights,
+    const bool use_create,
+    const bool use_delete,
+    Object *ob_dst,
+    const Mesh &mesh_src,
+    Mesh &mesh_dst,
+    const bool /*use_dupref_dst*/,
+    const int tolayers,
+    const bool *use_layers_src,
+    const int num_layers_src)
 {
   int idx_src;
   int idx_dst;
@@ -1326,7 +1325,6 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
                                                elem_size,
                                                0,
                                                0,
-                                               0,
                                                vgroups_datatransfer_interp,
                                                nullptr);
         }
@@ -1379,7 +1377,6 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
                                                elem_size,
                                                0,
                                                0,
-                                               0,
                                                vgroups_datatransfer_interp,
                                                nullptr);
         }
@@ -1393,7 +1390,7 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
   return true;
 }
 
-bool data_transfer_layersmapping_vgroups(ListBase *r_map,
+bool data_transfer_layersmapping_vgroups(blender::Vector<CustomDataTransferLayerMap> *r_map,
                                          const int mix_mode,
                                          const float mix_factor,
                                          const float *mix_weights,
@@ -1499,7 +1496,6 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
                                            idx_src,
                                            idx_dst,
                                            elem_size,
-                                           0,
                                            0,
                                            0,
                                            vgroups_datatransfer_interp,
@@ -1702,7 +1698,9 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
     });
   }
 
-  void materialize(const IndexMask &mask, float *dst) const override
+  void materialize(const IndexMask &mask,
+                   float *dst,
+                   const bool /*dst_is_uninitialized*/) const override
   {
     if (dverts_ == nullptr) {
       mask.foreach_index([&](const int i) { dst[i] = 0.0f; });
@@ -1717,11 +1715,6 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
         }
       });
     });
-  }
-
-  void materialize_to_uninitialized(const IndexMask &mask, float *dst) const override
-  {
-    this->materialize(mask, dst);
   }
 
  private:
@@ -1747,12 +1740,12 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
 
 VArray<float> varray_for_deform_verts(Span<MDeformVert> dverts, const int defgroup_index)
 {
-  return VArray<float>::For<VArrayImpl_For_VertexWeights>(dverts, defgroup_index);
+  return VArray<float>::from<VArrayImpl_For_VertexWeights>(dverts, defgroup_index);
 }
 VMutableArray<float> varray_for_mutable_deform_verts(MutableSpan<MDeformVert> dverts,
                                                      const int defgroup_index)
 {
-  return VMutableArray<float>::For<VArrayImpl_For_VertexWeights>(dverts, defgroup_index);
+  return VMutableArray<float>::from<VArrayImpl_For_VertexWeights>(dverts, defgroup_index);
 }
 
 void remove_defgroup_index(MutableSpan<MDeformVert> dverts, const int defgroup_index)

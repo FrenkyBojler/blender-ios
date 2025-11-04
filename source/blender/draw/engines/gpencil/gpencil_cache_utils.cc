@@ -27,6 +27,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_memblock.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "gpencil_engine_private.hh"
 
 #include "DEG_depsgraph.hh"
@@ -274,6 +276,7 @@ static void grease_pencil_layer_random_color_get(const Object *ob,
   float hue = BLI_hash_int_01(ob_hash * gpl_hash);
   const float hsv[3] = {hue, hsv_saturation, hsv_value};
   hsv_to_rgb_v(hsv, r_color);
+  IMB_colormanagement_rec709_to_scene_linear(r_color, r_color);
 }
 
 tLayer *grease_pencil_layer_cache_get(tObject *tgp_ob, int layer_id, const bool skip_onion)
@@ -439,8 +442,8 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
 
     PassSimple &pass = *tgp_layer->geom_ps;
 
-    GPUTexture **depth_tex = (is_in_front) ? &inst->dummy_depth : &inst->scene_depth_tx;
-    GPUTexture **mask_tex = (is_masked) ? &inst->mask_tx : &inst->dummy_tx;
+    gpu::Texture **depth_tex = (is_in_front) ? &inst->dummy_depth : &inst->scene_depth_tx;
+    gpu::Texture **mask_tex = (is_masked) ? &inst->mask_tx : &inst->dummy_tx;
 
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ALPHA_PREMUL;
     /* For 2D mode, we render all strokes with uniform depth (increasing with stroke id). */

@@ -54,7 +54,7 @@ bool HierarchyContext::is_prototype() const
 {
   /* The context is for a prototype if it's for a duplisource or
    * for a duplicated object that was designated to be a prototype
-   * because the original was not included in the export.*/
+   * because the original was not included in the export. */
   return is_duplisource || (duplicator != nullptr && !is_instance());
 }
 
@@ -320,7 +320,6 @@ void AbstractHierarchyIterator::export_graph_construct()
       DupliParentFinder dupli_parent_finder;
 
       for (const DupliObject &dupli_object : duplilist) {
-        PersistentID persistent_id(&dupli_object);
         if (!should_visit_dupli_object(&dupli_object)) {
           continue;
         }
@@ -579,7 +578,7 @@ bool AbstractHierarchyIterator::determine_duplication_references(
   }
 
   /* Will be set to true if any child contexts are instances that were designated
-   * as proxies for the original prototype.*/
+   * as proxies for the original prototype. */
   bool contains_proxy_prototype = false;
 
   for (HierarchyContext *context : *children) {
@@ -668,7 +667,7 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
     if (!transform_writer) {
       /* Unable to export, so there is nothing to attach any children to; just abort this entire
        * branch of the export hierarchy. */
-      return;
+      continue;
     }
 
     const bool need_writers = context->is_point_proto || (!context->is_point_instance &&

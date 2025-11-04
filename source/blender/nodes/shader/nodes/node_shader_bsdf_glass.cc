@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
+
 #include "node_shader_util.hh"
 
 namespace blender::nodes::node_shader_bsdf_glass_cc {
@@ -11,6 +14,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
 
   b.add_output<decl::Shader>("BSDF");
+
+  b.add_default_layout();
 
   b.add_input<decl::Color>("Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Roughness")
@@ -36,6 +41,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Index of refraction (IOR) of the thin film");
 }
 
+static void node_shader_buts_glass(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout->prop(ptr, "distribution", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+}
+
 static void node_shader_init_glass(bNodeTree * /*ntree*/, bNode *node)
 {
   node->custom1 = SHD_GLOSSY_MULTI_GGX;
@@ -52,6 +62,11 @@ static int node_shader_gpu_bsdf_glass(GPUMaterial *mat,
   }
 
   GPU_material_flag_set(mat, GPU_MATFLAG_GLOSSY | GPU_MATFLAG_REFRACT);
+
+  if (in[0].might_be_tinted()) {
+    GPU_material_flag_set(
+        mat, GPU_MATFLAG_REFLECTION_MAYBE_COLORED | GPU_MATFLAG_REFRACTION_MAYBE_COLORED);
+  }
 
   float use_multi_scatter = (node->custom1 == SHD_GLOSSY_MULTI_GGX) ? 1.0f : 0.0f;
 
@@ -72,20 +87,15 @@ NODE_SHADER_MATERIALX_BEGIN
   NodeItem thin_film_thickness = get_input_value("Thin Film Thickness", NodeItem::Type::Float);
   NodeItem thin_film_ior = get_input_value("Thin Film IOR", NodeItem::Type::Float);
 
-  NodeItem n_base_bsdf = create_node("dielectric_bsdf",
-                                     NodeItem::Type::BSDF,
-                                     {{"normal", normal},
-                                      {"tint", color},
-                                      {"roughness", roughness},
-                                      {"ior", ior},
-                                      {"scatter_mode", val(std::string("RT"))}});
-  NodeItem n_thin_film_bsdf = create_node(
-      "thin_film_bsdf",
-      NodeItem::Type::BSDF,
-      {{"thickness", thin_film_thickness}, {"ior", thin_film_ior}});
-
-  return create_node(
-      "layer", NodeItem::Type::BSDF, {{"top", n_thin_film_bsdf}, {"base", n_base_bsdf}});
+  return create_node("dielectric_bsdf",
+                     NodeItem::Type::BSDF,
+                     {{"normal", normal},
+                      {"tint", color},
+                      {"roughness", roughness},
+                      {"ior", ior},
+                      {"thinfilm_thickness", thin_film_thickness},
+                      {"thinfilm_ior", thin_film_ior},
+                      {"scatter_mode", val(std::string("RT"))}});
 }
 #endif
 NODE_SHADER_MATERIALX_END
@@ -107,6 +117,7 @@ void register_node_type_sh_bsdf_glass()
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
   blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
+  ntype.draw_buttons = file_ns::node_shader_buts_glass;
   ntype.initfunc = file_ns::node_shader_init_glass;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_glass;
   ntype.materialx_fn = file_ns::node_shader_materialx;

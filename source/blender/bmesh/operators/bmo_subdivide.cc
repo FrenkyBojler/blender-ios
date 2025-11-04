@@ -103,7 +103,9 @@ struct SubDPattern {
 #define ELE_INNER 8
 #define ELE_SPLIT 16
 
-/* see bug #32665, 0.00005 means a we get face splits at a little under 1.0 degrees */
+/**
+ * A value of 0.00005 means we get face splits at a little under 1.0 degrees, see #32665.
+ */
 #define FLT_FACE_SPLIT_EPSILON 0.00005f
 
 /*
@@ -467,7 +469,7 @@ static void bm_subdivide_multicut(
 
 /* NOTE: the patterns are rotated as necessary to
  * match the input geometry.  they're based on the
- * pre-split state of the  face */
+ * pre-split state of the face */
 
 /**
  * <pre>
@@ -1352,24 +1354,51 @@ void BM_mesh_esubdivide(BMesh *bm,
   BMO_op_exec(bm, &op);
 
   switch (seltype) {
-    case SUBDIV_SELECT_NONE:
+    case SUBDIV_SELECT_NONE: {
       break;
-    case SUBDIV_SELECT_ORIG:
+    }
+    case SUBDIV_SELECT_ORIG: {
       /* set the newly created data to be selected */
-      BMO_slot_buffer_hflag_enable(
-          bm, op.slots_out, "geom_inner.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
-      BM_mesh_select_flush(bm);
+      if (edge_hflag & BM_ELEM_SELECT) {
+        BMO_slot_buffer_hflag_enable(
+            bm, op.slots_out, "geom_inner.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+        BM_mesh_select_flush_from_verts(bm, true);
+      }
       break;
-    case SUBDIV_SELECT_INNER:
-      BMO_slot_buffer_hflag_enable(
-          bm, op.slots_out, "geom_inner.out", BM_EDGE | BM_VERT, BM_ELEM_SELECT, true);
+    }
+    case SUBDIV_SELECT_INNER: {
+      if (edge_hflag & BM_ELEM_SELECT) {
+        BMO_slot_buffer_hflag_enable(
+            bm, op.slots_out, "geom_inner.out", BM_EDGE | BM_VERT, BM_ELEM_SELECT, true);
+      }
       break;
-    case SUBDIV_SELECT_LOOPCUT:
-      /* deselect input */
-      BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_SELECT, false);
-      BMO_slot_buffer_hflag_enable(
-          bm, op.slots_out, "geom_inner.out", BM_EDGE, BM_ELEM_SELECT, true);
+    }
+    case SUBDIV_SELECT_LOOPCUT: {
+      if (edge_hflag & BM_ELEM_SELECT) {
+        /* deselect input */
+        BM_mesh_elem_hflag_disable_all(bm, BM_ALL_NOLOOP, BM_ELEM_SELECT, false);
+        BMO_slot_buffer_hflag_enable(
+            bm, op.slots_out, "geom_inner.out", BM_EDGE, BM_ELEM_SELECT, true);
+      }
       break;
+    }
+  }
+  if (edge_hflag & BM_ELEM_SELECT) {
+    /* TODO(@ideasman42): the current behavior for face selection flushing
+     * can cause parts of disconnected UV islands to become selected.
+     * This is caused by the underlying geometry becoming selected.
+     * while this is not a bug in UV selection uses are likely to
+     * notice this problem when dealing with the UV selections.
+     * This can be observed after subdividing the default "Suzanne" model
+     * when the UV island of one of the ears is selected.
+     *
+     * We may want to change the resulting selection after a subdivision
+     * to avoid this problem occurring. */
+
+    if (bm->uv_select_sync_valid) {
+      const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
+      BM_mesh_uvselect_flush_post_subdivide(bm, cd_loop_uv_offset);
+    }
   }
 
   BMO_op_finish(bm, &op);

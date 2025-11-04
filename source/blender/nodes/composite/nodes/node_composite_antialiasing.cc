@@ -19,9 +19,14 @@ namespace blender::nodes::node_composite_antialiasing_cc {
 
 static void cmp_node_antialiasing_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Float>("Threshold")
       .default_value(0.2f)
       .subtype(PROP_FACTOR)
@@ -43,8 +48,6 @@ static void cmp_node_antialiasing_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .description("Specifies how much sharp corners will be rounded");
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -107,7 +110,7 @@ static void register_node_type_cmp_antialiasing()
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_antialiasing_declare;
   ntype.flag |= NODE_PREVIEW;
-  blender::bke::node_type_size(ntype, 170, 140, 200);
+  blender::bke::node_type_size(ntype, 175, 140, 200);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);

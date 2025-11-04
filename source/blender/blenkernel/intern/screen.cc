@@ -33,6 +33,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -192,6 +193,7 @@ IDTypeInfo IDType_ID_SCR = {
     /*foreach_id*/ screen_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ screen_blend_write,
@@ -418,15 +420,15 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src)
   }
 }
 
-void BKE_spacedata_draw_locks(bool set)
+void BKE_spacedata_draw_locks(ARegionDrawLockFlags lock_flags)
 {
   for (std::unique_ptr<SpaceType> &st : get_space_types()) {
     LISTBASE_FOREACH (ARegionType *, art, &st->regiontypes) {
-      if (set) {
-        art->do_lock = art->lock;
+      if (lock_flags != 0) {
+        art->do_lock = (art->lock & lock_flags);
       }
       else {
-        art->do_lock = false;
+        art->do_lock = 0;
       }
     }
   }
@@ -547,7 +549,7 @@ Panel *BKE_panel_new(PanelType *panel_type)
   panel->runtime = MEM_new<Panel_Runtime>(__func__);
   panel->type = panel_type;
   if (panel_type) {
-    STRNCPY(panel->panelname, panel_type->idname);
+    STRNCPY_UTF8(panel->panelname, panel_type->idname);
   }
   return panel;
 }
@@ -1101,7 +1103,9 @@ void BKE_screen_view3d_shading_blend_read_data(BlendDataReader *reader, View3DSh
 
 static void write_region(BlendWriter *writer, ARegion *region, int spacetype)
 {
-  BLO_write_struct(writer, ARegion, region);
+  ARegion region_copy = *region;
+  region_copy.runtime = nullptr;
+  BLO_write_struct_at_address(writer, ARegion, region, &region_copy);
 
   if (region->regiondata) {
     if (region->flag & RGN_FLAG_TEMP_REGIONDATA) {
@@ -1148,7 +1152,10 @@ static void write_uilist(BlendWriter *writer, uiList *ui_list)
 static void write_panel_list(BlendWriter *writer, ListBase *lb)
 {
   LISTBASE_FOREACH (Panel *, panel, lb) {
-    BLO_write_struct(writer, Panel, panel);
+    Panel panel_copy = *panel;
+    panel_copy.runtime_flag = 0;
+    panel_copy.runtime = nullptr;
+    BLO_write_struct_at_address(writer, Panel, panel, &panel_copy);
     BLO_write_struct_list(writer, LayoutPanelState, &panel->layout_panel_states);
     LISTBASE_FOREACH (LayoutPanelState *, state, &panel->layout_panel_states) {
       BLO_write_string(writer, state->idname);

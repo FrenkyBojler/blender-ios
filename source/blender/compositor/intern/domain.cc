@@ -26,6 +26,13 @@ void Domain::transform(const float3x3 &input_transformation)
   transformation = input_transformation * transformation;
 }
 
+Domain Domain::transposed() const
+{
+  Domain domain = *this;
+  domain.size = int2(this->size.y, this->size.x);
+  return domain;
+}
+
 Domain Domain::identity()
 {
   return Domain(int2(1), float3x3::identity());
@@ -49,7 +56,7 @@ bool operator!=(const Domain &a, const Domain &b)
 math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode)
 {
   switch (mode) {
-    case ExtensionMode::Zero:
+    case ExtensionMode::Clip:
       return math::InterpWrapMode::Border;
     case ExtensionMode::Repeat:
       return math::InterpWrapMode::Repeat;
@@ -63,7 +70,7 @@ math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode)
 GPUSamplerExtendMode map_extension_mode_to_extend_mode(const ExtensionMode &mode)
 {
   switch (mode) {
-    case blender::compositor::ExtensionMode::Zero:
+    case blender::compositor::ExtensionMode::Clip:
       return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 
     case blender::compositor::ExtensionMode::Extend:

@@ -25,6 +25,9 @@ namespace blender::tests {
 const std::string &flags_test_asset_dir();   /* tests/files in the Blender repository. */
 const std::string &flags_test_release_dir(); /* bin/{blender version} in the build directory. */
 
+/* Returns true if the `BLENDER_TEST_IGNORE_BLOCKLIST` environment variable is set. */
+bool should_ignore_blocklist();
+
 }  // namespace blender::tests
 
 #define EXPECT_V2_NEAR(a, b, eps) \
@@ -149,6 +152,19 @@ inline void EXPECT_EQ_SPAN(const blender::Span<T> expected, const blender::Span<
   if (expected.size() == actual.size()) {
     for (const int64_t i : expected.index_range()) {
       EXPECT_EQ(expected[i], actual[i]) << "Element mismatch at index " << i;
+    }
+  }
+}
+
+template<typename T, typename U>
+inline void EXPECT_NEAR_SPAN(const blender::Span<T> expected,
+                             const blender::Span<T> actual,
+                             const U tolerance)
+{
+  EXPECT_EQ(expected.size(), actual.size());
+  if (expected.size() == actual.size()) {
+    for (const int64_t i : expected.index_range()) {
+      EXPECT_NEAR(expected[i], actual[i], tolerance) << "Element mismatch at index " << i;
     }
   }
 }

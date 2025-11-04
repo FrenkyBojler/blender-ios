@@ -36,6 +36,13 @@ class Context;
 #define SOURCES_INDEX_VERSION 0
 #define SOURCES_INDEX_SPECIALIZATION_CONSTANTS 1
 
+struct PatchedShaderCreateInfo {
+  shader::ShaderCreateInfo info;
+  shader::ShaderCreateInfoStringCache names;
+
+  PatchedShaderCreateInfo(const shader::ShaderCreateInfo &info_) : info(info_) {}
+};
+
 /**
  * Implementation of shader compilation and uniforms handling.
  * Base class which is then specialized for each implementation (GL, VK, ...).
@@ -65,19 +72,29 @@ class Shader {
    * when updating new materials. */
   Shader *parent_shader_ = nullptr;
 
+  /* In some situation, a backend might want to transform the create infos before it is being
+   * parsed. */
+  std::unique_ptr<PatchedShaderCreateInfo> patched_info_;
+
  public:
   Shader(const char *name);
   virtual ~Shader();
 
   /* TODO: Remove `is_batch_compilation`. */
   virtual void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) = 0;
-  /* Variant for legacy python shaders. To be removed, not supported in Vulkan or Metal. */
-  virtual void init() = 0;
 
-  virtual void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
-  virtual void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
-  virtual void fragment_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
-  virtual void compute_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
+  /* Patch create infos for any additional resources that could be needed. */
+  virtual const shader::ShaderCreateInfo &patch_create_info(
+      const shader::ShaderCreateInfo &original_info) = 0;
+
+  virtual void vertex_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                       MutableSpan<StringRefNull> sources) = 0;
+  virtual void geometry_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                         MutableSpan<StringRefNull> sources) = 0;
+  virtual void fragment_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                         MutableSpan<StringRefNull> sources) = 0;
+  virtual void compute_shader_from_glsl(const shader::ShaderCreateInfo &info,
+                                        MutableSpan<StringRefNull> sources) = 0;
   virtual bool finalize(const shader::ShaderCreateInfo *info = nullptr) = 0;
   /* Pre-warms PSOs using parent shader's cached PSO descriptors. Limit specifies maximum PSOs to
    * warm. If -1, compiles all PSO permutations in parent shader.
@@ -94,7 +111,7 @@ class Shader {
   /* Add specialization constant declarations to shader instance. */
   void specialization_constants_init(const shader::ShaderCreateInfo &info);
 
-  std::string defines_declare(const shader::ShaderCreateInfo &info) const;
+  static std::string defines_declare(const shader::ShaderCreateInfo &info);
   virtual std::string resources_declare(const shader::ShaderCreateInfo &info) const = 0;
   virtual std::string vertex_interface_declare(const shader::ShaderCreateInfo &info) const = 0;
   virtual std::string fragment_interface_declare(const shader::ShaderCreateInfo &info) const = 0;
@@ -117,7 +134,8 @@ class Shader {
     return parent_shader_;
   }
 
-  static void set_srgb_uniform(Context *ctx, GPUShader *shader);
+  static void set_scene_linear_to_xyz_uniform(gpu::Shader *shader);
+  static void set_srgb_uniform(Context *ctx, gpu::Shader *shader);
   static void set_framebuffer_srgb_target(int use_srgb_to_linear);
 
  protected:
@@ -127,20 +145,6 @@ class Shader {
                  bool error,
                  GPULogParser *parser);
 };
-
-/* Syntactic sugar. */
-static inline GPUShader *wrap(Shader *vert)
-{
-  return reinterpret_cast<GPUShader *>(vert);
-}
-static inline Shader *unwrap(GPUShader *vert)
-{
-  return reinterpret_cast<Shader *>(vert);
-}
-static inline const Shader *unwrap(const GPUShader *vert)
-{
-  return reinterpret_cast<const Shader *>(vert);
-}
 
 class ShaderCompiler {
   struct Sources {
@@ -157,7 +161,6 @@ class ShaderCompiler {
     Vector<ShaderSpecialization> specializations;
 
     std::atomic<int> pending_compilations = 0;
-    std::atomic<bool> is_cancelled = false;
 
     bool is_specialization_batch()
     {
@@ -174,7 +177,7 @@ class ShaderCompiler {
     {
       for (Shader *shader : shaders) {
         if (shader) {
-          GPU_shader_free(wrap(shader));
+          GPU_shader_free(shader);
         }
       }
       shaders.clear();
@@ -270,6 +273,8 @@ class ShaderCompiler {
 
   BatchHandle next_batch_handle_ = 1;
 
+  bool is_compiling_impl();
+
  protected:
   /* Must be called earlier from the destructor of the subclass if the compilation process relies
    * on subclass resources. */
@@ -287,7 +292,7 @@ class ShaderCompiler {
   Shader *compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation);
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);
-  virtual void specialize_shader(ShaderSpecialization & /*specialization*/){};
+  virtual void specialize_shader(ShaderSpecialization & /*specialization*/) {};
 
   BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos,
                             CompilationPriority priority);
@@ -300,6 +305,7 @@ class ShaderCompiler {
 
   bool specialization_batch_is_ready(SpecializationBatchHandle &handle);
 
+  bool is_compiling();
   void wait_for_all();
 };
 
@@ -314,7 +320,7 @@ struct LogCursor {
   int source = -1;
   int row = -1;
   int column = -1;
-  StringRef file_name_and_error_line = {};
+  std::string file_name_and_error_line;
 };
 
 struct GPULogItem {
@@ -340,6 +346,10 @@ class GPULogParser {
   bool at_any(const char *log_line, const StringRef chars) const;
   int parse_number(const char *log_line, const char **r_new_position) const;
 
+  static size_t line_start_get(StringRefNull source_combined, size_t target_line);
+  static StringRef filename_get(StringRefNull source_combined, size_t pos);
+  static size_t source_line_get(StringRefNull source_combined, size_t pos);
+
   MEM_CXX_CLASS_ALLOC_FUNCS("GPULogParser");
 };
 
@@ -349,4 +359,4 @@ void printf_end(Context *ctx);
 }  // namespace blender::gpu
 
 /* XXX do not use it. Special hack to use OCIO with batch API. */
-GPUShader *immGetShader();
+blender::gpu::Shader *immGetShader();

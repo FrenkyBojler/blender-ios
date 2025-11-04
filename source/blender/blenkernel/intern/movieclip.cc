@@ -71,6 +71,10 @@
 
 #include "BLO_read_write.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"gpu.texture"};
+
 static void free_buffers(MovieClip *clip);
 
 /** Reset runtime mask fields when data-block is being initialized. */
@@ -310,6 +314,7 @@ IDTypeInfo IDType_ID_MC = {
     /*foreach_id*/ movie_clip_foreach_id,
     /*foreach_cache*/ movie_clip_foreach_cache,
     /*foreach_path*/ movie_clip_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ movieclip_blend_write,
@@ -519,13 +524,13 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
     return;
   }
 #ifdef WITH_IMAGE_OPENEXR
-  if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->userdata == nullptr) {
+  if (ibuf->ftype != IMB_FTYPE_OPENEXR || ibuf->exrhandle == nullptr) {
     return;
   }
   MultilayerConvertContext ctx;
   ctx.combined_pass = nullptr;
   ctx.num_combined_channels = 0;
-  IMB_exr_multilayer_convert(ibuf->userdata,
+  IMB_exr_multilayer_convert(ibuf->exrhandle,
                              &ctx,
                              movieclip_convert_multilayer_add_view,
                              movieclip_convert_multilayer_add_layer,
@@ -535,8 +540,8 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
     IMB_assign_float_buffer(ibuf, ctx.combined_pass, IB_TAKE_OWNERSHIP);
     ibuf->channels = ctx.num_combined_channels;
   }
-  IMB_exr_close(ibuf->userdata);
-  ibuf->userdata = nullptr;
+  IMB_exr_close(ibuf->exrhandle);
+  ibuf->exrhandle = nullptr;
 #endif
 }
 
@@ -619,9 +624,6 @@ static ImBuf *movieclip_load_movie_file(MovieClip *clip,
     int fra = framenr - clip->start_frame + clip->frame_offset;
 
     ibuf = MOV_decode_frame(clip->anim, fra, IMB_Timecode_Type(tc), IMB_Proxy_Size(proxy));
-    if (ibuf) {
-      colormanage_imbuf_make_linear(ibuf, clip->colorspace_settings.name);
-    }
   }
 
   return ibuf;
@@ -680,6 +682,7 @@ struct MovieClipCache {
     float polynomial_k[3];
     float division_k[2];
     float nuke_k[2];
+    float nuke_p[2];
     float brown_k[4];
     float brown_p[2];
     short distortion_model;
@@ -938,7 +941,7 @@ static void detect_clip_source(Main *bmain, MovieClip *clip)
   char filepath[FILE_MAX];
 
   STRNCPY(filepath, clip->filepath);
-  BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
+  BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &clip->id));
 
   ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data | IB_multilayer | IB_test);
   if (ibuf) {
@@ -1112,6 +1115,9 @@ static bool check_undistortion_cache_flags(const MovieClip *clip)
   if (!equals_v2v2(&camera->nuke_k1, cache->postprocessed.nuke_k)) {
     return false;
   }
+  if (!equals_v2v2(&camera->nuke_p1, cache->postprocessed.nuke_p)) {
+    return false;
+  }
 
   if (!equals_v4v4(&camera->brown_k1, cache->postprocessed.brown_k)) {
     return false;
@@ -1222,6 +1228,7 @@ static void put_postprocessed_frame_to_cache(
     copy_v3_v3(cache->postprocessed.polynomial_k, &camera->k1);
     copy_v2_v2(cache->postprocessed.division_k, &camera->division_k1);
     copy_v2_v2(cache->postprocessed.nuke_k, &camera->nuke_k1);
+    copy_v2_v2(cache->postprocessed.nuke_p, &camera->nuke_p1);
     copy_v4_v4(cache->postprocessed.brown_k, &camera->brown_k1);
     copy_v2_v2(cache->postprocessed.brown_p, &camera->brown_p1);
     cache->postprocessed.undistortion_used = true;
@@ -1981,9 +1988,9 @@ void BKE_movieclip_eval_update(Depsgraph *depsgraph, Main *bmain, MovieClip *cli
 /** \name GPU textures
  * \{ */
 
-static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
-                                                 MovieClipUser *cuser,
-                                                 eGPUTextureTarget textarget)
+static blender::gpu::Texture **movieclip_get_gputexture_ptr(MovieClip *clip,
+                                                            MovieClipUser *cuser,
+                                                            eGPUTextureTarget textarget)
 {
   /* Check if we have an existing entry for that clip user. */
   MovieClip_RuntimeGPUTexture *tex;
@@ -2010,13 +2017,13 @@ static GPUTexture **movieclip_get_gputexture_ptr(MovieClip *clip,
   return &tex->gputexture[textarget];
 }
 
-GPUTexture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
+blender::gpu::Texture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
 {
   if (clip == nullptr) {
     return nullptr;
   }
 
-  GPUTexture **tex = movieclip_get_gputexture_ptr(clip, cuser, TEXTARGET_2D);
+  blender::gpu::Texture **tex = movieclip_get_gputexture_ptr(clip, cuser, TEXTARGET_2D);
   if (*tex) {
     return *tex;
   }
@@ -2024,7 +2031,7 @@ GPUTexture *BKE_movieclip_get_gpu_texture(MovieClip *clip, MovieClipUser *cuser)
   /* check if we have a valid image buffer */
   ImBuf *ibuf = BKE_movieclip_get_ibuf(clip, cuser);
   if (ibuf == nullptr) {
-    fprintf(stderr, "GPUTexture: Blender Texture Not Loaded!\n");
+    CLOG_ERROR(&LOG, "Failed to create GPU texture from Blender movie clip");
     *tex = GPU_texture_create_error(2, false);
     return *tex;
   }

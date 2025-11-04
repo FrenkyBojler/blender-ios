@@ -26,7 +26,7 @@ enum class Interpolation : uint8_t {
 /* Possible extension modes when computing samples in the domain's exterior. */
 enum class ExtensionMode : uint8_t {
   /* Areas outside of the image are filled with zero. */
-  Zero,
+  Clip,
   /* Areas outside of the image are filled with the closest boundary pixel in the image. */
   Extend,
   /* Areas outside of the image are filled with repetitions of the image. */
@@ -46,9 +46,9 @@ struct RealizationOptions {
    * value at those arbitrary locations. */
   Interpolation interpolation = Interpolation::Bilinear;
   /* The extend mode for the x-axis. Defaults to Zero padding. */
-  ExtensionMode extension_x = ExtensionMode::Zero;
+  ExtensionMode extension_x = ExtensionMode::Clip;
   /* The extend mode for the y-axis. Defaults to Zero padding. */
-  ExtensionMode extension_y = ExtensionMode::Zero;
+  ExtensionMode extension_y = ExtensionMode::Clip;
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -161,6 +161,9 @@ class Domain {
   /* Transform the domain by the given transformation. This effectively pre-multiply the given
    * transformation by the current transformation of the domain. */
   void transform(const float3x3 &input_transformation);
+
+  /* Returns a transposed version of itself, that is, with the x and y sizes swapped. */
+  Domain transposed() const;
 
   /* Returns a domain of size 1x1 and an identity transformation. */
   static Domain identity();

@@ -9,6 +9,7 @@
 
 #include "RNA_enum_types.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_separate_geometry.hh"
 
 #include "node_geometry_util.hh"
@@ -19,7 +20,7 @@ NODE_STORAGE_FUNCS(NodeGeometrySeparateGeometry)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Geometry to split into two parts");
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
       .hide_value()
@@ -68,7 +69,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                   is_error);
     }
     else {
-      geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+      geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
         geometry::separate_geometry(geometry_set,
                                     domain,
                                     GEO_NODE_DELETE_GEOMETRY_MODE_ALL,
