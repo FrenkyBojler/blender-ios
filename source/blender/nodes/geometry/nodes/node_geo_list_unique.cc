@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
+#include "BLI_map.hh"
 #include "BLI_vector.hh"
 
 #include "NOD_geometry_nodes_list.hh"
@@ -109,33 +110,78 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   BUFFER_FOR_CPP_TYPE_VALUE(type, element_buffer);
 
-  for (int i = 0; i < list_size; i++) {
-    input_varray.get_to_uninitialized(i, element_buffer);
+  /* Use hash-based lookup when the type supports hashing to avoid O(n²) runtime. */
+  const bool use_hashing = type.is_hashable();
 
-    int unique_index = -1;
-    for (int j = 0; j < unique_indices.size(); j++) {
-      BUFFER_FOR_CPP_TYPE_VALUE(type, unique_element_buffer);
-      input_varray.get_to_uninitialized(unique_indices[j], unique_element_buffer);
+  if (use_hashing) {
+    /* Map from hash to vector of candidate unique indices (handles hash collisions). */
+    Map<uint64_t, Vector<int>> hash_to_unique_indices;
 
-      if (type.is_equal(element_buffer, unique_element_buffer)) {
-        unique_index = j;
-        type.destruct(unique_element_buffer);
-        break;
+    for (int i = 0; i < list_size; i++) {
+      input_varray.get_to_uninitialized(i, element_buffer);
+
+      const uint64_t hash = type.hash(element_buffer);
+
+      int unique_index = -1;
+      /* Check only candidates with matching hash, then verify with is_equal. */
+      if (const Vector<int> *candidates = hash_to_unique_indices.lookup_ptr(hash)) {
+        for (const int candidate_idx : *candidates) {
+          BUFFER_FOR_CPP_TYPE_VALUE(type, unique_element_buffer);
+          input_varray.get_to_uninitialized(unique_indices[candidate_idx], unique_element_buffer);
+
+          if (type.is_equal(element_buffer, unique_element_buffer)) {
+            unique_index = candidate_idx;
+            type.destruct(unique_element_buffer);
+            break;
+          }
+          type.destruct(unique_element_buffer);
+        }
       }
-      type.destruct(unique_element_buffer);
-    }
 
-    if (unique_index == -1) {
-      unique_index = unique_indices.size();
-      unique_indices.append(i);
-      unique_counts.append(1);
-    }
-    else {
-      unique_counts[unique_index]++;
-    }
+      if (unique_index == -1) {
+        unique_index = unique_indices.size();
+        unique_indices.append(i);
+        unique_counts.append(1);
+        hash_to_unique_indices.lookup_or_add_default(hash).append(unique_index);
+      }
+      else {
+        unique_counts[unique_index]++;
+      }
 
-    inverse_indices[i] = unique_index;
-    type.destruct(element_buffer);
+      inverse_indices[i] = unique_index;
+      type.destruct(element_buffer);
+    }
+  }
+  else {
+    /* Fallback to linear scan when hashing is not available. */
+    for (int i = 0; i < list_size; i++) {
+      input_varray.get_to_uninitialized(i, element_buffer);
+
+      int unique_index = -1;
+      for (int j = 0; j < unique_indices.size(); j++) {
+        BUFFER_FOR_CPP_TYPE_VALUE(type, unique_element_buffer);
+        input_varray.get_to_uninitialized(unique_indices[j], unique_element_buffer);
+
+        if (type.is_equal(element_buffer, unique_element_buffer)) {
+          unique_index = j;
+          type.destruct(unique_element_buffer);
+          break;
+        }
+        type.destruct(unique_element_buffer);
+      }
+
+      if (unique_index == -1) {
+        unique_index = unique_indices.size();
+        unique_indices.append(i);
+        unique_counts.append(1);
+      }
+      else {
+        unique_counts[unique_index]++;
+      }
+
+      inverse_indices[i] = unique_index;
+      type.destruct(element_buffer);
+    }
   }
 
   const int unique_count = unique_indices.size();
