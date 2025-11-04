@@ -6,3 +6,4 @@ Referenced by commit e53f0066f9bb84670bfc3987001a81e68bc78005, Fix #146409: nest
 Referenced by issue #147340, Blender crashes when using a volume shader as a input for the world background
 Referenced by issue #148456, Muted node connected to Principled Shader displays Black instead of Pin Value
 Referenced by issue #149154, Regression: muted nodegroup's output is wrong (and is affected by unconnected input)
+Referenced by pull request #149334, Fix #149154: Shader Nodes: treat unlinked inputs of muted nodes as dangling
