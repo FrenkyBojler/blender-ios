@@ -2567,56 +2567,56 @@ void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
 
   /* Maximum distorted x location along the right edge of the image. */
   const float maximum_x = parallel_reduce(
-      size[1],
+      size[1] + 1,
       std::numeric_limits<float>::lowest(),
       [&](const int i, float &accumulated_value) {
-        const float2 position = float2(size[0] - 1, i) + 0.5f;
+        const float2 position = float2(size[0], i);
         accumulated_value = math::max(accumulated_value, distortion_function(position).x);
       },
       [&](const float &a, const float &b) { return math::max(a, b); });
 
   /* Minimum distorted x location along the left edge of the image. */
   const float minimum_x = parallel_reduce(
-      size[1],
+      size[1] + 1,
       std::numeric_limits<float>::max(),
       [&](const int i, float &accumulated_value) {
-        const float2 position = float2(0.0f, i) + 0.5f;
+        const float2 position = float2(0.0f, i);
         accumulated_value = math::min(accumulated_value, distortion_function(position).x);
       },
       [&](const float &a, const float &b) { return math::min(a, b); });
 
   /* Minimum distorted y location along the bottom edge of the image. */
   const float minimum_y = parallel_reduce(
-      size[0],
+      size[0] + 1,
       std::numeric_limits<float>::max(),
       [&](const int i, float &accumulated_value) {
-        const float2 position = float2(i, 0.0f) + 0.5f;
+        const float2 position = float2(i, 0.0f);
         accumulated_value = math::min(accumulated_value, distortion_function(position).y);
       },
       [&](const float &a, const float &b) { return math::min(a, b); });
 
   /* Maximum distorted y location along the top edge of the image. */
   const float maximum_y = parallel_reduce(
-      size[0],
+      size[0] + 1,
       std::numeric_limits<float>::lowest(),
       [&](const int i, float &accumulated_value) {
-        const float2 position = float2(i, size[1] - 1) + 0.5f;
+        const float2 position = float2(i, size[1]);
         accumulated_value = math::max(accumulated_value, distortion_function(position).y);
       },
       [&](const float &a, const float &b) { return math::max(a, b); });
 
   /* Compute the deltas from the image edges to the maximum/minimum distorted location along the
    * direction of that edge. */
-  const float right_delta = maximum_x - (size[0] - 1 + 0.5f);
-  const float left_delta = 0.5f - minimum_x;
-  const float bottom_delta = 0.5f - minimum_y;
-  const float top_delta = maximum_y - (size[1] - 1 + 0.5f);
+  const float right_delta = maximum_x - size[0];
+  const float left_delta = 0.0f - minimum_x;
+  const float bottom_delta = 0.0f - minimum_y;
+  const float top_delta = maximum_y - size[1];
 
   /* Round the deltas away from zero. */
-  *r_right = int(right_delta < 0.0f ? math::floor(right_delta) : math::ceil(right_delta));
-  *r_left = int(left_delta < 0.0f ? math::floor(left_delta) : math::ceil(left_delta));
-  *r_bottom = int(bottom_delta < 0.0f ? math::floor(bottom_delta) : math::ceil(bottom_delta));
-  *r_top = int(top_delta < 0.0f ? math::floor(top_delta) : math::ceil(top_delta));
+  *r_right = int(math::ceil(right_delta));
+  *r_left = int(math::ceil(left_delta));
+  *r_bottom = int(math::ceil(bottom_delta));
+  *r_top = int(math::ceil(top_delta));
 }
 
 /* --------------------------------------------------------------------
