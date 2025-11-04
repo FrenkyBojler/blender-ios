@@ -484,6 +484,71 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
   }
 }
 
+/* Try to determine a compatible grid class for outputs.
+ * This is based on a simple heuristic:
+ * If there is only one specialized grid class among input grids (other than the "unknown" class)
+ * then it will be the output class.
+ * Output grids revert to "unknown" class in any of the following cases:
+ * - No specialized input class is found.
+ * - Different specialized input classes are found.
+ * - The output grid type is incompatible with the chosen output class.
+ */
+static void process_grid_class(const mf::MultiFunction &fn,
+                               const Span<const openvdb::GridBase *> input_grids,
+                               MutableSpan<openvdb::GridBase::Ptr> output_grids)
+{
+  openvdb::GridClass output_grid_class = openvdb::GridClass::GRID_UNKNOWN;
+
+  for (const int input_i : input_grids.index_range()) {
+    const mf::ParamType param_type = fn.param_type(input_i);
+    const CPPType &param_cpp_type = param_type.data_type().single_type();
+    const VolumeGridType grid_type = *cpp_type_to_grid_type(param_cpp_type);
+
+    if (const openvdb::GridBase *grid = input_grids[input_i]) {
+      const openvdb::GridClass input_grid_class = grid->getGridClass();
+      if (input_grid_class == openvdb::GridClass::GRID_UNKNOWN) {
+        /* Generic input grid, does not affect output class. */
+        continue;
+      }
+      if (!BKE_volume_is_grid_class_compatible(grid_type, input_grid_class)) {
+        /* Input grid class is not compatible with the formal parameter type, ignore. */
+        continue;
+      }
+
+      if (output_grid_class == openvdb::GridClass::GRID_UNKNOWN) {
+        /* Output class not specialized yet. */
+        output_grid_class = input_grid_class;
+        continue;
+      }
+
+      if (input_grid_class != output_grid_class) {
+        /* Conflicting classes, fall back to unknown class. */
+        output_grid_class = openvdb::GridClass::GRID_UNKNOWN;
+        break;
+      }
+    }
+  }
+
+  if (output_grid_class != openvdb::GridClass::GRID_UNKNOWN) {
+    for (const int output_i : output_grids.index_range()) {
+      const int param_index = input_grids.size() + output_i;
+      const mf::ParamType param_type = fn.param_type(param_index);
+      const CPPType &param_cpp_type = param_type.data_type().single_type();
+      const VolumeGridType grid_type = *cpp_type_to_grid_type(param_cpp_type);
+
+      openvdb::GridBase::Ptr &grid = output_grids[output_i];
+      if (!grid) {
+        continue;
+      }
+      if (!BKE_volume_is_grid_class_compatible(grid_type, output_grid_class)) {
+        continue;
+      }
+
+      grid->setGridClass(output_grid_class);
+    }
+  }
+}
+
 bool execute_multi_function_on_value_variant__volume_grid(
     const mf::MultiFunction &fn,
     const Span<bke::SocketValueVariant *> input_values,
@@ -575,6 +640,8 @@ bool execute_multi_function_on_value_variant__volume_grid(
       });
 
   process_background(fn, input_values, input_grids, *transform, output_grids);
+
+  process_grid_class(fn, input_grids, output_grids);
 
   for (const int i : output_values.index_range()) {
     if (bke::SocketValueVariant *output_value = output_values[i]) {
