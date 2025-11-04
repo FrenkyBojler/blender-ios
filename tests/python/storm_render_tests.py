@@ -130,6 +130,10 @@ BLOCKLIST_VULKAN_NVIDIA = [
     # Principled bsdf; missing objects
     "principled_bsdf_emission.blend",
     "principled_bsdf_sheen.blend",
+
+    # Vulkan shader; failed non-deterministically on workers when tested
+    "texture_coordinate_camera.blend",
+    "texture_coordinate_object.blend",
 ]
 
 
