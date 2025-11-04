@@ -172,31 +172,31 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
     if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_DRONE)
     {
       /* If camera orientation is top/bootom, then swap panning axis
-      and negate Y to simulate drone behavior */
+       * and negate Y to simulate drone behavior.*/
       float zvec[3] = {0, 0, 1};
       mul_qt_v3(view_inv, zvec);
 
       if (zvec[2] > 0.98f || zvec[2] < -0.98f) {
         std::swap(pan_vec.z, pan_vec.y);
-        pan_vec.y *= -1.f;
+        pan_vec.y *= -1.0f;
         mul_qt_v3(view_inv, pan_vec);
       }
       else {
         /* In other cases, buffer Y and discard it during calculations,
-        limitng the pan movement to XZ plane */
+         * limitng the pan movement to XZ plane. */
         float buffer_y = pan_vec.y;
-        pan_vec.y = 0;
+        pan_vec.y = 0.0f;
 
-        /* Calculate the pan_vec in view space, and set Z to an absolute value afterwards */
+        /* Calculate the pan_vec in view space, and set Z to an absolute value afterwards. */
         mul_qt_v3(view_inv, pan_vec);
         pan_vec.z = buffer_y;
 
-        /* If the view is turned upside down, then invert the pan Z value */
+        /* If the view is turned upside down, then invert the pan Z value. */
         float yvec[3] = {0, 1, 0};
         mul_qt_v3(view_inv, yvec);
 
-        if (yvec[2] < 0.f) {
-          pan_vec.z *= -1.f;
+        if (yvec[2] < 0.0f) {
+          pan_vec.z *= -1.0f;
         }
       }
     }
@@ -221,11 +221,11 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
   }
 }
 
-static float compute_leveling_angle(const float view_x_axis[3],
+static float view3d_ndof_calc_leveling_angle(const float view_x_axis[3],
                                     const float view_y_axis[3],
                                     const float view_z_axis[3])
 {
-  /* View leveling algorithm */
+  /* View leveling algorithm. */
 
   /* Check if view is already leveled */
   bool viewNotLeveled = (view_x_axis[2] > 0.001f) || (view_x_axis[2] < -0.001f);
@@ -236,34 +236,34 @@ static float compute_leveling_angle(const float view_x_axis[3],
     float isect_pt[3] = {0, 0, 0};
 
     /* Find the interection vector between horizon (XY) plane
-    and view plane */
+     * and view plane. */
     const float horizon_normal[3] = {0, 0, 1};
     isect_plane_plane_v3(horizon_normal, view_z_axis, isect_pt, isect_vec);
     normalize_v3(isect_vec);
 
     /* Invert the direction of intersection vector if view
-    is oriented upside down */
-    if (view_y_axis[2] < 0.f) {
+     * is oriented upside down. */
+    if (view_y_axis[2] < 0.0f) {
       negate_v3(isect_vec);
     }
 
     /* Determine the angle to rotate the view over it's Y axis, to make
-    view's X axis lie on the horizon plane (world XY)*/
+     * view's X axis lie on the horizon plane (world XY). */
     const float cosine = dot_v3v3(view_x_axis, isect_vec);
     float x_to_horizon_angle = acos(cosine);
 
     /* Invert the leveling rotation direction if the view is tilted
-    clockwise with Y axis pointing up, or it is tilted counter-clockwise
-    with Y axis pointing down */
-    if (((view_x_axis[2] < 0.f) && (view_y_axis[2] > 0.f)) ||
-        ((view_x_axis[2] > 0.f) && (view_y_axis[2] < 0.f)))
+     * clockwise with Y axis pointing up, or it is tilted counter-clockwise
+     * with Y axis pointing down. */
+    if (((view_x_axis[2] < 0.0f) && (view_y_axis[2] > 0.0f)) ||
+        ((view_x_axis[2] > 0.0f) && (view_y_axis[2] < 0.0f)))
     {
-      x_to_horizon_angle *= -1.f;
+      x_to_horizon_angle *= -1.0f;
     }
 
     return x_to_horizon_angle;
   }
-  return 0.f;
+  return 0.0f;
 }
 
 static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
@@ -305,11 +305,11 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
     mul_qt_v3(view_inv, xvec);
     /* Determine the direction of the Y vector (to check if the view is upside down). */
     mul_qt_v3(view_inv, yvec);
-    /* Determine the direction of the Z vector (for view leveling rotation around this vector) */
+    /* Determine the direction of the Z vector (for view leveling rotation around this vector). */
     mul_qt_v3(view_inv, zvec);
 
-    /* Level the view to a "horizon plane" */
-    const float leveling_angle = compute_leveling_angle(xvec, yvec, zvec);
+    /* Level the view to a "horizon plane". */
+    const float leveling_angle = view3d_ndof_calc_leveling_angle(xvec, yvec, zvec);
     if (leveling_angle != 0.) {
       float leveling_quat[4];
       axis_angle_to_quat(leveling_quat, zvec, leveling_angle);
