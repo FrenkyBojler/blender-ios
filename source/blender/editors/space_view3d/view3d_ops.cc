@@ -91,7 +91,7 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
   }
 
   if (num_copied == 0) {
-    BKE_report(op->reports, RPT_INFO, "No object(s) selected to copy");
+    BKE_report(op->reports, RPT_INFO, "No objects selected to copy");
     return OPERATOR_CANCELLED;
   }
 
