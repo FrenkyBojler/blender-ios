@@ -95,7 +95,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     ListPtr reversed_list = List::create(type, std::move(reversed_data), list_size);
     params.set_output("List", std::move(reversed_list));
+    return;
   }
+
+  params.set_default_remaining_outputs();
 }
 
 static void node_rna(StructRNA *srna)
