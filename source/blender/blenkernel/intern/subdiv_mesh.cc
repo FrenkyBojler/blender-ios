@@ -424,14 +424,15 @@ static void vert_interpolation_from_face(const SubdivMeshContext *ctx,
 {
   if (coarse_face.size() == 4) {
     vert_interpolation->vert_data = ctx->coarse_vert_attribute_spans;
+    vert_interpolation->dverts_data = ctx->coarse_dverts;
     vert_interpolation->vert_indices[0] = ctx->coarse_corner_verts[coarse_face.start() + 0];
     vert_interpolation->vert_indices[1] = ctx->coarse_corner_verts[coarse_face.start() + 1];
     vert_interpolation->vert_indices[2] = ctx->coarse_corner_verts[coarse_face.start() + 2];
     vert_interpolation->vert_indices[3] = ctx->coarse_corner_verts[coarse_face.start() + 3];
-    vert_interpolation->dverts_data = ctx->coarse_dverts;
   }
   else {
     vert_interpolation->vert_data = vert_interpolation->storage_spans;
+    vert_interpolation->dverts_data = vert_interpolation->dverts_storage;
     vert_interpolation->vert_indices[0] = 0;
     vert_interpolation->vert_indices[1] = 1;
     vert_interpolation->vert_indices[2] = 2;
@@ -486,13 +487,13 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
      * iteration. */
     const int first_loop_index = loops_of_ptex.first_loop;
     const int last_loop_index = loops_of_ptex.last_loop;
-    const std::array<int, 2> first_indices = {
+    const std::array<int, 2> first_indices{
         ctx->coarse_corner_verts[first_loop_index],
         ctx->coarse_corner_verts[coarse_face.start() +
                                  (first_loop_index - coarse_face.start() + 1) %
                                      coarse_face.size()]};
-    const std::array<int, 2> last_indices = {ctx->coarse_corner_verts[first_loop_index],
-                                             ctx->coarse_corner_verts[last_loop_index]};
+    const std::array<int, 2> last_indices{ctx->coarse_corner_verts[first_loop_index],
+                                          ctx->coarse_corner_verts[last_loop_index]};
     mix_attrs(ctx->coarse_vert_attribute_spans,
               first_indices,
               0.5f,
@@ -566,21 +567,21 @@ static void loop_interpolation_from_face(const SubdivMeshContext *ctx,
 {
   if (coarse_face.size() == 4) {
     loop_interpolation->corner_data = ctx->coarse_corner_attribute_spans;
+    loop_interpolation->CD_NORMAL_data = ctx->coarse_CD_NORMAL;
+    loop_interpolation->CD_ORIGSPACE_MLOOP_data = ctx->coarse_CD_ORIGSPACE_MLOOP;
     loop_interpolation->loop_indices[0] = coarse_face.start() + 0;
     loop_interpolation->loop_indices[1] = coarse_face.start() + 1;
     loop_interpolation->loop_indices[2] = coarse_face.start() + 2;
     loop_interpolation->loop_indices[3] = coarse_face.start() + 3;
-    loop_interpolation->CD_NORMAL_data = ctx->coarse_CD_NORMAL;
-    loop_interpolation->CD_ORIGSPACE_MLOOP_data = ctx->coarse_CD_ORIGSPACE_MLOOP;
   }
   else {
     loop_interpolation->corner_data = loop_interpolation->storage_spans;
+    loop_interpolation->CD_NORMAL_data = loop_interpolation->CD_NORMAL_storage;
+    loop_interpolation->CD_ORIGSPACE_MLOOP_data = loop_interpolation->CD_ORIGSPACE_MLOOP_storage;
     loop_interpolation->loop_indices[0] = 0;
     loop_interpolation->loop_indices[1] = 1;
     loop_interpolation->loop_indices[2] = 2;
     loop_interpolation->loop_indices[3] = 3;
-    loop_interpolation->CD_NORMAL_data = loop_interpolation->CD_NORMAL_storage;
-    loop_interpolation->CD_ORIGSPACE_MLOOP_data = loop_interpolation->CD_ORIGSPACE_MLOOP_storage;
     /* Interpolate center of face right away, it stays unchanged for all
      * ptex faces. */
     const float weight = 1.0f / float(coarse_face.size());
@@ -626,7 +627,7 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
       loop_interpolation->CD_NORMAL_storage[0] =
           ctx->coarse_CD_NORMAL[coarse_face.start() + corner];
     }
-    if (!ctx->coarse_CD_NORMAL.is_empty()) {
+    if (!ctx->coarse_CD_ORIGSPACE_MLOOP.is_empty()) {
       loop_interpolation->CD_ORIGSPACE_MLOOP_storage[0] =
           ctx->coarse_CD_ORIGSPACE_MLOOP[coarse_face.start() + corner];
     }
@@ -639,8 +640,8 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
     const int first_loop_index = loops_of_ptex.first_loop;
     const int second_loop_index = base_loop_index +
                                   (first_loop_index - base_loop_index + 1) % coarse_face.size();
-    const std::array<int, 2> first_indices = {first_loop_index, second_loop_index};
-    const std::array<int, 2> last_indices = {loops_of_ptex.last_loop, loops_of_ptex.first_loop};
+    const std::array<int, 2> first_indices{first_loop_index, second_loop_index};
+    const std::array<int, 2> last_indices{loops_of_ptex.last_loop, loops_of_ptex.first_loop};
     mix_attrs(ctx->coarse_corner_attribute_spans,
               first_indices,
               0.5f,
