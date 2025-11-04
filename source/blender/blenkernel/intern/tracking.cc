@@ -2548,9 +2548,8 @@ void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
     /* The tracking distortion functions expect the coordinates to be in the space of the image
      * where the tracking camera was calibrated. So we first remap the coordinates into that space,
      * apply the distortion, then remap back to the original coordinates space. This is done by
-     * dividing by the size then multiplying by the calibration size, making sure to add 0.5 to
-     * evaluate at the center of pixels. */
-    float2 coordinates = ((position + 0.5f) / float2(size)) * float2(calibration_size);
+     * dividing by the size then multiplying by the calibration size. */
+    float2 coordinates = (position / float2(size)) * float2(calibration_size);
     /* Notice that the condition is inverted, that's because when we are undistorting, we compute
      * the boundaries by distorting and vice versa. */
     float2 distorted_coordinates;
@@ -2571,8 +2570,8 @@ void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
       size[1],
       std::numeric_limits<float>::lowest(),
       [&](const int i, float &accumulated_value) {
-        accumulated_value = math::max(accumulated_value,
-                                      distortion_function(float2(size[0], i)).x);
+        const float2 position = float2(size[0] - 1, i) + 0.5f;
+        accumulated_value = math::max(accumulated_value, distortion_function(position).x);
       },
       [&](const float &a, const float &b) { return math::max(a, b); });
 
@@ -2581,7 +2580,8 @@ void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
       size[1],
       std::numeric_limits<float>::max(),
       [&](const int i, float &accumulated_value) {
-        accumulated_value = math::min(accumulated_value, distortion_function(float2(0.0f, i)).x);
+        const float2 position = float2(0.0f, i) + 0.5f;
+        accumulated_value = math::min(accumulated_value, distortion_function(position).x);
       },
       [&](const float &a, const float &b) { return math::min(a, b); });
 
@@ -2590,7 +2590,8 @@ void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
       size[0],
       std::numeric_limits<float>::max(),
       [&](const int i, float &accumulated_value) {
-        accumulated_value = math::min(accumulated_value, distortion_function(float2(i, 0.0f)).y);
+        const float2 position = float2(i, 0.0f) + 0.5f;
+        accumulated_value = math::min(accumulated_value, distortion_function(position).y);
       },
       [&](const float &a, const float &b) { return math::min(a, b); });
 
@@ -2599,17 +2600,17 @@ void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
       size[0],
       std::numeric_limits<float>::lowest(),
       [&](const int i, float &accumulated_value) {
-        accumulated_value = math::max(accumulated_value,
-                                      distortion_function(float2(i, size[1])).y);
+        const float2 position = float2(i, size[1] - 1) + 0.5f;
+        accumulated_value = math::max(accumulated_value, distortion_function(position).y);
       },
       [&](const float &a, const float &b) { return math::max(a, b); });
 
   /* Compute the deltas from the image edges to the maximum/minimum distorted location along the
    * direction of that edge. */
-  const float right_delta = maximum_x - size[0];
-  const float left_delta = 0.0f - minimum_x;
-  const float bottom_delta = 0.0f - minimum_y;
-  const float top_delta = maximum_y - size[1];
+  const float right_delta = maximum_x - (size[0] - 1 + 0.5f);
+  const float left_delta = 0.5f - minimum_x;
+  const float bottom_delta = 0.5f - minimum_y;
+  const float top_delta = maximum_y - (size[1] - 1 + 0.5f);
 
   /* Round the deltas away from zero. */
   *r_right = int(right_delta < 0.0f ? math::floor(right_delta) : math::ceil(right_delta));
