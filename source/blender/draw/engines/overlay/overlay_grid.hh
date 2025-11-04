@@ -53,12 +53,11 @@ public:
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
     {
-      const uint n_verts 
-        = grid_ubo_.num_lines  // nr of lines in a direction and level
-        * grid_ubo_.num_levels // nr of levels
-        * 2                    // nr of directions (x, y)
-        * 2                    // nr of verts per line
-      ;
+      // Number of lines in a quadtree of n levels
+      const uint n_lines = 0x55555555 & ~(0xFFFFFFFF << 2 * grid_ubo_.num_levels);
+      const uint n_verts = n_lines
+        * 2  // nr of directions (x, y)
+        * 2; // nr of verts per line
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -95,7 +94,7 @@ private:
     }
 
     grid_ubo_.num_lines = 1 + static_cast<uint>(0.33f * v3d_clip_end);
-    grid_ubo_.num_levels = 4;
+    grid_ubo_.num_levels = 5;
     grid_ubo_.distance = 0.5f * v3d_clip_end;
 
     return true;
