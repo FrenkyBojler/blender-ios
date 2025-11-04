@@ -47,8 +47,10 @@ enum class SampleResult {
 };
 
 struct BoneDropper {
+  /* The ptr.owner_id is the ID for which we are searching the property.*/
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
+  /* The property we are looking for. */
   PointerRNA search_ptr = {};
   PropertyRNA *search_prop = nullptr;
 
@@ -196,10 +198,7 @@ static BoneSampleData sample_data_from_3d_view(bContext *C,
       }
       Object *ob = base->object;
       bArmature *armature = (bArmature *)ob->data;
-      /* Special case for pose bones. Because they are not stored in the Armature, the IDs of the
-       * search property and the picked result might not match since the comparison would be
-       * between armature and object. */
-      if (bdr.search_ptr.type == &RNA_Object && &ob->id != bdr.search_ptr.owner_id) {
+      if (bdr.search_ptr.type == &RNA_Pose && &ob->id != bdr.search_ptr.owner_id) {
         return {SampleResult::WRONG_ARMATURE};
       }
       if (bdr.search_ptr.type == &RNA_Armature &&
