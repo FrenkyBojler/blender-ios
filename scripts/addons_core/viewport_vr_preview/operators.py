@@ -309,7 +309,12 @@ class VIEW3D_OT_vr_viewfinder_capture_landmark(Operator):
         lm.base_pose_location = loc  # Used as viewfinder position
         lm.base_pose_angle = rot.to_euler()[2]  # Only filled in for Landmark Viewport Feedback to work
         lm.viewfinder_quat = rot
-        lm.viewfinder_lens = scene.camera.data.lens
+
+        camera = scene.camera.data
+        lm.viewfinder_lens = camera.lens
+        lm.viewfinder_use_dof = camera.dof.use_dof
+        lm.viewfinder_dof_dist = camera.dof.focus_distance
+        lm.viewfinder_dof_fstop = camera.dof.aperture_fstop
 
         xr_state.viewfinder_capture_flash = 1 # Internal value, setting to 1 will trigger a flash
 

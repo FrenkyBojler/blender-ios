@@ -228,6 +228,13 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
   Scene *scene = draw_data->scene;
   Object *camera_ob = scene->camera; /* Active scene camera. */
+  Camera *camera_data = static_cast<Camera *>(camera_ob->data);
+
+  /* Hack: The DoF live DoF settings need to be overriden during playback to display
+   * the DoF of the captured shot. Circumvent this by storing the live DoF setting
+   * when entering playback, and restoring them when going back to live. */
+  static bool dirty_dof_settings = false;
+  static CameraDOFSettings live_dof_settings = camera_data->dof;
 
   float viewfinder_viewmat[4][4] = {};
   float current_landmark_vf_lens = 0.0f;
@@ -238,6 +245,12 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
       if (!viewfinder_controller) {
         break;
       }
+
+      if (dirty_dof_settings) {
+        camera_data->dof = live_dof_settings;
+        dirty_dof_settings = false;
+      }
+
 
       /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
       float viewfinder_mat[4][4];
@@ -256,6 +269,11 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
       break;
     }
     case XR_VIEWFINDER_MODE_PLAYBACK: {
+      if (!dirty_dof_settings) {
+        live_dof_settings = camera_data->dof;
+        dirty_dof_settings = true;
+      }
+
       PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
 
       /* Note: unsafe, relies on the VR add-on to be loaded. */
@@ -269,23 +287,39 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
       RNA_property_collection_lookup_int(
           &scene_ptr, landmarks_prop, landmark_idx, &current_landmark);
 
+      /* Captured pose (location / orientation). */
       PropertyRNA *lm_vf_pos_prop = RNA_struct_find_property(&current_landmark,
                                                              "base_pose_location");
       PropertyRNA *lm_vf_quat_prop = RNA_struct_find_property(&current_landmark,
                                                               "viewfinder_quat");
-      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark,
-                                                              "viewfinder_lens");
       float landmark_viewfinder_pos[3];
       float landmark_viewfinder_quat[4];
       RNA_property_float_get_array(&current_landmark, lm_vf_pos_prop, landmark_viewfinder_pos);
       RNA_property_float_get_array(&current_landmark, lm_vf_quat_prop, landmark_viewfinder_quat);
-      current_landmark_vf_lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
 
       GHOST_XrPose viewfinder_pose;
       copy_v3_v3(viewfinder_pose.position, landmark_viewfinder_pos);
       copy_qt_qt(viewfinder_pose.orientation_quat, landmark_viewfinder_quat);
 
       wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_viewmat);
+
+      /* Captured view settings (lens / DoF). */
+      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark, "viewfinder_lens");
+      PropertyRNA *lm_vf_use_dof_prop = RNA_struct_find_property(&current_landmark,
+                                                            "viewfinder_use_dof");
+      PropertyRNA *lm_vf_dof_dist_prop = RNA_struct_find_property(&current_landmark,
+                                                             "viewfinder_dof_dist");
+      PropertyRNA *lm_vf_dof_fstop_prop = RNA_struct_find_property(&current_landmark,
+                                                             "viewfinder_dof_fstop");
+
+      current_landmark_vf_lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
+      const bool landmark_use_dof = RNA_property_boolean_get(&current_landmark,
+                                                             lm_vf_use_dof_prop);
+      SET_FLAG_FROM_TEST(camera_data->dof.flag, landmark_use_dof, CAM_DOF_ENABLED);
+      camera_data->dof.focus_distance = RNA_property_float_get(&current_landmark,
+                                                               lm_vf_dof_dist_prop);
+      camera_data->dof.aperture_fstop = RNA_property_float_get(&current_landmark,
+                                                               lm_vf_dof_fstop_prop);
       break;
     }
     default:
@@ -298,8 +332,8 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   BKE_camera_params_from_object(&params, camera_ob);
 
   /* In Playback mode, override the lens with the value stored in the landmark.
-   * Note: Only the lens is restored, tweaking the Shift X/Y and other Camera settings between
-   *       captures will cause inconsistencies. */
+   * Note: Only the lens and DoF are restored, tweaking the Shift X/Y and other Camera settings
+   *       between captures will cause inconsistencies. */
   if (settings->viewfinder_active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
     params.lens = current_landmark_vf_lens;
   }

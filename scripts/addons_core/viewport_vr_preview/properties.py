@@ -182,6 +182,18 @@ class VRLandmark(PropertyGroup):
         name="Viewfinder Lens",
         default=50
     )
+    viewfinder_use_dof: bpy.props.BoolProperty(
+        name="Viewfinder Enable Depth of Field",
+        default=False
+    )
+    viewfinder_dof_dist: bpy.props.FloatProperty(
+        name="Viewfinder DoF Focus Distance",
+        default=10
+    )
+    viewfinder_dof_fstop: bpy.props.FloatProperty(
+        name="Viewfinder DoF F-Stop",
+        default=2.8
+    )
 
     @staticmethod
     def get_selected_landmark(context):
