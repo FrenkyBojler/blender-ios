@@ -485,14 +485,13 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
       vert_interpolation->dverts_storage[1] = mix_deform_verts(
           ctx->coarse_dverts, first_indices, {0.5f, 0.5f}, vert_interpolation->dvert_mix_buffer);
     }
-    BKE_defvert_array_free_elems(&vert_interpolation->dverts_storage[1], 1);
     mix_attrs(ctx->coarse_vert_attribute_spans,
               last_indices,
               0.5f,
               3,
               vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
     if (!ctx->coarse_dverts.is_empty()) {
-      BKE_defvert_array_free_elems(&vert_interpolation->dverts_storage[1], 1);
+      BKE_defvert_array_free_elems(&vert_interpolation->dverts_storage[3], 1);
       vert_interpolation->dverts_storage[3] = mix_deform_verts(
           ctx->coarse_dverts, last_indices, {0.5f, 0.5f}, vert_interpolation->dvert_mix_buffer);
     }
