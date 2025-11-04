@@ -176,7 +176,8 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
       float zvec[3] = {0, 0, 1};
       mul_qt_v3(view_inv, zvec);
 
-      if (zvec[2] > 0.98f || zvec[2] < -0.98f) {
+      /* Setting up higher (0.02) margin for a smoother transition */
+      if (std::abs(zvec[2]) > 0.98f) {
         std::swap(pan_vec.z, pan_vec.y);
         pan_vec.y *= -1.0f;
         mul_qt_v3(view_inv, pan_vec);
@@ -227,10 +228,10 @@ static float view3d_ndof_calc_leveling_angle(const float view_x_axis[3],
 {
   /* View leveling algorithm. */
 
-  /* Check if view is already leveled */
-  bool viewNotLeveled = (view_x_axis[2] > 0.001f) || (view_x_axis[2] < -0.001f);
+  /* Check if view is already leveled. */
+  bool view_not_leveled = std::abs(view_x_axis[2]) > 0.001f;
 
-  if (viewNotLeveled) {
+  if (view_not_leveled) {
 
     float isect_vec[3] = {0, 0, 0};
     float isect_pt[3] = {0, 0, 0};
