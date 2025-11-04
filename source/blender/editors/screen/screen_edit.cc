@@ -221,48 +221,7 @@ void screen_data_copy(bScreen *to, bScreen *from)
 {
   /* Free contents of 'to', is from blenkernel `screen.cc`. */
   BKE_screen_free_data(to);
-
-  to->flag = from->flag;
-
-  BLI_duplicatelist(&to->vertbase, &from->vertbase);
-  BLI_duplicatelist(&to->edgebase, &from->edgebase);
-  BLI_duplicatelist(&to->areabase, &from->areabase);
-  BLI_listbase_clear(&to->regionbase);
-
-  ScrVert *s2 = static_cast<ScrVert *>(to->vertbase.first);
-  for (ScrVert *s1 = static_cast<ScrVert *>(from->vertbase.first); s1;
-       s1 = s1->next, s2 = s2->next)
-  {
-    s1->newv = s2;
-  }
-
-  LISTBASE_FOREACH (ScrEdge *, se, &to->edgebase) {
-    se->v1 = se->v1->newv;
-    se->v2 = se->v2->newv;
-    BKE_screen_sort_scrvert(&(se->v1), &(se->v2));
-  }
-
-  ScrArea *from_area = static_cast<ScrArea *>(from->areabase.first);
-  LISTBASE_FOREACH (ScrArea *, area, &to->areabase) {
-    area->v1 = area->v1->newv;
-    area->v2 = area->v2->newv;
-    area->v3 = area->v3->newv;
-    area->v4 = area->v4->newv;
-
-    BLI_listbase_clear(&area->spacedata);
-    BLI_listbase_clear(&area->regionbase);
-    BLI_listbase_clear(&area->actionzones);
-    BLI_listbase_clear(&area->handlers);
-
-    ED_area_data_copy(area, from_area, true);
-
-    from_area = from_area->next;
-  }
-
-  /* put at zero (needed?) */
-  LISTBASE_FOREACH (ScrVert *, s1, &from->vertbase) {
-    s1->newv = nullptr;
-  }
+  BKE_screen_copy_data(to, from);
 }
 
 void screen_new_activate_prepare(const wmWindow *win, bScreen *screen_new)
