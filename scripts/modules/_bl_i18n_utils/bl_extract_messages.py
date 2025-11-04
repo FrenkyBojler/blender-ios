@@ -441,7 +441,8 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
                 t in cls.__bases__ for t in skip_unregistered_rna_class
             ) and not getattr(cls, "is_registered", True):
                 # unregistering a python-defined class does not remove it from the list of subclasses of some
-                # base types, like `bpy.types.Operator`, `bpy.types.Panel` etc. This works around this issue.                # While not a huge problem for main UI messages extraction, it does break fairly badly
+                # base types, like `bpy.types.Operator`, `bpy.types.Panel` etc. This works around this issue.                
+                # While not a huge problem for main UI messages extraction, it does break fairly badly
                 # extraction of specific add-ons UI messages, see #116579. Also see related #137910.
                 print("SKIPPING because unregistered:", cls)
                 continue
