@@ -523,12 +523,7 @@ class ShaderNodesInliner {
   void handle_output_socket__reroute(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
-    if (node->is_dangling_reroute()) {
-      this->store_socket_value_dangling(socket);
-      return;
-    }
-
-    const SocketInContext input_socket = {socket.context, &node->input_socket(0)};
+    const SocketInContext input_socket = node.input_socket(0);
     this->forward_value_or_schedule(socket, input_socket);
   }
 
