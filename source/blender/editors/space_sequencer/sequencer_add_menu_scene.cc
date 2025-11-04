@@ -186,13 +186,13 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
   const int scenes_len = BLI_listbase_count(&bmain->scenes);
   if (scenes_len > 10) {
     layout->op("SEQUENCER_OT_scene_strip_add",
-               IFACE_("Scenes..."),
+               IFACE_("Scene Strip..."),
                ICON_SCENE_DATA,
                blender::wm::OpCallContext::InvokeDefault,
                UI_ITEM_NONE);
   }
   else {
-    layout->label(IFACE_("Scenes"), ICON_SCENE_DATA);
+    layout->label(IFACE_("Scene Strip"), ICON_SCENE_DATA);
     const Scene *active_scene = CTX_data_sequencer_scene(C);
     int i = 0;
     LISTBASE_FOREACH_INDEX (Scene *, scene, &bmain->scenes, i) {
