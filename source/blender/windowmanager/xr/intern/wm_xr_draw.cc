@@ -251,7 +251,6 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
         dirty_dof_settings = false;
       }
 
-
       /* Note: View offsets can be configured using the Scene Camera Shift X/Y settings. */
       float viewfinder_mat[4][4];
       copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
@@ -304,13 +303,14 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
       wm_xr_pose_to_imat(&viewfinder_pose, viewfinder_viewmat);
 
       /* Captured view settings (lens / DoF). */
-      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark, "viewfinder_lens");
+      PropertyRNA *lm_vf_lens_prop = RNA_struct_find_property(&current_landmark,
+                                                              "viewfinder_lens");
       PropertyRNA *lm_vf_use_dof_prop = RNA_struct_find_property(&current_landmark,
-                                                            "viewfinder_use_dof");
+                                                                 "viewfinder_use_dof");
       PropertyRNA *lm_vf_dof_dist_prop = RNA_struct_find_property(&current_landmark,
-                                                             "viewfinder_dof_dist");
+                                                                  "viewfinder_dof_dist");
       PropertyRNA *lm_vf_dof_fstop_prop = RNA_struct_find_property(&current_landmark,
-                                                             "viewfinder_dof_fstop");
+                                                                   "viewfinder_dof_fstop");
 
       current_landmark_vf_lens = RNA_property_float_get(&current_landmark, lm_vf_lens_prop);
       const bool landmark_use_dof = RNA_property_boolean_get(&current_landmark,
