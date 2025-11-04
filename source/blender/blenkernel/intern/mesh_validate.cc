@@ -762,6 +762,55 @@ static bool validate_generic_attributes(const Mesh &mesh, const bool verbose, Me
   return all_attributes_valid;
 }
 
+static bool validate_mdisps(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
+{
+  const MDisps *mdisps = static_cast<const MDisps *>(
+      CustomData_get_layer(&mesh.corner_data, CD_MDISPS));
+  if (!mdisps) {
+    return true;
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask invalid = IndexMask::from_predicate(
+      IndexRange(mesh.corners_num), GrainSize(4096), memory, [&](const int i) {
+        for (int grid_element = 0; grid_element < mdisps[i].totdisp; grid_element++) {
+          if (!std::isfinite(mdisps[i].disps[grid_element][0]) ||
+              !std::isfinite(mdisps[i].disps[grid_element][1]) ||
+              !std::isfinite(mdisps[i].disps[grid_element][2]))
+          {
+            return true;
+          }
+        }
+        return false;
+      });
+
+  if (invalid.is_empty()) {
+    return true;
+  }
+
+  if (verbose) {
+    print_error_with_indices(invalid, "MDisps has invalid values");
+  }
+
+  if (mesh_mut) {
+    if (MDisps *mdisp_mut = static_cast<MDisps *>(
+            CustomData_get_layer_for_write(&mesh_mut->corner_data, CD_MDISPS, mesh.corners_num)))
+    {
+      invalid.foreach_index(GrainSize(512), [&](const int i) {
+        for (int grid_element = 0; grid_element < mdisps[i].totdisp; grid_element++) {
+          for (int j = 0; j < 3; j++) {
+            mdisp_mut[i].disps[grid_element][j] = std::isfinite(
+                                                      mdisp_mut[i].disps[grid_element][j]) ?
+                                                      mdisp_mut[i].disps[grid_element][j] :
+                                                      0.0f;
+          }
+        }
+      });
+    }
+  }
+  return false;
+}
+
 static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_mut)
 {
   IndexMaskMemory memory;
@@ -825,6 +874,7 @@ static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_
   valid &= validate_material_indices(mesh, true, verbose, mesh_mut);
   valid &= validate_selection_history(mesh, verbose, mesh_mut);
   valid &= validate_generic_attributes(mesh, verbose, mesh_mut);
+  valid &= validate_mdisps(mesh, verbose, mesh_mut);
 
   if (valid) {
     return true;
