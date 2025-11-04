@@ -575,6 +575,10 @@ class AddPresetTrackingSettings(AddPresetBase, Operator):
         "settings.use_default_green_channel",
         "settings.use_default_blue_channel",
         "settings.default_weight",
+        "settings.default_detect_min_features",
+        "settings.default_detect_margin",
+        "settings.default_detect_min_distance",
+        "settings.default_detect_threshold",
     ]
 
     preset_subdir = "tracking_settings"

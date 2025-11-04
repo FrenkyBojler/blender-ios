@@ -784,6 +784,40 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
   return final_ibuf;
 }
 
+static int accessor_get_clip_len_callback(libmv_FrameAccessorUserData *user_data,
+                                          int clip_index)
+{
+  TrackingImageAccessor *accessor = (TrackingImageAccessor *)user_data;
+
+  BLI_assert(clip_index >= 0 && clip_index < accessor->num_clips);
+
+  return accessor->clips[clip_index]->len;
+}
+
+static void accessor_get_clip_dimensions_callback(libmv_FrameAccessorUserData *user_data,
+                                                  int clip_index,
+                                                  int frame,
+                                                  int* width,
+                                                  int* height)
+{
+  TrackingImageAccessor *accessor = (TrackingImageAccessor *)user_data;
+
+  BLI_assert(clip_index >= 0 && clip_index < accessor->num_clips);
+
+  MovieClip *clip;
+  MovieClipUser user;
+  int scene_frame;
+
+  BLI_assert(clip_index < accessor->num_clips);
+
+  clip = accessor->clips[clip_index];
+  scene_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, frame);
+  BKE_movieclip_user_set_frame(&user, scene_frame);
+  user.render_size = MCLIP_PROXY_RENDER_SIZE_FULL;
+  user.render_flag = 0;
+  BKE_movieclip_get_size(accessor->clips[clip_index], &user, width, height);
+}
+
 static libmv_CacheKey accessor_get_image_callback(libmv_FrameAccessorUserData *user_data,
                                                   int clip_index,
                                                   int frame,
@@ -837,7 +871,10 @@ static libmv_CacheKey accessor_get_mask_for_track_callback(libmv_FrameAccessorUs
   /* Perform sanity checks first. */
   TrackingImageAccessor *accessor = (TrackingImageAccessor *)user_data;
   BLI_assert(clip_index < accessor->num_clips);
-  BLI_assert(track_index < accessor->num_tracks);
+  if (track_index >= accessor->num_tracks) {
+    // TODO: properly sync new tracks across so frame accessor can see them here.
+    return nullptr;
+  }
   MovieTrackingTrack *track = accessor->tracks[track_index];
   /* Early output, track does not use mask. */
   if ((track->algorithm_flag & TRACK_ALGORITHM_FLAG_USE_MASK) == 0) {
@@ -897,6 +934,8 @@ TrackingImageAccessor *tracking_image_accessor_new(MovieClip *clips[MAX_ACCESSOR
   accessor->num_tracks = num_tracks;
 
   accessor->libmv_accessor = libmv_FrameAccessorNew((libmv_FrameAccessorUserData *)accessor,
+                                                    accessor_get_clip_len_callback,
+                                                    accessor_get_clip_dimensions_callback,
                                                     accessor_get_image_callback,
                                                     accessor_release_image_callback,
                                                     accessor_get_mask_for_track_callback,

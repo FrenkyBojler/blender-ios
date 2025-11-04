@@ -24,6 +24,19 @@ typedef enum {
   LIBMV_IMAGE_MODE_RGBA,
 } libmv_InputMode;
 
+typedef int (*libmv_GetClipLenCallback)(
+  libmv_FrameAccessorUserData* user_data,
+  int clip
+);
+
+typedef void (*libmv_GetClipDimensionsCallback)(
+  libmv_FrameAccessorUserData* user_data,
+  int clip,
+  int frame,
+  int* width,
+  int* height
+);
+
 typedef libmv_CacheKey (*libmv_GetImageCallback)(
     libmv_FrameAccessorUserData* user_data,
     int clip,
@@ -52,6 +65,8 @@ typedef void (*libmv_ReleaseMaskCallback)(libmv_CacheKey cache_key);
 
 libmv_FrameAccessor* libmv_FrameAccessorNew(
     libmv_FrameAccessorUserData* user_data,
+    libmv_GetClipLenCallback get_clip_len_callback,
+    libmv_GetClipDimensionsCallback get_clip_dimensions_callback,
     libmv_GetImageCallback get_image_callback,
     libmv_ReleaseImageCallback release_image_callback,
     libmv_GetMaskForTrackCallback get_mask_for_track_callback,

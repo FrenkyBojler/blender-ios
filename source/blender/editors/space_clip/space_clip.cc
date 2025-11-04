@@ -390,6 +390,7 @@ static void clip_operatortypes()
   /* track */
   WM_operatortype_append(CLIP_OT_track_markers);
   WM_operatortype_append(CLIP_OT_refine_markers);
+  WM_operatortype_append(CLIP_OT_auto_track);
 
   /* solving */
   WM_operatortype_append(CLIP_OT_solve_camera);

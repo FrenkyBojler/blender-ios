@@ -9,6 +9,7 @@
 #include "intern/region.h"
 #include "intern/track_region.h"
 #include "intern/tracksN.h"
+#include "intern/detector.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,6 +46,17 @@ int libmv_autoTrackGetMarker(libmv_AutoTrack* libmv_autotrack,
                              int frame,
                              int track,
                              libmv_Marker* libmv_marker);
+
+typedef bool (*libmv_DetectAndTrackStepCallback)(void* user_data, int frame);
+
+void libmv_autoDetectAndTrack(libmv_AutoTrack* libmv_autotrack,
+                              const libmv_TrackRegionOptions* libmv_options,
+                              libmv_DetectOptions* detect_options,
+                              int min_features,
+                              libmv_Marker** libmv_markers,
+                              size_t& num_markers,
+                              void* user_data,
+                              libmv_DetectAndTrackStepCallback step_callback);
 
 #ifdef __cplusplus
 }

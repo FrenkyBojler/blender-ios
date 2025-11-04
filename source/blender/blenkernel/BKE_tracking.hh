@@ -579,6 +579,8 @@ void BKE_tracking_refine_marker(MovieClip *clip,
  * 2D tracking using auto-track pipeline.
  */
 
+typedef bool (* DetectAndTrackStepCallback)(void* user_data, int frame);
+
 struct AutoTrackContext *BKE_autotrack_context_new(MovieClip *clip,
                                                    MovieClipUser *user,
                                                    bool is_backwards);
@@ -588,6 +590,13 @@ void BKE_autotrack_context_sync(AutoTrackContext *context);
 void BKE_autotrack_context_sync_user(AutoTrackContext *context, MovieClipUser *user);
 void BKE_autotrack_context_finish(AutoTrackContext *context);
 void BKE_autotrack_context_free(AutoTrackContext *context);
+void BKE_autotrack_context_detect_and_track(AutoTrackContext *context,
+                                            int min_features,
+                                            int margin,
+                                            int min_distance,
+                                            double threshold,
+                                            void* user_data,
+                                            DetectAndTrackStepCallback callback);
 
 /* --------------------------------------------------------------------
  * Plane tracking.

@@ -344,6 +344,11 @@ void BKE_tracking_settings_init(MovieTracking *tracking)
   tracking->settings.object_distance = 1;
   tracking->settings.refine_camera_intrinsics = REFINE_NO_INTRINSICS;
 
+  tracking->settings.default_detect_min_features = 32;
+  tracking->settings.default_detect_margin = 16;
+  tracking->settings.default_detect_min_distance = 120;
+  tracking->settings.default_detect_threshold = 0.5f;
+
   tracking->stabilization.scaleinf = 1.0f;
   tracking->stabilization.anchor_frame = 1;
   zero_v2(tracking->stabilization.target_pos);

@@ -83,6 +83,7 @@ void libmv_configureTrackRegionOptions(
    */
   track_region_options->attempt_refine_before_brute = false;
   track_region_options->use_normalized_intensities = options.use_normalization;
+  track_region_options->margin = options.margin;
 }
 
 void libmv_regionTrackergetResult(const TrackRegionResult& track_region_result,

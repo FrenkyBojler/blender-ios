@@ -480,3 +480,237 @@ void CLIP_OT_refine_markers(wmOperatorType *ot)
   /* properties */
   RNA_def_boolean(ot->srna, "backwards", false, "Backwards", "Do backwards tracking");
 }
+
+/********************** Auto Track operator *********************/
+struct AutoTrackJob {
+  AutoTrackContext *context; /* Tracking context */
+  int sfra, efra, lastfra;   /* Start, end and recently tracked frames */
+  MovieClip *clip;           /* Clip which is tracking */
+
+  // detect options
+  int min_features;
+  int margin;
+  int min_distance;
+  double threshold;
+
+  wmWindowManager *wm;
+  Main *main;
+  Scene *scene;
+  bScreen *screen;
+};
+
+static bool auto_track_testbreak()
+{
+  return G.is_break;
+}
+
+static bool auto_track_initjob(bContext *C, AutoTrackJob *atj)
+{
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  MovieClip *clip = ED_space_clip_get_clip(sc);
+  Scene *scene = CTX_data_scene(C);
+
+  int framenr = ED_space_clip_get_clip_frame_number(sc);
+
+  atj->clip = clip;
+
+  atj->sfra = framenr;
+  atj->lastfra = framenr;
+  atj->efra = scene->r.efra;
+  atj->efra = BKE_movieclip_remap_scene_to_clip_frame(clip, atj->efra);
+
+  atj->context = BKE_autotrack_context_new(clip, &sc->user, false);
+
+  clip->tracking_context = atj->context;
+
+  atj->scene = scene;
+  atj->main = CTX_data_main(C);
+  atj->screen = CTX_wm_screen(C);
+
+  atj->wm = CTX_wm_manager(C);
+
+  WM_locked_interface_set(atj->wm, true);
+
+  return true;
+}
+
+struct AutoTrackJobUserData {
+  AutoTrackJob *job;
+  wmJobWorkerStatus *worker_status;
+};
+
+static bool auto_track_callback(void *user_data_void, int frame) {
+  AutoTrackJobUserData *user_data = (AutoTrackJobUserData *)user_data_void;
+
+  user_data->worker_status->do_update = true;
+  user_data->worker_status->progress = float(frame - user_data->job->sfra) / (user_data->job->efra - user_data->job->sfra);
+
+  user_data->job->lastfra = frame;
+
+  if (user_data->worker_status->stop || auto_track_testbreak()) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+static void auto_track_startjob(void *atv, wmJobWorkerStatus *worker_status)
+{
+  AutoTrackJob *atj = (AutoTrackJob *)atv;
+
+  BKE_autotrack_context_start(atj->context);
+
+  AutoTrackJobUserData user_data;
+  user_data.job = atj;
+  user_data.worker_status = worker_status;
+
+  BKE_autotrack_context_detect_and_track(
+    atj->context,
+    atj->min_features,
+    atj->margin,
+    atj->min_distance,
+    atj->threshold / 100000.0f,
+    (void *)&user_data,
+    auto_track_callback
+  );
+}
+
+static void auto_track_updatejob(void *atv)
+{
+  AutoTrackJob *atj = (AutoTrackJob *)atv;
+  BKE_autotrack_context_sync(atj->context);
+}
+
+static void auto_track_endjob(void *atv)
+{
+  AutoTrackJob *atj = (AutoTrackJob *)atv;
+
+  atj->clip->tracking_context = nullptr;
+  atj->scene->r.cfra = BKE_movieclip_remap_clip_to_scene_frame(atj->clip, atj->lastfra);
+
+  BKE_autotrack_context_sync(atj->context);
+  BKE_autotrack_context_finish(atj->context);
+
+  DEG_id_tag_update(&atj->clip->id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_SCENE | ND_FRAME, atj->scene);
+}
+
+static void auto_track_freejob(void *atv)
+{
+  AutoTrackJob *atj = (AutoTrackJob *)atv;
+  atj->clip->tracking_context = nullptr;
+  WM_locked_interface_set(atj->wm, false);
+  BKE_autotrack_context_free(atj->context);
+  MEM_freeN(atj);
+}
+
+static wmOperatorStatus auto_track(bContext *C, wmOperator *op, bool use_job)
+{
+  AutoTrackJob *atj;
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  MovieClip *clip = ED_space_clip_get_clip(sc);
+  wmJob *wm_job;
+
+  if (WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_ANY)) {
+    /* Only one tracking is allowed at a time. */
+    return OPERATOR_CANCELLED;
+  }
+
+  if (clip->tracking_context) {
+    return OPERATOR_CANCELLED;
+  }
+
+  atj = MEM_callocN<AutoTrackJob>("AutoTrackJob data");
+
+  atj->min_features = clip->tracking.settings.default_detect_min_features;
+  atj->margin = clip->tracking.settings.default_detect_margin;
+  atj->min_distance = clip->tracking.settings.default_detect_min_distance;
+  atj->threshold = clip->tracking.settings.default_detect_threshold;
+
+  if (!auto_track_initjob(C, atj)) {
+    track_markers_freejob(atj);
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Setup job. */
+  if (use_job) {
+    wm_job = WM_jobs_get(CTX_wm_manager(C),
+                         CTX_wm_window(C),
+                         CTX_data_scene(C),
+                         "Tracking markers...",
+                         WM_JOB_PROGRESS,
+                         WM_JOB_TYPE_CLIP_TRACK_MARKERS);
+    WM_jobs_customdata_set(wm_job, atj, auto_track_freejob);
+
+    WM_jobs_timer(wm_job, 0.2, NC_MOVIECLIP | NA_EVALUATED, 0);
+
+    WM_jobs_callbacks(
+        wm_job, auto_track_startjob, nullptr, auto_track_updatejob, auto_track_endjob);
+
+    G.is_break = false;
+
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_cursor_wait(false);
+
+    /* Add modal handler for ESC. */
+    WM_event_add_modal_handler(C, op);
+
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  wmJobWorkerStatus worker_status = {};
+  auto_track_startjob(atj, &worker_status);
+  auto_track_endjob(atj);
+  auto_track_freejob(atj);
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus auto_track_exec(bContext *C, wmOperator *op)
+{
+  return auto_track(C, op, false);
+}
+
+static wmOperatorStatus auto_track_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
+{
+  return auto_track(C, op, true);
+}
+
+static wmOperatorStatus auto_track_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+{
+  /* No running tracking, remove handler and pass through. */
+  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_ANY)) {
+    return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+  }
+
+  /* Running tracking. */
+  switch (event->type) {
+    case EVT_ESCKEY:
+      return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
+  }
+
+  return OPERATOR_PASS_THROUGH;
+}
+
+void CLIP_OT_auto_track(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Auto Track";
+  ot->description = "Track the entire clip automatically";
+  ot->idname = "CLIP_OT_auto_track";
+
+  /* API callbacks. */
+  ot->exec = auto_track_exec;
+  ot->invoke = auto_track_invoke;
+  ot->modal = auto_track_modal;
+  ot->poll = ED_space_clip_tracking_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+}

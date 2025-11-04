@@ -370,6 +370,10 @@ class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
         layout = self.layout
 
         col = layout.column(align=True)
+        col.scale_y = 2.0
+        col.operator("clip.auto_track")
+
+        col = layout.column(align=True)
         row = col.row(align=True)
         row.operator("clip.add_marker_at_click", text="Add")
         row.operator("clip.delete_track", text="Delete")
@@ -393,6 +397,14 @@ class CLIP_PT_tracking_settings(CLIP_PT_tracking_panel, Panel):
         sc = context.space_data
         clip = sc.clip
         settings = clip.tracking.settings
+
+        col = layout.column(align=True)
+        col.prop(settings, "default_detect_min_features")
+        col.prop(settings, "default_detect_margin")
+        col.prop(settings, "default_detect_min_distance")
+        col.prop(settings, "default_detect_threshold")
+
+        col.separator()
 
         col = layout.column(align=True)
         col.prop(settings, "default_pattern_size")

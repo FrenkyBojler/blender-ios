@@ -27,6 +27,9 @@
 #include "libmv/base/scoped_ptr.h"
 #include "libmv/logging/logging.h"
 #include "libmv/numeric/numeric.h"
+#include "libmv/simple_pipeline/detect.h"
+
+#include <cfloat>
 
 namespace mv {
 
@@ -242,74 +245,133 @@ bool AutoTrack::GetMarker(int clip,
   return tracks_.GetMarker(clip, frame, track, markers);
 }
 
+void AutoTrack::GetMarkersInFrame(int clip, int frame, libmv::vector<mv::Marker>* markers) {
+  return tracks_.GetMarkersInFrame(clip, frame, markers);
+}
+
+void AutoTrack::DetectFeaturesInFrame(int clip, int frame, const libmv::DetectOptions& options) {
+  vector<libmv::Feature> detected_features;
+
+  // FIXME: if we don't pass a region, the [image data?] is somehow corrupted and all (current and future) tracking operations fail
+  libmv::FloatImage float_image;
+  int width, height;
+  frame_accessor_->GetClipDimensions(clip, frame, &width, &height);
+  Region region;
+  region.min = Vec2f(0, 0);
+  region.max = Vec2f(static_cast<float>(width), static_cast<float>(height));
+  FrameAccessor::Key frame_key = frame_accessor_->GetImage(clip, frame, mv::FrameAccessor::InputMode::RGBA, 0, &region, nullptr, &float_image);
+
+  if (!frame_key) {
+    return;
+  }
+
+  libmv::Detect(float_image, options, &detected_features);
+
+  frame_accessor_->ReleaseImage(frame_key);
+
+  for (libmv::Feature feature : detected_features) {
+    mv::Marker marker;
+    marker.clip = clip;
+    marker.frame = frame;
+    marker.reference_clip = clip;
+    marker.reference_frame = frame;
+
+    if (tracks_.markers().size() == 0) {
+      marker.track = 0;
+    } else {
+      marker.track = tracks_.MaxTrack() + 1;
+    }
+
+    marker.status = Marker::Status::UNKNOWN;
+    marker.source = Marker::Source::TRACKED;
+    marker.model_type = Marker::ModelType::POINT;
+    marker.model_id = 0;
+    marker.disabled_channels = 0;
+
+    marker.center[0] = feature.x;
+    marker.center[1] = feature.y;
+
+    float pattern_size = 21.0f;
+    float search_size = 71.0f;
+
+    float half_pattern_size = pattern_size / 2.0f;
+    marker.patch.coordinates <<
+      feature.x - half_pattern_size, feature.y - half_pattern_size,
+      feature.x + half_pattern_size, feature.y - half_pattern_size,
+      feature.x + half_pattern_size, feature.y + half_pattern_size,
+      feature.x - half_pattern_size, feature.y + half_pattern_size;
+
+    float search_margin = search_size / 2.0f;
+    marker.search_region.min = Vec2f(feature.x - search_margin,
+                                    feature.y - search_margin);
+    marker.search_region.max = Vec2f(feature.x + search_margin,
+                                    feature.y + search_margin);
+
+    AddMarker(marker);
+    // TODO: we need a way to sync the new track so frame accessor can do masking.
+  }
+}
+
+libmv::vector<mv::Marker> AutoTrack::Markers() {
+  return tracks_.markers();
+}
+
 void AutoTrack::DetectAndTrack(const DetectAndTrackOptions& options) {
   int num_clips = frame_accessor_->NumClips();
   for (int clip = 0; clip < num_clips; ++clip) {
     int num_frames = frame_accessor_->NumFrames(clip);
-    vector<Marker> previous_frame_markers;
-    // Q: How to decide track #s when detecting?
-    // Q: How to match markers from previous frame? set of prev frame tracks?
-    // Q: How to decide what markers should get tracked and which ones should
-    // not?
-    for (int frame = 0; frame < num_frames; ++frame) {
-      if (Cancelled()) {
+    if (num_frames < 2)
+      continue; // nothing to track
+    vector<Marker> this_frame_markers;
+    for (int frame = 1; frame < num_frames; ++frame) {
+      if (!options.step_callback(options.user_data, frame) || Cancelled()) {
         LG << "Got cancel message while detecting and tracking...";
         return;
       }
-      // First, get or detect markers for this frame.
-      vector<Marker> this_frame_markers;
-      tracks_.GetMarkersInFrame(clip, frame, &this_frame_markers);
-      LG << "Clip " << clip << ", frame " << frame << " have "
-         << this_frame_markers.size();
+      // detect initial features if there aren't enough
+      this_frame_markers.clear();
+      GetMarkersInFrame(clip, frame, &this_frame_markers);
       if (this_frame_markers.size() < options.min_num_features) {
-        DetectFeaturesInFrame(clip, frame);
+        DetectFeaturesInFrame(clip, frame, options.detect_options);
         this_frame_markers.clear();
-        tracks_.GetMarkersInFrame(clip, frame, &this_frame_markers);
-        LG << "... detected " << this_frame_markers.size() << " features.";
-      }
-      if (previous_frame_markers.empty()) {
-        LG << "First frame; skipping tracking stage.";
-        previous_frame_markers.swap(this_frame_markers);
-        continue;
-      }
-      // Second, find tracks that should get tracked forward into this frame.
-      // To avoid tracking markers that are already tracked to this frame, make
-      // a sorted set of the tracks that exist in the last frame.
-      vector<int> tracks_in_this_frame;
-      for (int i = 0; i < this_frame_markers.size(); ++i) {
-        tracks_in_this_frame.push_back(this_frame_markers[i].track);
-      }
-      std::sort(tracks_in_this_frame.begin(), tracks_in_this_frame.end());
-
-      // Find tracks in the previous frame that are not in this one.
-      vector<Marker*> previous_frame_markers_to_track;
-      for (int i = 0; i < previous_frame_markers.size(); ++i) {
-        if (std::binary_search(tracks_in_this_frame.begin(),
-                               tracks_in_this_frame.end(),
-                               previous_frame_markers[i].track)) {
-          continue;
-        }
-        previous_frame_markers_to_track.push_back(&previous_frame_markers[i]);
+        GetMarkersInFrame(clip, frame, &this_frame_markers);
       }
 
-      // Finally track the markers from the last frame into this one.
-      // TODO(keir): Use OMP.
-      for (int i = 0; i < previous_frame_markers_to_track.size(); ++i) {
-        Marker this_frame_marker = *previous_frame_markers_to_track[i];
-        this_frame_marker.frame = frame;
-        LG << "Tracking: " << this_frame_marker;
+      int width, height;
+      frame_accessor_->GetClipDimensions(clip, frame, &width, &height);
+      float frame_width = static_cast<float>(width);
+      float frame_height = static_cast<float>(height);
+
+      // track features forward
+      for (Marker marker : this_frame_markers) {
+        marker.reference_frame = frame;
+        marker.frame = frame + 1;
         TrackRegionResult result;
-        TrackMarker(&this_frame_marker, &result);
+        TrackMarker(&marker, &result, &this->options.track_region);
+
         if (result.is_usable()) {
-          LG << "Success: " << this_frame_marker;
-          AddMarker(this_frame_marker);
-          this_frame_markers.push_back(this_frame_marker);
-        } else {
-          LG << "Failed to track: " << this_frame_marker;
+          // check if the marker is still in bounds.
+          // this prevents markers sliding along the edge of the frame.
+          Vec2f patch_min = marker.patch.coordinates.colwise().minCoeff();
+          Vec2f patch_max = marker.patch.coordinates.colwise().maxCoeff();
+
+          float margin = static_cast<float>(this->options.track_region.margin);
+          float margin_left = std::max(marker.center.x() - patch_min.x(), margin);
+          float margin_top = std::max(patch_max.y() - marker.center.y(), margin);
+          float margin_right = std::max(patch_max.x() - marker.center.x(), margin);
+          float margin_bottom = std::max(marker.center.y() - patch_min.y(), margin);
+
+          if (marker.center.x() < margin_left ||
+              marker.center.x() > frame_width - margin_right ||
+              marker.center.y() < margin_bottom ||
+              marker.center.y() > frame_height - margin_top)
+          {
+            continue;
+          }
+
+          AddMarker(marker);
         }
       }
-      // Put the markers from this frame
-      previous_frame_markers.swap(this_frame_markers);
     }
   }
 }

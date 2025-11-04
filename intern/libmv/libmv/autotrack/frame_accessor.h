@@ -92,7 +92,7 @@ struct FrameAccessor {
   // Non-caching implementation may free used memory immediately.
   virtual void ReleaseMask(Key key) = 0;
 
-  virtual bool GetClipDimensions(int clip, int* width, int* height) = 0;
+  virtual void GetClipDimensions(int clip, int frame, int* width, int* height) = 0;
   virtual int NumClips() = 0;
   virtual int NumFrames(int clip) = 0;
 };

@@ -346,10 +346,22 @@ int libmv_autoTrackGetMarker(libmv_AutoTrack* /*libmv_autotrack*/,
   return 0;
 }
 
+void libmv_autoDetectAndTrack(libmv_AutoTrack* /*libmv_autotrack*/,
+                              const libmv_TrackRegionOptions* /*libmv_options*/,
+                              libmv_DetectOptions* /*detect_options*/,
+                              int /*min_features*/,
+                              libmv_Marker** /*libmv_markers*/,
+                              size_t& /*num_markers*/,
+                              void* /*user_data*/,
+                              libmv_DetectAndTrackStepCallback /*step_callback*/) {
+}
+
 /* ************ frame accessor ************ */
 
 libmv_FrameAccessor* libmv_FrameAccessorNew(
     libmv_FrameAccessorUserData* /*user_data**/,
+    libmv_GetClipLenCallback /*get_clip_len_callback*/,
+    limbv_GetClipDimensionsCallback /*get_clip_dimensions_callback*/,
     libmv_GetImageCallback /*get_image_callback*/,
     libmv_ReleaseImageCallback /*release_image_callback*/,
     libmv_GetMaskForTrackCallback /*get_mask_for_track_callback*/,

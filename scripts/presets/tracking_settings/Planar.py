@@ -16,3 +16,7 @@ settings.use_default_green_channel = True
 settings.use_default_blue_channel = True
 settings.default_correlation_min = 0.75
 settings.default_weight = 1.0
+settings.default_detect_min_features = 32
+settings.default_detect_margin = 16
+settings.default_detect_min_distance = 120
+settings.default_detect_threshold = 0.5

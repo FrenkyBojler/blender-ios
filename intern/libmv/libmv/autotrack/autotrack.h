@@ -26,6 +26,7 @@
 #include "libmv/autotrack/region.h"
 #include "libmv/autotrack/tracks.h"
 #include "libmv/tracking/track_region.h"
+#include "libmv/simple_pipeline/detect.h"
 
 namespace libmv {
 class CameraIntrinsics;
@@ -39,6 +40,8 @@ using libmv::TrackRegionResult;
 
 struct FrameAccessor;
 class OperationListener;
+
+typedef void (*SyncCallback)(Tracks);
 
 // The coordinator of all tracking operations; keeps track of all state
 // relating to tracking and reconstruction; for example, 2D tracks and motion
@@ -95,6 +98,8 @@ class AutoTrack {
   void AddMarker(const Marker& tracked_marker);
   void SetMarkers(vector<Marker>* markers);
   bool GetMarker(int clip, int frame, int track, Marker* marker) const;
+  void GetMarkersInFrame(int clip, int frame, libmv::vector<mv::Marker>* markers);
+  libmv::vector<mv::Marker> Markers();
 
   // TODO(keir): Implement frame matching! This could be very cool for loop
   // closing and connecting across clips.
@@ -144,18 +149,19 @@ class AutoTrack {
   void Reconstruct();
 
   // Detect and track in 2D.
+
+  typedef bool (*DetectAndTrackStepCallback)(void* user_data, int frame);
+
   struct DetectAndTrackOptions {
     int min_num_features;
+    libmv::DetectOptions detect_options;
+    void* user_data;
+    DetectAndTrackStepCallback step_callback;
   };
   void DetectAndTrack(const DetectAndTrackOptions& options);
 
-  struct DetectFeaturesInFrameOptions {};
   void DetectFeaturesInFrame(
-      int clip, int frame, const DetectFeaturesInFrameOptions* options = NULL) {
-    (void)clip;
-    (void)frame;
-    (void)options;
-  }  // XXX
+      int clip, int frame, const libmv::DetectOptions& options);
 
   // Does not take ownership of the given listener, but keeps a reference to it.
   void AddListener(OperationListener* listener) { (void)listener; }  // XXX

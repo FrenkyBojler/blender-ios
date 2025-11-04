@@ -23,6 +23,7 @@ typedef struct libmv_TrackRegionOptions {
   double minimum_correlation;
   double sigma;
   float* image1_mask;
+  int margin;
 } libmv_TrackRegionOptions;
 
 typedef struct libmv_TrackRegionResult {

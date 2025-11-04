@@ -17,11 +17,15 @@ using mv::Region;
 
 struct LibmvFrameAccessor : public FrameAccessor {
   LibmvFrameAccessor(libmv_FrameAccessorUserData* user_data,
+                     libmv_GetClipLenCallback get_clip_len_callback,
+                     libmv_GetClipDimensionsCallback get_clip_dimensions_callback,
                      libmv_GetImageCallback get_image_callback,
                      libmv_ReleaseImageCallback release_image_callback,
                      libmv_GetMaskForTrackCallback get_mask_for_track_callback,
                      libmv_ReleaseMaskCallback release_mask_callback)
       : user_data_(user_data),
+        get_clip_len_callback_(get_clip_len_callback),
+        get_clip_dimensions_callback_(get_clip_dimensions_callback),
         get_image_callback_(get_image_callback),
         release_image_callback_(release_image_callback),
         get_mask_for_track_callback_(get_mask_for_track_callback),
@@ -118,15 +122,19 @@ struct LibmvFrameAccessor : public FrameAccessor {
 
   void ReleaseMask(Key key) { release_mask_callback_(key); }
 
-  bool GetClipDimensions(int /*clip*/, int* /*width*/, int* /*height*/) {
-    return false;
+  void GetClipDimensions(int clip, int frame, int* width, int* height) {
+    get_clip_dimensions_callback_(user_data_, clip, frame, width, height);
   }
 
   int NumClips() { return 1; }
 
-  int NumFrames(int /*clip*/) { return 0; }
+  int NumFrames(int clip) {
+    return get_clip_len_callback_(user_data_, clip);
+  }
 
   libmv_FrameAccessorUserData* user_data_;
+  libmv_GetClipLenCallback get_clip_len_callback_;
+  libmv_GetClipDimensionsCallback get_clip_dimensions_callback_;
   libmv_GetImageCallback get_image_callback_;
   libmv_ReleaseImageCallback release_image_callback_;
   libmv_GetMaskForTrackCallback get_mask_for_track_callback_;
@@ -137,12 +145,16 @@ struct LibmvFrameAccessor : public FrameAccessor {
 
 libmv_FrameAccessor* libmv_FrameAccessorNew(
     libmv_FrameAccessorUserData* user_data,
+    libmv_GetClipLenCallback get_clip_len_callback,
+    libmv_GetClipDimensionsCallback get_clip_dimensions_callback,
     libmv_GetImageCallback get_image_callback,
     libmv_ReleaseImageCallback release_image_callback,
     libmv_GetMaskForTrackCallback get_mask_for_track_callback,
     libmv_ReleaseMaskCallback release_mask_callback) {
   return (libmv_FrameAccessor*)LIBMV_OBJECT_NEW(LibmvFrameAccessor,
                                                 user_data,
+                                                get_clip_len_callback,
+                                                get_clip_dimensions_callback,
                                                 get_image_callback,
                                                 release_image_callback,
                                                 get_mask_for_track_callback,

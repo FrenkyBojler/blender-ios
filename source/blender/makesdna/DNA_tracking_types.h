@@ -436,6 +436,20 @@ struct MovieTrackingSettings {
   /* set object scale */
   /** Distance between two bundles used for object scaling. */
   float object_distance = 0;
+
+  /** Minimum features per-frame, will detect features if there aren't enough. */
+  short default_detect_min_features = 0;
+  /** Margin from frame boundaries. */
+  short default_detect_margin = 0;
+  /** Minimal distance accepted between two features. */
+  short default_detect_min_distance = 0;
+
+  char _pad1[2] = {};
+
+  /** Threshold level to consider feature good enough for tracking. */
+  float default_detect_threshold;
+
+  char _pad2[4] = {};
 };
 
 struct MovieTrackingStabilization {

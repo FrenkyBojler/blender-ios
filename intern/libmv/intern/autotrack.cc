@@ -6,6 +6,7 @@
 #include "intern/tracksN.h"
 #include "intern/utildefines.h"
 #include "libmv/autotrack/autotrack.h"
+#include "intern/detector.h"
 
 using libmv::TrackRegionOptions;
 using libmv::TrackRegionResult;
@@ -84,4 +85,40 @@ int libmv_autoTrackGetMarker(libmv_AutoTrack* libmv_autotrack,
     libmv_markerToApiMarker(marker, libmv_marker);
   }
   return ok;
+}
+
+void libmv_autoDetectAndTrack(
+  libmv_AutoTrack* libmv_autotrack,
+  const libmv_TrackRegionOptions* libmv_options,
+  libmv_DetectOptions* detect_options,
+  int min_features,
+  libmv_Marker** libmv_markers,
+  size_t& num_markers,
+  void* user_data,
+  libmv_DetectAndTrackStepCallback step_callback
+) {
+  AutoTrack::DetectAndTrackOptions options;
+  options.user_data = user_data;
+  options.step_callback = step_callback;
+
+  options.min_num_features = min_features;
+
+  options.detect_options.type = libmv::DetectOptions::DetectorType::HARRIS;
+  options.detect_options.margin = detect_options->margin;
+  options.detect_options.min_distance = detect_options->min_distance;
+  options.detect_options.fast_min_trackness = detect_options->fast_min_trackness;
+  options.detect_options.moravec_max_count = detect_options->moravec_max_count;
+  options.detect_options.moravec_pattern = detect_options->moravec_pattern;
+  options.detect_options.harris_threshold = detect_options->harris_threshold;
+
+  AutoTrack* autotrack = (AutoTrack*)libmv_autotrack;
+  libmv_configureTrackRegionOptions(*libmv_options, &autotrack->options.track_region);
+  autotrack->DetectAndTrack(options);
+
+  libmv::vector<mv::Marker> markers = autotrack->Markers();
+  num_markers = markers.size();
+  *libmv_markers = MEM_calloc_arrayN<libmv_Marker>(num_markers, "libmv_Marker array");
+  for (int i = 0; i < markers.size(); i++) {
+    libmv_markerToApiMarker(markers[i], &(*libmv_markers)[i]);
+  }
 }

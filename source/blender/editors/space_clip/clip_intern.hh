@@ -192,6 +192,7 @@ void CLIP_OT_delete_marker(wmOperatorType *ot);
 
 void CLIP_OT_track_markers(wmOperatorType *ot);
 void CLIP_OT_refine_markers(wmOperatorType *ot);
+void CLIP_OT_auto_track(wmOperatorType *ot);
 void CLIP_OT_solve_camera(wmOperatorType *ot);
 void CLIP_OT_clear_solution(wmOperatorType *ot);
 
