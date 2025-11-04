@@ -601,8 +601,6 @@ static void drw_shgroup_bone_axes(const Armatures::DrawContext *ctx,
                                   const float color[4])
 {
   float4x4 mat = ctx->ob->object_to_world() * float4x4(bone_mat);
-  /* Move to bone tail. */
-  mat[3] += mat[1];
   ExtraInstanceData data(mat, color, 0.25f);
   /* NOTE: Axes are not drawn in bone selection (pose or edit mode).
    * They are only drawn and selectable in object mode. So only load the object select ID. */
@@ -1233,7 +1231,10 @@ static void draw_axes(const Armatures::DrawContext *ctx,
   /* Mix with axes color. */
   final_col[3] = (ctx->const_color) ? 1.0 : (bone.flag() & BONE_SELECTED) ? 0.1 : 0.65;
 
-  const float axes_position_factor = arm.axes_position - 1.0;
+  const float axes_pos = arm.axes_position;
+  const float axis_translation[3] = {bke::bone_axis_vector_roll(0) * axes_pos,
+                                     bke::bone_axis_vector_roll(1) * axes_pos,
+                                     bke::bone_axis_vector_roll(2) * axes_pos};
 
   if (bone.is_posebone() && bone.as_posebone()->custom && !(arm.flag & ARM_NO_CUSTOM)) {
     const bPoseChannel *pchan = bone.as_posebone();
@@ -1244,19 +1245,13 @@ static void draw_axes(const Armatures::DrawContext *ctx,
     copy_m4_m4(axis_mat, pchan->custom_tx ? pchan->custom_tx->pose_mat : pchan->pose_mat);
     const float3 length_vec = {length, length, length};
     rescale_m4(axis_mat, length_vec);
-    translate_m4(axis_mat,
-                 bke::bone_axis_vector_roll(0) * axes_position_factor,
-                 bke::bone_axis_vector_roll(1) * axes_position_factor,
-                 bke::bone_axis_vector_roll(2) * axes_position_factor);
+    translate_m4(axis_mat, axis_translation[0], axis_translation[1], axis_translation[2]);
     drw_shgroup_bone_axes(ctx, axis_mat, final_col);
   }
   else {
     float disp_mat[4][4];
     copy_m4_m4(disp_mat, bone.disp_mat());
-    translate_m4(disp_mat,
-                 bke::bone_axis_vector_roll(0) * axes_position_factor,
-                 bke::bone_axis_vector_roll(1) * axes_position_factor,
-                 bke::bone_axis_vector_roll(2) * axes_position_factor);
+    translate_m4(disp_mat, axis_translation[0], axis_translation[1], axis_translation[2]);
     drw_shgroup_bone_axes(ctx, disp_mat, final_col);
   }
 }
