@@ -28,6 +28,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
+#include "BKE_armature_axes.hh"
 #include "BKE_deform.hh"
 #include "BKE_object.hh"
 
@@ -973,7 +974,13 @@ static void draw_bone_update_disp_matrix_default(UnifiedBonePtr bone)
   copy_m4_m4(disp_mat, bone_mat);
   rescale_m4(disp_mat, bone_scale);
   copy_m4_m4(disp_tail_mat, disp_mat);
-  translate_m4(disp_tail_mat, 0.0f, 1.0f, 0.0f);
+  translate_m4(disp_tail_mat,
+               bke::bone_axis_vector_roll(0),
+               bke::bone_axis_vector_roll(1),
+               bke::bone_axis_vector_roll(2));
+  printf("\033[38;5;214mdraw_bone_update_disp_matrix_default:\033[0m\n");
+  print_m4("disp_mat", disp_mat);
+  print_m4("disp_tail_mat", disp_tail_mat);
 }
 
 static void draw_bone_update_disp_matrix_custom_shape(UnifiedBonePtr bone)
@@ -1005,7 +1012,10 @@ static void draw_bone_update_disp_matrix_custom_shape(UnifiedBonePtr bone)
   mul_m4_m4m3(disp_mat, disp_mat, rot_mat);
   rescale_m4(disp_mat, bone_scale);
   copy_m4_m4(disp_tail_mat, disp_mat);
-  translate_m4(disp_tail_mat, 0.0f, 1.0f, 0.0f);
+  translate_m4(disp_tail_mat,
+               bke::bone_axis_vector_roll(0),
+               bke::bone_axis_vector_roll(1),
+               bke::bone_axis_vector_roll(2));
 }
 
 /* compute connected child pointer for B-Bone drawing */
@@ -1223,6 +1233,8 @@ static void draw_axes(const Armatures::DrawContext *ctx,
   /* Mix with axes color. */
   final_col[3] = (ctx->const_color) ? 1.0 : (bone.flag() & BONE_SELECTED) ? 0.1 : 0.65;
 
+  const float axes_position_factor = arm.axes_position - 1.0;
+
   if (bone.is_posebone() && bone.as_posebone()->custom && !(arm.flag & ARM_NO_CUSTOM)) {
     const bPoseChannel *pchan = bone.as_posebone();
     /* Special case: Custom bones can have different scale than the bone.
@@ -1232,14 +1244,19 @@ static void draw_axes(const Armatures::DrawContext *ctx,
     copy_m4_m4(axis_mat, pchan->custom_tx ? pchan->custom_tx->pose_mat : pchan->pose_mat);
     const float3 length_vec = {length, length, length};
     rescale_m4(axis_mat, length_vec);
-    translate_m4(axis_mat, 0.0, arm.axes_position - 1.0, 0.0);
-
+    translate_m4(axis_mat,
+                 bke::bone_axis_vector_roll(0) * axes_position_factor,
+                 bke::bone_axis_vector_roll(1) * axes_position_factor,
+                 bke::bone_axis_vector_roll(2) * axes_position_factor);
     drw_shgroup_bone_axes(ctx, axis_mat, final_col);
   }
   else {
     float disp_mat[4][4];
     copy_m4_m4(disp_mat, bone.disp_mat());
-    translate_m4(disp_mat, 0.0, arm.axes_position - 1.0, 0.0);
+    translate_m4(disp_mat,
+                 bke::bone_axis_vector_roll(0) * axes_position_factor,
+                 bke::bone_axis_vector_roll(1) * axes_position_factor,
+                 bke::bone_axis_vector_roll(2) * axes_position_factor);
     drw_shgroup_bone_axes(ctx, disp_mat, final_col);
   }
 }
@@ -1366,6 +1383,22 @@ static void bone_draw_custom_shape(const Armatures::DrawContext *ctx,
   }
 }
 
+// Rotate the bone matrix so that its hard-coded shape is drawn in the correct direction.
+static void bonemat_rotate_for_bone_axes(float4x4 &bone_mat)
+{
+  // The shape's vertex coordinates, normals, etc. are defined with main=X and roll=Y.
+  if constexpr (bke::BONE_AXIS_MAIN == 0 && bke::BONE_AXIS_ROLL == 1) {
+    return;
+  }
+
+  float3x3 axes_transform;
+  mat3_from_axis_conversion(bke::BONE_AXIS_MAIN, bke::BONE_AXIS_ROLL, 0, 1, axes_transform.ptr());
+
+  float m44_axes_transform[4][4];
+  copy_m4_m3(m44_axes_transform, axes_transform.ptr());
+  mul_m4_m4_post(bone_mat.ptr(), m44_axes_transform);
+}
+
 static void bone_draw_octa(const Armatures::DrawContext *ctx,
                            const UnifiedBonePtr bone,
                            const eBone_Flag boneflag,
@@ -1377,6 +1410,8 @@ static void bone_draw_octa(const Armatures::DrawContext *ctx,
 
   auto sel_id = ctx->res->select_id(*ctx->ob_ref, select_id | BONESEL_BONE);
   float4x4 bone_mat = ctx->ob->object_to_world() * float4x4(bone.disp_mat());
+
+  bonemat_rotate_for_bone_axes(bone_mat);
 
   if (ctx->is_filled) {
     ctx->bone_buf->octahedral_fill_buf.append({bone_mat, col_solid, col_hint}, sel_id);
@@ -1422,25 +1457,22 @@ static void bone_draw_line(const Armatures::DrawContext *ctx,
     }
   }
 
+  float4x4 disp_mat(bone.disp_mat());
+  bonemat_rotate_for_bone_axes(disp_mat);
+
   if (select_id == -1) {
     /* Not in bone selection mode (can still be object select mode), draw everything at once.
      */
-    drw_shgroup_bone_stick(
-        ctx, bone.disp_mat(), col_wire, col_bone, col_head, col_tail, select_id);
+    drw_shgroup_bone_stick(ctx, disp_mat.ptr(), col_wire, col_bone, col_head, col_tail, select_id);
   }
   else {
     /* In selection mode, draw bone, root and tip separately. */
-    drw_shgroup_bone_stick(ctx,
-                           bone.disp_mat(),
-                           col_wire,
-                           col_bone,
-                           no_display,
-                           no_display,
-                           select_id | BONESEL_BONE);
+    drw_shgroup_bone_stick(
+        ctx, disp_mat.ptr(), col_wire, col_bone, no_display, no_display, select_id | BONESEL_BONE);
 
     if (col_head[3] > 0.0f) {
       drw_shgroup_bone_stick(ctx,
-                             bone.disp_mat(),
+                             disp_mat.ptr(),
                              col_wire,
                              no_display,
                              col_head,
@@ -1449,7 +1481,7 @@ static void bone_draw_line(const Armatures::DrawContext *ctx,
     }
 
     drw_shgroup_bone_stick(
-        ctx, bone.disp_mat(), col_wire, no_display, no_display, col_tail, select_id | BONESEL_TIP);
+        ctx, disp_mat.ptr(), col_wire, no_display, no_display, col_tail, select_id | BONESEL_TIP);
   }
 }
 
@@ -1477,6 +1509,7 @@ static void bone_draw_b_bone(const Armatures::DrawContext *ctx,
 
   for (const Mat4 &in_bone_mat : bbone_matrices) {
     float4x4 bone_mat = ctx->ob->object_to_world() * float4x4(in_bone_mat.mat);
+    bonemat_rotate_for_bone_axes(bone_mat);
 
     if (ctx->is_filled) {
       ctx->bone_buf->bbones_fill_buf.append({bone_mat, col_solid, col_hint}, sel_id);
@@ -1516,15 +1549,18 @@ static void bone_draw_envelope(const Armatures::DrawContext *ctx,
                                                                 &pchan->bone->rad_head;
   }
 
+  float4x4 disp_mat(bone.disp_mat());
+  bonemat_rotate_for_bone_axes(disp_mat);
+
   if ((select_id == -1) && (boneflag & BONE_NO_DEFORM) == 0 &&
       ((boneflag & BONE_SELECTED) ||
        (bone.is_editbone() && (boneflag & (BONE_ROOTSEL | BONE_TIPSEL)))))
   {
-    drw_shgroup_bone_envelope_distance(ctx, bone.disp_mat(), rad_head, rad_tail, distance);
+    drw_shgroup_bone_envelope_distance(ctx, disp_mat.ptr(), rad_head, rad_tail, distance);
   }
 
   drw_shgroup_bone_envelope(ctx,
-                            bone.disp_mat(),
+                            disp_mat.ptr(),
                             col_solid,
                             col_hint,
                             col_wire,
@@ -1560,8 +1596,10 @@ static void bone_draw_wire(const Armatures::DrawContext *ctx,
 
   for (const Mat4 &in_bone_mat : bbone_matrices) {
     float4x4 bmat = float4x4(in_bone_mat.mat);
+    // TODO: this doesn't quite work yet...
     float3 head = transform_point(ctx->ob->object_to_world(), bmat.location());
-    float3 tail = transform_point(ctx->ob->object_to_world(), bmat.location() + bmat.y_axis());
+    float3 tail = transform_point(ctx->ob->object_to_world(),
+                                  bmat.location() + bke::bone_axis_roll(bmat));
 
     ctx->bone_buf->wire_buf.append(head, tail, float4(col_wire), sel_id);
   }
@@ -1618,6 +1656,8 @@ static void draw_bone_degrees_of_freedom(const Armatures::DrawContext *ctx,
   draw::overlay::BoneInstanceData inst_data;
   float tmp[4][4], posetrans[4][4];
   float xminmax[2], zminmax[2];
+
+  // TODO: change X → MAIN, Y → ROLL, Z → SECONDARY
 
   /* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
   xminmax[0] = sinf(pchan->limitmin[0] * 0.5f);

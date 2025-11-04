@@ -42,6 +42,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
 #include "BKE_armature.hh"
+#include "BKE_armature_axes.hh"
 #include "BKE_constraint.h"
 #include "BKE_curve.hh"
 #include "BKE_idprop.hh"
@@ -63,12 +64,6 @@
 #include "BLO_read_write.hh"
 
 using namespace blender;
-
-namespace blender::bke {
-// constexpr uint8_t BONE_AXIS_MAIN = 0;
-// constexpr uint8_t BONE_AXIS_SECONDARY = 2;
-constexpr uint8_t BONE_AXIS_ROLL = 1;
-}  // namespace blender::bke
 
 /* -------------------------------------------------------------------- */
 /** \name Prototypes
