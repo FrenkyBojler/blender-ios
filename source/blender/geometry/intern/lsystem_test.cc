@@ -17,7 +17,7 @@ static void expect_generation_eq(const LSystem &lsystem,
   EXPECT_EQ(symbols_str, expected);
 }
 
-TEST(lsystem, ApplyRules)
+TEST(lsystem, DoubleF)
 {
   LSystemBuilder builder;
   builder.set_axiom("F");
@@ -27,6 +27,19 @@ TEST(lsystem, ApplyRules)
   expect_generation_eq(lsystem, 0, "F");
   expect_generation_eq(lsystem, 1, "FF");
   expect_generation_eq(lsystem, 2, "FFFF");
+}
+
+TEST(lsystem, FPlusA)
+{
+  LSystemBuilder builder;
+  builder.set_axiom("F+A");
+  builder.add_rule("A=F+A");
+  const LSystem lsystem = builder.build();
+
+  expect_generation_eq(lsystem, 0, "F+A");
+  expect_generation_eq(lsystem, 1, "F+F+A");
+  expect_generation_eq(lsystem, 2, "F+F+F+A");
+  expect_generation_eq(lsystem, 3, "F+F+F+F+A");
 }
 
 }  // namespace blender::geometry::lsystem::tests

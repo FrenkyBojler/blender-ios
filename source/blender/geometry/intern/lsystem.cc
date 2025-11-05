@@ -54,9 +54,15 @@ class LSystemParser {
     }
     const char first_c = full_str_[i_];
     switch (first_c) {
-      case 'F': {
+      case 'F':
+      case 'f':
+      case 'A':
+      case 'B':
+      case 'X':
+      case 'Y':
+      case 'Z': {
         this->consume_next();
-        return symbol_id_map_.ensure("F");
+        return symbol_id_map_.ensure(StringRef(&first_c, 1));
       }
     }
     return std::nullopt;
@@ -77,6 +83,36 @@ class LSystemParser {
         }
         return std::nullopt;
       }
+      case 'f': {
+        this->consume_next();
+        const SymbolId id = symbol_id_map_.ensure("f");
+        if (const std::optional<ParamsId> params_id = this->parse_params_id_f()) {
+          return Symbol{id, *params_id};
+        }
+        return std::nullopt;
+      }
+      case '+':
+      case '-':
+      case '&':
+      case '^':
+      case '\\':
+      case '/': {
+        this->consume_next();
+        const SymbolId id = symbol_id_map_.ensure(StringRef(&first_c, 1));
+        if (const std::optional<ParamsId> params_id = this->parse_params_id_angle()) {
+          return Symbol{id, *params_id};
+        }
+        return std::nullopt;
+      }
+      case 'A':
+      case 'B':
+      case 'X':
+      case 'Y':
+      case 'Z': {
+        this->consume_next();
+        const SymbolId id = symbol_id_map_.ensure(StringRef(&first_c, 1));
+        return Symbol{id, -1};
+      }
     }
 
     return {};
@@ -94,6 +130,40 @@ class LSystemParser {
   {
     if (!this->next_is('(')) {
       return Params_F{};
+    }
+    /* TODO: Parse explicit args. */
+    return std::nullopt;
+  }
+
+  std::optional<ParamsId> parse_params_id_f()
+  {
+    if (std::optional<Params_f> params = this->parse_params_f()) {
+      return params_vector_.add(*params);
+    }
+    return {};
+  }
+
+  std::optional<Params_f> parse_params_f()
+  {
+    if (!this->next_is('(')) {
+      return Params_f{};
+    }
+    /* TODO: Parse explicit args. */
+    return std::nullopt;
+  }
+
+  std::optional<ParamsId> parse_params_id_angle()
+  {
+    if (std::optional<Params_Angle> params = this->parse_params_angle()) {
+      return params_vector_.add(*params);
+    }
+    return {};
+  }
+
+  std::optional<Params_Angle> parse_params_angle()
+  {
+    if (!this->next_is('(')) {
+      return Params_Angle{};
     }
     /* TODO: Parse explicit args. */
     return std::nullopt;
