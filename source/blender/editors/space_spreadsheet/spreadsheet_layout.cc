@@ -390,7 +390,9 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
         break;
       }
       default: {
-        value_str = fmt::format(std::locale("en_US.UTF-8"), "{:L}", value);
+        char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE];
+        BLI_str_format_int64_grouped(dst, value);
+        value_str = dst;
         break;
       }
     }
@@ -405,14 +407,30 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   params.height,
                                   nullptr,
                                   std::nullopt);
-    UI_but_func_tooltip_set(
-        but,
-        [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
-          return fmt::format(
-              std::locale("en_US.UTF-8"), "{:L} {}", *((int64_t *)argN), TIP_("bytes"));
-        },
-        MEM_dupallocN<int64_t>(__func__, value),
-        MEM_freeN);
+    switch (display_hint) {
+      case ColumnValueDisplayHint::Bytes: {
+        UI_but_func_tooltip_set(
+            but,
+            [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+              char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE];
+              BLI_str_format_int64_grouped(dst, *(int64_t *)argN);
+              return fmt::format("{} {}", dst, TIP_("bytes"));
+            },
+            MEM_dupallocN<int64_t>(__func__, value),
+            MEM_freeN);
+        break;
+      }
+      default: {
+        UI_but_func_tooltip_set(
+            but,
+            [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+              return fmt::format("{}", *(int64_t *)argN);
+            },
+            MEM_dupallocN<int64_t>(__func__, value),
+            MEM_freeN);
+        break;
+      }
+    }
     /* Right-align Integers. */
     UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
     UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -593,8 +611,9 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
                                                 max_sample_size,
                                                 data_.typed<int64_t>(),
                                                 [](const int64_t value) {
-                                                  return fmt::format(
-                                                      std::locale("en_US.UTF-8"), "{:L}", value);
+                                                  char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE];
+                                                  BLI_str_format_int64_grouped(dst, value);
+                                                  return std::string(dst);
                                                 });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT: {

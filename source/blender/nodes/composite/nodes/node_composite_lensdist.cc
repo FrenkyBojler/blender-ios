@@ -37,13 +37,13 @@ static const EnumPropertyItem type_items[] = {
     {CMP_NODE_LENS_DISTORTION_RADIAL,
      "RADIAL",
      0,
-     "Radial",
-     "Radially distorts the image to create a barrel or a Pincushion distortion"},
+     N_("Radial"),
+     N_("Radially distorts the image to create a barrel or a Pincushion distortion")},
     {CMP_NODE_LENS_DISTORTION_HORIZONTAL,
      "HORIZONTAL",
      0,
-     "Horizontal",
-     "Horizontally distorts the image to create a channel/color shifting effect"},
+     N_("Horizontal"),
+     N_("Horizontally distorts the image to create a channel/color shifting effect")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -247,7 +247,7 @@ static void radial_lens_distortion(const int2 texel,
    * write a zero transparent color and return. */
   float3 distortion_bounds = chromatic_distortion * distance_squared;
   if (distortion_bounds.x > 1.0f || distortion_bounds.y > 1.0f || distortion_bounds.z > 1.0f) {
-    output.store_pixel(texel, float4(0.0f));
+    output.store_pixel(texel, Color(float4(0.0f)));
     return;
   }
 
@@ -293,7 +293,7 @@ static void radial_lens_distortion(const int2 texel,
    * doesn't change regardless of jitter. */
   color *= float4(float3(2.0f), 1.0f) / float4(number_of_steps);
 
-  output.store_pixel(texel, color);
+  output.store_pixel(texel, Color(color));
 }
 
 class LensDistortionOperation : public NodeOperation {
@@ -375,12 +375,12 @@ class LensDistortionOperation : public NodeOperation {
 
       /* Sample the red and blue channels shifted by the dispersion amount. */
       const float4 red = input.sample_bilinear_zero(normalized_texel + float2(dispersion, 0.0f));
-      const float4 green = input.load_pixel<float4>(texel);
+      const float4 green = float4(input.load_pixel<Color>(texel));
       const float4 blue = input.sample_bilinear_zero(normalized_texel - float2(dispersion, 0.0f));
 
       const float alpha = blender::math::dot(float3(red.w, green.w, blue.w), float3(1.0f)) / 3.0f;
 
-      output.store_pixel(texel, float4(red.x, green.y, blue.z, alpha));
+      output.store_pixel(texel, Color(red.x, green.y, blue.z, alpha));
     });
   }
 
