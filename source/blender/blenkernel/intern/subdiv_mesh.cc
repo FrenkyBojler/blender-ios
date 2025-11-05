@@ -53,28 +53,28 @@ struct SubdivMeshContext {
   MutableSpan<int> subdiv_corner_edges;
 
   /* Generic attributes on each domain. */
-  Vector<GVArraySpan> coarse_vert_attributes;
-  Vector<GVArraySpan> coarse_edge_attributes;
-  Vector<GVArraySpan> coarse_face_attributes;
-  Vector<GVArraySpan> coarse_corner_attributes;
+  Vector<GVArraySpan> coarse_vert_attrs;
+  Vector<GVArraySpan> coarse_edge_attrs;
+  Vector<GVArraySpan> coarse_face_attrs;
+  Vector<GVArraySpan> coarse_corner_attrs;
 
   /* Spans referencing the attribute arrays above, to avoid leaking #GVArraySpan elsewhere. */
-  Vector<GSpan> coarse_vert_attribute_spans;
-  Vector<GSpan> coarse_edge_attribute_spans;
-  Vector<GSpan> coarse_face_attribute_spans;
-  Vector<GSpan> coarse_corner_attribute_spans;
+  Vector<GSpan> coarse_vert_attr_spans;
+  Vector<GSpan> coarse_edge_attr_spans;
+  Vector<GSpan> coarse_face_attr_spans;
+  Vector<GSpan> coarse_corner_attr_spans;
 
   /* Attribute writers for generic attributes on the result. */
-  Vector<GSpanAttributeWriter> subdiv_vert_attributes;
-  Vector<GSpanAttributeWriter> subdiv_edge_attributes;
-  Vector<GSpanAttributeWriter> subdiv_face_attributes;
-  Vector<GSpanAttributeWriter> subdiv_corner_attributes;
+  Vector<GSpanAttributeWriter> subdiv_vert_attrs;
+  Vector<GSpanAttributeWriter> subdiv_edge_attrs;
+  Vector<GSpanAttributeWriter> subdiv_face_attrs;
+  Vector<GSpanAttributeWriter> subdiv_corner_attrs;
 
   /* Spans referencing the writers above, for simpler usage. */
-  Vector<GMutableSpan> subdiv_vert_attribute_spans;
-  Vector<GMutableSpan> subdiv_edge_attribute_spans;
-  Vector<GMutableSpan> subdiv_face_attribute_spans;
-  Vector<GMutableSpan> subdiv_corner_attribute_spans;
+  Vector<GMutableSpan> subdiv_vert_attr_spans;
+  Vector<GMutableSpan> subdiv_edge_attr_spans;
+  Vector<GMutableSpan> subdiv_face_attr_spans;
+  Vector<GMutableSpan> subdiv_corner_attr_spans;
 
   /* Original index layers on base and result meshes. */
   Span<int> coarse_vert_origindex;
@@ -416,11 +416,11 @@ struct VerticesForInterpolation {
   MDeformWeightSet dvert_mix_buffer;
 
   VerticesForInterpolation(const SubdivMeshContext &ctx)
-      : storage_spans(ctx.coarse_vert_attribute_spans.size())
+      : storage_spans(ctx.coarse_vert_attr_spans.size())
   {
     this->allocator.provide_buffer(this->buffer);
-    for (const int i : ctx.coarse_vert_attribute_spans.index_range()) {
-      const CPPType &type = ctx.coarse_vert_attribute_spans[i].type();
+    for (const int i : ctx.coarse_vert_attr_spans.index_range()) {
+      const CPPType &type = ctx.coarse_vert_attr_spans[i].type();
       void *data = this->allocator.allocate_array(type, 4);
       this->storage_spans[i] = {type, data, 4};
     }
@@ -436,7 +436,7 @@ static void vert_interpolation_from_face(const SubdivMeshContext *ctx,
                                          const IndexRange coarse_face)
 {
   if (coarse_face.size() == 4) {
-    vert_interpolation->vert_data = ctx->coarse_vert_attribute_spans;
+    vert_interpolation->vert_data = ctx->coarse_vert_attr_spans;
     vert_interpolation->dverts_data = ctx->coarse_dverts;
     vert_interpolation->vert_indices[0] = ctx->coarse_corner_verts[coarse_face.start() + 0];
     vert_interpolation->vert_indices[1] = ctx->coarse_corner_verts[coarse_face.start() + 1];
@@ -458,7 +458,7 @@ static void vert_interpolation_from_face(const SubdivMeshContext *ctx,
     for (int i = 0; i < coarse_face.size(); i++) {
       weights[i] = weight;
     }
-    mix_attrs(ctx->coarse_vert_attribute_spans,
+    mix_attrs(ctx->coarse_vert_attr_spans,
               indices,
               weights.as_span(),
               2,
@@ -484,7 +484,7 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
     loops_of_ptex_get(&loops_of_ptex, coarse_face, corner);
     /* PTEX face corner corresponds to a face loop with same index. */
     const int vert = ctx->coarse_corner_verts[coarse_face.start() + corner];
-    copy_attrs(ctx->coarse_vert_attribute_spans,
+    copy_attrs(ctx->coarse_vert_attr_spans,
                vert,
                0,
                vert_interpolation->storage_spans.as_span().cast<GMutableSpan>());
@@ -507,7 +507,7 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
                                      coarse_face.size()]};
     const std::array<int, 2> last_indices{ctx->coarse_corner_verts[first_loop_index],
                                           ctx->coarse_corner_verts[last_loop_index]};
-    mix_attrs(ctx->coarse_vert_attribute_spans,
+    mix_attrs(ctx->coarse_vert_attr_spans,
               first_indices,
               0.5f,
               1,
@@ -517,7 +517,7 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
       vert_interpolation->dverts_storage[1] = mix_deform_verts(
           ctx->coarse_dverts, first_indices, {0.5f, 0.5f}, vert_interpolation->dvert_mix_buffer);
     }
-    mix_attrs(ctx->coarse_vert_attribute_spans,
+    mix_attrs(ctx->coarse_vert_attr_spans,
               last_indices,
               0.5f,
               3,
@@ -563,11 +563,11 @@ struct LoopsForInterpolation {
   std::array<int, 4> loop_indices;
 
   LoopsForInterpolation(const SubdivMeshContext &ctx)
-      : storage_spans(ctx.coarse_corner_attribute_spans.size())
+      : storage_spans(ctx.coarse_corner_attr_spans.size())
   {
     this->allocator.provide_buffer(this->buffer);
-    for (const int i : ctx.coarse_corner_attribute_spans.index_range()) {
-      const CPPType &type = ctx.coarse_corner_attribute_spans[i].type();
+    for (const int i : ctx.coarse_corner_attr_spans.index_range()) {
+      const CPPType &type = ctx.coarse_corner_attr_spans[i].type();
       void *data = this->allocator.allocate_array(type, 4);
       this->storage_spans[i] = {type, data, 4};
     }
@@ -579,7 +579,7 @@ static void loop_interpolation_from_face(const SubdivMeshContext *ctx,
                                          const IndexRange coarse_face)
 {
   if (coarse_face.size() == 4) {
-    loop_interpolation->corner_data = ctx->coarse_corner_attribute_spans;
+    loop_interpolation->corner_data = ctx->coarse_corner_attr_spans;
     loop_interpolation->CD_NORMAL_data = ctx->coarse_CD_NORMAL;
     loop_interpolation->CD_ORIGSPACE_MLOOP_data = ctx->coarse_CD_ORIGSPACE_MLOOP;
     loop_interpolation->loop_indices[0] = coarse_face.start() + 0;
@@ -604,7 +604,7 @@ static void loop_interpolation_from_face(const SubdivMeshContext *ctx,
       weights[i] = weight;
       indices[i] = coarse_face.start() + i;
     }
-    mix_attrs(ctx->coarse_corner_attribute_spans,
+    mix_attrs(ctx->coarse_corner_attr_spans,
               indices,
               weights.as_span(),
               2,
@@ -632,7 +632,7 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
     LoopsOfPtex loops_of_ptex;
     loops_of_ptex_get(&loops_of_ptex, coarse_face, corner);
     /* PTEX face corner corresponds to a face loop with same index. */
-    copy_attrs(ctx->coarse_corner_attribute_spans,
+    copy_attrs(ctx->coarse_corner_attr_spans,
                coarse_face.start() + corner,
                0,
                loop_interpolation->storage_spans.as_span().cast<GMutableSpan>());
@@ -655,7 +655,7 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
                                   (first_loop_index - base_loop_index + 1) % coarse_face.size();
     const std::array<int, 2> first_indices{first_loop_index, second_loop_index};
     const std::array<int, 2> last_indices{loops_of_ptex.last_loop, loops_of_ptex.first_loop};
-    mix_attrs(ctx->coarse_corner_attribute_spans,
+    mix_attrs(ctx->coarse_corner_attr_spans,
               first_indices,
               0.5f,
               1,
@@ -670,7 +670,7 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
           ctx->coarse_CD_ORIGSPACE_MLOOP[first_indices[0]],
           ctx->coarse_CD_ORIGSPACE_MLOOP[first_indices[1]]);
     }
-    mix_attrs(ctx->coarse_corner_attribute_spans,
+    mix_attrs(ctx->coarse_corner_attr_spans,
               last_indices,
               0.5f,
               3,
@@ -806,34 +806,28 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
       if (ELEM(iter.name, "position")) {
         return;
       }
-      subdiv_context->coarse_vert_attributes.append(*iter.get());
-      subdiv_context->coarse_vert_attribute_spans.append(
-          subdiv_context->coarse_vert_attributes.last());
-      subdiv_context->subdiv_vert_attributes.append(
+      subdiv_context->coarse_vert_attrs.append(*iter.get());
+      subdiv_context->coarse_vert_attr_spans.append(subdiv_context->coarse_vert_attrs.last());
+      subdiv_context->subdiv_vert_attrs.append(
           attributes.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
-      subdiv_context->subdiv_vert_attribute_spans.append(
-          subdiv_context->subdiv_vert_attributes.last().span);
+      subdiv_context->subdiv_vert_attr_spans.append(subdiv_context->subdiv_vert_attrs.last().span);
     }
     else if (iter.domain == AttrDomain::Edge) {
       if (ELEM(iter.name, ".edge_verts")) {
         return;
       }
-      subdiv_context->coarse_edge_attributes.append(*iter.get());
-      subdiv_context->coarse_edge_attribute_spans.append(
-          subdiv_context->coarse_edge_attributes.last());
-      subdiv_context->subdiv_edge_attributes.append(
+      subdiv_context->coarse_edge_attrs.append(*iter.get());
+      subdiv_context->coarse_edge_attr_spans.append(subdiv_context->coarse_edge_attrs.last());
+      subdiv_context->subdiv_edge_attrs.append(
           attributes.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
-      subdiv_context->subdiv_edge_attribute_spans.append(
-          subdiv_context->subdiv_edge_attributes.last().span);
+      subdiv_context->subdiv_edge_attr_spans.append(subdiv_context->subdiv_edge_attrs.last().span);
     }
     else if (iter.domain == AttrDomain::Face) {
-      subdiv_context->coarse_face_attributes.append(*iter.get());
-      subdiv_context->coarse_face_attribute_spans.append(
-          subdiv_context->coarse_face_attributes.last());
-      subdiv_context->subdiv_face_attributes.append(
+      subdiv_context->coarse_face_attrs.append(*iter.get());
+      subdiv_context->coarse_face_attr_spans.append(subdiv_context->coarse_face_attrs.last());
+      subdiv_context->subdiv_face_attrs.append(
           attributes.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
-      subdiv_context->subdiv_face_attribute_spans.append(
-          subdiv_context->subdiv_face_attributes.last().span);
+      subdiv_context->subdiv_face_attr_spans.append(subdiv_context->subdiv_face_attrs.last().span);
     }
     else if (iter.domain == AttrDomain::Corner) {
       if (ELEM(iter.name, ".corner_vert", ".corner_edge")) {
@@ -842,13 +836,12 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
       if (iter.data_type == AttrType::Float2) {
         return;
       }
-      subdiv_context->coarse_corner_attributes.append(*iter.get());
-      subdiv_context->coarse_corner_attribute_spans.append(
-          subdiv_context->coarse_corner_attributes.last());
-      subdiv_context->subdiv_corner_attributes.append(
+      subdiv_context->coarse_corner_attrs.append(*iter.get());
+      subdiv_context->coarse_corner_attr_spans.append(subdiv_context->coarse_corner_attrs.last());
+      subdiv_context->subdiv_corner_attrs.append(
           attributes.lookup_or_add_for_write_only_span(iter.name, iter.domain, iter.data_type));
-      subdiv_context->subdiv_corner_attribute_spans.append(
-          subdiv_context->subdiv_corner_attributes.last().span);
+      subdiv_context->subdiv_corner_attr_spans.append(
+          subdiv_context->subdiv_corner_attrs.last().span);
     }
   });
 
@@ -872,10 +865,10 @@ static void subdiv_vert_data_copy(const SubdivMeshContext *ctx,
                                   const int coarse_vert_index,
                                   const int subdiv_vert_index)
 {
-  copy_attrs(ctx->coarse_vert_attribute_spans,
+  copy_attrs(ctx->coarse_vert_attr_spans,
              coarse_vert_index,
              subdiv_vert_index,
-             ctx->subdiv_vert_attribute_spans);
+             ctx->subdiv_vert_attr_spans);
   if (!ctx->coarse_vert_origindex.is_empty()) {
     ctx->subdiv_vert_origindex[subdiv_vert_index] = ctx->coarse_vert_origindex[coarse_vert_index];
   }
@@ -901,7 +894,7 @@ static void subdiv_vert_data_interpolate(const SubdivMeshContext *ctx,
             vert_interpolation->vert_indices,
             weights,
             subdiv_vert_index,
-            ctx->subdiv_vert_attribute_spans);
+            ctx->subdiv_vert_attr_spans);
   if (!ctx->coarse_vert_origindex.is_empty()) {
     ctx->subdiv_vert_origindex[subdiv_vert_index] = ORIGINDEX_NONE;
   }
@@ -1120,17 +1113,17 @@ static void subdiv_copy_edge_data(SubdivMeshContext *ctx,
     if (!ctx->coarse_edge_origindex.is_empty()) {
       ctx->subdiv_edge_origindex[subdiv_edge_index] = ORIGINDEX_NONE;
     }
-    for (const int attr : ctx->coarse_edge_attributes.index_range()) {
-      const CPPType &type = ctx->coarse_edge_attributes[attr].type();
+    for (const int attr : ctx->coarse_edge_attrs.index_range()) {
+      const CPPType &type = ctx->coarse_edge_attrs[attr].type();
       type.copy_construct(type.default_value(),
-                          ctx->subdiv_edge_attribute_spans[attr][subdiv_edge_index]);
+                          ctx->subdiv_edge_attr_spans[attr][subdiv_edge_index]);
     }
     return;
   }
-  copy_attrs(ctx->coarse_edge_attribute_spans,
+  copy_attrs(ctx->coarse_edge_attr_spans,
              coarse_edge_index,
              subdiv_edge_index,
-             ctx->subdiv_edge_attribute_spans);
+             ctx->subdiv_edge_attr_spans);
   if (!ctx->coarse_edge_origindex.is_empty()) {
     ctx->subdiv_edge_origindex[subdiv_edge_index] = ctx->coarse_edge_origindex[coarse_edge_index];
   }
@@ -1170,7 +1163,7 @@ static void subdiv_interpolate_corner_data(const SubdivMeshContext *ctx,
             loop_interpolation->loop_indices,
             weights,
             subdiv_loop_index,
-            ctx->subdiv_corner_attribute_spans);
+            ctx->subdiv_corner_attr_spans);
   if (!ctx->coarse_CD_NORMAL.is_empty()) {
     ctx->subdiv_CD_NORMAL[subdiv_loop_index] = mix_normals(
         loop_interpolation->CD_NORMAL_data, loop_interpolation->loop_indices, weights);
@@ -1253,10 +1246,10 @@ static void subdiv_mesh_face(const ForeachContext *foreach_context,
 {
   BLI_assert(coarse_face_index != ORIGINDEX_NONE);
   SubdivMeshContext *ctx = static_cast<SubdivMeshContext *>(foreach_context->user_data);
-  copy_attrs(ctx->coarse_face_attribute_spans,
+  copy_attrs(ctx->coarse_face_attr_spans,
              coarse_face_index,
              subdiv_face_index,
-             ctx->subdiv_face_attribute_spans);
+             ctx->subdiv_face_attr_spans);
   if (!ctx->coarse_face_origindex.is_empty()) {
     ctx->subdiv_face_origindex[subdiv_face_index] = ctx->coarse_face_origindex[coarse_face_index];
   }
@@ -1501,16 +1494,16 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   for (bke::SpanAttributeWriter<float2> &attr : subdiv_context.uv_maps) {
     attr.finish();
   }
-  for (bke::GSpanAttributeWriter &attr : subdiv_context.subdiv_vert_attributes) {
+  for (bke::GSpanAttributeWriter &attr : subdiv_context.subdiv_vert_attrs) {
     attr.finish();
   }
-  for (bke::GSpanAttributeWriter &attr : subdiv_context.subdiv_edge_attributes) {
+  for (bke::GSpanAttributeWriter &attr : subdiv_context.subdiv_edge_attrs) {
     attr.finish();
   }
-  for (bke::GSpanAttributeWriter &attr : subdiv_context.subdiv_face_attributes) {
+  for (bke::GSpanAttributeWriter &attr : subdiv_context.subdiv_face_attrs) {
     attr.finish();
   }
-  for (bke::GSpanAttributeWriter &attr : subdiv_context.subdiv_corner_attributes) {
+  for (bke::GSpanAttributeWriter &attr : subdiv_context.subdiv_corner_attrs) {
     attr.finish();
   }
 
