@@ -32,7 +32,8 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
  public:
   TemplatedConstraintSet(int constraints_num, Vector<int> affected_geo_indices);
 
-  void solve_step(SolveStrategy &strategy, ConstraintSetParams &params) override;
+  void reset_forces() override;
+  void solve_step(SolveStrategy &strategy, const ConstraintSetParams &params) override;
 
   Span<IndexMask> get_independent_masks() const;
   virtual Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const = 0;
@@ -43,7 +44,7 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
    */
   // template<typename UpdaterT>
   // void evaluate_single(
-  //   UpdaterT &updater, ConstraintSetParams &params, const int constraint_i) const;
+  //   UpdaterT &updater, const ConstraintSetParams &params, const int constraint_i) const;
 };
 
 class CurveLocalConstraintSet {
@@ -60,8 +61,9 @@ class CurveLocalConstraintSet {
   }
   virtual ~CurveLocalConstraintSet() = default;
 
+  virtual void reset_forces(IndexRange curves_range) = 0;
   virtual void solve_step(SolveStrategy &strategy,
-                          ConstraintSetParams &params,
+                          const ConstraintSetParams &params,
                           IndexRange curves_range) = 0;
   virtual int accumulated_task_size(IndexRange curves_range) const;
 
@@ -73,8 +75,9 @@ template<typename Child> class TemplatedCurveLocalConstraintSet : public CurveLo
  public:
   TemplatedCurveLocalConstraintSet(const int geo_i, const OffsetIndices<int> points_by_curve);
 
+  void reset_forces(IndexRange curves_range) override;
   void solve_step(SolveStrategy &strategy,
-                  ConstraintSetParams &params,
+                  const ConstraintSetParams &params,
                   IndexRange curves_range) override;
 };
 
@@ -86,7 +89,8 @@ class CurveLocalConstraintSets : public ConstraintSet {
  public:
   CurveLocalConstraintSets(int geo_i, Vector<CurveLocalConstraintSet *> constraint_sets);
 
-  void solve_step(SolveStrategy &strategy, ConstraintSetParams &params) override;
+  void reset_forces() override;
+  void solve_step(SolveStrategy &strategy, const ConstraintSetParams &params) override;
 };
 
 Vector<IndexMask> unary_constraints_to_independent_masks(const Span<int> affected_points,
@@ -183,9 +187,17 @@ inline TemplatedConstraintSet<Child>::TemplatedConstraintSet(int constraints_num
 {
 }
 
+template<typename Child> inline void TemplatedConstraintSet<Child>::reset_forces()
+{
+  const Child &self = static_cast<const Child &>(*this);
+  for (const int constraint_i : IndexRange(constraints_num_)) {
+    self.reset_force(constraint_i);
+  }
+}
+
 template<typename Child>
 inline void TemplatedConstraintSet<Child>::solve_step(SolveStrategy &strategy,
-                                                      ConstraintSetParams &params)
+                                                      const ConstraintSetParams &params)
 {
   const Child &self = static_cast<const Child &>(*this);
   switch (strategy.type) {
@@ -238,8 +250,17 @@ inline TemplatedCurveLocalConstraintSet<Child>::TemplatedCurveLocalConstraintSet
 }
 
 template<typename Child>
+void TemplatedCurveLocalConstraintSet<Child>::reset_forces(const IndexRange curves_range)
+{
+  Child &self = static_cast<Child &>(*this);
+  for (const int curve_i : curves_range) {
+    self.reset_curve_forces(curve_i);
+  }
+}
+
+template<typename Child>
 void TemplatedCurveLocalConstraintSet<Child>::solve_step(SolveStrategy &strategy,
-                                                         ConstraintSetParams &params,
+                                                         const ConstraintSetParams &params,
                                                          IndexRange curves_range)
 {
   Child &self = static_cast<Child &>(*this);

@@ -12,7 +12,7 @@
 namespace blender::xpbd {
 
 struct DistanceConstraintResult {
-  float lambda = 0.0f;
+  float delta_lambda = 0.0f;
   float3 offset0 = float3(0.0f);
   float3 offset1 = float3(0.0f);
 };
@@ -22,7 +22,8 @@ inline DistanceConstraintResult evaluate_distance_constraint(const float3 &p0,
                                                              const float inv_m0,
                                                              const float inv_m1,
                                                              const float rest_distance,
-                                                             const float compliance_term)
+                                                             const float compliance_term,
+                                                             const float lambda_prev)
 {
   if (inv_m0 == 0.0f && inv_m1 == 0.0f) {
     return {};
@@ -32,15 +33,17 @@ inline DistanceConstraintResult evaluate_distance_constraint(const float3 &p0,
   float length;
   const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
   const float length_diff = length - rest_distance;
-  const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
+  const float delta_lambda = (-length_diff - compliance_term * lambda_prev) /
+                             (inv_m0 + inv_m1 + compliance_term);
 
-  const float3 offset0 = lambda * inv_m0 * normalized_dir;
-  const float3 offset1 = -lambda * inv_m1 * normalized_dir;
+  const float3 offset0 = -delta_lambda * inv_m0 * normalized_dir;
+  const float3 offset1 = delta_lambda * inv_m1 * normalized_dir;
 
-  return {lambda, offset0, offset1};
+  return {delta_lambda, offset0, offset1};
 }
 
 struct AlignRotationsConstraintResult {
+  float4 delta_lambda;
   math::Quaternion offset0 = math::Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
   math::Quaternion offset1 = math::Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
 };
@@ -51,7 +54,8 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
     const float3 &inertia0,
     const float3 &inertia1,
     const math::Quaternion &rest_rotation,
-    const float compliance_term)
+    const float compliance_term,
+    const float4 &lambda_prev)
 {
   const float inv_lumped_inertia0 = math::safe_rcp(0.5f * (inertia0.x + inertia0.y + inertia0.z));
   const float inv_lumped_inertia1 = math::safe_rcp(0.5f * (inertia1.x + inertia1.y + inertia1.z));
@@ -75,16 +79,19 @@ inline AlignRotationsConstraintResult evaluate_align_rotations_constraint(
                               residual_neg :
                               residual_pos;
 
-  const float4 lambda = -residual / (inv_lumped_inertia0 + inv_lumped_inertia1 + compliance_term);
+  const float4 delta_lambda = (-residual - compliance_term * lambda_prev) /
+                              (inv_lumped_inertia0 + inv_lumped_inertia1 + compliance_term);
 
-  const math::Quaternion offset0 = r1 *
-                                   math::conjugate(math::Quaternion(lambda * inv_lumped_inertia0));
-  const math::Quaternion offset1 = r0 * math::Quaternion(lambda * inv_lumped_inertia1);
+  const math::Quaternion offset0 = r1 * math::conjugate(
+                                            math::Quaternion(delta_lambda * inv_lumped_inertia0));
+  const math::Quaternion offset1 = r0 * math::Quaternion(delta_lambda * inv_lumped_inertia1);
 
-  return {offset0, offset1};
+  return {delta_lambda, offset0, offset1};
 }
 
 struct RodStretchAndShearConstraintResult {
+  float3 delta_lambda_pos;
+  float3 delta_lambda_rot;
   float3 offset0 = float3(0.0f);
   float3 offset1 = float3(0.0f);
   math::Quaternion offset_rot = math::Quaternion(0.0f, 0.0f, 0.0f, 0.0f);
@@ -98,7 +105,9 @@ inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constra
     const float inv_m1,
     const float3 &inertia,
     const float rest_length,
-    const float compliance_term)
+    const float compliance_term,
+    const float3 &lambda_pos_prev,
+    const float3 &lambda_rot_prev)
 {
   /* Lumped weight for the rotation influence. The higher the inertia, the lower the change of
    * the rotation should be compared to the change in point positions. */
@@ -128,14 +137,18 @@ inline RodStretchAndShearConstraintResult evaluate_rod_stretch_and_shear_constra
   /* Based on "Position and Orientation Based Cosserat Rods" (Kugelstadt, Schömer, 2016). */
   const float weight_sum = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(rest_length);
   const float weight_sum_rot = inv_m0 + inv_m1 + 4.0f * inv_lumped_inertia * pow2f(p_len);
-  const float3 lambda_pos = residual_pos / (weight_sum + compliance_term);
-  const float3 lambda_rot = residual_rot / (weight_sum_rot + compliance_term);
+  const float3 delta_lambda_pos = (-residual_pos - compliance_term * lambda_pos_prev) /
+                                  (weight_sum + compliance_term);
+  const float3 delta_lambda_rot = (-residual_rot - compliance_term * lambda_rot_prev) /
+                                  (weight_sum_rot + compliance_term);
 
   RodStretchAndShearConstraintResult result;
-  result.offset0 = lambda_pos * inv_m0;
-  result.offset1 = -lambda_pos * inv_m1;
-  result.offset_rot = math::Quaternion(0.0f, lambda_rot * inv_lumped_inertia * p_len) * rot *
-                      math::Quaternion(0, 0, 0, -1);
+  result.delta_lambda_pos = delta_lambda_pos;
+  result.delta_lambda_rot = delta_lambda_rot;
+  result.offset0 = -delta_lambda_pos * inv_m0;
+  result.offset1 = delta_lambda_pos * inv_m1;
+  result.offset_rot = math::Quaternion(0.0f, -delta_lambda_rot * inv_lumped_inertia * p_len) *
+                      rot * math::Quaternion(0, 0, 0, -1);
   return result;
 }
 
@@ -145,23 +158,31 @@ class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPosition
   Span<int> indices_;
   Span<float3> pin_positions_;
   Span<float> compliance_terms_;
+  MutableSpan<float> lambdas_;
 
  public:
   PinnedPositionConstraintSet(const int geo_i,
                               const Span<int> indices,
                               const Span<float3> pin_positions,
-                              const Span<float> compliance_terms)
+                              const Span<float> compliance_terms,
+                              const MutableSpan<float> lambdas)
       : TemplatedConstraintSet<PinnedPositionConstraintSet>(indices.size(), {geo_i}),
         geo_i_(geo_i),
         indices_(indices),
         pin_positions_(pin_positions),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        lambdas_(lambdas)
   {
+  }
+
+  void reset_force(const int constraint_i) const
+  {
+    lambdas_[constraint_i] = 0.0f;
   }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
+                       const ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i = indices_[constraint_i];
@@ -171,7 +192,9 @@ class PinnedPositionConstraintSet : public TemplatedConstraintSet<PinnedPosition
         params.inverse_mass(geo_i_, point_i),
         0.0f,
         0.0f,
-        compliance_terms_[constraint_i]);
+        compliance_terms_[constraint_i],
+        lambdas_[constraint_i]);
+    lambdas_[constraint_i] += result.delta_lambda;
     updater.update_position(geo_i_, point_i, result.offset0);
   }
 
@@ -187,23 +210,31 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
   Span<int> indices_;
   Span<math::Quaternion> pin_rotations_;
   Span<float> compliance_terms_;
+  MutableSpan<float4> lambdas_;
 
  public:
   PinRotationConstraintSet(const int geo_i,
                            const Span<int> indices,
                            const Span<math::Quaternion> pin_rotations,
-                           const Span<float> compliance_terms)
+                           const Span<float> compliance_terms,
+                           MutableSpan<float4> lambdas)
       : TemplatedConstraintSet<PinRotationConstraintSet>(indices.size(), {geo_i}),
         geo_i_(geo_i),
         indices_(indices),
         pin_rotations_(pin_rotations),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        lambdas_(lambdas)
   {
+  }
+
+  void reset_force(const int constraint_i) const
+  {
+    lambdas_[constraint_i] = float4(0.0f);
   }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
+                       const ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i = indices_[constraint_i];
@@ -213,7 +244,9 @@ class PinRotationConstraintSet : public TemplatedConstraintSet<PinRotationConstr
         params.inertia(geo_i_, point_i),
         float3(std::numeric_limits<float>::infinity()),
         math::Quaternion::identity(),
-        compliance_terms_[constraint_i]);
+        compliance_terms_[constraint_i],
+        lambdas_[constraint_i]);
+    lambdas_[constraint_i] += result.delta_lambda;
     updater.update_rotation(geo_i_, point_i, result.offset0);
   }
 
@@ -247,9 +280,14 @@ class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSe
     BLI_assert(point_pairs.size() == distances.size());
   }
 
+  void reset_force(const int constraint_i) const
+  {
+    lambdas_[constraint_i] = 0.0f;
+  }
+
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
+                       const ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int2 &point_pair = point_pairs_[constraint_i];
@@ -261,8 +299,9 @@ class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSe
         params.inverse_mass(geo_i_, point_i0),
         params.inverse_mass(geo_i_, point_i1),
         distances_[constraint_i],
-        compliance_terms_[constraint_i]);
-    lambdas_[constraint_i] = result.lambda;
+        compliance_terms_[constraint_i],
+        lambdas_[constraint_i]);
+    lambdas_[constraint_i] += result.delta_lambda;
     updater.update_position(geo_i_, point_i0, result.offset0);
     updater.update_position(geo_i_, point_i1, result.offset1);
   }
@@ -305,9 +344,11 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   {
   }
 
+  void reset_force(const int /*constraint_i*/) const {}
+
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
+                       const ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i = points_[constraint_i];
@@ -365,23 +406,31 @@ class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistan
   Span<int2> points_;
   Span<float> min_distances_;
   Span<float> compliance_terms_;
+  MutableSpan<float> lambdas_;
 
  public:
   MinimumDistanceConstraintSet(const int geo_i,
                                const Span<int2> points,
                                const Span<float> min_distances,
-                               const Span<float> compliance_terms)
+                               const Span<float> compliance_terms,
+                               MutableSpan<float> lambdas)
       : TemplatedConstraintSet<MinimumDistanceConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
         min_distances_(min_distances),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        lambdas_(lambdas)
   {
+  }
+
+  void reset_force(const int constraint_i) const
+  {
+    lambdas_[constraint_i] = 0.0f;
   }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
+                       const ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i0 = points_[constraint_i][0];
@@ -402,7 +451,10 @@ class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistan
       return;
     }
     const float compliance_term = compliance_terms_[constraint_i];
-    const float lambda = length_diff / (inv_m0 + inv_m1 + compliance_term);
+    float &lambda = lambdas_[constraint_i];
+    const float delta_lambda = (length_diff - compliance_term * lambda) /
+                               (inv_m0 + inv_m1 + compliance_term);
+    lambda += delta_lambda;
     const float3 offset0 = -lambda * inv_m0 * normalized_dir;
     const float3 offset1 = lambda * inv_m1 * normalized_dir;
     updater.update_position(geo_i_, point_i0, offset0);
@@ -422,25 +474,33 @@ class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSe
   Span<int> corner_verts_;
   float pressure_;
   float initial_volume_;
+  float &lambda_;
 
  public:
   PressureConstraintSet(const int geo_i,
                         const Span<int3> tris,
                         const Span<int> corner_verts,
                         const float pressure,
-                        const float initial_volume)
+                        const float initial_volume,
+                        float &lambda)
       : TemplatedConstraintSet<PressureConstraintSet>(1, {geo_i}),
         geo_i_(geo_i),
         tris_(tris),
         corner_verts_(corner_verts),
         pressure_(pressure),
-        initial_volume_(initial_volume)
+        initial_volume_(initial_volume),
+        lambda_(lambda)
   {
+  }
+
+  void reset_force(const int /*constraint_i*/) const
+  {
+    lambda_ = 0.0f;
   }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
+                       const ConstraintSetParams &params,
                        const int constraint_i) const
   {
     /* This is just a single global constraint. */
@@ -471,19 +531,20 @@ class PressureConstraintSet : public TemplatedConstraintSet<PressureConstraintSe
       gradients[v2] += c;
     }
 
-    float lambda_divisor = 0.0f;
+    float delta_lambda_divisor = 0.0f;
     for (const int i : IndexRange(points_num)) {
       const float inverse_mass = inverse_masses[i];
-      lambda_divisor += math::length_squared(gradients[i]) * inverse_mass;
+      delta_lambda_divisor += math::length_squared(gradients[i]) * inverse_mass;
     }
-    const float lambda = math::safe_divide(volume_diff, lambda_divisor);
+    const float delta_lambda = math::safe_divide(volume_diff, delta_lambda_divisor);
+    lambda_ += delta_lambda;
     threading::parallel_for(IndexRange(points_num), 512, [&](const IndexRange range) {
       for (const int i : range) {
         const float inverse_mass = inverse_masses[i];
         if (inverse_mass <= 0.0f) {
           continue;
         }
-        const float3 offset = -lambda * inverse_mass * gradients[i];
+        const float3 offset = -delta_lambda * inverse_mass * gradients[i];
         updater.update_position(geo_i_, i, offset);
       }
     });
@@ -530,21 +591,38 @@ class RodStretchAndShearCurveLocalConstraintSet
  private:
   Span<float> rest_lengths_;
   Span<float> compliance_terms_;
+  MutableSpan<float3> lambdas_pos_;
+  MutableSpan<float3> lambdas_rot_;
 
  public:
   RodStretchAndShearCurveLocalConstraintSet(const int geo_i,
                                             const OffsetIndices<int> points_by_curve,
                                             const Span<float> rest_lengths,
-                                            const Span<float> compliance_terms)
+                                            const Span<float> compliance_terms,
+                                            MutableSpan<float3> lambdas_pos,
+                                            MutableSpan<float3> lambdas_rot)
       : TemplatedCurveLocalConstraintSet<RodStretchAndShearCurveLocalConstraintSet>(
             geo_i, points_by_curve),
         rest_lengths_(rest_lengths),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        lambdas_pos_(lambdas_pos),
+        lambdas_rot_(lambdas_rot)
   {
   }
 
+  void reset_curve_forces(const int curve_i) const
+  {
+    const IndexRange points = points_by_curve_[curve_i];
+    for (const int point_i0 : points.drop_back(1)) {
+      lambdas_pos_[point_i0] = float3(0.0f);
+      lambdas_rot_[point_i0] = float3(0.0f);
+    }
+  }
+
   template<typename UpdaterT>
-  void evaluate_curve(UpdaterT &updater, ConstraintSetParams &params, const int curve_i) const
+  void evaluate_curve(UpdaterT &updater,
+                      const ConstraintSetParams &params,
+                      const int curve_i) const
   {
     const IndexRange points = points_by_curve_[curve_i];
 
@@ -559,7 +637,11 @@ class RodStretchAndShearCurveLocalConstraintSet
           params.inverse_mass(geo_i_, point_i1),
           params.inertia(geo_i_, point_i0),
           rest_lengths_[point_i0],
-          compliance_terms_[point_i0]);
+          compliance_terms_[point_i0],
+          lambdas_pos_[point_i0],
+          lambdas_rot_[point_i0]);
+      lambdas_pos_[point_i0] += result.delta_lambda_pos;
+      lambdas_rot_[point_i0] += result.delta_lambda_rot;
       updater.update_position(geo_i_, point_i0, result.offset0);
       updater.update_position(geo_i_, point_i1, result.offset1);
       updater.update_rotation(geo_i_, point_i0, result.offset_rot);
@@ -573,21 +655,34 @@ class RodBendAndTwistCurveLocalConstraintSet
  private:
   Span<math::Quaternion> rest_rotations_;
   Span<float> compliance_terms_;
+  MutableSpan<float4> lambdas_;
 
  public:
   RodBendAndTwistCurveLocalConstraintSet(const int geo_i,
                                          const OffsetIndices<int> points_by_curve,
                                          const Span<math::Quaternion> rest_rotations,
-                                         const Span<float> compliance_terms)
+                                         const Span<float> compliance_terms,
+                                         MutableSpan<float4> lambdas)
       : TemplatedCurveLocalConstraintSet<RodBendAndTwistCurveLocalConstraintSet>(geo_i,
                                                                                  points_by_curve),
         rest_rotations_(rest_rotations),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        lambdas_(lambdas)
   {
   }
 
+  void reset_curve_forces(const int curve_i) const
+  {
+    const IndexRange points = points_by_curve_[curve_i];
+    for (const int point_i0 : points.drop_back(2)) {
+      lambdas_[point_i0] = float4(0.0f);
+    }
+  }
+
   template<typename UpdaterT>
-  void evaluate_curve(UpdaterT &updater, ConstraintSetParams &params, const int curve_i) const
+  void evaluate_curve(UpdaterT &updater,
+                      const ConstraintSetParams &params,
+                      const int curve_i) const
   {
     const IndexRange points = points_by_curve_[curve_i];
 
@@ -602,7 +697,9 @@ class RodBendAndTwistCurveLocalConstraintSet
           params.inertia(geo_i_, point_i0),
           params.inertia(geo_i_, point_i1),
           rest_rotations_[point_i0],
-          compliance_terms_[point_i0]);
+          compliance_terms_[point_i0],
+          lambdas_[point_i0]);
+      lambdas_[point_i0] += result.delta_lambda;
       updater.update_rotation(geo_i_, point_i0, result.offset0);
       updater.update_rotation(geo_i_, point_i1, result.offset1);
     }
@@ -618,24 +715,32 @@ class AlignPositionsConstraintSet : public TemplatedConstraintSet<AlignPositions
   /* Indexed by offset indices. */
   Span<int> geo_indices_;
   Span<int> point_indices_;
+  MutableSpan<float> lambdas_;
 
  public:
   AlignPositionsConstraintSet(OffsetIndices<int> offsets,
                               Span<float> compliance_terms,
                               Span<int> geo_indices,
-                              Span<int> point_indices)
+                              Span<int> point_indices,
+                              MutableSpan<float> lambdas)
       : TemplatedConstraintSet<AlignPositionsConstraintSet>(
             point_indices.size(), VectorSet<int>(geo_indices).extract_vector()),
         offsets_(offsets),
         compliance_terms_(compliance_terms),
         geo_indices_(geo_indices),
-        point_indices_(point_indices)
+        point_indices_(point_indices),
+        lambdas_(lambdas)
   {
+  }
+
+  void reset_force(const int constraint_i) const
+  {
+    lambdas_[constraint_i] = 0.0f;
   }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
+                       const ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const IndexRange range = offsets_[constraint_i];
@@ -653,12 +758,13 @@ class AlignPositionsConstraintSet : public TemplatedConstraintSet<AlignPositions
       }
       const float3 &pos = params.position(geo_i, point_i);
       const DistanceConstraintResult result = evaluate_distance_constraint(
-          pos, center, inv_m, 0.0f, 0.0f, compliance_term);
+          pos, center, inv_m, 0.0f, 0.0f, compliance_term, lambdas_[i]);
+      lambdas_[i] += result.delta_lambda;
       updater.update_position(geo_i, point_i, result.offset0);
     }
   }
 
-  float3 compute_center(const IndexRange range, ConstraintSetParams &params) const
+  float3 compute_center(const IndexRange range, const ConstraintSetParams &params) const
   {
     float3 center_sum = float3(0.0f);
     float mass_sum = 0.0f;
@@ -695,6 +801,7 @@ class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfa
   Span<int3> triangle_indices_;
   Span<float3> bary_weights_;
   Span<float> compliance_terms_;
+  MutableSpan<float3> lambdas_;
 
  public:
   AttachUVSurfaceConstraintSet(const int mesh_geo_i,
@@ -702,7 +809,8 @@ class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfa
                                const Span<int> indices,
                                const Span<int3> triangle_indices,
                                const Span<float3> bary_weights,
-                               const Span<float> compliance_terms)
+                               const Span<float> compliance_terms,
+                               MutableSpan<float3> lambdas)
       : TemplatedConstraintSet<AttachUVSurfaceConstraintSet>(indices.size(),
                                                              {mesh_geo_i, points_geo_i}),
         mesh_geo_i_(mesh_geo_i),
@@ -710,13 +818,19 @@ class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfa
         indices_(indices),
         triangle_indices_(triangle_indices),
         bary_weights_(bary_weights),
-        compliance_terms_(compliance_terms)
+        compliance_terms_(compliance_terms),
+        lambdas_(lambdas)
   {
+  }
+
+  void reset_force(const int constraint_i) const
+  {
+    lambdas_[constraint_i] = float3(0.0f);
   }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
-                       ConstraintSetParams &params,
+                       const ConstraintSetParams &params,
                        const int constraint_i) const
   {
     const int point_i = indices_[constraint_i];
@@ -749,12 +863,17 @@ class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfa
                              bary_weights[2] * mesh_p2;
     const float3 diff = p - pin_point;
 
-    const float3 lambda = -diff / (effective_weight + compliance_term);
+    const float3 delta_lambda = (-diff - compliance_term * lambdas_[constraint_i]) /
+                                (effective_weight + compliance_term);
 
-    updater.update_position(points_geo_i_, point_i, inv_mass * lambda);
-    updater.update_position(mesh_geo_i_, mesh_i0, -bary_weights[0] * mesh_inv_mass0 * lambda);
-    updater.update_position(mesh_geo_i_, mesh_i1, -bary_weights[1] * mesh_inv_mass1 * lambda);
-    updater.update_position(mesh_geo_i_, mesh_i2, -bary_weights[2] * mesh_inv_mass2 * lambda);
+    lambdas_[constraint_i] += delta_lambda;
+    updater.update_position(points_geo_i_, point_i, inv_mass * delta_lambda);
+    updater.update_position(
+        mesh_geo_i_, mesh_i0, -bary_weights[0] * mesh_inv_mass0 * delta_lambda);
+    updater.update_position(
+        mesh_geo_i_, mesh_i1, -bary_weights[1] * mesh_inv_mass1 * delta_lambda);
+    updater.update_position(
+        mesh_geo_i_, mesh_i2, -bary_weights[2] * mesh_inv_mass2 * delta_lambda);
   }
 
   Vector<IndexMask> generate_independent_masks(IndexMaskMemory &memory) const override

@@ -11,7 +11,6 @@
 #include "BLI_kdtree.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.hh"
 #include "BLI_ordered_edge.hh"
 
 #include "DNA_curves_types.h"
@@ -410,14 +409,14 @@ class XPBDState {
   template<typename T>
   MutableSpan<T> ensure_constraint_lambdas(const SimConstraintsKey &key, const int constraints_num)
   {
+    const CPPType &cpp_type = CPPType::get<T>();
     SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
     BLI_assert(data.persistent_ids.is_empty() || data.persistent_ids.size() == constraints_num);
-    if (data.lambdas.is_empty()) {
-      data.lambdas = GArray<>(CPPType::get<T>(), constraints_num);
+    if (data.lambdas.data() == nullptr) {
+      data.lambdas = GArray<>(cpp_type, constraints_num);
     }
     else if (data.lambdas.size() != constraints_num) {
       data.lambdas.reinitialize(constraints_num);
-      data.lambdas.as_mutable_span().typed<T>().fill(T(0.0f));
     }
     return data.lambdas.as_mutable_span().typed<T>();
   }
@@ -485,13 +484,15 @@ struct WorldBundles {
 };
 
 struct CurveRodStretchAndShearConstraintData {
-  int key_i;
+  int geo_key_i;
+  int constraints_key_i;
   Span<float> rest_lengths;
   Span<float> compliance_terms;
 };
 
 struct CurveRodBendAndTwistConstraintData {
-  int key_i;
+  int geo_key_i;
+  int constraints_key_i;
   Span<math::Quaternion> rest_rotations;
   Span<float> compliance_terms;
 };
@@ -526,12 +527,13 @@ struct CurveSegmentLengthConstraintData {
 
 struct AlignPositionsConstraintData {
   struct Item {
-    int key_i;
+    int geo_key_i;
     const fn::FieldEvaluator *evaluator;
     int group_id_index;
     int compliance_index;
   };
 
+  int constraints_key_i;
   Vector<Item> items;
 };
 
@@ -541,6 +543,7 @@ struct AttachUVSurfaceConstraintData {
   int uv_map_index;
 
   int points_key_i;
+  int constraints_key_i;
   const fn::FieldEvaluator *point_evaluator;
   int sample_uv_index;
   int compliance_term_index;
@@ -554,7 +557,8 @@ struct DistanceBasedEdgeBendingConstraintData {
 };
 
 struct PressureConstraintData {
-  int key_i;
+  int geo_key_i;
+  int constraint_key_i;
   float pressure;
 };
 
@@ -735,6 +739,7 @@ struct PinnedPositions {
   Vector<float> soft_compliance_terms;
   Vector<StartStopPair<float3>> soft_animations;
   MutableSpan<float3> soft_pinned_positions;
+  MutableSpan<float> soft_lambdas;
 };
 
 struct PinnedRotations {
@@ -745,6 +750,7 @@ struct PinnedRotations {
   Vector<float> soft_compliance_terms;
   Vector<StartStopPair<math::Quaternion>> soft_animations;
   MutableSpan<math::Quaternion> soft_pinned_rotations;
+  MutableSpan<float4> soft_lambdas;
 };
 
 static AttrDomain get_simulation_domain(const bke::GeometryComponent::Type type)
@@ -1214,21 +1220,25 @@ PROFILE_FUNCTION static Map<SimPointsKey, Span<float3>> compute_external_torques
   return torques_map;
 }
 
+struct ConstraintInitData {
+  Map<SimPointsKey, PinnedPositions> pinned_positions_map;
+  Map<SimPointsKey, PinnedRotations> pinned_rotations_map;
+};
+
 PROFILE_FUNCTION static Map<SimPointsKey, SimPointsWorldProperties>
 compute_sim_point_world_properties(const WorldBundles &world_bundles,
                                    const WorldPreprocessData &world_info,
                                    const Span<SimPointsKey> keys,
                                    const Span<GeometrySet> applied_geometries,
-                                   const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
-                                   const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map)
+                                   const ConstraintInitData &constraint_init)
 {
   Map<SimPointsKey, SimPointsWorldProperties> properties_map;
   for (const int key_i : keys.index_range()) {
     const SimPointsKey &key = keys[key_i];
     const int geometry_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_i];
-    const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
-    const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
+    const PinnedPositions *pinned_positions = constraint_init.pinned_positions_map.lookup_ptr(key);
+    const PinnedRotations *pinned_rotations = constraint_init.pinned_rotations_map.lookup_ptr(key);
 
     const bke::GeometryComponent::Type type = key.type;
     const bke::GeometryComponent *component = applied_geometry.get_component(type);
@@ -1310,7 +1320,6 @@ struct StaticPlaneContacts {
   Vector<float3> separating_axes;
   Vector<float> static_frictions;
   Vector<float> dynamic_frictions;
-  Vector<float> depths;
   Vector<float> compliance_terms;
 };
 
@@ -1328,6 +1337,7 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
     const SimPoints &sim_points,
     const IndexRange points_range,
     const InfinitePlaneColliderData &collider,
+    const float max_search_distance,
     const Span<float> sim_points_frictions,
     const Span<float> sim_points_inverse_masses,
     StaticPlaneContacts &r_contacts)
@@ -1345,7 +1355,7 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
 
     const float3 &position = sim_points.positions[point_i];
     const float distance = math::dot(position - collider.position, plane_normal);
-    if (distance >= 0.0f) {
+    if (distance >= max_search_distance) {
       continue;
     }
     r_contacts.indices.append(point_i);
@@ -1355,7 +1365,6 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
     const float friction = math::sqrt(point_friction * collider.friction);
     r_contacts.static_frictions.append(friction);
     r_contacts.dynamic_frictions.append(friction);
-    r_contacts.depths.append(-distance);
     r_contacts.compliance_terms.append(0.0f);
   }
 }
@@ -1404,7 +1413,6 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
       const float3 dir = float3(nearest.co) - position_mesh;
       const bool is_inside = math::dot(dir, float3(nearest.no)) > 0.0f;
 
-      const float penetration = math::length(dir);
       const float point_friction = sim_points_frictions[point_i];
       const float friction = math::sqrt(point_friction * collider.friction);
 
@@ -1422,7 +1430,6 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
       r_contacts.separating_axes.append(valid_axis);
       r_contacts.static_frictions.append(friction);
       r_contacts.dynamic_frictions.append(friction);
-      r_contacts.depths.append(penetration);
       r_contacts.compliance_terms.append(
           std::max(0.0f, compliance_term_factor * collider.compliance));
     }
@@ -1461,7 +1468,6 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                                               normal_mesh :
                                           collision_axis;
 
-            const float penetration = math::length(dir);
             const float point_friction = sim_points_frictions[point_i];
             const float friction = math::sqrt(point_friction * collider.friction);
 
@@ -1471,7 +1477,6 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
             r_contacts.separating_axes.append(valid_axis);
             r_contacts.static_frictions.append(friction);
             r_contacts.dynamic_frictions.append(friction);
-            r_contacts.depths.append(penetration);
             r_contacts.compliance_terms.append(
                 std::max(0.0f, compliance_term_factor * collider.compliance));
           });
@@ -1552,8 +1557,13 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
       continue;
     }
     StaticPlaneContacts plane_contacts;
-    gather_ground_plane_contacts(
-        sim_points, points_range, collider, props.frictions, props.inverse_masses, plane_contacts);
+    gather_ground_plane_contacts(sim_points,
+                                 points_range,
+                                 collider,
+                                 get_max_search_distance(delta_time),
+                                 props.frictions,
+                                 props.inverse_masses,
+                                 plane_contacts);
     if (!plane_contacts.indices.is_empty()) {
       const SimConstraintsKey &constraints_key = constraints_keys[collider.constraints_key_i];
       contacts.static_plane_contacts.add_new(constraints_key, std::move(plane_contacts));
@@ -1616,6 +1626,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
         gather_ground_plane_contacts(sim_points,
                                      IndexRange(sim_points.points_num),
                                      collider,
+                                     get_max_search_distance(delta_time),
                                      props.frictions,
                                      props.inverse_masses,
                                      plane_contacts);
@@ -1706,13 +1717,15 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
   for (auto item : contacts.dynamic_sphere_contacts.items()) {
     const int key_i = keys.index_of(item.key.points_key);
     const DynamicSphereContacts &sphere_contacts = item.value;
+    const int constraints_num = sphere_contacts.indices.size();
     const float compliance_term = math::safe_divide(1e-4f, pow2f(delta_time));
+    MutableSpan<float> lambdas = state.ensure_constraint_lambdas<float>(item.key, constraints_num);
     r_constraints.general.append(&scope.construct<xpbd::MinimumDistanceConstraintSet>(
         key_i,
         sphere_contacts.indices,
         sphere_contacts.min_distance,
-        scope.allocator().construct_array<float>(sphere_contacts.indices.size(),
-                                                 compliance_term)));
+        scope.allocator().construct_array<float>(constraints_num, compliance_term),
+        lambdas));
   }
 }
 
@@ -2144,10 +2157,13 @@ PROFILE_FUNCTION static void prepare_evaluation__align_positions_constraints(
       continue;
     }
     AlignPositionsConstraintData constraint;
-    for (const int key_i : filtered_key_indices) {
-      const SimPointsKey &key = keys[key_i];
-      const bke::GeometryComponent::Type type = key.type;
-      const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
+    SimConstraintsKey constraints_key = {constraint_bundle.self_path, {}};
+    constraint.constraints_key_i = world_info.constraints_keys.index_of_or_add(
+        std::move(constraints_key));
+    for (const int geo_key_i : filtered_key_indices) {
+      const SimPointsKey &points_key = keys[geo_key_i];
+      const bke::GeometryComponent::Type type = points_key.type;
+      const int geometry_bundle_i = world_bundles.geometries.index_of_as(points_key.path);
       const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
       const bke::GeometryComponent *component = applied_geometry.get_component(type);
       if (!component) {
@@ -2156,7 +2172,7 @@ PROFILE_FUNCTION static void prepare_evaluation__align_positions_constraints(
       const bke::AttrDomain domain = get_simulation_domain(type);
       fn::FieldEvaluator &evaluator = get_field_evaluator(
           scope, world_info, *component, domain, constraint_bundle.selection);
-      constraint.items.append({key_i,
+      constraint.items.append({geo_key_i,
                                &evaluator,
                                evaluator.add(constraint_bundle.group_id),
                                evaluator.add(constraint_bundle.compliance)});
@@ -2215,6 +2231,8 @@ PROFILE_FUNCTION static void prepare_evaluation__attach_uv_surface_constraints(
       fn::FieldEvaluator &point_evaluator = get_field_evaluator(
           scope, world_info, *points_component, domain, constraint_bundle.selection);
       constraint.points_key_i = points_key_i;
+      constraint.constraints_key_i = world_info.constraints_keys.index_of_or_add(
+          SimConstraintsKey{constraint_bundle.self_path, points_key});
       constraint.point_evaluator = &point_evaluator;
       constraint.sample_uv_index = point_evaluator.add(constraint_bundle.sample_uv);
       constraint.compliance_term_index = point_evaluator.add(
@@ -2287,7 +2305,10 @@ PROFILE_FUNCTION static void prepare_evaluation__pressure_constraints(
     const Vector constraint_bundles = filter_bundles_for_path<PressureXPBDConstraintBundle>(
         world_bundles.overpressure_constraints, key.path);
     for (const PressureXPBDConstraintBundle *constraint_bundle : constraint_bundles) {
-      world_info.pressure_constraints.append({key_i, constraint_bundle->pressure});
+      const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
+          SimConstraintsKey{constraint_bundle->self_path, key});
+      world_info.pressure_constraints.append(
+          {key_i, constraints_key_i, constraint_bundle->pressure});
     }
   }
 }
@@ -2426,8 +2447,10 @@ PROFILE_FUNCTION static void prepare_evaluation__curves_rod_stretch_and_shear_co
       evaluator.add_with_destination(
           convert_to_compliance_term_field(constraint_bundle->compliance, delta_time),
           compliance_terms);
-      world_info.rod_stretch_and_shear_constraints.append(
-          CurveRodStretchAndShearConstraintData{key_i, rest_lengths, compliance_terms});
+      const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
+          SimConstraintsKey{constraint_bundle->self_path, key});
+      world_info.rod_stretch_and_shear_constraints.append(CurveRodStretchAndShearConstraintData{
+          key_i, constraints_key_i, rest_lengths, compliance_terms});
     }
   }
 }
@@ -2471,8 +2494,10 @@ PROFILE_FUNCTION static void prepare_evaluation__curves_rod_bend_and_twist_const
       evaluator.add_with_destination(
           convert_to_compliance_term_field(constraint_bundle->compliance, delta_time),
           compliance_terms);
-      world_info.rod_bend_and_twist_constraints.append(
-          CurveRodBendAndTwistConstraintData{key_i, rest_rotations, compliance_terms});
+      const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
+          SimConstraintsKey{constraint_bundle->self_path, key});
+      world_info.rod_bend_and_twist_constraints.append(CurveRodBendAndTwistConstraintData{
+          key_i, constraints_key_i, rest_rotations, compliance_terms});
     }
   }
 }
@@ -2560,11 +2585,12 @@ static Vector<xpbd::PinnedPositionConstraintSet *> gather_pinned_position_constr
       continue;
     }
 
-    result.append(&scope.construct<xpbd::PinnedPositionConstraintSet>(
-        key_i,
-        pinned_positions.soft_indices,
-        pinned_positions.soft_pinned_positions,
-        pinned_positions.soft_compliance_terms));
+    result.append(
+        &scope.construct<xpbd::PinnedPositionConstraintSet>(key_i,
+                                                            pinned_positions.soft_indices,
+                                                            pinned_positions.soft_pinned_positions,
+                                                            pinned_positions.soft_compliance_terms,
+                                                            pinned_positions.soft_lambdas));
   }
   return result;
 }
@@ -2588,7 +2614,8 @@ static Vector<xpbd::PinRotationConstraintSet *> gather_pinned_rotation_constrain
         &scope.construct<xpbd::PinRotationConstraintSet>(key_i,
                                                          pinned_rotations.soft_indices,
                                                          pinned_rotations.soft_pinned_rotations,
-                                                         pinned_rotations.soft_compliance_terms));
+                                                         pinned_rotations.soft_compliance_terms,
+                                                         pinned_rotations.soft_lambdas));
   }
   return result;
 }
@@ -2723,7 +2750,7 @@ PROFILE_FUNCTION static Vector<xpbd::PressureConstraintSet *> gather_pressure_co
 {
   Vector<xpbd::PressureConstraintSet *> result;
   for (const PressureConstraintData &constraint : world_info.pressure_constraints) {
-    const SimPointsKey &key = keys[constraint.key_i];
+    const SimPointsKey &key = keys[constraint.geo_key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const Mesh &mesh = *applied_geometry.get_mesh();
@@ -2737,14 +2764,18 @@ PROFILE_FUNCTION static Vector<xpbd::PressureConstraintSet *> gather_pressure_co
     if (initial_volume <= 0.0f) {
       continue;
     }
+    const SimConstraintsKey &constraints_key =
+        world_info.constraints_keys[constraint.constraint_key_i];
+    float &lambda = state.ensure_constraint_lambdas<float>(constraints_key, 1).first();
     result.append(&scope.construct<xpbd::PressureConstraintSet>(
-        constraint.key_i, tris, corner_verts, constraint.pressure, initial_volume));
+        constraint.geo_key_i, tris, corner_verts, constraint.pressure, initial_volume, lambda));
   }
   return result;
 }
 
 PROFILE_FUNCTION static Vector<xpbd::AlignPositionsConstraintSet *>
 gather_align_positions_constraints(ResourceScope &scope,
+                                   XPBDState &state,
                                    const WorldPreprocessData &world_info,
                                    const float delta_time)
 {
@@ -2752,13 +2783,12 @@ gather_align_positions_constraints(ResourceScope &scope,
   Vector<xpbd::AlignPositionsConstraintSet *> result;
   for (const AlignPositionsConstraintData &constraint : world_info.align_positions_constraints) {
     struct PointInfo {
-      int key_i;
+      int geo_key_i;
       int point_i;
       float compliance;
     };
     MultiValueMap<int, PointInfo> infos_by_group_id;
     for (const AlignPositionsConstraintData::Item &item : constraint.items) {
-      const int key_i = item.key_i;
       const IndexMask &mask = item.evaluator->get_evaluated_selection_as_mask();
       if (mask.is_empty()) {
         continue;
@@ -2769,7 +2799,7 @@ gather_align_positions_constraints(ResourceScope &scope,
       mask.foreach_index([&](const int point_i) {
         const int group_id = group_ids[point_i];
         const float compliance = compliances[point_i];
-        infos_by_group_id.add(group_id, {key_i, point_i, compliance});
+        infos_by_group_id.add(group_id, {item.geo_key_i, point_i, compliance});
       });
     }
 
@@ -2798,7 +2828,7 @@ gather_align_positions_constraints(ResourceScope &scope,
       const float compliance_term = compliance * compliance_factor;
 
       for (const PointInfo &point_info : point_infos) {
-        constraint_geo_indices.append(point_info.key_i);
+        constraint_geo_indices.append(point_info.geo_key_i);
         constraint_point_indices.append(point_info.point_i);
       }
       constraint_compliance_terms.append(compliance_term);
@@ -2810,16 +2840,23 @@ gather_align_positions_constraints(ResourceScope &scope,
       continue;
     }
 
+    const SimConstraintsKey &constraints_key =
+        world_info.constraints_keys[constraint.constraints_key_i];
+    MutableSpan<float> lambdas = state.ensure_constraint_lambdas<float>(
+        constraints_key, offset_indices.total_size());
+
     result.append(&scope.construct<xpbd::AlignPositionsConstraintSet>(offset_indices,
                                                                       constraint_compliance_terms,
                                                                       constraint_geo_indices,
-                                                                      constraint_point_indices));
+                                                                      constraint_point_indices,
+                                                                      lambdas));
   }
   return result;
 }
 
 PROFILE_FUNCTION static Vector<xpbd::AttachUVSurfaceConstraintSet *>
 gather_attach_uv_surface_constraints(ResourceScope &scope,
+                                     XPBDState &state,
                                      const WorldPreprocessData &world_info,
                                      const WorldBundles &world_bundles,
                                      const VectorSet<SimPointsKey> &keys)
@@ -2872,12 +2909,17 @@ gather_attach_uv_surface_constraints(ResourceScope &scope,
       continue;
     }
 
+    const SimConstraintsKey &constraints_key =
+        world_info.constraints_keys[constraint.constraints_key_i];
+    MutableSpan lambdas(state.ensure_constraint_lambdas<float3>(constraints_key, indices.size()));
+
     result.append(&scope.construct<xpbd::AttachUVSurfaceConstraintSet>(constraint.mesh_key_i,
                                                                        constraint.points_key_i,
                                                                        indices,
                                                                        triangle_indices,
                                                                        bary_weights,
-                                                                       compliance_terms));
+                                                                       compliance_terms,
+                                                                       lambdas));
   }
   return result;
 }
@@ -2974,6 +3016,7 @@ gather_distance_based_edge_bending_constraints(ResourceScope &scope,
 
 PROFILE_FUNCTION static Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *>
 gather_curve_rod_stretch_and_shear_constraints(ThreadLocalStorage &tls,
+                                               XPBDState &state,
                                                const WorldPreprocessData &world_info,
                                                const WorldBundles &world_bundles,
                                                const Span<GeometrySet> applied_geometries,
@@ -2984,21 +3027,35 @@ gather_curve_rod_stretch_and_shear_constraints(ThreadLocalStorage &tls,
   for (const CurveRodStretchAndShearConstraintData &constraint_info :
        world_info.rod_stretch_and_shear_constraints)
   {
-    const int key_i = constraint_info.key_i;
+    const int key_i = constraint_info.geo_key_i;
     const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const Curves &curves_id = *applied_geometry.get_curves();
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const SimConstraintsKey &constraints_key =
+        world_info.constraints_keys[constraint_info.constraints_key_i];
+    /* Allocate lambdas for position and rotation in single array. */
+    const int constraints_num = curves.points_num();
+    MutableSpan<float3> lambdas_pos_rot = state.ensure_constraint_lambdas<float3>(
+        constraints_key, 2 * constraints_num);
+    MutableSpan<float3> lambdas_pos = lambdas_pos_rot.slice(0, constraints_num);
+    MutableSpan<float3> lambdas_rot = lambdas_pos_rot.slice(constraints_num, constraints_num);
     result.append(&scope.construct<xpbd::RodStretchAndShearCurveLocalConstraintSet>(
-        key_i, points_by_curve, constraint_info.rest_lengths, constraint_info.compliance_terms));
+        key_i,
+        points_by_curve,
+        constraint_info.rest_lengths,
+        constraint_info.compliance_terms,
+        lambdas_pos,
+        lambdas_rot));
   }
   return result;
 }
 
 PROFILE_FUNCTION static Vector<xpbd::RodBendAndTwistCurveLocalConstraintSet *>
 gather_curve_rod_bend_and_twist_constraints(ThreadLocalStorage &tls,
+                                            XPBDState &state,
                                             const WorldPreprocessData &world_info,
                                             const WorldBundles &world_bundles,
                                             const Span<GeometrySet> applied_geometries,
@@ -3009,15 +3066,23 @@ gather_curve_rod_bend_and_twist_constraints(ThreadLocalStorage &tls,
   for (const CurveRodBendAndTwistConstraintData &constraint_info :
        world_info.rod_bend_and_twist_constraints)
   {
-    const int key_i = constraint_info.key_i;
+    const int key_i = constraint_info.geo_key_i;
     const SimPointsKey &key = keys[key_i];
     const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.path);
     const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
     const Curves &curves_id = *applied_geometry.get_curves();
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const SimConstraintsKey &constraints_key =
+        world_info.constraints_keys[constraint_info.constraints_key_i];
+    MutableSpan<float4> lambdas = state.ensure_constraint_lambdas<float4>(constraints_key,
+                                                                          curves.points_num());
     result.append(&scope.construct<xpbd::RodBendAndTwistCurveLocalConstraintSet>(
-        key_i, points_by_curve, constraint_info.rest_rotations, constraint_info.compliance_terms));
+        key_i,
+        points_by_curve,
+        constraint_info.rest_rotations,
+        constraint_info.compliance_terms,
+        lambdas));
   }
   return result;
 }
@@ -3031,8 +3096,7 @@ static xpbd::ConstraintSetCollector gather_static_constraints(
     const WorldBundles &world_bundles,
     const Span<GeometrySet> applied_geometries,
     const Span<SimPointsKey> keys,
-    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
-    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
+    const ConstraintInitData &constraint_init,
     const float delta_time)
 {
   using namespace constraints;
@@ -3041,23 +3105,23 @@ static xpbd::ConstraintSetCollector gather_static_constraints(
 
   xpbd::ConstraintSetCollector static_constraint_sets;
   for (xpbd::PinnedPositionConstraintSet *constraint_set :
-       gather_pinned_position_constraints(scope, keys, pinned_positions_map))
+       gather_pinned_position_constraints(scope, keys, constraint_init.pinned_positions_map))
   {
     static_constraint_sets.general.append(constraint_set);
   }
   for (xpbd::PinRotationConstraintSet *constraint_set :
-       gather_pinned_rotation_constraints(scope, keys, pinned_rotations_map))
+       gather_pinned_rotation_constraints(scope, keys, constraint_init.pinned_rotations_map))
   {
     static_constraint_sets.general.append(constraint_set);
   }
-  for (xpbd::CurveLocalConstraintSet *constraint_set :
-       gather_curve_rod_stretch_and_shear_constraints(
-           tls, world_info, world_bundles, applied_geometries, keys))
+  for (xpbd::CurveLocalConstraintSet *constraint_set : gather_curve_rod_bend_and_twist_constraints(
+           tls, state, world_info, world_bundles, applied_geometries, keys))
   {
     static_constraint_sets.curve_local.append(constraint_set);
   }
-  for (xpbd::CurveLocalConstraintSet *constraint_set : gather_curve_rod_bend_and_twist_constraints(
-           tls, world_info, world_bundles, applied_geometries, keys))
+  for (xpbd::CurveLocalConstraintSet *constraint_set :
+       gather_curve_rod_stretch_and_shear_constraints(
+           tls, state, world_info, world_bundles, applied_geometries, keys))
   {
     static_constraint_sets.curve_local.append(constraint_set);
   }
@@ -3077,12 +3141,12 @@ static xpbd::ConstraintSetCollector gather_static_constraints(
     static_constraint_sets.general.append(constraint_set);
   }
   for (xpbd::AlignPositionsConstraintSet *constraint_set :
-       gather_align_positions_constraints(scope, world_info, delta_time))
+       gather_align_positions_constraints(scope, state, world_info, delta_time))
   {
     static_constraint_sets.general.append(constraint_set);
   }
   for (xpbd::AttachUVSurfaceConstraintSet *constraint_set :
-       gather_attach_uv_surface_constraints(scope, world_info, world_bundles, keys))
+       gather_attach_uv_surface_constraints(scope, state, world_info, world_bundles, keys))
   {
     static_constraint_sets.general.append(constraint_set);
   }
@@ -3344,6 +3408,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedPositions> compute_pinned_positi
     /* Positions are initialized in #update_pinned_positions. */
     pinned_positions.soft_pinned_positions = scope.allocator().allocate_array<float3>(
         constraints_num);
+    pinned_positions.soft_lambdas = scope.allocator().allocate_array<float>(constraints_num);
   }
 
   return result;
@@ -3428,6 +3493,7 @@ PROFILE_FUNCTION static Map<SimPointsKey, PinnedRotations> compute_pinned_rotati
     /* Positions are initialized in #update_pinned_positions. */
     pinned_rotations.soft_pinned_rotations = scope.allocator().allocate_array<math::Quaternion>(
         constraints_num);
+    pinned_rotations.soft_lambdas = scope.allocator().allocate_array<float4>(constraints_num);
   }
 
   return result;
@@ -3448,11 +3514,12 @@ static IndexRange find_indices_in_range(const Span<T> indices, const IndexRange 
   return IndexRange::from_begin_end_inclusive(start, last);
 }
 
-PROFILE_FUNCTION static void update_pinned_positions(const IndexRange range,
-                                                     const PinnedPositions &pinned_positions,
-                                                     const float factor,
-                                                     MutableSpan<float3> r_positions,
-                                                     MutableSpan<float3> r_soft_pinned_positions)
+PROFILE_FUNCTION static void interpolate_pinned_positions(
+    const IndexRange range,
+    const PinnedPositions &pinned_positions,
+    const float factor,
+    MutableSpan<float3> r_positions,
+    MutableSpan<float3> r_soft_pinned_positions)
 {
   for (const int i : find_indices_in_range<int>(pinned_positions.hard_indices, range)) {
     const int point_i = pinned_positions.hard_indices[i];
@@ -3465,7 +3532,7 @@ PROFILE_FUNCTION static void update_pinned_positions(const IndexRange range,
   }
 }
 
-PROFILE_FUNCTION static void updated_pinned_rotations(
+PROFILE_FUNCTION static void interpolate_pinned_rotations(
     const IndexRange range,
     const PinnedRotations &pinned_rotations,
     const float factor,
@@ -3485,6 +3552,22 @@ PROFILE_FUNCTION static void updated_pinned_rotations(
   }
 }
 
+PROFILE_FUNCTION static void intialize_constraint_forces(
+    const xpbd::ConstraintSetCollector &constraint_sets,
+    const SimPointsKey &key,
+    const std::optional<IndexRange> curves_range)
+{
+  /* Cold-start constraints. */
+  for (xpbd::ConstraintSet *constraint_set : constraint_sets.general) {
+    constraint_set->reset_forces();
+  }
+  for (xpbd::CurveLocalConstraintSet *curve_constraint_set : constraint_sets.curve_local) {
+    const IndexRange range = curves_range ? *curves_range :
+                                            curve_constraint_set->points_by_curve().index_range();
+    curve_constraint_set->reset_forces(range);
+  }
+}
+
 static void pre_solve_per_point_steps(const IndexRange range,
                                       const MutableSpan<float3> prev_positions,
                                       const MutableSpan<math::Quaternion> prev_rotations,
@@ -3498,8 +3581,6 @@ static void pre_solve_per_point_steps(const IndexRange range,
                                       const PinnedPositions *pinned_positions,
                                       const PinnedRotations *pinned_rotations,
                                       const float substep_factor,
-                                      MutableSpan<float3> soft_pinned_positions,
-                                      MutableSpan<math::Quaternion> soft_pinned_rotations,
                                       const float delta_time)
 {
   prev_positions.copy_from(positions);
@@ -3512,13 +3593,20 @@ static void pre_solve_per_point_steps(const IndexRange range,
           delta_time, range, torques, props, prev_rotations, rotations, angular_velocities);
     }
   }
+
   if (pinned_positions) {
-    update_pinned_positions(
-        range, *pinned_positions, substep_factor, positions, soft_pinned_positions);
+    interpolate_pinned_positions(range,
+                                 *pinned_positions,
+                                 substep_factor,
+                                 positions,
+                                 pinned_positions->soft_pinned_positions);
   }
   if (pinned_rotations) {
-    updated_pinned_rotations(
-        range, *pinned_rotations, substep_factor, rotations, soft_pinned_rotations);
+    interpolate_pinned_rotations(range,
+                                 *pinned_rotations,
+                                 substep_factor,
+                                 rotations,
+                                 pinned_rotations->soft_pinned_rotations);
   }
 }
 
@@ -3550,8 +3638,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     const Map<SimPointsKey, Span<float3>> &accelerations_map,
     const Map<SimPointsKey, Span<float3>> &torques_map,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
-    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
+    const ConstraintInitData &constraint_init,
     const Span<GeometrySet> applied_geometries,
     const SolverType solver_type,
     const Span<xpbd::GeometryRef> geometry_refs,
@@ -3578,6 +3665,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     geometry_refs_local[key_i].prev_rotations = all_prev_rotations[key_in_group_i];
   }
 
+
   /* Instead of doing various stages like remembering old positions and updating velocities one
    * after another, interleave them to improve cache locality and thread utilization. This is
    * possible because each point is processed independently here. */
@@ -3592,14 +3680,11 @@ PROFILE_FUNCTION static void simulate_key_group_global(
         const Span<float3> accelerations = accelerations_map.lookup(key);
         const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
         const SimPointsWorldProperties &props = sim_points_props.lookup(key);
-        const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
-        const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
-        MutableSpan<float3> soft_pinned_positions = pinned_positions ?
-                                                        pinned_positions->soft_pinned_positions :
-                                                        MutableSpan<float3>{};
-        MutableSpan<math::Quaternion> soft_pinned_rotations =
-            pinned_rotations ? pinned_rotations->soft_pinned_rotations :
-                               MutableSpan<math::Quaternion>{};
+        const PinnedPositions *pinned_positions = constraint_init.pinned_positions_map.lookup_ptr(
+            key);
+        const PinnedRotations *pinned_rotations = constraint_init.pinned_rotations_map.lookup_ptr(
+            key);
+
         threading::parallel_for(
             IndexRange(sim_points.points_num), 256, [&](const IndexRange range) {
               /* The post-solve steps are run first here, because this code runs at the end of
@@ -3611,7 +3696,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
                     all_prev_positions[key_in_group_i].as_span().slice(range),
                     all_prev_rotations[key_in_group_i].as_span().slice_safe(range),
                     sim_points.positions.as_span().slice(range),
-                    sim_points.rotations.as_mutable_span().slice_safe(range),
+                    sim_points.rotations.as_span().slice_safe(range),
                     sim_points.velocities.as_mutable_span().slice(range),
                     sim_points.angular_velocities.as_mutable_span().slice_safe(range));
               }
@@ -3630,11 +3715,11 @@ PROFILE_FUNCTION static void simulate_key_group_global(
                     pinned_positions,
                     pinned_rotations,
                     substep_factor,
-                    soft_pinned_positions,
-                    soft_pinned_rotations,
                     sub_delta_time);
               }
             });
+
+        intialize_constraint_forces(filtered_static_constraint_sets, key, std::nullopt);
       }
     });
   };
@@ -3711,8 +3796,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
     const Map<SimPointsKey, Span<float3>> &accelerations_map,
     const Map<SimPointsKey, Span<float3>> &torques_map,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
-    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
+    const ConstraintInitData &constraint_init,
     const Span<GeometrySet> applied_geometries,
     const SolverType solver_type,
     const Span<xpbd::GeometryRef> geometry_refs,
@@ -3731,14 +3815,8 @@ PROFILE_FUNCTION static void simulate_curve_local(
   const Span<float3> accelerations = accelerations_map.lookup(key);
   const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
   const SimPointsWorldProperties &props = sim_points_props.lookup(key);
-  const PinnedPositions *pinned_positions = pinned_positions_map.lookup_ptr(key);
-  const PinnedRotations *pinned_rotations = pinned_rotations_map.lookup_ptr(key);
-  MutableSpan<float3> soft_pinned_positions = pinned_positions ?
-                                                  pinned_positions->soft_pinned_positions :
-                                                  MutableSpan<float3>{};
-  MutableSpan<math::Quaternion> soft_pinned_rotations =
-      pinned_rotations ? pinned_rotations->soft_pinned_rotations : MutableSpan<math::Quaternion>{};
-
+  const PinnedPositions *pinned_positions = constraint_init.pinned_positions_map.lookup_ptr(key);
+  const PinnedRotations *pinned_rotations = constraint_init.pinned_rotations_map.lookup_ptr(key);
   threading::parallel_for(
       curves.curves_range(),
       256,
@@ -3770,9 +3848,9 @@ PROFILE_FUNCTION static void simulate_curve_local(
               pinned_positions,
               pinned_rotations,
               substep_factor,
-              soft_pinned_positions,
-              soft_pinned_rotations,
               sub_delta_time);
+
+          intialize_constraint_forces(filtered_static_constraint_sets, key, curves_range);
 
           Contacts contacts;
           for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
@@ -3865,8 +3943,7 @@ PROFILE_FUNCTION static void simulate_key_group(
     const Map<SimPointsKey, Span<float3>> &accelerations_map,
     const Map<SimPointsKey, Span<float3>> &torques_map,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const Map<SimPointsKey, PinnedPositions> &pinned_positions_map,
-    const Map<SimPointsKey, PinnedRotations> &pinned_rotations_map,
+    const ConstraintInitData &constraint_init,
     const Span<GeometrySet> applied_geometries,
     const SolverType solver_type,
     const Span<xpbd::GeometryRef> geometry_refs,
@@ -3899,8 +3976,7 @@ PROFILE_FUNCTION static void simulate_key_group(
                          accelerations_map,
                          torques_map,
                          sim_points_props,
-                         pinned_positions_map,
-                         pinned_rotations_map,
+                         constraint_init,
                          applied_geometries,
                          solver_type,
                          geometry_refs,
@@ -3919,8 +3995,7 @@ PROFILE_FUNCTION static void simulate_key_group(
                               accelerations_map,
                               torques_map,
                               sim_points_props,
-                              pinned_positions_map,
-                              pinned_rotations_map,
+                              constraint_init,
                               applied_geometries,
                               solver_type,
                               geometry_refs,
@@ -3953,17 +4028,13 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
 
   const WorldPreprocessData world_info = preprocess_world(
       scope, world_bundles, applied_geometries, points_keys, state, sub_delta_time);
-  const Map<SimPointsKey, PinnedPositions> pinned_positions_map = compute_pinned_positions(
-      scope, state, world_info, points_keys);
-  const Map<SimPointsKey, PinnedRotations> pinned_rotations_map = compute_pinned_rotations(
-      scope, state, world_info, points_keys);
+
+  const ConstraintInitData constraint_init{
+      compute_pinned_positions(scope, state, world_info, points_keys),
+      compute_pinned_rotations(scope, state, world_info, points_keys)};
   const Map<SimPointsKey, SimPointsWorldProperties> sim_points_props =
-      compute_sim_point_world_properties(world_bundles,
-                                         world_info,
-                                         points_keys,
-                                         applied_geometries,
-                                         pinned_positions_map,
-                                         pinned_rotations_map);
+      compute_sim_point_world_properties(
+          world_bundles, world_info, points_keys, applied_geometries, constraint_init);
   const Map<SimPointsKey, Span<float3>> accelerations_map = compute_external_accelerations(
       tls, world_bundles, world_info, state, points_keys, sim_points_props);
   const Map<SimPointsKey, Span<float3>> torques_map = compute_external_torques(
@@ -3978,8 +4049,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
       world_bundles,
       applied_geometries,
       points_keys,
-      pinned_positions_map,
-      pinned_rotations_map,
+      constraint_init,
       sub_delta_time);
 
   remove_unused_states(state);
@@ -4013,8 +4083,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
                              accelerations_map,
                              torques_map,
                              sim_points_props,
-                             pinned_positions_map,
-                             pinned_rotations_map,
+                             constraint_init,
                              applied_geometries,
                              solver_type,
                              geometry_refs,

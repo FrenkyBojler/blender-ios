@@ -158,7 +158,8 @@ class ConstraintSet {
 
   virtual ~ConstraintSet() = default;
 
-  virtual void solve_step(SolveStrategy &method, ConstraintSetParams &params) = 0;
+  virtual void reset_forces() = 0;
+  virtual void solve_step(SolveStrategy &method, const ConstraintSetParams &params) = 0;
 
   Span<int> get_affected_geo_indices() const;
 };

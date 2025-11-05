@@ -91,7 +91,16 @@ CurveLocalConstraintSets::CurveLocalConstraintSets(
 #endif
 }
 
-void CurveLocalConstraintSets::solve_step(SolveStrategy &strategy, ConstraintSetParams &params)
+void CurveLocalConstraintSets::reset_forces()
+{
+  const IndexRange curves_range = points_by_curve_.index_range();
+  for (CurveLocalConstraintSet *constraint_set : constraint_sets_) {
+    constraint_set->reset_forces(curves_range);
+  }
+}
+
+void CurveLocalConstraintSets::solve_step(SolveStrategy &strategy,
+                                          const ConstraintSetParams &params)
 {
   const int curves_num = points_by_curve_.size();
   switch (strategy.type) {
