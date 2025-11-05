@@ -1906,7 +1906,6 @@ static wmOperatorStatus new_compositor_sequencer_modifier_exec(bContext *C, wmOp
   modifier_data->node_group = ntree;
 
   seq::relations_invalidate_cache(scene, strip);
-  // WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
   WM_event_add_notifier(C, NC_NODE | NA_ADDED | NC_SCENE | ND_SEQUENCER, scene);
 
