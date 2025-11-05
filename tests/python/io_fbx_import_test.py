@@ -37,7 +37,7 @@ class FBXImportTest(unittest.TestCase):
         for input_file in input_files:
             with self.subTest(pathlib.Path(input_file).stem):
                 bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "../empty.blend"))
-                ok = report.import_and_check(input_file, lambda filepath, params: do_fbx_import(filepath, params))
+                ok = report.generate_and_check(input_file, lambda filepath, params: do_fbx_import(filepath, params))
                 if not ok:
                     self.fail(f"{input_file.stem} import result does not match expectations")
 

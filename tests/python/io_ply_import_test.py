@@ -30,7 +30,7 @@ class PLYImportTest(unittest.TestCase):
         for input_file in input_files:
             with self.subTest(pathlib.Path(input_file).stem):
                 bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "../empty.blend"))
-                ok = report.import_and_check(
+                ok = report.generate_and_check(
                     input_file, lambda filepath, params: bpy.ops.wm.ply_import(
                         filepath=str(input_file), **params))
                 if not ok:
