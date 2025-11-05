@@ -1172,6 +1172,9 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
         if asset.id_type != 'NODETREE' or asset.metadata.get("type") != compositing_type.value:
             return False
 
+        # Don't display these node groups from the essentials, they are meant for the "Add" menu, and are a bit
+        # too low level for the Asset Shelf. They are just implemented as assets.
+        # Could use a nicer solution, like a special flag or tag.
         ignored_essentials = {
             "Combine Cylindrical",
             "Combine Spherical",
@@ -1179,7 +1182,12 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
             "Separate Spherical",
         }
 
-        compositor_essentials_path = Path(os.path.join(bpy.utils.system_resource('DATAFILES'), "assets", "nodes", "compositing_nodes_essentials.blend"))
+        compositor_essentials_path = Path(os.path.join(
+            bpy.utils.system_resource('DATAFILES'),
+            "assets",
+            "nodes",
+            "compositing_nodes_essentials.blend"
+        ))
         if Path(asset.full_library_path) == compositor_essentials_path:
             if asset.name in ignored_essentials:
                 return False
