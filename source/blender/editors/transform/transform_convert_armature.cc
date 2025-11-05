@@ -266,7 +266,7 @@ static short pose_grab_with_ik(Main *bmain, Object *ob)
    * (but they must be selected, and only one ik-solver per chain should get added). */
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     if (BKE_pose_is_bonecoll_visible(arm, pchan)) {
-      if ((pchan->flag & POSE_SELECTED) && (pchan->bone->flag & BONE_TRANSFORM_MIRROR)) {
+      if ((pchan->flag & POSE_SELECTED) || (pchan->bone->flag & BONE_TRANSFORM_MIRROR)) {
         /* Rule: no IK for solitary (unconnected) bones. */
         for (bonec = static_cast<Bone *>(pchan->bone->childbase.first); bonec; bonec = bonec->next)
         {
@@ -283,7 +283,7 @@ static short pose_grab_with_ik(Main *bmain, Object *ob)
           /* Only adds if there's no IK yet (and no parent bone was selected). */
           bPoseChannel *parent;
           for (parent = pchan->parent; parent; parent = parent->parent) {
-            if ((parent->flag & POSE_SELECTED) && (parent->bone->flag & BONE_TRANSFORM_MIRROR)) {
+            if ((parent->flag & POSE_SELECTED) || (parent->bone->flag & BONE_TRANSFORM_MIRROR)) {
               break;
             }
           }
@@ -458,8 +458,8 @@ static void add_pose_transdata(
     BoneParentTransform bpt;
     float rpmat[3][3];
 
-    /* Not using the pchan->custom_tx here because we need the transformation to be
-     * relative to the actual bone being modified, not it's visual representation.  */
+    /* Not using the `pchan->custom_tx` here because we need the transformation to be
+     * relative to the actual bone being modified, not it's visual representation. */
     BKE_bone_parent_transform_calc_from_pchan(pchan, &bpt);
     if (t->mode == TFM_TRANSLATION) {
       copy_m3_m4(pmat, bpt.loc_mat);
@@ -469,8 +469,8 @@ static void add_pose_transdata(
     }
 
     /* Grrr! Exceptional case: When translating pose bones that are either Hinge or NoLocal,
-     * and want align snapping, we just need both loc_mat and rotscale_mat.
-     * So simply always store rotscale mat in td->ext, and always use it to apply rotations...
+     * and want align snapping, we just need both `loc_mat` and `rotscale_mat`.
+     * So simply always store rotscale mat in `td->ext`, and always use it to apply rotations...
      * Ugly to need such hacks! :/ */
     copy_m3_m4(rpmat, bpt.rotscale_mat);
 

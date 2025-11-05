@@ -95,7 +95,7 @@ class SEQUENCER_HT_header(Header):
         tool_settings = scene.tool_settings if scene else None
         sequencer_tool_settings = tool_settings.sequencer_tool_settings if tool_settings else None
 
-        if st.view_type == 'SEQUENCER':
+        if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
             row = layout.row(align=True)
             row.template_ID(context.workspace, "sequencer_scene", new="scene.new_sequencer_scene")
 
@@ -529,7 +529,7 @@ class SEQUENCER_MT_select(Menu):
         st = context.space_data
         has_sequencer, has_preview = _space_view_types(st)
         is_retiming = (
-            context.sequencer_scene and
+            context.sequencer_scene is not None and
             context.sequencer_scene.sequence_editor is not None and
             context.sequencer_scene.sequence_editor.selected_retiming_keys
         )
@@ -1044,7 +1044,7 @@ class SEQUENCER_MT_strip_retiming(Menu):
         is_retiming = (
             context.sequencer_scene is not None and
             context.sequencer_scene.sequence_editor is not None and
-            context.sequencer_scene.sequence_editor.selected_retiming_keys is not None
+            context.sequencer_scene.sequence_editor.selected_retiming_keys
         )
         strip = context.active_strip
 
@@ -1075,7 +1075,7 @@ class SEQUENCER_MT_strip(Menu):
     bl_label = "Strip"
 
     def draw(self, context):
-        from bl_ui_utils.layout import operator_context
+        from _bl_ui_utils.layout import operator_context
 
         layout = self.layout
         st = context.space_data
@@ -1481,6 +1481,8 @@ class SEQUENCER_MT_modifier_add(Menu):
 
         if strip.type == 'SOUND':
             self.operator_modifier_add(layout, 'SOUND_EQUALIZER')
+            self.operator_modifier_add(layout, 'PITCH')
+
         else:
             self.operator_modifier_add(layout, 'BRIGHT_CONTRAST')
             self.operator_modifier_add(layout, 'COLOR_BALANCE')

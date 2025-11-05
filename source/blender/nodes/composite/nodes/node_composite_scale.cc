@@ -31,18 +31,18 @@
 namespace blender::nodes::node_composite_scale_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_SCALE_RELATIVE, "RELATIVE", 0, "Relative", ""},
-    {CMP_NODE_SCALE_ABSOLUTE, "ABSOLUTE", 0, "Absolute", ""},
-    {CMP_NODE_SCALE_RENDER_PERCENT, "SCENE_SIZE", 0, "Scene Size", ""},
-    {CMP_NODE_SCALE_RENDER_SIZE, "RENDER_SIZE", 0, "Render Size", ""},
+    {CMP_NODE_SCALE_RELATIVE, "RELATIVE", 0, N_("Relative"), ""},
+    {CMP_NODE_SCALE_ABSOLUTE, "ABSOLUTE", 0, N_("Absolute"), ""},
+    {CMP_NODE_SCALE_RENDER_PERCENT, "SCENE_SIZE", 0, N_("Scene Size"), ""},
+    {CMP_NODE_SCALE_RENDER_SIZE, "RENDER_SIZE", 0, N_("Render Size"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 /* Matches bgpic_camera_frame_items[]. */
 static const EnumPropertyItem frame_type_items[] = {
-    {CMP_NODE_SCALE_RENDER_SIZE_STRETCH, "STRETCH", 0, "Stretch", ""},
-    {CMP_NODE_SCALE_RENDER_SIZE_FIT, "FIT", 0, "Fit", ""},
-    {CMP_NODE_SCALE_RENDER_SIZE_CROP, "CROP", 0, "Crop", ""},
+    {CMP_NODE_SCALE_RENDER_SIZE_STRETCH, "STRETCH", 0, N_("Stretch"), ""},
+    {CMP_NODE_SCALE_RENDER_SIZE_FIT, "FIT", 0, N_("Fit"), ""},
+    {CMP_NODE_SCALE_RENDER_SIZE_CROP, "CROP", 0, N_("Crop"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -136,6 +136,13 @@ class ScaleOperation : public NodeOperation {
 
   void execute_variable_size()
   {
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value()) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
+      return;
+    }
+
     if (this->context().use_gpu()) {
       execute_variable_size_gpu();
     }
@@ -209,7 +216,8 @@ class ScaleOperation : public NodeOperation {
 
       output.store_pixel(
           texel,
-          input.sample(scaled_coordinates, interpolation, extension_mode_x, extension_mode_y));
+          input.sample<Color>(
+              scaled_coordinates, interpolation, extension_mode_x, extension_mode_y));
     });
   }
 

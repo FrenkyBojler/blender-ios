@@ -31,8 +31,8 @@
 namespace blender::nodes::node_composite_moviedistortion_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {int(compositor::DistortionType::Distort), "UNDISTORT", 0, "Undistort", ""},
-    {int(compositor::DistortionType::Undistort), "DISTORT", 0, "Distort", ""},
+    {int(compositor::DistortionType::Distort), "UNDISTORT", 0, N_("Undistort"), ""},
+    {int(compositor::DistortionType::Undistort), "DISTORT", 0, N_("Distort"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -142,8 +142,8 @@ class MovieDistortionOperation : public NodeOperation {
     output.allocate_texture(distortion_grid.domain());
 
     parallel_for(distortion_grid.domain().size, [&](const int2 texel) {
-      output.store_pixel(texel,
-                         input.sample_bilinear_zero(distortion_grid.load_pixel<float2>(texel)));
+      output.store_pixel(
+          texel, Color(input.sample_bilinear_zero(distortion_grid.load_pixel<float2>(texel))));
     });
   }
 

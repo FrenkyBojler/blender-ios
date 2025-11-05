@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
-"PO-Revision-Date: 2025-09-09 13:59+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
+"PO-Revision-Date: 2025-10-30 01:59+0000\n"
 "Last-Translator: Alessandro Vecchio <alessandrovecchio1907@gmail.com>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
 "Language: it\n"
@@ -4248,14 +4248,6 @@ msgid "Parent bone (in same Armature)"
 msgstr "Osso genitore (nella stessa Armatura)"
 
 
-msgid "Select Head"
-msgstr "Seleziona Testa"
-
-
-msgid "Select Tail"
-msgstr "Seleziona Coda"
-
-
 msgid "Display Wire"
 msgstr "Visualizza Fili"
 
@@ -7734,6 +7726,14 @@ msgstr "Utilizza la posizione 3D del percorso del genitore"
 
 msgid "Undistort"
 msgstr "Non Distorto"
+
+
+msgid "Attribute Name"
+msgstr "Nome Attributo"
+
+
+msgid "Sample Index"
+msgstr "Indice Campione"
 
 
 msgid "Kinematic Constraint"
@@ -14577,10 +14577,6 @@ msgid "Amount of random elements that are going to be affected by the brush"
 msgstr "Ammontare di elementi casuali che saranno interessati dal pennello"
 
 
-msgid "Direction"
-msgstr "Direzione"
-
-
 msgid "Add effect of brush"
 msgstr "Aggiunge l'effetto del pennello"
 
@@ -19697,14 +19693,6 @@ msgid "Active Movie Clip"
 msgstr "Filmato Attivo"
 
 
-msgid "Mirror Object"
-msgstr "Specchia Oggetto"
-
-
-msgid "Relative Object"
-msgstr "Oggetto Relativo"
-
-
 msgid "Distance Model"
 msgstr "Modello Distanza"
 
@@ -21929,6 +21917,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "Tasto Ctrl premuto"
+
+
+msgid "Direction"
+msgstr "Direzione"
 
 
 msgid "North"
@@ -24558,52 +24550,40 @@ msgid "Material slot name"
 msgstr "Nome dello slot materiale"
 
 
+msgid "Select More/Less"
+msgstr "Seleziona Più/Meno"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Light"
+msgstr "Luce"
+
+
+msgid "Light Probe"
+msgstr "Sensore di Luce"
+
+
 msgid "Add Image"
 msgstr "Aggiungi Immagine"
-
-
-msgid "Read"
-msgstr "Lettura"
 
 
 msgid "Relations"
 msgstr "Relazioni"
 
 
-msgid "Sample"
-msgstr "Campione"
-
-
-msgid "Write"
-msgstr "Scrittura"
-
-
-msgid "Primitives"
-msgstr "Primitive"
-
-
 msgid "Rigid Body"
 msgstr "Corpo Rigido"
-
-
-msgid "Import"
-msgstr "Importa"
 
 
 msgid "Apply"
 msgstr "Applica"
 
 
-msgid "Text"
-msgstr "Testo"
-
-
 msgid "Track"
 msgstr "Traccia"
-
-
-msgid "Utilities"
-msgstr "Utilità"
 
 
 msgid "Quick Effects"
@@ -24630,20 +24610,16 @@ msgid "Convert"
 msgstr "Converti"
 
 
-msgid "Math"
-msgstr "Matematica"
-
-
 msgid "Link/Transfer Data"
 msgstr "Collega/Trasferisci Dati"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Hooks"
 msgstr "Ganci"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Vertex Group Locks"
@@ -24658,6 +24634,10 @@ msgid "Random Mask"
 msgstr "Maschera Casuale"
 
 
+msgid "Adjust"
+msgstr "Regola"
+
+
 msgid "Clear Transform"
 msgstr "Cancella Trasformazione"
 
@@ -24670,12 +24650,28 @@ msgid "Propagate"
 msgstr "Propaga"
 
 
+msgid "Keying"
+msgstr "Keying"
+
+
 msgid "Bone Collections"
 msgstr "Raccolte di Ossa"
 
 
+msgid "Tracking"
+msgstr "Tracciamento"
+
+
 msgid "Names"
 msgstr "Nomi"
+
+
+msgid "Utilities"
+msgstr "Utilità"
+
+
+msgid "Math"
+msgstr "Matematica"
 
 
 msgid "Toggle Bone Options"
@@ -24718,16 +24714,28 @@ msgid "Kerning"
 msgstr "Crenatura"
 
 
-msgid "Metaball"
-msgstr "Metaball"
+msgid "Text"
+msgstr "Testo"
 
 
 msgid "Bone Roll"
 msgstr "Rollio Osso"
 
 
-msgid "Layout"
-msgstr "Layout"
+msgid "Read"
+msgstr "Lettura"
+
+
+msgid "Sample"
+msgstr "Campione"
+
+
+msgid "Write"
+msgstr "Scrittura"
+
+
+msgid "Primitives"
+msgstr "Primitive"
 
 
 msgid "Pivot Point"
@@ -24750,20 +24758,16 @@ msgid "Automasking"
 msgstr "Automascheramento"
 
 
-msgid "Adjust"
-msgstr "Regola"
-
-
 msgid "Face Sets Edit"
 msgstr "Modifica Sets di Facce"
 
 
-msgid "Keying"
-msgstr "Keying"
+msgid "Instances"
+msgstr "Istanze"
 
 
-msgid "Tracking"
-msgstr "Tracciamento"
+msgid "Import"
+msgstr "Importa"
 
 
 msgid "Mirror"
@@ -24776,6 +24780,10 @@ msgstr "Mappatura UV"
 
 msgid "Local View"
 msgstr "Vista Locale"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Viewpoint"
@@ -24798,10 +24806,6 @@ msgid "View Regions"
 msgstr "Regione Vista"
 
 
-msgid "Select More/Less"
-msgstr "Seleziona Più/Meno"
-
-
 msgid "Select Similar"
 msgstr "Seleziona Simili"
 
@@ -24820,18 +24824,6 @@ msgstr "Seleziona Anelli"
 
 msgid "Assign Material"
 msgstr "Assegna Materiale"
-
-
-msgid "Light"
-msgstr "Luce"
-
-
-msgid "Light Probe"
-msgstr "Sensore di Luce"
-
-
-msgid "Instances"
-msgstr "Istanze"
 
 
 msgid "Keyframe Insert Pie"
@@ -25550,14 +25542,6 @@ msgid "UV Pinned"
 msgstr "UV Spillata"
 
 
-msgid "UV Select"
-msgstr "UV selezionata"
-
-
-msgid "UV Edge Select"
-msgstr "Seleziona Spigolo UV"
-
-
 msgid "Set the map as active for display and editing"
 msgstr "Imposta la mappa come attiva per mostrare e modificare"
 
@@ -25574,20 +25558,12 @@ msgid "Set the UV map as active for rendering"
 msgstr "Imposta la mappa UV come attiva per il rendering"
 
 
-msgid "UV Edge Selection"
-msgstr "Selezione Spigoli UV"
-
-
 msgid "Name of UV map"
 msgstr "Nome della mappa UV"
 
 
 msgid "UV Pin"
 msgstr "Spillo UV"
-
-
-msgid "UV Vertex Selection"
-msgstr "Selezione Vertici UV"
 
 
 msgid "Mesh Vertex"
@@ -28279,6 +28255,10 @@ msgid "Distance within which mirrored vertices are merged"
 msgstr "Distanza all'interno della quale vengono uniti i vertici specchiati"
 
 
+msgid "Mirror Object"
+msgstr "Specchia Oggetto"
+
+
 msgid "Object to use as mirror"
 msgstr "Oggetto da utilizzare come specchio"
 
@@ -28405,14 +28385,6 @@ msgstr "Mantieni Confini"
 
 msgid "Nodes Modifier"
 msgstr "Modificatore Nodi"
-
-
-msgid "Bake Target"
-msgstr "Target Precalcolo"
-
-
-msgid "Packed"
-msgstr "Compresso"
 
 
 msgid "Pack the baked data into the .blend file"
@@ -31856,10 +31828,6 @@ msgid "Sample Grid Index"
 msgstr "Indice Griglia Campione"
 
 
-msgid "Sample Index"
-msgstr "Indice Campione"
-
-
 msgid "Scale Elements"
 msgstr "Scala Elementi"
 
@@ -31971,10 +31939,6 @@ msgstr "Aggiungi Shader"
 
 msgid "Ambient Occlusion"
 msgstr "Occlusione Ambientale"
-
-
-msgid "Attribute Name"
-msgstr "Nome Attributo"
 
 
 msgid "Instancer"
@@ -45475,10 +45439,6 @@ msgid "Render"
 msgstr "Render"
 
 
-msgid "Render active scene"
-msgstr "Renderizza la scena attiva"
-
-
 msgid "Render Layer"
 msgstr "Livello Render"
 
@@ -49808,6 +49768,10 @@ msgid "Textures Directory"
 msgstr "Cartella Texture"
 
 
+msgid "Packed"
+msgstr "Compresso"
+
+
 msgid "All Custom"
 msgstr "Tutto Personalizzato"
 
@@ -50166,6 +50130,10 @@ msgid "Active Palette Color"
 msgstr "Colore Tavolozza Attivo"
 
 
+msgid "Auto-Masking"
+msgstr "Auto-Mascheramento"
+
+
 msgid "Shadow Settings"
 msgstr "Impostazioni Ombra"
 
@@ -50216,10 +50184,6 @@ msgstr "Giacitura Tratto"
 
 msgid "Stereoscopy"
 msgstr "Stereoscopia"
-
-
-msgid "Auto-Masking"
-msgstr "Auto-Mascheramento"
 
 
 msgid "Chain Scaling"
@@ -56869,18 +56833,6 @@ msgid "Stereo Mode"
 msgstr "Modalità Stereo"
 
 
-msgid "Cross"
-msgstr "Croce"
-
-
-msgid "Alpha Under"
-msgstr "Sotto Trasparenza"
-
-
-msgid "Gamma Cross"
-msgstr "Incrocio Gamma"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Posizione Y dello spezzone sequenza"
 
@@ -58503,6 +58455,10 @@ msgid "Driven Selected"
 msgstr "Guidato Selezionato"
 
 
+msgid "Relative Object"
+msgstr "Oggetto Relativo"
+
+
 msgid "Stroke Placement (2D View)"
 msgstr "Giacitura Tratto (Vista 2D)"
 
@@ -60023,11 +59979,6 @@ msgid "Report a Bug"
 msgstr "Segnala un Baco"
 
 
-msgctxt "Operator"
-msgid "Mirrored"
-msgstr "Specchiato"
-
-
 msgid "Multiplier"
 msgstr "Moltiplicatore"
 
@@ -60337,12 +60288,16 @@ msgid "Image path {!r} not found, image may be packed or unsaved"
 msgstr "Percorso dell'immagine {!r} non trovato, forse l'immagine è incorporata o non salvata"
 
 
+msgid "No nodes selected."
+msgstr "Nessuno nodo selezionato."
+
+
 msgid "Active camera is not in this scene"
 msgstr "La camera attiva non è in questa scena"
 
 
-msgid "Modifiers cannot be added to object: "
-msgstr "Non possono essere aggiunti modificatori all'oggetto: "
+msgid "Modifiers cannot be added to object: {:s}"
+msgstr "Non è possibile aggiungere modificatori all'oggetto: {:s}"
 
 
 msgid "Fur Material"
@@ -60506,8 +60461,8 @@ msgid "User Communities"
 msgstr "Comunità Utenti"
 
 
-msgid "Failed to assign value: "
-msgstr "Impossibile impostare il valore: "
+msgid "Failed to assign value: {:s}"
+msgstr "Impossibile impostare il valore: {:s}"
 
 
 msgid "Strip(s)"
@@ -62297,6 +62252,11 @@ msgstr "Scambia Dati"
 
 
 msgctxt "Operator"
+msgid "Copy to Selected Strips..."
+msgstr "Copia agli Spezzoni Selezionati..."
+
+
+msgctxt "Operator"
 msgid "Slip Strip Contents"
 msgstr "Tronca Contenuti dello Spezzone"
 
@@ -62655,11 +62615,6 @@ msgstr "Cerca Operatore..."
 msgctxt "Operator"
 msgid "Release Notes"
 msgstr "Note di Rilascio"
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Guide"
 
 
 msgid "No active item"
@@ -64073,6 +64028,11 @@ msgstr "Regola Distanza Focale"
 
 msgid "Distance Min"
 msgstr "Distanza Min"
+
+
+msgctxt "Operator"
+msgid "Mirrored"
+msgstr "Specchiato"
 
 
 msgid "Affect Only"
@@ -66256,6 +66216,10 @@ msgid "Timber"
 msgstr "Legname"
 
 
+msgid "Render active scene"
+msgstr "Renderizza la scena attiva"
+
+
 msgid "3D Local View "
 msgstr "Vista Locale 3D "
 
@@ -67924,6 +67888,10 @@ msgid "Unable to create socket"
 msgstr "Impossibile creare il connettore"
 
 
+msgid "Anisotropic"
+msgstr "Anisotropico"
+
+
 msgid "Unable to locate socket '%s' in node"
 msgstr "Impossibile trovare il connettore '%s' nel nodo"
 
@@ -68138,6 +68106,11 @@ msgstr "Bokeh"
 
 msgid "Flaps"
 msgstr "Lembi"
+
+
+msgctxt "Color"
+msgid "Spill Channel"
+msgstr "Canale Dispersione"
 
 
 msgid "Correction for shadows"
@@ -68544,10 +68517,6 @@ msgid "Subsurface Radius"
 msgstr "Raggio Subsuperficie"
 
 
-msgid "Anisotropic"
-msgstr "Anisotropico"
-
-
 msgid "Anisotropic Rotation"
 msgstr "Rotazione Anisotropica"
 
@@ -68848,6 +68817,10 @@ msgstr "Orlo"
 
 msgid "Blender File View"
 msgstr "Visualizza File di Blender"
+
+
+msgid "Failed to open file browser!"
+msgstr "Impossibile aprire il file browser!"
 
 
 msgid "To make changes to Preferences permanent, use \"Save Preferences\""
