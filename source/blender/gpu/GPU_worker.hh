@@ -49,7 +49,7 @@ class GPUWorker {
   ~GPUWorker();
 
   WorkID push_work(void *work, ThreadQueueWorkPriority priority);
-  void cancel_work(WorkID id);
+  bool cancel_work(WorkID id);
   bool is_empty();
 
  private:

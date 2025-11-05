@@ -937,9 +937,7 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
 
     Batch *batch = batches_.pop(handle);
     for (std::unique_ptr<ParallelWork> &work : batch->works) {
-      if (work->id) {
-        compilation_worker_->cancel_work(work->id);
-        work->id = 0;
+      if (compilation_worker_->cancel_work(work->id)) {
         batch->pending_compilations--;
       }
     }
@@ -1028,15 +1026,6 @@ void ShaderCompiler::do_work(ParallelWork &work)
 {
   Batch *batch = work.batch;
   int shader_index = work.shader_index;
-
-  {
-    std::lock_guard lock(mutex_);
-    if (work.id == 0) {
-      /* Work has been cancelled. */
-      return;
-    }
-    work.id = 0;
-  }
 
   /* Compile */
   if (!batch->is_specialization_batch()) {

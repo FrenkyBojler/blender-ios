@@ -35,9 +35,9 @@ WorkID GPUWorker::push_work(void *work, ThreadQueueWorkPriority priority)
   return BLI_thread_queue_push(work_queue_, work, priority);
 }
 
-void GPUWorker::cancel_work(WorkID id)
+bool GPUWorker::cancel_work(WorkID id)
 {
-  BLI_thread_queue_cancel_work(work_queue_, id);
+  return BLI_thread_queue_cancel_work(work_queue_, id);
 }
 
 bool GPUWorker::is_empty()
