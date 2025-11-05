@@ -1,2 +1,3 @@
 Referenced by issue #106963, Blender not recognizing crc32c library in add-on
 Referenced by issue #104000, python site-packages are not recognized after install (bug on linux / workes fine on Windows)
+Referenced by pull request #149382, Fix #107137: Modules in users site-directory can break Blender
