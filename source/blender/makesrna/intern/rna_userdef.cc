@@ -11,6 +11,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_enums.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_math_base.h"
@@ -6213,6 +6214,38 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "but might compile shaders faster on some systems. "
                            "Requires restarting Blender for changes to take effect. "
                            "(OpenGL only)");
+
+  static const EnumPropertyItem ocio_config_source_items[] = {
+      {USER_OCIO_CONFIG_SOURCE_BLENDER,
+       "BLENDER",
+       0,
+       "Blender config",
+       "Use the OpenColorIO configuration bundled with Blender"},
+      {USER_OCIO_CONFIG_SOURCE_SYSTEM,
+       "SYSTEM",
+       0,
+       "System config",
+       "Use the OpenColorIO configuration installed on the system"},
+      {USER_OCIO_CONFIG_SOURCE_USER,
+       "USER",
+       0,
+       "User config",
+       "Use a custom OpenColorIO configuration file"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "ocio_config_source", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "ocio_config_source");
+  RNA_def_property_enum_items(prop, ocio_config_source_items);
+  RNA_def_property_enum_default(prop, USER_OCIO_CONFIG_SOURCE_BLENDER);
+  RNA_def_property_ui_text(
+      prop, "OCIO Config Source", "Select which OpenColorIO configuration Blender should load");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "ocio_user_config_path", PROP_STRING, PROP_FILEPATH);
+  RNA_def_property_string_sdna(prop, nullptr, "ocio_user_config_path");
+  RNA_def_property_ui_text(prop, "User OCIO Config", "Path to a custom OpenColorIO config file");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Network. */
 

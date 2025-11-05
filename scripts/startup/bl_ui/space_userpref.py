@@ -737,6 +737,28 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
                 col.label(text="\u2022 Windows on ARM requires driver 31.0.112.0 or higher", icon='BLANK1')
 
 
+class USERPREF_PT_system_color_management(SystemPanel, CenterAlignMixIn, Panel):
+    bl_label = "Color Management"
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        system = prefs.system
+
+        if "ocio_config_source" in system.bl_rna.properties:
+            col = layout.column()
+            col.use_property_split = False
+            col.use_property_decorate = False
+
+            col.label(text="OpenColorIO config source (requires restart)")
+
+            row = col.row(align=True)
+            row.prop(system, "ocio_config_source", expand=True)
+
+            if system.ocio_config_source == 'USER':
+                row = col.row(align=True)
+                row.prop(system, "ocio_user_config_path", text="User OCIO config")
+
+
 class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
     bl_label = "Operating System Settings"
 
@@ -3028,6 +3050,7 @@ classes = (
 
     USERPREF_PT_system_cycles_devices,
     USERPREF_PT_system_display_graphics,
+    USERPREF_PT_system_color_management,
     USERPREF_PT_system_os_settings,
     USERPREF_PT_system_network,
     USERPREF_PT_system_memory,

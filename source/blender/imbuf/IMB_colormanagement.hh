@@ -630,6 +630,15 @@ enum {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Startup Reinit Helper
+ *  Apply preferences after user settings are loaded (not a live UI reload).
+ *  \{ */
+
+void IMB_colormanagement_reinit_from_preferences(Main *bmain);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Rendering Tables
  * \{ */
 

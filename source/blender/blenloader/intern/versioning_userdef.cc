@@ -25,6 +25,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_enums.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -1730,6 +1731,11 @@ void blo_do_versions_userdef(UserDef *userdef)
     /* The Copy Global Transform add-on was moved into Blender itself, and thus
      * is no longer an add-on. */
     BKE_addon_remove_safe(&userdef->addons, "copy_global_transform");
+  }
+
+  if (!USER_VERSION_ATLEAST(501, 5)) {
+    userdef->ocio_config_source = USER_OCIO_CONFIG_SOURCE_BLENDER;
+    userdef->ocio_user_config_path[0] = '\0';
   }
 
   /**

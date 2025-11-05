@@ -316,6 +316,7 @@ typedef struct UserDef {
   char text_editor_args[256];
   char anim_player[/*FILE_MAX*/ 1024];
   int anim_player_preset;
+  char ocio_user_config_path[/*FILE_MAX*/ 1024];
 
   /** Minimum spacing between grid-lines in View2D grids. */
   short v2d_min_gridsize;
@@ -336,7 +337,8 @@ typedef struct UserDef {
   /** #eUserpref_UI_Flag2. */
   char uiflag2;
   char gpu_flag;
-  char _pad8[6];
+  char ocio_config_source;
+  char _pad8[5];
   /* Experimental flag for app-templates to make changes to behavior
    * which are outside the scope of typical preferences. */
   char app_flag;

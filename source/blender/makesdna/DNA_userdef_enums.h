@@ -51,3 +51,10 @@ typedef enum eDupli_ID_Flags {
   USER_DUP_LINKED_ID = (1 << 30),
 } eDupli_ID_Flags;
 ENUM_OPERATORS(eDupli_ID_Flags)
+
+typedef enum eUserpref_OCIOConfigSource {
+  USER_OCIO_CONFIG_SOURCE_BLENDER = 0,
+  USER_OCIO_CONFIG_SOURCE_SYSTEM = 1,
+  USER_OCIO_CONFIG_SOURCE_USER = 2,
+} eUserpref_OCIOConfigSource;
+ENUM_OPERATORS(eUserpref_OCIOConfigSource)

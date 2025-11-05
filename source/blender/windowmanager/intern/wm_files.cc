@@ -95,6 +95,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 #include "IMB_metadata.hh"
@@ -158,7 +159,6 @@ static void wm_history_file_write();
 static void wm_test_autorun_revert_action_exec(bContext *C);
 
 static CLG_LogRef LOG = {"blend"};
-
 /**
  * Fast-path for down-scaling byte buffers.
  *
@@ -540,6 +540,20 @@ static void wm_init_userdef(Main *bmain)
 
   /* Update the temporary directory from the preferences or fall back to the system default. */
   BKE_tempdir_init(U.tempdir);
+
+  if (U.ocio_user_config_path[0] == '\0') {
+    const std::optional<std::string> configdir = BKE_appdir_folder_id(BLENDER_DATAFILES,
+                                                                      "colormanagement");
+    if (configdir.has_value()) {
+      BLI_path_join(U.ocio_user_config_path,
+                    sizeof(U.ocio_user_config_path),
+                    configdir->c_str(),
+                    BCM_CONFIG_FILE);
+    }
+  }
+
+  /* Re-apply OCIO settings from Preferences after loading them. */
+  IMB_colormanagement_reinit_from_preferences(bmain);
 
   /* Update input device preference. */
   WM_init_input_devices();

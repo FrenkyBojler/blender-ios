@@ -10,7 +10,7 @@
 #include "DNA_anim_enums.h"
 #include "DNA_curve_enums.h"
 #include "DNA_space_enums.h"
-
+#include "DNA_userdef_enums.h"
 #include "BKE_blender_version.h"
 
 #include "GPU_platform_backend_enum.h"
@@ -43,6 +43,8 @@ const UserDef U_default = {
     .text_editor_args = "",
     .anim_player = "",
     .anim_player_preset = 0,
+    .ocio_config_source = USER_OCIO_CONFIG_SOURCE_BLENDER,
+    .ocio_user_config_path = "",
     .v2d_min_gridsize = 45,
     .timecode_style = USER_TIMECODE_MINIMAL,
     .versions = 1,

@@ -20,6 +20,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_enums.h"
+#include "DNA_userdef_types.h"
 
 #include "IMB_filetype.hh"
 #include "IMB_filter.hh"
@@ -615,54 +617,101 @@ static void colormanage_free_config()
   g_all_view_names.clear();
 }
 
-void colormanagement_init()
+static bool colormanagement_try_load_config_from_file(const char *config_path,
+                                                      const bool mark_custom,
+                                                      const bool log_success,
+                                                      const bool log_failure)
 {
-  /* Handle Blender specific override. */
-  const char *blender_ocio_env = BLI_getenv("BLENDER_OCIO");
-  if (blender_ocio_env) {
-    BLI_setenv("OCIO", blender_ocio_env);
+  if (config_path == nullptr || config_path[0] == '\0') {
+    return false;
   }
 
-  /* First try config from environment variable. */
+  g_config = ocio::Config::create_from_file(config_path);
+  if (g_config == nullptr) {
+    if (log_failure) {
+      CLOG_ERROR(&LOG, "Failed to load OpenColorIO config \"%s\"", config_path);
+    }
+    return false;
+  }
+
+  const bool ok = colormanage_load_config(*g_config);
+  if (!ok) {
+    if (log_failure) {
+      CLOG_ERROR(&LOG, "Failed to initialize OpenColorIO config \"%s\"", config_path);
+    }
+    colormanage_free_config();
+    return false;
+  }
+
+  g_config_is_custom = mark_custom;
+  if (log_success) {
+    CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", config_path);
+  }
+  return true;
+}
+
+void colormanagement_init()
+{
+  const char *blender_ocio_env = BLI_getenv("BLENDER_OCIO");
   const char *ocio_env = BLI_getenv("OCIO");
+  const eUserpref_OCIOConfigSource config_source =
+      static_cast<eUserpref_OCIOConfigSource>(U.ocio_config_source);
 
-  if (ocio_env && ocio_env[0] != '\0') {
-    g_config = ocio::Config::create_from_environment();
-    if (g_config != nullptr) {
-      CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", ocio_env);
-      const bool ok = colormanage_load_config(*g_config);
-
-      if (ok) {
-        g_config_is_custom = true;
+  if (config_source == USER_OCIO_CONFIG_SOURCE_USER) {
+    /* Load explicit user config from path; env remains unchanged. */
+    if (!colormanagement_try_load_config_from_file(
+            U.ocio_user_config_path, true, true, true) &&
+        U.ocio_user_config_path[0] != '\0')
+    {
+      CLOG_WARN(&LOG,
+                "Failed to load user OpenColorIO configuration \"%s\", falling back to defaults",
+                U.ocio_user_config_path);
+    }
+  }
+  else if (config_source == USER_OCIO_CONFIG_SOURCE_SYSTEM) {
+    /* Honor BLENDER_OCIO first, then OCIO. */
+    if (blender_ocio_env && blender_ocio_env[0] != '\0') {
+      BLI_setenv("OCIO", blender_ocio_env);
+      ocio_env = blender_ocio_env;
+    }
+    if (ocio_env && ocio_env[0] != '\0') {
+      g_config = ocio::Config::create_from_environment();
+      if (g_config != nullptr) {
+        const bool ok = colormanage_load_config(*g_config);
+        if (ok) {
+          g_config_is_custom = true;
+          CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", ocio_env);
+        }
+        else {
+          CLOG_ERROR(&LOG, "Failed to load config from environment");
+          colormanage_free_config();
+        }
       }
-      else {
-        CLOG_ERROR(&LOG, "Failed to load config from environment");
-        colormanage_free_config();
+    }
+
+    if (g_config == nullptr) {
+      const std::optional<std::string> configdir = BKE_appdir_folder_id(BLENDER_SYSTEM_DATAFILES,
+                                                                        "colormanagement");
+      if (configdir.has_value()) {
+        char configfile[FILE_MAX];
+        BLI_path_join(configfile, sizeof(configfile), configdir->c_str(), BCM_CONFIG_FILE);
+        colormanagement_try_load_config_from_file(configfile, true, false, false);
       }
     }
   }
 
-  /* Then try bundled configuration file. */
   if (g_config == nullptr) {
+    /* Blender bundled configuration: explicit file load. */
     const std::optional<std::string> configdir = BKE_appdir_folder_id(BLENDER_DATAFILES,
                                                                       "colormanagement");
     if (configdir.has_value()) {
       char configfile[FILE_MAX];
       BLI_path_join(configfile, sizeof(configfile), configdir->c_str(), BCM_CONFIG_FILE);
-
-      g_config = ocio::Config::create_from_file(configfile);
-
-      if (g_config != nullptr) {
-        const bool ok = colormanage_load_config(*g_config);
-        if (!ok) {
-          CLOG_ERROR(&LOG, "Failed to load bundled config");
-          colormanage_free_config();
-        }
-      }
+      colormanagement_try_load_config_from_file(
+          configfile, false, false, config_source != USER_OCIO_CONFIG_SOURCE_BLENDER);
     }
   }
 
-  /* Then use fallback. */
   if (g_config == nullptr) {
     CLOG_STR_INFO_NOCHECK(&LOG, "Using fallback mode for management");
     g_config = ocio::Config::create_fallback();
@@ -681,6 +730,21 @@ void colormanagement_exit()
 }
 
 /** \} */
+
+/* Startup-only reinit after preferences have been loaded. */
+void IMB_colormanagement_reinit_from_preferences(Main *bmain)
+{
+  colormanagement_exit();
+  colormanagement_init();
+  if (g_config == nullptr) {
+    CLOG_STR_WARN(&LOG, "OCIO config init resulted in null config, using fallback");
+    g_config = ocio::Config::create_fallback();
+    colormanage_load_config(*g_config);
+  }
+  if (bmain != nullptr) {
+    IMB_colormanagement_check_file_config(bmain);
+  }
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Internal functions
@@ -3019,18 +3083,31 @@ const char *IMB_colormanagement_display_get_indexed_name(const int index)
 
 const char *IMB_colormanagement_display_get_default_name()
 {
+  if (!g_config) {
+    return "";
+  }
   const ocio::Display *display = g_config->get_default_display();
-  return display->name().c_str();
+  return (display) ? display->name().c_str() : "";
 }
 
 const ColorManagedDisplay *IMB_colormanagement_display_get_named(const char *name)
 {
-  return g_config->get_display_by_name(name);
+  if (!g_config) {
+    return nullptr;
+  }
+  const ocio::Display *display = nullptr;
+  if (name && name[0] != '\0') {
+    display = g_config->get_display_by_name(name);
+  }
+  if (!display) {
+    display = g_config->get_default_display();
+  }
+  return display;
 }
 
 const char *IMB_colormanagement_display_get_none_name()
 {
-  if (g_config->get_display_by_name("None") != nullptr) {
+  if (g_config && g_config->get_display_by_name("None") != nullptr) {
     return "None";
   }
   return IMB_colormanagement_display_get_default_name();
@@ -3039,11 +3116,18 @@ const char *IMB_colormanagement_display_get_none_name()
 const char *IMB_colormanagement_display_get_default_view_transform_name(
     const ColorManagedDisplay *display)
 {
-  const ocio::View *default_view = display->get_default_view();
-  if (!default_view) {
-    return "";
+  /* Be defensive: display may be null or have no default view during live reloads. */
+  if (display == nullptr) {
+    const ocio::Display *default_display = (g_config) ? g_config->get_default_display() : nullptr;
+    if (default_display == nullptr) {
+      return "";
+    }
+    const ocio::View *default_view = default_display->get_default_view();
+    return (default_view) ? default_view->name().c_str() : "";
   }
-  return default_view->name().c_str();
+
+  const ocio::View *default_view = display->get_default_view();
+  return (default_view) ? default_view->name().c_str() : "";
 }
 
 const ColorSpace *IMB_colormangement_display_get_color_space(
@@ -3052,7 +3136,8 @@ const ColorSpace *IMB_colormangement_display_get_color_space(
 {
   /* Get the colorspace that the image is in after applying this view and display
    * transform. If we are going to a display referred colorspace we can use that. */
-  const ocio::Display *display = g_config->get_display_by_name(display_settings->display_device);
+  const ocio::Display *display = IMB_colormanagement_display_get_named(
+      display_settings->display_device);
   const ocio::View *view = (display) ? display->get_view_by_name(view_settings->view_transform) :
                                        nullptr;
   const ColorSpace *colorspace = (view) ? view->display_colorspace() : nullptr;
