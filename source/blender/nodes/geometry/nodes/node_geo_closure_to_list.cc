@@ -161,10 +161,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       closure_params.outputs.append({items[item_i].name, socket_type_ptr, &closure_results[i]});
     }
 
+    int &params_index_input = *static_cast<int *>(
+        const_cast<void *>(closure_params.inputs[0].value.get_single_ptr_raw()));
     for (const int64_t out_i : range) {
       BLI_assert(out_i < std::numeric_limits<int>::max());
-      *static_cast<int *>(
-          const_cast<void *>(closure_params.inputs[0].value.get_single_ptr_raw())) = int(out_i);
+      params_index_input = int(out_i);
       for (bke::SocketValueVariant &value : closure_results) {
         value.~SocketValueVariant();
       }
