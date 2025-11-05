@@ -1269,6 +1269,7 @@ static void subdiv_mesh_vert_loose(const ForeachContext *foreach_context,
 {
   SubdivMeshContext *ctx = static_cast<SubdivMeshContext *>(foreach_context->user_data);
   subdiv_vert_data_copy(ctx, coarse_vert_index, subdiv_vert_index);
+  ctx->subdiv_positions[subdiv_vert_index] = ctx->coarse_positions[coarse_vert_index];
 }
 
 /* Get neighbor edges of the given one.
