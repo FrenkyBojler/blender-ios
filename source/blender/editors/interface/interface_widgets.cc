@@ -5810,13 +5810,13 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   char *cpoin = nullptr;
 
   int icon_width = 0;
-  if (id) {
-    icon_width += int(1.0f * UI_UNIT_X * zoom);
-  }
   if (id && ID_MISSING(id)) {
     icon_width += int(0.85f * UI_UNIT_X * zoom);
   }
   if (id && ID_IS_OVERRIDE_LIBRARY(id)) {
+    icon_width += int(0.85f * UI_UNIT_X * zoom);
+  }
+  if (id && (id->flag & ID_FLAG_FAKEUSER || ID_IS_ASSET(id))) {
     icon_width += int(0.85f * UI_UNIT_X * zoom);
   }
 
@@ -5834,7 +5834,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   /* text location offset */
   rect->xmin;
   if (iconid) {
-    rect->xmin += row_height; /* Use square area for icon. */
+    rect->xmin += int(1.5f * UI_UNIT_X * zoom);
   }
 
   /* cut string in 2 parts? */
@@ -5904,9 +5904,16 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
 
     const float aspect = U.inv_scale_factor / zoom;
 
+    IconTextOverlay overlay;
+    if (id) {
+      BLI_str_format_integer_unit(overlay.text, id->us);
+      if (id->us < 1) {
+        rgba_uchar_args_set(overlay.color, 255, 60, 60, 255);
+      }
+    }
+
     GPU_blend(GPU_BLEND_ALPHA);
-    UI_icon_draw_ex(
-        xs, ys, iconid, aspect, 1.0f, 0.0f, wt->wcol.text, false, UI_NO_ICON_OVERLAY_TEXT);
+    UI_icon_draw_ex(xs, ys, iconid, aspect, 1.0f, 0.0f, wt->wcol.text, false, &overlay);
     GPU_blend(GPU_BLEND_NONE);
   }
 
@@ -5943,6 +5950,9 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   *rect = _rect;
   int xs = rect->xmax - icon_width;
   int ys = rect->ymin + 0.1f * BLI_rcti_size_y(rect);
+  uchar icon_color[4];
+  copy_v4_v4_uchar(icon_color, wt->wcol.text);
+  icon_color[3] = 160;
   if (id) {
     float aspect = ICON_DEFAULT_HEIGHT / ICON_SIZE_FROM_BUTRECT(rect);
     GPU_blend(GPU_BLEND_ALPHA);
@@ -5953,7 +5963,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                       aspect,
                       1.0f,
                       0.0f,
-                      wt->wcol.text,
+                      icon_color,
                       false,
                       UI_NO_ICON_OVERLAY_TEXT);
       xs += int(0.85f * UI_UNIT_X);
@@ -5965,40 +5975,33 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
                       aspect,
                       1.0f,
                       0.0f,
-                      wt->wcol.text,
+                      icon_color,
                       false,
                       UI_NO_ICON_OVERLAY_TEXT);
       xs += int(0.85f * UI_UNIT_X);
     }
 
-    if (ID_IS_ASSET(id)) {
+    if (id && ID_IS_ASSET(id)) {
       UI_icon_draw_ex(xs,
                       ys,
                       ICON_ASSET_MANAGER,
                       aspect,
                       1.0f,
                       0.0f,
-                      wt->wcol.text,
+                      icon_color,
                       false,
                       UI_NO_ICON_OVERLAY_TEXT);
-      xs += int(0.85f * UI_UNIT_X);
     }
-    else {
-      IconTextOverlay overlay;
-      BLI_str_format_integer_unit(overlay.text, id->us);
-      if (id->us < 1) {
-        rgba_uchar_args_set(overlay.color, 255, 60, 60, 255);
-      }
+    else if (id && id->flag & ID_FLAG_FAKEUSER) {
       UI_icon_draw_ex(xs,
                       ys,
-                      id->flag & ID_FLAG_FAKEUSER ? ICON_FAKE_USER_ON : ICON_FAKE_USER_OFF,
+                      ICON_FAKE_USER_ON,
                       aspect,
                       1.0f,
                       0.0f,
-                      wt->wcol.text,
+                      icon_color,
                       false,
-                      &overlay);
-      GPU_blend(GPU_BLEND_NONE);
+                      UI_NO_ICON_OVERLAY_TEXT);
     }
   }
 }

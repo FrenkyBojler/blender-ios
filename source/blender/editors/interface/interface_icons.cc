@@ -1755,32 +1755,6 @@ static void icon_draw_size(float x,
                         false,
                         nullptr);
     }
-
-    if (text_overlay && text_overlay->text[0] != '\0') {
-      /* Handle the little numbers on top of the icon. */
-      uchar text_color[4];
-      if (text_overlay->color[3]) {
-        copy_v4_v4_uchar(text_color, text_overlay->color);
-      }
-      else {
-        UI_GetThemeColor4ubv(TH_TEXT, text_color);
-      }
-      const bool is_light = srgb_to_grayscale_byte(text_color) > 96;
-      const float zoom_factor = w / UI_ICON_SIZE;
-      uiFontStyle fstyle_small = *UI_FSTYLE_WIDGET;
-      fstyle_small.points *= zoom_factor * 0.8f;
-      fstyle_small.shadow = short(is_light ? FontShadowType::Outline : FontShadowType::None);
-      fstyle_small.shadx = 0;
-      fstyle_small.shady = 0;
-      rcti text_rect = {int(x), int(x + UI_UNIT_X * zoom_factor), int(y), int(y)};
-      uiFontStyleDraw_Params params = {UI_STYLE_TEXT_RIGHT, 0};
-      UI_fontstyle_draw(&fstyle_small,
-                        &text_rect,
-                        text_overlay->text,
-                        sizeof(text_overlay->text),
-                        text_color,
-                        &params);
-    }
   }
 
   else if (di->type == ICON_TYPE_BUFFER) {
@@ -1828,6 +1802,32 @@ static void icon_draw_size(float x,
 #ifndef WITH_HEADLESS
     vicon_gplayer_color_draw(icon, int(x), int(y), w, h);
 #endif
+  }
+
+  if (text_overlay && text_overlay->text[0] != '\0') {
+    /* Handle the little numbers on top of the icon. */
+    uchar text_color[4];
+    if (text_overlay->color[3]) {
+      copy_v4_v4_uchar(text_color, text_overlay->color);
+    }
+    else {
+      UI_GetThemeColor4ubv(TH_TEXT, text_color);
+    }
+    const bool is_light = srgb_to_grayscale_byte(text_color) > 96;
+    const float zoom_factor = w / UI_ICON_SIZE;
+    uiFontStyle fstyle_small = *UI_FSTYLE_WIDGET;
+    fstyle_small.points *= zoom_factor * 0.8f;
+    fstyle_small.shadow = short(is_light ? FontShadowType::Outline : FontShadowType::None);
+    fstyle_small.shadx = 0;
+    fstyle_small.shady = 0;
+    rcti text_rect = {int(x), int(x + UI_UNIT_X * zoom_factor), int(y), int(y)};
+    uiFontStyleDraw_Params params = {UI_STYLE_TEXT_RIGHT, 0};
+    UI_fontstyle_draw(&fstyle_small,
+                      &text_rect,
+                      text_overlay->text,
+                      sizeof(text_overlay->text),
+                      text_color,
+                      &params);
   }
 }
 
