@@ -34,14 +34,9 @@ void BKE_sound_refresh_callback_bmain(struct Main *bmain);
 void BKE_sound_force_device(const char *device);
 
 struct bSound *BKE_sound_new_file(struct Main *bmain, const char *filepath);
-struct bSound *BKE_sound_new_file_exists_ex(struct Main *bmain,
-                                            const char *filepath,
-                                            bool *r_exists);
 struct bSound *BKE_sound_new_file_exists(struct Main *bmain, const char *filepath);
 
-void BKE_sound_reset_runtime(struct bSound *sound);
 void BKE_sound_load(struct Main *bmain, struct bSound *sound);
-void BKE_sound_ensure_loaded(struct Main *bmain, struct bSound *sound);
 
 /** Matches AUD_Channels. */
 typedef enum eSoundChannels {

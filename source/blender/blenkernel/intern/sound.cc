@@ -69,6 +69,12 @@
 
 static void sound_free_audio(bSound *sound);
 
+static void sound_reset_runtime(bSound *sound)
+{
+  sound->cache = nullptr;
+  sound->playback_handle = nullptr;
+}
+
 static void sound_copy_data(Main * /*bmain*/,
                             std::optional<Library *> /*owner_library*/,
                             ID *id_dst,
@@ -92,7 +98,7 @@ static void sound_copy_data(Main * /*bmain*/,
     sound_dst->packedfile = BKE_packedfile_duplicate(sound_src->packedfile);
   }
 
-  BKE_sound_reset_runtime(sound_dst);
+  sound_reset_runtime(sound_dst);
 }
 
 static void sound_free_data(ID *id)
@@ -274,12 +280,12 @@ bSound *BKE_sound_new_file(Main *bmain, const char *filepath)
   sound->spinlock = (void *)MEM_mallocN<SpinLock>("sound_spinlock");
   BLI_spin_init(static_cast<SpinLock *>(sound->spinlock));
 
-  BKE_sound_reset_runtime(sound);
+  sound_reset_runtime(sound);
 
   return sound;
 }
 
-bSound *BKE_sound_new_file_exists_ex(Main *bmain, const char *filepath, bool *r_exists)
+static bSound *sound_new_file_exists_ex(Main *bmain, const char *filepath, bool *r_exists)
 {
   bSound *sound;
   char filepath_abs[FILE_MAX], filepath_test[FILE_MAX];
@@ -311,7 +317,7 @@ bSound *BKE_sound_new_file_exists_ex(Main *bmain, const char *filepath, bool *r_
 
 bSound *BKE_sound_new_file_exists(Main *bmain, const char *filepath)
 {
-  return BKE_sound_new_file_exists_ex(bmain, filepath, nullptr);
+  return sound_new_file_exists_ex(bmain, filepath, nullptr);
 }
 
 static void sound_free_audio(bSound *sound)
@@ -1647,13 +1653,7 @@ void BKE_sound_ensure_scene(Scene *scene)
   BKE_sound_create_scene(scene);
 }
 
-void BKE_sound_reset_runtime(bSound *sound)
-{
-  sound->cache = nullptr;
-  sound->playback_handle = nullptr;
-}
-
-void BKE_sound_ensure_loaded(Main *bmain, bSound *sound)
+static void sound_ensure_loaded(Main *bmain, bSound *sound)
 {
   if (sound->cache != nullptr) {
     return;
@@ -1709,5 +1709,5 @@ void BKE_sound_evaluate(Depsgraph *depsgraph, Main *bmain, bSound *sound)
     BKE_sound_load(bmain, sound);
     return;
   }
-  BKE_sound_ensure_loaded(bmain, sound);
+  sound_ensure_loaded(bmain, sound);
 }
