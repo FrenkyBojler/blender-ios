@@ -3554,7 +3554,6 @@ PROFILE_FUNCTION static void interpolate_pinned_rotations(
 
 PROFILE_FUNCTION static void intialize_constraint_forces(
     const xpbd::ConstraintSetCollector &constraint_sets,
-    const SimPointsKey &key,
     const std::optional<IndexRange> curves_range)
 {
   /* Cold-start constraints. */
@@ -3718,10 +3717,10 @@ PROFILE_FUNCTION static void simulate_key_group_global(
                     sub_delta_time);
               }
             });
-
-        intialize_constraint_forces(filtered_static_constraint_sets, key, std::nullopt);
       }
     });
+
+    intialize_constraint_forces(filtered_static_constraint_sets, std::nullopt);
   };
 
   for (const int substep_i : IndexRange(substeps)) {
@@ -3849,8 +3848,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
               pinned_rotations,
               substep_factor,
               sub_delta_time);
-
-          intialize_constraint_forces(filtered_static_constraint_sets, key, curves_range);
+          intialize_constraint_forces(filtered_static_constraint_sets, curves_range);
 
           Contacts contacts;
           for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
