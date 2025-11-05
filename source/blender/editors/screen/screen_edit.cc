@@ -197,9 +197,7 @@ ScrArea *area_split(const wmWindow *win,
 
 bScreen *screen_add(Main *bmain, const char *name, const rcti *rect)
 {
-  bScreen *screen = static_cast<bScreen *>(BKE_libblock_alloc(bmain, ID_SCR, name, 0));
-  screen->do_refresh = true;
-  screen->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
+  bScreen *screen = BKE_id_new<bScreen>(bmain, name);
 
   ScrVert *sv1 = screen_geom_vertex_add(screen, rect->xmin, rect->ymin);
   ScrVert *sv2 = screen_geom_vertex_add(screen, rect->xmin, rect->ymax - 1);
@@ -215,13 +213,6 @@ bScreen *screen_add(Main *bmain, const char *name, const rcti *rect)
   screen_addarea(screen, sv1, sv2, sv3, sv4, SPACE_EMPTY);
 
   return screen;
-}
-
-void screen_data_copy(bScreen *to, bScreen *from)
-{
-  /* Free contents of 'to', is from blenkernel `screen.cc`. */
-  BKE_screen_free_data(to);
-  BKE_screen_copy_data(to, from);
 }
 
 void screen_new_activate_prepare(const wmWindow *win, bScreen *screen_new)

@@ -15,6 +15,7 @@
 #include "DNA_workspace_types.h"
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
@@ -36,7 +37,7 @@ WorkSpaceLayout *ED_workspace_layout_add(Main *bmain,
   WM_window_screen_rect_calc(win, &screen_rect);
   screen = screen_add(bmain, name, &screen_rect);
 
-  return BKE_workspace_layout_add(bmain, workspace, screen, name);
+  return BKE_workspace_layout_add(bmain, *workspace, *screen, name);
 }
 
 WorkSpaceLayout *ED_workspace_layout_duplicate(Main *bmain,
@@ -44,7 +45,7 @@ WorkSpaceLayout *ED_workspace_layout_duplicate(Main *bmain,
                                                const WorkSpaceLayout *layout_old,
                                                wmWindow * /*win*/)
 {
-  return BKE_workspace_layout_add_from_layout(bmain, workspace, layout_old);
+  return BKE_workspace_layout_add_from_layout(bmain, *workspace, *layout_old, LIB_ID_COPY_DEFAULT);
 }
 
 static bool workspace_layout_delete_doit(WorkSpace *workspace,

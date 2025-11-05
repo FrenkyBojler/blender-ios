@@ -69,6 +69,15 @@ using blender::Vector;
 /** \name ID Type Implementation
  * \{ */
 
+static void screen_init_data(ID *id)
+{
+  bScreen *screen = blender::id_cast<bScreen *>(id);
+
+  screen->do_draw = true;
+  screen->do_refresh = true;
+  screen->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
+}
+
 static void screen_free_data(ID *id)
 {
   bScreen *screen = (bScreen *)id;
@@ -249,7 +258,7 @@ IDTypeInfo IDType_ID_SCR = {
     /*flags*/ IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
     /*asset_type_info*/ nullptr,
 
-    /*init_data*/ nullptr,
+    /*init_data*/ screen_init_data,
     /*copy_data*/ screen_copy_data,
     /*free_data*/ screen_free_data,
     /*make_local*/ nullptr,
