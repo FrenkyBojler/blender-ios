@@ -106,25 +106,22 @@ static void sima_zoom_set(
 
   ED_space_image_get_size(sima, &width, &height);
 
-  /* zoom limits.
-   *   min is based on ratio of apparent image size to largest screen dimension
-   *   max is based on ratio of apparent pixel size to largest screen dimension
-   *    based on pixel size so user can still zoom in on very large images
+  /* Preset zoom limits.
+   *   Zoom `min` is based on ratio of apparent image size to largest screen dimension.
+   *   Zoom `max` is based on ratio of apparent pixel size to largest screen dimension.
+   *      (The reason being so the user can still zoom in on very large images.)
    */
-  float sima_minzoom_image_over_screen = 1.0f / 100.0f;
-  float sima_maxzoom_pixel_over_screen = 25.0f / 1.0f;
-  /* check zoom limits */
-  /* largest image dimension */
-  float comp_image = width >= height ? width : height;
-  /* largest screen dimension */
-  float comp_screen = BLI_rcti_size_x(&region->winrct) >= BLI_rcti_size_y(&region->winrct) ?
-                          BLI_rcti_size_x(&region->winrct) :
-                          BLI_rcti_size_y(&region->winrct);
-  /* Case where image size is less than minzoom ratio compared to screen size */
+  const float sima_minzoom_image_over_screen = 1.0f / 100.0f;
+  const float sima_maxzoom_pixel_over_screen = 10.0f / 1.0f;
+  /* Check zoom limits. */
+  /* Get largest dimensions for image and workspace for comparison. */
+  float comp_image = std::max(width, height);
+  float comp_screen = std::max(BLI_rcti_size_x(&region->winrct), BLI_rcti_size_y(&region->winrct));
+  /* Stop when image size is less than minzoom ratio compared to screen size. */
   if (comp_image * sima->zoom < comp_screen * sima_minzoom_image_over_screen &&
       sima->zoom < oldzoom)
     sima->zoom = oldzoom;
-  /* Case where max screen bounds size is less than apparent pixel size */
+  /* Stop when max relative screen bounds is smaller than apparent pixel size. */
   else if (comp_screen * sima_maxzoom_pixel_over_screen <= sima->zoom)
     sima->zoom = oldzoom;
 
