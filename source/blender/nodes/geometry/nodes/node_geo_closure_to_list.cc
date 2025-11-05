@@ -175,9 +175,12 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (cpp_types[i]->is<bke::SocketValueVariant>()) {
           cpp_types[i]->move_construct(&closure_results[i], list_values[i][out_i]);
         }
-        else {
+        else if (closure_results[i].is_single()) {
           cpp_types[i]->move_construct(const_cast<void *>(closure_results[i].get_single_ptr_raw()),
                                        list_values[i][out_i]);
+        }
+        else {
+          cpp_types[i]->copy_construct(cpp_types[i]->default_value(), list_values[i][out_i]);
         }
       }
     }
