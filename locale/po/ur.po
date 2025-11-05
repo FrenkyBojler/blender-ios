@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'2b3706e29f27')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-20 08:46+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
 "PO-Revision-Date: 2025-07-23 15:12+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Urdu <https://translate.blender.org/projects/blender-ui/ui/ur/>\n"
@@ -32692,10 +32692,6 @@ msgid "Editor menu containing buttons"
 msgstr "ﻮﻨﯿﻣ ﺮﭩﯾﮉﯾﺍ ﻞﻤﺘﺸﻣ ﺮﭘ ﮞﻮﻨﭩﺑ"
 
 
-msgid "Assign Material"
-msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺩﺍﻮﻣ"
-
-
 msgid "Select More/Less"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻢﮐ/ﮦﺩﺎﯾﺯ"
 
@@ -32764,12 +32760,12 @@ msgid "Hooks"
 msgstr "ﮯﭩﻧﺎﮐ"
 
 
-msgid "Vertex Group Locks"
-msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
-
-
 msgid "Layout"
 msgstr "ﭦﺅﺁ ﮯﻟ"
+
+
+msgid "Vertex Group Locks"
+msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
 
 
 msgid "Trim/Add"
@@ -32788,6 +32784,10 @@ msgid "Random Mask"
 msgstr "ﮏﺳﺎﻣ ﺐﯿﺗﺮﺗ ﮯﺑ"
 
 
+msgid "Adjust"
+msgstr "ﮟﯾﺮﮐ ﭧﺴﺟﮉﯾﺍ"
+
+
 msgid "Clear Transform"
 msgstr "ﻡﺭﺎﻔﺴﻧﺍﺮﭨ  ﺕﺮﭘ ﮎ"
 
@@ -32796,40 +32796,36 @@ msgid "In-Betweens"
 msgstr "ﮟﯿﻣ ﻥﺎﯿﻣﺭﺩ"
 
 
-msgid "Adjust"
-msgstr "ﮟﯾﺮﮐ ﭧﺴﺟﮉﯾﺍ"
-
-
 msgid "Propagate"
 msgstr "ﺎﻧﺮﮐ ﻎﯿﻠﺒﺗ"
-
-
-msgid "Bone Collections"
-msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮞﻮﯾﮉﮨ"
 
 
 msgid "Keying"
 msgstr "ﮓﻨﯿﻠﮐ"
 
 
-msgid "Names"
-msgstr "ﻡﺎﻧ"
+msgid "Bone Collections"
+msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮞﻮﯾﮉﮨ"
 
 
 msgid "Tracking"
 msgstr "ﮓﻨﮑﯾﺮﭨ"
 
 
+msgid "Names"
+msgstr "ﻡﺎﻧ"
+
+
 msgid "Utilities"
 msgstr "ﺖﯾﺩﺎﻓﺍ"
 
 
-msgid "Toggle Bone Options"
-msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﯼﮉﮨ"
-
-
 msgid "Math"
 msgstr "ﯽﺿﺎﯾﺭ"
+
+
+msgid "Toggle Bone Options"
+msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﯼﮉﮨ"
 
 
 msgid "Enable Bone Options"
@@ -32888,12 +32884,12 @@ msgid "Write"
 msgstr "ﮟﯿﮭﮑﻟ"
 
 
-msgid "Pivot Point"
-msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
-
-
 msgid "Primitives"
 msgstr "ﻢﯾﺪﻗ"
+
+
+msgid "Pivot Point"
+msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
 
 
 msgid "Snap"
@@ -32944,16 +32940,16 @@ msgid "Local View"
 msgstr "ﺮﻈﻨﻣ ﯽﻣﺎﻘﻣ"
 
 
+msgid "UV"
+msgstr "ﯼﻭﻮﯾ"
+
+
 msgid "Viewpoint"
 msgstr "ﺮﻈﻧ ﮧﻄﻘﻧ"
 
 
 msgid "Navigation"
 msgstr "ﻦﺸﯿﮕﯾﻮﯿﻧ"
-
-
-msgid "UV"
-msgstr "ﯼﻭﻮﯾ"
 
 
 msgid "Align View"
@@ -32976,24 +32972,28 @@ msgid "Select All by Trait"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﯽﮭﺒﺳ ﮯﺳ ﻅﺎﺤﻟ ﮯﮐ ﺖﯿﺻﻮﺼﺧ"
 
 
-msgid "Animals"
-msgstr "ﺭﻮﻧﺎﺟ"
-
-
 msgid "Select Linked"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﮉﮑﻨﻟ"
-
-
-msgid "Basic"
-msgstr "ﯼﺩﺎﯿﻨﺑ"
 
 
 msgid "Select Loops"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﺲﭘﻮﻟ"
 
 
+msgid "Assign Material"
+msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺩﺍﻮﻣ"
+
+
 msgid "Keyframe Insert Pie"
 msgstr "Pie ﮟﯾﺮﮐ ﻞﺧﺍﺩ ﻢﯾﺮﻓ ﯽﮐ"
+
+
+msgid "Animals"
+msgstr "ﺭﻮﻧﺎﺟ"
+
+
+msgid "Basic"
+msgstr "ﯼﺩﺎﯿﻨﺑ"
 
 
 msgid "Bone Collection Specials"
@@ -38739,16 +38739,8 @@ msgid "Location on disk where the bake data is stored"
 msgstr "ﮯﮨ ﻅﻮﻔﺤﻣ ﺎﭩﯾﮈ ﮏﯿﺑ ﮞﺎﮩﺟ ﻡﺎﻘﻣ ﮦﻭ ﺮﭘ ﮏﺳﮈ"
 
 
-msgid "Bake Target"
-msgstr "ﻑﺪﮨ ﺎﻧﺎﮑﭘ"
-
-
 msgid "Where to store the baked data"
 msgstr "۔ﮟﯾﺮﮐ ﺭﻮﭩﺳﺍ ﮟﯿﻣ ﯼﺮﭩﮐﺮﺋﺍﮈ ﺮﭘ ﮏﺳﮈ ﻮﮐ ﺎﭩﯾﮈ ﮉﮑﯿﺑ"
-
-
-msgid "Packed"
-msgstr "ﮏﯿﭘ"
 
 
 msgid "Pack the baked data into the .blend file"
@@ -48714,10 +48706,6 @@ msgstr "ﯽﮭﺑ ﺮﮭﭘ"
 
 msgid "Bake a single frame"
 msgstr "ﻢﯾﺮﻓ ﻞﮕﻨﺳ a ﺎﻧﺎﮑﭘ"
-
-
-msgid "Inherit from Modifier"
-msgstr "ﻻ﻿ﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ ﮯﺳ ﻮﭩﮑﯾﺍ ﺖﺛﺍﺭﻭ"
 
 
 msgid "Use setting from the modifier"
@@ -67015,10 +67003,6 @@ msgid "Collapse"
 msgstr "ﺎﻨﭩﻤﺳ"
 
 
-msgid "Add bake item"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻢﭩﺋﺁ ﮏﯿﺑ"
-
-
 msgid "Remove an item from the index switch"
 msgstr "ﮟﯾﺮﮐ ﭻﺋﻮﺳ ﺲﮑﯾﮉﻧﺍ the ﮯﺳ ﻢﭩﺋﺁ an ﮟﯾﺩ ﺎﭩﮨ"
 
@@ -83512,6 +83496,10 @@ msgstr "USDZ ﺅﺎﺗﺮﺑ ﺖﻗﻭ ﮯﺗﺮﮐ ﺪﻣﺁﺭﺩ  ﺖﺧﺎ�
 
 msgid "Don't import textures"
 msgstr "ﮟﯾﺮﮐ ﮧﻧ ﺪﻣﺁﺭﺩ ﺖﺧﺎﺳ"
+
+
+msgid "Packed"
+msgstr "ﮏﯿﭘ"
 
 
 msgid "Import textures as packed data"
@@ -108996,10 +108984,6 @@ msgid "External shader script must have .osl or .oso extension, or be a module n
 msgstr "ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﻡﺎﻧ ﺎﮐ ﮧﻧﻮﻤﻧ ﺎﯾ ،ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﻦﺸﻨﯿﭩﺴﮑﯾﺍ oso. ﺎﯾ osl. ﮟﯿﻣ ﭧﭘﺮﮑﺳﺎﺘﮕﻧﺭ ﯽﻧﻭﺮﯿﺑ"
 
 
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr " ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻨﮭﮑﻟ ﻞﺋﺎﻓ oso. ﮯﮔﺁ ﮯﮐ ﻞﺋﺎﻓ osl. ﯽﻧﻭﺮﯿﺑ ﺮﭘ"
-
-
 msgid "Use Intel OpenImageDenoise AI denoiser"
 msgstr "Intel OpenImageDenoise AI denoiser ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ"
 
@@ -109655,10 +109639,6 @@ msgid "Selected nodes are not of the same type as {}"
 msgstr "{} ﮯﺴﯿﺟ ﮟﯿﮨ ﮟﯿﮩﻧ ﮯﮐ ﻢﺴﻗ ﯽﮨ ﮏﯾﺍ ﺱﮈﻮﻧ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ"
 
 
-msgid "Ignored {} (not of the same type as {}), "
-msgstr " "
-
-
 msgid "No folder selected"
 msgstr "ﺎﯿﮔ ﺎﯿﮐ ﮟﯿﮩﻧ ﺐﺨﺘﻨﻣ ﺭﮉﻟﻮﻓ ﯽﺋﻮﮐ"
 
@@ -109731,16 +109711,16 @@ msgid "This node has no inputs to swap"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﭧﭘ ﻥﺍ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﮈﻮﻧ ﺱﺍ"
 
 
+msgid "Ignored {} (not of the same type as {})"
+msgstr "({} ﮧﮐ ﺎﺴﯿﺟ ﮟﯿﮩﻧ ﺎﮐ ﻢﺴﻗ ﯽﺳﺍ) {} ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
+
+
 msgid "Ignored {}"
 msgstr "{} ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
 
 
 msgid "This node has no input connections to swap"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻦﺸﮑﻨﮐ ﭧﭘ ﻥﺍ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮧﻟﺩﺎﺒﺗ ﮟﯿﻣ ﮈﻮﻧ ﺱﺍ"
-
-
-msgid "Ignored {} (not of the same type as {})"
-msgstr "({} ﮧﮐ ﺎﺴﯿﺟ ﮟﯿﮩﻧ ﺎﮐ ﻢﺴﻗ ﯽﺳﺍ) {} ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
 
 
 msgid "Some connections have been lost due to differing numbers of output sockets"
@@ -110826,10 +110806,6 @@ msgid "Unable to mirror, no mirror object/bone configured"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺮﮕﯿﻔﻨﮐ ﯼﮉﮨ/ﭧﮑﯿﺠﺑﺁ ﮧﻨﯿﺋﺁ ﯽﺋﻮﮐ ،ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﮧﻨﯿﺋﺁ"
 
 
-msgid "Unsupported mode: %r"
-msgstr "r% :ﮈﻮﻣ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﺮﯿﻏ"
-
-
 msgid "Some strings were fixed, don't forget to save the .blend file to keep those changes"
 msgstr "ﮟﯿﻟﻮﮭﺑ ﮧﻧ ﺎﻧﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﻞﺋﺎﻓ blend. ﮯﯿﻟ ﮯﮐ ﮯﻨﮭﮐﺭ ﺭﺍﺮﻗﺮﺑ ﻮﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ ﻥﺍ ،ﮟﯿﮭﺗ ﯽﺌﮔ ﯽﮐ ﮯﻃ ﺰﮕﻧﺮﭩﺳ ﮫﭽﮐ"
 
@@ -110844,10 +110820,6 @@ msgstr "!ﺎﯿﮔﻮﮨ ﻡﺎﮐﺎﻧ ﻞﻤﻋ ﻑﺎﺻ ﮦﺭﺎﻈﻧ ﺶ
 
 msgid "No active camera in the scene"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮦﺮﻤﯿﮐ ﻝﺎﻌﻓ ﯽﺋﻮﮐ ﮟﯿﻣ ﺮﻈﻨﻣ"
-
-
-msgid "Unexpected modifier type: "
-msgstr " :ﻢﺴﻗ ﯽﮐ ﮦﺪﻨﻨﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﻊﻗﻮﺘﻣ ﺮﯿﻏ"
 
 
 msgid "Target object not specified"
@@ -110978,10 +110950,6 @@ msgid "Object: {:s}, Mesh: '{:s}' has {:d} loops (for {:d} faces), expected {:d}
 msgstr "{d:} ﻊﻗﻮﺘﻣ ،(ﮯﯿﻟ ﮯﮐ ﮞﻭﺮﮩﭼ {d:}) ﮟﯿﮨ ﺲﭘﻮﻟ {d:} ﮟﯿﻣ '{s:}' :ﺶﯿﻣ ،{s:} :ﭧﮑﯿﺠﺑﺁ"
 
 
-msgid "Modifiers cannot be added to object: "
-msgstr " :ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮟﯿﻣ ﺽﺍﺮﺘﻋﺍ ﻮﮐ ﮞﻮﻟﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ"
-
-
 msgid "Object {!r} already has {!r} F-Curve(s). Remove these before trying again"
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ ﻥﺍ ﮯﻠﮩﭘ ﮯﺳ ﮯﻧﺮﮐ ﺶﺷﻮﮐ ﮦﺭﺎﺑﻭﺩ ﮟﯿﮨ ﺩﻮﺟﻮﻣ (r} F-Curve(s!} ﯽﮨ ﮯﺳ ﮯﻠﮩﭘ ﮟﯿﻣ {r!} ﭧﮑﯿﺠﺑﺁ"
 
@@ -111076,10 +111044,6 @@ msgstr "{s:} :ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ 
 
 msgid "Unable to remove preset: {!r}"
 msgstr "{r!} :ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺎﭩﮨ ﻮﮐ ﭧﯿﺳ ﺶﯿﭘ"
-
-
-msgid "Failed to execute the preset: "
-msgstr " :ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻧﺮﮐ ﻞﻤﻋ ﺮﭘ ﭧﯿﺳ ﺶﯿﭘ"
 
 
 msgid "No other objects selected"
@@ -111488,10 +111452,6 @@ msgid "Python evaluation failed: "
 msgstr "Pythonﯽﺌﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﺺﯿﺨﺸﺗ ﯽﮐ: "
 
 
-msgid "Failed to assign value: "
-msgstr " :ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻧﺮﮐ ﺾﯾﻮﻔﺗ ﺭﺪﻗ"
-
-
 msgid "Strip(s)"
 msgstr "ﯽﭩﭘ"
 
@@ -111524,10 +111484,6 @@ msgid "Rename {:d} {:s}"
 msgstr "{d} {:s:} ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻡﺎﻧ"
 
 
-msgid "Invalid regular expression (find): "
-msgstr " :(ﮟﯾﺮﮐ ﺵﻼ﻿ﺗ) ﻦﺸﯾﺮﭙﺴﮑﯾﺍ ﺮﻟﻮﮕﯾﺭ ﻂﻠﻏ"
-
-
 msgid "Version: {:s}"
 msgstr "{s:} :ﻥﮊﺭﻭ"
 
@@ -111550,10 +111506,6 @@ msgstr "ﯽﺘﮑﺳ ﻞﻣ ﮟﯿﮩﻧ \"{s:}\" ﻢﺴﻗ"
 
 msgid "Material(s)"
 msgstr "ﺩﺍﻮﻣ"
-
-
-msgid "Invalid regular expression (replace): "
-msgstr " :(ﮟﯿﻟﺪﺑ) ﻦﺸﯾﺮﭙﺴﮑﯾﺍ ﺮﻟﻮﮕﯾﺭ ﻂﻠﻏ"
 
 
 msgctxt "Operator"
@@ -126213,10 +126165,6 @@ msgid "Dependency Loop"
 msgstr "ﭖﻮﻟ ﺭﺎﺼﺤﻧﺍ"
 
 
-msgid "Unsupported Menu Socket"
-msgstr "ﭧﮐﺎﺳ ﻮﻨﯿﻣ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﺮﯿﻏ"
-
-
 msgid "Closed by Default"
 msgstr "ﺪﻨﺑ ﮯﺳ ﻑﺮﻃ ﯽﮐ ﭧﻟﺎﻔﯾﮈ"
 
@@ -131873,6 +131821,10 @@ msgid "Create a separate curve instance for every layer"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﻝﺎﺜﻣ ﻢﺧ ﮦﺪﺤﯿﻠﻋ ﮯﯿﻟ ﮯﮐ ﺕﺮﭘ ﺮﮨ"
 
 
+msgid "Revert"
+msgstr "ﺎﻨﭨﻮﻟ ﺲﭘﺍﻭ"
+
+
 msgid "Values larger than the threshold are inside the generated mesh"
 msgstr "ﮟﯿﮨ ﺭﺪﻧﺍ ﮯﮐ ﻝﺎﺟ ﮦﺩﺮﮐ ﺭﺎﯿﺗ ﮟﯾﺭﺪﻗ ﯼﮍﺑ ﮯﺳ ﺪﺣ"
 
@@ -134292,10 +134244,6 @@ msgstr "ﮟﯿﮨ (ﮟﯾﺮﯾﻭﺎﺼﺗ) ﺮﯾﻮﺼﺗ ﯽﻧﻭﺮﯿﺑ 
 
 msgid "Revert to the Saved File"
 msgstr "ﮟﯿﺋﺎﺟ ﺲﭘﺍﻭ ﺮﭘ ﻞﺋﺎﻓ ﮦﺪﺷ ﻅﻮﻔﺤﻣ"
-
-
-msgid "Revert"
-msgstr "ﺎﻨﭨﻮﻟ ﺲﭘﺍﻭ"
 
 
 msgid "Clear Recent Files List"

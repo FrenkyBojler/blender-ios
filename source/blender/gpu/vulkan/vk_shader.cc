@@ -493,14 +493,13 @@ VKShader::VKShader(const char *name) : Shader(name)
   context_ = VKContext::get();
 }
 
-void VKShader::init(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
+void VKShader::init(const shader::ShaderCreateInfo &info, bool /*is_batch_compilation*/)
 {
   VKShaderInterface *vk_interface = new VKShaderInterface();
   vk_interface->init(info);
   interface = vk_interface;
   is_static_shader_ = info.do_static_compilation_;
   is_compute_shader_ = !info.compute_source_.is_empty() || !info.compute_source_generated.empty();
-  use_batch_compilation_ = is_batch_compilation;
 }
 
 VKShader::~VKShader()
@@ -545,28 +544,30 @@ void VKShader::build_shader_module(MutableSpan<StringRefNull> sources,
 
   sources[SOURCES_INDEX_VERSION] = source_patch;
   r_shader_module.combined_sources = combine_sources(sources);
-  if (!use_batch_compilation_) {
-    VKShaderCompiler::compile_module(*this, stage, r_shader_module);
-    r_shader_module.is_ready = true;
-  }
+  VKShaderCompiler::compile_module(*this, stage, r_shader_module);
+  r_shader_module.is_ready = true;
 }
 
-void VKShader::vertex_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::vertex_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                       MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_vertex_shader, vertex_module);
 }
 
-void VKShader::geometry_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::geometry_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                         MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_geometry_shader, geometry_module);
 }
 
-void VKShader::fragment_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::fragment_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                         MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_fragment_shader, fragment_module);
 }
 
-void VKShader::compute_shader_from_glsl(MutableSpan<StringRefNull> sources)
+void VKShader::compute_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
+                                        MutableSpan<StringRefNull> sources)
 {
   build_shader_module(sources, shaderc_compute_shader, compute_module);
 }
@@ -578,12 +579,6 @@ void VKShader::warm_cache(int /*limit*/)
 
 bool VKShader::finalize(const shader::ShaderCreateInfo *info)
 {
-  if (!use_batch_compilation_) {
-    compilation_finished = true;
-  }
-  if (compilation_failed) {
-    return false;
-  }
   /* Add-ons that still use old API will crash as the shader create info isn't available.
    * See #130555 */
   if (info == nullptr) {
@@ -595,7 +590,7 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
     Vector<StringRefNull> sources;
     sources.append("version");
     sources.append(source);
-    geometry_shader_from_glsl(sources);
+    geometry_shader_from_glsl(*info, sources);
   }
 
   const VKShaderInterface &vk_interface = interface_get();
@@ -608,9 +603,6 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
   }
 
   push_constants = VKPushConstants(&vk_interface.push_constants_layout_get());
-  if (use_batch_compilation_) {
-    return true;
-  }
   return finalize_post();
 }
 
@@ -658,11 +650,6 @@ bool VKShader::finalize_shader_module(VKShaderModule &shader_module, const char 
   shader_module.compilation_result = {};
   shader_module.spirv_binary.clear();
   return compilation_succeeded;
-}
-
-bool VKShader::is_ready() const
-{
-  return compilation_finished;
 }
 
 bool VKShader::finalize_pipeline_layout(VKDevice &device,
@@ -1282,9 +1269,8 @@ VkPipeline VKShader::ensure_and_get_compute_pipeline(
   VKDevice &device = VKBackend::get().device;
   /* Store result in local variable to ensure thread safety. */
   VkPipeline vk_pipeline = device.pipelines.get_or_create_compute_pipeline(
-      compute_info, is_static_shader_, vk_pipeline_base_);
+      compute_info, is_static_shader_, vk_pipeline_base_, name_get());
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
-    debug::object_label(vk_pipeline, name_get());
     vk_pipeline_base_ = vk_pipeline;
   }
   return vk_pipeline;
@@ -1318,10 +1304,7 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   graphics_info.fragment_shader.vk_fragment_module = fragment_module.vk_shader_module;
   graphics_info.state = state_manager.state;
   graphics_info.mutable_state = state_manager.mutable_state;
-  graphics_info.fragment_shader.viewports.clear();
-  framebuffer.vk_viewports_append(graphics_info.fragment_shader.viewports);
-  graphics_info.fragment_shader.scissors.clear();
-  framebuffer.vk_render_areas_append(graphics_info.fragment_shader.scissors);
+  graphics_info.fragment_shader.viewport_count = framebuffer.viewport_size();
 
   graphics_info.fragment_out.depth_attachment_format = framebuffer.depth_attachment_format_get();
   graphics_info.fragment_out.stencil_attachment_format =
@@ -1333,9 +1316,8 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   VKDevice &device = VKBackend::get().device;
   /* Store result in local variable to ensure thread safety. */
   VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
-      graphics_info, is_static_shader_, vk_pipeline_base_);
+      graphics_info, is_static_shader_, vk_pipeline_base_, name_get());
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
-    debug::object_label(vk_pipeline, name_get());
     vk_pipeline_base_ = vk_pipeline;
   }
   return vk_pipeline;

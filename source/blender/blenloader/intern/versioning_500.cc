@@ -2517,11 +2517,9 @@ static void sequencer_substitute_transform_effects(Scene *scene)
       transform->scale_x *= tv->ScalexIni;
       transform->scale_y *= tv->ScaleyIni;
       transform->rotation += tv->rotIni;
-      blender::seq::EffectHandle sh = blender::seq::strip_effect_handle_get(strip);
-      sh.free(strip, true);
+      blender::seq::effect_free(strip);
       strip->type = STRIP_TYPE_GAUSSIAN_BLUR;
-      sh = blender::seq::strip_effect_handle_get(strip);
-      sh.init(strip);
+      blender::seq::effect_ensure_initialized(strip);
       GaussianBlurVars *gv = static_cast<GaussianBlurVars *>(strip->effectdata);
       gv->size_x = gv->size_y = 0.0f;
       blender::seq::edit_strip_name_set(scene, strip, "Transform Placeholder (Migrated)");
@@ -3059,16 +3057,21 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          if (ELEM(sl->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA, SPACE_SEQ)) {
-            ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                   &sl->regionbase;
-            ARegion *new_footer = do_versions_add_region_if_not_found(
-                regionbase, RGN_TYPE_FOOTER, "footer for animation editors", RGN_TYPE_HEADER);
-            if (new_footer != nullptr) {
-              new_footer->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
-                                                                        RGN_ALIGN_BOTTOM;
-              new_footer->flag |= RGN_FLAG_HIDDEN;
-            }
+          if (!ELEM(sl->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA, SPACE_SEQ)) {
+            continue;
+          }
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+          ARegion *new_footer = do_versions_add_region_if_not_found(
+              regionbase, RGN_TYPE_FOOTER, "footer for animation editors", RGN_TYPE_HEADER);
+          if (new_footer == nullptr) {
+            continue;
+          }
+
+          new_footer->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP :
+                                                                    RGN_ALIGN_BOTTOM;
+          if (ELEM(sl->spacetype, SPACE_GRAPH, SPACE_NLA)) {
+            new_footer->flag |= RGN_FLAG_HIDDEN;
           }
         }
       }
@@ -4075,6 +4078,62 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
+    /* Clear mute flag on node types that set ntype->no_muting = true. */
+    static const Set<std::string> no_muting_nodes = {"CompositorNodeViewer",
+                                                     "NodeClosureInput",
+                                                     "NodeClosureOutput",
+                                                     "GeometryNodeForeachGeometryElementInput",
+                                                     "GeometryNodeForeachGeometryElementOutput",
+                                                     "GeometryNodeRepeatInput",
+                                                     "GeometryNodeRepeatOutput",
+                                                     "GeometryNodeSimulationInput",
+                                                     "GeometryNodeSimulationOutput",
+                                                     "GeometryNodeViewer",
+                                                     "NodeGroupInput",
+                                                     "NodeGroupOutput",
+                                                     "ShaderNodeOutputAOV",
+                                                     "ShaderNodeOutputLight",
+                                                     "ShaderNodeOutputLineStyle",
+                                                     "ShaderNodeOutputMaterial",
+                                                     "ShaderNodeOutputWorld",
+                                                     "TextureNodeOutput",
+                                                     "TextureNodeViewer"};
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (no_muting_nodes.contains(node->idname)) {
+          node->flag &= ~NODE_MUTED;
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 114)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (!scene->ed) {
+        continue;
+      }
+      blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) {
+        LISTBASE_FOREACH (StripModifierData *, md, &strip->modifiers) {
+          md->ui_expand_flag = md->layout_panel_open_flag & UI_PANEL_DATA_EXPAND_ROOT;
+        }
+        return true;
+      });
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 115)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (ELEM(GS(id->name), ID_MA, ID_LA, ID_WO, ID_TE, ID_SCE, ID_LS)) {
+        /* These node trees should not have interface sockets. However, in some files they were
+         * added through the Python API. Remove these interface sockets here before they cause
+         * problems further down the line. */
+        version_node_tree_clear_interface(*node_tree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
