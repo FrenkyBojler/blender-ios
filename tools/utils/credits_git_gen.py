@@ -22,6 +22,7 @@ __all__ = (
 # Improvements to this script may apply there too.
 
 import argparse
+import html
 import io
 import multiprocessing
 import os
@@ -328,27 +329,38 @@ def argparse_create() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_organizations(authors_file: str):
+def parse_organizations(authors_file: str) -> tuple[str, ...]:
     """Parse the organizations section from the AUTHORS file."""
     orgs = []
     in_section = False
+    found_end = False
 
-    with open(authors_file, "r", encoding="utf-8") as f:
-        for line in f:
+    with open(authors_file, "r", encoding="utf-8") as fh:
+        for line in fh:
             line = line.strip()
             if line.startswith("# BEGIN organizations section"):
                 in_section = True
                 continue
             elif line.startswith("# END organizations section"):
+                found_end = True
                 break
 
             if in_section and line and not line.startswith("#"):
                 # Extract organization name before '<'
                 org_name = line.split("<")[0].strip()
+                org_name_escaped = html.escape(org_name)
                 # Expected result: "<b>Blender Foundation</b>"
-                orgs.append(f"<b>{org_name}</b>")
+                orgs.append("<b>{:s}</b>".format(org_name_escaped))
 
-    return sorted(set(orgs))
+    if not in_section:
+        print("Error: Could not find \"BEGIN organizations section\" on AUTHORS file: {:s}".format(authors_file))
+        sys.exit(-1)
+    elif not found_end:
+        print("Error:Could not find \"END organizations section\" on AUTHORS file: {:s}".format(authors_file))
+        sys.exit(-1)
+
+    sorted_unique_organizations = tuple(sorted(set(orgs)))
+    return sorted_unique_organizations
 
 
 def main() -> None:
