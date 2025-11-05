@@ -155,20 +155,18 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
   }
 
   Span<FCurve *> fcurves = channelbag_for_slot->fcurves();
-  Vector<float> results;
-  results.resize(fcurves.size());
+  Vector<float> results(fcurves.size());
 
   threading::parallel_for(fcurves.index_range(), 512, [&](const IndexRange range) {
     for (const int i : range) {
       /* Blatant copy of animsys_evaluate_fcurves(). */
       FCurve *fcu = fcurves[i];
       if (!is_fcurve_evaluatable(fcu)) {
-        return;
+        continue;
       }
       BLI_assert(fcu->driver == nullptr);
       /* Not using calculate_fcurve because FCurves of channelbags are not drivers. */
       results[i] = evaluate_fcurve(fcu, offset_eval_context.eval_time);
-      ;
     }
   });
 
@@ -177,6 +175,9 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
     /* This part is not threadsafe. */
     PathResolvedRNA anim_rna;
     FCurve *fcu = fcurves[i];
+    if (!is_fcurve_evaluatable(fcu)) {
+      continue;
+    }
     if (!BKE_animsys_rna_path_resolve(
             &animated_id_ptr, fcu->rna_path, fcu->array_index, &anim_rna))
     {
