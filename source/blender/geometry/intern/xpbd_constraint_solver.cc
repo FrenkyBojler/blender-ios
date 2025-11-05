@@ -137,21 +137,43 @@ void CurveLocalConstraintSets::solve_step(SolveStrategy &strategy,
 Vector<ConstraintSet *> ConstraintSetCollector::combine(
     ResourceScope &scope, const Span<const ConstraintSetCollector *> collectors)
 {
+  /* Curve-local constraint sequences are combined as long as there are not general constraints
+   * inbetween. The order of constraints for a given geometry must not be changed. */
+
   Vector<ConstraintSet *> result;
-  MultiValueMap<int, CurveLocalConstraintSet *> curve_local_constraint_sets_by_geometry;
+  Map<int, Vector<CurveLocalConstraintSet *>> curve_local_constraint_sets_by_geometry;
   for (const ConstraintSetCollector *collector : collectors) {
+    /* Finish sequences for all curve-local constraints before adding general constraints. */
+    for (const ConstraintSet *general_constraint_set : collector->general) {
+      for (const int geo_i : general_constraint_set->get_affected_geo_indices()) {
+        const std::optional<Vector<CurveLocalConstraintSet *>> curve_local_constraint_sequence =
+            curve_local_constraint_sets_by_geometry.pop_try(geo_i);
+        if (curve_local_constraint_sequence) {
+          auto &combined_set = scope.construct<CurveLocalConstraintSets>(
+              geo_i, std::move(*curve_local_constraint_sequence));
+          result.append(&combined_set);
+        }
+      }
+    }
     result.extend(collector->general);
+
+    /* Add curve-local constraints to the sequence map to be combined with curve-local constraints
+     * for the same geometry. */
     for (CurveLocalConstraintSet *curve_local_constraint_set : collector->curve_local) {
       const int geo_i = curve_local_constraint_set->affected_geo_i();
-      curve_local_constraint_sets_by_geometry.add(geo_i, curve_local_constraint_set);
+      Vector<CurveLocalConstraintSet *> &curve_local_constraint_sequence =
+          curve_local_constraint_sets_by_geometry.lookup_or_add(geo_i, {});
+      curve_local_constraint_sequence.append(curve_local_constraint_set);
     }
   }
-  for (const auto item : curve_local_constraint_sets_by_geometry.items()) {
-    const int geo_i = item.key;
-    const Span<CurveLocalConstraintSet *> local_constraint_sets = item.value;
-    auto &combined_set = scope.construct<CurveLocalConstraintSets>(geo_i, local_constraint_sets);
+
+  /* Finish remaining curve-local sequences. */
+  for (const auto &item : curve_local_constraint_sets_by_geometry.items()) {
+    auto &combined_set = scope.construct<CurveLocalConstraintSets>(item.key,
+                                                                   std::move(item.value));
     result.append(&combined_set);
   }
+
   return result;
 }
 
