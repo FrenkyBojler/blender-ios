@@ -31,6 +31,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -523,6 +524,7 @@ static void *seq_prefetch_frames(void *job)
     pfjob->scene_eval->ed->prefetch_job = nullptr;
 
     seq_prefetch_update_depsgraph(pfjob);
+    BKE_scene_frame_set(pfjob->scene_eval, seq_prefetch_cfra(pfjob));
     AnimData *adt = BKE_animdata_from_id(&pfjob->context_cpy.scene->id);
     AnimationEvalContext anim_eval_context = seq_prefetch_anim_eval_context(pfjob);
     BKE_animsys_evaluate_animdata(
