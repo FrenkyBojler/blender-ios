@@ -326,7 +326,7 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
       BKE_reportf(this->reports(), RPT_WARNING, message, prim_path.c_str());
       CLOG_WARN(&LOG, message, prim_path.c_str());
     }
-    BKE_mesh_validate(mesh, false, false);
+    bke::mesh_validate(*mesh, false);
   }
 
   bke::mesh_calc_edges(*mesh, false, false);
@@ -980,7 +980,7 @@ Mesh *USDMeshReader::read_mesh(Mesh *existing_mesh,
   }
 
   if (import_params_.validate_meshes) {
-    if (BKE_mesh_validate(active_mesh, false, false)) {
+    if (bke::mesh_validate(*active_mesh, false)) {
       BKE_reportf(reports(), RPT_INFO, "Fixed mesh for prim: %s", mesh_prim_.GetPath().GetText());
     }
   }
