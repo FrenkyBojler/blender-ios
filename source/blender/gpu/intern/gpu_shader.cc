@@ -671,8 +671,7 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 /** \name ShaderCompiler
  * \{ */
 
-Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
-                                bool is_batch_compilation)
+Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool is_codegen_only)
 {
   using Clock = std::chrono::steady_clock;
   using TimePoint = Clock::time_point;
@@ -705,7 +704,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
   /* Needs to be called before init as GL uses the default specialization constants state to insert
    * default shader inside a map. */
   shader->specialization_constants_init(info);
-  shader->init(info, is_batch_compilation);
+  shader->init(info, is_codegen_only);
 
   shader->fragment_output_bits = 0;
   for (const shader::ShaderCreateInfo::FragOut &frag_out : info.fragment_outputs_) {

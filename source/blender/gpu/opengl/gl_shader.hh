@@ -100,8 +100,8 @@ class GLShader : public Shader {
   GLProgram *main_program_ = nullptr;
 
   /* When true, the shader generates its GLSources but it's not compiled.
-   * (Used for batch compilation) */
-  bool async_compilation_ = false;
+   * (Used for subprocess compilation) */
+  bool is_codegen_only_ = false;
 
   /**
    * When the shader uses Specialization Constants these attribute contains the sources to
@@ -132,7 +132,7 @@ class GLShader : public Shader {
   GLShader(const char *name);
   ~GLShader();
 
-  void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) override;
+  void init(const shader::ShaderCreateInfo &info, bool is_codegen_only) override;
 
   const shader::ShaderCreateInfo &patch_create_info(
       const shader::ShaderCreateInfo &original_info) override

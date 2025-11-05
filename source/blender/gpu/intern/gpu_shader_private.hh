@@ -80,8 +80,7 @@ class Shader {
   Shader(const char *name);
   virtual ~Shader();
 
-  /* TODO: Remove `is_batch_compilation`. */
-  virtual void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) = 0;
+  virtual void init(const shader::ShaderCreateInfo &info, bool is_codegen_only) = 0;
 
   /* Patch create infos for any additional resources that could be needed. */
   virtual const shader::ShaderCreateInfo &patch_create_info(
@@ -208,7 +207,7 @@ class ShaderCompiler {
                  bool support_specializations = false);
   virtual ~ShaderCompiler();
 
-  Shader *compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation);
+  Shader *compile(const shader::ShaderCreateInfo &info, bool is_codegen_only);
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);
   virtual void specialize_shader(const ShaderSpecialization & /*specialization*/) {};

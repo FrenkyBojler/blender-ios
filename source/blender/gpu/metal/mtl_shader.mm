@@ -142,11 +142,6 @@ MTLShader::~MTLShader()
   valid_ = false;
 }
 
-void MTLShader::init(const shader::ShaderCreateInfo & /*info*/, bool is_batch_compilation)
-{
-  async_compilation_ = is_batch_compilation;
-}
-
 const shader::ShaderCreateInfo &MTLShader::patch_create_info(
     const shader::ShaderCreateInfo &original_info)
 {
