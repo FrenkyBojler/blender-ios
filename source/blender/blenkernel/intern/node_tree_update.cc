@@ -733,7 +733,6 @@ class NodeTreeMainUpdater {
   {
     bke::node_tree_runtime::AllowUsingOutdatedInfo allow_outdated_info{ntree};
     ntree.ensure_topology_cache();
-    Vector<bNode *> updated_nodes;
     for (bNode *node : ntree.all_nodes()) {
       if (!this->should_update_individual_node(ntree, *node)) {
         continue;
@@ -766,8 +765,7 @@ class NodeTreeMainUpdater {
 
       /* Rebuilt internal links if they have changed. */
       if (node->runtime->internal_links.size() != expected_internal_links.size()) {
-        this->update_internal_links_in_node(*node, expected_internal_links);
-        updated_nodes.append(node);
+        this->update_internal_links_in_node(ntree, *node, expected_internal_links);
         continue;
       }
 
@@ -783,13 +781,7 @@ class NodeTreeMainUpdater {
         continue;
       }
 
-      this->update_internal_links_in_node(*node, expected_internal_links);
-      updated_nodes.append(node);
-    }
-
-    /* Tag updated nodes in the end to avoid invalidating the topology cache in the loop above.*/
-    for (bNode *node : updated_nodes) {
-      BKE_ntree_update_tag_node_internal_link(&ntree, node);
+      this->update_internal_links_in_node(ntree, *node, expected_internal_links);
     }
   }
 
@@ -829,7 +821,9 @@ class NodeTreeMainUpdater {
     return selected_socket;
   }
 
-  void update_internal_links_in_node(bNode &node, Span<InternalLink> internal_links)
+  void update_internal_links_in_node(bNodeTree &ntree,
+                                     bNode &node,
+                                     Span<InternalLink> internal_links)
   {
     node.runtime->internal_links.clear();
     node.runtime->internal_links.reserve(internal_links.size());
@@ -843,6 +837,7 @@ class NodeTreeMainUpdater {
       link.flag |= NODE_LINK_VALID;
       node.runtime->internal_links.append(link);
     }
+    BKE_ntree_update_tag_node_internal_link(&ntree, &node);
   }
 
   void update_generic_callback(bNodeTree &ntree)
