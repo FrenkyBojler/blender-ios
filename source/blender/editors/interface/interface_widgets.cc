@@ -2071,9 +2071,9 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data = ui_but_ime_data_get(but);
 #endif
-  const rcti srcr_rect = *rect;
+  const rcti src_rect = *rect;
   const int text_padding = but_text_padding(but);
-  rect->xmax -= text_padding;
+  rect->xmax = std::max(rect->xmin, rect->xmax - text_padding);
   BLI_assert(but->type == ButType::TextBox);
 
   uiButTextBox *textbox_but = static_cast<uiButTextBox *>(but);
@@ -2301,21 +2301,12 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 #endif
   }
 
-  int font_xofs, font_yofs;
-
   uiFontStyleDraw_Params params{};
   params.align = align;
   rect->ymin = rect->ymax - line_height;
   for (blender::StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
-    UI_fontstyle_draw_ex(fstyle,
-                         rect,
-                         line.begin(),
-                         line.size(),
-                         wcol->text,
-                         &params,
-                         &font_xofs,
-                         &font_yofs,
-                         nullptr);
+    UI_fontstyle_draw_ex(
+        fstyle, rect, line.begin(), line.size(), wcol->text, &params, nullptr, nullptr, nullptr);
     BLI_rcti_translate(rect, 0, -line_height);
   }
   if (lines.size() <= visible_lines) {
@@ -2323,7 +2314,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   }
   bTheme *btheme = UI_GetTheme();
 
-  rcti scroll_rect = srcr_rect;
+  rcti scroll_rect = src_rect;
   BLI_rcti_pad(&scroll_rect, -2.0f / but->block->aspect, -2.0f / but->block->aspect);
   scroll_rect.xmin = scroll_rect.xmax - text_padding;
   scroll_rect.ymin += UI_UNIT_Y * 0.65f / but->block->aspect;
