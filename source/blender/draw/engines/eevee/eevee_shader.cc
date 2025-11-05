@@ -65,9 +65,9 @@ ShaderModule::~ShaderModule()
 
   /* Specializations first, to avoid releasing the base shader while the specialization compilation
    * is still in flight. */
-  for (SpecializationBatchHandle &handle : specialization_handles_.values()) {
+  for (AsyncSpecializationHandle &handle : specialization_handles_.values()) {
     if (handle) {
-      GPU_shader_batch_specializations_cancel(handle);
+      GPU_shader_async_specialization_cancel(handle);
     }
   }
 }
@@ -276,7 +276,7 @@ bool ShaderModule::request_specializations(bool block_until_ready,
 {
   std::lock_guard lock(mutex_);
 
-  SpecializationBatchHandle &specialization_handle = specialization_handles_.lookup_or_add_cb(
+  AsyncSpecializationHandle &specialization_handle = specialization_handles_.lookup_or_add_cb(
       {render_buffers_shadow_id,
        shadow_ray_count,
        shadow_ray_step_count,
@@ -307,12 +307,11 @@ bool ShaderModule::request_specializations(bool block_until_ready,
           }
         }
 
-        return GPU_shader_batch_specializations(specializations);
+        return GPU_shader_async_specialization(specializations);
       });
 
   if (specialization_handle) {
-    while (!GPU_shader_batch_specializations_is_ready(specialization_handle) && block_until_ready)
-    {
+    while (!GPU_shader_async_specialization_is_ready(specialization_handle) && block_until_ready) {
       /* Block until ready. */
     }
   }

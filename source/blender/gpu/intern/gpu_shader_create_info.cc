@@ -647,8 +647,8 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
     }
   }
 
-  BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
-  Vector<blender::gpu::Shader *> result = GPU_shader_batch_finalize(batch);
+  AsyncCompilationHandle batch = GPU_shader_async_compilation(infos);
+  Vector<blender::gpu::Shader *> result = GPU_shader_async_compilation_finalize(batch);
 
   for (int i : result.index_range()) {
     if (result[i]) {
